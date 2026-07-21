@@ -1,0 +1,37 @@
+import { RequestHandler } from "express";
+import * as authService from "./auth.service";
+
+export const registerHandler: RequestHandler = async (req, res) => {
+  const result = await authService.register(req.body);
+  res.status(201).json(result);
+};
+
+export const loginHandler: RequestHandler = async (req, res) => {
+  const result = await authService.login(req.body);
+  res.json(result);
+};
+
+export const refreshHandler: RequestHandler = async (req, res) => {
+  const result = await authService.refresh(req.body.refreshToken);
+  res.json(result);
+};
+
+export const logoutHandler: RequestHandler = async (req, res) => {
+  await authService.logout(req.body.refreshToken);
+  res.status(204).send();
+};
+
+export const inviteHandler: RequestHandler = async (req, res) => {
+  const result = await authService.invite(req.auth!.tenantId, req.body);
+  res.status(201).json(result);
+};
+
+export const acceptInviteHandler: RequestHandler = async (req, res) => {
+  const result = await authService.acceptInvite(req.body);
+  res.json(result);
+};
+
+export const changeUnlockPinHandler: RequestHandler = async (req, res) => {
+  await authService.changeUnlockPin(req.auth!.tenantId, req.body.currentPin, req.body.newPin);
+  res.status(204).send();
+};

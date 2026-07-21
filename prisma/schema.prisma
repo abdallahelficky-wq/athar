@@ -1,0 +1,883 @@
+// ============================================================================
+// مخطط قاعدة البيانات — نظام أثر المحاسبي
+// المرحلة صفر: كل الجداول موثّقة هنا وفق القسم 4 من ATHAR_BACKEND_SPEC.md
+// (لتكون الأساس الجاهز لكل المراحل القادمة)، لكن الـ API المبني فعلياً في
+// هذه المرحلة يغطي فقط: المصادقة، الشركات، شجرة الحسابات، مراكز التكلفة،
+// القيود اليومية، والتقارير المالية الثلاثة.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// 4.1 المستأجرون والمستخدمون
+// ---------------------------------------------------------------------------
+
+enum SubscriptionPlan {
+  basic
+  professional
+  enterprise
+}
+
+enum SubscriptionStatus {
+  trialing
+  active
+  past_due
+  canceled
+}
+
+model Tenant {
+  id                 String             @id @default(cuid())
+  name               String
+  subscriptionPlan   SubscriptionPlan   @default(basic)
+  subscriptionStatus SubscriptionStatus @default(trialing)
+  trialEndsAt        DateTime?
+  unlockPin          String             // قيمة مُشفّرة بـ bcrypt دائماً (انظر hashPassword في auth.service.ts)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  users             User[]
+  companies         Company[]
+  costCenters       CostCenter[]
+  accounts          Account[]
+  companyDocuments  CompanyDocument[]
+  journalEntries    JournalEntry[]
+  auditLogs         AuditLog[]
+
+  customers         Customer[]
+  quotations        Quotation[]
+  salesInvoices     SalesInvoice[]
+  salesReturns      SalesReturn[]
+  receipts          Receipt[]
+
+  suppliers         Supplier[]
+  purchaseInvoices  PurchaseInvoice[]
+  purchaseReturns   PurchaseReturn[]
+
+  items             Item[]
+  stockMovements    StockMovement[]
+
+  fixedAssets       FixedAsset[]
+  depreciationRuns  DepreciationRun[]
+
+  employees         Employee[]
+  leaveSettlements  LeaveSettlement[]
+  hrActions         HrAction[]
+  payrollRuns       PayrollRun[]
+
+  @@map("tenants")
+}
+
+enum UserRole {
+  admin // مدير النظام
+  finance_manager // مدير مالي
+  accountant // محاسب
+  hr_manager // مسؤول موارد بشرية
+  viewer // مشاهدة فقط
+}
+
+enum InviteStatus {
+  pending
+  accepted
+}
+
+model User {
+  id            String       @id @default(cuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name          String
+  email         String       @unique
+  passwordHash  String?
+  role          UserRole     @default(accountant)
+  companyScope  String       @default("all") // "all" أو معرّف شركة محددة ضمن المستأجر
+  active        Boolean      @default(true)
+  inviteStatus  InviteStatus @default(accepted)
+  inviteToken   String?      @unique
+  inviteExpiresAt DateTime?
+  lastLoginAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// سجل تدقيق فك الترحيل وأي أحداث حساسة أخرى — غير موجود في البروتوتايب، مطلوب في القسم 4.9
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String   // مثال: "journal_entry.unpost"
+  entityType  String   // مثال: "JournalEntry"
+  entityId    String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// 4.2 الشركات والإعدادات
+// ---------------------------------------------------------------------------
+
+model Company {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name           String
+  shortName      String?
+  logoUrl        String?
+  brandColor     String?
+  vatNumber      String?
+  crNumber       String?
+  nationalAddress String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  costCenters      CostCenter[]
+  companyDocuments CompanyDocument[]
+  journalEntries   JournalEntry[]
+  customers        Customer[]
+  quotations       Quotation[]
+  salesInvoices    SalesInvoice[]
+  salesReturns     SalesReturn[]
+  receipts         Receipt[]
+  suppliers        Supplier[]
+  purchaseInvoices PurchaseInvoice[]
+  purchaseReturns  PurchaseReturn[]
+  items            Item[]
+  stockMovements   StockMovement[]
+  fixedAssets      FixedAsset[]
+  depreciationRuns DepreciationRun[]
+  employees        Employee[]
+  payrollRuns      PayrollRun[]
+
+  @@unique([tenantId, name])
+  @@map("companies")
+}
+
+// مركز تكلفة/موقع/فرع/مخزن — قد يكون عاماً (companyId فارغ) أو خاصاً بشركة معينة
+model CostCenter {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  journalEntryLines JournalEntryLine[]
+  stockMovements    StockMovement[]
+
+  @@map("cost_centers")
+}
+
+enum AccountType {
+  asset
+  liability
+  equity
+  revenue
+  expense
+}
+
+// شجرة الحسابات
+model Account {
+  id        String      @id @default(cuid())
+  tenantId  String
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  type      AccountType
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  journalEntryLines JournalEntryLine[]
+
+  @@unique([tenantId, name])
+  @@map("accounts")
+}
+
+// مستندات رسمية للشركة: سجل تجاري، دفاع مدني... إلخ
+model CompanyDocument {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  docType    String
+  number     String?
+  locationId String?
+  expiryDate DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@map("company_documents")
+}
+
+// ---------------------------------------------------------------------------
+// 4.3 القيود اليومية — جوهر النظام (القيد المزدوج كمصدر حقيقة واحد)
+// ---------------------------------------------------------------------------
+
+enum JournalStatus {
+  draft
+  posted
+}
+
+enum SourceModule {
+  manual
+  sales_invoice
+  sales_return
+  receipt
+  purchase_invoice
+  purchase_return
+  payroll
+  depreciation
+  asset_disposal
+  leave_settlement
+  stock_movement
+}
+
+model JournalEntry {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  date          DateTime
+  memo          String?
+  status        JournalStatus @default(posted)
+  sourceModule  SourceModule  @default(manual)
+  sourceId      String?
+  createdBy     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  lines JournalEntryLine[]
+
+  @@index([tenantId, companyId, date])
+  @@index([tenantId, sourceModule, sourceId])
+  @@map("journal_entries")
+}
+
+model JournalEntryLine {
+  id             String       @id @default(cuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+  costCenterId   String?
+  costCenter     CostCenter?  @relation(fields: [costCenterId], references: [id])
+  department     String?
+  debit          Decimal      @default(0) @db.Decimal(18, 2)
+  credit         Decimal      @default(0) @db.Decimal(18, 2)
+  customerId     String?
+  customer       Customer?    @relation(fields: [customerId], references: [id])
+  supplierId     String?
+  supplier       Supplier?    @relation(fields: [supplierId], references: [id])
+  employeeId     String?
+  employee       Employee?    @relation(fields: [employeeId], references: [id])
+
+  @@index([accountId])
+  @@index([customerId])
+  @@index([supplierId])
+  @@index([employeeId])
+  @@map("journal_entry_lines")
+}
+
+// ---------------------------------------------------------------------------
+// 4.4 المبيعات (نماذج البيانات موثّقة الآن؛ الـ API يُبنى في المرحلة الأولى)
+// ---------------------------------------------------------------------------
+
+enum CustomerType {
+  business
+  individual
+}
+
+model Customer {
+  id            String       @id @default(cuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  customerType  CustomerType @default(business)
+  vatNumber     String?
+  crNumber      String?
+  nationalId    String?
+  phone         String?
+  email         String?
+  buildingNo    String?
+  street        String?
+  district      String?
+  city          String?
+  postalCode    String?
+  additionalNo  String?
+  paymentTerms  String?
+  creditLimit   Decimal?     @db.Decimal(18, 2)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  quotations       Quotation[]
+  salesInvoices     SalesInvoice[]
+  salesReturns      SalesReturn[]
+  receipts          Receipt[]
+  journalEntryLines JournalEntryLine[]
+
+  @@map("customers")
+}
+
+enum QuotationStatus {
+  draft
+  converted
+}
+
+model Quotation {
+  id                 String          @id @default(cuid())
+  tenantId           String
+  tenant             Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  quoteNumber        String
+  companyId          String
+  company             Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId         String
+  customer           Customer        @relation(fields: [customerId], references: [id])
+  date               DateTime
+  validUntil          DateTime?
+  status             QuotationStatus @default(draft)
+  convertedInvoiceId String?
+  lines              Json
+  subtotal           Decimal         @db.Decimal(18, 2)
+  vatTotal           Decimal         @db.Decimal(18, 2)
+  grandTotal         Decimal         @db.Decimal(18, 2)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@unique([tenantId, quoteNumber])
+  @@map("quotations")
+}
+
+enum InvoiceType {
+  standard
+  simplified
+}
+
+enum InvoiceStatus {
+  draft
+  posted
+}
+
+model SalesInvoice {
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoiceNumber String
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  date          DateTime
+  invoiceType   InvoiceType
+  status        InvoiceStatus @default(posted)
+  journalEntryId String?
+  qrPayload     String?
+  subtotal      Decimal       @db.Decimal(18, 2)
+  vatTotal      Decimal       @db.Decimal(18, 2)
+  grandTotal    Decimal       @db.Decimal(18, 2)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  lines              SalesInvoiceLine[]
+  receiptAllocations ReceiptAllocation[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@map("sales_invoices")
+}
+
+model SalesInvoiceLine {
+  id              String       @id @default(cuid())
+  invoiceId       String
+  invoice         SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  account         String
+  description     String?
+  quantity        Decimal      @db.Decimal(18, 4)
+  unitPrice       Decimal      @db.Decimal(18, 4)
+  discountPct     Decimal      @default(0) @db.Decimal(5, 2)
+  priceIncludesVat Boolean     @default(false)
+  subtotal        Decimal      @db.Decimal(18, 2)
+  vat             Decimal      @db.Decimal(18, 2)
+  total           Decimal      @db.Decimal(18, 2)
+
+  @@map("sales_invoice_lines")
+}
+
+model SalesReturn {
+  id               String        @id @default(cuid())
+  tenantId         String
+  tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  returnNumber     String
+  companyId        String
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId       String
+  customer         Customer      @relation(fields: [customerId], references: [id])
+  relatedInvoiceId String?
+  reason           String?
+  refundMethod     String?
+  date             DateTime
+  status           InvoiceStatus @default(posted)
+  journalEntryId   String?
+  subtotal         Decimal       @db.Decimal(18, 2)
+  vatTotal         Decimal       @db.Decimal(18, 2)
+  grandTotal       Decimal       @db.Decimal(18, 2)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  lines SalesReturnLine[]
+
+  @@unique([tenantId, returnNumber])
+  @@map("sales_returns")
+}
+
+model SalesReturnLine {
+  id              String      @id @default(cuid())
+  returnId        String
+  salesReturn     SalesReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  account         String
+  description     String?
+  quantity        Decimal     @db.Decimal(18, 4)
+  unitPrice       Decimal     @db.Decimal(18, 4)
+  discountPct     Decimal     @default(0) @db.Decimal(5, 2)
+  priceIncludesVat Boolean    @default(false)
+  subtotal        Decimal     @db.Decimal(18, 2)
+  vat             Decimal     @db.Decimal(18, 2)
+  total           Decimal     @db.Decimal(18, 2)
+
+  @@map("sales_return_lines")
+}
+
+enum ReceiptMethod {
+  cash
+  bank
+}
+
+model Receipt {
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  receiptNumber  String
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId     String
+  customer       Customer      @relation(fields: [customerId], references: [id])
+  date           DateTime
+  method         ReceiptMethod
+  totalAmount    Decimal       @db.Decimal(18, 2)
+  status         InvoiceStatus @default(posted)
+  journalEntryId String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  allocations ReceiptAllocation[]
+
+  @@unique([tenantId, receiptNumber])
+  @@map("receipts")
+}
+
+model ReceiptAllocation {
+  id        String       @id @default(cuid())
+  receiptId String
+  receipt   Receipt      @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  invoiceId String
+  invoice   SalesInvoice @relation(fields: [invoiceId], references: [id])
+  amount    Decimal      @db.Decimal(18, 2)
+
+  @@map("receipt_allocations")
+}
+
+// ---------------------------------------------------------------------------
+// 4.5 المشتريات (نفس بنية المبيعات، بدون QR وبدون تصنيف قياسية/مبسّطة)
+// ---------------------------------------------------------------------------
+
+model Supplier {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  vatNumber    String?
+  crNumber     String?
+  phone        String?
+  email        String?
+  city         String?
+  paymentTerms String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  purchaseInvoices  PurchaseInvoice[]
+  purchaseReturns   PurchaseReturn[]
+  journalEntryLines JournalEntryLine[]
+
+  @@map("suppliers")
+}
+
+model PurchaseInvoice {
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoiceNumber  String
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplierId     String
+  supplier       Supplier      @relation(fields: [supplierId], references: [id])
+  date           DateTime
+  status         InvoiceStatus @default(posted)
+  journalEntryId String?
+  subtotal       Decimal       @db.Decimal(18, 2)
+  vatTotal       Decimal       @db.Decimal(18, 2)
+  grandTotal     Decimal       @db.Decimal(18, 2)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  lines PurchaseInvoiceLine[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@map("purchase_invoices")
+}
+
+model PurchaseInvoiceLine {
+  id              String          @id @default(cuid())
+  invoiceId       String
+  invoice         PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  account         String
+  description     String?
+  quantity        Decimal         @db.Decimal(18, 4)
+  unitPrice       Decimal         @db.Decimal(18, 4)
+  discountPct     Decimal         @default(0) @db.Decimal(5, 2)
+  priceIncludesVat Boolean        @default(false)
+  subtotal        Decimal         @db.Decimal(18, 2)
+  vat             Decimal         @db.Decimal(18, 2)
+  total           Decimal         @db.Decimal(18, 2)
+
+  @@map("purchase_invoice_lines")
+}
+
+model PurchaseReturn {
+  id               String        @id @default(cuid())
+  tenantId         String
+  tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  returnNumber     String
+  companyId        String
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplierId       String
+  supplier         Supplier      @relation(fields: [supplierId], references: [id])
+  relatedInvoiceId String?
+  reason           String?
+  date             DateTime
+  status           InvoiceStatus @default(posted)
+  journalEntryId   String?
+  subtotal         Decimal       @db.Decimal(18, 2)
+  vatTotal         Decimal       @db.Decimal(18, 2)
+  grandTotal       Decimal       @db.Decimal(18, 2)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  lines PurchaseReturnLine[]
+
+  @@unique([tenantId, returnNumber])
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnLine {
+  id              String         @id @default(cuid())
+  returnId        String
+  purchaseReturn  PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  account         String
+  description     String?
+  quantity        Decimal        @db.Decimal(18, 4)
+  unitPrice       Decimal        @db.Decimal(18, 4)
+  discountPct     Decimal        @default(0) @db.Decimal(5, 2)
+  priceIncludesVat Boolean       @default(false)
+  subtotal        Decimal        @db.Decimal(18, 2)
+  vat             Decimal        @db.Decimal(18, 2)
+  total           Decimal        @db.Decimal(18, 2)
+
+  @@map("purchase_return_lines")
+}
+
+// ---------------------------------------------------------------------------
+// 4.6 المخزون
+// ---------------------------------------------------------------------------
+
+model Item {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code         String
+  name         String
+  unit         String?
+  category     String?
+  costPrice    Decimal  @default(0) @db.Decimal(18, 4)
+  reorderLevel Decimal? @db.Decimal(18, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  stockMovements StockMovement[]
+
+  @@unique([tenantId, code])
+  @@map("items")
+}
+
+enum StockMovementType {
+  in
+  out
+  issue
+  transfer_out
+  transfer_in
+}
+
+model StockMovement {
+  id             String            @id @default(cuid())
+  tenantId       String
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  itemId         String
+  item           Item              @relation(fields: [itemId], references: [id])
+  warehouseId    String
+  warehouse      CostCenter        @relation(fields: [warehouseId], references: [id])
+  type           StockMovementType
+  quantity       Decimal           @db.Decimal(18, 4)
+  unitCost       Decimal           @db.Decimal(18, 4)
+  date           DateTime
+  note           String?
+  journalEntryId String?
+  createdAt      DateTime          @default(now())
+
+  @@map("stock_movements")
+}
+
+// ---------------------------------------------------------------------------
+// 4.7 الأصول الثابتة
+// ---------------------------------------------------------------------------
+
+enum FixedAssetStatus {
+  active
+  disposed
+}
+
+model FixedAsset {
+  id              String           @id @default(cuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name            String
+  category        String?
+  purchaseDate    DateTime
+  cost            Decimal          @db.Decimal(18, 2)
+  usefulLifeYears Int
+  salvageValue    Decimal          @default(0) @db.Decimal(18, 2)
+  status          FixedAssetStatus @default(active)
+  disposalDate    DateTime?
+  disposalValue   Decimal?         @db.Decimal(18, 2)
+  journalEntryId  String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("fixed_assets")
+}
+
+model DepreciationRun {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  month          String // YYYY-MM
+  totalAmount    Decimal  @db.Decimal(18, 2)
+  journalEntryId String?
+  createdAt      DateTime @default(now())
+
+  @@map("depreciation_runs")
+}
+
+// ---------------------------------------------------------------------------
+// 4.8 شئون الموظفين
+// ---------------------------------------------------------------------------
+
+enum ContractType {
+  unlimited
+  limited
+}
+
+enum LeaveStatus {
+  active
+  onLeave
+}
+
+enum EmployeeStatus {
+  active
+  terminated
+}
+
+model Employee {
+  id                  String         @id @default(cuid())
+  tenantId            String
+  tenant              Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId           String
+  company             Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                String
+  jobTitle            String?
+  department          String?
+  hireDate            DateTime
+  contractType        ContractType   @default(unlimited)
+  contractEnd         DateTime?
+  basicSalary         Decimal        @db.Decimal(18, 2)
+  housingAllowance    Decimal        @default(0) @db.Decimal(18, 2)
+  transportAllowance  Decimal        @default(0) @db.Decimal(18, 2)
+  otherAllowance      Decimal        @default(0) @db.Decimal(18, 2)
+  gosiApplicable      Boolean        @default(true)
+  gosiAmount          Decimal?       @db.Decimal(18, 2)
+  advances            Decimal        @default(0) @db.Decimal(18, 2)
+  otherDeductions     Decimal        @default(0) @db.Decimal(18, 2)
+  nationality         String?
+  dateOfBirth         DateTime?
+  bankName            String?
+  bankAccount         String?
+  leaveStatus         LeaveStatus    @default(active)
+  lastLeaveReturnDate DateTime?
+  status              EmployeeStatus @default(active)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  documents         EmployeeDocument[]
+  leaveRequests     LeaveRequest[]
+  leaveSettlements  LeaveSettlement[]
+  hrActions         HrAction[]
+  journalEntryLines JournalEntryLine[]
+
+  @@map("employees")
+}
+
+model EmployeeDocument {
+  id         String    @id @default(cuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String
+  number     String?
+  expiryDate DateTime?
+
+  @@map("employee_documents")
+}
+
+enum LeaveRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+model LeaveRequest {
+  id         String             @id @default(cuid())
+  employeeId String
+  employee   Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String
+  startDate  DateTime
+  endDate    DateTime
+  days       Int
+  status     LeaveRequestStatus @default(pending)
+  note       String?
+  createdAt  DateTime           @default(now())
+
+  @@map("leave_requests")
+}
+
+enum LeaveSettlementStatus {
+  calculated
+  disbursed
+}
+
+model LeaveSettlement {
+  id             String                 @id @default(cuid())
+  tenantId       String
+  tenant         Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee               @relation(fields: [employeeId], references: [id])
+  leaveStartDate DateTime
+  monthAmount    Decimal                @db.Decimal(18, 2)
+  daysWorked     Decimal                @db.Decimal(6, 2)
+  bonuses        Decimal                @default(0) @db.Decimal(18, 2)
+  deductions     Decimal                @default(0) @db.Decimal(18, 2)
+  ticketAmount   Decimal                @default(0) @db.Decimal(18, 2)
+  visaAmount     Decimal                @default(0) @db.Decimal(18, 2)
+  accruedDays    Decimal                @db.Decimal(6, 2)
+  netAmount      Decimal                @db.Decimal(18, 2)
+  journalEntryId String?
+  status         LeaveSettlementStatus  @default(calculated)
+  disbursementMethod String?
+  disbursementDate   DateTime?
+  disbursementJournalEntryId String?
+  returnDate     DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@map("leave_settlements")
+}
+
+model HrAction {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  month      String // YYYY-MM
+  actionType String
+  value      Decimal  @db.Decimal(18, 2)
+  note       String?
+  batchId    String?
+  createdAt  DateTime @default(now())
+
+  @@map("hr_actions")
+}
+
+model PayrollRun {
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  month          String // YYYY-MM
+  employeeIds    String[]
+  status         JournalStatus @default(draft)
+  overrides      Json          @default("{}")
+  journalEntryId String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([tenantId, companyId, month])
+  @@map("payroll_runs")
+}

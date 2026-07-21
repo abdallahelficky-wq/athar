@@ -1,0 +1,135 @@
+# Athar Backend — نظام أثر المحاسبي
+
+Backend حقيقي لنظام "أثر المحاسبي"، مبني وفق [`reference/ATHAR_BACKEND_SPEC.md`](reference/ATHAR_BACKEND_SPEC.md)
+(مستند التسليم الفني)، مع استخدام [`reference/AtharAlMuhasabi.jsx`](reference/AtharAlMuhasabi.jsx)
+(البروتوتايب الأمامي المرجعي) كحَكَم لكل تفصيلة حسابية غير واضحة في المستند.
+
+## نطاق هذا التسليم: المرحلة صفر
+
+حسب خطة الهجرة في القسم 7 من المستند، هذا التسليم يغطي **المرحلة صفر** فقط:
+
+1. **قاعدة البيانات** — مخطط Prisma كامل (`prisma/schema.prisma`) يغطي كل الجداول الموثّقة
+   في القسم 4 من المستند (المستأجرون، الشركات، شجرة الحسابات، القيود، المبيعات، المشتريات،
+   المخزون، الأصول الثابتة، شئون الموظفين)، تمهيداً للمراحل القادمة.
+2. **نظام المصادقة الحقيقي** — تسجيل/دخول/دعوة/قبول دعوة، JWT (access + refresh مع تدوير
+   الرمز)، تشفير كلمات المرور بـ bcrypt، وفصل بيانات كل مستأجر تماماً (multi-tenancy).
+3. **API القيود اليومية + شجرة الحسابات + مراكز التكلفة + التقارير المالية الثلاثة**
+   (ميزان المراجعة، قائمة الدخل، المركز المالي) — الموديول الأساسي الذي يُبنى عليه كل شيء آخر.
+
+الموديولات الأخرى (المبيعات، المشتريات، المخزون، الأصول الثابتة، الرواتب...) **نماذج بياناتها
+موجودة بالكامل في `schema.prisma`** تمهيداً، لكن الـ API الخاص بها يُبنى في المراحل التالية
+(انظر القسم 7 من المستند).
+
+## مبدأ التصميم الأساسي
+
+كل معاملة مالية تُنشئ قيداً محاسبياً حقيقياً في `journal_entries` + `journal_entry_lines`،
+والتقارير المالية الثلاثة **تُحسب مباشرة من هذه الأسطر** (المرحّلة/posted فقط) ولا تُخزَّن
+كأرقام جاهزة في مكان آخر — انظر `src/modules/reports/reports.service.ts`. أي قيد يُرسَل
+للحفظ يُرفض من جهة الخادم إن لم يتحقق مجموع المدين = مجموع الدائن (`journalEntries.service.ts`).
+
+## التقنية
+
+Node.js + TypeScript + Express + PostgreSQL + Prisma + JWT + bcrypt + Zod — كما هو مقترح
+في القسم 2 من المستند.
+
+## التشغيل محلياً
+
+```bash
+cp .env.example .env   # عدّل DATABASE_URL وأسرار JWT حسب بيئتك
+npm install
+npm run prisma:migrate   # ينشئ قاعدة البيانات ويطبّق المخطط
+npm run dev               # يشغّل الخادم على المنفذ 4000 (قابل للتغيير عبر PORT)
+```
+
+اختبار سريع:
+
+```bash
+curl http://localhost:4000/api/health
+```
+
+لزرع بيانات تجريبية (اختياري، بعد تسجيل مستأجر أول عبر `/api/auth/register`):
+
+```bash
+npm run prisma:seed
+```
+
+## نقاط النهاية المتوفرة في هذه المرحلة
+
+```
+POST   /api/auth/register          إنشاء مستأجر جديد + مستخدم أول (admin) + تجربة مجانية 30 يوماً
+POST   /api/auth/login             access token (15 دقيقة) + refresh token (30 يوماً)
+POST   /api/auth/refresh           تجديد access token (مع تدوير refresh token)
+POST   /api/auth/logout            إبطال refresh token
+POST   /api/auth/invite            دعوة مستخدم جديد (admin/finance_manager فقط)
+POST   /api/auth/accept-invite     قبول الدعوة وتعيين كلمة مرور
+PATCH  /api/auth/unlock-pin        تغيير الرقم السري لفك الترحيل (admin/finance_manager)
+
+GET/POST/PATCH/DELETE  /api/companies
+GET/POST/PATCH/DELETE  /api/accounts        (شجرة الحسابات)
+GET/POST/PATCH/DELETE  /api/cost-centers
+
+GET/POST/PATCH/DELETE  /api/journal-entries
+POST   /api/journal-entries/import      (استيراد مجمّع، مطابق لمنطق الاستيراد في الواجهة)
+POST   /api/journal-entries/:id/post    (draft → posted، يعيد التحقق من التوازن)
+POST   /api/journal-entries/:id/unpost  (posted → draft، يتطلب unlockPin + يسجَّل في audit_logs)
+
+GET    /api/reports/trial-balance?companyId=&date=
+GET    /api/reports/income-statement?companyId=&from=&to=
+GET    /api/reports/balance-sheet?companyId=&date=
+```
+
+كل نقطة نهاية (عدا `/register`, `/login`, `/refresh`, `/logout`, `/accept-invite`) تتطلب
+`Authorization: Bearer <accessToken>`، وتُفلتَر تلقائياً بمعرّف المستأجر المستخرج من الرمز —
+لا يمكن لأي مستخدم الوصول لبيانات مستأجر آخر (تم اختبار هذا صراحة، انظر أدناه).
+
+### قرارات تصميم توضيحية (لم تُذكر حرفياً في المستند)
+
+- **البريد الإلكتروني للدعوات**: `src/lib/mailer.ts` يحتوي حالياً على "stub" يسجّل رابط
+  التفعيل في الطرفية بدل إرساله فعلياً. نقطة الاستبدال بمزوّد حقيقي (Resend/SES/SendGrid)
+  محصورة في هذا الملف فقط، حسب اقتراح القسم 2 من المستند.
+- **القيود اليدوية تُرحَّل مباشرة عند الإنشاء** (`status: "posted"`) مطابقةً لسلوك
+  `JournalModule` في الواجهة المرجعية (زر "ترحيل القيد" ينشئ القيد مباشرة، لا يوجد
+  حفظ كمسودة). التعديل/الحذف يتطلبان فك الترحيل أولاً (بخلاف الواجهة الحالية التي تسمح
+  بالحذف المباشر بدون رقم سري) — وهذا تطبيق حرفي لما ينص عليه القسم 4.9 صراحة من ضرورة
+  حماية أي عملية فك ترحيل برقم سري وتسجيلها في audit log، وهو ما يُنصّ عليه بوضوح كمتطلب
+  جديد يجب إضافته للنظام الحقيقي (غير موجود في البروتوتايب).
+- **البريد الإلكتروني للمستخدم فريد عالمياً** (`User.email @unique`) وليس مقيّداً بالمستأجر،
+  حتى يعمل تسجيل الدخول بمعادلة `{email, password}` فقط دون حاجة لتحديد المستأجر مسبقاً.
+- **الرقم السري لفك الترحيل (`unlockPin`)** يُخزَّن مشفّراً بـ bcrypt (وليس نصاً صريحاً كما
+  في البروتوتايب) لأنه بوابة أمان حساسة في نظام إنتاج حقيقي.
+
+## هيكل المشروع
+
+```
+prisma/schema.prisma       مخطط قاعدة البيانات الكامل
+prisma/seed.ts             بيانات تجريبية اختيارية
+src/config/env.ts          متغيرات البيئة
+src/lib/                   prisma client, jwt, password hashing, mailer stub, شجرة الحسابات الافتراضية
+src/middleware/            auth (JWT + الأدوار), validate (zod), errorHandler
+src/modules/auth/          تسجيل/دخول/دعوة/تحديث الرموز
+src/modules/companies/     CRUD الشركات
+src/modules/accounts/      CRUD شجرة الحسابات
+src/modules/costCenters/   CRUD مراكز التكلفة
+src/modules/journalEntries/CRUD القيود + الترحيل/فك الترحيل + الاستيراد
+src/modules/reports/       التقارير المالية الثلاثة
+reference/                 المستند الأصلي والبروتوتايب الأمامي (للرجوع في المراحل القادمة)
+```
+
+## ما تم اختباره يدوياً (smoke test)
+
+- تسجيل مستأجر جديد (زرع شجرة الحسابات تلقائياً — 36 حساباً مطابقة تماماً لثابت `ACCOUNTS`
+  في الواجهة المرجعية).
+- إنشاء شركة ومركز تكلفة وقيد يومية متوازن، وظهوره فوراً في التقارير الثلاثة بأرقام متطابقة
+  مع منطق `aggregateAccounts`/`TrialBalanceReport`/`IncomeStatementReport`/`BalanceSheetReport`
+  في الواجهة المرجعية.
+- رفض قيد غير متوازن من جهة الخادم (400).
+- فك ترحيل بكلمة سر خاطئة (403) وبكلمة سر صحيحة (200) + تسجيل الحدث في `audit_logs`.
+- استبعاد القيود غير المرحّلة (draft) من التقارير المالية بعد فك الترحيل.
+- عزل بيانات المستأجرين: مستأجر ثانٍ لا يرى شركات المستأجر الأول، ومحاولة تعديلها تُرفض (404).
+- تدوير refresh token: إعادة استخدام رمز تحديث سابق بعد استخدامه تُرفض (401).
+
+## المراحل القادمة
+
+انظر القسم 7 من `reference/ATHAR_BACKEND_SPEC.md` — المرحلة الأولى (المبيعات والمشتريات
+كاملة)، الثانية (المخزون والأصول الثابتة)، الثالثة (شئون الموظفين والرواتب)، الرابعة
+(الموقع التسويقي، الاشتراكات، التكامل الفعلي مع فاتورة).
