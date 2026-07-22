@@ -193,3 +193,13 @@ export async function changeUnlockPin(tenantId: string, currentPin: string, newP
   const newHash = await hashPassword(newPin);
   await prisma.tenant.update({ where: { id: tenantId }, data: { unlockPin: newHash } });
 }
+
+/**
+ * تصحيح اسم المنشأة/المستأجر بعد الإنشاء — لا يوجد مسار آخر لتعديله (التسجيل لا يسمح
+ * بإعادة تسمية المستأجر لاحقاً)، وهذا ضروري خصوصاً لو أُدخل الاسم بترميز خاطئ في وقت
+ * التسجيل الأول (مثلاً عبر إدخال يدوي مباشر في قاعدة البيانات بترميز غير UTF-8).
+ */
+export async function updateTenantName(tenantId: string, name: string) {
+  const updated = await prisma.tenant.update({ where: { id: tenantId }, data: { name } });
+  return publicTenant(updated);
+}

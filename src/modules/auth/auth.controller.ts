@@ -35,3 +35,8 @@ export const changeUnlockPinHandler: RequestHandler = async (req, res) => {
   await authService.changeUnlockPin(req.auth!.tenantId, req.body.currentPin, req.body.newPin);
   res.status(204).send();
 };
+
+export const updateTenantHandler: RequestHandler = async (req, res) => {
+  const tenant = await authService.updateTenantName(req.auth!.tenantId, req.body.name);
+  res.json({ tenant });
+};

@@ -8,6 +8,7 @@ import {
   inviteSchema,
   acceptInviteSchema,
   changeUnlockPinSchema,
+  updateTenantSchema,
 } from "./auth.schemas";
 import {
   registerHandler,
@@ -17,6 +18,7 @@ import {
   inviteHandler,
   acceptInviteHandler,
   changeUnlockPinHandler,
+  updateTenantHandler,
 } from "./auth.controller";
 
 export const authRoutes = Router();
@@ -39,4 +41,11 @@ authRoutes.patch(
   requireRole("admin", "finance_manager"),
   validateBody(changeUnlockPinSchema),
   changeUnlockPinHandler,
+);
+authRoutes.patch(
+  "/tenant",
+  authenticate,
+  requireRole("admin", "finance_manager"),
+  validateBody(updateTenantSchema),
+  updateTenantHandler,
 );

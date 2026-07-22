@@ -32,3 +32,7 @@ export const changeUnlockPinSchema = z.object({
   currentPin: z.string().min(1, "الرقم السري الحالي مطلوب"),
   newPin: z.string().min(4, "الرقم السري الجديد يجب أن يكون 4 أرقام على الأقل"),
 });
+
+export const updateTenantSchema = z.object({
+  name: z.string().min(2, "اسم المنشأة قصير جداً"),
+});

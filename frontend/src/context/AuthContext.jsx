@@ -57,6 +57,13 @@ export function AuthProvider({ children }) {
     return result;
   };
 
+  const renameTenant = async (name) => {
+    const { tenant: updated } = await authApi.updateTenantName(name);
+    setTenant(updated);
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ user, tenant: updated }));
+    return updated;
+  };
+
   const logout = async () => {
     const refreshToken = getRefreshToken();
     try {
@@ -76,6 +83,7 @@ export function AuthProvider({ children }) {
     initializing,
     login,
     register,
+    renameTenant,
     logout,
   };
 
