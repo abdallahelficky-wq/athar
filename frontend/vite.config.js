@@ -1,49 +1,51 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// Vite's dev middleware injects the HMR/react-refresh preamble as the very first
-// child of <head>, ahead of <meta charset="UTF-8">. That doesn't corrupt the file
-// on disk, but some browsers sniff the response before reaching the (now pushed-down)
-// charset tag and briefly render the Arabic <title> with a guessed encoding, showing
-// "????" until they recover. Setting the charset on the HTTP header itself removes
-// the ambiguity entirely, since the header always wins over any <meta> tag.
-function forceUtf8Html() {
+// Vite's dev server serves every text-based response (the HTML document, but also
+// every .jsx/.js/.css module and virtual module) without a `charset` parameter on
+// its Content-Type header — e.g. plain "text/javascript" or "text/css". Since our
+// source files are full of literal Arabic strings (labels, breadcrumbs, the sidebar
+// subtitle, etc.), any response missing an explicit charset leaves the browser to
+// guess the encoding, which can render those strings as "????" — this is broader
+// than just the HTML document race that <meta charset> alone doesn't fully cover
+// (Vite's HMR/react-refresh preamble injection pushes that tag down in the stream).
+// Setting charset=utf-8 explicitly on the HTTP header for every such response
+// removes the ambiguity entirely, since the header always wins over any guess.
+function forceUtf8Text() {
+  const TEXT_TYPES = /^(text\/html|text\/javascript|application\/javascript|text\/css|application\/json)(;|$)/i;
+  const patchResponse = (res) => {
+    const fixCharset = (value) =>
+      typeof value === "string" && TEXT_TYPES.test(value) && !/charset/i.test(value)
+        ? `${value}; charset=utf-8`
+        : value;
+
+    const originalSetHeader = res.setHeader.bind(res);
+    res.setHeader = (name, value) =>
+      originalSetHeader(name, name.toLowerCase() === "content-type" ? fixCharset(value) : value);
+
+    const originalWriteHead = res.writeHead.bind(res);
+    res.writeHead = (...args) => {
+      const headersArg = args[args.length - 1];
+      if (headersArg && typeof headersArg === "object") {
+        for (const key of Object.keys(headersArg)) {
+          if (key.toLowerCase() === "content-type") headersArg[key] = fixCharset(headersArg[key]);
+        }
+      }
+      return originalWriteHead(...args);
+    };
+  };
+
   return {
-    name: "force-utf8-html",
+    name: "force-utf8-text",
     configureServer(server) {
-      // Scoped to the top-level document navigation only (path has no file
-      // extension). Patches setHeader/writeHead directly — rather than racing
-      // Vite's own internal middleware that sets Content-Type later in the
-      // chain — so a bare "text/html" is always upgraded to include the charset,
-      // regardless of which middleware sets it last. Every other response
-      // (JS/CSS/virtual modules) is left completely untouched.
       server.middlewares.use((req, res, next) => {
-        const url = req.url || "";
-        const isDocumentRequest =
-          (req.method === "GET" || req.method === "HEAD") &&
-          !url.includes(".") && !url.startsWith("/@") && !url.startsWith("/src/");
-        if (!isDocumentRequest) return next();
-
-        const fixCharset = (value) =>
-          typeof value === "string" && /^text\/html(;|$)/i.test(value) && !/charset/i.test(value)
-            ? "text/html; charset=utf-8"
-            : value;
-
-        const originalSetHeader = res.setHeader.bind(res);
-        res.setHeader = (name, value) =>
-          originalSetHeader(name, name.toLowerCase() === "content-type" ? fixCharset(value) : value);
-
-        const originalWriteHead = res.writeHead.bind(res);
-        res.writeHead = (...args) => {
-          const headersArg = args[args.length - 1];
-          if (headersArg && typeof headersArg === "object") {
-            for (const key of Object.keys(headersArg)) {
-              if (key.toLowerCase() === "content-type") headersArg[key] = fixCharset(headersArg[key]);
-            }
-          }
-          return originalWriteHead(...args);
-        };
-
+        patchResponse(res);
+        next();
+      });
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => {
+        patchResponse(res);
         next();
       });
     },
@@ -51,7 +53,7 @@ function forceUtf8Html() {
 }
 
 export default defineConfig({
-  plugins: [react(), forceUtf8Html()],
+  plugins: [react(), forceUtf8Text()],
   server: {
     port: 5173,
   },
