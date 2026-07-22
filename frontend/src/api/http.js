@@ -75,5 +75,6 @@ export const api = {
   get: (path) => apiFetch(path, { method: "GET" }),
   post: (path, body) => apiFetch(path, { method: "POST", body }),
   patch: (path, body) => apiFetch(path, { method: "PATCH", body }),
-  delete: (path) => apiFetch(path, { method: "DELETE" }),
+  put: (path, body) => apiFetch(path, { method: "PUT", body }),
+  delete: (path, body) => apiFetch(path, { method: "DELETE", body }),
 };

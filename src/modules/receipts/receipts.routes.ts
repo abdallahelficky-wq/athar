@@ -1,0 +1,24 @@
+import { Router } from "express";
+import { authenticate, requireRole } from "../../middleware/auth";
+import { validateBody } from "../../middleware/validate";
+import { createReceiptSchema, unpostSchema } from "./receipts.schemas";
+import {
+  listHandler,
+  outstandingInvoicesHandler,
+  createHandler,
+  deleteHandler,
+  postHandler,
+  unpostHandler,
+} from "./receipts.controller";
+
+export const receiptRoutes = Router();
+receiptRoutes.use(authenticate);
+
+const canWrite = requireRole("admin", "finance_manager", "accountant");
+
+receiptRoutes.get("/", listHandler);
+receiptRoutes.get("/outstanding-invoices/:customerId", outstandingInvoicesHandler);
+receiptRoutes.post("/", canWrite, validateBody(createReceiptSchema), createHandler);
+receiptRoutes.delete("/:id", canWrite, deleteHandler);
+receiptRoutes.post("/:id/post", canWrite, postHandler);
+receiptRoutes.post("/:id/unpost", canWrite, validateBody(unpostSchema), unpostHandler);

@@ -10,17 +10,14 @@ import ReportsModule, { REPORT_TABS } from "./wired/ReportsModule";
 
 import {
   COMPANIES,
-  seedEmployees, seedLeaves, seedLeaveSettlements, seedCustomers, seedSalesInvoices, seedSalesReturns,
-  seedSuppliers, seedPurchaseInvoices, seedPurchaseReturns, seedItems, seedStockMovements, seedUsers,
-  seedJobTitles, seedCompanyDocuments, seedFixedAssets, seedDepreciationRuns, seedHrActions, seedPayrollRuns,
-  seedEntries, seedSales,
+  seedUsers, seedJobTitles, seedCompanyDocuments, seedEntries, seedSales,
 } from "./legacy/constants";
-import { SalesModule, SALES_TABS } from "./legacy/sales";
-import { PurchasesModule, PURCHASE_TABS } from "./legacy/purchases";
-import { InventoryModule, INVENTORY_TABS } from "./legacy/inventory";
-import { FixedAssetsModule, FIXED_ASSETS_TABS } from "./legacy/fixedAssets";
-import { HRModule, HR_TABS } from "./legacy/hr";
 import { SettingsModule, SETTINGS_TABS } from "./legacy/settings";
+import SalesWiredModule, { SALES_TABS } from "./wired/sales/SalesWiredModule";
+import PurchasesWiredModule, { PURCHASE_TABS } from "./wired/purchases/PurchasesWiredModule";
+import InventoryWiredModule, { INVENTORY_TABS } from "./wired/inventory/InventoryWiredModule";
+import FixedAssetsWiredModule, { FIXED_ASSETS_TABS } from "./wired/fixedAssets/FixedAssetsWiredModule";
+import HRWiredModule, { HR_TABS } from "./wired/hr/HRWiredModule";
 
 const NAV_GROUPS = [
   { id: "sales", label: "المبيعات", tabs: SALES_TABS },
@@ -40,25 +37,11 @@ function AppShell() {
   const [moduleId, setModuleId] = useState("dashboard");
   const [openGroups, setOpenGroups] = useState(["sales"]);
 
-  // بيانات الشركة "القديمة" (تجريبية محلية) — تخص فقط الموديولات غير المرتبطة بعد بالـ API
+  // بيانات الشركة "القديمة" (تجريبية محلية) — تخص فقط وحدة الزكاة التوضيحية غير المرتبطة بعد بالـ API
   const [legacyCompanyId, setLegacyCompanyId] = useState("all");
+  const [legacyEntries] = useState(seedEntries);
+  const [sales] = useState(seedSales);
 
-  // ---- حالة الموديولات القديمة غير المرتبطة بعد بالـ API (كما كانت تماماً) ----
-  const [legacyEntries, setLegacyEntries] = useState(seedEntries);
-  const [sales, setSales] = useState(seedSales);
-  const [employees, setEmployees] = useState(seedEmployees);
-  const [leaves, setLeaves] = useState(seedLeaves);
-  const [leaveSettlements, setLeaveSettlements] = useState(seedLeaveSettlements);
-  const [customers, setCustomers] = useState(seedCustomers);
-  const [salesInvoices, setSalesInvoices] = useState(seedSalesInvoices);
-  const [salesReturns, setSalesReturns] = useState(seedSalesReturns);
-  const [salesQuotes, setSalesQuotes] = useState([]);
-  const [salesReceipts, setSalesReceipts] = useState([]);
-  const [suppliers, setSuppliers] = useState(seedSuppliers);
-  const [purchaseInvoices, setPurchaseInvoices] = useState(seedPurchaseInvoices);
-  const [purchaseReturns, setPurchaseReturns] = useState(seedPurchaseReturns);
-  const [items, setItems] = useState(seedItems);
-  const [stockMovements, setStockMovements] = useState(seedStockMovements);
   const [users, setUsers] = useState(seedUsers);
   const [currentUser, setCurrentUser] = useState(() => ({
     ...seedUsers[0],
@@ -66,12 +49,8 @@ function AppShell() {
     email: user?.email || seedUsers[0].email,
   }));
   const [jobTitles, setJobTitles] = useState(seedJobTitles);
-  const [hrActions, setHrActions] = useState(seedHrActions);
-  const [payrollRuns, setPayrollRuns] = useState(seedPayrollRuns);
   const [legacyUnlockPin, setLegacyUnlockPin] = useState("1234");
   const [companyDocuments, setCompanyDocuments] = useState(seedCompanyDocuments);
-  const [fixedAssets, setFixedAssets] = useState(seedFixedAssets);
-  const [depreciationRuns, setDepreciationRuns] = useState(seedDepreciationRuns);
   const [fixedAssetsTab, setFixedAssetsTab] = useState("register");
   const [settingsVersion, setSettingsVersion] = useState(0);
   const bumpSettings = () => setSettingsVersion((v) => v + 1);
@@ -169,43 +148,34 @@ function AppShell() {
         )}
 
         {moduleId === "sales" && (
-          <SalesModule
-            customers={customers} setCustomers={setCustomers}
-            invoices={salesInvoices} setInvoices={setSalesInvoices}
-            returns={salesReturns} setReturns={setSalesReturns}
-            quotes={salesQuotes} setQuotes={setSalesQuotes}
-            receipts={salesReceipts} setReceipts={setSalesReceipts}
-            sales={sales} setSales={setSales}
-            entries={legacyEntries} setEntries={setLegacyEntries}
-            companyId={legacyCompanyId} tab={salesTab} setTab={setSalesTab} unlockPin={legacyUnlockPin}
+          <SalesWiredModule
+            tab={salesTab} setTab={setSalesTab}
+            companies={real.companies} companyId={real.companyId}
+            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
           />
         )}
 
         {moduleId === "purchases" && (
-          <PurchasesModule
-            suppliers={suppliers} setSuppliers={setSuppliers}
-            invoices={purchaseInvoices} setInvoices={setPurchaseInvoices}
-            returns={purchaseReturns} setReturns={setPurchaseReturns}
-            entries={legacyEntries} setEntries={setLegacyEntries}
-            companyId={legacyCompanyId} tab={purchasesTab} setTab={setPurchasesTab} unlockPin={legacyUnlockPin}
+          <PurchasesWiredModule
+            tab={purchasesTab} setTab={setPurchasesTab}
+            companies={real.companies} companyId={real.companyId}
+            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
           />
         )}
 
         {moduleId === "inventory" && (
-          <InventoryModule
-            items={items} setItems={setItems}
-            movements={stockMovements} setMovements={setStockMovements}
-            entries={legacyEntries} setEntries={setLegacyEntries}
-            companyId={legacyCompanyId} tab={inventoryTab} setTab={setInventoryTab}
+          <InventoryWiredModule
+            tab={inventoryTab} setTab={setInventoryTab}
+            companies={real.companies} companyId={real.companyId}
+            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
           />
         )}
 
         {moduleId === "fixedAssets" && (
-          <FixedAssetsModule
-            assets={fixedAssets} setAssets={setFixedAssets}
-            depreciationRuns={depreciationRuns} setDepreciationRuns={setDepreciationRuns}
-            entries={legacyEntries} setEntries={setLegacyEntries}
-            companyId={legacyCompanyId} tab={fixedAssetsTab} setTab={setFixedAssetsTab}
+          <FixedAssetsWiredModule
+            tab={fixedAssetsTab} setTab={setFixedAssetsTab}
+            companies={real.companies} companyId={real.companyId}
+            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
           />
         )}
 
@@ -219,14 +189,10 @@ function AppShell() {
         )}
 
         {moduleId === "hr" && (
-          <HRModule
-            employees={employees} setEmployees={setEmployees}
-            leaves={leaves} setLeaves={setLeaves}
-            entries={legacyEntries} setEntries={setLegacyEntries}
-            leaveSettlements={leaveSettlements} setLeaveSettlements={setLeaveSettlements}
-            hrActions={hrActions} setHrActions={setHrActions}
-            payrollRuns={payrollRuns} setPayrollRuns={setPayrollRuns}
-            unlockPin={legacyUnlockPin} companyId={legacyCompanyId} tab={hrTab} setTab={setHrTab}
+          <HRWiredModule
+            tab={hrTab} setTab={setHrTab}
+            companies={real.companies} companyId={real.companyId}
+            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
           />
         )}
 

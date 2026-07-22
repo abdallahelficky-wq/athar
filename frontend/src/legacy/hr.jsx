@@ -17,8 +17,8 @@ export const HR_TABS = [
   { id: "hrReports", label: "تقارير الموظفين" },
 ];
 
-const EMPLOYEE_DOC_TYPES = ["إقامة", "جواز سفر", "رخصة قيادة", "بطاقة تشغيل سائق (نقل عام)", "شهادة صحية", "تأمين طبي", "أخرى"];
-const NATIONALITIES = ["سعودي", "مصري", "باكستاني", "بنغلاديشي", "هندي", "يمني", "سوداني", "فلبيني", "أخرى"];
+export const EMPLOYEE_DOC_TYPES = ["إقامة", "جواز سفر", "رخصة قيادة", "بطاقة تشغيل سائق (نقل عام)", "شهادة صحية", "تأمين طبي", "أخرى"];
+export const NATIONALITIES = ["سعودي", "مصري", "باكستاني", "بنغلاديشي", "هندي", "يمني", "سوداني", "فلبيني", "أخرى"];
 
 export function emptyEmployeeForm(companyId) {
   return {
