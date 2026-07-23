@@ -203,3 +203,20 @@ export async function updateTenantName(tenantId: string, name: string) {
   const updated = await prisma.tenant.update({ where: { id: tenantId }, data: { name } });
   return publicTenant(updated);
 }
+
+/**
+ * تُقرأ فور فتح التطبيق (انظر AuthContext) لتحديث بيانات المستخدم/المستأجر المخزَّنة محلياً
+ * بأحدث قيمة من قاعدة البيانات، بدل الاكتفاء بما كان محفوظاً في localStorage وقت آخر تسجيل
+ * دخول — وإلا فإن أي تصحيح لاحق لاسم المستأجر أو المستخدم (كإصلاح ترميز خاطئ) لن ينعكس في
+ * جلسة مفتوحة بالفعل إلا بعد تسجيل خروج ودخول يدوي.
+ */
+export async function getMe(userId: string) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
+  return { user: publicUser(user), tenant: publicTenant(tenant) };
+}
+
+export async function updateMyName(userId: string, name: string) {
+  const updated = await prisma.user.update({ where: { id: userId }, data: { name } });
+  return publicUser(updated);
+}

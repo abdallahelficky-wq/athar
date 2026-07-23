@@ -9,6 +9,7 @@ import {
   acceptInviteSchema,
   changeUnlockPinSchema,
   updateTenantSchema,
+  updateMeSchema,
 } from "./auth.schemas";
 import {
   registerHandler,
@@ -19,6 +20,8 @@ import {
   acceptInviteHandler,
   changeUnlockPinHandler,
   updateTenantHandler,
+  meHandler,
+  updateMeHandler,
 } from "./auth.controller";
 
 export const authRoutes = Router();
@@ -49,3 +52,5 @@ authRoutes.patch(
   validateBody(updateTenantSchema),
   updateTenantHandler,
 );
+authRoutes.get("/me", authenticate, meHandler);
+authRoutes.patch("/me", authenticate, validateBody(updateMeSchema), updateMeHandler);

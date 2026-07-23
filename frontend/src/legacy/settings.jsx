@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { COMPANIES, PERMISSION_ROLES, COMPANY_DOC_TYPES, COST_CENTERS } from "./constants";
 import CompaniesSettings from "../wired/CompaniesSettings";
+import MyAccountSettings from "../wired/MyAccountSettings";
 
 export function MyProfileSettings({ currentUser, setCurrentUser }) {
   const [form, setForm] = useState(currentUser);
@@ -233,7 +234,12 @@ export function SettingsModule({ tab, setTab, users, setUsers, currentUser, setC
       <div className="section-title"><span className="eyebrow">إدارة النظام</span><h2>الإعدادات</h2></div>
       <div className="report-tabs">{SETTINGS_TABS.map((t) => (<button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>))}</div>
       {tab === "companies" && <CompaniesSettings companies={realCompanies} reload={reloadRealCompanies} />}
-      {tab === "profile" && <MyProfileSettings currentUser={currentUser} setCurrentUser={setCurrentUser} />}
+      {tab === "profile" && (
+        <div>
+          <MyAccountSettings />
+          <MyProfileSettings currentUser={currentUser} setCurrentUser={setCurrentUser} />
+        </div>
+      )}
       {tab === "users" && <UsersSettings users={users} setUsers={setUsers} unlockPin={unlockPin} setUnlockPin={setUnlockPin} />}
       {tab === "jobTitles" && <JobTitlesSettings jobTitles={jobTitles} setJobTitles={setJobTitles} />}
       {tab === "locations" && <LocationsSettings onDataChange={onDataChange} />}

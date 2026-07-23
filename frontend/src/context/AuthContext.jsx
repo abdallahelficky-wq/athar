@@ -27,14 +27,29 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    // لا يوجد endpoint لجلب "من أنا" في المرحلة صفر، فنعتمد على بيانات المستخدم/المستأجر
-    // المحفوظة محلياً من آخر عملية دخول ناجحة؛ لو انتهت صلاحية الرمزين معاً (access + refresh)
-    // فإن أول طلب API فاشل بعد إعادة التحميل سيُبطِل الجلسة تلقائياً عبر onForcedLogout.
     if (!getAccessToken() || !getRefreshToken()) {
       clearTokens();
       reset();
+      setInitializing(false);
+      return onForcedLogout(reset);
     }
-    setInitializing(false);
+    // نعتمد مبدئياً على بيانات المستخدم/المستأجر المحفوظة محلياً من آخر عملية دخول ناجحة
+    // (حتى لا تنتظر الشاشة شبكة قبل أول عرض)، ثم نجلب النسخة الحالية فعلياً من الخادم عبر
+    // /auth/me ونحدّث الجلسة المحفوظة بها. هذا ضروري لأن أي تصحيح لاحق لاسم المستأجر أو
+    // المستخدم (كإصلاح ترميز خاطئ عبر شاشة الإعدادات) لن ينعكس في جلسة متصفح مفتوحة بالفعل
+    // إلا بعد إعادة الجلب هذه — بدونها تبقى الجلسة المفتوحة تعرض القيمة القديمة المخزَّنة
+    // محلياً إلى الأبد، حتى لو صُحِّحت البيانات في قاعدة البيانات.
+    authApi
+      .getMe()
+      .then((result) => {
+        setUser(result.user);
+        setTenant(result.tenant);
+        localStorage.setItem(SESSION_KEY, JSON.stringify({ user: result.user, tenant: result.tenant }));
+      })
+      .catch(() => {
+        // فشل الجلب (رمز منتهي مثلاً) — onForcedLogout سيتكفّل بإنهاء الجلسة عند الحاجة
+      })
+      .finally(() => setInitializing(false));
     return onForcedLogout(reset);
   }, [reset]);
 
@@ -64,6 +79,13 @@ export function AuthProvider({ children }) {
     return updated;
   };
 
+  const renameMe = async (name) => {
+    const { user: updated } = await authApi.updateMyName(name);
+    setUser(updated);
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ user: updated, tenant }));
+    return updated;
+  };
+
   const logout = async () => {
     const refreshToken = getRefreshToken();
     try {
@@ -84,6 +106,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     renameTenant,
+    renameMe,
     logout,
   };
 

@@ -40,3 +40,13 @@ export const updateTenantHandler: RequestHandler = async (req, res) => {
   const tenant = await authService.updateTenantName(req.auth!.tenantId, req.body.name);
   res.json({ tenant });
 };
+
+export const meHandler: RequestHandler = async (req, res) => {
+  const result = await authService.getMe(req.auth!.sub);
+  res.json(result);
+};
+
+export const updateMeHandler: RequestHandler = async (req, res) => {
+  const user = await authService.updateMyName(req.auth!.sub, req.body.name);
+  res.json({ user });
+};

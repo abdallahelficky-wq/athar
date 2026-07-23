@@ -36,3 +36,7 @@ export const changeUnlockPinSchema = z.object({
 export const updateTenantSchema = z.object({
   name: z.string().min(2, "اسم المنشأة قصير جداً"),
 });
+
+export const updateMeSchema = z.object({
+  name: z.string().min(2, "الاسم قصير جداً"),
+});
