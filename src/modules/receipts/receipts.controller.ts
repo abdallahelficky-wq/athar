@@ -31,3 +31,13 @@ export const postHandler: RequestHandler = async (req, res) => {
 export const unpostHandler: RequestHandler = async (req, res) => {
   res.json(await service.unpostReceipt(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.pin));
 };
+
+export const addAllocationHandler: RequestHandler = async (req, res) => {
+  const result = await service.addReceiptAllocation(req.auth!.tenantId, req.params.id, req.body.invoiceId, Number(req.body.amount));
+  res.status(201).json(result);
+};
+
+export const removeAllocationHandler: RequestHandler = async (req, res) => {
+  const result = await service.removeReceiptAllocation(req.auth!.tenantId, req.params.id, req.params.invoiceId);
+  res.json(result);
+};

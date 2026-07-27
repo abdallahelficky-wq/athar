@@ -5,14 +5,24 @@ export interface InvoiceLineInput {
   unitPrice: number;
   discountPct?: number;
   priceIncludesVat?: boolean;
+  vatApplicable?: boolean;
 }
 
-/** مطابق حرفياً لدالة computeInvoiceLine في AtharAlMuhasabi.jsx (المرجع الحي) */
+/**
+ * مطابق حرفياً لدالة computeInvoiceLine في AtharAlMuhasabi.jsx (المرجع الحي)، مع إضافة
+ * `vatApplicable` (افتراضها true للحفاظ على التوافق الكامل مع المشتريات/المردودات التي لا
+ * ترسله أصلاً) لدعم أصناف قابلة للبيع غير خاضعة للضريبة بالكامل — عند false يكون الناتج
+ * صفر ضريبة دائماً بغض النظر عن priceIncludesVat.
+ */
 export function computeInvoiceLine(l: InvoiceLineInput) {
   const qty = Number(l.quantity || 0);
   const price = Number(l.unitPrice || 0);
   const disc = Number(l.discountPct || 0);
   const grossLine = qty * price * (1 - disc / 100);
+
+  if (l.vatApplicable === false) {
+    return { subtotal: grossLine, vat: 0, total: grossLine };
+  }
 
   if (l.priceIncludesVat) {
     const subtotal = grossLine / (1 + VAT_RATE);

@@ -8,11 +8,13 @@ import { formatDocNumber } from "../../lib/docNumber";
 
 interface LineInput {
   accountId: string;
+  sellableItemId?: string;
   description?: string;
   quantity: number;
   unitPrice: number;
   discountPct?: number;
   priceIncludesVat?: boolean;
+  vatApplicable?: boolean;
 }
 
 interface InvoiceInput {
@@ -20,6 +22,7 @@ interface InvoiceInput {
   customerId: string;
   date: Date;
   lines: LineInput[];
+  post?: boolean;
 }
 
 const invoiceInclude = {
@@ -109,6 +112,29 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
     grandTotal,
     vatTotal,
   );
+
+  const shouldPost = input.post !== false;
+
+  if (!shouldPost) {
+    const invoice = await prisma.salesInvoice.create({
+      data: {
+        tenantId,
+        invoiceNumber,
+        companyId: input.companyId,
+        customerId: input.customerId,
+        date: input.date,
+        invoiceType: invType,
+        status: "draft",
+        qrPayload,
+        subtotal,
+        vatTotal,
+        grandTotal,
+        lines: { create: computed },
+      },
+      include: invoiceInclude,
+    });
+    return withPaymentStatus(invoice);
+  }
 
   const journalLines = await buildJournalLines(tenantId, input.customerId, computed, vatTotal, grandTotal);
 

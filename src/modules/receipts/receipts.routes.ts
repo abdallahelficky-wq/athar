@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createReceiptSchema, unpostSchema } from "./receipts.schemas";
+import { createReceiptSchema, unpostSchema, addAllocationSchema } from "./receipts.schemas";
 import {
   listHandler,
   outstandingInvoicesHandler,
@@ -9,6 +9,8 @@ import {
   deleteHandler,
   postHandler,
   unpostHandler,
+  addAllocationHandler,
+  removeAllocationHandler,
 } from "./receipts.controller";
 
 export const receiptRoutes = Router();
@@ -22,3 +24,5 @@ receiptRoutes.post("/", canWrite, validateBody(createReceiptSchema), createHandl
 receiptRoutes.delete("/:id", canWrite, deleteHandler);
 receiptRoutes.post("/:id/post", canWrite, postHandler);
 receiptRoutes.post("/:id/unpost", canWrite, validateBody(unpostSchema), unpostHandler);
+receiptRoutes.post("/:id/allocations", canWrite, validateBody(addAllocationSchema), addAllocationHandler);
+receiptRoutes.delete("/:id/allocations/:invoiceId", canWrite, removeAllocationHandler);

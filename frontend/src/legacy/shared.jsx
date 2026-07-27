@@ -106,6 +106,10 @@ export const Icon = {
   Trash: () => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2M6 6l1 15h10l1-15" /></svg>,
   Lock: () => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="11" width="14" height="9" rx="1.5" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>,
   Unlock: () => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="11" width="14" height="9" rx="1.5" /><path d="M8 11V7a4 4 0 0 1 7.2-2.4" /></svg>,
+  Copy: () => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="12" height="12" rx="1.5" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>,
+  Link: () => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 15l6-6" /><path d="M11 5.5l1-1a3.5 3.5 0 0 1 5 5l-1 1" /><path d="M13 18.5l-1 1a3.5 3.5 0 0 1-5-5l1-1" /></svg>,
+  Unlink: () => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 15l1.5-1.5" /><path d="M13.5 10.5L15 9" /><path d="M11 5.5l1-1a3.5 3.5 0 0 1 5 5l-1 1" /><path d="M13 18.5l-1 1a3.5 3.5 0 0 1-5-5l1-1" /><path d="M3 3l18 18" /></svg>,
+  BookOpen: () => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5c-2-1.5-5-2-8-1.5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-13c-3-.5-6 0-8 1.5z" /><path d="M12 5v13" /></svg>,
 };
 
 export function downloadCsv(filename, rows) {

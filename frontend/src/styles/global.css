@@ -281,6 +281,42 @@
         .unpost-confirm-box h3 { margin: 0 0 8px; font-size: 15px; }
         .unpost-confirm-box input { width: 100%; padding: 8px 10px; border-radius: 7px; border: 1px solid rgba(16,32,46,0.2); font-family: 'Tajawal', sans-serif; margin: 10px 0; }
 
+        /* نافذة إنشاء/تعديل الفاتورة الرئيسية — أوسع من نوافذ التأكيد البسيطة، وتُبقي أسفلها
+           مساحة للتمرير عند طول محتوى السطور. z-index أقل من نوافذ التأكيد والنوافذ الفرعية
+           عمداً حتى تظهر أي نافذة فرعية (إضافة عميل/صنف) فوقها بصرياً بلا أي التباس. */
+        .invoice-modal-overlay {
+          position: fixed; inset: 0; background: rgba(16,32,46,0.5); display: flex;
+          align-items: flex-start; justify-content: center; z-index: 45; padding: 30px 24px; overflow-y: auto;
+        }
+        .invoice-modal-box { background: #FBF9F3; border-radius: 16px; padding: 26px 30px; max-width: 980px; width: 100%; margin: auto; }
+        .invoice-modal-box h3 { margin: 0 0 16px; font-size: 16px; }
+
+        /* النوافذ الفرعية (nested modals) — إضافة عميل/صنف جديد من داخل نافذة الفاتورة —
+           تُظهَر بتعتيم أقوى وحدود وظل أوضح لتبدو بصرياً "فوق" نافذة الفاتورة الأصلية. */
+        .nested-modal-overlay { background: rgba(16,32,46,0.72); }
+        .nested-modal-overlay .unpost-confirm-box {
+          box-shadow: 0 24px 60px rgba(16,32,46,0.5);
+          border: 1px solid rgba(185,139,78,0.55);
+        }
+
+        .app-toast {
+          position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 200;
+          background: #10202E; color: #FBF9F3; padding: 12px 22px; border-radius: 10px;
+          font-family: 'Tajawal', sans-serif; font-size: 13.5px; box-shadow: 0 8px 24px rgba(16,32,46,0.3);
+          cursor: pointer; max-width: 90vw;
+        }
+        .app-toast-error { background: #A8432B; }
+
+        .item-combo-cell { position: relative; min-width: 180px; }
+        .item-combo-dropdown {
+          position: absolute; top: 100%; right: 0; left: 0; z-index: 40; background: #FBF9F3;
+          border: 1px solid rgba(16,32,46,0.15); border-radius: 8px; box-shadow: 0 8px 20px rgba(16,32,46,0.15);
+          max-height: 220px; overflow-y: auto; margin-top: 4px;
+        }
+        .item-combo-option { padding: 8px 12px; font-size: 13px; cursor: pointer; border-bottom: 1px solid rgba(16,32,46,0.06); }
+        .item-combo-option:hover { background: rgba(47,93,90,0.08); }
+        .item-combo-new { color: #2F5D5A; font-weight: 700; }
+
         .from-document-box { max-width: 980px; max-height: 88vh; overflow-y: auto; }
         .from-document-box input[type="file"] { width: auto; }
         .from-document-preview { max-width: 100%; max-height: 360px; border-radius: 10px; border: 1px solid rgba(16,32,46,0.12); margin-top: 10px; }

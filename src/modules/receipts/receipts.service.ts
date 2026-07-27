@@ -156,3 +156,103 @@ export async function unpostReceipt(tenantId: string, userId: string, id: string
     return updated;
   });
 }
+
+/**
+ * يُعيد إنشاء قيد السند بإجمالي جديد (بعد إضافة/إزالة تخصيص) — يحذف القيد القديم وينشئ
+ * قيداً جديداً بدلاً منه بنفس منطق الإنشاء الأصلي، حتى يبقى القيد مطابقاً دائماً لمجموع
+ * التخصيصات الفعلي على السند. لا يُنفَّذ شيء إن كان السند أصلاً غير مرحّل (draft).
+ */
+async function repostReceiptEntryTx(
+  tx: Parameters<typeof createJournalEntryTx>[0],
+  receipt: { id: string; tenantId: string; companyId: string; customerId: string; date: Date; receiptNumber: string; method: "cash" | "bank"; status: string; journalEntryId: string | null },
+  customerName: string,
+  newTotal: number,
+) {
+  if (receipt.status !== "posted") return null;
+  await deleteJournalEntryTx(tx, receipt.journalEntryId);
+  const creditAccountId = await getAccountIdByName(receipt.tenantId, CREDIT_ACCOUNT_NAME[receipt.method]);
+  const receivableId = await getAccountIdByName(receipt.tenantId, "ذمم مدينة");
+  const entry = await createJournalEntryTx(tx, {
+    tenantId: receipt.tenantId,
+    companyId: receipt.companyId,
+    date: receipt.date,
+    memo: `سند قبض ${receipt.receiptNumber} — ${customerName}`,
+    sourceModule: "receipt",
+    sourceId: receipt.id,
+    lines: [
+      { accountId: creditAccountId, department: "المالية والحسابات", debit: newTotal, credit: 0, customerId: receipt.customerId },
+      { accountId: receivableId, department: "المالية والحسابات", debit: 0, credit: newTotal, customerId: receipt.customerId },
+    ],
+  });
+  return entry.id;
+}
+
+async function dueAmountOf(tenantId: string, invoiceId: string) {
+  const invoice = await prisma.salesInvoice.findFirst({
+    where: { id: invoiceId, tenantId },
+    include: { receiptAllocations: true },
+  });
+  if (!invoice) throw notFound("الفاتورة غير موجودة");
+  if (invoice.status !== "posted") throw badRequest("لا يمكن ربط سند قبض بفاتورة غير مرحّلة");
+  const paid = invoice.receiptAllocations.reduce((s, a) => s + Number(a.amount), 0);
+  return { invoice, due: Number(invoice.grandTotal) - paid };
+}
+
+/** ربط فاتورة إضافية بسند قبض موجود بالفعل — يزيد إجمالي السند وقيده المحاسبي المرتبط */
+export async function addReceiptAllocation(tenantId: string, id: string, invoiceId: string, amount: number) {
+  const receipt = await prisma.receipt.findFirst({ where: { id, tenantId }, include: receiptInclude });
+  if (!receipt) throw notFound("سند القبض غير موجود");
+  if (amount <= 0) throw badRequest("المبلغ يجب أن يكون أكبر من صفر");
+
+  if (receipt.allocations.some((a) => a.invoiceId === invoiceId)) {
+    throw badRequest("هذه الفاتورة مرتبطة بالفعل بهذا السند");
+  }
+
+  const { invoice, due } = await dueAmountOf(tenantId, invoiceId);
+  if (invoice.customerId !== receipt.customerId) {
+    throw badRequest("لا يمكن ربط فاتورة عميل مختلف عن عميل السند");
+  }
+  if (amount > due + 0.01) {
+    throw badRequest(`المبلغ أكبر من المتبقي على هذه الفاتورة (${due.toFixed(2)})`);
+  }
+
+  const newTotal = Number(receipt.totalAmount) + amount;
+
+  return prisma.$transaction(async (tx) => {
+    const newEntryId = await repostReceiptEntryTx(tx, receipt, receipt.customer.name, newTotal);
+    return tx.receipt.update({
+      where: { id },
+      data: {
+        totalAmount: newTotal,
+        ...(newEntryId ? { journalEntryId: newEntryId } : {}),
+        allocations: { create: { invoiceId, amount } },
+      },
+      include: receiptInclude,
+    });
+  });
+}
+
+/** فك ربط فاتورة عن سند قبض — يُنقص إجمالي السند وقيده المحاسبي، ويُرفَض إن كان آخر تخصيص */
+export async function removeReceiptAllocation(tenantId: string, id: string, invoiceId: string) {
+  const receipt = await prisma.receipt.findFirst({ where: { id, tenantId }, include: receiptInclude });
+  if (!receipt) throw notFound("سند القبض غير موجود");
+
+  const allocation = receipt.allocations.find((a) => a.invoiceId === invoiceId);
+  if (!allocation) throw notFound("هذه الفاتورة غير مرتبطة بهذا السند");
+
+  if (receipt.allocations.length === 1) {
+    throw badRequest("هذا آخر تخصيص في هذا السند — احذف السند نفسه (بعد فك ترحيله إن كان مرحّلاً) بدل فك ربط آخر فاتورة فيه");
+  }
+
+  const newTotal = Number(receipt.totalAmount) - Number(allocation.amount);
+
+  return prisma.$transaction(async (tx) => {
+    const newEntryId = await repostReceiptEntryTx(tx, receipt, receipt.customer.name, newTotal);
+    await tx.receiptAllocation.delete({ where: { id: allocation.id } });
+    return tx.receipt.update({
+      where: { id },
+      data: { totalAmount: newTotal, ...(newEntryId ? { journalEntryId: newEntryId } : {}) },
+      include: receiptInclude,
+    });
+  });
+}

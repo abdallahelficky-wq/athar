@@ -72,7 +72,8 @@ model Tenant {
   hrActions        HrAction[]
   payrollRuns      PayrollRun[]
 
-  attachments Attachment[]
+  attachments   Attachment[]
+  sellableItems SellableItem[]
 
   @@map("tenants")
 }
@@ -178,6 +179,7 @@ model Company {
   depreciationRuns DepreciationRun[]
   employees        Employee[]
   payrollRuns      PayrollRun[]
+  sellableItems    SellableItem[]
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -225,6 +227,7 @@ model Account {
   salesReturnLines     SalesReturnLine[]
   purchaseInvoiceLines PurchaseInvoiceLine[]
   purchaseReturnLines  PurchaseReturnLine[]
+  sellableItemDefaults SellableItem[]
 
   @@unique([tenantId, name])
   @@map("accounts")
@@ -427,21 +430,47 @@ model SalesInvoice {
 }
 
 model SalesInvoiceLine {
-  id               String       @id @default(cuid())
+  id               String        @id @default(cuid())
   invoiceId        String
-  invoice          SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice          SalesInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   accountId        String
-  account          Account      @relation(fields: [accountId], references: [id])
+  account          Account       @relation(fields: [accountId], references: [id])
+  sellableItemId   String?
+  sellableItem     SellableItem? @relation(fields: [sellableItemId], references: [id])
   description      String?
-  quantity         Decimal      @db.Decimal(18, 4)
-  unitPrice        Decimal      @db.Decimal(18, 4)
-  discountPct      Decimal      @default(0) @db.Decimal(5, 2)
-  priceIncludesVat Boolean      @default(false)
-  subtotal         Decimal      @db.Decimal(18, 2)
-  vat              Decimal      @db.Decimal(18, 2)
-  total            Decimal      @db.Decimal(18, 2)
+  quantity         Decimal       @db.Decimal(18, 4)
+  unitPrice        Decimal       @db.Decimal(18, 4)
+  discountPct      Decimal       @default(0) @db.Decimal(5, 2)
+  priceIncludesVat Boolean       @default(false)
+  vatApplicable    Boolean       @default(true)
+  subtotal         Decimal       @db.Decimal(18, 2)
+  vat              Decimal       @db.Decimal(18, 2)
+  total            Decimal       @db.Decimal(18, 2)
 
   @@map("sales_invoice_lines")
+}
+
+// كتالوج "أصناف قابلة للبيع" منفصل تماماً عن Item (أصناف المخزون) — مصمَّم خصيصاً لتسريع
+// تعبئة سطور فواتير المبيعات (اسم + سعر وحدة افتراضي + هل خاضع لضريبة القيمة المضافة +
+// حساب الإيراد الافتراضي)، دون التأثير على منطق المخزون/حركات الأصناف القائم أصلاً.
+model SellableItem {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId             String
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                  String
+  defaultUnitPrice      Decimal  @default(0) @db.Decimal(18, 4)
+  vatApplicable         Boolean  @default(true)
+  defaultRevenueAccountId String
+  defaultRevenueAccount Account  @relation(fields: [defaultRevenueAccountId], references: [id])
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  salesInvoiceLines SalesInvoiceLine[]
+
+  @@unique([tenantId, companyId, name])
+  @@map("sellable_items")
 }
 
 model SalesReturn {

@@ -11,3 +11,8 @@ export const createReceiptSchema = z.object({
 });
 
 export const unpostSchema = z.object({ pin: z.string().min(1) });
+
+export const addAllocationSchema = z.object({
+  invoiceId: z.string().min(1, "الفاتورة مطلوبة"),
+  amount: z.coerce.number().positive("المبلغ يجب أن يكون أكبر من صفر"),
+});
