@@ -2,13 +2,13 @@ import { prisma } from "../../lib/prisma";
 import type { Account } from "@prisma/client";
 import { notFound } from "../../lib/httpError";
 
-interface DateRange {
+export interface DateRange {
   companyId?: string;
   dateFrom?: Date;
   dateTo?: Date;
 }
 
-interface AccountBalance {
+export interface AccountBalance {
   account: Account;
   debit: number;
   credit: number;
@@ -20,7 +20,7 @@ interface AccountBalance {
  * تتطلبها توقيعات endpoints في القسم 5 من المستند. كل التقارير تُحسب من هذه الدالة
  * فقط ولا تُخزَّن أرقامها في مكان منفصل (مبدأ القسم 3).
  */
-async function aggregateAccountBalances(tenantId: string, range: DateRange): Promise<Map<string, AccountBalance>> {
+export async function aggregateAccountBalances(tenantId: string, range: DateRange): Promise<Map<string, AccountBalance>> {
   const accounts = await prisma.account.findMany({ where: { tenantId }, orderBy: { createdAt: "asc" } });
   const map = new Map<string, AccountBalance>();
   accounts.forEach((a) => map.set(a.id, { account: a, debit: 0, credit: 0 }));

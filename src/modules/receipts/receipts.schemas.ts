@@ -5,6 +5,7 @@ export const createReceiptSchema = z.object({
   customerId: z.string().min(1),
   date: z.coerce.date(),
   method: z.enum(["cash", "bank"]),
+  bankAccountId: z.string().nullable().optional(),
   allocations: z
     .array(z.object({ invoiceId: z.string().min(1), amount: z.coerce.number().positive() }))
     .min(1, "يجب تخصيص السند لفاتورة واحدة على الأقل"),

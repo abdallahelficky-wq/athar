@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { listJournalEntries } from "../api/journalEntries";
-import { getIncomeStatement } from "../api/reports";
+import { getFinancialKpis } from "../api/dashboard";
 import { fmt } from "../legacy/constants";
-import { Gauge } from "../legacy/shared";
+import FinancialDashboard from "./dashboard/FinancialDashboard";
 
 const AVATAR_COLORS = ["#2F5D5A", "#8A5A3E", "#B98B4E", "#445565", "#A8432B", "#10202E"];
 function colorFor(id) {
@@ -35,117 +34,60 @@ function ConsolidatedIcon({ active, onClick }) {
   );
 }
 
-function entryTotal(e) {
-  return e.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
-}
-
-function SingleCompanyStats({ companyId }) {
-  const [entries, setEntries] = useState([]);
-  const [income, setIncome] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([listJournalEntries({ companyId }), getIncomeStatement({ companyId })])
-      .then(([e, i]) => { setEntries(e); setIncome(i); })
-      .finally(() => setLoading(false));
-  }, [companyId]);
-
-  if (loading) return <p className="empty">جارٍ التحميل...</p>;
-
-  const postedEntries = entries.filter((e) => e.status === "posted");
-  const totalDebit = postedEntries.reduce((s, e) => s + entryTotal(e), 0);
-
-  return (
-    <>
-      <div className="gauge-row gauge-row-3">
-        <Gauge label="حجم الحركة المحاسبية (مرحّل)" value={totalDebit} max={600000} unit="ر.س" tone="#2F5D5A" />
-        <Gauge label="عدد القيود المسجّلة" value={entries.length} max={20} unit="قيد" tone="#8A5A3E" />
-        <Gauge label="صافي الربح" value={Math.max(income?.netIncome || 0, 0)} max={600000} unit="ر.س" tone="#B98B4E" />
-      </div>
-      <div className="panel">
-        <h3>آخر القيود</h3>
-        <ul className="mini-list">
-          {entries.slice(0, 6).map((e) => (
-            <li key={e.id}>
-              <span className="mini-date">{e.date.slice(0, 10)}</span>
-              <span className="mini-memo">{e.memo || "بدون بيان"} {e.status === "draft" && "(مسودة)"}</span>
-              <span className="mini-amount">{fmt(entryTotal(e))} ر.س</span>
-            </li>
-          ))}
-          {entries.length === 0 && <li className="empty">لا توجد قيود لهذه الشركة بعد</li>}
-        </ul>
-      </div>
-      <p className="note">
-        باقي موديولات لوحة القيادة الأصلية (مبيعات المحطات، تنبيهات مستندات الموظفين...) تعتمد على موديولات
-        لم تُربط بعد بالـ backend الحقيقي، لذا لا تظهر هنا حالياً — انظر تبويبات المبيعات/المشتريات/الموظفين
-        التي ما زالت تعمل ببيانات تجريبية محلية كما كانت.
-      </p>
-    </>
-  );
-}
-
-/** لوحة قيادة موحّدة للمجموعة كاملة — نفس مؤشرات الشركة الواحدة لكن مجمّعة عبر كل الشركات
- * (باستدعاء تقارير كل شركة على حدة ثم جمعها هنا، بدل نقطة نهاية تجميع جديدة في الخادم) */
-function ConsolidatedStats({ companies }) {
+/** جدول مقارنة سريع بين شركات المجموعة (كل شركة على حدة) يُكمّل الأرقام المجمّعة لكل
+ * المجموعة التي تعرضها FinancialDashboard نفسها (بدون تمرير companyId = تجميع تلقائي) */
+function GroupComparisonTable({ companies }) {
   const [rows, setRows] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all(
-      companies.map((c) =>
-        Promise.all([listJournalEntries({ companyId: c.id }), getIncomeStatement({ companyId: c.id })]).then(
-          ([entries, income]) => {
-            const posted = entries.filter((e) => e.status === "posted");
-            const totalDebit = posted.reduce((s, e) => s + entryTotal(e), 0);
-            return { company: c, entryCount: entries.length, totalDebit, netIncome: income.netIncome };
-          },
-        ),
-      ),
-    )
-      .then(setRows)
-      .finally(() => setLoading(false));
+    const now = new Date();
+    const dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const dateTo = now.toISOString().slice(0, 10);
+    Promise.all(companies.map((c) => getFinancialKpis(c.id, dateFrom, dateTo).then((k) => ({ company: c, ...k })))).then(setRows);
   }, [companies]);
 
-  if (loading || !rows) return <p className="empty">جارٍ تجميع بيانات كل الشركات...</p>;
+  if (!rows) return <p className="empty">جارٍ تجميع بيانات كل الشركات...</p>;
 
-  const grandDebit = rows.reduce((s, r) => s + r.totalDebit, 0);
-  const grandEntries = rows.reduce((s, r) => s + r.entryCount, 0);
-  const grandNet = rows.reduce((s, r) => s + r.netIncome, 0);
+  const grand = rows.reduce(
+    (acc, r) => ({
+      salesCurrent: acc.salesCurrent + r.salesCurrent,
+      netProfitEstimate: acc.netProfitEstimate + r.netProfitEstimate,
+      cashBalance: acc.cashBalance + r.cashBalance,
+      receivablesTotal: acc.receivablesTotal + r.receivablesTotal,
+      payablesTotal: acc.payablesTotal + r.payablesTotal,
+    }),
+    { salesCurrent: 0, netProfitEstimate: 0, cashBalance: 0, receivablesTotal: 0, payablesTotal: 0 },
+  );
 
   return (
-    <>
-      <div className="gauge-row gauge-row-3">
-        <Gauge label="حجم الحركة المحاسبية (كل الشركات)" value={grandDebit} max={2000000} unit="ر.س" tone="#2F5D5A" />
-        <Gauge label="عدد القيود (كل الشركات)" value={grandEntries} max={60} unit="قيد" tone="#8A5A3E" />
-        <Gauge label="صافي الربح الإجمالي" value={Math.max(grandNet, 0)} max={2000000} unit="ر.س" tone="#B98B4E" />
-      </div>
-      <div className="panel">
-        <h3>مقارنة بين شركات المجموعة</h3>
-        <table className="ledger-table">
-          <thead><tr><th>الشركة</th><th>عدد القيود</th><th>حجم الحركة المرحّلة</th><th>صافي الربح</th></tr></thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.company.id}>
-                <td>{r.company.name}</td>
-                <td className="num">{r.entryCount}</td>
-                <td className="num">{fmt(r.totalDebit)}</td>
-                <td className="num">{fmt(r.netIncome)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td className="foot-label">الإجمالي</td>
-              <td className="num strong">{grandEntries}</td>
-              <td className="num strong">{fmt(grandDebit)}</td>
-              <td className="num strong">{fmt(grandNet)}</td>
+    <div className="panel">
+      <h3>مقارنة بين شركات المجموعة (الشهر الحالي)</h3>
+      <table className="ledger-table">
+        <thead><tr><th>الشركة</th><th>صافي المبيعات</th><th>صافي الربح التقديري</th><th>الرصيد النقدي</th><th>مستحقات العملاء</th><th>مستحقات الموردين</th></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.company.id}>
+              <td>{r.company.name}</td>
+              <td className="num">{fmt(r.salesCurrent)}</td>
+              <td className="num">{fmt(r.netProfitEstimate)}</td>
+              <td className="num">{fmt(r.cashBalance)}</td>
+              <td className="num">{fmt(r.receivablesTotal)}</td>
+              <td className="num">{fmt(r.payablesTotal)}</td>
             </tr>
-          </tfoot>
-        </table>
-      </div>
-    </>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td className="foot-label">الإجمالي</td>
+            <td className="num strong">{fmt(grand.salesCurrent)}</td>
+            <td className="num strong">{fmt(grand.netProfitEstimate)}</td>
+            <td className="num strong">{fmt(grand.cashBalance)}</td>
+            <td className="num strong">{fmt(grand.receivablesTotal)}</td>
+            <td className="num strong">{fmt(grand.payablesTotal)}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   );
 }
 
@@ -187,9 +129,12 @@ export default function Dashboard({ companies, companyId, setCompanyId, onNaviga
           </div>
 
           {viewMode === "consolidated" ? (
-            <ConsolidatedStats companies={companies} />
+            <>
+              <FinancialDashboard companyId={undefined} />
+              <GroupComparisonTable companies={companies} />
+            </>
           ) : companyId ? (
-            <SingleCompanyStats companyId={companyId} />
+            <FinancialDashboard companyId={companyId} />
           ) : (
             <p className="empty">اختر شركة من الأعلى لعرض لوحة قيادتها.</p>
           )}

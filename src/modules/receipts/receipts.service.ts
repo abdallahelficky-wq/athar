@@ -14,11 +14,27 @@ interface ReceiptInput {
   customerId: string;
   date: Date;
   method: "cash" | "bank";
+  bankAccountId?: string | null;
   allocations: AllocationInput[];
 }
 
-const receiptInclude = { allocations: { include: { invoice: true } }, customer: true } as const;
+const receiptInclude = { allocations: { include: { invoice: true } }, customer: true, bankAccount: true } as const;
 const CREDIT_ACCOUNT_NAME = { cash: "النقدية بالصندوق", bank: "البنك الأهلي - حساب تشغيلي" };
+
+/**
+ * يحدد الحساب الدائن الفعلي لسند القبض: للكاش دائماً حساب الصندوق الوحيد، وللبنك يُستخدَم
+ * الحساب البنكي الذي اختاره المستخدم صراحةً (يجب أن يكون مُصنَّفاً isBankOrCash ضمن مستأجره)
+ * — أو، للتوافق مع السندات المُنشأة قبل إتاحة هذا الاختيار، الحساب البنكي الافتراضي القديم.
+ */
+async function resolveCreditAccountId(tenantId: string, method: "cash" | "bank", bankAccountId?: string | null) {
+  if (method === "cash") return getAccountIdByName(tenantId, CREDIT_ACCOUNT_NAME.cash);
+  if (bankAccountId) {
+    const account = await prisma.account.findFirst({ where: { id: bankAccountId, tenantId, isBankOrCash: true } });
+    if (!account) throw badRequest("الحساب البنكي المحدد غير موجود ضمن مستأجرك أو غير مُصنَّف كحساب بنكي/نقدي في شجرة الحسابات");
+    return account.id;
+  }
+  return getAccountIdByName(tenantId, CREDIT_ACCOUNT_NAME.bank);
+}
 
 export async function listReceipts(tenantId: string, filters: { companyId?: string; customerId?: string }) {
   return prisma.receipt.findMany({
@@ -63,7 +79,7 @@ export async function createReceipt(tenantId: string, userId: string, input: Rec
   const totalAllocated = input.allocations.reduce((s, a) => s + a.amount, 0);
   if (totalAllocated <= 0) throw badRequest("إجمالي المبلغ المخصص يجب أن يكون أكبر من صفر");
 
-  const creditAccountId = await getAccountIdByName(tenantId, CREDIT_ACCOUNT_NAME[input.method]);
+  const creditAccountId = await resolveCreditAccountId(tenantId, input.method, input.bankAccountId);
   const receivableId = await getAccountIdByName(tenantId, "ذمم مدينة");
 
   const journalLines = [
@@ -93,6 +109,7 @@ export async function createReceipt(tenantId: string, userId: string, input: Rec
         customerId: input.customerId,
         date: input.date,
         method: input.method,
+        bankAccountId: input.method === "bank" ? creditAccountId : null,
         totalAmount: totalAllocated,
         status: "posted",
         journalEntryId: entry.id,
@@ -118,7 +135,7 @@ export async function postReceipt(tenantId: string, userId: string, id: string) 
   if (!receipt) throw notFound("سند القبض غير موجود");
   if (receipt.status === "posted") throw badRequest("السند مرحّل بالفعل");
 
-  const creditAccountId = await getAccountIdByName(tenantId, CREDIT_ACCOUNT_NAME[receipt.method]);
+  const creditAccountId = await resolveCreditAccountId(tenantId, receipt.method, receipt.bankAccountId);
   const receivableId = await getAccountIdByName(tenantId, "ذمم مدينة");
   const total = Number(receipt.totalAmount);
 
@@ -164,13 +181,13 @@ export async function unpostReceipt(tenantId: string, userId: string, id: string
  */
 async function repostReceiptEntryTx(
   tx: Parameters<typeof createJournalEntryTx>[0],
-  receipt: { id: string; tenantId: string; companyId: string; customerId: string; date: Date; receiptNumber: string; method: "cash" | "bank"; status: string; journalEntryId: string | null },
+  receipt: { id: string; tenantId: string; companyId: string; customerId: string; date: Date; receiptNumber: string; method: "cash" | "bank"; bankAccountId: string | null; status: string; journalEntryId: string | null },
   customerName: string,
   newTotal: number,
 ) {
   if (receipt.status !== "posted") return null;
   await deleteJournalEntryTx(tx, receipt.journalEntryId);
-  const creditAccountId = await getAccountIdByName(receipt.tenantId, CREDIT_ACCOUNT_NAME[receipt.method]);
+  const creditAccountId = await resolveCreditAccountId(receipt.tenantId, receipt.method, receipt.bankAccountId);
   const receivableId = await getAccountIdByName(receipt.tenantId, "ذمم مدينة");
   const entry = await createJournalEntryTx(tx, {
     tenantId: receipt.tenantId,

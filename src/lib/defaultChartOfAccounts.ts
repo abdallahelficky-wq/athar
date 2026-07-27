@@ -7,9 +7,9 @@ import { AccountType } from "@prisma/client";
  * تُزرع تلقائياً لكل مستأجر جديد عند التسجيل، ويمكن للمستخدم تعديلها لاحقاً
  * عبر /api/accounts.
  */
-export const DEFAULT_CHART_OF_ACCOUNTS: { name: string; type: AccountType }[] = [
-  { name: "النقدية بالصندوق", type: "asset" },
-  { name: "البنك الأهلي - حساب تشغيلي", type: "asset" },
+export const DEFAULT_CHART_OF_ACCOUNTS: { name: string; type: AccountType; isBankOrCash?: boolean }[] = [
+  { name: "النقدية بالصندوق", type: "asset", isBankOrCash: true },
+  { name: "البنك الأهلي - حساب تشغيلي", type: "asset", isBankOrCash: true },
   { name: "ذمم مدينة", type: "asset" },
   { name: "ضريبة القيمة المضافة - مدخلات", type: "asset" },
   { name: "ذمم دائنة - موردين", type: "liability" },

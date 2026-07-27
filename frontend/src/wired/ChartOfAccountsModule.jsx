@@ -9,9 +9,9 @@ export default function ChartOfAccountsModule() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ name: "", type: "asset" });
+  const [form, setForm] = useState({ name: "", type: "asset", isBankOrCash: false });
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ name: "", type: "asset" });
+  const [editForm, setEditForm] = useState({ name: "", type: "asset", isBankOrCash: false });
 
   const reload = () => {
     setLoading(true);
@@ -26,15 +26,15 @@ export default function ChartOfAccountsModule() {
   const add = async () => {
     if (!form.name.trim()) return;
     try {
-      await createAccount({ name: form.name.trim(), type: form.type });
-      setForm({ name: "", type: "asset" });
+      await createAccount({ name: form.name.trim(), type: form.type, isBankOrCash: form.isBankOrCash });
+      setForm({ name: "", type: "asset", isBankOrCash: false });
       reload();
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const startEdit = (a) => { setEditingId(a.id); setEditForm({ name: a.name, type: a.type }); };
+  const startEdit = (a) => { setEditingId(a.id); setEditForm({ name: a.name, type: a.type, isBankOrCash: a.isBankOrCash }); };
 
   const saveEdit = async () => {
     try {
@@ -73,6 +73,12 @@ export default function ChartOfAccountsModule() {
               {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </label>
+          {form.type === "asset" && (
+            <label className="checkbox-label">
+              <input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />
+              حساب نقدي/بنكي (يظهر في توزيع الكاش بالداشبورد)
+            </label>
+          )}
         </div>
         <button className="btn-primary" onClick={add}>إضافة حساب جديد</button>
       </div>
@@ -92,6 +98,14 @@ export default function ChartOfAccountsModule() {
                           {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                         </select>
                       </td>
+                      <td>
+                        {editForm.type === "asset" && (
+                          <label className="checkbox-label">
+                            <input type="checkbox" checked={editForm.isBankOrCash} onChange={(e) => setEditForm({ ...editForm, isBankOrCash: e.target.checked })} />
+                            نقدي/بنكي
+                          </label>
+                        )}
+                      </td>
                       <td className="row-actions">
                         <button className="btn-ghost" onClick={saveEdit}>حفظ</button>
                         <button className="btn-ghost" onClick={() => setEditingId(null)}>إلغاء</button>
@@ -100,6 +114,7 @@ export default function ChartOfAccountsModule() {
                   ) : (
                     <>
                       <td>{a.name}</td><td></td>
+                      <td>{a.isBankOrCash && <span className="status-badge">نقدي/بنكي</span>}</td>
                       <td className="row-actions">
                         <button className="icon-btn" title="تعديل" onClick={() => startEdit(a)}><Icon.Edit /></button>
                         <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(a)}><Icon.Trash /></button>

@@ -6,7 +6,8 @@ import { NATIONALITIES, EMPLOYEE_DOC_TYPES } from "../../legacy/hr";
 const emptyForm = () => ({
   name: "", jobTitle: "", department: DEPARTMENTS[0], hireDate: new Date().toISOString().slice(0, 10),
   contractType: "unlimited", contractEnd: "", basicSalary: "", housingAllowance: "", transportAllowance: "",
-  gosiApplicable: true, nationality: NATIONALITIES[0], dateOfBirth: "", bankName: "", bankAccount: "", documents: [],
+  gosiApplicable: true, nationality: NATIONALITIES[0], dateOfBirth: "", bankName: "", bankAccount: "",
+  probationEndDate: "", probationEvaluated: false, documents: [],
 });
 
 export default function EmployeeDirectoryTab({ companyId }) {
@@ -31,6 +32,7 @@ export default function EmployeeDirectoryTab({ companyId }) {
         basicSalary: Number(form.basicSalary), housingAllowance: Number(form.housingAllowance || 0),
         transportAllowance: Number(form.transportAllowance || 0), contractEnd: form.contractEnd || undefined,
         dateOfBirth: form.dateOfBirth || undefined,
+        probationEndDate: form.probationEndDate || null,
         documents: form.documents.map((d) => ({ ...d, expiryDate: d.expiryDate || undefined })),
       };
       if (editingId) await updateEmployee(editingId, payload);
@@ -49,6 +51,7 @@ export default function EmployeeDirectoryTab({ companyId }) {
       ...emptyForm(), ...e,
       hireDate: e.hireDate.slice(0, 10), contractEnd: e.contractEnd?.slice(0, 10) || "",
       dateOfBirth: e.dateOfBirth?.slice(0, 10) || "",
+      probationEndDate: e.probationEndDate?.slice(0, 10) || "",
       documents: (e.documents || []).map((d) => ({ ...d, expiryDate: d.expiryDate?.slice(0, 10) || "" })),
     });
   };
@@ -86,6 +89,13 @@ export default function EmployeeDirectoryTab({ companyId }) {
             </select>
           </label>
           {form.contractType === "limited" && <label>نهاية العقد<input type="date" value={form.contractEnd} onChange={(e) => setForm({ ...form, contractEnd: e.target.value })} /></label>}
+          <label>نهاية فترة التجربة (اختياري)<input type="date" value={form.probationEndDate} onChange={(e) => setForm({ ...form, probationEndDate: e.target.value })} /></label>
+          {form.probationEndDate && (
+            <label className="checkbox-field">
+              <input type="checkbox" checked={form.probationEvaluated} onChange={(e) => setForm({ ...form, probationEvaluated: e.target.checked })} />
+              تم تقييم الموظف بعد انتهاء فترة التجربة
+            </label>
+          )}
           <label>الأساسي<input type="number" value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} /></label>
           <label>بدل سكن<input type="number" value={form.housingAllowance} onChange={(e) => setForm({ ...form, housingAllowance: e.target.value })} /></label>
           <label>بدل نقل<input type="number" value={form.transportAllowance} onChange={(e) => setForm({ ...form, transportAllowance: e.target.value })} /></label>

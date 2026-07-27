@@ -4,7 +4,7 @@ interface Filters {
   companyId?: string;
 }
 
-async function invoicesWithPaid(tenantId: string, companyId?: string) {
+export async function invoicesWithPaid(tenantId: string, companyId?: string) {
   const invoices = await prisma.salesInvoice.findMany({
     where: { tenantId, companyId: companyId || undefined, status: "posted" },
     include: { receiptAllocations: true, customer: true },

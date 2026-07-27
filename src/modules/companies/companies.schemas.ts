@@ -16,6 +16,11 @@ export const createCompanySchema = z.object({
   addressCity: z.string().optional(),
   addressPostalCode: z.string().optional(),
   addressAdditionalNo: z.string().optional(),
+  vatFilingFrequency: z.enum(["monthly", "quarterly"]).optional(),
+  zakatDeclarationDueDate: z.coerce.date().nullable().optional(),
+  lowCashThreshold: z.number().nonnegative().nullable().optional(),
+  overdueInvoiceDays: z.number().int().positive().optional(),
+  staleDraftDays: z.number().int().positive().optional(),
 });
 
 export const updateCompanySchema = createCompanySchema.partial();

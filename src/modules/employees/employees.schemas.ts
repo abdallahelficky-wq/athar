@@ -26,6 +26,8 @@ export const createEmployeeSchema = z.object({
   dateOfBirth: z.coerce.date().optional(),
   bankName: z.string().optional(),
   bankAccount: z.string().optional(),
+  probationEndDate: z.coerce.date().nullable().optional(),
+  probationEvaluated: z.boolean().default(false),
   documents: z.array(documentSchema).default([]),
 });
 

@@ -47,6 +47,7 @@ model Tenant {
   costCenters      CostCenter[]
   accounts         Account[]
   companyDocuments CompanyDocument[]
+  leaseContracts   LeaseContract[]
   journalEntries   JournalEntry[]
   auditLogs        AuditLog[]
 
@@ -148,30 +149,37 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
-  id                  String    @id @default(cuid())
-  tenantId            String
-  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name                String
-  shortName           String?
-  logoKey             String?
-  brandColor          String?
-  vatNumber           String?
-  crNumber            String?
-  crIssueDate         DateTime?
-  crExpiryDate        DateTime?
-  officialEmail       String?
-  phone               String?
-  addressBuilding     String?
-  addressStreet       String?
-  addressDistrict     String?
-  addressCity         String?
-  addressPostalCode   String?
-  addressAdditionalNo String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                      String             @id @default(cuid())
+  tenantId                String
+  tenant                  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name                    String
+  shortName               String?
+  logoKey                 String?
+  brandColor              String?
+  vatNumber               String?
+  crNumber                String?
+  crIssueDate             DateTime?
+  crExpiryDate            DateTime?
+  officialEmail           String?
+  phone                   String?
+  addressBuilding         String?
+  addressStreet           String?
+  addressDistrict         String?
+  addressCity             String?
+  addressPostalCode       String?
+  addressAdditionalNo     String?
+  // إعدادات تنبيهات الداشبورد المالية — قابلة للتعديل لكل شركة من الإعدادات
+  vatFilingFrequency      VatFilingFrequency @default(quarterly)
+  zakatDeclarationDueDate DateTime?
+  lowCashThreshold        Decimal?           @db.Decimal(18, 2)
+  overdueInvoiceDays      Int                @default(30)
+  staleDraftDays          Int                @default(7)
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
 
   costCenters      CostCenter[]
   companyDocuments CompanyDocument[]
+  leaseContracts   LeaseContract[]
   journalEntries   JournalEntry[]
   customers        Customer[]
   quotations       Quotation[]
@@ -220,16 +228,25 @@ enum AccountType {
   expense
 }
 
+enum VatFilingFrequency {
+  monthly
+  quarterly
+}
+
 // شجرة الحسابات
 model Account {
-  id        String      @id @default(cuid())
-  tenantId  String
-  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name      String
-  type      AccountType
-  isActive  Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id           String      @id @default(cuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name         String
+  type         AccountType
+  isActive     Boolean     @default(true)
+  // يُحدَّد يدوياً عند إنشاء/تعديل الحساب — يُستخدَم لتحديد أي حسابات "أصول" تمثّل
+  // نقدية فعلية (صندوق/بنوك) لعرضها في رسم توزيع الكاش بالداشبورد ولاختيار الحساب
+  // البنكي عند تحصيل سند قبض بنكي، بدل التخمين من اسم الحساب
+  isBankOrCash Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   journalEntryLines    JournalEntryLine[]
   salesInvoiceLines    SalesInvoiceLine[]
@@ -237,6 +254,7 @@ model Account {
   purchaseInvoiceLines PurchaseInvoiceLine[]
   purchaseReturnLines  PurchaseReturnLine[]
   sellableItemDefaults SellableItem[]
+  receiptsAsBank       Receipt[]             @relation("ReceiptBankAccount")
 
   @@unique([tenantId, name])
   @@map("accounts")
@@ -257,6 +275,25 @@ model CompanyDocument {
   updatedAt  DateTime  @updatedAt
 
   @@map("company_documents")
+}
+
+// عقود إيجار الشركة (مقرات/فروع/مستودعات) — لتنبيه اقتراب انتهاء العقد بالداشبورد المالية
+model LeaseContract {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title        String
+  counterparty String?
+  monthlyRent  Decimal? @db.Decimal(18, 2)
+  startDate    DateTime
+  endDate      DateTime
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("lease_contracts")
 }
 
 // ---------------------------------------------------------------------------
@@ -543,6 +580,10 @@ model Receipt {
   customer       Customer      @relation(fields: [customerId], references: [id])
   date           DateTime
   method         ReceiptMethod
+  // الحساب البنكي المحدَّد الذي استُلم فيه المبلغ فعلياً (عند method=bank فقط) — إن تُرك
+  // فارغاً يُستخدَم الحساب البنكي الافتراضي القديم للتوافق مع السندات المُنشأة قبل هذا الحقل
+  bankAccountId  String?
+  bankAccount    Account?      @relation("ReceiptBankAccount", fields: [bankAccountId], references: [id])
   totalAmount    Decimal       @db.Decimal(18, 2)
   status         InvoiceStatus @default(posted)
   journalEntryId String?
@@ -845,6 +886,8 @@ model Employee {
   bankAccount         String?
   leaveStatus         LeaveStatus    @default(active)
   lastLeaveReturnDate DateTime?
+  probationEndDate    DateTime?
+  probationEvaluated  Boolean        @default(false)
   status              EmployeeStatus @default(active)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt

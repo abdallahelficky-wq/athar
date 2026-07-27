@@ -1,6 +1,8 @@
 import React, { useRef, useState } from "react";
 import { updateCompany, uploadCompanyLogo, extractCompanyDocument } from "../api/companies";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
+import CompanyDocumentsPanel from "./CompanyDocumentsPanel";
+import LeaseContractsPanel from "./LeaseContractsPanel";
 
 const emptyForm = (c) => ({
   name: c.name || "",
@@ -17,6 +19,11 @@ const emptyForm = (c) => ({
   addressCity: c.addressCity || "",
   addressPostalCode: c.addressPostalCode || "",
   addressAdditionalNo: c.addressAdditionalNo || "",
+  vatFilingFrequency: c.vatFilingFrequency || "quarterly",
+  zakatDeclarationDueDate: c.zakatDeclarationDueDate ? c.zakatDeclarationDueDate.slice(0, 10) : "",
+  lowCashThreshold: c.lowCashThreshold ?? "",
+  overdueInvoiceDays: c.overdueInvoiceDays ?? 30,
+  staleDraftDays: c.staleDraftDays ?? 7,
 });
 
 const DOC_TYPES = [
@@ -51,6 +58,10 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         ...form,
         crIssueDate: form.crIssueDate || undefined,
         crExpiryDate: form.crExpiryDate || undefined,
+        zakatDeclarationDueDate: form.zakatDeclarationDueDate || undefined,
+        lowCashThreshold: form.lowCashThreshold === "" ? null : Number(form.lowCashThreshold),
+        overdueInvoiceDays: Number(form.overdueInvoiceDays),
+        staleDraftDays: Number(form.staleDraftDays),
       });
       onSaved();
     } catch (err) {
@@ -132,6 +143,31 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
           <label>الرمز البريدي<input type="text" value={form.addressPostalCode} onChange={(e) => set("addressPostalCode", e.target.value)} /></label>
           <label>الرقم الإضافي<input type="text" value={form.addressAdditionalNo} onChange={(e) => set("addressAdditionalNo", e.target.value)} /></label>
         </div>
+
+        <h4 className="sub-head">إعدادات تنبيهات الداشبورد المالية</h4>
+        <div className="form-grid">
+          <label>دورية تقديم إقرار ضريبة القيمة المضافة
+            <select value={form.vatFilingFrequency} onChange={(e) => set("vatFilingFrequency", e.target.value)}>
+              <option value="monthly">شهرية</option>
+              <option value="quarterly">ربع سنوية</option>
+            </select>
+          </label>
+          <label>موعد تقديم إقرار الزكاة القادم (اختياري)
+            <input type="date" value={form.zakatDeclarationDueDate} onChange={(e) => set("zakatDeclarationDueDate", e.target.value)} />
+          </label>
+          <label>الحد الأدنى لرصيد الكاش (اختياري)
+            <input type="number" value={form.lowCashThreshold} onChange={(e) => set("lowCashThreshold", e.target.value)} placeholder="بدون حد أدنى" />
+          </label>
+          <label>مدة تأخر الفاتورة قبل التنبيه (أيام)
+            <input type="number" value={form.overdueInvoiceDays} onChange={(e) => set("overdueInvoiceDays", e.target.value)} />
+          </label>
+          <label>مدة بقاء الفاتورة كمسودة قبل التنبيه (أيام)
+            <input type="number" value={form.staleDraftDays} onChange={(e) => set("staleDraftDays", e.target.value)} />
+          </label>
+        </div>
+
+        <LeaseContractsPanel companyId={company.id} />
+        <CompanyDocumentsPanel companyId={company.id} />
 
         <h4 className="sub-head">الشعار</h4>
         <div className="form-btn-group" style={{ justifyContent: "flex-start" }}>

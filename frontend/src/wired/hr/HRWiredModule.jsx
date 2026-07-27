@@ -1,4 +1,5 @@
 import React from "react";
+import HRDashboardTab from "./HRDashboardTab";
 import EmployeeDirectoryTab from "./EmployeeDirectoryTab";
 import LeavesTab from "./LeavesTab";
 import LeaveSettlementTab from "./LeaveSettlementTab";
@@ -9,6 +10,7 @@ import EndOfServiceTab from "./EndOfServiceTab";
 import HRReportsTab from "./HRReportsTab";
 
 export const HR_TABS = [
+  { id: "dashboard", label: "الداشبورد" },
   { id: "directory", label: "ملفات الموظفين" },
   { id: "leaves", label: "طلبات الإجازات" },
   { id: "leaveSettlement", label: "مستحقات الإجازة" },
@@ -29,6 +31,7 @@ export default function HRWiredModule({ tab, setTab, companies, companyId }) {
       <div className="report-tabs">
         {HR_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
+      {tab === "dashboard" && <HRDashboardTab companyId={companyId} />}
       {tab === "directory" && <EmployeeDirectoryTab companyId={companyId} />}
       {tab === "leaves" && <LeavesTab companyId={companyId} />}
       {tab === "leaveSettlement" && <LeaveSettlementTab companyId={companyId} />}

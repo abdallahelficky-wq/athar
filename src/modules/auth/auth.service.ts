@@ -67,7 +67,7 @@ export async function register(input: { tenantName: string; name: string; email:
     });
 
     await tx.account.createMany({
-      data: DEFAULT_CHART_OF_ACCOUNTS.map((a) => ({ tenantId: tenant.id, name: a.name, type: a.type })),
+      data: DEFAULT_CHART_OF_ACCOUNTS.map((a) => ({ tenantId: tenant.id, name: a.name, type: a.type, isBankOrCash: a.isBankOrCash ?? false })),
     });
 
     const user = await tx.user.create({

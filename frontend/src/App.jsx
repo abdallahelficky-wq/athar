@@ -59,7 +59,7 @@ function AppShell() {
   const [purchasesTab, setPurchasesTab] = useState("suppliers");
   const [inventoryTab, setInventoryTab] = useState("items");
   const [accountsTab, setAccountsTab] = useState("journal");
-  const [hrTab, setHrTab] = useState("directory");
+  const [hrTab, setHrTab] = useState("dashboard");
   const [reportsTab, setReportsTab] = useState("trial");
   const [settingsTab, setSettingsTab] = useState("companies");
 
