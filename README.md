@@ -360,6 +360,75 @@ Anthropic حقيقي هنا — الذي اختُبر فعلياً هو مسار
 بغض النظر عن جودة أي استجابة معيّنة. يُنصَح باختبار عيّنة من مستندات حقيقية بعد النشر على
 Railway (حيث المفتاح الحقيقي متاح) للتأكد من جودة الاقتراحات على حالات واقعية.
 
+## حادثة إنتاج: migrations لم تُطبَّق تلقائياً على Railway (وإصلاحها الدائم)
+
+بعد نشر ميزتي الأرشفة والذكاء الاصطناعي، ظهر هذا الخطأ في سجلات Railway عند محاولة حفظ
+وترحيل فاتورة مبيعات:
+
+```
+PrismaClientKnownRequestError, code: 'P2022'
+at async createHandler (/app/dist/modules/salesInvoices/salesInvoices.controller.js:52:26)
+```
+
+**السبب الجذري المؤكَّد** (وليس افتراضاً): تم استنساخ الخطأ محلياً بدقة — قاعدة بيانات
+بها فقط أول migration (`20260721193512_phase_zero_init`، التي أنشأت `sales_invoice_lines`
+بعمود `account TEXT` قديم) دون أي من الـ 4 migrations اللاحقة، ثم تشغيل الخادم المبني
+(`node dist/server.js`) وإرسال نفس طلب حفظ فاتورة مبيعات — أنتج **نفس الخطأ بالضبط**، حتى
+رقم السطر (`salesInvoices.controller.js:52:26`):
+
+```
+PrismaClientKnownRequestError: The column `accountId` does not exist in the current database.
+    code: 'P2022', meta: { modelName: 'SalesInvoice', column: 'accountId' }
+```
+
+أي أن قاعدة بيانات الإنتاج على Neon لم تكن متأخرة بـ migration الأرشفة الجديد فقط كما بدا
+في البداية، بل **لم يُشغَّل عليها `prisma migrate deploy` منذ نشر مراحل 1-3 نفسها** (العمود
+`accountId` أُضيف حينها، وليس في هذا التسليم) — أي أن كل الـ 4 migrations اللاحقة لـ Phase Zero
+كانت معلَّقة، وليس migration واحد فقط.
+
+**لماذا حدث هذا رغم نجاح النشر**: لأن سكربت `start` كان `"node dist/server.js"` فقط — لا شيء
+في عملية البناء أو التشغيل على Railway يطبّق migrations تلقائياً؛ كان تطبيقها يعتمد كلياً على
+تذكّر تشغيل `npx prisma migrate deploy` يدوياً بعد كل نشر يتضمّن تعديلاً في المخطط.
+
+**الإصلاح الدائم** (`package.json`):
+
+```diff
+- "start": "node dist/server.js",
++ "start": "prisma migrate deploy && node dist/server.js",
+```
+
+بهذا يُطبَّق أي migration معلَّق **تلقائياً في كل مرة يُقلَع فيها الخادم** (كل نشر جديد على
+Railway يُعيد تشغيل `npm start`)، قبل أن يبدأ الخادم استقبال أي طلب — لا حاجة لتذكّر خطوة
+يدوية بعد اليوم مع أي جدول أو migration مستقبلي. كذلك نُقلت حزمة `prisma` (الـ CLI) من
+`devDependencies` إلى `dependencies` في `package.json`، لأن بعض منصّات النشر (ومنها احتمالياً
+Railway حسب إعداد Nixpacks) قد تُقلّص `devDependencies` بين مرحلة البناء والتشغيل، ما كان
+سيجعل أمر `prisma migrate deploy` نفسه غير موجود وقت الإقلاع الفعلي رغم نجاحه أثناء البناء.
+
+**التحقق الكامل من الإصلاح** (وليس افتراضاً): بعد تطبيق التعديل أعلاه، أُعيد تشغيل نفس قاعدة
+البيانات المتأخرة (4 migrations معلَّقة) عبر `npm run build && npm start` (بالضبط كما يفعل
+Railway) — ظهر في السجل تطبيق الأربعة migrations تلقائياً بنجاح:
+
+```
+Applying migration `20260722101827_phases_1_3_sales_purchases_inventory_assets_hr`
+Applying migration `20260722102927_stock_movement_transfer_group`
+Applying migration `20260722103500_depreciation_run_unique_month`
+Applying migration `20260726123822_attachments_and_ai_source_module`
+All migrations have been successfully applied.
+```
+
+ثم أُعيدت نفس عملية حفظ وترحيل فاتورة المبيعات التي فشلت سابقاً — نجحت هذه المرة بالكامل
+(فاتورة برقم `INV-00001`، حالة `posted`، رمز QR مُولَّد، قيد محاسبي مرتبط)، و`npx prisma
+migrate status` أكّد أن قاعدة البيانات "up to date" تماماً بعد ذلك.
+
+**ملاحظة مهمة لتفعيل الإصلاح فعلياً على Railway**: هذا التعديل يعمل تلقائياً فقط إذا كان
+Railway يستخدم فعلياً سكربت `start` من `package.json` (السلوك الافتراضي لـ Nixpacks مع
+مشروع Node قياسي). إن كان هناك Start Command مخصَّص مضبوط يدوياً في إعدادات Railway
+(Settings → Deploy → Custom Start Command) فسيتجاوز هذا التعديل تماماً — تأكّد من عدم وجود
+أمر مخصَّص هناك، أو حدِّثه ليطابق `prisma migrate deploy && node dist/server.js` إن وُجد، حتى
+يعمل الإصلاح فعلياً على النشرة القادمة. لم يكن بإمكاني تعديل إعدادات Railway نفسها من هذه
+الجلسة (لا صلاحية وصول لوحة تحكم Railway أو بيانات اعتماد قاعدة الإنتاج)؛ التعديل هنا محصور
+بملفات المستودع فقط.
+
 ## المراحل القادمة
 
 المراحل صفر و1 و2 و3 كلها منجزة الآن (backend + frontend)، بالإضافة إلى الأرشفة الإلكترونية
