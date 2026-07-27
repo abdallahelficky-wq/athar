@@ -11,14 +11,16 @@ export class ApiError extends Error {
 }
 
 async function rawRequest(path, options, accessToken) {
+  const isFormData = options.body instanceof FormData;
   const headers = { ...(options.headers || {}) };
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  // لملفات FormData نترك المتصفح يضبط Content-Type بنفسه (يتضمن boundary متعدد الأجزاء)
+  if (options.body !== undefined && !isFormData) headers["Content-Type"] = "application/json";
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    body: options.body !== undefined ? (isFormData ? options.body : JSON.stringify(options.body)) : undefined,
   });
 
   const text = await res.text();
@@ -74,6 +76,7 @@ export async function apiFetch(path, options = {}) {
 export const api = {
   get: (path) => apiFetch(path, { method: "GET" }),
   post: (path, body) => apiFetch(path, { method: "POST", body }),
+  postForm: (path, formData) => apiFetch(path, { method: "POST", body: formData }),
   patch: (path, body) => apiFetch(path, { method: "PATCH", body }),
   put: (path, body) => apiFetch(path, { method: "PUT", body }),
   delete: (path, body) => apiFetch(path, { method: "DELETE", body }),

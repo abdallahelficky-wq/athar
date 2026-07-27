@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { verifyPassword } from "../../lib/password";
 import { badRequest, forbidden, notFound } from "../../lib/httpError";
+import { extractJournalEntryFromDocument } from "../../lib/claudeVision";
+import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 
 const BALANCE_EPSILON = 0.01;
 
@@ -243,4 +245,91 @@ export async function importJournalEntries(tenantId: string, userId: string, com
   }
 
   return { imported, skipped };
+}
+
+/**
+ * إنشاء قيد يومية "مسودة" من مستند (صورة/PDF) بمساعدة الذكاء الاصطناعي — يقرأ Claude
+ * المستند ويقترح حساباً مديناً ودائناً من شجرة حسابات هذا المستأجر فعلياً، ثم يُنشأ القيد
+ * بحالة draft (لا يُرحَّل أبداً تلقائياً؛ المستخدم يراجعه ويعدّله ثم يستخدم /:id/post الحالي
+ * صراحة للترحيل، تماماً كأي قيد يدوي آخر). المستند المرفوع يُربَط تلقائياً بالقيد الناتج
+ * عبر جدول Attachment بمجرد إنشائه.
+ */
+export async function createJournalEntryFromDocument(
+  tenantId: string,
+  userId: string,
+  companyId: string,
+  file: { buffer: Buffer; mimeType: string; fileName: string },
+) {
+  const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
+  if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
+
+  const accounts = await prisma.account.findMany({ where: { tenantId, isActive: true } });
+  const extraction = await extractJournalEntryFromDocument(
+    file.buffer,
+    file.mimeType,
+    accounts.map((a) => ({ id: a.id, name: a.name, type: a.type })),
+  );
+
+  const accountIds = new Set(accounts.map((a) => a.id));
+  if (
+    !extraction.suggestedDebitAccountId ||
+    !extraction.suggestedCreditAccountId ||
+    !accountIds.has(extraction.suggestedDebitAccountId) ||
+    !accountIds.has(extraction.suggestedCreditAccountId)
+  ) {
+    throw badRequest("تعذّر على الذكاء الاصطناعي اقتراح حساب صالح من شجرة حساباتك لهذا المستند، جرّب مستنداً أوضح أو أنشئ القيد يدوياً");
+  }
+  if (extraction.suggestedDebitAccountId === extraction.suggestedCreditAccountId) {
+    throw badRequest("اقترح الذكاء الاصطناعي نفس الحساب مديناً ودائناً معاً، وهذا غير منطقي محاسبياً — راجع المستند وأنشئ القيد يدوياً");
+  }
+  if (extraction.amount <= 0) {
+    throw badRequest("تعذّر على الذكاء الاصطناعي قراءة مبلغ صالح من هذا المستند");
+  }
+
+  const lines: JournalLineInput[] = [
+    { accountId: extraction.suggestedDebitAccountId, debit: extraction.amount, credit: 0 },
+    { accountId: extraction.suggestedCreditAccountId, debit: 0, credit: extraction.amount },
+  ];
+  assertBalanced(lines);
+
+  const memoParts = [extraction.description || "قيد مقترح من مستند بالذكاء الاصطناعي"];
+  if (extraction.partyName) memoParts.push(`— ${extraction.partyName}`);
+  if (extraction.vatAmount > 0) memoParts.push(`(شامل ضريبة قيمة مضافة: ${extraction.vatAmount.toFixed(2)} ر.س)`);
+
+  const date = extraction.date && !Number.isNaN(Date.parse(extraction.date)) ? new Date(extraction.date) : new Date();
+
+  const entry = await prisma.journalEntry.create({
+    data: {
+      tenantId,
+      companyId,
+      date,
+      memo: memoParts.join(" "),
+      status: "draft",
+      sourceModule: "ai_document",
+      createdBy: userId,
+      lines: { create: toLineCreateData(lines) },
+    },
+    include: entryInclude,
+  });
+
+  const fileKey = buildObjectKey(tenantId, "journal_entry", entry.id, file.fileName);
+  await uploadObject(fileKey, file.buffer, file.mimeType);
+  const attachment = await prisma.attachment.create({
+    data: {
+      tenantId,
+      entityType: "journal_entry",
+      entityId: entry.id,
+      fileName: file.fileName,
+      fileKey,
+      fileSize: file.buffer.length,
+      mimeType: file.mimeType,
+      uploadedBy: userId,
+    },
+  });
+
+  return {
+    entry,
+    attachment: { id: attachment.id, fileName: attachment.fileName, fileUrl: await getPresignedGetUrl(fileKey) },
+    aiConfidenceNote: extraction.confidenceNote,
+  };
 }

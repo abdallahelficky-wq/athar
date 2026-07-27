@@ -13,6 +13,8 @@ import {
 import { fmt, fmt2 } from "../legacy/constants";
 import { ExcelImportPanel, downloadCsv } from "../legacy/shared";
 import CompanySelector from "./CompanySelector";
+import AttachmentsPanel from "./shared/AttachmentsPanel";
+import CreateFromDocumentModal from "./shared/CreateFromDocumentModal";
 
 const emptyLine = () => ({ accountId: "", costCenterId: "", department: "", debit: "", credit: "" });
 
@@ -72,6 +74,8 @@ export default function JournalModule({ companies, companyId, setCompanyId, onCo
 
   const [unpostTarget, setUnpostTarget] = useState(null);
   const [searchText, setSearchText] = useState("");
+  const [attachmentsFor, setAttachmentsFor] = useState(null);
+  const [showFromDocument, setShowFromDocument] = useState(false);
 
   useEffect(() => {
     listAccounts().then(setAccounts).catch((err) => setError(err.message));
@@ -261,6 +265,9 @@ export default function JournalModule({ companies, companyId, setCompanyId, onCo
           <div className="panel form-panel">
             <div className="filter-bar">
               <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="بحث بالبيان" />
+              <button className="btn-primary" onClick={() => setShowFromDocument(true)}>
+                إنشاء قيد من مستند (ذكاء اصطناعي)
+              </button>
               <button
                 className="btn-ghost"
                 onClick={() => downloadCsv("القيود_اليومية.csv", [
@@ -311,7 +318,11 @@ export default function JournalModule({ companies, companyId, setCompanyId, onCo
                     {e.status === "posted" && (
                       <button className="btn-ghost" onClick={() => setUnpostTarget(e)}>فك الترحيل</button>
                     )}
+                    <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === e.id ? null : e.id)}>
+                      {attachmentsFor === e.id ? "إخفاء المرفقات" : "المرفقات"}
+                    </button>
                   </div>
+                  {attachmentsFor === e.id && <AttachmentsPanel entityType="journal_entry" entityId={e.id} />}
                 </div>
               ))}
               {filtered.length === 0 && <p className="empty">لا توجد قيود لهذه الشركة بعد.</p>}
@@ -343,6 +354,14 @@ export default function JournalModule({ companies, companyId, setCompanyId, onCo
       )}
 
       {unpostTarget && <UnpostModal onCancel={() => setUnpostTarget(null)} onConfirm={doUnpost} />}
+      {showFromDocument && (
+        <CreateFromDocumentModal
+          companyId={companyId}
+          accounts={accounts}
+          onClose={() => setShowFromDocument(false)}
+          onCreated={() => { setShowFromDocument(false); reloadEntries(); }}
+        />
+      )}
     </div>
   );
 }

@@ -72,6 +72,8 @@ model Tenant {
   hrActions        HrAction[]
   payrollRuns      PayrollRun[]
 
+  attachments Attachment[]
+
   @@map("tenants")
 }
 
@@ -266,6 +268,7 @@ enum SourceModule {
   asset_disposal
   leave_settlement
   stock_movement
+  ai_document
 }
 
 model JournalEntry {
@@ -913,4 +916,27 @@ model PayrollRun {
 
   @@unique([tenantId, companyId, month])
   @@map("payroll_runs")
+}
+
+// مرفقات المستندات المؤيدة لأي معاملة — موديول عام قابل لإعادة الاستخدام عبر كل الشاشات
+// (قيود، فواتير، مردودات، سندات، كشوف رواتب، تسويات إجازة، أصول ثابتة...). entityType/entityId
+// مرجع منطقي حر (String وليس علاقة FK صارمة) على غرار sourceModule/sourceId في JournalEntry،
+// حتى لا يتطلب أي كيان جديد تعديلاً في هذا المخطط. fileKey هو مسار الملف الدائم داخل حاوية
+// R2 — رابط العرض/التنزيل الفعلي (presigned URL) يُولَّد عند الطلب فقط (انظر src/lib/storage.ts)
+// ولا يُخزَّن بشكل دائم، لأنه صالح لفترة محدودة ولأن حاوية R2 غير مُعلَنة كعامة (public).
+model Attachment {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entityType String
+  entityId   String
+  fileName   String
+  fileKey    String
+  fileSize   Int
+  mimeType   String
+  uploadedBy String?
+  uploadedAt DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId])
+  @@map("attachments")
 }

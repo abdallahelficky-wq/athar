@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import * as service from "./journalEntries.service";
+import { badRequest } from "../../lib/httpError";
 
 export const listHandler: RequestHandler = async (req, res) => {
   const { companyId, dateFrom, dateTo, search } = req.query;
@@ -40,6 +41,16 @@ export const postHandler: RequestHandler = async (req, res) => {
 export const unpostHandler: RequestHandler = async (req, res) => {
   const entry = await service.unpostJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.sub, req.body.pin);
   res.json(entry);
+};
+
+export const createFromDocumentHandler: RequestHandler = async (req, res) => {
+  if (!req.file) throw badRequest("الملف مطلوب");
+  const result = await service.createJournalEntryFromDocument(req.auth!.tenantId, req.auth!.sub, req.body.companyId, {
+    buffer: req.file.buffer,
+    mimeType: req.file.mimetype,
+    fileName: req.file.originalname,
+  });
+  res.status(201).json(result);
 };
 
 export const importHandler: RequestHandler = async (req, res) => {

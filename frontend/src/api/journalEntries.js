@@ -18,3 +18,10 @@ export const postJournalEntry = (id) => api.post(`/journal-entries/${id}/post`);
 export const unpostJournalEntry = (id, pin) => api.post(`/journal-entries/${id}/unpost`, { pin });
 export const importJournalEntries = (companyId, rows) =>
   api.post("/journal-entries/import", { companyId, rows });
+
+export const createJournalEntryFromDocument = (companyId, file) => {
+  const form = new FormData();
+  form.append("companyId", companyId);
+  form.append("file", file);
+  return api.postForm("/journal-entries/from-document", form);
+};

@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
+import { uploadSingleFile } from "../attachments/attachments.controller";
 import {
   createJournalEntrySchema,
   updateJournalEntrySchema,
   unpostSchema,
   importJournalEntriesSchema,
+  createFromDocumentSchema,
 } from "./journalEntries.schemas";
 import {
   listHandler,
@@ -16,6 +18,7 @@ import {
   postHandler,
   unpostHandler,
   importHandler,
+  createFromDocumentHandler,
 } from "./journalEntries.controller";
 
 export const journalEntryRoutes = Router();
@@ -27,6 +30,13 @@ journalEntryRoutes.get("/", listHandler);
 journalEntryRoutes.get("/:id", getHandler);
 journalEntryRoutes.post("/", canWrite, validateBody(createJournalEntrySchema), createHandler);
 journalEntryRoutes.post("/import", canWrite, validateBody(importJournalEntriesSchema), importHandler);
+journalEntryRoutes.post(
+  "/from-document",
+  canWrite,
+  uploadSingleFile,
+  validateBody(createFromDocumentSchema),
+  createFromDocumentHandler,
+);
 journalEntryRoutes.patch("/:id", canWrite, validateBody(updateJournalEntrySchema), updateHandler);
 journalEntryRoutes.delete("/:id", canWrite, deleteHandler);
 journalEntryRoutes.post("/:id/post", canWrite, postHandler);

@@ -32,6 +32,7 @@ import { payrollRunRoutes } from "./modules/payrollRuns/payrollRuns.routes";
 import { leaveSettlementRoutes } from "./modules/leaveSettlements/leaveSettlements.routes";
 import { leaveReturnRoutes } from "./modules/leaveReturns/leaveReturns.routes";
 import { hrReportRoutes } from "./modules/hrReports/hrReports.routes";
+import { attachmentRoutes } from "./modules/attachments/attachments.routes";
 
 export function createApp() {
   const app = express();
@@ -71,6 +72,7 @@ export function createApp() {
   app.use("/api/leave-settlements", leaveSettlementRoutes);
   app.use("/api/leave-returns", leaveReturnRoutes);
   app.use("/api/hr-reports", hrReportRoutes);
+  app.use("/api/attachments", attachmentRoutes);
 
   app.use((req, res) => {
     res.status(404).json({ error: `المسار غير موجود: ${req.method} ${req.path}` });

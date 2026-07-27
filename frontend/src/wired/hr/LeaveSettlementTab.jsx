@@ -4,6 +4,7 @@ import {
   listLeaveSettlements, previewLeaveSettlement, createLeaveSettlement, disburseLeaveSettlement,
 } from "../../api/leaveSettlements";
 import { fmt } from "../../legacy/constants";
+import AttachmentsPanel from "../shared/AttachmentsPanel";
 
 export default function LeaveSettlementTab({ companyId }) {
   const [employees, setEmployees] = useState([]);
@@ -21,6 +22,7 @@ export default function LeaveSettlementTab({ companyId }) {
   const [disbursingId, setDisbursingId] = useState(null);
   const [disbMethod, setDisbMethod] = useState("cash");
   const [disbDate, setDisbDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [attachmentsFor, setAttachmentsFor] = useState(null);
 
   const availableEmployees = employees.filter((e) => e.leaveStatus !== "onLeave");
 
@@ -111,28 +113,36 @@ export default function LeaveSettlementTab({ companyId }) {
           <thead><tr><th>الموظف</th><th>بداية الإجازة</th><th>الصافي</th><th>الحالة</th><th></th></tr></thead>
           <tbody>
             {settlements.map((s) => (
-              <tr key={s.id}>
-                <td>{s.employee?.name}</td>
-                <td>{s.leaveStartDate.slice(0, 10)}</td>
-                <td className="num">{fmt(s.netAmount)}</td>
-                <td><span className="status-badge">{s.status === "disbursed" ? "مصروفة" : "محتسبة"}</span></td>
-                <td className="row-actions">
-                  {s.status === "calculated" && (
-                    disbursingId === s.id ? (
-                      <span className="inline-disb">
-                        <select value={disbMethod} onChange={(e2) => setDisbMethod(e2.target.value)}>
-                          <option value="cash">كاش</option>
-                          <option value="bank">بنك</option>
-                        </select>
-                        <input type="date" value={disbDate} onChange={(e2) => setDisbDate(e2.target.value)} />
-                        <button className="btn-primary" onClick={() => confirmDisbursement(s)}>تأكيد الصرف</button>
-                      </span>
-                    ) : (
-                      <button className="btn-ghost" onClick={() => { setDisbursingId(s.id); setDisbDate(s.leaveStartDate.slice(0, 10)); }}>صرف الدفعة</button>
-                    )
-                  )}
-                </td>
-              </tr>
+              <React.Fragment key={s.id}>
+                <tr>
+                  <td>{s.employee?.name}</td>
+                  <td>{s.leaveStartDate.slice(0, 10)}</td>
+                  <td className="num">{fmt(s.netAmount)}</td>
+                  <td><span className="status-badge">{s.status === "disbursed" ? "مصروفة" : "محتسبة"}</span></td>
+                  <td className="row-actions">
+                    {s.status === "calculated" && (
+                      disbursingId === s.id ? (
+                        <span className="inline-disb">
+                          <select value={disbMethod} onChange={(e2) => setDisbMethod(e2.target.value)}>
+                            <option value="cash">كاش</option>
+                            <option value="bank">بنك</option>
+                          </select>
+                          <input type="date" value={disbDate} onChange={(e2) => setDisbDate(e2.target.value)} />
+                          <button className="btn-primary" onClick={() => confirmDisbursement(s)}>تأكيد الصرف</button>
+                        </span>
+                      ) : (
+                        <button className="btn-ghost" onClick={() => { setDisbursingId(s.id); setDisbDate(s.leaveStartDate.slice(0, 10)); }}>صرف الدفعة</button>
+                      )
+                    )}
+                    <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === s.id ? null : s.id)}>
+                      {attachmentsFor === s.id ? "إخفاء المرفقات" : "المرفقات"}
+                    </button>
+                  </td>
+                </tr>
+                {attachmentsFor === s.id && (
+                  <tr><td colSpan={5}><AttachmentsPanel entityType="leave_settlement" entityId={s.id} /></td></tr>
+                )}
+              </React.Fragment>
             ))}
             {settlements.length === 0 && <tr><td className="empty" colSpan={5}>لا توجد تسويات إجازات مسجّلة بعد.</td></tr>}
           </tbody>

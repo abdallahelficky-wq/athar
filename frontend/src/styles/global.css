@@ -281,6 +281,13 @@
         .unpost-confirm-box h3 { margin: 0 0 8px; font-size: 15px; }
         .unpost-confirm-box input { width: 100%; padding: 8px 10px; border-radius: 7px; border: 1px solid rgba(16,32,46,0.2); font-family: 'Tajawal', sans-serif; margin: 10px 0; }
 
+        .from-document-box { max-width: 980px; max-height: 88vh; overflow-y: auto; }
+        .from-document-box input[type="file"] { width: auto; }
+        .from-document-preview { max-width: 100%; max-height: 360px; border-radius: 10px; border: 1px solid rgba(16,32,46,0.12); margin-top: 10px; }
+        .from-document-review { display: grid; grid-template-columns: 1fr 1.3fr; gap: 22px; align-items: start; }
+        .from-document-side h4 { margin: 0 0 8px; font-size: 13.5px; }
+        @media (max-width: 860px) { .from-document-review { grid-template-columns: 1fr; } }
+
         .excel-import-panel { border: 1px dashed rgba(47,93,90,0.4); background: rgba(47,93,90,0.04); }
         .file-upload-btn { display: inline-flex; align-items: center; cursor: pointer; }
 

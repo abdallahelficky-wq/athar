@@ -6,6 +6,7 @@ import {
 } from "../../api/payrollRuns";
 import { fmt } from "../../legacy/constants";
 import UnpostModal from "../shared/UnpostModal";
+import AttachmentsPanel from "../shared/AttachmentsPanel";
 
 const ROW_FIELDS = [
   ["basic", "الأساسي"], ["housing", "بدل سكن"], ["transport", "بدل مواصلات"], ["otherAllow", "بدلات أخرى"],
@@ -188,6 +189,8 @@ export default function PayrollTab({ companyId }) {
           </div>
         </div>
       )}
+
+      {run && <AttachmentsPanel entityType="payroll_run" entityId={run.id} />}
 
       {unpostOpen && <UnpostModal title="فك ترحيل كشف الرواتب" onCancel={() => setUnpostOpen(false)} onConfirm={doUnpost} />}
     </div>

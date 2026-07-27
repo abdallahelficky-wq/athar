@@ -28,6 +28,10 @@ export const unpostSchema = z.object({
   pin: z.string().min(1, "الرقم السري مطلوب"),
 });
 
+export const createFromDocumentSchema = z.object({
+  companyId: z.string().min(1, "الشركة مطلوبة"),
+});
+
 export const importJournalEntriesSchema = z.object({
   companyId: z.string().min(1, "اختر شركة محددة أولاً"),
   rows: z

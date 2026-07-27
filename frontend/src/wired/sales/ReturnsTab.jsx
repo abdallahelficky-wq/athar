@@ -6,6 +6,7 @@ import { listSalesReturns, createSalesReturn, unpostSalesReturn } from "../../ap
 import { fmt } from "../../legacy/constants";
 import InvoiceLinesEditor, { emptyInvoiceLine } from "../shared/InvoiceLinesEditor";
 import UnpostModal from "../shared/UnpostModal";
+import AttachmentsPanel from "../shared/AttachmentsPanel";
 
 export default function ReturnsTab({ companyId }) {
   const [customers, setCustomers] = useState([]);
@@ -22,6 +23,7 @@ export default function ReturnsTab({ companyId }) {
   const [refundMethod, setRefundMethod] = useState("account");
   const [lines, setLines] = useState([emptyInvoiceLine()]);
   const [unpostTarget, setUnpostTarget] = useState(null);
+  const [attachmentsFor, setAttachmentsFor] = useState(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -101,14 +103,22 @@ export default function ReturnsTab({ companyId }) {
             <thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>الحالة</th><th></th></tr></thead>
             <tbody>
               {returns.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.returnNumber}</td><td>{r.customer?.name}</td><td>{r.date.slice(0, 10)}</td>
-                  <td className="num">{fmt(r.grandTotal)}</td>
-                  <td><span className="status-badge">{r.status === "posted" ? "مرحّل" : "مسودة"}</span></td>
-                  <td className="row-actions">
-                    {r.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(r)}>فك الترحيل</button>}
-                  </td>
-                </tr>
+                <React.Fragment key={r.id}>
+                  <tr>
+                    <td>{r.returnNumber}</td><td>{r.customer?.name}</td><td>{r.date.slice(0, 10)}</td>
+                    <td className="num">{fmt(r.grandTotal)}</td>
+                    <td><span className="status-badge">{r.status === "posted" ? "مرحّل" : "مسودة"}</span></td>
+                    <td className="row-actions">
+                      {r.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(r)}>فك الترحيل</button>}
+                      <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === r.id ? null : r.id)}>
+                        {attachmentsFor === r.id ? "إخفاء المرفقات" : "المرفقات"}
+                      </button>
+                    </td>
+                  </tr>
+                  {attachmentsFor === r.id && (
+                    <tr><td colSpan={6}><AttachmentsPanel entityType="sales_return" entityId={r.id} /></td></tr>
+                  )}
+                </React.Fragment>
               ))}
               {returns.length === 0 && <tr><td className="empty" colSpan={6}>لا توجد مردودات بعد.</td></tr>}
             </tbody>

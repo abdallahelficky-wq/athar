@@ -7,6 +7,7 @@ import {
 import { fmt } from "../../legacy/constants";
 import InvoiceLinesEditor, { emptyInvoiceLine } from "../shared/InvoiceLinesEditor";
 import UnpostModal from "../shared/UnpostModal";
+import AttachmentsPanel from "../shared/AttachmentsPanel";
 
 export default function PurchaseInvoicesTab({ companyId }) {
   const [suppliers, setSuppliers] = useState([]);
@@ -19,6 +20,7 @@ export default function PurchaseInvoicesTab({ companyId }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [lines, setLines] = useState([{ ...emptyInvoiceLine(), priceIncludesVat: false }]);
   const [unpostTarget, setUnpostTarget] = useState(null);
+  const [attachmentsFor, setAttachmentsFor] = useState(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -93,20 +95,28 @@ export default function PurchaseInvoicesTab({ companyId }) {
             <thead><tr><th>الرقم</th><th>المورد</th><th>التاريخ</th><th>الإجمالي</th><th>الحالة</th><th></th></tr></thead>
             <tbody>
               {invoices.map((inv) => (
-                <tr key={inv.id}>
-                  <td>{inv.invoiceNumber}</td><td>{inv.supplier?.name}</td><td>{inv.date.slice(0, 10)}</td>
-                  <td className="num">{fmt(inv.grandTotal)}</td>
-                  <td><span className="status-badge">{inv.status === "posted" ? "مرحّلة" : "مسودة"}</span></td>
-                  <td className="row-actions">
-                    {inv.status === "draft" && (
-                      <>
-                        <button className="btn-ghost" onClick={() => remove(inv)}>حذف</button>
-                        <button className="btn-primary" onClick={() => doPost(inv)}>ترحيل</button>
-                      </>
-                    )}
-                    {inv.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(inv)}>فك الترحيل</button>}
-                  </td>
-                </tr>
+                <React.Fragment key={inv.id}>
+                  <tr>
+                    <td>{inv.invoiceNumber}</td><td>{inv.supplier?.name}</td><td>{inv.date.slice(0, 10)}</td>
+                    <td className="num">{fmt(inv.grandTotal)}</td>
+                    <td><span className="status-badge">{inv.status === "posted" ? "مرحّلة" : "مسودة"}</span></td>
+                    <td className="row-actions">
+                      {inv.status === "draft" && (
+                        <>
+                          <button className="btn-ghost" onClick={() => remove(inv)}>حذف</button>
+                          <button className="btn-primary" onClick={() => doPost(inv)}>ترحيل</button>
+                        </>
+                      )}
+                      {inv.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(inv)}>فك الترحيل</button>}
+                      <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === inv.id ? null : inv.id)}>
+                        {attachmentsFor === inv.id ? "إخفاء المرفقات" : "المرفقات"}
+                      </button>
+                    </td>
+                  </tr>
+                  {attachmentsFor === inv.id && (
+                    <tr><td colSpan={6}><AttachmentsPanel entityType="purchase_invoice" entityId={inv.id} /></td></tr>
+                  )}
+                </React.Fragment>
               ))}
               {invoices.length === 0 && <tr><td className="empty" colSpan={6}>لا توجد فواتير مشتريات بعد.</td></tr>}
             </tbody>

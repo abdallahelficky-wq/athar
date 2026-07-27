@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { listFixedAssets, createFixedAsset, updateFixedAsset, removeFixedAsset } from "../../api/fixedAssets";
 import { ASSET_CATEGORIES, fmt } from "../../legacy/constants";
 import UnpostModal from "../shared/UnpostModal";
+import AttachmentsPanel from "../shared/AttachmentsPanel";
 
 const emptyForm = () => ({ name: "", category: ASSET_CATEGORIES[0], purchaseDate: new Date().toISOString().slice(0, 10), cost: "", usefulLifeYears: "5", salvageValue: "0", paymentMethod: "cash" });
 
@@ -12,6 +13,7 @@ export default function AssetRegisterTab({ companyId }) {
   const [form, setForm] = useState(emptyForm());
   const [editingId, setEditingId] = useState(null);
   const [removeTarget, setRemoveTarget] = useState(null);
+  const [attachmentsFor, setAttachmentsFor] = useState(null);
 
   const reload = () => {
     if (!companyId) return;
@@ -84,20 +86,28 @@ export default function AssetRegisterTab({ companyId }) {
             <thead><tr><th>الأصل</th><th>التصنيف</th><th>تاريخ الشراء</th><th>التكلفة</th><th>مجمع الإهلاك</th><th>صافي القيمة الدفترية</th><th>الحالة</th><th></th></tr></thead>
             <tbody>
               {assets.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.name}</td><td>{a.category}</td><td>{a.purchaseDate.slice(0, 10)}</td>
-                  <td className="num">{fmt(a.cost)}</td><td className="num">{fmt(a.accumulatedDepreciation)}</td>
-                  <td className="num strong">{fmt(a.netBookValue)}</td>
-                  <td><span className="status-badge">{a.status === "disposed" ? "مستبعد" : "نشط"}</span></td>
-                  <td className="row-actions">
-                    {a.status !== "disposed" && (
-                      <>
-                        <button className="btn-ghost" onClick={() => startEdit(a)}>تعديل</button>
-                        <button className="btn-ghost" onClick={() => setRemoveTarget(a)}>حذف</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
+                <React.Fragment key={a.id}>
+                  <tr>
+                    <td>{a.name}</td><td>{a.category}</td><td>{a.purchaseDate.slice(0, 10)}</td>
+                    <td className="num">{fmt(a.cost)}</td><td className="num">{fmt(a.accumulatedDepreciation)}</td>
+                    <td className="num strong">{fmt(a.netBookValue)}</td>
+                    <td><span className="status-badge">{a.status === "disposed" ? "مستبعد" : "نشط"}</span></td>
+                    <td className="row-actions">
+                      {a.status !== "disposed" && (
+                        <>
+                          <button className="btn-ghost" onClick={() => startEdit(a)}>تعديل</button>
+                          <button className="btn-ghost" onClick={() => setRemoveTarget(a)}>حذف</button>
+                        </>
+                      )}
+                      <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === a.id ? null : a.id)}>
+                        {attachmentsFor === a.id ? "إخفاء المرفقات" : "المرفقات"}
+                      </button>
+                    </td>
+                  </tr>
+                  {attachmentsFor === a.id && (
+                    <tr><td colSpan={8}><AttachmentsPanel entityType="fixed_asset" entityId={a.id} /></td></tr>
+                  )}
+                </React.Fragment>
               ))}
               {assets.length === 0 && <tr><td className="empty" colSpan={8}>لا توجد أصول ثابتة مسجّلة بعد.</td></tr>}
             </tbody>
