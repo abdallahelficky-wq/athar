@@ -11,10 +11,11 @@ import {
   importJournalEntries,
 } from "../api/journalEntries";
 import { fmt, fmt2 } from "../legacy/constants";
-import { ExcelImportPanel, downloadCsv } from "../legacy/shared";
+import { ExcelImportPanel, downloadCsv, Icon } from "../legacy/shared";
 import CompanySelector from "./CompanySelector";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CreateFromDocumentModal from "./shared/CreateFromDocumentModal";
+import JournalVoucherViewModal from "./JournalVoucherViewModal";
 
 const emptyLine = () => ({ accountId: "", costCenterId: "", department: "", debit: "", credit: "" });
 
@@ -76,6 +77,8 @@ export default function JournalModule({ companies, companyId, setCompanyId, onCo
   const [searchText, setSearchText] = useState("");
   const [attachmentsFor, setAttachmentsFor] = useState(null);
   const [showFromDocument, setShowFromDocument] = useState(false);
+  const [viewEntry, setViewEntry] = useState(null);
+  const [autoPrint, setAutoPrint] = useState(false);
 
   useEffect(() => {
     listAccounts().then(setAccounts).catch((err) => setError(err.message));
@@ -308,6 +311,11 @@ export default function JournalModule({ companies, companyId, setCompanyId, onCo
                     </tbody>
                   </table>
                   <div className="entry-card-actions form-btn-group">
+                    <button className="icon-btn" title="عرض القيد" onClick={() => setViewEntry(e)}><Icon.Eye /></button>
+                    <button
+                      className="icon-btn" title="طباعة القيد"
+                      onClick={() => { setViewEntry(e); setAutoPrint(true); }}
+                    ><Icon.Printer /></button>
                     {e.status === "draft" && (
                       <>
                         <button className="btn-ghost" onClick={() => startEdit(e)}>تعديل</button>
@@ -354,6 +362,14 @@ export default function JournalModule({ companies, companyId, setCompanyId, onCo
       )}
 
       {unpostTarget && <UnpostModal onCancel={() => setUnpostTarget(null)} onConfirm={doUnpost} />}
+      {viewEntry && (
+        <JournalVoucherViewModal
+          entry={viewEntry}
+          companies={companies}
+          autoPrint={autoPrint}
+          onClose={() => { setViewEntry(null); setAutoPrint(false); }}
+        />
+      )}
       {showFromDocument && (
         <CreateFromDocumentModal
           companyId={companyId}

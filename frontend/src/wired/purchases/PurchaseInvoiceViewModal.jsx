@@ -1,26 +1,21 @@
 import React, { useEffect } from "react";
-import { PrintShell, QrImage, printWithOrientation } from "../../legacy/shared";
+import { PrintShell, printWithOrientation } from "../../legacy/shared";
 import { fmt, fmt2 } from "../../legacy/constants";
 
-/**
- * عرض الفاتورة للقراءة فقط (بدون أي حقول قابلة للتعديل) + إمكانية الطباعة/تحميل PDF —
- * تُستخدَم من أيقونتي "عرض" و"طباعة" في قائمة الفواتير، وكذلك من زر "طباعة" داخل نافذة التعديل.
- */
-export default function InvoiceViewModal({ invoice, companies, autoPrint, onClose }) {
+/** عرض فاتورة المشتريات للقراءة فقط + طباعة/تحميل PDF — يستخدم PrintShell المشترك فيرث هيدر/فوتر الشركة تلقائياً */
+export default function PurchaseInvoiceViewModal({ invoice, companies, autoPrint, onClose }) {
   useEffect(() => {
     if (!autoPrint) return;
     const t = setTimeout(() => printWithOrientation(false), 200);
     return () => clearTimeout(t);
   }, [autoPrint, invoice.id]);
 
-  // نُفضّل بيانات الشركة الحالية (شعار/عنوان/رقم ضريبي محدَّث) من القائمة الحقيقية المحمَّلة
-  // على مستوى التطبيق بدل النسخة المضمَّنة في الفاتورة (والتي لا تحمل logoUrl صالحاً أصلاً)
   const company = companies?.find((c) => c.id === invoice.companyId) || invoice.company;
-  const customer = invoice.customer;
+  const supplier = invoice.supplier;
 
   return (
     <PrintShell
-      subtitle={invoice.invoiceType === "standard" ? "فاتورة ضريبية قياسية" : "فاتورة ضريبية مبسّطة"}
+      subtitle="فاتورة مشتريات"
       company={company}
       refNode={
         <>
@@ -31,10 +26,10 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
       onClose={onClose}
     >
       <div className="voucher-meta">
-        <div><span>البائع</span><strong>{company?.name}</strong></div>
-        <div><span>الرقم الضريبي للبائع</span><strong>{company?.vatNumber || "لم يُدخل بعد"}</strong></div>
-        <div><span>العميل</span><strong>{customer?.name}</strong></div>
-        <div><span>الرقم الضريبي للعميل</span><strong>{customer?.vatNumber || "غير مسجّل (فرد)"}</strong></div>
+        <div><span>المشتري</span><strong>{company?.name}</strong></div>
+        <div><span>الرقم الضريبي للمشتري</span><strong>{company?.vatNumber || "لم يُدخل بعد"}</strong></div>
+        <div><span>المورد</span><strong>{supplier?.name}</strong></div>
+        <div><span>الرقم الضريبي للمورد</span><strong>{supplier?.vatNumber || "غير مسجّل"}</strong></div>
       </div>
       <table className="ledger-table voucher-table">
         <thead>
@@ -62,14 +57,6 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
           </tr>
         </tfoot>
       </table>
-      <div className="qr-box">
-        <div className="qr-box-label">رمز الاستجابة السريعة (QR) — وفق معيار زاتكا</div>
-        <QrImage payload={invoice.qrPayload} />
-        <details className="qr-details">
-          <summary>عرض حمولة البيانات المشفّرة (Base64 TLV)</summary>
-          <div className="qr-box-payload">{invoice.qrPayload}</div>
-        </details>
-      </div>
     </PrintShell>
   );
 }

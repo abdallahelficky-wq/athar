@@ -29,9 +29,9 @@ export default function SalesWiredModule({ tab, setTab, companies, companyId, se
       <div className="report-tabs">
         {SALES_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
-      {tab === "customers" && <CustomersTab companyId={companyId} />}
+      {tab === "customers" && <CustomersTab companyId={companyId} companies={companies} />}
       {tab === "quotations" && <QuotationsTab companyId={companyId} />}
-      {tab === "invoices" && <InvoicesTab companyId={companyId} />}
+      {tab === "invoices" && <InvoicesTab companyId={companyId} companies={companies} />}
       {tab === "returns" && <ReturnsTab companyId={companyId} />}
       {tab === "receipts" && <ReceiptsTab companyId={companyId} />}
       {tab === "stations" && <StationsTab companyId={companyId} />}

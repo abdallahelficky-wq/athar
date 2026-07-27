@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import type { Account } from "@prisma/client";
+import { notFound } from "../../lib/httpError";
 
 interface DateRange {
   companyId?: string;
@@ -129,4 +130,91 @@ export async function getBalanceSheet(tenantId: string, companyId?: string, asOf
     totalEquity,
     balanced: Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 1,
   };
+}
+
+/**
+ * كشف حساب (سجل معاملات + رصيد متحرك) لعميل أو مورد — يقتصر على أسطر القيود المرحّلة
+ * المرتبطة بـ customerId/supplierId **وعلى حساب الذمم نفسه فقط** ("ذمم مدينة" للعميل،
+ * "ذمم دائنة - موردين" للمورد)، تماماً كمنطق getCustomerBalance/getSupplierBalance
+ * الموجود مسبقاً في customers.controller.ts/suppliers.controller.ts — بقية أسطر نفس القيد
+ * (حساب الإيراد/المصروف، الضريبة) موسومة بنفس customerId/supplierId أيضاً لأغراض تقارير
+ * أخرى، لكنها ليست جزءاً من حركة حساب الذمم وستُكرّر المبلغ لو أُدرجت هنا.
+ * إشارة الرصيد: للعميل نبدأ من صفر ونزيد (مدين - دائن) لأن حساب "ذمم مدينة" مدين الطبيعة
+ * (رصيد موجب = العميل مدين لنا)؛ للمورد العكس (دائن - مدين، رصيد موجب = نحن مدينون له).
+ */
+async function buildPartyStatement(
+  tenantId: string,
+  filter: { customerId?: string; supplierId?: string },
+  ledgerAccountName: string,
+  companyId: string | undefined,
+  dateFrom: Date | undefined,
+  dateTo: Date | undefined,
+  sign: 1 | -1,
+) {
+  const lines = await prisma.journalEntryLine.findMany({
+    where: {
+      ...filter,
+      account: { name: ledgerAccountName },
+      journalEntry: {
+        tenantId,
+        status: "posted",
+        companyId: companyId || undefined,
+        date: { gte: dateFrom, lte: dateTo },
+      },
+    },
+    include: { journalEntry: { include: { company: true } }, account: true },
+    orderBy: { journalEntry: { date: "asc" } },
+  });
+
+  let balance = 0;
+  const rows = lines.map((l) => {
+    const debit = Number(l.debit);
+    const credit = Number(l.credit);
+    balance += sign === 1 ? debit - credit : credit - debit;
+    return {
+      date: l.journalEntry.date,
+      memo: l.journalEntry.memo,
+      accountName: l.account.name,
+      journalEntryId: l.journalEntryId,
+      debit,
+      credit,
+      balance,
+    };
+  });
+
+  return { rows, closingBalance: balance };
+}
+
+export async function getCustomerStatement(
+  tenantId: string,
+  customerId: string,
+  companyId?: string,
+  dateFrom?: Date,
+  dateTo?: Date,
+) {
+  const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId } });
+  if (!customer) throw notFound("العميل غير موجود");
+  const statement = await buildPartyStatement(tenantId, { customerId }, "ذمم مدينة", companyId, dateFrom, dateTo, 1);
+  return { customer, ...statement };
+}
+
+export async function getSupplierStatement(
+  tenantId: string,
+  supplierId: string,
+  companyId?: string,
+  dateFrom?: Date,
+  dateTo?: Date,
+) {
+  const supplier = await prisma.supplier.findFirst({ where: { id: supplierId, tenantId } });
+  if (!supplier) throw notFound("المورد غير موجود");
+  const statement = await buildPartyStatement(
+    tenantId,
+    { supplierId },
+    "ذمم دائنة - موردين",
+    companyId,
+    dateFrom,
+    dateTo,
+    -1,
+  );
+  return { supplier, ...statement };
 }

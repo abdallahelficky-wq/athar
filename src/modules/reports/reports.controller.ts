@@ -31,3 +31,25 @@ export const balanceSheetHandler: RequestHandler = async (req, res) => {
   );
   res.json(result);
 };
+
+export const customerStatementHandler: RequestHandler = async (req, res) => {
+  const result = await service.getCustomerStatement(
+    req.auth!.tenantId,
+    req.params.customerId,
+    parseCompanyId(req.query.companyId),
+    parseDate(req.query.from),
+    parseDate(req.query.to),
+  );
+  res.json(result);
+};
+
+export const supplierStatementHandler: RequestHandler = async (req, res) => {
+  const result = await service.getSupplierStatement(
+    req.auth!.tenantId,
+    req.params.supplierId,
+    parseCompanyId(req.query.companyId),
+    parseDate(req.query.from),
+    parseDate(req.query.to),
+  );
+  res.json(result);
+};

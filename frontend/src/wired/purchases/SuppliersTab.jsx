@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { listSuppliers, createSupplier, updateSupplier, deleteSupplier } from "../../api/suppliers";
+import { Icon } from "../../legacy/shared";
+import StatementOfAccountModal from "../StatementOfAccountModal";
 
 const emptyForm = () => ({ name: "", vatNumber: "", crNumber: "", phone: "", email: "", city: "", paymentTerms: "آجل 30 يوم" });
 
-export default function SuppliersTab({ companyId }) {
+export default function SuppliersTab({ companyId, companies }) {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyForm());
   const [editingId, setEditingId] = useState(null);
+  const [statementFor, setStatementFor] = useState(null);
 
   const reload = () => {
     if (!companyId) return;
@@ -77,6 +80,7 @@ export default function SuppliersTab({ companyId }) {
                 <tr key={s.id}>
                   <td>{s.name}</td><td>{s.vatNumber || "—"}</td><td>{s.city || "—"}</td><td>{s.paymentTerms || "—"}</td>
                   <td className="row-actions">
+                    <button className="icon-btn" title="كشف حساب المورد" onClick={() => setStatementFor(s)}><Icon.BookOpen /></button>
                     <button className="btn-ghost" onClick={() => startEdit(s)}>تعديل</button>
                     <button className="btn-ghost" onClick={() => remove(s)}>حذف</button>
                   </td>
@@ -86,6 +90,16 @@ export default function SuppliersTab({ companyId }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {statementFor && (
+        <StatementOfAccountModal
+          kind="supplier"
+          party={statementFor}
+          companyId={companyId}
+          companies={companies}
+          onClose={() => setStatementFor(null)}
+        />
       )}
     </div>
   );

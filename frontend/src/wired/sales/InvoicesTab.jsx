@@ -10,7 +10,7 @@ import JournalEntryViewModal from "./JournalEntryViewModal";
 import LinkPaymentModal from "./LinkPaymentModal";
 import PostedBlockModal from "./PostedBlockModal";
 
-export default function InvoicesTab({ companyId }) {
+export default function InvoicesTab({ companyId, companies }) {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast, notify, dismiss } = useToast();
@@ -138,6 +138,7 @@ export default function InvoicesTab({ companyId }) {
       {formModal && (
         <InvoiceFormModal
           companyId={companyId}
+          companies={companies}
           editingInvoice={formModal.mode === "edit" ? formModal.invoice : null}
           duplicateFrom={formModal.mode === "duplicate" ? formModal.invoice : null}
           onClose={() => setFormModal(null)}
@@ -148,6 +149,7 @@ export default function InvoicesTab({ companyId }) {
       {viewInvoice && (
         <InvoiceViewModal
           invoice={viewInvoice}
+          companies={companies}
           autoPrint={autoPrint}
           onClose={() => { setViewInvoice(null); setAutoPrint(false); }}
         />

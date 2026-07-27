@@ -3,6 +3,7 @@ import { z } from "zod";
 // نفس أنواع الكيانات المذكورة صراحة في الطلب — يمكن توسعتها لاحقاً بلا أي تعديل في المخطط
 // لأن entityType مخزَّن كـ String حر وليس enum على مستوى قاعدة البيانات (انظر schema.prisma)
 export const attachmentEntityTypeEnum = z.enum([
+  "company",
   "journal_entry",
   "sales_invoice",
   "sales_return",

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { getTrialBalance, getIncomeStatement, getBalanceSheet } from "../api/reports";
 import { fmt } from "../legacy/constants";
 import CompanySelector from "./CompanySelector";
+import FinancialStatementPrintModal from "./FinancialStatementPrintModal";
+import { Icon } from "../legacy/shared";
 
 export const REPORT_TABS = [
   { id: "trial", label: "ميزان المراجعة" },
@@ -114,6 +116,7 @@ export default function ReportsModule({ companies, companyId, setCompanyId, onCo
   const [balanceSheet, setBalanceSheet] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -155,11 +158,22 @@ export default function ReportsModule({ companies, companyId, setCompanyId, onCo
                 {t.label}
               </button>
             ))}
+            <button className="icon-btn" title="طباعة التقرير الحالي" onClick={() => setPrinting(true)}><Icon.Printer /></button>
           </div>
           {tab === "trial" && <TrialBalanceView data={trialBalance} />}
           {tab === "income" && <IncomeStatementView data={incomeStatement} />}
           {tab === "balance" && <BalanceSheetView data={balanceSheet} />}
         </>
+      )}
+
+      {printing && (
+        <FinancialStatementPrintModal
+          kind={tab}
+          data={tab === "trial" ? trialBalance : tab === "income" ? incomeStatement : balanceSheet}
+          company={companies?.find((c) => c.id === companyId)}
+          autoPrint={false}
+          onClose={() => setPrinting(false)}
+        />
       )}
     </div>
   );

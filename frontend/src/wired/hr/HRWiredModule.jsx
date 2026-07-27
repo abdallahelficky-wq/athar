@@ -36,7 +36,7 @@ export default function HRWiredModule({ tab, setTab, companies, companyId, setCo
       {tab === "leaveSettlement" && <LeaveSettlementTab companyId={companyId} />}
       {tab === "leaveReturn" && <LeaveReturnTab companyId={companyId} />}
       {tab === "actions" && <ActionsTab companyId={companyId} />}
-      {tab === "payroll" && <PayrollTab companyId={companyId} />}
+      {tab === "payroll" && <PayrollTab companyId={companyId} companies={companies} />}
       {tab === "eos" && <EndOfServiceTab companyId={companyId} />}
       {tab === "reports" && <HRReportsTab companyId={companyId} />}
     </div>

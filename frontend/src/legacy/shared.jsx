@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import QRCode from "qrcode";
 import { fmt, fmt2, costCenterName, COMPANIES } from "./constants";
+import { useAuth } from "../context/AuthContext";
 
 export function Gauge({ label, value, max, unit, tone }) {
   const pct = Math.max(0, Math.min(1, value / max));
@@ -231,24 +232,57 @@ export function printWithOrientation(landscape) {
   window.print();
 }
 
+/** يبني سطر عنوان وطني مختصر من الحقول المنفصلة، متجاهلاً أي حقل فارغ */
+export function formatCompanyAddress(company, { full = false } = {}) {
+  if (!company) return "";
+  const parts = [];
+  if (company.addressStreet) parts.push(company.addressStreet);
+  if (company.addressDistrict) parts.push(`حي ${company.addressDistrict}`);
+  if (company.addressCity) parts.push(company.addressCity);
+  if (full) {
+    if (company.addressBuilding) parts.unshift(`مبنى ${company.addressBuilding}`);
+    if (company.addressPostalCode) parts.push(company.addressPostalCode);
+    if (company.addressAdditionalNo) parts.push(`إضافي ${company.addressAdditionalNo}`);
+  }
+  return parts.join("، ");
+}
+
+/**
+ * الهيدر/الفوتر المشترَكان لكل مطبوعات النظام — يُدرَجان هنا داخل PrintShell نفسه (نقطة
+ * الدخول المشتركة الوحيدة لأي شاشة طباعة حالية أو مستقبلية) بدل تكرارهما في كل شاشة على
+ * حدة، حتى ينطبق أي تعديل مستقبلي عليهما تلقائياً على كل المطبوعات دفعة واحدة.
+ */
 export function PrintShell({ subtitle, refNode, children, onClose, onEdit, showSignatures = true, company, landscape = false }) {
+  const { user } = useAuth();
+  const [printedAt, setPrintedAt] = useState(null);
   const accent = company?.brandColor || "#10202E";
+  const displayName = company && company.id !== "all" ? (company.shortName || company.name) : "أثر المحاسبي";
+  const address = formatCompanyAddress(company);
+
+  const handlePrint = () => {
+    setPrintedAt(new Date());
+    // تأخير بسيط حتى يُحدَّث الفوتر بوقت الطباعة الفعلي في DOM قبل استدعاء window.print()
+    setTimeout(() => printWithOrientation(landscape), 30);
+  };
+
   return createPortal(
     <div className="voucher-overlay">
       <div className="voucher-shell">
         <div className="voucher-print">
           <div className="voucher-head" style={{ borderBottomColor: accent }}>
             <div className="voucher-brand">
-              {company?.logo ? (
-                <img src={company.logo} alt={company.name} className="voucher-logo-img" />
+              {company?.logoUrl ? (
+                <img src={company.logoUrl} alt={displayName} className="voucher-logo-img" />
               ) : (
                 <div className="brand-mark voucher-mark" style={{ borderColor: accent }}>
                   <span className="brand-mark-needle" style={{ background: accent }} />
                 </div>
               )}
               <div>
-                <div className="voucher-brand-name">{company && company.id !== "all" ? company.name : "أثر المحاسبي"}</div>
+                <div className="voucher-brand-name">{displayName}</div>
                 <div className="voucher-brand-sub">{subtitle}</div>
+                {company?.vatNumber && <div className="voucher-brand-meta">الرقم الضريبي: {company.vatNumber}</div>}
+                {address && <div className="voucher-brand-meta">{address}</div>}
               </div>
             </div>
             <div className="voucher-ref">{refNode}</div>
@@ -263,12 +297,17 @@ export function PrintShell({ subtitle, refNode, children, onClose, onEdit, showS
               <div className="sig-box"><span>الختم</span><div className="sig-stamp">مكان الختم المعتمد</div></div>
             </div>
           )}
+
+          <div className="voucher-print-footer">
+            <span>طُبع بواسطة: {user?.name || "—"}</span>
+            <span>{(printedAt || new Date()).toLocaleString("ar-SA")}</span>
+          </div>
         </div>
 
         <div className="voucher-actions">
           {onEdit && <button className="btn-ghost" onClick={onEdit}>تعديل</button>}
-          <button className="btn-ghost" onClick={() => printWithOrientation(landscape)}>طباعة</button>
-          <button className="btn-primary" onClick={() => printWithOrientation(landscape)}>تحميل PDF</button>
+          <button className="btn-ghost" onClick={handlePrint}>طباعة</button>
+          <button className="btn-primary" onClick={handlePrint}>تحميل PDF</button>
           <button className="btn-ghost" onClick={onClose}>إغلاق</button>
         </div>
       </div>

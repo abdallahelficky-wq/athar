@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from "../../api/customers";
 import { fmt } from "../../legacy/constants";
+import { Icon } from "../../legacy/shared";
+import StatementOfAccountModal from "../StatementOfAccountModal";
 
 const emptyForm = () => ({
   name: "", customerType: "business", vatNumber: "", crNumber: "", nationalId: "",
@@ -8,12 +10,13 @@ const emptyForm = () => ({
   paymentTerms: "نقدي", creditLimit: "",
 });
 
-export default function CustomersTab({ companyId }) {
+export default function CustomersTab({ companyId, companies }) {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyForm());
   const [editingId, setEditingId] = useState(null);
+  const [statementFor, setStatementFor] = useState(null);
 
   const reload = () => {
     if (!companyId) return;
@@ -98,6 +101,7 @@ export default function CustomersTab({ companyId }) {
                   <td>{c.paymentTerms || "—"}</td>
                   <td className="num">{c.creditLimit ? fmt(c.creditLimit) : "—"}</td>
                   <td className="row-actions">
+                    <button className="icon-btn" title="كشف حساب العميل" onClick={() => setStatementFor(c)}><Icon.BookOpen /></button>
                     <button className="btn-ghost" onClick={() => startEdit(c)}>تعديل</button>
                     <button className="btn-ghost" onClick={() => remove(c)}>حذف</button>
                   </td>
@@ -107,6 +111,16 @@ export default function CustomersTab({ companyId }) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {statementFor && (
+        <StatementOfAccountModal
+          kind="customer"
+          party={statementFor}
+          companyId={companyId}
+          companies={companies}
+          onClose={() => setStatementFor(null)}
+        />
       )}
     </div>
   );

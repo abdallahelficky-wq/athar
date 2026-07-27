@@ -148,18 +148,27 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
-  id              String   @id @default(cuid())
-  tenantId        String
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name            String
-  shortName       String?
-  logoUrl         String?
-  brandColor      String?
-  vatNumber       String?
-  crNumber        String?
-  nationalAddress String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                  String    @id @default(cuid())
+  tenantId            String
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name                String
+  shortName           String?
+  logoKey             String?
+  brandColor          String?
+  vatNumber           String?
+  crNumber            String?
+  crIssueDate         DateTime?
+  crExpiryDate        DateTime?
+  officialEmail       String?
+  phone               String?
+  addressBuilding     String?
+  addressStreet       String?
+  addressDistrict     String?
+  addressCity         String?
+  addressPostalCode   String?
+  addressAdditionalNo String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   costCenters      CostCenter[]
   companyDocuments CompanyDocument[]
@@ -454,18 +463,18 @@ model SalesInvoiceLine {
 // تعبئة سطور فواتير المبيعات (اسم + سعر وحدة افتراضي + هل خاضع لضريبة القيمة المضافة +
 // حساب الإيراد الافتراضي)، دون التأثير على منطق المخزون/حركات الأصناف القائم أصلاً.
 model SellableItem {
-  id                    String   @id @default(cuid())
-  tenantId              String
-  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId             String
-  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name                  String
-  defaultUnitPrice      Decimal  @default(0) @db.Decimal(18, 4)
-  vatApplicable         Boolean  @default(true)
+  id                      String   @id @default(cuid())
+  tenantId                String
+  tenant                  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId               String
+  company                 Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                    String
+  defaultUnitPrice        Decimal  @default(0) @db.Decimal(18, 4)
+  vatApplicable           Boolean  @default(true)
   defaultRevenueAccountId String
-  defaultRevenueAccount Account  @relation(fields: [defaultRevenueAccountId], references: [id])
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  defaultRevenueAccount   Account  @relation(fields: [defaultRevenueAccountId], references: [id])
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   salesInvoiceLines SalesInvoiceLine[]
 

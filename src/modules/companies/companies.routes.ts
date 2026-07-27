@@ -1,8 +1,17 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createCompanySchema, updateCompanySchema } from "./companies.schemas";
-import { listCompanies, createCompany, updateCompany, deleteCompany } from "./companies.controller";
+import { createCompanySchema, updateCompanySchema, extractDocumentSchema } from "./companies.schemas";
+import {
+  listCompanies,
+  createCompany,
+  updateCompany,
+  deleteCompany,
+  uploadLogoFile,
+  uploadLogoHandler,
+  extractDocumentHandler,
+} from "./companies.controller";
+import { uploadSingleFile } from "../attachments/attachments.controller";
 
 export const companyRoutes = Router();
 companyRoutes.use(authenticate);
@@ -21,3 +30,16 @@ companyRoutes.patch(
   updateCompany,
 );
 companyRoutes.delete("/:id", requireRole("admin"), deleteCompany);
+companyRoutes.post(
+  "/:id/logo",
+  requireRole("admin", "finance_manager"),
+  uploadLogoFile,
+  uploadLogoHandler,
+);
+companyRoutes.post(
+  "/:id/extract-document",
+  requireRole("admin", "finance_manager"),
+  uploadSingleFile,
+  validateBody(extractDocumentSchema),
+  extractDocumentHandler,
+);

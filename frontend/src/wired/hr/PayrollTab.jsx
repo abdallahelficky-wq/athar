@@ -5,8 +5,10 @@ import {
   setPayrollRowOverride, clearPayrollRowOverride, postPayrollRun, unpostPayrollRun,
 } from "../../api/payrollRuns";
 import { fmt } from "../../legacy/constants";
+import { Icon } from "../../legacy/shared";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
+import PayrollPrintModal from "./PayrollPrintModal";
 
 const ROW_FIELDS = [
   ["basic", "الأساسي"], ["housing", "بدل سكن"], ["transport", "بدل مواصلات"], ["otherAllow", "بدلات أخرى"],
@@ -14,7 +16,7 @@ const ROW_FIELDS = [
   ["advance", "سلف"], ["violation", "مخالفات"], ["penalty", "عقوبات"], ["otherDed", "خصومات أخرى"],
 ];
 
-export default function PayrollTab({ companyId }) {
+export default function PayrollTab({ companyId, companies }) {
   const [employees, setEmployees] = useState([]);
   const [month, setMonth] = useState("2026-07");
   const [scope, setScope] = useState("all");
@@ -26,6 +28,7 @@ export default function PayrollTab({ companyId }) {
   const [unpostOpen, setUnpostOpen] = useState(false);
   const [editingRowId, setEditingRowId] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -126,6 +129,7 @@ export default function PayrollTab({ companyId }) {
               <button className="btn-primary" onClick={doPost} disabled={rows.length === 0}>ترحيل كشف الرواتب</button>
             )}
             {run.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostOpen(true)}>فك الترحيل</button>}
+            <button className="icon-btn" title="طباعة كشف الرواتب" onClick={() => setPrinting(true)}><Icon.Printer /></button>
             <span className="status-badge">{run.status === "posted" ? "مرحّل" : "مسودة"}</span>
           </div>
         )}
@@ -193,6 +197,18 @@ export default function PayrollTab({ companyId }) {
       {run && <AttachmentsPanel entityType="payroll_run" entityId={run.id} />}
 
       {unpostOpen && <UnpostModal title="فك ترحيل كشف الرواتب" onCancel={() => setUnpostOpen(false)} onConfirm={doUnpost} />}
+
+      {printing && run && (
+        <PayrollPrintModal
+          run={run}
+          rows={rows}
+          totals={totals}
+          month={month}
+          company={companies?.find((c) => c.id === companyId)}
+          autoPrint
+          onClose={() => setPrinting(false)}
+        />
+      )}
     </div>
   );
 }

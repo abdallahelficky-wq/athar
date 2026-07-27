@@ -5,11 +5,13 @@ import {
   listPurchaseInvoices, createPurchaseInvoice, deletePurchaseInvoice, postPurchaseInvoice, unpostPurchaseInvoice,
 } from "../../api/purchaseInvoices";
 import { fmt } from "../../legacy/constants";
+import { Icon } from "../../legacy/shared";
 import InvoiceLinesEditor, { emptyInvoiceLine } from "../shared/InvoiceLinesEditor";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
+import PurchaseInvoiceViewModal from "./PurchaseInvoiceViewModal";
 
-export default function PurchaseInvoicesTab({ companyId }) {
+export default function PurchaseInvoicesTab({ companyId, companies }) {
   const [suppliers, setSuppliers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -21,6 +23,8 @@ export default function PurchaseInvoicesTab({ companyId }) {
   const [lines, setLines] = useState([{ ...emptyInvoiceLine(), priceIncludesVat: false }]);
   const [unpostTarget, setUnpostTarget] = useState(null);
   const [attachmentsFor, setAttachmentsFor] = useState(null);
+  const [viewInvoice, setViewInvoice] = useState(null);
+  const [autoPrint, setAutoPrint] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -101,6 +105,11 @@ export default function PurchaseInvoicesTab({ companyId }) {
                     <td className="num">{fmt(inv.grandTotal)}</td>
                     <td><span className="status-badge">{inv.status === "posted" ? "مرحّلة" : "مسودة"}</span></td>
                     <td className="row-actions">
+                      <button className="icon-btn" title="عرض الفاتورة" onClick={() => setViewInvoice(inv)}><Icon.Eye /></button>
+                      <button
+                        className="icon-btn" title="طباعة الفاتورة"
+                        onClick={() => { setViewInvoice(inv); setAutoPrint(true); }}
+                      ><Icon.Printer /></button>
                       {inv.status === "draft" && (
                         <>
                           <button className="btn-ghost" onClick={() => remove(inv)}>حذف</button>
@@ -125,6 +134,15 @@ export default function PurchaseInvoicesTab({ companyId }) {
       )}
 
       {unpostTarget && <UnpostModal onCancel={() => setUnpostTarget(null)} onConfirm={doUnpost} />}
+
+      {viewInvoice && (
+        <PurchaseInvoiceViewModal
+          invoice={viewInvoice}
+          companies={companies}
+          autoPrint={autoPrint}
+          onClose={() => { setViewInvoice(null); setAutoPrint(false); }}
+        />
+      )}
     </div>
   );
 }

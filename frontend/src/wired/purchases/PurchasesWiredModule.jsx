@@ -23,8 +23,8 @@ export default function PurchasesWiredModule({ tab, setTab, companies, companyId
       <div className="report-tabs">
         {PURCHASE_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
-      {tab === "suppliers" && <SuppliersTab companyId={companyId} />}
-      {tab === "invoices" && <PurchaseInvoicesTab companyId={companyId} />}
+      {tab === "suppliers" && <SuppliersTab companyId={companyId} companies={companies} />}
+      {tab === "invoices" && <PurchaseInvoicesTab companyId={companyId} companies={companies} />}
       {tab === "returns" && <PurchaseReturnsTab companyId={companyId} />}
       {tab === "reports" && <PurchaseReportsTab companyId={companyId} />}
     </div>

@@ -23,7 +23,7 @@ const lineFromExisting = (l) => ({
  * نافذة (Modal) إنشاء/تعديل/نسخ فاتورة مبيعات — تحل محل الفورم القديم المدمج مع القائمة.
  * وضع النسخ (duplicateFrom) يُعامَل كإنشاء فاتورة جديدة مُعبَّأة مسبقاً ببيانات فاتورة أخرى.
  */
-export default function InvoiceFormModal({ companyId, editingInvoice, duplicateFrom, onClose, onSaved }) {
+export default function InvoiceFormModal({ companyId, companies, editingInvoice, duplicateFrom, onClose, onSaved }) {
   const isEdit = !!editingInvoice;
   const seed = editingInvoice || duplicateFrom;
 
@@ -185,7 +185,7 @@ export default function InvoiceFormModal({ companyId, editingInvoice, duplicateF
           onCreated={handleItemCreated}
         />
       )}
-      {printInvoice && <InvoiceViewModal invoice={printInvoice} onClose={() => setPrintInvoice(null)} />}
+      {printInvoice && <InvoiceViewModal invoice={printInvoice} companies={companies} onClose={() => setPrintInvoice(null)} />}
     </div>
   );
 }

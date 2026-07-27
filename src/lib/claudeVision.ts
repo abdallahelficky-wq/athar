@@ -132,3 +132,119 @@ export async function extractJournalEntryFromDocument(
     confidenceNote: typeof parsed.confidence_note === "string" ? parsed.confidence_note : "",
   };
 }
+
+// ---------------------------------------------------------------------------
+// استخراج بيانات الشركة الرسمية من المستندات (سجل تجاري / عنوان وطني / شهادة ضريبة)
+// ---------------------------------------------------------------------------
+
+export type CompanyDocType = "cr" | "national_address" | "vat_certificate";
+
+export interface CompanyDataExtraction {
+  fields: Record<string, string>;
+  confidence: "high" | "low";
+  confidenceNote: string;
+}
+
+const COMPANY_DOC_PROMPTS: Record<CompanyDocType, { intro: string; shape: string; fieldKeys: string[] }> = {
+  cr: {
+    intro: "أنت تراجع صورة/ملف سجل تجاري سعودي.",
+    shape:
+      '{"name": "...", "shortName": "...", "crNumber": "...", "crIssueDate": "YYYY-MM-DD"|null, "crExpiryDate": "YYYY-MM-DD"|null, "confidence": "high"|"low", "confidenceNote": "..."}',
+    fieldKeys: ["name", "shortName", "crNumber", "crIssueDate", "crExpiryDate"],
+  },
+  national_address: {
+    intro: "أنت تراجع صورة/ملف شهادة العنوان الوطني السعودي.",
+    shape:
+      '{"addressBuilding": "...", "addressStreet": "...", "addressDistrict": "...", "addressCity": "...", "addressPostalCode": "...", "addressAdditionalNo": "...", "confidence": "high"|"low", "confidenceNote": "..."}',
+    fieldKeys: [
+      "addressBuilding",
+      "addressStreet",
+      "addressDistrict",
+      "addressCity",
+      "addressPostalCode",
+      "addressAdditionalNo",
+    ],
+  },
+  vat_certificate: {
+    intro: "أنت تراجع صورة/ملف شهادة تسجيل ضريبة القيمة المضافة (زاتكا) السعودية.",
+    shape: '{"vatNumber": "...", "name": "...", "confidence": "high"|"low", "confidenceNote": "..."}',
+    fieldKeys: ["vatNumber", "name"],
+  },
+};
+
+function buildCompanyPrompt(docType: CompanyDocType): string {
+  const spec = COMPANY_DOC_PROMPTS[docType];
+  return `${spec.intro} اقرأ المستند المرفق بعناية واستخرج فقط الحقول المرتبطة به.
+
+إن كان أي حقل غير مقروء أو غير موجود في المستند، استخدم null بدلاً من تخمين قيمة.
+قيّم مدى وضوح المستند بصدق في confidence ("low" لو المستند غير واضح، مقصوص، أو مش نوع
+المستند المطلوب أصلاً)، واشرح السبب باختصار بالعربية في confidenceNote.
+
+أجب **فقط** بكائن JSON واحد بالضبط بهذا الشكل، بدون أي نص أو شرح أو markdown قبله أو بعده:
+${spec.shape}`;
+}
+
+/** نفس منطق extractJournalEntryFromDocument تماماً، لكن لاستخراج بيانات الشركة الرسمية بدل سطور القيد */
+export async function extractCompanyDataFromDocument(
+  buffer: Buffer,
+  mimeType: string,
+  docType: CompanyDocType,
+): Promise<CompanyDataExtraction> {
+  if (!env.anthropicApiKey) {
+    throw new Error("ميزة استخراج بيانات الشركة من المستندات غير مُفعّلة: ANTHROPIC_API_KEY غير مضبوط");
+  }
+
+  const mediaType = mimeToAnthropicMediaType(mimeType);
+  const documentBlock =
+    mediaType === "application/pdf"
+      ? { type: "document", source: { type: "base64", media_type: mediaType, data: buffer.toString("base64") } }
+      : { type: "image", source: { type: "base64", media_type: mediaType, data: buffer.toString("base64") } };
+
+  const response = await fetch(`${env.anthropicBaseUrl}/v1/messages`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": env.anthropicApiKey,
+      "anthropic-version": ANTHROPIC_VERSION,
+    },
+    body: JSON.stringify({
+      model: env.anthropicModel,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: "user",
+          content: [documentBlock, { type: "text", text: buildCompanyPrompt(docType) }],
+        },
+        { role: "assistant", content: "{" },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => "");
+    throw new Error(`فشل استدعاء نموذج الذكاء الاصطناعي (${response.status}): ${bodyText.slice(0, 500)}`);
+  }
+
+  const payload = (await response.json()) as { content?: Array<{ type: string; text?: string }> };
+  const textBlock = payload.content?.find((b) => b.type === "text")?.text ?? "";
+  const raw = "{" + textBlock;
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(extractJsonBlock(raw));
+  } catch {
+    throw badRequest("تعذّر على الذكاء الاصطناعي قراءة هذا المستند بصيغة منظّمة، جرّب صورة أوضح");
+  }
+
+  const fields: Record<string, string> = {};
+  for (const key of COMPANY_DOC_PROMPTS[docType].fieldKeys) {
+    const value = parsed[key];
+    if (typeof value === "string" && value.trim()) fields[key] = value.trim();
+  }
+
+  return {
+    fields,
+    confidence: parsed.confidence === "low" ? "low" : "high",
+    confidenceNote: typeof parsed.confidenceNote === "string" ? parsed.confidenceNote : "",
+  };
+}
