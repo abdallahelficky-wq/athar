@@ -11,7 +11,7 @@ export const ACCOUNTS_TABS = [
 
 export default function AccountsGroupModule({
   tab, setTab,
-  realCompanies, realCompanyId, setRealCompanyId, onRealCompanyCreated,
+  realCompanies, realCompanyId,
   legacyEntries, legacySales, legacyCompanyId,
 }) {
   return (
@@ -23,14 +23,7 @@ export default function AccountsGroupModule({
           </button>
         ))}
       </div>
-      {tab === "journal" && (
-        <JournalModule
-          companies={realCompanies}
-          companyId={realCompanyId}
-          setCompanyId={setRealCompanyId}
-          onCompanyCreated={onRealCompanyCreated}
-        />
-      )}
+      {tab === "journal" && <JournalModule companies={realCompanies} companyId={realCompanyId} />}
       {tab === "chartOfAccounts" && <ChartOfAccountsModule />}
       {tab === "zakat" && <ZakatModule entries={legacyEntries} sales={legacySales} companyId={legacyCompanyId} />}
     </div>

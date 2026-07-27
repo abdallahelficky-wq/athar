@@ -228,12 +228,12 @@ export const SETTINGS_TABS = [
   { id: "companyDocs", label: "المستندات الرسمية" },
 ];
 
-export function SettingsModule({ tab, setTab, users, setUsers, currentUser, setCurrentUser, jobTitles, setJobTitles, unlockPin, setUnlockPin, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies }) {
+export function SettingsModule({ tab, setTab, users, setUsers, currentUser, setCurrentUser, jobTitles, setJobTitles, unlockPin, setUnlockPin, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {
   return (
     <div>
       <div className="section-title"><span className="eyebrow">إدارة النظام</span><h2>الإعدادات</h2></div>
       <div className="report-tabs">{SETTINGS_TABS.map((t) => (<button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>))}</div>
-      {tab === "companies" && <CompaniesSettings companies={realCompanies} reload={reloadRealCompanies} />}
+      {tab === "companies" && <CompaniesSettings companies={realCompanies} reload={reloadRealCompanies} onCompanyCreated={onRealCompanyCreated} />}
       {tab === "profile" && (
         <div>
           <MyAccountSettings />

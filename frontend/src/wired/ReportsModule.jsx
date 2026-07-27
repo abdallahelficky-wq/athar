@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getTrialBalance, getIncomeStatement, getBalanceSheet } from "../api/reports";
 import { fmt } from "../legacy/constants";
-import CompanySelector from "./CompanySelector";
 import FinancialStatementPrintModal from "./FinancialStatementPrintModal";
 import { Icon } from "../legacy/shared";
 
@@ -110,7 +109,7 @@ function BalanceSheetView({ data }) {
   );
 }
 
-export default function ReportsModule({ companies, companyId, setCompanyId, onCompanyCreated, tab, setTab }) {
+export default function ReportsModule({ companies, companyId, tab, setTab }) {
   const [trialBalance, setTrialBalance] = useState(null);
   const [incomeStatement, setIncomeStatement] = useState(null);
   const [balanceSheet, setBalanceSheet] = useState(null);
@@ -143,11 +142,9 @@ export default function ReportsModule({ companies, companyId, setCompanyId, onCo
         <h2>التقارير المالية الرئيسية</h2>
       </div>
 
-      <CompanySelector companies={companies} companyId={companyId} setCompanyId={setCompanyId} onCompanyCreated={onCompanyCreated} />
-
       {error && <p className="balance-bad">{error}</p>}
       {!companyId ? (
-        <p className="empty">أنشئ شركة أولاً لعرض تقاريرها المالية.</p>
+        <p className="empty">أنشئ شركة أولاً من لوحة القيادة لعرض تقاريرها المالية.</p>
       ) : loading ? (
         <p className="empty">جارٍ التحميل...</p>
       ) : (

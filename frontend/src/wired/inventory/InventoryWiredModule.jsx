@@ -1,5 +1,4 @@
 import React from "react";
-import CompanySelector from "../CompanySelector";
 import ItemsTab from "./ItemsTab";
 import StockInOutTab from "./StockInOutTab";
 import IssueTab from "./IssueTab";
@@ -14,14 +13,13 @@ export const INVENTORY_TABS = [
   { id: "report", label: "تقرير الأرصدة" },
 ];
 
-export default function InventoryWiredModule({ tab, setTab, companies, companyId, setCompanyId, onCompanyCreated }) {
+export default function InventoryWiredModule({ tab, setTab, companies, companyId }) {
   return (
     <div>
       <div className="section-title">
         <span className="eyebrow">إدارة المخازن — بيانات حقيقية</span>
         <h2>المخزون</h2>
       </div>
-      <CompanySelector companies={companies} companyId={companyId} setCompanyId={setCompanyId} onCompanyCreated={onCompanyCreated} />
       <div className="report-tabs">
         {INVENTORY_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>

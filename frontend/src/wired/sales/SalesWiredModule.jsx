@@ -1,5 +1,4 @@
 import React from "react";
-import CompanySelector from "../CompanySelector";
 import CustomersTab from "./CustomersTab";
 import QuotationsTab from "./QuotationsTab";
 import InvoicesTab from "./InvoicesTab";
@@ -18,14 +17,13 @@ export const SALES_TABS = [
   { id: "reports", label: "التقارير" },
 ];
 
-export default function SalesWiredModule({ tab, setTab, companies, companyId, setCompanyId, onCompanyCreated }) {
+export default function SalesWiredModule({ tab, setTab, companies, companyId }) {
   return (
     <div>
       <div className="section-title">
         <span className="eyebrow">التجارة والمبيعات — بيانات حقيقية</span>
         <h2>المبيعات</h2>
       </div>
-      <CompanySelector companies={companies} companyId={companyId} setCompanyId={setCompanyId} onCompanyCreated={onCompanyCreated} />
       <div className="report-tabs">
         {SALES_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>

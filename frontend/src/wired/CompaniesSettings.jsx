@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { deleteCompany } from "../api/companies";
+import { createCompany, deleteCompany } from "../api/companies";
 import { useAuth } from "../context/AuthContext";
 import CompanyEditModal from "./CompanyEditModal";
 
@@ -51,8 +51,58 @@ function TenantNameSettings() {
   );
 }
 
-/** إدارة كاملة (تعديل/حذف) للشركات الحقيقية — يُستخدم داخل تبويب "بيانات الشركات" بالإعدادات */
-export default function CompaniesSettings({ companies, reload }) {
+/** إنشاء شركة جديدة — المكان الوحيد في النظام لإضافة شركة (لم يعد متاحاً من أي شاشة معاملات) */
+function NewCompanyForm({ onCompanyCreated }) {
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [shortName, setShortName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async () => {
+    if (!name.trim()) { setError("اسم الشركة مطلوب"); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const company = await createCompany({ name: name.trim(), shortName: shortName.trim() || undefined });
+      setName("");
+      setShortName("");
+      setShowForm(false);
+      onCompanyCreated?.(company);
+    } catch (err) {
+      setError(err.message || "تعذّر إنشاء الشركة");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="panel form-panel">
+      <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
+        <h3 style={{ margin: 0 }}>بيانات الشركات (حقيقية)</h3>
+        <button type="button" className="btn-primary" onClick={() => setShowForm((v) => !v)}>
+          {showForm ? "إلغاء" : "+ شركة جديدة"}
+        </button>
+      </div>
+      {showForm && (
+        <div className="form-grid" style={{ marginTop: 14 }}>
+          <label>اسم الشركة<input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="مثال: تيسم برو" /></label>
+          <label>الاسم المختصر (اختياري)<input type="text" value={shortName} onChange={(e) => setShortName(e.target.value)} /></label>
+          <div style={{ alignSelf: "end" }}>
+            <button className="btn-primary" onClick={submit} disabled={saving}>
+              {saving ? "جارٍ الحفظ..." : "إنشاء الشركة"}
+            </button>
+          </div>
+        </div>
+      )}
+      {error && <p className="balance-bad">{error}</p>}
+    </div>
+  );
+}
+
+/** إدارة كاملة (إنشاء/تعديل/حذف) للشركات الحقيقية — يُستخدم داخل تبويب "بيانات الشركات" بالإعدادات،
+ * وهو المكان الوحيد في النظام لإنشاء شركة جديدة بعد إزالة هذا الخيار من كل شاشات المعاملات */
+export default function CompaniesSettings({ companies, reload, onCompanyCreated }) {
   const [editingCompany, setEditingCompany] = useState(null);
   const [error, setError] = useState("");
 
@@ -66,11 +116,16 @@ export default function CompaniesSettings({ companies, reload }) {
     }
   };
 
+  const handleCreated = (company) => {
+    onCompanyCreated?.(company);
+    reload();
+  };
+
   return (
     <div>
       <TenantNameSettings />
+      <NewCompanyForm onCompanyCreated={handleCreated} />
       <div className="panel form-panel">
-        <h3>بيانات الشركات (حقيقية)</h3>
         {error && <p className="balance-bad">{error}</p>}
       <table className="ledger-table">
         <thead><tr><th>الاسم</th><th>الاسم التجاري</th><th>الرقم الضريبي</th><th>السجل التجاري</th><th></th></tr></thead>
@@ -87,7 +142,7 @@ export default function CompaniesSettings({ companies, reload }) {
               </td>
             </tr>
           ))}
-          {companies.length === 0 && <tr><td className="empty" colSpan={5}>لا توجد شركات بعد — أنشئها من تبويب لوحة القيادة أو القيود اليومية.</td></tr>}
+          {companies.length === 0 && <tr><td className="empty" colSpan={5}>لا توجد شركات بعد — استخدم زر "+ شركة جديدة" أعلاه لإضافة أول شركة.</td></tr>}
         </tbody>
       </table>
       </div>

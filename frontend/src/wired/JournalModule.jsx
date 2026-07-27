@@ -12,7 +12,6 @@ import {
 } from "../api/journalEntries";
 import { fmt, fmt2 } from "../legacy/constants";
 import { ExcelImportPanel, downloadCsv, Icon } from "../legacy/shared";
-import CompanySelector from "./CompanySelector";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CreateFromDocumentModal from "./shared/CreateFromDocumentModal";
 import JournalVoucherViewModal from "./JournalVoucherViewModal";
@@ -60,7 +59,7 @@ function UnpostModal({ onConfirm, onCancel }) {
   );
 }
 
-export default function JournalModule({ companies, companyId, setCompanyId, onCompanyCreated }) {
+export default function JournalModule({ companies, companyId }) {
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
   const [entries, setEntries] = useState([]);
@@ -197,12 +196,10 @@ export default function JournalModule({ companies, companyId, setCompanyId, onCo
         <h2>القيود المحاسبية</h2>
       </div>
 
-      <CompanySelector companies={companies} companyId={companyId} setCompanyId={setCompanyId} onCompanyCreated={onCompanyCreated} />
-
       {error && <p className="balance-bad">{error}</p>}
 
       {!companyId ? (
-        <p className="empty">أنشئ شركة أولاً من الأعلى لبدء تسجيل القيود.</p>
+        <p className="empty">أنشئ شركة أولاً من لوحة القيادة لبدء تسجيل القيود.</p>
       ) : (
         <>
           <div className="panel form-panel">

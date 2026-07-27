@@ -83,6 +83,7 @@ function AppShell() {
   };
 
   const activeLegacyCompany = useMemo(() => COMPANIES.find((c) => c.id === legacyCompanyId), [legacyCompanyId]);
+  const activeCompany = useMemo(() => real.companies.find((c) => c.id === real.companyId), [real.companies, real.companyId]);
 
   return (
     <div className="app-root" dir="rtl">
@@ -135,6 +136,9 @@ function AppShell() {
       <div className="main">
         <div className="topbar">
           <span className="topbar-company">{user?.name} — {tenant?.name}</span>
+          <button className="topbar-active-company" onClick={() => setModuleId("dashboard")} title="الرجوع للشاشة الرئيسية لتبديل الشركة">
+            الشركة النشطة: <strong>{activeCompany?.shortName || activeCompany?.name || "لم تُختَر بعد"}</strong>
+          </button>
           <span className="topbar-date">{new Date().toLocaleDateString("ar-SA")}</span>
         </div>
 
@@ -143,65 +147,40 @@ function AppShell() {
             companies={real.companies}
             companyId={real.companyId}
             setCompanyId={real.setCompanyId}
-            onCompanyCreated={real.onCompanyCreated}
+            onNavigateToCompanySettings={() => { setModuleId("settings"); setSettingsTab("companies"); }}
           />
         )}
 
         {moduleId === "sales" && (
-          <SalesWiredModule
-            tab={salesTab} setTab={setSalesTab}
-            companies={real.companies} companyId={real.companyId}
-            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
-          />
+          <SalesWiredModule tab={salesTab} setTab={setSalesTab} companies={real.companies} companyId={real.companyId} />
         )}
 
         {moduleId === "purchases" && (
-          <PurchasesWiredModule
-            tab={purchasesTab} setTab={setPurchasesTab}
-            companies={real.companies} companyId={real.companyId}
-            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
-          />
+          <PurchasesWiredModule tab={purchasesTab} setTab={setPurchasesTab} companies={real.companies} companyId={real.companyId} />
         )}
 
         {moduleId === "inventory" && (
-          <InventoryWiredModule
-            tab={inventoryTab} setTab={setInventoryTab}
-            companies={real.companies} companyId={real.companyId}
-            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
-          />
+          <InventoryWiredModule tab={inventoryTab} setTab={setInventoryTab} companies={real.companies} companyId={real.companyId} />
         )}
 
         {moduleId === "fixedAssets" && (
-          <FixedAssetsWiredModule
-            tab={fixedAssetsTab} setTab={setFixedAssetsTab}
-            companies={real.companies} companyId={real.companyId}
-            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
-          />
+          <FixedAssetsWiredModule tab={fixedAssetsTab} setTab={setFixedAssetsTab} companies={real.companies} companyId={real.companyId} />
         )}
 
         {moduleId === "accounts" && (
           <AccountsGroupModule
             tab={accountsTab} setTab={setAccountsTab}
             realCompanies={real.companies} realCompanyId={real.companyId}
-            setRealCompanyId={real.setCompanyId} onRealCompanyCreated={real.onCompanyCreated}
             legacyEntries={legacyEntries} legacySales={sales} legacyCompanyId={legacyCompanyId}
           />
         )}
 
         {moduleId === "hr" && (
-          <HRWiredModule
-            tab={hrTab} setTab={setHrTab}
-            companies={real.companies} companyId={real.companyId}
-            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
-          />
+          <HRWiredModule tab={hrTab} setTab={setHrTab} companies={real.companies} companyId={real.companyId} />
         )}
 
         {moduleId === "reports" && (
-          <ReportsModule
-            companies={real.companies} companyId={real.companyId}
-            setCompanyId={real.setCompanyId} onCompanyCreated={real.onCompanyCreated}
-            tab={reportsTab} setTab={setReportsTab}
-          />
+          <ReportsModule companies={real.companies} companyId={real.companyId} tab={reportsTab} setTab={setReportsTab} />
         )}
 
         {moduleId === "settings" && (
@@ -213,7 +192,7 @@ function AppShell() {
             unlockPin={legacyUnlockPin} setUnlockPin={setLegacyUnlockPin}
             companyDocuments={companyDocuments} setCompanyDocuments={setCompanyDocuments}
             onDataChange={bumpSettings}
-            realCompanies={real.companies} reloadRealCompanies={real.reload}
+            realCompanies={real.companies} reloadRealCompanies={real.reload} onRealCompanyCreated={real.onCompanyCreated}
           />
         )}
       </div>

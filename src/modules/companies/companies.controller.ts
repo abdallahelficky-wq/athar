@@ -20,8 +20,11 @@ async function withLogoUrl<T extends { logoKey: string | null }>(company: T) {
 }
 
 export const listCompanies: RequestHandler = async (req, res) => {
+  const { companyScope } = req.auth!;
   const companies = await prisma.company.findMany({
-    where: { tenantId: req.auth!.tenantId },
+    // مستخدم مقيَّد بشركة واحدة (companyScope غير "all") لا يرى غيرها إطلاقاً، حتى في قائمة
+    // اختيار الشركة النشطة على الشاشة الرئيسية
+    where: { tenantId: req.auth!.tenantId, id: companyScope !== "all" ? companyScope : undefined },
     orderBy: { createdAt: "asc" },
   });
   res.json(await Promise.all(companies.map(withLogoUrl)));

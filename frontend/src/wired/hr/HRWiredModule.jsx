@@ -1,5 +1,4 @@
 import React from "react";
-import CompanySelector from "../CompanySelector";
 import EmployeeDirectoryTab from "./EmployeeDirectoryTab";
 import LeavesTab from "./LeavesTab";
 import LeaveSettlementTab from "./LeaveSettlementTab";
@@ -20,14 +19,13 @@ export const HR_TABS = [
   { id: "reports", label: "التقارير" },
 ];
 
-export default function HRWiredModule({ tab, setTab, companies, companyId, setCompanyId, onCompanyCreated }) {
+export default function HRWiredModule({ tab, setTab, companies, companyId }) {
   return (
     <div>
       <div className="section-title">
         <span className="eyebrow">شئون الموظفين — بيانات حقيقية</span>
         <h2>شئون الموظفين</h2>
       </div>
-      <CompanySelector companies={companies} companyId={companyId} setCompanyId={setCompanyId} onCompanyCreated={onCompanyCreated} />
       <div className="report-tabs">
         {HR_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
