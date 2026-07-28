@@ -23,12 +23,13 @@ const lineFromExisting = (l) => ({
  * تصحيح لاحق يكون فقط عبر عكس القيد من شاشة القائمة). القيد المرحّل لا يُفتَح في هذه النافذة
  * للتعديل أصلاً (الأيقونة تُعطَّل من شاشة القائمة نفسها).
  */
-export default function JournalEntryFormModal({ companyId, accounts, costCenters, editingEntry, onClose, onSaved }) {
+export default function JournalEntryFormModal({ companyId, accounts, costCenters, editingEntry, duplicateEntry, onClose, onSaved }) {
   const isEdit = !!editingEntry;
+  const seed = editingEntry || duplicateEntry;
 
-  const [date, setDate] = useState(() => (isEdit ? editingEntry.date.slice(0, 10) : new Date().toISOString().slice(0, 10)));
-  const [memo, setMemo] = useState(editingEntry?.memo || "");
-  const [lines, setLines] = useState(() => (isEdit ? editingEntry.lines.map(lineFromExisting) : [emptyLine(), emptyLine()]));
+  const [date, setDate] = useState(() => (isEdit ? seed.date.slice(0, 10) : new Date().toISOString().slice(0, 10)));
+  const [memo, setMemo] = useState(seed?.memo || "");
+  const [lines, setLines] = useState(() => (seed ? seed.lines.map(lineFromExisting) : [emptyLine(), emptyLine()]));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [numberPreview, setNumberPreview] = useState(null); // { prefix, preview } من الخادم، بلا حجز فعلي
@@ -81,7 +82,9 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
         onSaved(post ? "تم حفظ التعديلات وترحيل القيد. لن يمكن تعديله مباشرة بعد الآن." : "تم حفظ تعديلات القيد.");
       } else {
         await createJournalEntry({ ...buildPayload(), post });
-        onSaved(post ? "تم إنشاء القيد وترحيله. لن يمكن تعديله مباشرة بعد الآن." : "تم حفظ القيد — يظهر فوراً في التقارير وكشوف الحسابات، وقابل للتعديل حتى يُرحَّل.");
+        onSaved(post
+          ? duplicateEntry ? "تم إنشاء نسخة جديدة من القيد وترحيلها." : "تم إنشاء القيد وترحيله. لن يمكن تعديله مباشرة بعد الآن."
+          : duplicateEntry ? "تم حفظ نسخة جديدة من القيد." : "تم حفظ القيد — يظهر فوراً في التقارير وكشوف الحسابات، وقابل للتعديل حتى يُرحَّل.");
       }
     } catch (err) {
       setError(err.message);
@@ -93,7 +96,8 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
   return (
     <div className="invoice-modal-overlay">
       <div className="invoice-modal-box">
-        <h3>{isEdit ? "تعديل القيد" : "إضافة قيد يومية"}</h3>
+        <h3>{isEdit ? "تعديل القيد" : duplicateEntry ? "نسخ القيد إلى قيد جديد" : "إضافة قيد يومية"}</h3>
+        {duplicateEntry && <div className="edit-banner">تم نسخ بيانات القيد — راجعها قبل حفظ القيد الجديد</div>}
 
         {isEdit ? (
           <p className="note">رقم القيد: <strong>{editingEntry.entryNumber || editingEntry.id.slice(-8)}</strong></p>
