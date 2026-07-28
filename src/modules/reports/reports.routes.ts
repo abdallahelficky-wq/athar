@@ -6,6 +6,7 @@ import {
   balanceSheetHandler,
   customerStatementHandler,
   supplierStatementHandler,
+  accountLedgerHandler,
 } from "./reports.controller";
 
 export const reportRoutes = Router();
@@ -16,3 +17,4 @@ reportRoutes.get("/income-statement", incomeStatementHandler);
 reportRoutes.get("/balance-sheet", balanceSheetHandler);
 reportRoutes.get("/customer-statement/:customerId", customerStatementHandler);
 reportRoutes.get("/supplier-statement/:supplierId", supplierStatementHandler);
+reportRoutes.get("/account-ledger/:accountId", accountLedgerHandler);

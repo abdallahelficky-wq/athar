@@ -5,6 +5,7 @@ export const lineSchema = z
     accountId: z.string().min(1, "الحساب مطلوب"),
     costCenterId: z.string().nullable().optional(),
     department: z.string().nullable().optional(),
+    description: z.string().nullable().optional(),
     debit: z.coerce.number().min(0).default(0),
     credit: z.coerce.number().min(0).default(0),
     customerId: z.string().nullable().optional(),
@@ -41,6 +42,10 @@ export const createMirrorSchema = z.object({
   date: z.coerce.date(),
   memo: z.string().optional(),
   lines: z.array(lineSchema).min(2, "القيد يجب أن يحتوي على سطرين على الأقل"),
+});
+
+export const reverseJournalEntrySchema = z.object({
+  date: z.coerce.date(),
 });
 
 export const importJournalEntriesSchema = z.object({

@@ -198,6 +198,61 @@ export async function getCustomerStatement(
   return { customer, ...statement };
 }
 
+/**
+ * كشف حساب الأستاذ لأي حساب من شجرة الحسابات (وليس فقط ذمم العملاء/الموردين كما في
+ * buildPartyStatement أعلاه) — يجلب كل أسطر القيود المرحّلة على هذا الحساب تحديداً، ويحسب رصيداً
+ * متحركاً حسب "الجانب الطبيعي" لنوع الحساب (الأصول والمصروفات مدينة الطبيعة، وبقية الأنواع دائنة
+ * الطبيعة) — نفس اصطلاح الإشارة المستخدَم في aggregateAccountBalances/getTrialBalance أعلاه.
+ * يُرجِع أيضاً وصف كل سطر (JournalEntryLine.description) بجانب بيان القيد العام، لأن هذا هو
+ * بالضبط ما يحتاجه المستخدم عند مراجعة كشف حساب لفهم تفاصيل كل حركة دون فتح القيد الكامل.
+ */
+export async function getAccountLedger(
+  tenantId: string,
+  accountId: string,
+  companyId?: string,
+  dateFrom?: Date,
+  dateTo?: Date,
+) {
+  const account = await prisma.account.findFirst({ where: { id: accountId, tenantId } });
+  if (!account) throw notFound("الحساب غير موجود");
+
+  const normalSide: "debit" | "credit" = account.type === "asset" || account.type === "expense" ? "debit" : "credit";
+
+  const lines = await prisma.journalEntryLine.findMany({
+    where: {
+      accountId,
+      journalEntry: {
+        tenantId,
+        status: "posted",
+        companyId: companyId || undefined,
+        date: { gte: dateFrom, lte: dateTo },
+      },
+    },
+    include: { journalEntry: { include: { company: true } }, costCenter: true },
+    orderBy: { journalEntry: { date: "asc" } },
+  });
+
+  let balance = 0;
+  const rows = lines.map((l) => {
+    const debit = Number(l.debit);
+    const credit = Number(l.credit);
+    balance += normalSide === "debit" ? debit - credit : credit - debit;
+    return {
+      date: l.journalEntry.date,
+      journalEntryId: l.journalEntryId,
+      entryMemo: l.journalEntry.memo,
+      lineDescription: l.description,
+      costCenterName: l.costCenter?.name || null,
+      companyName: l.journalEntry.company.shortName || l.journalEntry.company.name,
+      debit,
+      credit,
+      balance,
+    };
+  });
+
+  return { account, normalSide, rows, closingBalance: balance };
+}
+
 export async function getSupplierStatement(
   tenantId: string,
   supplierId: string,

@@ -31,7 +31,7 @@ export default function JournalVoucherViewModal({ entry, companies, autoPrint, o
       </div>
       <table className="ledger-table voucher-table">
         <thead>
-          <tr><th>الحساب</th><th>مركز التكلفة</th><th>القسم</th><th>مدين</th><th>دائن</th></tr>
+          <tr><th>الحساب</th><th>مركز التكلفة</th><th>القسم</th><th>الوصف</th><th>مدين</th><th>دائن</th></tr>
         </thead>
         <tbody>
           {entry.lines.map((l) => (
@@ -39,13 +39,14 @@ export default function JournalVoucherViewModal({ entry, companies, autoPrint, o
               <td>{l.account?.name}</td>
               <td>{l.costCenter?.name || "—"}</td>
               <td>{l.department || "—"}</td>
+              <td>{l.description || "—"}</td>
               <td className="num">{Number(l.debit) ? fmt(Number(l.debit)) : "—"}</td>
               <td className="num">{Number(l.credit) ? fmt(Number(l.credit)) : "—"}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
-          <tr><td className="foot-label" colSpan={3}>الإجمالي</td><td className="num strong">{fmt(total)}</td><td className="num strong">{fmt(total)}</td></tr>
+          <tr><td className="foot-label" colSpan={4}>الإجمالي</td><td className="num strong">{fmt(total)}</td><td className="num strong">{fmt(total)}</td></tr>
         </tfoot>
       </table>
     </PrintShell>

@@ -329,29 +329,34 @@ enum SourceModule {
 }
 
 model JournalEntry {
-  id            String        @id @default(cuid())
-  tenantId      String
-  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId     String
-  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  date          DateTime
-  memo          String?
-  status        JournalStatus @default(posted)
-  sourceModule  SourceModule  @default(manual)
-  sourceId      String?
+  id                String        @id @default(cuid())
+  tenantId          String
+  tenant            Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId         String
+  company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  date              DateTime
+  memo              String?
+  status            JournalStatus @default(posted)
+  sourceModule      SourceModule  @default(manual)
+  sourceId          String?
   // مرجع منطقي حر (بلا علاقة FK صارمة) لقيد "المرآة" المقابل في شركة أخرى ضمن نفس المستأجر —
   // يُملأ تبادلياً على القيدين معاً عند إنشاء قيد مرآة (كل قيد يشير لمعرّف الآخر)، بنفس أسلوب
   // sourceId أعلاه، بدل علاقة self-relation ذاتية قد تعقّد القراءة/الكتابة من الجهتين بلا داعٍ.
-  mirrorEntryId String?
-  createdBy     String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  mirrorEntryId     String?
+  // مرجع منطقي حر (يُملأ فقط على القيد العكسي الجديد، لا على القيد الأصلي) لقيد "العكس" —
+  // اتجاه واحد فقط لتفادي معاملة تُحدِّث صفّين معاً كما في mirrorEntryId؛ لمعرفة هل قيد ما
+  // تم عكسه لاحقاً، يُبحث عن قيد آخر بنفس tenantId حيث reversalOfEntryId يساوي معرّف هذا القيد.
+  reversalOfEntryId String?
+  createdBy         String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   lines JournalEntryLine[]
 
   @@index([tenantId, companyId, date])
   @@index([tenantId, sourceModule, sourceId])
   @@index([tenantId, mirrorEntryId])
+  @@index([tenantId, reversalOfEntryId])
   @@map("journal_entries")
 }
 
@@ -364,6 +369,9 @@ model JournalEntryLine {
   costCenterId   String?
   costCenter     CostCenter?  @relation(fields: [costCenterId], references: [id])
   department     String?
+  // وصف خاص بهذا السطر تحديداً (مختلف عن JournalEntry.memo العام) — يظهر في كشف حساب الأستاذ
+  // بجانب البيان العام، لتوضيح تفاصيل كل حركة على حساب معيّن دون الرجوع للقيد الكامل.
+  description    String?
   debit          Decimal      @default(0) @db.Decimal(18, 2)
   credit         Decimal      @default(0) @db.Decimal(18, 2)
   customerId     String?

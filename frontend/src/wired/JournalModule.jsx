@@ -1,25 +1,29 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { listAccounts } from "../api/accounts";
 import { listCostCenters } from "../api/costCenters";
 import {
   listJournalEntries,
   getJournalEntry,
-  createJournalEntry,
-  updateJournalEntry,
   deleteJournalEntry,
   postJournalEntry,
   unpostJournalEntry,
   importJournalEntries,
 } from "../api/journalEntries";
-import { fmt, fmt2 } from "../legacy/constants";
+import { fmt } from "../legacy/constants";
 import { ExcelImportPanel, downloadCsv, Icon } from "../legacy/shared";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CreateFromDocumentModal from "./shared/CreateFromDocumentModal";
 import MirrorEntryModal from "./shared/MirrorEntryModal";
+import ReverseEntryModal from "./shared/ReverseEntryModal";
+import AccountSearchSelect from "./shared/AccountSearchSelect";
 import Breadcrumb from "./shared/Breadcrumb";
 import JournalVoucherViewModal from "./JournalVoucherViewModal";
+import JournalEntryFormModal from "./JournalEntryFormModal";
 
-const emptyLine = () => ({ accountId: "", costCenterId: "", department: "", debit: "", credit: "" });
+const emptyFilters = { search: "", dateFrom: "", dateTo: "", amountMin: "", amountMax: "", entryNumber: "", accountId: "" };
+
+const statusLabel = (s) => (s === "posted" ? "مرحّل" : "مسودة");
+const fmtDate = (d) => String(d).slice(0, 10);
 
 function UnpostModal({ onConfirm, onCancel }) {
   const [pin, setPin] = useState("");
@@ -68,23 +72,20 @@ export default function JournalModule({ companies, companyId }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [memo, setMemo] = useState("");
-  const [lines, setLines] = useState([emptyLine(), emptyLine()]);
-  const [editingId, setEditingId] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [filters, setFilters] = useState(emptyFilters);
 
+  const [formModal, setFormModal] = useState(null); // { mode: "create" | "edit", entry? }
   const [unpostTarget, setUnpostTarget] = useState(null);
-  const [searchText, setSearchText] = useState("");
   const [attachmentsFor, setAttachmentsFor] = useState(null);
   const [showFromDocument, setShowFromDocument] = useState(false);
   const [viewEntry, setViewEntry] = useState(null);
   const [autoPrint, setAutoPrint] = useState(false);
   const [mirrorSource, setMirrorSource] = useState(null);
-  const [mirrorInfoId, setMirrorInfoId] = useState(null);
-  const [mirrorInfo, setMirrorInfo] = useState(null);
-  const [mirrorNotice, setMirrorNotice] = useState("");
+  const [reverseSource, setReverseSource] = useState(null);
+  const [linkInfoId, setLinkInfoId] = useState(null);
+  const [linkInfo, setLinkInfo] = useState(null);
 
   useEffect(() => {
     listAccounts().then(setAccounts).catch((err) => setError(err.message));
@@ -94,77 +95,38 @@ export default function JournalModule({ companies, companyId }) {
   const reloadEntries = () => {
     if (!companyId) { setEntries([]); setLoading(false); return; }
     setLoading(true);
-    listJournalEntries({ companyId })
+    listJournalEntries({
+      companyId,
+      search: filters.search || undefined,
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+      amountMin: filters.amountMin || undefined,
+      amountMax: filters.amountMax || undefined,
+      entryNumber: filters.entryNumber || undefined,
+      accountId: filters.accountId || undefined,
+    })
       .then(setEntries)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   };
 
-  useEffect(reloadEntries, [companyId]);
+  // فلترة فورية لكنها مؤجَّلة قليلاً (debounce) عند الكتابة في حقول نصية/رقمية، لتفادي إرسال
+  // طلب لكل حرف يُكتَب — بقية التغييرات (تاريخ، حساب) قليلة التكرار فلا تحتاج تأجيلاً فعلياً
+  useEffect(() => {
+    const t = setTimeout(reloadEntries, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, filters]);
 
-  const costCenterOptions = useMemo(
-    () => costCenters.filter((c) => !c.companyId || c.companyId === companyId),
-    [costCenters, companyId],
-  );
+  const clearFilters = () => setFilters(emptyFilters);
+  const hasActiveFilters = Object.values(filters).some((v) => v !== "");
 
-  const totalDebit = lines.reduce((s, l) => s + Number(l.debit || 0), 0);
-  const totalCredit = lines.reduce((s, l) => s + Number(l.credit || 0), 0);
-  const diff = totalDebit - totalCredit;
-  const canPost = lines.filter((l) => Number(l.debit || 0) > 0 || Number(l.credit || 0) > 0).length >= 2
-    && totalDebit > 0 && Math.abs(diff) < 0.01;
+  const entryTotal = (e) => e.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
 
-  const updateLine = (idx, field, value) => setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l)));
-  const addLine = () => setLines((prev) => [...prev, emptyLine()]);
-  const removeLine = (idx) => setLines((prev) => (prev.length > 2 ? prev.filter((_, i) => i !== idx) : prev));
-
-  const resetForm = () => {
-    setEditingId(null);
-    setDate(new Date().toISOString().slice(0, 10));
-    setMemo("");
-    setLines([emptyLine(), emptyLine()]);
-  };
-
-  const startEdit = (entry) => {
-    setEditingId(entry.id);
-    setDate(entry.date.slice(0, 10));
-    setMemo(entry.memo || "");
-    setLines(entry.lines.map((l) => ({
-      accountId: l.accountId,
-      costCenterId: l.costCenterId || "",
-      department: l.department || "",
-      debit: Number(l.debit) || "",
-      credit: Number(l.credit) || "",
-    })));
-  };
-
-  const submit = async () => {
-    if (!canPost || !companyId) return;
-    setSaving(true);
-    setError("");
-    const payload = {
-      companyId,
-      date,
-      memo,
-      lines: lines
-        .filter((l) => Number(l.debit || 0) > 0 || Number(l.credit || 0) > 0)
-        .map((l) => ({
-          accountId: l.accountId,
-          costCenterId: l.costCenterId || null,
-          department: l.department || null,
-          debit: Number(l.debit || 0),
-          credit: Number(l.credit || 0),
-        })),
-    };
-    try {
-      if (editingId) await updateJournalEntry(editingId, payload);
-      else await createJournalEntry(payload);
-      resetForm();
-      reloadEntries();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+  const onSaved = (message) => {
+    setFormModal(null);
+    reloadEntries();
+    setNotice(message);
   };
 
   const remove = async (entry) => {
@@ -192,182 +154,154 @@ export default function JournalModule({ companies, companyId }) {
     reloadEntries();
   };
 
-  const toggleMirrorInfo = async (e) => {
-    if (mirrorInfoId === e.id) { setMirrorInfoId(null); setMirrorInfo(null); return; }
-    setMirrorInfoId(e.id);
-    setMirrorInfo(null);
+  const toggleLinkInfo = async (e) => {
+    if (linkInfoId === e.id) { setLinkInfoId(null); setLinkInfo(null); return; }
+    setLinkInfoId(e.id);
+    setLinkInfo(null);
     try {
       const full = await getJournalEntry(e.id);
-      setMirrorInfo(full.mirrorEntry);
+      setLinkInfo({ mirrorEntry: full.mirrorEntry, reversalOfEntry: full.reversalOfEntry, reversedByEntry: full.reversedByEntry });
     } catch (err) {
       setError(err.message);
     }
   };
 
-  const entryTotal = (e) => e.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
-
-  const filtered = entries.filter((e) => !searchText || (e.memo || "").includes(searchText));
-
   return (
     <div>
       <div className="section-title">
         <Breadcrumb parts={["دفتر اليومية", "بيانات حقيقية"]} />
-        <h2>القيود المحاسبية</h2>
+        <h2>قائمة القيود المحاسبية</h2>
       </div>
 
       {error && <p className="balance-bad">{error}</p>}
-      {mirrorNotice && <p className="balance-ok">{mirrorNotice}</p>}
+      {notice && <p className="balance-ok">{notice}</p>}
 
       {!companyId ? (
         <p className="empty">أنشئ شركة أولاً من لوحة القيادة لبدء تسجيل القيود.</p>
       ) : (
         <>
           <div className="panel form-panel">
-            {editingId && <div className="edit-banner">تعديل القيد (فك ترحيله أولاً إن كان مرحّلاً)</div>}
-            <div className="form-grid header-grid">
-              <label>التاريخ<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-              <label className="memo-field">بيان القيد<input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="وصف عام للقيد" /></label>
-            </div>
-
-            <div className="lines-table-wrap">
-              <table className="lines-table">
-                <thead>
-                  <tr><th>الحساب</th><th>مركز التكلفة</th><th>القسم</th><th>مدين</th><th>دائن</th><th></th></tr>
-                </thead>
-                <tbody>
-                  {lines.map((l, idx) => (
-                    <tr key={idx}>
-                      <td>
-                        <select value={l.accountId} onChange={(e) => updateLine(idx, "accountId", e.target.value)}>
-                          <option value="">— اختر —</option>
-                          {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                        </select>
-                      </td>
-                      <td>
-                        <select value={l.costCenterId} onChange={(e) => updateLine(idx, "costCenterId", e.target.value)}>
-                          <option value="">— بدون —</option>
-                          {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                      </td>
-                      <td><input type="text" value={l.department} onChange={(e) => updateLine(idx, "department", e.target.value)} placeholder="اختياري" /></td>
-                      <td><input type="number" className="amount-input" value={l.debit} onChange={(e) => updateLine(idx, "debit", e.target.value)} placeholder="0.00" /></td>
-                      <td><input type="number" className="amount-input" value={l.credit} onChange={(e) => updateLine(idx, "credit", e.target.value)} placeholder="0.00" /></td>
-                      <td><button className="btn-remove-line" onClick={() => removeLine(idx)} disabled={lines.length <= 2}>✕</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td className="foot-label" colSpan={3}>الإجمالي</td>
-                    <td className="num">{fmt2(totalDebit)}</td>
-                    <td className="num">{fmt2(totalCredit)}</td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            <div className="journal-actions">
-              <button className="btn-ghost" onClick={addLine}>+ إضافة سطر</button>
-              <div className="balance-status">
-                {diff === 0 && totalDebit > 0 && <span className="balance-ok">✓ القيد متوازن — جاهز للترحيل</span>}
-                {diff !== 0 && <span className="balance-bad">الفرق بين المدين والدائن: {fmt2(Math.abs(diff))} ر.س</span>}
-              </div>
-              <div className="form-btn-group">
-                {editingId && <button className="btn-ghost" onClick={resetForm}>إلغاء التعديل</button>}
-                <button className="btn-primary" onClick={submit} disabled={!canPost || saving}>
-                  {saving ? "جارٍ الحفظ..." : editingId ? "حفظ التعديلات" : "ترحيل القيد"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="panel form-panel">
-            <div className="filter-bar">
-              <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="بحث بالبيان" />
-              <button className="btn-primary" onClick={() => setShowFromDocument(true)}>
-                إنشاء قيد من مستند (ذكاء اصطناعي)
-              </button>
+            <div className="form-btn-group" style={{ justifyContent: "flex-start", marginBottom: 14 }}>
+              <button className="btn-primary" onClick={() => setFormModal({ mode: "create" })}>+ إضافة قيد يومية</button>
+              <button className="btn-ghost" onClick={() => setShowFromDocument(true)}>إنشاء قيد من مستند (ذكاء اصطناعي)</button>
               <button
                 className="btn-ghost"
                 onClick={() => downloadCsv("القيود_اليومية.csv", [
-                  ["التاريخ", "البيان", "الحالة", "الإجمالي"],
-                  ...filtered.map((e) => [e.date.slice(0, 10), e.memo, e.status, entryTotal(e)]),
+                  ["رقم القيد", "التاريخ", "البيان", "الحالة", "الإجمالي"],
+                  ...entries.map((e) => [e.id.slice(-8), fmtDate(e.date), e.memo, statusLabel(e.status), entryTotal(e)]),
                 ])}
               >
                 تصدير Excel/CSV
               </button>
+            </div>
+
+            <div className="filter-bar">
+              <label>البيان<input type="text" value={filters.search} onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))} placeholder="بحث بالبيان" /></label>
+              <label>من تاريخ<input type="date" value={filters.dateFrom} onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))} /></label>
+              <label>إلى تاريخ<input type="date" value={filters.dateTo} onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))} /></label>
+              <label>
+                المبلغ
+                <div className="filter-field-pair">
+                  <input type="number" value={filters.amountMin} onChange={(e) => setFilters((f) => ({ ...f, amountMin: e.target.value }))} placeholder="من" />
+                  <input type="number" value={filters.amountMax} onChange={(e) => setFilters((f) => ({ ...f, amountMax: e.target.value }))} placeholder="إلى" />
+                </div>
+              </label>
+              <label>رقم القيد<input type="text" value={filters.entryNumber} onChange={(e) => setFilters((f) => ({ ...f, entryNumber: e.target.value }))} placeholder="بحث برقم القيد" /></label>
+              <label>
+                حساب معيّن
+                <AccountSearchSelect
+                  accounts={accounts}
+                  value={filters.accountId}
+                  onChange={(accountId) => setFilters((f) => ({ ...f, accountId }))}
+                  placeholder="فلترة بحساب من الشجرة"
+                  allowClear
+                />
+              </label>
+              {hasActiveFilters && (
+                <button className="btn-ghost" onClick={clearFilters} style={{ alignSelf: "end" }}>مسح الفلاتر</button>
+              )}
             </div>
           </div>
 
           {loading ? (
             <p className="empty">جارٍ التحميل...</p>
           ) : (
-            <div className="entries-feed">
-              {filtered.slice().reverse().map((e) => (
-                <div className="panel entry-card" key={e.id}>
-                  <div className="entry-card-head">
-                    <div>
-                      <span className="entry-memo">{e.memo || "بدون بيان"}</span>
-                      <span className="entry-meta"> · {e.date.slice(0, 10)} · {e.status === "posted" ? "مرحّل" : "مسودة"}</span>
-                    </div>
-                    <span className="entry-total">{fmt(entryTotal(e))} ر.س</span>
-                  </div>
-                  <table className="ledger-table entry-lines">
-                    <thead><tr><th>الحساب</th><th>مركز التكلفة</th><th>القسم</th><th>مدين</th><th>دائن</th></tr></thead>
-                    <tbody>
-                      {e.lines.map((l) => (
-                        <tr key={l.id}>
-                          <td>{l.account?.name}</td>
-                          <td>{l.costCenter?.name || "—"}</td>
-                          <td>{l.department || "—"}</td>
-                          <td className="num">{Number(l.debit) ? fmt(l.debit) : "—"}</td>
-                          <td className="num">{Number(l.credit) ? fmt(l.credit) : "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="entry-card-actions form-btn-group">
-                    <button className="icon-btn" title="عرض القيد" onClick={() => setViewEntry(e)}><Icon.Eye /></button>
-                    <button
-                      className="icon-btn" title="طباعة القيد"
-                      onClick={() => { setViewEntry(e); setAutoPrint(true); }}
-                    ><Icon.Printer /></button>
-                    {e.status === "draft" && (
-                      <>
-                        <button className="btn-ghost" onClick={() => startEdit(e)}>تعديل</button>
-                        <button className="btn-ghost" onClick={() => remove(e)}>حذف</button>
-                        <button className="btn-primary" onClick={() => doPost(e)}>ترحيل</button>
-                      </>
-                    )}
-                    {e.status === "posted" && (
-                      <button className="btn-ghost" onClick={() => setUnpostTarget(e)}>فك الترحيل</button>
-                    )}
-                    {e.status === "posted" && !e.mirrorEntryId && (
-                      <button className="icon-btn" title="إنشاء قيد مرآة في شركة أخرى" onClick={() => setMirrorSource(e)}>
-                        <Icon.Link />
-                      </button>
-                    )}
-                    {e.mirrorEntryId && (
-                      <button className="btn-ghost" onClick={() => toggleMirrorInfo(e)}>
-                        <Icon.Link /> قيد مرآة مرتبط
-                      </button>
-                    )}
-                    <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === e.id ? null : e.id)}>
-                      {attachmentsFor === e.id ? "إخفاء المرفقات" : "المرفقات"}
-                    </button>
-                  </div>
-                  {mirrorInfoId === e.id && (
-                    <p className="note">
-                      {mirrorInfo
-                        ? `مرتبط بقيد في شركة ${mirrorInfo.companyName} بتاريخ ${String(mirrorInfo.date).slice(0, 10)} — الحالة: ${mirrorInfo.status === "posted" ? "مرحّل" : "مسودة"}${mirrorInfo.memo ? ` — البيان: ${mirrorInfo.memo}` : ""}`
-                        : "جارٍ تحميل بيانات القيد المرتبط..."}
-                    </p>
-                  )}
-                  {attachmentsFor === e.id && <AttachmentsPanel entityType="journal_entry" entityId={e.id} />}
-                </div>
-              ))}
-              {filtered.length === 0 && <p className="empty">لا توجد قيود لهذه الشركة بعد.</p>}
+            <div className="panel">
+              <div className="invoices-table-wrap">
+                <table className="ledger-table">
+                  <thead>
+                    <tr><th>رقم القيد</th><th>التاريخ</th><th>البيان</th><th>المبلغ</th><th>الحالة</th><th>الإجراءات</th></tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((e) => {
+                      const posted = e.status === "posted";
+                      const draft = e.status === "draft";
+                      const hasLinks = e.mirrorEntryId || e.reversalOfEntryId || e.reversedByEntryId;
+                      return (
+                        <React.Fragment key={e.id}>
+                          <tr>
+                            <td>{e.id.slice(-8)}</td>
+                            <td>{fmtDate(e.date)}</td>
+                            <td>{e.memo || "بدون بيان"}</td>
+                            <td className="num">{fmt(entryTotal(e))}</td>
+                            <td><span className="status-badge">{statusLabel(e.status)}</span></td>
+                            <td className="row-actions">
+                              <button className="icon-btn" title="عرض القيد" onClick={() => setViewEntry(e)}><Icon.Eye /></button>
+                              <button className="icon-btn" title="طباعة القيد" onClick={() => { setViewEntry(e); setAutoPrint(true); }}><Icon.Printer /></button>
+                              {draft && (
+                                <>
+                                  <button className="icon-btn" title="تعديل" onClick={() => setFormModal({ mode: "edit", entry: e })}><Icon.Edit /></button>
+                                  <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(e)}><Icon.Trash /></button>
+                                  <button className="icon-btn" title="ترحيل" onClick={() => doPost(e)}><Icon.Lock /></button>
+                                </>
+                              )}
+                              {posted && (
+                                <button className="icon-btn icon-btn-warn" title="فك الترحيل" onClick={() => setUnpostTarget(e)}><Icon.Unlock /></button>
+                              )}
+                              {posted && !e.mirrorEntryId && (
+                                <button className="icon-btn" title="إنشاء قيد مرآة في شركة أخرى" onClick={() => setMirrorSource(e)}><Icon.Link /></button>
+                              )}
+                              {posted && !e.reversedByEntryId && (
+                                <button className="icon-btn" title="عكس القيد" onClick={() => setReverseSource(e)}><Icon.Unlink /></button>
+                              )}
+                              {hasLinks && (
+                                <button className="icon-btn" title="روابط القيد" onClick={() => toggleLinkInfo(e)}><Icon.BookOpen /></button>
+                              )}
+                              <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === e.id ? null : e.id)}>
+                                {attachmentsFor === e.id ? "إخفاء المرفقات" : "المرفقات"}
+                              </button>
+                            </td>
+                          </tr>
+                          {linkInfoId === e.id && (
+                            <tr><td colSpan={6}>
+                              <div className="note">
+                                {!linkInfo ? "جارٍ تحميل الروابط..." : (
+                                  <>
+                                    {linkInfo.mirrorEntry && (
+                                      <div>🔗 قيد مرآة مرتبط في شركة {linkInfo.mirrorEntry.companyName} بتاريخ {fmtDate(linkInfo.mirrorEntry.date)} — الحالة: {statusLabel(linkInfo.mirrorEntry.status)}</div>
+                                    )}
+                                    {linkInfo.reversalOfEntry && (
+                                      <div>↩ هذا قيد عاكس للقيد رقم {linkInfo.reversalOfEntry.id.slice(-8)} بتاريخ {fmtDate(linkInfo.reversalOfEntry.date)} — الحالة: {statusLabel(linkInfo.reversalOfEntry.status)}</div>
+                                    )}
+                                    {linkInfo.reversedByEntry && (
+                                      <div>⚠ تم عكس هذا القيد بالقيد رقم {linkInfo.reversedByEntry.id.slice(-8)} بتاريخ {fmtDate(linkInfo.reversedByEntry.date)} — الحالة: {statusLabel(linkInfo.reversedByEntry.status)}</div>
+                                    )}
+                                    {!linkInfo.mirrorEntry && !linkInfo.reversalOfEntry && !linkInfo.reversedByEntry && "لا توجد روابط حالياً."}
+                                  </>
+                                )}
+                              </div>
+                            </td></tr>
+                          )}
+                          {attachmentsFor === e.id && (
+                            <tr><td colSpan={6}><AttachmentsPanel entityType="journal_entry" entityId={e.id} /></td></tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                    {entries.length === 0 && <tr><td className="empty" colSpan={6}>لا توجد قيود مطابقة.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -395,6 +329,16 @@ export default function JournalModule({ companies, companyId }) {
         </>
       )}
 
+      {formModal && (
+        <JournalEntryFormModal
+          companyId={companyId}
+          accounts={accounts}
+          costCenters={costCenters}
+          editingEntry={formModal.mode === "edit" ? formModal.entry : null}
+          onClose={() => setFormModal(null)}
+          onSaved={onSaved}
+        />
+      )}
       {unpostTarget && <UnpostModal onCancel={() => setUnpostTarget(null)} onConfirm={doUnpost} />}
       {viewEntry && (
         <JournalVoucherViewModal
@@ -420,7 +364,18 @@ export default function JournalModule({ companies, companyId }) {
           onClose={() => setMirrorSource(null)}
           onCreated={(mirror, targetCompany) => {
             setMirrorSource(null);
-            setMirrorNotice(`تم إنشاء القيد المقابل كمسودة في شركة ${targetCompany?.shortName || targetCompany?.name}.`);
+            setNotice(`تم إنشاء القيد المقابل كمسودة في شركة ${targetCompany?.shortName || targetCompany?.name}.`);
+            reloadEntries();
+          }}
+        />
+      )}
+      {reverseSource && (
+        <ReverseEntryModal
+          entry={reverseSource}
+          onClose={() => setReverseSource(null)}
+          onCreated={() => {
+            setReverseSource(null);
+            setNotice("تم إنشاء القيد العكسي كمسودة — راجعه ثم رحّله.");
             reloadEntries();
           }}
         />

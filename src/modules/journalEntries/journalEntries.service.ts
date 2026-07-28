@@ -11,6 +11,7 @@ export interface JournalLineInput {
   accountId: string;
   costCenterId?: string | null;
   department?: string | null;
+  description?: string | null;
   debit: number;
   credit: number;
   customerId?: string | null;
@@ -57,6 +58,7 @@ function toLineCreateData(lines: JournalLineInput[]) {
     accountId: l.accountId,
     costCenterId: l.costCenterId || null,
     department: l.department || null,
+    description: l.description || null,
     debit: new Prisma.Decimal(l.debit || 0),
     credit: new Prisma.Decimal(l.credit || 0),
     customerId: l.customerId || null,
@@ -70,11 +72,26 @@ const entryInclude = {
   company: true,
 } satisfies Prisma.JournalEntryInclude;
 
-export async function listJournalEntries(
-  tenantId: string,
-  filters: { companyId?: string; dateFrom?: string; dateTo?: string; search?: string },
-) {
-  return prisma.journalEntry.findMany({
+export interface JournalEntryFilters {
+  companyId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  entryNumber?: string;
+  accountId?: string;
+  amount?: number;
+  amountMin?: number;
+  amountMax?: number;
+}
+
+/**
+ * محرك بحث/فلترة شاشة القيود: كل المعايير (بيان، تاريخ، رقم قيد، حساب) تُطبَّق كشرط WHERE واحد
+ * (AND ضمني بين كل الحقول)، ما عدا المبلغ — لأن "إجمالي القيد" ليس عموداً مخزَّناً بل مجموع أسطر
+ * مرتبطة، فيُحسَب بعد الجلب من قاعدة البيانات ويُفلتَر في الذاكرة (حجم بيانات هذا التطبيق لكل
+ * شركة معقول لهذا النهج، ويتفادى استعلام SQL مجمَّع أعقد لفائدة هامشية).
+ */
+export async function listJournalEntries(tenantId: string, filters: JournalEntryFilters) {
+  const entries = await prisma.journalEntry.findMany({
     where: {
       tenantId,
       companyId: filters.companyId || undefined,
@@ -85,33 +102,81 @@ export async function listJournalEntries(
       ...(filters.search
         ? { OR: [{ memo: { contains: filters.search, mode: "insensitive" } }, { id: filters.search }] }
         : {}),
+      ...(filters.entryNumber ? { id: { contains: filters.entryNumber, mode: "insensitive" } } : {}),
+      ...(filters.accountId ? { lines: { some: { accountId: filters.accountId } } } : {}),
     },
     include: entryInclude,
     orderBy: { date: "desc" },
   });
+
+  const filtered =
+    filters.amount == null && filters.amountMin == null && filters.amountMax == null
+      ? entries
+      : entries.filter((e) => {
+          const total = e.lines.reduce((s, l) => s + Number(l.debit), 0);
+          if (filters.amount != null && Math.abs(total - filters.amount) > BALANCE_EPSILON) return false;
+          if (filters.amountMin != null && total < filters.amountMin - BALANCE_EPSILON) return false;
+          if (filters.amountMax != null && total > filters.amountMax + BALANCE_EPSILON) return false;
+          return true;
+        });
+
+  // استعلام واحد إضافي (مُفهرَس عبر @@index([tenantId, reversalOfEntryId])) ليعرف كل سطر في
+  // القائمة مسبقاً هل تم عكسه لاحقاً بقيد آخر أم لا — بدل استعلام منفصل لكل قيد (N+1)، دون الحاجة
+  // لتحديث أي عمود على القيد الأصلي نفسه (انظر تعليق reversalOfEntryId في schema.prisma).
+  const reversals = await prisma.journalEntry.findMany({
+    where: { tenantId, reversalOfEntryId: { in: filtered.map((e) => e.id) } },
+    select: { id: true, reversalOfEntryId: true },
+  });
+  const reversedByMap = new Map(reversals.map((r) => [r.reversalOfEntryId as string, r.id]));
+
+  return filtered.map((e) => ({ ...e, reversedByEntryId: reversedByMap.get(e.id) || null }));
 }
 
 export async function getJournalEntry(tenantId: string, id: string) {
   const entry = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
   if (!entry) throw notFound("القيد غير موجود");
-  return { ...entry, mirrorEntry: await resolveMirrorEntry(tenantId, entry.mirrorEntryId) };
+
+  const [mirrorEntry, reversalOfEntry, reversedByEntry] = await Promise.all([
+    resolveLinkedEntry(tenantId, entry.mirrorEntryId),
+    resolveLinkedEntry(tenantId, entry.reversalOfEntryId),
+    resolveLinkedEntryBy(tenantId, "reversalOfEntryId", entry.id),
+  ]);
+
+  return { ...entry, mirrorEntry, reversalOfEntry, reversedByEntry };
 }
 
-/** يحل المرجع الحر mirrorEntryId يدوياً (بلا include صريح، بنفس أسلوب sourceId/sourceModule) لعرض ملخص القيد المرتبط في الشركة الأخرى */
-async function resolveMirrorEntry(tenantId: string, mirrorEntryId: string | null) {
-  if (!mirrorEntryId) return null;
-  const mirror = await prisma.journalEntry.findFirst({
-    where: { id: mirrorEntryId, tenantId },
+/** يحل مرجعاً حراً (id) يدوياً (بلا include صريح، بنفس أسلوب sourceId/sourceModule) لعرض ملخص القيد المرتبط، أياً كان نوع الربط (مرآة بين شركات أو عكس قيد) */
+async function resolveLinkedEntry(tenantId: string, linkedEntryId: string | null) {
+  if (!linkedEntryId) return null;
+  const linked = await prisma.journalEntry.findFirst({
+    where: { id: linkedEntryId, tenantId },
     include: { company: true },
   });
-  if (!mirror) return null;
+  if (!linked) return null;
   return {
-    id: mirror.id,
-    companyId: mirror.companyId,
-    companyName: mirror.company.shortName || mirror.company.name,
-    date: mirror.date,
-    memo: mirror.memo,
-    status: mirror.status,
+    id: linked.id,
+    companyId: linked.companyId,
+    companyName: linked.company.shortName || linked.company.name,
+    date: linked.date,
+    memo: linked.memo,
+    status: linked.status,
+  };
+}
+
+/** عكس resolveLinkedEntry: يبحث عن القيد الذي يشير *هو* لهذا القيد عبر عمود معيّن (مثال: reversalOfEntryId) — يُستخدَم لمعرفة هل قيد ما تم عكسه لاحقاً دون أي عمود مقابل يُحدَّث على القيد الأصلي نفسه */
+async function resolveLinkedEntryBy(tenantId: string, field: "reversalOfEntryId", targetId: string) {
+  const linked = await prisma.journalEntry.findFirst({
+    where: { tenantId, [field]: targetId },
+    include: { company: true },
+  });
+  if (!linked) return null;
+  return {
+    id: linked.id,
+    companyId: linked.companyId,
+    companyName: linked.company.shortName || linked.company.name,
+    date: linked.date,
+    memo: linked.memo,
+    status: linked.status,
   };
 }
 
@@ -303,6 +368,50 @@ export async function postJournalEntry(tenantId: string, id: string) {
   );
 
   return prisma.journalEntry.update({ where: { id }, data: { status: "posted" }, include: entryInclude });
+}
+
+/**
+ * "عكس القيد" — لا تُعدِّل أو تُرحِّل/تفك ترحيل القيد الأصلي إطلاقاً، بل تُنشئ قيداً جديداً منفصلاً
+ * بنفس بنود القيد الأصلي تماماً (الحساب، مركز التكلفة، القسم، الوصف الخاص بكل سطر، البيان العام)
+ * لكن بعكس المدين/الدائن على كل سطر — فيبقى متوازناً تلقائياً بلا حاجة لإعادة التحقق. يُحفَظ دائماً
+ * كمسودة ليراجعه المستخدم قبل الترحيل. الربط أحادي الاتجاه (reversalOfEntryId على القيد الجديد
+ * فقط) بدل تحديث الطرفين معاً كما في mirrorEntryId — أبسط هنا لأن معرفة "هل قيد ما تم عكسه لاحقاً"
+ * ممكنة بالبحث العكسي (انظر resolveLinkedEntryBy)، فلا داعي لمعاملة تلمس صفّين.
+ */
+export async function reverseJournalEntry(tenantId: string, userId: string, id: string, date: Date) {
+  const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
+  if (!existing) throw notFound("القيد غير موجود");
+  if (existing.status !== "posted") throw badRequest("لا يمكن عكس إلا قيداً مرحّلاً");
+
+  const alreadyReversed = await prisma.journalEntry.findFirst({ where: { tenantId, reversalOfEntryId: id } });
+  if (alreadyReversed) throw badRequest("تم عكس هذا القيد مسبقاً بقيد آخر");
+
+  const reversedLines: JournalLineInput[] = existing.lines.map((l) => ({
+    accountId: l.accountId,
+    costCenterId: l.costCenterId,
+    department: l.department,
+    description: l.description,
+    debit: Number(l.credit),
+    credit: Number(l.debit),
+    customerId: l.customerId,
+    supplierId: l.supplierId,
+    employeeId: l.employeeId,
+  }));
+
+  return prisma.journalEntry.create({
+    data: {
+      tenantId,
+      companyId: existing.companyId,
+      date,
+      memo: existing.memo,
+      status: "draft",
+      sourceModule: "manual",
+      createdBy: userId,
+      reversalOfEntryId: existing.id,
+      lines: { create: toLineCreateData(reversedLines) },
+    },
+    include: entryInclude,
+  });
 }
 
 export async function unpostJournalEntry(tenantId: string, id: string, userId: string, pin: string) {

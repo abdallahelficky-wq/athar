@@ -17,3 +17,6 @@ export const getCustomerStatement = (customerId, params) =>
   api.get(`/reports/customer-statement/${customerId}${toQuery(params)}`);
 export const getSupplierStatement = (supplierId, params) =>
   api.get(`/reports/supplier-statement/${supplierId}${toQuery(params)}`);
+
+export const getAccountLedger = (accountId, params) =>
+  api.get(`/reports/account-ledger/${accountId}${toQuery(params)}`);

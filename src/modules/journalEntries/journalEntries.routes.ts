@@ -10,6 +10,7 @@ import {
   createFromDocumentSchema,
   mirrorSuggestionSchema,
   createMirrorSchema,
+  reverseJournalEntrySchema,
 } from "./journalEntries.schemas";
 import {
   listHandler,
@@ -23,6 +24,7 @@ import {
   createFromDocumentHandler,
   mirrorSuggestionHandler,
   createMirrorHandler,
+  reverseHandler,
 } from "./journalEntries.controller";
 
 export const journalEntryRoutes = Router();
@@ -52,3 +54,4 @@ journalEntryRoutes.post(
   mirrorSuggestionHandler,
 );
 journalEntryRoutes.post("/:id/mirror", canWrite, validateBody(createMirrorSchema), createMirrorHandler);
+journalEntryRoutes.post("/:id/reverse", canWrite, validateBody(reverseJournalEntrySchema), reverseHandler);

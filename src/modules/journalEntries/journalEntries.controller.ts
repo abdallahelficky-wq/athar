@@ -2,13 +2,21 @@ import { RequestHandler } from "express";
 import * as service from "./journalEntries.service";
 import { badRequest } from "../../lib/httpError";
 
+const asString = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+const asNumber = (v: unknown) => (typeof v === "string" && v !== "" ? Number(v) : undefined);
+
 export const listHandler: RequestHandler = async (req, res) => {
-  const { companyId, dateFrom, dateTo, search } = req.query;
+  const { companyId, dateFrom, dateTo, search, entryNumber, accountId, amount, amountMin, amountMax } = req.query;
   const entries = await service.listJournalEntries(req.auth!.tenantId, {
-    companyId: typeof companyId === "string" ? companyId : undefined,
-    dateFrom: typeof dateFrom === "string" ? dateFrom : undefined,
-    dateTo: typeof dateTo === "string" ? dateTo : undefined,
-    search: typeof search === "string" ? search : undefined,
+    companyId: asString(companyId),
+    dateFrom: asString(dateFrom),
+    dateTo: asString(dateTo),
+    search: asString(search),
+    entryNumber: asString(entryNumber),
+    accountId: asString(accountId),
+    amount: asNumber(amount),
+    amountMin: asNumber(amountMin),
+    amountMax: asNumber(amountMax),
   });
   res.json(entries);
 };
@@ -61,6 +69,11 @@ export const mirrorSuggestionHandler: RequestHandler = async (req, res) => {
 export const createMirrorHandler: RequestHandler = async (req, res) => {
   const mirror = await service.createMirrorJournalEntry(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body);
   res.status(201).json(mirror);
+};
+
+export const reverseHandler: RequestHandler = async (req, res) => {
+  const reversal = await service.reverseJournalEntry(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.date);
+  res.status(201).json(reversal);
 };
 
 export const importHandler: RequestHandler = async (req, res) => {

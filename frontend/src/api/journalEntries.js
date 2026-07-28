@@ -21,6 +21,7 @@ export const importJournalEntries = (companyId, rows) =>
 export const getMirrorSuggestion = (id, targetCompanyId) =>
   api.post(`/journal-entries/${id}/mirror-suggestion`, { targetCompanyId });
 export const createMirrorJournalEntry = (id, payload) => api.post(`/journal-entries/${id}/mirror`, payload);
+export const reverseJournalEntry = (id, date) => api.post(`/journal-entries/${id}/reverse`, { date });
 
 export const createJournalEntryFromDocument = (companyId, file) => {
   const form = new FormData();
