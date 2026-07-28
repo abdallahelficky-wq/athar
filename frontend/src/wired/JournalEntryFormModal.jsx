@@ -2,12 +2,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createJournalEntry, updateJournalEntry, postJournalEntry, getNextEntryNumber } from "../api/journalEntries";
 import { fmt2 } from "../legacy/constants";
 
-const emptyLine = () => ({ accountId: "", costCenterId: "", department: "", description: "", debit: "", credit: "" });
+const emptyLine = () => ({ accountId: "", costCenterId: "", description: "", debit: "", credit: "" });
 
 const lineFromExisting = (l) => ({
   accountId: l.accountId,
   costCenterId: l.costCenterId || "",
-  department: l.department || "",
   description: l.description || "",
   debit: Number(l.debit) || "",
   credit: Number(l.credit) || "",
@@ -64,7 +63,6 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
       .map((l) => ({
         accountId: l.accountId,
         costCenterId: l.costCenterId || null,
-        department: l.department || null,
         description: l.description || null,
         debit: Number(l.debit || 0),
         credit: Number(l.credit || 0),
@@ -120,7 +118,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
         <div className="lines-table-wrap">
           <table className="lines-table">
             <thead>
-              <tr><th>الحساب</th><th>مركز التكلفة</th><th>القسم</th><th>الوصف</th><th>مدين</th><th>دائن</th><th></th></tr>
+              <tr><th>الحساب</th><th>مركز التكلفة</th><th>مدين</th><th>دائن</th><th>الوصف</th><th></th></tr>
             </thead>
             <tbody>
               {lines.map((l, idx) => (
@@ -137,19 +135,19 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
                       {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </td>
-                  <td><input type="text" value={l.department} onChange={(e) => updateLine(idx, "department", e.target.value)} placeholder="اختياري" /></td>
-                  <td><input type="text" value={l.description} onChange={(e) => updateLine(idx, "description", e.target.value)} placeholder="وصف خاص بهذا السطر" /></td>
                   <td><input type="number" className="amount-input" value={l.debit} onChange={(e) => updateLine(idx, "debit", e.target.value)} placeholder="0.00" /></td>
                   <td><input type="number" className="amount-input" value={l.credit} onChange={(e) => updateLine(idx, "credit", e.target.value)} placeholder="0.00" /></td>
+                  <td><input type="text" value={l.description} onChange={(e) => updateLine(idx, "description", e.target.value)} placeholder="وصف خاص بهذا السطر" /></td>
                   <td><button className="btn-remove-line" onClick={() => removeLine(idx)} disabled={lines.length <= 2}>✕</button></td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr>
-                <td className="foot-label" colSpan={4}>الإجمالي</td>
+                <td className="foot-label" colSpan={2}>الإجمالي</td>
                 <td className="num">{fmt2(totalDebit)}</td>
                 <td className="num">{fmt2(totalCredit)}</td>
+                <td></td>
                 <td></td>
               </tr>
             </tfoot>
