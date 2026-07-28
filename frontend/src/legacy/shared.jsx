@@ -269,8 +269,13 @@ export function PrintShell({ subtitle, refNode, children, onClose, onEdit, showS
     <div className="voucher-overlay">
       <div className="voucher-shell">
         <div className="voucher-print">
+          {/* ترتيب الرأس مطلوب صراحة بهذا الشكل الثابت (يمين→يسار): رقم المستند وتاريخه، ثم
+              الشعار في المنتصف تماماً، ثم بيانات الشركة — عبر شبكة ثلاثية الأعمدة (لا flex
+              بمسافة متساوية) حتى يبقى الشعار في المنتصف الهندسي الدقيق بصرف النظر عن اختلاف
+              عرض النص على الجانبين */}
           <div className="voucher-head" style={{ borderBottomColor: accent }}>
-            <div className="voucher-brand">
+            <div className="voucher-ref">{refNode}</div>
+            <div className="voucher-logo-wrap">
               {company?.logoUrl ? (
                 <img src={company.logoUrl} alt={displayName} className="voucher-logo-img" />
               ) : (
@@ -278,14 +283,13 @@ export function PrintShell({ subtitle, refNode, children, onClose, onEdit, showS
                   <span className="brand-mark-needle" style={{ background: accent }} />
                 </div>
               )}
-              <div>
-                <div className="voucher-brand-name">{displayName}</div>
-                <div className="voucher-brand-sub">{subtitle}</div>
-                {company?.vatNumber && <div className="voucher-brand-meta">الرقم الضريبي: {company.vatNumber}</div>}
-                {address && <div className="voucher-brand-meta">{address}</div>}
-              </div>
             </div>
-            <div className="voucher-ref">{refNode}</div>
+            <div className="voucher-company-info">
+              <div className="voucher-brand-name">{displayName}</div>
+              <div className="voucher-brand-sub">{subtitle}</div>
+              {company?.vatNumber && <div className="voucher-brand-meta">الرقم الضريبي: {company.vatNumber}</div>}
+              {address && <div className="voucher-brand-meta">{address}</div>}
+            </div>
           </div>
 
           {children}
