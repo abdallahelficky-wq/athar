@@ -25,7 +25,7 @@ export const getCustomerBalance: RequestHandler = async (req, res) => {
     where: {
       customerId: customer.id,
       account: { name: "ذمم مدينة" },
-      journalEntry: { status: "posted", tenantId: req.auth!.tenantId },
+      journalEntry: { tenantId: req.auth!.tenantId },
     },
     select: { debit: true, credit: true },
   });

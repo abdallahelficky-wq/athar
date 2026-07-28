@@ -1,9 +1,45 @@
 import { Prisma, PrismaClient, SourceModule } from "@prisma/client";
 import { prisma } from "./prisma";
 import { verifyPassword } from "./password";
-import { forbidden } from "./httpError";
+import { forbidden, notFound } from "./httpError";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
+
+/**
+ * تحجز الرقم التسلسلي التالي لقيد جديد ضمن شركة معيّنة، بصيغة [بادئة الشركة][5 خانات]
+ * (مثال TP00001) — عبر زيادة ذرّية (UPDATE ... RETURNING) على عدّاد الشركة نفسها ضمن نفس
+ * معاملة إنشاء القيد (tx)، فلا يُحجز الرقم فعلياً إلا لحظة الكتابة الفعلية في قاعدة البيانات؛
+ * لو المعاملة فشلت أو أُلغيت العملية قبل الوصول لهذه النقطة، لا يتأثر العدّاد إطلاقاً ولا تظهر
+ * فجوة (Gap) في التسلسل. تُرجِع null إن لم تُحدَّد بادئة ترقيم لهذه الشركة بعد (لا نفترض بادئة
+ * تلقائياً) — القيد حينها يبقى بلا entryNumber ويُعرَض بمعرّفه العشوائي القديم كما كان.
+ */
+export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: string): Promise<string | null> {
+  const company = await tx.company.findFirst({ where: { id: companyId, tenantId }, select: { numberingPrefix: true } });
+  if (!company?.numberingPrefix) return null;
+
+  // نُرجِع القيمة *قبل* الزيادة (وهي بالضبط ما تعرضه previewNextEntryNumber أدناه من نفس العمود)،
+  // بينما العمود المخزَّن يصبح +1 جاهزاً للاستدعاء التالي — عملية ذرّية واحدة عبر تعبير حسابي في
+  // RETURNING بدل قراءة ثم تحديث منفصلَين، فيبقى الرقم المحجوز مطابقاً تماماً لما عاينه المستخدم.
+  const rows = await tx.$queryRaw<{ nextJournalEntrySeq: number }[]>`
+    UPDATE "companies" SET "nextJournalEntrySeq" = "nextJournalEntrySeq" + 1
+    WHERE "id" = ${companyId} AND "tenantId" = ${tenantId}
+    RETURNING "nextJournalEntrySeq" - 1 AS "nextJournalEntrySeq"
+  `;
+  const seq = rows[0]?.nextJournalEntrySeq;
+  if (seq == null) return null;
+  return `${company.numberingPrefix}${String(seq).padStart(5, "0")}`;
+}
+
+/** معاينة الرقم التالي المتوقع بلا أي حجز أو تعديل على العدّاد — للعرض في نافذة إضافة قيد قبل الحفظ فقط */
+export async function previewNextEntryNumber(tenantId: string, companyId: string) {
+  const company = await prisma.company.findFirst({
+    where: { id: companyId, tenantId },
+    select: { numberingPrefix: true, nextJournalEntrySeq: true },
+  });
+  if (!company) throw notFound("الشركة غير موجودة");
+  if (!company.numberingPrefix) return { prefix: null, preview: null };
+  return { prefix: company.numberingPrefix, preview: `${company.numberingPrefix}${String(company.nextJournalEntrySeq).padStart(5, "0")}` };
+}
 
 export interface PostingLine {
   accountId: string;
@@ -35,6 +71,7 @@ export interface CreateEntryInput {
  * الحرة الشكل (journalEntries.service.ts) حيث يُدخل المستخدم الأرقام يدوياً.
  */
 export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
+  const entryNumber = await reserveEntryNumber(tx, input.tenantId, input.companyId);
   return tx.journalEntry.create({
     data: {
       tenantId: input.tenantId,
@@ -42,6 +79,7 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
       date: input.date,
       memo: input.memo,
       status: "posted",
+      entryNumber,
       sourceModule: input.sourceModule,
       sourceId: input.sourceId,
       createdBy: input.createdBy,

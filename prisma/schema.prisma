@@ -168,6 +168,14 @@ model Company {
   addressCity             String?
   addressPostalCode       String?
   addressAdditionalNo     String?
+  // بادئة ترقيم القيود التسلسلي لهذه الشركة تحديداً (حرفان إنجليزيان، مثال "TP") — تُدخَل يدوياً
+  // من بيانات الشركة، بلا قيمة افتراضية مُخمَّنة عمداً؛ ما دامت فارغة، لا يُفعَّل الترقيم التسلسلي
+  // لهذه الشركة ويستمر استخدام المعرّف العشوائي القديم لعرض القيود.
+  numberingPrefix         String?
+  // العدّاد التالي في تسلسل هذه الشركة تحديداً (يبدأ من 1، مستقل تماماً عن باقي الشركات) — يُزاد
+  // ذرّياً (UPDATE ... RETURNING ضمن نفس معاملة إنشاء القيد) فقط لحظة الحفظ الفعلي، لا عند مجرد
+  // فتح نافذة الإضافة أو معاينة الرقم التالي، تجنباً لفجوات Gaps بسبب عمليات مُلغاة.
+  nextJournalEntrySeq     Int                @default(1)
   // إعدادات تنبيهات الداشبورد المالية — قابلة للتعديل لكل شركة من الإعدادات
   vatFilingFrequency      VatFilingFrequency @default(quarterly)
   zakatDeclarationDueDate DateTime?
@@ -200,6 +208,7 @@ model Company {
   sellableItems        SellableItem[]
 
   @@unique([tenantId, name])
+  @@unique([tenantId, numberingPrefix])
   @@map("companies")
 }
 
@@ -308,8 +317,18 @@ model LeaseContract {
 // 4.3 القيود اليومية — جوهر النظام (القيد المزدوج كمصدر حقيقة واحد)
 // ---------------------------------------------------------------------------
 
+// خاصة بـ PayrollRun فقط (دورة حياة تشغيل الرواتب نفسها، منفصلة عن حالة القيد المحاسبي)
 enum JournalStatus {
   draft
+  posted
+}
+
+// حالة القيد المحاسبي نفسه: لا يوجد "مسودة" — "محفوظ" (قابل للتعديل، ويؤثر على الأرصدة والتقارير
+// فوراً) أو "مرحّل" (نهائي، مقفل تماماً، يُصحَّح فقط عبر عكس القيد). enum منفصل عمداً عن
+// JournalStatus أعلاه (رغم تطابق الاسمين ظاهرياً) لتفادي أي أثر جانبي على دورة حياة تشغيل الرواتب
+// التي لم يطلب تعديلها.
+enum JournalEntryStatus {
+  saved
   posted
 }
 
@@ -329,15 +348,19 @@ enum SourceModule {
 }
 
 model JournalEntry {
-  id                String        @id @default(cuid())
+  id                String             @id @default(cuid())
   tenantId          String
-  tenant            Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   companyId         String
-  company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   date              DateTime
   memo              String?
-  status            JournalStatus @default(posted)
-  sourceModule      SourceModule  @default(manual)
+  status            JournalEntryStatus @default(posted)
+  // رقم القيد التسلسلي الجديد بصيغة [بادئة الشركة][5 خانات] (مثال TP00001) — يُملأ فقط للقيود
+  // المُنشأة بعد تفعيل الترقيم لهذه الشركة (بعد ضبط Company.numberingPrefix)؛ القيود الأقدم تبقى
+  // null وتُعرَض بمعرّفها العشوائي القديم كما هي، تجنباً لإعادة ترقيم قد تُعارض مراجع سابقة.
+  entryNumber       String?
+  sourceModule      SourceModule       @default(manual)
   sourceId          String?
   // مرجع منطقي حر (بلا علاقة FK صارمة) لقيد "المرآة" المقابل في شركة أخرى ضمن نفس المستأجر —
   // يُملأ تبادلياً على القيدين معاً عند إنشاء قيد مرآة (كل قيد يشير لمعرّف الآخر)، بنفس أسلوب
@@ -348,11 +371,12 @@ model JournalEntry {
   // تم عكسه لاحقاً، يُبحث عن قيد آخر بنفس tenantId حيث reversalOfEntryId يساوي معرّف هذا القيد.
   reversalOfEntryId String?
   createdBy         String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   lines JournalEntryLine[]
 
+  @@unique([tenantId, entryNumber])
   @@index([tenantId, companyId, date])
   @@index([tenantId, sourceModule, sourceId])
   @@index([tenantId, mirrorEntryId])

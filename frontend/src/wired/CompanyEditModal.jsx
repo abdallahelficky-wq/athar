@@ -8,6 +8,7 @@ const emptyForm = (c) => ({
   name: c.name || "",
   shortName: c.shortName || "",
   vatNumber: c.vatNumber || "",
+  numberingPrefix: c.numberingPrefix || "",
   crNumber: c.crNumber || "",
   crIssueDate: c.crIssueDate ? c.crIssueDate.slice(0, 10) : "",
   crExpiryDate: c.crExpiryDate ? c.crExpiryDate.slice(0, 10) : "",
@@ -125,6 +126,15 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
           <label>الاسم في السجل التجاري<input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} /></label>
           <label>الاسم التجاري (اختياري)<input type="text" value={form.shortName} onChange={(e) => set("shortName", e.target.value)} /></label>
           <label>الرقم الضريبي (VAT)<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, ""))} /></label>
+          <label>
+            بادئة ترقيم القيود (حرفان، مثال: TP)
+            <input
+              type="text" maxLength={2}
+              value={form.numberingPrefix}
+              onChange={(e) => set("numberingPrefix", e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
+              placeholder="بدون ترقيم تسلسلي بعد"
+            />
+          </label>
 
           <label>رقم السجل التجاري<input type="text" value={form.crNumber} onChange={(e) => set("crNumber", e.target.value)} /></label>
           <label>تاريخ إصدار السجل التجاري<input type="date" value={form.crIssueDate} onChange={(e) => set("crIssueDate", e.target.value)} /></label>
@@ -133,6 +143,11 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
           <label>البريد الإلكتروني الرسمي<input type="email" value={form.officialEmail} onChange={(e) => set("officialEmail", e.target.value)} /></label>
           <label>رقم الجوال/الهاتف<input type="text" value={form.phone} onChange={(e) => set("phone", e.target.value)} /></label>
         </div>
+        <p className="note">
+          بادئة الترقيم تُستخدَم لترقيم القيود المحاسبية الجديدة لهذه الشركة تسلسلياً بصيغة
+          [البادئة][5 خانات] (مثال: TP00001)، بدءاً من أول قيد بعد ضبطها. لا تُفعَّل هذه الميزة
+          لهذه الشركة إلا بعد تحديد البادئة هنا؛ والقيود الأقدم تبقى بأرقامها القديمة كما هي.
+        </p>
 
         <h4 className="sub-head">العنوان الوطني الكامل</h4>
         <div className="form-grid">

@@ -19,7 +19,7 @@ export default function JournalVoucherViewModal({ entry, companies, autoPrint, o
       company={company}
       refNode={
         <>
-          <div>رقم القيد: <strong>{entry.id.slice(-8)}</strong></div>
+          <div>رقم القيد: <strong>{entry.entryNumber || entry.id.slice(-8)}</strong></div>
           <div>التاريخ: <strong>{entry.date.slice(0, 10)}</strong></div>
         </>
       }
@@ -27,7 +27,7 @@ export default function JournalVoucherViewModal({ entry, companies, autoPrint, o
     >
       <div className="voucher-meta">
         <div><span>البيان</span><strong>{entry.memo || "بدون بيان"}</strong></div>
-        <div><span>الحالة</span><strong>{entry.status === "posted" ? "مرحّل" : "مسودة"}</strong></div>
+        <div><span>الحالة</span><strong>{entry.status === "posted" ? "مرحّل" : "محفوظ"}</strong></div>
       </div>
       <table className="ledger-table voucher-table">
         <thead>

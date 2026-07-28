@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { createJournalEntry, updateJournalEntry } from "../api/journalEntries";
+import React, { useEffect, useMemo, useState } from "react";
+import { createJournalEntry, updateJournalEntry, postJournalEntry, getNextEntryNumber } from "../api/journalEntries";
 import { fmt2 } from "../legacy/constants";
 
 const emptyLine = () => ({ accountId: "", costCenterId: "", department: "", description: "", debit: "", credit: "" });
@@ -17,6 +17,11 @@ const lineFromExisting = (l) => ({
  * نافذة (Modal) إنشاء/تعديل قيد يومية — نفس منطق InvoiceFormModal (فواتير المبيعات): شاشة
  * القيود أصبحت قائمة فقط، وهذه النافذة تحمل فورم الإدخال الفعلي بالكامل (بما في ذلك حقل "الوصف"
  * الجديد على مستوى كل سطر، منفصل عن بيان القيد العام).
+ *
+ * دورة الحياة الجديدة بلا "مسودة": زرّان منفصلان — "حفظ" يُنشئ/يُبقي القيد بحالة "محفوظ" (قابل
+ * للتعديل، يؤثر على كل التقارير فوراً)، و"حفظ وترحيل" يُرحِّله مباشرة فيُقفَل تماماً بعدها (أي
+ * تصحيح لاحق يكون فقط عبر عكس القيد من شاشة القائمة). القيد المرحّل لا يُفتَح في هذه النافذة
+ * للتعديل أصلاً (الأيقونة تُعطَّل من شاشة القائمة نفسها).
  */
 export default function JournalEntryFormModal({ companyId, accounts, costCenters, editingEntry, onClose, onSaved }) {
   const isEdit = !!editingEntry;
@@ -26,6 +31,13 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
   const [lines, setLines] = useState(() => (isEdit ? editingEntry.lines.map(lineFromExisting) : [emptyLine(), emptyLine()]));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [numberPreview, setNumberPreview] = useState(null); // { prefix, preview } من الخادم، بلا حجز فعلي
+
+  useEffect(() => {
+    if (isEdit || !companyId) return;
+    getNextEntryNumber(companyId).then(setNumberPreview).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, isEdit]);
 
   const costCenterOptions = useMemo(
     () => costCenters.filter((c) => !c.companyId || c.companyId === companyId),
@@ -42,29 +54,35 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
   const addLine = () => setLines((prev) => [...prev, emptyLine()]);
   const removeLine = (idx) => setLines((prev) => (prev.length > 2 ? prev.filter((_, i) => i !== idx) : prev));
 
-  const submit = async () => {
+  const buildPayload = () => ({
+    companyId,
+    date,
+    memo,
+    lines: lines
+      .filter((l) => Number(l.debit || 0) > 0 || Number(l.credit || 0) > 0)
+      .map((l) => ({
+        accountId: l.accountId,
+        costCenterId: l.costCenterId || null,
+        department: l.department || null,
+        description: l.description || null,
+        debit: Number(l.debit || 0),
+        credit: Number(l.credit || 0),
+      })),
+  });
+
+  const submit = async (post) => {
     if (!canPost || !companyId) return;
     setSaving(true);
     setError("");
-    const payload = {
-      companyId,
-      date,
-      memo,
-      lines: lines
-        .filter((l) => Number(l.debit || 0) > 0 || Number(l.credit || 0) > 0)
-        .map((l) => ({
-          accountId: l.accountId,
-          costCenterId: l.costCenterId || null,
-          department: l.department || null,
-          description: l.description || null,
-          debit: Number(l.debit || 0),
-          credit: Number(l.credit || 0),
-        })),
-    };
     try {
-      if (isEdit) await updateJournalEntry(editingEntry.id, payload);
-      else await createJournalEntry(payload);
-      onSaved(isEdit ? "تم حفظ تعديلات القيد." : "تم إنشاء القيد وترحيله.");
+      if (isEdit) {
+        await updateJournalEntry(editingEntry.id, buildPayload());
+        if (post) await postJournalEntry(editingEntry.id);
+        onSaved(post ? "تم حفظ التعديلات وترحيل القيد. لن يمكن تعديله مباشرة بعد الآن." : "تم حفظ تعديلات القيد.");
+      } else {
+        await createJournalEntry({ ...buildPayload(), post });
+        onSaved(post ? "تم إنشاء القيد وترحيله. لن يمكن تعديله مباشرة بعد الآن." : "تم حفظ القيد — يظهر فوراً في التقارير وكشوف الحسابات، وقابل للتعديل حتى يُرحَّل.");
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -76,7 +94,19 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
     <div className="invoice-modal-overlay">
       <div className="invoice-modal-box">
         <h3>{isEdit ? "تعديل القيد" : "إضافة قيد يومية"}</h3>
-        {isEdit && <div className="edit-banner">تعديل القيد (فك ترحيله أولاً إن كان مرحّلاً)</div>}
+
+        {isEdit ? (
+          <p className="note">رقم القيد: <strong>{editingEntry.entryNumber || editingEntry.id.slice(-8)}</strong></p>
+        ) : numberPreview?.preview ? (
+          <p className="note">
+            الرقم المتوقع لهذا القيد: <strong>{numberPreview.preview}</strong> — رقم معاينة فقط، لا يُحجز إلا لحظة الضغط
+            على "حفظ" أو "حفظ وترحيل"؛ لو ألغيت العملية الآن يبقى متاحاً للقيد التالي.
+          </p>
+        ) : numberPreview && !numberPreview.prefix ? (
+          <p className="note">
+            لم تُحدَّد بعد بادئة ترقيم لهذه الشركة، فسيُستخدم معرّف مؤقت للقيد حتى تُحدَّد من بيانات الشركة.
+          </p>
+        ) : null}
 
         <div className="form-grid header-grid">
           <label>التاريخ<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
@@ -125,7 +155,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
         <div className="journal-actions">
           <button className="btn-ghost" onClick={addLine}>+ إضافة سطر</button>
           <div className="balance-status">
-            {diff === 0 && totalDebit > 0 && <span className="balance-ok">✓ القيد متوازن — جاهز للترحيل</span>}
+            {diff === 0 && totalDebit > 0 && <span className="balance-ok">✓ القيد متوازن</span>}
             {diff !== 0 && <span className="balance-bad">الفرق بين المدين والدائن: {fmt2(Math.abs(diff))} ر.س</span>}
           </div>
         </div>
@@ -134,8 +164,11 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
 
         <div className="form-btn-group">
           <button className="btn-ghost" onClick={onClose} disabled={saving}>إلغاء</button>
-          <button className="btn-primary" onClick={submit} disabled={!canPost || saving}>
-            {saving ? "جارٍ الحفظ..." : isEdit ? "حفظ التعديلات" : "ترحيل القيد"}
+          <button className="btn-ghost" onClick={() => submit(false)} disabled={!canPost || saving}>
+            {saving ? "جارٍ الحفظ..." : "حفظ"}
+          </button>
+          <button className="btn-primary" onClick={() => submit(true)} disabled={!canPost || saving}>
+            {saving ? "جارٍ الحفظ..." : "حفظ وترحيل"}
           </button>
         </div>
       </div>

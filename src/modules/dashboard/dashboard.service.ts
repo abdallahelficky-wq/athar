@@ -95,7 +95,9 @@ export async function getCashFlowMonthly(tenantId: string, companyId?: string, m
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       account: { tenantId, isBankOrCash: true },
-      journalEntry: { tenantId, status: "posted", companyId: companyId || undefined, date: { gte: dateFrom } },
+      // القيود "المحفوظة" (غير المرحّلة) تؤثر على كل التقارير المالية فور حفظها، تماماً كالمرحّلة —
+      // لا يوجد فلتر status هنا عمداً (انظر تعليق مطابق في reports.service.ts)
+      journalEntry: { tenantId, companyId: companyId || undefined, date: { gte: dateFrom } },
     },
     select: { debit: true, credit: true, journalEntry: { select: { date: true } } },
   });
@@ -118,7 +120,7 @@ export async function getTopCashTransactions(tenantId: string, companyId?: strin
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       account: { tenantId, isBankOrCash: true },
-      journalEntry: { tenantId, status: "posted", companyId: companyId || undefined, date: { gte: since } },
+      journalEntry: { tenantId, companyId: companyId || undefined, date: { gte: since } },
     },
     include: { account: true, journalEntry: true },
   });
@@ -322,7 +324,7 @@ async function getMonthlyPayrollCost(tenantId: string, companyId: string | undef
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       account: { tenantId, name: { in: PAYROLL_DEBIT_ACCOUNT_NAMES } },
-      journalEntry: { tenantId, status: "posted", sourceModule: "payroll", companyId: companyId || undefined, date: { gte: dateFrom, lte: dateTo } },
+      journalEntry: { tenantId, sourceModule: "payroll", companyId: companyId || undefined, date: { gte: dateFrom, lte: dateTo } },
     },
     select: { debit: true },
   });

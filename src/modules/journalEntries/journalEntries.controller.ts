@@ -1,12 +1,14 @@
 import { RequestHandler } from "express";
 import * as service from "./journalEntries.service";
 import { badRequest } from "../../lib/httpError";
+import { previewNextEntryNumber } from "../../lib/journalPosting";
 
 const asString = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const asNumber = (v: unknown) => (typeof v === "string" && v !== "" ? Number(v) : undefined);
+const asStatus = (v: unknown) => (v === "saved" || v === "posted" ? v : undefined);
 
 export const listHandler: RequestHandler = async (req, res) => {
-  const { companyId, dateFrom, dateTo, search, entryNumber, accountId, amount, amountMin, amountMax } = req.query;
+  const { companyId, dateFrom, dateTo, search, entryNumber, accountId, amount, amountMin, amountMax, status } = req.query;
   const entries = await service.listJournalEntries(req.auth!.tenantId, {
     companyId: asString(companyId),
     dateFrom: asString(dateFrom),
@@ -17,8 +19,15 @@ export const listHandler: RequestHandler = async (req, res) => {
     amount: asNumber(amount),
     amountMin: asNumber(amountMin),
     amountMax: asNumber(amountMax),
+    status: asStatus(status),
   });
   res.json(entries);
+};
+
+export const nextNumberHandler: RequestHandler = async (req, res) => {
+  if (typeof req.query.companyId !== "string" || !req.query.companyId) throw badRequest("الشركة مطلوبة");
+  const result = await previewNextEntryNumber(req.auth!.tenantId, req.query.companyId);
+  res.json(result);
 };
 
 export const getHandler: RequestHandler = async (req, res) => {

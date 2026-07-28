@@ -24,7 +24,7 @@ export const getSupplierBalance: RequestHandler = async (req, res) => {
     where: {
       supplierId: supplier.id,
       account: { name: "ذمم دائنة - موردين" },
-      journalEntry: { status: "posted", tenantId: req.auth!.tenantId },
+      journalEntry: { tenantId: req.auth!.tenantId },
     },
     select: { debit: true, credit: true },
   });

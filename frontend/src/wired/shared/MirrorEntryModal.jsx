@@ -6,8 +6,8 @@ import { fmt2 } from "../../legacy/constants";
  * "إنشاء قيد مرآة في شركة أخرى" — يُستخدَم من قيد مرحّل لتوليد القيد المقابل تلقائياً في شركة
  * شقيقة ضمن نفس المستأجر: يعكس السطر الممثّل للعلاقة بين الشركتين (مدين↔دائن) عبر حساب "ذمم بين
  * الشركات" (يُنشأ تلقائياً إن لم يوجد)، ويترك سطراً واحداً ليختاره المستخدم يدوياً من شجرة حسابات
- * الشركة الهدف لأنه يختلف بحسب طبيعة العملية. يُحفظ القيد الناتج دائماً كمسودة ليراجعه المستخدم قبل
- * الترحيل، ويُربَط تبادلياً بالقيد الأصلي دون تغيير الشركة النشطة الحالية.
+ * الشركة الهدف لأنه يختلف بحسب طبيعة العملية. يُحفظ القيد الناتج دائماً بحالة "محفوظ" (غير مرحّل)
+ * ليراجعه المستخدم قبل الترحيل، ويُربَط تبادلياً بالقيد الأصلي دون تغيير الشركة النشطة الحالية.
  */
 export default function MirrorEntryModal({ entry, companies, accounts, onClose, onCreated }) {
   const [step, setStep] = useState("choose");
@@ -74,8 +74,8 @@ export default function MirrorEntryModal({ entry, companies, accounts, onClose, 
         {step === "choose" && (
           <>
             <p className="note">
-              اختر الشركة الشقيقة التي وقعت معها هذه العملية، وسيُقترَح لك قيد مقابل جاهز فيها (كمسودة
-              قابلة للمراجعة قبل الترحيل)، مع عكس اتجاه المدين/الدائن على حساب الربط بين الشركتين.
+              اختر الشركة الشقيقة التي وقعت معها هذه العملية، وسيُقترَح لك قيد مقابل جاهز فيها (بحالة
+              محفوظ، قابل للمراجعة قبل الترحيل)، مع عكس اتجاه المدين/الدائن على حساب الربط بين الشركتين.
             </p>
             <div className="form-grid">
               <label className="memo-field">
@@ -99,7 +99,7 @@ export default function MirrorEntryModal({ entry, companies, accounts, onClose, 
         {step === "review" && suggestion && (
           <>
             <p className="note">
-              سيُحفَظ هذا القيد كمسودة في شركة <strong>{targetCompany?.shortName || targetCompany?.name}</strong>،
+              سيُحفَظ هذا القيد بحالة "محفوظ" في شركة <strong>{targetCompany?.shortName || targetCompany?.name}</strong>،
               وسيبقى مرتبطاً بالقيد الأصلي. راجع الحساب المختار للسطر الثاني ثم احفظ.
             </p>
             {!suggestion.detected && (
@@ -139,7 +139,7 @@ export default function MirrorEntryModal({ entry, companies, accounts, onClose, 
               <button className="btn-ghost" onClick={() => setStep("choose")} disabled={saving}>رجوع</button>
               <button className="btn-ghost" onClick={onClose} disabled={saving}>إلغاء</button>
               <button className="btn-primary" onClick={submit} disabled={!manualAccountId || saving}>
-                {saving ? "جارٍ الحفظ..." : "حفظ القيد المقابل كمسودة"}
+                {saving ? "جارٍ الحفظ..." : "حفظ القيد المقابل"}
               </button>
             </div>
           </>

@@ -15,10 +15,13 @@ export interface AccountBalance {
 }
 
 /**
- * تجميع أرصدة الحسابات من أسطر القيود المرحّلة فقط (posted) — مطابق تماماً لمنطق
- * aggregateAccounts في AtharAlMuhasabi.jsx، مع إضافة تصفية بالتاريخ والشركة كما
- * تتطلبها توقيعات endpoints في القسم 5 من المستند. كل التقارير تُحسب من هذه الدالة
- * فقط ولا تُخزَّن أرقامها في مكان منفصل (مبدأ القسم 3).
+ * تجميع أرصدة الحسابات من أسطر كل القيود — "محفوظة" (saved) أو "مرحّلة" (posted) معاً، بلا فلتر
+ * status هنا عمداً: قرار صريح من المستخدم أن يؤثر القيد "المحفوظ" على كل التقارير المالية فور
+ * حفظه (لا يقتصر التأثير على "مرحّل" فقط كما كان سابقاً)، طالما لا يوجد إطلاقاً في هذا النظام أي
+ * حالة ثالثة "لا تؤثر" (مثل "مسودة" القديمة) — أي قيد موجود في الجدول يُحتسَب. مطابق أصلاً لمنطق
+ * aggregateAccounts في AtharAlMuhasabi.jsx، مع إضافة تصفية بالتاريخ والشركة كما تتطلبها توقيعات
+ * endpoints في القسم 5 من المستند. كل التقارير تُحسب من هذه الدالة فقط ولا تُخزَّن أرقامها في
+ * مكان منفصل (مبدأ القسم 3).
  */
 export async function aggregateAccountBalances(tenantId: string, range: DateRange): Promise<Map<string, AccountBalance>> {
   const accounts = await prisma.account.findMany({ where: { tenantId }, orderBy: { createdAt: "asc" } });
@@ -29,7 +32,6 @@ export async function aggregateAccountBalances(tenantId: string, range: DateRang
     where: {
       journalEntry: {
         tenantId,
-        status: "posted",
         companyId: range.companyId || undefined,
         date: {
           gte: range.dateFrom,
@@ -157,7 +159,6 @@ async function buildPartyStatement(
       account: { name: ledgerAccountName },
       journalEntry: {
         tenantId,
-        status: "posted",
         companyId: companyId || undefined,
         date: { gte: dateFrom, lte: dateTo },
       },
@@ -223,7 +224,6 @@ export async function getAccountLedger(
       accountId,
       journalEntry: {
         tenantId,
-        status: "posted",
         companyId: companyId || undefined,
         date: { gte: dateFrom, lte: dateTo },
       },

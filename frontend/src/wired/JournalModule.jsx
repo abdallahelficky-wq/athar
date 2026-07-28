@@ -6,7 +6,6 @@ import {
   getJournalEntry,
   deleteJournalEntry,
   postJournalEntry,
-  unpostJournalEntry,
   importJournalEntries,
 } from "../api/journalEntries";
 import { fmt } from "../legacy/constants";
@@ -20,51 +19,12 @@ import Breadcrumb from "./shared/Breadcrumb";
 import JournalVoucherViewModal from "./JournalVoucherViewModal";
 import JournalEntryFormModal from "./JournalEntryFormModal";
 
-const emptyFilters = { search: "", dateFrom: "", dateTo: "", amountMin: "", amountMax: "", entryNumber: "", accountId: "" };
+const emptyFilters = { search: "", dateFrom: "", dateTo: "", amountMin: "", amountMax: "", entryNumber: "", accountId: "", status: "" };
 
-const statusLabel = (s) => (s === "posted" ? "مرحّل" : "مسودة");
+// لا يوجد "مسودة" في دورة حياة القيد الجديدة — "محفوظ" (قابل للتعديل، يؤثر على التقارير فوراً) أو "مرحّل" (مقفل نهائياً)
+const statusLabel = (s) => (s === "posted" ? "مرحّل" : "محفوظ");
+const entryNumberLabel = (e) => e.entryNumber || e.id.slice(-8);
 const fmtDate = (d) => String(d).slice(0, 10);
-
-function UnpostModal({ onConfirm, onCancel }) {
-  const [pin, setPin] = useState("");
-  const [error, setError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async () => {
-    setSubmitting(true);
-    setError("");
-    try {
-      await onConfirm(pin);
-    } catch (err) {
-      setError(err.message || "الرقم السري غير صحيح");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="unpost-confirm-overlay">
-      <div className="unpost-confirm-box">
-        <h3>فك ترحيل القيد</h3>
-        <p className="note">أدخل الرقم السري لتأكيد فك الترحيل. سيتحقق الخادم من صحته فعلياً.</p>
-        <input
-          type="password"
-          placeholder="الرقم السري"
-          value={pin}
-          onChange={(e) => { setPin(e.target.value); setError(""); }}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-        {error && <p className="balance-bad">{error}</p>}
-        <div className="form-btn-group">
-          <button className="btn-ghost" onClick={onCancel} disabled={submitting}>إلغاء</button>
-          <button className="btn-primary" onClick={submit} disabled={submitting || !pin}>
-            {submitting ? "جارٍ التحقق..." : "تأكيد فك الترحيل"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function JournalModule({ companies, companyId }) {
   const [accounts, setAccounts] = useState([]);
@@ -77,7 +37,6 @@ export default function JournalModule({ companies, companyId }) {
   const [filters, setFilters] = useState(emptyFilters);
 
   const [formModal, setFormModal] = useState(null); // { mode: "create" | "edit", entry? }
-  const [unpostTarget, setUnpostTarget] = useState(null);
   const [attachmentsFor, setAttachmentsFor] = useState(null);
   const [showFromDocument, setShowFromDocument] = useState(false);
   const [viewEntry, setViewEntry] = useState(null);
@@ -104,6 +63,7 @@ export default function JournalModule({ companies, companyId }) {
       amountMax: filters.amountMax || undefined,
       entryNumber: filters.entryNumber || undefined,
       accountId: filters.accountId || undefined,
+      status: filters.status || undefined,
     })
       .then(setEntries)
       .catch((err) => setError(err.message))
@@ -148,12 +108,6 @@ export default function JournalModule({ companies, companyId }) {
     }
   };
 
-  const doUnpost = async (pin) => {
-    await unpostJournalEntry(unpostTarget.id, pin);
-    setUnpostTarget(null);
-    reloadEntries();
-  };
-
   const toggleLinkInfo = async (e) => {
     if (linkInfoId === e.id) { setLinkInfoId(null); setLinkInfo(null); return; }
     setLinkInfoId(e.id);
@@ -188,7 +142,7 @@ export default function JournalModule({ companies, companyId }) {
                 className="btn-ghost"
                 onClick={() => downloadCsv("القيود_اليومية.csv", [
                   ["رقم القيد", "التاريخ", "البيان", "الحالة", "الإجمالي"],
-                  ...entries.map((e) => [e.id.slice(-8), fmtDate(e.date), e.memo, statusLabel(e.status), entryTotal(e)]),
+                  ...entries.map((e) => [entryNumberLabel(e), fmtDate(e.date), e.memo, statusLabel(e.status), entryTotal(e)]),
                 ])}
               >
                 تصدير Excel/CSV
@@ -217,6 +171,14 @@ export default function JournalModule({ companies, companyId }) {
                   allowClear
                 />
               </label>
+              <label>
+                حالة القيد
+                <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
+                  <option value="">— الكل —</option>
+                  <option value="saved">محفوظ</option>
+                  <option value="posted">مرحّل</option>
+                </select>
+              </label>
               {hasActiveFilters && (
                 <button className="btn-ghost" onClick={clearFilters} style={{ alignSelf: "end" }}>مسح الفلاتر</button>
               )}
@@ -235,12 +197,12 @@ export default function JournalModule({ companies, companyId }) {
                   <tbody>
                     {entries.map((e) => {
                       const posted = e.status === "posted";
-                      const draft = e.status === "draft";
+                      const saved = e.status === "saved";
                       const hasLinks = e.mirrorEntryId || e.reversalOfEntryId || e.reversedByEntryId;
                       return (
                         <React.Fragment key={e.id}>
                           <tr>
-                            <td>{e.id.slice(-8)}</td>
+                            <td>{entryNumberLabel(e)}</td>
                             <td>{fmtDate(e.date)}</td>
                             <td>{e.memo || "بدون بيان"}</td>
                             <td className="num">{fmt(entryTotal(e))}</td>
@@ -248,15 +210,16 @@ export default function JournalModule({ companies, companyId }) {
                             <td className="row-actions">
                               <button className="icon-btn" title="عرض القيد" onClick={() => setViewEntry(e)}><Icon.Eye /></button>
                               <button className="icon-btn" title="طباعة القيد" onClick={() => { setViewEntry(e); setAutoPrint(true); }}><Icon.Printer /></button>
-                              {draft && (
+                              <button
+                                className="icon-btn" title={saved ? "تعديل" : "لا يمكن التعديل بعد الترحيل — استخدم عكس القيد لتصحيحه"}
+                                disabled={!saved}
+                                onClick={() => saved && setFormModal({ mode: "edit", entry: e })}
+                              ><Icon.Edit /></button>
+                              {saved && (
                                 <>
-                                  <button className="icon-btn" title="تعديل" onClick={() => setFormModal({ mode: "edit", entry: e })}><Icon.Edit /></button>
                                   <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(e)}><Icon.Trash /></button>
                                   <button className="icon-btn" title="ترحيل" onClick={() => doPost(e)}><Icon.Lock /></button>
                                 </>
-                              )}
-                              {posted && (
-                                <button className="icon-btn icon-btn-warn" title="فك الترحيل" onClick={() => setUnpostTarget(e)}><Icon.Unlock /></button>
                               )}
                               {posted && !e.mirrorEntryId && (
                                 <button className="icon-btn" title="إنشاء قيد مرآة في شركة أخرى" onClick={() => setMirrorSource(e)}><Icon.Link /></button>
@@ -339,7 +302,6 @@ export default function JournalModule({ companies, companyId }) {
           onSaved={onSaved}
         />
       )}
-      {unpostTarget && <UnpostModal onCancel={() => setUnpostTarget(null)} onConfirm={doUnpost} />}
       {viewEntry && (
         <JournalVoucherViewModal
           entry={viewEntry}

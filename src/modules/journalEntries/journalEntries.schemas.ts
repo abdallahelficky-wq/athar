@@ -21,9 +21,11 @@ export const createJournalEntrySchema = z.object({
   date: z.coerce.date(),
   memo: z.string().optional(),
   lines: z.array(lineSchema).min(2, "القيد يجب أن يحتوي على سطرين على الأقل"),
+  // true = "حفظ وترحيل" (يُنشأ مرحّلاً مباشرة)، false/غائب = "حفظ" (يُنشأ محفوظاً قابلاً للتعديل)
+  post: z.boolean().optional(),
 });
 
-export const updateJournalEntrySchema = createJournalEntrySchema;
+export const updateJournalEntrySchema = createJournalEntrySchema.omit({ post: true });
 
 export const unpostSchema = z.object({
   pin: z.string().min(1, "الرقم السري مطلوب"),

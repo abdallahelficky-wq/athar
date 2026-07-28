@@ -25,6 +25,7 @@ import {
   mirrorSuggestionHandler,
   createMirrorHandler,
   reverseHandler,
+  nextNumberHandler,
 } from "./journalEntries.controller";
 
 export const journalEntryRoutes = Router();
@@ -33,6 +34,8 @@ journalEntryRoutes.use(authenticate);
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 
 journalEntryRoutes.get("/", listHandler);
+// يجب أن يسبق "/:id" كي لا يُعامَل "next-number" كمعرّف قيد
+journalEntryRoutes.get("/next-number", nextNumberHandler);
 journalEntryRoutes.get("/:id", getHandler);
 journalEntryRoutes.post("/", canWrite, validateBody(createJournalEntrySchema), createHandler);
 journalEntryRoutes.post("/import", canWrite, validateBody(importJournalEntriesSchema), importHandler);

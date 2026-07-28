@@ -4,6 +4,7 @@ import { verifyPassword } from "../../lib/password";
 import { badRequest, forbidden, notFound } from "../../lib/httpError";
 import { extractJournalEntryFromDocument } from "../../lib/claudeVision";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
+import { reserveEntryNumber } from "../../lib/journalPosting";
 
 const BALANCE_EPSILON = 0.01;
 
@@ -82,27 +83,44 @@ export interface JournalEntryFilters {
   amount?: number;
   amountMin?: number;
   amountMax?: number;
+  status?: "saved" | "posted";
 }
 
 /**
- * محرك بحث/فلترة شاشة القيود: كل المعايير (بيان، تاريخ، رقم قيد، حساب) تُطبَّق كشرط WHERE واحد
- * (AND ضمني بين كل الحقول)، ما عدا المبلغ — لأن "إجمالي القيد" ليس عموداً مخزَّناً بل مجموع أسطر
- * مرتبطة، فيُحسَب بعد الجلب من قاعدة البيانات ويُفلتَر في الذاكرة (حجم بيانات هذا التطبيق لكل
- * شركة معقول لهذا النهج، ويتفادى استعلام SQL مجمَّع أعقد لفائدة هامشية).
+ * محرك بحث/فلترة شاشة القيود: كل المعايير (بيان، تاريخ، رقم قيد، حساب، حالة القيد) تُطبَّق كشرط
+ * WHERE واحد (AND ضمني بين كل الحقول)، ما عدا المبلغ — لأن "إجمالي القيد" ليس عموداً مخزَّناً بل
+ * مجموع أسطر مرتبطة، فيُحسَب بعد الجلب من قاعدة البيانات ويُفلتَر في الذاكرة (حجم بيانات هذا
+ * التطبيق لكل شركة معقول لهذا النهج، ويتفادى استعلام SQL مجمَّع أعقد لفائدة هامشية).
  */
 export async function listJournalEntries(tenantId: string, filters: JournalEntryFilters) {
   const entries = await prisma.journalEntry.findMany({
     where: {
       tenantId,
       companyId: filters.companyId || undefined,
+      status: filters.status || undefined,
       date: {
         gte: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
         lte: filters.dateTo ? new Date(filters.dateTo) : undefined,
       },
-      ...(filters.search
-        ? { OR: [{ memo: { contains: filters.search, mode: "insensitive" } }, { id: filters.search }] }
-        : {}),
-      ...(filters.entryNumber ? { id: { contains: filters.entryNumber, mode: "insensitive" } } : {}),
+      // AND صريح بمصفوفة (بدل تكرار مفتاح OR على مستوى الكائن نفسه، وهو ما كان سيُسبِّب تجاوز أحد
+      // شرطي OR للآخر لو طُبِّقا معاً) — كل عنصر هنا شرط OR مستقل يُضاف فقط لو طُلب معياره فعلياً.
+      AND: [
+        ...(filters.search
+          ? [{ OR: [{ memo: { contains: filters.search, mode: "insensitive" as const } }, { id: filters.search }] }]
+          : []),
+        // القيود الأقدم من تفعيل الترقيم التسلسلي ليس لها entryNumber بعد، فيبقى البحث بمعرّفها
+        // العشوائي القديم (id) يعمل جنباً إلى جنب مع البحث بالرقم التسلسلي الجديد لأي قيد آخر.
+        ...(filters.entryNumber
+          ? [
+              {
+                OR: [
+                  { entryNumber: { contains: filters.entryNumber, mode: "insensitive" as const } },
+                  { id: { contains: filters.entryNumber, mode: "insensitive" as const } },
+                ],
+              },
+            ]
+          : []),
+      ],
       ...(filters.accountId ? { lines: { some: { accountId: filters.accountId } } } : {}),
     },
     include: entryInclude,
@@ -263,8 +281,9 @@ export async function getMirrorSuggestion(tenantId: string, entryId: string, tar
 }
 
 /**
- * تُنشئ قيد المرآة فعلياً في الشركة المستهدفة كمسودة (لا يُرحَّل تلقائياً أبداً، ليراجعه المستخدم قبل
- * الترحيل) وتربطه بالقيد الأصلي تبادلياً عبر mirrorEntryId على القيدين معاً ضمن معاملة واحدة.
+ * تُنشئ قيد المرآة فعلياً في الشركة المستهدفة كقيد "محفوظ" (غير مرحّل تلقائياً أبداً، ليراجعه
+ * المستخدم قبل الترحيل) وتربطه بالقيد الأصلي تبادلياً عبر mirrorEntryId على القيدين معاً، وتحجز
+ * له رقماً تسلسلياً ضمن شركة الهدف، كل ذلك ضمن معاملة واحدة.
  */
 export async function createMirrorJournalEntry(
   tenantId: string,
@@ -286,13 +305,15 @@ export async function createMirrorJournalEntry(
   });
 
   return prisma.$transaction(async (tx) => {
+    const entryNumber = await reserveEntryNumber(tx, tenantId, input.targetCompanyId);
     const mirror = await tx.journalEntry.create({
       data: {
         tenantId,
         companyId: input.targetCompanyId,
         date: input.date,
         memo: input.memo,
-        status: "draft",
+        status: "saved",
+        entryNumber,
         sourceModule: "manual",
         createdBy: userId,
         mirrorEntryId: sourceEntryId,
@@ -305,30 +326,38 @@ export async function createMirrorJournalEntry(
   });
 }
 
-export async function createJournalEntry(tenantId: string, userId: string, input: JournalEntryInput) {
+export async function createJournalEntry(
+  tenantId: string,
+  userId: string,
+  input: JournalEntryInput & { post?: boolean },
+) {
   assertBalanced(input.lines);
   await assertReferencesBelongToTenant(tenantId, input);
 
-  return prisma.journalEntry.create({
-    data: {
-      tenantId,
-      companyId: input.companyId,
-      date: input.date,
-      memo: input.memo,
-      status: "posted",
-      sourceModule: "manual",
-      createdBy: userId,
-      lines: { create: toLineCreateData(input.lines) },
-    },
-    include: entryInclude,
+  return prisma.$transaction(async (tx) => {
+    const entryNumber = await reserveEntryNumber(tx, tenantId, input.companyId);
+    return tx.journalEntry.create({
+      data: {
+        tenantId,
+        companyId: input.companyId,
+        date: input.date,
+        memo: input.memo,
+        status: input.post ? "posted" : "saved",
+        entryNumber,
+        sourceModule: "manual",
+        createdBy: userId,
+        lines: { create: toLineCreateData(input.lines) },
+      },
+      include: entryInclude,
+    });
   });
 }
 
 export async function updateJournalEntry(tenantId: string, id: string, input: JournalEntryInput) {
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId } });
   if (!existing) throw notFound("القيد غير موجود");
-  if (existing.status !== "draft") {
-    throw badRequest("لا يمكن تعديل قيد مرحّل، يجب فك ترحيله أولاً");
+  if (existing.status === "posted") {
+    throw badRequest("لا يمكن تعديل قيد مرحّل مباشرة — استخدم عكس القيد لتصحيحه");
   }
 
   assertBalanced(input.lines);
@@ -352,8 +381,8 @@ export async function updateJournalEntry(tenantId: string, id: string, input: Jo
 export async function deleteJournalEntry(tenantId: string, id: string) {
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId } });
   if (!existing) throw notFound("القيد غير موجود");
-  if (existing.status !== "draft") {
-    throw badRequest("لا يمكن حذف قيد مرحّل، يجب فك ترحيله أولاً");
+  if (existing.status === "posted") {
+    throw badRequest("لا يمكن حذف قيد مرحّل مباشرة — استخدم عكس القيد لتصحيحه");
   }
   await prisma.journalEntry.delete({ where: { id } });
 }
@@ -374,9 +403,10 @@ export async function postJournalEntry(tenantId: string, id: string) {
  * "عكس القيد" — لا تُعدِّل أو تُرحِّل/تفك ترحيل القيد الأصلي إطلاقاً، بل تُنشئ قيداً جديداً منفصلاً
  * بنفس بنود القيد الأصلي تماماً (الحساب، مركز التكلفة، القسم، الوصف الخاص بكل سطر، البيان العام)
  * لكن بعكس المدين/الدائن على كل سطر — فيبقى متوازناً تلقائياً بلا حاجة لإعادة التحقق. يُحفَظ دائماً
- * كمسودة ليراجعه المستخدم قبل الترحيل. الربط أحادي الاتجاه (reversalOfEntryId على القيد الجديد
- * فقط) بدل تحديث الطرفين معاً كما في mirrorEntryId — أبسط هنا لأن معرفة "هل قيد ما تم عكسه لاحقاً"
- * ممكنة بالبحث العكسي (انظر resolveLinkedEntryBy)، فلا داعي لمعاملة تلمس صفّين.
+ * كقيد "محفوظ" (غير مرحّل) ليراجعه المستخدم قبل الترحيل — هذا هو مسار التصحيح الوحيد لقيد مرحّل
+ * مقفل، بعد إلغاء "فك الترحيل" من واجهة القيود اليدوية. الربط أحادي الاتجاه (reversalOfEntryId على
+ * القيد الجديد فقط) بدل تحديث الطرفين معاً كما في mirrorEntryId — أبسط هنا لأن معرفة "هل قيد ما تم
+ * عكسه لاحقاً" ممكنة بالبحث العكسي (انظر resolveLinkedEntryBy)، فلا داعي لمعاملة تلمس صفّين.
  */
 export async function reverseJournalEntry(tenantId: string, userId: string, id: string, date: Date) {
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
@@ -398,22 +428,32 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
     employeeId: l.employeeId,
   }));
 
-  return prisma.journalEntry.create({
-    data: {
-      tenantId,
-      companyId: existing.companyId,
-      date,
-      memo: existing.memo,
-      status: "draft",
-      sourceModule: "manual",
-      createdBy: userId,
-      reversalOfEntryId: existing.id,
-      lines: { create: toLineCreateData(reversedLines) },
-    },
-    include: entryInclude,
+  return prisma.$transaction(async (tx) => {
+    const entryNumber = await reserveEntryNumber(tx, tenantId, existing.companyId);
+    return tx.journalEntry.create({
+      data: {
+        tenantId,
+        companyId: existing.companyId,
+        date,
+        memo: existing.memo,
+        status: "saved",
+        entryNumber,
+        sourceModule: "manual",
+        createdBy: userId,
+        reversalOfEntryId: existing.id,
+        lines: { create: toLineCreateData(reversedLines) },
+      },
+      include: entryInclude,
+    });
   });
 }
 
+/**
+ * تُبقى هذه الوظيفة موجودة في الخادم لأغراض تصحيح استثنائية محمية بالرقم السري، لكنها لم تعد
+ * مُتاحة من واجهة شاشة القيود اليدوية — دورة الحياة الجديدة (القسم 4 من الطلب) تشترط أن يُقفَل
+ * القيد المرحّل تماماً بلا أي تعديل مباشر، وتُحيل أي تصحيح لآلية "عكس القيد" حصراً بدل فك الترحيل
+ * وإعادة التعديل، حتى لا يُلتَف على قاعدة "لا تعديل بعد الترحيل" عبر فك الترحيل ثم التعديل ثم إعادة الترحيل.
+ */
 export async function unpostJournalEntry(tenantId: string, id: string, userId: string, pin: string) {
   const entry = await prisma.journalEntry.findFirst({ where: { id, tenantId } });
   if (!entry) throw notFound("القيد غير موجود");
@@ -424,7 +464,7 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
   if (!validPin) throw forbidden("الرقم السري غير صحيح");
 
   const [updated] = await prisma.$transaction([
-    prisma.journalEntry.update({ where: { id }, data: { status: "draft" }, include: entryInclude }),
+    prisma.journalEntry.update({ where: { id }, data: { status: "saved" }, include: entryInclude }),
     prisma.auditLog.create({
       data: {
         tenantId,
@@ -476,22 +516,26 @@ export async function importJournalEntries(tenantId: string, userId: string, com
       continue;
     }
 
-    await prisma.journalEntry.create({
-      data: {
-        tenantId,
-        companyId,
-        date: new Date(row.date),
-        memo: row.memo,
-        status: "posted",
-        sourceModule: "manual",
-        createdBy: userId,
-        lines: {
-          create: [
-            { accountId: debitAccount.id, debit: new Prisma.Decimal(debitAmt), credit: new Prisma.Decimal(0) },
-            { accountId: creditAccount.id, debit: new Prisma.Decimal(0), credit: new Prisma.Decimal(creditAmt) },
-          ],
+    await prisma.$transaction(async (tx) => {
+      const entryNumber = await reserveEntryNumber(tx, tenantId, companyId);
+      await tx.journalEntry.create({
+        data: {
+          tenantId,
+          companyId,
+          date: new Date(row.date),
+          memo: row.memo,
+          status: "posted",
+          entryNumber,
+          sourceModule: "manual",
+          createdBy: userId,
+          lines: {
+            create: [
+              { accountId: debitAccount.id, debit: new Prisma.Decimal(debitAmt), credit: new Prisma.Decimal(0) },
+              { accountId: creditAccount.id, debit: new Prisma.Decimal(0), credit: new Prisma.Decimal(creditAmt) },
+            ],
+          },
         },
-      },
+      });
     });
     imported++;
   }
@@ -500,11 +544,11 @@ export async function importJournalEntries(tenantId: string, userId: string, com
 }
 
 /**
- * إنشاء قيد يومية "مسودة" من مستند (صورة/PDF) بمساعدة الذكاء الاصطناعي — يقرأ Claude
- * المستند ويقترح حساباً مديناً ودائناً من شجرة حسابات هذا المستأجر فعلياً، ثم يُنشأ القيد
- * بحالة draft (لا يُرحَّل أبداً تلقائياً؛ المستخدم يراجعه ويعدّله ثم يستخدم /:id/post الحالي
- * صراحة للترحيل، تماماً كأي قيد يدوي آخر). المستند المرفوع يُربَط تلقائياً بالقيد الناتج
- * عبر جدول Attachment بمجرد إنشائه.
+ * إنشاء قيد يومية "محفوظ" (غير مرحّل) من مستند (صورة/PDF) بمساعدة الذكاء الاصطناعي — يقرأ Claude
+ * المستند ويقترح حساباً مديناً ودائناً من شجرة حسابات هذا المستأجر فعلياً، ثم يُنشأ القيد بحالة
+ * saved (لا يُرحَّل أبداً تلقائياً؛ المستخدم يراجعه ويعدّله ثم يستخدم /:id/post الحالي صراحة
+ * للترحيل، تماماً كأي قيد يدوي آخر). المستند المرفوع يُربَط تلقائياً بالقيد الناتج عبر جدول
+ * Attachment بمجرد إنشائه.
  */
 export async function createJournalEntryFromDocument(
   tenantId: string,
@@ -550,18 +594,22 @@ export async function createJournalEntryFromDocument(
 
   const date = extraction.date && !Number.isNaN(Date.parse(extraction.date)) ? new Date(extraction.date) : new Date();
 
-  const entry = await prisma.journalEntry.create({
-    data: {
-      tenantId,
-      companyId,
-      date,
-      memo: memoParts.join(" "),
-      status: "draft",
-      sourceModule: "ai_document",
-      createdBy: userId,
-      lines: { create: toLineCreateData(lines) },
-    },
-    include: entryInclude,
+  const entry = await prisma.$transaction(async (tx) => {
+    const entryNumber = await reserveEntryNumber(tx, tenantId, companyId);
+    return tx.journalEntry.create({
+      data: {
+        tenantId,
+        companyId,
+        date,
+        memo: memoParts.join(" "),
+        status: "saved",
+        entryNumber,
+        sourceModule: "ai_document",
+        createdBy: userId,
+        lines: { create: toLineCreateData(lines) },
+      },
+      include: entryInclude,
+    });
   });
 
   const fileKey = buildObjectKey(tenantId, "journal_entry", entry.id, file.fileName);

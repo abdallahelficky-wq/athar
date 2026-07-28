@@ -4,9 +4,9 @@ import { fmt2 } from "../../legacy/constants";
 
 /**
  * "إنشاء قيد من مستند" — يرفع صورة/PDF، يستدعي الذكاء الاصطناعي عبر الخادم لاقتراح قيد
- * كامل (مسودة)، ثم يعرضه قابلاً للتعديل الكامل بجانب صورة المستند نفسه للمقارنة، بزرّين
- * منفصلين: "حفظ كمسودة" (يبقى draft قابلاً للتعديل لاحقاً) و"موافقة وترحيل" (يرحّله فوراً
- * بعد حفظ أي تعديلات). القيد لا يُرحَّل تلقائياً أبداً دون ضغط هذا الزر صراحة.
+ * كامل (بحالة "محفوظ")، ثم يعرضه قابلاً للتعديل الكامل بجانب صورة المستند نفسه للمقارنة، بزرّين
+ * منفصلين: "حفظ" (يبقى بحالة محفوظ قابلاً للتعديل لاحقاً) و"موافقة وترحيل" (يرحّله فوراً
+ * بعد حفظ أي تعديلات، فيُقفَل تماماً). القيد لا يُرحَّل تلقائياً أبداً دون ضغط هذا الزر صراحة.
  */
 export default function CreateFromDocumentModal({ companyId, accounts, onClose, onCreated }) {
   const [file, setFile] = useState(null);
@@ -107,7 +107,7 @@ export default function CreateFromDocumentModal({ companyId, accounts, onClose, 
           <>
             <p className="note">
               ارفع صورة أو ملف PDF لفاتورة أو حوالة بنكية أو إيصال، وسيقترح الذكاء الاصطناعي قيداً كاملاً
-              كمسودة بالاعتماد على شجرة حساباتك الفعلية — تراجعه وتعدّله قبل أي حفظ أو ترحيل.
+              بحالة "محفوظ" بالاعتماد على شجرة حساباتك الفعلية — تراجعه وتعدّله قبل أي حفظ أو ترحيل.
             </p>
             <input ref={fileInputRef} type="file" accept="image/*,application/pdf" onChange={onPickFile} />
             {previewUrl && !isPdf && <img src={previewUrl} alt="معاينة المستند" className="from-document-preview" />}
@@ -168,7 +168,7 @@ export default function CreateFromDocumentModal({ companyId, accounts, onClose, 
               <div className="form-btn-group">
                 <button className="btn-ghost" onClick={onClose} disabled={saving}>إغلاق</button>
                 <button className="btn-ghost" onClick={saveDraft} disabled={!balanced || saving}>
-                  {saving ? "جارٍ الحفظ..." : "حفظ كمسودة"}
+                  {saving ? "جارٍ الحفظ..." : "حفظ"}
                 </button>
                 <button className="btn-primary" onClick={approveAndPost} disabled={!balanced || saving}>
                   {saving ? "جارٍ الحفظ..." : "موافقة وترحيل"}

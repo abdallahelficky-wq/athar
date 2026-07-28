@@ -5,7 +5,8 @@ import { fmt2 } from "../../legacy/constants";
 /**
  * "عكس القيد" — لا تُعدِّل أو تُرحِّل/تفك ترحيل القيد الأصلي إطلاقاً؛ تعرض معاينة القيد الجديد
  * (نفس الحساب/مركز التكلفة/القسم/الوصف الخاص بكل سطر، لكن بعكس المدين/الدائن) وتاريخاً افتراضياً
- * هو تاريخ اليوم قابلاً للتعديل، ثم تُنشئ القيد العكسي كمسودة عبر الخادم عند التأكيد.
+ * هو تاريخ اليوم قابلاً للتعديل، ثم تُنشئ القيد العكسي بحالة "محفوظ" (غير مرحّل) عبر الخادم عند
+ * التأكيد، ليراجعه المستخدم قبل الترحيل.
  */
 export default function ReverseEntryModal({ entry, onClose, onCreated }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -34,7 +35,7 @@ export default function ReverseEntryModal({ entry, onClose, onCreated }) {
         <h3>عكس القيد</h3>
         <p className="note">
           سيُنشأ قيد جديد منفصل بنفس بنود القيد الأصلي (البيان: <strong>{entry.memo || "بدون بيان"}</strong>) مع عكس
-          المدين والدائن على كل سطر، ويُحفَظ كمسودة لتراجعه قبل الترحيل. القيد الأصلي لن يتغيّر إطلاقاً.
+          المدين والدائن على كل سطر، ويُحفَظ بحالة "محفوظ" لتراجعه قبل الترحيل. القيد الأصلي لن يتغيّر إطلاقاً.
         </p>
         <div className="form-grid">
           <label>تاريخ القيد العكسي<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
@@ -62,7 +63,7 @@ export default function ReverseEntryModal({ entry, onClose, onCreated }) {
         <div className="form-btn-group">
           <button className="btn-ghost" onClick={onClose} disabled={saving}>إلغاء</button>
           <button className="btn-primary" onClick={submit} disabled={saving}>
-            {saving ? "جارٍ الحفظ..." : "إنشاء القيد العكسي كمسودة"}
+            {saving ? "جارٍ الحفظ..." : "إنشاء القيد العكسي"}
           </button>
         </div>
       </div>
