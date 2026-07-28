@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "./context/AuthContext";
+import { NavIcon } from "./legacy/navIcons";
 import { useCompanies } from "./wired/useCompanies";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -35,7 +36,13 @@ function AppShell() {
   const real = useCompanies();
 
   const [moduleId, setModuleId] = useState("dashboard");
-  const [openGroups, setOpenGroups] = useState(["sales"]);
+  // قسم واحد فقط مفتوح في القائمة الجانبية في أي وقت (Accordion حقيقي) — يُزامَن تلقائياً مع
+  // moduleId (القسم الذي فيه الصفحة الحالية يُفتح تلقائياً)، لكن إغلاقه يدوياً بينما لا يزال
+  // moduleId مطابقاً له لا يُعاد فتحه قسراً (useEffect لا يُعاد تشغيله إلا عند تغيّر moduleId فعلاً)
+  const [openGroupId, setOpenGroupId] = useState(null);
+  useEffect(() => {
+    if (NAV_GROUPS.some((g) => g.id === moduleId)) setOpenGroupId(moduleId);
+  }, [moduleId]);
 
   // بيانات الشركة "القديمة" (تجريبية محلية) — تخص فقط وحدة الزكاة التوضيحية غير المرتبطة بعد بالـ API
   const [legacyCompanyId, setLegacyCompanyId] = useState("all");
@@ -74,12 +81,15 @@ function AppShell() {
     settings: [settingsTab, setSettingsTab],
   };
 
-  const toggleGroup = (id) => {
-    setOpenGroups((prev) => (prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]));
-  };
-  const openGroupAndSelect = (id) => {
-    setModuleId(id);
-    setOpenGroups((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  /** الضغط على صف القسم في أي مكان منه (الاسم أو السهم): لو القسم هو الصفحة المعروضة حالياً
+   * بالفعل، فقط بدّل حالة الطي (توسيع/تصغير) بدون أي تنقّل؛ ولو قسم مختلف، انتقل إليه — سيُفتح
+   * تلقائياً (ويُغلق أي قسم آخر مفتوح تلقائياً معه، لأن الحالة واحدة مشتركة لا مصفوفة). */
+  const handleGroupClick = (id) => {
+    if (moduleId === id) {
+      setOpenGroupId((prev) => (prev === id ? null : id));
+    } else {
+      setModuleId(id);
+    }
   };
 
   const activeLegacyCompany = useMemo(() => COMPANIES.find((c) => c.id === legacyCompanyId), [legacyCompanyId]);
@@ -98,33 +108,38 @@ function AppShell() {
 
         <div className="nav-list">
           <button className={"nav-btn nav-home" + (moduleId === "dashboard" ? " active" : "")} onClick={() => setModuleId("dashboard")}>
-            لوحة القيادة
+            <span className="nav-icon"><NavIcon name="dashboard" /></span>
+            <span>لوحة القيادة</span>
           </button>
         </div>
 
         <div className="nav-list">
           {NAV_GROUPS.map((g) => {
             const [curTab, setCurTab] = groupTabState[g.id];
-            const isOpen = openGroups.includes(g.id);
+            const isOpen = openGroupId === g.id;
             return (
               <div className="nav-group" key={g.id}>
-                <button className={"nav-group-toggle" + (moduleId === g.id ? " active" : "")} onClick={() => openGroupAndSelect(g.id)}>
-                  <span>{g.label}</span>
-                  <span className="nav-caret" onClick={(e) => { e.stopPropagation(); toggleGroup(g.id); }}>{isOpen ? "▾" : "◂"}</span>
+                <button className={"nav-group-toggle" + (moduleId === g.id ? " active" : "")} onClick={() => handleGroupClick(g.id)}>
+                  <span className="nav-icon"><NavIcon name={g.id} /></span>
+                  <span className="nav-label">{g.label}</span>
+                  <span className={"nav-caret" + (isOpen ? " open" : "")}>▾</span>
                 </button>
-                {isOpen && (
-                  <div className="nav-subitems">
-                    {g.tabs.map((t) => (
-                      <button
-                        key={t.id}
-                        className={"nav-subitem" + (moduleId === g.id && curTab === t.id ? " active" : "")}
-                        onClick={() => { setModuleId(g.id); setCurTab(t.id); }}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
+                <div className={"nav-subitems-wrap" + (isOpen ? " open" : "")}>
+                  <div className="nav-subitems-inner">
+                    <div className="nav-subitems">
+                      {g.tabs.map((t) => (
+                        <button
+                          key={t.id}
+                          className={"nav-subitem" + (moduleId === g.id && curTab === t.id ? " active" : "")}
+                          onClick={() => { setModuleId(g.id); setCurTab(t.id); }}
+                        >
+                          <span className="nav-icon nav-icon-sm"><NavIcon name={t.id} /></span>
+                          <span>{t.label}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             );
           })}
