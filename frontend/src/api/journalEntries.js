@@ -18,6 +18,9 @@ export const postJournalEntry = (id) => api.post(`/journal-entries/${id}/post`);
 export const unpostJournalEntry = (id, pin) => api.post(`/journal-entries/${id}/unpost`, { pin });
 export const importJournalEntries = (companyId, rows) =>
   api.post("/journal-entries/import", { companyId, rows });
+export const getMirrorSuggestion = (id, targetCompanyId) =>
+  api.post(`/journal-entries/${id}/mirror-suggestion`, { targetCompanyId });
+export const createMirrorJournalEntry = (id, payload) => api.post(`/journal-entries/${id}/mirror`, payload);
 
 export const createJournalEntryFromDocument = (companyId, file) => {
   const form = new FormData();

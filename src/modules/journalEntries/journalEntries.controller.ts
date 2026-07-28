@@ -53,6 +53,16 @@ export const createFromDocumentHandler: RequestHandler = async (req, res) => {
   res.status(201).json(result);
 };
 
+export const mirrorSuggestionHandler: RequestHandler = async (req, res) => {
+  const suggestion = await service.getMirrorSuggestion(req.auth!.tenantId, req.params.id, req.body.targetCompanyId);
+  res.json(suggestion);
+};
+
+export const createMirrorHandler: RequestHandler = async (req, res) => {
+  const mirror = await service.createMirrorJournalEntry(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body);
+  res.status(201).json(mirror);
+};
+
 export const importHandler: RequestHandler = async (req, res) => {
   const result = await service.importJournalEntries(
     req.auth!.tenantId,

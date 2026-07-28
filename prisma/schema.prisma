@@ -177,26 +177,27 @@ model Company {
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
 
-  costCenters      CostCenter[]
-  companyDocuments CompanyDocument[]
-  leaseContracts   LeaseContract[]
-  journalEntries   JournalEntry[]
-  customers        Customer[]
-  quotations       Quotation[]
-  salesInvoices    SalesInvoice[]
-  salesReturns     SalesReturn[]
-  receipts         Receipt[]
-  stationSales     StationSale[]
-  suppliers        Supplier[]
-  purchaseInvoices PurchaseInvoice[]
-  purchaseReturns  PurchaseReturn[]
-  items            Item[]
-  stockMovements   StockMovement[]
-  fixedAssets      FixedAsset[]
-  depreciationRuns DepreciationRun[]
-  employees        Employee[]
-  payrollRuns      PayrollRun[]
-  sellableItems    SellableItem[]
+  costCenters          CostCenter[]
+  companyDocuments     CompanyDocument[]
+  leaseContracts       LeaseContract[]
+  journalEntries       JournalEntry[]
+  intercompanyAccounts Account[]         @relation("AccountIntercompanyCompany")
+  customers            Customer[]
+  quotations           Quotation[]
+  salesInvoices        SalesInvoice[]
+  salesReturns         SalesReturn[]
+  receipts             Receipt[]
+  stationSales         StationSale[]
+  suppliers            Supplier[]
+  purchaseInvoices     PurchaseInvoice[]
+  purchaseReturns      PurchaseReturn[]
+  items                Item[]
+  stockMovements       StockMovement[]
+  fixedAssets          FixedAsset[]
+  depreciationRuns     DepreciationRun[]
+  employees            Employee[]
+  payrollRuns          PayrollRun[]
+  sellableItems        SellableItem[]
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -235,18 +236,24 @@ enum VatFilingFrequency {
 
 // شجرة الحسابات
 model Account {
-  id           String      @id @default(cuid())
-  tenantId     String
-  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name         String
-  type         AccountType
-  isActive     Boolean     @default(true)
+  id                    String      @id @default(cuid())
+  tenantId              String
+  tenant                Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name                  String
+  type                  AccountType
+  isActive              Boolean     @default(true)
   // يُحدَّد يدوياً عند إنشاء/تعديل الحساب — يُستخدَم لتحديد أي حسابات "أصول" تمثّل
   // نقدية فعلية (صندوق/بنوك) لعرضها في رسم توزيع الكاش بالداشبورد ولاختيار الحساب
   // البنكي عند تحصيل سند قبض بنكي، بدل التخمين من اسم الحساب
-  isBankOrCash Boolean     @default(false)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  isBankOrCash          Boolean     @default(false)
+  // يُملأ تلقائياً فقط عند إنشاء "حساب ربط بيني" يمثّل شركة شقيقة أخرى ضمن نفس المستأجر (ميزة
+  // قيد المرآة بين الشركات) — يُحدِّد الحساب الذي يُسجَّل عليه أي مبلغ مستحق من/إلى تلك الشركة
+  // تحديداً، بدل الاعتماد على مطابقة اسم الحساب نصياً (هش عند إعادة تسمية الشركة لاحقاً).
+  // حساب واحد فقط لكل شركة مستهدفة ضمن المستأجر (يُستخدَم من أي شركة أخرى تتعامل معها).
+  intercompanyCompanyId String?
+  intercompanyCompany   Company?    @relation("AccountIntercompanyCompany", fields: [intercompanyCompanyId], references: [id], onDelete: SetNull)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
 
   journalEntryLines    JournalEntryLine[]
   salesInvoiceLines    SalesInvoiceLine[]
@@ -257,6 +264,7 @@ model Account {
   receiptsAsBank       Receipt[]             @relation("ReceiptBankAccount")
 
   @@unique([tenantId, name])
+  @@unique([tenantId, intercompanyCompanyId])
   @@map("accounts")
 }
 
@@ -321,24 +329,29 @@ enum SourceModule {
 }
 
 model JournalEntry {
-  id           String        @id @default(cuid())
-  tenantId     String
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId    String
-  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  date         DateTime
-  memo         String?
-  status       JournalStatus @default(posted)
-  sourceModule SourceModule  @default(manual)
-  sourceId     String?
-  createdBy    String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  tenantId      String
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  date          DateTime
+  memo          String?
+  status        JournalStatus @default(posted)
+  sourceModule  SourceModule  @default(manual)
+  sourceId      String?
+  // مرجع منطقي حر (بلا علاقة FK صارمة) لقيد "المرآة" المقابل في شركة أخرى ضمن نفس المستأجر —
+  // يُملأ تبادلياً على القيدين معاً عند إنشاء قيد مرآة (كل قيد يشير لمعرّف الآخر)، بنفس أسلوب
+  // sourceId أعلاه، بدل علاقة self-relation ذاتية قد تعقّد القراءة/الكتابة من الجهتين بلا داعٍ.
+  mirrorEntryId String?
+  createdBy     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   lines JournalEntryLine[]
 
   @@index([tenantId, companyId, date])
   @@index([tenantId, sourceModule, sourceId])
+  @@index([tenantId, mirrorEntryId])
   @@map("journal_entries")
 }
 

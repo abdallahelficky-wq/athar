@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const lineSchema = z
+export const lineSchema = z
   .object({
     accountId: z.string().min(1, "الحساب مطلوب"),
     costCenterId: z.string().nullable().optional(),
@@ -30,6 +30,17 @@ export const unpostSchema = z.object({
 
 export const createFromDocumentSchema = z.object({
   companyId: z.string().min(1, "الشركة مطلوبة"),
+});
+
+export const mirrorSuggestionSchema = z.object({
+  targetCompanyId: z.string().min(1, "الشركة المستهدفة مطلوبة"),
+});
+
+export const createMirrorSchema = z.object({
+  targetCompanyId: z.string().min(1, "الشركة المستهدفة مطلوبة"),
+  date: z.coerce.date(),
+  memo: z.string().optional(),
+  lines: z.array(lineSchema).min(2, "القيد يجب أن يحتوي على سطرين على الأقل"),
 });
 
 export const importJournalEntriesSchema = z.object({

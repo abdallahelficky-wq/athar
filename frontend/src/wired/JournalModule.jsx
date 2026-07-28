@@ -3,6 +3,7 @@ import { listAccounts } from "../api/accounts";
 import { listCostCenters } from "../api/costCenters";
 import {
   listJournalEntries,
+  getJournalEntry,
   createJournalEntry,
   updateJournalEntry,
   deleteJournalEntry,
@@ -14,6 +15,7 @@ import { fmt, fmt2 } from "../legacy/constants";
 import { ExcelImportPanel, downloadCsv, Icon } from "../legacy/shared";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CreateFromDocumentModal from "./shared/CreateFromDocumentModal";
+import MirrorEntryModal from "./shared/MirrorEntryModal";
 import Breadcrumb from "./shared/Breadcrumb";
 import JournalVoucherViewModal from "./JournalVoucherViewModal";
 
@@ -79,6 +81,10 @@ export default function JournalModule({ companies, companyId }) {
   const [showFromDocument, setShowFromDocument] = useState(false);
   const [viewEntry, setViewEntry] = useState(null);
   const [autoPrint, setAutoPrint] = useState(false);
+  const [mirrorSource, setMirrorSource] = useState(null);
+  const [mirrorInfoId, setMirrorInfoId] = useState(null);
+  const [mirrorInfo, setMirrorInfo] = useState(null);
+  const [mirrorNotice, setMirrorNotice] = useState("");
 
   useEffect(() => {
     listAccounts().then(setAccounts).catch((err) => setError(err.message));
@@ -186,6 +192,18 @@ export default function JournalModule({ companies, companyId }) {
     reloadEntries();
   };
 
+  const toggleMirrorInfo = async (e) => {
+    if (mirrorInfoId === e.id) { setMirrorInfoId(null); setMirrorInfo(null); return; }
+    setMirrorInfoId(e.id);
+    setMirrorInfo(null);
+    try {
+      const full = await getJournalEntry(e.id);
+      setMirrorInfo(full.mirrorEntry);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const entryTotal = (e) => e.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
 
   const filtered = entries.filter((e) => !searchText || (e.memo || "").includes(searchText));
@@ -198,6 +216,7 @@ export default function JournalModule({ companies, companyId }) {
       </div>
 
       {error && <p className="balance-bad">{error}</p>}
+      {mirrorNotice && <p className="balance-ok">{mirrorNotice}</p>}
 
       {!companyId ? (
         <p className="empty">أنشئ شركة أولاً من لوحة القيادة لبدء تسجيل القيود.</p>
@@ -324,10 +343,27 @@ export default function JournalModule({ companies, companyId }) {
                     {e.status === "posted" && (
                       <button className="btn-ghost" onClick={() => setUnpostTarget(e)}>فك الترحيل</button>
                     )}
+                    {e.status === "posted" && !e.mirrorEntryId && (
+                      <button className="icon-btn" title="إنشاء قيد مرآة في شركة أخرى" onClick={() => setMirrorSource(e)}>
+                        <Icon.Link />
+                      </button>
+                    )}
+                    {e.mirrorEntryId && (
+                      <button className="btn-ghost" onClick={() => toggleMirrorInfo(e)}>
+                        <Icon.Link /> قيد مرآة مرتبط
+                      </button>
+                    )}
                     <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === e.id ? null : e.id)}>
                       {attachmentsFor === e.id ? "إخفاء المرفقات" : "المرفقات"}
                     </button>
                   </div>
+                  {mirrorInfoId === e.id && (
+                    <p className="note">
+                      {mirrorInfo
+                        ? `مرتبط بقيد في شركة ${mirrorInfo.companyName} بتاريخ ${String(mirrorInfo.date).slice(0, 10)} — الحالة: ${mirrorInfo.status === "posted" ? "مرحّل" : "مسودة"}${mirrorInfo.memo ? ` — البيان: ${mirrorInfo.memo}` : ""}`
+                        : "جارٍ تحميل بيانات القيد المرتبط..."}
+                    </p>
+                  )}
                   {attachmentsFor === e.id && <AttachmentsPanel entityType="journal_entry" entityId={e.id} />}
                 </div>
               ))}
@@ -374,6 +410,19 @@ export default function JournalModule({ companies, companyId }) {
           accounts={accounts}
           onClose={() => setShowFromDocument(false)}
           onCreated={() => { setShowFromDocument(false); reloadEntries(); }}
+        />
+      )}
+      {mirrorSource && (
+        <MirrorEntryModal
+          entry={mirrorSource}
+          companies={companies}
+          accounts={accounts}
+          onClose={() => setMirrorSource(null)}
+          onCreated={(mirror, targetCompany) => {
+            setMirrorSource(null);
+            setMirrorNotice(`تم إنشاء القيد المقابل كمسودة في شركة ${targetCompany?.shortName || targetCompany?.name}.`);
+            reloadEntries();
+          }}
         />
       )}
     </div>

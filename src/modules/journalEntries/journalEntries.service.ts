@@ -94,7 +94,150 @@ export async function listJournalEntries(
 export async function getJournalEntry(tenantId: string, id: string) {
   const entry = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
   if (!entry) throw notFound("القيد غير موجود");
-  return entry;
+  return { ...entry, mirrorEntry: await resolveMirrorEntry(tenantId, entry.mirrorEntryId) };
+}
+
+/** يحل المرجع الحر mirrorEntryId يدوياً (بلا include صريح، بنفس أسلوب sourceId/sourceModule) لعرض ملخص القيد المرتبط في الشركة الأخرى */
+async function resolveMirrorEntry(tenantId: string, mirrorEntryId: string | null) {
+  if (!mirrorEntryId) return null;
+  const mirror = await prisma.journalEntry.findFirst({
+    where: { id: mirrorEntryId, tenantId },
+    include: { company: true },
+  });
+  if (!mirror) return null;
+  return {
+    id: mirror.id,
+    companyId: mirror.companyId,
+    companyName: mirror.company.shortName || mirror.company.name,
+    date: mirror.date,
+    memo: mirror.memo,
+    status: mirror.status,
+  };
+}
+
+/**
+ * تُنشئ (أو تُعيد) حساب "ذمم بين الشركات" الممثّل لشركة `forCompanyId` ضمن نفس المستأجر — يُستخدَم
+ * هذا الحساب من أي شركة أخرى في المستأجر تتعامل مالياً مع forCompanyId. تُفضَّل المطابقة عبر
+ * intercompanyCompanyId المُعرَّف صراحة (بنية FK، صامدة أمام إعادة تسمية الشركة لاحقاً)، وإن لم
+ * يوجد تُنشأ تلقائياً حساباً جديداً باسم مُشتق — طبقاً للتفويض الصريح المسبق من المستخدم بالإنشاء
+ * التلقائي عند عدم وجود هذه الحسابات في شجرة الحسابات.
+ */
+export async function ensureIntercompanyAccount(tenantId: string, forCompanyId: string) {
+  const company = await prisma.company.findFirst({ where: { id: forCompanyId, tenantId } });
+  if (!company) throw badRequest("الشركة الشقيقة غير موجودة ضمن مستأجرك");
+
+  const existingByTag = await prisma.account.findFirst({ where: { tenantId, intercompanyCompanyId: forCompanyId } });
+  if (existingByTag) return existingByTag;
+
+  const name = `ذمم بين الشركات - ${company.shortName || company.name}`;
+  const existingByName = await prisma.account.findFirst({ where: { tenantId, name } });
+  if (existingByName) {
+    return prisma.account.update({ where: { id: existingByName.id }, data: { intercompanyCompanyId: forCompanyId } });
+  }
+
+  return prisma.account.create({
+    data: { tenantId, name, type: "asset", intercompanyCompanyId: forCompanyId },
+  });
+}
+
+/**
+ * تُعِدّ اقتراح "قيد المرآة" في شركة أخرى: تحدّد سطر "الطرف الآخر" تلقائياً (الحساب الممثّل للشركة
+ * المصدر داخل شجرة حسابات الشركة الهدف) بعكس الاتجاه (مدين↔دائن)، وتترك سطراً آخر فارغاً ليختار
+ * المستخدم منه الحساب الفعلي يدوياً (لأنه يختلف بحسب طبيعة العملية ولا يمكن تخمينه). عند عدم وجود
+ * سطر مرتبط صراحة بحساب الشركة الهدف (وهو المتوقع أول مرة يُنشأ فيها قيد مرآة بين شركتين، قبل أن
+ * توجد الحسابات المُعلَّمة)، تُستخدَم القيمة الإجمالية للقيد كبديل مع الإشارة لذلك عبر detected:false.
+ */
+export async function getMirrorSuggestion(tenantId: string, entryId: string, targetCompanyId: string) {
+  const entry = await prisma.journalEntry.findFirst({ where: { id: entryId, tenantId }, include: entryInclude });
+  if (!entry) throw notFound("القيد غير موجود");
+  if (entry.status !== "posted") throw badRequest("لا يمكن إنشاء قيد مرآة إلا لقيد مرحّل");
+  if (entry.companyId === targetCompanyId) throw badRequest("اختر شركة مختلفة عن شركة القيد الأصلي");
+
+  const targetCompany = await prisma.company.findFirst({ where: { id: targetCompanyId, tenantId } });
+  if (!targetCompany) throw badRequest("الشركة المستهدفة غير موجودة ضمن مستأجرك");
+
+  const sourceSideAccountForTarget = await ensureIntercompanyAccount(tenantId, entry.companyId);
+  await ensureIntercompanyAccount(tenantId, targetCompanyId);
+
+  const totalDebit = entry.lines.reduce((s, l) => s + Number(l.debit), 0);
+  const linkedLine = entry.lines.find((l) => l.account.intercompanyCompanyId === targetCompanyId);
+
+  let autoSide: "debit" | "credit";
+  let amount: number;
+  if (linkedLine) {
+    amount = Number(linkedLine.debit) || Number(linkedLine.credit);
+    const originalSideWasDebit = Number(linkedLine.debit) > 0;
+    autoSide = originalSideWasDebit ? "credit" : "debit";
+  } else {
+    amount = totalDebit;
+    autoSide = "credit";
+  }
+
+  const autoLine = {
+    accountId: sourceSideAccountForTarget.id,
+    accountName: sourceSideAccountForTarget.name,
+    debit: autoSide === "debit" ? amount : 0,
+    credit: autoSide === "credit" ? amount : 0,
+    locked: true,
+  };
+  const manualLine = {
+    accountId: null,
+    accountName: null,
+    debit: autoSide === "credit" ? amount : 0,
+    credit: autoSide === "debit" ? amount : 0,
+    locked: false,
+  };
+
+  return {
+    targetCompanyId,
+    date: entry.date,
+    memo: entry.memo,
+    lines: [autoLine, manualLine],
+    detected: !!linkedLine,
+  };
+}
+
+/**
+ * تُنشئ قيد المرآة فعلياً في الشركة المستهدفة كمسودة (لا يُرحَّل تلقائياً أبداً، ليراجعه المستخدم قبل
+ * الترحيل) وتربطه بالقيد الأصلي تبادلياً عبر mirrorEntryId على القيدين معاً ضمن معاملة واحدة.
+ */
+export async function createMirrorJournalEntry(
+  tenantId: string,
+  userId: string,
+  sourceEntryId: string,
+  input: { targetCompanyId: string; date: Date; memo?: string; lines: JournalLineInput[] },
+) {
+  const source = await prisma.journalEntry.findFirst({ where: { id: sourceEntryId, tenantId } });
+  if (!source) throw notFound("القيد الأصلي غير موجود");
+  if (source.mirrorEntryId) throw badRequest("لهذا القيد بالفعل قيد مرآة مرتبط به");
+  if (source.companyId === input.targetCompanyId) throw badRequest("اختر شركة مختلفة عن شركة القيد الأصلي");
+
+  assertBalanced(input.lines);
+  await assertReferencesBelongToTenant(tenantId, {
+    companyId: input.targetCompanyId,
+    date: input.date,
+    memo: input.memo,
+    lines: input.lines,
+  });
+
+  return prisma.$transaction(async (tx) => {
+    const mirror = await tx.journalEntry.create({
+      data: {
+        tenantId,
+        companyId: input.targetCompanyId,
+        date: input.date,
+        memo: input.memo,
+        status: "draft",
+        sourceModule: "manual",
+        createdBy: userId,
+        mirrorEntryId: sourceEntryId,
+        lines: { create: toLineCreateData(input.lines) },
+      },
+      include: entryInclude,
+    });
+    await tx.journalEntry.update({ where: { id: sourceEntryId }, data: { mirrorEntryId: mirror.id } });
+    return mirror;
+  });
 }
 
 export async function createJournalEntry(tenantId: string, userId: string, input: JournalEntryInput) {

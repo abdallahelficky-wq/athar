@@ -8,6 +8,8 @@ import {
   unpostSchema,
   importJournalEntriesSchema,
   createFromDocumentSchema,
+  mirrorSuggestionSchema,
+  createMirrorSchema,
 } from "./journalEntries.schemas";
 import {
   listHandler,
@@ -19,6 +21,8 @@ import {
   unpostHandler,
   importHandler,
   createFromDocumentHandler,
+  mirrorSuggestionHandler,
+  createMirrorHandler,
 } from "./journalEntries.controller";
 
 export const journalEntryRoutes = Router();
@@ -41,3 +45,10 @@ journalEntryRoutes.patch("/:id", canWrite, validateBody(updateJournalEntrySchema
 journalEntryRoutes.delete("/:id", canWrite, deleteHandler);
 journalEntryRoutes.post("/:id/post", canWrite, postHandler);
 journalEntryRoutes.post("/:id/unpost", canWrite, validateBody(unpostSchema), unpostHandler);
+journalEntryRoutes.post(
+  "/:id/mirror-suggestion",
+  canWrite,
+  validateBody(mirrorSuggestionSchema),
+  mirrorSuggestionHandler,
+);
+journalEntryRoutes.post("/:id/mirror", canWrite, validateBody(createMirrorSchema), createMirrorHandler);
