@@ -3,37 +3,7 @@ import { getFinancialKpis } from "../api/dashboard";
 import { fmt } from "../legacy/constants";
 import FinancialDashboard from "./dashboard/FinancialDashboard";
 import Breadcrumb from "./shared/Breadcrumb";
-
-const AVATAR_COLORS = ["#2F5D5A", "#8A5A3E", "#B98B4E", "#445565", "#A8432B", "#10202E"];
-function colorFor(id) {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
-
-function CompanyIcon({ company, active, onClick }) {
-  return (
-    <button className={"company-icon-card" + (active ? " active" : "")} onClick={onClick} title={company.name}>
-      {company.logoUrl ? (
-        <img src={company.logoUrl} alt={company.name} className="company-icon-logo" />
-      ) : (
-        <div className="company-icon-avatar" style={{ background: colorFor(company.id) }}>
-          {company.name.trim().slice(0, 1)}
-        </div>
-      )}
-      <span className="company-icon-name">{company.shortName || company.name}</span>
-    </button>
-  );
-}
-
-function ConsolidatedIcon({ active, onClick }) {
-  return (
-    <button className={"company-icon-card company-icon-consolidated" + (active ? " active" : "")} onClick={onClick}>
-      <div className="company-icon-avatar company-icon-avatar-consolidated">﹢</div>
-      <span className="company-icon-name">المجموعة كاملة</span>
-    </button>
-  );
-}
+import CompanyCards from "./shared/CompanyCards";
 
 /** جدول مقارنة سريع بين شركات المجموعة (كل شركة على حدة) يُكمّل الأرقام المجمّعة لكل
  * المجموعة التي تعرضها FinancialDashboard نفسها (بدون تمرير companyId = تجميع تلقائي) */
@@ -117,17 +87,13 @@ export default function Dashboard({ companies, companyId, setCompanyId, onNaviga
         </div>
       ) : (
         <>
-          <div className="company-icon-row">
-            {companies.map((c) => (
-              <CompanyIcon
-                key={c.id}
-                company={c}
-                active={viewMode === "company" && companyId === c.id}
-                onClick={() => { setCompanyId(c.id); setViewMode("company"); }}
-              />
-            ))}
-            <ConsolidatedIcon active={viewMode === "consolidated"} onClick={() => setViewMode("consolidated")} />
-          </div>
+          <CompanyCards
+            companies={companies}
+            activeCompanyId={companyId}
+            consolidatedActive={viewMode === "consolidated"}
+            onSelectCompany={(id) => { setCompanyId(id); setViewMode("company"); }}
+            onSelectConsolidated={() => setViewMode("consolidated")}
+          />
 
           {viewMode === "consolidated" ? (
             <>
