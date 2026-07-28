@@ -108,8 +108,6 @@ export async function listJournalEntries(tenantId: string, filters: JournalEntry
         ...(filters.search
           ? [{ OR: [{ memo: { contains: filters.search, mode: "insensitive" as const } }, { id: filters.search }] }]
           : []),
-        // القيود الأقدم من تفعيل الترقيم التسلسلي ليس لها entryNumber بعد، فيبقى البحث بمعرّفها
-        // العشوائي القديم (id) يعمل جنباً إلى جنب مع البحث بالرقم التسلسلي الجديد لأي قيد آخر.
         ...(filters.entryNumber
           ? [
               {
@@ -124,7 +122,8 @@ export async function listJournalEntries(tenantId: string, filters: JournalEntry
       ...(filters.accountId ? { lines: { some: { accountId: filters.accountId } } } : {}),
     },
     include: entryInclude,
-    orderBy: { date: "desc" },
+    // الأحدث إنشاءً يظهر أولاً دائماً؛ id كفاصل حاسم يجعل الترتيب ثابتاً حتى لو تشابه وقت الإنشاء.
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 
   const filtered =
