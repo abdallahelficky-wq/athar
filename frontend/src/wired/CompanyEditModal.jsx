@@ -127,12 +127,12 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
           <label>الاسم التجاري (اختياري)<input type="text" value={form.shortName} onChange={(e) => set("shortName", e.target.value)} /></label>
           <label>الرقم الضريبي (VAT)<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, ""))} /></label>
           <label>
-            بادئة ترقيم القيود (حرفان، مثال: TP)
+            بادئة ترقيم القيود (مثال: J أو TP)
             <input
               type="text" maxLength={2}
               value={form.numberingPrefix}
               onChange={(e) => set("numberingPrefix", e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
-              placeholder="بدون ترقيم تسلسلي بعد"
+              placeholder="J"
             />
           </label>
 
