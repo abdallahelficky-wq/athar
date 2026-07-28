@@ -104,10 +104,6 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
             الرقم المتوقع لهذا القيد: <strong>{numberPreview.preview}</strong> — رقم معاينة فقط، لا يُحجز إلا لحظة الضغط
             على "حفظ" أو "حفظ وترحيل"؛ لو ألغيت العملية الآن يبقى متاحاً للقيد التالي.
           </p>
-        ) : numberPreview && !numberPreview.prefix ? (
-          <p className="note">
-            لم تُحدَّد بعد بادئة ترقيم لهذه الشركة، فسيُستخدم معرّف مؤقت للقيد حتى تُحدَّد من بيانات الشركة.
-          </p>
         ) : null}
 
         <div className="form-grid header-grid">
