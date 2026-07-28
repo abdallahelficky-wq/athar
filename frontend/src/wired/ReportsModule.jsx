@@ -3,6 +3,8 @@ import { getTrialBalance, getIncomeStatement, getBalanceSheet } from "../api/rep
 import { fmt } from "../legacy/constants";
 import FinancialStatementPrintModal from "./FinancialStatementPrintModal";
 import { Icon } from "../legacy/shared";
+import Breadcrumb from "./shared/Breadcrumb";
+import SubTabs from "./shared/SubTabs";
 
 export const REPORT_TABS = [
   { id: "trial", label: "ميزان المراجعة" },
@@ -138,7 +140,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
   return (
     <div>
       <div className="section-title">
-        <span className="eyebrow">الإفصاح المالي — بيانات حقيقية</span>
+        <Breadcrumb parts={["الإفصاح المالي", "بيانات حقيقية"]} />
         <h2>التقارير المالية الرئيسية</h2>
       </div>
 
@@ -149,14 +151,12 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
         <p className="empty">جارٍ التحميل...</p>
       ) : (
         <>
-          <div className="report-tabs">
-            {REPORT_TABS.map((t) => (
-              <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>
-                {t.label}
-              </button>
-            ))}
-            <button className="icon-btn" title="طباعة التقرير الحالي" onClick={() => setPrinting(true)}><Icon.Printer /></button>
-          </div>
+          <SubTabs
+            tabs={REPORT_TABS}
+            active={tab}
+            onChange={setTab}
+            trailing={<button className="icon-btn" title="طباعة التقرير الحالي" onClick={() => setPrinting(true)}><Icon.Printer /></button>}
+          />
           {tab === "trial" && <TrialBalanceView data={trialBalance} />}
           {tab === "income" && <IncomeStatementView data={incomeStatement} />}
           {tab === "balance" && <BalanceSheetView data={balanceSheet} />}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { getFinancialKpis } from "../api/dashboard";
 import { fmt } from "../legacy/constants";
 import FinancialDashboard from "./dashboard/FinancialDashboard";
+import Breadcrumb from "./shared/Breadcrumb";
 
 const AVATAR_COLORS = ["#2F5D5A", "#8A5A3E", "#B98B4E", "#445565", "#A8432B", "#10202E"];
 function colorFor(id) {
@@ -103,7 +104,7 @@ export default function Dashboard({ companies, companyId, setCompanyId, onNaviga
   return (
     <div>
       <div className="section-title">
-        <span className="eyebrow">نظرة عامة — بيانات حقيقية</span>
+        <Breadcrumb parts={["نظرة عامة", "بيانات حقيقية"]} />
         <h2>لوحة القيادة المالية</h2>
       </div>
 

@@ -32,6 +32,11 @@ export const NAV_ICONS = {
   stations: svg(<><path d="M4 21V6a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v15" /><path d="M4 21h9" /><path d="M13 10h2a2 2 0 0 1 2 2v3.5a1.5 1.5 0 0 0 3 0V9l-3-3" /><path d="M6 8h5" /></>),
 
   suppliers: svg(<><path d="M3 21V8l9-5 9 5v13" /><path d="M9 21v-6h6v6" /></>),
+  byCustomer: svg(<><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" /></>),
+  bySupplier: svg(<><path d="M3 21V8l9-5 9 5v13" /><path d="M9 21v-6h6v6" /></>),
+  monthly: svg(<><path d="M3 17l4-5 3 3 5-7 4 5" /><path d="M3 20h18" /></>),
+  aging: svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></>),
+  vat: svg(<><circle cx="7" cy="7" r="3" /><circle cx="17" cy="17" r="3" /><path d="M5 19L19 5" /></>),
 
   items: svg(<><rect x="3" y="7" width="18" height="14" rx="1.5" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>),
   inout: svg(<><path d="M7 8l-4 4 4 4" /><path d="M3 12h11" /><path d="M17 4l4 4-4 4" /><path d="M21 8H10" /></>),

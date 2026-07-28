@@ -8,9 +8,11 @@ import ActionsTab from "./ActionsTab";
 import PayrollTab from "./PayrollTab";
 import EndOfServiceTab from "./EndOfServiceTab";
 import HRReportsTab from "./HRReportsTab";
+import Breadcrumb from "../shared/Breadcrumb";
+import SubTabs from "../shared/SubTabs";
 
 export const HR_TABS = [
-  { id: "dashboard", label: "الداشبورد" },
+  { id: "dashboard", label: "لوحة القيادة" },
   { id: "directory", label: "ملفات الموظفين" },
   { id: "leaves", label: "طلبات الإجازات" },
   { id: "leaveSettlement", label: "مستحقات الإجازة" },
@@ -25,12 +27,10 @@ export default function HRWiredModule({ tab, setTab, companies, companyId }) {
   return (
     <div>
       <div className="section-title">
-        <span className="eyebrow">شئون الموظفين — بيانات حقيقية</span>
+        <Breadcrumb parts={["شئون الموظفين", "بيانات حقيقية"]} />
         <h2>شئون الموظفين</h2>
       </div>
-      <div className="report-tabs">
-        {HR_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
-      </div>
+      <SubTabs tabs={HR_TABS} active={tab} onChange={setTab} />
       {tab === "dashboard" && <HRDashboardTab companyId={companyId} />}
       {tab === "directory" && <EmployeeDirectoryTab companyId={companyId} />}
       {tab === "leaves" && <LeavesTab companyId={companyId} />}

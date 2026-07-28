@@ -2,6 +2,7 @@ import React from "react";
 import JournalModule from "./JournalModule";
 import ChartOfAccountsModule from "./ChartOfAccountsModule";
 import { ZakatModule } from "../legacy/zakat";
+import SubTabs from "./shared/SubTabs";
 
 export const ACCOUNTS_TABS = [
   { id: "journal", label: "القيود اليومية" },
@@ -16,13 +17,7 @@ export default function AccountsGroupModule({
 }) {
   return (
     <div>
-      <div className="report-tabs">
-        {ACCOUNTS_TABS.map((t) => (
-          <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SubTabs tabs={ACCOUNTS_TABS} active={tab} onChange={setTab} />
       {tab === "journal" && <JournalModule companies={realCompanies} companyId={realCompanyId} />}
       {tab === "chartOfAccounts" && <ChartOfAccountsModule />}
       {tab === "zakat" && <ZakatModule entries={legacyEntries} sales={legacySales} companyId={legacyCompanyId} />}

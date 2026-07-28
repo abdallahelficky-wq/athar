@@ -6,6 +6,8 @@ import ReturnsTab from "./ReturnsTab";
 import ReceiptsTab from "./ReceiptsTab";
 import StationsTab from "./StationsTab";
 import SalesReportsTab from "./SalesReportsTab";
+import Breadcrumb from "../shared/Breadcrumb";
+import SubTabs from "../shared/SubTabs";
 
 export const SALES_TABS = [
   { id: "customers", label: "العملاء" },
@@ -21,12 +23,10 @@ export default function SalesWiredModule({ tab, setTab, companies, companyId }) 
   return (
     <div>
       <div className="section-title">
-        <span className="eyebrow">التجارة والمبيعات — بيانات حقيقية</span>
+        <Breadcrumb parts={["التجارة والمبيعات", "بيانات حقيقية"]} />
         <h2>المبيعات</h2>
       </div>
-      <div className="report-tabs">
-        {SALES_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
-      </div>
+      <SubTabs tabs={SALES_TABS} active={tab} onChange={setTab} />
       {tab === "customers" && <CustomersTab companyId={companyId} companies={companies} />}
       {tab === "quotations" && <QuotationsTab companyId={companyId} />}
       {tab === "invoices" && <InvoicesTab companyId={companyId} companies={companies} />}

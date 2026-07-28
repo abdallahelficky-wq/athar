@@ -14,6 +14,7 @@ import { fmt, fmt2 } from "../legacy/constants";
 import { ExcelImportPanel, downloadCsv, Icon } from "../legacy/shared";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CreateFromDocumentModal from "./shared/CreateFromDocumentModal";
+import Breadcrumb from "./shared/Breadcrumb";
 import JournalVoucherViewModal from "./JournalVoucherViewModal";
 
 const emptyLine = () => ({ accountId: "", costCenterId: "", department: "", debit: "", credit: "" });
@@ -192,7 +193,7 @@ export default function JournalModule({ companies, companyId }) {
   return (
     <div>
       <div className="section-title">
-        <span className="eyebrow">دفتر اليومية — بيانات حقيقية</span>
+        <Breadcrumb parts={["دفتر اليومية", "بيانات حقيقية"]} />
         <h2>القيود المحاسبية</h2>
       </div>
 

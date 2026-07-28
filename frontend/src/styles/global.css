@@ -26,8 +26,11 @@
           width: 2px; height: 14px; background: #B98B4E;
           transform-origin: bottom center; transform: translate(-50%, -100%) rotate(35deg);
         }
-        .brand-name { font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 17px; letter-spacing: .2px; }
-        .brand-sub { font-size: 11px; color: #B98B4E; font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
+        .brand-name { font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: .2px; }
+        .brand-sub {
+          font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 13.5px; font-weight: 600;
+          color: #B98B4E; letter-spacing: .1px; margin-top: 2px;
+        }
 
         .brand-mark-needle {
           content: ''; position: absolute; top: 50%; left: 50%;
@@ -151,7 +154,8 @@
         .topbar-active-company strong { color: #B98B4E; }
 
         .section-title { margin-bottom: 20px; }
-        .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; letter-spacing: 1.5px; color: #B98B4E; text-transform: uppercase; }
+        .eyebrow { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 12.5px; font-weight: 600; letter-spacing: .2px; color: #B98B4E; }
+        .eyebrow-sep { color: #B7BFC6; font-weight: 400; margin: 0 7px; }
         .section-title h2 { font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 24px; margin: 4px 0 0; }
 
         .company-icon-row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 26px; }
@@ -525,13 +529,26 @@
           .hr-grid { grid-template-columns: 1fr; }
         }
 
-        .report-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
-        .report-tab {
-          background: transparent; border: 1px solid rgba(16,32,46,0.15); color: #445565;
-          padding: 8px 18px; border-radius: 999px; font-family: 'IBM Plex Sans Arabic', sans-serif;
+        /* شريط التبويبات الفرعي الموحّد (SubTabs.jsx) — مُستخدَم في كل المديولات، الأزرار مُمركَزة
+           أفقياً دائماً بصرف النظر عن عددها، وأي محتوى إضافي (trailing) يُثبَّت على الحافة بلا
+           تأثير على التوسيط */
+        .subtabs-bar { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; }
+        .subtabs-track { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .subtab {
+          display: flex; align-items: center; gap: 7px;
+          background: #FBF9F3; border: 1px solid rgba(16,32,46,0.13); color: #445565;
+          padding: 9px 18px; border-radius: 999px; font-family: 'IBM Plex Sans Arabic', sans-serif;
           font-size: 13px; font-weight: 500; cursor: pointer;
+          transition: background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
         }
-        .report-tab.active { background: #10202E; color: #ECE6D6; border-color: #10202E; }
+        .subtab-icon { display: flex; align-items: center; opacity: .65; }
+        .subtab:hover:not(.active) { background: rgba(16,32,46,0.05); border-color: rgba(16,32,46,0.22); color: #10202E; }
+        .subtab.active {
+          background: #10202E; color: #ECE6D6; border-color: #10202E;
+          box-shadow: 0 5px 14px rgba(16,32,46,0.3);
+        }
+        .subtab.active .subtab-icon { opacity: 1; color: #B98B4E; }
+        .subtabs-trailing { display: flex; align-items: center; flex-shrink: 0; }
 
         .note { font-size: 12.5px; color: #8A7C5E; margin: -8px 0 18px; line-height: 1.6; }
 

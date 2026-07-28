@@ -44,7 +44,7 @@ export default function PeriodFilter({ onChange }) {
       {PRESETS.map((p) => (
         <button
           key={p.id}
-          className={"report-tab" + (preset === p.id ? " active" : "")}
+          className={"subtab" + (preset === p.id ? " active" : "")}
           onClick={() => { setPreset(p.id); apply(p.id, customFrom, customTo); }}
         >
           {p.label}

@@ -4,6 +4,8 @@ import StockInOutTab from "./StockInOutTab";
 import IssueTab from "./IssueTab";
 import TransferTab from "./TransferTab";
 import StockReportTab from "./StockReportTab";
+import Breadcrumb from "../shared/Breadcrumb";
+import SubTabs from "../shared/SubTabs";
 
 export const INVENTORY_TABS = [
   { id: "items", label: "الأصناف" },
@@ -17,12 +19,10 @@ export default function InventoryWiredModule({ tab, setTab, companies, companyId
   return (
     <div>
       <div className="section-title">
-        <span className="eyebrow">إدارة المخازن — بيانات حقيقية</span>
+        <Breadcrumb parts={["إدارة المخازن", "بيانات حقيقية"]} />
         <h2>المخزون</h2>
       </div>
-      <div className="report-tabs">
-        {INVENTORY_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
-      </div>
+      <SubTabs tabs={INVENTORY_TABS} active={tab} onChange={setTab} />
       {tab === "items" && <ItemsTab companyId={companyId} />}
       {tab === "inout" && <StockInOutTab companyId={companyId} />}
       {tab === "issue" && <IssueTab companyId={companyId} />}

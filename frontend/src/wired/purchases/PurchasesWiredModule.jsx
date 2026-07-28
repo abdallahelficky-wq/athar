@@ -3,6 +3,8 @@ import SuppliersTab from "./SuppliersTab";
 import PurchaseInvoicesTab from "./PurchaseInvoicesTab";
 import PurchaseReturnsTab from "./PurchaseReturnsTab";
 import PurchaseReportsTab from "./PurchaseReportsTab";
+import Breadcrumb from "../shared/Breadcrumb";
+import SubTabs from "../shared/SubTabs";
 
 export const PURCHASE_TABS = [
   { id: "suppliers", label: "الموردون" },
@@ -15,12 +17,10 @@ export default function PurchasesWiredModule({ tab, setTab, companies, companyId
   return (
     <div>
       <div className="section-title">
-        <span className="eyebrow">التجارة والمشتريات — بيانات حقيقية</span>
+        <Breadcrumb parts={["التجارة والمشتريات", "بيانات حقيقية"]} />
         <h2>المشتريات</h2>
       </div>
-      <div className="report-tabs">
-        {PURCHASE_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
-      </div>
+      <SubTabs tabs={PURCHASE_TABS} active={tab} onChange={setTab} />
       {tab === "suppliers" && <SuppliersTab companyId={companyId} companies={companies} />}
       {tab === "invoices" && <PurchaseInvoicesTab companyId={companyId} companies={companies} />}
       {tab === "returns" && <PurchaseReturnsTab companyId={companyId} />}

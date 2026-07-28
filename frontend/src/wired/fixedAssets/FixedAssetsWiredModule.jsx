@@ -3,6 +3,8 @@ import AssetRegisterTab from "./AssetRegisterTab";
 import DepreciationTab from "./DepreciationTab";
 import DisposalTab from "./DisposalTab";
 import AssetReportsTab from "./AssetReportsTab";
+import Breadcrumb from "../shared/Breadcrumb";
+import SubTabs from "../shared/SubTabs";
 
 export const FIXED_ASSETS_TABS = [
   { id: "register", label: "سجل الأصول" },
@@ -15,12 +17,10 @@ export default function FixedAssetsWiredModule({ tab, setTab, companies, company
   return (
     <div>
       <div className="section-title">
-        <span className="eyebrow">الأصول الثابتة — بيانات حقيقية</span>
+        <Breadcrumb parts={["الأصول الثابتة", "بيانات حقيقية"]} />
         <h2>الأصول الثابتة</h2>
       </div>
-      <div className="report-tabs">
-        {FIXED_ASSETS_TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
-      </div>
+      <SubTabs tabs={FIXED_ASSETS_TABS} active={tab} onChange={setTab} />
       {tab === "register" && <AssetRegisterTab companyId={companyId} />}
       {tab === "depreciation" && <DepreciationTab companyId={companyId} />}
       {tab === "disposal" && <DisposalTab companyId={companyId} />}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { getSalesByCustomer, getSalesMonthly, getSalesVatSummary, getReceivablesAging } from "../../api/salesReports";
 import { fmt } from "../../legacy/constants";
+import SubTabs from "../shared/SubTabs";
 
 const TABS = [
   { id: "byCustomer", label: "حسب العميل" },
@@ -28,9 +29,7 @@ export default function SalesReportsTab({ companyId }) {
 
   return (
     <div>
-      <div className="report-tabs">
-        {TABS.map((t) => <button key={t.id} className={"report-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>{t.label}</button>)}
-      </div>
+      <SubTabs tabs={TABS} active={tab} onChange={setTab} />
 
       {tab === "byCustomer" && (
         <div className="panel">
