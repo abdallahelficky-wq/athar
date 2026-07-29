@@ -31,8 +31,8 @@ export default function AccountImportPanel({ scope, accounts, onImported }) {
     try {
       const result = await importAccounts({
         companyId: scope === "group" ? null : scope,
-        rows: preview.rows.map(({ code, name, type, level, isPosting, parentCode, isBankOrCash }) => ({
-          code, name, type, level, isPosting, parentCode, isBankOrCash,
+        rows: preview.rows.map(({ code, name, nameEn, type, level, isPosting, parentCode, isBankOrCash }) => ({
+          code, name, nameEn, type, level, isPosting, parentCode, isBankOrCash,
         })),
       });
       setMessage(`تم استيراد ${result.imported} حساب بنجاح`);
@@ -73,12 +73,13 @@ export default function AccountImportPanel({ scope, accounts, onImported }) {
           </p>
           <div style={{ maxHeight: 320, overflow: "auto" }}>
             <table className="ledger-table">
-              <thead><tr><th>الكود</th><th>الحساب</th><th>المستوى</th><th>الأب</th><th>التصنيف</th><th>الحالة</th></tr></thead>
+              <thead><tr><th>الكود</th><th>الاسم العربي</th><th>الاسم الإنجليزي</th><th>المستوى</th><th>الأب</th><th>التصنيف</th><th>الحالة</th></tr></thead>
               <tbody>
                 {preview.rows.slice(0, 100).map((row, index) => (
                   <tr key={`${row.code}-${index}`}>
                     <td className="num">{row.code}</td>
                     <td>{row.name || "—"}</td>
+                    <td>{row.nameEn || "—"}</td>
                     <td>{row.level || "—"}</td>
                     <td className="num">{row.parentCode || "—"}</td>
                     <td>{row.type || "—"}</td>
