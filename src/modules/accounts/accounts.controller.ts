@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { createDefaultChart, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
 
 const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ? value : null);
 
@@ -140,6 +141,56 @@ export const importAccounts: RequestHandler = async (req, res) => {
   });
 
   res.status(201).json({ imported: created.length });
+};
+
+export const installStandardChart: RequestHandler = async (req, res) => {
+  const tenantId = req.auth!.tenantId;
+  const companyId = req.body.companyId ?? null;
+
+  if (companyId) {
+    const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
+    if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const financialScope = companyId ? { tenantId, companyId } : { tenantId };
+    const employeeIds = companyId
+      ? (await tx.employee.findMany({ where: { tenantId, companyId }, select: { id: true } })).map((employee) => employee.id)
+      : [];
+
+    const deleted = {
+      receipts: (await tx.receipt.deleteMany({ where: financialScope })).count,
+      salesReturns: (await tx.salesReturn.deleteMany({ where: financialScope })).count,
+      salesInvoices: (await tx.salesInvoice.deleteMany({ where: financialScope })).count,
+      sellableItems: (await tx.sellableItem.deleteMany({ where: financialScope })).count,
+      purchaseReturns: (await tx.purchaseReturn.deleteMany({ where: financialScope })).count,
+      purchaseInvoices: (await tx.purchaseInvoice.deleteMany({ where: financialScope })).count,
+      stockMovements: (await tx.stockMovement.deleteMany({ where: financialScope })).count,
+      depreciationRuns: (await tx.depreciationRun.deleteMany({ where: financialScope })).count,
+      fixedAssets: (await tx.fixedAsset.deleteMany({ where: financialScope })).count,
+      payrollRuns: (await tx.payrollRun.deleteMany({ where: financialScope })).count,
+      leaveSettlements: (await tx.leaveSettlement.deleteMany({
+        where: companyId ? { tenantId, employeeId: { in: employeeIds } } : { tenantId },
+      })).count,
+      journalEntries: (await tx.journalEntry.deleteMany({ where: financialScope })).count,
+    };
+
+    const accountScope = { tenantId, companyId };
+    let deletedAccounts = 0;
+    for (let level = 6; level >= 1; level -= 1) {
+      deletedAccounts += (await tx.account.deleteMany({ where: { ...accountScope, level } })).count;
+    }
+
+    await tx.company.updateMany({
+      where: companyId ? { id: companyId, tenantId } : { tenantId },
+      data: { nextJournalEntrySeq: 1 },
+    });
+    await createDefaultChart(tx, tenantId, companyId);
+
+    return { deleted, deletedAccounts, installedAccounts: DEFAULT_CHART_OF_ACCOUNTS.length };
+  });
+
+  res.status(201).json(result);
 };
 
 export const deleteAccount: RequestHandler = async (req, res) => {
