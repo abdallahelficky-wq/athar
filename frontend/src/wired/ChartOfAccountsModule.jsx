@@ -99,7 +99,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
             const hasChildren = (children.get(a.id) || []).length > 0;
             return <tr key={a.id} style={{ opacity: a.isArchived ? .55 : 1 }}>
               <td className="num">{a.code}</td>
-              <td style={{ paddingRight: `${12 + (a.level - 1) * 24}px` }}><button className="icon-btn" disabled={!hasChildren} onClick={() => toggle(a.id)}>{hasChildren ? (expanded.has(a.id) ? "−" : "+") : "•"}</button> {a.name}</td>
+              <td style={{ paddingRight: `${12 + (a.level - 1) * 24}px` }}><button className="icon-btn" disabled={!hasChildren} onClick={() => toggle(a.id)}>{hasChildren ? (expanded.has(a.id) ? "−" : "+") : "•"}</button> {a.name}{a.nameEn && <small style={{ display: "block", direction: "ltr", color: "#6b7280" }}>{a.nameEn}</small>}</td>
               <td>{a.level}</td><td>{a.isPosting ? "حساب حركة" : "تجميعي"}</td><td className="num">{fmt(a.balance || 0)}</td>
               <td className="row-actions">
                 {a.level < 6 && <button className="icon-btn" title="إضافة حساب فرعي" onClick={() => addChild(a)}>＋</button>}
