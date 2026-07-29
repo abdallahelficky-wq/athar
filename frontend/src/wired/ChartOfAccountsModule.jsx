@@ -43,7 +43,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     const payload = {
       ...form,
       name: form.name.trim(), code: form.code.trim(), parentId: form.parentId || null,
-      companyId: scope === "group" ? null : scope, level, isPosting: level === 4,
+      companyId: scope === "group" ? null : scope, level, isPosting: level === 6,
       type: selectedParent?.type || form.type,
     };
     try {
@@ -75,7 +75,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         </div>
         <div className="form-grid">
           <label>اسم الحساب<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <label>كود الحساب<input inputMode="numeric" maxLength={8} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 4 ? "8 أرقام" : `كود المستوى ${level}`} /></label>
+          <label>كود الحساب<input inputMode="numeric" maxLength={8} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 6 ? "9 أرقام" : `كود المستوى ${level}`} /></label>
           <label>الحساب الأب
             <select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>
               <option value="">— مستوى أول —</option>
@@ -83,9 +83,9 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
             </select>
           </label>
           {!selectedParent && <label>التصنيف<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
-          {level === 4 && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
+          {level === 6 && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
         </div>
-        <div className="form-btn-group"><button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديل/النقل" : "إضافة الحساب"}</button>{editingId && <button className="btn-ghost" onClick={reset}>إلغاء</button>}<span className="note">المستوى {level} {level === 4 ? "— حساب حركة" : "— حساب تجميعي"}</span></div>
+        <div className="form-btn-group"><button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديل/النقل" : "إضافة الحساب"}</button>{editingId && <button className="btn-ghost" onClick={reset}>إلغاء</button>}<span className="note">المستوى {level} {level === 6 ? "— حساب حركة" : "— حساب تجميعي"}</span></div>
       </div>
 
       <div className="panel">
