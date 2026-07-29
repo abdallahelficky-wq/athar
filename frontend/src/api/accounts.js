@@ -11,3 +11,4 @@ export const updateAccount = (id, payload) => api.patch(`/accounts/${id}`, paylo
 export const deleteAccount = (id) => api.delete(`/accounts/${id}`);
 
 export const importAccounts = (payload) => api.post("/accounts/import", payload);
+export const installStandardChart = (payload) => api.post("/accounts/install-standard", payload);
