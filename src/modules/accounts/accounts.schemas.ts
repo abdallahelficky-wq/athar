@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const createAccountSchema = z.object({
-  name: z.string().min(2, "اسم الحساب قصير جداً"),
+  name: z.string().min(2, "اسم الحساب العربي قصير جداً"),
+  nameEn: z.string().min(2, "اسم الحساب الإنجليزي قصير جداً").nullable().optional(),
   type: z.enum(["asset", "liability", "equity", "revenue", "expense"]),
   companyId: z.string().nullable().optional(),
   parentId: z.string().nullable().optional(),
@@ -18,7 +19,8 @@ export const updateAccountSchema = createAccountSchema.partial();
 
 const importAccountRowSchema = z.object({
   code: z.string().regex(/^\\d{1,9}$/, "كود الحساب يجب أن يكون رقمياً وبحد أقصى 9 خانات"),
-  name: z.string().min(2, "اسم الحساب قصير جداً"),
+  name: z.string().min(2, "اسم الحساب العربي قصير جداً"),
+  nameEn: z.string().min(2, "اسم الحساب الإنجليزي قصير جداً"),
   type: z.enum(["asset", "liability", "equity", "revenue", "expense"]),
   level: z.number().int().min(1).max(6),
   isPosting: z.boolean(),
