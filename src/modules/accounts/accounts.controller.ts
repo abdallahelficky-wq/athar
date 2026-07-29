@@ -56,6 +56,81 @@ export const updateAccount: RequestHandler = async (req, res) => {
   res.json(account);
 };
 
+export const importAccounts: RequestHandler = async (req, res) => {
+  const tenantId = req.auth!.tenantId;
+  const companyId = req.body.companyId ?? null;
+  const rows = req.body.rows as Array<{
+    code: string;
+    name: string;
+    type: "asset" | "liability" | "equity" | "revenue" | "expense";
+    level: number;
+    isPosting: boolean;
+    parentCode?: string | null;
+    isBankOrCash?: boolean;
+  }>;
+
+  if (companyId) {
+    const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
+    if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
+  }
+
+  const codeCounts = new Map<string, number>();
+  rows.forEach((row) => codeCounts.set(row.code, (codeCounts.get(row.code) || 0) + 1));
+  const duplicateCodes = [...codeCounts.entries()].filter(([, count]) => count > 1).map(([code]) => code);
+  if (duplicateCodes.length) throw badRequest("ملف الاستيراد يحتوي على أكواد مكررة", { duplicateCodes });
+
+  const existing = await prisma.account.findMany({
+    where: { tenantId, companyId, code: { in: rows.map((row) => row.code) } },
+    select: { code: true },
+  });
+  if (existing.length) {
+    throw badRequest("بعض الأكواد موجودة بالفعل في الشجرة المحددة", { existingCodes: existing.map((row) => row.code) });
+  }
+
+  for (const row of rows) {
+    if (row.level === 6 && !/^\\d{9}$/.test(row.code)) {
+      throw badRequest(`حساب المستوى السادس ${row.code} يجب أن يحمل كوداً من 9 أرقام`);
+    }
+    if (row.isPosting !== (row.level === 6)) {
+      throw badRequest(`نوع الحساب غير صحيح للكود ${row.code}: المستوى السادس ترحيل وما قبله تجميعي`);
+    }
+    if (row.level === 1 && row.parentCode) throw badRequest(`الحساب ${row.code} من المستوى الأول ولا يقبل حساباً أباً`);
+    if (row.level > 1 && !row.parentCode) throw badRequest(`الحساب الأب مفقود للكود ${row.code}`);
+  }
+
+  const orderedRows = [...rows].sort((a, b) => a.level - b.level || a.code.localeCompare(b.code));
+  const created = await prisma.$transaction(async (tx) => {
+    const existingParents = await tx.account.findMany({ where: { tenantId, companyId } });
+    const accountsByCode = new Map(existingParents.map((account) => [account.code, account]));
+    const result = [];
+
+    for (const row of orderedRows) {
+      const parent = row.level > 1 ? accountsByCode.get(row.parentCode as string) : null;
+      if (row.level > 1 && (!parent || parent.level !== row.level - 1)) {
+        throw badRequest(`الحساب الأب ${row.parentCode} غير موجود بالمستوى السابق للحساب ${row.code}`);
+      }
+      const account = await tx.account.create({
+        data: {
+          tenantId,
+          companyId,
+          parentId: parent?.id || null,
+          code: row.code,
+          name: row.name.trim(),
+          type: row.type,
+          level: row.level,
+          isPosting: row.isPosting,
+          isBankOrCash: Boolean(row.isBankOrCash && row.type === "asset" && row.level === 6),
+        },
+      });
+      accountsByCode.set(account.code, account);
+      result.push(account);
+    }
+    return result;
+  });
+
+  res.status(201).json({ imported: created.length });
+};
+
 export const deleteAccount: RequestHandler = async (req, res) => {
   const existing = await prisma.account.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("الحساب غير موجود");
