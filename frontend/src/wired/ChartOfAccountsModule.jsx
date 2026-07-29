@@ -17,13 +17,13 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
 
   useEffect(() => { if (companyId) setScope(companyId); }, [companyId]);
   const reload = () => listAccounts({ tree: true, companyId: scope === "group" ? undefined : scope })
-    .then((rows) => { setAccounts(rows); setExpanded(new Set(rows.filter((a) => a.level < 4).map((a) => a.id))); })
+    .then((rows) => { setAccounts(rows); setExpanded(new Set(rows.filter((a) => a.level < 6).map((a) => a.id))); })
     .catch((err) => setError(err.message));
   useEffect(reload, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedParent = accounts.find((a) => a.id === form.parentId);
   const level = selectedParent ? selectedParent.level + 1 : 1;
-  const possibleParents = accounts.filter((a) => !a.isPosting && !a.isArchived && a.level < 4 && a.id !== editingId);
+  const possibleParents = accounts.filter((a) => !a.isPosting && !a.isArchived && a.level < 6 && a.id !== editingId);
   const children = useMemo(() => {
     const map = new Map();
     accounts.forEach((a) => map.set(a.parentId, [...(map.get(a.parentId) || []), a]));
@@ -75,7 +75,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         </div>
         <div className="form-grid">
           <label>اسم الحساب<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <label>كود الحساب<input inputMode="numeric" maxLength={8} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 6 ? "9 أرقام" : `كود المستوى ${level}`} /></label>
+          <label>كود الحساب<input inputMode="numeric" maxLength={9} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 6 ? "9 أرقام" : `كود المستوى ${level}`} /></label>
           <label>الحساب الأب
             <select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>
               <option value="">— مستوى أول —</option>
@@ -98,7 +98,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
               <td style={{ paddingRight: `${12 + (a.level - 1) * 24}px` }}><button className="icon-btn" disabled={!hasChildren} onClick={() => toggle(a.id)}>{hasChildren ? (expanded.has(a.id) ? "−" : "+") : "•"}</button> {a.name}</td>
               <td>{a.level}</td><td>{a.isPosting ? "حساب حركة" : "تجميعي"}</td><td className="num">{fmt(a.balance || 0)}</td>
               <td className="row-actions">
-                {a.level < 4 && <button className="icon-btn" title="إضافة حساب فرعي" onClick={() => addChild(a)}>＋</button>}
+                {a.level < 6 && <button className="icon-btn" title="إضافة حساب فرعي" onClick={() => addChild(a)}>＋</button>}
                 <button className="icon-btn" title="تعديل أو نقل الحساب" onClick={() => edit(a)}><Icon.Edit /></button>
                 <button className="icon-btn" title={a.isArchived ? "إلغاء الأرشفة" : "أرشفة"} onClick={() => archive(a)}>▣</button>
                 <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(a)}><Icon.Trash /></button>
