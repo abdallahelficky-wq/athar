@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { listAccounts, createAccount, updateAccount, deleteAccount } from "../api/accounts";
+import { listAccounts, createAccount, updateAccount, deleteAccount, installStandardChart } from "../api/accounts";
 import { fmt } from "../legacy/constants";
 import { Icon } from "../legacy/shared";
 import AccountImportPanel from "./AccountImportPanel";
@@ -15,6 +15,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState("");
+  const [installing, setInstalling] = useState(false);
 
   useEffect(() => { if (companyId) setScope(companyId); }, [companyId]);
   const reload = () => listAccounts({ tree: true, companyId: scope === "group" ? undefined : scope })
@@ -60,6 +61,27 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     try { await deleteAccount(a.id); reload(); } catch (err) { setError(err.message); }
   };
   const toggle = (id) => setExpanded((old) => { const next = new Set(old); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  const installStandard = async () => {
+    const scopeName = scope === "group" ? "شجرة المجموعة وجميع حركات المستأجر التجريبية" : "شجرة الشركة وحركاتها التجريبية";
+    if (!window.confirm(`سيتم حذف ${scopeName} ثم تثبيت الشجرة القياسية. لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟`)) return;
+    const confirmation = window.prompt("للتأكيد اكتب كلمة: تثبيت");
+    if (confirmation !== "تثبيت") return;
+    setInstalling(true);
+    setError("");
+    try {
+      const result = await installStandardChart({
+        companyId: scope === "group" ? null : scope,
+        confirmation: "INSTALL_STANDARD_CHART",
+      });
+      reset();
+      await reload();
+      window.alert(`تم تثبيت ${result.installedAccounts} حسابًا قياسيًا وحذف ${result.deletedAccounts} حسابًا قديمًا.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setInstalling(false);
+    }
+  };
 
   return (
     <div>
@@ -72,7 +94,12 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
               {companies.map((c) => <option key={c.id} value={c.id}>{c.shortName || c.name}</option>)}
             </select>
           </label>
-          <button className="btn-ghost" onClick={() => setCompact((v) => !v)}>{compact ? "عرض الشجرة كاملة" : "عرض مصغّر"}</button>
+          <div className="form-btn-group">
+            <button className="btn-ghost" onClick={() => setCompact((v) => !v)}>{compact ? "عرض الشجرة كاملة" : "عرض مصغّر"}</button>
+            <button className="btn-ghost" style={{ color: "#A8432B", borderColor: "rgba(168,67,43,0.35)" }} disabled={installing} onClick={installStandard}>
+              {installing ? "جارٍ تثبيت الشجرة..." : "تثبيت الشجرة القياسية"}
+            </button>
+          </div>
         </div>
         <div className="form-grid">
           <label>اسم الحساب بالعربية<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
