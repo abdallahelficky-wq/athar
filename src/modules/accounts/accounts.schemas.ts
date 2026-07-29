@@ -18,13 +18,13 @@ export const updateAccountSchema = createAccountSchema.partial();
 
 
 const importAccountRowSchema = z.object({
-  code: z.string().regex(/^\\d{1,9}$/, "كود الحساب يجب أن يكون رقمياً وبحد أقصى 9 خانات"),
+  code: z.string().regex(/^\d{1,9}$/, "كود الحساب يجب أن يكون رقمياً وبحد أقصى 9 خانات"),
   name: z.string().min(2, "اسم الحساب العربي قصير جداً"),
   nameEn: z.string().min(2, "اسم الحساب الإنجليزي قصير جداً"),
   type: z.enum(["asset", "liability", "equity", "revenue", "expense"]),
   level: z.number().int().min(1).max(6),
   isPosting: z.boolean(),
-  parentCode: z.string().regex(/^\\d{1,9}$/).nullable().optional(),
+  parentCode: z.string().regex(/^\d{1,9}$/).nullable().optional(),
   isBankOrCash: z.boolean().optional(),
 });
 
