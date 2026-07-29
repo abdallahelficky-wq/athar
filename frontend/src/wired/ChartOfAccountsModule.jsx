@@ -5,7 +5,7 @@ import { Icon } from "../legacy/shared";
 import AccountImportPanel from "./AccountImportPanel";
 
 const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
-const emptyForm = { name: "", code: "", type: "asset", parentId: "", isBankOrCash: false };
+const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isBankOrCash: false };
 
 export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const [scope, setScope] = useState(companyId || "group");
@@ -40,10 +40,10 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
 
   const reset = () => { setForm(emptyForm); setEditingId(null); };
   const save = async () => {
-    if (!form.name.trim() || !form.code.trim()) return;
+    if (!form.name.trim() || !form.nameEn.trim() || !form.code.trim()) return;
     const payload = {
       ...form,
-      name: form.name.trim(), code: form.code.trim(), parentId: form.parentId || null,
+      name: form.name.trim(), nameEn: form.nameEn.trim(), code: form.code.trim(), parentId: form.parentId || null,
       companyId: scope === "group" ? null : scope, level, isPosting: level === 6,
       type: selectedParent?.type || form.type,
     };
@@ -52,7 +52,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
       reset(); reload();
     } catch (err) { setError(err.message); }
   };
-  const edit = (a) => { setEditingId(a.id); setForm({ name: a.name, code: a.code, type: a.type, parentId: a.parentId || "", isBankOrCash: a.isBankOrCash }); };
+  const edit = (a) => { setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isBankOrCash: a.isBankOrCash }); };
   const addChild = (a) => { setEditingId(null); setForm({ ...emptyForm, type: a.type, parentId: a.id }); };
   const archive = async (a) => { await updateAccount(a.id, { isArchived: !a.isArchived }); reload(); };
   const remove = async (a) => {
@@ -75,7 +75,8 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
           <button className="btn-ghost" onClick={() => setCompact((v) => !v)}>{compact ? "عرض الشجرة كاملة" : "عرض مصغّر"}</button>
         </div>
         <div className="form-grid">
-          <label>اسم الحساب<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>اسم الحساب بالعربية<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>اسم الحساب بالإنجليزية<input dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></label>
           <label>كود الحساب<input inputMode="numeric" maxLength={9} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 6 ? "9 أرقام" : `كود المستوى ${level}`} /></label>
           <label>الحساب الأب
             <select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>
