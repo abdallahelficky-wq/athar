@@ -8,14 +8,19 @@ async function validateHierarchy(tenantId: string, input: any, currentId?: strin
   const companyId = input.companyId ?? null;
   const level = Number(input.level);
   if (level === 6 && !/^\d{9}$/.test(input.code)) throw badRequest("حساب المستوى السادس يجب أن يحمل كوداً من 9 أرقام");
-  if (input.isPosting && level !== 6) throw badRequest("الإدخال مسموح فقط على حسابات المستوى السادس");
+  if (input.isPosting && (level < 2 || level > 6)) throw badRequest("حساب الترحيل يجب أن يكون بين المستوى الثاني والسادس");
   if (level === 1 && input.parentId) throw badRequest("حساب المستوى الأول لا يقبل حساباً أباً");
   if (level > 1) {
     const parent = await prisma.account.findFirst({ where: { id: input.parentId, tenantId } });
     if (!parent) throw badRequest("اختر الحساب الأب");
+    if (parent.isPosting) throw badRequest("لا يمكن إضافة حساب فرعي تحت حساب ترحيل");
     if (parent.id === currentId || parent.level !== level - 1 || (parent.companyId || null) !== companyId) {
       throw badRequest("الحساب الأب يجب أن يكون من المستوى السابق وفي الشجرة نفسها");
     }
+  }
+  if (input.isPosting && currentId) {
+    const children = await prisma.account.count({ where: { parentId: currentId } });
+    if (children) throw badRequest("لا يمكن تحويل حساب له حسابات فرعية إلى حساب ترحيل");
   }
 }
 
@@ -89,14 +94,17 @@ export const importAccounts: RequestHandler = async (req, res) => {
   }
 
   for (const row of rows) {
-    if (row.level === 6 && !/^\\d{9}$/.test(row.code)) {
+    if (row.level === 6 && !/^\d{9}$/.test(row.code)) {
       throw badRequest(`حساب المستوى السادس ${row.code} يجب أن يحمل كوداً من 9 أرقام`);
     }
-    if (row.isPosting !== (row.level === 6)) {
-      throw badRequest(`نوع الحساب غير صحيح للكود ${row.code}: المستوى السادس ترحيل وما قبله تجميعي`);
-    }
+    if (row.isPosting && row.level < 2) throw badRequest(`الحساب ${row.code}: حساب الترحيل يجب أن يكون بين المستوى الثاني والسادس`);
     if (row.level === 1 && row.parentCode) throw badRequest(`الحساب ${row.code} من المستوى الأول ولا يقبل حساباً أباً`);
     if (row.level > 1 && !row.parentCode) throw badRequest(`الحساب الأب مفقود للكود ${row.code}`);
+  }
+  const importedChildren = new Set(rows.map((row) => row.parentCode).filter(Boolean));
+  const postingParents = rows.filter((row) => row.isPosting && importedChildren.has(row.code)).map((row) => row.code);
+  if (postingParents.length) {
+    throw badRequest("حساب الترحيل لا يمكن أن يحتوي على حسابات فرعية", { postingParents });
   }
 
   const orderedRows = [...rows].sort((a, b) => a.level - b.level || a.code.localeCompare(b.code));
@@ -110,6 +118,7 @@ export const importAccounts: RequestHandler = async (req, res) => {
       if (row.level > 1 && (!parent || parent.level !== row.level - 1)) {
         throw badRequest(`الحساب الأب ${row.parentCode} غير موجود بالمستوى السابق للحساب ${row.code}`);
       }
+      if (parent?.isPosting) throw badRequest(`الحساب الأب ${row.parentCode} هو حساب ترحيل ولا يقبل حسابات فرعية`);
       const account = await tx.account.create({
         data: {
           tenantId,
@@ -121,7 +130,7 @@ export const importAccounts: RequestHandler = async (req, res) => {
           type: row.type,
           level: row.level,
           isPosting: row.isPosting,
-          isBankOrCash: Boolean(row.isBankOrCash && row.type === "asset" && row.level === 6),
+          isBankOrCash: Boolean(row.isBankOrCash && row.type === "asset" && row.isPosting),
         },
       });
       accountsByCode.set(account.code, account);
