@@ -7,8 +7,8 @@ const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ?
 async function validateHierarchy(tenantId: string, input: any, currentId?: string) {
   const companyId = input.companyId ?? null;
   const level = Number(input.level);
-  if (level === 4 && !/^\d{8}$/.test(input.code)) throw badRequest("حساب المستوى الرابع يجب أن يحمل كوداً من 8 أرقام");
-  if (input.isPosting && level !== 4) throw badRequest("الإدخال مسموح فقط على حسابات المستوى الرابع");
+  if (level === 6 && !/^\d{8}$/.test(input.code)) throw badRequest("حساب المستوى السادس يجب أن يحمل كوداً من 9 أرقام");
+  if (input.isPosting && level !== 6) throw badRequest("الإدخال مسموح فقط على حسابات المستوى السادس");
   if (level === 1 && input.parentId) throw badRequest("حساب المستوى الأول لا يقبل حساباً أباً");
   if (level > 1) {
     const parent = await prisma.account.findFirst({ where: { id: input.parentId, tenantId } });
