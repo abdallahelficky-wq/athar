@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { listAccounts, createAccount, updateAccount, deleteAccount } from "../api/accounts";
 import { fmt } from "../legacy/constants";
 import { Icon } from "../legacy/shared";
+import AccountImportPanel from "./AccountImportPanel";
 
 const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
 const emptyForm = { name: "", code: "", type: "asset", parentId: "", isBankOrCash: false };
@@ -87,6 +88,8 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         </div>
         <div className="form-btn-group"><button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديل/النقل" : "إضافة الحساب"}</button>{editingId && <button className="btn-ghost" onClick={reset}>إلغاء</button>}<span className="note">المستوى {level} {level === 6 ? "— حساب حركة" : "— حساب تجميعي"}</span></div>
       </div>
+
+      <AccountImportPanel scope={scope} accounts={accounts} onImported={reload} />
 
       <div className="panel">
         <table className="ledger-table">
