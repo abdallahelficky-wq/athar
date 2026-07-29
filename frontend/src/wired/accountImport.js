@@ -8,20 +8,27 @@ const TYPE_MAP = {
   expense: "expense", expenses: "expense", cost: "expense", "مصروفات": "expense", "تكلفة": "expense",
 };
 
-const FALLBACK_TYPE = { "1": "asset", "2": "liability", "3": "equity", "4": "revenue", "5": "revenue" };
+const FALLBACK_TYPE = { "1": "asset", "2": "liability", "3": "equity", "4": "revenue", "5": "expense" };
 
 const text = (value) => {
   if (value == null) return "";
   if (typeof value === "number" && Number.isInteger(value)) return String(value);
   return String(value).trim().replace(/\s+/g, " ");
 };
-const header = (value) => text(value).toLowerCase().replace(/[\s_\-]+/g, "");
+const header = (value) => text(value).toLowerCase().replace(/[^\p{L}\p{N}+]/gu, "");
 const findColumn = (headers, names) => headers.findIndex((value) => names.includes(header(value)));
 
 function mapType(value, code) {
   const raw = text(value);
   const normalized = raw.toLowerCase();
-  return TYPE_MAP[raw] || TYPE_MAP[normalized] || FALLBACK_TYPE[code?.[0]] || "";
+  const direct = TYPE_MAP[raw] || TYPE_MAP[normalized];
+  if (direct) return direct;
+  if (normalized.includes("أصول") || normalized.includes("asset")) return "asset";
+  if (normalized.includes("التزام") || normalized.includes("خصوم") || normalized.includes("liabilit")) return "liability";
+  if (normalized.includes("حقوق ملكية") || normalized.includes("equity")) return "equity";
+  if (normalized.includes("إيراد") || normalized.includes("revenue") || normalized.includes("income")) return "revenue";
+  if (normalized.includes("مصروف") || normalized.includes("تكلفة") || normalized.includes("expense") || normalized.includes("cost")) return "expense";
+  return FALLBACK_TYPE[code?.[0]] || "";
 }
 
 export function parseAccountWorkbook(arrayBuffer, existingAccounts = []) {
@@ -46,7 +53,7 @@ export function parseAccountWorkbook(arrayBuffer, existingAccounts = []) {
   const importNameIndex = findColumn(headers, ["الاسمالمقترحللاستيراد", "name"]);
   const typeIndex = findColumn(headers, ["accounttype", "التصنيففيأثر", "التصنيف", "type"]);
   const parentIndex = findColumn(headers, ["كودالحسابالأب", "كودالحسابالاب", "parentcode"]);
-  const flagIndexFromHeader = findColumn(headers, ["رمزالمصدر", "h/+", "نوعالحساب"]);
+  const flagIndexFromHeader = findColumn(headers, ["علامةالاستيراد", "رمزالمصدر", "h+", "postingflag", "نوعالحساب", "النوع"]);
 
   let codeIndex = findColumn(headers, ["كودالحساب", "الكود", "code"]);
   if (codeIndex < 0) {
@@ -82,7 +89,8 @@ export function parseAccountWorkbook(arrayBuffer, existingAccounts = []) {
     const flag = flagIndex >= 0 ? text(sourceRow[flagIndex]) : "";
     const explicitParent = parentIndex >= 0 ? text(sourceRow[parentIndex]).replace(/\.0+$/, "") : "";
     const parentCode = level > 1 ? (explicitParent || levelStack.get(level - 1) || "") : "";
-    const isPosting = flag === "+" || level === 6;
+    const normalizedFlag = header(flag);
+    const isPosting = ["+", "ترحيل", "posting", "movement"].includes(normalizedFlag);
     const errors = [];
 
     if (!Number.isInteger(level) || level < 1 || level > 6) errors.push("المستوى غير صحيح");
@@ -112,6 +120,8 @@ export function parseAccountWorkbook(arrayBuffer, existingAccounts = []) {
   parsed.forEach((row) => {
     if (counts.get(row.code) > 1) row.errors.push("كود مكرر داخل الملف");
     if (row.level > 1 && row.parentCode && !availableCodes.has(row.parentCode)) row.errors.push("الحساب الأب غير موجود");
+    if (row.isPosting && row.level < 2) row.errors.push("حساب الترحيل يجب أن يكون بين المستوى الثاني والسادس");
+    if (row.isPosting && parsed.some((candidate) => candidate.parentCode === row.code)) row.errors.push("حساب الترحيل لا يقبل حسابات فرعية");
   });
 
   return {
