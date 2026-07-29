@@ -256,6 +256,7 @@ model Account {
   isPosting             Boolean     @default(false)
   isArchived            Boolean     @default(false)
   name                  String
+  nameEn                String?
   type                  AccountType
   isActive              Boolean     @default(true)
   // يُحدَّد يدوياً عند إنشاء/تعديل الحساب — يُستخدَم لتحديد أي حسابات "أصول" تمثّل
