@@ -218,7 +218,10 @@ export async function ensureIntercompanyAccount(tenantId: string, forCompanyId: 
   }
 
   return prisma.account.create({
-    data: { tenantId, name, type: "asset", intercompanyCompanyId: forCompanyId },
+    data: {
+      tenantId, companyId: null, name, type: "asset", intercompanyCompanyId: forCompanyId,
+      code: `1199${String(Date.now()).slice(-4)}`, level: 4, isPosting: true,
+    },
   });
 }
 

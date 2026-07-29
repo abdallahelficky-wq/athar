@@ -187,6 +187,7 @@ model Company {
   companyDocuments     CompanyDocument[]
   leaseContracts       LeaseContract[]
   journalEntries       JournalEntry[]
+  accounts             Account[]
   intercompanyAccounts Account[]         @relation("AccountIntercompanyCompany")
   customers            Customer[]
   quotations           Quotation[]
@@ -245,6 +246,15 @@ model Account {
   id                    String      @id @default(cuid())
   tenantId              String
   tenant                Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId             String?
+  company               Company?    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parentId              String?
+  parent                Account?    @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children              Account[]   @relation("AccountHierarchy")
+  code                  String
+  level                 Int
+  isPosting             Boolean     @default(false)
+  isArchived            Boolean     @default(false)
   name                  String
   type                  AccountType
   isActive              Boolean     @default(true)
@@ -269,8 +279,9 @@ model Account {
   sellableItemDefaults SellableItem[]
   receiptsAsBank       Receipt[]             @relation("ReceiptBankAccount")
 
-  @@unique([tenantId, name])
+  @@unique([tenantId, companyId, code])
   @@unique([tenantId, intercompanyCompanyId])
+  @@index([tenantId, companyId, parentId])
   @@map("accounts")
 }
 

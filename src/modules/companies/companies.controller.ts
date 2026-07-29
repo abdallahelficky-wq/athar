@@ -5,6 +5,7 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claudeVision";
 import { createAttachment } from "../attachments/attachments.service";
+import { createDefaultChart } from "../../lib/defaultChartOfAccounts";
 
 const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB يكفي لأي شعار
 const ALLOWED_LOGO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
@@ -31,8 +32,10 @@ export const listCompanies: RequestHandler = async (req, res) => {
 };
 
 export const createCompany: RequestHandler = async (req, res) => {
-  const company = await prisma.company.create({
-    data: { ...req.body, tenantId: req.auth!.tenantId },
+  const company = await prisma.$transaction(async (tx) => {
+    const created = await tx.company.create({ data: { ...req.body, tenantId: req.auth!.tenantId } });
+    await createDefaultChart(tx, req.auth!.tenantId, created.id);
+    return created;
   });
   res.status(201).json(await withLogoUrl(company));
 };

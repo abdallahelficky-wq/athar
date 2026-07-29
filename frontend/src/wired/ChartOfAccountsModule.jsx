@@ -1,133 +1,112 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { listAccounts, createAccount, updateAccount, deleteAccount } from "../api/accounts";
+import { fmt } from "../legacy/constants";
 import { Icon } from "../legacy/shared";
 
 const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
-const TYPES = ["asset", "liability", "equity", "revenue", "expense"];
+const emptyForm = { name: "", code: "", type: "asset", parentId: "", isBankOrCash: false };
 
-export default function ChartOfAccountsModule() {
+export default function ChartOfAccountsModule({ companies = [], companyId }) {
+  const [scope, setScope] = useState(companyId || "group");
   const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [form, setForm] = useState({ name: "", type: "asset", isBankOrCash: false });
+  const [expanded, setExpanded] = useState(new Set());
+  const [compact, setCompact] = useState(false);
+  const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ name: "", type: "asset", isBankOrCash: false });
+  const [error, setError] = useState("");
 
-  const reload = () => {
-    setLoading(true);
-    listAccounts()
-      .then(setAccounts)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  };
+  useEffect(() => { if (companyId) setScope(companyId); }, [companyId]);
+  const reload = () => listAccounts({ tree: true, companyId: scope === "group" ? undefined : scope })
+    .then((rows) => { setAccounts(rows); setExpanded(new Set(rows.filter((a) => a.level < 4).map((a) => a.id))); })
+    .catch((err) => setError(err.message));
+  useEffect(reload, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(reload, []);
+  const selectedParent = accounts.find((a) => a.id === form.parentId);
+  const level = selectedParent ? selectedParent.level + 1 : 1;
+  const possibleParents = accounts.filter((a) => !a.isPosting && !a.isArchived && a.level < 4 && a.id !== editingId);
+  const children = useMemo(() => {
+    const map = new Map();
+    accounts.forEach((a) => map.set(a.parentId, [...(map.get(a.parentId) || []), a]));
+    return map;
+  }, [accounts]);
 
-  const add = async () => {
-    if (!form.name.trim()) return;
+  const rows = [];
+  const walk = (parentId = null) => (children.get(parentId) || []).forEach((account) => {
+    rows.push(account);
+    if (!compact && expanded.has(account.id)) walk(account.id);
+  });
+  walk();
+
+  const reset = () => { setForm(emptyForm); setEditingId(null); };
+  const save = async () => {
+    if (!form.name.trim() || !form.code.trim()) return;
+    const payload = {
+      ...form,
+      name: form.name.trim(), code: form.code.trim(), parentId: form.parentId || null,
+      companyId: scope === "group" ? null : scope, level, isPosting: level === 4,
+      type: selectedParent?.type || form.type,
+    };
     try {
-      await createAccount({ name: form.name.trim(), type: form.type, isBankOrCash: form.isBankOrCash });
-      setForm({ name: "", type: "asset", isBankOrCash: false });
-      reload();
-    } catch (err) {
-      setError(err.message);
-    }
+      if (editingId) await updateAccount(editingId, payload); else await createAccount(payload);
+      reset(); reload();
+    } catch (err) { setError(err.message); }
   };
-
-  const startEdit = (a) => { setEditingId(a.id); setEditForm({ name: a.name, type: a.type, isBankOrCash: a.isBankOrCash }); };
-
-  const saveEdit = async () => {
-    try {
-      await updateAccount(editingId, editForm);
-      setEditingId(null);
-      reload();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
+  const edit = (a) => { setEditingId(a.id); setForm({ name: a.name, code: a.code, type: a.type, parentId: a.parentId || "", isBankOrCash: a.isBankOrCash }); };
+  const addChild = (a) => { setEditingId(null); setForm({ ...emptyForm, type: a.type, parentId: a.id }); };
+  const archive = async (a) => { await updateAccount(a.id, { isArchived: !a.isArchived }); reload(); };
   const remove = async (a) => {
     if (!window.confirm(`حذف حساب "${a.name}"؟`)) return;
-    try {
-      await deleteAccount(a.id);
-      reload();
-    } catch (err) {
-      setError(err.message);
-    }
+    try { await deleteAccount(a.id); reload(); } catch (err) { setError(err.message); }
   };
-
-  const grouped = TYPES.map((t) => ({ type: t, accounts: accounts.filter((a) => a.type === t) }));
-
-  if (loading) return <p className="empty">جارٍ التحميل...</p>;
+  const toggle = (id) => setExpanded((old) => { const next = new Set(old); next.has(id) ? next.delete(id) : next.add(id); return next; });
 
   return (
     <div>
       {error && <p className="balance-bad">{error}</p>}
       <div className="panel form-panel">
-        <div className="form-grid">
-          <label>اسم الحساب
-            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="مثال: مصروف صيانة معدات" />
-          </label>
-          <label>التصنيف
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
+          <label>نطاق الشجرة
+            <select value={scope} onChange={(e) => { setScope(e.target.value); reset(); }}>
+              <option value="group">شجرة المجموعة كاملة</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.shortName || c.name}</option>)}
             </select>
           </label>
-          {form.type === "asset" && (
-            <label className="checkbox-label">
-              <input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />
-              حساب نقدي/بنكي (يظهر في توزيع الكاش بالداشبورد)
-            </label>
-          )}
+          <button className="btn-ghost" onClick={() => setCompact((v) => !v)}>{compact ? "عرض الشجرة كاملة" : "عرض مصغّر"}</button>
         </div>
-        <button className="btn-primary" onClick={add}>إضافة حساب جديد</button>
+        <div className="form-grid">
+          <label>اسم الحساب<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>كود الحساب<input inputMode="numeric" maxLength={8} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 4 ? "8 أرقام" : `كود المستوى ${level}`} /></label>
+          <label>الحساب الأب
+            <select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>
+              <option value="">— مستوى أول —</option>
+              {possibleParents.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
+            </select>
+          </label>
+          {!selectedParent && <label>التصنيف<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
+          {level === 4 && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
+        </div>
+        <div className="form-btn-group"><button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديل/النقل" : "إضافة الحساب"}</button>{editingId && <button className="btn-ghost" onClick={reset}>إلغاء</button>}<span className="note">المستوى {level} {level === 4 ? "— حساب حركة" : "— حساب تجميعي"}</span></div>
       </div>
 
-      {grouped.map((g) => (
-        <div className="panel" key={g.type}>
-          <h3>{TYPE_LABEL[g.type]}</h3>
-          <table className="ledger-table">
-            <tbody>
-              {g.accounts.map((a) => (
-                <tr key={a.id}>
-                  {editingId === a.id ? (
-                    <>
-                      <td><input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></td>
-                      <td>
-                        <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}>
-                          {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                        </select>
-                      </td>
-                      <td>
-                        {editForm.type === "asset" && (
-                          <label className="checkbox-label">
-                            <input type="checkbox" checked={editForm.isBankOrCash} onChange={(e) => setEditForm({ ...editForm, isBankOrCash: e.target.checked })} />
-                            نقدي/بنكي
-                          </label>
-                        )}
-                      </td>
-                      <td className="row-actions">
-                        <button className="btn-ghost" onClick={saveEdit}>حفظ</button>
-                        <button className="btn-ghost" onClick={() => setEditingId(null)}>إلغاء</button>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td>{a.name}</td><td></td>
-                      <td>{a.isBankOrCash && <span className="status-badge">نقدي/بنكي</span>}</td>
-                      <td className="row-actions">
-                        <button className="icon-btn" title="تعديل" onClick={() => startEdit(a)}><Icon.Edit /></button>
-                        <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(a)}><Icon.Trash /></button>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
-              {g.accounts.length === 0 && <tr><td className="empty">لا توجد حسابات بهذا التصنيف</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      ))}
+      <div className="panel">
+        <table className="ledger-table">
+          <thead><tr><th>الكود</th><th>الحساب</th><th>المستوى</th><th>النوع</th><th>الرصيد</th><th>الإجراءات</th></tr></thead>
+          <tbody>{rows.map((a) => {
+            const hasChildren = (children.get(a.id) || []).length > 0;
+            return <tr key={a.id} style={{ opacity: a.isArchived ? .55 : 1 }}>
+              <td className="num">{a.code}</td>
+              <td style={{ paddingRight: `${12 + (a.level - 1) * 24}px` }}><button className="icon-btn" disabled={!hasChildren} onClick={() => toggle(a.id)}>{hasChildren ? (expanded.has(a.id) ? "−" : "+") : "•"}</button> {a.name}</td>
+              <td>{a.level}</td><td>{a.isPosting ? "حساب حركة" : "تجميعي"}</td><td className="num">{fmt(a.balance || 0)}</td>
+              <td className="row-actions">
+                {a.level < 4 && <button className="icon-btn" title="إضافة حساب فرعي" onClick={() => addChild(a)}>＋</button>}
+                <button className="icon-btn" title="تعديل أو نقل الحساب" onClick={() => edit(a)}><Icon.Edit /></button>
+                <button className="icon-btn" title={a.isArchived ? "إلغاء الأرشفة" : "أرشفة"} onClick={() => archive(a)}>▣</button>
+                <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(a)}><Icon.Trash /></button>
+              </td>
+            </tr>;
+          })}{rows.length === 0 && <tr><td colSpan={6} className="empty">لا توجد حسابات في هذه الشجرة.</td></tr>}</tbody>
+        </table>
+      </div>
     </div>
   );
 }
