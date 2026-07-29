@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createAccountSchema, updateAccountSchema, importAccountsSchema } from "./accounts.schemas";
-import { listAccounts, createAccount, updateAccount, deleteAccount, importAccounts } from "./accounts.controller";
+import { createAccountSchema, updateAccountSchema, importAccountsSchema, installStandardChartSchema } from "./accounts.schemas";
+import { listAccounts, createAccount, updateAccount, deleteAccount, importAccounts, installStandardChart } from "./accounts.controller";
 
 export const accountRoutes = Router();
 accountRoutes.use(authenticate);
@@ -13,6 +13,12 @@ accountRoutes.post(
   requireRole("admin", "finance_manager"),
   validateBody(importAccountsSchema),
   importAccounts,
+);
+accountRoutes.post(
+  "/install-standard",
+  requireRole("admin", "finance_manager"),
+  validateBody(installStandardChartSchema),
+  installStandardChart,
 );
 accountRoutes.post(
   "/",
