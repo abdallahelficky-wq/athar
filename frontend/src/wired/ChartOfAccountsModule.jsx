@@ -5,7 +5,7 @@ import { Icon } from "../legacy/shared";
 import AccountImportPanel from "./AccountImportPanel";
 
 const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
-const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isBankOrCash: false };
+const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false };
 
 export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const [scope, setScope] = useState(companyId || "group");
@@ -44,7 +44,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     const payload = {
       ...form,
       name: form.name.trim(), nameEn: form.nameEn.trim(), code: form.code.trim(), parentId: form.parentId || null,
-      companyId: scope === "group" ? null : scope, level, isPosting: level === 6,
+      companyId: scope === "group" ? null : scope, level,
       type: selectedParent?.type || form.type,
     };
     try {
@@ -52,7 +52,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
       reset(); reload();
     } catch (err) { setError(err.message); }
   };
-  const edit = (a) => { setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isBankOrCash: a.isBankOrCash }); };
+  const edit = (a) => { setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isPosting: a.isPosting, isBankOrCash: a.isBankOrCash }); };
   const addChild = (a) => { setEditingId(null); setForm({ ...emptyForm, type: a.type, parentId: a.id }); };
   const archive = async (a) => { await updateAccount(a.id, { isArchived: !a.isArchived }); reload(); };
   const remove = async (a) => {
@@ -85,9 +85,10 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
             </select>
           </label>
           {!selectedParent && <label>التصنيف<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
-          {level === 6 && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
+          {level >= 2 && <label className="checkbox-label"><input type="checkbox" checked={form.isPosting} onChange={(e) => setForm({ ...form, isPosting: e.target.checked, isBankOrCash: e.target.checked ? form.isBankOrCash : false })} />حساب ترحيل</label>}
+          {form.isPosting && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
         </div>
-        <div className="form-btn-group"><button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديل/النقل" : "إضافة الحساب"}</button>{editingId && <button className="btn-ghost" onClick={reset}>إلغاء</button>}<span className="note">المستوى {level} {level === 6 ? "— حساب حركة" : "— حساب تجميعي"}</span></div>
+        <div className="form-btn-group"><button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديل/النقل" : "إضافة الحساب"}</button>{editingId && <button className="btn-ghost" onClick={reset}>إلغاء</button>}<span className="note">المستوى {level} — {form.isPosting ? "حساب ترحيل" : "حساب تجميعي"} (الترحيل متاح من المستوى 2 إلى 6)</span></div>
       </div>
 
       <AccountImportPanel scope={scope} accounts={accounts} onImported={reload} />
@@ -102,7 +103,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
               <td style={{ paddingRight: `${12 + (a.level - 1) * 24}px` }}><button className="icon-btn" disabled={!hasChildren} onClick={() => toggle(a.id)}>{hasChildren ? (expanded.has(a.id) ? "−" : "+") : "•"}</button> {a.name}{a.nameEn && <small style={{ display: "block", direction: "ltr", color: "#6b7280" }}>{a.nameEn}</small>}</td>
               <td>{a.level}</td><td>{a.isPosting ? "حساب حركة" : "تجميعي"}</td><td className="num">{fmt(a.balance || 0)}</td>
               <td className="row-actions">
-                {a.level < 6 && <button className="icon-btn" title="إضافة حساب فرعي" onClick={() => addChild(a)}>＋</button>}
+                {!a.isPosting && a.level < 6 && <button className="icon-btn" title="إضافة حساب فرعي" onClick={() => addChild(a)}>＋</button>}
                 <button className="icon-btn" title="تعديل أو نقل الحساب" onClick={() => edit(a)}><Icon.Edit /></button>
                 <button className="icon-btn" title={a.isArchived ? "إلغاء الأرشفة" : "أرشفة"} onClick={() => archive(a)}>▣</button>
                 <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(a)}><Icon.Trash /></button>
