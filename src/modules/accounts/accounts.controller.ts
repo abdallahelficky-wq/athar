@@ -62,6 +62,7 @@ export const importAccounts: RequestHandler = async (req, res) => {
   const rows = req.body.rows as Array<{
     code: string;
     name: string;
+    nameEn: string;
     type: "asset" | "liability" | "equity" | "revenue" | "expense";
     level: number;
     isPosting: boolean;
@@ -116,6 +117,7 @@ export const importAccounts: RequestHandler = async (req, res) => {
           parentId: parent?.id || null,
           code: row.code,
           name: row.name.trim(),
+          nameEn: row.nameEn.trim(),
           type: row.type,
           level: row.level,
           isPosting: row.isPosting,
