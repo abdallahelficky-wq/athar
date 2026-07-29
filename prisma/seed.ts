@@ -46,7 +46,7 @@ async function main() {
       lines: {
         create: [
           { accountId: need("النقدية بالصندوق"), costCenterId: costCenter.id, debit: 184500, credit: 0 },
-          { accountId: need("المبيعات - وقود"), costCenterId: costCenter.id, debit: 0, credit: 184500 },
+          { accountId: need("إيرادات المبيعات"), costCenterId: costCenter.id, debit: 0, credit: 184500 },
         ],
       },
     },
@@ -62,8 +62,8 @@ async function main() {
       sourceModule: "manual",
       lines: {
         create: [
-          { accountId: need("مصروف إيجار"), costCenterId: costCenter.id, debit: 42000, credit: 0 },
-          { accountId: need("البنك الأهلي - حساب تشغيلي"), costCenterId: costCenter.id, debit: 0, credit: 42000 },
+          { accountId: need("إيجارات إدارية"), costCenterId: costCenter.id, debit: 42000, credit: 0 },
+          { accountId: need("الحسابات البنكية الجارية"), costCenterId: costCenter.id, debit: 0, credit: 42000 },
         ],
       },
     },
