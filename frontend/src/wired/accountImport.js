@@ -75,7 +75,8 @@ export function parseAccountWorkbook(arrayBuffer, existingAccounts = []) {
     const arabicName = arabicNameIndex >= 0 ? text(sourceRow[arabicNameIndex]) : "";
     const englishName = englishNameIndex >= 0 ? text(sourceRow[englishNameIndex]) : "";
     const preferredName = importNameIndex >= 0 ? text(sourceRow[importNameIndex]) : "";
-    const name = preferredName || arabicName || englishName;
+    const name = arabicName || preferredName;
+    const nameEn = englishName;
     const sourceType = typeIndex >= 0 ? sourceRow[typeIndex] : "";
     const accountType = mapType(sourceType, code);
     const flag = flagIndex >= 0 ? text(sourceRow[flagIndex]) : "";
@@ -85,7 +86,8 @@ export function parseAccountWorkbook(arrayBuffer, existingAccounts = []) {
     const errors = [];
 
     if (!Number.isInteger(level) || level < 1 || level > 6) errors.push("المستوى غير صحيح");
-    if (!name || name.length < 2) errors.push("اسم الحساب مفقود");
+    if (!name || name.length < 2) errors.push("اسم الحساب العربي مفقود");
+    if (!nameEn || nameEn.length < 2) errors.push("اسم الحساب الإنجليزي مفقود");
     if (!accountType) errors.push("التصنيف غير معروف");
     if (level === 6 && code.length !== 9) errors.push("كود المستوى السادس يجب أن يكون 9 خانات");
     if (level > 1 && !parentCode) errors.push("الحساب الأب مفقود");
@@ -99,7 +101,7 @@ export function parseAccountWorkbook(arrayBuffer, existingAccounts = []) {
 
     parsed.push({
       sourceRow: headerRowIndex + offset + 2,
-      code, name, arabicName, englishName, type: accountType, level,
+      code, name, nameEn, arabicName, englishName, type: accountType, level,
       flag, isPosting, parentCode: parentCode || null, isBankOrCash: false, errors,
     });
   });
