@@ -32,3 +32,8 @@ export const importAccountsSchema = z.object({
   companyId: z.string().nullable().optional(),
   rows: z.array(importAccountRowSchema).min(1, "ملف الاستيراد فارغ").max(2000, "الحد الأقصى 2000 حساب في العملية الواحدة"),
 });
+
+export const installStandardChartSchema = z.object({
+  companyId: z.string().nullable().optional(),
+  confirmation: z.literal("INSTALL_STANDARD_CHART"),
+});
