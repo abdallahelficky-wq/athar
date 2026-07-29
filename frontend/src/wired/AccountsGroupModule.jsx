@@ -21,7 +21,7 @@ export default function AccountsGroupModule({
     <div>
       <SubTabs tabs={ACCOUNTS_TABS} active={tab} onChange={setTab} />
       {tab === "journal" && <JournalModule companies={realCompanies} companyId={realCompanyId} />}
-      {tab === "chartOfAccounts" && <ChartOfAccountsModule />}
+      {tab === "chartOfAccounts" && <ChartOfAccountsModule companies={realCompanies} companyId={realCompanyId} />}
       {tab === "ledger" && <AccountLedgerModule companies={realCompanies} companyId={realCompanyId} />}
       {tab === "zakat" && <ZakatModule entries={legacyEntries} sales={legacySales} companyId={legacyCompanyId} />}
     </div>

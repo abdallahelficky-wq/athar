@@ -9,7 +9,7 @@ import {
   expiresInToDate,
 } from "../../lib/jwt";
 import { env } from "../../config/env";
-import { DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
+import { createDefaultChart } from "../../lib/defaultChartOfAccounts";
 import { sendInviteEmail } from "../../lib/mailer";
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
 import type { Tenant, User } from "@prisma/client";
@@ -66,9 +66,7 @@ export async function register(input: { tenantName: string; name: string; email:
       },
     });
 
-    await tx.account.createMany({
-      data: DEFAULT_CHART_OF_ACCOUNTS.map((a) => ({ tenantId: tenant.id, name: a.name, type: a.type, isBankOrCash: a.isBankOrCash ?? false })),
-    });
+    await createDefaultChart(tx, tenant.id, null);
 
     const user = await tx.user.create({
       data: {
