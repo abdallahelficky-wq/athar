@@ -10,12 +10,11 @@ type Tx = Prisma.TransactionClient | PrismaClient;
  * (مثال TP00001) — عبر زيادة ذرّية (UPDATE ... RETURNING) على عدّاد الشركة نفسها ضمن نفس
  * معاملة إنشاء القيد (tx)، فلا يُحجز الرقم فعلياً إلا لحظة الكتابة الفعلية في قاعدة البيانات؛
  * لو المعاملة فشلت أو أُلغيت العملية قبل الوصول لهذه النقطة، لا يتأثر العدّاد إطلاقاً ولا تظهر
- * فجوة (Gap) في التسلسل. تُرجِع null إن لم تُحدَّد بادئة ترقيم لهذه الشركة بعد (لا نفترض بادئة
- * تلقائياً) — القيد حينها يبقى بلا entryNumber ويُعرَض بمعرّفه العشوائي القديم كما كان.
+ * فجوة (Gap) في التسلسل. تبدأ بادئة كل شركة افتراضياً بالحرف J ويمكن تعديلها من بيانات الشركة.
  */
-export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: string): Promise<string | null> {
+export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: string): Promise<string> {
   const company = await tx.company.findFirst({ where: { id: companyId, tenantId }, select: { numberingPrefix: true } });
-  if (!company?.numberingPrefix) return null;
+  if (!company) throw notFound("الشركة غير موجودة");
 
   // نُرجِع القيمة *قبل* الزيادة (وهي بالضبط ما تعرضه previewNextEntryNumber أدناه من نفس العمود)،
   // بينما العمود المخزَّن يصبح +1 جاهزاً للاستدعاء التالي — عملية ذرّية واحدة عبر تعبير حسابي في
@@ -26,7 +25,7 @@ export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: st
     RETURNING "nextJournalEntrySeq" - 1 AS "nextJournalEntrySeq"
   `;
   const seq = rows[0]?.nextJournalEntrySeq;
-  if (seq == null) return null;
+  if (seq == null) throw notFound("الشركة غير موجودة");
   return `${company.numberingPrefix}${String(seq).padStart(5, "0")}`;
 }
 
@@ -37,7 +36,6 @@ export async function previewNextEntryNumber(tenantId: string, companyId: string
     select: { numberingPrefix: true, nextJournalEntrySeq: true },
   });
   if (!company) throw notFound("الشركة غير موجودة");
-  if (!company.numberingPrefix) return { prefix: null, preview: null };
   return { prefix: company.numberingPrefix, preview: `${company.numberingPrefix}${String(company.nextJournalEntrySeq).padStart(5, "0")}` };
 }
 

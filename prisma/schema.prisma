@@ -168,10 +168,8 @@ model Company {
   addressCity             String?
   addressPostalCode       String?
   addressAdditionalNo     String?
-  // بادئة ترقيم القيود التسلسلي لهذه الشركة تحديداً (حرفان إنجليزيان، مثال "TP") — تُدخَل يدوياً
-  // من بيانات الشركة، بلا قيمة افتراضية مُخمَّنة عمداً؛ ما دامت فارغة، لا يُفعَّل الترقيم التسلسلي
-  // لهذه الشركة ويستمر استخدام المعرّف العشوائي القديم لعرض القيود.
-  numberingPrefix         String?
+  // بادئة ترقيم القيود التسلسلي لهذه الشركة؛ تبدأ افتراضياً بالحرف J ويمكن تعديلها من بيانات الشركة.
+  numberingPrefix         String             @default("J")
   // العدّاد التالي في تسلسل هذه الشركة تحديداً (يبدأ من 1، مستقل تماماً عن باقي الشركات) — يُزاد
   // ذرّياً (UPDATE ... RETURNING ضمن نفس معاملة إنشاء القيد) فقط لحظة الحفظ الفعلي، لا عند مجرد
   // فتح نافذة الإضافة أو معاينة الرقم التالي، تجنباً لفجوات Gaps بسبب عمليات مُلغاة.
@@ -189,6 +187,7 @@ model Company {
   companyDocuments     CompanyDocument[]
   leaseContracts       LeaseContract[]
   journalEntries       JournalEntry[]
+  accounts             Account[]
   intercompanyAccounts Account[]         @relation("AccountIntercompanyCompany")
   customers            Customer[]
   quotations           Quotation[]
@@ -208,7 +207,6 @@ model Company {
   sellableItems        SellableItem[]
 
   @@unique([tenantId, name])
-  @@unique([tenantId, numberingPrefix])
   @@map("companies")
 }
 
@@ -248,7 +246,17 @@ model Account {
   id                    String      @id @default(cuid())
   tenantId              String
   tenant                Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId             String?
+  company               Company?    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parentId              String?
+  parent                Account?    @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children              Account[]   @relation("AccountHierarchy")
+  code                  String
+  level                 Int
+  isPosting             Boolean     @default(false)
+  isArchived            Boolean     @default(false)
   name                  String
+  nameEn                String?
   type                  AccountType
   isActive              Boolean     @default(true)
   // يُحدَّد يدوياً عند إنشاء/تعديل الحساب — يُستخدَم لتحديد أي حسابات "أصول" تمثّل
@@ -272,8 +280,9 @@ model Account {
   sellableItemDefaults SellableItem[]
   receiptsAsBank       Receipt[]             @relation("ReceiptBankAccount")
 
-  @@unique([tenantId, name])
+  @@unique([tenantId, companyId, code])
   @@unique([tenantId, intercompanyCompanyId])
+  @@index([tenantId, companyId, parentId])
   @@map("accounts")
 }
 
@@ -356,10 +365,8 @@ model JournalEntry {
   date              DateTime
   memo              String?
   status            JournalEntryStatus @default(posted)
-  // رقم القيد التسلسلي الجديد بصيغة [بادئة الشركة][5 خانات] (مثال TP00001) — يُملأ فقط للقيود
-  // المُنشأة بعد تفعيل الترقيم لهذه الشركة (بعد ضبط Company.numberingPrefix)؛ القيود الأقدم تبقى
-  // null وتُعرَض بمعرّفها العشوائي القديم كما هي، تجنباً لإعادة ترقيم قد تُعارض مراجع سابقة.
-  entryNumber       String?
+  // رقم القيد التسلسلي بصيغة [بادئة الشركة][5 خانات] (مثال J00001).
+  entryNumber       String
   sourceModule      SourceModule       @default(manual)
   sourceId          String?
   // مرجع منطقي حر (بلا علاقة FK صارمة) لقيد "المرآة" المقابل في شركة أخرى ضمن نفس المستأجر —
@@ -376,7 +383,7 @@ model JournalEntry {
 
   lines JournalEntryLine[]
 
-  @@unique([tenantId, entryNumber])
+  @@unique([companyId, entryNumber])
   @@index([tenantId, companyId, date])
   @@index([tenantId, sourceModule, sourceId])
   @@index([tenantId, mirrorEntryId])

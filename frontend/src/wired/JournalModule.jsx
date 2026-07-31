@@ -210,6 +210,7 @@ export default function JournalModule({ companies, companyId }) {
                             <td className="row-actions">
                               <button className="icon-btn" title="عرض القيد" onClick={() => setViewEntry(e)}><Icon.Eye /></button>
                               <button className="icon-btn" title="طباعة القيد" onClick={() => { setViewEntry(e); setAutoPrint(true); }}><Icon.Printer /></button>
+                              <button className="icon-btn" title="نسخ القيد إلى قيد جديد" onClick={() => setFormModal({ mode: "duplicate", entry: e })}><Icon.Copy /></button>
                               <button
                                 className="icon-btn" title={saved ? "تعديل" : "لا يمكن التعديل بعد الترحيل — استخدم عكس القيد لتصحيحه"}
                                 disabled={!saved}
@@ -298,6 +299,7 @@ export default function JournalModule({ companies, companyId }) {
           accounts={accounts}
           costCenters={costCenters}
           editingEntry={formModal.mode === "edit" ? formModal.entry : null}
+          duplicateEntry={formModal.mode === "duplicate" ? formModal.entry : null}
           onClose={() => setFormModal(null)}
           onSaved={onSaved}
         />
