@@ -62,14 +62,14 @@ export async function createLeaveSettlement(tenantId: string, userId: string, in
   const salaryPortion = monthAmount + input.bonuses - input.deductions;
   const ticketVisaPortion = input.ticketAmount + input.visaAmount;
 
-  const payableAccountId = await getAccountIdByName(tenantId, "ذمم الموظفين - مستحقات وإجازات");
+  const payableAccountId = await getAccountIdByName(tenantId, emp.companyId, "ذمم الموظفين - مستحقات وإجازات");
   const lines: { accountId: string; department: string; debit: number; credit: number; employeeId: string }[] = [];
   if (salaryPortion !== 0) {
-    const salaryAccountId = await getAccountIdByName(tenantId, "مصروف رواتب");
+    const salaryAccountId = await getAccountIdByName(tenantId, emp.companyId, "مصروف رواتب");
     lines.push({ accountId: salaryAccountId, department: "المالية والحسابات", debit: Math.max(salaryPortion, 0), credit: 0, employeeId: emp.id });
   }
   if (ticketVisaPortion > 0) {
-    const ticketAccountId = await getAccountIdByName(tenantId, "مصروف تذاكر وتأشيرات الموظفين");
+    const ticketAccountId = await getAccountIdByName(tenantId, emp.companyId, "مصروف تذاكر وتأشيرات الموظفين");
     lines.push({ accountId: ticketAccountId, department: "الموارد البشرية", debit: ticketVisaPortion, credit: 0, employeeId: emp.id });
   }
   lines.push({ accountId: payableAccountId, department: "المالية والحسابات", debit: 0, credit: net, employeeId: emp.id });
@@ -115,8 +115,8 @@ export async function disburseLeaveSettlement(tenantId: string, userId: string, 
   if (!settlement) throw notFound("تسوية الإجازة غير موجودة");
   if (settlement.status === "disbursed") throw badRequest("تم صرف هذه التسوية مسبقاً");
 
-  const payableAccountId = await getAccountIdByName(tenantId, "ذمم الموظفين - مستحقات وإجازات");
-  const creditAccountId = await getAccountIdByName(tenantId, method === "cash" ? "النقدية بالصندوق" : "البنك الأهلي - حساب تشغيلي");
+  const payableAccountId = await getAccountIdByName(tenantId, settlement.employee.companyId, "ذمم الموظفين - مستحقات وإجازات");
+  const creditAccountId = await getAccountIdByName(tenantId, settlement.employee.companyId, method === "cash" ? "النقدية بالصندوق" : "البنك الأهلي - حساب تشغيلي");
   const amount = Number(settlement.netAmount);
 
   return prisma.$transaction(async (tx) => {

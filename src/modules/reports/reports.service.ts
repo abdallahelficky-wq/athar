@@ -24,7 +24,10 @@ export interface AccountBalance {
  * مكان منفصل (مبدأ القسم 3).
  */
 export async function aggregateAccountBalances(tenantId: string, range: DateRange): Promise<Map<string, AccountBalance>> {
-  const accounts = await prisma.account.findMany({ where: { tenantId }, orderBy: { createdAt: "asc" } });
+  const accounts = await prisma.account.findMany({
+    where: { tenantId, companyId: range.companyId || { not: null } },
+    orderBy: { createdAt: "asc" },
+  });
   const map = new Map<string, AccountBalance>();
   accounts.forEach((a) => map.set(a.id, { account: a, debit: 0, credit: 0 }));
 
@@ -214,7 +217,9 @@ export async function getAccountLedger(
   dateFrom?: Date,
   dateTo?: Date,
 ) {
-  const account = await prisma.account.findFirst({ where: { id: accountId, tenantId } });
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, tenantId, companyId: companyId || undefined },
+  });
   if (!account) throw notFound("الحساب غير موجود");
 
   const normalSide: "debit" | "credit" = account.type === "asset" || account.type === "expense" ? "debit" : "credit";

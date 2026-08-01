@@ -146,11 +146,11 @@ export async function postPayrollRun(tenantId: string, userId: string, id: strin
 
   const netPayable = rows.reduce((s, r) => s + r.net, 0);
   const debitFields = new Set(PAYROLL_JOURNAL_MAP.filter(([, , side]) => side === "debit").map(([, name]) => name));
-  const payableAccountId = await getAccountIdByName(tenantId, "رواتب مستحقة للصرف");
+  const payableAccountId = await getAccountIdByName(tenantId, run.companyId, "رواتب مستحقة للصرف");
 
   const journalLines: { accountId: string; department: string; debit: number; credit: number }[] = [];
   for (const [accountName, amount] of byAccountName) {
-    const accountId = await getAccountIdByName(tenantId, accountName);
+    const accountId = await getAccountIdByName(tenantId, run.companyId, accountName);
     const isDebit = debitFields.has(accountName);
     journalLines.push({ accountId, department: "المالية والحسابات", debit: isDebit ? amount : 0, credit: isDebit ? 0 : amount });
   }

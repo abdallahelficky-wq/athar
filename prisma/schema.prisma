@@ -266,7 +266,7 @@ model Account {
   // يُملأ تلقائياً فقط عند إنشاء "حساب ربط بيني" يمثّل شركة شقيقة أخرى ضمن نفس المستأجر (ميزة
   // قيد المرآة بين الشركات) — يُحدِّد الحساب الذي يُسجَّل عليه أي مبلغ مستحق من/إلى تلك الشركة
   // تحديداً، بدل الاعتماد على مطابقة اسم الحساب نصياً (هش عند إعادة تسمية الشركة لاحقاً).
-  // حساب واحد فقط لكل شركة مستهدفة ضمن المستأجر (يُستخدَم من أي شركة أخرى تتعامل معها).
+  // حساب واحد لكل شركة مستهدفة داخل شجرة كل شركة مالكة للحساب.
   intercompanyCompanyId String?
   intercompanyCompany   Company?    @relation("AccountIntercompanyCompany", fields: [intercompanyCompanyId], references: [id], onDelete: SetNull)
   createdAt             DateTime    @default(now())
@@ -281,7 +281,7 @@ model Account {
   receiptsAsBank       Receipt[]             @relation("ReceiptBankAccount")
 
   @@unique([tenantId, companyId, code])
-  @@unique([tenantId, intercompanyCompanyId])
+  @@unique([tenantId, companyId, intercompanyCompanyId])
   @@index([tenantId, companyId, parentId])
   @@map("accounts")
 }

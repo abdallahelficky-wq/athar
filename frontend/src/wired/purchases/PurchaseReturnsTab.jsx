@@ -27,7 +27,7 @@ export default function PurchaseReturnsTab({ companyId }) {
   useEffect(() => {
     if (!companyId) return;
     listSuppliers(companyId).then((ss) => { setSuppliers(ss); if (ss[0]) setSupplierId((s) => s || ss[0].id); });
-    listAccounts().then(setAccounts);
+    listAccounts({ companyId }).then(setAccounts);
     listPurchaseInvoices(companyId).then(setInvoices);
   }, [companyId]);
 

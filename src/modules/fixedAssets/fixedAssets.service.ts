@@ -57,8 +57,8 @@ export async function createFixedAsset(
   const company = await prisma.company.findFirst({ where: { id: input.companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
 
-  const assetAccountId = await getAccountIdByName(tenantId, "الأصول الثابتة");
-  const creditAccountId = await getAccountIdByName(tenantId, PAYMENT_ACCOUNT_NAME[input.paymentMethod]);
+  const assetAccountId = await getAccountIdByName(tenantId, input.companyId, "الأصول الثابتة");
+  const creditAccountId = await getAccountIdByName(tenantId, input.companyId, PAYMENT_ACCOUNT_NAME[input.paymentMethod]);
 
   return prisma.$transaction(async (tx) => {
     const entry = await createJournalEntryTx(tx, {
@@ -142,19 +142,19 @@ export async function disposeFixedAsset(
   const nbv = Number(asset.cost) - accDep;
   const gainLoss = input.salePrice - nbv;
 
-  const accDepAccountId = await getAccountIdByName(tenantId, "مجمع الإهلاك");
-  const assetAccountId = await getAccountIdByName(tenantId, "الأصول الثابتة");
-  const receiveAccountId = await getAccountIdByName(tenantId, input.method === "cash" ? "النقدية بالصندوق" : "البنك الأهلي - حساب تشغيلي");
+  const accDepAccountId = await getAccountIdByName(tenantId, asset.companyId, "مجمع الإهلاك");
+  const assetAccountId = await getAccountIdByName(tenantId, asset.companyId, "الأصول الثابتة");
+  const receiveAccountId = await getAccountIdByName(tenantId, asset.companyId, input.method === "cash" ? "النقدية بالصندوق" : "البنك الأهلي - حساب تشغيلي");
 
   const lines: { accountId: string; department: string; debit: number; credit: number }[] = [
     { accountId: accDepAccountId, department: "المالية والحسابات", debit: accDep, credit: 0 },
   ];
   if (input.salePrice > 0) lines.push({ accountId: receiveAccountId, department: "المالية والحسابات", debit: input.salePrice, credit: 0 });
   if (gainLoss > 0) {
-    const gainAccountId = await getAccountIdByName(tenantId, "أرباح استبعاد أصول");
+    const gainAccountId = await getAccountIdByName(tenantId, asset.companyId, "أرباح استبعاد أصول");
     lines.push({ accountId: gainAccountId, department: "المالية والحسابات", debit: 0, credit: gainLoss });
   } else if (gainLoss < 0) {
-    const lossAccountId = await getAccountIdByName(tenantId, "خسائر استبعاد أصول");
+    const lossAccountId = await getAccountIdByName(tenantId, asset.companyId, "خسائر استبعاد أصول");
     lines.push({ accountId: lossAccountId, department: "المالية والحسابات", debit: -gainLoss, credit: 0 });
   }
   lines.push({ accountId: assetAccountId, department: "المالية والحسابات", debit: 0, credit: Number(asset.cost) });

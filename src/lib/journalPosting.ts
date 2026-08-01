@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient, SourceModule } from "@prisma/client";
 import { prisma } from "./prisma";
 import { verifyPassword } from "./password";
-import { forbidden, notFound } from "./httpError";
+import { badRequest, forbidden, notFound } from "./httpError";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -69,6 +69,21 @@ export interface CreateEntryInput {
  * الحرة الشكل (journalEntries.service.ts) حيث يُدخل المستخدم الأرقام يدوياً.
  */
 export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
+  const accountIds = [...new Set(input.lines.map((line) => line.accountId))];
+  const companyAccounts = await tx.account.count({
+    where: {
+      id: { in: accountIds },
+      tenantId: input.tenantId,
+      companyId: input.companyId,
+      isPosting: true,
+      isActive: true,
+      isArchived: false,
+    },
+  });
+  if (companyAccounts !== accountIds.length) {
+    throw badRequest("أحد حسابات القيد لا ينتمي إلى شجرة الشركة أو ليس حساب ترحيل نشطاً");
+  }
+
   const entryNumber = await reserveEntryNumber(tx, input.tenantId, input.companyId);
   return tx.journalEntry.create({
     data: {

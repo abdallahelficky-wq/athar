@@ -38,7 +38,9 @@ async function assertRefs(tenantId: string, companyId: string, customerId: strin
   if (!customer) throw badRequest("العميل غير موجود ضمن هذه الشركة");
 
   const accountIds = [...new Set(lines.map((l) => l.accountId))];
-  const accounts = await prisma.account.findMany({ where: { id: { in: accountIds }, tenantId, type: "revenue" } });
+  const accounts = await prisma.account.findMany({
+    where: { id: { in: accountIds }, tenantId, companyId, type: "revenue", isPosting: true, isActive: true, isArchived: false },
+  });
   if (accounts.length !== accountIds.length) throw badRequest("أحد حسابات الإيراد المختارة غير صالح");
   return customer;
 }
@@ -115,8 +117,8 @@ export async function convertQuotationToInvoice(tenantId: string, userId: string
     discountPct: number; priceIncludesVat: boolean; subtotal: number; vat: number; total: number;
   }>;
 
-  const vatOutputId = await getAccountIdByName(tenantId, "ضريبة القيمة المضافة - مخرجات");
-  const receivableId = await getAccountIdByName(tenantId, "ذمم مدينة");
+  const vatOutputId = await getAccountIdByName(tenantId, quotation.companyId, "ضريبة القيمة المضافة - مخرجات");
+  const receivableId = await getAccountIdByName(tenantId, quotation.companyId, "ذمم مدينة");
 
   const byAccount = new Map<string, number>();
   lines.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));

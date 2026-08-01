@@ -47,7 +47,11 @@ export default function JournalModule({ companies, companyId }) {
   const [linkInfo, setLinkInfo] = useState(null);
 
   useEffect(() => {
-    listAccounts().then(setAccounts).catch((err) => setError(err.message));
+    if (!companyId) { setAccounts([]); return; }
+    listAccounts({ companyId }).then(setAccounts).catch((err) => setError(err.message));
+  }, [companyId]);
+
+  useEffect(() => {
     listCostCenters().then(setCostCenters).catch((err) => setError(err.message));
   }, []);
 

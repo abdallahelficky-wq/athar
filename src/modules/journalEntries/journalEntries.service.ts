@@ -44,8 +44,10 @@ async function assertReferencesBelongToTenant(tenantId: string, input: JournalEn
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
 
   const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
-  const accounts = await prisma.account.findMany({ where: { id: { in: accountIds }, tenantId } });
-  if (accounts.length !== accountIds.length) throw badRequest("أحد الحسابات المستخدمة في القيد غير موجود");
+  const accounts = await prisma.account.findMany({
+    where: { id: { in: accountIds }, tenantId, companyId: input.companyId, isPosting: true, isArchived: false, isActive: true },
+  });
+  if (accounts.length !== accountIds.length) throw badRequest("أحد الحسابات المستخدمة لا ينتمي إلى شجرة الشركة أو ليس حساب ترحيل نشطاً");
 
   const costCenterIds = [...new Set(input.lines.map((l) => l.costCenterId).filter(Boolean))] as string[];
   if (costCenterIds.length) {
@@ -198,29 +200,50 @@ async function resolveLinkedEntryBy(tenantId: string, field: "reversalOfEntryId"
 }
 
 /**
- * تُنشئ (أو تُعيد) حساب "ذمم بين الشركات" الممثّل لشركة `forCompanyId` ضمن نفس المستأجر — يُستخدَم
- * هذا الحساب من أي شركة أخرى في المستأجر تتعامل مالياً مع forCompanyId. تُفضَّل المطابقة عبر
+ * تُنشئ (أو تُعيد) داخل شجرة `ownerCompanyId` حساب "ذمم بين الشركات" الممثّل لشركة
+ * `forCompanyId`. تُفضَّل المطابقة عبر
  * intercompanyCompanyId المُعرَّف صراحة (بنية FK، صامدة أمام إعادة تسمية الشركة لاحقاً)، وإن لم
  * يوجد تُنشأ تلقائياً حساباً جديداً باسم مُشتق — طبقاً للتفويض الصريح المسبق من المستخدم بالإنشاء
  * التلقائي عند عدم وجود هذه الحسابات في شجرة الحسابات.
  */
-export async function ensureIntercompanyAccount(tenantId: string, forCompanyId: string) {
-  const company = await prisma.company.findFirst({ where: { id: forCompanyId, tenantId } });
-  if (!company) throw badRequest("الشركة الشقيقة غير موجودة ضمن مستأجرك");
+export async function ensureIntercompanyAccount(tenantId: string, ownerCompanyId: string, forCompanyId: string) {
+  if (ownerCompanyId === forCompanyId) throw badRequest("لا يمكن إنشاء حساب ربط للشركة مع نفسها");
+  const [ownerCompany, company] = await Promise.all([
+    prisma.company.findFirst({ where: { id: ownerCompanyId, tenantId } }),
+    prisma.company.findFirst({ where: { id: forCompanyId, tenantId } }),
+  ]);
+  if (!ownerCompany || !company) throw badRequest("إحدى شركتي الربط غير موجودة ضمن مستأجرك");
 
-  const existingByTag = await prisma.account.findFirst({ where: { tenantId, intercompanyCompanyId: forCompanyId } });
+  const existingByTag = await prisma.account.findFirst({
+    where: { tenantId, companyId: ownerCompanyId, intercompanyCompanyId: forCompanyId },
+  });
   if (existingByTag) return existingByTag;
 
   const name = `ذمم بين الشركات - ${company.shortName || company.name}`;
-  const existingByName = await prisma.account.findFirst({ where: { tenantId, name } });
+  const existingByName = await prisma.account.findFirst({ where: { tenantId, companyId: ownerCompanyId, name } });
   if (existingByName) {
     return prisma.account.update({ where: { id: existingByName.id }, data: { intercompanyCompanyId: forCompanyId } });
   }
 
+  const parent = await prisma.account.findFirst({
+    where: { tenantId, companyId: ownerCompanyId, code: "113000000", isPosting: false, isArchived: false },
+  });
+  if (!parent) throw badRequest(`حساب التجميع "الذمم المدينة الأخرى" غير موجود في شجرة ${ownerCompany.name}`);
+
+  const siblings = await prisma.account.findMany({
+    where: { tenantId, companyId: ownerCompanyId, code: { startsWith: "1139" } },
+    select: { code: true },
+  });
+  const usedCodes = new Set(siblings.map((account) => account.code));
+  let sequence = 1;
+  while (usedCodes.has(`1139${String(sequence).padStart(5, "0")}`)) sequence += 1;
+
   return prisma.account.create({
     data: {
-      tenantId, companyId: null, name, type: "asset", intercompanyCompanyId: forCompanyId,
-      code: `1199${String(Date.now()).slice(-4)}`, level: 4, isPosting: true,
+      tenantId, companyId: ownerCompanyId, parentId: parent.id, name,
+      nameEn: `Intercompany Receivable - ${company.shortName || company.name}`,
+      type: "asset", intercompanyCompanyId: forCompanyId,
+      code: `1139${String(sequence).padStart(5, "0")}`, level: 4, isPosting: true,
     },
   });
 }
@@ -241,8 +264,8 @@ export async function getMirrorSuggestion(tenantId: string, entryId: string, tar
   const targetCompany = await prisma.company.findFirst({ where: { id: targetCompanyId, tenantId } });
   if (!targetCompany) throw badRequest("الشركة المستهدفة غير موجودة ضمن مستأجرك");
 
-  const sourceSideAccountForTarget = await ensureIntercompanyAccount(tenantId, entry.companyId);
-  await ensureIntercompanyAccount(tenantId, targetCompanyId);
+  const sourceSideAccountForTarget = await ensureIntercompanyAccount(tenantId, targetCompanyId, entry.companyId);
+  await ensureIntercompanyAccount(tenantId, entry.companyId, targetCompanyId);
 
   const totalDebit = entry.lines.reduce((s, l) => s + Number(l.debit), 0);
   const linkedLine = entry.lines.find((l) => l.account.intercompanyCompanyId === targetCompanyId);
@@ -495,7 +518,9 @@ export async function importJournalEntries(tenantId: string, userId: string, com
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
 
-  const accounts = await prisma.account.findMany({ where: { tenantId } });
+  const accounts = await prisma.account.findMany({
+    where: { tenantId, companyId, isPosting: true, isArchived: false, isActive: true },
+  });
   const accountByName = new Map(accounts.map((a) => [a.name, a]));
 
   let imported = 0;
@@ -561,7 +586,9 @@ export async function createJournalEntryFromDocument(
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
 
-  const accounts = await prisma.account.findMany({ where: { tenantId, isActive: true } });
+  const accounts = await prisma.account.findMany({
+    where: { tenantId, companyId, isPosting: true, isArchived: false, isActive: true },
+  });
   const extraction = await extractJournalEntryFromDocument(
     file.buffer,
     file.mimeType,
