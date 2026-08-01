@@ -27,6 +27,8 @@ describe("standard default chart of accounts", () => {
 
     expect(posting.some((account) => account.level === 3)).toBe(true);
     expect(posting.some((account) => account.level === 4)).toBe(true);
+    expect(DEFAULT_CHART_OF_ACCOUNTS.some((account) => account.level === 5)).toBe(true);
+    expect(posting.some((account) => account.level === 6)).toBe(true);
     for (const account of posting) {
       expect(account.level).toBeGreaterThanOrEqual(2);
       expect(account.level).toBeLessThanOrEqual(6);
