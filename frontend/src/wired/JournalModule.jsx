@@ -49,6 +49,9 @@ export default function JournalModule({ companies, companyId }) {
   useEffect(() => {
     if (!companyId) { setAccounts([]); return; }
     listAccounts({ companyId }).then(setAccounts).catch((err) => setError(err.message));
+  }, [companyId]);
+
+  useEffect(() => {
     listCostCenters().then(setCostCenters).catch((err) => setError(err.message));
   }, [companyId]);
 

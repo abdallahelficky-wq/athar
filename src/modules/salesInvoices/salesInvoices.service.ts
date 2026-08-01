@@ -47,7 +47,9 @@ async function assertRefs(tenantId: string, companyId: string, customerId: strin
   if (!customer) throw badRequest("العميل غير موجود ضمن هذه الشركة");
 
   const accountIds = [...new Set(lines.map((l) => l.accountId))];
-  const accounts = await prisma.account.findMany({ where: { id: { in: accountIds }, tenantId, type: "revenue" } });
+  const accounts = await prisma.account.findMany({
+    where: { id: { in: accountIds }, tenantId, companyId, type: "revenue", isPosting: true, isActive: true, isArchived: false },
+  });
   if (accounts.length !== accountIds.length) throw badRequest("أحد حسابات الإيراد المختارة غير صالح");
   return { company, customer };
 }

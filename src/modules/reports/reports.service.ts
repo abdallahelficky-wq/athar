@@ -24,11 +24,8 @@ export interface AccountBalance {
  * مكان منفصل (مبدأ القسم 3).
  */
 export async function aggregateAccountBalances(tenantId: string, range: DateRange): Promise<Map<string, AccountBalance>> {
-  // عند تحديد شركة، تُقتصَر قائمة الحسابات على شجرة هذه الشركة + حسابات المجموعة المشتركة —
-  // بدون هذا الفلتر تظهر في التقرير حسابات صفرية تخص شركات أخرى بلا داعٍ. عند عدم تحديد شركة
-  // (تقرير مجمّع على مستوى المستأجر بالكامل)، تبقى كل الحسابات كما هي عمداً.
   const accounts = await prisma.account.findMany({
-    where: range.companyId ? { tenantId, OR: [{ companyId: range.companyId }, { companyId: null }] } : { tenantId },
+    where: { tenantId, companyId: range.companyId || { not: null } },
     orderBy: { createdAt: "asc" },
   });
   const map = new Map<string, AccountBalance>();
@@ -220,7 +217,9 @@ export async function getAccountLedger(
   dateFrom?: Date,
   dateTo?: Date,
 ) {
-  const account = await prisma.account.findFirst({ where: { id: accountId, tenantId } });
+  const account = await prisma.account.findFirst({
+    where: { id: accountId, tenantId, companyId: companyId || undefined },
+  });
   if (!account) throw notFound("الحساب غير موجود");
 
   const normalSide: "debit" | "credit" = account.type === "asset" || account.type === "expense" ? "debit" : "credit";

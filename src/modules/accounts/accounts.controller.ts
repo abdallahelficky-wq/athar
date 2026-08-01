@@ -28,16 +28,10 @@ async function validateHierarchy(tenantId: string, input: any, currentId?: strin
 export const listAccounts: RequestHandler = async (req, res) => {
   const tree = req.query.tree === "true";
   const companyId = scopeCompanyId(req.query.companyId);
-
-  if (!tree && !companyId) {
-    throw badRequest("companyId مطلوب لعرض حسابات الترحيل — حدد الشركة النشطة أولاً");
-  }
-
-  // في وضع القائمة (غير الشجرة)، الحسابات المخصصة لهذه الشركة فقط + حسابات المجموعة المشتركة
-  // (companyId = null) التي تُستخدم كحسابات احتياطية/قديمة — لا تظهر أبداً حسابات شركة أخرى.
+  if (!tree && !companyId) throw badRequest("حدد الشركة لعرض حسابات الترحيل الخاصة بها");
   const where = tree
     ? { tenantId: req.auth!.tenantId, companyId }
-    : { tenantId: req.auth!.tenantId, isPosting: true, isArchived: false, OR: [{ companyId }, { companyId: null }] };
+    : { tenantId: req.auth!.tenantId, companyId, isPosting: true, isArchived: false, isActive: true };
   const accounts = await prisma.account.findMany({ where, orderBy: [{ code: "asc" }, { name: "asc" }] });
   if (!tree) return res.json(accounts);
 

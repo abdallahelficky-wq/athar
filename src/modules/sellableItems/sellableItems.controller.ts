@@ -6,8 +6,10 @@ async function assertRefs(tenantId: string, companyId: string, revenueAccountId?
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
   if (revenueAccountId) {
-    const account = await prisma.account.findFirst({ where: { id: revenueAccountId, tenantId, type: "revenue" } });
-    if (!account) throw badRequest("الحساب المرتبط يجب أن يكون حساب إيراد صالحاً من شجرة حساباتك");
+    const account = await prisma.account.findFirst({
+      where: { id: revenueAccountId, tenantId, companyId, type: "revenue", isPosting: true, isActive: true, isArchived: false },
+    });
+    if (!account) throw badRequest("الحساب المرتبط يجب أن يكون حساب إيراد صالحاً من شجرة هذه الشركة");
   }
 }
 

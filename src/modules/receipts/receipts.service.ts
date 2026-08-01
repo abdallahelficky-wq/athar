@@ -29,8 +29,10 @@ const CREDIT_ACCOUNT_NAME = { cash: "النقدية بالصندوق", bank: "ا
 async function resolveCreditAccountId(tenantId: string, companyId: string, method: "cash" | "bank", bankAccountId?: string | null) {
   if (method === "cash") return getAccountIdByName(tenantId, companyId, CREDIT_ACCOUNT_NAME.cash);
   if (bankAccountId) {
-    const account = await prisma.account.findFirst({ where: { id: bankAccountId, tenantId, isBankOrCash: true } });
-    if (!account) throw badRequest("الحساب البنكي المحدد غير موجود ضمن مستأجرك أو غير مُصنَّف كحساب بنكي/نقدي في شجرة الحسابات");
+    const account = await prisma.account.findFirst({
+      where: { id: bankAccountId, tenantId, companyId, isBankOrCash: true, isPosting: true, isActive: true, isArchived: false },
+    });
+    if (!account) throw badRequest("الحساب البنكي المحدد غير موجود ضمن شجرة حسابات هذه الشركة أو غير مُصنَّف كحساب بنكي/نقدي");
     return account.id;
   }
   return getAccountIdByName(tenantId, companyId, CREDIT_ACCOUNT_NAME.bank);
