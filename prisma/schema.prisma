@@ -80,6 +80,7 @@ model Tenant {
 }
 
 enum UserRole {
+  super_admin // مدير عام — الحساب الرئيسي المالك فقط، غير قابل للمنح عبر الدعوة العادية
   admin // مدير النظام
   finance_manager // مدير مالي
   accountant // محاسب

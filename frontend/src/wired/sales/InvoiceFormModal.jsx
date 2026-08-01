@@ -47,7 +47,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   useEffect(() => {
     if (!companyId) return;
     listCustomers(companyId).then(setCustomers);
-    listAccounts().then((accs) => setAccounts(accs.filter((a) => a.type === "revenue")));
+    listAccounts({ companyId }).then((accs) => setAccounts(accs.filter((a) => a.type === "revenue")));
     listSellableItems(companyId).then(setSellableItems);
   }, [companyId]);
 

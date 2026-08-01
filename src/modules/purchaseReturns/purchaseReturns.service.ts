@@ -25,9 +25,9 @@ interface ReturnInput {
 
 const returnInclude = { lines: { include: { account: true } }, supplier: true } as const;
 
-async function buildJournalLines(supplierId: string, computed: Array<{ accountId: string; subtotal: number }>, vatTotal: number, grandTotal: number, tenantId: string) {
-  const vatInputId = await getAccountIdByName(tenantId, "ضريبة القيمة المضافة - مدخلات");
-  const payableId = await getAccountIdByName(tenantId, "ذمم دائنة - موردين");
+async function buildJournalLines(supplierId: string, computed: Array<{ accountId: string; subtotal: number }>, vatTotal: number, grandTotal: number, tenantId: string, companyId: string) {
+  const vatInputId = await getAccountIdByName(tenantId, companyId, "ضريبة القيمة المضافة - مدخلات");
+  const payableId = await getAccountIdByName(tenantId, companyId, "ذمم دائنة - موردين");
   const byAccount = new Map<string, number>();
   computed.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));
 
@@ -64,7 +64,7 @@ export async function createPurchaseReturn(tenantId: string, userId: string, inp
   const grandTotal = subtotal + vatTotal;
   if (grandTotal <= 0) throw badRequest("إجمالي المردود يجب أن يكون أكبر من صفر");
 
-  const journalLines = await buildJournalLines(input.supplierId, computed, vatTotal, grandTotal, tenantId);
+  const journalLines = await buildJournalLines(input.supplierId, computed, vatTotal, grandTotal, tenantId, input.companyId);
   const count = await prisma.purchaseReturn.count({ where: { tenantId } });
   const returnNumber = formatDocNumber("PRET", count);
 
@@ -116,7 +116,7 @@ export async function postPurchaseReturn(tenantId: string, userId: string, id: s
   if (purchaseReturn.status === "posted") throw badRequest("المردود مرحّل بالفعل");
 
   const computed = purchaseReturn.lines.map((l) => ({ accountId: l.accountId, subtotal: Number(l.subtotal) }));
-  const journalLines = await buildJournalLines(purchaseReturn.supplierId, computed, Number(purchaseReturn.vatTotal), Number(purchaseReturn.grandTotal), tenantId);
+  const journalLines = await buildJournalLines(purchaseReturn.supplierId, computed, Number(purchaseReturn.vatTotal), Number(purchaseReturn.grandTotal), tenantId, purchaseReturn.companyId);
 
   return prisma.$transaction(async (tx) => {
     const entry = await createJournalEntryTx(tx, {

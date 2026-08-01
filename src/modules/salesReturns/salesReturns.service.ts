@@ -56,8 +56,8 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
   const grandTotal = subtotal + vatTotal;
   if (grandTotal <= 0) throw badRequest("إجمالي المردود يجب أن يكون أكبر من صفر");
 
-  const vatOutputId = await getAccountIdByName(tenantId, "ضريبة القيمة المضافة - مخرجات");
-  const creditAccountId = await getAccountIdByName(tenantId, REFUND_ACCOUNT_NAME[input.refundMethod]);
+  const vatOutputId = await getAccountIdByName(tenantId, input.companyId, "ضريبة القيمة المضافة - مخرجات");
+  const creditAccountId = await getAccountIdByName(tenantId, input.companyId, REFUND_ACCOUNT_NAME[input.refundMethod]);
 
   const byAccount = new Map<string, number>();
   computed.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));
@@ -124,8 +124,8 @@ export async function postSalesReturn(tenantId: string, userId: string, id: stri
   if (!salesReturn) throw notFound("المردود غير موجود");
   if (salesReturn.status === "posted") throw badRequest("المردود مرحّل بالفعل");
 
-  const vatOutputId = await getAccountIdByName(tenantId, "ضريبة القيمة المضافة - مخرجات");
-  const creditAccountId = await getAccountIdByName(tenantId, REFUND_ACCOUNT_NAME[salesReturn.refundMethod || "account"]);
+  const vatOutputId = await getAccountIdByName(tenantId, salesReturn.companyId, "ضريبة القيمة المضافة - مخرجات");
+  const creditAccountId = await getAccountIdByName(tenantId, salesReturn.companyId, REFUND_ACCOUNT_NAME[salesReturn.refundMethod || "account"]);
   const byAccount = new Map<string, number>();
   salesReturn.lines.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + Number(l.subtotal)));
 

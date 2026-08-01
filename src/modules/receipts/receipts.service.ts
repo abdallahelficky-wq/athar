@@ -26,14 +26,14 @@ const CREDIT_ACCOUNT_NAME = { cash: "النقدية بالصندوق", bank: "ا
  * الحساب البنكي الذي اختاره المستخدم صراحةً (يجب أن يكون مُصنَّفاً isBankOrCash ضمن مستأجره)
  * — أو، للتوافق مع السندات المُنشأة قبل إتاحة هذا الاختيار، الحساب البنكي الافتراضي القديم.
  */
-async function resolveCreditAccountId(tenantId: string, method: "cash" | "bank", bankAccountId?: string | null) {
-  if (method === "cash") return getAccountIdByName(tenantId, CREDIT_ACCOUNT_NAME.cash);
+async function resolveCreditAccountId(tenantId: string, companyId: string, method: "cash" | "bank", bankAccountId?: string | null) {
+  if (method === "cash") return getAccountIdByName(tenantId, companyId, CREDIT_ACCOUNT_NAME.cash);
   if (bankAccountId) {
     const account = await prisma.account.findFirst({ where: { id: bankAccountId, tenantId, isBankOrCash: true } });
     if (!account) throw badRequest("الحساب البنكي المحدد غير موجود ضمن مستأجرك أو غير مُصنَّف كحساب بنكي/نقدي في شجرة الحسابات");
     return account.id;
   }
-  return getAccountIdByName(tenantId, CREDIT_ACCOUNT_NAME.bank);
+  return getAccountIdByName(tenantId, companyId, CREDIT_ACCOUNT_NAME.bank);
 }
 
 export async function listReceipts(tenantId: string, filters: { companyId?: string; customerId?: string }) {
@@ -79,8 +79,8 @@ export async function createReceipt(tenantId: string, userId: string, input: Rec
   const totalAllocated = input.allocations.reduce((s, a) => s + a.amount, 0);
   if (totalAllocated <= 0) throw badRequest("إجمالي المبلغ المخصص يجب أن يكون أكبر من صفر");
 
-  const creditAccountId = await resolveCreditAccountId(tenantId, input.method, input.bankAccountId);
-  const receivableId = await getAccountIdByName(tenantId, "ذمم مدينة");
+  const creditAccountId = await resolveCreditAccountId(tenantId, input.companyId, input.method, input.bankAccountId);
+  const receivableId = await getAccountIdByName(tenantId, input.companyId, "ذمم مدينة");
 
   const journalLines = [
     { accountId: creditAccountId, department: "المالية والحسابات", debit: totalAllocated, credit: 0, customerId: input.customerId },
@@ -135,8 +135,8 @@ export async function postReceipt(tenantId: string, userId: string, id: string) 
   if (!receipt) throw notFound("سند القبض غير موجود");
   if (receipt.status === "posted") throw badRequest("السند مرحّل بالفعل");
 
-  const creditAccountId = await resolveCreditAccountId(tenantId, receipt.method, receipt.bankAccountId);
-  const receivableId = await getAccountIdByName(tenantId, "ذمم مدينة");
+  const creditAccountId = await resolveCreditAccountId(tenantId, receipt.companyId, receipt.method, receipt.bankAccountId);
+  const receivableId = await getAccountIdByName(tenantId, receipt.companyId, "ذمم مدينة");
   const total = Number(receipt.totalAmount);
 
   const journalLines = [
@@ -187,8 +187,8 @@ async function repostReceiptEntryTx(
 ) {
   if (receipt.status !== "posted") return null;
   await deleteJournalEntryTx(tx, receipt.journalEntryId);
-  const creditAccountId = await resolveCreditAccountId(receipt.tenantId, receipt.method, receipt.bankAccountId);
-  const receivableId = await getAccountIdByName(receipt.tenantId, "ذمم مدينة");
+  const creditAccountId = await resolveCreditAccountId(receipt.tenantId, receipt.companyId, receipt.method, receipt.bankAccountId);
+  const receivableId = await getAccountIdByName(receipt.tenantId, receipt.companyId, "ذمم مدينة");
   const entry = await createJournalEntryTx(tx, {
     tenantId: receipt.tenantId,
     companyId: receipt.companyId,

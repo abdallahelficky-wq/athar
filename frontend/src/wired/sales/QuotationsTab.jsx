@@ -20,7 +20,7 @@ export default function QuotationsTab({ companyId }) {
   useEffect(() => {
     if (!companyId) return;
     listCustomers(companyId).then((cs) => { setCustomers(cs); if (cs[0]) setCustomerId((c) => c || cs[0].id); });
-    listAccounts().then((accs) => setAccounts(accs.filter((a) => a.type === "revenue")));
+    listAccounts({ companyId }).then((accs) => setAccounts(accs.filter((a) => a.type === "revenue")));
   }, [companyId]);
 
   const reload = () => {

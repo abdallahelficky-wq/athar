@@ -45,8 +45,8 @@ export async function postDepreciationRun(tenantId: string, userId: string, comp
   const total = rows.reduce((s, r) => s + r.monthly, 0);
   if (total <= 0) throw badRequest("لا توجد أصول نشطة لحساب إهلاكها");
 
-  const expenseAccountId = await getAccountIdByName(tenantId, "مصروف إهلاك الأصول الثابتة");
-  const accDepAccountId = await getAccountIdByName(tenantId, "مجمع الإهلاك");
+  const expenseAccountId = await getAccountIdByName(tenantId, companyId, "مصروف إهلاك الأصول الثابتة");
+  const accDepAccountId = await getAccountIdByName(tenantId, companyId, "مجمع الإهلاك");
 
   // اليوم الثامن والعشرون من الشهر، مطابقةً لتاريخ الترحيل المستخدَم في الواجهة المرجعية
   const [y, m] = month.split("-").map(Number);

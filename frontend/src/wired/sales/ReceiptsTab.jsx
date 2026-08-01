@@ -25,7 +25,7 @@ export default function ReceiptsTab({ companyId }) {
   useEffect(() => {
     if (!companyId) return;
     listCustomers(companyId).then((cs) => { setCustomers(cs); if (cs[0]) setCustomerId((c) => c || cs[0].id); });
-    listAccounts().then((accs) => {
+    listAccounts({ companyId }).then((accs) => {
       const banks = accs.filter((a) => a.isBankOrCash && a.name !== "النقدية بالصندوق");
       setBankAccounts(banks);
       setBankAccountId((id) => id || banks[0]?.id || "");

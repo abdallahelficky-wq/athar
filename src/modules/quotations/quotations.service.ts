@@ -115,8 +115,8 @@ export async function convertQuotationToInvoice(tenantId: string, userId: string
     discountPct: number; priceIncludesVat: boolean; subtotal: number; vat: number; total: number;
   }>;
 
-  const vatOutputId = await getAccountIdByName(tenantId, "ضريبة القيمة المضافة - مخرجات");
-  const receivableId = await getAccountIdByName(tenantId, "ذمم مدينة");
+  const vatOutputId = await getAccountIdByName(tenantId, quotation.companyId, "ضريبة القيمة المضافة - مخرجات");
+  const receivableId = await getAccountIdByName(tenantId, quotation.companyId, "ذمم مدينة");
 
   const byAccount = new Map<string, number>();
   lines.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));

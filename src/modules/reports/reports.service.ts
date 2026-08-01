@@ -24,7 +24,13 @@ export interface AccountBalance {
  * مكان منفصل (مبدأ القسم 3).
  */
 export async function aggregateAccountBalances(tenantId: string, range: DateRange): Promise<Map<string, AccountBalance>> {
-  const accounts = await prisma.account.findMany({ where: { tenantId }, orderBy: { createdAt: "asc" } });
+  // عند تحديد شركة، تُقتصَر قائمة الحسابات على شجرة هذه الشركة + حسابات المجموعة المشتركة —
+  // بدون هذا الفلتر تظهر في التقرير حسابات صفرية تخص شركات أخرى بلا داعٍ. عند عدم تحديد شركة
+  // (تقرير مجمّع على مستوى المستأجر بالكامل)، تبقى كل الحسابات كما هي عمداً.
+  const accounts = await prisma.account.findMany({
+    where: range.companyId ? { tenantId, OR: [{ companyId: range.companyId }, { companyId: null }] } : { tenantId },
+    orderBy: { createdAt: "asc" },
+  });
   const map = new Map<string, AccountBalance>();
   accounts.forEach((a) => map.set(a.id, { account: a, debit: 0, credit: 0 }));
 

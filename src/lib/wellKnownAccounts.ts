@@ -33,11 +33,41 @@ const STANDARD_ACCOUNT_ALIASES: Record<string, string> = {
 };
 
 /** يربط أسماء الترحيل القديمة بالحسابات القياسية الجديدة دون إبقاء حسابات قطاعية في القالب. */
-export async function getAccountIdByName(tenantId: string, name: string): Promise<string> {
+async function findPostingAccount(tenantId: string, companyId: string | null, candidateNames: string[]) {
+  return prisma.account.findFirst({
+    where: { tenantId, companyId, name: { in: candidateNames }, isPosting: true, isArchived: false },
+  });
+}
+
+/**
+ * يبحث أولاً في شجرة حسابات الشركة نفسها (companyId إلزامي)، ثم يسقط احتياطياً على شجرة
+ * المجموعة المشتركة (companyId = null) — وهي الشجرة التي هاجرت إليها الحسابات القديمة قبل
+ * ترقية شجرة الحسابات الاحترافية. هذا يمنع التقاط حساب بنفس الاسم من شركة أخرى بالخطأ.
+ */
+export async function getAccountIdByName(tenantId: string, companyId: string, name: string): Promise<string> {
   const standardName = STANDARD_ACCOUNT_ALIASES[name] || name;
-  const account = await prisma.account.findFirst({ where: { tenantId, name: standardName, isPosting: true, isArchived: false } });
-  if (!account) {
-    throw badRequest(`الحساب المطلوب لترحيل هذه المعاملة غير موجود في شجرة حساباتك: "${standardName}"`);
-  }
-  return account.id;
+  const candidates = standardName === name ? [name] : [standardName, name];
+
+  const companyAccount = await findPostingAccount(tenantId, companyId, candidates);
+  if (companyAccount) return companyAccount.id;
+
+  const groupAccount = await findPostingAccount(tenantId, null, candidates);
+  if (groupAccount) return groupAccount.id;
+
+  throw badRequest(`الحساب المطلوب لترحيل هذه المعاملة غير موجود في شجرة حسابات هذه الشركة: "${standardName}"`);
+}
+
+/**
+ * لحسابات التسوية المشتركة بين شركات المجموعة فقط (مثل "حساب جاري - شركات المجموعة") التي
+ * يجب أن تبقى نفس الحساب الواحد في قيدي الطرفين (المرسل والمستقبل) — بخلاف كل الحالات الأخرى،
+ * لا تُستخدم شجرة أي شركة بعينها هنا حتى لو كان لديها حساب بنفس الاسم في قالبها القياسي الخاص.
+ */
+export async function getGroupAccountIdByName(tenantId: string, name: string): Promise<string> {
+  const standardName = STANDARD_ACCOUNT_ALIASES[name] || name;
+  const candidates = standardName === name ? [name] : [standardName, name];
+
+  const groupAccount = await findPostingAccount(tenantId, null, candidates);
+  if (groupAccount) return groupAccount.id;
+
+  throw badRequest(`حساب المجموعة المطلوب لترحيل هذه المعاملة غير موجود في شجرة حسابات المجموعة: "${standardName}"`);
 }

@@ -212,7 +212,7 @@ export async function ensureIntercompanyAccount(tenantId: string, forCompanyId: 
   if (existingByTag) return existingByTag;
 
   const name = `ذمم بين الشركات - ${company.shortName || company.name}`;
-  const existingByName = await prisma.account.findFirst({ where: { tenantId, name } });
+  const existingByName = await prisma.account.findFirst({ where: { tenantId, companyId: null, name } });
   if (existingByName) {
     return prisma.account.update({ where: { id: existingByName.id }, data: { intercompanyCompanyId: forCompanyId } });
   }
@@ -495,8 +495,12 @@ export async function importJournalEntries(tenantId: string, userId: string, com
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
 
-  const accounts = await prisma.account.findMany({ where: { tenantId } });
-  const accountByName = new Map(accounts.map((a) => [a.name, a]));
+  // حسابات المجموعة المشتركة أولاً ثم حسابات هذه الشركة تحديداً — بحيث يفوز حساب الشركة نفسها
+  // عند تطابق الاسم مع حساب مشترك، بنفس منطق الأولوية في getAccountIdByName، ولا يُستورَد أي
+  // سطر بحساب من شركة أخرى في نفس المستأجر.
+  const groupAccounts = await prisma.account.findMany({ where: { tenantId, companyId: null } });
+  const companyAccounts = await prisma.account.findMany({ where: { tenantId, companyId } });
+  const accountByName = new Map([...groupAccounts, ...companyAccounts].map((a) => [a.name, a]));
 
   let imported = 0;
   let skipped = 0;
@@ -561,7 +565,11 @@ export async function createJournalEntryFromDocument(
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
 
-  const accounts = await prisma.account.findMany({ where: { tenantId, isActive: true } });
+  // شجرة حسابات هذه الشركة تحديداً + حسابات المجموعة المشتركة فقط — لا تُقترَح أبداً حسابات
+  // ترحيل تخص شركة أخرى ضمن نفس المستأجر.
+  const accounts = await prisma.account.findMany({
+    where: { tenantId, isActive: true, OR: [{ companyId }, { companyId: null }] },
+  });
   const extraction = await extractJournalEntryFromDocument(
     file.buffer,
     file.mimeType,

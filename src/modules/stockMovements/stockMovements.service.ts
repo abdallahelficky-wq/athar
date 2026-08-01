@@ -1,6 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
-import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { getAccountIdByName, getGroupAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import crypto from "node:crypto";
 
@@ -47,8 +47,8 @@ export async function createInOutMovement(
 
   const [stockId, otherId] =
     input.type === "in"
-      ? await Promise.all([getAccountIdByName(tenantId, "المخزون"), getAccountIdByName(tenantId, "تسويات المخزون")])
-      : await Promise.all([getAccountIdByName(tenantId, "مصروف تالف ونقص المخزون"), getAccountIdByName(tenantId, "المخزون")]);
+      ? await Promise.all([getAccountIdByName(tenantId, item.companyId, "المخزون"), getAccountIdByName(tenantId, item.companyId, "تسويات المخزون")])
+      : await Promise.all([getAccountIdByName(tenantId, item.companyId, "مصروف تالف ونقص المخزون"), getAccountIdByName(tenantId, item.companyId, "المخزون")]);
 
   const journalLines =
     input.type === "in"
@@ -89,8 +89,8 @@ export async function createIssueMovement(
   if (input.quantity > balance) throw badRequest(`الكمية المطلوبة (${input.quantity}) أكبر من الرصيد المتاح (${balance})`);
 
   const amount = input.quantity * Number(item.costPrice);
-  const cogsId = await getAccountIdByName(tenantId, "تكلفة البضاعة المباعة / الصرف المخزني");
-  const stockId = await getAccountIdByName(tenantId, "المخزون");
+  const cogsId = await getAccountIdByName(tenantId, item.companyId, "تكلفة البضاعة المباعة / الصرف المخزني");
+  const stockId = await getAccountIdByName(tenantId, item.companyId, "المخزون");
 
   const journalLines = [
     { accountId: cogsId, costCenterId: input.warehouseId, department: input.department, debit: amount, credit: 0 },
@@ -131,8 +131,9 @@ export async function createTransferMovement(
   if (input.quantity > balance) throw badRequest(`الكمية المطلوبة (${input.quantity}) أكبر من الرصيد المتاح بالمصدر (${balance})`);
 
   const amount = input.quantity * Number(item.costPrice);
-  const stockId = await getAccountIdByName(tenantId, "المخزون");
+  const stockId = await getAccountIdByName(tenantId, item.companyId, "المخزون");
   const crossCompany = input.toCompanyId !== item.companyId;
+  const stockDestId = crossCompany ? await getAccountIdByName(tenantId, input.toCompanyId, "المخزون") : stockId;
   const transferGroupId = crypto.randomUUID();
 
   return prisma.$transaction(async (tx) => {
@@ -151,7 +152,7 @@ export async function createTransferMovement(
       });
       entrySourceId = entry.id;
     } else {
-      const interCompanyId = await getAccountIdByName(tenantId, "حساب جاري - شركات المجموعة");
+      const interCompanyId = await getGroupAccountIdByName(tenantId, "حساب جاري - شركات المجموعة");
       const entrySource = await createJournalEntryTx(tx, {
         tenantId, companyId: item.companyId, date: input.date,
         memo: `تحويل مخزون صادر لشركة أخرى — ${item.name}`,
@@ -166,7 +167,7 @@ export async function createTransferMovement(
         memo: `تحويل مخزون وارد من شركة أخرى — ${item.name}`,
         sourceModule: "stock_movement", createdBy: userId,
         lines: [
-          { accountId: stockId, costCenterId: input.toWarehouseId, department: "المشتريات", debit: amount, credit: 0 },
+          { accountId: stockDestId, costCenterId: input.toWarehouseId, department: "المشتريات", debit: amount, credit: 0 },
           { accountId: interCompanyId, costCenterId: input.toWarehouseId, department: "المالية والحسابات", debit: 0, credit: amount },
         ],
       });

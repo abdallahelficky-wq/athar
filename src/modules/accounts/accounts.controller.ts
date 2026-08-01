@@ -28,9 +28,16 @@ async function validateHierarchy(tenantId: string, input: any, currentId?: strin
 export const listAccounts: RequestHandler = async (req, res) => {
   const tree = req.query.tree === "true";
   const companyId = scopeCompanyId(req.query.companyId);
+
+  if (!tree && !companyId) {
+    throw badRequest("companyId مطلوب لعرض حسابات الترحيل — حدد الشركة النشطة أولاً");
+  }
+
+  // في وضع القائمة (غير الشجرة)، الحسابات المخصصة لهذه الشركة فقط + حسابات المجموعة المشتركة
+  // (companyId = null) التي تُستخدم كحسابات احتياطية/قديمة — لا تظهر أبداً حسابات شركة أخرى.
   const where = tree
     ? { tenantId: req.auth!.tenantId, companyId }
-    : { tenantId: req.auth!.tenantId, isPosting: true, isArchived: false };
+    : { tenantId: req.auth!.tenantId, isPosting: true, isArchived: false, OR: [{ companyId }, { companyId: null }] };
   const accounts = await prisma.account.findMany({ where, orderBy: [{ code: "asc" }, { name: "asc" }] });
   if (!tree) return res.json(accounts);
 
@@ -145,10 +152,12 @@ export const importAccounts: RequestHandler = async (req, res) => {
 
 export const installStandardChart: RequestHandler = async (req, res) => {
   const tenantId = req.auth!.tenantId;
+  const userId = req.auth!.sub;
   const companyId = req.body.companyId ?? null;
 
+  let company: { id: string; name: string } | null = null;
   if (companyId) {
-    const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
+    company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
     if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
   }
 
@@ -186,6 +195,19 @@ export const installStandardChart: RequestHandler = async (req, res) => {
       data: { nextJournalEntrySeq: 1 },
     });
     await createDefaultChart(tx, tenantId, companyId);
+
+    // سجل تدقيق إلزامي على كل عملية تثبيت شجرة قياسية — من نفّذها، متى بالضبط، ولأي نطاق
+    // (شركة محددة أو المستأجر بالكامل)، بما في ذلك كل ما تم حذفه قبل إعادة التثبيت.
+    await tx.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: "accounts.install_standard_chart",
+        entityType: companyId ? "Company" : "Tenant",
+        entityId: companyId || tenantId,
+        metadata: { companyId, companyName: company?.name ?? null, deleted, deletedAccounts },
+      },
+    });
 
     return { deleted, deletedAccounts, installedAccounts: DEFAULT_CHART_OF_ACCOUNTS.length };
   });
