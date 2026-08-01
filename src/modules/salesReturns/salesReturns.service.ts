@@ -47,7 +47,9 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
   if (!customer) throw badRequest("العميل غير موجود ضمن هذه الشركة");
 
   const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
-  const accounts = await prisma.account.findMany({ where: { id: { in: accountIds }, tenantId, type: "revenue" } });
+  const accounts = await prisma.account.findMany({
+    where: { id: { in: accountIds }, tenantId, companyId: input.companyId, type: "revenue", isPosting: true, isActive: true, isArchived: false },
+  });
   if (accounts.length !== accountIds.length) throw badRequest("أحد حسابات الإيراد المختارة غير صالح");
 
   const computed = input.lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
@@ -56,8 +58,8 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
   const grandTotal = subtotal + vatTotal;
   if (grandTotal <= 0) throw badRequest("إجمالي المردود يجب أن يكون أكبر من صفر");
 
-  const vatOutputId = await getAccountIdByName(tenantId, "ضريبة القيمة المضافة - مخرجات");
-  const creditAccountId = await getAccountIdByName(tenantId, REFUND_ACCOUNT_NAME[input.refundMethod]);
+  const vatOutputId = await getAccountIdByName(tenantId, input.companyId, "ضريبة القيمة المضافة - مخرجات");
+  const creditAccountId = await getAccountIdByName(tenantId, input.companyId, REFUND_ACCOUNT_NAME[input.refundMethod]);
 
   const byAccount = new Map<string, number>();
   computed.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));
@@ -124,8 +126,8 @@ export async function postSalesReturn(tenantId: string, userId: string, id: stri
   if (!salesReturn) throw notFound("المردود غير موجود");
   if (salesReturn.status === "posted") throw badRequest("المردود مرحّل بالفعل");
 
-  const vatOutputId = await getAccountIdByName(tenantId, "ضريبة القيمة المضافة - مخرجات");
-  const creditAccountId = await getAccountIdByName(tenantId, REFUND_ACCOUNT_NAME[salesReturn.refundMethod || "account"]);
+  const vatOutputId = await getAccountIdByName(tenantId, salesReturn.companyId, "ضريبة القيمة المضافة - مخرجات");
+  const creditAccountId = await getAccountIdByName(tenantId, salesReturn.companyId, REFUND_ACCOUNT_NAME[salesReturn.refundMethod || "account"]);
   const byAccount = new Map<string, number>();
   salesReturn.lines.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + Number(l.subtotal)));
 

@@ -22,8 +22,10 @@ export default function AccountLedgerModule({ companyId, companies }) {
   const [printOpen, setPrintOpen] = useState(false);
 
   useEffect(() => {
-    listAccounts().then(setAccounts).catch((err) => setError(err.message));
-  }, []);
+    if (!companyId) { setAccounts([]); setAccountId(""); return; }
+    listAccounts({ companyId }).then(setAccounts).catch((err) => setError(err.message));
+    setAccountId("");
+  }, [companyId]);
 
   useEffect(() => {
     if (!accountId || !companyId) { setLedger(null); return; }

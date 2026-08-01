@@ -33,11 +33,13 @@ const STANDARD_ACCOUNT_ALIASES: Record<string, string> = {
 };
 
 /** يربط أسماء الترحيل القديمة بالحسابات القياسية الجديدة دون إبقاء حسابات قطاعية في القالب. */
-export async function getAccountIdByName(tenantId: string, name: string): Promise<string> {
+export async function getAccountIdByName(tenantId: string, companyId: string, name: string): Promise<string> {
   const standardName = STANDARD_ACCOUNT_ALIASES[name] || name;
-  const account = await prisma.account.findFirst({ where: { tenantId, name: standardName, isPosting: true, isArchived: false } });
+  const account = await prisma.account.findFirst({
+    where: { tenantId, companyId, name: standardName, isPosting: true, isArchived: false, isActive: true },
+  });
   if (!account) {
-    throw badRequest(`الحساب المطلوب لترحيل هذه المعاملة غير موجود في شجرة حساباتك: "${standardName}"`);
+    throw badRequest(`الحساب المطلوب لترحيل هذه المعاملة غير موجود في شجرة الشركة: "${standardName}"`);
   }
   return account.id;
 }

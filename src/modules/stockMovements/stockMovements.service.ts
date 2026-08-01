@@ -47,8 +47,8 @@ export async function createInOutMovement(
 
   const [stockId, otherId] =
     input.type === "in"
-      ? await Promise.all([getAccountIdByName(tenantId, "المخزون"), getAccountIdByName(tenantId, "تسويات المخزون")])
-      : await Promise.all([getAccountIdByName(tenantId, "مصروف تالف ونقص المخزون"), getAccountIdByName(tenantId, "المخزون")]);
+      ? await Promise.all([getAccountIdByName(tenantId, item.companyId, "المخزون"), getAccountIdByName(tenantId, item.companyId, "تسويات المخزون")])
+      : await Promise.all([getAccountIdByName(tenantId, item.companyId, "مصروف تالف ونقص المخزون"), getAccountIdByName(tenantId, item.companyId, "المخزون")]);
 
   const journalLines =
     input.type === "in"
@@ -89,8 +89,8 @@ export async function createIssueMovement(
   if (input.quantity > balance) throw badRequest(`الكمية المطلوبة (${input.quantity}) أكبر من الرصيد المتاح (${balance})`);
 
   const amount = input.quantity * Number(item.costPrice);
-  const cogsId = await getAccountIdByName(tenantId, "تكلفة البضاعة المباعة / الصرف المخزني");
-  const stockId = await getAccountIdByName(tenantId, "المخزون");
+  const cogsId = await getAccountIdByName(tenantId, item.companyId, "تكلفة البضاعة المباعة / الصرف المخزني");
+  const stockId = await getAccountIdByName(tenantId, item.companyId, "المخزون");
 
   const journalLines = [
     { accountId: cogsId, costCenterId: input.warehouseId, department: input.department, debit: amount, credit: 0 },
@@ -131,8 +131,8 @@ export async function createTransferMovement(
   if (input.quantity > balance) throw badRequest(`الكمية المطلوبة (${input.quantity}) أكبر من الرصيد المتاح بالمصدر (${balance})`);
 
   const amount = input.quantity * Number(item.costPrice);
-  const stockId = await getAccountIdByName(tenantId, "المخزون");
   const crossCompany = input.toCompanyId !== item.companyId;
+  const sourceStockId = await getAccountIdByName(tenantId, item.companyId, "المخزون");
   const transferGroupId = crypto.randomUUID();
 
   return prisma.$transaction(async (tx) => {
@@ -145,20 +145,24 @@ export async function createTransferMovement(
         memo: `تحويل مخزني داخلي — ${item.name}`,
         sourceModule: "stock_movement", createdBy: userId,
         lines: [
-          { accountId: stockId, costCenterId: input.toWarehouseId, department: "المشتريات", debit: amount, credit: 0 },
-          { accountId: stockId, costCenterId: input.fromWarehouseId, department: "المشتريات", debit: 0, credit: amount },
+          { accountId: sourceStockId, costCenterId: input.toWarehouseId, department: "المشتريات", debit: amount, credit: 0 },
+          { accountId: sourceStockId, costCenterId: input.fromWarehouseId, department: "المشتريات", debit: 0, credit: amount },
         ],
       });
       entrySourceId = entry.id;
     } else {
-      const interCompanyId = await getAccountIdByName(tenantId, "حساب جاري - شركات المجموعة");
+      const [sourceIntercompanyId, destinationIntercompanyId, destinationStockId] = await Promise.all([
+        getAccountIdByName(tenantId, item.companyId, "حساب جاري - شركات المجموعة"),
+        getAccountIdByName(tenantId, input.toCompanyId, "حساب جاري - شركات المجموعة"),
+        getAccountIdByName(tenantId, input.toCompanyId, "المخزون"),
+      ]);
       const entrySource = await createJournalEntryTx(tx, {
         tenantId, companyId: item.companyId, date: input.date,
         memo: `تحويل مخزون صادر لشركة أخرى — ${item.name}`,
         sourceModule: "stock_movement", createdBy: userId,
         lines: [
-          { accountId: interCompanyId, costCenterId: input.fromWarehouseId, department: "المالية والحسابات", debit: amount, credit: 0 },
-          { accountId: stockId, costCenterId: input.fromWarehouseId, department: "المشتريات", debit: 0, credit: amount },
+          { accountId: sourceIntercompanyId, costCenterId: input.fromWarehouseId, department: "المالية والحسابات", debit: amount, credit: 0 },
+          { accountId: sourceStockId, costCenterId: input.fromWarehouseId, department: "المشتريات", debit: 0, credit: amount },
         ],
       });
       const entryDest = await createJournalEntryTx(tx, {
@@ -166,8 +170,8 @@ export async function createTransferMovement(
         memo: `تحويل مخزون وارد من شركة أخرى — ${item.name}`,
         sourceModule: "stock_movement", createdBy: userId,
         lines: [
-          { accountId: stockId, costCenterId: input.toWarehouseId, department: "المشتريات", debit: amount, credit: 0 },
-          { accountId: interCompanyId, costCenterId: input.toWarehouseId, department: "المالية والحسابات", debit: 0, credit: amount },
+          { accountId: destinationStockId, costCenterId: input.toWarehouseId, department: "المشتريات", debit: amount, credit: 0 },
+          { accountId: destinationIntercompanyId, costCenterId: input.toWarehouseId, department: "المالية والحسابات", debit: 0, credit: amount },
         ],
       });
       entrySourceId = entrySource.id;

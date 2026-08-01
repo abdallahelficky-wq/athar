@@ -90,7 +90,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
           <label>نطاق الشجرة
             <select value={scope} onChange={(e) => { setScope(e.target.value); reset(); }}>
-              <option value="group">شجرة المجموعة كاملة</option>
+              <option value="group">قالب المجموعة (غير مستخدم في القيود)</option>
               {companies.map((c) => <option key={c.id} value={c.id}>{c.shortName || c.name}</option>)}
             </select>
           </label>
