@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { listEmployees } from "../../api/employees";
-import { listLeaveRequests, createLeaveRequest, deleteLeaveRequest } from "../../api/leaveRequests";
+import { listLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest } from "../../api/leaveRequests";
 import { LEAVE_TYPES } from "../../legacy/constants";
+
+const STATUS_LABEL = { pending: "قيد المراجعة", approved: "معتمدة", rejected: "مرفوضة" };
 
 export default function LeavesTab({ companyId }) {
   const [employees, setEmployees] = useState([]);
@@ -48,6 +50,13 @@ export default function LeavesTab({ companyId }) {
     }
   };
 
+  const approve = async (r) => {
+    try { await approveLeaveRequest(r.id); reload(); } catch (err) { setError(err.message); }
+  };
+  const reject = async (r) => {
+    try { await rejectLeaveRequest(r.id); reload(); } catch (err) { setError(err.message); }
+  };
+
   if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
 
   return (
@@ -67,16 +76,25 @@ export default function LeavesTab({ companyId }) {
       {loading ? <p className="empty">جارٍ التحميل...</p> : (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>الموظف</th><th>النوع</th><th>من</th><th>إلى</th><th>الأيام</th><th></th></tr></thead>
+            <thead><tr><th>الموظف</th><th>النوع</th><th>من</th><th>إلى</th><th>الأيام</th><th>الحالة</th><th></th></tr></thead>
             <tbody>
               {requests.map((r) => (
                 <tr key={r.id}>
                   <td>{r.employee?.name}</td><td>{r.type}</td><td>{r.startDate.slice(0, 10)}</td><td>{r.endDate.slice(0, 10)}</td>
                   <td className="num">{r.days}</td>
-                  <td><button className="btn-ghost" onClick={() => remove(r)}>حذف</button></td>
+                  <td>{STATUS_LABEL[r.status] || r.status}</td>
+                  <td className="row-actions">
+                    {r.status === "pending" && (
+                      <>
+                        <button className="btn-ghost" onClick={() => approve(r)}>اعتماد</button>
+                        <button className="btn-ghost" onClick={() => reject(r)}>رفض</button>
+                      </>
+                    )}
+                    <button className="btn-ghost" onClick={() => remove(r)}>حذف</button>
+                  </td>
                 </tr>
               ))}
-              {requests.length === 0 && <tr><td className="empty" colSpan={6}>لا توجد إجازات مسجّلة بعد.</td></tr>}
+              {requests.length === 0 && <tr><td className="empty" colSpan={7}>لا توجد إجازات مسجّلة بعد.</td></tr>}
             </tbody>
           </table>
         </div>

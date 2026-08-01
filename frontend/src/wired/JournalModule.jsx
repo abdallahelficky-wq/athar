@@ -194,7 +194,7 @@ export default function JournalModule({ companies, companyId }) {
           ) : (
             <div className="panel">
               <div className="invoices-table-wrap">
-                <table className="ledger-table">
+                <table className="ledger-table responsive-table">
                   <thead>
                     <tr><th>رقم القيد</th><th>التاريخ</th><th>البيان</th><th>المبلغ</th><th>الحالة</th><th>الإجراءات</th></tr>
                   </thead>
@@ -206,11 +206,11 @@ export default function JournalModule({ companies, companyId }) {
                       return (
                         <React.Fragment key={e.id}>
                           <tr>
-                            <td>{entryNumberLabel(e)}</td>
-                            <td>{fmtDate(e.date)}</td>
-                            <td>{e.memo || "بدون بيان"}</td>
-                            <td className="num">{fmt(entryTotal(e))}</td>
-                            <td><span className="status-badge">{statusLabel(e.status)}</span></td>
+                            <td data-label="رقم القيد">{entryNumberLabel(e)}</td>
+                            <td data-label="التاريخ">{fmtDate(e.date)}</td>
+                            <td data-label="البيان">{e.memo || "بدون بيان"}</td>
+                            <td className="num" data-label="المبلغ">{fmt(entryTotal(e))}</td>
+                            <td data-label="الحالة"><span className="status-badge">{statusLabel(e.status)}</span></td>
                             <td className="row-actions">
                               <button className="icon-btn" title="عرض القيد" onClick={() => setViewEntry(e)}><Icon.Eye /></button>
                               <button className="icon-btn" title="طباعة القيد" onClick={() => { setViewEntry(e); setAutoPrint(true); }}><Icon.Printer /></button>

@@ -18,6 +18,21 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
   return jwt.verify(token, env.jwtAccessSecret) as AccessTokenPayload;
 }
 
+export interface EmployeePortalTokenPayload {
+  employeeId: string;
+  tenantId: string;
+}
+
+/** موقّع بسرّ منفصل تماماً عن رموز User الإدارية — لا يمكن التحقق من هذا الرمز عبر verifyAccessToken أو العكس */
+export function signEmployeePortalToken(payload: EmployeePortalTokenPayload): string {
+  const options: jwt.SignOptions = { expiresIn: env.jwtEmployeePortalExpiresIn as jwt.SignOptions["expiresIn"] };
+  return jwt.sign(payload, env.jwtEmployeePortalSecret, options);
+}
+
+export function verifyEmployeePortalToken(token: string): EmployeePortalTokenPayload {
+  return jwt.verify(token, env.jwtEmployeePortalSecret) as EmployeePortalTokenPayload;
+}
+
 export interface RefreshTokenPayload {
   sub: string; // userId
   jti: string; // معرّف فريد للرمز، يُستخدم لمطابقته بالنسخة المخزّنة (مجزّأة) في قاعدة البيانات

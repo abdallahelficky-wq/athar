@@ -68,10 +68,11 @@ model Tenant {
   fixedAssets      FixedAsset[]
   depreciationRuns DepreciationRun[]
 
-  employees        Employee[]
-  leaveSettlements LeaveSettlement[]
-  hrActions        HrAction[]
-  payrollRuns      PayrollRun[]
+  employees         Employee[]
+  leaveSettlements  LeaveSettlement[]
+  hrActions         HrAction[]
+  payrollRuns       PayrollRun[]
+  attendanceRecords AttendanceRecord[]
 
   attachments   Attachment[]
   sellableItems SellableItem[]
@@ -206,6 +207,7 @@ model Company {
   employees            Employee[]
   payrollRuns          PayrollRun[]
   sellableItems        SellableItem[]
+  attendanceRecords    AttendanceRecord[]
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -942,6 +944,14 @@ model Employee {
   probationEndDate    DateTime?
   probationEvaluated  Boolean        @default(false)
   status              EmployeeStatus @default(active)
+  // --- بوابة الموظف (تطبيق الجوال) — تسجيل دخول منفصل تماماً عن حسابات User الإدارية ---
+  phone                     String?   // رقم جوال الموظف — قناة الدخول لبوابة الموظف (فريد ضمن المستأجر)
+  pinHash                   String?   // تجزئة bcrypt لرمز PIN (مطابق لأسلوب hashPassword)، لا يُخزَّن نصاً أبداً
+  portalActive              Boolean   @default(false) // تفعّله الموارد البشرية صراحةً بعد تعيين الهاتف/PIN
+  failedPortalLoginAttempts Int       @default(0)
+  portalLockedUntil         DateTime?
+  managerId                 String?
+  manager                   Employee? @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
 
@@ -950,7 +960,10 @@ model Employee {
   leaveSettlements  LeaveSettlement[]
   hrActions         HrAction[]
   journalEntryLines JournalEntryLine[]
+  directReports     Employee[]          @relation("EmployeeManager")
+  attendanceRecords AttendanceRecord[]
 
+  @@unique([tenantId, phone])
   @@map("employees")
 }
 
@@ -984,6 +997,28 @@ model LeaveRequest {
   createdAt  DateTime           @default(now())
 
   @@map("leave_requests")
+}
+
+// حضور الموظف اليومي — سجل واحد لكل موظف لكل يوم تقويمي (تسجيل حضور/انصراف من بوابة الجوال).
+// المرحلة الحالية تكتفي برصد "غياب تام" (لا يوجد سجل إطلاقاً لهذا اليوم) دون توقيتات دوام أو
+// كشف تأخير/انصراف مبكر — يؤجَّل ذلك لمرحلة لاحقة عند إضافة جداول الورديات الرسمية.
+model AttendanceRecord {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime // منتصف الليل UTC لليوم التقويمي (بلا وقت) — مفتاح "يوم واحد" لكل موظف
+  checkInAt  DateTime?
+  checkOutAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([tenantId, companyId, date])
+  @@map("attendance_records")
 }
 
 enum LeaveSettlementStatus {

@@ -1,10 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
-import { badRequest, notFound } from "../../lib/httpError";
-
-function daysBetween(start: Date, end: Date) {
-  return Math.max(Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1, 0);
-}
+import { notFound } from "../../lib/httpError";
+import * as service from "./leaveRequests.service";
 
 export const listLeaveRequests: RequestHandler = async (req, res) => {
   const { employeeId, companyId } = req.query;
@@ -19,23 +16,26 @@ export const listLeaveRequests: RequestHandler = async (req, res) => {
   res.json(requests);
 };
 
+/** الموارد البشرية تُسجِّل طلباً نيابةً عن موظف — يبدأ "قيد المراجعة" كأي طلب آخر، ويحتاج نفس مسار الموافقة */
 export const createLeaveRequest: RequestHandler = async (req, res) => {
-  const employee = await prisma.employee.findFirst({ where: { id: req.body.employeeId, tenantId: req.auth!.tenantId } });
-  if (!employee) throw badRequest("الموظف غير موجود ضمن مستأجرك");
-
-  const request = await prisma.leaveRequest.create({
-    data: {
-      employeeId: req.body.employeeId,
-      type: req.body.type,
-      startDate: req.body.startDate,
-      endDate: req.body.endDate,
-      days: daysBetween(req.body.startDate, req.body.endDate),
-      note: req.body.note,
-      status: "approved",
-    },
-    include: { employee: true },
-  });
+  const request = await service.createLeaveRequestFor(req.auth!.tenantId, req.body.employeeId, req.body);
   res.status(201).json(request);
+};
+
+export const approveLeaveRequestHandler: RequestHandler = async (req, res) => {
+  const request = await service.transitionLeaveRequest(req.auth!.tenantId, req.params.id, "approved", {
+    approverEmployeeId: null,
+    isHrOverride: true,
+  });
+  res.json(request);
+};
+
+export const rejectLeaveRequestHandler: RequestHandler = async (req, res) => {
+  const request = await service.transitionLeaveRequest(req.auth!.tenantId, req.params.id, "rejected", {
+    approverEmployeeId: null,
+    isHrOverride: true,
+  });
+  res.json(request);
 };
 
 export const deleteLeaveRequest: RequestHandler = async (req, res) => {
