@@ -1,12 +1,20 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
+import { applyPurchaseToAverageCostTx, recomputeAverageCostFromScratchTx } from "../../lib/costingEngine";
+
+type Tx = Prisma.TransactionClient;
 
 interface LineInput {
   accountId: string;
+  itemId?: string;
+  warehouseId?: string;
+  usefulLifeYears?: number;
+  salvageValue?: number;
   description?: string;
   quantity: number;
   unitPrice: number;
@@ -21,7 +29,7 @@ interface InvoiceInput {
   lines: LineInput[];
 }
 
-const invoiceInclude = { lines: { include: { account: true } }, supplier: true, company: true } as const;
+const invoiceInclude = { lines: { include: { account: true, item: true, warehouse: true } }, supplier: true, company: true } as const;
 
 function computeLines(lines: LineInput[]) {
   const computed = lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
@@ -29,6 +37,50 @@ function computeLines(lines: LineInput[]) {
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
   return { computed, subtotal, vatTotal, grandTotal };
+}
+
+/**
+ * الحساب المحاسبي المرتبط بكل صنف يُحدَّد من شاشة الصنف نفسها لا من الفاتورة — أي قيمة
+ * accountId يرسلها العميل لسطر مرتبط بصنف تُتجاهَل وتُستبدَل بالحساب المشتق من نوع الصنف.
+ * الأسطر بلا itemId (مصاريف متفرقة حرة) تحتفظ بالـ accountId اليدوي كما هو.
+ */
+async function resolveLineAccounts(tenantId: string, companyId: string, lines: LineInput[]): Promise<LineInput[]> {
+  const itemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => Boolean(x)))];
+  const items = itemIds.length ? await prisma.item.findMany({ where: { id: { in: itemIds }, tenantId, companyId } }) : [];
+  if (items.length !== itemIds.length) throw badRequest("أحد الأصناف المختارة غير موجود ضمن هذه الشركة");
+  const itemById = new Map(items.map((i) => [i.id, i]));
+
+  // لازم يتحقق من أن المستودع المُختار ينتمي فعلاً لهذه الشركة (لا يكفي وجود المعرّف فقط)،
+  // وإلا يمكن لطلب مباشر عبر الـ API إرسال معرّف مستودع شركة أخرى فتُسجَّل حركة المخزون على
+  // مستودع لا يخصّها وتُفسِد رصيده.
+  const warehouseIds = [...new Set(lines.map((l) => l.warehouseId).filter((x): x is string => Boolean(x)))];
+  const warehouses = warehouseIds.length ? await prisma.warehouse.findMany({ where: { id: { in: warehouseIds }, tenantId, companyId } }) : [];
+  if (warehouses.length !== warehouseIds.length) throw badRequest("أحد المستودعات المختارة غير موجود ضمن هذه الشركة");
+  const warehouseIdSet = new Set(warehouses.map((w) => w.id));
+
+  const resolved: LineInput[] = [];
+  for (const line of lines) {
+    if (!line.itemId) {
+      resolved.push(line);
+      continue;
+    }
+    const item = itemById.get(line.itemId)!;
+    if (item.type === "service") throw badRequest(`الصنف "${item.name}" من نوع خدمي، لا يمكن شراؤه`);
+    if (item.type === "bundle") throw badRequest(`الصنف "${item.name}" منتج مجمّع — رصيده يزيد فقط عبر أمر تصنيع، لا الشراء المباشر`);
+
+    if (item.type === "fixed_asset") {
+      if (!line.usefulLifeYears || line.salvageValue == null) throw badRequest(`أدخل العمر الإنتاجي وقيمة الخردة للصنف "${item.name}"`);
+      const assetAccountId = await getAccountIdByName(tenantId, companyId, "الأصول الثابتة");
+      resolved.push({ ...line, accountId: assetAccountId });
+      continue;
+    }
+
+    if (!line.warehouseId || !warehouseIdSet.has(line.warehouseId)) throw badRequest(`اختر مستودعاً صالحاً ضمن هذه الشركة للصنف "${item.name}"`);
+    const primaryAccountId = item.type === "expense" ? item.expenseAccountId : item.stockAccountId;
+    if (!primaryAccountId) throw badRequest(`لم يُحدَّد الحساب المحاسبي المرتبط بالصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
+    resolved.push({ ...line, accountId: primaryAccountId });
+  }
+  return resolved;
 }
 
 async function assertRefs(tenantId: string, companyId: string, supplierId: string, lines: LineInput[]) {
@@ -43,6 +95,58 @@ async function assertRefs(tenantId: string, companyId: string, supplierId: strin
   });
   if (accounts.length !== accountIds.length) throw badRequest("أحد الحسابات المختارة غير موجود ضمن شجرة حساباتك");
   return supplier;
+}
+
+/** ينشئ حركة المخزون/سجل الأصل الثابت المرتبط بكل سطر فاتورة مرتبط بصنف — يُستدعى بعد حفظ سطور الفاتورة فعلياً (لأنه يحتاج line.id). */
+async function createInventorySideEffectsTx(
+  tx: Tx,
+  tenantId: string,
+  companyId: string,
+  date: Date,
+  persistedLines: Array<{ id: string; itemId: string | null; warehouseId: string | null; usefulLifeYears: number | null; salvageValue: Prisma.Decimal | null; quantity: Prisma.Decimal; subtotal: Prisma.Decimal; description: string | null }>,
+  journalEntryId: string,
+) {
+  for (const line of persistedLines) {
+    if (!line.itemId) continue;
+    const item = await tx.item.findFirstOrThrow({ where: { id: line.itemId, tenantId } });
+
+    if (item.type === "fixed_asset") {
+      await tx.fixedAsset.create({
+        data: {
+          tenantId, companyId, name: line.description || item.name, category: item.assetCategory,
+          purchaseDate: date, cost: line.subtotal, usefulLifeYears: line.usefulLifeYears!, salvageValue: line.salvageValue ?? 0,
+          status: "active", journalEntryId, sourcePurchaseInvoiceLineId: line.id,
+        },
+      });
+      continue;
+    }
+
+    const quantity = Number(line.quantity);
+    const unitCost = quantity > 0 ? Number(line.subtotal) / quantity : 0;
+    // متوسط التكلفة *قبل* تسجيل حركة "الوارد" نفسها (وإلا تُحتسَب هذه الحركة ضمن الرصيد
+    // القديم فتُضاعِف تأثيرها في المعادلة)
+    if (item.type !== "expense") await applyPurchaseToAverageCostTx(tx, tenantId, item.id, quantity, unitCost);
+    await tx.stockMovement.create({
+      data: {
+        tenantId, companyId, itemId: item.id, warehouseId: line.warehouseId!, type: "in",
+        quantity, unitCost, date, journalEntryId, sourcePurchaseInvoiceLineId: line.id,
+      },
+    });
+  }
+}
+
+/** يُستدعى عند فك ترحيل الفاتورة — يحذف كل حركة مخزون/أصل ثابت أُنشئ تلقائياً من أسطرها. */
+async function removeInventorySideEffectsTx(tx: Tx, tenantId: string, invoiceId: string) {
+  const lines = await tx.purchaseInvoiceLine.findMany({ where: { invoiceId }, select: { id: true, itemId: true } });
+  const lineIds = lines.map((l) => l.id);
+  if (!lineIds.length) return;
+  await tx.stockMovement.deleteMany({ where: { sourcePurchaseInvoiceLineId: { in: lineIds } } });
+  await tx.fixedAsset.deleteMany({ where: { sourcePurchaseInvoiceLineId: { in: lineIds } } });
+  // كل سطر شراء مرتبط بصنف كان يحدّث averageCost عند الترحيل (createInventorySideEffectsTx) —
+  // يجب إعادة حسابها من الصفر بعد حذف حركة الوارد المقابلة، وإلا يفضل المتوسط محسوباً على
+  // كمية لم تعد موجودة فعلياً في المخزون.
+  const itemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => Boolean(x)))];
+  for (const itemId of itemIds) await recomputeAverageCostFromScratchTx(tx, tenantId, itemId);
 }
 
 async function buildJournalLines(supplierId: string, computed: Array<{ accountId: string; subtotal: number }>, vatTotal: number, grandTotal: number, tenantId: string, companyId: string) {
@@ -75,8 +179,9 @@ export async function getPurchaseInvoice(tenantId: string, id: string) {
 }
 
 export async function createPurchaseInvoice(tenantId: string, userId: string, input: InvoiceInput) {
-  const supplier = await assertRefs(tenantId, input.companyId, input.supplierId, input.lines);
-  const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
+  const resolvedLines = await resolveLineAccounts(tenantId, input.companyId, input.lines);
+  const supplier = await assertRefs(tenantId, input.companyId, input.supplierId, resolvedLines);
+  const { computed, subtotal, vatTotal, grandTotal } = computeLines(resolvedLines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
 
   const count = await prisma.purchaseInvoice.count({ where: { tenantId } });
@@ -112,6 +217,7 @@ export async function createPurchaseInvoice(tenantId: string, userId: string, in
     });
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
+    await createInventorySideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id);
     return invoice;
   });
 }
@@ -121,8 +227,9 @@ export async function updatePurchaseInvoice(tenantId: string, id: string, input:
   if (!existing) throw notFound("الفاتورة غير موجودة");
   if (existing.status !== "draft") throw badRequest("لا يمكن تعديل فاتورة مرحّلة، يجب فك ترحيلها أولاً");
 
-  await assertRefs(tenantId, input.companyId, input.supplierId, input.lines);
-  const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
+  const resolvedLines = await resolveLineAccounts(tenantId, input.companyId, input.lines);
+  await assertRefs(tenantId, input.companyId, input.supplierId, resolvedLines);
+  const { computed, subtotal, vatTotal, grandTotal } = computeLines(resolvedLines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
 
   return prisma.$transaction(async (tx) => {
@@ -161,7 +268,9 @@ export async function postPurchaseInvoice(tenantId: string, userId: string, id: 
       createdBy: userId,
       lines: journalLines,
     });
-    return tx.purchaseInvoice.update({ where: { id }, data: { status: "posted", journalEntryId: entry.id }, include: invoiceInclude });
+    const updated = await tx.purchaseInvoice.update({ where: { id }, data: { status: "posted", journalEntryId: entry.id }, include: invoiceInclude });
+    await createInventorySideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id);
+    return updated;
   });
 }
 
@@ -173,6 +282,7 @@ export async function unpostPurchaseInvoice(tenantId: string, userId: string, id
   await assertValidUnlockPin(tenantId, pin);
 
   return prisma.$transaction(async (tx) => {
+    await removeInventorySideEffectsTx(tx, tenantId, id);
     await deleteJournalEntryTx(tx, invoice.journalEntryId);
     const updated = await tx.purchaseInvoice.update({ where: { id }, data: { status: "draft", journalEntryId: null }, include: invoiceInclude });
     await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "PurchaseInvoice", entityId: id });

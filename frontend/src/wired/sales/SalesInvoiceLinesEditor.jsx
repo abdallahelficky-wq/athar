@@ -3,9 +3,16 @@ import { computeInvoiceLine } from "../shared/invoiceLine";
 import { fmt2 } from "../../legacy/constants";
 
 export const emptySalesLine = () => ({
-  accountId: "", sellableItemId: "", description: "", quantity: 1, unitPrice: "",
+  accountId: "", itemId: "", description: "", quantity: 1, unitPrice: "",
   discountPct: 0, priceIncludesVat: true, vatApplicable: true,
 });
+
+/** الأنواع القابلة للبيع عبر فاتورة مبيعات — يطابق نفس القاعدة في salesInvoices.service.ts (resolveLineAccounts). */
+export function isSellableItem(item) {
+  if (item.type === "expense" || item.type === "fixed_asset") return false;
+  if (item.type === "raw_material") return item.allowDirectSale === true;
+  return true;
+}
 
 /**
  * محرر أسطر فاتورة المبيعات — نسخة مخصَّصة من InvoiceLinesEditor المشترك (المستخدَم أيضاً
@@ -13,7 +20,8 @@ export const emptySalesLine = () => ({
  * لهذه الشركة، مع خيار "+ إضافة صنف جديد باسم ..." يفتح نافذة فرعية. لم يُعدَّل المكوّن
  * المشترك نفسه حتى لا يتأثر منطق المشتريات (خارج نطاق هذا الطلب).
  */
-export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, sellableItems, onRequestNewItem }) {
+export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, items, onRequestNewItem }) {
+  const sellableItems = items.filter(isSellableItem);
   const [openDropdownIdx, setOpenDropdownIdx] = useState(null);
   const [searchText, setSearchText] = useState("");
 
@@ -28,10 +36,10 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, sel
 
   const pickItem = (idx, item) => {
     updateLine(idx, {
-      sellableItemId: item.id,
+      itemId: item.id,
       description: item.name,
-      accountId: item.defaultRevenueAccountId,
-      unitPrice: Number(item.defaultUnitPrice),
+      accountId: item.revenueAccountId,
+      unitPrice: item.salePrice != null ? Number(item.salePrice) : 0,
       vatApplicable: item.vatApplicable,
     });
     setOpenDropdownIdx(null);
@@ -56,7 +64,7 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, sel
                   <input
                     type="text"
                     value={l.description}
-                    onChange={(e) => { updateLine(idx, { description: e.target.value, sellableItemId: "" }); setSearchText(e.target.value); setOpenDropdownIdx(idx); }}
+                    onChange={(e) => { updateLine(idx, { description: e.target.value, itemId: "" }); setSearchText(e.target.value); setOpenDropdownIdx(idx); }}
                     onFocus={() => { setSearchText(l.description); setOpenDropdownIdx(idx); }}
                     onBlur={() => setTimeout(() => setOpenDropdownIdx((v) => (v === idx ? null : v)), 150)}
                     placeholder="اكتب اسم الصنف أو وصفاً حراً"
@@ -65,7 +73,7 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, sel
                     <div className="item-combo-dropdown">
                       {filtered(searchText).map((it) => (
                         <div key={it.id} className="item-combo-option" onMouseDown={() => pickItem(idx, it)}>
-                          {it.name} <span className="note" style={{ margin: 0 }}>({fmt2(Number(it.defaultUnitPrice))} ر.س)</span>
+                          {it.name} <span className="note" style={{ margin: 0 }}>({fmt2(Number(it.salePrice || 0))} ر.س)</span>
                         </div>
                       ))}
                       <div

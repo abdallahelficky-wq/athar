@@ -23,7 +23,7 @@ import HRWiredModule, { HR_TABS } from "./wired/hr/HRWiredModule";
 const NAV_GROUPS = [
   { id: "sales", label: "المبيعات", tabs: SALES_TABS },
   { id: "purchases", label: "المشتريات", tabs: PURCHASE_TABS },
-  { id: "inventory", label: "المخزون", tabs: INVENTORY_TABS },
+  { id: "inventory", label: "المستودعات والمنتجات", tabs: INVENTORY_TABS },
   { id: "fixedAssets", label: "الأصول الثابتة", tabs: FIXED_ASSETS_TABS },
   { id: "accounts", label: "الحسابات", tabs: ACCOUNTS_TABS },
   { id: "hr", label: "شئون الموظفين", tabs: HR_TABS },

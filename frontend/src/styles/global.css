@@ -246,6 +246,9 @@
         .foot-label { font-weight: 700; font-family: 'IBM Plex Sans Arabic', sans-serif !important; }
         .btn-remove-line { background: transparent; border: none; color: #A8432B; cursor: pointer; font-size: 14px; }
         .btn-remove-line:disabled { color: #C9C0AC; cursor: not-allowed; }
+        .derived-account-note { display: block; font-size: 10.5px; color: #8A7C5E; line-height: 1.5; }
+        .asset-line-fields { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
+        .asset-line-fields input { width: 100%; }
 
         .journal-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
         .balance-status { font-size: 12.5px; font-family: 'JetBrains Mono', monospace; }
@@ -670,7 +673,18 @@
         .item-avatar.large { width: 52px; height: 52px; border-radius: 13px; font-size: 26px; }
         .item-type-badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 4px 8px; font-size: 10px; font-weight: 600; }
         .item-type-badge.type-unknown { color: #5D6C78; background: rgba(107,124,140,.1); }
+        .item-type-badge.type-inventory { color: #2F5D5A; background: rgba(47,93,90,.1); }
+        .item-type-badge.type-expense { color: #A8432B; background: rgba(168,67,43,.1); }
+        .item-type-badge.type-service { color: #3D5A8A; background: rgba(61,90,138,.1); }
+        .item-type-badge.type-fixed-asset { color: #6B4C9A; background: rgba(107,76,154,.1); }
+        .item-type-badge.type-raw-material { color: #8A5A2E; background: rgba(138,90,46,.1); }
+        .item-type-badge.type-bundle { color: #1F7A5C; background: rgba(31,122,92,.1); }
         .item-type-badge i { font-style: normal; color: var(--items-gold); }
+        .items-accounts-grid { margin-top: 6px; }
+        .bom-editor { margin-top: 16px; border-top: 1px dashed rgba(16,32,46,.15); padding-top: 14px; }
+        .bom-editor-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .bom-table { width: 100%; }
+        .bom-table select, .bom-table input { width: 100%; }
         .archive-status { display: inline-flex; align-items: center; gap: 5px; color: #2F5D5A; font-size: 10.5px; font-weight: 600; }
         .archive-status i { width: 6px; height: 6px; border-radius: 50%; background: #3D8A70; box-shadow: 0 0 0 3px rgba(61,138,112,.1); }
         .archive-status.archived { color: #8A7C5E; }
