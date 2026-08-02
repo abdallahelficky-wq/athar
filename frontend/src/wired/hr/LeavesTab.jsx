@@ -82,7 +82,18 @@ export default function LeavesTab({ companyId }) {
                 <tr key={r.id}>
                   <td>{r.employee?.name}</td><td>{r.type}</td><td>{r.startDate.slice(0, 10)}</td><td>{r.endDate.slice(0, 10)}</td>
                   <td className="num">{r.days}</td>
-                  <td>{STATUS_LABEL[r.status] || r.status}</td>
+                  <td>
+                    {STATUS_LABEL[r.status] || r.status}
+                    {r.status === "pending" && !r.employee?.managerId && (
+                      <span
+                        className="status-badge"
+                        style={{ marginRight: 6, color: "#A8432B", borderColor: "rgba(168,67,43,0.35)" }}
+                        title="هذا الموظف بلا مدير مباشر مسجّل — لن يظهر الطلب في أي صندوق وارد بالجوال، والموافقة/الرفض من هنا فقط"
+                      >
+                        بلا مدير مباشر
+                      </span>
+                    )}
+                  </td>
                   <td className="row-actions">
                     {r.status === "pending" && (
                       <>
