@@ -36,6 +36,13 @@ describe("standard default chart of accounts", () => {
     }
   });
 
+  it("gives every account type at least one posting leaf, so every company can post sales, expenses and equity entries", () => {
+    const posting = DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.isPosting);
+    for (const type of ["asset", "liability", "equity", "revenue", "expense"] as const) {
+      expect(posting.some((account) => account.type === type), `no posting account of type ${type}`).toBe(true);
+    }
+  });
+
   it("contains the standard financial statement sections without sector accounts", () => {
     const names = new Set(DEFAULT_CHART_OF_ACCOUNTS.map((account) => account.name));
     [
