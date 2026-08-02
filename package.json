@@ -5,18 +5,10 @@
   "description": "Backend حقيقي لنظام أثر المحاسبي — المرحلة صفر (المصادقة، القيود اليومية، شجرة الحسابات، التقارير المالية)",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "prisma migrate deploy && node dist/server.js",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy",
-    "prisma:seed": "tsx prisma/seed.ts",
-    "prisma:studio": "prisma studio",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "tsc -p tsconfig.json --noEmit"
-  },
+  "build": "prisma generate",
+  "start": "node dist/server.js",
+  "migrate": "prisma migrate deploy"
+}
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1095.0",
     "@aws-sdk/s3-request-presigner": "^3.1095.0",
