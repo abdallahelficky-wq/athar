@@ -218,7 +218,6 @@ export const installStandardChart: RequestHandler = async (req, res) => {
       receipts: (await tx.receipt.deleteMany({ where: financialScope })).count,
       salesReturns: (await tx.salesReturn.deleteMany({ where: financialScope })).count,
       salesInvoices: (await tx.salesInvoice.deleteMany({ where: financialScope })).count,
-      sellableItems: (await tx.sellableItem.deleteMany({ where: financialScope })).count,
       purchaseReturns: (await tx.purchaseReturn.deleteMany({ where: financialScope })).count,
       purchaseInvoices: (await tx.purchaseInvoice.deleteMany({ where: financialScope })).count,
       stockMovements: (await tx.stockMovement.deleteMany({ where: financialScope })).count,

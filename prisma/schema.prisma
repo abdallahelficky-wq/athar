@@ -63,6 +63,8 @@ model Tenant {
   purchaseReturns  PurchaseReturn[]
 
   items          Item[]
+  itemComponents ItemComponent[]
+  warehouses     Warehouse[]
   stockMovements StockMovement[]
 
   fixedAssets      FixedAsset[]
@@ -74,8 +76,7 @@ model Tenant {
   payrollRuns       PayrollRun[]
   attendanceRecords AttendanceRecord[]
 
-  attachments   Attachment[]
-  sellableItems SellableItem[]
+  attachments Attachment[]
 
   @@map("tenants")
 }
@@ -190,7 +191,7 @@ model Company {
   leaseContracts       LeaseContract[]
   journalEntries       JournalEntry[]
   accounts             Account[]
-  intercompanyAccounts Account[]         @relation("AccountIntercompanyCompany")
+  intercompanyAccounts Account[]          @relation("AccountIntercompanyCompany")
   customers            Customer[]
   quotations           Quotation[]
   salesInvoices        SalesInvoice[]
@@ -201,12 +202,12 @@ model Company {
   purchaseInvoices     PurchaseInvoice[]
   purchaseReturns      PurchaseReturn[]
   items                Item[]
+  warehouses           Warehouse[]
   stockMovements       StockMovement[]
   fixedAssets          FixedAsset[]
   depreciationRuns     DepreciationRun[]
   employees            Employee[]
   payrollRuns          PayrollRun[]
-  sellableItems        SellableItem[]
   attendanceRecords    AttendanceRecord[]
 
   @@unique([tenantId, name])
@@ -225,7 +226,6 @@ model CostCenter {
   updatedAt DateTime @updatedAt
 
   journalEntryLines JournalEntryLine[]
-  stockMovements    StockMovement[]
   stationSales      StationSale[]
 
   @@map("cost_centers")
@@ -280,8 +280,11 @@ model Account {
   salesReturnLines     SalesReturnLine[]
   purchaseInvoiceLines PurchaseInvoiceLine[]
   purchaseReturnLines  PurchaseReturnLine[]
-  sellableItemDefaults SellableItem[]
   receiptsAsBank       Receipt[]             @relation("ReceiptBankAccount")
+  itemStockLinks       Item[]                @relation("ItemStockAccount")
+  itemCogsLinks        Item[]                @relation("ItemCogsAccount")
+  itemRevenueLinks     Item[]                @relation("ItemRevenueAccount")
+  itemExpenseLinks     Item[]                @relation("ItemExpenseAccount")
 
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
@@ -531,47 +534,24 @@ model SalesInvoice {
 }
 
 model SalesInvoiceLine {
-  id               String        @id @default(cuid())
+  id               String       @id @default(cuid())
   invoiceId        String
-  invoice          SalesInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice          SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   accountId        String
-  account          Account       @relation(fields: [accountId], references: [id])
-  sellableItemId   String?
-  sellableItem     SellableItem? @relation(fields: [sellableItemId], references: [id])
+  account          Account      @relation(fields: [accountId], references: [id])
+  itemId           String?
+  item             Item?        @relation(fields: [itemId], references: [id])
   description      String?
-  quantity         Decimal       @db.Decimal(18, 4)
-  unitPrice        Decimal       @db.Decimal(18, 4)
-  discountPct      Decimal       @default(0) @db.Decimal(5, 2)
-  priceIncludesVat Boolean       @default(false)
-  vatApplicable    Boolean       @default(true)
-  subtotal         Decimal       @db.Decimal(18, 2)
-  vat              Decimal       @db.Decimal(18, 2)
-  total            Decimal       @db.Decimal(18, 2)
+  quantity         Decimal      @db.Decimal(18, 4)
+  unitPrice        Decimal      @db.Decimal(18, 4)
+  discountPct      Decimal      @default(0) @db.Decimal(5, 2)
+  priceIncludesVat Boolean      @default(false)
+  vatApplicable    Boolean      @default(true)
+  subtotal         Decimal      @db.Decimal(18, 2)
+  vat              Decimal      @db.Decimal(18, 2)
+  total            Decimal      @db.Decimal(18, 2)
 
   @@map("sales_invoice_lines")
-}
-
-// كتالوج "أصناف قابلة للبيع" منفصل تماماً عن Item (أصناف المخزون) — مصمَّم خصيصاً لتسريع
-// تعبئة سطور فواتير المبيعات (اسم + سعر وحدة افتراضي + هل خاضع لضريبة القيمة المضافة +
-// حساب الإيراد الافتراضي)، دون التأثير على منطق المخزون/حركات الأصناف القائم أصلاً.
-model SellableItem {
-  id                      String   @id @default(cuid())
-  tenantId                String
-  tenant                  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId               String
-  company                 Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name                    String
-  defaultUnitPrice        Decimal  @default(0) @db.Decimal(18, 4)
-  vatApplicable           Boolean  @default(true)
-  defaultRevenueAccountId String
-  defaultRevenueAccount   Account  @relation(fields: [defaultRevenueAccountId], references: [id])
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-
-  salesInvoiceLines SalesInvoiceLine[]
-
-  @@unique([tenantId, companyId, name])
-  @@map("sellable_items")
 }
 
 model SalesReturn {
@@ -737,8 +717,17 @@ model PurchaseInvoiceLine {
   id               String          @id @default(cuid())
   invoiceId        String
   invoice          PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  // حساب يدوي — يبقى إلزامياً دايماً كـ fallback؛ لو السطر مرتبط بصنف (itemId) يُشتق الحساب
+  // تلقائياً من نوع الصنف عند الترحيل (مش من هذا الحقل)، وأي قيمة يرسلها العميل هنا تُتجاهل.
   accountId        String
   account          Account         @relation(fields: [accountId], references: [id])
+  itemId           String?
+  item             Item?           @relation(fields: [itemId], references: [id])
+  warehouseId      String?
+  warehouse        Warehouse?      @relation(fields: [warehouseId], references: [id])
+  // فقط لو item.type == fixed_asset — تُستخدَم لإنشاء سجل الأصل الثابت المرتبط بهذا السطر
+  usefulLifeYears  Int?
+  salvageValue     Decimal?        @db.Decimal(18, 2)
   description      String?
   quantity         Decimal         @db.Decimal(18, 4)
   unitPrice        Decimal         @db.Decimal(18, 4)
@@ -796,28 +785,114 @@ model PurchaseReturnLine {
 }
 
 // ---------------------------------------------------------------------------
-// 4.6 المخزون
+// 4.6 المستودعات والمنتجات
 // ---------------------------------------------------------------------------
 
+// نوع الصنف — يحدد سلوكه المحاسبي تلقائياً عند الشراء والبيع (انظر items.service.ts
+// لمنطق التحقق من الحسابات المطلوبة لكل نوع).
+enum ItemType {
+  inventory // مخزوني — الافتراضي، نفس سلوك Item القديم بالضبط
+  expense // مصروف/غير مخزوني — يُشترى ويُستهلك داخلياً، لا بيع له
+  service // خدمي — بدون تتبع كمية أو مخزون إطلاقاً
+  fixed_asset // أصل ثابت — يُنشئ سجل أصل ثابت تلقائياً عند الشراء
+  raw_material // مادة أولية — تُستهلك كمكوّن في منتج مجمّع، لا تُباع مباشرة إلا لو allowDirectSale
+  bundle // منتج مجمّع — رصيده يزيد فقط عبر أمر تصنيع (مرحلة قادمة)، لا يُشترى مباشرة
+}
+
+// كتالوج الأصناف الموحّد — يحل محل Item (مخزون) و SellableItem (مبيعات) القديمين معاً.
+// الربط المحاسبي يُحدَّد هنا فقط، لا يظهر اختيار حساب يدوي داخل سطر الفاتورة لأي صنف.
 model Item {
-  id           String   @id @default(cuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  code         String
-  name         String
-  unit         String?
-  category     String?
-  costPrice    Decimal  @default(0) @db.Decimal(18, 4)
-  reorderLevel Decimal? @db.Decimal(18, 2)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code       String
+  name       String
+  type       ItemType @default(inventory)
+  unit       String?
+  category   String?
+  isArchived Boolean  @default(false)
 
-  stockMovements StockMovement[]
+  // التسعير/التكلفة
+  costPrice         Decimal  @default(0) @db.Decimal(18, 4) // القيمة اليدوية القديمة قبل هذا التحديث — أثر تاريخي فقط، لا يُستخدَم في أي منطق جديد
+  averageCost       Decimal  @default(0) @db.Decimal(18, 4) // متوسط التكلفة المرجّح اللحظي — يُحدَّثه costingEngine.ts تلقائياً فقط، غير قابل للتعديل اليدوي
+  lastPurchasePrice Decimal? @db.Decimal(18, 4)
+  salePrice         Decimal? @db.Decimal(18, 4) // سعر بيع مقترح افتراضي (كان SellableItem.defaultUnitPrice)
+  vatApplicable     Boolean  @default(true)
+  reorderLevel      Decimal? @db.Decimal(18, 2)
 
-  @@unique([tenantId, code])
+  // الربط المحاسبي — حسب النوع (انظر التحقق الديناميكي في items.schemas.ts)
+  stockAccountId   String?
+  stockAccount     Account? @relation("ItemStockAccount", fields: [stockAccountId], references: [id])
+  cogsAccountId    String?
+  cogsAccount      Account? @relation("ItemCogsAccount", fields: [cogsAccountId], references: [id])
+  revenueAccountId String?
+  revenueAccount   Account? @relation("ItemRevenueAccount", fields: [revenueAccountId], references: [id])
+  expenseAccountId String?
+  expenseAccount   Account? @relation("ItemExpenseAccount", fields: [expenseAccountId], references: [id])
+
+  // type == raw_material فقط
+  allowDirectSale Boolean @default(false)
+
+  // type == fixed_asset فقط — للتصنيف بس، الحسابات تبقى ثابتة على مستوى الشركة (wellKnownAccounts.ts) زي الأصول اليدوية
+  assetCategory String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stockMovements       StockMovement[]
+  salesInvoiceLines    SalesInvoiceLine[]
+  purchaseInvoiceLines PurchaseInvoiceLine[]
+  bomLines             ItemComponent[]       @relation("BundleParent")
+  usedInBundles        ItemComponent[]       @relation("ComponentItem")
+
+  @@unique([tenantId, companyId, code])
+  @@index([tenantId, companyId, type])
   @@map("items")
+}
+
+// قائمة مكوّنات "منتج مجمّع" (Bill of Materials مبسّط) — بيانات فقط في هذه المرحلة،
+// الاستهلاك الفعلي عبر "أمر تصنيع" في مرحلة قادمة منفصلة.
+model ItemComponent {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parentItemId    String
+  parentItem      Item     @relation("BundleParent", fields: [parentItemId], references: [id], onDelete: Cascade)
+  componentItemId String
+  componentItem   Item     @relation("ComponentItem", fields: [componentItemId], references: [id])
+  quantityPerUnit Decimal  @db.Decimal(18, 4)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([parentItemId, componentItemId])
+  @@map("item_components")
+}
+
+// مستودع حقيقي (منفصل عن CostCenter، كان المخزن قديماً مجرد مركز تكلفة معاد استخدامه)
+model Warehouse {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name       String
+  code       String?
+  location   String?
+  // المستودع الافتراضي لكل شركة — يُستخدَم لخصم المخزون تلقائياً عند البيع (فاتورة المبيعات
+  // لا تعرض اختيار مستودع لكل سطر في هذه المرحلة). شركة واحدة بحد أقصى مستودع افتراضي واحد،
+  // يُفرَض هذا في warehouses.service عند الإنشاء/التعديل (مش قيد DB صريح).
+  isDefault  Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  stockMovements       StockMovement[]
+  purchaseInvoiceLines PurchaseInvoiceLine[]
+
+  @@unique([tenantId, companyId, name])
+  @@map("warehouses")
 }
 
 enum StockMovementType {
@@ -829,23 +904,26 @@ enum StockMovementType {
 }
 
 model StockMovement {
-  id              String            @id @default(cuid())
-  tenantId        String
-  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId       String
-  company         Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  itemId          String
-  item            Item              @relation(fields: [itemId], references: [id])
-  warehouseId     String
-  warehouse       CostCenter        @relation(fields: [warehouseId], references: [id])
-  type            StockMovementType
-  quantity        Decimal           @db.Decimal(18, 4)
-  unitCost        Decimal           @db.Decimal(18, 4)
-  date            DateTime
-  note            String?
-  journalEntryId  String?
-  transferGroupId String? // يربط سطري (صادر/وارد) نفس عملية التحويل بين شركتين، لحذفهما معاً عند فك الترحيل
-  createdAt       DateTime          @default(now())
+  id                          String            @id @default(cuid())
+  tenantId                    String
+  tenant                      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                   String
+  company                     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  itemId                      String
+  item                        Item              @relation(fields: [itemId], references: [id])
+  warehouseId                 String
+  warehouse                   Warehouse         @relation(fields: [warehouseId], references: [id])
+  type                        StockMovementType
+  quantity                    Decimal           @db.Decimal(18, 4)
+  unitCost                    Decimal           @db.Decimal(18, 4)
+  date                        DateTime
+  note                        String?
+  journalEntryId              String?
+  transferGroupId             String? // يربط سطري (صادر/وارد) نفس عملية التحويل بين شركتين، لحذفهما معاً عند فك الترحيل
+  // تتبّع مصدر الحركة عند إنشائها تلقائياً من فاتورة (لحذفها معاً عند فك ترحيل الفاتورة)
+  sourcePurchaseInvoiceLineId String?           @unique
+  sourceSalesInvoiceLineId    String?           @unique
+  createdAt                   DateTime          @default(now())
 
   @@map("stock_movements")
 }
@@ -860,23 +938,26 @@ enum FixedAssetStatus {
 }
 
 model FixedAsset {
-  id              String           @id @default(cuid())
-  tenantId        String
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId       String
-  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name            String
-  category        String?
-  purchaseDate    DateTime
-  cost            Decimal          @db.Decimal(18, 2)
-  usefulLifeYears Int
-  salvageValue    Decimal          @default(0) @db.Decimal(18, 2)
-  status          FixedAssetStatus @default(active)
-  disposalDate    DateTime?
-  disposalValue   Decimal?         @db.Decimal(18, 2)
-  journalEntryId  String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id                          String           @id @default(cuid())
+  tenantId                    String
+  tenant                      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                   String
+  company                     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                        String
+  category                    String?
+  purchaseDate                DateTime
+  cost                        Decimal          @db.Decimal(18, 2)
+  usefulLifeYears             Int
+  salvageValue                Decimal          @default(0) @db.Decimal(18, 2)
+  status                      FixedAssetStatus @default(active)
+  disposalDate                DateTime?
+  disposalValue               Decimal?         @db.Decimal(18, 2)
+  journalEntryId              String?
+  // لو الأصل اتسجّل تلقائياً من سطر فاتورة مشتريات (صنف من نوع "أصل ثابت")، بيربط بنفس
+  // قيد الفاتورة (journalEntryId أعلاه) مش قيد منفصل — هذا الحقل للتتبع/الحذف عند فك الترحيل بس.
+  sourcePurchaseInvoiceLineId String?          @unique
+  createdAt                   DateTime         @default(now())
+  updatedAt                   DateTime         @updatedAt
 
   @@map("fixed_assets")
 }
@@ -916,51 +997,51 @@ enum EmployeeStatus {
 }
 
 model Employee {
-  id                  String         @id @default(cuid())
-  tenantId            String
-  tenant              Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId           String
-  company             Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name                String
-  jobTitle            String?
-  department          String?
-  hireDate            DateTime
-  contractType        ContractType   @default(unlimited)
-  contractEnd         DateTime?
-  basicSalary         Decimal        @db.Decimal(18, 2)
-  housingAllowance    Decimal        @default(0) @db.Decimal(18, 2)
-  transportAllowance  Decimal        @default(0) @db.Decimal(18, 2)
-  otherAllowance      Decimal        @default(0) @db.Decimal(18, 2)
-  gosiApplicable      Boolean        @default(true)
-  gosiAmount          Decimal?       @db.Decimal(18, 2)
-  advances            Decimal        @default(0) @db.Decimal(18, 2)
-  otherDeductions     Decimal        @default(0) @db.Decimal(18, 2)
-  nationality         String?
-  dateOfBirth         DateTime?
-  bankName            String?
-  bankAccount         String?
-  leaveStatus         LeaveStatus    @default(active)
-  lastLeaveReturnDate DateTime?
-  probationEndDate    DateTime?
-  probationEvaluated  Boolean        @default(false)
-  status              EmployeeStatus @default(active)
+  id                        String         @id @default(cuid())
+  tenantId                  String
+  tenant                    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                 String
+  company                   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                      String
+  jobTitle                  String?
+  department                String?
+  hireDate                  DateTime
+  contractType              ContractType   @default(unlimited)
+  contractEnd               DateTime?
+  basicSalary               Decimal        @db.Decimal(18, 2)
+  housingAllowance          Decimal        @default(0) @db.Decimal(18, 2)
+  transportAllowance        Decimal        @default(0) @db.Decimal(18, 2)
+  otherAllowance            Decimal        @default(0) @db.Decimal(18, 2)
+  gosiApplicable            Boolean        @default(true)
+  gosiAmount                Decimal?       @db.Decimal(18, 2)
+  advances                  Decimal        @default(0) @db.Decimal(18, 2)
+  otherDeductions           Decimal        @default(0) @db.Decimal(18, 2)
+  nationality               String?
+  dateOfBirth               DateTime?
+  bankName                  String?
+  bankAccount               String?
+  leaveStatus               LeaveStatus    @default(active)
+  lastLeaveReturnDate       DateTime?
+  probationEndDate          DateTime?
+  probationEvaluated        Boolean        @default(false)
+  status                    EmployeeStatus @default(active)
   // --- بوابة الموظف (تطبيق الجوال) — تسجيل دخول منفصل تماماً عن حسابات User الإدارية ---
-  phone                     String?   // رقم جوال الموظف — قناة الدخول لبوابة الموظف (فريد ضمن المستأجر)
-  pinHash                   String?   // تجزئة bcrypt لرمز PIN (مطابق لأسلوب hashPassword)، لا يُخزَّن نصاً أبداً
-  portalActive              Boolean   @default(false) // تفعّله الموارد البشرية صراحةً بعد تعيين الهاتف/PIN
-  failedPortalLoginAttempts Int       @default(0)
+  phone                     String? // رقم جوال الموظف — قناة الدخول لبوابة الموظف (فريد ضمن المستأجر)
+  pinHash                   String? // تجزئة bcrypt لرمز PIN (مطابق لأسلوب hashPassword)، لا يُخزَّن نصاً أبداً
+  portalActive              Boolean        @default(false) // تفعّله الموارد البشرية صراحةً بعد تعيين الهاتف/PIN
+  failedPortalLoginAttempts Int            @default(0)
   portalLockedUntil         DateTime?
   managerId                 String?
-  manager                   Employee? @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
+  manager                   Employee?      @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
 
   documents         EmployeeDocument[]
   leaveRequests     LeaveRequest[]
   leaveSettlements  LeaveSettlement[]
   hrActions         HrAction[]
   journalEntryLines JournalEntryLine[]
-  directReports     Employee[]          @relation("EmployeeManager")
+  directReports     Employee[]         @relation("EmployeeManager")
   attendanceRecords AttendanceRecord[]
 
   @@unique([tenantId, phone])
@@ -1003,18 +1084,18 @@ model LeaveRequest {
 // المرحلة الحالية تكتفي برصد "غياب تام" (لا يوجد سجل إطلاقاً لهذا اليوم) دون توقيتات دوام أو
 // كشف تأخير/انصراف مبكر — يؤجَّل ذلك لمرحلة لاحقة عند إضافة جداول الورديات الرسمية.
 model AttendanceRecord {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   companyId  String
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   date       DateTime // منتصف الليل UTC لليوم التقويمي (بلا وقت) — مفتاح "يوم واحد" لكل موظف
   checkInAt  DateTime?
   checkOutAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@unique([employeeId, date])
   @@index([tenantId, companyId, date])

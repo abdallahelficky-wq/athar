@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine, invoiceTypeForCustomer } from "../../lib/invoiceLine";
@@ -5,10 +6,14 @@ import { buildZatcaQrPayload } from "../../lib/zatcaQr";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
+import { getStockBalance } from "../stockMovements/stockMovements.service";
+import { isStockTracked } from "../items/items.service";
+
+type Tx = Prisma.TransactionClient;
 
 interface LineInput {
   accountId: string;
-  sellableItemId?: string;
+  itemId?: string;
   description?: string;
   quantity: number;
   unitPrice: number;
@@ -40,6 +45,28 @@ function computeLines(lines: LineInput[]) {
   return { computed, subtotal, vatTotal, grandTotal };
 }
 
+/**
+ * الحساب المحاسبي المرتبط بكل صنف يُحدَّد من شاشة الصنف نفسها (revenueAccountId) لا من
+ * الفاتورة — أي accountId يرسله العميل لسطر مرتبط بصنف يُتجاهَل ويُستبدَل. الأسطر بلا itemId
+ * (وصف حر) تحتفظ بالـ accountId اليدوي كما هو.
+ */
+async function resolveLineAccounts(tenantId: string, companyId: string, lines: LineInput[]): Promise<LineInput[]> {
+  const itemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => Boolean(x)))];
+  const items = itemIds.length ? await prisma.item.findMany({ where: { id: { in: itemIds }, tenantId, companyId } }) : [];
+  if (items.length !== itemIds.length) throw badRequest("أحد الأصناف المختارة غير موجود ضمن هذه الشركة");
+  const itemById = new Map(items.map((i) => [i.id, i]));
+
+  return lines.map((line) => {
+    if (!line.itemId) return line;
+    const item = itemById.get(line.itemId)!;
+    if (item.type === "expense") throw badRequest(`الصنف "${item.name}" من نوع مصروف، لا يمكن بيعه`);
+    if (item.type === "fixed_asset") throw badRequest(`الصنف "${item.name}" أصل ثابت، لا يُباع عبر فاتورة مبيعات`);
+    if (item.type === "raw_material" && !item.allowDirectSale) throw badRequest(`الصنف "${item.name}" مادة أولية غير مسموح ببيعها منفردة`);
+    if (!item.revenueAccountId) throw badRequest(`لم يُحدَّد حساب الإيراد المرتبط بالصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
+    return { ...line, accountId: item.revenueAccountId };
+  });
+}
+
 async function assertRefs(tenantId: string, companyId: string, customerId: string, lines: LineInput[]) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
@@ -52,6 +79,73 @@ async function assertRefs(tenantId: string, companyId: string, customerId: strin
   });
   if (accounts.length !== accountIds.length) throw badRequest("أحد حسابات الإيراد المختارة غير صالح");
   return { company, customer };
+}
+
+/** يبني سطور قيد تكلفة البضاعة المباعة (لو فيه أصناف مخزونية بالفاتورة)، ويتحقق من كفاية الرصيد قبل الترحيل — لا يكتب أي شيء لقاعدة البيانات، للاستدعاء قبل بناء القيد. */
+async function computeCogsJournalLines(tenantId: string, companyId: string, lines: LineInput[]) {
+  const itemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => Boolean(x)))];
+  if (!itemIds.length) return [];
+  const items = await prisma.item.findMany({ where: { id: { in: itemIds }, tenantId, companyId } });
+  const itemById = new Map(items.map((i) => [i.id, i]));
+  const stockLines = lines.filter((l) => l.itemId && isStockTracked(itemById.get(l.itemId)!.type));
+  if (!stockLines.length) return [];
+
+  const warehouse = await prisma.warehouse.findFirst({ where: { tenantId, companyId, isDefault: true } });
+  if (!warehouse) throw badRequest("لا يوجد مستودع افتراضي محدد لهذه الشركة؛ حدّده من شاشة المستودعات أولاً");
+
+  const byAccount = new Map<string, { debit: number; credit: number }>();
+  const add = (accountId: string, debit: number, credit: number) => {
+    const cur = byAccount.get(accountId) || { debit: 0, credit: 0 };
+    byAccount.set(accountId, { debit: cur.debit + debit, credit: cur.credit + credit });
+  };
+
+  for (const line of stockLines) {
+    const item = itemById.get(line.itemId!)!;
+    if (!item.cogsAccountId || !item.stockAccountId) {
+      throw badRequest(`لم تُحدَّد حسابات المخزون/التكلفة للصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
+    }
+    const balance = await getStockBalance(tenantId, item.id, warehouse.id);
+    if (line.quantity > balance) throw badRequest(`الكمية المطلوبة من "${item.name}" (${line.quantity}) أكبر من الرصيد المتاح (${balance})`);
+
+    const amount = line.quantity * Number(item.averageCost);
+    add(item.cogsAccountId, amount, 0);
+    add(item.stockAccountId, 0, amount);
+  }
+
+  return [...byAccount.entries()].map(([accountId, { debit, credit }]) => ({ accountId, department: "المبيعات والتسويق", debit, credit }));
+}
+
+/** يُنشئ حركة "صرف" مخزنية لكل سطر فاتورة مرتبط بصنف مخزوني — يُستدعى بعد حفظ الفاتورة فعلياً (يحتاج line.id). */
+async function createStockOutSideEffectsTx(
+  tx: Tx,
+  tenantId: string,
+  companyId: string,
+  date: Date,
+  persistedLines: Array<{ id: string; itemId: string | null; quantity: Prisma.Decimal }>,
+  journalEntryId: string,
+) {
+  const itemIds = persistedLines.map((l) => l.itemId).filter((x): x is string => Boolean(x));
+  if (!itemIds.length) return;
+  const warehouse = await tx.warehouse.findFirst({ where: { tenantId, companyId, isDefault: true } });
+  if (!warehouse) throw badRequest("لا يوجد مستودع افتراضي محدد لهذه الشركة؛ حدّده من شاشة المستودعات أولاً");
+
+  for (const line of persistedLines) {
+    if (!line.itemId) continue;
+    const item = await tx.item.findFirstOrThrow({ where: { id: line.itemId, tenantId } });
+    if (!isStockTracked(item.type)) continue;
+    await tx.stockMovement.create({
+      data: {
+        tenantId, companyId, itemId: item.id, warehouseId: warehouse.id, type: "out",
+        quantity: line.quantity, unitCost: item.averageCost, date, journalEntryId, sourceSalesInvoiceLineId: line.id,
+      },
+    });
+  }
+}
+
+async function removeStockOutSideEffectsTx(tx: Tx, invoiceId: string) {
+  const lineIds = (await tx.salesInvoiceLine.findMany({ where: { invoiceId }, select: { id: true } })).map((l) => l.id);
+  if (!lineIds.length) return;
+  await tx.stockMovement.deleteMany({ where: { sourceSalesInvoiceLineId: { in: lineIds } } });
 }
 
 function paidAmountOf(invoice: { receiptAllocations: { amount: unknown }[] }) {
@@ -84,7 +178,15 @@ export async function getSalesInvoice(tenantId: string, id: string) {
   return withPaymentStatus(invoice);
 }
 
-async function buildJournalLines(tenantId: string, companyId: string, customerId: string, computed: Array<LineInput & { subtotal: number; vat: number; total: number }>, vatTotal: number, grandTotal: number) {
+async function buildJournalLines(
+  tenantId: string,
+  companyId: string,
+  customerId: string,
+  computed: Array<LineInput & { subtotal: number; vat: number; total: number }>,
+  vatTotal: number,
+  grandTotal: number,
+  cogsLines: Array<{ accountId: string; department: string; debit: number; credit: number }> = [],
+) {
   const vatOutputId = await getAccountIdByName(tenantId, companyId, "ضريبة القيمة المضافة - مخرجات");
   const receivableId = await getAccountIdByName(tenantId, companyId, "ذمم مدينة");
   const byAccount = new Map<string, number>();
@@ -96,10 +198,12 @@ async function buildJournalLines(tenantId: string, companyId: string, customerId
     })),
     { accountId: vatOutputId, department: "المالية والحسابات", debit: 0, credit: vatTotal, customerId },
     { accountId: receivableId, department: "المالية والحسابات", debit: grandTotal, credit: 0, customerId },
+    ...cogsLines,
   ];
 }
 
 export async function createSalesInvoice(tenantId: string, userId: string, input: InvoiceInput) {
+  input = { ...input, lines: await resolveLineAccounts(tenantId, input.companyId, input.lines) };
   const { customer, company } = await assertRefs(tenantId, input.companyId, input.customerId, input.lines);
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
@@ -138,7 +242,8 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
     return withPaymentStatus(invoice);
   }
 
-  const journalLines = await buildJournalLines(tenantId, input.companyId, input.customerId, computed, vatTotal, grandTotal);
+  const cogsLines = await computeCogsJournalLines(tenantId, input.companyId, input.lines);
+  const journalLines = await buildJournalLines(tenantId, input.companyId, input.customerId, computed, vatTotal, grandTotal, cogsLines);
 
   return prisma.$transaction(async (tx) => {
     const entry = await createJournalEntryTx(tx, {
@@ -171,6 +276,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
     });
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
+    await createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id);
     return withPaymentStatus(invoice);
   });
 }
@@ -180,6 +286,7 @@ export async function updateSalesInvoice(tenantId: string, id: string, input: In
   if (!existing) throw notFound("الفاتورة غير موجودة");
   if (existing.status !== "draft") throw badRequest("لا يمكن تعديل فاتورة مرحّلة، يجب فك ترحيلها أولاً");
 
+  input = { ...input, lines: await resolveLineAccounts(tenantId, input.companyId, input.lines) };
   const { customer } = await assertRefs(tenantId, input.companyId, input.customerId, input.lines);
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
@@ -218,10 +325,11 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
   if (invoice.status === "posted") throw badRequest("الفاتورة مرحّلة بالفعل");
 
   const computed = invoice.lines.map((l) => ({
-    accountId: l.accountId, subtotal: Number(l.subtotal), vat: Number(l.vat), total: Number(l.total),
+    accountId: l.accountId, itemId: l.itemId ?? undefined, subtotal: Number(l.subtotal), vat: Number(l.vat), total: Number(l.total),
     quantity: Number(l.quantity), unitPrice: Number(l.unitPrice),
   }));
-  const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customerId, computed, Number(invoice.vatTotal), Number(invoice.grandTotal));
+  const cogsLines = await computeCogsJournalLines(tenantId, invoice.companyId, computed);
+  const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customerId, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
 
   return prisma.$transaction(async (tx) => {
     const entry = await createJournalEntryTx(tx, {
@@ -239,6 +347,7 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
       data: { status: "posted", journalEntryId: entry.id },
       include: invoiceInclude,
     });
+    await createStockOutSideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id);
     return withPaymentStatus(updated);
   });
 }
@@ -251,6 +360,7 @@ export async function unpostSalesInvoice(tenantId: string, userId: string, id: s
   await assertValidUnlockPin(tenantId, pin);
 
   return prisma.$transaction(async (tx) => {
+    await removeStockOutSideEffectsTx(tx, id);
     await deleteJournalEntryTx(tx, invoice.journalEntryId);
     const updated = await tx.salesInvoice.update({
       where: { id },

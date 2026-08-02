@@ -4,7 +4,7 @@ const lineSchema = z.object({
   accountId: z.string().min(1),
   // سلسلة فارغة (لا يوجد صنف مختار من الكتالوج — وصف حر) تُعامَل كغياب القيمة، حتى لا تُرسَل
   // كمعرّف علاقة فارغ ينتهك قيد المفتاح الأجنبي عند الحفظ في قاعدة البيانات
-  sellableItemId: z.string().optional().transform((v) => (v ? v : undefined)),
+  itemId: z.string().optional().transform((v) => (v ? v : undefined)),
   description: z.string().optional(),
   quantity: z.coerce.number().positive(),
   unitPrice: z.coerce.number().min(0),
