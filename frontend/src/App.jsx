@@ -19,6 +19,7 @@ import PurchasesWiredModule, { PURCHASE_TABS } from "./wired/purchases/Purchases
 import InventoryWiredModule, { INVENTORY_TABS } from "./wired/inventory/InventoryWiredModule";
 import FixedAssetsWiredModule, { FIXED_ASSETS_TABS } from "./wired/fixedAssets/FixedAssetsWiredModule";
 import HRWiredModule, { HR_TABS } from "./wired/hr/HRWiredModule";
+import UserMenu from "./wired/shared/UserMenu";
 
 const NAV_GROUPS = [
   { id: "sales", label: "المبيعات", tabs: SALES_TABS },
@@ -31,7 +32,7 @@ const NAV_GROUPS = [
   { id: "settings", label: "الإعدادات", tabs: SETTINGS_TABS },
 ];
 
-function AppShell() {
+function AppShell({ onLoggedOut }) {
   const { user, tenant, logout } = useAuth();
   const real = useCompanies();
 
@@ -154,18 +155,22 @@ function AppShell() {
             );
           })}
         </div>
-
-        <button className="btn-ghost" onClick={logout} style={{ marginTop: "auto" }}>تسجيل الخروج</button>
       </div>
 
       <div className="main">
         <div className="topbar">
           <button className="hamburger-btn" onClick={() => setIsMobileSidebarOpen(true)} aria-label="فتح القائمة">☰</button>
-          <span className="topbar-company">{user?.name} — {tenant?.name}</span>
+          <span className="topbar-company">{tenant?.name}</span>
           <button className="topbar-active-company" onClick={() => setModuleId("dashboard")} title="الرجوع للشاشة الرئيسية لتبديل الشركة">
             الشركة النشطة: <strong>{activeCompany?.shortName || activeCompany?.name || "لم تُختَر بعد"}</strong>
           </button>
           <span className="topbar-date">{new Date().toLocaleDateString("ar-SA")}</span>
+          <UserMenu
+            name={user?.name}
+            email={user?.email}
+            onOpenProfile={() => { setModuleId("settings"); setSettingsTab("profile"); }}
+            onLogout={async () => { await logout(); onLoggedOut(); }}
+          />
         </div>
 
         {moduleId === "dashboard" && (
@@ -242,5 +247,5 @@ export default function App() {
     return <LandingPage onGoLogin={() => setSiteView("login")} onGoRegister={() => setSiteView("register")} />;
   }
 
-  return <AppShell />;
+  return <AppShell onLoggedOut={() => setSiteView("login")} />;
 }

@@ -53,6 +53,17 @@ export function AuthProvider({ children }) {
     return onForcedLogout(reset);
   }, [reset]);
 
+  useEffect(() => {
+    // عند استعادة الصفحة من ذاكرة التصفح الخلفية (bfcache) بزر الرجوع في المتصفح، تُستعاد شجرة
+    // React وحالتها القديمة كما كانت مجمّدة في الذاكرة دون إعادة تشغيل أي useEffect — أي أنه لو
+    // كانت الصفحة معروضة أثناء الجلسة قبل تسجيل الخروج، سيظهر لحظياً آخر ما كان مرسوماً على
+    // الشاشة (بيانات محمية) قبل أي محاولة لإعادة التحقق. إعادة تحميل الصفحة بالكامل هنا تضمن شجرة
+    // React جديدة تتحقق من وجود الرمز الحالي فعلياً بدل استعادة عرض قديم من الذاكرة.
+    const onPageShow = (event) => { if (event.persisted) window.location.reload(); };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
   const applySession = (result) => {
     setTokens({ accessToken: result.accessToken, refreshToken: result.refreshToken });
     setUser(result.user);

@@ -42,6 +42,14 @@ export function EmployeePortalAuthProvider({ children }) {
     return onEmployeePortalForcedLogout(reset);
   }, [reset]);
 
+  useEffect(() => {
+    // نفس حماية bfcache المستخدمة في AuthContext.jsx للتطبيق الرئيسي: إعادة تحميل الصفحة عند
+    // استعادتها من ذاكرة الرجوع الخلفية للمتصفح تمنع ظهور بيانات موظف سابق بعد تسجيل الخروج.
+    const onPageShow = (event) => { if (event.persisted) window.location.reload(); };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
   const login = async (tenantId, phone, pin) => {
     const result = await portalApi.login(tenantId, phone, pin);
     setEmployeePortalSession({ accessToken: result.accessToken, tenantId });
