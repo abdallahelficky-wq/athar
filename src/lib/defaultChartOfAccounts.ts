@@ -2865,6 +2865,1196 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "parentCode": "224000000",
     "isPosting": true,
     "isBankOrCash": false
+  },
+  {
+    "code": "111000005",
+    "name": "صندوق الإدارة الرئيسية",
+    "nameEn": "Head Office Cash",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "111000000",
+    "isPosting": true,
+    "isBankOrCash": true
+  },
+  {
+    "code": "111000006",
+    "name": "صندوق فرع أو موقع",
+    "nameEn": "Branch or Site Cash",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "111000000",
+    "isPosting": true,
+    "isBankOrCash": true
+  },
+  {
+    "code": "111000007",
+    "name": "مصرف الراجحي",
+    "nameEn": "Al Rajhi Bank",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "111000000",
+    "isPosting": true,
+    "isBankOrCash": true
+  },
+  {
+    "code": "111000008",
+    "name": "البنك السعودي الأول (ساب)",
+    "nameEn": "Saudi Awwal Bank (SAB)",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "111000000",
+    "isPosting": true,
+    "isBankOrCash": true
+  },
+  {
+    "code": "111000009",
+    "name": "مصرف الإنماء",
+    "nameEn": "Alinma Bank",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "111000000",
+    "isPosting": true,
+    "isBankOrCash": true
+  },
+  {
+    "code": "111000010",
+    "name": "البنك الأهلي السعودي",
+    "nameEn": "Saudi National Bank",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "111000000",
+    "isPosting": true,
+    "isBankOrCash": true
+  },
+  {
+    "code": "112000004",
+    "name": "حساب العملاء العام",
+    "nameEn": "General Customer Control",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "112000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "112000005",
+    "name": "كبار العملاء",
+    "nameEn": "Key Customers",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "112000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "113000007",
+    "name": "ذمم بين الشركات الشقيقة - مدينة",
+    "nameEn": "Intercompany Receivables",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "113000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "114000007",
+    "name": "مخزون الوقود والمحروقات",
+    "nameEn": "Fuel Inventory",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "114000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "114000008",
+    "name": "مخزون قطع الغيار",
+    "nameEn": "Spare Parts Inventory",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "114000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "114000009",
+    "name": "مخزون مواد التعبئة والتغليف",
+    "nameEn": "Packaging Materials Inventory",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "114000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "131000002",
+    "name": "أراضٍ تحت التطوير",
+    "nameEn": "Land Under Development",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "131000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "132000003",
+    "name": "مبانٍ تحت الإنشاء",
+    "nameEn": "Buildings Under Construction",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "132000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "134000003",
+    "name": "آلات ومعدات تحت التركيب",
+    "nameEn": "Machinery Under Installation",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "134000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "135000003",
+    "name": "سيارات ومعدات نقل تحت التجهيز",
+    "nameEn": "Vehicles Under Preparation",
+    "type": "asset",
+    "level": 4,
+    "parentCode": "135000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "211000003",
+    "name": "موردون محليون",
+    "nameEn": "Local Suppliers",
+    "type": "liability",
+    "level": 4,
+    "parentCode": "211000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "211000004",
+    "name": "موردون خارجيون",
+    "nameEn": "Foreign Suppliers",
+    "type": "liability",
+    "level": 4,
+    "parentCode": "211000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "217000004",
+    "name": "ذمم بين الشركات الشقيقة - دائنة",
+    "nameEn": "Intercompany Payables",
+    "type": "liability",
+    "level": 4,
+    "parentCode": "217000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "223000003",
+    "name": "مخصص الزكاة",
+    "nameEn": "Zakat Provision",
+    "type": "liability",
+    "level": 4,
+    "parentCode": "223000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "223000004",
+    "name": "مخصص التزامات ومطالبات أخرى",
+    "nameEn": "Other Liabilities and Claims Provision",
+    "type": "liability",
+    "level": 4,
+    "parentCode": "223000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "311000001",
+    "name": "رأس المال المصدر والمدفوع",
+    "nameEn": "Issued and Paid-up Capital",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "311000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "312000001",
+    "name": "علاوة إصدار",
+    "nameEn": "Share Premium",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "312000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "321000001",
+    "name": "الاحتياطي النظامي",
+    "nameEn": "Statutory Reserve",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "321000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "322000001",
+    "name": "احتياطيات أخرى",
+    "nameEn": "Other Reserves",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "322000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "331000001",
+    "name": "الأرباح المبقاة",
+    "nameEn": "Retained Earnings",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "331000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "332000001",
+    "name": "صافي ربح أو خسارة العام",
+    "nameEn": "Current Year Profit or Loss",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "332000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "333000001",
+    "name": "توزيعات الأرباح والمسحوبات",
+    "nameEn": "Dividends and Drawings",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "333000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "411000001",
+    "name": "إيرادات المبيعات",
+    "nameEn": "Sales Revenue",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "411000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "412000001",
+    "name": "إيرادات الخدمات",
+    "nameEn": "Service Revenue",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "412000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "413000001",
+    "name": "مردودات ومسموحات المبيعات",
+    "nameEn": "Sales Returns and Allowances",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "413000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "414000001",
+    "name": "خصم المبيعات",
+    "nameEn": "Sales Discounts",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "414000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "421000001",
+    "name": "إيرادات عمولات",
+    "nameEn": "Commission Income",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "421000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "422000001",
+    "name": "إيرادات تأجير",
+    "nameEn": "Rental Income",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "422000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "423000001",
+    "name": "إيرادات تشغيلية أخرى",
+    "nameEn": "Other Operating Income",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "423000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "431000001",
+    "name": "إيرادات تمويل وفوائد",
+    "nameEn": "Finance and Interest Income",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "431000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "432000001",
+    "name": "أرباح فروق عملة",
+    "nameEn": "Foreign Exchange Gains",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "432000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "433000001",
+    "name": "أرباح بيع أصول",
+    "nameEn": "Gain on Disposal of Assets",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "433000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "434000001",
+    "name": "عكس مخصصات",
+    "nameEn": "Reversal of Provisions",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "434000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "435000001",
+    "name": "إيرادات غير تشغيلية أخرى",
+    "nameEn": "Other Non-operating Income",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "435000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "511000001",
+    "name": "تكلفة البضاعة المباعة",
+    "nameEn": "Cost of Goods Sold",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "511000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "512000001",
+    "name": "مواد مباشرة",
+    "nameEn": "Direct Materials",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "512000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "513000001",
+    "name": "أجور مباشرة",
+    "nameEn": "Direct Labor",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "513000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "514000001",
+    "name": "خدمات ومقاولون من الباطن مباشرون",
+    "nameEn": "Direct Services and Subcontractors",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "514000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "515000001",
+    "name": "شحن ومناولة مشتريات",
+    "nameEn": "Freight-in and Purchase Handling",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "515000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "516000001",
+    "name": "فروقات وهبوط مخزون",
+    "nameEn": "Inventory Adjustments and Write-downs",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "516000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "521000001",
+    "name": "رواتب أساسية - تشغيل",
+    "nameEn": "Basic Salaries - Operations",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "521000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "521000002",
+    "name": "أجور إضافية - تشغيل",
+    "nameEn": "Overtime - Operations",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "521000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "522000001",
+    "name": "إيجارات التشغيل",
+    "nameEn": "Operating Rent",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "522000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "523000001",
+    "name": "خدمات ومرافق التشغيل",
+    "nameEn": "Operating Utilities",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "523000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "524000001",
+    "name": "صيانة سيارات - تشغيل",
+    "nameEn": "Vehicle Maintenance - Operations",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "524000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "524000002",
+    "name": "صيانة معدات - تشغيل",
+    "nameEn": "Equipment Maintenance - Operations",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "524000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "524000003",
+    "name": "صيانة مباني ومواقع - تشغيل",
+    "nameEn": "Building and Site Maintenance - Operations",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "524000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "525000001",
+    "name": "وقود ومحروقات تشغيلية",
+    "nameEn": "Operating Fuel",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "525000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "525000002",
+    "name": "نقل وشحن تشغيلي",
+    "nameEn": "Operating Transport and Freight",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "525000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "526000001",
+    "name": "مواد ومستلزمات التشغيل",
+    "nameEn": "Operating Supplies and Consumables",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "526000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "527000001",
+    "name": "تأمين التشغيل",
+    "nameEn": "Operating Insurance",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "527000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "528000001",
+    "name": "مصروفات تشغيلية أخرى",
+    "nameEn": "Other Operating Expenses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "528000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "531000001",
+    "name": "رواتب أساسية - إدارة",
+    "nameEn": "Basic Salaries - Administration",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "531000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "531000002",
+    "name": "أجور إضافية - إدارة",
+    "nameEn": "Overtime - Administration",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "531000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "532000001",
+    "name": "بدل سكن",
+    "nameEn": "Housing Allowance",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "532000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "532000002",
+    "name": "بدل نقل",
+    "nameEn": "Transportation Allowance",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "532000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "532000003",
+    "name": "بدل انتقال ومهمات",
+    "nameEn": "Travel and Assignment Allowance",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "532000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "532000004",
+    "name": "تأمين طبي للموظفين",
+    "nameEn": "Employee Medical Insurance",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "532000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "533000001",
+    "name": "اشتراكات التأمينات الاجتماعية (GOSI)",
+    "nameEn": "GOSI Contributions",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "533000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "534000001",
+    "name": "مكافأة نهاية الخدمة",
+    "nameEn": "End-of-service Benefit Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "534000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "535000001",
+    "name": "إيجار مكاتب",
+    "nameEn": "Office Rent",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "535000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "535000002",
+    "name": "إيجار مستودعات",
+    "nameEn": "Warehouse Rent",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "535000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "535000003",
+    "name": "إيجار محطات ومواقع",
+    "nameEn": "Station and Site Rent",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "535000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "536000001",
+    "name": "مصروف كهرباء",
+    "nameEn": "Electricity Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "536000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "536000002",
+    "name": "مصروف مياه",
+    "nameEn": "Water Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "536000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "537000001",
+    "name": "مصروف اتصالات",
+    "nameEn": "Telecommunication Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "537000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "537000002",
+    "name": "مصروف إنترنت",
+    "nameEn": "Internet Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "537000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "538000001",
+    "name": "أتعاب محاماة",
+    "nameEn": "Legal Fees",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "538000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "538000002",
+    "name": "أتعاب استشارات",
+    "nameEn": "Consulting Fees",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "538000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "538000003",
+    "name": "أتعاب مراجعة حسابات",
+    "nameEn": "Audit Fees",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "538000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "539000001",
+    "name": "رسوم حكومية",
+    "nameEn": "Government Fees",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "539000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "539000002",
+    "name": "رسوم تراخيص وتجديدات",
+    "nameEn": "License and Renewal Fees",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "539000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "540000001",
+    "name": "قرطاسية وطباعة",
+    "nameEn": "Stationery and Printing",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "540000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "541000001",
+    "name": "برامج واشتراكات تقنية",
+    "nameEn": "Software and Technology Subscriptions",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "541000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "542000001",
+    "name": "صيانة سيارات - إدارية",
+    "nameEn": "Vehicle Maintenance - Administration",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "542000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "542000002",
+    "name": "صيانة معدات - إدارية",
+    "nameEn": "Equipment Maintenance - Administration",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "542000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "542000003",
+    "name": "صيانة مباني - إدارية",
+    "nameEn": "Building Maintenance - Administration",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "542000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "543000001",
+    "name": "تأمين",
+    "nameEn": "Insurance Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "543000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "544000001",
+    "name": "سفر وانتقالات",
+    "nameEn": "Travel and Transportation",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "544000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "545000001",
+    "name": "تدريب وتوظيف",
+    "nameEn": "Training and Recruitment",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "545000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "546000001",
+    "name": "ضيافة واجتماعات",
+    "nameEn": "Hospitality and Meetings",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "546000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "547000001",
+    "name": "عمولات بنكية",
+    "nameEn": "Bank Commissions",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "547000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "547000002",
+    "name": "رسوم خدمات بنكية",
+    "nameEn": "Bank Service Charges",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "547000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "548000001",
+    "name": "مصروف مخصص الديون المشكوك في تحصيلها",
+    "nameEn": "Doubtful Debt Provision Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "548000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "548000002",
+    "name": "ديون معدومة",
+    "nameEn": "Bad Debts Written Off",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "548000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "549000001",
+    "name": "مصروفات متنوعة",
+    "nameEn": "Miscellaneous Expenses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "549000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "549000002",
+    "name": "مصروفات عمومية وإدارية أخرى",
+    "nameEn": "Other General and Administrative Expenses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "549000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "551000001",
+    "name": "إعلانات",
+    "nameEn": "Advertising",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "551000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "551000002",
+    "name": "حملات تسويق",
+    "nameEn": "Marketing Campaigns",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "551000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "552000001",
+    "name": "عمولات مبيعات",
+    "nameEn": "Sales Commissions",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "552000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "553000001",
+    "name": "عروض وفعاليات ترويجية",
+    "nameEn": "Promotions and Events",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "553000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "554000001",
+    "name": "شحن وتوصيل للعملاء",
+    "nameEn": "Outbound Freight and Customer Delivery",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "554000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "555000001",
+    "name": "ضيافة وعلاقات عملاء",
+    "nameEn": "Customer Hospitality and Relations",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "555000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "556000001",
+    "name": "مصروفات بيع وتسويق أخرى",
+    "nameEn": "Other Selling and Marketing Expenses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "556000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "561000001",
+    "name": "إهلاك المباني",
+    "nameEn": "Depreciation – Buildings",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "561000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "562000001",
+    "name": "إهلاك تحسينات المباني والمواقع",
+    "nameEn": "Depreciation – Leasehold and Site Improvements",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "562000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "563000001",
+    "name": "إهلاك الآلات والمعدات",
+    "nameEn": "Depreciation – Machinery and Equipment",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "563000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "564000001",
+    "name": "إهلاك المركبات",
+    "nameEn": "Depreciation – Vehicles",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "564000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "565000001",
+    "name": "إهلاك الأثاث والتجهيزات",
+    "nameEn": "Depreciation – Furniture and Fixtures",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "565000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "566000001",
+    "name": "إهلاك أجهزة الحاسب وتقنية المعلومات",
+    "nameEn": "Depreciation – Computers and IT Equipment",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "566000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "567000001",
+    "name": "إهلاك المعدات المكتبية",
+    "nameEn": "Depreciation – Office Equipment",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "567000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "568000001",
+    "name": "إهلاك أصول حق الاستخدام",
+    "nameEn": "Depreciation – Right-of-use Assets",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "568000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "569000001",
+    "name": "إطفاء الأصول غير الملموسة",
+    "nameEn": "Amortization – Intangible Assets",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "569000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "569500001",
+    "name": "إهلاك أصول ثابتة أخرى",
+    "nameEn": "Depreciation – Other Fixed Assets",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "569500000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "571000001",
+    "name": "تكاليف تمويل وفوائد",
+    "nameEn": "Finance Costs and Interest",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "571000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "572000001",
+    "name": "خسائر فروق عملة",
+    "nameEn": "Foreign Exchange Losses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "572000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "573000001",
+    "name": "خسائر بيع أصول",
+    "nameEn": "Loss on Disposal of Assets",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "573000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "574000001",
+    "name": "غرامات ومخالفات",
+    "nameEn": "Fines and Penalties",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "574000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "575000001",
+    "name": "خسائر انخفاض قيمة",
+    "nameEn": "Impairment Losses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "575000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "576000001",
+    "name": "مصروفات غير تشغيلية أخرى",
+    "nameEn": "Other Non-operating Expenses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "576000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "581000001",
+    "name": "مصروف الزكاة",
+    "nameEn": "Zakat Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "581000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "582000001",
+    "name": "مصروف ضريبة الدخل",
+    "nameEn": "Income Tax Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "582000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
+    "code": "583000001",
+    "name": "مصروف ضريبة مؤجلة",
+    "nameEn": "Deferred Tax Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "583000000",
+    "isPosting": true,
+    "isBankOrCash": false
   }
 ];
 

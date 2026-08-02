@@ -25,6 +25,11 @@ describe("standard default chart of accounts", () => {
     const parentCodes = new Set(DEFAULT_CHART_OF_ACCOUNTS.map((account) => account.parentCode).filter(Boolean));
     const posting = DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.isPosting);
 
+    expect(new Set(DEFAULT_CHART_OF_ACCOUNTS.map((account) => account.level))).toEqual(new Set([1, 2, 3, 4]));
+    expect(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level < 4).every((account) => !account.isPosting)).toBe(true);
+    expect(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level === 4).every((account) => account.isPosting)).toBe(true);
+    const coveredLevelThree = new Set(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level === 4).map((account) => account.parentCode));
+    expect(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level === 3).every((account) => coveredLevelThree.has(account.code))).toBe(true);
     expect(posting.some((account) => account.level === 4)).toBe(true);
     expect(DEFAULT_CHART_OF_ACCOUNTS.every((account) => account.level <= 4)).toBe(true);
     for (const account of posting) {
