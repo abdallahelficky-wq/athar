@@ -9,3 +9,5 @@ export const getMe = () => api.get("/auth/me");
 export const updateMyName = (name) => api.patch("/auth/me", { name });
 export const inviteUser = (payload) => api.post("/auth/invite", payload);
 export const acceptInvite = (payload) => api.post("/auth/accept-invite", payload);
+export const forgotPassword = (email) => api.post("/auth/forgot-password", { email });
+export const resetPassword = (token, password) => api.post("/auth/reset-password", { token, password });

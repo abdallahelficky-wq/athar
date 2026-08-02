@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../api/http";
 
-export default function LoginPage({ onGoLanding, onGoRegister }) {
+export default function LoginPage({ onGoLanding, onGoRegister, onGoForgotPassword }) {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,6 +48,7 @@ export default function LoginPage({ onGoLanding, onGoRegister }) {
           </button>
         </div>
         <div className="auth-links">
+          <button className="link-btn" onClick={onGoForgotPassword}>نسيت كلمة المرور؟</button>
           <button className="link-btn" onClick={onGoRegister}>ليس لديك حساب؟ سجّل الآن</button>
           <button className="link-btn" onClick={onGoLanding}>الرجوع للصفحة الرئيسية</button>
         </div>

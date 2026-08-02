@@ -10,12 +10,17 @@ import {
 } from "../../lib/jwt";
 import { env } from "../../config/env";
 import { createDefaultChart } from "../../lib/defaultChartOfAccounts";
-import { sendInviteEmail } from "../../lib/mailer";
+import { sendInviteEmail, sendPasswordResetEmail } from "../../lib/mailer";
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
 import type { Tenant, User } from "@prisma/client";
 
 const TRIAL_DAYS = 30;
 const INVITE_EXPIRES_DAYS = 7;
+const PASSWORD_RESET_EXPIRES_MINUTES = 30;
+const PASSWORD_RESET_MAX_PER_HOUR = 3;
+// رسالة عامة ثابتة تُعرَض دائماً بغضّ النظر عن وجود البريد فعلياً من عدمه أو تجاوز حد الطلبات،
+// حتى لا يُستخدَم مسار استعادة كلمة المرور لاكتشاف أي بريد إلكتروني مسجَّل بالنظام.
+const FORGOT_PASSWORD_MESSAGE = "لو هذا البريد الإلكتروني مسجّل بالنظام، سيصلك رابط لإعادة تعيين كلمة المرور خلال دقائق.";
 
 // الحساب الرئيسي/المالك الوحيد المخوَّل تلقائياً بدور "مدير عام" (super_admin) عند التسجيل —
 // هذا الدور غير قابل للمنح عبر الدعوة العادية (inviteSchema)، وهو الوحيد المسموح له بتنفيذ
@@ -222,4 +227,47 @@ export async function getMe(userId: string) {
 export async function updateMyName(userId: string, name: string) {
   const updated = await prisma.user.update({ where: { id: userId }, data: { name } });
   return publicUser(updated);
+}
+
+/**
+ * يُرجع دائماً نفس الرسالة العامة (FORGOT_PASSWORD_MESSAGE) بصرف النظر عن وجود البريد من
+ * عدمه، أو تعطيل الحساب، أو تجاوز حد الطلبات — لمنع أي طرف من استخدام هذا المسار لاكتشاف
+ * البريد الإلكتروني لمستخدم حقيقي بالنظام عبر تجربة عناوين عشوائية.
+ */
+export async function forgotPassword(email: string) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (user && user.active) {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recentRequests = await prisma.passwordResetToken.count({
+      where: { userId: user.id, createdAt: { gte: oneHourAgo } },
+    });
+    // لو تجاوز حد الطلبات: نتجاهل الطلب بصمت (بدون إنشاء رمز جديد ولا إرسال إيميل) لكن نظل
+    // نُرجع نفس الرسالة العامة أدناه، حتى لا يُكشَف الفارق بين "لا يوجد بريد كهذا" و"البريد
+    // موجود لكن تم تجاوز حد الطلبات" من خلال اختلاف الاستجابة.
+    if (recentRequests < PASSWORD_RESET_MAX_PER_HOUR) {
+      const rawToken = generateInviteToken();
+      const tokenHash = hashToken(rawToken);
+      const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MINUTES * 60_000);
+      await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt } });
+      await sendPasswordResetEmail(user.email, rawToken);
+    }
+  }
+  return FORGOT_PASSWORD_MESSAGE;
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const tokenHash = hashToken(token);
+  const stored = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+  if (!stored || stored.usedAt || stored.expiresAt < new Date()) {
+    throw badRequest("الرابط غير صالح أو منتهي الصلاحية، يرجى طلب رابط جديد");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: stored.userId }, data: { passwordHash } }),
+    prisma.passwordResetToken.update({ where: { id: stored.id }, data: { usedAt: new Date() } }),
+    // إبطال كل جلسات هذا المستخدم المفتوحة على أي جهاز فور نجاح إعادة التعيين — إجراء أمني
+    // مقصود، بنفس منطق إبطال رمز واحد عند logout لكن مطبَّق على كل رموز التحديث غير المُبطَلة.
+    prisma.refreshToken.updateMany({ where: { userId: stored.userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+  ]);
 }

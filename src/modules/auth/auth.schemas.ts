@@ -40,3 +40,12 @@ export const updateTenantSchema = z.object({
 export const updateMeSchema = z.object({
   name: z.string().min(2, "الاسم قصير جداً"),
 });
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("بريد إلكتروني غير صالح"),
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "رمز إعادة التعيين مطلوب"),
+  password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
+});

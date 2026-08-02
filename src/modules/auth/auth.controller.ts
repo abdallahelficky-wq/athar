@@ -50,3 +50,13 @@ export const updateMeHandler: RequestHandler = async (req, res) => {
   const user = await authService.updateMyName(req.auth!.sub, req.body.name);
   res.json({ user });
 };
+
+export const forgotPasswordHandler: RequestHandler = async (req, res) => {
+  const message = await authService.forgotPassword(req.body.email);
+  res.json({ message });
+};
+
+export const resetPasswordHandler: RequestHandler = async (req, res) => {
+  await authService.resetPassword(req.body.token, req.body.password);
+  res.json({ message: "تم تعيين كلمة المرور الجديدة بنجاح. سجّل الدخول بها الآن." });
+};

@@ -5,6 +5,8 @@ import { useCompanies } from "./wired/useCompanies";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import Dashboard from "./wired/Dashboard";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
 import ReportsModule, { REPORT_TABS } from "./wired/ReportsModule";
@@ -231,18 +233,56 @@ function AppShell({ onLoggedOut }) {
   );
 }
 
+// يقرأ رمز إعادة تعيين كلمة المرور من رابط الإيميل مرة واحدة فقط عند أول تحميل، ثم يزيله فوراً
+// من شريط العنوان (history.replaceState) حتى لا يبقى الرمز الحساس ظاهراً أو محفوظاً في سجل
+// التصفح بعد قراءته.
+function consumeResetTokenFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+  if (token) {
+    window.history.replaceState(null, "", window.location.pathname);
+  }
+  return token;
+}
+
 export default function App() {
   const { isAuthenticated, initializing } = useAuth();
   const [siteView, setSiteView] = useState("landing");
+  const [resetToken, setResetToken] = useState(() => {
+    const token = consumeResetTokenFromUrl();
+    if (token) setSiteView("reset-password");
+    return token;
+  });
 
   if (initializing) return null;
 
+  // شاشة إعادة تعيين كلمة المرور تُعرض بصرف النظر عن وجود جلسة مفتوحة بالفعل في هذا المتصفح —
+  // المستخدم قد يضغط رابط الاستعادة على جهاز فيه جلسة أخرى غير متصلة بالحساب المقصود.
+  if (siteView === "reset-password") {
+    return (
+      <ResetPasswordPage
+        token={resetToken}
+        onGoLogin={() => { setResetToken(null); setSiteView("login"); }}
+        onGoForgotPassword={() => { setResetToken(null); setSiteView("forgot-password"); }}
+      />
+    );
+  }
+
   if (!isAuthenticated) {
     if (siteView === "login") {
-      return <LoginPage onGoLanding={() => setSiteView("landing")} onGoRegister={() => setSiteView("register")} />;
+      return (
+        <LoginPage
+          onGoLanding={() => setSiteView("landing")}
+          onGoRegister={() => setSiteView("register")}
+          onGoForgotPassword={() => setSiteView("forgot-password")}
+        />
+      );
     }
     if (siteView === "register") {
       return <RegisterPage onGoLanding={() => setSiteView("landing")} onGoLogin={() => setSiteView("login")} />;
+    }
+    if (siteView === "forgot-password") {
+      return <ForgotPasswordPage onGoLogin={() => setSiteView("login")} />;
     }
     return <LandingPage onGoLogin={() => setSiteView("login")} onGoRegister={() => setSiteView("register")} />;
   }

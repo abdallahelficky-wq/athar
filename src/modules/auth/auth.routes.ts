@@ -10,6 +10,8 @@ import {
   changeUnlockPinSchema,
   updateTenantSchema,
   updateMeSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from "./auth.schemas";
 import {
   registerHandler,
@@ -22,6 +24,8 @@ import {
   updateTenantHandler,
   meHandler,
   updateMeHandler,
+  forgotPasswordHandler,
+  resetPasswordHandler,
 } from "./auth.controller";
 
 export const authRoutes = Router();
@@ -54,3 +58,5 @@ authRoutes.patch(
 );
 authRoutes.get("/me", authenticate, meHandler);
 authRoutes.patch("/me", authenticate, validateBody(updateMeSchema), updateMeHandler);
+authRoutes.post("/forgot-password", validateBody(forgotPasswordSchema), forgotPasswordHandler);
+authRoutes.post("/reset-password", validateBody(resetPasswordSchema), resetPasswordHandler);

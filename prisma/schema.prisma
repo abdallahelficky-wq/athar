@@ -112,8 +112,9 @@ model User {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  refreshTokens RefreshToken[]
-  auditLogs     AuditLog[]
+  refreshTokens       RefreshToken[]
+  auditLogs           AuditLog[]
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -128,6 +129,21 @@ model RefreshToken {
   createdAt DateTime  @default(now())
 
   @@map("refresh_tokens")
+}
+
+// رمز استعادة كلمة المرور — يُخزَّن مجزّأً (SHA-256) لا كنص خام، بنفس أسلوب RefreshToken،
+// أحادي الاستخدام (usedAt) ومحدود الصلاحية (expiresAt)، ويُستخدم أيضاً لتطبيق تحديد معدل
+// الطلبات (٣ طلبات لكل بريد إلكتروني في الساعة) بعدّ الصفوف المُنشأة حديثاً لنفس المستخدم.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("password_reset_tokens")
 }
 
 // سجل تدقيق فك الترحيل وأي أحداث حساسة أخرى — غير موجود في البروتوتايب، مطلوب في القسم 4.9

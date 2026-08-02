@@ -32,4 +32,12 @@ export const env = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
   anthropicBaseUrl: process.env.ANTHROPIC_BASE_URL ?? "https://api.anthropic.com",
+
+  // اختياري: بدون مفتاح، يكتفي lib/mailer.ts بطباعة محتوى الإيميل في الطرفية (fallback آمن
+  // للتطوير المحلي) بدل الإرسال الفعلي عبر Resend.
+  resendApiKey: process.env.RESEND_API_KEY,
+  emailFromAddress: process.env.EMAIL_FROM_ADDRESS ?? "أثر المحاسبي <onboarding@resend.dev>",
+  // أساس الروابط الموجودة داخل الإيميلات (رابط إعادة تعيين كلمة المرور، رابط قبول الدعوة)؛
+  // يجب أن يشير لأصل الواجهة الأمامية المنشورة فعلياً، لا الخادم الخلفي.
+  frontendBaseUrl: process.env.FRONTEND_BASE_URL ?? "https://athar-accounting.up.railway.app",
 };
