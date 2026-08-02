@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import AccountImportPanel from "./AccountImportPanel";
 
 const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
+const LEVEL_CODE_LENGTH = { 1: 1, 2: 2, 3: 4, 4: 6 };
 const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false };
 
 export default function ChartOfAccountsModule({ companies = [], companyId }) {
@@ -53,7 +54,10 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     if (form.name.trim().length < 2) return setError("أدخل اسم الحساب بالعربية (حرفان على الأقل).");
     if (!form.code.trim()) return setError("أدخل كود الحساب.");
     if (level > 1 && !form.parentId) return setError("اختر الحساب الأب للمستوى المطلوب.");
-    if (level === 4 && !/^\d{9}$/.test(form.code)) return setError("كود حساب المستوى الرابع يجب أن يتكون من 9 أرقام.");
+    const expectedLength = LEVEL_CODE_LENGTH[level];
+    if (!expectedLength || !new RegExp(`^\\d{${expectedLength}}$`).test(form.code)) {
+      return setError(`كود حساب المستوى ${level} يجب أن يتكون من ${expectedLength ?? "؟"} أرقام.`);
+    }
     const payload = {
       ...form,
       name: form.name.trim(), nameEn: form.nameEn.trim() || null, code: form.code.trim(), parentId: form.parentId || null,
@@ -150,7 +154,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         <div className="form-grid">
           <label>اسم الحساب بالعربية<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <label>اسم الحساب بالإنجليزية (اختياري)<input dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></label>
-          <label>كود الحساب<input inputMode="numeric" maxLength={9} readOnly={Boolean(editingId)} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 4 ? "يُولّد تلقائياً من الحساب الأب" : `كود المستوى ${level}`} /></label>
+          <label>كود الحساب<input inputMode="numeric" maxLength={LEVEL_CODE_LENGTH[level] || 6} readOnly={Boolean(editingId)} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 4 ? "يُولّد تلقائياً من الحساب الأب" : `كود المستوى ${level}`} /></label>
           <label>الحساب الأب
             <select value={form.parentId} onChange={(e) => selectParent(e.target.value)}>
               <option value="">— مستوى أول —</option>

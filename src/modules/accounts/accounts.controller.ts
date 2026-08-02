@@ -5,10 +5,18 @@ import { createDefaultChart, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/default
 
 const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ? value : null);
 
+// طول كود كل مستوى: الأول رقم واحد، الثاني رقمان (يمتدان من كود الأب)، الثالث أربعة أرقام،
+// الرابع (حسابات الترحيل) ستة أرقام — كل مستوى يمتد من كود أبيه مباشرة بإضافة أرقام له، لا كود
+// ثابت الطول لكل الشجرة (كان قبل ذلك 9 أرقام موحّدة لكل المستويات).
+const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 4, 4: 6 };
+
 async function validateHierarchy(tenantId: string, input: any, currentId?: string) {
   const companyId = input.companyId ?? null;
   const level = Number(input.level);
-  if (level === 4 && !/^\d{9}$/.test(input.code)) throw badRequest("حساب المستوى الرابع يجب أن يحمل كوداً من 9 أرقام");
+  const expectedLength = LEVEL_CODE_LENGTH[level];
+  if (!expectedLength || !new RegExp(`^\\d{${expectedLength}}$`).test(input.code)) {
+    throw badRequest(`كود المستوى ${level} يجب أن يتكون من ${expectedLength ?? "؟"} أرقام`);
+  }
   if (level === 4 && !input.isPosting) throw badRequest("حساب المستوى الرابع يجب أن يكون حساب ترحيل");
   if (level < 4 && input.isPosting) throw badRequest("حسابات المستويات من الأول إلى الثالث حسابات تجميعية وليست قابلة للترحيل");
   if (level === 1 && input.parentId) throw badRequest("حساب المستوى الأول لا يقبل حساباً أباً");
@@ -19,6 +27,9 @@ async function validateHierarchy(tenantId: string, input: any, currentId?: strin
     if (parent.id === currentId || parent.level !== level - 1 || (parent.companyId || null) !== companyId) {
       throw badRequest("الحساب الأب يجب أن يكون من المستوى السابق وفي الشجرة نفسها");
     }
+    // عند النقل (currentId موجود) يبقى الكود القديم كما هو حفاظاً على أثر المراجعة التاريخي،
+    // وقد لا يبدأ بكود الأب الجديد — لذا يُشترط تطابق البادئة عند الإنشاء فقط وليس عند التعديل/النقل.
+    if (!currentId && !input.code.startsWith(parent.code)) throw badRequest("كود الحساب يجب أن يبدأ بكود الحساب الأب");
   }
   if (input.isPosting && currentId) {
     const children = await prisma.account.count({ where: { parentId: currentId } });
@@ -30,10 +41,15 @@ async function generateNextCode(tenantId: string, companyId: string | null, pare
   const parent = await prisma.account.findFirst({ where: { id: parentId, tenantId, companyId } });
   if (!parent) throw badRequest("الحساب الأب غير موجود في الشجرة المحددة");
   if (parent.isPosting || parent.level >= 4) throw badRequest("حساب الترحيل لا يقبل حسابات فرعية");
+  const childLevel = parent.level + 1;
+  const targetLength = LEVEL_CODE_LENGTH[childLevel];
+  const suffixWidth = targetLength - parent.code.length;
   const siblings = await prisma.account.findMany({ where: { tenantId, companyId, parentId }, select: { code: true } });
-  const next = Math.max(Number(parent.code), ...siblings.map((account) => Number(account.code))) + 1;
-  if (next > 999999999) throw badRequest("تعذر توليد كود جديد ضمن الحد المسموح");
-  return String(next).padStart(9, "0");
+  const usedSuffixes = siblings.map((account) => Number(account.code.slice(parent.code.length)) || 0);
+  const next = Math.max(0, ...usedSuffixes) + 1;
+  const maxSuffix = Number("9".repeat(suffixWidth));
+  if (next > maxSuffix) throw badRequest("تعذر توليد كود جديد ضمن الحد المسموح لهذا المستوى");
+  return parent.code + String(next).padStart(suffixWidth, "0");
 }
 
 export const nextAccountCode: RequestHandler = async (req, res) => {
@@ -149,12 +165,16 @@ export const importAccounts: RequestHandler = async (req, res) => {
   }
 
   for (const row of rows) {
-    if (row.level === 4 && !/^\d{9}$/.test(row.code)) {
-      throw badRequest(`حساب المستوى الرابع ${row.code} يجب أن يحمل كوداً من 9 أرقام`);
+    const expectedLength = LEVEL_CODE_LENGTH[row.level];
+    if (!expectedLength || !new RegExp(`^\\d{${expectedLength}}$`).test(row.code)) {
+      throw badRequest(`حساب المستوى ${row.level} (${row.code}) يجب أن يحمل كوداً من ${expectedLength ?? "؟"} أرقام`);
     }
     if (row.isPosting !== (row.level === 4)) throw badRequest(`الحساب ${row.code}: الترحيل متاح حصراً في المستوى الرابع`);
     if (row.level === 1 && row.parentCode) throw badRequest(`الحساب ${row.code} من المستوى الأول ولا يقبل حساباً أباً`);
     if (row.level > 1 && !row.parentCode) throw badRequest(`الحساب الأب مفقود للكود ${row.code}`);
+    if (row.level > 1 && row.parentCode && !row.code.startsWith(row.parentCode)) {
+      throw badRequest(`كود الحساب ${row.code} يجب أن يبدأ بكود الحساب الأب ${row.parentCode}`);
+    }
   }
   const importedChildren = new Set(rows.map((row) => row.parentCode).filter(Boolean));
   const postingParents = rows.filter((row) => row.isPosting && importedChildren.has(row.code)).map((row) => row.code);
