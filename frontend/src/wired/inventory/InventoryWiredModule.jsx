@@ -23,7 +23,7 @@ export default function InventoryWiredModule({ tab, setTab, companies, companyId
         <h2>المخزون</h2>
       </div>
       <SubTabs tabs={INVENTORY_TABS} active={tab} onChange={setTab} />
-      {tab === "items" && <ItemsTab companyId={companyId} />}
+      {tab === "items" && <ItemsTab companyId={companyId} onNavigateTransfer={() => setTab("transfer")} />}
       {tab === "inout" && <StockInOutTab companyId={companyId} />}
       {tab === "issue" && <IssueTab companyId={companyId} />}
       {tab === "transfer" && <TransferTab companyId={companyId} companies={companies} />}
