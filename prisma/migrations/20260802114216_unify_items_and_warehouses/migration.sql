@@ -105,9 +105,14 @@ INSERT INTO "items" (
   "stockAccountId", "cogsAccountId", "revenueAccountId", "expenseAccountId",
   "allowDirectSale", "assetCategory", "createdAt", "updatedAt"
 )
+-- الكود يُشتق من معرّف الصنف نفسه (cuid فريد عالمياً) لا من ترقيم تسلسلي لكل شركة: القيد
+-- الفريد النشط في هذه اللحظة بالذات هو "items_tenantId_code_key" (على مستوى المستأجر كله،
+-- يُحذَف لاحقاً في القسم 3) لا "لكل شركة" — أي ترقيم يعيد البدء من ١ لكل شركة (زي
+-- ROW_NUMBER() PARTITION BY companyId) يُنتِج كوداً مكرراً بين شركتين لنفس المستأجر
+-- (مثلاً SV-00001 مرتين) فتفشل هذه الخطوة وتتوقف الهجرة بالكامل.
 SELECT
   s."id", s."tenantId", s."companyId",
-  'SV-' || LPAD(ROW_NUMBER() OVER (PARTITION BY s."companyId" ORDER BY s."createdAt")::text, 5, '0'),
+  'SVC-' || s."id",
   s."name", 'service', NULL, NULL, false,
   0, 0, NULL, s."defaultUnitPrice", s."vatApplicable", NULL,
   NULL, NULL, s."defaultRevenueAccountId", NULL,
@@ -118,13 +123,18 @@ FROM "sellable_items" s;
 --     صالحة الآن لأن صف SellableItem المطابق اتنسخ لجدول items بنفس الـ id في الخطوة السابقة)
 UPDATE "sales_invoice_lines" SET "itemId" = "sellableItemId" WHERE "sellableItemId" IS NOT NULL;
 
--- 2.5 مستودعات: ننسخ فقط مراكز التكلفة المُستخدَمة فعلياً كمخزن اليوم (نفس الـ id، عشان
---     stock_movements.warehouseId يفضل صحيح من غير إعادة ربط)
+-- 2.5 مستودعات: ننسخ كل مركز تكلفة مُستخدَم فعلياً كمخزن اليوم (نفس الـ id، عشان
+--     stock_movements.warehouseId يفضل صحيح من غير إعادة ربط) — بما فيها مراكز التكلفة
+--     "العامة" (companyId فارغ، كان النموذج القديم يسمح باختيارها كمخزن). المستودع الجديد
+--     companyId فيه إلزامي، فنشتق شركة افتراضية لهذه الحالة من أول حركة مخزون فعلية تشاور
+--     عليها (COALESCE) بدل استبعادها بالكامل — استبعادها كان يترك حركة مخزون قديمة بلا
+--     مستودع مطابق، فيفشل قيد "stock_movements_warehouseId_fkey" النهائي وتتوقف الهجرة بالكامل.
 INSERT INTO "warehouses" ("id", "tenantId", "companyId", "name", "createdAt", "updatedAt")
-SELECT DISTINCT c."id", c."tenantId", c."companyId", c."name", c."createdAt", c."updatedAt"
+SELECT DISTINCT ON (c."id")
+  c."id", c."tenantId", COALESCE(c."companyId", sm."companyId"), c."name", c."createdAt", c."updatedAt"
 FROM "cost_centers" c
-WHERE c."id" IN (SELECT DISTINCT "warehouseId" FROM "stock_movements")
-  AND c."companyId" IS NOT NULL;
+JOIN "stock_movements" sm ON sm."warehouseId" = c."id"
+ORDER BY c."id", sm."companyId";
 
 -- 2.6 لأي شركة معندهاش أي حركة مخزون سابقة (ومن ثم معندهاش مستودع اتنسخ في الخطوة اللي فاتت)،
 --     ننشئ مستودع افتراضي واحد باسم "المستودع الرئيسي"

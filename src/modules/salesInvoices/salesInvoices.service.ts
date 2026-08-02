@@ -93,6 +93,19 @@ async function computeCogsJournalLines(tenantId: string, companyId: string, line
   const warehouse = await prisma.warehouse.findFirst({ where: { tenantId, companyId, isDefault: true } });
   if (!warehouse) throw badRequest("لا يوجد مستودع افتراضي محدد لهذه الشركة؛ حدّده من شاشة المستودعات أولاً");
 
+  // يجب تجميع الكمية الإجمالية المطلوبة لكل صنف عبر كل أسطر الفاتورة قبل مقارنتها بالرصيد —
+  // وإلا فسطران لنفس الصنف يمكن أن يتجاوزا الرصيد المتاح مجتمعين رغم أن كل سطر بمفرده يبدو
+  // صالحاً عند مقارنته منفرداً بنفس الرصيد (الذي لم يتغيّر بعد لأن الفاتورة لم تُحفَظ بعد).
+  const totalQtyByItem = new Map<string, number>();
+  for (const line of stockLines) {
+    totalQtyByItem.set(line.itemId!, (totalQtyByItem.get(line.itemId!) || 0) + line.quantity);
+  }
+  for (const [itemId, totalQty] of totalQtyByItem) {
+    const item = itemById.get(itemId)!;
+    const balance = await getStockBalance(tenantId, itemId, warehouse.id);
+    if (totalQty > balance) throw badRequest(`الكمية الإجمالية المطلوبة من "${item.name}" (${totalQty}) أكبر من الرصيد المتاح (${balance})`);
+  }
+
   const byAccount = new Map<string, { debit: number; credit: number }>();
   const add = (accountId: string, debit: number, credit: number) => {
     const cur = byAccount.get(accountId) || { debit: 0, credit: 0 };
@@ -104,9 +117,6 @@ async function computeCogsJournalLines(tenantId: string, companyId: string, line
     if (!item.cogsAccountId || !item.stockAccountId) {
       throw badRequest(`لم تُحدَّد حسابات المخزون/التكلفة للصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
     }
-    const balance = await getStockBalance(tenantId, item.id, warehouse.id);
-    if (line.quantity > balance) throw badRequest(`الكمية المطلوبة من "${item.name}" (${line.quantity}) أكبر من الرصيد المتاح (${balance})`);
-
     const amount = line.quantity * Number(item.averageCost);
     add(item.cogsAccountId, amount, 0);
     add(item.stockAccountId, 0, amount);

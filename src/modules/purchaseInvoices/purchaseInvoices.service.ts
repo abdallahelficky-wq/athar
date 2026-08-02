@@ -5,7 +5,7 @@ import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
-import { applyPurchaseToAverageCostTx } from "../../lib/costingEngine";
+import { applyPurchaseToAverageCostTx, recomputeAverageCostFromScratchTx } from "../../lib/costingEngine";
 
 type Tx = Prisma.TransactionClient;
 
@@ -50,6 +50,14 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
   if (items.length !== itemIds.length) throw badRequest("أحد الأصناف المختارة غير موجود ضمن هذه الشركة");
   const itemById = new Map(items.map((i) => [i.id, i]));
 
+  // لازم يتحقق من أن المستودع المُختار ينتمي فعلاً لهذه الشركة (لا يكفي وجود المعرّف فقط)،
+  // وإلا يمكن لطلب مباشر عبر الـ API إرسال معرّف مستودع شركة أخرى فتُسجَّل حركة المخزون على
+  // مستودع لا يخصّها وتُفسِد رصيده.
+  const warehouseIds = [...new Set(lines.map((l) => l.warehouseId).filter((x): x is string => Boolean(x)))];
+  const warehouses = warehouseIds.length ? await prisma.warehouse.findMany({ where: { id: { in: warehouseIds }, tenantId, companyId } }) : [];
+  if (warehouses.length !== warehouseIds.length) throw badRequest("أحد المستودعات المختارة غير موجود ضمن هذه الشركة");
+  const warehouseIdSet = new Set(warehouses.map((w) => w.id));
+
   const resolved: LineInput[] = [];
   for (const line of lines) {
     if (!line.itemId) {
@@ -67,7 +75,7 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
       continue;
     }
 
-    if (!line.warehouseId) throw badRequest(`اختر المستودع للصنف "${item.name}"`);
+    if (!line.warehouseId || !warehouseIdSet.has(line.warehouseId)) throw badRequest(`اختر مستودعاً صالحاً ضمن هذه الشركة للصنف "${item.name}"`);
     const primaryAccountId = item.type === "expense" ? item.expenseAccountId : item.stockAccountId;
     if (!primaryAccountId) throw badRequest(`لم يُحدَّد الحساب المحاسبي المرتبط بالصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
     resolved.push({ ...line, accountId: primaryAccountId });
@@ -128,11 +136,17 @@ async function createInventorySideEffectsTx(
 }
 
 /** يُستدعى عند فك ترحيل الفاتورة — يحذف كل حركة مخزون/أصل ثابت أُنشئ تلقائياً من أسطرها. */
-async function removeInventorySideEffectsTx(tx: Tx, invoiceId: string) {
-  const lineIds = (await tx.purchaseInvoiceLine.findMany({ where: { invoiceId }, select: { id: true } })).map((l) => l.id);
+async function removeInventorySideEffectsTx(tx: Tx, tenantId: string, invoiceId: string) {
+  const lines = await tx.purchaseInvoiceLine.findMany({ where: { invoiceId }, select: { id: true, itemId: true } });
+  const lineIds = lines.map((l) => l.id);
   if (!lineIds.length) return;
   await tx.stockMovement.deleteMany({ where: { sourcePurchaseInvoiceLineId: { in: lineIds } } });
   await tx.fixedAsset.deleteMany({ where: { sourcePurchaseInvoiceLineId: { in: lineIds } } });
+  // كل سطر شراء مرتبط بصنف كان يحدّث averageCost عند الترحيل (createInventorySideEffectsTx) —
+  // يجب إعادة حسابها من الصفر بعد حذف حركة الوارد المقابلة، وإلا يفضل المتوسط محسوباً على
+  // كمية لم تعد موجودة فعلياً في المخزون.
+  const itemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => Boolean(x)))];
+  for (const itemId of itemIds) await recomputeAverageCostFromScratchTx(tx, tenantId, itemId);
 }
 
 async function buildJournalLines(supplierId: string, computed: Array<{ accountId: string; subtotal: number }>, vatTotal: number, grandTotal: number, tenantId: string, companyId: string) {
@@ -268,7 +282,7 @@ export async function unpostPurchaseInvoice(tenantId: string, userId: string, id
   await assertValidUnlockPin(tenantId, pin);
 
   return prisma.$transaction(async (tx) => {
-    await removeInventorySideEffectsTx(tx, id);
+    await removeInventorySideEffectsTx(tx, tenantId, id);
     await deleteJournalEntryTx(tx, invoice.journalEntryId);
     const updated = await tx.purchaseInvoice.update({ where: { id }, data: { status: "draft", journalEntryId: null }, include: invoiceInclude });
     await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "PurchaseInvoice", entityId: id });

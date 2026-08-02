@@ -2,7 +2,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
-import { applyPurchaseToAverageCostTx } from "../../lib/costingEngine";
+import { applyPurchaseToAverageCostTx, recomputeAverageCostFromScratchTx } from "../../lib/costingEngine";
 import { isStockTracked } from "../items/items.service";
 import crypto from "node:crypto";
 
@@ -35,8 +35,10 @@ async function assertItemAndWarehouse(tenantId: string, itemId: string, warehous
   const item = await prisma.item.findFirst({ where: { id: itemId, tenantId } });
   if (!item) throw badRequest("الصنف غير موجود");
   if (!isStockTracked(item.type)) throw badRequest("هذا النوع من الأصناف لا يُدار كمخزون");
-  const warehouse = await prisma.warehouse.findFirst({ where: { id: warehouseId, tenantId } });
-  if (!warehouse) throw badRequest("المستودع غير موجود");
+  // لازم يتحقق من الشركة (لا المستأجر فقط)، وإلا يمكن اختيار مستودع شركة أخرى داخل نفس
+  // المستأجر مع صنف هذه الشركة، فتُسجَّل حركة على مستودع لا يخصّها وتُفسِد رصيده.
+  const warehouse = await prisma.warehouse.findFirst({ where: { id: warehouseId, tenantId, companyId: item.companyId } });
+  if (!warehouse) throw badRequest("المستودع غير موجود ضمن شركة هذا الصنف");
   return { item, warehouse };
 }
 
@@ -134,10 +136,10 @@ export async function createTransferMovement(
   input: { itemId: string; fromWarehouseId: string; toWarehouseId: string; toCompanyId: string; quantity: number; date: Date },
 ) {
   const { item } = await assertItemAndWarehouse(tenantId, input.itemId, input.fromWarehouseId);
-  const toWarehouse = await prisma.warehouse.findFirst({ where: { id: input.toWarehouseId, tenantId } });
-  if (!toWarehouse) throw badRequest("مستودع الوجهة غير موجود");
   const toCompany = await prisma.company.findFirst({ where: { id: input.toCompanyId, tenantId } });
   if (!toCompany) throw badRequest("الشركة المستقبلة غير موجودة");
+  const toWarehouse = await prisma.warehouse.findFirst({ where: { id: input.toWarehouseId, tenantId, companyId: input.toCompanyId } });
+  if (!toWarehouse) throw badRequest("مستودع الوجهة غير موجود ضمن الشركة المستقبلة");
 
   const balance = await getStockBalance(tenantId, input.itemId, input.fromWarehouseId);
   if (input.quantity > balance) throw badRequest(`الكمية المطلوبة (${input.quantity}) أكبر من الرصيد المتاح بالمصدر (${balance})`);
@@ -244,10 +246,14 @@ export async function removeStockMovement(tenantId: string, userId: string, id: 
     : [movement];
 
   const journalEntryIds = [...new Set(group.map((m) => m.journalEntryId).filter((x): x is string => Boolean(x)))];
+  // أي حركة "واردة" ضمن المجموعة (إدخال يدوي، أو الطرف الوارد من تحويل بين شركتين على صنف
+  // الوجهة) تكون قد حدّثت averageCost — يجب إعادة حسابه من الصفر لكل صنف متأثر بعد الحذف.
+  const affectedItemIds = [...new Set(group.map((m) => m.itemId))];
 
   await prisma.$transaction(async (tx) => {
     for (const jId of journalEntryIds) await deleteJournalEntryTx(tx, jId);
     await tx.stockMovement.deleteMany({ where: { id: { in: group.map((m) => m.id) } } });
+    for (const itemId of affectedItemIds) await recomputeAverageCostFromScratchTx(tx, tenantId, itemId);
     await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "StockMovement", entityId: id, metadata: { relatedIds: group.map((m) => m.id) } });
   });
 }

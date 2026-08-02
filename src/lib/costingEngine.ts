@@ -38,3 +38,34 @@ export async function applyPurchaseToAverageCostTx(
   await tx.item.update({ where: { id: itemId }, data: { averageCost: newAverageCost, lastPurchasePrice: unitCost } });
   return { newAverageCost };
 }
+
+/**
+ * يُعيد بناء averageCost/lastPurchasePrice من الصفر بإعادة تشغيل كل حركات "الوارد" الباقية
+ * على الصنف بنفس ترتيب إنشائها الفعلي (لا ترتيب تاريخ العملية) — لازم يُستدعى بعد أي حذف
+ * لحركة واردة (فك ترحيل فاتورة شراء، حذف حركة إدخال يدوي، حذف تحويل بين شركتين)، وإلا يفضل
+ * averageCost محسوباً على أساس كمية لم تعد موجودة فعلياً في المخزون.
+ */
+export async function recomputeAverageCostFromScratchTx(tx: Tx, tenantId: string, itemId: string): Promise<void> {
+  const movements = await tx.stockMovement.findMany({
+    where: { tenantId, itemId },
+    orderBy: { createdAt: "asc" },
+    select: { type: true, quantity: true, unitCost: true },
+  });
+
+  let qty = 0;
+  let avg = 0;
+  let lastPurchasePrice: number | null = null;
+  for (const m of movements) {
+    const movementQty = Number(m.quantity);
+    if ((INBOUND_TYPES as readonly string[]).includes(m.type)) {
+      const unitCost = Number(m.unitCost);
+      avg = qty <= 0 ? unitCost : (qty * avg + movementQty * unitCost) / (qty + movementQty);
+      qty += movementQty;
+      lastPurchasePrice = unitCost;
+    } else if ((OUTBOUND_TYPES as readonly string[]).includes(m.type)) {
+      qty -= movementQty;
+    }
+  }
+
+  await tx.item.update({ where: { id: itemId }, data: { averageCost: avg, lastPurchasePrice } });
+}
