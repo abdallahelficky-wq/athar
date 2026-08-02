@@ -1,23 +1,23 @@
 import React, { useState } from "react";
-import { createSellableItem } from "../../api/sellableItems";
+import { createItem } from "../../api/items";
 
-/** نافذة فرعية لإضافة صنف/خدمة قابلة للبيع بسرعة من داخل سطر فاتورة المبيعات */
+/** نافذة فرعية لإضافة صنف قابل للبيع بسرعة من داخل سطر فاتورة المبيعات — تُنشئ صنفاً حقيقياً من نوع "خدمة" بحساب إيراد واحد، وهو أبسط الأنواع القابلة للبيع؛ لضبط بيانات أكثر تفصيلاً (مخزون، مادة أولية...) استخدم شاشة "الأصناف والمنتجات" مباشرة. */
 export default function NewSellableItemModal({ companyId, accounts, initialName, onClose, onCreated }) {
   const [name, setName] = useState(initialName || "");
-  const [defaultUnitPrice, setDefaultUnitPrice] = useState("");
+  const [salePrice, setSalePrice] = useState("");
   const [vatApplicable, setVatApplicable] = useState(true);
-  const [defaultRevenueAccountId, setDefaultRevenueAccountId] = useState(accounts[0]?.id || "");
+  const [revenueAccountId, setRevenueAccountId] = useState(accounts[0]?.id || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const save = async () => {
-    if (!name.trim() || !defaultRevenueAccountId) { setError("اسم الصنف والحساب المرتبط مطلوبان"); return; }
+    if (!name.trim() || !revenueAccountId) { setError("اسم الصنف والحساب المرتبط مطلوبان"); return; }
     setSaving(true);
     setError("");
     try {
-      const item = await createSellableItem({
-        companyId, name: name.trim(), defaultUnitPrice: Number(defaultUnitPrice || 0),
-        vatApplicable, defaultRevenueAccountId,
+      const item = await createItem({
+        companyId, name: name.trim(), code: `SVC-${Date.now()}`, type: "service",
+        salePrice: Number(salePrice || 0), vatApplicable, revenueAccountId,
       });
       onCreated(item);
     } catch (err) {
@@ -30,12 +30,12 @@ export default function NewSellableItemModal({ companyId, accounts, initialName,
   return (
     <div className="unpost-confirm-overlay nested-modal-overlay">
       <div className="unpost-confirm-box">
-        <h3>إضافة صنف جديد</h3>
+        <h3>إضافة صنف جديد (خدمة)</h3>
         <div className="form-grid">
           <label>اسم الصنف<input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
-          <label>سعر الوحدة الافتراضي<input type="number" value={defaultUnitPrice} onChange={(e) => setDefaultUnitPrice(e.target.value)} placeholder="0.00" /></label>
+          <label>سعر البيع الافتراضي<input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="0.00" /></label>
           <label>الحساب المرتبط (إيراد)
-            <select value={defaultRevenueAccountId} onChange={(e) => setDefaultRevenueAccountId(e.target.value)}>
+            <select value={revenueAccountId} onChange={(e) => setRevenueAccountId(e.target.value)}>
               {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
@@ -44,6 +44,7 @@ export default function NewSellableItemModal({ companyId, accounts, initialName,
             خاضع لضريبة القيمة المضافة
           </label>
         </div>
+        <p className="note">لضبط صنف مخزوني أو أصل ثابت أو مادة أولية، استخدم شاشة "الأصناف والمنتجات" مباشرة.</p>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
           <button className="btn-ghost" onClick={onClose} disabled={saving}>إلغاء</button>

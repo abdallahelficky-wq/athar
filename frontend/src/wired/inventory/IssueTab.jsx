@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { listItems } from "../../api/items";
-import { listCostCenters } from "../../api/costCenters";
+import { listWarehouses } from "../../api/warehouses";
 import { listStockMovements, getStockBalance, createIssueMovement, removeStockMovement } from "../../api/stockMovements";
 import { DEPARTMENTS, fmt2 } from "../../legacy/constants";
 import UnpostModal from "../shared/UnpostModal";
@@ -8,7 +8,7 @@ import StockMovementsTable from "./StockMovementsTable";
 
 export default function IssueTab({ companyId }) {
   const [items, setItems] = useState([]);
-  const [costCenters, setCostCenters] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [movements, setMovements] = useState([]);
   const [balance, setBalance] = useState(0);
   const [error, setError] = useState("");
@@ -24,10 +24,9 @@ export default function IssueTab({ companyId }) {
   useEffect(() => {
     if (!companyId) return;
     listItems(companyId).then((its) => { setItems(its); if (its[0]) setItemId((v) => v || its[0].id); });
-    listCostCenters().then((ccs) => {
-      const scoped = ccs.filter((c) => !c.companyId || c.companyId === companyId);
-      setCostCenters(scoped);
-      if (scoped[0]) setWarehouseId((v) => v || scoped[0].id);
+    listWarehouses(companyId).then((whs) => {
+      setWarehouses(whs);
+      if (whs[0]) setWarehouseId((v) => v || whs[0].id);
     });
   }, [companyId]);
 
@@ -66,7 +65,7 @@ export default function IssueTab({ companyId }) {
       <div className="panel form-panel">
         <div className="form-grid">
           <label>الصنف<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
-          <label>الموقع / المخزن<select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>{costCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label>المستودع<select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           <label>القسم المستفيد<select value={department} onChange={(e) => setDepartment(e.target.value)}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></label>
           <label>الكمية<input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></label>
           <label>التاريخ<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>

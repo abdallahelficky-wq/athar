@@ -8,4 +8,6 @@ export const createWarehouseSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
-export const updateWarehouseSchema = createWarehouseSchema.partial().omit({ companyId: true });
+export const updateWarehouseSchema = createWarehouseSchema.partial().omit({ companyId: true }).extend({
+  isArchived: z.boolean().optional(),
+});

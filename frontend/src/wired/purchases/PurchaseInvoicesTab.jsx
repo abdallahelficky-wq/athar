@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { listSuppliers } from "../../api/suppliers";
 import { listAccounts } from "../../api/accounts";
+import { listItems } from "../../api/items";
+import { listWarehouses } from "../../api/warehouses";
 import {
   listPurchaseInvoices, createPurchaseInvoice, deletePurchaseInvoice, postPurchaseInvoice, unpostPurchaseInvoice,
 } from "../../api/purchaseInvoices";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
-import InvoiceLinesEditor, { emptyInvoiceLine } from "../shared/InvoiceLinesEditor";
+import PurchaseInvoiceLinesEditor, { emptyPurchaseLine } from "./PurchaseInvoiceLinesEditor";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import PurchaseInvoiceViewModal from "./PurchaseInvoiceViewModal";
@@ -14,13 +16,15 @@ import PurchaseInvoiceViewModal from "./PurchaseInvoiceViewModal";
 export default function PurchaseInvoicesTab({ companyId, companies }) {
   const [suppliers, setSuppliers] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [items, setItems] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [supplierId, setSupplierId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [lines, setLines] = useState([{ ...emptyInvoiceLine(), priceIncludesVat: false }]);
+  const [lines, setLines] = useState([emptyPurchaseLine()]);
   const [unpostTarget, setUnpostTarget] = useState(null);
   const [attachmentsFor, setAttachmentsFor] = useState(null);
   const [viewInvoice, setViewInvoice] = useState(null);
@@ -30,6 +34,8 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
     if (!companyId) return;
     listSuppliers(companyId).then((ss) => { setSuppliers(ss); if (ss[0]) setSupplierId((s) => s || ss[0].id); });
     listAccounts({ companyId }).then(setAccounts);
+    listItems(companyId).then(setItems);
+    listWarehouses(companyId).then(setWarehouses);
   }, [companyId]);
 
   const reload = () => {
@@ -39,11 +45,28 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
   };
   useEffect(reload, [companyId]);
 
+  const cleanLines = () => lines
+    .filter((l) => (l.itemId || l.accountId) && Number(l.unitPrice) > 0)
+    .map((l) => ({
+      // إلزامي في المخطط حتى للأسطر المرتبطة بصنف — الخادم يتجاهله ويشتق الحساب الفعلي من نوع
+      // الصنف، فتكفي أي قيمة غير فارغة هنا عندما يكون itemId موجوداً
+      accountId: l.accountId || l.itemId,
+      itemId: l.itemId || undefined,
+      warehouseId: l.warehouseId || undefined,
+      usefulLifeYears: l.usefulLifeYears !== "" ? Number(l.usefulLifeYears) : undefined,
+      salvageValue: l.salvageValue !== "" ? Number(l.salvageValue) : undefined,
+      description: l.description || undefined,
+      quantity: Number(l.quantity),
+      unitPrice: Number(l.unitPrice),
+      discountPct: Number(l.discountPct || 0),
+      priceIncludesVat: l.priceIncludesVat,
+    }));
+
   const save = async () => {
     if (!supplierId) return;
     try {
-      await createPurchaseInvoice({ companyId, supplierId, date, lines: lines.filter((l) => l.accountId && Number(l.unitPrice) > 0) });
-      setLines([{ ...emptyInvoiceLine(), priceIncludesVat: false }]);
+      await createPurchaseInvoice({ companyId, supplierId, date, lines: cleanLines() });
+      setLines([emptyPurchaseLine()]);
       reload();
     } catch (err) {
       setError(err.message);
@@ -86,7 +109,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
         </div>
         {suppliers.length === 0 && <p className="empty">أضف مورداً أولاً من تبويب "الموردون".</p>}
 
-        <InvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} />
+        <PurchaseInvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} items={items} warehouses={warehouses} />
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
           <button className="btn-primary" onClick={save} disabled={!supplierId}>حفظ وترحيل الفاتورة</button>

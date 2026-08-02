@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { listItems } from "../../api/items";
-import { listCostCenters } from "../../api/costCenters";
+import { listWarehouses } from "../../api/warehouses";
 import { listStockMovements, getStockBalance, createInOutMovement, removeStockMovement } from "../../api/stockMovements";
 import { fmt2 } from "../../legacy/constants";
 import UnpostModal from "../shared/UnpostModal";
@@ -8,7 +8,7 @@ import StockMovementsTable from "./StockMovementsTable";
 
 export default function StockInOutTab({ companyId }) {
   const [items, setItems] = useState([]);
-  const [costCenters, setCostCenters] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [movements, setMovements] = useState([]);
   const [balance, setBalance] = useState(0);
   const [error, setError] = useState("");
@@ -18,16 +18,16 @@ export default function StockInOutTab({ companyId }) {
   const [itemId, setItemId] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [unitCost, setUnitCost] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
 
   useEffect(() => {
     if (!companyId) return;
     listItems(companyId).then((its) => { setItems(its); if (its[0]) setItemId((v) => v || its[0].id); });
-    listCostCenters().then((ccs) => {
-      const scoped = ccs.filter((c) => !c.companyId || c.companyId === companyId);
-      setCostCenters(scoped);
-      if (scoped[0]) setWarehouseId((v) => v || scoped[0].id);
+    listWarehouses(companyId).then((whs) => {
+      setWarehouses(whs);
+      if (whs[0]) setWarehouseId((v) => v || whs[0].id);
     });
   }, [companyId]);
 
@@ -44,9 +44,13 @@ export default function StockInOutTab({ companyId }) {
 
   const save = async () => {
     if (!itemId || !warehouseId || !Number(quantity)) return;
+    if (type === "in" && !unitCost) return;
     try {
-      await createInOutMovement({ type, itemId, warehouseId, quantity: Number(quantity), date, note });
-      setQuantity(""); setNote("");
+      await createInOutMovement({
+        type, itemId, warehouseId, quantity: Number(quantity),
+        unitCost: type === "in" ? Number(unitCost) : undefined, date, note,
+      });
+      setQuantity(""); setUnitCost(""); setNote("");
       reload();
     } catch (err) {
       setError(err.message);
@@ -67,14 +71,15 @@ export default function StockInOutTab({ companyId }) {
         <div className="form-grid">
           <label>الحركة<select value={type} onChange={(e) => setType(e.target.value)}><option value="in">إضافة مخزون</option><option value="out">حذف / إتلاف مخزون</option></select></label>
           <label>الصنف<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
-          <label>الموقع / المخزن<select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>{costCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label>المستودع<select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           <label>الكمية<input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></label>
+          {type === "in" && <label>تكلفة الوحدة<input type="number" step="0.01" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="0.00" /></label>}
           <label>التاريخ<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
           <label className="memo-field">ملاحظة<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
         </div>
-        {itemId && warehouseId && <p className="note">الرصيد الحالي لهذا الصنف في هذا الموقع: <strong>{fmt2(balance)}</strong></p>}
+        {itemId && warehouseId && <p className="note">الرصيد الحالي لهذا الصنف في هذا المستودع: <strong>{fmt2(balance)}</strong></p>}
         {error && <p className="balance-bad">{error}</p>}
-        <button className="btn-primary" onClick={save} disabled={!itemId || !warehouseId || !Number(quantity)}>حفظ الحركة</button>
+        <button className="btn-primary" onClick={save} disabled={!itemId || !warehouseId || !Number(quantity) || (type === "in" && !unitCost)}>حفظ الحركة</button>
       </div>
 
       <StockMovementsTable movements={movements} filterTypes={["in", "out"]} onRemove={setRemoveTarget} />

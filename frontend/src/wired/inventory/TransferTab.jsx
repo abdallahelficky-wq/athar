@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { listItems } from "../../api/items";
-import { listCostCenters } from "../../api/costCenters";
+import { listWarehouses } from "../../api/warehouses";
 import { listStockMovements, getStockBalance, createTransferMovement, removeStockMovement } from "../../api/stockMovements";
 import { fmt2 } from "../../legacy/constants";
 import UnpostModal from "../shared/UnpostModal";
@@ -8,7 +8,8 @@ import StockMovementsTable from "./StockMovementsTable";
 
 export default function TransferTab({ companyId, companies }) {
   const [items, setItems] = useState([]);
-  const [allCostCenters, setAllCostCenters] = useState([]);
+  const [fromWarehouses, setFromWarehouses] = useState([]);
+  const [toWarehouses, setToWarehouses] = useState([]);
   const [movements, setMovements] = useState([]);
   const [balance, setBalance] = useState(0);
   const [error, setError] = useState("");
@@ -24,16 +25,22 @@ export default function TransferTab({ companyId, companies }) {
   useEffect(() => {
     if (!companyId) return;
     listItems(companyId).then((its) => { setItems(its); if (its[0]) setItemId((v) => v || its[0].id); });
-    listCostCenters().then(setAllCostCenters);
+    listWarehouses(companyId).then((whs) => {
+      setFromWarehouses(whs);
+      if (whs[0]) setFromWarehouseId((v) => v || whs[0].id);
+    });
     setToCompanyId(companyId);
   }, [companyId]);
 
-  const fromWarehouses = allCostCenters.filter((c) => !c.companyId || c.companyId === companyId);
-  const toWarehouses = allCostCenters.filter((c) => !c.companyId || c.companyId === toCompanyId);
   const crossCompany = toCompanyId !== companyId;
 
-  useEffect(() => { if (fromWarehouses[0]) setFromWarehouseId((v) => v || fromWarehouses[0].id); }, [allCostCenters, companyId]);
-  useEffect(() => { if (toWarehouses[0]) setToWarehouseId(toWarehouses[0].id); }, [toCompanyId, allCostCenters]);
+  useEffect(() => {
+    if (!toCompanyId) return;
+    listWarehouses(toCompanyId).then((whs) => {
+      setToWarehouses(whs);
+      setToWarehouseId(whs[0]?.id || "");
+    });
+  }, [toCompanyId]);
 
   const reload = () => {
     if (!companyId) return;
