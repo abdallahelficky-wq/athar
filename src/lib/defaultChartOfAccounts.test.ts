@@ -30,9 +30,21 @@ describe("standard default chart of accounts", () => {
     expect(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level === 4).every((account) => account.isPosting)).toBe(true);
     const coveredLevelThree = new Set(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level === 4).map((account) => account.parentCode));
     expect(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level === 3).every((account) => coveredLevelThree.has(account.code))).toBe(true);
+    expect(posting.some((account) => account.level === 4)).toBe(true);
+    expect(DEFAULT_CHART_OF_ACCOUNTS.every((account) => account.level <= 4)).toBe(true);
     for (const account of posting) {
       expect(account.level).toBe(4);
       expect(parentCodes.has(account.code)).toBe(false);
+    }
+    for (const account of DEFAULT_CHART_OF_ACCOUNTS.filter((item) => item.level < 4)) {
+      expect(account.isPosting).toBe(false);
+    }
+  });
+
+  it("gives every account type at least one posting leaf, so every company can post sales, expenses and equity entries", () => {
+    const posting = DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.isPosting);
+    for (const type of ["asset", "liability", "equity", "revenue", "expense"] as const) {
+      expect(posting.some((account) => account.type === type), `no posting account of type ${type}`).toBe(true);
     }
   });
 

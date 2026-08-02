@@ -16,6 +16,11 @@ export const env = {
   jwtRefreshSecret: required("JWT_REFRESH_SECRET"),
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? "15m",
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? "30d",
+  // سرّ توقيع منفصل تماماً عن حسابات User الإدارية — يضمن أن رمز بوابة الموظف لا يمكن التحقق
+  // منه أبداً كرمز مستخدم إداري (وبالعكس) حتى لو تطابقت بنية الحمولة (payload) صدفةً.
+  // له قيمة افتراضية آمنة للتطوير المحلي فقط؛ يجب ضبط JWT_EMPLOYEE_PORTAL_SECRET صراحةً في الإنتاج.
+  jwtEmployeePortalSecret: required("JWT_EMPLOYEE_PORTAL_SECRET", `${required("JWT_ACCESS_SECRET")}::employee-portal`),
+  jwtEmployeePortalExpiresIn: process.env.JWT_EMPLOYEE_PORTAL_EXPIRES_IN ?? "7d",
   defaultUnlockPin: process.env.DEFAULT_UNLOCK_PIN ?? "1234",
 
   // اختيارية: تُقرأ عند الاستخدام الفعلي فقط (رفع مرفق / إنشاء قيد من مستند)، وليس عند بدء

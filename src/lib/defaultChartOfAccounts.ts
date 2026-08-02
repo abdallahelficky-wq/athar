@@ -557,6 +557,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "311000001",
+    "name": "رأس المال المصدر والمدفوع",
+    "nameEn": "Issued and Paid-up Capital",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "311000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "312000000",
     "name": "علاوة إصدار",
     "nameEn": "Share Premium",
@@ -564,6 +574,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "310000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "312000001",
+    "name": "علاوة إصدار",
+    "nameEn": "Share Premium",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "312000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -577,6 +597,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "321000001",
+    "name": "الاحتياطي النظامي",
+    "nameEn": "Statutory Reserve",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "321000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "322000000",
     "name": "احتياطيات أخرى",
     "nameEn": "Other Reserves",
@@ -584,6 +614,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "320000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "322000001",
+    "name": "احتياطيات أخرى",
+    "nameEn": "Other Reserves",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "322000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -597,6 +637,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "331000001",
+    "name": "الأرباح المبقاة",
+    "nameEn": "Retained Earnings",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "331000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "332000000",
     "name": "صافي ربح أو خسارة العام",
     "nameEn": "Current Year Profit or Loss",
@@ -604,6 +654,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "330000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "332000001",
+    "name": "صافي ربح أو خسارة العام",
+    "nameEn": "Current Year Profit or Loss",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "332000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -617,6 +677,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "333000001",
+    "name": "توزيعات الأرباح والمسحوبات",
+    "nameEn": "Dividends and Drawings",
+    "type": "equity",
+    "level": 4,
+    "parentCode": "333000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "411000000",
     "name": "إيرادات المبيعات",
     "nameEn": "Sales Revenue",
@@ -624,6 +694,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "410000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "411000001",
+    "name": "إيرادات المبيعات",
+    "nameEn": "Sales Revenue",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "411000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -637,6 +717,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "412000001",
+    "name": "إيرادات الخدمات",
+    "nameEn": "Service Revenue",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "412000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "413000000",
     "name": "مردودات ومسموحات المبيعات",
     "nameEn": "Sales Returns and Allowances",
@@ -644,6 +734,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "410000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "413000001",
+    "name": "مردودات ومسموحات المبيعات",
+    "nameEn": "Sales Returns and Allowances",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "413000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -657,6 +757,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "414000001",
+    "name": "خصم المبيعات",
+    "nameEn": "Sales Discounts",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "414000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "421000000",
     "name": "إيرادات عمولات",
     "nameEn": "Commission Income",
@@ -664,6 +774,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "420000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "421000001",
+    "name": "إيرادات عمولات",
+    "nameEn": "Commission Income",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "421000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -677,6 +797,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "422000001",
+    "name": "إيرادات تأجير",
+    "nameEn": "Rental Income",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "422000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "423000000",
     "name": "إيرادات تشغيلية أخرى",
     "nameEn": "Other Operating Income",
@@ -684,6 +814,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "420000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "423000001",
+    "name": "إيرادات تشغيلية أخرى",
+    "nameEn": "Other Operating Income",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "423000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -697,6 +837,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "431000001",
+    "name": "إيرادات تمويل وفوائد",
+    "nameEn": "Finance and Interest Income",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "431000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "432000000",
     "name": "أرباح فروق عملة",
     "nameEn": "Foreign Exchange Gains",
@@ -704,6 +854,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "430000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "432000001",
+    "name": "أرباح فروق عملة",
+    "nameEn": "Foreign Exchange Gains",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "432000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -717,6 +877,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "433000001",
+    "name": "أرباح بيع أصول",
+    "nameEn": "Gain on Disposal of Assets",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "433000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "434000000",
     "name": "عكس مخصصات",
     "nameEn": "Reversal of Provisions",
@@ -724,6 +894,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "430000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "434000001",
+    "name": "عكس مخصصات",
+    "nameEn": "Reversal of Provisions",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "434000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -737,6 +917,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "435000001",
+    "name": "إيرادات غير تشغيلية أخرى",
+    "nameEn": "Other Non-operating Income",
+    "type": "revenue",
+    "level": 4,
+    "parentCode": "435000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "511000000",
     "name": "تكلفة البضاعة المباعة",
     "nameEn": "Cost of Goods Sold",
@@ -744,6 +934,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "510000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "511000001",
+    "name": "تكلفة البضاعة المباعة",
+    "nameEn": "Cost of Goods Sold",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "511000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -757,6 +957,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "512000001",
+    "name": "مواد مباشرة",
+    "nameEn": "Direct Materials",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "512000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "513000000",
     "name": "أجور مباشرة",
     "nameEn": "Direct Labor",
@@ -764,6 +974,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "510000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "513000001",
+    "name": "أجور مباشرة",
+    "nameEn": "Direct Labor",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "513000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -777,6 +997,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "514000001",
+    "name": "خدمات ومقاولون من الباطن مباشرون",
+    "nameEn": "Direct Services and Subcontractors",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "514000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "515000000",
     "name": "شحن ومناولة مشتريات",
     "nameEn": "Freight-in and Purchase Handling",
@@ -784,6 +1014,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "510000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "515000001",
+    "name": "شحن ومناولة مشتريات",
+    "nameEn": "Freight-in and Purchase Handling",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "515000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -797,6 +1037,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "516000001",
+    "name": "فروقات وهبوط مخزون",
+    "nameEn": "Inventory Adjustments and Write-downs",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "516000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "521000000",
     "name": "رواتب وأجور التشغيل",
     "nameEn": "Operating Salaries and Wages",
@@ -804,6 +1054,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "520000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "521000001",
+    "name": "رواتب وأجور التشغيل",
+    "nameEn": "Operating Salaries and Wages",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "521000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -817,6 +1077,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "522000001",
+    "name": "إيجارات التشغيل",
+    "nameEn": "Operating Rent",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "522000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "523000000",
     "name": "خدمات ومرافق التشغيل",
     "nameEn": "Operating Utilities",
@@ -824,6 +1094,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "520000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "523000001",
+    "name": "خدمات ومرافق التشغيل",
+    "nameEn": "Operating Utilities",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "523000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -837,6 +1117,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "524000001",
+    "name": "صيانة وإصلاح التشغيل",
+    "nameEn": "Operating Repairs and Maintenance",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "524000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "525000000",
     "name": "وقود ونقل التشغيل",
     "nameEn": "Operating Fuel and Transportation",
@@ -844,6 +1134,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "520000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "525000001",
+    "name": "وقود ونقل التشغيل",
+    "nameEn": "Operating Fuel and Transportation",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "525000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -857,6 +1157,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "526000001",
+    "name": "مواد ومستلزمات التشغيل",
+    "nameEn": "Operating Supplies and Consumables",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "526000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "527000000",
     "name": "تأمين التشغيل",
     "nameEn": "Operating Insurance",
@@ -864,6 +1174,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "520000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "527000001",
+    "name": "تأمين التشغيل",
+    "nameEn": "Operating Insurance",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "527000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -877,6 +1197,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "528000001",
+    "name": "مصروفات تشغيلية أخرى",
+    "nameEn": "Other Operating Expenses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "528000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "531000000",
     "name": "رواتب وأجور إدارية",
     "nameEn": "Administrative Salaries and Wages",
@@ -884,6 +1214,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "530000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "531000001",
+    "name": "رواتب وأجور إدارية",
+    "nameEn": "Administrative Salaries and Wages",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "531000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -897,6 +1237,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "532000001",
+    "name": "بدلات ومزايا موظفين",
+    "nameEn": "Employee Allowances and Benefits",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "532000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "533000000",
     "name": "تأمينات اجتماعية",
     "nameEn": "Social Insurance Expense",
@@ -904,6 +1254,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "530000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "533000001",
+    "name": "تأمينات اجتماعية",
+    "nameEn": "Social Insurance Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "533000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -917,6 +1277,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "534000001",
+    "name": "مكافأة نهاية الخدمة",
+    "nameEn": "End-of-service Benefit Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "534000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "535000000",
     "name": "إيجارات إدارية",
     "nameEn": "Administrative Rent",
@@ -924,6 +1294,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "530000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "535000001",
+    "name": "إيجارات إدارية",
+    "nameEn": "Administrative Rent",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "535000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -937,6 +1317,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "536000001",
+    "name": "كهرباء ومياه ومرافق",
+    "nameEn": "Electricity, Water and Utilities",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "536000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "537000000",
     "name": "اتصالات وإنترنت",
     "nameEn": "Telecommunications and Internet",
@@ -944,6 +1334,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "530000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "537000001",
+    "name": "اتصالات وإنترنت",
+    "nameEn": "Telecommunications and Internet",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "537000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -957,6 +1357,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "538000001",
+    "name": "أتعاب مهنية واستشارية",
+    "nameEn": "Professional and Consulting Fees",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "538000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "539000000",
     "name": "رسوم حكومية وتراخيص",
     "nameEn": "Government Fees and Licenses",
@@ -964,6 +1374,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "530000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "539000001",
+    "name": "رسوم حكومية وتراخيص",
+    "nameEn": "Government Fees and Licenses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "539000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -977,6 +1397,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "540000001",
+    "name": "قرطاسية وطباعة",
+    "nameEn": "Stationery and Printing",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "540000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "541000000",
     "name": "برامج واشتراكات تقنية",
     "nameEn": "Software and Technology Subscriptions",
@@ -984,6 +1414,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "530000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "541000001",
+    "name": "برامج واشتراكات تقنية",
+    "nameEn": "Software and Technology Subscriptions",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "541000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -997,6 +1437,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "542000001",
+    "name": "صيانة وإصلاحات إدارية",
+    "nameEn": "Administrative Repairs and Maintenance",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "542000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "543000000",
     "name": "تأمين",
     "nameEn": "Insurance Expense",
@@ -1004,6 +1454,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "530000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "543000001",
+    "name": "تأمين",
+    "nameEn": "Insurance Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "543000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1017,6 +1477,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "544000001",
+    "name": "سفر وانتقالات",
+    "nameEn": "Travel and Transportation",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "544000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "545000000",
     "name": "تدريب وتوظيف",
     "nameEn": "Training and Recruitment",
@@ -1024,6 +1494,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "530000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "545000001",
+    "name": "تدريب وتوظيف",
+    "nameEn": "Training and Recruitment",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "545000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1037,6 +1517,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "546000001",
+    "name": "ضيافة واجتماعات",
+    "nameEn": "Hospitality and Meetings",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "546000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "547000000",
     "name": "رسوم ومصاريف بنكية",
     "nameEn": "Bank Fees and Charges",
@@ -1044,6 +1534,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "530000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "547000001",
+    "name": "رسوم ومصاريف بنكية",
+    "nameEn": "Bank Fees and Charges",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "547000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1057,6 +1557,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "548000001",
+    "name": "ديون مشكوك فيها ومعدومة",
+    "nameEn": "Expected Credit Loss and Bad Debts",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "548000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "549000000",
     "name": "مصروفات عمومية وإدارية أخرى",
     "nameEn": "Other General and Administrative Expenses",
@@ -1064,6 +1574,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "530000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "549000001",
+    "name": "مصروفات عمومية وإدارية أخرى",
+    "nameEn": "Other General and Administrative Expenses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "549000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1077,6 +1597,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "551000001",
+    "name": "إعلان وتسويق",
+    "nameEn": "Advertising and Marketing",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "551000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "552000000",
     "name": "عمولات مبيعات",
     "nameEn": "Sales Commissions",
@@ -1084,6 +1614,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "550000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "552000001",
+    "name": "عمولات مبيعات",
+    "nameEn": "Sales Commissions",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "552000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1097,6 +1637,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "553000001",
+    "name": "عروض وفعاليات ترويجية",
+    "nameEn": "Promotions and Events",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "553000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "554000000",
     "name": "شحن وتوصيل للعملاء",
     "nameEn": "Outbound Freight and Customer Delivery",
@@ -1104,6 +1654,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "550000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "554000001",
+    "name": "شحن وتوصيل للعملاء",
+    "nameEn": "Outbound Freight and Customer Delivery",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "554000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1117,6 +1677,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "555000001",
+    "name": "ضيافة وعلاقات عملاء",
+    "nameEn": "Customer Hospitality and Relations",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "555000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "556000000",
     "name": "مصروفات بيع وتسويق أخرى",
     "nameEn": "Other Selling and Marketing Expenses",
@@ -1124,6 +1694,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "550000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "556000001",
+    "name": "مصروفات بيع وتسويق أخرى",
+    "nameEn": "Other Selling and Marketing Expenses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "556000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1137,6 +1717,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "561000001",
+    "name": "إهلاك المباني",
+    "nameEn": "Depreciation – Buildings",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "561000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "562000000",
     "name": "إهلاك تحسينات المباني والمواقع",
     "nameEn": "Depreciation – Leasehold and Site Improvements",
@@ -1144,6 +1734,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "560000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "562000001",
+    "name": "إهلاك تحسينات المباني والمواقع",
+    "nameEn": "Depreciation – Leasehold and Site Improvements",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "562000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1157,6 +1757,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "563000001",
+    "name": "إهلاك الآلات والمعدات",
+    "nameEn": "Depreciation – Machinery and Equipment",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "563000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "564000000",
     "name": "إهلاك المركبات",
     "nameEn": "Depreciation – Vehicles",
@@ -1164,6 +1774,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "560000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "564000001",
+    "name": "إهلاك المركبات",
+    "nameEn": "Depreciation – Vehicles",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "564000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1177,6 +1797,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "565000001",
+    "name": "إهلاك الأثاث والتجهيزات",
+    "nameEn": "Depreciation – Furniture and Fixtures",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "565000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "566000000",
     "name": "إهلاك أجهزة الحاسب وتقنية المعلومات",
     "nameEn": "Depreciation – Computers and IT Equipment",
@@ -1184,6 +1814,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "560000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "566000001",
+    "name": "إهلاك أجهزة الحاسب وتقنية المعلومات",
+    "nameEn": "Depreciation – Computers and IT Equipment",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "566000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1197,6 +1837,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "567000001",
+    "name": "إهلاك المعدات المكتبية",
+    "nameEn": "Depreciation – Office Equipment",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "567000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "568000000",
     "name": "إهلاك أصول حق الاستخدام",
     "nameEn": "Depreciation – Right-of-use Assets",
@@ -1204,6 +1854,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "560000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "568000001",
+    "name": "إهلاك أصول حق الاستخدام",
+    "nameEn": "Depreciation – Right-of-use Assets",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "568000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1217,6 +1877,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "569000001",
+    "name": "إطفاء الأصول غير الملموسة",
+    "nameEn": "Amortization – Intangible Assets",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "569000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "569500000",
     "name": "إهلاك أصول ثابتة أخرى",
     "nameEn": "Depreciation – Other Fixed Assets",
@@ -1224,6 +1894,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "560000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "569500001",
+    "name": "إهلاك أصول ثابتة أخرى",
+    "nameEn": "Depreciation – Other Fixed Assets",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "569500000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1237,6 +1917,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "571000001",
+    "name": "تكاليف تمويل وفوائد",
+    "nameEn": "Finance Costs and Interest",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "571000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "572000000",
     "name": "خسائر فروق عملة",
     "nameEn": "Foreign Exchange Losses",
@@ -1244,6 +1934,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "570000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "572000001",
+    "name": "خسائر فروق عملة",
+    "nameEn": "Foreign Exchange Losses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "572000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1257,6 +1957,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "573000001",
+    "name": "خسائر بيع أصول",
+    "nameEn": "Loss on Disposal of Assets",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "573000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "574000000",
     "name": "غرامات ومخالفات",
     "nameEn": "Fines and Penalties",
@@ -1264,6 +1974,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "570000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "574000001",
+    "name": "غرامات ومخالفات",
+    "nameEn": "Fines and Penalties",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "574000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1277,6 +1997,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "575000001",
+    "name": "خسائر انخفاض قيمة",
+    "nameEn": "Impairment Losses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "575000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "576000000",
     "name": "مصروفات غير تشغيلية أخرى",
     "nameEn": "Other Non-operating Expenses",
@@ -1284,6 +2014,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "570000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "576000001",
+    "name": "مصروفات غير تشغيلية أخرى",
+    "nameEn": "Other Non-operating Expenses",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "576000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1297,6 +2037,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "581000001",
+    "name": "مصروف الزكاة",
+    "nameEn": "Zakat Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "581000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "582000000",
     "name": "مصروف ضريبة الدخل",
     "nameEn": "Income Tax Expense",
@@ -1307,6 +2057,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "isBankOrCash": false
   },
   {
+    "code": "582000001",
+    "name": "مصروف ضريبة الدخل",
+    "nameEn": "Income Tax Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "582000000",
+    "isPosting": true,
+    "isBankOrCash": false
+  },
+  {
     "code": "583000000",
     "name": "مصروف ضريبة مؤجلة",
     "nameEn": "Deferred Tax Expense",
@@ -1314,6 +2074,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "level": 3,
     "parentCode": "580000000",
     "isPosting": false,
+    "isBankOrCash": false
+  },
+  {
+    "code": "583000001",
+    "name": "مصروف ضريبة مؤجلة",
+    "nameEn": "Deferred Tax Expense",
+    "type": "expense",
+    "level": 4,
+    "parentCode": "583000000",
+    "isPosting": true,
     "isBankOrCash": false
   },
   {
@@ -1338,8 +2108,8 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   },
   {
     "code": "111000003",
-    "name": "الحسابات البنكية الجارية",
-    "nameEn": "Current Bank Accounts",
+    "name": "الحساب البنكي الرئيسي",
+    "nameEn": "Main Bank Account",
     "type": "asset",
     "level": 4,
     "parentCode": "111000000",

@@ -23,7 +23,7 @@ import HRWiredModule, { HR_TABS } from "./wired/hr/HRWiredModule";
 const NAV_GROUPS = [
   { id: "sales", label: "المبيعات", tabs: SALES_TABS },
   { id: "purchases", label: "المشتريات", tabs: PURCHASE_TABS },
-  { id: "inventory", label: "المخزون", tabs: INVENTORY_TABS },
+  { id: "inventory", label: "المستودعات والمنتجات", tabs: INVENTORY_TABS },
   { id: "fixedAssets", label: "الأصول الثابتة", tabs: FIXED_ASSETS_TABS },
   { id: "accounts", label: "الحسابات", tabs: ACCOUNTS_TABS },
   { id: "hr", label: "شئون الموظفين", tabs: HR_TABS },
@@ -36,12 +36,16 @@ function AppShell() {
   const real = useCompanies();
 
   const [moduleId, setModuleId] = useState("dashboard");
+  // القائمة الجانبية على شاشات الموبايل تُعرَض كلوحة منزلقة (off-canvas) خلف زر همبرغر بدل
+  // أن تكون ثابتة دائماً كما في سطح المكتب — تُغلَق تلقائياً بعد أي تنقّل لصفحة جديدة.
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   // قسم واحد فقط مفتوح في القائمة الجانبية في أي وقت (Accordion حقيقي) — يُزامَن تلقائياً مع
   // moduleId (القسم الذي فيه الصفحة الحالية يُفتح تلقائياً)، لكن إغلاقه يدوياً بينما لا يزال
   // moduleId مطابقاً له لا يُعاد فتحه قسراً (useEffect لا يُعاد تشغيله إلا عند تغيّر moduleId فعلاً)
   const [openGroupId, setOpenGroupId] = useState(null);
   useEffect(() => {
     if (NAV_GROUPS.some((g) => g.id === moduleId)) setOpenGroupId(moduleId);
+    setIsMobileSidebarOpen(false);
   }, [moduleId]);
 
   // بيانات الشركة "القديمة" (تجريبية محلية) — تخص فقط وحدة الزكاة التوضيحية غير المرتبطة بعد بالـ API
@@ -97,13 +101,19 @@ function AppShell() {
 
   return (
     <div className="app-root" dir="rtl">
-      <div className="sidebar">
+      {isMobileSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsMobileSidebarOpen(false)} />}
+      <div className={"sidebar" + (isMobileSidebarOpen ? " sidebar-open" : "")}>
         <div className="brand">
           <div className="brand-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
           <div>
             <div className="brand-name">أثر المحاسبي</div>
             <div className="brand-sub">{tenant?.name}</div>
           </div>
+          <button
+            className="sidebar-close-btn"
+            onClick={() => setIsMobileSidebarOpen(false)}
+            aria-label="إغلاق القائمة"
+          >✕</button>
         </div>
 
         <div className="nav-list">
@@ -150,6 +160,7 @@ function AppShell() {
 
       <div className="main">
         <div className="topbar">
+          <button className="hamburger-btn" onClick={() => setIsMobileSidebarOpen(true)} aria-label="فتح القائمة">☰</button>
           <span className="topbar-company">{user?.name} — {tenant?.name}</span>
           <button className="topbar-active-company" onClick={() => setModuleId("dashboard")} title="الرجوع للشاشة الرئيسية لتبديل الشركة">
             الشركة النشطة: <strong>{activeCompany?.shortName || activeCompany?.name || "لم تُختَر بعد"}</strong>

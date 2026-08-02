@@ -28,7 +28,14 @@ export const createEmployeeSchema = z.object({
   bankAccount: z.string().optional(),
   probationEndDate: z.coerce.date().nullable().optional(),
   probationEvaluated: z.boolean().default(false),
+  managerId: z.string().nullable().optional(),
   documents: z.array(documentSchema).default([]),
 });
 
 export const updateEmployeeSchema = createEmployeeSchema.partial();
+
+export const setPortalAccessSchema = z.object({
+  phone: z.string().min(5, "رقم الجوال قصير جداً"),
+  pin: z.string().regex(/^\d{4,6}$/, "الرمز يجب أن يكون من 4 إلى 6 أرقام"),
+  portalActive: z.boolean().default(true),
+});

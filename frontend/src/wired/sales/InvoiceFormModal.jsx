@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { listCustomers } from "../../api/customers";
 import { listAccounts } from "../../api/accounts";
-import { listSellableItems } from "../../api/sellableItems";
+import { listItems } from "../../api/items";
 import { createSalesInvoice, updateSalesInvoice, postSalesInvoice } from "../../api/salesInvoices";
 import SalesInvoiceLinesEditor, { emptySalesLine } from "./SalesInvoiceLinesEditor";
 import NewCustomerModal from "./NewCustomerModal";
@@ -10,7 +10,7 @@ import InvoiceViewModal from "./InvoiceViewModal";
 
 const lineFromExisting = (l) => ({
   accountId: l.accountId,
-  sellableItemId: l.sellableItemId || "",
+  itemId: l.itemId || "",
   description: l.description || "",
   quantity: Number(l.quantity),
   unitPrice: Number(l.unitPrice),
@@ -29,7 +29,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
 
   const [customers, setCustomers] = useState([]);
   const [accounts, setAccounts] = useState([]);
-  const [sellableItems, setSellableItems] = useState([]);
+  const [items, setItems] = useState([]);
 
   const [customerId, setCustomerId] = useState(seed?.customerId || "");
   const [customerSearchText, setCustomerSearchText] = useState("");
@@ -48,7 +48,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
     if (!companyId) return;
     listCustomers(companyId).then(setCustomers);
     listAccounts({ companyId }).then((accs) => setAccounts(accs.filter((a) => a.type === "revenue")));
-    listSellableItems(companyId).then(setSellableItems);
+    listItems(companyId).then(setItems);
   }, [companyId]);
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
@@ -67,13 +67,13 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   };
 
   const handleItemCreated = (item) => {
-    setSellableItems((prev) => [item, ...prev]);
+    setItems((prev) => [item, ...prev]);
     setLines((prev) => prev.map((l, i) => (i === newItemModal.idx ? {
       ...l,
-      sellableItemId: item.id,
+      itemId: item.id,
       description: item.name,
-      accountId: item.defaultRevenueAccountId,
-      unitPrice: Number(item.defaultUnitPrice),
+      accountId: item.revenueAccountId,
+      unitPrice: item.salePrice != null ? Number(item.salePrice) : 0,
       vatApplicable: item.vatApplicable,
     } : l)));
     setNewItemModal(null);
@@ -154,7 +154,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
           lines={lines}
           setLines={setLines}
           accounts={accounts}
-          sellableItems={sellableItems}
+          items={items}
           onRequestNewItem={(idx, searchText) => setNewItemModal({ idx, initialName: searchText })}
         />
 

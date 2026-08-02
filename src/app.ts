@@ -10,7 +10,6 @@ import { costCenterRoutes } from "./modules/costCenters/costCenters.routes";
 import { journalEntryRoutes } from "./modules/journalEntries/journalEntries.routes";
 import { reportRoutes } from "./modules/reports/reports.routes";
 import { customerRoutes } from "./modules/customers/customers.routes";
-import { sellableItemRoutes } from "./modules/sellableItems/sellableItems.routes";
 import { quotationRoutes } from "./modules/quotations/quotations.routes";
 import { salesInvoiceRoutes } from "./modules/salesInvoices/salesInvoices.routes";
 import { salesReturnRoutes } from "./modules/salesReturns/salesReturns.routes";
@@ -22,12 +21,14 @@ import { purchaseInvoiceRoutes } from "./modules/purchaseInvoices/purchaseInvoic
 import { purchaseReturnRoutes } from "./modules/purchaseReturns/purchaseReturns.routes";
 import { purchaseReportRoutes } from "./modules/purchaseReports/purchaseReports.routes";
 import { itemRoutes } from "./modules/items/items.routes";
+import { warehouseRoutes } from "./modules/warehouses/warehouses.routes";
 import { stockMovementRoutes } from "./modules/stockMovements/stockMovements.routes";
 import { inventoryReportRoutes } from "./modules/inventoryReports/inventoryReports.routes";
 import { fixedAssetRoutes } from "./modules/fixedAssets/fixedAssets.routes";
 import { depreciationRunRoutes } from "./modules/depreciation/depreciation.routes";
 import { employeeRoutes } from "./modules/employees/employees.routes";
 import { leaveRequestRoutes } from "./modules/leaveRequests/leaveRequests.routes";
+import { leaveRequestPortalRoutes } from "./modules/leaveRequests/leaveRequests.portal.routes";
 import { hrActionRoutes } from "./modules/hrActions/hrActions.routes";
 import { payrollRunRoutes } from "./modules/payrollRuns/payrollRuns.routes";
 import { leaveSettlementRoutes } from "./modules/leaveSettlements/leaveSettlements.routes";
@@ -37,6 +38,8 @@ import { attachmentRoutes } from "./modules/attachments/attachments.routes";
 import { leaseContractRoutes } from "./modules/leaseContracts/leaseContracts.routes";
 import { companyDocumentRoutes } from "./modules/companyDocuments/companyDocuments.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
+import { employeePortalRoutes } from "./modules/employeePortal/employeePortal.routes";
+import { attendanceRoutes } from "./modules/attendance/attendance.routes";
 
 export function createApp() {
   const app = express();
@@ -54,7 +57,6 @@ export function createApp() {
   app.use("/api/journal-entries", journalEntryRoutes);
   app.use("/api/reports", reportRoutes);
   app.use("/api/customers", customerRoutes);
-  app.use("/api/sellable-items", sellableItemRoutes);
   app.use("/api/quotations", quotationRoutes);
   app.use("/api/sales-invoices", salesInvoiceRoutes);
   app.use("/api/sales-returns", salesReturnRoutes);
@@ -66,6 +68,7 @@ export function createApp() {
   app.use("/api/purchase-returns", purchaseReturnRoutes);
   app.use("/api/purchase-reports", purchaseReportRoutes);
   app.use("/api/items", itemRoutes);
+  app.use("/api/warehouses", warehouseRoutes);
   app.use("/api/stock-movements", stockMovementRoutes);
   app.use("/api/inventory-reports", inventoryReportRoutes);
   app.use("/api/fixed-assets", fixedAssetRoutes);
@@ -81,6 +84,9 @@ export function createApp() {
   app.use("/api/lease-contracts", leaseContractRoutes);
   app.use("/api/company-documents", companyDocumentRoutes);
   app.use("/api/dashboard", dashboardRoutes);
+  app.use("/api/employee-portal", employeePortalRoutes);
+  app.use("/api/attendance", attendanceRoutes);
+  app.use("/api/employee-portal/leave-requests", leaveRequestPortalRoutes);
 
   app.use((req, res) => {
     res.status(404).json({ error: `المسار غير موجود: ${req.method} ${req.path}` });

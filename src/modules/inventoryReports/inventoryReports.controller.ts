@@ -25,6 +25,7 @@ export const stockReportHandler: RequestHandler = async (req, res) => {
     balances.set(k, row);
   });
 
+  // الأصناف الخدمية والأصول الثابتة لا تُدار كمخزون إطلاقاً ولا تظهر في تقرير الأرصدة
   const rows = [...balances.values()]
     .filter((r) => Math.abs(r.quantity) > 0.0001)
     .map((r) => {
@@ -37,9 +38,13 @@ export const stockReportHandler: RequestHandler = async (req, res) => {
         warehouseId: r.warehouseId,
         warehouseName: r.warehouseName,
         quantity: r.quantity,
-        costPrice: item ? Number(item.costPrice) : 0,
-        value: r.quantity * (item ? Number(item.costPrice) : 0),
+        costPrice: item ? Number(item.averageCost) : 0,
+        value: r.quantity * (item ? Number(item.averageCost) : 0),
       };
+    })
+    .filter((r) => {
+      const item = items.find((i) => i.id === r.itemId);
+      return !item || (item.type !== "service" && item.type !== "fixed_asset");
     });
 
   res.json(rows);

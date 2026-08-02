@@ -64,6 +64,7 @@ async function main() {
         create: [
           { accountId: need("إيجارات إدارية"), costCenterId: costCenter.id, debit: 42000, credit: 0 },
           { accountId: need("مصرف الراجحي"), costCenterId: costCenter.id, debit: 0, credit: 42000 },
+          { accountId: need("الحساب البنكي الرئيسي"), costCenterId: costCenter.id, debit: 0, credit: 42000 },
         ],
       },
     },

@@ -2,12 +2,15 @@ import React, { useEffect, useMemo, useState } from "react";
 import { listAccounts, getNextAccountCode, createAccount, updateAccount, deleteAccount, installStandardChart } from "../api/accounts";
 import { fmt } from "../legacy/constants";
 import { Icon } from "../legacy/shared";
+import { useAuth } from "../context/AuthContext";
 import AccountImportPanel from "./AccountImportPanel";
 
 const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
 const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false };
 
 export default function ChartOfAccountsModule({ companies = [], companyId }) {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
   const [scope, setScope] = useState(companyId || "group");
   const [accounts, setAccounts] = useState([]);
   const [expanded, setExpanded] = useState(new Set());
@@ -23,7 +26,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const reload = () => listAccounts({ tree: true, companyId: scope === "group" ? undefined : scope })
     .then((rows) => { setAccounts(rows); setExpanded(new Set(rows.filter((a) => a.level < 4).map((a) => a.id))); setError(""); })
     .catch((err) => setError(err.message));
-  useEffect(reload, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { reload(); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedParent = accounts.find((a) => a.id === form.parentId);
   const level = selectedParent ? selectedParent.level + 1 : 1;
@@ -137,9 +140,11 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
           </label>
           <div className="form-btn-group">
             <button className="btn-ghost" onClick={() => setCompact((v) => !v)}>{compact ? "عرض الشجرة كاملة" : "عرض مصغّر"}</button>
-            <button className="btn-ghost" style={{ color: "#A8432B", borderColor: "rgba(168,67,43,0.35)" }} disabled={installing} onClick={installStandard}>
-              {installing ? "جارٍ تثبيت الشجرة..." : "تثبيت الشجرة القياسية"}
-            </button>
+            {isSuperAdmin && (
+              <button className="btn-ghost" style={{ color: "#A8432B", borderColor: "rgba(168,67,43,0.35)" }} disabled={installing} onClick={installStandard}>
+                {installing ? "جارٍ تثبيت الشجرة..." : "تثبيت الشجرة القياسية"}
+              </button>
+            )}
           </div>
         </div>
         <div className="form-grid">

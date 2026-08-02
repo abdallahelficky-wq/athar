@@ -1,7 +1,14 @@
 import { z } from "zod";
 
 const lineSchema = z.object({
+  // إلزامي دائماً كـ fallback: لو السطر مرتبط بصنف (itemId) يُشتق الحساب تلقائياً من نوعه
+  // عند الترحيل ويتجاهل الخادم أي قيمة هنا؛ يبقى مطلوباً للأسطر الحرة (مصاريف متفرقة بلا صنف).
   accountId: z.string().min(1),
+  itemId: z.string().optional(),
+  warehouseId: z.string().optional(),
+  // فقط لو الصنف من نوع "أصل ثابت"
+  usefulLifeYears: z.coerce.number().int().positive().optional(),
+  salvageValue: z.coerce.number().min(0).optional(),
   description: z.string().optional(),
   quantity: z.coerce.number().positive(),
   unitPrice: z.coerce.number().min(0),
