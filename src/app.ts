@@ -28,6 +28,7 @@ import { fixedAssetRoutes } from "./modules/fixedAssets/fixedAssets.routes";
 import { depreciationRunRoutes } from "./modules/depreciation/depreciation.routes";
 import { employeeRoutes } from "./modules/employees/employees.routes";
 import { leaveRequestRoutes } from "./modules/leaveRequests/leaveRequests.routes";
+import { leaveRequestPortalRoutes } from "./modules/leaveRequests/leaveRequests.portal.routes";
 import { hrActionRoutes } from "./modules/hrActions/hrActions.routes";
 import { payrollRunRoutes } from "./modules/payrollRuns/payrollRuns.routes";
 import { leaveSettlementRoutes } from "./modules/leaveSettlements/leaveSettlements.routes";
@@ -37,6 +38,8 @@ import { attachmentRoutes } from "./modules/attachments/attachments.routes";
 import { leaseContractRoutes } from "./modules/leaseContracts/leaseContracts.routes";
 import { companyDocumentRoutes } from "./modules/companyDocuments/companyDocuments.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
+import { employeePortalRoutes } from "./modules/employeePortal/employeePortal.routes";
+import { attendanceRoutes } from "./modules/attendance/attendance.routes";
 
 export function createApp() {
   const app = express();
@@ -81,6 +84,9 @@ export function createApp() {
   app.use("/api/lease-contracts", leaseContractRoutes);
   app.use("/api/company-documents", companyDocumentRoutes);
   app.use("/api/dashboard", dashboardRoutes);
+  app.use("/api/employee-portal", employeePortalRoutes);
+  app.use("/api/attendance", attendanceRoutes);
+  app.use("/api/employee-portal/leave-requests", leaveRequestPortalRoutes);
 
   app.use((req, res) => {
     res.status(404).json({ error: `المسار غير موجود: ${req.method} ${req.path}` });

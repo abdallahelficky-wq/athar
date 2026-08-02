@@ -19,16 +19,16 @@ function TrialBalanceView({ data }) {
   return (
     <div className="panel">
       <h3>ميزان المراجعة</h3>
-      <table className="ledger-table">
+      <table className="ledger-table responsive-table">
         <thead><tr><th>الحساب</th><th>التصنيف</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead>
         <tbody>
           {data.rows.map((r) => (
             <tr key={r.accountId}>
-              <td>{r.name}</td>
-              <td className="type-tag">{TYPE_LABEL[r.type]}</td>
-              <td className="num">{r.debit ? fmt(r.debit) : "—"}</td>
-              <td className="num">{r.credit ? fmt(r.credit) : "—"}</td>
-              <td className="num">{r.net >= 0 ? `${fmt(r.net)} مدين` : `${fmt(Math.abs(r.net))} دائن`}</td>
+              <td data-label="الحساب">{r.name}</td>
+              <td className="type-tag" data-label="التصنيف">{TYPE_LABEL[r.type]}</td>
+              <td className="num" data-label="مدين">{r.debit ? fmt(r.debit) : "—"}</td>
+              <td className="num" data-label="دائن">{r.credit ? fmt(r.credit) : "—"}</td>
+              <td className="num" data-label="الرصيد">{r.net >= 0 ? `${fmt(r.net)} مدين` : `${fmt(Math.abs(r.net))} دائن`}</td>
             </tr>
           ))}
         </tbody>

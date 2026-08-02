@@ -88,7 +88,7 @@ export default function InvoicesTab({ companyId, companies }) {
 
       {loading ? <p className="empty">جارٍ التحميل...</p> : (
         <div className="panel">
-          <table className="ledger-table">
+          <table className="ledger-table responsive-table">
             <thead>
               <tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>حالة الترحيل</th><th>حالة السداد</th><th>الإجراءات</th></tr>
             </thead>
@@ -98,12 +98,12 @@ export default function InvoicesTab({ companyId, companies }) {
                 const linked = inv.receiptAllocations.length > 0;
                 return (
                   <tr key={inv.id}>
-                    <td>{inv.invoiceNumber}</td>
-                    <td>{inv.customer?.name}</td>
-                    <td>{inv.date.slice(0, 10)}</td>
-                    <td className="num">{fmt(Number(inv.grandTotal))}</td>
-                    <td><span className="status-badge">{posted ? "مرحّلة" : "مسودة"}</span></td>
-                    <td><span className="status-badge">{inv.paymentStatus}</span></td>
+                    <td data-label="الرقم">{inv.invoiceNumber}</td>
+                    <td data-label="العميل">{inv.customer?.name}</td>
+                    <td data-label="التاريخ">{inv.date.slice(0, 10)}</td>
+                    <td className="num" data-label="الإجمالي">{fmt(Number(inv.grandTotal))}</td>
+                    <td data-label="حالة الترحيل"><span className="status-badge">{posted ? "مرحّلة" : "مسودة"}</span></td>
+                    <td data-label="حالة السداد"><span className="status-badge">{inv.paymentStatus}</span></td>
                     <td className="row-actions">
                       <button className="icon-btn" title="عرض الفاتورة" onClick={() => setViewInvoice(inv)}><Icon.Eye /></button>
                       <button className="icon-btn" title="طباعة الفاتورة" onClick={() => onPrintClick(inv)}><Icon.Printer /></button>

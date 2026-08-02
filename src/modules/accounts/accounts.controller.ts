@@ -199,10 +199,12 @@ export const importAccounts: RequestHandler = async (req, res) => {
 
 export const installStandardChart: RequestHandler = async (req, res) => {
   const tenantId = req.auth!.tenantId;
+  const userId = req.auth!.sub;
   const companyId = req.body.companyId ?? null;
 
+  let company: { id: string; name: string } | null = null;
   if (companyId) {
-    const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
+    company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
     if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
   }
 
@@ -240,6 +242,19 @@ export const installStandardChart: RequestHandler = async (req, res) => {
       data: { nextJournalEntrySeq: 1 },
     });
     await createDefaultChart(tx, tenantId, companyId);
+
+    // سجل تدقيق إلزامي على كل عملية تثبيت شجرة قياسية — من نفّذها، متى بالضبط، ولأي نطاق
+    // (شركة محددة أو المستأجر بالكامل)، بما في ذلك كل ما تم حذفه قبل إعادة التثبيت.
+    await tx.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: "accounts.install_standard_chart",
+        entityType: companyId ? "Company" : "Tenant",
+        entityId: companyId || tenantId,
+        metadata: { companyId, companyName: company?.name ?? null, deleted, deletedAccounts },
+      },
+    });
 
     return { deleted, deletedAccounts, installedAccounts: DEFAULT_CHART_OF_ACCOUNTS.length };
   });

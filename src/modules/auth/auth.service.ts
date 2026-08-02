@@ -17,6 +17,11 @@ import type { Tenant, User } from "@prisma/client";
 const TRIAL_DAYS = 30;
 const INVITE_EXPIRES_DAYS = 7;
 
+// الحساب الرئيسي/المالك الوحيد المخوَّل تلقائياً بدور "مدير عام" (super_admin) عند التسجيل —
+// هذا الدور غير قابل للمنح عبر الدعوة العادية (inviteSchema)، وهو الوحيد المسموح له بتنفيذ
+// "تثبيت الشجرة القياسية".
+const OWNER_EMAIL = "abdallah.elficky@gmail.com";
+
 async function issueTokenPair(user: User) {
   const accessToken = signAccessToken({
     sub: user.id,
@@ -74,7 +79,7 @@ export async function register(input: { tenantName: string; name: string; email:
         name: input.name,
         email: input.email,
         passwordHash,
-        role: "admin",
+        role: input.email.toLowerCase() === OWNER_EMAIL ? "super_admin" : "admin",
         companyScope: "all",
         active: true,
         inviteStatus: "accepted",

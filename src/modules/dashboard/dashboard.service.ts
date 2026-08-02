@@ -400,7 +400,7 @@ export async function getHrNationalityBreakdown(tenantId: string, companyId?: st
 }
 
 export interface HrAlert {
-  type: "expiring_document" | "contract_ending" | "probation_unevaluated";
+  type: "expiring_document" | "contract_ending" | "probation_unevaluated" | "unassigned_leave_request";
   companyId: string;
   employeeId: string;
   employeeName: string;
@@ -415,6 +415,14 @@ export async function getHrAlerts(tenantId: string, companyId: string | undefine
   const employees = await prisma.employee.findMany({
     where: { tenantId, companyId: companyId || undefined, status: "active" },
     include: { documents: true },
+  });
+
+  // طلبات إجازة معلّقة لموظفين بلا مدير مباشر مسجَّل — لا يظهر طلبها في صندوق وارد أي مدير عبر
+  // بوابة الجوال (المُطابقة هناك بـ managerId فقط)، فيبقى إجراؤها الوحيد المتاح موافقة/رفض HR
+  // اليدوية من هذه الشاشة تحديداً؛ هذا التنبيه هو القاعدة الاحتياطية التي تضمن عدم إغفالها.
+  const unassignedPending = await prisma.leaveRequest.findMany({
+    where: { status: "pending", employee: { tenantId, companyId: companyId || undefined, managerId: null } },
+    include: { employee: { select: { id: true, name: true, companyId: true } } },
   });
 
   const alerts: HrAlert[] = [];
@@ -459,6 +467,19 @@ export async function getHrAlerts(tenantId: string, companyId: string | undefine
         days: -days,
       });
     }
+  });
+
+  unassignedPending.forEach((req) => {
+    const daysPending = daysBetween(req.createdAt, today);
+    alerts.push({
+      type: "unassigned_leave_request",
+      companyId: req.employee.companyId,
+      employeeId: req.employee.id,
+      employeeName: req.employee.name,
+      title: `طلب إجازة بلا مدير مباشر — ${req.employee.name}`,
+      detail: `معلّق منذ ${daysPending} يوماً — يحتاج موافقة/رفض HR مباشرة`,
+      days: -daysPending,
+    });
   });
 
   alerts.sort((a, b) => (a.days ?? 999_999) - (b.days ?? 999_999));

@@ -17,7 +17,7 @@ accountRoutes.post(
 );
 accountRoutes.post(
   "/install-standard",
-  requireRole("admin", "finance_manager"),
+  requireRole("super_admin"),
   validateBody(installStandardChartSchema),
   installStandardChart,
 );
