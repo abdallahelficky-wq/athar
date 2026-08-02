@@ -8,8 +8,9 @@ const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ?
 async function validateHierarchy(tenantId: string, input: any, currentId?: string) {
   const companyId = input.companyId ?? null;
   const level = Number(input.level);
-  if (level === 6 && !/^\d{9}$/.test(input.code)) throw badRequest("حساب المستوى السادس يجب أن يحمل كوداً من 9 أرقام");
-  if (input.isPosting && (level < 2 || level > 6)) throw badRequest("حساب الترحيل يجب أن يكون بين المستوى الثاني والسادس");
+  if (level === 4 && !/^\d{9}$/.test(input.code)) throw badRequest("حساب المستوى الرابع يجب أن يحمل كوداً من 9 أرقام");
+  if (level === 4 && !input.isPosting) throw badRequest("حساب المستوى الرابع يجب أن يكون حساب ترحيل");
+  if (level < 4 && input.isPosting) throw badRequest("حسابات المستويات من الأول إلى الثالث حسابات تجميعية وليست قابلة للترحيل");
   if (level === 1 && input.parentId) throw badRequest("حساب المستوى الأول لا يقبل حساباً أباً");
   if (level > 1) {
     const parent = await prisma.account.findFirst({ where: { id: input.parentId, tenantId } });
@@ -24,6 +25,23 @@ async function validateHierarchy(tenantId: string, input: any, currentId?: strin
     if (children) throw badRequest("لا يمكن تحويل حساب له حسابات فرعية إلى حساب ترحيل");
   }
 }
+
+async function generateNextCode(tenantId: string, companyId: string | null, parentId: string) {
+  const parent = await prisma.account.findFirst({ where: { id: parentId, tenantId, companyId } });
+  if (!parent) throw badRequest("الحساب الأب غير موجود في الشجرة المحددة");
+  if (parent.isPosting || parent.level >= 4) throw badRequest("حساب الترحيل لا يقبل حسابات فرعية");
+  const siblings = await prisma.account.findMany({ where: { tenantId, companyId, parentId }, select: { code: true } });
+  const next = Math.max(Number(parent.code), ...siblings.map((account) => Number(account.code))) + 1;
+  if (next > 999999999) throw badRequest("تعذر توليد كود جديد ضمن الحد المسموح");
+  return String(next).padStart(9, "0");
+}
+
+export const nextAccountCode: RequestHandler = async (req, res) => {
+  const parentId = typeof req.query.parentId === "string" ? req.query.parentId : "";
+  if (!parentId) throw badRequest("حدد الحساب الأب لتوليد الكود");
+  const companyId = scopeCompanyId(req.query.companyId);
+  res.json({ code: await generateNextCode(req.auth!.tenantId, companyId, parentId) });
+};
 
 export const listAccounts: RequestHandler = async (req, res) => {
   const tree = req.query.tree === "true";
@@ -49,17 +67,52 @@ export const listAccounts: RequestHandler = async (req, res) => {
 };
 
 export const createAccount: RequestHandler = async (req, res) => {
-  await validateHierarchy(req.auth!.tenantId, req.body);
-  const account = await prisma.account.create({ data: { ...req.body, tenantId: req.auth!.tenantId } });
+  const companyId = req.body.companyId ?? null;
+  const parent = req.body.parentId
+    ? await prisma.account.findFirst({ where: { id: req.body.parentId, tenantId: req.auth!.tenantId, companyId } })
+    : null;
+  const level = parent ? parent.level + 1 : 1;
+  const code = req.body.code || (parent ? await generateNextCode(req.auth!.tenantId, companyId, parent.id) : null);
+  if (!code) throw badRequest("أدخل كود حساب المستوى الأول");
+  const data = { ...req.body, companyId, level, code, isPosting: level === 4 };
+  await validateHierarchy(req.auth!.tenantId, data);
+  const duplicate = await prisma.account.findFirst({ where: { tenantId: req.auth!.tenantId, companyId, code } });
+  if (duplicate) throw badRequest(`كود الحساب ${code} مستخدم بالفعل في هذه الشجرة`);
+  const account = await prisma.account.create({ data: { ...data, tenantId: req.auth!.tenantId } });
   res.status(201).json(account);
 };
 
 export const updateAccount: RequestHandler = async (req, res) => {
   const existing = await prisma.account.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("الحساب غير موجود");
-  const data = { ...existing, ...req.body };
+  const { confirmMoveWithTransactions, code: _ignoredCode, level: _ignoredLevel, companyId: _ignoredCompany, ...requestedData } = req.body;
+  const moving = requestedData.parentId !== undefined && (requestedData.parentId || null) !== (existing.parentId || null);
+  if (moving) {
+    const newParent = requestedData.parentId
+      ? await prisma.account.findFirst({ where: { id: requestedData.parentId, tenantId: req.auth!.tenantId, companyId: existing.companyId } })
+      : null;
+    const newLevel = newParent ? newParent.level + 1 : 1;
+    if (newLevel !== existing.level) throw badRequest("يمكن نقل الحساب بين أقسام المستوى نفسه فقط حفاظاً على بنية الأكواد والتقارير");
+    if (newParent?.isPosting) throw badRequest("لا يمكن نقل حساب تحت حساب ترحيل لأنه يجب أن يظل بدون فروع");
+    const lines = await prisma.journalEntryLine.count({ where: { accountId: existing.id } });
+    if (lines && !confirmMoveWithTransactions) {
+      throw badRequest("الحساب مرتبط بقيود سابقة. سيؤثر نقله على تصنيف التقارير التاريخية. أكّد النقل للمتابعة.", { requiresMoveConfirmation: true, journalLines: lines });
+    }
+  }
+  // يبقى الكود ثابتاً عند النقل حتى يظل معرّف الحساب مستقراً في المراجعات والتقارير التاريخية.
+  const data = { ...existing, ...requestedData, code: existing.code, level: existing.level, companyId: existing.companyId };
   await validateHierarchy(req.auth!.tenantId, data, existing.id);
-  const account = await prisma.account.update({ where: { id: existing.id }, data: req.body });
+  const account = await prisma.account.update({ where: { id: existing.id }, data: requestedData });
+  if (typeof requestedData.isArchived === "boolean") {
+    const descendants: string[] = [];
+    let parentIds = [existing.id];
+    while (parentIds.length) {
+      const children = await prisma.account.findMany({ where: { tenantId: req.auth!.tenantId, parentId: { in: parentIds } }, select: { id: true } });
+      parentIds = children.map((child) => child.id);
+      descendants.push(...parentIds);
+    }
+    if (descendants.length) await prisma.account.updateMany({ where: { id: { in: descendants } }, data: { isArchived: requestedData.isArchived } });
+  }
   res.json(account);
 };
 
@@ -96,10 +149,10 @@ export const importAccounts: RequestHandler = async (req, res) => {
   }
 
   for (const row of rows) {
-    if (row.level === 6 && !/^\d{9}$/.test(row.code)) {
-      throw badRequest(`حساب المستوى السادس ${row.code} يجب أن يحمل كوداً من 9 أرقام`);
+    if (row.level === 4 && !/^\d{9}$/.test(row.code)) {
+      throw badRequest(`حساب المستوى الرابع ${row.code} يجب أن يحمل كوداً من 9 أرقام`);
     }
-    if (row.isPosting && row.level < 2) throw badRequest(`الحساب ${row.code}: حساب الترحيل يجب أن يكون بين المستوى الثاني والسادس`);
+    if (row.isPosting !== (row.level === 4)) throw badRequest(`الحساب ${row.code}: الترحيل متاح حصراً في المستوى الرابع`);
     if (row.level === 1 && row.parentCode) throw badRequest(`الحساب ${row.code} من المستوى الأول ولا يقبل حساباً أباً`);
     if (row.level > 1 && !row.parentCode) throw badRequest(`الحساب الأب مفقود للكود ${row.code}`);
   }
@@ -178,7 +231,7 @@ export const installStandardChart: RequestHandler = async (req, res) => {
 
     const accountScope = { tenantId, companyId };
     let deletedAccounts = 0;
-    for (let level = 6; level >= 1; level -= 1) {
+    for (let level = 4; level >= 1; level -= 1) {
       deletedAccounts += (await tx.account.deleteMany({ where: { ...accountScope, level } })).count;
     }
 
@@ -201,7 +254,10 @@ export const deleteAccount: RequestHandler = async (req, res) => {
     prisma.account.count({ where: { parentId: existing.id } }),
     prisma.journalEntryLine.count({ where: { accountId: existing.id } }),
   ]);
-  if (children || lines) throw badRequest("لا يمكن حذف حساب له حسابات فرعية أو حركات؛ استخدم الأرشفة بدلاً من ذلك");
+  if (children || lines) {
+    const reasons = [children ? `${children} حسابات فرعية` : "", lines ? `${lines} حركات أو قيود مرتبطة` : ""].filter(Boolean).join(" و");
+    throw badRequest(`لا يمكن حذف الحساب لوجود ${reasons}. استخدم الأرشفة بدلاً من الحذف.`, { children, journalLines: lines });
+  }
   await prisma.account.delete({ where: { id: existing.id } });
   res.status(204).send();
 };

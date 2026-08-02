@@ -63,7 +63,7 @@ async function main() {
       lines: {
         create: [
           { accountId: need("إيجارات إدارية"), costCenterId: costCenter.id, debit: 42000, credit: 0 },
-          { accountId: need("الحسابات البنكية الجارية"), costCenterId: costCenter.id, debit: 0, credit: 42000 },
+          { accountId: need("مصرف الراجحي"), costCenterId: costCenter.id, debit: 0, credit: 42000 },
         ],
       },
     },
