@@ -26,7 +26,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const reload = () => listAccounts({ tree: true, companyId: scope === "group" ? undefined : scope })
     .then((rows) => { setAccounts(rows); setExpanded(new Set(rows.filter((a) => a.level < 6).map((a) => a.id))); setError(""); })
     .catch((err) => setError(err.message));
-  useEffect(reload, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { reload(); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedParent = accounts.find((a) => a.id === form.parentId);
   const level = selectedParent ? selectedParent.level + 1 : 1;
