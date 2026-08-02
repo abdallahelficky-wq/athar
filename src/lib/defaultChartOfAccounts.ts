@@ -553,7 +553,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "equity",
     "level": 3,
     "parentCode": "310000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -563,7 +563,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "equity",
     "level": 3,
     "parentCode": "310000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -573,7 +573,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "equity",
     "level": 3,
     "parentCode": "320000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -583,7 +583,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "equity",
     "level": 3,
     "parentCode": "320000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -593,7 +593,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "equity",
     "level": 3,
     "parentCode": "330000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -603,7 +603,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "equity",
     "level": 3,
     "parentCode": "330000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -613,7 +613,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "equity",
     "level": 3,
     "parentCode": "330000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -623,7 +623,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "410000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -633,7 +633,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "410000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -643,7 +643,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "410000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -653,7 +653,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "410000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -663,7 +663,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "420000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -673,7 +673,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "420000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -683,7 +683,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "420000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -693,7 +693,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "430000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -703,7 +703,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "430000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -713,7 +713,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "430000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -723,7 +723,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "430000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -733,7 +733,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "revenue",
     "level": 3,
     "parentCode": "430000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -743,7 +743,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "510000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -753,7 +753,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "510000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -763,7 +763,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "510000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -773,7 +773,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "510000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -783,7 +783,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "510000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -793,7 +793,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "510000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -803,7 +803,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "520000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -813,7 +813,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "520000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -823,7 +823,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "520000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -833,7 +833,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "520000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -843,7 +843,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "520000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -853,7 +853,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "520000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -863,7 +863,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "520000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -873,7 +873,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "520000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -883,7 +883,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -893,7 +893,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -903,7 +903,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -913,7 +913,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -923,7 +923,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -933,7 +933,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -943,7 +943,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -953,7 +953,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -963,7 +963,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -973,7 +973,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -983,7 +983,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -993,7 +993,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1003,7 +1003,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1013,7 +1013,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1023,7 +1023,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1033,7 +1033,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1043,7 +1043,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1053,7 +1053,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1063,7 +1063,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "530000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1073,7 +1073,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "550000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1083,7 +1083,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "550000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1093,7 +1093,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "550000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1103,7 +1103,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "550000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1113,7 +1113,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "550000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1123,7 +1123,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "550000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1133,7 +1133,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "560000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1143,7 +1143,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "560000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1153,7 +1153,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "560000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1163,7 +1163,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "560000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1173,7 +1173,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "560000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1183,7 +1183,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "560000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1193,7 +1193,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "560000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1203,7 +1203,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "560000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1213,7 +1213,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "560000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1223,7 +1223,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "560000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1233,7 +1233,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "570000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1243,7 +1243,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "570000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1253,7 +1253,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "570000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1263,7 +1263,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "570000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1273,7 +1273,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "570000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1283,7 +1283,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "570000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1293,7 +1293,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "580000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1303,7 +1303,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "580000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {
@@ -1313,7 +1313,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "type": "expense",
     "level": 3,
     "parentCode": "580000000",
-    "isPosting": true,
+    "isPosting": false,
     "isBankOrCash": false
   },
   {

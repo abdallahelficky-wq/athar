@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { listAccounts, createAccount, updateAccount, deleteAccount, installStandardChart } from "../api/accounts";
+import { listAccounts, getNextAccountCode, createAccount, updateAccount, deleteAccount, installStandardChart } from "../api/accounts";
 import { fmt } from "../legacy/constants";
 import { Icon } from "../legacy/shared";
 import { useAuth } from "../context/AuthContext";
@@ -30,7 +30,9 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
 
   const selectedParent = accounts.find((a) => a.id === form.parentId);
   const level = selectedParent ? selectedParent.level + 1 : 1;
-  const possibleParents = accounts.filter((a) => !a.isPosting && !a.isArchived && a.level < 6 && a.id !== editingId);
+  const editingAccount = accounts.find((a) => a.id === editingId);
+  const possibleParents = accounts.filter((a) => !a.isPosting && !a.isArchived && a.level < 4 && a.id !== editingId
+    && (!editingAccount || a.level === editingAccount.level - 1));
   const children = useMemo(() => {
     const map = new Map();
     accounts.forEach((a) => map.set(a.parentId, [...(map.get(a.parentId) || []), a]));
@@ -128,13 +130,13 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
           <label>اسم الحساب بالإنجليزية (اختياري)<input dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></label>
           <label>كود الحساب<input inputMode="numeric" maxLength={9} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 6 ? "9 أرقام" : `كود المستوى ${level}`} /></label>
           <label>الحساب الأب
-            <select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>
+            <select value={form.parentId} onChange={(e) => selectParent(e.target.value)}>
               <option value="">— مستوى أول —</option>
               {possibleParents.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
             </select>
           </label>
           {!selectedParent && <label>التصنيف<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
-          {level >= 2 && <label className="checkbox-label"><input type="checkbox" checked={form.isPosting} onChange={(e) => setForm({ ...form, isPosting: e.target.checked, isBankOrCash: e.target.checked ? form.isBankOrCash : false })} />حساب ترحيل</label>}
+          {level === 4 && <label className="checkbox-label"><input type="checkbox" checked readOnly />حساب ترحيل</label>}
           {form.isPosting && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
         </div>
         <div className="form-btn-group"><button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "جارٍ الحفظ..." : editingId ? "حفظ التعديل/النقل" : "إضافة الحساب"}</button>{editingId && <button type="button" className="btn-ghost" onClick={reset}>إلغاء</button>}<span className="note">المستوى {level} من 6 — {form.isPosting ? "حساب ترحيل" : "حساب تجميعي"} (يمكن إضافة حساب فرعي من زر ＋ حتى المستوى السادس)</span></div>
@@ -152,7 +154,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
               <td style={{ paddingRight: `${12 + (a.level - 1) * 24}px` }}><button className="icon-btn" disabled={!hasChildren} onClick={() => toggle(a.id)}>{hasChildren ? (expanded.has(a.id) ? "−" : "+") : "•"}</button> {a.name}{a.nameEn && <small style={{ display: "block", direction: "ltr", color: "#6b7280" }}>{a.nameEn}</small>}</td>
               <td>{a.level}</td><td>{a.isPosting ? "حساب حركة" : "تجميعي"}</td><td className="num">{fmt(a.balance || 0)}</td>
               <td className="row-actions">
-                {!a.isPosting && a.level < 6 && <button className="icon-btn" title="إضافة حساب فرعي" onClick={() => addChild(a)}>＋</button>}
+                {!a.isPosting && a.level < 4 && <button type="button" className="icon-btn" title="إضافة حساب فرعي" onClick={() => addChild(a)}>＋</button>}
                 <button className="icon-btn" title="تعديل أو نقل الحساب" onClick={() => edit(a)}><Icon.Edit /></button>
                 <button className="icon-btn" title={a.isArchived ? "إلغاء الأرشفة" : "أرشفة"} onClick={() => archive(a)}>▣</button>
                 <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(a)}><Icon.Trash /></button>
