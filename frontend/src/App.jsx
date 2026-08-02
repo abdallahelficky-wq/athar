@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 // ⚠️ غيّر هذا الرابط حسب منفذ الباك إند عندك
-const API_URL = 'http://localhost:5000/api/accounts'; 
+const const API_URL = 'https://athar-accounting.up.railway.app/api/accounts';
 
 function App() {
   const [accounts, setAccounts] = useState([]);
