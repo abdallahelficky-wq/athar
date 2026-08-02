@@ -7,6 +7,11 @@ export const listAccounts = (filters = {}) => {
   return api.get(`/accounts${query.size ? `?${query}` : ""}`);
 };
 export const createAccount = (payload) => api.post("/accounts", payload);
+export const getNextAccountCode = (parentId, companyId) => {
+  const query = new URLSearchParams({ parentId });
+  if (companyId) query.set("companyId", companyId);
+  return api.get(`/accounts/next-code?${query}`);
+};
 export const updateAccount = (id, payload) => api.patch(`/accounts/${id}`, payload);
 export const deleteAccount = (id) => api.delete(`/accounts/${id}`);
 
