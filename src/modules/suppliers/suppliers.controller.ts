@@ -50,6 +50,21 @@ export const updateSupplier: RequestHandler = async (req, res) => {
 export const deleteSupplier: RequestHandler = async (req, res) => {
   const existing = await prisma.supplier.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("المورد غير موجود");
+
+  const [purchaseInvoices, purchaseReturns, journalLines] = await Promise.all([
+    prisma.purchaseInvoice.count({ where: { supplierId: existing.id } }),
+    prisma.purchaseReturn.count({ where: { supplierId: existing.id } }),
+    prisma.journalEntryLine.count({ where: { supplierId: existing.id } }),
+  ]);
+  if (purchaseInvoices || purchaseReturns || journalLines) {
+    const reasons = [
+      purchaseInvoices ? `${purchaseInvoices} فاتورة مشتريات` : "",
+      purchaseReturns ? `${purchaseReturns} مردود مشتريات` : "",
+      journalLines ? `${journalLines} حركة في القيود` : "",
+    ].filter(Boolean).join("، ");
+    throw badRequest(`لا يمكن حذف هذا المورد لارتباطه بـ ${reasons}. عدّل بيانات المورد بدلاً من حذفه إن لزم الأمر.`);
+  }
+
   await prisma.supplier.delete({ where: { id: existing.id } });
   res.status(204).send();
 };

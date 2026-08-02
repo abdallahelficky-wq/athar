@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { listSuppliers, createSupplier, updateSupplier, deleteSupplier } from "../../api/suppliers";
 import { Icon } from "../../legacy/shared";
+import { useToast, ToastHost } from "../shared/Toast";
 import StatementOfAccountModal from "../StatementOfAccountModal";
 
 const emptyForm = () => ({ name: "", vatNumber: "", crNumber: "", phone: "", email: "", city: "", paymentTerms: "آجل 30 يوم" });
@@ -8,7 +9,7 @@ const emptyForm = () => ({ name: "", vatNumber: "", crNumber: "", phone: "", ema
 export default function SuppliersTab({ companyId, companies }) {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { toast, notify, dismiss } = useToast();
   const [form, setForm] = useState(emptyForm());
   const [editingId, setEditingId] = useState(null);
   const [statementFor, setStatementFor] = useState(null);
@@ -16,7 +17,7 @@ export default function SuppliersTab({ companyId, companies }) {
   const reload = () => {
     if (!companyId) return;
     setLoading(true);
-    listSuppliers(companyId).then(setSuppliers).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    listSuppliers(companyId).then(setSuppliers).catch((e) => notify(e.message, "error")).finally(() => setLoading(false));
   };
   useEffect(reload, [companyId]);
 
@@ -30,7 +31,7 @@ export default function SuppliersTab({ companyId, companies }) {
       setEditingId(null);
       reload();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     }
   };
 
@@ -40,8 +41,9 @@ export default function SuppliersTab({ companyId, companies }) {
     try {
       await deleteSupplier(s.id);
       reload();
+      notify(`تم حذف المورد "${s.name}".`);
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     }
   };
 
@@ -64,7 +66,6 @@ export default function SuppliersTab({ companyId, companies }) {
             </select>
           </label>
         </div>
-        {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
           {editingId && <button className="btn-ghost" onClick={() => { setEditingId(null); setForm(emptyForm()); }}>إلغاء</button>}
           <button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديلات" : "حفظ بيانات المورد"}</button>
@@ -101,6 +102,8 @@ export default function SuppliersTab({ companyId, companies }) {
           onClose={() => setStatementFor(null)}
         />
       )}
+
+      <ToastHost toast={toast} onDismiss={dismiss} />
     </div>
   );
 }

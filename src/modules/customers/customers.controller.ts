@@ -51,6 +51,25 @@ export const updateCustomer: RequestHandler = async (req, res) => {
 export const deleteCustomer: RequestHandler = async (req, res) => {
   const existing = await prisma.customer.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("العميل غير موجود");
+
+  const [quotations, salesInvoices, salesReturns, receipts, journalLines] = await Promise.all([
+    prisma.quotation.count({ where: { customerId: existing.id } }),
+    prisma.salesInvoice.count({ where: { customerId: existing.id } }),
+    prisma.salesReturn.count({ where: { customerId: existing.id } }),
+    prisma.receipt.count({ where: { customerId: existing.id } }),
+    prisma.journalEntryLine.count({ where: { customerId: existing.id } }),
+  ]);
+  if (quotations || salesInvoices || salesReturns || receipts || journalLines) {
+    const reasons = [
+      salesInvoices ? `${salesInvoices} فاتورة مبيعات` : "",
+      quotations ? `${quotations} عرض سعر` : "",
+      salesReturns ? `${salesReturns} مردود مبيعات` : "",
+      receipts ? `${receipts} سند قبض` : "",
+      journalLines ? `${journalLines} حركة في القيود` : "",
+    ].filter(Boolean).join("، ");
+    throw badRequest(`لا يمكن حذف هذا العميل لارتباطه بـ ${reasons}. عدّل بيانات العميل بدلاً من حذفه إن لزم الأمر.`);
+  }
+
   await prisma.customer.delete({ where: { id: existing.id } });
   res.status(204).send();
 };

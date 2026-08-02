@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from "../../api/customers";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
+import { useToast, ToastHost } from "../shared/Toast";
 import StatementOfAccountModal from "../StatementOfAccountModal";
 
 const emptyForm = () => ({
@@ -13,7 +14,7 @@ const emptyForm = () => ({
 export default function CustomersTab({ companyId, companies }) {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { toast, notify, dismiss } = useToast();
   const [form, setForm] = useState(emptyForm());
   const [editingId, setEditingId] = useState(null);
   const [statementFor, setStatementFor] = useState(null);
@@ -21,7 +22,7 @@ export default function CustomersTab({ companyId, companies }) {
   const reload = () => {
     if (!companyId) return;
     setLoading(true);
-    listCustomers(companyId).then(setCustomers).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    listCustomers(companyId).then(setCustomers).catch((e) => notify(e.message, "error")).finally(() => setLoading(false));
   };
 
   useEffect(reload, [companyId]);
@@ -36,7 +37,7 @@ export default function CustomersTab({ companyId, companies }) {
       setEditingId(null);
       reload();
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     }
   };
 
@@ -50,8 +51,9 @@ export default function CustomersTab({ companyId, companies }) {
     try {
       await deleteCustomer(c.id);
       reload();
+      notify(`تم حذف العميل "${c.name}".`);
     } catch (err) {
-      setError(err.message);
+      notify(err.message, "error");
     }
   };
 
@@ -81,7 +83,6 @@ export default function CustomersTab({ companyId, companies }) {
           </label>
           <label>حد الائتمان (ر.س)<input type="number" value={form.creditLimit} onChange={(e) => setForm({ ...form, creditLimit: e.target.value })} /></label>
         </div>
-        {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
           {editingId && <button className="btn-ghost" onClick={() => { setEditingId(null); setForm(emptyForm()); }}>إلغاء</button>}
           <button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديلات" : "حفظ بيانات العميل"}</button>
@@ -122,6 +123,8 @@ export default function CustomersTab({ companyId, companies }) {
           onClose={() => setStatementFor(null)}
         />
       )}
+
+      <ToastHost toast={toast} onDismiss={dismiss} />
     </div>
   );
 }
