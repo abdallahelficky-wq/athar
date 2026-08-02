@@ -24,7 +24,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
 
   useEffect(() => { if (companyId) setScope(companyId); }, [companyId]);
   const reload = () => listAccounts({ tree: true, companyId: scope === "group" ? undefined : scope })
-    .then((rows) => { setAccounts(rows); setExpanded(new Set(rows.filter((a) => a.level < 6).map((a) => a.id))); setError(""); })
+    .then((rows) => { setAccounts(rows); setExpanded(new Set(rows.filter((a) => a.level < 4).map((a) => a.id))); setError(""); })
     .catch((err) => setError(err.message));
   useEffect(() => { reload(); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -53,7 +53,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     if (form.name.trim().length < 2) return setError("أدخل اسم الحساب بالعربية (حرفان على الأقل).");
     if (!form.code.trim()) return setError("أدخل كود الحساب.");
     if (level > 1 && !form.parentId) return setError("اختر الحساب الأب للمستوى المطلوب.");
-    if (level === 6 && !/^\d{9}$/.test(form.code)) return setError("كود حساب المستوى السادس يجب أن يتكون من 9 أرقام.");
+    if (level === 4 && !/^\d{9}$/.test(form.code)) return setError("كود حساب المستوى الرابع يجب أن يتكون من 9 أرقام.");
     const payload = {
       ...form,
       name: form.name.trim(), nameEn: form.nameEn.trim() || null, code: form.code.trim(), parentId: form.parentId || null,
@@ -62,7 +62,14 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     };
     try {
       setSaving(true);
-      if (editingId) await updateAccount(editingId, payload); else await createAccount(payload);
+      if (editingId) {
+        try {
+          await updateAccount(editingId, payload);
+        } catch (err) {
+          if (!err.details?.requiresMoveConfirmation || !window.confirm(`${err.message}\n\nهل تريد متابعة النقل مع الإبقاء على الكود الحالي؟`)) throw err;
+          await updateAccount(editingId, { ...payload, confirmMoveWithTransactions: true });
+        }
+      } else await createAccount(payload);
       const message = editingId ? "تم حفظ تعديلات الحساب بنجاح." : "تمت إضافة الحساب بنجاح.";
       reset();
       await reload();
@@ -71,7 +78,22 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     finally { setSaving(false); }
   };
   const edit = (a) => { setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isPosting: a.isPosting, isBankOrCash: a.isBankOrCash }); };
-  const addChild = (a) => { setEditingId(null); setForm({ ...emptyForm, type: a.type, parentId: a.id }); };
+  const addChild = async (a) => {
+    setEditingId(null); setError(""); setSuccess("");
+    try {
+      const { code } = await getNextAccountCode(a.id, scope === "group" ? undefined : scope);
+      setForm({ ...emptyForm, type: a.type, parentId: a.id, code, isPosting: a.level === 3 });
+    } catch (err) { setError(err.message); }
+  };
+  const selectParent = async (parentId) => {
+    if (editingId || !parentId) return setForm((current) => ({ ...current, parentId, code: parentId ? current.code : "", isPosting: false }));
+    const parent = accounts.find((account) => account.id === parentId);
+    setError("");
+    try {
+      const { code } = await getNextAccountCode(parentId, scope === "group" ? undefined : scope);
+      setForm((current) => ({ ...current, parentId, code, type: parent?.type || current.type, isPosting: parent?.level === 3 }));
+    } catch (err) { setError(err.message); }
+  };
   const archive = async (a) => {
     setError(""); setSuccess("");
     try { await updateAccount(a.id, { isArchived: !a.isArchived }); await reload(); setSuccess(a.isArchived ? "تم إلغاء أرشفة الحساب." : "تمت أرشفة الحساب."); }
@@ -128,7 +150,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         <div className="form-grid">
           <label>اسم الحساب بالعربية<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <label>اسم الحساب بالإنجليزية (اختياري)<input dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></label>
-          <label>كود الحساب<input inputMode="numeric" maxLength={9} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 6 ? "9 أرقام" : `كود المستوى ${level}`} /></label>
+          <label>كود الحساب<input inputMode="numeric" maxLength={9} readOnly={Boolean(editingId)} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 4 ? "يُولّد تلقائياً من الحساب الأب" : `كود المستوى ${level}`} /></label>
           <label>الحساب الأب
             <select value={form.parentId} onChange={(e) => selectParent(e.target.value)}>
               <option value="">— مستوى أول —</option>
@@ -139,7 +161,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
           {level === 4 && <label className="checkbox-label"><input type="checkbox" checked readOnly />حساب ترحيل</label>}
           {form.isPosting && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
         </div>
-        <div className="form-btn-group"><button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "جارٍ الحفظ..." : editingId ? "حفظ التعديل/النقل" : "إضافة الحساب"}</button>{editingId && <button type="button" className="btn-ghost" onClick={reset}>إلغاء</button>}<span className="note">المستوى {level} من 6 — {form.isPosting ? "حساب ترحيل" : "حساب تجميعي"} (يمكن إضافة حساب فرعي من زر ＋ حتى المستوى السادس)</span></div>
+        <div className="form-btn-group"><button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "جارٍ الحفظ..." : editingId ? "حفظ التعديل/النقل" : "إضافة الحساب"}</button>{editingId && <button type="button" className="btn-ghost" onClick={reset}>إلغاء</button>}<span className="note">المستوى {level} من 4 — {level === 4 ? "حساب ترحيل تلقائياً" : "حساب تجميعي"}. عند النقل يبقى الكود ثابتاً لحماية أثر المراجعة التاريخي.</span></div>
       </div>
 
       <AccountImportPanel scope={scope} accounts={accounts} onImported={reload} />

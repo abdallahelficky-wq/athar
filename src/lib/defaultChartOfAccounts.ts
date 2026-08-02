@@ -1338,13 +1338,13 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   },
   {
     "code": "111000003",
-    "name": "الحسابات البنكية الجارية",
-    "nameEn": "Current Bank Accounts",
+    "name": "الحساب البنكي الرئيسي",
+    "nameEn": "Main Bank Account",
     "type": "asset",
     "level": 4,
     "parentCode": "111000000",
-    "isPosting": false,
-    "isBankOrCash": false
+    "isPosting": true,
+    "isBankOrCash": true
   },
   {
     "code": "111000004",
@@ -2095,26 +2095,6 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
     "parentCode": "224000000",
     "isPosting": true,
     "isBankOrCash": false
-  },
-  {
-    "code": "111003000",
-    "name": "الحسابات البنكية المحلية",
-    "nameEn": "Local Bank Accounts",
-    "type": "asset",
-    "level": 5,
-    "parentCode": "111000003",
-    "isPosting": false,
-    "isBankOrCash": false
-  },
-  {
-    "code": "111003001",
-    "name": "الحساب البنكي الرئيسي",
-    "nameEn": "Main Bank Account",
-    "type": "asset",
-    "level": 6,
-    "parentCode": "111003000",
-    "isPosting": true,
-    "isBankOrCash": true
   }
 ];
 
