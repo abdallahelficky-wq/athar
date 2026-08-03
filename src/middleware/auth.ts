@@ -35,10 +35,19 @@ export const authenticateEmployeePortal: RequestHandler = (req, _res, next) => {
   }
 };
 
-/** يقيّد نقطة النهاية بأدوار معينة فقط، بعد المصادقة */
+/**
+ * يقيّد نقطة النهاية بأدوار معينة فقط، بعد المصادقة.
+ * دور super_admin (الحساب المالك الوحيد) يتضمن دائماً كل صلاحيات أي دور آخر تلقائياً ويمرّ من
+ * أي بوابة requireRole أياً كانت الأدوار المذكورة فيها — فيما عدا القوائم غير الفارغة التي لا
+ * تتضمنه أصلاً هو نفسه بالاسم بديهياً (requireRole("super_admin") يبقى حصرياً عليه فقط، بما أنه
+ * الدور الوحيد في القائمة). بدون هذا الاستثناء، أي بوابة تفحص أدواراً أخرى فقط (مثل "admin" أو
+ * "finance_manager") كانت سترفض حساب super_admin رغم أنه من المفترض أن يملك صلاحيات admin وأكثر —
+ * وهذا بالضبط ما حدث فعلياً بعد ترقية الحساب المالك لدور super_admin.
+ */
 export function requireRole(...roles: string[]): RequestHandler {
   return (req, _res, next) => {
     if (!req.auth) throw unauthorized();
+    if (req.auth.role === "super_admin") return next();
     if (!roles.includes(req.auth.role)) {
       throw forbidden("دورك الوظيفي لا يسمح بتنفيذ هذا الإجراء");
     }
