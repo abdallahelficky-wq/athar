@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { AccountType, Prisma } from "@prisma/client";
 
 export interface DefaultChartAccount {
@@ -1873,28 +1874,34 @@ export async function createDefaultChart(
   tenantId: string,
   companyId: string | null,
 ) {
-  const createdByCode = new Map<string, { id: string }>();
-  for (const account of DEFAULT_CHART_OF_ACCOUNTS) {
-    const parent = account.parentCode ? createdByCode.get(account.parentCode) : null;
-    if (account.parentCode && !parent) {
+  // نُنشئ كل معرّفات الحسابات (185 حساباً) في الذاكرة أولاً بدل الاعتماد على cuid() التلقائي
+  // من قاعدة البيانات، حتى يمكن ربط كل حساب فرعي بمعرّف أبيه معروفاً سلفاً، ثم نُدرِج الجميع
+  // بطلب INSERT دفعي واحد (createMany) بدل 185 رحلة شبكة منفصلة (account.create لكل حساب) —
+  // التتابع القديم كان يتجاوز أحياناً مهلة معاملة Prisma الافتراضية (5 ثوانٍ) على شبكة الإنتاج
+  // (P2028)، رغم نجاحه محلياً حيث زمن الاتصال بقاعدة البيانات شبه معدوم.
+  const idByCode = new Map<string, string>();
+  const rows = DEFAULT_CHART_OF_ACCOUNTS.map((account) => {
+    const parentId = account.parentCode ? idByCode.get(account.parentCode) : null;
+    if (account.parentCode && !parentId) {
       throw new Error(`الحساب الأب ${account.parentCode} غير موجود عند إنشاء القالب الافتراضي`);
     }
-    const created = await tx.account.create({
-      data: {
-        tenantId,
-        companyId,
-        parentId: parent?.id || null,
-        code: account.code,
-        level: account.level,
-        isPosting: account.isPosting,
-        name: account.name,
-        nameEn: account.nameEn,
-        type: account.type,
-        isBankOrCash: account.isBankOrCash || false,
-      },
-      select: { id: true },
-    });
-    createdByCode.set(account.code, created);
-  }
+    const id = randomUUID();
+    idByCode.set(account.code, id);
+    return {
+      id,
+      tenantId,
+      companyId,
+      parentId: parentId || null,
+      code: account.code,
+      level: account.level,
+      isPosting: account.isPosting,
+      name: account.name,
+      nameEn: account.nameEn,
+      type: account.type,
+      isBankOrCash: account.isBankOrCash || false,
+    };
+  });
+
+  await tx.account.createMany({ data: rows });
 }
 

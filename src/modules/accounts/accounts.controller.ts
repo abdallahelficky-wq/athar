@@ -228,55 +228,60 @@ export const installStandardChart: RequestHandler = async (req, res) => {
     if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const financialScope = companyId ? { tenantId, companyId } : { tenantId };
-    const employeeIds = companyId
-      ? (await tx.employee.findMany({ where: { tenantId, companyId }, select: { id: true } })).map((employee) => employee.id)
-      : [];
+  const result = await prisma.$transaction(
+    async (tx) => {
+      const financialScope = companyId ? { tenantId, companyId } : { tenantId };
+      const employeeIds = companyId
+        ? (await tx.employee.findMany({ where: { tenantId, companyId }, select: { id: true } })).map((employee) => employee.id)
+        : [];
 
-    const deleted = {
-      receipts: (await tx.receipt.deleteMany({ where: financialScope })).count,
-      salesReturns: (await tx.salesReturn.deleteMany({ where: financialScope })).count,
-      salesInvoices: (await tx.salesInvoice.deleteMany({ where: financialScope })).count,
-      purchaseReturns: (await tx.purchaseReturn.deleteMany({ where: financialScope })).count,
-      purchaseInvoices: (await tx.purchaseInvoice.deleteMany({ where: financialScope })).count,
-      stockMovements: (await tx.stockMovement.deleteMany({ where: financialScope })).count,
-      depreciationRuns: (await tx.depreciationRun.deleteMany({ where: financialScope })).count,
-      fixedAssets: (await tx.fixedAsset.deleteMany({ where: financialScope })).count,
-      payrollRuns: (await tx.payrollRun.deleteMany({ where: financialScope })).count,
-      leaveSettlements: (await tx.leaveSettlement.deleteMany({
-        where: companyId ? { tenantId, employeeId: { in: employeeIds } } : { tenantId },
-      })).count,
-      journalEntries: (await tx.journalEntry.deleteMany({ where: financialScope })).count,
-    };
+      const deleted = {
+        receipts: (await tx.receipt.deleteMany({ where: financialScope })).count,
+        salesReturns: (await tx.salesReturn.deleteMany({ where: financialScope })).count,
+        salesInvoices: (await tx.salesInvoice.deleteMany({ where: financialScope })).count,
+        purchaseReturns: (await tx.purchaseReturn.deleteMany({ where: financialScope })).count,
+        purchaseInvoices: (await tx.purchaseInvoice.deleteMany({ where: financialScope })).count,
+        stockMovements: (await tx.stockMovement.deleteMany({ where: financialScope })).count,
+        depreciationRuns: (await tx.depreciationRun.deleteMany({ where: financialScope })).count,
+        fixedAssets: (await tx.fixedAsset.deleteMany({ where: financialScope })).count,
+        payrollRuns: (await tx.payrollRun.deleteMany({ where: financialScope })).count,
+        leaveSettlements: (await tx.leaveSettlement.deleteMany({
+          where: companyId ? { tenantId, employeeId: { in: employeeIds } } : { tenantId },
+        })).count,
+        journalEntries: (await tx.journalEntry.deleteMany({ where: financialScope })).count,
+      };
 
-    const accountScope = { tenantId, companyId };
-    let deletedAccounts = 0;
-    for (let level = 4; level >= 1; level -= 1) {
-      deletedAccounts += (await tx.account.deleteMany({ where: { ...accountScope, level } })).count;
-    }
+      const accountScope = { tenantId, companyId };
+      let deletedAccounts = 0;
+      for (let level = 4; level >= 1; level -= 1) {
+        deletedAccounts += (await tx.account.deleteMany({ where: { ...accountScope, level } })).count;
+      }
 
-    await tx.company.updateMany({
-      where: companyId ? { id: companyId, tenantId } : { tenantId },
-      data: { nextJournalEntrySeq: 1 },
-    });
-    await createDefaultChart(tx, tenantId, companyId);
+      await tx.company.updateMany({
+        where: companyId ? { id: companyId, tenantId } : { tenantId },
+        data: { nextJournalEntrySeq: 1 },
+      });
+      await createDefaultChart(tx, tenantId, companyId);
 
-    // سجل تدقيق إلزامي على كل عملية تثبيت شجرة قياسية — من نفّذها، متى بالضبط، ولأي نطاق
-    // (شركة محددة أو المستأجر بالكامل)، بما في ذلك كل ما تم حذفه قبل إعادة التثبيت.
-    await tx.auditLog.create({
-      data: {
-        tenantId,
-        userId,
-        action: "accounts.install_standard_chart",
-        entityType: companyId ? "Company" : "Tenant",
-        entityId: companyId || tenantId,
-        metadata: { companyId, companyName: company?.name ?? null, deleted, deletedAccounts },
-      },
-    });
+      // سجل تدقيق إلزامي على كل عملية تثبيت شجرة قياسية — من نفّذها، متى بالضبط، ولأي نطاق
+      // (شركة محددة أو المستأجر بالكامل)، بما في ذلك كل ما تم حذفه قبل إعادة التثبيت.
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: "accounts.install_standard_chart",
+          entityType: companyId ? "Company" : "Tenant",
+          entityId: companyId || tenantId,
+          metadata: { companyId, companyName: company?.name ?? null, deleted, deletedAccounts },
+        },
+      });
 
-    return { deleted, deletedAccounts, installedAccounts: DEFAULT_CHART_OF_ACCOUNTS.length };
-  });
+      return { deleted, deletedAccounts, installedAccounts: DEFAULT_CHART_OF_ACCOUNTS.length };
+    },
+    // مهلة أطول من الافتراضي (5 ثوانٍ): هذه المعاملة تحذف عدة جداول ثم تُعيد زرع الشجرة القياسية،
+    // وقد تستغرق أطول من المعتاد على شبكة الإنتاج، خصوصاً لشركات كبيرة الحجم.
+    { timeout: 20_000, maxWait: 10_000 },
+  );
 
   res.status(201).json(result);
 };

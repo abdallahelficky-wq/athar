@@ -66,33 +66,39 @@ export async function register(input: { tenantName: string; name: string; email:
   const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000);
   const unlockPinHash = await hashPassword(env.defaultUnlockPin);
 
-  const { tenant, user } = await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenant.create({
-      data: {
-        name: input.tenantName,
-        subscriptionStatus: "trialing",
-        trialEndsAt,
-        unlockPin: unlockPinHash,
-      },
-    });
+  const { tenant, user } = await prisma.$transaction(
+    async (tx) => {
+      const tenant = await tx.tenant.create({
+        data: {
+          name: input.tenantName,
+          subscriptionStatus: "trialing",
+          trialEndsAt,
+          unlockPin: unlockPinHash,
+        },
+      });
 
-    await createDefaultChart(tx, tenant.id, null);
+      await createDefaultChart(tx, tenant.id, null);
 
-    const user = await tx.user.create({
-      data: {
-        tenantId: tenant.id,
-        name: input.name,
-        email: input.email,
-        passwordHash,
-        role: input.email.toLowerCase() === OWNER_EMAIL ? "super_admin" : "admin",
-        companyScope: "all",
-        active: true,
-        inviteStatus: "accepted",
-      },
-    });
+      const user = await tx.user.create({
+        data: {
+          tenantId: tenant.id,
+          name: input.name,
+          email: input.email,
+          passwordHash,
+          role: input.email.toLowerCase() === OWNER_EMAIL ? "super_admin" : "admin",
+          companyScope: "all",
+          active: true,
+          inviteStatus: "accepted",
+        },
+      });
 
-    return { tenant, user };
-  });
+      return { tenant, user };
+    },
+    // مهلة أطول من الافتراضي (5 ثوانٍ) كإجراء احتياطي إضافي — لم يعد زرع الشجرة القياسية
+    // بحاجة إليها فعلياً بعد التحويل إلى createMany دفعي واحد، لكنها تحمي من أي بطء عابر
+    // في اتصال قاعدة بيانات الإنتاج (بدء تشغيل بارد، ازدحام مؤقت، ...).
+    { timeout: 20_000, maxWait: 10_000 },
+  );
 
   const tokens = await issueTokenPair(user);
   return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens };
