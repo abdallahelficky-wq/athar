@@ -8,7 +8,7 @@ const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ?
 // طول كود كل مستوى: الأول رقم واحد، الثاني رقمان (يمتدان من كود الأب)، الثالث أربعة أرقام،
 // الرابع (حسابات الترحيل) ستة أرقام — كل مستوى يمتد من كود أبيه مباشرة بإضافة أرقام له، لا كود
 // ثابت الطول لكل الشجرة (كان قبل ذلك 9 أرقام موحّدة لكل المستويات).
-const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 4, 4: 6 };
+const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 4 };
 
 async function validateHierarchy(tenantId: string, input: any, currentId?: string) {
   const companyId = input.companyId ?? null;

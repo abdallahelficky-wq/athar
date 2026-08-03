@@ -199,6 +199,10 @@ model Company {
   lowCashThreshold        Decimal?           @db.Decimal(18, 2)
   overdueInvoiceDays      Int                @default(30)
   staleDraftDays          Int                @default(7)
+  // نشاط المنشأة — يُحدَّد عند إنشاء الشركة ويُستخدَم لزرع قالب شجرة الحسابات المطابق تلقائياً
+  // (مقاولات/مصانع/تجزئة/تجارة عامة/محطات وقود) بدل القالب الافتراضي العام. اختياري: الشركات
+  // القديمة قبل هذه الميزة تبقى null وتُعامَل معاملة "بدون نشاط محدد" (القالب الافتراضي فقط).
+  businessActivity        BusinessActivity?
   createdAt               DateTime           @default(now())
   updatedAt               DateTime           @updatedAt
 
@@ -258,6 +262,15 @@ enum AccountType {
 enum VatFilingFrequency {
   monthly
   quarterly
+}
+
+// نشاط المنشأة الرئيسي — يحدد أي قالب شجرة حسابات (chartTemplates.ts) يُزرَع تلقائياً عند الإنشاء
+enum BusinessActivity {
+  contracting
+  manufacturing
+  retail
+  general_trade
+  fuel_stations
 }
 
 // شجرة الحسابات

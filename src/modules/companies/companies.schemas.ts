@@ -1,8 +1,11 @@
 import { z } from "zod";
+import { BUSINESS_ACTIVITIES } from "../../lib/chartTemplates";
 
 export const createCompanySchema = z.object({
   name: z.string().min(2, "اسم الشركة قصير جداً"),
   shortName: z.string().optional(),
+  // نشاط المنشأة — اختياري: عدم اختياره يزرع القالب الافتراضي العام بدل قالب قطاعي
+  businessActivity: z.enum(BUSINESS_ACTIVITIES).nullable().optional(),
   brandColor: z.string().optional(),
   vatNumber: z.string().optional(),
   crNumber: z.string().optional(),

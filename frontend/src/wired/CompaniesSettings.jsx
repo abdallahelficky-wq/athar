@@ -51,11 +51,23 @@ function TenantNameSettings() {
   );
 }
 
+// نشاط المنشأة — يحدد قالب شجرة الحسابات والأصناف الابتدائية التي تُزرَع تلقائياً عند الإنشاء.
+// اختياري: تركه فارغاً يزرع القالب العام الافتراضي بدل قالب قطاعي.
+const BUSINESS_ACTIVITY_OPTIONS = [
+  { value: "", label: "بدون تحديد (قالب عام)" },
+  { value: "contracting", label: "مقاولات" },
+  { value: "manufacturing", label: "مصانع / تصنيع" },
+  { value: "retail", label: "مبيعات تجزئة" },
+  { value: "general_trade", label: "أنشطة تجارية عامة (تجارة واستيراد وتصدير)" },
+  { value: "fuel_stations", label: "محطات وقود" },
+];
+
 /** إنشاء شركة جديدة — المكان الوحيد في النظام لإضافة شركة (لم يعد متاحاً من أي شاشة معاملات) */
 function NewCompanyForm({ onCompanyCreated }) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [shortName, setShortName] = useState("");
+  const [businessActivity, setBusinessActivity] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -64,9 +76,14 @@ function NewCompanyForm({ onCompanyCreated }) {
     setSaving(true);
     setError("");
     try {
-      const company = await createCompany({ name: name.trim(), shortName: shortName.trim() || undefined });
+      const company = await createCompany({
+        name: name.trim(),
+        shortName: shortName.trim() || undefined,
+        businessActivity: businessActivity || undefined,
+      });
       setName("");
       setShortName("");
+      setBusinessActivity("");
       setShowForm(false);
       onCompanyCreated?.(company);
     } catch (err) {
@@ -88,6 +105,14 @@ function NewCompanyForm({ onCompanyCreated }) {
         <div className="form-grid" style={{ marginTop: 14 }}>
           <label>اسم الشركة<input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="مثال: تيسم برو" /></label>
           <label>الاسم المختصر (اختياري)<input type="text" value={shortName} onChange={(e) => setShortName(e.target.value)} /></label>
+          <label>
+            نشاط المنشأة
+            <select value={businessActivity} onChange={(e) => setBusinessActivity(e.target.value)}>
+              {BUSINESS_ACTIVITY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
           <div style={{ alignSelf: "end" }}>
             <button className="btn-primary" onClick={submit} disabled={saving}>
               {saving ? "جارٍ الحفظ..." : "إنشاء الشركة"}

@@ -5,7 +5,9 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claudeVision";
 import { createAttachment } from "../attachments/attachments.service";
-import { createDefaultChart } from "../../lib/defaultChartOfAccounts";
+import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
+import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
+import { createStarterItems, createCashParties, createDefaultWarehouse } from "../../lib/starterData";
 
 const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB يكفي لأي شعار
 const ALLOWED_LOGO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
@@ -32,11 +34,26 @@ export const listCompanies: RequestHandler = async (req, res) => {
 };
 
 export const createCompany: RequestHandler = async (req, res) => {
-  const company = await prisma.$transaction(async (tx) => {
-    const created = await tx.company.create({ data: { ...req.body, tenantId: req.auth!.tenantId } });
-    await createDefaultChart(tx, req.auth!.tenantId, created.id);
-    return created;
-  });
+  const company = await prisma.$transaction(
+    async (tx) => {
+      const created = await tx.company.create({ data: { ...req.body, tenantId: req.auth!.tenantId } });
+
+      const activity = created.businessActivity as BusinessActivity | null;
+      // شجرة قطاعية مبنية من ملف CSV الخاص بالنشاط إن اختير، وإلا القالب العام الافتراضي — نقطة
+      // انطلاق فقط في الحالتين، تبقى الشركة حرة بالكامل في تعديل/حذف/إضافة أي حساب بعدها.
+      const template = activity ? CHART_TEMPLATE_BY_ACTIVITY[activity] : DEFAULT_CHART_OF_ACCOUNTS;
+      const idByCode = await createChartFromTemplate(tx, req.auth!.tenantId, created.id, template);
+
+      if (activity) await createStarterItems(tx, req.auth!.tenantId, created.id, activity, idByCode);
+      // عميل نقدي ومورد نقدي لكل شركة جديدة بصرف النظر عن نشاطها، حتى يمكن إصدار أول فاتورة فوراً
+      await createCashParties(tx, req.auth!.tenantId, created.id);
+      // مستودع افتراضي — شرط أساسي لبيع أي صنف مخزوني، بدونه لا تكتمل "بدون أي إعداد يدوي"
+      await createDefaultWarehouse(tx, req.auth!.tenantId, created.id);
+
+      return created;
+    },
+    { timeout: 20_000, maxWait: 10_000 },
+  );
   res.status(201).json(await withLogoUrl(company));
 };
 
