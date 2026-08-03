@@ -1,13 +1,13 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
-import { createDefaultChart, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
+import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
+import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 
 const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ? value : null);
 
-// طول كود كل مستوى: الأول رقم واحد، الثاني رقمان (يمتدان من كود الأب)، الثالث أربعة أرقام،
-// الرابع (حسابات الترحيل) ستة أرقام — كل مستوى يمتد من كود أبيه مباشرة بإضافة أرقام له، لا كود
-// ثابت الطول لكل الشجرة (كان قبل ذلك 9 أرقام موحّدة لكل المستويات).
+// طول كود كل مستوى: الأول رقم واحد، الثاني رقمان، الثالث ثلاثة أرقام، الرابع (حسابات الترحيل)
+// أربعة أرقام — كل مستوى يمتد من كود أبيه مباشرة بإضافة رقم واحد فقط له.
 const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 4 };
 
 async function validateHierarchy(tenantId: string, input: any, currentId?: string) {
@@ -222,7 +222,7 @@ export const installStandardChart: RequestHandler = async (req, res) => {
   const userId = req.auth!.sub;
   const companyId = req.body.companyId ?? null;
 
-  let company: { id: string; name: string } | null = null;
+  let company: { id: string; name: string; businessActivity: BusinessActivity | null } | null = null;
   if (companyId) {
     company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
     if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
@@ -261,7 +261,12 @@ export const installStandardChart: RequestHandler = async (req, res) => {
         where: companyId ? { id: companyId, tenantId } : { tenantId },
         data: { nextJournalEntrySeq: 1 },
       });
-      await createDefaultChart(tx, tenantId, companyId);
+      // نفس منطق اختيار القالب عند إنشاء الشركة: قالب النشاط القطاعي إن كان محدداً لهذه الشركة،
+      // وإلا القالب العام الافتراضي — حتى لا تفقد شركة اختارت نشاطاً قطاعياً شجرتها المتخصصة عند
+      // إعادة التثبيت.
+      const activity = company?.businessActivity as BusinessActivity | null | undefined;
+      const template = activity ? CHART_TEMPLATE_BY_ACTIVITY[activity] : DEFAULT_CHART_OF_ACCOUNTS;
+      await createChartFromTemplate(tx, tenantId, companyId, template);
 
       // سجل تدقيق إلزامي على كل عملية تثبيت شجرة قياسية — من نفّذها، متى بالضبط، ولأي نطاق
       // (شركة محددة أو المستأجر بالكامل)، بما في ذلك كل ما تم حذفه قبل إعادة التثبيت.
@@ -276,7 +281,7 @@ export const installStandardChart: RequestHandler = async (req, res) => {
         },
       });
 
-      return { deleted, deletedAccounts, installedAccounts: DEFAULT_CHART_OF_ACCOUNTS.length };
+      return { deleted, deletedAccounts, installedAccounts: template.length };
     },
     // مهلة أطول من الافتراضي (5 ثوانٍ): هذه المعاملة تحذف عدة جداول ثم تُعيد زرع الشجرة القياسية،
     // وقد تستغرق أطول من المعتاد على شبكة الإنتاج، خصوصاً لشركات كبيرة الحجم.
