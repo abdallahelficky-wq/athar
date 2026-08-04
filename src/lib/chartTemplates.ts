@@ -49,7 +49,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1111",
+  "code": "111001",
   "name": "الصندوق النقدي - الإدارة العامة",
   "nameEn": "Cash on Hand - Head Office",
   "type": "asset",
@@ -59,7 +59,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1112",
+  "code": "111002",
   "name": "صندوق نثرية الفروع/المواقع",
   "nameEn": "Petty Cash - Branches/Sites",
   "type": "asset",
@@ -69,7 +69,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1113",
+  "code": "111003",
   "name": "بنك - حساب جاري (1)",
   "nameEn": "Bank - Current Account (1)",
   "type": "asset",
@@ -79,7 +79,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1114",
+  "code": "111004",
   "name": "بنك - حساب جاري (2)",
   "nameEn": "Bank - Current Account (2)",
   "type": "asset",
@@ -89,7 +89,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1115",
+  "code": "111005",
   "name": "ودائع بنكية قصيرة الأجل",
   "nameEn": "Short-Term Bank Deposits",
   "type": "asset",
@@ -109,7 +109,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1121",
+  "code": "112001",
   "name": "عملاء - مبيعات جملة/عقود",
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
@@ -119,7 +119,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1122",
+  "code": "112002",
   "name": "عملاء - مبيعات نقدية/تجزئة",
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
@@ -129,7 +129,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1123",
+  "code": "112003",
   "name": "أوراق قبض",
   "nameEn": "Notes Receivable",
   "type": "asset",
@@ -139,7 +139,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1124",
+  "code": "112004",
   "name": "عملاء - أطراف ذات علاقة",
   "nameEn": "Customers - Related Parties",
   "type": "asset",
@@ -149,7 +149,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1125",
+  "code": "112005",
   "name": "مخصص ديون مشكوك في تحصيلها (عكسي)",
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
@@ -159,7 +159,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1126",
+  "code": "112006",
   "name": "ذمم محتجزة لدى العملاء (Retention Receivable)",
   "nameEn": "Retention Receivable",
   "type": "asset",
@@ -169,7 +169,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1127",
+  "code": "112007",
   "name": "مستخلصات تحت التحصيل",
   "nameEn": "Progress Billings Under Collection",
   "type": "asset",
@@ -189,7 +189,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1131",
+  "code": "113001",
   "name": "دفعات مقدمة لموردين",
   "nameEn": "Advances to Suppliers",
   "type": "asset",
@@ -199,7 +199,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1132",
+  "code": "113002",
   "name": "سلف وقروض الموظفين",
   "nameEn": "Employee Advances and Loans",
   "type": "asset",
@@ -209,7 +209,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1133",
+  "code": "113003",
   "name": "ضريبة القيمة المضافة - مدينة (مشتريات)",
   "nameEn": "VAT Receivable (Purchases)",
   "type": "asset",
@@ -219,7 +219,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1134",
+  "code": "113004",
   "name": "تأمينات وودائع قابلة للاسترداد",
   "nameEn": "Refundable Deposits and Insurance",
   "type": "asset",
@@ -229,7 +229,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1135",
+  "code": "113005",
   "name": "عهد نقدية للمواقع والمهندسين",
   "nameEn": "Cash Custody - Sites and Engineers",
   "type": "asset",
@@ -249,7 +249,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1141",
+  "code": "114001",
   "name": "مخزون مواد بناء بالمستودع الرئيسي",
   "nameEn": "Construction Materials Inventory - Main Warehouse",
   "type": "asset",
@@ -259,7 +259,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1142",
+  "code": "114002",
   "name": "مخزون مواد بالمواقع (المشاريع)",
   "nameEn": "Materials Inventory - Project Sites",
   "type": "asset",
@@ -269,7 +269,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1143",
+  "code": "114003",
   "name": "مخزون أدوات ومهمات صغيرة",
   "nameEn": "Small Tools and Equipment Inventory",
   "type": "asset",
@@ -289,7 +289,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1151",
+  "code": "115001",
   "name": "إيجارات مدفوعة مقدماً",
   "nameEn": "Prepaid Rent",
   "type": "asset",
@@ -299,7 +299,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1152",
+  "code": "115002",
   "name": "تأمين مدفوع مقدماً",
   "nameEn": "Prepaid Insurance",
   "type": "asset",
@@ -309,7 +309,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1153",
+  "code": "115003",
   "name": "اشتراكات ورخص مدفوعة مقدماً",
   "nameEn": "Prepaid Subscriptions and Licenses",
   "type": "asset",
@@ -329,7 +329,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1161",
+  "code": "116001",
   "name": "أعمال تحت التنفيذ (WIP) - تكاليف متجمعة",
   "nameEn": "Work in Progress - Accumulated Costs",
   "type": "asset",
@@ -339,7 +339,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1162",
+  "code": "116002",
   "name": "أصول عقود (إيرادات مستحقة زائدة عن المفوتر)",
   "nameEn": "Contract Assets (Revenue in Excess of Billings)",
   "type": "asset",
@@ -369,7 +369,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1211",
+  "code": "121001",
   "name": "أراضٍ",
   "nameEn": "Land",
   "type": "asset",
@@ -379,7 +379,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1212",
+  "code": "121002",
   "name": "مباني ومنشآت",
   "nameEn": "Buildings and Structures",
   "type": "asset",
@@ -389,7 +389,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1213",
+  "code": "121003",
   "name": "آلات ومعدات",
   "nameEn": "Machinery and Equipment",
   "type": "asset",
@@ -399,7 +399,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1214",
+  "code": "121004",
   "name": "سيارات ووسائل نقل",
   "nameEn": "Vehicles and Transport Equipment",
   "type": "asset",
@@ -409,7 +409,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1215",
+  "code": "121005",
   "name": "أثاث وتجهيزات مكتبية",
   "nameEn": "Office Furniture and Fixtures",
   "type": "asset",
@@ -419,7 +419,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1216",
+  "code": "121006",
   "name": "أجهزة حاسب آلي",
   "nameEn": "Computer Equipment",
   "type": "asset",
@@ -429,7 +429,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1217",
+  "code": "121007",
   "name": "تحسينات على مأجور",
   "nameEn": "Leasehold Improvements",
   "type": "asset",
@@ -439,7 +439,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1219",
+  "code": "121009",
   "name": "معدات ورافعات ثقيلة",
   "nameEn": "Heavy Equipment and Cranes",
   "type": "asset",
@@ -449,7 +449,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1218",
+  "code": "121008",
   "name": "مجمع الإهلاك (عكسي)",
   "nameEn": "Accumulated Depreciation (Contra)",
   "type": "asset",
@@ -469,7 +469,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1221",
+  "code": "122001",
   "name": "برامج وأنظمة",
   "nameEn": "Software and Systems",
   "type": "asset",
@@ -479,7 +479,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1222",
+  "code": "122002",
   "name": "شهرة المحل",
   "nameEn": "Goodwill",
   "type": "asset",
@@ -489,7 +489,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1223",
+  "code": "122003",
   "name": "تراخيص وامتيازات تجارية",
   "nameEn": "Commercial Licenses and Franchises",
   "type": "asset",
@@ -499,7 +499,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1224",
+  "code": "122004",
   "name": "مجمع الاستهلاك (عكسي)",
   "nameEn": "Accumulated Amortization (Contra)",
   "type": "asset",
@@ -519,7 +519,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1231",
+  "code": "123001",
   "name": "استثمارات طويلة الأجل",
   "nameEn": "Long-Term Investments",
   "type": "asset",
@@ -529,7 +529,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1232",
+  "code": "123002",
   "name": "تأمينات مستردة طويلة الأجل",
   "nameEn": "Long-Term Refundable Deposits",
   "type": "asset",
@@ -539,7 +539,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1233",
+  "code": "123003",
   "name": "حق استخدام أصول مستأجرة (IFRS16)",
   "nameEn": "Right-of-Use Assets (IFRS16)",
   "type": "asset",
@@ -579,7 +579,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2111",
+  "code": "211001",
   "name": "موردون - محليون",
   "nameEn": "Suppliers - Local",
   "type": "liability",
@@ -589,7 +589,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2112",
+  "code": "211002",
   "name": "موردون - مستوردون",
   "nameEn": "Suppliers - Importers",
   "type": "liability",
@@ -599,7 +599,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2113",
+  "code": "211003",
   "name": "أوراق دفع",
   "nameEn": "Notes Payable",
   "type": "liability",
@@ -609,7 +609,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2114",
+  "code": "211004",
   "name": "موردون - أطراف ذات علاقة",
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
@@ -619,7 +619,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2115",
+  "code": "211005",
   "name": "ذمم مقاولي الباطن",
   "nameEn": "Subcontractors Payable",
   "type": "liability",
@@ -639,7 +639,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2121",
+  "code": "212001",
   "name": "رواتب مستحقة",
   "nameEn": "Accrued Salaries",
   "type": "liability",
@@ -649,7 +649,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2122",
+  "code": "212002",
   "name": "إيجارات مستحقة",
   "nameEn": "Accrued Rent",
   "type": "liability",
@@ -659,7 +659,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2123",
+  "code": "212003",
   "name": "مصروفات مستحقة أخرى",
   "nameEn": "Other Accrued Expenses",
   "type": "liability",
@@ -669,7 +669,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2124",
+  "code": "212004",
   "name": "مكافأة نهاية الخدمة - الجزء المتداول",
   "nameEn": "End of Service Benefits - Current Portion",
   "type": "liability",
@@ -689,7 +689,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2131",
+  "code": "213001",
   "name": "ضريبة القيمة المضافة المستحقة (مبيعات)",
   "nameEn": "VAT Payable (Sales)",
   "type": "liability",
@@ -699,7 +699,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2132",
+  "code": "213002",
   "name": "الزكاة المستحقة",
   "nameEn": "Zakat Payable",
   "type": "liability",
@@ -709,7 +709,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2133",
+  "code": "213003",
   "name": "ضريبة الاستقطاع",
   "nameEn": "Withholding Tax",
   "type": "liability",
@@ -729,7 +729,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2141",
+  "code": "214001",
   "name": "قرض بنكي قصير الأجل",
   "nameEn": "Short-Term Bank Loan",
   "type": "liability",
@@ -739,7 +739,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2142",
+  "code": "214002",
   "name": "الجزء المتداول من القروض طويلة الأجل",
   "nameEn": "Current Portion of Long-Term Loans",
   "type": "liability",
@@ -759,7 +759,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2151",
+  "code": "215001",
   "name": "دفعات مقدمة من عملاء",
   "nameEn": "Advances from Customers",
   "type": "liability",
@@ -769,7 +769,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2152",
+  "code": "215002",
   "name": "دفعات مقدمة (Advance Payment) على المشاريع",
   "nameEn": "Project Advance Payments",
   "type": "liability",
@@ -789,7 +789,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2161",
+  "code": "216001",
   "name": "ذمم محتجزة للمقاولين (Retention Payable)",
   "nameEn": "Retention Payable to Contractors",
   "type": "liability",
@@ -799,7 +799,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2162",
+  "code": "216002",
   "name": "التزامات عقود (مفوتر زائد عن الإيرادات المستحقة)",
   "nameEn": "Contract Liabilities (Billings in Excess of Revenue)",
   "type": "liability",
@@ -809,7 +809,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2163",
+  "code": "216003",
   "name": "مخصص ضمان الصيانة بعد التسليم",
   "nameEn": "Provision for Post-Delivery Maintenance Warranty",
   "type": "liability",
@@ -819,7 +819,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2164",
+  "code": "216004",
   "name": "ضمانات ابتدائية ونهائية مستلمة",
   "nameEn": "Initial and Final Guarantees Received",
   "type": "liability",
@@ -849,7 +849,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2211",
+  "code": "221001",
   "name": "قروض بنكية طويلة الأجل",
   "nameEn": "Long-Term Bank Loans",
   "type": "liability",
@@ -869,7 +869,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2221",
+  "code": "222001",
   "name": "مخصص نهاية الخدمة - طويل الأجل",
   "nameEn": "End of Service Provision - Long-Term",
   "type": "liability",
@@ -889,7 +889,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2231",
+  "code": "223001",
   "name": "التزام عقد إيجار - طويل الأجل",
   "nameEn": "Lease Liability - Long-Term",
   "type": "liability",
@@ -929,7 +929,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3111",
+  "code": "311001",
   "name": "رأس المال المدفوع",
   "nameEn": "Paid-up Capital",
   "type": "equity",
@@ -959,7 +959,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3211",
+  "code": "321001",
   "name": "الاحتياطي النظامي",
   "nameEn": "Statutory Reserve",
   "type": "equity",
@@ -969,7 +969,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3212",
+  "code": "321002",
   "name": "احتياطي عام",
   "nameEn": "General Reserve",
   "type": "equity",
@@ -999,7 +999,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3311",
+  "code": "331001",
   "name": "أرباح مرحلة من سنوات سابقة",
   "nameEn": "Retained Earnings from Prior Years",
   "type": "equity",
@@ -1009,7 +1009,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3312",
+  "code": "331002",
   "name": "صافي ربح / خسارة العام الحالي",
   "nameEn": "Net Income / Loss for the Current Year",
   "type": "equity",
@@ -1019,7 +1019,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3313",
+  "code": "331003",
   "name": "توزيعات أرباح (عكسي)",
   "nameEn": "Dividends (Contra)",
   "type": "equity",
@@ -1049,7 +1049,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3411",
+  "code": "341001",
   "name": "جاري الشركاء / المساهمين",
   "nameEn": "Partners' / Shareholders' Current Account",
   "type": "equity",
@@ -1089,7 +1089,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4111",
+  "code": "411001",
   "name": "إيرادات عقود مقاولات (حسب نسبة الإنجاز)",
   "nameEn": "Contracting Revenue (Percentage of Completion)",
   "type": "revenue",
@@ -1099,7 +1099,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4112",
+  "code": "411002",
   "name": "إيرادات أعمال إضافية / أوامر تغيير (Variation Orders)",
   "nameEn": "Variation Order Revenue",
   "type": "revenue",
@@ -1109,7 +1109,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4113",
+  "code": "411003",
   "name": "إيرادات مقاولات من الباطن لصالح الغير",
   "nameEn": "Subcontracting Revenue for Third Parties",
   "type": "revenue",
@@ -1119,7 +1119,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4114",
+  "code": "411004",
   "name": "إيرادات صيانة وضمان ما بعد التسليم",
   "nameEn": "Post-Delivery Maintenance and Warranty Revenue",
   "type": "revenue",
@@ -1149,7 +1149,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4211",
+  "code": "421001",
   "name": "مردودات وخصومات على مستخلصات (عكسي)",
   "nameEn": "Returns and Allowances on Progress Billings (Contra)",
   "type": "revenue",
@@ -1179,7 +1179,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4311",
+  "code": "431001",
   "name": "إيراد بيع خردة / أصول",
   "nameEn": "Gain on Sale of Scrap / Assets",
   "type": "revenue",
@@ -1189,7 +1189,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4312",
+  "code": "431002",
   "name": "إيرادات متنوعة أخرى",
   "nameEn": "Other Miscellaneous Revenue",
   "type": "revenue",
@@ -1229,7 +1229,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5111",
+  "code": "511001",
   "name": "تكلفة مواد البناء المستهلكة بالمشاريع",
   "nameEn": "Construction Materials Consumed on Projects",
   "type": "expense",
@@ -1239,7 +1239,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5112",
+  "code": "511002",
   "name": "أجور عمالة الموقع المباشرة",
   "nameEn": "Direct Site Labor Costs",
   "type": "expense",
@@ -1249,7 +1249,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5113",
+  "code": "511003",
   "name": "تكلفة مقاولي الباطن",
   "nameEn": "Subcontractor Costs",
   "type": "expense",
@@ -1259,7 +1259,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5114",
+  "code": "511004",
   "name": "إيجار معدات ورافعات للمشاريع",
   "nameEn": "Equipment and Crane Rental for Projects",
   "type": "expense",
@@ -1269,7 +1269,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5115",
+  "code": "511005",
   "name": "إهلاك معدات محمّل على المشاريع",
   "nameEn": "Equipment Depreciation Charged to Projects",
   "type": "expense",
@@ -1279,7 +1279,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5116",
+  "code": "511006",
   "name": "تصاريح ورسوم مواقع العمل",
   "nameEn": "Site Permits and Fees",
   "type": "expense",
@@ -1319,7 +1319,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6111",
+  "code": "611001",
   "name": "رواتب الموظفين - الإدارة العامة",
   "nameEn": "Employee Salaries - Head Office",
   "type": "expense",
@@ -1329,7 +1329,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6112",
+  "code": "611002",
   "name": "رواتب موظفي الميدان/الموقع",
   "nameEn": "Field/Site Staff Salaries",
   "type": "expense",
@@ -1339,7 +1339,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6113",
+  "code": "611003",
   "name": "بدلات ومكافآت",
   "nameEn": "Allowances and Bonuses",
   "type": "expense",
@@ -1349,7 +1349,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6114",
+  "code": "611004",
   "name": "التأمينات الاجتماعية (GOSI)",
   "nameEn": "Social Insurance (GOSI)",
   "type": "expense",
@@ -1359,7 +1359,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6115",
+  "code": "611005",
   "name": "التأمين الطبي",
   "nameEn": "Medical Insurance",
   "type": "expense",
@@ -1369,7 +1369,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6116",
+  "code": "611006",
   "name": "مكافأة نهاية الخدمة (مصروف الفترة)",
   "nameEn": "End of Service Benefits Expense (Period)",
   "type": "expense",
@@ -1399,7 +1399,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6211",
+  "code": "621001",
   "name": "إيجار المقر الرئيسي",
   "nameEn": "Head Office Rent",
   "type": "expense",
@@ -1409,7 +1409,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6212",
+  "code": "621002",
   "name": "إيجار مواقع/فروع",
   "nameEn": "Site/Branch Rent",
   "type": "expense",
@@ -1429,7 +1429,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6221",
+  "code": "622001",
   "name": "قرطاسية ومطبوعات",
   "nameEn": "Stationery and Printing",
   "type": "expense",
@@ -1439,7 +1439,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6222",
+  "code": "622002",
   "name": "اتصالات وإنترنت",
   "nameEn": "Telecommunications and Internet",
   "type": "expense",
@@ -1449,7 +1449,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6223",
+  "code": "622003",
   "name": "صيانة أجهزة وبرامج",
   "nameEn": "Hardware and Software Maintenance",
   "type": "expense",
@@ -1469,7 +1469,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6231",
+  "code": "623001",
   "name": "أتعاب محاسبة ومراجعة",
   "nameEn": "Accounting and Audit Fees",
   "type": "expense",
@@ -1479,7 +1479,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6232",
+  "code": "623002",
   "name": "أتعاب استشارات قانونية",
   "nameEn": "Legal Consulting Fees",
   "type": "expense",
@@ -1499,7 +1499,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6241",
+  "code": "624001",
   "name": "رسوم حكومية وتراخيص",
   "nameEn": "Government Fees and Licenses",
   "type": "expense",
@@ -1529,7 +1529,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6311",
+  "code": "631001",
   "name": "حملات تسويقية وإعلانية",
   "nameEn": "Marketing and Advertising Campaigns",
   "type": "expense",
@@ -1539,7 +1539,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6312",
+  "code": "631002",
   "name": "عمولات مبيعات",
   "nameEn": "Sales Commissions",
   "type": "expense",
@@ -1569,7 +1569,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6411",
+  "code": "641001",
   "name": "صيانة دورية للمعدات/المنشآت",
   "nameEn": "Periodic Maintenance of Equipment/Facilities",
   "type": "expense",
@@ -1589,7 +1589,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6421",
+  "code": "642001",
   "name": "كهرباء ومياه",
   "nameEn": "Electricity and Water",
   "type": "expense",
@@ -1619,7 +1619,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6511",
+  "code": "651001",
   "name": "إهلاك الممتلكات والمعدات",
   "nameEn": "Depreciation of Property and Equipment",
   "type": "expense",
@@ -1639,7 +1639,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6521",
+  "code": "652001",
   "name": "استهلاك الأصول غير الملموسة",
   "nameEn": "Amortization of Intangible Assets",
   "type": "expense",
@@ -1669,7 +1669,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6611",
+  "code": "661001",
   "name": "تأمين",
   "nameEn": "Insurance",
   "type": "expense",
@@ -1689,7 +1689,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6621",
+  "code": "662001",
   "name": "مخصص ديون مشكوك فيها (مصروف الفترة)",
   "nameEn": "Doubtful Debts Expense (Period)",
   "type": "expense",
@@ -1699,7 +1699,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6622",
+  "code": "662002",
   "name": "مخصصات أخرى",
   "nameEn": "Other Provisions",
   "type": "expense",
@@ -1739,7 +1739,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7111",
+  "code": "711001",
   "name": "إيراد فوائد ودائع بنكية",
   "nameEn": "Bank Deposit Interest Income",
   "type": "revenue",
@@ -1769,7 +1769,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7211",
+  "code": "721001",
   "name": "فوائد ومصاريف تمويل",
   "nameEn": "Interest and Financing Expenses",
   "type": "expense",
@@ -1799,7 +1799,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7311",
+  "code": "731001",
   "name": "أرباح/خسائر بيع أصول ثابتة",
   "nameEn": "Gain/Loss on Sale of Fixed Assets",
   "type": "revenue",
@@ -1829,7 +1829,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7411",
+  "code": "741001",
   "name": "فروقات صرف عملة",
   "nameEn": "Foreign Exchange Differences",
   "type": "revenue",
@@ -1869,7 +1869,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8111",
+  "code": "811001",
   "name": "حساب الأرباح والخسائر (إقفال)",
   "nameEn": "Profit and Loss Account (Closing)",
   "type": "equity",
@@ -1899,7 +1899,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8211",
+  "code": "821001",
   "name": "ضمانات بنكية صادرة",
   "nameEn": "Bank Guarantees Issued",
   "type": "liability",
@@ -1909,7 +1909,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8212",
+  "code": "821002",
   "name": "التزامات محتملة (Contingent Liabilities)",
   "nameEn": "Contingent Liabilities",
   "type": "liability",
@@ -1919,7 +1919,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2130",
+  "code": "213000",
   "name": "تأمينات اجتماعية مستحقة",
   "nameEn": "Accrued Social Insurance (GOSI Payable)",
   "type": "liability",
@@ -1929,7 +1929,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6220",
+  "code": "622000",
   "name": "سفر وانتقالات",
   "nameEn": "Travel and Transportation",
   "type": "expense",
@@ -1939,7 +1939,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1210",
+  "code": "121000",
   "name": "أصول ثابتة أخرى",
   "nameEn": "Other Fixed Assets",
   "type": "asset",
@@ -1949,7 +1949,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5110",
+  "code": "511000",
   "name": "فروقات وهبوط مخزون",
   "nameEn": "Inventory Adjustments and Shrinkage",
   "type": "expense",
@@ -1991,7 +1991,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1111",
+  "code": "111001",
   "name": "الصندوق النقدي - الإدارة العامة",
   "nameEn": "Cash on Hand - Head Office",
   "type": "asset",
@@ -2001,7 +2001,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1112",
+  "code": "111002",
   "name": "صندوق نثرية الفروع/المواقع",
   "nameEn": "Petty Cash - Branches/Sites",
   "type": "asset",
@@ -2011,7 +2011,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1113",
+  "code": "111003",
   "name": "بنك - حساب جاري (1)",
   "nameEn": "Bank - Current Account (1)",
   "type": "asset",
@@ -2021,7 +2021,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1114",
+  "code": "111004",
   "name": "بنك - حساب جاري (2)",
   "nameEn": "Bank - Current Account (2)",
   "type": "asset",
@@ -2031,7 +2031,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1115",
+  "code": "111005",
   "name": "ودائع بنكية قصيرة الأجل",
   "nameEn": "Short-Term Bank Deposits",
   "type": "asset",
@@ -2051,7 +2051,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1121",
+  "code": "112001",
   "name": "عملاء - مبيعات جملة/عقود",
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
@@ -2061,7 +2061,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1122",
+  "code": "112002",
   "name": "عملاء - مبيعات نقدية/تجزئة",
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
@@ -2071,7 +2071,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1123",
+  "code": "112003",
   "name": "أوراق قبض",
   "nameEn": "Notes Receivable",
   "type": "asset",
@@ -2081,7 +2081,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1124",
+  "code": "112004",
   "name": "عملاء - أطراف ذات علاقة",
   "nameEn": "Customers - Related Parties",
   "type": "asset",
@@ -2091,7 +2091,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1125",
+  "code": "112005",
   "name": "مخصص ديون مشكوك في تحصيلها (عكسي)",
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
@@ -2111,7 +2111,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1131",
+  "code": "113001",
   "name": "دفعات مقدمة لموردين",
   "nameEn": "Advances to Suppliers",
   "type": "asset",
@@ -2121,7 +2121,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1132",
+  "code": "113002",
   "name": "سلف وقروض الموظفين",
   "nameEn": "Employee Advances and Loans",
   "type": "asset",
@@ -2131,7 +2131,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1133",
+  "code": "113003",
   "name": "ضريبة القيمة المضافة - مدينة (مشتريات)",
   "nameEn": "VAT Receivable (Purchases)",
   "type": "asset",
@@ -2141,7 +2141,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1134",
+  "code": "113004",
   "name": "تأمينات وودائع قابلة للاسترداد",
   "nameEn": "Refundable Deposits and Insurance",
   "type": "asset",
@@ -2151,7 +2151,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1135",
+  "code": "113005",
   "name": "عهد نقدية لأقسام الإنتاج والمشتريات",
   "nameEn": "Cash Custody - Production and Purchasing Departments",
   "type": "asset",
@@ -2171,7 +2171,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1141",
+  "code": "114001",
   "name": "مخزون مواد خام",
   "nameEn": "Raw Materials Inventory",
   "type": "asset",
@@ -2181,7 +2181,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1142",
+  "code": "114002",
   "name": "مخزون مواد تعبئة وتغليف",
   "nameEn": "Packaging Materials Inventory",
   "type": "asset",
@@ -2191,7 +2191,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1143",
+  "code": "114003",
   "name": "مخزون إنتاج تحت التشغيل (WIP)",
   "nameEn": "Work in Progress Inventory",
   "type": "asset",
@@ -2201,7 +2201,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1144",
+  "code": "114004",
   "name": "مخزون بضاعة تامة الصنع",
   "nameEn": "Finished Goods Inventory",
   "type": "asset",
@@ -2211,7 +2211,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1145",
+  "code": "114005",
   "name": "مخزون قطع غيار وصيانة الآلات",
   "nameEn": "Spare Parts and Machinery Maintenance Inventory",
   "type": "asset",
@@ -2221,7 +2221,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1146",
+  "code": "114006",
   "name": "مخصص تلف وبطء حركة المخزون (عكسي)",
   "nameEn": "Provision for Inventory Damage and Slow Movement (Contra)",
   "type": "asset",
@@ -2241,7 +2241,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1151",
+  "code": "115001",
   "name": "إيجارات مدفوعة مقدماً",
   "nameEn": "Prepaid Rent",
   "type": "asset",
@@ -2251,7 +2251,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1152",
+  "code": "115002",
   "name": "تأمين مدفوع مقدماً",
   "nameEn": "Prepaid Insurance",
   "type": "asset",
@@ -2261,7 +2261,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1153",
+  "code": "115003",
   "name": "اشتراكات ورخص مدفوعة مقدماً",
   "nameEn": "Prepaid Subscriptions and Licenses",
   "type": "asset",
@@ -2281,7 +2281,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1161",
+  "code": "116001",
   "name": "بضاعة ومواد خام بالطريق",
   "nameEn": "Goods and Raw Materials in Transit",
   "type": "asset",
@@ -2291,7 +2291,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1162",
+  "code": "116002",
   "name": "اعتمادات مستندية (LC) مفتوحة",
   "nameEn": "Open Letters of Credit (LC)",
   "type": "asset",
@@ -2321,7 +2321,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1211",
+  "code": "121001",
   "name": "أراضٍ",
   "nameEn": "Land",
   "type": "asset",
@@ -2331,7 +2331,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1212",
+  "code": "121002",
   "name": "مباني ومنشآت",
   "nameEn": "Buildings and Structures",
   "type": "asset",
@@ -2341,7 +2341,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1213",
+  "code": "121003",
   "name": "آلات ومعدات",
   "nameEn": "Machinery and Equipment",
   "type": "asset",
@@ -2351,7 +2351,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1214",
+  "code": "121004",
   "name": "سيارات ووسائل نقل",
   "nameEn": "Vehicles and Transport Equipment",
   "type": "asset",
@@ -2361,7 +2361,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1215",
+  "code": "121005",
   "name": "أثاث وتجهيزات مكتبية",
   "nameEn": "Office Furniture and Fixtures",
   "type": "asset",
@@ -2371,7 +2371,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1216",
+  "code": "121006",
   "name": "أجهزة حاسب آلي",
   "nameEn": "Computer Equipment",
   "type": "asset",
@@ -2381,7 +2381,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1217",
+  "code": "121007",
   "name": "تحسينات على مأجور",
   "nameEn": "Leasehold Improvements",
   "type": "asset",
@@ -2391,7 +2391,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1219",
+  "code": "121009",
   "name": "آلات ومعدات المصنع الثقيلة",
   "nameEn": "Heavy Factory Machinery and Equipment",
   "type": "asset",
@@ -2401,7 +2401,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1218",
+  "code": "121008",
   "name": "مجمع الإهلاك (عكسي)",
   "nameEn": "Accumulated Depreciation (Contra)",
   "type": "asset",
@@ -2421,7 +2421,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1221",
+  "code": "122001",
   "name": "برامج وأنظمة",
   "nameEn": "Software and Systems",
   "type": "asset",
@@ -2431,7 +2431,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1222",
+  "code": "122002",
   "name": "شهرة المحل",
   "nameEn": "Goodwill",
   "type": "asset",
@@ -2441,7 +2441,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1223",
+  "code": "122003",
   "name": "تراخيص وامتيازات تجارية",
   "nameEn": "Commercial Licenses and Franchises",
   "type": "asset",
@@ -2451,7 +2451,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1224",
+  "code": "122004",
   "name": "مجمع الاستهلاك (عكسي)",
   "nameEn": "Accumulated Amortization (Contra)",
   "type": "asset",
@@ -2471,7 +2471,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1231",
+  "code": "123001",
   "name": "استثمارات طويلة الأجل",
   "nameEn": "Long-Term Investments",
   "type": "asset",
@@ -2481,7 +2481,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1232",
+  "code": "123002",
   "name": "تأمينات مستردة طويلة الأجل",
   "nameEn": "Long-Term Refundable Deposits",
   "type": "asset",
@@ -2491,7 +2491,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1233",
+  "code": "123003",
   "name": "حق استخدام أصول مستأجرة (IFRS16)",
   "nameEn": "Right-of-Use Assets (IFRS16)",
   "type": "asset",
@@ -2531,7 +2531,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2111",
+  "code": "211001",
   "name": "موردون - محليون",
   "nameEn": "Suppliers - Local",
   "type": "liability",
@@ -2541,7 +2541,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2112",
+  "code": "211002",
   "name": "موردون - مستوردون",
   "nameEn": "Suppliers - Importers",
   "type": "liability",
@@ -2551,7 +2551,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2113",
+  "code": "211003",
   "name": "أوراق دفع",
   "nameEn": "Notes Payable",
   "type": "liability",
@@ -2561,7 +2561,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2114",
+  "code": "211004",
   "name": "موردون - أطراف ذات علاقة",
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
@@ -2571,7 +2571,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2115",
+  "code": "211005",
   "name": "موردو مواد خام - أجل",
   "nameEn": "Raw Material Suppliers - Credit",
   "type": "liability",
@@ -2591,7 +2591,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2121",
+  "code": "212001",
   "name": "رواتب مستحقة",
   "nameEn": "Accrued Salaries",
   "type": "liability",
@@ -2601,7 +2601,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2122",
+  "code": "212002",
   "name": "إيجارات مستحقة",
   "nameEn": "Accrued Rent",
   "type": "liability",
@@ -2611,7 +2611,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2123",
+  "code": "212003",
   "name": "مصروفات مستحقة أخرى",
   "nameEn": "Other Accrued Expenses",
   "type": "liability",
@@ -2621,7 +2621,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2124",
+  "code": "212004",
   "name": "مكافأة نهاية الخدمة - الجزء المتداول",
   "nameEn": "End of Service Benefits - Current Portion",
   "type": "liability",
@@ -2641,7 +2641,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2131",
+  "code": "213001",
   "name": "ضريبة القيمة المضافة المستحقة (مبيعات)",
   "nameEn": "VAT Payable (Sales)",
   "type": "liability",
@@ -2651,7 +2651,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2132",
+  "code": "213002",
   "name": "الزكاة المستحقة",
   "nameEn": "Zakat Payable",
   "type": "liability",
@@ -2661,7 +2661,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2133",
+  "code": "213003",
   "name": "ضريبة الاستقطاع",
   "nameEn": "Withholding Tax",
   "type": "liability",
@@ -2681,7 +2681,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2141",
+  "code": "214001",
   "name": "قرض بنكي قصير الأجل",
   "nameEn": "Short-Term Bank Loan",
   "type": "liability",
@@ -2691,7 +2691,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2142",
+  "code": "214002",
   "name": "الجزء المتداول من القروض طويلة الأجل",
   "nameEn": "Current Portion of Long-Term Loans",
   "type": "liability",
@@ -2711,7 +2711,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2151",
+  "code": "215001",
   "name": "دفعات مقدمة من عملاء",
   "nameEn": "Advances from Customers",
   "type": "liability",
@@ -2731,7 +2731,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2161",
+  "code": "216001",
   "name": "رسوم جمركية مستحقة",
   "nameEn": "Accrued Customs Duties",
   "type": "liability",
@@ -2741,7 +2741,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2162",
+  "code": "216002",
   "name": "اعتمادات مستندية دائنة",
   "nameEn": "Letters of Credit Payable",
   "type": "liability",
@@ -2771,7 +2771,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2211",
+  "code": "221001",
   "name": "قروض بنكية طويلة الأجل",
   "nameEn": "Long-Term Bank Loans",
   "type": "liability",
@@ -2791,7 +2791,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2221",
+  "code": "222001",
   "name": "مخصص نهاية الخدمة - طويل الأجل",
   "nameEn": "End of Service Provision - Long-Term",
   "type": "liability",
@@ -2811,7 +2811,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2231",
+  "code": "223001",
   "name": "التزام عقد إيجار - طويل الأجل",
   "nameEn": "Lease Liability - Long-Term",
   "type": "liability",
@@ -2851,7 +2851,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3111",
+  "code": "311001",
   "name": "رأس المال المدفوع",
   "nameEn": "Paid-up Capital",
   "type": "equity",
@@ -2881,7 +2881,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3211",
+  "code": "321001",
   "name": "الاحتياطي النظامي",
   "nameEn": "Statutory Reserve",
   "type": "equity",
@@ -2891,7 +2891,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3212",
+  "code": "321002",
   "name": "احتياطي عام",
   "nameEn": "General Reserve",
   "type": "equity",
@@ -2921,7 +2921,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3311",
+  "code": "331001",
   "name": "أرباح مرحلة من سنوات سابقة",
   "nameEn": "Retained Earnings from Prior Years",
   "type": "equity",
@@ -2931,7 +2931,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3312",
+  "code": "331002",
   "name": "صافي ربح / خسارة العام الحالي",
   "nameEn": "Net Income / Loss for the Current Year",
   "type": "equity",
@@ -2941,7 +2941,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3313",
+  "code": "331003",
   "name": "توزيعات أرباح (عكسي)",
   "nameEn": "Dividends (Contra)",
   "type": "equity",
@@ -2971,7 +2971,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3411",
+  "code": "341001",
   "name": "جاري الشركاء / المساهمين",
   "nameEn": "Partners' / Shareholders' Current Account",
   "type": "equity",
@@ -3011,7 +3011,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4111",
+  "code": "411001",
   "name": "إيرادات مبيعات محلية",
   "nameEn": "Local Sales Revenue",
   "type": "revenue",
@@ -3021,7 +3021,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4112",
+  "code": "411002",
   "name": "إيرادات مبيعات تصدير",
   "nameEn": "Export Sales Revenue",
   "type": "revenue",
@@ -3031,7 +3031,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4113",
+  "code": "411003",
   "name": "إيرادات تصنيع لدى الغير (Tolling)",
   "nameEn": "Toll Manufacturing Revenue",
   "type": "revenue",
@@ -3041,7 +3041,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4114",
+  "code": "411004",
   "name": "إيرادات بيع مخلفات ومخردات الإنتاج",
   "nameEn": "Revenue from Sale of Production Scrap and Waste",
   "type": "revenue",
@@ -3071,7 +3071,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4211",
+  "code": "421001",
   "name": "مردودات وخصم مسموح به (عكسي)",
   "nameEn": "Returns and Allowances (Contra)",
   "type": "revenue",
@@ -3101,7 +3101,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4311",
+  "code": "431001",
   "name": "إيراد بيع خردة / أصول",
   "nameEn": "Gain on Sale of Scrap / Assets",
   "type": "revenue",
@@ -3111,7 +3111,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4312",
+  "code": "431002",
   "name": "إيرادات متنوعة أخرى",
   "nameEn": "Other Miscellaneous Revenue",
   "type": "revenue",
@@ -3151,7 +3151,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5111",
+  "code": "511001",
   "name": "مواد خام مستهلكة في الإنتاج",
   "nameEn": "Raw Materials Consumed in Production",
   "type": "expense",
@@ -3161,7 +3161,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5112",
+  "code": "511002",
   "name": "أجور عمالة مباشرة",
   "nameEn": "Direct Labor Costs",
   "type": "expense",
@@ -3171,7 +3171,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5113",
+  "code": "511003",
   "name": "أعباء صناعية غير مباشرة (طاقة ومحروقات المصنع)",
   "nameEn": "Manufacturing Overhead (Factory Energy and Fuel)",
   "type": "expense",
@@ -3181,7 +3181,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5114",
+  "code": "511004",
   "name": "إهلاك آلات ومعدات الإنتاج",
   "nameEn": "Depreciation of Production Machinery and Equipment",
   "type": "expense",
@@ -3191,7 +3191,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5115",
+  "code": "511005",
   "name": "صيانة خطوط الإنتاج",
   "nameEn": "Production Line Maintenance",
   "type": "expense",
@@ -3201,7 +3201,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5116",
+  "code": "511006",
   "name": "إشراف ورقابة جودة الإنتاج",
   "nameEn": "Production Supervision and Quality Control",
   "type": "expense",
@@ -3211,7 +3211,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5117",
+  "code": "511007",
   "name": "انحراف التكاليف المعيارية (Variance)",
   "nameEn": "Standard Cost Variance",
   "type": "expense",
@@ -3251,7 +3251,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6111",
+  "code": "611001",
   "name": "رواتب الموظفين - الإدارة العامة",
   "nameEn": "Employee Salaries - Head Office",
   "type": "expense",
@@ -3261,7 +3261,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6112",
+  "code": "611002",
   "name": "رواتب موظفي الميدان/الموقع",
   "nameEn": "Field/Site Staff Salaries",
   "type": "expense",
@@ -3271,7 +3271,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6113",
+  "code": "611003",
   "name": "بدلات ومكافآت",
   "nameEn": "Allowances and Bonuses",
   "type": "expense",
@@ -3281,7 +3281,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6114",
+  "code": "611004",
   "name": "التأمينات الاجتماعية (GOSI)",
   "nameEn": "Social Insurance (GOSI)",
   "type": "expense",
@@ -3291,7 +3291,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6115",
+  "code": "611005",
   "name": "التأمين الطبي",
   "nameEn": "Medical Insurance",
   "type": "expense",
@@ -3301,7 +3301,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6116",
+  "code": "611006",
   "name": "مكافأة نهاية الخدمة (مصروف الفترة)",
   "nameEn": "End of Service Benefits Expense (Period)",
   "type": "expense",
@@ -3331,7 +3331,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6211",
+  "code": "621001",
   "name": "إيجار المقر الرئيسي",
   "nameEn": "Head Office Rent",
   "type": "expense",
@@ -3341,7 +3341,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6212",
+  "code": "621002",
   "name": "إيجار مواقع/فروع",
   "nameEn": "Site/Branch Rent",
   "type": "expense",
@@ -3361,7 +3361,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6221",
+  "code": "622001",
   "name": "قرطاسية ومطبوعات",
   "nameEn": "Stationery and Printing",
   "type": "expense",
@@ -3371,7 +3371,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6222",
+  "code": "622002",
   "name": "اتصالات وإنترنت",
   "nameEn": "Telecommunications and Internet",
   "type": "expense",
@@ -3381,7 +3381,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6223",
+  "code": "622003",
   "name": "صيانة أجهزة وبرامج",
   "nameEn": "Hardware and Software Maintenance",
   "type": "expense",
@@ -3401,7 +3401,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6231",
+  "code": "623001",
   "name": "أتعاب محاسبة ومراجعة",
   "nameEn": "Accounting and Audit Fees",
   "type": "expense",
@@ -3411,7 +3411,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6232",
+  "code": "623002",
   "name": "أتعاب استشارات قانونية",
   "nameEn": "Legal Consulting Fees",
   "type": "expense",
@@ -3431,7 +3431,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6241",
+  "code": "624001",
   "name": "رسوم حكومية وتراخيص",
   "nameEn": "Government Fees and Licenses",
   "type": "expense",
@@ -3461,7 +3461,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6311",
+  "code": "631001",
   "name": "حملات تسويقية وإعلانية",
   "nameEn": "Marketing and Advertising Campaigns",
   "type": "expense",
@@ -3471,7 +3471,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6312",
+  "code": "631002",
   "name": "عمولات مبيعات",
   "nameEn": "Sales Commissions",
   "type": "expense",
@@ -3501,7 +3501,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6411",
+  "code": "641001",
   "name": "صيانة دورية للمعدات/المنشآت",
   "nameEn": "Periodic Maintenance of Equipment/Facilities",
   "type": "expense",
@@ -3521,7 +3521,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6421",
+  "code": "642001",
   "name": "كهرباء ومياه",
   "nameEn": "Electricity and Water",
   "type": "expense",
@@ -3551,7 +3551,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6511",
+  "code": "651001",
   "name": "إهلاك الممتلكات والمعدات",
   "nameEn": "Depreciation of Property and Equipment",
   "type": "expense",
@@ -3571,7 +3571,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6521",
+  "code": "652001",
   "name": "استهلاك الأصول غير الملموسة",
   "nameEn": "Amortization of Intangible Assets",
   "type": "expense",
@@ -3601,7 +3601,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6611",
+  "code": "661001",
   "name": "تأمين",
   "nameEn": "Insurance",
   "type": "expense",
@@ -3621,7 +3621,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6621",
+  "code": "662001",
   "name": "مخصص ديون مشكوك فيها (مصروف الفترة)",
   "nameEn": "Doubtful Debts Expense (Period)",
   "type": "expense",
@@ -3631,7 +3631,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6622",
+  "code": "662002",
   "name": "مخصصات أخرى",
   "nameEn": "Other Provisions",
   "type": "expense",
@@ -3671,7 +3671,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7111",
+  "code": "711001",
   "name": "إيراد فوائد ودائع بنكية",
   "nameEn": "Bank Deposit Interest Income",
   "type": "revenue",
@@ -3701,7 +3701,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7211",
+  "code": "721001",
   "name": "فوائد ومصاريف تمويل",
   "nameEn": "Interest and Financing Expenses",
   "type": "expense",
@@ -3731,7 +3731,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7311",
+  "code": "731001",
   "name": "أرباح/خسائر بيع أصول ثابتة",
   "nameEn": "Gain/Loss on Sale of Fixed Assets",
   "type": "revenue",
@@ -3761,7 +3761,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7411",
+  "code": "741001",
   "name": "فروقات صرف عملة",
   "nameEn": "Foreign Exchange Differences",
   "type": "revenue",
@@ -3801,7 +3801,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8111",
+  "code": "811001",
   "name": "حساب الأرباح والخسائر (إقفال)",
   "nameEn": "Profit and Loss Account (Closing)",
   "type": "equity",
@@ -3831,7 +3831,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8211",
+  "code": "821001",
   "name": "ضمانات بنكية صادرة",
   "nameEn": "Bank Guarantees Issued",
   "type": "liability",
@@ -3841,7 +3841,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8212",
+  "code": "821002",
   "name": "التزامات محتملة (Contingent Liabilities)",
   "nameEn": "Contingent Liabilities",
   "type": "liability",
@@ -3851,7 +3851,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2130",
+  "code": "213000",
   "name": "تأمينات اجتماعية مستحقة",
   "nameEn": "Accrued Social Insurance (GOSI Payable)",
   "type": "liability",
@@ -3861,7 +3861,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6220",
+  "code": "622000",
   "name": "سفر وانتقالات",
   "nameEn": "Travel and Transportation",
   "type": "expense",
@@ -3871,7 +3871,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1210",
+  "code": "121000",
   "name": "أصول ثابتة أخرى",
   "nameEn": "Other Fixed Assets",
   "type": "asset",
@@ -3881,7 +3881,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5110",
+  "code": "511000",
   "name": "فروقات وهبوط مخزون",
   "nameEn": "Inventory Adjustments and Shrinkage",
   "type": "expense",
@@ -3923,7 +3923,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1111",
+  "code": "111001",
   "name": "الصندوق النقدي - الإدارة العامة",
   "nameEn": "Cash on Hand - Head Office",
   "type": "asset",
@@ -3933,7 +3933,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1112",
+  "code": "111002",
   "name": "صندوق نثرية الفروع/المواقع",
   "nameEn": "Petty Cash - Branches/Sites",
   "type": "asset",
@@ -3943,7 +3943,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1113",
+  "code": "111003",
   "name": "بنك - حساب جاري (1)",
   "nameEn": "Bank - Current Account (1)",
   "type": "asset",
@@ -3953,7 +3953,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1114",
+  "code": "111004",
   "name": "بنك - حساب جاري (2)",
   "nameEn": "Bank - Current Account (2)",
   "type": "asset",
@@ -3963,7 +3963,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1115",
+  "code": "111005",
   "name": "ودائع بنكية قصيرة الأجل",
   "nameEn": "Short-Term Bank Deposits",
   "type": "asset",
@@ -3983,7 +3983,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1121",
+  "code": "112001",
   "name": "عملاء - مبيعات جملة/عقود",
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
@@ -3993,7 +3993,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1122",
+  "code": "112002",
   "name": "عملاء - مبيعات نقدية/تجزئة",
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
@@ -4003,7 +4003,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1123",
+  "code": "112003",
   "name": "أوراق قبض",
   "nameEn": "Notes Receivable",
   "type": "asset",
@@ -4013,7 +4013,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1124",
+  "code": "112004",
   "name": "عملاء - أطراف ذات علاقة",
   "nameEn": "Customers - Related Parties",
   "type": "asset",
@@ -4023,7 +4023,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1125",
+  "code": "112005",
   "name": "مخصص ديون مشكوك في تحصيلها (عكسي)",
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
@@ -4043,7 +4043,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1131",
+  "code": "113001",
   "name": "دفعات مقدمة لموردين",
   "nameEn": "Advances to Suppliers",
   "type": "asset",
@@ -4053,7 +4053,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1132",
+  "code": "113002",
   "name": "سلف وقروض الموظفين",
   "nameEn": "Employee Advances and Loans",
   "type": "asset",
@@ -4063,7 +4063,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1133",
+  "code": "113003",
   "name": "ضريبة القيمة المضافة - مدينة (مشتريات)",
   "nameEn": "VAT Receivable (Purchases)",
   "type": "asset",
@@ -4073,7 +4073,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1134",
+  "code": "113004",
   "name": "تأمينات وودائع قابلة للاسترداد",
   "nameEn": "Refundable Deposits and Insurance",
   "type": "asset",
@@ -4083,7 +4083,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1135",
+  "code": "113005",
   "name": "عهدة أمناء صناديق نقاط البيع (POS)",
   "nameEn": "POS Cashier Custody",
   "type": "asset",
@@ -4103,7 +4103,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1141",
+  "code": "114001",
   "name": "مخزون بضاعة جاهزة للبيع - فئة (1)",
   "nameEn": "Merchandise Inventory for Sale - Category (1)",
   "type": "asset",
@@ -4113,7 +4113,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1142",
+  "code": "114002",
   "name": "مخزون بضاعة جاهزة للبيع - فئة (2)",
   "nameEn": "Merchandise Inventory for Sale - Category (2)",
   "type": "asset",
@@ -4123,7 +4123,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1143",
+  "code": "114003",
   "name": "مخزون بضاعة بمخازن الفروع",
   "nameEn": "Merchandise Inventory - Branch Warehouses",
   "type": "asset",
@@ -4133,7 +4133,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1144",
+  "code": "114004",
   "name": "مخزون عروض وهدايا ترويجية",
   "nameEn": "Promotional Offers and Gifts Inventory",
   "type": "asset",
@@ -4143,7 +4143,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1145",
+  "code": "114005",
   "name": "مخصص عجز/تلف جرد المتاجر (عكسي)",
   "nameEn": "Provision for Store Inventory Shortage/Damage (Contra)",
   "type": "asset",
@@ -4163,7 +4163,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1151",
+  "code": "115001",
   "name": "إيجارات مدفوعة مقدماً",
   "nameEn": "Prepaid Rent",
   "type": "asset",
@@ -4173,7 +4173,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1152",
+  "code": "115002",
   "name": "تأمين مدفوع مقدماً",
   "nameEn": "Prepaid Insurance",
   "type": "asset",
@@ -4183,7 +4183,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1153",
+  "code": "115003",
   "name": "اشتراكات ورخص مدفوعة مقدماً",
   "nameEn": "Prepaid Subscriptions and Licenses",
   "type": "asset",
@@ -4203,7 +4203,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1161",
+  "code": "116001",
   "name": "مستحقات شركات الدفع الإلكتروني/الشبكة",
   "nameEn": "Electronic Payment/Network Companies Receivables",
   "type": "asset",
@@ -4233,7 +4233,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1211",
+  "code": "121001",
   "name": "أراضٍ",
   "nameEn": "Land",
   "type": "asset",
@@ -4243,7 +4243,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1212",
+  "code": "121002",
   "name": "مباني ومنشآت",
   "nameEn": "Buildings and Structures",
   "type": "asset",
@@ -4253,7 +4253,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1213",
+  "code": "121003",
   "name": "آلات ومعدات",
   "nameEn": "Machinery and Equipment",
   "type": "asset",
@@ -4263,7 +4263,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1214",
+  "code": "121004",
   "name": "سيارات ووسائل نقل",
   "nameEn": "Vehicles and Transport Equipment",
   "type": "asset",
@@ -4273,7 +4273,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1215",
+  "code": "121005",
   "name": "أثاث وتجهيزات مكتبية",
   "nameEn": "Office Furniture and Fixtures",
   "type": "asset",
@@ -4283,7 +4283,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1216",
+  "code": "121006",
   "name": "أجهزة حاسب آلي",
   "nameEn": "Computer Equipment",
   "type": "asset",
@@ -4293,7 +4293,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1217",
+  "code": "121007",
   "name": "تحسينات على مأجور",
   "nameEn": "Leasehold Improvements",
   "type": "asset",
@@ -4303,7 +4303,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1219",
+  "code": "121009",
   "name": "معدات وواجهات عرض المتاجر",
   "nameEn": "Store Display Equipment and Fixtures",
   "type": "asset",
@@ -4313,7 +4313,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1218",
+  "code": "121008",
   "name": "مجمع الإهلاك (عكسي)",
   "nameEn": "Accumulated Depreciation (Contra)",
   "type": "asset",
@@ -4333,7 +4333,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1221",
+  "code": "122001",
   "name": "برامج وأنظمة",
   "nameEn": "Software and Systems",
   "type": "asset",
@@ -4343,7 +4343,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1222",
+  "code": "122002",
   "name": "شهرة المحل",
   "nameEn": "Goodwill",
   "type": "asset",
@@ -4353,7 +4353,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1223",
+  "code": "122003",
   "name": "تراخيص وامتيازات تجارية",
   "nameEn": "Commercial Licenses and Franchises",
   "type": "asset",
@@ -4363,7 +4363,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1224",
+  "code": "122004",
   "name": "مجمع الاستهلاك (عكسي)",
   "nameEn": "Accumulated Amortization (Contra)",
   "type": "asset",
@@ -4383,7 +4383,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1231",
+  "code": "123001",
   "name": "استثمارات طويلة الأجل",
   "nameEn": "Long-Term Investments",
   "type": "asset",
@@ -4393,7 +4393,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1232",
+  "code": "123002",
   "name": "تأمينات مستردة طويلة الأجل",
   "nameEn": "Long-Term Refundable Deposits",
   "type": "asset",
@@ -4403,7 +4403,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1233",
+  "code": "123003",
   "name": "حق استخدام أصول مستأجرة (IFRS16)",
   "nameEn": "Right-of-Use Assets (IFRS16)",
   "type": "asset",
@@ -4443,7 +4443,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2111",
+  "code": "211001",
   "name": "موردون - محليون",
   "nameEn": "Suppliers - Local",
   "type": "liability",
@@ -4453,7 +4453,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2112",
+  "code": "211002",
   "name": "موردون - مستوردون",
   "nameEn": "Suppliers - Importers",
   "type": "liability",
@@ -4463,7 +4463,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2113",
+  "code": "211003",
   "name": "أوراق دفع",
   "nameEn": "Notes Payable",
   "type": "liability",
@@ -4473,7 +4473,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2114",
+  "code": "211004",
   "name": "موردون - أطراف ذات علاقة",
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
@@ -4493,7 +4493,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2121",
+  "code": "212001",
   "name": "رواتب مستحقة",
   "nameEn": "Accrued Salaries",
   "type": "liability",
@@ -4503,7 +4503,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2122",
+  "code": "212002",
   "name": "إيجارات مستحقة",
   "nameEn": "Accrued Rent",
   "type": "liability",
@@ -4513,7 +4513,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2123",
+  "code": "212003",
   "name": "مصروفات مستحقة أخرى",
   "nameEn": "Other Accrued Expenses",
   "type": "liability",
@@ -4523,7 +4523,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2124",
+  "code": "212004",
   "name": "مكافأة نهاية الخدمة - الجزء المتداول",
   "nameEn": "End of Service Benefits - Current Portion",
   "type": "liability",
@@ -4543,7 +4543,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2131",
+  "code": "213001",
   "name": "ضريبة القيمة المضافة المستحقة (مبيعات)",
   "nameEn": "VAT Payable (Sales)",
   "type": "liability",
@@ -4553,7 +4553,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2132",
+  "code": "213002",
   "name": "الزكاة المستحقة",
   "nameEn": "Zakat Payable",
   "type": "liability",
@@ -4563,7 +4563,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2133",
+  "code": "213003",
   "name": "ضريبة الاستقطاع",
   "nameEn": "Withholding Tax",
   "type": "liability",
@@ -4583,7 +4583,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2141",
+  "code": "214001",
   "name": "قرض بنكي قصير الأجل",
   "nameEn": "Short-Term Bank Loan",
   "type": "liability",
@@ -4593,7 +4593,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2142",
+  "code": "214002",
   "name": "الجزء المتداول من القروض طويلة الأجل",
   "nameEn": "Current Portion of Long-Term Loans",
   "type": "liability",
@@ -4613,7 +4613,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2151",
+  "code": "215001",
   "name": "دفعات مقدمة من عملاء",
   "nameEn": "Advances from Customers",
   "type": "liability",
@@ -4633,7 +4633,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2161",
+  "code": "216001",
   "name": "بطاقات هدايا وقسائم شراء صادرة (Gift Cards)",
   "nameEn": "Gift Cards Issued",
   "type": "liability",
@@ -4643,7 +4643,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2162",
+  "code": "216002",
   "name": "التزامات برنامج نقاط الولاء",
   "nameEn": "Loyalty Points Program Liabilities",
   "type": "liability",
@@ -4673,7 +4673,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2211",
+  "code": "221001",
   "name": "قروض بنكية طويلة الأجل",
   "nameEn": "Long-Term Bank Loans",
   "type": "liability",
@@ -4693,7 +4693,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2221",
+  "code": "222001",
   "name": "مخصص نهاية الخدمة - طويل الأجل",
   "nameEn": "End of Service Provision - Long-Term",
   "type": "liability",
@@ -4713,7 +4713,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2231",
+  "code": "223001",
   "name": "التزام عقد إيجار - طويل الأجل",
   "nameEn": "Lease Liability - Long-Term",
   "type": "liability",
@@ -4753,7 +4753,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3111",
+  "code": "311001",
   "name": "رأس المال المدفوع",
   "nameEn": "Paid-up Capital",
   "type": "equity",
@@ -4783,7 +4783,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3211",
+  "code": "321001",
   "name": "الاحتياطي النظامي",
   "nameEn": "Statutory Reserve",
   "type": "equity",
@@ -4793,7 +4793,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3212",
+  "code": "321002",
   "name": "احتياطي عام",
   "nameEn": "General Reserve",
   "type": "equity",
@@ -4823,7 +4823,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3311",
+  "code": "331001",
   "name": "أرباح مرحلة من سنوات سابقة",
   "nameEn": "Retained Earnings from Prior Years",
   "type": "equity",
@@ -4833,7 +4833,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3312",
+  "code": "331002",
   "name": "صافي ربح / خسارة العام الحالي",
   "nameEn": "Net Income / Loss for the Current Year",
   "type": "equity",
@@ -4843,7 +4843,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3313",
+  "code": "331003",
   "name": "توزيعات أرباح (عكسي)",
   "nameEn": "Dividends (Contra)",
   "type": "equity",
@@ -4873,7 +4873,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3411",
+  "code": "341001",
   "name": "جاري الشركاء / المساهمين",
   "nameEn": "Partners' / Shareholders' Current Account",
   "type": "equity",
@@ -4913,7 +4913,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4111",
+  "code": "411001",
   "name": "إيرادات مبيعات نقدية بالمتاجر",
   "nameEn": "Cash Sales Revenue - Stores",
   "type": "revenue",
@@ -4923,7 +4923,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4112",
+  "code": "411002",
   "name": "إيرادات مبيعات بالشبكة (نقاط بيع/بطاقات)",
   "nameEn": "Network Sales Revenue (POS/Cards)",
   "type": "revenue",
@@ -4933,7 +4933,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4113",
+  "code": "411003",
   "name": "إيرادات مبيعات أونلاين",
   "nameEn": "Online Sales Revenue",
   "type": "revenue",
@@ -4943,7 +4943,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4114",
+  "code": "411004",
   "name": "إيرادات تشغيل امتياز/فرنشايز فروع",
   "nameEn": "Franchise Operation Revenue",
   "type": "revenue",
@@ -4973,7 +4973,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4211",
+  "code": "421001",
   "name": "مردودات وإرجاع مبيعات من العملاء (عكسي)",
   "nameEn": "Sales Returns from Customers (Contra)",
   "type": "revenue",
@@ -5003,7 +5003,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4311",
+  "code": "431001",
   "name": "إيراد بيع خردة / أصول",
   "nameEn": "Gain on Sale of Scrap / Assets",
   "type": "revenue",
@@ -5013,7 +5013,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4312",
+  "code": "431002",
   "name": "إيرادات متنوعة أخرى",
   "nameEn": "Other Miscellaneous Revenue",
   "type": "revenue",
@@ -5053,7 +5053,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5111",
+  "code": "511001",
   "name": "تكلفة البضاعة المباعة",
   "nameEn": "Cost of Goods Sold",
   "type": "expense",
@@ -5063,7 +5063,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5112",
+  "code": "511002",
   "name": "عجز/فائض جرد المتاجر (Shrinkage)",
   "nameEn": "Store Inventory Shrinkage",
   "type": "expense",
@@ -5073,7 +5073,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5113",
+  "code": "511003",
   "name": "تكلفة الشحن والتوصيل للعملاء",
   "nameEn": "Shipping and Delivery Cost to Customers",
   "type": "expense",
@@ -5113,7 +5113,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6111",
+  "code": "611001",
   "name": "رواتب الموظفين - الإدارة العامة",
   "nameEn": "Employee Salaries - Head Office",
   "type": "expense",
@@ -5123,7 +5123,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6112",
+  "code": "611002",
   "name": "رواتب موظفي الميدان/الموقع",
   "nameEn": "Field/Site Staff Salaries",
   "type": "expense",
@@ -5133,7 +5133,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6113",
+  "code": "611003",
   "name": "بدلات ومكافآت",
   "nameEn": "Allowances and Bonuses",
   "type": "expense",
@@ -5143,7 +5143,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6114",
+  "code": "611004",
   "name": "التأمينات الاجتماعية (GOSI)",
   "nameEn": "Social Insurance (GOSI)",
   "type": "expense",
@@ -5153,7 +5153,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6115",
+  "code": "611005",
   "name": "التأمين الطبي",
   "nameEn": "Medical Insurance",
   "type": "expense",
@@ -5163,7 +5163,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6116",
+  "code": "611006",
   "name": "مكافأة نهاية الخدمة (مصروف الفترة)",
   "nameEn": "End of Service Benefits Expense (Period)",
   "type": "expense",
@@ -5193,7 +5193,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6211",
+  "code": "621001",
   "name": "إيجار المقر الرئيسي",
   "nameEn": "Head Office Rent",
   "type": "expense",
@@ -5203,7 +5203,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6212",
+  "code": "621002",
   "name": "إيجار مواقع/فروع",
   "nameEn": "Site/Branch Rent",
   "type": "expense",
@@ -5223,7 +5223,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6221",
+  "code": "622001",
   "name": "قرطاسية ومطبوعات",
   "nameEn": "Stationery and Printing",
   "type": "expense",
@@ -5233,7 +5233,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6222",
+  "code": "622002",
   "name": "اتصالات وإنترنت",
   "nameEn": "Telecommunications and Internet",
   "type": "expense",
@@ -5243,7 +5243,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6223",
+  "code": "622003",
   "name": "صيانة أجهزة وبرامج",
   "nameEn": "Hardware and Software Maintenance",
   "type": "expense",
@@ -5263,7 +5263,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6231",
+  "code": "623001",
   "name": "أتعاب محاسبة ومراجعة",
   "nameEn": "Accounting and Audit Fees",
   "type": "expense",
@@ -5273,7 +5273,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6232",
+  "code": "623002",
   "name": "أتعاب استشارات قانونية",
   "nameEn": "Legal Consulting Fees",
   "type": "expense",
@@ -5293,7 +5293,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6241",
+  "code": "624001",
   "name": "رسوم حكومية وتراخيص",
   "nameEn": "Government Fees and Licenses",
   "type": "expense",
@@ -5323,7 +5323,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6311",
+  "code": "631001",
   "name": "حملات تسويقية وإعلانية",
   "nameEn": "Marketing and Advertising Campaigns",
   "type": "expense",
@@ -5333,7 +5333,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6312",
+  "code": "631002",
   "name": "عمولات مبيعات",
   "nameEn": "Sales Commissions",
   "type": "expense",
@@ -5363,7 +5363,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6411",
+  "code": "641001",
   "name": "صيانة دورية للمعدات/المنشآت",
   "nameEn": "Periodic Maintenance of Equipment/Facilities",
   "type": "expense",
@@ -5383,7 +5383,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6421",
+  "code": "642001",
   "name": "كهرباء ومياه",
   "nameEn": "Electricity and Water",
   "type": "expense",
@@ -5413,7 +5413,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6511",
+  "code": "651001",
   "name": "إهلاك الممتلكات والمعدات",
   "nameEn": "Depreciation of Property and Equipment",
   "type": "expense",
@@ -5433,7 +5433,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6521",
+  "code": "652001",
   "name": "استهلاك الأصول غير الملموسة",
   "nameEn": "Amortization of Intangible Assets",
   "type": "expense",
@@ -5463,7 +5463,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6611",
+  "code": "661001",
   "name": "تأمين",
   "nameEn": "Insurance",
   "type": "expense",
@@ -5483,7 +5483,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6621",
+  "code": "662001",
   "name": "مخصص ديون مشكوك فيها (مصروف الفترة)",
   "nameEn": "Doubtful Debts Expense (Period)",
   "type": "expense",
@@ -5493,7 +5493,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6622",
+  "code": "662002",
   "name": "مخصصات أخرى",
   "nameEn": "Other Provisions",
   "type": "expense",
@@ -5533,7 +5533,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7111",
+  "code": "711001",
   "name": "إيراد فوائد ودائع بنكية",
   "nameEn": "Bank Deposit Interest Income",
   "type": "revenue",
@@ -5563,7 +5563,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7211",
+  "code": "721001",
   "name": "فوائد ومصاريف تمويل",
   "nameEn": "Interest and Financing Expenses",
   "type": "expense",
@@ -5593,7 +5593,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7311",
+  "code": "731001",
   "name": "أرباح/خسائر بيع أصول ثابتة",
   "nameEn": "Gain/Loss on Sale of Fixed Assets",
   "type": "revenue",
@@ -5623,7 +5623,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7411",
+  "code": "741001",
   "name": "فروقات صرف عملة",
   "nameEn": "Foreign Exchange Differences",
   "type": "revenue",
@@ -5663,7 +5663,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8111",
+  "code": "811001",
   "name": "حساب الأرباح والخسائر (إقفال)",
   "nameEn": "Profit and Loss Account (Closing)",
   "type": "equity",
@@ -5693,7 +5693,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8211",
+  "code": "821001",
   "name": "ضمانات بنكية صادرة",
   "nameEn": "Bank Guarantees Issued",
   "type": "liability",
@@ -5703,7 +5703,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8212",
+  "code": "821002",
   "name": "التزامات محتملة (Contingent Liabilities)",
   "nameEn": "Contingent Liabilities",
   "type": "liability",
@@ -5713,7 +5713,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2130",
+  "code": "213000",
   "name": "تأمينات اجتماعية مستحقة",
   "nameEn": "Accrued Social Insurance (GOSI Payable)",
   "type": "liability",
@@ -5723,7 +5723,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6220",
+  "code": "622000",
   "name": "سفر وانتقالات",
   "nameEn": "Travel and Transportation",
   "type": "expense",
@@ -5733,7 +5733,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1210",
+  "code": "121000",
   "name": "أصول ثابتة أخرى",
   "nameEn": "Other Fixed Assets",
   "type": "asset",
@@ -5775,7 +5775,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1111",
+  "code": "111001",
   "name": "الصندوق النقدي - الإدارة العامة",
   "nameEn": "Cash on Hand - Head Office",
   "type": "asset",
@@ -5785,7 +5785,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1112",
+  "code": "111002",
   "name": "صندوق نثرية الفروع/المواقع",
   "nameEn": "Petty Cash - Branches/Sites",
   "type": "asset",
@@ -5795,7 +5795,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1113",
+  "code": "111003",
   "name": "بنك - حساب جاري (1)",
   "nameEn": "Bank - Current Account (1)",
   "type": "asset",
@@ -5805,7 +5805,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1114",
+  "code": "111004",
   "name": "بنك - حساب جاري (2)",
   "nameEn": "Bank - Current Account (2)",
   "type": "asset",
@@ -5815,7 +5815,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1115",
+  "code": "111005",
   "name": "ودائع بنكية قصيرة الأجل",
   "nameEn": "Short-Term Bank Deposits",
   "type": "asset",
@@ -5835,7 +5835,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1121",
+  "code": "112001",
   "name": "عملاء - مبيعات جملة/عقود",
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
@@ -5845,7 +5845,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1122",
+  "code": "112002",
   "name": "عملاء - مبيعات نقدية/تجزئة",
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
@@ -5855,7 +5855,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1123",
+  "code": "112003",
   "name": "أوراق قبض",
   "nameEn": "Notes Receivable",
   "type": "asset",
@@ -5865,7 +5865,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1124",
+  "code": "112004",
   "name": "عملاء - أطراف ذات علاقة",
   "nameEn": "Customers - Related Parties",
   "type": "asset",
@@ -5875,7 +5875,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1125",
+  "code": "112005",
   "name": "مخصص ديون مشكوك في تحصيلها (عكسي)",
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
@@ -5895,7 +5895,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1131",
+  "code": "113001",
   "name": "دفعات مقدمة لموردين",
   "nameEn": "Advances to Suppliers",
   "type": "asset",
@@ -5905,7 +5905,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1132",
+  "code": "113002",
   "name": "سلف وقروض الموظفين",
   "nameEn": "Employee Advances and Loans",
   "type": "asset",
@@ -5915,7 +5915,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1133",
+  "code": "113003",
   "name": "ضريبة القيمة المضافة - مدينة (مشتريات)",
   "nameEn": "VAT Receivable (Purchases)",
   "type": "asset",
@@ -5925,7 +5925,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1134",
+  "code": "113004",
   "name": "تأمينات وودائع قابلة للاسترداد",
   "nameEn": "Refundable Deposits and Insurance",
   "type": "asset",
@@ -5935,7 +5935,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1135",
+  "code": "113005",
   "name": "عمولات مستحقة من الموردين/الوكالات",
   "nameEn": "Accrued Commissions from Suppliers/Agencies",
   "type": "asset",
@@ -5955,7 +5955,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1141",
+  "code": "114001",
   "name": "مخزون بضاعة للبيع - محلي",
   "nameEn": "Merchandise Inventory for Sale - Local",
   "type": "asset",
@@ -5965,7 +5965,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1142",
+  "code": "114002",
   "name": "مخزون بضاعة للتصدير",
   "nameEn": "Merchandise Inventory for Export",
   "type": "asset",
@@ -5975,7 +5975,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1143",
+  "code": "114003",
   "name": "بضاعة بالطريق (شحنات مستوردة)",
   "nameEn": "Goods in Transit (Imported Shipments)",
   "type": "asset",
@@ -5995,7 +5995,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1151",
+  "code": "115001",
   "name": "إيجارات مدفوعة مقدماً",
   "nameEn": "Prepaid Rent",
   "type": "asset",
@@ -6005,7 +6005,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1152",
+  "code": "115002",
   "name": "تأمين مدفوع مقدماً",
   "nameEn": "Prepaid Insurance",
   "type": "asset",
@@ -6015,7 +6015,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1153",
+  "code": "115003",
   "name": "اشتراكات ورخص مدفوعة مقدماً",
   "nameEn": "Prepaid Subscriptions and Licenses",
   "type": "asset",
@@ -6035,7 +6035,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1161",
+  "code": "116001",
   "name": "اعتمادات مستندية (LC) مفتوحة",
   "nameEn": "Open Letters of Credit (LC)",
   "type": "asset",
@@ -6045,7 +6045,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1162",
+  "code": "116002",
   "name": "مستندات شحن تحت التحصيل",
   "nameEn": "Shipping Documents Under Collection",
   "type": "asset",
@@ -6075,7 +6075,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1211",
+  "code": "121001",
   "name": "أراضٍ",
   "nameEn": "Land",
   "type": "asset",
@@ -6085,7 +6085,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1212",
+  "code": "121002",
   "name": "مباني ومنشآت",
   "nameEn": "Buildings and Structures",
   "type": "asset",
@@ -6095,7 +6095,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1213",
+  "code": "121003",
   "name": "آلات ومعدات",
   "nameEn": "Machinery and Equipment",
   "type": "asset",
@@ -6105,7 +6105,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1214",
+  "code": "121004",
   "name": "سيارات ووسائل نقل",
   "nameEn": "Vehicles and Transport Equipment",
   "type": "asset",
@@ -6115,7 +6115,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1215",
+  "code": "121005",
   "name": "أثاث وتجهيزات مكتبية",
   "nameEn": "Office Furniture and Fixtures",
   "type": "asset",
@@ -6125,7 +6125,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1216",
+  "code": "121006",
   "name": "أجهزة حاسب آلي",
   "nameEn": "Computer Equipment",
   "type": "asset",
@@ -6135,7 +6135,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1217",
+  "code": "121007",
   "name": "تحسينات على مأجور",
   "nameEn": "Leasehold Improvements",
   "type": "asset",
@@ -6145,7 +6145,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1218",
+  "code": "121008",
   "name": "مجمع الإهلاك (عكسي)",
   "nameEn": "Accumulated Depreciation (Contra)",
   "type": "asset",
@@ -6165,7 +6165,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1221",
+  "code": "122001",
   "name": "برامج وأنظمة",
   "nameEn": "Software and Systems",
   "type": "asset",
@@ -6175,7 +6175,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1222",
+  "code": "122002",
   "name": "شهرة المحل",
   "nameEn": "Goodwill",
   "type": "asset",
@@ -6185,7 +6185,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1223",
+  "code": "122003",
   "name": "تراخيص وامتيازات تجارية",
   "nameEn": "Commercial Licenses and Franchises",
   "type": "asset",
@@ -6195,7 +6195,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1224",
+  "code": "122004",
   "name": "مجمع الاستهلاك (عكسي)",
   "nameEn": "Accumulated Amortization (Contra)",
   "type": "asset",
@@ -6215,7 +6215,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1231",
+  "code": "123001",
   "name": "استثمارات طويلة الأجل",
   "nameEn": "Long-Term Investments",
   "type": "asset",
@@ -6225,7 +6225,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1232",
+  "code": "123002",
   "name": "تأمينات مستردة طويلة الأجل",
   "nameEn": "Long-Term Refundable Deposits",
   "type": "asset",
@@ -6235,7 +6235,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1233",
+  "code": "123003",
   "name": "حق استخدام أصول مستأجرة (IFRS16)",
   "nameEn": "Right-of-Use Assets (IFRS16)",
   "type": "asset",
@@ -6275,7 +6275,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2111",
+  "code": "211001",
   "name": "موردون - محليون",
   "nameEn": "Suppliers - Local",
   "type": "liability",
@@ -6285,7 +6285,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2112",
+  "code": "211002",
   "name": "موردون - مستوردون",
   "nameEn": "Suppliers - Importers",
   "type": "liability",
@@ -6295,7 +6295,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2113",
+  "code": "211003",
   "name": "أوراق دفع",
   "nameEn": "Notes Payable",
   "type": "liability",
@@ -6305,7 +6305,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2114",
+  "code": "211004",
   "name": "موردون - أطراف ذات علاقة",
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
@@ -6315,7 +6315,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2115",
+  "code": "211005",
   "name": "موردون أجانب - تصدير/استيراد",
   "nameEn": "Foreign Suppliers - Export/Import",
   "type": "liability",
@@ -6335,7 +6335,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2121",
+  "code": "212001",
   "name": "رواتب مستحقة",
   "nameEn": "Accrued Salaries",
   "type": "liability",
@@ -6345,7 +6345,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2122",
+  "code": "212002",
   "name": "إيجارات مستحقة",
   "nameEn": "Accrued Rent",
   "type": "liability",
@@ -6355,7 +6355,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2123",
+  "code": "212003",
   "name": "مصروفات مستحقة أخرى",
   "nameEn": "Other Accrued Expenses",
   "type": "liability",
@@ -6365,7 +6365,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2124",
+  "code": "212004",
   "name": "مكافأة نهاية الخدمة - الجزء المتداول",
   "nameEn": "End of Service Benefits - Current Portion",
   "type": "liability",
@@ -6385,7 +6385,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2131",
+  "code": "213001",
   "name": "ضريبة القيمة المضافة المستحقة (مبيعات)",
   "nameEn": "VAT Payable (Sales)",
   "type": "liability",
@@ -6395,7 +6395,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2132",
+  "code": "213002",
   "name": "الزكاة المستحقة",
   "nameEn": "Zakat Payable",
   "type": "liability",
@@ -6405,7 +6405,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2133",
+  "code": "213003",
   "name": "ضريبة الاستقطاع",
   "nameEn": "Withholding Tax",
   "type": "liability",
@@ -6425,7 +6425,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2141",
+  "code": "214001",
   "name": "قرض بنكي قصير الأجل",
   "nameEn": "Short-Term Bank Loan",
   "type": "liability",
@@ -6435,7 +6435,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2142",
+  "code": "214002",
   "name": "الجزء المتداول من القروض طويلة الأجل",
   "nameEn": "Current Portion of Long-Term Loans",
   "type": "liability",
@@ -6455,7 +6455,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2151",
+  "code": "215001",
   "name": "دفعات مقدمة من عملاء",
   "nameEn": "Advances from Customers",
   "type": "liability",
@@ -6475,7 +6475,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2161",
+  "code": "216001",
   "name": "رسوم جمركية مستحقة",
   "nameEn": "Accrued Customs Duties",
   "type": "liability",
@@ -6485,7 +6485,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2162",
+  "code": "216002",
   "name": "اعتمادات مستندية دائنة",
   "nameEn": "Letters of Credit Payable",
   "type": "liability",
@@ -6515,7 +6515,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2211",
+  "code": "221001",
   "name": "قروض بنكية طويلة الأجل",
   "nameEn": "Long-Term Bank Loans",
   "type": "liability",
@@ -6535,7 +6535,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2221",
+  "code": "222001",
   "name": "مخصص نهاية الخدمة - طويل الأجل",
   "nameEn": "End of Service Provision - Long-Term",
   "type": "liability",
@@ -6555,7 +6555,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2231",
+  "code": "223001",
   "name": "التزام عقد إيجار - طويل الأجل",
   "nameEn": "Lease Liability - Long-Term",
   "type": "liability",
@@ -6595,7 +6595,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3111",
+  "code": "311001",
   "name": "رأس المال المدفوع",
   "nameEn": "Paid-up Capital",
   "type": "equity",
@@ -6625,7 +6625,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3211",
+  "code": "321001",
   "name": "الاحتياطي النظامي",
   "nameEn": "Statutory Reserve",
   "type": "equity",
@@ -6635,7 +6635,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3212",
+  "code": "321002",
   "name": "احتياطي عام",
   "nameEn": "General Reserve",
   "type": "equity",
@@ -6665,7 +6665,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3311",
+  "code": "331001",
   "name": "أرباح مرحلة من سنوات سابقة",
   "nameEn": "Retained Earnings from Prior Years",
   "type": "equity",
@@ -6675,7 +6675,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3312",
+  "code": "331002",
   "name": "صافي ربح / خسارة العام الحالي",
   "nameEn": "Net Income / Loss for the Current Year",
   "type": "equity",
@@ -6685,7 +6685,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3313",
+  "code": "331003",
   "name": "توزيعات أرباح (عكسي)",
   "nameEn": "Dividends (Contra)",
   "type": "equity",
@@ -6715,7 +6715,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3411",
+  "code": "341001",
   "name": "جاري الشركاء / المساهمين",
   "nameEn": "Partners' / Shareholders' Current Account",
   "type": "equity",
@@ -6755,7 +6755,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4111",
+  "code": "411001",
   "name": "إيرادات مبيعات محلية",
   "nameEn": "Local Sales Revenue",
   "type": "revenue",
@@ -6765,7 +6765,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4112",
+  "code": "411002",
   "name": "إيرادات مبيعات تصدير",
   "nameEn": "Export Sales Revenue",
   "type": "revenue",
@@ -6775,7 +6775,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4113",
+  "code": "411003",
   "name": "إيرادات عمولات وساطة تجارية",
   "nameEn": "Trade Brokerage Commission Revenue",
   "type": "revenue",
@@ -6785,7 +6785,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4114",
+  "code": "411004",
   "name": "إيرادات إعادة تصدير (Re-export)",
   "nameEn": "Re-export Revenue",
   "type": "revenue",
@@ -6815,7 +6815,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4211",
+  "code": "421001",
   "name": "مردودات وخصم مسموح به (عكسي)",
   "nameEn": "Returns and Allowances (Contra)",
   "type": "revenue",
@@ -6845,7 +6845,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4311",
+  "code": "431001",
   "name": "إيراد بيع خردة / أصول",
   "nameEn": "Gain on Sale of Scrap / Assets",
   "type": "revenue",
@@ -6855,7 +6855,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4312",
+  "code": "431002",
   "name": "إيرادات متنوعة أخرى",
   "nameEn": "Other Miscellaneous Revenue",
   "type": "revenue",
@@ -6895,7 +6895,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5111",
+  "code": "511001",
   "name": "تكلفة شراء البضاعة",
   "nameEn": "Cost of Goods Purchased",
   "type": "expense",
@@ -6905,7 +6905,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5112",
+  "code": "511002",
   "name": "رسوم جمركية وتخليص",
   "nameEn": "Customs Duties and Clearance Fees",
   "type": "expense",
@@ -6915,7 +6915,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5113",
+  "code": "511003",
   "name": "مصاريف شحن وتأمين بضاعة (Freight & Insurance)",
   "nameEn": "Freight and Insurance Expenses",
   "type": "expense",
@@ -6925,7 +6925,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5114",
+  "code": "511004",
   "name": "مصاريف تخزين ومناولة",
   "nameEn": "Storage and Handling Expenses",
   "type": "expense",
@@ -6965,7 +6965,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6111",
+  "code": "611001",
   "name": "رواتب الموظفين - الإدارة العامة",
   "nameEn": "Employee Salaries - Head Office",
   "type": "expense",
@@ -6975,7 +6975,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6112",
+  "code": "611002",
   "name": "رواتب موظفي الميدان/الموقع",
   "nameEn": "Field/Site Staff Salaries",
   "type": "expense",
@@ -6985,7 +6985,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6113",
+  "code": "611003",
   "name": "بدلات ومكافآت",
   "nameEn": "Allowances and Bonuses",
   "type": "expense",
@@ -6995,7 +6995,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6114",
+  "code": "611004",
   "name": "التأمينات الاجتماعية (GOSI)",
   "nameEn": "Social Insurance (GOSI)",
   "type": "expense",
@@ -7005,7 +7005,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6115",
+  "code": "611005",
   "name": "التأمين الطبي",
   "nameEn": "Medical Insurance",
   "type": "expense",
@@ -7015,7 +7015,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6116",
+  "code": "611006",
   "name": "مكافأة نهاية الخدمة (مصروف الفترة)",
   "nameEn": "End of Service Benefits Expense (Period)",
   "type": "expense",
@@ -7045,7 +7045,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6211",
+  "code": "621001",
   "name": "إيجار المقر الرئيسي",
   "nameEn": "Head Office Rent",
   "type": "expense",
@@ -7055,7 +7055,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6212",
+  "code": "621002",
   "name": "إيجار مواقع/فروع",
   "nameEn": "Site/Branch Rent",
   "type": "expense",
@@ -7075,7 +7075,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6221",
+  "code": "622001",
   "name": "قرطاسية ومطبوعات",
   "nameEn": "Stationery and Printing",
   "type": "expense",
@@ -7085,7 +7085,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6222",
+  "code": "622002",
   "name": "اتصالات وإنترنت",
   "nameEn": "Telecommunications and Internet",
   "type": "expense",
@@ -7095,7 +7095,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6223",
+  "code": "622003",
   "name": "صيانة أجهزة وبرامج",
   "nameEn": "Hardware and Software Maintenance",
   "type": "expense",
@@ -7115,7 +7115,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6231",
+  "code": "623001",
   "name": "أتعاب محاسبة ومراجعة",
   "nameEn": "Accounting and Audit Fees",
   "type": "expense",
@@ -7125,7 +7125,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6232",
+  "code": "623002",
   "name": "أتعاب استشارات قانونية",
   "nameEn": "Legal Consulting Fees",
   "type": "expense",
@@ -7145,7 +7145,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6241",
+  "code": "624001",
   "name": "رسوم حكومية وتراخيص",
   "nameEn": "Government Fees and Licenses",
   "type": "expense",
@@ -7175,7 +7175,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6311",
+  "code": "631001",
   "name": "حملات تسويقية وإعلانية",
   "nameEn": "Marketing and Advertising Campaigns",
   "type": "expense",
@@ -7185,7 +7185,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6312",
+  "code": "631002",
   "name": "عمولات مبيعات",
   "nameEn": "Sales Commissions",
   "type": "expense",
@@ -7215,7 +7215,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6411",
+  "code": "641001",
   "name": "صيانة دورية للمعدات/المنشآت",
   "nameEn": "Periodic Maintenance of Equipment/Facilities",
   "type": "expense",
@@ -7235,7 +7235,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6421",
+  "code": "642001",
   "name": "كهرباء ومياه",
   "nameEn": "Electricity and Water",
   "type": "expense",
@@ -7265,7 +7265,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6511",
+  "code": "651001",
   "name": "إهلاك الممتلكات والمعدات",
   "nameEn": "Depreciation of Property and Equipment",
   "type": "expense",
@@ -7285,7 +7285,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6521",
+  "code": "652001",
   "name": "استهلاك الأصول غير الملموسة",
   "nameEn": "Amortization of Intangible Assets",
   "type": "expense",
@@ -7315,7 +7315,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6611",
+  "code": "661001",
   "name": "تأمين",
   "nameEn": "Insurance",
   "type": "expense",
@@ -7335,7 +7335,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6621",
+  "code": "662001",
   "name": "مخصص ديون مشكوك فيها (مصروف الفترة)",
   "nameEn": "Doubtful Debts Expense (Period)",
   "type": "expense",
@@ -7345,7 +7345,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6622",
+  "code": "662002",
   "name": "مخصصات أخرى",
   "nameEn": "Other Provisions",
   "type": "expense",
@@ -7385,7 +7385,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7111",
+  "code": "711001",
   "name": "إيراد فوائد ودائع بنكية",
   "nameEn": "Bank Deposit Interest Income",
   "type": "revenue",
@@ -7415,7 +7415,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7211",
+  "code": "721001",
   "name": "فوائد ومصاريف تمويل",
   "nameEn": "Interest and Financing Expenses",
   "type": "expense",
@@ -7445,7 +7445,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7311",
+  "code": "731001",
   "name": "أرباح/خسائر بيع أصول ثابتة",
   "nameEn": "Gain/Loss on Sale of Fixed Assets",
   "type": "revenue",
@@ -7475,7 +7475,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7411",
+  "code": "741001",
   "name": "فروقات صرف عملة",
   "nameEn": "Foreign Exchange Differences",
   "type": "revenue",
@@ -7515,7 +7515,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8111",
+  "code": "811001",
   "name": "حساب الأرباح والخسائر (إقفال)",
   "nameEn": "Profit and Loss Account (Closing)",
   "type": "equity",
@@ -7545,7 +7545,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8211",
+  "code": "821001",
   "name": "ضمانات بنكية صادرة",
   "nameEn": "Bank Guarantees Issued",
   "type": "liability",
@@ -7555,7 +7555,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8212",
+  "code": "821002",
   "name": "التزامات محتملة (Contingent Liabilities)",
   "nameEn": "Contingent Liabilities",
   "type": "liability",
@@ -7565,7 +7565,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2130",
+  "code": "213000",
   "name": "تأمينات اجتماعية مستحقة",
   "nameEn": "Accrued Social Insurance (GOSI Payable)",
   "type": "liability",
@@ -7575,7 +7575,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6220",
+  "code": "622000",
   "name": "سفر وانتقالات",
   "nameEn": "Travel and Transportation",
   "type": "expense",
@@ -7585,7 +7585,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1210",
+  "code": "121000",
   "name": "أصول ثابتة أخرى",
   "nameEn": "Other Fixed Assets",
   "type": "asset",
@@ -7595,7 +7595,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5110",
+  "code": "511000",
   "name": "فروقات وهبوط مخزون",
   "nameEn": "Inventory Adjustments and Shrinkage",
   "type": "expense",
@@ -7637,7 +7637,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1111",
+  "code": "111001",
   "name": "الصندوق النقدي - الإدارة العامة",
   "nameEn": "Cash on Hand - Head Office",
   "type": "asset",
@@ -7647,7 +7647,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1112",
+  "code": "111002",
   "name": "صندوق نثرية الفروع/المواقع",
   "nameEn": "Petty Cash - Branches/Sites",
   "type": "asset",
@@ -7657,7 +7657,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1113",
+  "code": "111003",
   "name": "بنك - حساب جاري (1)",
   "nameEn": "Bank - Current Account (1)",
   "type": "asset",
@@ -7667,7 +7667,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1114",
+  "code": "111004",
   "name": "بنك - حساب جاري (2)",
   "nameEn": "Bank - Current Account (2)",
   "type": "asset",
@@ -7677,7 +7677,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": true
 },
 {
-  "code": "1115",
+  "code": "111005",
   "name": "ودائع بنكية قصيرة الأجل",
   "nameEn": "Short-Term Bank Deposits",
   "type": "asset",
@@ -7697,7 +7697,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1121",
+  "code": "112001",
   "name": "عملاء - مبيعات جملة/عقود",
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
@@ -7707,7 +7707,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1122",
+  "code": "112002",
   "name": "عملاء - مبيعات نقدية/تجزئة",
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
@@ -7717,7 +7717,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1123",
+  "code": "112003",
   "name": "أوراق قبض",
   "nameEn": "Notes Receivable",
   "type": "asset",
@@ -7727,7 +7727,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1124",
+  "code": "112004",
   "name": "عملاء - أطراف ذات علاقة",
   "nameEn": "Customers - Related Parties",
   "type": "asset",
@@ -7737,7 +7737,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1125",
+  "code": "112005",
   "name": "مخصص ديون مشكوك في تحصيلها (عكسي)",
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
@@ -7747,7 +7747,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1126",
+  "code": "112006",
   "name": "ذمم شركات بطاقات الوقود/الأسطول",
   "nameEn": "Fuel/Fleet Card Companies Receivables",
   "type": "asset",
@@ -7767,7 +7767,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1131",
+  "code": "113001",
   "name": "دفعات مقدمة لموردين",
   "nameEn": "Advances to Suppliers",
   "type": "asset",
@@ -7777,7 +7777,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1132",
+  "code": "113002",
   "name": "سلف وقروض الموظفين",
   "nameEn": "Employee Advances and Loans",
   "type": "asset",
@@ -7787,7 +7787,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1133",
+  "code": "113003",
   "name": "ضريبة القيمة المضافة - مدينة (مشتريات)",
   "nameEn": "VAT Receivable (Purchases)",
   "type": "asset",
@@ -7797,7 +7797,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1134",
+  "code": "113004",
   "name": "تأمينات وودائع قابلة للاسترداد",
   "nameEn": "Refundable Deposits and Insurance",
   "type": "asset",
@@ -7817,7 +7817,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1141",
+  "code": "114001",
   "name": "مخزون الوقود (بنزين 91/95)",
   "nameEn": "Fuel Inventory (Petrol 91/95)",
   "type": "asset",
@@ -7827,7 +7827,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1142",
+  "code": "114002",
   "name": "مخزون الديزل",
   "nameEn": "Diesel Inventory",
   "type": "asset",
@@ -7837,7 +7837,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1143",
+  "code": "114003",
   "name": "مخزون زيوت وقطع غيار",
   "nameEn": "Oils and Spare Parts Inventory",
   "type": "asset",
@@ -7847,7 +7847,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1144",
+  "code": "114004",
   "name": "مخزون بضاعة المتجر/البقالة الداخلية",
   "nameEn": "Convenience Store Inventory",
   "type": "asset",
@@ -7867,7 +7867,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1151",
+  "code": "115001",
   "name": "إيجارات مدفوعة مقدماً",
   "nameEn": "Prepaid Rent",
   "type": "asset",
@@ -7877,7 +7877,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1152",
+  "code": "115002",
   "name": "تأمين مدفوع مقدماً",
   "nameEn": "Prepaid Insurance",
   "type": "asset",
@@ -7887,7 +7887,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1153",
+  "code": "115003",
   "name": "اشتراكات ورخص مدفوعة مقدماً",
   "nameEn": "Prepaid Subscriptions and Licenses",
   "type": "asset",
@@ -7907,7 +7907,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1161",
+  "code": "116001",
   "name": "مستحقات هيئة تنظيم الطاقة (تسعيرة/دعم)",
   "nameEn": "Energy Regulatory Authority Dues (Pricing/Subsidy)",
   "type": "asset",
@@ -7937,7 +7937,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1211",
+  "code": "121001",
   "name": "أراضٍ",
   "nameEn": "Land",
   "type": "asset",
@@ -7947,7 +7947,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1212",
+  "code": "121002",
   "name": "مباني ومنشآت",
   "nameEn": "Buildings and Structures",
   "type": "asset",
@@ -7957,7 +7957,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1213",
+  "code": "121003",
   "name": "آلات ومعدات",
   "nameEn": "Machinery and Equipment",
   "type": "asset",
@@ -7967,7 +7967,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1214",
+  "code": "121004",
   "name": "سيارات ووسائل نقل",
   "nameEn": "Vehicles and Transport Equipment",
   "type": "asset",
@@ -7977,7 +7977,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1215",
+  "code": "121005",
   "name": "أثاث وتجهيزات مكتبية",
   "nameEn": "Office Furniture and Fixtures",
   "type": "asset",
@@ -7987,7 +7987,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1216",
+  "code": "121006",
   "name": "أجهزة حاسب آلي",
   "nameEn": "Computer Equipment",
   "type": "asset",
@@ -7997,7 +7997,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1217",
+  "code": "121007",
   "name": "تحسينات على مأجور",
   "nameEn": "Leasehold Improvements",
   "type": "asset",
@@ -8007,7 +8007,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1219",
+  "code": "121009",
   "name": "خزانات وقود ومضخات",
   "nameEn": "Fuel Tanks and Pumps",
   "type": "asset",
@@ -8017,7 +8017,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1218",
+  "code": "121008",
   "name": "مجمع الإهلاك (عكسي)",
   "nameEn": "Accumulated Depreciation (Contra)",
   "type": "asset",
@@ -8037,7 +8037,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1221",
+  "code": "122001",
   "name": "برامج وأنظمة",
   "nameEn": "Software and Systems",
   "type": "asset",
@@ -8047,7 +8047,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1222",
+  "code": "122002",
   "name": "شهرة المحل",
   "nameEn": "Goodwill",
   "type": "asset",
@@ -8057,7 +8057,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1223",
+  "code": "122003",
   "name": "تراخيص وامتيازات تجارية",
   "nameEn": "Commercial Licenses and Franchises",
   "type": "asset",
@@ -8067,7 +8067,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1224",
+  "code": "122004",
   "name": "مجمع الاستهلاك (عكسي)",
   "nameEn": "Accumulated Amortization (Contra)",
   "type": "asset",
@@ -8087,7 +8087,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1231",
+  "code": "123001",
   "name": "استثمارات طويلة الأجل",
   "nameEn": "Long-Term Investments",
   "type": "asset",
@@ -8097,7 +8097,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1232",
+  "code": "123002",
   "name": "تأمينات مستردة طويلة الأجل",
   "nameEn": "Long-Term Refundable Deposits",
   "type": "asset",
@@ -8107,7 +8107,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1233",
+  "code": "123003",
   "name": "حق استخدام أصول مستأجرة (IFRS16)",
   "nameEn": "Right-of-Use Assets (IFRS16)",
   "type": "asset",
@@ -8147,7 +8147,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2111",
+  "code": "211001",
   "name": "موردون - محليون",
   "nameEn": "Suppliers - Local",
   "type": "liability",
@@ -8157,7 +8157,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2112",
+  "code": "211002",
   "name": "موردون - مستوردون",
   "nameEn": "Suppliers - Importers",
   "type": "liability",
@@ -8167,7 +8167,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2113",
+  "code": "211003",
   "name": "أوراق دفع",
   "nameEn": "Notes Payable",
   "type": "liability",
@@ -8177,7 +8177,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2114",
+  "code": "211004",
   "name": "موردون - أطراف ذات علاقة",
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
@@ -8197,7 +8197,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2121",
+  "code": "212001",
   "name": "رواتب مستحقة",
   "nameEn": "Accrued Salaries",
   "type": "liability",
@@ -8207,7 +8207,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2122",
+  "code": "212002",
   "name": "إيجارات مستحقة",
   "nameEn": "Accrued Rent",
   "type": "liability",
@@ -8217,7 +8217,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2123",
+  "code": "212003",
   "name": "مصروفات مستحقة أخرى",
   "nameEn": "Other Accrued Expenses",
   "type": "liability",
@@ -8227,7 +8227,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2124",
+  "code": "212004",
   "name": "مكافأة نهاية الخدمة - الجزء المتداول",
   "nameEn": "End of Service Benefits - Current Portion",
   "type": "liability",
@@ -8247,7 +8247,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2131",
+  "code": "213001",
   "name": "ضريبة القيمة المضافة المستحقة (مبيعات)",
   "nameEn": "VAT Payable (Sales)",
   "type": "liability",
@@ -8257,7 +8257,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2132",
+  "code": "213002",
   "name": "الزكاة المستحقة",
   "nameEn": "Zakat Payable",
   "type": "liability",
@@ -8267,7 +8267,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2133",
+  "code": "213003",
   "name": "ضريبة الاستقطاع",
   "nameEn": "Withholding Tax",
   "type": "liability",
@@ -8287,7 +8287,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2141",
+  "code": "214001",
   "name": "قرض بنكي قصير الأجل",
   "nameEn": "Short-Term Bank Loan",
   "type": "liability",
@@ -8297,7 +8297,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2142",
+  "code": "214002",
   "name": "الجزء المتداول من القروض طويلة الأجل",
   "nameEn": "Current Portion of Long-Term Loans",
   "type": "liability",
@@ -8317,7 +8317,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2151",
+  "code": "215001",
   "name": "دفعات مقدمة من عملاء",
   "nameEn": "Advances from Customers",
   "type": "liability",
@@ -8337,7 +8337,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2161",
+  "code": "216001",
   "name": "رسوم ترخيص محطات مستحقة",
   "nameEn": "Accrued Station Licensing Fees",
   "type": "liability",
@@ -8367,7 +8367,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2211",
+  "code": "221001",
   "name": "قروض بنكية طويلة الأجل",
   "nameEn": "Long-Term Bank Loans",
   "type": "liability",
@@ -8387,7 +8387,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2221",
+  "code": "222001",
   "name": "مخصص نهاية الخدمة - طويل الأجل",
   "nameEn": "End of Service Provision - Long-Term",
   "type": "liability",
@@ -8407,7 +8407,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2231",
+  "code": "223001",
   "name": "التزام عقد إيجار - طويل الأجل",
   "nameEn": "Lease Liability - Long-Term",
   "type": "liability",
@@ -8447,7 +8447,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3111",
+  "code": "311001",
   "name": "رأس المال المدفوع",
   "nameEn": "Paid-up Capital",
   "type": "equity",
@@ -8477,7 +8477,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3211",
+  "code": "321001",
   "name": "الاحتياطي النظامي",
   "nameEn": "Statutory Reserve",
   "type": "equity",
@@ -8487,7 +8487,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3212",
+  "code": "321002",
   "name": "احتياطي عام",
   "nameEn": "General Reserve",
   "type": "equity",
@@ -8517,7 +8517,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3311",
+  "code": "331001",
   "name": "أرباح مرحلة من سنوات سابقة",
   "nameEn": "Retained Earnings from Prior Years",
   "type": "equity",
@@ -8527,7 +8527,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3312",
+  "code": "331002",
   "name": "صافي ربح / خسارة العام الحالي",
   "nameEn": "Net Income / Loss for the Current Year",
   "type": "equity",
@@ -8537,7 +8537,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3313",
+  "code": "331003",
   "name": "توزيعات أرباح (عكسي)",
   "nameEn": "Dividends (Contra)",
   "type": "equity",
@@ -8567,7 +8567,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "3411",
+  "code": "341001",
   "name": "جاري الشركاء / المساهمين",
   "nameEn": "Partners' / Shareholders' Current Account",
   "type": "equity",
@@ -8607,7 +8607,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4111",
+  "code": "411001",
   "name": "إيراد مبيعات بنزين 91",
   "nameEn": "Petrol 91 Sales Revenue",
   "type": "revenue",
@@ -8617,7 +8617,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4112",
+  "code": "411002",
   "name": "إيراد مبيعات بنزين 95",
   "nameEn": "Petrol 95 Sales Revenue",
   "type": "revenue",
@@ -8627,7 +8627,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4113",
+  "code": "411003",
   "name": "إيراد مبيعات ديزل",
   "nameEn": "Diesel Sales Revenue",
   "type": "revenue",
@@ -8637,7 +8637,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4114",
+  "code": "411004",
   "name": "إيراد خدمات تغيير الزيت والصيانة السريعة",
   "nameEn": "Oil Change and Quick Maintenance Services Revenue",
   "type": "revenue",
@@ -8647,7 +8647,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4115",
+  "code": "411005",
   "name": "إيراد غسيل وتلميع السيارات",
   "nameEn": "Car Wash and Polish Revenue",
   "type": "revenue",
@@ -8657,7 +8657,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4116",
+  "code": "411006",
   "name": "إيراد إيجار وحدات تجارية بالمحطة (متجر/مطعم)",
   "nameEn": "Station Commercial Unit Rental Revenue (Shop/Restaurant)",
   "type": "revenue",
@@ -8687,7 +8687,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4211",
+  "code": "421001",
   "name": "مردودات وخصم مسموح به (عكسي)",
   "nameEn": "Returns and Allowances (Contra)",
   "type": "revenue",
@@ -8717,7 +8717,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4311",
+  "code": "431001",
   "name": "إيراد بيع خردة / أصول",
   "nameEn": "Gain on Sale of Scrap / Assets",
   "type": "revenue",
@@ -8727,7 +8727,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "4312",
+  "code": "431002",
   "name": "إيرادات متنوعة أخرى",
   "nameEn": "Other Miscellaneous Revenue",
   "type": "revenue",
@@ -8767,7 +8767,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5111",
+  "code": "511001",
   "name": "تكلفة شراء الوقود (بنزين وديزل)",
   "nameEn": "Fuel Purchase Cost (Petrol and Diesel)",
   "type": "expense",
@@ -8777,7 +8777,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5112",
+  "code": "511002",
   "name": "مصاريف نقل ومناولة الوقود",
   "nameEn": "Fuel Transport and Handling Expenses",
   "type": "expense",
@@ -8787,7 +8787,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5113",
+  "code": "511003",
   "name": "تكلفة قطع غيار وزيوت مستخدمة",
   "nameEn": "Spare Parts and Oils Used Cost",
   "type": "expense",
@@ -8797,7 +8797,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5114",
+  "code": "511004",
   "name": "فاقد وعجز قياس الخزانات (Ullage)",
   "nameEn": "Tank Gauging Loss (Ullage)",
   "type": "expense",
@@ -8837,7 +8837,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6111",
+  "code": "611001",
   "name": "رواتب الموظفين - الإدارة العامة",
   "nameEn": "Employee Salaries - Head Office",
   "type": "expense",
@@ -8847,7 +8847,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6112",
+  "code": "611002",
   "name": "رواتب موظفي الميدان/الموقع",
   "nameEn": "Field/Site Staff Salaries",
   "type": "expense",
@@ -8857,7 +8857,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6113",
+  "code": "611003",
   "name": "بدلات ومكافآت",
   "nameEn": "Allowances and Bonuses",
   "type": "expense",
@@ -8867,7 +8867,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6114",
+  "code": "611004",
   "name": "التأمينات الاجتماعية (GOSI)",
   "nameEn": "Social Insurance (GOSI)",
   "type": "expense",
@@ -8877,7 +8877,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6115",
+  "code": "611005",
   "name": "التأمين الطبي",
   "nameEn": "Medical Insurance",
   "type": "expense",
@@ -8887,7 +8887,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6116",
+  "code": "611006",
   "name": "مكافأة نهاية الخدمة (مصروف الفترة)",
   "nameEn": "End of Service Benefits Expense (Period)",
   "type": "expense",
@@ -8917,7 +8917,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6211",
+  "code": "621001",
   "name": "إيجار المقر الرئيسي",
   "nameEn": "Head Office Rent",
   "type": "expense",
@@ -8927,7 +8927,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6212",
+  "code": "621002",
   "name": "إيجار مواقع/فروع",
   "nameEn": "Site/Branch Rent",
   "type": "expense",
@@ -8947,7 +8947,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6221",
+  "code": "622001",
   "name": "قرطاسية ومطبوعات",
   "nameEn": "Stationery and Printing",
   "type": "expense",
@@ -8957,7 +8957,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6222",
+  "code": "622002",
   "name": "اتصالات وإنترنت",
   "nameEn": "Telecommunications and Internet",
   "type": "expense",
@@ -8967,7 +8967,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6223",
+  "code": "622003",
   "name": "صيانة أجهزة وبرامج",
   "nameEn": "Hardware and Software Maintenance",
   "type": "expense",
@@ -8987,7 +8987,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6231",
+  "code": "623001",
   "name": "أتعاب محاسبة ومراجعة",
   "nameEn": "Accounting and Audit Fees",
   "type": "expense",
@@ -8997,7 +8997,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6232",
+  "code": "623002",
   "name": "أتعاب استشارات قانونية",
   "nameEn": "Legal Consulting Fees",
   "type": "expense",
@@ -9017,7 +9017,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6241",
+  "code": "624001",
   "name": "رسوم حكومية وتراخيص",
   "nameEn": "Government Fees and Licenses",
   "type": "expense",
@@ -9047,7 +9047,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6311",
+  "code": "631001",
   "name": "حملات تسويقية وإعلانية",
   "nameEn": "Marketing and Advertising Campaigns",
   "type": "expense",
@@ -9057,7 +9057,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6312",
+  "code": "631002",
   "name": "عمولات مبيعات",
   "nameEn": "Sales Commissions",
   "type": "expense",
@@ -9087,7 +9087,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6411",
+  "code": "641001",
   "name": "صيانة دورية للمعدات/المنشآت",
   "nameEn": "Periodic Maintenance of Equipment/Facilities",
   "type": "expense",
@@ -9107,7 +9107,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6421",
+  "code": "642001",
   "name": "كهرباء ومياه",
   "nameEn": "Electricity and Water",
   "type": "expense",
@@ -9137,7 +9137,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6511",
+  "code": "651001",
   "name": "إهلاك الممتلكات والمعدات",
   "nameEn": "Depreciation of Property and Equipment",
   "type": "expense",
@@ -9157,7 +9157,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6521",
+  "code": "652001",
   "name": "استهلاك الأصول غير الملموسة",
   "nameEn": "Amortization of Intangible Assets",
   "type": "expense",
@@ -9187,7 +9187,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6611",
+  "code": "661001",
   "name": "تأمين",
   "nameEn": "Insurance",
   "type": "expense",
@@ -9207,7 +9207,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6621",
+  "code": "662001",
   "name": "مخصص ديون مشكوك فيها (مصروف الفترة)",
   "nameEn": "Doubtful Debts Expense (Period)",
   "type": "expense",
@@ -9217,7 +9217,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6622",
+  "code": "662002",
   "name": "مخصصات أخرى",
   "nameEn": "Other Provisions",
   "type": "expense",
@@ -9257,7 +9257,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7111",
+  "code": "711001",
   "name": "إيراد فوائد ودائع بنكية",
   "nameEn": "Bank Deposit Interest Income",
   "type": "revenue",
@@ -9287,7 +9287,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7211",
+  "code": "721001",
   "name": "فوائد ومصاريف تمويل",
   "nameEn": "Interest and Financing Expenses",
   "type": "expense",
@@ -9317,7 +9317,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7311",
+  "code": "731001",
   "name": "أرباح/خسائر بيع أصول ثابتة",
   "nameEn": "Gain/Loss on Sale of Fixed Assets",
   "type": "revenue",
@@ -9347,7 +9347,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "7411",
+  "code": "741001",
   "name": "فروقات صرف عملة",
   "nameEn": "Foreign Exchange Differences",
   "type": "revenue",
@@ -9387,7 +9387,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8111",
+  "code": "811001",
   "name": "حساب الأرباح والخسائر (إقفال)",
   "nameEn": "Profit and Loss Account (Closing)",
   "type": "equity",
@@ -9417,7 +9417,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8211",
+  "code": "821001",
   "name": "ضمانات بنكية صادرة",
   "nameEn": "Bank Guarantees Issued",
   "type": "liability",
@@ -9427,7 +9427,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "8212",
+  "code": "821002",
   "name": "التزامات محتملة (Contingent Liabilities)",
   "nameEn": "Contingent Liabilities",
   "type": "liability",
@@ -9437,7 +9437,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "2130",
+  "code": "213000",
   "name": "تأمينات اجتماعية مستحقة",
   "nameEn": "Accrued Social Insurance (GOSI Payable)",
   "type": "liability",
@@ -9447,7 +9447,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "6220",
+  "code": "622000",
   "name": "سفر وانتقالات",
   "nameEn": "Travel and Transportation",
   "type": "expense",
@@ -9457,7 +9457,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "1210",
+  "code": "121000",
   "name": "أصول ثابتة أخرى",
   "nameEn": "Other Fixed Assets",
   "type": "asset",
@@ -9467,7 +9467,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
-  "code": "5110",
+  "code": "511000",
   "name": "فروقات وهبوط مخزون",
   "nameEn": "Inventory Adjustments and Shrinkage",
   "type": "expense",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BUSINESS_ACTIVITIES, CHART_TEMPLATE_BY_ACTIVITY } from "./chartTemplates";
 
-const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 4 };
+const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 6 };
 
 describe("business activity chart of accounts templates", () => {
   for (const activity of BUSINESS_ACTIVITIES) {

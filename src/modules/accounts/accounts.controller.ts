@@ -7,8 +7,9 @@ import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTem
 const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ? value : null);
 
 // طول كود كل مستوى: الأول رقم واحد، الثاني رقمان، الثالث ثلاثة أرقام، الرابع (حسابات الترحيل)
-// أربعة أرقام — كل مستوى يمتد من كود أبيه مباشرة بإضافة رقم واحد فقط له.
-const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 4 };
+// ستة أرقام — أي حتى 999 حساب ترحيل تحت كل فرع مستوى ثالث (كان رقماً إضافياً واحداً فقط/9 حسابات
+// كحد أقصى، فتبيّن عملياً أنه ضيق جداً لشركات فيها عشرات العملاء/الموردين تحت فرع واحد).
+const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 6 };
 
 async function validateHierarchy(tenantId: string, input: any, currentId?: string) {
   const companyId = input.companyId ?? null;

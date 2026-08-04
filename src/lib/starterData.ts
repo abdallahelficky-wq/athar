@@ -17,6 +17,7 @@ interface StarterItemSpec {
   type: "inventory" | "expense" | "service" | "fixed_asset" | "raw_material" | "bundle";
   unit: string;
   // أكواد حسابات هذا القالب تحديداً (من نفس شجرة الحسابات المزروعة للتو لهذه الشركة)
+  // (الأكواد أدناه بصيغة 6 أرقام: 3 أرقام كود الفرع مستوى 3 + 3 أرقام رقم حساب الترحيل ضمنه)
   stockAccountCode?: string;
   cogsAccountCode?: string;
   revenueAccountCode?: string;
@@ -28,32 +29,32 @@ interface StarterItemSpec {
 const STARTER_ITEMS_BY_ACTIVITY: Record<BusinessActivity, StarterItemSpec[]> = {
   // مثال المستخدم التوضيحي: صنف خدمي "أعمال مقاولات"
   contracting: [
-    { code: "0001", name: "أعمال مقاولات عامة", type: "service", unit: "عقد", revenueAccountCode: "4111" },
-    { code: "0002", name: "أعمال إضافية / أوامر تغيير", type: "service", unit: "أمر", revenueAccountCode: "4112" },
+    { code: "0001", name: "أعمال مقاولات عامة", type: "service", unit: "عقد", revenueAccountCode: "411001" },
+    { code: "0002", name: "أعمال إضافية / أوامر تغيير", type: "service", unit: "أمر", revenueAccountCode: "411002" },
     {
       code: "0003",
       name: "مواد بناء عامة",
       type: "inventory",
       unit: "وحدة",
-      stockAccountCode: "1141",
-      cogsAccountCode: "5111",
-      revenueAccountCode: "4111",
+      stockAccountCode: "114001",
+      cogsAccountCode: "511001",
+      revenueAccountCode: "411001",
     },
   ],
   // مثال المستخدم التوضيحي: مادة أولية عامة + منتج نهائي عام
   manufacturing: [
-    { code: "0001", name: "مادة خام عامة", type: "raw_material", unit: "كجم", stockAccountCode: "1141" },
+    { code: "0001", name: "مادة خام عامة", type: "raw_material", unit: "كجم", stockAccountCode: "114001" },
     {
       code: "0002",
       name: "منتج نهائي عام",
       type: "bundle",
       unit: "قطعة",
-      stockAccountCode: "1144",
-      cogsAccountCode: "5111",
-      revenueAccountCode: "4111",
+      stockAccountCode: "114004",
+      cogsAccountCode: "511001",
+      revenueAccountCode: "411001",
       componentItemCode: "0001",
     },
-    { code: "0003", name: "تصنيع لدى الغير (Tolling)", type: "service", unit: "أمر", revenueAccountCode: "4113" },
+    { code: "0003", name: "تصنيع لدى الغير (Tolling)", type: "service", unit: "أمر", revenueAccountCode: "411003" },
   ],
   // مثال المستخدم التوضيحي: صنف "بضاعة عامة"
   retail: [
@@ -62,20 +63,20 @@ const STARTER_ITEMS_BY_ACTIVITY: Record<BusinessActivity, StarterItemSpec[]> = {
       name: "بضاعة عامة",
       type: "inventory",
       unit: "قطعة",
-      stockAccountCode: "1141",
-      cogsAccountCode: "5111",
-      revenueAccountCode: "4111",
+      stockAccountCode: "114001",
+      cogsAccountCode: "511001",
+      revenueAccountCode: "411001",
     },
     {
       code: "0002",
       name: "عروض وهدايا ترويجية",
       type: "inventory",
       unit: "قطعة",
-      stockAccountCode: "1144",
-      cogsAccountCode: "5111",
-      revenueAccountCode: "4111",
+      stockAccountCode: "114004",
+      cogsAccountCode: "511001",
+      revenueAccountCode: "411001",
     },
-    { code: "0003", name: "قرطاسية ومطبوعات", type: "expense", unit: "وحدة", expenseAccountCode: "6221" },
+    { code: "0003", name: "قرطاسية ومطبوعات", type: "expense", unit: "وحدة", expenseAccountCode: "622001" },
   ],
   // مثال المستخدم التوضيحي: صنف مخزوني عام واحد
   general_trade: [
@@ -84,20 +85,20 @@ const STARTER_ITEMS_BY_ACTIVITY: Record<BusinessActivity, StarterItemSpec[]> = {
       name: "صنف تجاري عام",
       type: "inventory",
       unit: "قطعة",
-      stockAccountCode: "1141",
-      cogsAccountCode: "5111",
-      revenueAccountCode: "4111",
+      stockAccountCode: "114001",
+      cogsAccountCode: "511001",
+      revenueAccountCode: "411001",
     },
     {
       code: "0002",
       name: "بضاعة للتصدير",
       type: "inventory",
       unit: "قطعة",
-      stockAccountCode: "1142",
-      cogsAccountCode: "5111",
-      revenueAccountCode: "4112",
+      stockAccountCode: "114002",
+      cogsAccountCode: "511001",
+      revenueAccountCode: "411002",
     },
-    { code: "0003", name: "عمولة وساطة تجارية", type: "service", unit: "صفقة", revenueAccountCode: "4113" },
+    { code: "0003", name: "عمولة وساطة تجارية", type: "service", unit: "صفقة", revenueAccountCode: "411003" },
   ],
   // مثال المستخدم التوضيحي: بنزين 91/95/ديزل
   fuel_stations: [
@@ -106,29 +107,29 @@ const STARTER_ITEMS_BY_ACTIVITY: Record<BusinessActivity, StarterItemSpec[]> = {
       name: "بنزين 91",
       type: "inventory",
       unit: "لتر",
-      stockAccountCode: "1141",
-      cogsAccountCode: "5111",
-      revenueAccountCode: "4111",
+      stockAccountCode: "114001",
+      cogsAccountCode: "511001",
+      revenueAccountCode: "411001",
     },
     {
       code: "0002",
       name: "بنزين 95",
       type: "inventory",
       unit: "لتر",
-      stockAccountCode: "1141",
-      cogsAccountCode: "5111",
-      revenueAccountCode: "4112",
+      stockAccountCode: "114001",
+      cogsAccountCode: "511001",
+      revenueAccountCode: "411002",
     },
     {
       code: "0003",
       name: "ديزل",
       type: "inventory",
       unit: "لتر",
-      stockAccountCode: "1142",
-      cogsAccountCode: "5111",
-      revenueAccountCode: "4113",
+      stockAccountCode: "114002",
+      cogsAccountCode: "511001",
+      revenueAccountCode: "411003",
     },
-    { code: "0004", name: "تغيير زيت وصيانة سريعة", type: "service", unit: "خدمة", revenueAccountCode: "4114" },
+    { code: "0004", name: "تغيير زيت وصيانة سريعة", type: "service", unit: "خدمة", revenueAccountCode: "411004" },
   ],
 };
 

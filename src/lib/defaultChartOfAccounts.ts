@@ -48,7 +48,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1111",
+  "code": "111001",
   "name": "الصندوق النقدي - الإدارة العامة",
   "nameEn": "Cash on Hand - Head Office",
   "type": "asset",
@@ -58,7 +58,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": true
 },
 {
-  "code": "1112",
+  "code": "111002",
   "name": "صندوق نثرية الفروع/المواقع",
   "nameEn": "Petty Cash - Branches/Sites",
   "type": "asset",
@@ -68,7 +68,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": true
 },
 {
-  "code": "1113",
+  "code": "111003",
   "name": "بنك - حساب جاري (1)",
   "nameEn": "Bank - Current Account (1)",
   "type": "asset",
@@ -78,7 +78,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": true
 },
 {
-  "code": "1114",
+  "code": "111004",
   "name": "بنك - حساب جاري (2)",
   "nameEn": "Bank - Current Account (2)",
   "type": "asset",
@@ -88,7 +88,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": true
 },
 {
-  "code": "1115",
+  "code": "111005",
   "name": "ودائع بنكية قصيرة الأجل",
   "nameEn": "Short-Term Bank Deposits",
   "type": "asset",
@@ -108,7 +108,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1121",
+  "code": "112001",
   "name": "عملاء - مبيعات جملة/عقود",
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
@@ -118,7 +118,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1122",
+  "code": "112002",
   "name": "عملاء - مبيعات نقدية/تجزئة",
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
@@ -128,7 +128,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1123",
+  "code": "112003",
   "name": "أوراق قبض",
   "nameEn": "Notes Receivable",
   "type": "asset",
@@ -138,7 +138,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1124",
+  "code": "112004",
   "name": "عملاء - أطراف ذات علاقة",
   "nameEn": "Customers - Related Parties",
   "type": "asset",
@@ -148,7 +148,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1125",
+  "code": "112005",
   "name": "مخصص ديون مشكوك في تحصيلها (عكسي)",
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
@@ -168,7 +168,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1131",
+  "code": "113001",
   "name": "دفعات مقدمة لموردين",
   "nameEn": "Advances to Suppliers",
   "type": "asset",
@@ -178,7 +178,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1132",
+  "code": "113002",
   "name": "سلف وقروض الموظفين",
   "nameEn": "Employee Advances and Loans",
   "type": "asset",
@@ -188,7 +188,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1133",
+  "code": "113003",
   "name": "ضريبة القيمة المضافة - مدينة (مشتريات)",
   "nameEn": "VAT Receivable (Purchases)",
   "type": "asset",
@@ -198,7 +198,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1134",
+  "code": "113004",
   "name": "تأمينات وودائع قابلة للاسترداد",
   "nameEn": "Refundable Deposits and Insurance",
   "type": "asset",
@@ -218,7 +218,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1141",
+  "code": "114001",
   "name": "مخزون بضاعة للبيع",
   "nameEn": "Merchandise Inventory for Sale",
   "type": "asset",
@@ -228,7 +228,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1142",
+  "code": "114002",
   "name": "مخصص تلف وبطء حركة المخزون (عكسي)",
   "nameEn": "Provision for Inventory Damage and Slow Movement (Contra)",
   "type": "asset",
@@ -248,7 +248,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1151",
+  "code": "115001",
   "name": "إيجارات مدفوعة مقدماً",
   "nameEn": "Prepaid Rent",
   "type": "asset",
@@ -258,7 +258,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1152",
+  "code": "115002",
   "name": "تأمين مدفوع مقدماً",
   "nameEn": "Prepaid Insurance",
   "type": "asset",
@@ -268,7 +268,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1153",
+  "code": "115003",
   "name": "اشتراكات ورخص مدفوعة مقدماً",
   "nameEn": "Prepaid Subscriptions and Licenses",
   "type": "asset",
@@ -298,7 +298,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1211",
+  "code": "121001",
   "name": "أراضٍ",
   "nameEn": "Land",
   "type": "asset",
@@ -308,7 +308,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1212",
+  "code": "121002",
   "name": "مباني ومنشآت",
   "nameEn": "Buildings and Structures",
   "type": "asset",
@@ -318,7 +318,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1213",
+  "code": "121003",
   "name": "آلات ومعدات",
   "nameEn": "Machinery and Equipment",
   "type": "asset",
@@ -328,7 +328,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1214",
+  "code": "121004",
   "name": "سيارات ووسائل نقل",
   "nameEn": "Vehicles and Transport Equipment",
   "type": "asset",
@@ -338,7 +338,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1215",
+  "code": "121005",
   "name": "أثاث وتجهيزات مكتبية",
   "nameEn": "Office Furniture and Fixtures",
   "type": "asset",
@@ -348,7 +348,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1216",
+  "code": "121006",
   "name": "أجهزة حاسب آلي",
   "nameEn": "Computer Equipment",
   "type": "asset",
@@ -358,7 +358,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1217",
+  "code": "121007",
   "name": "تحسينات على مأجور",
   "nameEn": "Leasehold Improvements",
   "type": "asset",
@@ -368,7 +368,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1218",
+  "code": "121008",
   "name": "مجمع الإهلاك (عكسي)",
   "nameEn": "Accumulated Depreciation (Contra)",
   "type": "asset",
@@ -388,7 +388,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1221",
+  "code": "122001",
   "name": "برامج وأنظمة",
   "nameEn": "Software and Systems",
   "type": "asset",
@@ -398,7 +398,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1222",
+  "code": "122002",
   "name": "شهرة المحل",
   "nameEn": "Goodwill",
   "type": "asset",
@@ -408,7 +408,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1223",
+  "code": "122003",
   "name": "تراخيص وامتيازات تجارية",
   "nameEn": "Commercial Licenses and Franchises",
   "type": "asset",
@@ -418,7 +418,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1224",
+  "code": "122004",
   "name": "مجمع الاستهلاك (عكسي)",
   "nameEn": "Accumulated Amortization (Contra)",
   "type": "asset",
@@ -438,7 +438,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1231",
+  "code": "123001",
   "name": "استثمارات طويلة الأجل",
   "nameEn": "Long-Term Investments",
   "type": "asset",
@@ -448,7 +448,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1232",
+  "code": "123002",
   "name": "تأمينات مستردة طويلة الأجل",
   "nameEn": "Long-Term Refundable Deposits",
   "type": "asset",
@@ -488,7 +488,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2111",
+  "code": "211001",
   "name": "موردون - محليون",
   "nameEn": "Suppliers - Local",
   "type": "liability",
@@ -498,7 +498,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2112",
+  "code": "211002",
   "name": "موردون - مستوردون",
   "nameEn": "Suppliers - Importers",
   "type": "liability",
@@ -508,7 +508,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2113",
+  "code": "211003",
   "name": "أوراق دفع",
   "nameEn": "Notes Payable",
   "type": "liability",
@@ -518,7 +518,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2114",
+  "code": "211004",
   "name": "موردون - أطراف ذات علاقة",
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
@@ -538,7 +538,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2121",
+  "code": "212001",
   "name": "رواتب مستحقة",
   "nameEn": "Accrued Salaries",
   "type": "liability",
@@ -548,7 +548,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2122",
+  "code": "212002",
   "name": "إيجارات مستحقة",
   "nameEn": "Accrued Rent",
   "type": "liability",
@@ -558,7 +558,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2123",
+  "code": "212003",
   "name": "مصروفات مستحقة أخرى",
   "nameEn": "Other Accrued Expenses",
   "type": "liability",
@@ -568,7 +568,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2124",
+  "code": "212004",
   "name": "مكافأة نهاية الخدمة - الجزء المتداول",
   "nameEn": "End of Service Benefits - Current Portion",
   "type": "liability",
@@ -588,7 +588,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2131",
+  "code": "213001",
   "name": "ضريبة القيمة المضافة المستحقة (مبيعات)",
   "nameEn": "VAT Payable (Sales)",
   "type": "liability",
@@ -598,7 +598,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2132",
+  "code": "213002",
   "name": "الزكاة المستحقة",
   "nameEn": "Zakat Payable",
   "type": "liability",
@@ -608,7 +608,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2133",
+  "code": "213003",
   "name": "ضريبة الاستقطاع",
   "nameEn": "Withholding Tax",
   "type": "liability",
@@ -628,7 +628,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2141",
+  "code": "214001",
   "name": "قرض بنكي قصير الأجل",
   "nameEn": "Short-Term Bank Loan",
   "type": "liability",
@@ -638,7 +638,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2142",
+  "code": "214002",
   "name": "الجزء المتداول من القروض طويلة الأجل",
   "nameEn": "Current Portion of Long-Term Loans",
   "type": "liability",
@@ -658,7 +658,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2151",
+  "code": "215001",
   "name": "دفعات مقدمة من عملاء",
   "nameEn": "Advances from Customers",
   "type": "liability",
@@ -688,7 +688,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2211",
+  "code": "221001",
   "name": "قروض بنكية طويلة الأجل",
   "nameEn": "Long-Term Bank Loans",
   "type": "liability",
@@ -708,7 +708,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2221",
+  "code": "222001",
   "name": "مخصص نهاية الخدمة - طويل الأجل",
   "nameEn": "End of Service Provision - Long-Term",
   "type": "liability",
@@ -748,7 +748,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "3111",
+  "code": "311001",
   "name": "رأس المال المدفوع",
   "nameEn": "Paid-up Capital",
   "type": "equity",
@@ -778,7 +778,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "3211",
+  "code": "321001",
   "name": "الاحتياطي النظامي",
   "nameEn": "Statutory Reserve",
   "type": "equity",
@@ -788,7 +788,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "3212",
+  "code": "321002",
   "name": "احتياطي عام",
   "nameEn": "General Reserve",
   "type": "equity",
@@ -818,7 +818,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "3311",
+  "code": "331001",
   "name": "أرباح مرحلة من سنوات سابقة",
   "nameEn": "Retained Earnings from Prior Years",
   "type": "equity",
@@ -828,7 +828,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "3312",
+  "code": "331002",
   "name": "صافي ربح / خسارة العام الحالي",
   "nameEn": "Net Income / Loss for the Current Year",
   "type": "equity",
@@ -838,7 +838,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "3313",
+  "code": "331003",
   "name": "توزيعات أرباح (عكسي)",
   "nameEn": "Dividends (Contra)",
   "type": "equity",
@@ -868,7 +868,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "3411",
+  "code": "341001",
   "name": "جاري الشركاء / المساهمين",
   "nameEn": "Partners' / Shareholders' Current Account",
   "type": "equity",
@@ -908,7 +908,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "4111",
+  "code": "411001",
   "name": "إيرادات المبيعات",
   "nameEn": "Sales Revenue",
   "type": "revenue",
@@ -918,7 +918,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "4112",
+  "code": "411002",
   "name": "إيرادات الخدمات",
   "nameEn": "Service Revenue",
   "type": "revenue",
@@ -948,7 +948,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "4211",
+  "code": "421001",
   "name": "مردودات وخصم مسموح به (عكسي)",
   "nameEn": "Returns and Allowances (Contra)",
   "type": "revenue",
@@ -978,7 +978,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "4311",
+  "code": "431001",
   "name": "إيراد بيع خردة / أصول",
   "nameEn": "Gain on Sale of Scrap / Assets",
   "type": "revenue",
@@ -988,7 +988,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "4312",
+  "code": "431002",
   "name": "إيرادات متنوعة أخرى",
   "nameEn": "Other Miscellaneous Revenue",
   "type": "revenue",
@@ -1028,7 +1028,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "5111",
+  "code": "511001",
   "name": "تكلفة البضاعة المباعة",
   "nameEn": "Cost of Goods Sold",
   "type": "expense",
@@ -1038,7 +1038,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "5112",
+  "code": "511002",
   "name": "تكلفة الخدمات المقدمة",
   "nameEn": "Cost of Services Rendered",
   "type": "expense",
@@ -1048,7 +1048,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "5113",
+  "code": "511003",
   "name": "مصاريف شحن ومناولة مشتريات",
   "nameEn": "Freight and Handling on Purchases",
   "type": "expense",
@@ -1088,7 +1088,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6111",
+  "code": "611001",
   "name": "رواتب الموظفين - الإدارة العامة",
   "nameEn": "Employee Salaries - Head Office",
   "type": "expense",
@@ -1098,7 +1098,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6112",
+  "code": "611002",
   "name": "رواتب موظفي الميدان/الموقع",
   "nameEn": "Field/Site Staff Salaries",
   "type": "expense",
@@ -1108,7 +1108,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6113",
+  "code": "611003",
   "name": "بدلات ومكافآت",
   "nameEn": "Allowances and Bonuses",
   "type": "expense",
@@ -1118,7 +1118,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6114",
+  "code": "611004",
   "name": "التأمينات الاجتماعية (GOSI)",
   "nameEn": "Social Insurance (GOSI)",
   "type": "expense",
@@ -1128,7 +1128,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6115",
+  "code": "611005",
   "name": "التأمين الطبي",
   "nameEn": "Medical Insurance",
   "type": "expense",
@@ -1138,7 +1138,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6116",
+  "code": "611006",
   "name": "مكافأة نهاية الخدمة (مصروف الفترة)",
   "nameEn": "End of Service Benefits Expense (Period)",
   "type": "expense",
@@ -1168,7 +1168,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6211",
+  "code": "621001",
   "name": "إيجار المقر الرئيسي",
   "nameEn": "Head Office Rent",
   "type": "expense",
@@ -1178,7 +1178,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6212",
+  "code": "621002",
   "name": "إيجار مواقع/فروع",
   "nameEn": "Site/Branch Rent",
   "type": "expense",
@@ -1198,7 +1198,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6221",
+  "code": "622001",
   "name": "قرطاسية ومطبوعات",
   "nameEn": "Stationery and Printing",
   "type": "expense",
@@ -1208,7 +1208,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6222",
+  "code": "622002",
   "name": "اتصالات وإنترنت",
   "nameEn": "Telecommunications and Internet",
   "type": "expense",
@@ -1218,7 +1218,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6223",
+  "code": "622003",
   "name": "صيانة أجهزة وبرامج",
   "nameEn": "Hardware and Software Maintenance",
   "type": "expense",
@@ -1238,7 +1238,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6231",
+  "code": "623001",
   "name": "أتعاب محاسبة ومراجعة",
   "nameEn": "Accounting and Audit Fees",
   "type": "expense",
@@ -1248,7 +1248,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6232",
+  "code": "623002",
   "name": "أتعاب استشارات قانونية",
   "nameEn": "Legal Consulting Fees",
   "type": "expense",
@@ -1268,7 +1268,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6241",
+  "code": "624001",
   "name": "رسوم حكومية وتراخيص",
   "nameEn": "Government Fees and Licenses",
   "type": "expense",
@@ -1298,7 +1298,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6311",
+  "code": "631001",
   "name": "حملات تسويقية وإعلانية",
   "nameEn": "Marketing and Advertising Campaigns",
   "type": "expense",
@@ -1308,7 +1308,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6312",
+  "code": "631002",
   "name": "عمولات مبيعات",
   "nameEn": "Sales Commissions",
   "type": "expense",
@@ -1338,7 +1338,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6411",
+  "code": "641001",
   "name": "صيانة دورية للمعدات/المنشآت",
   "nameEn": "Periodic Maintenance of Equipment/Facilities",
   "type": "expense",
@@ -1358,7 +1358,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6421",
+  "code": "642001",
   "name": "كهرباء ومياه",
   "nameEn": "Electricity and Water",
   "type": "expense",
@@ -1388,7 +1388,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6511",
+  "code": "651001",
   "name": "إهلاك الممتلكات والمعدات",
   "nameEn": "Depreciation of Property and Equipment",
   "type": "expense",
@@ -1408,7 +1408,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6521",
+  "code": "652001",
   "name": "استهلاك الأصول غير الملموسة",
   "nameEn": "Amortization of Intangible Assets",
   "type": "expense",
@@ -1438,7 +1438,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6611",
+  "code": "661001",
   "name": "تأمين",
   "nameEn": "Insurance",
   "type": "expense",
@@ -1458,7 +1458,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6621",
+  "code": "662001",
   "name": "مخصص ديون مشكوك فيها (مصروف الفترة)",
   "nameEn": "Doubtful Debts Expense (Period)",
   "type": "expense",
@@ -1468,7 +1468,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6622",
+  "code": "662002",
   "name": "مخصصات أخرى",
   "nameEn": "Other Provisions",
   "type": "expense",
@@ -1508,7 +1508,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "7111",
+  "code": "711001",
   "name": "إيراد فوائد ودائع بنكية",
   "nameEn": "Bank Deposit Interest Income",
   "type": "revenue",
@@ -1538,7 +1538,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "7211",
+  "code": "721001",
   "name": "فوائد ومصاريف تمويل",
   "nameEn": "Interest and Financing Expenses",
   "type": "expense",
@@ -1568,7 +1568,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "7311",
+  "code": "731001",
   "name": "أرباح/خسائر بيع أصول ثابتة",
   "nameEn": "Gain/Loss on Sale of Fixed Assets",
   "type": "revenue",
@@ -1598,7 +1598,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "7411",
+  "code": "741001",
   "name": "فروقات صرف عملة",
   "nameEn": "Foreign Exchange Differences",
   "type": "revenue",
@@ -1638,7 +1638,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "8111",
+  "code": "811001",
   "name": "حساب الأرباح والخسائر (إقفال)",
   "nameEn": "Profit and Loss Account (Closing)",
   "type": "equity",
@@ -1668,7 +1668,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "8211",
+  "code": "821001",
   "name": "ضمانات بنكية صادرة",
   "nameEn": "Bank Guarantees Issued",
   "type": "liability",
@@ -1678,7 +1678,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "8212",
+  "code": "821002",
   "name": "التزامات محتملة (Contingent Liabilities)",
   "nameEn": "Contingent Liabilities",
   "type": "liability",
@@ -1688,7 +1688,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "2130",
+  "code": "213000",
   "name": "تأمينات اجتماعية مستحقة",
   "nameEn": "Accrued Social Insurance (GOSI Payable)",
   "type": "liability",
@@ -1698,7 +1698,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "6220",
+  "code": "622000",
   "name": "سفر وانتقالات",
   "nameEn": "Travel and Transportation",
   "type": "expense",
@@ -1708,7 +1708,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "1210",
+  "code": "121000",
   "name": "أصول ثابتة أخرى",
   "nameEn": "Other Fixed Assets",
   "type": "asset",
@@ -1718,7 +1718,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
-  "code": "5110",
+  "code": "511000",
   "name": "فروقات وهبوط مخزون",
   "nameEn": "Inventory Adjustments and Shrinkage",
   "type": "expense",

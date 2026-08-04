@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CHART_OF_ACCOUNTS } from "./defaultChartOfAccounts";
 
-const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 4 };
+const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 6 };
 
 describe("standard default chart of accounts", () => {
   it("has unique codes with valid parents", () => {
@@ -98,7 +98,7 @@ describe("standard default chart of accounts", () => {
     ].forEach((name) => expect(names.has(name), `missing posting account ${name}`).toBe(true));
 
     for (const account of DEFAULT_CHART_OF_ACCOUNTS.filter((item) => item.level === 4)) {
-      expect(account.code).toHaveLength(4);
+      expect(account.code).toHaveLength(6);
       expect(account.code.startsWith(account.parentCode as string)).toBe(true);
     }
   });
