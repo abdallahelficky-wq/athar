@@ -6,12 +6,12 @@ import {
   getJournalEntry,
   deleteJournalEntry,
   postJournalEntry,
-  importJournalEntries,
 } from "../api/journalEntries";
 import { fmt } from "../legacy/constants";
-import { ExcelImportPanel, downloadCsv, Icon } from "../legacy/shared";
+import { downloadCsv, Icon } from "../legacy/shared";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CreateFromDocumentModal from "./shared/CreateFromDocumentModal";
+import BulkImportJournalEntriesModal from "./shared/BulkImportJournalEntriesModal";
 import MirrorEntryModal from "./shared/MirrorEntryModal";
 import ReverseEntryModal from "./shared/ReverseEntryModal";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
@@ -39,6 +39,7 @@ export default function JournalModule({ companies, companyId }) {
   const [formModal, setFormModal] = useState(null); // { mode: "create" | "edit", entry? }
   const [attachmentsFor, setAttachmentsFor] = useState(null);
   const [showFromDocument, setShowFromDocument] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [viewEntry, setViewEntry] = useState(null);
   const [autoPrint, setAutoPrint] = useState(false);
   const [mirrorSource, setMirrorSource] = useState(null);
@@ -142,6 +143,7 @@ export default function JournalModule({ companies, companyId }) {
             <div className="form-btn-group" style={{ justifyContent: "flex-start", marginBottom: 14 }}>
               <button className="btn-primary" onClick={() => setFormModal({ mode: "create" })}>+ إضافة قيد يومية</button>
               <button className="btn-ghost" onClick={() => setShowFromDocument(true)}>إنشاء قيد من مستند (ذكاء اصطناعي)</button>
+              <button className="btn-ghost" onClick={() => setShowBulkImport(true)}>استيراد قيود بالجملة</button>
               <button
                 className="btn-ghost"
                 onClick={() => downloadCsv("القيود_اليومية.csv", [
@@ -273,28 +275,15 @@ export default function JournalModule({ companies, companyId }) {
             </div>
           )}
 
-          <ExcelImportPanel
-            title="القيود اليومية"
-            exampleRows={[{ "التاريخ": "2026-07-20", "البيان": "مثال: إيجار شهر يوليو", "حساب مدين": "مصروف إيجار", "مبلغ مدين": 5000, "حساب دائن": "البنك الأهلي - حساب تشغيلي", "مبلغ دائن": 5000 }]}
-            onImportRows={async (rows) => {
-              const mapped = rows.map((r) => ({
-                date: String(r["التاريخ"]),
-                memo: r["البيان"] || "",
-                debitAccountName: r["حساب مدين"],
-                debitAmount: Number(r["مبلغ مدين"] || 0),
-                creditAccountName: r["حساب دائن"],
-                creditAmount: Number(r["مبلغ دائن"] || 0),
-              }));
-              try {
-                const result = await importJournalEntries(companyId, mapped);
-                reloadEntries();
-                return `تم استيراد ${result.imported} قيد بنجاح${result.skipped ? `، وتم تجاهل ${result.skipped} صف غير صالح` : ""}.`;
-              } catch (err) {
-                return `فشل الاستيراد: ${err.message}`;
-              }
-            }}
-          />
         </>
+      )}
+
+      {showBulkImport && (
+        <BulkImportJournalEntriesModal
+          companyId={companyId}
+          onClose={() => setShowBulkImport(false)}
+          onImported={reloadEntries}
+        />
       )}
 
       {formModal && (

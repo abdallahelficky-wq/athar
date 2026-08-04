@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import * as service from "./journalEntries.service";
+import * as bulkImportService from "./bulkImport.service";
 import { badRequest } from "../../lib/httpError";
 import { previewNextEntryNumber } from "../../lib/journalPosting";
 
@@ -85,12 +86,18 @@ export const reverseHandler: RequestHandler = async (req, res) => {
   res.status(201).json(reversal);
 };
 
-export const importHandler: RequestHandler = async (req, res) => {
-  const result = await service.importJournalEntries(
+export const bulkImportPreviewHandler: RequestHandler = async (req, res) => {
+  const result = await bulkImportService.previewBulkImport(req.auth!.tenantId, req.body.companyId, req.body.rows);
+  res.json(result);
+};
+
+export const bulkImportCommitHandler: RequestHandler = async (req, res) => {
+  const result = await bulkImportService.commitBulkImport(
     req.auth!.tenantId,
     req.auth!.sub,
     req.body.companyId,
     req.body.rows,
+    req.body.accountMapping,
   );
   res.status(201).json(result);
 };

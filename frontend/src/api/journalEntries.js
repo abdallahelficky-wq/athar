@@ -17,8 +17,10 @@ export const updateJournalEntry = (id, payload) => api.patch(`/journal-entries/$
 export const deleteJournalEntry = (id) => api.delete(`/journal-entries/${id}`);
 export const postJournalEntry = (id) => api.post(`/journal-entries/${id}/post`);
 export const unpostJournalEntry = (id, pin) => api.post(`/journal-entries/${id}/unpost`, { pin });
-export const importJournalEntries = (companyId, rows) =>
-  api.post("/journal-entries/import", { companyId, rows });
+export const previewBulkImportJournalEntries = (companyId, rows) =>
+  api.post("/journal-entries/bulk-import/preview", { companyId, rows });
+export const commitBulkImportJournalEntries = (companyId, rows, accountMapping) =>
+  api.post("/journal-entries/bulk-import/commit", { companyId, rows, accountMapping });
 export const getMirrorSuggestion = (id, targetCompanyId) =>
   api.post(`/journal-entries/${id}/mirror-suggestion`, { targetCompanyId });
 export const createMirrorJournalEntry = (id, payload) => api.post(`/journal-entries/${id}/mirror`, payload);

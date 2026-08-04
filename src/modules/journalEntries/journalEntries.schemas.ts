@@ -50,18 +50,3 @@ export const reverseJournalEntrySchema = z.object({
   date: z.coerce.date(),
 });
 
-export const importJournalEntriesSchema = z.object({
-  companyId: z.string().min(1, "اختر شركة محددة أولاً"),
-  rows: z
-    .array(
-      z.object({
-        date: z.string(),
-        memo: z.string().optional().default(""),
-        debitAccountName: z.string(),
-        debitAmount: z.coerce.number(),
-        creditAccountName: z.string(),
-        creditAmount: z.coerce.number(),
-      }),
-    )
-    .min(1),
-});

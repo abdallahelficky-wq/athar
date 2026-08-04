@@ -389,6 +389,7 @@ enum SourceModule {
   leave_settlement
   stock_movement
   ai_document
+  bulk_import
 }
 
 model JournalEntry {

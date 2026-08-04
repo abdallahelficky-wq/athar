@@ -6,12 +6,12 @@ import {
   createJournalEntrySchema,
   updateJournalEntrySchema,
   unpostSchema,
-  importJournalEntriesSchema,
   createFromDocumentSchema,
   mirrorSuggestionSchema,
   createMirrorSchema,
   reverseJournalEntrySchema,
 } from "./journalEntries.schemas";
+import { previewBulkImportSchema, commitBulkImportSchema } from "./bulkImport.schemas";
 import {
   listHandler,
   getHandler,
@@ -20,7 +20,8 @@ import {
   deleteHandler,
   postHandler,
   unpostHandler,
-  importHandler,
+  bulkImportPreviewHandler,
+  bulkImportCommitHandler,
   createFromDocumentHandler,
   mirrorSuggestionHandler,
   createMirrorHandler,
@@ -38,7 +39,8 @@ journalEntryRoutes.get("/", listHandler);
 journalEntryRoutes.get("/next-number", nextNumberHandler);
 journalEntryRoutes.get("/:id", getHandler);
 journalEntryRoutes.post("/", canWrite, validateBody(createJournalEntrySchema), createHandler);
-journalEntryRoutes.post("/import", canWrite, validateBody(importJournalEntriesSchema), importHandler);
+journalEntryRoutes.post("/bulk-import/preview", canWrite, validateBody(previewBulkImportSchema), bulkImportPreviewHandler);
+journalEntryRoutes.post("/bulk-import/commit", canWrite, validateBody(commitBulkImportSchema), bulkImportCommitHandler);
 journalEntryRoutes.post(
   "/from-document",
   canWrite,
