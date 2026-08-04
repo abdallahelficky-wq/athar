@@ -302,6 +302,18 @@
         .ledger-table .section-row { color: #8A7C5E; font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; padding-top: 14px; border-bottom: none; }
         .ledger-table .net-row td { border-top: 2px solid rgba(16,32,46,0.15); border-bottom: none; padding-top: 10px; }
         .ledger-table .type-tag { font-size: 11px; color: #8A7C5E; }
+
+        /* صفوف ميزان المراجعة الهرمي — نفس منطق السهم القابل للطي/الفتح في القائمة الجانبية
+           (دوران 90°/0° حسب الحالة) لكن بحجم مناسب لصف جدول مضغوط */
+        .tb-tree-row.tb-group { background: rgba(185,139,78,0.05); font-weight: 700; }
+        .tb-tree-toggle {
+          display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px;
+          border: none; background: transparent; color: #8A7C5E; cursor: pointer; padding: 0; margin-left: 4px;
+          transition: transform .18s ease; transform: rotate(0deg);
+        }
+        .tb-tree-toggle.tb-collapsed { transform: rotate(-90deg); }
+        .tb-tree-toggle:disabled { visibility: hidden; }
+        .tb-tree-name-cell { display: flex; align-items: center; white-space: nowrap; }
         .memo-cell { color: #445565; }
 
         /* دليل الأصناف — واجهة مكتبية تتحول إلى بطاقات على الجوال */
@@ -451,6 +463,11 @@
           .wide-payroll-table { min-width: 0 !important; width: 100% !important; font-size: 8.5px !important; table-layout: fixed !important; }
           .wide-payroll-table th, .wide-payroll-table td { padding: 3px 3px !important; white-space: normal !important; word-break: break-word; }
           .wide-payroll-table .group-head { font-size: 8px !important; }
+
+          /* رأس جدول ميزان المراجعة الهرمي يتكرر تلقائياً في أعلى كل صفحة جديدة (سلوك <thead>
+             الأصلي في المتصفح)، وكل صف يبقى كاملاً على نفس الصفحة بلا انقسام أثناء تقسيم الطباعة. */
+          .tb-print-table thead { display: table-header-group; }
+          .tb-print-table tr { page-break-inside: avoid; }
         }
 
         .sub-head { font-size: 13.5px; font-weight: 700; color: #445565; margin: 18px 0 10px; }

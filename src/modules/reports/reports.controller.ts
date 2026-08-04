@@ -29,6 +29,17 @@ export const trialBalanceHandler: RequestHandler = async (req, res) => {
   res.json(result);
 };
 
+export const trialBalanceTreeHandler: RequestHandler = async (req, res) => {
+  const result = await service.getTrialBalanceTree(
+    req.auth!.tenantId,
+    parseCompanyId(req.query.companyId),
+    parseDate(req.query.from),
+    parseDate(req.query.to),
+    { hideZeroActivity: parseBool(req.query.hideZeroActivity), search: parseSearch(req.query.search) },
+  );
+  res.json(result);
+};
+
 export const incomeStatementHandler: RequestHandler = async (req, res) => {
   const result = await service.getIncomeStatement(
     req.auth!.tenantId,

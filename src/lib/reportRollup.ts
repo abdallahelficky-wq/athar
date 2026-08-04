@@ -75,3 +75,87 @@ export function rollupAccountValues<V extends Record<string, number>>(
     .filter((row): row is RollupRow<V> => Boolean(row.account))
     .sort((a, b) => a.account.code.localeCompare(b.account.code));
 }
+
+export interface TreeNode<V> {
+  account: Account;
+  value: V; // إجمالي كل حسابات الترحيل تحت هذا الحساب (أو قيمته هو لو كان حساب ترحيل بذاته)
+  children: TreeNode<V>[];
+}
+
+/**
+ * يبني شجرة حسابات كاملة (من جذور المستوى الأول حتى أوراق المستوى الرابع) بحيث تحمل كل عقدة —
+ * على أي مستوى — إجمالي كل حسابات الترحيل تحتها، محسوباً تصاعدياً من الأوراق. هذا هو الأساس
+ * لعرض "ميزان المراجعة الهرمي": كل مجموعة (مستوى 1-3) هي سطر إجمالي تلقائي لكل ما تحتها، تماماً
+ * كشجرة الحسابات نفسها في شاشة "شجرة الحسابات"، بدل مستوى واحد مسطّح مثل rollupAccountValues.
+ */
+export function buildAccountValueTree<V extends Record<string, number>>(
+  accounts: Account[],
+  postingValues: Map<string, V>,
+  emptyValue: V,
+): TreeNode<V>[] {
+  const byParent = new Map<string | null, Account[]>();
+  accounts.forEach((a) => byParent.set(a.parentId, [...(byParent.get(a.parentId) || []), a]));
+
+  const mergeValues = (a: V, b: V): V => {
+    const merged = { ...a } as Record<string, number>;
+    for (const field of Object.keys(b)) merged[field] = (merged[field] ?? 0) + b[field];
+    return merged as V;
+  };
+
+  const build = (account: Account): TreeNode<V> => {
+    if (account.isPosting) {
+      return { account, value: postingValues.get(account.id) ?? emptyValue, children: [] };
+    }
+    const children = (byParent.get(account.id) || [])
+      .slice()
+      .sort((a, b) => a.code.localeCompare(b.code))
+      .map(build);
+    const value = children.reduce((acc, child) => mergeValues(acc, child.value), emptyValue);
+    return { account, value, children };
+  };
+
+  return (byParent.get(null) || [])
+    .slice()
+    .sort((a, b) => a.code.localeCompare(b.code))
+    .map(build);
+}
+
+function accountMatchesSearch(account: Account, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    account.name.toLowerCase().includes(q) ||
+    (account.nameEn || "").toLowerCase().includes(q) ||
+    account.code.toLowerCase().includes(q)
+  );
+}
+
+/**
+ * يشذّب الشجرة تصاعدياً (bottom-up): يُبقي ورقة (حساب ترحيل) فقط لو طابقت البحث (إن وُجد) ولم
+ * تكن معدومة الحركة أثناء طلب إخفاء المعدوم؛ ويُبقي أي مجموعة لها فرع واحد باقٍ على الأقل، أو
+ * طابق اسمها/كودها هي نفسها البحث رغم عدم وجود فروع باقية (حالة نادرة: بحث باسم مجموعة فارغة).
+ * القيم (value) تبقى كما هي دائماً — التشذيب عرضي بحت، لا يغيّر أي رقم إجمالي معروض.
+ */
+export function pruneTree<V extends Record<string, number>>(
+  nodes: TreeNode<V>[],
+  options: { hideZeroActivity?: boolean; search?: string; hasActivity?: (value: V) => boolean },
+): TreeNode<V>[] {
+  const search = options.search?.trim() || "";
+  const hasActivity = options.hasActivity || ((v: V) => Object.values(v).some((n) => Math.abs(n) > 0.005));
+
+  const prune = (node: TreeNode<V>): TreeNode<V> | null => {
+    if (node.children.length === 0) {
+      if (options.hideZeroActivity && !hasActivity(node.value)) return null;
+      if (search && !accountMatchesSearch(node.account, search)) return null;
+      return node;
+    }
+    const prunedChildren = node.children.map(prune).filter((n): n is TreeNode<V> => n !== null);
+    if (prunedChildren.length > 0) return { ...node, children: prunedChildren };
+    if (search && !options.hideZeroActivity && accountMatchesSearch(node.account, search)) {
+      return { ...node, children: [] };
+    }
+    return null;
+  };
+
+  return nodes.map(prune).filter((n): n is TreeNode<V> => n !== null);
+}

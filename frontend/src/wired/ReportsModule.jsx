@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { getTrialBalance, getIncomeStatement, getBalanceSheet } from "../api/reports";
+import { getTrialBalanceTree, getIncomeStatement, getBalanceSheet } from "../api/reports";
 import { listAccounts } from "../api/accounts";
 import { fmt } from "../legacy/constants";
 import FinancialStatementPrintModal from "./FinancialStatementPrintModal";
+import TrialBalanceTreePrintModal from "./TrialBalanceTreePrintModal";
 import { Icon } from "../legacy/shared";
 import Breadcrumb from "./shared/Breadcrumb";
 import SubTabs from "./shared/SubTabs";
 import ReportRollupFilter from "./shared/ReportRollupFilter";
 import TrialBalanceView from "./TrialBalanceView";
+import { collectGroupAccountIds, flattenVisibleTree } from "./shared/trialBalanceTree";
+import { exportTrialBalanceExcel } from "./shared/exportTrialBalanceExcel";
 
 export const REPORT_TABS = [
   { id: "trial", label: "ميزان المراجعة" },
@@ -102,7 +105,6 @@ function BalanceSheetView({ data, accounts, level, setLevel, accountId, setAccou
 
 export default function ReportsModule({ companies, companyId, tab, setTab }) {
   const [accounts, setAccounts] = useState([]);
-  const [trialBalance, setTrialBalance] = useState(null);
   const [incomeStatement, setIncomeStatement] = useState(null);
   const [balanceSheet, setBalanceSheet] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -113,12 +115,22 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
   const [dateTo, setDateTo] = useState("");
   const [asOfDate, setAsOfDate] = useState(() => new Date().toISOString().slice(0, 10));
 
-  // فلتر التجميع (مستوى/فرع معيّن/تفاصيل/بحث) مشترك بين التقارير الثلاثة — نفس منطق التقارير
-  // الموحّد المطلوب تطبيقه على أي تقرير مالي حالي أو مستقبلي في النظام.
+  // فلتر التجميع (مستوى/فرع معيّن/تفاصيل/بحث) — لقائمة الدخل والمركز المالي فقط، ما زالتا
+  // تعرضان قائمة مسطّحة مجمَّعة حسب مستوى مختار (نوعا التقرير مبنيان أصلاً على تصنيف
+  // النوع/إيراد/مصروف أو أصل/التزام/حقوق، فتجميع هرمي كامل ليس له معنى مباشر هنا كما في ميزان
+  // المراجعة). ميزان المراجعة له حالته الهرمية الخاصة أدناه.
   const [level, setLevel] = useState(4);
   const [accountId, setAccountId] = useState("");
   const [includeDetails, setIncludeDetails] = useState(false);
   const [search, setSearch] = useState("");
+
+  // حالة ميزان المراجعة الهرمي (Tree View) — مستقلة تماماً عن فلاتر التقريرين الآخرين.
+  const [tbData, setTbData] = useState(null);
+  const [tbDateFrom, setTbDateFrom] = useState("");
+  const [tbDateTo, setTbDateTo] = useState("");
+  const [tbHideZero, setTbHideZero] = useState(true);
+  const [tbSearch, setTbSearch] = useState("");
+  const [tbExpandedIds, setTbExpandedIds] = useState(new Set());
 
   useEffect(() => {
     if (!companyId) return;
@@ -129,20 +141,42 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
     if (!companyId) return;
     setLoading(true);
     setError("");
+    getTrialBalanceTree({
+      companyId,
+      from: tbDateFrom || undefined,
+      to: tbDateTo || undefined,
+      hideZeroActivity: tbHideZero || undefined,
+      search: tbSearch || undefined,
+    })
+      .then((tree) => {
+        setTbData(tree);
+        // الشجرة تُفتح بالكامل افتراضياً عند كل تحميل جديد (تاريخ/فلتر مختلف قد يُظهر حسابات
+        // جديدة لم تكن موسَّعة سابقاً)، فلا داعي لتذكّر حالة طي قديمة قد تُخفي نتائج جديدة.
+        setTbExpandedIds(collectGroupAccountIds(tree.roots));
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [companyId, tbDateFrom, tbDateTo, tbHideZero, tbSearch]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    setLoading(true);
+    setError("");
     const rollup = { level, accountId: accountId || undefined, includeDetails: includeDetails || undefined, search: search || undefined };
     Promise.all([
-      getTrialBalance({ companyId, from: dateFrom || undefined, to: dateTo || undefined, ...rollup }),
       getIncomeStatement({ companyId, from: dateFrom || undefined, to: dateTo || undefined, ...rollup }),
       getBalanceSheet({ companyId, date: asOfDate || undefined, ...rollup }),
     ])
-      .then(([tb, is, bs]) => {
-        setTrialBalance(tb);
+      .then(([is, bs]) => {
         setIncomeStatement(is);
         setBalanceSheet(bs);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [companyId, dateFrom, dateTo, asOfDate, level, accountId, includeDetails, search]);
+
+  const activeCompany = companies?.find((c) => c.id === companyId);
+  const tbVisibleRows = tbData ? flattenVisibleTree(tbData.roots, tbExpandedIds) : [];
 
   return (
     <div>
@@ -166,14 +200,21 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
           />
           {tab === "trial" && (
             <TrialBalanceView
-              accounts={accounts}
-              data={trialBalance}
-              dateFrom={dateFrom} setDateFrom={setDateFrom}
-              dateTo={dateTo} setDateTo={setDateTo}
-              level={level} setLevel={setLevel}
-              accountId={accountId} setAccountId={setAccountId}
-              includeDetails={includeDetails} setIncludeDetails={setIncludeDetails}
-              search={search} setSearch={setSearch}
+              data={tbData}
+              dateFrom={tbDateFrom} setDateFrom={setTbDateFrom}
+              dateTo={tbDateTo} setDateTo={setTbDateTo}
+              hideZeroActivity={tbHideZero} setHideZeroActivity={setTbHideZero}
+              search={tbSearch} setSearch={setTbSearch}
+              expandedIds={tbExpandedIds} setExpandedIds={setTbExpandedIds}
+              onPrint={() => setPrinting(true)}
+              onExportExcel={() => exportTrialBalanceExcel({
+                visibleRows: tbVisibleRows,
+                totals: tbData.totals,
+                balanced: tbData.balanced,
+                company: activeCompany,
+                dateFrom: tbDateFrom,
+                dateTo: tbDateTo,
+              })}
             />
           )}
           {tab === "income" && (
@@ -202,11 +243,22 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
         </>
       )}
 
-      {printing && (
+      {printing && tab === "trial" && tbData && (
+        <TrialBalanceTreePrintModal
+          visibleRows={tbVisibleRows}
+          totals={tbData.totals}
+          balanced={tbData.balanced}
+          dateFrom={tbDateFrom}
+          dateTo={tbDateTo}
+          company={activeCompany}
+          onClose={() => setPrinting(false)}
+        />
+      )}
+      {printing && tab !== "trial" && (
         <FinancialStatementPrintModal
           kind={tab}
-          data={tab === "trial" ? trialBalance : tab === "income" ? incomeStatement : balanceSheet}
-          company={companies?.find((c) => c.id === companyId)}
+          data={tab === "income" ? incomeStatement : balanceSheet}
+          company={activeCompany}
           asOfDate={tab === "balance" ? asOfDate : dateTo}
           autoPrint={false}
           onClose={() => setPrinting(false)}

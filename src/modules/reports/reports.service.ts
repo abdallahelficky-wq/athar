@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import type { Account } from "@prisma/client";
 import { notFound } from "../../lib/httpError";
-import { rollupAccountValues, RollupOptions } from "../../lib/reportRollup";
+import { rollupAccountValues, RollupOptions, buildAccountValueTree, pruneTree, TreeNode } from "../../lib/reportRollup";
 
 export interface DateRange {
   companyId?: string;
@@ -164,6 +164,113 @@ export async function getTrialBalanceReport(
 
   return {
     rows,
+    totals,
+    balanced: Math.abs(totals.closingDebit - totals.closingCredit) < 0.01,
+  };
+}
+
+interface RawFlow extends Record<string, number> {
+  openingDebit: number;
+  openingCredit: number;
+  periodDebit: number;
+  periodCredit: number;
+}
+const ZERO_FLOW: RawFlow = { openingDebit: 0, openingCredit: 0, periodDebit: 0, periodCredit: 0 };
+
+export interface TrialBalanceTreeNode {
+  accountId: string;
+  code: string;
+  name: string;
+  level: number;
+  isPosting: boolean;
+  opening: Zeroed;
+  period: Zeroed;
+  closing: Zeroed;
+  children: TrialBalanceTreeNode[];
+}
+
+function finalizeTreeNode(node: TreeNode<RawFlow>): TrialBalanceTreeNode {
+  const openingNet = node.value.openingDebit - node.value.openingCredit;
+  const closingNet = openingNet + node.value.periodDebit - node.value.periodCredit;
+  const split = (net: number) => ({ debit: Math.max(net, 0), credit: Math.max(-net, 0) });
+  return {
+    accountId: node.account.id,
+    code: node.account.code,
+    name: node.account.name,
+    level: node.account.level,
+    isPosting: node.account.isPosting,
+    opening: split(openingNet),
+    period: { debit: node.value.periodDebit, credit: node.value.periodCredit },
+    closing: split(closingNet),
+    children: node.children.map(finalizeTreeNode),
+  };
+}
+
+/**
+ * ميزان مراجعة هرمي (Tree View): نفس شكل شجرة الحسابات — كل حساب أب (مستوى 1-3) صف إجمالي
+ * تلقائي لكل ما تحته، وصولاً لحسابات الترحيل الفعلية (المستوى الرابع) في الأوراق. تُبنى الشجرة
+ * مرة واحدة فقط من قيم حسابات الترحيل (buildAccountValueTree يتصاعد بالجمع تلقائياً)، بدل تكرار
+ * rollupAccountValues لكل مستوى على حدة — نفس منطق الرصيد الافتتاحي/حركة الفترة/الختامي المستخدَم
+ * في getTrialBalanceReport أعلاه تماماً، فقط بشكل هرمي متداخل بدل صفوف مسطّحة بمستوى واحد مختار.
+ *
+ * hideZeroActivity/search يُشذّبان الشجرة عرضياً فقط (pruneTree) — لا يغيّران أي رقم إجمالي، لأن
+ * قيمة كل عقدة أُصلاً محسوبة من كامل أحفادها بصرف النظر عمّا يظهر أو يُخفى.
+ */
+export async function getTrialBalanceTree(
+  tenantId: string,
+  companyId: string | undefined,
+  dateFrom: Date | undefined,
+  dateTo: Date | undefined,
+  options: { hideZeroActivity?: boolean; search?: string },
+) {
+  const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
+  const openingDateTo = dateFrom ? new Date(dateFrom.getTime() - 1) : undefined;
+
+  const [openingBalances, periodBalances] = await Promise.all([
+    dateFrom ? aggregateAccountBalances(tenantId, { companyId, dateTo: openingDateTo }) : null,
+    aggregateAccountBalances(tenantId, { companyId, dateFrom, dateTo }),
+  ]);
+
+  // إجماليات الصف الأخير تُجمَع من صافي كل حساب ترحيل على حدة (مدين صافيه موجب يُضاف لعمود
+  // المدين، دائن صافيه سالب يُضاف لعمود الدائن) — وليس من صافي مجموع كل الأرصدة الخام، لأن ذلك
+  // الأخير يُصفّر نفسه دائماً (كل قيد متوازن أصلاً)، بينما ميزان المراجعة يعرض تحديداً مجموع
+  // الأرصدة المدينة الصافية مقابل مجموع الأرصدة الدائنة الصافية لكل حساب — رقمان مختلفان يتساويان
+  // فقط لأن النظام متوازن ككل، لا لأنهما نفس الجمع الخام. تبقى الإجماليات ثابتة بصرف النظر عن
+  // التشذيب/الطي المعروض حالياً (بحث أو إخفاء المعدوم)، تماماً كما في getTrialBalanceReport.
+  const postingValues = new Map<string, RawFlow>();
+  const totals = { openingDebit: 0, openingCredit: 0, periodDebit: 0, periodCredit: 0, closingDebit: 0, closingCredit: 0 };
+  for (const account of accounts) {
+    if (!account.isPosting) continue;
+    const o = openingBalances?.get(account.id);
+    const p = periodBalances.get(account.id);
+    const flow: RawFlow = {
+      openingDebit: o?.debit || 0,
+      openingCredit: o?.credit || 0,
+      periodDebit: p?.debit || 0,
+      periodCredit: p?.credit || 0,
+    };
+    postingValues.set(account.id, flow);
+
+    const openingNet = flow.openingDebit - flow.openingCredit;
+    const closingNet = openingNet + flow.periodDebit - flow.periodCredit;
+    totals.openingDebit += Math.max(openingNet, 0);
+    totals.openingCredit += Math.max(-openingNet, 0);
+    totals.periodDebit += flow.periodDebit;
+    totals.periodCredit += flow.periodCredit;
+    totals.closingDebit += Math.max(closingNet, 0);
+    totals.closingCredit += Math.max(-closingNet, 0);
+  }
+
+  const rawTree = buildAccountValueTree(accounts, postingValues, ZERO_FLOW);
+  const prunedTree = pruneTree(rawTree, {
+    hideZeroActivity: options.hideZeroActivity,
+    search: options.search,
+    hasActivity: (v) => Math.abs(v.openingDebit - v.openingCredit) > 0.005 || v.periodDebit > 0.005 || v.periodCredit > 0.005,
+  });
+  const roots = prunedTree.map(finalizeTreeNode);
+
+  return {
+    roots,
     totals,
     balanced: Math.abs(totals.closingDebit - totals.closingCredit) < 0.01,
   };

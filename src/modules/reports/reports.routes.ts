@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../../middleware/auth";
 import {
   trialBalanceHandler,
+  trialBalanceTreeHandler,
   incomeStatementHandler,
   balanceSheetHandler,
   customerStatementHandler,
@@ -13,6 +14,7 @@ export const reportRoutes = Router();
 reportRoutes.use(authenticate);
 
 reportRoutes.get("/trial-balance", trialBalanceHandler);
+reportRoutes.get("/trial-balance-tree", trialBalanceTreeHandler);
 reportRoutes.get("/income-statement", incomeStatementHandler);
 reportRoutes.get("/balance-sheet", balanceSheetHandler);
 reportRoutes.get("/customer-statement/:customerId", customerStatementHandler);
