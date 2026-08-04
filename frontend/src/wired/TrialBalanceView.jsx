@@ -13,6 +13,7 @@ export default function TrialBalanceView({
   data,
   dateFrom, setDateFrom,
   dateTo, setDateTo,
+  level, setLevel,
   hideZeroActivity, setHideZeroActivity,
   search, setSearch,
   expandedIds, setExpandedIds,
@@ -44,6 +45,15 @@ export default function TrialBalanceView({
       <div className="filter-bar">
         <label>من تاريخ<input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></label>
         <label>إلى تاريخ<input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></label>
+        <label>
+          المستوى (حد أقصى للعمق)
+          <select value={level} onChange={(e) => setLevel(Number(e.target.value))}>
+            <option value={1}>المستوى 1</option>
+            <option value={2}>المستوى 2</option>
+            <option value={3}>المستوى 3</option>
+            <option value={4}>المستوى 4 (تفصيلي بالكامل)</option>
+          </select>
+        </label>
         <label>بحث بالاسم أو الكود<input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث..." /></label>
         <label className="checkbox-label" style={{ alignSelf: "end" }}>
           <input type="checkbox" checked={hideZeroActivity} onChange={(e) => setHideZeroActivity(e.target.checked)} />

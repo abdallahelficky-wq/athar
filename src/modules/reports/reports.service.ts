@@ -1,7 +1,15 @@
 import { prisma } from "../../lib/prisma";
 import type { Account } from "@prisma/client";
 import { notFound } from "../../lib/httpError";
-import { rollupAccountValues, RollupOptions, buildAccountValueTree, pruneTree, TreeNode } from "../../lib/reportRollup";
+import {
+  rollupAccountValues,
+  RollupOptions,
+  buildAccountValueTree,
+  pruneTree,
+  truncateTreeDepth,
+  findTreeNode,
+  TreeNode,
+} from "../../lib/reportRollup";
 
 export interface DateRange {
   companyId?: string;
@@ -221,8 +229,9 @@ export async function getTrialBalanceTree(
   companyId: string | undefined,
   dateFrom: Date | undefined,
   dateTo: Date | undefined,
-  options: { hideZeroActivity?: boolean; search?: string },
+  options: { level?: number; hideZeroActivity?: boolean; search?: string },
 ) {
+  const level = options.level && options.level >= 1 && options.level <= 4 ? options.level : 4;
   const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
   const openingDateTo = dateFrom ? new Date(dateFrom.getTime() - 1) : undefined;
 
@@ -262,7 +271,11 @@ export async function getTrialBalanceTree(
   }
 
   const rawTree = buildAccountValueTree(accounts, postingValues, ZERO_FLOW);
-  const prunedTree = pruneTree(rawTree, {
+  // القص أولاً ثم التشذيب: بعد القص عند "level" تصبح أي عقدة عند هذا المستوى "ورقة" ظاهرياً
+  // (بلا أبناء)، فيتعامل معها التشذيب (بحث/إخفاء المعدوم) على أساس قيمتها الإجمالية الخاصة —
+  // بالضبط السلوك المطلوب: "تختفي أي مجموعة عند المستوى المختار ما لهاش حركة تحتها".
+  const truncatedTree = truncateTreeDepth(rawTree, level);
+  const prunedTree = pruneTree(truncatedTree, {
     hideZeroActivity: options.hideZeroActivity,
     search: options.search,
     hasActivity: (v) => Math.abs(v.openingDebit - v.openingCredit) > 0.005 || v.periodDebit > 0.005 || v.periodCredit > 0.005,
@@ -294,37 +307,58 @@ async function computeIncomeStatement(tenantId: string, companyId: string | unde
   return { revenueRows, expenseRows, totalRevenue, totalExpense, netIncome };
 }
 
+interface AmountValue extends Record<string, number> {
+  amount: number;
+}
+
+export interface AmountTreeNode {
+  accountId: string;
+  code: string;
+  name: string;
+  level: number;
+  isPosting: boolean;
+  amount: number;
+  children: AmountTreeNode[];
+}
+
+function finalizeAmountNode(node: TreeNode<AmountValue>): AmountTreeNode {
+  return {
+    accountId: node.account.id,
+    code: node.account.code,
+    name: node.account.name,
+    level: node.account.level,
+    isPosting: node.account.isPosting,
+    amount: node.value.amount,
+    children: node.children.map(finalizeAmountNode),
+  };
+}
+
 /**
- * يجمّع صفوف حساب واحد الجانب (إيراد/مصروف أو أصل/التزام/حقوق) حسب نفس منطق التجميع المشترك
- * (rollupAccountValues) المستخدَم في ميزان المراجعة — مستوى مختار، أو فرع/حساب معيّن مع
- * تفاصيل/بدون تفاصيل. بلا أي فلتر (rollup فارغ) تُعيد بالضبط سطراً واحداً لكل حساب ترحيل، مطابقاً
- * تماماً للسلوك القديم قبل إضافة هذا المنطق.
+ * يبني شجرة عرض لجانب واحد (إيراد/مصروف أو أصل/التزام/حقوق) حسب "المستوى" كحدّ أقصى لعمق العرض
+ * (نفس تعريف truncateTreeDepth المستخدَم في ميزان المراجعة تماماً — وليس عزل مستوى واحد بمفرده)،
+ * أو حسب فرع/حساب معيّن مع تبديل تفاصيل/بدون تفاصيل. بلا أي فلتر (rollup فارغ) تُعيد الشجرة كاملة
+ * حتى المستوى الرابع، أي بالضبط الحسابات الفردية كما كانت تُعرَض قبل إضافة هذا المنطق.
  */
-function rollupTypeRows(
+function buildFilteredSectionTree(
   accounts: Account[],
-  balances: Map<string, AccountBalance>,
+  values: Map<string, AmountValue>,
   types: Account["type"][],
-  amountOf: (b: AccountBalance) => number,
   rollup: ReportRollupParams,
-) {
-  const values = new Map<string, { amount: number }>();
-  for (const b of balances.values()) {
-    if (!b.account.isPosting || !types.includes(b.account.type)) continue;
-    values.set(b.account.id, { amount: amountOf(b) });
+): AmountTreeNode[] {
+  const fullTree = buildAccountValueTree(accounts, values, { amount: 0 });
+  const sectionRoots = fullTree.filter((root) => types.includes(root.account.type));
+
+  if (rollup.accountId) {
+    const target = findTreeNode(sectionRoots, rollup.accountId);
+    if (!target) return [];
+    const level = rollup.includeDetails ? 4 : target.account.level;
+    const truncated = truncateTreeDepth([target], level);
+    return pruneTree(truncated, { search: rollup.search }).map(finalizeAmountNode);
   }
-  const rolled = rollupAccountValues(accounts, values, { amount: 0 }, {
-    level: rollup.level,
-    accountId: rollup.accountId,
-    includeDetails: rollup.includeDetails,
-  });
-  const rows = rolled.map((r) => ({
-    accountId: r.account.id,
-    code: r.account.code,
-    name: r.account.name,
-    level: r.account.level,
-    amount: r.value.amount,
-  }));
-  return searchFilter(rows, rollup.search).sort((a, b) => a.code.localeCompare(b.code));
+
+  const level = rollup.level && rollup.level >= 1 && rollup.level <= 4 ? rollup.level : 4;
+  const truncated = truncateTreeDepth(sectionRoots, level);
+  return pruneTree(truncated, { search: rollup.search }).map(finalizeAmountNode);
 }
 
 export async function getIncomeStatement(
@@ -339,14 +373,31 @@ export async function getIncomeStatement(
     prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } }),
   ]);
 
-  const revenueRows = rollupTypeRows(accounts, balances, ["revenue"], (b) => b.credit - b.debit, rollup);
-  const expenseRows = rollupTypeRows(accounts, balances, ["expense"], (b) => b.debit - b.credit, rollup);
-
-  const totalRevenue = revenueRows.reduce((s, r) => s + r.amount, 0);
-  const totalExpense = expenseRows.reduce((s, r) => s + r.amount, 0);
+  // الإجماليات تُحسب مباشرة من كل الأرصدة دائماً (لا من الشجرة المعروضة) — تبقى صحيحة بصرف النظر
+  // عن المستوى/الفرع/البحث المختار للعرض، تماماً كإجمالي ميزان المراجعة العام.
+  const revenueValues = new Map<string, AmountValue>();
+  const expenseValues = new Map<string, AmountValue>();
+  let totalRevenue = 0;
+  let totalExpense = 0;
+  for (const b of balances.values()) {
+    if (!b.account.isPosting) continue;
+    if (b.account.type === "revenue") {
+      const amount = b.credit - b.debit;
+      revenueValues.set(b.account.id, { amount });
+      totalRevenue += amount;
+    }
+    if (b.account.type === "expense") {
+      const amount = b.debit - b.credit;
+      expenseValues.set(b.account.id, { amount });
+      totalExpense += amount;
+    }
+  }
   const netIncome = totalRevenue - totalExpense;
 
-  return { revenueRows, expenseRows, totalRevenue, totalExpense, netIncome };
+  const revenueRoots = buildFilteredSectionTree(accounts, revenueValues, ["revenue"], rollup);
+  const expenseRoots = buildFilteredSectionTree(accounts, expenseValues, ["expense"], rollup);
+
+  return { revenueRoots, expenseRoots, totalRevenue, totalExpense, netIncome };
 }
 
 export async function getBalanceSheet(
@@ -365,19 +416,40 @@ export async function getBalanceSheet(
   // لأنه ليس صفاً معروضاً بل مكوّن حسابي لبند "حقوق الملكية" الإجمالي.
   const { netIncome } = await computeIncomeStatement(tenantId, companyId, undefined, asOfDate);
 
-  const assetRows = rollupTypeRows(accounts, balances, ["asset"], (b) => b.debit - b.credit, rollup);
-  const liabilityRows = rollupTypeRows(accounts, balances, ["liability"], (b) => b.credit - b.debit, rollup);
-  const equityRows = rollupTypeRows(accounts, balances, ["equity"], (b) => b.credit - b.debit, rollup);
-
-  const totalAssets = assetRows.reduce((s, r) => s + r.amount, 0);
-  const totalLiabilities = liabilityRows.reduce((s, r) => s + r.amount, 0);
-  const totalEquityBase = equityRows.reduce((s, r) => s + r.amount, 0);
+  const assetValues = new Map<string, AmountValue>();
+  const liabilityValues = new Map<string, AmountValue>();
+  const equityValues = new Map<string, AmountValue>();
+  let totalAssets = 0;
+  let totalLiabilities = 0;
+  let totalEquityBase = 0;
+  for (const b of balances.values()) {
+    if (!b.account.isPosting) continue;
+    if (b.account.type === "asset") {
+      const amount = b.debit - b.credit;
+      assetValues.set(b.account.id, { amount });
+      totalAssets += amount;
+    }
+    if (b.account.type === "liability") {
+      const amount = b.credit - b.debit;
+      liabilityValues.set(b.account.id, { amount });
+      totalLiabilities += amount;
+    }
+    if (b.account.type === "equity") {
+      const amount = b.credit - b.debit;
+      equityValues.set(b.account.id, { amount });
+      totalEquityBase += amount;
+    }
+  }
   const totalEquity = totalEquityBase + netIncome;
 
+  const assetRoots = buildFilteredSectionTree(accounts, assetValues, ["asset"], rollup);
+  const liabilityRoots = buildFilteredSectionTree(accounts, liabilityValues, ["liability"], rollup);
+  const equityRoots = buildFilteredSectionTree(accounts, equityValues, ["equity"], rollup);
+
   return {
-    assetRows,
-    liabilityRows,
-    equityRows,
+    assetRoots,
+    liabilityRoots,
+    equityRoots,
     netIncome,
     totalAssets,
     totalLiabilities,

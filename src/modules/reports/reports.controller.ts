@@ -35,7 +35,7 @@ export const trialBalanceTreeHandler: RequestHandler = async (req, res) => {
     parseCompanyId(req.query.companyId),
     parseDate(req.query.from),
     parseDate(req.query.to),
-    { hideZeroActivity: parseBool(req.query.hideZeroActivity), search: parseSearch(req.query.search) },
+    { level: parseLevel(req.query.level), hideZeroActivity: parseBool(req.query.hideZeroActivity), search: parseSearch(req.query.search) },
   );
   res.json(result);
 };

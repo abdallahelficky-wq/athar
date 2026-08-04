@@ -120,6 +120,32 @@ export function buildAccountValueTree<V extends Record<string, number>>(
     .map(build);
 }
 
+/**
+ * يقصّ الشجرة عند مستوى أقصى محدَّد: أي عقدة عند هذا المستوى أو أعمق تفقد أبناءها (تصبح "ورقة"
+ * ظاهرياً) لكنها تحتفظ بقيمتها الكاملة (الإجمالي التصاعدي المحسوب أصلاً في buildAccountValueTree)
+ * دون أي تغيير — هذا هو معنى "المستوى" الصحيح لأي تقرير مالي هرمي في هذا النظام: حدّ أقصى لعمق
+ * العرض (مستوى 2 يعني "أظهر المستويين 1 و2 معاً كصفوف إجمالي")، وليس عزل مستوى واحد بمفرده كما
+ * كانت rollupAccountValues تفعل (تُبقى تلك الدالة لحالة "فلترة بحساب معيّن + بدون تفاصيل"، حيث
+ * المعنى المطلوب مختلف: تجميع فرع كامل في سطر واحد بصرف النظر عن مستواه).
+ */
+export function truncateTreeDepth<V extends Record<string, number>>(nodes: TreeNode<V>[], maxLevel: number): TreeNode<V>[] {
+  return nodes.map((node) => {
+    if (node.account.level >= maxLevel) return { ...node, children: [] };
+    return { ...node, children: truncateTreeDepth(node.children, maxLevel) };
+  });
+}
+
+/** يبحث عن عقدة بعينها (بمعرّف حسابها) في أي مكان بالشجرة — يُستخدَم لتقييد قسم كامل (إيرادات/
+ * مصروفات أو أصول/التزامات/حقوق ملكية) لفرع واحد فقط عند تفعيل "فلترة بحساب/مجموعة معيّنة". */
+export function findTreeNode<V>(nodes: TreeNode<V>[], accountId: string): TreeNode<V> | null {
+  for (const node of nodes) {
+    if (node.account.id === accountId) return node;
+    const found = findTreeNode(node.children, accountId);
+    if (found) return found;
+  }
+  return null;
+}
+
 function accountMatchesSearch(account: Account, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;

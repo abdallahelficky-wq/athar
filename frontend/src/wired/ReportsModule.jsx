@@ -18,6 +18,23 @@ export const REPORT_TABS = [
   { id: "balance", label: "المركز المالي" },
 ];
 
+/**
+ * صفوف شجرة مبلغ واحد (إيراد/مصروف أو أصل/التزام/حقوق) — تُعرَض موسّعة بالكامل دائماً (بلا طي/فتح
+ * يدوي كميزان المراجعة)، لأن "المستوى" هنا هو أداة التحكّم الوحيدة في عمق العرض، ونطاق كل قسم
+ * أصلاً محدود بنوع الحساب فلا داعي لأداة طي إضافية. تُستخدَم لكل الأقسام الخمسة في الشاشتين.
+ */
+function AmountTreeRows({ nodes, depth = 0 }) {
+  return nodes.map((node) => (
+    <React.Fragment key={node.accountId}>
+      <tr className={"tb-tree-row" + (!node.isPosting ? " tb-group" : "")}>
+        <td style={{ paddingRight: 8 + depth * 22 }}>{node.code} — {node.name}</td>
+        <td className="num">{fmt(node.amount)}</td>
+      </tr>
+      {node.children.length > 0 && <AmountTreeRows nodes={node.children} depth={depth + 1} />}
+    </React.Fragment>
+  ));
+}
+
 function IncomeStatementView({ data, accounts, level, setLevel, accountId, setAccountId, includeDetails, setIncludeDetails, search, setSearch, dateFrom, setDateFrom, dateTo, setDateTo }) {
   if (!data) return null;
   return (
@@ -37,15 +54,11 @@ function IncomeStatementView({ data, accounts, level, setLevel, accountId, setAc
       <table className="ledger-table">
         <tbody>
           <tr><td className="strong section-row" colSpan={2}>الإيرادات</td></tr>
-          {data.revenueRows.map((r) => (
-            <tr key={r.accountId}><td className="indent">{r.code} — {r.name}</td><td className="num">{fmt(r.amount)}</td></tr>
-          ))}
+          <AmountTreeRows nodes={data.revenueRoots} />
           <tr><td className="strong">إجمالي الإيرادات</td><td className="num strong">{fmt(data.totalRevenue)}</td></tr>
 
           <tr><td className="strong section-row" colSpan={2}>المصروفات</td></tr>
-          {data.expenseRows.map((r) => (
-            <tr key={r.accountId}><td className="indent">{r.code} — {r.name}</td><td className="num">{fmt(r.amount)}</td></tr>
-          ))}
+          <AmountTreeRows nodes={data.expenseRoots} />
           <tr><td className="strong">إجمالي المصروفات</td><td className="num strong">{fmt(data.totalExpense)}</td></tr>
 
           <tr className="net-row"><td className="strong">صافي الربح</td><td className="num strong">{fmt(data.netIncome)}</td></tr>
@@ -73,21 +86,15 @@ function BalanceSheetView({ data, accounts, level, setLevel, accountId, setAccou
       <table className="ledger-table">
         <tbody>
           <tr><td className="strong section-row" colSpan={2}>الأصول</td></tr>
-          {data.assetRows.map((r) => (
-            <tr key={r.accountId}><td className="indent">{r.code} — {r.name}</td><td className="num">{fmt(r.amount)}</td></tr>
-          ))}
+          <AmountTreeRows nodes={data.assetRoots} />
           <tr><td className="strong">إجمالي الأصول</td><td className="num strong">{fmt(data.totalAssets)}</td></tr>
 
           <tr><td className="strong section-row" colSpan={2}>الالتزامات</td></tr>
-          {data.liabilityRows.map((r) => (
-            <tr key={r.accountId}><td className="indent">{r.code} — {r.name}</td><td className="num">{fmt(r.amount)}</td></tr>
-          ))}
+          <AmountTreeRows nodes={data.liabilityRoots} />
           <tr><td className="strong">إجمالي الالتزامات</td><td className="num strong">{fmt(data.totalLiabilities)}</td></tr>
 
           <tr><td className="strong section-row" colSpan={2}>حقوق الملكية</td></tr>
-          {data.equityRows.map((r) => (
-            <tr key={r.accountId}><td className="indent">{r.code} — {r.name}</td><td className="num">{fmt(r.amount)}</td></tr>
-          ))}
+          <AmountTreeRows nodes={data.equityRoots} />
           <tr><td className="indent">صافي الربح (أرباح مرحّلة)</td><td className="num">{fmt(data.netIncome)}</td></tr>
           <tr><td className="strong">إجمالي حقوق الملكية</td><td className="num strong">{fmt(data.totalEquity)}</td></tr>
 
@@ -115,10 +122,9 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
   const [dateTo, setDateTo] = useState("");
   const [asOfDate, setAsOfDate] = useState(() => new Date().toISOString().slice(0, 10));
 
-  // فلتر التجميع (مستوى/فرع معيّن/تفاصيل/بحث) — لقائمة الدخل والمركز المالي فقط، ما زالتا
-  // تعرضان قائمة مسطّحة مجمَّعة حسب مستوى مختار (نوعا التقرير مبنيان أصلاً على تصنيف
-  // النوع/إيراد/مصروف أو أصل/التزام/حقوق، فتجميع هرمي كامل ليس له معنى مباشر هنا كما في ميزان
-  // المراجعة). ميزان المراجعة له حالته الهرمية الخاصة أدناه.
+  // فلتر التجميع (مستوى/فرع معيّن/تفاصيل/بحث) — لقائمة الدخل والمركز المالي، تعرضان شجرة هرمية
+  // لكل قسم (إيرادات/مصروفات أو أصول/التزامات/حقوق) مقصوصة عند المستوى المختار، بنفس منطق
+  // truncateTreeDepth المستخدم في ميزان المراجعة. ميزان المراجعة له حالته الهرمية الخاصة أدناه.
   const [level, setLevel] = useState(4);
   const [accountId, setAccountId] = useState("");
   const [includeDetails, setIncludeDetails] = useState(false);
@@ -128,6 +134,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
   const [tbData, setTbData] = useState(null);
   const [tbDateFrom, setTbDateFrom] = useState("");
   const [tbDateTo, setTbDateTo] = useState("");
+  const [tbLevel, setTbLevel] = useState(4);
   const [tbHideZero, setTbHideZero] = useState(true);
   const [tbSearch, setTbSearch] = useState("");
   const [tbExpandedIds, setTbExpandedIds] = useState(new Set());
@@ -145,6 +152,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
       companyId,
       from: tbDateFrom || undefined,
       to: tbDateTo || undefined,
+      level: tbLevel,
       hideZeroActivity: tbHideZero || undefined,
       search: tbSearch || undefined,
     })
@@ -156,7 +164,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [companyId, tbDateFrom, tbDateTo, tbHideZero, tbSearch]);
+  }, [companyId, tbDateFrom, tbDateTo, tbLevel, tbHideZero, tbSearch]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -203,6 +211,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
               data={tbData}
               dateFrom={tbDateFrom} setDateFrom={setTbDateFrom}
               dateTo={tbDateTo} setDateTo={setTbDateTo}
+              level={tbLevel} setLevel={setTbLevel}
               hideZeroActivity={tbHideZero} setHideZeroActivity={setTbHideZero}
               search={tbSearch} setSearch={setTbSearch}
               expandedIds={tbExpandedIds} setExpandedIds={setTbExpandedIds}
