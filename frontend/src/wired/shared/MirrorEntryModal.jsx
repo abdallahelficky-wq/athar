@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { getMirrorSuggestion, createMirrorJournalEntry } from "../../api/journalEntries";
 import { fmt2 } from "../../legacy/constants";
+import AccountSearchSelect from "./AccountSearchSelect";
 
 /**
  * "إنشاء قيد مرآة في شركة أخرى" — يُستخدَم من قيد مرحّل لتوليد القيد المقابل تلقائياً في شركة
@@ -123,10 +124,7 @@ export default function MirrorEntryModal({ entry, companies, accounts, onClose, 
                   </tr>
                   <tr>
                     <td>
-                      <select value={manualAccountId} onChange={(e) => setManualAccountId(e.target.value)}>
-                        <option value="">— اختر الحساب —</option>
-                        {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                      </select>
+                      <AccountSearchSelect accounts={accounts} value={manualAccountId} onChange={setManualAccountId} placeholder="اختر الحساب..." />
                     </td>
                     <td className="num">{manualLine.debit ? fmt2(manualLine.debit) : "—"}</td>
                     <td className="num">{manualLine.credit ? fmt2(manualLine.credit) : "—"}</td>

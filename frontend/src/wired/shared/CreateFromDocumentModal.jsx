@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { createJournalEntryFromDocument, updateJournalEntry, postJournalEntry } from "../../api/journalEntries";
 import { fmt2 } from "../../legacy/constants";
+import AccountSearchSelect from "./AccountSearchSelect";
 
 /**
  * "إنشاء قيد من مستند" — يرفع صورة/PDF، يستدعي الذكاء الاصطناعي عبر الخادم لاقتراح قيد
@@ -144,10 +145,7 @@ export default function CreateFromDocumentModal({ companyId, accounts, onClose, 
                     {lines.map((l, idx) => (
                       <tr key={idx}>
                         <td>
-                          <select value={l.accountId} onChange={(e) => updateLine(idx, "accountId", e.target.value)}>
-                            <option value="">— اختر —</option>
-                            {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                          </select>
+                          <AccountSearchSelect accounts={accounts} value={l.accountId} onChange={(accountId) => updateLine(idx, "accountId", accountId)} />
                         </td>
                         <td><input type="number" className="amount-input" value={l.debit} onChange={(e) => updateLine(idx, "debit", e.target.value)} /></td>
                         <td><input type="number" className="amount-input" value={l.credit} onChange={(e) => updateLine(idx, "credit", e.target.value)} /></td>

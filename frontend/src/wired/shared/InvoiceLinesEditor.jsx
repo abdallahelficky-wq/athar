@@ -1,6 +1,7 @@
 import React from "react";
 import { computeInvoiceLine } from "./invoiceLine";
 import { fmt2 } from "../../legacy/constants";
+import AccountSearchSelect from "./AccountSearchSelect";
 
 export const emptyInvoiceLine = () => ({ accountId: "", description: "", quantity: 1, unitPrice: "", discountPct: 0, priceIncludesVat: true });
 
@@ -30,10 +31,7 @@ export default function InvoiceLinesEditor({ lines, setLines, accounts, showVatT
             {computedLines.map((l, idx) => (
               <tr key={idx}>
                 <td>
-                  <select value={l.accountId} onChange={(e) => updateLine(idx, "accountId", e.target.value)}>
-                    <option value="">— اختر —</option>
-                    {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  <AccountSearchSelect accounts={accounts} value={l.accountId} onChange={(accountId) => updateLine(idx, "accountId", accountId)} />
                 </td>
                 <td><input type="text" value={l.description} onChange={(e) => updateLine(idx, "description", e.target.value)} placeholder="وصف الصنف/الخدمة" /></td>
                 <td><input type="number" className="amount-input" value={l.quantity} onChange={(e) => updateLine(idx, "quantity", e.target.value)} /></td>

@@ -3,12 +3,28 @@ import * as service from "./reports.service";
 
 const parseDate = (v: unknown) => (typeof v === "string" && v ? new Date(v) : undefined);
 const parseCompanyId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+const parseLevel = (v: unknown) => {
+  const n = typeof v === "string" && v ? Number(v) : undefined;
+  return n && n >= 1 && n <= 4 ? n : undefined;
+};
+const parseAccountId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+const parseBool = (v: unknown) => v === "true" || v === "1";
+const parseSearch = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+
+const rollupParams = (query: Record<string, unknown>) => ({
+  level: parseLevel(query.level),
+  accountId: parseAccountId(query.accountId),
+  includeDetails: parseBool(query.includeDetails),
+  search: parseSearch(query.search),
+});
 
 export const trialBalanceHandler: RequestHandler = async (req, res) => {
-  const result = await service.getTrialBalance(
+  const result = await service.getTrialBalanceReport(
     req.auth!.tenantId,
     parseCompanyId(req.query.companyId),
-    parseDate(req.query.date),
+    parseDate(req.query.from),
+    parseDate(req.query.to),
+    rollupParams(req.query),
   );
   res.json(result);
 };
@@ -19,6 +35,7 @@ export const incomeStatementHandler: RequestHandler = async (req, res) => {
     parseCompanyId(req.query.companyId),
     parseDate(req.query.from),
     parseDate(req.query.to),
+    rollupParams(req.query),
   );
   res.json(result);
 };
@@ -28,6 +45,7 @@ export const balanceSheetHandler: RequestHandler = async (req, res) => {
     req.auth!.tenantId,
     parseCompanyId(req.query.companyId),
     parseDate(req.query.date),
+    rollupParams(req.query),
   );
   res.json(result);
 };

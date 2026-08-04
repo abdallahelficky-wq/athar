@@ -102,10 +102,7 @@ function NewAccountInlineForm({ companyId, suggestedName, parentGroups, onCreate
         </label>
         <label>
           تحت مجموعة (مستوى 3)
-          <select value={parentId} onChange={(e) => setParentId(e.target.value)}>
-            <option value="">اختر...</option>
-            {parentGroups.map((g) => <option key={g.id} value={g.id}>{g.code} — {g.name}</option>)}
-          </select>
+          <AccountSearchSelect accounts={parentGroups} value={parentId} onChange={setParentId} />
         </label>
         <div style={{ alignSelf: "end" }}>
           <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? "جارٍ الإنشاء..." : "إنشاء"}</button>

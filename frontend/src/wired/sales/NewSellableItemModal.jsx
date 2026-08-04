@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { createItem } from "../../api/items";
+import AccountSearchSelect from "../shared/AccountSearchSelect";
 
 /** نافذة فرعية لإضافة صنف قابل للبيع بسرعة من داخل سطر فاتورة المبيعات — تُنشئ صنفاً حقيقياً من نوع "خدمة" بحساب إيراد واحد، وهو أبسط الأنواع القابلة للبيع؛ لضبط بيانات أكثر تفصيلاً (مخزون، مادة أولية...) استخدم شاشة "الأصناف والمنتجات" مباشرة. */
 export default function NewSellableItemModal({ companyId, accounts, initialName, onClose, onCreated }) {
@@ -35,9 +36,7 @@ export default function NewSellableItemModal({ companyId, accounts, initialName,
           <label>اسم الصنف<input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
           <label>سعر البيع الافتراضي<input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="0.00" /></label>
           <label>الحساب المرتبط (إيراد)
-            <select value={revenueAccountId} onChange={(e) => setRevenueAccountId(e.target.value)}>
-              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+            <AccountSearchSelect accounts={accounts} value={revenueAccountId} onChange={setRevenueAccountId} />
           </label>
           <label className="checkbox-field">
             <input type="checkbox" checked={vatApplicable} onChange={(e) => setVatApplicable(e.target.checked)} />

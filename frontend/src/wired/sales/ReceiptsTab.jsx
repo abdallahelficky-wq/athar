@@ -5,6 +5,7 @@ import { listAccounts } from "../../api/accounts";
 import { fmt } from "../../legacy/constants";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
+import AccountSearchSelect from "../shared/AccountSearchSelect";
 
 export default function ReceiptsTab({ companyId }) {
   const [customers, setCustomers] = useState([]);
@@ -81,10 +82,12 @@ export default function ReceiptsTab({ companyId }) {
           <label>طريقة التحصيل<select value={method} onChange={(e) => setMethod(e.target.value)}><option value="cash">كاش</option><option value="bank">بنك</option></select></label>
           {method === "bank" && (
             <label>الحساب البنكي
-              <select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
-                {bankAccounts.length === 0 && <option value="">لا توجد حسابات بنكية مُصنَّفة</option>}
-                {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
+              <AccountSearchSelect
+                accounts={bankAccounts}
+                value={bankAccountId}
+                onChange={setBankAccountId}
+                placeholder={bankAccounts.length === 0 ? "لا توجد حسابات بنكية مُصنَّفة" : "ابحث عن حساب بنكي..."}
+              />
             </label>
           )}
         </div>

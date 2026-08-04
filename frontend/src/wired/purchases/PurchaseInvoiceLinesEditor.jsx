@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { computeInvoiceLine } from "../shared/invoiceLine";
 import { fmt2 } from "../../legacy/constants";
+import AccountSearchSelect from "../shared/AccountSearchSelect";
 
 export const emptyPurchaseLine = () => ({
   accountId: "", itemId: "", warehouseId: "", usefulLifeYears: "", salvageValue: "",
@@ -86,10 +87,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
                     {selectedItem ? (
                       <span className="derived-account-note">يُشتق تلقائياً من نوع الصنف</span>
                     ) : (
-                      <select value={l.accountId} onChange={(e) => updateLine(idx, { accountId: e.target.value })}>
-                        <option value="">— اختر —</option>
-                        {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                      </select>
+                      <AccountSearchSelect accounts={accounts} value={l.accountId} onChange={(accountId) => updateLine(idx, { accountId })} />
                     )}
                   </td>
                   <td>

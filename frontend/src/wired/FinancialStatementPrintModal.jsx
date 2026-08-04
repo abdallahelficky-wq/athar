@@ -2,31 +2,44 @@ import React, { useEffect } from "react";
 import { PrintShell, printWithOrientation } from "../legacy/shared";
 import { fmt } from "../legacy/constants";
 
-const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
-
 const TITLES = { trial: "ميزان المراجعة", income: "قائمة الدخل", balance: "المركز المالي" };
 
 function TrialBalanceTable({ data }) {
+  const rows = data.rows.filter(
+    (r) => r.opening.debit || r.opening.credit || r.period.debit || r.period.credit || r.closing.debit || r.closing.credit,
+  );
   return (
     <table className="ledger-table voucher-table">
-      <thead><tr><th>الحساب</th><th>التصنيف</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead>
+      <thead>
+        <tr>
+          <th rowSpan={2}>الكود</th><th rowSpan={2}>الحساب</th>
+          <th colSpan={2}>الرصيد الافتتاحي</th><th colSpan={2}>حركة الفترة</th><th colSpan={2}>الرصيد الختامي</th>
+        </tr>
+        <tr><th>مدين</th><th>دائن</th><th>مدين</th><th>دائن</th><th>مدين</th><th>دائن</th></tr>
+      </thead>
       <tbody>
-        {data.rows.map((r) => (
+        {rows.map((r) => (
           <tr key={r.accountId}>
+            <td>{r.code}</td>
             <td>{r.name}</td>
-            <td>{TYPE_LABEL[r.type]}</td>
-            <td className="num">{r.debit ? fmt(r.debit) : "—"}</td>
-            <td className="num">{r.credit ? fmt(r.credit) : "—"}</td>
-            <td className="num">{r.net >= 0 ? `${fmt(r.net)} مدين` : `${fmt(Math.abs(r.net))} دائن`}</td>
+            <td className="num">{r.opening.debit ? fmt(r.opening.debit) : "—"}</td>
+            <td className="num">{r.opening.credit ? fmt(r.opening.credit) : "—"}</td>
+            <td className="num">{r.period.debit ? fmt(r.period.debit) : "—"}</td>
+            <td className="num">{r.period.credit ? fmt(r.period.credit) : "—"}</td>
+            <td className="num">{r.closing.debit ? fmt(r.closing.debit) : "—"}</td>
+            <td className="num">{r.closing.credit ? fmt(r.closing.credit) : "—"}</td>
           </tr>
         ))}
       </tbody>
       <tfoot>
         <tr>
-          <td className="foot-label">الإجمالي</td><td></td>
-          <td className="num strong">{fmt(data.totalDebit)}</td>
-          <td className="num strong">{fmt(data.totalCredit)}</td>
-          <td className="num strong">{data.balanced ? "متوازن ✓" : "غير متوازن"}</td>
+          <td className="foot-label" colSpan={2}>الإجمالي</td>
+          <td className="num strong">{fmt(data.totals.openingDebit)}</td>
+          <td className="num strong">{fmt(data.totals.openingCredit)}</td>
+          <td className="num strong">{fmt(data.totals.periodDebit)}</td>
+          <td className="num strong">{fmt(data.totals.periodCredit)}</td>
+          <td className="num strong">{fmt(data.totals.closingDebit)}</td>
+          <td className="num strong">{fmt(data.totals.closingCredit)} {data.balanced ? "✓" : "⚠"}</td>
         </tr>
       </tfoot>
     </table>

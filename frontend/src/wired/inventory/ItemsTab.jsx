@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { listItems, createItem, updateItem, deleteItem, getItemComponents, setItemComponents } from "../../api/items";
 import { listAccounts } from "../../api/accounts";
 import { fmt2 } from "../../legacy/constants";
+import AccountSearchSelect from "../shared/AccountSearchSelect";
 
 const ITEM_TYPES = ["inventory", "expense", "service", "fixed_asset", "raw_material", "bundle"];
 const STOCK_TRACKED_TYPES = ["inventory", "expense", "raw_material", "bundle"];
@@ -262,24 +263,16 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
 
         {requiredFields.length > 0 && <div className="form-grid items-accounts-grid">
           {requiredFields.includes("stockAccountId") && <label>{ACCOUNT_LABELS.stockAccountId}
-            <select value={form.stockAccountId} onChange={(e) => setForm({ ...form, stockAccountId: e.target.value })}>
-              <option value="">— اختر —</option>{assetAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+            <AccountSearchSelect accounts={assetAccounts} value={form.stockAccountId} onChange={(id) => setForm({ ...form, stockAccountId: id })} />
           </label>}
           {requiredFields.includes("cogsAccountId") && <label>{ACCOUNT_LABELS.cogsAccountId}
-            <select value={form.cogsAccountId} onChange={(e) => setForm({ ...form, cogsAccountId: e.target.value })}>
-              <option value="">— اختر —</option>{expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+            <AccountSearchSelect accounts={expenseAccounts} value={form.cogsAccountId} onChange={(id) => setForm({ ...form, cogsAccountId: id })} />
           </label>}
           {requiredFields.includes("revenueAccountId") && <label>{ACCOUNT_LABELS.revenueAccountId}
-            <select value={form.revenueAccountId} onChange={(e) => setForm({ ...form, revenueAccountId: e.target.value })}>
-              <option value="">— اختر —</option>{revenueAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+            <AccountSearchSelect accounts={revenueAccounts} value={form.revenueAccountId} onChange={(id) => setForm({ ...form, revenueAccountId: id })} />
           </label>}
           {requiredFields.includes("expenseAccountId") && <label>{ACCOUNT_LABELS.expenseAccountId}
-            <select value={form.expenseAccountId} onChange={(e) => setForm({ ...form, expenseAccountId: e.target.value })}>
-              <option value="">— اختر —</option>{expenseAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+            <AccountSearchSelect accounts={expenseAccounts} value={form.expenseAccountId} onChange={(id) => setForm({ ...form, expenseAccountId: id })} />
           </label>}
         </div>}
 

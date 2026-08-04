@@ -175,6 +175,7 @@ export default function JournalModule({ companies, companyId }) {
                   onChange={(accountId) => setFilters((f) => ({ ...f, accountId }))}
                   placeholder="فلترة بحساب من الشجرة"
                   allowClear
+                  clearLabel="— كل الحسابات —"
                 />
               </label>
               <label>

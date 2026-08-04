@@ -17,7 +17,13 @@ export default function AccountLedgerPrintModal({ ledger, companyId, companies, 
         <div><span>الرصيد الختامي</span><strong>{fmt(Math.abs(ledger.closingBalance))} {ledger.closingBalance >= 0 ? "مدين" : "دائن"}</strong></div>
       </div>
       <table className="ledger-table voucher-table">
-        <thead><tr><th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th>الوصف</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead>
+        <thead>
+          <tr>
+            <th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th>الوصف</th>
+            {!ledger.account.isPosting && <th>حساب الترحيل</th>}
+            <th>مدين</th><th>دائن</th><th>الرصيد</th>
+          </tr>
+        </thead>
         <tbody>
           {ledger.rows.map((r, i) => (
             <tr key={r.journalEntryId + i}>
@@ -25,15 +31,16 @@ export default function AccountLedgerPrintModal({ ledger, companyId, companies, 
               <td>{r.journalEntryId.slice(-8)}</td>
               <td>{r.entryMemo || "—"}</td>
               <td>{r.lineDescription || "—"}</td>
+              {!ledger.account.isPosting && <td>{r.accountCode} — {r.accountName}</td>}
               <td className="num">{r.debit ? fmt(r.debit) : "—"}</td>
               <td className="num">{r.credit ? fmt(r.credit) : "—"}</td>
               <td className="num strong">{fmt(r.balance)}</td>
             </tr>
           ))}
-          {ledger.rows.length === 0 && <tr><td className="empty" colSpan={7}>لا توجد حركات على هذا الحساب بعد.</td></tr>}
+          {ledger.rows.length === 0 && <tr><td className="empty" colSpan={ledger.account.isPosting ? 7 : 8}>لا توجد حركات على هذا الحساب بعد.</td></tr>}
         </tbody>
         <tfoot>
-          <tr><td className="foot-label" colSpan={6}>الرصيد الختامي</td><td className="num strong">{fmt(ledger.closingBalance)}</td></tr>
+          <tr><td className="foot-label" colSpan={ledger.account.isPosting ? 6 : 7}>الرصيد الختامي</td><td className="num strong">{fmt(ledger.closingBalance)}</td></tr>
         </tfoot>
       </table>
     </PrintShell>

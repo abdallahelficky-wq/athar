@@ -4,6 +4,7 @@ import { fmt } from "../legacy/constants";
 import { Icon } from "../legacy/shared";
 import { useAuth } from "../context/AuthContext";
 import AccountImportPanel from "./AccountImportPanel";
+import AccountSearchSelect from "./shared/AccountSearchSelect";
 
 const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
 const LEVEL_CODE_LENGTH = { 1: 1, 2: 2, 3: 3, 4: 6 };
@@ -156,10 +157,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
           <label>اسم الحساب بالإنجليزية (اختياري)<input dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></label>
           <label>كود الحساب<input inputMode="numeric" maxLength={LEVEL_CODE_LENGTH[level] || 6} readOnly={Boolean(editingId)} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 4 ? "يُولّد تلقائياً من الحساب الأب" : `كود المستوى ${level}`} /></label>
           <label>الحساب الأب
-            <select value={form.parentId} onChange={(e) => selectParent(e.target.value)}>
-              <option value="">— مستوى أول —</option>
-              {possibleParents.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
-            </select>
+            <AccountSearchSelect accounts={possibleParents} value={form.parentId} onChange={selectParent} allowClear clearLabel="— مستوى أول —" />
           </label>
           {!selectedParent && <label>التصنيف<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
           {level === 4 && <label className="checkbox-label"><input type="checkbox" checked readOnly />حساب ترحيل</label>}

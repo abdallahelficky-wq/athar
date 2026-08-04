@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import type { Account } from "@prisma/client";
 import { notFound } from "../../lib/httpError";
+import { rollupAccountValues, RollupOptions } from "../../lib/reportRollup";
 
 export interface DateRange {
   companyId?: string;
@@ -55,26 +56,116 @@ export async function aggregateAccountBalances(tenantId: string, range: DateRang
   return map;
 }
 
-export async function getTrialBalance(tenantId: string, companyId?: string, asOfDate?: Date) {
-  const balances = await aggregateAccountBalances(tenantId, { companyId, dateTo: asOfDate });
+export interface ReportRollupParams {
+  level?: number; // 1-4، الافتراضي 4 (بلا تجميع)
+  accountId?: string | null; // تقييد بفرع/حساب معيّن من أي مستوى
+  includeDetails?: boolean; // فقط مع accountId: true = كل حسابات الترحيل تحته، false = سطر مجمَّع واحد
+  search?: string; // فلترة نصية إضافية بالاسم أو الكود، تُطبَّق بعد التجميع
+}
 
-  const rows = [...balances.values()].map(({ account, debit, credit }) => ({
-    accountId: account.id,
-    name: account.name,
-    type: account.type,
-    debit,
-    credit,
-    net: debit - credit,
-  }));
+interface Zeroed {
+  debit: number;
+  credit: number;
+  [key: string]: number;
+}
+const ZERO_DC: Zeroed = { debit: 0, credit: 0 };
 
-  const totalDebit = rows.reduce((s, r) => s + r.debit, 0);
-  const totalCredit = rows.reduce((s, r) => s + r.credit, 0);
+function searchFilter<T extends { name: string; code: string }>(rows: T[], search?: string): T[] {
+  if (!search?.trim()) return rows;
+  const q = search.trim().toLowerCase();
+  return rows.filter((r) => r.name.toLowerCase().includes(q) || r.code.includes(q));
+}
+
+/**
+ * ميزان مراجعة محاسبي كامل: لكل حساب — رصيد افتتاحي (تراكم كل الحركة قبل "من تاريخ")، حركة الفترة
+ * (إجمالي مدين/دائن خام غير مصفّى)، ورصيد ختامي (افتتاحي + حركة الفترة)، معروضة بصيغة "مدين أو
+ * دائن" (net موجب = مدين، سالب = دائن) وليس بحسب الجانب الطبيعي لنوع الحساب — هذا هو التعريف
+ * القياسي لميزان المراجعة (يُتيح تحقّق التوازن: إجمالي المدين = إجمالي الدائن عند كل عمود).
+ * "رصيد افتتاحي عند أي تاريخ" لا يحتاج أي بنية بيانات إضافية أو "سنة مالية" مقفلة: النظام لا يملك
+ * مفهوم إقفال سنوي بعد، فرصيد أي حساب عند أي لحظة هو ببساطة تراكم كل قيد سابق لها — بالضبط ما
+ * تحسبه aggregateAccountBalances أصلاً بإعطائها dateTo فقط بلا dateFrom.
+ */
+export async function getTrialBalanceReport(
+  tenantId: string,
+  companyId: string | undefined,
+  dateFrom: Date | undefined,
+  dateTo: Date | undefined,
+  rollup: ReportRollupParams,
+) {
+  const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
+  const openingDateTo = dateFrom ? new Date(dateFrom.getTime() - 1) : undefined;
+
+  const [openingBalances, periodBalances] = await Promise.all([
+    dateFrom ? aggregateAccountBalances(tenantId, { companyId, dateTo: openingDateTo }) : null,
+    aggregateAccountBalances(tenantId, { companyId, dateFrom, dateTo }),
+  ]);
+
+  const opening = new Map<string, Zeroed>();
+  const period = new Map<string, Zeroed>();
+  for (const account of accounts) {
+    if (!account.isPosting) continue;
+    const o = openingBalances?.get(account.id);
+    opening.set(account.id, { debit: o?.debit || 0, credit: o?.credit || 0 });
+    const p = periodBalances.get(account.id);
+    period.set(account.id, { debit: p?.debit || 0, credit: p?.credit || 0 });
+  }
+
+  const rollupOptions: RollupOptions = { level: rollup.level, accountId: rollup.accountId, includeDetails: rollup.includeDetails };
+  const openingRolled = rollupAccountValues(accounts, opening, ZERO_DC, rollupOptions);
+  const periodRolled = rollupAccountValues(accounts, period, ZERO_DC, rollupOptions);
+  const periodByAccountId = new Map(periodRolled.map((r) => [r.account.id, r.value]));
+
+  const netSplit = (net: number) => ({ debit: Math.max(net, 0), credit: Math.max(-net, 0) });
+
+  let rows = openingRolled.map(({ account, value: o }) => {
+    const p = periodByAccountId.get(account.id) || ZERO_DC;
+    const openingNet = o.debit - o.credit;
+    const closingNet = openingNet + p.debit - p.credit;
+    return {
+      accountId: account.id,
+      code: account.code,
+      name: account.name,
+      level: account.level,
+      opening: netSplit(openingNet),
+      period: { debit: p.debit, credit: p.credit },
+      closing: netSplit(closingNet),
+    };
+  });
+
+  // حسابات لها حركة خلال الفترة لكن بلا رصيد افتتاحي (لم تكن موجودة أصلاً قبل "من تاريخ")
+  const coveredIds = new Set(rows.map((r) => r.accountId));
+  for (const { account, value: p } of periodRolled) {
+    if (coveredIds.has(account.id)) continue;
+    const closingNet = p.debit - p.credit;
+    rows.push({
+      accountId: account.id,
+      code: account.code,
+      name: account.name,
+      level: account.level,
+      opening: { debit: 0, credit: 0 },
+      period: { debit: p.debit, credit: p.credit },
+      closing: netSplit(closingNet),
+    });
+  }
+
+  rows = searchFilter(rows, rollup.search).sort((a, b) => a.code.localeCompare(b.code));
+
+  const totals = rows.reduce(
+    (acc, r) => ({
+      openingDebit: acc.openingDebit + r.opening.debit,
+      openingCredit: acc.openingCredit + r.opening.credit,
+      periodDebit: acc.periodDebit + r.period.debit,
+      periodCredit: acc.periodCredit + r.period.credit,
+      closingDebit: acc.closingDebit + r.closing.debit,
+      closingCredit: acc.closingCredit + r.closing.credit,
+    }),
+    { openingDebit: 0, openingCredit: 0, periodDebit: 0, periodCredit: 0, closingDebit: 0, closingCredit: 0 },
+  );
 
   return {
     rows,
-    totalDebit,
-    totalCredit,
-    balanced: Math.abs(totalDebit - totalCredit) < 0.01,
+    totals,
+    balanced: Math.abs(totals.closingDebit - totals.closingCredit) < 0.01,
   };
 }
 
@@ -96,28 +187,80 @@ async function computeIncomeStatement(tenantId: string, companyId: string | unde
   return { revenueRows, expenseRows, totalRevenue, totalExpense, netIncome };
 }
 
-export async function getIncomeStatement(tenantId: string, companyId?: string, dateFrom?: Date, dateTo?: Date) {
-  return computeIncomeStatement(tenantId, companyId, dateFrom, dateTo);
+/**
+ * يجمّع صفوف حساب واحد الجانب (إيراد/مصروف أو أصل/التزام/حقوق) حسب نفس منطق التجميع المشترك
+ * (rollupAccountValues) المستخدَم في ميزان المراجعة — مستوى مختار، أو فرع/حساب معيّن مع
+ * تفاصيل/بدون تفاصيل. بلا أي فلتر (rollup فارغ) تُعيد بالضبط سطراً واحداً لكل حساب ترحيل، مطابقاً
+ * تماماً للسلوك القديم قبل إضافة هذا المنطق.
+ */
+function rollupTypeRows(
+  accounts: Account[],
+  balances: Map<string, AccountBalance>,
+  types: Account["type"][],
+  amountOf: (b: AccountBalance) => number,
+  rollup: ReportRollupParams,
+) {
+  const values = new Map<string, { amount: number }>();
+  for (const b of balances.values()) {
+    if (!b.account.isPosting || !types.includes(b.account.type)) continue;
+    values.set(b.account.id, { amount: amountOf(b) });
+  }
+  const rolled = rollupAccountValues(accounts, values, { amount: 0 }, {
+    level: rollup.level,
+    accountId: rollup.accountId,
+    includeDetails: rollup.includeDetails,
+  });
+  const rows = rolled.map((r) => ({
+    accountId: r.account.id,
+    code: r.account.code,
+    name: r.account.name,
+    level: r.account.level,
+    amount: r.value.amount,
+  }));
+  return searchFilter(rows, rollup.search).sort((a, b) => a.code.localeCompare(b.code));
 }
 
-export async function getBalanceSheet(tenantId: string, companyId?: string, asOfDate?: Date) {
-  const balances = await aggregateAccountBalances(tenantId, { companyId, dateTo: asOfDate });
+export async function getIncomeStatement(
+  tenantId: string,
+  companyId?: string,
+  dateFrom?: Date,
+  dateTo?: Date,
+  rollup: ReportRollupParams = {},
+) {
+  const [balances, accounts] = await Promise.all([
+    aggregateAccountBalances(tenantId, { companyId, dateFrom, dateTo }),
+    prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } }),
+  ]);
 
-  // صافي الربح التراكمي حتى تاريخ التقرير يُضاف لحقوق الملكية (أرباح مرحّلة) —
-  // نفس منطق BalanceSheetReport في الواجهة المرجعية
+  const revenueRows = rollupTypeRows(accounts, balances, ["revenue"], (b) => b.credit - b.debit, rollup);
+  const expenseRows = rollupTypeRows(accounts, balances, ["expense"], (b) => b.debit - b.credit, rollup);
+
+  const totalRevenue = revenueRows.reduce((s, r) => s + r.amount, 0);
+  const totalExpense = expenseRows.reduce((s, r) => s + r.amount, 0);
+  const netIncome = totalRevenue - totalExpense;
+
+  return { revenueRows, expenseRows, totalRevenue, totalExpense, netIncome };
+}
+
+export async function getBalanceSheet(
+  tenantId: string,
+  companyId?: string,
+  asOfDate?: Date,
+  rollup: ReportRollupParams = {},
+) {
+  const [balances, accounts] = await Promise.all([
+    aggregateAccountBalances(tenantId, { companyId, dateTo: asOfDate }),
+    prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } }),
+  ]);
+
+  // صافي الربح التراكمي حتى تاريخ التقرير يُضاف لحقوق الملكية (أرباح مرحّلة) — رقم إجمالي على
+  // مستوى الشركة كاملة دائماً، بصرف النظر عن أي فلتر عرض على صفوف الأصول/الالتزامات/حقوق الملكية،
+  // لأنه ليس صفاً معروضاً بل مكوّن حسابي لبند "حقوق الملكية" الإجمالي.
   const { netIncome } = await computeIncomeStatement(tenantId, companyId, undefined, asOfDate);
 
-  const assetRows = [...balances.values()]
-    .filter((b) => b.account.type === "asset")
-    .map((b) => ({ accountId: b.account.id, name: b.account.name, amount: b.debit - b.credit }));
-
-  const liabilityRows = [...balances.values()]
-    .filter((b) => b.account.type === "liability")
-    .map((b) => ({ accountId: b.account.id, name: b.account.name, amount: b.credit - b.debit }));
-
-  const equityRows = [...balances.values()]
-    .filter((b) => b.account.type === "equity")
-    .map((b) => ({ accountId: b.account.id, name: b.account.name, amount: b.credit - b.debit }));
+  const assetRows = rollupTypeRows(accounts, balances, ["asset"], (b) => b.debit - b.credit, rollup);
+  const liabilityRows = rollupTypeRows(accounts, balances, ["liability"], (b) => b.credit - b.debit, rollup);
+  const equityRows = rollupTypeRows(accounts, balances, ["equity"], (b) => b.credit - b.debit, rollup);
 
   const totalAssets = assetRows.reduce((s, r) => s + r.amount, 0);
   const totalLiabilities = liabilityRows.reduce((s, r) => s + r.amount, 0);
@@ -202,6 +345,23 @@ export async function getCustomerStatement(
   return { customer, ...statement };
 }
 
+function collectPostingDescendants(accounts: Account[], rootId: string): string[] {
+  const byParent = new Map<string | null, Account[]>();
+  accounts.forEach((a) => byParent.set(a.parentId, [...(byParent.get(a.parentId) || []), a]));
+  const root = accounts.find((a) => a.id === rootId);
+  if (!root) return [];
+  if (root.isPosting) return [root.id];
+  const result: string[] = [];
+  const walk = (parentId: string) => {
+    for (const child of byParent.get(parentId) || []) {
+      if (child.isPosting) result.push(child.id);
+      else walk(child.id);
+    }
+  };
+  walk(rootId);
+  return result;
+}
+
 /**
  * كشف حساب الأستاذ لأي حساب من شجرة الحسابات (وليس فقط ذمم العملاء/الموردين كما في
  * buildPartyStatement أعلاه) — يجلب كل أسطر القيود المرحّلة على هذا الحساب تحديداً، ويحسب رصيداً
@@ -209,6 +369,11 @@ export async function getCustomerStatement(
  * الطبيعة) — نفس اصطلاح الإشارة المستخدَم في aggregateAccountBalances/getTrialBalance أعلاه.
  * يُرجِع أيضاً وصف كل سطر (JournalEntryLine.description) بجانب بيان القيد العام، لأن هذا هو
  * بالضبط ما يحتاجه المستخدم عند مراجعة كشف حساب لفهم تفاصيل كل حركة دون فتح القيد الكامل.
+ *
+ * accountId قد يكون حساب ترحيل بعينه (كالسابق تماماً) أو حساباً تجميعياً (فرعاً كاملاً من أي
+ * مستوى) — في الحالة الثانية يُجمَع كشف حركة كل حسابات الترحيل تحته في كشف واحد مرتّب زمنياً،
+ * وكل سطر موسوم باسم/كود حساب الترحيل الفعلي الذي رُحِّل عليه، فيصبح بالإمكان استعراض "كل عملاء
+ * الذمم المدينة" في كشف واحد بدل فتح كل عميل على حدة.
  */
 export async function getAccountLedger(
   tenantId: string,
@@ -224,16 +389,23 @@ export async function getAccountLedger(
 
   const normalSide: "debit" | "credit" = account.type === "asset" || account.type === "expense" ? "debit" : "credit";
 
+  const scopedAccountIds = account.isPosting
+    ? [account.id]
+    : collectPostingDescendants(
+        await prisma.account.findMany({ where: { tenantId, companyId: companyId || undefined } }),
+        account.id,
+      );
+
   const lines = await prisma.journalEntryLine.findMany({
     where: {
-      accountId,
+      accountId: { in: scopedAccountIds },
       journalEntry: {
         tenantId,
         companyId: companyId || undefined,
         date: { gte: dateFrom, lte: dateTo },
       },
     },
-    include: { journalEntry: { include: { company: true } }, costCenter: true },
+    include: { journalEntry: { include: { company: true } }, costCenter: true, account: true },
     orderBy: { journalEntry: { date: "asc" } },
   });
 
@@ -249,6 +421,9 @@ export async function getAccountLedger(
       lineDescription: l.description,
       costCenterName: l.costCenter?.name || null,
       companyName: l.journalEntry.company.shortName || l.journalEntry.company.name,
+      accountId: l.accountId,
+      accountName: l.account.name,
+      accountCode: l.account.code,
       debit,
       credit,
       balance,

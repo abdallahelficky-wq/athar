@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createJournalEntry, updateJournalEntry, postJournalEntry, getNextEntryNumber } from "../api/journalEntries";
 import { fmt2 } from "../legacy/constants";
+import AccountSearchSelect from "./shared/AccountSearchSelect";
 
 const emptyLine = () => ({ accountId: "", costCenterId: "", description: "", debit: "", credit: "" });
 
@@ -120,10 +121,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
               {lines.map((l, idx) => (
                 <tr key={idx}>
                   <td>
-                    <select value={l.accountId} onChange={(e) => updateLine(idx, "accountId", e.target.value)}>
-                      <option value="">— اختر —</option>
-                      {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
+                    <AccountSearchSelect accounts={accounts} value={l.accountId} onChange={(accountId) => updateLine(idx, "accountId", accountId)} />
                   </td>
                   <td>
                     <select value={l.costCenterId} onChange={(e) => updateLine(idx, "costCenterId", e.target.value)}>
