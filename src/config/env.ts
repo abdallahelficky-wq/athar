@@ -39,6 +39,9 @@ export const env = {
   // الاستخدام الفعلي (src/lib/zatca/secretBox.ts)، وليس عند بدء تشغيل الخادم، بنفس أسلوب مفاتيح
   // R2/Anthropic أعلاه — حتى يعمل باقي النظام طبيعياً في بيئة لم تُفعَّل فيها ميزة زاتكا بعد.
   zatcaEncryptionKey: process.env.ZATCA_ENCRYPTION_KEY,
+  // اختياري: مسار ثنائي Chromium قابل للتنفيذ، مطلوب فقط عند توليد PDF/A-3 لفواتير زاتكا فعلياً
+  // (src/lib/zatca/pdf/renderPdf.ts) — يختلف حسب بيئة النشر، لا قيمة افتراضية آمنة عالمياً.
+  chromiumExecutablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
 
   resendApiKey: process.env.RESEND_API_KEY,
   emailFromAddress: process.env.EMAIL_FROM_ADDRESS ?? "أثر المحاسبي <onboarding@resend.dev>",
