@@ -51,12 +51,13 @@ model Tenant {
   journalEntries   JournalEntry[]
   auditLogs        AuditLog[]
 
-  customers     Customer[]
-  quotations    Quotation[]
-  salesInvoices SalesInvoice[]
-  salesReturns  SalesReturn[]
-  receipts      Receipt[]
-  stationSales  StationSale[]
+  customers       Customer[]
+  quotations      Quotation[]
+  salesInvoices   SalesInvoice[]
+  salesReturns    SalesReturn[]
+  salesDebitNotes SalesDebitNote[]
+  receipts        Receipt[]
+  stationSales    StationSale[]
 
   suppliers        Supplier[]
   purchaseInvoices PurchaseInvoice[]
@@ -168,9 +169,9 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
-  id                      String             @id @default(cuid())
+  id                      String                @id @default(cuid())
   tenantId                String
-  tenant                  Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                  Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name                    String
   shortName               String?
   logoKey                 String?
@@ -188,34 +189,49 @@ model Company {
   addressPostalCode       String?
   addressAdditionalNo     String?
   // بادئة ترقيم القيود التسلسلي لهذه الشركة؛ تبدأ افتراضياً بالحرف J ويمكن تعديلها من بيانات الشركة.
-  numberingPrefix         String             @default("J")
+  numberingPrefix         String                @default("J")
   // العدّاد التالي في تسلسل هذه الشركة تحديداً (يبدأ من 1، مستقل تماماً عن باقي الشركات) — يُزاد
   // ذرّياً (UPDATE ... RETURNING ضمن نفس معاملة إنشاء القيد) فقط لحظة الحفظ الفعلي، لا عند مجرد
   // فتح نافذة الإضافة أو معاينة الرقم التالي، تجنباً لفجوات Gaps بسبب عمليات مُلغاة.
-  nextJournalEntrySeq     Int                @default(1)
+  nextJournalEntrySeq     Int                   @default(1)
   // إعدادات تنبيهات الداشبورد المالية — قابلة للتعديل لكل شركة من الإعدادات
-  vatFilingFrequency      VatFilingFrequency @default(quarterly)
+  vatFilingFrequency      VatFilingFrequency    @default(quarterly)
   zakatDeclarationDueDate DateTime?
-  lowCashThreshold        Decimal?           @db.Decimal(18, 2)
-  overdueInvoiceDays      Int                @default(30)
-  staleDraftDays          Int                @default(7)
+  lowCashThreshold        Decimal?              @db.Decimal(18, 2)
+  overdueInvoiceDays      Int                   @default(30)
+  staleDraftDays          Int                   @default(7)
   // نشاط المنشأة — يُحدَّد عند إنشاء الشركة ويُستخدَم لزرع قالب شجرة الحسابات المطابق تلقائياً
   // (مقاولات/مصانع/تجزئة/تجارة عامة/محطات وقود) بدل القالب الافتراضي العام. اختياري: الشركات
   // القديمة قبل هذه الميزة تبقى null وتُعامَل معاملة "بدون نشاط محدد" (القالب الافتراضي فقط).
   businessActivity        BusinessActivity?
-  createdAt               DateTime           @default(now())
-  updatedAt               DateTime           @updatedAt
+  // --- ربط فاتورة (ZATCA) — المرحلة الثانية (التكامل)، انظر src/lib/zatca/*  ---
+  // جهاز إصدار فواتير إلكترونية (EGS) واحد لكل شركة (v1) — CSID واحد، عدّاد ICV واحد،
+  // وسلسلة تجزئة (PIH) واحدة تغطي كل الفواتير/الإشعارات الدائنة/المدينة لهذه الشركة معاً.
+  zatcaOnboardingStatus   ZatcaOnboardingStatus @default(not_onboarded)
+  zatcaEnvironment        ZatcaEnvironment      @default(sandbox)
+  zatcaEgsUuid            String?
+  zatcaSolutionName       String?
+  zatcaModel              String?
+  // العدّاد التالي في تسلسل ICV لهذه الشركة — يُزاد ذرّياً فقط لحظة الإرسال الفعلي لزاتكا
+  // (Clearance/Reporting)، لا عند مجرد إنشاء مسودة الفاتورة (بنفس أسلوب nextJournalEntrySeq أعلاه).
+  zatcaNextIcv            Int                   @default(1)
+  // تجزئة (hash) آخر مستند تم إرساله فعلياً لزاتكا — تصبح PIH للمستند التالي في السلسلة.
+  zatcaLastInvoiceHash    String?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
 
   costCenters          CostCenter[]
   companyDocuments     CompanyDocument[]
   leaseContracts       LeaseContract[]
   journalEntries       JournalEntry[]
   accounts             Account[]
-  intercompanyAccounts Account[]          @relation("AccountIntercompanyCompany")
+  intercompanyAccounts Account[]               @relation("AccountIntercompanyCompany")
   customers            Customer[]
   quotations           Quotation[]
   salesInvoices        SalesInvoice[]
   salesReturns         SalesReturn[]
+  salesDebitNotes      SalesDebitNote[]
+  zatcaCredential      CompanyZatcaCredential?
   receipts             Receipt[]
   stationSales         StationSale[]
   suppliers            Supplier[]
@@ -232,6 +248,26 @@ model Company {
 
   @@unique([tenantId, name])
   @@map("companies")
+}
+
+// أسرار ربط فاتورة (ZATCA) الخاصة بشركة واحدة — مفتاح خاص/شهادات/أسرار API. كل الحقول المنتهية
+// بـ Enc قيم مُشفّرة بالكامل (AES-256-GCM) عبر src/lib/zatca/secretBox.ts قبل الكتابة، ولا تُخزَّن
+// أبداً كنص خام. علاقة 1:1 صارمة مع Company (لا مشاركة بين الشركات — كل شركة CSID مستقل تماماً).
+model CompanyZatcaCredential {
+  id                  String   @id @default(cuid())
+  companyId           String   @unique
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  privateKeyEnc       String? // مفتاح secp256k1 الخاص (PEM)، مُشفَّر
+  csrPem              String? // آخر CSR تم توليده — نص عادي (لا يحتوي سراً، PKCS#10 عام)
+  complianceCertEnc   String? // شهادة الاختبار (Compliance CSID)، مُشفَّرة
+  complianceSecretEnc String? // سر API المرافق لشهادة الاختبار، مُشفَّر
+  complianceRequestId String? // request_id المُستخدَم لاحقاً لاستبداله بشهادة الإنتاج
+  productionCertEnc   String? // شهادة الإنتاج (Production CSID)، مُشفَّرة
+  productionSecretEnc String? // سر API المرافق لشهادة الإنتاج، مُشفَّر
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("company_zatca_credentials")
 }
 
 // مركز تكلفة/موقع/فرع/مخزن — قد يكون عاماً (companyId فارغ) أو خاصاً بشركة معينة
@@ -273,6 +309,38 @@ enum BusinessActivity {
   fuel_stations
 }
 
+// حالة استخراج شهادة ربط فاتورة (ZATCA CSID) لهذه الشركة تحديداً
+enum ZatcaOnboardingStatus {
+  not_onboarded // لم يبدأ الربط بعد
+  compliance // تم استخراج شهادة الاختبار (Compliance CSID) فقط
+  production // تم استخراج شهادة الإنتاج (Production CSID) — جاهزة للتشغيل الفعلي
+}
+
+// البيئة الحالية التي تُرسَل إليها فواتير هذه الشركة فعلياً
+enum ZatcaEnvironment {
+  sandbox // بوابة المطورين العامة (بيانات/شهادات وهمية للاختبار فقط)
+  simulation // محاكاة بحساب الشركة الحقيقي (OTP حقيقي) لكن غير ملزمة قانونياً
+  production // البيئة الفعلية الملزمة قانونياً
+}
+
+// حالة مستند فوترة إلكترونية واحد أمام زاتكا (فاتورة/إشعار دائن/إشعار مدين)
+enum ZatcaDocumentStatus {
+  not_applicable // الشركة لم تُفعّل الربط مع زاتكا بعد لهذا المستند
+  pending_clearance // فاتورة قياسية (B2B) بانتظار رد التخليص (Clearance) قبل تسليمها للعميل
+  cleared // تم تخليصها من زاتكا بنجاح
+  pending_reporting // فاتورة مبسّطة (B2C) سُلّمت للعميل وبانتظار الإبلاغ عنها خلال 24 ساعة
+  reported // تم الإبلاغ عنها لزاتكا بنجاح
+  rejected // رفضتها زاتكا — تبقى المسودة غير مرحّلة نهائياً حتى تصحيحها وإعادة الإرسال
+}
+
+// تصنيف الضريبة على مستوى السطر وفق قائمة أكواد زاتكا/UBL القياسية
+enum TaxCategoryCode {
+  S // خاضع للنسبة الأساسية (Standard-rated)
+  Z // خاضع بنسبة صفر (Zero-rated)
+  E // معفى (Exempt) — يتطلب سبب إعفاء
+  O // خارج نطاق ضريبة القيمة المضافة (Out of scope)
+}
+
 // شجرة الحسابات
 model Account {
   id                    String      @id @default(cuid())
@@ -307,6 +375,7 @@ model Account {
   journalEntryLines    JournalEntryLine[]
   salesInvoiceLines    SalesInvoiceLine[]
   salesReturnLines     SalesReturnLine[]
+  salesDebitNoteLines  SalesDebitNoteLine[]
   purchaseInvoiceLines PurchaseInvoiceLine[]
   purchaseReturnLines  PurchaseReturnLine[]
   receiptsAsBank       Receipt[]             @relation("ReceiptBankAccount")
@@ -380,6 +449,7 @@ enum SourceModule {
   manual
   sales_invoice
   sales_return
+  sales_debit_note
   receipt
   purchase_invoice
   purchase_return
@@ -491,6 +561,7 @@ model Customer {
   quotations        Quotation[]
   salesInvoices     SalesInvoice[]
   salesReturns      SalesReturn[]
+  salesDebitNotes   SalesDebitNote[]
   receipts          Receipt[]
   journalEntryLines JournalEntryLine[]
 
@@ -537,24 +608,39 @@ enum InvoiceStatus {
 }
 
 model SalesInvoice {
-  id             String        @id @default(cuid())
-  tenantId       String
-  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  invoiceNumber  String
-  companyId      String
-  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customerId     String
-  customer       Customer      @relation(fields: [customerId], references: [id])
-  date           DateTime
-  invoiceType    InvoiceType
-  status         InvoiceStatus @default(posted)
-  journalEntryId String?
-  qrPayload      String?
-  subtotal       Decimal       @db.Decimal(18, 2)
-  vatTotal       Decimal       @db.Decimal(18, 2)
-  grandTotal     Decimal       @db.Decimal(18, 2)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id                       String              @id @default(cuid())
+  tenantId                 String
+  tenant                   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoiceNumber            String
+  companyId                String
+  company                  Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId               String
+  customer                 Customer            @relation(fields: [customerId], references: [id])
+  date                     DateTime
+  invoiceType              InvoiceType
+  status                   InvoiceStatus       @default(posted)
+  journalEntryId           String?
+  qrPayload                String?
+  subtotal                 Decimal             @db.Decimal(18, 2)
+  vatTotal                 Decimal             @db.Decimal(18, 2)
+  grandTotal               Decimal             @db.Decimal(18, 2)
+  // --- ربط فاتورة (ZATCA) — المرحلة الثانية، انظر src/lib/zatca/* ---
+  // معرّف عالمي فريد (UUID v4) خاص بالفاتورة، مستقل عن invoiceNumber التسلسلي القابل للقراءة.
+  zatcaUuid                String              @unique @default(uuid())
+  // رقم العدّاد (Invoice Counter Value) — يُحجز ذرّياً من Company.zatcaNextIcv فقط لحظة
+  // الإرسال الفعلي لزاتكا (Clearance/Reporting)، لا عند إنشاء المسودة. null = لم تُرسَل بعد.
+  icv                      Int?
+  // تجزئة المستند السابق في سلسلة الشركة (PIH) وتجزئة هذا المستند نفسه (تصبح PIH التالي).
+  previousInvoiceHash      String?
+  invoiceHash              String?
+  xmlAttachmentId          String?
+  pdfAttachmentId          String?
+  zatcaStatus              ZatcaDocumentStatus @default(not_applicable)
+  zatcaResponseRaw         Json?
+  zatcaSubmittedAt         DateTime?
+  zatcaClearedOrReportedAt DateTime?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
 
   lines              SalesInvoiceLine[]
   receiptAllocations ReceiptAllocation[]
@@ -564,46 +650,61 @@ model SalesInvoice {
 }
 
 model SalesInvoiceLine {
-  id               String       @id @default(cuid())
-  invoiceId        String
-  invoice          SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  accountId        String
-  account          Account      @relation(fields: [accountId], references: [id])
-  itemId           String?
-  item             Item?        @relation(fields: [itemId], references: [id])
-  description      String?
-  quantity         Decimal      @db.Decimal(18, 4)
-  unitPrice        Decimal      @db.Decimal(18, 4)
-  discountPct      Decimal      @default(0) @db.Decimal(5, 2)
-  priceIncludesVat Boolean      @default(false)
-  vatApplicable    Boolean      @default(true)
-  subtotal         Decimal      @db.Decimal(18, 2)
-  vat              Decimal      @db.Decimal(18, 2)
-  total            Decimal      @db.Decimal(18, 2)
+  id                 String          @id @default(cuid())
+  invoiceId          String
+  invoice            SalesInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  accountId          String
+  account            Account         @relation(fields: [accountId], references: [id])
+  itemId             String?
+  item               Item?           @relation(fields: [itemId], references: [id])
+  description        String?
+  quantity           Decimal         @db.Decimal(18, 4)
+  unitPrice          Decimal         @db.Decimal(18, 4)
+  discountPct        Decimal         @default(0) @db.Decimal(5, 2)
+  priceIncludesVat   Boolean         @default(false)
+  vatApplicable      Boolean         @default(true)
+  // تصنيف الضريبة القياسي لزاتكا (UBL cac:ClassifiedTaxCategory) — يُشتق افتراضياً من
+  // vatApplicable أعلاه (true => S، false => O) عند عدم تحديده صراحةً.
+  taxCategoryCode    TaxCategoryCode @default(S)
+  taxExemptionReason String?
+  subtotal           Decimal         @db.Decimal(18, 2)
+  vat                Decimal         @db.Decimal(18, 2)
+  total              Decimal         @db.Decimal(18, 2)
 
   @@map("sales_invoice_lines")
 }
 
 model SalesReturn {
-  id               String        @id @default(cuid())
-  tenantId         String
-  tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  returnNumber     String
-  companyId        String
-  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customerId       String
-  customer         Customer      @relation(fields: [customerId], references: [id])
-  relatedInvoiceId String?
-  reason           String?
-  refundMethod     String?
-  date             DateTime
-  status           InvoiceStatus @default(posted)
-  journalEntryId   String?
-  subtotal         Decimal       @db.Decimal(18, 2)
-  vatTotal         Decimal       @db.Decimal(18, 2)
-  grandTotal       Decimal       @db.Decimal(18, 2)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  id                       String              @id @default(cuid())
+  tenantId                 String
+  tenant                   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  returnNumber             String
+  companyId                String
+  company                  Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId               String
+  customer                 Customer            @relation(fields: [customerId], references: [id])
+  relatedInvoiceId         String?
+  reason                   String?
+  refundMethod             String?
+  date                     DateTime
+  status                   InvoiceStatus       @default(posted)
+  journalEntryId           String?
+  subtotal                 Decimal             @db.Decimal(18, 2)
+  vatTotal                 Decimal             @db.Decimal(18, 2)
+  grandTotal               Decimal             @db.Decimal(18, 2)
+  // --- ربط فاتورة (ZATCA) — إشعار دائن (Credit Note، كود UBL 381)، نفس حقول SalesInvoice ---
+  zatcaUuid                String              @unique @default(uuid())
+  icv                      Int?
+  previousInvoiceHash      String?
+  invoiceHash              String?
+  xmlAttachmentId          String?
+  pdfAttachmentId          String?
+  zatcaStatus              ZatcaDocumentStatus @default(not_applicable)
+  zatcaResponseRaw         Json?
+  zatcaSubmittedAt         DateTime?
+  zatcaClearedOrReportedAt DateTime?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
 
   lines SalesReturnLine[]
 
@@ -612,21 +713,85 @@ model SalesReturn {
 }
 
 model SalesReturnLine {
-  id               String      @id @default(cuid())
-  returnId         String
-  salesReturn      SalesReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
-  accountId        String
-  account          Account     @relation(fields: [accountId], references: [id])
-  description      String?
-  quantity         Decimal     @db.Decimal(18, 4)
-  unitPrice        Decimal     @db.Decimal(18, 4)
-  discountPct      Decimal     @default(0) @db.Decimal(5, 2)
-  priceIncludesVat Boolean     @default(false)
-  subtotal         Decimal     @db.Decimal(18, 2)
-  vat              Decimal     @db.Decimal(18, 2)
-  total            Decimal     @db.Decimal(18, 2)
+  id                 String          @id @default(cuid())
+  returnId           String
+  salesReturn        SalesReturn     @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  accountId          String
+  account            Account         @relation(fields: [accountId], references: [id])
+  description        String?
+  quantity           Decimal         @db.Decimal(18, 4)
+  unitPrice          Decimal         @db.Decimal(18, 4)
+  discountPct        Decimal         @default(0) @db.Decimal(5, 2)
+  priceIncludesVat   Boolean         @default(false)
+  taxCategoryCode    TaxCategoryCode @default(S)
+  taxExemptionReason String?
+  subtotal           Decimal         @db.Decimal(18, 2)
+  vat                Decimal         @db.Decimal(18, 2)
+  total              Decimal         @db.Decimal(18, 2)
 
   @@map("sales_return_lines")
+}
+
+// إشعار مدين (Debit Note، كود UBL 383) — رسوم إضافية على فاتورة سابقة (عكس المردود تماماً)،
+// يزيد ما يستحق على العميل بدل تخفيضه. يُبنى بنفس بنية SalesReturn/SalesReturnLine حرفياً.
+model SalesDebitNote {
+  id                       String              @id @default(cuid())
+  tenantId                 String
+  tenant                   Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  debitNoteNumber          String
+  companyId                String
+  company                  Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId               String
+  customer                 Customer            @relation(fields: [customerId], references: [id])
+  relatedInvoiceId         String?
+  reason                   String?
+  // كيفية تحصيل المبلغ الإضافي: يُضاف لذمم العميل، أو يُحصَّل نقداً/بنكياً فوراً (بنفس معنى
+  // refundMethod في SalesReturn لكن بالاتجاه المعاكس).
+  chargeMethod             String?
+  date                     DateTime
+  status                   InvoiceStatus       @default(posted)
+  journalEntryId           String?
+  subtotal                 Decimal             @db.Decimal(18, 2)
+  vatTotal                 Decimal             @db.Decimal(18, 2)
+  grandTotal               Decimal             @db.Decimal(18, 2)
+  // --- ربط فاتورة (ZATCA) — نفس حقول SalesInvoice/SalesReturn ---
+  zatcaUuid                String              @unique @default(uuid())
+  icv                      Int?
+  previousInvoiceHash      String?
+  invoiceHash              String?
+  xmlAttachmentId          String?
+  pdfAttachmentId          String?
+  zatcaStatus              ZatcaDocumentStatus @default(not_applicable)
+  zatcaResponseRaw         Json?
+  zatcaSubmittedAt         DateTime?
+  zatcaClearedOrReportedAt DateTime?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+
+  lines SalesDebitNoteLine[]
+
+  @@unique([tenantId, debitNoteNumber])
+  @@map("sales_debit_notes")
+}
+
+model SalesDebitNoteLine {
+  id                 String          @id @default(cuid())
+  debitNoteId        String
+  salesDebitNote     SalesDebitNote  @relation(fields: [debitNoteId], references: [id], onDelete: Cascade)
+  accountId          String
+  account            Account         @relation(fields: [accountId], references: [id])
+  description        String?
+  quantity           Decimal         @db.Decimal(18, 4)
+  unitPrice          Decimal         @db.Decimal(18, 4)
+  discountPct        Decimal         @default(0) @db.Decimal(5, 2)
+  priceIncludesVat   Boolean         @default(false)
+  taxCategoryCode    TaxCategoryCode @default(S)
+  taxExemptionReason String?
+  subtotal           Decimal         @db.Decimal(18, 2)
+  vat                Decimal         @db.Decimal(18, 2)
+  total              Decimal         @db.Decimal(18, 2)
+
+  @@map("sales_debit_note_lines")
 }
 
 enum ReceiptMethod {

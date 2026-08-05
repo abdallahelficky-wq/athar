@@ -13,6 +13,7 @@ import { customerRoutes } from "./modules/customers/customers.routes";
 import { quotationRoutes } from "./modules/quotations/quotations.routes";
 import { salesInvoiceRoutes } from "./modules/salesInvoices/salesInvoices.routes";
 import { salesReturnRoutes } from "./modules/salesReturns/salesReturns.routes";
+import { salesDebitNoteRoutes } from "./modules/salesDebitNotes/salesDebitNotes.routes";
 import { receiptRoutes } from "./modules/receipts/receipts.routes";
 import { stationSaleRoutes } from "./modules/stationSales/stationSales.routes";
 import { salesReportRoutes } from "./modules/salesReports/salesReports.routes";
@@ -60,6 +61,7 @@ export function createApp() {
   app.use("/api/quotations", quotationRoutes);
   app.use("/api/sales-invoices", salesInvoiceRoutes);
   app.use("/api/sales-returns", salesReturnRoutes);
+  app.use("/api/sales-debit-notes", salesDebitNoteRoutes);
   app.use("/api/receipts", receiptRoutes);
   app.use("/api/station-sales", stationSaleRoutes);
   app.use("/api/sales-reports", salesReportRoutes);

@@ -35,6 +35,11 @@ export const env = {
 
   // اختياري: بدون مفتاح، يكتفي lib/mailer.ts بطباعة محتوى الإيميل في الطرفية (fallback آمن
   // للتطوير المحلي) بدل الإرسال الفعلي عبر Resend.
+  // اختياري: مفتاح تشفير أسرار ربط زاتكا (CSID) — Base64 لـ 32 بايت (256 بت)، يُقرأ فقط عند
+  // الاستخدام الفعلي (src/lib/zatca/secretBox.ts)، وليس عند بدء تشغيل الخادم، بنفس أسلوب مفاتيح
+  // R2/Anthropic أعلاه — حتى يعمل باقي النظام طبيعياً في بيئة لم تُفعَّل فيها ميزة زاتكا بعد.
+  zatcaEncryptionKey: process.env.ZATCA_ENCRYPTION_KEY,
+
   resendApiKey: process.env.RESEND_API_KEY,
   emailFromAddress: process.env.EMAIL_FROM_ADDRESS ?? "أثر المحاسبي <onboarding@resend.dev>",
   // أساس الروابط الموجودة داخل الإيميلات (رابط إعادة تعيين كلمة المرور، رابط قبول الدعوة)؛
