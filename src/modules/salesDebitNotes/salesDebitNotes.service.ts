@@ -1,10 +1,11 @@
+import { randomUUID } from "crypto";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
-import { reserveZatcaChain } from "../../lib/zatca/chain";
+import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
 
 /** انظر التعليق المطابق في salesReturns.service.ts — نفس المنطق لإشعار مدين */
 async function resolveBillingReferenceNumber(tenantId: string, relatedInvoiceId: string | null | undefined): Promise<string | undefined> {
@@ -62,7 +63,7 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
   });
   if (accounts.length !== accountIds.length) throw badRequest("أحد حسابات الإيراد المختارة غير صالح");
 
-  const computed = input.lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
+  const computed = input.lines.map((l) => ({ ...l, ...computeInvoiceLine(l), taxCategoryCode: "S" as const, taxExemptionReason: null as string | null }));
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
@@ -84,8 +85,20 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
 
   const count = await prisma.salesDebitNote.count({ where: { tenantId } });
   const debitNoteNumber = formatDocNumber("DBN", count);
+  const zatcaUuid = randomUUID();
+  const billingReferenceId = await resolveBillingReferenceNumber(tenantId, input.relatedInvoiceId);
 
   return prisma.$transaction(async (tx) => {
+    const gate = billingReferenceId
+      ? await evaluateZatcaPostingGate({
+          tx, company, customer, kind: "debit_note", documentNumber: debitNoteNumber, documentUuid: zatcaUuid, billingReferenceId,
+          lines: computed.map((l) => ({ ...l, description: l.description ?? null })), grandTotal, vatTotal,
+        })
+      : { proceedWithPosting: true, zatcaFields: { zatcaStatus: "not_applicable" as const } };
+    if (!gate.proceedWithPosting) {
+      throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك إشعار المدين: ${gate.rejectionReason}`);
+    }
+
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: input.companyId,
@@ -108,6 +121,8 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
         date: input.date,
         status: "posted",
         journalEntryId: entry.id,
+        zatcaUuid,
+        ...gate.zatcaFields,
         subtotal,
         vatTotal,
         grandTotal,
@@ -118,22 +133,7 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: debitNote.id } });
 
-    const billingReferenceId = await resolveBillingReferenceNumber(tenantId, input.relatedInvoiceId);
-    const chain = billingReferenceId
-      ? await reserveZatcaChain(tx, {
-          company, customer, kind: "debit_note", documentNumber: debitNoteNumber, documentUuid: debitNote.zatcaUuid, billingReferenceId, lines: debitNote.lines,
-        })
-      : null;
-    if (!chain) return debitNote;
-
-    return tx.salesDebitNote.update({
-      where: { id: debitNote.id },
-      data: {
-        icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
-        zatcaStatus: chain.zatcaStatus, zatcaSubmittedAt: chain.issuedAt,
-      },
-      include: debitNoteInclude,
-    });
+    return debitNote;
   });
 }
 
@@ -166,7 +166,19 @@ export async function postSalesDebitNote(tenantId: string, userId: string, id: s
     { accountId: vatOutputId, department: "المالية والحسابات", debit: 0, credit: Number(debitNote.vatTotal), customerId: debitNote.customerId },
   ];
 
+  const billingReferenceId = await resolveBillingReferenceNumber(tenantId, debitNote.relatedInvoiceId);
+
   return prisma.$transaction(async (tx) => {
+    const gate = billingReferenceId
+      ? await evaluateZatcaPostingGate({
+          tx, company, customer: debitNote.customer, kind: "debit_note", documentNumber: debitNote.debitNoteNumber, documentUuid: debitNote.zatcaUuid, billingReferenceId,
+          lines: debitNote.lines, grandTotal: Number(debitNote.grandTotal), vatTotal: Number(debitNote.vatTotal),
+        })
+      : { proceedWithPosting: true, zatcaFields: { zatcaStatus: "not_applicable" as const } };
+    if (!gate.proceedWithPosting) {
+      throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك إشعار المدين: ${gate.rejectionReason}`);
+    }
+
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: debitNote.companyId,
@@ -179,26 +191,11 @@ export async function postSalesDebitNote(tenantId: string, userId: string, id: s
     });
     const updated = await tx.salesDebitNote.update({
       where: { id },
-      data: { status: "posted", journalEntryId: entry.id },
+      data: { status: "posted", journalEntryId: entry.id, ...gate.zatcaFields },
       include: debitNoteInclude,
     });
 
-    const billingReferenceId = await resolveBillingReferenceNumber(tenantId, debitNote.relatedInvoiceId);
-    const chain = billingReferenceId
-      ? await reserveZatcaChain(tx, {
-          company, customer: debitNote.customer, kind: "debit_note", documentNumber: debitNote.debitNoteNumber, documentUuid: debitNote.zatcaUuid, billingReferenceId, lines: debitNote.lines,
-        })
-      : null;
-    if (!chain) return updated;
-
-    return tx.salesDebitNote.update({
-      where: { id },
-      data: {
-        icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
-        zatcaStatus: chain.zatcaStatus, zatcaSubmittedAt: chain.issuedAt,
-      },
-      include: debitNoteInclude,
-    });
+    return updated;
   });
 }
 

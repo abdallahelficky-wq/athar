@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
@@ -8,7 +9,7 @@ import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, write
 import { formatDocNumber } from "../../lib/docNumber";
 import { getStockBalance } from "../stockMovements/stockMovements.service";
 import { isStockTracked } from "../items/items.service";
-import { reserveZatcaChain } from "../../lib/zatca/chain";
+import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
 
 type Tx = Prisma.TransactionClient;
 
@@ -44,6 +45,7 @@ function computeLines(lines: LineInput[]) {
     ...computeInvoiceLine(l),
     // فئة الضريبة القياسية لزاتكا (S/O) تُشتق من vatApplicable الحالي — لا حقل إدخال جديد بعد.
     taxCategoryCode: l.vatApplicable === false ? ("O" as const) : ("S" as const),
+    taxExemptionReason: null as string | null,
   }));
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
@@ -260,8 +262,20 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
 
   const cogsLines = await computeCogsJournalLines(tenantId, input.companyId, input.lines);
   const journalLines = await buildJournalLines(tenantId, input.companyId, input.customerId, computed, vatTotal, grandTotal, cogsLines);
+  const zatcaUuid = randomUUID();
 
   return prisma.$transaction(async (tx) => {
+    // بوابة زاتكا أولاً، قبل أي كتابة فعلية: فاتورة قياسية (B2B) ترفضها زاتكا يجب ألا تُنشَأ ولا
+    // تُرحَّل إطلاقاً (لا تُعتبر فاتورة نهائية حتى تُقبَل فعلياً) — رمي الاستثناء هنا يُلغي المعاملة
+    // بأكملها بلا أي أثر جانبي متبقٍّ في قاعدة البيانات.
+    const gate = await evaluateZatcaPostingGate({
+      tx, company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: zatcaUuid,
+      lines: computed.map((l) => ({ ...l, description: l.description ?? null })), grandTotal, vatTotal,
+    });
+    if (!gate.proceedWithPosting) {
+      throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك الفاتورة: ${gate.rejectionReason}`);
+    }
+
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: input.companyId,
@@ -283,6 +297,8 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
         status: "posted",
         journalEntryId: entry.id,
         qrPayload,
+        zatcaUuid,
+        ...gate.zatcaFields,
         subtotal,
         vatTotal,
         grandTotal,
@@ -294,20 +310,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
     await createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id);
 
-    const chain = await reserveZatcaChain(tx, {
-      company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: invoice.zatcaUuid, lines: invoice.lines,
-    });
-    if (!chain) return withPaymentStatus(invoice);
-
-    const withChain = await tx.salesInvoice.update({
-      where: { id: invoice.id },
-      data: {
-        icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
-        zatcaStatus: chain.zatcaStatus, zatcaSubmittedAt: chain.issuedAt,
-      },
-      include: invoiceInclude,
-    });
-    return withPaymentStatus(withChain);
+    return withPaymentStatus(invoice);
   });
 }
 
@@ -363,6 +366,14 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
   const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customerId, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
 
   return prisma.$transaction(async (tx) => {
+    const gate = await evaluateZatcaPostingGate({
+      tx, company, customer: invoice.customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid,
+      lines: invoice.lines, grandTotal: Number(invoice.grandTotal), vatTotal: Number(invoice.vatTotal),
+    });
+    if (!gate.proceedWithPosting) {
+      throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك الفاتورة: ${gate.rejectionReason}`);
+    }
+
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: invoice.companyId,
@@ -375,25 +386,12 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
     });
     const updated = await tx.salesInvoice.update({
       where: { id },
-      data: { status: "posted", journalEntryId: entry.id },
+      data: { status: "posted", journalEntryId: entry.id, ...gate.zatcaFields },
       include: invoiceInclude,
     });
     await createStockOutSideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id);
 
-    const chain = await reserveZatcaChain(tx, {
-      company, customer: invoice.customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid, lines: invoice.lines,
-    });
-    if (!chain) return withPaymentStatus(updated);
-
-    const withChain = await tx.salesInvoice.update({
-      where: { id },
-      data: {
-        icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
-        zatcaStatus: chain.zatcaStatus, zatcaSubmittedAt: chain.issuedAt,
-      },
-      include: invoiceInclude,
-    });
-    return withPaymentStatus(withChain);
+    return withPaymentStatus(updated);
   });
 }
 

@@ -1,13 +1,14 @@
 import { Prisma } from "@prisma/client";
 import { buildDocumentXml } from "./xmlBuilder";
 import { computeDocumentHash } from "./hash";
-import { ZATCA_FIRST_INVOICE_PIH, ZatcaDocumentInput, ZatcaDocumentKind, ZatcaLineInput, ZatcaPartyInput } from "./types";
+import { ZATCA_FIRST_INVOICE_PIH, ZatcaDocumentInput, ZatcaDocumentKind, ZatcaInvoiceSubtype, ZatcaLineInput, ZatcaPartyInput } from "./types";
 
 type Tx = Prisma.TransactionClient;
 
 export interface ZatcaCompanyLike {
   id: string;
   zatcaOnboardingStatus: string;
+  zatcaEnvironment: string;
   zatcaLastInvoiceHash: string | null;
   name: string;
   vatNumber: string | null;
@@ -47,6 +48,10 @@ export interface ZatcaChainResult {
   invoiceHash: string;
   issuedAt: Date;
   zatcaStatus: "pending_clearance" | "pending_reporting";
+  /** XML غير موقّع لهذا المستند بالضبط — يُعاد استخدامه في المرحلة E (التوقيع + الإرسال) بدل إعادة
+   * بنائه، حتى تبقى التجزئة والمحتوى المُرسَل مضمونَي التطابق دائماً. */
+  xml: string;
+  subtype: ZatcaInvoiceSubtype;
 }
 
 interface ReserveZatcaChainParams {
@@ -87,6 +92,17 @@ function mapCustomerToBuyer(customer: ZatcaCustomerLike): ZatcaPartyInput {
 
 function subtypeForCustomer(customer: ZatcaCustomerLike): "standard" | "simplified" {
   return customer.customerType === "business" && Boolean(customer.vatNumber) ? "standard" : "simplified";
+}
+
+/** حقول QR 1-5 (النصية) من بيانات الشركة والمبلغ الإجمالي — لاستخدامها في المرحلة E عند بناء QR الكامل الموقّع */
+export function buildQrBaseParams(company: ZatcaCompanyLike, issuedAt: Date, grandTotal: number, vatTotal: number) {
+  return {
+    sellerName: company.name,
+    sellerVat: company.vatNumber || "",
+    isoTimestamp: issuedAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
+    invoiceTotal: grandTotal,
+    vatTotal,
+  };
 }
 
 export function mapPersistedLineToZatcaLine(line: ZatcaPersistedLineLike, index: number): ZatcaLineInput {
@@ -158,5 +174,7 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     invoiceHash,
     issuedAt,
     zatcaStatus: subtype === "standard" ? "pending_clearance" : "pending_reporting",
+    xml,
+    subtype,
   };
 }
