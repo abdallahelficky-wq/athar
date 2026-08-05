@@ -16,6 +16,7 @@ import MirrorEntryModal from "./shared/MirrorEntryModal";
 import ReverseEntryModal from "./shared/ReverseEntryModal";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import Breadcrumb from "./shared/Breadcrumb";
+import { useDeferredFilters } from "./shared/useDeferredFilters";
 import JournalVoucherViewModal from "./JournalVoucherViewModal";
 import JournalEntryFormModal from "./JournalEntryFormModal";
 
@@ -34,7 +35,7 @@ export default function JournalModule({ companies, companyId }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const [filters, setFilters] = useState(emptyFilters);
+  const jf = useDeferredFilters(emptyFilters);
 
   const [formModal, setFormModal] = useState(null); // { mode: "create" | "edit", entry? }
   const [attachmentsFor, setAttachmentsFor] = useState(null);
@@ -59,32 +60,32 @@ export default function JournalModule({ companies, companyId }) {
   const reloadEntries = () => {
     if (!companyId) { setEntries([]); setLoading(false); return; }
     setLoading(true);
+    const f = jf.applied;
     listJournalEntries({
       companyId,
-      search: filters.search || undefined,
-      dateFrom: filters.dateFrom || undefined,
-      dateTo: filters.dateTo || undefined,
-      amountMin: filters.amountMin || undefined,
-      amountMax: filters.amountMax || undefined,
-      entryNumber: filters.entryNumber || undefined,
-      accountId: filters.accountId || undefined,
-      status: filters.status || undefined,
+      search: f.search || undefined,
+      dateFrom: f.dateFrom || undefined,
+      dateTo: f.dateTo || undefined,
+      amountMin: f.amountMin || undefined,
+      amountMax: f.amountMax || undefined,
+      entryNumber: f.entryNumber || undefined,
+      accountId: f.accountId || undefined,
+      status: f.status || undefined,
     })
       .then(setEntries)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   };
 
-  // فلترة فورية لكنها مؤجَّلة قليلاً (debounce) عند الكتابة في حقول نصية/رقمية، لتفادي إرسال
-  // طلب لكل حرف يُكتَب — بقية التغييرات (تاريخ، حساب) قليلة التكرار فلا تحتاج تأجيلاً فعلياً
+  // الفلترة لا تُطبَّق إلا عند الضغط على "إظهار النتائج" أو Enter (راجع useDeferredFilters) — لا
+  // حاجة لأي تأجيل زمني (debounce) بعد الآن لأن التطبيق نفسه صريح، مش لحظي مع كل كتابة.
   useEffect(() => {
-    const t = setTimeout(reloadEntries, 350);
-    return () => clearTimeout(t);
+    reloadEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, filters]);
+  }, [companyId, jf.applied]);
 
-  const clearFilters = () => setFilters(emptyFilters);
-  const hasActiveFilters = Object.values(filters).some((v) => v !== "");
+  const clearFilters = () => jf.reset(emptyFilters);
+  const hasActiveFilters = Object.values(jf.draft).some((v) => v !== "");
 
   const entryTotal = (e) => e.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
 
@@ -155,24 +156,24 @@ export default function JournalModule({ companies, companyId }) {
               </button>
             </div>
 
-            <div className="filter-bar">
-              <label>البيان<input type="text" value={filters.search} onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))} placeholder="بحث بالبيان" /></label>
-              <label>من تاريخ<input type="date" value={filters.dateFrom} onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))} /></label>
-              <label>إلى تاريخ<input type="date" value={filters.dateTo} onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))} /></label>
+            <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); jf.apply(); }}>
+              <label>البيان<input type="text" value={jf.draft.search} onChange={(e) => jf.setField("search", e.target.value)} placeholder="بحث بالبيان" /></label>
+              <label>من تاريخ<input type="date" value={jf.draft.dateFrom} onChange={(e) => jf.setField("dateFrom", e.target.value)} /></label>
+              <label>إلى تاريخ<input type="date" value={jf.draft.dateTo} onChange={(e) => jf.setField("dateTo", e.target.value)} /></label>
               <label>
                 المبلغ
                 <div className="filter-field-pair">
-                  <input type="number" value={filters.amountMin} onChange={(e) => setFilters((f) => ({ ...f, amountMin: e.target.value }))} placeholder="من" />
-                  <input type="number" value={filters.amountMax} onChange={(e) => setFilters((f) => ({ ...f, amountMax: e.target.value }))} placeholder="إلى" />
+                  <input type="number" value={jf.draft.amountMin} onChange={(e) => jf.setField("amountMin", e.target.value)} placeholder="من" />
+                  <input type="number" value={jf.draft.amountMax} onChange={(e) => jf.setField("amountMax", e.target.value)} placeholder="إلى" />
                 </div>
               </label>
-              <label>رقم القيد<input type="text" value={filters.entryNumber} onChange={(e) => setFilters((f) => ({ ...f, entryNumber: e.target.value }))} placeholder="بحث برقم القيد" /></label>
+              <label>رقم القيد<input type="text" value={jf.draft.entryNumber} onChange={(e) => jf.setField("entryNumber", e.target.value)} placeholder="بحث برقم القيد" /></label>
               <label>
                 حساب معيّن
                 <AccountSearchSelect
                   accounts={accounts}
-                  value={filters.accountId}
-                  onChange={(accountId) => setFilters((f) => ({ ...f, accountId }))}
+                  value={jf.draft.accountId}
+                  onChange={(accountId) => jf.setField("accountId", accountId)}
                   placeholder="فلترة بحساب من الشجرة"
                   allowClear
                   clearLabel="— كل الحسابات —"
@@ -180,16 +181,17 @@ export default function JournalModule({ companies, companyId }) {
               </label>
               <label>
                 حالة القيد
-                <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
+                <select value={jf.draft.status} onChange={(e) => jf.setField("status", e.target.value)}>
                   <option value="">— الكل —</option>
                   <option value="saved">محفوظ</option>
                   <option value="posted">مرحّل</option>
                 </select>
               </label>
+              <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
               {hasActiveFilters && (
-                <button className="btn-ghost" onClick={clearFilters} style={{ alignSelf: "end" }}>مسح الفلاتر</button>
+                <button type="button" className="btn-ghost" onClick={clearFilters} style={{ alignSelf: "end" }}>مسح الفلاتر</button>
               )}
-            </div>
+            </form>
           </div>
 
           {loading ? (

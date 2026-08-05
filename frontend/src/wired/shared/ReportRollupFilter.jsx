@@ -8,16 +8,22 @@ import AccountSearchSelect from "./AccountSearchSelect";
  * مباشرة كـ query params لأي endpoint تقرير يدعم rollupParams في الخادم (level/accountId/
  * includeDetails/search) — نفس العقد بلا أي منطق مكرَّر لكل شاشة تقرير.
  */
-export default function ReportRollupFilter({ accounts, level, onLevelChange, accountId, onAccountChange, includeDetails, onIncludeDetailsChange, search, onSearchChange }) {
-  const levelAccounts = accounts.filter((a) => a.level === level);
+/**
+ * تُمرَّر قيم الحقول (values) كـ "مسودة" غير مطبَّقة بعد — التعديل هنا لا يستدعي أي API ولا يعيد
+ * حساب أي نتيجة، فقط يحدّث ما يُعرَض في الحقول (Controlled). المطبِّق (parent) هو من يقرر متى
+ * يعتمد هذه القيم فعلياً (بالضغط على "إظهار النتائج" أو Enter)، فهذا المكوّن لا يعرض زرار تطبيق
+ * بنفسه — يُفترض عرضه داخل <form> واحد يجمعه مع باقي حقول الفلتر بالشاشة (مثل حقول التاريخ).
+ */
+export default function ReportRollupFilter({ accounts, values, onChange }) {
+  const levelAccounts = accounts.filter((a) => a.level === values.level);
 
   return (
-    <div className="filter-bar report-rollup-filter">
+    <>
       <label>
         المستوى
         <select
-          value={level}
-          onChange={(e) => { onLevelChange(Number(e.target.value)); onAccountChange(""); }}
+          value={values.level}
+          onChange={(e) => { onChange("level", Number(e.target.value)); onChange("accountId", ""); }}
         >
           <option value={1}>المستوى 1</option>
           <option value={2}>المستوى 2</option>
@@ -29,23 +35,23 @@ export default function ReportRollupFilter({ accounts, level, onLevelChange, acc
         فلترة بحساب/مجموعة معيّنة
         <AccountSearchSelect
           accounts={levelAccounts}
-          value={accountId}
-          onChange={onAccountChange}
+          value={values.accountId}
+          onChange={(accountId) => onChange("accountId", accountId)}
           allowClear
           clearLabel="— كل حسابات هذا المستوى —"
           placeholder="ابحث عن حساب أو مجموعة..."
         />
       </label>
-      {accountId && (
+      {values.accountId && (
         <label className="checkbox-label">
-          <input type="checkbox" checked={includeDetails} onChange={(e) => onIncludeDetailsChange(e.target.checked)} />
+          <input type="checkbox" checked={values.includeDetails} onChange={(e) => onChange("includeDetails", e.target.checked)} />
           عرض بالتفاصيل (كل حسابات الترحيل تحت هذه المجموعة)
         </label>
       )}
       <label>
         بحث بالاسم أو الكود
-        <input type="text" value={search} onChange={(e) => onSearchChange(e.target.value)} placeholder="بحث..." />
+        <input type="text" value={values.search} onChange={(e) => onChange("search", e.target.value)} placeholder="بحث..." />
       </label>
-    </div>
+    </>
   );
 }

@@ -11,6 +11,7 @@ import ReportRollupFilter from "./shared/ReportRollupFilter";
 import TrialBalanceView from "./TrialBalanceView";
 import { collectGroupAccountIds, flattenVisibleTree } from "./shared/trialBalanceTree";
 import { exportTrialBalanceExcel } from "./shared/exportTrialBalanceExcel";
+import { useDeferredFilters } from "./shared/useDeferredFilters";
 
 export const REPORT_TABS = [
   { id: "trial", label: "ميزان المراجعة" },
@@ -35,22 +36,18 @@ function AmountTreeRows({ nodes, depth = 0 }) {
   ));
 }
 
-function IncomeStatementView({ data, accounts, level, setLevel, accountId, setAccountId, includeDetails, setIncludeDetails, search, setSearch, dateFrom, setDateFrom, dateTo, setDateTo }) {
+function IncomeStatementView({ data, accounts, filters }) {
   if (!data) return null;
+  const { draft, setField, apply } = filters;
   return (
     <div className="panel">
       <h3>قائمة الدخل</h3>
-      <div className="filter-bar">
-        <label>من تاريخ<input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></label>
-        <label>إلى تاريخ<input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></label>
-      </div>
-      <ReportRollupFilter
-        accounts={accounts}
-        level={level} onLevelChange={setLevel}
-        accountId={accountId} onAccountChange={setAccountId}
-        includeDetails={includeDetails} onIncludeDetailsChange={setIncludeDetails}
-        search={search} onSearchChange={setSearch}
-      />
+      <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); apply(); }}>
+        <label>من تاريخ<input type="date" value={draft.dateFrom} onChange={(e) => setField("dateFrom", e.target.value)} /></label>
+        <label>إلى تاريخ<input type="date" value={draft.dateTo} onChange={(e) => setField("dateTo", e.target.value)} /></label>
+        <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} />
+        <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+      </form>
       <table className="ledger-table">
         <tbody>
           <tr><td className="strong section-row" colSpan={2}>الإيرادات</td></tr>
@@ -68,21 +65,17 @@ function IncomeStatementView({ data, accounts, level, setLevel, accountId, setAc
   );
 }
 
-function BalanceSheetView({ data, accounts, level, setLevel, accountId, setAccountId, includeDetails, setIncludeDetails, search, setSearch, asOfDate, setAsOfDate }) {
+function BalanceSheetView({ data, accounts, filters }) {
   if (!data) return null;
+  const { draft, setField, apply } = filters;
   return (
     <div className="panel">
       <h3>المركز المالي</h3>
-      <div className="filter-bar">
-        <label>حتى تاريخ<input type="date" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)} /></label>
-      </div>
-      <ReportRollupFilter
-        accounts={accounts}
-        level={level} onLevelChange={setLevel}
-        accountId={accountId} onAccountChange={setAccountId}
-        includeDetails={includeDetails} onIncludeDetailsChange={setIncludeDetails}
-        search={search} onSearchChange={setSearch}
-      />
+      <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); apply(); }}>
+        <label>حتى تاريخ<input type="date" value={draft.asOfDate} onChange={(e) => setField("asOfDate", e.target.value)} /></label>
+        <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} />
+        <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+      </form>
       <table className="ledger-table">
         <tbody>
           <tr><td className="strong section-row" colSpan={2}>الأصول</td></tr>
@@ -118,25 +111,20 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
   const [error, setError] = useState("");
   const [printing, setPrinting] = useState(false);
 
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [asOfDate, setAsOfDate] = useState(() => new Date().toISOString().slice(0, 10));
-
-  // فلتر التجميع (مستوى/فرع معيّن/تفاصيل/بحث) — لقائمة الدخل والمركز المالي، تعرضان شجرة هرمية
-  // لكل قسم (إيرادات/مصروفات أو أصول/التزامات/حقوق) مقصوصة عند المستوى المختار، بنفس منطق
+  // فلتر التجميع (مستوى/فرع معيّن/تفاصيل/بحث/تواريخ) — لقائمة الدخل والمركز المالي، تعرضان شجرة
+  // هرمية لكل قسم (إيرادات/مصروفات أو أصول/التزامات/حقوق) مقصوصة عند المستوى المختار، بنفس منطق
   // truncateTreeDepth المستخدم في ميزان المراجعة. ميزان المراجعة له حالته الهرمية الخاصة أدناه.
-  const [level, setLevel] = useState(4);
-  const [accountId, setAccountId] = useState("");
-  const [includeDetails, setIncludeDetails] = useState(false);
-  const [search, setSearch] = useState("");
+  // "مؤجَّلة" (useDeferredFilters): القيم لا تُطبَّق فعلياً (لا يُعاد الجلب) إلا عند الضغط على
+  // "إظهار النتائج" أو Enter — راجع تعليق الـ hook نفسه لتفاصيل السبب.
+  const rollupFilters = useDeferredFilters({
+    dateFrom: "", dateTo: "", asOfDate: new Date().toISOString().slice(0, 10),
+    level: 4, accountId: "", includeDetails: false, search: "",
+  });
 
-  // حالة ميزان المراجعة الهرمي (Tree View) — مستقلة تماماً عن فلاتر التقريرين الآخرين.
+  // حالة ميزان المراجعة الهرمي (Tree View) — مستقلة تماماً عن فلاتر التقريرين الآخرين، ومؤجَّلة
+  // بنفس الطريقة.
   const [tbData, setTbData] = useState(null);
-  const [tbDateFrom, setTbDateFrom] = useState("");
-  const [tbDateTo, setTbDateTo] = useState("");
-  const [tbLevel, setTbLevel] = useState(4);
-  const [tbHideZero, setTbHideZero] = useState(true);
-  const [tbSearch, setTbSearch] = useState("");
+  const tb = useDeferredFilters({ dateFrom: "", dateTo: "", level: 4, hideZeroActivity: true, search: "" });
   const [tbExpandedIds, setTbExpandedIds] = useState(new Set());
 
   useEffect(() => {
@@ -148,13 +136,14 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
     if (!companyId) return;
     setLoading(true);
     setError("");
+    const f = tb.applied;
     getTrialBalanceTree({
       companyId,
-      from: tbDateFrom || undefined,
-      to: tbDateTo || undefined,
-      level: tbLevel,
-      hideZeroActivity: tbHideZero || undefined,
-      search: tbSearch || undefined,
+      from: f.dateFrom || undefined,
+      to: f.dateTo || undefined,
+      level: f.level,
+      hideZeroActivity: f.hideZeroActivity || undefined,
+      search: f.search || undefined,
     })
       .then((tree) => {
         setTbData(tree);
@@ -164,16 +153,18 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [companyId, tbDateFrom, tbDateTo, tbLevel, tbHideZero, tbSearch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, tb.applied]);
 
   useEffect(() => {
     if (!companyId) return;
     setLoading(true);
     setError("");
-    const rollup = { level, accountId: accountId || undefined, includeDetails: includeDetails || undefined, search: search || undefined };
+    const f = rollupFilters.applied;
+    const rollup = { level: f.level, accountId: f.accountId || undefined, includeDetails: f.includeDetails || undefined, search: f.search || undefined };
     Promise.all([
-      getIncomeStatement({ companyId, from: dateFrom || undefined, to: dateTo || undefined, ...rollup }),
-      getBalanceSheet({ companyId, date: asOfDate || undefined, ...rollup }),
+      getIncomeStatement({ companyId, from: f.dateFrom || undefined, to: f.dateTo || undefined, ...rollup }),
+      getBalanceSheet({ companyId, date: f.asOfDate || undefined, ...rollup }),
     ])
       .then(([is, bs]) => {
         setIncomeStatement(is);
@@ -181,7 +172,8 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [companyId, dateFrom, dateTo, asOfDate, level, accountId, includeDetails, search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, rollupFilters.applied]);
 
   const activeCompany = companies?.find((c) => c.id === companyId);
   const tbVisibleRows = tbData ? flattenVisibleTree(tbData.roots, tbExpandedIds) : [];
@@ -209,11 +201,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
           {tab === "trial" && (
             <TrialBalanceView
               data={tbData}
-              dateFrom={tbDateFrom} setDateFrom={setTbDateFrom}
-              dateTo={tbDateTo} setDateTo={setTbDateTo}
-              level={tbLevel} setLevel={setTbLevel}
-              hideZeroActivity={tbHideZero} setHideZeroActivity={setTbHideZero}
-              search={tbSearch} setSearch={setTbSearch}
+              filters={tb}
               expandedIds={tbExpandedIds} setExpandedIds={setTbExpandedIds}
               onPrint={() => setPrinting(true)}
               onExportExcel={() => exportTrialBalanceExcel({
@@ -221,33 +209,16 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
                 totals: tbData.totals,
                 balanced: tbData.balanced,
                 company: activeCompany,
-                dateFrom: tbDateFrom,
-                dateTo: tbDateTo,
+                dateFrom: tb.applied.dateFrom,
+                dateTo: tb.applied.dateTo,
               })}
             />
           )}
           {tab === "income" && (
-            <IncomeStatementView
-              data={incomeStatement}
-              accounts={accounts}
-              level={level} setLevel={setLevel}
-              accountId={accountId} setAccountId={setAccountId}
-              includeDetails={includeDetails} setIncludeDetails={setIncludeDetails}
-              search={search} setSearch={setSearch}
-              dateFrom={dateFrom} setDateFrom={setDateFrom}
-              dateTo={dateTo} setDateTo={setDateTo}
-            />
+            <IncomeStatementView data={incomeStatement} accounts={accounts} filters={rollupFilters} />
           )}
           {tab === "balance" && (
-            <BalanceSheetView
-              data={balanceSheet}
-              accounts={accounts}
-              level={level} setLevel={setLevel}
-              accountId={accountId} setAccountId={setAccountId}
-              includeDetails={includeDetails} setIncludeDetails={setIncludeDetails}
-              search={search} setSearch={setSearch}
-              asOfDate={asOfDate} setAsOfDate={setAsOfDate}
-            />
+            <BalanceSheetView data={balanceSheet} accounts={accounts} filters={rollupFilters} />
           )}
         </>
       )}
@@ -257,8 +228,8 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
           visibleRows={tbVisibleRows}
           totals={tbData.totals}
           balanced={tbData.balanced}
-          dateFrom={tbDateFrom}
-          dateTo={tbDateTo}
+          dateFrom={tb.applied.dateFrom}
+          dateTo={tb.applied.dateTo}
           company={activeCompany}
           onClose={() => setPrinting(false)}
         />
@@ -268,7 +239,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
           kind={tab}
           data={tab === "income" ? incomeStatement : balanceSheet}
           company={activeCompany}
-          asOfDate={tab === "balance" ? asOfDate : dateTo}
+          asOfDate={tab === "balance" ? rollupFilters.applied.asOfDate : rollupFilters.applied.dateTo}
           autoPrint={false}
           onClose={() => setPrinting(false)}
         />

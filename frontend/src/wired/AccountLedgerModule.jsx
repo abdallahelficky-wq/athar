@@ -5,6 +5,9 @@ import { fmt } from "../legacy/constants";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import Breadcrumb from "./shared/Breadcrumb";
 import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
+import { useDeferredFilters } from "./shared/useDeferredFilters";
+
+const emptyFilters = { accountId: "", dateFrom: "", dateTo: "" };
 
 /**
  * كشف حساب الأستاذ لأي حساب من شجرة الحسابات — يعرض حركة الحساب مرتبة زمنياً مع رصيد متحرك،
@@ -13,31 +16,32 @@ import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
  */
 export default function AccountLedgerModule({ companyId, companies }) {
   const [accounts, setAccounts] = useState([]);
-  const [accountId, setAccountId] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const alf = useDeferredFilters(emptyFilters);
   const [ledger, setLedger] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [printOpen, setPrintOpen] = useState(false);
 
   useEffect(() => {
-    if (!companyId) { setAccounts([]); setAccountId(""); return; }
+    if (!companyId) { setAccounts([]); alf.reset(emptyFilters); return; }
     // شجرة كاملة (وليس حسابات الترحيل فقط) — يمكن اختيار فرع تجميعي كامل (مثل "الذمم المدينة
     // التجارية") لعرض كشف حركة مجمَّع لكل عملائه معاً، وليس حساب ترحيل بعينه فقط.
     listAccounts({ tree: true, companyId }).then(setAccounts).catch((err) => setError(err.message));
-    setAccountId("");
+    alf.reset(emptyFilters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
 
   useEffect(() => {
-    if (!accountId || !companyId) { setLedger(null); return; }
+    const f = alf.applied;
+    if (!f.accountId || !companyId) { setLedger(null); return; }
     setLoading(true);
     setError("");
-    getAccountLedger(accountId, { companyId, from: dateFrom || undefined, to: dateTo || undefined })
+    getAccountLedger(f.accountId, { companyId, from: f.dateFrom || undefined, to: f.dateTo || undefined })
       .then(setLedger)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [accountId, companyId, dateFrom, dateTo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alf.applied, companyId]);
 
   return (
     <div>
@@ -53,20 +57,21 @@ export default function AccountLedgerModule({ companyId, companies }) {
       ) : (
         <>
           <div className="panel form-panel">
-            <div className="filter-bar">
+            <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); alf.apply(); }}>
               <label>
                 الحساب
-                <AccountSearchSelect accounts={accounts} value={accountId} onChange={setAccountId} placeholder="اختر حساباً لعرض حركته" />
+                <AccountSearchSelect accounts={accounts} value={alf.draft.accountId} onChange={(accountId) => alf.setField("accountId", accountId)} placeholder="اختر حساباً لعرض حركته" />
               </label>
-              <label>من تاريخ<input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></label>
-              <label>إلى تاريخ<input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></label>
+              <label>من تاريخ<input type="date" value={alf.draft.dateFrom} onChange={(e) => alf.setField("dateFrom", e.target.value)} /></label>
+              <label>إلى تاريخ<input type="date" value={alf.draft.dateTo} onChange={(e) => alf.setField("dateTo", e.target.value)} /></label>
+              <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
               {ledger && (
-                <button className="btn-ghost" style={{ alignSelf: "end" }} onClick={() => setPrintOpen(true)}>طباعة الكشف</button>
+                <button type="button" className="btn-ghost" style={{ alignSelf: "end" }} onClick={() => setPrintOpen(true)}>طباعة الكشف</button>
               )}
-            </div>
+            </form>
           </div>
 
-          {!accountId && <p className="empty">اختر حساباً من الأعلى لعرض كشف حركته.</p>}
+          {!alf.applied.accountId && <p className="empty">اختر حساباً من الأعلى واضغط "إظهار النتائج" لعرض كشف حركته.</p>}
           {loading && <p className="empty">جارٍ التحميل...</p>}
 
           {ledger && !loading && (

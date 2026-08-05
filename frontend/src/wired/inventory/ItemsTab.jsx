@@ -3,6 +3,9 @@ import { listItems, createItem, updateItem, deleteItem, getItemComponents, setIt
 import { listAccounts } from "../../api/accounts";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
+import { useDeferredFilters } from "../shared/useDeferredFilters";
+
+const emptyItemFilters = { query: "", category: "", typeFilter: "", lowStock: false };
 
 const ITEM_TYPES = ["inventory", "expense", "service", "fixed_asset", "raw_material", "bundle"];
 const STOCK_TRACKED_TYPES = ["inventory", "expense", "raw_material", "bundle"];
@@ -71,10 +74,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   const [components, setComponents] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
-  const [lowStock, setLowStock] = useState(false);
+  const itemFilters = useDeferredFilters(emptyItemFilters);
   const [status, setStatus] = useState("active");
   const [viewItem, setViewItem] = useState(null);
 
@@ -88,15 +88,18 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   useEffect(() => { if (companyId) listAccounts({ companyId }).then(setAccounts); }, [companyId]);
 
   const categories = useMemo(() => [...new Set(items.map((item) => item.category).filter(Boolean))], [items]);
-  const filteredItems = useMemo(() => items.filter((item) => {
-    const text = query.trim().toLocaleLowerCase("ar");
-    const matchesQuery = !text || item.name?.toLocaleLowerCase("ar").includes(text) || item.code?.toLocaleLowerCase("ar").includes(text);
-    const matchesCategory = !category || item.category === category;
-    const matchesType = !typeFilter || item.type === typeFilter;
-    const matchesStock = !lowStock || (item.quantity != null && item.reorderLevel != null && Number(item.quantity) < Number(item.reorderLevel));
-    const matchesStatus = status === "active" ? item.isArchived !== true : item.isArchived === true;
-    return matchesQuery && matchesCategory && matchesType && matchesStock && matchesStatus;
-  }), [items, query, category, typeFilter, lowStock, status]);
+  const filteredItems = useMemo(() => {
+    const f = itemFilters.applied;
+    const text = f.query.trim().toLocaleLowerCase("ar");
+    return items.filter((item) => {
+      const matchesQuery = !text || item.name?.toLocaleLowerCase("ar").includes(text) || item.code?.toLocaleLowerCase("ar").includes(text);
+      const matchesCategory = !f.category || item.category === f.category;
+      const matchesType = !f.typeFilter || item.type === f.typeFilter;
+      const matchesStock = !f.lowStock || (item.quantity != null && item.reorderLevel != null && Number(item.quantity) < Number(item.reorderLevel));
+      const matchesStatus = status === "active" ? item.isArchived !== true : item.isArchived === true;
+      return matchesQuery && matchesCategory && matchesType && matchesStock && matchesStatus;
+    });
+  }, [items, itemFilters.applied, status]);
 
   const postingAccounts = (accountType) => accounts.filter((a) => a.isPosting && !a.isArchived && a.type === accountType);
   const assetAccounts = useMemo(() => postingAccounts("asset"), [accounts]);
@@ -305,16 +308,19 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
           <button className={status === "active" ? "active" : ""} onClick={() => setStatus("active")}>نشط <span>{items.filter((i) => i.isArchived !== true).length}</span></button>
           <button className={status === "archived" ? "active" : ""} onClick={() => setStatus("archived")}>مؤرشف <span>{items.filter((i) => i.isArchived === true).length}</span></button>
         </div>
-        <div className="items-filters">
-          <label className="items-search"><span>⌕</span><input aria-label="بحث بالاسم أو الكود" placeholder="ابحث باسم الصنف أو الكود..." value={query} onChange={(e) => setQuery(e.target.value)} /></label>
-          <select aria-label="نوع الصنف" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+        <form className="items-filters" onSubmit={(e) => { e.preventDefault(); itemFilters.apply(); }}>
+          <label className="items-search"><span>⌕</span><input aria-label="بحث بالاسم أو الكود" placeholder="ابحث باسم الصنف أو الكود..." value={itemFilters.draft.query} onChange={(e) => itemFilters.setField("query", e.target.value)} /></label>
+          <select aria-label="نوع الصنف" value={itemFilters.draft.typeFilter} onChange={(e) => itemFilters.setField("typeFilter", e.target.value)}>
             <option value="">كل أنواع الأصناف</option>
             {ITEM_TYPES.map((t) => <option key={t} value={t}>{TYPE_META[t].label}</option>)}
           </select>
-          <select aria-label="التصنيف" value={category} onChange={(e) => setCategory(e.target.value)}><option value="">كل التصنيفات</option>{categories.map((value) => <option key={value}>{value}</option>)}</select>
-          <label className="low-stock-filter"><input type="checkbox" checked={lowStock} onChange={(e) => setLowStock(e.target.checked)} /> مخزون منخفض</label>
-          {(query || category || typeFilter || lowStock) && <button className="clear-filters" onClick={() => { setQuery(""); setCategory(""); setTypeFilter(""); setLowStock(false); }}>مسح الفلاتر</button>}
-        </div>
+          <select aria-label="التصنيف" value={itemFilters.draft.category} onChange={(e) => itemFilters.setField("category", e.target.value)}><option value="">كل التصنيفات</option>{categories.map((value) => <option key={value}>{value}</option>)}</select>
+          <label className="low-stock-filter"><input type="checkbox" checked={itemFilters.draft.lowStock} onChange={(e) => itemFilters.setField("lowStock", e.target.checked)} /> مخزون منخفض</label>
+          <button type="submit" className="btn-primary">إظهار النتائج</button>
+          {Object.values(itemFilters.draft).some((v) => v !== "" && v !== false) && (
+            <button type="button" className="clear-filters" onClick={() => itemFilters.reset(emptyItemFilters)}>مسح الفلاتر</button>
+          )}
+        </form>
         {error && !formOpen && <p className="items-error">{error}</p>}
         {loading ? <p className="empty items-loading">جارٍ تحميل الأصناف...</p> : (
           <div className="items-table-wrap">

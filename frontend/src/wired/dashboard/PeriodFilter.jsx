@@ -29,14 +29,14 @@ export default function PeriodFilter({ onChange }) {
   const [customFrom, setCustomFrom] = useState(() => toISO(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
   const [customTo, setCustomTo] = useState(() => toISO(new Date()));
 
-  const range = useMemo(() => (preset === "custom" ? { dateFrom: customFrom, dateTo: customTo } : computeRange(preset)), [preset, customFrom, customTo]);
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { onChange(range); }, []);
+  useEffect(() => { onChange(computeRange(preset) || { dateFrom: customFrom, dateTo: customTo }); }, []);
 
-  const apply = (p, from, to) => {
-    const r = p === "custom" ? { dateFrom: from, dateTo: to } : computeRange(p);
-    onChange(r);
+  const applyPreset = (p) => {
+    setPreset(p);
+    // الأزرار الجاهزة (شهر/٣ أشهر/سنة) تُطبَّق فوراً بالضغط — هي اختيار واحد صريح وليست كتابة
+    // حرة، فلا تعاني من مشكلة "فلترة أثناء الكتابة" التي دفعت لتأجيل حقول التاريخ المخصصة أدناه.
+    onChange(p === "custom" ? { dateFrom: customFrom, dateTo: customTo } : computeRange(p));
   };
 
   return (
@@ -45,17 +45,18 @@ export default function PeriodFilter({ onChange }) {
         <button
           key={p.id}
           className={"subtab" + (preset === p.id ? " active" : "")}
-          onClick={() => { setPreset(p.id); apply(p.id, customFrom, customTo); }}
+          onClick={() => applyPreset(p.id)}
         >
           {p.label}
         </button>
       ))}
       {preset === "custom" && (
-        <>
-          <input type="date" value={customFrom} onChange={(e) => { setCustomFrom(e.target.value); apply("custom", e.target.value, customTo); }} />
+        <form style={{ display: "contents" }} onSubmit={(e) => { e.preventDefault(); onChange({ dateFrom: customFrom, dateTo: customTo }); }}>
+          <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
           <span>إلى</span>
-          <input type="date" value={customTo} onChange={(e) => { setCustomTo(e.target.value); apply("custom", customFrom, e.target.value); }} />
-        </>
+          <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+          <button type="submit" className="btn-primary">إظهار النتائج</button>
+        </form>
       )}
     </div>
   );

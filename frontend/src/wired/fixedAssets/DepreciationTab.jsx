@@ -1,21 +1,23 @@
 import React, { useEffect, useState } from "react";
 import { previewDepreciation, postDepreciationRun } from "../../api/depreciation";
 import { fmt } from "../../legacy/constants";
+import { useDeferredFilters } from "../shared/useDeferredFilters";
 
 export default function DepreciationTab({ companyId }) {
-  const [month, setMonth] = useState("2026-07");
+  const mf = useDeferredFilters({ month: "2026-07" });
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
 
   const reload = () => {
     if (!companyId) return;
-    previewDepreciation(companyId, month).then(setPreview).catch((e) => setError(e.message));
+    previewDepreciation(companyId, mf.applied.month).then(setPreview).catch((e) => setError(e.message));
   };
-  useEffect(reload, [companyId, month]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(reload, [companyId, mf.applied]);
 
   const post = async () => {
     try {
-      await postDepreciationRun(companyId, month);
+      await postDepreciationRun(companyId, mf.applied.month);
       reload();
     } catch (err) {
       setError(err.message);
@@ -27,7 +29,10 @@ export default function DepreciationTab({ companyId }) {
   return (
     <div>
       <div className="panel form-panel">
-        <div className="form-grid"><label>الشهر<input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></label></div>
+        <form className="form-grid" onSubmit={(e) => { e.preventDefault(); mf.apply(); }}>
+          <label>الشهر<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
+          <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+        </form>
         {preview?.alreadyPosted && <p className="note">تم ترحيل إهلاك هذا الشهر مسبقاً بمبلغ {fmt(preview.existingRun.totalAmount)} ر.س.</p>}
         {error && <p className="balance-bad">{error}</p>}
         <button className="btn-primary" onClick={post} disabled={!preview || preview.alreadyPosted || preview.total <= 0}>ترحيل إهلاك الشهر</button>

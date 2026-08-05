@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { listEmployees } from "../../api/employees";
 import { listHrActions, createHrActionBatch, deleteHrAction } from "../../api/hrActions";
 import { fmt } from "../../legacy/constants";
+import { useDeferredFilters } from "../shared/useDeferredFilters";
 
 const ACTION_TYPES = [
   { id: "absence", label: "غياب", unit: "days" },
@@ -22,7 +23,7 @@ export default function ActionsTab({ companyId }) {
   const [error, setError] = useState("");
 
   const [actionType, setActionType] = useState(ACTION_TYPES[0].id);
-  const [month, setMonth] = useState("2026-07");
+  const mf = useDeferredFilters({ month: "2026-07" });
   const [scope, setScope] = useState("single");
   const [employeeId, setEmployeeId] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
@@ -36,9 +37,10 @@ export default function ActionsTab({ companyId }) {
 
   const reload = () => {
     if (!companyId) return;
-    listHrActions(companyId, month).then(setActions).catch((e) => setError(e.message));
+    listHrActions(companyId, mf.applied.month).then(setActions).catch((e) => setError(e.message));
   };
-  useEffect(reload, [companyId, month]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(reload, [companyId, mf.applied]);
 
   const actionDef = ACTION_TYPE_MAP[actionType];
   const targetIds = scope === "all" ? employees.map((e) => e.id) : scope === "some" ? selectedIds : (employeeId ? [employeeId] : []);
@@ -48,7 +50,7 @@ export default function ActionsTab({ companyId }) {
     if (targetIds.length === 0) return;
     if (actionDef.unit !== "none" && !Number(value)) return;
     try {
-      await createHrActionBatch({ employeeIds: targetIds, month, actionType, value: Number(value || 0), note });
+      await createHrActionBatch({ employeeIds: targetIds, month: mf.applied.month, actionType, value: Number(value || 0), note });
       setValue(""); setNote("");
       reload();
     } catch (err) {
@@ -72,7 +74,10 @@ export default function ActionsTab({ companyId }) {
       <div className="panel form-panel">
         <div className="form-grid">
           <label>نوع الإجراء<select value={actionType} onChange={(e) => setActionType(e.target.value)}>{ACTION_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></label>
-          <label>شهر الرواتب<input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></label>
+          <form style={{ display: "contents" }} onSubmit={(e) => { e.preventDefault(); mf.apply(); }}>
+            <label>شهر الرواتب<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
+            <button type="submit" className="btn-ghost" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+          </form>
           {actionDef.unit !== "none" && (
             <label>{actionDef.unit === "days" ? "عدد الأيام" : "القيمة (ر.س)"}<input type="number" value={value} onChange={(e) => setValue(e.target.value)} /></label>
           )}

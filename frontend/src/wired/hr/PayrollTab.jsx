@@ -9,6 +9,7 @@ import { Icon } from "../../legacy/shared";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import PayrollPrintModal from "./PayrollPrintModal";
+import { useDeferredFilters } from "../shared/useDeferredFilters";
 
 const ROW_FIELDS = [
   ["basic", "الأساسي"], ["housing", "بدل سكن"], ["transport", "بدل مواصلات"], ["otherAllow", "بدلات أخرى"],
@@ -18,7 +19,7 @@ const ROW_FIELDS = [
 
 export default function PayrollTab({ companyId, companies }) {
   const [employees, setEmployees] = useState([]);
-  const [month, setMonth] = useState("2026-07");
+  const mf = useDeferredFilters({ month: "2026-07" });
   const [scope, setScope] = useState("all");
   const [selectedIds, setSelectedIds] = useState([]);
   const [run, setRun] = useState(null);
@@ -38,7 +39,7 @@ export default function PayrollTab({ companyId, companies }) {
   const reload = async () => {
     if (!companyId) return;
     setError("");
-    const runs = await listPayrollRuns(companyId, month);
+    const runs = await listPayrollRuns(companyId, mf.applied.month);
     const existing = runs[0] || null;
     setRun(existing);
     if (existing) {
@@ -49,7 +50,8 @@ export default function PayrollTab({ companyId, companies }) {
       setRows([]); setTotals(null);
     }
   };
-  useEffect(() => { reload(); }, [companyId, month]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { reload(); }, [companyId, mf.applied]);
 
   const toggleSelected = (id) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
@@ -57,7 +59,7 @@ export default function PayrollTab({ companyId, companies }) {
     const ids = scope === "all" ? employees.map((e) => e.id) : selectedIds;
     if (ids.length === 0) return;
     try {
-      await createPayrollRun({ companyId, month, employeeIds: ids });
+      await createPayrollRun({ companyId, month: mf.applied.month, employeeIds: ids });
       reload();
     } catch (err) {
       setError(err.message);
@@ -104,7 +106,10 @@ export default function PayrollTab({ companyId, companies }) {
   return (
     <div>
       <div className="panel form-panel">
-        <div className="form-grid"><label>شهر الرواتب<input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></label></div>
+        <form className="form-grid" onSubmit={(e) => { e.preventDefault(); mf.apply(); }}>
+          <label>شهر الرواتب<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
+          <button type="submit" className="btn-ghost" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+        </form>
 
         {!run && (
           <>
@@ -203,7 +208,7 @@ export default function PayrollTab({ companyId, companies }) {
           run={run}
           rows={rows}
           totals={totals}
-          month={month}
+          month={mf.applied.month}
           company={companies?.find((c) => c.id === companyId)}
           autoPrint
           onClose={() => setPrinting(false)}

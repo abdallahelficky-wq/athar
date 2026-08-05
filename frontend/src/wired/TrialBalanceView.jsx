@@ -11,14 +11,11 @@ import { collectGroupAccountIds, flattenVisibleTree } from "./shared/trialBalanc
  */
 export default function TrialBalanceView({
   data,
-  dateFrom, setDateFrom,
-  dateTo, setDateTo,
-  level, setLevel,
-  hideZeroActivity, setHideZeroActivity,
-  search, setSearch,
+  filters,
   expandedIds, setExpandedIds,
   onPrint, onExportExcel,
 }) {
+  const { draft, setField, apply } = filters;
   const allGroupIds = useMemo(() => (data ? collectGroupAccountIds(data.roots) : new Set()), [data]);
   const visibleRows = useMemo(() => (data ? flattenVisibleTree(data.roots, expandedIds) : []), [data, expandedIds]);
 
@@ -42,24 +39,25 @@ export default function TrialBalanceView({
         </div>
       </div>
 
-      <div className="filter-bar">
-        <label>من تاريخ<input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></label>
-        <label>إلى تاريخ<input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></label>
+      <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); apply(); }}>
+        <label>من تاريخ<input type="date" value={draft.dateFrom} onChange={(e) => setField("dateFrom", e.target.value)} /></label>
+        <label>إلى تاريخ<input type="date" value={draft.dateTo} onChange={(e) => setField("dateTo", e.target.value)} /></label>
         <label>
           المستوى (حد أقصى للعمق)
-          <select value={level} onChange={(e) => setLevel(Number(e.target.value))}>
+          <select value={draft.level} onChange={(e) => setField("level", Number(e.target.value))}>
             <option value={1}>المستوى 1</option>
             <option value={2}>المستوى 2</option>
             <option value={3}>المستوى 3</option>
             <option value={4}>المستوى 4 (تفصيلي بالكامل)</option>
           </select>
         </label>
-        <label>بحث بالاسم أو الكود<input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث..." /></label>
+        <label>بحث بالاسم أو الكود<input type="text" value={draft.search} onChange={(e) => setField("search", e.target.value)} placeholder="بحث..." /></label>
         <label className="checkbox-label" style={{ alignSelf: "end" }}>
-          <input type="checkbox" checked={hideZeroActivity} onChange={(e) => setHideZeroActivity(e.target.checked)} />
+          <input type="checkbox" checked={draft.hideZeroActivity} onChange={(e) => setField("hideZeroActivity", e.target.checked)} />
           إخفاء الحسابات بدون حركة
         </label>
-      </div>
+        <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+      </form>
 
       <div className="form-btn-group" style={{ marginBottom: 10 }}>
         <button className="btn-ghost" onClick={expandAll}>فتح الكل</button>
