@@ -46,8 +46,25 @@ const emptyForm = () => ({
 });
 
 const Icons = {
-  add: "＋", import: "⇧", export: "⇩", units: "▦", transfer: "⇄",
+  add: "＋", import: "⇧", export: "⇩", units: "▦", transfer: "⇄", columns: "☰",
   view: "◉", edit: "✎", duplicate: "▣", archive: "▾", remove: "×", print: "▤",
+};
+
+// أعمدة ثانوية (أقل أهمية للتصفح اليومي) — مخفيّة افتراضياً لتقليل ازدحام الجدول وتفادي السكرول
+// الأفقي، ويختار المستخدم إظهارها عبر زرار "الأعمدة"؛ يُحفَظ الاختيار محلياً كتفضيل شخصي دائم.
+const EXTRA_COLUMNS = [
+  { key: "lastPurchasePrice", label: "آخر سعر شراء" },
+  { key: "averageCost", label: "متوسط التكلفة" },
+  { key: "stockValue", label: "قيمة المخزون" },
+];
+const COLUMN_PREFS_KEY = "athar.itemsTable.extraColumns";
+const loadColumnPrefs = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(COLUMN_PREFS_KEY) || "{}");
+    return Object.fromEntries(EXTRA_COLUMNS.map((c) => [c.key, saved[c.key] || false]));
+  } catch {
+    return Object.fromEntries(EXTRA_COLUMNS.map((c) => [c.key, false]));
+  }
 };
 
 function ActionButton({ icon, label, disabled = false, onClick, danger = false, title }) {
@@ -77,6 +94,14 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   const itemFilters = useDeferredFilters(emptyItemFilters);
   const [status, setStatus] = useState("active");
   const [viewItem, setViewItem] = useState(null);
+  const [extraColumns, setExtraColumns] = useState(loadColumnPrefs);
+  const [columnMenuOpen, setColumnMenuOpen] = useState(false);
+
+  const toggleColumn = (key) => setExtraColumns((prev) => {
+    const next = { ...prev, [key]: !prev[key] };
+    localStorage.setItem(COLUMN_PREFS_KEY, JSON.stringify(next));
+    return next;
+  });
 
   const reload = () => {
     if (!companyId) return;
@@ -100,6 +125,17 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       return matchesQuery && matchesCategory && matchesType && matchesStock && matchesStatus;
     });
   }, [items, itemFilters.applied, status]);
+
+  // عمود "الكمية الحالية" لا معنى له إطلاقاً عند فلترة النوع على "خدمي" وحده (لا تتبّع مخزون لها
+  // بالمرة)، فيُخفى العمود بالكامل في هذه الحالة بدل عرض "—" في كل صف.
+  const showQuantityColumn = itemFilters.applied.typeFilter !== "service";
+  const columnCount = 4 // كود، اسم، نوع، وحدة
+    + (showQuantityColumn ? 1 : 0)
+    + (extraColumns.lastPurchasePrice ? 1 : 0)
+    + 1 // سعر البيع
+    + (extraColumns.averageCost ? 1 : 0)
+    + (extraColumns.stockValue ? 1 : 0)
+    + 1; // الإجراءات
 
   const postingAccounts = (accountType) => accounts.filter((a) => a.isPosting && !a.isArchived && a.type === accountType);
   const assetAccounts = useMemo(() => postingAccounts("asset"), [accounts]);
@@ -218,20 +254,27 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
 
   return (
     <div className="items-page">
-      <header className="items-page-header">
-        <div>
-          <p className="items-eyebrow">دليل المخزون</p>
-          <h3>الأصناف والمنتجات</h3>
-          <p>إدارة بيانات الأصناف والأسعار ومستويات المخزون من مكان واحد</p>
+      <div className="items-toolbar-row">
+        <button className="btn-primary item-add-btn" onClick={() => { setEditingId(null); setForm(emptyForm()); setComponents([]); setFormOpen(true); }}><span>{Icons.add}</span> إضافة صنف جديد</button>
+        <button className="items-toolbar-btn" disabled title="استيراد الأصناف غير متاح في واجهة API الحالية"><span>{Icons.import}</span> استيراد أصناف</button>
+        <button className="items-toolbar-btn" onClick={exportItems}><span>{Icons.export}</span> تصدير أصناف <small>CSV</small></button>
+        <button className="items-toolbar-btn" disabled title="إدارة وحدات القياس غير متاحة في واجهة API الحالية"><span>{Icons.units}</span> وحدات القياس</button>
+        <button className="items-toolbar-btn" onClick={onNavigateTransfer}><span>{Icons.transfer}</span> نقل بين المستودعات</button>
+        <div className="column-toggle">
+          <button className="items-toolbar-btn" onClick={() => setColumnMenuOpen((v) => !v)}><span>{Icons.columns}</span> الأعمدة</button>
+          {columnMenuOpen && (
+            <div className="column-toggle-menu" onMouseLeave={() => setColumnMenuOpen(false)}>
+              <p className="column-toggle-title">أعمدة إضافية للجدول</p>
+              {EXTRA_COLUMNS.map((c) => (
+                <label key={c.key} className="column-toggle-item">
+                  <input type="checkbox" checked={extraColumns[c.key]} onChange={() => toggleColumn(c.key)} />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="items-toolbar">
-          <button className="btn-primary item-add-btn" onClick={() => { setEditingId(null); setForm(emptyForm()); setComponents([]); setFormOpen(true); }}><span>{Icons.add}</span> إضافة صنف جديد</button>
-          <button className="items-toolbar-btn" disabled title="استيراد الأصناف غير متاح في واجهة API الحالية"><span>{Icons.import}</span> استيراد أصناف</button>
-          <button className="items-toolbar-btn" onClick={exportItems}><span>{Icons.export}</span> تصدير أصناف <small>CSV</small></button>
-          <button className="items-toolbar-btn" disabled title="إدارة وحدات القياس غير متاحة في واجهة API الحالية"><span>{Icons.units}</span> وحدات القياس</button>
-          <button className="items-toolbar-btn" onClick={onNavigateTransfer}><span>{Icons.transfer}</span> نقل بين المستودعات</button>
-        </div>
-      </header>
+      </div>
 
       {formOpen && <div className="panel form-panel items-form-panel">
         <div className="items-form-heading"><strong>{editingId ? `تعديل الصنف — ${form.name}` : "إضافة صنف جديد"}</strong><button className="item-close" onClick={() => setFormOpen(false)}>×</button></div>
@@ -316,28 +359,40 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
           </select>
           <select aria-label="التصنيف" value={itemFilters.draft.category} onChange={(e) => itemFilters.setField("category", e.target.value)}><option value="">كل التصنيفات</option>{categories.map((value) => <option key={value}>{value}</option>)}</select>
           <label className="low-stock-filter"><input type="checkbox" checked={itemFilters.draft.lowStock} onChange={(e) => itemFilters.setField("lowStock", e.target.checked)} /> مخزون منخفض</label>
-          <button type="submit" className="btn-primary">إظهار النتائج</button>
           {Object.values(itemFilters.draft).some((v) => v !== "" && v !== false) && (
             <button type="button" className="clear-filters" onClick={() => itemFilters.reset(emptyItemFilters)}>مسح الفلاتر</button>
           )}
+          <button type="submit" className="btn-primary">إظهار النتائج</button>
         </form>
         {error && !formOpen && <p className="items-error">{error}</p>}
         {loading ? <p className="empty items-loading">جارٍ تحميل الأصناف...</p> : (
           <div className="items-table-wrap">
             <table className="ledger-table responsive-table items-table">
-              <thead><tr><th>كود الصنف</th><th>اسم الصنف</th><th>نوع الصنف</th><th>الوحدة</th><th>الكمية الحالية</th><th>آخر شراء</th><th>سعر البيع</th><th>متوسط التكلفة</th><th>قيمة المخزون</th><th>الأرشفة</th><th>الإجراءات</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>كود الصنف</th>
+                  <th>اسم الصنف</th>
+                  <th>نوع الصنف</th>
+                  <th>الوحدة</th>
+                  {showQuantityColumn && <th>الكمية الحالية</th>}
+                  {extraColumns.lastPurchasePrice && <th>آخر سعر شراء</th>}
+                  <th>سعر البيع</th>
+                  {extraColumns.averageCost && <th>متوسط التكلفة</th>}
+                  {extraColumns.stockValue && <th>قيمة المخزون</th>}
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
               <tbody>
                 {filteredItems.map((item) => <tr key={item.id}>
                   <td data-label="كود الصنف"><span className="item-code">{item.code}</span></td>
                   <td data-label="اسم الصنف"><div className="item-name-cell"><span className="item-avatar">◇</span><span><strong>{item.name}</strong><small>{item.category || "غير مصنّف"}</small></span></div></td>
                   <td data-label="نوع الصنف"><span className={`item-type-badge ${TYPE_META[item.type]?.css || "type-unknown"}`}><i>{TYPE_META[item.type]?.icon || "◇"}</i> {TYPE_META[item.type]?.label || "غير محدد"}</span></td>
                   <td data-label="الوحدة">{item.unit || "—"}</td>
-                  <td data-label="الكمية الحالية" className="num">{item.quantity ?? "—"}</td>
-                  <td data-label="آخر شراء" className="num">{item.lastPurchasePrice != null ? fmt2(item.lastPurchasePrice) : "—"}</td>
+                  {showQuantityColumn && <td data-label="الكمية الحالية" className="num">{item.quantity ?? "—"}</td>}
+                  {extraColumns.lastPurchasePrice && <td data-label="آخر سعر شراء" className="num">{item.lastPurchasePrice != null ? fmt2(item.lastPurchasePrice) : "—"}</td>}
                   <td data-label="سعر البيع" className="num">{item.salePrice != null ? fmt2(item.salePrice) : "—"}</td>
-                  <td data-label="متوسط التكلفة" className="num">{item.averageCost != null ? fmt2(item.averageCost) : "—"}</td>
-                  <td data-label="قيمة المخزون" className="num">{item.stockValue != null ? fmt2(item.stockValue) : "—"}</td>
-                  <td data-label="حالة الأرشفة"><span className={`archive-status ${item.isArchived ? "archived" : ""}`}><i />{item.isArchived ? "مؤرشف" : "نشط"}</span></td>
+                  {extraColumns.averageCost && <td data-label="متوسط التكلفة" className="num">{item.averageCost != null ? fmt2(item.averageCost) : "—"}</td>}
+                  {extraColumns.stockValue && <td data-label="قيمة المخزون" className="num">{item.stockValue != null ? fmt2(item.stockValue) : "—"}</td>}
                   <td data-label="الإجراءات" className="row-actions"><div className="item-actions">
                     <ActionButton icon={Icons.view} label="عرض" onClick={() => setViewItem(item)} />
                     <ActionButton icon={Icons.edit} label="تعديل" onClick={() => startEdit(item)} />
@@ -347,7 +402,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
                     <ActionButton icon={Icons.print} label="طباعة بطاقة الصنف" onClick={() => { setViewItem(item); setTimeout(() => window.print(), 0); }} />
                   </div></td>
                 </tr>)}
-                {filteredItems.length === 0 && <tr><td className="empty items-empty" colSpan={11}><span>⌕</span><strong>لا توجد أصناف مطابقة</strong><small>جرّب تعديل معايير البحث أو الفلترة</small></td></tr>}
+                {filteredItems.length === 0 && <tr><td className="empty items-empty" colSpan={columnCount}><span>⌕</span><strong>لا توجد أصناف مطابقة</strong><small>جرّب تعديل معايير البحث أو الفلترة</small></td></tr>}
               </tbody>
             </table>
           </div>

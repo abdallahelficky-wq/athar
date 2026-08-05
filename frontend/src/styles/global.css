@@ -764,17 +764,25 @@
 
         /* ===== دليل الأصناف ===== */
         .items-page { --items-navy: #10202E; --items-gold: #B98B4E; }
-        .items-page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 20px; }
-        .items-page-header h3 { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 22px; margin: 2px 0 5px; }
-        .items-page-header p { color: #6B7C8C; font-size: 12.5px; margin: 0; }
-        .items-page-header .items-eyebrow { color: var(--items-gold); font-weight: 700; font-size: 11px; }
-        .items-toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; max-width: 640px; }
-        .items-toolbar button { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+        /* صف أزرار واحد منظَّم أعلى الجدول: الإجراء الأساسي (+ إضافة صنف) أول عنصر ومميَّز بصرياً
+           (btn-primary)، وباقي الإجراءات الثانوية بجواره بنفس المستوى — لا صفوف منفصلة يتيمة. */
+        .items-toolbar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin-bottom: 18px; }
+        .items-toolbar-row button { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
         .items-toolbar-btn { background: #FBF9F3; color: #334756; border: 1px solid rgba(16,32,46,.15); border-radius: 8px; padding: 9px 11px; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
         .items-toolbar-btn:hover:not(:disabled) { border-color: var(--items-gold); background: #fff; }
         .items-toolbar-btn:disabled { opacity: .48; cursor: not-allowed; }
         .items-toolbar-btn small { color: var(--items-gold); font-family: 'JetBrains Mono', monospace; font-size: 8px; }
         .item-add-btn { padding: 9px 15px; font-size: 12px; }
+
+        .column-toggle { position: relative; }
+        .column-toggle-menu {
+          position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; min-width: 200px;
+          background: #fff; border: 1px solid rgba(16,32,46,.14); border-radius: 10px;
+          box-shadow: 0 12px 28px rgba(16,32,46,.16); padding: 10px 12px;
+        }
+        .column-toggle-title { margin: 0 0 8px; font-size: 10.5px; font-weight: 700; color: #8A7C5E; }
+        .column-toggle-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #445565; padding: 5px 0; cursor: pointer; }
+        .column-toggle-item input { accent-color: var(--items-gold); }
         .items-form-panel { border-top: 3px solid var(--items-gold); box-shadow: 0 10px 30px rgba(16,32,46,.08); }
         .items-form-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; color: var(--items-navy); }
         .item-close { border: 0; background: transparent; font-size: 22px; cursor: pointer; color: #6B7C8C; }
@@ -797,7 +805,10 @@
         .clear-filters { border: 0; background: transparent; color: #A8432B; text-decoration: underline; font-family: inherit; cursor: pointer; font-size: 11px; }
         .items-error { margin: 12px 22px 0; padding: 9px 12px; border-radius: 7px; color: #A8432B; background: rgba(168,67,43,.08); font-size: 12px; }
         .items-table-wrap { width: 100%; overflow-x: auto; }
-        .items-table { min-width: 1260px; }
+        /* min-width: 0 (لا 1260/1320px كما كانت سابقاً) — الأعمدة الأساسية السبعة الافتراضية
+           تتّسع بلا سكرول أفقي على شاشة ديسكتوب عادية؛ لو المستخدم أظهر أعمدة إضافية عبر زرار
+           "الأعمدة" فيتكفّل overflow-x: auto أعلاه بالسكرول تلقائياً عند الحاجة فقط. */
+        .items-table { min-width: 0; }
         .items-table th { padding: 13px 9px; background: #F7F3E9; white-space: nowrap; border-bottom-width: 1px; }
         .items-table td { padding: 12px 9px; white-space: nowrap; vertical-align: middle; }
         .items-table tbody tr { transition: background .15s ease; }
@@ -887,9 +898,7 @@
           .gauge-row, .gauge-row-3 { grid-template-columns: repeat(2, 1fr); }
           .two-col { grid-template-columns: 1fr; }
           .form-grid, .header-grid { grid-template-columns: 1fr; }
-          .items-page-header { flex-direction: column; }
-          .items-toolbar { justify-content: flex-start; max-width: none; width: 100%; }
-          .items-toolbar button { flex: 1 1 calc(50% - 7px); justify-content: center; }
+          .items-toolbar-row button { flex: 1 1 calc(50% - 7px); justify-content: center; }
           .items-filters { padding: 12px; }
           .items-search { max-width: none; min-width: 100%; }
           .items-filters select { flex: 1; }
