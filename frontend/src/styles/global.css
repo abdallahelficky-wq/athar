@@ -920,3 +920,103 @@
           .responsive-table td.row-actions { justify-content: flex-end; }
           .responsive-table td.row-actions::before { content: none; }
         }
+
+        /* ===== تظليل الاختيار بالكيبورد داخل AccountSearchSelect (Arrow/Enter) ===== */
+        .item-combo-option-active { background: rgba(47,93,90,0.1); }
+
+        /* ===== شاشة "قائمة القيود المحاسبية" — رأس بارز + فلاتر أساسية/متقدمة + جدول عصري ===== */
+        .journal-page-head {
+          background: linear-gradient(135deg, #10202E 0%, #18384C 100%); color: #ECE6D6; border-radius: 14px;
+          padding: 22px 26px; display: flex; align-items: center; justify-content: space-between; gap: 20px;
+          box-shadow: 0 10px 28px rgba(16,32,46,.14); margin-bottom: 18px;
+        }
+        .journal-page-head-text .items-eyebrow { color: #D5AE70; }
+        .journal-page-head h2 { margin: 3px 0 4px; font-size: 21px; color: #fff; }
+        .journal-page-head p { margin: 0; color: #B7C2C9; font-size: 12.5px; }
+        .journal-page-head-cta { flex-shrink: 0; }
+        .journal-new-entry-btn {
+          background: #B98B4E; border-color: #B98B4E; color: #10202E; font-weight: 700;
+          padding: 12px 22px; font-size: 14px; box-shadow: 0 6px 16px rgba(185,139,78,.35);
+          transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .journal-new-entry-btn:hover { background: #C89858; transform: translateY(-1px); box-shadow: 0 10px 22px rgba(185,139,78,.42); }
+
+        .journal-secondary-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+
+        .journal-filters-toggle {
+          display: inline-flex; align-items: center; gap: 6px; background: transparent; border: none;
+          color: #2F5D5A; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 4px 2px;
+        }
+        .journal-filters-toggle:hover { text-decoration: underline; }
+        .journal-filters-toggle .caret { font-size: 10px; transition: transform .18s ease; }
+        .journal-filters-toggle .caret.open { transform: rotate(180deg); }
+
+        .journal-advanced-filters {
+          display: grid; grid-template-rows: 0fr; transition: grid-template-rows .22s ease;
+        }
+        .journal-advanced-filters.open { grid-template-rows: 1fr; margin-top: 12px; }
+        .journal-advanced-filters-inner { overflow: hidden; min-height: 0; }
+
+        .journal-bulk-toolbar {
+          display: flex; align-items: center; gap: 12px; background: rgba(185,139,78,0.1);
+          border: 1px solid rgba(185,139,78,0.35); border-radius: 10px; padding: 9px 16px; margin-bottom: 12px;
+          font-size: 12.5px; color: #8A5A2E;
+        }
+        .journal-bulk-toolbar strong { color: #10202E; }
+        .journal-bulk-toolbar .btn-ghost { padding: 5px 12px; font-size: 11.5px; }
+
+        .journal-table th.sortable-th { cursor: pointer; user-select: none; transition: color .15s ease; }
+        .journal-table th.sortable-th:hover { color: #10202E; }
+        .journal-table th.sortable-th .sort-arrow { font-size: 9px; margin-right: 3px; opacity: .55; }
+        .journal-table th.sortable-th.sort-active .sort-arrow { opacity: 1; color: #B98B4E; }
+        .journal-table tbody tr { transition: background .15s ease; }
+        .journal-table tbody tr:hover { background: rgba(185,139,78,.045); }
+        .journal-table .checkbox-col { width: 34px; }
+        .journal-table input[type="checkbox"] { accent-color: #B98B4E; width: 15px; height: 15px; cursor: pointer; }
+
+        .status-badge.status-posted { background: rgba(47,93,90,0.14); color: #2F5D5A; }
+        .status-badge.status-saved { background: rgba(185,139,78,0.16); color: #8A5A2E; }
+
+        /* حالة تحميل الهيكل العظمي (Skeleton) — صفوف رمادية نابضة بدل سبينر بسيط */
+        @keyframes skeleton-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+        .skeleton-block {
+          display: inline-block; height: 13px; border-radius: 5px; background: rgba(16,32,46,.09);
+          animation: skeleton-pulse 1.3s ease-in-out infinite;
+        }
+        .skeleton-row td { padding: 13px 8px; }
+
+        .journal-empty-state { padding: 46px 20px; text-align: center; }
+        .journal-empty-state .journal-empty-icon { font-size: 32px; opacity: .45; display: block; margin-bottom: 8px; }
+        .journal-empty-state strong { display: block; color: #445565; font-size: 14px; margin-bottom: 4px; }
+        .journal-empty-state span { display: block; color: #8A7C5E; font-size: 12px; }
+
+        /* ===== نافذة إضافة/تعديل قيد يومية — تخطيط عمودي بشريط إجمالي ثابت أسفل الشاشة، وحقول
+           سطر مرتّبة بنفس ترتيب التنقّل المطلوب بالتاب (الحساب ← مدين ← دائن ← الوصف ← مركز التكلفة) ===== */
+        .journal-modal-box { display: flex; flex-direction: column; max-height: 88vh; padding-bottom: 0; }
+        .journal-modal-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-bottom: 4px; }
+        .journal-modal-footer {
+          flex-shrink: 0; background: #FBF9F3; border-top: 1px solid rgba(16,32,46,0.1);
+          margin: 0 -30px; padding: 16px 30px 22px; border-radius: 0 0 16px 16px;
+        }
+        .journal-shortcuts-hint { font-size: 11px; color: #8A7C5E; margin: 2px 0 0; }
+        .journal-shortcuts-hint kbd {
+          font-family: 'JetBrains Mono', monospace; background: rgba(16,32,46,.07); border: 1px solid rgba(16,32,46,.15);
+          border-radius: 4px; padding: 1px 5px; font-size: 10.5px; color: #445565;
+        }
+
+        .balance-indicator {
+          display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700;
+          padding: 8px 16px; border-radius: 999px; font-family: 'JetBrains Mono', monospace;
+          transition: background .18s ease, color .18s ease;
+        }
+        .balance-indicator.indicator-ok { background: rgba(47,93,90,0.14); color: #2F5D5A; }
+        .balance-indicator.indicator-bad { background: rgba(168,67,43,0.12); color: #A8432B; }
+        .balance-indicator.indicator-neutral { background: rgba(16,32,46,0.05); color: #8A7C5E; font-weight: 500; }
+
+        .btn-secondary {
+          background: #fff; color: #10202E; border: 1.5px solid rgba(16,32,46,0.28); border-radius: 8px;
+          padding: 10px 22px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 600; font-size: 13.5px;
+          cursor: pointer; transition: border-color .15s ease, background .15s ease;
+        }
+        .btn-secondary:hover:not(:disabled) { border-color: #10202E; background: rgba(16,32,46,0.03); }
+        .btn-secondary:disabled { color: #B7BFC6; border-color: rgba(16,32,46,0.12); cursor: not-allowed; }
