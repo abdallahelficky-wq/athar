@@ -8,6 +8,7 @@ import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, write
 import { formatDocNumber } from "../../lib/docNumber";
 import { getStockBalance } from "../stockMovements/stockMovements.service";
 import { isStockTracked } from "../items/items.service";
+import { reserveZatcaChain } from "../../lib/zatca/chain";
 
 type Tx = Prisma.TransactionClient;
 
@@ -38,7 +39,12 @@ const invoiceInclude = {
 } as const;
 
 function computeLines(lines: LineInput[]) {
-  const computed = lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
+  const computed = lines.map((l) => ({
+    ...l,
+    ...computeInvoiceLine(l),
+    // فئة الضريبة القياسية لزاتكا (S/O) تُشتق من vatApplicable الحالي — لا حقل إدخال جديد بعد.
+    taxCategoryCode: l.vatApplicable === false ? ("O" as const) : ("S" as const),
+  }));
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
@@ -287,7 +293,21 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
     await createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id);
-    return withPaymentStatus(invoice);
+
+    const chain = await reserveZatcaChain(tx, {
+      company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: invoice.zatcaUuid, lines: invoice.lines,
+    });
+    if (!chain) return withPaymentStatus(invoice);
+
+    const withChain = await tx.salesInvoice.update({
+      where: { id: invoice.id },
+      data: {
+        icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
+        zatcaStatus: chain.zatcaStatus, zatcaSubmittedAt: chain.issuedAt,
+      },
+      include: invoiceInclude,
+    });
+    return withPaymentStatus(withChain);
   });
 }
 
@@ -333,6 +353,7 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: { lines: true, customer: true } });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status === "posted") throw badRequest("الفاتورة مرحّلة بالفعل");
+  const company = await prisma.company.findFirstOrThrow({ where: { id: invoice.companyId, tenantId } });
 
   const computed = invoice.lines.map((l) => ({
     accountId: l.accountId, itemId: l.itemId ?? undefined, subtotal: Number(l.subtotal), vat: Number(l.vat), total: Number(l.total),
@@ -358,7 +379,21 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
       include: invoiceInclude,
     });
     await createStockOutSideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id);
-    return withPaymentStatus(updated);
+
+    const chain = await reserveZatcaChain(tx, {
+      company, customer: invoice.customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid, lines: invoice.lines,
+    });
+    if (!chain) return withPaymentStatus(updated);
+
+    const withChain = await tx.salesInvoice.update({
+      where: { id },
+      data: {
+        icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
+        zatcaStatus: chain.zatcaStatus, zatcaSubmittedAt: chain.issuedAt,
+      },
+      include: invoiceInclude,
+    });
+    return withPaymentStatus(withChain);
   });
 }
 
@@ -366,6 +401,11 @@ export async function unpostSalesInvoice(tenantId: string, userId: string, id: s
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId } });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("الفاتورة ليست مرحّلة أصلاً");
+  // فك الترحيل بعد دخول الفاتورة في سلسلة تجزئة زاتكا (ICV/PIH) يكسر السلسلة بلا رجعة — انتهاك
+  // امتثال حقيقي لا مجرد إزعاج بالواجهة، فيُمنَع كلياً بمجرد تجاوز الحالة "not_applicable".
+  if (invoice.zatcaStatus !== "not_applicable") {
+    throw badRequest("لا يمكن فك ترحيل فاتورة مرتبطة بسلسلة تجزئة زاتكا (ICV/PIH) — هذا يكسر السلسلة بشكل غير قابل للإصلاح");
+  }
 
   await assertValidUnlockPin(tenantId, pin);
 

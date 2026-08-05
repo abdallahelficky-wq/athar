@@ -4,6 +4,18 @@ import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
+import { reserveZatcaChain } from "../../lib/zatca/chain";
+
+/**
+ * إشعار دائن (SalesReturn) مرتبط بزاتكا يتطلب رقم الفاتورة الأصلية (BillingReference) — لا نُصدر
+ * ICV/تجزئة لمردود بلا فاتورة مرتبطة محدَّدة (relatedInvoiceId فارغ)، فيبقى الحقل "غير منطبق"
+ * حتى تُربط لاحقاً؛ هذا لا يمنع الاستخدام المحاسبي العادي للمردود إطلاقاً.
+ */
+async function resolveBillingReferenceNumber(tenantId: string, relatedInvoiceId: string | null | undefined): Promise<string | undefined> {
+  if (!relatedInvoiceId) return undefined;
+  const relatedInvoice = await prisma.salesInvoice.findFirst({ where: { id: relatedInvoiceId, tenantId }, select: { invoiceNumber: true } });
+  return relatedInvoice?.invoiceNumber;
+}
 
 interface LineInput {
   accountId: string;
@@ -107,7 +119,23 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
     });
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: salesReturn.id } });
-    return salesReturn;
+
+    const billingReferenceId = await resolveBillingReferenceNumber(tenantId, input.relatedInvoiceId);
+    const chain = billingReferenceId
+      ? await reserveZatcaChain(tx, {
+          company, customer, kind: "credit_note", documentNumber: returnNumber, documentUuid: salesReturn.zatcaUuid, billingReferenceId, lines: salesReturn.lines,
+        })
+      : null;
+    if (!chain) return salesReturn;
+
+    return tx.salesReturn.update({
+      where: { id: salesReturn.id },
+      data: {
+        icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
+        zatcaStatus: chain.zatcaStatus, zatcaSubmittedAt: chain.issuedAt,
+      },
+      include: returnInclude,
+    });
   });
 }
 
@@ -125,6 +153,7 @@ export async function postSalesReturn(tenantId: string, userId: string, id: stri
   });
   if (!salesReturn) throw notFound("المردود غير موجود");
   if (salesReturn.status === "posted") throw badRequest("المردود مرحّل بالفعل");
+  const company = await prisma.company.findFirstOrThrow({ where: { id: salesReturn.companyId, tenantId } });
 
   const vatOutputId = await getAccountIdByName(tenantId, salesReturn.companyId, "ضريبة القيمة المضافة - مخرجات");
   const creditAccountId = await getAccountIdByName(tenantId, salesReturn.companyId, REFUND_ACCOUNT_NAME[salesReturn.refundMethod || "account"]);
@@ -150,9 +179,26 @@ export async function postSalesReturn(tenantId: string, userId: string, id: stri
       createdBy: userId,
       lines: journalLines,
     });
-    return tx.salesReturn.update({
+    const updated = await tx.salesReturn.update({
       where: { id },
       data: { status: "posted", journalEntryId: entry.id },
+      include: returnInclude,
+    });
+
+    const billingReferenceId = await resolveBillingReferenceNumber(tenantId, salesReturn.relatedInvoiceId);
+    const chain = billingReferenceId
+      ? await reserveZatcaChain(tx, {
+          company, customer: salesReturn.customer, kind: "credit_note", documentNumber: salesReturn.returnNumber, documentUuid: salesReturn.zatcaUuid, billingReferenceId, lines: salesReturn.lines,
+        })
+      : null;
+    if (!chain) return updated;
+
+    return tx.salesReturn.update({
+      where: { id },
+      data: {
+        icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
+        zatcaStatus: chain.zatcaStatus, zatcaSubmittedAt: chain.issuedAt,
+      },
       include: returnInclude,
     });
   });
@@ -162,6 +208,9 @@ export async function unpostSalesReturn(tenantId: string, userId: string, id: st
   const salesReturn = await prisma.salesReturn.findFirst({ where: { id, tenantId } });
   if (!salesReturn) throw notFound("المردود غير موجود");
   if (salesReturn.status !== "posted") throw badRequest("المردود ليس مرحّلاً أصلاً");
+  if (salesReturn.zatcaStatus !== "not_applicable") {
+    throw badRequest("لا يمكن فك ترحيل مردود مرتبط بسلسلة تجزئة زاتكا (ICV/PIH) — هذا يكسر السلسلة بشكل غير قابل للإصلاح");
+  }
 
   await assertValidUnlockPin(tenantId, pin);
 

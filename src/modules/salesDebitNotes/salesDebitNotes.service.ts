@@ -4,6 +4,14 @@ import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
+import { reserveZatcaChain } from "../../lib/zatca/chain";
+
+/** انظر التعليق المطابق في salesReturns.service.ts — نفس المنطق لإشعار مدين */
+async function resolveBillingReferenceNumber(tenantId: string, relatedInvoiceId: string | null | undefined): Promise<string | undefined> {
+  if (!relatedInvoiceId) return undefined;
+  const relatedInvoice = await prisma.salesInvoice.findFirst({ where: { id: relatedInvoiceId, tenantId }, select: { invoiceNumber: true } });
+  return relatedInvoice?.invoiceNumber;
+}
 
 interface LineInput {
   accountId: string;
@@ -109,7 +117,23 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
     });
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: debitNote.id } });
-    return debitNote;
+
+    const billingReferenceId = await resolveBillingReferenceNumber(tenantId, input.relatedInvoiceId);
+    const chain = billingReferenceId
+      ? await reserveZatcaChain(tx, {
+          company, customer, kind: "debit_note", documentNumber: debitNoteNumber, documentUuid: debitNote.zatcaUuid, billingReferenceId, lines: debitNote.lines,
+        })
+      : null;
+    if (!chain) return debitNote;
+
+    return tx.salesDebitNote.update({
+      where: { id: debitNote.id },
+      data: {
+        icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
+        zatcaStatus: chain.zatcaStatus, zatcaSubmittedAt: chain.issuedAt,
+      },
+      include: debitNoteInclude,
+    });
   });
 }
 
@@ -127,6 +151,7 @@ export async function postSalesDebitNote(tenantId: string, userId: string, id: s
   });
   if (!debitNote) throw notFound("الإشعار المدين غير موجود");
   if (debitNote.status === "posted") throw badRequest("الإشعار المدين مرحّل بالفعل");
+  const company = await prisma.company.findFirstOrThrow({ where: { id: debitNote.companyId, tenantId } });
 
   const vatOutputId = await getAccountIdByName(tenantId, debitNote.companyId, "ضريبة القيمة المضافة - مخرجات");
   const chargeAccountId = await getAccountIdByName(tenantId, debitNote.companyId, CHARGE_ACCOUNT_NAME[debitNote.chargeMethod || "account"]);
@@ -152,9 +177,26 @@ export async function postSalesDebitNote(tenantId: string, userId: string, id: s
       createdBy: userId,
       lines: journalLines,
     });
-    return tx.salesDebitNote.update({
+    const updated = await tx.salesDebitNote.update({
       where: { id },
       data: { status: "posted", journalEntryId: entry.id },
+      include: debitNoteInclude,
+    });
+
+    const billingReferenceId = await resolveBillingReferenceNumber(tenantId, debitNote.relatedInvoiceId);
+    const chain = billingReferenceId
+      ? await reserveZatcaChain(tx, {
+          company, customer: debitNote.customer, kind: "debit_note", documentNumber: debitNote.debitNoteNumber, documentUuid: debitNote.zatcaUuid, billingReferenceId, lines: debitNote.lines,
+        })
+      : null;
+    if (!chain) return updated;
+
+    return tx.salesDebitNote.update({
+      where: { id },
+      data: {
+        icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
+        zatcaStatus: chain.zatcaStatus, zatcaSubmittedAt: chain.issuedAt,
+      },
       include: debitNoteInclude,
     });
   });
@@ -164,6 +206,9 @@ export async function unpostSalesDebitNote(tenantId: string, userId: string, id:
   const debitNote = await prisma.salesDebitNote.findFirst({ where: { id, tenantId } });
   if (!debitNote) throw notFound("الإشعار المدين غير موجود");
   if (debitNote.status !== "posted") throw badRequest("الإشعار المدين ليس مرحّلاً أصلاً");
+  if (debitNote.zatcaStatus !== "not_applicable") {
+    throw badRequest("لا يمكن فك ترحيل إشعار مدين مرتبط بسلسلة تجزئة زاتكا (ICV/PIH) — هذا يكسر السلسلة بشكل غير قابل للإصلاح");
+  }
 
   await assertValidUnlockPin(tenantId, pin);
 
