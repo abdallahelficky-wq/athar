@@ -17,3 +17,11 @@ export const extractCompanyDocument = (id, docType, file) => {
   form.append("file", file);
   return api.postForm(`/companies/${id}/extract-document`, form);
 };
+
+// ربط فاتورة (ZATCA) — انظر src/modules/companiesZatca على الخادم
+export const getCompanyZatcaStatus = (id) => api.get(`/companies/${id}/zatca`);
+export const generateCompanyZatcaCsr = (id, payload) => api.post(`/companies/${id}/zatca/csr`, payload);
+export const requestCompanyZatcaCompliance = (id, otp) => api.post(`/companies/${id}/zatca/compliance`, { otp });
+export const requestCompanyZatcaProduction = (id) => api.post(`/companies/${id}/zatca/production`, {});
+export const setCompanyZatcaEnvironment = (id, environment) => api.patch(`/companies/${id}/zatca/environment`, { environment });
+export const resetCompanyZatcaLinkage = (id) => api.delete(`/companies/${id}/zatca`);

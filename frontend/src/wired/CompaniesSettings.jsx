@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { createCompany, deleteCompany } from "../api/companies";
 import { useAuth } from "../context/AuthContext";
 import CompanyEditModal from "./CompanyEditModal";
+import CompanyZatcaModal from "./CompanyZatcaModal";
 
 /** تعديل اسم المنشأة (المستأجر) — لا يوجد له مسار آخر بعد التسجيل الأول، وهو ضروري خصوصاً
  * لتصحيح اسم أُدخل بترميز خاطئ عند إنشاء الحساب لأول مرة (مثلاً عبر إدخال مباشر في قاعدة
@@ -129,6 +130,7 @@ function NewCompanyForm({ onCompanyCreated }) {
  * وهو المكان الوحيد في النظام لإنشاء شركة جديدة بعد إزالة هذا الخيار من كل شاشات المعاملات */
 export default function CompaniesSettings({ companies, reload, onCompanyCreated }) {
   const [editingCompany, setEditingCompany] = useState(null);
+  const [zatcaCompany, setZatcaCompany] = useState(null);
   const [error, setError] = useState("");
 
   const remove = async (c) => {
@@ -163,6 +165,7 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
               <td>{c.crNumber || "—"}</td>
               <td className="row-actions">
                 <button className="btn-ghost" onClick={() => setEditingCompany(c)}>تعديل</button>
+                <button className="btn-ghost" onClick={() => setZatcaCompany(c)}>ربط فاتورة (ZATCA)</button>
                 <button className="btn-ghost" onClick={() => remove(c)}>حذف</button>
               </td>
             </tr>
@@ -177,6 +180,13 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
           company={editingCompany}
           onClose={() => setEditingCompany(null)}
           onSaved={() => { setEditingCompany(null); reload(); }}
+        />
+      )}
+
+      {zatcaCompany && (
+        <CompanyZatcaModal
+          company={zatcaCompany}
+          onClose={() => setZatcaCompany(null)}
         />
       )}
     </div>

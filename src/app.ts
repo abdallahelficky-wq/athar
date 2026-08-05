@@ -5,6 +5,7 @@ import helmet from "helmet";
 import { errorHandler } from "./middleware/errorHandler";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { companyRoutes } from "./modules/companies/companies.routes";
+import { companyZatcaRoutes } from "./modules/companiesZatca/companiesZatca.routes";
 import { accountRoutes } from "./modules/accounts/accounts.routes";
 import { costCenterRoutes } from "./modules/costCenters/costCenters.routes";
 import { journalEntryRoutes } from "./modules/journalEntries/journalEntries.routes";
@@ -53,6 +54,7 @@ export function createApp() {
 
   app.use("/api/auth", authRoutes);
   app.use("/api/companies", companyRoutes);
+  app.use("/api/companies/:id/zatca", companyZatcaRoutes);
   app.use("/api/accounts", accountRoutes);
   app.use("/api/cost-centers", costCenterRoutes);
   app.use("/api/journal-entries", journalEntryRoutes);
