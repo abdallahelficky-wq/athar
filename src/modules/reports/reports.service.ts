@@ -79,6 +79,68 @@ interface Zeroed {
 }
 const ZERO_DC: Zeroed = { debit: 0, credit: 0 };
 
+const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+function monthRange(month: string) {
+  if (!/^\d{4}-\d{2}$/.test(month)) throw new Error("صيغة الشهر غير صحيحة");
+  const [year, m] = month.split("-").map(Number);
+  const from = new Date(Date.UTC(year, m - 1, 1));
+  const to = new Date(Date.UTC(year, m, 1) - 1);
+  const previousFrom = new Date(Date.UTC(year, m - 2, 1));
+  const previousTo = new Date(from.getTime() - 1);
+  return { from, to, previousFrom, previousTo };
+}
+
+/** التقرير الشهري يستعمل نفس rollupAccountValues التي تستعملها القوائم الرئيسية؛ التصنيف
+ * يعتمد على فروع الشجرة الفعلية، ولا يجمع أسطر القيود بمنطق موازٍ. */
+export async function getComprehensiveMonthlyReport(tenantId: string, companyId: string | undefined, month: string) {
+  const { from, to, previousFrom, previousTo } = monthRange(month);
+  const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
+  const [currentRaw, previousRaw, closingRaw, companies, receivableAging, payableAging, payrollRuns] = await Promise.all([
+    aggregateAccountBalances(tenantId, { companyId, dateFrom: from, dateTo: to }),
+    aggregateAccountBalances(tenantId, { companyId, dateFrom: previousFrom, dateTo: previousTo }),
+    aggregateAccountBalances(tenantId, { companyId, dateTo: to }),
+    prisma.company.findMany({ where: { tenantId, id: companyId || undefined } }),
+    prisma.salesInvoice.findMany({ where: { tenantId, companyId: companyId || undefined, status: "posted", date: { lte: to } }, include: { receiptAllocations: true } }),
+    prisma.purchaseInvoice.findMany({ where: { tenantId, companyId: companyId || undefined, status: "posted", date: { lte: to } } }),
+    prisma.payrollRun.findMany({ where: { tenantId, companyId: companyId || undefined, month } }),
+  ]);
+  const values = (raw: Map<string, AccountBalance>) => new Map([...raw].map(([id, b]) => [id, { debit: b.debit, credit: b.credit }]));
+  const rolled = (raw: Map<string, AccountBalance>) => rollupAccountValues(accounts, values(raw), ZERO_DC, { level: 4 });
+  const cur = rolled(currentRaw), prev = rolled(previousRaw), closing = rolled(closingRaw);
+  const natural = (r: { account: Account; value: Zeroed }) => r.account.type === "revenue" || r.account.type === "liability" || r.account.type === "equity" ? r.value.credit - r.value.debit : r.value.debit - r.value.credit;
+  const sumType = (rows: typeof cur, type: string) => money(rows.filter(r => r.account.type === type).reduce((s, r) => s + natural(r), 0));
+  const classifyExpense = (name: string) => /تكلفة|مبيعات|إيرادات/.test(name) ? "تكلفة الإيرادات" : /إدار/.test(name) ? "مصروفات إدارية" : "مصروفات تشغيلية";
+  const expenseDetails = cur.filter(r => r.account.type === "expense" && natural(r) !== 0).map(r => ({ accountId: r.account.id, name: r.account.name, value: money(natural(r)), category: classifyExpense(r.account.name) })).sort((a,b) => b.value-a.value);
+  const expenseSummary = ["تكلفة الإيرادات", "مصروفات تشغيلية", "مصروفات إدارية"].map(category => ({ category, value: money(expenseDetails.filter(x => x.category === category).reduce((s,x)=>s+x.value,0)) }));
+  const revenue = sumType(cur, "revenue"), expense = sumType(cur, "expense");
+  const previousRevenue = sumType(prev, "revenue"), previousExpense = sumType(prev, "expense");
+  const cashRows = closing.filter(r => r.account.isBankOrCash).map(r => ({ accountId: r.account.id, name: r.account.name, balance: money(natural(r)) }));
+  const cashIds = new Set(accounts.filter(a => a.isBankOrCash).map(a => a.id));
+  const cashFlow = (rows: typeof cur) => rows.filter(r => cashIds.has(r.account.id)).reduce((a,r) => ({ receipts: a.receipts+r.value.debit, payments: a.payments+r.value.credit }), { receipts: 0, payments: 0 });
+  const cf = cashFlow(cur), pcf = cashFlow(prev);
+  const aging = (docs: Array<{ date: Date; due: number }>) => docs.reduce((a,d) => { const days=Math.floor((to.getTime()-d.date.getTime())/86400000); const k=days<=30?"under30":days<=60?"d30to60":days<=90?"d60to90":"over90"; a[k]+=Math.max(d.due,0); return a; }, { under30:0,d30to60:0,d60to90:0,over90:0 });
+  const arDocs = receivableAging.map(i => ({ date:i.date, due:Number(i.grandTotal)-i.receiptAllocations.reduce((s,a)=>s+Number(a.amount),0) }));
+  const apDocs = payableAging.map(i => ({ date:i.date, due:Number(i.grandTotal) }));
+  const receivables = money(arDocs.reduce((s,x)=>s+Math.max(x.due,0),0)), payables = money(apDocs.reduce((s,x)=>s+x.due,0));
+  const liabilityRows = closing.filter(r => r.account.type === "liability" && /(قرض|قسط|ضريبة|قيمة مضافة|زكاة|مستحق)/.test(r.account.name)).map(r => ({ name:r.account.name, amount:money(natural(r)), dueDate:null }));
+  const salaryAccounts = closing.filter(r => /(رواتب مستحقة|نهاية خدمة)/.test(r.account.name));
+  const payroll = { paid: money(payrollRuns.filter(r=>r.status === "posted").reduce((s,r)=>s + Number((r.overrides as any)?.netTotal || 0),0)), unpaid: money(salaryAccounts.filter(r=>/رواتب/.test(r.account.name)).reduce((s,r)=>s+natural(r),0)), endOfService: money(salaryAccounts.filter(r=>/نهاية خدمة/.test(r.account.name)).reduce((s,r)=>s+natural(r),0)) };
+  const pct = (now:number, old:number) => old === 0 ? null : money(((now-old)/Math.abs(old))*100);
+  const comparison = [
+    ["الإيرادات",revenue,previousRevenue], ["المصروفات",expense,previousExpense], ["صافي الربح",revenue-expense,previousRevenue-previousExpense], ["المقبوضات",cf.receipts,pcf.receipts], ["المدفوعات",cf.payments,pcf.payments], ["صافي التدفق",cf.receipts-cf.payments,pcf.receipts-pcf.payments],
+  ].map(([label,current,previous]) => ({ label, current:money(current as number), previous:money(previous as number), difference:money((current as number)-(previous as number)), changePct:pct(current as number,previous as number) }));
+  const settings = { expenseIncreasePct:Number(companies[0]?.expenseIncreaseThreshold ?? 15), minimumCash:Number(companies[0]?.lowCashThreshold ?? 0), maximumReceivables:Number(companies[0]?.receivablesThreshold ?? 0) };
+  const notes:string[]=[]; expenseDetails.forEach(e => { const old=prev.find(r=>r.account.id===e.accountId); const change=pct(e.value,old?natural(old):0); if(change!=null && change>=settings.expenseIncreasePct) notes.push(`مصروف ${e.name} زاد بنسبة ${change}% عن الشهر السابق.`); });
+  if (pct(revenue-expense, previousRevenue-previousExpense)! < 0 && revenue>previousRevenue) notes.push("صافي الربح انخفض رغم زيادة الإيرادات — يستحق مراجعة المصروفات.");
+  const totalCash=money(cashRows.reduce((s,x)=>s+x.balance,0)); if(settings.maximumReceivables>0&&receivables>settings.maximumReceivables) notes.push(`الذمم المدينة تجاوزت الحد المحدد (${settings.maximumReceivables}).`); if(totalCash<settings.minimumCash) notes.push(`رصيد النقدية أقل من الحد الأدنى المحدد (${settings.minimumCash}).`);
+  return { month, scope:companyId?"company":"group", revenue, expense, netProfit:money(revenue-expense), netProfitChangePct:pct(revenue-expense,previousRevenue-previousExpense), expenseSummary, expenseDetails:expenseDetails.slice(0,10), cashFlow:{ receipts:money(cf.receipts),payments:money(cf.payments),net:money(cf.receipts-cf.payments) }, cashAccounts:cashRows, totalCash, payroll, receivables:{ total:receivables,aging:aging(arDocs) }, payables:{ total:payables,aging:aging(apDocs) }, liabilities:liabilityRows, comparison, settings, generatedNotes:notes };
+}
+
+export async function updateMonthlyReportSettings(tenantId:string, companyId:string, input:any) {
+  return prisma.company.update({ where:{ id:companyId, tenantId }, data:{ expenseIncreaseThreshold:Number(input.expenseIncreasePct), lowCashThreshold:Number(input.minimumCash), receivablesThreshold:Number(input.maximumReceivables) }, select:{ expenseIncreaseThreshold:true,lowCashThreshold:true,receivablesThreshold:true } });
+}
+
 function searchFilter<T extends { name: string; code: string }>(rows: T[], search?: string): T[] {
   if (!search?.trim()) return rows;
   const q = search.trim().toLowerCase();

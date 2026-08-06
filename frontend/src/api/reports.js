@@ -13,6 +13,8 @@ export const getTrialBalance = (params) => api.get(`/reports/trial-balance${toQu
 export const getTrialBalanceTree = (params) => api.get(`/reports/trial-balance-tree${toQuery(params)}`);
 export const getIncomeStatement = (params) => api.get(`/reports/income-statement${toQuery(params)}`);
 export const getBalanceSheet = (params) => api.get(`/reports/balance-sheet${toQuery(params)}`);
+export const getComprehensiveMonthly = (params) => api.get(`/reports/comprehensive-monthly${toQuery(params)}`);
+export const updateComprehensiveSettings = (companyId, values) => api.patch(`/reports/comprehensive-monthly/settings?companyId=${companyId}`, values);
 
 export const getCustomerStatement = (customerId, params) =>
   api.get(`/reports/customer-statement/${customerId}${toQuery(params)}`);

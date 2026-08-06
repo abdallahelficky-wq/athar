@@ -61,6 +61,17 @@ export const balanceSheetHandler: RequestHandler = async (req, res) => {
   res.json(result);
 };
 
+export const comprehensiveMonthlyHandler: RequestHandler = async (req, res) => {
+  const month = typeof req.query.month === "string" ? req.query.month : new Date().toISOString().slice(0, 7);
+  res.json(await service.getComprehensiveMonthlyReport(req.auth!.tenantId, parseCompanyId(req.query.companyId), month));
+};
+
+export const updateMonthlyReportSettingsHandler: RequestHandler = async (req, res) => {
+  const companyId = parseCompanyId(req.query.companyId);
+  if (!companyId) return void res.status(400).json({ error: "يجب تحديد الشركة لحفظ حدود التنبيه" });
+  res.json(await service.updateMonthlyReportSettings(req.auth!.tenantId, companyId, req.body));
+};
+
 export const customerStatementHandler: RequestHandler = async (req, res) => {
   const result = await service.getCustomerStatement(
     req.auth!.tenantId,
