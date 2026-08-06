@@ -1,12 +1,16 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { daysInMonth } from "../../lib/hrCalculations";
+import { computeEmployeePayroll, PayrollComponentLike, PayrollSettingsLike } from "../../lib/payrollEngine";
+import { toComponentLike } from "../../lib/payrollComponentMapper";
 import {
-  computeWidePayrollRow,
-  applyRowOverride,
-  PAYROLL_JOURNAL_MAP,
-  WidePayrollRow,
-} from "../../lib/hrCalculations";
+  LEGACY_PAYROLL_COMPONENTS,
+  LEGACY_ACTION_TYPE_TO_KEY,
+  LegacyComponentKey,
+  buildLegacyFormula,
+  buildLegacyAdjustmentUnitBasis,
+} from "../../lib/legacyPayrollComponents";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
@@ -49,7 +53,8 @@ export async function updatePayrollRunEmployees(tenantId: string, id: string, em
   return prisma.payrollRun.update({ where: { id }, data: { employeeIds } });
 }
 
-export async function setRowOverride(tenantId: string, id: string, employeeId: string, override: Partial<WidePayrollRow>) {
+/** override بالمُعرِّف: مفاتيح الكائن هي componentId (أو "legacy:<key>" لشركة لم تُهاجَر بعد) */
+export async function setRowOverride(tenantId: string, id: string, employeeId: string, override: Record<string, number>) {
   const run = await prisma.payrollRun.findFirst({ where: { id, tenantId } });
   if (!run) throw notFound("كشف الرواتب غير موجود");
   if (run.status !== "draft") throw badRequest("لا يمكن تعديل كشف مرحّل، يجب فك ترحيله أولاً");
@@ -69,64 +74,165 @@ export async function clearRowOverride(tenantId: string, id: string, employeeId:
   return prisma.payrollRun.update({ where: { id }, data: { overrides: overrides as Prisma.InputJsonValue } });
 }
 
-async function computeRunRows(tenantId: string, run: { companyId: string; month: string; employeeIds: string[]; overrides: unknown }) {
+export interface RunComponent extends PayrollComponentLike {
+  name: string;
+  accountId: string;
+  allowsMonthlyAdjustments: boolean;
+}
+
+interface RunRow {
+  employeeId: string;
+  employeeName: string;
+  componentValues: Record<string, number>;
+  totalAdditions: number;
+  totalDeductions: number;
+  net: number;
+  note: string;
+  overridden: boolean;
+}
+
+/**
+ * تُرجع بنود الرواتب الفعّالة لهذه الشركة: البنود الحقيقية المحفوظة إن كانت موجودة (بعد تشغيل
+ * backfillPayrollComponents.ts)، وإلا توليف مؤقت في الذاكرة لنفس البنود الاثني عشر القديمة بلا أي
+ * كتابة لقاعدة البيانات — يضمن صفر تغيير في راتب أي موظف قبل تشغيل الـ backfill صراحةً، تماماً
+ * كمبدأ resolvePartyAccountId في partyAccounts.ts (Phase G).
+ */
+export async function resolveEffectiveComponents(tenantId: string, companyId: string): Promise<{ components: RunComponent[]; persisted: boolean }> {
+  const dbComponents = await prisma.payrollComponent.findMany({ where: { tenantId, companyId, isActive: true }, orderBy: { sortOrder: "asc" } });
+  if (dbComponents.length) {
+    return {
+      persisted: true,
+      components: dbComponents.map((c) => ({ ...toComponentLike(c), name: c.name, accountId: c.accountId, allowsMonthlyAdjustments: c.allowsMonthlyAdjustments })),
+    };
+  }
+
+  const idByKey = new Map<LegacyComponentKey, string>();
+  LEGACY_PAYROLL_COMPONENTS.forEach((spec) => idByKey.set(spec.key, `legacy:${spec.key}`));
+  const components: RunComponent[] = [];
+  for (const spec of LEGACY_PAYROLL_COMPONENTS) {
+    let accountId: string;
+    try {
+      accountId = await getAccountIdByName(tenantId, companyId, spec.accountName);
+    } catch {
+      continue; // حساب هذا البند غير موجود في شجرة هذه الشركة تحديداً — يُتجاوَز بأمان
+    }
+    components.push({
+      id: idByKey.get(spec.key)!, name: spec.name, kind: spec.kind, accountId, calcMethod: spec.calcMethod,
+      formula: buildLegacyFormula(spec, idByKey), adjustmentUnitBasis: buildLegacyAdjustmentUnitBasis(spec, idByKey),
+      sourceEmployeeField: spec.sourceEmployeeField || null, prorateOnPartialMonth: spec.prorateOnPartialMonth,
+      allowsMonthlyAdjustments: spec.allowsMonthlyAdjustments,
+    });
+  }
+  return { components, persisted: false };
+}
+
+async function computeRun(tenantId: string, run: { companyId: string; month: string; employeeIds: string[]; overrides: unknown }): Promise<{ components: RunComponent[]; rows: RunRow[] }> {
+  const { components, persisted } = await resolveEffectiveComponents(tenantId, run.companyId);
   const employees = await prisma.employee.findMany({ where: { id: { in: run.employeeIds }, tenantId } });
   const settlements = await prisma.leaveSettlement.findMany({ where: { employeeId: { in: run.employeeIds } } });
-  const actions = await prisma.hrAction.findMany({ where: { employeeId: { in: run.employeeIds }, month: run.month } });
-  const overridesMap = (run.overrides as Record<string, Partial<WidePayrollRow>>) || {};
+  const settingsRow = await prisma.payrollSettings.findUnique({ where: { companyId: run.companyId } });
+  const settings: PayrollSettingsLike = {
+    standardHoursPerMonth: settingsRow ? Number(settingsRow.standardHoursPerMonth) : 240,
+    standardDaysPerMonth: settingsRow ? Number(settingsRow.standardDaysPerMonth) : 30,
+  };
+  const overridesMap = (run.overrides as Record<string, Record<string, number>>) || {};
 
-  return run.employeeIds.map((employeeId) => {
+  const empComponentRows = persisted
+    ? await prisma.employeePayrollComponent.findMany({ where: { employeeId: { in: run.employeeIds }, isActive: true } })
+    : [];
+  const actionsRaw = persisted
+    ? await prisma.hrAction.findMany({ where: { employeeId: { in: run.employeeIds }, month: run.month, componentId: { not: null } } })
+    : await prisma.hrAction.findMany({ where: { employeeId: { in: run.employeeIds }, month: run.month } });
+
+  const rows = run.employeeIds.map((employeeId): RunRow => {
     const emp = employees.find((e) => e.id === employeeId)!;
     const empSettlements = settlements.filter((s) => s.employeeId === employeeId);
     const onLeaveThisMonth = empSettlements.some((s) => s.leaveStartDate.toISOString().slice(0, 7) === run.month && !s.returnDate);
     const returning = empSettlements.find((s) => s.returnDate && s.returnDate.toISOString().slice(0, 7) === run.month);
-    const empActions = actions.filter((a) => a.employeeId === employeeId).map((a) => ({ actionType: a.actionType, value: Number(a.value) }));
+    let prorationFactor: number | null = null;
+    if (returning) {
+      const dim = daysInMonth(run.month);
+      const workedDays = Math.max(dim - returning.returnDate!.getDate() + 1, 0);
+      prorationFactor = workedDays / dim;
+    }
 
-    let row = computeWidePayrollRow(
-      {
-        basicSalary: Number(emp.basicSalary),
-        housingAllowance: Number(emp.housingAllowance),
-        transportAllowance: Number(emp.transportAllowance),
-        otherAllowance: Number(emp.otherAllowance),
-        gosiAmount: emp.gosiAmount ? Number(emp.gosiAmount) : null,
-        gosiApplicable: emp.gosiApplicable,
-        advances: Number(emp.advances),
-        otherDeductions: Number(emp.otherDeductions),
+    let employeeComponents: RunComponent[];
+    const fixedValues = new Map<string, number>();
+    const monthlyAdjustments = new Map<string, number>();
+
+    if (persisted) {
+      const assignedIds = new Set(empComponentRows.filter((ec) => ec.employeeId === employeeId).map((ec) => ec.componentId));
+      employeeComponents = components.filter((c) => assignedIds.has(c.id));
+      empComponentRows
+        .filter((ec) => ec.employeeId === employeeId && ec.fixedValue != null)
+        .forEach((ec) => fixedValues.set(ec.componentId, Number(ec.fixedValue)));
+      actionsRaw
+        .filter((a) => a.employeeId === employeeId && a.componentId)
+        .forEach((a) => monthlyAdjustments.set(a.componentId!, (monthlyAdjustments.get(a.componentId!) || 0) + Number(a.value)));
+    } else {
+      employeeComponents = emp.gosiApplicable ? components : components.filter((c) => c.id !== "legacy:gosi");
+      if (Number(emp.advances)) fixedValues.set("legacy:advance", Number(emp.advances));
+      if (Number(emp.otherDeductions)) fixedValues.set("legacy:otherDed", Number(emp.otherDeductions));
+      if (emp.gosiAmount != null) fixedValues.set("legacy:gosi", Number(emp.gosiAmount));
+      actionsRaw
+        .filter((a) => a.employeeId === employeeId)
+        .forEach((a) => {
+          const key = LEGACY_ACTION_TYPE_TO_KEY[a.actionType];
+          if (!key) return;
+          const id = `legacy:${key}`;
+          monthlyAdjustments.set(id, (monthlyAdjustments.get(id) || 0) + Number(a.value));
+        });
+    }
+
+    const result = computeEmployeePayroll({
+      employee: {
+        basicSalary: Number(emp.basicSalary), housingAllowance: Number(emp.housingAllowance),
+        transportAllowance: Number(emp.transportAllowance), otherAllowance: Number(emp.otherAllowance),
       },
-      run.month,
-      onLeaveThisMonth,
-      returning ? { returnDate: returning.returnDate! } : null,
-      empActions,
-    );
+      components: employeeComponents, fixedValues, monthlyAdjustments, settings,
+      fullyOnLeave: onLeaveThisMonth, prorationFactor,
+    });
 
-    const override = overridesMap[employeeId];
+    let values = result.values;
+    let totalAdditions = result.totalAdditions;
+    let totalDeductions = result.totalDeductions;
     let overridden = false;
+    const override = overridesMap[employeeId];
     if (override) {
-      row = applyRowOverride(row, override);
+      values = new Map(values);
+      for (const [componentId, value] of Object.entries(override)) values.set(componentId, value);
+      totalAdditions = employeeComponents.filter((c) => c.kind === "addition").reduce((s, c) => s + (values.get(c.id) || 0), 0);
+      totalDeductions = employeeComponents.filter((c) => c.kind === "deduction").reduce((s, c) => s + (values.get(c.id) || 0), 0);
       overridden = true;
     }
 
-    return { employeeId, employeeName: emp.name, ...row, overridden };
+    return {
+      employeeId, employeeName: emp.name, componentValues: Object.fromEntries(values),
+      totalAdditions, totalDeductions, net: totalAdditions - totalDeductions, note: result.note, overridden,
+    };
   });
+
+  return { components, rows };
 }
 
 export async function getPayrollRunRows(tenantId: string, id: string) {
   const run = await prisma.payrollRun.findFirst({ where: { id, tenantId } });
   if (!run) throw notFound("كشف الرواتب غير موجود");
 
-  const rows = await computeRunRows(tenantId, run);
-  const totals = rows.reduce(
-    (s, r) => {
-      s.basic += r.basic; s.housing += r.housing; s.transport += r.transport; s.otherAllow += r.otherAllow;
-      s.otherAdd += r.otherAdd; s.overtime += r.overtime; s.totalAdditions += r.totalAdditions; s.grossTotal += r.grossTotal;
-      s.gosi += r.gosi; s.absence += r.absence; s.advance += r.advance; s.violation += r.violation;
-      s.penalty += r.penalty; s.otherDed += r.otherDed; s.totalDeductions += r.totalDeductions; s.net += r.net;
-      return s;
-    },
-    { basic: 0, housing: 0, transport: 0, otherAllow: 0, otherAdd: 0, overtime: 0, totalAdditions: 0, grossTotal: 0, gosi: 0, absence: 0, advance: 0, violation: 0, penalty: 0, otherDed: 0, totalDeductions: 0, net: 0 },
-  );
+  const { components, rows } = await computeRun(tenantId, run);
 
-  return { run, rows, totals };
+  const byComponent: Record<string, number> = {};
+  components.forEach((c) => { byComponent[c.id] = 0; });
+  rows.forEach((r) => { for (const [componentId, value] of Object.entries(r.componentValues)) byComponent[componentId] = (byComponent[componentId] || 0) + value; });
+
+  const totals = {
+    byComponent,
+    totalAdditions: rows.reduce((s, r) => s + r.totalAdditions, 0),
+    totalDeductions: rows.reduce((s, r) => s + r.totalDeductions, 0),
+    net: rows.reduce((s, r) => s + r.net, 0),
+  };
+
+  return { run, rows, totals, columns: components.map((c) => ({ id: c.id, name: c.name, kind: c.kind })) };
 }
 
 export async function postPayrollRun(tenantId: string, userId: string, id: string) {
@@ -134,35 +240,29 @@ export async function postPayrollRun(tenantId: string, userId: string, id: strin
   if (!run) throw notFound("كشف الرواتب غير موجود");
   if (run.status === "posted") throw badRequest("كشف الرواتب مرحّل بالفعل");
 
-  const rows = await computeRunRows(tenantId, run);
+  const { components, rows } = await computeRun(tenantId, run);
   if (rows.length === 0) throw badRequest("لا يوجد موظفون في هذا الكشف");
+  const componentById = new Map(components.map((c) => [c.id, c]));
 
-  const byAccountName = new Map<string, number>();
-  rows.forEach((r) => {
-    PAYROLL_JOURNAL_MAP.forEach(([field, accountName]) => {
-      const amt = Number(r[field]) || 0;
-      if (amt > 0) byAccountName.set(accountName, (byAccountName.get(accountName) || 0) + amt);
-    });
-  });
-
-  const debitFields = new Set(PAYROLL_JOURNAL_MAP.filter(([, , side]) => side === "debit").map(([, name]) => name));
-
-  const journalLines: { accountId: string; department: string; debit: number; credit: number; employeeId?: string }[] = [];
-  for (const [accountName, amount] of byAccountName) {
-    const accountId = await getAccountIdByName(tenantId, run.companyId, accountName);
-    const isDebit = debitFields.has(accountName);
-    journalLines.push({ accountId, department: "المالية والحسابات", debit: isDebit ? amount : 0, credit: isDebit ? 0 : amount });
-  }
-
-  // صافي المستحق يُقيَّد على حساب كل موظف المستقل (لا حساب مشترك مجمّع) — مع وسم employeeId على
-  // كل سطر، بعكس المنطق القديم الذي كان يجمع كل الموظفين في سطر واحد بلا أي وسم بالموظف إطلاقاً.
+  // سطر واحد لكل موظف لكل بند غير صفري (موسوم بـ employeeId)، ثم سطر ختامي واحد لكل موظف: صافي
+  // المستحق يُقيَّد على حسابه المستقل هو (Phase G) — بدل جمع كل الموظفين في سطر واحد بلا أي وسم
+  // بالموظف كما كان في المنطق القديم.
   const employees = await prisma.employee.findMany({ where: { id: { in: run.employeeIds }, tenantId }, select: { id: true, accountId: true } });
   const employeeById = new Map(employees.map((e) => [e.id, e]));
-  for (const r of rows) {
-    if (!r.net) continue;
-    const employee = employeeById.get(r.employeeId)!;
-    const accountId = await resolvePartyAccountId(tenantId, run.companyId, employee, "رواتب مستحقة للصرف");
-    journalLines.push({ accountId, department: "المالية والحسابات", debit: 0, credit: r.net, employeeId: r.employeeId });
+
+  const journalLines: { accountId: string; department: string; debit: number; credit: number; employeeId?: string }[] = [];
+  for (const row of rows) {
+    for (const [componentId, value] of Object.entries(row.componentValues)) {
+      if (!value) continue;
+      const component = componentById.get(componentId);
+      if (!component) continue;
+      const isDebit = component.kind === "addition";
+      journalLines.push({ accountId: component.accountId, department: "المالية والحسابات", debit: isDebit ? value : 0, credit: isDebit ? 0 : value, employeeId: row.employeeId });
+    }
+    if (!row.net) continue;
+    const employee = employeeById.get(row.employeeId)!;
+    const netAccountId = await resolvePartyAccountId(tenantId, run.companyId, employee, "رواتب مستحقة للصرف");
+    journalLines.push({ accountId: netAccountId, department: "المالية والحسابات", debit: 0, credit: row.net, employeeId: row.employeeId });
   }
 
   const [y, m] = run.month.split("-").map(Number);

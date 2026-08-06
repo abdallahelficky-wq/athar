@@ -71,11 +71,14 @@ model Tenant {
   fixedAssets      FixedAsset[]
   depreciationRuns DepreciationRun[]
 
-  employees         Employee[]
-  leaveSettlements  LeaveSettlement[]
-  hrActions         HrAction[]
-  payrollRuns       PayrollRun[]
-  attendanceRecords AttendanceRecord[]
+  employees                 Employee[]
+  leaveSettlements          LeaveSettlement[]
+  hrActions                 HrAction[]
+  payrollRuns               PayrollRun[]
+  attendanceRecords         AttendanceRecord[]
+  payrollComponents         PayrollComponent[]
+  employeePayrollComponents EmployeePayrollComponent[]
+  payrollSettings           PayrollSettings[]
 
   attachments Attachment[]
 
@@ -245,6 +248,8 @@ model Company {
   employees            Employee[]
   payrollRuns          PayrollRun[]
   attendanceRecords    AttendanceRecord[]
+  payrollComponents    PayrollComponent[]
+  payrollSettings      PayrollSettings?
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -372,20 +377,21 @@ model Account {
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
-  journalEntryLines    JournalEntryLine[]
-  salesInvoiceLines    SalesInvoiceLine[]
-  salesReturnLines     SalesReturnLine[]
-  salesDebitNoteLines  SalesDebitNoteLine[]
-  purchaseInvoiceLines PurchaseInvoiceLine[]
-  purchaseReturnLines  PurchaseReturnLine[]
-  receiptsAsBank       Receipt[]             @relation("ReceiptBankAccount")
-  itemStockLinks       Item[]                @relation("ItemStockAccount")
-  itemCogsLinks        Item[]                @relation("ItemCogsAccount")
-  itemRevenueLinks     Item[]                @relation("ItemRevenueAccount")
-  itemExpenseLinks     Item[]                @relation("ItemExpenseAccount")
-  customerLinks        Customer[]
-  supplierLinks        Supplier[]
-  employeeLinks        Employee[]
+  journalEntryLines     JournalEntryLine[]
+  salesInvoiceLines     SalesInvoiceLine[]
+  salesReturnLines      SalesReturnLine[]
+  salesDebitNoteLines   SalesDebitNoteLine[]
+  purchaseInvoiceLines  PurchaseInvoiceLine[]
+  purchaseReturnLines   PurchaseReturnLine[]
+  receiptsAsBank        Receipt[]             @relation("ReceiptBankAccount")
+  itemStockLinks        Item[]                @relation("ItemStockAccount")
+  itemCogsLinks         Item[]                @relation("ItemCogsAccount")
+  itemRevenueLinks      Item[]                @relation("ItemRevenueAccount")
+  itemExpenseLinks      Item[]                @relation("ItemExpenseAccount")
+  customerLinks         Customer[]
+  supplierLinks         Supplier[]
+  employeeLinks         Employee[]
+  payrollComponentLinks PayrollComponent[]
 
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
@@ -1252,8 +1258,9 @@ model Employee {
   leaveSettlements  LeaveSettlement[]
   hrActions         HrAction[]
   journalEntryLines JournalEntryLine[]
-  directReports     Employee[]         @relation("EmployeeManager")
+  directReports     Employee[]                 @relation("EmployeeManager")
   attendanceRecords AttendanceRecord[]
+  payrollComponents EmployeePayrollComponent[]
 
   @@unique([tenantId, phone])
   @@map("employees")
@@ -1345,18 +1352,107 @@ model LeaveSettlement {
   @@map("leave_settlements")
 }
 
+// ---------------------------------------------------------------------------
+// 4.9 إعدادات الرواتب المرنة — بنود قابلة للتعديل الكامل (Phase H) بدل الحقول الاثني عشر
+// الثابتة سابقاً في WidePayrollRow. انظر src/lib/payrollEngine.ts لمنطق التقييم الفعلي،
+// و/root/.claude/plans/shimmering-popping-thunder.md لتصميم بنية "الصيغة المركّبة" (formula).
+// ---------------------------------------------------------------------------
+
+// بند راتب واحد (إضافة أو خصم) — قابل للتعديل الكامل من شاشة "إعدادات الرواتب"، مع طريقة حساب
+// مرنة (قيمة ثابتة / صيغة مركّبة تشمل النسبة المئوية كحالة خاصة بحدّ واحد بلا تحويل وحدة).
+model PayrollComponent {
+  id                       String   @id @default(cuid())
+  tenantId                 String
+  tenant                   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                String
+  company                  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                     String
+  kind                     String // "addition" | "deduction"
+  accountId                String
+  account                  Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  calcMethod               String // "fixed" | "formula" — انظر PayrollFormula في payrollEngine.ts
+  formula                  Json? // PayrollFormula — فقط عند calcMethod = "formula"
+  // { unitType: "hour"|"day", referenceComponentIds: string[] } | null — يفعّل إدخال "تسوية شهرية"
+  // (HrAction) كعدد وحدات (أيام/ساعات) بدل مبلغ جاهز، محسوبة بنفس منطق سعر الوحدة في formula.
+  adjustmentUnitBasis      Json?
+  allowsMonthlyAdjustments Boolean  @default(true)
+  // يُطبَّق فقط على البنود المرتبطة مباشرة بمرتب الموظف الأساسي (تناسب تلقائي عند إجازة/عودة
+  // منتصف الشهر) — يطابق منطق computeWidePayrollRow القديم (returningThisMonth).
+  prorateOnPartialMonth    Boolean  @default(true)
+  // "basicSalary"|"housingAllowance"|"transportAllowance"|"otherAllowance"|null — للبنود الأربعة
+  // التي يعتمد عليها calcEOS/dailyRate مباشرة من أعمدة Employee الخام (hrCalculations.ts)؛ قيمتها
+  // مرآة حيّة لعمود Employee المطابق بدل قيمة مستقلة، حفاظاً على تلك الحسابات القانونية الأخرى.
+  sourceEmployeeField      String?
+  isSystem                 Boolean  @default(false) // بنود مهاجَرة من النظام القديم — تُمنع من الحذف
+  // مفتاح ثابت داخلي للبنود النظامية فقط (مثل "basic"/"gosi") — يسمح لسكريبت التعبئة الرجعية
+  // وصيغ البنود الأخرى (كصيغة GOSI التي تشير لبند "الأساسي") بإيجاد بند نظامي بعينه لكل شركة
+  // بشكل صامد أمام إعادة تسمية العرض (name) لاحقاً من واجهة الإعدادات. null لأي بند غير نظامي.
+  systemKey                String?
+  isActive                 Boolean  @default(true)
+  sortOrder                Int      @default(0)
+  appliesByDefault         Boolean  @default(true) // يُسند تلقائياً لكل موظف جديد
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  employeeLinks EmployeePayrollComponent[]
+  hrActions     HrAction[]
+
+  @@unique([companyId, systemKey])
+  @@map("payroll_components")
+}
+
+// تعيين بند راتب لموظف معيّن — كل موظف قد تنطبق عليه بنود مختلفة، والقيمة الثابتة (عند
+// calcMethod = "fixed" وبلا sourceEmployeeField) تُدخَل هنا خصيصاً لهذا الموظف.
+model EmployeePayrollComponent {
+  id          String           @id @default(cuid())
+  tenantId    String
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  componentId String
+  component   PayrollComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  fixedValue  Decimal?         @db.Decimal(18, 2)
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([employeeId, componentId])
+  @@map("employee_payroll_components")
+}
+
+// إعدادات رواتب عامة لكل شركة — الساعات/الأيام القياسية للشهر (أساس حساب سعر الوحدة في
+// الصيغ المركّبة)، وترتيب/تسمية أعمدة كشف الرواتب المطبوع والمعروض.
+model PayrollSettings {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId             String   @unique
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  standardHoursPerMonth Decimal  @default(240) @db.Decimal(6, 2)
+  standardDaysPerMonth  Decimal  @default(30) @db.Decimal(6, 2)
+  payslipColumns        Json // [{ componentId: string | null (null = "net"/"gross" محسوب), label: string }]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("payroll_settings")
+}
+
 model HrAction {
-  id         String   @id @default(cuid())
-  tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  month      String // YYYY-MM
-  actionType String
-  value      Decimal  @db.Decimal(18, 2)
-  note       String?
-  batchId    String?
-  createdAt  DateTime @default(now())
+  id          String            @id @default(cuid())
+  tenantId    String
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee          @relation(fields: [employeeId], references: [id])
+  month       String // YYYY-MM
+  actionType  String
+  // البند المستهدَف من "بنود الرواتب" — يُستبدَل تدريجياً actionType الحر السابق؛ Nullable مؤقتاً
+  // حتى تكتمل التعبئة الرجعية (backfillPayrollComponents.ts)، ثم إلزامي.
+  componentId String?
+  component   PayrollComponent? @relation(fields: [componentId], references: [id])
+  value       Decimal           @db.Decimal(18, 2)
+  note        String?
+  batchId     String?
+  createdAt   DateTime          @default(now())
 
   @@map("hr_actions")
 }

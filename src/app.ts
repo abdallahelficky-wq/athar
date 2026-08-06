@@ -33,6 +33,11 @@ import { leaveRequestRoutes } from "./modules/leaveRequests/leaveRequests.routes
 import { leaveRequestPortalRoutes } from "./modules/leaveRequests/leaveRequests.portal.routes";
 import { hrActionRoutes } from "./modules/hrActions/hrActions.routes";
 import { payrollRunRoutes } from "./modules/payrollRuns/payrollRuns.routes";
+import {
+  companyPayrollSettingsRoutes,
+  payrollComponentRoutes,
+  employeePayrollComponentRoutes,
+} from "./modules/payrollSettings/payrollSettings.routes";
 import { leaveSettlementRoutes } from "./modules/leaveSettlements/leaveSettlements.routes";
 import { leaveReturnRoutes } from "./modules/leaveReturns/leaveReturns.routes";
 import { hrReportRoutes } from "./modules/hrReports/hrReports.routes";
@@ -77,10 +82,13 @@ export function createApp() {
   app.use("/api/inventory-reports", inventoryReportRoutes);
   app.use("/api/fixed-assets", fixedAssetRoutes);
   app.use("/api/depreciation-runs", depreciationRunRoutes);
+  app.use("/api/employees/:employeeId/payroll-components", employeePayrollComponentRoutes);
   app.use("/api/employees", employeeRoutes);
   app.use("/api/leave-requests", leaveRequestRoutes);
   app.use("/api/hr-actions", hrActionRoutes);
   app.use("/api/payroll-runs", payrollRunRoutes);
+  app.use("/api/payroll-components", payrollComponentRoutes);
+  app.use("/api/companies/:companyId", companyPayrollSettingsRoutes);
   app.use("/api/leave-settlements", leaveSettlementRoutes);
   app.use("/api/leave-returns", leaveReturnRoutes);
   app.use("/api/hr-reports", hrReportRoutes);

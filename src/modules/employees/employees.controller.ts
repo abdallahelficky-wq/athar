@@ -35,7 +35,8 @@ export const getEmployee: RequestHandler = async (req, res) => {
   res.json(employee);
 };
 
-/** إنشاء موظف جديد مع حساب تفصيلي مستقل تلقائي تحت "ذمم الموظفين" (partyAccounts.ts) */
+/** إنشاء موظف جديد مع حساب تفصيلي مستقل تلقائي تحت "ذمم الموظفين" (partyAccounts.ts)، وإسناد
+ * بنود الرواتب الافتراضية (appliesByDefault) تلقائياً إن كانت الشركة قد أُعِدَّت لها بنود رواتب بعد. */
 export const createEmployee: RequestHandler = async (req, res) => {
   const { documents, ...data } = req.body;
   await assertCompanyBelongsToTenant(req.auth!.tenantId, data.companyId);
@@ -44,10 +45,22 @@ export const createEmployee: RequestHandler = async (req, res) => {
     const { accountId } = await ensurePartyAccount(tx, {
       tenantId: req.auth!.tenantId, companyId: data.companyId, kind: "employee", partyName: data.name,
     });
-    return tx.employee.create({
+    const created = await tx.employee.create({
       data: { ...data, tenantId: req.auth!.tenantId, accountId, documents: { create: documents } },
       include: { documents: true },
     });
+
+    const defaultComponents = await tx.payrollComponent.findMany({
+      where: { tenantId: req.auth!.tenantId, companyId: data.companyId, isActive: true, appliesByDefault: true },
+      select: { id: true },
+    });
+    if (defaultComponents.length) {
+      await tx.employeePayrollComponent.createMany({
+        data: defaultComponents.map((c) => ({ tenantId: req.auth!.tenantId, employeeId: created.id, componentId: c.id, isActive: true })),
+      });
+    }
+
+    return created;
   });
   res.status(201).json(employee);
 };
