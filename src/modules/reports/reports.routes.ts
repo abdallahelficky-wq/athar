@@ -8,6 +8,8 @@ import {
   customerStatementHandler,
   supplierStatementHandler,
   accountLedgerHandler,
+  comprehensiveMonthlyHandler,
+  updateMonthlyReportSettingsHandler,
 } from "./reports.controller";
 
 export const reportRoutes = Router();
@@ -17,6 +19,8 @@ reportRoutes.get("/trial-balance", trialBalanceHandler);
 reportRoutes.get("/trial-balance-tree", trialBalanceTreeHandler);
 reportRoutes.get("/income-statement", incomeStatementHandler);
 reportRoutes.get("/balance-sheet", balanceSheetHandler);
+reportRoutes.get("/comprehensive-monthly", comprehensiveMonthlyHandler);
+reportRoutes.patch("/comprehensive-monthly/settings", updateMonthlyReportSettingsHandler);
 reportRoutes.get("/customer-statement/:customerId", customerStatementHandler);
 reportRoutes.get("/supplier-statement/:supplierId", supplierStatementHandler);
 reportRoutes.get("/account-ledger/:accountId", accountLedgerHandler);

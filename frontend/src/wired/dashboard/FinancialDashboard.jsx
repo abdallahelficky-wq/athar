@@ -8,6 +8,7 @@ import {
   getFinancialPosition, getSalesTrend, getTopCustomers, getFinancialAlerts,
 } from "../../api/dashboard";
 import { fmt } from "../../legacy/constants";
+import { getComprehensiveMonthly } from "../../api/reports";
 import PeriodFilter from "./PeriodFilter";
 import KpiCard from "./KpiCard";
 import AlertsPanel from "./AlertsPanel";
@@ -37,6 +38,7 @@ export default function FinancialDashboard({ companyId }) {
   const [topCustomers, setTopCustomers] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [monthly, setMonthly] = useState(null);
 
   useEffect(() => {
     if (!range) return;
@@ -50,10 +52,12 @@ export default function FinancialDashboard({ companyId }) {
       getSalesTrend(companyId),
       getTopCustomers(companyId, 10),
       getFinancialAlerts(companyId, 60),
+      getComprehensiveMonthly({ companyId, month: range.dateTo.slice(0, 7) }),
     ])
-      .then(([k, cb, cf, tt, pos, st, tc, al]) => {
+      .then(([k, cb, cf, tt, pos, st, tc, al, mr]) => {
         setKpis(k); setCashBreakdown(cb); setCashFlow(cf); setTopTransactions(tt);
         setPosition(pos); setSalesTrend(st); setTopCustomers(tc); setAlerts(al);
+        setMonthly(mr);
       })
       .finally(() => setLoading(false));
   }, [companyId, range]);
@@ -77,6 +81,11 @@ export default function FinancialDashboard({ companyId }) {
           <AlertsPanel title="⚠ أهم التنبيهات" alerts={alerts} emptyText="لا توجد تنبيهات حالياً." />
 
           <div className="charts-grid">
+            {monthly && <>
+              <div className="panel chart-panel"><h3>الرواتب والمستحقات</h3><ResponsiveContainer width="100%" height={240}><BarChart data={[{label:"مصروف",value:monthly.payroll.paid},{label:"مستحق",value:monthly.payroll.unpaid},{label:"نهاية خدمة",value:monthly.payroll.endOfService}]}><CartesianGrid stroke={CHART_GRID} vertical={false}/><XAxis dataKey="label" {...axisProps}/><YAxis {...axisProps}/><Tooltip {...chartTooltipStyle} formatter={(v)=>`${fmt(v)} ر.س`}/><Bar dataKey="value" fill={CHART_PALETTE[2]} radius={[4,4,0,0]}/></BarChart></ResponsiveContainer></div>
+              <div className="panel chart-panel"><h3>تعمير الذمم المدينة والدائنة</h3><ResponsiveContainer width="100%" height={240}><BarChart data={[{bucket:"أقل من 30",مدينة:monthly.receivables.aging.under30,دائنة:monthly.payables.aging.under30},{bucket:"30–60",مدينة:monthly.receivables.aging.d30to60,دائنة:monthly.payables.aging.d30to60},{bucket:"60–90",مدينة:monthly.receivables.aging.d60to90,دائنة:monthly.payables.aging.d60to90},{bucket:"+90",مدينة:monthly.receivables.aging.over90,دائنة:monthly.payables.aging.over90}]}><CartesianGrid stroke={CHART_GRID} vertical={false}/><XAxis dataKey="bucket" {...axisProps}/><YAxis {...axisProps}/><Tooltip {...chartTooltipStyle}/><Legend/><Bar dataKey="مدينة" fill="#2F5D5A"/><Bar dataKey="دائنة" fill="#A8432B"/></BarChart></ResponsiveContainer></div>
+              <div className="panel chart-panel"><h3>مقارنة الشهر بالشهر السابق</h3><ResponsiveContainer width="100%" height={240}><BarChart data={monthly.comparison.slice(0,3)}><CartesianGrid stroke={CHART_GRID} vertical={false}/><XAxis dataKey="label" {...axisProps}/><YAxis {...axisProps}/><Tooltip {...chartTooltipStyle}/><Legend/><Bar dataKey="current" name="الحالي" fill="#2F5D5A"/><Bar dataKey="previous" name="السابق" fill="#B98B4E"/></BarChart></ResponsiveContainer></div>
+            </>}
             <div className="panel chart-panel">
               <h3>اتجاه المبيعات (آخر ١٢ شهراً)</h3>
               <ResponsiveContainer width="100%" height={240}>

@@ -201,6 +201,8 @@ model Company {
   vatFilingFrequency      VatFilingFrequency    @default(quarterly)
   zakatDeclarationDueDate DateTime?
   lowCashThreshold        Decimal?              @db.Decimal(18, 2)
+  expenseIncreaseThreshold Decimal              @default(15) @db.Decimal(5, 2)
+  receivablesThreshold    Decimal?              @db.Decimal(18, 2)
   overdueInvoiceDays      Int                   @default(30)
   staleDraftDays          Int                   @default(7)
   // نشاط المنشأة — يُحدَّد عند إنشاء الشركة ويُستخدَم لزرع قالب شجرة الحسابات المطابق تلقائياً
