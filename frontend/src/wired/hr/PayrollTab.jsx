@@ -4,6 +4,7 @@ import {
   listPayrollRuns, createPayrollRun, getPayrollRunRows, updatePayrollRunEmployees,
   setPayrollRowOverride, clearPayrollRowOverride, postPayrollRun, unpostPayrollRun,
 } from "../../api/payrollRuns";
+import { getPayrollSettings } from "../../api/payrollSettings";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
 import UnpostModal from "../shared/UnpostModal";
@@ -11,11 +12,13 @@ import AttachmentsPanel from "../shared/AttachmentsPanel";
 import PayrollPrintModal from "./PayrollPrintModal";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
 
-const ROW_FIELDS = [
-  ["basic", "الأساسي"], ["housing", "بدل سكن"], ["transport", "بدل مواصلات"], ["otherAllow", "بدلات أخرى"],
-  ["otherAdd", "إضافات أخرى"], ["overtime", "بدل إضافي"], ["gosi", "تأمينات"], ["absence", "غياب"],
-  ["advance", "سلف"], ["violation", "مخالفات"], ["penalty", "عقوبات"], ["otherDed", "خصومات أخرى"],
-];
+/** يبني أعمدة العرض الفعلية: تخصيص الشركة (PayrollSettings.payslipColumns — ترتيب وتسمية مختارة)
+ * إن وُجد، وإلا كل بنود الكشف (columns من getPayrollRunRows) بترتيبها الافتراضي. */
+function buildDisplayColumns(columns, payslipColumns) {
+  if (!payslipColumns?.length) return columns;
+  const byId = new Map(columns.map((c) => [c.id, c]));
+  return payslipColumns.filter((pc) => byId.has(pc.componentId)).map((pc) => ({ id: pc.componentId, name: pc.label, kind: byId.get(pc.componentId).kind }));
+}
 
 export default function PayrollTab({ companyId, companies }) {
   const [employees, setEmployees] = useState([]);
@@ -25,6 +28,8 @@ export default function PayrollTab({ companyId, companies }) {
   const [run, setRun] = useState(null);
   const [rows, setRows] = useState([]);
   const [totals, setTotals] = useState(null);
+  const [columns, setColumns] = useState([]);
+  const [payslipColumns, setPayslipColumns] = useState([]);
   const [error, setError] = useState("");
   const [unpostOpen, setUnpostOpen] = useState(false);
   const [editingRowId, setEditingRowId] = useState(null);
@@ -34,7 +39,10 @@ export default function PayrollTab({ companyId, companies }) {
   useEffect(() => {
     if (!companyId) return;
     listEmployees(companyId).then(setEmployees);
+    getPayrollSettings(companyId).then((s) => setPayslipColumns(s.payslipColumns || []));
   }, [companyId]);
+
+  const displayColumns = buildDisplayColumns(columns, payslipColumns);
 
   const reload = async () => {
     if (!companyId) return;
@@ -46,8 +54,9 @@ export default function PayrollTab({ companyId, companies }) {
       const data = await getPayrollRunRows(existing.id);
       setRows(data.rows);
       setTotals(data.totals);
+      setColumns(data.columns);
     } else {
-      setRows([]); setTotals(null);
+      setRows([]); setTotals(null); setColumns([]);
     }
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,11 +75,11 @@ export default function PayrollTab({ companyId, companies }) {
     }
   };
 
-  const startEditRow = (row) => { setEditingRowId(row.employeeId); setEditForm({ ...row }); };
+  const startEditRow = (row) => { setEditingRowId(row.employeeId); setEditForm({ ...row.componentValues }); };
   const saveRowEdit = async () => {
     try {
       const override = {};
-      ROW_FIELDS.forEach(([f]) => { override[f] = Number(editForm[f] || 0); });
+      columns.forEach((col) => { override[col.id] = Number(editForm[col.id] || 0); });
       await setPayrollRowOverride(run.id, editingRowId, override);
       setEditingRowId(null);
       reload();
@@ -148,7 +157,7 @@ export default function PayrollTab({ companyId, companies }) {
               <thead>
                 <tr>
                   <th>الموظف</th>
-                  {ROW_FIELDS.map(([f, label]) => <th key={f}>{label}</th>)}
+                  {displayColumns.map((col) => <th key={col.id}>{col.name}</th>)}
                   <th>الصافي</th>
                   {run.status === "draft" && <th></th>}
                 </tr>
@@ -157,11 +166,11 @@ export default function PayrollTab({ companyId, companies }) {
                 {rows.map((r) => (
                   <tr key={r.employeeId}>
                     <td>{r.employeeName}{r.overridden && " *"}</td>
-                    {ROW_FIELDS.map(([f]) => (
-                      <td key={f} className="num">
+                    {displayColumns.map((col) => (
+                      <td key={col.id} className="num">
                         {editingRowId === r.employeeId
-                          ? <input type="number" className="amount-input" value={editForm[f]} onChange={(e) => setEditForm({ ...editForm, [f]: e.target.value })} />
-                          : fmt(r[f])}
+                          ? <input type="number" className="amount-input" value={editForm[col.id] ?? 0} onChange={(e) => setEditForm({ ...editForm, [col.id]: e.target.value })} />
+                          : fmt(r.componentValues[col.id] || 0)}
                       </td>
                     ))}
                     <td className="num strong">{fmt(r.net)}</td>
@@ -182,13 +191,13 @@ export default function PayrollTab({ companyId, companies }) {
                     )}
                   </tr>
                 ))}
-                {rows.length === 0 && <tr><td className="empty" colSpan={ROW_FIELDS.length + 3}>لا يوجد موظفون في هذا الكشف.</td></tr>}
+                {rows.length === 0 && <tr><td className="empty" colSpan={displayColumns.length + 3}>لا يوجد موظفون في هذا الكشف.</td></tr>}
               </tbody>
               {totals && (
                 <tfoot>
                   <tr>
                     <td className="foot-label">الإجمالي</td>
-                    {ROW_FIELDS.map(([f]) => <td key={f} className="num">{fmt(totals[f])}</td>)}
+                    {displayColumns.map((col) => <td key={col.id} className="num">{fmt(totals.byComponent[col.id] || 0)}</td>)}
                     <td className="num strong">{fmt(totals.net)}</td>
                     {run.status === "draft" && <td></td>}
                   </tr>
@@ -208,6 +217,7 @@ export default function PayrollTab({ companyId, companies }) {
           run={run}
           rows={rows}
           totals={totals}
+          columns={displayColumns}
           month={mf.applied.month}
           company={companies?.find((c) => c.id === companyId)}
           autoPrint

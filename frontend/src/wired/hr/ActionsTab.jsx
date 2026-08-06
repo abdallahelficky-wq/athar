@@ -1,28 +1,21 @@
 import React, { useEffect, useState } from "react";
 import { listEmployees } from "../../api/employees";
 import { listHrActions, createHrActionBatch, deleteHrAction } from "../../api/hrActions";
+import { listAdjustableComponents } from "../../api/payrollSettings";
 import { fmt } from "../../legacy/constants";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
 
-const ACTION_TYPES = [
-  { id: "absence", label: "غياب", unit: "days" },
-  { id: "overtime", label: "عمل إضافي (بدل إضافي)", unit: "amount" },
-  { id: "bonus", label: "مكافأة / حافز", unit: "amount" },
-  { id: "other_addition", label: "إضافات أخرى", unit: "amount" },
-  { id: "advance", label: "سلفة", unit: "amount" },
-  { id: "violation", label: "مخالفة (مرورية/تشغيلية)", unit: "amount" },
-  { id: "penalty", label: "جزاء / عقوبة تأديبية (المادة 91)", unit: "amount" },
-  { id: "other_deduction", label: "خصومات أخرى", unit: "amount" },
-  { id: "warning", label: "إنذار / تنبيه (بدون أثر مالي)", unit: "none" },
-];
-const ACTION_TYPE_MAP = Object.fromEntries(ACTION_TYPES.map((a) => [a.id, a]));
+/** "الوحدة" هنا فقط لعرض تسمية مناسبة لحقل القيمة (أيام غياب مقابل مبلغ) — منسوخة من اسم البند،
+ * وليست حقلاً من بنية payrollComponent نفسها (adjustmentUnitBasis يُعالَج بالكامل في الباك-إند). */
+const isDaysComponent = (name) => name?.includes("غياب");
 
 export default function ActionsTab({ companyId }) {
   const [employees, setEmployees] = useState([]);
   const [actions, setActions] = useState([]);
+  const [components, setComponents] = useState([]);
   const [error, setError] = useState("");
 
-  const [actionType, setActionType] = useState(ACTION_TYPES[0].id);
+  const [componentId, setComponentId] = useState("");
   const mf = useDeferredFilters({ month: "2026-07" });
   const [scope, setScope] = useState("single");
   const [employeeId, setEmployeeId] = useState("");
@@ -33,6 +26,7 @@ export default function ActionsTab({ companyId }) {
   useEffect(() => {
     if (!companyId) return;
     listEmployees(companyId).then((es) => { setEmployees(es); if (es[0]) setEmployeeId((v) => v || es[0].id); });
+    listAdjustableComponents(companyId).then((cs) => { setComponents(cs); if (cs[0]) setComponentId((v) => v || cs[0].componentId); });
   }, [companyId]);
 
   const reload = () => {
@@ -42,15 +36,15 @@ export default function ActionsTab({ companyId }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(reload, [companyId, mf.applied]);
 
-  const actionDef = ACTION_TYPE_MAP[actionType];
+  const componentDef = components.find((c) => c.componentId === componentId);
   const targetIds = scope === "all" ? employees.map((e) => e.id) : scope === "some" ? selectedIds : (employeeId ? [employeeId] : []);
   const toggleSelected = (id) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const save = async () => {
-    if (targetIds.length === 0) return;
-    if (actionDef.unit !== "none" && !Number(value)) return;
+    if (targetIds.length === 0 || !componentId) return;
+    if (!Number(value)) return;
     try {
-      await createHrActionBatch({ employeeIds: targetIds, month: mf.applied.month, actionType, value: Number(value || 0), note });
+      await createHrActionBatch({ employeeIds: targetIds, month: mf.applied.month, componentId, value: Number(value || 0), note });
       setValue(""); setNote("");
       reload();
     } catch (err) {
@@ -73,14 +67,12 @@ export default function ActionsTab({ companyId }) {
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>نوع الإجراء<select value={actionType} onChange={(e) => setActionType(e.target.value)}>{ACTION_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}</select></label>
+          <label>نوع الإجراء<select value={componentId} onChange={(e) => setComponentId(e.target.value)}>{components.map((c) => <option key={c.componentId} value={c.componentId}>{c.name}</option>)}</select></label>
           <form style={{ display: "contents" }} onSubmit={(e) => { e.preventDefault(); mf.apply(); }}>
             <label>شهر الرواتب<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
             <button type="submit" className="btn-ghost" style={{ alignSelf: "end" }}>إظهار النتائج</button>
           </form>
-          {actionDef.unit !== "none" && (
-            <label>{actionDef.unit === "days" ? "عدد الأيام" : "القيمة (ر.س)"}<input type="number" value={value} onChange={(e) => setValue(e.target.value)} /></label>
-          )}
+          <label>{isDaysComponent(componentDef?.name) ? "عدد الأيام" : "القيمة (ر.س)"}<input type="number" value={value} onChange={(e) => setValue(e.target.value)} /></label>
           <label className="memo-field">ملاحظة<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
         </div>
 
@@ -103,7 +95,7 @@ export default function ActionsTab({ companyId }) {
         {scope === "all" && <p className="note">سيُطبَّق هذا الإجراء على كل موظفي هذه الشركة ({employees.length} موظف).</p>}
 
         {error && <p className="balance-bad">{error}</p>}
-        <button className="btn-primary" onClick={save} disabled={targetIds.length === 0}>حفظ الإجراء ({targetIds.length} موظف)</button>
+        <button className="btn-primary" onClick={save} disabled={targetIds.length === 0 || !componentId}>حفظ الإجراء ({targetIds.length} موظف)</button>
       </div>
 
       <div className="panel">
@@ -111,11 +103,11 @@ export default function ActionsTab({ companyId }) {
           <thead><tr><th>الموظف</th><th>الإجراء</th><th>القيمة</th><th>ملاحظة</th><th></th></tr></thead>
           <tbody>
             {actions.map((a) => {
-              const def = ACTION_TYPE_MAP[a.actionType];
+              const def = components.find((c) => c.componentId === a.componentId || c.componentId === `legacy:${a.actionType}`);
               return (
                 <tr key={a.id}>
-                  <td>{a.employee?.name}</td><td>{def?.label}</td>
-                  <td className="num">{def?.unit === "none" ? "—" : def?.unit === "days" ? `${a.value} يوم` : fmt(a.value)}</td>
+                  <td>{a.employee?.name}</td><td>{def?.name || a.actionType}</td>
+                  <td className="num">{isDaysComponent(def?.name) ? `${a.value} يوم` : fmt(a.value)}</td>
                   <td>{a.note || "—"}</td>
                   <td><button className="btn-ghost" onClick={() => remove(a)}>حذف</button></td>
                 </tr>

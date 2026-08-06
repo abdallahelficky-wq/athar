@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { listEmployees, createEmployee, updateEmployee, deleteEmployee } from "../../api/employees";
+import { getEmployeePayrollComponents, setEmployeePayrollComponents } from "../../api/payrollSettings";
 import { DEPARTMENTS, fmt } from "../../legacy/constants";
 import { NATIONALITIES, EMPLOYEE_DOC_TYPES } from "../../legacy/hr";
 
@@ -16,6 +17,22 @@ export default function EmployeeDirectoryTab({ companyId, onViewAccount }) {
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyForm());
   const [editingId, setEditingId] = useState(null);
+  const [payrollComponents, setPayrollComponents] = useState([]);
+  const [payrollError, setPayrollError] = useState("");
+
+  const reloadPayrollComponents = (id) => {
+    if (!id) { setPayrollComponents([]); return; }
+    getEmployeePayrollComponents(id).then(setPayrollComponents).catch((e) => setPayrollError(e.message));
+  };
+
+  const togglePayrollComponent = (componentId) => setPayrollComponents((list) => list.map((c) => (c.componentId === componentId ? { ...c, assigned: !c.assigned } : c)));
+  const setPayrollFixedValue = (componentId, fixedValue) => setPayrollComponents((list) => list.map((c) => (c.componentId === componentId ? { ...c, fixedValue } : c)));
+  const savePayrollComponents = async () => {
+    try {
+      await setEmployeePayrollComponents(editingId, payrollComponents.map((c) => ({ componentId: c.componentId, isActive: c.assigned, fixedValue: c.needsFixedValue ? Number(c.fixedValue || 0) : null })));
+      reloadPayrollComponents(editingId);
+    } catch (err) { setPayrollError(err.message); }
+  };
 
   const reload = () => {
     if (!companyId) return;
@@ -39,6 +56,7 @@ export default function EmployeeDirectoryTab({ companyId, onViewAccount }) {
       else await createEmployee(payload);
       setForm(emptyForm());
       setEditingId(null);
+      setPayrollComponents([]);
       reload();
     } catch (err) {
       setError(err.message);
@@ -54,6 +72,7 @@ export default function EmployeeDirectoryTab({ companyId, onViewAccount }) {
       probationEndDate: e.probationEndDate?.slice(0, 10) || "",
       documents: (e.documents || []).map((d) => ({ ...d, expiryDate: d.expiryDate?.slice(0, 10) || "" })),
     });
+    reloadPayrollComponents(e.id);
   };
 
   const remove = async (e) => {
@@ -125,9 +144,36 @@ export default function EmployeeDirectoryTab({ companyId, onViewAccount }) {
         </div>
         <button className="btn-ghost" onClick={addDoc}>+ إضافة مستند</button>
 
+        {editingId && payrollComponents.length > 0 && (
+          <>
+            <h3 className="sub-head">بنود الرواتب المُسنَدة لهذا الموظف</h3>
+            <p className="note">ليس كل الموظفين بحاجة لنفس بنود الراتب — حدّد هنا أي البنود تُطبَّق على هذا الموظف تحديداً، مع قيمة ثابتة للبنود التي تحتاج مبلغاً يدوياً لكل موظف.</p>
+            {payrollError && <p className="balance-bad">{payrollError}</p>}
+            <div className="lines-table-wrap">
+              <table className="lines-table">
+                <thead><tr><th></th><th>البند</th><th>القيمة الثابتة</th></tr></thead>
+                <tbody>
+                  {payrollComponents.map((c) => (
+                    <tr key={c.componentId}>
+                      <td><input type="checkbox" checked={c.assigned} onChange={() => togglePayrollComponent(c.componentId)} /></td>
+                      <td>{c.name}</td>
+                      <td>
+                        {c.needsFixedValue && c.assigned ? (
+                          <input type="number" value={c.fixedValue ?? ""} onChange={(e) => setPayrollFixedValue(c.componentId, e.target.value)} />
+                        ) : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button className="btn-ghost" onClick={savePayrollComponents}>حفظ بنود الرواتب</button>
+          </>
+        )}
+
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group" style={{ marginTop: 14 }}>
-          {editingId && <button className="btn-ghost" onClick={() => { setEditingId(null); setForm(emptyForm()); }}>إلغاء التعديل</button>}
+          {editingId && <button className="btn-ghost" onClick={() => { setEditingId(null); setForm(emptyForm()); setPayrollComponents([]); }}>إلغاء التعديل</button>}
           <button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديلات" : "حفظ ملف الموظف"}</button>
         </div>
       </div>

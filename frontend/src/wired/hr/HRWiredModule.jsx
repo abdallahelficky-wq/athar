@@ -6,6 +6,7 @@ import LeaveSettlementTab from "./LeaveSettlementTab";
 import LeaveReturnTab from "./LeaveReturnTab";
 import ActionsTab from "./ActionsTab";
 import PayrollTab from "./PayrollTab";
+import PayrollSettingsTab from "./PayrollSettingsTab";
 import EndOfServiceTab from "./EndOfServiceTab";
 import HRReportsTab from "./HRReportsTab";
 import Breadcrumb from "../shared/Breadcrumb";
@@ -19,6 +20,7 @@ export const HR_TABS = [
   { id: "leaveReturn", label: "المباشرة بعد الإجازة" },
   { id: "actions", label: "إجراءات الموظفين" },
   { id: "payroll", label: "كشف الرواتب" },
+  { id: "payrollSettings", label: "إعدادات الرواتب" },
   { id: "eos", label: "نهاية الخدمة" },
   { id: "reports", label: "التقارير" },
 ];
@@ -38,6 +40,7 @@ export default function HRWiredModule({ tab, setTab, companies, companyId, onVie
       {tab === "leaveReturn" && <LeaveReturnTab companyId={companyId} />}
       {tab === "actions" && <ActionsTab companyId={companyId} />}
       {tab === "payroll" && <PayrollTab companyId={companyId} companies={companies} />}
+      {tab === "payrollSettings" && <PayrollSettingsTab companyId={companyId} />}
       {tab === "eos" && <EndOfServiceTab companyId={companyId} />}
       {tab === "reports" && <HRReportsTab companyId={companyId} />}
     </div>
