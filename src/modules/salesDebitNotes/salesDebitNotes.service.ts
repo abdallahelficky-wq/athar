@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
 import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
@@ -70,7 +71,9 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
   if (grandTotal <= 0) throw badRequest("إجمالي الإشعار المدين يجب أن يكون أكبر من صفر");
 
   const vatOutputId = await getAccountIdByName(tenantId, input.companyId, "ضريبة القيمة المضافة - مخرجات");
-  const chargeAccountId = await getAccountIdByName(tenantId, input.companyId, CHARGE_ACCOUNT_NAME[input.chargeMethod]);
+  const chargeAccountId = input.chargeMethod === "account"
+    ? await resolvePartyAccountId(tenantId, input.companyId, customer, CHARGE_ACCOUNT_NAME.account)
+    : await getAccountIdByName(tenantId, input.companyId, CHARGE_ACCOUNT_NAME[input.chargeMethod]);
 
   const byAccount = new Map<string, number>();
   computed.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));
@@ -154,7 +157,10 @@ export async function postSalesDebitNote(tenantId: string, userId: string, id: s
   const company = await prisma.company.findFirstOrThrow({ where: { id: debitNote.companyId, tenantId } });
 
   const vatOutputId = await getAccountIdByName(tenantId, debitNote.companyId, "ضريبة القيمة المضافة - مخرجات");
-  const chargeAccountId = await getAccountIdByName(tenantId, debitNote.companyId, CHARGE_ACCOUNT_NAME[debitNote.chargeMethod || "account"]);
+  const chargeMethod = debitNote.chargeMethod || "account";
+  const chargeAccountId = chargeMethod === "account"
+    ? await resolvePartyAccountId(tenantId, debitNote.companyId, debitNote.customer, CHARGE_ACCOUNT_NAME.account)
+    : await getAccountIdByName(tenantId, debitNote.companyId, CHARGE_ACCOUNT_NAME[chargeMethod]);
   const byAccount = new Map<string, number>();
   debitNote.lines.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + Number(l.subtotal)));
 

@@ -19,7 +19,7 @@ export const SALES_TABS = [
   { id: "reports", label: "التقارير" },
 ];
 
-export default function SalesWiredModule({ tab, setTab, companies, companyId }) {
+export default function SalesWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {
   return (
     <div>
       <div className="section-title">
@@ -27,7 +27,7 @@ export default function SalesWiredModule({ tab, setTab, companies, companyId }) 
         <h2>المبيعات</h2>
       </div>
       <SubTabs tabs={SALES_TABS} active={tab} onChange={setTab} />
-      {tab === "customers" && <CustomersTab companyId={companyId} companies={companies} />}
+      {tab === "customers" && <CustomersTab companyId={companyId} companies={companies} onViewAccount={onViewAccount} />}
       {tab === "quotations" && <QuotationsTab companyId={companyId} />}
       {tab === "invoices" && <InvoicesTab companyId={companyId} companies={companies} />}
       {tab === "returns" && <ReturnsTab companyId={companyId} />}

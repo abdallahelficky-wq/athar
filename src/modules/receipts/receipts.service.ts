@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
 
@@ -82,7 +83,7 @@ export async function createReceipt(tenantId: string, userId: string, input: Rec
   if (totalAllocated <= 0) throw badRequest("إجمالي المبلغ المخصص يجب أن يكون أكبر من صفر");
 
   const creditAccountId = await resolveCreditAccountId(tenantId, input.companyId, input.method, input.bankAccountId);
-  const receivableId = await getAccountIdByName(tenantId, input.companyId, "ذمم مدينة");
+  const receivableId = await resolvePartyAccountId(tenantId, input.companyId, customer, "ذمم مدينة");
 
   const journalLines = [
     { accountId: creditAccountId, department: "المالية والحسابات", debit: totalAllocated, credit: 0, customerId: input.customerId },
@@ -138,7 +139,7 @@ export async function postReceipt(tenantId: string, userId: string, id: string) 
   if (receipt.status === "posted") throw badRequest("السند مرحّل بالفعل");
 
   const creditAccountId = await resolveCreditAccountId(tenantId, receipt.companyId, receipt.method, receipt.bankAccountId);
-  const receivableId = await getAccountIdByName(tenantId, receipt.companyId, "ذمم مدينة");
+  const receivableId = await resolvePartyAccountId(tenantId, receipt.companyId, receipt.customer, "ذمم مدينة");
   const total = Number(receipt.totalAmount);
 
   const journalLines = [
@@ -183,14 +184,18 @@ export async function unpostReceipt(tenantId: string, userId: string, id: string
  */
 async function repostReceiptEntryTx(
   tx: Parameters<typeof createJournalEntryTx>[0],
-  receipt: { id: string; tenantId: string; companyId: string; customerId: string; date: Date; receiptNumber: string; method: "cash" | "bank"; bankAccountId: string | null; status: string; journalEntryId: string | null },
+  receipt: {
+    id: string; tenantId: string; companyId: string; customerId: string; date: Date; receiptNumber: string;
+    method: "cash" | "bank"; bankAccountId: string | null; status: string; journalEntryId: string | null;
+    customer: { accountId: string | null };
+  },
   customerName: string,
   newTotal: number,
 ) {
   if (receipt.status !== "posted") return null;
   await deleteJournalEntryTx(tx, receipt.journalEntryId);
   const creditAccountId = await resolveCreditAccountId(receipt.tenantId, receipt.companyId, receipt.method, receipt.bankAccountId);
-  const receivableId = await getAccountIdByName(receipt.tenantId, receipt.companyId, "ذمم مدينة");
+  const receivableId = await resolvePartyAccountId(receipt.tenantId, receipt.companyId, receipt.customer, "ذمم مدينة");
   const entry = await createJournalEntryTx(tx, {
     tenantId: receipt.tenantId,
     companyId: receipt.companyId,

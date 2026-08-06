@@ -77,6 +77,16 @@ function AppShell({ onLoggedOut }) {
   const [reportsTab, setReportsTab] = useState("trial");
   const [settingsTab, setSettingsTab] = useState("companies");
 
+  // دخول مباشر من شاشة عميل/مورد/موظف لكشف حسابه في شجرة الحسابات ("عرض في شجرة الحسابات") —
+  // يفتح قسم الحسابات على تبويب "كشف حساب الأستاذ" مباشرة على حساب الطرف المحدد.
+  const [pendingLedgerAccountId, setPendingLedgerAccountId] = useState(null);
+  const navigateToAccountLedger = (accountId) => {
+    if (!accountId) return;
+    setModuleId("accounts");
+    setAccountsTab("ledger");
+    setPendingLedgerAccountId(accountId);
+  };
+
   const groupTabState = {
     sales: [salesTab, setSalesTab],
     purchases: [purchasesTab, setPurchasesTab],
@@ -185,11 +195,11 @@ function AppShell({ onLoggedOut }) {
         )}
 
         {moduleId === "sales" && (
-          <SalesWiredModule tab={salesTab} setTab={setSalesTab} companies={real.companies} companyId={real.companyId} />
+          <SalesWiredModule tab={salesTab} setTab={setSalesTab} companies={real.companies} companyId={real.companyId} onViewAccount={navigateToAccountLedger} />
         )}
 
         {moduleId === "purchases" && (
-          <PurchasesWiredModule tab={purchasesTab} setTab={setPurchasesTab} companies={real.companies} companyId={real.companyId} />
+          <PurchasesWiredModule tab={purchasesTab} setTab={setPurchasesTab} companies={real.companies} companyId={real.companyId} onViewAccount={navigateToAccountLedger} />
         )}
 
         {moduleId === "inventory" && (
@@ -205,11 +215,13 @@ function AppShell({ onLoggedOut }) {
             tab={accountsTab} setTab={setAccountsTab}
             realCompanies={real.companies} realCompanyId={real.companyId}
             legacyEntries={legacyEntries} legacySales={sales} legacyCompanyId={legacyCompanyId}
+            pendingLedgerAccountId={pendingLedgerAccountId}
+            onConsumePendingLedgerAccountId={() => setPendingLedgerAccountId(null)}
           />
         )}
 
         {moduleId === "hr" && (
-          <HRWiredModule tab={hrTab} setTab={setHrTab} companies={real.companies} companyId={real.companyId} />
+          <HRWiredModule tab={hrTab} setTab={setHrTab} companies={real.companies} companyId={real.companyId} onViewAccount={navigateToAccountLedger} />
         )}
 
         {moduleId === "reports" && (

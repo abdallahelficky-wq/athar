@@ -6,7 +6,7 @@ import StatementOfAccountModal from "../StatementOfAccountModal";
 
 const emptyForm = () => ({ name: "", vatNumber: "", crNumber: "", phone: "", email: "", city: "", paymentTerms: "آجل 30 يوم" });
 
-export default function SuppliersTab({ companyId, companies }) {
+export default function SuppliersTab({ companyId, companies, onViewAccount }) {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast, notify, dismiss } = useToast();
@@ -82,6 +82,9 @@ export default function SuppliersTab({ companyId, companies }) {
                   <td>{s.name}</td><td>{s.vatNumber || "—"}</td><td>{s.city || "—"}</td><td>{s.paymentTerms || "—"}</td>
                   <td className="row-actions">
                     <button className="icon-btn" title="كشف حساب المورد" onClick={() => setStatementFor(s)}><Icon.BookOpen /></button>
+                    {s.accountId && onViewAccount && (
+                      <button className="icon-btn" title="عرض في شجرة الحسابات" onClick={() => onViewAccount(s.accountId)}><Icon.Link /></button>
+                    )}
                     <button className="btn-ghost" onClick={() => startEdit(s)}>تعديل</button>
                     <button className="btn-ghost" onClick={() => remove(s)}>حذف</button>
                   </td>

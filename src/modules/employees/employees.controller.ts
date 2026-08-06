@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound, conflict } from "../../lib/httpError";
 import { calcEOS, serviceDuration, TerminationReason } from "../../lib/hrCalculations";
 import { hashPassword } from "../../lib/password";
+import { ensurePartyAccount } from "../../lib/partyAccounts";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -34,13 +35,19 @@ export const getEmployee: RequestHandler = async (req, res) => {
   res.json(employee);
 };
 
+/** إنشاء موظف جديد مع حساب تفصيلي مستقل تلقائي تحت "ذمم الموظفين" (partyAccounts.ts) */
 export const createEmployee: RequestHandler = async (req, res) => {
   const { documents, ...data } = req.body;
   await assertCompanyBelongsToTenant(req.auth!.tenantId, data.companyId);
   if (data.managerId) await assertManagerBelongsToTenant(req.auth!.tenantId, data.managerId);
-  const employee = await prisma.employee.create({
-    data: { ...data, tenantId: req.auth!.tenantId, documents: { create: documents } },
-    include: { documents: true },
+  const employee = await prisma.$transaction(async (tx) => {
+    const { accountId } = await ensurePartyAccount(tx, {
+      tenantId: req.auth!.tenantId, companyId: data.companyId, kind: "employee", partyName: data.name,
+    });
+    return tx.employee.create({
+      data: { ...data, tenantId: req.auth!.tenantId, accountId, documents: { create: documents } },
+      include: { documents: true },
+    });
   });
   res.status(201).json(employee);
 };
@@ -56,11 +63,15 @@ export const updateEmployee: RequestHandler = async (req, res) => {
     if (documents) {
       await tx.employeeDocument.deleteMany({ where: { employeeId: existing.id } });
     }
-    return tx.employee.update({
+    const updated = await tx.employee.update({
       where: { id: existing.id },
       data: { ...data, ...(documents ? { documents: { create: documents } } : {}) },
       include: { documents: true },
     });
+    if (updated.accountId && data.name && data.name !== existing.name) {
+      await tx.account.update({ where: { id: updated.accountId }, data: { name: data.name } });
+    }
+    return updated;
   });
   res.json(employee);
 };

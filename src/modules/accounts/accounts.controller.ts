@@ -3,13 +3,9 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
+import { LEVEL_CODE_LENGTH, generateNextCode } from "../../lib/accountCodes";
 
 const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ? value : null);
-
-// طول كود كل مستوى: الأول رقم واحد، الثاني رقمان، الثالث ثلاثة أرقام، الرابع (حسابات الترحيل)
-// ستة أرقام — أي حتى 999 حساب ترحيل تحت كل فرع مستوى ثالث (كان رقماً إضافياً واحداً فقط/9 حسابات
-// كحد أقصى، فتبيّن عملياً أنه ضيق جداً لشركات فيها عشرات العملاء/الموردين تحت فرع واحد).
-const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 6 };
 
 async function validateHierarchy(tenantId: string, input: any, currentId?: string) {
   const companyId = input.companyId ?? null;
@@ -38,26 +34,11 @@ async function validateHierarchy(tenantId: string, input: any, currentId?: strin
   }
 }
 
-async function generateNextCode(tenantId: string, companyId: string | null, parentId: string) {
-  const parent = await prisma.account.findFirst({ where: { id: parentId, tenantId, companyId } });
-  if (!parent) throw badRequest("الحساب الأب غير موجود في الشجرة المحددة");
-  if (parent.isPosting || parent.level >= 4) throw badRequest("حساب الترحيل لا يقبل حسابات فرعية");
-  const childLevel = parent.level + 1;
-  const targetLength = LEVEL_CODE_LENGTH[childLevel];
-  const suffixWidth = targetLength - parent.code.length;
-  const siblings = await prisma.account.findMany({ where: { tenantId, companyId, parentId }, select: { code: true } });
-  const usedSuffixes = siblings.map((account) => Number(account.code.slice(parent.code.length)) || 0);
-  const next = Math.max(0, ...usedSuffixes) + 1;
-  const maxSuffix = Number("9".repeat(suffixWidth));
-  if (next > maxSuffix) throw badRequest("تعذر توليد كود جديد ضمن الحد المسموح لهذا المستوى");
-  return parent.code + String(next).padStart(suffixWidth, "0");
-}
-
 export const nextAccountCode: RequestHandler = async (req, res) => {
   const parentId = typeof req.query.parentId === "string" ? req.query.parentId : "";
   if (!parentId) throw badRequest("حدد الحساب الأب لتوليد الكود");
   const companyId = scopeCompanyId(req.query.companyId);
-  res.json({ code: await generateNextCode(req.auth!.tenantId, companyId, parentId) });
+  res.json({ code: await generateNextCode(prisma, req.auth!.tenantId, companyId, parentId) });
 };
 
 export const listAccounts: RequestHandler = async (req, res) => {
@@ -89,7 +70,7 @@ export const createAccount: RequestHandler = async (req, res) => {
     ? await prisma.account.findFirst({ where: { id: req.body.parentId, tenantId: req.auth!.tenantId, companyId } })
     : null;
   const level = parent ? parent.level + 1 : 1;
-  const code = req.body.code || (parent ? await generateNextCode(req.auth!.tenantId, companyId, parent.id) : null);
+  const code = req.body.code || (parent ? await generateNextCode(prisma, req.auth!.tenantId, companyId, parent.id) : null);
   if (!code) throw badRequest("أدخل كود حساب المستوى الأول");
   const data = { ...req.body, companyId, level, code, isPosting: level === 4 };
   await validateHierarchy(req.auth!.tenantId, data);

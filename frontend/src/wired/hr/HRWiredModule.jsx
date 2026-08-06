@@ -23,7 +23,7 @@ export const HR_TABS = [
   { id: "reports", label: "التقارير" },
 ];
 
-export default function HRWiredModule({ tab, setTab, companies, companyId }) {
+export default function HRWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {
   return (
     <div>
       <div className="section-title">
@@ -32,7 +32,7 @@ export default function HRWiredModule({ tab, setTab, companies, companyId }) {
       </div>
       <SubTabs tabs={HR_TABS} active={tab} onChange={setTab} />
       {tab === "dashboard" && <HRDashboardTab companyId={companyId} />}
-      {tab === "directory" && <EmployeeDirectoryTab companyId={companyId} />}
+      {tab === "directory" && <EmployeeDirectoryTab companyId={companyId} onViewAccount={onViewAccount} />}
       {tab === "leaves" && <LeavesTab companyId={companyId} />}
       {tab === "leaveSettlement" && <LeaveSettlementTab companyId={companyId} />}
       {tab === "leaveReturn" && <LeaveReturnTab companyId={companyId} />}

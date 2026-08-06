@@ -11,7 +11,7 @@ const emptyForm = () => ({
   paymentTerms: "نقدي", creditLimit: "",
 });
 
-export default function CustomersTab({ companyId, companies }) {
+export default function CustomersTab({ companyId, companies, onViewAccount }) {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast, notify, dismiss } = useToast();
@@ -103,6 +103,9 @@ export default function CustomersTab({ companyId, companies }) {
                   <td className="num">{c.creditLimit ? fmt(c.creditLimit) : "—"}</td>
                   <td className="row-actions">
                     <button className="icon-btn" title="كشف حساب العميل" onClick={() => setStatementFor(c)}><Icon.BookOpen /></button>
+                    {c.accountId && onViewAccount && (
+                      <button className="icon-btn" title="عرض في شجرة الحسابات" onClick={() => onViewAccount(c.accountId)}><Icon.Link /></button>
+                    )}
                     <button className="btn-ghost" onClick={() => startEdit(c)}>تعديل</button>
                     <button className="btn-ghost" onClick={() => remove(c)}>حذف</button>
                   </td>

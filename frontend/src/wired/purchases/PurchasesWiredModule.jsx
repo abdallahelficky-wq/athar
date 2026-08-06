@@ -13,7 +13,7 @@ export const PURCHASE_TABS = [
   { id: "reports", label: "التقارير" },
 ];
 
-export default function PurchasesWiredModule({ tab, setTab, companies, companyId }) {
+export default function PurchasesWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {
   return (
     <div>
       <div className="section-title">
@@ -21,7 +21,7 @@ export default function PurchasesWiredModule({ tab, setTab, companies, companyId
         <h2>المشتريات</h2>
       </div>
       <SubTabs tabs={PURCHASE_TABS} active={tab} onChange={setTab} />
-      {tab === "suppliers" && <SuppliersTab companyId={companyId} companies={companies} />}
+      {tab === "suppliers" && <SuppliersTab companyId={companyId} companies={companies} onViewAccount={onViewAccount} />}
       {tab === "invoices" && <PurchaseInvoicesTab companyId={companyId} companies={companies} />}
       {tab === "returns" && <PurchaseReturnsTab companyId={companyId} />}
       {tab === "reports" && <PurchaseReportsTab companyId={companyId} />}

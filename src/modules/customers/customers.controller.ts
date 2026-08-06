@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { ensurePartyAccount, resolvePartyAccountId } from "../../lib/partyAccounts";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -16,15 +17,16 @@ export const listCustomers: RequestHandler = async (req, res) => {
   res.json(customers);
 };
 
-/** رصيد ذمم العميل من واقع أسطر القيود المرحّلة فعلياً على حساب "ذمم مدينة" — مطابق لـ customerAccountBalance */
+/** رصيد ذمم العميل من واقع أسطر القيود المرحّلة فعلياً على حسابه المستقل — مطابق لـ customerAccountBalance */
 export const getCustomerBalance: RequestHandler = async (req, res) => {
   const customer = await prisma.customer.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!customer) throw notFound("العميل غير موجود");
+  const accountId = await resolvePartyAccountId(req.auth!.tenantId, customer.companyId, customer, "ذمم مدينة");
 
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       customerId: customer.id,
-      account: { name: "ذمم مدينة" },
+      accountId,
       journalEntry: { tenantId: req.auth!.tenantId },
     },
     select: { debit: true, credit: true },
@@ -33,9 +35,15 @@ export const getCustomerBalance: RequestHandler = async (req, res) => {
   res.json({ balance });
 };
 
+/** إنشاء عميل جديد مع حساب تفصيلي مستقل تلقائي تحت "الذمم المدينة التجارية" (partyAccounts.ts) */
 export const createCustomer: RequestHandler = async (req, res) => {
   await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
-  const customer = await prisma.customer.create({ data: { ...req.body, tenantId: req.auth!.tenantId } });
+  const customer = await prisma.$transaction(async (tx) => {
+    const { accountId } = await ensurePartyAccount(tx, {
+      tenantId: req.auth!.tenantId, companyId: req.body.companyId, kind: "customer", partyName: req.body.name,
+    });
+    return tx.customer.create({ data: { ...req.body, tenantId: req.auth!.tenantId, accountId } });
+  });
   res.status(201).json(customer);
 };
 
@@ -44,7 +52,14 @@ export const updateCustomer: RequestHandler = async (req, res) => {
   if (!existing) throw notFound("العميل غير موجود");
   if (req.body.companyId) await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
 
-  const customer = await prisma.customer.update({ where: { id: existing.id }, data: req.body });
+  const customer = await prisma.$transaction(async (tx) => {
+    const updated = await tx.customer.update({ where: { id: existing.id }, data: req.body });
+    // مزامنة اسم الحساب المستقل تلقائياً مع اسم العميل عند إعادة التسمية
+    if (updated.accountId && req.body.name && req.body.name !== existing.name) {
+      await tx.account.update({ where: { id: updated.accountId }, data: { name: req.body.name } });
+    }
+    return updated;
+  });
   res.json(customer);
 };
 

@@ -16,13 +16,19 @@ export default function AccountsGroupModule({
   tab, setTab,
   realCompanies, realCompanyId,
   legacyEntries, legacySales, legacyCompanyId,
+  pendingLedgerAccountId, onConsumePendingLedgerAccountId,
 }) {
   return (
     <div>
       <SubTabs tabs={ACCOUNTS_TABS} active={tab} onChange={setTab} />
       {tab === "journal" && <JournalModule companies={realCompanies} companyId={realCompanyId} />}
       {tab === "chartOfAccounts" && <ChartOfAccountsModule companies={realCompanies} companyId={realCompanyId} />}
-      {tab === "ledger" && <AccountLedgerModule companies={realCompanies} companyId={realCompanyId} />}
+      {tab === "ledger" && (
+        <AccountLedgerModule
+          companies={realCompanies} companyId={realCompanyId}
+          initialAccountId={pendingLedgerAccountId} onConsumeInitialAccountId={onConsumePendingLedgerAccountId}
+        />
+      )}
       {tab === "zakat" && <ZakatModule entries={legacyEntries} sales={legacySales} companyId={legacyCompanyId} />}
     </div>
   );

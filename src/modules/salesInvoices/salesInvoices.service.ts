@@ -5,6 +5,7 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine, invoiceTypeForCustomer } from "../../lib/invoiceLine";
 import { buildZatcaQrPayload } from "../../lib/zatcaQr";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
 import { getStockBalance } from "../stockMovements/stockMovements.service";
@@ -199,14 +200,15 @@ export async function getSalesInvoice(tenantId: string, id: string) {
 async function buildJournalLines(
   tenantId: string,
   companyId: string,
-  customerId: string,
+  customer: { id: string; accountId: string | null },
   computed: Array<LineInput & { subtotal: number; vat: number; total: number }>,
   vatTotal: number,
   grandTotal: number,
   cogsLines: Array<{ accountId: string; department: string; debit: number; credit: number }> = [],
 ) {
+  const customerId = customer.id;
   const vatOutputId = await getAccountIdByName(tenantId, companyId, "ضريبة القيمة المضافة - مخرجات");
-  const receivableId = await getAccountIdByName(tenantId, companyId, "ذمم مدينة");
+  const receivableId = await resolvePartyAccountId(tenantId, companyId, customer, "ذمم مدينة");
   const byAccount = new Map<string, number>();
   computed.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));
 
@@ -261,7 +263,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
   }
 
   const cogsLines = await computeCogsJournalLines(tenantId, input.companyId, input.lines);
-  const journalLines = await buildJournalLines(tenantId, input.companyId, input.customerId, computed, vatTotal, grandTotal, cogsLines);
+  const journalLines = await buildJournalLines(tenantId, input.companyId, customer, computed, vatTotal, grandTotal, cogsLines);
   const zatcaUuid = randomUUID();
 
   return prisma.$transaction(async (tx) => {
@@ -363,7 +365,7 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
     quantity: Number(l.quantity), unitPrice: Number(l.unitPrice),
   }));
   const cogsLines = await computeCogsJournalLines(tenantId, invoice.companyId, computed);
-  const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customerId, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
+  const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customer, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
 
   return prisma.$transaction(async (tx) => {
     const gate = await evaluateZatcaPostingGate({

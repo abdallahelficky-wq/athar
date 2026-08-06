@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import type { Account } from "@prisma/client";
 import { notFound } from "../../lib/httpError";
+import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import {
   rollupAccountValues,
   RollupOptions,
@@ -461,18 +462,15 @@ export async function getBalanceSheet(
 
 /**
  * كشف حساب (سجل معاملات + رصيد متحرك) لعميل أو مورد — يقتصر على أسطر القيود المرحّلة
- * المرتبطة بـ customerId/supplierId **وعلى حساب الذمم نفسه فقط** ("ذمم مدينة" للعميل،
- * "ذمم دائنة - موردين" للمورد)، تماماً كمنطق getCustomerBalance/getSupplierBalance
- * الموجود مسبقاً في customers.controller.ts/suppliers.controller.ts — بقية أسطر نفس القيد
- * (حساب الإيراد/المصروف، الضريبة) موسومة بنفس customerId/supplierId أيضاً لأغراض تقارير
- * أخرى، لكنها ليست جزءاً من حركة حساب الذمم وستُكرّر المبلغ لو أُدرجت هنا.
- * إشارة الرصيد: للعميل نبدأ من صفر ونزيد (مدين - دائن) لأن حساب "ذمم مدينة" مدين الطبيعة
+ * المرتبطة بحسابه التفصيلي المستقل تحديداً (Customer.accountId/Supplier.accountId، أو الحساب
+ * المشترك القديم كشبكة أمان انتقالية ريثما يكتمل الـ backfill — انظر resolvePartyAccountId)،
+ * تماماً كمنطق getCustomerBalance/getSupplierBalance في customers.controller.ts/suppliers.controller.ts.
+ * إشارة الرصيد: للعميل نبدأ من صفر ونزيد (مدين - دائن) لأن حساب الذمم المدينة مدين الطبيعة
  * (رصيد موجب = العميل مدين لنا)؛ للمورد العكس (دائن - مدين، رصيد موجب = نحن مدينون له).
  */
 async function buildPartyStatement(
   tenantId: string,
-  filter: { customerId?: string; supplierId?: string },
-  ledgerAccountName: string,
+  accountId: string,
   companyId: string | undefined,
   dateFrom: Date | undefined,
   dateTo: Date | undefined,
@@ -480,8 +478,7 @@ async function buildPartyStatement(
 ) {
   const lines = await prisma.journalEntryLine.findMany({
     where: {
-      ...filter,
-      account: { name: ledgerAccountName },
+      accountId,
       journalEntry: {
         tenantId,
         companyId: companyId || undefined,
@@ -520,7 +517,8 @@ export async function getCustomerStatement(
 ) {
   const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId } });
   if (!customer) throw notFound("العميل غير موجود");
-  const statement = await buildPartyStatement(tenantId, { customerId }, "ذمم مدينة", companyId, dateFrom, dateTo, 1);
+  const accountId = await resolvePartyAccountId(tenantId, customer.companyId, customer, "ذمم مدينة");
+  const statement = await buildPartyStatement(tenantId, accountId, companyId, dateFrom, dateTo, 1);
   return { customer, ...statement };
 }
 
@@ -621,14 +619,7 @@ export async function getSupplierStatement(
 ) {
   const supplier = await prisma.supplier.findFirst({ where: { id: supplierId, tenantId } });
   if (!supplier) throw notFound("المورد غير موجود");
-  const statement = await buildPartyStatement(
-    tenantId,
-    { supplierId },
-    "ذمم دائنة - موردين",
-    companyId,
-    dateFrom,
-    dateTo,
-    -1,
-  );
+  const accountId = await resolvePartyAccountId(tenantId, supplier.companyId, supplier, "ذمم دائنة - موردين");
+  const statement = await buildPartyStatement(tenantId, accountId, companyId, dateFrom, dateTo, -1);
   return { supplier, ...statement };
 }

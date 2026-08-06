@@ -10,7 +10,7 @@ const emptyForm = () => ({
   probationEndDate: "", probationEvaluated: false, documents: [],
 });
 
-export default function EmployeeDirectoryTab({ companyId }) {
+export default function EmployeeDirectoryTab({ companyId, onViewAccount }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -142,6 +142,9 @@ export default function EmployeeDirectoryTab({ companyId }) {
                   <td>{e.name}</td><td>{e.department || "—"}</td><td className="num">{fmt(e.basicSalary)}</td>
                   <td><span className="status-badge">{e.leaveStatus === "onLeave" ? "في إجازة" : "نشط"}</span></td>
                   <td className="row-actions">
+                    {e.accountId && onViewAccount && (
+                      <button className="btn-ghost" onClick={() => onViewAccount(e.accountId)}>عرض في شجرة الحسابات</button>
+                    )}
                     <button className="btn-ghost" onClick={() => startEdit(e)}>تعديل</button>
                     <button className="btn-ghost" onClick={() => remove(e)}>حذف</button>
                   </td>

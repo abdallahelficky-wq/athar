@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
 
@@ -25,9 +26,10 @@ interface ReturnInput {
 
 const returnInclude = { lines: { include: { account: true } }, supplier: true } as const;
 
-async function buildJournalLines(supplierId: string, computed: Array<{ accountId: string; subtotal: number }>, vatTotal: number, grandTotal: number, tenantId: string, companyId: string) {
+async function buildJournalLines(supplier: { id: string; accountId: string | null }, computed: Array<{ accountId: string; subtotal: number }>, vatTotal: number, grandTotal: number, tenantId: string, companyId: string) {
+  const supplierId = supplier.id;
   const vatInputId = await getAccountIdByName(tenantId, companyId, "ضريبة القيمة المضافة - مدخلات");
-  const payableId = await getAccountIdByName(tenantId, companyId, "ذمم دائنة - موردين");
+  const payableId = await resolvePartyAccountId(tenantId, companyId, supplier, "ذمم دائنة - موردين");
   const byAccount = new Map<string, number>();
   computed.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));
 
@@ -66,7 +68,7 @@ export async function createPurchaseReturn(tenantId: string, userId: string, inp
   const grandTotal = subtotal + vatTotal;
   if (grandTotal <= 0) throw badRequest("إجمالي المردود يجب أن يكون أكبر من صفر");
 
-  const journalLines = await buildJournalLines(input.supplierId, computed, vatTotal, grandTotal, tenantId, input.companyId);
+  const journalLines = await buildJournalLines(supplier, computed, vatTotal, grandTotal, tenantId, input.companyId);
   const count = await prisma.purchaseReturn.count({ where: { tenantId } });
   const returnNumber = formatDocNumber("PRET", count);
 
@@ -118,7 +120,7 @@ export async function postPurchaseReturn(tenantId: string, userId: string, id: s
   if (purchaseReturn.status === "posted") throw badRequest("المردود مرحّل بالفعل");
 
   const computed = purchaseReturn.lines.map((l) => ({ accountId: l.accountId, subtotal: Number(l.subtotal) }));
-  const journalLines = await buildJournalLines(purchaseReturn.supplierId, computed, Number(purchaseReturn.vatTotal), Number(purchaseReturn.grandTotal), tenantId, purchaseReturn.companyId);
+  const journalLines = await buildJournalLines(purchaseReturn.supplier, computed, Number(purchaseReturn.vatTotal), Number(purchaseReturn.grandTotal), tenantId, purchaseReturn.companyId);
 
   return prisma.$transaction(async (tx) => {
     const entry = await createJournalEntryTx(tx, {

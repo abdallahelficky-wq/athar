@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { dailyRate, accruedLeaveDays, daysInMonth } from "../../lib/hrCalculations";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx } from "../../lib/journalPosting";
 
 interface CreateInput {
@@ -62,7 +63,7 @@ export async function createLeaveSettlement(tenantId: string, userId: string, in
   const salaryPortion = monthAmount + input.bonuses - input.deductions;
   const ticketVisaPortion = input.ticketAmount + input.visaAmount;
 
-  const payableAccountId = await getAccountIdByName(tenantId, emp.companyId, "ذمم الموظفين - مستحقات وإجازات");
+  const payableAccountId = await resolvePartyAccountId(tenantId, emp.companyId, emp, "ذمم الموظفين - مستحقات وإجازات");
   const lines: { accountId: string; department: string; debit: number; credit: number; employeeId: string }[] = [];
   if (salaryPortion !== 0) {
     const salaryAccountId = await getAccountIdByName(tenantId, emp.companyId, "مصروف رواتب");
@@ -115,7 +116,7 @@ export async function disburseLeaveSettlement(tenantId: string, userId: string, 
   if (!settlement) throw notFound("تسوية الإجازة غير موجودة");
   if (settlement.status === "disbursed") throw badRequest("تم صرف هذه التسوية مسبقاً");
 
-  const payableAccountId = await getAccountIdByName(tenantId, settlement.employee.companyId, "ذمم الموظفين - مستحقات وإجازات");
+  const payableAccountId = await resolvePartyAccountId(tenantId, settlement.employee.companyId, settlement.employee, "ذمم الموظفين - مستحقات وإجازات");
   const creditAccountId = await getAccountIdByName(tenantId, settlement.employee.companyId, method === "cash" ? "النقدية بالصندوق" : "البنك الأهلي - حساب تشغيلي");
   const amount = Number(settlement.netAmount);
 

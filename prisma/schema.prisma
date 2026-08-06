@@ -383,6 +383,9 @@ model Account {
   itemCogsLinks        Item[]                @relation("ItemCogsAccount")
   itemRevenueLinks     Item[]                @relation("ItemRevenueAccount")
   itemExpenseLinks     Item[]                @relation("ItemExpenseAccount")
+  customerLinks        Customer[]
+  supplierLinks        Supplier[]
+  employeeLinks        Employee[]
 
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
@@ -555,6 +558,11 @@ model Customer {
   additionalNo String?
   paymentTerms String?
   creditLimit  Decimal?     @db.Decimal(18, 2)
+  // حساب تفصيلي مستقل (مستوى رابع) تحت "الذمم المدينة التجارية" — يُنشأ تلقائياً عند إنشاء العميل
+  // ويُزامَن اسمه مع اسم العميل عند التعديل (partyAccounts.ts). Nullable مؤقتاً حتى تكتمل التعبئة
+  // الرجعية للعملاء القدامى، ثم يصبح إلزامياً.
+  accountId    String?
+  account      Account?     @relation(fields: [accountId], references: [id], onDelete: Restrict)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -874,6 +882,9 @@ model Supplier {
   email        String?
   city         String?
   paymentTerms String?
+  // حساب تفصيلي مستقل (مستوى رابع) تحت "الذمم الدائنة التجارية" — نفس مبدأ Customer.accountId.
+  accountId    String?
+  account      Account? @relation(fields: [accountId], references: [id], onDelete: Restrict)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -1228,6 +1239,11 @@ model Employee {
   portalLockedUntil         DateTime?
   managerId                 String?
   manager                   Employee?      @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  // حساب تفصيلي مستقل (مستوى رابع) تحت مجموعة "ذمم الموظفين" (أصول متداولة) — يمثّل صافي الراتب
+  // المستحق لهذا الموظف تحديداً (بدل الحساب المشترك "رواتب مستحقة للصرف"/"ذمم الموظفين -
+  // مستحقات وإجازات" السابق). نفس مبدأ Customer.accountId/Supplier.accountId.
+  accountId                 String?
+  account                   Account?       @relation(fields: [accountId], references: [id], onDelete: Restrict)
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
 

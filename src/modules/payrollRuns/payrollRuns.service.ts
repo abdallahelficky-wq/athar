@@ -8,6 +8,7 @@ import {
   WidePayrollRow,
 } from "../../lib/hrCalculations";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 
 function monthLabel(month: string) {
@@ -144,17 +145,25 @@ export async function postPayrollRun(tenantId: string, userId: string, id: strin
     });
   });
 
-  const netPayable = rows.reduce((s, r) => s + r.net, 0);
   const debitFields = new Set(PAYROLL_JOURNAL_MAP.filter(([, , side]) => side === "debit").map(([, name]) => name));
-  const payableAccountId = await getAccountIdByName(tenantId, run.companyId, "رواتب مستحقة للصرف");
 
-  const journalLines: { accountId: string; department: string; debit: number; credit: number }[] = [];
+  const journalLines: { accountId: string; department: string; debit: number; credit: number; employeeId?: string }[] = [];
   for (const [accountName, amount] of byAccountName) {
     const accountId = await getAccountIdByName(tenantId, run.companyId, accountName);
     const isDebit = debitFields.has(accountName);
     journalLines.push({ accountId, department: "المالية والحسابات", debit: isDebit ? amount : 0, credit: isDebit ? 0 : amount });
   }
-  journalLines.push({ accountId: payableAccountId, department: "المالية والحسابات", debit: 0, credit: netPayable });
+
+  // صافي المستحق يُقيَّد على حساب كل موظف المستقل (لا حساب مشترك مجمّع) — مع وسم employeeId على
+  // كل سطر، بعكس المنطق القديم الذي كان يجمع كل الموظفين في سطر واحد بلا أي وسم بالموظف إطلاقاً.
+  const employees = await prisma.employee.findMany({ where: { id: { in: run.employeeIds }, tenantId }, select: { id: true, accountId: true } });
+  const employeeById = new Map(employees.map((e) => [e.id, e]));
+  for (const r of rows) {
+    if (!r.net) continue;
+    const employee = employeeById.get(r.employeeId)!;
+    const accountId = await resolvePartyAccountId(tenantId, run.companyId, employee, "رواتب مستحقة للصرف");
+    journalLines.push({ accountId, department: "المالية والحسابات", debit: 0, credit: r.net, employeeId: r.employeeId });
+  }
 
   const [y, m] = run.month.split("-").map(Number);
   const date = new Date(y, m - 1, 28);

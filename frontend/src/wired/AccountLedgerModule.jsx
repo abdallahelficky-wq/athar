@@ -14,7 +14,7 @@ const emptyFilters = { accountId: "", dateFrom: "", dateTo: "" };
  * ويعرض "وصف السطر" (الحقل الجديد على مستوى كل سطر) بجانب البيان العام للقيد، عشان مراجع كشف
  * الحساب يفهم تفاصيل كل حركة دون فتح القيد الكامل.
  */
-export default function AccountLedgerModule({ companyId, companies }) {
+export default function AccountLedgerModule({ companyId, companies, initialAccountId, onConsumeInitialAccountId }) {
   const [accounts, setAccounts] = useState([]);
   const alf = useDeferredFilters(emptyFilters);
   const [ledger, setLedger] = useState(null);
@@ -30,6 +30,16 @@ export default function AccountLedgerModule({ companyId, companies }) {
     alf.reset(emptyFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
+
+  // دخول مباشر لحساب معيّن (زر "عرض في شجرة الحسابات" من شاشة عميل/مورد/موظف) — يفتح الحساب
+  // ويجلب كشفه فوراً بلا حاجة لاختياره يدوياً من القائمة، ثم يُستهلَك (onConsumeInitialAccountId)
+  // حتى لا يعيد فرض نفسه لو غيّر المستخدم الحساب يدوياً بعدها وعاد لنفس التبويب.
+  useEffect(() => {
+    if (!initialAccountId || !companyId) return;
+    alf.reset({ ...emptyFilters, accountId: initialAccountId });
+    onConsumeInitialAccountId?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAccountId, companyId]);
 
   useEffect(() => {
     const f = alf.applied;

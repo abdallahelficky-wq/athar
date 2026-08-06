@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
 import { applyPurchaseToAverageCostTx, recomputeAverageCostFromScratchTx } from "../../lib/costingEngine";
@@ -149,9 +150,10 @@ async function removeInventorySideEffectsTx(tx: Tx, tenantId: string, invoiceId:
   for (const itemId of itemIds) await recomputeAverageCostFromScratchTx(tx, tenantId, itemId);
 }
 
-async function buildJournalLines(supplierId: string, computed: Array<{ accountId: string; subtotal: number }>, vatTotal: number, grandTotal: number, tenantId: string, companyId: string) {
+async function buildJournalLines(supplier: { id: string; accountId: string | null }, computed: Array<{ accountId: string; subtotal: number }>, vatTotal: number, grandTotal: number, tenantId: string, companyId: string) {
+  const supplierId = supplier.id;
   const vatInputId = await getAccountIdByName(tenantId, companyId, "ضريبة القيمة المضافة - مدخلات");
-  const payableId = await getAccountIdByName(tenantId, companyId, "ذمم دائنة - موردين");
+  const payableId = await resolvePartyAccountId(tenantId, companyId, supplier, "ذمم دائنة - موردين");
   const byAccount = new Map<string, number>();
   computed.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));
 
@@ -186,7 +188,7 @@ export async function createPurchaseInvoice(tenantId: string, userId: string, in
 
   const count = await prisma.purchaseInvoice.count({ where: { tenantId } });
   const invoiceNumber = formatDocNumber("PINV", count);
-  const journalLines = await buildJournalLines(input.supplierId, computed, vatTotal, grandTotal, tenantId, input.companyId);
+  const journalLines = await buildJournalLines(supplier, computed, vatTotal, grandTotal, tenantId, input.companyId);
 
   return prisma.$transaction(async (tx) => {
     const entry = await createJournalEntryTx(tx, {
@@ -255,7 +257,7 @@ export async function postPurchaseInvoice(tenantId: string, userId: string, id: 
   if (invoice.status === "posted") throw badRequest("الفاتورة مرحّلة بالفعل");
 
   const computed = invoice.lines.map((l) => ({ accountId: l.accountId, subtotal: Number(l.subtotal) }));
-  const journalLines = await buildJournalLines(invoice.supplierId, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), tenantId, invoice.companyId);
+  const journalLines = await buildJournalLines(invoice.supplier, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), tenantId, invoice.companyId);
 
   return prisma.$transaction(async (tx) => {
     const entry = await createJournalEntryTx(tx, {

@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
 import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
@@ -72,7 +73,9 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
   if (grandTotal <= 0) throw badRequest("إجمالي المردود يجب أن يكون أكبر من صفر");
 
   const vatOutputId = await getAccountIdByName(tenantId, input.companyId, "ضريبة القيمة المضافة - مخرجات");
-  const creditAccountId = await getAccountIdByName(tenantId, input.companyId, REFUND_ACCOUNT_NAME[input.refundMethod]);
+  const creditAccountId = input.refundMethod === "account"
+    ? await resolvePartyAccountId(tenantId, input.companyId, customer, REFUND_ACCOUNT_NAME.account)
+    : await getAccountIdByName(tenantId, input.companyId, REFUND_ACCOUNT_NAME[input.refundMethod]);
 
   const byAccount = new Map<string, number>();
   computed.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));
@@ -156,7 +159,10 @@ export async function postSalesReturn(tenantId: string, userId: string, id: stri
   const company = await prisma.company.findFirstOrThrow({ where: { id: salesReturn.companyId, tenantId } });
 
   const vatOutputId = await getAccountIdByName(tenantId, salesReturn.companyId, "ضريبة القيمة المضافة - مخرجات");
-  const creditAccountId = await getAccountIdByName(tenantId, salesReturn.companyId, REFUND_ACCOUNT_NAME[salesReturn.refundMethod || "account"]);
+  const refundMethod = salesReturn.refundMethod || "account";
+  const creditAccountId = refundMethod === "account"
+    ? await resolvePartyAccountId(tenantId, salesReturn.companyId, salesReturn.customer, REFUND_ACCOUNT_NAME.account)
+    : await getAccountIdByName(tenantId, salesReturn.companyId, REFUND_ACCOUNT_NAME[refundMethod]);
   const byAccount = new Map<string, number>();
   salesReturn.lines.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + Number(l.subtotal)));
 
