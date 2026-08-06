@@ -8,11 +8,13 @@ import { formatDocNumber } from "../../lib/docNumber";
 
 interface LineInput {
   accountId: string;
+  itemId?: string;
   description?: string;
   quantity: number;
   unitPrice: number;
   discountPct?: number;
   priceIncludesVat?: boolean;
+  vatApplicable?: boolean;
 }
 
 interface QuotationInput {
@@ -42,6 +44,12 @@ async function assertRefs(tenantId: string, companyId: string, customerId: strin
     where: { id: { in: accountIds }, tenantId, companyId, type: "revenue", isPosting: true, isActive: true, isArchived: false },
   });
   if (accounts.length !== accountIds.length) throw badRequest("أحد حسابات الإيراد المختارة غير صالح");
+
+  const itemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => Boolean(x)))];
+  if (itemIds.length) {
+    const itemCount = await prisma.item.count({ where: { id: { in: itemIds }, tenantId, companyId } });
+    if (itemCount !== itemIds.length) throw badRequest("أحد الأصناف المختارة غير موجود ضمن هذه الشركة");
+  }
   return customer;
 }
 
@@ -113,8 +121,8 @@ export async function convertQuotationToInvoice(tenantId: string, userId: string
   if (quotation.status === "converted") throw badRequest("تم تحويل عرض السعر هذا مسبقاً");
 
   const lines = quotation.lines as unknown as Array<{
-    accountId: string; description?: string; quantity: number; unitPrice: number;
-    discountPct: number; priceIncludesVat: boolean; subtotal: number; vat: number; total: number;
+    accountId: string; itemId?: string; description?: string; quantity: number; unitPrice: number;
+    discountPct: number; priceIncludesVat: boolean; vatApplicable?: boolean; subtotal: number; vat: number; total: number;
   }>;
 
   const vatOutputId = await getAccountIdByName(tenantId, quotation.companyId, "ضريبة القيمة المضافة - مخرجات");
@@ -171,7 +179,9 @@ export async function convertQuotationToInvoice(tenantId: string, userId: string
         subtotal,
         vatTotal,
         grandTotal,
-        lines: { create: lines.map((l) => ({ ...l })) },
+        // itemId فارغ (سلسلة نصية "") يُطبَّع إلى undefined دفاعياً — يحمي من أي بيانات قديمة
+        // خُزِّنت قبل إضافة تطبيع itemId في quotations.schemas.ts، ومن انتهاك قيد FK عند الإنشاء.
+        lines: { create: lines.map((l) => ({ ...l, itemId: l.itemId || undefined })) },
       },
     });
 
