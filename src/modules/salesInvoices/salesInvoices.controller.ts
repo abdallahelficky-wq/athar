@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import * as service from "./salesInvoices.service";
+import { sendInvoiceByEmail } from "./salesInvoiceEmail.service";
 
 export const listHandler: RequestHandler = async (req, res) => {
   const { companyId, customerId } = req.query;
@@ -33,4 +34,12 @@ export const postHandler: RequestHandler = async (req, res) => {
 
 export const unpostHandler: RequestHandler = async (req, res) => {
   res.json(await service.unpostSalesInvoice(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.pin));
+};
+
+export const sendEmailHandler: RequestHandler = async (req, res) => {
+  const result = await sendInvoiceByEmail(req.auth!.tenantId, req.params.id, {
+    method: "manual",
+    overrideEmail: req.body?.email || undefined,
+  });
+  res.json(result);
 };

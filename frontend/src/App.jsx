@@ -7,6 +7,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import AcceptInvitePage from "./pages/AcceptInvitePage";
 import Dashboard from "./wired/Dashboard";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
 import ReportsModule, { REPORT_TABS } from "./wired/ReportsModule";
@@ -56,14 +57,12 @@ function AppShell({ onLoggedOut }) {
   const [legacyEntries] = useState(seedEntries);
   const [sales] = useState(seedSales);
 
-  const [users, setUsers] = useState(seedUsers);
   const [currentUser, setCurrentUser] = useState(() => ({
     ...seedUsers[0],
     name: user?.name || seedUsers[0].name,
     email: user?.email || seedUsers[0].email,
   }));
   const [jobTitles, setJobTitles] = useState(seedJobTitles);
-  const [legacyUnlockPin, setLegacyUnlockPin] = useState("1234");
   const [companyDocuments, setCompanyDocuments] = useState(seedCompanyDocuments);
   const [fixedAssetsTab, setFixedAssetsTab] = useState("register");
   const [settingsVersion, setSettingsVersion] = useState(0);
@@ -231,10 +230,8 @@ function AppShell({ onLoggedOut }) {
         {moduleId === "settings" && (
           <SettingsModule
             tab={settingsTab} setTab={setSettingsTab}
-            users={users} setUsers={setUsers}
             currentUser={currentUser} setCurrentUser={setCurrentUser}
             jobTitles={jobTitles} setJobTitles={setJobTitles}
-            unlockPin={legacyUnlockPin} setUnlockPin={setLegacyUnlockPin}
             companyDocuments={companyDocuments} setCompanyDocuments={setCompanyDocuments}
             onDataChange={bumpSettings}
             realCompanies={real.companies} reloadRealCompanies={real.reload} onRealCompanyCreated={real.onCompanyCreated}
@@ -245,10 +242,13 @@ function AppShell({ onLoggedOut }) {
   );
 }
 
-// يقرأ رمز إعادة تعيين كلمة المرور من رابط الإيميل مرة واحدة فقط عند أول تحميل، ثم يزيله فوراً
-// من شريط العنوان (history.replaceState) حتى لا يبقى الرمز الحساس ظاهراً أو محفوظاً في سجل
-// التصفح بعد قراءته.
-function consumeResetTokenFromUrl() {
+// يقرأ رمز إعادة تعيين كلمة المرور/تفعيل الدعوة من رابط الإيميل مرة واحدة فقط عند أول تحميل الوحدة
+// (module scope، وليس داخل useState lazy initializer) — لأن React.StrictMode يستدعي دوال التهيئة
+// الكسولة (lazy initializer) مرتين في وضع التطوير لاكتشاف أي أعراض جانبية غير نقية، وهذه الدالة
+// تحمل عرَضاً جانبياً حقيقياً (history.replaceState يزيل الرمز من شريط العنوان). لو نُفِّذت داخل
+// useState، الاستدعاء الثاني يقرأ رابطاً أُفرِغ من الرمز بالفعل ويُرجع null، وهذا هو ما كان يُعتمَد
+// كحالة أولية فعلياً — فتشغيلها هنا مرة واحدة فقط عند تحميل الوحدة يجعلها محصّنة ضد هذا السلوك.
+function readAndConsumeUrlToken() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get("token");
   if (token) {
@@ -257,14 +257,17 @@ function consumeResetTokenFromUrl() {
   return token;
 }
 
+const isAcceptInvitePath = window.location.pathname === "/accept-invite";
+const initialUrlToken = readAndConsumeUrlToken();
+
 export default function App() {
   const { isAuthenticated, initializing } = useAuth();
-  const [siteView, setSiteView] = useState("landing");
-  const [resetToken, setResetToken] = useState(() => {
-    const token = consumeResetTokenFromUrl();
-    if (token) setSiteView("reset-password");
-    return token;
+  const [siteView, setSiteView] = useState(() => {
+    if (isAcceptInvitePath) return "accept-invite";
+    return initialUrlToken ? "reset-password" : "landing";
   });
+  const [resetToken, setResetToken] = useState(isAcceptInvitePath ? null : initialUrlToken);
+  const [inviteToken] = useState(isAcceptInvitePath ? initialUrlToken : null);
 
   if (initializing) return null;
 
@@ -278,6 +281,12 @@ export default function App() {
         onGoForgotPassword={() => { setResetToken(null); setSiteView("forgot-password"); }}
       />
     );
+  }
+
+  // بمجرد نجاح تفعيل الدعوة يُسجَّل الدخول تلقائياً (isAuthenticated يصبح true) فتسقط هذه الشرطية
+  // تلقائياً وتظهر واجهة التطبيق الرئيسية بلا أي تنقّل يدوي إضافي.
+  if (siteView === "accept-invite" && !isAuthenticated) {
+    return <AcceptInvitePage token={inviteToken} onGoLogin={() => setSiteView("login")} />;
   }
 
   if (!isAuthenticated) {

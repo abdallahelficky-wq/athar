@@ -24,3 +24,5 @@ export const createSalesInvoiceSchema = z.object({
 export const updateSalesInvoiceSchema = createSalesInvoiceSchema;
 
 export const unpostSchema = z.object({ pin: z.string().min(1) });
+
+export const sendEmailSchema = z.object({ email: z.string().email("بريد إلكتروني غير صالح").optional() });

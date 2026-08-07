@@ -83,6 +83,15 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
 
   const buildPayload = () => ({ companyId, customerId, date, lines: cleanLines() });
 
+  // إرسال الفاتورة بالإيميل يحدث فقط عند الترحيل الفعلي (لا عند الحفظ كمسودة) — النتيجة تصل هنا
+  // ضمن استجابة الترحيل/الإنشاء نفسها، فتُضاف كجملة توضيحية لرسالة النجاح بدل نافذة منفصلة.
+  const emailSuffix = (emailResult) => {
+    if (!emailResult) return "";
+    if (emailResult.sent) return " وأُرسلت نسخة منها للعميل بالإيميل.";
+    if (emailResult.reason === "no_email") return " لم يُرسل إيميل — لا يوجد بريد إلكتروني مسجَّل لهذا العميل.";
+    return " تعذّر إرسال الفاتورة بالإيميل، يمكنك إعادة المحاولة من زر (إرسال بالإيميل).";
+  };
+
   const submit = async (post) => {
     if (!customerId) { setError("اختر عميلاً أولاً"); return; }
     if (cleanLines().length === 0) { setError("أضف سطراً واحداً على الأقل بحساب وسعر صحيحين"); return; }
@@ -91,11 +100,12 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
     try {
       if (isEdit) {
         await updateSalesInvoice(editingInvoice.id, buildPayload());
-        if (post) await postSalesInvoice(editingInvoice.id);
-        onSaved(post ? "تم حفظ التعديلات وترحيل الفاتورة، وأُنشئ القيد المحاسبي المرتبط بها." : "تم حفظ التعديلات كمسودة.");
+        let emailResult;
+        if (post) { const result = await postSalesInvoice(editingInvoice.id); emailResult = result.emailResult; }
+        onSaved((post ? "تم حفظ التعديلات وترحيل الفاتورة، وأُنشئ القيد المحاسبي المرتبط بها." : "تم حفظ التعديلات كمسودة.") + emailSuffix(emailResult));
       } else {
-        await createSalesInvoice({ ...buildPayload(), post });
-        onSaved(post ? "تم حفظ الفاتورة وترحيلها، وأُنشئ القيد المحاسبي المرتبط بها." : "تم حفظ الفاتورة كمسودة.");
+        const result = await createSalesInvoice({ ...buildPayload(), post });
+        onSaved((post ? "تم حفظ الفاتورة وترحيلها، وأُنشئ القيد المحاسبي المرتبط بها." : "تم حفظ الفاتورة كمسودة.") + emailSuffix(result.emailResult));
       }
     } catch (err) {
       setError(err.message);

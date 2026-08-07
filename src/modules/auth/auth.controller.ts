@@ -26,6 +26,16 @@ export const inviteHandler: RequestHandler = async (req, res) => {
   res.status(201).json(result);
 };
 
+export const listUsersHandler: RequestHandler = async (req, res) => {
+  const users = await authService.listUsers(req.auth!.tenantId);
+  res.json(users);
+};
+
+export const resendInviteHandler: RequestHandler = async (req, res) => {
+  const result = await authService.resendInvite(req.auth!.tenantId, req.params.id);
+  res.json(result);
+};
+
 export const acceptInviteHandler: RequestHandler = async (req, res) => {
   const result = await authService.acceptInvite(req.body);
   res.json(result);

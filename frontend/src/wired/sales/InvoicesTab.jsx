@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { listSalesInvoices, deleteSalesInvoice, unpostSalesInvoice } from "../../api/salesInvoices";
+import { listSalesInvoices, deleteSalesInvoice, unpostSalesInvoice, sendInvoiceEmail } from "../../api/salesInvoices";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
 import { useToast, ToastHost } from "../shared/Toast";
@@ -9,6 +9,7 @@ import InvoiceViewModal from "./InvoiceViewModal";
 import JournalEntryViewModal from "./JournalEntryViewModal";
 import LinkPaymentModal from "./LinkPaymentModal";
 import PostedBlockModal from "./PostedBlockModal";
+import SendInvoiceEmailModal from "./SendInvoiceEmailModal";
 
 export default function InvoicesTab({ companyId, companies }) {
   const [invoices, setInvoices] = useState([]);
@@ -22,6 +23,8 @@ export default function InvoicesTab({ companyId, companies }) {
   const [linkPaymentInvoice, setLinkPaymentInvoice] = useState(null);
   const [blockModal, setBlockModal] = useState(null);
   const [unpostTarget, setUnpostTarget] = useState(null);
+  const [emailModalInvoice, setEmailModalInvoice] = useState(null);
+  const [sendingEmailId, setSendingEmailId] = useState(null);
 
   const reload = () => {
     if (!companyId) return;
@@ -80,6 +83,23 @@ export default function InvoicesTab({ companyId, companies }) {
     setAutoPrint(true);
   };
 
+  const onSendEmailClick = async (inv) => {
+    if (inv.customer?.email) {
+      setSendingEmailId(inv.id);
+      try {
+        const result = await sendInvoiceEmail(inv.id);
+        reload();
+        notify(result.sent ? `تم إرسال الفاتورة ${inv.invoiceNumber} إلى ${inv.customer.email}.` : "تعذّر إرسال الفاتورة — حاول مرة أخرى لاحقاً.", result.sent ? "success" : "error");
+      } catch (err) {
+        notify(err.message, "error");
+      } finally {
+        setSendingEmailId(null);
+      }
+      return;
+    }
+    setEmailModalInvoice(inv);
+  };
+
   return (
     <div>
       <div className="form-btn-group" style={{ justifyContent: "flex-start", marginBottom: 14 }}>
@@ -124,6 +144,12 @@ export default function InvoicesTab({ companyId, companies }) {
                         onClick={() => setJournalInvoice(inv)}
                       ><Icon.BookOpen /></button>
                       {posted && <button className="icon-btn icon-btn-warn" title="فك الترحيل" onClick={() => setUnpostTarget(inv)}><Icon.Unlock /></button>}
+                      <button
+                        className="icon-btn"
+                        title={!posted ? "رحّل الفاتورة أولاً لتتمكن من إرسالها بالإيميل" : inv.customer?.email ? `إرسال بالإيميل إلى ${inv.customer.email}` : "لا يوجد بريد إلكتروني مسجَّل — اضغط لإدخال بريد بديل"}
+                        disabled={!posted || sendingEmailId === inv.id}
+                        onClick={() => onSendEmailClick(inv)}
+                      ><Icon.Mail /></button>
                       <button className="icon-btn icon-btn-danger" title="حذف الفاتورة" onClick={() => onDeleteClick(inv)}><Icon.Trash /></button>
                     </td>
                   </tr>
@@ -179,6 +205,14 @@ export default function InvoicesTab({ companyId, companies }) {
       )}
 
       {unpostTarget && <UnpostModal onCancel={() => setUnpostTarget(null)} onConfirm={doUnpost} />}
+
+      {emailModalInvoice && (
+        <SendInvoiceEmailModal
+          invoice={emailModalInvoice}
+          onClose={() => setEmailModalInvoice(null)}
+          onSent={(message) => { setEmailModalInvoice(null); reload(); notify(message); }}
+        />
+      )}
 
       <ToastHost toast={toast} onDismiss={dismiss} />
     </div>

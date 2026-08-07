@@ -6,6 +6,7 @@ export default function NewCustomerModal({ companyId, initialName, onClose, onCr
   const [name, setName] = useState(initialName || "");
   const [vatNumber, setVatNumber] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -16,7 +17,7 @@ export default function NewCustomerModal({ companyId, initialName, onClose, onCr
     try {
       const customer = await createCustomer({
         companyId, name: name.trim(), customerType: vatNumber ? "business" : "individual",
-        vatNumber: vatNumber || undefined, phone: phone || undefined,
+        vatNumber: vatNumber || undefined, phone: phone || undefined, email: email || undefined,
       });
       onCreated(customer);
     } catch (err) {
@@ -34,6 +35,7 @@ export default function NewCustomerModal({ companyId, initialName, onClose, onCr
           <label>اسم العميل<input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
           <label>الرقم الضريبي (اختياري)<input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} /></label>
           <label>رقم الهاتف (اختياري)<input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
+          <label>البريد الإلكتروني (اختياري)<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
         </div>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">

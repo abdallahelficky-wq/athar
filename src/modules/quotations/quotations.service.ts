@@ -5,6 +5,7 @@ import { buildZatcaQrPayload } from "../../lib/zatcaQr";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
+import { sendInvoiceByEmail } from "../salesInvoices/salesInvoiceEmail.service";
 
 interface LineInput {
   accountId: string;
@@ -146,7 +147,7 @@ export async function convertQuotationToInvoice(tenantId: string, userId: string
     vatTotal,
   );
 
-  return prisma.$transaction(async (tx) => {
+  const createdInvoice = await prisma.$transaction(async (tx) => {
     const journalLines = [
       ...[...byAccount.entries()].map(([accountId, amount]) => ({
         accountId, department: "المبيعات والتسويق", debit: 0, credit: amount, customerId: quotation.customerId,
@@ -190,4 +191,9 @@ export async function convertQuotationToInvoice(tenantId: string, userId: string
 
     return invoice;
   });
+
+  // نفس منطق الإرسال التلقائي عند ترحيل فاتورة مبيعات عادية — تحويل عرض سعر ينتج فاتورة
+  // مُرحَّلة فعلياً بالفعل فيستحق نفس المعاملة.
+  const emailResult = await sendInvoiceByEmail(tenantId, createdInvoice.id, { method: "auto" });
+  return { ...createdInvoice, emailResult };
 }

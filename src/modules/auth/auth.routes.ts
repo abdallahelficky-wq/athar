@@ -19,6 +19,8 @@ import {
   refreshHandler,
   logoutHandler,
   inviteHandler,
+  listUsersHandler,
+  resendInviteHandler,
   acceptInviteHandler,
   changeUnlockPinHandler,
   updateTenantHandler,
@@ -40,6 +42,13 @@ authRoutes.post(
   requireRole("admin", "finance_manager"),
   validateBody(inviteSchema),
   inviteHandler,
+);
+authRoutes.get("/users", authenticate, requireRole("admin", "finance_manager"), listUsersHandler);
+authRoutes.post(
+  "/users/:id/resend-invite",
+  authenticate,
+  requireRole("admin", "finance_manager"),
+  resendInviteHandler,
 );
 authRoutes.post("/accept-invite", validateBody(acceptInviteSchema), acceptInviteHandler);
 authRoutes.patch(

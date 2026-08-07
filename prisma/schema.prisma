@@ -51,13 +51,14 @@ model Tenant {
   journalEntries   JournalEntry[]
   auditLogs        AuditLog[]
 
-  customers       Customer[]
-  quotations      Quotation[]
-  salesInvoices   SalesInvoice[]
-  salesReturns    SalesReturn[]
-  salesDebitNotes SalesDebitNote[]
-  receipts        Receipt[]
-  stationSales    StationSale[]
+  customers        Customer[]
+  quotations       Quotation[]
+  salesInvoices    SalesInvoice[]
+  invoiceEmailLogs InvoiceEmailLog[]
+  salesReturns     SalesReturn[]
+  salesDebitNotes  SalesDebitNote[]
+  receipts         Receipt[]
+  stationSales     StationSale[]
 
   suppliers        Supplier[]
   purchaseInvoices PurchaseInvoice[]
@@ -172,58 +173,58 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
-  id                      String                @id @default(cuid())
-  tenantId                String
-  tenant                  Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name                    String
-  shortName               String?
-  logoKey                 String?
-  brandColor              String?
-  vatNumber               String?
-  crNumber                String?
-  crIssueDate             DateTime?
-  crExpiryDate            DateTime?
-  officialEmail           String?
-  phone                   String?
-  addressBuilding         String?
-  addressStreet           String?
-  addressDistrict         String?
-  addressCity             String?
-  addressPostalCode       String?
-  addressAdditionalNo     String?
+  id                       String                @id @default(cuid())
+  tenantId                 String
+  tenant                   Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name                     String
+  shortName                String?
+  logoKey                  String?
+  brandColor               String?
+  vatNumber                String?
+  crNumber                 String?
+  crIssueDate              DateTime?
+  crExpiryDate             DateTime?
+  officialEmail            String?
+  phone                    String?
+  addressBuilding          String?
+  addressStreet            String?
+  addressDistrict          String?
+  addressCity              String?
+  addressPostalCode        String?
+  addressAdditionalNo      String?
   // بادئة ترقيم القيود التسلسلي لهذه الشركة؛ تبدأ افتراضياً بالحرف J ويمكن تعديلها من بيانات الشركة.
-  numberingPrefix         String                @default("J")
+  numberingPrefix          String                @default("J")
   // العدّاد التالي في تسلسل هذه الشركة تحديداً (يبدأ من 1، مستقل تماماً عن باقي الشركات) — يُزاد
   // ذرّياً (UPDATE ... RETURNING ضمن نفس معاملة إنشاء القيد) فقط لحظة الحفظ الفعلي، لا عند مجرد
   // فتح نافذة الإضافة أو معاينة الرقم التالي، تجنباً لفجوات Gaps بسبب عمليات مُلغاة.
-  nextJournalEntrySeq     Int                   @default(1)
+  nextJournalEntrySeq      Int                   @default(1)
   // إعدادات تنبيهات الداشبورد المالية — قابلة للتعديل لكل شركة من الإعدادات
-  vatFilingFrequency      VatFilingFrequency    @default(quarterly)
-  zakatDeclarationDueDate DateTime?
-  lowCashThreshold        Decimal?              @db.Decimal(18, 2)
-  expenseIncreaseThreshold Decimal              @default(15) @db.Decimal(5, 2)
-  receivablesThreshold    Decimal?              @db.Decimal(18, 2)
-  overdueInvoiceDays      Int                   @default(30)
-  staleDraftDays          Int                   @default(7)
+  vatFilingFrequency       VatFilingFrequency    @default(quarterly)
+  zakatDeclarationDueDate  DateTime?
+  lowCashThreshold         Decimal?              @db.Decimal(18, 2)
+  expenseIncreaseThreshold Decimal               @default(15) @db.Decimal(5, 2)
+  receivablesThreshold     Decimal?              @db.Decimal(18, 2)
+  overdueInvoiceDays       Int                   @default(30)
+  staleDraftDays           Int                   @default(7)
   // نشاط المنشأة — يُحدَّد عند إنشاء الشركة ويُستخدَم لزرع قالب شجرة الحسابات المطابق تلقائياً
   // (مقاولات/مصانع/تجزئة/تجارة عامة/محطات وقود) بدل القالب الافتراضي العام. اختياري: الشركات
   // القديمة قبل هذه الميزة تبقى null وتُعامَل معاملة "بدون نشاط محدد" (القالب الافتراضي فقط).
-  businessActivity        BusinessActivity?
+  businessActivity         BusinessActivity?
   // --- ربط فاتورة (ZATCA) — المرحلة الثانية (التكامل)، انظر src/lib/zatca/*  ---
   // جهاز إصدار فواتير إلكترونية (EGS) واحد لكل شركة (v1) — CSID واحد، عدّاد ICV واحد،
   // وسلسلة تجزئة (PIH) واحدة تغطي كل الفواتير/الإشعارات الدائنة/المدينة لهذه الشركة معاً.
-  zatcaOnboardingStatus   ZatcaOnboardingStatus @default(not_onboarded)
-  zatcaEnvironment        ZatcaEnvironment      @default(sandbox)
-  zatcaEgsUuid            String?
-  zatcaSolutionName       String?
-  zatcaModel              String?
+  zatcaOnboardingStatus    ZatcaOnboardingStatus @default(not_onboarded)
+  zatcaEnvironment         ZatcaEnvironment      @default(sandbox)
+  zatcaEgsUuid             String?
+  zatcaSolutionName        String?
+  zatcaModel               String?
   // العدّاد التالي في تسلسل ICV لهذه الشركة — يُزاد ذرّياً فقط لحظة الإرسال الفعلي لزاتكا
   // (Clearance/Reporting)، لا عند مجرد إنشاء مسودة الفاتورة (بنفس أسلوب nextJournalEntrySeq أعلاه).
-  zatcaNextIcv            Int                   @default(1)
+  zatcaNextIcv             Int                   @default(1)
   // تجزئة (hash) آخر مستند تم إرساله فعلياً لزاتكا — تصبح PIH للمستند التالي في السلسلة.
-  zatcaLastInvoiceHash    String?
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @updatedAt
+  zatcaLastInvoiceHash     String?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
 
   costCenters          CostCenter[]
   companyDocuments     CompanyDocument[]
@@ -660,9 +661,27 @@ model SalesInvoice {
 
   lines              SalesInvoiceLine[]
   receiptAllocations ReceiptAllocation[]
+  emailLogs          InvoiceEmailLog[]
 
   @@unique([tenantId, invoiceNumber])
   @@map("sales_invoices")
+}
+
+// سجل كل محاولة إرسال فاتورة بالإيميل (تلقائية عند الترحيل، أو يدوية من زر "إرسال بالإيميل")
+// — يُبنى منه عرض "آخر إرسال: [تاريخ ووقت]" في شاشة الفاتورة، ويحتفظ بسبب الفشل إن وُجد.
+model InvoiceEmailLog {
+  id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoiceId String
+  invoice   SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  sentTo    String
+  method    String // "auto" | "manual"
+  success   Boolean
+  error     String?
+  createdAt DateTime     @default(now())
+
+  @@map("invoice_email_logs")
 }
 
 model SalesInvoiceLine {

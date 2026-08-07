@@ -11,6 +11,7 @@ import { formatDocNumber } from "../../lib/docNumber";
 import { getStockBalance } from "../stockMovements/stockMovements.service";
 import { isStockTracked } from "../items/items.service";
 import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
+import { sendInvoiceByEmail } from "./salesInvoiceEmail.service";
 
 type Tx = Prisma.TransactionClient;
 
@@ -38,6 +39,8 @@ const invoiceInclude = {
   customer: true,
   company: true,
   receiptAllocations: true,
+  // آخر محاولة إرسال بالإيميل فقط (نجحت أو فشلت) — تُستخدَم لعرض "آخر إرسال: ..." في شاشة الفاتورة.
+  emailLogs: { orderBy: { createdAt: "desc" as const }, take: 1 },
 } as const;
 
 function computeLines(lines: LineInput[]) {
@@ -266,7 +269,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
   const journalLines = await buildJournalLines(tenantId, input.companyId, customer, computed, vatTotal, grandTotal, cogsLines);
   const zatcaUuid = randomUUID();
 
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     // بوابة زاتكا أولاً، قبل أي كتابة فعلية: فاتورة قياسية (B2B) ترفضها زاتكا يجب ألا تُنشَأ ولا
     // تُرحَّل إطلاقاً (لا تُعتبر فاتورة نهائية حتى تُقبَل فعلياً) — رمي الاستثناء هنا يُلغي المعاملة
     // بأكملها بلا أي أثر جانبي متبقٍّ في قاعدة البيانات.
@@ -314,6 +317,11 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
 
     return withPaymentStatus(invoice);
   });
+
+  // نفس منطق الإرسال التلقائي في postSalesInvoice — مسار "حفظ وترحيل" هنا مستقل تماماً (إنشاء
+  // وترحيل في نفس المعاملة) وليس استدعاءً لـ postSalesInvoice، فيحتاج نفس الخُطّاف صراحةً.
+  const emailResult = await sendInvoiceByEmail(tenantId, created.id, { method: "auto" });
+  return { ...created, emailResult };
 }
 
 export async function updateSalesInvoice(tenantId: string, id: string, input: InvoiceInput) {
@@ -367,7 +375,7 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
   const cogsLines = await computeCogsJournalLines(tenantId, invoice.companyId, computed);
   const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customer, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
 
-  return prisma.$transaction(async (tx) => {
+  const posted = await prisma.$transaction(async (tx) => {
     const gate = await evaluateZatcaPostingGate({
       tx, company, customer: invoice.customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid,
       lines: invoice.lines, grandTotal: Number(invoice.grandTotal), vatTotal: Number(invoice.vatTotal),
@@ -395,6 +403,12 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
 
     return withPaymentStatus(updated);
   });
+
+  // إرسال الفاتورة بالإيميل يحدث فقط بعد نجاح الترحيل فعلياً (لا عند الحفظ كمسودة) — قرار
+  // مقصود: فاتورة لسه قابلة للتعديل ليست جاهزة لتصل للعميل بعد. لا يُفشل الترحيل أبداً حتى لو
+  // فشل الإرسال أو لم يكن للعميل بريد مسجَّل — النتيجة تُعاد للواجهة لعرض تنبيه مناسب فقط.
+  const emailResult = await sendInvoiceByEmail(tenantId, id, { method: "auto" });
+  return { ...posted, emailResult };
 }
 
 export async function unpostSalesInvoice(tenantId: string, userId: string, id: string, pin: string) {

@@ -17,6 +17,7 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
   // على مستوى التطبيق بدل النسخة المضمَّنة في الفاتورة (والتي لا تحمل logoUrl صالحاً أصلاً)
   const company = companies?.find((c) => c.id === invoice.companyId) || invoice.company;
   const customer = invoice.customer;
+  const lastEmailLog = invoice.emailLogs?.[0];
 
   return (
     <PrintShell
@@ -35,6 +36,15 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
         <div><span>الرقم الضريبي للبائع</span><strong>{company?.vatNumber || "لم يُدخل بعد"}</strong></div>
         <div><span>العميل</span><strong>{customer?.name}</strong></div>
         <div><span>الرقم الضريبي للعميل</span><strong>{customer?.vatNumber || "غير مسجّل (فرد)"}</strong></div>
+        {lastEmailLog && (
+          <div>
+            <span>آخر إرسال بالإيميل</span>
+            <strong>
+              {new Date(lastEmailLog.createdAt).toLocaleString("ar-SA")} — إلى {lastEmailLog.sentTo}
+              {!lastEmailLog.success && " (فشل الإرسال)"}
+            </strong>
+          </div>
+        )}
       </div>
       <table className="ledger-table voucher-table">
         <thead>

@@ -10,7 +10,7 @@ import {
 } from "../../lib/jwt";
 import { env } from "../../config/env";
 import { createDefaultChart } from "../../lib/defaultChartOfAccounts";
-import { sendInviteEmail, sendPasswordResetEmail } from "../../lib/mailer";
+import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../../lib/mailer";
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
 import type { Tenant, User } from "@prisma/client";
 
@@ -101,6 +101,16 @@ export async function register(input: { tenantName: string; name: string; email:
   );
 
   const tokens = await issueTokenPair(user);
+
+  // فشل إرسال الإيميل الترحيبي (خدمة Resend متوقفة مثلاً) لا يجب أن يُفشل التسجيل نفسه — يُسجَّل
+  // الخطأ فقط ويكمل الحساب الجديد إنشاءه بنجاح.
+  try {
+    await sendWelcomeEmail(user.email, user.name, tenant.name);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("فشل إرسال إيميل الترحيب:", err);
+  }
+
   return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens };
 }
 
@@ -174,10 +184,43 @@ export async function invite(
     },
   });
 
-  const activationLink = `/accept-invite?token=${inviteToken}`;
-  await sendInviteEmail(input.email, activationLink);
+  const emailSent = await trySendInviteEmail(input.email, inviteToken);
+  return { ...publicUser(user), emailSent };
+}
 
-  return publicUser(user);
+/** يُعيد إنشاء رابط دعوة جديد لمستخدم "معلّق" لم يفعّل حسابه بعد (رابطه القديم منتهٍ أو ضائع). */
+export async function resendInvite(tenantId: string, userId: string) {
+  const user = await prisma.user.findFirst({ where: { id: userId, tenantId } });
+  if (!user) throw notFound("المستخدم غير موجود");
+  if (user.inviteStatus !== "pending") throw badRequest("هذا المستخدم مفعَّل حسابه بالفعل");
+
+  const inviteToken = generateInviteToken();
+  const inviteExpiresAt = new Date(Date.now() + INVITE_EXPIRES_DAYS * 86_400_000);
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { inviteToken, inviteExpiresAt },
+  });
+
+  const emailSent = await trySendInviteEmail(updated.email, inviteToken);
+  return { ...publicUser(updated), emailSent };
+}
+
+/** فشل إرسال إيميل الدعوة (خدمة Resend متوقفة مثلاً) لا يجب أن يُفشل إنشاء المستخدم نفسه —
+ * يُسجَّل الخطأ فقط، ويُعاد `false` حتى تعرض الواجهة تنبيهاً بعدم وصول الدعوة فعلياً. */
+async function trySendInviteEmail(email: string, inviteToken: string): Promise<boolean> {
+  try {
+    await sendInviteEmail(email, `/accept-invite?token=${inviteToken}`);
+    return true;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("فشل إرسال إيميل الدعوة:", err);
+    return false;
+  }
+}
+
+export async function listUsers(tenantId: string) {
+  const users = await prisma.user.findMany({ where: { tenantId }, orderBy: { createdAt: "asc" } });
+  return users.map(publicUser);
 }
 
 export async function acceptInvite(input: { token: string; password: string }) {

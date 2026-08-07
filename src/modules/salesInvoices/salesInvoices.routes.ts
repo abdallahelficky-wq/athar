@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { authenticate, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createSalesInvoiceSchema, updateSalesInvoiceSchema, unpostSchema } from "./salesInvoices.schemas";
-import { listHandler, getHandler, createHandler, updateHandler, deleteHandler, postHandler, unpostHandler } from "./salesInvoices.controller";
+import { createSalesInvoiceSchema, updateSalesInvoiceSchema, unpostSchema, sendEmailSchema } from "./salesInvoices.schemas";
+import { listHandler, getHandler, createHandler, updateHandler, deleteHandler, postHandler, unpostHandler, sendEmailHandler } from "./salesInvoices.controller";
 
 export const salesInvoiceRoutes = Router();
 salesInvoiceRoutes.use(authenticate);
@@ -16,3 +16,4 @@ salesInvoiceRoutes.patch("/:id", canWrite, validateBody(updateSalesInvoiceSchema
 salesInvoiceRoutes.delete("/:id", canWrite, deleteHandler);
 salesInvoiceRoutes.post("/:id/post", canWrite, postHandler);
 salesInvoiceRoutes.post("/:id/unpost", canWrite, validateBody(unpostSchema), unpostHandler);
+salesInvoiceRoutes.post("/:id/send-email", canWrite, validateBody(sendEmailSchema), sendEmailHandler);

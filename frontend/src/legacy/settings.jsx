@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { COMPANIES, PERMISSION_ROLES, COMPANY_DOC_TYPES, COST_CENTERS } from "./constants";
 import CompaniesSettings from "../wired/CompaniesSettings";
 import MyAccountSettings from "../wired/MyAccountSettings";
+import UsersTab from "../wired/UsersTab";
 import SubTabs from "../wired/shared/SubTabs";
 
 export function MyProfileSettings({ currentUser, setCurrentUser }) {
@@ -15,83 +16,6 @@ export function MyProfileSettings({ currentUser, setCurrentUser }) {
         <label>الدور الوظيفي<select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>{PERMISSION_ROLES.map((r) => <option key={r}>{r}</option>)}</select></label>
       </div>
       <button className="btn-primary" onClick={save}>حفظ الملف الشخصي</button>
-    </div>
-  );
-}
-
-export function emptyUserForm() { return { name: "", email: "", role: PERMISSION_ROLES[PERMISSION_ROLES.length - 1], company: "all", active: true }; }
-
-export function UsersSettings({ users, setUsers, unlockPin, setUnlockPin }) {
-  const [form, setForm] = useState(emptyUserForm());
-  const [pinForm, setPinForm] = useState(unlockPin);
-  const [activatingId, setActivatingId] = useState(null);
-  const [activatePwd, setActivatePwd] = useState("");
-
-  const inviteUser = () => {
-    if (!form.name || !form.email) return;
-    setUsers((prev) => [...prev, { id: prev.length ? Math.max(...prev.map((u) => u.id)) + 1 : 1, ...form, active: false, password: null, inviteStatus: "pending" }]);
-    setForm(emptyUserForm());
-  };
-  const toggleActive = (id) => setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, active: !u.active } : u)));
-  const removeUser = (id) => setUsers((prev) => prev.filter((u) => u.id !== id));
-  const confirmActivate = (id) => {
-    if (!activatePwd) return;
-    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, password: activatePwd, active: true, inviteStatus: "accepted" } : u)));
-    setActivatingId(null); setActivatePwd("");
-  };
-
-  return (
-    <div>
-      <div className="panel form-panel">
-        <div className="form-grid">
-          <label>الرقم السري لفك ترحيل المعاملات<input type="password" value={pinForm} onChange={(e) => setPinForm(e.target.value)} /></label>
-        </div>
-        <button className="btn-primary" onClick={() => setUnlockPin(pinForm)}>حفظ الرقم السري</button>
-        <p className="note">هذا الرقم مطلوب لفك ترحيل أي كشف رواتب أو معاملة مرحّلة — احتفظ به لدى المخوّلين فقط.</p>
-      </div>
-      <div className="panel form-panel">
-        <div className="form-grid">
-          <label>الاسم<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <label>البريد الإلكتروني<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-          <label>الصلاحية<select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>{PERMISSION_ROLES.map((r) => <option key={r}>{r}</option>)}</select></label>
-          <label>نطاق الوصول (الشركة)<select value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })}>{COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-        </div>
-        <button className="btn-primary" onClick={inviteUser}>إرسال دعوة لمستخدم جديد</button>
-        <p className="note">
-          في نظام حقيقي متصل بخادم بريد، سيصل للمستخدم إيميل تلقائي فيه رابط لتفعيل حسابه وتعيين كلمة مرور.
-          بما أن هذا عرض تجريبي بدون خادم بريد فعلي، استخدم زر "محاكاة تفعيل الدعوة" أدناه لتعيين كلمة مرور للمستخدم مباشرة.
-        </p>
-      </div>
-      <div className="panel">
-        <table className="ledger-table">
-          <thead><tr><th>الاسم</th><th>البريد الإلكتروني</th><th>الصلاحية</th><th>نطاق الوصول</th><th>حالة الدعوة</th><th>الحالة</th><th></th></tr></thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u.id}>
-                <td>{u.name}</td><td>{u.email}</td><td>{u.role}</td>
-                <td>{COMPANIES.find((c) => c.id === u.company)?.name}</td>
-                <td>{u.inviteStatus === "pending" ? <span className="status-badge">بانتظار التفعيل</span> : <span className="status-badge posted-badge">مفعّل</span>}</td>
-                <td><span className="status-badge">{u.active ? "نشط" : "معطّل"}</span></td>
-                <td className="row-actions">
-                  {u.inviteStatus === "pending" ? (
-                    activatingId === u.id ? (
-                      <span className="inline-disb">
-                        <input type="password" placeholder="كلمة مرور جديدة" value={activatePwd} onChange={(e) => setActivatePwd(e.target.value)} />
-                        <button className="btn-primary" onClick={() => confirmActivate(u.id)}>تأكيد</button>
-                      </span>
-                    ) : (
-                      <button className="btn-ghost" onClick={() => setActivatingId(u.id)}>محاكاة تفعيل الدعوة</button>
-                    )
-                  ) : (
-                    <button className="btn-ghost" onClick={() => toggleActive(u.id)}>{u.active ? "تعطيل" : "تفعيل"}</button>
-                  )}
-                  <button className="btn-ghost" onClick={() => removeUser(u.id)}>حذف</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
@@ -229,7 +153,7 @@ export const SETTINGS_TABS = [
   { id: "companyDocs", label: "المستندات الرسمية" },
 ];
 
-export function SettingsModule({ tab, setTab, users, setUsers, currentUser, setCurrentUser, jobTitles, setJobTitles, unlockPin, setUnlockPin, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {
+export function SettingsModule({ tab, setTab, currentUser, setCurrentUser, jobTitles, setJobTitles, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {
   return (
     <div>
       <div className="section-title"><span className="eyebrow">إدارة النظام</span><h2>الإعدادات</h2></div>
@@ -241,7 +165,7 @@ export function SettingsModule({ tab, setTab, users, setUsers, currentUser, setC
           <MyProfileSettings currentUser={currentUser} setCurrentUser={setCurrentUser} />
         </div>
       )}
-      {tab === "users" && <UsersSettings users={users} setUsers={setUsers} unlockPin={unlockPin} setUnlockPin={setUnlockPin} />}
+      {tab === "users" && <UsersTab realCompanies={realCompanies} />}
       {tab === "jobTitles" && <JobTitlesSettings jobTitles={jobTitles} setJobTitles={setJobTitles} />}
       {tab === "locations" && <LocationsSettings onDataChange={onDataChange} />}
       {tab === "companyDocs" && <CompanyDocumentsSettings companyDocuments={companyDocuments} setCompanyDocuments={setCompanyDocuments} />}

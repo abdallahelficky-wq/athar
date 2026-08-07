@@ -83,6 +83,12 @@ export function AuthProvider({ children }) {
     return result;
   };
 
+  const acceptInvite = async (token, password) => {
+    const result = await authApi.acceptInvite({ token, password });
+    applySession(result);
+    return result;
+  };
+
   const renameTenant = async (name) => {
     const { tenant: updated } = await authApi.updateTenantName(name);
     setTenant(updated);
@@ -116,6 +122,7 @@ export function AuthProvider({ children }) {
     initializing,
     login,
     register,
+    acceptInvite,
     renameTenant,
     renameMe,
     logout,
