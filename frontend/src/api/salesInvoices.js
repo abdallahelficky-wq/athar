@@ -8,3 +8,4 @@ export const deleteSalesInvoice = (id) => api.delete(`/sales-invoices/${id}`);
 export const postSalesInvoice = (id) => api.post(`/sales-invoices/${id}/post`);
 export const unpostSalesInvoice = (id, pin) => api.post(`/sales-invoices/${id}/unpost`, { pin });
 export const sendInvoiceEmail = (id, email) => api.post(`/sales-invoices/${id}/send-email`, email ? { email } : {});
+export const resendInvoiceZatca = (id) => api.post(`/sales-invoices/${id}/resend-zatca`);

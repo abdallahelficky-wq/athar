@@ -43,3 +43,7 @@ export const sendEmailHandler: RequestHandler = async (req, res) => {
   });
   res.json(result);
 };
+
+export const resendZatcaHandler: RequestHandler = async (req, res) => {
+  res.json(await service.resendInvoiceToZatca(req.auth!.tenantId, req.params.id));
+};

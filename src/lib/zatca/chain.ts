@@ -178,3 +178,53 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     subtype,
   };
 }
+
+export interface RebuildZatcaDocumentXmlParams {
+  company: ZatcaCompanyLike;
+  customer: ZatcaCustomerLike;
+  kind: ZatcaDocumentKind;
+  documentNumber: string;
+  documentUuid: string;
+  billingReferenceId?: string;
+  lines: ZatcaPersistedLineLike[];
+  /** icv/previousInvoiceHash/issuedAt محجوزة بالفعل من محاولة ترحيل سابقة — لا تُحجَز هنا من جديد */
+  icv: number;
+  previousInvoiceHash: string;
+  issuedAt: Date;
+}
+
+export interface RebuiltZatcaDocument {
+  xml: string;
+  invoiceHash: string;
+  subtype: ZatcaInvoiceSubtype;
+}
+
+/**
+ * يعيد بناء XML غير موقّع طبق الأصل لمستند سبق حجز مكانه في السلسلة (icv/previousInvoiceHash/
+ * issuedAt مُخزَّنة بالفعل على المستند من محاولة الترحيل الأصلية) — يُستخدَم فقط لإعادة محاولة
+ * إرسال (Resend) مستند رفضته زاتكا سابقاً، بلا حجز أي رقم ICV جديد ولا أي أثر جانبي على السلسلة
+ * (بعكس reserveZatcaChain أعلاه). المستدعي مسؤول عن مقارنة invoiceHash الناتج هنا بالقيمة
+ * المخزَّنة أصلاً قبل إعادة الإرسال — أي فرق يعني أن بيانات المستند تغيّرت منذ الترحيل الأصلي.
+ */
+export function rebuildZatcaDocumentXml(params: RebuildZatcaDocumentXmlParams): RebuiltZatcaDocument {
+  const subtype = subtypeForCustomer(params.customer);
+
+  const documentInput: ZatcaDocumentInput = {
+    kind: params.kind,
+    subtype,
+    id: params.documentNumber,
+    uuid: params.documentUuid,
+    issueDate: params.issuedAt.toISOString().slice(0, 10),
+    issueTime: params.issuedAt.toISOString().slice(11, 19),
+    icv: params.icv,
+    previousInvoiceHash: params.previousInvoiceHash,
+    billingReferenceId: params.billingReferenceId,
+    seller: mapCompanyToSeller(params.company),
+    buyer: subtype === "standard" ? mapCustomerToBuyer(params.customer) : undefined,
+    lines: params.lines.map(mapPersistedLineToZatcaLine),
+  };
+
+  const xml = buildDocumentXml(documentInput);
+  const invoiceHash = computeDocumentHash(xml);
+  return { xml, invoiceHash, subtype };
+}

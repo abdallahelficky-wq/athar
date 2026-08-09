@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { listSalesInvoices, deleteSalesInvoice, unpostSalesInvoice, sendInvoiceEmail } from "../../api/salesInvoices";
+import { listSalesInvoices, deleteSalesInvoice, unpostSalesInvoice, sendInvoiceEmail, resendInvoiceZatca } from "../../api/salesInvoices";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
 import { useToast, ToastHost } from "../shared/Toast";
@@ -10,6 +10,16 @@ import JournalEntryViewModal from "./JournalEntryViewModal";
 import LinkPaymentModal from "./LinkPaymentModal";
 import PostedBlockModal from "./PostedBlockModal";
 import SendInvoiceEmailModal from "./SendInvoiceEmailModal";
+
+// نفس قيم ZatcaDocumentStatus المخزَّنة على الفاتورة في الباك اند — لا حقل/منطق جديد، فقط عرضها.
+const ZATCA_STATUS_BADGE = {
+  not_applicable: { label: "غير منطبق", className: "status-badge status-neutral" },
+  pending_clearance: { label: "قيد الإرسال", className: "status-badge status-saved" },
+  pending_reporting: { label: "قيد الإرسال", className: "status-badge status-saved" },
+  cleared: { label: "مُرسلة/مقبولة", className: "status-badge status-posted" },
+  reported: { label: "مُرسلة/مقبولة", className: "status-badge status-posted" },
+  rejected: { label: "مرفوضة", className: "status-badge status-rejected" },
+};
 
 export default function InvoicesTab({ companyId, companies }) {
   const [invoices, setInvoices] = useState([]);
@@ -25,6 +35,8 @@ export default function InvoicesTab({ companyId, companies }) {
   const [unpostTarget, setUnpostTarget] = useState(null);
   const [emailModalInvoice, setEmailModalInvoice] = useState(null);
   const [sendingEmailId, setSendingEmailId] = useState(null);
+  const [resendingZatcaId, setResendingZatcaId] = useState(null);
+  const [zatcaStatusFilter, setZatcaStatusFilter] = useState("");
 
   const reload = () => {
     if (!companyId) return;
@@ -34,6 +46,12 @@ export default function InvoicesTab({ companyId, companies }) {
   useEffect(reload, [companyId]);
 
   if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+
+  // العمود/الفلتر يظهران فقط للشركات المفعَّلة على زاتكا — لغيرها كل الفواتير "غير منطبق" ثابتة
+  // فلا داعي لإرباك الشاشة بعمود لا معنى له.
+  const activeCompany = companies?.find((c) => c.id === companyId);
+  const zatcaApplicable = activeCompany?.zatcaOnboardingStatus && activeCompany.zatcaOnboardingStatus !== "not_onboarded";
+  const visibleInvoices = zatcaApplicable && zatcaStatusFilter ? invoices.filter((inv) => inv.zatcaStatus === zatcaStatusFilter) : invoices;
 
   const onSaved = (message) => {
     setFormModal(null);
@@ -100,22 +118,66 @@ export default function InvoicesTab({ companyId, companies }) {
     setEmailModalInvoice(inv);
   };
 
+  const onResendZatcaClick = async (inv) => {
+    setResendingZatcaId(inv.id);
+    try {
+      const updated = await resendInvoiceZatca(inv.id);
+      reload();
+      const badge = ZATCA_STATUS_BADGE[updated.zatcaStatus];
+      notify(
+        updated.zatcaStatus === "rejected"
+          ? `أعيد رفض الفاتورة ${inv.invoiceNumber} من زاتكا${updated.rejectionReason ? `: ${updated.rejectionReason}` : "."}`
+          : `تم إرسال الفاتورة ${inv.invoiceNumber} بنجاح — الحالة الآن "${badge?.label || updated.zatcaStatus}".`,
+        updated.zatcaStatus === "rejected" ? "error" : "success",
+      );
+    } catch (err) {
+      notify(err.message, "error");
+    } finally {
+      setResendingZatcaId(null);
+    }
+  };
+
+  const colSpan = zatcaApplicable ? 8 : 7;
+
   return (
     <div>
       <div className="form-btn-group" style={{ justifyContent: "flex-start", marginBottom: 14 }}>
         <button className="btn-primary" onClick={() => setFormModal({ mode: "create" })}>+ إضافة فاتورة</button>
       </div>
 
+      {zatcaApplicable && (
+        <form className="filter-bar" onSubmit={(e) => e.preventDefault()} style={{ marginBottom: 14 }}>
+          <label>
+            حالة زاتكا
+            <select value={zatcaStatusFilter} onChange={(e) => setZatcaStatusFilter(e.target.value)}>
+              <option value="">— الكل —</option>
+              <option value="not_applicable">غير منطبق</option>
+              <option value="pending_clearance">قيد الإرسال (قياسية)</option>
+              <option value="pending_reporting">قيد الإرسال (مبسّطة)</option>
+              <option value="cleared">مُرسلة/مقبولة (قياسية)</option>
+              <option value="reported">مُرسلة/مقبولة (مبسّطة)</option>
+              <option value="rejected">مرفوضة/فشل الإرسال</option>
+            </select>
+          </label>
+        </form>
+      )}
+
       {loading ? <p className="empty">جارٍ التحميل...</p> : (
         <div className="panel">
           <table className="ledger-table responsive-table">
             <thead>
-              <tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>حالة الترحيل</th><th>حالة السداد</th><th>الإجراءات</th></tr>
+              <tr>
+                <th>الرقم</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>حالة الترحيل</th><th>حالة السداد</th>
+                {zatcaApplicable && <th>حالة زاتكا</th>}
+                <th>الإجراءات</th>
+              </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => {
+              {visibleInvoices.map((inv) => {
                 const posted = inv.status === "posted";
                 const linked = inv.receiptAllocations.length > 0;
+                const zatcaBadge = ZATCA_STATUS_BADGE[inv.zatcaStatus] || ZATCA_STATUS_BADGE.not_applicable;
+                const zatcaRejected = inv.zatcaStatus === "rejected";
                 return (
                   <tr key={inv.id}>
                     <td data-label="الرقم">{inv.invoiceNumber}</td>
@@ -124,6 +186,13 @@ export default function InvoicesTab({ companyId, companies }) {
                     <td className="num" data-label="الإجمالي">{fmt(Number(inv.grandTotal))}</td>
                     <td data-label="حالة الترحيل"><span className="status-badge">{posted ? "مرحّلة" : "مسودة"}</span></td>
                     <td data-label="حالة السداد"><span className="status-badge">{inv.paymentStatus}</span></td>
+                    {zatcaApplicable && (
+                      <td data-label="حالة زاتكا">
+                        <span className={zatcaBadge.className} title={zatcaRejected && inv.zatcaResponseRaw ? JSON.stringify(inv.zatcaResponseRaw) : undefined}>
+                          {zatcaBadge.label}
+                        </span>
+                      </td>
+                    )}
                     <td className="row-actions">
                       <button className="icon-btn" title="عرض الفاتورة" onClick={() => setViewInvoice(inv)}><Icon.Eye /></button>
                       <button className="icon-btn" title="طباعة الفاتورة" onClick={() => onPrintClick(inv)}><Icon.Printer /></button>
@@ -150,12 +219,20 @@ export default function InvoicesTab({ companyId, companies }) {
                         disabled={!posted || sendingEmailId === inv.id}
                         onClick={() => onSendEmailClick(inv)}
                       ><Icon.Mail /></button>
+                      {zatcaRejected && (
+                        <button
+                          className="icon-btn icon-btn-warn"
+                          title={resendingZatcaId === inv.id ? "قيد الإرسال..." : "إعادة إرسال الفاتورة لزاتكا"}
+                          disabled={resendingZatcaId === inv.id}
+                          onClick={() => onResendZatcaClick(inv)}
+                        ><Icon.Refresh /></button>
+                      )}
                       <button className="icon-btn icon-btn-danger" title="حذف الفاتورة" onClick={() => onDeleteClick(inv)}><Icon.Trash /></button>
                     </td>
                   </tr>
                 );
               })}
-              {invoices.length === 0 && <tr><td className="empty" colSpan={7}>لا توجد فواتير بعد.</td></tr>}
+              {visibleInvoices.length === 0 && <tr><td className="empty" colSpan={colSpan}>لا توجد فواتير بعد.</td></tr>}
             </tbody>
           </table>
         </div>

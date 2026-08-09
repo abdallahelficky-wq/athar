@@ -11,6 +11,7 @@ import { formatDocNumber } from "../../lib/docNumber";
 import { getStockBalance } from "../stockMovements/stockMovements.service";
 import { isStockTracked } from "../items/items.service";
 import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
+import { resubmitZatcaDocument } from "../../lib/zatca/resubmit";
 import { sendInvoiceByEmail } from "./salesInvoiceEmail.service";
 
 type Tx = Prisma.TransactionClient;
@@ -409,6 +410,46 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
   // فشل الإرسال أو لم يكن للعميل بريد مسجَّل — النتيجة تُعاد للواجهة لعرض تنبيه مناسب فقط.
   const emailResult = await sendInvoiceByEmail(tenantId, id, { method: "auto" });
   return { ...posted, emailResult };
+}
+
+/**
+ * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" لزاتكا — بلا حجز رقم ICV
+ * جديد وبلا أي تعديل على بيانات الفاتورة نفسها (نفس الأسطر/العميل/المبالغ المُرحَّلة أصلاً)، فقط
+ * إعادة توقيع وإرسال نفس المحتوى. متاحة فقط لهذه الحالة تحديداً — أي حالة زاتكا أخرى تُرفَض صراحةً.
+ */
+export async function resendInvoiceToZatca(tenantId: string, id: string) {
+  const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
+  if (!invoice) throw notFound("الفاتورة غير موجودة");
+  if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
+  if (invoice.zatcaStatus !== "rejected") throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا");
+  if (invoice.icv == null || !invoice.previousInvoiceHash || !invoice.invoiceHash || !invoice.zatcaSubmittedAt) {
+    throw badRequest("بيانات سلسلة زاتكا الأصلية لهذه الفاتورة غير مكتملة — تعذّرت إعادة الإرسال، راجع الدعم الفني");
+  }
+
+  const result = await resubmitZatcaDocument({
+    company: invoice.company,
+    customer: invoice.customer,
+    documentNumber: invoice.invoiceNumber,
+    documentUuid: invoice.zatcaUuid,
+    lines: invoice.lines,
+    grandTotal: Number(invoice.grandTotal),
+    vatTotal: Number(invoice.vatTotal),
+    icv: invoice.icv,
+    previousInvoiceHash: invoice.previousInvoiceHash,
+    invoiceHash: invoice.invoiceHash,
+    issuedAt: invoice.zatcaSubmittedAt,
+  });
+
+  const updated = await prisma.salesInvoice.update({
+    where: { id },
+    data: {
+      zatcaStatus: result.zatcaStatus,
+      zatcaResponseRaw: (result.zatcaResponseRaw ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+      zatcaClearedOrReportedAt: result.zatcaClearedOrReportedAt,
+    },
+    include: invoiceInclude,
+  });
+  return { ...withPaymentStatus(updated), rejectionReason: result.rejectionReason };
 }
 
 export async function unpostSalesInvoice(tenantId: string, userId: string, id: string, pin: string) {

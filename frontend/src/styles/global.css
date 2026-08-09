@@ -985,6 +985,8 @@
 
         .status-badge.status-posted { background: rgba(47,93,90,0.14); color: #2F5D5A; }
         .status-badge.status-saved { background: rgba(185,139,78,0.16); color: #8A5A2E; }
+        .status-badge.status-neutral { background: rgba(138,124,94,0.14); color: #8A7C5E; }
+        .status-badge.status-rejected { background: rgba(168,67,43,0.14); color: #A8432B; }
 
         /* حالة تحميل الهيكل العظمي (Skeleton) — صفوف رمادية نابضة بدل سبينر بسيط */
         @keyframes skeleton-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
