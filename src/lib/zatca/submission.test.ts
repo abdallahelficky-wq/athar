@@ -110,6 +110,27 @@ describe("signAndSubmitDocument", () => {
     expect(outcome.signedXml).toContain("<ds:SignatureValue>");
   });
 
+  it("surfaces a clear, distinct reason when ZATCA answers 2xx with a body that doesn't match the expected shape", async () => {
+    // إعادة إنتاج مباشرة لعطل الإنتاج الفعلي: نجاح HTTP لكن بجسم لا يحمل binarySecurityToken/
+    // clearanceStatus/reportingStatus صالحة — يجب أن يُرفَض برسالة واضحة تميّزه عن رفض حقيقي من زاتكا.
+    mockFetchOnce(200, { unexpectedField: "not a real ZATCA response" });
+    const xml = buildDocumentXml(sampleDocument());
+
+    const outcome = await signAndSubmitDocument({
+      xml,
+      uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      environment: "sandbox",
+      credentials,
+      kind: "reporting",
+      qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+    });
+
+    expect(outcome.accepted).toBe(false);
+    if (outcome.accepted) throw new Error("expected rejected outcome");
+    expect(outcome.reason).toContain("رد غير متوقع من زاتكا");
+    expect(outcome.reason).not.toContain("بلا تفاصيل إضافية");
+  });
+
   it("computes the same invoice hash whether the submission is accepted or rejected (hash is independent of the API outcome)", async () => {
     const xml = buildDocumentXml(sampleDocument());
     const baseParams = {

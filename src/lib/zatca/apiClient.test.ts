@@ -91,3 +91,67 @@ describe("apiClient request construction", () => {
     expect(extractRejectionReasons({})).toContain("بلا تفاصيل");
   });
 });
+
+// إعادة إنتاج مباشرة للعطل الفعلي الذي وقع في الإنتاج: استجابة 2xx (نجاح HTTP) لكن بجسم لا يحمل
+// binarySecurityToken/secret صالحين — قبل الإصلاح كان هذا يُقبَل كنجاح ويُخزَّن كشهادة حقيقية،
+// فيفشل لاحقاً بخطأ ASN.1 غامض عند أول محاولة توقيع فعلية بها. كل حالة هنا يجب أن تُرفَض هنا
+// وبوضوح، لا أن تمر بصمت.
+describe("apiClient schema validation on 2xx responses (malformedResponse)", () => {
+  it("rejects a 2xx compliance-CSID response with a completely empty body", async () => {
+    mockFetchOnce(200, {});
+    const result = await requestComplianceCsid("sandbox", "csr", "123456");
+    expect(result.ok).toBe(false);
+    expect(result.malformedResponse).toBe(true);
+    expect(result.data).toBeNull();
+  });
+
+  it("rejects a 2xx compliance-CSID response missing binarySecurityToken/secret", async () => {
+    mockFetchOnce(200, { requestID: 1, dispositionMessage: "ISSUED" });
+    const result = await requestComplianceCsid("sandbox", "csr", "123456");
+    expect(result.ok).toBe(false);
+    expect(result.malformedResponse).toBe(true);
+  });
+
+  it("rejects a 2xx compliance-CSID response where binarySecurityToken is an empty string", async () => {
+    mockFetchOnce(200, { requestID: 1, binarySecurityToken: "", secret: "s" });
+    const result = await requestComplianceCsid("sandbox", "csr", "123456");
+    expect(result.ok).toBe(false);
+    expect(result.malformedResponse).toBe(true);
+  });
+
+  it("rejects a 2xx production-CSID response missing the required fields", async () => {
+    mockFetchOnce(200, { requestID: 2 });
+    const result = await requestProductionCsid("simulation", CREDENTIALS, "compliance-req-123");
+    expect(result.ok).toBe(false);
+    expect(result.malformedResponse).toBe(true);
+  });
+
+  it("accepts a well-formed 2xx compliance-CSID response", async () => {
+    mockFetchOnce(200, { requestID: 1, binarySecurityToken: "cert-body", secret: "api-secret" });
+    const result = await requestComplianceCsid("sandbox", "csr", "123456");
+    expect(result.ok).toBe(true);
+    expect(result.malformedResponse).toBeUndefined();
+    expect(result.data).toEqual({ requestID: 1, binarySecurityToken: "cert-body", secret: "api-secret" });
+  });
+
+  it("rejects a 2xx clearance/reporting response that is a completely empty object", async () => {
+    mockFetchOnce(200, {});
+    const result = await clearInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.ok).toBe(false);
+    expect(result.malformedResponse).toBe(true);
+  });
+
+  it("rejects a 2xx clearance response carrying only an unrelated field", async () => {
+    mockFetchOnce(200, { someUnexpectedField: "oops" });
+    const result = await reportInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.ok).toBe(false);
+    expect(result.malformedResponse).toBe(true);
+  });
+
+  it("does not apply schema validation to a non-2xx (genuine rejection) response, even if its shape is unusual", async () => {
+    mockFetchOnce(502, "<html>Bad Gateway</html>");
+    const result = await clearInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.ok).toBe(false);
+    expect(result.malformedResponse).toBeUndefined();
+  });
+});

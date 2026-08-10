@@ -97,6 +97,9 @@ export async function requestCompanyComplianceCsid(tenantId: string, companyId: 
 
   const environment = company.zatcaEnvironment as ZatcaApiEnvironment;
   const result = await requestComplianceCsid(environment, Buffer.from(credential.csrPem).toString("base64"), otp);
+  if (result.malformedResponse) {
+    throw badRequest("رد غير متوقع من زاتكا — شكل الاستجابة لا يطابق شهادة اختبار صالحة، لم تُخزَّن أي بيانات. تحقق من إصدار/مسار API ثم أعد المحاولة، أو راجع الدعم الفني.");
+  }
   if (!result.ok || !result.data) {
     throw badRequest(`رفضت زاتكا طلب شهادة الاختبار: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
   }
@@ -127,6 +130,9 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
   const environment = company.zatcaEnvironment as ZatcaApiEnvironment;
   const credentials = { certificateBodyBase64: decryptSecret(credential.complianceCertEnc), secret: decryptSecret(credential.complianceSecretEnc) };
   const result = await requestProductionCsid(environment, credentials, credential.complianceRequestId);
+  if (result.malformedResponse) {
+    throw badRequest("رد غير متوقع من زاتكا — شكل الاستجابة لا يطابق شهادة إنتاج صالحة، لم تُخزَّن أي بيانات. تحقق من إصدار/مسار API ثم أعد المحاولة، أو راجع الدعم الفني.");
+  }
   if (!result.ok || !result.data) {
     throw badRequest(`رفضت زاتكا طلب شهادة الإنتاج: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
   }
