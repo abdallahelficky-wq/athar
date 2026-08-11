@@ -14,4 +14,7 @@ export const createPosSaleSchema = z.object({
   date: z.coerce.date().default(() => new Date()),
   lines: z.array(salesInvoiceLineSchema).min(1),
   payments: z.array(posPaymentSchema).min(1),
+  // المستودع المرتبط بجهاز نقطة البيع هذا (يُحفَظ محلياً على كل جهاز) — اختياري هنا فقط لأن
+  // الشركات ذات المستودع الواحد تُحل تلقائياً بلا اختيار؛ التحقق الفعلي في pos.service.ts.
+  warehouseId: z.string().optional(),
 });

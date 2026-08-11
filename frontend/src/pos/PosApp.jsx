@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useCompanies } from "../wired/useCompanies";
+import { listWarehouses } from "../api/warehouses";
+import { loadPosWarehouseId, savePosWarehouseId } from "./posWarehouseSettings";
 import PosLoginScreen from "./screens/PosLoginScreen";
 import SaleScreen from "./screens/SaleScreen";
 import PaymentScreen from "./screens/PaymentScreen";
 import ReceiptScreen from "./screens/ReceiptScreen";
-import PrinterSettingsScreen from "./screens/PrinterSettingsScreen";
+import PosSettingsScreen from "./screens/PosSettingsScreen";
 
 function PosShell() {
   const { user, logout } = useAuth();
@@ -15,6 +17,30 @@ function PosShell() {
   const [cart, setCart] = useState([]); // [{ itemId, name, unitPrice, quantity, accountId, vatApplicable }]
   const [customer, setCustomer] = useState(null); // null = عميل نقدي افتراضي
   const [lastSale, setLastSale] = useState(null); // { invoice, payments }
+
+  // المستودع المرتبط بهذا الجهاز لهذه الشركة تحديداً — يُحمَّل من إعدادات الجهاز المحلية، ويُعاد
+  // تحميله كلما تغيّرت الشركة النشطة (كل شركة لها إعداد مستودع مستقل). لو للشركة مستودع واحد بس،
+  // يُختار تلقائياً بلا أي تدخّل، ويُحفَظ محلياً فوراً حتى لا يتكرر هذا الاستعلام كل مرة.
+  const [warehouses, setWarehouses] = useState(null); // null = جارٍ التحميل، [] = لا يوجد مستودع
+  const [warehouseId, setWarehouseIdState] = useState(null);
+
+  useEffect(() => {
+    if (!companyId) return;
+    setWarehouses(null);
+    setWarehouseIdState(loadPosWarehouseId(companyId));
+    listWarehouses(companyId)
+      .then((list) => {
+        const active = list.filter((w) => !w.isArchived);
+        setWarehouses(active);
+        if (active.length === 1 && !loadPosWarehouseId(companyId)) {
+          savePosWarehouseId(companyId, active[0].id);
+          setWarehouseIdState(active[0].id);
+        }
+      })
+      .catch(() => setWarehouses([]));
+  }, [companyId]);
+
+  const refreshWarehouseId = () => setWarehouseIdState(loadPosWarehouseId(companyId));
 
   if (companiesLoading) return <div className="pos-loading">جارٍ التحميل...</div>;
   if (!companyId) {
@@ -43,6 +69,15 @@ function PosShell() {
     setScreen("sale");
   };
 
+  const closeSettings = () => {
+    refreshWarehouseId();
+    setScreen("sale");
+  };
+
+  const warehouseReady = warehouses !== null && warehouses.length > 0 && Boolean(warehouseId);
+  const warehouseMissing = warehouses !== null && warehouses.length > 0 && !warehouseId;
+  const noWarehouseAtAll = warehouses !== null && warehouses.length === 0;
+
   return (
     <div className="pos-app">
       <div className="pos-topbar">
@@ -56,13 +91,28 @@ function PosShell() {
         </div>
         <div className="pos-topbar-actions">
           <span className="pos-user-name">{user?.name}</span>
-          <button className="pos-icon-btn" title="إعدادات الطابعة" onClick={() => setScreen("settings")}>⚙</button>
+          <button className="pos-icon-btn" title="إعدادات نقطة البيع" onClick={() => setScreen("settings")}>⚙</button>
           <button className="pos-icon-btn" title="تسجيل الخروج" onClick={logout}>⎋</button>
         </div>
       </div>
 
       <div className="pos-body">
-        {screen === "sale" && (
+        {screen !== "settings" && warehouses === null && <div className="pos-loading">جارٍ التحميل...</div>}
+
+        {screen !== "settings" && noWarehouseAtAll && (
+          <div className="pos-loading">
+            <p>لا يوجد أي مستودع لهذه الشركة بعد — أنشئ مستودعاً أولاً من شاشة المستودعات والمنتجات في التطبيق الرئيسي.</p>
+          </div>
+        )}
+
+        {screen !== "settings" && warehouseMissing && (
+          <div className="pos-loading">
+            <p>لازم تحدد المستودع المرتبط بنقطة البيع دي أولاً.</p>
+            <button className="pos-big-btn" onClick={() => setScreen("settings")}>فتح إعدادات نقطة البيع</button>
+          </div>
+        )}
+
+        {screen === "sale" && warehouseReady && (
           <SaleScreen
             companyId={companyId}
             cart={cart}
@@ -72,9 +122,10 @@ function PosShell() {
             onProceedToPayment={() => setScreen("payment")}
           />
         )}
-        {screen === "payment" && (
+        {screen === "payment" && warehouseReady && (
           <PaymentScreen
             companyId={companyId}
+            warehouseId={warehouseId}
             cart={cart}
             customer={customer}
             onBack={() => setScreen("sale")}
@@ -84,7 +135,7 @@ function PosShell() {
         {screen === "receipt" && lastSale && (
           <ReceiptScreen company={activeCompany} sale={lastSale} onNewSale={startNewSale} />
         )}
-        {screen === "settings" && <PrinterSettingsScreen onClose={() => setScreen("sale")} />}
+        {screen === "settings" && <PosSettingsScreen companyId={companyId} onClose={closeSettings} />}
       </div>
     </div>
   );

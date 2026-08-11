@@ -33,6 +33,23 @@ interface InvoiceInput {
   date: Date;
   lines: LineInput[];
   post?: boolean;
+  // مستودع محدَّد صراحةً (مثلاً من إعدادات جهاز نقطة بيع) يتجاوز مستودع الشركة الافتراضي —
+  // اختياري: الفواتير العادية (شاشة فواتير المبيعات) تستمر باستخدام المستودع الافتراضي كما هي.
+  warehouseId?: string;
+}
+
+/** يحل المستودع الفعلي المطلوب خصم المخزون منه: المستودع المُمرَّر صراحةً (بعد التحقق أنه ينتمي
+ * لنفس الشركة/المستأجر) وإلا المستودع الافتراضي للشركة — بنفس رسالة الخطأ القديمة حرفياً في حالة
+ * عدم التمرير، حتى لا يتغيّر سلوك أي مسار حالي لا يمرّر warehouseId. */
+async function resolveWarehouse(tx: Tx | typeof prisma, tenantId: string, companyId: string, warehouseId?: string) {
+  if (warehouseId) {
+    const warehouse = await tx.warehouse.findFirst({ where: { id: warehouseId, tenantId, companyId } });
+    if (!warehouse) throw badRequest("المستودع المحدد غير موجود ضمن هذه الشركة");
+    return warehouse;
+  }
+  const warehouse = await tx.warehouse.findFirst({ where: { tenantId, companyId, isDefault: true } });
+  if (!warehouse) throw badRequest("لا يوجد مستودع افتراضي محدد لهذه الشركة؛ حدّده من شاشة المستودعات أولاً");
+  return warehouse;
 }
 
 const invoiceInclude = {
@@ -95,7 +112,7 @@ async function assertRefs(tenantId: string, companyId: string, customerId: strin
 }
 
 /** يبني سطور قيد تكلفة البضاعة المباعة (لو فيه أصناف مخزونية بالفاتورة)، ويتحقق من كفاية الرصيد قبل الترحيل — لا يكتب أي شيء لقاعدة البيانات، للاستدعاء قبل بناء القيد. */
-async function computeCogsJournalLines(tenantId: string, companyId: string, lines: LineInput[]) {
+async function computeCogsJournalLines(tenantId: string, companyId: string, lines: LineInput[], warehouseId?: string) {
   const itemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => Boolean(x)))];
   if (!itemIds.length) return [];
   const items = await prisma.item.findMany({ where: { id: { in: itemIds }, tenantId, companyId } });
@@ -103,8 +120,7 @@ async function computeCogsJournalLines(tenantId: string, companyId: string, line
   const stockLines = lines.filter((l) => l.itemId && isStockTracked(itemById.get(l.itemId)!.type));
   if (!stockLines.length) return [];
 
-  const warehouse = await prisma.warehouse.findFirst({ where: { tenantId, companyId, isDefault: true } });
-  if (!warehouse) throw badRequest("لا يوجد مستودع افتراضي محدد لهذه الشركة؛ حدّده من شاشة المستودعات أولاً");
+  const warehouse = await resolveWarehouse(prisma, tenantId, companyId, warehouseId);
 
   // يجب تجميع الكمية الإجمالية المطلوبة لكل صنف عبر كل أسطر الفاتورة قبل مقارنتها بالرصيد —
   // وإلا فسطران لنفس الصنف يمكن أن يتجاوزا الرصيد المتاح مجتمعين رغم أن كل سطر بمفرده يبدو
@@ -146,11 +162,11 @@ async function createStockOutSideEffectsTx(
   date: Date,
   persistedLines: Array<{ id: string; itemId: string | null; quantity: Prisma.Decimal }>,
   journalEntryId: string,
+  warehouseId?: string,
 ) {
   const itemIds = persistedLines.map((l) => l.itemId).filter((x): x is string => Boolean(x));
   if (!itemIds.length) return;
-  const warehouse = await tx.warehouse.findFirst({ where: { tenantId, companyId, isDefault: true } });
-  if (!warehouse) throw badRequest("لا يوجد مستودع افتراضي محدد لهذه الشركة؛ حدّده من شاشة المستودعات أولاً");
+  const warehouse = await resolveWarehouse(tx, tenantId, companyId, warehouseId);
 
   for (const line of persistedLines) {
     if (!line.itemId) continue;
@@ -266,7 +282,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
     return withPaymentStatus(invoice);
   }
 
-  const cogsLines = await computeCogsJournalLines(tenantId, input.companyId, input.lines);
+  const cogsLines = await computeCogsJournalLines(tenantId, input.companyId, input.lines, input.warehouseId);
   const journalLines = await buildJournalLines(tenantId, input.companyId, customer, computed, vatTotal, grandTotal, cogsLines);
   const zatcaUuid = randomUUID();
 
@@ -314,7 +330,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
     });
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
-    await createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id);
+    await createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, input.warehouseId);
 
     return withPaymentStatus(invoice);
   });

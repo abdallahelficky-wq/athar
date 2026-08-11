@@ -4,7 +4,7 @@ import { fmt2 } from "../../legacy/constants";
 
 const METHOD_LABEL = { cash: "نقدي", bank: "بطاقة/تحويل بنكي" };
 
-export default function PaymentScreen({ companyId, cart, customer, onBack, onCompleted }) {
+export default function PaymentScreen({ companyId, warehouseId, cart, customer, onBack, onCompleted }) {
   const total = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
 
   // payments[method] = المبلغ المُدخَل لهذه الطريقة (نص خام أثناء الكتابة، يُحوَّل رقماً عند الإرسال)
@@ -38,6 +38,7 @@ export default function PaymentScreen({ companyId, cart, customer, onBack, onCom
 
       const result = await createPosSale({
         companyId,
+        warehouseId,
         customerId: customer?.id || undefined,
         lines: cart.map((l) => ({
           accountId: l.accountId, itemId: l.itemId, description: l.name,
