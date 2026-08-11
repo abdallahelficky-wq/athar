@@ -13,12 +13,14 @@ import { collectGroupAccountIds, flattenVisibleTree } from "./shared/trialBalanc
 import { exportTrialBalanceExcel } from "./shared/exportTrialBalanceExcel";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
 import ComprehensiveMonthlyReport from "./ComprehensiveMonthlyReport";
+import ReportScheduleAutomation from "./ReportScheduleAutomation";
 
 export const REPORT_TABS = [
   { id: "trial", label: "ميزان المراجعة" },
   { id: "income", label: "قائمة الدخل" },
   { id: "balance", label: "المركز المالي" },
   { id: "monthly", label: "التقرير المالي الشهري الشامل" },
+  { id: "automation", label: "أتمتة الإرسال" },
 ];
 
 /**
@@ -188,7 +190,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
       </div>
 
       {error && <p className="balance-bad">{error}</p>}
-      {!companyId && tab !== "monthly" ? (
+      {!companyId && tab !== "monthly" && tab !== "automation" ? (
         <p className="empty">أنشئ شركة أولاً من لوحة القيادة لعرض تقاريرها المالية.</p>
       ) : loading ? (
         <p className="empty">جارٍ التحميل...</p>
@@ -201,6 +203,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
             trailing={<button className="icon-btn" title="طباعة التقرير الحالي" onClick={() => setPrinting(true)}><Icon.Printer /></button>}
           />
           {tab === "monthly" && <ComprehensiveMonthlyReport companyId={companyId} />}
+          {tab === "automation" && <ReportScheduleAutomation companyId={companyId} />}
           {tab === "trial" && (
             <TrialBalanceView
               data={tbData}

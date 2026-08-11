@@ -55,6 +55,7 @@ model Tenant {
   quotations       Quotation[]
   salesInvoices    SalesInvoice[]
   invoiceEmailLogs InvoiceEmailLog[]
+  reportSchedules  ReportSchedule[]
   salesReturns     SalesReturn[]
   salesDebitNotes  SalesDebitNote[]
   receipts         Receipt[]
@@ -253,6 +254,7 @@ model Company {
   attendanceRecords    AttendanceRecord[]
   payrollComponents    PayrollComponent[]
   payrollSettings      PayrollSettings?
+  reportSchedule       ReportSchedule?
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -1460,6 +1462,46 @@ model PayrollSettings {
   updatedAt             DateTime @updatedAt
 
   @@map("payroll_settings")
+}
+
+enum ReportScheduleFrequency {
+  daily
+  weekly
+  monthly
+}
+
+// جدولة إرسال دوري تلقائي للتقارير المالية (ميزان المراجعة، قائمة الدخل، المركز المالي،
+// التقرير الشهري الشامل) عبر البريد الإلكتروني لمدير الحسابات — سجل واحد فقط لكل شركة (@unique
+// على companyId)، بنفس نمط PayrollSettings أعلاه. المُرسِل الفعلي في
+// src/lib/reportScheduler.ts يفحص كل الجدولات المفعّلة كل ساعة ويقارن lastSentPeriodKey لتفادي
+// إرسال نفس الفترة مرتين حتى لو أُعيد تشغيل الخادم أثناء نفس الساعة المستهدفة.
+model ReportSchedule {
+  id                          String                  @id @default(cuid())
+  tenantId                    String
+  tenant                      Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                   String                  @unique
+  company                     Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  frequency                   ReportScheduleFrequency @default(monthly)
+  dayOfWeek                   Int                     @default(0) // 0=الأحد..6=السبت، يُستخدَم فقط مع weekly
+  dayOfMonth                  Int                     @default(1) // 1-28، يُستخدَم فقط مع monthly (الأشهر الأقصر من 31 يوماً تُرسَل في آخر يوم لها بدل تخطّي الشهر بالكامل، انظر reportScheduler.ts)
+  hourUtc                     Int                     @default(6) // ساعة الإرسال بتوقيت UTC (0-23)
+  includeComprehensiveMonthly Boolean                 @default(true)
+  includeTrialBalance         Boolean                 @default(true)
+  includeIncomeStatement      Boolean                 @default(true)
+  includeBalanceSheet         Boolean                 @default(true)
+  // فارغة = تُرسَل تلقائياً لكل مستخدمي هذه الشركة (companyScope="all" أو = هذه الشركة) بدور
+  // admin/finance_manager/super_admin، بدل تكرار إدخال نفس القائمة يدوياً في كل شركة.
+  recipientEmails             String[]                @default([])
+  enabled                     Boolean                 @default(true)
+  lastSentAt                  DateTime?
+  // مفتاح الفترة المُرسَلة آخر مرة (مثلاً "2026-08-11" يومياً، "2026-W32" أسبوعياً، "2026-08"
+  // شهرياً) — أدقّ من مقارنة lastSentAt بالتاريخ الحالي فقط، ويمنع إرسال مزدوج لنفس الفترة عند
+  // إعادة تشغيل الخادم أو تداخل عدة نبضات cron خلال نفس الساعة المستهدفة.
+  lastSentPeriodKey           String?
+  createdAt                   DateTime                @default(now())
+  updatedAt                   DateTime                @updatedAt
+
+  @@map("report_schedules")
 }
 
 model HrAction {

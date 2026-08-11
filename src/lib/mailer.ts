@@ -14,7 +14,7 @@ interface EmailAttachment {
 }
 
 interface SendEmailParams {
-  to: string;
+  to: string | string[];
   subject: string;
   html: string;
   logLabel: string;
@@ -50,9 +50,9 @@ async function sendEmail(params: SendEmailParams) {
  * الأمامية (#10202E داكن، #ECE6D6 فاتح، Tahoma/Arial)، بترويسة اسم "أثر المحاسبي" وتذييل ثابت،
  * حتى تبدو كل الرسائل (ترحيب، دعوة، فاتورة، استعادة كلمة مرور) بهوية بصرية واحدة متّسقة.
  */
-function renderEmailShell(bodyHtml: string): string {
+function renderEmailShell(bodyHtml: string, maxWidth = 480): string {
   return `
-    <div dir="rtl" style="font-family: Tahoma, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #10202E; background: #FBF9F3; padding: 24px; border-radius: 12px;">
+    <div dir="rtl" style="font-family: Tahoma, Arial, sans-serif; max-width: ${maxWidth}px; margin: 0 auto; color: #10202E; background: #FBF9F3; padding: 24px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 20px;">
         <span style="font-size: 18px; font-weight: 700; color: #10202E;">أثر المحاسبي</span>
       </div>
@@ -151,5 +151,22 @@ export async function sendInvoiceEmail(params: InvoiceEmailParams) {
       <p>مرفق مع هذه الرسالة فاتورة رقم <strong>${params.invoiceNumber}</strong> بإجمالي <strong>${params.grandTotal} ر.س</strong>.</p>
       <p style="color:#6b7c8c; font-size: 12.5px;">يمكنكم فتح الملف المرفق (PDF) لعرض تفاصيل الفاتورة كاملة.</p>
     `),
+  });
+}
+
+/**
+ * يُرسَل من مسار "إرسال الآن" اليدوي، ومن المُجدوِل التلقائي (reportScheduler.ts) عند استحقاق
+ * جدولة شركة ما — نفس محتوى الرسالة (مبني مسبقاً عبر buildReportDigestEmail في reportDigest.ts)
+ * يُرسَل لكل المستلمين معاً في طلب Resend واحد بدل تكرار الإرسال لكل بريد على حِدة، طالما لا
+ * حاجة لتخصيص المحتوى بحسب المستلم هنا (بخلاف الفاتورة/الدعوة الموجّهة لشخص بعينه).
+ */
+export async function sendReportDigestEmail(to: string[], subject: string, bodyHtml: string) {
+  if (!to.length) return;
+  await sendEmail({
+    to,
+    subject,
+    logLabel: "التقرير المالي الدوري",
+    logBody: subject,
+    html: renderEmailShell(bodyHtml, 640),
   });
 }
