@@ -10,6 +10,7 @@ import JournalEntryViewModal from "./JournalEntryViewModal";
 import LinkPaymentModal from "./LinkPaymentModal";
 import PostedBlockModal from "./PostedBlockModal";
 import SendInvoiceEmailModal from "./SendInvoiceEmailModal";
+import ReprintReceiptModal from "./ReprintReceiptModal";
 
 // نفس قيم ZatcaDocumentStatus المخزَّنة على الفاتورة في الباك اند — لا حقل/منطق جديد، فقط عرضها.
 const ZATCA_STATUS_BADGE = {
@@ -37,6 +38,7 @@ export default function InvoicesTab({ companyId, companies }) {
   const [sendingEmailId, setSendingEmailId] = useState(null);
   const [resendingZatcaId, setResendingZatcaId] = useState(null);
   const [zatcaStatusFilter, setZatcaStatusFilter] = useState("");
+  const [reprintInvoice, setReprintInvoice] = useState(null);
 
   const reload = () => {
     if (!companyId) return;
@@ -227,6 +229,12 @@ export default function InvoicesTab({ companyId, companies }) {
                           onClick={() => onResendZatcaClick(inv)}
                         ><Icon.Refresh /></button>
                       )}
+                      <button
+                        className="icon-btn"
+                        title={!posted ? "رحّل الفاتورة أولاً لتتمكن من طباعة إيصال حراري" : "إعادة طباعة كإيصال حراري (58/80مم)"}
+                        disabled={!posted}
+                        onClick={() => setReprintInvoice(inv)}
+                      ><Icon.Receipt /></button>
                       <button className="icon-btn icon-btn-danger" title="حذف الفاتورة" onClick={() => onDeleteClick(inv)}><Icon.Trash /></button>
                     </td>
                   </tr>
@@ -288,6 +296,14 @@ export default function InvoicesTab({ companyId, companies }) {
           invoice={emailModalInvoice}
           onClose={() => setEmailModalInvoice(null)}
           onSent={(message) => { setEmailModalInvoice(null); reload(); notify(message); }}
+        />
+      )}
+
+      {reprintInvoice && (
+        <ReprintReceiptModal
+          invoice={reprintInvoice}
+          company={companies?.find((c) => c.id === reprintInvoice.companyId) || reprintInvoice.company}
+          onClose={() => setReprintInvoice(null)}
         />
       )}
 

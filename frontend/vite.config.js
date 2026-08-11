@@ -107,6 +107,7 @@ export default defineConfig({
       input: {
         main: path.resolve(process.cwd(), "index.html"),
         mobile: path.resolve(process.cwd(), "mobile.html"),
+        pos: path.resolve(process.cwd(), "pos.html"),
       },
     },
   },
