@@ -12,7 +12,7 @@ const DEFAULTS = {
   frequency: "monthly" as const,
   dayOfWeek: 0,
   dayOfMonth: 1,
-  hourUtc: 6,
+  hourKsa: 6,
   includeComprehensiveMonthly: true,
   includeTrialBalance: true,
   includeIncomeStatement: true,
@@ -32,7 +32,7 @@ interface ScheduleInput {
   frequency: "daily" | "weekly" | "monthly";
   dayOfWeek: number;
   dayOfMonth: number;
-  hourUtc: number;
+  hourKsa: number;
   includeComprehensiveMonthly: boolean;
   includeTrialBalance: boolean;
   includeIncomeStatement: boolean;

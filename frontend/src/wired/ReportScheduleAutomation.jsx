@@ -4,17 +4,11 @@ import { getReportSchedule, updateReportSchedule, sendReportScheduleNow } from "
 const FREQUENCY_LABELS = { daily: "يومياً", weekly: "أسبوعياً", monthly: "شهرياً" };
 const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
 
-// توقيت السعودية (AST) ثابت UTC+3 طوال العام بلا أي توقيت صيفي — تحويل بسيط وآمن دون الحاجة
-// لمكتبة مناطق زمنية. الخادم يخزّن الساعة بتوقيت UTC دائماً (hourUtc)؛ هذان التابعان فقط
-// يحوّلان للعرض/الإدخال بتوقيت السعودية حتى لا يُضطر المستخدم لحساب الفرق يدوياً.
-const KSA_UTC_OFFSET_HOURS = 3;
-const utcHourToKsa = (hourUtc) => (Number(hourUtc) + KSA_UTC_OFFSET_HOURS + 24) % 24;
-const ksaHourToUtc = (hourKsa) => (Number(hourKsa) - KSA_UTC_OFFSET_HOURS + 24) % 24;
-
 /** لوحة إعداد الإرسال الدوري التلقائي للتقارير المالية بالبريد الإلكتروني — سجل واحد فقط لكل
  * شركة (نفس نمط "حدود التنبيه" في ComprehensiveMonthlyReport.jsx)، مع زر "إرسال الآن" لاختبار
- * الإعدادات فوراً دون انتظار الموعد المجدول. المستخدم يُدخل الساعة بتوقيت السعودية المحلي فقط —
- * التحويل من/إلى UTC (المُخزَّن فعلياً في hourUtc بالخادم) يحدث تلقائياً هنا. */
+ * الإعدادات فوراً دون انتظار الموعد المجدول. كل حقول الوقت هنا (يوم الأسبوع/يوم الشهر/الساعة)
+ * تُدخَل وتُخزَّن وتُقارَن بتوقيت السعودية مباشرة (لا تحويل UTC هنا ولا في الخادم) — تفادياً لخطأ
+ * انزياح يوم كامل كان يحدث سابقاً عند تحويل الساعة فقط دون اليوم المرافق لها قرب منتصف الليل. */
 export default function ReportScheduleAutomation({ companyId }) {
   const [schedule, setSchedule] = useState(null);
   const [recipientsText, setRecipientsText] = useState("");
@@ -52,7 +46,7 @@ export default function ReportScheduleAutomation({ companyId }) {
         frequency: schedule.frequency,
         dayOfWeek: Number(schedule.dayOfWeek),
         dayOfMonth: Number(schedule.dayOfMonth),
-        hourUtc: Number(schedule.hourUtc),
+        hourKsa: Number(schedule.hourKsa),
         includeComprehensiveMonthly: schedule.includeComprehensiveMonthly,
         includeTrialBalance: schedule.includeTrialBalance,
         includeIncomeStatement: schedule.includeIncomeStatement,
@@ -103,7 +97,7 @@ export default function ReportScheduleAutomation({ companyId }) {
         </label>
         {schedule.frequency === "weekly" && (
           <label>
-            يوم الأسبوع
+            يوم الأسبوع (بتوقيت السعودية)
             <select value={schedule.dayOfWeek} onChange={(e) => setField("dayOfWeek", e.target.value)}>
               {WEEKDAYS.map((d, i) => (
                 <option key={i} value={i}>{d}</option>
@@ -113,7 +107,7 @@ export default function ReportScheduleAutomation({ companyId }) {
         )}
         {schedule.frequency === "monthly" && (
           <label>
-            يوم الشهر
+            يوم الشهر (بتوقيت السعودية)
             <input type="number" min={1} max={28} value={schedule.dayOfMonth} onChange={(e) => setField("dayOfMonth", e.target.value)} />
           </label>
         )}
@@ -123,8 +117,8 @@ export default function ReportScheduleAutomation({ companyId }) {
             type="number"
             min={0}
             max={23}
-            value={utcHourToKsa(schedule.hourUtc)}
-            onChange={(e) => setField("hourUtc", ksaHourToUtc(e.target.value))}
+            value={schedule.hourKsa}
+            onChange={(e) => setField("hourKsa", e.target.value)}
           />
         </label>
         <label className="checkbox-label" style={{ alignSelf: "end" }}>
@@ -132,7 +126,7 @@ export default function ReportScheduleAutomation({ companyId }) {
         </label>
       </div>
       <p className="empty" style={{ marginTop: -8 }}>
-        مثال: 6 تعني الساعة 6:00 صباحاً بتوقيت السعودية — التحويل من/إلى UTC يحدث تلقائياً، لا حاجة لحساب الفرق يدوياً.
+        كل التوقيتات أعلاه بتوقيت السعودية المحلي مباشرة — مثال: 6 تعني الساعة 6:00 صباحاً بتوقيت السعودية.
       </p>
 
       <div className="filter-bar">

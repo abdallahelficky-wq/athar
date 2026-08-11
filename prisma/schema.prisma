@@ -1475,6 +1475,13 @@ enum ReportScheduleFrequency {
 // على companyId)، بنفس نمط PayrollSettings أعلاه. المُرسِل الفعلي في
 // src/lib/reportScheduler.ts يفحص كل الجدولات المفعّلة كل ساعة ويقارن lastSentPeriodKey لتفادي
 // إرسال نفس الفترة مرتين حتى لو أُعيد تشغيل الخادم أثناء نفس الساعة المستهدفة.
+//
+// dayOfWeek/dayOfMonth/hourKsa الثلاثة بتوقيت السعودية المحلي (AST، UTC+3 ثابت بلا توقيت صيفي)
+// دائماً — وليس UTC — حتى لا تُضطر أي جهة (الواجهة أو المُجدوِل) لتحويل يوم التقويم عند عبور
+// منتصف الليل بين المنطقتين (كانت هذه بالضبط مشكلة تصميم UTC السابق: تحويل الساعة فقط دون
+// اليوم المرافق لها ينتج توقيتاً خاطئاً بيوم كامل لأي جدولة بين الساعة 00:00 و02:59 بتوقيت
+// السعودية). المُجدوِل يحوّل "الآن" (UTC) لتوقيت السعودية بإضافة 3 ساعات فقط قبل المقارنة، فلا
+// حاجة لأي تحويل معاكس هنا أو في الواجهة.
 model ReportSchedule {
   id                          String                  @id @default(cuid())
   tenantId                    String
@@ -1482,9 +1489,9 @@ model ReportSchedule {
   companyId                   String                  @unique
   company                     Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   frequency                   ReportScheduleFrequency @default(monthly)
-  dayOfWeek                   Int                     @default(0) // 0=الأحد..6=السبت، يُستخدَم فقط مع weekly
-  dayOfMonth                  Int                     @default(1) // 1-28، يُستخدَم فقط مع monthly (الأشهر الأقصر من 31 يوماً تُرسَل في آخر يوم لها بدل تخطّي الشهر بالكامل، انظر reportScheduler.ts)
-  hourUtc                     Int                     @default(6) // ساعة الإرسال بتوقيت UTC (0-23)
+  dayOfWeek                   Int                     @default(0) // 0=الأحد..6=السبت (بتوقيت السعودية)، يُستخدَم فقط مع weekly
+  dayOfMonth                  Int                     @default(1) // 1-28 (بتوقيت السعودية)، يُستخدَم فقط مع monthly (الأشهر الأقصر من 31 يوماً تُرسَل في آخر يوم لها بدل تخطّي الشهر بالكامل)
+  hourKsa                     Int                     @default(6) // ساعة الإرسال بتوقيت السعودية المحلي (AST، UTC+3 ثابت) — 0-23
   includeComprehensiveMonthly Boolean                 @default(true)
   includeTrialBalance         Boolean                 @default(true)
   includeIncomeStatement      Boolean                 @default(true)
