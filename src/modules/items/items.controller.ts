@@ -2,16 +2,27 @@ import { RequestHandler } from "express";
 import * as itemsService from "./items.service";
 
 export const listItems: RequestHandler = async (req, res) => {
-  const { companyId, type } = req.query;
+  const { companyId, type, search } = req.query;
   const items = await itemsService.listItemsWithComputed(req.auth!.tenantId, {
     companyId: typeof companyId === "string" ? companyId : undefined,
     type: typeof type === "string" ? type : undefined,
+    search: typeof search === "string" ? search : undefined,
   });
   res.json(items);
 };
 
 export const getItem: RequestHandler = async (req, res) => {
   const item = await itemsService.getItemWithComputed(req.auth!.tenantId, req.params.id);
+  res.json(item);
+};
+
+export const getItemByBarcode: RequestHandler = async (req, res) => {
+  const { companyId, barcode } = req.query;
+  if (typeof companyId !== "string" || typeof barcode !== "string" || !barcode.trim()) {
+    res.json(null);
+    return;
+  }
+  const item = await itemsService.findItemByBarcode(req.auth!.tenantId, companyId, barcode.trim());
   res.json(item);
 };
 

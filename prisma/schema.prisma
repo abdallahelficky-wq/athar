@@ -1042,6 +1042,9 @@ model Item {
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   code       String
   name       String
+  // باركود اختياري لمسحه ضوئياً في نقطة البيع (POS) — فريد لكل شركة لو محدَّد، بلا قيد على الشركات
+  // الأخرى (نفس الباركود قد يتكرر بين شركات مختلفة لنفس المنتج التجاري).
+  barcode    String?
   type       ItemType @default(inventory)
   unit       String?
   category   String?
@@ -1081,6 +1084,7 @@ model Item {
   usedInBundles        ItemComponent[]       @relation("ComponentItem")
 
   @@unique([tenantId, companyId, code])
+  @@unique([tenantId, companyId, barcode])
   @@index([tenantId, companyId, type])
   @@map("items")
 }

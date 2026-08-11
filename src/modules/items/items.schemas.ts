@@ -11,6 +11,12 @@ const baseItemFields = {
   companyId: z.string().min(1),
   code: z.string().min(1),
   name: z.string().min(2, "اسم الصنف قصير جداً"),
+  // نص فارغ يُطبَّع إلى undefined حتى لا يتصادم مع صنف آخر بلا باركود على القيد الفريد
+  // (تجزئة null المتعددة في Postgres لا تتصادم، لكن "" ليست null فتتصادم لو تُركت كما هي).
+  barcode: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim() ? v.trim() : undefined)),
   type: z.enum(ITEM_TYPES).default("inventory"),
   unit: z.string().optional(),
   category: z.string().optional(),

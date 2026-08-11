@@ -36,14 +36,37 @@ async function computeQuantityAndValue(tx: Tx, tenantId: string, item: Item) {
   return { quantity, stockValue: quantity * Number(item.averageCost) };
 }
 
-export async function listItemsWithComputed(tenantId: string, filters: { companyId?: string; type?: string }) {
+export async function listItemsWithComputed(tenantId: string, filters: { companyId?: string; type?: string; search?: string }) {
+  const search = filters.search?.trim();
   const items = await prisma.item.findMany({
-    where: { tenantId, companyId: filters.companyId || undefined, type: (filters.type as Item["type"]) || undefined },
+    where: {
+      tenantId,
+      companyId: filters.companyId || undefined,
+      type: (filters.type as Item["type"]) || undefined,
+      // بحث نقطة البيع/الفوترة السريع — يطابق الاسم أو الكود أو الباركود، بلا حاجة لفهرسة نص كامل
+      // بحجم كتالوج منشأة صغيرة/متوسطة معتاد.
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" as const } },
+              { code: { contains: search, mode: "insensitive" as const } },
+              { barcode: { contains: search, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    },
     orderBy: { createdAt: "asc" },
   });
   return Promise.all(
     items.map(async (item) => ({ ...item, ...(await computeQuantityAndValue(prisma, tenantId, item)) })),
   );
+}
+
+/** مطابقة تامة (لا جزئية) لباركود صنف داخل شركة معيّنة — تُستخدَم فور مسح باركود بكاميرا نقطة البيع. */
+export async function findItemByBarcode(tenantId: string, companyId: string, barcode: string) {
+  const item = await prisma.item.findFirst({ where: { tenantId, companyId, barcode, isArchived: false } });
+  if (!item) return null;
+  return { ...item, ...(await computeQuantityAndValue(prisma, tenantId, item)) };
 }
 
 export async function getItemWithComputed(tenantId: string, id: string) {

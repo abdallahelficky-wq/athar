@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createItemSchema, updateItemSchema, setComponentsSchema } from "./items.schemas";
-import { listItems, getItem, createItem, updateItem, deleteItem, getItemComponents, setItemComponents } from "./items.controller";
+import { listItems, getItem, getItemByBarcode, createItem, updateItem, deleteItem, getItemComponents, setItemComponents } from "./items.controller";
 
 export const itemRoutes = Router();
 itemRoutes.use(authenticate);
@@ -10,6 +10,8 @@ itemRoutes.use(authenticate);
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 
 itemRoutes.get("/", listItems);
+// قبل "/:id" عمداً — وإلا لالتُقطت "by-barcode" كقيمة لباراميتر :id
+itemRoutes.get("/by-barcode", getItemByBarcode);
 itemRoutes.get("/:id", getItem);
 itemRoutes.post("/", canWrite, validateBody(createItemSchema), createItem);
 itemRoutes.patch("/:id", canWrite, validateBody(updateItemSchema), updateItem);

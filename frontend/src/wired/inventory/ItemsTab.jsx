@@ -39,7 +39,7 @@ function requiredAccountFieldsForType(type, allowDirectSale) {
 }
 
 const emptyForm = () => ({
-  code: "", name: "", type: "inventory", unit: "", category: "",
+  code: "", name: "", barcode: "", type: "inventory", unit: "", category: "",
   salePrice: "", vatApplicable: true, reorderLevel: "",
   stockAccountId: "", cogsAccountId: "", revenueAccountId: "", expenseAccountId: "",
   allowDirectSale: false, assetCategory: "",
@@ -164,6 +164,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       companyId,
       code: form.code.trim(),
       name: form.name.trim(),
+      barcode: form.barcode.trim() || undefined,
       type: form.type,
       unit: form.unit || undefined,
       category: form.category || undefined,
@@ -204,7 +205,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   const startEdit = async (item) => {
     setEditingId(item.id);
     setForm({
-      code: item.code, name: item.name, type: item.type, unit: item.unit || "", category: item.category || "",
+      code: item.code, name: item.name, barcode: item.barcode || "", type: item.type, unit: item.unit || "", category: item.category || "",
       salePrice: item.salePrice ?? "", vatApplicable: item.vatApplicable, reorderLevel: item.reorderLevel ?? "",
       stockAccountId: item.stockAccountId || "", cogsAccountId: item.cogsAccountId || "",
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
@@ -217,7 +218,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   const duplicate = async (item) => {
     setEditingId(null);
     setForm({
-      code: `${item.code}-COPY`, name: `${item.name} — نسخة`, type: item.type, unit: item.unit || "", category: item.category || "",
+      code: `${item.code}-COPY`, name: `${item.name} — نسخة`, barcode: "", type: item.type, unit: item.unit || "", category: item.category || "",
       salePrice: item.salePrice ?? "", vatApplicable: item.vatApplicable, reorderLevel: item.reorderLevel ?? "",
       stockAccountId: item.stockAccountId || "", cogsAccountId: item.cogsAccountId || "",
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
@@ -287,6 +288,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
           </label>
           <label>كود الصنف<input type="text" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></label>
           <label>اسم الصنف<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>الباركود (اختياري، لمسحه في نقطة البيع)<input type="text" value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></label>
           <label>الوحدة<input type="text" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="لتر، قطعة..." /></label>
           <label>التصنيف<input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></label>
           {STOCK_TRACKED_TYPES.includes(form.type) && <label>حد إعادة الطلب<input type="number" value={form.reorderLevel} onChange={(e) => setForm({ ...form, reorderLevel: e.target.value })} /></label>}

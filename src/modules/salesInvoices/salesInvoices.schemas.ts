@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const lineSchema = z.object({
+export const salesInvoiceLineSchema = z.object({
   accountId: z.string().min(1),
   // سلسلة فارغة (لا يوجد صنف مختار من الكتالوج — وصف حر) تُعامَل كغياب القيمة، حتى لا تُرسَل
   // كمعرّف علاقة فارغ ينتهك قيد المفتاح الأجنبي عند الحفظ في قاعدة البيانات
@@ -17,7 +17,7 @@ export const createSalesInvoiceSchema = z.object({
   companyId: z.string().min(1),
   customerId: z.string().min(1),
   date: z.coerce.date(),
-  lines: z.array(lineSchema).min(1),
+  lines: z.array(salesInvoiceLineSchema).min(1),
   post: z.boolean().default(true),
 });
 
