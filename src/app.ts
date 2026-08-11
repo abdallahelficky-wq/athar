@@ -10,6 +10,7 @@ import { accountRoutes } from "./modules/accounts/accounts.routes";
 import { costCenterRoutes } from "./modules/costCenters/costCenters.routes";
 import { journalEntryRoutes } from "./modules/journalEntries/journalEntries.routes";
 import { reportRoutes } from "./modules/reports/reports.routes";
+import { reportScheduleRoutes } from "./modules/reportSchedules/reportSchedules.routes";
 import { customerRoutes } from "./modules/customers/customers.routes";
 import { quotationRoutes } from "./modules/quotations/quotations.routes";
 import { salesInvoiceRoutes } from "./modules/salesInvoices/salesInvoices.routes";
@@ -65,6 +66,7 @@ export function createApp() {
   app.use("/api/cost-centers", costCenterRoutes);
   app.use("/api/journal-entries", journalEntryRoutes);
   app.use("/api/reports", reportRoutes);
+  app.use("/api/companies/:companyId", reportScheduleRoutes);
   app.use("/api/customers", customerRoutes);
   app.use("/api/quotations", quotationRoutes);
   app.use("/api/sales-invoices", salesInvoiceRoutes);

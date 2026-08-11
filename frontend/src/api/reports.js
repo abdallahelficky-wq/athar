@@ -16,6 +16,10 @@ export const getBalanceSheet = (params) => api.get(`/reports/balance-sheet${toQu
 export const getComprehensiveMonthly = (params) => api.get(`/reports/comprehensive-monthly${toQuery(params)}`);
 export const updateComprehensiveSettings = (companyId, values) => api.patch(`/reports/comprehensive-monthly/settings?companyId=${companyId}`, values);
 
+export const getReportSchedule = (companyId) => api.get(`/companies/${companyId}/report-schedule`);
+export const updateReportSchedule = (companyId, values) => api.put(`/companies/${companyId}/report-schedule`, values);
+export const sendReportScheduleNow = (companyId) => api.post(`/companies/${companyId}/report-schedule/send-now`);
+
 export const getCustomerStatement = (customerId, params) =>
   api.get(`/reports/customer-statement/${customerId}${toQuery(params)}`);
 export const getSupplierStatement = (supplierId, params) =>
