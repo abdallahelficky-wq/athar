@@ -1,10 +1,15 @@
 /**
  * سكربت قراءة فقط (read-only) — لا يعدّل أي بيانات.
- * يتحقق مما إذا كان لشركة معينة (بالاسم) أي معاملات حقيقية مرحّلة على شجرة حساباتها الحالية،
- * قبل اتخاذ أي قرار بمسح الشجرة واستبدالها بالقالب القياسي عبر "تثبيت الشجرة القياسية".
+ * يتحقق مما إذا كان لشركة معينة (بالاسم أو بمعرّفها الدقيق) أي معاملات حقيقية مرحّلة على شجرة
+ * حساباتها الحالية، قبل اتخاذ أي قرار بمسح الشجرة واستبدالها بالقالب القياسي عبر "تثبيت الشجرة
+ * القياسية".
  *
  * الاستخدام:
  *   DATABASE_URL="postgresql://..." npx tsx scripts/check-company-transactions.ts "تيسم برو"
+ *   DATABASE_URL="postgresql://..." npx tsx scripts/check-company-transactions.ts cms3fplst000dxuo7tj093pif
+ *
+ * المعامل الوحيد يُفسَّر أولاً كمعرّف شركة دقيق (id)؛ لو لم يُطابق أي شركة، يُعاد المحاولة كبحث
+ * جزئي بالاسم (كالسابق) — حتى لا يُكسَر أي استخدام سابق بالاسم.
  *
  * لا يقوم بأي عملية DELETE/UPDATE/INSERT — فقط استعلامات SELECT/COUNT.
  */
@@ -13,19 +18,26 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  const companyName = process.argv[2];
-  if (!companyName) {
-    console.error("الاستخدام: npx tsx scripts/check-company-transactions.ts \"اسم الشركة\"");
+  const query = process.argv[2];
+  if (!query) {
+    console.error("الاستخدام: npx tsx scripts/check-company-transactions.ts \"اسم الشركة أو معرّفها\"");
     process.exit(1);
   }
 
-  const companies = await prisma.company.findMany({
-    where: { name: { contains: companyName } },
+  const byId = await prisma.company.findUnique({
+    where: { id: query },
     select: { id: true, tenantId: true, name: true, shortName: true },
-  });
+  }).catch(() => null);
+
+  const companies = byId
+    ? [byId]
+    : await prisma.company.findMany({
+        where: { name: { contains: query } },
+        select: { id: true, tenantId: true, name: true, shortName: true },
+      });
 
   if (companies.length === 0) {
-    console.log(`لم يتم العثور على أي شركة باسم يحتوي على "${companyName}".`);
+    console.log(`لم يتم العثور على أي شركة بمعرّف أو باسم يحتوي على "${query}".`);
     return;
   }
 
