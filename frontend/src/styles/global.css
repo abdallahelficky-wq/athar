@@ -479,13 +479,35 @@
 
         .tx-icon-bar { display: flex; gap: 4px; align-items: center; }
         .icon-btn {
-          display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;
-          border-radius: 7px; border: 1px solid rgba(16,32,46,0.14); background: #fff; color: #445565; cursor: pointer;
+          display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+          border-radius: 8px; border: 1px solid rgba(16,32,46,0.14); background: #fff; color: #445565; cursor: pointer;
+          transition: background .12s ease, color .12s ease, border-color .12s ease;
         }
-        .icon-btn:hover:not(:disabled) { background: rgba(16,32,46,0.05); color: #10202E; }
+        .icon-btn:hover:not(:disabled) { background: rgba(16,32,46,0.07); color: #10202E; border-color: rgba(16,32,46,0.22); }
         .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-        .icon-btn-danger { color: #A8432B; border-color: rgba(168,67,43,0.3); }
-        .icon-btn-warn { color: #B98B4E; border-color: rgba(185,139,78,0.4); }
+        /* الأيقونات الحساسة (حذف/فك ترحيل) تحمل صبغة خلفية دائمة خفيفة — لا تحتاج hover لتمييزها
+           عن باقي الإجراءات العادية، فوزنها البصري أكبر بما يناسب خطورة الإجراء. */
+        .icon-btn-danger { color: #A8432B; border-color: rgba(168,67,43,0.28); background: rgba(168,67,43,0.07); }
+        .icon-btn-danger:hover:not(:disabled) { background: rgba(168,67,43,0.16); border-color: rgba(168,67,43,0.45); color: #A8432B; }
+        .icon-btn-warn { color: #9C6B2E; border-color: rgba(185,139,78,0.35); background: rgba(185,139,78,0.1); }
+        .icon-btn-warn:hover:not(:disabled) { background: rgba(185,139,78,0.2); border-color: rgba(185,139,78,0.55); color: #9C6B2E; }
+
+        /* قائمة "⋮ المزيد" — تُعرَض عبر portal (انظر ActionsMenu.jsx)، فتوضيعها fixed بإحداثيات
+           الشاشة مباشرة (لا relative لأي عنصر أب) هو ما يمنعها من الانقصاص داخل جداول overflow-x: auto. */
+        .actions-menu-dropdown {
+          position: fixed; min-width: 190px; max-width: calc(100vw - 24px);
+          background: #fff; border: 1px solid rgba(16,32,46,0.12); border-radius: 10px;
+          box-shadow: 0 14px 32px rgba(16,32,46,0.18); overflow: hidden; z-index: 70; padding: 4px;
+        }
+        .actions-menu-item {
+          display: flex; align-items: center; gap: 9px; width: 100%; text-align: right; background: transparent;
+          border: none; border-radius: 7px; cursor: pointer; padding: 9px 10px; font-family: inherit; font-size: 12.5px; color: #10202E;
+        }
+        .actions-menu-item:hover:not(:disabled) { background: rgba(185,139,78,0.12); }
+        .actions-menu-item:disabled { opacity: 0.4; cursor: not-allowed; }
+        .actions-menu-item-danger { color: #A8432B; }
+        .actions-menu-item-danger:hover:not(:disabled) { background: rgba(168,67,43,0.1); }
+        .actions-menu-item-icon { display: inline-flex; width: 15px; flex-shrink: 0; color: inherit; }
 
         .unpost-confirm-overlay {
           position: fixed; inset: 0; background: rgba(16,32,46,0.55); display: flex;
@@ -493,6 +515,10 @@
         }
         .unpost-confirm-box { background: #FBF9F3; border-radius: 14px; padding: 26px 30px; max-width: 380px; width: 100%; }
         .unpost-confirm-box h3 { margin: 0 0 8px; font-size: 15px; }
+        .unpost-strong-warning {
+          background: rgba(168,67,43,0.08); border: 1px solid rgba(168,67,43,0.3); border-radius: 8px;
+          padding: 10px 12px; font-size: 12.5px; color: #8A3620; margin: 0 0 4px; line-height: 1.6;
+        }
         .unpost-confirm-box input { width: 100%; padding: 8px 10px; border-radius: 7px; border: 1px solid rgba(16,32,46,0.2); font-family: 'Tajawal', sans-serif; margin: 10px 0; }
 
         /* نافذة إنشاء/تعديل الفاتورة الرئيسية — أوسع من نوافذ التأكيد البسيطة، وتُبقي أسفلها

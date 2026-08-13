@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { listAccounts } from "../api/accounts";
 import { listCostCenters } from "../api/costCenters";
 import {
@@ -6,6 +7,7 @@ import {
   getJournalEntry,
   deleteJournalEntry,
   postJournalEntry,
+  unpostJournalEntry,
 } from "../api/journalEntries";
 import { fmt } from "../legacy/constants";
 import { downloadCsv, Icon } from "../legacy/shared";
@@ -17,8 +19,12 @@ import ReverseEntryModal from "./shared/ReverseEntryModal";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import Breadcrumb from "./shared/Breadcrumb";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
+import UnpostModal from "./shared/UnpostModal";
+import ActionsMenu from "./shared/ActionsMenu";
 import JournalVoucherViewModal from "./JournalVoucherViewModal";
 import JournalEntryFormModal from "./JournalEntryFormModal";
+
+const UNPOST_WARNING_TEXT = "فك ترحيل القيد سيسمح بتعديله أو حذفه، وهذا إجراء استثنائي يُسجَّل في سجل التدقيق. هل أنت متأكد؟";
 
 const emptyFilters = { search: "", dateFrom: "", dateTo: "", amountMin: "", amountMax: "", entryNumber: "", accountId: "", status: "" };
 
@@ -30,6 +36,8 @@ const fmtDate = (d) => String(d).slice(0, 10);
 const SORT_COLUMNS = { entryNumber: "entryNumber", date: "date", amount: "amount" };
 
 export default function JournalModule({ companies, companyId }) {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
   const [entries, setEntries] = useState([]);
@@ -52,6 +60,7 @@ export default function JournalModule({ companies, companyId }) {
   const [reverseSource, setReverseSource] = useState(null);
   const [linkInfoId, setLinkInfoId] = useState(null);
   const [linkInfo, setLinkInfo] = useState(null);
+  const [unpostTarget, setUnpostTarget] = useState(null);
 
   useEffect(() => {
     if (!companyId) { setAccounts([]); return; }
@@ -149,6 +158,17 @@ export default function JournalModule({ companies, companyId }) {
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  // فك الترحيل إجراء استثنائي مقيَّد بدور super_admin على الواجهة وعلى الخادم معاً (راجع
+  // journalEntries.routes.ts)، ومحمي برقم سري يتحقق منه الخادم فعلياً (UnpostModal)، ويُسجَّل
+  // في سجل التدقيق تلقائياً من داخل unpostJournalEntry نفسها — لا شيء إضافي مطلوب هنا لذلك.
+  const doUnpost = async (pin) => {
+    const num = entryNumberLabel(unpostTarget);
+    await unpostJournalEntry(unpostTarget.id, pin);
+    setUnpostTarget(null);
+    reloadEntries();
+    setNotice(`تم فك ترحيل القيد ${num} — أصبح الآن محفوظاً ويمكن تعديله أو حذفه.`);
   };
 
   const toggleLinkInfo = async (e) => {
@@ -313,8 +333,6 @@ export default function JournalModule({ companies, companyId }) {
                           <td data-label="الحالة"><span className={"status-badge " + (posted ? "status-posted" : "status-saved")}>{statusLabel(e.status)}</span></td>
                           <td className="row-actions">
                             <button className="icon-btn" title="عرض القيد" onClick={() => setViewEntry(e)}><Icon.Eye /></button>
-                            <button className="icon-btn" title="طباعة القيد" onClick={() => { setViewEntry(e); setAutoPrint(true); }}><Icon.Printer /></button>
-                            <button className="icon-btn" title="نسخ القيد إلى قيد جديد" onClick={() => setFormModal({ mode: "duplicate", entry: e })}><Icon.Copy /></button>
                             <button
                               className="icon-btn" title={saved ? "تعديل" : "لا يمكن التعديل بعد الترحيل — استخدم عكس القيد لتصحيحه"}
                               disabled={!saved}
@@ -326,18 +344,25 @@ export default function JournalModule({ companies, companyId }) {
                                 <button className="icon-btn" title="ترحيل" onClick={() => doPost(e)}><Icon.Lock /></button>
                               </>
                             )}
-                            {posted && !e.mirrorEntryId && (
-                              <button className="icon-btn" title="إنشاء قيد مرآة في شركة أخرى" onClick={() => setMirrorSource(e)}><Icon.Link /></button>
-                            )}
                             {posted && !e.reversedByEntryId && (
                               <button className="icon-btn" title="عكس القيد" onClick={() => setReverseSource(e)}><Icon.Unlink /></button>
                             )}
-                            {hasLinks && (
-                              <button className="icon-btn" title="روابط القيد" onClick={() => toggleLinkInfo(e)}><Icon.BookOpen /></button>
+                            {posted && isSuperAdmin && (
+                              <button className="icon-btn icon-btn-warn" title="فك الترحيل (super_admin فقط)" onClick={() => setUnpostTarget(e)}><Icon.Unlock /></button>
                             )}
-                            <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === e.id ? null : e.id)}>
-                              {attachmentsFor === e.id ? "إخفاء المرفقات" : "المرفقات"}
-                            </button>
+                            <ActionsMenu
+                              items={[
+                                { label: "طباعة القيد", icon: Icon.Printer, onClick: () => { setViewEntry(e); setAutoPrint(true); } },
+                                { label: "نسخ القيد إلى قيد جديد", icon: Icon.Copy, onClick: () => setFormModal({ mode: "duplicate", entry: e }) },
+                                { label: "إنشاء قيد مرآة في شركة أخرى", icon: Icon.Link, onClick: () => setMirrorSource(e), hidden: !posted || Boolean(e.mirrorEntryId) },
+                                { label: "روابط القيد", icon: Icon.BookOpen, onClick: () => toggleLinkInfo(e), hidden: !hasLinks },
+                                {
+                                  label: attachmentsFor === e.id ? "إخفاء المرفقات" : "المرفقات",
+                                  icon: Icon.Paperclip,
+                                  onClick: () => setAttachmentsFor(attachmentsFor === e.id ? null : e.id),
+                                },
+                              ]}
+                            />
                           </td>
                         </tr>
                         {linkInfoId === e.id && (
@@ -439,6 +464,14 @@ export default function JournalModule({ companies, companyId }) {
             setNotice("تم إنشاء القيد العكسي كمسودة — راجعه ثم رحّله.");
             reloadEntries();
           }}
+        />
+      )}
+      {unpostTarget && (
+        <UnpostModal
+          title={`فك ترحيل القيد ${entryNumberLabel(unpostTarget)}`}
+          warningText={UNPOST_WARNING_TEXT}
+          onCancel={() => setUnpostTarget(null)}
+          onConfirm={doUnpost}
         />
       )}
     </div>

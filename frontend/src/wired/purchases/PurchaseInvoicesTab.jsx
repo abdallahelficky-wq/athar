@@ -135,14 +135,17 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
                       ><Icon.Printer /></button>
                       {inv.status === "draft" && (
                         <>
-                          <button className="btn-ghost" onClick={() => remove(inv)}>حذف</button>
-                          <button className="btn-primary" onClick={() => doPost(inv)}>ترحيل</button>
+                          <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(inv)}><Icon.Trash /></button>
+                          <button className="icon-btn" title="ترحيل" onClick={() => doPost(inv)}><Icon.Lock /></button>
                         </>
                       )}
-                      {inv.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(inv)}>فك الترحيل</button>}
-                      <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === inv.id ? null : inv.id)}>
-                        {attachmentsFor === inv.id ? "إخفاء المرفقات" : "المرفقات"}
-                      </button>
+                      {inv.status === "posted" && (
+                        <button className="icon-btn icon-btn-warn" title="فك الترحيل" onClick={() => setUnpostTarget(inv)}><Icon.Unlock /></button>
+                      )}
+                      <button
+                        className="icon-btn" title={attachmentsFor === inv.id ? "إخفاء المرفقات" : "المرفقات"}
+                        onClick={() => setAttachmentsFor(attachmentsFor === inv.id ? null : inv.id)}
+                      ><Icon.Paperclip /></button>
                     </td>
                   </tr>
                   {attachmentsFor === inv.id && (

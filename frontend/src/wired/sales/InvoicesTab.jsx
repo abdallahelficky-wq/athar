@@ -4,6 +4,7 @@ import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
 import { useToast, ToastHost } from "../shared/Toast";
 import UnpostModal from "../shared/UnpostModal";
+import ActionsMenu from "../shared/ActionsMenu";
 import InvoiceFormModal from "./InvoiceFormModal";
 import InvoiceViewModal from "./InvoiceViewModal";
 import JournalEntryViewModal from "./JournalEntryViewModal";
@@ -197,30 +198,8 @@ export default function InvoicesTab({ companyId, companies }) {
                     )}
                     <td className="row-actions">
                       <button className="icon-btn" title="عرض الفاتورة" onClick={() => setViewInvoice(inv)}><Icon.Eye /></button>
-                      <button className="icon-btn" title="طباعة الفاتورة" onClick={() => onPrintClick(inv)}><Icon.Printer /></button>
                       <button className="icon-btn" title="تعديل الفاتورة" onClick={() => onEditClick(inv)}><Icon.Edit /></button>
-                      <button className="icon-btn" title="نسخ الفاتورة (فاتورة جديدة بنفس البيانات)" onClick={() => onDuplicateClick(inv)}><Icon.Copy /></button>
-                      <button
-                        className="icon-btn"
-                        title={!posted && !linked ? "رحّل الفاتورة أولاً لتتمكن من ربطها بسند قبض" : linked ? "فك ربط سند القبض" : "ربط بسند قبض"}
-                        disabled={!posted && !linked}
-                        onClick={() => setLinkPaymentInvoice(inv)}
-                      >
-                        {linked ? <Icon.Unlink /> : <Icon.Link />}
-                      </button>
-                      <button
-                        className="icon-btn"
-                        title={posted ? "عرض القيد المحاسبي" : "لا يوجد قيد بعد — الفاتورة مسودة"}
-                        disabled={!posted}
-                        onClick={() => setJournalInvoice(inv)}
-                      ><Icon.BookOpen /></button>
                       {posted && <button className="icon-btn icon-btn-warn" title="فك الترحيل" onClick={() => setUnpostTarget(inv)}><Icon.Unlock /></button>}
-                      <button
-                        className="icon-btn"
-                        title={!posted ? "رحّل الفاتورة أولاً لتتمكن من إرسالها بالإيميل" : inv.customer?.email ? `إرسال بالإيميل إلى ${inv.customer.email}` : "لا يوجد بريد إلكتروني مسجَّل — اضغط لإدخال بريد بديل"}
-                        disabled={!posted || sendingEmailId === inv.id}
-                        onClick={() => onSendEmailClick(inv)}
-                      ><Icon.Mail /></button>
                       {zatcaRejected && (
                         <button
                           className="icon-btn icon-btn-warn"
@@ -229,13 +208,32 @@ export default function InvoicesTab({ companyId, companies }) {
                           onClick={() => onResendZatcaClick(inv)}
                         ><Icon.Refresh /></button>
                       )}
-                      <button
-                        className="icon-btn"
-                        title={!posted ? "رحّل الفاتورة أولاً لتتمكن من طباعة إيصال حراري" : "إعادة طباعة كإيصال حراري (58/80مم)"}
-                        disabled={!posted}
-                        onClick={() => setReprintInvoice(inv)}
-                      ><Icon.Receipt /></button>
                       <button className="icon-btn icon-btn-danger" title="حذف الفاتورة" onClick={() => onDeleteClick(inv)}><Icon.Trash /></button>
+                      <ActionsMenu
+                        items={[
+                          { label: "طباعة الفاتورة", icon: Icon.Printer, onClick: () => onPrintClick(inv) },
+                          { label: "نسخ الفاتورة (فاتورة جديدة بنفس البيانات)", icon: Icon.Copy, onClick: () => onDuplicateClick(inv) },
+                          {
+                            label: linked ? "فك ربط سند القبض" : "ربط بسند قبض",
+                            icon: linked ? Icon.Unlink : Icon.Link,
+                            onClick: () => setLinkPaymentInvoice(inv),
+                            disabled: !posted && !linked,
+                          },
+                          { label: "عرض القيد المحاسبي", icon: Icon.BookOpen, onClick: () => setJournalInvoice(inv), disabled: !posted },
+                          {
+                            label: inv.customer?.email ? `إرسال بالإيميل إلى ${inv.customer.email}` : "إرسال بالإيميل (لا يوجد بريد مسجَّل)",
+                            icon: Icon.Mail,
+                            onClick: () => onSendEmailClick(inv),
+                            disabled: !posted || sendingEmailId === inv.id,
+                          },
+                          {
+                            label: "إعادة طباعة كإيصال حراري (58/80مم)",
+                            icon: Icon.Receipt,
+                            onClick: () => setReprintInvoice(inv),
+                            disabled: !posted,
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 );
