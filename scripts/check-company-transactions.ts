@@ -1,8 +1,9 @@
 /**
  * سكربت قراءة فقط (read-only) — لا يعدّل أي بيانات.
  * يتحقق مما إذا كان لشركة معينة (بالاسم أو بمعرّفها الدقيق) أي معاملات حقيقية مرحّلة على شجرة
- * حساباتها الحالية، قبل اتخاذ أي قرار بمسح الشجرة واستبدالها بالقالب القياسي عبر "تثبيت الشجرة
- * القياسية".
+ * حساباتها الحالية، ويطبع أيضاً القائمة الكاملة للحسابات المُثبَّتة فعلياً في شجرتها حالياً
+ * (بعد أي "تثبيت شجرة قياسية" سابق) — لتأكيد حقيقي على الإنتاج قبل اتخاذ أي قرار لاحق (مقارنة
+ * مع ملف قديم، إضافة حسابات مخصصة، إلخ).
  *
  * الاستخدام:
  *   DATABASE_URL="postgresql://..." npx tsx scripts/check-company-transactions.ts "تيسم برو"
@@ -68,10 +69,26 @@ async function main() {
       prisma.depreciationRun.count({ where: { companyId: company.id } }),
     ]);
 
-    const accounts = await prisma.account.count({ where: { companyId: company.id } });
+    const accountList = await prisma.account.findMany({
+      where: { companyId: company.id },
+      orderBy: { code: "asc" },
+      select: { id: true, code: true, name: true, type: true, level: true, isPosting: true, parentId: true, isArchived: true },
+    });
+    // parentId مُخزَّن كمعرّف داخلي لا كـcode — نستبدله بكود الأب (parentCode) الأوضح للمراجعة اليدوية.
+    const codeById = new Map(accountList.map((a) => [a.id, a.code]));
+    const accountRows = accountList.map((a) => ({
+      code: a.code,
+      name: a.name,
+      type: a.type,
+      level: a.level,
+      isPosting: a.isPosting,
+      parentCode: a.parentId ? codeById.get(a.parentId) ?? "?" : null,
+      isArchived: a.isArchived,
+    }));
 
     console.log({
-      accountsInTree: accounts,
+      accountsInTree: accountList.length,
+      postingLevel4Accounts: accountList.filter((a) => a.level === 4 && a.isPosting).length,
       journalEntryLines: journalLines,
       salesInvoices,
       purchaseInvoices,
@@ -83,6 +100,9 @@ async function main() {
       payrollRuns,
       depreciationRuns,
     });
+
+    console.log(`\nالقائمة الكاملة للحسابات المُثبَّتة فعلياً (${accountRows.length} حساب) — بترتيب الكود:`);
+    console.table(accountRows);
 
     const totalActivity = journalLines + salesInvoices + purchaseInvoices + receipts + salesReturns
       + purchaseReturns + stockMovements + fixedAssets + payrollRuns + depreciationRuns;
