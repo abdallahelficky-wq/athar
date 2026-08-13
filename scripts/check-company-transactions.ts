@@ -25,10 +25,17 @@ async function main() {
     process.exit(1);
   }
 
+  // بصمة تشغيل صريحة — لإزالة أي لبس بشأن هل النسخة المُنفَّذة فعلياً هي أحدث نسخة من هذا الملف
+  // (تسبَّبت نسخة قديمة مُشغَّلة من مسار/جلسة أخرى في التباس سابق حول هذه النقطة تحديداً).
+  console.log(`[check-company-transactions.ts] cwd=${process.cwd()} arg="${query}"`);
+
+  // findUnique تُرجع null طبيعياً لو لم يوجد id مطابق — لا حاجة لالتقاط أي استثناء هنا؛ أي خطأ فعلي
+  // (اتصال قاعدة البيانات، صلاحيات، إلخ) يجب أن يظهر بوضوح لا أن يُبتلَع ويُعامَل كـ"لم يوجد بالاسم".
   const byId = await prisma.company.findUnique({
     where: { id: query },
     select: { id: true, tenantId: true, name: true, shortName: true },
-  }).catch(() => null);
+  });
+  console.log(`[check-company-transactions.ts] بحث بالمعرّف الدقيق: ${byId ? `وُجدت مطابقة (${byId.name})` : "لا توجد مطابقة — التحويل للبحث بالاسم"}`);
 
   const companies = byId
     ? [byId]
