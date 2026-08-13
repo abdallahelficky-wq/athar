@@ -55,36 +55,50 @@ async function main() {
   const commit = args.includes("--commit");
   const [companyId] = args.filter((a) => a !== "--commit");
 
+  // بصمة تشغيل صريحة — لتأكيد أن النسخة المُنفَّذة فعلياً هي أحدث نسخة من هذا الملف، ولضمان ظهور
+  // أي رسالة لاحقة حتى لو أُعيد توجيه الإخراج بطريقة تلتقط الإخراج القياسي فقط (كل شيء هنا console.log
+  // عمداً — بلا console.error — حتى لا تختفي رسائل الفشل عند إعادة التوجيه البسيطة في PowerShell).
+  console.log(`[add-armi-category-b-accounts.ts] cwd=${process.cwd()}`);
+
   if (!apiBase || !email || !password) {
-    console.error("مطلوب: ATHAR_API_BASE, ATHAR_EMAIL, ATHAR_PASSWORD كمتغيرات بيئة.");
+    console.log("مطلوب: ATHAR_API_BASE, ATHAR_EMAIL, ATHAR_PASSWORD كمتغيرات بيئة.");
     process.exit(1);
   }
   if (!companyId) {
-    console.error("الاستخدام: npx tsx scripts/add-armi-category-b-accounts.ts <companyId> [--commit]");
+    console.log("الاستخدام: npx tsx scripts/add-armi-category-b-accounts.ts <companyId> [--commit]");
     process.exit(1);
   }
 
   console.log(`[${commit ? "COMMIT — تنفيذ فعلي" : "DRY-RUN — عرض فقط، بلا أي تعديل"}] الشركة: ${companyId} — عدد الحسابات المطلوب إضافتها: ${ACCOUNTS_TO_ADD.length}`);
 
-  const loginRes = await fetch(`${apiBase}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+  console.log(`جارٍ تسجيل الدخول عبر ${apiBase}/auth/login ...`);
+  let loginRes: Response;
+  try {
+    loginRes = await fetch(`${apiBase}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+  } catch (err) {
+    console.log("فشل الاتصال بـ ATHAR_API_BASE (تحقق من الرابط/الشبكة):", String(err));
+    process.exit(1);
+  }
   if (!loginRes.ok) {
-    console.error(`فشل تسجيل الدخول (${loginRes.status}):`, await loginRes.text());
+    console.log(`فشل تسجيل الدخول (${loginRes.status}):`, await loginRes.text());
     process.exit(1);
   }
   const { accessToken } = await loginRes.json();
   const auth = { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+  console.log("تم تسجيل الدخول بنجاح.");
 
   // tree=true إلزامي: بدونه GET /accounts يُرجع فقط حسابات الترحيل (level 4) ويستبعد حسابات
   // المجموعات (113/114) التي نحتاج معرّفها كأب للحسابات الجديدة.
   const listRes = await fetch(`${apiBase}/accounts?companyId=${encodeURIComponent(companyId)}&tree=true`, { headers: auth });
   if (!listRes.ok) {
-    console.error(`فشل جلب شجرة الحسابات (${listRes.status}):`, await listRes.text());
+    console.log(`فشل جلب شجرة الحسابات (${listRes.status}):`, await listRes.text());
     process.exit(1);
   }
+  console.log(`تم جلب شجرة الحسابات: ${(await listRes.clone().json()).length} حساب.`);
   const allAccounts: any[] = await listRes.json();
 
   // نتتبّع أعلى لاحقة كود مستخدمة تحت كل أب محلياً، ونزيدها بنفس منطق generateNextCode الفعلي
@@ -107,7 +121,7 @@ async function main() {
   for (const item of ACCOUNTS_TO_ADD) {
     const parent = allAccounts.find((a) => a.code === item.parentCode);
     if (!parent) {
-      console.error(`\n--- "${item.name}" ---\nتعذّر: لا يوجد حساب أب بالكود "${item.parentCode}" في هذه الشركة — تم تجاوزه.`);
+      console.log(`\n--- "${item.name}" ---\nتعذّر: لا يوجد حساب أب بالكود "${item.parentCode}" في هذه الشركة — تم تجاوزه.`);
       skipped += 1;
       continue;
     }
@@ -139,7 +153,7 @@ async function main() {
       body: JSON.stringify({ companyId, parentId: parent.id, name: item.name, type: parent.type }),
     });
     if (!createRes.ok) {
-      console.error(`فشل الإنشاء (${createRes.status}):`, await createRes.text());
+      console.log(`فشل الإنشاء (${createRes.status}):`, await createRes.text());
       continue;
     }
     const newAccount = await createRes.json();
@@ -155,6 +169,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("خطأ غير متوقع:", err);
+  console.log("خطأ غير متوقع:", err);
   process.exit(1);
 });
