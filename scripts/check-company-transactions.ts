@@ -1,16 +1,18 @@
 /**
  * سكربت قراءة فقط (read-only) — لا يعدّل أي بيانات.
- * يتحقق مما إذا كان لشركة معينة (بالاسم أو بمعرّفها الدقيق) أي معاملات حقيقية مرحّلة على شجرة
- * حساباتها الحالية، ويطبع أيضاً القائمة الكاملة للحسابات المُثبَّتة فعلياً في شجرتها حالياً
- * (بعد أي "تثبيت شجرة قياسية" سابق) — لتأكيد حقيقي على الإنتاج قبل اتخاذ أي قرار لاحق (مقارنة
- * مع ملف قديم، إضافة حسابات مخصصة، إلخ).
+ * يتحقق مما إذا كان لشركة معينة (بالاسم، بمعرّفها الدقيق، أو ببريد مستخدم مرتبط بمستأجرها) أي
+ * معاملات حقيقية مرحّلة على شجرة حساباتها الحالية، ويطبع أيضاً القائمة الكاملة للحسابات المُثبَّتة
+ * فعلياً في شجرتها حالياً (بعد أي "تثبيت شجرة قياسية" سابق أو زرع تلقائي عند الإنشاء) — لتأكيد
+ * حقيقي على الإنتاج قبل اتخاذ أي قرار لاحق (مقارنة مع ملف قديم، إضافة حسابات مخصصة، إلخ).
  *
  * الاستخدام:
  *   DATABASE_URL="postgresql://..." npx tsx scripts/check-company-transactions.ts "تيسم برو"
  *   DATABASE_URL="postgresql://..." npx tsx scripts/check-company-transactions.ts cms3fplst000dxuo7tj093pif
+ *   DATABASE_URL="postgresql://..." npx tsx scripts/check-company-transactions.ts asf@tismpro.sa
  *
- * المعامل الوحيد يُفسَّر أولاً كمعرّف شركة دقيق (id)؛ لو لم يُطابق أي شركة، يُعاد المحاولة كبحث
- * جزئي بالاسم (كالسابق) — حتى لا يُكسَر أي استخدام سابق بالاسم.
+ * المعامل الوحيد يُفسَّر بالترتيب: (١) معرّف شركة دقيق (id)، (٢) لو يحتوي "@" فهو بريد مستخدم —
+ * تُجلَب كل الشركات ضمن مستأجر(ات) أي مستخدم بهذا البريد، (٣) وإلا بحث جزئي بالاسم — حتى لا يُكسَر
+ * أي استخدام سابق.
  *
  * لا يقوم بأي عملية DELETE/UPDATE/INSERT — فقط استعلامات SELECT/COUNT.
  */
@@ -21,7 +23,7 @@ const prisma = new PrismaClient();
 async function main() {
   const query = process.argv[2];
   if (!query) {
-    console.error("الاستخدام: npx tsx scripts/check-company-transactions.ts \"اسم الشركة أو معرّفها\"");
+    console.error("الاستخدام: npx tsx scripts/check-company-transactions.ts \"اسم الشركة أو معرّفها أو بريد مستخدم\"");
     process.exit(1);
   }
 
@@ -35,17 +37,35 @@ async function main() {
     where: { id: query },
     select: { id: true, tenantId: true, name: true, shortName: true },
   });
-  console.log(`[check-company-transactions.ts] بحث بالمعرّف الدقيق: ${byId ? `وُجدت مطابقة (${byId.name})` : "لا توجد مطابقة — التحويل للبحث بالاسم"}`);
+  console.log(`[check-company-transactions.ts] بحث بالمعرّف الدقيق: ${byId ? `وُجدت مطابقة (${byId.name})` : "لا توجد مطابقة"}`);
 
-  const companies = byId
-    ? [byId]
-    : await prisma.company.findMany({
-        where: { name: { contains: query } },
-        select: { id: true, tenantId: true, name: true, shortName: true },
-      });
+  let companies: { id: string; tenantId: string; name: string; shortName: string | null }[];
+
+  if (byId) {
+    companies = [byId];
+  } else if (query.includes("@")) {
+    const users = await prisma.user.findMany({
+      where: { email: { equals: query, mode: "insensitive" } },
+      select: { id: true, email: true, name: true, role: true, tenantId: true },
+    });
+    console.log(`بحث بالبريد "${query}": وُجد ${users.length} مستخدم مطابق.`);
+    if (users.length > 0) console.log(users);
+    const tenantIds = [...new Set(users.map((u) => u.tenantId))];
+    companies = tenantIds.length
+      ? await prisma.company.findMany({
+          where: { tenantId: { in: tenantIds } },
+          select: { id: true, tenantId: true, name: true, shortName: true },
+        })
+      : [];
+  } else {
+    companies = await prisma.company.findMany({
+      where: { name: { contains: query } },
+      select: { id: true, tenantId: true, name: true, shortName: true },
+    });
+  }
 
   if (companies.length === 0) {
-    console.log(`لم يتم العثور على أي شركة بمعرّف أو باسم يحتوي على "${query}".`);
+    console.log(`لم يتم العثور على أي شركة بمعرّف أو باسم أو عبر بريد مستخدم يطابق "${query}".`);
     return;
   }
 
