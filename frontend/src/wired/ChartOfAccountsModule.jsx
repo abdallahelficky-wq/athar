@@ -139,6 +139,22 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     }
   };
 
+  // حقول الفورم مشتركة بالكامل بين وضع "إضافة حساب" (يظهر مباشرة أعلى الصفحة كالمعتاد) ووضع
+  // "تعديل/نقل" (يظهر كنافذة منبثقة) — نفس المنطق تماماً، فقط مكان العرض يختلف حسب editingId.
+  const formFields = (
+    <div className="form-grid">
+      <label>اسم الحساب بالعربية<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+      <label>اسم الحساب بالإنجليزية (اختياري)<input dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></label>
+      <label>كود الحساب<input inputMode="numeric" maxLength={LEVEL_CODE_LENGTH[level] || 6} readOnly={Boolean(editingId)} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 4 ? "يُولّد تلقائياً من الحساب الأب" : `كود المستوى ${level}`} /></label>
+      <label>الحساب الأب
+        <AccountSearchSelect accounts={possibleParents} value={form.parentId} onChange={selectParent} allowClear clearLabel="— مستوى أول —" />
+      </label>
+      {!selectedParent && <label>التصنيف<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
+      {level === 4 && <label className="checkbox-label"><input type="checkbox" checked readOnly />حساب ترحيل</label>}
+      {form.isPosting && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
+    </div>
+  );
+
   return (
     <div>
       {error && <p className="balance-bad">{error}</p>}
@@ -160,21 +176,36 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
             )}
           </div>
         </div>
-        <div className="form-grid">
-          <label>اسم الحساب بالعربية<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <label>اسم الحساب بالإنجليزية (اختياري)<input dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></label>
-          <label>كود الحساب<input inputMode="numeric" maxLength={LEVEL_CODE_LENGTH[level] || 6} readOnly={Boolean(editingId)} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 4 ? "يُولّد تلقائياً من الحساب الأب" : `كود المستوى ${level}`} /></label>
-          <label>الحساب الأب
-            <AccountSearchSelect accounts={possibleParents} value={form.parentId} onChange={selectParent} allowClear clearLabel="— مستوى أول —" />
-          </label>
-          {!selectedParent && <label>التصنيف<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
-          {level === 4 && <label className="checkbox-label"><input type="checkbox" checked readOnly />حساب ترحيل</label>}
-          {form.isPosting && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
-        </div>
-        <div className="form-btn-group"><button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "جارٍ الحفظ..." : editingId ? "حفظ التعديل/النقل" : "إضافة الحساب"}</button>{editingId && <button type="button" className="btn-ghost" onClick={reset}>إلغاء</button>}<span className="note">المستوى {level} من 4 — {level === 4 ? "حساب ترحيل تلقائياً" : "حساب تجميعي"}. عند النقل يبقى الكود ثابتاً لحماية أثر المراجعة التاريخي.</span></div>
       </div>
 
+      {/* فورم إضافة حساب جديد — يبقى ظاهراً أعلى الصفحة كالمعتاد؛ نافذة التعديل/النقل المنبثقة
+          أدناه منفصلة تماماً ولا تظهر إلا عند الضغط على "تعديل" لحساب موجود. */}
+      {!editingId && (
+        <div className="panel form-panel">
+          {formFields}
+          <div className="form-btn-group">
+            <button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "جارٍ الحفظ..." : "إضافة الحساب"}</button>
+            <span className="note">المستوى {level} من 4 — {level === 4 ? "حساب ترحيل تلقائياً" : "حساب تجميعي"}.</span>
+          </div>
+        </div>
+      )}
+
       <AccountImportPanel scope={scope} accounts={accounts} onImported={reload} />
+
+      {editingId && (
+        <div className="invoice-modal-overlay" onClick={() => !saving && reset()}>
+          <div className="invoice-modal-box" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
+            <h3>تعديل/نقل الحساب{editingAccount ? ` — ${editingAccount.name}` : ""}</h3>
+            {formFields}
+            {error && <p className="balance-bad">{error}</p>}
+            <div className="form-btn-group">
+              <button type="button" className="btn-ghost" onClick={reset} disabled={saving}>إلغاء</button>
+              <button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "جارٍ الحفظ..." : "حفظ التعديل/النقل"}</button>
+              <span className="note">عند النقل يبقى الكود ثابتاً لحماية أثر المراجعة التاريخي.</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="panel">
         <table className="ledger-table">
