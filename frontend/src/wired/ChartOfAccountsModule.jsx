@@ -59,11 +59,15 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     if (!expectedLength || !new RegExp(`^\\d{${expectedLength}}$`).test(form.code)) {
       return setError(`كود حساب المستوى ${level} يجب أن يتكون من ${expectedLength ?? "؟"} أرقام.`);
     }
+    // عند نقل حساب موجود (تعديل بأب مختلف)، النوع يجب أن يبقى كما هو — النقل مسموح فقط بين مجموعات
+    // من نفس النوع. هذا فحص فوري للواجهة (تجربة أفضل)، والخادم يتحقق منه مرة أخرى كمرجع نهائي.
+    if (editingId && selectedParent && selectedParent.type !== form.type) {
+      return setError(`لا يمكن نقل الحساب من نوع "${TYPE_LABEL[form.type]}" إلى مجموعة من نوع "${TYPE_LABEL[selectedParent.type]}" — النقل مسموح فقط بين مجموعات من نفس النوع.`);
+    }
     const payload = {
       ...form,
       name: form.name.trim(), nameEn: form.nameEn.trim() || null, code: form.code.trim(), parentId: form.parentId || null,
       companyId: scope === "group" ? null : scope, level,
-      type: selectedParent?.type || form.type,
     };
     try {
       setSaving(true);
@@ -91,7 +95,11 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     } catch (err) { setError(err.message); }
   };
   const selectParent = async (parentId) => {
-    if (editingId || !parentId) return setForm((current) => ({ ...current, parentId, code: parentId ? current.code : "", isPosting: false }));
+    // أثناء التعديل/النقل، اختيار أب جديد لا يجب أن يمسّ الكود أو المستوى أو isPosting أو النوع —
+    // هذه خصائص ثابتة للحساب الحالي نفسه، والنقل يغيّر parentId فقط (يُتحقَّق من توافق النوع مع
+    // الأب الجديد لاحقاً في save() ومرة أخرى في الخادم، لا هنا).
+    if (editingId) return setForm((current) => ({ ...current, parentId }));
+    if (!parentId) return setForm((current) => ({ ...current, parentId: "", code: "", isPosting: false }));
     const parent = accounts.find((account) => account.id === parentId);
     setError("");
     try {

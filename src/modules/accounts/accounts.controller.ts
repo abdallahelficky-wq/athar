@@ -7,6 +7,14 @@ import { LEVEL_CODE_LENGTH, generateNextCode } from "../../lib/accountCodes";
 
 const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ? value : null);
 
+const ACCOUNT_TYPE_LABELS_AR: Record<string, string> = {
+  asset: "أصول",
+  liability: "التزامات",
+  equity: "حقوق ملكية",
+  revenue: "إيرادات",
+  expense: "مصروفات",
+};
+
 async function validateHierarchy(tenantId: string, input: any, currentId?: string) {
   const companyId = input.companyId ?? null;
   const level = Number(input.level);
@@ -92,6 +100,11 @@ export const updateAccount: RequestHandler = async (req, res) => {
     const newLevel = newParent ? newParent.level + 1 : 1;
     if (newLevel !== existing.level) throw badRequest("يمكن نقل الحساب بين أقسام المستوى نفسه فقط حفاظاً على بنية الأكواد والتقارير");
     if (newParent?.isPosting) throw badRequest("لا يمكن نقل حساب تحت حساب ترحيل لأنه يجب أن يظل بدون فروع");
+    if (newParent && newParent.type !== existing.type) {
+      const fromLabel = ACCOUNT_TYPE_LABELS_AR[existing.type] ?? existing.type;
+      const toLabel = ACCOUNT_TYPE_LABELS_AR[newParent.type] ?? newParent.type;
+      throw badRequest(`لا يمكن نقل حساب من نوع "${fromLabel}" إلى مجموعة من نوع "${toLabel}" — النقل مسموح فقط بين مجموعات من نفس النوع.`);
+    }
     const lines = await prisma.journalEntryLine.count({ where: { accountId: existing.id } });
     if (lines && !confirmMoveWithTransactions) {
       throw badRequest("الحساب مرتبط بقيود سابقة. سيؤثر نقله على تصنيف التقارير التاريخية. أكّد النقل للمتابعة.", { requiresMoveConfirmation: true, journalLines: lines });
