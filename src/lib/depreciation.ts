@@ -3,9 +3,10 @@
  * assetAccumulatedDepreciation في AtharAlMuhasabi.jsx.
  */
 export function accumulatedDepreciation(
-  asset: { cost: number; salvageValue: number; usefulLifeYears: number; purchaseDate: Date },
+  asset: { cost: number; salvageValue: number; usefulLifeYears: number; purchaseDate: Date; isDepreciable?: boolean },
   uptoDate: Date,
 ): number {
+  if (asset.isDepreciable === false) return 0;
   if (!asset.usefulLifeYears || asset.usefulLifeYears <= 0) return 0;
   const monthlyDep = (asset.cost - (asset.salvageValue || 0)) / asset.usefulLifeYears / 12;
   const monthsElapsed = Math.max(
@@ -17,7 +18,8 @@ export function accumulatedDepreciation(
   return Math.min(monthlyDep * monthsElapsed, maxDep);
 }
 
-export function monthlyDepreciation(asset: { cost: number; salvageValue: number; usefulLifeYears: number }): number {
+export function monthlyDepreciation(asset: { cost: number; salvageValue: number; usefulLifeYears: number; isDepreciable?: boolean }): number {
+  if (asset.isDepreciable === false) return 0;
   if (!asset.usefulLifeYears || asset.usefulLifeYears <= 0) return 0;
   return (asset.cost - (asset.salvageValue || 0)) / asset.usefulLifeYears / 12;
 }

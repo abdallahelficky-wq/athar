@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { accumulatedDepreciation } from "../../lib/depreciation";
@@ -11,12 +12,28 @@ const PAYMENT_ACCOUNT_NAME: Record<string, string> = {
   credit: "ذمم دائنة - موردين",
 };
 
-function withComputed<T extends { cost: unknown; salvageValue: unknown; usefulLifeYears: number; purchaseDate: Date }>(asset: T) {
+type ComputedInput = { cost: unknown; salvageValue: unknown; usefulLifeYears: number; purchaseDate: Date; isDepreciable: boolean };
+
+function withComputed<T extends ComputedInput>(asset: T) {
   const accDep = accumulatedDepreciation(
-    { cost: Number(asset.cost), salvageValue: Number(asset.salvageValue), usefulLifeYears: asset.usefulLifeYears, purchaseDate: asset.purchaseDate },
+    { cost: Number(asset.cost), salvageValue: Number(asset.salvageValue), usefulLifeYears: asset.usefulLifeYears, purchaseDate: asset.purchaseDate, isDepreciable: asset.isDepreciable },
     new Date(),
   );
   return { ...asset, accumulatedDepreciation: accDep, netBookValue: Number(asset.cost) - accDep };
+}
+
+/** يتحقق أن الحساب المُختار للأصل ينتمي فعلاً لهذه الشركة، حساب ترحيل نشط، ومن نوع "أصول". */
+async function assertValidAssetAccount(tenantId: string, companyId: string, accountId: string) {
+  const account = await prisma.account.findFirst({ where: { id: accountId, tenantId, companyId } });
+  if (!account) throw badRequest("الحساب المحاسبي المختار غير موجود ضمن شجرة هذه الشركة");
+  if (!account.isPosting || !account.isActive || account.isArchived) throw badRequest("الحساب المحاسبي المختار ليس حساب ترحيل نشطاً");
+  if (account.type !== "asset") throw badRequest("الحساب المحاسبي المختار ليس من نوع أصول");
+  return account;
+}
+
+async function nextAssetNumber(tx: Prisma.TransactionClient, tenantId: string, companyId: string) {
+  const existingCount = await tx.fixedAsset.count({ where: { tenantId, companyId } });
+  return formatDocNumber("AST", existingCount);
 }
 
 export async function listFixedAssets(tenantId: string, filters: { companyId?: string }) {
@@ -53,15 +70,58 @@ export async function getFixedAssetsSummary(tenantId: string, filters: { company
 export async function createFixedAsset(
   tenantId: string,
   userId: string,
-  input: { companyId: string; name: string; category?: string; purchaseDate: Date; cost: number; usefulLifeYears: number; salvageValue: number; paymentMethod: "cash" | "bank" | "credit" },
+  input: {
+    companyId: string;
+    accountId: string;
+    name: string;
+    category?: string;
+    serialNumber?: string;
+    chassisNumber?: string;
+    costCenterId?: string;
+    purchaseDate: Date;
+    cost: number;
+    usefulLifeYears: number;
+    salvageValue: number;
+    depreciationMethod: "straight_line" | "declining_balance";
+    isDepreciable: boolean;
+    paymentMethod: "cash" | "bank" | "credit";
+  },
 ) {
   const company = await prisma.company.findFirst({ where: { id: input.companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
 
-  const assetAccountId = await getAccountIdByName(tenantId, input.companyId, "الأصول الثابتة");
+  await assertValidAssetAccount(tenantId, input.companyId, input.accountId);
   const creditAccountId = await getAccountIdByName(tenantId, input.companyId, PAYMENT_ACCOUNT_NAME[input.paymentMethod]);
 
+  if (input.costCenterId) {
+    const costCenter = await prisma.costCenter.findFirst({ where: { id: input.costCenterId, tenantId, companyId: input.companyId } });
+    if (!costCenter) throw badRequest("الموقع/الفرع المختار غير موجود ضمن هذه الشركة");
+  }
+
   return prisma.$transaction(async (tx) => {
+    // الأصل يُنشأ أولاً (بلا journalEntryId بعد) حتى يمكن ربط سطر القيد بمعرّفه مباشرة، بدل تحديث
+    // السطر لاحقاً بعد إنشائه — تتبّع كامل من أول لحظة.
+    const asset = await tx.fixedAsset.create({
+      data: {
+        tenantId,
+        companyId: input.companyId,
+        accountId: input.accountId,
+        assetNumber: await nextAssetNumber(tx, tenantId, input.companyId),
+        name: input.name,
+        category: input.category,
+        serialNumber: input.serialNumber,
+        chassisNumber: input.chassisNumber,
+        costCenterId: input.costCenterId,
+        purchaseDate: input.purchaseDate,
+        cost: input.cost,
+        usefulLifeYears: input.usefulLifeYears,
+        salvageValue: input.salvageValue,
+        depreciationMethod: input.depreciationMethod,
+        isDepreciable: input.isDepreciable,
+        status: "active",
+      },
+    });
+
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: input.companyId,
@@ -70,43 +130,42 @@ export async function createFixedAsset(
       sourceModule: "manual",
       createdBy: userId,
       lines: [
-        { accountId: assetAccountId, department: "المالية والحسابات", debit: input.cost, credit: 0 },
+        { accountId: input.accountId, costCenterId: input.costCenterId, fixedAssetId: asset.id, department: "المالية والحسابات", debit: input.cost, credit: 0 },
         { accountId: creditAccountId, department: "المالية والحسابات", debit: 0, credit: input.cost },
       ],
     });
 
-    // توليد مؤقت لرقم الأصل بنفس نمط formatDocNumber (بقية حقول التوسعة — الرقم التسلسلي/رقم
-    // الهيكل/الموقع/طريقة الإهلاك القابلة للاختيار/الحساب الفعلي — تُبنى في Phase B على هذا الأساس).
-    const existingCount = await tx.fixedAsset.count({ where: { tenantId, companyId: input.companyId } });
-    const asset = await tx.fixedAsset.create({
-      data: {
-        tenantId,
-        companyId: input.companyId,
-        assetNumber: formatDocNumber("AST", existingCount),
-        name: input.name,
-        category: input.category,
-        purchaseDate: input.purchaseDate,
-        cost: input.cost,
-        usefulLifeYears: input.usefulLifeYears,
-        salvageValue: input.salvageValue,
-        status: "active",
-        journalEntryId: entry.id,
-      },
-    });
-
+    const updated = await tx.fixedAsset.update({ where: { id: asset.id }, data: { journalEntryId: entry.id } });
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: asset.id } });
-    return withComputed(asset);
+    return withComputed(updated);
   });
 }
 
 export async function updateFixedAsset(
   tenantId: string,
   id: string,
-  input: { name?: string; category?: string; usefulLifeYears?: number; salvageValue?: number },
+  input: {
+    accountId?: string;
+    name?: string;
+    category?: string;
+    serialNumber?: string;
+    chassisNumber?: string;
+    costCenterId?: string;
+    usefulLifeYears?: number;
+    salvageValue?: number;
+    depreciationMethod?: "straight_line" | "declining_balance";
+    isDepreciable?: boolean;
+  },
 ) {
   const existing = await prisma.fixedAsset.findFirst({ where: { id, tenantId } });
   if (!existing) throw notFound("الأصل غير موجود");
   if (existing.status === "disposed") throw badRequest("لا يمكن تعديل أصل مستبعد");
+
+  if (input.accountId) await assertValidAssetAccount(tenantId, existing.companyId, input.accountId);
+  if (input.costCenterId) {
+    const costCenter = await prisma.costCenter.findFirst({ where: { id: input.costCenterId, tenantId, companyId: existing.companyId } });
+    if (!costCenter) throw badRequest("الموقع/الفرع المختار غير موجود ضمن هذه الشركة");
+  }
 
   const asset = await prisma.fixedAsset.update({ where: { id }, data: input });
   return withComputed(asset);
@@ -141,28 +200,29 @@ export async function disposeFixedAsset(
   if (asset.status === "disposed") throw badRequest("تم استبعاد هذا الأصل مسبقاً");
 
   const accDep = accumulatedDepreciation(
-    { cost: Number(asset.cost), salvageValue: Number(asset.salvageValue), usefulLifeYears: asset.usefulLifeYears, purchaseDate: asset.purchaseDate },
+    { cost: Number(asset.cost), salvageValue: Number(asset.salvageValue), usefulLifeYears: asset.usefulLifeYears, purchaseDate: asset.purchaseDate, isDepreciable: asset.isDepreciable },
     input.disposalDate,
   );
   const nbv = Number(asset.cost) - accDep;
   const gainLoss = input.salePrice - nbv;
 
   const accDepAccountId = await getAccountIdByName(tenantId, asset.companyId, "مجمع الإهلاك");
-  const assetAccountId = await getAccountIdByName(tenantId, asset.companyId, "الأصول الثابتة");
+  // الحساب الفعلي الذي سُجِّل عليه هذا الأصل تحديداً — بدل حساب "الأصول الثابتة" المشترك القديم.
+  // أصول ما قبل هذا التعديل (بلا accountId) تسقط على المسار الاحتياطي القديم فقط.
+  const assetAccountId = asset.accountId ?? (await getAccountIdByName(tenantId, asset.companyId, "الأصول الثابتة"));
   const receiveAccountId = await getAccountIdByName(tenantId, asset.companyId, input.method === "cash" ? "النقدية بالصندوق" : "البنك الأهلي - حساب تشغيلي");
 
-  const lines: { accountId: string; department: string; debit: number; credit: number }[] = [
-    { accountId: accDepAccountId, department: "المالية والحسابات", debit: accDep, credit: 0 },
-  ];
-  if (input.salePrice > 0) lines.push({ accountId: receiveAccountId, department: "المالية والحسابات", debit: input.salePrice, credit: 0 });
+  const lines: { accountId: string; fixedAssetId: string; department: string; debit: number; credit: number }[] = [];
+  if (accDep > 0) lines.push({ accountId: accDepAccountId, fixedAssetId: asset.id, department: "المالية والحسابات", debit: accDep, credit: 0 });
+  if (input.salePrice > 0) lines.push({ accountId: receiveAccountId, fixedAssetId: asset.id, department: "المالية والحسابات", debit: input.salePrice, credit: 0 });
   if (gainLoss > 0) {
     const gainAccountId = await getAccountIdByName(tenantId, asset.companyId, "أرباح استبعاد أصول");
-    lines.push({ accountId: gainAccountId, department: "المالية والحسابات", debit: 0, credit: gainLoss });
+    lines.push({ accountId: gainAccountId, fixedAssetId: asset.id, department: "المالية والحسابات", debit: 0, credit: gainLoss });
   } else if (gainLoss < 0) {
     const lossAccountId = await getAccountIdByName(tenantId, asset.companyId, "خسائر استبعاد أصول");
-    lines.push({ accountId: lossAccountId, department: "المالية والحسابات", debit: -gainLoss, credit: 0 });
+    lines.push({ accountId: lossAccountId, fixedAssetId: asset.id, department: "المالية والحسابات", debit: -gainLoss, credit: 0 });
   }
-  lines.push({ accountId: assetAccountId, department: "المالية والحسابات", debit: 0, credit: Number(asset.cost) });
+  lines.push({ accountId: assetAccountId, fixedAssetId: asset.id, department: "المالية والحسابات", debit: 0, credit: Number(asset.cost) });
 
   return prisma.$transaction(async (tx) => {
     const entry = await createJournalEntryTx(tx, {

@@ -48,6 +48,8 @@ export interface PostingLine {
   customerId?: string | null;
   supplierId?: string | null;
   employeeId?: string | null;
+  fixedAssetId?: string | null;
+  employeeAdvanceId?: string | null;
 }
 
 export interface CreateEntryInput {
@@ -106,6 +108,8 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
           customerId: l.customerId || null,
           supplierId: l.supplierId || null,
           employeeId: l.employeeId || null,
+          fixedAssetId: l.fixedAssetId || null,
+          employeeAdvanceId: l.employeeAdvanceId || null,
         })),
       },
     },
