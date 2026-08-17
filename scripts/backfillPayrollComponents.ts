@@ -164,11 +164,23 @@ async function main() {
   }
 
   console.log("\nجارٍ التنفيذ الفعلي...\n");
+  // فشل شركة واحدة (بيانات ناقصة/غير متسقة تحديداً بها) لا يجب أن يوقف التنفيذ عن بقية الشركات —
+  // يُسجَّل الخطأ ويُتجاوَز، بنفس فلسفة "يُتجاوَز بأمان" المستخدَمة أصلاً للحسابات المفقودة.
+  const failed: { name: string; error: unknown }[] = [];
   for (const company of companies) {
-    await commitForCompany(company.tenantId, company.id);
-    console.log(`  ✅ ${company.name} — تم`);
+    try {
+      await commitForCompany(company.tenantId, company.id);
+      console.log(`  ✅ ${company.name} — تم`);
+    } catch (err) {
+      failed.push({ name: company.name, error: err });
+      console.log(`  ❌ ${company.name} — فشل: ${err instanceof Error ? err.message : err}`);
+    }
   }
-  console.log("\n✅ اكتملت تعبئة إعدادات الرواتب.");
+  if (failed.length) {
+    console.log(`\n⚠️ اكتملت التعبئة مع ${failed.length} شركة فشلت (راجع الرسائل أعلاه): ${failed.map((f) => f.name).join("، ")}`);
+  } else {
+    console.log("\n✅ اكتملت تعبئة إعدادات الرواتب.");
+  }
 }
 
 main()

@@ -144,6 +144,16 @@ async function computeRun(tenantId: string, run: { companyId: string; month: str
     ? await prisma.hrAction.findMany({ where: { employeeId: { in: run.employeeIds }, month: run.month, componentId: { not: null } } })
     : await prisma.hrAction.findMany({ where: { employeeId: { in: run.employeeIds }, month: run.month } });
 
+  // سلف الموظفين النشطة المرتبطة ببند مخصَّص (Phase E) — قيمة الخصم الفعلية هذا الشهر هي الأقل بين
+  // القسط الشهري المحفوظ (EmployeePayrollComponent.fixedValue) والرصيد المتبقي فعلياً، حتى لا يتجاوز
+  // القسط الأخير المبلغ المتبقي. المفتاح هو EmployeePayrollComponent.id (وليس componentId).
+  const activeAdvances = persisted
+    ? await prisma.employeeAdvance.findMany({
+        where: { tenantId, companyId: run.companyId, employeeId: { in: run.employeeIds }, status: "active", employeePayrollComponentId: { not: null } },
+      })
+    : [];
+  const advanceByEmployeePayrollComponentId = new Map(activeAdvances.map((a) => [a.employeePayrollComponentId!, a]));
+
   const rows = run.employeeIds.map((employeeId): RunRow => {
     const emp = employees.find((e) => e.id === employeeId)!;
     const empSettlements = settlements.filter((s) => s.employeeId === employeeId);
@@ -165,7 +175,12 @@ async function computeRun(tenantId: string, run: { companyId: string; month: str
       employeeComponents = components.filter((c) => assignedIds.has(c.id));
       empComponentRows
         .filter((ec) => ec.employeeId === employeeId && ec.fixedValue != null)
-        .forEach((ec) => fixedValues.set(ec.componentId, Number(ec.fixedValue)));
+        .forEach((ec) => {
+          let value = Number(ec.fixedValue);
+          const advance = advanceByEmployeePayrollComponentId.get(ec.id);
+          if (advance) value = Math.min(value, Number(advance.remainingBalance));
+          fixedValues.set(ec.componentId, value);
+        });
       actionsRaw
         .filter((a) => a.employeeId === employeeId && a.componentId)
         .forEach((a) => monthlyAdjustments.set(a.componentId!, (monthlyAdjustments.get(a.componentId!) || 0) + Number(a.value)));
@@ -244,20 +259,37 @@ export async function postPayrollRun(tenantId: string, userId: string, id: strin
   if (rows.length === 0) throw badRequest("لا يوجد موظفون في هذا الكشف");
   const componentById = new Map(components.map((c) => [c.id, c]));
 
+  // سلف نشطة مرتبطة ببند مخصَّص — تُستخدَم هنا لضمان أن القيمة الفعلية المُرحَّلة لا تتجاوز الرصيد
+  // المتبقي إطلاقاً (احترازاً حتى لو عدّلت الموارد البشرية القيمة يدوياً عبر override)، ولتسجيل خصم
+  // فعلي (EmployeeAdvanceDeduction) لكل سلفة بعد الترحيل مباشرة ضمن نفس المعاملة.
+  const activeAdvances = await prisma.employeeAdvance.findMany({
+    where: { tenantId, companyId: run.companyId, employeeId: { in: run.employeeIds }, status: "active", employeePayrollComponentId: { not: null } },
+    include: { employeePayrollComponent: true },
+  });
+  const advanceByComponentId = new Map(activeAdvances.filter((a) => a.employeePayrollComponent).map((a) => [a.employeePayrollComponent!.componentId, a]));
+
   // سطر واحد لكل موظف لكل بند غير صفري (موسوم بـ employeeId)، ثم سطر ختامي واحد لكل موظف: صافي
   // المستحق يُقيَّد على حسابه المستقل هو (Phase G) — بدل جمع كل الموظفين في سطر واحد بلا أي وسم
   // بالموظف كما كان في المنطق القديم.
   const employees = await prisma.employee.findMany({ where: { id: { in: run.employeeIds }, tenantId }, select: { id: true, accountId: true } });
   const employeeById = new Map(employees.map((e) => [e.id, e]));
 
-  const journalLines: { accountId: string; department: string; debit: number; credit: number; employeeId?: string }[] = [];
+  const journalLines: { accountId: string; department: string; debit: number; credit: number; employeeId?: string; employeeAdvanceId?: string }[] = [];
+  const advanceDeductions: { advanceId: string; amount: number }[] = [];
   for (const row of rows) {
-    for (const [componentId, value] of Object.entries(row.componentValues)) {
-      if (!value) continue;
+    for (const [componentId, rawValue] of Object.entries(row.componentValues)) {
+      if (!rawValue) continue;
       const component = componentById.get(componentId);
       if (!component) continue;
+      const advance = advanceByComponentId.get(componentId);
+      const value = advance ? Math.min(rawValue, Number(advance.remainingBalance)) : rawValue;
+      if (!value) continue;
       const isDebit = component.kind === "addition";
-      journalLines.push({ accountId: component.accountId, department: "المالية والحسابات", debit: isDebit ? value : 0, credit: isDebit ? 0 : value, employeeId: row.employeeId });
+      journalLines.push({
+        accountId: component.accountId, department: "المالية والحسابات", debit: isDebit ? value : 0, credit: isDebit ? 0 : value,
+        employeeId: row.employeeId, employeeAdvanceId: advance?.id,
+      });
+      if (advance) advanceDeductions.push({ advanceId: advance.id, amount: value });
     }
     if (!row.net) continue;
     const employee = employeeById.get(row.employeeId)!;
@@ -279,6 +311,18 @@ export async function postPayrollRun(tenantId: string, userId: string, id: strin
       createdBy: userId,
       lines: journalLines,
     });
+
+    for (const { advanceId, amount } of advanceDeductions) {
+      await tx.employeeAdvanceDeduction.create({ data: { employeeAdvanceId: advanceId, payrollRunId: id, amount } });
+      const advance = await tx.employeeAdvance.findUniqueOrThrow({ where: { id: advanceId } });
+      const remainingBalance = Math.max(Number(advance.remainingBalance) - amount, 0);
+      const settled = remainingBalance <= 0;
+      await tx.employeeAdvance.update({ where: { id: advanceId }, data: { remainingBalance, status: settled ? "settled" : "active" } });
+      if (settled && advance.employeePayrollComponentId) {
+        await tx.employeePayrollComponent.update({ where: { id: advance.employeePayrollComponentId }, data: { isActive: false } });
+      }
+    }
+
     return tx.payrollRun.update({ where: { id }, data: { status: "posted", journalEntryId: entry.id } });
   });
 }
@@ -291,6 +335,21 @@ export async function unpostPayrollRun(tenantId: string, userId: string, id: str
   await assertValidUnlockPin(tenantId, pin);
 
   return prisma.$transaction(async (tx) => {
+    // يُرجِع رصيد أي سلفة نُقِص منها هذا التشغيل بالضبط بنفس المبلغ المسجَّل وقت الترحيل (لا يُعاد
+    // حسابه تخمينياً من الحالة الحالية)، ويعيد تفعيل بند الخصم لو كانت السلفة قد استقرّت "settled"
+    // بسبب هذا الخصم بالذات — قبل حذف سجلات الخصم نفسها حتى لا تتكرر عند إعادة الترحيل لاحقاً.
+    const deductions = await tx.employeeAdvanceDeduction.findMany({ where: { payrollRunId: id } });
+    for (const d of deductions) {
+      const advance = await tx.employeeAdvance.findUnique({ where: { id: d.employeeAdvanceId } });
+      if (!advance) continue;
+      const remainingBalance = Number(advance.remainingBalance) + Number(d.amount);
+      await tx.employeeAdvance.update({ where: { id: advance.id }, data: { remainingBalance, status: "active" } });
+      if (advance.status === "settled" && advance.employeePayrollComponentId) {
+        await tx.employeePayrollComponent.update({ where: { id: advance.employeePayrollComponentId }, data: { isActive: true } });
+      }
+    }
+    await tx.employeeAdvanceDeduction.deleteMany({ where: { payrollRunId: id } });
+
     await deleteJournalEntryTx(tx, run.journalEntryId);
     const updated = await tx.payrollRun.update({ where: { id }, data: { status: "draft", journalEntryId: null } });
     await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "PayrollRun", entityId: id });

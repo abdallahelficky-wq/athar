@@ -30,6 +30,7 @@ import { inventoryReportRoutes } from "./modules/inventoryReports/inventoryRepor
 import { fixedAssetRoutes } from "./modules/fixedAssets/fixedAssets.routes";
 import { assetCategoryRoutes } from "./modules/assetCategories/assetCategories.routes";
 import { depreciationRunRoutes } from "./modules/depreciation/depreciation.routes";
+import { employeeAdvanceRoutes } from "./modules/employeeAdvances/employeeAdvances.routes";
 import { employeeRoutes } from "./modules/employees/employees.routes";
 import { leaveRequestRoutes } from "./modules/leaveRequests/leaveRequests.routes";
 import { leaveRequestPortalRoutes } from "./modules/leaveRequests/leaveRequests.portal.routes";
@@ -92,6 +93,7 @@ export function createApp() {
   app.use("/api/leave-requests", leaveRequestRoutes);
   app.use("/api/hr-actions", hrActionRoutes);
   app.use("/api/payroll-runs", payrollRunRoutes);
+  app.use("/api/employee-advances", employeeAdvanceRoutes);
   app.use("/api/payroll-components", payrollComponentRoutes);
   app.use("/api/companies/:companyId", companyPayrollSettingsRoutes);
   app.use("/api/leave-settlements", leaveSettlementRoutes);

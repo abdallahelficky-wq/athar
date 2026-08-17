@@ -1585,14 +1585,34 @@ model EmployeeAdvance {
   status                     EmployeeAdvanceStatus     @default(active)
   employeePayrollComponentId String?                   @unique
   employeePayrollComponent   EmployeePayrollComponent? @relation(fields: [employeePayrollComponentId], references: [id], onDelete: SetNull)
+  // قيد الصرف الخاص بهذه السلفة — يُملأ فقط لو أُنشئت عبر مسار مستقل ينشئ قيده الخاص (Phase E)،
+  // لا لو أُنشئت داخل سطر قيد يومية عام موجود بالفعل (عندها sourceJournalEntryLineId أدناه هو المرجع).
+  journalEntryId             String?
   // يتتبّع سطر القيد الذي أنشأ هذه السلفة أول مرة (أثر مراجعة) — null لو أُنشئت من شاشة مخصَّصة.
   sourceJournalEntryLineId   String?                   @unique
   createdAt                  DateTime                  @default(now())
   updatedAt                  DateTime                  @updatedAt
 
   journalEntryLines JournalEntryLine[]
+  deductions        EmployeeAdvanceDeduction[]
 
   @@map("employee_advances")
+}
+
+// سجل خصم فعلي لسلفة ضمن تشغيل رواتب مُرحَّل واحد (Phase E) — يُنشأ فقط عند ترحيل الكشف (لا وقت
+// المعاينة)، ويُستخدَم عند فك الترحيل لإرجاع remainingBalance بدقة (وإعادة تفعيل السلفة/البند لو
+// كانت قد استقرت "settled" بسبب هذا الخصم بالذات) بدل إعادة حسابه تخمينياً من الحالة الحالية.
+model EmployeeAdvanceDeduction {
+  id                String          @id @default(cuid())
+  employeeAdvanceId String
+  employeeAdvance   EmployeeAdvance @relation(fields: [employeeAdvanceId], references: [id], onDelete: Cascade)
+  payrollRunId      String
+  payrollRun        PayrollRun      @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  amount            Decimal         @db.Decimal(18, 2)
+  createdAt         DateTime        @default(now())
+
+  @@unique([employeeAdvanceId, payrollRunId])
+  @@map("employee_advance_deductions")
 }
 
 // إعدادات رواتب عامة لكل شركة — الساعات/الأيام القياسية للشهر (أساس حساب سعر الوحدة في
@@ -1692,6 +1712,8 @@ model PayrollRun {
   journalEntryId String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+
+  advanceDeductions EmployeeAdvanceDeduction[]
 
   @@unique([tenantId, companyId, month])
   @@map("payroll_runs")
