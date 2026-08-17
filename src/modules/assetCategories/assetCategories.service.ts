@@ -122,8 +122,12 @@ export async function removeAssetCategory(tenantId: string, id: string) {
   const existing = await prisma.assetCategory.findFirst({ where: { id, tenantId } });
   if (!existing) throw notFound("فئة الأصول غير موجودة");
 
-  const inUse = await prisma.fixedAsset.count({ where: { categoryId: id } });
-  if (inUse > 0) throw badRequest("لا يمكن حذف فئة مرتبطة بأصول مسجَّلة بالفعل");
+  const [assetsInUse, itemsInUse] = await Promise.all([
+    prisma.fixedAsset.count({ where: { categoryId: id } }),
+    prisma.item.count({ where: { assetCategoryId: id } }),
+  ]);
+  if (assetsInUse > 0) throw badRequest("لا يمكن حذف فئة مرتبطة بأصول مسجَّلة بالفعل");
+  if (itemsInUse > 0) throw badRequest("لا يمكن حذف فئة مرتبطة بأصناف من نوع (أصل ثابت)");
 
   await prisma.$transaction(async (tx) => {
     await tx.assetCategory.delete({ where: { id } });

@@ -1101,8 +1101,11 @@ model Item {
   // type == raw_material فقط
   allowDirectSale Boolean @default(false)
 
-  // type == fixed_asset فقط — للتصنيف بس، الحسابات تبقى ثابتة على مستوى الشركة (wellKnownAccounts.ts) زي الأصول اليدوية
-  assetCategory String?
+  // type == fixed_asset فقط — فئة الأصل (نفس AssetCategory المستخدَمة في تسجيل الأصول اليدوي)
+  // تُشتَق منها حسابات الاقتناء/مجمع الإهلاك/مصروف الإهلاك تلقائياً عند شراء الصنف (Phase G) —
+  // بدل حساب "الأصول الثابتة" المشترك الثابت الذي كان يُستخدَم سابقاً بلا تصنيف.
+  assetCategoryId  String?
+  assetCategoryRef AssetCategory? @relation("ItemAssetCategory", fields: [assetCategoryId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1239,6 +1242,7 @@ model AssetCategory {
   updatedAt DateTime @updatedAt
 
   assets FixedAsset[]
+  items  Item[]       @relation("ItemAssetCategory")
 
   @@unique([tenantId, companyId, name])
   @@map("asset_categories")

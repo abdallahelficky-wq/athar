@@ -4,10 +4,10 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
-import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
+import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx, PostingLine } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
 import { applyPurchaseToAverageCostTx, recomputeAverageCostFromScratchTx } from "../../lib/costingEngine";
-import { registerFixedAssetTx } from "../fixedAssets/fixedAssets.service";
+import { registerFixedAssetTx, resolveAssetAccount } from "../fixedAssets/fixedAssets.service";
 
 type Tx = Prisma.TransactionClient;
 
@@ -22,6 +22,10 @@ interface LineInput {
   unitPrice: number;
   discountPct?: number;
   priceIncludesVat?: boolean;
+  // يُشتَق داخلياً في resolveLineAccounts فقط (لا يُقرَأ من طلب العميل) — يُبقي سطر الأصل الثابت
+  // منفصلاً وغير مُجمَّع مع أسطر أخرى تشارك نفس الحساب عند بناء سطور القيد، فيمكن ربط كل سطر قيد
+  // بسجل الأصل الناتج عنه تحديداً (fixedAssetId) بدل تجميعهما في سطر واحد يفقد هذا الربط.
+  isFixedAssetLine?: boolean;
 }
 
 interface InvoiceInput {
@@ -72,8 +76,9 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
 
     if (item.type === "fixed_asset") {
       if (!line.usefulLifeYears || line.salvageValue == null) throw badRequest(`أدخل العمر الإنتاجي وقيمة الخردة للصنف "${item.name}"`);
-      const assetAccountId = await getAccountIdByName(tenantId, companyId, "الأصول الثابتة");
-      resolved.push({ ...line, accountId: assetAccountId });
+      if (!item.assetCategoryId) throw badRequest(`حدّد فئة الأصل للصنف "${item.name}" من شاشة الأصناف أولاً`);
+      const { accountId } = await resolveAssetAccount(prisma, tenantId, companyId, { categoryId: item.assetCategoryId });
+      resolved.push({ ...line, accountId, isFixedAssetLine: true });
       continue;
     }
 
@@ -99,7 +104,15 @@ async function assertRefs(tenantId: string, companyId: string, supplierId: strin
   return supplier;
 }
 
-/** ينشئ حركة المخزون/سجل الأصل الثابت المرتبط بكل سطر فاتورة مرتبط بصنف — يُستدعى بعد حفظ سطور الفاتورة فعلياً (لأنه يحتاج line.id). */
+/**
+ * ينشئ حركة المخزون/سجل الأصل الثابت المرتبط بكل سطر فاتورة مرتبط بصنف — يُستدعى بعد حفظ سطور
+ * الفاتورة فعلياً (لأنه يحتاج line.id). لأسطر الأصول الثابتة تحديداً (Phase G): ينشئ سطر القيد
+ * الخاص بهذا السطر بمفرده أولاً (assetLines مصفوفة موازية بنفس ترتيب أسطر الأصول الثابتة ضمن
+ * persistedLines، جهّزها buildJournalLines بلا تجميع مع أسطر أخرى)، ثم يسجّل الأصل عبر
+ * registerFixedAssetTx بفئته (categoryId) لا بحساب خام، ثم يربط سطر القيد بسجل الأصل الناتج
+ * (fixedAssetId) — فيظهر رابط الأصل عند عرض قيد الفاتورة تماماً كما يظهر لأصل مسجَّل من سطر قيد
+ * يومية عام (Phase F).
+ */
 async function createInventorySideEffectsTx(
   tx: Tx,
   tenantId: string,
@@ -110,21 +123,32 @@ async function createInventorySideEffectsTx(
     usefulLifeYears: number | null; salvageValue: Prisma.Decimal | null; quantity: Prisma.Decimal; subtotal: Prisma.Decimal; description: string | null;
   }>,
   journalEntryId: string,
+  assetLines: PostingLine[],
 ) {
+  let assetLineIdx = 0;
   for (const line of persistedLines) {
     if (!line.itemId) continue;
     const item = await tx.item.findFirstOrThrow({ where: { id: line.itemId, tenantId } });
 
     if (item.type === "fixed_asset") {
-      // الحساب المحاسبي مُشتَق مسبقاً في resolveLineAccounts (حساب "الأصول الثابتة" المشترك حالياً
-      // — ربط فواتير المشتريات بفئات الأصول نفسها مؤجَّل لـ Phase G). لا قيد إضافي هنا: journalEntryId
-      // قيد الفاتورة نفسه، يُمرَّر جاهزاً لدالة الإنشاء المشتركة (Phase D) بدل تكرار منطق الإنشاء.
-      await registerFixedAssetTx(tx, tenantId, {
-        companyId, accountId: line.accountId,
-        name: line.description || item.name, category: item.assetCategory ?? undefined,
+      const spec = assetLines[assetLineIdx++];
+      const journalLine = await tx.journalEntryLine.create({
+        data: {
+          journalEntryId,
+          accountId: spec.accountId,
+          department: spec.department || null,
+          debit: new Prisma.Decimal(spec.debit || 0),
+          credit: new Prisma.Decimal(spec.credit || 0),
+          supplierId: spec.supplierId || null,
+        },
+      });
+      const { asset } = await registerFixedAssetTx(tx, tenantId, {
+        companyId, categoryId: item.assetCategoryId!,
+        name: line.description || item.name,
         purchaseDate: date, cost: Number(line.subtotal), usefulLifeYears: line.usefulLifeYears!, salvageValue: Number(line.salvageValue ?? 0),
         journalEntryId, sourcePurchaseInvoiceLineId: line.id,
       });
+      await tx.journalEntryLine.update({ where: { id: journalLine.id }, data: { fixedAssetId: asset.id } });
       continue;
     }
 
@@ -156,20 +180,41 @@ async function removeInventorySideEffectsTx(tx: Tx, tenantId: string, invoiceId:
   for (const itemId of itemIds) await recomputeAverageCostFromScratchTx(tx, tenantId, itemId);
 }
 
-async function buildJournalLines(supplier: { id: string; accountId: string | null }, computed: Array<{ accountId: string; subtotal: number }>, vatTotal: number, grandTotal: number, tenantId: string, companyId: string) {
+/**
+ * يبني سطور قيد الفاتورة — الأسطر غير المرتبطة بأصول ثابتة تبقى مُجمَّعة حسب الحساب كما كان
+ * (groupedLines، تُمرَّر مباشرة لـ createJournalEntryTx). أسطر الأصول الثابتة تُفصَل ولا تُجمَّع
+ * حتى لو شاركت نفس الحساب (assetLines) لأن كل سطر منها سيُربَط لاحقاً بسجل أصل مختلف — تجميعها
+ * يفقد إمكانية الربط سطراً بسطر (createInventorySideEffectsTx).
+ */
+async function buildJournalLines(
+  supplier: { id: string; accountId: string | null },
+  computed: Array<{ accountId: string; subtotal: number; isFixedAssetLine?: boolean }>,
+  vatTotal: number,
+  grandTotal: number,
+  tenantId: string,
+  companyId: string,
+): Promise<{ groupedLines: PostingLine[]; assetLines: PostingLine[] }> {
   const supplierId = supplier.id;
   const vatInputId = await getAccountIdByName(tenantId, companyId, "ضريبة القيمة المضافة - مدخلات");
   const payableId = await resolvePartyAccountId(tenantId, companyId, supplier, "ذمم دائنة - موردين");
-  const byAccount = new Map<string, number>();
-  computed.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));
 
-  return [
+  const otherComputed = computed.filter((l) => !l.isFixedAssetLine);
+  const assetComputed = computed.filter((l) => l.isFixedAssetLine);
+  const byAccount = new Map<string, number>();
+  otherComputed.forEach((l) => byAccount.set(l.accountId, (byAccount.get(l.accountId) || 0) + l.subtotal));
+
+  const groupedLines: PostingLine[] = [
     ...[...byAccount.entries()].map(([accountId, amount]) => ({
       accountId, department: "المشتريات", debit: amount, credit: 0, supplierId,
     })),
     { accountId: vatInputId, department: "المالية والحسابات", debit: vatTotal, credit: 0, supplierId },
     { accountId: payableId, department: "المالية والحسابات", debit: 0, credit: grandTotal, supplierId },
   ];
+  const assetLines: PostingLine[] = assetComputed.map((l) => ({
+    accountId: l.accountId, department: "المشتريات", debit: l.subtotal, credit: 0, supplierId,
+  }));
+
+  return { groupedLines, assetLines };
 }
 
 export async function listPurchaseInvoices(tenantId: string, filters: { companyId?: string; supplierId?: string }) {
@@ -194,7 +239,8 @@ export async function createPurchaseInvoice(tenantId: string, userId: string, in
 
   const count = await prisma.purchaseInvoice.count({ where: { tenantId } });
   const invoiceNumber = formatDocNumber("PINV", count);
-  const journalLines = await buildJournalLines(supplier, computed, vatTotal, grandTotal, tenantId, input.companyId);
+  const { groupedLines, assetLines } = await buildJournalLines(supplier, computed, vatTotal, grandTotal, tenantId, input.companyId);
+  const persistableLines = computed.map(({ isFixedAssetLine, ...rest }) => rest);
 
   return prisma.$transaction(async (tx) => {
     const entry = await createJournalEntryTx(tx, {
@@ -204,7 +250,7 @@ export async function createPurchaseInvoice(tenantId: string, userId: string, in
       memo: `فاتورة مشتريات ${invoiceNumber} — ${supplier.name}`,
       sourceModule: "purchase_invoice",
       createdBy: userId,
-      lines: journalLines,
+      lines: groupedLines,
     });
 
     const invoice = await tx.purchaseInvoice.create({
@@ -219,13 +265,13 @@ export async function createPurchaseInvoice(tenantId: string, userId: string, in
         subtotal,
         vatTotal,
         grandTotal,
-        lines: { create: computed },
+        lines: { create: persistableLines },
       },
       include: invoiceInclude,
     });
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
-    await createInventorySideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id);
+    await createInventorySideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, assetLines);
     return invoice;
   });
 }
@@ -239,12 +285,13 @@ export async function updatePurchaseInvoice(tenantId: string, id: string, input:
   await assertRefs(tenantId, input.companyId, input.supplierId, resolvedLines);
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(resolvedLines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
+  const persistableLines = computed.map(({ isFixedAssetLine, ...rest }) => rest);
 
   return prisma.$transaction(async (tx) => {
     await tx.purchaseInvoiceLine.deleteMany({ where: { invoiceId: id } });
     return tx.purchaseInvoice.update({
       where: { id },
-      data: { companyId: input.companyId, supplierId: input.supplierId, date: input.date, subtotal, vatTotal, grandTotal, lines: { create: computed } },
+      data: { companyId: input.companyId, supplierId: input.supplierId, date: input.date, subtotal, vatTotal, grandTotal, lines: { create: persistableLines } },
       include: invoiceInclude,
     });
   });
@@ -258,12 +305,12 @@ export async function deletePurchaseInvoice(tenantId: string, id: string) {
 }
 
 export async function postPurchaseInvoice(tenantId: string, userId: string, id: string) {
-  const invoice = await prisma.purchaseInvoice.findFirst({ where: { id, tenantId }, include: { lines: true, supplier: true } });
+  const invoice = await prisma.purchaseInvoice.findFirst({ where: { id, tenantId }, include: { lines: { include: { item: true } }, supplier: true } });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status === "posted") throw badRequest("الفاتورة مرحّلة بالفعل");
 
-  const computed = invoice.lines.map((l) => ({ accountId: l.accountId, subtotal: Number(l.subtotal) }));
-  const journalLines = await buildJournalLines(invoice.supplier, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), tenantId, invoice.companyId);
+  const computed = invoice.lines.map((l) => ({ accountId: l.accountId, subtotal: Number(l.subtotal), isFixedAssetLine: l.item?.type === "fixed_asset" }));
+  const { groupedLines, assetLines } = await buildJournalLines(invoice.supplier, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), tenantId, invoice.companyId);
 
   return prisma.$transaction(async (tx) => {
     const entry = await createJournalEntryTx(tx, {
@@ -274,10 +321,10 @@ export async function postPurchaseInvoice(tenantId: string, userId: string, id: 
       sourceModule: "purchase_invoice",
       sourceId: invoice.id,
       createdBy: userId,
-      lines: journalLines,
+      lines: groupedLines,
     });
     const updated = await tx.purchaseInvoice.update({ where: { id }, data: { status: "posted", journalEntryId: entry.id }, include: invoiceInclude });
-    await createInventorySideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id);
+    await createInventorySideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id, assetLines);
     return updated;
   });
 }

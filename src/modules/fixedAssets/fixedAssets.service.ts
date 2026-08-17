@@ -52,7 +52,7 @@ async function assertValidAssetAccount(tx: Prisma.TransactionClient, tenantId: s
  * يشتق حساب الأصل من فئة مختارة (categoryId) بدل اختيار حساب خام — يتحقق أن الفئة تنتمي لنفس
  * الشركة. لو لم تُختَر فئة، accountId الخام يبقى الفallback (Phase B، أصول قديمة/بلا تصنيف).
  */
-async function resolveAssetAccount(tx: Prisma.TransactionClient, tenantId: string, companyId: string, input: { categoryId?: string; accountId?: string }) {
+export async function resolveAssetAccount(tx: Prisma.TransactionClient, tenantId: string, companyId: string, input: { categoryId?: string; accountId?: string }) {
   if (input.categoryId) {
     const category = await tx.assetCategory.findFirst({ where: { id: input.categoryId, tenantId, companyId } });
     if (!category) throw badRequest("فئة الأصل المختارة غير موجودة ضمن هذه الشركة");

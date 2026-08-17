@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { listItems, createItem, updateItem, deleteItem, getItemComponents, setItemComponents } from "../../api/items";
 import { listAccounts } from "../../api/accounts";
+import { listAssetCategories } from "../../api/assetCategories";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
@@ -42,7 +43,7 @@ const emptyForm = () => ({
   code: "", name: "", barcode: "", type: "inventory", unit: "", category: "",
   salePrice: "", vatApplicable: true, reorderLevel: "",
   stockAccountId: "", cogsAccountId: "", revenueAccountId: "", expenseAccountId: "",
-  allowDirectSale: false, assetCategory: "",
+  allowDirectSale: false, assetCategoryId: "",
 });
 
 const Icons = {
@@ -85,6 +86,7 @@ function ActionButton({ icon, label, disabled = false, onClick, danger = false, 
 export default function ItemsTab({ companyId, onNavigateTransfer }) {
   const [items, setItems] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [assetCategories, setAssetCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyForm());
@@ -111,6 +113,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   };
   useEffect(reload, [companyId]);
   useEffect(() => { if (companyId) listAccounts({ companyId }).then(setAccounts); }, [companyId]);
+  useEffect(() => { if (companyId) listAssetCategories(companyId).then(setAssetCategories); }, [companyId]);
 
   const categories = useMemo(() => [...new Set(items.map((item) => item.category).filter(Boolean))], [items]);
   const filteredItems = useMemo(() => {
@@ -141,6 +144,10 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   const assetAccounts = useMemo(() => postingAccounts("asset"), [accounts]);
   const revenueAccounts = useMemo(() => postingAccounts("revenue"), [accounts]);
   const expenseAccounts = useMemo(() => postingAccounts("expense"), [accounts]);
+  const groupedAssetCategories = useMemo(
+    () => assetCategories.reduce((acc, c) => { (acc[c.groupName] = acc[c.groupName] || []).push(c); return acc; }, {}),
+    [assetCategories],
+  );
 
   const requiredFields = requiredAccountFieldsForType(form.type, form.allowDirectSale);
   const isSellableType = form.type === "inventory" || form.type === "service" || form.type === "bundle" || (form.type === "raw_material" && form.allowDirectSale);
@@ -148,7 +155,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
 
   const changeType = (type) => setForm((f) => ({
     ...f, type, stockAccountId: "", cogsAccountId: "", revenueAccountId: "", expenseAccountId: "",
-    allowDirectSale: false, assetCategory: "",
+    allowDirectSale: false, assetCategoryId: "",
   }));
 
   const addComponent = () => setComponents((c) => [...c, { componentItemId: "", quantityPerUnit: 1 }]);
@@ -176,7 +183,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       revenueAccountId: form.revenueAccountId || undefined,
       expenseAccountId: form.expenseAccountId || undefined,
       allowDirectSale: form.type === "raw_material" ? form.allowDirectSale : undefined,
-      assetCategory: form.type === "fixed_asset" ? (form.assetCategory || undefined) : undefined,
+      assetCategoryId: form.type === "fixed_asset" ? (form.assetCategoryId || undefined) : undefined,
     };
     if (form.type === "bundle" && !editingId) payload.components = cleanedComponents;
     try {
@@ -209,7 +216,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       salePrice: item.salePrice ?? "", vatApplicable: item.vatApplicable, reorderLevel: item.reorderLevel ?? "",
       stockAccountId: item.stockAccountId || "", cogsAccountId: item.cogsAccountId || "",
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
-      allowDirectSale: item.allowDirectSale || false, assetCategory: item.assetCategory || "",
+      allowDirectSale: item.allowDirectSale || false, assetCategoryId: item.assetCategoryId || "",
     });
     await loadComponentsFor(item);
     setFormOpen(true);
@@ -222,7 +229,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       salePrice: item.salePrice ?? "", vatApplicable: item.vatApplicable, reorderLevel: item.reorderLevel ?? "",
       stockAccountId: item.stockAccountId || "", cogsAccountId: item.cogsAccountId || "",
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
-      allowDirectSale: item.allowDirectSale || false, assetCategory: item.assetCategory || "",
+      allowDirectSale: item.allowDirectSale || false, assetCategoryId: item.assetCategoryId || "",
     });
     await loadComponentsFor(item);
     setFormOpen(true);
@@ -300,9 +307,18 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
         </label>}
 
         {form.type === "fixed_asset" && <div className="form-grid">
-          <label>تصنيف الأصل<input type="text" value={form.assetCategory} onChange={(e) => setForm({ ...form, assetCategory: e.target.value })} placeholder="مثال: أثاث، سيارات..." /></label>
+          <label>فئة الأصل (تحدد حسابات الاقتناء/الإهلاك تلقائياً عند الشراء)
+            <select value={form.assetCategoryId} onChange={(e) => setForm({ ...form, assetCategoryId: e.target.value })}>
+              <option value="">— بلا فئة بعد —</option>
+              {Object.entries(groupedAssetCategories).map(([groupName, cats]) => (
+                <optgroup key={groupName} label={groupName}>
+                  {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </label>
         </div>}
-        {form.type === "fixed_asset" && <p className="note">حسابات الأصول الثابتة تُحدَّد تلقائياً على مستوى الشركة، ولا تحتاج ربطاً هنا؛ عمر الأصل وقيمة الخردة يُدخَلان لاحقاً في سطر فاتورة الشراء.</p>}
+        {form.type === "fixed_asset" && <p className="note">فئة الأصل مطلوبة عند شراء الصنف فعلياً عبر فاتورة مشتريات (تُحدَّد الحسابات منها تلقائياً)؛ يمكن حفظ الصنف بلا فئة الآن وإكمالها لاحقاً. عمر الأصل وقيمة الخردة يُدخَلان في سطر فاتورة الشراء.</p>}
 
         {isSellableType && <div className="form-grid">
           <label>سعر البيع المقترح<input type="number" value={form.salePrice} onChange={(e) => setForm({ ...form, salePrice: e.target.value })} placeholder="0.00" /></label>

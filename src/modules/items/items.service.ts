@@ -17,6 +17,11 @@ async function assertCompanyBelongsToTenant(tenantId: string, companyId: string)
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
 }
 
+async function assertValidAssetCategory(tenantId: string, companyId: string, assetCategoryId: string) {
+  const category = await prisma.assetCategory.findFirst({ where: { id: assetCategoryId, tenantId, companyId } });
+  if (!category) throw badRequest("فئة الأصل المختارة غير موجودة ضمن هذه الشركة");
+}
+
 /** يمنع تغيير نوع الصنف بعد وجود أي معاملة مرتبطة به (حركة مخزون، سطر فاتورة بيع أو شراء). */
 async function assertTypeNotLocked(tenantId: string, itemId: string, currentType: string, nextType?: string) {
   if (!nextType || nextType === currentType) return;
@@ -80,6 +85,7 @@ export async function createItemWithComponents(
   input: Record<string, unknown> & { companyId: string; type: string; components?: { componentItemId: string; quantityPerUnit: number }[] },
 ) {
   await assertCompanyBelongsToTenant(tenantId, input.companyId);
+  if (input.assetCategoryId) await assertValidAssetCategory(tenantId, input.companyId, input.assetCategoryId as string);
   const { components, ...itemData } = input;
 
   return prisma.$transaction(async (tx) => {
@@ -113,6 +119,7 @@ export async function updateItemWithValidation(tenantId: string, id: string, pat
   if (error) throw badRequest(error);
 
   if (patch.companyId) await assertCompanyBelongsToTenant(tenantId, patch.companyId as string);
+  if (patch.assetCategoryId) await assertValidAssetCategory(tenantId, existing.companyId, patch.assetCategoryId as string);
 
   return prisma.item.update({ where: { id: existing.id }, data: patch as Prisma.ItemUncheckedUpdateInput });
 }

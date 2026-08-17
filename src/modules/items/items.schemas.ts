@@ -29,7 +29,7 @@ const baseItemFields = {
   revenueAccountId: z.string().optional(),
   expenseAccountId: z.string().optional(),
   allowDirectSale: z.boolean().optional(),
-  assetCategory: z.string().optional(),
+  assetCategoryId: z.string().optional(),
 };
 
 /** يفحص اكتمال الربط المحاسبي المطلوب لنوع صنف معيّن — يُستخدَم عند الإنشاء وعند أي تعديل يلمس النوع أو الحسابات. */
@@ -48,7 +48,9 @@ export function requiredAccountFieldsForType(type: (typeof ITEM_TYPES)[number], 
     case "bundle":
       return ["stockAccountId", "revenueAccountId", "cogsAccountId"] as const;
     case "fixed_asset":
-      return [] as const; // الحسابات ثابتة على مستوى الشركة (wellKnownAccounts.ts)، لا ربط لكل صنف
+      // لا حساب مباشر هنا — الحساب يُشتق من فئة الأصل (assetCategoryId) وقت الشراء الفعلي
+      // (items.service.ts يتحقق من وجودها بشكل منفصل، ويُسمح بحفظ الصنف بلا فئة مبدئياً).
+      return [] as const;
   }
 }
 
