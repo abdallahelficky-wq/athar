@@ -8,7 +8,7 @@ import AccountSearchSelect from "./shared/AccountSearchSelect";
 
 const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
 const LEVEL_CODE_LENGTH = { 1: 1, 2: 2, 3: 3, 4: 6 };
-const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false };
+const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false, isEmployeeAdvanceAccount: false };
 
 export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const { user } = useAuth();
@@ -86,7 +86,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   };
-  const edit = (a) => { setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isPosting: a.isPosting, isBankOrCash: a.isBankOrCash }); };
+  const edit = (a) => { setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isPosting: a.isPosting, isBankOrCash: a.isBankOrCash, isEmployeeAdvanceAccount: a.isEmployeeAdvanceAccount }); };
   const addChild = async (a) => {
     setEditingId(null); setError(""); setSuccess("");
     try {
@@ -152,6 +152,12 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
       {!selectedParent && <label>التصنيف<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
       {level === 4 && <label className="checkbox-label"><input type="checkbox" checked readOnly />حساب ترحيل</label>}
       {form.isPosting && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
+      {form.isPosting && form.type === "asset" && (
+        <label className="checkbox-label">
+          <input type="checkbox" checked={form.isEmployeeAdvanceAccount} onChange={(e) => setForm({ ...form, isEmployeeAdvanceAccount: e.target.checked })} />
+          حساب سلف/عهد موظفين (يفعّل نافذة السلفة داخل القيود)
+        </label>
+      )}
     </div>
   );
 

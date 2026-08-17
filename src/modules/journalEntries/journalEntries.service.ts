@@ -5,8 +5,28 @@ import { badRequest, forbidden, notFound } from "../../lib/httpError";
 import { extractJournalEntryFromDocument } from "../../lib/claudeVision";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 import { reserveEntryNumber } from "../../lib/journalPosting";
+import { registerFixedAssetTx } from "../fixedAssets/fixedAssets.service";
+import { registerEmployeeAdvanceTx } from "../employeeAdvances/employeeAdvances.service";
 
 const BALANCE_EPSILON = 0.01;
+
+export interface NewFixedAssetOnLine {
+  name: string;
+  category?: string;
+  serialNumber?: string;
+  chassisNumber?: string;
+  plateNumber?: string;
+  costCenterId?: string;
+  custodianEmployeeId?: string;
+  depreciationStartDate?: Date;
+  usefulLifeYears: number;
+  salvageValue: number;
+  isDepreciable: boolean;
+}
+
+export interface NewEmployeeAdvanceOnLine {
+  monthlyInstallment?: number;
+}
 
 export interface JournalLineInput {
   accountId: string;
@@ -18,6 +38,14 @@ export interface JournalLineInput {
   customerId?: string | null;
   supplierId?: string | null;
   employeeId?: string | null;
+  // ربط بأصل ثابت موجود بالفعل (نافذة اختيار حساب أصول ثابتة داخل سطر قيد عام، Phase F).
+  fixedAssetId?: string | null;
+  // ربط بسلفة/عهدة موظف موجودة بالفعل، بنفس المبدأ.
+  employeeAdvanceId?: string | null;
+  // تسجيل أصل جديد لحظة حفظ هذا القيد تحديداً — يُستهلَك وقت الحفظ فقط، لا يُخزَّن كما هو.
+  newFixedAsset?: NewFixedAssetOnLine | null;
+  // تسجيل سلفة جديدة لحظة حفظ هذا القيد تحديداً — بنفس المبدأ.
+  newEmployeeAdvance?: NewEmployeeAdvanceOnLine | null;
 }
 
 export interface JournalEntryInput {
@@ -54,6 +82,18 @@ async function assertReferencesBelongToTenant(tenantId: string, input: JournalEn
     const costCenters = await prisma.costCenter.findMany({ where: { id: { in: costCenterIds }, tenantId } });
     if (costCenters.length !== costCenterIds.length) throw badRequest("أحد مراكز التكلفة المستخدمة غير موجود");
   }
+
+  const fixedAssetIds = [...new Set(input.lines.map((l) => l.fixedAssetId).filter(Boolean))] as string[];
+  if (fixedAssetIds.length) {
+    const assets = await prisma.fixedAsset.findMany({ where: { id: { in: fixedAssetIds }, tenantId, companyId: input.companyId } });
+    if (assets.length !== fixedAssetIds.length) throw badRequest("أحد الأصول الثابتة المختارة غير موجود ضمن هذه الشركة");
+  }
+
+  const employeeAdvanceIds = [...new Set(input.lines.map((l) => l.employeeAdvanceId).filter(Boolean))] as string[];
+  if (employeeAdvanceIds.length) {
+    const advances = await prisma.employeeAdvance.findMany({ where: { id: { in: employeeAdvanceIds }, tenantId, companyId: input.companyId } });
+    if (advances.length !== employeeAdvanceIds.length) throw badRequest("أحد السلف المختارة غير موجودة ضمن هذه الشركة");
+  }
 }
 
 function toLineCreateData(lines: JournalLineInput[]) {
@@ -70,8 +110,77 @@ function toLineCreateData(lines: JournalLineInput[]) {
   }));
 }
 
+/**
+ * تُنشئ أسطر القيد سطراً سطراً (بدل create متداخل دفعة واحدة) لأن كل سطر قد يحتاج تسجيل أصل ثابت
+ * أو سلفة موظف جديدة تحمل sourceJournalEntryLineId يُشير لمعرّف هذا السطر تحديداً — غير متاح إلا
+ * بعد إنشاء السطر فعلياً. الأصل/السلفة يُسجَّلان بلا أي قيد خاص بهما (registerFixedAssetTx/
+ * registerEmployeeAdvanceTx، Phase D/E) لأن هذا السطر نفسه هو القيد المحاسبي.
+ */
+async function createLinesWithSideEffectsTx(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  companyId: string,
+  journalEntryId: string,
+  date: Date,
+  lines: JournalLineInput[],
+) {
+  for (const l of lines) {
+    const line = await tx.journalEntryLine.create({
+      data: {
+        journalEntryId,
+        accountId: l.accountId,
+        costCenterId: l.costCenterId || null,
+        department: l.department || null,
+        description: l.description || null,
+        debit: new Prisma.Decimal(l.debit || 0),
+        credit: new Prisma.Decimal(l.credit || 0),
+        customerId: l.customerId || null,
+        supplierId: l.supplierId || null,
+        employeeId: l.employeeId || null,
+        fixedAssetId: l.fixedAssetId || null,
+        employeeAdvanceId: l.employeeAdvanceId || null,
+      },
+    });
+
+    if (l.newFixedAsset) {
+      const { asset } = await registerFixedAssetTx(tx, tenantId, {
+        companyId,
+        accountId: l.accountId,
+        name: l.newFixedAsset.name,
+        category: l.newFixedAsset.category,
+        serialNumber: l.newFixedAsset.serialNumber,
+        chassisNumber: l.newFixedAsset.chassisNumber,
+        plateNumber: l.newFixedAsset.plateNumber,
+        costCenterId: l.newFixedAsset.costCenterId,
+        custodianEmployeeId: l.newFixedAsset.custodianEmployeeId,
+        purchaseDate: date,
+        depreciationStartDate: l.newFixedAsset.depreciationStartDate,
+        cost: l.debit,
+        usefulLifeYears: l.newFixedAsset.usefulLifeYears,
+        salvageValue: l.newFixedAsset.salvageValue,
+        isDepreciable: l.newFixedAsset.isDepreciable,
+        sourceJournalEntryLineId: line.id,
+      });
+      await tx.journalEntryLine.update({ where: { id: line.id }, data: { fixedAssetId: asset.id } });
+    }
+
+    if (l.newEmployeeAdvance) {
+      const advance = await registerEmployeeAdvanceTx(tx, tenantId, {
+        companyId,
+        employeeId: l.employeeId!,
+        accountId: l.accountId,
+        amount: l.debit,
+        monthlyInstallment: l.newEmployeeAdvance.monthlyInstallment,
+        startDate: date,
+        sourceJournalEntryLineId: line.id,
+      });
+      await tx.journalEntryLine.update({ where: { id: line.id }, data: { employeeAdvanceId: advance.id } });
+    }
+  }
+}
+
 const entryInclude = {
-  lines: { include: { account: true, costCenter: true } },
+  lines: { include: { account: true, costCenter: true, fixedAsset: true, employeeAdvance: true } },
   company: true,
 } satisfies Prisma.JournalEntryInclude;
 
@@ -361,7 +470,7 @@ export async function createJournalEntry(
 
   return prisma.$transaction(async (tx) => {
     const entryNumber = await reserveEntryNumber(tx, tenantId, input.companyId);
-    return tx.journalEntry.create({
+    const entry = await tx.journalEntry.create({
       data: {
         tenantId,
         companyId: input.companyId,
@@ -371,10 +480,10 @@ export async function createJournalEntry(
         entryNumber,
         sourceModule: "manual",
         createdBy: userId,
-        lines: { create: toLineCreateData(input.lines) },
       },
-      include: entryInclude,
     });
+    await createLinesWithSideEffectsTx(tx, tenantId, input.companyId, entry.id, input.date, input.lines);
+    return tx.journalEntry.findUniqueOrThrow({ where: { id: entry.id }, include: entryInclude });
   });
 }
 
@@ -390,16 +499,12 @@ export async function updateJournalEntry(tenantId: string, id: string, input: Jo
 
   return prisma.$transaction(async (tx) => {
     await tx.journalEntryLine.deleteMany({ where: { journalEntryId: id } });
-    return tx.journalEntry.update({
+    await tx.journalEntry.update({
       where: { id },
-      data: {
-        companyId: input.companyId,
-        date: input.date,
-        memo: input.memo,
-        lines: { create: toLineCreateData(input.lines) },
-      },
-      include: entryInclude,
+      data: { companyId: input.companyId, date: input.date, memo: input.memo },
     });
+    await createLinesWithSideEffectsTx(tx, tenantId, input.companyId, id, input.date, input.lines);
+    return tx.journalEntry.findUniqueOrThrow({ where: { id }, include: entryInclude });
   });
 }
 

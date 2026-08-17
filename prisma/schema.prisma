@@ -358,39 +358,42 @@ enum TaxCategoryCode {
 
 // شجرة الحسابات
 model Account {
-  id                    String      @id @default(cuid())
-  tenantId              String
-  tenant                Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId             String?
-  company               Company?    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  parentId              String?
-  parent                Account?    @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
-  children              Account[]   @relation("AccountHierarchy")
-  code                  String
-  level                 Int
-  isPosting             Boolean     @default(false)
-  isArchived            Boolean     @default(false)
-  name                  String
-  nameEn                String?
-  type                  AccountType
-  isActive              Boolean     @default(true)
+  id                       String      @id @default(cuid())
+  tenantId                 String
+  tenant                   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                String?
+  company                  Company?    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parentId                 String?
+  parent                   Account?    @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children                 Account[]   @relation("AccountHierarchy")
+  code                     String
+  level                    Int
+  isPosting                Boolean     @default(false)
+  isArchived               Boolean     @default(false)
+  name                     String
+  nameEn                   String?
+  type                     AccountType
+  isActive                 Boolean     @default(true)
   // يُحدَّد يدوياً عند إنشاء/تعديل الحساب — يُستخدَم لتحديد أي حسابات "أصول" تمثّل
   // نقدية فعلية (صندوق/بنوك) لعرضها في رسم توزيع الكاش بالداشبورد ولاختيار الحساب
   // البنكي عند تحصيل سند قبض بنكي، بدل التخمين من اسم الحساب
-  isBankOrCash          Boolean     @default(false)
+  isBankOrCash             Boolean     @default(false)
   // يُحدَّد يدوياً — يُستخدَم لتفعيل نافذة "أصل جديد/أصل موجود" عند اختيار هذا الحساب في سطر أي
   // قيد يومية أو فاتورة مشتريات (بدل الاعتماد على موقعه في الشجرة، هش أمام إعادة الترتيب/القوالب
   // المختلفة). يُفعَّل فقط على حسابات اقتناء الأصول (مثل "أراضٍ"، "آلات ومعدات")، وليس على حساب
   // "مجمع الإهلاك" العكسي.
-  isFixedAssetAccount   Boolean     @default(false)
+  isFixedAssetAccount      Boolean     @default(false)
+  // يُحدَّد يدوياً (بلا نظام فئات مقابل — كل سلفة تختار حسابها مباشرة عند الإنشاء) — يُستخدَم
+  // لتفعيل نافذة "سلفة جديدة/سلفة موجودة" عند اختيار هذا الحساب في سطر قيد يومية (Phase F).
+  isEmployeeAdvanceAccount Boolean     @default(false)
   // يُملأ تلقائياً فقط عند إنشاء "حساب ربط بيني" يمثّل شركة شقيقة أخرى ضمن نفس المستأجر (ميزة
   // قيد المرآة بين الشركات) — يُحدِّد الحساب الذي يُسجَّل عليه أي مبلغ مستحق من/إلى تلك الشركة
   // تحديداً، بدل الاعتماد على مطابقة اسم الحساب نصياً (هش عند إعادة تسمية الشركة لاحقاً).
   // حساب واحد لكل شركة مستهدفة داخل شجرة كل شركة مالكة للحساب.
-  intercompanyCompanyId String?
-  intercompanyCompany   Company?    @relation("AccountIntercompanyCompany", fields: [intercompanyCompanyId], references: [id], onDelete: SetNull)
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  intercompanyCompanyId    String?
+  intercompanyCompany      Company?    @relation("AccountIntercompanyCompany", fields: [intercompanyCompanyId], references: [id], onDelete: SetNull)
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
 
   journalEntryLines            JournalEntryLine[]
   salesInvoiceLines            SalesInvoiceLine[]

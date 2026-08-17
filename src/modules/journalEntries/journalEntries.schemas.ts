@@ -1,5 +1,29 @@
 import { z } from "zod";
 
+// حقول تسجيل أصل ثابت جديد ضمن سطر قيد عام (Phase F) — بلا companyId/accountId/paymentMethod:
+// الشركة والحساب المحاسبي محدَّدان مسبقاً من سياق القيد والسطر نفسه (accountId = حساب هذا السطر
+// تحديداً)، والتكلفة = مبلغ السطر (مدين) مباشرة بدل حقل منفصل، فلا قيد إضافي يُنشأ (هذا السطر نفسه
+// هو القيد المحاسبي للاقتناء).
+export const newFixedAssetOnLineSchema = z.object({
+  name: z.string().min(2, "اسم الأصل قصير جداً"),
+  category: z.string().optional(),
+  serialNumber: z.string().optional(),
+  chassisNumber: z.string().optional(),
+  plateNumber: z.string().optional(),
+  costCenterId: z.string().optional(),
+  custodianEmployeeId: z.string().optional(),
+  depreciationStartDate: z.coerce.date().optional(),
+  usefulLifeYears: z.coerce.number().positive(),
+  salvageValue: z.coerce.number().min(0).default(0),
+  isDepreciable: z.coerce.boolean().default(true),
+});
+
+// حقول تسجيل سلفة/عهدة موظف جديدة ضمن سطر قيد عام — بلا companyId/accountId/paymentMethod لنفس
+// السبب أعلاه؛ الموظف يُؤخَذ من employeeId الخاص بالسطر نفسه (حقل موجود بالفعل)، لا حقل منفصل هنا.
+export const newEmployeeAdvanceOnLineSchema = z.object({
+  monthlyInstallment: z.coerce.number().positive().optional(),
+});
+
 export const lineSchema = z
   .object({
     accountId: z.string().min(1, "الحساب مطلوب"),
@@ -11,9 +35,22 @@ export const lineSchema = z
     customerId: z.string().nullable().optional(),
     supplierId: z.string().nullable().optional(),
     employeeId: z.string().nullable().optional(),
+    fixedAssetId: z.string().nullable().optional(),
+    employeeAdvanceId: z.string().nullable().optional(),
+    newFixedAsset: newFixedAssetOnLineSchema.nullable().optional(),
+    newEmployeeAdvance: newEmployeeAdvanceOnLineSchema.nullable().optional(),
   })
   .refine((l) => (l.debit > 0) !== (l.credit > 0), {
     message: "كل سطر يجب أن يحمل مبلغاً في المدين أو الدائن فقط، وليس كليهما أو لا شيء",
+  })
+  .refine((l) => !(l.fixedAssetId && l.newFixedAsset), {
+    message: "اختر إما أصلاً موجوداً أو سجّل أصلاً جديداً، وليس كليهما لنفس السطر",
+  })
+  .refine((l) => !(l.employeeAdvanceId && l.newEmployeeAdvance), {
+    message: "اختر إما سلفة موجودة أو سجّل سلفة جديدة، وليس كليهما لنفس السطر",
+  })
+  .refine((l) => !l.newEmployeeAdvance || l.employeeId, {
+    message: "حدّد الموظف المستفيد من السلفة الجديدة على هذا السطر",
   });
 
 export const createJournalEntrySchema = z.object({

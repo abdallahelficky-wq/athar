@@ -278,6 +278,12 @@
         .derived-account-note { display: block; font-size: 10.5px; color: #8A7C5E; line-height: 1.5; }
         .asset-line-fields { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
         .asset-line-fields input { width: 100%; }
+        .line-link-badge {
+          display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 8px;
+          background: rgba(185,139,78,0.14); border: 1px solid rgba(185,139,78,0.4); border-radius: 999px;
+          font-size: 11px; color: #6B4E23; width: fit-content; max-width: 100%;
+        }
+        .line-link-badge .btn-remove-line { font-size: 11px; padding: 0; }
 
         .journal-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
         .balance-status { font-size: 12.5px; font-family: 'JetBrains Mono', monospace; }

@@ -1,9 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createJournalEntry, updateJournalEntry, postJournalEntry, getNextEntryNumber } from "../api/journalEntries";
+import { listFixedAssets } from "../api/fixedAssets";
+import { listEmployeeAdvances } from "../api/employeeAdvances";
+import { listEmployees } from "../api/employees";
 import { fmt2 } from "../legacy/constants";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
+import FixedAssetLineModal from "./shared/FixedAssetLineModal";
+import EmployeeAdvanceLineModal from "./shared/EmployeeAdvanceLineModal";
 
-const emptyLine = () => ({ accountId: "", costCenterId: "", description: "", debit: "", credit: "" });
+const emptyLine = () => ({
+  accountId: "", costCenterId: "", description: "", debit: "", credit: "",
+  employeeId: "", fixedAssetId: "", employeeAdvanceId: "", newFixedAsset: null, newEmployeeAdvance: null,
+});
 
 const lineFromExisting = (l) => ({
   accountId: l.accountId,
@@ -11,6 +19,14 @@ const lineFromExisting = (l) => ({
   description: l.description || "",
   debit: Number(l.debit) || "",
   credit: Number(l.credit) || "",
+  employeeId: l.employeeId || "",
+  fixedAssetId: l.fixedAssetId || "",
+  employeeAdvanceId: l.employeeAdvanceId || "",
+  newFixedAsset: null,
+  newEmployeeAdvance: null,
+  // للعرض فقط (اسم الأصل/السلفة المرتبط) — لا يُرسَل للخادم عند الحفظ.
+  linkedFixedAssetLabel: l.fixedAsset ? `${l.fixedAsset.assetNumber} — ${l.fixedAsset.name}` : "",
+  linkedEmployeeAdvanceLabel: l.employeeAdvance ? `سلفة — ${fmt2(l.employeeAdvance.amount)} ر.س` : "",
 });
 
 /**
@@ -41,6 +57,12 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
   const [error, setError] = useState("");
   const [numberPreview, setNumberPreview] = useState(null); // { prefix, preview } من الخادم، بلا حجز فعلي
 
+  // بيانات نافذتَي "أصل ثابت/سلفة موظف" المنبثقتين — تُجلَب مرة واحدة عند فتح النافذة، لا لكل سطر.
+  const [fixedAssets, setFixedAssets] = useState([]);
+  const [employeeAdvances, setEmployeeAdvances] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [linkModal, setLinkModal] = useState(null); // { type: "asset" | "advance", lineIndex } | null
+
   const accountInputRefs = useRef([]);
   const descriptionInputRefs = useRef([]);
   const pendingFocusIndex = useRef(null);
@@ -50,6 +72,13 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
     getNextEntryNumber(companyId).then(setNumberPreview).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, isEdit]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    listFixedAssets(companyId).then(setFixedAssets).catch(() => {});
+    listEmployeeAdvances(companyId).then(setEmployeeAdvances).catch(() => {});
+    listEmployees(companyId).then(setEmployees).catch(() => {});
+  }, [companyId]);
 
   // تركيز تلقائي على حقل الحساب في السطر الأول عند فتح النافذة — لا حاجة لمسة ماوس أولى.
   useEffect(() => {
@@ -93,6 +122,43 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
   };
   const removeLine = (idx) => setLines((prev) => (prev.length > 2 ? prev.filter((_, i) => i !== idx) : prev));
 
+  // اختيار حساب أصول ثابتة/سلف موظفين يفتح نافذة الربط تلقائياً؛ تغيير الحساب لأي حساب آخر يمسح
+  // أي ربط سابق بهذا السطر (بلا حذف الأصل/السلفة نفسها، فقط إلغاء الوسم من هذا السطر تحديداً).
+  const onAccountChange = (idx, accountId) => {
+    const account = accounts.find((a) => a.id === accountId);
+    setLines((prev) => prev.map((l, i) => (i === idx ? {
+      ...l, accountId, fixedAssetId: "", employeeAdvanceId: "", newFixedAsset: null, newEmployeeAdvance: null,
+      linkedFixedAssetLabel: "", linkedEmployeeAdvanceLabel: "",
+    } : l)));
+    if (account?.isFixedAssetAccount) setLinkModal({ type: "asset", lineIndex: idx });
+    else if (account?.isEmployeeAdvanceAccount) setLinkModal({ type: "advance", lineIndex: idx });
+  };
+
+  const applyAssetLink = ({ fixedAssetId, newFixedAsset, debit }) => {
+    const idx = linkModal.lineIndex;
+    setLines((prev) => prev.map((l, i) => (i === idx ? {
+      ...l, fixedAssetId: fixedAssetId || "", newFixedAsset,
+      linkedFixedAssetLabel: fixedAssetId ? (fixedAssets.find((a) => a.id === fixedAssetId)?.name || "") : (newFixedAsset ? `أصل جديد — ${newFixedAsset.name}` : ""),
+      debit: debit != null ? debit : l.debit,
+    } : l)));
+    setLinkModal(null);
+  };
+
+  const applyAdvanceLink = ({ employeeAdvanceId, newEmployeeAdvance, debit, employeeId }) => {
+    const idx = linkModal.lineIndex;
+    setLines((prev) => prev.map((l, i) => (i === idx ? {
+      ...l, employeeAdvanceId: employeeAdvanceId || "", newEmployeeAdvance, employeeId: employeeId || l.employeeId,
+      linkedEmployeeAdvanceLabel: employeeAdvanceId ? "سلفة موجودة" : (newEmployeeAdvance ? "سلفة جديدة" : ""),
+      debit: debit != null ? debit : l.debit,
+    } : l)));
+    setLinkModal(null);
+  };
+
+  const clearLink = (idx) => setLines((prev) => prev.map((l, i) => (i === idx ? {
+    ...l, fixedAssetId: "", employeeAdvanceId: "", newFixedAsset: null, newEmployeeAdvance: null,
+    linkedFixedAssetLabel: "", linkedEmployeeAdvanceLabel: "",
+  } : l)));
+
   // Enter داخل حقل "الوصف" (آخر حقل تفاعلي أساسي بكل سطر) ينقل مباشرة لحساب السطر التالي، أو
   // يضيف سطراً جديداً ويُركِّز عليه لو كان هذا آخر سطر — بلا حاجة لضغط "+ إضافة سطر" بالماوس.
   const onDescriptionKeyDown = (e, idx) => {
@@ -114,6 +180,11 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
         description: l.description || null,
         debit: Number(l.debit || 0),
         credit: Number(l.credit || 0),
+        employeeId: l.employeeId || null,
+        fixedAssetId: l.fixedAssetId || null,
+        employeeAdvanceId: l.employeeAdvanceId || null,
+        newFixedAsset: l.newFixedAsset || null,
+        newEmployeeAdvance: l.newEmployeeAdvance || null,
       })),
   });
 
@@ -173,8 +244,20 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
                         ref={(el) => (accountInputRefs.current[idx] = el)}
                         accounts={accounts}
                         value={l.accountId}
-                        onChange={(accountId) => updateLine(idx, "accountId", accountId)}
+                        onChange={(accountId) => onAccountChange(idx, accountId)}
                       />
+                      {(l.fixedAssetId || l.newFixedAsset) && (
+                        <div className="line-link-badge">
+                          🔗 {l.linkedFixedAssetLabel || "أصل جديد"}
+                          <button type="button" className="btn-remove-line" onClick={() => clearLink(idx)} title="إلغاء الربط">✕</button>
+                        </div>
+                      )}
+                      {(l.employeeAdvanceId || l.newEmployeeAdvance) && (
+                        <div className="line-link-badge">
+                          🔗 {l.linkedEmployeeAdvanceLabel || "سلفة جديدة"}
+                          <button type="button" className="btn-remove-line" onClick={() => clearLink(idx)} title="إلغاء الربط">✕</button>
+                        </div>
+                      )}
                     </td>
                     <td><input type="number" className="amount-input" value={l.debit} onChange={(e) => updateLine(idx, "debit", e.target.value)} placeholder="0.00" /></td>
                     <td><input type="number" className="amount-input" value={l.credit} onChange={(e) => updateLine(idx, "credit", e.target.value)} placeholder="0.00" /></td>
@@ -246,6 +329,26 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
           </div>
         </div>
       </div>
+
+      {linkModal?.type === "asset" && (
+        <FixedAssetLineModal
+          existingAssets={fixedAssets}
+          costCenters={costCenterOptions}
+          employees={employees}
+          initial={lines[linkModal.lineIndex]}
+          onClose={() => { clearLink(linkModal.lineIndex); setLinkModal(null); }}
+          onConfirm={applyAssetLink}
+        />
+      )}
+      {linkModal?.type === "advance" && (
+        <EmployeeAdvanceLineModal
+          existingAdvances={employeeAdvances}
+          employees={employees}
+          initial={lines[linkModal.lineIndex]}
+          onClose={() => { clearLink(linkModal.lineIndex); setLinkModal(null); }}
+          onConfirm={applyAdvanceLink}
+        />
+      )}
     </div>
   );
 }
