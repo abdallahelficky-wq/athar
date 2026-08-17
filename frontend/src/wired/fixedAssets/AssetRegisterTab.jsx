@@ -2,18 +2,24 @@ import React, { useEffect, useState } from "react";
 import { listFixedAssets, createFixedAsset, updateFixedAsset, removeFixedAsset } from "../../api/fixedAssets";
 import { listAccounts } from "../../api/accounts";
 import { listCostCenters } from "../../api/costCenters";
+import { listAssetCategories } from "../../api/assetCategories";
+import { listEmployees } from "../../api/employees";
 import { ASSET_CATEGORIES, fmt } from "../../legacy/constants";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
+import EmployeeSearchSelect from "../shared/EmployeeSearchSelect";
 
-// رقم الهيكل مفيد فقط لفئة "سيارات ومركبات" تحديداً — يُخفى لباقي التصنيفات بدل إرباك الفورم بحقل
-// لا علاقة له بأغلب الأصول.
+// رقم الهيكل ورقم اللوحة مفيدان فقط لفئة "سيارات ومركبات" تحديداً — يُخفَيان لباقي التصنيفات بدل
+// إرباك الفورم بحقول لا علاقة لها بأغلب الأصول.
 const VEHICLE_CATEGORY = "سيارات ومركبات";
 
 const emptyForm = () => ({
-  accountId: "", name: "", category: ASSET_CATEGORIES[0], serialNumber: "", chassisNumber: "", costCenterId: "",
-  purchaseDate: new Date().toISOString().slice(0, 10), cost: "", usefulLifeYears: "5", salvageValue: "0",
+  categoryId: "", useRawAccount: false, accountId: "",
+  name: "", category: ASSET_CATEGORIES[0], serialNumber: "", chassisNumber: "", plateNumber: "", costCenterId: "",
+  custodianEmployeeId: "",
+  purchaseDate: new Date().toISOString().slice(0, 10), depreciationStartDate: "",
+  cost: "", usefulLifeYears: "5", salvageValue: "0",
   isDepreciable: true, paymentMethod: "cash",
 });
 
@@ -21,6 +27,8 @@ export default function AssetRegisterTab({ companyId }) {
   const [assets, setAssets] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyForm());
@@ -38,30 +46,39 @@ export default function AssetRegisterTab({ companyId }) {
     if (!companyId) return;
     listAccounts({ companyId }).then(setAccounts).catch((e) => setError(e.message));
     listCostCenters().then(setCostCenters).catch((e) => setError(e.message));
+    listAssetCategories(companyId).then(setCategories).catch((e) => setError(e.message));
+    listEmployees(companyId).then(setEmployees).catch((e) => setError(e.message));
   }, [companyId]);
 
   // حسابات أصول قابلة للترحيل فقط — هذه الشاشة مخصَّصة للأصول الثابتة فعلياً، فلا حاجة لتقييدها
-  // بعلامة isFixedAssetAccount (تلك العلامة لتفعيل نافذة الاختيار من داخل قيد يومي عام، Phase C/F).
+  // بعلامة isFixedAssetAccount (تلك العلامة لتفعيل نافذة الاختيار من داخل قيد يومي عام، Phase F).
   const assetAccounts = accounts.filter((a) => a.type === "asset");
   const companyCostCenters = costCenters.filter((c) => !c.companyId || c.companyId === companyId);
+  const groupedCategories = categories.reduce((acc, c) => {
+    (acc[c.groupName] = acc[c.groupName] || []).push(c);
+    return acc;
+  }, {});
 
   const save = async () => {
-    if (!form.name || !Number(form.cost) || !form.accountId) return;
+    if (!form.name || !Number(form.cost)) return;
+    if (!form.categoryId && !(form.useRawAccount && form.accountId)) return;
+    const shared = {
+      name: form.name, category: form.category,
+      serialNumber: form.serialNumber || undefined, chassisNumber: form.chassisNumber || undefined,
+      plateNumber: form.plateNumber || undefined,
+      costCenterId: form.costCenterId || undefined,
+      depreciationStartDate: form.depreciationStartDate || undefined,
+      usefulLifeYears: Number(form.usefulLifeYears), salvageValue: Number(form.salvageValue), isDepreciable: form.isDepreciable,
+      ...(form.useRawAccount ? { accountId: form.accountId } : { categoryId: form.categoryId }),
+    };
     try {
       if (editingId) {
-        await updateFixedAsset(editingId, {
-          accountId: form.accountId, name: form.name, category: form.category,
-          serialNumber: form.serialNumber || undefined, chassisNumber: form.chassisNumber || undefined,
-          costCenterId: form.costCenterId || undefined,
-          usefulLifeYears: Number(form.usefulLifeYears), salvageValue: Number(form.salvageValue), isDepreciable: form.isDepreciable,
-        });
+        // null صراحةً هنا (بعكس الإنشاء) لأن التعديل يجب أن يقدر يُزيل عهدة موظف موجودة، لا فقط يتجاهلها.
+        await updateFixedAsset(editingId, { ...shared, custodianEmployeeId: form.custodianEmployeeId || null });
       } else {
         await createFixedAsset({
-          companyId, accountId: form.accountId, name: form.name, category: form.category,
-          serialNumber: form.serialNumber || undefined, chassisNumber: form.chassisNumber || undefined,
-          costCenterId: form.costCenterId || undefined, purchaseDate: form.purchaseDate,
-          cost: Number(form.cost), usefulLifeYears: Number(form.usefulLifeYears), salvageValue: Number(form.salvageValue),
-          isDepreciable: form.isDepreciable, paymentMethod: form.paymentMethod,
+          companyId, purchaseDate: form.purchaseDate, cost: Number(form.cost), paymentMethod: form.paymentMethod,
+          custodianEmployeeId: form.custodianEmployeeId || undefined, ...shared,
         });
       }
       setForm(emptyForm());
@@ -75,8 +92,12 @@ export default function AssetRegisterTab({ companyId }) {
   const startEdit = (a) => {
     setEditingId(a.id);
     setForm({
-      ...emptyForm(), accountId: a.accountId || "", name: a.name, category: a.category || ASSET_CATEGORIES[0],
-      serialNumber: a.serialNumber || "", chassisNumber: a.chassisNumber || "", costCenterId: a.costCenterId || "",
+      ...emptyForm(),
+      categoryId: a.categoryId || "", useRawAccount: !a.categoryId, accountId: a.accountId || "",
+      name: a.name, category: a.category || ASSET_CATEGORIES[0],
+      serialNumber: a.serialNumber || "", chassisNumber: a.chassisNumber || "", plateNumber: a.plateNumber || "",
+      costCenterId: a.costCenterId || "", custodianEmployeeId: a.custodianEmployeeId || "",
+      depreciationStartDate: a.depreciationStartDate ? a.depreciationStartDate.slice(0, 10) : "",
       usefulLifeYears: a.usefulLifeYears, salvageValue: a.salvageValue, isDepreciable: a.isDepreciable,
     });
   };
@@ -96,12 +117,32 @@ export default function AssetRegisterTab({ companyId }) {
         <div className="form-grid">
           <label>اسم الأصل<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <label>التصنيف<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{ASSET_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></label>
-          <label>الحساب المحاسبي
-            <AccountSearchSelect accounts={assetAccounts} value={form.accountId} onChange={(accountId) => setForm({ ...form, accountId })} />
+          {!form.useRawAccount ? (
+            <label>فئة الأصل (تحدد الحسابات المحاسبية تلقائياً)
+              <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
+                <option value="">— اختر فئة —</option>
+                {Object.entries(groupedCategories).map(([groupName, items]) => (
+                  <optgroup key={groupName} label={groupName}>
+                    {items.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <label>الحساب المحاسبي
+              <AccountSearchSelect accounts={assetAccounts} value={form.accountId} onChange={(accountId) => setForm({ ...form, accountId })} />
+            </label>
+          )}
+          <label className="checkbox-label">
+            <input type="checkbox" checked={form.useRawAccount} onChange={(e) => setForm({ ...form, useRawAccount: e.target.checked })} />
+            اختيار حساب محاسبي مباشر بدل فئة (لأصل بلا فئة مناسبة بعد)
           </label>
           <label>الرقم التسلسلي (اختياري)<input type="text" value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.target.value })} /></label>
           {form.category === VEHICLE_CATEGORY && (
-            <label>رقم الهيكل<input type="text" value={form.chassisNumber} onChange={(e) => setForm({ ...form, chassisNumber: e.target.value })} /></label>
+            <>
+              <label>رقم الهيكل<input type="text" value={form.chassisNumber} onChange={(e) => setForm({ ...form, chassisNumber: e.target.value })} /></label>
+              <label>رقم اللوحة<input type="text" value={form.plateNumber} onChange={(e) => setForm({ ...form, plateNumber: e.target.value })} /></label>
+            </>
           )}
           <label>الموقع/الفرع (اختياري)
             <select value={form.costCenterId} onChange={(e) => setForm({ ...form, costCenterId: e.target.value })}>
@@ -109,9 +150,13 @@ export default function AssetRegisterTab({ companyId }) {
               {companyCostCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
+          <label>عهدة لدى موظف (اختياري — تتبّع بلا أثر محاسبي)
+            <EmployeeSearchSelect employees={employees} value={form.custodianEmployeeId} onChange={(id) => setForm({ ...form, custodianEmployeeId: id })} allowClear clearLabel="— بلا —" />
+          </label>
           {!editingId && <label>تاريخ الشراء<input type="date" value={form.purchaseDate} onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })} /></label>}
           {!editingId && <label>التكلفة<input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} /></label>}
-          <label>العمر الإنتاجي (سنوات)<input type="number" value={form.usefulLifeYears} onChange={(e) => setForm({ ...form, usefulLifeYears: e.target.value })} /></label>
+          <label>تاريخ بدء الإهلاك (اختياري — افتراضياً تاريخ الشراء)<input type="date" value={form.depreciationStartDate} onChange={(e) => setForm({ ...form, depreciationStartDate: e.target.value })} /></label>
+          <label>العمر الإنتاجي (سنوات)<input type="number" step="0.1" value={form.usefulLifeYears} onChange={(e) => setForm({ ...form, usefulLifeYears: e.target.value })} /></label>
           <label>القيمة التخريدية<input type="number" value={form.salvageValue} onChange={(e) => setForm({ ...form, salvageValue: e.target.value })} /></label>
           <label className="checkbox-label"><input type="checkbox" checked={form.isDepreciable} onChange={(e) => setForm({ ...form, isDepreciable: e.target.checked })} />يُستهلك (أوقف التفعيل للأراضي مثلاً)</label>
           {!editingId && (

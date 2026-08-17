@@ -71,6 +71,7 @@ model Tenant {
   stockMovements StockMovement[]
 
   fixedAssets      FixedAsset[]
+  assetCategories  AssetCategory[]
   depreciationRuns DepreciationRun[]
 
   employees                 Employee[]
@@ -249,6 +250,7 @@ model Company {
   warehouses           Warehouse[]
   stockMovements       StockMovement[]
   fixedAssets          FixedAsset[]
+  assetCategories      AssetCategory[]
   depreciationRuns     DepreciationRun[]
   employees            Employee[]
   payrollRuns          PayrollRun[]
@@ -390,23 +392,26 @@ model Account {
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
-  journalEntryLines     JournalEntryLine[]
-  salesInvoiceLines     SalesInvoiceLine[]
-  salesReturnLines      SalesReturnLine[]
-  salesDebitNoteLines   SalesDebitNoteLine[]
-  purchaseInvoiceLines  PurchaseInvoiceLine[]
-  purchaseReturnLines   PurchaseReturnLine[]
-  receiptsAsBank        Receipt[]             @relation("ReceiptBankAccount")
-  itemStockLinks        Item[]                @relation("ItemStockAccount")
-  itemCogsLinks         Item[]                @relation("ItemCogsAccount")
-  itemRevenueLinks      Item[]                @relation("ItemRevenueAccount")
-  itemExpenseLinks      Item[]                @relation("ItemExpenseAccount")
-  customerLinks         Customer[]
-  supplierLinks         Supplier[]
-  employeeLinks         Employee[]
-  payrollComponentLinks PayrollComponent[]
-  fixedAssetLinks       FixedAsset[]
-  employeeAdvanceLinks  EmployeeAdvance[]
+  journalEntryLines            JournalEntryLine[]
+  salesInvoiceLines            SalesInvoiceLine[]
+  salesReturnLines             SalesReturnLine[]
+  salesDebitNoteLines          SalesDebitNoteLine[]
+  purchaseInvoiceLines         PurchaseInvoiceLine[]
+  purchaseReturnLines          PurchaseReturnLine[]
+  receiptsAsBank               Receipt[]             @relation("ReceiptBankAccount")
+  itemStockLinks               Item[]                @relation("ItemStockAccount")
+  itemCogsLinks                Item[]                @relation("ItemCogsAccount")
+  itemRevenueLinks             Item[]                @relation("ItemRevenueAccount")
+  itemExpenseLinks             Item[]                @relation("ItemExpenseAccount")
+  customerLinks                Customer[]
+  supplierLinks                Supplier[]
+  employeeLinks                Employee[]
+  payrollComponentLinks        PayrollComponent[]
+  fixedAssetLinks              FixedAsset[]
+  employeeAdvanceLinks         EmployeeAdvance[]
+  assetCategoryAssetLinks      AssetCategory[]       @relation("AssetCategoryAssetAccount")
+  assetCategoryAccDepLinks     AssetCategory[]       @relation("AssetCategoryAccumulatedDepreciationAccount")
+  assetCategoryDepExpenseLinks AssetCategory[]       @relation("AssetCategoryDepreciationExpenseAccount")
 
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
@@ -1204,6 +1209,38 @@ enum FixedAssetDepreciationMethod {
   declining_balance
 }
 
+// تصنيف أصول (Phase C) — "المجموعة" (groupName) وصف عرض/تجميع فقط بلا حسابات خاصة به،
+// بينما "الفئة" (name) هي المستوى الذي يحمل الربط الفعلي بثلاثة حسابات محاسبية. اختيار فئة عند
+// تسجيل أصل جديد يملأ حسابه تلقائياً بدل اختيار حساب خام يدوياً في كل مرة، ويُفعِّل
+// isFixedAssetAccount تلقائياً على حساب الأصل المرتبط. لا مستوى "قسم" مستقل هنا — CostCenter
+// الموجود بالفعل على FixedAsset.costCenterId يغطي هذا المفهوم.
+model AssetCategory {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  groupName String
+  name      String
+
+  assetAccountId String
+  assetAccount   Account @relation("AssetCategoryAssetAccount", fields: [assetAccountId], references: [id], onDelete: Restrict)
+
+  accumulatedDepreciationAccountId String
+  accumulatedDepreciationAccount   Account @relation("AssetCategoryAccumulatedDepreciationAccount", fields: [accumulatedDepreciationAccountId], references: [id], onDelete: Restrict)
+
+  depreciationExpenseAccountId String
+  depreciationExpenseAccount   Account @relation("AssetCategoryDepreciationExpenseAccount", fields: [depreciationExpenseAccountId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assets FixedAsset[]
+
+  @@unique([tenantId, companyId, name])
+  @@map("asset_categories")
+}
+
 model FixedAsset {
   id                          String                       @id @default(cuid())
   tenantId                    String
@@ -1215,16 +1252,28 @@ model FixedAsset {
   assetNumber                 String
   name                        String
   category                    String?
+  // فئة الأصل (Phase C) — عند تحديدها، تُشتق منها الحسابات الثلاثة تلقائياً بدل اختيار accountId
+  // يدوياً؛ nullable لبقاء التوافق مع أصول قديمة/بلا تصنيف (تسقط على المسار الاحتياطي القديم).
+  categoryId                  String?
+  categoryRef                 AssetCategory?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   serialNumber                String?
   // يظهر فقط في الواجهة لو category يوحي بمركبة — مُخزَّن دائماً بلا قيد على نوع الأصل هنا.
   chassisNumber               String?
+  plateNumber                 String?
   // الموقع/الفرع — يعيد استخدام CostCenter الموجود بالفعل (نفس مفهوم "الموقع" المستخدَم في
   // القيود ومبيعات المحطات) بدل نموذج مستقل جديد لمفهوم مطابق.
   costCenterId                String?
   costCenter                  CostCenter?                  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  // من يحمل هذا الأصل كعهدة حالياً — تتبّع حالة بسيط بلا أي أثر محاسبي، منفصل تماماً عن
+  // EmployeeAdvance المالي. أي نوع أصل (لا يقتصر على مركبات). تاريخ العهدة عبر الزمن مؤجَّل.
+  custodianEmployeeId         String?
+  custodian                   Employee?                    @relation("FixedAssetCustodian", fields: [custodianEmployeeId], references: [id], onDelete: SetNull)
   purchaseDate                DateTime
   cost                        Decimal                      @db.Decimal(18, 2)
-  usefulLifeYears             Int
+  // تاريخ بدء حساب الإهلاك — قد يختلف عن تاريخ الشراء (مثلاً أصل اشتُري ولم يُشغَّل فوراً).
+  // Nullable لتوافق الأصول القديمة؛ يُستخدَم purchaseDate كاحتياطي عند غيابه.
+  depreciationStartDate       DateTime?
+  usefulLifeYears             Decimal                      @db.Decimal(6, 2)
   salvageValue                Decimal                      @default(0) @db.Decimal(18, 2)
   depreciationMethod          FixedAssetDepreciationMethod @default(straight_line)
   // false لأصول لا تُستهلك (مثل الأراضي) — تُستبعَد من حساب الإهلاك الشهري بالكامل.
@@ -1341,6 +1390,9 @@ model Employee {
   attendanceRecords AttendanceRecord[]
   payrollComponents EmployeePayrollComponent[]
   advanceRecords    EmployeeAdvance[]
+  // أصول محتفَظ بها كعهدة حالياً — تتبّع بسيط لمن يحمل الأصل الآن بلا أي أثر محاسبي (بعكس
+  // EmployeeAdvance)؛ تاريخ العُهدة عبر الزمن مؤجَّل لمرحلة مستقبلية (AssetCustodyHistory).
+  custodyAssets     FixedAsset[]               @relation("FixedAssetCustodian")
 
   @@unique([tenantId, phone])
   @@map("employees")

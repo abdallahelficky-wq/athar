@@ -12,11 +12,24 @@ const PAYMENT_ACCOUNT_NAME: Record<string, string> = {
   credit: "ذمم دائنة - موردين",
 };
 
-type ComputedInput = { cost: unknown; salvageValue: unknown; usefulLifeYears: number; purchaseDate: Date; isDepreciable: boolean };
+type ComputedInput = {
+  cost: unknown;
+  salvageValue: unknown;
+  usefulLifeYears: unknown;
+  purchaseDate: Date;
+  depreciationStartDate: Date | null;
+  isDepreciable: boolean;
+};
 
 function withComputed<T extends ComputedInput>(asset: T) {
   const accDep = accumulatedDepreciation(
-    { cost: Number(asset.cost), salvageValue: Number(asset.salvageValue), usefulLifeYears: asset.usefulLifeYears, purchaseDate: asset.purchaseDate, isDepreciable: asset.isDepreciable },
+    {
+      cost: Number(asset.cost),
+      salvageValue: Number(asset.salvageValue),
+      usefulLifeYears: Number(asset.usefulLifeYears),
+      purchaseDate: asset.depreciationStartDate ?? asset.purchaseDate,
+      isDepreciable: asset.isDepreciable,
+    },
     new Date(),
   );
   return { ...asset, accumulatedDepreciation: accDep, netBookValue: Number(asset.cost) - accDep };
@@ -29,6 +42,23 @@ async function assertValidAssetAccount(tenantId: string, companyId: string, acco
   if (!account.isPosting || !account.isActive || account.isArchived) throw badRequest("الحساب المحاسبي المختار ليس حساب ترحيل نشطاً");
   if (account.type !== "asset") throw badRequest("الحساب المحاسبي المختار ليس من نوع أصول");
   return account;
+}
+
+/**
+ * يشتق حساب الأصل من فئة مختارة (categoryId) بدل اختيار حساب خام — يتحقق أن الفئة تنتمي لنفس
+ * الشركة. لو لم تُختَر فئة، accountId الخام يبقى الفallback (Phase B، أصول قديمة/بلا تصنيف).
+ */
+async function resolveAssetAccount(tenantId: string, companyId: string, input: { categoryId?: string; accountId?: string }) {
+  if (input.categoryId) {
+    const category = await prisma.assetCategory.findFirst({ where: { id: input.categoryId, tenantId, companyId } });
+    if (!category) throw badRequest("فئة الأصل المختارة غير موجودة ضمن هذه الشركة");
+    return { accountId: category.assetAccountId, categoryId: category.id };
+  }
+  if (input.accountId) {
+    await assertValidAssetAccount(tenantId, companyId, input.accountId);
+    return { accountId: input.accountId, categoryId: null as string | null };
+  }
+  throw badRequest("اختر فئة الأصل أو الحساب المحاسبي");
 }
 
 async function nextAssetNumber(tx: Prisma.TransactionClient, tenantId: string, companyId: string) {
@@ -72,13 +102,17 @@ export async function createFixedAsset(
   userId: string,
   input: {
     companyId: string;
-    accountId: string;
+    categoryId?: string;
+    accountId?: string;
     name: string;
     category?: string;
     serialNumber?: string;
     chassisNumber?: string;
+    plateNumber?: string;
     costCenterId?: string;
+    custodianEmployeeId?: string;
     purchaseDate: Date;
+    depreciationStartDate?: Date;
     cost: number;
     usefulLifeYears: number;
     salvageValue: number;
@@ -90,12 +124,16 @@ export async function createFixedAsset(
   const company = await prisma.company.findFirst({ where: { id: input.companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
 
-  await assertValidAssetAccount(tenantId, input.companyId, input.accountId);
+  const { accountId, categoryId } = await resolveAssetAccount(tenantId, input.companyId, input);
   const creditAccountId = await getAccountIdByName(tenantId, input.companyId, PAYMENT_ACCOUNT_NAME[input.paymentMethod]);
 
   if (input.costCenterId) {
     const costCenter = await prisma.costCenter.findFirst({ where: { id: input.costCenterId, tenantId, companyId: input.companyId } });
     if (!costCenter) throw badRequest("الموقع/الفرع المختار غير موجود ضمن هذه الشركة");
+  }
+  if (input.custodianEmployeeId) {
+    const employee = await prisma.employee.findFirst({ where: { id: input.custodianEmployeeId, tenantId, companyId: input.companyId } });
+    if (!employee) throw badRequest("الموظف المختار كعهدة غير موجود ضمن هذه الشركة");
   }
 
   return prisma.$transaction(async (tx) => {
@@ -105,14 +143,18 @@ export async function createFixedAsset(
       data: {
         tenantId,
         companyId: input.companyId,
-        accountId: input.accountId,
+        accountId,
+        categoryId,
         assetNumber: await nextAssetNumber(tx, tenantId, input.companyId),
         name: input.name,
         category: input.category,
         serialNumber: input.serialNumber,
         chassisNumber: input.chassisNumber,
+        plateNumber: input.plateNumber,
         costCenterId: input.costCenterId,
+        custodianEmployeeId: input.custodianEmployeeId,
         purchaseDate: input.purchaseDate,
+        depreciationStartDate: input.depreciationStartDate,
         cost: input.cost,
         usefulLifeYears: input.usefulLifeYears,
         salvageValue: input.salvageValue,
@@ -130,7 +172,7 @@ export async function createFixedAsset(
       sourceModule: "manual",
       createdBy: userId,
       lines: [
-        { accountId: input.accountId, costCenterId: input.costCenterId, fixedAssetId: asset.id, department: "المالية والحسابات", debit: input.cost, credit: 0 },
+        { accountId, costCenterId: input.costCenterId, fixedAssetId: asset.id, department: "المالية والحسابات", debit: input.cost, credit: 0 },
         { accountId: creditAccountId, department: "المالية والحسابات", debit: 0, credit: input.cost },
       ],
     });
@@ -145,12 +187,16 @@ export async function updateFixedAsset(
   tenantId: string,
   id: string,
   input: {
+    categoryId?: string | null;
     accountId?: string;
     name?: string;
     category?: string;
     serialNumber?: string;
     chassisNumber?: string;
+    plateNumber?: string;
     costCenterId?: string;
+    custodianEmployeeId?: string | null;
+    depreciationStartDate?: Date;
     usefulLifeYears?: number;
     salvageValue?: number;
     depreciationMethod?: "straight_line" | "declining_balance";
@@ -161,13 +207,36 @@ export async function updateFixedAsset(
   if (!existing) throw notFound("الأصل غير موجود");
   if (existing.status === "disposed") throw badRequest("لا يمكن تعديل أصل مستبعد");
 
-  if (input.accountId) await assertValidAssetAccount(tenantId, existing.companyId, input.accountId);
+  const { categoryId, accountId, custodianEmployeeId, ...rest } = input;
+
+  let accountUpdate: { accountId?: string; categoryId?: string | null } = {};
+  if (categoryId) {
+    // فئة جديدة مختارة صراحةً — تشتق الحساب منها وتتجاهل accountId خام لو أُرسل معاً.
+    accountUpdate = await resolveAssetAccount(tenantId, existing.companyId, { categoryId });
+  } else if (categoryId === null) {
+    // إلغاء الفئة صراحةً — يتطلب حساباً خاماً بديلاً في نفس الطلب.
+    if (!accountId) throw badRequest("عند إلغاء ربط الأصل بفئة، اختر حساباً محاسبياً بديلاً");
+    await assertValidAssetAccount(tenantId, existing.companyId, accountId);
+    accountUpdate = { accountId, categoryId: null };
+  } else if (accountId) {
+    // حساب خام صريح بلا تغيير فئة — يُلغي الربط بأي فئة سابقة حتى لا يتعارض الحساب المعروض معها.
+    await assertValidAssetAccount(tenantId, existing.companyId, accountId);
+    accountUpdate = { accountId, categoryId: null };
+  }
+
   if (input.costCenterId) {
     const costCenter = await prisma.costCenter.findFirst({ where: { id: input.costCenterId, tenantId, companyId: existing.companyId } });
     if (!costCenter) throw badRequest("الموقع/الفرع المختار غير موجود ضمن هذه الشركة");
   }
+  if (custodianEmployeeId) {
+    const employee = await prisma.employee.findFirst({ where: { id: custodianEmployeeId, tenantId, companyId: existing.companyId } });
+    if (!employee) throw badRequest("الموظف المختار كعهدة غير موجود ضمن هذه الشركة");
+  }
 
-  const asset = await prisma.fixedAsset.update({ where: { id }, data: input });
+  const asset = await prisma.fixedAsset.update({
+    where: { id },
+    data: { ...rest, ...accountUpdate, custodianEmployeeId: custodianEmployeeId === undefined ? undefined : custodianEmployeeId },
+  });
   return withComputed(asset);
 }
 
@@ -195,18 +264,25 @@ export async function disposeFixedAsset(
   id: string,
   input: { disposalDate: Date; salePrice: number; method: "cash" | "bank" },
 ) {
-  const asset = await prisma.fixedAsset.findFirst({ where: { id, tenantId } });
+  const asset = await prisma.fixedAsset.findFirst({ where: { id, tenantId }, include: { categoryRef: true } });
   if (!asset) throw notFound("الأصل غير موجود");
   if (asset.status === "disposed") throw badRequest("تم استبعاد هذا الأصل مسبقاً");
 
   const accDep = accumulatedDepreciation(
-    { cost: Number(asset.cost), salvageValue: Number(asset.salvageValue), usefulLifeYears: asset.usefulLifeYears, purchaseDate: asset.purchaseDate, isDepreciable: asset.isDepreciable },
+    {
+      cost: Number(asset.cost),
+      salvageValue: Number(asset.salvageValue),
+      usefulLifeYears: Number(asset.usefulLifeYears),
+      purchaseDate: asset.depreciationStartDate ?? asset.purchaseDate,
+      isDepreciable: asset.isDepreciable,
+    },
     input.disposalDate,
   );
   const nbv = Number(asset.cost) - accDep;
   const gainLoss = input.salePrice - nbv;
 
-  const accDepAccountId = await getAccountIdByName(tenantId, asset.companyId, "مجمع الإهلاك");
+  // فئة الأصل (إن وُجدت) تحمل حساب مجمع إهلاك خاصاً بها — يُفضَّل على الحساب المشترك القديم.
+  const accDepAccountId = asset.categoryRef?.accumulatedDepreciationAccountId ?? (await getAccountIdByName(tenantId, asset.companyId, "مجمع الإهلاك"));
   // الحساب الفعلي الذي سُجِّل عليه هذا الأصل تحديداً — بدل حساب "الأصول الثابتة" المشترك القديم.
   // أصول ما قبل هذا التعديل (بلا accountId) تسقط على المسار الاحتياطي القديم فقط.
   const assetAccountId = asset.accountId ?? (await getAccountIdByName(tenantId, asset.companyId, "الأصول الثابتة"));

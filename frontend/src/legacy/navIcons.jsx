@@ -47,6 +47,7 @@ export const NAV_ICONS = {
   register: svg(<><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M9 3v3h6V3" /><path d="M8 11h8M8 15h5" /></>),
   depreciation: svg(<><path d="M3 7l7 7 4-4 7 7" /><path d="M15 6h6v6" /></>),
   disposal: svg(<><path d="M3 6h18" /><path d="M8 6V4h8v2M6 6l1 15h10l1-15" /></>),
+  categories: svg(<><rect x="3" y="3" width="7" height="7" rx="1.3" /><rect x="14" y="3" width="7" height="7" rx="1.3" /><rect x="3" y="14" width="7" height="7" rx="1.3" /><rect x="14" y="14" width="7" height="7" rx="1.3" /></>),
 
   journal: svg(<><path d="M12 5c-2-1.5-5-2-8-1.5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-13c-3-.5-6 0-8 1.5z" /><path d="M12 5v13" /></>),
   chartOfAccounts: svg(<><circle cx="6" cy="5" r="2" /><circle cx="6" cy="19" r="2" /><circle cx="18" cy="12" r="2" /><path d="M6 7v10" /><path d="M6 12h10" /></>),

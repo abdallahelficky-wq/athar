@@ -7,7 +7,7 @@ const lineSchema = z.object({
   itemId: z.string().optional(),
   warehouseId: z.string().optional(),
   // فقط لو الصنف من نوع "أصل ثابت"
-  usefulLifeYears: z.coerce.number().int().positive().optional(),
+  usefulLifeYears: z.coerce.number().positive().optional(),
   salvageValue: z.coerce.number().min(0).optional(),
   description: z.string().optional(),
   quantity: z.coerce.number().positive(),

@@ -3,6 +3,7 @@ import AssetRegisterTab from "./AssetRegisterTab";
 import DepreciationTab from "./DepreciationTab";
 import DisposalTab from "./DisposalTab";
 import AssetReportsTab from "./AssetReportsTab";
+import AssetCategoriesSettingsTab from "./AssetCategoriesSettingsTab";
 import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 
@@ -11,6 +12,7 @@ export const FIXED_ASSETS_TABS = [
   { id: "depreciation", label: "الإهلاك الشهري" },
   { id: "disposal", label: "الاستبعاد/البيع" },
   { id: "reports", label: "التقارير" },
+  { id: "categories", label: "إعدادات الأصول الثابتة" },
 ];
 
 export default function FixedAssetsWiredModule({ tab, setTab, companies, companyId }) {
@@ -25,6 +27,7 @@ export default function FixedAssetsWiredModule({ tab, setTab, companies, company
       {tab === "depreciation" && <DepreciationTab companyId={companyId} />}
       {tab === "disposal" && <DisposalTab companyId={companyId} />}
       {tab === "reports" && <AssetReportsTab companyId={companyId} />}
+      {tab === "categories" && <AssetCategoriesSettingsTab companyId={companyId} />}
     </div>
   );
 }

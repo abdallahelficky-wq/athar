@@ -28,6 +28,7 @@ import { warehouseRoutes } from "./modules/warehouses/warehouses.routes";
 import { stockMovementRoutes } from "./modules/stockMovements/stockMovements.routes";
 import { inventoryReportRoutes } from "./modules/inventoryReports/inventoryReports.routes";
 import { fixedAssetRoutes } from "./modules/fixedAssets/fixedAssets.routes";
+import { assetCategoryRoutes } from "./modules/assetCategories/assetCategories.routes";
 import { depreciationRunRoutes } from "./modules/depreciation/depreciation.routes";
 import { employeeRoutes } from "./modules/employees/employees.routes";
 import { leaveRequestRoutes } from "./modules/leaveRequests/leaveRequests.routes";
@@ -84,6 +85,7 @@ export function createApp() {
   app.use("/api/stock-movements", stockMovementRoutes);
   app.use("/api/inventory-reports", inventoryReportRoutes);
   app.use("/api/fixed-assets", fixedAssetRoutes);
+  app.use("/api/asset-categories", assetCategoryRoutes);
   app.use("/api/depreciation-runs", depreciationRunRoutes);
   app.use("/api/employees/:employeeId/payroll-components", employeePayrollComponentRoutes);
   app.use("/api/employees", employeeRoutes);

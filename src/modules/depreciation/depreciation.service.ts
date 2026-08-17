@@ -19,14 +19,21 @@ export async function listDepreciationRuns(tenantId: string, filters: { companyI
 async function activeAssetRows(tenantId: string, companyId: string) {
   // isDepreciable: true فقط هنا (بدل الفلترة داخل monthlyDepreciation) — أصول لا تُستهلك (مثل
   // الأراضي) لا تظهر أصلاً في معاينة/ترحيل الإهلاك، لا تُحسَب بصفر ضمن القائمة.
-  const assets = await prisma.fixedAsset.findMany({ where: { tenantId, companyId, status: "active", isDepreciable: true } });
+  const assets = await prisma.fixedAsset.findMany({
+    where: { tenantId, companyId, status: "active", isDepreciable: true },
+    include: { categoryRef: true },
+  });
   return assets.map((a) => ({
     assetId: a.id,
     name: a.name,
     accountId: a.accountId,
+    // فئة الأصل (إن وُجدت) تحمل حسابَي مصروف/مجمع إهلاك خاصَّين بها — يُفضَّلان على الحسابين
+    // المشتركين القديمين، اللذين يبقيان fallback فقط لأصول بلا تصنيف.
+    expenseAccountId: a.categoryRef?.depreciationExpenseAccountId ?? null,
+    accDepAccountId: a.categoryRef?.accumulatedDepreciationAccountId ?? null,
     cost: Number(a.cost),
-    usefulLifeYears: a.usefulLifeYears,
-    monthly: monthlyDepreciation({ cost: Number(a.cost), salvageValue: Number(a.salvageValue), usefulLifeYears: a.usefulLifeYears, isDepreciable: a.isDepreciable }),
+    usefulLifeYears: Number(a.usefulLifeYears),
+    monthly: monthlyDepreciation({ cost: Number(a.cost), salvageValue: Number(a.salvageValue), usefulLifeYears: Number(a.usefulLifeYears), isDepreciable: a.isDepreciable }),
   }));
 }
 
@@ -48,12 +55,12 @@ export async function postDepreciationRun(tenantId: string, userId: string, comp
   const total = rows.reduce((s, r) => s + r.monthly, 0);
   if (total <= 0) throw badRequest("لا توجد أصول نشطة لحساب إهلاكها");
 
-  // مصروف الإهلاك ومجمع الإهلاك يبقيان حسابين مُجمَّعين مشتركين (القالب المحاسبي لا يفصّلهما
-  // حسب فئة الأصل) — هذا مطابق للممارسة المحاسبية الطبيعية؛ التتبّع الفعلي على مستوى الأصل
-  // يتحقق بسطر مستقل لكل أصل (بدل سطر واحد مجمَّع للإجمالي) موسوم بـ fixedAssetId، بنفس فلسفة
-  // إعادة كتابة postPayrollRun لسطور لكل موظف/بند بدل سطر مجمَّع (Phase H4 سابقاً).
-  const expenseAccountId = await getAccountIdByName(tenantId, companyId, "مصروف إهلاك الأصول الثابتة");
-  const accDepAccountId = await getAccountIdByName(tenantId, companyId, "مجمع الإهلاك");
+  // مصروف الإهلاك ومجمع الإهلاك: يُفضَّل حسابا فئة الأصل الخاصان به (Phase C) لكل أصل على حدة،
+  // مع fallback للحسابين المشتركين القديمين لأصول بلا تصنيف — سطر مستقل لكل أصل (بدل سطر واحد
+  // مجمَّع للإجمالي) موسوم بـ fixedAssetId، بنفس فلسفة إعادة كتابة postPayrollRun لسطور لكل
+  // موظف/بند بدل سطر مجمَّع (Phase H4 سابقاً).
+  const fallbackExpenseAccountId = await getAccountIdByName(tenantId, companyId, "مصروف إهلاك الأصول الثابتة");
+  const fallbackAccDepAccountId = await getAccountIdByName(tenantId, companyId, "مجمع الإهلاك");
 
   // اليوم الثامن والعشرون من الشهر، مطابقةً لتاريخ الترحيل المستخدَم في الواجهة المرجعية
   const [y, m] = month.split("-").map(Number);
@@ -62,8 +69,8 @@ export async function postDepreciationRun(tenantId: string, userId: string, comp
   const lines = rows
     .filter((r) => r.monthly > 0)
     .flatMap((r) => [
-      { accountId: expenseAccountId, fixedAssetId: r.assetId, department: "المالية والحسابات", debit: r.monthly, credit: 0 },
-      { accountId: accDepAccountId, fixedAssetId: r.assetId, department: "المالية والحسابات", debit: 0, credit: r.monthly },
+      { accountId: r.expenseAccountId ?? fallbackExpenseAccountId, fixedAssetId: r.assetId, department: "المالية والحسابات", debit: r.monthly, credit: 0 },
+      { accountId: r.accDepAccountId ?? fallbackAccDepAccountId, fixedAssetId: r.assetId, department: "المالية والحسابات", debit: 0, credit: r.monthly },
     ]);
 
   return prisma.$transaction(async (tx) => {
