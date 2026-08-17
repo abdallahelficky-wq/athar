@@ -25,9 +25,12 @@ export default function ReprintReceiptModal({ invoice, company, onClose }) {
   };
 
   return (
-    <div className="unpost-confirm-overlay nested-modal-overlay">
+    <div className="unpost-confirm-overlay nested-modal-overlay" onClick={(e) => e.target === e.currentTarget && !printing && onClose()}>
       <div className="unpost-confirm-box" style={{ maxWidth: 380 }}>
-        <h3>إعادة طباعة الإيصال — {invoice.invoiceNumber}</h3>
+        <div className="modal-title-row">
+          <h3>إعادة طباعة الإيصال — {invoice.invoiceNumber}</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={printing} aria-label="إغلاق">×</button>
+        </div>
         <div style={{ background: "#fff", borderRadius: 10, padding: 8, display: "flex", justifyContent: "center", maxHeight: "50vh", overflowY: "auto" }}>
           <ReceiptView company={company} invoice={invoice} paperWidthMm={settings.paperWidthMm} />
         </div>

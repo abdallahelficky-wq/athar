@@ -118,9 +118,12 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
   };
 
   return (
-    <div className="invoice-modal-overlay">
+    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <div className="invoice-modal-box">
-        <h3>بيانات الشركة الرسمية — {company.name}</h3>
+        <div className="modal-title-row">
+          <h3>بيانات الشركة الرسمية — {company.name}</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+        </div>
 
         <div className="form-grid">
           <label>الاسم في السجل التجاري<input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} /></label>

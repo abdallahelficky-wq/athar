@@ -115,13 +115,16 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   };
 
   return (
-    <div className="invoice-modal-overlay">
+    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <div className="invoice-modal-box">
-        <h3>
-          {isEdit ? `تعديل الفاتورة ${editingInvoice.invoiceNumber}`
-            : duplicateFrom ? `فاتورة جديدة (نسخ من ${duplicateFrom.invoiceNumber})`
-              : "فاتورة مبيعات جديدة"}
-        </h3>
+        <div className="modal-title-row">
+          <h3>
+            {isEdit ? `تعديل الفاتورة ${editingInvoice.invoiceNumber}`
+              : duplicateFrom ? `فاتورة جديدة (نسخ من ${duplicateFrom.invoiceNumber})`
+                : "فاتورة مبيعات جديدة"}
+          </h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+        </div>
 
         <div className="form-grid header-grid">
           <label className="item-combo-cell">

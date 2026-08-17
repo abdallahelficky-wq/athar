@@ -272,8 +272,9 @@ export function PrintShell({ subtitle, refNode, children, onClose, onEdit, showS
   };
 
   return createPortal(
-    <div className="voucher-overlay">
+    <div className="voucher-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className="voucher-shell">
+        {onClose && <button type="button" className="voucher-close-x" onClick={onClose} aria-label="إغلاق">×</button>}
         <div className="voucher-print">
           {/* ترتيب الرأس مطلوب صراحة بهذا الشكل الثابت (يمين→يسار): رقم المستند وتاريخه، ثم
               الشعار في المنتصف تماماً، ثم بيانات الشركة — عبر شبكة ثلاثية الأعمدة (لا flex

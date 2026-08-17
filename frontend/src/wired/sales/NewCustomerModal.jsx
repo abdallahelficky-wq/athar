@@ -28,9 +28,12 @@ export default function NewCustomerModal({ companyId, initialName, onClose, onCr
   };
 
   return (
-    <div className="unpost-confirm-overlay nested-modal-overlay">
+    <div className="unpost-confirm-overlay nested-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <div className="unpost-confirm-box">
-        <h3>إضافة عميل جديد</h3>
+        <div className="modal-title-row">
+          <h3>إضافة عميل جديد</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+        </div>
         <div className="form-grid">
           <label>اسم العميل<input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
           <label>الرقم الضريبي (اختياري)<input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} /></label>

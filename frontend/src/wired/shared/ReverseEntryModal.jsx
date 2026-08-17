@@ -30,9 +30,12 @@ export default function ReverseEntryModal({ entry, onClose, onCreated }) {
   };
 
   return (
-    <div className="unpost-confirm-overlay">
+    <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <div className="unpost-confirm-box from-document-box">
-        <h3>عكس القيد</h3>
+        <div className="modal-title-row">
+          <h3>عكس القيد</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+        </div>
         <p className="note">
           سيُنشأ قيد جديد منفصل بنفس بنود القيد الأصلي (البيان: <strong>{entry.memo || "بدون بيان"}</strong>) مع عكس
           المدين والدائن على كل سطر، ويُحفَظ بحالة "محفوظ" لتراجعه قبل الترحيل. القيد الأصلي لن يتغيّر إطلاقاً.

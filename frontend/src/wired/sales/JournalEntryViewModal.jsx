@@ -14,9 +14,12 @@ export default function JournalEntryViewModal({ journalEntryId, onClose }) {
   const total = entry ? entry.lines.reduce((s, l) => s + Number(l.debit), 0) : 0;
 
   return (
-    <div className="invoice-modal-overlay">
+    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="invoice-modal-box" style={{ maxWidth: 640 }}>
-        <h3>القيد المحاسبي للفاتورة</h3>
+        <div className="modal-title-row">
+          <h3>القيد المحاسبي للفاتورة</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="إغلاق">×</button>
+        </div>
         {error && <p className="balance-bad">{error}</p>}
         {!entry && !error && <p className="empty">جارٍ التحميل...</p>}
         {entry && (

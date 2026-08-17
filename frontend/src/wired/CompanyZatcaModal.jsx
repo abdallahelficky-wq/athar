@@ -96,9 +96,12 @@ export default function CompanyZatcaModal({ company, onClose }) {
   const badge = status ? STATUS_BADGE[status.onboardingStatus] || STATUS_BADGE.not_onboarded : null;
 
   return (
-    <div className="invoice-modal-overlay">
+    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="invoice-modal-box">
-        <h3>ربط فاتورة (ZATCA) — {company.name}</h3>
+        <div className="modal-title-row">
+          <h3>ربط فاتورة (ZATCA) — {company.name}</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="إغلاق">×</button>
+        </div>
 
         {loading ? (
           <p className="note">جارٍ التحميل...</p>

@@ -192,9 +192,12 @@ export default function BulkImportJournalEntriesModal({ companyId, onClose, onIm
   };
 
   return (
-    <div className="unpost-confirm-overlay">
+    <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && !committing && onClose()}>
       <div className="unpost-confirm-box from-document-box">
-        <h3>استيراد قيود يومية بالجملة</h3>
+        <div className="modal-title-row">
+          <h3>استيراد قيود يومية بالجملة</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={committing} aria-label="إغلاق">×</button>
+        </div>
 
         {step === "upload" && (
           <>

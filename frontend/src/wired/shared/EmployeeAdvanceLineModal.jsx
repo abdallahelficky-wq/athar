@@ -37,9 +37,12 @@ export default function EmployeeAdvanceLineModal({ existingAdvances, employees, 
   };
 
   return (
-    <div className="unpost-confirm-overlay nested-modal-overlay">
+    <div className="unpost-confirm-overlay nested-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="unpost-confirm-box">
-        <h3>ربط السطر بسلفة موظف</h3>
+        <div className="modal-title-row">
+          <h3>ربط السطر بسلفة موظف</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="إغلاق">×</button>
+        </div>
         <div className="form-btn-group" style={{ marginBottom: 14 }}>
           <button className={mode === "new" ? "btn-primary" : "btn-ghost"} onClick={() => { setMode("new"); setError(""); }}>سلفة جديدة</button>
           <button className={mode === "existing" ? "btn-primary" : "btn-ghost"} onClick={() => { setMode("existing"); setError(""); }}>سلفة موجودة</button>

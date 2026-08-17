@@ -21,9 +21,12 @@ export default function UnpostModal({ onConfirm, onCancel, title = "فك الت�
   };
 
   return (
-    <div className="unpost-confirm-overlay">
+    <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && !submitting && onCancel()}>
       <div className="unpost-confirm-box">
-        <h3>{title}</h3>
+        <div className="modal-title-row">
+          <h3>{title}</h3>
+          <button type="button" className="modal-close-btn" onClick={onCancel} disabled={submitting} aria-label="إغلاق">×</button>
+        </div>
         {warningText && <p className="unpost-strong-warning">{warningText}</p>}
         <p className="note">أدخل الرقم السري لتأكيد فك الترحيل. سيتحقق الخادم من صحته فعلياً.</p>
         <input

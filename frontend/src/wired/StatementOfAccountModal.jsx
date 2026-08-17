@@ -22,9 +22,12 @@ export default function StatementOfAccountModal({ kind, party, companyId, compan
 
   if (error) {
     return (
-      <div className="unpost-confirm-overlay">
+      <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
         <div className="unpost-confirm-box">
-          <h3>تعذّر تحميل كشف الحساب</h3>
+          <div className="modal-title-row">
+            <h3>تعذّر تحميل كشف الحساب</h3>
+            <button type="button" className="modal-close-btn" onClick={onClose} aria-label="إغلاق">×</button>
+          </div>
           <p className="balance-bad">{error}</p>
           <div className="form-btn-group"><button className="btn-ghost" onClick={onClose}>إغلاق</button></div>
         </div>

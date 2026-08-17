@@ -25,9 +25,12 @@ export default function PostedBlockModal({ invoiceId, invoiceNumber, action, onC
   }
 
   return (
-    <div className="unpost-confirm-overlay">
+    <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="unpost-confirm-box">
-        <h3>لازم تفك ترحيل الفاتورة أولاً</h3>
+        <div className="modal-title-row">
+          <h3>لازم تفك ترحيل الفاتورة أولاً</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="إغلاق">×</button>
+        </div>
         <p className="note">
           الفاتورة {invoiceNumber} مرحّلة، ولا يمكن {action} إلا بعد فك ترحيلها. بعد فك الترحيل ستتحول الفاتورة
           إلى مسودة ويُحذف القيد المحاسبي المرتبط بها، وعندها فقط يمكنك {action}.

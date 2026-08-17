@@ -100,9 +100,12 @@ export default function CreateFromDocumentModal({ companyId, accounts, onClose, 
   const isPdf = useMemo(() => file?.type === "application/pdf", [file]);
 
   return (
-    <div className="unpost-confirm-overlay">
+    <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && !analyzing && !saving && onClose()}>
       <div className="unpost-confirm-box from-document-box">
-        <h3>إنشاء قيد من مستند (ذكاء اصطناعي)</h3>
+        <div className="modal-title-row">
+          <h3>إنشاء قيد من مستند (ذكاء اصطناعي)</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={analyzing || saving} aria-label="إغلاق">×</button>
+        </div>
 
         {!result && (
           <>

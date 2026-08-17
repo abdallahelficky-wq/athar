@@ -201,7 +201,10 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
       {editingId && (
         <div className="invoice-modal-overlay" onClick={() => !saving && reset()}>
           <div className="invoice-modal-box" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
-            <h3>تعديل/نقل الحساب{editingAccount ? ` — ${editingAccount.name}` : ""}</h3>
+            <div className="modal-title-row">
+              <h3>تعديل/نقل الحساب{editingAccount ? ` — ${editingAccount.name}` : ""}</h3>
+              <button type="button" className="modal-close-btn" onClick={reset} disabled={saving} aria-label="إغلاق">×</button>
+            </div>
             {formFields}
             {error && <p className="balance-bad">{error}</p>}
             <div className="form-btn-group">

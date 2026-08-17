@@ -429,6 +429,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       </section>
 
       {viewItem && <div className="voucher-overlay item-view-overlay" onMouseDown={() => setViewItem(null)}><div className="voucher-shell item-view-card" onMouseDown={(e) => e.stopPropagation()}>
+        <button type="button" className="voucher-close-x" onClick={() => setViewItem(null)} aria-label="إغلاق">×</button>
         <div className="item-view-head"><span className="item-avatar large">{TYPE_META[viewItem.type]?.icon || "◇"}</span><div><small>بطاقة الصنف — {TYPE_META[viewItem.type]?.label || "غير محدد"}</small><h3>{viewItem.name}</h3><span className="item-code">{viewItem.code}</span></div></div>
         <dl>
           <div><dt>التصنيف</dt><dd>{viewItem.category || "—"}</dd></div>

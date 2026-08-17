@@ -87,9 +87,12 @@ export default function LinkPaymentModal({ invoice: initialInvoice, companyId, o
   };
 
   return (
-    <div className="invoice-modal-overlay">
+    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !busy && onClose()}>
       <div className="invoice-modal-box" style={{ maxWidth: 680 }}>
-        <h3>ربط الفاتورة {invoice.invoiceNumber} بسند قبض</h3>
+        <div className="modal-title-row">
+          <h3>ربط الفاتورة {invoice.invoiceNumber} بسند قبض</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={busy} aria-label="إغلاق">×</button>
+        </div>
         <p className="note">
           الإجمالي {fmt(Number(invoice.grandTotal))} ر.س — المسدد {fmt(paid)} ر.س — المتبقي <strong>{fmt(due)} ر.س</strong>
         </p>

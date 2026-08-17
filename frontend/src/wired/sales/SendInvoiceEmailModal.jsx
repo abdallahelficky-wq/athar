@@ -23,9 +23,12 @@ export default function SendInvoiceEmailModal({ invoice, onClose, onSent }) {
   };
 
   return (
-    <div className="unpost-confirm-overlay nested-modal-overlay">
+    <div className="unpost-confirm-overlay nested-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <div className="unpost-confirm-box">
-        <h3>إرسال الفاتورة {invoice.invoiceNumber} بالإيميل</h3>
+        <div className="modal-title-row">
+          <h3>إرسال الفاتورة {invoice.invoiceNumber} بالإيميل</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+        </div>
         <p className="note">لا يوجد بريد إلكتروني مسجَّل لهذا العميل — أدخل بريداً بديلاً لإرسال نسخة الفاتورة إليه لمرة واحدة.</p>
         <div className="form-grid">
           <label>البريد الإلكتروني<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus /></label>

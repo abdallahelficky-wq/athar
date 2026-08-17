@@ -29,9 +29,12 @@ export default function NewSellableItemModal({ companyId, accounts, initialName,
   };
 
   return (
-    <div className="unpost-confirm-overlay nested-modal-overlay">
+    <div className="unpost-confirm-overlay nested-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <div className="unpost-confirm-box">
-        <h3>إضافة صنف جديد (خدمة)</h3>
+        <div className="modal-title-row">
+          <h3>إضافة صنف جديد (خدمة)</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+        </div>
         <div className="form-grid">
           <label>اسم الصنف<input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
           <label>سعر البيع الافتراضي<input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="0.00" /></label>
