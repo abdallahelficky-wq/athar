@@ -35,9 +35,13 @@ function withComputed<T extends ComputedInput>(asset: T) {
   return { ...asset, accumulatedDepreciation: accDep, netBookValue: Number(asset.cost) - accDep };
 }
 
-/** يتحقق أن الحساب المُختار للأصل ينتمي فعلاً لهذه الشركة، حساب ترحيل نشط، ومن نوع "أصول". */
-async function assertValidAssetAccount(tenantId: string, companyId: string, accountId: string) {
-  const account = await prisma.account.findFirst({ where: { id: accountId, tenantId, companyId } });
+/**
+ * يتحقق أن الحساب المُختار للأصل ينتمي فعلاً لهذه الشركة، حساب ترحيل نشط، ومن نوع "أصول". يقبل
+ * إما عميل Prisma العادي أو عميل معاملة (tx) — يُستدعى أحياناً خارج أي معاملة (مثل التحقق المبدئي
+ * في updateFixedAsset) وأحياناً داخل معاملة الاستدعاء (عبر registerFixedAssetTx أدناه).
+ */
+async function assertValidAssetAccount(tx: Prisma.TransactionClient, tenantId: string, companyId: string, accountId: string) {
+  const account = await tx.account.findFirst({ where: { id: accountId, tenantId, companyId } });
   if (!account) throw badRequest("الحساب المحاسبي المختار غير موجود ضمن شجرة هذه الشركة");
   if (!account.isPosting || !account.isActive || account.isArchived) throw badRequest("الحساب المحاسبي المختار ليس حساب ترحيل نشطاً");
   if (account.type !== "asset") throw badRequest("الحساب المحاسبي المختار ليس من نوع أصول");
@@ -48,14 +52,14 @@ async function assertValidAssetAccount(tenantId: string, companyId: string, acco
  * يشتق حساب الأصل من فئة مختارة (categoryId) بدل اختيار حساب خام — يتحقق أن الفئة تنتمي لنفس
  * الشركة. لو لم تُختَر فئة، accountId الخام يبقى الفallback (Phase B، أصول قديمة/بلا تصنيف).
  */
-async function resolveAssetAccount(tenantId: string, companyId: string, input: { categoryId?: string; accountId?: string }) {
+async function resolveAssetAccount(tx: Prisma.TransactionClient, tenantId: string, companyId: string, input: { categoryId?: string; accountId?: string }) {
   if (input.categoryId) {
-    const category = await prisma.assetCategory.findFirst({ where: { id: input.categoryId, tenantId, companyId } });
+    const category = await tx.assetCategory.findFirst({ where: { id: input.categoryId, tenantId, companyId } });
     if (!category) throw badRequest("فئة الأصل المختارة غير موجودة ضمن هذه الشركة");
     return { accountId: category.assetAccountId, categoryId: category.id };
   }
   if (input.accountId) {
-    await assertValidAssetAccount(tenantId, companyId, input.accountId);
+    await assertValidAssetAccount(tx, tenantId, companyId, input.accountId);
     return { accountId: input.accountId, categoryId: null as string | null };
   }
   throw badRequest("اختر فئة الأصل أو الحساب المحاسبي");
@@ -64,6 +68,79 @@ async function resolveAssetAccount(tenantId: string, companyId: string, input: {
 async function nextAssetNumber(tx: Prisma.TransactionClient, tenantId: string, companyId: string) {
   const existingCount = await tx.fixedAsset.count({ where: { tenantId, companyId } });
   return formatDocNumber("AST", existingCount);
+}
+
+export type RegisterFixedAssetInput = {
+  companyId: string;
+  categoryId?: string;
+  accountId?: string;
+  name: string;
+  category?: string;
+  serialNumber?: string;
+  chassisNumber?: string;
+  plateNumber?: string;
+  costCenterId?: string;
+  custodianEmployeeId?: string;
+  purchaseDate: Date;
+  depreciationStartDate?: Date;
+  cost: number;
+  usefulLifeYears: number;
+  salvageValue: number;
+  depreciationMethod?: "straight_line" | "declining_balance";
+  isDepreciable?: boolean;
+  journalEntryId?: string;
+  sourcePurchaseInvoiceLineId?: string;
+  sourceJournalEntryLineId?: string;
+};
+
+/**
+ * ينشئ سجل أصل ثابت فقط — بلا أي قيد محاسبي خاص به (Phase D). القيد (إن وُجد) مسؤولية المستدعي
+ * بالكامل: يمرَّر journalEntryId جاهزاً لو كان القيد موجوداً مسبقاً (فاتورة مشتريات، سطر قيد يومية
+ * عام)، أو يُترَك فارغاً ليُحدَّث لاحقاً (مسار "سجل الأصول" اليدوي في createFixedAsset أدناه، الذي
+ * يُنشئ قيد الشراء الخاص به بعد استدعاء هذه الدالة مباشرة ضمن نفس المعاملة). هذا يوحّد كل مسارات
+ * إنشاء أصل ثابت (يدوي، فاتورة مشتريات، ولاحقاً نافذة اختيار الأصل داخل قيد يومية — Phase F) على
+ * نفس منطق التحقق والاشتقاق بدل تكراره في كل موديول.
+ */
+export async function registerFixedAssetTx(tx: Prisma.TransactionClient, tenantId: string, input: RegisterFixedAssetInput) {
+  const { accountId, categoryId } = await resolveAssetAccount(tx, tenantId, input.companyId, input);
+
+  if (input.costCenterId) {
+    const costCenter = await tx.costCenter.findFirst({ where: { id: input.costCenterId, tenantId, companyId: input.companyId } });
+    if (!costCenter) throw badRequest("الموقع/الفرع المختار غير موجود ضمن هذه الشركة");
+  }
+  if (input.custodianEmployeeId) {
+    const employee = await tx.employee.findFirst({ where: { id: input.custodianEmployeeId, tenantId, companyId: input.companyId } });
+    if (!employee) throw badRequest("الموظف المختار كعهدة غير موجود ضمن هذه الشركة");
+  }
+
+  const asset = await tx.fixedAsset.create({
+    data: {
+      tenantId,
+      companyId: input.companyId,
+      accountId,
+      categoryId,
+      assetNumber: await nextAssetNumber(tx, tenantId, input.companyId),
+      name: input.name,
+      category: input.category,
+      serialNumber: input.serialNumber,
+      chassisNumber: input.chassisNumber,
+      plateNumber: input.plateNumber,
+      costCenterId: input.costCenterId,
+      custodianEmployeeId: input.custodianEmployeeId,
+      purchaseDate: input.purchaseDate,
+      depreciationStartDate: input.depreciationStartDate,
+      cost: input.cost,
+      usefulLifeYears: input.usefulLifeYears,
+      salvageValue: input.salvageValue,
+      depreciationMethod: input.depreciationMethod ?? "straight_line",
+      isDepreciable: input.isDepreciable ?? true,
+      status: "active",
+      journalEntryId: input.journalEntryId,
+      sourcePurchaseInvoiceLineId: input.sourcePurchaseInvoiceLineId,
+      sourceJournalEntryLineId: input.sourceJournalEntryLineId,
+    },
+  });
+  return { asset, accountId };
 }
 
 export async function listFixedAssets(tenantId: string, filters: { companyId?: string }) {
@@ -124,45 +201,12 @@ export async function createFixedAsset(
   const company = await prisma.company.findFirst({ where: { id: input.companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
 
-  const { accountId, categoryId } = await resolveAssetAccount(tenantId, input.companyId, input);
   const creditAccountId = await getAccountIdByName(tenantId, input.companyId, PAYMENT_ACCOUNT_NAME[input.paymentMethod]);
-
-  if (input.costCenterId) {
-    const costCenter = await prisma.costCenter.findFirst({ where: { id: input.costCenterId, tenantId, companyId: input.companyId } });
-    if (!costCenter) throw badRequest("الموقع/الفرع المختار غير موجود ضمن هذه الشركة");
-  }
-  if (input.custodianEmployeeId) {
-    const employee = await prisma.employee.findFirst({ where: { id: input.custodianEmployeeId, tenantId, companyId: input.companyId } });
-    if (!employee) throw badRequest("الموظف المختار كعهدة غير موجود ضمن هذه الشركة");
-  }
 
   return prisma.$transaction(async (tx) => {
     // الأصل يُنشأ أولاً (بلا journalEntryId بعد) حتى يمكن ربط سطر القيد بمعرّفه مباشرة، بدل تحديث
     // السطر لاحقاً بعد إنشائه — تتبّع كامل من أول لحظة.
-    const asset = await tx.fixedAsset.create({
-      data: {
-        tenantId,
-        companyId: input.companyId,
-        accountId,
-        categoryId,
-        assetNumber: await nextAssetNumber(tx, tenantId, input.companyId),
-        name: input.name,
-        category: input.category,
-        serialNumber: input.serialNumber,
-        chassisNumber: input.chassisNumber,
-        plateNumber: input.plateNumber,
-        costCenterId: input.costCenterId,
-        custodianEmployeeId: input.custodianEmployeeId,
-        purchaseDate: input.purchaseDate,
-        depreciationStartDate: input.depreciationStartDate,
-        cost: input.cost,
-        usefulLifeYears: input.usefulLifeYears,
-        salvageValue: input.salvageValue,
-        depreciationMethod: input.depreciationMethod,
-        isDepreciable: input.isDepreciable,
-        status: "active",
-      },
-    });
+    const { asset, accountId } = await registerFixedAssetTx(tx, tenantId, input);
 
     const entry = await createJournalEntryTx(tx, {
       tenantId,
@@ -212,15 +256,15 @@ export async function updateFixedAsset(
   let accountUpdate: { accountId?: string; categoryId?: string | null } = {};
   if (categoryId) {
     // فئة جديدة مختارة صراحةً — تشتق الحساب منها وتتجاهل accountId خام لو أُرسل معاً.
-    accountUpdate = await resolveAssetAccount(tenantId, existing.companyId, { categoryId });
+    accountUpdate = await resolveAssetAccount(prisma, tenantId, existing.companyId, { categoryId });
   } else if (categoryId === null) {
     // إلغاء الفئة صراحةً — يتطلب حساباً خاماً بديلاً في نفس الطلب.
     if (!accountId) throw badRequest("عند إلغاء ربط الأصل بفئة، اختر حساباً محاسبياً بديلاً");
-    await assertValidAssetAccount(tenantId, existing.companyId, accountId);
+    await assertValidAssetAccount(prisma, tenantId, existing.companyId, accountId);
     accountUpdate = { accountId, categoryId: null };
   } else if (accountId) {
     // حساب خام صريح بلا تغيير فئة — يُلغي الربط بأي فئة سابقة حتى لا يتعارض الحساب المعروض معها.
-    await assertValidAssetAccount(tenantId, existing.companyId, accountId);
+    await assertValidAssetAccount(prisma, tenantId, existing.companyId, accountId);
     accountUpdate = { accountId, categoryId: null };
   }
 

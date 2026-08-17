@@ -7,6 +7,7 @@ import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
 import { applyPurchaseToAverageCostTx, recomputeAverageCostFromScratchTx } from "../../lib/costingEngine";
+import { registerFixedAssetTx } from "../fixedAssets/fixedAssets.service";
 
 type Tx = Prisma.TransactionClient;
 
@@ -104,7 +105,10 @@ async function createInventorySideEffectsTx(
   tenantId: string,
   companyId: string,
   date: Date,
-  persistedLines: Array<{ id: string; itemId: string | null; warehouseId: string | null; usefulLifeYears: number | null; salvageValue: Prisma.Decimal | null; quantity: Prisma.Decimal; subtotal: Prisma.Decimal; description: string | null }>,
+  persistedLines: Array<{
+    id: string; itemId: string | null; warehouseId: string | null; accountId: string;
+    usefulLifeYears: number | null; salvageValue: Prisma.Decimal | null; quantity: Prisma.Decimal; subtotal: Prisma.Decimal; description: string | null;
+  }>,
   journalEntryId: string,
 ) {
   for (const line of persistedLines) {
@@ -112,16 +116,14 @@ async function createInventorySideEffectsTx(
     const item = await tx.item.findFirstOrThrow({ where: { id: line.itemId, tenantId } });
 
     if (item.type === "fixed_asset") {
-      // توليد مؤقت لرقم الأصل (يُستبدَل بالمسار الموحَّد في Phase D — هذا المسار كله سيُعاد
-      // توجيهه لدالة الإنشاء المشتركة بدل التكرار هنا).
-      const existingCount = await tx.fixedAsset.count({ where: { tenantId, companyId } });
-      await tx.fixedAsset.create({
-        data: {
-          tenantId, companyId, assetNumber: formatDocNumber("AST", existingCount),
-          name: line.description || item.name, category: item.assetCategory,
-          purchaseDate: date, cost: line.subtotal, usefulLifeYears: line.usefulLifeYears!, salvageValue: line.salvageValue ?? 0,
-          status: "active", journalEntryId, sourcePurchaseInvoiceLineId: line.id,
-        },
+      // الحساب المحاسبي مُشتَق مسبقاً في resolveLineAccounts (حساب "الأصول الثابتة" المشترك حالياً
+      // — ربط فواتير المشتريات بفئات الأصول نفسها مؤجَّل لـ Phase G). لا قيد إضافي هنا: journalEntryId
+      // قيد الفاتورة نفسه، يُمرَّر جاهزاً لدالة الإنشاء المشتركة (Phase D) بدل تكرار منطق الإنشاء.
+      await registerFixedAssetTx(tx, tenantId, {
+        companyId, accountId: line.accountId,
+        name: line.description || item.name, category: item.assetCategory ?? undefined,
+        purchaseDate: date, cost: Number(line.subtotal), usefulLifeYears: line.usefulLifeYears!, salvageValue: Number(line.salvageValue ?? 0),
+        journalEntryId, sourcePurchaseInvoiceLineId: line.id,
       });
       continue;
     }
