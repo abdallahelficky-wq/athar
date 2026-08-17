@@ -81,6 +81,7 @@ model Tenant {
   payrollComponents         PayrollComponent[]
   employeePayrollComponents EmployeePayrollComponent[]
   payrollSettings           PayrollSettings[]
+  employeeAdvances          EmployeeAdvance[]
 
   attachments Attachment[]
 
@@ -255,6 +256,7 @@ model Company {
   payrollComponents    PayrollComponent[]
   payrollSettings      PayrollSettings?
   reportSchedule       ReportSchedule?
+  employeeAdvances     EmployeeAdvance[]
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -293,6 +295,7 @@ model CostCenter {
 
   journalEntryLines JournalEntryLine[]
   stationSales      StationSale[]
+  fixedAssets       FixedAsset[]
 
   @@map("cost_centers")
 }
@@ -373,6 +376,11 @@ model Account {
   // نقدية فعلية (صندوق/بنوك) لعرضها في رسم توزيع الكاش بالداشبورد ولاختيار الحساب
   // البنكي عند تحصيل سند قبض بنكي، بدل التخمين من اسم الحساب
   isBankOrCash          Boolean     @default(false)
+  // يُحدَّد يدوياً — يُستخدَم لتفعيل نافذة "أصل جديد/أصل موجود" عند اختيار هذا الحساب في سطر أي
+  // قيد يومية أو فاتورة مشتريات (بدل الاعتماد على موقعه في الشجرة، هش أمام إعادة الترتيب/القوالب
+  // المختلفة). يُفعَّل فقط على حسابات اقتناء الأصول (مثل "أراضٍ"، "آلات ومعدات")، وليس على حساب
+  // "مجمع الإهلاك" العكسي.
+  isFixedAssetAccount   Boolean     @default(false)
   // يُملأ تلقائياً فقط عند إنشاء "حساب ربط بيني" يمثّل شركة شقيقة أخرى ضمن نفس المستأجر (ميزة
   // قيد المرآة بين الشركات) — يُحدِّد الحساب الذي يُسجَّل عليه أي مبلغ مستحق من/إلى تلك الشركة
   // تحديداً، بدل الاعتماد على مطابقة اسم الحساب نصياً (هش عند إعادة تسمية الشركة لاحقاً).
@@ -397,6 +405,8 @@ model Account {
   supplierLinks         Supplier[]
   employeeLinks         Employee[]
   payrollComponentLinks PayrollComponent[]
+  fixedAssetLinks       FixedAsset[]
+  employeeAdvanceLinks  EmployeeAdvance[]
 
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
@@ -512,30 +522,40 @@ model JournalEntry {
 }
 
 model JournalEntryLine {
-  id             String       @id @default(cuid())
-  journalEntryId String
-  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  accountId      String
-  account        Account      @relation(fields: [accountId], references: [id])
-  costCenterId   String?
-  costCenter     CostCenter?  @relation(fields: [costCenterId], references: [id])
-  department     String?
+  id                String           @id @default(cuid())
+  journalEntryId    String
+  journalEntry      JournalEntry     @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId         String
+  account           Account          @relation(fields: [accountId], references: [id])
+  costCenterId      String?
+  costCenter        CostCenter?      @relation(fields: [costCenterId], references: [id])
+  department        String?
   // وصف خاص بهذا السطر تحديداً (مختلف عن JournalEntry.memo العام) — يظهر في كشف حساب الأستاذ
   // بجانب البيان العام، لتوضيح تفاصيل كل حركة على حساب معيّن دون الرجوع للقيد الكامل.
-  description    String?
-  debit          Decimal      @default(0) @db.Decimal(18, 2)
-  credit         Decimal      @default(0) @db.Decimal(18, 2)
-  customerId     String?
-  customer       Customer?    @relation(fields: [customerId], references: [id])
-  supplierId     String?
-  supplier       Supplier?    @relation(fields: [supplierId], references: [id])
-  employeeId     String?
-  employee       Employee?    @relation(fields: [employeeId], references: [id])
+  description       String?
+  debit             Decimal          @default(0) @db.Decimal(18, 2)
+  credit            Decimal          @default(0) @db.Decimal(18, 2)
+  customerId        String?
+  customer          Customer?        @relation(fields: [customerId], references: [id])
+  supplierId        String?
+  supplier          Supplier?        @relation(fields: [supplierId], references: [id])
+  employeeId        String?
+  employee          Employee?        @relation(fields: [employeeId], references: [id])
+  // يُملأ فقط لو تم اختيار حساب أصول ثابتة على هذا السطر تحديداً وتم ربطه بأصل (جديد أو موجود) —
+  // انظر FixedAsset.isFixedAssetAccount وتدفّق النافذة المنبثقة في JournalEntryFormModal.
+  fixedAssetId      String?
+  fixedAsset        FixedAsset?      @relation(fields: [fixedAssetId], references: [id], onDelete: SetNull)
+  // يُملأ فقط لو تم اختيار حساب عهدة/سلفة موظف على هذا السطر تحديداً وتم ربطه بسلفة (جديدة أو
+  // موجودة).
+  employeeAdvanceId String?
+  employeeAdvance   EmployeeAdvance? @relation(fields: [employeeAdvanceId], references: [id], onDelete: SetNull)
 
   @@index([accountId])
   @@index([customerId])
   @@index([supplierId])
   @@index([employeeId])
+  @@index([fixedAssetId])
+  @@index([employeeAdvanceId])
   @@map("journal_entry_lines")
 }
 
@@ -1176,28 +1196,60 @@ enum FixedAssetStatus {
   disposed
 }
 
+// طريقة القسط الثابت هي الوحيدة المحسوبة فعلياً حالياً (src/lib/depreciation.ts) — المتناقص
+// مُضاف كخيار تخزين/عرض تمهيداً لدعمه لاحقاً، وليس محسوباً بعد؛ الاختيار غير المدعوم يُرفَض في
+// طبقة الـ schema بالباك إند (Phase B) لا هنا.
+enum FixedAssetDepreciationMethod {
+  straight_line
+  declining_balance
+}
+
 model FixedAsset {
-  id                          String           @id @default(cuid())
+  id                          String                       @id @default(cuid())
   tenantId                    String
-  tenant                      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant                      Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   companyId                   String
-  company                     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company                     Company                      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // رقم تسلسلي تلقائي بصيغة AST-00001 (نفس نمط formatDocNumber المستخدَم لباقي أرقام
+  // المستندات) — يُولَّد في الباك إند وقت الإنشاء (Phase B)، وليس هنا.
+  assetNumber                 String
   name                        String
   category                    String?
+  serialNumber                String?
+  // يظهر فقط في الواجهة لو category يوحي بمركبة — مُخزَّن دائماً بلا قيد على نوع الأصل هنا.
+  chassisNumber               String?
+  // الموقع/الفرع — يعيد استخدام CostCenter الموجود بالفعل (نفس مفهوم "الموقع" المستخدَم في
+  // القيود ومبيعات المحطات) بدل نموذج مستقل جديد لمفهوم مطابق.
+  costCenterId                String?
+  costCenter                  CostCenter?                  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
   purchaseDate                DateTime
-  cost                        Decimal          @db.Decimal(18, 2)
+  cost                        Decimal                      @db.Decimal(18, 2)
   usefulLifeYears             Int
-  salvageValue                Decimal          @default(0) @db.Decimal(18, 2)
-  status                      FixedAssetStatus @default(active)
+  salvageValue                Decimal                      @default(0) @db.Decimal(18, 2)
+  depreciationMethod          FixedAssetDepreciationMethod @default(straight_line)
+  // false لأصول لا تُستهلك (مثل الأراضي) — تُستبعَد من حساب الإهلاك الشهري بالكامل.
+  isDepreciable               Boolean                      @default(true)
+  status                      FixedAssetStatus             @default(active)
   disposalDate                DateTime?
-  disposalValue               Decimal?         @db.Decimal(18, 2)
+  disposalValue               Decimal?                     @db.Decimal(18, 2)
+  // الحساب الفعلي الذي رُحِّلت عليه تكلفة اقتناء هذا الأصل تحديداً (بدل حساب مشترك واحد لكل
+  // الأصول) — يُستخدَم لترحيل الإهلاك الشهري والاستبعاد على نفس الحساب تحديداً (Phase B).
+  // Nullable احترازياً فقط (لا توجد بيانات قديمة بلا حساب فعلياً وقت هذا التعديل) — أي أصل
+  // مستقبلي بلا accountId يقع على المسار الاحتياطي القديم (بحث بالاسم) بدل فشل صريح.
+  accountId                   String?
+  account                     Account?                     @relation(fields: [accountId], references: [id], onDelete: SetNull)
   journalEntryId              String?
   // لو الأصل اتسجّل تلقائياً من سطر فاتورة مشتريات (صنف من نوع "أصل ثابت")، بيربط بنفس
   // قيد الفاتورة (journalEntryId أعلاه) مش قيد منفصل — هذا الحقل للتتبع/الحذف عند فك الترحيل بس.
-  sourcePurchaseInvoiceLineId String?          @unique
-  createdAt                   DateTime         @default(now())
-  updatedAt                   DateTime         @updatedAt
+  sourcePurchaseInvoiceLineId String?                      @unique
+  // نفس المبدأ، لأصل أُنشئ من نافذة اختيار حساب أصول ثابتة داخل قيد يومية عادي (Phase F).
+  sourceJournalEntryLineId    String?                      @unique
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
 
+  journalEntryLines JournalEntryLine[]
+
+  @@unique([tenantId, companyId, assetNumber])
   @@map("fixed_assets")
 }
 
@@ -1288,6 +1340,7 @@ model Employee {
   directReports     Employee[]                 @relation("EmployeeManager")
   attendanceRecords AttendanceRecord[]
   payrollComponents EmployeePayrollComponent[]
+  advanceRecords    EmployeeAdvance[]
 
   @@unique([tenantId, phone])
   @@map("employees")
@@ -1443,8 +1496,51 @@ model EmployeePayrollComponent {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
+  advance EmployeeAdvance?
+
   @@unique([employeeId, componentId])
   @@map("employee_payroll_components")
+}
+
+enum EmployeeAdvanceStatus {
+  active
+  settled
+}
+
+// سلفة/عهدة موظف — أُنشئت من نافذة اختيار حساب "عهدة/سلفة" داخل قيد يومي (Phase F)، أو من
+// شاشة مخصَّصة لاحقاً. لو monthlyInstallment محدَّدة، تُنشئ بند راتب مخصَّص لهذه السلفة تحديداً
+// (employeePayrollComponentId) بدل استخدام بند "سلف موظفين" العام المشترك — لأن
+// EmployeePayrollComponent مقيَّد بـ @@unique([employeeId, componentId])، فبند مشترك واحد
+// يمنع وجود أكثر من سلفة نشطة لنفس الموظف بجدولي تقسيط مختلفين في آن واحد؛ بند مخصَّص لكل سلفة
+// يتفادى هذا القيد تماماً. null لعهدة نقدية عادية غير مُقسّطة (بلا تكامل مع الرواتب إطلاقاً).
+model EmployeeAdvance {
+  id                         String                    @id @default(cuid())
+  tenantId                   String
+  tenant                     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                  String
+  company                    Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId                 String
+  employee                   Employee                  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  // الحساب الفعلي (عهدة/سلفة هذا الموظف تحديداً) الذي رُحِّل عليه مبلغ السلفة.
+  accountId                  String
+  account                    Account                   @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  amount                     Decimal                   @db.Decimal(18, 2)
+  monthlyInstallment         Decimal?                  @db.Decimal(18, 2)
+  // يبدأ = amount، يُنقَص كل تشغيل رواتب بمقدار الخصم الفعلي (Phase E) حتى يصل صفراً فتُصبح
+  // status = settled ويُعطَّل employeePayrollComponent تلقائياً.
+  remainingBalance           Decimal                   @db.Decimal(18, 2)
+  startDate                  DateTime
+  status                     EmployeeAdvanceStatus     @default(active)
+  employeePayrollComponentId String?                   @unique
+  employeePayrollComponent   EmployeePayrollComponent? @relation(fields: [employeePayrollComponentId], references: [id], onDelete: SetNull)
+  // يتتبّع سطر القيد الذي أنشأ هذه السلفة أول مرة (أثر مراجعة) — null لو أُنشئت من شاشة مخصَّصة.
+  sourceJournalEntryLineId   String?                   @unique
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+
+  journalEntryLines JournalEntryLine[]
+
+  @@map("employee_advances")
 }
 
 // إعدادات رواتب عامة لكل شركة — الساعات/الأيام القياسية للشهر (أساس حساب سعر الوحدة في

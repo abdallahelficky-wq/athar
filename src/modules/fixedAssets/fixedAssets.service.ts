@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { accumulatedDepreciation } from "../../lib/depreciation";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { formatDocNumber } from "../../lib/docNumber";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 
 const PAYMENT_ACCOUNT_NAME: Record<string, string> = {
@@ -74,10 +75,14 @@ export async function createFixedAsset(
       ],
     });
 
+    // توليد مؤقت لرقم الأصل بنفس نمط formatDocNumber (بقية حقول التوسعة — الرقم التسلسلي/رقم
+    // الهيكل/الموقع/طريقة الإهلاك القابلة للاختيار/الحساب الفعلي — تُبنى في Phase B على هذا الأساس).
+    const existingCount = await tx.fixedAsset.count({ where: { tenantId, companyId: input.companyId } });
     const asset = await tx.fixedAsset.create({
       data: {
         tenantId,
         companyId: input.companyId,
+        assetNumber: formatDocNumber("AST", existingCount),
         name: input.name,
         category: input.category,
         purchaseDate: input.purchaseDate,

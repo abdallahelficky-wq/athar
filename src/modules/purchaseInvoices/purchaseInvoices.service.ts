@@ -112,9 +112,13 @@ async function createInventorySideEffectsTx(
     const item = await tx.item.findFirstOrThrow({ where: { id: line.itemId, tenantId } });
 
     if (item.type === "fixed_asset") {
+      // توليد مؤقت لرقم الأصل (يُستبدَل بالمسار الموحَّد في Phase D — هذا المسار كله سيُعاد
+      // توجيهه لدالة الإنشاء المشتركة بدل التكرار هنا).
+      const existingCount = await tx.fixedAsset.count({ where: { tenantId, companyId } });
       await tx.fixedAsset.create({
         data: {
-          tenantId, companyId, name: line.description || item.name, category: item.assetCategory,
+          tenantId, companyId, assetNumber: formatDocNumber("AST", existingCount),
+          name: line.description || item.name, category: item.assetCategory,
           purchaseDate: date, cost: line.subtotal, usefulLifeYears: line.usefulLifeYears!, salvageValue: line.salvageValue ?? 0,
           status: "active", journalEntryId, sourcePurchaseInvoiceLineId: line.id,
         },
