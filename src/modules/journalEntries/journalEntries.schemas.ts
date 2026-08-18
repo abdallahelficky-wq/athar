@@ -6,7 +6,10 @@ import { z } from "zod";
 // هو القيد المحاسبي للاقتناء).
 export const newFixedAssetOnLineSchema = z.object({
   name: z.string().min(2, "اسم الأصل قصير جداً"),
-  category: z.string().optional(),
+  // إلزامية — بدونها لا يرث الأصل حسابَي مجمع/مصروف الإهلاك ويقع على الحسابات الاحتياطية
+  // المشتركة بدل حسابات فئته. تُتحقَّق أيضاً في journalEntries.service.ts أن حساب اقتناء هذه
+  // الفئة يطابق حساب السطر نفسه (لا يكفي التحقق هنا وحده لأنه لا يعرف حساب السطر).
+  categoryId: z.string().min(1, "فئة الأصل مطلوبة"),
   serialNumber: z.string().optional(),
   chassisNumber: z.string().optional(),
   plateNumber: z.string().optional(),

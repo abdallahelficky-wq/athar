@@ -12,7 +12,7 @@ const BALANCE_EPSILON = 0.01;
 
 export interface NewFixedAssetOnLine {
   name: string;
-  category?: string;
+  categoryId: string;
   serialNumber?: string;
   chassisNumber?: string;
   plateNumber?: string;
@@ -94,6 +94,12 @@ async function assertReferencesBelongToTenant(tenantId: string, input: JournalEn
     const advances = await prisma.employeeAdvance.findMany({ where: { id: { in: employeeAdvanceIds }, tenantId, companyId: input.companyId } });
     if (advances.length !== employeeAdvanceIds.length) throw badRequest("أحد السلف المختارة غير موجودة ضمن هذه الشركة");
   }
+
+  const newAssetCategoryIds = [...new Set(input.lines.map((l) => l.newFixedAsset?.categoryId).filter(Boolean))] as string[];
+  if (newAssetCategoryIds.length) {
+    const categories = await prisma.assetCategory.findMany({ where: { id: { in: newAssetCategoryIds }, tenantId, companyId: input.companyId } });
+    if (categories.length !== newAssetCategoryIds.length) throw badRequest("فئة الأصل المختارة لتسجيل أصل جديد غير موجودة ضمن هذه الشركة");
+  }
 }
 
 function toLineCreateData(lines: JournalLineInput[]) {
@@ -143,11 +149,20 @@ async function createLinesWithSideEffectsTx(
     });
 
     if (l.newFixedAsset) {
+      // فئة الأصل يجب أن تنتمي لهذه الشركة *و* حساب اقتنائها يطابق حساب هذا السطر نفسه تحديداً —
+      // وإلا يتناقض حساب الأصل المسجَّل مع الحساب الذي رُحِّلت عليه التكلفة فعلياً في هذا السطر.
+      // الواجهة تُظهر فقط الفئات المطابقة أصلاً، لكن هذا التحقق ضروري كدفاع مستقل في الخادم.
+      const category = await tx.assetCategory.findFirst({ where: { id: l.newFixedAsset.categoryId, tenantId, companyId } });
+      if (!category) throw badRequest("فئة الأصل المختارة غير موجودة ضمن هذه الشركة");
+      if (category.assetAccountId !== l.accountId) {
+        throw badRequest(`فئة الأصل "${category.name}" غير مرتبطة بحساب هذا السطر`);
+      }
+
       const { asset } = await registerFixedAssetTx(tx, tenantId, {
         companyId,
-        accountId: l.accountId,
+        categoryId: l.newFixedAsset.categoryId,
         name: l.newFixedAsset.name,
-        category: l.newFixedAsset.category,
+        category: category.name,
         serialNumber: l.newFixedAsset.serialNumber,
         chassisNumber: l.newFixedAsset.chassisNumber,
         plateNumber: l.newFixedAsset.plateNumber,

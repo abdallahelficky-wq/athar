@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createJournalEntry, updateJournalEntry, postJournalEntry, getNextEntryNumber } from "../api/journalEntries";
 import { listFixedAssets } from "../api/fixedAssets";
+import { listAssetCategories } from "../api/assetCategories";
 import { listEmployeeAdvances } from "../api/employeeAdvances";
 import { listEmployees } from "../api/employees";
 import { fmt2 } from "../legacy/constants";
@@ -59,6 +60,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
 
   // بيانات نافذتَي "أصل ثابت/سلفة موظف" المنبثقتين — تُجلَب مرة واحدة عند فتح النافذة، لا لكل سطر.
   const [fixedAssets, setFixedAssets] = useState([]);
+  const [assetCategories, setAssetCategories] = useState([]);
   const [employeeAdvances, setEmployeeAdvances] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [linkModal, setLinkModal] = useState(null); // { type: "asset" | "advance", lineIndex } | null
@@ -76,6 +78,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
   useEffect(() => {
     if (!companyId) return;
     listFixedAssets(companyId).then(setFixedAssets).catch(() => {});
+    listAssetCategories(companyId).then(setAssetCategories).catch(() => {});
     listEmployeeAdvances(companyId).then(setEmployeeAdvances).catch(() => {});
     listEmployees(companyId).then(setEmployees).catch(() => {});
   }, [companyId]);
@@ -336,6 +339,8 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
       {linkModal?.type === "asset" && (
         <FixedAssetLineModal
           existingAssets={fixedAssets}
+          assetCategories={assetCategories}
+          lineAccountId={lines[linkModal.lineIndex]?.accountId}
           costCenters={costCenterOptions}
           employees={employees}
           initial={lines[linkModal.lineIndex]}
