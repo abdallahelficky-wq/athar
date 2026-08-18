@@ -23,7 +23,7 @@ export default function FixedAssetsWiredModule({ tab, setTab, companies, company
         <h2>الأصول الثابتة</h2>
       </div>
       <SubTabs tabs={FIXED_ASSETS_TABS} active={tab} onChange={setTab} />
-      {tab === "register" && <AssetRegisterTab companyId={companyId} />}
+      {tab === "register" && <AssetRegisterTab companyId={companyId} companies={companies} />}
       {tab === "depreciation" && <DepreciationTab companyId={companyId} />}
       {tab === "disposal" && <DisposalTab companyId={companyId} />}
       {tab === "reports" && <AssetReportsTab companyId={companyId} />}

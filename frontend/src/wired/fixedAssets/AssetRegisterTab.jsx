@@ -9,6 +9,7 @@ import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
 import EmployeeSearchSelect from "../shared/EmployeeSearchSelect";
+import AssetCardPrintModal from "./AssetCardPrintModal";
 
 // رقم الهيكل ورقم اللوحة مفيدان فقط لفئة "سيارات ومركبات" تحديداً — يُخفَيان لباقي التصنيفات بدل
 // إرباك الفورم بحقول لا علاقة لها بأغلب الأصول.
@@ -23,7 +24,7 @@ const emptyForm = () => ({
   isDepreciable: true, paymentMethod: "cash",
 });
 
-export default function AssetRegisterTab({ companyId }) {
+export default function AssetRegisterTab({ companyId, companies }) {
   const [assets, setAssets] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
@@ -35,6 +36,7 @@ export default function AssetRegisterTab({ companyId }) {
   const [editingId, setEditingId] = useState(null);
   const [removeTarget, setRemoveTarget] = useState(null);
   const [attachmentsFor, setAttachmentsFor] = useState(null);
+  const [printCardFor, setPrintCardFor] = useState(null);
 
   const reload = () => {
     if (!companyId) return;
@@ -207,6 +209,7 @@ export default function AssetRegisterTab({ companyId }) {
                       <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === a.id ? null : a.id)}>
                         {attachmentsFor === a.id ? "إخفاء المرفقات" : "المرفقات"}
                       </button>
+                      <button className="btn-ghost" onClick={() => setPrintCardFor(a)}>طباعة البطاقة</button>
                     </td>
                   </tr>
                   {attachmentsFor === a.id && (
@@ -220,6 +223,15 @@ export default function AssetRegisterTab({ companyId }) {
         </div>
       )}
       {removeTarget && <UnpostModal title="حذف الأصل" onCancel={() => setRemoveTarget(null)} onConfirm={doRemove} />}
+      {printCardFor && (
+        <AssetCardPrintModal
+          asset={printCardFor}
+          companies={companies}
+          employees={employees}
+          costCenters={companyCostCenters}
+          onClose={() => setPrintCardFor(null)}
+        />
+      )}
     </div>
   );
 }
