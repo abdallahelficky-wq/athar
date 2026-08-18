@@ -1,25 +1,29 @@
 import { z } from "zod";
+import { depreciationMethodSchema, rejectUnsupportedDepreciationMethod } from "../fixedAssets/fixedAssets.schemas";
 
 // حقول تسجيل أصل ثابت جديد ضمن سطر قيد عام (Phase F) — بلا companyId/accountId/paymentMethod:
 // الشركة والحساب المحاسبي محدَّدان مسبقاً من سياق القيد والسطر نفسه (accountId = حساب هذا السطر
 // تحديداً)، والتكلفة = مبلغ السطر (مدين) مباشرة بدل حقل منفصل، فلا قيد إضافي يُنشأ (هذا السطر نفسه
 // هو القيد المحاسبي للاقتناء).
-export const newFixedAssetOnLineSchema = z.object({
-  name: z.string().min(2, "اسم الأصل قصير جداً"),
-  // إلزامية — بدونها لا يرث الأصل حسابَي مجمع/مصروف الإهلاك ويقع على الحسابات الاحتياطية
-  // المشتركة بدل حسابات فئته. تُتحقَّق أيضاً في journalEntries.service.ts أن حساب اقتناء هذه
-  // الفئة يطابق حساب السطر نفسه (لا يكفي التحقق هنا وحده لأنه لا يعرف حساب السطر).
-  categoryId: z.string().min(1, "فئة الأصل مطلوبة"),
-  serialNumber: z.string().optional(),
-  chassisNumber: z.string().optional(),
-  plateNumber: z.string().optional(),
-  costCenterId: z.string().optional(),
-  custodianEmployeeId: z.string().optional(),
-  depreciationStartDate: z.coerce.date().optional(),
-  usefulLifeYears: z.coerce.number().positive(),
-  salvageValue: z.coerce.number().min(0).default(0),
-  isDepreciable: z.coerce.boolean().default(true),
-});
+export const newFixedAssetOnLineSchema = z
+  .object({
+    name: z.string().min(2, "اسم الأصل قصير جداً"),
+    // إلزامية — بدونها لا يرث الأصل حسابَي مجمع/مصروف الإهلاك ويقع على الحسابات الاحتياطية
+    // المشتركة بدل حسابات فئته. تُتحقَّق أيضاً في journalEntries.service.ts أن حساب اقتناء هذه
+    // الفئة يطابق حساب السطر نفسه (لا يكفي التحقق هنا وحده لأنه لا يعرف حساب السطر).
+    categoryId: z.string().min(1, "فئة الأصل مطلوبة"),
+    serialNumber: z.string().optional(),
+    chassisNumber: z.string().optional(),
+    plateNumber: z.string().optional(),
+    costCenterId: z.string().optional(),
+    custodianEmployeeId: z.string().optional(),
+    depreciationStartDate: z.coerce.date().optional(),
+    usefulLifeYears: z.coerce.number().positive(),
+    salvageValue: z.coerce.number().min(0).default(0),
+    depreciationMethod: depreciationMethodSchema,
+    isDepreciable: z.coerce.boolean().default(true),
+  })
+  .superRefine(rejectUnsupportedDepreciationMethod);
 
 // حقول تسجيل سلفة/عهدة موظف جديدة ضمن سطر قيد عام — بلا companyId/accountId/paymentMethod لنفس
 // السبب أعلاه؛ الموظف يُؤخَذ من employeeId الخاص بالسطر نفسه (حقل موجود بالفعل)، لا حقل منفصل هنا.

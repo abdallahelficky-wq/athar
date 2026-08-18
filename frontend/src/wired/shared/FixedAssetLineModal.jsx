@@ -4,7 +4,7 @@ import EmployeeSearchSelect from "./EmployeeSearchSelect";
 const emptyNewAsset = () => ({
   name: "", categoryId: "", serialNumber: "", chassisNumber: "", plateNumber: "",
   costCenterId: "", custodianEmployeeId: "", cost: "", usefulLifeYears: "5", salvageValue: "0",
-  depreciationStartDate: "", isDepreciable: true,
+  depreciationStartDate: "", depreciationMethod: "straight_line", isDepreciable: true,
 });
 
 /**
@@ -54,7 +54,8 @@ export default function FixedAssetLineModal({ existingAssets, assetCategories, l
         serialNumber: form.serialNumber || undefined, chassisNumber: form.chassisNumber || undefined, plateNumber: form.plateNumber || undefined,
         costCenterId: form.costCenterId || undefined, custodianEmployeeId: form.custodianEmployeeId || undefined,
         depreciationStartDate: form.depreciationStartDate || undefined,
-        usefulLifeYears: Number(form.usefulLifeYears), salvageValue: Number(form.salvageValue) || 0, isDepreciable: form.isDepreciable,
+        usefulLifeYears: Number(form.usefulLifeYears), salvageValue: Number(form.salvageValue) || 0,
+        depreciationMethod: form.depreciationMethod, isDepreciable: form.isDepreciable,
       },
       debit: Number(form.cost),
     });
@@ -111,6 +112,12 @@ export default function FixedAssetLineModal({ existingAssets, assetCategories, l
             <label>تاريخ بدء الإهلاك (اختياري)<input type="date" value={form.depreciationStartDate} onChange={(e) => setForm({ ...form, depreciationStartDate: e.target.value })} /></label>
             <label>العمر الإنتاجي (سنوات)<input type="number" step="0.1" value={form.usefulLifeYears} onChange={(e) => setForm({ ...form, usefulLifeYears: e.target.value })} /></label>
             <label>نسبة الإهلاك السنوية<input type="text" value={annualDepreciationRate ? `${annualDepreciationRate}%` : "—"} disabled /></label>
+            <label>طريقة الإهلاك
+              <select value={form.depreciationMethod} onChange={(e) => setForm({ ...form, depreciationMethod: e.target.value })}>
+                <option value="straight_line">قسط ثابت</option>
+                <option value="declining_balance" disabled>قسط متناقص (قريباً)</option>
+              </select>
+            </label>
             <label>القيمة التخريدية<input type="number" value={form.salvageValue} onChange={(e) => setForm({ ...form, salvageValue: e.target.value })} /></label>
             <label className="checkbox-label"><input type="checkbox" checked={form.isDepreciable} onChange={(e) => setForm({ ...form, isDepreciable: e.target.checked })} />يُستهلك</label>
           </div>

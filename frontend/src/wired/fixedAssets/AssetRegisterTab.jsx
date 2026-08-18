@@ -19,7 +19,7 @@ const emptyForm = () => ({
   name: "", category: ASSET_CATEGORIES[0], serialNumber: "", chassisNumber: "", plateNumber: "", costCenterId: "",
   custodianEmployeeId: "",
   purchaseDate: new Date().toISOString().slice(0, 10), depreciationStartDate: "",
-  cost: "", usefulLifeYears: "5", salvageValue: "0",
+  cost: "", usefulLifeYears: "5", salvageValue: "0", depreciationMethod: "straight_line",
   isDepreciable: true, paymentMethod: "cash",
 });
 
@@ -58,6 +58,7 @@ export default function AssetRegisterTab({ companyId }) {
     (acc[c.groupName] = acc[c.groupName] || []).push(c);
     return acc;
   }, {});
+  const annualDepreciationRate = Number(form.usefulLifeYears) > 0 ? (100 / Number(form.usefulLifeYears)).toFixed(2) : null;
 
   const save = async () => {
     if (!form.name || !Number(form.cost)) return;
@@ -68,7 +69,8 @@ export default function AssetRegisterTab({ companyId }) {
       plateNumber: form.plateNumber || undefined,
       costCenterId: form.costCenterId || undefined,
       depreciationStartDate: form.depreciationStartDate || undefined,
-      usefulLifeYears: Number(form.usefulLifeYears), salvageValue: Number(form.salvageValue), isDepreciable: form.isDepreciable,
+      usefulLifeYears: Number(form.usefulLifeYears), salvageValue: Number(form.salvageValue),
+      depreciationMethod: form.depreciationMethod, isDepreciable: form.isDepreciable,
       ...(form.useRawAccount ? { accountId: form.accountId } : { categoryId: form.categoryId }),
     };
     try {
@@ -98,7 +100,8 @@ export default function AssetRegisterTab({ companyId }) {
       serialNumber: a.serialNumber || "", chassisNumber: a.chassisNumber || "", plateNumber: a.plateNumber || "",
       costCenterId: a.costCenterId || "", custodianEmployeeId: a.custodianEmployeeId || "",
       depreciationStartDate: a.depreciationStartDate ? a.depreciationStartDate.slice(0, 10) : "",
-      usefulLifeYears: a.usefulLifeYears, salvageValue: a.salvageValue, isDepreciable: a.isDepreciable,
+      usefulLifeYears: a.usefulLifeYears, salvageValue: a.salvageValue,
+      depreciationMethod: a.depreciationMethod || "straight_line", isDepreciable: a.isDepreciable,
     });
   };
 
@@ -157,6 +160,13 @@ export default function AssetRegisterTab({ companyId }) {
           {!editingId && <label>التكلفة<input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} /></label>}
           <label>تاريخ بدء الإهلاك (اختياري — افتراضياً تاريخ الشراء)<input type="date" value={form.depreciationStartDate} onChange={(e) => setForm({ ...form, depreciationStartDate: e.target.value })} /></label>
           <label>العمر الإنتاجي (سنوات)<input type="number" step="0.1" value={form.usefulLifeYears} onChange={(e) => setForm({ ...form, usefulLifeYears: e.target.value })} /></label>
+          <label>نسبة الإهلاك السنوية<input type="text" value={annualDepreciationRate ? `${annualDepreciationRate}%` : "—"} disabled /></label>
+          <label>طريقة الإهلاك
+            <select value={form.depreciationMethod} onChange={(e) => setForm({ ...form, depreciationMethod: e.target.value })}>
+              <option value="straight_line">قسط ثابت</option>
+              <option value="declining_balance" disabled>قسط متناقص (قريباً)</option>
+            </select>
+          </label>
           <label>القيمة التخريدية<input type="number" value={form.salvageValue} onChange={(e) => setForm({ ...form, salvageValue: e.target.value })} /></label>
           <label className="checkbox-label"><input type="checkbox" checked={form.isDepreciable} onChange={(e) => setForm({ ...form, isDepreciable: e.target.checked })} />يُستهلك (أوقف التفعيل للأراضي مثلاً)</label>
           {!editingId && (

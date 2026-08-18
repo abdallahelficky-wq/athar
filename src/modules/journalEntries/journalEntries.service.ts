@@ -21,6 +21,7 @@ export interface NewFixedAssetOnLine {
   depreciationStartDate?: Date;
   usefulLifeYears: number;
   salvageValue: number;
+  depreciationMethod?: "straight_line" | "declining_balance";
   isDepreciable: boolean;
 }
 
@@ -173,6 +174,7 @@ async function createLinesWithSideEffectsTx(
         cost: l.debit,
         usefulLifeYears: l.newFixedAsset.usefulLifeYears,
         salvageValue: l.newFixedAsset.salvageValue,
+        depreciationMethod: l.newFixedAsset.depreciationMethod,
         isDepreciable: l.newFixedAsset.isDepreciable,
         sourceJournalEntryLineId: line.id,
       });

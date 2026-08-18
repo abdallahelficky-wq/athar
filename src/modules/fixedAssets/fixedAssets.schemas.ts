@@ -3,9 +3,9 @@ import { z } from "zod";
 // طريقة القسط الثابت هي الوحيدة المحسوبة فعلياً (src/lib/depreciation.ts) — المتناقص محفوظ في
 // enum الـ schema (Prisma) تمهيداً لدعمه لاحقاً، لكن يُرفَض هنا صراحة برسالة واضحة بدل قبوله
 // بصمت وحساب رقم خاطئ.
-const depreciationMethodSchema = z.enum(["straight_line", "declining_balance"]).default("straight_line");
+export const depreciationMethodSchema = z.enum(["straight_line", "declining_balance"]).default("straight_line");
 
-function rejectUnsupportedDepreciationMethod<T extends { depreciationMethod?: "straight_line" | "declining_balance" }>(
+export function rejectUnsupportedDepreciationMethod<T extends { depreciationMethod?: "straight_line" | "declining_balance" }>(
   data: T,
   ctx: z.RefinementCtx,
 ) {
