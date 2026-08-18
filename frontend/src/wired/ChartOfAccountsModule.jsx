@@ -5,10 +5,12 @@ import { Icon } from "../legacy/shared";
 import { useAuth } from "../context/AuthContext";
 import AccountImportPanel from "./AccountImportPanel";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
+import { useDeferredFilters } from "./shared/useDeferredFilters";
 
 const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
 const LEVEL_CODE_LENGTH = { 1: 1, 2: 2, 3: 3, 4: 6 };
 const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false, isEmployeeAdvanceAccount: false };
+const emptyChartFilters = { search: "", level: 4, type: "", status: "active" };
 
 export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const { user } = useAuth();
@@ -19,6 +21,8 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const [compact, setCompact] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const chartFilters = useDeferredFilters(emptyChartFilters);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
@@ -41,14 +45,39 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     return map;
   }, [accounts]);
 
-  const rows = [];
-  const walk = (parentId = null) => (children.get(parentId) || []).forEach((account) => {
-    rows.push(account);
-    if (!compact && expanded.has(account.id)) walk(account.id);
-  });
-  walk();
+  // فلترة أساسية (بحث/مستوى/تصنيف/حالة) — بلا فلترة تلقائية فورية، فقط عند الضغط على "إظهار
+  // النتائج" (chartFilters.applied بدل .draft). بلا بحث نصي: تبقى الشجرة الهرمية القابلة للطي/الفتح
+  // كما هي (فقط بحدّ أقصى للعمق وتصنيف/حالة). مع بحث نصي: تتحوّل لقائمة نتائج مسطّحة (كل الحسابات
+  // المطابقة عبر كل المستويات دفعة واحدة) بدل تعقيد حقن الآباء لإبقاء الشجرة سليمة.
+  const cf = chartFilters.applied;
+  const matchesFilters = (a) => {
+    if (cf.type && a.type !== cf.type) return false;
+    const isArchived = a.isArchived === true;
+    if (cf.status === "active" && isArchived) return false;
+    if (cf.status === "archived" && !isArchived) return false;
+    return true;
+  };
+  const searchText = cf.search.trim().toLocaleLowerCase("ar");
 
-  const reset = () => { setForm(emptyForm); setEditingId(null); };
+  const rows = [];
+  if (searchText) {
+    accounts
+      .filter((a) => a.level <= cf.level && matchesFilters(a))
+      .filter((a) => a.name?.toLocaleLowerCase("ar").includes(searchText) || a.nameEn?.toLowerCase().includes(searchText) || a.code?.includes(searchText))
+      .sort((a, b) => a.code.localeCompare(b.code))
+      .forEach((a) => rows.push(a));
+  } else {
+    const walk = (parentId = null) => (children.get(parentId) || []).forEach((account) => {
+      if (account.level > cf.level || !matchesFilters(account)) return; // لا يُعرض ولا تُستكمَل فروعه
+      rows.push(account);
+      if (!compact && account.level < cf.level && expanded.has(account.id)) walk(account.id);
+    });
+    walk();
+  }
+
+  const closeAccountModal = () => { setForm(emptyForm); setEditingId(null); setAddModalOpen(false); setError(""); };
+  const reset = closeAccountModal;
+  const openAddModal = () => { setEditingId(null); setError(""); setSuccess(""); setForm(emptyForm); setAddModalOpen(true); };
   const save = async () => {
     setError("");
     setSuccess("");
@@ -86,12 +115,13 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   };
-  const edit = (a) => { setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isPosting: a.isPosting, isBankOrCash: a.isBankOrCash, isEmployeeAdvanceAccount: a.isEmployeeAdvanceAccount }); };
+  const edit = (a) => { setAddModalOpen(false); setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isPosting: a.isPosting, isBankOrCash: a.isBankOrCash, isEmployeeAdvanceAccount: a.isEmployeeAdvanceAccount }); };
   const addChild = async (a) => {
     setEditingId(null); setError(""); setSuccess("");
     try {
       const { code } = await getNextAccountCode(a.id, scope === "group" ? undefined : scope);
       setForm({ ...emptyForm, type: a.type, parentId: a.id, code, isPosting: a.level === 3 });
+      setAddModalOpen(true);
     } catch (err) { setError(err.message); }
   };
   const selectParent = async (parentId) => {
@@ -139,8 +169,9 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     }
   };
 
-  // حقول الفورم مشتركة بالكامل بين وضع "إضافة حساب" (يظهر مباشرة أعلى الصفحة كالمعتاد) ووضع
-  // "تعديل/نقل" (يظهر كنافذة منبثقة) — نفس المنطق تماماً، فقط مكان العرض يختلف حسب editingId.
+  // حقول الفورم مشتركة بالكامل بين وضع "إضافة حساب" ووضع "تعديل/نقل" — كلاهما الآن نافذة منبثقة
+  // (accountModalOpen)، فقط العنوان وسلوك الحفظ يختلفان حسب editingId.
+  const accountModalOpen = editingId || addModalOpen;
   const formFields = (
     <div className="form-grid">
       <label>اسم الحساب بالعربية<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
@@ -163,7 +194,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
 
   return (
     <div>
-      {error && <p className="balance-bad">{error}</p>}
+      {error && !accountModalOpen && <p className="balance-bad">{error}</p>}
       {success && <p className="balance-good">{success}</p>}
       <div className="panel form-panel">
         <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
@@ -174,6 +205,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
             </select>
           </label>
           <div className="form-btn-group">
+            <button className="btn-primary" onClick={openAddModal}>+ إضافة حساب</button>
             <button className="btn-ghost" onClick={() => setCompact((v) => !v)}>{compact ? "عرض الشجرة كاملة" : "عرض مصغّر"}</button>
             {isSuperAdmin && (
               <button className="btn-ghost" style={{ color: "#A8432B", borderColor: "rgba(168,67,43,0.35)" }} disabled={installing} onClick={installStandard}>
@@ -182,35 +214,51 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
             )}
           </div>
         </div>
-      </div>
 
-      {/* فورم إضافة حساب جديد — يبقى ظاهراً أعلى الصفحة كالمعتاد؛ نافذة التعديل/النقل المنبثقة
-          أدناه منفصلة تماماً ولا تظهر إلا عند الضغط على "تعديل" لحساب موجود. */}
-      {!editingId && (
-        <div className="panel form-panel">
-          {formFields}
-          <div className="form-btn-group">
-            <button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "جارٍ الحفظ..." : "إضافة الحساب"}</button>
-            <span className="note">المستوى {level} من 4 — {level === 4 ? "حساب ترحيل تلقائياً" : "حساب تجميعي"}.</span>
-          </div>
-        </div>
-      )}
+        <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); chartFilters.apply(); }}>
+          <label>بحث بالاسم أو الكود
+            <input type="text" value={chartFilters.draft.search} onChange={(e) => chartFilters.setField("search", e.target.value)} placeholder="بحث..." />
+          </label>
+          <label>
+            المستوى (حد أقصى للعمق)
+            <select value={chartFilters.draft.level} onChange={(e) => chartFilters.setField("level", Number(e.target.value))}>
+              <option value={1}>المستوى 1</option>
+              <option value={2}>المستوى 2</option>
+              <option value={3}>المستوى 3</option>
+              <option value={4}>المستوى 4 (تفصيلي بالكامل)</option>
+            </select>
+          </label>
+          <label>التصنيف
+            <select value={chartFilters.draft.type} onChange={(e) => chartFilters.setField("type", e.target.value)}>
+              <option value="">كل التصنيفات</option>
+              {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>
+          <label>الحالة
+            <select value={chartFilters.draft.status} onChange={(e) => chartFilters.setField("status", e.target.value)}>
+              <option value="active">نشط</option>
+              <option value="archived">مؤرشف</option>
+            </select>
+          </label>
+          <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+        </form>
+      </div>
 
       <AccountImportPanel scope={scope} accounts={accounts} onImported={reload} />
 
-      {editingId && (
-        <div className="invoice-modal-overlay" onClick={() => !saving && reset()}>
+      {accountModalOpen && (
+        <div className="invoice-modal-overlay" onClick={() => !saving && closeAccountModal()}>
           <div className="invoice-modal-box" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-title-row">
-              <h3>تعديل/نقل الحساب{editingAccount ? ` — ${editingAccount.name}` : ""}</h3>
-              <button type="button" className="modal-close-btn" onClick={reset} disabled={saving} aria-label="إغلاق">×</button>
+              <h3>{editingId ? `تعديل/نقل الحساب${editingAccount ? ` — ${editingAccount.name}` : ""}` : (form.parentId ? "إضافة حساب فرعي" : "إضافة حساب جديد")}</h3>
+              <button type="button" className="modal-close-btn" onClick={closeAccountModal} disabled={saving} aria-label="إغلاق">×</button>
             </div>
             {formFields}
             {error && <p className="balance-bad">{error}</p>}
             <div className="form-btn-group">
-              <button type="button" className="btn-ghost" onClick={reset} disabled={saving}>إلغاء</button>
-              <button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "جارٍ الحفظ..." : "حفظ التعديل/النقل"}</button>
-              <span className="note">عند النقل يبقى الكود ثابتاً لحماية أثر المراجعة التاريخي.</span>
+              <button type="button" className="btn-ghost" onClick={closeAccountModal} disabled={saving}>إلغاء</button>
+              <button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "جارٍ الحفظ..." : (editingId ? "حفظ التعديل/النقل" : "إضافة الحساب")}</button>
+              <span className="note">{editingId ? "عند النقل يبقى الكود ثابتاً لحماية أثر المراجعة التاريخي." : `المستوى ${level} من 4 — ${level === 4 ? "حساب ترحيل تلقائياً" : "حساب تجميعي"}.`}</span>
             </div>
           </div>
         </div>
