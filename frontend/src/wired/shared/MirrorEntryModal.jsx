@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getMirrorSuggestion, createMirrorJournalEntry } from "../../api/journalEntries";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "./AccountSearchSelect";
@@ -11,6 +12,7 @@ import AccountSearchSelect from "./AccountSearchSelect";
  * ليراجعه المستخدم قبل الترحيل، ويُربَط تبادلياً بالقيد الأصلي دون تغيير الشركة النشطة الحالية.
  */
 export default function MirrorEntryModal({ entry, companies, accounts, onClose, onCreated }) {
+  const { t } = useTranslation();
   const [step, setStep] = useState("choose");
   const [targetCompanyId, setTargetCompanyId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -71,30 +73,27 @@ export default function MirrorEntryModal({ entry, companies, accounts, onClose, 
     <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && !loading && !saving && onClose()}>
       <div className="unpost-confirm-box from-document-box">
         <div className="modal-title-row">
-          <h3>إنشاء قيد مرآة في شركة أخرى</h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={loading || saving} aria-label="إغلاق">×</button>
+          <h3>{t("journalModals.mirror.title")}</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={loading || saving} aria-label={t("common.close")}>×</button>
         </div>
 
         {step === "choose" && (
           <>
-            <p className="note">
-              اختر الشركة الشقيقة التي وقعت معها هذه العملية، وسيُقترَح لك قيد مقابل جاهز فيها (بحالة
-              محفوظ، قابل للمراجعة قبل الترحيل)، مع عكس اتجاه المدين/الدائن على حساب الربط بين الشركتين.
-            </p>
+            <p className="note">{t("journalModals.mirror.chooseNote")}</p>
             <div className="form-grid">
               <label className="memo-field">
-                الشركة المستهدفة
+                {t("journalModals.mirror.targetCompanyLabel")}
                 <select value={targetCompanyId} onChange={(e) => setTargetCompanyId(e.target.value)}>
-                  <option value="">— اختر —</option>
+                  <option value="">{t("journalModals.mirror.chooseOption")}</option>
                   {otherCompanies.map((c) => <option key={c.id} value={c.id}>{c.shortName || c.name}</option>)}
                 </select>
               </label>
             </div>
             {error && <p className="balance-bad">{error}</p>}
             <div className="form-btn-group">
-              <button className="btn-ghost" onClick={onClose} disabled={loading}>إلغاء</button>
+              <button className="btn-ghost" onClick={onClose} disabled={loading}>{t("common.cancel")}</button>
               <button className="btn-primary" onClick={fetchSuggestion} disabled={!targetCompanyId || loading}>
-                {loading ? "جارٍ التحضير..." : "متابعة"}
+                {loading ? t("journalModals.mirror.preparing") : t("journalModals.mirror.continueBtn")}
               </button>
             </div>
           </>
@@ -103,31 +102,27 @@ export default function MirrorEntryModal({ entry, companies, accounts, onClose, 
         {step === "review" && suggestion && (
           <>
             <p className="note">
-              سيُحفَظ هذا القيد بحالة "محفوظ" في شركة <strong>{targetCompany?.shortName || targetCompany?.name}</strong>،
-              وسيبقى مرتبطاً بالقيد الأصلي. راجع الحساب المختار للسطر الثاني ثم احفظ.
+              {t("journalModals.mirror.reviewNote", { company: targetCompany?.shortName || targetCompany?.name })}
             </p>
             {!suggestion.detected && (
-              <p className="balance-bad">
-                لم يُعثر على حساب ربط محدَّد مسبقاً بين الشركتين على هذا القيد تحديداً، فتم استخدام إجمالي
-                القيد وإنشاء حسابات الربط تلقائياً — راجع المبالغ جيداً قبل الترحيل.
-              </p>
+              <p className="balance-bad">{t("journalModals.mirror.noLinkWarning")}</p>
             )}
             <div className="form-grid">
-              <label>التاريخ<input type="date" value={String(suggestion.date).slice(0, 10)} disabled /></label>
-              <label className="memo-field">البيان<input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} /></label>
+              <label>{t("journalModals.mirror.dateLabel")}<input type="date" value={String(suggestion.date).slice(0, 10)} disabled /></label>
+              <label className="memo-field">{t("journalModals.mirror.memoLabel")}<input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} /></label>
             </div>
             <div className="lines-table-wrap">
               <table className="lines-table">
-                <thead><tr><th>الحساب</th><th>مدين</th><th>دائن</th></tr></thead>
+                <thead><tr><th>{t("journalModals.mirror.table.account")}</th><th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th></tr></thead>
                 <tbody>
                   <tr>
-                    <td>{autoLine.accountName} <span className="note">(تلقائي)</span></td>
+                    <td>{autoLine.accountName} <span className="note">{t("journalModals.mirror.autoTag")}</span></td>
                     <td className="num">{autoLine.debit ? fmt2(autoLine.debit) : "—"}</td>
                     <td className="num">{autoLine.credit ? fmt2(autoLine.credit) : "—"}</td>
                   </tr>
                   <tr>
                     <td>
-                      <AccountSearchSelect accounts={accounts} value={manualAccountId} onChange={setManualAccountId} placeholder="اختر الحساب..." />
+                      <AccountSearchSelect accounts={accounts} value={manualAccountId} onChange={setManualAccountId} placeholder={t("journalModals.mirror.accountPlaceholder")} />
                     </td>
                     <td className="num">{manualLine.debit ? fmt2(manualLine.debit) : "—"}</td>
                     <td className="num">{manualLine.credit ? fmt2(manualLine.credit) : "—"}</td>
@@ -137,10 +132,10 @@ export default function MirrorEntryModal({ entry, companies, accounts, onClose, 
             </div>
             {error && <p className="balance-bad">{error}</p>}
             <div className="form-btn-group">
-              <button className="btn-ghost" onClick={() => setStep("choose")} disabled={saving}>رجوع</button>
-              <button className="btn-ghost" onClick={onClose} disabled={saving}>إلغاء</button>
+              <button className="btn-ghost" onClick={() => setStep("choose")} disabled={saving}>{t("journalModals.mirror.back")}</button>
+              <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("common.cancel")}</button>
               <button className="btn-primary" onClick={submit} disabled={!manualAccountId || saving}>
-                {saving ? "جارٍ الحفظ..." : "حفظ القيد المقابل"}
+                {saving ? t("journalModals.mirror.saving") : t("journalModals.mirror.saveBtn")}
               </button>
             </div>
           </>

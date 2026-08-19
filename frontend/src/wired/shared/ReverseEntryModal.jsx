@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { reverseJournalEntry } from "../../api/journalEntries";
 import { fmt2 } from "../../legacy/constants";
 
@@ -9,6 +10,7 @@ import { fmt2 } from "../../legacy/constants";
  * التأكيد، ليراجعه المستخدم قبل الترحيل.
  */
 export default function ReverseEntryModal({ entry, onClose, onCreated }) {
+  const { t } = useTranslation();
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -33,19 +35,18 @@ export default function ReverseEntryModal({ entry, onClose, onCreated }) {
     <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <div className="unpost-confirm-box from-document-box">
         <div className="modal-title-row">
-          <h3>عكس القيد</h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+          <h3>{t("journalModals.reverse.title")}</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label={t("common.close")}>×</button>
         </div>
         <p className="note">
-          سيُنشأ قيد جديد منفصل بنفس بنود القيد الأصلي (البيان: <strong>{entry.memo || "بدون بيان"}</strong>) مع عكس
-          المدين والدائن على كل سطر، ويُحفَظ بحالة "محفوظ" لتراجعه قبل الترحيل. القيد الأصلي لن يتغيّر إطلاقاً.
+          {t("journalModals.reverse.note", { memo: entry.memo || t("journalEntries.table.noMemo") })}
         </p>
         <div className="form-grid">
-          <label>تاريخ القيد العكسي<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label>{t("journalModals.reverse.dateLabel")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
         </div>
         <div className="lines-table-wrap">
           <table className="lines-table">
-            <thead><tr><th>الحساب</th><th>القسم</th><th>الوصف</th><th>مدين</th><th>دائن</th></tr></thead>
+            <thead><tr><th>{t("journalModals.reverse.table.account")}</th><th>{t("journalEntries.form.lines.department")}</th><th>{t("journalEntries.form.lines.description")}</th><th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th></tr></thead>
             <tbody>
               {reversedLines.map((l) => (
                 <tr key={l.id}>
@@ -58,15 +59,15 @@ export default function ReverseEntryModal({ entry, onClose, onCreated }) {
               ))}
             </tbody>
             <tfoot>
-              <tr><td className="foot-label" colSpan={3}>الإجمالي</td><td className="num strong">{fmt2(total)}</td><td className="num strong">{fmt2(total)}</td></tr>
+              <tr><td className="foot-label" colSpan={3}>{t("journalEntries.form.total")}</td><td className="num strong">{fmt2(total)}</td><td className="num strong">{fmt2(total)}</td></tr>
             </tfoot>
           </table>
         </div>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          <button className="btn-ghost" onClick={onClose} disabled={saving}>إلغاء</button>
+          <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("common.cancel")}</button>
           <button className="btn-primary" onClick={submit} disabled={saving}>
-            {saving ? "جارٍ الحفظ..." : "إنشاء القيد العكسي"}
+            {saving ? t("journalModals.reverse.saving") : t("journalModals.reverse.createBtn")}
           </button>
         </div>
       </div>

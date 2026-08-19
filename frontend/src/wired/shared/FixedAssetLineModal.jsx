@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import EmployeeSearchSelect from "./EmployeeSearchSelect";
 
 const emptyNewAsset = () => ({
@@ -21,6 +22,7 @@ const emptyNewAsset = () => ({
  * لا العكس، وإلا يتناقض حساب الأصل المسجَّل مع حساب سطر القيد الفعلي الذي رُحِّلت عليه التكلفة.
  */
 export default function FixedAssetLineModal({ existingAssets, assetCategories, lineAccountId, costCenters, employees, initial, onClose, onConfirm }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState(initial?.fixedAssetId ? "existing" : "new");
   const [existingId, setExistingId] = useState(initial?.fixedAssetId || "");
   const matchedCategories = useMemo(
@@ -38,15 +40,15 @@ export default function FixedAssetLineModal({ existingAssets, assetCategories, l
   const annualDepreciationRate = Number(form.usefulLifeYears) > 0 ? (100 / Number(form.usefulLifeYears)).toFixed(2) : null;
 
   const confirmExisting = () => {
-    if (!existingId) { setError("اختر أصلاً من القائمة"); return; }
+    if (!existingId) { setError(t("journalModals.fixedAssetLine.errChooseAsset")); return; }
     onConfirm({ fixedAssetId: existingId, newFixedAsset: null, debit: null });
   };
 
   const confirmNew = () => {
-    if (!form.name.trim()) { setError("اسم الأصل مطلوب"); return; }
-    if (!form.categoryId) { setError("اختر فئة الأصل"); return; }
-    if (!Number(form.cost) || Number(form.cost) <= 0) { setError("أدخل تكلفة الأصل"); return; }
-    if (!Number(form.usefulLifeYears) || Number(form.usefulLifeYears) <= 0) { setError("أدخل العمر الإنتاجي"); return; }
+    if (!form.name.trim()) { setError(t("journalModals.fixedAssetLine.errNameRequired")); return; }
+    if (!form.categoryId) { setError(t("journalModals.fixedAssetLine.errCategoryRequired")); return; }
+    if (!Number(form.cost) || Number(form.cost) <= 0) { setError(t("journalModals.fixedAssetLine.errCostRequired")); return; }
+    if (!Number(form.usefulLifeYears) || Number(form.usefulLifeYears) <= 0) { setError(t("journalModals.fixedAssetLine.errUsefulLifeRequired")); return; }
     onConfirm({
       fixedAssetId: null,
       newFixedAsset: {
@@ -65,73 +67,70 @@ export default function FixedAssetLineModal({ existingAssets, assetCategories, l
     <div className="unpost-confirm-overlay nested-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="unpost-confirm-box">
         <div className="modal-title-row">
-          <h3>ربط السطر بأصل ثابت</h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="إغلاق">×</button>
+          <h3>{t("journalModals.fixedAssetLine.title")}</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} aria-label={t("common.close")}>×</button>
         </div>
         <div className="form-btn-group" style={{ marginBottom: 14 }}>
-          <button className={mode === "new" ? "btn-primary" : "btn-ghost"} onClick={() => { setMode("new"); setError(""); }}>أصل جديد</button>
-          <button className={mode === "existing" ? "btn-primary" : "btn-ghost"} onClick={() => { setMode("existing"); setError(""); }}>أصل موجود</button>
+          <button className={mode === "new" ? "btn-primary" : "btn-ghost"} onClick={() => { setMode("new"); setError(""); }}>{t("journalModals.fixedAssetLine.newTab")}</button>
+          <button className={mode === "existing" ? "btn-primary" : "btn-ghost"} onClick={() => { setMode("existing"); setError(""); }}>{t("journalModals.fixedAssetLine.existingTab")}</button>
         </div>
 
         {mode === "existing" ? (
           <div className="form-grid">
-            <label>اختر الأصل
+            <label>{t("journalModals.fixedAssetLine.chooseAssetLabel")}
               <select value={existingId} onChange={(e) => setExistingId(e.target.value)}>
-                <option value="">— اختر —</option>
+                <option value="">{t("journalModals.fixedAssetLine.chooseOption")}</option>
                 {activeAssets.map((a) => <option key={a.id} value={a.id}>{a.assetNumber} — {a.name}</option>)}
               </select>
             </label>
           </div>
         ) : matchedCategories.length === 0 ? (
-          <p className="balance-bad">
-            لا توجد فئة أصول مرتبطة بهذا الحساب — أنشئها أولاً من (الأصول الثابتة ← إعدادات الفئات)
-            وحدّد فيها هذا الحساب كحساب اقتناء، ثم أعد المحاولة.
-          </p>
+          <p className="balance-bad">{t("journalModals.fixedAssetLine.noCategoryWarning")}</p>
         ) : (
           <div className="form-grid">
-            <label>اسم الأصل<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus /></label>
-            <label>فئة الأصل (تحدد حسابَي مجمع/مصروف الإهلاك تلقائياً)
+            <label>{t("journalModals.fixedAssetLine.nameLabel")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus /></label>
+            <label>{t("journalModals.fixedAssetLine.categoryLabel")}
               <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
-                <option value="">— اختر —</option>
+                <option value="">{t("journalModals.fixedAssetLine.chooseOption")}</option>
                 {matchedCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </label>
-            <label>التكلفة (تُملأ في خانة المدين تلقائياً)<input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} /></label>
-            <label>الرقم التسلسلي (اختياري)<input type="text" value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.target.value })} /></label>
-            <label>رقم الهيكل (اختياري)<input type="text" value={form.chassisNumber} onChange={(e) => setForm({ ...form, chassisNumber: e.target.value })} /></label>
-            <label>رقم اللوحة (اختياري)<input type="text" value={form.plateNumber} onChange={(e) => setForm({ ...form, plateNumber: e.target.value })} /></label>
-            <label>الموقع/الفرع (اختياري)
+            <label>{t("journalModals.fixedAssetLine.costLabel")}<input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} /></label>
+            <label>{t("journalModals.fixedAssetLine.serialLabel")}<input type="text" value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.target.value })} /></label>
+            <label>{t("journalModals.fixedAssetLine.chassisLabel")}<input type="text" value={form.chassisNumber} onChange={(e) => setForm({ ...form, chassisNumber: e.target.value })} /></label>
+            <label>{t("journalModals.fixedAssetLine.plateLabel")}<input type="text" value={form.plateNumber} onChange={(e) => setForm({ ...form, plateNumber: e.target.value })} /></label>
+            <label>{t("journalModals.fixedAssetLine.locationLabel")}
               <select value={form.costCenterId} onChange={(e) => setForm({ ...form, costCenterId: e.target.value })}>
-                <option value="">— بلا —</option>
+                <option value="">{t("journalModals.fixedAssetLine.noneOption")}</option>
                 {costCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </label>
-            <label>عهدة لدى موظف (اختياري)
-              <EmployeeSearchSelect employees={employees} value={form.custodianEmployeeId} onChange={(id) => setForm({ ...form, custodianEmployeeId: id })} allowClear clearLabel="— بلا —" />
+            <label>{t("journalModals.fixedAssetLine.custodianLabel")}
+              <EmployeeSearchSelect employees={employees} value={form.custodianEmployeeId} onChange={(id) => setForm({ ...form, custodianEmployeeId: id })} allowClear clearLabel={t("journalModals.fixedAssetLine.noneOption")} />
             </label>
-            <label>تاريخ بدء الإهلاك (اختياري)<input type="date" value={form.depreciationStartDate} onChange={(e) => setForm({ ...form, depreciationStartDate: e.target.value })} /></label>
-            <label>العمر الإنتاجي (سنوات)<input type="number" step="0.1" value={form.usefulLifeYears} onChange={(e) => setForm({ ...form, usefulLifeYears: e.target.value })} /></label>
-            <label>نسبة الإهلاك السنوية<input type="text" value={annualDepreciationRate ? `${annualDepreciationRate}%` : "—"} disabled /></label>
-            <label>طريقة الإهلاك
+            <label>{t("journalModals.fixedAssetLine.depreciationStartLabel")}<input type="date" value={form.depreciationStartDate} onChange={(e) => setForm({ ...form, depreciationStartDate: e.target.value })} /></label>
+            <label>{t("journalModals.fixedAssetLine.usefulLifeLabel")}<input type="number" step="0.1" value={form.usefulLifeYears} onChange={(e) => setForm({ ...form, usefulLifeYears: e.target.value })} /></label>
+            <label>{t("journalModals.fixedAssetLine.annualRateLabel")}<input type="text" value={annualDepreciationRate ? `${annualDepreciationRate}%` : "—"} disabled /></label>
+            <label>{t("journalModals.fixedAssetLine.methodLabel")}
               <select value={form.depreciationMethod} onChange={(e) => setForm({ ...form, depreciationMethod: e.target.value })}>
-                <option value="straight_line">قسط ثابت</option>
-                <option value="declining_balance" disabled>قسط متناقص (قريباً)</option>
+                <option value="straight_line">{t("fixedAssets.depreciationMethod.straight_line")}</option>
+                <option value="declining_balance" disabled>{t("fixedAssets.register.decliningSoon")}</option>
               </select>
             </label>
-            <label>القيمة التخريدية<input type="number" value={form.salvageValue} onChange={(e) => setForm({ ...form, salvageValue: e.target.value })} /></label>
-            <label className="checkbox-label"><input type="checkbox" checked={form.isDepreciable} onChange={(e) => setForm({ ...form, isDepreciable: e.target.checked })} />يُستهلك</label>
+            <label>{t("journalModals.fixedAssetLine.salvageLabel")}<input type="number" value={form.salvageValue} onChange={(e) => setForm({ ...form, salvageValue: e.target.value })} /></label>
+            <label className="checkbox-label"><input type="checkbox" checked={form.isDepreciable} onChange={(e) => setForm({ ...form, isDepreciable: e.target.checked })} />{t("journalModals.fixedAssetLine.isDepreciable")}</label>
           </div>
         )}
 
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          <button className="btn-ghost" onClick={onClose}>إلغاء</button>
+          <button className="btn-ghost" onClick={onClose}>{t("common.cancel")}</button>
           <button
             className="btn-primary"
             onClick={mode === "existing" ? confirmExisting : confirmNew}
             disabled={mode === "new" && matchedCategories.length === 0}
           >
-            ربط السطر
+            {t("journalModals.fixedAssetLine.linkBtn")}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createJournalEntryFromDocument, updateJournalEntry, postJournalEntry } from "../../api/journalEntries";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "./AccountSearchSelect";
@@ -10,6 +11,7 @@ import AccountSearchSelect from "./AccountSearchSelect";
  * بعد حفظ أي تعديلات، فيُقفَل تماماً). القيد لا يُرحَّل تلقائياً أبداً دون ضغط هذا الزر صراحة.
  */
 export default function CreateFromDocumentModal({ companyId, accounts, onClose, onCreated }) {
+  const { t } = useTranslation();
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -103,23 +105,20 @@ export default function CreateFromDocumentModal({ companyId, accounts, onClose, 
     <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && !analyzing && !saving && onClose()}>
       <div className="unpost-confirm-box from-document-box">
         <div className="modal-title-row">
-          <h3>إنشاء قيد من مستند (ذكاء اصطناعي)</h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={analyzing || saving} aria-label="إغلاق">×</button>
+          <h3>{t("journalModals.fromDocument.title")}</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={analyzing || saving} aria-label={t("common.close")}>×</button>
         </div>
 
         {!result && (
           <>
-            <p className="note">
-              ارفع صورة أو ملف PDF لفاتورة أو حوالة بنكية أو إيصال، وسيقترح الذكاء الاصطناعي قيداً كاملاً
-              بحالة "محفوظ" بالاعتماد على شجرة حساباتك الفعلية — تراجعه وتعدّله قبل أي حفظ أو ترحيل.
-            </p>
+            <p className="note">{t("journalModals.fromDocument.uploadNote")}</p>
             <input ref={fileInputRef} type="file" accept="image/*,application/pdf" onChange={onPickFile} />
-            {previewUrl && !isPdf && <img src={previewUrl} alt="معاينة المستند" className="from-document-preview" />}
+            {previewUrl && !isPdf && <img src={previewUrl} alt={t("journalModals.fromDocument.previewAlt")} className="from-document-preview" />}
             {error && <p className="balance-bad">{error}</p>}
             <div className="form-btn-group">
-              <button className="btn-ghost" onClick={onClose} disabled={analyzing}>إلغاء</button>
+              <button className="btn-ghost" onClick={onClose} disabled={analyzing}>{t("common.cancel")}</button>
               <button className="btn-primary" onClick={analyze} disabled={!file || analyzing}>
-                {analyzing ? "جارٍ تحليل المستند..." : "تحليل المستند واقتراح القيد"}
+                {analyzing ? t("journalModals.fromDocument.analyzing") : t("journalModals.fromDocument.analyzeBtn")}
               </button>
             </div>
           </>
@@ -128,22 +127,22 @@ export default function CreateFromDocumentModal({ companyId, accounts, onClose, 
         {result && (
           <div className="from-document-review">
             <div className="from-document-side">
-              <h4>المستند</h4>
+              <h4>{t("journalModals.fromDocument.documentTitle")}</h4>
               {isPdf
-                ? <a href={previewUrl} target="_blank" rel="noreferrer" className="btn-ghost">فتح ملف PDF</a>
-                : <img src={previewUrl} alt="المستند" className="from-document-preview" />}
-              {result.aiConfidenceNote && <p className="note">ملاحظة الذكاء الاصطناعي: {result.aiConfidenceNote}</p>}
+                ? <a href={previewUrl} target="_blank" rel="noreferrer" className="btn-ghost">{t("journalModals.fromDocument.openPdf")}</a>
+                : <img src={previewUrl} alt={t("journalModals.fromDocument.documentAlt")} className="from-document-preview" />}
+              {result.aiConfidenceNote && <p className="note">{t("journalModals.fromDocument.aiNote", { note: result.aiConfidenceNote })}</p>}
             </div>
 
             <div className="from-document-side">
-              <h4>القيد المقترح (قابل للتعديل)</h4>
+              <h4>{t("journalModals.fromDocument.proposedTitle")}</h4>
               <div className="form-grid">
-                <label>التاريخ<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-                <label className="memo-field">البيان<input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} /></label>
+                <label>{t("journalModals.fromDocument.dateLabel")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+                <label className="memo-field">{t("journalModals.fromDocument.memoLabel")}<input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} /></label>
               </div>
               <div className="lines-table-wrap">
                 <table className="lines-table">
-                  <thead><tr><th>الحساب</th><th>مدين</th><th>دائن</th><th></th></tr></thead>
+                  <thead><tr><th>{t("journalModals.fromDocument.table.account")}</th><th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th><th></th></tr></thead>
                   <tbody>
                     {lines.map((l, idx) => (
                       <tr key={idx}>
@@ -158,21 +157,21 @@ export default function CreateFromDocumentModal({ companyId, accounts, onClose, 
                   </tbody>
                 </table>
               </div>
-              <button className="btn-ghost" onClick={addLine}>+ إضافة سطر</button>
+              <button className="btn-ghost" onClick={addLine}>{t("journalModals.fromDocument.addLine")}</button>
               <div className="balance-status">
                 {balanced
-                  ? <span className="balance-ok">✓ القيد متوازن</span>
-                  : <span className="balance-bad">الفرق بين المدين والدائن: {fmt2(Math.abs(totalDebit - totalCredit))} ر.س</span>}
+                  ? <span className="balance-ok">{t("journalModals.fromDocument.balancedOk")}</span>
+                  : <span className="balance-bad">{t("journalModals.fromDocument.balanceDiff", { amount: fmt2(Math.abs(totalDebit - totalCredit)) })}</span>}
               </div>
 
               {error && <p className="balance-bad">{error}</p>}
               <div className="form-btn-group">
-                <button className="btn-ghost" onClick={onClose} disabled={saving}>إغلاق</button>
+                <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("common.close")}</button>
                 <button className="btn-ghost" onClick={saveDraft} disabled={!balanced || saving}>
-                  {saving ? "جارٍ الحفظ..." : "حفظ"}
+                  {saving ? t("journalModals.fromDocument.saving") : t("journalModals.fromDocument.saveDraft")}
                 </button>
                 <button className="btn-primary" onClick={approveAndPost} disabled={!balanced || saving}>
-                  {saving ? "جارٍ الحفظ..." : "موافقة وترحيل"}
+                  {saving ? t("journalModals.fromDocument.saving") : t("journalModals.fromDocument.approveAndPost")}
                 </button>
               </div>
             </div>
