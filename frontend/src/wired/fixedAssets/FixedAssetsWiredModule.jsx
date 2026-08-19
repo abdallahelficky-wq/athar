@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import AssetRegisterTab from "./AssetRegisterTab";
 import DepreciationTab from "./DepreciationTab";
 import DisposalTab from "./DisposalTab";
@@ -16,11 +17,12 @@ export const FIXED_ASSETS_TABS = [
 ];
 
 export default function FixedAssetsWiredModule({ tab, setTab, companies, companyId }) {
+  const { t } = useTranslation();
   return (
     <div>
       <div className="section-title">
-        <Breadcrumb parts={["الأصول الثابتة", "بيانات حقيقية"]} />
-        <h2>الأصول الثابتة</h2>
+        <Breadcrumb parts={[t("fixedAssets.breadcrumb"), t("dashboard.breadcrumb.realData")]} />
+        <h2>{t("nav.groups.fixedAssets")}</h2>
       </div>
       <SubTabs tabs={FIXED_ASSETS_TABS} active={tab} onChange={setTab} />
       {tab === "register" && <AssetRegisterTab companyId={companyId} companies={companies} />}

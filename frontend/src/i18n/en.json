@@ -647,6 +647,95 @@
       "empty": "No stock balances yet."
     }
   },
+  "fixedAssets": {
+    "breadcrumb": "Fixed Assets",
+    "status": { "active": "Active", "disposed": "Disposed" },
+    "depreciationMethod": { "straight_line": "Straight line", "declining_balance": "Declining balance" },
+    "register": {
+      "editingBanner": "Editing asset — {{name}} (cost and purchase date cannot be edited after posting)",
+      "name": "Asset name", "category": "Category",
+      "assetCategory": "Asset category (determines accounting accounts automatically)", "chooseCategory": "— Choose a category —",
+      "account": "Accounting account",
+      "useRawAccount": "Choose an accounting account directly instead of a category (for an asset with no suitable category yet)",
+      "serialNumber": "Serial number (optional)",
+      "chassisNumber": "Chassis number", "plateNumber": "Plate number",
+      "costCenter": "Location/branch (optional)", "none": "— None —",
+      "custodian": "In custody of employee (optional — tracking only, no accounting effect)",
+      "purchaseDate": "Purchase date", "cost": "Cost",
+      "depreciationStartDate": "Depreciation start date (optional — defaults to purchase date)",
+      "usefulLifeYears": "Useful life (years)",
+      "annualDepreciationRate": "Annual depreciation rate",
+      "depreciationMethodLabel": "Depreciation method",
+      "decliningSoon": "Declining balance (coming soon)",
+      "salvageValue": "Salvage value",
+      "isDepreciable": "Depreciable (turn off for land, for example)",
+      "paymentMethod": "Payment method", "paymentCash": "Cash", "paymentBank": "Bank", "paymentCredit": "Credit (payables)",
+      "cancel": "Cancel", "saveChanges": "Save changes", "saveAsset": "Save asset and post purchase",
+      "loading": "Loading...",
+      "table": {
+        "assetNumber": "Asset #", "asset": "Asset", "category": "Category", "purchaseDate": "Purchase date",
+        "cost": "Cost", "accumulatedDepreciation": "Accumulated depreciation", "netBookValue": "Net book value",
+        "status": "Status"
+      },
+      "edit": "Edit", "delete": "Delete",
+      "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
+      "printCard": "Print card",
+      "empty": "No fixed assets registered yet.",
+      "deleteTitle": "Delete asset"
+    },
+    "depreciation": {
+      "month": "Month", "showResults": "Show results",
+      "alreadyPosted": "Depreciation for this month was already posted for {{amount}} SAR.",
+      "postBtn": "Post month's depreciation",
+      "table": { "asset": "Asset", "cost": "Cost", "usefulLife": "Useful life", "monthlyDepreciation": "Monthly depreciation" },
+      "years": "years", "total": "Total",
+      "empty": "No active assets to calculate depreciation for."
+    },
+    "disposal": {
+      "asset": "Asset", "disposalDate": "Disposal date",
+      "salePrice": "Sale price (zero if written off)",
+      "receiveMethod": "Receipt method", "methodCash": "Cash", "methodBank": "Bank",
+      "accumulatedDepreciation": "Accumulated depreciation as of disposal date", "netBookValue": "Net book value",
+      "gain": "Disposal gain", "loss": "Disposal loss",
+      "postBtn": "Post disposal",
+      "empty": "No active assets to dispose of."
+    },
+    "reports": {
+      "activeCount": "Active asset count", "disposedCount": "Disposed asset count",
+      "totalCost": "Total cost", "totalNetBookValue": "Total net book value of active assets",
+      "byCategory": "By category",
+      "table": { "category": "Category", "count": "Count", "totalCost": "Total cost" },
+      "loading": "Loading..."
+    },
+    "categories": {
+      "title": "Asset categories", "newCategory": "+ New category",
+      "table": { "category": "Category", "assetAccount": "Acquisition account", "accumulatedDepreciationAccount": "Accumulated depreciation account", "depreciationExpenseAccount": "Depreciation expense account" },
+      "edit": "Edit", "delete": "Delete",
+      "empty": "No asset categories registered yet.",
+      "formTitleEdit": "Edit category — {{name}}", "formTitleCreate": "New category",
+      "groupName": "Group (for display/grouping only)", "groupNamePlaceholder": "e.g. Vehicles",
+      "categoryName": "Category name", "categoryNamePlaceholder": "e.g. Sedan cars",
+      "assetAccount": "Asset acquisition account",
+      "accumulatedDepreciationAccount": "Accumulated depreciation account",
+      "depreciationExpenseAccount": "Depreciation expense account",
+      "cancel": "Cancel", "saveChanges": "Save changes", "saveCategory": "Save category",
+      "errAllFieldsRequired": "All fields are required: group, category, and the three accounts",
+      "confirmDelete": "Delete category \"{{name}}\"?"
+    },
+    "printCard": {
+      "subtitle": "Fixed asset card",
+      "assetNumber": "Asset #", "status": "Status",
+      "name": "Asset name", "category": "Category",
+      "purchaseDate": "Purchase date", "depreciationStartDate": "Depreciation start date",
+      "cost": "Cost", "salvageValue": "Salvage value",
+      "usefulLifeYears": "Useful life", "years": "years",
+      "annualDepreciationRate": "Annual depreciation rate",
+      "depreciationMethod": "Depreciation method",
+      "accumulatedDepreciation": "Accumulated depreciation to date", "netBookValue": "Net book value",
+      "serialNumber": "Serial number", "chassisNumber": "Chassis number", "plateNumber": "Plate number",
+      "location": "Location/branch", "custodian": "In custody of"
+    }
+  },
   "journalEntries": {
     "breadcrumb": "Journal",
     "statusSaved": "Saved",

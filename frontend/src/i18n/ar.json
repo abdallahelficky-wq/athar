@@ -647,6 +647,95 @@
       "empty": "لا توجد أرصدة مخزون بعد."
     }
   },
+  "fixedAssets": {
+    "breadcrumb": "الأصول الثابتة",
+    "status": { "active": "نشط", "disposed": "مستبعد" },
+    "depreciationMethod": { "straight_line": "قسط ثابت", "declining_balance": "قسط متناقص" },
+    "register": {
+      "editingBanner": "تعديل الأصل — {{name}} (لا يمكن تعديل التكلفة أو تاريخ الشراء بعد الترحيل)",
+      "name": "اسم الأصل", "category": "التصنيف",
+      "assetCategory": "فئة الأصل (تحدد الحسابات المحاسبية تلقائياً)", "chooseCategory": "— اختر فئة —",
+      "account": "الحساب المحاسبي",
+      "useRawAccount": "اختيار حساب محاسبي مباشر بدل فئة (لأصل بلا فئة مناسبة بعد)",
+      "serialNumber": "الرقم التسلسلي (اختياري)",
+      "chassisNumber": "رقم الهيكل", "plateNumber": "رقم اللوحة",
+      "costCenter": "الموقع/الفرع (اختياري)", "none": "— بلا —",
+      "custodian": "عهدة لدى موظف (اختياري — تتبّع بلا أثر محاسبي)",
+      "purchaseDate": "تاريخ الشراء", "cost": "التكلفة",
+      "depreciationStartDate": "تاريخ بدء الإهلاك (اختياري — افتراضياً تاريخ الشراء)",
+      "usefulLifeYears": "العمر الإنتاجي (سنوات)",
+      "annualDepreciationRate": "نسبة الإهلاك السنوية",
+      "depreciationMethodLabel": "طريقة الإهلاك",
+      "decliningSoon": "قسط متناقص (قريباً)",
+      "salvageValue": "القيمة التخريدية",
+      "isDepreciable": "يُستهلك (أوقف التفعيل للأراضي مثلاً)",
+      "paymentMethod": "طريقة السداد", "paymentCash": "نقدي", "paymentBank": "بنكي", "paymentCredit": "آجل (ذمم دائنة)",
+      "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveAsset": "حفظ الأصل وترحيل الشراء",
+      "loading": "جارٍ التحميل...",
+      "table": {
+        "assetNumber": "رقم الأصل", "asset": "الأصل", "category": "التصنيف", "purchaseDate": "تاريخ الشراء",
+        "cost": "التكلفة", "accumulatedDepreciation": "مجمع الإهلاك", "netBookValue": "صافي القيمة الدفترية",
+        "status": "الحالة"
+      },
+      "edit": "تعديل", "delete": "حذف",
+      "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
+      "printCard": "طباعة البطاقة",
+      "empty": "لا توجد أصول ثابتة مسجّلة بعد.",
+      "deleteTitle": "حذف الأصل"
+    },
+    "depreciation": {
+      "month": "الشهر", "showResults": "إظهار النتائج",
+      "alreadyPosted": "تم ترحيل إهلاك هذا الشهر مسبقاً بمبلغ {{amount}} ر.س.",
+      "postBtn": "ترحيل إهلاك الشهر",
+      "table": { "asset": "الأصل", "cost": "التكلفة", "usefulLife": "العمر الإنتاجي", "monthlyDepreciation": "الإهلاك الشهري" },
+      "years": "سنة", "total": "الإجمالي",
+      "empty": "لا توجد أصول نشطة لحساب إهلاكها."
+    },
+    "disposal": {
+      "asset": "الأصل", "disposalDate": "تاريخ الاستبعاد",
+      "salePrice": "سعر البيع (صفر إن كان إتلافاً)",
+      "receiveMethod": "طريقة الاستلام", "methodCash": "نقدي", "methodBank": "بنكي",
+      "accumulatedDepreciation": "مجمع الإهلاك حتى تاريخ الاستبعاد", "netBookValue": "صافي القيمة الدفترية",
+      "gain": "ربح الاستبعاد", "loss": "خسارة الاستبعاد",
+      "postBtn": "ترحيل الاستبعاد",
+      "empty": "لا توجد أصول نشطة لاستبعادها."
+    },
+    "reports": {
+      "activeCount": "عدد الأصول النشطة", "disposedCount": "عدد الأصول المستبعدة",
+      "totalCost": "إجمالي التكلفة", "totalNetBookValue": "إجمالي صافي القيمة الدفترية للأصول النشطة",
+      "byCategory": "حسب التصنيف",
+      "table": { "category": "التصنيف", "count": "العدد", "totalCost": "إجمالي التكلفة" },
+      "loading": "جارٍ التحميل..."
+    },
+    "categories": {
+      "title": "فئات الأصول", "newCategory": "+ فئة جديدة",
+      "table": { "category": "الفئة", "assetAccount": "حساب الاقتناء", "accumulatedDepreciationAccount": "حساب مجمع الإهلاك", "depreciationExpenseAccount": "حساب مصروف الإهلاك" },
+      "edit": "تعديل", "delete": "حذف",
+      "empty": "لا توجد فئات أصول مسجَّلة بعد.",
+      "formTitleEdit": "تعديل فئة — {{name}}", "formTitleCreate": "فئة جديدة",
+      "groupName": "المجموعة (للعرض/التجميع فقط)", "groupNamePlaceholder": "مثال: مركبات",
+      "categoryName": "اسم الفئة", "categoryNamePlaceholder": "مثال: سيارات صالون",
+      "assetAccount": "حساب اقتناء الأصل",
+      "accumulatedDepreciationAccount": "حساب مجمع الإهلاك",
+      "depreciationExpenseAccount": "حساب مصروف الإهلاك",
+      "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveCategory": "حفظ الفئة",
+      "errAllFieldsRequired": "كل الحقول مطلوبة: المجموعة، الفئة، والحسابات الثلاثة",
+      "confirmDelete": "حذف فئة \"{{name}}\"؟"
+    },
+    "printCard": {
+      "subtitle": "بطاقة أصل ثابت",
+      "assetNumber": "رقم الأصل", "status": "الحالة",
+      "name": "اسم الأصل", "category": "الفئة/التصنيف",
+      "purchaseDate": "تاريخ الشراء", "depreciationStartDate": "تاريخ بدء الإهلاك",
+      "cost": "التكلفة", "salvageValue": "القيمة التخريدية",
+      "usefulLifeYears": "العمر الإنتاجي", "years": "سنوات",
+      "annualDepreciationRate": "نسبة الإهلاك السنوية",
+      "depreciationMethod": "طريقة الإهلاك",
+      "accumulatedDepreciation": "مجمع الإهلاك حتى اليوم", "netBookValue": "صافي القيمة الدفترية",
+      "serialNumber": "الرقم التسلسلي", "chassisNumber": "رقم الهيكل", "plateNumber": "رقم اللوحة",
+      "location": "الموقع/الفرع", "custodian": "عهدة لدى"
+    }
+  },
   "journalEntries": {
     "breadcrumb": "دفتر اليومية",
     "statusSaved": "محفوظ",

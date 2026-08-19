@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { previewDepreciation, postDepreciationRun } from "../../api/depreciation";
 import { fmt } from "../../legacy/constants";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
 
 export default function DepreciationTab({ companyId }) {
+  const { t } = useTranslation();
   const mf = useDeferredFilters({ month: "2026-07" });
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
@@ -24,32 +26,32 @@ export default function DepreciationTab({ companyId }) {
     }
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <form className="form-grid" onSubmit={(e) => { e.preventDefault(); mf.apply(); }}>
-          <label>الشهر<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
-          <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+          <label>{t("fixedAssets.depreciation.month")}<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
+          <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("fixedAssets.depreciation.showResults")}</button>
         </form>
-        {preview?.alreadyPosted && <p className="note">تم ترحيل إهلاك هذا الشهر مسبقاً بمبلغ {fmt(preview.existingRun.totalAmount)} ر.س.</p>}
+        {preview?.alreadyPosted && <p className="note">{t("fixedAssets.depreciation.alreadyPosted", { amount: fmt(preview.existingRun.totalAmount) })}</p>}
         {error && <p className="balance-bad">{error}</p>}
-        <button className="btn-primary" onClick={post} disabled={!preview || preview.alreadyPosted || preview.total <= 0}>ترحيل إهلاك الشهر</button>
+        <button className="btn-primary" onClick={post} disabled={!preview || preview.alreadyPosted || preview.total <= 0}>{t("fixedAssets.depreciation.postBtn")}</button>
       </div>
 
       {preview && (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>الأصل</th><th>التكلفة</th><th>العمر الإنتاجي</th><th>الإهلاك الشهري</th></tr></thead>
+            <thead><tr><th>{t("fixedAssets.depreciation.table.asset")}</th><th>{t("fixedAssets.depreciation.table.cost")}</th><th>{t("fixedAssets.depreciation.table.usefulLife")}</th><th>{t("fixedAssets.depreciation.table.monthlyDepreciation")}</th></tr></thead>
             <tbody>
               {preview.rows.map((r) => (
-                <tr key={r.assetId}><td>{r.name}</td><td className="num">{fmt(r.cost)}</td><td className="num">{r.usefulLifeYears} سنة</td><td className="num">{fmt(r.monthly)}</td></tr>
+                <tr key={r.assetId}><td>{r.name}</td><td className="num">{fmt(r.cost)}</td><td className="num">{r.usefulLifeYears} {t("fixedAssets.depreciation.years")}</td><td className="num">{fmt(r.monthly)}</td></tr>
               ))}
             </tbody>
-            <tfoot><tr><td className="foot-label" colSpan={3}>الإجمالي</td><td className="num strong">{fmt(preview.total)}</td></tr></tfoot>
+            <tfoot><tr><td className="foot-label" colSpan={3}>{t("fixedAssets.depreciation.total")}</td><td className="num strong">{fmt(preview.total)}</td></tr></tfoot>
           </table>
-          {preview.rows.length === 0 && <p className="empty">لا توجد أصول نشطة لحساب إهلاكها.</p>}
+          {preview.rows.length === 0 && <p className="empty">{t("fixedAssets.depreciation.empty")}</p>}
         </div>
       )}
     </div>

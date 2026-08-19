@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listFixedAssets, disposeFixedAsset } from "../../api/fixedAssets";
 import { fmt } from "../../legacy/constants";
 
 export default function DisposalTab({ companyId }) {
+  const { t } = useTranslation();
   const [assets, setAssets] = useState([]);
   const [assetId, setAssetId] = useState("");
   const [disposalDate, setDisposalDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -34,30 +36,30 @@ export default function DisposalTab({ companyId }) {
     }
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div className="panel form-panel">
       <div className="form-grid">
-        <label>الأصل<select value={assetId} onChange={(e) => { setAssetId(e.target.value); setResult(null); }}>{assets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-        <label>تاريخ الاستبعاد<input type="date" value={disposalDate} onChange={(e) => setDisposalDate(e.target.value)} /></label>
-        <label>سعر البيع (صفر إن كان إتلافاً)<input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} /></label>
-        <label>طريقة الاستلام<select value={method} onChange={(e) => setMethod(e.target.value)}><option value="cash">نقدي</option><option value="bank">بنكي</option></select></label>
+        <label>{t("fixedAssets.disposal.asset")}<select value={assetId} onChange={(e) => { setAssetId(e.target.value); setResult(null); }}>{assets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
+        <label>{t("fixedAssets.disposal.disposalDate")}<input type="date" value={disposalDate} onChange={(e) => setDisposalDate(e.target.value)} /></label>
+        <label>{t("fixedAssets.disposal.salePrice")}<input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} /></label>
+        <label>{t("fixedAssets.disposal.receiveMethod")}<select value={method} onChange={(e) => setMethod(e.target.value)}><option value="cash">{t("fixedAssets.disposal.methodCash")}</option><option value="bank">{t("fixedAssets.disposal.methodBank")}</option></select></label>
       </div>
       {asset && (
         <div className="preview-box">
-          <div className="preview-row"><span>مجمع الإهلاك حتى تاريخ الاستبعاد</span><strong>{fmt(asset.accumulatedDepreciation)} ر.س</strong></div>
-          <div className="preview-row"><span>صافي القيمة الدفترية</span><strong>{fmt(asset.netBookValue)} ر.س</strong></div>
+          <div className="preview-row"><span>{t("fixedAssets.disposal.accumulatedDepreciation")}</span><strong>{fmt(asset.accumulatedDepreciation)} {t("common.currency")}</strong></div>
+          <div className="preview-row"><span>{t("fixedAssets.disposal.netBookValue")}</span><strong>{fmt(asset.netBookValue)} {t("common.currency")}</strong></div>
         </div>
       )}
       {result && (
         <div className="preview-box">
-          <div className="preview-row net-row"><span>{result.gainLoss >= 0 ? "ربح الاستبعاد" : "خسارة الاستبعاد"}</span><strong>{fmt(Math.abs(result.gainLoss))} ر.س</strong></div>
+          <div className="preview-row net-row"><span>{result.gainLoss >= 0 ? t("fixedAssets.disposal.gain") : t("fixedAssets.disposal.loss")}</span><strong>{fmt(Math.abs(result.gainLoss))} {t("common.currency")}</strong></div>
         </div>
       )}
       {error && <p className="balance-bad">{error}</p>}
-      <button className="btn-primary" onClick={dispose} disabled={!asset}>ترحيل الاستبعاد</button>
-      {assets.length === 0 && <p className="empty">لا توجد أصول نشطة لاستبعادها.</p>}
+      <button className="btn-primary" onClick={dispose} disabled={!asset}>{t("fixedAssets.disposal.postBtn")}</button>
+      {assets.length === 0 && <p className="empty">{t("fixedAssets.disposal.empty")}</p>}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listFixedAssets, createFixedAsset, updateFixedAsset, removeFixedAsset } from "../../api/fixedAssets";
 import { listAccounts } from "../../api/accounts";
 import { listCostCenters } from "../../api/costCenters";
@@ -25,6 +26,7 @@ const emptyForm = () => ({
 });
 
 export default function AssetRegisterTab({ companyId, companies }) {
+  const { t } = useTranslation();
   const [assets, setAssets] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
@@ -113,19 +115,19 @@ export default function AssetRegisterTab({ companyId, companies }) {
     reload();
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
-        {editingId && <div className="edit-banner">تعديل الأصل — {form.name} (لا يمكن تعديل التكلفة أو تاريخ الشراء بعد الترحيل)</div>}
+        {editingId && <div className="edit-banner">{t("fixedAssets.register.editingBanner", { name: form.name })}</div>}
         <div className="form-grid">
-          <label>اسم الأصل<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <label>التصنيف<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{ASSET_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></label>
+          <label>{t("fixedAssets.register.name")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>{t("fixedAssets.register.category")}<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{ASSET_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></label>
           {!form.useRawAccount ? (
-            <label>فئة الأصل (تحدد الحسابات المحاسبية تلقائياً)
+            <label>{t("fixedAssets.register.assetCategory")}
               <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
-                <option value="">— اختر فئة —</option>
+                <option value="">{t("fixedAssets.register.chooseCategory")}</option>
                 {Object.entries(groupedCategories).map(([groupName, items]) => (
                   <optgroup key={groupName} label={groupName}>
                     {items.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -134,62 +136,62 @@ export default function AssetRegisterTab({ companyId, companies }) {
               </select>
             </label>
           ) : (
-            <label>الحساب المحاسبي
+            <label>{t("fixedAssets.register.account")}
               <AccountSearchSelect accounts={assetAccounts} value={form.accountId} onChange={(accountId) => setForm({ ...form, accountId })} />
             </label>
           )}
           <label className="checkbox-label">
             <input type="checkbox" checked={form.useRawAccount} onChange={(e) => setForm({ ...form, useRawAccount: e.target.checked })} />
-            اختيار حساب محاسبي مباشر بدل فئة (لأصل بلا فئة مناسبة بعد)
+            {t("fixedAssets.register.useRawAccount")}
           </label>
-          <label>الرقم التسلسلي (اختياري)<input type="text" value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.target.value })} /></label>
+          <label>{t("fixedAssets.register.serialNumber")}<input type="text" value={form.serialNumber} onChange={(e) => setForm({ ...form, serialNumber: e.target.value })} /></label>
           {form.category === VEHICLE_CATEGORY && (
             <>
-              <label>رقم الهيكل<input type="text" value={form.chassisNumber} onChange={(e) => setForm({ ...form, chassisNumber: e.target.value })} /></label>
-              <label>رقم اللوحة<input type="text" value={form.plateNumber} onChange={(e) => setForm({ ...form, plateNumber: e.target.value })} /></label>
+              <label>{t("fixedAssets.register.chassisNumber")}<input type="text" value={form.chassisNumber} onChange={(e) => setForm({ ...form, chassisNumber: e.target.value })} /></label>
+              <label>{t("fixedAssets.register.plateNumber")}<input type="text" value={form.plateNumber} onChange={(e) => setForm({ ...form, plateNumber: e.target.value })} /></label>
             </>
           )}
-          <label>الموقع/الفرع (اختياري)
+          <label>{t("fixedAssets.register.costCenter")}
             <select value={form.costCenterId} onChange={(e) => setForm({ ...form, costCenterId: e.target.value })}>
-              <option value="">— بلا —</option>
+              <option value="">{t("fixedAssets.register.none")}</option>
               {companyCostCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
-          <label>عهدة لدى موظف (اختياري — تتبّع بلا أثر محاسبي)
-            <EmployeeSearchSelect employees={employees} value={form.custodianEmployeeId} onChange={(id) => setForm({ ...form, custodianEmployeeId: id })} allowClear clearLabel="— بلا —" />
+          <label>{t("fixedAssets.register.custodian")}
+            <EmployeeSearchSelect employees={employees} value={form.custodianEmployeeId} onChange={(id) => setForm({ ...form, custodianEmployeeId: id })} allowClear clearLabel={t("fixedAssets.register.none")} />
           </label>
-          {!editingId && <label>تاريخ الشراء<input type="date" value={form.purchaseDate} onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })} /></label>}
-          {!editingId && <label>التكلفة<input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} /></label>}
-          <label>تاريخ بدء الإهلاك (اختياري — افتراضياً تاريخ الشراء)<input type="date" value={form.depreciationStartDate} onChange={(e) => setForm({ ...form, depreciationStartDate: e.target.value })} /></label>
-          <label>العمر الإنتاجي (سنوات)<input type="number" step="0.1" value={form.usefulLifeYears} onChange={(e) => setForm({ ...form, usefulLifeYears: e.target.value })} /></label>
-          <label>نسبة الإهلاك السنوية<input type="text" value={annualDepreciationRate ? `${annualDepreciationRate}%` : "—"} disabled /></label>
-          <label>طريقة الإهلاك
+          {!editingId && <label>{t("fixedAssets.register.purchaseDate")}<input type="date" value={form.purchaseDate} onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })} /></label>}
+          {!editingId && <label>{t("fixedAssets.register.cost")}<input type="number" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} /></label>}
+          <label>{t("fixedAssets.register.depreciationStartDate")}<input type="date" value={form.depreciationStartDate} onChange={(e) => setForm({ ...form, depreciationStartDate: e.target.value })} /></label>
+          <label>{t("fixedAssets.register.usefulLifeYears")}<input type="number" step="0.1" value={form.usefulLifeYears} onChange={(e) => setForm({ ...form, usefulLifeYears: e.target.value })} /></label>
+          <label>{t("fixedAssets.register.annualDepreciationRate")}<input type="text" value={annualDepreciationRate ? `${annualDepreciationRate}%` : "—"} disabled /></label>
+          <label>{t("fixedAssets.register.depreciationMethodLabel")}
             <select value={form.depreciationMethod} onChange={(e) => setForm({ ...form, depreciationMethod: e.target.value })}>
-              <option value="straight_line">قسط ثابت</option>
-              <option value="declining_balance" disabled>قسط متناقص (قريباً)</option>
+              <option value="straight_line">{t("fixedAssets.depreciationMethod.straight_line")}</option>
+              <option value="declining_balance" disabled>{t("fixedAssets.register.decliningSoon")}</option>
             </select>
           </label>
-          <label>القيمة التخريدية<input type="number" value={form.salvageValue} onChange={(e) => setForm({ ...form, salvageValue: e.target.value })} /></label>
-          <label className="checkbox-label"><input type="checkbox" checked={form.isDepreciable} onChange={(e) => setForm({ ...form, isDepreciable: e.target.checked })} />يُستهلك (أوقف التفعيل للأراضي مثلاً)</label>
+          <label>{t("fixedAssets.register.salvageValue")}<input type="number" value={form.salvageValue} onChange={(e) => setForm({ ...form, salvageValue: e.target.value })} /></label>
+          <label className="checkbox-label"><input type="checkbox" checked={form.isDepreciable} onChange={(e) => setForm({ ...form, isDepreciable: e.target.checked })} />{t("fixedAssets.register.isDepreciable")}</label>
           {!editingId && (
-            <label>طريقة السداد
+            <label>{t("fixedAssets.register.paymentMethod")}
               <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>
-                <option value="cash">نقدي</option><option value="bank">بنكي</option><option value="credit">آجل (ذمم دائنة)</option>
+                <option value="cash">{t("fixedAssets.register.paymentCash")}</option><option value="bank">{t("fixedAssets.register.paymentBank")}</option><option value="credit">{t("fixedAssets.register.paymentCredit")}</option>
               </select>
             </label>
           )}
         </div>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          {editingId && <button className="btn-ghost" onClick={() => { setEditingId(null); setForm(emptyForm()); }}>إلغاء</button>}
-          <button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديلات" : "حفظ الأصل وترحيل الشراء"}</button>
+          {editingId && <button className="btn-ghost" onClick={() => { setEditingId(null); setForm(emptyForm()); }}>{t("fixedAssets.register.cancel")}</button>}
+          <button className="btn-primary" onClick={save}>{editingId ? t("fixedAssets.register.saveChanges") : t("fixedAssets.register.saveAsset")}</button>
         </div>
       </div>
 
-      {loading ? <p className="empty">جارٍ التحميل...</p> : (
+      {loading ? <p className="empty">{t("fixedAssets.register.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>رقم الأصل</th><th>الأصل</th><th>التصنيف</th><th>تاريخ الشراء</th><th>التكلفة</th><th>مجمع الإهلاك</th><th>صافي القيمة الدفترية</th><th>الحالة</th><th></th></tr></thead>
+            <thead><tr><th>{t("fixedAssets.register.table.assetNumber")}</th><th>{t("fixedAssets.register.table.asset")}</th><th>{t("fixedAssets.register.table.category")}</th><th>{t("fixedAssets.register.table.purchaseDate")}</th><th>{t("fixedAssets.register.table.cost")}</th><th>{t("fixedAssets.register.table.accumulatedDepreciation")}</th><th>{t("fixedAssets.register.table.netBookValue")}</th><th>{t("fixedAssets.register.table.status")}</th><th></th></tr></thead>
             <tbody>
               {assets.map((a) => (
                 <React.Fragment key={a.id}>
@@ -198,18 +200,18 @@ export default function AssetRegisterTab({ companyId, companies }) {
                     <td>{a.name}</td><td>{a.category}</td><td>{a.purchaseDate.slice(0, 10)}</td>
                     <td className="num">{fmt(a.cost)}</td><td className="num">{fmt(a.accumulatedDepreciation)}</td>
                     <td className="num strong">{fmt(a.netBookValue)}</td>
-                    <td><span className="status-badge">{a.status === "disposed" ? "مستبعد" : "نشط"}</span></td>
+                    <td><span className="status-badge">{a.status === "disposed" ? t("fixedAssets.status.disposed") : t("fixedAssets.status.active")}</span></td>
                     <td className="row-actions">
                       {a.status !== "disposed" && (
                         <>
-                          <button className="btn-ghost" onClick={() => startEdit(a)}>تعديل</button>
-                          <button className="btn-ghost" onClick={() => setRemoveTarget(a)}>حذف</button>
+                          <button className="btn-ghost" onClick={() => startEdit(a)}>{t("fixedAssets.register.edit")}</button>
+                          <button className="btn-ghost" onClick={() => setRemoveTarget(a)}>{t("fixedAssets.register.delete")}</button>
                         </>
                       )}
                       <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === a.id ? null : a.id)}>
-                        {attachmentsFor === a.id ? "إخفاء المرفقات" : "المرفقات"}
+                        {attachmentsFor === a.id ? t("fixedAssets.register.attachmentsHide") : t("fixedAssets.register.attachmentsShow")}
                       </button>
-                      <button className="btn-ghost" onClick={() => setPrintCardFor(a)}>طباعة البطاقة</button>
+                      <button className="btn-ghost" onClick={() => setPrintCardFor(a)}>{t("fixedAssets.register.printCard")}</button>
                     </td>
                   </tr>
                   {attachmentsFor === a.id && (
@@ -217,12 +219,12 @@ export default function AssetRegisterTab({ companyId, companies }) {
                   )}
                 </React.Fragment>
               ))}
-              {assets.length === 0 && <tr><td className="empty" colSpan={9}>لا توجد أصول ثابتة مسجّلة بعد.</td></tr>}
+              {assets.length === 0 && <tr><td className="empty" colSpan={9}>{t("fixedAssets.register.empty")}</td></tr>}
             </tbody>
           </table>
         </div>
       )}
-      {removeTarget && <UnpostModal title="حذف الأصل" onCancel={() => setRemoveTarget(null)} onConfirm={doRemove} />}
+      {removeTarget && <UnpostModal title={t("fixedAssets.register.deleteTitle")} onCancel={() => setRemoveTarget(null)} onConfirm={doRemove} />}
       {printCardFor && (
         <AssetCardPrintModal
           asset={printCardFor}
