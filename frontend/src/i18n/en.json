@@ -818,6 +818,161 @@
       "placeholder": "Search by name or code...",
       "clearLabel": "— None —",
       "noResults": "No results"
+    },
+    "printModal": {
+      "subtitle": "Journal Voucher"
     }
+  },
+  "chartOfAccounts": {
+    "typeLabel": {
+      "asset": "Assets",
+      "liability": "Liabilities",
+      "equity": "Equity",
+      "revenue": "Revenue",
+      "expense": "Expenses"
+    },
+    "errNameRequired": "Enter the account name in Arabic (at least 2 characters).",
+    "errCodeRequired": "Enter the account code.",
+    "errParentRequired": "Choose the parent account for the required level.",
+    "errCodeLength": "The level {{level}} account code must consist of {{length}} digits.",
+    "errTypeMismatch": "Cannot move the account from type \"{{fromType}}\" to a group of type \"{{toType}}\" — moving is only allowed between groups of the same type.",
+    "confirmMoveWithTransactions": "{{message}}\n\nDo you want to proceed with the move while keeping the current code?",
+    "savedEdit": "Account changes saved successfully.",
+    "savedCreate": "Account added successfully.",
+    "unarchived": "Account unarchived.",
+    "archived": "Account archived.",
+    "deleted": "Account deleted.",
+    "confirmDelete": "Delete account \"{{name}}\"?",
+    "installScopeGroup": "the group template tree and all the tenant's demo transactions",
+    "installScopeCompany": "the company's tree and its transactions",
+    "confirmInstall": "This will delete {{scope}} and then install the standard chart. This action cannot be undone. Continue?",
+    "installPrompt": "To confirm, type the word: تثبيت",
+    "installSuccess": "Installed {{installed}} standard accounts and deleted {{deleted}} old accounts.",
+    "installing": "Installing the chart...",
+    "installStandard": "Install standard chart",
+    "scopeLabel": "Tree scope",
+    "scopeGroupOption": "Group template (not used in journal entries)",
+    "addAccount": "+ Add account",
+    "expandView": "Show full tree",
+    "compactView": "Compact view",
+    "form": {
+      "nameAr": "Account name (Arabic)",
+      "nameEn": "Account name (English) (optional)",
+      "code": "Account code",
+      "codeAutoPlaceholder": "Auto-generated from the parent account",
+      "codeLevelPlaceholder": "Level {{level}} code",
+      "parent": "Parent account",
+      "parentClearLabel": "— Top level —",
+      "type": "Type",
+      "postingAccount": "Posting account",
+      "bankOrCash": "Cash/bank",
+      "employeeAdvanceAccount": "Employee advance/custody account (enables the advance window inside entries)"
+    },
+    "filters": {
+      "searchLabel": "Search by name or code",
+      "searchPlaceholder": "Search...",
+      "levelLabel": "Level (max depth)",
+      "level1": "Level 1",
+      "level2": "Level 2",
+      "level3": "Level 3",
+      "level4Full": "Level 4 (fully detailed)",
+      "type": "Type",
+      "allTypes": "All types",
+      "status": "Status",
+      "statusActive": "Active",
+      "statusArchived": "Archived",
+      "showResults": "Show results"
+    },
+    "modal": {
+      "editTitle": "Edit/move account — {{name}}",
+      "addChildTitle": "Add sub-account",
+      "addNewTitle": "Add new account",
+      "saving": "Saving...",
+      "saveEdit": "Save edit/move",
+      "saveCreate": "Add account",
+      "noteEditing": "When moving, the code stays fixed to protect the historical audit trail.",
+      "noteLevelPosting": "Level {{level}} of 4 — automatically a posting account.",
+      "noteLevelGroup": "Level {{level}} of 4 — a group account."
+    },
+    "table": {
+      "code": "Code",
+      "account": "Account",
+      "level": "Level",
+      "type": "Type",
+      "balance": "Balance",
+      "actions": "Actions",
+      "postingAccount": "Posting account",
+      "groupAccount": "Group",
+      "addChildTitle": "Add sub-account",
+      "editTitle": "Edit or move account",
+      "archiveTitle": "Archive",
+      "unarchiveTitle": "Unarchive",
+      "deleteTitle": "Delete",
+      "empty": "No accounts in this tree."
+    },
+    "import": {
+      "title": "Import chart of accounts from Excel",
+      "subtitle": "Supports XLS and XLSX and shows errors before saving any account.",
+      "chooseFile": "Choose Excel file",
+      "importing": "Importing...",
+      "importBtn": "Import {{count}} accounts",
+      "success": "{{count}} accounts imported successfully",
+      "summary": "File: {{fileName}} — Sheet: {{sheetName}} — Accounts: {{count}}",
+      "needsReview": " — needs review: {{count}}",
+      "ready": " — ready to import",
+      "rowReady": "Ready",
+      "previewNote": "The first 100 results are shown in the preview, and all rows will be checked.",
+      "table": {
+        "code": "Code",
+        "nameAr": "Arabic name",
+        "nameEn": "English name",
+        "level": "Level",
+        "parent": "Parent",
+        "type": "Type",
+        "status": "Status"
+      }
+    }
+  },
+  "accountLedger": {
+    "accountLabel": "Account",
+    "accountPlaceholder": "Choose an account to view its activity",
+    "subAccountLabel": "Sub-account (optional — to narrow the statement to a single account)",
+    "subAccountAllOption": "— Combined statement for all sub-accounts —",
+    "costCenterLabel": "Cost center",
+    "allCostCenters": "All cost centers",
+    "departmentLabel": "Department",
+    "allDepartments": "All departments",
+    "dateFrom": "From date",
+    "dateTo": "To date",
+    "showResults": "Show results",
+    "printBtn": "Print statement",
+    "selectPrompt": "Choose an account above and click \"Show results\" to view its statement.",
+    "table": {
+      "entryNumber": "Entry #",
+      "description": "Description",
+      "postingAccount": "Posting account"
+    }
+  },
+  "departments": {
+    "name": "Department name",
+    "saveChanges": "Save changes",
+    "addDepartment": "Add department",
+    "confirmDelete": "Delete department \"{{name}}\"?",
+    "empty": "No departments yet."
+  },
+  "zakat": {
+    "eyebrow": "Tax compliance",
+    "title": "Zakat & VAT",
+    "disclaimer": "These figures are estimates for demo purposes only, built from the same journal entry and sales data recorded above — not a substitute for an actual connection to the ZATCA portal.",
+    "gauge": {
+      "salesBase": "Total taxable sales",
+      "outputVat": "Output VAT",
+      "inputVat": "Input VAT",
+      "netVat": "Net VAT due"
+    },
+    "baseTitle": "Estimated zakat base",
+    "baseRatioLabel": "Estimated zakat base ratio",
+    "baseRatioValue": "15% (demo)",
+    "baseFinal": "Estimated zakat base"
   }
 }

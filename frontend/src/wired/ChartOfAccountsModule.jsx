@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listAccounts, getNextAccountCode, createAccount, updateAccount, deleteAccount, installStandardChart } from "../api/accounts";
 import { fmt } from "../legacy/constants";
 import { Icon } from "../legacy/shared";
@@ -7,12 +8,13 @@ import AccountImportPanel from "./AccountImportPanel";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
 
-const TYPE_LABEL = { asset: "أصول", liability: "التزامات", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات" };
 const LEVEL_CODE_LENGTH = { 1: 1, 2: 2, 3: 3, 4: 6 };
 const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false, isEmployeeAdvanceAccount: false };
 const emptyChartFilters = { search: "", level: 4, type: "", status: "active" };
 
 export default function ChartOfAccountsModule({ companies = [], companyId }) {
+  const { t } = useTranslation();
+  const TYPE_LABEL = t("chartOfAccounts.typeLabel", { returnObjects: true });
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
   const [scope, setScope] = useState(companyId || "group");
@@ -81,17 +83,17 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const save = async () => {
     setError("");
     setSuccess("");
-    if (form.name.trim().length < 2) return setError("أدخل اسم الحساب بالعربية (حرفان على الأقل).");
-    if (!form.code.trim()) return setError("أدخل كود الحساب.");
-    if (level > 1 && !form.parentId) return setError("اختر الحساب الأب للمستوى المطلوب.");
+    if (form.name.trim().length < 2) return setError(t("chartOfAccounts.errNameRequired"));
+    if (!form.code.trim()) return setError(t("chartOfAccounts.errCodeRequired"));
+    if (level > 1 && !form.parentId) return setError(t("chartOfAccounts.errParentRequired"));
     const expectedLength = LEVEL_CODE_LENGTH[level];
     if (!expectedLength || !new RegExp(`^\\d{${expectedLength}}$`).test(form.code)) {
-      return setError(`كود حساب المستوى ${level} يجب أن يتكون من ${expectedLength ?? "؟"} أرقام.`);
+      return setError(t("chartOfAccounts.errCodeLength", { level, length: expectedLength ?? "؟" }));
     }
     // عند نقل حساب موجود (تعديل بأب مختلف)، النوع يجب أن يبقى كما هو — النقل مسموح فقط بين مجموعات
     // من نفس النوع. هذا فحص فوري للواجهة (تجربة أفضل)، والخادم يتحقق منه مرة أخرى كمرجع نهائي.
     if (editingId && selectedParent && selectedParent.type !== form.type) {
-      return setError(`لا يمكن نقل الحساب من نوع "${TYPE_LABEL[form.type]}" إلى مجموعة من نوع "${TYPE_LABEL[selectedParent.type]}" — النقل مسموح فقط بين مجموعات من نفس النوع.`);
+      return setError(t("chartOfAccounts.errTypeMismatch", { fromType: TYPE_LABEL[form.type], toType: TYPE_LABEL[selectedParent.type] }));
     }
     const payload = {
       ...form,
@@ -104,11 +106,11 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         try {
           await updateAccount(editingId, payload);
         } catch (err) {
-          if (!err.details?.requiresMoveConfirmation || !window.confirm(`${err.message}\n\nهل تريد متابعة النقل مع الإبقاء على الكود الحالي؟`)) throw err;
+          if (!err.details?.requiresMoveConfirmation || !window.confirm(t("chartOfAccounts.confirmMoveWithTransactions", { message: err.message }))) throw err;
           await updateAccount(editingId, { ...payload, confirmMoveWithTransactions: true });
         }
       } else await createAccount(payload);
-      const message = editingId ? "تم حفظ تعديلات الحساب بنجاح." : "تمت إضافة الحساب بنجاح.";
+      const message = editingId ? t("chartOfAccounts.savedEdit") : t("chartOfAccounts.savedCreate");
       reset();
       await reload();
       setSuccess(message);
@@ -139,18 +141,18 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   };
   const archive = async (a) => {
     setError(""); setSuccess("");
-    try { await updateAccount(a.id, { isArchived: !a.isArchived }); await reload(); setSuccess(a.isArchived ? "تم إلغاء أرشفة الحساب." : "تمت أرشفة الحساب."); }
+    try { await updateAccount(a.id, { isArchived: !a.isArchived }); await reload(); setSuccess(a.isArchived ? t("chartOfAccounts.unarchived") : t("chartOfAccounts.archived")); }
     catch (err) { setError(err.message); }
   };
   const remove = async (a) => {
-    if (!window.confirm(`حذف حساب "${a.name}"؟`)) return;
-    try { await deleteAccount(a.id); await reload(); setSuccess("تم حذف الحساب."); } catch (err) { setError(err.message); }
+    if (!window.confirm(t("chartOfAccounts.confirmDelete", { name: a.name }))) return;
+    try { await deleteAccount(a.id); await reload(); setSuccess(t("chartOfAccounts.deleted")); } catch (err) { setError(err.message); }
   };
   const toggle = (id) => setExpanded((old) => { const next = new Set(old); next.has(id) ? next.delete(id) : next.add(id); return next; });
   const installStandard = async () => {
-    const scopeName = scope === "group" ? "شجرة المجموعة وجميع حركات المستأجر التجريبية" : "شجرة الشركة وحركاتها التجريبية";
-    if (!window.confirm(`سيتم حذف ${scopeName} ثم تثبيت الشجرة القياسية. لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟`)) return;
-    const confirmation = window.prompt("للتأكيد اكتب كلمة: تثبيت");
+    const scopeName = scope === "group" ? t("chartOfAccounts.installScopeGroup") : t("chartOfAccounts.installScopeCompany");
+    if (!window.confirm(t("chartOfAccounts.confirmInstall", { scope: scopeName }))) return;
+    const confirmation = window.prompt(t("chartOfAccounts.installPrompt"));
     if (confirmation !== "تثبيت") return;
     setInstalling(true);
     setError("");
@@ -161,7 +163,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
       });
       reset();
       await reload();
-      window.alert(`تم تثبيت ${result.installedAccounts} حسابًا قياسيًا وحذف ${result.deletedAccounts} حسابًا قديمًا.`);
+      window.alert(t("chartOfAccounts.installSuccess", { installed: result.installedAccounts, deleted: result.deletedAccounts }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -174,19 +176,19 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const accountModalOpen = editingId || addModalOpen;
   const formFields = (
     <div className="form-grid">
-      <label>اسم الحساب بالعربية<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-      <label>اسم الحساب بالإنجليزية (اختياري)<input dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></label>
-      <label>كود الحساب<input inputMode="numeric" maxLength={LEVEL_CODE_LENGTH[level] || 6} readOnly={Boolean(editingId)} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 4 ? "يُولّد تلقائياً من الحساب الأب" : `كود المستوى ${level}`} /></label>
-      <label>الحساب الأب
-        <AccountSearchSelect accounts={possibleParents} value={form.parentId} onChange={selectParent} allowClear clearLabel="— مستوى أول —" />
+      <label>{t("chartOfAccounts.form.nameAr")}<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+      <label>{t("chartOfAccounts.form.nameEn")}<input dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></label>
+      <label>{t("chartOfAccounts.form.code")}<input inputMode="numeric" maxLength={LEVEL_CODE_LENGTH[level] || 6} readOnly={Boolean(editingId)} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.replace(/\D/g, "") })} placeholder={level === 4 ? t("chartOfAccounts.form.codeAutoPlaceholder") : t("chartOfAccounts.form.codeLevelPlaceholder", { level })} /></label>
+      <label>{t("chartOfAccounts.form.parent")}
+        <AccountSearchSelect accounts={possibleParents} value={form.parentId} onChange={selectParent} allowClear clearLabel={t("chartOfAccounts.form.parentClearLabel")} />
       </label>
-      {!selectedParent && <label>التصنيف<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
-      {level === 4 && <label className="checkbox-label"><input type="checkbox" checked readOnly />حساب ترحيل</label>}
-      {form.isPosting && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />نقدي/بنكي</label>}
+      {!selectedParent && <label>{t("chartOfAccounts.form.type")}<select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>}
+      {level === 4 && <label className="checkbox-label"><input type="checkbox" checked readOnly />{t("chartOfAccounts.form.postingAccount")}</label>}
+      {form.isPosting && form.type === "asset" && <label className="checkbox-label"><input type="checkbox" checked={form.isBankOrCash} onChange={(e) => setForm({ ...form, isBankOrCash: e.target.checked })} />{t("chartOfAccounts.form.bankOrCash")}</label>}
       {form.isPosting && form.type === "asset" && (
         <label className="checkbox-label">
           <input type="checkbox" checked={form.isEmployeeAdvanceAccount} onChange={(e) => setForm({ ...form, isEmployeeAdvanceAccount: e.target.checked })} />
-          حساب سلف/عهد موظفين (يفعّل نافذة السلفة داخل القيود)
+          {t("chartOfAccounts.form.employeeAdvanceAccount")}
         </label>
       )}
     </div>
@@ -198,49 +200,49 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
       {success && <p className="balance-good">{success}</p>}
       <div className="panel form-panel">
         <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
-          <label>نطاق الشجرة
+          <label>{t("chartOfAccounts.scopeLabel")}
             <select value={scope} onChange={(e) => { setScope(e.target.value); reset(); }}>
-              <option value="group">قالب المجموعة (غير مستخدم في القيود)</option>
+              <option value="group">{t("chartOfAccounts.scopeGroupOption")}</option>
               {companies.map((c) => <option key={c.id} value={c.id}>{c.shortName || c.name}</option>)}
             </select>
           </label>
           <div className="form-btn-group">
-            <button className="btn-primary" onClick={openAddModal}>+ إضافة حساب</button>
-            <button className="btn-ghost" onClick={() => setCompact((v) => !v)}>{compact ? "عرض الشجرة كاملة" : "عرض مصغّر"}</button>
+            <button className="btn-primary" onClick={openAddModal}>{t("chartOfAccounts.addAccount")}</button>
+            <button className="btn-ghost" onClick={() => setCompact((v) => !v)}>{compact ? t("chartOfAccounts.expandView") : t("chartOfAccounts.compactView")}</button>
             {isSuperAdmin && (
               <button className="btn-ghost" style={{ color: "#A8432B", borderColor: "rgba(168,67,43,0.35)" }} disabled={installing} onClick={installStandard}>
-                {installing ? "جارٍ تثبيت الشجرة..." : "تثبيت الشجرة القياسية"}
+                {installing ? t("chartOfAccounts.installing") : t("chartOfAccounts.installStandard")}
               </button>
             )}
           </div>
         </div>
 
         <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); chartFilters.apply(); }}>
-          <label>بحث بالاسم أو الكود
-            <input type="text" value={chartFilters.draft.search} onChange={(e) => chartFilters.setField("search", e.target.value)} placeholder="بحث..." />
+          <label>{t("chartOfAccounts.filters.searchLabel")}
+            <input type="text" value={chartFilters.draft.search} onChange={(e) => chartFilters.setField("search", e.target.value)} placeholder={t("chartOfAccounts.filters.searchPlaceholder")} />
           </label>
           <label>
-            المستوى (حد أقصى للعمق)
+            {t("chartOfAccounts.filters.levelLabel")}
             <select value={chartFilters.draft.level} onChange={(e) => chartFilters.setField("level", Number(e.target.value))}>
-              <option value={1}>المستوى 1</option>
-              <option value={2}>المستوى 2</option>
-              <option value={3}>المستوى 3</option>
-              <option value={4}>المستوى 4 (تفصيلي بالكامل)</option>
+              <option value={1}>{t("chartOfAccounts.filters.level1")}</option>
+              <option value={2}>{t("chartOfAccounts.filters.level2")}</option>
+              <option value={3}>{t("chartOfAccounts.filters.level3")}</option>
+              <option value={4}>{t("chartOfAccounts.filters.level4Full")}</option>
             </select>
           </label>
-          <label>التصنيف
+          <label>{t("chartOfAccounts.filters.type")}
             <select value={chartFilters.draft.type} onChange={(e) => chartFilters.setField("type", e.target.value)}>
-              <option value="">كل التصنيفات</option>
+              <option value="">{t("chartOfAccounts.filters.allTypes")}</option>
               {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </label>
-          <label>الحالة
+          <label>{t("chartOfAccounts.filters.status")}
             <select value={chartFilters.draft.status} onChange={(e) => chartFilters.setField("status", e.target.value)}>
-              <option value="active">نشط</option>
-              <option value="archived">مؤرشف</option>
+              <option value="active">{t("chartOfAccounts.filters.statusActive")}</option>
+              <option value="archived">{t("chartOfAccounts.filters.statusArchived")}</option>
             </select>
           </label>
-          <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+          <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("chartOfAccounts.filters.showResults")}</button>
         </form>
       </div>
 
@@ -250,15 +252,15 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         <div className="invoice-modal-overlay" onClick={() => !saving && closeAccountModal()}>
           <div className="invoice-modal-box" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-title-row">
-              <h3>{editingId ? `تعديل/نقل الحساب${editingAccount ? ` — ${editingAccount.name}` : ""}` : (form.parentId ? "إضافة حساب فرعي" : "إضافة حساب جديد")}</h3>
-              <button type="button" className="modal-close-btn" onClick={closeAccountModal} disabled={saving} aria-label="إغلاق">×</button>
+              <h3>{editingId ? t("chartOfAccounts.modal.editTitle", { name: editingAccount?.name || "" }) : (form.parentId ? t("chartOfAccounts.modal.addChildTitle") : t("chartOfAccounts.modal.addNewTitle"))}</h3>
+              <button type="button" className="modal-close-btn" onClick={closeAccountModal} disabled={saving} aria-label={t("common.close")}>×</button>
             </div>
             {formFields}
             {error && <p className="balance-bad">{error}</p>}
             <div className="form-btn-group">
-              <button type="button" className="btn-ghost" onClick={closeAccountModal} disabled={saving}>إلغاء</button>
-              <button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? "جارٍ الحفظ..." : (editingId ? "حفظ التعديل/النقل" : "إضافة الحساب")}</button>
-              <span className="note">{editingId ? "عند النقل يبقى الكود ثابتاً لحماية أثر المراجعة التاريخي." : `المستوى ${level} من 4 — ${level === 4 ? "حساب ترحيل تلقائياً" : "حساب تجميعي"}.`}</span>
+              <button type="button" className="btn-ghost" onClick={closeAccountModal} disabled={saving}>{t("common.cancel")}</button>
+              <button type="button" className="btn-primary" disabled={saving} onClick={save}>{saving ? t("chartOfAccounts.modal.saving") : (editingId ? t("chartOfAccounts.modal.saveEdit") : t("chartOfAccounts.modal.saveCreate"))}</button>
+              <span className="note">{editingId ? t("chartOfAccounts.modal.noteEditing") : t(level === 4 ? "chartOfAccounts.modal.noteLevelPosting" : "chartOfAccounts.modal.noteLevelGroup", { level })}</span>
             </div>
           </div>
         </div>
@@ -266,21 +268,21 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
 
       <div className="panel">
         <table className="ledger-table">
-          <thead><tr><th>الكود</th><th>الحساب</th><th>المستوى</th><th>النوع</th><th>الرصيد</th><th>الإجراءات</th></tr></thead>
+          <thead><tr><th>{t("chartOfAccounts.table.code")}</th><th>{t("chartOfAccounts.table.account")}</th><th>{t("chartOfAccounts.table.level")}</th><th>{t("chartOfAccounts.table.type")}</th><th>{t("chartOfAccounts.table.balance")}</th><th>{t("chartOfAccounts.table.actions")}</th></tr></thead>
           <tbody>{rows.map((a) => {
             const hasChildren = (children.get(a.id) || []).length > 0;
             return <tr key={a.id} style={{ opacity: a.isArchived ? .55 : 1 }}>
               <td className="num">{a.code}</td>
               <td style={{ paddingRight: `${12 + (a.level - 1) * 24}px` }}><button className="icon-btn" disabled={!hasChildren} onClick={() => toggle(a.id)}>{hasChildren ? (expanded.has(a.id) ? "−" : "+") : "•"}</button> {a.name}{a.nameEn && <small style={{ display: "block", direction: "ltr", color: "#6b7280" }}>{a.nameEn}</small>}</td>
-              <td>{a.level}</td><td>{a.isPosting ? "حساب حركة" : "تجميعي"}</td><td className="num">{fmt(a.balance || 0)}</td>
+              <td>{a.level}</td><td>{a.isPosting ? t("chartOfAccounts.table.postingAccount") : t("chartOfAccounts.table.groupAccount")}</td><td className="num">{fmt(a.balance || 0)}</td>
               <td className="row-actions">
-                {!a.isPosting && a.level < 4 && <button type="button" className="icon-btn" title="إضافة حساب فرعي" onClick={() => addChild(a)}>＋</button>}
-                <button className="icon-btn" title="تعديل أو نقل الحساب" onClick={() => edit(a)}><Icon.Edit /></button>
-                <button className="icon-btn" title={a.isArchived ? "إلغاء الأرشفة" : "أرشفة"} onClick={() => archive(a)}>▣</button>
-                <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(a)}><Icon.Trash /></button>
+                {!a.isPosting && a.level < 4 && <button type="button" className="icon-btn" title={t("chartOfAccounts.table.addChildTitle")} onClick={() => addChild(a)}>＋</button>}
+                <button className="icon-btn" title={t("chartOfAccounts.table.editTitle")} onClick={() => edit(a)}><Icon.Edit /></button>
+                <button className="icon-btn" title={a.isArchived ? t("chartOfAccounts.table.unarchiveTitle") : t("chartOfAccounts.table.archiveTitle")} onClick={() => archive(a)}>▣</button>
+                <button className="icon-btn icon-btn-danger" title={t("chartOfAccounts.table.deleteTitle")} onClick={() => remove(a)}><Icon.Trash /></button>
               </td>
             </tr>;
-          })}{rows.length === 0 && <tr><td colSpan={6} className="empty">لا توجد حسابات في هذه الشجرة.</td></tr>}</tbody>
+          })}{rows.length === 0 && <tr><td colSpan={6} className="empty">{t("chartOfAccounts.table.empty")}</td></tr>}</tbody>
         </table>
       </div>
     </div>

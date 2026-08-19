@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listDepartments, createDepartment, updateDepartment, deleteDepartment } from "../api/departments";
 import Breadcrumb from "./shared/Breadcrumb";
 
@@ -10,6 +11,7 @@ const emptyForm = () => ({ name: "" });
  * في القاعدة اختياري (يدعم أقسام مشتركة بين كل شركات المستأجر) — بنفس مبدأ CostCenter تماماً.
  */
 export default function DepartmentsTab({ companyId }) {
+  const { t } = useTranslation();
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -41,45 +43,45 @@ export default function DepartmentsTab({ companyId }) {
   const cancelEdit = () => { setEditingId(null); setForm(emptyForm()); };
 
   const remove = async (d) => {
-    if (!window.confirm(`حذف القسم "${d.name}"؟`)) return;
+    if (!window.confirm(t("departments.confirmDelete", { name: d.name }))) return;
     try { await deleteDepartment(d.id); reload(); } catch (err) { setError(err.message); }
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="section-title">
-        <Breadcrumb parts={["الحسابات", "الأقسام"]} />
-        <h2>الأقسام</h2>
+        <Breadcrumb parts={[t("nav.groups.accounts"), t("nav.tabs.departments")]} />
+        <h2>{t("nav.tabs.departments")}</h2>
       </div>
 
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>اسم القسم<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>{t("departments.name")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
         </div>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          {editingId && <button className="btn-ghost" onClick={cancelEdit}>إلغاء</button>}
-          <button className="btn-primary" onClick={save} disabled={!form.name.trim()}>{editingId ? "حفظ التعديلات" : "إضافة قسم"}</button>
+          {editingId && <button className="btn-ghost" onClick={cancelEdit}>{t("common.cancel")}</button>}
+          <button className="btn-primary" onClick={save} disabled={!form.name.trim()}>{editingId ? t("departments.saveChanges") : t("departments.addDepartment")}</button>
         </div>
       </div>
 
-      {loading ? <p className="empty">جارٍ التحميل...</p> : (
+      {loading ? <p className="empty">{t("common.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>اسم القسم</th><th></th></tr></thead>
+            <thead><tr><th>{t("departments.name")}</th><th></th></tr></thead>
             <tbody>
               {companyDepartments.map((d) => (
                 <tr key={d.id}>
                   <td>{d.name}</td>
                   <td className="row-actions">
-                    <button className="btn-ghost" onClick={() => startEdit(d)}>تعديل</button>
-                    <button className="btn-ghost" onClick={() => remove(d)}>حذف</button>
+                    <button className="btn-ghost" onClick={() => startEdit(d)}>{t("common.edit")}</button>
+                    <button className="btn-ghost" onClick={() => remove(d)}>{t("common.delete")}</button>
                   </td>
                 </tr>
               ))}
-              {companyDepartments.length === 0 && <tr><td className="empty" colSpan={2}>لا توجد أقسام بعد.</td></tr>}
+              {companyDepartments.length === 0 && <tr><td className="empty" colSpan={2}>{t("departments.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

@@ -818,6 +818,161 @@
       "placeholder": "ابحث بالاسم أو الكود...",
       "clearLabel": "— بلا —",
       "noResults": "لا توجد نتائج"
+    },
+    "printModal": {
+      "subtitle": "سند قيد محاسبي"
     }
+  },
+  "chartOfAccounts": {
+    "typeLabel": {
+      "asset": "أصول",
+      "liability": "التزامات",
+      "equity": "حقوق ملكية",
+      "revenue": "إيرادات",
+      "expense": "مصروفات"
+    },
+    "errNameRequired": "أدخل اسم الحساب بالعربية (حرفان على الأقل).",
+    "errCodeRequired": "أدخل كود الحساب.",
+    "errParentRequired": "اختر الحساب الأب للمستوى المطلوب.",
+    "errCodeLength": "كود حساب المستوى {{level}} يجب أن يتكون من {{length}} أرقام.",
+    "errTypeMismatch": "لا يمكن نقل الحساب من نوع \"{{fromType}}\" إلى مجموعة من نوع \"{{toType}}\" — النقل مسموح فقط بين مجموعات من نفس النوع.",
+    "confirmMoveWithTransactions": "{{message}}\n\nهل تريد متابعة النقل مع الإبقاء على الكود الحالي؟",
+    "savedEdit": "تم حفظ تعديلات الحساب بنجاح.",
+    "savedCreate": "تمت إضافة الحساب بنجاح.",
+    "unarchived": "تم إلغاء أرشفة الحساب.",
+    "archived": "تمت أرشفة الحساب.",
+    "deleted": "تم حذف الحساب.",
+    "confirmDelete": "حذف حساب \"{{name}}\"؟",
+    "installScopeGroup": "شجرة المجموعة وجميع حركات المستأجر التجريبية",
+    "installScopeCompany": "شجرة الشركة وحركاتها التجريبية",
+    "confirmInstall": "سيتم حذف {{scope}} ثم تثبيت الشجرة القياسية. لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟",
+    "installPrompt": "للتأكيد اكتب كلمة: تثبيت",
+    "installSuccess": "تم تثبيت {{installed}} حسابًا قياسيًا وحذف {{deleted}} حسابًا قديمًا.",
+    "installing": "جارٍ تثبيت الشجرة...",
+    "installStandard": "تثبيت الشجرة القياسية",
+    "scopeLabel": "نطاق الشجرة",
+    "scopeGroupOption": "قالب المجموعة (غير مستخدم في القيود)",
+    "addAccount": "+ إضافة حساب",
+    "expandView": "عرض الشجرة كاملة",
+    "compactView": "عرض مصغّر",
+    "form": {
+      "nameAr": "اسم الحساب بالعربية",
+      "nameEn": "اسم الحساب بالإنجليزية (اختياري)",
+      "code": "كود الحساب",
+      "codeAutoPlaceholder": "يُولّد تلقائياً من الحساب الأب",
+      "codeLevelPlaceholder": "كود المستوى {{level}}",
+      "parent": "الحساب الأب",
+      "parentClearLabel": "— مستوى أول —",
+      "type": "التصنيف",
+      "postingAccount": "حساب ترحيل",
+      "bankOrCash": "نقدي/بنكي",
+      "employeeAdvanceAccount": "حساب سلف/عهد موظفين (يفعّل نافذة السلفة داخل القيود)"
+    },
+    "filters": {
+      "searchLabel": "بحث بالاسم أو الكود",
+      "searchPlaceholder": "بحث...",
+      "levelLabel": "المستوى (حد أقصى للعمق)",
+      "level1": "المستوى 1",
+      "level2": "المستوى 2",
+      "level3": "المستوى 3",
+      "level4Full": "المستوى 4 (تفصيلي بالكامل)",
+      "type": "التصنيف",
+      "allTypes": "كل التصنيفات",
+      "status": "الحالة",
+      "statusActive": "نشط",
+      "statusArchived": "مؤرشف",
+      "showResults": "إظهار النتائج"
+    },
+    "modal": {
+      "editTitle": "تعديل/نقل الحساب — {{name}}",
+      "addChildTitle": "إضافة حساب فرعي",
+      "addNewTitle": "إضافة حساب جديد",
+      "saving": "جارٍ الحفظ...",
+      "saveEdit": "حفظ التعديل/النقل",
+      "saveCreate": "إضافة الحساب",
+      "noteEditing": "عند النقل يبقى الكود ثابتاً لحماية أثر المراجعة التاريخي.",
+      "noteLevelPosting": "المستوى {{level}} من 4 — حساب ترحيل تلقائياً.",
+      "noteLevelGroup": "المستوى {{level}} من 4 — حساب تجميعي."
+    },
+    "table": {
+      "code": "الكود",
+      "account": "الحساب",
+      "level": "المستوى",
+      "type": "النوع",
+      "balance": "الرصيد",
+      "actions": "الإجراءات",
+      "postingAccount": "حساب حركة",
+      "groupAccount": "تجميعي",
+      "addChildTitle": "إضافة حساب فرعي",
+      "editTitle": "تعديل أو نقل الحساب",
+      "archiveTitle": "أرشفة",
+      "unarchiveTitle": "إلغاء الأرشفة",
+      "deleteTitle": "حذف",
+      "empty": "لا توجد حسابات في هذه الشجرة."
+    },
+    "import": {
+      "title": "استيراد شجرة الحسابات من Excel",
+      "subtitle": "يدعم XLS وXLSX ويعرض الأخطاء قبل حفظ أي حساب.",
+      "chooseFile": "اختيار ملف Excel",
+      "importing": "جارٍ الاستيراد...",
+      "importBtn": "استيراد {{count}} حساب",
+      "success": "تم استيراد {{count}} حساب بنجاح",
+      "summary": "الملف: {{fileName}} — الورقة: {{sheetName}} — الحسابات: {{count}}",
+      "needsReview": " — يحتاج مراجعة: {{count}}",
+      "ready": " — جاهز للاستيراد",
+      "rowReady": "جاهز",
+      "previewNote": "تظهر أول 100 نتيجة في المعاينة، وسيتم فحص جميع الصفوف.",
+      "table": {
+        "code": "الكود",
+        "nameAr": "الاسم العربي",
+        "nameEn": "الاسم الإنجليزي",
+        "level": "المستوى",
+        "parent": "الأب",
+        "type": "التصنيف",
+        "status": "الحالة"
+      }
+    }
+  },
+  "accountLedger": {
+    "accountLabel": "الحساب",
+    "accountPlaceholder": "اختر حساباً لعرض حركته",
+    "subAccountLabel": "الحساب الفرعي (اختياري — لتضييق الكشف على حساب واحد بعينه)",
+    "subAccountAllOption": "— كشف مجمَّع لكل الحسابات الفرعية —",
+    "costCenterLabel": "مركز التكلفة",
+    "allCostCenters": "كل مراكز التكلفة",
+    "departmentLabel": "القسم",
+    "allDepartments": "كل الأقسام",
+    "dateFrom": "من تاريخ",
+    "dateTo": "إلى تاريخ",
+    "showResults": "إظهار النتائج",
+    "printBtn": "طباعة الكشف",
+    "selectPrompt": "اختر حساباً من الأعلى واضغط \"إظهار النتائج\" لعرض كشف حركته.",
+    "table": {
+      "entryNumber": "رقم القيد",
+      "description": "الوصف",
+      "postingAccount": "حساب الترحيل"
+    }
+  },
+  "departments": {
+    "name": "اسم القسم",
+    "saveChanges": "حفظ التعديلات",
+    "addDepartment": "إضافة قسم",
+    "confirmDelete": "حذف القسم \"{{name}}\"؟",
+    "empty": "لا توجد أقسام بعد."
+  },
+  "zakat": {
+    "eyebrow": "الامتثال الضريبي",
+    "title": "الزكاة وضريبة القيمة المضافة",
+    "disclaimer": "الأرقام هنا تقديرية لأغراض العرض التجريبي فقط، وتُبنى من نفس بيانات القيود والمبيعات المسجّلة أعلاه — وليست بديلاً عن ربط فعلي ببوابة زاتكا.",
+    "gauge": {
+      "salesBase": "إجمالي المبيعات الخاضعة",
+      "outputVat": "ضريبة المخرجات",
+      "inputVat": "ضريبة المدخلات",
+      "netVat": "صافي الضريبة المستحقة"
+    },
+    "baseTitle": "وعاء الزكاة التقديري",
+    "baseRatioLabel": "نسبة تقديرية للوعاء الزكوي",
+    "baseRatioValue": "15٪ (تجريبية)",
+    "baseFinal": "الوعاء الزكوي التقديري"
   }
 }

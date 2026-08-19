@@ -1,13 +1,15 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { PrintShell, printWithOrientation } from "../legacy/shared";
 import { fmt } from "../legacy/constants";
 
 /** طباعة سند قيد محاسبي — يُستخدَم من شاشة القيود اليومية، يفيد من هيدر/فوتر PrintShell المشترك تلقائياً */
 export default function JournalVoucherViewModal({ entry, companies, autoPrint, onClose }) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!autoPrint) return;
-    const t = setTimeout(() => printWithOrientation(false), 200);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => printWithOrientation(false), 200);
+    return () => clearTimeout(timer);
   }, [autoPrint, entry.id]);
 
   const company = companies?.find((c) => c.id === entry.companyId);
@@ -15,23 +17,23 @@ export default function JournalVoucherViewModal({ entry, companies, autoPrint, o
 
   return (
     <PrintShell
-      subtitle="سند قيد محاسبي"
+      subtitle={t("journalEntries.printModal.subtitle")}
       company={company}
       refNode={
         <>
-          <div>رقم القيد: <strong>{entry.entryNumber || entry.id.slice(-8)}</strong></div>
-          <div>التاريخ: <strong>{entry.date.slice(0, 10)}</strong></div>
+          <div>{t("journalEntries.table.entryNumber")}: <strong>{entry.entryNumber || entry.id.slice(-8)}</strong></div>
+          <div>{t("journalEntries.table.date")}: <strong>{entry.date.slice(0, 10)}</strong></div>
         </>
       }
       onClose={onClose}
     >
       <div className="voucher-meta">
-        <div><span>البيان</span><strong>{entry.memo || "بدون بيان"}</strong></div>
-        <div><span>الحالة</span><strong>{entry.status === "posted" ? "مرحّل" : "محفوظ"}</strong></div>
+        <div><span>{t("journalEntries.table.memo")}</span><strong>{entry.memo || t("journalEntries.table.noMemo")}</strong></div>
+        <div><span>{t("journalEntries.table.status")}</span><strong>{entry.status === "posted" ? t("journalEntries.statusPosted") : t("journalEntries.statusSaved")}</strong></div>
       </div>
       <table className="ledger-table voucher-table">
         <thead>
-          <tr><th>الحساب</th><th>مركز التكلفة</th><th>القسم</th><th>الوصف</th><th>مدين</th><th>دائن</th></tr>
+          <tr><th>{t("journalEntries.form.lines.account")}</th><th>{t("journalEntries.form.lines.costCenter")}</th><th>{t("journalEntries.form.lines.department")}</th><th>{t("journalEntries.form.lines.description")}</th><th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th></tr>
         </thead>
         <tbody>
           {entry.lines.map((l) => (
@@ -46,7 +48,7 @@ export default function JournalVoucherViewModal({ entry, companies, autoPrint, o
           ))}
         </tbody>
         <tfoot>
-          <tr><td className="foot-label" colSpan={4}>الإجمالي</td><td className="num strong">{fmt(total)}</td><td className="num strong">{fmt(total)}</td></tr>
+          <tr><td className="foot-label" colSpan={4}>{t("journalEntries.form.total")}</td><td className="num strong">{fmt(total)}</td><td className="num strong">{fmt(total)}</td></tr>
         </tfoot>
       </table>
     </PrintShell>

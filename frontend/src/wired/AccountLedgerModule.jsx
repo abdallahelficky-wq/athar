@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listAccounts } from "../api/accounts";
 import { listCostCenters } from "../api/costCenters";
 import { listDepartments } from "../api/departments";
@@ -33,6 +34,7 @@ function collectPostingDescendants(accounts, rootId) {
  * الحساب يفهم تفاصيل كل حركة دون فتح القيد الكامل.
  */
 export default function AccountLedgerModule({ companyId, companies, initialAccountId, onConsumeInitialAccountId }) {
+  const { t } = useTranslation();
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -100,75 +102,75 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
   return (
     <div>
       <div className="section-title">
-        <Breadcrumb parts={["الحسابات", "كشف حساب الأستاذ"]} />
-        <h2>كشف حساب الأستاذ</h2>
+        <Breadcrumb parts={[t("nav.groups.accounts"), t("nav.tabs.ledger")]} />
+        <h2>{t("nav.tabs.ledger")}</h2>
       </div>
 
       {error && <p className="balance-bad">{error}</p>}
 
       {!companyId ? (
-        <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>
+        <p className="empty">{t("common.noCompany")}</p>
       ) : (
         <>
           <div className="panel form-panel">
             <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); alf.apply(); }}>
               <label>
-                الحساب
+                {t("accountLedger.accountLabel")}
                 <AccountSearchSelect
                   accounts={accounts}
                   value={alf.draft.accountId}
                   onChange={(accountId) => alf.setDraft((prev) => ({ ...prev, accountId, subAccountId: "" }))}
-                  placeholder="اختر حساباً لعرض حركته"
+                  placeholder={t("accountLedger.accountPlaceholder")}
                 />
               </label>
               {subAccountOptions.length > 0 && (
                 <label>
-                  الحساب الفرعي (اختياري — لتضييق الكشف على حساب واحد بعينه)
+                  {t("accountLedger.subAccountLabel")}
                   <select value={alf.draft.subAccountId} onChange={(e) => alf.setField("subAccountId", e.target.value)}>
-                    <option value="">— كشف مجمَّع لكل الحسابات الفرعية —</option>
+                    <option value="">{t("accountLedger.subAccountAllOption")}</option>
                     {subAccountOptions.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
                   </select>
                 </label>
               )}
-              <label>مركز التكلفة
+              <label>{t("accountLedger.costCenterLabel")}
                 <select value={alf.draft.costCenterId} onChange={(e) => alf.setField("costCenterId", e.target.value)}>
-                  <option value="">كل مراكز التكلفة</option>
+                  <option value="">{t("accountLedger.allCostCenters")}</option>
                   {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </label>
-              <label>القسم
+              <label>{t("accountLedger.departmentLabel")}
                 <select value={alf.draft.departmentId} onChange={(e) => alf.setField("departmentId", e.target.value)}>
-                  <option value="">كل الأقسام</option>
+                  <option value="">{t("accountLedger.allDepartments")}</option>
                   {departmentOptions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </label>
-              <label>من تاريخ<input type="date" value={alf.draft.dateFrom} onChange={(e) => alf.setField("dateFrom", e.target.value)} /></label>
-              <label>إلى تاريخ<input type="date" value={alf.draft.dateTo} onChange={(e) => alf.setField("dateTo", e.target.value)} /></label>
-              <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+              <label>{t("accountLedger.dateFrom")}<input type="date" value={alf.draft.dateFrom} onChange={(e) => alf.setField("dateFrom", e.target.value)} /></label>
+              <label>{t("accountLedger.dateTo")}<input type="date" value={alf.draft.dateTo} onChange={(e) => alf.setField("dateTo", e.target.value)} /></label>
+              <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("accountLedger.showResults")}</button>
               {ledger && (
-                <button type="button" className="btn-ghost" style={{ alignSelf: "end" }} onClick={() => setPrintOpen(true)}>طباعة الكشف</button>
+                <button type="button" className="btn-ghost" style={{ alignSelf: "end" }} onClick={() => setPrintOpen(true)}>{t("accountLedger.printBtn")}</button>
               )}
             </form>
           </div>
 
-          {!alf.applied.accountId && <p className="empty">اختر حساباً من الأعلى واضغط "إظهار النتائج" لعرض كشف حركته.</p>}
-          {loading && <p className="empty">جارٍ التحميل...</p>}
+          {!alf.applied.accountId && <p className="empty">{t("accountLedger.selectPrompt")}</p>}
+          {loading && <p className="empty">{t("common.loading")}</p>}
 
           {ledger && !loading && (
             <div className="panel">
               <div className="voucher-meta">
-                <div><span>الحساب</span><strong>{ledger.account.name}</strong></div>
+                <div><span>{t("accountLedger.accountLabel")}</span><strong>{ledger.account.name}</strong></div>
                 <div>
-                  <span>الرصيد الختامي</span>
-                  <strong>{fmt(Math.abs(ledger.closingBalance))} {ledger.closingBalance >= 0 ? "مدين" : "دائن"}</strong>
+                  <span>{t("statementOfAccount.closingBalance")}</span>
+                  <strong>{fmt(Math.abs(ledger.closingBalance))} {ledger.closingBalance >= 0 ? t("statementOfAccount.table.debit") : t("statementOfAccount.table.credit")}</strong>
                 </div>
               </div>
               <table className="ledger-table">
                 <thead>
                   <tr>
-                    <th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th>الوصف</th>
-                    {!ledger.account.isPosting && <th>حساب الترحيل</th>}
-                    <th>مدين</th><th>دائن</th><th>الرصيد</th>
+                    <th>{t("statementOfAccount.table.date")}</th><th>{t("accountLedger.table.entryNumber")}</th><th>{t("statementOfAccount.table.memo")}</th><th>{t("accountLedger.table.description")}</th>
+                    {!ledger.account.isPosting && <th>{t("accountLedger.table.postingAccount")}</th>}
+                    <th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th><th>{t("statementOfAccount.table.balance")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -184,10 +186,10 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                       <td className="num strong">{fmt(r.balance)}</td>
                     </tr>
                   ))}
-                  {ledger.rows.length === 0 && <tr><td className="empty" colSpan={ledger.account.isPosting ? 7 : 8}>لا توجد حركات على هذا الحساب بعد.</td></tr>}
+                  {ledger.rows.length === 0 && <tr><td className="empty" colSpan={ledger.account.isPosting ? 7 : 8}>{t("statementOfAccount.empty")}</td></tr>}
                 </tbody>
                 <tfoot>
-                  <tr><td className="foot-label" colSpan={ledger.account.isPosting ? 6 : 7}>الرصيد الختامي</td><td className="num strong">{fmt(ledger.closingBalance)}</td></tr>
+                  <tr><td className="foot-label" colSpan={ledger.account.isPosting ? 6 : 7}>{t("statementOfAccount.closingBalance")}</td><td className="num strong">{fmt(ledger.closingBalance)}</td></tr>
                 </tfoot>
               </table>
             </div>
