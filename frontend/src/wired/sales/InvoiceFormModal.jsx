@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
 import { listAccounts } from "../../api/accounts";
 import { listItems } from "../../api/items";
@@ -24,6 +25,7 @@ const lineFromExisting = (l) => ({
  * وضع النسخ (duplicateFrom) يُعامَل كإنشاء فاتورة جديدة مُعبَّأة مسبقاً ببيانات فاتورة أخرى.
  */
 export default function InvoiceFormModal({ companyId, companies, editingInvoice, duplicateFrom, onClose, onSaved }) {
+  const { t } = useTranslation();
   const isEdit = !!editingInvoice;
   const seed = editingInvoice || duplicateFrom;
 
@@ -87,14 +89,14 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   // ضمن استجابة الترحيل/الإنشاء نفسها، فتُضاف كجملة توضيحية لرسالة النجاح بدل نافذة منفصلة.
   const emailSuffix = (emailResult) => {
     if (!emailResult) return "";
-    if (emailResult.sent) return " وأُرسلت نسخة منها للعميل بالإيميل.";
-    if (emailResult.reason === "no_email") return " لم يُرسل إيميل — لا يوجد بريد إلكتروني مسجَّل لهذا العميل.";
-    return " تعذّر إرسال الفاتورة بالإيميل، يمكنك إعادة المحاولة من زر (إرسال بالإيميل).";
+    if (emailResult.sent) return t("salesInvoices.form.emailSuffixSent");
+    if (emailResult.reason === "no_email") return t("salesInvoices.form.emailSuffixNoEmail");
+    return t("salesInvoices.form.emailSuffixFailed");
   };
 
   const submit = async (post) => {
-    if (!customerId) { setError("اختر عميلاً أولاً"); return; }
-    if (cleanLines().length === 0) { setError("أضف سطراً واحداً على الأقل بحساب وسعر صحيحين"); return; }
+    if (!customerId) { setError(t("salesInvoices.form.errChooseCustomer")); return; }
+    if (cleanLines().length === 0) { setError(t("salesInvoices.form.errAddLine")); return; }
     setSaving(true);
     setError("");
     try {
@@ -102,10 +104,10 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
         await updateSalesInvoice(editingInvoice.id, buildPayload());
         let emailResult;
         if (post) { const result = await postSalesInvoice(editingInvoice.id); emailResult = result.emailResult; }
-        onSaved((post ? "تم حفظ التعديلات وترحيل الفاتورة، وأُنشئ القيد المحاسبي المرتبط بها." : "تم حفظ التعديلات كمسودة.") + emailSuffix(emailResult));
+        onSaved((post ? t("salesInvoices.form.savedEditPosted") : t("salesInvoices.form.savedEditDraft")) + emailSuffix(emailResult));
       } else {
         const result = await createSalesInvoice({ ...buildPayload(), post });
-        onSaved((post ? "تم حفظ الفاتورة وترحيلها، وأُنشئ القيد المحاسبي المرتبط بها." : "تم حفظ الفاتورة كمسودة.") + emailSuffix(result.emailResult));
+        onSaved((post ? t("salesInvoices.form.savedNewPosted") : t("salesInvoices.form.savedNewDraft")) + emailSuffix(result.emailResult));
       }
     } catch (err) {
       setError(err.message);
@@ -119,23 +121,23 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
       <div className="invoice-modal-box">
         <div className="modal-title-row">
           <h3>
-            {isEdit ? `تعديل الفاتورة ${editingInvoice.invoiceNumber}`
-              : duplicateFrom ? `فاتورة جديدة (نسخ من ${duplicateFrom.invoiceNumber})`
-                : "فاتورة مبيعات جديدة"}
+            {isEdit ? t("salesInvoices.form.titleEdit", { number: editingInvoice.invoiceNumber })
+              : duplicateFrom ? t("salesInvoices.form.titleDuplicate", { number: duplicateFrom.invoiceNumber })
+                : t("salesInvoices.form.titleCreate")}
           </h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label={t("salesInvoices.form.close")}>×</button>
         </div>
 
         <div className="form-grid header-grid">
           <label className="item-combo-cell">
-            العميل
+            {t("salesInvoices.form.customer")}
             <input
               type="text"
               value={customerDropdownOpen ? customerSearchText : (selectedCustomer?.name || "")}
               onChange={(e) => { setCustomerSearchText(e.target.value); setCustomerId(""); setCustomerDropdownOpen(true); }}
               onFocus={() => { setCustomerSearchText(selectedCustomer?.name || ""); setCustomerDropdownOpen(true); }}
               onBlur={() => setTimeout(() => setCustomerDropdownOpen(false), 150)}
-              placeholder="ابحث عن عميل أو اكتب اسماً جديداً"
+              placeholder={t("salesInvoices.form.customerSearchPlaceholder")}
             />
             {customerDropdownOpen && (
               <div className="item-combo-dropdown">
@@ -146,22 +148,22 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
                   className="item-combo-option item-combo-new"
                   onMouseDown={() => { setCustomerDropdownOpen(false); setNewCustomerModal({ initialName: customerSearchText }); }}
                 >
-                  + إضافة عميل جديد {customerSearchText ? `باسم "${customerSearchText}"` : ""}
+                  {customerSearchText ? t("salesInvoices.form.addNewCustomerNamed", { name: customerSearchText }) : t("salesInvoices.form.addNewCustomer")}
                 </div>
               </div>
             )}
           </label>
-          <label>تاريخ الفاتورة<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label>{t("salesInvoices.form.invoiceDate")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
           <label className="memo-field">
-            نوع الفاتورة (تلقائي)
+            {t("salesInvoices.form.invoiceTypeAuto")}
             <input
               type="text" readOnly
-              value={invType === "standard" ? "فاتورة ضريبية قياسية (B2B)" : invType === "simplified" ? "فاتورة ضريبية مبسّطة (B2C)" : "اختر عميلاً أولاً"}
+              value={invType === "standard" ? t("salesInvoices.form.invoiceTypeStandard") : invType === "simplified" ? t("salesInvoices.form.invoiceTypeSimplified") : t("salesInvoices.form.invoiceTypeChooseCustomer")}
             />
           </label>
         </div>
 
-        {customers.length === 0 && <p className="empty">لا يوجد عملاء بعد — اكتب اسماً في حقل العميل أعلاه لإضافته.</p>}
+        {customers.length === 0 && <p className="empty">{t("salesInvoices.form.noCustomersYet")}</p>}
 
         <SalesInvoiceLinesEditor
           lines={lines}
@@ -174,10 +176,10 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
         {error && <p className="balance-bad">{error}</p>}
 
         <div className="form-btn-group">
-          {isEdit && <button className="btn-ghost" onClick={() => setPrintInvoice(editingInvoice)}>طباعة</button>}
-          <button className="btn-ghost" onClick={onClose} disabled={saving}>إلغاء</button>
-          <button className="btn-ghost" onClick={() => submit(false)} disabled={saving || !customerId}>حفظ كمسودة</button>
-          <button className="btn-primary" onClick={() => submit(true)} disabled={saving || !customerId}>حفظ وترحيل الفاتورة</button>
+          {isEdit && <button className="btn-ghost" onClick={() => setPrintInvoice(editingInvoice)}>{t("salesInvoices.form.print")}</button>}
+          <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("salesInvoices.form.cancel")}</button>
+          <button className="btn-ghost" onClick={() => submit(false)} disabled={saving || !customerId}>{t("salesInvoices.form.saveDraft")}</button>
+          <button className="btn-primary" onClick={() => submit(true)} disabled={saving || !customerId}>{t("salesInvoices.form.saveAndPost")}</button>
         </div>
       </div>
 

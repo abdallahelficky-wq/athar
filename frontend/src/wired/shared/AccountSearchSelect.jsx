@@ -1,10 +1,13 @@
 import React, { forwardRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 /**
  * قائمة حسابات قابلة للبحث الفوري داخل نفس الحقل (Search-as-you-type) — تُستخدَم بدل <select> عادي
  * في كل مكان بالنظام محتاج اختيار حساب من شجرة حسابات قد تكون كبيرة (مئات حسابات المستوى الرابع
  * بعد توسيع الترقيم إلى 6 أرقام). البحث يطابق الاسم بالعربية أو الإنجليزية أو الكود معاً، ويظهر
- * "الكود — الاسم" في كل من الحقل والقائمة حتى يمكن تمييز حسابات متشابهة الاسم فوراً.
+ * "الكود — الاسم" في كل من الحقل والقائمة حتى يمكن تمييز حسابات متشابهة الاسم فوراً. في وضع الواجهة
+ * الإنجليزية يُعرض nameEn بدل الاسم الأساسي إن وُجد على الحساب (وإلا الاسم الأساسي كما هو دائماً —
+ * لا يُترجَم اسم مُدخَل من المستخدم أبداً).
  * تعتمد نفس أسلوب الـ combobox المستخدَم مسبقاً لاختيار الصنف في فواتير المبيعات
  * (item-combo-cell/dropdown/option)، معمَّمة هنا لأي قائمة accounts بلا أي منطق خاص بشاشة بعينها —
  * مكوّن واحد مشترك لكل شاشات النظام (القيود، الفواتير، السندات، الأصناف، شجرة الحسابات نفسها).
@@ -19,11 +22,13 @@ const AccountSearchSelect = forwardRef(function AccountSearchSelect(
   { accounts, value, onChange, placeholder, allowClear, clearLabel, autoFocus },
   ref,
 ) {
+  const { t, i18n } = useTranslation();
   const [searchText, setSearchText] = useState("");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
 
-  const label = (a) => `${a.code} — ${a.name}`;
+  const displayName = (a) => (i18n.language === "en" && a.nameEn ? a.nameEn : a.name);
+  const label = (a) => `${a.code} — ${displayName(a)}`;
   const norm = (s) => (s || "").toString().toLowerCase();
 
   const selected = accounts.find((a) => a.id === value);
@@ -73,7 +78,7 @@ const AccountSearchSelect = forwardRef(function AccountSearchSelect(
         onFocus={() => { setSearchText(""); setOpen(true); setHighlight(0); }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={onKeyDown}
-        placeholder={placeholder || "ابحث بالاسم أو الكود..."}
+        placeholder={placeholder || t("journalEntries.accountSearch.placeholder")}
       />
       {open && (
         <div className="item-combo-dropdown">
@@ -83,7 +88,7 @@ const AccountSearchSelect = forwardRef(function AccountSearchSelect(
               onMouseDown={() => pick("")}
               onMouseEnter={() => setHighlight(0)}
             >
-              {clearLabel || "— بلا —"}
+              {clearLabel || t("journalEntries.accountSearch.clearLabel")}
             </div>
           )}
           {filtered.map((a, i) => {
@@ -99,7 +104,7 @@ const AccountSearchSelect = forwardRef(function AccountSearchSelect(
               </div>
             );
           })}
-          {filtered.length === 0 && <div className="item-combo-option">لا توجد نتائج</div>}
+          {filtered.length === 0 && <div className="item-combo-option">{t("journalEntries.accountSearch.noResults")}</div>}
         </div>
       )}
     </label>

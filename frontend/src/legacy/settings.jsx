@@ -145,12 +145,12 @@ export function CompanyDocumentsSettings({ companyDocuments, setCompanyDocuments
 }
 
 export const SETTINGS_TABS = [
-  { id: "companies", label: "بيانات الشركات" },
-  { id: "profile", label: "الملف الشخصي" },
-  { id: "users", label: "المستخدمون والصلاحيات" },
-  { id: "jobTitles", label: "الوظائف" },
-  { id: "locations", label: "المواقع" },
-  { id: "companyDocs", label: "المستندات الرسمية" },
+  { id: "companies", labelKey: "nav.tabs.companies" },
+  { id: "profile", labelKey: "nav.tabs.profile" },
+  { id: "users", labelKey: "nav.tabs.users" },
+  { id: "jobTitles", labelKey: "nav.tabs.jobTitles" },
+  { id: "locations", labelKey: "nav.tabs.locations" },
+  { id: "companyDocs", labelKey: "nav.tabs.companyDocs" },
 ];
 
 export function SettingsModule({ tab, setTab, currentUser, setCurrentUser, jobTitles, setJobTitles, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {

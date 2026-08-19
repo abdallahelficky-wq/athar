@@ -2,6 +2,359 @@
   "common": {
     "languageName": "English",
     "switchToArabic": "Switch to Arabic",
-    "switchToEnglish": "Switch to English"
+    "switchToEnglish": "Switch to English",
+    "brandName": "Athar Accounting",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "add": "Add",
+    "actions": "Actions",
+    "close": "Close",
+    "loading": "Loading...",
+    "noResults": "No results",
+    "clearOption": "— None —",
+    "allOption": "— All —",
+    "print": "Print",
+    "exportCsv": "Export Excel/CSV",
+    "currency": "SAR"
+  },
+  "landing": {
+    "nav": { "login": "Log in", "startTrial": "Start your free trial" },
+    "eyebrow": "Saudi cloud accounting system",
+    "title": "Athar Accounting",
+    "heroSub": "A complete cloud accounting system for managing your whole business group — from journal entries and ZATCA-compliant tax invoices, to inventory, fixed assets, HR and payroll — all in one place, in an interface designed from the ground up for your market.",
+    "heroCtaTrial": "Try free for a full month",
+    "heroCtaLogin": "I already have an account",
+    "about": {
+      "eyebrow": "About us",
+      "title": "About Athar Accounting",
+      "text": "Athar Accounting is a cloud accounting system built specifically for the Saudi business environment, aimed at simplifying day-to-day accounting work for business owners and accountants alike. The system is designed to cover the full workflow of any business or group of companies: from the accounting foundation (chart of accounts and daily journal entries), through sales, purchases, inventory and fixed assets, to managing employees, their payroll and entitlements. All of this with full compliance with the Zakat, Tax and Customs Authority's e-invoicing requirements, and accurate financial reports that reflect the true picture of business performance at any moment."
+    },
+    "why": {
+      "eyebrow": "Why Athar Accounting",
+      "title": "Designed to fit the way you work",
+      "items": [
+        { "title": "ZATCA compliant", "desc": "Electronic tax invoices (standard and simplified) with a real QR code, built from the ground up to meet the requirements of the Zakat, Tax and Customs Authority." },
+        { "title": "A whole group in one place", "desc": "Manage all your companies from a single screen, with complete data separation per company and consolidated reports for the whole group." },
+        { "title": "A complete employee lifecycle", "desc": "From hiring and leave to payroll and end-of-service benefits, calculated according to Saudi labor law." },
+        { "title": "Instant financial reports", "desc": "The trial balance, income statement and balance sheet update live with every entry and invoice you record." },
+        { "title": "Integrated sales and purchases cycle", "desc": "From quotation to invoice to receipt, and from purchase order to supplier invoice, with full automatic accounting links." },
+        { "title": "An interface designed for your market", "desc": "Built from scratch to fit how accountants in the Saudi market actually work, not an interface translated from a foreign system." }
+      ]
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title": "Plans that fit the size of your business",
+      "trialBanner": "✨ All plans include a full one-month free trial — no commitment",
+      "mostPopular": "Most popular",
+      "perYear": "SAR / year",
+      "monthlyOption": "Or {{amount}} SAR/month with monthly billing",
+      "cta": "Start free trial",
+      "plans": [
+        {
+          "name": "Basic", "tagline": "For startups and small business owners",
+          "features": ["One company", "Core journal entries and financial reports", "ZATCA-compliant sales and purchase invoices", "Up to 5 users", "Email support"]
+        },
+        {
+          "name": "Professional", "tagline": "For multi-company groups and accounting teams",
+          "features": ["Up to 4 companies in one group", "Everything in the Basic plan", "Inventory and fixed assets", "Full HR and payroll", "Priority support"]
+        },
+        {
+          "name": "Enterprise", "tagline": "For large groups with advanced needs",
+          "features": ["Unlimited companies", "Everything in the Professional plan", "Advanced user permissions", "Unlimited Excel import/export", "Dedicated account manager"]
+        }
+      ]
+    },
+    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved" }
+  },
+  "auth": {
+    "login": {
+      "title": "Log in",
+      "email": "Email address",
+      "password": "Password",
+      "submit": "Log in",
+      "submitting": "Logging in...",
+      "forgotPassword": "Forgot your password?",
+      "noAccount": "Don't have an account? Sign up",
+      "backToLanding": "Back to homepage",
+      "note": "This account is connected to a real database — your data is completely isolated from any other tenant.",
+      "errFillFields": "Please fill in your email and password.",
+      "errGeneric": "Couldn't log in, please try again."
+    },
+    "register": {
+      "title": "Start your one-month free trial",
+      "companyName": "Company / business name",
+      "fullName": "Full name",
+      "email": "Email address",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "submit": "Create account and start trial",
+      "submitting": "Creating...",
+      "haveAccount": "Already have an account? Log in",
+      "backToLanding": "Back to homepage",
+      "note": "Creating an account creates a new, fully isolated tenant in the database, with a ready-made default chart of accounts and a 30-day free trial.",
+      "errFillAll": "Please fill in all fields.",
+      "errPasswordMismatch": "Passwords do not match.",
+      "errPasswordLength": "Password must be at least 8 characters.",
+      "errGeneric": "Couldn't create the account, please try again."
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "groups": {
+      "sales": "Sales",
+      "purchases": "Purchases",
+      "inventory": "Inventory & Products",
+      "fixedAssets": "Fixed Assets",
+      "accounts": "Accounts",
+      "hr": "Human Resources",
+      "reports": "Reports",
+      "settings": "Settings"
+    },
+    "tabs": {
+      "customers": "Customers", "quotations": "Quotations", "invoices": "Sales Invoices",
+      "returns": "Sales Returns", "receipts": "Receipts", "stations": "Station Sales",
+      "reports": "Reports", "suppliers": "Suppliers", "purchaseInvoices": "Purchase Invoices",
+      "purchaseReturns": "Purchase Returns", "items": "Items", "warehouses": "Warehouses",
+      "inout": "Stock In / Out", "issue": "Stock Issue", "transfer": "Branch Transfer",
+      "report": "Balances Report", "register": "Asset Register", "depreciation": "Monthly Depreciation",
+      "disposal": "Disposal / Sale", "fixedAssetsReports": "Reports", "categories": "Fixed Asset Settings",
+      "journal": "Journal Entries", "chartOfAccounts": "Chart of Accounts", "ledger": "Account Ledger",
+      "departments": "Departments", "zakat": "Zakat & Tax (estimated, sample data)",
+      "hrDashboard": "Dashboard", "directory": "Employee Directory", "leaves": "Leave Requests",
+      "leaveSettlement": "Leave Settlements", "leaveReturn": "Return from Leave", "hrActions": "Employee Actions",
+      "payroll": "Payroll", "payrollSettings": "Payroll Settings", "eos": "End of Service",
+      "hrReports": "Reports", "trial": "Trial Balance", "income": "Income Statement", "balance": "Balance Sheet",
+      "monthly": "Comprehensive Monthly Report", "automation": "Send Automation",
+      "companies": "Company Info", "profile": "Profile", "users": "Users & Permissions",
+      "jobTitles": "Job Titles", "locations": "Locations", "companyDocs": "Official Documents"
+    },
+    "activeCompanyLabel": "Active company:",
+    "noCompanySelected": "Not selected yet",
+    "activeCompanyTitle": "Back to the home screen to switch company",
+    "emailWarningBefore": "⚠️ The email delivery service is not configured on the server — emails (welcome, user invites, invoice sending) will not reach any recipient. Check the",
+    "emailWarningAfter": "variable in the deployment settings."
+  },
+  "dashboard": {
+    "breadcrumb": { "overview": "Overview", "realData": "Real data" },
+    "title": "Financial Dashboard",
+    "noCompanies": "No companies yet.",
+    "addFirstCompany": "+ Add your first company from Settings",
+    "chooseCompanyPrompt": "Select a company above to view its dashboard.",
+    "loadingAllCompanies": "Aggregating data for all companies...",
+    "comparisonTitle": "Group companies comparison (current month)",
+    "comparisonTable": {
+      "company": "Company", "netSales": "Net Sales", "netProfitEstimate": "Estimated Net Profit",
+      "cashBalance": "Cash Balance", "receivables": "Customer Receivables", "payables": "Supplier Payables",
+      "total": "Total"
+    },
+    "loading": "Loading...",
+    "kpi": {
+      "netSales": "Net sales (selected period)", "vsPreviousPeriod": "vs. previous period",
+      "netProfitEstimate": "Estimated net profit", "cashBalance": "Current cash balance",
+      "receivables": "Amounts due from customers", "payables": "Amounts due to suppliers"
+    },
+    "alerts": { "title": "⚠ Key alerts", "empty": "No alerts at the moment." },
+    "charts": {
+      "payrollAndDues": "Payroll & dues", "paid": "Paid", "unpaid": "Unpaid", "endOfService": "End of service",
+      "agingTitle": "Receivables & payables aging", "under30": "Under 30", "d30to60": "30–60", "d60to90": "60–90", "over90": "90+",
+      "receivable": "Receivable", "payable": "Payable",
+      "monthComparisonTitle": "This month vs. previous month", "current": "Current", "previous": "Previous",
+      "salesTrendTitle": "Sales trend (last 12 months)", "sales": "Sales",
+      "topCustomersTitle": "Top 10 customers (by net sales)", "netSales": "Net sales",
+      "cashBreakdownTitle": "Cash distribution by account", "noCashAccounts": "No cash/bank accounts classified yet.",
+      "monthlyCashFlowTitle": "Monthly cash flow (in vs. out)", "cashIn": "Cash in", "cashOut": "Cash out"
+    },
+    "topTransactions": {
+      "title": "Top cash transactions (last 180 days)", "empty": "No cash transactions yet.",
+      "date": "Date", "memo": "Memo", "account": "Account", "amount": "Amount", "direction": "Direction"
+    },
+    "position": {
+      "title": "Company financial position", "assets": "Assets", "liabilities": "Liabilities", "equity": "Equity",
+      "debtToEquity": "Debt-to-equity ratio", "currentRatio": "Current ratio (approximate)",
+      "currentRatioNote": "* The current ratio here is approximate (cash + receivables ÷ payables) since the chart of accounts does not yet classify accounts as current/non-current."
+    }
+  },
+  "salesInvoices": {
+    "noCompany": "Create a company first from the dashboard.",
+    "addInvoice": "+ Add invoice",
+    "zatcaStatusFilterLabel": "ZATCA status",
+    "loading": "Loading...",
+    "empty": "No invoices yet.",
+    "zatcaStatus": {
+      "not_applicable": "Not applicable", "pending_clearance": "Sending (standard)", "pending_reporting": "Sending (simplified)",
+      "cleared": "Sent/accepted (standard)", "reported": "Sent/accepted (simplified)", "rejected": "Rejected/send failed"
+    },
+    "zatcaBadge": {
+      "not_applicable": "Not applicable", "pending_clearance": "Sending", "pending_reporting": "Sending",
+      "cleared": "Sent/accepted", "reported": "Sent/accepted", "rejected": "Rejected"
+    },
+    "table": {
+      "number": "Number", "customer": "Customer", "date": "Date", "total": "Total",
+      "postingStatus": "Posting status", "paymentStatus": "Payment status", "zatcaStatus": "ZATCA status", "actions": "Actions",
+      "posted": "Posted", "draft": "Draft"
+    },
+    "actionsMenu": {
+      "view": "View invoice", "edit": "Edit invoice", "unpost": "Unpost", "unposting": "Sending...",
+      "resendZatca": "Resend invoice to ZATCA", "delete": "Delete invoice",
+      "print": "Print invoice", "duplicate": "Duplicate invoice (new invoice with the same data)",
+      "unlinkReceipt": "Unlink receipt", "linkReceipt": "Link to a receipt", "viewJournalEntry": "View journal entry",
+      "sendEmailTo": "Email to {{email}}", "sendEmailNoAddress": "Send by email (no email on file)",
+      "reprintReceipt": "Reprint as thermal receipt (58/80mm)"
+    },
+    "blockAction": { "edit": "edit", "delete": "delete" },
+    "notify": {
+      "linkedToReceipt": "This invoice is linked to a receipt — unlink it first before deleting.",
+      "confirmDelete": "Delete invoice {{number}}?",
+      "deleted": "Invoice {{number}} deleted.",
+      "unposted": "Invoice {{number}} was unposted, and its journal entry was deleted. It is now a draft.",
+      "unpostedFromBlock": "Invoice {{number}} was unposted. It is now a draft and you can continue.",
+      "emailSent": "Invoice {{number}} was sent to {{email}}.",
+      "emailFailed": "Couldn't send the invoice — try again later.",
+      "zatcaRejectedAgain": "Invoice {{number}} was rejected again by ZATCA{{reason}}",
+      "zatcaResentOk": "Invoice {{number}} was sent successfully — status is now \"{{status}}\"."
+    },
+    "form": {
+      "titleEdit": "Edit invoice {{number}}",
+      "titleDuplicate": "New invoice (duplicated from {{number}})",
+      "titleCreate": "New sales invoice",
+      "close": "Close",
+      "customer": "Customer",
+      "customerSearchPlaceholder": "Search for a customer or type a new name",
+      "addNewCustomer": "+ Add new customer",
+      "addNewCustomerNamed": "+ Add new customer named \"{{name}}\"",
+      "invoiceDate": "Invoice date",
+      "invoiceTypeAuto": "Invoice type (automatic)",
+      "invoiceTypeStandard": "Standard tax invoice (B2B)",
+      "invoiceTypeSimplified": "Simplified tax invoice (B2C)",
+      "invoiceTypeChooseCustomer": "Choose a customer first",
+      "noCustomersYet": "No customers yet — type a name in the customer field above to add one.",
+      "print": "Print",
+      "cancel": "Cancel",
+      "saveDraft": "Save as draft",
+      "saveAndPost": "Save and post invoice",
+      "errChooseCustomer": "Choose a customer first",
+      "errAddLine": "Add at least one line with a valid account and price",
+      "emailSuffixSent": " and a copy was emailed to the customer.",
+      "emailSuffixNoEmail": " No email was sent — this customer has no email address on file.",
+      "emailSuffixFailed": " Couldn't email the invoice — you can retry from the (Send by email) button.",
+      "savedEditPosted": "The changes were saved and the invoice was posted, with its journal entry created.",
+      "savedEditDraft": "The changes were saved as a draft.",
+      "savedNewPosted": "The invoice was saved and posted, with its journal entry created.",
+      "savedNewDraft": "The invoice was saved as a draft.",
+      "lines": {
+        "itemDescription": "Item/Description", "account": "Account", "quantity": "Qty", "unitPrice": "Unit price",
+        "priceIncludesVat": "Incl. VAT?", "vatApplicable": "VAT applicable?", "discount": "Disc. %", "totalWithVat": "Total incl. VAT",
+        "itemPlaceholder": "Type an item name or free-text description",
+        "addNewItem": "+ Add new item", "addNewItemNamed": "+ Add new item named \"{{name}}\"",
+        "total": "Total", "addLine": "+ Add line",
+        "subtotal": "Subtotal before tax", "vat": "VAT (15%)", "grandTotal": "Total incl. VAT"
+      }
+    },
+    "view": {
+      "standardSubtitle": "Standard tax invoice",
+      "simplifiedSubtitle": "Simplified tax invoice",
+      "invoiceNumber": "Invoice number",
+      "date": "Date",
+      "seller": "Seller",
+      "sellerVat": "Seller VAT number",
+      "vatNotEntered": "Not entered yet",
+      "customer": "Customer",
+      "customerVat": "Customer VAT number",
+      "vatUnregistered": "Not registered (individual)",
+      "lastEmail": "Last emailed",
+      "sentTo": "to",
+      "emailFailed": "(send failed)",
+      "table": { "description": "Description", "quantity": "Qty", "unitPrice": "Unit price", "discount": "Disc. %", "beforeTax": "Before tax", "tax": "Tax", "total": "Total" },
+      "qrLabel": "QR code — per ZATCA standard",
+      "qrPayloadSummary": "Show encoded data payload (Base64 TLV)"
+    }
+  },
+  "journalEntries": {
+    "breadcrumb": "Journal",
+    "statusSaved": "Saved",
+    "statusPosted": "Posted",
+    "noCompany": "Create a company first from the dashboard to start recording entries.",
+    "eyebrow": "Journal",
+    "title": "Journal Entries",
+    "subtitle": "Record and track all daily journal entries in both statuses: saved and posted",
+    "newEntry": "+ New manual entry",
+    "createFromDocument": "Create entry from document (AI)",
+    "bulkImport": "Bulk import entries",
+    "exportCsv": "Export Excel/CSV",
+    "csvFileName": "journal_entries.csv",
+    "csvHeaders": { "entryNumber": "Entry #", "date": "Date", "memo": "Memo", "status": "Status", "total": "Total" },
+    "filters": {
+      "searchByMemo": "Search by memo", "entryNumber": "Entry #", "entryNumberPlaceholder": "Search by entry number",
+      "dateFrom": "From date", "dateTo": "To date", "showResults": "Show results", "clearFilters": "Clear filters",
+      "advancedToggle": "Advanced filters (specific account, entry status, amount)",
+      "specificAccount": "Specific account", "accountPlaceholder": "Filter by an account from the chart", "allAccounts": "— All accounts —",
+      "entryStatus": "Entry status", "all": "— All —", "saved": "Saved", "posted": "Posted",
+      "amount": "Amount", "amountFrom": "From", "amountTo": "To"
+    },
+    "bulkToolbar": {
+      "selected": "entries selected", "printSelected": "Print selected (soon)", "exportSelected": "Export selected (soon)",
+      "clearSelection": "Clear selection", "comingSoon": "Bulk actions — coming soon"
+    },
+    "table": {
+      "selectAll": "Select all", "selectEntry": "Select entry",
+      "entryNumber": "Entry #", "date": "Date", "memo": "Memo", "noMemo": "No memo",
+      "lineCount": "Lines", "amount": "Amount", "status": "Status", "actions": "Actions"
+    },
+    "rowActions": {
+      "view": "View entry", "edit": "Edit", "editDisabled": "Cannot edit after posting — use reverse entry to correct it",
+      "delete": "Delete", "post": "Post", "reverse": "Reverse entry", "unpost": "Unpost (super_admin only)",
+      "print": "Print entry", "duplicate": "Duplicate to a new entry", "mirror": "Create mirror entry in another company",
+      "links": "Entry links", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments"
+    },
+    "linkInfo": {
+      "loading": "Loading links...",
+      "mirror": "🔗 Linked mirror entry in {{company}} dated {{date}} — status: {{status}}",
+      "reversalOf": "↩ This entry reverses entry #{{id}} dated {{date}} — status: {{status}}",
+      "reversedBy": "⚠ This entry was reversed by entry #{{id}} dated {{date}} — status: {{status}}",
+      "none": "No links yet."
+    },
+    "emptyState": { "title": "No matching entries", "subtitle": "Try adjusting your search/filter criteria, or add a new manual entry." },
+    "confirmDelete": "Permanently delete this entry?",
+    "unpostWarning": "Unposting this entry will allow it to be edited or deleted. This is an exceptional action and is recorded in the audit log. Are you sure?",
+    "unpostTitle": "Unpost entry {{number}}",
+    "notify": {
+      "unposted": "Entry {{number}} was unposted — it is now saved and can be edited or deleted.",
+      "mirrorCreated": "The corresponding entry was created as a draft in {{company}}.",
+      "reverseCreated": "The reversing entry was created as a draft — review it, then post it."
+    },
+    "form": {
+      "titleEdit": "Edit entry", "titleDuplicate": "Duplicate entry", "titleCreate": "Add journal entry",
+      "close": "Close",
+      "duplicateBanner": "The entry data was duplicated — review it before saving the new entry",
+      "date": "Date", "entryNumber": "Entry #", "entryNumberPreviewTitle": "Preview number only — not reserved until the moment of saving",
+      "memo": "Entry memo", "memoPlaceholder": "General description for the entry",
+      "lines": { "account": "Account", "debit": "Debit", "credit": "Credit", "description": "Description", "costCenter": "Cost Center", "department": "Department" },
+      "descriptionPlaceholder": "Description specific to this line",
+      "newAsset": "New asset", "newAdvance": "New advance", "existingAdvance": "Existing advance",
+      "advanceLabel": "Advance — {{amount}} SAR",
+      "unlinkTitle": "Unlink",
+      "total": "Total",
+      "addLine": "+ Add line",
+      "balanced": "✓ Entry is balanced — ready to save",
+      "unbalanced": "⚠ Unbalanced by {{amount}} SAR",
+      "enterAmounts": "Enter line amounts to see the balance status",
+      "shortcutsHint": "Shortcuts: Ctrl+S save · Ctrl+Enter save and post · Enter in \"Description\" adds a new line",
+      "cancel": "Cancel", "save": "Save", "saving": "Saving...", "saveAndPost": "Save and post",
+      "savedEditPosted": "The changes were saved and the entry was posted. It can no longer be edited directly.",
+      "savedEditDraft": "The entry changes were saved.",
+      "savedDuplicatePosted": "A new copy of the entry was created and posted.",
+      "savedCreatePosted": "The entry was created and posted. It can no longer be edited directly.",
+      "savedDuplicateDraft": "A new copy of the entry was saved.",
+      "savedCreateDraft": "The entry was saved — it appears immediately in reports and account statements, and can be edited until it is posted."
+    },
+    "accountSearch": {
+      "placeholder": "Search by name or code...",
+      "clearLabel": "— None —",
+      "noResults": "No results"
+    }
   }
 }

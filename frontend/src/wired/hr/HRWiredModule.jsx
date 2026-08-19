@@ -13,16 +13,16 @@ import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 
 export const HR_TABS = [
-  { id: "dashboard", label: "لوحة القيادة" },
-  { id: "directory", label: "ملفات الموظفين" },
-  { id: "leaves", label: "طلبات الإجازات" },
-  { id: "leaveSettlement", label: "مستحقات الإجازة" },
-  { id: "leaveReturn", label: "المباشرة بعد الإجازة" },
-  { id: "actions", label: "إجراءات الموظفين" },
-  { id: "payroll", label: "كشف الرواتب" },
-  { id: "payrollSettings", label: "إعدادات الرواتب" },
-  { id: "eos", label: "نهاية الخدمة" },
-  { id: "reports", label: "التقارير" },
+  { id: "dashboard", labelKey: "nav.tabs.hrDashboard" },
+  { id: "directory", labelKey: "nav.tabs.directory" },
+  { id: "leaves", labelKey: "nav.tabs.leaves" },
+  { id: "leaveSettlement", labelKey: "nav.tabs.leaveSettlement" },
+  { id: "leaveReturn", labelKey: "nav.tabs.leaveReturn" },
+  { id: "actions", labelKey: "nav.tabs.hrActions" },
+  { id: "payroll", labelKey: "nav.tabs.payroll" },
+  { id: "payrollSettings", labelKey: "nav.tabs.payrollSettings" },
+  { id: "eos", labelKey: "nav.tabs.eos" },
+  { id: "reports", labelKey: "nav.tabs.reports" },
 ];
 
 export default function HRWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {

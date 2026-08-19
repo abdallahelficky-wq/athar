@@ -10,13 +10,13 @@ import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 
 export const SALES_TABS = [
-  { id: "customers", label: "العملاء" },
-  { id: "quotations", label: "عروض الأسعار" },
-  { id: "invoices", label: "فواتير المبيعات" },
-  { id: "returns", label: "مردودات المبيعات" },
-  { id: "receipts", label: "سندات القبض" },
-  { id: "stations", label: "مبيعات المحطات" },
-  { id: "reports", label: "التقارير" },
+  { id: "customers", labelKey: "nav.tabs.customers" },
+  { id: "quotations", labelKey: "nav.tabs.quotations" },
+  { id: "invoices", labelKey: "nav.tabs.invoices" },
+  { id: "returns", labelKey: "nav.tabs.returns" },
+  { id: "receipts", labelKey: "nav.tabs.receipts" },
+  { id: "stations", labelKey: "nav.tabs.stations" },
+  { id: "reports", labelKey: "nav.tabs.reports" },
 ];
 
 export default function SalesWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {

@@ -1,16 +1,19 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { PrintShell, QrImage, printWithOrientation } from "../../legacy/shared";
 import { fmt, fmt2 } from "../../legacy/constants";
+import { formatDateTime } from "../../i18n/dateFormat";
 
 /**
  * عرض الفاتورة للقراءة فقط (بدون أي حقول قابلة للتعديل) + إمكانية الطباعة/تحميل PDF —
  * تُستخدَم من أيقونتي "عرض" و"طباعة" في قائمة الفواتير، وكذلك من زر "طباعة" داخل نافذة التعديل.
  */
 export default function InvoiceViewModal({ invoice, companies, autoPrint, onClose }) {
+  const { t, i18n } = useTranslation();
   useEffect(() => {
     if (!autoPrint) return;
-    const t = setTimeout(() => printWithOrientation(false), 200);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => printWithOrientation(false), 200);
+    return () => clearTimeout(timer);
   }, [autoPrint, invoice.id]);
 
   // نُفضّل بيانات الشركة الحالية (شعار/عنوان/رقم ضريبي محدَّث) من القائمة الحقيقية المحمَّلة
@@ -21,34 +24,39 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
 
   return (
     <PrintShell
-      subtitle={invoice.invoiceType === "standard" ? "فاتورة ضريبية قياسية" : "فاتورة ضريبية مبسّطة"}
+      subtitle={invoice.invoiceType === "standard" ? t("salesInvoices.view.standardSubtitle") : t("salesInvoices.view.simplifiedSubtitle")}
       company={company}
       refNode={
         <>
-          <div>رقم الفاتورة: <strong>{invoice.invoiceNumber}</strong></div>
-          <div>التاريخ: <strong>{invoice.date.slice(0, 10)}</strong></div>
+          <div>{t("salesInvoices.view.invoiceNumber")}: <strong>{invoice.invoiceNumber}</strong></div>
+          <div>{t("salesInvoices.view.date")}: <strong>{invoice.date.slice(0, 10)}</strong></div>
         </>
       }
       onClose={onClose}
     >
       <div className="voucher-meta">
-        <div><span>البائع</span><strong>{company?.name}</strong></div>
-        <div><span>الرقم الضريبي للبائع</span><strong>{company?.vatNumber || "لم يُدخل بعد"}</strong></div>
-        <div><span>العميل</span><strong>{customer?.name}</strong></div>
-        <div><span>الرقم الضريبي للعميل</span><strong>{customer?.vatNumber || "غير مسجّل (فرد)"}</strong></div>
+        <div><span>{t("salesInvoices.view.seller")}</span><strong>{company?.name}</strong></div>
+        <div><span>{t("salesInvoices.view.sellerVat")}</span><strong>{company?.vatNumber || t("salesInvoices.view.vatNotEntered")}</strong></div>
+        <div><span>{t("salesInvoices.view.customer")}</span><strong>{customer?.name}</strong></div>
+        <div><span>{t("salesInvoices.view.customerVat")}</span><strong>{customer?.vatNumber || t("salesInvoices.view.vatUnregistered")}</strong></div>
         {lastEmailLog && (
           <div>
-            <span>آخر إرسال بالإيميل</span>
+            <span>{t("salesInvoices.view.lastEmail")}</span>
             <strong>
-              {new Date(lastEmailLog.createdAt).toLocaleString("ar-SA")} — إلى {lastEmailLog.sentTo}
-              {!lastEmailLog.success && " (فشل الإرسال)"}
+              {formatDateTime(lastEmailLog.createdAt, i18n.language)} — {t("salesInvoices.view.sentTo")} {lastEmailLog.sentTo}
+              {!lastEmailLog.success && ` ${t("salesInvoices.view.emailFailed")}`}
             </strong>
           </div>
         )}
       </div>
       <table className="ledger-table voucher-table">
         <thead>
-          <tr><th>الوصف</th><th>الكمية</th><th>سعر الوحدة</th><th>خصم %</th><th>قبل الضريبة</th><th>الضريبة</th><th>الإجمالي</th></tr>
+          <tr>
+            <th>{t("salesInvoices.view.table.description")}</th><th>{t("salesInvoices.view.table.quantity")}</th>
+            <th>{t("salesInvoices.view.table.unitPrice")}</th><th>{t("salesInvoices.view.table.discount")}</th>
+            <th>{t("salesInvoices.view.table.beforeTax")}</th><th>{t("salesInvoices.view.table.tax")}</th>
+            <th>{t("salesInvoices.view.table.total")}</th>
+          </tr>
         </thead>
         <tbody>
           {invoice.lines.map((l) => (
@@ -65,7 +73,7 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
         </tbody>
         <tfoot>
           <tr>
-            <td className="foot-label" colSpan={4}>الإجمالي</td>
+            <td className="foot-label" colSpan={4}>{t("journalEntries.form.total")}</td>
             <td className="num strong">{fmt(Number(invoice.subtotal))}</td>
             <td className="num strong">{fmt(Number(invoice.vatTotal))}</td>
             <td className="num strong">{fmt(Number(invoice.grandTotal))}</td>
@@ -73,10 +81,10 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
         </tfoot>
       </table>
       <div className="qr-box">
-        <div className="qr-box-label">رمز الاستجابة السريعة (QR) — وفق معيار زاتكا</div>
+        <div className="qr-box-label">{t("salesInvoices.view.qrLabel")}</div>
         <QrImage payload={invoice.qrPayload} />
         <details className="qr-details">
-          <summary>عرض حمولة البيانات المشفّرة (Base64 TLV)</summary>
+          <summary>{t("salesInvoices.view.qrPayloadSummary")}</summary>
           <div className="qr-box-payload">{invoice.qrPayload}</div>
         </details>
       </div>

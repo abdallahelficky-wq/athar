@@ -9,12 +9,12 @@ import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 
 export const INVENTORY_TABS = [
-  { id: "items", label: "الأصناف" },
-  { id: "warehouses", label: "المستودعات" },
-  { id: "inout", label: "إدخال / إخراج" },
-  { id: "issue", label: "الصرف المخزني" },
-  { id: "transfer", label: "التحويل بين الفروع" },
-  { id: "report", label: "تقرير الأرصدة" },
+  { id: "items", labelKey: "nav.tabs.items" },
+  { id: "warehouses", labelKey: "nav.tabs.warehouses" },
+  { id: "inout", labelKey: "nav.tabs.inout" },
+  { id: "issue", labelKey: "nav.tabs.issue" },
+  { id: "transfer", labelKey: "nav.tabs.transfer" },
+  { id: "report", labelKey: "nav.tabs.report" },
 ];
 
 export default function InventoryWiredModule({ tab, setTab, companies, companyId }) {

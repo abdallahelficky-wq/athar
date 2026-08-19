@@ -8,11 +8,11 @@ import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 
 export const FIXED_ASSETS_TABS = [
-  { id: "register", label: "سجل الأصول" },
-  { id: "depreciation", label: "الإهلاك الشهري" },
-  { id: "disposal", label: "الاستبعاد/البيع" },
-  { id: "reports", label: "التقارير" },
-  { id: "categories", label: "إعدادات الأصول الثابتة" },
+  { id: "register", labelKey: "nav.tabs.register" },
+  { id: "depreciation", labelKey: "nav.tabs.depreciation" },
+  { id: "disposal", labelKey: "nav.tabs.disposal" },
+  { id: "reports", labelKey: "nav.tabs.reports" },
+  { id: "categories", labelKey: "nav.tabs.categories" },
 ];
 
 export default function FixedAssetsWiredModule({ tab, setTab, companies, companyId }) {

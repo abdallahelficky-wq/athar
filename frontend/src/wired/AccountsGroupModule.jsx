@@ -7,11 +7,11 @@ import { ZakatModule } from "../legacy/zakat";
 import SubTabs from "./shared/SubTabs";
 
 export const ACCOUNTS_TABS = [
-  { id: "journal", label: "القيود اليومية" },
-  { id: "chartOfAccounts", label: "شجرة الحسابات" },
-  { id: "ledger", label: "كشف حساب الأستاذ" },
-  { id: "departments", label: "الأقسام" },
-  { id: "zakat", label: "الزكاة والضريبة (تقديرية، بيانات تجريبية)" },
+  { id: "journal", labelKey: "nav.tabs.journal" },
+  { id: "chartOfAccounts", labelKey: "nav.tabs.chartOfAccounts" },
+  { id: "ledger", labelKey: "nav.tabs.ledger" },
+  { id: "departments", labelKey: "nav.tabs.departments" },
+  { id: "zakat", labelKey: "nav.tabs.zakat" },
 ];
 
 export default function AccountsGroupModule({

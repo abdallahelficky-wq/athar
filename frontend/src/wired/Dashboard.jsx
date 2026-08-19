@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getFinancialKpis } from "../api/dashboard";
 import { fmt } from "../legacy/constants";
 import FinancialDashboard from "./dashboard/FinancialDashboard";
@@ -8,6 +9,7 @@ import CompanyCards from "./shared/CompanyCards";
 /** جدول مقارنة سريع بين شركات المجموعة (كل شركة على حدة) يُكمّل الأرقام المجمّعة لكل
  * المجموعة التي تعرضها FinancialDashboard نفسها (بدون تمرير companyId = تجميع تلقائي) */
 function GroupComparisonTable({ companies }) {
+  const { t } = useTranslation();
   const [rows, setRows] = useState(null);
 
   useEffect(() => {
@@ -17,7 +19,7 @@ function GroupComparisonTable({ companies }) {
     Promise.all(companies.map((c) => getFinancialKpis(c.id, dateFrom, dateTo).then((k) => ({ company: c, ...k })))).then(setRows);
   }, [companies]);
 
-  if (!rows) return <p className="empty">جارٍ تجميع بيانات كل الشركات...</p>;
+  if (!rows) return <p className="empty">{t("dashboard.loadingAllCompanies")}</p>;
 
   const grand = rows.reduce(
     (acc, r) => ({
@@ -32,9 +34,18 @@ function GroupComparisonTable({ companies }) {
 
   return (
     <div className="panel">
-      <h3>مقارنة بين شركات المجموعة (الشهر الحالي)</h3>
+      <h3>{t("dashboard.comparisonTitle")}</h3>
       <table className="ledger-table">
-        <thead><tr><th>الشركة</th><th>صافي المبيعات</th><th>صافي الربح التقديري</th><th>الرصيد النقدي</th><th>مستحقات العملاء</th><th>مستحقات الموردين</th></tr></thead>
+        <thead>
+          <tr>
+            <th>{t("dashboard.comparisonTable.company")}</th>
+            <th>{t("dashboard.comparisonTable.netSales")}</th>
+            <th>{t("dashboard.comparisonTable.netProfitEstimate")}</th>
+            <th>{t("dashboard.comparisonTable.cashBalance")}</th>
+            <th>{t("dashboard.comparisonTable.receivables")}</th>
+            <th>{t("dashboard.comparisonTable.payables")}</th>
+          </tr>
+        </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.company.id}>
@@ -49,7 +60,7 @@ function GroupComparisonTable({ companies }) {
         </tbody>
         <tfoot>
           <tr>
-            <td className="foot-label">الإجمالي</td>
+            <td className="foot-label">{t("dashboard.comparisonTable.total")}</td>
             <td className="num strong">{fmt(grand.salesCurrent)}</td>
             <td className="num strong">{fmt(grand.netProfitEstimate)}</td>
             <td className="num strong">{fmt(grand.cashBalance)}</td>
@@ -69,20 +80,21 @@ function GroupComparisonTable({ companies }) {
  * فقط من "الإعدادات ← بيانات الشركات".
  */
 export default function Dashboard({ companies, companyId, setCompanyId, onNavigateToCompanySettings }) {
+  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState("company");
 
   return (
     <div>
       <div className="section-title">
-        <Breadcrumb parts={["نظرة عامة", "بيانات حقيقية"]} />
-        <h2>لوحة القيادة المالية</h2>
+        <Breadcrumb parts={[t("dashboard.breadcrumb.overview"), t("dashboard.breadcrumb.realData")]} />
+        <h2>{t("dashboard.title")}</h2>
       </div>
 
       {companies.length === 0 ? (
         <div className="panel form-panel">
-          <p className="empty">لا توجد شركات بعد.</p>
+          <p className="empty">{t("dashboard.noCompanies")}</p>
           <div className="form-btn-group">
-            <button className="btn-primary" onClick={onNavigateToCompanySettings}>+ إضافة أول شركة من الإعدادات</button>
+            <button className="btn-primary" onClick={onNavigateToCompanySettings}>{t("dashboard.addFirstCompany")}</button>
           </div>
         </div>
       ) : (
@@ -103,7 +115,7 @@ export default function Dashboard({ companies, companyId, setCompanyId, onNaviga
           ) : companyId ? (
             <FinancialDashboard companyId={companyId} />
           ) : (
-            <p className="empty">اختر شركة من الأعلى لعرض لوحة قيادتها.</p>
+            <p className="empty">{t("dashboard.chooseCompanyPrompt")}</p>
           )}
         </>
       )}

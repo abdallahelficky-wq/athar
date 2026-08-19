@@ -7,10 +7,10 @@ import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 
 export const PURCHASE_TABS = [
-  { id: "suppliers", label: "الموردون" },
-  { id: "invoices", label: "فواتير المشتريات" },
-  { id: "returns", label: "مردودات المشتريات" },
-  { id: "reports", label: "التقارير" },
+  { id: "suppliers", labelKey: "nav.tabs.suppliers" },
+  { id: "invoices", labelKey: "nav.tabs.purchaseInvoices" },
+  { id: "returns", labelKey: "nav.tabs.purchaseReturns" },
+  { id: "reports", labelKey: "nav.tabs.reports" },
 ];
 
 export default function PurchasesWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {

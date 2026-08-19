@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createJournalEntry, updateJournalEntry, postJournalEntry, getNextEntryNumber } from "../api/journalEntries";
 import { listFixedAssets } from "../api/fixedAssets";
 import { listAssetCategories } from "../api/assetCategories";
@@ -12,23 +13,6 @@ import EmployeeAdvanceLineModal from "./shared/EmployeeAdvanceLineModal";
 const emptyLine = () => ({
   accountId: "", costCenterId: "", departmentId: "", description: "", debit: "", credit: "",
   employeeId: "", fixedAssetId: "", employeeAdvanceId: "", newFixedAsset: null, newEmployeeAdvance: null,
-});
-
-const lineFromExisting = (l) => ({
-  accountId: l.accountId,
-  costCenterId: l.costCenterId || "",
-  departmentId: l.departmentId || "",
-  description: l.description || "",
-  debit: Number(l.debit) || "",
-  credit: Number(l.credit) || "",
-  employeeId: l.employeeId || "",
-  fixedAssetId: l.fixedAssetId || "",
-  employeeAdvanceId: l.employeeAdvanceId || "",
-  newFixedAsset: null,
-  newEmployeeAdvance: null,
-  // للعرض فقط (اسم الأصل/السلفة المرتبط) — لا يُرسَل للخادم عند الحفظ.
-  linkedFixedAssetLabel: l.fixedAsset ? `${l.fixedAsset.assetNumber} — ${l.fixedAsset.name}` : "",
-  linkedEmployeeAdvanceLabel: l.employeeAdvance ? `سلفة — ${fmt2(l.employeeAdvance.amount)} ر.س` : "",
 });
 
 /**
@@ -49,8 +33,26 @@ const lineFromExisting = (l) => ({
  * للمتصفح لأول اختصار).
  */
 export default function JournalEntryFormModal({ companyId, accounts, costCenters, departments, editingEntry, duplicateEntry, onClose, onSaved }) {
+  const { t } = useTranslation();
   const isEdit = !!editingEntry;
   const seed = editingEntry || duplicateEntry;
+
+  const lineFromExisting = (l) => ({
+    accountId: l.accountId,
+    costCenterId: l.costCenterId || "",
+    departmentId: l.departmentId || "",
+    description: l.description || "",
+    debit: Number(l.debit) || "",
+    credit: Number(l.credit) || "",
+    employeeId: l.employeeId || "",
+    fixedAssetId: l.fixedAssetId || "",
+    employeeAdvanceId: l.employeeAdvanceId || "",
+    newFixedAsset: null,
+    newEmployeeAdvance: null,
+    // للعرض فقط (اسم الأصل/السلفة المرتبط) — لا يُرسَل للخادم عند الحفظ.
+    linkedFixedAssetLabel: l.fixedAsset ? `${l.fixedAsset.assetNumber} — ${l.fixedAsset.name}` : "",
+    linkedEmployeeAdvanceLabel: l.employeeAdvance ? t("journalEntries.form.advanceLabel", { amount: fmt2(l.employeeAdvance.amount) }) : "",
+  });
 
   const [date, setDate] = useState(() => (isEdit ? seed.date.slice(0, 10) : new Date().toISOString().slice(0, 10)));
   const [memo, setMemo] = useState(seed?.memo || "");
@@ -146,7 +148,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
     const idx = linkModal.lineIndex;
     setLines((prev) => prev.map((l, i) => (i === idx ? {
       ...l, fixedAssetId: fixedAssetId || "", newFixedAsset,
-      linkedFixedAssetLabel: fixedAssetId ? (fixedAssets.find((a) => a.id === fixedAssetId)?.name || "") : (newFixedAsset ? `أصل جديد — ${newFixedAsset.name}` : ""),
+      linkedFixedAssetLabel: fixedAssetId ? (fixedAssets.find((a) => a.id === fixedAssetId)?.name || "") : (newFixedAsset ? `${t("journalEntries.form.newAsset")} — ${newFixedAsset.name}` : ""),
       debit: debit != null ? debit : l.debit,
     } : l)));
     setLinkModal(null);
@@ -156,7 +158,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
     const idx = linkModal.lineIndex;
     setLines((prev) => prev.map((l, i) => (i === idx ? {
       ...l, employeeAdvanceId: employeeAdvanceId || "", newEmployeeAdvance, employeeId: employeeId || l.employeeId,
-      linkedEmployeeAdvanceLabel: employeeAdvanceId ? "سلفة موجودة" : (newEmployeeAdvance ? "سلفة جديدة" : ""),
+      linkedEmployeeAdvanceLabel: employeeAdvanceId ? t("journalEntries.form.existingAdvance") : (newEmployeeAdvance ? t("journalEntries.form.newAdvance") : ""),
       debit: debit != null ? debit : l.debit,
     } : l)));
     setLinkModal(null);
@@ -205,12 +207,12 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
       if (isEdit) {
         await updateJournalEntry(editingEntry.id, buildPayload());
         if (post) await postJournalEntry(editingEntry.id);
-        onSaved(post ? "تم حفظ التعديلات وترحيل القيد. لن يمكن تعديله مباشرة بعد الآن." : "تم حفظ تعديلات القيد.");
+        onSaved(post ? t("journalEntries.form.savedEditPosted") : t("journalEntries.form.savedEditDraft"));
       } else {
         await createJournalEntry({ ...buildPayload(), post });
         onSaved(post
-          ? duplicateEntry ? "تم إنشاء نسخة جديدة من القيد وترحيلها." : "تم إنشاء القيد وترحيله. لن يمكن تعديله مباشرة بعد الآن."
-          : duplicateEntry ? "تم حفظ نسخة جديدة من القيد." : "تم حفظ القيد — يظهر فوراً في التقارير وكشوف الحسابات، وقابل للتعديل حتى يُرحَّل.");
+          ? duplicateEntry ? t("journalEntries.form.savedDuplicatePosted") : t("journalEntries.form.savedCreatePosted")
+          : duplicateEntry ? t("journalEntries.form.savedDuplicateDraft") : t("journalEntries.form.savedCreateDraft"));
       }
     } catch (err) {
       setError(err.message);
@@ -223,30 +225,38 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
     <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <div className="invoice-modal-box journal-modal-box">
         <div className="modal-title-row">
-          <h3>{isEdit ? "تعديل القيد" : duplicateEntry ? "نسخ القيد إلى قيد جديد" : "إضافة قيد يومية"}</h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+          <h3>{isEdit ? t("journalEntries.form.titleEdit") : duplicateEntry ? t("journalEntries.form.titleDuplicate") : t("journalEntries.form.titleCreate")}</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label={t("journalEntries.form.close")}>×</button>
         </div>
 
         <div className="journal-modal-scroll">
-          {duplicateEntry && <div className="edit-banner">تم نسخ بيانات القيد — راجعها قبل حفظ القيد الجديد</div>}
+          {duplicateEntry && <div className="edit-banner">{t("journalEntries.form.duplicateBanner")}</div>}
 
           <div className="form-grid header-grid">
-            <label>التاريخ<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+            <label>{t("journalEntries.form.date")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
             <label>
-              رقم القيد
+              {t("journalEntries.form.entryNumber")}
               <input
                 type="text" disabled
                 value={isEdit ? (editingEntry.entryNumber || editingEntry.id.slice(-8)) : (numberPreview?.preview || "—")}
-                title={isEdit ? "" : "رقم معاينة فقط — لا يُحجز إلا لحظة الحفظ"}
+                title={isEdit ? "" : t("journalEntries.form.entryNumberPreviewTitle")}
               />
             </label>
-            <label className="memo-field">بيان القيد<input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="وصف عام للقيد" /></label>
+            <label className="memo-field">{t("journalEntries.form.memo")}<input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={t("journalEntries.form.memoPlaceholder")} /></label>
           </div>
 
           <div className="lines-table-wrap">
             <table className="lines-table">
               <thead>
-                <tr><th>الحساب</th><th>مدين</th><th>دائن</th><th>الوصف</th><th>مركز التكلفة</th><th>القسم</th><th></th></tr>
+                <tr>
+                  <th>{t("journalEntries.form.lines.account")}</th>
+                  <th>{t("journalEntries.form.lines.debit")}</th>
+                  <th>{t("journalEntries.form.lines.credit")}</th>
+                  <th>{t("journalEntries.form.lines.description")}</th>
+                  <th>{t("journalEntries.form.lines.costCenter")}</th>
+                  <th>{t("journalEntries.form.lines.department")}</th>
+                  <th></th>
+                </tr>
               </thead>
               <tbody>
                 {lines.map((l, idx) => (
@@ -260,14 +270,14 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
                       />
                       {(l.fixedAssetId || l.newFixedAsset) && (
                         <div className="line-link-badge">
-                          🔗 {l.linkedFixedAssetLabel || "أصل جديد"}
-                          <button type="button" className="btn-remove-line" onClick={() => clearLink(idx)} title="إلغاء الربط">✕</button>
+                          🔗 {l.linkedFixedAssetLabel || t("journalEntries.form.newAsset")}
+                          <button type="button" className="btn-remove-line" onClick={() => clearLink(idx)} title={t("journalEntries.form.unlinkTitle")}>✕</button>
                         </div>
                       )}
                       {(l.employeeAdvanceId || l.newEmployeeAdvance) && (
                         <div className="line-link-badge">
-                          🔗 {l.linkedEmployeeAdvanceLabel || "سلفة جديدة"}
-                          <button type="button" className="btn-remove-line" onClick={() => clearLink(idx)} title="إلغاء الربط">✕</button>
+                          🔗 {l.linkedEmployeeAdvanceLabel || t("journalEntries.form.newAdvance")}
+                          <button type="button" className="btn-remove-line" onClick={() => clearLink(idx)} title={t("journalEntries.form.unlinkTitle")}>✕</button>
                         </div>
                       )}
                     </td>
@@ -279,18 +289,18 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
                         type="text" value={l.description}
                         onChange={(e) => updateLine(idx, "description", e.target.value)}
                         onKeyDown={(e) => onDescriptionKeyDown(e, idx)}
-                        placeholder="وصف خاص بهذا السطر"
+                        placeholder={t("journalEntries.form.descriptionPlaceholder")}
                       />
                     </td>
                     <td>
                       <select value={l.costCenterId} onChange={(e) => updateLine(idx, "costCenterId", e.target.value)}>
-                        <option value="">— بدون —</option>
+                        <option value="">{t("common.clearOption")}</option>
                         {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </td>
                     <td>
                       <select value={l.departmentId} onChange={(e) => updateLine(idx, "departmentId", e.target.value)}>
-                        <option value="">— بدون —</option>
+                        <option value="">{t("common.clearOption")}</option>
                         {departmentOptions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                       </select>
                     </td>
@@ -300,7 +310,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
               </tbody>
               <tfoot>
                 <tr>
-                  <td className="foot-label">الإجمالي</td>
+                  <td className="foot-label">{t("journalEntries.form.total")}</td>
                   <td className="num">{fmt2(totalDebit)}</td>
                   <td className="num">{fmt2(totalCredit)}</td>
                   <td></td>
@@ -313,7 +323,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
           </div>
 
           <div className="journal-actions">
-            <button type="button" className="btn-ghost" onClick={addLine}>+ إضافة سطر</button>
+            <button type="button" className="btn-ghost" onClick={addLine}>{t("journalEntries.form.addLine")}</button>
           </div>
 
           {error && <p className="balance-bad">{error}</p>}
@@ -322,27 +332,25 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
         <div className="journal-modal-footer">
           <div className="journal-actions" style={{ marginBottom: 12 }}>
             {diff === 0 && totalDebit > 0 && (
-              <span className="balance-indicator indicator-ok">✓ القيد متوازن — جاهز للحفظ</span>
+              <span className="balance-indicator indicator-ok">{t("journalEntries.form.balanced")}</span>
             )}
             {diff !== 0 && (
-              <span className="balance-indicator indicator-bad">⚠ غير متوازن بفرق {fmt2(Math.abs(diff))} ر.س</span>
+              <span className="balance-indicator indicator-bad">{t("journalEntries.form.unbalanced", { amount: fmt2(Math.abs(diff)) })}</span>
             )}
             {diff === 0 && totalDebit === 0 && (
-              <span className="balance-indicator indicator-neutral">أدخل مبالغ السطور لعرض حالة التوازن</span>
+              <span className="balance-indicator indicator-neutral">{t("journalEntries.form.enterAmounts")}</span>
             )}
           </div>
 
           <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
-            <p className="journal-shortcuts-hint">
-              اختصارات: <kbd>Ctrl</kbd>+<kbd>S</kbd> حفظ · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> حفظ وترحيل · <kbd>Enter</kbd> في "الوصف" يضيف سطراً جديداً
-            </p>
+            <p className="journal-shortcuts-hint">{t("journalEntries.form.shortcutsHint")}</p>
             <div className="form-btn-group">
-              <button className="btn-ghost" onClick={onClose} disabled={saving}>إلغاء</button>
+              <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("journalEntries.form.cancel")}</button>
               <button className="btn-secondary" onClick={() => submit(false)} disabled={!canPost || saving}>
-                {saving ? "جارٍ الحفظ..." : "حفظ"}
+                {saving ? t("journalEntries.form.saving") : t("journalEntries.form.save")}
               </button>
               <button className="btn-primary" onClick={() => submit(true)} disabled={!canPost || saving}>
-                {saving ? "جارٍ الحفظ..." : "حفظ وترحيل"}
+                {saving ? t("journalEntries.form.saving") : t("journalEntries.form.saveAndPost")}
               </button>
             </div>
           </div>

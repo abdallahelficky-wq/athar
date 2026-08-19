@@ -16,11 +16,11 @@ import ComprehensiveMonthlyReport from "./ComprehensiveMonthlyReport";
 import ReportScheduleAutomation from "./ReportScheduleAutomation";
 
 export const REPORT_TABS = [
-  { id: "trial", label: "ميزان المراجعة" },
-  { id: "income", label: "قائمة الدخل" },
-  { id: "balance", label: "المركز المالي" },
-  { id: "monthly", label: "التقرير المالي الشهري الشامل" },
-  { id: "automation", label: "أتمتة الإرسال" },
+  { id: "trial", labelKey: "nav.tabs.trial" },
+  { id: "income", labelKey: "nav.tabs.income" },
+  { id: "balance", labelKey: "nav.tabs.balance" },
+  { id: "monthly", labelKey: "nav.tabs.monthly" },
+  { id: "automation", labelKey: "nav.tabs.automation" },
 ];
 
 /**

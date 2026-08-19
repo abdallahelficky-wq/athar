@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "./context/AuthContext";
 import { NavIcon } from "./legacy/navIcons";
 import { useCompanies } from "./wired/useCompanies";
 import LanguageSwitcher from "./wired/shared/LanguageSwitcher";
+import { formatDate } from "./i18n/dateFormat";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -26,17 +28,18 @@ import HRWiredModule, { HR_TABS } from "./wired/hr/HRWiredModule";
 import UserMenu from "./wired/shared/UserMenu";
 
 const NAV_GROUPS = [
-  { id: "sales", label: "المبيعات", tabs: SALES_TABS },
-  { id: "purchases", label: "المشتريات", tabs: PURCHASE_TABS },
-  { id: "inventory", label: "المستودعات والمنتجات", tabs: INVENTORY_TABS },
-  { id: "fixedAssets", label: "الأصول الثابتة", tabs: FIXED_ASSETS_TABS },
-  { id: "accounts", label: "الحسابات", tabs: ACCOUNTS_TABS },
-  { id: "hr", label: "شئون الموظفين", tabs: HR_TABS },
-  { id: "reports", label: "التقارير", tabs: REPORT_TABS },
-  { id: "settings", label: "الإعدادات", tabs: SETTINGS_TABS },
+  { id: "sales", labelKey: "nav.groups.sales", tabs: SALES_TABS },
+  { id: "purchases", labelKey: "nav.groups.purchases", tabs: PURCHASE_TABS },
+  { id: "inventory", labelKey: "nav.groups.inventory", tabs: INVENTORY_TABS },
+  { id: "fixedAssets", labelKey: "nav.groups.fixedAssets", tabs: FIXED_ASSETS_TABS },
+  { id: "accounts", labelKey: "nav.groups.accounts", tabs: ACCOUNTS_TABS },
+  { id: "hr", labelKey: "nav.groups.hr", tabs: HR_TABS },
+  { id: "reports", labelKey: "nav.groups.reports", tabs: REPORT_TABS },
+  { id: "settings", labelKey: "nav.groups.settings", tabs: SETTINGS_TABS },
 ];
 
 function AppShell({ onLoggedOut }) {
+  const { t, i18n } = useTranslation();
   const { user, tenant, logout, emailServiceConfigured } = useAuth();
   const real = useCompanies();
 
@@ -119,20 +122,20 @@ function AppShell({ onLoggedOut }) {
         <div className="brand">
           <div className="brand-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
           <div>
-            <div className="brand-name">أثر المحاسبي</div>
+            <div className="brand-name">{t("common.brandName")}</div>
             <div className="brand-sub">{tenant?.name}</div>
           </div>
           <button
             className="sidebar-close-btn"
             onClick={() => setIsMobileSidebarOpen(false)}
-            aria-label="إغلاق القائمة"
+            aria-label={t("nav.closeMenu")}
           >✕</button>
         </div>
 
         <div className="nav-list">
           <button className={"nav-btn nav-home" + (moduleId === "dashboard" ? " active" : "")} onClick={() => setModuleId("dashboard")}>
             <span className="nav-icon"><NavIcon name="dashboard" /></span>
-            <span>لوحة القيادة</span>
+            <span>{t("nav.dashboard")}</span>
           </button>
         </div>
 
@@ -144,20 +147,20 @@ function AppShell({ onLoggedOut }) {
               <div className="nav-group" key={g.id}>
                 <button className={"nav-group-toggle" + (moduleId === g.id ? " active" : "")} onClick={() => handleGroupClick(g.id)}>
                   <span className="nav-icon"><NavIcon name={g.id} /></span>
-                  <span className="nav-label">{g.label}</span>
+                  <span className="nav-label">{t(g.labelKey)}</span>
                   <span className={"nav-caret" + (isOpen ? " open" : "")}>▾</span>
                 </button>
                 <div className={"nav-subitems-wrap" + (isOpen ? " open" : "")}>
                   <div className="nav-subitems-inner">
                     <div className="nav-subitems">
-                      {g.tabs.map((t) => (
+                      {g.tabs.map((tab) => (
                         <button
-                          key={t.id}
-                          className={"nav-subitem" + (moduleId === g.id && curTab === t.id ? " active" : "")}
-                          onClick={() => { setModuleId(g.id); setCurTab(t.id); }}
+                          key={tab.id}
+                          className={"nav-subitem" + (moduleId === g.id && curTab === tab.id ? " active" : "")}
+                          onClick={() => { setModuleId(g.id); setCurTab(tab.id); }}
                         >
-                          <span className="nav-icon nav-icon-sm"><NavIcon name={t.id} /></span>
-                          <span>{t.label}</span>
+                          <span className="nav-icon nav-icon-sm"><NavIcon name={tab.id} /></span>
+                          <span>{t(tab.labelKey)}</span>
                         </button>
                       ))}
                     </div>
@@ -171,12 +174,12 @@ function AppShell({ onLoggedOut }) {
 
       <div className="main">
         <div className="topbar">
-          <button className="hamburger-btn" onClick={() => setIsMobileSidebarOpen(true)} aria-label="فتح القائمة">☰</button>
+          <button className="hamburger-btn" onClick={() => setIsMobileSidebarOpen(true)} aria-label={t("nav.openMenu")}>☰</button>
           <span className="topbar-company">{tenant?.name}</span>
-          <button className="topbar-active-company" onClick={() => setModuleId("dashboard")} title="الرجوع للشاشة الرئيسية لتبديل الشركة">
-            الشركة النشطة: <strong>{activeCompany?.shortName || activeCompany?.name || "لم تُختَر بعد"}</strong>
+          <button className="topbar-active-company" onClick={() => setModuleId("dashboard")} title={t("nav.activeCompanyTitle")}>
+            {t("nav.activeCompanyLabel")} <strong>{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</strong>
           </button>
-          <span className="topbar-date">{new Date().toLocaleDateString("ar-SA")}</span>
+          <span className="topbar-date">{formatDate(new Date(), i18n.language)}</span>
           <LanguageSwitcher />
           <UserMenu
             name={user?.name}
@@ -188,8 +191,7 @@ function AppShell({ onLoggedOut }) {
 
         {!emailServiceConfigured && (user?.role === "admin" || user?.role === "super_admin") && (
           <div className="system-warning-banner">
-            ⚠️ خدمة إرسال الإيميلات غير مفعَّلة على الخادم — الإيميلات (ترحيب، دعوة مستخدم، إرسال فاتورة)
-            لن تصل لأي مستلم. راجِع متغيّر <code>RESEND_API_KEY</code> في إعدادات النشر.
+            {t("nav.emailWarningBefore")} <code>RESEND_API_KEY</code> {t("nav.emailWarningAfter")}
           </div>
         )}
 

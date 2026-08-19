@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { NavIcon } from "../../legacy/navIcons";
 
 /**
@@ -9,17 +10,18 @@ import { NavIcon } from "../../legacy/navIcons";
  * الطباعة في شاشة التقارير) يُمرَّر عبر `trailing` ويُثبَّت على الحافة دون كسر توسيط التبويبات نفسها.
  */
 export default function SubTabs({ tabs, active, onChange, trailing }) {
+  const { t } = useTranslation();
   return (
     <div className="subtabs-bar">
       <div className="subtabs-track">
-        {tabs.map((t) => (
+        {tabs.map((tab) => (
           <button
-            key={t.id}
-            className={"subtab" + (active === t.id ? " active" : "")}
-            onClick={() => onChange(t.id)}
+            key={tab.id}
+            className={"subtab" + (active === tab.id ? " active" : "")}
+            onClick={() => onChange(tab.id)}
           >
-            <span className="subtab-icon"><NavIcon name={t.id} /></span>
-            <span>{t.label}</span>
+            <span className="subtab-icon"><NavIcon name={tab.id} /></span>
+            <span>{tab.labelKey ? t(tab.labelKey) : tab.label}</span>
           </button>
         ))}
       </div>

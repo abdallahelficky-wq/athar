@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { computeInvoiceLine } from "../shared/invoiceLine";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
@@ -22,6 +23,7 @@ export function isSellableItem(item) {
  * المشترك نفسه حتى لا يتأثر منطق المشتريات (خارج نطاق هذا الطلب).
  */
 export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, items, onRequestNewItem }) {
+  const { t } = useTranslation();
   const sellableItems = items.filter(isSellableItem);
   const [openDropdownIdx, setOpenDropdownIdx] = useState(null);
   const [searchText, setSearchText] = useState("");
@@ -47,6 +49,7 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, ite
   };
 
   const filtered = (text) => sellableItems.filter((it) => !text || it.name.includes(text));
+  const currency = t("common.currency");
 
   return (
     <div>
@@ -54,8 +57,10 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, ite
         <table className="lines-table">
           <thead>
             <tr>
-              <th>الصنف/الوصف</th><th>الحساب</th><th>الكمية</th><th>سعر الوحدة</th>
-              <th>شامل الضريبة؟</th><th>خاضع للضريبة؟</th><th>خصم %</th><th>الإجمالي شامل الضريبة</th><th></th>
+              <th>{t("salesInvoices.form.lines.itemDescription")}</th><th>{t("salesInvoices.form.lines.account")}</th>
+              <th>{t("salesInvoices.form.lines.quantity")}</th><th>{t("salesInvoices.form.lines.unitPrice")}</th>
+              <th>{t("salesInvoices.form.lines.priceIncludesVat")}</th><th>{t("salesInvoices.form.lines.vatApplicable")}</th>
+              <th>{t("salesInvoices.form.lines.discount")}</th><th>{t("salesInvoices.form.lines.totalWithVat")}</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -68,20 +73,20 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, ite
                     onChange={(e) => { updateLine(idx, { description: e.target.value, itemId: "" }); setSearchText(e.target.value); setOpenDropdownIdx(idx); }}
                     onFocus={() => { setSearchText(l.description); setOpenDropdownIdx(idx); }}
                     onBlur={() => setTimeout(() => setOpenDropdownIdx((v) => (v === idx ? null : v)), 150)}
-                    placeholder="اكتب اسم الصنف أو وصفاً حراً"
+                    placeholder={t("salesInvoices.form.lines.itemPlaceholder")}
                   />
                   {openDropdownIdx === idx && (
                     <div className="item-combo-dropdown">
                       {filtered(searchText).map((it) => (
                         <div key={it.id} className="item-combo-option" onMouseDown={() => pickItem(idx, it)}>
-                          {it.name} <span className="note" style={{ margin: 0 }}>({fmt2(Number(it.salePrice || 0))} ر.س)</span>
+                          {it.name} <span className="note" style={{ margin: 0 }}>({fmt2(Number(it.salePrice || 0))} {currency})</span>
                         </div>
                       ))}
                       <div
                         className="item-combo-option item-combo-new"
                         onMouseDown={() => { setOpenDropdownIdx(null); onRequestNewItem(idx, searchText); }}
                       >
-                        + إضافة صنف جديد {searchText ? `باسم "${searchText}"` : ""}
+                        {searchText ? t("salesInvoices.form.lines.addNewItemNamed", { name: searchText }) : t("salesInvoices.form.lines.addNewItem")}
                       </div>
                     </div>
                   )}
@@ -105,19 +110,19 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, ite
           </tbody>
           <tfoot>
             <tr>
-              <td className="foot-label" colSpan={7}>الإجمالي</td>
+              <td className="foot-label" colSpan={7}>{t("salesInvoices.form.lines.total")}</td>
               <td className="num">{fmt2(grandTotal)}</td>
               <td></td>
             </tr>
           </tfoot>
         </table>
       </div>
-      <button className="btn-ghost" onClick={addLine}>+ إضافة سطر</button>
+      <button className="btn-ghost" onClick={addLine}>{t("salesInvoices.form.lines.addLine")}</button>
 
       <div className="preview-box">
-        <div className="preview-row"><span>الإجمالي قبل الضريبة</span><strong>{fmt2(subtotal)} ر.س</strong></div>
-        <div className="preview-row"><span>ضريبة القيمة المضافة (15٪)</span><strong>{fmt2(vatTotal)} ر.س</strong></div>
-        <div className="preview-row net-row"><span>الإجمالي شامل الضريبة</span><strong>{fmt2(grandTotal)} ر.س</strong></div>
+        <div className="preview-row"><span>{t("salesInvoices.form.lines.subtotal")}</span><strong>{fmt2(subtotal)} {currency}</strong></div>
+        <div className="preview-row"><span>{t("salesInvoices.form.lines.vat")}</span><strong>{fmt2(vatTotal)} {currency}</strong></div>
+        <div className="preview-row net-row"><span>{t("salesInvoices.form.lines.grandTotal")}</span><strong>{fmt2(grandTotal)} {currency}</strong></div>
       </div>
     </div>
   );

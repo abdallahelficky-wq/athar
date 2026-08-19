@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { listAccounts } from "../api/accounts";
 import { listCostCenters } from "../api/costCenters";
@@ -24,19 +25,14 @@ import UnpostModal from "./shared/UnpostModal";
 import ActionsMenu from "./shared/ActionsMenu";
 import JournalVoucherViewModal from "./JournalVoucherViewModal";
 import JournalEntryFormModal from "./JournalEntryFormModal";
-
-const UNPOST_WARNING_TEXT = "فك ترحيل القيد سيسمح بتعديله أو حذفه، وهذا إجراء استثنائي يُسجَّل في سجل التدقيق. هل أنت متأكد؟";
+import { formatDate } from "../i18n/dateFormat";
 
 const emptyFilters = { search: "", dateFrom: "", dateTo: "", amountMin: "", amountMax: "", entryNumber: "", accountId: "", status: "" };
-
-// لا يوجد "مسودة" في دورة حياة القيد الجديدة — "محفوظ" (قابل للتعديل، يؤثر على التقارير فوراً) أو "مرحّل" (مقفل نهائياً)
-const statusLabel = (s) => (s === "posted" ? "مرحّل" : "محفوظ");
-const entryNumberLabel = (e) => e.entryNumber || e.id.slice(-8);
-const fmtDate = (d) => String(d).slice(0, 10);
 
 const SORT_COLUMNS = { entryNumber: "entryNumber", date: "date", amount: "amount" };
 
 export default function JournalModule({ companies, companyId }) {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
   const [accounts, setAccounts] = useState([]);
@@ -46,6 +42,11 @@ export default function JournalModule({ companies, companyId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  // لا يوجد "مسودة" في دورة حياة القيد الجديدة — "محفوظ" (قابل للتعديل، يؤثر على التقارير فوراً) أو "مرحّل" (مقفل نهائياً)
+  const statusLabel = (s) => (s === "posted" ? t("journalEntries.statusPosted") : t("journalEntries.statusSaved"));
+  const entryNumberLabel = (e) => e.entryNumber || e.id.slice(-8);
+  const fmtDate = (d) => formatDate(d, i18n.language);
 
   const jf = useDeferredFilters(emptyFilters);
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -145,7 +146,7 @@ export default function JournalModule({ companies, companyId }) {
   };
 
   const remove = async (entry) => {
-    if (!window.confirm("حذف هذا القيد نهائياً؟")) return;
+    if (!window.confirm(t("journalEntries.confirmDelete"))) return;
     try {
       await deleteJournalEntry(entry.id);
       reloadEntries();
@@ -171,7 +172,7 @@ export default function JournalModule({ companies, companyId }) {
     await unpostJournalEntry(unpostTarget.id, pin);
     setUnpostTarget(null);
     reloadEntries();
-    setNotice(`تم فك ترحيل القيد ${num} — أصبح الآن محفوظاً ويمكن تعديله أو حذفه.`);
+    setNotice(t("journalEntries.notify.unposted", { number: num }));
   };
 
   const toggleLinkInfo = async (e) => {
@@ -198,83 +199,86 @@ export default function JournalModule({ companies, companyId }) {
   return (
     <div>
       <div className="section-title">
-        <Breadcrumb parts={["دفتر اليومية", "بيانات حقيقية"]} />
+        <Breadcrumb parts={[t("journalEntries.breadcrumb"), t("dashboard.breadcrumb.realData")]} />
       </div>
 
       {error && <p className="balance-bad">{error}</p>}
       {notice && <p className="balance-ok">{notice}</p>}
 
       {!companyId ? (
-        <p className="empty">أنشئ شركة أولاً من لوحة القيادة لبدء تسجيل القيود.</p>
+        <p className="empty">{t("journalEntries.noCompany")}</p>
       ) : (
         <>
           <div className="journal-page-head">
             <div className="journal-page-head-text">
-              <p className="items-eyebrow">دفتر اليومية</p>
-              <h2>قائمة القيود المحاسبية</h2>
-              <p>تسجيل ومتابعة كل القيود المحاسبية اليومية بحالتيها: محفوظ ومرحّل</p>
+              <p className="items-eyebrow">{t("journalEntries.eyebrow")}</p>
+              <h2>{t("journalEntries.title")}</h2>
+              <p>{t("journalEntries.subtitle")}</p>
             </div>
             <div className="journal-page-head-cta">
-              <button className="btn-primary journal-new-entry-btn" onClick={() => setFormModal({ mode: "create" })}>+ قيد يدوي جديد</button>
+              <button className="btn-primary journal-new-entry-btn" onClick={() => setFormModal({ mode: "create" })}>{t("journalEntries.newEntry")}</button>
             </div>
           </div>
 
           <div className="journal-secondary-actions">
-            <button className="btn-ghost" onClick={() => setShowFromDocument(true)}>إنشاء قيد من مستند (ذكاء اصطناعي)</button>
-            <button className="btn-ghost" onClick={() => setShowBulkImport(true)}>استيراد قيود بالجملة</button>
+            <button className="btn-ghost" onClick={() => setShowFromDocument(true)}>{t("journalEntries.createFromDocument")}</button>
+            <button className="btn-ghost" onClick={() => setShowBulkImport(true)}>{t("journalEntries.bulkImport")}</button>
             <button
               className="btn-ghost"
-              onClick={() => downloadCsv("القيود_اليومية.csv", [
-                ["رقم القيد", "التاريخ", "البيان", "الحالة", "الإجمالي"],
+              onClick={() => downloadCsv(t("journalEntries.csvFileName"), [
+                [
+                  t("journalEntries.csvHeaders.entryNumber"), t("journalEntries.csvHeaders.date"),
+                  t("journalEntries.csvHeaders.memo"), t("journalEntries.csvHeaders.status"), t("journalEntries.csvHeaders.total"),
+                ],
                 ...entries.map((e) => [entryNumberLabel(e), fmtDate(e.date), e.memo, statusLabel(e.status), entryTotal(e)]),
               ])}
             >
-              تصدير Excel/CSV
+              {t("journalEntries.exportCsv")}
             </button>
           </div>
 
           <div className="panel form-panel">
             <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); jf.apply(); }}>
-              <label>بحث بالبيان<input type="text" value={jf.draft.search} onChange={(e) => jf.setField("search", e.target.value)} placeholder="بحث بالبيان" /></label>
-              <label>رقم القيد<input type="text" value={jf.draft.entryNumber} onChange={(e) => jf.setField("entryNumber", e.target.value)} placeholder="بحث برقم القيد" /></label>
-              <label>من تاريخ<input type="date" value={jf.draft.dateFrom} onChange={(e) => jf.setField("dateFrom", e.target.value)} /></label>
-              <label>إلى تاريخ<input type="date" value={jf.draft.dateTo} onChange={(e) => jf.setField("dateTo", e.target.value)} /></label>
-              <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+              <label>{t("journalEntries.filters.searchByMemo")}<input type="text" value={jf.draft.search} onChange={(e) => jf.setField("search", e.target.value)} placeholder={t("journalEntries.filters.searchByMemo")} /></label>
+              <label>{t("journalEntries.filters.entryNumber")}<input type="text" value={jf.draft.entryNumber} onChange={(e) => jf.setField("entryNumber", e.target.value)} placeholder={t("journalEntries.filters.entryNumberPlaceholder")} /></label>
+              <label>{t("journalEntries.filters.dateFrom")}<input type="date" value={jf.draft.dateFrom} onChange={(e) => jf.setField("dateFrom", e.target.value)} /></label>
+              <label>{t("journalEntries.filters.dateTo")}<input type="date" value={jf.draft.dateTo} onChange={(e) => jf.setField("dateTo", e.target.value)} /></label>
+              <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("journalEntries.filters.showResults")}</button>
               {hasActiveFilters && (
-                <button type="button" className="btn-ghost" onClick={clearFilters} style={{ alignSelf: "end" }}>مسح الفلاتر</button>
+                <button type="button" className="btn-ghost" onClick={clearFilters} style={{ alignSelf: "end" }}>{t("journalEntries.filters.clearFilters")}</button>
               )}
 
               <button type="button" className="journal-filters-toggle" onClick={() => setAdvancedOpen((v) => !v)} style={{ gridColumn: "1 / -1" }}>
-                فلاتر متقدمة (حساب معيّن، حالة القيد، المبلغ)
+                {t("journalEntries.filters.advancedToggle")}
                 <span className={"caret" + (advancedOpen ? " open" : "")}>▾</span>
               </button>
               <div className={"journal-advanced-filters" + (advancedOpen ? " open" : "")} style={{ gridColumn: "1 / -1" }}>
                 <div className="journal-advanced-filters-inner">
                   <div className="filter-bar" style={{ marginBottom: 0 }}>
                     <label>
-                      حساب معيّن
+                      {t("journalEntries.filters.specificAccount")}
                       <AccountSearchSelect
                         accounts={accounts}
                         value={jf.draft.accountId}
                         onChange={(accountId) => jf.setField("accountId", accountId)}
-                        placeholder="فلترة بحساب من الشجرة"
+                        placeholder={t("journalEntries.filters.accountPlaceholder")}
                         allowClear
-                        clearLabel="— كل الحسابات —"
+                        clearLabel={t("journalEntries.filters.allAccounts")}
                       />
                     </label>
                     <label>
-                      حالة القيد
+                      {t("journalEntries.filters.entryStatus")}
                       <select value={jf.draft.status} onChange={(e) => jf.setField("status", e.target.value)}>
-                        <option value="">— الكل —</option>
-                        <option value="saved">محفوظ</option>
-                        <option value="posted">مرحّل</option>
+                        <option value="">{t("journalEntries.filters.all")}</option>
+                        <option value="saved">{t("journalEntries.filters.saved")}</option>
+                        <option value="posted">{t("journalEntries.filters.posted")}</option>
                       </select>
                     </label>
                     <label>
-                      المبلغ
+                      {t("journalEntries.filters.amount")}
                       <div className="filter-field-pair">
-                        <input type="number" value={jf.draft.amountMin} onChange={(e) => jf.setField("amountMin", e.target.value)} placeholder="من" />
-                        <input type="number" value={jf.draft.amountMax} onChange={(e) => jf.setField("amountMax", e.target.value)} placeholder="إلى" />
+                        <input type="number" value={jf.draft.amountMin} onChange={(e) => jf.setField("amountMin", e.target.value)} placeholder={t("journalEntries.filters.amountFrom")} />
+                        <input type="number" value={jf.draft.amountMax} onChange={(e) => jf.setField("amountMax", e.target.value)} placeholder={t("journalEntries.filters.amountTo")} />
                       </div>
                     </label>
                   </div>
@@ -285,10 +289,10 @@ export default function JournalModule({ companies, companyId }) {
 
           {selectedIds.size > 0 && (
             <div className="journal-bulk-toolbar">
-              <strong>{selectedIds.size}</strong> قيد محدَّد
-              <button className="btn-ghost" disabled title="إجراءات جماعية — قريباً">طباعة المحدَّد (قريباً)</button>
-              <button className="btn-ghost" disabled title="إجراءات جماعية — قريباً">تصدير المحدَّد (قريباً)</button>
-              <button className="btn-ghost" onClick={() => setSelectedIds(new Set())}>إلغاء التحديد</button>
+              <strong>{selectedIds.size}</strong> {t("journalEntries.bulkToolbar.selected")}
+              <button className="btn-ghost" disabled title={t("journalEntries.bulkToolbar.comingSoon")}>{t("journalEntries.bulkToolbar.printSelected")}</button>
+              <button className="btn-ghost" disabled title={t("journalEntries.bulkToolbar.comingSoon")}>{t("journalEntries.bulkToolbar.exportSelected")}</button>
+              <button className="btn-ghost" onClick={() => setSelectedIds(new Set())}>{t("journalEntries.bulkToolbar.clearSelection")}</button>
             </div>
           )}
 
@@ -297,14 +301,14 @@ export default function JournalModule({ companies, companyId }) {
               <table className="ledger-table responsive-table journal-table">
                 <thead>
                   <tr>
-                    <th className="checkbox-col"><input type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="تحديد الكل" /></th>
-                    <SortHeader label="رقم القيد" sortKey={SORT_COLUMNS.entryNumber} />
-                    <SortHeader label="التاريخ" sortKey={SORT_COLUMNS.date} />
-                    <th>البيان</th>
-                    <th>عدد الأسطر</th>
-                    <SortHeader label="المبلغ" sortKey={SORT_COLUMNS.amount} />
-                    <th>الحالة</th>
-                    <th>الإجراءات</th>
+                    <th className="checkbox-col"><input type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label={t("journalEntries.table.selectAll")} /></th>
+                    <SortHeader label={t("journalEntries.table.entryNumber")} sortKey={SORT_COLUMNS.entryNumber} />
+                    <SortHeader label={t("journalEntries.table.date")} sortKey={SORT_COLUMNS.date} />
+                    <th>{t("journalEntries.table.memo")}</th>
+                    <th>{t("journalEntries.table.lineCount")}</th>
+                    <SortHeader label={t("journalEntries.table.amount")} sortKey={SORT_COLUMNS.amount} />
+                    <th>{t("journalEntries.table.status")}</th>
+                    <th>{t("journalEntries.table.actions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -327,40 +331,40 @@ export default function JournalModule({ companies, companyId }) {
                     return (
                       <React.Fragment key={e.id}>
                         <tr>
-                          <td data-label=""><input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelected(e.id)} aria-label="تحديد القيد" /></td>
-                          <td data-label="رقم القيد">{entryNumberLabel(e)}</td>
-                          <td data-label="التاريخ">{fmtDate(e.date)}</td>
-                          <td data-label="البيان">{e.memo || "بدون بيان"}</td>
-                          <td className="num" data-label="عدد الأسطر">{e.lines.length}</td>
-                          <td className="num" data-label="المبلغ">{fmt(entryTotal(e))}</td>
-                          <td data-label="الحالة"><span className={"status-badge " + (posted ? "status-posted" : "status-saved")}>{statusLabel(e.status)}</span></td>
+                          <td data-label=""><input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelected(e.id)} aria-label={t("journalEntries.table.selectEntry")} /></td>
+                          <td data-label={t("journalEntries.table.entryNumber")}>{entryNumberLabel(e)}</td>
+                          <td data-label={t("journalEntries.table.date")}>{fmtDate(e.date)}</td>
+                          <td data-label={t("journalEntries.table.memo")}>{e.memo || t("journalEntries.table.noMemo")}</td>
+                          <td className="num" data-label={t("journalEntries.table.lineCount")}>{e.lines.length}</td>
+                          <td className="num" data-label={t("journalEntries.table.amount")}>{fmt(entryTotal(e))}</td>
+                          <td data-label={t("journalEntries.table.status")}><span className={"status-badge " + (posted ? "status-posted" : "status-saved")}>{statusLabel(e.status)}</span></td>
                           <td className="row-actions">
-                            <button className="icon-btn" title="عرض القيد" onClick={() => setViewEntry(e)}><Icon.Eye /></button>
+                            <button className="icon-btn" title={t("journalEntries.rowActions.view")} onClick={() => setViewEntry(e)}><Icon.Eye /></button>
                             <button
-                              className="icon-btn" title={saved ? "تعديل" : "لا يمكن التعديل بعد الترحيل — استخدم عكس القيد لتصحيحه"}
+                              className="icon-btn" title={saved ? t("journalEntries.rowActions.edit") : t("journalEntries.rowActions.editDisabled")}
                               disabled={!saved}
                               onClick={() => saved && setFormModal({ mode: "edit", entry: e })}
                             ><Icon.Edit /></button>
                             {saved && (
                               <>
-                                <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(e)}><Icon.Trash /></button>
-                                <button className="icon-btn" title="ترحيل" onClick={() => doPost(e)}><Icon.Lock /></button>
+                                <button className="icon-btn icon-btn-danger" title={t("journalEntries.rowActions.delete")} onClick={() => remove(e)}><Icon.Trash /></button>
+                                <button className="icon-btn" title={t("journalEntries.rowActions.post")} onClick={() => doPost(e)}><Icon.Lock /></button>
                               </>
                             )}
                             {posted && !e.reversedByEntryId && (
-                              <button className="icon-btn" title="عكس القيد" onClick={() => setReverseSource(e)}><Icon.Unlink /></button>
+                              <button className="icon-btn" title={t("journalEntries.rowActions.reverse")} onClick={() => setReverseSource(e)}><Icon.Unlink /></button>
                             )}
                             {posted && isSuperAdmin && (
-                              <button className="icon-btn icon-btn-warn" title="فك الترحيل (super_admin فقط)" onClick={() => setUnpostTarget(e)}><Icon.Unlock /></button>
+                              <button className="icon-btn icon-btn-warn" title={t("journalEntries.rowActions.unpost")} onClick={() => setUnpostTarget(e)}><Icon.Unlock /></button>
                             )}
                             <ActionsMenu
                               items={[
-                                { label: "طباعة القيد", icon: Icon.Printer, onClick: () => { setViewEntry(e); setAutoPrint(true); } },
-                                { label: "نسخ القيد إلى قيد جديد", icon: Icon.Copy, onClick: () => setFormModal({ mode: "duplicate", entry: e }) },
-                                { label: "إنشاء قيد مرآة في شركة أخرى", icon: Icon.Link, onClick: () => setMirrorSource(e), hidden: !posted || Boolean(e.mirrorEntryId) },
-                                { label: "روابط القيد", icon: Icon.BookOpen, onClick: () => toggleLinkInfo(e), hidden: !hasLinks },
+                                { label: t("journalEntries.rowActions.print"), icon: Icon.Printer, onClick: () => { setViewEntry(e); setAutoPrint(true); } },
+                                { label: t("journalEntries.rowActions.duplicate"), icon: Icon.Copy, onClick: () => setFormModal({ mode: "duplicate", entry: e }) },
+                                { label: t("journalEntries.rowActions.mirror"), icon: Icon.Link, onClick: () => setMirrorSource(e), hidden: !posted || Boolean(e.mirrorEntryId) },
+                                { label: t("journalEntries.rowActions.links"), icon: Icon.BookOpen, onClick: () => toggleLinkInfo(e), hidden: !hasLinks },
                                 {
-                                  label: attachmentsFor === e.id ? "إخفاء المرفقات" : "المرفقات",
+                                  label: attachmentsFor === e.id ? t("journalEntries.rowActions.attachmentsHide") : t("journalEntries.rowActions.attachmentsShow"),
                                   icon: Icon.Paperclip,
                                   onClick: () => setAttachmentsFor(attachmentsFor === e.id ? null : e.id),
                                 },
@@ -371,18 +375,18 @@ export default function JournalModule({ companies, companyId }) {
                         {linkInfoId === e.id && (
                           <tr><td colSpan={8}>
                             <div className="note">
-                              {!linkInfo ? "جارٍ تحميل الروابط..." : (
+                              {!linkInfo ? t("journalEntries.linkInfo.loading") : (
                                 <>
                                   {linkInfo.mirrorEntry && (
-                                    <div>🔗 قيد مرآة مرتبط في شركة {linkInfo.mirrorEntry.companyName} بتاريخ {fmtDate(linkInfo.mirrorEntry.date)} — الحالة: {statusLabel(linkInfo.mirrorEntry.status)}</div>
+                                    <div>{t("journalEntries.linkInfo.mirror", { company: linkInfo.mirrorEntry.companyName, date: fmtDate(linkInfo.mirrorEntry.date), status: statusLabel(linkInfo.mirrorEntry.status) })}</div>
                                   )}
                                   {linkInfo.reversalOfEntry && (
-                                    <div>↩ هذا قيد عاكس للقيد رقم {linkInfo.reversalOfEntry.id.slice(-8)} بتاريخ {fmtDate(linkInfo.reversalOfEntry.date)} — الحالة: {statusLabel(linkInfo.reversalOfEntry.status)}</div>
+                                    <div>{t("journalEntries.linkInfo.reversalOf", { id: linkInfo.reversalOfEntry.id.slice(-8), date: fmtDate(linkInfo.reversalOfEntry.date), status: statusLabel(linkInfo.reversalOfEntry.status) })}</div>
                                   )}
                                   {linkInfo.reversedByEntry && (
-                                    <div>⚠ تم عكس هذا القيد بالقيد رقم {linkInfo.reversedByEntry.id.slice(-8)} بتاريخ {fmtDate(linkInfo.reversedByEntry.date)} — الحالة: {statusLabel(linkInfo.reversedByEntry.status)}</div>
+                                    <div>{t("journalEntries.linkInfo.reversedBy", { id: linkInfo.reversedByEntry.id.slice(-8), date: fmtDate(linkInfo.reversedByEntry.date), status: statusLabel(linkInfo.reversedByEntry.status) })}</div>
                                   )}
-                                  {!linkInfo.mirrorEntry && !linkInfo.reversalOfEntry && !linkInfo.reversedByEntry && "لا توجد روابط حالياً."}
+                                  {!linkInfo.mirrorEntry && !linkInfo.reversalOfEntry && !linkInfo.reversedByEntry && t("journalEntries.linkInfo.none")}
                                 </>
                               )}
                             </div>
@@ -398,8 +402,8 @@ export default function JournalModule({ companies, companyId }) {
                     <tr><td colSpan={8}>
                       <div className="journal-empty-state">
                         <span className="journal-empty-icon">📄</span>
-                        <strong>لا توجد قيود مطابقة</strong>
-                        <span>جرّب تعديل معايير البحث/الفلترة، أو أضف قيداً يدوياً جديداً.</span>
+                        <strong>{t("journalEntries.emptyState.title")}</strong>
+                        <span>{t("journalEntries.emptyState.subtitle")}</span>
                       </div>
                     </td></tr>
                   )}
@@ -454,7 +458,7 @@ export default function JournalModule({ companies, companyId }) {
           onClose={() => setMirrorSource(null)}
           onCreated={(mirror, targetCompany) => {
             setMirrorSource(null);
-            setNotice(`تم إنشاء القيد المقابل كمسودة في شركة ${targetCompany?.shortName || targetCompany?.name}.`);
+            setNotice(t("journalEntries.notify.mirrorCreated", { company: targetCompany?.shortName || targetCompany?.name }));
             reloadEntries();
           }}
         />
@@ -465,15 +469,15 @@ export default function JournalModule({ companies, companyId }) {
           onClose={() => setReverseSource(null)}
           onCreated={() => {
             setReverseSource(null);
-            setNotice("تم إنشاء القيد العكسي كمسودة — راجعه ثم رحّله.");
+            setNotice(t("journalEntries.notify.reverseCreated"));
             reloadEntries();
           }}
         />
       )}
       {unpostTarget && (
         <UnpostModal
-          title={`فك ترحيل القيد ${entryNumberLabel(unpostTarget)}`}
-          warningText={UNPOST_WARNING_TEXT}
+          title={t("journalEntries.unpostTitle", { number: entryNumberLabel(unpostTarget) })}
+          warningText={t("journalEntries.unpostWarning")}
           onCancel={() => setUnpostTarget(null)}
           onConfirm={doUnpost}
         />
