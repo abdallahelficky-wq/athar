@@ -36,7 +36,7 @@ const NAV_GROUPS = [
 ];
 
 function AppShell({ onLoggedOut }) {
-  const { user, tenant, logout } = useAuth();
+  const { user, tenant, logout, emailServiceConfigured } = useAuth();
   const real = useCompanies();
 
   const [moduleId, setModuleId] = useState("dashboard");
@@ -183,6 +183,13 @@ function AppShell({ onLoggedOut }) {
             onLogout={async () => { await logout(); onLoggedOut(); }}
           />
         </div>
+
+        {!emailServiceConfigured && (user?.role === "admin" || user?.role === "super_admin") && (
+          <div className="system-warning-banner">
+            ⚠️ خدمة إرسال الإيميلات غير مفعَّلة على الخادم — الإيميلات (ترحيب، دعوة مستخدم، إرسال فاتورة)
+            لن تصل لأي مستلم. راجِع متغيّر <code>RESEND_API_KEY</code> في إعدادات النشر.
+          </div>
+        )}
 
         {moduleId === "dashboard" && (
           <Dashboard

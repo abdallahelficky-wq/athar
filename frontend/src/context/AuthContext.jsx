@@ -19,6 +19,9 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(stored?.user ?? null);
   const [tenant, setTenant] = useState(stored?.tenant ?? null);
   const [initializing, setInitializing] = useState(true);
+  // مؤشّر تشخيصي فقط (من /auth/me، بلا تخزين محلي — يُعاد جلبه كل فتح تطبيق) لعرض تنبيه لوحة
+  // الإدارة لو خدمة الإيميل غير مضبوطة على الخادم؛ انظر التحذير المطابق في server.ts.
+  const [emailServiceConfigured, setEmailServiceConfigured] = useState(true);
 
   const reset = useCallback(() => {
     setUser(null);
@@ -44,6 +47,7 @@ export function AuthProvider({ children }) {
       .then((result) => {
         setUser(result.user);
         setTenant(result.tenant);
+        setEmailServiceConfigured(result.emailServiceConfigured !== false);
         localStorage.setItem(SESSION_KEY, JSON.stringify({ user: result.user, tenant: result.tenant }));
       })
       .catch(() => {
@@ -68,6 +72,7 @@ export function AuthProvider({ children }) {
     setTokens({ accessToken: result.accessToken, refreshToken: result.refreshToken });
     setUser(result.user);
     setTenant(result.tenant);
+    if (result.emailServiceConfigured !== undefined) setEmailServiceConfigured(result.emailServiceConfigured);
     localStorage.setItem(SESSION_KEY, JSON.stringify({ user: result.user, tenant: result.tenant }));
   };
 
@@ -120,6 +125,7 @@ export function AuthProvider({ children }) {
     setTenant,
     isAuthenticated: Boolean(user && getAccessToken()),
     initializing,
+    emailServiceConfigured,
     login,
     register,
     acceptInvite,

@@ -111,7 +111,7 @@ export async function register(input: { tenantName: string; name: string; email:
     console.error("فشل إرسال إيميل الترحيب:", err);
   }
 
-  return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens };
+  return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey) };
 }
 
 export async function login(input: { email: string; password: string }) {
@@ -126,7 +126,7 @@ export async function login(input: { email: string; password: string }) {
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
   const tokens = await issueTokenPair(user);
-  return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens };
+  return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey) };
 }
 
 export async function refresh(refreshToken: string) {
@@ -239,7 +239,7 @@ export async function acceptInvite(input: { token: string; password: string }) {
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: updated.tenantId } });
   const tokens = await issueTokenPair(updated);
-  return { tenant: publicTenant(tenant), user: publicUser(updated), ...tokens };
+  return { tenant: publicTenant(tenant), user: publicUser(updated), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey) };
 }
 
 export async function changeUnlockPin(tenantId: string, currentPin: string, newPin: string) {
@@ -270,7 +270,9 @@ export async function updateTenantName(tenantId: string, name: string) {
 export async function getMe(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
-  return { user: publicUser(user), tenant: publicTenant(tenant) };
+  // مؤشّر تشخيصي للوحة الإدارة فقط (مجرد boolean، بلا كشف أي سرّ) — انظر التحذير المطابق عند
+  // إقلاع الخادم في server.ts لنفس السبب.
+  return { user: publicUser(user), tenant: publicTenant(tenant), emailServiceConfigured: Boolean(env.resendApiKey) };
 }
 
 export async function updateMyName(userId: string, name: string) {

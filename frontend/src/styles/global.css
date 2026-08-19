@@ -418,6 +418,12 @@
           background: rgba(185,139,78,0.15); color: #8A5A2E; border: 1px solid #B98B4E;
           border-radius: 8px; padding: 7px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 14px;
         }
+
+        .system-warning-banner {
+          background: rgba(168,67,43,0.1); color: #A8432B; border-bottom: 1px solid rgba(168,67,43,0.3);
+          padding: 9px 24px; font-size: 12.5px; font-weight: 600; text-align: center;
+        }
+        .system-warning-banner code { font-family: 'JetBrains Mono', monospace; background: rgba(168,67,43,0.12); padding: 1px 6px; border-radius: 4px; }
         .form-btn-group { display: flex; gap: 10px; align-items: center; }
 
         .entry-card-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
