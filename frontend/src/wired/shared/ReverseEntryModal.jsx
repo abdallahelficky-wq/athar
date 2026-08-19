@@ -50,7 +50,7 @@ export default function ReverseEntryModal({ entry, onClose, onCreated }) {
               {reversedLines.map((l) => (
                 <tr key={l.id}>
                   <td>{l.account?.name}</td>
-                  <td>{l.department || "—"}</td>
+                  <td>{l.departmentRef?.name || l.department || "—"}</td>
                   <td>{l.description || "—"}</td>
                   <td className="num">{l.debit ? fmt2(l.debit) : "—"}</td>
                   <td className="num">{l.credit ? fmt2(l.credit) : "—"}</td>

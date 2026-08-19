@@ -36,6 +36,7 @@ export const lineSchema = z
     accountId: z.string().min(1, "الحساب مطلوب"),
     costCenterId: z.string().nullable().optional(),
     department: z.string().nullable().optional(),
+    departmentId: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
     debit: z.coerce.number().min(0).default(0),
     credit: z.coerce.number().min(0).default(0),

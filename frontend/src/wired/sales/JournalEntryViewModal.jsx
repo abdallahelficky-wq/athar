@@ -34,7 +34,7 @@ export default function JournalEntryViewModal({ journalEntryId, onClose }) {
                 {entry.lines.map((l) => (
                   <tr key={l.id}>
                     <td>{l.account?.name}</td>
-                    <td>{l.department || "—"}</td>
+                    <td>{l.departmentRef?.name || l.department || "—"}</td>
                     <td className="num">{Number(l.debit) ? fmt(Number(l.debit)) : "—"}</td>
                     <td className="num">{Number(l.credit) ? fmt(Number(l.credit)) : "—"}</td>
                   </tr>

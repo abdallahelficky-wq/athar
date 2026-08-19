@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { listAccounts } from "../api/accounts";
+import { listCostCenters } from "../api/costCenters";
+import { listDepartments } from "../api/departments";
 import { getAccountLedger } from "../api/reports";
 import { fmt } from "../legacy/constants";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
@@ -7,7 +9,23 @@ import Breadcrumb from "./shared/Breadcrumb";
 import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
 
-const emptyFilters = { accountId: "", dateFrom: "", dateTo: "" };
+const emptyFilters = { accountId: "", subAccountId: "", costCenterId: "", departmentId: "", dateFrom: "", dateTo: "" };
+
+/** كل حسابات الترحيل (isPosting) تحت حساب مجموعة معيّن، بحث بالعمق عبر parentId — مطابق تماماً
+ * لمنطق collectPostingDescendants في reports.service.ts (الخادم)، لكن على القائمة المحمَّلة محلياً. */
+function collectPostingDescendants(accounts, rootId) {
+  const byParent = new Map();
+  accounts.forEach((a) => byParent.set(a.parentId, [...(byParent.get(a.parentId) || []), a]));
+  const result = [];
+  const walk = (parentId) => {
+    for (const child of byParent.get(parentId) || []) {
+      if (child.isPosting) result.push(child);
+      else walk(child.id);
+    }
+  };
+  walk(rootId);
+  return result;
+}
 
 /**
  * كشف حساب الأستاذ لأي حساب من شجرة الحسابات — يعرض حركة الحساب مرتبة زمنياً مع رصيد متحرك،
@@ -16,6 +34,8 @@ const emptyFilters = { accountId: "", dateFrom: "", dateTo: "" };
  */
 export default function AccountLedgerModule({ companyId, companies, initialAccountId, onConsumeInitialAccountId }) {
   const [accounts, setAccounts] = useState([]);
+  const [costCenters, setCostCenters] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const alf = useDeferredFilters(emptyFilters);
   const [ledger, setLedger] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -27,6 +47,8 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
     // شجرة كاملة (وليس حسابات الترحيل فقط) — يمكن اختيار فرع تجميعي كامل (مثل "الذمم المدينة
     // التجارية") لعرض كشف حركة مجمَّع لكل عملائه معاً، وليس حساب ترحيل بعينه فقط.
     listAccounts({ tree: true, companyId }).then(setAccounts).catch((err) => setError(err.message));
+    listCostCenters().then(setCostCenters).catch((err) => setError(err.message));
+    listDepartments().then(setDepartments).catch((err) => setError(err.message));
     alf.reset(emptyFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
@@ -41,12 +63,34 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialAccountId, companyId]);
 
+  // لو الحساب المختار في الفلتر مجموعة (isPosting=false)، تظهر قائمة الحسابات الفرعية (التفصيلية
+  // فقط) تحته — اختيار حساب فرعي محدَّد منها يُضيّق الكشف عليه وحده؛ بلا اختيار، يبقى السلوك
+  // الافتراضي كشفاً مجمَّعاً لكل الحسابات الفرعية معاً (كما كان قبل هذه الإضافة).
+  const selectedAccount = useMemo(() => accounts.find((a) => a.id === alf.draft.accountId), [accounts, alf.draft.accountId]);
+  const subAccountOptions = useMemo(
+    () => (selectedAccount && !selectedAccount.isPosting ? collectPostingDescendants(accounts, selectedAccount.id) : []),
+    [accounts, selectedAccount],
+  );
+
+  const costCenterOptions = useMemo(
+    () => costCenters.filter((c) => !c.companyId || c.companyId === companyId),
+    [costCenters, companyId],
+  );
+  const departmentOptions = useMemo(
+    () => departments.filter((d) => !d.companyId || d.companyId === companyId),
+    [departments, companyId],
+  );
+
   useEffect(() => {
     const f = alf.applied;
-    if (!f.accountId || !companyId) { setLedger(null); return; }
+    const effectiveAccountId = f.subAccountId || f.accountId;
+    if (!effectiveAccountId || !companyId) { setLedger(null); return; }
     setLoading(true);
     setError("");
-    getAccountLedger(f.accountId, { companyId, from: f.dateFrom || undefined, to: f.dateTo || undefined })
+    getAccountLedger(effectiveAccountId, {
+      companyId, from: f.dateFrom || undefined, to: f.dateTo || undefined,
+      costCenterId: f.costCenterId || undefined, departmentId: f.departmentId || undefined,
+    })
       .then(setLedger)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -70,7 +114,33 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
             <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); alf.apply(); }}>
               <label>
                 الحساب
-                <AccountSearchSelect accounts={accounts} value={alf.draft.accountId} onChange={(accountId) => alf.setField("accountId", accountId)} placeholder="اختر حساباً لعرض حركته" />
+                <AccountSearchSelect
+                  accounts={accounts}
+                  value={alf.draft.accountId}
+                  onChange={(accountId) => alf.setDraft((prev) => ({ ...prev, accountId, subAccountId: "" }))}
+                  placeholder="اختر حساباً لعرض حركته"
+                />
+              </label>
+              {subAccountOptions.length > 0 && (
+                <label>
+                  الحساب الفرعي (اختياري — لتضييق الكشف على حساب واحد بعينه)
+                  <select value={alf.draft.subAccountId} onChange={(e) => alf.setField("subAccountId", e.target.value)}>
+                    <option value="">— كشف مجمَّع لكل الحسابات الفرعية —</option>
+                    {subAccountOptions.map((a) => <option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}
+                  </select>
+                </label>
+              )}
+              <label>مركز التكلفة
+                <select value={alf.draft.costCenterId} onChange={(e) => alf.setField("costCenterId", e.target.value)}>
+                  <option value="">كل مراكز التكلفة</option>
+                  {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+              <label>القسم
+                <select value={alf.draft.departmentId} onChange={(e) => alf.setField("departmentId", e.target.value)}>
+                  <option value="">كل الأقسام</option>
+                  {departmentOptions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
               </label>
               <label>من تاريخ<input type="date" value={alf.draft.dateFrom} onChange={(e) => alf.setField("dateFrom", e.target.value)} /></label>
               <label>إلى تاريخ<input type="date" value={alf.draft.dateTo} onChange={(e) => alf.setField("dateTo", e.target.value)} /></label>

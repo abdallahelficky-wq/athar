@@ -8,6 +8,7 @@ import { companyRoutes } from "./modules/companies/companies.routes";
 import { companyZatcaRoutes } from "./modules/companiesZatca/companiesZatca.routes";
 import { accountRoutes } from "./modules/accounts/accounts.routes";
 import { costCenterRoutes } from "./modules/costCenters/costCenters.routes";
+import { departmentRoutes } from "./modules/departments/departments.routes";
 import { journalEntryRoutes } from "./modules/journalEntries/journalEntries.routes";
 import { reportRoutes } from "./modules/reports/reports.routes";
 import { reportScheduleRoutes } from "./modules/reportSchedules/reportSchedules.routes";
@@ -66,6 +67,7 @@ export function createApp() {
   app.use("/api/companies/:id/zatca", companyZatcaRoutes);
   app.use("/api/accounts", accountRoutes);
   app.use("/api/cost-centers", costCenterRoutes);
+  app.use("/api/departments", departmentRoutes);
   app.use("/api/journal-entries", journalEntryRoutes);
   app.use("/api/reports", reportRoutes);
   app.use("/api/companies/:companyId", reportScheduleRoutes);

@@ -38,7 +38,7 @@ export default function JournalVoucherViewModal({ entry, companies, autoPrint, o
             <tr key={l.id}>
               <td>{l.account?.name}</td>
               <td>{l.costCenter?.name || "—"}</td>
-              <td>{l.department || "—"}</td>
+              <td>{l.departmentRef?.name || l.department || "—"}</td>
               <td>{l.description || "—"}</td>
               <td className="num">{Number(l.debit) ? fmt(Number(l.debit)) : "—"}</td>
               <td className="num">{Number(l.credit) ? fmt(Number(l.credit)) : "—"}</td>

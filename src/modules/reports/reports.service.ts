@@ -620,6 +620,7 @@ export async function getAccountLedger(
   companyId?: string,
   dateFrom?: Date,
   dateTo?: Date,
+  filters?: { costCenterId?: string; departmentId?: string },
 ) {
   const account = await prisma.account.findFirst({
     where: { id: accountId, tenantId, companyId: companyId || undefined },
@@ -638,13 +639,15 @@ export async function getAccountLedger(
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       accountId: { in: scopedAccountIds },
+      costCenterId: filters?.costCenterId || undefined,
+      departmentId: filters?.departmentId || undefined,
       journalEntry: {
         tenantId,
         companyId: companyId || undefined,
         date: { gte: dateFrom, lte: dateTo },
       },
     },
-    include: { journalEntry: { include: { company: true } }, costCenter: true, account: true },
+    include: { journalEntry: { include: { company: true } }, costCenter: true, departmentRef: true, account: true },
     orderBy: { journalEntry: { date: "asc" } },
   });
 
@@ -659,6 +662,7 @@ export async function getAccountLedger(
       entryMemo: l.journalEntry.memo,
       lineDescription: l.description,
       costCenterName: l.costCenter?.name || null,
+      departmentName: l.departmentRef?.name || l.department || null,
       companyName: l.journalEntry.company.shortName || l.journalEntry.company.name,
       accountId: l.accountId,
       accountName: l.account.name,

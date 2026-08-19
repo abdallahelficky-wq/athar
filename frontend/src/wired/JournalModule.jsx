@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { listAccounts } from "../api/accounts";
 import { listCostCenters } from "../api/costCenters";
+import { listDepartments } from "../api/departments";
 import {
   listJournalEntries,
   getJournalEntry,
@@ -40,6 +41,7 @@ export default function JournalModule({ companies, companyId }) {
   const isSuperAdmin = user?.role === "super_admin";
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -69,6 +71,7 @@ export default function JournalModule({ companies, companyId }) {
 
   useEffect(() => {
     listCostCenters().then(setCostCenters).catch((err) => setError(err.message));
+    listDepartments().then(setDepartments).catch((err) => setError(err.message));
   }, [companyId]);
 
   const reloadEntries = () => {
@@ -420,6 +423,7 @@ export default function JournalModule({ companies, companyId }) {
           companyId={companyId}
           accounts={accounts}
           costCenters={costCenters}
+          departments={departments}
           editingEntry={formModal.mode === "edit" ? formModal.entry : null}
           duplicateEntry={formModal.mode === "duplicate" ? formModal.entry : null}
           onClose={() => setFormModal(null)}

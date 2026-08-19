@@ -10,13 +10,14 @@ import FixedAssetLineModal from "./shared/FixedAssetLineModal";
 import EmployeeAdvanceLineModal from "./shared/EmployeeAdvanceLineModal";
 
 const emptyLine = () => ({
-  accountId: "", costCenterId: "", description: "", debit: "", credit: "",
+  accountId: "", costCenterId: "", departmentId: "", description: "", debit: "", credit: "",
   employeeId: "", fixedAssetId: "", employeeAdvanceId: "", newFixedAsset: null, newEmployeeAdvance: null,
 });
 
 const lineFromExisting = (l) => ({
   accountId: l.accountId,
   costCenterId: l.costCenterId || "",
+  departmentId: l.departmentId || "",
   description: l.description || "",
   debit: Number(l.debit) || "",
   credit: Number(l.credit) || "",
@@ -47,7 +48,7 @@ const lineFromExisting = (l) => ({
  * Ctrl/Cmd+S = حفظ، Ctrl/Cmd+Enter = حفظ وترحيل (preventDefault يمنع حوار حفظ الصفحة الافتراضي
  * للمتصفح لأول اختصار).
  */
-export default function JournalEntryFormModal({ companyId, accounts, costCenters, editingEntry, duplicateEntry, onClose, onSaved }) {
+export default function JournalEntryFormModal({ companyId, accounts, costCenters, departments, editingEntry, duplicateEntry, onClose, onSaved }) {
   const isEdit = !!editingEntry;
   const seed = editingEntry || duplicateEntry;
 
@@ -110,6 +111,10 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
   const costCenterOptions = useMemo(
     () => costCenters.filter((c) => !c.companyId || c.companyId === companyId),
     [costCenters, companyId],
+  );
+  const departmentOptions = useMemo(
+    () => departments.filter((d) => !d.companyId || d.companyId === companyId),
+    [departments, companyId],
   );
 
   const totalDebit = lines.reduce((s, l) => s + Number(l.debit || 0), 0);
@@ -180,6 +185,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
       .map((l) => ({
         accountId: l.accountId,
         costCenterId: l.costCenterId || null,
+        departmentId: l.departmentId || null,
         description: l.description || null,
         debit: Number(l.debit || 0),
         credit: Number(l.credit || 0),
@@ -240,7 +246,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
           <div className="lines-table-wrap">
             <table className="lines-table">
               <thead>
-                <tr><th>الحساب</th><th>مدين</th><th>دائن</th><th>الوصف</th><th>مركز التكلفة</th><th></th></tr>
+                <tr><th>الحساب</th><th>مدين</th><th>دائن</th><th>الوصف</th><th>مركز التكلفة</th><th>القسم</th><th></th></tr>
               </thead>
               <tbody>
                 {lines.map((l, idx) => (
@@ -282,6 +288,12 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
                         {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </td>
+                    <td>
+                      <select value={l.departmentId} onChange={(e) => updateLine(idx, "departmentId", e.target.value)}>
+                        <option value="">— بدون —</option>
+                        {departmentOptions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                    </td>
                     <td><button type="button" className="btn-remove-line" onClick={() => removeLine(idx)} disabled={lines.length <= 2}>✕</button></td>
                   </tr>
                 ))}
@@ -291,6 +303,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
                   <td className="foot-label">الإجمالي</td>
                   <td className="num">{fmt2(totalDebit)}</td>
                   <td className="num">{fmt2(totalCredit)}</td>
+                  <td></td>
                   <td></td>
                   <td></td>
                   <td></td>

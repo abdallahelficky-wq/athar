@@ -45,6 +45,7 @@ model Tenant {
   users            User[]
   companies        Company[]
   costCenters      CostCenter[]
+  departments      Department[]
   accounts         Account[]
   companyDocuments CompanyDocument[]
   leaseContracts   LeaseContract[]
@@ -230,6 +231,7 @@ model Company {
   updatedAt                DateTime              @updatedAt
 
   costCenters          CostCenter[]
+  departments          Department[]
   companyDocuments     CompanyDocument[]
   leaseContracts       LeaseContract[]
   journalEntries       JournalEntry[]
@@ -300,6 +302,23 @@ model CostCenter {
   fixedAssets       FixedAsset[]
 
   @@map("cost_centers")
+}
+
+// قسم/إدارة — نفس نمط CostCenter بالضبط (قد يكون عاماً أو خاصاً بشركة معينة)، يُستخدَم لتصنيف
+// سطور القيود إدارياً (بجانب مركز التكلفة) وفلترة كشف حساب الأستاذ بحسب القسم.
+model Department {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  journalEntryLines JournalEntryLine[]
+
+  @@map("departments")
 }
 
 enum AccountType {
@@ -537,7 +556,12 @@ model JournalEntryLine {
   account           Account          @relation(fields: [accountId], references: [id])
   costCenterId      String?
   costCenter        CostCenter?      @relation(fields: [costCenterId], references: [id])
+  // نصّ حر قديم (لا يزال يُملأ من تدفقات ترحيل تلقائية مثل شراء أصل ثابت/الرواتب بقيمة قسم ثابتة)
+  // — يبقى بلا تعديل لضمان استمرار عرضه في كل شاشات القيد الحالية. departmentId/departmentRef
+  // أدناه هما الحقل المُهيكَل الجديد (فئة أقسام حقيقية قابلة للفلترة)، تُملأ من نافذة القيد اليدوي.
   department        String?
+  departmentId      String?
+  departmentRef     Department?      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   // وصف خاص بهذا السطر تحديداً (مختلف عن JournalEntry.memo العام) — يظهر في كشف حساب الأستاذ
   // بجانب البيان العام، لتوضيح تفاصيل كل حركة على حساب معيّن دون الرجوع للقيد الكامل.
   description       String?
@@ -564,6 +588,7 @@ model JournalEntryLine {
   @@index([employeeId])
   @@index([fixedAssetId])
   @@index([employeeAdvanceId])
+  @@index([departmentId])
   @@map("journal_entry_lines")
 }
 

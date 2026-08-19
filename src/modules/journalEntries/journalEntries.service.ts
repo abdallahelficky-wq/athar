@@ -33,6 +33,7 @@ export interface JournalLineInput {
   accountId: string;
   costCenterId?: string | null;
   department?: string | null;
+  departmentId?: string | null;
   description?: string | null;
   debit: number;
   credit: number;
@@ -84,6 +85,12 @@ async function assertReferencesBelongToTenant(tenantId: string, input: JournalEn
     if (costCenters.length !== costCenterIds.length) throw badRequest("أحد مراكز التكلفة المستخدمة غير موجود");
   }
 
+  const departmentIds = [...new Set(input.lines.map((l) => l.departmentId).filter(Boolean))] as string[];
+  if (departmentIds.length) {
+    const departments = await prisma.department.findMany({ where: { id: { in: departmentIds }, tenantId } });
+    if (departments.length !== departmentIds.length) throw badRequest("أحد الأقسام المستخدمة غير موجود");
+  }
+
   const fixedAssetIds = [...new Set(input.lines.map((l) => l.fixedAssetId).filter(Boolean))] as string[];
   if (fixedAssetIds.length) {
     const assets = await prisma.fixedAsset.findMany({ where: { id: { in: fixedAssetIds }, tenantId, companyId: input.companyId } });
@@ -108,6 +115,7 @@ function toLineCreateData(lines: JournalLineInput[]) {
     accountId: l.accountId,
     costCenterId: l.costCenterId || null,
     department: l.department || null,
+    departmentId: l.departmentId || null,
     description: l.description || null,
     debit: new Prisma.Decimal(l.debit || 0),
     credit: new Prisma.Decimal(l.credit || 0),
@@ -138,6 +146,7 @@ async function createLinesWithSideEffectsTx(
         accountId: l.accountId,
         costCenterId: l.costCenterId || null,
         department: l.department || null,
+        departmentId: l.departmentId || null,
         description: l.description || null,
         debit: new Prisma.Decimal(l.debit || 0),
         credit: new Prisma.Decimal(l.credit || 0),
@@ -197,7 +206,7 @@ async function createLinesWithSideEffectsTx(
 }
 
 const entryInclude = {
-  lines: { include: { account: true, costCenter: true, fixedAsset: true, employeeAdvance: true } },
+  lines: { include: { account: true, costCenter: true, departmentRef: true, fixedAsset: true, employeeAdvance: true } },
   company: true,
 } satisfies Prisma.JournalEntryInclude;
 
@@ -567,6 +576,7 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
     accountId: l.accountId,
     costCenterId: l.costCenterId,
     department: l.department,
+    departmentId: l.departmentId,
     description: l.description,
     debit: Number(l.credit),
     credit: Number(l.debit),

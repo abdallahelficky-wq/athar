@@ -8,6 +8,8 @@ const parseLevel = (v: unknown) => {
   return n && n >= 1 && n <= 4 ? n : undefined;
 };
 const parseAccountId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+const parseCostCenterId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+const parseDepartmentId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const parseBool = (v: unknown) => v === "true" || v === "1";
 const parseSearch = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 
@@ -90,6 +92,7 @@ export const accountLedgerHandler: RequestHandler = async (req, res) => {
     parseCompanyId(req.query.companyId),
     parseDate(req.query.from),
     parseDate(req.query.to),
+    { costCenterId: parseCostCenterId(req.query.costCenterId), departmentId: parseDepartmentId(req.query.departmentId) },
   );
   res.json(result);
 };
