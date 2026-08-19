@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useAuth } from "./context/AuthContext";
 import { NavIcon } from "./legacy/navIcons";
 import { useCompanies } from "./wired/useCompanies";
+import LanguageSwitcher from "./wired/shared/LanguageSwitcher";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -176,6 +177,7 @@ function AppShell({ onLoggedOut }) {
             الشركة النشطة: <strong>{activeCompany?.shortName || activeCompany?.name || "لم تُختَر بعد"}</strong>
           </button>
           <span className="topbar-date">{new Date().toLocaleDateString("ar-SA")}</span>
+          <LanguageSwitcher />
           <UserMenu
             name={user?.name}
             email={user?.email}

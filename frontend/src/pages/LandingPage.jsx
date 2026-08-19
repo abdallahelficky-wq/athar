@@ -1,5 +1,6 @@
 import React from "react";
 import { fmt } from "../legacy/constants";
+import LanguageSwitcher from "../wired/shared/LanguageSwitcher";
 
 const PRICING_PLANS = [
   {
@@ -25,7 +26,7 @@ const WHY_US = [
   { title: "دورة موظف كاملة", desc: "من التعيين والإجازات والرواتب وحتى مكافأة نهاية الخدمة، محسوبة وفق نظام العمل السعودي." },
   { title: "تقارير مالية فورية", desc: "ميزان المراجعة وقائمة الدخل والمركز المالي تتحدّث لحظياً مع كل قيد وفاتورة تسجّلها." },
   { title: "دورة مبيعات ومشتريات متكاملة", desc: "من عرض السعر إلى الفاتورة إلى سند القبض، ومن أمر الشراء إلى فاتورة المورد، بربط محاسبي تلقائي كامل." },
-  { title: "واجهة عربية أصيلة", desc: "مصمَّمة من الصفر لتناسب طريقة عمل المحاسب العربي، لا واجهة مترجمة عن نظام أجنبي." },
+  { title: "واجهة مصمَّمة لسوقك", desc: "مبنية من الصفر لتناسب طريقة عمل المحاسب في السوق السعودي، لا واجهة مترجمة عن نظام أجنبي." },
 ];
 
 export default function LandingPage({ onGoLogin, onGoRegister }) {
@@ -37,17 +38,18 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
           <span>أثر المحاسبي</span>
         </div>
         <div className="landing-nav-actions">
+          <LanguageSwitcher />
           <button className="btn-ghost" onClick={onGoLogin}>تسجيل الدخول</button>
           <button className="btn-primary" onClick={onGoRegister}>ابدأ تجربتك المجانية</button>
         </div>
       </header>
 
       <section className="landing-hero">
-        <div className="landing-eyebrow">نظام محاسبي سحابي عربي</div>
+        <div className="landing-eyebrow">نظام محاسبي سحابي سعودي</div>
         <h1>أثر المحاسبي</h1>
         <p className="landing-hero-sub">
           نظام محاسبي سحابي شامل لإدارة مجموعتك التجارية بالكامل — من القيود والفواتير الضريبية المتوافقة مع زاتكا،
-          إلى المخزون والأصول الثابتة وشئون الموظفين والرواتب — في مكان واحد، وبواجهة عربية مصمَّمة من الأساس.
+          إلى المخزون والأصول الثابتة وشئون الموظفين والرواتب — في مكان واحد، وبواجهة مصمَّمة من الأساس لسوقك.
         </p>
         <div className="landing-hero-actions">
           <button className="btn-primary landing-cta" onClick={onGoRegister}>جرّب مجاناً لمدة شهر كامل</button>

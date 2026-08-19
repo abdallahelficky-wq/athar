@@ -126,6 +126,13 @@
         .topbar-active-company:hover { background: rgba(185,139,78,0.22); }
         .topbar-active-company strong { color: #B98B4E; }
 
+        .language-switcher-btn {
+          font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #445565;
+          background: transparent; border: 1px solid rgba(16,32,46,0.18); border-radius: 999px;
+          padding: 6px 12px; cursor: pointer; line-height: 1;
+        }
+        .language-switcher-btn:hover { background: rgba(185,139,78,0.12); border-color: #B98B4E; color: #10202E; }
+
         .user-menu { position: relative; }
         .user-menu-trigger {
           display: flex; align-items: center; gap: 8px; background: transparent; border: 1px solid transparent;
