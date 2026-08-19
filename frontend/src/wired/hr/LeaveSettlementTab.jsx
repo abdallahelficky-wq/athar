@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
 import {
   listLeaveSettlements, previewLeaveSettlement, createLeaveSettlement, disburseLeaveSettlement,
@@ -7,6 +8,8 @@ import { fmt } from "../../legacy/constants";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 
 export default function LeaveSettlementTab({ companyId }) {
+  const { t } = useTranslation();
+  const currency = t("common.currency");
   const [employees, setEmployees] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [error, setError] = useState("");
@@ -75,42 +78,42 @@ export default function LeaveSettlementTab({ companyId }) {
     }
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>الموظف<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>{availableEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
-          <label>تاريخ بداية الإجازة<input type="date" value={leaveStartDate} onChange={(e) => setLeaveStartDate(e.target.value)} /></label>
-          <label>إضافات / مكافآت<input type="number" value={bonuses} onChange={(e) => setBonuses(e.target.value)} placeholder="0" /></label>
-          <label>خصومات<input type="number" value={deductions} onChange={(e) => setDeductions(e.target.value)} placeholder="0" /></label>
-          <label>تذكرة السفر<input type="number" value={ticketAmount} onChange={(e) => setTicketAmount(e.target.value)} placeholder="0" /></label>
-          <label>تأشيرة خروج وعودة<input type="number" value={visaAmount} onChange={(e) => setVisaAmount(e.target.value)} placeholder="0" /></label>
+          <label>{t("hr.leaveSettlement.employee")}<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>{availableEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
+          <label>{t("hr.leaveSettlement.leaveStartDate")}<input type="date" value={leaveStartDate} onChange={(e) => setLeaveStartDate(e.target.value)} /></label>
+          <label>{t("hr.leaveSettlement.bonuses")}<input type="number" value={bonuses} onChange={(e) => setBonuses(e.target.value)} placeholder="0" /></label>
+          <label>{t("hr.leaveSettlement.deductions")}<input type="number" value={deductions} onChange={(e) => setDeductions(e.target.value)} placeholder="0" /></label>
+          <label>{t("hr.leaveSettlement.ticketAmount")}<input type="number" value={ticketAmount} onChange={(e) => setTicketAmount(e.target.value)} placeholder="0" /></label>
+          <label>{t("hr.leaveSettlement.visaAmount")}<input type="number" value={visaAmount} onChange={(e) => setVisaAmount(e.target.value)} placeholder="0" /></label>
         </div>
 
         {preview && (
           <div className="preview-box">
-            <div className="preview-row"><span>أيام العمل المستحقة من الشهر</span><strong>{preview.daysWorked} يوم</strong></div>
-            <div className="preview-row"><span>راتب أيام الشهر قبل الإجازة</span><strong>{fmt(preview.monthAmount)} ر.س</strong></div>
-            <div className="preview-row"><span>رصيد الإجازة المتراكم</span><strong>{preview.accrual.days.toFixed(1)} يوم</strong></div>
-            <div className="preview-row"><span>الإضافات</span><strong>{fmt(bon)} ر.س</strong></div>
-            <div className="preview-row"><span>الخصومات</span><strong>-{fmt(ded)} ر.س</strong></div>
-            <div className="preview-row"><span>تذكرة السفر + التأشيرة</span><strong>{fmt(tic + vis)} ر.س</strong></div>
-            <div className="preview-row net-row"><span>صافي المبلغ المستحق</span><strong>{fmt(net)} ر.س</strong></div>
+            <div className="preview-row"><span>{t("hr.leaveSettlement.previewDaysWorked")}</span><strong>{preview.daysWorked} {t("hr.dashboard.days")}</strong></div>
+            <div className="preview-row"><span>{t("hr.leaveSettlement.previewMonthAmount")}</span><strong>{fmt(preview.monthAmount)} {currency}</strong></div>
+            <div className="preview-row"><span>{t("hr.leaveSettlement.previewAccrual")}</span><strong>{preview.accrual.days.toFixed(1)} {t("hr.dashboard.days")}</strong></div>
+            <div className="preview-row"><span>{t("hr.leaveSettlement.previewBonuses")}</span><strong>{fmt(bon)} {currency}</strong></div>
+            <div className="preview-row"><span>{t("hr.leaveSettlement.previewDeductions")}</span><strong>-{fmt(ded)} {currency}</strong></div>
+            <div className="preview-row"><span>{t("hr.leaveSettlement.previewTicketVisa")}</span><strong>{fmt(tic + vis)} {currency}</strong></div>
+            <div className="preview-row net-row"><span>{t("hr.leaveSettlement.previewNet")}</span><strong>{fmt(net)} {currency}</strong></div>
           </div>
         )}
 
         {error && <p className="balance-bad">{error}</p>}
         <button className="btn-primary" onClick={save} disabled={!employeeId || !preview || net <= 0}>
-          حفظ واعتماد المستحقات (يرحّل قيداً تلقائياً)
+          {t("hr.leaveSettlement.saveBtn")}
         </button>
-        {availableEmployees.length === 0 && <p className="empty">كل موظفي هذه الشركة في إجازة حالياً.</p>}
+        {availableEmployees.length === 0 && <p className="empty">{t("hr.leaveSettlement.allOnLeave")}</p>}
       </div>
 
       <div className="panel">
         <table className="ledger-table">
-          <thead><tr><th>الموظف</th><th>بداية الإجازة</th><th>الصافي</th><th>الحالة</th><th></th></tr></thead>
+          <thead><tr><th>{t("hr.leaveSettlement.table.employee")}</th><th>{t("hr.leaveSettlement.table.leaveStart")}</th><th>{t("hr.leaveSettlement.table.net")}</th><th>{t("hr.leaveSettlement.table.status")}</th><th></th></tr></thead>
           <tbody>
             {settlements.map((s) => (
               <React.Fragment key={s.id}>
@@ -118,24 +121,24 @@ export default function LeaveSettlementTab({ companyId }) {
                   <td>{s.employee?.name}</td>
                   <td>{s.leaveStartDate.slice(0, 10)}</td>
                   <td className="num">{fmt(s.netAmount)}</td>
-                  <td><span className="status-badge">{s.status === "disbursed" ? "مصروفة" : "محتسبة"}</span></td>
+                  <td><span className="status-badge">{s.status === "disbursed" ? t("hr.leaveSettlement.statusDisbursed") : t("hr.leaveSettlement.statusCalculated")}</span></td>
                   <td className="row-actions">
                     {s.status === "calculated" && (
                       disbursingId === s.id ? (
                         <span className="inline-disb">
                           <select value={disbMethod} onChange={(e2) => setDisbMethod(e2.target.value)}>
-                            <option value="cash">كاش</option>
-                            <option value="bank">بنك</option>
+                            <option value="cash">{t("hr.leaveSettlement.methodCash")}</option>
+                            <option value="bank">{t("hr.leaveSettlement.methodBank")}</option>
                           </select>
                           <input type="date" value={disbDate} onChange={(e2) => setDisbDate(e2.target.value)} />
-                          <button className="btn-primary" onClick={() => confirmDisbursement(s)}>تأكيد الصرف</button>
+                          <button className="btn-primary" onClick={() => confirmDisbursement(s)}>{t("hr.leaveSettlement.confirmDisbursement")}</button>
                         </span>
                       ) : (
-                        <button className="btn-ghost" onClick={() => { setDisbursingId(s.id); setDisbDate(s.leaveStartDate.slice(0, 10)); }}>صرف الدفعة</button>
+                        <button className="btn-ghost" onClick={() => { setDisbursingId(s.id); setDisbDate(s.leaveStartDate.slice(0, 10)); }}>{t("hr.leaveSettlement.disburseAction")}</button>
                       )
                     )}
                     <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === s.id ? null : s.id)}>
-                      {attachmentsFor === s.id ? "إخفاء المرفقات" : "المرفقات"}
+                      {attachmentsFor === s.id ? t("hr.leaveSettlement.attachmentsHide") : t("hr.leaveSettlement.attachmentsShow")}
                     </button>
                   </td>
                 </tr>
@@ -144,7 +147,7 @@ export default function LeaveSettlementTab({ companyId }) {
                 )}
               </React.Fragment>
             ))}
-            {settlements.length === 0 && <tr><td className="empty" colSpan={5}>لا توجد تسويات إجازات مسجّلة بعد.</td></tr>}
+            {settlements.length === 0 && <tr><td className="empty" colSpan={5}>{t("hr.leaveSettlement.empty")}</td></tr>}
           </tbody>
         </table>
       </div>

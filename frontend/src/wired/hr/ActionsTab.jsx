@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
 import { listHrActions, createHrActionBatch, deleteHrAction } from "../../api/hrActions";
 import { listAdjustableComponents } from "../../api/payrollSettings";
@@ -10,6 +11,7 @@ import { useDeferredFilters } from "../shared/useDeferredFilters";
 const isDaysComponent = (name) => name?.includes("غياب");
 
 export default function ActionsTab({ companyId }) {
+  const { t } = useTranslation();
   const [employees, setEmployees] = useState([]);
   const [actions, setActions] = useState([]);
   const [components, setComponents] = useState([]);
@@ -61,29 +63,29 @@ export default function ActionsTab({ companyId }) {
     }
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>نوع الإجراء<select value={componentId} onChange={(e) => setComponentId(e.target.value)}>{components.map((c) => <option key={c.componentId} value={c.componentId}>{c.name}</option>)}</select></label>
+          <label>{t("hr.actions.actionType")}<select value={componentId} onChange={(e) => setComponentId(e.target.value)}>{components.map((c) => <option key={c.componentId} value={c.componentId}>{c.name}</option>)}</select></label>
           <form style={{ display: "contents" }} onSubmit={(e) => { e.preventDefault(); mf.apply(); }}>
-            <label>شهر الرواتب<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
-            <button type="submit" className="btn-ghost" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+            <label>{t("hr.actions.month")}<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
+            <button type="submit" className="btn-ghost" style={{ alignSelf: "end" }}>{t("hr.actions.showResults")}</button>
           </form>
-          <label>{isDaysComponent(componentDef?.name) ? "عدد الأيام" : "القيمة (ر.س)"}<input type="number" value={value} onChange={(e) => setValue(e.target.value)} /></label>
-          <label className="memo-field">ملاحظة<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
+          <label>{isDaysComponent(componentDef?.name) ? t("hr.actions.valueDays") : t("hr.actions.valueAmount")}<input type="number" value={value} onChange={(e) => setValue(e.target.value)} /></label>
+          <label className="memo-field">{t("hr.actions.note")}<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
         </div>
 
         <div className="scope-row">
-          <label className="scope-option"><input type="radio" checked={scope === "single"} onChange={() => setScope("single")} /> موظف واحد</label>
-          <label className="scope-option"><input type="radio" checked={scope === "some"} onChange={() => setScope("some")} /> مجموعة محددة</label>
-          <label className="scope-option"><input type="radio" checked={scope === "all"} onChange={() => setScope("all")} /> كل الموظفين</label>
+          <label className="scope-option"><input type="radio" checked={scope === "single"} onChange={() => setScope("single")} /> {t("hr.actions.scopeSingle")}</label>
+          <label className="scope-option"><input type="radio" checked={scope === "some"} onChange={() => setScope("some")} /> {t("hr.actions.scopeSome")}</label>
+          <label className="scope-option"><input type="radio" checked={scope === "all"} onChange={() => setScope("all")} /> {t("hr.actions.scopeAll")}</label>
         </div>
 
         {scope === "single" && (
-          <div className="form-grid"><label>الموظف<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label></div>
+          <div className="form-grid"><label>{t("hr.actions.employee")}<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label></div>
         )}
         {scope === "some" && (
           <div className="employee-checklist">
@@ -92,28 +94,28 @@ export default function ActionsTab({ companyId }) {
             ))}
           </div>
         )}
-        {scope === "all" && <p className="note">سيُطبَّق هذا الإجراء على كل موظفي هذه الشركة ({employees.length} موظف).</p>}
+        {scope === "all" && <p className="note">{t("hr.actions.allNote", { count: employees.length })}</p>}
 
         {error && <p className="balance-bad">{error}</p>}
-        <button className="btn-primary" onClick={save} disabled={targetIds.length === 0 || !componentId}>حفظ الإجراء ({targetIds.length} موظف)</button>
+        <button className="btn-primary" onClick={save} disabled={targetIds.length === 0 || !componentId}>{t("hr.actions.saveBtn", { count: targetIds.length })}</button>
       </div>
 
       <div className="panel">
         <table className="ledger-table">
-          <thead><tr><th>الموظف</th><th>الإجراء</th><th>القيمة</th><th>ملاحظة</th><th></th></tr></thead>
+          <thead><tr><th>{t("hr.actions.table.employee")}</th><th>{t("hr.actions.table.action")}</th><th>{t("hr.actions.table.value")}</th><th>{t("hr.actions.table.note")}</th><th></th></tr></thead>
           <tbody>
             {actions.map((a) => {
               const def = components.find((c) => c.componentId === a.componentId || c.componentId === `legacy:${a.actionType}`);
               return (
                 <tr key={a.id}>
                   <td>{a.employee?.name}</td><td>{def?.name || a.actionType}</td>
-                  <td className="num">{isDaysComponent(def?.name) ? `${a.value} يوم` : fmt(a.value)}</td>
+                  <td className="num">{isDaysComponent(def?.name) ? `${a.value} ${t("hr.actions.days")}` : fmt(a.value)}</td>
                   <td>{a.note || "—"}</td>
-                  <td><button className="btn-ghost" onClick={() => remove(a)}>حذف</button></td>
+                  <td><button className="btn-ghost" onClick={() => remove(a)}>{t("common.delete")}</button></td>
                 </tr>
               );
             })}
-            {actions.length === 0 && <tr><td className="empty" colSpan={5}>لا توجد إجراءات مسجّلة لهذا الشهر بعد.</td></tr>}
+            {actions.length === 0 && <tr><td className="empty" colSpan={5}>{t("hr.actions.empty")}</td></tr>}
           </tbody>
         </table>
       </div>

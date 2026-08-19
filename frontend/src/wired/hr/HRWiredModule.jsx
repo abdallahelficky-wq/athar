@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import HRDashboardTab from "./HRDashboardTab";
 import EmployeeDirectoryTab from "./EmployeeDirectoryTab";
 import LeavesTab from "./LeavesTab";
@@ -26,11 +27,12 @@ export const HR_TABS = [
 ];
 
 export default function HRWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {
+  const { t } = useTranslation();
   return (
     <div>
       <div className="section-title">
-        <Breadcrumb parts={["شئون الموظفين", "بيانات حقيقية"]} />
-        <h2>شئون الموظفين</h2>
+        <Breadcrumb parts={[t("nav.groups.hr"), t("dashboard.breadcrumb.realData")]} />
+        <h2>{t("nav.groups.hr")}</h2>
       </div>
       <SubTabs tabs={HR_TABS} active={tab} onChange={setTab} />
       {tab === "dashboard" && <HRDashboardTab companyId={companyId} />}

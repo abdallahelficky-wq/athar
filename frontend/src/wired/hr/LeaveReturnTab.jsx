@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
 import { listLeaveSettlements, registerLeaveReturn } from "../../api/leaveSettlements";
 
 export default function LeaveReturnTab({ companyId }) {
+  const { t } = useTranslation();
   const [employees, setEmployees] = useState([]);
   const [employeeId, setEmployeeId] = useState("");
   const [returnDate, setReturnDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -41,41 +43,38 @@ export default function LeaveReturnTab({ companyId }) {
     }
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>الموظف (في إجازة حالياً)
+          <label>{t("hr.leaveReturn.employee")}
             <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
               {onLeaveEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>
           </label>
-          <label>تاريخ المباشرة بعد الإجازة<input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} /></label>
+          <label>{t("hr.leaveReturn.returnDate")}<input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)} /></label>
         </div>
 
-        {onLeaveEmployees.length === 0 && <p className="empty">لا يوجد موظفون في إجازة حالياً لهذه الشركة.</p>}
+        {onLeaveEmployees.length === 0 && <p className="empty">{t("hr.leaveReturn.noneOnLeave")}</p>}
         {error && <p className="balance-bad">{error}</p>}
 
         {openSettlement && (
           <div className="preview-box">
-            <div className="preview-row"><span>إجازة بدأت في</span><strong>{openSettlement.leaveStartDate.slice(0, 10)}</strong></div>
+            <div className="preview-row"><span>{t("hr.leaveReturn.leaveStarted")}</span><strong>{openSettlement.leaveStartDate.slice(0, 10)}</strong></div>
           </div>
         )}
 
         <button className="btn-primary" onClick={registerReturn} disabled={!employeeId || !openSettlement}>
-          تسجيل المباشرة وإنهاء الإجازة
+          {t("hr.leaveReturn.registerBtn")}
         </button>
-        <p className="note">
-          عند التسجيل، سيظهر الموظف تلقائياً في كشف رواتب شهر المباشرة براتب جزئي محسوب من تاريخ المباشرة حتى نهاية الشهر،
-          ويعود رصيد إجازته للاحتساب من هذا التاريخ في المرة القادمة.
-        </p>
+        <p className="note">{t("hr.leaveReturn.note")}</p>
 
         {preview && (
           <div className="preview-box">
-            <div className="preview-row"><span>أيام العمل المستحقة من شهر المباشرة</span><strong>{preview.workedDays} يوم</strong></div>
-            <div className="preview-row net-row"><span>الراتب المتوقع لشهر المباشرة</span><strong>{preview.amount.toFixed(2)} ر.س</strong></div>
+            <div className="preview-row"><span>{t("hr.leaveReturn.previewWorkedDays")}</span><strong>{preview.workedDays} {t("hr.dashboard.days")}</strong></div>
+            <div className="preview-row net-row"><span>{t("hr.leaveReturn.previewAmount")}</span><strong>{preview.amount.toFixed(2)} {t("common.currency")}</strong></div>
           </div>
         )}
       </div>

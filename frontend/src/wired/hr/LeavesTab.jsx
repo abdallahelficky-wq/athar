@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
 import { listLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest } from "../../api/leaveRequests";
 import { LEAVE_TYPES } from "../../legacy/constants";
 
-const STATUS_LABEL = { pending: "قيد المراجعة", approved: "معتمدة", rejected: "مرفوضة" };
-
 export default function LeavesTab({ companyId }) {
+  const { t } = useTranslation();
+  const STATUS_LABEL = t("hr.leaves.status", { returnObjects: true });
   const [employees, setEmployees] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +42,7 @@ export default function LeavesTab({ companyId }) {
   };
 
   const remove = async (r) => {
-    if (!window.confirm("حذف طلب الإجازة؟")) return;
+    if (!window.confirm(t("hr.leaves.confirmDelete"))) return;
     try {
       await deleteLeaveRequest(r.id);
       reload();
@@ -57,26 +58,26 @@ export default function LeavesTab({ companyId }) {
     try { await rejectLeaveRequest(r.id); reload(); } catch (err) { setError(err.message); }
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>الموظف<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
-          <label>نوع الإجازة<select value={type} onChange={(e) => setType(e.target.value)}>{LEAVE_TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
-          <label>من تاريخ<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
-          <label>إلى تاريخ<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label>
-          <label className="memo-field">ملاحظات<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
+          <label>{t("hr.leaves.employee")}<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
+          <label>{t("hr.leaves.type")}<select value={type} onChange={(e) => setType(e.target.value)}>{LEAVE_TYPES.map((t2) => <option key={t2}>{t2}</option>)}</select></label>
+          <label>{t("hr.leaves.fromDate")}<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
+          <label>{t("hr.leaves.toDate")}<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label>
+          <label className="memo-field">{t("hr.leaves.notes")}<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
         </div>
         {error && <p className="balance-bad">{error}</p>}
-        <button className="btn-primary" onClick={save} disabled={!employeeId}>تسجيل الإجازة</button>
+        <button className="btn-primary" onClick={save} disabled={!employeeId}>{t("hr.leaves.saveBtn")}</button>
       </div>
 
-      {loading ? <p className="empty">جارٍ التحميل...</p> : (
+      {loading ? <p className="empty">{t("common.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>الموظف</th><th>النوع</th><th>من</th><th>إلى</th><th>الأيام</th><th>الحالة</th><th></th></tr></thead>
+            <thead><tr><th>{t("hr.leaves.table.employee")}</th><th>{t("hr.leaves.table.type")}</th><th>{t("hr.leaves.table.from")}</th><th>{t("hr.leaves.table.to")}</th><th>{t("hr.leaves.table.days")}</th><th>{t("hr.leaves.table.status")}</th><th></th></tr></thead>
             <tbody>
               {requests.map((r) => (
                 <tr key={r.id}>
@@ -88,24 +89,24 @@ export default function LeavesTab({ companyId }) {
                       <span
                         className="status-badge"
                         style={{ marginRight: 6, color: "#A8432B", borderColor: "rgba(168,67,43,0.35)" }}
-                        title="هذا الموظف بلا مدير مباشر مسجّل — لن يظهر الطلب في أي صندوق وارد بالجوال، والموافقة/الرفض من هنا فقط"
+                        title={t("hr.leaves.noManagerTooltip")}
                       >
-                        بلا مدير مباشر
+                        {t("hr.leaves.noManagerBadge")}
                       </span>
                     )}
                   </td>
                   <td className="row-actions">
                     {r.status === "pending" && (
                       <>
-                        <button className="btn-ghost" onClick={() => approve(r)}>اعتماد</button>
-                        <button className="btn-ghost" onClick={() => reject(r)}>رفض</button>
+                        <button className="btn-ghost" onClick={() => approve(r)}>{t("hr.leaves.approve")}</button>
+                        <button className="btn-ghost" onClick={() => reject(r)}>{t("hr.leaves.reject")}</button>
                       </>
                     )}
-                    <button className="btn-ghost" onClick={() => remove(r)}>حذف</button>
+                    <button className="btn-ghost" onClick={() => remove(r)}>{t("common.delete")}</button>
                   </td>
                 </tr>
               ))}
-              {requests.length === 0 && <tr><td className="empty" colSpan={7}>لا توجد إجازات مسجّلة بعد.</td></tr>}
+              {requests.length === 0 && <tr><td className="empty" colSpan={7}>{t("hr.leaves.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

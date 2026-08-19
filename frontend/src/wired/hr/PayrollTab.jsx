@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
 import {
   listPayrollRuns, createPayrollRun, getPayrollRunRows, updatePayrollRunEmployees,
@@ -21,6 +22,7 @@ function buildDisplayColumns(columns, payslipColumns) {
 }
 
 export default function PayrollTab({ companyId, companies }) {
+  const { t } = useTranslation();
   const [employees, setEmployees] = useState([]);
   const mf = useDeferredFilters({ month: "2026-07" });
   const [scope, setScope] = useState("all");
@@ -110,21 +112,21 @@ export default function PayrollTab({ companyId, companies }) {
     reload();
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <form className="form-grid" onSubmit={(e) => { e.preventDefault(); mf.apply(); }}>
-          <label>شهر الرواتب<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
-          <button type="submit" className="btn-ghost" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+          <label>{t("hr.payroll.month")}<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
+          <button type="submit" className="btn-ghost" style={{ alignSelf: "end" }}>{t("hr.payroll.showResults")}</button>
         </form>
 
         {!run && (
           <>
             <div className="scope-row">
-              <label className="scope-option"><input type="radio" checked={scope === "all"} onChange={() => setScope("all")} /> كل الموظفين</label>
-              <label className="scope-option"><input type="radio" checked={scope === "some"} onChange={() => setScope("some")} /> مجموعة محددة</label>
+              <label className="scope-option"><input type="radio" checked={scope === "all"} onChange={() => setScope("all")} /> {t("hr.payroll.scopeAll")}</label>
+              <label className="scope-option"><input type="radio" checked={scope === "some"} onChange={() => setScope("some")} /> {t("hr.payroll.scopeSome")}</label>
             </div>
             {scope === "some" && (
               <div className="employee-checklist">
@@ -133,18 +135,18 @@ export default function PayrollTab({ companyId, companies }) {
                 ))}
               </div>
             )}
-            <button className="btn-primary" onClick={createRun}>إنشاء كشف الرواتب</button>
+            <button className="btn-primary" onClick={createRun}>{t("hr.payroll.createRun")}</button>
           </>
         )}
 
         {run && (
           <div className="form-btn-group">
             {run.status === "draft" && (
-              <button className="btn-primary" onClick={doPost} disabled={rows.length === 0}>ترحيل كشف الرواتب</button>
+              <button className="btn-primary" onClick={doPost} disabled={rows.length === 0}>{t("hr.payroll.postRun")}</button>
             )}
-            {run.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostOpen(true)}>فك الترحيل</button>}
-            <button className="icon-btn" title="طباعة كشف الرواتب" onClick={() => setPrinting(true)}><Icon.Printer /></button>
-            <span className="status-badge">{run.status === "posted" ? "مرحّل" : "مسودة"}</span>
+            {run.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostOpen(true)}>{t("hr.payroll.unpost")}</button>}
+            <button className="icon-btn" title={t("hr.payroll.printTitle")} onClick={() => setPrinting(true)}><Icon.Printer /></button>
+            <span className="status-badge">{run.status === "posted" ? t("hr.payroll.statusPosted") : t("hr.payroll.statusDraft")}</span>
           </div>
         )}
         {error && <p className="balance-bad">{error}</p>}
@@ -156,9 +158,9 @@ export default function PayrollTab({ companyId, companies }) {
             <table className="lines-table">
               <thead>
                 <tr>
-                  <th>الموظف</th>
+                  <th>{t("hr.payroll.employee")}</th>
                   {displayColumns.map((col) => <th key={col.id}>{col.name}</th>)}
-                  <th>الصافي</th>
+                  <th>{t("hr.payroll.net")}</th>
                   {run.status === "draft" && <th></th>}
                 </tr>
               </thead>
@@ -178,25 +180,25 @@ export default function PayrollTab({ companyId, companies }) {
                       <td className="row-actions">
                         {editingRowId === r.employeeId ? (
                           <>
-                            <button className="btn-ghost" onClick={saveRowEdit}>حفظ</button>
-                            <button className="btn-ghost" onClick={() => setEditingRowId(null)}>إلغاء</button>
+                            <button className="btn-ghost" onClick={saveRowEdit}>{t("hr.payroll.save")}</button>
+                            <button className="btn-ghost" onClick={() => setEditingRowId(null)}>{t("hr.payroll.cancel")}</button>
                           </>
                         ) : (
                           <>
-                            <button className="btn-ghost" onClick={() => startEditRow(r)}>تعديل</button>
-                            {r.overridden && <button className="btn-ghost" onClick={() => clearOverride(r.employeeId)}>استرجاع</button>}
+                            <button className="btn-ghost" onClick={() => startEditRow(r)}>{t("hr.payroll.edit")}</button>
+                            {r.overridden && <button className="btn-ghost" onClick={() => clearOverride(r.employeeId)}>{t("hr.payroll.restore")}</button>}
                           </>
                         )}
                       </td>
                     )}
                   </tr>
                 ))}
-                {rows.length === 0 && <tr><td className="empty" colSpan={displayColumns.length + 3}>لا يوجد موظفون في هذا الكشف.</td></tr>}
+                {rows.length === 0 && <tr><td className="empty" colSpan={displayColumns.length + 3}>{t("hr.payroll.empty")}</td></tr>}
               </tbody>
               {totals && (
                 <tfoot>
                   <tr>
-                    <td className="foot-label">الإجمالي</td>
+                    <td className="foot-label">{t("hr.payroll.total")}</td>
                     {displayColumns.map((col) => <td key={col.id} className="num">{fmt(totals.byComponent[col.id] || 0)}</td>)}
                     <td className="num strong">{fmt(totals.net)}</td>
                     {run.status === "draft" && <td></td>}
@@ -210,7 +212,7 @@ export default function PayrollTab({ companyId, companies }) {
 
       {run && <AttachmentsPanel entityType="payroll_run" entityId={run.id} />}
 
-      {unpostOpen && <UnpostModal title="فك ترحيل كشف الرواتب" onCancel={() => setUnpostOpen(false)} onConfirm={doUnpost} />}
+      {unpostOpen && <UnpostModal title={t("hr.payroll.unpostTitle")} onCancel={() => setUnpostOpen(false)} onConfirm={doUnpost} />}
 
       {printing && run && (
         <PayrollPrintModal

@@ -1,13 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listAccounts } from "../../api/accounts";
 import {
   listPayrollComponents, createPayrollComponent, updatePayrollComponent, deletePayrollComponent,
   getPayrollSettings, updatePayrollSettings,
 } from "../../api/payrollSettings";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
-
-const KIND_LABELS = { addition: "إضافة", deduction: "استقطاع" };
-const UNIT_LABELS = { hour: "ساعة", day: "يوم" };
 
 const GROSS_TOTAL_REF = "system:GROSS_TOTAL";
 const encodeRef = (ref) => (ref.kind === "system" ? GROSS_TOTAL_REF : `component:${ref.componentId}`);
@@ -30,6 +28,8 @@ const emptyForm = () => ({
  * تُنشئ بنوداً بعد (تبقى تعمل بالمنطق القديم تلقائياً حتى تُضاف بنودها هنا لأول مرة).
  */
 export default function PayrollSettingsTab({ companyId }) {
+  const { t } = useTranslation();
+  const KIND_LABELS = t("hr.payrollSettings.kindLabels", { returnObjects: true });
   const [components, setComponents] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [settings, setSettings] = useState(null);
@@ -82,7 +82,7 @@ export default function PayrollSettingsTab({ companyId }) {
   }));
 
   const save = async () => {
-    if (!form.name.trim() || !form.accountId) { setError("اسم البند والحساب المرتبط مطلوبان"); return; }
+    if (!form.name.trim() || !form.accountId) { setError(t("hr.payrollSettings.errNameAccountRequired")); return; }
     const payload = {
       name: form.name.trim(), kind: form.kind, accountId: form.accountId, calcMethod: form.calcMethod,
       formula: form.calcMethod === "formula"
@@ -102,7 +102,7 @@ export default function PayrollSettingsTab({ companyId }) {
   };
 
   const remove = async (c) => {
-    if (!window.confirm(`حذف بند "${c.name}"؟`)) return;
+    if (!window.confirm(t("hr.payrollSettings.confirmDelete", { name: c.name }))) return;
     try { await deletePayrollComponent(c.id); reload(); } catch (err) { setError(err.message); }
   };
 
@@ -151,49 +151,49 @@ export default function PayrollSettingsTab({ companyId }) {
     try { await updatePayrollSettings(companyId, { payslipColumns }); setError(""); } catch (err) { setError(err.message); }
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       {error && <p className="balance-bad">{error}</p>}
 
       <div className="panel form-panel">
-        <h3 className="sub-head">الساعات والأيام القياسية للشهر</h3>
-        <p className="note">تُستخدَم لتحويل أي بند مبني على "سعر الساعة/اليوم" (كأجر إضافي أو خصم غياب) إلى مبلغ شهري.</p>
+        <h3 className="sub-head">{t("hr.payrollSettings.standardTitle")}</h3>
+        <p className="note">{t("hr.payrollSettings.standardNote")}</p>
         <div className="form-grid">
-          <label>ساعات العمل القياسية شهرياً<input type="number" value={settingsDraft.standardHoursPerMonth} onChange={(e) => setSettingsDraft({ ...settingsDraft, standardHoursPerMonth: e.target.value })} /></label>
-          <label>أيام العمل القياسية شهرياً<input type="number" value={settingsDraft.standardDaysPerMonth} onChange={(e) => setSettingsDraft({ ...settingsDraft, standardDaysPerMonth: e.target.value })} /></label>
+          <label>{t("hr.payrollSettings.standardHours")}<input type="number" value={settingsDraft.standardHoursPerMonth} onChange={(e) => setSettingsDraft({ ...settingsDraft, standardHoursPerMonth: e.target.value })} /></label>
+          <label>{t("hr.payrollSettings.standardDays")}<input type="number" value={settingsDraft.standardDaysPerMonth} onChange={(e) => setSettingsDraft({ ...settingsDraft, standardDaysPerMonth: e.target.value })} /></label>
         </div>
-        <button className="btn-primary" onClick={saveSettings}>حفظ</button>
+        <button className="btn-primary" onClick={saveSettings}>{t("common.save")}</button>
       </div>
 
       <div className="panel">
-        <div className="items-form-heading"><strong>بنود الرواتب</strong><button className="btn-primary" onClick={openNew}>+ بند جديد</button></div>
+        <div className="items-form-heading"><strong>{t("hr.payrollSettings.componentsTitle")}</strong><button className="btn-primary" onClick={openNew}>{t("hr.payrollSettings.newComponent")}</button></div>
         {components.length === 0 && (
-          <p className="note balance-bad">لا توجد بنود مخصّصة لهذه الشركة بعد — الرواتب تعمل حالياً بالبنود الاثني عشر الافتراضية (الأساسي، البدلات، التأمينات...) تلقائياً بلا أي إعداد. ⚠️ تنبيه هام: أول بند حقيقي تُنشئه هنا يُحوِّل رواتب هذه الشركة بالكامل واحداً للاعتماد على البنود المحفوظة فقط — أي أن البنود الاثني عشر القديمة (ومن ضمنها الأساسي والبدلات) تتوقف فوراً ولن تُحتسب إلا إن أُعيد إنشاؤها هنا يدوياً بنفس القيم. لا تُضِف أي بند يدوياً قبل تشغيل سكريبت النقل (backfillPayrollComponents.ts --commit) الذي يُنشئ كل البنود الاثني عشر دفعة واحدة بنفس القيم الحالية — راجع الفريق التقني أولاً.</p>
+          <p className="note balance-bad">{t("hr.payrollSettings.noComponentsWarning")}</p>
         )}
         <div className="lines-table-wrap">
           <table className="lines-table">
-            <thead><tr><th>الاسم</th><th>النوع</th><th>الحساب</th><th>طريقة الحساب</th><th>تسوية شهرية</th><th>الحالة</th><th></th></tr></thead>
+            <thead><tr><th>{t("hr.payrollSettings.table.name")}</th><th>{t("hr.payrollSettings.table.kind")}</th><th>{t("hr.payrollSettings.table.account")}</th><th>{t("hr.payrollSettings.table.calcMethod")}</th><th>{t("hr.payrollSettings.table.monthlyAdjustment")}</th><th>{t("hr.payrollSettings.table.status")}</th><th></th></tr></thead>
             <tbody>
               {[...components].sort((a, b) => a.sortOrder - b.sortOrder).map((c) => (
                 <tr key={c.id}>
-                  <td>{c.name}{c.isSystem && <small> (نظامي)</small>}</td>
+                  <td>{c.name}{c.isSystem && <small>{t("hr.payrollSettings.systemTag")}</small>}</td>
                   <td>{KIND_LABELS[c.kind]}</td>
                   <td>{c.account?.code} — {c.account?.name}</td>
-                  <td>{c.calcMethod === "formula" ? "صيغة مركّبة" : "قيمة ثابتة"}</td>
-                  <td>{c.allowsMonthlyAdjustments ? "نعم" : "—"}</td>
-                  <td><span className="status-badge">{c.isActive ? "نشط" : "موقوف"}</span></td>
+                  <td>{c.calcMethod === "formula" ? t("hr.payrollSettings.calcMethodFormula") : t("hr.payrollSettings.calcMethodFixed")}</td>
+                  <td>{c.allowsMonthlyAdjustments ? t("hr.payrollSettings.yes") : "—"}</td>
+                  <td><span className="status-badge">{c.isActive ? t("hr.payrollSettings.statusActive") : t("hr.payrollSettings.statusStopped")}</span></td>
                   <td className="row-actions">
-                    <button className="btn-ghost" onClick={() => move(c, -1)} title="نقل لأعلى">↑</button>
-                    <button className="btn-ghost" onClick={() => move(c, 1)} title="نقل لأسفل">↓</button>
-                    <button className="btn-ghost" onClick={() => startEdit(c)}>تعديل</button>
-                    <button className="btn-ghost" onClick={() => toggleActive(c)}>{c.isActive ? "إيقاف" : "تفعيل"}</button>
-                    {!c.isSystem && <button className="btn-ghost" onClick={() => remove(c)}>حذف</button>}
+                    <button className="btn-ghost" onClick={() => move(c, -1)} title={t("hr.payrollSettings.moveUp")}>↑</button>
+                    <button className="btn-ghost" onClick={() => move(c, 1)} title={t("hr.payrollSettings.moveDown")}>↓</button>
+                    <button className="btn-ghost" onClick={() => startEdit(c)}>{t("common.edit")}</button>
+                    <button className="btn-ghost" onClick={() => toggleActive(c)}>{c.isActive ? t("hr.payrollSettings.deactivate") : t("hr.payrollSettings.activate")}</button>
+                    {!c.isSystem && <button className="btn-ghost" onClick={() => remove(c)}>{t("common.delete")}</button>}
                   </td>
                 </tr>
               ))}
-              {components.length === 0 && <tr><td className="empty" colSpan={7}>لا توجد بنود بعد.</td></tr>}
+              {components.length === 0 && <tr><td className="empty" colSpan={7}>{t("hr.payrollSettings.empty")}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -201,43 +201,43 @@ export default function PayrollSettingsTab({ companyId }) {
 
       {formOpen && (
         <div className="panel form-panel">
-          <div className="items-form-heading"><strong>{editingId ? `تعديل بند — ${form.name}` : "بند جديد"}</strong><button className="item-close" onClick={() => setFormOpen(false)}>×</button></div>
+          <div className="items-form-heading"><strong>{editingId ? t("hr.payrollSettings.formTitleEdit", { name: form.name }) : t("hr.payrollSettings.formTitleNew")}</strong><button className="item-close" onClick={() => setFormOpen(false)}>×</button></div>
           <div className="form-grid">
-            <label>اسم البند<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-            <label>النوع
+            <label>{t("hr.payrollSettings.fieldName")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+            <label>{t("hr.payrollSettings.fieldKind")}
               <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-                <option value="addition">إضافة</option><option value="deduction">استقطاع</option>
+                <option value="addition">{t("hr.payrollSettings.kindLabels.addition")}</option><option value="deduction">{t("hr.payrollSettings.kindLabels.deduction")}</option>
               </select>
             </label>
-            <label>الحساب المرتبط<AccountSearchSelect accounts={postingAccounts} value={form.accountId} onChange={(id) => setForm({ ...form, accountId: id })} /></label>
-            <label>طريقة الحساب
+            <label>{t("hr.payrollSettings.fieldAccount")}<AccountSearchSelect accounts={postingAccounts} value={form.accountId} onChange={(id) => setForm({ ...form, accountId: id })} /></label>
+            <label>{t("hr.payrollSettings.fieldCalcMethod")}
               <select value={form.calcMethod} onChange={(e) => setForm({ ...form, calcMethod: e.target.value })}>
-                <option value="fixed">قيمة ثابتة لكل موظف</option>
-                <option value="formula">صيغة مركّبة (تشمل النسبة المئوية)</option>
+                <option value="fixed">{t("hr.payrollSettings.calcMethodFixedOption")}</option>
+                <option value="formula">{t("hr.payrollSettings.calcMethodFormulaOption")}</option>
               </select>
             </label>
           </div>
 
           {form.calcMethod === "formula" && (
             <>
-              <h3 className="sub-head">مكوّنات الصيغة — المجموع = Σ (الكمية × المرجع، مع تحويل ساعة/يوم اختياري)</h3>
+              <h3 className="sub-head">{t("hr.payrollSettings.formulaTitle")}</h3>
               <div className="lines-table-wrap">
                 <table className="lines-table">
-                  <thead><tr><th>الكمية</th><th>الوحدة</th><th>المرجع</th><th></th></tr></thead>
+                  <thead><tr><th>{t("hr.payrollSettings.formulaTable.quantity")}</th><th>{t("hr.payrollSettings.formulaTable.unit")}</th><th>{t("hr.payrollSettings.formulaTable.reference")}</th><th></th></tr></thead>
                   <tbody>
-                    {form.terms.map((t, idx) => (
+                    {form.terms.map((t2, idx) => (
                       <tr key={idx}>
-                        <td><input type="number" step="0.01" value={t.quantity} onChange={(e) => updateTerm(idx, "quantity", e.target.value)} /></td>
+                        <td><input type="number" step="0.01" value={t2.quantity} onChange={(e) => updateTerm(idx, "quantity", e.target.value)} /></td>
                         <td>
-                          <select value={t.unitType} onChange={(e) => updateTerm(idx, "unitType", e.target.value)}>
-                            <option value="">مباشر (نسبة/معامل)</option>
-                            <option value="hour">سعر الساعة</option>
-                            <option value="day">سعر اليوم</option>
+                          <select value={t2.unitType} onChange={(e) => updateTerm(idx, "unitType", e.target.value)}>
+                            <option value="">{t("hr.payrollSettings.unitDirect")}</option>
+                            <option value="hour">{t("hr.payrollSettings.unitHourPrice")}</option>
+                            <option value="day">{t("hr.payrollSettings.unitDayPrice")}</option>
                           </select>
                         </td>
                         <td>
-                          <select value={t.referenceValue} onChange={(e) => updateTerm(idx, "referenceValue", e.target.value)}>
-                            <option value={GROSS_TOTAL_REF}>الإجمالي (مجموع البنود الأساسية الثابتة)</option>
+                          <select value={t2.referenceValue} onChange={(e) => updateTerm(idx, "referenceValue", e.target.value)}>
+                            <option value={GROSS_TOTAL_REF}>{t("hr.payrollSettings.referenceGrossTotal")}</option>
                             {referenceOptions.map((c) => <option key={c.id} value={`component:${c.id}`}>{c.name}</option>)}
                           </select>
                         </td>
@@ -247,20 +247,20 @@ export default function PayrollSettingsTab({ companyId }) {
                   </tbody>
                 </table>
               </div>
-              <button className="btn-ghost" onClick={addTerm}>+ إضافة مكوّن للصيغة</button>
-              <p className="note">مثال "أجر إضافي" = (1 × سعر ساعة الإجمالي) + (0.5 × سعر ساعة الأساسي): بندان بوحدة "ساعة"، الأول بكمية 1 ومرجعه "الإجمالي"، والثاني بكمية 0.5 ومرجعه "الأساسي".</p>
+              <button className="btn-ghost" onClick={addTerm}>{t("hr.payrollSettings.addFormulaTerm")}</button>
+              <p className="note">{t("hr.payrollSettings.formulaExampleNote")}</p>
             </>
           )}
 
           <label className="checkbox-field" style={{ marginTop: 14 }}>
             <input type="checkbox" checked={form.adjustmentEnabled} onChange={(e) => setForm({ ...form, adjustmentEnabled: e.target.checked })} />
-            يقبل إدخال تسوية شهرية بعدد وحدات (مثل "3 أيام غياب") بدل مبلغ جاهز
+            {t("hr.payrollSettings.adjustmentToggle")}
           </label>
           {form.adjustmentEnabled && (
             <div className="form-grid">
-              <label>وحدة القياس
+              <label>{t("hr.payrollSettings.adjustmentUnitLabel")}
                 <select value={form.adjustmentUnitType} onChange={(e) => setForm({ ...form, adjustmentUnitType: e.target.value })}>
-                  <option value="day">يوم</option><option value="hour">ساعة</option>
+                  <option value="day">{t("hr.payrollSettings.adjustmentUnitDay")}</option><option value="hour">{t("hr.payrollSettings.adjustmentUnitHour")}</option>
                 </select>
               </label>
               <div className="employee-checklist">
@@ -272,21 +272,21 @@ export default function PayrollSettingsTab({ companyId }) {
           )}
 
           <div className="form-grid" style={{ marginTop: 14 }}>
-            <label className="checkbox-field"><input type="checkbox" checked={form.allowsMonthlyAdjustments} onChange={(e) => setForm({ ...form, allowsMonthlyAdjustments: e.target.checked })} /> يظهر في قائمة "إجراءات الموظفين" الشهرية</label>
-            <label className="checkbox-field"><input type="checkbox" checked={form.prorateOnPartialMonth} onChange={(e) => setForm({ ...form, prorateOnPartialMonth: e.target.checked })} /> يُحسَب بالتناسب عند المباشرة بعد إجازة منتصف الشهر</label>
-            <label className="checkbox-field"><input type="checkbox" checked={form.appliesByDefault} onChange={(e) => setForm({ ...form, appliesByDefault: e.target.checked })} /> يُسنَد تلقائياً لكل موظف جديد</label>
+            <label className="checkbox-field"><input type="checkbox" checked={form.allowsMonthlyAdjustments} onChange={(e) => setForm({ ...form, allowsMonthlyAdjustments: e.target.checked })} /> {t("hr.payrollSettings.allowsMonthlyAdjustments")}</label>
+            <label className="checkbox-field"><input type="checkbox" checked={form.prorateOnPartialMonth} onChange={(e) => setForm({ ...form, prorateOnPartialMonth: e.target.checked })} /> {t("hr.payrollSettings.prorateOnPartialMonth")}</label>
+            <label className="checkbox-field"><input type="checkbox" checked={form.appliesByDefault} onChange={(e) => setForm({ ...form, appliesByDefault: e.target.checked })} /> {t("hr.payrollSettings.appliesByDefault")}</label>
           </div>
 
-          <div className="form-btn-group"><button className="btn-ghost" onClick={() => setFormOpen(false)}>إلغاء</button><button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديلات" : "حفظ البند"}</button></div>
+          <div className="form-btn-group"><button className="btn-ghost" onClick={() => setFormOpen(false)}>{t("common.cancel")}</button><button className="btn-primary" onClick={save}>{editingId ? t("hr.payrollSettings.saveChanges") : t("hr.payrollSettings.saveNew")}</button></div>
         </div>
       )}
 
       <div className="panel">
-        <h3 className="sub-head">أعمدة كشف الرواتب</h3>
-        <p className="note">تختار هنا أي بنود تظهر كأعمدة في شاشة وطباعة كشف الرواتب، بأي تسمية وترتيب تريد. عمود "الصافي" يظهر دائماً في النهاية.</p>
+        <h3 className="sub-head">{t("hr.payrollSettings.payslipColumnsTitle")}</h3>
+        <p className="note">{t("hr.payrollSettings.payslipColumnsNote")}</p>
         <div className="lines-table-wrap">
           <table className="lines-table">
-            <thead><tr><th>البند</th><th>عنوان العمود</th><th></th></tr></thead>
+            <thead><tr><th>{t("hr.payrollSettings.payslipTable.component")}</th><th>{t("hr.payrollSettings.payslipTable.columnTitle")}</th><th></th></tr></thead>
             <tbody>
               {payslipColumns.map((col, idx) => (
                 <tr key={idx}>
@@ -297,19 +297,19 @@ export default function PayrollSettingsTab({ companyId }) {
                   </td>
                   <td><input type="text" value={col.label} onChange={(e) => updatePayslipColumn(idx, "label", e.target.value)} /></td>
                   <td className="row-actions">
-                    <button className="btn-ghost" onClick={() => movePayslipColumn(idx, -1)} title="نقل لأعلى">↑</button>
-                    <button className="btn-ghost" onClick={() => movePayslipColumn(idx, 1)} title="نقل لأسفل">↓</button>
+                    <button className="btn-ghost" onClick={() => movePayslipColumn(idx, -1)} title={t("hr.payrollSettings.moveUp")}>↑</button>
+                    <button className="btn-ghost" onClick={() => movePayslipColumn(idx, 1)} title={t("hr.payrollSettings.moveDown")}>↓</button>
                     <button className="btn-remove-line" onClick={() => removePayslipColumn(idx)}>✕</button>
                   </td>
                 </tr>
               ))}
-              {payslipColumns.length === 0 && <tr><td className="empty" colSpan={3}>لا يوجد تخصيص — سيُعرَض كشف الرواتب بكل البنود بترتيبها الافتراضي.</td></tr>}
+              {payslipColumns.length === 0 && <tr><td className="empty" colSpan={3}>{t("hr.payrollSettings.payslipEmpty")}</td></tr>}
             </tbody>
           </table>
         </div>
         <div className="form-btn-group">
-          <button className="btn-ghost" onClick={addPayslipColumn} disabled={activeComponents.every((c) => payslipColumns.some((p) => p.componentId === c.id))}>+ إضافة عمود</button>
-          <button className="btn-primary" onClick={savePayslipColumns}>حفظ ترتيب الأعمدة</button>
+          <button className="btn-ghost" onClick={addPayslipColumn} disabled={activeComponents.every((c) => payslipColumns.some((p) => p.componentId === c.id))}>{t("hr.payrollSettings.addColumn")}</button>
+          <button className="btn-primary" onClick={savePayslipColumns}>{t("hr.payrollSettings.saveColumnsOrder")}</button>
         </div>
       </div>
     </div>

@@ -1,31 +1,33 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { PrintShell, printWithOrientation } from "../../legacy/shared";
 import { fmt } from "../../legacy/constants";
 
 /** طباعة كشف الرواتب كاملاً (أفقي — الجدول عريض) — عبر PrintShell المشترك.
  * الأعمدة (columns) ديناميكية حسب بنود الشركة الفعلية وتخصيص PayrollSettings.payslipColumns. */
 export default function PayrollPrintModal({ run, rows, totals, columns, month, company, autoPrint, onClose }) {
+  const { t } = useTranslation();
   useEffect(() => {
     if (!autoPrint) return;
-    const t = setTimeout(() => printWithOrientation(true), 200);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => printWithOrientation(true), 200);
+    return () => clearTimeout(timer);
   }, [autoPrint, run.id]);
 
   return (
     <PrintShell
-      subtitle="كشف رواتب"
+      subtitle={t("hr.payrollPrint.subtitle")}
       company={company}
       landscape
-      refNode={<div>الشهر: <strong>{month}</strong></div>}
+      refNode={<div>{t("hr.payrollPrint.month")}: <strong>{month}</strong></div>}
       onClose={onClose}
     >
       <div className="wide-table-wrap">
         <table className="ledger-table voucher-table wide-payroll-table">
           <thead>
             <tr>
-              <th>الموظف</th>
+              <th>{t("hr.payrollPrint.employee")}</th>
               {columns.map((col) => <th key={col.id}>{col.name}</th>)}
-              <th>الصافي</th>
+              <th>{t("hr.payrollPrint.net")}</th>
             </tr>
           </thead>
           <tbody>
@@ -40,7 +42,7 @@ export default function PayrollPrintModal({ run, rows, totals, columns, month, c
           {totals && (
             <tfoot>
               <tr>
-                <td className="foot-label">الإجمالي</td>
+                <td className="foot-label">{t("hr.payrollPrint.total")}</td>
                 {columns.map((col) => <td key={col.id} className="num">{fmt(totals.byComponent[col.id] || 0)}</td>)}
                 <td className="num strong">{fmt(totals.net)}</td>
               </tr>
