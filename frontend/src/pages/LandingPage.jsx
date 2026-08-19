@@ -96,7 +96,8 @@ export default function LandingPage({ onGoLogin, onGoRegister }) {
               {p.highlighted && <div className="pricing-badge">الأكثر اختياراً</div>}
               <div className="pricing-plan-name">{p.name}</div>
               <div className="pricing-plan-tagline">{p.tagline}</div>
-              <div className="pricing-price"><span className="pricing-amount">{fmt(p.price)}</span> ر.س / شهرياً</div>
+              <div className="pricing-price"><span className="pricing-amount">{fmt(p.price)}</span> ر.س / سنوياً</div>
+              <div className="pricing-monthly-option">أو {fmt((p.price / 12) * 1.10)} ريال/شهر عند الدفع الشهري</div>
               <ul className="pricing-features">
                 {p.features.map((f) => <li key={f}>✓ {f}</li>)}
               </ul>
