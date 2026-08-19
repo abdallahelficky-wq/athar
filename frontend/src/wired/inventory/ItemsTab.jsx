@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listItems, createItem, updateItem, deleteItem, getItemComponents, setItemComponents } from "../../api/items";
 import { listAccounts } from "../../api/accounts";
 import { listAssetCategories } from "../../api/assetCategories";
@@ -11,20 +12,12 @@ const emptyItemFilters = { query: "", category: "", typeFilter: "", lowStock: fa
 const ITEM_TYPES = ["inventory", "expense", "service", "fixed_asset", "raw_material", "bundle"];
 const STOCK_TRACKED_TYPES = ["inventory", "expense", "raw_material", "bundle"];
 
-const TYPE_META = {
-  inventory: { label: "مخزون", icon: "◈", css: "type-inventory" },
-  expense: { label: "مصروف", icon: "▢", css: "type-expense" },
-  service: { label: "خدمة", icon: "☆", css: "type-service" },
-  fixed_asset: { label: "أصل ثابت", icon: "▣", css: "type-fixed-asset" },
-  raw_material: { label: "مادة أولية", icon: "◪", css: "type-raw-material" },
-  bundle: { label: "منتج مجمّع", icon: "⬡", css: "type-bundle" },
+const TYPE_CSS = {
+  inventory: "type-inventory", expense: "type-expense", service: "type-service",
+  fixed_asset: "type-fixed-asset", raw_material: "type-raw-material", bundle: "type-bundle",
 };
-
-const ACCOUNT_LABELS = {
-  stockAccountId: "حساب المخزون",
-  cogsAccountId: "حساب تكلفة البضاعة المباعة",
-  revenueAccountId: "حساب الإيراد",
-  expenseAccountId: "حساب المصروف",
+const TYPE_ICON = {
+  inventory: "◈", expense: "▢", service: "☆", fixed_asset: "▣", raw_material: "◪", bundle: "⬡",
 };
 
 /** يطابق نفس القاعدة في items.schemas.ts (requiredAccountFieldsForType) — يقرّر أي حقول ربط محاسبي تظهر إلزامية حسب نوع الصنف. */
@@ -53,18 +46,14 @@ const Icons = {
 
 // أعمدة ثانوية (أقل أهمية للتصفح اليومي) — مخفيّة افتراضياً لتقليل ازدحام الجدول وتفادي السكرول
 // الأفقي، ويختار المستخدم إظهارها عبر زرار "الأعمدة"؛ يُحفَظ الاختيار محلياً كتفضيل شخصي دائم.
-const EXTRA_COLUMNS = [
-  { key: "lastPurchasePrice", label: "آخر سعر شراء" },
-  { key: "averageCost", label: "متوسط التكلفة" },
-  { key: "stockValue", label: "قيمة المخزون" },
-];
+const EXTRA_COLUMNS = ["lastPurchasePrice", "averageCost", "stockValue"];
 const COLUMN_PREFS_KEY = "athar.itemsTable.extraColumns";
 const loadColumnPrefs = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(COLUMN_PREFS_KEY) || "{}");
-    return Object.fromEntries(EXTRA_COLUMNS.map((c) => [c.key, saved[c.key] || false]));
+    return Object.fromEntries(EXTRA_COLUMNS.map((c) => [c, saved[c] || false]));
   } catch {
-    return Object.fromEntries(EXTRA_COLUMNS.map((c) => [c.key, false]));
+    return Object.fromEntries(EXTRA_COLUMNS.map((c) => [c, false]));
   }
 };
 
@@ -84,6 +73,11 @@ function ActionButton({ icon, label, disabled = false, onClick, danger = false, 
 }
 
 export default function ItemsTab({ companyId, onNavigateTransfer }) {
+  const { t } = useTranslation();
+  const TYPE_LABEL = t("inventory.typeMeta", { returnObjects: true });
+  const ACCOUNT_LABELS = t("inventory.accountLabels", { returnObjects: true });
+  const EXTRA_COLUMN_LABELS = t("inventory.items.extraColumns", { returnObjects: true });
+
   const [items, setItems] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [assetCategories, setAssetCategories] = useState([]);
@@ -225,7 +219,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   const duplicate = async (item) => {
     setEditingId(null);
     setForm({
-      code: `${item.code}-COPY`, name: `${item.name} — نسخة`, barcode: "", type: item.type, unit: item.unit || "", category: item.category || "",
+      code: `${item.code}-COPY`, name: `${item.name} — ${t("inventory.items.duplicateSuffix")}`, barcode: "", type: item.type, unit: item.unit || "", category: item.category || "",
       salePrice: item.salePrice ?? "", vatApplicable: item.vatApplicable, reorderLevel: item.reorderLevel ?? "",
       stockAccountId: item.stockAccountId || "", cogsAccountId: item.cogsAccountId || "",
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
@@ -236,7 +230,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   };
 
   const remove = async (item) => {
-    if (!window.confirm(`حذف الصنف "${item.name}"؟`)) return;
+    if (!window.confirm(t("inventory.items.confirmDelete", { name: item.name }))) return;
     try { await deleteItem(item.id); reload(); } catch (err) { setError(err.message); }
   };
 
@@ -245,38 +239,39 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   };
 
   const exportItems = () => {
-    const headings = ["كود الصنف", "اسم الصنف", "نوع الصنف", "الوحدة", "التصنيف", "متوسط التكلفة", "سعر البيع", "حد إعادة الطلب"];
+    const csvHeaders = t("inventory.items.csvHeaders", { returnObjects: true });
+    const headings = [csvHeaders.code, csvHeaders.name, csvHeaders.type, csvHeaders.unit, csvHeaders.category, csvHeaders.averageCost, csvHeaders.salePrice, csvHeaders.reorderLevel];
     const rows = items.map((item) => [
-      item.code, item.name, TYPE_META[item.type]?.label || item.type, item.unit || "", item.category || "",
+      item.code, item.name, TYPE_LABEL[item.type] || item.type, item.unit || "", item.category || "",
       item.averageCost, item.salePrice ?? "", item.reorderLevel || "",
     ]);
     const csv = `﻿${[headings, ...rows].map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n")}`;
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    link.download = "الأصناف.csv";
+    link.download = t("inventory.items.exportFileName");
     link.click();
     URL.revokeObjectURL(link.href);
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div className="items-page">
       <div className="items-toolbar-row">
-        <button className="btn-primary item-add-btn" onClick={() => { setEditingId(null); setForm(emptyForm()); setComponents([]); setFormOpen(true); }}><span>{Icons.add}</span> إضافة صنف جديد</button>
-        <button className="items-toolbar-btn" disabled title="استيراد الأصناف غير متاح في واجهة API الحالية"><span>{Icons.import}</span> استيراد أصناف</button>
-        <button className="items-toolbar-btn" onClick={exportItems}><span>{Icons.export}</span> تصدير أصناف <small>CSV</small></button>
-        <button className="items-toolbar-btn" disabled title="إدارة وحدات القياس غير متاحة في واجهة API الحالية"><span>{Icons.units}</span> وحدات القياس</button>
-        <button className="items-toolbar-btn" onClick={onNavigateTransfer}><span>{Icons.transfer}</span> نقل بين المستودعات</button>
+        <button className="btn-primary item-add-btn" onClick={() => { setEditingId(null); setForm(emptyForm()); setComponents([]); setFormOpen(true); }}><span>{Icons.add}</span> {t("inventory.items.addNew")}</button>
+        <button className="items-toolbar-btn" disabled title={t("inventory.items.importDisabled")}><span>{Icons.import}</span> {t("inventory.items.importBtn")}</button>
+        <button className="items-toolbar-btn" onClick={exportItems}><span>{Icons.export}</span> {t("inventory.items.exportBtn")} <small>CSV</small></button>
+        <button className="items-toolbar-btn" disabled title={t("inventory.items.unitsDisabled")}><span>{Icons.units}</span> {t("inventory.items.unitsBtn")}</button>
+        <button className="items-toolbar-btn" onClick={onNavigateTransfer}><span>{Icons.transfer}</span> {t("inventory.items.transferBtn")}</button>
         <div className="column-toggle">
-          <button className="items-toolbar-btn" onClick={() => setColumnMenuOpen((v) => !v)}><span>{Icons.columns}</span> الأعمدة</button>
+          <button className="items-toolbar-btn" onClick={() => setColumnMenuOpen((v) => !v)}><span>{Icons.columns}</span> {t("inventory.items.columnsBtn")}</button>
           {columnMenuOpen && (
             <div className="column-toggle-menu" onMouseLeave={() => setColumnMenuOpen(false)}>
-              <p className="column-toggle-title">أعمدة إضافية للجدول</p>
+              <p className="column-toggle-title">{t("inventory.items.columnsMenuTitle")}</p>
               {EXTRA_COLUMNS.map((c) => (
-                <label key={c.key} className="column-toggle-item">
-                  <input type="checkbox" checked={extraColumns[c.key]} onChange={() => toggleColumn(c.key)} />
-                  {c.label}
+                <label key={c} className="column-toggle-item">
+                  <input type="checkbox" checked={extraColumns[c]} onChange={() => toggleColumn(c)} />
+                  {EXTRA_COLUMN_LABELS[c]}
                 </label>
               ))}
             </div>
@@ -285,31 +280,31 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       </div>
 
       {formOpen && <div className="panel form-panel items-form-panel">
-        <div className="items-form-heading"><strong>{editingId ? `تعديل الصنف — ${form.name}` : "إضافة صنف جديد"}</strong><button className="item-close" onClick={() => setFormOpen(false)}>×</button></div>
+        <div className="items-form-heading"><strong>{editingId ? t("inventory.items.form.titleEdit", { name: form.name }) : t("inventory.items.form.titleCreate")}</strong><button className="item-close" onClick={() => setFormOpen(false)}>×</button></div>
 
         <div className="form-grid">
-          <label>نوع الصنف
+          <label>{t("inventory.items.form.type")}
             <select value={form.type} onChange={(e) => changeType(e.target.value)}>
-              {ITEM_TYPES.map((t) => <option key={t} value={t}>{TYPE_META[t].label}</option>)}
+              {ITEM_TYPES.map((tp) => <option key={tp} value={tp}>{TYPE_LABEL[tp]}</option>)}
             </select>
           </label>
-          <label>كود الصنف<input type="text" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></label>
-          <label>اسم الصنف<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <label>الباركود (اختياري، لمسحه في نقطة البيع)<input type="text" value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></label>
-          <label>الوحدة<input type="text" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="لتر، قطعة..." /></label>
-          <label>التصنيف<input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></label>
-          {STOCK_TRACKED_TYPES.includes(form.type) && <label>حد إعادة الطلب<input type="number" value={form.reorderLevel} onChange={(e) => setForm({ ...form, reorderLevel: e.target.value })} /></label>}
+          <label>{t("inventory.items.form.code")}<input type="text" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></label>
+          <label>{t("inventory.items.form.name")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>{t("inventory.items.form.barcode")}<input type="text" value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></label>
+          <label>{t("inventory.items.form.unit")}<input type="text" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder={t("inventory.items.form.unitPlaceholder")} /></label>
+          <label>{t("inventory.items.form.category")}<input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></label>
+          {STOCK_TRACKED_TYPES.includes(form.type) && <label>{t("inventory.items.form.reorderLevel")}<input type="number" value={form.reorderLevel} onChange={(e) => setForm({ ...form, reorderLevel: e.target.value })} /></label>}
         </div>
 
         {form.type === "raw_material" && <label className="checkbox-label">
           <input type="checkbox" checked={form.allowDirectSale} onChange={(e) => setForm({ ...form, allowDirectSale: e.target.checked })} />
-          يمكن بيع هذه المادة الأولية مباشرةً للعملاء
+          {t("inventory.items.form.allowDirectSale")}
         </label>}
 
         {form.type === "fixed_asset" && <div className="form-grid">
-          <label>فئة الأصل (تحدد حسابات الاقتناء/الإهلاك تلقائياً عند الشراء)
+          <label>{t("inventory.items.form.assetCategory")}
             <select value={form.assetCategoryId} onChange={(e) => setForm({ ...form, assetCategoryId: e.target.value })}>
-              <option value="">— بلا فئة بعد —</option>
+              <option value="">{t("inventory.items.form.noCategoryYet")}</option>
               {Object.entries(groupedAssetCategories).map(([groupName, cats]) => (
                 <optgroup key={groupName} label={groupName}>
                   {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -318,11 +313,11 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
             </select>
           </label>
         </div>}
-        {form.type === "fixed_asset" && <p className="note">فئة الأصل مطلوبة عند شراء الصنف فعلياً عبر فاتورة مشتريات (تُحدَّد الحسابات منها تلقائياً)؛ يمكن حفظ الصنف بلا فئة الآن وإكمالها لاحقاً. عمر الأصل وقيمة الخردة يُدخَلان في سطر فاتورة الشراء.</p>}
+        {form.type === "fixed_asset" && <p className="note">{t("inventory.items.form.assetCategoryNote")}</p>}
 
         {isSellableType && <div className="form-grid">
-          <label>سعر البيع المقترح<input type="number" value={form.salePrice} onChange={(e) => setForm({ ...form, salePrice: e.target.value })} placeholder="0.00" /></label>
-          <label className="checkbox-label"><input type="checkbox" checked={form.vatApplicable} onChange={(e) => setForm({ ...form, vatApplicable: e.target.checked })} /> خاضع لضريبة القيمة المضافة</label>
+          <label>{t("inventory.items.form.salePrice")}<input type="number" value={form.salePrice} onChange={(e) => setForm({ ...form, salePrice: e.target.value })} placeholder="0.00" /></label>
+          <label className="checkbox-label"><input type="checkbox" checked={form.vatApplicable} onChange={(e) => setForm({ ...form, vatApplicable: e.target.checked })} /> {t("inventory.items.form.vatApplicable")}</label>
         </div>}
 
         {requiredFields.length > 0 && <div className="form-grid items-accounts-grid">
@@ -341,105 +336,105 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
         </div>}
 
         {form.type === "bundle" && <div className="bom-editor">
-          <div className="bom-editor-head"><strong>مكوّنات المنتج (BOM)</strong><button type="button" className="btn-ghost" onClick={addComponent}>+ إضافة مكوّن</button></div>
+          <div className="bom-editor-head"><strong>{t("inventory.items.form.bom.title")}</strong><button type="button" className="btn-ghost" onClick={addComponent}>{t("inventory.items.form.bom.addComponent")}</button></div>
           <table className="ledger-table bom-table">
-            <thead><tr><th>المكوّن</th><th>الكمية لكل وحدة</th><th></th></tr></thead>
+            <thead><tr><th>{t("inventory.items.form.bom.component")}</th><th>{t("inventory.items.form.bom.quantityPerUnit")}</th><th></th></tr></thead>
             <tbody>
               {components.map((c, idx) => <tr key={idx}>
                 <td>
                   <select value={c.componentItemId} onChange={(e) => updateComponent(idx, "componentItemId", e.target.value)}>
-                    <option value="">— اختر صنفاً —</option>
+                    <option value="">{t("inventory.items.form.bom.chooseItem")}</option>
                     {componentOptions.map((it) => <option key={it.id} value={it.id}>{it.name} ({it.code})</option>)}
                   </select>
                 </td>
                 <td><input type="number" min="0" step="0.01" value={c.quantityPerUnit} onChange={(e) => updateComponent(idx, "quantityPerUnit", e.target.value)} /></td>
                 <td><button type="button" className="btn-remove-line" onClick={() => removeComponent(idx)}>✕</button></td>
               </tr>)}
-              {components.length === 0 && <tr><td className="empty" colSpan={3}>أضف مكوّناً واحداً على الأقل</td></tr>}
+              {components.length === 0 && <tr><td className="empty" colSpan={3}>{t("inventory.items.form.bom.emptyHint")}</td></tr>}
             </tbody>
           </table>
         </div>}
 
         {error && <p className="balance-bad">{error}</p>}
-        <div className="form-btn-group"><button className="btn-ghost" onClick={() => setFormOpen(false)}>إلغاء</button><button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديلات" : "حفظ الصنف"}</button></div>
+        <div className="form-btn-group"><button className="btn-ghost" onClick={() => setFormOpen(false)}>{t("inventory.items.form.cancel")}</button><button className="btn-primary" onClick={save}>{editingId ? t("inventory.items.form.saveChanges") : t("inventory.items.form.saveItem")}</button></div>
       </div>}
 
       <section className="panel items-directory-panel">
         <div className="items-tabs" role="tablist">
-          <button className={status === "active" ? "active" : ""} onClick={() => setStatus("active")}>نشط <span>{items.filter((i) => i.isArchived !== true).length}</span></button>
-          <button className={status === "archived" ? "active" : ""} onClick={() => setStatus("archived")}>مؤرشف <span>{items.filter((i) => i.isArchived === true).length}</span></button>
+          <button className={status === "active" ? "active" : ""} onClick={() => setStatus("active")}>{t("inventory.items.tabActive")} <span>{items.filter((i) => i.isArchived !== true).length}</span></button>
+          <button className={status === "archived" ? "active" : ""} onClick={() => setStatus("archived")}>{t("inventory.items.tabArchived")} <span>{items.filter((i) => i.isArchived === true).length}</span></button>
         </div>
         <form className="items-filters" onSubmit={(e) => { e.preventDefault(); itemFilters.apply(); }}>
-          <label className="items-search"><span>⌕</span><input aria-label="بحث بالاسم أو الكود" placeholder="ابحث باسم الصنف أو الكود..." value={itemFilters.draft.query} onChange={(e) => itemFilters.setField("query", e.target.value)} /></label>
-          <select aria-label="نوع الصنف" value={itemFilters.draft.typeFilter} onChange={(e) => itemFilters.setField("typeFilter", e.target.value)}>
-            <option value="">كل أنواع الأصناف</option>
-            {ITEM_TYPES.map((t) => <option key={t} value={t}>{TYPE_META[t].label}</option>)}
+          <label className="items-search"><span>⌕</span><input aria-label={t("inventory.items.filters.searchAria")} placeholder={t("inventory.items.filters.searchPlaceholder")} value={itemFilters.draft.query} onChange={(e) => itemFilters.setField("query", e.target.value)} /></label>
+          <select aria-label={t("inventory.items.filters.typeAria")} value={itemFilters.draft.typeFilter} onChange={(e) => itemFilters.setField("typeFilter", e.target.value)}>
+            <option value="">{t("inventory.items.filters.allTypes")}</option>
+            {ITEM_TYPES.map((tp) => <option key={tp} value={tp}>{TYPE_LABEL[tp]}</option>)}
           </select>
-          <select aria-label="التصنيف" value={itemFilters.draft.category} onChange={(e) => itemFilters.setField("category", e.target.value)}><option value="">كل التصنيفات</option>{categories.map((value) => <option key={value}>{value}</option>)}</select>
-          <label className="low-stock-filter"><input type="checkbox" checked={itemFilters.draft.lowStock} onChange={(e) => itemFilters.setField("lowStock", e.target.checked)} /> مخزون منخفض</label>
+          <select aria-label={t("inventory.items.filters.categoryAria")} value={itemFilters.draft.category} onChange={(e) => itemFilters.setField("category", e.target.value)}><option value="">{t("inventory.items.filters.allCategories")}</option>{categories.map((value) => <option key={value}>{value}</option>)}</select>
+          <label className="low-stock-filter"><input type="checkbox" checked={itemFilters.draft.lowStock} onChange={(e) => itemFilters.setField("lowStock", e.target.checked)} /> {t("inventory.items.filters.lowStock")}</label>
           {Object.values(itemFilters.draft).some((v) => v !== "" && v !== false) && (
-            <button type="button" className="clear-filters" onClick={() => itemFilters.reset(emptyItemFilters)}>مسح الفلاتر</button>
+            <button type="button" className="clear-filters" onClick={() => itemFilters.reset(emptyItemFilters)}>{t("inventory.items.filters.clearFilters")}</button>
           )}
-          <button type="submit" className="btn-primary">إظهار النتائج</button>
+          <button type="submit" className="btn-primary">{t("inventory.items.filters.showResults")}</button>
         </form>
         {error && !formOpen && <p className="items-error">{error}</p>}
-        {loading ? <p className="empty items-loading">جارٍ تحميل الأصناف...</p> : (
+        {loading ? <p className="empty items-loading">{t("inventory.items.loading")}</p> : (
           <div className="items-table-wrap">
             <table className="ledger-table responsive-table items-table">
               <thead>
                 <tr>
-                  <th>كود الصنف</th>
-                  <th>اسم الصنف</th>
-                  <th>نوع الصنف</th>
-                  <th>الوحدة</th>
-                  {showQuantityColumn && <th>الكمية الحالية</th>}
-                  {extraColumns.lastPurchasePrice && <th>آخر سعر شراء</th>}
-                  <th>سعر البيع</th>
-                  {extraColumns.averageCost && <th>متوسط التكلفة</th>}
-                  {extraColumns.stockValue && <th>قيمة المخزون</th>}
-                  <th>الإجراءات</th>
+                  <th>{t("inventory.items.table.code")}</th>
+                  <th>{t("inventory.items.table.name")}</th>
+                  <th>{t("inventory.items.table.type")}</th>
+                  <th>{t("inventory.items.table.unit")}</th>
+                  {showQuantityColumn && <th>{t("inventory.items.table.quantity")}</th>}
+                  {extraColumns.lastPurchasePrice && <th>{t("inventory.items.table.lastPurchasePrice")}</th>}
+                  <th>{t("inventory.items.table.salePrice")}</th>
+                  {extraColumns.averageCost && <th>{t("inventory.items.table.averageCost")}</th>}
+                  {extraColumns.stockValue && <th>{t("inventory.items.table.stockValue")}</th>}
+                  <th>{t("inventory.items.table.actions")}</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredItems.map((item) => <tr key={item.id}>
-                  <td data-label="كود الصنف"><span className="item-code">{item.code}</span></td>
-                  <td data-label="اسم الصنف"><div className="item-name-cell"><span className="item-avatar">◇</span><span><strong>{item.name}</strong><small>{item.category || "غير مصنّف"}</small></span></div></td>
-                  <td data-label="نوع الصنف"><span className={`item-type-badge ${TYPE_META[item.type]?.css || "type-unknown"}`}><i>{TYPE_META[item.type]?.icon || "◇"}</i> {TYPE_META[item.type]?.label || "غير محدد"}</span></td>
-                  <td data-label="الوحدة">{item.unit || "—"}</td>
-                  {showQuantityColumn && <td data-label="الكمية الحالية" className="num">{item.quantity ?? "—"}</td>}
-                  {extraColumns.lastPurchasePrice && <td data-label="آخر سعر شراء" className="num">{item.lastPurchasePrice != null ? fmt2(item.lastPurchasePrice) : "—"}</td>}
-                  <td data-label="سعر البيع" className="num">{item.salePrice != null ? fmt2(item.salePrice) : "—"}</td>
-                  {extraColumns.averageCost && <td data-label="متوسط التكلفة" className="num">{item.averageCost != null ? fmt2(item.averageCost) : "—"}</td>}
-                  {extraColumns.stockValue && <td data-label="قيمة المخزون" className="num">{item.stockValue != null ? fmt2(item.stockValue) : "—"}</td>}
-                  <td data-label="الإجراءات" className="row-actions"><div className="item-actions">
-                    <ActionButton icon={Icons.view} label="عرض" onClick={() => setViewItem(item)} />
-                    <ActionButton icon={Icons.edit} label="تعديل" onClick={() => startEdit(item)} />
-                    <ActionButton icon={Icons.duplicate} label="نسخ الصنف" onClick={() => duplicate(item)} />
-                    <ActionButton icon={Icons.archive} label={item.isArchived ? "إلغاء الأرشفة" : "أرشفة الصنف"} onClick={() => toggleArchive(item)} />
-                    <ActionButton icon={Icons.remove} label="حذف" danger onClick={() => remove(item)} title="الحذف — قد يمنعه النظام إذا كان الصنف مرتبطاً بمعاملات" />
-                    <ActionButton icon={Icons.print} label="طباعة بطاقة الصنف" onClick={() => { setViewItem(item); setTimeout(() => window.print(), 0); }} />
+                  <td data-label={t("inventory.items.table.code")}><span className="item-code">{item.code}</span></td>
+                  <td data-label={t("inventory.items.table.name")}><div className="item-name-cell"><span className="item-avatar">◇</span><span><strong>{item.name}</strong><small>{item.category || t("inventory.items.notCategorized")}</small></span></div></td>
+                  <td data-label={t("inventory.items.table.type")}><span className={`item-type-badge ${TYPE_CSS[item.type] || "type-unknown"}`}><i>{TYPE_ICON[item.type] || "◇"}</i> {TYPE_LABEL[item.type] || t("inventory.items.unspecifiedType")}</span></td>
+                  <td data-label={t("inventory.items.table.unit")}>{item.unit || "—"}</td>
+                  {showQuantityColumn && <td data-label={t("inventory.items.table.quantity")} className="num">{item.quantity ?? "—"}</td>}
+                  {extraColumns.lastPurchasePrice && <td data-label={t("inventory.items.table.lastPurchasePrice")} className="num">{item.lastPurchasePrice != null ? fmt2(item.lastPurchasePrice) : "—"}</td>}
+                  <td data-label={t("inventory.items.table.salePrice")} className="num">{item.salePrice != null ? fmt2(item.salePrice) : "—"}</td>
+                  {extraColumns.averageCost && <td data-label={t("inventory.items.table.averageCost")} className="num">{item.averageCost != null ? fmt2(item.averageCost) : "—"}</td>}
+                  {extraColumns.stockValue && <td data-label={t("inventory.items.table.stockValue")} className="num">{item.stockValue != null ? fmt2(item.stockValue) : "—"}</td>}
+                  <td data-label={t("inventory.items.table.actions")} className="row-actions"><div className="item-actions">
+                    <ActionButton icon={Icons.view} label={t("inventory.items.actions.view")} onClick={() => setViewItem(item)} />
+                    <ActionButton icon={Icons.edit} label={t("inventory.items.actions.edit")} onClick={() => startEdit(item)} />
+                    <ActionButton icon={Icons.duplicate} label={t("inventory.items.actions.duplicate")} onClick={() => duplicate(item)} />
+                    <ActionButton icon={Icons.archive} label={item.isArchived ? t("inventory.items.actions.unarchive") : t("inventory.items.actions.archive")} onClick={() => toggleArchive(item)} />
+                    <ActionButton icon={Icons.remove} label={t("inventory.items.actions.delete")} danger onClick={() => remove(item)} title={t("inventory.items.actions.deleteTitle")} />
+                    <ActionButton icon={Icons.print} label={t("inventory.items.actions.print")} onClick={() => { setViewItem(item); setTimeout(() => window.print(), 0); }} />
                   </div></td>
                 </tr>)}
-                {filteredItems.length === 0 && <tr><td className="empty items-empty" colSpan={columnCount}><span>⌕</span><strong>لا توجد أصناف مطابقة</strong><small>جرّب تعديل معايير البحث أو الفلترة</small></td></tr>}
+                {filteredItems.length === 0 && <tr><td className="empty items-empty" colSpan={columnCount}><span>⌕</span><strong>{t("inventory.items.emptyTitle")}</strong><small>{t("inventory.items.emptySubtitle")}</small></td></tr>}
               </tbody>
             </table>
           </div>
         )}
-        <footer className="items-table-footer">عرض <strong>{filteredItems.length}</strong> من أصل <strong>{items.length}</strong> صنف</footer>
+        <footer className="items-table-footer">{t("inventory.items.footer", { shown: filteredItems.length, total: items.length })}</footer>
       </section>
 
       {viewItem && <div className="voucher-overlay item-view-overlay" onMouseDown={() => setViewItem(null)}><div className="voucher-shell item-view-card" onMouseDown={(e) => e.stopPropagation()}>
-        <button type="button" className="voucher-close-x" onClick={() => setViewItem(null)} aria-label="إغلاق">×</button>
-        <div className="item-view-head"><span className="item-avatar large">{TYPE_META[viewItem.type]?.icon || "◇"}</span><div><small>بطاقة الصنف — {TYPE_META[viewItem.type]?.label || "غير محدد"}</small><h3>{viewItem.name}</h3><span className="item-code">{viewItem.code}</span></div></div>
+        <button type="button" className="voucher-close-x" onClick={() => setViewItem(null)} aria-label={t("inventory.items.view.close")}>×</button>
+        <div className="item-view-head"><span className="item-avatar large">{TYPE_ICON[viewItem.type] || "◇"}</span><div><small>{t("inventory.items.view.cardLabel", { type: TYPE_LABEL[viewItem.type] || t("inventory.items.unspecifiedType") })}</small><h3>{viewItem.name}</h3><span className="item-code">{viewItem.code}</span></div></div>
         <dl>
-          <div><dt>التصنيف</dt><dd>{viewItem.category || "—"}</dd></div>
-          <div><dt>الوحدة</dt><dd>{viewItem.unit || "—"}</dd></div>
-          <div><dt>متوسط التكلفة</dt><dd>{fmt2(viewItem.averageCost || 0)}</dd></div>
-          <div><dt>سعر البيع</dt><dd>{viewItem.salePrice != null ? fmt2(viewItem.salePrice) : "—"}</dd></div>
-          <div><dt>حد إعادة الطلب</dt><dd>{viewItem.reorderLevel || "—"}</dd></div>
-          <div><dt>الكمية الحالية</dt><dd>{viewItem.quantity ?? "—"}</dd></div>
+          <div><dt>{t("inventory.items.view.category")}</dt><dd>{viewItem.category || "—"}</dd></div>
+          <div><dt>{t("inventory.items.view.unit")}</dt><dd>{viewItem.unit || "—"}</dd></div>
+          <div><dt>{t("inventory.items.view.averageCost")}</dt><dd>{fmt2(viewItem.averageCost || 0)}</dd></div>
+          <div><dt>{t("inventory.items.view.salePrice")}</dt><dd>{viewItem.salePrice != null ? fmt2(viewItem.salePrice) : "—"}</dd></div>
+          <div><dt>{t("inventory.items.view.reorderLevel")}</dt><dd>{viewItem.reorderLevel || "—"}</dd></div>
+          <div><dt>{t("inventory.items.view.quantity")}</dt><dd>{viewItem.quantity ?? "—"}</dd></div>
         </dl>
-        <div className="voucher-actions"><button className="btn-ghost" onClick={() => setViewItem(null)}>إغلاق</button><button className="btn-primary" onClick={() => window.print()}>طباعة البطاقة</button></div>
+        <div className="voucher-actions"><button className="btn-ghost" onClick={() => setViewItem(null)}>{t("inventory.items.view.close")}</button><button className="btn-primary" onClick={() => window.print()}>{t("inventory.items.view.print")}</button></div>
       </div></div>}
     </div>
   );

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import ItemsTab from "./ItemsTab";
 import WarehousesTab from "./WarehousesTab";
 import StockInOutTab from "./StockInOutTab";
@@ -18,11 +19,12 @@ export const INVENTORY_TABS = [
 ];
 
 export default function InventoryWiredModule({ tab, setTab, companies, companyId }) {
+  const { t } = useTranslation();
   return (
     <div>
       <div className="section-title">
-        <Breadcrumb parts={["إدارة المخازن", "بيانات حقيقية"]} />
-        <h2>المستودعات والمنتجات</h2>
+        <Breadcrumb parts={[t("inventory.breadcrumb"), t("dashboard.breadcrumb.realData")]} />
+        <h2>{t("nav.groups.inventory")}</h2>
       </div>
       <SubTabs tabs={INVENTORY_TABS} active={tab} onChange={setTab} />
       {tab === "items" && <ItemsTab companyId={companyId} onNavigateTransfer={() => setTab("transfer")} />}

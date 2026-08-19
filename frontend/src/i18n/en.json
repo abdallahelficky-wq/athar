@@ -531,6 +531,122 @@
       "empty": "No data yet."
     }
   },
+  "inventory": {
+    "breadcrumb": "Warehouse Management",
+    "typeMeta": {
+      "inventory": "Inventory", "expense": "Expense", "service": "Service",
+      "fixed_asset": "Fixed asset", "raw_material": "Raw material", "bundle": "Bundle"
+    },
+    "accountLabels": {
+      "stockAccountId": "Inventory account", "cogsAccountId": "COGS account",
+      "revenueAccountId": "Revenue account", "expenseAccountId": "Expense account"
+    },
+    "items": {
+      "addNew": "Add new item",
+      "importDisabled": "Item import is not available in the current API interface",
+      "importBtn": "Import items",
+      "exportBtn": "Export items",
+      "exportFileName": "items.csv",
+      "csvHeaders": { "code": "Item code", "name": "Item name", "type": "Item type", "unit": "Unit", "category": "Category", "averageCost": "Average cost", "salePrice": "Sale price", "reorderLevel": "Reorder level" },
+      "unitsDisabled": "Unit-of-measure management is not available in the current API interface",
+      "unitsBtn": "Units of measure",
+      "transferBtn": "Transfer between warehouses",
+      "columnsBtn": "Columns",
+      "columnsMenuTitle": "Additional table columns",
+      "extraColumns": { "lastPurchasePrice": "Last purchase price", "averageCost": "Average cost", "stockValue": "Stock value" },
+      "form": {
+        "titleEdit": "Edit item — {{name}}", "titleCreate": "Add new item", "close": "Close",
+        "type": "Item type", "code": "Item code", "name": "Item name",
+        "barcode": "Barcode (optional, for POS scanning)",
+        "unit": "Unit", "unitPlaceholder": "Liter, piece...", "category": "Category",
+        "reorderLevel": "Reorder level",
+        "allowDirectSale": "This raw material can be sold directly to customers",
+        "assetCategory": "Asset category (determines acquisition/depreciation accounts automatically on purchase)",
+        "noCategoryYet": "— No category yet —",
+        "assetCategoryNote": "The asset category is required when the item is actually purchased via a purchase invoice (accounts are determined from it automatically); the item can be saved without a category now and completed later. Asset life and salvage value are entered on the purchase invoice line.",
+        "salePrice": "Suggested sale price", "vatApplicable": "Subject to VAT",
+        "bom": {
+          "title": "Product components (BOM)", "addComponent": "+ Add component",
+          "component": "Component", "quantityPerUnit": "Qty per unit", "chooseItem": "— Choose an item —",
+          "emptyHint": "Add at least one component"
+        },
+        "cancel": "Cancel", "saveChanges": "Save changes", "saveItem": "Save item"
+      },
+      "tabActive": "Active", "tabArchived": "Archived",
+      "filters": {
+        "searchAria": "Search by name or code", "searchPlaceholder": "Search by item name or code...",
+        "typeAria": "Item type", "allTypes": "All item types",
+        "categoryAria": "Category", "allCategories": "All categories",
+        "lowStock": "Low stock", "clearFilters": "Clear filters", "showResults": "Show results"
+      },
+      "loading": "Loading items...",
+      "table": {
+        "code": "Item code", "name": "Item name", "type": "Item type", "unit": "Unit",
+        "quantity": "Current qty", "lastPurchasePrice": "Last purchase price", "salePrice": "Sale price",
+        "averageCost": "Average cost", "stockValue": "Stock value", "actions": "Actions"
+      },
+      "notCategorized": "Uncategorized", "unspecifiedType": "Unspecified",
+      "actions": {
+        "view": "View", "edit": "Edit", "duplicate": "Duplicate item",
+        "archive": "Archive item", "unarchive": "Unarchive",
+        "delete": "Delete", "deleteTitle": "Delete — the system may block this if the item is linked to transactions",
+        "print": "Print item card"
+      },
+      "emptyTitle": "No matching items", "emptySubtitle": "Try adjusting your search/filter criteria",
+      "footer": "Showing {{shown}} of {{total}} items",
+      "confirmDelete": "Delete item \"{{name}}\"?",
+      "duplicateSuffix": "Copy",
+      "view": {
+        "cardLabel": "Item card — {{type}}", "close": "Close",
+        "category": "Category", "unit": "Unit", "averageCost": "Average cost",
+        "salePrice": "Sale price", "reorderLevel": "Reorder level", "quantity": "Current qty",
+        "print": "Print card"
+      }
+    },
+    "warehouses": {
+      "name": "Warehouse name", "code": "Warehouse code", "location": "Location",
+      "isDefault": "Default warehouse for sales issuance",
+      "cancel": "Cancel", "saveChanges": "Save changes", "addWarehouse": "Add warehouse",
+      "loading": "Loading...",
+      "table": { "name": "Warehouse name", "code": "Code", "location": "Location", "isDefault": "Default", "status": "Status" },
+      "active": "Active", "archived": "Archived",
+      "edit": "Edit", "unarchive": "Unarchive", "archive": "Archive", "delete": "Delete",
+      "empty": "No warehouses yet.",
+      "confirmDelete": "Delete warehouse \"{{name}}\"?"
+    },
+    "stockInOut": {
+      "movementType": "Movement", "movementIn": "Add stock", "movementOut": "Remove / write off stock",
+      "item": "Item", "warehouse": "Warehouse", "quantity": "Quantity", "unitCost": "Unit cost",
+      "date": "Date", "note": "Note",
+      "currentBalance": "Current balance for this item at this warehouse:",
+      "save": "Save movement",
+      "removeMovementTitle": "Delete stock movement"
+    },
+    "issue": {
+      "item": "Item", "warehouse": "Warehouse", "department": "Receiving department",
+      "quantity": "Quantity", "date": "Date", "note": "Note",
+      "availableBalance": "Available balance:", "exceedsBalance": "— Requested quantity exceeds available balance",
+      "issueBtn": "Issue from stock",
+      "removeMovementTitle": "Delete issue movement"
+    },
+    "transfer": {
+      "item": "Item", "fromWarehouse": "From location (source)", "toCompany": "Receiving company",
+      "toWarehouse": "To location (destination)", "quantity": "Quantity", "date": "Date",
+      "availableBalance": "Available balance at source:",
+      "crossCompanyNote": "— Transfer between two different companies, will be posted through an intercompany account.",
+      "execute": "Execute transfer",
+      "removeMovementTitle": "Delete transfer"
+    },
+    "movementsTable": {
+      "date": "Date", "item": "Item", "location": "Location", "type": "Type", "quantity": "Quantity", "note": "Note", "delete": "Delete",
+      "types": { "in": "In", "out": "Out/write-off", "issue": "Issue", "transfer_out": "Transfer out", "transfer_in": "Transfer in" },
+      "empty": "No movements yet."
+    },
+    "stockReport": {
+      "item": "Item", "code": "Code", "location": "Location", "balance": "Balance", "costPrice": "Cost price", "value": "Value",
+      "empty": "No stock balances yet."
+    }
+  },
   "journalEntries": {
     "breadcrumb": "Journal",
     "statusSaved": "Saved",

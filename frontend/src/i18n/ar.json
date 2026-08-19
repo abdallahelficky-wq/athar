@@ -531,6 +531,122 @@
       "empty": "لا توجد بيانات بعد."
     }
   },
+  "inventory": {
+    "breadcrumb": "إدارة المخازن",
+    "typeMeta": {
+      "inventory": "مخزون", "expense": "مصروف", "service": "خدمة",
+      "fixed_asset": "أصل ثابت", "raw_material": "مادة أولية", "bundle": "منتج مجمّع"
+    },
+    "accountLabels": {
+      "stockAccountId": "حساب المخزون", "cogsAccountId": "حساب تكلفة البضاعة المباعة",
+      "revenueAccountId": "حساب الإيراد", "expenseAccountId": "حساب المصروف"
+    },
+    "items": {
+      "addNew": "إضافة صنف جديد",
+      "importDisabled": "استيراد الأصناف غير متاح في واجهة API الحالية",
+      "importBtn": "استيراد أصناف",
+      "exportBtn": "تصدير أصناف",
+      "exportFileName": "الأصناف.csv",
+      "csvHeaders": { "code": "كود الصنف", "name": "اسم الصنف", "type": "نوع الصنف", "unit": "الوحدة", "category": "التصنيف", "averageCost": "متوسط التكلفة", "salePrice": "سعر البيع", "reorderLevel": "حد إعادة الطلب" },
+      "unitsDisabled": "إدارة وحدات القياس غير متاحة في واجهة API الحالية",
+      "unitsBtn": "وحدات القياس",
+      "transferBtn": "نقل بين المستودعات",
+      "columnsBtn": "الأعمدة",
+      "columnsMenuTitle": "أعمدة إضافية للجدول",
+      "extraColumns": { "lastPurchasePrice": "آخر سعر شراء", "averageCost": "متوسط التكلفة", "stockValue": "قيمة المخزون" },
+      "form": {
+        "titleEdit": "تعديل الصنف — {{name}}", "titleCreate": "إضافة صنف جديد", "close": "إغلاق",
+        "type": "نوع الصنف", "code": "كود الصنف", "name": "اسم الصنف",
+        "barcode": "الباركود (اختياري، لمسحه في نقطة البيع)",
+        "unit": "الوحدة", "unitPlaceholder": "لتر، قطعة...", "category": "التصنيف",
+        "reorderLevel": "حد إعادة الطلب",
+        "allowDirectSale": "يمكن بيع هذه المادة الأولية مباشرةً للعملاء",
+        "assetCategory": "فئة الأصل (تحدد حسابات الاقتناء/الإهلاك تلقائياً عند الشراء)",
+        "noCategoryYet": "— بلا فئة بعد —",
+        "assetCategoryNote": "فئة الأصل مطلوبة عند شراء الصنف فعلياً عبر فاتورة مشتريات (تُحدَّد الحسابات منها تلقائياً)؛ يمكن حفظ الصنف بلا فئة الآن وإكمالها لاحقاً. عمر الأصل وقيمة الخردة يُدخَلان في سطر فاتورة الشراء.",
+        "salePrice": "سعر البيع المقترح", "vatApplicable": "خاضع لضريبة القيمة المضافة",
+        "bom": {
+          "title": "مكوّنات المنتج (BOM)", "addComponent": "+ إضافة مكوّن",
+          "component": "المكوّن", "quantityPerUnit": "الكمية لكل وحدة", "chooseItem": "— اختر صنفاً —",
+          "emptyHint": "أضف مكوّناً واحداً على الأقل"
+        },
+        "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveItem": "حفظ الصنف"
+      },
+      "tabActive": "نشط", "tabArchived": "مؤرشف",
+      "filters": {
+        "searchAria": "بحث بالاسم أو الكود", "searchPlaceholder": "ابحث باسم الصنف أو الكود...",
+        "typeAria": "نوع الصنف", "allTypes": "كل أنواع الأصناف",
+        "categoryAria": "التصنيف", "allCategories": "كل التصنيفات",
+        "lowStock": "مخزون منخفض", "clearFilters": "مسح الفلاتر", "showResults": "إظهار النتائج"
+      },
+      "loading": "جارٍ تحميل الأصناف...",
+      "table": {
+        "code": "كود الصنف", "name": "اسم الصنف", "type": "نوع الصنف", "unit": "الوحدة",
+        "quantity": "الكمية الحالية", "lastPurchasePrice": "آخر سعر شراء", "salePrice": "سعر البيع",
+        "averageCost": "متوسط التكلفة", "stockValue": "قيمة المخزون", "actions": "الإجراءات"
+      },
+      "notCategorized": "غير مصنّف", "unspecifiedType": "غير محدد",
+      "actions": {
+        "view": "عرض", "edit": "تعديل", "duplicate": "نسخ الصنف",
+        "archive": "أرشفة الصنف", "unarchive": "إلغاء الأرشفة",
+        "delete": "حذف", "deleteTitle": "الحذف — قد يمنعه النظام إذا كان الصنف مرتبطاً بمعاملات",
+        "print": "طباعة بطاقة الصنف"
+      },
+      "emptyTitle": "لا توجد أصناف مطابقة", "emptySubtitle": "جرّب تعديل معايير البحث أو الفلترة",
+      "footer": "عرض {{shown}} من أصل {{total}} صنف",
+      "confirmDelete": "حذف الصنف \"{{name}}\"؟",
+      "duplicateSuffix": "نسخة",
+      "view": {
+        "cardLabel": "بطاقة الصنف — {{type}}", "close": "إغلاق",
+        "category": "التصنيف", "unit": "الوحدة", "averageCost": "متوسط التكلفة",
+        "salePrice": "سعر البيع", "reorderLevel": "حد إعادة الطلب", "quantity": "الكمية الحالية",
+        "print": "طباعة البطاقة"
+      }
+    },
+    "warehouses": {
+      "name": "اسم المستودع", "code": "كود المستودع", "location": "الموقع",
+      "isDefault": "المستودع الافتراضي لصرف المبيعات",
+      "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "addWarehouse": "إضافة مستودع",
+      "loading": "جارٍ التحميل...",
+      "table": { "name": "اسم المستودع", "code": "الكود", "location": "الموقع", "isDefault": "الافتراضي", "status": "الحالة" },
+      "active": "نشط", "archived": "مؤرشف",
+      "edit": "تعديل", "unarchive": "إلغاء الأرشفة", "archive": "أرشفة", "delete": "حذف",
+      "empty": "لا توجد مستودعات بعد.",
+      "confirmDelete": "حذف المستودع \"{{name}}\"؟"
+    },
+    "stockInOut": {
+      "movementType": "الحركة", "movementIn": "إضافة مخزون", "movementOut": "حذف / إتلاف مخزون",
+      "item": "الصنف", "warehouse": "المستودع", "quantity": "الكمية", "unitCost": "تكلفة الوحدة",
+      "date": "التاريخ", "note": "ملاحظة",
+      "currentBalance": "الرصيد الحالي لهذا الصنف في هذا المستودع:",
+      "save": "حفظ الحركة",
+      "removeMovementTitle": "حذف الحركة المخزنية"
+    },
+    "issue": {
+      "item": "الصنف", "warehouse": "المستودع", "department": "القسم المستفيد",
+      "quantity": "الكمية", "date": "التاريخ", "note": "ملاحظة",
+      "availableBalance": "الرصيد المتاح:", "exceedsBalance": "— الكمية المطلوبة أكبر من الرصيد المتاح",
+      "issueBtn": "صرف من المخزون",
+      "removeMovementTitle": "حذف حركة الصرف"
+    },
+    "transfer": {
+      "item": "الصنف", "fromWarehouse": "من موقع (المصدر)", "toCompany": "الشركة المستقبلة",
+      "toWarehouse": "إلى موقع (الوجهة)", "quantity": "الكمية", "date": "التاريخ",
+      "availableBalance": "الرصيد المتاح بالمصدر:",
+      "crossCompanyNote": "— تحويل بين شركتين مختلفتين، سيُرحّل عبر حساب جاري بين الشركات.",
+      "execute": "تنفيذ التحويل",
+      "removeMovementTitle": "حذف عملية التحويل"
+    },
+    "movementsTable": {
+      "date": "التاريخ", "item": "الصنف", "location": "الموقع", "type": "النوع", "quantity": "الكمية", "note": "ملاحظة", "delete": "حذف",
+      "types": { "in": "إدخال", "out": "إخراج/إتلاف", "issue": "صرف", "transfer_out": "تحويل صادر", "transfer_in": "تحويل وارد" },
+      "empty": "لا توجد حركات بعد."
+    },
+    "stockReport": {
+      "item": "الصنف", "code": "الكود", "location": "الموقع", "balance": "الرصيد", "costPrice": "سعر التكلفة", "value": "القيمة",
+      "empty": "لا توجد أرصدة مخزون بعد."
+    }
+  },
   "journalEntries": {
     "breadcrumb": "دفتر اليومية",
     "statusSaved": "محفوظ",

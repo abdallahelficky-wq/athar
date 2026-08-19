@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listItems } from "../../api/items";
 import { listWarehouses } from "../../api/warehouses";
 import { listStockMovements, getStockBalance, createTransferMovement, removeStockMovement } from "../../api/stockMovements";
@@ -7,6 +8,7 @@ import UnpostModal from "../shared/UnpostModal";
 import StockMovementsTable from "./StockMovementsTable";
 
 export default function TransferTab({ companyId, companies }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [fromWarehouses, setFromWarehouses] = useState([]);
   const [toWarehouses, setToWarehouses] = useState([]);
@@ -70,31 +72,31 @@ export default function TransferTab({ companyId, companies }) {
     reload();
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>الصنف<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
-          <label>من موقع (المصدر)<select value={fromWarehouseId} onChange={(e) => setFromWarehouseId(e.target.value)}>{fromWarehouses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label>الشركة المستقبلة<select value={toCompanyId} onChange={(e) => setToCompanyId(e.target.value)}>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label>إلى موقع (الوجهة)<select value={toWarehouseId} onChange={(e) => setToWarehouseId(e.target.value)}>{toWarehouses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label>الكمية<input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></label>
-          <label>التاريخ<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label>{t("inventory.transfer.item")}<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
+          <label>{t("inventory.transfer.fromWarehouse")}<select value={fromWarehouseId} onChange={(e) => setFromWarehouseId(e.target.value)}>{fromWarehouses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label>{t("inventory.transfer.toCompany")}<select value={toCompanyId} onChange={(e) => setToCompanyId(e.target.value)}>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label>{t("inventory.transfer.toWarehouse")}<select value={toWarehouseId} onChange={(e) => setToWarehouseId(e.target.value)}>{toWarehouses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label>{t("inventory.transfer.quantity")}<input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></label>
+          <label>{t("inventory.transfer.date")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
         </div>
         {itemId && fromWarehouseId && (
           <p className="note">
-            الرصيد المتاح بالمصدر: <strong>{fmt2(balance)}</strong>
-            {crossCompany && " — تحويل بين شركتين مختلفتين، سيُرحّل عبر حساب جاري بين الشركات."}
+            {t("inventory.transfer.availableBalance")} <strong>{fmt2(balance)}</strong>
+            {crossCompany && ` ${t("inventory.transfer.crossCompanyNote")}`}
           </p>
         )}
         {error && <p className="balance-bad">{error}</p>}
-        <button className="btn-primary" onClick={save} disabled={!itemId || !fromWarehouseId || !toWarehouseId || !Number(quantity) || Number(quantity) > balance}>تنفيذ التحويل</button>
+        <button className="btn-primary" onClick={save} disabled={!itemId || !fromWarehouseId || !toWarehouseId || !Number(quantity) || Number(quantity) > balance}>{t("inventory.transfer.execute")}</button>
       </div>
 
       <StockMovementsTable movements={movements} filterTypes={["transfer_out", "transfer_in"]} onRemove={setRemoveTarget} />
-      {removeTarget && <UnpostModal title="حذف عملية التحويل" onCancel={() => setRemoveTarget(null)} onConfirm={doRemove} />}
+      {removeTarget && <UnpostModal title={t("inventory.transfer.removeMovementTitle")} onCancel={() => setRemoveTarget(null)} onConfirm={doRemove} />}
     </div>
   );
 }
