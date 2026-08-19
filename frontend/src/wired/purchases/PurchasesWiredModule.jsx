@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import SuppliersTab from "./SuppliersTab";
 import PurchaseInvoicesTab from "./PurchaseInvoicesTab";
 import PurchaseReturnsTab from "./PurchaseReturnsTab";
@@ -14,11 +15,12 @@ export const PURCHASE_TABS = [
 ];
 
 export default function PurchasesWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {
+  const { t } = useTranslation();
   return (
     <div>
       <div className="section-title">
-        <Breadcrumb parts={["التجارة والمشتريات", "بيانات حقيقية"]} />
-        <h2>المشتريات</h2>
+        <Breadcrumb parts={[t("nav.groups.purchases"), t("dashboard.breadcrumb.realData")]} />
+        <h2>{t("nav.groups.purchases")}</h2>
       </div>
       <SubTabs tabs={PURCHASE_TABS} active={tab} onChange={setTab} />
       {tab === "suppliers" && <SuppliersTab companyId={companyId} companies={companies} onViewAccount={onViewAccount} />}

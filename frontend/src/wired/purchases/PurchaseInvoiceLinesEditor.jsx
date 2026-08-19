@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { computeInvoiceLine } from "../shared/invoiceLine";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
@@ -18,6 +19,7 @@ const NOT_PURCHASABLE_TYPES = ["service", "bundle"];
  * الحرة بلا صنف مختار (مصاريف متفرقة).
  */
 export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, items, warehouses }) {
+  const { t } = useTranslation();
   const [openDropdownIdx, setOpenDropdownIdx] = useState(null);
   const [searchText, setSearchText] = useState("");
 
@@ -25,6 +27,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
   const subtotal = computedLines.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computedLines.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
+  const currency = t("common.currency");
 
   const purchasableItems = items.filter((i) => !NOT_PURCHASABLE_TYPES.includes(i.type));
 
@@ -54,8 +57,11 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
         <table className="lines-table">
           <thead>
             <tr>
-              <th>الصنف/الوصف</th><th>الحساب</th><th>تفاصيل الصنف</th><th>الكمية</th><th>سعر الوحدة</th>
-              <th>شامل الضريبة؟</th><th>خصم %</th><th>الإجمالي شامل الضريبة</th><th></th>
+              <th>{t("purchases.invoices.lines.itemDescription")}</th><th>{t("purchases.invoices.lines.account")}</th>
+              <th>{t("purchases.invoices.lines.itemDetails")}</th><th>{t("purchases.invoices.lines.quantity")}</th>
+              <th>{t("purchases.invoices.lines.unitPrice")}</th>
+              <th>{t("purchases.invoices.lines.priceIncludesVat")}</th><th>{t("purchases.invoices.lines.discount")}</th>
+              <th>{t("purchases.invoices.lines.totalWithVat")}</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -70,7 +76,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
                       onChange={(e) => { clearItem(idx, e.target.value); setSearchText(e.target.value); setOpenDropdownIdx(idx); }}
                       onFocus={() => { setSearchText(l.description); setOpenDropdownIdx(idx); }}
                       onBlur={() => setTimeout(() => setOpenDropdownIdx((v) => (v === idx ? null : v)), 150)}
-                      placeholder="اختر صنفاً من الكتالوج أو اكتب وصفاً حراً"
+                      placeholder={t("purchases.invoices.lines.itemPlaceholder")}
                     />
                     {openDropdownIdx === idx && (
                       <div className="item-combo-dropdown">
@@ -79,13 +85,13 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
                             {it.name} <span className="note" style={{ margin: 0 }}>({it.code})</span>
                           </div>
                         ))}
-                        {filtered(searchText).length === 0 && <div className="item-combo-option" style={{ cursor: "default" }}>لا توجد أصناف مطابقة</div>}
+                        {filtered(searchText).length === 0 && <div className="item-combo-option" style={{ cursor: "default" }}>{t("purchases.invoices.lines.noMatchingItems")}</div>}
                       </div>
                     )}
                   </td>
                   <td>
                     {selectedItem ? (
-                      <span className="derived-account-note">يُشتق تلقائياً من نوع الصنف</span>
+                      <span className="derived-account-note">{t("purchases.invoices.lines.derivedAccountNote")}</span>
                     ) : (
                       <AccountSearchSelect accounts={accounts} value={l.accountId} onChange={(accountId) => updateLine(idx, { accountId })} />
                     )}
@@ -93,13 +99,13 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
                   <td>
                     {selectedItem?.type === "fixed_asset" && (
                       <div className="asset-line-fields">
-                        <input type="number" min="1" value={l.usefulLifeYears} onChange={(e) => updateLine(idx, { usefulLifeYears: e.target.value })} placeholder="العمر الإنتاجي (سنوات)" />
-                        <input type="number" min="0" value={l.salvageValue} onChange={(e) => updateLine(idx, { salvageValue: e.target.value })} placeholder="قيمة الخردة" />
+                        <input type="number" min="1" value={l.usefulLifeYears} onChange={(e) => updateLine(idx, { usefulLifeYears: e.target.value })} placeholder={t("purchases.invoices.lines.usefulLifeYears")} />
+                        <input type="number" min="0" value={l.salvageValue} onChange={(e) => updateLine(idx, { salvageValue: e.target.value })} placeholder={t("purchases.invoices.lines.salvageValue")} />
                       </div>
                     )}
                     {selectedItem && selectedItem.type !== "fixed_asset" && (
                       <select value={l.warehouseId} onChange={(e) => updateLine(idx, { warehouseId: e.target.value })}>
-                        <option value="">— اختر المستودع —</option>
+                        <option value="">{t("purchases.invoices.lines.chooseWarehouse")}</option>
                         {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
                       </select>
                     )}
@@ -119,19 +125,19 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
           </tbody>
           <tfoot>
             <tr>
-              <td className="foot-label" colSpan={7}>الإجمالي</td>
+              <td className="foot-label" colSpan={7}>{t("purchases.invoices.lines.total")}</td>
               <td className="num">{fmt2(grandTotal)}</td>
               <td></td>
             </tr>
           </tfoot>
         </table>
       </div>
-      <button className="btn-ghost" onClick={addLine}>+ إضافة سطر</button>
+      <button className="btn-ghost" onClick={addLine}>{t("purchases.invoices.lines.addLine")}</button>
 
       <div className="preview-box">
-        <div className="preview-row"><span>الإجمالي قبل الضريبة</span><strong>{fmt2(subtotal)} ر.س</strong></div>
-        <div className="preview-row"><span>ضريبة القيمة المضافة (15٪)</span><strong>{fmt2(vatTotal)} ر.س</strong></div>
-        <div className="preview-row net-row"><span>الإجمالي شامل الضريبة</span><strong>{fmt2(grandTotal)} ر.س</strong></div>
+        <div className="preview-row"><span>{t("purchases.invoices.lines.subtotal")}</span><strong>{fmt2(subtotal)} {currency}</strong></div>
+        <div className="preview-row"><span>{t("purchases.invoices.lines.vat")}</span><strong>{fmt2(vatTotal)} {currency}</strong></div>
+        <div className="preview-row net-row"><span>{t("purchases.invoices.lines.grandTotal")}</span><strong>{fmt2(grandTotal)} {currency}</strong></div>
       </div>
     </div>
   );

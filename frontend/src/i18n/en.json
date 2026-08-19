@@ -465,6 +465,72 @@
       "total": "Total"
     }
   },
+  "purchases": {
+    "suppliers": {
+      "editingBanner": "Editing supplier — {{name}}",
+      "name": "Supplier name", "vatNumber": "VAT number", "crNumber": "CR number", "phone": "Phone", "email": "Email", "city": "City",
+      "paymentTerms": "Payment terms", "paymentCash": "Cash", "payment30": "Net 30 days", "payment60": "Net 60 days", "payment90": "Net 90 days",
+      "cancel": "Cancel", "saveChanges": "Save changes", "saveSupplier": "Save supplier",
+      "loading": "Loading...",
+      "table": { "name": "Name", "vatNumber": "VAT number", "city": "City", "paymentTerms": "Payment terms" },
+      "viewStatement": "Supplier statement of account", "viewInChart": "View in chart of accounts",
+      "edit": "Edit", "delete": "Delete",
+      "empty": "No suppliers yet.",
+      "confirmDelete": "Delete supplier \"{{name}}\"?",
+      "deleted": "Supplier \"{{name}}\" deleted."
+    },
+    "invoices": {
+      "supplier": "Supplier", "invoiceDate": "Invoice date",
+      "addSupplierFirst": "Add a supplier first from the \"Suppliers\" tab.",
+      "saveAndPost": "Save and post invoice",
+      "loading": "Loading...",
+      "table": { "number": "Number", "supplier": "Supplier", "date": "Date", "total": "Total", "status": "Status" },
+      "posted": "Posted", "draft": "Draft",
+      "view": "View invoice", "print": "Print invoice", "delete": "Delete", "post": "Post", "unpost": "Unpost",
+      "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
+      "confirmDelete": "Delete invoice {{number}}?",
+      "empty": "No purchase invoices yet.",
+      "lines": {
+        "itemDescription": "Item/Description", "account": "Account", "itemDetails": "Item details",
+        "quantity": "Qty", "unitPrice": "Unit price", "priceIncludesVat": "Incl. VAT?", "discount": "Disc. %",
+        "totalWithVat": "Total incl. VAT",
+        "itemPlaceholder": "Choose an item from the catalog or type a free-text description",
+        "noMatchingItems": "No matching items",
+        "derivedAccountNote": "Derived automatically from the item type",
+        "chooseWarehouse": "— Choose warehouse —",
+        "usefulLifeYears": "Useful life (years)", "salvageValue": "Salvage value",
+        "total": "Total", "addLine": "+ Add line",
+        "subtotal": "Subtotal before tax", "vat": "VAT (15%)", "grandTotal": "Total incl. VAT"
+      },
+      "view": {
+        "subtitle": "Purchase invoice",
+        "invoiceNumber": "Invoice number", "date": "Date",
+        "buyer": "Buyer", "buyerVat": "Buyer VAT number", "vatNotEntered": "Not entered yet",
+        "supplier": "Supplier", "supplierVat": "Supplier VAT number", "vatUnregistered": "Not registered",
+        "table": { "description": "Description", "quantity": "Qty", "unitPrice": "Unit price", "discount": "Disc. %", "beforeTax": "Before tax", "tax": "Tax", "total": "Total" },
+        "total": "Total"
+      }
+    },
+    "returns": {
+      "supplier": "Supplier", "originalInvoice": "Original invoice (optional)", "noLink": "— No link —",
+      "date": "Return date", "reason": "Return reason",
+      "saveAndPost": "Save and post return",
+      "loading": "Loading...",
+      "table": { "number": "Number", "supplier": "Supplier", "date": "Date", "total": "Total", "status": "Status" },
+      "posted": "Posted", "draft": "Draft",
+      "unpost": "Unpost", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
+      "empty": "No purchase returns yet."
+    },
+    "reports": {
+      "tabs": { "bySupplier": "By supplier", "monthly": "Monthly trend", "aging": "Payables aging", "vat": "VAT summary" },
+      "bySupplier": { "supplier": "Supplier", "invoiceCount": "Invoice count", "totalInvoices": "Total purchases", "totalReturns": "Total returns", "netPurchases": "Net purchases" },
+      "monthly": { "month": "Month", "total": "Total purchases" },
+      "aging": { "supplier": "Supplier", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding payables." },
+      "agingNote": "Note: there is no \"payment voucher\" module yet to record settling supplier invoices, so every posted invoice is treated as fully outstanding.",
+      "vat": { "purchasesBase": "Total purchases before tax", "inputVat": "Input VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netInputVat": "Net deductible input VAT" },
+      "empty": "No data yet."
+    }
+  },
   "journalEntries": {
     "breadcrumb": "Journal",
     "statusSaved": "Saved",

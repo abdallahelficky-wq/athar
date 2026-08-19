@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listSuppliers } from "../../api/suppliers";
 import { listAccounts } from "../../api/accounts";
 import { listItems } from "../../api/items";
@@ -14,6 +15,7 @@ import AttachmentsPanel from "../shared/AttachmentsPanel";
 import PurchaseInvoiceViewModal from "./PurchaseInvoiceViewModal";
 
 export default function PurchaseInvoicesTab({ companyId, companies }) {
+  const { t } = useTranslation();
   const [suppliers, setSuppliers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [items, setItems] = useState([]);
@@ -74,7 +76,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
   };
 
   const remove = async (inv) => {
-    if (!window.confirm(`حذف الفاتورة ${inv.invoiceNumber}؟`)) return;
+    if (!window.confirm(t("purchases.invoices.confirmDelete", { number: inv.invoiceNumber }))) return;
     try {
       await deletePurchaseInvoice(inv.id);
       reload();
@@ -98,52 +100,58 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
     reload();
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <div className="form-grid header-grid">
-          <label>المورد<select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-          <label>تاريخ الفاتورة<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label>{t("purchases.invoices.supplier")}<select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+          <label>{t("purchases.invoices.invoiceDate")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
         </div>
-        {suppliers.length === 0 && <p className="empty">أضف مورداً أولاً من تبويب "الموردون".</p>}
+        {suppliers.length === 0 && <p className="empty">{t("purchases.invoices.addSupplierFirst")}</p>}
 
         <PurchaseInvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} items={items} warehouses={warehouses} />
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          <button className="btn-primary" onClick={save} disabled={!supplierId}>حفظ وترحيل الفاتورة</button>
+          <button className="btn-primary" onClick={save} disabled={!supplierId}>{t("purchases.invoices.saveAndPost")}</button>
         </div>
       </div>
 
-      {loading ? <p className="empty">جارٍ التحميل...</p> : (
+      {loading ? <p className="empty">{t("purchases.invoices.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>الرقم</th><th>المورد</th><th>التاريخ</th><th>الإجمالي</th><th>الحالة</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("purchases.invoices.table.number")}</th><th>{t("purchases.invoices.table.supplier")}</th>
+                <th>{t("purchases.invoices.table.date")}</th><th>{t("purchases.invoices.table.total")}</th>
+                <th>{t("purchases.invoices.table.status")}</th><th></th>
+              </tr>
+            </thead>
             <tbody>
               {invoices.map((inv) => (
                 <React.Fragment key={inv.id}>
                   <tr>
                     <td>{inv.invoiceNumber}</td><td>{inv.supplier?.name}</td><td>{inv.date.slice(0, 10)}</td>
                     <td className="num">{fmt(inv.grandTotal)}</td>
-                    <td><span className="status-badge">{inv.status === "posted" ? "مرحّلة" : "مسودة"}</span></td>
+                    <td><span className="status-badge">{inv.status === "posted" ? t("purchases.invoices.posted") : t("purchases.invoices.draft")}</span></td>
                     <td className="row-actions">
-                      <button className="icon-btn" title="عرض الفاتورة" onClick={() => setViewInvoice(inv)}><Icon.Eye /></button>
+                      <button className="icon-btn" title={t("purchases.invoices.view")} onClick={() => setViewInvoice(inv)}><Icon.Eye /></button>
                       <button
-                        className="icon-btn" title="طباعة الفاتورة"
+                        className="icon-btn" title={t("purchases.invoices.print")}
                         onClick={() => { setViewInvoice(inv); setAutoPrint(true); }}
                       ><Icon.Printer /></button>
                       {inv.status === "draft" && (
                         <>
-                          <button className="icon-btn icon-btn-danger" title="حذف" onClick={() => remove(inv)}><Icon.Trash /></button>
-                          <button className="icon-btn" title="ترحيل" onClick={() => doPost(inv)}><Icon.Lock /></button>
+                          <button className="icon-btn icon-btn-danger" title={t("purchases.invoices.delete")} onClick={() => remove(inv)}><Icon.Trash /></button>
+                          <button className="icon-btn" title={t("purchases.invoices.post")} onClick={() => doPost(inv)}><Icon.Lock /></button>
                         </>
                       )}
                       {inv.status === "posted" && (
-                        <button className="icon-btn icon-btn-warn" title="فك الترحيل" onClick={() => setUnpostTarget(inv)}><Icon.Unlock /></button>
+                        <button className="icon-btn icon-btn-warn" title={t("purchases.invoices.unpost")} onClick={() => setUnpostTarget(inv)}><Icon.Unlock /></button>
                       )}
                       <button
-                        className="icon-btn" title={attachmentsFor === inv.id ? "إخفاء المرفقات" : "المرفقات"}
+                        className="icon-btn" title={attachmentsFor === inv.id ? t("purchases.invoices.attachmentsHide") : t("purchases.invoices.attachmentsShow")}
                         onClick={() => setAttachmentsFor(attachmentsFor === inv.id ? null : inv.id)}
                       ><Icon.Paperclip /></button>
                     </td>
@@ -153,7 +161,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
                   )}
                 </React.Fragment>
               ))}
-              {invoices.length === 0 && <tr><td className="empty" colSpan={6}>لا توجد فواتير مشتريات بعد.</td></tr>}
+              {invoices.length === 0 && <tr><td className="empty" colSpan={6}>{t("purchases.invoices.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

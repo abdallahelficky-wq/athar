@@ -465,6 +465,72 @@
       "total": "الإجمالي"
     }
   },
+  "purchases": {
+    "suppliers": {
+      "editingBanner": "تعديل المورد — {{name}}",
+      "name": "اسم المورد", "vatNumber": "الرقم الضريبي", "crNumber": "السجل التجاري", "phone": "الجوال", "email": "البريد الإلكتروني", "city": "المدينة",
+      "paymentTerms": "شروط الدفع", "paymentCash": "نقدي", "payment30": "آجل 30 يوم", "payment60": "آجل 60 يوم", "payment90": "آجل 90 يوم",
+      "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveSupplier": "حفظ بيانات المورد",
+      "loading": "جارٍ التحميل...",
+      "table": { "name": "الاسم", "vatNumber": "الرقم الضريبي", "city": "المدينة", "paymentTerms": "شروط الدفع" },
+      "viewStatement": "كشف حساب المورد", "viewInChart": "عرض في شجرة الحسابات",
+      "edit": "تعديل", "delete": "حذف",
+      "empty": "لا يوجد موردون بعد.",
+      "confirmDelete": "حذف المورد \"{{name}}\"؟",
+      "deleted": "تم حذف المورد \"{{name}}\"."
+    },
+    "invoices": {
+      "supplier": "المورد", "invoiceDate": "تاريخ الفاتورة",
+      "addSupplierFirst": "أضف مورداً أولاً من تبويب \"الموردون\".",
+      "saveAndPost": "حفظ وترحيل الفاتورة",
+      "loading": "جارٍ التحميل...",
+      "table": { "number": "الرقم", "supplier": "المورد", "date": "التاريخ", "total": "الإجمالي", "status": "الحالة" },
+      "posted": "مرحّلة", "draft": "مسودة",
+      "view": "عرض الفاتورة", "print": "طباعة الفاتورة", "delete": "حذف", "post": "ترحيل", "unpost": "فك الترحيل",
+      "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
+      "confirmDelete": "حذف الفاتورة {{number}}؟",
+      "empty": "لا توجد فواتير مشتريات بعد.",
+      "lines": {
+        "itemDescription": "الصنف/الوصف", "account": "الحساب", "itemDetails": "تفاصيل الصنف",
+        "quantity": "الكمية", "unitPrice": "سعر الوحدة", "priceIncludesVat": "شامل الضريبة؟", "discount": "خصم %",
+        "totalWithVat": "الإجمالي شامل الضريبة",
+        "itemPlaceholder": "اختر صنفاً من الكتالوج أو اكتب وصفاً حراً",
+        "noMatchingItems": "لا توجد أصناف مطابقة",
+        "derivedAccountNote": "يُشتق تلقائياً من نوع الصنف",
+        "chooseWarehouse": "— اختر المستودع —",
+        "usefulLifeYears": "العمر الإنتاجي (سنوات)", "salvageValue": "قيمة الخردة",
+        "total": "الإجمالي", "addLine": "+ إضافة سطر",
+        "subtotal": "الإجمالي قبل الضريبة", "vat": "ضريبة القيمة المضافة (15٪)", "grandTotal": "الإجمالي شامل الضريبة"
+      },
+      "view": {
+        "subtitle": "فاتورة مشتريات",
+        "invoiceNumber": "رقم الفاتورة", "date": "التاريخ",
+        "buyer": "المشتري", "buyerVat": "الرقم الضريبي للمشتري", "vatNotEntered": "لم يُدخل بعد",
+        "supplier": "المورد", "supplierVat": "الرقم الضريبي للمورد", "vatUnregistered": "غير مسجّل",
+        "table": { "description": "الوصف", "quantity": "الكمية", "unitPrice": "سعر الوحدة", "discount": "خصم %", "beforeTax": "قبل الضريبة", "tax": "الضريبة", "total": "الإجمالي" },
+        "total": "الإجمالي"
+      }
+    },
+    "returns": {
+      "supplier": "المورد", "originalInvoice": "الفاتورة الأصلية (اختياري)", "noLink": "— بدون ربط —",
+      "date": "تاريخ المردود", "reason": "سبب المردود",
+      "saveAndPost": "حفظ وترحيل المردود",
+      "loading": "جارٍ التحميل...",
+      "table": { "number": "الرقم", "supplier": "المورد", "date": "التاريخ", "total": "الإجمالي", "status": "الحالة" },
+      "posted": "مرحّل", "draft": "مسودة",
+      "unpost": "فك الترحيل", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
+      "empty": "لا توجد مردودات مشتريات بعد."
+    },
+    "reports": {
+      "tabs": { "bySupplier": "حسب المورد", "monthly": "الاتجاه الشهري", "aging": "أعمار الذمم", "vat": "ملخص الضريبة" },
+      "bySupplier": { "supplier": "المورد", "invoiceCount": "عدد الفواتير", "totalInvoices": "إجمالي المشتريات", "totalReturns": "إجمالي المردودات", "netPurchases": "صافي المشتريات" },
+      "monthly": { "month": "الشهر", "total": "إجمالي المشتريات" },
+      "aging": { "supplier": "المورد", "current": "0-30 يوم", "d30": "31-60 يوم", "d60": "61-90 يوم", "d90": "أكثر من 90 يوم", "total": "الإجمالي", "empty": "لا توجد ذمم مستحقة." },
+      "agingNote": "ملاحظة: لا يوجد بعد موديول \"سند صرف\" لتسجيل سداد فواتير الموردين، لذا تُعتبر كل فاتورة مرحّلة مستحقة بالكامل.",
+      "vat": { "purchasesBase": "إجمالي المشتريات قبل الضريبة", "inputVat": "ضريبة المدخلات", "returnsBase": "إجمالي المردودات قبل الضريبة", "returnsVat": "ضريبة المردودات", "netInputVat": "صافي ضريبة المدخلات القابلة للخصم" },
+      "empty": "لا توجد بيانات بعد."
+    }
+  },
   "journalEntries": {
     "breadcrumb": "دفتر اليومية",
     "statusSaved": "محفوظ",

@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getPurchasesBySupplier, getPurchasesMonthly, getPurchasesVatSummary, getPayablesAging } from "../../api/purchaseReports";
 import { fmt } from "../../legacy/constants";
 import SubTabs from "../shared/SubTabs";
 
 const TABS = [
-  { id: "bySupplier", label: "حسب المورد" },
-  { id: "monthly", label: "الاتجاه الشهري" },
-  { id: "aging", label: "أعمار الذمم" },
-  { id: "vat", label: "ملخص الضريبة" },
+  { id: "bySupplier", labelKey: "purchases.reports.tabs.bySupplier" },
+  { id: "monthly", labelKey: "purchases.reports.tabs.monthly" },
+  { id: "aging", labelKey: "purchases.reports.tabs.aging" },
+  { id: "vat", labelKey: "purchases.reports.tabs.vat" },
 ];
 
 export default function PurchaseReportsTab({ companyId }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState("bySupplier");
   const [bySupplier, setBySupplier] = useState([]);
   const [monthly, setMonthly] = useState([]);
@@ -25,7 +27,7 @@ export default function PurchaseReportsTab({ companyId }) {
     getPurchasesVatSummary(companyId).then(setVat);
   }, [companyId]);
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
@@ -34,7 +36,13 @@ export default function PurchaseReportsTab({ companyId }) {
       {tab === "bySupplier" && (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>المورد</th><th>عدد الفواتير</th><th>إجمالي المشتريات</th><th>إجمالي المردودات</th><th>صافي المشتريات</th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("purchases.reports.bySupplier.supplier")}</th><th>{t("purchases.reports.bySupplier.invoiceCount")}</th>
+                <th>{t("purchases.reports.bySupplier.totalInvoices")}</th><th>{t("purchases.reports.bySupplier.totalReturns")}</th>
+                <th>{t("purchases.reports.bySupplier.netPurchases")}</th>
+              </tr>
+            </thead>
             <tbody>
               {bySupplier.map((r) => (
                 <tr key={r.supplierId}>
@@ -43,7 +51,7 @@ export default function PurchaseReportsTab({ companyId }) {
                   <td className="num strong">{fmt(r.netPurchases)}</td>
                 </tr>
               ))}
-              {bySupplier.length === 0 && <tr><td className="empty" colSpan={5}>لا توجد بيانات بعد.</td></tr>}
+              {bySupplier.length === 0 && <tr><td className="empty" colSpan={5}>{t("purchases.reports.empty")}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -52,10 +60,10 @@ export default function PurchaseReportsTab({ companyId }) {
       {tab === "monthly" && (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>الشهر</th><th>إجمالي المشتريات</th></tr></thead>
+            <thead><tr><th>{t("purchases.reports.monthly.month")}</th><th>{t("purchases.reports.monthly.total")}</th></tr></thead>
             <tbody>
               {monthly.map((r) => <tr key={r.month}><td>{r.month}</td><td className="num">{fmt(r.total)}</td></tr>)}
-              {monthly.length === 0 && <tr><td className="empty" colSpan={2}>لا توجد بيانات بعد.</td></tr>}
+              {monthly.length === 0 && <tr><td className="empty" colSpan={2}>{t("purchases.reports.empty")}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -64,7 +72,13 @@ export default function PurchaseReportsTab({ companyId }) {
       {tab === "aging" && (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>المورد</th><th>0-30 يوم</th><th>31-60 يوم</th><th>61-90 يوم</th><th>أكثر من 90 يوم</th><th>الإجمالي</th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("purchases.reports.aging.supplier")}</th><th>{t("purchases.reports.aging.current")}</th>
+                <th>{t("purchases.reports.aging.d30")}</th><th>{t("purchases.reports.aging.d60")}</th>
+                <th>{t("purchases.reports.aging.d90")}</th><th>{t("purchases.reports.aging.total")}</th>
+              </tr>
+            </thead>
             <tbody>
               {aging.map((r) => (
                 <tr key={r.supplierId}>
@@ -72,10 +86,10 @@ export default function PurchaseReportsTab({ companyId }) {
                   <td className="num">{fmt(r.d60)}</td><td className="num">{fmt(r.d90)}</td><td className="num strong">{fmt(r.total)}</td>
                 </tr>
               ))}
-              {aging.length === 0 && <tr><td className="empty" colSpan={6}>لا توجد ذمم مستحقة.</td></tr>}
+              {aging.length === 0 && <tr><td className="empty" colSpan={6}>{t("purchases.reports.aging.empty")}</td></tr>}
             </tbody>
           </table>
-          <p className="note">ملاحظة: لا يوجد بعد موديول "سند صرف" لتسجيل سداد فواتير الموردين، لذا تُعتبر كل فاتورة مرحّلة مستحقة بالكامل.</p>
+          <p className="note">{t("purchases.reports.agingNote")}</p>
         </div>
       )}
 
@@ -83,11 +97,11 @@ export default function PurchaseReportsTab({ companyId }) {
         <div className="panel">
           <table className="ledger-table">
             <tbody>
-              <tr><td>إجمالي المشتريات قبل الضريبة</td><td className="num">{fmt(vat.purchasesBase)}</td></tr>
-              <tr><td>ضريبة المدخلات</td><td className="num">{fmt(vat.inputVat)}</td></tr>
-              <tr><td>إجمالي المردودات قبل الضريبة</td><td className="num">{fmt(vat.returnsBase)}</td></tr>
-              <tr><td>ضريبة المردودات</td><td className="num">{fmt(vat.returnsVat)}</td></tr>
-              <tr className="net-row"><td className="strong">صافي ضريبة المدخلات القابلة للخصم</td><td className="num strong">{fmt(vat.netInputVat)}</td></tr>
+              <tr><td>{t("purchases.reports.vat.purchasesBase")}</td><td className="num">{fmt(vat.purchasesBase)}</td></tr>
+              <tr><td>{t("purchases.reports.vat.inputVat")}</td><td className="num">{fmt(vat.inputVat)}</td></tr>
+              <tr><td>{t("purchases.reports.vat.returnsBase")}</td><td className="num">{fmt(vat.returnsBase)}</td></tr>
+              <tr><td>{t("purchases.reports.vat.returnsVat")}</td><td className="num">{fmt(vat.returnsVat)}</td></tr>
+              <tr className="net-row"><td className="strong">{t("purchases.reports.vat.netInputVat")}</td><td className="num strong">{fmt(vat.netInputVat)}</td></tr>
             </tbody>
           </table>
         </div>
