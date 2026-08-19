@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { COMPANIES, PERMISSION_ROLES, COMPANY_DOC_TYPES, COST_CENTERS } from "./constants";
 import CompaniesSettings from "../wired/CompaniesSettings";
 import MyAccountSettings from "../wired/MyAccountSettings";
@@ -6,45 +7,48 @@ import UsersTab from "../wired/UsersTab";
 import SubTabs from "../wired/shared/SubTabs";
 
 export function MyProfileSettings({ currentUser, setCurrentUser }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(currentUser);
   const save = () => setCurrentUser(form);
   return (
     <div className="panel form-panel">
       <div className="form-grid">
-        <label>الاسم الكامل<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-        <label>البريد الإلكتروني<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-        <label>الدور الوظيفي<select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>{PERMISSION_ROLES.map((r) => <option key={r}>{r}</option>)}</select></label>
+        <label>{t("settings.profile.nameLabel")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+        <label>{t("settings.profile.emailLabel")}<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+        <label>{t("settings.profile.roleLabel")}<select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>{PERMISSION_ROLES.map((r) => <option key={r}>{r}</option>)}</select></label>
       </div>
-      <button className="btn-primary" onClick={save}>حفظ الملف الشخصي</button>
+      <button className="btn-primary" onClick={save}>{t("settings.profile.saveBtn")}</button>
     </div>
   );
 }
 
 export function JobTitlesSettings({ jobTitles, setJobTitles }) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const add = () => { if (!title.trim()) return; setJobTitles((prev) => [...prev, title.trim()]); setTitle(""); };
-  const remove = (t) => setJobTitles((prev) => prev.filter((x) => x !== t));
+  const remove = (t2) => setJobTitles((prev) => prev.filter((x) => x !== t2));
   return (
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label className="memo-field">مسمّى وظيفي جديد<input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثال: مشرف مبيعات" /></label>
+          <label className="memo-field">{t("settings.jobTitles.newTitleLabel")}<input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("settings.jobTitles.placeholder")} /></label>
         </div>
-        <button className="btn-primary" onClick={add}>إضافة</button>
+        <button className="btn-primary" onClick={add}>{t("common.add")}</button>
       </div>
       <div className="panel">
         <div className="tag-cloud">
-          {jobTitles.map((t) => (
-            <span key={t} className="tag-chip">{t}<button onClick={() => remove(t)}>✕</button></span>
+          {jobTitles.map((t2) => (
+            <span key={t2} className="tag-chip">{t2}<button onClick={() => remove(t2)}>✕</button></span>
           ))}
         </div>
-        {jobTitles.length === 0 && <p className="empty">لا توجد مسمّيات وظيفية مسجّلة بعد.</p>}
+        {jobTitles.length === 0 && <p className="empty">{t("settings.jobTitles.empty")}</p>}
       </div>
     </div>
   );
 }
 
 export function LocationsSettings({ onDataChange }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ name: "", company: "tesm" });
   const [, forceRerender] = useState(0);
 
@@ -64,33 +68,34 @@ export function LocationsSettings({ onDataChange }) {
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>اسم الموقع / الفرع<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="مثال: محطة الروضة الجديدة" /></label>
-          <label>الشركة<select value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })}>
-            <option value="all">عام لكل الشركات</option>
+          <label>{t("settings.locations.nameLabel")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={t("settings.locations.namePlaceholder")} /></label>
+          <label>{t("settings.locations.companyLabel")}<select value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })}>
+            <option value="all">{t("settings.locations.generalOption")}</option>
             {COMPANIES.filter((c) => c.id !== "all").map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select></label>
         </div>
-        <button className="btn-primary" onClick={add}>إضافة موقع</button>
+        <button className="btn-primary" onClick={add}>{t("settings.locations.addBtn")}</button>
       </div>
       <div className="panel">
         <table className="ledger-table">
-          <thead><tr><th>الموقع</th><th>الشركة</th><th></th></tr></thead>
+          <thead><tr><th>{t("settings.locations.table.location")}</th><th>{t("settings.locations.table.company")}</th><th></th></tr></thead>
           <tbody>
             {COST_CENTERS.map((c) => (
               <tr key={c.id}>
-                <td>{c.name}</td><td>{c.company === "all" ? "عام" : COMPANIES.find((x) => x.id === c.company)?.name}</td>
-                <td><button className="btn-ghost" onClick={() => remove(c.id)}>حذف</button></td>
+                <td>{c.name}</td><td>{c.company === "all" ? t("settings.locations.generalValue") : COMPANIES.find((x) => x.id === c.company)?.name}</td>
+                <td><button className="btn-ghost" onClick={() => remove(c.id)}>{t("common.delete")}</button></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="note">هذه المواقع تُستخدم كمراكز تكلفة في القيود، ومخازن في وحدة المخزون، وأفرع للموظفين.</p>
+      <p className="note">{t("settings.locations.note")}</p>
     </div>
   );
 }
 
 export function CompanyDocumentsSettings({ companyDocuments, setCompanyDocuments }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({ company: "tesm", docType: COMPANY_DOC_TYPES[0], location: "", number: "", expiryDate: "" });
   const locationOptions = COST_CENTERS.filter((c) => c.company === "all" || c.company === form.company);
 
@@ -105,22 +110,22 @@ export function CompanyDocumentsSettings({ companyDocuments, setCompanyDocuments
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>الشركة<select value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value, location: "" })}>{COMPANIES.filter((c) => c.id !== "all").map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label>نوع المستند<select value={form.docType} onChange={(e) => setForm({ ...form, docType: e.target.value })}>{COMPANY_DOC_TYPES.map((t) => <option key={t}>{t}</option>)}</select></label>
-          <label>الموقع (اختياري — للمستندات الخاصة بموقع مثل الدفاع المدني)
+          <label>{t("settings.companyDocsLegacy.companyLabel")}<select value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value, location: "" })}>{COMPANIES.filter((c) => c.id !== "all").map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label>{t("settings.companyDocsLegacy.docTypeLabel")}<select value={form.docType} onChange={(e) => setForm({ ...form, docType: e.target.value })}>{COMPANY_DOC_TYPES.map((t2) => <option key={t2}>{t2}</option>)}</select></label>
+          <label>{t("settings.companyDocsLegacy.locationLabel")}
             <select value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })}>
-              <option value="">— عام للشركة —</option>
+              <option value="">{t("settings.companyDocsLegacy.generalOption")}</option>
               {locationOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
-          <label>رقم المستند<input type="text" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} /></label>
-          <label>تاريخ الانتهاء<input type="date" value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} /></label>
+          <label>{t("settings.companyDocsLegacy.numberLabel")}<input type="text" value={form.number} onChange={(e) => setForm({ ...form, number: e.target.value })} /></label>
+          <label>{t("settings.companyDocsLegacy.expiryLabel")}<input type="date" value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} /></label>
         </div>
-        <button className="btn-primary" onClick={add}>حفظ المستند</button>
+        <button className="btn-primary" onClick={add}>{t("settings.companyDocsLegacy.saveBtn")}</button>
       </div>
       <div className="panel">
         <table className="ledger-table">
-          <thead><tr><th>الشركة</th><th>نوع المستند</th><th>الموقع</th><th>الرقم</th><th>تاريخ الانتهاء</th><th></th></tr></thead>
+          <thead><tr><th>{t("settings.companyDocsLegacy.table.company")}</th><th>{t("settings.companyDocsLegacy.table.docType")}</th><th>{t("settings.companyDocsLegacy.table.location")}</th><th>{t("settings.companyDocsLegacy.table.number")}</th><th>{t("settings.companyDocsLegacy.table.expiry")}</th><th></th></tr></thead>
           <tbody>
             {companyDocuments.map((d) => {
               const days = d.expiryDate ? daysUntil(d.expiryDate) : null;
@@ -129,16 +134,16 @@ export function CompanyDocumentsSettings({ companyDocuments, setCompanyDocuments
                 <tr key={d.id}>
                   <td>{COMPANIES.find((c) => c.id === d.company)?.name}</td>
                   <td>{d.docType}</td>
-                  <td>{d.location ? costCenterName(d.location) : "عام"}</td>
+                  <td>{d.location ? costCenterName(d.location) : t("settings.companyDocsLegacy.generalValue")}</td>
                   <td>{d.number}</td>
                   <td className={cls}>{d.expiryDate || "—"}</td>
-                  <td><button className="btn-ghost" onClick={() => remove(d.id)}>حذف</button></td>
+                  <td><button className="btn-ghost" onClick={() => remove(d.id)}>{t("common.delete")}</button></td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {companyDocuments.length === 0 && <p className="empty">لا توجد مستندات رسمية مسجّلة بعد.</p>}
+        {companyDocuments.length === 0 && <p className="empty">{t("settings.companyDocsLegacy.empty")}</p>}
       </div>
     </div>
   );
@@ -154,9 +159,10 @@ export const SETTINGS_TABS = [
 ];
 
 export function SettingsModule({ tab, setTab, currentUser, setCurrentUser, jobTitles, setJobTitles, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {
+  const { t } = useTranslation();
   return (
     <div>
-      <div className="section-title"><span className="eyebrow">إدارة النظام</span><h2>الإعدادات</h2></div>
+      <div className="section-title"><span className="eyebrow">{t("settings.eyebrow")}</span><h2>{t("nav.groups.settings")}</h2></div>
       <SubTabs tabs={SETTINGS_TABS} active={tab} onChange={setTab} />
       {tab === "companies" && <CompaniesSettings companies={realCompanies} reload={reloadRealCompanies} onCompanyCreated={onRealCompanyCreated} />}
       {tab === "profile" && (

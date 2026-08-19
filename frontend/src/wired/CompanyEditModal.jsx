@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { updateCompany, uploadCompanyLogo, extractCompanyDocument } from "../api/companies";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CompanyDocumentsPanel from "./CompanyDocumentsPanel";
@@ -27,15 +28,16 @@ const emptyForm = (c) => ({
   staleDraftDays: c.staleDraftDays ?? 7,
 });
 
-const DOC_TYPES = [
-  { key: "cr", label: "رفع السجل التجاري" },
-  { key: "national_address", label: "رفع شهادة العنوان الوطني" },
-  { key: "vat_certificate", label: "رفع شهادة تسجيل ضريبة القيمة المضافة" },
-];
-
 /** نافذة تعديل بيانات الشركة الرسمية الكاملة — شعار، عنوان وطني، تواريخ السجل التجاري،
  * بيانات التواصل، بالإضافة إلى استخراج تلقائي بالذكاء الاصطناعي من المستندات الرسمية. */
 export default function CompanyEditModal({ company, onClose, onSaved }) {
+  const { t } = useTranslation();
+  const DOC_TYPES = [
+    { key: "cr", label: t("settings.companyEdit.docTypeCr") },
+    { key: "national_address", label: t("settings.companyEdit.docTypeNationalAddress") },
+    { key: "vat_certificate", label: t("settings.companyEdit.docTypeVatCert") },
+  ];
+
   const [form, setForm] = useState(() => emptyForm(company));
   const [logoUrl, setLogoUrl] = useState(company.logoUrl || null);
   const [saving, setSaving] = useState(false);
@@ -51,7 +53,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const save = async () => {
-    if (!form.name.trim()) { setError("الاسم في السجل التجاري مطلوب"); return; }
+    if (!form.name.trim()) { setError(t("settings.companyEdit.errNameRequired")); return; }
     setSaving(true);
     setError("");
     try {
@@ -101,17 +103,17 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
       if (result.confidence === "low" || Object.keys(result.fields).length === 0) {
         setExtractionNote({
           confidence: "low",
-          text: `تعذّر استخراج بيانات دقيقة من هذا المستند — ${result.confidenceNote || "يرجى إدخال البيانات يدوياً ومراجعتها"}.`,
+          text: t("settings.companyEdit.extractionLowConfidence", { note: result.confidenceNote || t("settings.companyEdit.extractionLowConfidenceDefault") }),
         });
       } else {
         setForm((prev) => ({ ...prev, ...result.fields }));
         setExtractionNote({
           confidence: "high",
-          text: `تم استخراج البيانات التالية تلقائياً — راجعها ثم اضغط "حفظ": ${result.confidenceNote || ""}`,
+          text: t("settings.companyEdit.extractionHighConfidence", { note: result.confidenceNote || "" }),
         });
       }
     } catch (err) {
-      setExtractionNote({ confidence: "low", text: `فشل رفع/تحليل المستند: ${err.message}` });
+      setExtractionNote({ confidence: "low", text: t("settings.companyEdit.extractionFailed", { message: err.message }) });
     } finally {
       setExtracting(null);
     }
@@ -121,16 +123,16 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
     <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
       <div className="invoice-modal-box">
         <div className="modal-title-row">
-          <h3>بيانات الشركة الرسمية — {company.name}</h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+          <h3>{t("settings.companyEdit.modalTitle", { name: company.name })}</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label={t("common.close")}>×</button>
         </div>
 
         <div className="form-grid">
-          <label>الاسم في السجل التجاري<input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} /></label>
-          <label>الاسم التجاري (اختياري)<input type="text" value={form.shortName} onChange={(e) => set("shortName", e.target.value)} /></label>
-          <label>الرقم الضريبي (VAT)<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, ""))} /></label>
+          <label>{t("settings.companyEdit.nameLabel")}<input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.shortNameLabel")}<input type="text" value={form.shortName} onChange={(e) => set("shortName", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.vatNumberLabel")}<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, ""))} /></label>
           <label>
-            بادئة ترقيم القيود (مثال: J أو TP)
+            {t("settings.companyEdit.numberingPrefixLabel")}
             <input
               type="text" maxLength={2}
               value={form.numberingPrefix}
@@ -139,47 +141,43 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
             />
           </label>
 
-          <label>رقم السجل التجاري<input type="text" value={form.crNumber} onChange={(e) => set("crNumber", e.target.value)} /></label>
-          <label>تاريخ إصدار السجل التجاري<input type="date" value={form.crIssueDate} onChange={(e) => set("crIssueDate", e.target.value)} /></label>
-          <label>تاريخ انتهاء السجل التجاري<input type="date" value={form.crExpiryDate} onChange={(e) => set("crExpiryDate", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.crNumberLabel")}<input type="text" value={form.crNumber} onChange={(e) => set("crNumber", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.crIssueDateLabel")}<input type="date" value={form.crIssueDate} onChange={(e) => set("crIssueDate", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.crExpiryDateLabel")}<input type="date" value={form.crExpiryDate} onChange={(e) => set("crExpiryDate", e.target.value)} /></label>
 
-          <label>البريد الإلكتروني الرسمي<input type="email" value={form.officialEmail} onChange={(e) => set("officialEmail", e.target.value)} /></label>
-          <label>رقم الجوال/الهاتف<input type="text" value={form.phone} onChange={(e) => set("phone", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.officialEmailLabel")}<input type="email" value={form.officialEmail} onChange={(e) => set("officialEmail", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.phoneLabel")}<input type="text" value={form.phone} onChange={(e) => set("phone", e.target.value)} /></label>
         </div>
-        <p className="note">
-          بادئة الترقيم تُستخدَم لترقيم القيود المحاسبية الجديدة لهذه الشركة تسلسلياً بصيغة
-          [البادئة][5 خانات] (مثال: TP00001)، بدءاً من أول قيد بعد ضبطها. لا تُفعَّل هذه الميزة
-          لهذه الشركة إلا بعد تحديد البادئة هنا؛ والقيود الأقدم تبقى بأرقامها القديمة كما هي.
-        </p>
+        <p className="note">{t("settings.companyEdit.numberingPrefixNote")}</p>
 
-        <h4 className="sub-head">العنوان الوطني الكامل</h4>
+        <h4 className="sub-head">{t("settings.companyEdit.addressTitle")}</h4>
         <div className="form-grid">
-          <label>المبنى<input type="text" value={form.addressBuilding} onChange={(e) => set("addressBuilding", e.target.value)} /></label>
-          <label>الشارع<input type="text" value={form.addressStreet} onChange={(e) => set("addressStreet", e.target.value)} /></label>
-          <label>الحي<input type="text" value={form.addressDistrict} onChange={(e) => set("addressDistrict", e.target.value)} /></label>
-          <label>المدينة<input type="text" value={form.addressCity} onChange={(e) => set("addressCity", e.target.value)} /></label>
-          <label>الرمز البريدي<input type="text" value={form.addressPostalCode} onChange={(e) => set("addressPostalCode", e.target.value)} /></label>
-          <label>الرقم الإضافي<input type="text" value={form.addressAdditionalNo} onChange={(e) => set("addressAdditionalNo", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.addressBuilding")}<input type="text" value={form.addressBuilding} onChange={(e) => set("addressBuilding", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.addressStreet")}<input type="text" value={form.addressStreet} onChange={(e) => set("addressStreet", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.addressDistrict")}<input type="text" value={form.addressDistrict} onChange={(e) => set("addressDistrict", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.addressCity")}<input type="text" value={form.addressCity} onChange={(e) => set("addressCity", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.addressPostalCode")}<input type="text" value={form.addressPostalCode} onChange={(e) => set("addressPostalCode", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.addressAdditionalNo")}<input type="text" value={form.addressAdditionalNo} onChange={(e) => set("addressAdditionalNo", e.target.value)} /></label>
         </div>
 
-        <h4 className="sub-head">إعدادات تنبيهات الداشبورد المالية</h4>
+        <h4 className="sub-head">{t("settings.companyEdit.alertsTitle")}</h4>
         <div className="form-grid">
-          <label>دورية تقديم إقرار ضريبة القيمة المضافة
+          <label>{t("settings.companyEdit.vatFilingFrequencyLabel")}
             <select value={form.vatFilingFrequency} onChange={(e) => set("vatFilingFrequency", e.target.value)}>
-              <option value="monthly">شهرية</option>
-              <option value="quarterly">ربع سنوية</option>
+              <option value="monthly">{t("settings.companyEdit.vatFilingMonthly")}</option>
+              <option value="quarterly">{t("settings.companyEdit.vatFilingQuarterly")}</option>
             </select>
           </label>
-          <label>موعد تقديم إقرار الزكاة القادم (اختياري)
+          <label>{t("settings.companyEdit.zakatDueDateLabel")}
             <input type="date" value={form.zakatDeclarationDueDate} onChange={(e) => set("zakatDeclarationDueDate", e.target.value)} />
           </label>
-          <label>الحد الأدنى لرصيد الكاش (اختياري)
-            <input type="number" value={form.lowCashThreshold} onChange={(e) => set("lowCashThreshold", e.target.value)} placeholder="بدون حد أدنى" />
+          <label>{t("settings.companyEdit.lowCashThresholdLabel")}
+            <input type="number" value={form.lowCashThreshold} onChange={(e) => set("lowCashThreshold", e.target.value)} placeholder={t("settings.companyEdit.lowCashPlaceholder")} />
           </label>
-          <label>مدة تأخر الفاتورة قبل التنبيه (أيام)
+          <label>{t("settings.companyEdit.overdueInvoiceDaysLabel")}
             <input type="number" value={form.overdueInvoiceDays} onChange={(e) => set("overdueInvoiceDays", e.target.value)} />
           </label>
-          <label>مدة بقاء الفاتورة كمسودة قبل التنبيه (أيام)
+          <label>{t("settings.companyEdit.staleDraftDaysLabel")}
             <input type="number" value={form.staleDraftDays} onChange={(e) => set("staleDraftDays", e.target.value)} />
           </label>
         </div>
@@ -187,20 +185,17 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         <LeaseContractsPanel companyId={company.id} />
         <CompanyDocumentsPanel companyId={company.id} />
 
-        <h4 className="sub-head">الشعار</h4>
+        <h4 className="sub-head">{t("settings.companyEdit.logoTitle")}</h4>
         <div className="form-btn-group" style={{ justifyContent: "flex-start" }}>
-          {logoUrl && <img src={logoUrl} alt="شعار الشركة" style={{ height: 44, borderRadius: 6 }} />}
+          {logoUrl && <img src={logoUrl} alt={t("settings.companyEdit.logoAlt")} style={{ height: 44, borderRadius: 6 }} />}
           <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden onChange={pickLogo} />
           <button className="btn-ghost" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
-            {uploadingLogo ? "جارٍ الرفع..." : logoUrl ? "تغيير الشعار" : "رفع شعار"}
+            {uploadingLogo ? t("settings.companyEdit.uploadingLogo") : logoUrl ? t("settings.companyEdit.changeLogo") : t("settings.companyEdit.uploadLogo")}
           </button>
         </div>
 
-        <h4 className="sub-head">تعبئة تلقائية بالذكاء الاصطناعي من مستند رسمي</h4>
-        <p className="note">
-          ارفع أياً من المستندات التالية بشكل منفصل ليستخرج النظام الحقول المرتبطة به تلقائياً، وتظهر لك كمعاينة
-          في الفورم أعلاه للمراجعة والتعديل قبل الضغط على "حفظ" — لا يُحفظ شيء تلقائياً.
-        </p>
+        <h4 className="sub-head">{t("settings.companyEdit.aiExtractTitle")}</h4>
+        <p className="note">{t("settings.companyEdit.aiExtractNote")}</p>
         <div className="form-btn-group" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
           {DOC_TYPES.map((d) => (
             <React.Fragment key={d.key}>
@@ -210,7 +205,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                 onChange={(e) => pickDocument(d.key, e)}
               />
               <button className="btn-ghost" onClick={() => docInputRefs.current[d.key]?.click()} disabled={extracting !== null}>
-                {extracting === d.key ? "جارٍ التحليل..." : d.label}
+                {extracting === d.key ? t("settings.companyEdit.analyzing") : d.label}
               </button>
             </React.Fragment>
           ))}
@@ -219,12 +214,12 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
           <p className={extractionNote.confidence === "low" ? "balance-bad" : "note"}>{extractionNote.text}</p>
         )}
 
-        <AttachmentsPanel key={attachmentsKey} entityType="company" entityId={company.id} title="المستندات الرسمية المرفوعة" />
+        <AttachmentsPanel key={attachmentsKey} entityType="company" entityId={company.id} title={t("settings.companyEdit.uploadedDocsTitle")} />
 
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          <button className="btn-ghost" onClick={onClose} disabled={saving}>إلغاء</button>
-          <button className="btn-primary" onClick={save} disabled={saving}>{saving ? "جارٍ الحفظ..." : "حفظ"}</button>
+          <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("common.cancel")}</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>{saving ? t("settings.myAccount.saving") : t("common.save")}</button>
         </div>
       </div>
     </div>
