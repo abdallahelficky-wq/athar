@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getSalesByCustomer, getSalesMonthly, getSalesVatSummary, getReceivablesAging } from "../../api/salesReports";
 import { fmt } from "../../legacy/constants";
 import SubTabs from "../shared/SubTabs";
 
 const TABS = [
-  { id: "byCustomer", label: "حسب العميل" },
-  { id: "monthly", label: "الاتجاه الشهري" },
-  { id: "aging", label: "أعمار الذمم" },
-  { id: "vat", label: "ملخص الضريبة" },
+  { id: "byCustomer", labelKey: "sales.reports.tabs.byCustomer" },
+  { id: "monthly", labelKey: "sales.reports.tabs.monthly" },
+  { id: "aging", labelKey: "sales.reports.tabs.aging" },
+  { id: "vat", labelKey: "sales.reports.tabs.vat" },
 ];
 
 export default function SalesReportsTab({ companyId }) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState("byCustomer");
   const [byCustomer, setByCustomer] = useState([]);
   const [monthly, setMonthly] = useState([]);
@@ -25,7 +27,7 @@ export default function SalesReportsTab({ companyId }) {
     getSalesVatSummary(companyId).then(setVat);
   }, [companyId]);
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
@@ -34,7 +36,13 @@ export default function SalesReportsTab({ companyId }) {
       {tab === "byCustomer" && (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>العميل</th><th>عدد الفواتير</th><th>إجمالي المبيعات</th><th>إجمالي المردودات</th><th>صافي المبيعات</th><th>الرصيد المستحق</th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("sales.reports.byCustomer.customer")}</th><th>{t("sales.reports.byCustomer.invoiceCount")}</th>
+                <th>{t("sales.reports.byCustomer.totalInvoices")}</th><th>{t("sales.reports.byCustomer.totalReturns")}</th>
+                <th>{t("sales.reports.byCustomer.netSales")}</th><th>{t("sales.reports.byCustomer.outstanding")}</th>
+              </tr>
+            </thead>
             <tbody>
               {byCustomer.map((r) => (
                 <tr key={r.customerId}>
@@ -43,7 +51,7 @@ export default function SalesReportsTab({ companyId }) {
                   <td className="num strong">{fmt(r.netSales)}</td><td className="num">{fmt(r.outstanding)}</td>
                 </tr>
               ))}
-              {byCustomer.length === 0 && <tr><td className="empty" colSpan={6}>لا توجد بيانات بعد.</td></tr>}
+              {byCustomer.length === 0 && <tr><td className="empty" colSpan={6}>{t("sales.reports.empty")}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -52,10 +60,10 @@ export default function SalesReportsTab({ companyId }) {
       {tab === "monthly" && (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>الشهر</th><th>إجمالي المبيعات</th></tr></thead>
+            <thead><tr><th>{t("sales.reports.monthly.month")}</th><th>{t("sales.reports.monthly.total")}</th></tr></thead>
             <tbody>
               {monthly.map((r) => <tr key={r.month}><td>{r.month}</td><td className="num">{fmt(r.total)}</td></tr>)}
-              {monthly.length === 0 && <tr><td className="empty" colSpan={2}>لا توجد بيانات بعد.</td></tr>}
+              {monthly.length === 0 && <tr><td className="empty" colSpan={2}>{t("sales.reports.empty")}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -64,7 +72,13 @@ export default function SalesReportsTab({ companyId }) {
       {tab === "aging" && (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>العميل</th><th>0-30 يوم</th><th>31-60 يوم</th><th>61-90 يوم</th><th>أكثر من 90 يوم</th><th>الإجمالي</th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("sales.reports.aging.customer")}</th><th>{t("sales.reports.aging.current")}</th>
+                <th>{t("sales.reports.aging.d30")}</th><th>{t("sales.reports.aging.d60")}</th>
+                <th>{t("sales.reports.aging.d90")}</th><th>{t("sales.reports.aging.total")}</th>
+              </tr>
+            </thead>
             <tbody>
               {aging.map((r) => (
                 <tr key={r.customerId}>
@@ -72,7 +86,7 @@ export default function SalesReportsTab({ companyId }) {
                   <td className="num">{fmt(r.d60)}</td><td className="num">{fmt(r.d90)}</td><td className="num strong">{fmt(r.total)}</td>
                 </tr>
               ))}
-              {aging.length === 0 && <tr><td className="empty" colSpan={6}>لا توجد ذمم مستحقة.</td></tr>}
+              {aging.length === 0 && <tr><td className="empty" colSpan={6}>{t("sales.reports.aging.empty")}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -82,11 +96,11 @@ export default function SalesReportsTab({ companyId }) {
         <div className="panel">
           <table className="ledger-table">
             <tbody>
-              <tr><td>إجمالي المبيعات قبل الضريبة</td><td className="num">{fmt(vat.salesBase)}</td></tr>
-              <tr><td>ضريبة المخرجات</td><td className="num">{fmt(vat.outputVat)}</td></tr>
-              <tr><td>إجمالي المردودات قبل الضريبة</td><td className="num">{fmt(vat.returnsBase)}</td></tr>
-              <tr><td>ضريبة المردودات</td><td className="num">{fmt(vat.returnsVat)}</td></tr>
-              <tr className="net-row"><td className="strong">صافي ضريبة المخرجات المستحقة</td><td className="num strong">{fmt(vat.netOutputVat)}</td></tr>
+              <tr><td>{t("sales.reports.vat.salesBase")}</td><td className="num">{fmt(vat.salesBase)}</td></tr>
+              <tr><td>{t("sales.reports.vat.outputVat")}</td><td className="num">{fmt(vat.outputVat)}</td></tr>
+              <tr><td>{t("sales.reports.vat.returnsBase")}</td><td className="num">{fmt(vat.returnsBase)}</td></tr>
+              <tr><td>{t("sales.reports.vat.returnsVat")}</td><td className="num">{fmt(vat.returnsVat)}</td></tr>
+              <tr className="net-row"><td className="strong">{t("sales.reports.vat.netOutputVat")}</td><td className="num strong">{fmt(vat.netOutputVat)}</td></tr>
             </tbody>
           </table>
         </div>

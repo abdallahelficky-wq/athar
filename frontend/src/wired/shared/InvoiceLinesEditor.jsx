@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { computeInvoiceLine } from "./invoiceLine";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "./AccountSearchSelect";
@@ -7,10 +8,12 @@ export const emptyInvoiceLine = () => ({ accountId: "", description: "", quantit
 
 /** محرر أسطر فاتورة/عرض سعر/مردود — مشترك بين المبيعات والمشتريات */
 export default function InvoiceLinesEditor({ lines, setLines, accounts, showVatToggle = true }) {
+  const { t } = useTranslation();
   const computedLines = lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
   const subtotal = computedLines.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computedLines.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
+  const currency = t("common.currency");
 
   const updateLine = (idx, field, value) => setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l)));
   const addLine = () => setLines((prev) => [...prev, emptyInvoiceLine()]);
@@ -22,9 +25,10 @@ export default function InvoiceLinesEditor({ lines, setLines, accounts, showVatT
         <table className="lines-table">
           <thead>
             <tr>
-              <th>الحساب</th><th>الوصف</th><th>الكمية</th><th>سعر الوحدة</th>
-              {showVatToggle && <th>شامل الضريبة؟</th>}
-              <th>خصم %</th><th>الإجمالي شامل الضريبة</th><th></th>
+              <th>{t("common.invoiceLines.account")}</th><th>{t("common.invoiceLines.description")}</th>
+              <th>{t("common.invoiceLines.quantity")}</th><th>{t("common.invoiceLines.unitPrice")}</th>
+              {showVatToggle && <th>{t("common.invoiceLines.priceIncludesVat")}</th>}
+              <th>{t("common.invoiceLines.discount")}</th><th>{t("common.invoiceLines.totalWithVat")}</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -33,7 +37,7 @@ export default function InvoiceLinesEditor({ lines, setLines, accounts, showVatT
                 <td>
                   <AccountSearchSelect accounts={accounts} value={l.accountId} onChange={(accountId) => updateLine(idx, "accountId", accountId)} />
                 </td>
-                <td><input type="text" value={l.description} onChange={(e) => updateLine(idx, "description", e.target.value)} placeholder="وصف الصنف/الخدمة" /></td>
+                <td><input type="text" value={l.description} onChange={(e) => updateLine(idx, "description", e.target.value)} placeholder={t("common.invoiceLines.descriptionPlaceholder")} /></td>
                 <td><input type="number" className="amount-input" value={l.quantity} onChange={(e) => updateLine(idx, "quantity", e.target.value)} /></td>
                 <td><input type="number" className="amount-input" value={l.unitPrice} onChange={(e) => updateLine(idx, "unitPrice", e.target.value)} placeholder="0.00" /></td>
                 {showVatToggle && (
@@ -49,19 +53,19 @@ export default function InvoiceLinesEditor({ lines, setLines, accounts, showVatT
           </tbody>
           <tfoot>
             <tr>
-              <td className="foot-label" colSpan={showVatToggle ? 6 : 5}>الإجمالي</td>
+              <td className="foot-label" colSpan={showVatToggle ? 6 : 5}>{t("common.invoiceLines.total")}</td>
               <td className="num">{fmt2(grandTotal)}</td>
               <td></td>
             </tr>
           </tfoot>
         </table>
       </div>
-      <button className="btn-ghost" onClick={addLine}>+ إضافة سطر</button>
+      <button className="btn-ghost" onClick={addLine}>{t("common.invoiceLines.addLine")}</button>
 
       <div className="preview-box">
-        <div className="preview-row"><span>الإجمالي قبل الضريبة</span><strong>{fmt2(subtotal)} ر.س</strong></div>
-        <div className="preview-row"><span>ضريبة القيمة المضافة (15٪)</span><strong>{fmt2(vatTotal)} ر.س</strong></div>
-        <div className="preview-row net-row"><span>الإجمالي شامل الضريبة</span><strong>{fmt2(grandTotal)} ر.س</strong></div>
+        <div className="preview-row"><span>{t("common.invoiceLines.subtotal")}</span><strong>{fmt2(subtotal)} {currency}</strong></div>
+        <div className="preview-row"><span>{t("common.invoiceLines.vat")}</span><strong>{fmt2(vatTotal)} {currency}</strong></div>
+        <div className="preview-row net-row"><span>{t("common.invoiceLines.grandTotal")}</span><strong>{fmt2(grandTotal)} {currency}</strong></div>
       </div>
     </div>
   );

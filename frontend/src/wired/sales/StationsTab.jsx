@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listCostCenters } from "../../api/costCenters";
 import { listStationSales, createStationSale, deleteStationSale } from "../../api/stationSales";
 import { fmt, fmt2 } from "../../legacy/constants";
 
 export default function StationsTab({ companyId }) {
+  const { t } = useTranslation();
   const [costCenters, setCostCenters] = useState([]);
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +45,7 @@ export default function StationsTab({ companyId }) {
   };
 
   const remove = async (s) => {
-    if (!window.confirm("حذف هذا السجل؟")) return;
+    if (!window.confirm(t("sales.stations.confirmDelete"))) return;
     try {
       await deleteStationSale(s.id);
       reload();
@@ -52,36 +54,42 @@ export default function StationsTab({ companyId }) {
     }
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>المحطة (مركز التكلفة)<select value={costCenterId} onChange={(e) => setCostCenterId(e.target.value)}>{costCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label>التاريخ<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-          <label>الكمية (لتر)<input type="number" value={liters} onChange={(e) => setLiters(e.target.value)} /></label>
-          <label>سعر اللتر<input type="number" step="0.01" value={pricePerLiter} onChange={(e) => setPricePerLiter(e.target.value)} /></label>
-          <label className="memo-field">ملاحظة الوردية<input type="text" value={shiftNote} onChange={(e) => setShiftNote(e.target.value)} /></label>
+          <label>{t("sales.stations.station")}<select value={costCenterId} onChange={(e) => setCostCenterId(e.target.value)}>{costCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label>{t("sales.stations.date")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label>{t("sales.stations.liters")}<input type="number" value={liters} onChange={(e) => setLiters(e.target.value)} /></label>
+          <label>{t("sales.stations.pricePerLiter")}<input type="number" step="0.01" value={pricePerLiter} onChange={(e) => setPricePerLiter(e.target.value)} /></label>
+          <label className="memo-field">{t("sales.stations.shiftNote")}<input type="text" value={shiftNote} onChange={(e) => setShiftNote(e.target.value)} /></label>
         </div>
         {error && <p className="balance-bad">{error}</p>}
-        <button className="btn-primary" onClick={save} disabled={!costCenterId || !Number(liters) || !Number(pricePerLiter)}>حفظ السجل</button>
+        <button className="btn-primary" onClick={save} disabled={!costCenterId || !Number(liters) || !Number(pricePerLiter)}>{t("sales.stations.save")}</button>
       </div>
 
-      {loading ? <p className="empty">جارٍ التحميل...</p> : (
+      {loading ? <p className="empty">{t("sales.stations.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>التاريخ</th><th>المحطة</th><th>الكمية</th><th>سعر اللتر</th><th>الإجمالي</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("sales.stations.table.date")}</th><th>{t("sales.stations.table.station")}</th>
+                <th>{t("sales.stations.table.liters")}</th><th>{t("sales.stations.table.pricePerLiter")}</th>
+                <th>{t("sales.stations.table.total")}</th><th></th>
+              </tr>
+            </thead>
             <tbody>
               {sales.map((s) => (
                 <tr key={s.id}>
                   <td>{s.date.slice(0, 10)}</td><td>{s.costCenter?.name}</td>
                   <td className="num">{fmt2(s.liters)}</td><td className="num">{fmt2(s.pricePerLiter)}</td>
                   <td className="num">{fmt(s.liters * s.pricePerLiter)}</td>
-                  <td><button className="btn-ghost" onClick={() => remove(s)}>حذف</button></td>
+                  <td><button className="btn-ghost" onClick={() => remove(s)}>{t("sales.stations.delete")}</button></td>
                 </tr>
               ))}
-              {sales.length === 0 && <tr><td className="empty" colSpan={6}>لا توجد مبيعات محطات مسجّلة بعد.</td></tr>}
+              {sales.length === 0 && <tr><td className="empty" colSpan={6}>{t("sales.stations.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
 import { listReceipts, getOutstandingInvoices, createReceipt, unpostReceipt } from "../../api/receipts";
 import { listAccounts } from "../../api/accounts";
@@ -8,6 +9,7 @@ import AttachmentsPanel from "../shared/AttachmentsPanel";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
 
 export default function ReceiptsTab({ companyId }) {
+  const { t } = useTranslation();
   const [customers, setCustomers] = useState([]);
   const [receipts, setReceipts] = useState([]);
   const [outstanding, setOutstanding] = useState([]);
@@ -71,31 +73,37 @@ export default function ReceiptsTab({ companyId }) {
     reload();
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <div className="form-grid header-grid">
-          <label>العميل<select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>{customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-          <label>تاريخ السند<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-          <label>طريقة التحصيل<select value={method} onChange={(e) => setMethod(e.target.value)}><option value="cash">كاش</option><option value="bank">بنك</option></select></label>
+          <label>{t("sales.receipts.customer")}<select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>{customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label>{t("sales.receipts.date")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label>{t("sales.receipts.method")}<select value={method} onChange={(e) => setMethod(e.target.value)}><option value="cash">{t("sales.receipts.methodCash")}</option><option value="bank">{t("sales.receipts.methodBank")}</option></select></label>
           {method === "bank" && (
-            <label>الحساب البنكي
+            <label>{t("sales.receipts.bankAccount")}
               <AccountSearchSelect
                 accounts={bankAccounts}
                 value={bankAccountId}
                 onChange={setBankAccountId}
-                placeholder={bankAccounts.length === 0 ? "لا توجد حسابات بنكية مُصنَّفة" : "ابحث عن حساب بنكي..."}
+                placeholder={bankAccounts.length === 0 ? t("sales.receipts.noBankAccounts") : t("sales.receipts.bankAccountPlaceholder")}
               />
             </label>
           )}
         </div>
 
-        <h3 className="sub-head">الفواتير المستحقة على هذا العميل</h3>
+        <h3 className="sub-head">{t("sales.receipts.outstandingTitle")}</h3>
         <div className="lines-table-wrap">
           <table className="lines-table">
-            <thead><tr><th>الفاتورة</th><th>الإجمالي</th><th>المسدد</th><th>المتبقي</th><th>المبلغ المخصص</th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("sales.receipts.table.invoice")}</th><th>{t("sales.receipts.table.total")}</th>
+                <th>{t("sales.receipts.table.paid")}</th><th>{t("sales.receipts.table.remaining")}</th>
+                <th>{t("sales.receipts.table.allocated")}</th>
+              </tr>
+            </thead>
             <tbody>
               {outstanding.map((inv) => (
                 <tr key={inv.id}>
@@ -106,32 +114,38 @@ export default function ReceiptsTab({ companyId }) {
                   <td><input type="number" className="amount-input" value={allocations[inv.id] || ""} onChange={(e) => setAlloc(inv.id, e.target.value)} placeholder="0.00" /></td>
                 </tr>
               ))}
-              {outstanding.length === 0 && <tr><td className="empty" colSpan={5}>لا توجد فواتير مستحقة على هذا العميل.</td></tr>}
+              {outstanding.length === 0 && <tr><td className="empty" colSpan={5}>{t("sales.receipts.noOutstanding")}</td></tr>}
             </tbody>
           </table>
         </div>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          <button className="btn-primary" onClick={save} disabled={totalAllocated <= 0}>حفظ وترحيل السند ({fmt(totalAllocated)} ر.س)</button>
+          <button className="btn-primary" onClick={save} disabled={totalAllocated <= 0}>{t("sales.receipts.saveAndPost", { amount: fmt(totalAllocated) })}</button>
         </div>
       </div>
 
-      {loading ? <p className="empty">جارٍ التحميل...</p> : (
+      {loading ? <p className="empty">{t("sales.receipts.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>الطريقة</th><th>الإجمالي</th><th>الحالة</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("sales.receipts.listTable.number")}</th><th>{t("sales.receipts.listTable.customer")}</th>
+                <th>{t("sales.receipts.listTable.date")}</th><th>{t("sales.receipts.listTable.method")}</th>
+                <th>{t("sales.receipts.listTable.total")}</th><th>{t("sales.receipts.listTable.status")}</th><th></th>
+              </tr>
+            </thead>
             <tbody>
               {receipts.map((r) => (
                 <React.Fragment key={r.id}>
                   <tr>
                     <td>{r.receiptNumber}</td><td>{r.customer?.name}</td><td>{r.date.slice(0, 10)}</td>
-                    <td>{r.method === "cash" ? "كاش" : `بنك${r.bankAccount ? ` (${r.bankAccount.name})` : ""}`}</td>
+                    <td>{r.method === "cash" ? t("sales.receipts.methodCash") : `${t("sales.receipts.methodBank")}${r.bankAccount ? ` (${r.bankAccount.name})` : ""}`}</td>
                     <td className="num">{fmt(r.totalAmount)}</td>
-                    <td><span className="status-badge">{r.status === "posted" ? "مرحّل" : "مسودة"}</span></td>
+                    <td><span className="status-badge">{r.status === "posted" ? t("sales.receipts.posted") : t("sales.receipts.draft")}</span></td>
                     <td className="row-actions">
-                      {r.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(r)}>فك الترحيل</button>}
+                      {r.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(r)}>{t("sales.receipts.unpost")}</button>}
                       <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === r.id ? null : r.id)}>
-                        {attachmentsFor === r.id ? "إخفاء المرفقات" : "المرفقات"}
+                        {attachmentsFor === r.id ? t("sales.receipts.attachmentsHide") : t("sales.receipts.attachmentsShow")}
                       </button>
                     </td>
                   </tr>
@@ -140,7 +154,7 @@ export default function ReceiptsTab({ companyId }) {
                   )}
                 </React.Fragment>
               ))}
-              {receipts.length === 0 && <tr><td className="empty" colSpan={7}>لا توجد سندات قبض بعد.</td></tr>}
+              {receipts.length === 0 && <tr><td className="empty" colSpan={7}>{t("sales.receipts.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from "../../api/customers";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
@@ -12,6 +13,7 @@ const emptyForm = () => ({
 });
 
 export default function CustomersTab({ companyId, companies, onViewAccount }) {
+  const { t } = useTranslation();
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast, notify, dismiss } = useToast();
@@ -47,71 +49,80 @@ export default function CustomersTab({ companyId, companies, onViewAccount }) {
   };
 
   const remove = async (c) => {
-    if (!window.confirm(`حذف العميل "${c.name}"؟`)) return;
+    if (!window.confirm(t("sales.customers.confirmDelete", { name: c.name }))) return;
     try {
       await deleteCustomer(c.id);
       reload();
-      notify(`تم حذف العميل "${c.name}".`);
+      notify(t("sales.customers.deleted", { name: c.name }));
     } catch (err) {
       notify(err.message, "error");
     }
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
-        {editingId && <div className="edit-banner">تعديل بيانات العميل — {form.name}</div>}
+        {editingId && <div className="edit-banner">{t("sales.customers.editingBanner", { name: form.name })}</div>}
         <div className="form-grid">
-          <label>اسم العميل<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <label>نوع العميل
+          <label>{t("sales.customers.name")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>{t("sales.customers.type")}
             <select value={form.customerType} onChange={(e) => setForm({ ...form, customerType: e.target.value })}>
-              <option value="business">منشأة (فاتورة ضريبية قياسية)</option>
-              <option value="individual">فرد (فاتورة ضريبية مبسّطة)</option>
+              <option value="business">{t("sales.customers.typeBusiness")}</option>
+              <option value="individual">{t("sales.customers.typeIndividual")}</option>
             </select>
           </label>
-          <label>الرقم الضريبي (15 رقم)<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => setForm({ ...form, vatNumber: e.target.value.replace(/\D/g, "") })} /></label>
-          <label>السجل التجاري<input type="text" value={form.crNumber} onChange={(e) => setForm({ ...form, crNumber: e.target.value })} /></label>
-          <label>الجوال<input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
-          <label>البريد الإلكتروني<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-          <label>المدينة<input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label>
-          <label>شروط الدفع
+          <label>{t("sales.customers.vatNumber")}<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => setForm({ ...form, vatNumber: e.target.value.replace(/\D/g, "") })} /></label>
+          <label>{t("sales.customers.crNumber")}<input type="text" value={form.crNumber} onChange={(e) => setForm({ ...form, crNumber: e.target.value })} /></label>
+          <label>{t("sales.customers.phone")}<input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+          <label>{t("sales.customers.email")}<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+          <label>{t("sales.customers.city")}<input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label>
+          <label>{t("sales.customers.paymentTerms")}
             <select value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}>
-              <option>نقدي</option><option>آجل 30 يوم</option><option>آجل 60 يوم</option><option>آجل 90 يوم</option>
+              <option value="نقدي">{t("sales.customers.paymentCash")}</option>
+              <option value="آجل 30 يوم">{t("sales.customers.payment30")}</option>
+              <option value="آجل 60 يوم">{t("sales.customers.payment60")}</option>
+              <option value="آجل 90 يوم">{t("sales.customers.payment90")}</option>
             </select>
           </label>
-          <label>حد الائتمان (ر.س)<input type="number" value={form.creditLimit} onChange={(e) => setForm({ ...form, creditLimit: e.target.value })} /></label>
+          <label>{t("sales.customers.creditLimit")}<input type="number" value={form.creditLimit} onChange={(e) => setForm({ ...form, creditLimit: e.target.value })} /></label>
         </div>
         <div className="form-btn-group">
-          {editingId && <button className="btn-ghost" onClick={() => { setEditingId(null); setForm(emptyForm()); }}>إلغاء</button>}
-          <button className="btn-primary" onClick={save}>{editingId ? "حفظ التعديلات" : "حفظ بيانات العميل"}</button>
+          {editingId && <button className="btn-ghost" onClick={() => { setEditingId(null); setForm(emptyForm()); }}>{t("sales.customers.cancel")}</button>}
+          <button className="btn-primary" onClick={save}>{editingId ? t("sales.customers.saveChanges") : t("sales.customers.saveCustomer")}</button>
         </div>
       </div>
 
-      {loading ? <p className="empty">جارٍ التحميل...</p> : (
+      {loading ? <p className="empty">{t("sales.customers.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>الاسم</th><th>النوع</th><th>الرقم الضريبي</th><th>شروط الدفع</th><th>حد الائتمان</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("sales.customers.table.name")}</th><th>{t("sales.customers.table.type")}</th>
+                <th>{t("sales.customers.table.vatNumber")}</th><th>{t("sales.customers.table.paymentTerms")}</th>
+                <th>{t("sales.customers.table.creditLimit")}</th><th></th>
+              </tr>
+            </thead>
             <tbody>
               {customers.map((c) => (
                 <tr key={c.id}>
                   <td>{c.name}</td>
-                  <td>{c.customerType === "business" ? "منشأة" : "فرد"}</td>
+                  <td>{c.customerType === "business" ? t("sales.customers.typeBusinessShort") : t("sales.customers.typeIndividualShort")}</td>
                   <td>{c.vatNumber || "—"}</td>
                   <td>{c.paymentTerms || "—"}</td>
                   <td className="num">{c.creditLimit ? fmt(c.creditLimit) : "—"}</td>
                   <td className="row-actions">
-                    <button className="icon-btn" title="كشف حساب العميل" onClick={() => setStatementFor(c)}><Icon.BookOpen /></button>
+                    <button className="icon-btn" title={t("sales.customers.viewStatement")} onClick={() => setStatementFor(c)}><Icon.BookOpen /></button>
                     {c.accountId && onViewAccount && (
-                      <button className="icon-btn" title="عرض في شجرة الحسابات" onClick={() => onViewAccount(c.accountId)}><Icon.Link /></button>
+                      <button className="icon-btn" title={t("sales.customers.viewInChart")} onClick={() => onViewAccount(c.accountId)}><Icon.Link /></button>
                     )}
-                    <button className="btn-ghost" onClick={() => startEdit(c)}>تعديل</button>
-                    <button className="btn-ghost" onClick={() => remove(c)}>حذف</button>
+                    <button className="btn-ghost" onClick={() => startEdit(c)}>{t("sales.customers.edit")}</button>
+                    <button className="btn-ghost" onClick={() => remove(c)}>{t("sales.customers.delete")}</button>
                   </td>
                 </tr>
               ))}
-              {customers.length === 0 && <tr><td className="empty" colSpan={6}>لا يوجد عملاء بعد.</td></tr>}
+              {customers.length === 0 && <tr><td className="empty" colSpan={6}>{t("sales.customers.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

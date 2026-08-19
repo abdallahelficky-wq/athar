@@ -17,7 +17,23 @@
     "allOption": "— الكل —",
     "print": "طباعة",
     "exportCsv": "تصدير Excel/CSV",
-    "currency": "ر.س"
+    "currency": "ر.س",
+    "noCompany": "أنشئ شركة أولاً من لوحة القيادة.",
+    "moreActions": "المزيد",
+    "unpost": {
+      "title": "فك الترحيل",
+      "confirmPrompt": "أدخل الرقم السري لتأكيد فك الترحيل. سيتحقق الخادم من صحته فعلياً.",
+      "pinPlaceholder": "الرقم السري",
+      "verifying": "جارٍ التحقق...",
+      "confirmBtn": "تأكيد فك الترحيل",
+      "wrongPin": "الرقم السري غير صحيح"
+    },
+    "invoiceLines": {
+      "account": "الحساب", "description": "الوصف", "descriptionPlaceholder": "وصف الصنف/الخدمة",
+      "quantity": "الكمية", "unitPrice": "سعر الوحدة", "priceIncludesVat": "شامل الضريبة؟", "discount": "خصم %",
+      "totalWithVat": "الإجمالي شامل الضريبة", "total": "الإجمالي", "addLine": "+ إضافة سطر",
+      "subtotal": "الإجمالي قبل الضريبة", "vat": "ضريبة القيمة المضافة (15٪)", "grandTotal": "الإجمالي شامل الضريبة"
+    }
   },
   "landing": {
     "nav": { "login": "تسجيل الدخول", "startTrial": "ابدأ تجربتك المجانية" },
@@ -271,6 +287,182 @@
       "table": { "description": "الوصف", "quantity": "الكمية", "unitPrice": "سعر الوحدة", "discount": "خصم %", "beforeTax": "قبل الضريبة", "tax": "الضريبة", "total": "الإجمالي" },
       "qrLabel": "رمز الاستجابة السريعة (QR) — وفق معيار زاتكا",
       "qrPayloadSummary": "عرض حمولة البيانات المشفّرة (Base64 TLV)"
+    }
+  },
+  "statementOfAccount": {
+    "customer": "العميل", "supplier": "المورد",
+    "titleFailed": "تعذّر تحميل كشف الحساب",
+    "close": "إغلاق",
+    "subtitle": "كشف حساب {{party}}",
+    "vatNumber": "الرقم الضريبي",
+    "closingBalance": "الرصيد الختامي",
+    "customerDebit": "مدين (له علينا)", "customerCredit": "دائن (لنا عليه)",
+    "supplierCredit": "دائن (علينا له)", "supplierDebit": "مدين (له علينا)",
+    "table": { "date": "التاريخ", "memo": "البيان", "debit": "مدين", "credit": "دائن", "balance": "الرصيد" },
+    "empty": "لا توجد حركات على هذا الحساب بعد.",
+    "noMemo": "—"
+  },
+  "sales": {
+    "customers": {
+      "editingBanner": "تعديل بيانات العميل — {{name}}",
+      "name": "اسم العميل", "type": "نوع العميل", "typeBusiness": "منشأة (فاتورة ضريبية قياسية)", "typeIndividual": "فرد (فاتورة ضريبية مبسّطة)",
+      "vatNumber": "الرقم الضريبي (15 رقم)", "crNumber": "السجل التجاري", "phone": "الجوال", "email": "البريد الإلكتروني", "city": "المدينة",
+      "paymentTerms": "شروط الدفع", "paymentCash": "نقدي", "payment30": "آجل 30 يوم", "payment60": "آجل 60 يوم", "payment90": "آجل 90 يوم",
+      "creditLimit": "حد الائتمان (ر.س)",
+      "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveCustomer": "حفظ بيانات العميل",
+      "loading": "جارٍ التحميل...",
+      "table": { "name": "الاسم", "type": "النوع", "vatNumber": "الرقم الضريبي", "paymentTerms": "شروط الدفع", "creditLimit": "حد الائتمان" },
+      "typeBusinessShort": "منشأة", "typeIndividualShort": "فرد",
+      "viewStatement": "كشف حساب العميل", "viewInChart": "عرض في شجرة الحسابات",
+      "edit": "تعديل", "delete": "حذف",
+      "empty": "لا يوجد عملاء بعد.",
+      "confirmDelete": "حذف العميل \"{{name}}\"؟",
+      "deleted": "تم حذف العميل \"{{name}}\"."
+    },
+    "quotations": {
+      "addBtn": "+ إضافة عرض سعر",
+      "loading": "جارٍ التحميل...",
+      "status": { "draft": "مسودة", "converted": "تم التحويل" },
+      "table": { "number": "الرقم", "customer": "العميل", "date": "التاريخ", "validUntil": "صالح حتى", "total": "الإجمالي", "status": "الحالة", "actions": "الإجراءات" },
+      "actions": {
+        "view": "عرض عرض السعر", "print": "طباعة عرض السعر",
+        "edit": "تعديل عرض السعر", "editDisabled": "لا يمكن تعديل عرض سعر تم تحويله لفاتورة",
+        "duplicate": "نسخ عرض السعر (عرض جديد بنفس البيانات)",
+        "viewInvoice": "عرض الفاتورة الناتجة", "convert": "تحويل إلى فاتورة مبيعات",
+        "delete": "حذف عرض السعر", "deleteDisabled": "لا يمكن حذف عرض سعر تم تحويله لفاتورة"
+      },
+      "confirmConvert": "تحويل عرض السعر {{number}} إلى فاتورة مبيعات؟ لا يمكن التراجع عن هذا الإجراء.",
+      "convertedMsg": "تم تحويل عرض السعر {{number}} إلى الفاتورة {{invoiceNumber}}، ورُحِّل قيدها المحاسبي تلقائياً.",
+      "cannotDeleteConverted": "لا يمكن حذف عرض سعر تم تحويله لفاتورة.",
+      "confirmDelete": "حذف عرض السعر {{number}}؟",
+      "deleted": "تم حذف عرض السعر {{number}}.",
+      "empty": "لا توجد عروض أسعار بعد.",
+      "form": {
+        "titleEdit": "تعديل عرض السعر {{number}}",
+        "titleDuplicate": "عرض سعر جديد (نسخ من {{number}})",
+        "titleCreate": "عرض سعر جديد",
+        "close": "إغلاق",
+        "customer": "العميل", "customerSearchPlaceholder": "ابحث عن عميل أو اكتب اسماً جديداً",
+        "addNewCustomer": "+ إضافة عميل جديد", "addNewCustomerNamed": "+ إضافة عميل جديد باسم \"{{name}}\"",
+        "quoteDate": "تاريخ العرض", "validUntil": "صالح حتى (اختياري)",
+        "noCustomersYet": "لا يوجد عملاء بعد — اكتب اسماً في حقل العميل أعلاه لإضافته.",
+        "print": "طباعة", "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveQuote": "حفظ عرض السعر",
+        "errChooseCustomer": "اختر عميلاً أولاً",
+        "errAddLine": "أضف سطراً واحداً على الأقل بحساب وسعر صحيحين",
+        "savedEdit": "تم حفظ التعديلات على عرض السعر.",
+        "savedDuplicate": "تم إنشاء عرض سعر جديد بنفس بيانات العرض المنسوخ.",
+        "savedNew": "تم حفظ عرض السعر كمسودة."
+      },
+      "view": {
+        "subtitle": "عرض سعر",
+        "quoteNumber": "رقم العرض", "date": "التاريخ", "validUntil": "صالح حتى",
+        "issuer": "مقدّم العرض", "vatNumber": "الرقم الضريبي", "vatNotEntered": "لم يُدخل بعد",
+        "customer": "العميل", "customerVat": "الرقم الضريبي للعميل", "vatUnregistered": "غير مسجّل (فرد)",
+        "table": { "description": "الوصف", "quantity": "الكمية", "unitPrice": "سعر الوحدة", "discount": "خصم %", "beforeTax": "قبل الضريبة", "tax": "الضريبة", "total": "الإجمالي" },
+        "total": "الإجمالي",
+        "alreadyConverted": "تم تحويل عرض السعر هذا إلى فاتورة مبيعات بالفعل."
+      }
+    },
+    "returns": {
+      "customer": "العميل", "originalInvoice": "الفاتورة الأصلية (اختياري)", "noLink": "— بدون ربط —",
+      "date": "تاريخ المردود", "refundMethod": "طريقة الرد",
+      "refundAccount": "خصم من رصيد العميل (ذمم)", "refundCash": "رد نقدي", "refundBank": "رد بنكي",
+      "reason": "سبب المردود",
+      "saveAndPost": "حفظ وترحيل المردود",
+      "loading": "جارٍ التحميل...",
+      "table": { "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي", "status": "الحالة" },
+      "posted": "مرحّل", "draft": "مسودة",
+      "unpost": "فك الترحيل", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
+      "empty": "لا توجد مردودات بعد."
+    },
+    "receipts": {
+      "customer": "العميل", "date": "تاريخ السند", "method": "طريقة التحصيل", "methodCash": "كاش", "methodBank": "بنك",
+      "bankAccount": "الحساب البنكي", "noBankAccounts": "لا توجد حسابات بنكية مُصنَّفة", "bankAccountPlaceholder": "ابحث عن حساب بنكي...",
+      "outstandingTitle": "الفواتير المستحقة على هذا العميل",
+      "table": { "invoice": "الفاتورة", "total": "الإجمالي", "paid": "المسدد", "remaining": "المتبقي", "allocated": "المبلغ المخصص" },
+      "noOutstanding": "لا توجد فواتير مستحقة على هذا العميل.",
+      "saveAndPost": "حفظ وترحيل السند ({{amount}} ر.س)",
+      "loading": "جارٍ التحميل...",
+      "listTable": { "number": "الرقم", "customer": "العميل", "date": "التاريخ", "method": "الطريقة", "total": "الإجمالي", "status": "الحالة" },
+      "posted": "مرحّل", "draft": "مسودة",
+      "unpost": "فك الترحيل", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
+      "empty": "لا توجد سندات قبض بعد."
+    },
+    "stations": {
+      "station": "المحطة (مركز التكلفة)", "date": "التاريخ", "liters": "الكمية (لتر)", "pricePerLiter": "سعر اللتر", "shiftNote": "ملاحظة الوردية",
+      "save": "حفظ السجل",
+      "loading": "جارٍ التحميل...",
+      "table": { "date": "التاريخ", "station": "المحطة", "liters": "الكمية", "pricePerLiter": "سعر اللتر", "total": "الإجمالي" },
+      "delete": "حذف",
+      "confirmDelete": "حذف هذا السجل؟",
+      "empty": "لا توجد مبيعات محطات مسجّلة بعد."
+    },
+    "reports": {
+      "tabs": { "byCustomer": "حسب العميل", "monthly": "الاتجاه الشهري", "aging": "أعمار الذمم", "vat": "ملخص الضريبة" },
+      "byCustomer": { "customer": "العميل", "invoiceCount": "عدد الفواتير", "totalInvoices": "إجمالي المبيعات", "totalReturns": "إجمالي المردودات", "netSales": "صافي المبيعات", "outstanding": "الرصيد المستحق" },
+      "monthly": { "month": "الشهر", "total": "إجمالي المبيعات" },
+      "aging": { "customer": "العميل", "current": "0-30 يوم", "d30": "31-60 يوم", "d60": "61-90 يوم", "d90": "أكثر من 90 يوم", "total": "الإجمالي", "empty": "لا توجد ذمم مستحقة." },
+      "vat": { "salesBase": "إجمالي المبيعات قبل الضريبة", "outputVat": "ضريبة المخرجات", "returnsBase": "إجمالي المردودات قبل الضريبة", "returnsVat": "ضريبة المردودات", "netOutputVat": "صافي ضريبة المخرجات المستحقة" },
+      "empty": "لا توجد بيانات بعد."
+    },
+    "newCustomerModal": {
+      "title": "إضافة عميل جديد", "close": "إغلاق",
+      "name": "اسم العميل", "vatNumber": "الرقم الضريبي (اختياري)", "phone": "رقم الهاتف (اختياري)", "email": "البريد الإلكتروني (اختياري)",
+      "errNameRequired": "اسم العميل مطلوب",
+      "cancel": "إلغاء", "saving": "جارٍ الحفظ...", "save": "حفظ العميل"
+    },
+    "newSellableItemModal": {
+      "title": "إضافة صنف جديد (خدمة)", "close": "إغلاق",
+      "name": "اسم الصنف", "salePrice": "سعر البيع الافتراضي", "revenueAccount": "الحساب المرتبط (إيراد)", "vatApplicable": "خاضع لضريبة القيمة المضافة",
+      "note": "لضبط صنف مخزوني أو أصل ثابت أو مادة أولية، استخدم شاشة \"الأصناف والمنتجات\" مباشرة.",
+      "errRequired": "اسم الصنف والحساب المرتبط مطلوبان",
+      "cancel": "إلغاء", "saving": "جارٍ الحفظ...", "save": "حفظ الصنف"
+    },
+    "linkPaymentModal": {
+      "title": "ربط الفاتورة {{number}} بسند قبض", "close": "إغلاق",
+      "summary": "الإجمالي {{total}} ر.س — المسدد {{paid}} ر.س — المتبقي {{due}} ر.س",
+      "linkedTitle": "السندات المرتبطة حالياً",
+      "table": { "receiptNumber": "رقم السند", "date": "التاريخ", "status": "الحالة", "allocated": "المبلغ المخصص" },
+      "posted": "مرحّل", "draft": "مسودة", "unlink": "فك الربط",
+      "newLinkTitle": "ربط بسند قبض جديد أو موجود",
+      "existingReceipt": "سند موجود", "newReceipt": "سند جديد",
+      "receipt": "السند", "choose": "— اختر —",
+      "allocatedAmount": "المبلغ المخصص",
+      "receiptDate": "تاريخ السند", "collectionMethod": "طريقة التحصيل", "methodCash": "كاش", "methodBank": "بنك",
+      "amount": "المبلغ",
+      "saving": "جارٍ الحفظ...", "linkExisting": "ربط بالسند المحدد", "createAndLink": "إنشاء السند وربطه",
+      "close2": "إغلاق",
+      "confirmUnlink": "فك ربط الفاتورة عن سند القبض {{receiptNumber}}؟",
+      "linkedMsg": "تم ربط الفاتورة {{number}} بسند القبض بنجاح.",
+      "createdAndLinkedMsg": "تم إنشاء سند قبض جديد وربطه بالفاتورة {{number}} بنجاح.",
+      "unlinkedMsg": "تم فك ربط الفاتورة {{number}} عن سند القبض {{receiptNumber}}. حالة السداد الآن: {{status}}.",
+      "statusUnpaid": "غير مسددة", "statusPartial": "مسددة جزئياً", "statusPaid": "مسددة"
+    },
+    "postedBlockModal": {
+      "title": "لازم تفك ترحيل الفاتورة أولاً", "close": "إغلاق",
+      "message": "الفاتورة {{number}} مرحّلة، ولا يمكن {{action}} إلا بعد فك ترحيلها. بعد فك الترحيل ستتحول الفاتورة إلى مسودة ويُحذف القيد المحاسبي المرتبط بها، وعندها فقط يمكنك {{action}}.",
+      "cancel": "إلغاء", "unpost": "فك الترحيل",
+      "unpostTitle": "فك ترحيل الفاتورة {{number}}"
+    },
+    "sendInvoiceEmailModal": {
+      "title": "إرسال الفاتورة {{number}} بالإيميل", "close": "إغلاق",
+      "note": "لا يوجد بريد إلكتروني مسجَّل لهذا العميل — أدخل بريداً بديلاً لإرسال نسخة الفاتورة إليه لمرة واحدة.",
+      "email": "البريد الإلكتروني", "errRequired": "البريد الإلكتروني مطلوب",
+      "errFailed": "تعذّر إرسال الفاتورة — حاول مرة أخرى لاحقاً.",
+      "cancel": "إلغاء", "sending": "جارٍ الإرسال...", "send": "إرسال",
+      "sentMsg": "تم إرسال الفاتورة {{number}} إلى {{email}}."
+    },
+    "reprintReceiptModal": {
+      "title": "إعادة طباعة الإيصال — {{number}}", "close": "إغلاق",
+      "errBluetooth": "تعذّرت الطباعة عبر البلوتوث",
+      "printingBluetooth": "جارٍ الطباعة...", "printBluetooth": "طباعة عبر البلوتوث", "printNormal": "طباعة عادية"
+    },
+    "journalEntryViewModal": {
+      "title": "القيد المحاسبي للفاتورة", "close": "إغلاق",
+      "loading": "جارٍ التحميل...",
+      "memo": "البيان", "noMemo": "بدون بيان", "date": "التاريخ",
+      "table": { "account": "الحساب", "department": "القسم", "debit": "مدين", "credit": "دائن" },
+      "total": "الإجمالي"
     }
   },
   "journalEntries": {

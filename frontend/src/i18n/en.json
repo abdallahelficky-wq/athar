@@ -17,7 +17,23 @@
     "allOption": "— All —",
     "print": "Print",
     "exportCsv": "Export Excel/CSV",
-    "currency": "SAR"
+    "currency": "SAR",
+    "noCompany": "Create a company first from the dashboard.",
+    "moreActions": "More",
+    "unpost": {
+      "title": "Unpost",
+      "confirmPrompt": "Enter the PIN to confirm unposting. The server will actually verify it.",
+      "pinPlaceholder": "PIN",
+      "verifying": "Verifying...",
+      "confirmBtn": "Confirm unpost",
+      "wrongPin": "Incorrect PIN"
+    },
+    "invoiceLines": {
+      "account": "Account", "description": "Description", "descriptionPlaceholder": "Item/service description",
+      "quantity": "Qty", "unitPrice": "Unit price", "priceIncludesVat": "Incl. VAT?", "discount": "Disc. %",
+      "totalWithVat": "Total incl. VAT", "total": "Total", "addLine": "+ Add line",
+      "subtotal": "Subtotal before tax", "vat": "VAT (15%)", "grandTotal": "Total incl. VAT"
+    }
   },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },
@@ -271,6 +287,182 @@
       "table": { "description": "Description", "quantity": "Qty", "unitPrice": "Unit price", "discount": "Disc. %", "beforeTax": "Before tax", "tax": "Tax", "total": "Total" },
       "qrLabel": "QR code — per ZATCA standard",
       "qrPayloadSummary": "Show encoded data payload (Base64 TLV)"
+    }
+  },
+  "statementOfAccount": {
+    "customer": "Customer", "supplier": "Supplier",
+    "titleFailed": "Couldn't load the statement",
+    "close": "Close",
+    "subtitle": "{{party}} statement of account",
+    "vatNumber": "VAT number",
+    "closingBalance": "Closing balance",
+    "customerDebit": "Debit (owed to us)", "customerCredit": "Credit (we owe them)",
+    "supplierCredit": "Credit (owed to them)", "supplierDebit": "Debit (they owe us)",
+    "table": { "date": "Date", "memo": "Memo", "debit": "Debit", "credit": "Credit", "balance": "Balance" },
+    "empty": "No transactions on this account yet.",
+    "noMemo": "—"
+  },
+  "sales": {
+    "customers": {
+      "editingBanner": "Editing customer — {{name}}",
+      "name": "Customer name", "type": "Customer type", "typeBusiness": "Business (standard tax invoice)", "typeIndividual": "Individual (simplified tax invoice)",
+      "vatNumber": "VAT number (15 digits)", "crNumber": "CR number", "phone": "Phone", "email": "Email", "city": "City",
+      "paymentTerms": "Payment terms", "paymentCash": "Cash", "payment30": "Net 30 days", "payment60": "Net 60 days", "payment90": "Net 90 days",
+      "creditLimit": "Credit limit (SAR)",
+      "cancel": "Cancel", "saveChanges": "Save changes", "saveCustomer": "Save customer",
+      "loading": "Loading...",
+      "table": { "name": "Name", "type": "Type", "vatNumber": "VAT number", "paymentTerms": "Payment terms", "creditLimit": "Credit limit" },
+      "typeBusinessShort": "Business", "typeIndividualShort": "Individual",
+      "viewStatement": "Customer statement of account", "viewInChart": "View in chart of accounts",
+      "edit": "Edit", "delete": "Delete",
+      "empty": "No customers yet.",
+      "confirmDelete": "Delete customer \"{{name}}\"?",
+      "deleted": "Customer \"{{name}}\" deleted."
+    },
+    "quotations": {
+      "addBtn": "+ Add quotation",
+      "loading": "Loading...",
+      "status": { "draft": "Draft", "converted": "Converted" },
+      "table": { "number": "Number", "customer": "Customer", "date": "Date", "validUntil": "Valid until", "total": "Total", "status": "Status", "actions": "Actions" },
+      "actions": {
+        "view": "View quotation", "print": "Print quotation",
+        "edit": "Edit quotation", "editDisabled": "Cannot edit a quotation already converted to an invoice",
+        "duplicate": "Duplicate quotation (new quotation with the same data)",
+        "viewInvoice": "View resulting invoice", "convert": "Convert to sales invoice",
+        "delete": "Delete quotation", "deleteDisabled": "Cannot delete a quotation already converted to an invoice"
+      },
+      "confirmConvert": "Convert quotation {{number}} to a sales invoice? This action cannot be undone.",
+      "convertedMsg": "Quotation {{number}} was converted to invoice {{invoiceNumber}}, and its journal entry was posted automatically.",
+      "cannotDeleteConverted": "Cannot delete a quotation already converted to an invoice.",
+      "confirmDelete": "Delete quotation {{number}}?",
+      "deleted": "Quotation {{number}} deleted.",
+      "empty": "No quotations yet.",
+      "form": {
+        "titleEdit": "Edit quotation {{number}}",
+        "titleDuplicate": "New quotation (duplicated from {{number}})",
+        "titleCreate": "New quotation",
+        "close": "Close",
+        "customer": "Customer", "customerSearchPlaceholder": "Search for a customer or type a new name",
+        "addNewCustomer": "+ Add new customer", "addNewCustomerNamed": "+ Add new customer named \"{{name}}\"",
+        "quoteDate": "Quotation date", "validUntil": "Valid until (optional)",
+        "noCustomersYet": "No customers yet — type a name in the customer field above to add one.",
+        "print": "Print", "cancel": "Cancel", "saveChanges": "Save changes", "saveQuote": "Save quotation",
+        "errChooseCustomer": "Choose a customer first",
+        "errAddLine": "Add at least one line with a valid account and price",
+        "savedEdit": "The changes to the quotation were saved.",
+        "savedDuplicate": "A new quotation was created with the duplicated data.",
+        "savedNew": "The quotation was saved as a draft."
+      },
+      "view": {
+        "subtitle": "Quotation",
+        "quoteNumber": "Quotation number", "date": "Date", "validUntil": "Valid until",
+        "issuer": "Issued by", "vatNumber": "VAT number", "vatNotEntered": "Not entered yet",
+        "customer": "Customer", "customerVat": "Customer VAT number", "vatUnregistered": "Not registered (individual)",
+        "table": { "description": "Description", "quantity": "Qty", "unitPrice": "Unit price", "discount": "Disc. %", "beforeTax": "Before tax", "tax": "Tax", "total": "Total" },
+        "total": "Total",
+        "alreadyConverted": "This quotation has already been converted to a sales invoice."
+      }
+    },
+    "returns": {
+      "customer": "Customer", "originalInvoice": "Original invoice (optional)", "noLink": "— No link —",
+      "date": "Return date", "refundMethod": "Refund method",
+      "refundAccount": "Deduct from customer balance (receivables)", "refundCash": "Cash refund", "refundBank": "Bank refund",
+      "reason": "Return reason",
+      "saveAndPost": "Save and post return",
+      "loading": "Loading...",
+      "table": { "number": "Number", "customer": "Customer", "date": "Date", "total": "Total", "status": "Status" },
+      "posted": "Posted", "draft": "Draft",
+      "unpost": "Unpost", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
+      "empty": "No returns yet."
+    },
+    "receipts": {
+      "customer": "Customer", "date": "Receipt date", "method": "Collection method", "methodCash": "Cash", "methodBank": "Bank",
+      "bankAccount": "Bank account", "noBankAccounts": "No bank accounts classified", "bankAccountPlaceholder": "Search for a bank account...",
+      "outstandingTitle": "Outstanding invoices for this customer",
+      "table": { "invoice": "Invoice", "total": "Total", "paid": "Paid", "remaining": "Remaining", "allocated": "Allocated amount" },
+      "noOutstanding": "No outstanding invoices for this customer.",
+      "saveAndPost": "Save and post receipt ({{amount}} SAR)",
+      "loading": "Loading...",
+      "listTable": { "number": "Number", "customer": "Customer", "date": "Date", "method": "Method", "total": "Total", "status": "Status" },
+      "posted": "Posted", "draft": "Draft",
+      "unpost": "Unpost", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
+      "empty": "No receipts yet."
+    },
+    "stations": {
+      "station": "Station (cost center)", "date": "Date", "liters": "Quantity (liters)", "pricePerLiter": "Price per liter", "shiftNote": "Shift note",
+      "save": "Save record",
+      "loading": "Loading...",
+      "table": { "date": "Date", "station": "Station", "liters": "Quantity", "pricePerLiter": "Price/liter", "total": "Total" },
+      "delete": "Delete",
+      "confirmDelete": "Delete this record?",
+      "empty": "No station sales recorded yet."
+    },
+    "reports": {
+      "tabs": { "byCustomer": "By customer", "monthly": "Monthly trend", "aging": "Receivables aging", "vat": "VAT summary" },
+      "byCustomer": { "customer": "Customer", "invoiceCount": "Invoice count", "totalInvoices": "Total sales", "totalReturns": "Total returns", "netSales": "Net sales", "outstanding": "Outstanding balance" },
+      "monthly": { "month": "Month", "total": "Total sales" },
+      "aging": { "customer": "Customer", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding receivables." },
+      "vat": { "salesBase": "Total sales before tax", "outputVat": "Output VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netOutputVat": "Net output VAT due" },
+      "empty": "No data yet."
+    },
+    "newCustomerModal": {
+      "title": "Add new customer", "close": "Close",
+      "name": "Customer name", "vatNumber": "VAT number (optional)", "phone": "Phone number (optional)", "email": "Email (optional)",
+      "errNameRequired": "Customer name is required",
+      "cancel": "Cancel", "saving": "Saving...", "save": "Save customer"
+    },
+    "newSellableItemModal": {
+      "title": "Add new item (service)", "close": "Close",
+      "name": "Item name", "salePrice": "Default sale price", "revenueAccount": "Linked account (revenue)", "vatApplicable": "Subject to VAT",
+      "note": "To set up a stock item, fixed asset, or raw material, use the \"Items & Products\" screen directly.",
+      "errRequired": "Item name and linked account are required",
+      "cancel": "Cancel", "saving": "Saving...", "save": "Save item"
+    },
+    "linkPaymentModal": {
+      "title": "Link invoice {{number}} to a receipt", "close": "Close",
+      "summary": "Total {{total}} SAR — Paid {{paid}} SAR — Remaining {{due}} SAR",
+      "linkedTitle": "Currently linked receipts",
+      "table": { "receiptNumber": "Receipt #", "date": "Date", "status": "Status", "allocated": "Allocated amount" },
+      "posted": "Posted", "draft": "Draft", "unlink": "Unlink",
+      "newLinkTitle": "Link to a new or existing receipt",
+      "existingReceipt": "Existing receipt", "newReceipt": "New receipt",
+      "receipt": "Receipt", "choose": "— Choose —",
+      "allocatedAmount": "Allocated amount",
+      "receiptDate": "Receipt date", "collectionMethod": "Collection method", "methodCash": "Cash", "methodBank": "Bank",
+      "amount": "Amount",
+      "saving": "Saving...", "linkExisting": "Link to selected receipt", "createAndLink": "Create receipt and link",
+      "close2": "Close",
+      "confirmUnlink": "Unlink the invoice from receipt {{receiptNumber}}?",
+      "linkedMsg": "Invoice {{number}} was linked to the receipt successfully.",
+      "createdAndLinkedMsg": "A new receipt was created and linked to invoice {{number}} successfully.",
+      "unlinkedMsg": "Invoice {{number}} was unlinked from receipt {{receiptNumber}}. Payment status is now: {{status}}.",
+      "statusUnpaid": "Unpaid", "statusPartial": "Partially paid", "statusPaid": "Paid"
+    },
+    "postedBlockModal": {
+      "title": "You need to unpost the invoice first", "close": "Close",
+      "message": "Invoice {{number}} is posted, and cannot be {{action}} until it's unposted. Once unposted the invoice will revert to a draft and its journal entry will be deleted — only then can you {{action}} it.",
+      "cancel": "Cancel", "unpost": "Unpost",
+      "unpostTitle": "Unpost invoice {{number}}"
+    },
+    "sendInvoiceEmailModal": {
+      "title": "Email invoice {{number}}", "close": "Close",
+      "note": "This customer has no email on file — enter an alternate email to send a copy of the invoice to it once.",
+      "email": "Email address", "errRequired": "Email address is required",
+      "errFailed": "Couldn't send the invoice — try again later.",
+      "cancel": "Cancel", "sending": "Sending...", "send": "Send",
+      "sentMsg": "Invoice {{number}} was sent to {{email}}."
+    },
+    "reprintReceiptModal": {
+      "title": "Reprint receipt — {{number}}", "close": "Close",
+      "errBluetooth": "Couldn't print via Bluetooth",
+      "printingBluetooth": "Printing...", "printBluetooth": "Print via Bluetooth", "printNormal": "Regular print"
+    },
+    "journalEntryViewModal": {
+      "title": "Invoice journal entry", "close": "Close",
+      "loading": "Loading...",
+      "memo": "Memo", "noMemo": "No memo", "date": "Date",
+      "table": { "account": "Account", "department": "Department", "debit": "Debit", "credit": "Credit" },
+      "total": "Total"
     }
   },
   "journalEntries": {

@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import CustomersTab from "./CustomersTab";
 import QuotationsTab from "./QuotationsTab";
 import InvoicesTab from "./InvoicesTab";
@@ -20,11 +21,12 @@ export const SALES_TABS = [
 ];
 
 export default function SalesWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {
+  const { t } = useTranslation();
   return (
     <div>
       <div className="section-title">
-        <Breadcrumb parts={["التجارة والمبيعات", "بيانات حقيقية"]} />
-        <h2>المبيعات</h2>
+        <Breadcrumb parts={[t("nav.groups.sales"), t("dashboard.breadcrumb.realData")]} />
+        <h2>{t("nav.groups.sales")}</h2>
       </div>
       <SubTabs tabs={SALES_TABS} active={tab} onChange={setTab} />
       {tab === "customers" && <CustomersTab companyId={companyId} companies={companies} onViewAccount={onViewAccount} />}

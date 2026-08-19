@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
 import { listAccounts } from "../../api/accounts";
 import { listItems } from "../../api/items";
@@ -26,6 +27,7 @@ const lineFromExisting = (l) => ({
  * في قائمة عروض الأسعار.
  */
 export default function QuotationFormModal({ companyId, companies, editingQuotation, duplicateFrom, onClose, onSaved }) {
+  const { t } = useTranslation();
   const isEdit = !!editingQuotation;
   const seed = editingQuotation || duplicateFrom;
 
@@ -86,17 +88,17 @@ export default function QuotationFormModal({ companyId, companies, editingQuotat
   const buildPayload = () => ({ companyId, customerId, date, validUntil: validUntil || undefined, lines: cleanLines() });
 
   const submit = async () => {
-    if (!customerId) { setError("اختر عميلاً أولاً"); return; }
-    if (cleanLines().length === 0) { setError("أضف سطراً واحداً على الأقل بحساب وسعر صحيحين"); return; }
+    if (!customerId) { setError(t("sales.quotations.form.errChooseCustomer")); return; }
+    if (cleanLines().length === 0) { setError(t("sales.quotations.form.errAddLine")); return; }
     setSaving(true);
     setError("");
     try {
       if (isEdit) {
         await updateQuotation(editingQuotation.id, buildPayload());
-        onSaved("تم حفظ التعديلات على عرض السعر.");
+        onSaved(t("sales.quotations.form.savedEdit"));
       } else {
         await createQuotation(buildPayload());
-        onSaved(duplicateFrom ? "تم إنشاء عرض سعر جديد بنفس بيانات العرض المنسوخ." : "تم حفظ عرض السعر كمسودة.");
+        onSaved(duplicateFrom ? t("sales.quotations.form.savedDuplicate") : t("sales.quotations.form.savedNew"));
       }
     } catch (err) {
       setError(err.message);
@@ -110,23 +112,23 @@ export default function QuotationFormModal({ companyId, companies, editingQuotat
       <div className="invoice-modal-box">
         <div className="modal-title-row">
           <h3>
-            {isEdit ? `تعديل عرض السعر ${editingQuotation.quoteNumber}`
-              : duplicateFrom ? `عرض سعر جديد (نسخ من ${duplicateFrom.quoteNumber})`
-                : "عرض سعر جديد"}
+            {isEdit ? t("sales.quotations.form.titleEdit", { number: editingQuotation.quoteNumber })
+              : duplicateFrom ? t("sales.quotations.form.titleDuplicate", { number: duplicateFrom.quoteNumber })
+                : t("sales.quotations.form.titleCreate")}
           </h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label="إغلاق">×</button>
+          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label={t("sales.quotations.form.close")}>×</button>
         </div>
 
         <div className="form-grid header-grid">
           <label className="item-combo-cell">
-            العميل
+            {t("sales.quotations.form.customer")}
             <input
               type="text"
               value={customerDropdownOpen ? customerSearchText : (selectedCustomer?.name || "")}
               onChange={(e) => { setCustomerSearchText(e.target.value); setCustomerId(""); setCustomerDropdownOpen(true); }}
               onFocus={() => { setCustomerSearchText(selectedCustomer?.name || ""); setCustomerDropdownOpen(true); }}
               onBlur={() => setTimeout(() => setCustomerDropdownOpen(false), 150)}
-              placeholder="ابحث عن عميل أو اكتب اسماً جديداً"
+              placeholder={t("sales.quotations.form.customerSearchPlaceholder")}
             />
             {customerDropdownOpen && (
               <div className="item-combo-dropdown">
@@ -137,16 +139,16 @@ export default function QuotationFormModal({ companyId, companies, editingQuotat
                   className="item-combo-option item-combo-new"
                   onMouseDown={() => { setCustomerDropdownOpen(false); setNewCustomerModal({ initialName: customerSearchText }); }}
                 >
-                  + إضافة عميل جديد {customerSearchText ? `باسم "${customerSearchText}"` : ""}
+                  {customerSearchText ? t("sales.quotations.form.addNewCustomerNamed", { name: customerSearchText }) : t("sales.quotations.form.addNewCustomer")}
                 </div>
               </div>
             )}
           </label>
-          <label>تاريخ العرض<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-          <label>صالح حتى (اختياري)<input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></label>
+          <label>{t("sales.quotations.form.quoteDate")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label>{t("sales.quotations.form.validUntil")}<input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /></label>
         </div>
 
-        {customers.length === 0 && <p className="empty">لا يوجد عملاء بعد — اكتب اسماً في حقل العميل أعلاه لإضافته.</p>}
+        {customers.length === 0 && <p className="empty">{t("sales.quotations.form.noCustomersYet")}</p>}
 
         <SalesInvoiceLinesEditor
           lines={lines}
@@ -159,9 +161,9 @@ export default function QuotationFormModal({ companyId, companies, editingQuotat
         {error && <p className="balance-bad">{error}</p>}
 
         <div className="form-btn-group">
-          {isEdit && <button className="btn-ghost" onClick={() => setPrintQuotation(editingQuotation)}>طباعة</button>}
-          <button className="btn-ghost" onClick={onClose} disabled={saving}>إلغاء</button>
-          <button className="btn-primary" onClick={submit} disabled={saving || !customerId}>{isEdit ? "حفظ التعديلات" : "حفظ عرض السعر"}</button>
+          {isEdit && <button className="btn-ghost" onClick={() => setPrintQuotation(editingQuotation)}>{t("sales.quotations.form.print")}</button>}
+          <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("sales.quotations.form.cancel")}</button>
+          <button className="btn-primary" onClick={submit} disabled={saving || !customerId}>{isEdit ? t("sales.quotations.form.saveChanges") : t("sales.quotations.form.saveQuote")}</button>
         </div>
       </div>
 

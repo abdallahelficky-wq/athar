@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { Icon } from "../../legacy/shared";
 
 /**
@@ -9,7 +10,8 @@ import { Icon } from "../../legacy/shared";
  * تقصّ أي عنصر مُموضَع نسبياً يتجاوز حدودها رأسياً أيضاً — نفس القيد ينطبق على أي جدول قوائم آخر.
  * items: [{ label, icon?: Component, onClick, danger?, disabled?, hidden? }]
  */
-export default function ActionsMenu({ items, title = "المزيد" }) {
+export default function ActionsMenu({ items, title }) {
+  const { t } = useTranslation();
   const visibleItems = items.filter((it) => it && !it.hidden);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(null);
@@ -58,7 +60,7 @@ export default function ActionsMenu({ items, title = "المزيد" }) {
         type="button"
         ref={triggerRef}
         className="icon-btn actions-menu-trigger"
-        title={title}
+        title={title || t("common.moreActions")}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => (open ? setOpen(false) : openMenu())}

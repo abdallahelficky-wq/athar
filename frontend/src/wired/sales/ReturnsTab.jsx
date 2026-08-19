@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
 import { listAccounts } from "../../api/accounts";
 import { listSalesInvoices } from "../../api/salesInvoices";
@@ -9,6 +10,7 @@ import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 
 export default function ReturnsTab({ companyId }) {
+  const { t } = useTranslation();
   const [customers, setCustomers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -62,56 +64,62 @@ export default function ReturnsTab({ companyId }) {
     reload();
   };
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة.</p>;
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         <div className="form-grid header-grid">
-          <label>العميل
+          <label>{t("sales.returns.customer")}
             <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); setRelatedInvoiceId(""); }}>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
-          <label>الفاتورة الأصلية (اختياري)
+          <label>{t("sales.returns.originalInvoice")}
             <select value={relatedInvoiceId} onChange={(e) => setRelatedInvoiceId(e.target.value)}>
-              <option value="">— بدون ربط —</option>
+              <option value="">{t("sales.returns.noLink")}</option>
               {customerInvoices.map((i) => <option key={i.id} value={i.id}>{i.invoiceNumber}</option>)}
             </select>
           </label>
-          <label>تاريخ المردود<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-          <label>طريقة الرد
+          <label>{t("sales.returns.date")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label>{t("sales.returns.refundMethod")}
             <select value={refundMethod} onChange={(e) => setRefundMethod(e.target.value)}>
-              <option value="account">خصم من رصيد العميل (ذمم)</option>
-              <option value="cash">رد نقدي</option>
-              <option value="bank">رد بنكي</option>
+              <option value="account">{t("sales.returns.refundAccount")}</option>
+              <option value="cash">{t("sales.returns.refundCash")}</option>
+              <option value="bank">{t("sales.returns.refundBank")}</option>
             </select>
           </label>
-          <label className="memo-field">سبب المردود<input type="text" value={reason} onChange={(e) => setReason(e.target.value)} /></label>
+          <label className="memo-field">{t("sales.returns.reason")}<input type="text" value={reason} onChange={(e) => setReason(e.target.value)} /></label>
         </div>
 
         <InvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} showVatToggle={false} />
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          <button className="btn-primary" onClick={save} disabled={!customerId}>حفظ وترحيل المردود</button>
+          <button className="btn-primary" onClick={save} disabled={!customerId}>{t("sales.returns.saveAndPost")}</button>
         </div>
       </div>
 
-      {loading ? <p className="empty">جارٍ التحميل...</p> : (
+      {loading ? <p className="empty">{t("sales.returns.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>الرقم</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>الحالة</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>{t("sales.returns.table.number")}</th><th>{t("sales.returns.table.customer")}</th>
+                <th>{t("sales.returns.table.date")}</th><th>{t("sales.returns.table.total")}</th>
+                <th>{t("sales.returns.table.status")}</th><th></th>
+              </tr>
+            </thead>
             <tbody>
               {returns.map((r) => (
                 <React.Fragment key={r.id}>
                   <tr>
                     <td>{r.returnNumber}</td><td>{r.customer?.name}</td><td>{r.date.slice(0, 10)}</td>
                     <td className="num">{fmt(r.grandTotal)}</td>
-                    <td><span className="status-badge">{r.status === "posted" ? "مرحّل" : "مسودة"}</span></td>
+                    <td><span className="status-badge">{r.status === "posted" ? t("sales.returns.posted") : t("sales.returns.draft")}</span></td>
                     <td className="row-actions">
-                      {r.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(r)}>فك الترحيل</button>}
+                      {r.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(r)}>{t("sales.returns.unpost")}</button>}
                       <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === r.id ? null : r.id)}>
-                        {attachmentsFor === r.id ? "إخفاء المرفقات" : "المرفقات"}
+                        {attachmentsFor === r.id ? t("sales.returns.attachmentsHide") : t("sales.returns.attachmentsShow")}
                       </button>
                     </td>
                   </tr>
@@ -120,7 +128,7 @@ export default function ReturnsTab({ companyId }) {
                   )}
                 </React.Fragment>
               ))}
-              {returns.length === 0 && <tr><td className="empty" colSpan={6}>لا توجد مردودات بعد.</td></tr>}
+              {returns.length === 0 && <tr><td className="empty" colSpan={6}>{t("sales.returns.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

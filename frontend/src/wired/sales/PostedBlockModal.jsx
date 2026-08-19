@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { unpostSalesInvoice } from "../../api/salesInvoices";
 import UnpostModal from "../shared/UnpostModal";
 
@@ -7,6 +8,7 @@ import UnpostModal from "../shared/UnpostModal";
  * داخل نفس التنبيه بدل إجبار المستخدم على الخروج والبحث عن الأيقونة في صف الإجراءات.
  */
 export default function PostedBlockModal({ invoiceId, invoiceNumber, action, onClose, onUnposted }) {
+  const { t } = useTranslation();
   const [showUnpost, setShowUnpost] = useState(false);
 
   const confirmUnpost = async (pin) => {
@@ -17,7 +19,7 @@ export default function PostedBlockModal({ invoiceId, invoiceNumber, action, onC
   if (showUnpost) {
     return (
       <UnpostModal
-        title={`فك ترحيل الفاتورة ${invoiceNumber}`}
+        title={t("sales.postedBlockModal.unpostTitle", { number: invoiceNumber })}
         onCancel={() => setShowUnpost(false)}
         onConfirm={confirmUnpost}
       />
@@ -28,16 +30,15 @@ export default function PostedBlockModal({ invoiceId, invoiceNumber, action, onC
     <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="unpost-confirm-box">
         <div className="modal-title-row">
-          <h3>لازم تفك ترحيل الفاتورة أولاً</h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="إغلاق">×</button>
+          <h3>{t("sales.postedBlockModal.title")}</h3>
+          <button type="button" className="modal-close-btn" onClick={onClose} aria-label={t("sales.postedBlockModal.close")}>×</button>
         </div>
         <p className="note">
-          الفاتورة {invoiceNumber} مرحّلة، ولا يمكن {action} إلا بعد فك ترحيلها. بعد فك الترحيل ستتحول الفاتورة
-          إلى مسودة ويُحذف القيد المحاسبي المرتبط بها، وعندها فقط يمكنك {action}.
+          {t("sales.postedBlockModal.message", { number: invoiceNumber, action })}
         </p>
         <div className="form-btn-group">
-          <button className="btn-ghost" onClick={onClose}>إلغاء</button>
-          <button className="btn-primary" onClick={() => setShowUnpost(true)}>فك الترحيل</button>
+          <button className="btn-ghost" onClick={onClose}>{t("sales.postedBlockModal.cancel")}</button>
+          <button className="btn-primary" onClick={() => setShowUnpost(true)}>{t("sales.postedBlockModal.unpost")}</button>
         </div>
       </div>
     </div>
