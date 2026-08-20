@@ -116,7 +116,7 @@ function AppShell({ onLoggedOut }) {
   const activeCompany = useMemo(() => real.companies.find((c) => c.id === real.companyId), [real.companies, real.companyId]);
 
   return (
-    <div className="app-root" dir="rtl">
+    <div className="app-root" dir={i18n.dir()}>
       {isMobileSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsMobileSidebarOpen(false)} />}
       <div className={"sidebar" + (isMobileSidebarOpen ? " sidebar-open" : "")}>
         <div className="brand">

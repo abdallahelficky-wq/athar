@@ -947,13 +947,18 @@
             margin-right: auto; background: transparent; border: none; color: #ECE6D6;
             font-size: 18px; cursor: pointer; width: 32px; height: 32px;
           }
-          /* لوحة منزلقة (off-canvas) من اليمين بدل شريط أفقي دائم الظهور — تظهر فقط عند الضغط
-             على زر الهمبرغر، وتُغلَق تلقائياً بعد أي تنقّل (منطق isMobileSidebarOpen في App.jsx) */
+          /* لوحة منزلقة (off-canvas) من جهة بداية القراءة (يمين بالعربي، يسار بالإنجليزي) بدل
+             شريط أفقي دائم الظهور — تظهر فقط عند الضغط على زر الهمبرغر، وتُغلَق تلقائياً بعد أي
+             تنقّل (منطق isMobileSidebarOpen في App.jsx). inset-inline-start يتبع dir الفعلي
+             تلقائياً (right فيزيائياً بالعربي RTL، left بالإنجليزي LTR) — لكن transform/box-shadow
+             خاصيتان فيزيائيتان لا تتبعان dir، فهما مشروطتان صراحة أدناه بحسب [dir] على .app-root. */
           .sidebar {
-            position: fixed; inset: 0 0 0 auto; width: 78vw; max-width: 300px;
-            transform: translateX(100%); transition: transform .25s ease;
-            z-index: 1000; overflow-y: auto; box-shadow: -8px 0 24px rgba(0,0,0,0.25);
+            position: fixed; inset-block: 0; inset-inline-start: 0; width: 78vw; max-width: 300px;
+            transition: transform .25s ease;
+            z-index: 1000; overflow-y: auto;
           }
+          [dir="rtl"] .sidebar { transform: translateX(100%); box-shadow: -8px 0 24px rgba(0,0,0,0.25); }
+          [dir="ltr"] .sidebar { transform: translateX(-100%); box-shadow: 8px 0 24px rgba(0,0,0,0.25); }
           .sidebar.sidebar-open { transform: translateX(0); }
           .sidebar-backdrop {
             display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999;
