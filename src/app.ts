@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { errorHandler } from "./middleware/errorHandler";
+import { resolveLanguage } from "./middleware/language";
 import { authRoutes } from "./modules/auth/auth.routes";
 import { companyRoutes } from "./modules/companies/companies.routes";
 import { companyZatcaRoutes } from "./modules/companiesZatca/companiesZatca.routes";
@@ -59,6 +60,7 @@ export function createApp() {
   app.use(helmet());
   app.use(cors());
   app.use(express.json({ limit: "5mb" }));
+  app.use(resolveLanguage);
 
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
