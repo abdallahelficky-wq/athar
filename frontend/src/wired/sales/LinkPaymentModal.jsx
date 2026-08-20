@@ -4,6 +4,7 @@ import { listReceipts, addReceiptAllocation, removeReceiptAllocation, createRece
 import { getSalesInvoice } from "../../api/salesInvoices";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
+import { currencyLabel } from "../../shared/countries";
 
 /**
  * ربط/فك ربط فاتورة مبيعات بسند قبض — تدعم اختيار سند قائم أو إنشاء سند جديد وربطه،
@@ -11,8 +12,9 @@ import { Icon } from "../../legacy/shared";
  * بأكثر من سند إن كانت مسددة على دفعات من سندات مختلفة).
  */
 export default function LinkPaymentModal({ invoice: initialInvoice, companyId, onClose, onChanged }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [invoice, setInvoice] = useState(initialInvoice);
+  const currency = currencyLabel(invoice?.company?.currency, i18n.language);
   const [receipts, setReceipts] = useState([]);
   const [mode, setMode] = useState("existing");
   const [selectedReceiptId, setSelectedReceiptId] = useState("");
@@ -88,8 +90,6 @@ export default function LinkPaymentModal({ invoice: initialInvoice, companyId, o
     }
   };
 
-  const currency = t("common.currency");
-
   return (
     <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !busy && onClose()}>
       <div className="invoice-modal-box" style={{ maxWidth: 680 }}>
@@ -98,7 +98,7 @@ export default function LinkPaymentModal({ invoice: initialInvoice, companyId, o
           <button type="button" className="modal-close-btn" onClick={onClose} disabled={busy} aria-label={t("sales.linkPaymentModal.close")}>×</button>
         </div>
         <p className="note">
-          {t("sales.linkPaymentModal.summary", { total: fmt(Number(invoice.grandTotal)), paid: fmt(paid), due: fmt(due) })}
+          {t("sales.linkPaymentModal.summary", { total: fmt(Number(invoice.grandTotal)), paid: fmt(paid), due: fmt(due), currency })}
         </p>
 
         {invoice.receiptAllocations.length > 0 && (

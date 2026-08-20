@@ -18,7 +18,7 @@ const NOT_PURCHASABLE_TYPES = ["service", "bundle"];
  * نوع الصنف عند الترحيل (لا يُرسَل من هنا لهذه الأسطر) — حقل الحساب اليدوي يظهر فقط للأسطر
  * الحرة بلا صنف مختار (مصاريف متفرقة).
  */
-export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, items, warehouses }) {
+export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, items, warehouses, currency: currencyProp }) {
   const { t } = useTranslation();
   const [openDropdownIdx, setOpenDropdownIdx] = useState(null);
   const [searchText, setSearchText] = useState("");
@@ -27,7 +27,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
   const subtotal = computedLines.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computedLines.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
-  const currency = t("common.currency");
+  const currency = currencyProp || t("common.currency");
 
   const purchasableItems = items.filter((i) => !NOT_PURCHASABLE_TYPES.includes(i.type));
 

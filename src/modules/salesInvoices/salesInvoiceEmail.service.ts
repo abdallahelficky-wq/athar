@@ -3,6 +3,7 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { buildPlainInvoicePdf } from "../../lib/invoicePdf";
 import { sendInvoiceEmail } from "../../lib/mailer";
 import type { Lang } from "../../lib/i18n/translate";
+import { currencyLabel } from "../../lib/countries";
 
 export interface SendInvoiceEmailResult {
   sent: boolean;
@@ -71,6 +72,7 @@ export async function sendInvoiceByEmail(
       pdfBuffer,
       pdfFileName: `فاتورة-${invoice.invoiceNumber}.pdf`,
       lang,
+      currency: currencyLabel(invoice.company.currency, lang),
     });
 
     await prisma.invoiceEmailLog.create({ data: { tenantId, invoiceId, sentTo: to, method: opts.method, success: true } });

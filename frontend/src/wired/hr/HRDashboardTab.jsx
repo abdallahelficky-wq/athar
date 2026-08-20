@@ -9,6 +9,7 @@ import { fmt } from "../../legacy/constants";
 import KpiCard from "../dashboard/KpiCard";
 import AlertsPanel from "../dashboard/AlertsPanel";
 import { CHART_PALETTE, CHART_GRID, CHART_AXIS, CHART_FONT, chartTooltipStyle, colorAt } from "../dashboard/chartTheme";
+import { currencyLabel } from "../../shared/countries";
 
 const axisProps = { tick: { fontSize: 11.5, fill: CHART_AXIS, fontFamily: CHART_FONT }, axisLine: { stroke: CHART_GRID } };
 
@@ -16,8 +17,8 @@ const axisProps = { tick: { fontSize: 11.5, fill: CHART_AXIS, fontFamily: CHART_
  * داشبورد شئون الموظفين — أول تبويب في قسم "شئون الموظفين"، نفس مبدأ الداشبورد المالية
  * (تحترم الشركة النشطة/عرض المجموعة كاملة عبر companyId فارغ = تجميع على مستوى المستأجر).
  */
-export default function HRDashboardTab({ companyId }) {
-  const { t } = useTranslation();
+export default function HRDashboardTab({ companyId, companies }) {
+  const { t, i18n } = useTranslation();
   const [kpis, setKpis] = useState(null);
   const [payrollTrend, setPayrollTrend] = useState([]);
   const [headcount, setHeadcount] = useState([]);
@@ -42,7 +43,7 @@ export default function HRDashboardTab({ companyId }) {
 
   if (loading || !kpis) return <p className="empty">{t("common.loading")}</p>;
 
-  const currency = t("common.currency");
+  const currency = companyId ? currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language) : t("common.currency");
   const employeeUnit = t("hr.dashboard.employee");
   const daysUnit = t("hr.dashboard.days");
 

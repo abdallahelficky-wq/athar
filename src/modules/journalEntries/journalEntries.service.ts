@@ -7,6 +7,7 @@ import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/stor
 import { reserveEntryNumber } from "../../lib/journalPosting";
 import { registerFixedAssetTx } from "../fixedAssets/fixedAssets.service";
 import { registerEmployeeAdvanceTx } from "../employeeAdvances/employeeAdvances.service";
+import { currencyLabel } from "../../lib/countries";
 
 const BALANCE_EPSILON = 0.01;
 
@@ -686,7 +687,7 @@ export async function createJournalEntryFromDocument(
 
   const memoParts = [extraction.description || "قيد مقترح من مستند بالذكاء الاصطناعي"];
   if (extraction.partyName) memoParts.push(`— ${extraction.partyName}`);
-  if (extraction.vatAmount > 0) memoParts.push(`(شامل ضريبة قيمة مضافة: ${extraction.vatAmount.toFixed(2)} ر.س)`);
+  if (extraction.vatAmount > 0) memoParts.push(`(شامل ضريبة قيمة مضافة: ${extraction.vatAmount.toFixed(2)} ${currencyLabel(company.currency)})`);
 
   const date = extraction.date && !Number.isNaN(Date.parse(extraction.date)) ? new Date(extraction.date) : new Date();
 

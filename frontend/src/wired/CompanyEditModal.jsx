@@ -4,10 +4,13 @@ import { updateCompany, uploadCompanyLogo, extractCompanyDocument } from "../api
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CompanyDocumentsPanel from "./CompanyDocumentsPanel";
 import LeaseContractsPanel from "./LeaseContractsPanel";
+import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry } from "../shared/countries";
 
 const emptyForm = (c) => ({
   name: c.name || "",
   shortName: c.shortName || "",
+  country: c.country || "SA",
+  currency: c.currency || "SAR",
   vatNumber: c.vatNumber || "",
   numberingPrefix: c.numberingPrefix || "",
   crNumber: c.crNumber || "",
@@ -31,7 +34,7 @@ const emptyForm = (c) => ({
 /** نافذة تعديل بيانات الشركة الرسمية الكاملة — شعار، عنوان وطني، تواريخ السجل التجاري،
  * بيانات التواصل، بالإضافة إلى استخراج تلقائي بالذكاء الاصطناعي من المستندات الرسمية. */
 export default function CompanyEditModal({ company, onClose, onSaved }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const DOC_TYPES = [
     { key: "cr", label: t("settings.companyEdit.docTypeCr") },
     { key: "national_address", label: t("settings.companyEdit.docTypeNationalAddress") },
@@ -130,6 +133,22 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         <div className="form-grid">
           <label>{t("settings.companyEdit.nameLabel")}<input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} /></label>
           <label>{t("settings.companyEdit.shortNameLabel")}<input type="text" value={form.shortName} onChange={(e) => set("shortName", e.target.value)} /></label>
+          <label>
+            {t("settings.newCompany.countryLabel")}
+            <select value={form.country} onChange={(e) => { set("country", e.target.value); set("currency", defaultCurrencyForCountry(e.target.value)); }}>
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>{countryName(c.code, i18n.language)}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t("settings.newCompany.currencyLabel")}
+            <select value={form.currency} onChange={(e) => set("currency", e.target.value)}>
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.code} — {c.symbolAr}</option>
+              ))}
+            </select>
+          </label>
           <label>{t("settings.companyEdit.vatNumberLabel")}<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, ""))} /></label>
           <label>
             {t("settings.companyEdit.numberingPrefixLabel")}

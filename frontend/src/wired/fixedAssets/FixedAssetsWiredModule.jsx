@@ -26,8 +26,8 @@ export default function FixedAssetsWiredModule({ tab, setTab, companies, company
       </div>
       <SubTabs tabs={FIXED_ASSETS_TABS} active={tab} onChange={setTab} />
       {tab === "register" && <AssetRegisterTab companyId={companyId} companies={companies} />}
-      {tab === "depreciation" && <DepreciationTab companyId={companyId} />}
-      {tab === "disposal" && <DisposalTab companyId={companyId} />}
+      {tab === "depreciation" && <DepreciationTab companyId={companyId} companies={companies} />}
+      {tab === "disposal" && <DisposalTab companyId={companyId} companies={companies} />}
       {tab === "reports" && <AssetReportsTab companyId={companyId} />}
       {tab === "categories" && <AssetCategoriesSettingsTab companyId={companyId} />}
     </div>

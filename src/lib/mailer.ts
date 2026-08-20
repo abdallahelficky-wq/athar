@@ -162,26 +162,28 @@ interface InvoiceEmailParams {
   pdfBuffer: Buffer;
   pdfFileName: string;
   lang?: Lang;
+  currency?: string; // تسمية عرض العملة (مثال "ر.س"/"SAR")، مبنية عبر currencyLabel() من company.currency — انظر salesInvoiceEmail.service.ts
 }
 
 /** يُرسَل تلقائياً عند ترحيل فاتورة مبيعات (لو للعميل بريد مسجَّل)، أو يدوياً من زر "إرسال بالإيميل". */
 export async function sendInvoiceEmail(params: InvoiceEmailParams) {
   const en = params.lang === "en";
+  const currency = params.currency || (en ? "SAR" : "ر.س");
   await sendEmail({
     to: params.to,
     subject: en ? `Invoice #${params.invoiceNumber} from ${params.companyName}` : `فاتورة رقم ${params.invoiceNumber} من ${params.companyName}`,
     logLabel: en ? `Sending invoice ${params.invoiceNumber}` : `إرسال فاتورة ${params.invoiceNumber}`,
-    logBody: en ? `Customer: ${params.customerName} — Total: SAR ${params.grandTotal}` : `العميل: ${params.customerName} — الإجمالي: ${params.grandTotal} ر.س`,
+    logBody: en ? `Customer: ${params.customerName} — Total: ${currency} ${params.grandTotal}` : `العميل: ${params.customerName} — الإجمالي: ${params.grandTotal} ${currency}`,
     attachments: [{ filename: params.pdfFileName, content: params.pdfBuffer }],
     html: renderEmailShell(en ? `
       <h2 style="color:#10202E;">New invoice from ${params.companyName}</h2>
       <p>Dear ${params.customerName},</p>
-      <p>Attached is invoice <strong>#${params.invoiceNumber}</strong> for a total of <strong>SAR ${params.grandTotal}</strong>.</p>
+      <p>Attached is invoice <strong>#${params.invoiceNumber}</strong> for a total of <strong>${currency} ${params.grandTotal}</strong>.</p>
       <p style="color:#6b7c8c; font-size: 12.5px;">You can open the attached PDF file to view the full invoice details.</p>
     ` : `
       <h2 style="color:#10202E;">فاتورة جديدة من ${params.companyName}</h2>
       <p>عزيزي/عزيزتي ${params.customerName}،</p>
-      <p>مرفق مع هذه الرسالة فاتورة رقم <strong>${params.invoiceNumber}</strong> بإجمالي <strong>${params.grandTotal} ر.س</strong>.</p>
+      <p>مرفق مع هذه الرسالة فاتورة رقم <strong>${params.invoiceNumber}</strong> بإجمالي <strong>${params.grandTotal} ${currency}</strong>.</p>
       <p style="color:#6b7c8c; font-size: 12.5px;">يمكنكم فتح الملف المرفق (PDF) لعرض تفاصيل الفاتورة كاملة.</p>
     `, params.lang ?? "ar"),
   });

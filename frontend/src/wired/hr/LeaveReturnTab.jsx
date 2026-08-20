@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
 import { listLeaveSettlements, registerLeaveReturn } from "../../api/leaveSettlements";
+import { currencyLabel } from "../../shared/countries";
 
-export default function LeaveReturnTab({ companyId }) {
-  const { t } = useTranslation();
+export default function LeaveReturnTab({ companyId, companies }) {
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [employees, setEmployees] = useState([]);
   const [employeeId, setEmployeeId] = useState("");
   const [returnDate, setReturnDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -74,7 +76,7 @@ export default function LeaveReturnTab({ companyId }) {
         {preview && (
           <div className="preview-box">
             <div className="preview-row"><span>{t("hr.leaveReturn.previewWorkedDays")}</span><strong>{preview.workedDays} {t("hr.dashboard.days")}</strong></div>
-            <div className="preview-row net-row"><span>{t("hr.leaveReturn.previewAmount")}</span><strong>{preview.amount.toFixed(2)} {t("common.currency")}</strong></div>
+            <div className="preview-row net-row"><span>{t("hr.leaveReturn.previewAmount")}</span><strong>{preview.amount.toFixed(2)} {currency}</strong></div>
           </div>
         )}
       </div>

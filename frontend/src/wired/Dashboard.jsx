@@ -109,11 +109,11 @@ export default function Dashboard({ companies, companyId, setCompanyId, onNaviga
 
           {viewMode === "consolidated" ? (
             <>
-              <FinancialDashboard companyId={undefined} />
+              <FinancialDashboard companyId={undefined} companies={companies} />
               <GroupComparisonTable companies={companies} />
             </>
           ) : companyId ? (
-            <FinancialDashboard companyId={companyId} />
+            <FinancialDashboard companyId={companyId} companies={companies} />
           ) : (
             <p className="empty">{t("dashboard.chooseCompanyPrompt")}</p>
           )}

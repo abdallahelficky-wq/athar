@@ -13,9 +13,11 @@ import PurchaseInvoiceLinesEditor, { emptyPurchaseLine } from "./PurchaseInvoice
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import PurchaseInvoiceViewModal from "./PurchaseInvoiceViewModal";
+import { currencyLabel } from "../../shared/countries";
 
 export default function PurchaseInvoicesTab({ companyId, companies }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [suppliers, setSuppliers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [items, setItems] = useState([]);
@@ -111,7 +113,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
         </div>
         {suppliers.length === 0 && <p className="empty">{t("purchases.invoices.addSupplierFirst")}</p>}
 
-        <PurchaseInvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} items={items} warehouses={warehouses} />
+        <PurchaseInvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} items={items} warehouses={warehouses} currency={currency} />
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
           <button className="btn-primary" onClick={save} disabled={!supplierId}>{t("purchases.invoices.saveAndPost")}</button>

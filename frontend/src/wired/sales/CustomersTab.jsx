@@ -5,6 +5,7 @@ import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
 import { useToast, ToastHost } from "../shared/Toast";
 import StatementOfAccountModal from "../StatementOfAccountModal";
+import { currencyLabel } from "../../shared/countries";
 
 const emptyForm = () => ({
   name: "", customerType: "business", vatNumber: "", crNumber: "", nationalId: "",
@@ -13,7 +14,8 @@ const emptyForm = () => ({
 });
 
 export default function CustomersTab({ companyId, companies, onViewAccount }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast, notify, dismiss } = useToast();
@@ -86,7 +88,7 @@ export default function CustomersTab({ companyId, companies, onViewAccount }) {
               <option value="آجل 90 يوم">{t("sales.customers.payment90")}</option>
             </select>
           </label>
-          <label>{t("sales.customers.creditLimit")}<input type="number" value={form.creditLimit} onChange={(e) => setForm({ ...form, creditLimit: e.target.value })} /></label>
+          <label>{t("sales.customers.creditLimit", { currency })}<input type="number" value={form.creditLimit} onChange={(e) => setForm({ ...form, creditLimit: e.target.value })} /></label>
         </div>
         <div className="form-btn-group">
           {editingId && <button className="btn-ghost" onClick={() => { setEditingId(null); setForm(emptyForm()); }}>{t("sales.customers.cancel")}</button>}

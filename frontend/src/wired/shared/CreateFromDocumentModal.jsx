@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { createJournalEntryFromDocument, updateJournalEntry, postJournalEntry } from "../../api/journalEntries";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "./AccountSearchSelect";
+import { currencyLabel } from "../../shared/countries";
 
 /**
  * "إنشاء قيد من مستند" — يرفع صورة/PDF، يستدعي الذكاء الاصطناعي عبر الخادم لاقتراح قيد
@@ -10,8 +11,9 @@ import AccountSearchSelect from "./AccountSearchSelect";
  * منفصلين: "حفظ" (يبقى بحالة محفوظ قابلاً للتعديل لاحقاً) و"موافقة وترحيل" (يرحّله فوراً
  * بعد حفظ أي تعديلات، فيُقفَل تماماً). القيد لا يُرحَّل تلقائياً أبداً دون ضغط هذا الزر صراحة.
  */
-export default function CreateFromDocumentModal({ companyId, accounts, onClose, onCreated }) {
-  const { t } = useTranslation();
+export default function CreateFromDocumentModal({ companyId, companies, accounts, onClose, onCreated }) {
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -161,7 +163,7 @@ export default function CreateFromDocumentModal({ companyId, accounts, onClose, 
               <div className="balance-status">
                 {balanced
                   ? <span className="balance-ok">{t("journalModals.fromDocument.balancedOk")}</span>
-                  : <span className="balance-bad">{t("journalModals.fromDocument.balanceDiff", { amount: fmt2(Math.abs(totalDebit - totalCredit)) })}</span>}
+                  : <span className="balance-bad">{t("journalModals.fromDocument.balanceDiff", { amount: fmt2(Math.abs(totalDebit - totalCredit)), currency })}</span>}
               </div>
 
               {error && <p className="balance-bad">{error}</p>}

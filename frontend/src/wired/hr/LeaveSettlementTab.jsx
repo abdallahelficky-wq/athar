@@ -6,10 +6,11 @@ import {
 } from "../../api/leaveSettlements";
 import { fmt } from "../../legacy/constants";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
+import { currencyLabel } from "../../shared/countries";
 
-export default function LeaveSettlementTab({ companyId }) {
-  const { t } = useTranslation();
-  const currency = t("common.currency");
+export default function LeaveSettlementTab({ companyId, companies }) {
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [employees, setEmployees] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [error, setError] = useState("");

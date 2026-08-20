@@ -206,7 +206,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
             onChange={setTab}
             trailing={<button className="icon-btn" title={t("reports.printCurrent")} onClick={() => setPrinting(true)}><Icon.Printer /></button>}
           />
-          {tab === "monthly" && <ComprehensiveMonthlyReport companyId={companyId} />}
+          {tab === "monthly" && <ComprehensiveMonthlyReport companyId={companyId} companies={companies} />}
           {tab === "automation" && <ReportScheduleAutomation companyId={companyId} />}
           {tab === "trial" && (
             <TrialBalanceView

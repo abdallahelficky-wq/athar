@@ -8,6 +8,7 @@ import SalesInvoiceLinesEditor, { emptySalesLine } from "./SalesInvoiceLinesEdit
 import NewCustomerModal from "./NewCustomerModal";
 import NewSellableItemModal from "./NewSellableItemModal";
 import QuotationViewModal from "./QuotationViewModal";
+import { currencyLabel } from "../../shared/countries";
 
 const lineFromExisting = (l) => ({
   accountId: l.accountId,
@@ -27,7 +28,8 @@ const lineFromExisting = (l) => ({
  * في قائمة عروض الأسعار.
  */
 export default function QuotationFormModal({ companyId, companies, editingQuotation, duplicateFrom, onClose, onSaved }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const isEdit = !!editingQuotation;
   const seed = editingQuotation || duplicateFrom;
 
@@ -155,6 +157,7 @@ export default function QuotationFormModal({ companyId, companies, editingQuotat
           setLines={setLines}
           accounts={accounts}
           items={items}
+          currency={currency}
           onRequestNewItem={(idx, searchText) => setNewItemModal({ idx, initialName: searchText })}
         />
 

@@ -25,7 +25,7 @@ export default function PurchasesWiredModule({ tab, setTab, companies, companyId
       <SubTabs tabs={PURCHASE_TABS} active={tab} onChange={setTab} />
       {tab === "suppliers" && <SuppliersTab companyId={companyId} companies={companies} onViewAccount={onViewAccount} />}
       {tab === "invoices" && <PurchaseInvoicesTab companyId={companyId} companies={companies} />}
-      {tab === "returns" && <PurchaseReturnsTab companyId={companyId} />}
+      {tab === "returns" && <PurchaseReturnsTab companyId={companyId} companies={companies} />}
       {tab === "reports" && <PurchaseReportsTab companyId={companyId} />}
     </div>
   );

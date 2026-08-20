@@ -9,6 +9,7 @@ import { fmt2 } from "../legacy/constants";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import FixedAssetLineModal from "./shared/FixedAssetLineModal";
 import EmployeeAdvanceLineModal from "./shared/EmployeeAdvanceLineModal";
+import { currencyLabel } from "../shared/countries";
 
 const emptyLine = () => ({
   accountId: "", costCenterId: "", departmentId: "", description: "", debit: "", credit: "",
@@ -32,8 +33,9 @@ const emptyLine = () => ({
  * Ctrl/Cmd+S = حفظ، Ctrl/Cmd+Enter = حفظ وترحيل (preventDefault يمنع حوار حفظ الصفحة الافتراضي
  * للمتصفح لأول اختصار).
  */
-export default function JournalEntryFormModal({ companyId, accounts, costCenters, departments, editingEntry, duplicateEntry, onClose, onSaved }) {
-  const { t } = useTranslation();
+export default function JournalEntryFormModal({ companyId, companies, accounts, costCenters, departments, editingEntry, duplicateEntry, onClose, onSaved }) {
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const isEdit = !!editingEntry;
   const seed = editingEntry || duplicateEntry;
 
@@ -51,7 +53,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
     newEmployeeAdvance: null,
     // للعرض فقط (اسم الأصل/السلفة المرتبط) — لا يُرسَل للخادم عند الحفظ.
     linkedFixedAssetLabel: l.fixedAsset ? `${l.fixedAsset.assetNumber} — ${l.fixedAsset.name}` : "",
-    linkedEmployeeAdvanceLabel: l.employeeAdvance ? t("journalEntries.form.advanceLabel", { amount: fmt2(l.employeeAdvance.amount) }) : "",
+    linkedEmployeeAdvanceLabel: l.employeeAdvance ? t("journalEntries.form.advanceLabel", { amount: fmt2(l.employeeAdvance.amount), currency }) : "",
   });
 
   const [date, setDate] = useState(() => (isEdit ? seed.date.slice(0, 10) : new Date().toISOString().slice(0, 10)));
@@ -335,7 +337,7 @@ export default function JournalEntryFormModal({ companyId, accounts, costCenters
               <span className="balance-indicator indicator-ok">{t("journalEntries.form.balanced")}</span>
             )}
             {diff !== 0 && (
-              <span className="balance-indicator indicator-bad">{t("journalEntries.form.unbalanced", { amount: fmt2(Math.abs(diff)) })}</span>
+              <span className="balance-indicator indicator-bad">{t("journalEntries.form.unbalanced", { amount: fmt2(Math.abs(diff)), currency })}</span>
             )}
             {diff === 0 && totalDebit === 0 && (
               <span className="balance-indicator indicator-neutral">{t("journalEntries.form.enterAmounts")}</span>

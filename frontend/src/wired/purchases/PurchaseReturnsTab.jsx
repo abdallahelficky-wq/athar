@@ -8,9 +8,11 @@ import { fmt } from "../../legacy/constants";
 import InvoiceLinesEditor, { emptyInvoiceLine } from "../shared/InvoiceLinesEditor";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
+import { currencyLabel } from "../../shared/countries";
 
-export default function PurchaseReturnsTab({ companyId }) {
-  const { t } = useTranslation();
+export default function PurchaseReturnsTab({ companyId, companies }) {
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [suppliers, setSuppliers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -80,7 +82,7 @@ export default function PurchaseReturnsTab({ companyId }) {
           <label className="memo-field">{t("purchases.returns.reason")}<input type="text" value={reason} onChange={(e) => setReason(e.target.value)} /></label>
         </div>
 
-        <InvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} showVatToggle={false} />
+        <InvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} showVatToggle={false} currency={currency} />
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
           <button className="btn-primary" onClick={save} disabled={!supplierId}>{t("purchases.returns.saveAndPost")}</button>

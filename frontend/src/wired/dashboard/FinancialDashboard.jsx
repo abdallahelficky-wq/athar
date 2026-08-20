@@ -14,6 +14,7 @@ import PeriodFilter from "./PeriodFilter";
 import KpiCard from "./KpiCard";
 import AlertsPanel from "./AlertsPanel";
 import { CHART_PALETTE, CHART_GRID, CHART_AXIS, CHART_FONT, chartTooltipStyle, colorAt } from "./chartTheme";
+import { currencyLabel } from "../../shared/countries";
 
 const axisProps = { tick: { fontSize: 11.5, fill: CHART_AXIS, fontFamily: CHART_FONT }, axisLine: { stroke: CHART_GRID } };
 
@@ -28,8 +29,8 @@ function ratioTone(kind, value) {
  * كل نقاط النهاية هنا تُرجع تجميعاً على مستوى المستأجر بأكمله حين لا يُمرَّر companyId، لأن
  * شجرة الحسابات مشتركة بين كل شركات المستأجر وتُفصَل فقط عبر الشركة المرتبطة بكل قيد).
  */
-export default function FinancialDashboard({ companyId }) {
-  const { t } = useTranslation();
+export default function FinancialDashboard({ companyId, companies }) {
+  const { t, i18n } = useTranslation();
   const [range, setRange] = useState(null);
   const [kpis, setKpis] = useState(null);
   const [cashBreakdown, setCashBreakdown] = useState([]);
@@ -64,7 +65,9 @@ export default function FinancialDashboard({ companyId }) {
       .finally(() => setLoading(false));
   }, [companyId, range]);
 
-  const currency = t("common.currency");
+  // شركة محدَّدة: عملتها. عرض موحَّد (بلا companyId): لا عملة واحدة صحيحة فعلياً، فتبقى التسمية
+  // الافتراضية كسابقاً بلا تغيير سلوك — نفس منطق ComprehensiveMonthlyReport.jsx.
+  const currency = companyId ? currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language) : t("common.currency");
 
   return (
     <div>

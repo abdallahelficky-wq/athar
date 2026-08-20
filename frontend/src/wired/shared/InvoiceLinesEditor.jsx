@@ -7,13 +7,13 @@ import AccountSearchSelect from "./AccountSearchSelect";
 export const emptyInvoiceLine = () => ({ accountId: "", description: "", quantity: 1, unitPrice: "", discountPct: 0, priceIncludesVat: true });
 
 /** محرر أسطر فاتورة/عرض سعر/مردود — مشترك بين المبيعات والمشتريات */
-export default function InvoiceLinesEditor({ lines, setLines, accounts, showVatToggle = true }) {
+export default function InvoiceLinesEditor({ lines, setLines, accounts, showVatToggle = true, currency: currencyProp }) {
   const { t } = useTranslation();
   const computedLines = lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
   const subtotal = computedLines.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computedLines.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
-  const currency = t("common.currency");
+  const currency = currencyProp || t("common.currency");
 
   const updateLine = (idx, field, value) => setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, [field]: value } : l)));
   const addLine = () => setLines((prev) => [...prev, emptyInvoiceLine()]);

@@ -4,6 +4,7 @@ import { createCompany, deleteCompany } from "../api/companies";
 import { useAuth } from "../context/AuthContext";
 import CompanyEditModal from "./CompanyEditModal";
 import CompanyZatcaModal from "./CompanyZatcaModal";
+import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry } from "../shared/countries";
 
 /** تعديل اسم المنشأة (المستأجر) — لا يوجد له مسار آخر بعد التسجيل الأول، وهو ضروري خصوصاً
  * لتصحيح اسم أُدخل بترميز خاطئ عند إنشاء الحساب لأول مرة (مثلاً عبر إدخال مباشر في قاعدة
@@ -56,7 +57,7 @@ function TenantNameSettings() {
 
 /** إنشاء شركة جديدة — المكان الوحيد في النظام لإضافة شركة (لم يعد متاحاً من أي شاشة معاملات) */
 function NewCompanyForm({ onCompanyCreated }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const BUSINESS_ACTIVITY_OPTIONS = [
     { value: "", label: t("settings.newCompany.businessActivity.none") },
     { value: "contracting", label: t("settings.newCompany.businessActivity.contracting") },
@@ -70,8 +71,17 @@ function NewCompanyForm({ onCompanyCreated }) {
   const [name, setName] = useState("");
   const [shortName, setShortName] = useState("");
   const [businessActivity, setBusinessActivity] = useState("");
+  const [country, setCountry] = useState("SA");
+  const [currency, setCurrency] = useState("SAR");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // اختيار الدولة يقترح عملتها الافتراضية تلقائياً (قابلة للتعديل بعد ذلك دون أن يُعاد الكتابة
+  // فوقها لو غيّر المستخدم الدولة مجدداً بالخطأ ثم رجع — الاقتراح فقط، لا فرض).
+  const onCountryChange = (value) => {
+    setCountry(value);
+    setCurrency(defaultCurrencyForCountry(value));
+  };
 
   const submit = async () => {
     if (!name.trim()) { setError(t("settings.newCompany.errNameRequired")); return; }
@@ -82,10 +92,14 @@ function NewCompanyForm({ onCompanyCreated }) {
         name: name.trim(),
         shortName: shortName.trim() || undefined,
         businessActivity: businessActivity || undefined,
+        country,
+        currency,
       });
       setName("");
       setShortName("");
       setBusinessActivity("");
+      setCountry("SA");
+      setCurrency("SAR");
       setShowForm(false);
       onCompanyCreated?.(company);
     } catch (err) {
@@ -114,6 +128,23 @@ function NewCompanyForm({ onCompanyCreated }) {
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
+          </label>
+          <label>
+            {t("settings.newCompany.countryLabel")}
+            <select value={country} onChange={(e) => onCountryChange(e.target.value)}>
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>{countryName(c.code, i18n.language)}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t("settings.newCompany.currencyLabel")}
+            <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>{c.code} — {c.symbolAr}</option>
+              ))}
+            </select>
+            <small style={{ color: "#8A7C5E", fontSize: 11 }}>{t("settings.newCompany.currencyHint")}</small>
           </label>
           <div style={{ alignSelf: "end" }}>
             <button className="btn-primary" onClick={submit} disabled={saving}>
@@ -167,7 +198,9 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
               <td>{c.crNumber || "—"}</td>
               <td className="row-actions">
                 <button className="btn-ghost" onClick={() => setEditingCompany(c)}>{t("common.edit")}</button>
-                <button className="btn-ghost" onClick={() => setZatcaCompany(c)}>{t("settings.companiesList.zatcaLink")}</button>
+                {c.country === "SA" && (
+                  <button className="btn-ghost" onClick={() => setZatcaCompany(c)}>{t("settings.companiesList.zatcaLink")}</button>
+                )}
                 <button className="btn-ghost" onClick={() => remove(c)}>{t("common.delete")}</button>
               </td>
             </tr>

@@ -34,7 +34,7 @@ export default function LoginPage({ onGoLanding, onGoRegister, onGoForgotPasswor
         <h2 className="auth-title">{t("auth.login.title")}</h2>
         <div className="auth-form">
           <label>{t("auth.login.email")}
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.sa" />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" />
           </label>
           <label>{t("auth.login.password")}
             <input

@@ -42,7 +42,7 @@ export default function ForgotPasswordPage({ onGoLogin }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@company.sa"
+                placeholder="name@company.com"
                 onKeyDown={(e) => e.key === "Enter" && submit()}
               />
             </label>

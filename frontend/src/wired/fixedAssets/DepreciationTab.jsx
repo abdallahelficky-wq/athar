@@ -3,9 +3,11 @@ import { useTranslation } from "react-i18next";
 import { previewDepreciation, postDepreciationRun } from "../../api/depreciation";
 import { fmt } from "../../legacy/constants";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
+import { currencyLabel } from "../../shared/countries";
 
-export default function DepreciationTab({ companyId }) {
-  const { t } = useTranslation();
+export default function DepreciationTab({ companyId, companies }) {
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const mf = useDeferredFilters({ month: "2026-07" });
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
@@ -35,7 +37,7 @@ export default function DepreciationTab({ companyId }) {
           <label>{t("fixedAssets.depreciation.month")}<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
           <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("fixedAssets.depreciation.showResults")}</button>
         </form>
-        {preview?.alreadyPosted && <p className="note">{t("fixedAssets.depreciation.alreadyPosted", { amount: fmt(preview.existingRun.totalAmount) })}</p>}
+        {preview?.alreadyPosted && <p className="note">{t("fixedAssets.depreciation.alreadyPosted", { amount: fmt(preview.existingRun.totalAmount), currency })}</p>}
         {error && <p className="balance-bad">{error}</p>}
         <button className="btn-primary" onClick={post} disabled={!preview || preview.alreadyPosted || preview.total <= 0}>{t("fixedAssets.depreciation.postBtn")}</button>
       </div>

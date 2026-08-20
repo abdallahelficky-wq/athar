@@ -425,6 +425,7 @@ export default function JournalModule({ companies, companyId }) {
       {formModal && (
         <JournalEntryFormModal
           companyId={companyId}
+          companies={companies}
           accounts={accounts}
           costCenters={costCenters}
           departments={departments}
@@ -445,6 +446,7 @@ export default function JournalModule({ companies, companyId }) {
       {showFromDocument && (
         <CreateFromDocumentModal
           companyId={companyId}
+          companies={companies}
           accounts={accounts}
           onClose={() => setShowFromDocument(false)}
           onCreated={() => { setShowFromDocument(false); reloadEntries(); }}

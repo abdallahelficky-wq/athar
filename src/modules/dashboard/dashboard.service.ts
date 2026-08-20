@@ -4,6 +4,7 @@ import { getSalesMonthlyTrend, getSalesByCustomer, getReceivablesAging, invoices
 import { getPayablesAging } from "../purchaseReports/purchaseReports.service";
 import { calcEOS, accruedLeaveDays, PAYROLL_JOURNAL_MAP } from "../../lib/hrCalculations";
 import { Lang } from "../../lib/i18n/translate";
+import { currencyLabel } from "../../lib/countries";
 
 /** يبني تسمية "ينتهي خلال/منتهٍ منذ N يوماً" — مكرَّرة حرفياً في 3 تنبيهات مختلفة (لوحتا القيادة
  * المالية وشئون الموظفين)، فوُحِّدت هنا بدل تكرار نفس الشرط ثلاث مرات. */
@@ -227,7 +228,9 @@ export async function getFinancialAlerts(tenantId: string, companyId: string | u
             companyId: company.id,
             companyName: company.name,
             title: en ? `Overdue invoice — ${inv.invoiceNumber}` : `فاتورة متأخرة السداد — ${inv.invoiceNumber}`,
-            detail: en ? `${days} days overdue, ${inv.due.toFixed(2)} SAR remaining` : `متأخرة ${days} يوماً، المتبقي ${inv.due.toFixed(2)} ر.س`,
+            detail: en
+              ? `${days} days overdue, ${inv.due.toFixed(2)} ${currencyLabel(company.currency, "en")} remaining`
+              : `متأخرة ${days} يوماً، المتبقي ${inv.due.toFixed(2)} ${currencyLabel(company.currency)}`,
             days: -days,
           });
         }
@@ -270,8 +273,8 @@ export async function getFinancialAlerts(tenantId: string, companyId: string | u
           companyName: company.name,
           title: en ? "Cash balance below minimum" : "رصيد الكاش أقل من الحد الأدنى",
           detail: en
-            ? `Current balance ${cashTotal.toFixed(2)} SAR, minimum ${Number(company.lowCashThreshold).toFixed(2)} SAR`
-            : `الرصيد الحالي ${cashTotal.toFixed(2)} ر.س، الحد الأدنى ${Number(company.lowCashThreshold).toFixed(2)} ر.س`,
+            ? `Current balance ${cashTotal.toFixed(2)} ${currencyLabel(company.currency, "en")}, minimum ${Number(company.lowCashThreshold).toFixed(2)} ${currencyLabel(company.currency, "en")}`
+            : `الرصيد الحالي ${cashTotal.toFixed(2)} ${currencyLabel(company.currency)}، الحد الأدنى ${Number(company.lowCashThreshold).toFixed(2)} ${currencyLabel(company.currency)}`,
           days: null,
         });
       }

@@ -35,12 +35,12 @@ export default function HRWiredModule({ tab, setTab, companies, companyId, onVie
         <h2>{t("nav.groups.hr")}</h2>
       </div>
       <SubTabs tabs={HR_TABS} active={tab} onChange={setTab} />
-      {tab === "dashboard" && <HRDashboardTab companyId={companyId} />}
+      {tab === "dashboard" && <HRDashboardTab companyId={companyId} companies={companies} />}
       {tab === "directory" && <EmployeeDirectoryTab companyId={companyId} onViewAccount={onViewAccount} />}
       {tab === "leaves" && <LeavesTab companyId={companyId} />}
-      {tab === "leaveSettlement" && <LeaveSettlementTab companyId={companyId} />}
-      {tab === "leaveReturn" && <LeaveReturnTab companyId={companyId} />}
-      {tab === "actions" && <ActionsTab companyId={companyId} />}
+      {tab === "leaveSettlement" && <LeaveSettlementTab companyId={companyId} companies={companies} />}
+      {tab === "leaveReturn" && <LeaveReturnTab companyId={companyId} companies={companies} />}
+      {tab === "actions" && <ActionsTab companyId={companyId} companies={companies} />}
       {tab === "payroll" && <PayrollTab companyId={companyId} companies={companies} />}
       {tab === "payrollSettings" && <PayrollSettingsTab companyId={companyId} />}
       {tab === "eos" && <EndOfServiceTab companyId={companyId} />}

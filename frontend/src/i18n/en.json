@@ -37,7 +37,7 @@
   },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },
-    "eyebrow": "Saudi cloud accounting system",
+    "eyebrow": "Cloud accounting for Arab businesses",
     "title": "Athar Accounting",
     "heroSub": "A complete cloud accounting system for managing your whole business group — from journal entries and ZATCA-compliant tax invoices, to inventory, fixed assets, HR and payroll — all in one place, in an interface designed from the ground up for your market.",
     "heroCtaTrial": "Try free for a full month",
@@ -45,18 +45,18 @@
     "about": {
       "eyebrow": "About us",
       "title": "About Athar Accounting",
-      "text": "Athar Accounting is a cloud accounting system built specifically for the Saudi business environment, aimed at simplifying day-to-day accounting work for business owners and accountants alike. The system is designed to cover the full workflow of any business or group of companies: from the accounting foundation (chart of accounts and daily journal entries), through sales, purchases, inventory and fixed assets, to managing employees, their payroll and entitlements. All of this with full compliance with the Zakat, Tax and Customs Authority's e-invoicing requirements, and accurate financial reports that reflect the true picture of business performance at any moment."
+      "text": "Athar Accounting is a cloud accounting system built specifically for the Arab business environment, aimed at simplifying day-to-day accounting work for business owners and accountants alike. The system is designed to cover the full workflow of any business or group of companies: from the accounting foundation (chart of accounts and daily journal entries), through sales, purchases, inventory and fixed assets, to managing employees, their payroll and entitlements. With full support for ZATCA-compliant e-invoicing for Saudi companies, and accurate financial reports that reflect the true picture of business performance at any moment, in each company's own currency and country."
     },
     "why": {
       "eyebrow": "Why Athar Accounting",
       "title": "Designed to fit the way you work",
       "items": [
-        { "title": "ZATCA compliant", "desc": "Electronic tax invoices (standard and simplified) with a real QR code, built from the ground up to meet the requirements of the Zakat, Tax and Customs Authority." },
+        { "title": "ZATCA compliant (Saudi companies)", "desc": "Electronic tax invoices (standard and simplified) with a real QR code, built from the ground up to meet the requirements of the Zakat, Tax and Customs Authority — enabled automatically for any company that selects Saudi Arabia as its country." },
         { "title": "A whole group in one place", "desc": "Manage all your companies from a single screen, with complete data separation per company and consolidated reports for the whole group." },
-        { "title": "A complete employee lifecycle", "desc": "From hiring and leave to payroll and end-of-service benefits, calculated according to Saudi labor law." },
+        { "title": "A complete employee lifecycle", "desc": "From hiring and leave to payroll and end-of-service benefits, calculated automatically per the applicable labor system." },
         { "title": "Instant financial reports", "desc": "The trial balance, income statement and balance sheet update live with every entry and invoice you record." },
         { "title": "Integrated sales and purchases cycle", "desc": "From quotation to invoice to receipt, and from purchase order to supplier invoice, with full automatic accounting links." },
-        { "title": "An interface designed for your market", "desc": "Built from scratch to fit how accountants in the Saudi market actually work, not an interface translated from a foreign system." }
+        { "title": "An interface designed for your market", "desc": "Built from scratch to fit how accountants in the Arab market actually work, not an interface translated from a foreign system." }
       ]
     },
     "pricing": {
@@ -335,7 +335,7 @@
       "name": "Customer name", "type": "Customer type", "typeBusiness": "Business (standard tax invoice)", "typeIndividual": "Individual (simplified tax invoice)",
       "vatNumber": "VAT number (15 digits)", "crNumber": "CR number", "phone": "Phone", "email": "Email", "city": "City",
       "paymentTerms": "Payment terms", "paymentCash": "Cash", "payment30": "Net 30 days", "payment60": "Net 60 days", "payment90": "Net 90 days",
-      "creditLimit": "Credit limit (SAR)",
+      "creditLimit": "Credit limit ({{currency}})",
       "cancel": "Cancel", "saveChanges": "Save changes", "saveCustomer": "Save customer",
       "loading": "Loading...",
       "table": { "name": "Name", "type": "Type", "vatNumber": "VAT number", "paymentTerms": "Payment terms", "creditLimit": "Credit limit" },
@@ -408,7 +408,7 @@
       "outstandingTitle": "Outstanding invoices for this customer",
       "table": { "invoice": "Invoice", "total": "Total", "paid": "Paid", "remaining": "Remaining", "allocated": "Allocated amount" },
       "noOutstanding": "No outstanding invoices for this customer.",
-      "saveAndPost": "Save and post receipt ({{amount}} SAR)",
+      "saveAndPost": "Save and post receipt ({{amount}} {{currency}})",
       "loading": "Loading...",
       "listTable": { "number": "Number", "customer": "Customer", "date": "Date", "method": "Method", "total": "Total", "status": "Status" },
       "posted": "Posted", "draft": "Draft",
@@ -447,7 +447,7 @@
     },
     "linkPaymentModal": {
       "title": "Link invoice {{number}} to a receipt", "close": "Close",
-      "summary": "Total {{total}} SAR — Paid {{paid}} SAR — Remaining {{due}} SAR",
+      "summary": "Total {{total}} {{currency}} — Paid {{paid}} {{currency}} — Remaining {{due}} {{currency}}",
       "linkedTitle": "Currently linked receipts",
       "table": { "receiptNumber": "Receipt #", "date": "Date", "status": "Status", "allocated": "Allocated amount" },
       "posted": "Posted", "draft": "Draft", "unlink": "Unlink",
@@ -712,7 +712,7 @@
     },
     "depreciation": {
       "month": "Month", "showResults": "Show results",
-      "alreadyPosted": "Depreciation for this month was already posted for {{amount}} SAR.",
+      "alreadyPosted": "Depreciation for this month was already posted for {{amount}} {{currency}}.",
       "postBtn": "Post month's depreciation",
       "table": { "asset": "Asset", "cost": "Cost", "usefulLife": "Useful life", "monthlyDepreciation": "Monthly depreciation" },
       "years": "years", "total": "Total",
@@ -825,12 +825,12 @@
       "lines": { "account": "Account", "debit": "Debit", "credit": "Credit", "description": "Description", "costCenter": "Cost Center", "department": "Department" },
       "descriptionPlaceholder": "Description specific to this line",
       "newAsset": "New asset", "newAdvance": "New advance", "existingAdvance": "Existing advance",
-      "advanceLabel": "Advance — {{amount}} SAR",
+      "advanceLabel": "Advance — {{amount}} {{currency}}",
       "unlinkTitle": "Unlink",
       "total": "Total",
       "addLine": "+ Add line",
       "balanced": "✓ Entry is balanced — ready to save",
-      "unbalanced": "⚠ Unbalanced by {{amount}} SAR",
+      "unbalanced": "⚠ Unbalanced by {{amount}} {{currency}}",
       "enterAmounts": "Enter line amounts to see the balance status",
       "shortcutsHint": "Shortcuts: Ctrl+S save · Ctrl+Enter save and post · Enter in \"Description\" adds a new line",
       "cancel": "Cancel", "save": "Save", "saving": "Saving...", "saveAndPost": "Save and post",
@@ -1116,7 +1116,7 @@
       "month": "Payroll month",
       "showResults": "Show results",
       "valueDays": "Number of days",
-      "valueAmount": "Amount (SAR)",
+      "valueAmount": "Amount ({{currency}})",
       "note": "Note",
       "scopeSingle": "Single employee",
       "scopeSome": "Selected group",
@@ -1275,6 +1275,9 @@
         "generalTrade": "General trade (import/export)",
         "fuelStations": "Fuel stations"
       },
+      "countryLabel": "Country",
+      "currencyLabel": "Accounting currency",
+      "currencyHint": "Suggested automatically from the country, editable",
       "createBtn": "Create company",
       "creating": "Saving...",
       "errNameRequired": "Company name is required",
@@ -1502,7 +1505,7 @@
       "table": { "account": "Account" },
       "addLine": "+ Add line",
       "balancedOk": "✓ Entry balanced",
-      "balanceDiff": "Difference between debit and credit: {{amount}} SAR",
+      "balanceDiff": "Difference between debit and credit: {{amount}} {{currency}}",
       "saveDraft": "Save",
       "saving": "Saving...",
       "approveAndPost": "Approve and post"
@@ -1697,7 +1700,7 @@
       "receiptsVsPayments": "Receipts vs. payments",
       "receipts": "Receipts",
       "payments": "Payments",
-      "netFlow": "Net flow: {{amount}} SAR",
+      "netFlow": "Net flow: {{amount}} {{currency}}",
       "sectionF": "F. Bank and cash balances",
       "total": "Total",
       "cashDistribution": "Cash distribution",

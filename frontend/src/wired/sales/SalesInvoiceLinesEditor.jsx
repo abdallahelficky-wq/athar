@@ -22,7 +22,7 @@ export function isSellableItem(item) {
  * لهذه الشركة، مع خيار "+ إضافة صنف جديد باسم ..." يفتح نافذة فرعية. لم يُعدَّل المكوّن
  * المشترك نفسه حتى لا يتأثر منطق المشتريات (خارج نطاق هذا الطلب).
  */
-export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, items, onRequestNewItem }) {
+export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, items, currency: currencyProp, onRequestNewItem }) {
   const { t } = useTranslation();
   const sellableItems = items.filter(isSellableItem);
   const [openDropdownIdx, setOpenDropdownIdx] = useState(null);
@@ -49,7 +49,7 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, ite
   };
 
   const filtered = (text) => sellableItems.filter((it) => !text || it.name.includes(text));
-  const currency = t("common.currency");
+  const currency = currencyProp || t("common.currency");
 
   return (
     <div>

@@ -7,9 +7,11 @@ import { fmt } from "../../legacy/constants";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
+import { currencyLabel } from "../../shared/countries";
 
-export default function ReceiptsTab({ companyId }) {
-  const { t } = useTranslation();
+export default function ReceiptsTab({ companyId, companies }) {
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [customers, setCustomers] = useState([]);
   const [receipts, setReceipts] = useState([]);
   const [outstanding, setOutstanding] = useState([]);
@@ -120,7 +122,7 @@ export default function ReceiptsTab({ companyId }) {
         </div>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          <button className="btn-primary" onClick={save} disabled={totalAllocated <= 0}>{t("sales.receipts.saveAndPost", { amount: fmt(totalAllocated) })}</button>
+          <button className="btn-primary" onClick={save} disabled={totalAllocated <= 0}>{t("sales.receipts.saveAndPost", { amount: fmt(totalAllocated), currency })}</button>
         </div>
       </div>
 

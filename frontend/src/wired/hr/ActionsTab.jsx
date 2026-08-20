@@ -5,13 +5,15 @@ import { listHrActions, createHrActionBatch, deleteHrAction } from "../../api/hr
 import { listAdjustableComponents } from "../../api/payrollSettings";
 import { fmt } from "../../legacy/constants";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
+import { currencyLabel } from "../../shared/countries";
 
 /** "الوحدة" هنا فقط لعرض تسمية مناسبة لحقل القيمة (أيام غياب مقابل مبلغ) — منسوخة من اسم البند،
  * وليست حقلاً من بنية payrollComponent نفسها (adjustmentUnitBasis يُعالَج بالكامل في الباك-إند). */
 const isDaysComponent = (name) => name?.includes("غياب");
 
-export default function ActionsTab({ companyId }) {
-  const { t } = useTranslation();
+export default function ActionsTab({ companyId, companies }) {
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [employees, setEmployees] = useState([]);
   const [actions, setActions] = useState([]);
   const [components, setComponents] = useState([]);
@@ -74,7 +76,7 @@ export default function ActionsTab({ companyId }) {
             <label>{t("hr.actions.month")}<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
             <button type="submit" className="btn-ghost" style={{ alignSelf: "end" }}>{t("hr.actions.showResults")}</button>
           </form>
-          <label>{isDaysComponent(componentDef?.name) ? t("hr.actions.valueDays") : t("hr.actions.valueAmount")}<input type="number" value={value} onChange={(e) => setValue(e.target.value)} /></label>
+          <label>{isDaysComponent(componentDef?.name) ? t("hr.actions.valueDays") : t("hr.actions.valueAmount", { currency })}<input type="number" value={value} onChange={(e) => setValue(e.target.value)} /></label>
           <label className="memo-field">{t("hr.actions.note")}<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
         </div>
 

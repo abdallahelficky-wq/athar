@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
 import { listAccounts } from "../../api/accounts";
 import { listItems } from "../../api/items";
+import { currencyLabel } from "../../shared/countries";
 import { createSalesInvoice, updateSalesInvoice, postSalesInvoice } from "../../api/salesInvoices";
 import SalesInvoiceLinesEditor, { emptySalesLine } from "./SalesInvoiceLinesEditor";
 import NewCustomerModal from "./NewCustomerModal";
@@ -25,7 +26,8 @@ const lineFromExisting = (l) => ({
  * وضع النسخ (duplicateFrom) يُعامَل كإنشاء فاتورة جديدة مُعبَّأة مسبقاً ببيانات فاتورة أخرى.
  */
 export default function InvoiceFormModal({ companyId, companies, editingInvoice, duplicateFrom, onClose, onSaved }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const isEdit = !!editingInvoice;
   const seed = editingInvoice || duplicateFrom;
 
@@ -170,6 +172,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
           setLines={setLines}
           accounts={accounts}
           items={items}
+          currency={currency}
           onRequestNewItem={(idx, searchText) => setNewItemModal({ idx, initialName: searchText })}
         />
 

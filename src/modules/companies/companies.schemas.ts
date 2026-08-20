@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { BUSINESS_ACTIVITIES } from "../../lib/chartTemplates";
+import { COUNTRY_CODES, CURRENCY_CODES } from "../../lib/countries";
 
 export const createCompanySchema = z.object({
   name: z.string().min(2, "اسم الشركة قصير جداً"),
@@ -35,6 +36,10 @@ export const createCompanySchema = z.object({
   staleDraftDays: z.number().int().positive().optional(),
   // لغة المراسلات الآلية لهذه الشركة (التقرير المالي الدوري المُرسَل بالبريد) — انظر Company.language بالمخطط
   language: z.enum(["ar", "en"]).optional(),
+  // الدولة وعملة المحاسبة الخاصتان بهذه الشركة — انظر src/lib/countries.ts والتعليق فوق الحقلين
+  // المطابقين بـ schema.prisma. زر امتثال زاتكا يظهر فقط لما country = "SA" (الواجهة الأمامية).
+  country: z.enum(COUNTRY_CODES).optional(),
+  currency: z.enum(CURRENCY_CODES).optional(),
 });
 
 export const updateCompanySchema = createCompanySchema.partial();

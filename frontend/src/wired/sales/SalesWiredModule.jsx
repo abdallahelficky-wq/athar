@@ -32,8 +32,8 @@ export default function SalesWiredModule({ tab, setTab, companies, companyId, on
       {tab === "customers" && <CustomersTab companyId={companyId} companies={companies} onViewAccount={onViewAccount} />}
       {tab === "quotations" && <QuotationsTab companyId={companyId} companies={companies} />}
       {tab === "invoices" && <InvoicesTab companyId={companyId} companies={companies} />}
-      {tab === "returns" && <ReturnsTab companyId={companyId} />}
-      {tab === "receipts" && <ReceiptsTab companyId={companyId} />}
+      {tab === "returns" && <ReturnsTab companyId={companyId} companies={companies} />}
+      {tab === "receipts" && <ReceiptsTab companyId={companyId} companies={companies} />}
       {tab === "stations" && <StationsTab companyId={companyId} />}
       {tab === "reports" && <SalesReportsTab companyId={companyId} />}
     </div>

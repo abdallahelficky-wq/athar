@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listFixedAssets, disposeFixedAsset } from "../../api/fixedAssets";
 import { fmt } from "../../legacy/constants";
+import { currencyLabel } from "../../shared/countries";
 
-export default function DisposalTab({ companyId }) {
-  const { t } = useTranslation();
+export default function DisposalTab({ companyId, companies }) {
+  const { t, i18n } = useTranslation();
+  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [assets, setAssets] = useState([]);
   const [assetId, setAssetId] = useState("");
   const [disposalDate, setDisposalDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -48,13 +50,13 @@ export default function DisposalTab({ companyId }) {
       </div>
       {asset && (
         <div className="preview-box">
-          <div className="preview-row"><span>{t("fixedAssets.disposal.accumulatedDepreciation")}</span><strong>{fmt(asset.accumulatedDepreciation)} {t("common.currency")}</strong></div>
-          <div className="preview-row"><span>{t("fixedAssets.disposal.netBookValue")}</span><strong>{fmt(asset.netBookValue)} {t("common.currency")}</strong></div>
+          <div className="preview-row"><span>{t("fixedAssets.disposal.accumulatedDepreciation")}</span><strong>{fmt(asset.accumulatedDepreciation)} {currency}</strong></div>
+          <div className="preview-row"><span>{t("fixedAssets.disposal.netBookValue")}</span><strong>{fmt(asset.netBookValue)} {currency}</strong></div>
         </div>
       )}
       {result && (
         <div className="preview-box">
-          <div className="preview-row net-row"><span>{result.gainLoss >= 0 ? t("fixedAssets.disposal.gain") : t("fixedAssets.disposal.loss")}</span><strong>{fmt(Math.abs(result.gainLoss))} {t("common.currency")}</strong></div>
+          <div className="preview-row net-row"><span>{result.gainLoss >= 0 ? t("fixedAssets.disposal.gain") : t("fixedAssets.disposal.loss")}</span><strong>{fmt(Math.abs(result.gainLoss))} {currency}</strong></div>
         </div>
       )}
       {error && <p className="balance-bad">{error}</p>}
