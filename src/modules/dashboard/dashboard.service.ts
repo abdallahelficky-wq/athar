@@ -3,6 +3,14 @@ import { aggregateAccountBalances, getBalanceSheet, getIncomeStatement } from ".
 import { getSalesMonthlyTrend, getSalesByCustomer, getReceivablesAging, invoicesWithPaid } from "../salesReports/salesReports.service";
 import { getPayablesAging } from "../purchaseReports/purchaseReports.service";
 import { calcEOS, accruedLeaveDays, PAYROLL_JOURNAL_MAP } from "../../lib/hrCalculations";
+import { Lang } from "../../lib/i18n/translate";
+
+/** يبني تسمية "ينتهي خلال/منتهٍ منذ N يوماً" — مكرَّرة حرفياً في 3 تنبيهات مختلفة (لوحتا القيادة
+ * المالية وشئون الموظفين)، فوُحِّدت هنا بدل تكرار نفس الشرط ثلاث مرات. */
+function expiresLabel(days: number, lang: Lang): string {
+  if (lang === "en") return days >= 0 ? `Expires in ${days} days` : `Expired ${-days} days ago`;
+  return days >= 0 ? `ينتهي خلال ${days} يوماً` : `منتهٍ منذ ${-days} يوماً`;
+}
 
 export interface PeriodRange {
   dateFrom: Date;
@@ -200,11 +208,12 @@ export interface FinancialAlert {
  * تنبيهات الداشبورد المالية — تُبنى لكل شركة على حدة (companyId فارغ = كل شركات المستأجر)
  * لأن حدود التنبيهات (مدة تأخر الفاتورة، الحد الأدنى للكاش...) قابلة للتحديد لكل شركة.
  */
-export async function getFinancialAlerts(tenantId: string, companyId: string | undefined, withinDays = 60) {
+export async function getFinancialAlerts(tenantId: string, companyId: string | undefined, withinDays = 60, lang: Lang = "ar") {
   const companies = await prisma.company.findMany({ where: { tenantId, id: companyId || undefined } });
   const today = new Date();
   const cutoff = new Date(today.getTime() + withinDays * 86_400_000);
   const alerts: FinancialAlert[] = [];
+  const en = lang === "en";
 
   for (const company of companies) {
     const invoices = await invoicesWithPaid(tenantId, company.id);
@@ -217,8 +226,8 @@ export async function getFinancialAlerts(tenantId: string, companyId: string | u
             type: "overdue_invoice",
             companyId: company.id,
             companyName: company.name,
-            title: `فاتورة متأخرة السداد — ${inv.invoiceNumber}`,
-            detail: `متأخرة ${days} يوماً، المتبقي ${inv.due.toFixed(2)} ر.س`,
+            title: en ? `Overdue invoice — ${inv.invoiceNumber}` : `فاتورة متأخرة السداد — ${inv.invoiceNumber}`,
+            detail: en ? `${days} days overdue, ${inv.due.toFixed(2)} SAR remaining` : `متأخرة ${days} يوماً، المتبقي ${inv.due.toFixed(2)} ر.س`,
             days: -days,
           });
         }
@@ -231,8 +240,8 @@ export async function getFinancialAlerts(tenantId: string, companyId: string | u
         type: "lease_expiring",
         companyId: company.id,
         companyName: company.name,
-        title: `عقد إيجار قارب على الانتهاء — ${lc.title}`,
-        detail: days >= 0 ? `ينتهي خلال ${days} يوماً` : `منتهٍ منذ ${-days} يوماً`,
+        title: en ? `Lease contract expiring soon — ${lc.title}` : `عقد إيجار قارب على الانتهاء — ${lc.title}`,
+        detail: expiresLabel(days, lang),
         days,
       });
     });
@@ -244,8 +253,10 @@ export async function getFinancialAlerts(tenantId: string, companyId: string | u
         type: "vat_due",
         companyId: company.id,
         companyName: company.name,
-        title: "موعد تقديم إقرار ضريبة القيمة المضافة",
-        detail: `الموعد النهائي ${vatDue.toISOString().slice(0, 10)} (خلال ${vatDays} يوماً)`,
+        title: en ? "VAT return filing due" : "موعد تقديم إقرار ضريبة القيمة المضافة",
+        detail: en
+          ? `Deadline ${vatDue.toISOString().slice(0, 10)} (in ${vatDays} days)`
+          : `الموعد النهائي ${vatDue.toISOString().slice(0, 10)} (خلال ${vatDays} يوماً)`,
         days: vatDays,
       });
     }
@@ -257,8 +268,10 @@ export async function getFinancialAlerts(tenantId: string, companyId: string | u
           type: "low_cash",
           companyId: company.id,
           companyName: company.name,
-          title: "رصيد الكاش أقل من الحد الأدنى",
-          detail: `الرصيد الحالي ${cashTotal.toFixed(2)} ر.س، الحد الأدنى ${Number(company.lowCashThreshold).toFixed(2)} ر.س`,
+          title: en ? "Cash balance below minimum" : "رصيد الكاش أقل من الحد الأدنى",
+          detail: en
+            ? `Current balance ${cashTotal.toFixed(2)} SAR, minimum ${Number(company.lowCashThreshold).toFixed(2)} SAR`
+            : `الرصيد الحالي ${cashTotal.toFixed(2)} ر.س، الحد الأدنى ${Number(company.lowCashThreshold).toFixed(2)} ر.س`,
           days: null,
         });
       }
@@ -274,8 +287,8 @@ export async function getFinancialAlerts(tenantId: string, companyId: string | u
         type: "stale_draft",
         companyId: company.id,
         companyName: company.name,
-        title: `فاتورة مسودة لم تُرحّل — ${inv.invoiceNumber}`,
-        detail: `منذ ${days} يوماً`,
+        title: en ? `Draft invoice not posted — ${inv.invoiceNumber}` : `فاتورة مسودة لم تُرحّل — ${inv.invoiceNumber}`,
+        detail: en ? `${days} days ago` : `منذ ${days} يوماً`,
         days: -days,
       });
     });
@@ -287,8 +300,10 @@ export async function getFinancialAlerts(tenantId: string, companyId: string | u
           type: "zakat_due",
           companyId: company.id,
           companyName: company.name,
-          title: "موعد تقديم إقرار الزكاة",
-          detail: zDays >= 0 ? `خلال ${zDays} يوماً` : `متأخر منذ ${-zDays} يوماً`,
+          title: en ? "Zakat return filing due" : "موعد تقديم إقرار الزكاة",
+          detail: en
+            ? zDays >= 0 ? `in ${zDays} days` : `${-zDays} days overdue`
+            : zDays >= 0 ? `خلال ${zDays} يوماً` : `متأخر منذ ${-zDays} يوماً`,
           days: zDays,
         });
       }
@@ -301,8 +316,8 @@ export async function getFinancialAlerts(tenantId: string, companyId: string | u
         type: "company_doc_expiring",
         companyId: company.id,
         companyName: company.name,
-        title: `مستند إداري قارب على الانتهاء — ${d.docType}`,
-        detail: days !== null ? (days >= 0 ? `ينتهي خلال ${days} يوماً` : `منتهٍ منذ ${-days} يوماً`) : "",
+        title: en ? `Administrative document expiring soon — ${d.docType}` : `مستند إداري قارب على الانتهاء — ${d.docType}`,
+        detail: days !== null ? expiresLabel(days, lang) : "",
         days,
       });
     });
@@ -365,12 +380,12 @@ export async function getHrPayrollTrend(tenantId: string, companyId?: string, mo
 }
 
 /** توزيع الموظفين حسب الشركة (عرض المجموعة) أو حسب الإدارة (عرض شركة واحدة محددة) */
-export async function getHrHeadcountBreakdown(tenantId: string, companyId?: string) {
+export async function getHrHeadcountBreakdown(tenantId: string, companyId?: string, lang: Lang = "ar") {
   if (companyId) {
     const employees = await prisma.employee.findMany({ where: { tenantId, companyId, status: "active" }, select: { department: true } });
     const byDept = new Map<string, number>();
     employees.forEach((e) => {
-      const key = e.department || "غير محدد";
+      const key = e.department || (lang === "en" ? "Not specified" : "غير محدد");
       byDept.set(key, (byDept.get(key) || 0) + 1);
     });
     return [...byDept.entries()].map(([label, count]) => ({ label, count }));
@@ -386,14 +401,14 @@ export async function getHrHeadcountBreakdown(tenantId: string, companyId?: stri
   return [...byCompany.values()];
 }
 
-export async function getHrNationalityBreakdown(tenantId: string, companyId?: string) {
+export async function getHrNationalityBreakdown(tenantId: string, companyId?: string, lang: Lang = "ar") {
   const employees = await prisma.employee.findMany({
     where: { tenantId, companyId: companyId || undefined, status: "active" },
     select: { nationality: true },
   });
   const byNat = new Map<string, number>();
   employees.forEach((e) => {
-    const key = e.nationality || "غير محدد";
+    const key = e.nationality || (lang === "en" ? "Not specified" : "غير محدد");
     byNat.set(key, (byNat.get(key) || 0) + 1);
   });
   return [...byNat.entries()].map(([label, count]) => ({ label, count }));
@@ -409,9 +424,10 @@ export interface HrAlert {
   days: number | null;
 }
 
-export async function getHrAlerts(tenantId: string, companyId: string | undefined, withinDays = 60) {
+export async function getHrAlerts(tenantId: string, companyId: string | undefined, withinDays = 60, lang: Lang = "ar") {
   const today = new Date();
   const cutoff = new Date(today.getTime() + withinDays * 86_400_000);
+  const en = lang === "en";
   const employees = await prisma.employee.findMany({
     where: { tenantId, companyId: companyId || undefined, status: "active" },
     include: { documents: true },
@@ -436,7 +452,7 @@ export async function getHrAlerts(tenantId: string, companyId: string | undefine
           employeeId: emp.id,
           employeeName: emp.name,
           title: `${doc.type} — ${emp.name}`,
-          detail: days >= 0 ? `ينتهي خلال ${days} يوماً` : `منتهٍ منذ ${-days} يوماً`,
+          detail: expiresLabel(days, lang),
           days,
         });
       }
@@ -449,8 +465,8 @@ export async function getHrAlerts(tenantId: string, companyId: string | undefine
         companyId: emp.companyId,
         employeeId: emp.id,
         employeeName: emp.name,
-        title: `عقد عمل قارب على الانتهاء — ${emp.name}`,
-        detail: days >= 0 ? `ينتهي خلال ${days} يوماً` : `منتهٍ منذ ${-days} يوماً`,
+        title: en ? `Employment contract ending soon — ${emp.name}` : `عقد عمل قارب على الانتهاء — ${emp.name}`,
+        detail: expiresLabel(days, lang),
         days,
       });
     }
@@ -462,8 +478,8 @@ export async function getHrAlerts(tenantId: string, companyId: string | undefine
         companyId: emp.companyId,
         employeeId: emp.id,
         employeeName: emp.name,
-        title: `تجاوز فترة التجربة بدون تقييم مسجّل — ${emp.name}`,
-        detail: `منذ ${days} يوماً`,
+        title: en ? `Probation period ended without a recorded evaluation — ${emp.name}` : `تجاوز فترة التجربة بدون تقييم مسجّل — ${emp.name}`,
+        detail: en ? `${days} days ago` : `منذ ${days} يوماً`,
         days: -days,
       });
     }
@@ -476,8 +492,8 @@ export async function getHrAlerts(tenantId: string, companyId: string | undefine
       companyId: req.employee.companyId,
       employeeId: req.employee.id,
       employeeName: req.employee.name,
-      title: `طلب إجازة بلا مدير مباشر — ${req.employee.name}`,
-      detail: `معلّق منذ ${daysPending} يوماً — يحتاج موافقة/رفض HR مباشرة`,
+      title: en ? `Leave request with no direct manager — ${req.employee.name}` : `طلب إجازة بلا مدير مباشر — ${req.employee.name}`,
+      detail: en ? `Pending for ${daysPending} days — needs direct HR approval/rejection` : `معلّق منذ ${daysPending} يوماً — يحتاج موافقة/رفض HR مباشرة`,
       days: -daysPending,
     });
   });

@@ -66,7 +66,7 @@ export const topCustomersHandler: RequestHandler = async (req, res) => {
 };
 
 export const financialAlertsHandler: RequestHandler = async (req, res) => {
-  res.json(await service.getFinancialAlerts(req.auth!.tenantId, parseCompanyId(req), parseWithinDays(req)));
+  res.json(await service.getFinancialAlerts(req.auth!.tenantId, parseCompanyId(req), parseWithinDays(req), req.lang));
 };
 
 export const hrKpisHandler: RequestHandler = async (req, res) => {
@@ -78,13 +78,13 @@ export const hrPayrollTrendHandler: RequestHandler = async (req, res) => {
 };
 
 export const hrHeadcountHandler: RequestHandler = async (req, res) => {
-  res.json(await service.getHrHeadcountBreakdown(req.auth!.tenantId, parseCompanyId(req)));
+  res.json(await service.getHrHeadcountBreakdown(req.auth!.tenantId, parseCompanyId(req), req.lang));
 };
 
 export const hrNationalityHandler: RequestHandler = async (req, res) => {
-  res.json(await service.getHrNationalityBreakdown(req.auth!.tenantId, parseCompanyId(req)));
+  res.json(await service.getHrNationalityBreakdown(req.auth!.tenantId, parseCompanyId(req), req.lang));
 };
 
 export const hrAlertsHandler: RequestHandler = async (req, res) => {
-  res.json(await service.getHrAlerts(req.auth!.tenantId, parseCompanyId(req), parseWithinDays(req)));
+  res.json(await service.getHrAlerts(req.auth!.tenantId, parseCompanyId(req), parseWithinDays(req), req.lang));
 };

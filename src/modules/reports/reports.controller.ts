@@ -65,7 +65,7 @@ export const balanceSheetHandler: RequestHandler = async (req, res) => {
 
 export const comprehensiveMonthlyHandler: RequestHandler = async (req, res) => {
   const month = typeof req.query.month === "string" ? req.query.month : new Date().toISOString().slice(0, 7);
-  res.json(await service.getComprehensiveMonthlyReport(req.auth!.tenantId, parseCompanyId(req.query.companyId), month));
+  res.json(await service.getComprehensiveMonthlyReport(req.auth!.tenantId, parseCompanyId(req.query.companyId), month, req.lang));
 };
 
 export const updateMonthlyReportSettingsHandler: RequestHandler = async (req, res) => {

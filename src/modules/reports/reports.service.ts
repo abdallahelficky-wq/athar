@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma";
 import type { Account } from "@prisma/client";
 import { notFound } from "../../lib/httpError";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
+import { Lang } from "../../lib/i18n/translate";
 import {
   rollupAccountValues,
   RollupOptions,
@@ -93,7 +94,8 @@ function monthRange(month: string) {
 
 /** التقرير الشهري يستعمل نفس rollupAccountValues التي تستعملها القوائم الرئيسية؛ التصنيف
  * يعتمد على فروع الشجرة الفعلية، ولا يجمع أسطر القيود بمنطق موازٍ. */
-export async function getComprehensiveMonthlyReport(tenantId: string, companyId: string | undefined, month: string) {
+export async function getComprehensiveMonthlyReport(tenantId: string, companyId: string | undefined, month: string, lang: Lang = "ar") {
+  const en = lang === "en";
   const { from, to, previousFrom, previousTo } = monthRange(month);
   const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
   const [currentRaw, previousRaw, closingRaw, companies, receivableAging, payableAging, payrollRuns] = await Promise.all([
@@ -110,9 +112,10 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const cur = rolled(currentRaw), prev = rolled(previousRaw), closing = rolled(closingRaw);
   const natural = (r: { account: Account; value: Zeroed }) => r.account.type === "revenue" || r.account.type === "liability" || r.account.type === "equity" ? r.value.credit - r.value.debit : r.value.debit - r.value.credit;
   const sumType = (rows: typeof cur, type: string) => money(rows.filter(r => r.account.type === type).reduce((s, r) => s + natural(r), 0));
-  const classifyExpense = (name: string) => /تكلفة|مبيعات|إيرادات/.test(name) ? "تكلفة الإيرادات" : /إدار/.test(name) ? "مصروفات إدارية" : "مصروفات تشغيلية";
+  const EXPENSE_CATEGORIES = en ? ["Cost of revenue", "Operating expenses", "Administrative expenses"] : ["تكلفة الإيرادات", "مصروفات تشغيلية", "مصروفات إدارية"];
+  const classifyExpense = (name: string) => /تكلفة|مبيعات|إيرادات/.test(name) ? EXPENSE_CATEGORIES[0] : /إدار/.test(name) ? EXPENSE_CATEGORIES[2] : EXPENSE_CATEGORIES[1];
   const expenseDetails = cur.filter(r => r.account.type === "expense" && natural(r) !== 0).map(r => ({ accountId: r.account.id, name: r.account.name, value: money(natural(r)), category: classifyExpense(r.account.name) })).sort((a,b) => b.value-a.value);
-  const expenseSummary = ["تكلفة الإيرادات", "مصروفات تشغيلية", "مصروفات إدارية"].map(category => ({ category, value: money(expenseDetails.filter(x => x.category === category).reduce((s,x)=>s+x.value,0)) }));
+  const expenseSummary = EXPENSE_CATEGORIES.map(category => ({ category, value: money(expenseDetails.filter(x => x.category === category).reduce((s,x)=>s+x.value,0)) }));
   const revenue = sumType(cur, "revenue"), expense = sumType(cur, "expense");
   const previousRevenue = sumType(prev, "revenue"), previousExpense = sumType(prev, "expense");
   const cashRows = closing.filter(r => r.account.isBankOrCash).map(r => ({ accountId: r.account.id, name: r.account.name, balance: money(natural(r)) }));
@@ -127,13 +130,16 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const salaryAccounts = closing.filter(r => /(رواتب مستحقة|نهاية خدمة)/.test(r.account.name));
   const payroll = { paid: money(payrollRuns.filter(r=>r.status === "posted").reduce((s,r)=>s + Number((r.overrides as any)?.netTotal || 0),0)), unpaid: money(salaryAccounts.filter(r=>/رواتب/.test(r.account.name)).reduce((s,r)=>s+natural(r),0)), endOfService: money(salaryAccounts.filter(r=>/نهاية خدمة/.test(r.account.name)).reduce((s,r)=>s+natural(r),0)) };
   const pct = (now:number, old:number) => old === 0 ? null : money(((now-old)/Math.abs(old))*100);
+  const comparisonLabels = en
+    ? ["Revenue","Expenses","Net profit","Receipts","Payments","Net cash flow"]
+    : ["الإيرادات","المصروفات","صافي الربح","المقبوضات","المدفوعات","صافي التدفق"];
   const comparison = [
-    ["الإيرادات",revenue,previousRevenue], ["المصروفات",expense,previousExpense], ["صافي الربح",revenue-expense,previousRevenue-previousExpense], ["المقبوضات",cf.receipts,pcf.receipts], ["المدفوعات",cf.payments,pcf.payments], ["صافي التدفق",cf.receipts-cf.payments,pcf.receipts-pcf.payments],
+    [comparisonLabels[0],revenue,previousRevenue], [comparisonLabels[1],expense,previousExpense], [comparisonLabels[2],revenue-expense,previousRevenue-previousExpense], [comparisonLabels[3],cf.receipts,pcf.receipts], [comparisonLabels[4],cf.payments,pcf.payments], [comparisonLabels[5],cf.receipts-cf.payments,pcf.receipts-pcf.payments],
   ].map(([label,current,previous]) => ({ label, current:money(current as number), previous:money(previous as number), difference:money((current as number)-(previous as number)), changePct:pct(current as number,previous as number) }));
   const settings = { expenseIncreasePct:Number(companies[0]?.expenseIncreaseThreshold ?? 15), minimumCash:Number(companies[0]?.lowCashThreshold ?? 0), maximumReceivables:Number(companies[0]?.receivablesThreshold ?? 0) };
-  const notes:string[]=[]; expenseDetails.forEach(e => { const old=prev.find(r=>r.account.id===e.accountId); const change=pct(e.value,old?natural(old):0); if(change!=null && change>=settings.expenseIncreasePct) notes.push(`مصروف ${e.name} زاد بنسبة ${change}% عن الشهر السابق.`); });
-  if (pct(revenue-expense, previousRevenue-previousExpense)! < 0 && revenue>previousRevenue) notes.push("صافي الربح انخفض رغم زيادة الإيرادات — يستحق مراجعة المصروفات.");
-  const totalCash=money(cashRows.reduce((s,x)=>s+x.balance,0)); if(settings.maximumReceivables>0&&receivables>settings.maximumReceivables) notes.push(`الذمم المدينة تجاوزت الحد المحدد (${settings.maximumReceivables}).`); if(totalCash<settings.minimumCash) notes.push(`رصيد النقدية أقل من الحد الأدنى المحدد (${settings.minimumCash}).`);
+  const notes:string[]=[]; expenseDetails.forEach(e => { const old=prev.find(r=>r.account.id===e.accountId); const change=pct(e.value,old?natural(old):0); if(change!=null && change>=settings.expenseIncreasePct) notes.push(en ? `Expense ${e.name} increased by ${change}% from the previous month.` : `مصروف ${e.name} زاد بنسبة ${change}% عن الشهر السابق.`); });
+  if (pct(revenue-expense, previousRevenue-previousExpense)! < 0 && revenue>previousRevenue) notes.push(en ? "Net profit declined despite increased revenue — expenses are worth reviewing." : "صافي الربح انخفض رغم زيادة الإيرادات — يستحق مراجعة المصروفات.");
+  const totalCash=money(cashRows.reduce((s,x)=>s+x.balance,0)); if(settings.maximumReceivables>0&&receivables>settings.maximumReceivables) notes.push(en ? `Receivables exceeded the set limit (${settings.maximumReceivables}).` : `الذمم المدينة تجاوزت الحد المحدد (${settings.maximumReceivables}).`); if(totalCash<settings.minimumCash) notes.push(en ? `Cash balance is below the set minimum (${settings.minimumCash}).` : `رصيد النقدية أقل من الحد الأدنى المحدد (${settings.minimumCash}).`);
   return { month, scope:companyId?"company":"group", revenue, expense, netProfit:money(revenue-expense), netProfitChangePct:pct(revenue-expense,previousRevenue-previousExpense), expenseSummary, expenseDetails:expenseDetails.slice(0,10), cashFlow:{ receipts:money(cf.receipts),payments:money(cf.payments),net:money(cf.receipts-cf.payments) }, cashAccounts:cashRows, totalCash, payroll, receivables:{ total:receivables,aging:aging(arDocs) }, payables:{ total:payables,aging:aging(apDocs) }, liabilities:liabilityRows, comparison, settings, generatedNotes:notes };
 }
 
