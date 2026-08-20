@@ -2,10 +2,12 @@ import { prisma } from "../../lib/prisma";
 import { badRequest } from "../../lib/httpError";
 import { buildReportDigestEmail, ReportDigestOptions } from "../../lib/reportDigest";
 import { sendReportDigestEmail } from "../../lib/mailer";
+import type { Lang } from "../../lib/i18n/translate";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
+  return company;
 }
 
 const DEFAULTS = {
@@ -73,7 +75,8 @@ export async function resolveRecipientEmails(tenantId: string, companyId: string
  * ومن نفس المسار الذي يستخدمه المُجدوِل التلقائي في reportScheduler.ts — لكن دون تحديث
  * lastSentAt/lastSentPeriodKey هنا (اختبار يدوي لا يجب أن "يستهلك" الإرسال المجدول القادم). */
 export async function sendReportScheduleNow(tenantId: string, companyId: string) {
-  await assertCompanyBelongsToTenant(tenantId, companyId);
+  const company = await assertCompanyBelongsToTenant(tenantId, companyId);
+  const lang = (company.language as Lang) ?? "ar";
   const schedule = await prisma.reportSchedule.findUnique({ where: { companyId } });
   const options: ReportDigestOptions = schedule
     ? {
@@ -92,7 +95,7 @@ export async function sendReportScheduleNow(tenantId: string, companyId: string)
   const recipients = await resolveRecipientEmails(tenantId, companyId, schedule?.recipientEmails ?? []);
   if (!recipients.length) throw badRequest("لا يوجد أي مستلم بريد إلكتروني صالح — أضِف بريداً في الإعدادات أو تأكد من وجود مستخدم بدور مدير/مدير حسابات لهذه الشركة");
 
-  const email = await buildReportDigestEmail(tenantId, companyId, options);
-  await sendReportDigestEmail(recipients, email.subject, email.bodyHtml);
+  const email = await buildReportDigestEmail(tenantId, companyId, options, lang);
+  await sendReportDigestEmail(recipients, email.subject, email.bodyHtml, lang);
   return { sentTo: recipients };
 }

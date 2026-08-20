@@ -2,6 +2,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { buildPlainInvoicePdf } from "../../lib/invoicePdf";
 import { sendInvoiceEmail } from "../../lib/mailer";
+import type { Lang } from "../../lib/i18n/translate";
 
 export interface SendInvoiceEmailResult {
   sent: boolean;
@@ -30,6 +31,9 @@ export async function sendInvoiceByEmail(
   if (!to) return { sent: false, reason: "no_email" };
 
   try {
+    // نستخدم لغة الشركة نفسها (Company.language) لا لغة الطلب الحالي — رسالة موجَّهة للعميل
+    // الخارجي، فيجب أن تتبع تفضيل الشركة بصرف النظر عن لغة واجهة الموظف الذي أطلق الإرسال.
+    const lang = (invoice.company.language as Lang) ?? "ar";
     const companyAddress = [invoice.company.addressBuilding, invoice.company.addressStreet, invoice.company.addressCity]
       .filter(Boolean)
       .join("، ");
@@ -62,10 +66,11 @@ export async function sendInvoiceByEmail(
       to,
       customerName: invoice.customer.name,
       invoiceNumber: invoice.invoiceNumber,
-      grandTotal: Number(invoice.grandTotal).toLocaleString("ar-SA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      grandTotal: Number(invoice.grandTotal).toLocaleString(lang === "en" ? "en-US" : "ar-SA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       companyName: invoice.company.name,
       pdfBuffer,
       pdfFileName: `فاتورة-${invoice.invoiceNumber}.pdf`,
+      lang,
     });
 
     await prisma.invoiceEmailLog.create({ data: { tenantId, invoiceId, sentTo: to, method: opts.method, success: true } });

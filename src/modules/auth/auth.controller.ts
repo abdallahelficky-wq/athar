@@ -1,8 +1,9 @@
 import { RequestHandler } from "express";
 import * as authService from "./auth.service";
+import { translateMessage } from "../../lib/i18n/translate";
 
 export const registerHandler: RequestHandler = async (req, res) => {
-  const result = await authService.register(req.body);
+  const result = await authService.register(req.body, req.lang);
   res.status(201).json(result);
 };
 
@@ -22,7 +23,7 @@ export const logoutHandler: RequestHandler = async (req, res) => {
 };
 
 export const inviteHandler: RequestHandler = async (req, res) => {
-  const result = await authService.invite(req.auth!.tenantId, req.body);
+  const result = await authService.invite(req.auth!.tenantId, req.body, req.lang);
   res.status(201).json(result);
 };
 
@@ -32,7 +33,7 @@ export const listUsersHandler: RequestHandler = async (req, res) => {
 };
 
 export const resendInviteHandler: RequestHandler = async (req, res) => {
-  const result = await authService.resendInvite(req.auth!.tenantId, req.params.id);
+  const result = await authService.resendInvite(req.auth!.tenantId, req.params.id, req.lang);
   res.json(result);
 };
 
@@ -62,11 +63,11 @@ export const updateMeHandler: RequestHandler = async (req, res) => {
 };
 
 export const forgotPasswordHandler: RequestHandler = async (req, res) => {
-  const message = await authService.forgotPassword(req.body.email);
-  res.json({ message });
+  const message = await authService.forgotPassword(req.body.email, req.lang);
+  res.json({ message: translateMessage(message, req.lang) });
 };
 
 export const resetPasswordHandler: RequestHandler = async (req, res) => {
   await authService.resetPassword(req.body.token, req.body.password);
-  res.json({ message: "تم تعيين كلمة المرور الجديدة بنجاح. سجّل الدخول بها الآن." });
+  res.json({ message: translateMessage("تم تعيين كلمة المرور الجديدة بنجاح. سجّل الدخول بها الآن.", req.lang) });
 };

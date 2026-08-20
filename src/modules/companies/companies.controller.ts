@@ -8,6 +8,7 @@ import { createAttachment } from "../attachments/attachments.service";
 import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 import { createStarterItems, createCashParties, createDefaultWarehouse } from "../../lib/starterData";
+import { translateMessage } from "../../lib/i18n/translate";
 
 const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB يكفي لأي شعار
 const ALLOWED_LOGO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
@@ -122,7 +123,7 @@ export const extractDocumentHandler: RequestHandler = async (req, res) => {
     res.json({
       fields: {},
       confidence: "low",
-      confidenceNote: err instanceof Error ? err.message : "تعذّر استخراج البيانات من هذا المستند",
+      confidenceNote: translateMessage(err instanceof Error ? err.message : "تعذّر استخراج البيانات من هذا المستند", req.lang),
       attachment,
     });
   }

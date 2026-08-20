@@ -353,4 +353,10 @@ export const AR_TO_EN: Record<string, string> = {
   "العنصر غير موجود": "The item does not exist",
   "غير مصرح": "Unauthorized",
   "لا تملك صلاحية تنفيذ هذا الإجراء": "You don't have permission to perform this action",
+  // رسائل نجاح/بيانات ثابتة تُعاد مباشرة من الـcontroller (لا تمر بـ errorHandler.ts) — مُترجَمة
+  // يدوياً عبر translateMessage() عند نقطة الإرجاع نفسها، بنفس القاموس
+  "تم تعيين كلمة المرور الجديدة بنجاح. سجّل الدخول بها الآن.": "Your password has been reset successfully. Log in with it now.",
+  "تعذّر استخراج البيانات من هذا المستند": "Couldn't extract data from this document",
+  "لو هذا البريد الإلكتروني مسجّل بالنظام، سيصلك رابط لإعادة تعيين كلمة المرور خلال دقائق.":
+    "If this email is registered in the system, you'll receive a password reset link within minutes.",
 };

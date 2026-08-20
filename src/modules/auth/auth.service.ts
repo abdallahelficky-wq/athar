@@ -12,6 +12,7 @@ import { env } from "../../config/env";
 import { createDefaultChart } from "../../lib/defaultChartOfAccounts";
 import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../../lib/mailer";
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
+import type { Lang } from "../../lib/i18n/translate";
 import type { Tenant, User } from "@prisma/client";
 
 const TRIAL_DAYS = 30;
@@ -58,7 +59,10 @@ function publicTenant(tenant: Tenant) {
   return rest;
 }
 
-export async function register(input: { tenantName: string; name: string; email: string; password: string }) {
+export async function register(
+  input: { tenantName: string; name: string; email: string; password: string },
+  lang: Lang = "ar",
+) {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) throw conflict("هذا البريد الإلكتروني مسجّل بالفعل");
 
@@ -105,7 +109,7 @@ export async function register(input: { tenantName: string; name: string; email:
   // فشل إرسال الإيميل الترحيبي (خدمة Resend متوقفة مثلاً) لا يجب أن يُفشل التسجيل نفسه — يُسجَّل
   // الخطأ فقط ويكمل الحساب الجديد إنشاءه بنجاح.
   try {
-    await sendWelcomeEmail(user.email, user.name, tenant.name);
+    await sendWelcomeEmail(user.email, user.name, tenant.name, lang);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("فشل إرسال إيميل الترحيب:", err);
@@ -163,6 +167,7 @@ export async function logout(refreshToken: string) {
 export async function invite(
   tenantId: string,
   input: { name: string; email: string; role: string; companyScope: string },
+  lang: Lang = "ar",
 ) {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) throw conflict("هذا البريد الإلكتروني مسجّل بالفعل");
@@ -184,12 +189,12 @@ export async function invite(
     },
   });
 
-  const emailSent = await trySendInviteEmail(input.email, inviteToken);
+  const emailSent = await trySendInviteEmail(input.email, inviteToken, lang);
   return { ...publicUser(user), emailSent };
 }
 
 /** يُعيد إنشاء رابط دعوة جديد لمستخدم "معلّق" لم يفعّل حسابه بعد (رابطه القديم منتهٍ أو ضائع). */
-export async function resendInvite(tenantId: string, userId: string) {
+export async function resendInvite(tenantId: string, userId: string, lang: Lang = "ar") {
   const user = await prisma.user.findFirst({ where: { id: userId, tenantId } });
   if (!user) throw notFound("المستخدم غير موجود");
   if (user.inviteStatus !== "pending") throw badRequest("هذا المستخدم مفعَّل حسابه بالفعل");
@@ -201,15 +206,15 @@ export async function resendInvite(tenantId: string, userId: string) {
     data: { inviteToken, inviteExpiresAt },
   });
 
-  const emailSent = await trySendInviteEmail(updated.email, inviteToken);
+  const emailSent = await trySendInviteEmail(updated.email, inviteToken, lang);
   return { ...publicUser(updated), emailSent };
 }
 
 /** فشل إرسال إيميل الدعوة (خدمة Resend متوقفة مثلاً) لا يجب أن يُفشل إنشاء المستخدم نفسه —
  * يُسجَّل الخطأ فقط، ويُعاد `false` حتى تعرض الواجهة تنبيهاً بعدم وصول الدعوة فعلياً. */
-async function trySendInviteEmail(email: string, inviteToken: string): Promise<boolean> {
+async function trySendInviteEmail(email: string, inviteToken: string, lang: Lang = "ar"): Promise<boolean> {
   try {
-    await sendInviteEmail(email, `/accept-invite?token=${inviteToken}`);
+    await sendInviteEmail(email, `/accept-invite?token=${inviteToken}`, lang);
     return true;
   } catch (err) {
     // eslint-disable-next-line no-console
@@ -285,7 +290,7 @@ export async function updateMyName(userId: string, name: string) {
  * عدمه، أو تعطيل الحساب، أو تجاوز حد الطلبات — لمنع أي طرف من استخدام هذا المسار لاكتشاف
  * البريد الإلكتروني لمستخدم حقيقي بالنظام عبر تجربة عناوين عشوائية.
  */
-export async function forgotPassword(email: string) {
+export async function forgotPassword(email: string, lang: Lang = "ar") {
   const user = await prisma.user.findUnique({ where: { email } });
   if (user && user.active) {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
@@ -300,7 +305,7 @@ export async function forgotPassword(email: string) {
       const tokenHash = hashToken(rawToken);
       const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MINUTES * 60_000);
       await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt } });
-      await sendPasswordResetEmail(user.email, rawToken);
+      await sendPasswordResetEmail(user.email, rawToken, lang);
     }
   }
   return FORGOT_PASSWORD_MESSAGE;

@@ -33,6 +33,8 @@ export const createCompanySchema = z.object({
   lowCashThreshold: z.number().nonnegative().nullable().optional(),
   overdueInvoiceDays: z.number().int().positive().optional(),
   staleDraftDays: z.number().int().positive().optional(),
+  // لغة المراسلات الآلية لهذه الشركة (التقرير المالي الدوري المُرسَل بالبريد) — انظر Company.language بالمخطط
+  language: z.enum(["ar", "en"]).optional(),
 });
 
 export const updateCompanySchema = createCompanySchema.partial();

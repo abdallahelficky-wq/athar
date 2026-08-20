@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import { buildReportDigestEmail, ReportDigestOptions } from "./reportDigest";
 import { resolveRecipientEmails } from "../modules/reportSchedules/reportSchedules.service";
 import { sendReportDigestEmail } from "./mailer";
+import type { Lang } from "./i18n/translate";
 
 const TICK_INTERVAL_MS = 60 * 60 * 1000; // كل ساعة — كافٍ لأن أدق حبيبة زمنية مدعومة هي hourKsa (ساعة كاملة)
 
@@ -65,7 +66,10 @@ async function runDueSchedules() {
   // لا نُصفّي بالساعة الحالية هنا (خلافاً لتصميم سابق) لأن اللحاق بفترة فائتة (isDue أعلاه)
   // يحتاج فحص كل الجدولات المفعّلة بصرف النظر عن ساعتها المضبوطة، لا الجدولات المطابقة للساعة
   // الحالية فقط. الجدول صغير جداً عملياً (سجل واحد لكل شركة)، فلا تكلفة حقيقية لفحصه كاملاً.
-  const schedules = await prisma.reportSchedule.findMany({ where: { enabled: true } });
+  const schedules = await prisma.reportSchedule.findMany({
+    where: { enabled: true },
+    include: { company: { select: { language: true } } },
+  });
 
   for (const schedule of schedules) {
     if (!isDue(schedule, ksaNow)) continue;
@@ -93,8 +97,9 @@ async function runDueSchedules() {
       };
       const recipients = await resolveRecipientEmails(schedule.tenantId, schedule.companyId, schedule.recipientEmails);
       if (recipients.length) {
-        const email = await buildReportDigestEmail(schedule.tenantId, schedule.companyId, options);
-        await sendReportDigestEmail(recipients, email.subject, email.bodyHtml);
+        const lang = (schedule.company.language as Lang) ?? "ar";
+        const email = await buildReportDigestEmail(schedule.tenantId, schedule.companyId, options, lang);
+        await sendReportDigestEmail(recipients, email.subject, email.bodyHtml, lang);
       } else {
         // eslint-disable-next-line no-console
         console.warn(`[reportScheduler] لا يوجد مستلم صالح لجدولة الشركة ${schedule.companyId} — تم تخطي الإرسال`);
