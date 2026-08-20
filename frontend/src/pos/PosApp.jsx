@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { useCompanies } from "../wired/useCompanies";
 import { listWarehouses } from "../api/warehouses";
 import { loadPosWarehouseId, savePosWarehouseId } from "./posWarehouseSettings";
+import LanguageSwitcher from "../wired/shared/LanguageSwitcher";
 import PosLoginScreen from "./screens/PosLoginScreen";
 import SaleScreen from "./screens/SaleScreen";
 import PaymentScreen from "./screens/PaymentScreen";
@@ -10,6 +12,7 @@ import ReceiptScreen from "./screens/ReceiptScreen";
 import PosSettingsScreen from "./screens/PosSettingsScreen";
 
 function PosShell() {
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const { companies, companyId, setCompanyId, loading: companiesLoading } = useCompanies();
 
@@ -42,11 +45,11 @@ function PosShell() {
 
   const refreshWarehouseId = () => setWarehouseIdState(loadPosWarehouseId(companyId));
 
-  if (companiesLoading) return <div className="pos-loading">جارٍ التحميل...</div>;
+  if (companiesLoading) return <div className="pos-loading">{t("common.loading")}</div>;
   if (!companyId) {
     return (
       <div className="pos-loading">
-        <p>أنشئ شركة أولاً من التطبيق الرئيسي قبل استخدام نقطة البيع.</p>
+        <p>{t("pos.noCompany")}</p>
       </div>
     );
   }
@@ -91,24 +94,25 @@ function PosShell() {
         </div>
         <div className="pos-topbar-actions">
           <span className="pos-user-name">{user?.name}</span>
-          <button className="pos-icon-btn" title="إعدادات نقطة البيع" onClick={() => setScreen("settings")}>⚙</button>
-          <button className="pos-icon-btn" title="تسجيل الخروج" onClick={logout}>⎋</button>
+          <LanguageSwitcher className="pos-icon-btn" />
+          <button className="pos-icon-btn" title={t("pos.settingsIconTitle")} onClick={() => setScreen("settings")}>⚙</button>
+          <button className="pos-icon-btn" title={t("pos.logoutIconTitle")} onClick={logout}>⎋</button>
         </div>
       </div>
 
       <div className="pos-body">
-        {screen !== "settings" && warehouses === null && <div className="pos-loading">جارٍ التحميل...</div>}
+        {screen !== "settings" && warehouses === null && <div className="pos-loading">{t("common.loading")}</div>}
 
         {screen !== "settings" && noWarehouseAtAll && (
           <div className="pos-loading">
-            <p>لا يوجد أي مستودع لهذه الشركة بعد — أنشئ مستودعاً أولاً من شاشة المستودعات والمنتجات في التطبيق الرئيسي.</p>
+            <p>{t("pos.noWarehouseAtAll")}</p>
           </div>
         )}
 
         {screen !== "settings" && warehouseMissing && (
           <div className="pos-loading">
-            <p>لازم تحدد المستودع المرتبط بنقطة البيع دي أولاً.</p>
-            <button className="pos-big-btn" onClick={() => setScreen("settings")}>فتح إعدادات نقطة البيع</button>
+            <p>{t("pos.warehouseMissing")}</p>
+            <button className="pos-big-btn" onClick={() => setScreen("settings")}>{t("pos.openSettingsBtn")}</button>
           </div>
         )}
 

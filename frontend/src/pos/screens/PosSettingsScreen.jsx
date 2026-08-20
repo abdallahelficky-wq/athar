@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { loadPrinterSettings, savePrinterSettings } from "../../shared/receipt/posLocalSettings";
 import { requestBluetoothPrinter } from "../../shared/receipt/escpos";
 import { loadPosWarehouseId, savePosWarehouseId } from "../posWarehouseSettings";
@@ -7,6 +8,7 @@ import { listWarehouses } from "../../api/warehouses";
 /** إعدادات هذا الجهاز فقط (بلا مزامنة مع الخادم) — كل تابلت/موبايل يضبط طابعته ومستودعه بشكل
  * مستقل عن بقية الأجهزة، حتى لو استخدموا نفس تسجيل الدخول. */
 export default function PosSettingsScreen({ companyId, onClose }) {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState(loadPrinterSettings());
   const [pairing, setPairing] = useState(false);
   const [pairError, setPairError] = useState("");
@@ -28,8 +30,8 @@ export default function PosSettingsScreen({ companyId, onClose }) {
           setWarehouseId(active[0].id);
         }
       })
-      .catch(() => setWarehouseError("تعذّر تحميل قائمة المستودعات"));
-  }, [companyId]);
+      .catch(() => setWarehouseError(t("pos.settings.warehouseLoadError")));
+  }, [companyId, t]);
 
   const chooseWarehouse = (id) => {
     savePosWarehouseId(companyId, id);
@@ -43,9 +45,9 @@ export default function PosSettingsScreen({ companyId, onClose }) {
     setPairError("");
     try {
       const device = await requestBluetoothPrinter();
-      update({ method: "bluetooth", bluetoothDeviceName: device.name || "طابعة بلوتوث" });
+      update({ method: "bluetooth", bluetoothDeviceName: device.name || t("pos.settings.defaultBtName") });
     } catch (err) {
-      setPairError(err.message || "تعذّر إقران الطابعة");
+      setPairError(err.message || t("pos.settings.pairError"));
     } finally {
       setPairing(false);
     }
@@ -54,16 +56,16 @@ export default function PosSettingsScreen({ companyId, onClose }) {
   return (
     <div className="pos-settings-screen">
       <div className="pos-modal-header">
-        <span>إعدادات نقطة البيع</span>
+        <span>{t("pos.settings.title")}</span>
         <button className="pos-icon-btn" onClick={onClose}>✕</button>
       </div>
 
       <div className="m-card">
-        <div className="pos-section-label">المستودع المرتبط بهذا الجهاز</div>
+        <div className="pos-section-label">{t("pos.settings.warehouseSection")}</div>
         {warehouseError && <p className="m-error">{warehouseError}</p>}
-        {warehouses === null && !warehouseError && <p className="m-empty">جارٍ التحميل...</p>}
+        {warehouses === null && !warehouseError && <p className="m-empty">{t("common.loading")}</p>}
         {warehouses !== null && warehouses.length === 0 && (
-          <p className="m-error">لا يوجد أي مستودع لهذه الشركة بعد — أنشئ مستودعاً أولاً من شاشة المستودعات والمنتجات</p>
+          <p className="m-error">{t("pos.settings.noWarehouse")}</p>
         )}
         {warehouses !== null && warehouses.map((w) => (
           <label className="pos-radio-row" key={w.id}>
@@ -74,21 +76,21 @@ export default function PosSettingsScreen({ companyId, onClose }) {
       </div>
 
       <div className="m-card">
-        <div className="pos-section-label">طريقة الطباعة</div>
+        <div className="pos-section-label">{t("pos.settings.printMethodSection")}</div>
         <label className="pos-radio-row">
           <input type="radio" name="method" checked={settings.method === "browser"} onChange={() => update({ method: "browser" })} />
-          نافذة الطباعة العادية (تعمل على أي جهاز — بلا قصّ تلقائي)
+          {t("pos.settings.methodBrowser")}
         </label>
         <label className="pos-radio-row">
           <input type="radio" name="method" checked={settings.method === "bluetooth"} onChange={() => update({ method: "bluetooth" })} />
-          طابعة بلوتوث حرارية (أندرويد/تابلت فقط)
+          {t("pos.settings.methodBluetooth")}
         </label>
 
         {settings.method === "bluetooth" && (
           <div className="pos-bt-pair-box">
-            <div>{settings.bluetoothDeviceName ? `الطابعة المقترنة: ${settings.bluetoothDeviceName}` : "لم تُقرَن أي طابعة بعد"}</div>
+            <div>{settings.bluetoothDeviceName ? t("pos.settings.pairedPrinter", { name: settings.bluetoothDeviceName }) : t("pos.settings.noPrinterPaired")}</div>
             <button className="m-btn secondary" disabled={pairing} onClick={pairBluetooth}>
-              {pairing ? "جارٍ البحث..." : "🔍 البحث عن طابعة بلوتوث"}
+              {pairing ? t("pos.settings.searchingPrinter") : t("pos.settings.searchPrinterBtn")}
             </button>
             {pairError && <p className="m-error">{pairError}</p>}
           </div>
@@ -96,25 +98,25 @@ export default function PosSettingsScreen({ companyId, onClose }) {
       </div>
 
       <div className="m-card">
-        <div className="pos-section-label">مقاس الورق</div>
+        <div className="pos-section-label">{t("pos.settings.paperSizeSection")}</div>
         <label className="pos-radio-row">
           <input type="radio" name="width" checked={settings.paperWidthMm === 58} onChange={() => update({ paperWidthMm: 58 })} />
-          58 مم
+          {t("pos.settings.paper58")}
         </label>
         <label className="pos-radio-row">
           <input type="radio" name="width" checked={settings.paperWidthMm === 80} onChange={() => update({ paperWidthMm: 80 })} />
-          80 مم
+          {t("pos.settings.paper80")}
         </label>
       </div>
 
       <div className="m-card">
         <label className="pos-radio-row">
           <input type="checkbox" checked={settings.autoPrint} onChange={(e) => update({ autoPrint: e.target.checked })} />
-          طباعة تلقائية بعد كل عملية بيع
+          {t("pos.settings.autoPrintLabel")}
         </label>
       </div>
 
-      <button className="pos-big-btn" onClick={onClose} disabled={warehouses !== null && warehouses.length > 0 && !warehouseId}>تم</button>
+      <button className="pos-big-btn" onClick={onClose} disabled={warehouses !== null && warehouses.length > 0 && !warehouseId}>{t("pos.settings.doneBtn")}</button>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { QrImage } from "../../legacy/shared";
+import { formatDateTime } from "../../i18n/dateFormat";
 
 /**
  * معاينة/طباعة إيصال بعرض 58 أو 80مم — تُستخدَم كمعاينة على الشاشة داخل نقطة البيع، وكذلك
@@ -7,7 +9,9 @@ import { QrImage } from "../../legacy/shared";
  * تصميم عمود واحد بسيط بلا أي عناصر A4 (لا صناديق توقيع، لا رأس ثلاثي الأعمدة).
  */
 export default function ReceiptView({ company, invoice, paperWidthMm = 80, lastPayments }) {
+  const { t, i18n } = useTranslation();
   const width = paperWidthMm === 58 ? "58mm" : "80mm";
+  const dir = i18n.language === "en" ? "ltr" : "rtl";
   return (
     <div className="receipt-print-root">
       <style>{`
@@ -19,7 +23,7 @@ export default function ReceiptView({ company, invoice, paperWidthMm = 80, lastP
         }
         .receipt-print-root {
           width: ${width}; font-family: 'Tajawal', 'IBM Plex Sans Arabic', sans-serif;
-          font-size: ${paperWidthMm === 58 ? "11px" : "12.5px"}; color: #000; direction: rtl;
+          font-size: ${paperWidthMm === 58 ? "11px" : "12.5px"}; color: #000; direction: ${dir};
           padding: 4mm 3mm;
         }
         .receipt-center { text-align: center; }
@@ -35,13 +39,13 @@ export default function ReceiptView({ company, invoice, paperWidthMm = 80, lastP
 
       <div className="receipt-center">
         <div className="receipt-company-name">{company?.name}</div>
-        {company?.vatNumber && <div>الرقم الضريبي: {company.vatNumber}</div>}
+        {company?.vatNumber && <div>{t("receiptView.vatNumberLabel")}: {company.vatNumber}</div>}
       </div>
       <div className="receipt-divider" />
 
-      <div>رقم الفاتورة: <strong>{invoice.invoiceNumber}</strong></div>
-      <div>{new Date(invoice.date).toLocaleString("ar-SA")}</div>
-      <div>العميل: {invoice.customer?.name || "عميل نقدي"}</div>
+      <div>{t("receiptView.invoiceNumberLabel")}: <strong>{invoice.invoiceNumber}</strong></div>
+      <div>{formatDateTime(invoice.date, i18n.language)}</div>
+      <div>{t("receiptView.customerLabel")}: {invoice.customer?.name || t("receiptView.cashCustomer")}</div>
       <div className="receipt-divider" />
 
       {(invoice.lines || []).map((line) => (
@@ -55,23 +59,23 @@ export default function ReceiptView({ company, invoice, paperWidthMm = 80, lastP
       ))}
       <div className="receipt-divider" />
 
-      <div className="receipt-row"><span>قبل الضريبة</span><span>{Number(invoice.subtotal).toFixed(2)}</span></div>
-      <div className="receipt-row"><span>الضريبة</span><span>{Number(invoice.vatTotal).toFixed(2)}</span></div>
-      <div className="receipt-total-row"><span>الإجمالي</span><span>{Number(invoice.grandTotal).toFixed(2)}</span></div>
+      <div className="receipt-row"><span>{t("receiptView.beforeVat")}</span><span>{Number(invoice.subtotal).toFixed(2)}</span></div>
+      <div className="receipt-row"><span>{t("receiptView.vat")}</span><span>{Number(invoice.vatTotal).toFixed(2)}</span></div>
+      <div className="receipt-total-row"><span>{t("receiptView.total")}</span><span>{Number(invoice.grandTotal).toFixed(2)}</span></div>
 
       {lastPayments && lastPayments.length > 0 && (
         <>
           <div className="receipt-divider" />
           {lastPayments.map((p, i) => (
             <div className="receipt-row" key={i}>
-              <span>{p.method === "cash" ? "نقدي" : "بطاقة/بنك"}</span>
+              <span>{p.method === "cash" ? t("receiptView.methodCash") : t("receiptView.methodBank")}</span>
               <span>{Number(p.amount).toFixed(2)}</span>
             </div>
           ))}
           {lastPayments.receivedCash != null && (
             <>
-              <div className="receipt-row"><span>المستلم نقداً</span><span>{Number(lastPayments.receivedCash).toFixed(2)}</span></div>
-              <div className="receipt-row"><span>الباقي</span><span>{Number(lastPayments.change || 0).toFixed(2)}</span></div>
+              <div className="receipt-row"><span>{t("receiptView.receivedCash")}</span><span>{Number(lastPayments.receivedCash).toFixed(2)}</span></div>
+              <div className="receipt-row"><span>{t("receiptView.change")}</span><span>{Number(lastPayments.change || 0).toFixed(2)}</span></div>
             </>
           )}
         </>
@@ -83,7 +87,7 @@ export default function ReceiptView({ company, invoice, paperWidthMm = 80, lastP
         </div>
       )}
 
-      <div className="receipt-footer">شكراً لتعاملكم معنا</div>
+      <div className="receipt-footer">{t("receiptView.thankYou")}</div>
     </div>
   );
 }

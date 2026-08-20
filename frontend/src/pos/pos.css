@@ -17,6 +17,16 @@
   background: rgba(236,230,214,0.12); border: none; color: #ECE6D6; width: 40px; height: 40px;
   border-radius: 10px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
+.pos-topbar-actions .language-switcher-btn {
+  font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #ECE6D6;
+  background: rgba(236,230,214,0.12); border: none; border-radius: 10px; height: 40px; padding: 0 12px; cursor: pointer;
+}
+.pos-topbar-actions .language-switcher-btn:hover { background: rgba(185,139,78,0.35); }
+.pos-login-lang-switcher {
+  display: block; margin: 0 auto 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+  color: #445565; background: #fff; border: 1px solid rgba(16,32,46,0.18); border-radius: 999px; padding: 6px 14px; cursor: pointer;
+}
+.pos-login-lang-switcher:hover { background: rgba(185,139,78,0.12); border-color: #B98B4E; color: #10202E; }
 
 .pos-body { flex: 1; overflow: hidden; display: flex; }
 .pos-loading { padding: 40px; text-align: center; color: #45525c; width: 100%; }
@@ -79,7 +89,7 @@
 .pos-cart-total-row { display: flex; justify-content: space-between; font-size: 20px; font-weight: 800; margin-bottom: 12px; }
 
 /* --- تسجيل الدخول --- */
-.pos-login-root { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.pos-login-root { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
 .pos-login-card { background: #fff; border-radius: 18px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 4px 20px rgba(16,32,46,0.12); }
 .pos-login-brand { font-weight: 800; font-size: 18px; text-align: center; margin-bottom: 20px; color: #10202E; }
 

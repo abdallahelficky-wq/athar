@@ -1,10 +1,11 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPosSale } from "../../api/pos";
 import { fmt2 } from "../../legacy/constants";
 
-const METHOD_LABEL = { cash: "نقدي", bank: "بطاقة/تحويل بنكي" };
-
 export default function PaymentScreen({ companyId, warehouseId, cart, customer, onBack, onCompleted }) {
+  const { t } = useTranslation();
+  const METHOD_LABEL = { cash: t("pos.payment.methodCash"), bank: t("pos.payment.methodBank") };
   const total = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
 
   // payments[method] = المبلغ المُدخَل لهذه الطريقة (نص خام أثناء الكتابة، يُحوَّل رقماً عند الإرسال)
@@ -28,7 +29,7 @@ export default function PaymentScreen({ companyId, warehouseId, cart, customer, 
   const setFullBank = () => { setCashAmount("0"); setBankAmount(total.toFixed(2)); };
 
   const submit = async () => {
-    if (!sumMatches) { setError(`مجموع الدفعات (${fmt2(paymentsSum)}) لا يطابق الإجمالي (${fmt2(total)})`); return; }
+    if (!sumMatches) { setError(t("pos.payment.sumMismatchError", { sum: fmt2(paymentsSum), total: fmt2(total) })); return; }
     setSubmitting(true);
     setError("");
     try {
@@ -57,13 +58,13 @@ export default function PaymentScreen({ companyId, warehouseId, cart, customer, 
   return (
     <div className="pos-payment-screen">
       <div className="pos-payment-total">
-        <span>الإجمالي المطلوب</span>
+        <span>{t("pos.payment.totalDue")}</span>
         <strong>{fmt2(total)}</strong>
       </div>
 
       <div className="pos-payment-quick-row">
-        <button className="m-btn secondary" onClick={setFullCash}>الكل نقدي</button>
-        <button className="m-btn secondary" onClick={setFullBank}>الكل بطاقة/بنك</button>
+        <button className="m-btn secondary" onClick={setFullCash}>{t("pos.payment.allCash")}</button>
+        <button className="m-btn secondary" onClick={setFullBank}>{t("pos.payment.allBank")}</button>
       </div>
 
       <label className="m-field">
@@ -77,19 +78,19 @@ export default function PaymentScreen({ companyId, warehouseId, cart, customer, 
 
       {!sumMatches && (
         <p className="m-error">
-          {remaining > 0 ? `متبقٍّ ${fmt2(remaining)} لم يُدخَل بعد` : `المُدخَل أكثر من الإجمالي بمقدار ${fmt2(-remaining)}`}
+          {remaining > 0 ? t("pos.payment.remainingNote", { amount: fmt2(remaining) }) : t("pos.payment.overpaidNote", { amount: fmt2(-remaining) })}
         </p>
       )}
 
       {cashNum > 0 && (
         <div className="pos-cash-tender-box">
           <label className="m-field">
-            المبلغ المستلم من العميل نقداً
+            {t("pos.payment.receivedCashLabel")}
             <input type="number" inputMode="decimal" value={cashReceived} onChange={(e) => setCashReceived(e.target.value)} placeholder={cashAmount} />
           </label>
-          {receivedTooLittle && <p className="m-error">المبلغ المستلم أقل من قيمة الدفعة النقدية</p>}
+          {receivedTooLittle && <p className="m-error">{t("pos.payment.receivedTooLittle")}</p>}
           {!receivedTooLittle && cashReceived !== "" && (
-            <div className="pos-change-row"><span>الباقي للعميل</span><strong>{fmt2(change)}</strong></div>
+            <div className="pos-change-row"><span>{t("pos.payment.changeLabel")}</span><strong>{fmt2(change)}</strong></div>
           )}
         </div>
       )}
@@ -97,9 +98,9 @@ export default function PaymentScreen({ companyId, warehouseId, cart, customer, 
       {error && <p className="m-error">{error}</p>}
 
       <div className="pos-payment-actions">
-        <button className="m-btn secondary" onClick={onBack} disabled={submitting}>رجوع</button>
+        <button className="m-btn secondary" onClick={onBack} disabled={submitting}>{t("pos.payment.back")}</button>
         <button className="pos-big-btn" onClick={submit} disabled={submitting || !sumMatches || receivedTooLittle}>
-          {submitting ? "جارٍ الإتمام..." : "إتمام البيع"}
+          {submitting ? t("pos.payment.submitting") : t("pos.payment.submitBtn")}
         </button>
       </div>
     </div>

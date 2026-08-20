@@ -1741,5 +1741,108 @@
       "savedMsg": "Automatic delivery settings saved successfully.",
       "sentMsg": "The report has been sent now to: {{emails}}"
     }
+  },
+  "pos": {
+    "noCompany": "Create a company first from the main app before using the point of sale.",
+    "noWarehouseAtAll": "This company has no warehouse yet — create one first from the Warehouses & Products screen in the main app.",
+    "warehouseMissing": "You need to set the warehouse linked to this point of sale first.",
+    "openSettingsBtn": "Open point of sale settings",
+    "settingsIconTitle": "Point of sale settings",
+    "logoutIconTitle": "Log out",
+    "login": {
+      "brand": "Athar Accounting — Point of Sale",
+      "errGeneric": "Couldn't log in"
+    },
+    "sale": {
+      "searchPlaceholder": "Search by name or code...",
+      "scanBtn": "📷 Scan barcode",
+      "bestSelling": "Best selling",
+      "searching": "Searching...",
+      "noResults": "No results",
+      "noSalesYet": "No sales yet to show best sellers — use search instead",
+      "customerLabel": "Customer",
+      "cashCustomer": "Cash customer",
+      "changeCustomer": "Change ›",
+      "emptyCart": "Cart is empty — search or scan an item",
+      "removeBtn": "Remove",
+      "totalLabel": "Total",
+      "proceedBtn": "Proceed to payment",
+      "barcodeNotFound": "No item found with this barcode: {{code}}",
+      "barcodeSearchError": "Couldn't search for the item by barcode"
+    },
+    "payment": {
+      "methodCash": "Cash",
+      "methodBank": "Card / bank transfer",
+      "totalDue": "Total due",
+      "allCash": "All cash",
+      "allBank": "All card/bank",
+      "remainingNote": "{{amount}} remaining, not entered yet",
+      "overpaidNote": "Entered amount exceeds the total by {{amount}}",
+      "receivedCashLabel": "Cash amount received from customer",
+      "receivedTooLittle": "Received amount is less than the cash payment amount",
+      "changeLabel": "Change due to customer",
+      "back": "Back",
+      "submitBtn": "Complete sale",
+      "submitting": "Completing...",
+      "sumMismatchError": "Payments total ({{sum}}) doesn't match the total ({{total}})"
+    },
+    "receipt": {
+      "success": "Sale completed successfully",
+      "invoiceNumber": "Invoice number {{number}}",
+      "reprintBtn": "🖨 Reprint",
+      "printing": "Printing...",
+      "newSaleBtn": "New sale",
+      "bluetoothPrintError": "Couldn't print over Bluetooth"
+    },
+    "settings": {
+      "title": "Point of sale settings",
+      "warehouseSection": "Warehouse linked to this device",
+      "warehouseLoadError": "Couldn't load the warehouse list",
+      "noWarehouse": "This company has no warehouse yet — create one first from the Warehouses & Products screen",
+      "printMethodSection": "Print method",
+      "methodBrowser": "Regular print window (works on any device — no auto-cut)",
+      "methodBluetooth": "Thermal Bluetooth printer (Android/tablet only)",
+      "pairedPrinter": "Paired printer: {{name}}",
+      "noPrinterPaired": "No printer paired yet",
+      "searchingPrinter": "Searching...",
+      "searchPrinterBtn": "🔍 Search for a Bluetooth printer",
+      "pairError": "Couldn't pair the printer",
+      "defaultBtName": "Bluetooth printer",
+      "paperSizeSection": "Paper size",
+      "paper58": "58 mm",
+      "paper80": "80 mm",
+      "autoPrintLabel": "Auto-print after every sale",
+      "doneBtn": "Done"
+    },
+    "customerPicker": {
+      "title": "Select customer",
+      "cashCustomerRow": "Cash customer (default)",
+      "searchPlaceholder": "Search for a customer...",
+      "noResults": "No customers found with this name",
+      "addNewBtn": "+ Add new customer",
+      "nameLabel": "Customer name",
+      "nameRequired": "Customer name is required",
+      "phoneLabel": "Phone (optional)",
+      "saveBtn": "Save and select",
+      "backToSearchBtn": "Back to search"
+    },
+    "scanner": {
+      "header": "Point the camera at the barcode",
+      "cameraError": "Couldn't start the camera — make sure permission is granted, or use manual search instead"
+    }
+  },
+  "receiptView": {
+    "vatNumberLabel": "VAT number",
+    "invoiceNumberLabel": "Invoice number",
+    "customerLabel": "Customer",
+    "cashCustomer": "Cash customer",
+    "beforeVat": "Before VAT",
+    "vat": "VAT",
+    "total": "Total",
+    "methodCash": "Cash",
+    "methodBank": "Card/bank",
+    "receivedCash": "Received in cash",
+    "change": "Change",
+    "thankYou": "Thank you for your business"
   }
 }

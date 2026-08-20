@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import ReceiptView from "../../shared/receipt/ReceiptView";
 import { loadPrinterSettings } from "../../shared/receipt/posLocalSettings";
 import { buildReceiptEscPos, requestBluetoothPrinter, sendToBluetoothPrinter } from "../../shared/receipt/escpos";
 
 export default function ReceiptScreen({ company, sale, onNewSale }) {
+  const { t } = useTranslation();
   const { invoice, payments, receivedCash, change } = sale;
   const settings = loadPrinterSettings();
   const [printing, setPrinting] = useState(false);
@@ -21,7 +23,7 @@ export default function ReceiptScreen({ company, sale, onNewSale }) {
       const bytes = buildReceiptEscPos({ company, invoice }, settings.paperWidthMm);
       await sendToBluetoothPrinter(device, bytes);
     } catch (err) {
-      setPrintError(err.message || "تعذّرت الطباعة عبر البلوتوث");
+      setPrintError(err.message || t("pos.receipt.bluetoothPrintError"));
     } finally {
       setPrinting(false);
     }
@@ -38,8 +40,8 @@ export default function ReceiptScreen({ company, sale, onNewSale }) {
     <div className="pos-receipt-screen">
       <div className="pos-receipt-success">
         <span className="pos-receipt-check">✓</span>
-        <div>تمت عملية البيع بنجاح</div>
-        <div className="pos-receipt-invoice-number">فاتورة رقم {invoice.invoiceNumber}</div>
+        <div>{t("pos.receipt.success")}</div>
+        <div className="pos-receipt-invoice-number">{t("pos.receipt.invoiceNumber", { number: invoice.invoiceNumber })}</div>
       </div>
 
       <div className="pos-receipt-preview">
@@ -50,9 +52,9 @@ export default function ReceiptScreen({ company, sale, onNewSale }) {
 
       <div className="pos-receipt-actions">
         <button className="m-btn secondary" disabled={printing} onClick={doPrint}>
-          {printing ? "جارٍ الطباعة..." : "🖨 إعادة طباعة"}
+          {printing ? t("pos.receipt.printing") : t("pos.receipt.reprintBtn")}
         </button>
-        <button className="pos-big-btn" onClick={onNewSale}>بيع جديد</button>
+        <button className="pos-big-btn" onClick={onNewSale}>{t("pos.receipt.newSaleBtn")}</button>
       </div>
     </div>
   );

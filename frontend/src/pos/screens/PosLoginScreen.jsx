@@ -1,8 +1,11 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../context/AuthContext";
 import { ApiError } from "../../api/http";
+import LanguageSwitcher from "../../wired/shared/LanguageSwitcher";
 
 export default function PosLoginScreen() {
+  const { t } = useTranslation();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,7 +19,7 @@ export default function PosLoginScreen() {
     try {
       await login(email, password);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "تعذّر تسجيل الدخول");
+      setError(err instanceof ApiError ? err.message : t("pos.login.errGeneric"));
     } finally {
       setSubmitting(false);
     }
@@ -24,18 +27,19 @@ export default function PosLoginScreen() {
 
   return (
     <div className="pos-login-root">
+      <LanguageSwitcher className="pos-login-lang-switcher" />
       <form className="pos-login-card" onSubmit={submit}>
-        <div className="pos-login-brand">أثر المحاسبي — نقطة البيع</div>
+        <div className="pos-login-brand">{t("pos.login.brand")}</div>
         <label className="m-field">
-          البريد الإلكتروني
+          {t("auth.login.email")}
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
         </label>
         <label className="m-field">
-          كلمة المرور
+          {t("auth.login.password")}
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
         {error && <p className="m-error">{error}</p>}
-        <button className="pos-big-btn" type="submit" disabled={submitting}>{submitting ? "جارٍ الدخول..." : "دخول"}</button>
+        <button className="pos-big-btn" type="submit" disabled={submitting}>{submitting ? t("auth.login.submitting") : t("auth.login.submit")}</button>
       </form>
     </div>
   );

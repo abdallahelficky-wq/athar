@@ -1741,5 +1741,108 @@
       "savedMsg": "تم حفظ إعدادات الإرسال الدوري بنجاح.",
       "sentMsg": "تم إرسال التقرير الآن إلى: {{emails}}"
     }
+  },
+  "pos": {
+    "noCompany": "أنشئ شركة أولاً من التطبيق الرئيسي قبل استخدام نقطة البيع.",
+    "noWarehouseAtAll": "لا يوجد أي مستودع لهذه الشركة بعد — أنشئ مستودعاً أولاً من شاشة المستودعات والمنتجات في التطبيق الرئيسي.",
+    "warehouseMissing": "لازم تحدد المستودع المرتبط بنقطة البيع دي أولاً.",
+    "openSettingsBtn": "فتح إعدادات نقطة البيع",
+    "settingsIconTitle": "إعدادات نقطة البيع",
+    "logoutIconTitle": "تسجيل الخروج",
+    "login": {
+      "brand": "أثر المحاسبي — نقطة البيع",
+      "errGeneric": "تعذّر تسجيل الدخول"
+    },
+    "sale": {
+      "searchPlaceholder": "ابحث بالاسم أو الكود...",
+      "scanBtn": "📷 مسح باركود",
+      "bestSelling": "الأكثر مبيعاً",
+      "searching": "جارٍ البحث...",
+      "noResults": "لا توجد نتائج",
+      "noSalesYet": "لا توجد مبيعات بعد لعرض الأكثر مبيعاً — استخدم البحث",
+      "customerLabel": "العميل",
+      "cashCustomer": "عميل نقدي",
+      "changeCustomer": "تغيير ›",
+      "emptyCart": "السلة فارغة — ابحث أو امسح صنفاً",
+      "removeBtn": "حذف",
+      "totalLabel": "الإجمالي",
+      "proceedBtn": "متابعة للدفع",
+      "barcodeNotFound": "لا يوجد صنف بهذا الباركود: {{code}}",
+      "barcodeSearchError": "تعذّر البحث عن الصنف بالباركود"
+    },
+    "payment": {
+      "methodCash": "نقدي",
+      "methodBank": "بطاقة/تحويل بنكي",
+      "totalDue": "الإجمالي المطلوب",
+      "allCash": "الكل نقدي",
+      "allBank": "الكل بطاقة/بنك",
+      "remainingNote": "متبقٍّ {{amount}} لم يُدخَل بعد",
+      "overpaidNote": "المُدخَل أكثر من الإجمالي بمقدار {{amount}}",
+      "receivedCashLabel": "المبلغ المستلم من العميل نقداً",
+      "receivedTooLittle": "المبلغ المستلم أقل من قيمة الدفعة النقدية",
+      "changeLabel": "الباقي للعميل",
+      "back": "رجوع",
+      "submitBtn": "إتمام البيع",
+      "submitting": "جارٍ الإتمام...",
+      "sumMismatchError": "مجموع الدفعات ({{sum}}) لا يطابق الإجمالي ({{total}})"
+    },
+    "receipt": {
+      "success": "تمت عملية البيع بنجاح",
+      "invoiceNumber": "فاتورة رقم {{number}}",
+      "reprintBtn": "🖨 إعادة طباعة",
+      "printing": "جارٍ الطباعة...",
+      "newSaleBtn": "بيع جديد",
+      "bluetoothPrintError": "تعذّرت الطباعة عبر البلوتوث"
+    },
+    "settings": {
+      "title": "إعدادات نقطة البيع",
+      "warehouseSection": "المستودع المرتبط بهذا الجهاز",
+      "warehouseLoadError": "تعذّر تحميل قائمة المستودعات",
+      "noWarehouse": "لا يوجد أي مستودع لهذه الشركة بعد — أنشئ مستودعاً أولاً من شاشة المستودعات والمنتجات",
+      "printMethodSection": "طريقة الطباعة",
+      "methodBrowser": "نافذة الطباعة العادية (تعمل على أي جهاز — بلا قصّ تلقائي)",
+      "methodBluetooth": "طابعة بلوتوث حرارية (أندرويد/تابلت فقط)",
+      "pairedPrinter": "الطابعة المقترنة: {{name}}",
+      "noPrinterPaired": "لم تُقرَن أي طابعة بعد",
+      "searchingPrinter": "جارٍ البحث...",
+      "searchPrinterBtn": "🔍 البحث عن طابعة بلوتوث",
+      "pairError": "تعذّر إقران الطابعة",
+      "defaultBtName": "طابعة بلوتوث",
+      "paperSizeSection": "مقاس الورق",
+      "paper58": "58 مم",
+      "paper80": "80 مم",
+      "autoPrintLabel": "طباعة تلقائية بعد كل عملية بيع",
+      "doneBtn": "تم"
+    },
+    "customerPicker": {
+      "title": "اختيار العميل",
+      "cashCustomerRow": "عميل نقدي (افتراضي)",
+      "searchPlaceholder": "ابحث عن عميل...",
+      "noResults": "لا يوجد عملاء بهذا الاسم",
+      "addNewBtn": "+ إضافة عميل جديد",
+      "nameLabel": "اسم العميل",
+      "nameRequired": "اسم العميل مطلوب",
+      "phoneLabel": "جوال (اختياري)",
+      "saveBtn": "حفظ واختيار",
+      "backToSearchBtn": "رجوع للبحث"
+    },
+    "scanner": {
+      "header": "وجّه الكاميرا نحو الباركود",
+      "cameraError": "تعذّر تشغيل الكاميرا — تأكد من منح الإذن، أو استخدم البحث اليدوي بدلاً منه"
+    }
+  },
+  "receiptView": {
+    "vatNumberLabel": "الرقم الضريبي",
+    "invoiceNumberLabel": "رقم الفاتورة",
+    "customerLabel": "العميل",
+    "cashCustomer": "عميل نقدي",
+    "beforeVat": "قبل الضريبة",
+    "vat": "الضريبة",
+    "total": "الإجمالي",
+    "methodCash": "نقدي",
+    "methodBank": "بطاقة/بنك",
+    "receivedCash": "المستلم نقداً",
+    "change": "الباقي",
+    "thankYou": "شكراً لتعاملكم معنا"
   }
 }

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { listItems, getItemByBarcode } from "../../api/items";
 import { getQuickAccessItems } from "../../api/pos";
 import { fmt2 } from "../../legacy/constants";
@@ -23,6 +24,7 @@ function lineFromItem(item) {
 }
 
 export default function SaleScreen({ companyId, cart, setCart, customer, setCustomer, onProceedToPayment }) {
+  const { t } = useTranslation();
   const [quickItems, setQuickItems] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -60,11 +62,11 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
     setScannerOpen(false);
     try {
       const item = await getItemByBarcode(companyId, code);
-      if (!item) { setError(`لا يوجد صنف بهذا الباركود: ${code}`); return; }
+      if (!item) { setError(t("pos.sale.barcodeNotFound", { code })); return; }
       setError("");
       addItemToCart(item);
     } catch {
-      setError("تعذّر البحث عن الصنف بالباركود");
+      setError(t("pos.sale.barcodeSearchError"));
     }
   };
 
@@ -86,18 +88,18 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
           <input
             className="pos-search-input"
             type="text"
-            placeholder="ابحث بالاسم أو الكود..."
+            placeholder={t("pos.sale.searchPlaceholder")}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
-          <button className="pos-scan-btn" onClick={() => setScannerOpen(true)}>📷 مسح باركود</button>
+          <button className="pos-scan-btn" onClick={() => setScannerOpen(true)}>{t("pos.sale.scanBtn")}</button>
         </div>
         {error && <p className="m-error">{error}</p>}
 
-        {!searchText.trim() && <div className="pos-section-label">الأكثر مبيعاً</div>}
-        {searching && <p className="m-empty">جارٍ البحث...</p>}
-        {!searching && searchText.trim() && displayItems.length === 0 && <p className="m-empty">لا توجد نتائج</p>}
-        {!searchText.trim() && displayItems.length === 0 && <p className="m-empty">لا توجد مبيعات بعد لعرض الأكثر مبيعاً — استخدم البحث</p>}
+        {!searchText.trim() && <div className="pos-section-label">{t("pos.sale.bestSelling")}</div>}
+        {searching && <p className="m-empty">{t("pos.sale.searching")}</p>}
+        {!searching && searchText.trim() && displayItems.length === 0 && <p className="m-empty">{t("pos.sale.noResults")}</p>}
+        {!searchText.trim() && displayItems.length === 0 && <p className="m-empty">{t("pos.sale.noSalesYet")}</p>}
 
         <div className="pos-item-grid">
           {displayItems.map((item) => (
@@ -111,13 +113,13 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
 
       <div className="pos-cart">
         <div className="pos-cart-customer" onClick={() => setCustomerModalOpen(true)}>
-          <span>العميل</span>
-          <strong>{customer?.name || "عميل نقدي"}</strong>
-          <span className="pos-cart-customer-change">تغيير ›</span>
+          <span>{t("pos.sale.customerLabel")}</span>
+          <strong>{customer?.name || t("pos.sale.cashCustomer")}</strong>
+          <span className="pos-cart-customer-change">{t("pos.sale.changeCustomer")}</span>
         </div>
 
         <div className="pos-cart-lines">
-          {cart.length === 0 && <p className="m-empty">السلة فارغة — ابحث أو امسح صنفاً</p>}
+          {cart.length === 0 && <p className="m-empty">{t("pos.sale.emptyCart")}</p>}
           {cart.map((line) => (
             <div className="pos-cart-line" key={line.itemId}>
               <div className="pos-cart-line-info">
@@ -128,7 +130,7 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
                 <button className="pos-qty-btn" onClick={() => updateQty(line.itemId, -1)}>−</button>
                 <span className="pos-qty-value">{line.quantity}</span>
                 <button className="pos-qty-btn" onClick={() => updateQty(line.itemId, 1)}>+</button>
-                <button className="pos-qty-remove" onClick={() => removeLine(line.itemId)}>حذف</button>
+                <button className="pos-qty-remove" onClick={() => removeLine(line.itemId)}>{t("pos.sale.removeBtn")}</button>
               </div>
             </div>
           ))}
@@ -136,11 +138,11 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
 
         <div className="pos-cart-footer">
           <div className="pos-cart-total-row">
-            <span>الإجمالي</span>
+            <span>{t("pos.sale.totalLabel")}</span>
             <strong>{fmt2(cartTotal)}</strong>
           </div>
           <button className="pos-big-btn" disabled={cart.length === 0} onClick={onProceedToPayment}>
-            متابعة للدفع
+            {t("pos.sale.proceedBtn")}
           </button>
         </div>
       </div>
