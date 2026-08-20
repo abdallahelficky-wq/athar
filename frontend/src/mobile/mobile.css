@@ -74,3 +74,14 @@ body {
 .m-tab-icon { font-size: 20px; }
 
 .m-logout-link { background: none; border: none; color: #A8432B; font-family: inherit; font-size: 13px; cursor: pointer; padding: 0; }
+
+.m-header .language-switcher-btn {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: #ECE6D6;
+  background: rgba(236,230,214,0.14); border: none; border-radius: 8px; padding: 5px 10px; cursor: pointer;
+}
+.m-header .language-switcher-btn:hover { background: rgba(185,139,78,0.35); }
+.m-login-lang-switcher {
+  align-self: flex-end; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  color: #ECE6D6; background: rgba(236,230,214,0.14); border: none; border-radius: 8px; padding: 5px 10px; cursor: pointer;
+}
+.m-login-lang-switcher:hover { background: rgba(185,139,78,0.35); }

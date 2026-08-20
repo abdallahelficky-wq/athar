@@ -1844,5 +1844,47 @@
     "receivedCash": "Received in cash",
     "change": "Change",
     "thankYou": "Thank you for your business"
+  },
+  "mobile": {
+    "portalSubtitle": "Employee Portal",
+    "logoutBtn": "Log out",
+    "tabs": {
+      "attendance": "Attendance",
+      "leave": "My Leave",
+      "inbox": "Team Requests"
+    },
+    "login": {
+      "intro": "Log in to check in/out and track your leave requests from your phone.",
+      "tenantIdLabel": "Company code",
+      "tenantIdPlaceholder": "Sent to you by HR",
+      "phoneLabel": "Mobile number",
+      "pinLabel": "PIN"
+    },
+    "checkIn": {
+      "checkInBtn": "Check in",
+      "checkOutBtn": "Check out",
+      "submitting": "Recording...",
+      "doneToday": "Checked in and out today",
+      "todaySummary": "In: {{checkIn}} — Out: {{checkOut}}",
+      "recentHistoryTitle": "Recent attendance",
+      "noHistory": "No attendance record yet.",
+      "hoursSuffix": " ({{hours}} h)"
+    },
+    "leave": {
+      "balanceTitle": "Annual leave balance (approximate)",
+      "daysRemaining": "days remaining",
+      "accruedSummary": "Accrued (est.): {{accrued}} days — used: {{used}} days",
+      "newRequestTitle": "New leave request",
+      "notesOptionalLabel": "Notes (optional)",
+      "submitBtn": "Send request",
+      "previousRequestsTitle": "My previous requests",
+      "noRequests": "No leave requests yet."
+    },
+    "inbox": {
+      "title": "Your team's pending leave requests",
+      "noPending": "No pending requests right now.",
+      "approveBtn": "Approve"
+    },
+    "dateRangeWithDays": "{{start}} → {{end}} ({{days}} days)"
   }
 }

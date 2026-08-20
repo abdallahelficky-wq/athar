@@ -1,18 +1,20 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useEmployeePortalAuth } from "./context/EmployeePortalAuthContext";
+import LanguageSwitcher from "../wired/shared/LanguageSwitcher";
 import LoginScreen from "./screens/LoginScreen";
 import CheckInScreen from "./screens/CheckInScreen";
 import LeaveRequestsScreen from "./screens/LeaveRequestsScreen";
 import ManagerInboxScreen from "./screens/ManagerInboxScreen";
 
-const TABS = [
-  { id: "attendance", label: "الحضور", icon: "⏱" },
-  { id: "leave", label: "إجازاتي", icon: "📅" },
-];
-
 function Shell() {
+  const { t } = useTranslation();
   const { employee, logout } = useEmployeePortalAuth();
-  const tabs = employee?.isManager ? [...TABS, { id: "inbox", label: "طلبات فريقي", icon: "📥" }] : TABS;
+  const TABS = [
+    { id: "attendance", label: t("mobile.tabs.attendance"), icon: "⏱" },
+    { id: "leave", label: t("mobile.tabs.leave"), icon: "📅" },
+  ];
+  const tabs = employee?.isManager ? [...TABS, { id: "inbox", label: t("mobile.tabs.inbox"), icon: "📥" }] : TABS;
   const [tab, setTab] = useState("attendance");
 
   return (
@@ -21,9 +23,12 @@ function Shell() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div className="m-header-title">{employee?.name}</div>
-            <div className="m-header-sub">{employee?.jobTitle || "بوابة الموظف"}</div>
+            <div className="m-header-sub">{employee?.jobTitle || t("mobile.portalSubtitle")}</div>
           </div>
-          <button className="m-logout-link" onClick={logout}>خروج</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <LanguageSwitcher />
+            <button className="m-logout-link" onClick={logout}>{t("mobile.logoutBtn")}</button>
+          </div>
         </div>
       </div>
       <div className="m-main">
@@ -32,10 +37,10 @@ function Shell() {
         {tab === "inbox" && employee?.isManager && <ManagerInboxScreen />}
       </div>
       <div className="m-tabbar">
-        {tabs.map((t) => (
-          <button key={t.id} className={"m-tab" + (tab === t.id ? " active" : "")} onClick={() => setTab(t.id)}>
-            <span className="m-tab-icon">{t.icon}</span>
-            <span>{t.label}</span>
+        {tabs.map((tabItem) => (
+          <button key={tabItem.id} className={"m-tab" + (tab === tabItem.id ? " active" : "")} onClick={() => setTab(tabItem.id)}>
+            <span className="m-tab-icon">{tabItem.icon}</span>
+            <span>{tabItem.label}</span>
           </button>
         ))}
       </div>

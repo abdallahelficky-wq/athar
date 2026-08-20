@@ -1844,5 +1844,47 @@
     "receivedCash": "المستلم نقداً",
     "change": "الباقي",
     "thankYou": "شكراً لتعاملكم معنا"
+  },
+  "mobile": {
+    "portalSubtitle": "بوابة الموظف",
+    "logoutBtn": "خروج",
+    "tabs": {
+      "attendance": "الحضور",
+      "leave": "إجازاتي",
+      "inbox": "طلبات فريقي"
+    },
+    "login": {
+      "intro": "سجّل الدخول لتسجيل حضورك وانصرافك ومتابعة طلبات إجازتك من هاتفك.",
+      "tenantIdLabel": "رمز المنشأة",
+      "tenantIdPlaceholder": "يُرسَل لك من الموارد البشرية",
+      "phoneLabel": "رقم الجوال",
+      "pinLabel": "الرمز السري (PIN)"
+    },
+    "checkIn": {
+      "checkInBtn": "تسجيل حضور",
+      "checkOutBtn": "تسجيل انصراف",
+      "submitting": "جارٍ التسجيل...",
+      "doneToday": "تم تسجيل الحضور والانصراف اليوم",
+      "todaySummary": "حضور: {{checkIn}} — انصراف: {{checkOut}}",
+      "recentHistoryTitle": "سجل الحضور الأخير",
+      "noHistory": "لا يوجد سجل حضور بعد.",
+      "hoursSuffix": " ({{hours}} س)"
+    },
+    "leave": {
+      "balanceTitle": "رصيد الإجازة السنوية (تقريبي)",
+      "daysRemaining": "يوم متبقٍ",
+      "accruedSummary": "تراكم تقديري: {{accrued}} يوم — مستخدم: {{used}} يوم",
+      "newRequestTitle": "طلب إجازة جديد",
+      "notesOptionalLabel": "ملاحظات (اختياري)",
+      "submitBtn": "إرسال الطلب",
+      "previousRequestsTitle": "طلباتي السابقة",
+      "noRequests": "لا توجد طلبات إجازة بعد."
+    },
+    "inbox": {
+      "title": "طلبات إجازة فريقك المعلّقة",
+      "noPending": "لا توجد طلبات معلّقة حالياً.",
+      "approveBtn": "موافقة"
+    },
+    "dateRangeWithDays": "{{start}} → {{end}} ({{days}} يوم)"
   }
 }

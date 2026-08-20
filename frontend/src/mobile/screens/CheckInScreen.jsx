@@ -1,12 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import * as portalApi from "../api/employeePortal";
+import { formatDate, formatTime } from "../../i18n/dateFormat";
 
-function fmtTime(iso) {
-  return iso ? new Date(iso).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }) : "—";
-}
-function fmtDate(iso) {
-  return new Date(iso).toLocaleDateString("ar-SA", { weekday: "short", day: "numeric", month: "short" });
-}
 function hoursBetween(a, b) {
   if (!a || !b) return null;
   const hrs = (new Date(b) - new Date(a)) / 3_600_000;
@@ -14,6 +10,7 @@ function hoursBetween(a, b) {
 }
 
 export default function CheckInScreen() {
+  const { t, i18n } = useTranslation();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -42,48 +39,51 @@ export default function CheckInScreen() {
     }
   };
 
+  const fmtTime = (iso) => (iso ? formatTime(iso, i18n.language, { hour: "2-digit", minute: "2-digit" }) : "—");
+  const fmtDate = (iso) => formatDate(iso, i18n.language, { weekday: "short", day: "numeric", month: "short" });
+
   return (
     <div>
       {error && <p className="m-error">{error}</p>}
       <div className="m-card" style={{ textAlign: "center" }}>
         <p style={{ marginTop: 0, color: "#6b7280", fontSize: 13.5 }}>
-          {new Date().toLocaleDateString("ar-SA", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          {formatDate(new Date(), i18n.language, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </p>
         {!hasCheckedIn && (
           <button className="m-big-btn" disabled={busy} onClick={() => act(portalApi.checkIn)}>
             <span style={{ fontSize: 26 }}>⏱</span>
-            {busy ? "جارٍ التسجيل..." : "تسجيل حضور"}
+            {busy ? t("mobile.checkIn.submitting") : t("mobile.checkIn.checkInBtn")}
           </button>
         )}
         {hasCheckedIn && !hasCheckedOut && (
           <button className="m-big-btn checked-in" disabled={busy} onClick={() => act(portalApi.checkOut)}>
             <span style={{ fontSize: 26 }}>🚪</span>
-            {busy ? "جارٍ التسجيل..." : "تسجيل انصراف"}
+            {busy ? t("mobile.checkIn.submitting") : t("mobile.checkIn.checkOutBtn")}
           </button>
         )}
         {hasCheckedIn && hasCheckedOut && (
           <div className="m-big-btn" style={{ background: "#2F5D5A" }}>
             <span style={{ fontSize: 26 }}>✓</span>
-            تم تسجيل الحضور والانصراف اليوم
+            {t("mobile.checkIn.doneToday")}
           </div>
         )}
         {today && (
           <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 0 }}>
-            حضور: {fmtTime(today.checkInAt)} — انصراف: {fmtTime(today.checkOutAt)}
+            {t("mobile.checkIn.todaySummary", { checkIn: fmtTime(today.checkInAt), checkOut: fmtTime(today.checkOutAt) })}
           </p>
         )}
       </div>
 
       <div className="m-card">
-        <h4 style={{ marginTop: 0 }}>سجل الحضور الأخير</h4>
-        {loading ? <p className="m-empty">جارٍ التحميل...</p> : history.length === 0 ? (
-          <p className="m-empty">لا يوجد سجل حضور بعد.</p>
+        <h4 style={{ marginTop: 0 }}>{t("mobile.checkIn.recentHistoryTitle")}</h4>
+        {loading ? <p className="m-empty">{t("common.loading")}</p> : history.length === 0 ? (
+          <p className="m-empty">{t("mobile.checkIn.noHistory")}</p>
         ) : history.slice(0, 14).map((r) => (
           <div className="m-list-row" key={r.id}>
             <span>{fmtDate(r.date)}</span>
             <span style={{ fontSize: 13, color: "#6b7280" }}>
               {fmtTime(r.checkInAt)} → {fmtTime(r.checkOutAt)}
-              {r.checkOutAt && ` (${hoursBetween(r.checkInAt, r.checkOutAt)} س)`}
+              {r.checkOutAt && t("mobile.checkIn.hoursSuffix", { hours: hoursBetween(r.checkInAt, r.checkOutAt) })}
             </span>
           </div>
         ))}

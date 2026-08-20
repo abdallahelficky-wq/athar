@@ -13,3 +13,9 @@ export function formatDateTime(date, lang, opts) {
   const locale = LOCALE_BY_LANGUAGE[lang] || LOCALE_BY_LANGUAGE.ar;
   return new Date(date).toLocaleString(locale, opts);
 }
+
+export function formatTime(date, lang, opts) {
+  if (!date) return "";
+  const locale = LOCALE_BY_LANGUAGE[lang] || LOCALE_BY_LANGUAGE.ar;
+  return new Date(date).toLocaleTimeString(locale, opts);
+}

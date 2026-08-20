@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import MobileApp from "./mobile/MobileApp.jsx";
 import { EmployeePortalAuthProvider } from "./mobile/context/EmployeePortalAuthContext.jsx";
+import "./i18n";
 import "./mobile/mobile.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(

@@ -1,7 +1,10 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useEmployeePortalAuth } from "../context/EmployeePortalAuthContext";
+import LanguageSwitcher from "../../wired/shared/LanguageSwitcher";
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const { login, rememberedTenantId } = useEmployeePortalAuth();
   const [tenantId, setTenantId] = useState(rememberedTenantId || "");
   const [phone, setPhone] = useState("");
@@ -25,28 +28,29 @@ export default function LoginScreen() {
   return (
     <div className="m-app">
       <div className="m-header">
-        <div className="m-header-title">أثر المحاسبي</div>
-        <div className="m-header-sub">بوابة الموظف</div>
+        <LanguageSwitcher className="m-login-lang-switcher" />
+        <div className="m-header-title">{t("common.brandName")}</div>
+        <div className="m-header-sub">{t("mobile.portalSubtitle")}</div>
       </div>
       <div className="m-main">
         <form className="m-card" onSubmit={submit}>
           <p style={{ marginTop: 0, fontSize: 13.5, color: "#6b7280" }}>
-            سجّل الدخول لتسجيل حضورك وانصرافك ومتابعة طلبات إجازتك من هاتفك.
+            {t("mobile.login.intro")}
           </p>
           <div className="m-field">
-            <label>رمز المنشأة</label>
-            <input value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder="يُرسَل لك من الموارد البشرية" required />
+            <label>{t("mobile.login.tenantIdLabel")}</label>
+            <input value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder={t("mobile.login.tenantIdPlaceholder")} required />
           </div>
           <div className="m-field">
-            <label>رقم الجوال</label>
+            <label>{t("mobile.login.phoneLabel")}</label>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" required />
           </div>
           <div className="m-field">
-            <label>الرمز السري (PIN)</label>
+            <label>{t("mobile.login.pinLabel")}</label>
             <input value={pin} onChange={(e) => setPin(e.target.value)} inputMode="numeric" type="password" maxLength={6} required />
           </div>
           {error && <p className="m-error">{error}</p>}
-          <button className="m-btn" disabled={loading} type="submit">{loading ? "جارٍ الدخول..." : "دخول"}</button>
+          <button className="m-btn" disabled={loading} type="submit">{loading ? t("auth.login.submitting") : t("auth.login.submit")}</button>
         </form>
       </div>
     </div>
