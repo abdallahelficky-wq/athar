@@ -114,6 +114,33 @@
       "errPasswordMismatch": "Passwords do not match.",
       "errPasswordLength": "Password must be at least 8 characters.",
       "errGeneric": "Couldn't create the account, please try again."
+    },
+    "backToLogin": "Back to login",
+    "forgotPassword": {
+      "title": "Forgot your password?",
+      "errNoEmail": "Enter your email address.",
+      "errGeneric": "Couldn't send the request, please try again.",
+      "submitBtn": "Send reset link",
+      "sending": "Sending..."
+    },
+    "resetPassword": {
+      "title": "Set a new password",
+      "invalidToken": "The link is invalid or has expired, please request a new one.",
+      "requestNewLink": "Request a new link",
+      "successMsg": "Your new password has been set successfully. You've also been signed out of all other devices to protect your account.",
+      "loginNow": "Log in now",
+      "newPasswordLabel": "New password",
+      "confirmPasswordLabel": "Confirm password",
+      "submitBtn": "Set password",
+      "errGeneric": "Couldn't set the password, please try again."
+    },
+    "acceptInvite": {
+      "title": "Activate your account",
+      "invalidToken": "The invite link is invalid or has expired, contact your system administrator for a new invite.",
+      "note": "Choose a password for your account to complete activation — you'll be logged in automatically afterward.",
+      "submitBtn": "Activate account and log in",
+      "activating": "Activating...",
+      "errGeneric": "Couldn't activate the account, please try again."
     }
   },
   "nav": {

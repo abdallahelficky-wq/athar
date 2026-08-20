@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { resetPassword } from "../api/auth";
 import { ApiError } from "../api/http";
 
 export default function ResetPasswordPage({ token, onGoLogin, onGoForgotPassword }) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -10,15 +12,15 @@ export default function ResetPasswordPage({ token, onGoLogin, onGoForgotPassword
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
-    if (password.length < 8) { setError("كلمة المرور يجب أن تكون 8 أحرف على الأقل."); return; }
-    if (password !== confirmPassword) { setError("كلمتا المرور غير متطابقتين."); return; }
+    if (password.length < 8) { setError(t("auth.register.errPasswordLength")); return; }
+    if (password !== confirmPassword) { setError(t("auth.register.errPasswordMismatch")); return; }
     setSubmitting(true);
     setError("");
     try {
       await resetPassword(token, password);
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "تعذّر تعيين كلمة المرور، حاول مجدداً.");
+      setError(err instanceof ApiError ? err.message : t("auth.resetPassword.errGeneric"));
     } finally {
       setSubmitting(false);
     }
@@ -29,32 +31,32 @@ export default function ResetPasswordPage({ token, onGoLogin, onGoForgotPassword
       <div className="auth-card">
         <div className="landing-brand auth-brand">
           <div className="brand-mark landing-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
-          <span>أثر المحاسبي</span>
+          <span>{t("common.brandName")}</span>
         </div>
-        <h2 className="auth-title">تعيين كلمة مرور جديدة</h2>
+        <h2 className="auth-title">{t("auth.resetPassword.title")}</h2>
 
         {!token ? (
           <>
-            <p className="balance-bad">الرابط غير صالح أو منتهي، يرجى طلب رابط جديد.</p>
+            <p className="balance-bad">{t("auth.resetPassword.invalidToken")}</p>
             <div className="auth-links">
-              <button className="link-btn" onClick={onGoForgotPassword}>طلب رابط جديد</button>
-              <button className="link-btn" onClick={onGoLogin}>الرجوع لتسجيل الدخول</button>
+              <button className="link-btn" onClick={onGoForgotPassword}>{t("auth.resetPassword.requestNewLink")}</button>
+              <button className="link-btn" onClick={onGoLogin}>{t("auth.backToLogin")}</button>
             </div>
           </>
         ) : success ? (
           <>
-            <p className="balance-good">تم تعيين كلمة المرور الجديدة بنجاح. تم أيضاً تسجيل الخروج من جميع الأجهزة الأخرى لحماية حسابك.</p>
+            <p className="balance-good">{t("auth.resetPassword.successMsg")}</p>
             <div className="auth-links">
-              <button className="link-btn" onClick={onGoLogin}>سجّل الدخول الآن</button>
+              <button className="link-btn" onClick={onGoLogin}>{t("auth.resetPassword.loginNow")}</button>
             </div>
           </>
         ) : (
           <>
             <div className="auth-form">
-              <label>كلمة المرور الجديدة
+              <label>{t("auth.resetPassword.newPasswordLabel")}
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
               </label>
-              <label>تأكيد كلمة المرور
+              <label>{t("auth.resetPassword.confirmPasswordLabel")}
                 <input
                   type="password"
                   value={confirmPassword}
@@ -65,15 +67,15 @@ export default function ResetPasswordPage({ token, onGoLogin, onGoForgotPassword
               {error && (
                 <>
                   <p className="balance-bad">{error}</p>
-                  <button className="link-btn" onClick={onGoForgotPassword} style={{ marginTop: -8 }}>طلب رابط جديد</button>
+                  <button className="link-btn" onClick={onGoForgotPassword} style={{ marginTop: -8 }}>{t("auth.resetPassword.requestNewLink")}</button>
                 </>
               )}
               <button className="btn-primary auth-submit" onClick={submit} disabled={submitting}>
-                {submitting ? "جارٍ الحفظ..." : "تعيين كلمة المرور"}
+                {submitting ? t("settings.myAccount.saving") : t("auth.resetPassword.submitBtn")}
               </button>
             </div>
             <div className="auth-links">
-              <button className="link-btn" onClick={onGoLogin}>الرجوع لتسجيل الدخول</button>
+              <button className="link-btn" onClick={onGoLogin}>{t("auth.backToLogin")}</button>
             </div>
           </>
         )}
