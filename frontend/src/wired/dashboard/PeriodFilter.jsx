@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const toISO = (d) => d.toISOString().slice(0, 10);
 
@@ -16,15 +17,16 @@ function computeRange(preset) {
   return null; // custom — يُدار عبر حقول التاريخ يدوياً
 }
 
-const PRESETS = [
-  { id: "month", label: "الشهر الحالي" },
-  { id: "last3", label: "آخر ٣ أشهر" },
-  { id: "year", label: "هذه السنة" },
-  { id: "custom", label: "فترة مخصصة" },
-];
-
 /** فلتر فترة زمنية مشترك بين الداشبوردين — يستدعي onChange({dateFrom, dateTo}) بصيغة ISO */
 export default function PeriodFilter({ onChange }) {
+  const { t } = useTranslation();
+  const PRESETS = useMemo(() => [
+    { id: "month", label: t("reports.periodFilter.presetMonth") },
+    { id: "last3", label: t("reports.periodFilter.presetLast3") },
+    { id: "year", label: t("reports.periodFilter.presetYear") },
+    { id: "custom", label: t("reports.periodFilter.presetCustom") },
+  ], [t]);
+
   const [preset, setPreset] = useState("month");
   const [customFrom, setCustomFrom] = useState(() => toISO(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
   const [customTo, setCustomTo] = useState(() => toISO(new Date()));
@@ -53,9 +55,9 @@ export default function PeriodFilter({ onChange }) {
       {preset === "custom" && (
         <form style={{ display: "contents" }} onSubmit={(e) => { e.preventDefault(); onChange({ dateFrom: customFrom, dateTo: customTo }); }}>
           <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-          <span>إلى</span>
+          <span>{t("reports.periodFilter.to")}</span>
           <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
-          <button type="submit" className="btn-primary">إظهار النتائج</button>
+          <button type="submit" className="btn-primary">{t("reports.periodFilter.showResults")}</button>
         </form>
       )}
     </div>

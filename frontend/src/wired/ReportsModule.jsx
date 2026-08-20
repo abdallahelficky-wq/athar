@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getTrialBalanceTree, getIncomeStatement, getBalanceSheet } from "../api/reports";
 import { listAccounts } from "../api/accounts";
 import { fmt } from "../legacy/constants";
@@ -41,28 +42,29 @@ function AmountTreeRows({ nodes, depth = 0 }) {
 }
 
 function IncomeStatementView({ data, accounts, filters }) {
+  const { t } = useTranslation();
   if (!data) return null;
   const { draft, setField, apply } = filters;
   return (
     <div className="panel">
-      <h3>قائمة الدخل</h3>
+      <h3>{t("nav.tabs.income")}</h3>
       <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); apply(); }}>
-        <label>من تاريخ<input type="date" value={draft.dateFrom} onChange={(e) => setField("dateFrom", e.target.value)} /></label>
-        <label>إلى تاريخ<input type="date" value={draft.dateTo} onChange={(e) => setField("dateTo", e.target.value)} /></label>
+        <label>{t("reports.income.fromDate")}<input type="date" value={draft.dateFrom} onChange={(e) => setField("dateFrom", e.target.value)} /></label>
+        <label>{t("reports.income.toDate")}<input type="date" value={draft.dateTo} onChange={(e) => setField("dateTo", e.target.value)} /></label>
         <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} />
-        <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+        <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("reports.income.showResults")}</button>
       </form>
       <table className="ledger-table">
         <tbody>
-          <tr><td className="strong section-row" colSpan={2}>الإيرادات</td></tr>
+          <tr><td className="strong section-row" colSpan={2}>{t("reports.income.revenue")}</td></tr>
           <AmountTreeRows nodes={data.revenueRoots} />
-          <tr><td className="strong">إجمالي الإيرادات</td><td className="num strong">{fmt(data.totalRevenue)}</td></tr>
+          <tr><td className="strong">{t("reports.income.totalRevenue")}</td><td className="num strong">{fmt(data.totalRevenue)}</td></tr>
 
-          <tr><td className="strong section-row" colSpan={2}>المصروفات</td></tr>
+          <tr><td className="strong section-row" colSpan={2}>{t("reports.income.expenses")}</td></tr>
           <AmountTreeRows nodes={data.expenseRoots} />
-          <tr><td className="strong">إجمالي المصروفات</td><td className="num strong">{fmt(data.totalExpense)}</td></tr>
+          <tr><td className="strong">{t("reports.income.totalExpenses")}</td><td className="num strong">{fmt(data.totalExpense)}</td></tr>
 
-          <tr className="net-row"><td className="strong">صافي الربح</td><td className="num strong">{fmt(data.netIncome)}</td></tr>
+          <tr className="net-row"><td className="strong">{t("reports.income.netIncome")}</td><td className="num strong">{fmt(data.netIncome)}</td></tr>
         </tbody>
       </table>
     </div>
@@ -70,33 +72,34 @@ function IncomeStatementView({ data, accounts, filters }) {
 }
 
 function BalanceSheetView({ data, accounts, filters }) {
+  const { t } = useTranslation();
   if (!data) return null;
   const { draft, setField, apply } = filters;
   return (
     <div className="panel">
-      <h3>المركز المالي</h3>
+      <h3>{t("nav.tabs.balance")}</h3>
       <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); apply(); }}>
-        <label>حتى تاريخ<input type="date" value={draft.asOfDate} onChange={(e) => setField("asOfDate", e.target.value)} /></label>
+        <label>{t("reports.balance.asOfDate")}<input type="date" value={draft.asOfDate} onChange={(e) => setField("asOfDate", e.target.value)} /></label>
         <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} />
-        <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>إظهار النتائج</button>
+        <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("reports.balance.showResults")}</button>
       </form>
       <table className="ledger-table">
         <tbody>
-          <tr><td className="strong section-row" colSpan={2}>الأصول</td></tr>
+          <tr><td className="strong section-row" colSpan={2}>{t("reports.balance.assets")}</td></tr>
           <AmountTreeRows nodes={data.assetRoots} />
-          <tr><td className="strong">إجمالي الأصول</td><td className="num strong">{fmt(data.totalAssets)}</td></tr>
+          <tr><td className="strong">{t("reports.balance.totalAssets")}</td><td className="num strong">{fmt(data.totalAssets)}</td></tr>
 
-          <tr><td className="strong section-row" colSpan={2}>الالتزامات</td></tr>
+          <tr><td className="strong section-row" colSpan={2}>{t("reports.balance.liabilities")}</td></tr>
           <AmountTreeRows nodes={data.liabilityRoots} />
-          <tr><td className="strong">إجمالي الالتزامات</td><td className="num strong">{fmt(data.totalLiabilities)}</td></tr>
+          <tr><td className="strong">{t("reports.balance.totalLiabilities")}</td><td className="num strong">{fmt(data.totalLiabilities)}</td></tr>
 
-          <tr><td className="strong section-row" colSpan={2}>حقوق الملكية</td></tr>
+          <tr><td className="strong section-row" colSpan={2}>{t("reports.balance.equity")}</td></tr>
           <AmountTreeRows nodes={data.equityRoots} />
-          <tr><td className="indent">صافي الربح (أرباح مرحّلة)</td><td className="num">{fmt(data.netIncome)}</td></tr>
-          <tr><td className="strong">إجمالي حقوق الملكية</td><td className="num strong">{fmt(data.totalEquity)}</td></tr>
+          <tr><td className="indent">{t("reports.balance.retainedEarnings")}</td><td className="num">{fmt(data.netIncome)}</td></tr>
+          <tr><td className="strong">{t("reports.balance.totalEquity")}</td><td className="num strong">{fmt(data.totalEquity)}</td></tr>
 
           <tr className="net-row">
-            <td className="strong">إجمالي الالتزامات وحقوق الملكية</td>
+            <td className="strong">{t("reports.balance.totalLiabEquity")}</td>
             <td className={"num strong " + (data.balanced ? "balance-ok" : "balance-bad")}>
               {fmt(data.totalLiabilities + data.totalEquity)} {data.balanced ? "✓" : "⚠"}
             </td>
@@ -108,6 +111,7 @@ function BalanceSheetView({ data, accounts, filters }) {
 }
 
 export default function ReportsModule({ companies, companyId, tab, setTab }) {
+  const { t } = useTranslation();
   const [accounts, setAccounts] = useState([]);
   const [incomeStatement, setIncomeStatement] = useState(null);
   const [balanceSheet, setBalanceSheet] = useState(null);
@@ -185,22 +189,22 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
   return (
     <div>
       <div className="section-title">
-        <Breadcrumb parts={["الإفصاح المالي", "بيانات حقيقية"]} />
-        <h2>التقارير المالية الرئيسية</h2>
+        <Breadcrumb parts={[t("reports.breadcrumb"), t("dashboard.breadcrumb.realData")]} />
+        <h2>{t("reports.title")}</h2>
       </div>
 
       {error && <p className="balance-bad">{error}</p>}
       {!companyId && tab !== "monthly" && tab !== "automation" ? (
-        <p className="empty">أنشئ شركة أولاً من لوحة القيادة لعرض تقاريرها المالية.</p>
+        <p className="empty">{t("reports.noCompany")}</p>
       ) : loading ? (
-        <p className="empty">جارٍ التحميل...</p>
+        <p className="empty">{t("common.loading")}</p>
       ) : (
         <>
           <SubTabs
             tabs={REPORT_TABS}
             active={tab}
             onChange={setTab}
-            trailing={<button className="icon-btn" title="طباعة التقرير الحالي" onClick={() => setPrinting(true)}><Icon.Printer /></button>}
+            trailing={<button className="icon-btn" title={t("reports.printCurrent")} onClick={() => setPrinting(true)}><Icon.Printer /></button>}
           />
           {tab === "monthly" && <ComprehensiveMonthlyReport companyId={companyId} />}
           {tab === "automation" && <ReportScheduleAutomation companyId={companyId} />}

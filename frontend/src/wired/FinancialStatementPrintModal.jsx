@@ -1,10 +1,9 @@
 import React, { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { PrintShell, printWithOrientation } from "../legacy/shared";
 import { fmt } from "../legacy/constants";
 
-const TITLES = { trial: "ميزان المراجعة", income: "قائمة الدخل", balance: "المركز المالي" };
-
-function TrialBalanceTable({ data }) {
+function TrialBalanceTable({ data, t }) {
   const rows = data.rows.filter(
     (r) => r.opening.debit || r.opening.credit || r.period.debit || r.period.credit || r.closing.debit || r.closing.credit,
   );
@@ -12,10 +11,14 @@ function TrialBalanceTable({ data }) {
     <table className="ledger-table voucher-table">
       <thead>
         <tr>
-          <th rowSpan={2}>الكود</th><th rowSpan={2}>الحساب</th>
-          <th colSpan={2}>الرصيد الافتتاحي</th><th colSpan={2}>حركة الفترة</th><th colSpan={2}>الرصيد الختامي</th>
+          <th rowSpan={2}>{t("reports.statementPrint.codeHeader")}</th><th rowSpan={2}>{t("reports.trial.table.account")}</th>
+          <th colSpan={2}>{t("reports.trial.table.openingBalance")}</th><th colSpan={2}>{t("reports.trial.table.periodMovement")}</th><th colSpan={2}>{t("reports.trial.table.closingBalance")}</th>
         </tr>
-        <tr><th>مدين</th><th>دائن</th><th>مدين</th><th>دائن</th><th>مدين</th><th>دائن</th></tr>
+        <tr>
+          <th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th>
+          <th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th>
+          <th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th>
+        </tr>
       </thead>
       <tbody>
         {rows.map((r) => (
@@ -33,7 +36,7 @@ function TrialBalanceTable({ data }) {
       </tbody>
       <tfoot>
         <tr>
-          <td className="foot-label" colSpan={2}>الإجمالي</td>
+          <td className="foot-label" colSpan={2}>{t("reports.statementPrint.totalLabel")}</td>
           <td className="num strong">{fmt(data.totals.openingDebit)}</td>
           <td className="num strong">{fmt(data.totals.openingCredit)}</td>
           <td className="num strong">{fmt(data.totals.periodDebit)}</td>
@@ -59,38 +62,38 @@ function PrintAmountTreeRows({ nodes, depth = 0 }) {
   ));
 }
 
-function IncomeStatementTable({ data }) {
+function IncomeStatementTable({ data, t }) {
   return (
     <table className="ledger-table voucher-table">
       <tbody>
-        <tr><td className="strong section-row" colSpan={2}>الإيرادات</td></tr>
+        <tr><td className="strong section-row" colSpan={2}>{t("reports.income.revenue")}</td></tr>
         <PrintAmountTreeRows nodes={data.revenueRoots} />
-        <tr><td className="strong">إجمالي الإيرادات</td><td className="num strong">{fmt(data.totalRevenue)}</td></tr>
-        <tr><td className="strong section-row" colSpan={2}>المصروفات</td></tr>
+        <tr><td className="strong">{t("reports.income.totalRevenue")}</td><td className="num strong">{fmt(data.totalRevenue)}</td></tr>
+        <tr><td className="strong section-row" colSpan={2}>{t("reports.income.expenses")}</td></tr>
         <PrintAmountTreeRows nodes={data.expenseRoots} />
-        <tr><td className="strong">إجمالي المصروفات</td><td className="num strong">{fmt(data.totalExpense)}</td></tr>
-        <tr className="net-row"><td className="strong">صافي الربح</td><td className="num strong">{fmt(data.netIncome)}</td></tr>
+        <tr><td className="strong">{t("reports.income.totalExpenses")}</td><td className="num strong">{fmt(data.totalExpense)}</td></tr>
+        <tr className="net-row"><td className="strong">{t("reports.income.netIncome")}</td><td className="num strong">{fmt(data.netIncome)}</td></tr>
       </tbody>
     </table>
   );
 }
 
-function BalanceSheetTable({ data }) {
+function BalanceSheetTable({ data, t }) {
   return (
     <table className="ledger-table voucher-table">
       <tbody>
-        <tr><td className="strong section-row" colSpan={2}>الأصول</td></tr>
+        <tr><td className="strong section-row" colSpan={2}>{t("reports.balance.assets")}</td></tr>
         <PrintAmountTreeRows nodes={data.assetRoots} />
-        <tr><td className="strong">إجمالي الأصول</td><td className="num strong">{fmt(data.totalAssets)}</td></tr>
-        <tr><td className="strong section-row" colSpan={2}>الالتزامات</td></tr>
+        <tr><td className="strong">{t("reports.balance.totalAssets")}</td><td className="num strong">{fmt(data.totalAssets)}</td></tr>
+        <tr><td className="strong section-row" colSpan={2}>{t("reports.balance.liabilities")}</td></tr>
         <PrintAmountTreeRows nodes={data.liabilityRoots} />
-        <tr><td className="strong">إجمالي الالتزامات</td><td className="num strong">{fmt(data.totalLiabilities)}</td></tr>
-        <tr><td className="strong section-row" colSpan={2}>حقوق الملكية</td></tr>
+        <tr><td className="strong">{t("reports.balance.totalLiabilities")}</td><td className="num strong">{fmt(data.totalLiabilities)}</td></tr>
+        <tr><td className="strong section-row" colSpan={2}>{t("reports.balance.equity")}</td></tr>
         <PrintAmountTreeRows nodes={data.equityRoots} />
-        <tr><td className="indent">صافي الربح (أرباح مرحّلة)</td><td className="num">{fmt(data.netIncome)}</td></tr>
-        <tr><td className="strong">إجمالي حقوق الملكية</td><td className="num strong">{fmt(data.totalEquity)}</td></tr>
+        <tr><td className="indent">{t("reports.balance.retainedEarnings")}</td><td className="num">{fmt(data.netIncome)}</td></tr>
+        <tr><td className="strong">{t("reports.balance.totalEquity")}</td><td className="num strong">{fmt(data.totalEquity)}</td></tr>
         <tr className="net-row">
-          <td className="strong">إجمالي الالتزامات وحقوق الملكية</td>
+          <td className="strong">{t("reports.balance.totalLiabEquity")}</td>
           <td className="num strong">{fmt(data.totalLiabilities + data.totalEquity)} {data.balanced ? "✓" : "⚠"}</td>
         </tr>
       </tbody>
@@ -100,22 +103,25 @@ function BalanceSheetTable({ data }) {
 
 /** طباعة أي من التقارير المالية الثلاثة — نفس بيانات الشاشة بالضبط، داخل PrintShell المشترك */
 export default function FinancialStatementPrintModal({ kind, data, company, asOfDate, autoPrint, onClose }) {
+  const { t } = useTranslation();
+  const TITLES = { trial: t("nav.tabs.trial"), income: t("nav.tabs.income"), balance: t("nav.tabs.balance") };
+
   useEffect(() => {
     if (!autoPrint) return;
-    const t = setTimeout(() => printWithOrientation(false), 200);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => printWithOrientation(false), 200);
+    return () => clearTimeout(timer);
   }, [autoPrint, kind]);
 
   return (
     <PrintShell
       subtitle={TITLES[kind]}
       company={company}
-      refNode={<div>حتى تاريخ: <strong>{asOfDate || new Date().toISOString().slice(0, 10)}</strong></div>}
+      refNode={<div>{t("reports.statementPrint.asOfDateLabel")} <strong>{asOfDate || new Date().toISOString().slice(0, 10)}</strong></div>}
       onClose={onClose}
     >
-      {kind === "trial" && <TrialBalanceTable data={data} />}
-      {kind === "income" && <IncomeStatementTable data={data} />}
-      {kind === "balance" && <BalanceSheetTable data={data} />}
+      {kind === "trial" && <TrialBalanceTable data={data} t={t} />}
+      {kind === "income" && <IncomeStatementTable data={data} t={t} />}
+      {kind === "balance" && <BalanceSheetTable data={data} t={t} />}
     </PrintShell>
   );
 }

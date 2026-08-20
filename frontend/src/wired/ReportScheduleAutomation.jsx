@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getReportSchedule, updateReportSchedule, sendReportScheduleNow } from "../api/reports";
-
-const FREQUENCY_LABELS = { daily: "يومياً", weekly: "أسبوعياً", monthly: "شهرياً" };
-const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+import { formatDateTime } from "../i18n/dateFormat";
 
 /** لوحة إعداد الإرسال الدوري التلقائي للتقارير المالية بالبريد الإلكتروني — سجل واحد فقط لكل
  * شركة (نفس نمط "حدود التنبيه" في ComprehensiveMonthlyReport.jsx)، مع زر "إرسال الآن" لاختبار
@@ -10,6 +9,10 @@ const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأر�
  * تُدخَل وتُخزَّن وتُقارَن بتوقيت السعودية مباشرة (لا تحويل UTC هنا ولا في الخادم) — تفادياً لخطأ
  * انزياح يوم كامل كان يحدث سابقاً عند تحويل الساعة فقط دون اليوم المرافق لها قرب منتصف الليل. */
 export default function ReportScheduleAutomation({ companyId }) {
+  const { t, i18n } = useTranslation();
+  const FREQUENCY_LABELS = { daily: t("reports.automation.frequency.daily"), weekly: t("reports.automation.frequency.weekly"), monthly: t("reports.automation.frequency.monthly") };
+  const WEEKDAYS = t("reports.automation.weekdays", { returnObjects: true });
+
   const [schedule, setSchedule] = useState(null);
   const [recipientsText, setRecipientsText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -30,9 +33,9 @@ export default function ReportScheduleAutomation({ companyId }) {
       .catch((e) => setError(e.message));
   }, [companyId]);
 
-  if (!companyId) return <p className="empty">أنشئ شركة أولاً من لوحة القيادة لضبط إرسال تقاريرها.</p>;
+  if (!companyId) return <p className="empty">{t("reports.automation.noCompany")}</p>;
   if (error && !schedule) return <p className="balance-bad">{error}</p>;
-  if (!schedule) return <p className="empty">جارٍ التحميل...</p>;
+  if (!schedule) return <p className="empty">{t("common.loading")}</p>;
 
   const setField = (field, value) => setSchedule((s) => ({ ...s, [field]: value }));
 
@@ -56,7 +59,7 @@ export default function ReportScheduleAutomation({ companyId }) {
       });
       setSchedule(saved);
       setRecipientsText((saved.recipientEmails || []).join(", "));
-      setMessage("تم حفظ إعدادات الإرسال الدوري بنجاح.");
+      setMessage(t("reports.automation.savedMsg"));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -70,7 +73,7 @@ export default function ReportScheduleAutomation({ companyId }) {
     setMessage("");
     try {
       const res = await sendReportScheduleNow(companyId);
-      setMessage(`تم إرسال التقرير الآن إلى: ${res.sentTo.join("، ")}`);
+      setMessage(t("reports.automation.sentMsg", { emails: res.sentTo.join("، ") }));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -80,15 +83,12 @@ export default function ReportScheduleAutomation({ companyId }) {
 
   return (
     <div className="panel">
-      <h3>أتمتة إرسال التقارير المالية بالبريد الإلكتروني</h3>
-      <p className="empty">
-        يُرسَل ملخّص التقارير المختارة أدناه تلقائياً بالبريد الإلكتروني حسب الجدولة المحددة —
-        لكل مستخدمي هذه الشركة بدور مدير/مدير حسابات افتراضياً، أو لقائمة بريدية مخصّصة إن أضفتها أدناه.
-      </p>
+      <h3>{t("reports.automation.title")}</h3>
+      <p className="empty">{t("reports.automation.intro")}</p>
 
       <div className="filter-bar">
         <label>
-          دورية الإرسال
+          {t("reports.automation.frequencyLabel")}
           <select value={schedule.frequency} onChange={(e) => setField("frequency", e.target.value)}>
             {Object.entries(FREQUENCY_LABELS).map(([k, label]) => (
               <option key={k} value={k}>{label}</option>
@@ -97,7 +97,7 @@ export default function ReportScheduleAutomation({ companyId }) {
         </label>
         {schedule.frequency === "weekly" && (
           <label>
-            يوم الأسبوع (بتوقيت السعودية)
+            {t("reports.automation.dayOfWeekLabel")}
             <select value={schedule.dayOfWeek} onChange={(e) => setField("dayOfWeek", e.target.value)}>
               {WEEKDAYS.map((d, i) => (
                 <option key={i} value={i}>{d}</option>
@@ -107,12 +107,12 @@ export default function ReportScheduleAutomation({ companyId }) {
         )}
         {schedule.frequency === "monthly" && (
           <label>
-            يوم الشهر (بتوقيت السعودية)
+            {t("reports.automation.dayOfMonthLabel")}
             <input type="number" min={1} max={28} value={schedule.dayOfMonth} onChange={(e) => setField("dayOfMonth", e.target.value)} />
           </label>
         )}
         <label>
-          ساعة الإرسال (بتوقيت السعودية)
+          {t("reports.automation.hourLabel")}
           <input
             type="number"
             min={0}
@@ -122,30 +122,28 @@ export default function ReportScheduleAutomation({ companyId }) {
           />
         </label>
         <label className="checkbox-label" style={{ alignSelf: "end" }}>
-          <input type="checkbox" checked={schedule.enabled} onChange={(e) => setField("enabled", e.target.checked)} /> تفعيل الإرسال التلقائي
+          <input type="checkbox" checked={schedule.enabled} onChange={(e) => setField("enabled", e.target.checked)} /> {t("reports.automation.enableToggle")}
         </label>
       </div>
-      <p className="empty" style={{ marginTop: -8 }}>
-        كل التوقيتات أعلاه بتوقيت السعودية المحلي مباشرة — مثال: 6 تعني الساعة 6:00 صباحاً بتوقيت السعودية.
-      </p>
+      <p className="empty" style={{ marginTop: -8 }}>{t("reports.automation.timezoneNote")}</p>
 
       <div className="filter-bar">
         <label className="checkbox-label">
-          <input type="checkbox" checked={schedule.includeComprehensiveMonthly} onChange={(e) => setField("includeComprehensiveMonthly", e.target.checked)} /> الملخص الشهري الشامل
+          <input type="checkbox" checked={schedule.includeComprehensiveMonthly} onChange={(e) => setField("includeComprehensiveMonthly", e.target.checked)} /> {t("reports.automation.includeMonthly")}
         </label>
         <label className="checkbox-label">
-          <input type="checkbox" checked={schedule.includeTrialBalance} onChange={(e) => setField("includeTrialBalance", e.target.checked)} /> ميزان المراجعة
+          <input type="checkbox" checked={schedule.includeTrialBalance} onChange={(e) => setField("includeTrialBalance", e.target.checked)} /> {t("nav.tabs.trial")}
         </label>
         <label className="checkbox-label">
-          <input type="checkbox" checked={schedule.includeIncomeStatement} onChange={(e) => setField("includeIncomeStatement", e.target.checked)} /> قائمة الدخل
+          <input type="checkbox" checked={schedule.includeIncomeStatement} onChange={(e) => setField("includeIncomeStatement", e.target.checked)} /> {t("nav.tabs.income")}
         </label>
         <label className="checkbox-label">
-          <input type="checkbox" checked={schedule.includeBalanceSheet} onChange={(e) => setField("includeBalanceSheet", e.target.checked)} /> المركز المالي
+          <input type="checkbox" checked={schedule.includeBalanceSheet} onChange={(e) => setField("includeBalanceSheet", e.target.checked)} /> {t("nav.tabs.balance")}
         </label>
       </div>
 
       <label style={{ display: "block", marginTop: 12 }}>
-        مستلمون إضافيون (اختياري — بريد إلكتروني مفصول بفاصلة، اتركه فارغاً لإرسال تلقائي لكل مديري/مديري حسابات هذه الشركة)
+        {t("reports.automation.recipientsLabel")}
         <input
           type="text"
           style={{ width: "100%" }}
@@ -156,11 +154,11 @@ export default function ReportScheduleAutomation({ companyId }) {
       </label>
 
       <div className="filter-bar" style={{ marginTop: 16 }}>
-        <button className="btn-primary" onClick={save} disabled={saving}>{saving ? "جارٍ الحفظ..." : "حفظ الإعدادات"}</button>
-        <button className="btn-secondary" onClick={sendNow} disabled={sending}>{sending ? "جارٍ الإرسال..." : "إرسال الآن (اختبار)"}</button>
+        <button className="btn-primary" onClick={save} disabled={saving}>{saving ? t("reports.automation.saving") : t("reports.automation.saveBtn")}</button>
+        <button className="btn-secondary" onClick={sendNow} disabled={sending}>{sending ? t("reports.automation.sending") : t("reports.automation.sendNowBtn")}</button>
       </div>
 
-      {schedule.lastSentAt && <p className="empty">آخر إرسال فعلي: {new Date(schedule.lastSentAt).toLocaleString("ar-EG")}</p>}
+      {schedule.lastSentAt && <p className="empty">{t("reports.automation.lastSent", { date: formatDateTime(schedule.lastSentAt, i18n.language) })}</p>}
       {message && <p className="balance-ok">{message}</p>}
       {error && <p className="balance-bad">{error}</p>}
     </div>

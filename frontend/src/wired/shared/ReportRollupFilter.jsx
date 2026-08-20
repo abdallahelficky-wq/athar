@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import AccountSearchSelect from "./AccountSearchSelect";
 
 /**
@@ -15,42 +16,43 @@ import AccountSearchSelect from "./AccountSearchSelect";
  * بنفسه — يُفترض عرضه داخل <form> واحد يجمعه مع باقي حقول الفلتر بالشاشة (مثل حقول التاريخ).
  */
 export default function ReportRollupFilter({ accounts, values, onChange }) {
+  const { t } = useTranslation();
   const levelAccounts = accounts.filter((a) => a.level === values.level);
 
   return (
     <>
       <label>
-        المستوى
+        {t("reports.rollupFilter.levelLabel")}
         <select
           value={values.level}
           onChange={(e) => { onChange("level", Number(e.target.value)); onChange("accountId", ""); }}
         >
-          <option value={1}>المستوى 1</option>
-          <option value={2}>المستوى 2</option>
-          <option value={3}>المستوى 3</option>
-          <option value={4}>المستوى 4 (تفصيلي بالكامل)</option>
+          <option value={1}>{t("chartOfAccounts.filters.level1")}</option>
+          <option value={2}>{t("chartOfAccounts.filters.level2")}</option>
+          <option value={3}>{t("chartOfAccounts.filters.level3")}</option>
+          <option value={4}>{t("chartOfAccounts.filters.level4Full")}</option>
         </select>
       </label>
       <label>
-        فلترة بحساب/مجموعة معيّنة
+        {t("reports.rollupFilter.filterByAccountLabel")}
         <AccountSearchSelect
           accounts={levelAccounts}
           value={values.accountId}
           onChange={(accountId) => onChange("accountId", accountId)}
           allowClear
-          clearLabel="— كل حسابات هذا المستوى —"
-          placeholder="ابحث عن حساب أو مجموعة..."
+          clearLabel={t("reports.rollupFilter.clearLabel")}
+          placeholder={t("reports.rollupFilter.placeholder")}
         />
       </label>
       {values.accountId && (
         <label className="checkbox-label">
           <input type="checkbox" checked={values.includeDetails} onChange={(e) => onChange("includeDetails", e.target.checked)} />
-          عرض بالتفاصيل (كل حسابات الترحيل تحت هذه المجموعة)
+          {t("reports.rollupFilter.includeDetails")}
         </label>
       )}
       <label>
-        بحث بالاسم أو الكود
-        <input type="text" value={values.search} onChange={(e) => onChange("search", e.target.value)} placeholder="بحث..." />
+        {t("chartOfAccounts.filters.searchLabel")}
+        <input type="text" value={values.search} onChange={(e) => onChange("search", e.target.value)} placeholder={t("chartOfAccounts.filters.searchPlaceholder")} />
       </label>
     </>
   );

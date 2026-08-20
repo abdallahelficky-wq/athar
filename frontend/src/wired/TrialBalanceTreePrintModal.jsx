@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { PrintShell } from "../legacy/shared";
 import { fmt } from "../legacy/constants";
 
@@ -10,13 +11,14 @@ import { fmt } from "../legacy/constants";
  * الأعمدة تلقائياً في كل صفحة عبر آلية الطباعة الأصلية للمتصفح دون أي كود إضافي.
  */
 export default function TrialBalanceTreePrintModal({ visibleRows, totals, balanced, dateFrom, dateTo, company, onClose }) {
+  const { t } = useTranslation();
   const periodLabel = dateFrom || dateTo
-    ? `الفترة: من ${dateFrom || "بداية النشاط"} إلى ${dateTo || "اليوم"}`
-    : "الفترة: منذ بداية النشاط حتى اليوم";
+    ? t("reports.trialPrint.periodWithDates", { from: dateFrom || t("reports.trialPrint.periodDefaultFrom"), to: dateTo || t("reports.trialPrint.periodDefaultTo") })
+    : t("reports.trialPrint.periodAllTime");
 
   return (
     <PrintShell
-      subtitle="ميزان المراجعة"
+      subtitle={t("nav.tabs.trial")}
       company={company}
       showSignatures={false}
       refNode={<div>{periodLabel}</div>}
@@ -25,15 +27,15 @@ export default function TrialBalanceTreePrintModal({ visibleRows, totals, balanc
       <table className="ledger-table voucher-table tb-print-table">
         <thead>
           <tr>
-            <th rowSpan={2}>الحساب</th>
-            <th colSpan={2}>الرصيد الافتتاحي</th>
-            <th colSpan={2}>حركة الفترة</th>
-            <th colSpan={2}>الرصيد الختامي</th>
+            <th rowSpan={2}>{t("reports.trial.table.account")}</th>
+            <th colSpan={2}>{t("reports.trial.table.openingBalance")}</th>
+            <th colSpan={2}>{t("reports.trial.table.periodMovement")}</th>
+            <th colSpan={2}>{t("reports.trial.table.closingBalance")}</th>
           </tr>
           <tr>
-            <th>مدين</th><th>دائن</th>
-            <th>مدين</th><th>دائن</th>
-            <th>مدين</th><th>دائن</th>
+            <th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th>
+            <th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th>
+            <th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th>
           </tr>
         </thead>
         <tbody>
@@ -51,7 +53,7 @@ export default function TrialBalanceTreePrintModal({ visibleRows, totals, balanc
         </tbody>
         <tfoot>
           <tr>
-            <td className="foot-label">الإجمالي العام</td>
+            <td className="foot-label">{t("reports.trial.totalLabel")}</td>
             <td className="num strong">{fmt(totals.openingDebit)}</td>
             <td className="num strong">{fmt(totals.openingCredit)}</td>
             <td className="num strong">{fmt(totals.periodDebit)}</td>
