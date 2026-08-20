@@ -1,12 +1,19 @@
 import { AR_TO_EN } from "./errorMessages";
+import { DYNAMIC_MESSAGE_PATTERNS } from "./dynamicMessages";
 
 export type Lang = "ar" | "en";
 
-/** يترجم نصاً عربياً إلى الإنجليزية عبر قاموس AR_TO_EN — أي نص غير موجود بالقاموس (رسالة تفاعلية
- * لم تُحوَّل بعد، أو نص لم يُكتشَف) يُعاد كما هو بالعربية بدل كسر الاستجابة. */
+/** يترجم نصاً عربياً إلى الإنجليزية: مطابقة حرفية أولاً عبر AR_TO_EN (الرسائل الثابتة)، ثم مطابقة
+ * نمطية عبر DYNAMIC_MESSAGE_PATTERNS (الرسائل التفاعلية بقيم ديناميكية). أي نص لا يطابق أياً منهما
+ * (نادر — رسالة جديدة لم تُضَف بعد) يُعاد كما هو بالعربية بدل كسر الاستجابة. */
 export function translateMessage(text: string, lang: Lang): string {
   if (lang !== "en") return text;
-  return AR_TO_EN[text] ?? text;
+  if (text in AR_TO_EN) return AR_TO_EN[text];
+  for (const { match, translate } of DYNAMIC_MESSAGE_PATTERNS) {
+    const m = text.match(match);
+    if (m) return translate(m.slice(1));
+  }
+  return text;
 }
 
 /** يمشي على تفاصيل خطأ Zod (نتيجة flatten()) ويترجم كل رسالة داخل formErrors/fieldErrors. */
