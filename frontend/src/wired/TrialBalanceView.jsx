@@ -15,6 +15,7 @@ export default function TrialBalanceView({
   filters,
   expandedIds, setExpandedIds,
   onPrint, onExportExcel,
+  branches,
 }) {
   const { t } = useTranslation();
   const { draft, setField, apply } = filters;
@@ -44,6 +45,15 @@ export default function TrialBalanceView({
       <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); apply(); }}>
         <label>{t("reports.trial.fromDate")}<input type="date" value={draft.dateFrom} onChange={(e) => setField("dateFrom", e.target.value)} /></label>
         <label>{t("reports.trial.toDate")}<input type="date" value={draft.dateTo} onChange={(e) => setField("dateTo", e.target.value)} /></label>
+        {branches && branches.length > 0 && (
+          <label>
+            {t("reports.rollupFilter.branchLabel")}
+            <select value={draft.branchId || ""} onChange={(e) => setField("branchId", e.target.value)}>
+              <option value="">{t("reports.rollupFilter.allBranches")}</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
+            </select>
+          </label>
+        )}
         <label>
           {t("reports.trial.levelLabel")}
           <select value={draft.level} onChange={(e) => setField("level", Number(e.target.value))}>

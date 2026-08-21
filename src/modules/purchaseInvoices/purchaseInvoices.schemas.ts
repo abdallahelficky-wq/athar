@@ -19,6 +19,8 @@ const lineSchema = z.object({
 export const createPurchaseInvoiceSchema = z.object({
   companyId: z.string().min(1),
   supplierId: z.string().min(1),
+  // فرع اختياري تابع لنفس الشركة — تصنيف/عرض فقط، انظر Branch بالمخطط.
+  branchId: z.string().nullable().optional(),
   date: z.coerce.date(),
   lines: z.array(lineSchema).min(1),
 });

@@ -46,6 +46,7 @@ model Tenant {
   companies        Company[]
   costCenters      CostCenter[]
   departments      Department[]
+  branches         Branch[]
   accounts         Account[]
   companyDocuments CompanyDocument[]
   leaseContracts   LeaseContract[]
@@ -242,6 +243,7 @@ model Company {
 
   costCenters          CostCenter[]
   departments          Department[]
+  branches             Branch[]
   companyDocuments     CompanyDocument[]
   leaseContracts       LeaseContract[]
   journalEntries       JournalEntry[]
@@ -523,12 +525,44 @@ enum SourceModule {
   bulk_import
 }
 
+// فرع تابع لشركة واحدة — طبقة تصنيف وعرض إضافية فقط (بنفس مبدأ CostCenter/Department)، بدولة
+// وعملة خاصتين به قد تختلفان عن دولة/عملة الشركة الأم. القيد المحاسبي نفسه يبقى دائماً بعملة
+// الشركة الأم بصرف النظر عن الفرع المختار — currency/exchangeRateToCompanyCurrency هنا لعرض
+// "القيمة المعادلة" بجانب المبلغ الأصلي فقط، وليسا جزءاً من منطق الترحيل. exchangeRateToCompanyCurrency
+// سعر صرف يدوي (مبلغ بعملة الشركة الأم = مبلغ بعملة الفرع × هذا السعر)، يُحدَّثه المستخدم يدوياً
+// من إعدادات الفرع، لا يُستكمَل تلقائياً من أي مصدر خارجي.
+model Branch {
+  id                            String   @id @default(cuid())
+  tenantId                      String
+  tenant                        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                     String
+  company                       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  nameAr                        String
+  nameEn                        String?
+  country                       String
+  currency                      String
+  exchangeRateToCompanyCurrency Decimal? @db.Decimal(18, 6)
+  isActive                      Boolean  @default(true)
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  journalEntries    JournalEntry[]
+  salesInvoices     SalesInvoice[]
+  purchaseInvoices  PurchaseInvoice[]
+
+  @@index([tenantId, companyId])
+  @@map("branches")
+}
+
 model JournalEntry {
   id                String             @id @default(cuid())
   tenantId          String
   tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   companyId         String
   company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // فرع اختياري تابع لنفس الشركة — تصنيف/عرض فقط (انظر تعليق Branch)، لا يؤثر على عملة الترحيل.
+  branchId          String?
+  branch            Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
   date              DateTime
   memo              String?
   status            JournalEntryStatus @default(posted)
@@ -555,6 +589,7 @@ model JournalEntry {
   @@index([tenantId, sourceModule, sourceId])
   @@index([tenantId, mirrorEntryId])
   @@index([tenantId, reversalOfEntryId])
+  @@index([tenantId, branchId])
   @@map("journal_entries")
 }
 
@@ -698,6 +733,8 @@ model SalesInvoice {
   company                  Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customerId               String
   customer                 Customer            @relation(fields: [customerId], references: [id])
+  branchId                 String?
+  branch                   Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
   date                     DateTime
   invoiceType              InvoiceType
   status                   InvoiceStatus       @default(posted)
@@ -996,6 +1033,8 @@ model PurchaseInvoice {
   company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   supplierId     String
   supplier       Supplier      @relation(fields: [supplierId], references: [id])
+  branchId       String?
+  branch         Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
   date           DateTime
   status         InvoiceStatus @default(posted)
   journalEntryId String?

@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { listAccounts } from "../api/accounts";
 import { listCostCenters } from "../api/costCenters";
 import { listDepartments } from "../api/departments";
+import { listBranches } from "../api/branches";
 import {
   listJournalEntries,
   getJournalEntry,
@@ -38,6 +39,7 @@ export default function JournalModule({ companies, companyId }) {
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -73,6 +75,11 @@ export default function JournalModule({ companies, companyId }) {
   useEffect(() => {
     listCostCenters().then(setCostCenters).catch((err) => setError(err.message));
     listDepartments().then(setDepartments).catch((err) => setError(err.message));
+  }, [companyId]);
+
+  useEffect(() => {
+    if (!companyId) { setBranches([]); return; }
+    listBranches(companyId).then(setBranches).catch((err) => setError(err.message));
   }, [companyId]);
 
   const reloadEntries = () => {
@@ -429,6 +436,7 @@ export default function JournalModule({ companies, companyId }) {
           accounts={accounts}
           costCenters={costCenters}
           departments={departments}
+          branches={branches}
           editingEntry={formModal.mode === "edit" ? formModal.entry : null}
           duplicateEntry={formModal.mode === "duplicate" ? formModal.entry : null}
           onClose={() => setFormModal(null)}

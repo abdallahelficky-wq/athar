@@ -821,6 +821,8 @@
       "close": "Close",
       "duplicateBanner": "The entry data was duplicated — review it before saving the new entry",
       "date": "Date", "entryNumber": "Entry #", "entryNumberPreviewTitle": "Preview number only — not reserved until the moment of saving",
+      "branchLabel": "Branch (optional)",
+      "branchEquivalent": "Equivalent: {{amount}} {{currency}} (branch currency, display only)",
       "memo": "Entry memo", "memoPlaceholder": "General description for the entry",
       "lines": { "account": "Account", "debit": "Debit", "credit": "Credit", "description": "Description", "costCenter": "Cost Center", "department": "Department" },
       "descriptionPlaceholder": "Description specific to this line",
@@ -969,6 +971,8 @@
     "allCostCenters": "All cost centers",
     "departmentLabel": "Department",
     "allDepartments": "All departments",
+    "branchLabel": "Branch",
+    "allBranches": "All branches",
     "dateFrom": "From date",
     "dateTo": "To date",
     "showResults": "Show results",
@@ -1393,6 +1397,25 @@
       "table": { "title": "Contract", "counterparty": "Lessor", "monthlyRent": "Monthly rent", "start": "Start", "end": "End" },
       "empty": "No lease contracts registered yet."
     },
+    "branches": {
+      "title": "Branches",
+      "nameArLabel": "Branch name (Arabic)",
+      "nameEnLabel": "Branch name (English, optional)",
+      "countryLabel": "Country",
+      "currencyLabel": "Currency",
+      "exchangeRateLabel": "Exchange rate vs. company currency (optional)",
+      "exchangeRateHint": "Amount in company currency = amount in branch currency × this rate — updated manually, display only.",
+      "addBtn": "+ Add branch",
+      "saveChanges": "Save changes",
+      "errRequired": "Branch name, country and currency are required",
+      "confirmDelete": "Permanently delete branch \"{{name}}\"?",
+      "table": { "name": "Branch", "country": "Country", "currency": "Currency", "status": "Status" },
+      "statusActive": "Active",
+      "statusInactive": "Inactive",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "empty": "No branches registered yet — entries and invoices stay attached to the parent company generally, with no specific branch."
+    },
     "users": {
       "nameLabel": "Name",
       "emailLabel": "Email",
@@ -1662,7 +1685,9 @@
       "filterByAccountLabel": "Filter by a specific account/group",
       "clearLabel": "— All accounts at this level —",
       "placeholder": "Search for an account or group...",
-      "includeDetails": "Show details (all posting accounts under this group)"
+      "includeDetails": "Show details (all posting accounts under this group)",
+      "branchLabel": "Branch",
+      "allBranches": "All branches (combined)"
     },
     "periodFilter": {
       "presetMonth": "Current month",

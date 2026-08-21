@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
 import { listAccounts } from "../../api/accounts";
 import { listItems } from "../../api/items";
+import { listBranches } from "../../api/branches";
 import { currencyLabel } from "../../shared/countries";
 import { createSalesInvoice, updateSalesInvoice, postSalesInvoice } from "../../api/salesInvoices";
 import SalesInvoiceLinesEditor, { emptySalesLine } from "./SalesInvoiceLinesEditor";
@@ -34,11 +35,13 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   const [customers, setCustomers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [items, setItems] = useState([]);
+  const [branches, setBranches] = useState([]);
 
   const [customerId, setCustomerId] = useState(seed?.customerId || "");
   const [customerSearchText, setCustomerSearchText] = useState("");
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
   const [date, setDate] = useState(() => (isEdit ? seed.date.slice(0, 10) : new Date().toISOString().slice(0, 10)));
+  const [branchId, setBranchId] = useState(seed?.branchId || "");
   const [lines, setLines] = useState(() => (seed ? seed.lines.map(lineFromExisting) : [emptySalesLine()]));
 
   const [newCustomerModal, setNewCustomerModal] = useState(null);
@@ -53,7 +56,10 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
     listCustomers(companyId).then(setCustomers);
     listAccounts({ companyId }).then((accs) => setAccounts(accs.filter((a) => a.type === "revenue")));
     listItems(companyId).then(setItems);
+    listBranches(companyId).then(setBranches);
   }, [companyId]);
+
+  const branchOptions = branches.filter((b) => b.isActive || b.id === branchId);
 
   const selectedCustomer = customers.find((c) => c.id === customerId);
   const invType = selectedCustomer ? (selectedCustomer.customerType === "business" && selectedCustomer.vatNumber ? "standard" : "simplified") : null;
@@ -85,7 +91,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
 
   const cleanLines = () => lines.filter((l) => l.accountId && Number(l.unitPrice) > 0);
 
-  const buildPayload = () => ({ companyId, customerId, date, lines: cleanLines() });
+  const buildPayload = () => ({ companyId, customerId, branchId: branchId || null, date, lines: cleanLines() });
 
   // إرسال الفاتورة بالإيميل يحدث فقط عند الترحيل الفعلي (لا عند الحفظ كمسودة) — النتيجة تصل هنا
   // ضمن استجابة الترحيل/الإنشاء نفسها، فتُضاف كجملة توضيحية لرسالة النجاح بدل نافذة منفصلة.
@@ -156,6 +162,15 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
             )}
           </label>
           <label>{t("salesInvoices.form.invoiceDate")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          {branchOptions.length > 0 && (
+            <label>
+              {t("journalEntries.form.branchLabel")}
+              <select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+                <option value="">{t("common.clearOption")}</option>
+                {branchOptions.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
+              </select>
+            </label>
+          )}
           <label className="memo-field">
             {t("salesInvoices.form.invoiceTypeAuto")}
             <input

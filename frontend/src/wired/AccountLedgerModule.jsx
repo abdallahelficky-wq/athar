@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { listAccounts } from "../api/accounts";
 import { listCostCenters } from "../api/costCenters";
 import { listDepartments } from "../api/departments";
+import { listBranches } from "../api/branches";
 import { getAccountLedger } from "../api/reports";
 import { fmt } from "../legacy/constants";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
@@ -10,7 +11,7 @@ import Breadcrumb from "./shared/Breadcrumb";
 import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
 
-const emptyFilters = { accountId: "", subAccountId: "", costCenterId: "", departmentId: "", dateFrom: "", dateTo: "" };
+const emptyFilters = { accountId: "", subAccountId: "", costCenterId: "", departmentId: "", branchId: "", dateFrom: "", dateTo: "" };
 
 /** كل حسابات الترحيل (isPosting) تحت حساب مجموعة معيّن، بحث بالعمق عبر parentId — مطابق تماماً
  * لمنطق collectPostingDescendants في reports.service.ts (الخادم)، لكن على القائمة المحمَّلة محلياً. */
@@ -38,6 +39,7 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [branches, setBranches] = useState([]);
   const alf = useDeferredFilters(emptyFilters);
   const [ledger, setLedger] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -51,6 +53,7 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
     listAccounts({ tree: true, companyId }).then(setAccounts).catch((err) => setError(err.message));
     listCostCenters().then(setCostCenters).catch((err) => setError(err.message));
     listDepartments().then(setDepartments).catch((err) => setError(err.message));
+    listBranches(companyId).then(setBranches).catch((err) => setError(err.message));
     alf.reset(emptyFilters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
@@ -82,6 +85,10 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
     () => departments.filter((d) => !d.companyId || d.companyId === companyId),
     [departments, companyId],
   );
+  const branchOptions = useMemo(
+    () => branches.filter((b) => b.isActive || b.id === alf.draft.branchId),
+    [branches, alf.draft.branchId],
+  );
 
   useEffect(() => {
     const f = alf.applied;
@@ -92,6 +99,7 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
     getAccountLedger(effectiveAccountId, {
       companyId, from: f.dateFrom || undefined, to: f.dateTo || undefined,
       costCenterId: f.costCenterId || undefined, departmentId: f.departmentId || undefined,
+      branchId: f.branchId || undefined,
     })
       .then(setLedger)
       .catch((err) => setError(err.message))
@@ -144,6 +152,14 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                   {departmentOptions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </label>
+              {branchOptions.length > 0 && (
+                <label>{t("accountLedger.branchLabel")}
+                  <select value={alf.draft.branchId} onChange={(e) => alf.setField("branchId", e.target.value)}>
+                    <option value="">{t("accountLedger.allBranches")}</option>
+                    {branchOptions.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
+                  </select>
+                </label>
+              )}
               <label>{t("accountLedger.dateFrom")}<input type="date" value={alf.draft.dateFrom} onChange={(e) => alf.setField("dateFrom", e.target.value)} /></label>
               <label>{t("accountLedger.dateTo")}<input type="date" value={alf.draft.dateTo} onChange={(e) => alf.setField("dateTo", e.target.value)} /></label>
               <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("accountLedger.showResults")}</button>

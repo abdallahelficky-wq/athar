@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getTrialBalanceTree, getIncomeStatement, getBalanceSheet } from "../api/reports";
 import { listAccounts } from "../api/accounts";
+import { listBranches } from "../api/branches";
 import { fmt } from "../legacy/constants";
 import FinancialStatementPrintModal from "./FinancialStatementPrintModal";
 import TrialBalanceTreePrintModal from "./TrialBalanceTreePrintModal";
@@ -41,7 +42,7 @@ function AmountTreeRows({ nodes, depth = 0 }) {
   ));
 }
 
-function IncomeStatementView({ data, accounts, filters }) {
+function IncomeStatementView({ data, accounts, filters, branches }) {
   const { t } = useTranslation();
   if (!data) return null;
   const { draft, setField, apply } = filters;
@@ -51,7 +52,7 @@ function IncomeStatementView({ data, accounts, filters }) {
       <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); apply(); }}>
         <label>{t("reports.income.fromDate")}<input type="date" value={draft.dateFrom} onChange={(e) => setField("dateFrom", e.target.value)} /></label>
         <label>{t("reports.income.toDate")}<input type="date" value={draft.dateTo} onChange={(e) => setField("dateTo", e.target.value)} /></label>
-        <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} />
+        <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} branches={branches} />
         <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("reports.income.showResults")}</button>
       </form>
       <table className="ledger-table">
@@ -71,7 +72,7 @@ function IncomeStatementView({ data, accounts, filters }) {
   );
 }
 
-function BalanceSheetView({ data, accounts, filters }) {
+function BalanceSheetView({ data, accounts, filters, branches }) {
   const { t } = useTranslation();
   if (!data) return null;
   const { draft, setField, apply } = filters;
@@ -80,7 +81,7 @@ function BalanceSheetView({ data, accounts, filters }) {
       <h3>{t("nav.tabs.balance")}</h3>
       <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); apply(); }}>
         <label>{t("reports.balance.asOfDate")}<input type="date" value={draft.asOfDate} onChange={(e) => setField("asOfDate", e.target.value)} /></label>
-        <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} />
+        <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} branches={branches} />
         <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("reports.balance.showResults")}</button>
       </form>
       <table className="ledger-table">
@@ -113,6 +114,7 @@ function BalanceSheetView({ data, accounts, filters }) {
 export default function ReportsModule({ companies, companyId, tab, setTab }) {
   const { t } = useTranslation();
   const [accounts, setAccounts] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [incomeStatement, setIncomeStatement] = useState(null);
   const [balanceSheet, setBalanceSheet] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -126,18 +128,19 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
   // "إظهار النتائج" أو Enter — راجع تعليق الـ hook نفسه لتفاصيل السبب.
   const rollupFilters = useDeferredFilters({
     dateFrom: "", dateTo: "", asOfDate: new Date().toISOString().slice(0, 10),
-    level: 4, accountId: "", includeDetails: false, search: "",
+    level: 4, accountId: "", includeDetails: false, search: "", branchId: "",
   });
 
   // حالة ميزان المراجعة الهرمي (Tree View) — مستقلة تماماً عن فلاتر التقريرين الآخرين، ومؤجَّلة
   // بنفس الطريقة.
   const [tbData, setTbData] = useState(null);
-  const tb = useDeferredFilters({ dateFrom: "", dateTo: "", level: 4, hideZeroActivity: true, search: "" });
+  const tb = useDeferredFilters({ dateFrom: "", dateTo: "", level: 4, hideZeroActivity: true, search: "", branchId: "" });
   const [tbExpandedIds, setTbExpandedIds] = useState(new Set());
 
   useEffect(() => {
     if (!companyId) return;
     listAccounts({ tree: true, companyId }).then(setAccounts).catch(() => {});
+    listBranches(companyId).then(setBranches).catch(() => {});
   }, [companyId]);
 
   useEffect(() => {
@@ -152,6 +155,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
       level: f.level,
       hideZeroActivity: f.hideZeroActivity || undefined,
       search: f.search || undefined,
+      branchId: f.branchId || undefined,
     })
       .then((tree) => {
         setTbData(tree);
@@ -169,7 +173,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
     setLoading(true);
     setError("");
     const f = rollupFilters.applied;
-    const rollup = { level: f.level, accountId: f.accountId || undefined, includeDetails: f.includeDetails || undefined, search: f.search || undefined };
+    const rollup = { level: f.level, accountId: f.accountId || undefined, includeDetails: f.includeDetails || undefined, search: f.search || undefined, branchId: f.branchId || undefined };
     Promise.all([
       getIncomeStatement({ companyId, from: f.dateFrom || undefined, to: f.dateTo || undefined, ...rollup }),
       getBalanceSheet({ companyId, date: f.asOfDate || undefined, ...rollup }),
@@ -212,6 +216,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
             <TrialBalanceView
               data={tbData}
               filters={tb}
+              branches={branches}
               expandedIds={tbExpandedIds} setExpandedIds={setTbExpandedIds}
               onPrint={() => setPrinting(true)}
               onExportExcel={() => exportTrialBalanceExcel({
@@ -225,10 +230,10 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
             />
           )}
           {tab === "income" && (
-            <IncomeStatementView data={incomeStatement} accounts={accounts} filters={rollupFilters} />
+            <IncomeStatementView data={incomeStatement} accounts={accounts} filters={rollupFilters} branches={branches} />
           )}
           {tab === "balance" && (
-            <BalanceSheetView data={balanceSheet} accounts={accounts} filters={rollupFilters} />
+            <BalanceSheetView data={balanceSheet} accounts={accounts} filters={rollupFilters} branches={branches} />
           )}
         </>
       )}

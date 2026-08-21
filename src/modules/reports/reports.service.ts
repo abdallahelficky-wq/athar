@@ -15,6 +15,10 @@ import {
 
 export interface DateRange {
   companyId?: string;
+  // فرع اختياري (تصنيف/عرض فقط على القيد، انظر Branch بالمخطط) — لو حُدِّد، تقتصر كل التقارير
+  // المبنية عبر aggregateAccountBalances (ميزان المراجعة، قائمة الدخل، المركز المالي) على قيود
+  // هذا الفرع فقط؛ بدونه (الافتراضي) تُجمَّع كل قيود الشركة بصرف النظر عن الفرع.
+  branchId?: string;
   dateFrom?: Date;
   dateTo?: Date;
 }
@@ -47,6 +51,7 @@ export async function aggregateAccountBalances(tenantId: string, range: DateRang
       journalEntry: {
         tenantId,
         companyId: range.companyId || undefined,
+        branchId: range.branchId || undefined,
         date: {
           gte: range.dateFrom,
           lte: range.dateTo,
@@ -168,13 +173,14 @@ export async function getTrialBalanceReport(
   dateFrom: Date | undefined,
   dateTo: Date | undefined,
   rollup: ReportRollupParams,
+  branchId?: string,
 ) {
   const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
   const openingDateTo = dateFrom ? new Date(dateFrom.getTime() - 1) : undefined;
 
   const [openingBalances, periodBalances] = await Promise.all([
-    dateFrom ? aggregateAccountBalances(tenantId, { companyId, dateTo: openingDateTo }) : null,
-    aggregateAccountBalances(tenantId, { companyId, dateFrom, dateTo }),
+    dateFrom ? aggregateAccountBalances(tenantId, { companyId, branchId, dateTo: openingDateTo }) : null,
+    aggregateAccountBalances(tenantId, { companyId, branchId, dateFrom, dateTo }),
   ]);
 
   const opening = new Map<string, Zeroed>();
@@ -299,14 +305,15 @@ export async function getTrialBalanceTree(
   dateFrom: Date | undefined,
   dateTo: Date | undefined,
   options: { level?: number; hideZeroActivity?: boolean; search?: string },
+  branchId?: string,
 ) {
   const level = options.level && options.level >= 1 && options.level <= 4 ? options.level : 4;
   const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
   const openingDateTo = dateFrom ? new Date(dateFrom.getTime() - 1) : undefined;
 
   const [openingBalances, periodBalances] = await Promise.all([
-    dateFrom ? aggregateAccountBalances(tenantId, { companyId, dateTo: openingDateTo }) : null,
-    aggregateAccountBalances(tenantId, { companyId, dateFrom, dateTo }),
+    dateFrom ? aggregateAccountBalances(tenantId, { companyId, branchId, dateTo: openingDateTo }) : null,
+    aggregateAccountBalances(tenantId, { companyId, branchId, dateFrom, dateTo }),
   ]);
 
   // إجماليات الصف الأخير تُجمَع من صافي كل حساب ترحيل على حدة (مدين صافيه موجب يُضاف لعمود
@@ -358,8 +365,8 @@ export async function getTrialBalanceTree(
   };
 }
 
-async function computeIncomeStatement(tenantId: string, companyId: string | undefined, dateFrom?: Date, dateTo?: Date) {
-  const balances = await aggregateAccountBalances(tenantId, { companyId, dateFrom, dateTo });
+async function computeIncomeStatement(tenantId: string, companyId: string | undefined, dateFrom?: Date, dateTo?: Date, branchId?: string) {
+  const balances = await aggregateAccountBalances(tenantId, { companyId, branchId, dateFrom, dateTo });
 
   const revenueRows = [...balances.values()]
     .filter((b) => b.account.type === "revenue")
@@ -436,9 +443,10 @@ export async function getIncomeStatement(
   dateFrom?: Date,
   dateTo?: Date,
   rollup: ReportRollupParams = {},
+  branchId?: string,
 ) {
   const [balances, accounts] = await Promise.all([
-    aggregateAccountBalances(tenantId, { companyId, dateFrom, dateTo }),
+    aggregateAccountBalances(tenantId, { companyId, branchId, dateFrom, dateTo }),
     prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } }),
   ]);
 
@@ -474,16 +482,18 @@ export async function getBalanceSheet(
   companyId?: string,
   asOfDate?: Date,
   rollup: ReportRollupParams = {},
+  branchId?: string,
 ) {
   const [balances, accounts] = await Promise.all([
-    aggregateAccountBalances(tenantId, { companyId, dateTo: asOfDate }),
+    aggregateAccountBalances(tenantId, { companyId, branchId, dateTo: asOfDate }),
     prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } }),
   ]);
 
   // صافي الربح التراكمي حتى تاريخ التقرير يُضاف لحقوق الملكية (أرباح مرحّلة) — رقم إجمالي على
   // مستوى الشركة كاملة دائماً، بصرف النظر عن أي فلتر عرض على صفوف الأصول/الالتزامات/حقوق الملكية،
-  // لأنه ليس صفاً معروضاً بل مكوّن حسابي لبند "حقوق الملكية" الإجمالي.
-  const { netIncome } = await computeIncomeStatement(tenantId, companyId, undefined, asOfDate);
+  // لأنه ليس صفاً معروضاً بل مكوّن حسابي لبند "حقوق الملكية" الإجمالي. لو حُدِّد فرع، يتبعه صافي
+  // الربح هنا أيضاً (نفس الفرع) حتى يبقى المركز المالي متوازناً فعلياً عند الفلترة بفرع.
+  const { netIncome } = await computeIncomeStatement(tenantId, companyId, undefined, asOfDate, branchId);
 
   const assetValues = new Map<string, AmountValue>();
   const liabilityValues = new Map<string, AmountValue>();
@@ -626,7 +636,7 @@ export async function getAccountLedger(
   companyId?: string,
   dateFrom?: Date,
   dateTo?: Date,
-  filters?: { costCenterId?: string; departmentId?: string },
+  filters?: { costCenterId?: string; departmentId?: string; branchId?: string },
 ) {
   const account = await prisma.account.findFirst({
     where: { id: accountId, tenantId, companyId: companyId || undefined },
@@ -650,10 +660,11 @@ export async function getAccountLedger(
       journalEntry: {
         tenantId,
         companyId: companyId || undefined,
+        branchId: filters?.branchId || undefined,
         date: { gte: dateFrom, lte: dateTo },
       },
     },
-    include: { journalEntry: { include: { company: true } }, costCenter: true, departmentRef: true, account: true },
+    include: { journalEntry: { include: { company: true, branch: true } }, costCenter: true, departmentRef: true, account: true },
     orderBy: { journalEntry: { date: "asc" } },
   });
 
@@ -669,6 +680,7 @@ export async function getAccountLedger(
       lineDescription: l.description,
       costCenterName: l.costCenter?.name || null,
       departmentName: l.departmentRef?.name || l.department || null,
+      branchName: l.journalEntry.branch?.nameAr || null,
       companyName: l.journalEntry.company.shortName || l.journalEntry.company.name,
       accountId: l.accountId,
       accountName: l.account.name,

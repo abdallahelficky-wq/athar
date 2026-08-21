@@ -33,7 +33,7 @@ const emptyLine = () => ({
  * Ctrl/Cmd+S = حفظ، Ctrl/Cmd+Enter = حفظ وترحيل (preventDefault يمنع حوار حفظ الصفحة الافتراضي
  * للمتصفح لأول اختصار).
  */
-export default function JournalEntryFormModal({ companyId, companies, accounts, costCenters, departments, editingEntry, duplicateEntry, onClose, onSaved }) {
+export default function JournalEntryFormModal({ companyId, companies, accounts, costCenters, departments, branches, editingEntry, duplicateEntry, onClose, onSaved }) {
   const { t, i18n } = useTranslation();
   const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const isEdit = !!editingEntry;
@@ -58,6 +58,7 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
 
   const [date, setDate] = useState(() => (isEdit ? seed.date.slice(0, 10) : new Date().toISOString().slice(0, 10)));
   const [memo, setMemo] = useState(seed?.memo || "");
+  const [branchId, setBranchId] = useState(seed?.branchId || "");
   const [lines, setLines] = useState(() => (seed ? seed.lines.map(lineFromExisting) : [emptyLine(), emptyLine()]));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -119,6 +120,12 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
   const departmentOptions = useMemo(
     () => departments.filter((d) => !d.companyId || d.companyId === companyId),
     [departments, companyId],
+  );
+  // الفرع الحالي المختار يبقى ضمن الخيارات المعروضة حتى لو صار غير نشط لاحقاً بعد اختياره هنا،
+  // وإلا يختفي من القائمة فجأة عند إعادة فتح قيد قديم مرتبط بفرع عُطِّل بعده.
+  const branchOptions = useMemo(
+    () => (branches || []).filter((b) => b.companyId === companyId && (b.isActive || b.id === branchId)),
+    [branches, companyId, branchId],
   );
 
   const totalDebit = lines.reduce((s, l) => s + Number(l.debit || 0), 0);
@@ -182,6 +189,7 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
 
   const buildPayload = () => ({
     companyId,
+    branchId: branchId || null,
     date,
     memo,
     lines: lines
@@ -244,6 +252,15 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
                 title={isEdit ? "" : t("journalEntries.form.entryNumberPreviewTitle")}
               />
             </label>
+            {branchOptions.length > 0 && (
+              <label>
+                {t("journalEntries.form.branchLabel")}
+                <select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+                  <option value="">{t("common.clearOption")}</option>
+                  {branchOptions.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
+                </select>
+              </label>
+            )}
             <label className="memo-field">{t("journalEntries.form.memo")}<input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder={t("journalEntries.form.memoPlaceholder")} /></label>
           </div>
 

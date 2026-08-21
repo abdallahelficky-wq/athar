@@ -821,6 +821,8 @@
       "close": "إغلاق",
       "duplicateBanner": "تم نسخ بيانات القيد — راجعها قبل حفظ القيد الجديد",
       "date": "التاريخ", "entryNumber": "رقم القيد", "entryNumberPreviewTitle": "رقم معاينة فقط — لا يُحجز إلا لحظة الحفظ",
+      "branchLabel": "الفرع (اختياري)",
+      "branchEquivalent": "ما يعادل: {{amount}} {{currency}} (بعملة الفرع، للعرض فقط)",
       "memo": "بيان القيد", "memoPlaceholder": "وصف عام للقيد",
       "lines": { "account": "الحساب", "debit": "مدين", "credit": "دائن", "description": "الوصف", "costCenter": "مركز التكلفة", "department": "القسم" },
       "descriptionPlaceholder": "وصف خاص بهذا السطر",
@@ -969,6 +971,8 @@
     "allCostCenters": "كل مراكز التكلفة",
     "departmentLabel": "القسم",
     "allDepartments": "كل الأقسام",
+    "branchLabel": "الفرع",
+    "allBranches": "كل الفروع",
     "dateFrom": "من تاريخ",
     "dateTo": "إلى تاريخ",
     "showResults": "إظهار النتائج",
@@ -1393,6 +1397,25 @@
       "table": { "title": "العقد", "counterparty": "المؤجِّر", "monthlyRent": "الإيجار الشهري", "start": "البداية", "end": "النهاية" },
       "empty": "لا توجد عقود إيجار مسجّلة بعد."
     },
+    "branches": {
+      "title": "الفروع",
+      "nameArLabel": "اسم الفرع (عربي)",
+      "nameEnLabel": "اسم الفرع (إنجليزي، اختياري)",
+      "countryLabel": "الدولة",
+      "currencyLabel": "العملة",
+      "exchangeRateLabel": "سعر الصرف مقابل عملة الشركة (اختياري)",
+      "exchangeRateHint": "مبلغ بعملة الشركة = مبلغ بعملة الفرع × هذا السعر — يُحدَّث يدوياً، للعرض فقط.",
+      "addBtn": "+ إضافة فرع",
+      "saveChanges": "حفظ التعديلات",
+      "errRequired": "اسم الفرع والدولة والعملة مطلوبة",
+      "confirmDelete": "حذف فرع \"{{name}}\" نهائياً؟",
+      "table": { "name": "الفرع", "country": "الدولة", "currency": "العملة", "status": "الحالة" },
+      "statusActive": "نشط",
+      "statusInactive": "غير نشط",
+      "activate": "تفعيل",
+      "deactivate": "تعطيل",
+      "empty": "لا توجد فروع مسجّلة بعد — القيود والفواتير تبقى تابعة للشركة الأم عامةً بدون فرع محدَّد."
+    },
     "users": {
       "nameLabel": "الاسم",
       "emailLabel": "البريد الإلكتروني",
@@ -1662,7 +1685,9 @@
       "filterByAccountLabel": "فلترة بحساب/مجموعة معيّنة",
       "clearLabel": "— كل حسابات هذا المستوى —",
       "placeholder": "ابحث عن حساب أو مجموعة...",
-      "includeDetails": "عرض بالتفاصيل (كل حسابات الترحيل تحت هذه المجموعة)"
+      "includeDetails": "عرض بالتفاصيل (كل حسابات الترحيل تحت هذه المجموعة)",
+      "branchLabel": "الفرع",
+      "allBranches": "كل الفروع (مجمّعة)"
     },
     "periodFilter": {
       "presetMonth": "الشهر الحالي",

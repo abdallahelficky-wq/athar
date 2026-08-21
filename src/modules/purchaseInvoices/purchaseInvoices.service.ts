@@ -31,11 +31,12 @@ interface LineInput {
 interface InvoiceInput {
   companyId: string;
   supplierId: string;
+  branchId?: string | null;
   date: Date;
   lines: LineInput[];
 }
 
-const invoiceInclude = { lines: { include: { account: true, item: true, warehouse: true } }, supplier: true, company: true } as const;
+const invoiceInclude = { lines: { include: { account: true, item: true, warehouse: true } }, supplier: true, company: true, branch: true } as const;
 
 function computeLines(lines: LineInput[]) {
   const computed = lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
@@ -90,11 +91,15 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
   return resolved;
 }
 
-async function assertRefs(tenantId: string, companyId: string, supplierId: string, lines: LineInput[]) {
+async function assertRefs(tenantId: string, companyId: string, supplierId: string, lines: LineInput[], branchId?: string | null) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
   const supplier = await prisma.supplier.findFirst({ where: { id: supplierId, tenantId, companyId } });
   if (!supplier) throw badRequest("المورد غير موجود ضمن هذه الشركة");
+  if (branchId) {
+    const branch = await prisma.branch.findFirst({ where: { id: branchId, tenantId, companyId } });
+    if (!branch) throw badRequest("الفرع المحدد غير موجود ضمن هذه الشركة");
+  }
 
   const accountIds = [...new Set(lines.map((l) => l.accountId))];
   const accounts = await prisma.account.findMany({
@@ -233,7 +238,7 @@ export async function getPurchaseInvoice(tenantId: string, id: string) {
 
 export async function createPurchaseInvoice(tenantId: string, userId: string, input: InvoiceInput) {
   const resolvedLines = await resolveLineAccounts(tenantId, input.companyId, input.lines);
-  const supplier = await assertRefs(tenantId, input.companyId, input.supplierId, resolvedLines);
+  const supplier = await assertRefs(tenantId, input.companyId, input.supplierId, resolvedLines, input.branchId);
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(resolvedLines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
 
@@ -246,6 +251,7 @@ export async function createPurchaseInvoice(tenantId: string, userId: string, in
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: input.companyId,
+      branchId: input.branchId || undefined,
       date: input.date,
       memo: `فاتورة مشتريات ${invoiceNumber} — ${supplier.name}`,
       sourceModule: "purchase_invoice",
@@ -259,6 +265,7 @@ export async function createPurchaseInvoice(tenantId: string, userId: string, in
         invoiceNumber,
         companyId: input.companyId,
         supplierId: input.supplierId,
+        branchId: input.branchId || undefined,
         date: input.date,
         status: "posted",
         journalEntryId: entry.id,
@@ -282,7 +289,7 @@ export async function updatePurchaseInvoice(tenantId: string, id: string, input:
   if (existing.status !== "draft") throw badRequest("لا يمكن تعديل فاتورة مرحّلة، يجب فك ترحيلها أولاً");
 
   const resolvedLines = await resolveLineAccounts(tenantId, input.companyId, input.lines);
-  await assertRefs(tenantId, input.companyId, input.supplierId, resolvedLines);
+  await assertRefs(tenantId, input.companyId, input.supplierId, resolvedLines, input.branchId);
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(resolvedLines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
   const persistableLines = computed.map(({ isFixedAssetLine, ...rest }) => rest);
@@ -291,7 +298,7 @@ export async function updatePurchaseInvoice(tenantId: string, id: string, input:
     await tx.purchaseInvoiceLine.deleteMany({ where: { invoiceId: id } });
     return tx.purchaseInvoice.update({
       where: { id },
-      data: { companyId: input.companyId, supplierId: input.supplierId, date: input.date, subtotal, vatTotal, grandTotal, lines: { create: persistableLines } },
+      data: { companyId: input.companyId, supplierId: input.supplierId, branchId: input.branchId ?? null, date: input.date, subtotal, vatTotal, grandTotal, lines: { create: persistableLines } },
       include: invoiceInclude,
     });
   });
@@ -316,6 +323,7 @@ export async function postPurchaseInvoice(tenantId: string, userId: string, id: 
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: invoice.companyId,
+      branchId: invoice.branchId,
       date: invoice.date,
       memo: `فاتورة مشتريات ${invoice.invoiceNumber} — ${invoice.supplier.name}`,
       sourceModule: "purchase_invoice",

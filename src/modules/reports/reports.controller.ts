@@ -10,6 +10,7 @@ const parseLevel = (v: unknown) => {
 const parseAccountId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const parseCostCenterId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const parseDepartmentId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+const parseBranchId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const parseBool = (v: unknown) => v === "true" || v === "1";
 const parseSearch = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 
@@ -27,6 +28,7 @@ export const trialBalanceHandler: RequestHandler = async (req, res) => {
     parseDate(req.query.from),
     parseDate(req.query.to),
     rollupParams(req.query),
+    parseBranchId(req.query.branchId),
   );
   res.json(result);
 };
@@ -38,6 +40,7 @@ export const trialBalanceTreeHandler: RequestHandler = async (req, res) => {
     parseDate(req.query.from),
     parseDate(req.query.to),
     { level: parseLevel(req.query.level), hideZeroActivity: parseBool(req.query.hideZeroActivity), search: parseSearch(req.query.search) },
+    parseBranchId(req.query.branchId),
   );
   res.json(result);
 };
@@ -49,6 +52,7 @@ export const incomeStatementHandler: RequestHandler = async (req, res) => {
     parseDate(req.query.from),
     parseDate(req.query.to),
     rollupParams(req.query),
+    parseBranchId(req.query.branchId),
   );
   res.json(result);
 };
@@ -59,6 +63,7 @@ export const balanceSheetHandler: RequestHandler = async (req, res) => {
     parseCompanyId(req.query.companyId),
     parseDate(req.query.date),
     rollupParams(req.query),
+    parseBranchId(req.query.branchId),
   );
   res.json(result);
 };
@@ -92,7 +97,7 @@ export const accountLedgerHandler: RequestHandler = async (req, res) => {
     parseCompanyId(req.query.companyId),
     parseDate(req.query.from),
     parseDate(req.query.to),
-    { costCenterId: parseCostCenterId(req.query.costCenterId), departmentId: parseDepartmentId(req.query.departmentId) },
+    { costCenterId: parseCostCenterId(req.query.costCenterId), departmentId: parseDepartmentId(req.query.departmentId), branchId: parseBranchId(req.query.branchId) },
   );
   res.json(result);
 };

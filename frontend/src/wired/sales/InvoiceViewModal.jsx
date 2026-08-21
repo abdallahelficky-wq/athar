@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { PrintShell, QrImage, printWithOrientation } from "../../legacy/shared";
 import { fmt, fmt2 } from "../../legacy/constants";
 import { formatDateTime } from "../../i18n/dateFormat";
+import { currencyLabel } from "../../shared/countries";
 
 /**
  * عرض الفاتورة للقراءة فقط (بدون أي حقول قابلة للتعديل) + إمكانية الطباعة/تحميل PDF —
@@ -21,6 +22,9 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
   const company = companies?.find((c) => c.id === invoice.companyId) || invoice.company;
   const customer = invoice.customer;
   const lastEmailLog = invoice.emailLogs?.[0];
+  const branch = invoice.branch;
+  const branchRate = branch?.exchangeRateToCompanyCurrency ? Number(branch.exchangeRateToCompanyCurrency) : null;
+  const showBranchEquivalent = branch && company && branch.currency !== company.currency && branchRate;
 
   return (
     <PrintShell
@@ -39,6 +43,9 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
         <div><span>{t("salesInvoices.view.sellerVat")}</span><strong>{company?.vatNumber || t("salesInvoices.view.vatNotEntered")}</strong></div>
         <div><span>{t("salesInvoices.view.customer")}</span><strong>{customer?.name}</strong></div>
         <div><span>{t("salesInvoices.view.customerVat")}</span><strong>{customer?.vatNumber || t("salesInvoices.view.vatUnregistered")}</strong></div>
+        {branch && (
+          <div><span>{t("journalEntries.form.branchLabel")}</span><strong>{branch.nameAr}</strong></div>
+        )}
         {lastEmailLog && (
           <div>
             <span>{t("salesInvoices.view.lastEmail")}</span>
@@ -80,6 +87,11 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
           </tr>
         </tfoot>
       </table>
+      {showBranchEquivalent && (
+        <p className="empty">
+          {t("journalEntries.form.branchEquivalent", { amount: fmt(Number(invoice.grandTotal) / branchRate), currency: currencyLabel(branch.currency, i18n.language) })}
+        </p>
+      )}
       <div className="qr-box">
         <div className="qr-box-label">{t("salesInvoices.view.qrLabel")}</div>
         <QrImage payload={invoice.qrPayload} />

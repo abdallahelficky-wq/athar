@@ -55,6 +55,9 @@ export interface PostingLine {
 export interface CreateEntryInput {
   tenantId: string;
   companyId: string;
+  // فرع اختياري — يُمرَّر فقط من الموديولات التي تحمل تصنيف فرع فعلياً على مستندها (حالياً
+  // فواتير المبيعات/المشتريات)؛ بقية المصادر (سندات، رواتب، إهلاك...) لا تمرّره فيبقى null كسابقاً.
+  branchId?: string | null;
   date: Date;
   memo?: string;
   sourceModule: SourceModule;
@@ -91,6 +94,7 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
     data: {
       tenantId: input.tenantId,
       companyId: input.companyId,
+      branchId: input.branchId || undefined,
       date: input.date,
       memo: input.memo,
       status: "posted",

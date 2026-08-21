@@ -53,6 +53,7 @@ export interface JournalLineInput {
 
 export interface JournalEntryInput {
   companyId: string;
+  branchId?: string | null;
   date: Date;
   memo?: string;
   lines: JournalLineInput[];
@@ -73,6 +74,11 @@ function assertBalanced(lines: JournalLineInput[]) {
 async function assertReferencesBelongToTenant(tenantId: string, input: JournalEntryInput) {
   const company = await prisma.company.findFirst({ where: { id: input.companyId, tenantId } });
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
+
+  if (input.branchId) {
+    const branch = await prisma.branch.findFirst({ where: { id: input.branchId, tenantId, companyId: input.companyId } });
+    if (!branch) throw badRequest("الفرع المحدد غير موجود ضمن هذه الشركة");
+  }
 
   const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
   const accounts = await prisma.account.findMany({
@@ -209,6 +215,7 @@ async function createLinesWithSideEffectsTx(
 const entryInclude = {
   lines: { include: { account: true, costCenter: true, departmentRef: true, fixedAsset: true, employeeAdvance: true } },
   company: true,
+  branch: true,
 } satisfies Prisma.JournalEntryInclude;
 
 export interface JournalEntryFilters {
@@ -501,6 +508,7 @@ export async function createJournalEntry(
       data: {
         tenantId,
         companyId: input.companyId,
+        branchId: input.branchId || undefined,
         date: input.date,
         memo: input.memo,
         status: input.post ? "posted" : "saved",
@@ -528,7 +536,7 @@ export async function updateJournalEntry(tenantId: string, id: string, input: Jo
     await tx.journalEntryLine.deleteMany({ where: { journalEntryId: id } });
     await tx.journalEntry.update({
       where: { id },
-      data: { companyId: input.companyId, date: input.date, memo: input.memo },
+      data: { companyId: input.companyId, branchId: input.branchId ?? null, date: input.date, memo: input.memo },
     });
     await createLinesWithSideEffectsTx(tx, tenantId, input.companyId, id, input.date, input.lines);
     return tx.journalEntry.findUniqueOrThrow({ where: { id }, include: entryInclude });

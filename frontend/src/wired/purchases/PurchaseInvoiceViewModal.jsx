@@ -2,10 +2,11 @@ import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { PrintShell, printWithOrientation } from "../../legacy/shared";
 import { fmt, fmt2 } from "../../legacy/constants";
+import { currencyLabel } from "../../shared/countries";
 
 /** عرض فاتورة المشتريات للقراءة فقط + طباعة/تحميل PDF — يستخدم PrintShell المشترك فيرث هيدر/فوتر الشركة تلقائياً */
 export default function PurchaseInvoiceViewModal({ invoice, companies, autoPrint, onClose }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useEffect(() => {
     if (!autoPrint) return;
     const timer = setTimeout(() => printWithOrientation(false), 200);
@@ -14,6 +15,9 @@ export default function PurchaseInvoiceViewModal({ invoice, companies, autoPrint
 
   const company = companies?.find((c) => c.id === invoice.companyId) || invoice.company;
   const supplier = invoice.supplier;
+  const branch = invoice.branch;
+  const branchRate = branch?.exchangeRateToCompanyCurrency ? Number(branch.exchangeRateToCompanyCurrency) : null;
+  const showBranchEquivalent = branch && company && branch.currency !== company.currency && branchRate;
 
   return (
     <PrintShell
@@ -32,6 +36,9 @@ export default function PurchaseInvoiceViewModal({ invoice, companies, autoPrint
         <div><span>{t("purchases.invoices.view.buyerVat")}</span><strong>{company?.vatNumber || t("purchases.invoices.view.vatNotEntered")}</strong></div>
         <div><span>{t("purchases.invoices.view.supplier")}</span><strong>{supplier?.name}</strong></div>
         <div><span>{t("purchases.invoices.view.supplierVat")}</span><strong>{supplier?.vatNumber || t("purchases.invoices.view.vatUnregistered")}</strong></div>
+        {branch && (
+          <div><span>{t("journalEntries.form.branchLabel")}</span><strong>{branch.nameAr}</strong></div>
+        )}
       </div>
       <table className="ledger-table voucher-table">
         <thead>
@@ -64,6 +71,11 @@ export default function PurchaseInvoiceViewModal({ invoice, companies, autoPrint
           </tr>
         </tfoot>
       </table>
+      {showBranchEquivalent && (
+        <p className="empty">
+          {t("journalEntries.form.branchEquivalent", { amount: fmt(Number(invoice.grandTotal) / branchRate), currency: currencyLabel(branch.currency, i18n.language) })}
+        </p>
+      )}
     </PrintShell>
   );
 }

@@ -30,6 +30,7 @@ interface LineInput {
 interface InvoiceInput {
   companyId: string;
   customerId: string;
+  branchId?: string | null;
   date: Date;
   lines: LineInput[];
   post?: boolean;
@@ -56,6 +57,7 @@ const invoiceInclude = {
   lines: { include: { account: true } },
   customer: true,
   company: true,
+  branch: true,
   receiptAllocations: true,
   // آخر محاولة إرسال بالإيميل فقط (نجحت أو فشلت) — تُستخدَم لعرض "آخر إرسال: ..." في شاشة الفاتورة.
   emailLogs: { orderBy: { createdAt: "desc" as const }, take: 1 },
@@ -97,11 +99,15 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
   });
 }
 
-async function assertRefs(tenantId: string, companyId: string, customerId: string, lines: LineInput[]) {
+async function assertRefs(tenantId: string, companyId: string, customerId: string, lines: LineInput[], branchId?: string | null) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
   const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId, companyId } });
   if (!customer) throw badRequest("العميل غير موجود ضمن هذه الشركة");
+  if (branchId) {
+    const branch = await prisma.branch.findFirst({ where: { id: branchId, tenantId, companyId } });
+    if (!branch) throw badRequest("الفرع المحدد غير موجود ضمن هذه الشركة");
+  }
 
   const accountIds = [...new Set(lines.map((l) => l.accountId))];
   const accounts = await prisma.account.findMany({
@@ -244,7 +250,7 @@ async function buildJournalLines(
 
 export async function createSalesInvoice(tenantId: string, userId: string, input: InvoiceInput) {
   input = { ...input, lines: await resolveLineAccounts(tenantId, input.companyId, input.lines) };
-  const { customer, company } = await assertRefs(tenantId, input.companyId, input.customerId, input.lines);
+  const { customer, company } = await assertRefs(tenantId, input.companyId, input.customerId, input.lines, input.branchId);
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
 
@@ -268,6 +274,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
         invoiceNumber,
         companyId: input.companyId,
         customerId: input.customerId,
+        branchId: input.branchId || undefined,
         date: input.date,
         invoiceType: invType,
         status: "draft",
@@ -301,6 +308,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: input.companyId,
+      branchId: input.branchId || undefined,
       date: input.date,
       memo: `فاتورة مبيعات ${invoiceNumber} — ${customer.name}`,
       sourceModule: "sales_invoice",
@@ -314,6 +322,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
         invoiceNumber,
         companyId: input.companyId,
         customerId: input.customerId,
+        branchId: input.branchId || undefined,
         date: input.date,
         invoiceType: invType,
         status: "posted",
@@ -347,7 +356,7 @@ export async function updateSalesInvoice(tenantId: string, id: string, input: In
   if (existing.status !== "draft") throw badRequest("لا يمكن تعديل فاتورة مرحّلة، يجب فك ترحيلها أولاً");
 
   input = { ...input, lines: await resolveLineAccounts(tenantId, input.companyId, input.lines) };
-  const { customer } = await assertRefs(tenantId, input.companyId, input.customerId, input.lines);
+  const { customer } = await assertRefs(tenantId, input.companyId, input.customerId, input.lines, input.branchId);
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
   const invType = invoiceTypeForCustomer(customer);
@@ -359,6 +368,7 @@ export async function updateSalesInvoice(tenantId: string, id: string, input: In
       data: {
         companyId: input.companyId,
         customerId: input.customerId,
+        branchId: input.branchId ?? null,
         date: input.date,
         invoiceType: invType,
         subtotal,
@@ -404,6 +414,7 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: invoice.companyId,
+      branchId: invoice.branchId,
       date: invoice.date,
       memo: `فاتورة مبيعات ${invoice.invoiceNumber} — ${invoice.customer.name}`,
       sourceModule: "sales_invoice",

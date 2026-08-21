@@ -13,6 +13,7 @@ import PurchaseInvoiceLinesEditor, { emptyPurchaseLine } from "./PurchaseInvoice
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import PurchaseInvoiceViewModal from "./PurchaseInvoiceViewModal";
+import { listBranches } from "../../api/branches";
 import { currencyLabel } from "../../shared/countries";
 
 export default function PurchaseInvoicesTab({ companyId, companies }) {
@@ -22,12 +23,14 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
   const [accounts, setAccounts] = useState([]);
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [supplierId, setSupplierId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [branchId, setBranchId] = useState("");
   const [lines, setLines] = useState([emptyPurchaseLine()]);
   const [unpostTarget, setUnpostTarget] = useState(null);
   const [attachmentsFor, setAttachmentsFor] = useState(null);
@@ -40,7 +43,10 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
     listAccounts({ companyId }).then(setAccounts);
     listItems(companyId).then(setItems);
     listWarehouses(companyId).then(setWarehouses);
+    listBranches(companyId).then(setBranches);
   }, [companyId]);
+
+  const branchOptions = branches.filter((b) => b.isActive || b.id === branchId);
 
   const reload = () => {
     if (!companyId) return;
@@ -69,7 +75,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
   const save = async () => {
     if (!supplierId) return;
     try {
-      await createPurchaseInvoice({ companyId, supplierId, date, lines: cleanLines() });
+      await createPurchaseInvoice({ companyId, supplierId, branchId: branchId || null, date, lines: cleanLines() });
       setLines([emptyPurchaseLine()]);
       reload();
     } catch (err) {
@@ -110,6 +116,15 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
         <div className="form-grid header-grid">
           <label>{t("purchases.invoices.supplier")}<select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
           <label>{t("purchases.invoices.invoiceDate")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          {branchOptions.length > 0 && (
+            <label>
+              {t("journalEntries.form.branchLabel")}
+              <select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+                <option value="">{t("common.clearOption")}</option>
+                {branchOptions.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
+              </select>
+            </label>
+          )}
         </div>
         {suppliers.length === 0 && <p className="empty">{t("purchases.invoices.addSupplierFirst")}</p>}
 

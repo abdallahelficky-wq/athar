@@ -63,6 +63,9 @@ export const lineSchema = z
 
 export const createJournalEntrySchema = z.object({
   companyId: z.string().min(1, "الشركة مطلوبة"),
+  // فرع اختياري تابع لنفس الشركة — تصنيف/عرض فقط، على مستوى القيد بالكامل (بنفس أسلوب مركز
+  // التكلفة/القسم، لكن هنا لكل القيد لا كل سطر) — انظر Branch بالمخطط.
+  branchId: z.string().nullable().optional(),
   date: z.coerce.date(),
   memo: z.string().optional(),
   lines: z.array(lineSchema).min(2, "القيد يجب أن يحتوي على سطرين على الأقل"),

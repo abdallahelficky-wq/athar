@@ -15,12 +15,21 @@ import AccountSearchSelect from "./AccountSearchSelect";
  * يعتمد هذه القيم فعلياً (بالضغط على "إظهار النتائج" أو Enter)، فهذا المكوّن لا يعرض زرار تطبيق
  * بنفسه — يُفترض عرضه داخل <form> واحد يجمعه مع باقي حقول الفلتر بالشاشة (مثل حقول التاريخ).
  */
-export default function ReportRollupFilter({ accounts, values, onChange }) {
+export default function ReportRollupFilter({ accounts, values, onChange, branches }) {
   const { t } = useTranslation();
   const levelAccounts = accounts.filter((a) => a.level === values.level);
 
   return (
     <>
+      {branches && branches.length > 0 && (
+        <label>
+          {t("reports.rollupFilter.branchLabel")}
+          <select value={values.branchId || ""} onChange={(e) => onChange("branchId", e.target.value)}>
+            <option value="">{t("reports.rollupFilter.allBranches")}</option>
+            {branches.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
+          </select>
+        </label>
+      )}
       <label>
         {t("reports.rollupFilter.levelLabel")}
         <select
