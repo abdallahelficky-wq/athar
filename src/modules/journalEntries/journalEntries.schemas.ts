@@ -37,6 +37,9 @@ export const lineSchema = z
     costCenterId: z.string().nullable().optional(),
     department: z.string().nullable().optional(),
     departmentId: z.string().nullable().optional(),
+    // فرع اختياري تابع لنفس الشركة — تصنيف/عرض فقط، على مستوى السطر (بنفس أسلوب مركز التكلفة/
+    // القسم) لأن قيداً واحداً قد تتوزع سطوره على فروع مختلفة.
+    branchId: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
     debit: z.coerce.number().min(0).default(0),
     credit: z.coerce.number().min(0).default(0),
@@ -63,9 +66,6 @@ export const lineSchema = z
 
 export const createJournalEntrySchema = z.object({
   companyId: z.string().min(1, "الشركة مطلوبة"),
-  // فرع اختياري تابع لنفس الشركة — تصنيف/عرض فقط، على مستوى القيد بالكامل (بنفس أسلوب مركز
-  // التكلفة/القسم، لكن هنا لكل القيد لا كل سطر) — انظر Branch بالمخطط.
-  branchId: z.string().nullable().optional(),
   date: z.coerce.date(),
   memo: z.string().optional(),
   lines: z.array(lineSchema).min(2, "القيد يجب أن يحتوي على سطرين على الأقل"),

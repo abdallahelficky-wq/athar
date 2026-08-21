@@ -47,12 +47,12 @@ export const deleteBranch: RequestHandler = async (req, res) => {
   });
   if (!existing) throw notFound("الفرع غير موجود");
 
-  const [entryCount, salesCount, purchaseCount] = await Promise.all([
-    prisma.journalEntry.count({ where: { branchId: existing.id } }),
+  const [lineCount, salesCount, purchaseCount] = await Promise.all([
+    prisma.journalEntryLine.count({ where: { branchId: existing.id } }),
     prisma.salesInvoice.count({ where: { branchId: existing.id } }),
     prisma.purchaseInvoice.count({ where: { branchId: existing.id } }),
   ]);
-  if (entryCount > 0 || salesCount > 0 || purchaseCount > 0) {
+  if (lineCount > 0 || salesCount > 0 || purchaseCount > 0) {
     throw badRequest("لا يمكن حذف هذا الفرع نهائياً لارتباطه بقيود أو فواتير سابقة — عطّله بدلاً من ذلك");
   }
 

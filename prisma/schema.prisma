@@ -546,7 +546,7 @@ model Branch {
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt
 
-  journalEntries    JournalEntry[]
+  journalEntryLines JournalEntryLine[]
   salesInvoices     SalesInvoice[]
   purchaseInvoices  PurchaseInvoice[]
 
@@ -560,9 +560,6 @@ model JournalEntry {
   tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   companyId         String
   company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  // فرع اختياري تابع لنفس الشركة — تصنيف/عرض فقط (انظر تعليق Branch)، لا يؤثر على عملة الترحيل.
-  branchId          String?
-  branch            Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
   date              DateTime
   memo              String?
   status            JournalEntryStatus @default(posted)
@@ -589,7 +586,6 @@ model JournalEntry {
   @@index([tenantId, sourceModule, sourceId])
   @@index([tenantId, mirrorEntryId])
   @@index([tenantId, reversalOfEntryId])
-  @@index([tenantId, branchId])
   @@map("journal_entries")
 }
 
@@ -601,6 +597,11 @@ model JournalEntryLine {
   account           Account          @relation(fields: [accountId], references: [id])
   costCenterId      String?
   costCenter        CostCenter?      @relation(fields: [costCenterId], references: [id])
+  // فرع اختياري تابع لنفس الشركة — تصنيف/عرض فقط (انظر تعليق Branch)، لا يؤثر على عملة الترحيل.
+  // على مستوى السطر (لا القيد بالكامل) بنفس نمط costCenterId أعلاه، فقيد واحد قد تتوزع سطوره
+  // على فروع مختلفة.
+  branchId          String?
+  branch            Branch?          @relation(fields: [branchId], references: [id])
   // نصّ حر قديم (لا يزال يُملأ من تدفقات ترحيل تلقائية مثل شراء أصل ثابت/الرواتب بقيمة قسم ثابتة)
   // — يبقى بلا تعديل لضمان استمرار عرضه في كل شاشات القيد الحالية. departmentId/departmentRef
   // أدناه هما الحقل المُهيكَل الجديد (فئة أقسام حقيقية قابلة للفلترة)، تُملأ من نافذة القيد اليدوي.

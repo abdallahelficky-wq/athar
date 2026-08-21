@@ -129,6 +129,7 @@ async function createInventorySideEffectsTx(
   }>,
   journalEntryId: string,
   assetLines: PostingLine[],
+  branchId?: string | null,
 ) {
   let assetLineIdx = 0;
   for (const line of persistedLines) {
@@ -142,6 +143,7 @@ async function createInventorySideEffectsTx(
           journalEntryId,
           accountId: spec.accountId,
           department: spec.department || null,
+          branchId: branchId || null,
           debit: new Prisma.Decimal(spec.debit || 0),
           credit: new Prisma.Decimal(spec.credit || 0),
           supplierId: spec.supplierId || null,
@@ -278,7 +280,7 @@ export async function createPurchaseInvoice(tenantId: string, userId: string, in
     });
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
-    await createInventorySideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, assetLines);
+    await createInventorySideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, assetLines, input.branchId);
     return invoice;
   });
 }
@@ -332,7 +334,7 @@ export async function postPurchaseInvoice(tenantId: string, userId: string, id: 
       lines: groupedLines,
     });
     const updated = await tx.purchaseInvoice.update({ where: { id }, data: { status: "posted", journalEntryId: entry.id }, include: invoiceInclude });
-    await createInventorySideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id, assetLines);
+    await createInventorySideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id, assetLines, invoice.branchId);
     return updated;
   });
 }

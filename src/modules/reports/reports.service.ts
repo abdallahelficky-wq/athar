@@ -15,9 +15,9 @@ import {
 
 export interface DateRange {
   companyId?: string;
-  // فرع اختياري (تصنيف/عرض فقط على القيد، انظر Branch بالمخطط) — لو حُدِّد، تقتصر كل التقارير
-  // المبنية عبر aggregateAccountBalances (ميزان المراجعة، قائمة الدخل، المركز المالي) على قيود
-  // هذا الفرع فقط؛ بدونه (الافتراضي) تُجمَّع كل قيود الشركة بصرف النظر عن الفرع.
+  // فرع اختياري (تصنيف/عرض فقط على مستوى سطر القيد، انظر Branch بالمخطط) — لو حُدِّد، تقتصر كل
+  // التقارير المبنية عبر aggregateAccountBalances (ميزان المراجعة، قائمة الدخل، المركز المالي) على
+  // الأسطر المرتبطة بهذا الفرع فقط؛ بدونه (الافتراضي) تُجمَّع كل أسطر الشركة بصرف النظر عن الفرع.
   branchId?: string;
   dateFrom?: Date;
   dateTo?: Date;
@@ -48,10 +48,10 @@ export async function aggregateAccountBalances(tenantId: string, range: DateRang
 
   const lines = await prisma.journalEntryLine.findMany({
     where: {
+      branchId: range.branchId || undefined,
       journalEntry: {
         tenantId,
         companyId: range.companyId || undefined,
-        branchId: range.branchId || undefined,
         date: {
           gte: range.dateFrom,
           lte: range.dateTo,
@@ -657,14 +657,14 @@ export async function getAccountLedger(
       accountId: { in: scopedAccountIds },
       costCenterId: filters?.costCenterId || undefined,
       departmentId: filters?.departmentId || undefined,
+      branchId: filters?.branchId || undefined,
       journalEntry: {
         tenantId,
         companyId: companyId || undefined,
-        branchId: filters?.branchId || undefined,
         date: { gte: dateFrom, lte: dateTo },
       },
     },
-    include: { journalEntry: { include: { company: true, branch: true } }, costCenter: true, departmentRef: true, account: true },
+    include: { journalEntry: { include: { company: true } }, costCenter: true, departmentRef: true, branch: true, account: true },
     orderBy: { journalEntry: { date: "asc" } },
   });
 
@@ -680,7 +680,7 @@ export async function getAccountLedger(
       lineDescription: l.description,
       costCenterName: l.costCenter?.name || null,
       departmentName: l.departmentRef?.name || l.department || null,
-      branchName: l.journalEntry.branch?.nameAr || null,
+      branchName: l.branch?.nameAr || null,
       companyName: l.journalEntry.company.shortName || l.journalEntry.company.name,
       accountId: l.accountId,
       accountName: l.account.name,

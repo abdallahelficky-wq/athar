@@ -55,8 +55,10 @@ export interface PostingLine {
 export interface CreateEntryInput {
   tenantId: string;
   companyId: string;
-  // فرع اختياري — يُمرَّر فقط من الموديولات التي تحمل تصنيف فرع فعلياً على مستندها (حالياً
-  // فواتير المبيعات/المشتريات)؛ بقية المصادر (سندات، رواتب، إهلاك...) لا تمرّره فيبقى null كسابقاً.
+  // فرع اختياري على مستوى المستند المصدر بالكامل — يُمرَّر فقط من الموديولات التي تحمل تصنيف فرع
+  // فعلياً (حالياً فواتير المبيعات/المشتريات)؛ بقية المصادر (سندات، رواتب، إهلاك...) لا تمرّره
+  // فيبقى null كسابقاً. القيد نفسه لا يحمل فرعاً بعد الآن (انظر JournalEntryLine.branchId) —
+  // القيمة هنا تُنسَخ على كل سطر يُنشأ ضمن هذا القيد، لأن فاتورة واحدة تنتمي لفرع واحد بالكامل.
   branchId?: string | null;
   date: Date;
   memo?: string;
@@ -94,7 +96,6 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
     data: {
       tenantId: input.tenantId,
       companyId: input.companyId,
-      branchId: input.branchId || undefined,
       date: input.date,
       memo: input.memo,
       status: "posted",
@@ -107,6 +108,7 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
           accountId: l.accountId,
           costCenterId: l.costCenterId || null,
           department: l.department || null,
+          branchId: input.branchId || null,
           debit: new Prisma.Decimal(l.debit || 0),
           credit: new Prisma.Decimal(l.credit || 0),
           customerId: l.customerId || null,

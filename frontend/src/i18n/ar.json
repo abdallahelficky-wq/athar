@@ -824,7 +824,7 @@
       "branchLabel": "الفرع (اختياري)",
       "branchEquivalent": "ما يعادل: {{amount}} {{currency}} (بعملة الفرع، للعرض فقط)",
       "memo": "بيان القيد", "memoPlaceholder": "وصف عام للقيد",
-      "lines": { "account": "الحساب", "debit": "مدين", "credit": "دائن", "description": "الوصف", "costCenter": "مركز التكلفة", "department": "القسم" },
+      "lines": { "account": "الحساب", "debit": "مدين", "credit": "دائن", "description": "الوصف", "costCenter": "مركز التكلفة", "department": "القسم", "branch": "الفرع" },
       "descriptionPlaceholder": "وصف خاص بهذا السطر",
       "newAsset": "أصل جديد", "newAdvance": "سلفة جديدة", "existingAdvance": "سلفة موجودة",
       "advanceLabel": "سلفة — {{amount}} {{currency}}",

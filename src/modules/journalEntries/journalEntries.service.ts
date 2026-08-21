@@ -35,6 +35,7 @@ export interface JournalLineInput {
   costCenterId?: string | null;
   department?: string | null;
   departmentId?: string | null;
+  branchId?: string | null;
   description?: string | null;
   debit: number;
   credit: number;
@@ -53,7 +54,6 @@ export interface JournalLineInput {
 
 export interface JournalEntryInput {
   companyId: string;
-  branchId?: string | null;
   date: Date;
   memo?: string;
   lines: JournalLineInput[];
@@ -75,9 +75,10 @@ async function assertReferencesBelongToTenant(tenantId: string, input: JournalEn
   const company = await prisma.company.findFirst({ where: { id: input.companyId, tenantId } });
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
 
-  if (input.branchId) {
-    const branch = await prisma.branch.findFirst({ where: { id: input.branchId, tenantId, companyId: input.companyId } });
-    if (!branch) throw badRequest("الفرع المحدد غير موجود ضمن هذه الشركة");
+  const branchIds = [...new Set(input.lines.map((l) => l.branchId).filter(Boolean))] as string[];
+  if (branchIds.length) {
+    const branches = await prisma.branch.findMany({ where: { id: { in: branchIds }, tenantId, companyId: input.companyId } });
+    if (branches.length !== branchIds.length) throw badRequest("الفرع المحدد غير موجود ضمن هذه الشركة");
   }
 
   const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
@@ -123,6 +124,7 @@ function toLineCreateData(lines: JournalLineInput[]) {
     costCenterId: l.costCenterId || null,
     department: l.department || null,
     departmentId: l.departmentId || null,
+    branchId: l.branchId || null,
     description: l.description || null,
     debit: new Prisma.Decimal(l.debit || 0),
     credit: new Prisma.Decimal(l.credit || 0),
@@ -154,6 +156,7 @@ async function createLinesWithSideEffectsTx(
         costCenterId: l.costCenterId || null,
         department: l.department || null,
         departmentId: l.departmentId || null,
+        branchId: l.branchId || null,
         description: l.description || null,
         debit: new Prisma.Decimal(l.debit || 0),
         credit: new Prisma.Decimal(l.credit || 0),
@@ -213,9 +216,8 @@ async function createLinesWithSideEffectsTx(
 }
 
 const entryInclude = {
-  lines: { include: { account: true, costCenter: true, departmentRef: true, fixedAsset: true, employeeAdvance: true } },
+  lines: { include: { account: true, costCenter: true, departmentRef: true, branch: true, fixedAsset: true, employeeAdvance: true } },
   company: true,
-  branch: true,
 } satisfies Prisma.JournalEntryInclude;
 
 export interface JournalEntryFilters {
@@ -508,7 +510,6 @@ export async function createJournalEntry(
       data: {
         tenantId,
         companyId: input.companyId,
-        branchId: input.branchId || undefined,
         date: input.date,
         memo: input.memo,
         status: input.post ? "posted" : "saved",
@@ -536,7 +537,7 @@ export async function updateJournalEntry(tenantId: string, id: string, input: Jo
     await tx.journalEntryLine.deleteMany({ where: { journalEntryId: id } });
     await tx.journalEntry.update({
       where: { id },
-      data: { companyId: input.companyId, branchId: input.branchId ?? null, date: input.date, memo: input.memo },
+      data: { companyId: input.companyId, date: input.date, memo: input.memo },
     });
     await createLinesWithSideEffectsTx(tx, tenantId, input.companyId, id, input.date, input.lines);
     return tx.journalEntry.findUniqueOrThrow({ where: { id }, include: entryInclude });
@@ -586,6 +587,7 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
     costCenterId: l.costCenterId,
     department: l.department,
     departmentId: l.departmentId,
+    branchId: l.branchId,
     description: l.description,
     debit: Number(l.credit),
     credit: Number(l.debit),

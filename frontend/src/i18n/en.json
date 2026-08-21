@@ -824,7 +824,7 @@
       "branchLabel": "Branch (optional)",
       "branchEquivalent": "Equivalent: {{amount}} {{currency}} (branch currency, display only)",
       "memo": "Entry memo", "memoPlaceholder": "General description for the entry",
-      "lines": { "account": "Account", "debit": "Debit", "credit": "Credit", "description": "Description", "costCenter": "Cost Center", "department": "Department" },
+      "lines": { "account": "Account", "debit": "Debit", "credit": "Credit", "description": "Description", "costCenter": "Cost Center", "department": "Department", "branch": "Branch" },
       "descriptionPlaceholder": "Description specific to this line",
       "newAsset": "New asset", "newAdvance": "New advance", "existingAdvance": "Existing advance",
       "advanceLabel": "Advance — {{amount}} {{currency}}",
