@@ -21,6 +21,21 @@ import { currencyLabel } from "../../shared/countries";
 
 const axisProps = { tick: { fontSize: 11.5, fill: CHART_AXIS, fontFamily: CHART_FONT }, axisLine: { stroke: CHART_GRID } };
 
+const svgIcon = (children) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    {children}
+  </svg>
+);
+// أيقونة دائرية لكل بطاقة KPI بحسب دلالة رقمها — نفس أسلوب أيقونات القائمة الجانبية (خطوط SVG
+// بسيطة، viewBox 24x24، currentColor) حتى تبدو جزءاً من نفس لغة الأيقونات في التطبيق.
+const KPI_ICONS = {
+  revenue: svgIcon(<><path d="M3 17l5-5 4 4 8-8" /><path d="M14 8h6v6" /></>),
+  profit: svgIcon(<><circle cx="12" cy="12" r="9" /><path d="M8 13c0 0 1.5 2.5 4 2.5S16 13 16 13" /><circle cx="9" cy="9.5" r="0.9" fill="currentColor" stroke="none" /><circle cx="15" cy="9.5" r="0.9" fill="currentColor" stroke="none" /></>),
+  cash: svgIcon(<><rect x="2.5" y="6" width="19" height="13" rx="2" /><path d="M2.5 10h19" /><circle cx="17.5" cy="14.5" r="1.6" /></>),
+  receivable: svgIcon(<><path d="M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21z" /><path d="M9 8h6M9 12h6" /></>),
+  payable: svgIcon(<><path d="M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21z" /><path d="M9 8h6M9 12h6" /></>),
+};
+
 function ratioTone(kind, value) {
   if (value == null) return "warn";
   if (kind === "debtToEquity") return value <= 1 ? "good" : value <= 2 ? "warn" : "bad";
@@ -97,11 +112,11 @@ export default function FinancialDashboard({ companyId, companies }) {
           )}
 
           <div className="kpi-row">
-            <KpiCard tone="revenue" label={t("dashboard.kpi.netSales")} value={`${fmt(kpis.salesCurrent)} ${currency}`} changePct={kpis.salesChangePct} changeLabel={t("dashboard.kpi.vsPreviousPeriod")} />
-            <KpiCard tone="profit" label={t("dashboard.kpi.netProfitEstimate")} value={`${fmt(kpis.netProfitEstimate)} ${currency}`} />
-            <KpiCard tone="cash" label={t("dashboard.kpi.cashBalance")} value={`${fmt(kpis.cashBalance)} ${currency}`} />
-            <KpiCard tone="receivable" label={t("dashboard.kpi.receivables")} value={`${fmt(kpis.receivablesTotal)} ${currency}`} />
-            <KpiCard tone="payable" label={t("dashboard.kpi.payables")} value={`${fmt(kpis.payablesTotal)} ${currency}`} />
+            <KpiCard tone="revenue" icon={KPI_ICONS.revenue} label={t("dashboard.kpi.netSales")} value={`${fmt(kpis.salesCurrent)} ${currency}`} changePct={kpis.salesChangePct} changeLabel={t("dashboard.kpi.vsPreviousPeriod")} />
+            <KpiCard tone="profit" icon={KPI_ICONS.profit} label={t("dashboard.kpi.netProfitEstimate")} value={`${fmt(kpis.netProfitEstimate)} ${currency}`} />
+            <KpiCard tone="cash" icon={KPI_ICONS.cash} label={t("dashboard.kpi.cashBalance")} value={`${fmt(kpis.cashBalance)} ${currency}`} />
+            <KpiCard tone="receivable" icon={KPI_ICONS.receivable} label={t("dashboard.kpi.receivables")} value={`${fmt(kpis.receivablesTotal)} ${currency}`} />
+            <KpiCard tone="payable" icon={KPI_ICONS.payable} label={t("dashboard.kpi.payables")} value={`${fmt(kpis.payablesTotal)} ${currency}`} />
           </div>
 
           <div ref={alertsRef}>
@@ -177,7 +192,16 @@ export default function FinancialDashboard({ companyId, companies }) {
                   <Area
                     type="monotone" dataKey="total" name={t("dashboard.charts.sales")}
                     stroke={ATHAR_ACCENT_BLUE} strokeWidth={2.5} fill="url(#salesTrendFill)"
-                    dot={{ r: 3, fill: ATHAR_ACCENT_BLUE, strokeWidth: 0 }}
+                    dot={(dotProps) => {
+                      const isLast = dotProps.index === salesTrend.length - 1;
+                      return (
+                        <circle
+                          key={dotProps.index} cx={dotProps.cx} cy={dotProps.cy}
+                          r={isLast ? 4.5 : 3} fill={ATHAR_ACCENT_BLUE}
+                          stroke={isLast ? "#fff" : "none"} strokeWidth={isLast ? 2 : 0}
+                        />
+                      );
+                    }}
                     activeDot={{ r: 5, fill: ATHAR_ACCENT_BLUE, stroke: "#fff", strokeWidth: 2 }}
                   />
                 </AreaChart>

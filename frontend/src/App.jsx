@@ -4,6 +4,8 @@ import { useAuth } from "./context/AuthContext";
 import { NavIcon } from "./legacy/navIcons";
 import { useCompanies } from "./wired/useCompanies";
 import LanguageSwitcher from "./wired/shared/LanguageSwitcher";
+import CompanySwitcher from "./wired/shared/CompanySwitcher";
+import { getFinancialAlerts, getHrAlerts } from "./api/dashboard";
 import { formatDate } from "./i18n/dateFormat";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -55,6 +57,21 @@ function AppShell({ onLoggedOut }) {
     if (NAV_GROUPS.some((g) => g.id === moduleId)) setOpenGroupId(moduleId);
     setIsMobileSidebarOpen(false);
   }, [moduleId]);
+
+  // شارات عددية حقيقية على "المبيعات"/"شئون الموظفين" بالقائمة الجانبية — من نفس تنبيهات لوحة
+  // القيادة المالية/الموارد البشرية الموجودة أصلاً (بلا أي API جديد)، تُحمَّل هنا مرة واحدة على
+  // مستوى التطبيق (لا داخل شاشة الداشبورد فقط) حتى تظهر الشارة بصرف النظر عن الصفحة المفتوحة حالياً.
+  const [overdueInvoicesCount, setOverdueInvoicesCount] = useState(0);
+  const [pendingLeaveCount, setPendingLeaveCount] = useState(0);
+  useEffect(() => {
+    if (!real.companyId) { setOverdueInvoicesCount(0); setPendingLeaveCount(0); return; }
+    getFinancialAlerts(real.companyId).then((alerts) => {
+      setOverdueInvoicesCount(alerts.filter((a) => a.type === "overdue_invoice").length);
+    }).catch(() => {});
+    getHrAlerts(real.companyId).then((alerts) => {
+      setPendingLeaveCount(alerts.filter((a) => a.type === "unassigned_leave_request").length);
+    }).catch(() => {});
+  }, [real.companyId]);
 
   // بيانات الشركة "القديمة" (تجريبية محلية) — تخص فقط وحدة الزكاة التوضيحية غير المرتبطة بعد بالـ API
   const [legacyCompanyId, setLegacyCompanyId] = useState("all");
@@ -113,7 +130,7 @@ function AppShell({ onLoggedOut }) {
   };
 
   const activeLegacyCompany = useMemo(() => COMPANIES.find((c) => c.id === legacyCompanyId), [legacyCompanyId]);
-  const activeCompany = useMemo(() => real.companies.find((c) => c.id === real.companyId), [real.companies, real.companyId]);
+  const navBadges = { sales: overdueInvoicesCount, hr: pendingLeaveCount };
 
   return (
     <div className="app-root" dir={i18n.dir()}>
@@ -132,43 +149,56 @@ function AppShell({ onLoggedOut }) {
           >✕</button>
         </div>
 
-        <div className="nav-list">
-          <button className={"nav-btn nav-home" + (moduleId === "dashboard" ? " active" : "")} onClick={() => setModuleId("dashboard")}>
-            <span className="nav-icon"><NavIcon name="dashboard" /></span>
-            <span>{t("nav.dashboard")}</span>
-          </button>
-        </div>
+        <CompanySwitcher
+          companies={real.companies}
+          companyId={real.companyId}
+          setCompanyId={real.setCompanyId}
+          onViewAll={() => setModuleId("dashboard")}
+        />
 
-        <div className="nav-list">
-          {NAV_GROUPS.map((g) => {
-            const [curTab, setCurTab] = groupTabState[g.id];
-            const isOpen = openGroupId === g.id;
-            return (
-              <div className="nav-group" key={g.id}>
-                <button className={"nav-group-toggle" + (moduleId === g.id ? " active" : "")} onClick={() => handleGroupClick(g.id)}>
-                  <span className="nav-icon"><NavIcon name={g.id} /></span>
-                  <span className="nav-label">{t(g.labelKey)}</span>
-                  <span className={"nav-caret" + (isOpen ? " open" : "")}>▾</span>
-                </button>
-                <div className={"nav-subitems-wrap" + (isOpen ? " open" : "")}>
-                  <div className="nav-subitems-inner">
-                    <div className="nav-subitems">
-                      {g.tabs.map((tab) => (
-                        <button
-                          key={tab.id}
-                          className={"nav-subitem" + (moduleId === g.id && curTab === tab.id ? " active" : "")}
-                          onClick={() => { setModuleId(g.id); setCurTab(tab.id); }}
-                        >
-                          <span className="nav-icon nav-icon-sm"><NavIcon name={tab.id} /></span>
-                          <span>{t(tab.labelKey)}</span>
-                        </button>
-                      ))}
+        <div className="sidebar-nav-scroll">
+          <div className="nav-list">
+            <button className={"nav-btn nav-home" + (moduleId === "dashboard" ? " active" : "")} onClick={() => setModuleId("dashboard")}>
+              <span className="nav-icon"><NavIcon name="dashboard" /></span>
+              <span>{t("nav.dashboard")}</span>
+            </button>
+          </div>
+
+          <div className="nav-list">
+            {NAV_GROUPS.map((g) => {
+              const [curTab, setCurTab] = groupTabState[g.id];
+              const isOpen = openGroupId === g.id;
+              const badgeCount = navBadges[g.id] || 0;
+              return (
+                <div className="nav-group" key={g.id}>
+                  <button className={"nav-group-toggle" + (moduleId === g.id ? " active" : "")} onClick={() => handleGroupClick(g.id)}>
+                    <span className="nav-icon"><NavIcon name={g.id} /></span>
+                    <span className="nav-label">{t(g.labelKey)}</span>
+                    {badgeCount > 0 && (
+                      <span className={"nav-badge " + (g.id === "sales" ? "nav-badge-danger" : "nav-badge-warning")}>{badgeCount}</span>
+                    )}
+                    <span className={"nav-caret" + (isOpen ? " open" : "")}>▾</span>
+                  </button>
+                  <div className={"nav-subitems-wrap" + (isOpen ? " open" : "")}>
+                    <div className="nav-subitems-inner">
+                      <div className="nav-subitems">
+                        {g.tabs.map((tab) => (
+                          <button
+                            key={tab.id}
+                            className={"nav-subitem" + (moduleId === g.id && curTab === tab.id ? " active" : "")}
+                            onClick={() => { setModuleId(g.id); setCurTab(tab.id); }}
+                          >
+                            <span className="nav-icon nav-icon-sm"><NavIcon name={tab.id} /></span>
+                            <span>{t(tab.labelKey)}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -176,9 +206,6 @@ function AppShell({ onLoggedOut }) {
         <div className="topbar">
           <button className="hamburger-btn" onClick={() => setIsMobileSidebarOpen(true)} aria-label={t("nav.openMenu")}>☰</button>
           <span className="topbar-company">{tenant?.name}</span>
-          <button className="topbar-active-company" onClick={() => setModuleId("dashboard")} title={t("nav.activeCompanyTitle")}>
-            {t("nav.activeCompanyLabel")} <strong>{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</strong>
-          </button>
           <span className="topbar-date">{formatDate(new Date(), i18n.language)}</span>
           <LanguageSwitcher />
           <UserMenu
@@ -189,6 +216,7 @@ function AppShell({ onLoggedOut }) {
           />
         </div>
 
+        <div className="app-content">
         {!emailServiceConfigured && (user?.role === "admin" || user?.role === "super_admin") && (
           <div className="system-warning-banner">
             {t("nav.emailWarningBefore")} <code>RESEND_API_KEY</code> {t("nav.emailWarningAfter")}
@@ -248,6 +276,7 @@ function AppShell({ onLoggedOut }) {
             realCompanies={real.companies} reloadRealCompanies={real.reload} onRealCompanyCreated={real.onCompanyCreated}
           />
         )}
+        </div>
       </div>
     </div>
   );

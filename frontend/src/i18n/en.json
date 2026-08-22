@@ -177,7 +177,8 @@
     },
     "activeCompanyLabel": "Active company:",
     "noCompanySelected": "Not selected yet",
-    "activeCompanyTitle": "Back to the home screen to switch company",
+    "activeCompanyTitle": "Click to switch the active company",
+    "viewAllCompanies": "View all companies in the dashboard",
     "emailWarningBefore": "⚠️ The email delivery service is not configured on the server — emails (welcome, user invites, invoice sending) will not reach any recipient. Check the",
     "emailWarningAfter": "variable in the deployment settings."
   },
