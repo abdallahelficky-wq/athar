@@ -203,6 +203,10 @@
     "alerts": { "title": "⚠ أهم التنبيهات", "empty": "لا توجد تنبيهات حالياً." },
     "banner": { "viewAllAlerts": "عرض كل التنبيهات" },
     "recentActivity": { "title": "أحدث الحركات النقدية" },
+    "recentEntries": {
+      "title": "أحدث القيود اليومية", "empty": "لا توجد قيود بعد.",
+      "table": { "number": "رقم القيد", "date": "التاريخ", "memo": "البيان", "total": "الإجمالي", "status": "الحالة" }
+    },
     "charts": {
       "payrollAndDues": "الرواتب والمستحقات", "paid": "مصروف", "unpaid": "مستحق", "endOfService": "نهاية خدمة",
       "agingTitle": "تعمير الذمم المدينة والدائنة", "under30": "أقل من 30", "d30to60": "30–60", "d60to90": "60–90", "over90": "+90",

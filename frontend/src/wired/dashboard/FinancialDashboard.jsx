@@ -14,6 +14,7 @@ import PeriodFilter from "./PeriodFilter";
 import KpiCard from "./KpiCard";
 import AlertsPanel from "./AlertsPanel";
 import RecentActivity from "./RecentActivity";
+import RecentEntriesTable from "./RecentEntriesTable";
 import Banner from "../shared/Banner";
 import { CHART_PALETTE, CHART_GRID, CHART_AXIS, CHART_FONT, chartTooltipStyle, colorAt, ATHAR_ACCENT_BLUE } from "./chartTheme";
 import { currencyLabel } from "../../shared/countries";
@@ -227,9 +228,15 @@ export default function FinancialDashboard({ companyId, companies }) {
             </div>
           </div>
 
-          <div className="panel">
-            <h3>{t("dashboard.recentActivity.title")}</h3>
-            <RecentActivity items={topTransactions} currency={currency} />
+          <div className="two-col">
+            <div className="panel">
+              <h3>{t("dashboard.recentActivity.title")}</h3>
+              <RecentActivity items={topTransactions} currency={currency} />
+            </div>
+            <div className="panel">
+              <h3>{t("dashboard.recentEntries.title")}</h3>
+              <RecentEntriesTable companyId={companyId} range={range} />
+            </div>
           </div>
 
           {position && (

@@ -354,6 +354,20 @@
         .recent-activity-status-in { background: rgba(16,185,129,0.12); color: #0d9668; }
         .recent-activity-status-out { background: rgba(239,68,68,0.1); color: #dc3737; }
 
+        /* ===== StatusPill (StatusPill.jsx) — حالة ملوَّنة عامة قابلة لإعادة الاستخدام. أسماء
+           كلاسات مستقلة تماماً عن .status-pill/.status-badge القديمين (المستخدَمين مباشرة بمنطق
+           كل شاشة الخاص بها في وحدات الفواتير/القيود الحالية) حتى لا يتغيّر شكلهما القائم بأي
+           تعديل هنا — هذا المكوّن الجديد يُستخدَم فقط في المواضع التي تتبنّاه صراحة. */
+        .shared-status-pill {
+          display: inline-flex; align-items: center; font-size: 11px; font-weight: 600;
+          padding: 3px 10px; border-radius: 999px; white-space: nowrap;
+        }
+        .shared-status-pill-success { background: rgba(16,185,129,0.12); color: #0d9668; }
+        .shared-status-pill-warning { background: rgba(245,158,11,0.14); color: #a35a09; }
+        .shared-status-pill-danger { background: rgba(239,68,68,0.1); color: #dc3737; }
+        .shared-status-pill-neutral { background: rgba(100,116,139,0.12); color: #56657a; }
+        .shared-status-pill-info { background: rgba(59,130,246,0.12); color: #2563d4; }
+
         .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .panel { background: #FBF9F3; border: 1px solid rgba(16,32,46,0.08); border-radius: 14px; padding: 20px 22px; margin-bottom: 18px; }
         .panel h3 { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 15px; margin: 0 0 12px; color: #10202E; }

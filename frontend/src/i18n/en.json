@@ -203,6 +203,10 @@
     "alerts": { "title": "⚠ Key alerts", "empty": "No alerts at the moment." },
     "banner": { "viewAllAlerts": "View all alerts" },
     "recentActivity": { "title": "Recent cash activity" },
+    "recentEntries": {
+      "title": "Recent journal entries", "empty": "No entries yet.",
+      "table": { "number": "Entry #", "date": "Date", "memo": "Memo", "total": "Total", "status": "Status" }
+    },
     "charts": {
       "payrollAndDues": "Payroll & dues", "paid": "Paid", "unpaid": "Unpaid", "endOfService": "End of service",
       "agingTitle": "Receivables & payables aging", "under30": "Under 30", "d30to60": "30–60", "d60to90": "60–90", "over90": "90+",
