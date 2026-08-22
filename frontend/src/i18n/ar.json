@@ -179,6 +179,12 @@
     "noCompanySelected": "لم تُختَر بعد",
     "activeCompanyTitle": "اضغط لتبديل الشركة النشطة",
     "viewAllCompanies": "عرض كل الشركات في لوحة القيادة",
+    "notifications": {
+      "title": "الإشعارات",
+      "empty": "لا توجد إشعارات حالياً",
+      "overdueInvoices": "{{count}} فاتورة متأخرة السداد",
+      "pendingLeaves": "{{count}} طلب إجازة معلّق"
+    },
     "emailWarningBefore": "⚠️ خدمة إرسال الإيميلات غير مفعَّلة على الخادم — الإيميلات (ترحيب، دعوة مستخدم، إرسال فاتورة) لن تصل لأي مستلم. راجِع متغيّر",
     "emailWarningAfter": "في إعدادات النشر."
   },

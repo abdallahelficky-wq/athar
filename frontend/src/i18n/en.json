@@ -179,6 +179,12 @@
     "noCompanySelected": "Not selected yet",
     "activeCompanyTitle": "Click to switch the active company",
     "viewAllCompanies": "View all companies in the dashboard",
+    "notifications": {
+      "title": "Notifications",
+      "empty": "No notifications right now",
+      "overdueInvoices": "{{count}} overdue invoice(s)",
+      "pendingLeaves": "{{count}} pending leave request(s)"
+    },
     "emailWarningBefore": "⚠️ The email delivery service is not configured on the server — emails (welcome, user invites, invoice sending) will not reach any recipient. Check the",
     "emailWarningAfter": "variable in the deployment settings."
   },

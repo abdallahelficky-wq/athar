@@ -5,6 +5,7 @@ import { NavIcon } from "./legacy/navIcons";
 import { useCompanies } from "./wired/useCompanies";
 import LanguageSwitcher from "./wired/shared/LanguageSwitcher";
 import CompanySwitcher from "./wired/shared/CompanySwitcher";
+import NotificationBell from "./wired/shared/NotificationBell";
 import { getFinancialAlerts, getHrAlerts } from "./api/dashboard";
 import { formatDate } from "./i18n/dateFormat";
 import LandingPage from "./pages/LandingPage";
@@ -207,6 +208,12 @@ function AppShell({ onLoggedOut }) {
           <button className="hamburger-btn" onClick={() => setIsMobileSidebarOpen(true)} aria-label={t("nav.openMenu")}>☰</button>
           <span className="topbar-company">{tenant?.name}</span>
           <span className="topbar-date">{formatDate(new Date(), i18n.language)}</span>
+          <NotificationBell
+            overdueInvoicesCount={overdueInvoicesCount}
+            pendingLeaveCount={pendingLeaveCount}
+            onGoSales={() => setModuleId("sales")}
+            onGoHr={() => setModuleId("hr")}
+          />
           <LanguageSwitcher />
           <UserMenu
             name={user?.name}
