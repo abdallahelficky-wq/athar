@@ -1,9 +1,30 @@
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Tajawal:wght@400;500;700;900&family=JetBrains+Mono:wght@500;600&display=swap');
 
+        /* هوية الطباعة/الفواتير (navy/gold/sand) تبقى كما هي أعلاه لكل مستندات الهوية البصرية —
+           هذه مجموعة متغيرات مستقلة خاصة بواجهة الداشبورد التفاعلية فقط (بطاقات، رسوم بيانية،
+           تبويبات...)، تتعايش مع الألوان الحرفية الحالية بلا أي تعارض أو استبدال لها. */
+        :root {
+          --athar-bg: #f0eeeb;
+          --athar-sidebar: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+          --athar-card: #ffffff;
+          --athar-border: rgba(0,0,0,0.06);
+          --athar-text-primary: #0f172a;
+          --athar-text-secondary: #64748b;
+          --athar-text-muted: #94a3b8;
+          --athar-blue: #3b82f6;
+          --athar-green: #10b981;
+          --athar-amber: #f59e0b;
+          --athar-red: #ef4444;
+          --athar-purple: #8b5cf6;
+          --athar-shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+          --athar-shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+          --athar-shadow-lg: 0 10px 28px rgba(0,0,0,0.08);
+        }
+
         * { box-sizing: border-box; }
         .app-root {
           font-family: 'Tajawal', 'IBM Plex Sans Arabic', sans-serif;
-          background: #ECE6D6;
+          background: var(--athar-bg);
           min-height: 100vh;
           color: #10202E;
           display: flex;
@@ -12,13 +33,25 @@
         .sidebar {
           width: 232px;
           flex-shrink: 0;
-          background: #10202E;
+          background: var(--athar-sidebar);
           color: #ECE6D6;
           padding: 28px 20px;
           display: flex;
           flex-direction: column;
           gap: 26px;
+          position: relative;
+          overflow: hidden;
         }
+        /* توهّج ضوئي خفيف أعلى الشريط الجانبي خلف الشعار — دائري، لا يتبع اتجاه RTL/LTR (موضعه
+           مركزي أفقياً بالنسبة لعرض الشريط نفسه، فلا حاجة لأي قواعد [dir] خاصة به) ولا يتفاعل مع
+           أي عنصر (pointer-events: none) حتى لا يحجب النقر على الشعار أو القائمة تحته. */
+        .sidebar::before {
+          content: ''; position: absolute; top: -60px; inset-inline-start: 50%;
+          width: 260px; height: 200px; transform: translateX(-50%);
+          background: radial-gradient(closest-side, rgba(185,139,78,0.22), transparent);
+          pointer-events: none; z-index: 0;
+        }
+        .sidebar > * { position: relative; z-index: 1; }
         .brand { display: flex; align-items: center; gap: 10px; }
         .brand-mark { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #B98B4E; position: relative; flex-shrink: 0; }
         .brand-mark::before {
@@ -171,13 +204,14 @@
            شريط التبويبات الفرعي (subtabs-bar) لاتساق بصري عبر الشاشة كلها */
         .company-cards-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-bottom: 28px; }
         .company-card {
+          position: relative;
           display: flex; flex-direction: column; align-items: center; gap: 10px;
           width: 128px; min-height: 128px; justify-content: center;
-          background: #FBF9F3; border: 2px solid rgba(16,32,46,0.09); border-radius: 18px; padding: 18px 12px;
-          cursor: pointer; box-shadow: 0 2px 8px rgba(16,32,46,0.06);
+          background: var(--athar-card); border: 2px solid var(--athar-border); border-radius: 18px; padding: 18px 12px;
+          cursor: pointer; box-shadow: var(--athar-shadow-sm);
           transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
         }
-        .company-card:hover { transform: translateY(-4px); box-shadow: 0 10px 22px rgba(16,32,46,0.14); border-color: rgba(185,139,78,0.45); }
+        .company-card:hover { transform: translateY(-4px); box-shadow: var(--athar-shadow-md); border-color: rgba(185,139,78,0.45); }
         .company-card.active {
           border-color: #B98B4E; border-width: 2.5px; background: rgba(185,139,78,0.07);
           box-shadow: 0 8px 22px rgba(185,139,78,0.32);
@@ -187,9 +221,16 @@
         .company-card-avatar {
           width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
           color: #FBF9F3; font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 19px;
-          letter-spacing: .2px; flex-shrink: 0;
+          letter-spacing: .2px; flex-shrink: 0; box-shadow: inset 0 -6px 10px rgba(0,0,0,0.08);
         }
         .company-card-avatar-consolidated { background: #445565; color: #ECE6D6; }
+        /* علامة الاختيار (✓) — تظهر فقط على البطاقة النشطة حالياً، في الزاوية العلوية بحسب اتجاه
+           القراءة الفعلي (inset-inline تتبع RTL/LTR تلقائياً بلا أي قاعدة [dir] إضافية هنا). */
+        .company-card-check {
+          position: absolute; top: -8px; inset-inline-end: -8px; width: 22px; height: 22px; border-radius: 50%;
+          background: var(--athar-green); color: #fff; display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 2px 6px rgba(16,32,46,0.25); border: 2px solid var(--athar-card);
+        }
         .company-card-name {
           font-size: 12.5px; font-weight: 600; color: #10202E; text-align: center; line-height: 1.35;
           display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
@@ -209,18 +250,42 @@
         .gauge-label { font-size: 12px; color: #6B5F45; margin-top: 3px; }
 
         .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 20px; }
-        .kpi-card { padding: 16px 18px; }
-        .kpi-label { font-size: 12px; color: #8A7C5E; font-weight: 600; margin-bottom: 6px; }
-        .kpi-value { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 21px; color: #10202E; }
+        /* بطاقة مؤشر (KPI): ظل ناعم يرتفع عند hover + خط علوي رفيع ملوَّن حسب النوع (tone) —
+           ::before موضعه مطلق فوق حدود الزوايا المستديرة للبطاقة نفسها (border-radius مطابق
+           لأعلى فقط)، بلا تأثير على مساحة المحتوى الداخلي (لا يستهلك من padding). */
+        .kpi-card {
+          position: relative; padding: 18px 18px 16px; overflow: hidden;
+          background: var(--athar-card); border: 1px solid var(--athar-border);
+          box-shadow: var(--athar-shadow-sm);
+          transition: transform .18s ease, box-shadow .18s ease;
+        }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--athar-shadow-md); }
+        .kpi-card::before {
+          content: ''; position: absolute; inset-inline: 0; top: 0; height: 3px;
+          background: var(--athar-blue);
+        }
+        .kpi-card-revenue::before { background: var(--athar-green); }
+        .kpi-card-profit::before { background: var(--athar-blue); }
+        .kpi-card-cash::before { background: var(--athar-purple); }
+        .kpi-card-receivable::before { background: var(--athar-amber); }
+        .kpi-card-payable::before { background: var(--athar-red); }
+        .kpi-label { font-size: 12px; color: var(--athar-text-secondary); font-weight: 600; margin-bottom: 6px; }
+        .kpi-value { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 21px; color: var(--athar-text-primary); }
         .kpi-change { font-size: 11.5px; margin-top: 5px; font-weight: 600; }
 
-        .period-filter { display: flex; align-items: center; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+        .period-filter {
+          display: flex; align-items: center; gap: 8px; margin-bottom: 18px; flex-wrap: wrap;
+          background: var(--athar-bg); border: 1px solid var(--athar-border); border-radius: 12px; padding: 4px 8px;
+          width: fit-content;
+        }
         .period-filter input[type="date"] {
           font-family: 'Tajawal', sans-serif; border: 1px solid rgba(16,32,46,0.18); border-radius: 8px;
           padding: 7px 9px; font-size: 13px; background: #fff; color: #10202E;
         }
 
         .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .chart-panel { box-shadow: var(--athar-shadow-sm); border-color: var(--athar-border); transition: box-shadow .18s ease; }
+        .chart-panel:hover { box-shadow: var(--athar-shadow-md); }
         .chart-panel h3 { display: flex; align-items: center; justify-content: space-between; }
         .ratio-row { display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
         .ratio-chip { border-radius: 10px; padding: 10px 16px; font-size: 12.5px; min-width: 150px; }
@@ -233,6 +298,61 @@
           .kpi-row { grid-template-columns: repeat(2, 1fr); }
           .charts-grid { grid-template-columns: 1fr; }
         }
+
+        /* ===== Banner — مكوّن تنبيه علوي عام قابل لإعادة الاستخدام في أي شاشة (Banner.jsx)،
+           وليس مقصوراً على الداشبورد. أربعة أنواع بلوحة الألوان الجديدة، وأيقونة/رابط إجراء
+           اختياريان. ===== */
+        .app-banner {
+          display: flex; align-items: flex-start; gap: 12px;
+          background: var(--athar-card); border: 1px solid var(--athar-border); border-inline-start: 4px solid var(--athar-blue);
+          border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; box-shadow: var(--athar-shadow-sm);
+        }
+        .app-banner-icon {
+          flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center; color: #fff; background: var(--athar-blue);
+        }
+        .app-banner-body { flex: 1; min-width: 0; }
+        .app-banner-title { font-weight: 700; font-size: 13.5px; color: var(--athar-text-primary); margin-bottom: 3px; }
+        .app-banner-message { font-size: 12.5px; color: var(--athar-text-secondary); line-height: 1.6; }
+        .app-banner-action {
+          flex-shrink: 0; align-self: center; background: transparent; border: 1px solid var(--athar-border);
+          color: var(--athar-text-primary); font-family: inherit; font-size: 12px; font-weight: 600;
+          padding: 7px 14px; border-radius: 8px; cursor: pointer; white-space: nowrap; transition: background .15s ease;
+        }
+        .app-banner-action:hover { background: var(--athar-bg); }
+        .app-banner-warning { border-inline-start-color: var(--athar-amber); }
+        .app-banner-warning .app-banner-icon { background: var(--athar-amber); }
+        .app-banner-danger { border-inline-start-color: var(--athar-red); }
+        .app-banner-danger .app-banner-icon { background: var(--athar-red); }
+        .app-banner-success { border-inline-start-color: var(--athar-green); }
+        .app-banner-success .app-banner-icon { background: var(--athar-green); }
+        .app-banner-info .app-banner-icon { background: var(--athar-blue); }
+
+        /* ===== قائمة "أحدث الحركات" (RecentActivity.jsx) — كل عنصر بأيقونة Avatar دائرية ملوَّنة
+           حسب نوع الحركة، وحالة (badge) ملوَّنة بجانبه. ===== */
+        .recent-activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+        .recent-activity-item {
+          display: flex; align-items: center; gap: 12px; padding: 11px 2px;
+          border-bottom: 1px solid var(--athar-border);
+        }
+        .recent-activity-item:last-child { border-bottom: none; }
+        .recent-activity-avatar {
+          flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center; color: #fff;
+        }
+        .recent-activity-avatar-in { background: var(--athar-green); }
+        .recent-activity-avatar-out { background: var(--athar-red); }
+        .recent-activity-body { flex: 1; min-width: 0; }
+        .recent-activity-title { font-size: 13px; font-weight: 600; color: var(--athar-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .recent-activity-meta { font-size: 11.5px; color: var(--athar-text-muted); margin-top: 2px; }
+        .recent-activity-amount { flex-shrink: 0; text-align: left; }
+        .recent-activity-value { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px; }
+        .recent-activity-status {
+          display: inline-flex; margin-top: 3px; font-size: 10.5px; font-weight: 600;
+          padding: 2px 9px; border-radius: 999px;
+        }
+        .recent-activity-status-in { background: rgba(16,185,129,0.12); color: #0d9668; }
+        .recent-activity-status-out { background: rgba(239,68,68,0.1); color: #dc3737; }
 
         .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .panel { background: #FBF9F3; border: 1px solid rgba(16,32,46,0.08); border-radius: 14px; padding: 20px 22px; margin-bottom: 18px; }
@@ -309,7 +429,10 @@
         .ledger-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .ledger-table th { text-align: right; font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 11.5px; color: #8A7C5E; text-transform: uppercase; letter-spacing: .4px; padding: 6px 8px; border-bottom: 2px solid rgba(16,32,46,0.12); }
         .ledger-table td { padding: 9px 8px; border-bottom: 1px dashed rgba(16,32,46,0.1); color: #10202E; }
-        .ledger-table .num { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+        .ledger-table tbody tr { transition: background .12s ease; }
+        .ledger-table tbody tr:hover { background: rgba(16,32,46,0.035); }
+        /* الأرقام المالية بخط بولد لتمييزها فوراً عن النص العادي المجاور لها في نفس الصف */
+        .ledger-table .num { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
         .ledger-table .strong { font-weight: 700; }
         .ledger-table .indent { padding-right: 20px; color: #445565; }
         .ledger-table .section-row { color: #8A7C5E; font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; padding-top: 14px; border-bottom: none; }
@@ -637,6 +760,9 @@
         .invoices-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
         .invoices-table th { text-align: right; font-size: 11px; color: #8A7C5E; text-transform: uppercase; padding: 8px; border-bottom: 2px solid rgba(16,32,46,0.12); white-space: nowrap; }
         .invoices-table td { padding: 9px 8px; border-bottom: 1px dashed rgba(16,32,46,0.1); white-space: nowrap; }
+        .invoices-table tbody tr { transition: background .12s ease; }
+        .invoices-table tbody tr:hover { background: rgba(16,32,46,0.035); }
+        .invoices-table .num { font-weight: 700; }
         .status-pill { font-size: 10.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
         .status-pill.pill-posted { background: rgba(47,93,90,0.14); color: #2F5D5A; }
         .status-pill.pill-draft { background: rgba(185,139,78,0.16); color: #8A5A2E; }
@@ -731,21 +857,27 @@
 
         /* شريط التبويبات الفرعي الموحّد (SubTabs.jsx) — مُستخدَم في كل المديولات، الأزرار مُمركَزة
            أفقياً دائماً بصرف النظر عن عددها، وأي محتوى إضافي (trailing) يُثبَّت على الحافة بلا
-           تأثير على التوسيط */
+           تأثير على التوسيط. شكل "Segmented Control": حاوية بخلفية رمادية فاتحة، والتبويب النشط
+           يرتفع عنها بخلفية بيضاء وظل خفيف — نفس المبدأ تماماً مستخدَم لأزرار فلتر الفترة
+           (PeriodFilter.jsx) التي تُعيد استخدام صنف .subtab نفسه بلا حاوية .subtabs-track خاصة
+           بها، فحاوية .period-filter نفسها تحمل نفس خلفية الحاوية لتبدو متّسقة معها. */
         .subtabs-bar { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 20px; }
-        .subtabs-track { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .subtabs-track {
+          display: flex; gap: 3px; flex-wrap: wrap; justify-content: center;
+          background: var(--athar-bg); border: 1px solid var(--athar-border); border-radius: 12px; padding: 4px;
+        }
         .subtab {
           display: flex; align-items: center; gap: 7px;
-          background: #FBF9F3; border: 1px solid rgba(16,32,46,0.13); color: #445565;
-          padding: 9px 18px; border-radius: 999px; font-family: 'IBM Plex Sans Arabic', sans-serif;
+          background: transparent; border: 1px solid transparent; color: var(--athar-text-secondary);
+          padding: 8px 16px; border-radius: 9px; font-family: 'IBM Plex Sans Arabic', sans-serif;
           font-size: 13px; font-weight: 500; cursor: pointer;
-          transition: background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+          transition: background .18s ease, color .18s ease, box-shadow .18s ease;
         }
         .subtab-icon { display: flex; align-items: center; opacity: .65; }
-        .subtab:hover:not(.active) { background: rgba(16,32,46,0.05); border-color: rgba(16,32,46,0.22); color: #10202E; }
+        .subtab:hover:not(.active) { color: var(--athar-text-primary); }
         .subtab.active {
-          background: #10202E; color: #ECE6D6; border-color: #10202E;
-          box-shadow: 0 5px 14px rgba(16,32,46,0.3);
+          background: var(--athar-card); color: var(--athar-text-primary); border-color: var(--athar-border);
+          box-shadow: var(--athar-shadow-sm);
         }
         .subtab.active .subtab-icon { opacity: 1; color: #B98B4E; }
         .subtabs-trailing { display: flex; align-items: center; flex-shrink: 0; }

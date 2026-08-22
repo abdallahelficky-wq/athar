@@ -16,6 +16,25 @@ export function getCompanyColor(id) {
   return AVATAR_COLORS[hashString(id) % AVATAR_COLORS.length];
 }
 
+/** تدرّج لوني ثابت لكل شركة (لونان متجاوران في اللوحة بحسب التجزئة) — نفس مبدأ getCompanyColor
+ * تماماً لكنه يمنح صورة الرمز (Avatar) عمقاً بصرياً أوضح من لون مسطّح واحد. */
+function getCompanyGradient(id) {
+  const base = hashString(id);
+  const c1 = AVATAR_COLORS[base % AVATAR_COLORS.length];
+  const c2 = AVATAR_COLORS[(base + 3) % AVATAR_COLORS.length];
+  return `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
+}
+
+function CheckBadge() {
+  return (
+    <span className="company-card-check">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    </span>
+  );
+}
+
 // بادئات عامة شائعة في الأسماء التجارية العربية ("شركة"، "مؤسسة"...) لا تُميّز شركة عن أخرى —
 // تُحذف قبل استخراج الحرفين الأوّلين حتى لا تتطابق أحرف شركات مختلفة (كانت كل الشركات التي
 // يبدأ اسمها الرسمي بكلمة "شركة" تظهر بنفس الحرف "ش" رغم اختلافها فعلياً)
@@ -49,10 +68,11 @@ function GroupIcon() {
 function CompanyCard({ company, active, onClick }) {
   return (
     <button className={"company-card" + (active ? " active" : "")} onClick={onClick} title={company.name}>
+      {active && <CheckBadge />}
       {company.logoUrl ? (
         <img src={company.logoUrl} alt={company.name} className="company-card-logo" />
       ) : (
-        <div className="company-card-avatar" style={{ background: getCompanyColor(company.id) }}>
+        <div className="company-card-avatar" style={{ background: getCompanyGradient(company.id) }}>
           {getCompanyInitials(company)}
         </div>
       )}
@@ -64,6 +84,7 @@ function CompanyCard({ company, active, onClick }) {
 function ConsolidatedCard({ active, onClick, label }) {
   return (
     <button className={"company-card company-card-consolidated" + (active ? " active" : "")} onClick={onClick}>
+      {active && <CheckBadge />}
       <div className="company-card-avatar company-card-avatar-consolidated"><GroupIcon /></div>
       <span className="company-card-name">{label}</span>
     </button>

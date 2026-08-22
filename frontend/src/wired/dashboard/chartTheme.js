@@ -34,3 +34,9 @@ export const chartTooltipStyle = {
 export function colorAt(index) {
   return CHART_PALETTE[index % CHART_PALETTE.length];
 }
+
+// لوحة الداشبورد التفاعلية الجديدة (--athar-*) — تُستخدَم فقط للرسوم المُعاد تصميمها بهذه الهوية
+// (مثل تعبئة الاتجاه المتدرجة تحت خط اتجاه المبيعات)، منفصلة عمداً عن CHART_PALETTE أعلاه حتى لا
+// تتغيّر ألوان الرسوم الأخرى غير المقصودة بهذا التحديث.
+export const ATHAR_ACCENT_BLUE = "#3b82f6";
+export const ATHAR_ACCENT_GREEN = "#10b981";

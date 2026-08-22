@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  ResponsiveContainer, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
 import {
@@ -13,7 +13,9 @@ import { getComprehensiveMonthly } from "../../api/reports";
 import PeriodFilter from "./PeriodFilter";
 import KpiCard from "./KpiCard";
 import AlertsPanel from "./AlertsPanel";
-import { CHART_PALETTE, CHART_GRID, CHART_AXIS, CHART_FONT, chartTooltipStyle, colorAt } from "./chartTheme";
+import RecentActivity from "./RecentActivity";
+import Banner from "../shared/Banner";
+import { CHART_PALETTE, CHART_GRID, CHART_AXIS, CHART_FONT, chartTooltipStyle, colorAt, ATHAR_ACCENT_BLUE } from "./chartTheme";
 import { currencyLabel } from "../../shared/countries";
 
 const axisProps = { tick: { fontSize: 11.5, fill: CHART_AXIS, fontFamily: CHART_FONT }, axisLine: { stroke: CHART_GRID } };
@@ -42,6 +44,7 @@ export default function FinancialDashboard({ companyId, companies }) {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [monthly, setMonthly] = useState(null);
+  const alertsRef = useRef(null);
 
   useEffect(() => {
     if (!range) return;
@@ -69,6 +72,11 @@ export default function FinancialDashboard({ companyId, companies }) {
   // الافتراضية كسابقاً بلا تغيير سلوك — نفس منطق ComprehensiveMonthlyReport.jsx.
   const currency = companyId ? currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language) : t("common.currency");
 
+  // أعجل تنبيه (الأقرب أجلاً/الأكثر تأخّراً) يُبرَز كـ Banner أعلى الصفحة — بلا أي استدعاء بيانات
+  // إضافي، فقط عرض مختلف لأول عنصر من نفس alerts المحمَّلة أصلاً لـ AlertsPanel أدناه.
+  const topAlert = alerts[0];
+  const scrollToAlerts = () => alertsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   return (
     <div>
       <PeriodFilter onChange={setRange} />
@@ -77,15 +85,27 @@ export default function FinancialDashboard({ companyId, companies }) {
         <p className="empty">{t("dashboard.loading")}</p>
       ) : (
         <>
+          {topAlert && (
+            <Banner
+              type={topAlert.days != null && topAlert.days < 0 ? "danger" : "warning"}
+              title={topAlert.title}
+              message={topAlert.detail}
+              actionLabel={t("dashboard.banner.viewAllAlerts")}
+              onAction={scrollToAlerts}
+            />
+          )}
+
           <div className="kpi-row">
-            <KpiCard label={t("dashboard.kpi.netSales")} value={`${fmt(kpis.salesCurrent)} ${currency}`} changePct={kpis.salesChangePct} changeLabel={t("dashboard.kpi.vsPreviousPeriod")} />
-            <KpiCard label={t("dashboard.kpi.netProfitEstimate")} value={`${fmt(kpis.netProfitEstimate)} ${currency}`} />
-            <KpiCard label={t("dashboard.kpi.cashBalance")} value={`${fmt(kpis.cashBalance)} ${currency}`} />
-            <KpiCard label={t("dashboard.kpi.receivables")} value={`${fmt(kpis.receivablesTotal)} ${currency}`} />
-            <KpiCard label={t("dashboard.kpi.payables")} value={`${fmt(kpis.payablesTotal)} ${currency}`} />
+            <KpiCard tone="revenue" label={t("dashboard.kpi.netSales")} value={`${fmt(kpis.salesCurrent)} ${currency}`} changePct={kpis.salesChangePct} changeLabel={t("dashboard.kpi.vsPreviousPeriod")} />
+            <KpiCard tone="profit" label={t("dashboard.kpi.netProfitEstimate")} value={`${fmt(kpis.netProfitEstimate)} ${currency}`} />
+            <KpiCard tone="cash" label={t("dashboard.kpi.cashBalance")} value={`${fmt(kpis.cashBalance)} ${currency}`} />
+            <KpiCard tone="receivable" label={t("dashboard.kpi.receivables")} value={`${fmt(kpis.receivablesTotal)} ${currency}`} />
+            <KpiCard tone="payable" label={t("dashboard.kpi.payables")} value={`${fmt(kpis.payablesTotal)} ${currency}`} />
           </div>
 
-          <AlertsPanel title={t("dashboard.alerts.title")} alerts={alerts} emptyText={t("dashboard.alerts.empty")} />
+          <div ref={alertsRef}>
+            <AlertsPanel title={t("dashboard.alerts.title")} alerts={alerts} emptyText={t("dashboard.alerts.empty")} />
+          </div>
 
           <div className="charts-grid">
             {monthly && <>
@@ -142,13 +162,24 @@ export default function FinancialDashboard({ companyId, companies }) {
             <div className="panel chart-panel">
               <h3>{t("dashboard.charts.salesTrendTitle")}</h3>
               <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={salesTrend}>
+                <AreaChart data={salesTrend}>
+                  <defs>
+                    <linearGradient id="salesTrendFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={ATHAR_ACCENT_BLUE} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={ATHAR_ACCENT_BLUE} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid stroke={CHART_GRID} vertical={false} />
                   <XAxis dataKey="month" {...axisProps} />
                   <YAxis {...axisProps} />
                   <Tooltip {...chartTooltipStyle} formatter={(v) => `${fmt(v)} ${currency}`} />
-                  <Line type="monotone" dataKey="total" name={t("dashboard.charts.sales")} stroke={CHART_PALETTE[0]} strokeWidth={2.5} dot={false} />
-                </LineChart>
+                  <Area
+                    type="monotone" dataKey="total" name={t("dashboard.charts.sales")}
+                    stroke={ATHAR_ACCENT_BLUE} strokeWidth={2.5} fill="url(#salesTrendFill)"
+                    dot={{ r: 3, fill: ATHAR_ACCENT_BLUE, strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: ATHAR_ACCENT_BLUE, stroke: "#fff", strokeWidth: 2 }}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
 
@@ -197,31 +228,8 @@ export default function FinancialDashboard({ companyId, companies }) {
           </div>
 
           <div className="panel">
-            <h3>{t("dashboard.topTransactions.title")}</h3>
-            {topTransactions.length === 0 ? <p className="empty">{t("dashboard.topTransactions.empty")}</p> : (
-              <table className="ledger-table">
-                <thead>
-                  <tr>
-                    <th>{t("dashboard.topTransactions.date")}</th>
-                    <th>{t("dashboard.topTransactions.memo")}</th>
-                    <th>{t("dashboard.topTransactions.account")}</th>
-                    <th>{t("dashboard.topTransactions.amount")}</th>
-                    <th>{t("dashboard.topTransactions.direction")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topTransactions.map((tr, i) => (
-                    <tr key={i}>
-                      <td>{tr.date.slice(0, 10)}</td>
-                      <td>{tr.memo}</td>
-                      <td>{tr.accountName}</td>
-                      <td className="num">{fmt(Math.abs(tr.amount))} {currency}</td>
-                      <td className={tr.direction === "in" ? "balance-ok" : "balance-bad"}>{tr.direction === "in" ? t("dashboard.charts.cashIn") : t("dashboard.charts.cashOut")}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <h3>{t("dashboard.recentActivity.title")}</h3>
+            <RecentActivity items={topTransactions} currency={currency} />
           </div>
 
           {position && (

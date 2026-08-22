@@ -201,6 +201,8 @@
       "receivables": "Amounts due from customers", "payables": "Amounts due to suppliers"
     },
     "alerts": { "title": "⚠ Key alerts", "empty": "No alerts at the moment." },
+    "banner": { "viewAllAlerts": "View all alerts" },
+    "recentActivity": { "title": "Recent cash activity" },
     "charts": {
       "payrollAndDues": "Payroll & dues", "paid": "Paid", "unpaid": "Unpaid", "endOfService": "End of service",
       "agingTitle": "Receivables & payables aging", "under30": "Under 30", "d30to60": "30–60", "d60to90": "60–90", "over90": "90+",
