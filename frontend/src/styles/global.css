@@ -29,13 +29,12 @@
         /* إزالة الهامش الافتراضي لعنصر body (8px من متصفحات مختلفة) — بدونه كان .app-root (وبالتالي
            شريط تمرير .app-content نفسه) يبتعد قليلاً عن الحافة الحقيقية للنافذة بدل ملاصقتها تماماً. */
         body { margin: 0; }
-        /* الشريط الجانبي والهيدر العلوي ثابتان دائماً — فقط .app-content (منطقة المحتوى) قابلة
-           للتمرير الداخلي. .app-root بارتفاع الشاشة كاملاً و overflow:hidden يمنع أي تمرير على
-           مستوى الصفحة نفسها؛ .sidebar/.main يمتدّان تلقائياً لنفس الارتفاع عبر stretch الافتراضي
-           لـ flex (بلا حاجة لتحديد height صريح على كل منهما)، وكل واحد منهما يدير تمريره الداخلي
-           بنفسه (.sidebar-nav-scroll للقائمة الطويلة، .app-content للمحتوى) — يعمل بنفس الشكل تماماً
-           تحت RTL وLTR لأنه لا يعتمد على أي اتجاه فيزيائي (يسار/يمين)، فقط تكديس رأسي (column) أو
-           أفقي (row) عادي. */
+        /* شريط التنقّل العلوي (.topnav) وشريط الأدوات (.topbar) ثابتان دائماً — فقط .app-content
+           (منطقة المحتوى) قابلة للتمرير الداخلي. .app-root تكديس رأسي (column) بارتفاع الشاشة
+           كاملاً و overflow:hidden يمنع أي تمرير على مستوى الصفحة نفسها؛ .topnav/.topbar يأخذان
+           ارتفاعهما الطبيعي (flex-shrink:0) و.app-content يأخذ الباقي (flex:1) ويدير تمريره
+           الداخلي بنفسه — يعمل بنفس الشكل تماماً تحت RTL وLTR لأنه تكديس رأسي عادي بلا اعتماد على
+           أي اتجاه فيزيائي (يسار/يمين). */
         .app-root {
           font-family: 'Tajawal', 'IBM Plex Sans Arabic', sans-serif;
           background: var(--athar-bg);
@@ -43,36 +42,49 @@
           overflow: hidden;
           color: #141414;
           display: flex;
+          flex-direction: column;
         }
 
-        .sidebar {
-          width: 232px;
+        /* شريط التنقّل العلوي الثابت (يحلّ محل القائمة الجانبية السابقة، مرجع: SNB) — صفّان: صفّ
+           العلامة التجارية + مبدّل الشركة، وتحته صفّ روابط التنقّل الرئيسية بقوائمها المنسدلة.
+           ثابت دائماً (لا يتمرّر مع المحتوى)، بخلفية الهوية الغامقة نفسها التي كانت للشريط الجانبي. */
+        .topnav {
           flex-shrink: 0;
           background: var(--athar-sidebar);
           color: #ECE6D6;
-          padding: 28px 20px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
           position: relative;
-          overflow: hidden;
+          z-index: 20;
         }
-        /* توهّج ضوئي خفيف أعلى الشريط الجانبي خلف الشعار — دائري، لا يتبع اتجاه RTL/LTR (موضعه
-           مركزي أفقياً بالنسبة لعرض الشريط نفسه، فلا حاجة لأي قواعد [dir] خاصة به) ولا يتفاعل مع
-           أي عنصر (pointer-events: none) حتى لا يحجب النقر على الشعار أو القائمة تحته. */
-        .sidebar::before {
-          content: ''; position: absolute; top: -60px; inset-inline-start: 50%;
-          width: 260px; height: 200px; transform: translateX(-50%);
+        /* توهّج ضوئي خفيف خلف الشعار — لا يتبع اتجاه RTL/LTR (ثابت بالنسبة لعرض الشريط) ولا يتفاعل
+           مع أي عنصر (pointer-events: none) حتى لا يحجب النقر على الشعار أو الروابط. */
+        .topnav::before {
+          content: ''; position: absolute; top: -70px; inset-inline-start: 60px;
+          width: 260px; height: 200px;
           background: radial-gradient(closest-side, rgba(200,16,46,0.22), transparent);
           pointer-events: none; z-index: 0;
         }
-        .sidebar > * { position: relative; z-index: 1; }
-        /* القائمة الرئيسية فقط (وليس الشعار أو مبدّل الشركة فوقها) هي الجزء القابل للتمرير داخل
-           الشريط الجانبي، حتى يبقى مبدّل الشركة ظاهراً دائماً بصرف النظر عن طول القائمة أو عدد
-           الأقسام المفتوحة تحتها. */
-        .sidebar-nav-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 26px; }
-        .sidebar-nav-scroll::-webkit-scrollbar { width: 4px; }
-        .sidebar-nav-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+        .topnav > * { position: relative; z-index: 1; }
+
+        .topnav-brand-row {
+          display: flex; align-items: center; gap: 20px; padding: 12px 28px;
+          border-bottom: 1px solid rgba(236,230,214,0.08);
+        }
+        .topnav-brand-link { text-decoration: none; color: inherit; }
+        .topnav-company-wrap { width: 250px; flex-shrink: 0; margin-inline-start: auto; }
+
+        /* صفّ روابط التنقّل الأفقي — overflow-x:auto كشبكة أمان لو ضاق العرض قليلاً دون بلوغ حدّ
+           التبديل لقائمة الجوال (انظر @media أسفله)، بدل انكسار الصفّ لأكثر من سطر. */
+        /* بلا overflow-x هنا عمداً (لا حتى overflow-x:auto مع overflow-y:visible صريحة) — مواصفة
+           CSS Overflow تفرض توافق overflow-x/overflow-y معاً (إن كان أحدهما غير visible يتحوّل
+           الآخر تلقائياً لـauto أيضاً، حتى لو حُدِّد صراحة بخلاف ذلك)، فكانت تقصّ القائمة المنسدلة
+           (.nav-dropdown) التي تفيض عمداً أسفل هذا الصفّ (رُصِد فعلياً أثناء الاختبار عبر تتبّع
+           getComputedStyle لكامل سلسلة الأصول — القائمة محسوبة visible/opacity:1 لكنها غير مرسومة
+           فوق .topbar). الروابط الثمانية تتّسع بارتياح ضمن نقطة انكسار الجوال (860px) فلا حاجة
+           فعلية لتمرير أفقي هنا أصلاً. */
+        .topnav-links-row {
+          display: flex; align-items: stretch; gap: 2px; padding: 0 20px;
+        }
+
         .brand { display: flex; align-items: center; gap: 10px; }
         .brand-mark { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #B98B4E; position: relative; flex-shrink: 0; }
         .brand-mark::before {
@@ -138,7 +150,42 @@
         }
         .nav-caret.open { transform: rotate(0deg); }
 
-        /* شارة عددية على عنصر قسم رئيسي بالقائمة الجانبية (مثال: فواتير متأخرة السداد بالمبيعات،
+        /* نسخة أفقية من .nav-btn/.nav-group-toggle/.nav-caret أعلاه، مخصَّصة فقط لصفّ التنقّل
+           العلوي على سطح المكتب (.topnav-links-row) — تستبدل التخطيط العمودي/مؤشر الحدّ الجانبي
+           بتخطيط صفّي/مؤشر حدّ سفلي، بينما تبقى القواعد الأصلية كما هي لخدمة لوحة الجوال (أسفل)
+           التي تحتفظ بنفس شكل الأكورديون العمودي القديم دون أي تغيير. */
+        .topnav-links-row { position: relative; }
+        .topnav-links-row .nav-btn,
+        .topnav-links-row .nav-group-toggle {
+          border-right: none; border-bottom: 2px solid transparent; border-radius: 0;
+          padding: 16px 14px; white-space: nowrap; width: auto;
+        }
+        .topnav-links-row .nav-btn.active,
+        .topnav-links-row .nav-group-toggle.active {
+          border-right-color: transparent; border-bottom-color: #C8102E;
+        }
+        .topnav-links-row .nav-home { margin-bottom: 0; }
+        .topnav-links-row .nav-group { flex-direction: row; position: relative; }
+        .topnav-links-row .nav-caret { transform: none; font-size: 9px; }
+        .topnav-links-row .nav-group:hover .nav-caret,
+        .topnav-links-row .nav-group:focus-within .nav-caret { transform: rotate(180deg); }
+
+        /* القائمة المنسدلة (Dropdown) لكل قسم رئيسي بصفّ التنقّل العلوي — تظهر/تختفي بالكامل عبر
+           CSS نقي (:hover/:focus-within)، فتعمل بالماوس ولوحة المفاتيح معاً بلا أي حالة JS، وتبقى
+           مفتوحة أثناء الانتقال بالماوس من الرابط الرئيسي إلى عناصرها (كلاهما داخل .nav-group نفسه). */
+        .nav-dropdown {
+          position: absolute; top: 100%; inset-inline-start: 0; min-width: 220px; z-index: 100;
+          background: #141414; border-radius: 0 0 10px 10px; padding: 8px;
+          box-shadow: var(--athar-shadow-lg); display: flex; flex-direction: column; gap: 2px;
+          opacity: 0; visibility: hidden; transform: translateY(-6px); pointer-events: none;
+          transition: opacity .15s ease, transform .15s ease, visibility .15s ease;
+        }
+        .nav-group:hover .nav-dropdown, .nav-group:focus-within .nav-dropdown {
+          opacity: 1; visibility: visible; transform: translateY(0); pointer-events: auto;
+        }
+        .nav-dropdown .nav-subitem { padding: 8px 10px; }
+
+        /* شارة عددية على عنصر قسم رئيسي بالتنقّل (مثال: فواتير متأخرة السداد بالمبيعات،
            طلبات إجازة معلّقة بشئون الموظفين) — رقم حقيقي من نفس تنبيهات لوحة القيادة (financial-
            alerts/hr-alerts)، لا رقم وهمي. تظهر فقط لو كان العدد أكبر من صفر (انظر App.jsx). */
         .nav-badge {
@@ -229,18 +276,19 @@
         .alert-days { font-size: 11px; color: #8A7C5E; font-family: 'JetBrains Mono', monospace; }
         .alert-chip.alert-expired .alert-days { color: #A8432B; font-weight: 700; }
 
-        /* .main يحوي فقط الهيدر الثابت + منطقة المحتوى القابلة للتمرير (.app-content) — لا padding
-           ولا max-width خاصين به (انتقلا لـ .app-content) حتى يمتد الهيدر بعرض كامل. */
-        .main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
-
-        /* هيدر ثابت (لا يتمرّر مع المحتوى) بخلفية شبه شفافة + ضبابية خلفية (backdrop-filter) تكشف
-           تلميحاً من المحتوى خلفه أثناء التمرير — دعم -webkit- لسفاري/الجوال. */
+        /* شريط أدوات ثانوي ثابت (لا يتمرّر مع المحتوى)، أسفل .topnav مباشرة — بحث سريع/تاريخ/إشعارات/
+           لغة/قائمة المستخدم. بخلفية شبه شفافة + ضبابية خلفية (backdrop-filter) تكشف تلميحاً من
+           المحتوى خلفه أثناء التمرير — دعم -webkit- لسفاري/الجوال. */
         .topbar {
           display: flex; justify-content: space-between; align-items: center; gap: 14px;
           flex-shrink: 0; padding: 16px 40px;
           background: rgba(240,238,235,0.85);
           backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
           border-bottom: 1px solid var(--athar-border);
+          /* position+z-index صريحان هنا حتى لا يترك backdrop-filter (الذي يُنشئ سياق تكديس ضمني
+             خاصاً به) ترتيب الطبقات لتخمين المتصفح — بدونهما كان .topbar يرسم فوق القائمة المنسدلة
+             لـ.topnav رغم z-index:20 الأعلى صراحة على الأخير (رُصِد فعلياً أثناء الاختبار). */
+          position: relative; z-index: 10;
         }
         .topbar-company {
           font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 15px; color: #445565;
@@ -1160,11 +1208,12 @@
           .landing-nav { padding: 16px 20px; flex-direction: column; gap: 12px; }
         }
 
-        /* القائمة الجانبية على سطح المكتب ثابتة دائماً — زر الهمبرغر/زر الإغلاق/الخلفية المعتمة
+        /* شريط التنقّل الأفقي ظاهر دائماً على سطح المكتب — زر الهمبرغر/لوحة الجوال/الخلفية المعتمة
            تظهر فقط تحت نقطة انكسار الموبايل أدناه */
         .hamburger-btn { display: none; }
         .sidebar-close-btn { display: none; }
         .sidebar-backdrop { display: none; }
+        .mobile-nav-panel { display: none; }
 
         /* ===== دليل الأصناف ===== */
         .items-page { --items-navy: #141414; --items-gold: #C8102E; }
@@ -1284,26 +1333,39 @@
             margin-right: auto; background: transparent; border: none; color: #ECE6D6;
             font-size: 18px; cursor: pointer; width: 32px; height: 32px;
           }
-          /* لوحة منزلقة (off-canvas) من جهة بداية القراءة (يمين بالعربي، يسار بالإنجليزي) بدل
-             شريط أفقي دائم الظهور — تظهر فقط عند الضغط على زر الهمبرغر، وتُغلَق تلقائياً بعد أي
-             تنقّل (منطق isMobileSidebarOpen في App.jsx). inset-inline-start يتبع dir الفعلي
-             تلقائياً (right فيزيائياً بالعربي RTL، left بالإنجليزي LTR) — لكن transform/box-shadow
-             خاصيتان فيزيائيتان لا تتبعان dir، فهما مشروطتان صراحة أدناه بحسب [dir] على .app-root. */
-          .sidebar {
+          /* شريط التنقّل الأفقي (روابط الأقسام) يختفي على الجوال، ويُستبدَل بلوحة منزلقة (off-canvas)
+             من جهة بداية القراءة (يمين بالعربي، يسار بالإنجليزي) — تظهر فقط عند الضغط على زر
+             الهمبرغر، وتُغلَق تلقائياً بعد أي تنقّل (منطق isMobileMenuOpen في App.jsx).
+             inset-inline-start يتبع dir الفعلي تلقائياً (right فيزيائياً بالعربي RTL، left
+             بالإنجليزي LTR) — لكن transform/box-shadow خاصيتان فيزيائيتان لا تتبعان dir، فهما
+             مشروطتان صراحة أدناه بحسب [dir] على .app-root. */
+          .topnav-links-row { display: none; }
+          /* على الجوال مبدّل الشركة يبقى في صفّ العلامة التجارية لكن مُصغَّراً (الشعار الدائري
+             فقط دون اسم الشركة/الوصف النصّي) حتى لا يزاحم اسم النظام وزر الهمبرغر على عرض ضيّق —
+             القائمة المنسدلة نفسها بلا تغيير، لا تزال تعمل بالنقر بكامل وظيفتها. */
+          .topnav-brand-row { padding: 10px 16px; gap: 10px; }
+          .topnav-company-wrap { width: auto; }
+          .topnav-company-wrap .sidebar-company-trigger { padding: 6px; background: transparent; border: none; }
+          .topnav-company-wrap .sidebar-company-info { display: none; }
+          .topnav-company-wrap .sidebar-company-dropdown { inset-inline-start: auto; inset-inline-end: 0; width: 260px; }
+          .brand-name { font-size: 15.5px; }
+          .brand-sub { font-size: 11.5px; }
+
+          .mobile-nav-panel {
+            display: flex; flex-direction: column;
             position: fixed; inset-block: 0; inset-inline-start: 0; width: 78vw; max-width: 300px;
+            background: var(--athar-sidebar); color: #ECE6D6; padding: 20px 18px;
             transition: transform .25s ease;
             z-index: 1000; overflow-y: auto;
           }
-          [dir="rtl"] .sidebar { transform: translateX(100%); box-shadow: -8px 0 24px rgba(0,0,0,0.25); }
-          [dir="ltr"] .sidebar { transform: translateX(-100%); box-shadow: 8px 0 24px rgba(0,0,0,0.25); }
-          .sidebar.sidebar-open { transform: translateX(0); }
+          [dir="rtl"] .mobile-nav-panel { transform: translateX(100%); box-shadow: -8px 0 24px rgba(0,0,0,0.25); }
+          [dir="ltr"] .mobile-nav-panel { transform: translateX(-100%); box-shadow: 8px 0 24px rgba(0,0,0,0.25); }
+          .mobile-nav-panel.open { transform: translateX(0); }
+          .mobile-nav-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+          .mobile-nav-scroll { flex: 1; min-height: 0; }
           .sidebar-backdrop {
             display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999;
           }
-          /* الشريط الجانبي كله يتمرّر كوحدة واحدة على الجوال (overflow-y: auto أعلاه على .sidebar
-             نفسه) — تعطيل تمرير .sidebar-nav-scroll الداخلي المنفصل هنا حتى لا يظهر شريطا تمرير
-             متداخلان لنفس المحتوى. */
-          .sidebar-nav-scroll { flex: initial; overflow-y: visible; }
 
           .nav-list { margin-top: 0; flex-direction: column; }
           .app-content-inner { padding: 16px; }

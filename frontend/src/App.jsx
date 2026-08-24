@@ -67,15 +67,15 @@ function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const activeGroupId = currentGroupId(location.pathname);
-  // قسم واحد فقط مفتوح في القائمة الجانبية في أي وقت (Accordion حقيقي) — يُزامَن تلقائياً مع
-  // القسم الحالي من الرابط (كان يُزامَن مع moduleId state، الآن مع location.pathname مباشرة)، لكن
-  // إغلاقه يدوياً بينما لا يزال هو القسم الحالي لا يُعاد فتحه قسراً.
+  // على سطح المكتب لم تعد حالة "القائمة المنسدلة مفتوحة" تُدار من JS إطلاقاً — تظهر/تختفي بالكامل
+  // عبر CSS نقي (:hover/:focus-within على .nav-group)، فلا حاجة لحالة أو أحداث mouseenter/leave.
+  // openGroupId هنا مخصَّصة فقط لأكورديون القائمة المنسدلة على الجوال (نقر حقيقي، لا يوجد hover).
   const [openGroupId, setOpenGroupId] = useState(null);
   useEffect(() => {
     if (NAV_GROUPS.some((g) => g.id === activeGroupId)) setOpenGroupId(activeGroupId);
-    setIsMobileSidebarOpen(false);
+    setIsMobileMenuOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroupId]);
 
@@ -139,31 +139,79 @@ function AppShell() {
   return (
     <div className="app-root" dir={i18n.dir()}>
       <UnsavedChangesBlocker />
-      {isMobileSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsMobileSidebarOpen(false)} />}
-      <div className={"sidebar" + (isMobileSidebarOpen ? " sidebar-open" : "")}>
-        <div className="brand">
-          <div className="brand-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
-          <div>
-            <div className="brand-name">{t("common.brandName")}</div>
-            <div className="brand-sub">{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</div>
+
+      <div className="topnav">
+        <div className="topnav-brand-row">
+          <Link to={routes.dashboard()} className="brand topnav-brand-link">
+            <div className="brand-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
+            <div>
+              <div className="brand-name">{t("common.brandName")}</div>
+              <div className="brand-sub">{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</div>
+            </div>
+          </Link>
+          <div className="topnav-company-wrap">
+            <CompanySwitcher companies={real.companies} companyId={real.companyId} setCompanyId={real.setCompanyId} />
           </div>
-          <button
-            className="sidebar-close-btn"
-            onClick={() => setIsMobileSidebarOpen(false)}
-            aria-label={t("nav.closeMenu")}
-          >✕</button>
+          <button className="hamburger-btn" onClick={() => setIsMobileMenuOpen(true)} aria-label={t("nav.openMenu")}>☰</button>
         </div>
 
-        <CompanySwitcher companies={real.companies} companyId={real.companyId} setCompanyId={real.setCompanyId} />
+        {/* شريط التنقّل الأفقي (سطح المكتب) — القوائم المنسدلة تظهر/تختفي بالكامل عبر CSS نقي
+            (:hover/:focus-within على .nav-group)، فتعمل بالماوس ولوحة المفاتيح معاً بلا أي حالة JS. */}
+        <nav className="topnav-links-row">
+          <Link className={"nav-btn nav-home" + (location.pathname.startsWith("/dashboard") ? " active" : "")} to={routes.dashboard()}>
+            <span className="nav-icon"><NavIcon name="dashboard" /></span>
+            <span>{t("nav.dashboard")}</span>
+          </Link>
+          {NAV_GROUPS.map((g) => {
+            const isActiveModule = activeGroupId === g.id;
+            const badgeCount = navBadges[g.id] || 0;
+            return (
+              <div className="nav-group" key={g.id}>
+                <Link className={"nav-group-toggle" + (isActiveModule ? " active" : "")} to={g.to()}>
+                  <span className="nav-icon"><NavIcon name={g.id} /></span>
+                  <span className="nav-label">{t(g.labelKey)}</span>
+                  {badgeCount > 0 && (
+                    <span className={"nav-badge " + (g.id === "sales" ? "nav-badge-danger" : "nav-badge-warning")}>{badgeCount}</span>
+                  )}
+                  <span className="nav-caret">▾</span>
+                </Link>
+                <div className="nav-dropdown">
+                  {g.tabs.map((tab) => (
+                    <Link
+                      key={tab.id}
+                      to={g.to(tab.id)}
+                      className={"nav-subitem" + (isActiveModule && location.pathname === g.to(tab.id) ? " active" : "")}
+                    >
+                      <span className="nav-icon nav-icon-sm"><NavIcon name={tab.id} /></span>
+                      <span>{t(tab.labelKey)}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </nav>
+      </div>
 
-        <div className="sidebar-nav-scroll">
+      {/* لوحة القائمة على الجوال — نفس منطق الأكورديون الأصلي بالضبط (نقر حقيقي بلا hover)، تظهر
+          فقط دون الحد الأدنى لعرض شريط التنقّل الأفقي (انظر @media في global.css). */}
+      {isMobileMenuOpen && <div className="sidebar-backdrop" onClick={() => setIsMobileMenuOpen(false)} />}
+      <div className={"mobile-nav-panel" + (isMobileMenuOpen ? " open" : "")}>
+        <div className="mobile-nav-panel-head">
+          <span className="brand-name">{t("common.brandName")}</span>
+          <button className="sidebar-close-btn" onClick={() => setIsMobileMenuOpen(false)} aria-label={t("nav.closeMenu")}>✕</button>
+        </div>
+        <div className="mobile-nav-scroll">
           <div className="nav-list">
-            <Link className={"nav-btn nav-home" + (location.pathname.startsWith("/dashboard") ? " active" : "")} to={routes.dashboard()}>
+            <Link
+              className={"nav-btn nav-home" + (location.pathname.startsWith("/dashboard") ? " active" : "")}
+              to={routes.dashboard()}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
               <span className="nav-icon"><NavIcon name="dashboard" /></span>
               <span>{t("nav.dashboard")}</span>
             </Link>
           </div>
-
           <div className="nav-list">
             {NAV_GROUPS.map((g) => {
               const isActiveModule = activeGroupId === g.id;
@@ -191,6 +239,7 @@ function AppShell() {
                             key={tab.id}
                             to={g.to(tab.id)}
                             className={"nav-subitem" + (isActiveModule && location.pathname === g.to(tab.id) ? " active" : "")}
+                            onClick={() => setIsMobileMenuOpen(false)}
                           >
                             <span className="nav-icon nav-icon-sm"><NavIcon name={tab.id} /></span>
                             <span>{t(tab.labelKey)}</span>
@@ -206,31 +255,28 @@ function AppShell() {
         </div>
       </div>
 
-      <div className="main">
-        <div className="topbar">
-          <button className="hamburger-btn" onClick={() => setIsMobileSidebarOpen(true)} aria-label={t("nav.openMenu")}>☰</button>
-          <span className="topbar-company" title={tenant?.name}>{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</span>
-          <QuickSearch companyId={real.companyId} />
-          <span className="topbar-date">{formatDate(new Date(), i18n.language)}</span>
-          <NotificationBell overdueInvoicesCount={overdueInvoicesCount} pendingLeaveCount={pendingLeaveCount} />
-          <LanguageSwitcher />
-          <UserMenu
-            name={user?.name}
-            email={user?.email}
-            onOpenProfile={() => navigate(routes.settings("profile"))}
-            onLogout={async () => { await logout(); navigate("/login"); }}
-          />
-        </div>
+      <div className="topbar">
+        <span className="topbar-company" title={tenant?.name}>{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</span>
+        <QuickSearch companyId={real.companyId} />
+        <span className="topbar-date">{formatDate(new Date(), i18n.language)}</span>
+        <NotificationBell overdueInvoicesCount={overdueInvoicesCount} pendingLeaveCount={pendingLeaveCount} />
+        <LanguageSwitcher />
+        <UserMenu
+          name={user?.name}
+          email={user?.email}
+          onOpenProfile={() => navigate(routes.settings("profile"))}
+          onLogout={async () => { await logout(); navigate("/login"); }}
+        />
+      </div>
 
-        <div className="app-content">
-          <div className="app-content-inner">
-            {!emailServiceConfigured && (user?.role === "admin" || user?.role === "super_admin") && (
-              <div className="system-warning-banner">
-                {t("nav.emailWarningBefore")} <code>RESEND_API_KEY</code> {t("nav.emailWarningAfter")}
-              </div>
-            )}
-            <Outlet context={outletContext} />
-          </div>
+      <div className="app-content">
+        <div className="app-content-inner">
+          {!emailServiceConfigured && (user?.role === "admin" || user?.role === "super_admin") && (
+            <div className="system-warning-banner">
+              {t("nav.emailWarningBefore")} <code>RESEND_API_KEY</code> {t("nav.emailWarningAfter")}
+            </div>
+          )}
+          <Outlet context={outletContext} />
         </div>
       </div>
     </div>
