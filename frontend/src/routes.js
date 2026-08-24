@@ -16,4 +16,8 @@ export const routes = {
   /** كشف حساب الأستاذ لحساب معيّن — يُستخدَم من كل روابط "عرض في شجرة الحسابات" المتفرّقة
    * (العملاء/الموردون/الموظفون) والبحث السريع، حتى لا يتكرر بناء الرابط في كل ملف على حدة. */
   accountLedger: (accountId) => (accountId ? `/accounts/ledger?accountId=${encodeURIComponent(accountId)}` : "/accounts/ledger"),
+  /** فتح قيد يومية محدَّد من داخل شاشة "القيود اليومية" الحقيقية بكامل مكوّنات النظام (لا صفحة
+   * عرض منفصلة) — يُستخدَم من رابط كشف حساب الأستاذ. JournalModule يقرأ entryId ويفتح نافذة
+   * التعديل/العرض المناسبة تلقائياً فور التحميل (راجع التعليق هناك). */
+  journalEntry: (entryId) => (entryId ? `/accounts/journal?entryId=${encodeURIComponent(entryId)}` : "/accounts/journal"),
 };

@@ -1399,6 +1399,11 @@
         .journal-table .checkbox-col { width: 34px; }
         .journal-table input[type="checkbox"] { accent-color: #B98B4E; width: 15px; height: 15px; cursor: pointer; }
 
+        /* تظليل مؤقّت للقيد المفتوح تلقائياً عبر ?entryId= (رابط كشف حساب الأستاذ) — يتلاشى
+           تدريجياً بدل البقاء ثابتاً، مجرَّد إشارة "هذا ما كنت تبحث عنه" لا حالة دائمة. */
+        @keyframes journalRowHighlightFade { from { background: rgba(185,139,78,0.35); } to { background: transparent; } }
+        .journal-table tr.row-highlighted { animation: journalRowHighlightFade 2.5s ease-out forwards; }
+
         .status-badge.status-posted { background: rgba(47,93,90,0.14); color: #2F5D5A; }
         .status-badge.status-saved { background: rgba(200,16,46,0.16); color: #7A0F1F; }
         .status-badge.status-neutral { background: rgba(138,124,94,0.14); color: #8A7C5E; }

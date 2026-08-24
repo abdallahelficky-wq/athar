@@ -7,6 +7,7 @@ import { listBranches } from "../api/branches";
 import { getAccountLedger } from "../api/reports";
 import { fmt } from "../legacy/constants";
 import { downloadCsv } from "../legacy/shared";
+import { routes } from "../routes";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import Breadcrumb from "./shared/Breadcrumb";
 import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
@@ -212,7 +213,10 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                 </thead>
                 <tbody>
                   {ledger.rows.map((r, i) => {
-                    const entryHref = `/journal-entries/${r.journalEntryId}/view`;
+                    // يفتح النظام الكامل (بالشريط العلوي وتسجيل الدخول) على شاشة "القيود اليومية"
+                    // الحقيقية مع فتح نافذة القيد تلقائياً — لا صفحة عرض منفصلة معزولة عن التطبيق
+                    // (انظر معالجة entryId في JournalModule.jsx).
+                    const entryHref = routes.journalEntry(r.journalEntryId);
                     return (
                     <tr
                       key={r.journalEntryId + i}

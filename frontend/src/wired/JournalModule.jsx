@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { listAccounts } from "../api/accounts";
 import { listCostCenters } from "../api/costCenters";
@@ -66,6 +67,33 @@ export default function JournalModule({ companies, companyId }) {
   const [linkInfoId, setLinkInfoId] = useState(null);
   const [linkInfo, setLinkInfo] = useState(null);
   const [unpostTarget, setUnpostTarget] = useState(null);
+
+  // فتح قيد محدَّد تلقائياً عبر ?entryId= (رابط "فتح في تبويب جديد" من كشف حساب الأستاذ) — يُفتح
+  // بنافذة التعديل مباشرة لو كان القيد "محفوظاً" (قابلاً للتعديل)، أو نافذة العرض لو كان "مرحّلاً"
+  // (لا يوجد تعديل لقيد مرحّل في أي مكان بالنظام أصلاً، فنافذة العرض هي المعادل الطبيعي — تتيح
+  // الطباعة وتترك أزرار عكس القيد/فك الترحيل ظاهرة بجانبه بالجدول). جلب القيد مباشرة عبر
+  // getJournalEntry بدل البحث في قائمة entries المحمَّلة يضمن نجاحه بصرف النظر عن الفلاتر/الصفحات
+  // الحالية. يُزال entryId من الرابط بعد الفتح حتى لا يُعاد فتح نفس القيد قسراً عند أي تنقّل لاحق.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const targetEntryId = searchParams.get("entryId");
+  const [highlightedEntryId, setHighlightedEntryId] = useState(null);
+  useEffect(() => {
+    if (!targetEntryId || !companyId) return;
+    let cancelled = false;
+    getJournalEntry(targetEntryId).then((entry) => {
+      if (cancelled) return;
+      if (entry.status === "saved") setFormModal({ mode: "edit", entry });
+      else setViewEntry(entry);
+      setHighlightedEntryId(entry.id);
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("entryId");
+        return next;
+      }, { replace: true });
+    }).catch((err) => { if (!cancelled) setError(err.message); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetEntryId, companyId]);
 
   useEffect(() => {
     if (!companyId) { setAccounts([]); return; }
@@ -138,6 +166,14 @@ export default function JournalModule({ companies, companyId }) {
   // تحديد متعدد للصفوف — تجهيز واجهة أساسية لإجراءات جماعية مستقبلية (طباعة/تصدير مجموعة قيود)،
   // الأزرار الفعلية معطَّلة حالياً وموسومة "قريباً" حتى يُنفَّذ منطقها الكامل.
   useEffect(() => { setSelectedIds(new Set()); }, [entries]);
+
+  // تمرير تلقائي + تظليل بصري للقيد المفتوح تلقائياً عبر entryId — إن ظهر ضمن القائمة الحالية
+  // (بلا فلاتر تستبعده)، تجربة إضافية فوق فتح النافذة نفسها، وليست شرطاً لعملها.
+  useEffect(() => {
+    if (!highlightedEntryId) return;
+    const row = document.querySelector(`[data-entry-row="${highlightedEntryId}"]`);
+    row?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightedEntryId, entries]);
   const toggleSelected = (id) => setSelectedIds((prev) => {
     const next = new Set(prev);
     next.has(id) ? next.delete(id) : next.add(id);
@@ -349,7 +385,7 @@ export default function JournalModule({ companies, companyId }) {
                     const hasLinks = e.mirrorEntryId || e.reversalOfEntryId || e.reversedByEntryId;
                     return (
                       <React.Fragment key={e.id}>
-                        <tr>
+                        <tr data-entry-row={e.id} className={e.id === highlightedEntryId ? "row-highlighted" : undefined}>
                           <td data-label=""><input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelected(e.id)} aria-label={t("journalEntries.table.selectEntry")} /></td>
                           <td data-label={t("journalEntries.table.entryNumber")}>{entryNumberLabel(e)}</td>
                           <td data-label={t("journalEntries.table.date")}>{fmtDate(e.date)}</td>
