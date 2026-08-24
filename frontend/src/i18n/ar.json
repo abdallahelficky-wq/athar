@@ -822,7 +822,7 @@
     "rowActions": {
       "view": "عرض القيد", "edit": "تعديل", "editDisabled": "لا يمكن التعديل بعد الترحيل — استخدم عكس القيد لتصحيحه",
       "delete": "حذف", "post": "ترحيل", "reverse": "عكس القيد", "unpost": "فك الترحيل (super_admin فقط)",
-      "print": "طباعة القيد", "duplicate": "نسخ القيد إلى قيد جديد", "mirror": "إنشاء قيد مرآة في شركة أخرى",
+      "print": "طباعة القيد", "downloadPdf": "تحميل PDF", "duplicate": "نسخ القيد إلى قيد جديد", "mirror": "إنشاء قيد مرآة في شركة أخرى",
       "links": "روابط القيد", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات"
     },
     "linkInfo": {

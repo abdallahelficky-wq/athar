@@ -3,6 +3,7 @@ import * as service from "./journalEntries.service";
 import * as bulkImportService from "./bulkImport.service";
 import { badRequest } from "../../lib/httpError";
 import { previewNextEntryNumber } from "../../lib/journalPosting";
+import { buildJournalVoucherPdf } from "../../lib/journalVoucherPdf";
 
 const asString = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const asNumber = (v: unknown) => (typeof v === "string" && v !== "" ? Number(v) : undefined);
@@ -34,6 +35,36 @@ export const nextNumberHandler: RequestHandler = async (req, res) => {
 export const getHandler: RequestHandler = async (req, res) => {
   const entry = await service.getJournalEntry(req.auth!.tenantId, req.params.id);
   res.json(entry);
+};
+
+// تحميل مباشر لملف PDF لسند القيد — نفس آلية توليد PDF المستخدَمة أصلاً لفواتير المبيعات
+// (renderHtmlToPdf عبر Puppeteer)، بلا مكتبة جديدة. Content-Disposition: attachment يجعل المتصفح
+// يُنزّل الملف فوراً بدل عرض معاينة/نافذة طباعة يحتاج المستخدم يضغط "حفظ" بنفسه.
+export const getPdfHandler: RequestHandler = async (req, res) => {
+  const entry = await service.getJournalEntry(req.auth!.tenantId, req.params.id);
+  const entryNumber = entry.entryNumber || entry.id.slice(-8);
+  const hasBranchColumn = entry.lines.some((l) => l.branch);
+  const pdf = await buildJournalVoucherPdf({
+    entryNumber,
+    date: entry.date.toISOString().slice(0, 10),
+    memo: entry.memo,
+    statusLabel: entry.status === "posted" ? "مرحّل" : "محفوظ",
+    companyName: entry.company.shortName || entry.company.name,
+    brandColor: entry.company.brandColor,
+    hasBranchColumn,
+    lines: entry.lines.map((l) => ({
+      accountLabel: l.account.name,
+      costCenterLabel: l.costCenter?.name || "—",
+      departmentLabel: l.departmentRef?.name || l.department || "—",
+      branchLabel: l.branch?.nameAr || null,
+      description: l.description || "—",
+      debit: Number(l.debit),
+      credit: Number(l.credit),
+    })),
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${entryNumber}.pdf"`);
+  res.send(pdf);
 };
 
 export const createHandler: RequestHandler = async (req, res) => {

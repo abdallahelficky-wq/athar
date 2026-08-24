@@ -15,6 +15,7 @@ import { previewBulkImportSchema, commitBulkImportSchema } from "./bulkImport.sc
 import {
   listHandler,
   getHandler,
+  getPdfHandler,
   createHandler,
   updateHandler,
   deleteHandler,
@@ -42,6 +43,7 @@ journalEntryRoutes.get("/", listHandler);
 // يجب أن يسبق "/:id" كي لا يُعامَل "next-number" كمعرّف قيد
 journalEntryRoutes.get("/next-number", nextNumberHandler);
 journalEntryRoutes.get("/:id", getHandler);
+journalEntryRoutes.get("/:id/pdf", getPdfHandler);
 journalEntryRoutes.post("/", canWrite, validateBody(createJournalEntrySchema), createHandler);
 journalEntryRoutes.post("/bulk-import/preview", canWrite, validateBody(previewBulkImportSchema), bulkImportPreviewHandler);
 journalEntryRoutes.post("/bulk-import/commit", canWrite, validateBody(commitBulkImportSchema), bulkImportCommitHandler);

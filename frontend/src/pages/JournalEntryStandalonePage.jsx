@@ -51,7 +51,6 @@ export default function JournalEntryStandalonePage({ entryId }) {
     <JournalVoucherViewModal
       entry={entry}
       companies={companies}
-      autoPrint={false}
       onClose={() => window.close()}
     />
   );

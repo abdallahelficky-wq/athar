@@ -1,17 +1,25 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import { PrintShell, printWithOrientation } from "../legacy/shared";
+import { PrintShell, downloadBlob } from "../legacy/shared";
 import { fmt } from "../legacy/constants";
 import { currencyLabel } from "../shared/countries";
+import { getJournalEntryPdf } from "../api/journalEntries";
 
-/** طباعة سند قيد محاسبي — يُستخدَم من شاشة القيود اليومية، يفيد من هيدر/فوتر PrintShell المشترك تلقائياً */
-export default function JournalVoucherViewModal({ entry, companies, autoPrint, onClose }) {
+/** عرض/طباعة سند قيد محاسبي — يُستخدَم من شاشة القيود اليومية وصفحة عرض القيد المستقلة، يفيد من
+ * هيدر/فوتر PrintShell المشترك تلقائياً. زر "تحميل PDF" يُنزّل ملفاً حقيقياً من الخادم (نفس آلية
+ * توليد PDF المستخدَمة أصلاً لفواتير المبيعات) بدل فتح نافذة طباعة المتصفح. */
+export default function JournalVoucherViewModal({ entry, companies, onClose }) {
   const { t, i18n } = useTranslation();
-  useEffect(() => {
-    if (!autoPrint) return;
-    const timer = setTimeout(() => printWithOrientation(false), 200);
-    return () => clearTimeout(timer);
-  }, [autoPrint, entry.id]);
+  const entryNumber = entry.entryNumber || entry.id.slice(-8);
+
+  const handleDownload = async () => {
+    try {
+      const { blob, filename } = await getJournalEntryPdf(entry.id);
+      downloadBlob(blob, filename || `${entryNumber}.pdf`);
+    } catch (err) {
+      window.alert(err.message);
+    }
+  };
 
   const company = companies?.find((c) => c.id === entry.companyId);
   const total = entry.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
@@ -36,11 +44,12 @@ export default function JournalVoucherViewModal({ entry, companies, autoPrint, o
       company={company}
       refNode={
         <>
-          <div>{t("journalEntries.table.entryNumber")}: <strong>{entry.entryNumber || entry.id.slice(-8)}</strong></div>
+          <div>{t("journalEntries.table.entryNumber")}: <strong>{entryNumber}</strong></div>
           <div>{t("journalEntries.table.date")}: <strong>{entry.date.slice(0, 10)}</strong></div>
         </>
       }
       onClose={onClose}
+      onDownload={handleDownload}
     >
       <div className="voucher-meta">
         <div><span>{t("journalEntries.table.memo")}</span><strong>{entry.memo || t("journalEntries.table.noMemo")}</strong></div>

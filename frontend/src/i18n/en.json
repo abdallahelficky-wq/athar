@@ -822,7 +822,7 @@
     "rowActions": {
       "view": "View entry", "edit": "Edit", "editDisabled": "Cannot edit after posting — use reverse entry to correct it",
       "delete": "Delete", "post": "Post", "reverse": "Reverse entry", "unpost": "Unpost (super_admin only)",
-      "print": "Print entry", "duplicate": "Duplicate to a new entry", "mirror": "Create mirror entry in another company",
+      "print": "Print entry", "downloadPdf": "Download PDF", "duplicate": "Duplicate to a new entry", "mirror": "Create mirror entry in another company",
       "links": "Entry links", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments"
     },
     "linkInfo": {

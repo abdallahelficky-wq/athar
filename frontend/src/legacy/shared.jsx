@@ -122,6 +122,11 @@ export const Icon = {
 export function downloadCsv(filename, rows) {
   const csv = rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\r\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  downloadBlob(blob, filename);
+}
+
+/** \u062A\u062D\u0645\u064A\u0644 \u0623\u064A Blob (PDF \u0645\u062B\u0644\u0627\u064B) \u0643\u0645\u0644\u0641 \u0641\u0639\u0644\u064A \u2014 \u0646\u0641\u0633 \u0622\u0644\u064A\u0629 downloadCsv \u0623\u0639\u0644\u0627\u0647\u060C \u0645\u0639\u0645\u064E\u0651\u0645\u0629 \u0644\u0623\u064A \u0646\u0648\u0639 \u0645\u0644\u0641. */
+export function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = filename;
@@ -258,9 +263,10 @@ export function formatCompanyAddress(company, { full = false } = {}) {
  * الدخول المشتركة الوحيدة لأي شاشة طباعة حالية أو مستقبلية) بدل تكرارهما في كل شاشة على
  * حدة، حتى ينطبق أي تعديل مستقبلي عليهما تلقائياً على كل المطبوعات دفعة واحدة.
  */
-export function PrintShell({ subtitle, refNode, children, onClose, onEdit, showSignatures = true, company, landscape = false }) {
+export function PrintShell({ subtitle, refNode, children, onClose, onEdit, onDownload, showSignatures = true, company, landscape = false }) {
   const { user } = useAuth();
   const [printedAt, setPrintedAt] = useState(null);
+  const [downloading, setDownloading] = useState(false);
   const accent = company?.brandColor || "#10202E";
   const displayName = company && company.id !== "all" ? (company.shortName || company.name) : "أثر المحاسبي";
   const address = formatCompanyAddress(company);
@@ -269,6 +275,19 @@ export function PrintShell({ subtitle, refNode, children, onClose, onEdit, showS
     setPrintedAt(new Date());
     // تأخير بسيط حتى يُحدَّث الفوتر بوقت الطباعة الفعلي في DOM قبل استدعاء window.print()
     setTimeout(() => printWithOrientation(landscape), 30);
+  };
+
+  // لو الطرف المستدعي مرّر onDownload (تحميل PDF حقيقي من الخادم)، زر "تحميل PDF" يستخدمه بدل
+  // window.print() — بدون تمريره، الزر يبقى بسلوكه الأصلي (نافذة الطباعة) لبقية المستندات
+  // (فواتير/بطاقات أصول) التي لا تملك بعد مساراً مماثلاً لتوليد PDF حقيقي على الخادم.
+  const handleDownloadClick = async () => {
+    if (!onDownload) { handlePrint(); return; }
+    setDownloading(true);
+    try {
+      await onDownload();
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return createPortal(
@@ -318,7 +337,7 @@ export function PrintShell({ subtitle, refNode, children, onClose, onEdit, showS
         <div className="voucher-actions">
           {onEdit && <button className="btn-ghost" onClick={onEdit}>تعديل</button>}
           <button className="btn-ghost" onClick={handlePrint}>طباعة</button>
-          <button className="btn-primary" onClick={handlePrint}>تحميل PDF</button>
+          <button className="btn-primary" onClick={handleDownloadClick} disabled={downloading}>{downloading ? "جارٍ التحميل..." : "تحميل PDF"}</button>
           <button className="btn-ghost" onClick={onClose}>إغلاق</button>
         </div>
       </div>

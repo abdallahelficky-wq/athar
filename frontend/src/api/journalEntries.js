@@ -12,6 +12,7 @@ function toQuery(params) {
 export const listJournalEntries = (filters) => api.get(`/journal-entries${toQuery(filters)}`);
 export const getNextEntryNumber = (companyId) => api.get(`/journal-entries/next-number${toQuery({ companyId })}`);
 export const getJournalEntry = (id) => api.get(`/journal-entries/${id}`);
+export const getJournalEntryPdf = (id) => api.getBlob(`/journal-entries/${id}/pdf`);
 export const createJournalEntry = (payload) => api.post("/journal-entries", payload);
 export const updateJournalEntry = (id, payload) => api.patch(`/journal-entries/${id}`, payload);
 export const deleteJournalEntry = (id) => api.delete(`/journal-entries/${id}`);

@@ -8,12 +8,13 @@ import { listBranches } from "../api/branches";
 import {
   listJournalEntries,
   getJournalEntry,
+  getJournalEntryPdf,
   deleteJournalEntry,
   postJournalEntry,
   unpostJournalEntry,
 } from "../api/journalEntries";
 import { fmt } from "../legacy/constants";
-import { downloadCsv, Icon } from "../legacy/shared";
+import { downloadCsv, downloadBlob, Icon } from "../legacy/shared";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CreateFromDocumentModal from "./shared/CreateFromDocumentModal";
 import BulkImportJournalEntriesModal from "./shared/BulkImportJournalEntriesModal";
@@ -60,7 +61,6 @@ export default function JournalModule({ companies, companyId }) {
   const [showFromDocument, setShowFromDocument] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [viewEntry, setViewEntry] = useState(null);
-  const [autoPrint, setAutoPrint] = useState(false);
   const [mirrorSource, setMirrorSource] = useState(null);
   const [reverseSource, setReverseSource] = useState(null);
   const [linkInfoId, setLinkInfoId] = useState(null);
@@ -166,6 +166,18 @@ export default function JournalModule({ companies, companyId }) {
     try {
       await postJournalEntry(entry.id);
       reloadEntries();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // تحميل مباشر لملف PDF لسند القيد (بدل فتح نافذة طباعة المتصفح) — الخادم يولّد الملف فعلياً
+  // (نفس آلية renderHtmlToPdf المستخدَمة أصلاً لفواتير المبيعات) ويرجعه كملف ثنائي، فنحوّله هنا
+  // مباشرة لتحميل حقيقي (downloadBlob) بلا أي تدخّل إضافي من المستخدم.
+  const downloadPdf = async (entry) => {
+    try {
+      const { blob, filename } = await getJournalEntryPdf(entry.id);
+      downloadBlob(blob, filename || `${entryNumberLabel(entry)}.pdf`);
     } catch (err) {
       setError(err.message);
     }
@@ -352,7 +364,7 @@ export default function JournalModule({ companies, companyId }) {
                               disabled={!saved}
                               onClick={() => saved && setFormModal({ mode: "edit", entry: e })}
                             ><Icon.Edit /></button>
-                            <button className="icon-btn" title={t("journalEntries.rowActions.print")} onClick={() => { setViewEntry(e); setAutoPrint(true); }}><Icon.Printer /></button>
+                            <button className="icon-btn" title={t("journalEntries.rowActions.downloadPdf")} onClick={() => downloadPdf(e)}><Icon.Download /></button>
                             {saved && (
                               <>
                                 <button className="icon-btn icon-btn-danger" title={t("journalEntries.rowActions.delete")} onClick={() => remove(e)}><Icon.Trash /></button>
@@ -367,6 +379,7 @@ export default function JournalModule({ companies, companyId }) {
                             )}
                             <ActionsMenu
                               items={[
+                                { label: t("journalEntries.rowActions.downloadPdf"), icon: Icon.Download, onClick: () => downloadPdf(e) },
                                 { label: t("journalEntries.rowActions.duplicate"), icon: Icon.Copy, onClick: () => setFormModal({ mode: "duplicate", entry: e }) },
                                 { label: t("journalEntries.rowActions.mirror"), icon: Icon.Link, onClick: () => setMirrorSource(e), hidden: !posted || Boolean(e.mirrorEntryId) },
                                 { label: t("journalEntries.rowActions.links"), icon: Icon.BookOpen, onClick: () => toggleLinkInfo(e), hidden: !hasLinks },
@@ -447,8 +460,7 @@ export default function JournalModule({ companies, companyId }) {
         <JournalVoucherViewModal
           entry={viewEntry}
           companies={companies}
-          autoPrint={autoPrint}
-          onClose={() => { setViewEntry(null); setAutoPrint(false); }}
+          onClose={() => setViewEntry(null)}
         />
       )}
       {showFromDocument && (
