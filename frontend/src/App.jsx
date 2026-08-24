@@ -150,7 +150,7 @@ function AppShell({ onLoggedOut }) {
           <div className="brand-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
           <div>
             <div className="brand-name">{t("common.brandName")}</div>
-            <div className="brand-sub">{tenant?.name}</div>
+            <div className="brand-sub">{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</div>
           </div>
           <button
             className="sidebar-close-btn"
