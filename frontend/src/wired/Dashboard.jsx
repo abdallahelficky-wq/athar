@@ -4,6 +4,7 @@ import { getFinancialKpis } from "../api/dashboard";
 import { fmt } from "../legacy/constants";
 import FinancialDashboard from "./dashboard/FinancialDashboard";
 import Breadcrumb from "./shared/Breadcrumb";
+import WelcomeBanner from "./shared/WelcomeBanner";
 
 /** جدول مقارنة سريع بين شركات المجموعة (كل شركة على حدة) يُكمّل الأرقام المجمّعة لكل
  * المجموعة التي تعرضها FinancialDashboard نفسها (بدون تمرير companyId = تجميع تلقائي) */
@@ -90,6 +91,7 @@ export default function Dashboard({ companies, companyId, onNavigateToCompanySet
 
   return (
     <div>
+      <WelcomeBanner />
       <div className="section-title">
         <Breadcrumb parts={[t("dashboard.breadcrumb.overview"), t("dashboard.breadcrumb.realData")]} />
         <div className="dashboard-title-row">

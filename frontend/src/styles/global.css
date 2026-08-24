@@ -354,6 +354,12 @@
         .user-menu-item-danger { color: #A8432B; }
         .user-menu-item-danger:hover { background: rgba(168,67,43,0.1); }
 
+        /* ترحيب شخصي أعلى لوحة القيادة (WelcomeBanner.jsx) — سطر تحية + سطر مقولة يومية، بنفس
+           هوية الألوان/الخطوط المستخدَمة في .eyebrow/.section-title أسفله مباشرة. */
+        .dashboard-welcome { margin-bottom: 14px; }
+        .dashboard-welcome-greeting { font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 15px; color: #10202E; }
+        .dashboard-welcome-quote { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 12.5px; color: #8A7C5E; margin-top: 2px; }
+
         .section-title { margin-bottom: 20px; }
         .eyebrow { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 12.5px; font-weight: 600; letter-spacing: .2px; color: #B98B4E; }
         .eyebrow-sep { color: #B7BFC6; font-weight: 400; margin: 0 7px; }
