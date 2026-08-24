@@ -7,7 +7,7 @@
   "start_url": "/pos.html",
   "scope": "/pos.html",
   "display": "standalone",
-  "theme_color": "#10202E",
+  "theme_color": "#C8102E",
   "background_color": "#ECE6D6",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },

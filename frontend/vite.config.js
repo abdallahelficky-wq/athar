@@ -76,8 +76,8 @@ export default defineConfig({
         dir: "rtl",
         start_url: "/",
         display: "standalone",
-        // نفس ألوان هوية التطبيق الحالية (البادج البرونزي #B98B4E فوق الكحلي #10202E في App.jsx/global.css)
-        theme_color: "#10202E",
+        // نفس ألوان هوية التطبيق الحالية (أحمر الهوية #C8102E فوق الأسود #141414 في global.css)
+        theme_color: "#C8102E",
         background_color: "#ECE6D6",
         icons: [
           { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
