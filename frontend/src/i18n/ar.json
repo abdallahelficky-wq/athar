@@ -185,6 +185,16 @@
       "overdueInvoices": "{{count}} فاتورة متأخرة السداد",
       "pendingLeaves": "{{count}} طلب إجازة معلّق"
     },
+    "search": {
+      "placeholder": "بحث عن عميل، مورد، أو رقم فاتورة...",
+      "clear": "مسح البحث",
+      "loading": "جارٍ البحث...",
+      "noResults": "لا توجد نتائج مطابقة",
+      "customers": "العملاء",
+      "suppliers": "الموردون",
+      "salesInvoices": "فواتير المبيعات",
+      "purchaseInvoices": "فواتير المشتريات"
+    },
     "emailWarningBefore": "⚠️ خدمة إرسال الإيميلات غير مفعَّلة على الخادم — الإيميلات (ترحيب، دعوة مستخدم، إرسال فاتورة) لن تصل لأي مستلم. راجِع متغيّر",
     "emailWarningAfter": "في إعدادات النشر."
   },
@@ -193,7 +203,9 @@
     "title": "لوحة القيادة المالية",
     "noCompanies": "لا توجد شركات بعد.",
     "addFirstCompany": "+ إضافة أول شركة من الإعدادات",
-    "chooseCompanyPrompt": "اختر شركة من الأعلى لعرض لوحة قيادتها.",
+    "chooseCompanyPrompt": "اختر شركة من القائمة الجانبية لعرض لوحة قيادتها.",
+    "viewConsolidated": "عرض المجموعة كاملة",
+    "backToSingleCompany": "الرجوع لعرض شركة واحدة",
     "loadingAllCompanies": "جارٍ تجميع بيانات كل الشركات...",
     "comparisonTitle": "مقارنة بين شركات المجموعة (الشهر الحالي)",
     "comparisonTable": {

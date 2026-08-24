@@ -185,6 +185,16 @@
       "overdueInvoices": "{{count}} overdue invoice(s)",
       "pendingLeaves": "{{count}} pending leave request(s)"
     },
+    "search": {
+      "placeholder": "Search customers, suppliers, or invoice number...",
+      "clear": "Clear search",
+      "loading": "Searching...",
+      "noResults": "No matching results",
+      "customers": "Customers",
+      "suppliers": "Suppliers",
+      "salesInvoices": "Sales invoices",
+      "purchaseInvoices": "Purchase invoices"
+    },
     "emailWarningBefore": "⚠️ The email delivery service is not configured on the server — emails (welcome, user invites, invoice sending) will not reach any recipient. Check the",
     "emailWarningAfter": "variable in the deployment settings."
   },
@@ -193,7 +203,9 @@
     "title": "Financial Dashboard",
     "noCompanies": "No companies yet.",
     "addFirstCompany": "+ Add your first company from Settings",
-    "chooseCompanyPrompt": "Select a company above to view its dashboard.",
+    "chooseCompanyPrompt": "Select a company from the sidebar to view its dashboard.",
+    "viewConsolidated": "View consolidated group",
+    "backToSingleCompany": "Back to single company view",
     "loadingAllCompanies": "Aggregating data for all companies...",
     "comparisonTitle": "Group companies comparison (current month)",
     "comparisonTable": {

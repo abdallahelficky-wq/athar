@@ -6,6 +6,7 @@ import { useCompanies } from "./wired/useCompanies";
 import LanguageSwitcher from "./wired/shared/LanguageSwitcher";
 import CompanySwitcher from "./wired/shared/CompanySwitcher";
 import NotificationBell from "./wired/shared/NotificationBell";
+import QuickSearch from "./wired/shared/QuickSearch";
 import { getFinancialAlerts, getHrAlerts } from "./api/dashboard";
 import { formatDate } from "./i18n/dateFormat";
 import LandingPage from "./pages/LandingPage";
@@ -108,6 +109,12 @@ function AppShell({ onLoggedOut }) {
     setPendingLedgerAccountId(accountId);
   };
 
+  // من نتيجة البحث السريع (فاتورة مبيعات/مشتريات) — ينقل لشاشة الفواتير المناسبة مباشرة.
+  const goToInvoices = (kind) => {
+    if (kind === "sales") { setModuleId("sales"); setSalesTab("invoices"); }
+    else if (kind === "purchases") { setModuleId("purchases"); setPurchasesTab("invoices"); }
+  };
+
   const groupTabState = {
     sales: [salesTab, setSalesTab],
     purchases: [purchasesTab, setPurchasesTab],
@@ -131,6 +138,7 @@ function AppShell({ onLoggedOut }) {
   };
 
   const activeLegacyCompany = useMemo(() => COMPANIES.find((c) => c.id === legacyCompanyId), [legacyCompanyId]);
+  const activeCompany = useMemo(() => real.companies.find((c) => c.id === real.companyId), [real.companies, real.companyId]);
   const navBadges = { sales: overdueInvoicesCount, hr: pendingLeaveCount };
 
   return (
@@ -206,7 +214,8 @@ function AppShell({ onLoggedOut }) {
       <div className="main">
         <div className="topbar">
           <button className="hamburger-btn" onClick={() => setIsMobileSidebarOpen(true)} aria-label={t("nav.openMenu")}>☰</button>
-          <span className="topbar-company">{tenant?.name}</span>
+          <span className="topbar-company" title={tenant?.name}>{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</span>
+          <QuickSearch companyId={real.companyId} onViewAccount={navigateToAccountLedger} onGoInvoices={goToInvoices} />
           <span className="topbar-date">{formatDate(new Date(), i18n.language)}</span>
           <NotificationBell
             overdueInvoicesCount={overdueInvoicesCount}
@@ -224,6 +233,7 @@ function AppShell({ onLoggedOut }) {
         </div>
 
         <div className="app-content">
+        <div className="app-content-inner">
         {!emailServiceConfigured && (user?.role === "admin" || user?.role === "super_admin") && (
           <div className="system-warning-banner">
             {t("nav.emailWarningBefore")} <code>RESEND_API_KEY</code> {t("nav.emailWarningAfter")}
@@ -234,7 +244,6 @@ function AppShell({ onLoggedOut }) {
           <Dashboard
             companies={real.companies}
             companyId={real.companyId}
-            setCompanyId={real.setCompanyId}
             onNavigateToCompanySettings={() => { setModuleId("settings"); setSettingsTab("companies"); }}
           />
         )}
@@ -283,6 +292,7 @@ function AppShell({ onLoggedOut }) {
             realCompanies={real.companies} reloadRealCompanies={real.reload} onRealCompanyCreated={real.onCompanyCreated}
           />
         )}
+        </div>
         </div>
       </div>
     </div>

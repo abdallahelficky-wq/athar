@@ -4,7 +4,6 @@ import { getFinancialKpis } from "../api/dashboard";
 import { fmt } from "../legacy/constants";
 import FinancialDashboard from "./dashboard/FinancialDashboard";
 import Breadcrumb from "./shared/Breadcrumb";
-import CompanyCards from "./shared/CompanyCards";
 
 /** جدول مقارنة سريع بين شركات المجموعة (كل شركة على حدة) يُكمّل الأرقام المجمّعة لكل
  * المجموعة التي تعرضها FinancialDashboard نفسها (بدون تمرير companyId = تجميع تلقائي) */
@@ -74,20 +73,33 @@ function GroupComparisonTable({ companies }) {
 }
 
 /**
- * الشاشة الرئيسية — نقطة الدخول الوحيدة لاختيار "الشركة النشطة" في كل النظام، عبر أيقونة
- * منفصلة لكل شركة + أيقونة "المجموعة كاملة" لعرض تجميعي لا يُغيّر الشركة النشطة الفعلية
- * (الشاشات الأخرى تحتاج شركة واحدة محدَّدة دائماً). إنشاء شركة جديدة لم يعد يحدث هنا إطلاقاً —
- * فقط من "الإعدادات ← بيانات الشركات".
+ * الشاشة الرئيسية — اختيار "الشركة النشطة" نفسها يتم حصراً عبر CompanySwitcher بالقائمة الجانبية؛
+ * هذه الصفحة تعرض فقط لوحة قيادة تلك الشركة، مع زر ثانوي صغير لعرض تجميعي ("المجموعة كاملة")
+ * لا يُغيّر الشركة النشطة الفعلية (الشاشات الأخرى تحتاج شركة واحدة محدَّدة دائماً).
  */
-export default function Dashboard({ companies, companyId, setCompanyId, onNavigateToCompanySettings }) {
+export default function Dashboard({ companies, companyId, onNavigateToCompanySettings }) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState("company");
+
+  // اختيار الشركة النشطة أصبح حصراً عبر CompanySwitcher بالقائمة الجانبية — أي تغيير فعلي
+  // لـ companyId (اختيار شركة أخرى من هناك) يعيد الداشبورد تلقائياً لعرض "شركة واحدة" حتى لو كان
+  // المستخدم قد فتح عرض "المجموعة كاملة" قبل ذلك، بنفس السلوك الذي كانت توفّره بطاقات الشركة سابقاً.
+  useEffect(() => {
+    setViewMode("company");
+  }, [companyId]);
 
   return (
     <div>
       <div className="section-title">
         <Breadcrumb parts={[t("dashboard.breadcrumb.overview"), t("dashboard.breadcrumb.realData")]} />
-        <h2>{t("dashboard.title")}</h2>
+        <div className="dashboard-title-row">
+          <h2>{t("dashboard.title")}</h2>
+          {companies.length > 1 && (
+            <button type="button" className="dashboard-consolidated-toggle" onClick={() => setViewMode((v) => (v === "consolidated" ? "company" : "consolidated"))}>
+              {viewMode === "consolidated" ? t("dashboard.backToSingleCompany") : t("dashboard.viewConsolidated")}
+            </button>
+          )}
+        </div>
       </div>
 
       {companies.length === 0 ? (
@@ -99,14 +111,6 @@ export default function Dashboard({ companies, companyId, setCompanyId, onNaviga
         </div>
       ) : (
         <>
-          <CompanyCards
-            companies={companies}
-            activeCompanyId={companyId}
-            consolidatedActive={viewMode === "consolidated"}
-            onSelectCompany={(id) => { setCompanyId(id); setViewMode("company"); }}
-            onSelectConsolidated={() => setViewMode("consolidated")}
-          />
-
           {viewMode === "consolidated" ? (
             <>
               <FinancialDashboard companyId={undefined} companies={companies} />
