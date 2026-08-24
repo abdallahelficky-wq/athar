@@ -96,7 +96,14 @@
       "backToLanding": "Back to homepage",
       "note": "This account is connected to a real database — your data is completely isolated from any other tenant.",
       "errFillFields": "Please fill in your email and password.",
-      "errGeneric": "Couldn't log in, please try again."
+      "errGeneric": "Couldn't log in, please try again.",
+      "heroTitle": "Get your books in order, with confidence",
+      "heroSubtitle": "A complete cloud accounting platform bringing journal entries, tax invoices, inventory, and payroll together in one place.",
+      "heroBullets": [
+        "ZATCA-compliant e-invoicing",
+        "Instant, accurate financial reports",
+        "Multi-company and multi-branch management"
+      ]
     },
     "register": {
       "title": "Start your one-month free trial",

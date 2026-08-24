@@ -1203,6 +1203,38 @@
         .link-btn { background: none; border: none; color: #2F5D5A; font-size: 12.5px; cursor: pointer; text-decoration: underline; }
         .auth-note { text-align: center; margin-top: 18px; font-size: 11px; }
 
+        /* صفحة تسجيل الدخول تحديداً (لا بقية صفحات auth-root الأخرى — تسجيل/نسيت كلمة المرور/قبول
+           دعوة تبقى بنفس البطاقة المُوسَّطة البسيطة عمداً، بلا تغيير) — تصميم مقسوم لنصفين بروح
+           البانر الترويجي الكبير: نصف بصري بالهوية الغامقة الجديدة، ونصف نموذج الدخول الفعلي. */
+        .login-split-root { min-height: 100vh; display: flex; }
+        .login-illustration-panel {
+          flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center;
+          background: var(--athar-sidebar); color: #ECE6D6; padding: 48px; position: relative; overflow: hidden;
+        }
+        .login-illustration-panel::before {
+          content: ''; position: absolute; top: -80px; inset-inline-start: 50%; transform: translateX(-50%);
+          width: 340px; height: 260px; background: radial-gradient(closest-side, rgba(200,16,46,0.25), transparent);
+          pointer-events: none;
+        }
+        .login-illustration-content { position: relative; max-width: 440px; width: 100%; }
+        .login-illustration-brand { justify-content: flex-start; margin-bottom: 34px; font-size: 17px; }
+        .login-hero-title { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 30px; font-weight: 700; margin: 0 0 14px; line-height: 1.35; }
+        .login-hero-subtitle { font-size: 14px; color: #B7C2C9; line-height: 1.8; margin: 0 0 28px; }
+        .login-illustration-svg { width: 100%; height: auto; margin-bottom: 28px; }
+        .login-hero-bullets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+        .login-hero-bullets li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: #ECE6D6; }
+        .login-hero-bullet-dot { width: 7px; height: 7px; border-radius: 50%; background: #C8102E; flex-shrink: 0; }
+
+        .login-form-panel { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; background: #ECE6D6; padding: 30px; }
+        .login-form-card { margin: 0; }
+
+        /* اللوحة البصرية تختفي على الجوال — تُبقي المساحة الضيقة كاملة لنموذج الدخول نفسه، بنفس
+           نهج أغلب صفحات الدخول الحقيقية (البانر الترويجي عنصر ثانوي، لا يستحق مزاحمة النموذج). */
+        @media (max-width: 860px) {
+          .login-illustration-panel { display: none; }
+          .login-form-panel { padding: 20px; }
+        }
+
         @media (max-width: 640px) {
           .landing-hero h1 { font-size: 32px; }
           .landing-nav { padding: 16px 20px; flex-direction: column; gap: 12px; }
