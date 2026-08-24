@@ -6,6 +6,7 @@ import { listDepartments } from "../api/departments";
 import { listBranches } from "../api/branches";
 import { getAccountLedger } from "../api/reports";
 import { fmt } from "../legacy/constants";
+import { downloadCsv } from "../legacy/shared";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import Breadcrumb from "./shared/Breadcrumb";
 import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
@@ -164,7 +165,27 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
               <label>{t("accountLedger.dateTo")}<input type="date" value={alf.draft.dateTo} onChange={(e) => alf.setField("dateTo", e.target.value)} /></label>
               <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("accountLedger.showResults")}</button>
               {ledger && (
-                <button type="button" className="btn-ghost" style={{ alignSelf: "end" }} onClick={() => setPrintOpen(true)}>{t("accountLedger.printBtn")}</button>
+                <>
+                  <button type="button" className="btn-ghost" style={{ alignSelf: "end" }} onClick={() => setPrintOpen(true)}>{t("accountLedger.printBtn")}</button>
+                  <button
+                    type="button" className="btn-ghost" style={{ alignSelf: "end" }}
+                    onClick={() => downloadCsv(t("accountLedger.csvFileName"), [
+                      [
+                        t("accountLedger.csvHeaders.date"), t("accountLedger.csvHeaders.entryNumber"),
+                        t("accountLedger.csvHeaders.memo"), t("accountLedger.csvHeaders.description"),
+                        ...(!ledger.account.isPosting ? [t("accountLedger.csvHeaders.postingAccount")] : []),
+                        t("accountLedger.csvHeaders.debit"), t("accountLedger.csvHeaders.credit"), t("accountLedger.csvHeaders.balance"),
+                      ],
+                      ...ledger.rows.map((r) => [
+                        r.date.slice(0, 10), r.entryNumber || r.journalEntryId.slice(-8), r.entryMemo || "", r.lineDescription || "",
+                        ...(!ledger.account.isPosting ? [`${r.accountCode} — ${r.accountName}`] : []),
+                        r.debit || "", r.credit || "", r.balance,
+                      ]),
+                    ])}
+                  >
+                    {t("common.exportCsv")}
+                  </button>
+                </>
               )}
             </form>
           </div>
@@ -190,10 +211,26 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                   </tr>
                 </thead>
                 <tbody>
-                  {ledger.rows.map((r, i) => (
-                    <tr key={r.journalEntryId + i}>
+                  {ledger.rows.map((r, i) => {
+                    const entryHref = `/journal-entries/${r.journalEntryId}/view`;
+                    return (
+                    <tr
+                      key={r.journalEntryId + i}
+                      className="ledger-row-clickable"
+                      onClick={(e) => { if (e.target.closest("a")) return; window.open(entryHref, "_blank", "noopener,noreferrer"); }}
+                    >
                       <td>{r.date.slice(0, 10)}</td>
-                      <td>{r.journalEntryId.slice(-8)}</td>
+                      <td>
+                        <a
+                          className="ledger-entry-link"
+                          href={entryHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={t("accountLedger.openEntryTitle")}
+                        >
+                          {r.entryNumber || r.journalEntryId.slice(-8)}
+                        </a>
+                      </td>
                       <td>{r.entryMemo || "—"}</td>
                       <td>{r.lineDescription || "—"}</td>
                       {!ledger.account.isPosting && <td>{r.accountCode} — {r.accountName}</td>}
@@ -201,7 +238,8 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                       <td className="num">{r.credit ? fmt(r.credit) : "—"}</td>
                       <td className="num strong">{fmt(r.balance)}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                   {ledger.rows.length === 0 && <tr><td className="empty" colSpan={ledger.account.isPosting ? 7 : 8}>{t("statementOfAccount.empty")}</td></tr>}
                 </tbody>
                 <tfoot>

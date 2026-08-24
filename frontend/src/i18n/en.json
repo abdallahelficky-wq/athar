@@ -875,6 +875,13 @@
     },
     "printModal": {
       "subtitle": "Journal Voucher"
+    },
+    "standalone": {
+      "loading": "Loading entry...",
+      "notFound": "This entry could not be found, or you don't have access to it.",
+      "loginRequired": "Log in to view this entry.",
+      "loginLink": "Go to login",
+      "closeTab": "Close tab"
     }
   },
   "chartOfAccounts": {
@@ -1002,6 +1009,12 @@
     "dateTo": "To date",
     "showResults": "Show results",
     "printBtn": "Print statement",
+    "openEntryTitle": "Open this entry's details in a new tab",
+    "csvFileName": "account_statement.csv",
+    "csvHeaders": {
+      "date": "Date", "entryNumber": "Entry #", "memo": "Memo", "description": "Description",
+      "postingAccount": "Posting account", "debit": "Debit", "credit": "Credit", "balance": "Balance"
+    },
     "selectPrompt": "Choose an account above and click \"Show results\" to view its statement.",
     "table": {
       "entryNumber": "Entry #",

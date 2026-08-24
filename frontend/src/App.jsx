@@ -15,6 +15,7 @@ import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
+import JournalEntryStandalonePage from "./pages/JournalEntryStandalonePage";
 import Dashboard from "./wired/Dashboard";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
 import ReportsModule, { REPORT_TABS } from "./wired/ReportsModule";
@@ -316,6 +317,9 @@ function readAndConsumeUrlToken() {
 
 const isAcceptInvitePath = window.location.pathname === "/accept-invite";
 const initialUrlToken = readAndConsumeUrlToken();
+// مسار مستقل (بلا هيكل التطبيق المعتاد) لعرض قيد يومية واحد بتنسيق الطباعة — الوجهة التي تفتحها
+// روابط "فتح في تبويب جديد" من كشف حساب الأستاذ (انظر AccountLedgerModule.jsx).
+const journalEntryViewMatch = window.location.pathname.match(/^\/journal-entries\/([^/]+)\/view$/);
 
 export default function App() {
   const { isAuthenticated, initializing } = useAuth();
@@ -325,6 +329,13 @@ export default function App() {
   });
   const [resetToken, setResetToken] = useState(isAcceptInvitePath ? null : initialUrlToken);
   const [inviteToken] = useState(isAcceptInvitePath ? initialUrlToken : null);
+
+  // يُفحَص بعد كل الـ hooks أعلاه (وليس قبلها) حتى يبقى ترتيب استدعاء الـ hooks ثابتاً دائماً بصرف
+  // النظر عن المسار الحالي — قيمة journalEntryViewMatch نفسها ثابتة طوال عمر هذا التبويب (تُحسَب
+  // مرة واحدة فقط عند تحميل الوحدة من pathname الأصلي، ولا تتغيّر أثناء الجلسة).
+  if (journalEntryViewMatch) {
+    return <JournalEntryStandalonePage entryId={journalEntryViewMatch[1]} />;
+  }
 
   if (initializing) return null;
 

@@ -587,6 +587,16 @@
         .ledger-table td { padding: 9px 8px; border-bottom: 1px dashed rgba(16,32,46,0.1); color: #10202E; }
         .ledger-table tbody tr { transition: background .12s ease; }
         .ledger-table tbody tr:hover { background: rgba(16,32,46,0.035); }
+        /* صف كشف الحساب قابل للنقر بالكامل لفتح تفاصيل القيد في تبويب جديد (انظر AccountLedgerModule.jsx)
+           — الرابط الحقيقي <a> هو أساس التنقّل؛ هذا فقط يوسّع منطقة النقر لباقي الصف راحةً للمستخدم. */
+        .ledger-row-clickable { cursor: pointer; }
+        .ledger-entry-link { color: #2F5D5A; font-weight: 600; text-decoration: none; }
+        .ledger-entry-link:hover { text-decoration: underline; }
+
+        .standalone-page-message {
+          display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+          min-height: 100vh; padding: 24px; text-align: center; font-family: 'IBM Plex Sans Arabic', sans-serif;
+        }
         /* الأرقام المالية بخط بولد لتمييزها فوراً عن النص العادي المجاور لها في نفس الصف */
         .ledger-table .num { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
         .ledger-table .strong { font-weight: 700; }
@@ -801,10 +811,15 @@
         .actions-menu-dropdown {
           position: fixed; min-width: 190px; max-width: calc(100vw - 24px);
           background: #fff; border: 1px solid rgba(16,32,46,0.12); border-radius: 10px;
-          box-shadow: 0 14px 32px rgba(16,32,46,0.18); overflow: hidden; z-index: 70; padding: 4px;
+          box-shadow: 0 14px 32px rgba(16,32,46,0.18); z-index: 70; padding: 4px;
+          /* شبكة أمان: حتى لو فشل منطق القلب لأعلى/لأسفل في ActionsMenu.jsx (شاشة قصيرة جداً مثلاً)،
+             القائمة تبقى قابلة للتمرير داخلياً بدل أن تُقطَع بصرياً بلا أي وسيلة لرؤية بقية عناصرها. */
+          max-height: min(70vh, 420px); overflow-y: auto;
         }
+        .actions-menu-dropdown::-webkit-scrollbar { width: 5px; }
+        .actions-menu-dropdown::-webkit-scrollbar-thumb { background: rgba(16,32,46,0.16); border-radius: 4px; }
         .actions-menu-item {
-          display: flex; align-items: center; gap: 9px; width: 100%; text-align: right; background: transparent;
+          display: flex; align-items: center; gap: 9px; width: 100%; text-align: start; background: transparent;
           border: none; border-radius: 7px; cursor: pointer; padding: 9px 10px; font-family: inherit; font-size: 12.5px; color: #10202E;
         }
         .actions-menu-item:hover:not(:disabled) { background: rgba(185,139,78,0.12); }

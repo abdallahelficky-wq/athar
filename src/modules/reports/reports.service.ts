@@ -676,6 +676,7 @@ export async function getAccountLedger(
     return {
       date: l.journalEntry.date,
       journalEntryId: l.journalEntryId,
+      entryNumber: l.journalEntry.entryNumber,
       entryMemo: l.journalEntry.memo,
       lineDescription: l.description,
       costCenterName: l.costCenter?.name || null,

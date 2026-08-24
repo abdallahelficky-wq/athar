@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Icon } from "../../legacy/shared";
@@ -15,16 +15,39 @@ export default function ActionsMenu({ items, title }) {
   const visibleItems = items.filter((it) => it && !it.hidden);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(null);
+  const [ready, setReady] = useState(false);
   const triggerRef = useRef(null);
+  const menuRef = useRef(null);
 
   const openMenu = () => {
     const rect = triggerRef.current.getBoundingClientRect();
     const openLeftward = rect.left > window.innerWidth / 2;
-    setPos(openLeftward
-      ? { top: rect.bottom + 4, right: window.innerWidth - rect.right }
-      : { top: rect.bottom + 4, left: rect.left });
+    setPos({
+      top: rect.bottom + 4,
+      triggerTop: rect.top,
+      ...(openLeftward ? { right: window.innerWidth - rect.right } : { left: rect.left }),
+    });
+    setReady(false);
     setOpen(true);
   };
+
+  // بعد أول رسم للقائمة بموضعها المبدئي (أسفل الزر)، نقيس ارتفاعها الفعلي: لو تتجاوز أسفل حدود
+  // الشاشة المرئية، نقلبها لتفتح لأعلى بدل لأسفل بدل أن تُقطَع بصرياً بلا أي وسيلة للوصول لبقيتها.
+  useLayoutEffect(() => {
+    if (!open || !menuRef.current || !pos) return;
+    const menuRect = menuRef.current.getBoundingClientRect();
+    const margin = 8;
+    if (menuRect.bottom > window.innerHeight - margin && pos.top !== undefined) {
+      setPos((p) => {
+        const { top, ...rest } = p;
+        return { ...rest, bottom: window.innerHeight - p.triggerTop + 4 };
+      });
+    }
+    setReady(true);
+    // نُنفَّذ فقط عند فتح جديد فعلياً (trigger مختلف)، وليس عند كل تحديث لاحق لـ pos نفسه — كي لا
+    // يتكرر القياس/القلب في حلقة لا نهائية.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -32,6 +55,11 @@ export default function ActionsMenu({ items, title }) {
     const onKeyDown = (e) => { if (e.key === "Escape") setOpen(false); };
     const onDocClick = (e) => {
       if (triggerRef.current && triggerRef.current.contains(e.target)) return;
+      // بدون هذا الاستثناء، كان أي mousedown داخل القائمة نفسها (بما فيها الضغط على أحد عناصرها)
+      // يُغلِقها فوراً عبر هذا المستمع — قبل أن يصل الحدث لمعالج onClick الخاص بالعنصر أصلاً، فيُزال
+      // العنصر من الـ DOM (unmount) بين mousedown وclick فلا يُنفَّذ أي إجراء إطلاقاً (كانت هذه
+      // السبب الفعلي في أن كل عناصر هذه القائمة — الطباعة والنسخ وغيرها — لا تعمل عملياً بتاتاً).
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
       setOpen(false);
     };
     // فتح القائمة نفسه قد يُطلِق حدث scroll (مثلاً تمرير المتصفح للزر ضمن العرض المرئي قبل
@@ -68,7 +96,12 @@ export default function ActionsMenu({ items, title }) {
         <Icon.MoreVertical />
       </button>
       {open && pos && createPortal(
-        <div className="actions-menu-dropdown" role="menu" style={pos}>
+        <div
+          ref={menuRef}
+          className="actions-menu-dropdown"
+          role="menu"
+          style={{ top: pos.top, bottom: pos.bottom, left: pos.left, right: pos.right, visibility: ready ? "visible" : "hidden" }}
+        >
           {visibleItems.map((it, i) => (
             <button
               key={i}

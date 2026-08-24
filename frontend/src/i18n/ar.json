@@ -875,6 +875,13 @@
     },
     "printModal": {
       "subtitle": "سند قيد محاسبي"
+    },
+    "standalone": {
+      "loading": "جارٍ تحميل القيد...",
+      "notFound": "تعذّر العثور على هذا القيد، أو ليس لديك صلاحية الوصول إليه.",
+      "loginRequired": "سجّل الدخول لعرض هذا القيد.",
+      "loginLink": "الذهاب لتسجيل الدخول",
+      "closeTab": "إغلاق التبويب"
     }
   },
   "chartOfAccounts": {
@@ -1002,6 +1009,12 @@
     "dateTo": "إلى تاريخ",
     "showResults": "إظهار النتائج",
     "printBtn": "طباعة الكشف",
+    "openEntryTitle": "فتح تفاصيل هذا القيد في تبويب جديد",
+    "csvFileName": "كشف_حساب.csv",
+    "csvHeaders": {
+      "date": "التاريخ", "entryNumber": "رقم القيد", "memo": "البيان", "description": "الوصف",
+      "postingAccount": "حساب الترحيل", "debit": "مدين", "credit": "دائن", "balance": "الرصيد"
+    },
     "selectPrompt": "اختر حساباً من الأعلى واضغط \"إظهار النتائج\" لعرض كشف حركته.",
     "table": {
       "entryNumber": "رقم القيد",

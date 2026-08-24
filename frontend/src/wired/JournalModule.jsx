@@ -352,6 +352,7 @@ export default function JournalModule({ companies, companyId }) {
                               disabled={!saved}
                               onClick={() => saved && setFormModal({ mode: "edit", entry: e })}
                             ><Icon.Edit /></button>
+                            <button className="icon-btn" title={t("journalEntries.rowActions.print")} onClick={() => { setViewEntry(e); setAutoPrint(true); }}><Icon.Printer /></button>
                             {saved && (
                               <>
                                 <button className="icon-btn icon-btn-danger" title={t("journalEntries.rowActions.delete")} onClick={() => remove(e)}><Icon.Trash /></button>
@@ -366,7 +367,6 @@ export default function JournalModule({ companies, companyId }) {
                             )}
                             <ActionsMenu
                               items={[
-                                { label: t("journalEntries.rowActions.print"), icon: Icon.Printer, onClick: () => { setViewEntry(e); setAutoPrint(true); } },
                                 { label: t("journalEntries.rowActions.duplicate"), icon: Icon.Copy, onClick: () => setFormModal({ mode: "duplicate", entry: e }) },
                                 { label: t("journalEntries.rowActions.mirror"), icon: Icon.Link, onClick: () => setMirrorSource(e), hidden: !posted || Boolean(e.mirrorEntryId) },
                                 { label: t("journalEntries.rowActions.links"), icon: Icon.BookOpen, onClick: () => toggleLinkInfo(e), hidden: !hasLinks },
