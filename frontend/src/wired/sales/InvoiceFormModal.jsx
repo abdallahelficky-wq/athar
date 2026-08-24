@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
 import { listAccounts } from "../../api/accounts";
@@ -10,6 +10,7 @@ import SalesInvoiceLinesEditor, { emptySalesLine } from "./SalesInvoiceLinesEdit
 import NewCustomerModal from "./NewCustomerModal";
 import NewSellableItemModal from "./NewSellableItemModal";
 import InvoiceViewModal from "./InvoiceViewModal";
+import { useUnsavedChangesGuard } from "../shared/UnsavedChangesContext";
 
 const lineFromExisting = (l) => ({
   accountId: l.accountId,
@@ -50,6 +51,20 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  // "تغييرات غير محفوظة" — راجع نفس التعليق في JournalEntryFormModal.jsx لتفاصيل الآلية.
+  const mountedRef = useRef(false);
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return; }
+    setDirty(true);
+  }, [customerId, date, branchId, lines]);
+  useUnsavedChangesGuard(dirty);
+
+  // راجع نفس التعليق في JournalEntryFormModal.jsx: إغلاق النافذة نفسها (×/خارجها/إلغاء) لا يمرّ
+  // عبر useBlocker لأنه ليس تنقّلاً بين مسارات، فيُفحَص dirty هنا صراحة قبل الإغلاق الفعلي.
+  const [confirmClose, setConfirmClose] = useState(false);
+  const requestClose = () => { if (dirty) setConfirmClose(true); else onClose(); };
 
   useEffect(() => {
     if (!companyId) return;
@@ -125,7 +140,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   };
 
   return (
-    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
+    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && requestClose()}>
       <div className="invoice-modal-box">
         <div className="modal-title-row">
           <h3>
@@ -133,7 +148,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
               : duplicateFrom ? t("salesInvoices.form.titleDuplicate", { number: duplicateFrom.invoiceNumber })
                 : t("salesInvoices.form.titleCreate")}
           </h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label={t("salesInvoices.form.close")}>×</button>
+          <button type="button" className="modal-close-btn" onClick={requestClose} disabled={saving} aria-label={t("salesInvoices.form.close")}>×</button>
         </div>
 
         <div className="form-grid header-grid">
@@ -195,7 +210,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
 
         <div className="form-btn-group">
           {isEdit && <button className="btn-ghost" onClick={() => setPrintInvoice(editingInvoice)}>{t("salesInvoices.form.print")}</button>}
-          <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("salesInvoices.form.cancel")}</button>
+          <button className="btn-ghost" onClick={requestClose} disabled={saving}>{t("salesInvoices.form.cancel")}</button>
           <button className="btn-ghost" onClick={() => submit(false)} disabled={saving || !customerId}>{t("salesInvoices.form.saveDraft")}</button>
           <button className="btn-primary" onClick={() => submit(true)} disabled={saving || !customerId}>{t("salesInvoices.form.saveAndPost")}</button>
         </div>
@@ -219,6 +234,19 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
         />
       )}
       {printInvoice && <InvoiceViewModal invoice={printInvoice} companies={companies} onClose={() => setPrintInvoice(null)} />}
+
+      {confirmClose && (
+        <div className="unsaved-changes-overlay" onClick={(e) => e.target === e.currentTarget && setConfirmClose(false)}>
+          <div className="unsaved-changes-box">
+            <h3>{t("unsavedChanges.title")}</h3>
+            <p>{t("unsavedChanges.body")}</p>
+            <div className="unsaved-changes-actions">
+              <button type="button" className="btn-ghost" onClick={() => setConfirmClose(false)}>{t("unsavedChanges.stayOnPage")}</button>
+              <button type="button" className="btn-primary unsaved-changes-leave-btn" onClick={onClose}>{t("unsavedChanges.leaveWithoutSaving")}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

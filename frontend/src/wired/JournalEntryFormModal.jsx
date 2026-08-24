@@ -10,6 +10,7 @@ import AccountSearchSelect from "./shared/AccountSearchSelect";
 import FixedAssetLineModal from "./shared/FixedAssetLineModal";
 import EmployeeAdvanceLineModal from "./shared/EmployeeAdvanceLineModal";
 import { currencyLabel } from "../shared/countries";
+import { useUnsavedChangesGuard } from "./shared/UnsavedChangesContext";
 
 const emptyLine = () => ({
   accountId: "", costCenterId: "", departmentId: "", branchId: "", description: "", debit: "", credit: "",
@@ -63,6 +64,23 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [numberPreview, setNumberPreview] = useState(null); // { prefix, preview } من الخادم، بلا حجز فعلي
+
+  // "تغييرات غير محفوظة" — أي تعديل فعلي على التاريخ/البيان/الأسطر بعد أول رسم للنافذة (وليس عند
+  // فتحها لأول مرة، حتى لو كانت مسبوقة ببيانات "نسخ قيد"). راجع UnsavedChangesContext لتفاصيل
+  // كيف يمنع هذا التنقّل داخل التطبيق ويُظهر تحذير المتصفح عند إغلاق التبويب/تحديث الصفحة.
+  const mountedRef = useRef(false);
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    if (!mountedRef.current) { mountedRef.current = true; return; }
+    setDirty(true);
+  }, [date, memo, lines]);
+  useUnsavedChangesGuard(dirty);
+
+  // إغلاق النافذة نفسها (زر × أو النقر خارجها أو "إلغاء") لا يُعتبَر "تنقّلاً داخلياً" فيمرّ عبر
+  // useBlocker أعلاه — النافذة تبقى مفتوحة فوق كل شيء (overlay بكامل الشاشة) بصرف النظر عن هذا
+  // الحارس. لذلك يُفحَص dirty هنا مباشرة قبل أي إغلاق فعلي، بنفس تحذير "تغييرات غير محفوظة".
+  const [confirmClose, setConfirmClose] = useState(false);
+  const requestClose = () => { if (dirty) setConfirmClose(true); else onClose(); };
 
   // بيانات نافذتَي "أصل ثابت/سلفة موظف" المنبثقتين — تُجلَب مرة واحدة عند فتح النافذة، لا لكل سطر.
   const [fixedAssets, setFixedAssets] = useState([]);
@@ -235,11 +253,11 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
   };
 
   return (
-    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
+    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && requestClose()}>
       <div className="invoice-modal-box journal-modal-box">
         <div className="modal-title-row">
           <h3>{isEdit ? t("journalEntries.form.titleEdit") : duplicateEntry ? t("journalEntries.form.titleDuplicate") : t("journalEntries.form.titleCreate")}</h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label={t("journalEntries.form.close")}>×</button>
+          <button type="button" className="modal-close-btn" onClick={requestClose} disabled={saving} aria-label={t("journalEntries.form.close")}>×</button>
         </div>
 
         <div className="journal-modal-scroll">
@@ -368,7 +386,7 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
           <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
             <p className="journal-shortcuts-hint">{t("journalEntries.form.shortcutsHint")}</p>
             <div className="form-btn-group">
-              <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("journalEntries.form.cancel")}</button>
+              <button className="btn-ghost" onClick={requestClose} disabled={saving}>{t("journalEntries.form.cancel")}</button>
               <button className="btn-secondary" onClick={() => submit(false)} disabled={!canPost || saving}>
                 {saving ? t("journalEntries.form.saving") : t("journalEntries.form.save")}
               </button>
@@ -400,6 +418,19 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
           onClose={() => { clearLink(linkModal.lineIndex); setLinkModal(null); }}
           onConfirm={applyAdvanceLink}
         />
+      )}
+
+      {confirmClose && (
+        <div className="unsaved-changes-overlay" onClick={(e) => e.target === e.currentTarget && setConfirmClose(false)}>
+          <div className="unsaved-changes-box">
+            <h3>{t("unsavedChanges.title")}</h3>
+            <p>{t("unsavedChanges.body")}</p>
+            <div className="unsaved-changes-actions">
+              <button type="button" className="btn-ghost" onClick={() => setConfirmClose(false)}>{t("unsavedChanges.stayOnPage")}</button>
+              <button type="button" className="btn-primary unsaved-changes-leave-btn" onClick={onClose}>{t("unsavedChanges.leaveWithoutSaving")}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1998,5 +1998,12 @@
       "approveBtn": "موافقة"
     },
     "dateRangeWithDays": "{{start}} → {{end}} ({{days}} يوم)"
+  },
+  "unsavedChanges": {
+    "title": "لديك تغييرات غير محفوظة",
+    "body": "توجد تغييرات لم تُحفظ في هذا النموذج. ماذا تريد أن تفعل؟",
+    "leaveWithoutSaving": "مغادرة بدون حفظ",
+    "openInNewTab": "فتح في تبويب جديد بدلاً من ذلك",
+    "stayOnPage": "البقاء في الصفحة"
   }
 }

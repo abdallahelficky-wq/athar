@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
+import { routes } from "../../routes";
 
 function BellIcon() {
   return (
@@ -15,7 +17,7 @@ function BellIcon() {
  * المحسوبَين أصلاً في App.jsx للشارات على "المبيعات"/"شئون الموظفين" بالقائمة الجانبية
  * (getFinancialAlerts/getHrAlerts)، معروضين هنا كقائمة منسدلة بدل رقم صغير فقط.
  */
-export default function NotificationBell({ overdueInvoicesCount, pendingLeaveCount, onGoSales, onGoHr }) {
+export default function NotificationBell({ overdueInvoicesCount, pendingLeaveCount }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -50,14 +52,14 @@ export default function NotificationBell({ overdueInvoicesCount, pendingLeaveCou
           ) : (
             <>
               {overdueInvoicesCount > 0 && (
-                <button type="button" className="notif-item" role="menuitem" onClick={() => { setOpen(false); onGoSales(); }}>
+                <Link to={routes.sales()} className="notif-item" role="menuitem" onClick={() => setOpen(false)}>
                   {t("nav.notifications.overdueInvoices", { count: overdueInvoicesCount })}
-                </button>
+                </Link>
               )}
               {pendingLeaveCount > 0 && (
-                <button type="button" className="notif-item" role="menuitem" onClick={() => { setOpen(false); onGoHr(); }}>
+                <Link to={routes.hr()} className="notif-item" role="menuitem" onClick={() => setOpen(false)}>
                   {t("nav.notifications.pendingLeaves", { count: pendingLeaveCount })}
-                </button>
+                </Link>
               )}
             </>
           )}

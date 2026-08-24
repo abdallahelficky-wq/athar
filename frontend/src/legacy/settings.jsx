@@ -5,6 +5,7 @@ import CompaniesSettings from "../wired/CompaniesSettings";
 import MyAccountSettings from "../wired/MyAccountSettings";
 import UsersTab from "../wired/UsersTab";
 import SubTabs from "../wired/shared/SubTabs";
+import { useModuleTab } from "../wired/shared/useModuleTab";
 
 export function MyProfileSettings({ currentUser, setCurrentUser }) {
   const { t } = useTranslation();
@@ -158,12 +159,13 @@ export const SETTINGS_TABS = [
   { id: "companyDocs", labelKey: "nav.tabs.companyDocs" },
 ];
 
-export function SettingsModule({ tab, setTab, currentUser, setCurrentUser, jobTitles, setJobTitles, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {
+export function SettingsModule({ currentUser, setCurrentUser, jobTitles, setJobTitles, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {
   const { t } = useTranslation();
+  const [tab] = useModuleTab("/settings", SETTINGS_TABS);
   return (
     <div>
       <div className="section-title"><span className="eyebrow">{t("settings.eyebrow")}</span><h2>{t("nav.groups.settings")}</h2></div>
-      <SubTabs tabs={SETTINGS_TABS} active={tab} onChange={setTab} />
+      <SubTabs tabs={SETTINGS_TABS} active={tab} basePath="/settings" />
       {tab === "companies" && <CompaniesSettings companies={realCompanies} reload={reloadRealCompanies} onCompanyCreated={onRealCompanyCreated} />}
       {tab === "profile" && (
         <div>

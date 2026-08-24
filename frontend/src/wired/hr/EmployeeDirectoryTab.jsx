@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { listEmployees, createEmployee, updateEmployee, deleteEmployee } from "../../api/employees";
 import { getEmployeePayrollComponents, setEmployeePayrollComponents } from "../../api/payrollSettings";
 import { DEPARTMENTS, fmt } from "../../legacy/constants";
 import { NATIONALITIES, EMPLOYEE_DOC_TYPES } from "../../legacy/hr";
+import { routes } from "../../routes";
 
 const emptyForm = () => ({
   name: "", jobTitle: "", department: DEPARTMENTS[0], hireDate: new Date().toISOString().slice(0, 10),
@@ -12,7 +14,7 @@ const emptyForm = () => ({
   probationEndDate: "", probationEvaluated: false, documents: [],
 });
 
-export default function EmployeeDirectoryTab({ companyId, onViewAccount }) {
+export default function EmployeeDirectoryTab({ companyId }) {
   const { t } = useTranslation();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -190,8 +192,8 @@ export default function EmployeeDirectoryTab({ companyId, onViewAccount }) {
                   <td>{e.name}</td><td>{e.department || "—"}</td><td className="num">{fmt(e.basicSalary)}</td>
                   <td><span className="status-badge">{e.leaveStatus === "onLeave" ? t("hr.directory.statusOnLeave") : t("hr.directory.statusActive")}</span></td>
                   <td className="row-actions">
-                    {e.accountId && onViewAccount && (
-                      <button className="btn-ghost" onClick={() => onViewAccount(e.accountId)}>{t("hr.directory.viewAccount")}</button>
+                    {e.accountId && (
+                      <Link className="btn-ghost" to={routes.accountLedger(e.accountId)}>{t("hr.directory.viewAccount")}</Link>
                     )}
                     <button className="btn-ghost" onClick={() => startEdit(e)}>{t("common.edit")}</button>
                     <button className="btn-ghost" onClick={() => remove(e)}>{t("common.delete")}</button>

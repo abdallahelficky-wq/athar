@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from "../../api/customers";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
 import { useToast, ToastHost } from "../shared/Toast";
 import StatementOfAccountModal from "../StatementOfAccountModal";
 import { currencyLabel } from "../../shared/countries";
+import { routes } from "../../routes";
 
 const emptyForm = () => ({
   name: "", customerType: "business", vatNumber: "", crNumber: "", nationalId: "",
@@ -13,7 +15,7 @@ const emptyForm = () => ({
   paymentTerms: "نقدي", creditLimit: "",
 });
 
-export default function CustomersTab({ companyId, companies, onViewAccount }) {
+export default function CustomersTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
   const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [customers, setCustomers] = useState([]);
@@ -116,8 +118,8 @@ export default function CustomersTab({ companyId, companies, onViewAccount }) {
                   <td className="num">{c.creditLimit ? fmt(c.creditLimit) : "—"}</td>
                   <td className="row-actions">
                     <button className="icon-btn" title={t("sales.customers.viewStatement")} onClick={() => setStatementFor(c)}><Icon.BookOpen /></button>
-                    {c.accountId && onViewAccount && (
-                      <button className="icon-btn" title={t("sales.customers.viewInChart")} onClick={() => onViewAccount(c.accountId)}><Icon.Link /></button>
+                    {c.accountId && (
+                      <Link className="icon-btn" title={t("sales.customers.viewInChart")} to={routes.accountLedger(c.accountId)}><Icon.Link /></Link>
                     )}
                     <button className="btn-ghost" onClick={() => startEdit(c)}>{t("sales.customers.edit")}</button>
                     <button className="btn-ghost" onClick={() => remove(c)}>{t("sales.customers.delete")}</button>

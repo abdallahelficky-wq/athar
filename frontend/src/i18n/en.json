@@ -1998,5 +1998,12 @@
       "approveBtn": "Approve"
     },
     "dateRangeWithDays": "{{start}} → {{end}} ({{days}} days)"
+  },
+  "unsavedChanges": {
+    "title": "You have unsaved changes",
+    "body": "This form has changes that haven't been saved yet. What would you like to do?",
+    "leaveWithoutSaving": "Leave without saving",
+    "openInNewTab": "Open in a new tab instead",
+    "stayOnPage": "Stay on this page"
   }
 }

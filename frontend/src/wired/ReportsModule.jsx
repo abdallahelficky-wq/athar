@@ -9,6 +9,7 @@ import TrialBalanceTreePrintModal from "./TrialBalanceTreePrintModal";
 import { Icon } from "../legacy/shared";
 import Breadcrumb from "./shared/Breadcrumb";
 import SubTabs from "./shared/SubTabs";
+import { useModuleTab } from "./shared/useModuleTab";
 import ReportRollupFilter from "./shared/ReportRollupFilter";
 import TrialBalanceView from "./TrialBalanceView";
 import { collectGroupAccountIds, flattenVisibleTree } from "./shared/trialBalanceTree";
@@ -111,8 +112,9 @@ function BalanceSheetView({ data, accounts, filters, branches }) {
   );
 }
 
-export default function ReportsModule({ companies, companyId, tab, setTab }) {
+export default function ReportsModule({ companies, companyId }) {
   const { t } = useTranslation();
+  const [tab] = useModuleTab("/reports", REPORT_TABS);
   const [accounts, setAccounts] = useState([]);
   const [branches, setBranches] = useState([]);
   const [incomeStatement, setIncomeStatement] = useState(null);
@@ -207,7 +209,7 @@ export default function ReportsModule({ companies, companyId, tab, setTab }) {
           <SubTabs
             tabs={REPORT_TABS}
             active={tab}
-            onChange={setTab}
+            basePath="/reports"
             trailing={<button className="icon-btn" title={t("reports.printCurrent")} onClick={() => setPrinting(true)}><Icon.Printer /></button>}
           />
           {tab === "monthly" && <ComprehensiveMonthlyReport companyId={companyId} companies={companies} />}

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { getFinancialKpis } from "../api/dashboard";
 import { fmt } from "../legacy/constants";
 import FinancialDashboard from "./dashboard/FinancialDashboard";
 import Breadcrumb from "./shared/Breadcrumb";
 import WelcomeBanner from "./shared/WelcomeBanner";
+import { routes } from "../routes";
 
 /** جدول مقارنة سريع بين شركات المجموعة (كل شركة على حدة) يُكمّل الأرقام المجمّعة لكل
  * المجموعة التي تعرضها FinancialDashboard نفسها (بدون تمرير companyId = تجميع تلقائي) */
@@ -78,7 +80,7 @@ function GroupComparisonTable({ companies }) {
  * هذه الصفحة تعرض فقط لوحة قيادة تلك الشركة، مع زر ثانوي صغير لعرض تجميعي ("المجموعة كاملة")
  * لا يُغيّر الشركة النشطة الفعلية (الشاشات الأخرى تحتاج شركة واحدة محدَّدة دائماً).
  */
-export default function Dashboard({ companies, companyId, onNavigateToCompanySettings }) {
+export default function Dashboard({ companies, companyId }) {
   const { t } = useTranslation();
   const [viewMode, setViewMode] = useState("company");
 
@@ -108,7 +110,7 @@ export default function Dashboard({ companies, companyId, onNavigateToCompanySet
         <div className="panel form-panel">
           <p className="empty">{t("dashboard.noCompanies")}</p>
           <div className="form-btn-group">
-            <button className="btn-primary" onClick={onNavigateToCompanySettings}>{t("dashboard.addFirstCompany")}</button>
+            <Link className="btn-primary" to={routes.settings("companies")}>{t("dashboard.addFirstCompany")}</Link>
           </div>
         </div>
       ) : (

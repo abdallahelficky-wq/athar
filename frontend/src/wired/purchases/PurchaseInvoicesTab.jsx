@@ -15,6 +15,7 @@ import AttachmentsPanel from "../shared/AttachmentsPanel";
 import PurchaseInvoiceViewModal from "./PurchaseInvoiceViewModal";
 import { listBranches } from "../../api/branches";
 import { currencyLabel } from "../../shared/countries";
+import { useUnsavedChangesGuard } from "../shared/UnsavedChangesContext";
 
 export default function PurchaseInvoicesTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
@@ -36,6 +37,15 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
   const [attachmentsFor, setAttachmentsFor] = useState(null);
   const [viewInvoice, setViewInvoice] = useState(null);
   const [autoPrint, setAutoPrint] = useState(false);
+
+  // "تغييرات غير محفوظة" — بخلاف نافذتَي القيد اليومي/فاتورة المبيعات، فورم فاتورة المشتريات هنا
+  // مضمَّن دائماً بأعلى الصفحة (ليس نافذة تُفتح بسطر بيانات ثابت)، ويُعبَّأ المورد تلقائياً بأول
+  // مورد متاح فور تحميل القائمة — فتتبُّع "أي تغيير" على supplierId كان سيُعلِّم الفورم "معدَّل"
+  // زوراً بمجرد فتح التبويب، قبل أي تفاعل فعلي من المستخدم. لذلك التعليم هنا يدوي فقط عند تغيير
+  // فعلي بفعل المستخدم (اختيار مورد آخر يدوياً/تاريخ/فرع/سطر)، لا عند التعبئة التلقائية الأولى.
+  const [dirty, setDirty] = useState(false);
+  const markDirty = () => setDirty(true);
+  useUnsavedChangesGuard(dirty);
 
   useEffect(() => {
     if (!companyId) return;
@@ -77,6 +87,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
     try {
       await createPurchaseInvoice({ companyId, supplierId, branchId: branchId || null, date, lines: cleanLines() });
       setLines([emptyPurchaseLine()]);
+      setDirty(false);
       reload();
     } catch (err) {
       setError(err.message);
@@ -114,12 +125,12 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
     <div>
       <div className="panel form-panel">
         <div className="form-grid header-grid">
-          <label>{t("purchases.invoices.supplier")}<select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-          <label>{t("purchases.invoices.invoiceDate")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+          <label>{t("purchases.invoices.supplier")}<select value={supplierId} onChange={(e) => { setSupplierId(e.target.value); markDirty(); }}>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+          <label>{t("purchases.invoices.invoiceDate")}<input type="date" value={date} onChange={(e) => { setDate(e.target.value); markDirty(); }} /></label>
           {branchOptions.length > 0 && (
             <label>
               {t("journalEntries.form.branchLabel")}
-              <select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
+              <select value={branchId} onChange={(e) => { setBranchId(e.target.value); markDirty(); }}>
                 <option value="">{t("common.clearOption")}</option>
                 {branchOptions.map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
               </select>
@@ -128,7 +139,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
         </div>
         {suppliers.length === 0 && <p className="empty">{t("purchases.invoices.addSupplierFirst")}</p>}
 
-        <PurchaseInvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} items={items} warehouses={warehouses} currency={currency} />
+        <PurchaseInvoiceLinesEditor lines={lines} setLines={(v) => { markDirty(); setLines(v); }} accounts={accounts} items={items} warehouses={warehouses} currency={currency} />
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
           <button className="btn-primary" onClick={save} disabled={!supplierId}>{t("purchases.invoices.saveAndPost")}</button>

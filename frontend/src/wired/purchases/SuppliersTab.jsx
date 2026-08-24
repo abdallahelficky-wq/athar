@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { listSuppliers, createSupplier, updateSupplier, deleteSupplier } from "../../api/suppliers";
 import { Icon } from "../../legacy/shared";
 import { useToast, ToastHost } from "../shared/Toast";
 import StatementOfAccountModal from "../StatementOfAccountModal";
+import { routes } from "../../routes";
 
 const emptyForm = () => ({ name: "", vatNumber: "", crNumber: "", phone: "", email: "", city: "", paymentTerms: "آجل 30 يوم" });
 
-export default function SuppliersTab({ companyId, companies, onViewAccount }) {
+export default function SuppliersTab({ companyId, companies }) {
   const { t } = useTranslation();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,8 +94,8 @@ export default function SuppliersTab({ companyId, companies, onViewAccount }) {
                   <td>{s.name}</td><td>{s.vatNumber || "—"}</td><td>{s.city || "—"}</td><td>{s.paymentTerms || "—"}</td>
                   <td className="row-actions">
                     <button className="icon-btn" title={t("purchases.suppliers.viewStatement")} onClick={() => setStatementFor(s)}><Icon.BookOpen /></button>
-                    {s.accountId && onViewAccount && (
-                      <button className="icon-btn" title={t("purchases.suppliers.viewInChart")} onClick={() => onViewAccount(s.accountId)}><Icon.Link /></button>
+                    {s.accountId && (
+                      <Link className="icon-btn" title={t("purchases.suppliers.viewInChart")} to={routes.accountLedger(s.accountId)}><Icon.Link /></Link>
                     )}
                     <button className="btn-ghost" onClick={() => startEdit(s)}>{t("purchases.suppliers.edit")}</button>
                     <button className="btn-ghost" onClick={() => remove(s)}>{t("purchases.suppliers.delete")}</button>

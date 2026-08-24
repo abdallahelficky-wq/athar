@@ -9,6 +9,7 @@ import StationsTab from "./StationsTab";
 import SalesReportsTab from "./SalesReportsTab";
 import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
+import { useModuleTab } from "../shared/useModuleTab";
 
 export const SALES_TABS = [
   { id: "customers", labelKey: "nav.tabs.customers" },
@@ -20,16 +21,17 @@ export const SALES_TABS = [
   { id: "reports", labelKey: "nav.tabs.reports" },
 ];
 
-export default function SalesWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {
+export default function SalesWiredModule({ companies, companyId }) {
   const { t } = useTranslation();
+  const [tab] = useModuleTab("/sales", SALES_TABS);
   return (
     <div>
       <div className="section-title">
         <Breadcrumb parts={[t("nav.groups.sales"), t("dashboard.breadcrumb.realData")]} />
         <h2>{t("nav.groups.sales")}</h2>
       </div>
-      <SubTabs tabs={SALES_TABS} active={tab} onChange={setTab} />
-      {tab === "customers" && <CustomersTab companyId={companyId} companies={companies} onViewAccount={onViewAccount} />}
+      <SubTabs tabs={SALES_TABS} active={tab} basePath="/sales" />
+      {tab === "customers" && <CustomersTab companyId={companyId} companies={companies} />}
       {tab === "quotations" && <QuotationsTab companyId={companyId} companies={companies} />}
       {tab === "invoices" && <InvoicesTab companyId={companyId} companies={companies} />}
       {tab === "returns" && <ReturnsTab companyId={companyId} companies={companies} />}

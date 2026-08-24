@@ -8,6 +8,7 @@ import TransferTab from "./TransferTab";
 import StockReportTab from "./StockReportTab";
 import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
+import { useModuleTab } from "../shared/useModuleTab";
 
 export const INVENTORY_TABS = [
   { id: "items", labelKey: "nav.tabs.items" },
@@ -18,15 +19,16 @@ export const INVENTORY_TABS = [
   { id: "report", labelKey: "nav.tabs.report" },
 ];
 
-export default function InventoryWiredModule({ tab, setTab, companies, companyId }) {
+export default function InventoryWiredModule({ companies, companyId }) {
   const { t } = useTranslation();
+  const [tab, setTab] = useModuleTab("/inventory", INVENTORY_TABS);
   return (
     <div>
       <div className="section-title">
         <Breadcrumb parts={[t("inventory.breadcrumb"), t("dashboard.breadcrumb.realData")]} />
         <h2>{t("nav.groups.inventory")}</h2>
       </div>
-      <SubTabs tabs={INVENTORY_TABS} active={tab} onChange={setTab} />
+      <SubTabs tabs={INVENTORY_TABS} active={tab} basePath="/inventory" />
       {tab === "items" && <ItemsTab companyId={companyId} onNavigateTransfer={() => setTab("transfer")} />}
       {tab === "warehouses" && <WarehousesTab companyId={companyId} />}
       {tab === "inout" && <StockInOutTab companyId={companyId} />}

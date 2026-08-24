@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getJournalEntry } from "../api/journalEntries";
 import { listCompanies } from "../api/companies";
@@ -11,8 +12,9 @@ import JournalVoucherViewModal from "../wired/JournalVoucherViewModal";
  * تبويبه الأصلي بينما تفاصيل القيد تُعرَض في تبويب جديد مستقل. تعتمد على نفس جلسة تسجيل الدخول
  * (localStorage مشترك بين تبويبات نفس المتصفح لنفس الأصل) بلا أي شاشة دخول منفصلة.
  */
-export default function JournalEntryStandalonePage({ entryId }) {
+export default function JournalEntryStandalonePage() {
   const { t } = useTranslation();
+  const { id: entryId } = useParams();
   const { isAuthenticated, initializing } = useAuth();
   const [entry, setEntry] = useState(null);
   const [companies, setCompanies] = useState([]);

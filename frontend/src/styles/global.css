@@ -104,8 +104,10 @@
         .nav-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: inherit; opacity: .85; }
         .nav-icon-sm { opacity: .75; }
 
+        /* .nav-btn/.nav-group-toggle/.nav-subitem أصبحت روابط <Link> حقيقية بدل <button> (لدعم
+           Ctrl/Cmd+Click وفتح تبويب جديد) — text-decoration: none يمنع التسطير الافتراضي لـ<a>. */
         .nav-btn {
-          display: flex; align-items: center; gap: 10px;
+          display: flex; align-items: center; gap: 10px; text-decoration: none;
           text-align: right; background: transparent; border: none; color: #9FB0BE;
           padding: 10px 12px; border-radius: 8px; font-family: 'IBM Plex Sans Arabic', sans-serif;
           font-size: 14px; font-weight: 500; cursor: pointer; border-right: 2px solid transparent;
@@ -117,7 +119,7 @@
 
         .nav-group { display: flex; flex-direction: column; }
         .nav-group-toggle {
-          display: flex; align-items: center; gap: 10px;
+          display: flex; align-items: center; gap: 10px; text-decoration: none;
           text-align: right; background: transparent; border: none; color: #9FB0BE;
           padding: 10px 12px; border-radius: 8px; font-family: 'IBM Plex Sans Arabic', sans-serif;
           font-size: 14px; font-weight: 600; cursor: pointer; border-right: 2px solid transparent;
@@ -184,7 +186,8 @@
         .sidebar-company-option-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .sidebar-company-option-check { color: var(--athar-blue); flex-shrink: 0; }
         .sidebar-company-manage {
-          width: 100%; text-align: center; background: transparent; border: none; border-top: 1px solid var(--athar-border);
+          display: block; width: 100%; text-align: center; text-decoration: none;
+          background: transparent; border: none; border-top: 1px solid var(--athar-border);
           margin-top: 4px; padding: 9px 8px 5px; cursor: pointer; font-family: inherit; font-size: 11.5px;
           font-weight: 600; color: var(--athar-blue);
         }
@@ -200,7 +203,7 @@
         .nav-subitems-inner { overflow: hidden; min-height: 0; }
         .nav-subitems { display: flex; flex-direction: column; gap: 2px; padding-right: 14px; margin: 2px 0 6px; }
         .nav-subitem {
-          display: flex; align-items: center; gap: 8px;
+          display: flex; align-items: center; gap: 8px; text-decoration: none;
           text-align: right; background: transparent; border: none; color: #8497A6;
           padding: 7px 10px; border-radius: 6px; font-family: 'IBM Plex Sans Arabic', sans-serif;
           font-size: 12.5px; cursor: pointer; transition: background .15s ease, color .15s ease;
@@ -268,11 +271,13 @@
         .quick-search-group + .quick-search-group { border-top: 1px solid rgba(16,32,46,0.06); }
         .quick-search-group-title { font-size: 11px; font-weight: 700; color: #B98B4E; text-transform: uppercase; padding: 4px 8px; }
         .quick-search-item {
-          display: block; width: 100%; text-align: start; border: 0; background: transparent; border-radius: 8px;
+          display: block; width: 100%; text-align: start; text-decoration: none; border: 0; background: transparent; border-radius: 8px;
           padding: 8px 10px; font-size: 13px; color: #10202E; cursor: pointer; font-family: inherit;
         }
-        .quick-search-item:hover:not(:disabled) { background: rgba(185,139,78,0.09); }
-        .quick-search-item:disabled { color: #B7BFC6; cursor: default; }
+        .quick-search-item:hover:not(:disabled):not(.disabled) { background: rgba(185,139,78,0.09); }
+        /* عميل/مورد بلا حساب مرتبط بشجرة الحسابات — لا يوجد رابط فعلي لعرضه، فيُعرَض كنص غير قابل
+           للنقر (span) بدل رابط <a> حقيقي، لأن <a> لا يدعم خاصية disabled إطلاقاً على عكس <button>. */
+        .quick-search-item:disabled, .quick-search-item.disabled { color: #B7BFC6; cursor: default; }
 
         /* .app-content هي منطقة التمرير الفعلية وحدها — بعرض كامل (بلا max-width هنا) حتى يلتصق
            شريط تمريرها بحافة النافذة الحقيقية دائماً (يمين الشاشة في LTR، يسارها في RTL تلقائياً
@@ -320,7 +325,7 @@
         .notif-dropdown-title { padding: 8px 10px 6px; font-weight: 700; font-size: 12.5px; color: var(--athar-text-primary); }
         .notif-empty { padding: 6px 10px 10px; margin: 0; font-size: 12px; color: var(--athar-text-muted); }
         .notif-item {
-          display: block; width: 100%; text-align: start; background: transparent; border: none; cursor: pointer;
+          display: block; width: 100%; text-align: start; text-decoration: none; background: transparent; border: none; cursor: pointer;
           border-radius: 7px; padding: 9px 10px; font-family: inherit; font-size: 12.5px; color: var(--athar-text-primary);
         }
         .notif-item:hover { background: var(--athar-bg); }
@@ -539,7 +544,11 @@
         .checkbox-label { flex-direction: row !important; align-items: center; gap: 7px !important; }
         .checkbox-label input[type="checkbox"] { width: auto; accent-color: #B98B4E; }
 
+        /* display:inline-flex + text-decoration:none هنا لأن .btn-primary/.btn-ghost أصبحا يُستخدَمان
+           أحياناً على عنصر <a> حقيقي (لدعم Ctrl/Cmd+Click لفتح رابط في تبويب جديد) وليس فقط <button> —
+           بلاهما كان التسطير الافتراضي وسلوك inline العادي لـ<a> يكسران شكل الزر. */
         .btn-primary {
+          display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
           background: #10202E; color: #ECE6D6; border: none; border-radius: 8px; padding: 10px 22px;
           font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 600; font-size: 13.5px; cursor: pointer;
         }
@@ -548,6 +557,7 @@
         .btn-primary:focus-visible { outline: 2px solid #B98B4E; outline-offset: 2px; }
 
         .btn-ghost {
+          display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
           background: transparent; border: 1px dashed rgba(16,32,46,0.3); color: #10202E;
           border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer;
           font-family: 'IBM Plex Sans Arabic', sans-serif;
@@ -871,6 +881,20 @@
         .modal-close-btn:hover { color: #10202E; }
         .modal-close-btn:disabled { color: #C7CCD1; cursor: not-allowed; }
 
+        /* نافذة تحذير "تغييرات غير محفوظة" — أعلى z-index بالنظام عمداً حتى تظهر فوق أي نافذة
+           أخرى مفتوحة وقت محاولة التنقّل (نافذة الفاتورة/القيد نفسها، أو حتى نافذة فك ترحيل). */
+        .unsaved-changes-overlay {
+          position: fixed; inset: 0; background: rgba(16,32,46,0.6); display: flex;
+          align-items: center; justify-content: center; z-index: 100; padding: 24px;
+        }
+        .unsaved-changes-box { background: #FBF9F3; border-radius: 14px; padding: 26px 30px; max-width: 420px; width: 100%; }
+        .unsaved-changes-box h3 { margin: 0 0 8px; font-size: 15px; }
+        .unsaved-changes-box p { margin: 0 0 18px; color: #4A5A68; line-height: 1.6; }
+        .unsaved-changes-actions { display: flex; flex-direction: column; gap: 8px; }
+        .unsaved-changes-actions .btn-ghost, .unsaved-changes-actions .btn-primary { width: 100%; text-align: center; justify-content: center; }
+        .unsaved-changes-leave-btn { background: #A8432B; border-color: #A8432B; }
+        .unsaved-changes-leave-btn:hover { background: #8A3620; }
+
         /* النوافذ الفرعية (nested modals) — إضافة عميل/صنف جديد من داخل نافذة الفاتورة —
            تُظهَر بتعتيم أقوى وحدود وظل أوضح لتبدو بصرياً "فوق" نافذة الفاتورة الأصلية. */
         .nested-modal-overlay { background: rgba(16,32,46,0.72); }
@@ -1044,7 +1068,7 @@
           background: var(--athar-bg); border: 1px solid var(--athar-border); border-radius: 12px; padding: 4px;
         }
         .subtab {
-          display: flex; align-items: center; gap: 7px;
+          display: flex; align-items: center; gap: 7px; text-decoration: none;
           background: transparent; border: 1px solid transparent; color: var(--athar-text-secondary);
           padding: 8px 16px; border-radius: 9px; font-family: 'IBM Plex Sans Arabic', sans-serif;
           font-size: 13px; font-weight: 500; cursor: pointer;

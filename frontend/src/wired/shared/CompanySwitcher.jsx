@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { getCompanyColor, getCompanyInitials } from "./CompanyCards";
 import { countryName, currencyLabel } from "../../shared/countries";
+import { routes } from "../../routes";
 
 /**
  * مبدّل الشركة النشطة — صندوق مصغّر أعلى الشريط الجانبي (بيانات حقيقية من نفس real.companies/
@@ -11,7 +13,7 @@ import { countryName, currencyLabel } from "../../shared/countries";
  * في لوحة القيادة (CompanyCards.jsx) تبقى كما هي بلا أي تعديل — هذا مكوّن إضافي منفصل تماماً
  * لتبديل سريع من أي مكان، وليس بديلاً عنها.
  */
-export default function CompanySwitcher({ companies, companyId, setCompanyId, onViewAll }) {
+export default function CompanySwitcher({ companies, companyId, setCompanyId }) {
   const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -76,9 +78,9 @@ export default function CompanySwitcher({ companies, companyId, setCompanyId, on
               )}
             </button>
           ))}
-          <button type="button" className="sidebar-company-manage" onClick={() => { setOpen(false); onViewAll(); }}>
+          <Link to={routes.dashboard()} className="sidebar-company-manage" onClick={() => setOpen(false)}>
             {t("nav.viewAllCompanies")}
-          </button>
+          </Link>
         </div>
       )}
     </div>

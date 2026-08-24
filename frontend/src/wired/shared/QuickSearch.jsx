@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { listCustomers } from "../../api/customers";
 import { listSuppliers } from "../../api/suppliers";
 import { listSalesInvoices } from "../../api/salesInvoices";
 import { listPurchaseInvoices } from "../../api/purchaseInvoices";
+import { routes } from "../../routes";
 
 function SearchIcon() {
   return (
@@ -23,7 +25,7 @@ const MAX_PER_GROUP = 5;
  * وليس بحثاً شاملاً عبر كل شاشات النظام. النتيجة قابلة للنقر فعلياً: عميل/مورد ← كشف حسابه في
  * شجرة الحسابات (نفس مسار "عرض في شجرة الحسابات" الموجود أصلاً)، فاتورة ← شاشة فواتيرها مباشرة.
  */
-export default function QuickSearch({ companyId, onViewAccount, onGoInvoices }) {
+export default function QuickSearch({ companyId }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -83,16 +85,7 @@ export default function QuickSearch({ companyId, onViewAccount, onGoInvoices }) 
     ? results.customers.length + results.suppliers.length + results.salesInvoices.length + results.purchaseInvoices.length
     : 0;
 
-  const selectAccount = (accountId) => {
-    setOpen(false);
-    setQuery("");
-    onViewAccount(accountId);
-  };
-  const selectInvoices = (kind) => {
-    setOpen(false);
-    setQuery("");
-    onGoInvoices(kind);
-  };
+  const closeSearch = () => { setOpen(false); setQuery(""); };
 
   return (
     <div className="quick-search" ref={rootRef}>
@@ -121,9 +114,11 @@ export default function QuickSearch({ companyId, onViewAccount, onGoInvoices }) 
                 <div className="quick-search-group">
                   <div className="quick-search-group-title">{t("nav.search.customers")}</div>
                   {results.customers.map((c) => (
-                    <button key={c.id} type="button" className="quick-search-item" disabled={!c.accountId} onClick={() => selectAccount(c.accountId)}>
-                      {c.name}
-                    </button>
+                    c.accountId ? (
+                      <Link key={c.id} className="quick-search-item" to={routes.accountLedger(c.accountId)} onClick={closeSearch}>{c.name}</Link>
+                    ) : (
+                      <span key={c.id} className="quick-search-item disabled">{c.name}</span>
+                    )
                   ))}
                 </div>
               )}
@@ -131,9 +126,11 @@ export default function QuickSearch({ companyId, onViewAccount, onGoInvoices }) 
                 <div className="quick-search-group">
                   <div className="quick-search-group-title">{t("nav.search.suppliers")}</div>
                   {results.suppliers.map((s) => (
-                    <button key={s.id} type="button" className="quick-search-item" disabled={!s.accountId} onClick={() => selectAccount(s.accountId)}>
-                      {s.name}
-                    </button>
+                    s.accountId ? (
+                      <Link key={s.id} className="quick-search-item" to={routes.accountLedger(s.accountId)} onClick={closeSearch}>{s.name}</Link>
+                    ) : (
+                      <span key={s.id} className="quick-search-item disabled">{s.name}</span>
+                    )
                   ))}
                 </div>
               )}
@@ -141,9 +138,9 @@ export default function QuickSearch({ companyId, onViewAccount, onGoInvoices }) 
                 <div className="quick-search-group">
                   <div className="quick-search-group-title">{t("nav.search.salesInvoices")}</div>
                   {results.salesInvoices.map((i) => (
-                    <button key={i.id} type="button" className="quick-search-item" onClick={() => selectInvoices("sales")}>
+                    <Link key={i.id} className="quick-search-item" to={routes.sales("invoices")} onClick={closeSearch}>
                       {i.invoiceNumber} {i.customer?.name ? `— ${i.customer.name}` : ""}
-                    </button>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -151,9 +148,9 @@ export default function QuickSearch({ companyId, onViewAccount, onGoInvoices }) 
                 <div className="quick-search-group">
                   <div className="quick-search-group-title">{t("nav.search.purchaseInvoices")}</div>
                   {results.purchaseInvoices.map((i) => (
-                    <button key={i.id} type="button" className="quick-search-item" onClick={() => selectInvoices("purchases")}>
+                    <Link key={i.id} className="quick-search-item" to={routes.purchases("invoices")} onClick={closeSearch}>
                       {i.invoiceNumber} {i.supplier?.name ? `— ${i.supplier.name}` : ""}
-                    </button>
+                    </Link>
                   ))}
                 </div>
               )}

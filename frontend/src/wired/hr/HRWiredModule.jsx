@@ -12,6 +12,7 @@ import EndOfServiceTab from "./EndOfServiceTab";
 import HRReportsTab from "./HRReportsTab";
 import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
+import { useModuleTab } from "../shared/useModuleTab";
 
 export const HR_TABS = [
   { id: "dashboard", labelKey: "nav.tabs.hrDashboard" },
@@ -26,17 +27,18 @@ export const HR_TABS = [
   { id: "reports", labelKey: "nav.tabs.reports" },
 ];
 
-export default function HRWiredModule({ tab, setTab, companies, companyId, onViewAccount }) {
+export default function HRWiredModule({ companies, companyId }) {
   const { t } = useTranslation();
+  const [tab] = useModuleTab("/hr", HR_TABS);
   return (
     <div>
       <div className="section-title">
         <Breadcrumb parts={[t("nav.groups.hr"), t("dashboard.breadcrumb.realData")]} />
         <h2>{t("nav.groups.hr")}</h2>
       </div>
-      <SubTabs tabs={HR_TABS} active={tab} onChange={setTab} />
+      <SubTabs tabs={HR_TABS} active={tab} basePath="/hr" />
       {tab === "dashboard" && <HRDashboardTab companyId={companyId} companies={companies} />}
-      {tab === "directory" && <EmployeeDirectoryTab companyId={companyId} onViewAccount={onViewAccount} />}
+      {tab === "directory" && <EmployeeDirectoryTab companyId={companyId} />}
       {tab === "leaves" && <LeavesTab companyId={companyId} />}
       {tab === "leaveSettlement" && <LeaveSettlementTab companyId={companyId} companies={companies} />}
       {tab === "leaveReturn" && <LeaveReturnTab companyId={companyId} companies={companies} />}
