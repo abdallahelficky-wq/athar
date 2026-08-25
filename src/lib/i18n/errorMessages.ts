@@ -14,6 +14,8 @@ export const AR_TO_EN: Record<string, string> = {
   "الخيل غير موجود أو لا يتبع الشركة المحددة": "The horse does not exist or does not belong to the selected company",
   "البوكس لا يتبع الإسطبل المحدد": "The stall does not belong to the selected stable",
   "البوكس مشغول بخيل آخر": "The stall is occupied by another horse",
+  "يجب اختيار الإسطبل عند اختيار البوكس": "A stable must be selected when selecting a stall",
+  "أدخل بريد المالك في بيانات العقد أو في طلب الإرسال": "Enter the owner's email in the contract details or the send request",
   "لا يمكن حذف إسطبل يحتوي على خيول؛ انقل الخيول أو استخدم الأرشفة": "A stable containing horses cannot be deleted; move the horses or archive the stable",
   "البوكس غير موجود": "The stall does not exist",
   "لا يمكن حذف بوكس مستخدم": "A stall in use cannot be deleted",

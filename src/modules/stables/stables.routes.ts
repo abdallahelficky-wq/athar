@@ -15,6 +15,7 @@ stableRoutes.patch("/stalls/:id", edit, validateBody(s.updateStallSchema), c.upd
 stableRoutes.get("/horses/list", c.listHorses); stableRoutes.post("/horses", edit, validateBody(s.createHorseSchema), c.createHorse);
 stableRoutes.patch("/horses/:id", edit, validateBody(s.updateHorseSchema), c.updateHorse); stableRoutes.delete("/horses/:id", edit, c.deleteHorse);
 stableRoutes.get("/contracts/list", c.listContracts); stableRoutes.post("/contracts", edit, validateBody(s.createContractSchema), c.createContract);
+stableRoutes.get("/contracts/:id/pdf", c.downloadContractPdf); stableRoutes.post("/contracts/:id/send-email", edit, validateBody(s.sendContractEmailSchema), c.emailContract);
 stableRoutes.patch("/contracts/:id", edit, validateBody(s.updateContractSchema), c.updateContract); stableRoutes.delete("/contracts/:id", edit, c.deleteContract);
 stableRoutes.get("/care/list", c.listCare); stableRoutes.post("/care", edit, validateBody(s.createCareRecordSchema), c.createCare);
 stableRoutes.patch("/care/:id", edit, validateBody(s.updateCareRecordSchema), c.updateCare); stableRoutes.delete("/care/:id", edit, c.deleteCare);

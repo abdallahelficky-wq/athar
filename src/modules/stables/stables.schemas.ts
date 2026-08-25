@@ -28,10 +28,15 @@ export const updateHorseSchema = createHorseSchema.partial().omit({ companyId: t
 const contractSchema = z.object({
   companyId: z.string(), stableId: z.string(), horseId: z.string(), stallId: z.string().optional().nullable(),
   startDate: z.coerce.date(), endDate: z.coerce.date().optional().nullable(), monthlyFee: z.coerce.number().nonnegative(),
-  depositAmount: optionalMoney, status: z.enum(["active", "completed", "cancelled"]).optional(), notes: optionalText,
+  depositAmount: optionalMoney, contractNumber: optionalText, ownerName: z.string().trim().min(2), ownerNationality: optionalText,
+  ownerNationalId: optionalText, ownerIdIssuePlace: optionalText, ownerPhone: optionalText,
+  ownerEmail: z.string().trim().email().optional().nullable(), ownerCity: optionalText, ownerDistrict: optionalText,
+  ownerStreet: optionalText, ownerBuildingNo: optionalText, ownerPostalCode: optionalText,
+  status: z.enum(["active", "completed", "cancelled"]).optional(), notes: optionalText,
 });
 export const createContractSchema = contractSchema.refine((v) => !v.endDate || v.endDate >= v.startDate, { message: "تاريخ النهاية يجب أن يكون بعد تاريخ البداية", path: ["endDate"] });
 export const updateContractSchema = contractSchema.partial().omit({ companyId: true });
+export const sendContractEmailSchema = z.object({ email: z.string().trim().email().optional() });
 
 export const createCareRecordSchema = z.object({
   companyId: z.string(), horseId: z.string(), type: z.enum(["veterinary", "vaccination", "farrier", "feeding", "training", "grooming", "medication", "other"]),

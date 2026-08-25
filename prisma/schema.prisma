@@ -1932,7 +1932,7 @@ model Horse {
   company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   stableId       String?
   stable         Stable?      @relation(fields: [stableId], references: [id], onDelete: SetNull)
-  stallId        String?
+  stallId        String?      @unique
   stall          StableStall? @relation(fields: [stallId], references: [id], onDelete: SetNull)
   name           String
   registrationNo String?
@@ -1973,12 +1973,26 @@ model BoardingContract {
   endDate       DateTime?
   monthlyFee    Decimal                @db.Decimal(18, 2)
   depositAmount Decimal?               @db.Decimal(18, 2)
+  contractNumber String?
+  ownerName      String?
+  ownerNationality String?
+  ownerNationalId String?
+  ownerIdIssuePlace String?
+  ownerPhone     String?
+  ownerEmail     String?
+  ownerCity      String?
+  ownerDistrict  String?
+  ownerStreet    String?
+  ownerBuildingNo String?
+  ownerPostalCode String?
+  sentAt         DateTime?
   status        BoardingContractStatus @default(active)
   notes         String?
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
 
   @@index([tenantId, companyId, status])
+  @@unique([companyId, contractNumber])
   @@map("boarding_contracts")
 }
 

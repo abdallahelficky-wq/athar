@@ -189,6 +189,23 @@ export async function sendInvoiceEmail(params: InvoiceEmailParams) {
   });
 }
 
+export async function sendLiveryContractEmail(params: { to: string; ownerName: string; companyName: string; contractNumber?: string | null; pdfBuffer: Buffer; pdfFileName: string; }) {
+  const number = params.contractNumber ? ` رقم ${params.contractNumber}` : "";
+  await sendEmail({
+    to: params.to,
+    subject: `عقد إيواء الخيل${number} من ${params.companyName}`,
+    logLabel: `إرسال عقد إيواء${number}`,
+    logBody: `المالك: ${params.ownerName}`,
+    attachments: [{ filename: params.pdfFileName, content: params.pdfBuffer }],
+    html: renderEmailShell(`
+      <h2 style="color:#10202E;">عقد إيواء الخيل</h2>
+      <p>عزيزي/عزيزتي ${params.ownerName}،</p>
+      <p>مرفق عقد إيواء الخيل الخاص بكم من <strong>${params.companyName}</strong>، جاهز للمراجعة والتوقيع.</p>
+      <p style="color:#6b7c8c;font-size:12.5px;">يرجى فتح ملف PDF المرفق ومراجعة البيانات والبنود قبل التوقيع.</p>
+    `, "ar"),
+  });
+}
+
 /**
  * يُرسَل من مسار "إرسال الآن" اليدوي، ومن المُجدوِل التلقائي (reportScheduler.ts) عند استحقاق
  * جدولة شركة ما — نفس محتوى الرسالة (مبني مسبقاً عبر buildReportDigestEmail في reportDigest.ts)
