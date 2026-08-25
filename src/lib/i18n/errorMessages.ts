@@ -10,6 +10,20 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "الإسطبل غير موجود أو لا يتبع الشركة المحددة": "The stable does not exist or does not belong to the selected company",
+  "الخيل غير موجود أو لا يتبع الشركة المحددة": "The horse does not exist or does not belong to the selected company",
+  "البوكس لا يتبع الإسطبل المحدد": "The stall does not belong to the selected stable",
+  "البوكس مشغول بخيل آخر": "The stall is occupied by another horse",
+  "يجب اختيار الإسطبل عند اختيار البوكس": "A stable must be selected when selecting a stall",
+  "أدخل بريد المالك في بيانات العقد أو في طلب الإرسال": "Enter the owner's email in the contract details or the send request",
+  "لا يمكن حذف إسطبل يحتوي على خيول؛ انقل الخيول أو استخدم الأرشفة": "A stable containing horses cannot be deleted; move the horses or archive the stable",
+  "البوكس غير موجود": "The stall does not exist",
+  "لا يمكن حذف بوكس مستخدم": "A stall in use cannot be deleted",
+  "اختر البوكس من الإسطبل الجديد أو أفرغ حقل البوكس": "Select a stall from the new stable or clear the stall field",
+  "لا يمكن حذف خيل له عقود؛ غيّر حالته بدلاً من الحذف": "A horse with contracts cannot be deleted; change its status instead",
+  "عقد الإيواء غير موجود": "The boarding contract does not exist",
+  "سجل الرعاية غير موجود": "The care record does not exist",
+  "تاريخ النهاية يجب أن يكون بعد تاريخ البداية": "The end date must be after the start date",
   "0 (الأحد) إلى 6 (السبت)": "0 (Sunday) to 6 (Saturday)",
   "إجمالي الإشعار المدين يجب أن يكون أكبر من صفر": "The debit note total must be greater than zero",
   "إجمالي الفاتورة يجب أن يكون أكبر من صفر": "The invoice total must be greater than zero",
@@ -364,3 +378,4 @@ export const AR_TO_EN: Record<string, string> = {
   "لو هذا البريد الإلكتروني مسجّل بالنظام، سيصلك رابط لإعادة تعيين كلمة المرور خلال دقائق.":
     "If this email is registered in the system, you'll receive a password reset link within minutes.",
 };
+

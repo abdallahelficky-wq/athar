@@ -35,6 +35,15 @@
       "subtotal": "Subtotal before tax", "vat": "VAT (15%)", "grandTotal": "Total incl. VAT"
     }
   },
+  "stables": {
+    "title": "Horse Stables",
+    "overview": "Overview",
+    "stables": "Stables",
+    "stalls": "Stalls",
+    "horses": "Horses",
+    "contracts": "Boarding",
+    "care": "Care records"
+  },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },
     "eyebrow": "Cloud accounting for Arab businesses",
@@ -2063,3 +2072,4 @@
     "stayOnPage": "Stay on this page"
   }
 }
+

@@ -88,6 +88,12 @@ model Tenant {
 
   attachments Attachment[]
 
+  stables           Stable[]
+  stableStalls      StableStall[]
+  horses            Horse[]
+  boardingContracts BoardingContract[]
+  horseCareRecords  HorseCareRecord[]
+
   @@map("tenants")
 }
 
@@ -280,6 +286,11 @@ model Company {
   depreciationRuns     DepreciationRun[]
   employees            Employee[]
   payrollRuns          PayrollRun[]
+  stables              Stable[]
+  stableStalls         StableStall[]
+  horses               Horse[]
+  boardingContracts    BoardingContract[]
+  horseCareRecords     HorseCareRecord[]
   attendanceRecords    AttendanceRecord[]
   payrollComponents    PayrollComponent[]
   payrollSettings      PayrollSettings?
@@ -1851,3 +1862,188 @@ model Attachment {
   @@index([tenantId, entityType, entityId])
   @@map("attachments")
 }
+
+enum HorseSex {
+  stallion
+  mare
+  gelding
+}
+
+enum HorseStatus {
+  active
+  training
+  resting
+  medical_hold
+  sold
+  deceased
+}
+
+enum StallStatus {
+  available
+  occupied
+  maintenance
+  inactive
+}
+
+enum BoardingContractStatus {
+  active
+  completed
+  cancelled
+}
+
+enum HorseCareType {
+  veterinary
+  vaccination
+  farrier
+  feeding
+  training
+  grooming
+  medication
+  other
+}
+
+model Stable {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  code        String?
+  location    String?
+  managerName String?
+  phone       String?
+  capacity    Int      @default(0)
+  notes       String?
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stalls    StableStall[]
+  horses    Horse[]
+  contracts BoardingContract[]
+
+  @@unique([companyId, code])
+  @@index([tenantId, companyId])
+  @@map("stables")
+}
+
+model StableStall {
+  id        String      @id @default(cuid())
+  tenantId  String
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stableId  String
+  stable    Stable      @relation(fields: [stableId], references: [id], onDelete: Cascade)
+  number    String
+  type      String?
+  dailyRate Decimal?    @db.Decimal(18, 2)
+  status    StallStatus @default(available)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  horses    Horse[]
+  contracts BoardingContract[]
+
+  @@unique([stableId, number])
+  @@index([tenantId, companyId])
+  @@map("stable_stalls")
+}
+
+model Horse {
+  id             String       @id @default(cuid())
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stableId       String?
+  stable         Stable?      @relation(fields: [stableId], references: [id], onDelete: SetNull)
+  stallId        String?      @unique
+  stall          StableStall? @relation(fields: [stallId], references: [id], onDelete: SetNull)
+  name           String
+  registrationNo String?
+  microchipNo    String?
+  breed          String?
+  color          String?
+  sex            HorseSex
+  birthDate      DateTime?
+  ownerName      String?
+  ownerPhone     String?
+  status         HorseStatus  @default(active)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  contracts   BoardingContract[]
+  careRecords HorseCareRecord[]
+
+  @@unique([companyId, registrationNo])
+  @@unique([companyId, microchipNo])
+  @@index([tenantId, companyId])
+  @@map("horses")
+}
+
+model BoardingContract {
+  id            String                 @id @default(cuid())
+  tenantId      String
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stableId      String
+  stable        Stable                 @relation(fields: [stableId], references: [id])
+  horseId       String
+  horse         Horse                  @relation(fields: [horseId], references: [id])
+  stallId       String?
+  stall         StableStall?           @relation(fields: [stallId], references: [id])
+  startDate     DateTime
+  endDate       DateTime?
+  monthlyFee    Decimal                @db.Decimal(18, 2)
+  depositAmount Decimal?               @db.Decimal(18, 2)
+  contractNumber String?
+  ownerName      String?
+  ownerNationality String?
+  ownerNationalId String?
+  ownerIdIssuePlace String?
+  ownerPhone     String?
+  ownerEmail     String?
+  ownerCity      String?
+  ownerDistrict  String?
+  ownerStreet    String?
+  ownerBuildingNo String?
+  ownerPostalCode String?
+  sentAt         DateTime?
+  status        BoardingContractStatus @default(active)
+  notes         String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@index([tenantId, companyId, status])
+  @@unique([companyId, contractNumber])
+  @@map("boarding_contracts")
+}
+
+model HorseCareRecord {
+  id          String        @id @default(cuid())
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  horseId     String
+  horse       Horse         @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  type        HorseCareType
+  performedAt DateTime
+  provider    String?
+  description String
+  cost        Decimal?      @db.Decimal(18, 2)
+  nextDueDate DateTime?
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([tenantId, companyId, performedAt])
+  @@index([horseId, nextDueDate])
+  @@map("horse_care_records")
+}
+
