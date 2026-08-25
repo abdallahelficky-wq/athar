@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { listCustomers, createCustomer, updateCustomer, deleteCustomer } from "../../api/customers";
+import { listCustomers, createCustomer, updateCustomer, deleteCustomer, extractCustomerDocument } from "../../api/customers";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
 import { useToast, ToastHost } from "../shared/Toast";
 import StatementOfAccountModal from "../StatementOfAccountModal";
+import AttachmentsPanel from "../shared/AttachmentsPanel";
 import { currencyLabel } from "../../shared/countries";
 import { routes } from "../../routes";
 
@@ -18,6 +19,11 @@ const emptyForm = () => ({
 export default function CustomersTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
   const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
+  const DOC_TYPES = [
+    { key: "cr", label: t("sales.customers.docTypeCr") },
+    { key: "national_address", label: t("sales.customers.docTypeNationalAddress") },
+    { key: "vat_certificate", label: t("sales.customers.docTypeVatCert") },
+  ];
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast, notify, dismiss } = useToast();
@@ -25,6 +31,10 @@ export default function CustomersTab({ companyId, companies }) {
   const [editingId, setEditingId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [statementFor, setStatementFor] = useState(null);
+  const [extracting, setExtracting] = useState(null); // docType الجاري استخراجه
+  const [extractionNote, setExtractionNote] = useState(null); // { confidence, text }
+  const [attachmentsKey, setAttachmentsKey] = useState(0);
+  const docInputRefs = useRef({});
 
   // بحث شامل فوري (Live) عبر عدة حقول معاً — عدد العملاء المتوقَّع لأي منشأة صغيرة/متوسطة لا
   // يستدعي رحلة خادم لكل ضغطة مفتاح، فالفلترة تتم محلياً على القائمة المحمَّلة أصلاً بالكامل
@@ -54,12 +64,14 @@ export default function CustomersTab({ companyId, companies }) {
   const openAddForm = () => {
     setEditingId(null);
     setForm(emptyForm());
+    setExtractionNote(null);
     setFormOpen(true);
   };
 
   const startEdit = (c) => {
     setEditingId(c.id);
     setForm({ ...emptyForm(), ...c, creditLimit: c.creditLimit || "" });
+    setExtractionNote(null);
     setFormOpen(true);
   };
 
@@ -67,6 +79,37 @@ export default function CustomersTab({ companyId, companies }) {
     setFormOpen(false);
     setEditingId(null);
     setForm(emptyForm());
+    setExtractionNote(null);
+  };
+
+  // نفس آلية استخراج بيانات الشركة من مستند بالضبط (CompanyEditModal.jsx's pickDocument) — يُتاح
+  // فقط أثناء تعديل عميل محفوظ فعلاً (editingId)، بنفس نمط "شركة" غير المتاح عند الإضافة الأولى.
+  const pickDocument = async (docType, e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !editingId) return;
+    setExtracting(docType);
+    setExtractionNote(null);
+    try {
+      const result = await extractCustomerDocument(editingId, docType, file);
+      setAttachmentsKey((k) => k + 1);
+      if (result.confidence === "low" || Object.keys(result.fields).length === 0) {
+        setExtractionNote({
+          confidence: "low",
+          text: t("sales.customers.extractionLowConfidence", { note: result.confidenceNote || t("sales.customers.extractionLowConfidenceDefault") }),
+        });
+      } else {
+        setForm((prev) => ({ ...prev, ...result.fields }));
+        setExtractionNote({
+          confidence: "high",
+          text: t("sales.customers.extractionHighConfidence", { note: result.confidenceNote || "" }),
+        });
+      }
+    } catch (err) {
+      setExtractionNote({ confidence: "low", text: t("sales.customers.extractionFailed", { message: err.message }) });
+    } finally {
+      setExtracting(null);
+    }
   };
 
   const save = async () => {
@@ -191,6 +234,36 @@ export default function CustomersTab({ companyId, companies }) {
               <label>{t("sales.customers.addressPostalCode")}<input type="text" value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} /></label>
               <label>{t("sales.customers.addressAdditionalNo")}<input type="text" value={form.additionalNo} onChange={(e) => setForm({ ...form, additionalNo: e.target.value })} /></label>
             </div>
+
+            {/* إرفاق المستندات الرسمية + استخراج تلقائي بالذكاء الاصطناعي — نفس النمط والآلية
+                المستخدَمة بالفعل لبيانات الشركة (CompanyEditModal.jsx)، متاح فقط أثناء تعديل عميل
+                محفوظ فعلاً (وليس عند الإضافة الأولى)، والبيانات المستخرَجة تُعرَض في حقول النموذج
+                القابلة للتعديل أعلاه للمراجعة قبل الحفظ — لا حفظ تلقائي مباشر. */}
+            {editingId && (
+              <>
+                <h4 className="sub-head">{t("sales.customers.aiExtractTitle")}</h4>
+                <p className="note">{t("sales.customers.aiExtractNote")}</p>
+                <div className="form-btn-group" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+                  {DOC_TYPES.map((d) => (
+                    <React.Fragment key={d.key}>
+                      <input
+                        ref={(el) => (docInputRefs.current[d.key] = el)}
+                        type="file" accept="image/*,application/pdf" hidden
+                        onChange={(e) => pickDocument(d.key, e)}
+                      />
+                      <button className="btn-ghost" onClick={() => docInputRefs.current[d.key]?.click()} disabled={extracting !== null}>
+                        {extracting === d.key ? t("sales.customers.analyzing") : d.label}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+                {extractionNote && (
+                  <p className={extractionNote.confidence === "low" ? "balance-bad" : "note"}>{extractionNote.text}</p>
+                )}
+
+                <AttachmentsPanel key={attachmentsKey} entityType="customer" entityId={editingId} title={t("sales.customers.uploadedDocsTitle")} />
+              </>
+            )}
 
             <div className="form-btn-group">
               <button className="btn-ghost" onClick={closeForm}>{t("sales.customers.cancel")}</button>

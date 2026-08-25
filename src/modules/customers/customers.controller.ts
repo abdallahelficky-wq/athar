@@ -2,6 +2,9 @@ import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { ensurePartyAccount, resolvePartyAccountId } from "../../lib/partyAccounts";
+import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claudeVision";
+import { createAttachment } from "../attachments/attachments.service";
+import { translateMessage } from "../../lib/i18n/translate";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -87,4 +90,56 @@ export const deleteCustomer: RequestHandler = async (req, res) => {
 
   await prisma.customer.delete({ where: { id: existing.id } });
   res.status(204).send();
+};
+
+// نفس دالة استخراج بيانات الشركة من مستند (claudeVision.ts) بالضبط — عامة بالفعل وغير مرتبطة
+// بـ"شركة" تحديداً (Tool Use يستخرج فقط الحقول المطلوبة لنوع المستند)، فتُعاد هنا بلا أي تكرار
+// لمنطق الذكاء الاصطناعي. تُحوَّل فقط أسماء الحقول من تسمية الشركة (addressBuilding..) إلى تسمية
+// نموذج العميل (buildingNo..) حتى تُطبَّق مباشرة على حالة النموذج بالواجهة الأمامية بلا أي تحويل
+// إضافي هناك؛ shortName/crIssueDate/crExpiryDate لا مقابل لها في نموذج العميل فتُهمَل بصمت.
+const CUSTOMER_FIELD_KEY_MAP: Record<string, string> = {
+  addressBuilding: "buildingNo",
+  addressStreet: "street",
+  addressDistrict: "district",
+  addressCity: "city",
+  addressPostalCode: "postalCode",
+  addressAdditionalNo: "additionalNo",
+};
+const CUSTOMER_UNSUPPORTED_FIELDS = new Set(["shortName", "crIssueDate", "crExpiryDate"]);
+
+/** رفع مستند رسمي للعميل (سجل تجاري/شهادة عنوان وطني/شهادة ضريبية) واستخراج بياناته تلقائياً
+ * بالذكاء الاصطناعي — المستند يُحفَظ كمرفق دائم بصرف النظر عن نجاح الاستخراج (نفس منطق
+ * companies.controller.ts's extractDocumentHandler تماماً)، والحقول المستخرجة تُعرَض للمستخدم
+ * ليراجعها ويعدّلها قبل الحفظ الفعلي — لا حفظ تلقائي مباشر بلا مراجعة. */
+export const extractCustomerDocument: RequestHandler = async (req, res) => {
+  const existing = await prisma.customer.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
+  if (!existing) throw notFound("العميل غير موجود");
+  if (!req.file) throw badRequest("الملف مطلوب");
+
+  const docType = req.body.docType as CompanyDocType;
+
+  const attachment = await createAttachment(req.auth!.tenantId, req.auth!.sub, {
+    entityType: "customer",
+    entityId: existing.id,
+    fileName: req.file.originalname,
+    mimeType: req.file.mimetype,
+    buffer: req.file.buffer,
+  });
+
+  try {
+    const extraction = await extractCompanyDataFromDocument(req.file.buffer, req.file.mimetype, docType);
+    const fields: Record<string, string> = {};
+    for (const [key, value] of Object.entries(extraction.fields)) {
+      if (CUSTOMER_UNSUPPORTED_FIELDS.has(key)) continue;
+      fields[CUSTOMER_FIELD_KEY_MAP[key] || key] = value;
+    }
+    res.json({ ...extraction, fields, attachment });
+  } catch (err) {
+    res.json({
+      fields: {},
+      confidence: "low",
+      confidenceNote: translateMessage(err instanceof Error ? err.message : "تعذّر استخراج البيانات من هذا المستند", req.lang),
+      attachment,
+    });
+  }
 };

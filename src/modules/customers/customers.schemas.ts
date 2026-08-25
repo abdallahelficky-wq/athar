@@ -20,3 +20,7 @@ export const createCustomerSchema = z.object({
 });
 
 export const updateCustomerSchema = createCustomerSchema.partial();
+
+export const extractCustomerDocumentSchema = z.object({
+  docType: z.enum(["cr", "national_address", "vat_certificate"]),
+});
