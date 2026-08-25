@@ -42,16 +42,17 @@ model Tenant {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  users            User[]
-  companies        Company[]
-  costCenters      CostCenter[]
-  departments      Department[]
-  branches         Branch[]
-  accounts         Account[]
-  companyDocuments CompanyDocument[]
-  leaseContracts   LeaseContract[]
-  journalEntries   JournalEntry[]
-  auditLogs        AuditLog[]
+  users               User[]
+  companies           Company[]
+  costCenters         CostCenter[]
+  departments         Department[]
+  branches            Branch[]
+  companyBankAccounts CompanyBankAccount[]
+  accounts            Account[]
+  companyDocuments    CompanyDocument[]
+  leaseContracts      LeaseContract[]
+  journalEntries      JournalEntry[]
+  auditLogs           AuditLog[]
 
   customers        Customer[]
   quotations       Quotation[]
@@ -189,6 +190,14 @@ model Company {
   tenant                   Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name                     String
   shortName                String?
+  // الاسم الرسمي بالإنجليزية (تسجيل قانوني فعلي، وليس ترجمة) — يظهر جنباً إلى جنب مع الاسم
+  // العربي في هيدر قوالب الفواتير ثنائية اللغة. اختياري: الشركات القديمة تعرض الاسم العربي
+  // نفسه في الموضعين حتى تُدخِله لاحقاً، دون أي كسر في العرض.
+  nameEn                   String?
+  // رقم ترخيص نشاط رسمي (مثال: ترخيص نقل) ورقم موحد للمنشأة — بيانات رسمية إضافية تظهر في
+  // بعض قوالب الفواتير عند وجودها فقط (اختياريان تماماً، غير مرتبطين بالسجل التجاري/الضريبي).
+  licenseNumber            String?
+  unifiedEntityNumber      String?
   logoKey                  String?
   brandColor               String?
   vatNumber                String?
@@ -231,6 +240,10 @@ model Company {
   // الدول/العملات المدعومة. زر امتثال زاتكا (خاص بالسعودية فقط) يظهر فقط لما country = "SA".
   country                  String                @default("SA")
   currency                 String                @default("SAR")
+  // قالب طباعة فواتير المبيعات النشط لهذه الشركة تحديداً — كل شركة في المجموعة قد تفضّل قالباً
+  // مختلفاً. "modern" هو التصميم الحالي الموجود أصلاً (بلا أي تغيير)، وهو الافتراضي لكل الشركات
+  // القديمة والجديدة على حدٍّ سواء حتى تختار الشركة صراحةً غيره من إعدادات المبيعات.
+  invoiceTemplate          InvoiceTemplate       @default(modern)
   // --- ربط فاتورة (ZATCA) — المرحلة الثانية (التكامل)، انظر src/lib/zatca/*  ---
   // جهاز إصدار فواتير إلكترونية (EGS) واحد لكل شركة (v1) — CSID واحد، عدّاد ICV واحد،
   // وسلسلة تجزئة (PIH) واحدة تغطي كل الفواتير/الإشعارات الدائنة/المدينة لهذه الشركة معاً.
@@ -250,6 +263,7 @@ model Company {
   costCenters          CostCenter[]
   departments          Department[]
   branches             Branch[]
+  bankAccounts         CompanyBankAccount[]
   companyDocuments     CompanyDocument[]
   leaseContracts       LeaseContract[]
   journalEntries       JournalEntry[]
@@ -565,6 +579,25 @@ model Branch {
   @@map("branches")
 }
 
+// حساب بنكي رسمي للشركة — تُعرَض قائمتها في بعض قوالب الفواتير (مثل classicPro) عند وجودها،
+// ولا تُفرَض على أي قالب لا يدعمها. عدة حسابات لكل شركة (راجحي/رياض/...)، بترتيب عرض يدوي.
+model CompanyBankAccount {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bankName      String
+  accountNumber String
+  iban          String
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId, companyId])
+  @@map("company_bank_accounts")
+}
+
 model JournalEntry {
   id                String             @id @default(cuid())
   tenantId          String
@@ -659,33 +692,34 @@ enum CustomerType {
 }
 
 model Customer {
-  id           String       @id @default(cuid())
-  tenantId     String
-  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId    String
-  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name         String
-  customerType CustomerType @default(business)
-  vatNumber    String?
-  crNumber     String?
-  nationalId   String?
-  phone        String?
-  email        String?
-  buildingNo   String?
-  street       String?
-  district     String?
-  city         String?
-  postalCode   String?
-  additionalNo String?
-  paymentTerms String?
-  creditLimit  Decimal?     @db.Decimal(18, 2)
+  id                  String       @id @default(cuid())
+  tenantId            String
+  tenant              Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId           String
+  company             Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                String
+  customerType        CustomerType @default(business)
+  vatNumber           String?
+  crNumber            String?
+  nationalId          String?
+  phone               String?
+  email               String?
+  buildingNo          String?
+  street              String?
+  district            String?
+  city                String?
+  postalCode          String?
+  additionalNo        String?
+  unifiedEntityNumber String?
+  paymentTerms        String?
+  creditLimit         Decimal?     @db.Decimal(18, 2)
   // حساب تفصيلي مستقل (مستوى رابع) تحت "الذمم المدينة التجارية" — يُنشأ تلقائياً عند إنشاء العميل
   // ويُزامَن اسمه مع اسم العميل عند التعديل (partyAccounts.ts). Nullable مؤقتاً حتى تكتمل التعبئة
   // الرجعية للعملاء القدامى، ثم يصبح إلزامياً.
-  accountId    String?
-  account      Account?     @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  accountId           String?
+  account             Account?     @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   quotations        Quotation[]
   salesInvoices     SalesInvoice[]
@@ -731,6 +765,14 @@ enum InvoiceType {
   simplified
 }
 
+// قوالب طباعة فاتورة المبيعات المتاحة — "modern" التصميم الحالي الموجود أصلاً في PrintShell،
+// و"classicPro" قالب جديد إضافي (هيدر ثنائي اللغة، صندوقا مورّد/عميل، شريط معلومات أفقي، جدول
+// حسابات بنكية) دون حذف أو استبدال modern. أي قالب مستقبلي يُضاف هنا كقيمة جديدة فقط.
+enum InvoiceTemplate {
+  modern
+  classicPro
+}
+
 enum InvoiceStatus {
   draft
   posted
@@ -748,6 +790,13 @@ model SalesInvoice {
   branchId                 String?
   branch                   Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
   date                     DateTime
+  // حقول اختيارية إضافية تظهر في شريط معلومات الفاتورة الأفقي لبعض القوالب (مثل classicPro)
+  // عند تعبئتها فقط — لا تأثير لها على الترحيل المحاسبي أو حسابات زاتكا بأي شكل.
+  dueDate                  DateTime?
+  customerReference        String?
+  poNumber                 String?
+  salesperson              String?
+  otherId                  String?
   invoiceType              InvoiceType
   status                   InvoiceStatus       @default(posted)
   journalEntryId           String?
@@ -1958,41 +2007,41 @@ model Horse {
 }
 
 model BoardingContract {
-  id            String                 @id @default(cuid())
-  tenantId      String
-  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId     String
-  company       Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  stableId      String
-  stable        Stable                 @relation(fields: [stableId], references: [id])
-  horseId       String
-  horse         Horse                  @relation(fields: [horseId], references: [id])
-  stallId       String?
-  stall         StableStall?           @relation(fields: [stallId], references: [id])
-  startDate     DateTime
-  endDate       DateTime?
-  monthlyFee    Decimal                @db.Decimal(18, 2)
-  depositAmount Decimal?               @db.Decimal(18, 2)
-  contractNumber String?
-  ownerName      String?
-  ownerNationality String?
-  ownerNationalId String?
+  id                String                 @id @default(cuid())
+  tenantId          String
+  tenant            Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId         String
+  company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stableId          String
+  stable            Stable                 @relation(fields: [stableId], references: [id])
+  horseId           String
+  horse             Horse                  @relation(fields: [horseId], references: [id])
+  stallId           String?
+  stall             StableStall?           @relation(fields: [stallId], references: [id])
+  startDate         DateTime
+  endDate           DateTime?
+  monthlyFee        Decimal                @db.Decimal(18, 2)
+  depositAmount     Decimal?               @db.Decimal(18, 2)
+  contractNumber    String?
+  ownerName         String?
+  ownerNationality  String?
+  ownerNationalId   String?
   ownerIdIssuePlace String?
-  ownerPhone     String?
-  ownerEmail     String?
-  ownerCity      String?
-  ownerDistrict  String?
-  ownerStreet    String?
-  ownerBuildingNo String?
-  ownerPostalCode String?
-  sentAt         DateTime?
-  status        BoardingContractStatus @default(active)
-  notes         String?
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
+  ownerPhone        String?
+  ownerEmail        String?
+  ownerCity         String?
+  ownerDistrict     String?
+  ownerStreet       String?
+  ownerBuildingNo   String?
+  ownerPostalCode   String?
+  sentAt            DateTime?
+  status            BoardingContractStatus @default(active)
+  notes             String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
-  @@index([tenantId, companyId, status])
   @@unique([companyId, contractNumber])
+  @@index([tenantId, companyId, status])
   @@map("boarding_contracts")
 }
 
@@ -2116,4 +2165,3 @@ model HorseCareService {
   @@index([tenantId, companyId, category])
   @@map("horse_care_services")
 }
-
