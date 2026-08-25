@@ -7,7 +7,7 @@ import { buildZatcaQrPayload } from "../../lib/zatcaQr";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
-import { formatDocNumber } from "../../lib/docNumber";
+import { reserveDocumentNumber } from "../../lib/docNumbering";
 import { getStockBalance } from "../stockMovements/stockMovements.service";
 import { isStockTracked } from "../items/items.service";
 import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
@@ -260,8 +260,6 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
 
-  const count = await prisma.salesInvoice.count({ where: { tenantId } });
-  const invoiceNumber = formatDocNumber("INV", count);
   const invType = invoiceTypeForCustomer(customer);
   const qrPayload = buildZatcaQrPayload(
     company.name,
@@ -274,28 +272,31 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
   const shouldPost = input.post !== false;
 
   if (!shouldPost) {
-    const invoice = await prisma.salesInvoice.create({
-      data: {
-        tenantId,
-        invoiceNumber,
-        companyId: input.companyId,
-        customerId: input.customerId,
-        branchId: input.branchId || undefined,
-        date: input.date,
-        dueDate: input.dueDate || undefined,
-        customerReference: input.customerReference,
-        poNumber: input.poNumber,
-        salesperson: input.salesperson,
-        otherId: input.otherId,
-        invoiceType: invType,
-        status: "draft",
-        qrPayload,
-        subtotal,
-        vatTotal,
-        grandTotal,
-        lines: { create: computed },
-      },
-      include: invoiceInclude,
+    const invoice = await prisma.$transaction(async (tx) => {
+      const invoiceNumber = await reserveDocumentNumber(tx, tenantId, input.companyId, "sales_invoice");
+      return tx.salesInvoice.create({
+        data: {
+          tenantId,
+          invoiceNumber,
+          companyId: input.companyId,
+          customerId: input.customerId,
+          branchId: input.branchId || undefined,
+          date: input.date,
+          dueDate: input.dueDate || undefined,
+          customerReference: input.customerReference,
+          poNumber: input.poNumber,
+          salesperson: input.salesperson,
+          otherId: input.otherId,
+          invoiceType: invType,
+          status: "draft",
+          qrPayload,
+          subtotal,
+          vatTotal,
+          grandTotal,
+          lines: { create: computed },
+        },
+        include: invoiceInclude,
+      });
     });
     return withPaymentStatus(invoice);
   }
@@ -305,6 +306,10 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
   const zatcaUuid = randomUUID();
 
   const created = await prisma.$transaction(async (tx) => {
+    // رقم الفاتورة يُحجَز هنا داخل نفس المعاملة (وليس قبلها) — لو رفضته بوابة زاتكا أدناه فتُلغى
+    // المعاملة بالكامل، فلا يُستهلَك أي رقم لفاتورة لم تُنشَأ فعلياً (بلا فجوات في التسلسل).
+    const invoiceNumber = await reserveDocumentNumber(tx, tenantId, input.companyId, "sales_invoice");
+
     // بوابة زاتكا أولاً، قبل أي كتابة فعلية: فاتورة قياسية (B2B) ترفضها زاتكا يجب ألا تُنشَأ ولا
     // تُرحَّل إطلاقاً (لا تُعتبر فاتورة نهائية حتى تُقبَل فعلياً) — رمي الاستثناء هنا يُلغي المعاملة
     // بأكملها بلا أي أثر جانبي متبقٍّ في قاعدة البيانات.

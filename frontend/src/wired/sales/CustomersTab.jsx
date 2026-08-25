@@ -10,16 +10,17 @@ import AttachmentsPanel from "../shared/AttachmentsPanel";
 import { currencyLabel } from "../../shared/countries";
 import { routes } from "../../routes";
 
-const emptyForm = () => ({
+const emptyForm = (defaultPaymentTerms) => ({
   name: "", customerType: "business", vatNumber: "", crNumber: "", nationalId: "",
   phone: "", email: "", buildingNo: "", street: "", district: "", city: "", postalCode: "", additionalNo: "",
   unifiedEntityNumber: "",
-  paymentTerms: "نقدي", creditLimit: "",
+  paymentTerms: defaultPaymentTerms || "نقدي", creditLimit: "",
 });
 
 export default function CustomersTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
-  const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
+  const company = companies?.find((c) => c.id === companyId);
+  const currency = currencyLabel(company?.currency, i18n.language);
   const DOC_TYPES = [
     { key: "cr", label: t("sales.customers.docTypeCr") },
     { key: "national_address", label: t("sales.customers.docTypeNationalAddress") },
@@ -28,7 +29,7 @@ export default function CustomersTab({ companyId, companies }) {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast, notify, dismiss } = useToast();
-  const [form, setForm] = useState(emptyForm());
+  const [form, setForm] = useState(emptyForm(company?.defaultPaymentTerms));
   const [editingId, setEditingId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [statementFor, setStatementFor] = useState(null);
@@ -64,14 +65,14 @@ export default function CustomersTab({ companyId, companies }) {
 
   const openAddForm = () => {
     setEditingId(null);
-    setForm(emptyForm());
+    setForm(emptyForm(company?.defaultPaymentTerms));
     setExtractionNote(null);
     setFormOpen(true);
   };
 
   const startEdit = (c) => {
     setEditingId(c.id);
-    setForm({ ...emptyForm(), ...c, creditLimit: c.creditLimit || "" });
+    setForm({ ...emptyForm(company?.defaultPaymentTerms), ...c, creditLimit: c.creditLimit || "" });
     setExtractionNote(null);
     setFormOpen(true);
   };
@@ -79,7 +80,7 @@ export default function CustomersTab({ companyId, companies }) {
   const closeForm = () => {
     setFormOpen(false);
     setEditingId(null);
-    setForm(emptyForm());
+    setForm(emptyForm(company?.defaultPaymentTerms));
     setExtractionNote(null);
   };
 

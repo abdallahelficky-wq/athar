@@ -4,7 +4,7 @@ import { computeInvoiceLine, invoiceTypeForCustomer } from "../../lib/invoiceLin
 import { buildZatcaQrPayload } from "../../lib/zatcaQr";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx } from "../../lib/journalPosting";
-import { formatDocNumber } from "../../lib/docNumber";
+import { reserveDocumentNumber } from "../../lib/docNumbering";
 import { sendInvoiceByEmail } from "../salesInvoices/salesInvoiceEmail.service";
 
 interface LineInput {
@@ -66,23 +66,23 @@ export async function createQuotation(tenantId: string, input: QuotationInput) {
   await assertRefs(tenantId, input.companyId, input.customerId, input.lines);
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
 
-  const count = await prisma.quotation.count({ where: { tenantId } });
-  const quoteNumber = formatDocNumber("QUO", count);
-
-  return prisma.quotation.create({
-    data: {
-      tenantId,
-      quoteNumber,
-      companyId: input.companyId,
-      customerId: input.customerId,
-      date: input.date,
-      validUntil: input.validUntil,
-      status: "draft",
-      lines: computed,
-      subtotal,
-      vatTotal,
-      grandTotal,
-    },
+  return prisma.$transaction(async (tx) => {
+    const quoteNumber = await reserveDocumentNumber(tx, tenantId, input.companyId, "quotation");
+    return tx.quotation.create({
+      data: {
+        tenantId,
+        quoteNumber,
+        companyId: input.companyId,
+        customerId: input.customerId,
+        date: input.date,
+        validUntil: input.validUntil,
+        status: "draft",
+        lines: computed,
+        subtotal,
+        vatTotal,
+        grandTotal,
+      },
+    });
   });
 }
 
@@ -136,8 +136,6 @@ export async function convertQuotationToInvoice(tenantId: string, userId: string
   const vatTotal = Number(quotation.vatTotal);
   const grandTotal = Number(quotation.grandTotal);
 
-  const invoiceCount = await prisma.salesInvoice.count({ where: { tenantId } });
-  const invoiceNumber = formatDocNumber("INV", invoiceCount);
   const invType = invoiceTypeForCustomer(quotation.customer);
   const qrPayload = buildZatcaQrPayload(
     quotation.company.name,
@@ -148,6 +146,7 @@ export async function convertQuotationToInvoice(tenantId: string, userId: string
   );
 
   const createdInvoice = await prisma.$transaction(async (tx) => {
+    const invoiceNumber = await reserveDocumentNumber(tx, tenantId, quotation.companyId, "sales_invoice");
     const journalLines = [
       ...[...byAccount.entries()].map(([accountId, amount]) => ({
         accountId, department: "المبيعات والتسويق", debit: 0, credit: amount, customerId: quotation.customerId,

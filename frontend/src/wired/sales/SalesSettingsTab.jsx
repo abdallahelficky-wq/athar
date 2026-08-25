@@ -3,6 +3,14 @@ import { useTranslation } from "react-i18next";
 import { updateCompany, uploadCompanyLogo } from "../../api/companies";
 import InvoiceViewModal from "./InvoiceViewModal";
 import ClassicProInvoiceView from "./invoiceTemplates/ClassicProInvoiceView";
+import DocumentNumberingPanel from "./DocumentNumberingPanel";
+
+const OPTIONAL_FIELD_FLAGS = [
+  { key: "invoiceShowPoNumber", labelKey: "sales.settings.toggleShowPoNumber" },
+  { key: "invoiceShowSalesperson", labelKey: "sales.settings.toggleShowSalesperson" },
+  { key: "invoiceShowCustomerReference", labelKey: "sales.settings.toggleShowCustomerReference" },
+  { key: "invoiceShowOtherId", labelKey: "sales.settings.toggleShowOtherId" },
+];
 
 const DEFAULT_BRAND_COLOR = "#10202E";
 
@@ -89,6 +97,35 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
       reloadCompanies?.();
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  // مسودة محلية لإعدادات "أخرى" (طريقة الدفع الافتراضية/مدة الاستحقاق/الحقول الاختيارية) — تُحفَظ
+  // دفعة واحدة بزر صريح بدل حفظ فوري لكل تغيير، تفادياً لطلبات شبكة متكررة أثناء تعديل عدة حقول.
+  const [otherDraft, setOtherDraft] = useState(null);
+  useEffect(() => {
+    if (!company) { setOtherDraft(null); return; }
+    setOtherDraft({
+      defaultPaymentTerms: company.defaultPaymentTerms || "نقدي",
+      defaultDueDays: company.defaultDueDays ?? "",
+      invoiceShowPoNumber: company.invoiceShowPoNumber,
+      invoiceShowSalesperson: company.invoiceShowSalesperson,
+      invoiceShowCustomerReference: company.invoiceShowCustomerReference,
+      invoiceShowOtherId: company.invoiceShowOtherId,
+    });
+  }, [company?.id]);
+
+  const saveOtherSettings = async () => {
+    if (!company || !otherDraft) return;
+    setSaving(true);
+    setError("");
+    try {
+      await updateCompany(company.id, { ...otherDraft, defaultDueDays: otherDraft.defaultDueDays === "" ? null : Number(otherDraft.defaultDueDays) });
+      reloadCompanies?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -183,6 +220,55 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
               </div>
             </label>
           </div>
+        </div>
+      )}
+
+      {company && (
+        <div className="panel form-panel">
+          <h3 className="sub-head">{t("sales.settings.numberingSectionTitle")}</h3>
+          <p className="note">{t("sales.settings.numberingSectionNote")}</p>
+          <DocumentNumberingPanel companyId={company.id} docType="sales_invoice" title={t("sales.settings.numberingInvoices")} />
+          <DocumentNumberingPanel companyId={company.id} docType="quotation" title={t("sales.settings.numberingQuotations")} />
+          <DocumentNumberingPanel companyId={company.id} docType="sales_return" title={t("sales.settings.numberingReturns")} />
+        </div>
+      )}
+
+      {company && otherDraft && (
+        <div className="panel form-panel">
+          <h3 className="sub-head">{t("sales.settings.otherSectionTitle")}</h3>
+          <div className="form-grid">
+            <label>
+              {t("sales.settings.defaultPaymentTermsLabel")}
+              <select value={otherDraft.defaultPaymentTerms} onChange={(e) => setOtherDraft({ ...otherDraft, defaultPaymentTerms: e.target.value })}>
+                <option value="نقدي">{t("sales.customers.paymentCash")}</option>
+                <option value="آجل 30 يوم">{t("sales.customers.payment30")}</option>
+                <option value="آجل 60 يوم">{t("sales.customers.payment60")}</option>
+                <option value="آجل 90 يوم">{t("sales.customers.payment90")}</option>
+              </select>
+            </label>
+            <label>
+              {t("sales.settings.defaultDueDaysLabel")}
+              <input
+                type="number" min={1} placeholder={t("sales.settings.defaultDueDaysPlaceholder")}
+                value={otherDraft.defaultDueDays}
+                onChange={(e) => setOtherDraft({ ...otherDraft, defaultDueDays: e.target.value })}
+              />
+            </label>
+          </div>
+          <h4 className="sub-head">{t("sales.settings.optionalFieldsTitle")}</h4>
+          <div className="form-grid">
+            {OPTIONAL_FIELD_FLAGS.map((f) => (
+              <label key={f.key} className="checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={otherDraft[f.key]}
+                  onChange={(e) => setOtherDraft({ ...otherDraft, [f.key]: e.target.checked })}
+                />
+                {t(f.labelKey)}
+              </label>
+            ))}
+          </div>
+          <button className="btn-primary" onClick={saveOtherSettings} disabled={saving}>{t("common.save")}</button>
         </div>
       )}
 

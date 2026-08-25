@@ -42,17 +42,18 @@ model Tenant {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  users               User[]
-  companies           Company[]
-  costCenters         CostCenter[]
-  departments         Department[]
-  branches            Branch[]
-  companyBankAccounts CompanyBankAccount[]
-  accounts            Account[]
-  companyDocuments    CompanyDocument[]
-  leaseContracts      LeaseContract[]
-  journalEntries      JournalEntry[]
-  auditLogs           AuditLog[]
+  users                     User[]
+  companies                 Company[]
+  costCenters               CostCenter[]
+  departments               Department[]
+  branches                  Branch[]
+  companyBankAccounts       CompanyBankAccount[]
+  documentNumberingSettings DocumentNumberingSettings[]
+  accounts                  Account[]
+  companyDocuments          CompanyDocument[]
+  leaseContracts            LeaseContract[]
+  journalEntries            JournalEntry[]
+  auditLogs                 AuditLog[]
 
   customers        Customer[]
   quotations       Quotation[]
@@ -185,119 +186,129 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
-  id                       String                @id @default(cuid())
-  tenantId                 String
-  tenant                   Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name                     String
-  shortName                String?
+  id                           String                @id @default(cuid())
+  tenantId                     String
+  tenant                       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name                         String
+  shortName                    String?
   // الاسم الرسمي بالإنجليزية (تسجيل قانوني فعلي، وليس ترجمة) — يظهر جنباً إلى جنب مع الاسم
   // العربي في هيدر قوالب الفواتير ثنائية اللغة. اختياري: الشركات القديمة تعرض الاسم العربي
   // نفسه في الموضعين حتى تُدخِله لاحقاً، دون أي كسر في العرض.
-  nameEn                   String?
+  nameEn                       String?
   // رقم ترخيص نشاط رسمي (مثال: ترخيص نقل) ورقم موحد للمنشأة — بيانات رسمية إضافية تظهر في
   // بعض قوالب الفواتير عند وجودها فقط (اختياريان تماماً، غير مرتبطين بالسجل التجاري/الضريبي).
-  licenseNumber            String?
-  unifiedEntityNumber      String?
-  logoKey                  String?
-  brandColor               String?
-  vatNumber                String?
-  crNumber                 String?
-  crIssueDate              DateTime?
-  crExpiryDate             DateTime?
-  officialEmail            String?
-  phone                    String?
-  addressBuilding          String?
-  addressStreet            String?
-  addressDistrict          String?
-  addressCity              String?
-  addressPostalCode        String?
-  addressAdditionalNo      String?
+  licenseNumber                String?
+  unifiedEntityNumber          String?
+  logoKey                      String?
+  brandColor                   String?
+  vatNumber                    String?
+  crNumber                     String?
+  crIssueDate                  DateTime?
+  crExpiryDate                 DateTime?
+  officialEmail                String?
+  phone                        String?
+  addressBuilding              String?
+  addressStreet                String?
+  addressDistrict              String?
+  addressCity                  String?
+  addressPostalCode            String?
+  addressAdditionalNo          String?
   // بادئة ترقيم القيود التسلسلي لهذه الشركة؛ تبدأ افتراضياً بالحرف J ويمكن تعديلها من بيانات الشركة.
-  numberingPrefix          String                @default("J")
+  numberingPrefix              String                @default("J")
   // العدّاد التالي في تسلسل هذه الشركة تحديداً (يبدأ من 1، مستقل تماماً عن باقي الشركات) — يُزاد
   // ذرّياً (UPDATE ... RETURNING ضمن نفس معاملة إنشاء القيد) فقط لحظة الحفظ الفعلي، لا عند مجرد
   // فتح نافذة الإضافة أو معاينة الرقم التالي، تجنباً لفجوات Gaps بسبب عمليات مُلغاة.
-  nextJournalEntrySeq      Int                   @default(1)
+  nextJournalEntrySeq          Int                   @default(1)
   // إعدادات تنبيهات الداشبورد المالية — قابلة للتعديل لكل شركة من الإعدادات
-  vatFilingFrequency       VatFilingFrequency    @default(quarterly)
-  zakatDeclarationDueDate  DateTime?
-  lowCashThreshold         Decimal?              @db.Decimal(18, 2)
-  expenseIncreaseThreshold Decimal               @default(15) @db.Decimal(5, 2)
-  receivablesThreshold     Decimal?              @db.Decimal(18, 2)
-  overdueInvoiceDays       Int                   @default(30)
-  staleDraftDays           Int                   @default(7)
+  vatFilingFrequency           VatFilingFrequency    @default(quarterly)
+  zakatDeclarationDueDate      DateTime?
+  lowCashThreshold             Decimal?              @db.Decimal(18, 2)
+  expenseIncreaseThreshold     Decimal               @default(15) @db.Decimal(5, 2)
+  receivablesThreshold         Decimal?              @db.Decimal(18, 2)
+  overdueInvoiceDays           Int                   @default(30)
+  staleDraftDays               Int                   @default(7)
   // نشاط المنشأة — يُحدَّد عند إنشاء الشركة ويُستخدَم لزرع قالب شجرة الحسابات المطابق تلقائياً
   // (مقاولات/مصانع/تجزئة/تجارة عامة/محطات وقود) بدل القالب الافتراضي العام. اختياري: الشركات
   // القديمة قبل هذه الميزة تبقى null وتُعامَل معاملة "بدون نشاط محدد" (القالب الافتراضي فقط).
-  businessActivity         BusinessActivity?
+  businessActivity             BusinessActivity?
   // لغة المراسلات الآلية لهذه الشركة (التقرير المالي الدوري المُرسَل بالبريد من reportScheduler.ts
   // بلا أي طلب/مستخدم حي في السياق، فلا يوجد Accept-Language لقراءته منه) — "ar" أو "en"،
   // افتراضياً "ar" ليطابق السلوك الحالي لكل الشركات الموجودة بلا أي تغيير.
-  language                 String                @default("ar")
+  language                     String                @default("ar")
   // الدولة (ISO 3166-1 alpha-2) وعملة المحاسبة الخاصتان بهذه الشركة — مستقلتان تماماً عن أي
   // شركة أخرى في نفس المستأجر (مجموعة قد تضم شركات بدول/عملات مختلفة). القيمة الافتراضية "SA"/
   // "SAR" تحافظ على سلوك كل الشركات الحالية بلا أي تغيير. انظر src/lib/countries.ts لقائمة
   // الدول/العملات المدعومة. زر امتثال زاتكا (خاص بالسعودية فقط) يظهر فقط لما country = "SA".
-  country                  String                @default("SA")
-  currency                 String                @default("SAR")
+  country                      String                @default("SA")
+  currency                     String                @default("SAR")
   // قالب طباعة فواتير المبيعات النشط لهذه الشركة تحديداً — كل شركة في المجموعة قد تفضّل قالباً
   // مختلفاً. "modern" هو التصميم الحالي الموجود أصلاً (بلا أي تغيير)، وهو الافتراضي لكل الشركات
   // القديمة والجديدة على حدٍّ سواء حتى تختار الشركة صراحةً غيره من إعدادات المبيعات.
-  invoiceTemplate          InvoiceTemplate       @default(modern)
+  invoiceTemplate              InvoiceTemplate       @default(modern)
+  // إعدادات مبيعات إضافية اختيارية لهذه الشركة — قيمها الافتراضية تحافظ على السلوك الحالي بلا أي
+  // تغيير لأي شركة لم تُخصِّصها بعد (طريقة الدفع الافتراضية "نقدي" ومدة استحقاق غير محسوبة تلقائياً
+  // وكل الحقول الاختيارية ظاهرة، تماماً كما هو الحال اليوم).
+  defaultPaymentTerms          String?
+  defaultDueDays               Int?
+  invoiceShowPoNumber          Boolean               @default(true)
+  invoiceShowSalesperson       Boolean               @default(true)
+  invoiceShowCustomerReference Boolean               @default(true)
+  invoiceShowOtherId           Boolean               @default(true)
   // --- ربط فاتورة (ZATCA) — المرحلة الثانية (التكامل)، انظر src/lib/zatca/*  ---
   // جهاز إصدار فواتير إلكترونية (EGS) واحد لكل شركة (v1) — CSID واحد، عدّاد ICV واحد،
   // وسلسلة تجزئة (PIH) واحدة تغطي كل الفواتير/الإشعارات الدائنة/المدينة لهذه الشركة معاً.
-  zatcaOnboardingStatus    ZatcaOnboardingStatus @default(not_onboarded)
-  zatcaEnvironment         ZatcaEnvironment      @default(sandbox)
-  zatcaEgsUuid             String?
-  zatcaSolutionName        String?
-  zatcaModel               String?
+  zatcaOnboardingStatus        ZatcaOnboardingStatus @default(not_onboarded)
+  zatcaEnvironment             ZatcaEnvironment      @default(sandbox)
+  zatcaEgsUuid                 String?
+  zatcaSolutionName            String?
+  zatcaModel                   String?
   // العدّاد التالي في تسلسل ICV لهذه الشركة — يُزاد ذرّياً فقط لحظة الإرسال الفعلي لزاتكا
   // (Clearance/Reporting)، لا عند مجرد إنشاء مسودة الفاتورة (بنفس أسلوب nextJournalEntrySeq أعلاه).
-  zatcaNextIcv             Int                   @default(1)
+  zatcaNextIcv                 Int                   @default(1)
   // تجزئة (hash) آخر مستند تم إرساله فعلياً لزاتكا — تصبح PIH للمستند التالي في السلسلة.
-  zatcaLastInvoiceHash     String?
-  createdAt                DateTime              @default(now())
-  updatedAt                DateTime              @updatedAt
+  zatcaLastInvoiceHash         String?
+  createdAt                    DateTime              @default(now())
+  updatedAt                    DateTime              @updatedAt
 
-  costCenters          CostCenter[]
-  departments          Department[]
-  branches             Branch[]
-  bankAccounts         CompanyBankAccount[]
-  companyDocuments     CompanyDocument[]
-  leaseContracts       LeaseContract[]
-  journalEntries       JournalEntry[]
-  accounts             Account[]
-  intercompanyAccounts Account[]               @relation("AccountIntercompanyCompany")
-  customers            Customer[]
-  quotations           Quotation[]
-  salesInvoices        SalesInvoice[]
-  salesReturns         SalesReturn[]
-  salesDebitNotes      SalesDebitNote[]
-  zatcaCredential      CompanyZatcaCredential?
-  receipts             Receipt[]
-  stationSales         StationSale[]
-  suppliers            Supplier[]
-  purchaseInvoices     PurchaseInvoice[]
-  purchaseReturns      PurchaseReturn[]
-  items                Item[]
-  warehouses           Warehouse[]
-  stockMovements       StockMovement[]
-  fixedAssets          FixedAsset[]
-  assetCategories      AssetCategory[]
-  depreciationRuns     DepreciationRun[]
-  employees            Employee[]
-  payrollRuns          PayrollRun[]
-  stables              Stable[]
-  stableStalls         StableStall[]
-  horses               Horse[]
-  boardingContracts    BoardingContract[]
-  horseCareRecords     HorseCareRecord[]
-  attendanceRecords    AttendanceRecord[]
-  payrollComponents    PayrollComponent[]
-  payrollSettings      PayrollSettings?
-  reportSchedule       ReportSchedule?
-  employeeAdvances     EmployeeAdvance[]
+  costCenters               CostCenter[]
+  departments               Department[]
+  branches                  Branch[]
+  bankAccounts              CompanyBankAccount[]
+  documentNumberingSettings DocumentNumberingSettings[]
+  companyDocuments          CompanyDocument[]
+  leaseContracts            LeaseContract[]
+  journalEntries            JournalEntry[]
+  accounts                  Account[]
+  intercompanyAccounts      Account[]                   @relation("AccountIntercompanyCompany")
+  customers                 Customer[]
+  quotations                Quotation[]
+  salesInvoices             SalesInvoice[]
+  salesReturns              SalesReturn[]
+  salesDebitNotes           SalesDebitNote[]
+  zatcaCredential           CompanyZatcaCredential?
+  receipts                  Receipt[]
+  stationSales              StationSale[]
+  suppliers                 Supplier[]
+  purchaseInvoices          PurchaseInvoice[]
+  purchaseReturns           PurchaseReturn[]
+  items                     Item[]
+  warehouses                Warehouse[]
+  stockMovements            StockMovement[]
+  fixedAssets               FixedAsset[]
+  assetCategories           AssetCategory[]
+  depreciationRuns          DepreciationRun[]
+  employees                 Employee[]
+  payrollRuns               PayrollRun[]
+  stables                   Stable[]
+  stableStalls              StableStall[]
+  horses                    Horse[]
+  boardingContracts         BoardingContract[]
+  horseCareRecords          HorseCareRecord[]
+  attendanceRecords         AttendanceRecord[]
+  payrollComponents         PayrollComponent[]
+  payrollSettings           PayrollSettings?
+  reportSchedule            ReportSchedule?
+  employeeAdvances          EmployeeAdvance[]
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -756,7 +767,7 @@ model Quotation {
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
-  @@unique([tenantId, quoteNumber])
+  @@unique([tenantId, companyId, quoteNumber])
   @@map("quotations")
 }
 
@@ -826,7 +837,7 @@ model SalesInvoice {
   receiptAllocations ReceiptAllocation[]
   emailLogs          InvoiceEmailLog[]
 
-  @@unique([tenantId, invoiceNumber])
+  @@unique([tenantId, companyId, invoiceNumber])
   @@map("sales_invoices")
 }
 
@@ -906,7 +917,7 @@ model SalesReturn {
 
   lines SalesReturnLine[]
 
-  @@unique([tenantId, returnNumber])
+  @@unique([tenantId, companyId, returnNumber])
   @@map("sales_returns")
 }
 
@@ -1772,6 +1783,37 @@ model PayrollSettings {
   updatedAt             DateTime @updatedAt
 
   @@map("payroll_settings")
+}
+
+enum DocNumberingResetMode {
+  continuous
+  annual
+}
+
+// إعدادات ترقيم مستند واحد (فواتير مبيعات/عروض أسعار/مردودات مبيعات) لشركة واحدة — صف واحد لكل
+// (companyId, docType). البادئة نص حر يدعم الرمز الخاص {year} الذي يُستبدَل بالسنة الميلادية
+// الحالية عند توليد كل رقم (مثال: "INV/{year}/" ← "INV/2026/00001")، حتى تنعكس السنة تلقائياً
+// عند إعادة الترقيم السنوي بلا حاجة لتعديل يدوي كل عام. nextSeq يُزاد ذرّياً فقط لحظة الحفظ
+// الفعلي للمستند (انظر src/lib/docNumbering.ts، نفس أسلوب Company.nextJournalEntrySeq)، وcurrentYear
+// يسجّل آخر سنة استُخدم فيها العدّاد لتصفيره تلقائياً أول مرة يُستخدَم فيها بعد تغيّر السنة عندما
+// resetMode = annual (بلا أي أثر لو كان continuous).
+model DocumentNumberingSettings {
+  id          String                @id @default(cuid())
+  tenantId    String
+  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  docType     String // "sales_invoice" | "quotation" | "sales_return"
+  prefix      String                @default("INV")
+  digits      Int                   @default(5)
+  resetMode   DocNumberingResetMode @default(continuous)
+  nextSeq     Int                   @default(1)
+  currentYear Int?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([companyId, docType])
+  @@map("document_numbering_settings")
 }
 
 enum ReportScheduleFrequency {

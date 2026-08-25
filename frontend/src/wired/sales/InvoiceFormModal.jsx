@@ -32,6 +32,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const isEdit = !!editingInvoice;
   const seed = editingInvoice || duplicateFrom;
+  const company = companies?.find((c) => c.id === companyId);
 
   const [customers, setCustomers] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -44,11 +45,21 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   const [date, setDate] = useState(() => (isEdit ? seed.date.slice(0, 10) : new Date().toISOString().slice(0, 10)));
   const [branchId, setBranchId] = useState(seed?.branchId || "");
   const [dueDate, setDueDate] = useState(seed?.dueDate ? seed.dueDate.slice(0, 10) : "");
+  // تُحسَب تاريخ الاستحقاق تلقائياً من "مدة الاستحقاق الافتراضية" في إعدادات المبيعات (إن وُجدت)
+  // عند إنشاء فاتورة جديدة فقط، وطالما المستخدم لم يُعدِّل الحقل يدوياً بنفسه بعد.
+  const [dueDateTouched, setDueDateTouched] = useState(isEdit && !!seed?.dueDate);
   const [customerReference, setCustomerReference] = useState(seed?.customerReference || "");
   const [poNumber, setPoNumber] = useState(seed?.poNumber || "");
   const [salesperson, setSalesperson] = useState(seed?.salesperson || "");
   const [otherId, setOtherId] = useState(seed?.otherId || "");
   const [lines, setLines] = useState(() => (seed ? seed.lines.map(lineFromExisting) : [emptySalesLine()]));
+
+  useEffect(() => {
+    if (isEdit || dueDateTouched || !company?.defaultDueDays || !date) return;
+    const computed = new Date(date);
+    computed.setDate(computed.getDate() + company.defaultDueDays);
+    setDueDate(computed.toISOString().slice(0, 10));
+  }, [date, company?.defaultDueDays, isEdit, dueDateTouched]);
 
   const [newCustomerModal, setNewCustomerModal] = useState(null);
   const [newItemModal, setNewItemModal] = useState(null);
@@ -210,11 +221,19 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
         <details className="invoice-extra-fields">
           <summary>{t("salesInvoices.form.extraFieldsToggle")}</summary>
           <div className="form-grid">
-            <label>{t("salesInvoices.form.dueDate")}<input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></label>
-            <label>{t("salesInvoices.form.customerReference")}<input type="text" value={customerReference} onChange={(e) => setCustomerReference(e.target.value)} /></label>
-            <label>{t("salesInvoices.form.poNumber")}<input type="text" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} /></label>
-            <label>{t("salesInvoices.form.salesperson")}<input type="text" value={salesperson} onChange={(e) => setSalesperson(e.target.value)} /></label>
-            <label>{t("salesInvoices.form.otherId")}<input type="text" value={otherId} onChange={(e) => setOtherId(e.target.value)} /></label>
+            <label>{t("salesInvoices.form.dueDate")}<input type="date" value={dueDate} onChange={(e) => { setDueDate(e.target.value); setDueDateTouched(true); }} /></label>
+            {company?.invoiceShowCustomerReference !== false && (
+              <label>{t("salesInvoices.form.customerReference")}<input type="text" value={customerReference} onChange={(e) => setCustomerReference(e.target.value)} /></label>
+            )}
+            {company?.invoiceShowPoNumber !== false && (
+              <label>{t("salesInvoices.form.poNumber")}<input type="text" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} /></label>
+            )}
+            {company?.invoiceShowSalesperson !== false && (
+              <label>{t("salesInvoices.form.salesperson")}<input type="text" value={salesperson} onChange={(e) => setSalesperson(e.target.value)} /></label>
+            )}
+            {company?.invoiceShowOtherId !== false && (
+              <label>{t("salesInvoices.form.otherId")}<input type="text" value={otherId} onChange={(e) => setOtherId(e.target.value)} /></label>
+            )}
           </div>
         </details>
 

@@ -5,7 +5,7 @@ import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
-import { formatDocNumber } from "../../lib/docNumber";
+import { reserveDocumentNumber } from "../../lib/docNumbering";
 import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
 
 /**
@@ -88,12 +88,13 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
     { accountId: creditAccountId, department: "المالية والحسابات", debit: 0, credit: grandTotal, customerId: input.customerId },
   ];
 
-  const count = await prisma.salesReturn.count({ where: { tenantId } });
-  const returnNumber = formatDocNumber("RET", count);
   const zatcaUuid = randomUUID();
   const billingReferenceId = await resolveBillingReferenceNumber(tenantId, input.relatedInvoiceId);
 
   return prisma.$transaction(async (tx) => {
+    // رقم المردود يُحجَز هنا داخل نفس المعاملة — لو رفضته بوابة زاتكا أدناه فتُلغى المعاملة
+    // بالكامل، فلا يُستهلَك أي رقم لمردود لم يُنشَأ فعلياً (بلا فجوات في التسلسل).
+    const returnNumber = await reserveDocumentNumber(tx, tenantId, input.companyId, "sales_return");
     const gate = billingReferenceId
       ? await evaluateZatcaPostingGate({
           tx, company, customer, kind: "credit_note", documentNumber: returnNumber, documentUuid: zatcaUuid, billingReferenceId,
