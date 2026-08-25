@@ -8,6 +8,7 @@ export const routes = {
   sales: (tab = "invoices") => `/sales/${tab}`,
   purchases: (tab = "suppliers") => `/purchases/${tab}`,
   inventory: (tab = "items") => `/inventory/${tab}`,
+  stables: (tab = "overview") => `/stables/${tab}`,
   fixedAssets: (tab = "register") => `/fixedAssets/${tab}`,
   accounts: (tab = "journal") => `/accounts/${tab}`,
   hr: (tab = "dashboard") => `/hr/${tab}`,
@@ -21,3 +22,4 @@ export const routes = {
    * التعديل/العرض المناسبة تلقائياً فور التحميل (راجع التعليق هناك). */
   journalEntry: (entryId) => (entryId ? `/accounts/journal?entryId=${encodeURIComponent(entryId)}` : "/accounts/journal"),
 };
+

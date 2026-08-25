@@ -54,6 +54,7 @@ import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 import { employeePortalRoutes } from "./modules/employeePortal/employeePortal.routes";
 import { attendanceRoutes } from "./modules/attendance/attendance.routes";
 import { posRoutes } from "./modules/pos/pos.routes";
+import { stableRoutes } from "./modules/stables/stables.routes";
 
 export function createApp() {
   const app = express();
@@ -113,6 +114,7 @@ export function createApp() {
   app.use("/api/attendance", attendanceRoutes);
   app.use("/api/employee-portal/leave-requests", leaveRequestPortalRoutes);
   app.use("/api/pos", posRoutes);
+  app.use("/api/stables", stableRoutes);
 
   app.use((req, res) => {
     res.status(404).json({ error: `المسار غير موجود: ${req.method} ${req.path}` });
@@ -122,3 +124,4 @@ export function createApp() {
 
   return app;
 }
+

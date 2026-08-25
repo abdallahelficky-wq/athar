@@ -18,6 +18,12 @@ export const NAV_ICONS = {
   sales: svg(<><circle cx="9" cy="20" r="1.4" /><circle cx="17" cy="20" r="1.4" /><path d="M2 3h2l2.6 12.6a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L21 7H6" /></>),
   purchases: svg(<><path d="M3 7h13l3 4v6a1 1 0 0 1-1 1h-1" /><path d="M16 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a1 1 0 0 0 1 1h1" /><circle cx="7.5" cy="17.5" r="1.7" /><circle cx="17.5" cy="17.5" r="1.7" /></>),
   inventory: svg(<><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></>),
+  stables: svg(<><path d="M3 21V8l9-5 9 5v13"/><path d="M3 10h18M8 21v-7h8v7"/><circle cx="12" cy="11" r="1"/></>),
+  overview: svg(<><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/></>),
+  stalls: svg(<><path d="M4 21V5h16v16M4 10h16M9 10v11M15 10v11"/></>),
+  horses: svg(<><path d="M5 20c2-5 1-9 4-12 2-2 5-3 9-2l-2 3 2 3-4 1c0 4-2 7-5 7z"/><path d="M8 20h10"/></>),
+  contracts: svg(<><path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4M9 12h6M9 16h6"/></>),
+  care: svg(<><path d="M12 21s-8-4.8-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.2-8 11-8 11z"/><path d="M9 12h6M12 9v6"/></>),
   fixedAssets: svg(<><path d="M4 21V9l8-5 8 5v12" /><path d="M9 21v-6h6v6" /><path d="M4 21h16" /></>),
   accounts: svg(<><path d="M12 5c-2-1.5-5-2-8-1.5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-13c-3-.5-6 0-8 1.5z" /><path d="M12 5v13" /></>),
   hr: svg(<><circle cx="8.5" cy="8" r="3" /><path d="M2 20c0-3.3 2.9-6 6.5-6S15 16.7 15 20" /><circle cx="17" cy="8.5" r="2.3" /><path d="M15.5 13.2c2.6.5 4.5 2.6 4.5 5.3" /></>),
@@ -76,3 +82,4 @@ export const NAV_ICONS = {
 export function NavIcon({ name }) {
   return NAV_ICONS[name] || NAV_ICONS.dashboard;
 }
+

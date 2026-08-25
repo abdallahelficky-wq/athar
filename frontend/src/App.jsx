@@ -32,6 +32,7 @@ import PurchasesWiredModule, { PURCHASE_TABS } from "./wired/purchases/Purchases
 import InventoryWiredModule, { INVENTORY_TABS } from "./wired/inventory/InventoryWiredModule";
 import FixedAssetsWiredModule, { FIXED_ASSETS_TABS } from "./wired/fixedAssets/FixedAssetsWiredModule";
 import HRWiredModule, { HR_TABS } from "./wired/hr/HRWiredModule";
+import StablesModule, { STABLE_TABS } from "./wired/stables/StablesModule";
 import UserMenu from "./wired/shared/UserMenu";
 import { UnsavedChangesProvider } from "./wired/shared/UnsavedChangesContext";
 import UnsavedChangesBlocker from "./wired/shared/UnsavedChangesBlocker";
@@ -40,6 +41,7 @@ const NAV_GROUPS = [
   { id: "sales", labelKey: "nav.groups.sales", tabs: SALES_TABS, to: routes.sales },
   { id: "purchases", labelKey: "nav.groups.purchases", tabs: PURCHASE_TABS, to: routes.purchases },
   { id: "inventory", labelKey: "nav.groups.inventory", tabs: INVENTORY_TABS, to: routes.inventory },
+  { id: "stables", labelKey: "stables.title", tabs: STABLE_TABS, to: routes.stables },
   { id: "fixedAssets", labelKey: "nav.groups.fixedAssets", tabs: FIXED_ASSETS_TABS, to: routes.fixedAssets },
   { id: "accounts", labelKey: "nav.groups.accounts", tabs: ACCOUNTS_TABS, to: routes.accounts },
   { id: "hr", labelKey: "nav.groups.hr", tabs: HR_TABS, to: routes.hr },
@@ -253,6 +255,10 @@ function InventoryRoute() {
   const { companies, companyId } = useOutletContext();
   return <InventoryWiredModule companies={companies} companyId={companyId} />;
 }
+function StablesRoute() {
+  const { companyId } = useOutletContext();
+  return <StablesModule companyId={companyId} />;
+}
 function FixedAssetsRoute() {
   const { companies, companyId } = useOutletContext();
   return <FixedAssetsWiredModule companies={companies} companyId={companyId} />;
@@ -387,6 +393,8 @@ const router = createBrowserRouter([
       { path: "purchases/:tab", element: <PurchasesRoute /> },
       { path: "inventory", element: <Navigate to={routes.inventory()} replace /> },
       { path: "inventory/:tab", element: <InventoryRoute /> },
+      { path: "stables", element: <Navigate to={routes.stables()} replace /> },
+      { path: "stables/:tab", element: <StablesRoute /> },
       { path: "fixedAssets", element: <Navigate to={routes.fixedAssets()} replace /> },
       { path: "fixedAssets/:tab", element: <FixedAssetsRoute /> },
       { path: "accounts", element: <Navigate to={routes.accounts()} replace /> },
@@ -409,3 +417,4 @@ export default function App() {
     </UnsavedChangesProvider>
   );
 }
+
