@@ -169,7 +169,6 @@ export default function CustomersTab({ companyId, companies }) {
               <label>{t("sales.customers.crNumber")}<input type="text" value={form.crNumber} onChange={(e) => setForm({ ...form, crNumber: e.target.value })} /></label>
               <label>{t("sales.customers.phone")}<input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
               <label>{t("sales.customers.email")}<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-              <label>{t("sales.customers.city")}<input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label>
               <label>{t("sales.customers.paymentTerms")}
                 <select value={form.paymentTerms} onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}>
                   <option value="نقدي">{t("sales.customers.paymentCash")}</option>
@@ -180,6 +179,19 @@ export default function CustomersTab({ companyId, companies }) {
               </label>
               <label>{t("sales.customers.creditLimit", { currency })}<input type="number" value={form.creditLimit} onChange={(e) => setForm({ ...form, creditLimit: e.target.value })} /></label>
             </div>
+
+            {/* العنوان الوطني الكامل — نفس الحقول والترتيب والتسمية المستخدَمة أصلاً لعنوان الشركة
+                نفسها في الإعدادات (CompanyEditModal.jsx)، إلزامية لصحة الفاتورة الإلكترونية (ZATCA). */}
+            <h4 className="sub-head">{t("sales.customers.addressTitle")}</h4>
+            <div className="form-grid">
+              <label>{t("sales.customers.addressBuilding")}<input type="text" value={form.buildingNo} onChange={(e) => setForm({ ...form, buildingNo: e.target.value })} /></label>
+              <label>{t("sales.customers.addressStreet")}<input type="text" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} /></label>
+              <label>{t("sales.customers.addressDistrict")}<input type="text" value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} /></label>
+              <label>{t("sales.customers.city")}<input type="text" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label>
+              <label>{t("sales.customers.addressPostalCode")}<input type="text" value={form.postalCode} onChange={(e) => setForm({ ...form, postalCode: e.target.value })} /></label>
+              <label>{t("sales.customers.addressAdditionalNo")}<input type="text" value={form.additionalNo} onChange={(e) => setForm({ ...form, additionalNo: e.target.value })} /></label>
+            </div>
+
             <div className="form-btn-group">
               <button className="btn-ghost" onClick={closeForm}>{t("sales.customers.cancel")}</button>
               <button className="btn-primary" onClick={save}>{editingId ? t("sales.customers.saveChanges") : t("sales.customers.saveCustomer")}</button>
