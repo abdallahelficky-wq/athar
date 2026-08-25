@@ -47,7 +47,7 @@ const NAV_GROUPS = [
   { id: "settings", labelKey: "nav.groups.settings", tabs: SETTINGS_TABS, to: routes.settings },
 ];
 
-/** أول جزء من المسار الحالي (مثلاً "sales" من "/sales/customers") — يُستخدَم لمعرفة أي قسم من
+/** أول جزء من المسار الحالي (مثلاً "sales" من "/sales/invoices") — يُستخدَم لمعرفة أي قسم من
  * القائمة الجانبية نشط حالياً ومطابقته لأحد NAV_GROUPS، بدل حالة moduleId منفصلة كانت تُدار يدوياً. */
 function currentGroupId(pathname) {
   return pathname.split("/")[1] || "";

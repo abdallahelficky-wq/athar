@@ -5,7 +5,7 @@
  */
 export const routes = {
   dashboard: () => "/dashboard",
-  sales: (tab = "customers") => `/sales/${tab}`,
+  sales: (tab = "invoices") => `/sales/${tab}`,
   purchases: (tab = "suppliers") => `/purchases/${tab}`,
   inventory: (tab = "items") => `/inventory/${tab}`,
   fixedAssets: (tab = "register") => `/fixedAssets/${tab}`,

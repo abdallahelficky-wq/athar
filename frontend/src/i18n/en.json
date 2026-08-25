@@ -403,6 +403,11 @@
   "sales": {
     "customers": {
       "editingBanner": "Editing customer — {{name}}",
+      "addNew": "+ New customer",
+      "addNewTitle": "Add new customer",
+      "editTitle": "Edit customer",
+      "searchPlaceholder": "Search by name, CR number, phone, email, or VAT number...",
+      "noSearchResults": "No customers match your search.",
       "name": "Customer name", "type": "Customer type", "typeBusiness": "Business (standard tax invoice)", "typeIndividual": "Individual (simplified tax invoice)",
       "vatNumber": "VAT number (15 digits)", "crNumber": "CR number", "phone": "Phone", "email": "Email", "city": "City",
       "paymentTerms": "Payment terms", "paymentCash": "Cash", "payment30": "Net 30 days", "payment60": "Net 60 days", "payment90": "Net 90 days",

@@ -12,9 +12,9 @@ import SubTabs from "../shared/SubTabs";
 import { useModuleTab } from "../shared/useModuleTab";
 
 export const SALES_TABS = [
+  { id: "invoices", labelKey: "nav.tabs.invoices" },
   { id: "customers", labelKey: "nav.tabs.customers" },
   { id: "quotations", labelKey: "nav.tabs.quotations" },
-  { id: "invoices", labelKey: "nav.tabs.invoices" },
   { id: "returns", labelKey: "nav.tabs.returns" },
   { id: "receipts", labelKey: "nav.tabs.receipts" },
   { id: "stations", labelKey: "nav.tabs.stations" },
