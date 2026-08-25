@@ -1211,4 +1211,811 @@ model Item {
 // Ù‚Ø§Ø¦Ù…Ø© Ù…ÙƒÙˆÙ‘Ù†Ø§Øª "Ù…Ù†ØªØ¬ Ù…Ø¬Ù…Ù‘Ø¹" (Bill of Materials Ù…Ø¨Ø³Ù‘Ø·) â€” Ø¨ÙŠØ§Ù†Ø§Øª ÙÙ‚Ø· ÙÙŠ Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø±Ø­Ù„Ø©ØŒ
 // Ø§Ù„Ø§Ø³ØªÙ‡Ù„Ø§Ùƒ Ø§Ù„ÙØ¹Ù„ÙŠ Ø¹Ø¨Ø± "Ø£Ù…Ø± ØªØµÙ†ÙŠØ¹" ÙÙŠ Ù…Ø±Ø­Ù„Ø© Ù‚Ø§Ø¯Ù…Ø© Ù…Ù†ÙØµÙ„Ø©.
 model ItemComponent {
-  id              String#m{×«h‘éì¶»§q«^wbŸb¼ƒfbÃbœƒbŸfbb×fƒfbÏb£fbŸf,ˆè€‰Q¡¥Ì…ÍÍ•Ğ¡…Ì…±É•…‘ä‰••¸‘¥ÍÁ½Í•½˜ˆ°(€€‹b«fƒb«b·f#f+fƒbçbÇbØƒbŸfbÏbçbÄƒfbÃbœƒfbÏb£fbŸf,ˆè€‰Q¡¥ÌÅÕ½Ñ…Ñ¥½¸¡…Ì…±É•…‘ä‰••¸½¹Ù•ÉÑ•ˆ°(€€‹b«fƒb×bÇfƒfbÃfƒbŸfb«bÏf#f+b¤ƒfbÏb£fbŸf,ˆè€‰Q¡¥ÌÍ•ÑÑ±•µ•¹Ğ¡…Ì…±É•…‘ä‰••¸‘¥Í‰ÕÉÍ•ˆ°(€€‹b«fƒbçfbÌƒfbÃbœƒbŸfff+b¼ƒfbÏb£fbŸf,ƒb£ff+b¼ƒb‹b»bÄˆè€‰Q¡¥Ì•¹ÑÉä¡…Ì…±É•…‘ä‰••¸É•Ù•ÉÍ•‰ä…¹½Ñ¡•È•¹ÑÉäˆ°(€€‹b«fƒfb£f#fƒfbÃfƒbŸfb¿bçf#b¤ƒfbÏb£fbŸf,ˆè€‰Q¡¥Ì¥¹Ù¥Ñ”¡…Ì…±É•…‘ä‰••¸…•ÁÑ•ˆ°(€€‹b«fƒfffƒbŸfb¿b»f#fƒfb“fb«bŸf,ƒb£bÏb£b ƒfb·bŸf#fbŸb¨ƒb»bŸbßb›b¤ƒfb«fbÇbÇb§b0ƒb·bŸf#fƒfbÇb¤ƒbb»bÇf$ƒfbŸb·fbŸf,ˆè€‰1½¥¸¡…Ì‰••¸Ñ•µÁ½É…É¥±ä±½­•‘Õ”Ñ¼É•Á•…Ñ•™…¥±•…ÑÑ•µÁÑÌ°ÑÉä……¥¸±…Ñ•Èˆ°(€€‹b«fb¨ƒfbçbŸfb³b¤ƒfbÃbœƒbŸfbßfb ƒfbÏb£fbŸf,ˆè€‰Q¡¥ÌÉ•ÅÕ•ÍĞ¡…Ì…±É•…‘ä‰••¸ÁÉ½•ÍÍ•ˆ°(€€‹b·b¿b¼ƒbŸfb·bÏbŸb ƒbŸfbb ƒfb«f#ff+b¼ƒbŸfff#b¼ˆè€‰MÁ•¥™äÑ¡”Á…É•¹Ğ…½Õ¹ĞÑ¼•¹•É…Ñ”Ñ¡”½‘”ˆ°(€€‹b·b¿b¼ƒbŸfbÓbÇfb¤ƒfbçbÇbØƒb·bÏbŸb£bŸb¨ƒbŸfb«bÇb·f+fƒbŸfb»bŸb×b¤ƒb£fbœˆè€‰MÁ•¥™äÑ¡”½µÁ…¹äÑ¼Ù¥•Ü¥ÑÌÁ½ÍÑ¥¹œ…½Õ¹ÑÌˆ°(€€‹b·b¿fGb¼ƒbŸfff#bãfƒbŸffbÏb«ff+b¼ƒffƒbŸfbÏffb¤ƒbŸfb³b¿f+b¿b¤ƒbçff$ƒfbÃbœƒbŸfbÏbßbÄˆè€‰MÁ•¥™äÑ¡”•µÁ±½å•”‰•¹•™¥Ñ¥¹œ™É½´Ñ¡”¹•Ü…‘Ù…¹”½¸Ñ¡¥Ì±¥¹”ˆ°(€€‹b·bÏbŸb ƒbŸfb—f+bÇbŸb¼ˆè€‰I•Ù•¹Õ”…½Õ¹Ğˆ°(€€‹b·bÏbŸb ƒbŸfb«bÇb·f+fƒfbœƒf+fb£fƒb·bÏbŸb£bŸb¨ƒfbÇbçf+b¤ˆè€‰Á½ÍÑ¥¹œ…½Õ¹Ğ…¹¹½Ğ¡…Ù”ÍÕˆµ…½Õ¹ÑÌˆ°(€€‹b·bÏbŸb ƒbŸfb«bÇb·f+fƒfbœƒf+fffƒbfƒf+b·b«f#f(ƒbçff$ƒb·bÏbŸb£bŸb¨ƒfbÇbçf+b¤ˆè€‰Á½ÍÑ¥¹œ…½Õ¹Ğ…¹¹½Ğ½¹Ñ…¥¸ÍÕˆµ…½Õ¹ÑÌˆ°(€€‹b·bÏbŸb ƒbŸffb»bËf#fˆè€‰%¹Ù•¹Ñ½Éä…½Õ¹Ğˆ°(€€‹b·bÏbŸb ƒbŸffbÏb«f#f$ƒbŸfbf#fƒfbœƒf+fb£fƒb·bÏbŸb£bŸf,ƒbb£bŸf,ˆè€‰±•Ù•°´Ä…½Õ¹Ğ…¹¹½Ğ¡…Ù”„Á…É•¹Ğ…½Õ¹Ğˆ°(€€‹b·bÏbŸb ƒbŸffbÏb«f#f$ƒbŸfbÇbŸb£bäƒf+b³b ƒbfƒf+ff#fƒb·bÏbŸb ƒb«bÇb·f+fˆè€‰±•Ù•°´Ğ…½Õ¹ĞµÕÍĞ‰”„Á½ÍÑ¥¹œ…½Õ¹Ğˆ°(€€‹b·bÏbŸb ƒbŸffb×bÇf#fˆè€‰áÁ•¹Í”…½Õ¹Ğˆ°(€€‹b·bÏbŸb ƒb«fffb¤ƒbŸfb£bÛbŸbçb¤ƒbŸffb£bŸbçb¤ˆè€‰½ÍĞ½˜½½‘ÌÍ½±…½Õ¹Ğˆ°(€€‹b·bÏbŸb£bŸb¨ƒbŸffbÏb«f#f+bŸb¨ƒffƒbŸfbf#fƒb—ff$ƒbŸfb¯bŸfb¬ƒb·bÏbŸb£bŸb¨ƒb«b³ff+bçf+b¤ƒf#ff+bÏb¨ƒfbŸb£fb¤ƒffb«bÇb·f+fˆè€‰1•Ù•°€Ä´Ì…½Õ¹ÑÌ…É”É½ÕÀ…½Õ¹ÑÌ…¹…É”¹½ĞÁ½ÍÑ…‰±”ˆ°(€€‹b·fbàˆè€‰M…Ù”ˆ°(€€‹b·fbàƒf#b«bÇb·f+fˆè€‰M…Ù”…¹Á½ÍĞˆ°(€€‹b¿f#bÇfƒbŸff#bãf+ff(ƒfbœƒf+bÏfb´ƒb£b«fff+bÀƒfbÃbœƒbŸfb—b³bÇbŸb„ˆè€‰e½ÕÈÉ½±”‘½•Í¸Ğ…±±½ÜÁ•É™½Éµ¥¹œÑ¡¥Ì…Ñ¥½¸ˆ°(€€‹bÇbŸb£bÜƒbŸfb¿bçf#b¤ƒbëf+bÄƒb×bŸfb´ˆè€‰Q¡”¥¹Ù¥Ñ”±¥¹¬¥Ì¥¹Ù…±¥ˆ°(€€‹bÇb¼ƒbëf+bÄƒfb«f#fbäƒffƒbËbŸb«fbœƒŠPƒbÓffƒbŸfbŸbÏb«b³bŸb£b¤ƒfbœƒf+bßbŸb£fƒbÓfbŸb¿b¤ƒbŸb»b«b£bŸbÄƒb×bŸfb·b§b0ƒffƒb«f?b»bËf;fGfƒbf(ƒb£f+bŸfbŸb¨¸ƒb«b·ffƒffƒb—b×b¿bŸbÄ¿fbÏbŸbÄA$ƒb¯fƒbbçb¼ƒbŸffb·bŸf#fb§b0ƒbf ƒbÇbŸb³bäƒbŸfb¿bçfƒbŸffff(¸ˆè(€€€€‰U¹•áÁ•Ñ•É•ÍÁ½¹Í”™É½´iQƒŠPÑ¡”É•ÍÁ½¹Í”Í¡…Á”‘½•Í¸Ğµ…Ñ „Ù…±¥½µÁ±¥…¹”•ÉÑ¥™¥…Ñ”°¹¼‘…Ñ„İ…ÌÍÑ½É•¸¡•¬Ñ¡”A$Ù•ÉÍ¥½¸½Á…Ñ …¹É•ÑÉä°½È½¹Ñ…ĞÍÕÁÁ½ÉĞ¸ˆ°(€€‹bÇb¼ƒbëf+bÄƒfb«f#fbäƒffƒbËbŸb«fbœƒŠPƒbÓffƒbŸfbŸbÏb«b³bŸb£b¤ƒfbœƒf+bßbŸb£fƒbÓfbŸb¿b¤ƒb—fb«bŸb°ƒb×bŸfb·b§b0ƒffƒb«f?b»bËf;fGfƒbf(ƒb£f+bŸfbŸb¨¸ƒb«b·ffƒffƒb—b×b¿bŸbÄ¿fbÏbŸbÄA$ƒb¯fƒbbçb¼ƒbŸffb·bŸf#fb§b0ƒbf ƒbÇbŸb³bäƒbŸfb¿bçfƒbŸffff(¸ˆè(€€€€‰U¹•áÁ•Ñ•É•ÍÁ½¹Í”™É½´iQƒŠPÑ¡”É•ÍÁ½¹Í”Í¡…Á”‘½•Í¸Ğµ…Ñ „Ù…±¥ÁÉ½‘ÕÑ¥½¸•ÉÑ¥™¥…Ñ”°¹¼‘…Ñ„İ…ÌÍÑ½É•¸¡•¬Ñ¡”A$Ù•ÉÍ¥½¸½Á…Ñ …¹É•ÑÉä°½È½¹Ñ…ĞÍÕÁÁ½ÉĞ¸ˆ°(€€‹bÇffƒbŸfb³f#bŸfƒfb×f+bÄƒb³b¿bŸf,ˆè€‰Q¡”Á¡½¹”¹Õµ‰•È¥ÌÑ½¼Í¡½ÉĞˆ°(€€‹bÇffƒbŸfb³f#bŸfƒfbßff#b ˆè€‰Q¡”Á¡½¹”¹Õµ‰•È¥ÌÉ•ÅÕ¥É•ˆ°(€€‹bÇffƒbŸfb³f#bŸfƒfbÃbœƒfbÏb«b»b¿fƒb£bŸffbçfƒffƒff#bãfƒb‹b»bÄƒff(ƒfbÏb«bb³bÇfˆè€‰Q¡¥ÌÁ¡½¹”¹Õµ‰•È¥Ì…±É•…‘äÕÍ•‰ä…¹½Ñ¡•È•µÁ±½å•”¥¸å½ÕÈÑ•¹…¹Ğˆ°(€€‹bÇffƒbŸfff+b¼ƒbŸfb«bÏfbÏff(ƒfbßff#b ƒfffƒb×fˆè€‰Í•ÅÕ•¹”¹Õµ‰•È¥ÌÉ•ÅÕ¥É•™½È•Ù•ÉäÉ½Üˆ°(€€‹bÇfbÈƒb—bçbŸb¿b¤ƒbŸfb«bçf+f+fƒfbßff#b ˆè€‰Q¡”É•Í•Ğ½‘”¥ÌÉ•ÅÕ¥É•ˆ°(€€‹bÇfbÈƒbŸfb«b·b¿f+b¬ƒbëf+bÄƒb×bŸfb´ƒbf ƒffb«ff(ƒbŸfb×fbŸb·f+b¤ˆè€‰Q¡”É•™É•Í Ñ½­•¸¥Ì¥¹Ù…±¥½È¡…Ì•áÁ¥É•ˆ°(€€‹bÇfbÈƒbŸfb«b·b¿f+b¬ƒfbßff#b ˆè€‰Q¡”É•™É•Í Ñ½­•¸¥ÌÉ•ÅÕ¥É•ˆ°(€€‹bÇfbÈƒbŸfb¿b»f#fƒbëf+bÄƒb×bŸfb´ƒbf ƒffb«ff(ƒbŸfb×fbŸb·f+b¤ˆè€‰Q¡”…•ÍÌÑ½­•¸¥Ì¥¹Ù…±¥½È¡…Ì•áÁ¥É•ˆ°(€€‹bÇfbÈƒbŸfb¿b»f#fƒffff#b¼ˆè€‰Q¡”…•ÍÌÑ½­•¸¥Ìµ¥ÍÍ¥¹œˆ°(€€‹bÇfbÈƒbŸfb¿bçf#b¤ƒfbßff#b ˆè€‰Q¡”¥¹Ù¥Ñ”½‘”¥ÌÉ•ÅÕ¥É•ˆ°(€€‹bÏb³fƒbŸfb—ffbŸfƒbëf+bÄƒff#b³f#b¼ˆè€‰Q¡”‘•ÁÉ•¥…Ñ¥½¸É•½É‘½•Ì¹½Ğ•á¥ÍĞˆ°(€€‹bÏb³fƒbŸffb£f+bçbŸb¨ƒbëf+bÄƒff#b³f#b¼ˆè€‰Q¡”Í…±•ÌÉ•½É‘½•Ì¹½Ğ•á¥ÍĞˆ°(€€‹bÏbçbÄƒb«fffb¤ˆè€‰U¹¥Ğ½ÍĞˆ°(€€‹bÏfb¼ƒbŸffb£bØƒbëf+bÄƒff#b³f#b¼ˆè€‰Q¡”É••¥ÁĞÙ½Õ¡•È‘½•Ì¹½Ğ•á¥ÍĞˆ°(€€‹b×bŸff(ƒbŸffb£fbèƒbŸffbÏb«b·fƒf+b³b ƒbfƒf+ff#fƒbfb£bÄƒffƒb×fbÄˆè€‰Q¡”¹•Ğ…µ½Õ¹Ğ‘Õ”µÕÍĞ‰”É•…Ñ•ÈÑ¡…¸é•É¼ˆ°(€€‹b×f+bëb¤ƒbŸfbÓfbÄƒbëf+bÄƒb×b·f+b·b¤ˆè€‰%¹Ù…±¥µ½¹Ñ ™½Éµ…Ğˆ°(€€‹b×f+bëb¤ƒbŸfbÓfbÄƒf+b³b ƒbfƒb«ff#feeedµ54ˆè€‰Q¡”µ½¹Ñ ™½Éµ…ĞµÕÍĞ‰”eeedµ54ˆ°(€€‹b×f+bëb¤ƒbŸffbëffGfƒbŸfff?bÓff;fGbÄƒbëf+bÄƒb×bŸfb·b¤ˆè€‰%¹Ù…±¥•¹ÉåÁÑ••¹Ù•±½Á”™½Éµ…Ğˆ°(€€‹b×f+bëb¤ƒbŸffffƒbëf+bÄƒfb¿bçf#fb¤ƒŠPƒbŸbÏb«b»b¿fA9ƒbf )Aƒbf ]	@ƒbf MYˆè€‰U¹ÍÕÁÁ½ÉÑ•™¥±”™½Éµ…ĞƒŠPÕÍ”A9°)A°]	@°½ÈMYˆ°(€€‹bßbÇf+fb¤ƒbŸfb—ffbŸfƒbŸffb«fbŸfbÔƒbëf+bÄƒfb·bÏf#b£b¤ƒb£bçb¼ƒŠPƒbŸffbÏbÜƒbŸfb¯bŸb£b¨ƒff ƒbŸffb«bŸb´ƒb·bŸff+bŸf,¸ˆè€‰Q¡”‘•±¥¹¥¹œµ‰…±…¹”‘•ÁÉ•¥…Ñ¥½¸µ•Ñ¡½¥Í¸Ğ½µÁÕÑ•å•ĞƒŠPÍÑÉ…¥¡Ğµ±¥¹”¥ÌÕÉÉ•¹Ñ±äÑ¡”½¹±ä½ÁÑ¥½¸…Ù…¥±…‰±”¸ˆ°(€€‹bßfb ƒbŸfb—b³bŸbËb¤ƒbëf+bÄƒff#b³f#b¼ˆè€‰Q¡”±•…Ù”É•ÅÕ•ÍĞ‘½•Ì¹½Ğ•á¥ÍĞˆ°(€€‹bçb¿b¼ƒbŸfbbÏbßbÄƒbfb£bÄƒffƒbŸfb·b¼ƒbŸffbÏff#b´ƒfbçfff+b¤ƒbŸbÏb«f+bÇbŸb¼ƒf#bŸb·b¿b¤ˆè€‰Q¡”¹Õµ‰•È½˜É½İÌ•á••‘ÌÑ¡”±¥µ¥Ğ…±±½İ•™½È„Í¥¹±”¥µÁ½ÉĞˆ°(€€‹bçbÇbØƒbŸfbÏbçbÄƒbëf+bÄƒff#b³f#b¼ˆè€‰Q¡”ÅÕ½Ñ…Ñ¥½¸‘½•Ì¹½Ğ•á¥ÍĞˆ°(€€‹bçfb¼ƒbŸfb—f+b³bŸbÄƒbëf+bÄƒff#b³f#b¼ˆè€‰Q¡”±•…Í”½¹ÑÉ…Ğ‘½•Ì¹½Ğ•á¥ÍĞˆ°(€€‹bçff+fƒffb¿f(ˆè€‰…Í ÕÍÑ½µ•Èˆ°(€€‹bçfb¼ƒb—fbëbŸb„ƒbÇb£bÜƒbŸfbb×fƒb£fb›b§b0ƒbŸb»b«bÄƒb·bÏbŸb£bŸf,ƒfb·bŸbÏb£f+bŸf,ƒb£b¿f+fbŸf,ˆè€‰]¡•¸Õ¹±¥¹­¥¹œÑ¡”…ÍÍ•Ğ™É½´„…Ñ•½Éä°¡½½Í”…¸…±Ñ•É¹…Ñ”…½Õ¹Ğˆ°(€€‹fb›b¤ƒbŸfbb×fƒbŸffb»b«bŸbÇb¤ƒbëf+bÄƒff#b³f#b¿b¤ƒbÛffƒfbÃfƒbŸfbÓbÇfb¤ˆè€‰Q¡”Í•±•Ñ•…ÍÍ•Ğ…Ñ•½Éä‘½•Ì¹½Ğ•á¥ÍĞ¥¸Ñ¡¥Ì½µÁ…¹äˆ°(€€‹fb›b¤ƒbŸfbb×fƒbŸffb»b«bŸbÇb¤ƒfb«bÏb³f+fƒbb×fƒb³b¿f+b¼ƒbëf+bÄƒff#b³f#b¿b¤ƒbÛffƒfbÃfƒbŸfbÓbÇfb¤ˆè€‰Q¡”…ÍÍ•Ğ…Ñ•½ÉäÍ•±•Ñ•Ñ¼É•¥ÍÑ•È„¹•Ü…ÍÍ•Ğ‘½•Ì¹½Ğ•á¥ÍĞ¥¸Ñ¡¥Ì½µÁ…¹äˆ°(€€‹fb›b¤ƒbŸfbb×fƒfbßff#b£b¤ˆè€‰Q¡”…ÍÍ•Ğ…Ñ•½Éä¥ÌÉ•ÅÕ¥É•ˆ°(€€‹fb›b¤ƒbŸfbb×f#fƒbëf+bÄƒff#b³f#b¿b¤ˆè€‰Q¡”…ÍÍ•Ğ…Ñ•½Éä‘½•Ì¹½Ğ•á¥ÍĞˆ°(€€‹fbÓfƒbŸfb«b·ffƒbŸffb·ff(ƒffƒbßfb ƒb«f#ff+bäƒbŸfbÓfbŸb¿b¤€¡MH¤ƒbŸfff?f#ff;fGb¼ƒŠPƒb·bŸf#fƒfbÇb¤ƒbb»bÇf$ˆè€‰1½…°Ù•É¥™¥…Ñ¥½¸½˜Ñ¡”•¹•É…Ñ••ÉÑ¥™¥…Ñ”Í¥¹¥¹œÉ•ÅÕ•ÍĞ€¡MH¤™…¥±•ƒŠPÑÉä……¥¸ˆ°(€€‹fbŸb›fb¤ƒbŸffff#fGfbŸb¨ƒfb«bŸb·b¤ƒffbÜƒfbb×fbŸfƒff#bä€£ffb«b°ƒfb³ffGbä¤ˆè€‰Q¡”½µÁ½¹•¹ÑÌ±¥ÍĞ¥Ì½¹±ä…Ù…¥±…‰±”™½È¥Ñ•µÌ½˜ÑåÁ”€¡‰Õ¹‘±•ÁÉ½‘ÕĞ¤ˆ°(€€‹fbÓfƒbŸfbÇf#bŸb«b ƒbëf+bÄƒff#b³f#b¼ˆè€‰Q¡”Á…åÉ½±°ÉÕ¸‘½•Ì¹½Ğ•á¥ÍĞˆ°(€€‹fbÓfƒbŸfbÇf#bŸb«b ƒff+bÌƒfbÇb·fGfbŸf,ƒbb×fbŸf,ˆè€‰Q¡”Á…åÉ½±°ÉÕ¸¥Í¸ĞÁ½ÍÑ•¥¸Ñ¡”™¥ÉÍĞÁ±…”ˆ°(€€‹fbÓfƒbŸfbÇf#bŸb«b ƒfbÇb·fGfƒb£bŸffbçfˆè€‰Q¡”Á…åÉ½±°ÉÕ¸¥Ì…±É•…‘äÁ½ÍÑ•ˆ°(€€‹ffƒbÏbßbÄƒf+b³b ƒbfƒf+b·ffƒfb£fbëbŸf,ƒff(ƒbŸffb¿f+fƒbf ƒbŸfb¿bŸb›fƒffbßb0ƒf#ff+bÌƒfff+ffbœƒbf ƒfbœƒbÓf+b„ˆè€‰Ù•Éä±¥¹”µÕÍĞ…ÉÉä…¸…µ½Õ¹Ğ¥¸•¥Ñ¡•È‘•‰¥Ğ½ÈÉ•‘¥Ğ½¹±ä°¹½Ğ‰½Ñ ½È¹•¥Ñ¡•Èˆ°(€€‹fffb¤ƒbŸffbÇf#bÄƒfbßff#b£b¤ˆè€‰Q¡”Á…ÍÍİ½É¥ÌÉ•ÅÕ¥É•ˆ°(€€‹fffb¤ƒbŸffbÇf#bÄƒf+b³b ƒbfƒb«ff#f€àƒbb·bÇfƒbçff$ƒbŸfbffˆè€‰Q¡”Á…ÍÍİ½ÉµÕÍĞ‰”…Ğ±•…ÍĞ€à¡…É…Ñ•ÉÌˆ°(€€‹ff#b¼ƒbŸfb·bÏbŸb ƒf+b³b ƒbfƒf+b£b¿bŒƒb£ff#b¼ƒbŸfb·bÏbŸb ƒbŸfbb ˆè€‰Q¡”…½Õ¹Ğ½‘”µÕÍĞÍÑ…ÉĞİ¥Ñ Ñ¡”Á…É•¹Ğ…½Õ¹ĞÌ½‘”ˆ°(€€‹ff#b¼ƒbŸfb·bÏbŸb ƒf+b³b ƒbfƒf+ff#fƒbÇfff+bŸf,ƒf#b£b·b¼ƒbfb×f$€äƒb»bŸfbŸb¨ˆè€‰Q¡”…½Õ¹Ğ½‘”µÕÍĞ‰”¹Õµ•É¥Œİ¥Ñ „µ…á¥µÕ´½˜€ä‘¥¥ÑÌˆ°(€€‹fbœƒb«fffƒb×fbŸb·f+b¤ƒbŸff#b×f#fƒfb£f+bŸfbŸb¨ƒfbÃfƒbŸfbÓbÇfb¤ˆè€‰e½Ô‘½¸Ğ¡…Ù”Á•Éµ¥ÍÍ¥½¸Ñ¼…•ÍÌÑ¡¥Ì½µÁ…¹äÌ‘…Ñ„ˆ°(€€‹fbœƒb«f#b³b¼ƒbb×f#fƒfbÓbßb¤ƒfb·bÏbŸb ƒb—ffbŸffbœˆè€‰Q¡•É”…É”¹¼…Ñ¥Ù”…ÍÍ•ÑÌÑ¼½µÁÕÑ”‘•ÁÉ•¥…Ñ¥½¸™½Èˆ°(€€‹fbœƒb«f#b³b¼ƒb«bÏf#f+b¤ƒb—b³bŸbËb¤ƒffb«f#b·b¤ƒffbÃbœƒbŸfff#bãfˆè€‰Q¡•É”¥Ì¹¼½Á•¸±•…Ù”Í•ÑÑ±•µ•¹Ğ™½ÈÑ¡¥Ì•µÁ±½å•”ˆ°(€€‹fbœƒb«f#b³b¼ƒb·bÏbŸb£bŸb¨ƒff(ƒbÓb³bÇb¤ƒb·bÏbŸb£bŸb¨ƒfbÃfƒbŸfbÓbÇfb¤ƒb£bçb¼ˆè€‰Q¡•É”…É”¹¼…½Õ¹ÑÌ¥¸Ñ¡¥Ì½µÁ…¹äÌ¡…ÉĞ½˜…½Õ¹ÑÌå•Ğˆ°(€€‹fbœƒb«f#b³b¼ƒbÓfbŸb¿b¤ƒbÇb£bÜƒbËbŸb«fbœƒfbçbŸfb¤ƒffbÃfƒbŸfbÓbÇfb¤ƒb·bŸff+bŸf,ƒŠPƒbfffƒb»bßf#bŸb¨ƒbŸfbÇb£bÜƒffƒbÓbŸbÓb¤qqp‹bÇb£bÜƒfbŸb«f#bÇb¥qqpˆƒbf#fbŸf,ˆè(€€€€‰Q¡•É”¥Ì¹¼…Ñ¥Ù”iQ½¹‰½…É‘¥¹œ•ÉÑ¥™¥…Ñ”™½ÈÑ¡¥Ì½µÁ…¹äÉ¥¡Ğ¹½ÜƒŠP½µÁ±•Ñ”Ñ¡”½¹‰½…É‘¥¹œÍÑ•ÁÌ™É½´Ñ¡”p‰%¹Ù½¥”=¹‰½…É‘¥¹pˆÍÉ••¸™¥ÉÍĞˆ°(€€‹fbœƒf+fffƒb—bÇbÏbŸfƒfbŸb«f#bÇb¤ƒffƒb«f?bÇb·f;fGfƒb£bçb¼ˆè€‰…¸Ğ•µ…¥°…¸¥¹Ù½¥”Ñ¡…Ğ¡…Í¸Ğ‰••¸Á½ÍÑ•å•Ğˆ°(€€‹fbœƒf+fffƒbŸbÏb«b»b¿bŸfƒffbÌƒbŸfb·bÏbŸb ƒfbfb¯bÄƒffƒb¿f#bÄƒbÛffƒffbÌƒbŸffb›b¤ˆè€‰Q¡”Í…µ”…½Õ¹Ğ…¸Ğ‰”ÕÍ•™½Èµ½É”Ñ¡…¸½¹”É½±”İ¥Ñ¡¥¸Ñ¡”Í…µ”…Ñ•½Éäˆ°(€€‹fbœƒf+fffƒb—bÛbŸfb¤ƒb·bÏbŸb ƒfbÇbçf(ƒb«b·b¨ƒb·bÏbŸb ƒb«bÇb·f+fˆè€‰…¸Ğ…‘„ÍÕˆµ…½Õ¹ĞÕ¹‘•È„Á½ÍÑ¥¹œ…½Õ¹Ğˆ°(€€‹fbœƒf+fffƒb—bçbŸb¿b¤ƒbŸfb—bÇbÏbŸfƒb—fbœƒffbŸb«f#bÇb¤ƒff?bÇb·f;fGfb¤ˆè€‰I•ÍÕ‰µ¥ÍÍ¥½¸¥Ì½¹±äÁ½ÍÍ¥‰±”™½È„Á½ÍÑ•¥¹Ù½¥”ˆ°(€€‹fbœƒf+fffƒbŸfb«b·f#f+fƒfb£f+b›b¤ƒbŸfb—fb«bŸb°ƒfb£fƒbŸbÏb«b»bÇbŸb°ƒbÓfbŸb¿b¤ƒb—fb«bŸb°ƒfbçff+b¤€¡AÉ½‘ÕÑ¥½¸M%¤ˆè€‰…¸ĞÍİ¥Ñ Ñ¼Ñ¡”ÁÉ½‘ÕÑ¥½¸•¹Ù¥É½¹µ•¹Ğ‰•™½É”½‰Ñ…¥¹¥¹œ…¸…ÑÕ…°ÁÉ½‘ÕÑ¥½¸•ÉÑ¥™¥…Ñ”€¡AÉ½‘ÕÑ¥½¸M%¤ˆ°(€€‹fbœƒf+fffƒbfƒf+ff#fƒbŸfb×ffƒfff#fGfbŸf,ƒfffbÏfˆè€‰¸¥Ñ•´…¸Ğ‰”„½µÁ½¹•¹Ğ½˜¥ÑÍ•±˜ˆ°(€€‹fbœƒf+fffƒbfƒf+ff#fƒbŸfff#bãfƒfb¿f+bÇbŸf,ƒfb£bŸbÓbÇbŸf,ƒfffbÏfˆè€‰¸•µÁ±½å•”…¸Ğ‰”Ñ¡•¥È½İ¸‘¥É•Ğµ…¹…•Èˆ°(€€‹fbœƒf+fffƒb—fbÓbŸb„ƒb·bÏbŸb ƒbÇb£bÜƒffbÓbÇfb¤ƒfbäƒffbÏfbœˆè€‰…¸ĞÉ•…Ñ”„±¥¹­¥¹œ…½Õ¹Ğ™½È„½µÁ…¹äİ¥Ñ ¥ÑÍ•±˜ˆ°(€€‹fbœƒf+fffƒb—fbÓbŸb„ƒff+b¼ƒfbÇb‹b¤ƒb—fbœƒfff+b¼ƒfbÇb·fGfˆè€‰µ¥ÉÉ½È•¹ÑÉä…¸½¹±ä‰”É•…Ñ•™½È„Á½ÍÑ••¹ÑÉäˆ°(€€‹fbœƒf+fffƒb«b·f#f+fƒb·bÏbŸb ƒffƒb·bÏbŸb£bŸb¨ƒfbÇbçf+b¤ƒb—ff$ƒb·bÏbŸb ƒb«bÇb·f+fˆè€‰…¸Ğ½¹Ù•ÉĞ…¸…½Õ¹ĞÑ¡…Ğ¡…ÌÍÕˆµ…½Õ¹ÑÌ¥¹Ñ¼„Á½ÍÑ¥¹œ…½Õ¹Ğˆ°(€€‹fbœƒf+fffƒb«bçb¿f+fƒbb×fƒfbÏb«b£bçb¼ˆè€‰…¸Ğ•‘¥Ğ„‘¥ÍÁ½Í•…ÍÍ•Ğˆ°(€€‹fbœƒf+fffƒb«bçb¿f+fƒbçbÇbØƒbÏbçbÄƒb«fƒb«b·f#f+ffƒffbŸb«f#bÇb¤ˆè€‰…¸Ğ•‘¥Ğ„ÅÕ½Ñ…Ñ¥½¸Ñ¡…Ğ¡…Ì‰••¸½¹Ù•ÉÑ•Ñ¼…¸¥¹Ù½¥”ˆ°(€€‹fbœƒf+fffƒb«bçb¿f+fƒfbŸb«f#bÇb¤ƒfbÇb·fGfb§b0ƒf+b³b ƒffƒb«bÇb·f+ffbœƒbf#fbŸf,ˆè€‰…¸Ğ•‘¥Ğ„Á½ÍÑ•¥¹Ù½¥”°¥ĞµÕÍĞ‰”Õ¹Á½ÍÑ•™¥ÉÍĞˆ°(€€‹fbœƒf+fffƒb«bçb¿f+fƒff+b¼ƒfbÇb·fGfƒfb£bŸbÓbÇb¤ƒŠPƒbŸbÏb«b»b¿fƒbçfbÌƒbŸfff+b¼ƒfb«b×b·f+b·fˆè€‰…¸Ğ•‘¥Ğ„Á½ÍÑ••¹ÑÉä‘¥É•Ñ±äƒŠPÕÍ”•¹ÑÉäÉ•Ù•ÉÍ…°Ñ¼½ÉÉ•Ğ¥Ğˆ°(€€‹fbœƒf+fffƒb«bçb¿f+fƒfbÓfƒfbÇb·fGfb0ƒf+b³b ƒffƒb«bÇb·f+ffƒbf#fbŸf,ˆè€‰…¸Ğ•‘¥Ğ„Á½ÍÑ•Á…åÉ½±°ÉÕ¸°¥ĞµÕÍĞ‰”Õ¹Á½ÍÑ•™¥ÉÍĞˆ°(€€‹fbœƒf+fffƒb«bëf+f+bÄƒff#bäƒbŸfb×ffƒb£bçb¼ƒf#b³f#b¼ƒfbçbŸffbŸb¨ƒfbÇb«b£bßb¤ƒb£fˆè€‰…¸Ğ¡…¹”Ñ¡”¥Ñ•´ÌÑåÁ”½¹”ÑÉ…¹Í…Ñ¥½¹Ì…É”±¥¹­•Ñ¼¥Ğˆ°(€€‹fbœƒf+fffƒb·bÃfƒb—bÓbçbŸbÄƒfb¿f+fƒfbÇb·fGfb0ƒf+b³b ƒffƒb«bÇb·f+ffƒbf#fbŸf,ˆè€‰…¸Ğ‘•±•Ñ”„Á½ÍÑ•‘•‰¥Ğ¹½Ñ”°¥ĞµÕÍĞ‰”Õ¹Á½ÍÑ•™¥ÉÍĞˆ°(€€‹fbœƒf+fffƒb·bÃfƒbb×fƒfbÏb«b£bçb¼ƒb£bŸffbçfˆè€‰…¸Ğ‘•±•Ñ”…¸…ÍÍ•ĞÑ¡…ĞÌ…±É•…‘ä‘¥ÍÁ½Í•½˜ˆ°(€€‹fbœƒf+fffƒb·bÃfƒb£fb¼ƒfbÇb«b£bÜƒb£ff#bãff+fƒbf ƒb·bÇfbŸb¨ƒbÏbŸb£fb¤ƒŠPƒbf#fff€¡¥ÍÑ¥Ù”¤ƒb£b¿fbŸf,ƒffƒbÃffˆè€‰…¸Ğ‘•±•Ñ”„½µÁ½¹•¹Ğ±¥¹­•Ñ¼•µÁ±½å••Ì½ÈÁÉ¥½ÈÑÉ…¹Í…Ñ¥½¹ÌƒŠP‘•…Ñ¥Ù…Ñ”¥Ğ€¡¥ÍÑ¥Ù”¤¥¹ÍÑ•…ˆ°(€€‹fbœƒf+fffƒb·bÃfƒb£fb¼ƒfbãbŸff(ƒŠPƒbŸbÏb«b»b¿fƒb—f+fbŸff€¡¥ÍÑ¥Ù”¤ƒb£b¿fbŸf,ƒffƒbÃffˆè€‰…¸Ğ‘•±•Ñ”„ÍåÍÑ•´½µÁ½¹•¹ĞƒŠP‘•…Ñ¥Ù…Ñ”¥Ğ€¡¥ÍÑ¥Ù”¤¥¹ÍÑ•…ˆ°(€€‹fbœƒf+fffƒb·bÃfƒbÏffb¤ƒbÏf?b¿fCfGb¼ƒfffbœƒfb£fbèƒb£bŸffbçfƒbçb£bÄƒbŸfbÇf#bŸb«b ˆè€‰…¸Ğ‘•±•Ñ”…¸…‘Ù…¹”Ñ¡…Ğ¡…Ì…±É•…‘ä¡……¸…µ½Õ¹ĞÉ•Á…¥Ù¥„Á…åÉ½±°ˆ°(€€‹fbœƒf+fffƒb·bÃfƒbÏfb¼ƒfbÇb·fGfb0ƒf+b³b ƒffƒb«bÇb·f+ffƒbf#fbŸf,ˆè€‰…¸Ğ‘•±•Ñ”„Á½ÍÑ•Ù½Õ¡•È°¥ĞµÕÍĞ‰”Õ¹Á½ÍÑ•™¥ÉÍĞˆ°(€€‹fbœƒf+fffƒb·bÃfƒb×ffƒffƒfbçbŸffbŸb¨ƒbf ƒf#b×fb¤ƒb«b×ff+bäƒfbÇb«b£bßb§blƒbŸbÏb«b»b¿fƒbŸfbbÇbÓfb¤ƒb£b¿fbŸf,ƒffƒbÃffˆè€‰…¸Ğ‘•±•Ñ”…¸¥Ñ•´İ¥Ñ ±¥¹­•ÑÉ…¹Í…Ñ¥½¹Ì½È„µ…¹Õ™…ÑÕÉ¥¹œÉ•¥Á”ìÕÍ”…É¡¥Ù¥¹œ¥¹ÍÑ•…ˆ°(€€‹fbœƒf+fffƒb·bÃfƒbçbÇbØƒbÏbçbÄƒb«fƒb«b·f#f+ffƒffbŸb«f#bÇb¤ˆè€‰…¸Ğ‘•±•Ñ”„ÅÕ½Ñ…Ñ¥½¸Ñ¡…Ğ¡…Ì‰••¸½¹Ù•ÉÑ•Ñ¼…¸¥¹Ù½¥”ˆ°(€€‹fbœƒf+fffƒb·bÃfƒfb›b¤ƒfbÇb«b£bßb¤ƒb£bb×fbŸfƒffƒff#bä€£bb×fƒb¯bŸb£b¨¤ˆè€‰…¸Ğ‘•±•Ñ”„…Ñ•½Éä±¥¹­•Ñ¼¥Ñ•µÌ½˜ÑåÁ”€¡™¥á•…ÍÍ•Ğ¤ˆ°(€€‹fbœƒf+fffƒb·bÃfƒfb›b¤ƒfbÇb«b£bßb¤ƒb£bb×f#fƒfbÏb³f;fGfb¤ƒb£bŸffbçfˆè€‰…¸Ğ‘•±•Ñ”„…Ñ•½Éä±¥¹­•Ñ¼…±É•…‘äµÉ•¥ÍÑ•É•…ÍÍ•ÑÌˆ°(€€‹fbœƒf+fffƒb·bÃfƒfbŸb«f#bÇb¤ƒfbÇb·fGfb§b0ƒf+b³b ƒffƒb«bÇb·f+ffbœƒbf#fbŸf,ˆè€‰…¸Ğ‘•±•Ñ”„Á½ÍÑ•¥¹Ù½¥”°¥ĞµÕÍĞ‰”Õ¹Á½ÍÑ•™¥ÉÍĞˆ°(€€‹fbœƒf+fffƒb·bÃfƒff+b¼ƒfbÇb·fGfƒfb£bŸbÓbÇb¤ƒŠPƒbŸbÏb«b»b¿fƒbçfbÌƒbŸfff+b¼ƒfb«b×b·f+b·fˆè€‰…¸Ğ‘•±•Ñ”„Á½ÍÑ••¹ÑÉä‘¥É•Ñ±äƒŠPÕÍ”•¹ÑÉäÉ•Ù•ÉÍ…°Ñ¼½ÉÉ•Ğ¥Ğˆ°(€€‹fbœƒf+fffƒb·bÃfƒfbÇb¿f#b¼ƒfbÇb·fGfb0ƒf+b³b ƒffƒb«bÇb·f+ffƒbf#fbŸf,ˆè€‰…¸Ğ‘•±•Ñ”„Á½ÍÑ•É•ÑÕÉ¸°¥ĞµÕÍĞ‰”Õ¹Á½ÍÑ•™¥ÉÍĞˆ°(€€‹fbœƒf+fffƒb·bÃfƒfbÏb«f#b¿bäƒffƒb·bÇfbŸb¨ƒfb»bËf#fƒfbÏb³fGfb§blƒbŸbÏb«b»b¿fƒbŸfbbÇbÓfb¤ƒb£b¿fbŸf,ƒffƒbÃffˆè€‰…¸Ğ‘•±•Ñ”„İ…É•¡½ÕÍ”İ¥Ñ É•½É‘•ÍÑ½¬µ½Ù•µ•¹ÑÌìÕÍ”…É¡¥Ù¥¹œ¥¹ÍÑ•…ˆ°(€€‹fbœƒf+fffƒbÇb£bÜƒbÏfb¼ƒfb£bØƒb£fbŸb«f#bÇb¤ƒbëf+bÄƒfbÇb·fGfb¤ˆè€‰…¸Ğ±¥¹¬„É••¥ÁĞÙ½Õ¡•ÈÑ¼…¸Õ¹Á½ÍÑ•¥¹Ù½¥”ˆ°(€€‹fbœƒf+fffƒbÇb£bÜƒfbŸb«f#bÇb¤ƒbçff+fƒfb»b«ffƒbçfƒbçff+fƒbŸfbÏfb¼ˆè€‰…¸Ğ±¥¹¬…¸¥¹Ù½¥”™½È„‘¥™™•É•¹ĞÕÍÑ½µ•ÈÑ¡…¸Ñ¡”Ù½Õ¡•ÈÌÕÍÑ½µ•Èˆ°(€€‹fbœƒf+fffƒbçfbÌƒb—fbœƒff+b¿bŸf,ƒfbÇb·fGfbŸf,ˆè€‰=¹±ä„Á½ÍÑ••¹ÑÉä…¸‰”É•Ù•ÉÍ•ˆ°(€€‹fbœƒf+fffƒffƒb«bÇb·f+fƒb—bÓbçbŸbÄƒfb¿f+fƒfbÇb«b£bÜƒb£bÏfbÏfb¤ƒb«b³bËb›b¤ƒbËbŸb«fbœ€¡%X½A% ¤ƒŠPƒfbÃbœƒf+fbÏbÄƒbŸfbÏfbÏfb¤ƒb£bÓffƒbëf+bÄƒfbŸb£fƒffb—b×fbŸb´ˆè(€€€€‰…¸ĞÕ¹Á½ÍĞ„‘•‰¥Ğ¹½Ñ”±¥¹­•Ñ¼Ñ¡”iQ¡…Í ¡…¥¸€¡%X½A% ¤ƒŠPÑ¡¥Ìİ½Õ±‰É•…¬Ñ¡”¡…¥¸¥ÉÉ•Á…É…‰±äˆ°(€€‹fbœƒf+fffƒffƒb«bÇb·f+fƒfbŸb«f#bÇb¤ƒfbÇb«b£bßb¤ƒb£bÏfbÏfb¤ƒb«b³bËb›b¤ƒbËbŸb«fbœ€¡%X½A% ¤ƒŠPƒfbÃbœƒf+fbÏbÄƒbŸfbÏfbÏfb¤ƒb£bÓffƒbëf+bÄƒfbŸb£fƒffb—b×fbŸb´ˆè(€€€€‰…¸ĞÕ¹Á½ÍĞ…¸¥¹Ù½¥”±¥¹­•Ñ¼Ñ¡”iQ¡…Í ¡…¥¸€¡%X½A% ¤ƒŠPÑ¡¥Ìİ½Õ±‰É•…¬Ñ¡”¡…¥¸¥ÉÉ•Á…É…‰±äˆ°(€€‹fbœƒf+fffƒffƒb«bÇb·f+fƒfbÇb¿f#b¼ƒfbÇb«b£bÜƒb£bÏfbÏfb¤ƒb«b³bËb›b¤ƒbËbŸb«fbœ€¡%X½A% ¤ƒŠPƒfbÃbœƒf+fbÏbÄƒbŸfbÏfbÏfb¤ƒb£bÓffƒbëf+bÄƒfbŸb£fƒffb—b×fbŸb´ˆè(€€€€‰…¸ĞÕ¹Á½ÍĞ„É•ÑÕÉ¸±¥¹­•Ñ¼Ñ¡”iQ¡…Í ¡…¥¸€¡%X½A% ¤ƒŠPÑ¡¥Ìİ½Õ±‰É•…¬Ñ¡”¡…¥¸¥ÉÉ•Á…É…‰±äˆ°(€€‹fbœƒf+fffƒfffƒb·bÏbŸb ƒb«b·b¨ƒb·bÏbŸb ƒb«bÇb·f+fƒfbffƒf+b³b ƒbfƒf+bãfƒb£b¿f#fƒfbÇf#bäˆè€‰…¸Ğµ½Ù”…¸…½Õ¹ĞÕ¹‘•È„Á½ÍÑ¥¹œ…½Õ¹Ğ°Í¥¹”Á½ÍÑ¥¹œ…½Õ¹ÑÌµÕÍĞÉ•µ…¥¸İ¥Ñ¡½ÕĞÍÕˆµ…½Õ¹ÑÌˆ°(€€‹fbœƒf+f#b³b¼ƒbf(ƒfbÏb«ffƒb£bÇf+b¼ƒb—ffb«bÇf#ff(ƒb×bŸfb´ƒŠPƒbbÛfCfƒb£bÇf+b¿bŸf,ƒff(ƒbŸfb—bçb¿bŸb¿bŸb¨ƒbf ƒb«bfb¼ƒffƒf#b³f#b¼ƒfbÏb«b»b¿fƒb£b¿f#bÄƒfb¿f+bÄ¿fb¿f+bÄƒb·bÏbŸb£bŸb¨ƒffbÃfƒbŸfbÓbÇfb¤ˆè(€€€€‰Q¡•É”¥Ì¹¼Ù…±¥•µ…¥°É•¥Á¥•¹ĞƒŠP…‘…¸•µ…¥°¥¸Í•ÑÑ¥¹Ì°½Èµ…­”ÍÕÉ”Ñ¡•É”Ì„µ…¹…•È½…½Õ¹ÑÌµµ…¹…•ÈÕÍ•È™½ÈÑ¡¥Ì½µÁ…¹äˆ°(€€‹fbœƒf+f#b³b¼ƒb«bÏb³f+fƒb·bÛf#bÄƒffbÃbœƒbŸff+f#fƒb£bçb¼ˆè€‰Q¡•É”¥Ì¹¼¡•¬µ¥¸É•½É‘•™½ÈÑ¡¥Ì‘…äå•Ğˆ°(€€‹fbœƒf+f#b³b¼ƒfbÏb«f#b¿bäƒbŸfb«bÇbŸbÛf(ƒfb·b¿b¼ƒffbÃfƒbŸfbÓbÇfb§blƒb·b¿fGb¿fƒffƒbÓbŸbÓb¤ƒbŸffbÏb«f#b¿bçbŸb¨ƒbf#fbŸf,ˆè€‰9¼‘•™…Õ±Ğİ…É•¡½ÕÍ”¥ÌÍ•Ğ™½ÈÑ¡¥Ì½µÁ…¹äìÍ•Ğ¥Ğ™É½´Ñ¡”İ…É•¡½ÕÍ•ÌÍÉ••¸™¥ÉÍĞˆ°(€€‹fbœƒf+f#b³b¼ƒff#bãff#fƒff(ƒfbÃbœƒbŸffbÓfˆè€‰Q¡•É”…É”¹¼•µÁ±½å••Ì¥¸Ñ¡¥ÌÁ…åÉ½±°ÉÕ¸ˆ°(€€‹fbÏb¨ƒbŸffb¿f+bÄƒbŸffb£bŸbÓbÄƒffbÃbœƒbŸfff#bãfˆè€‰e½Ô…É”¹½ĞÑ¡¥Ì•µÁ±½å•”Ì‘¥É•Ğµ…¹…•Èˆ°(€€‹ffƒf+f?b·b¿f;fGb¼ƒbŸfb·bÏbŸb ƒbŸffb·bŸbÏb£f(ƒbŸffbÇb«b£bÜƒb£fbÃbœƒbŸfb×ffƒb£bçb¿blƒbfffƒb£f+bŸfbŸb«fƒffƒbÓbŸbÓb¤ƒbŸfbb×fbŸfƒbf#fbŸf,ˆè€‰Q¡¥Ì¥Ñ•´Ì±¥¹­•…½Õ¹Ğ¡…Í¸Ğ‰••¸Í•Ğå•Ğì½µÁ±•Ñ”¥ÑÌ‘…Ñ„™É½´Ñ¡”¥Ñ•µÌÍÉ••¸™¥ÉÍĞˆ°(€€‹ffƒf+f?b·b¿f;fGb¼ƒbŸffbÏb«f#b¿bäƒbŸffbÇb«b£bÜƒb£ffbßb¤ƒbŸfb£f+bäƒfbÃfƒb£bçb¿blƒb·b¿fGb¿fƒffƒb—bçb¿bŸb¿bŸb¨ƒffbßb¤ƒbŸfb£f+bäƒbf#fbŸf,ˆè€‰Q¡”İ…É•¡½ÕÍ”±¥¹­•Ñ¼Ñ¡¥ÌÁ½¥¹Ğ½˜Í…±”¡…Í¸Ğ‰••¸Í•Ğå•ĞìÍ•Ğ¥Ğ™É½´Ñ¡”Á½¥¹Ğµ½˜µÍ…±”Í•ÑÑ¥¹Ì™¥ÉÍĞˆ°(€€‹ffƒf+f?b·b¿f;fGb¼ƒb·bÏbŸb ƒbŸffb»bËf#fƒbŸffbÇb«b£bÜƒb£fbÃbœƒbŸfb×ffƒb£bçb¿blƒbfffƒb£f+bŸfbŸb«fƒffƒbÓbŸbÓb¤ƒbŸfbb×fbŸfƒbf#fbŸf,ˆè€‰Q¡¥Ì¥Ñ•´Ì±¥¹­•¥¹Ù•¹Ñ½Éä…½Õ¹Ğ¡…Í¸Ğ‰••¸Í•Ğå•Ğì½µÁ±•Ñ”¥ÑÌ‘…Ñ„™É½´Ñ¡”¥Ñ•µÌÍÉ••¸™¥ÉÍĞˆ°(€€‹ffƒf+f?b·b¿f;fGb¼ƒb·bÏbŸb ƒbŸffb»bËf#fƒbŸffbÇb«b£bÜƒb£fbÃbœƒbŸfb×ffƒff(ƒbÓbÇfb¤ƒbŸff#b³fb¤ƒb£bçb¼ˆè€‰Q¡¥Ì¥Ñ•´Ì±¥¹­•¥¹Ù•¹Ñ½Éä…½Õ¹Ğ¡…Í¸Ğ‰••¸Í•Ğ¥¸Ñ¡”‘•ÍÑ¥¹…Ñ¥½¸½µÁ…¹äå•Ğˆ°(€€‹ffƒf+f?bçb¯bÄƒbçff$ƒbßfb ƒb«f#ff+bäƒbŸfbÓfbŸb¿b¤€¡MH¤ƒff(ƒfb»bÇb³bŸb¨=Á•¹MM0ˆè€‰9¼•ÉÑ¥™¥…Ñ”Í¥¹¥¹œÉ•ÅÕ•ÍĞ€¡MH¤İ…Ì™½Õ¹¥¸Ñ¡”=Á•¹MM0½ÕÑÁÕĞˆ°(€€‹ffƒf+f?bçb¯bÄƒbçff$ƒffb«bŸb´ƒb»bŸbÔƒff(ƒfb»bÇb³bŸb¨=Á•¹MM0ˆè€‰9¼ÁÉ¥Ù…Ñ”­•äİ…Ì™½Õ¹¥¸Ñ¡”=Á•¹MM0½ÕÑÁÕĞˆ°(€€‹ffbÃbœƒbŸfff+b¼ƒb£bŸffbçfƒff+b¼ƒfbÇb‹b¤ƒfbÇb«b£bÜƒb£fˆè€‰Q¡¥Ì•¹ÑÉä…±É•…‘ä¡…Ì„±¥¹­•µ¥ÉÉ½È•¹ÑÉäˆ°(€€‹fb«bëf+fGbÄƒbŸfb£f+b›b¤!I=5%U5}aUQ	1}AQ ƒbëf+bÄƒfbÛb£f#bÜƒŠPƒfbßff#b ƒfbÏbŸbÄ¡É½µ¥Õ´ƒfbŸb£fƒffb«fff+bÀƒfb«f#ff+b¼Aˆè(€€€€‰Q¡”!I=5%U5}aUQ	1}AQ •¹Ù¥É½¹µ•¹ĞÙ…É¥…‰±”¥Ì¹½ĞÍ•ĞƒŠP„ÉÕ¹¹…‰±”¡É½µ¥Õ´Á…Ñ ¥ÌÉ•ÅÕ¥É•Ñ¼•¹•É…Ñ”AÌˆ°(€€‹fb«bëf+bÄƒbŸfb£f+b›b¤iQ}9IeAQ%=9}-dƒbëf+bÄƒfbÛb£f#bÜƒŠPƒfbßff#b ƒfb«bÓff+bÄ¿ffƒb«bÓff+bÄƒbbÏbÇbŸbÄƒbÇb£bÜƒbËbŸb«fbœˆè(€€€€‰Q¡”iQ}9IeAQ%=9}-d•¹Ù¥É½¹µ•¹ĞÙ…É¥…‰±”¥Ì¹½ĞÍ•ĞƒŠPÉ•ÅÕ¥É•Ñ¼•¹ÉåÁĞ½‘•ÉåÁĞiQ½¹‰½…É‘¥¹œÍ•É•ÑÌˆ°(€€‹fbÇfbÈƒbŸfb«fffb¤ƒbëf+bÄƒff#b³f#b¼ˆè€‰Q¡”½ÍĞ•¹Ñ•È‘½•Ì¹½Ğ•á¥ÍĞˆ°(€€‹fbÏb«f#b¿bäƒbŸff#b³fb¤ƒbëf+bÄƒff#b³f#b¼ƒbÛffƒbŸfbÓbÇfb¤ƒbŸffbÏb«fb£fb¤ˆè€‰Q¡”‘•ÍÑ¥¹…Ñ¥½¸İ…É•¡½ÕÍ”‘½•Ì¹½Ğ•á¥ÍĞ¥¸Ñ¡”É••¥Ù¥¹œ½µÁ…¹äˆ°(€€‹fbçbÇfGfƒbŸffbçbŸffb¤ƒfbßff#b ˆè€‰Q¡”ÑÉ…¹Í…Ñ¥½¸¥‘•¹Ñ¥™¥•È¥ÌÉ•ÅÕ¥É•ˆ°(€€‹fbçbÇfGfƒbŸfffbÓbb¤ƒfbßff#b ˆè€‰Q¡”‰ÕÍ¥¹•ÍÌ¥‘•¹Ñ¥™¥•È¥ÌÉ•ÅÕ¥É•ˆ°(€€‹fffƒbŸfbŸbÏb«f+bÇbŸb¼ƒfbŸbÇbèˆè€‰Q¡”¥µÁ½ÉĞ™¥±”¥Ì•µÁÑäˆ°(€€‹fffƒbŸfbŸbÏb«f+bÇbŸb¼ƒf+b·b«f#f(ƒbçff$ƒbff#bŸb¼ƒffbÇbÇb¤ˆè€‰Q¡”¥µÁ½ÉĞ™¥±”½¹Ñ…¥¹Ì‘ÕÁ±¥…Ñ”½‘•Ìˆ°(€€‹fffƒbŸfbÓbçbŸbÄƒfbßff#b ˆè€‰Q¡”±½¼™¥±”¥ÌÉ•ÅÕ¥É•ˆ°(€€‹ff+bËb¤ƒbŸbÏb«b»bÇbŸb°ƒb£f+bŸfbŸb¨ƒbŸfbÓbÇfb¤ƒffƒbŸffbÏb«fb¿bŸb¨ƒbëf+bÄƒff?fbçfGfb¤è9Q!I=A%}A%}-dƒbëf+bÄƒfbÛb£f#bÜˆè€‰Q¡”½µÁ…¹ä‘½Õµ•¹Ğ•áÑÉ…Ñ¥½¸™•…ÑÕÉ”¥Ì‘¥Í…‰±•è9Q!I=A%}A%}-d¥Ì¹½ĞÍ•Ğˆ°(€€‹ff+bËb¤ƒb—fbÓbŸb„ƒbŸfff+f#b¼ƒffƒbŸffbÏb«fb¿bŸb¨ƒbëf+bÄƒff?fbçfGfb¤è9Q!I=A%}A%}-dƒbëf+bÄƒfbÛb£f#bÜˆè€‰Q¡”É•…Ñ”µ•¹ÑÉ¥•Ìµ™É½´µ‘½Õµ•¹ÑÌ™•…ÑÕÉ”¥Ì‘¥Í…‰±•è9Q!I=A%}A%}-d¥Ì¹½ĞÍ•Ğˆ°(€€‹ff#bäƒbŸffbÏb«fb¼ƒfbßff#b ˆè€‰Q¡”‘½Õµ•¹ĞÑåÁ”¥ÌÉ•ÅÕ¥É•ˆ°(€€‹ff#bäƒbŸffffƒbëf+bÄƒfb¿bçf#fƒffbÇbŸb‡b¤ƒbŸffbÏb«fb¼ƒb£bŸfbÃfbŸb„ƒbŸfbŸb×bßfbŸbçf(ƒŠPƒbŸbÏb«b»b¿fƒb×f#bÇb¤€¡)A½A9¤ƒbf ƒfffAˆè€‰U¹ÍÕÁÁ½ÉÑ•™¥±”ÑåÁ”™½È$‘½Õµ•¹ĞÉ•…‘¥¹œƒŠPÕÍ”…¸¥µ…”€¡)A½A9¤½È„A™¥±”ˆ°(€€‹fbÃbœƒb‹b»bÄƒb«b»b×f+bÔƒff(ƒfbÃbœƒbŸfbÏfb¼ƒŠPƒbŸb·bÃfƒbŸfbÏfb¼ƒffbÏf€£b£bçb¼ƒffƒb«bÇb·f+ffƒb—fƒfbŸfƒfbÇb·fGfbŸf,¤ƒb£b¿fƒffƒbÇb£bÜƒb‹b»bÄƒfbŸb«f#bÇb¤ƒff+fˆè(€€€€‰Q¡¥Ì¥ÌÑ¡”±…ÍĞ…±±½…Ñ¥½¸½¸Ñ¡¥ÌÙ½Õ¡•ÈƒŠP‘•±•Ñ”Ñ¡”Ù½Õ¡•È¥ÑÍ•±˜€¡…™Ñ•ÈÕ¹Á½ÍÑ¥¹œ¥Ğ¥˜Á½ÍÑ•¤¥¹ÍÑ•…½˜Õ¹±¥¹­¥¹œ¥ÑÌ±…ÍĞ¥¹Ù½¥”ˆ°(€€‹fbÃbœƒbŸfb£bÇf+b¼ƒbŸfb—ffb«bÇf#ff(ƒfbÏb³fGfƒb£bŸffbçfˆè€‰Q¡¥Ì•µ…¥°¥Ì…±É•…‘äÉ•¥ÍÑ•É•ˆ°(€€‹fbÃbœƒbŸfb£fb¼ƒfbœƒf+fb£fƒb«bÏf#f+bŸb¨ƒbÓfbÇf+b¤ˆè€‰Q¡¥Ì½µÁ½¹•¹Ğ‘½•Í¸Ğ…•ÁĞµ½¹Ñ¡±ä…‘©ÕÍÑµ•¹ÑÌˆ°(€€‹fbÃbœƒbŸfb·bÏbŸb ƒfbçbßfGfb0ƒb«f#bŸb×fƒfbäƒfb¿f+bÄƒbŸffbãbŸfƒfb¿f+fˆè€‰Q¡¥Ì…½Õ¹Ğ¥Ì‘¥Í…‰±•°½¹Ñ…Ğå½ÕÈÍåÍÑ•´…‘µ¥¹¥ÍÑÉ…Ñ½Èˆ°(€€‹fbÃbœƒbŸffbÏb«b»b¿fƒffbçf;fGfƒb·bÏbŸb£fƒb£bŸffbçfˆè€‰Q¡¥ÌÕÍ•ÈÌ…½Õ¹Ğ¥Ì…±É•…‘ä…Ñ¥Ù…Ñ•ˆ°(€€‹fbÃbœƒbŸfff#bãfƒff+bÌƒbÛffƒfbÓfƒbŸfbÇf#bŸb«b ˆè€‰Q¡¥Ì•µÁ±½å•”¥Ì¹½ĞÁ…ÉĞ½˜Ñ¡”Á…åÉ½±°ÉÕ¸ˆ°(€€‹fbÃbœƒbŸfff#bäƒffƒbŸfbb×fbŸfƒfbœƒf+f?b¿bŸbÄƒffb»bËf#fˆè€‰Q¡¥Ì¥Ñ•´ÑåÁ”¥Í¸Ğµ…¹…•…Ì¥¹Ù•¹Ñ½Éäˆ°(€€‹fbÃfƒbŸfbÏffb¤ƒbëf+bÄƒfbÇb«b£bßb¤ƒb£ff+b¼ƒb×bÇfƒfbÏb«ffƒf+fffƒb·bÃffƒffƒffbœˆè€‰Q¡¥Ì…‘Ù…¹”¥Í¸Ğ±¥¹­•Ñ¼„ÍÑ…¹‘…±½¹”‘¥Í‰ÕÉÍ•µ•¹Ğ•¹ÑÉäÑ¡…Ğ…¸‰”‘•±•Ñ•™É½´¡•É”ˆ°(€€‹fbÃfƒbŸffbŸb«f#bÇb¤ƒbëf+bÄƒfbÇb«b£bßb¤ƒb£fbÃbœƒbŸfbÏfb¼ˆè€‰Q¡¥Ì¥¹Ù½¥”¥Í¸Ğ±¥¹­•Ñ¼Ñ¡¥ÌÙ½Õ¡•Èˆ°(€€‹fbÃfƒbŸffbŸb«f#bÇb¤ƒfbÇb«b£bßb¤ƒb£bŸffbçfƒb£fbÃbœƒbŸfbÏfb¼ˆè€‰Q¡¥Ì¥¹Ù½¥”¥Ì…±É•…‘ä±¥¹­•Ñ¼Ñ¡¥ÌÙ½Õ¡•Èˆ°(€€‹f+b³b ƒbŸbÏb«b»bÇbŸb°ƒbÓfbŸb¿b¤ƒbŸfbŸb»b«b£bŸbÄ€¡½µÁ±¥…¹”¤ƒbf#fbŸf,ƒfb£fƒbßfb ƒbÓfbŸb¿b¤ƒbŸfb—fb«bŸb°ˆè€‰Q¡”½µÁ±¥…¹”•ÉÑ¥™¥…Ñ”µÕÍĞ‰”½‰Ñ…¥¹•™¥ÉÍĞ‰•™½É”É•ÅÕ•ÍÑ¥¹œÑ¡”ÁÉ½‘ÕÑ¥½¸•ÉÑ¥™¥…Ñ”ˆ°(€€‹f+b³b ƒb«b»b×f+bÔƒbŸfbÏfb¼ƒffbŸb«f#bÇb¤ƒf#bŸb·b¿b¤ƒbçff$ƒbŸfbffˆè€‰Q¡”Ù½Õ¡•ÈµÕÍĞ‰”…±±½…Ñ•Ñ¼…Ğ±•…ÍĞ½¹”¥¹Ù½¥”ˆ°(€€‹f+b³b ƒb«bÓbëf+fƒb«bÇb·f+fƒb£ff#b¼ƒbŸfbÇf#bŸb«b ƒffbÃfƒbŸfbÓbÇfb¤ƒbf#fbŸf,ƒfb£fƒbÇb£bÜƒbÏffb¤ƒb£b»b×fƒbÓfbÇf(ƒb«ffbŸb›f(ƒŠPƒf+ffffƒb«bÏb³f+fƒbŸfbÏffb¤ƒb£fbœƒfbÏbÜƒbÓfbÇf(€£bÏb¿bŸb¼ƒf+b¿f#f(¤ƒb·b«f$ƒbÃffƒbŸfb·f+fˆè(€€€€‰Q¡”Á…åÉ½±°½µÁ½¹•¹ÑÌµ¥É…Ñ¥½¸µÕÍĞ‰”ÉÕ¸™½ÈÑ¡¥Ì½µÁ…¹ä™¥ÉÍĞ‰•™½É”±¥¹­¥¹œ…¸…‘Ù…¹”İ¥Ñ …ÕÑ½µ…Ñ¥Œµ½¹Ñ¡±ä‘•‘ÕÑ¥½¸ƒŠPå½Ô…¸É•¥ÍÑ•ÈÑ¡”…‘Ù…¹”İ¥Ñ¡½ÕĞ„µ½¹Ñ¡±ä¥¹ÍÑ…±±µ•¹Ğ€¡µ…¹Õ…°É•Á…åµ•¹Ğ¤Õ¹Ñ¥°Ñ¡•¸ˆ°(€€‹f+b³b ƒb«bçb£b›b¤ƒbŸfbÇffƒbŸfbÛbÇf+b£f(ƒffbÓbÇfb¤ƒbf#fbŸf,ƒffƒb£f+bŸfbŸb¨ƒbŸfbÓbÇfb¤ˆè€‰Q¡”½µÁ…¹äÌYP¹Õµ‰•ÈµÕÍĞ‰”™¥±±•¥¸™¥ÉÍĞ™É½´Ñ¡”½µÁ…¹äÌ‘…Ñ„ˆ°(€€‹f+b³b ƒb«bçb£b›b¤ƒbÇffƒbŸfbÏb³fƒbŸfb«b³bŸbÇf(ƒffbÓbÇfb¤ƒbf#fbŸf,ƒffƒb£f+bŸfbŸb¨ƒbŸfbÓbÇfb¤ˆè€‰Q¡”½µÁ…¹äÌ½µµ•É¥…°É•¥ÍÑÉ…Ñ¥½¸¹Õµ‰•ÈµÕÍĞ‰”™¥±±•¥¸™¥ÉÍĞ™É½´Ñ¡”½µÁ…¹äÌ‘…Ñ„ˆ°(€€‹f+b³b ƒb«f#ff+b¼MHƒbf#fbŸf,ƒfb£fƒbßfb ƒbÓfbŸb¿b¤ƒbŸfbŸb»b«b£bŸbÄˆè€‰MHµÕÍĞ‰”•¹•É…Ñ•™¥ÉÍĞ‰•™½É”É•ÅÕ•ÍÑ¥¹œÑ¡”½µÁ±¥…¹”•ÉÑ¥™¥…Ñ”ˆ°(€€‹f+fffƒfffƒbŸfb·bÏbŸb ƒb£f+fƒbfbÏbŸfƒbŸffbÏb«f#f$ƒffbÏfƒffbÜƒb·fbŸbãbŸf,ƒbçff$ƒb£ff+b¤ƒbŸfbff#bŸb¼ƒf#bŸfb«fbŸbÇf+bÄˆè€‰¸…½Õ¹Ğ…¸½¹±ä‰”µ½Ù•‰•Ñİ••¸É½ÕÁÌ…ĞÑ¡”Í…µ”±•Ù•°°Ñ¼ÁÉ•Í•ÉÙ”½‘”ÍÑÉÕÑÕÉ”…¹É•Á½ÉÑ¥¹œˆ°(€€‹f+f#b³b¼ƒb£bŸffbçfƒfb›b¤ƒbb×f#fƒb£ffbÌƒfbÃbœƒbŸfbŸbÏfƒff(ƒfbÃfƒbŸfbÓbÇfb¤ˆè€‰¸…ÍÍ•Ğ…Ñ•½Éäİ¥Ñ Ñ¡¥ÌÍ…µ”¹…µ”…±É•…‘ä•á¥ÍÑÌ¥¸Ñ¡¥Ì½µÁ…¹äˆ°(€€‰½µÁ…¹å%ƒfbßff#b ˆè€‰½µÁ…¹å%¥ÌÉ•ÅÕ¥É•ˆ°(€€‰½µÁ…¹å%ƒf ‘…Ñ”ƒfbßff#b£bŸfˆè€‰½µÁ…¹å%…¹‘…Ñ”…É”É•ÅÕ¥É•ˆ°(€€‰½µÁ…¹å%ƒf µ½¹Ñ ƒfbßff#b£bŸfˆè€‰½µÁ…¹å%…¹µ½¹Ñ …É”É•ÅÕ¥É•ˆ°(€€‰•µÁ±½å••%ƒf ±•…Ù•MÑ…ÉÑ…Ñ”ƒfbßff#b£bŸfˆè€‰•µÁ±½å••%…¹±•…Ù•MÑ…ÉÑ…Ñ”…É”É•ÅÕ¥É•ˆ°(€€‰•¹‘…Ñ”ƒfbßff#b ˆè€‰•¹‘…Ñ”¥ÌÉ•ÅÕ¥É•ˆ°(€€‰•¹Ñ¥ÑåQåÁ”ƒf •¹Ñ¥Ñå%ƒfbßff#b£bŸfˆè€‰•¹Ñ¥ÑåQåÁ”…¹•¹Ñ¥Ñå%…É”É•ÅÕ¥É•ˆ°(€€‰iQ}9IeAQ%=9}-dƒf+b³b ƒbfƒf+ff#f€ÌÈƒb£bŸf+b¨€ ÈÔØƒb£b¨¤ƒff?bÇffGbËbŸf,ƒb£f ‰…Í”ØĞˆè€‰iQ}9IeAQ%=9}-dµÕÍĞ‰”€ÌÈ‰åÑ•Ì€ ÈÔØ‰¥ÑÌ¤‰…Í”ØĞµ•¹½‘•ˆ°(€€¼¼ƒbÇbÏbŸb›f•ÉÉ½É!…¹‘±•È¹ÑÌƒbŸfb¿bŸb»ff+b¤€¡AÉ¥Íµ„¼ÔÀÀ¤ƒŠPƒfbœƒb«bãfbÄƒb£fbŸb›fb¤ƒbŸfbŸbÏb«b»bÇbŸb°ƒfbffbœƒffb«f#b£b¤ƒfb£bŸbÓbÇb¤(€€¼¼ƒb¿bŸb»f•ÉÉ½É!…¹‘±•È¹ÑÌƒffbÏfb0ƒfbœƒff#bÏf+bÜƒfb¿bŸfb¤¡ÑÑÁÉÉ½È(€€‹ff+fb¤ƒffbÇbÇb¤ƒb«fb«ffƒff+b¿bŸf,ƒfbÇf+b¿bŸf,ˆè€‰‘ÕÁ±¥…Ñ”Ù…±Õ”Ù¥½±…Ñ•Ì„Õ¹¥ÅÕ”½¹ÍÑÉ…¥¹Ğˆ°(€€‹fbœƒf+fffƒb·bÃfƒfbÃbœƒbŸfbçfb×bÄƒfbŸbÇb«b£bŸbßfƒb£bÏb³fbŸb¨ƒbb»bÇf$ˆè€‰Q¡¥Ì¥Ñ•´…¸Ğ‰”‘•±•Ñ•‰•…ÕÍ”¥ĞÌ±¥¹­•Ñ¼½Ñ¡•ÈÉ•½É‘Ìˆ°(€€‹b»bßbŒƒb¿bŸb»ff(ƒff(ƒbŸfb»bŸb¿fˆè€‰%¹Ñ•É¹…°Í•ÉÙ•È•ÉÉ½Èˆ°(€€‹bŸfbçfb×bÄƒbëf+bÄƒff#b³f#b¼ˆè€‰Q¡”¥Ñ•´‘½•Ì¹½Ğ•á¥ÍĞˆ°(€€‹bëf+bÄƒfb×bÇb´ˆè€‰U¹…ÕÑ¡½É¥é•ˆ°(€€‹fbœƒb«fffƒb×fbŸb·f+b¤ƒb«fff+bÀƒfbÃbœƒbŸfb—b³bÇbŸb„ˆè€‰e½Ô‘½¸Ğ¡…Ù”Á•Éµ¥ÍÍ¥½¸Ñ¼Á•É™½É´Ñ¡¥Ì…Ñ¥½¸ˆ°(€€¼¼ƒbÇbÏbŸb›fƒfb³bŸb´¿b£f+bŸfbŸb¨ƒb¯bŸb£b«b¤ƒb«f?bçbŸb¼ƒfb£bŸbÓbÇb¤ƒffƒbŸff½¹ÑÉ½±±•È€£fbœƒb«fbÄƒb£f •ÉÉ½É!…¹‘±•È¹ÑÌ¤ƒŠPƒff?b«bÇb³f;fb¤(€€¼¼ƒf+b¿f#f+bŸf,ƒbçb£bÄÑÉ…¹Í±…Ñ•5•ÍÍ…” ¤ƒbçfb¼ƒffbßb¤ƒbŸfb—bÇb³bŸbäƒffbÏfbŸb0ƒb£ffbÌƒbŸffbŸff#bÌ(€€‹b«fƒb«bçf+f+fƒfffb¤ƒbŸffbÇf#bÄƒbŸfb³b¿f+b¿b¤ƒb£fb³bŸb´¸ƒbÏb³fGfƒbŸfb¿b»f#fƒb£fbœƒbŸfb‹f¸ˆè€‰e½ÕÈÁ…ÍÍİ½É¡…Ì‰••¸É•Í•ĞÍÕ•ÍÍ™Õ±±ä¸1½œ¥¸İ¥Ñ ¥Ğ¹½Ü¸ˆ°(€€‹b«bçbÃfGbÄƒbŸbÏb«b»bÇbŸb°ƒbŸfb£f+bŸfbŸb¨ƒffƒfbÃbœƒbŸffbÏb«fb¼ˆè€‰½Õ±‘¸Ğ•áÑÉ…Ğ‘…Ñ„™É½´Ñ¡¥Ì‘½Õµ•¹Ğˆ°(€€‹ff ƒfbÃbœƒbŸfb£bÇf+b¼ƒbŸfb—ffb«bÇf#ff(ƒfbÏb³fGfƒb£bŸffbãbŸfb0ƒbÏf+b×ffƒbÇbŸb£bÜƒfb—bçbŸb¿b¤ƒb«bçf+f+fƒfffb¤ƒbŸffbÇf#bÄƒb»fbŸfƒb¿fbŸb›f¸ˆè(€€€€‰%˜Ñ¡¥Ì•µ…¥°¥ÌÉ•¥ÍÑ•É•¥¸Ñ¡”ÍåÍÑ•´°å½Ô±°É••¥Ù”„Á…ÍÍİ½ÉÉ•Í•Ğ±¥¹¬İ¥Ñ¡¥¸µ¥¹ÕÑ•Ì¸ˆ°)ôì((
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parentItemId    String
+  parentItem      Item     @relation("BundleParent", fields: [parentItemId], references: [id], onDelete: Cascade)
+  componentItemId String
+  componentItem   Item     @relation("ComponentItem", fields: [componentItemId], references: [id])
+  quantityPerUnit Decimal  @db.Decimal(18, 4)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([parentItemId, componentItemId])
+  @@map("item_components")
+}
+
+// Ù…Ø³ØªÙˆØ¯Ø¹ Ø­Ù‚ÙŠÙ‚ÙŠ (Ù…Ù†ÙØµÙ„ Ø¹Ù† CostCenterØŒ ÙƒØ§Ù† Ø§Ù„Ù…Ø®Ø²Ù† Ù‚Ø¯ÙŠÙ…Ø§Ù‹ Ù…Ø¬Ø±Ø¯ Ù…Ø±ÙƒØ² ØªÙƒÙ„ÙØ© Ù…Ø¹Ø§Ø¯ Ø§Ø³ØªØ®Ø¯Ø§Ù…Ù‡)
+model Warehouse {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name       String
+  code       String?
+  location   String?
+  // Ø§Ù„Ù…Ø³ØªÙˆØ¯Ø¹ Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠ Ù„ÙƒÙ„ Ø´Ø±ÙƒØ© â€” ÙŠÙØ³ØªØ®Ø¯ÙÙ… Ù„Ø®ØµÙ… Ø§Ù„Ù…Ø®Ø²ÙˆÙ† ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ø¹Ù†Ø¯ Ø§Ù„Ø¨ÙŠØ¹ (ÙØ§ØªÙˆØ±Ø© Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª
+  // Ù„Ø§ ØªØ¹Ø±Ø¶ Ø§Ø®ØªÙŠØ§Ø± Ù…Ø³ØªÙˆØ¯Ø¹ Ù„ÙƒÙ„ Ø³Ø·Ø± ÙÙŠ Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø±Ø­Ù„Ø©). Ø´Ø±ÙƒØ© ÙˆØ§Ø­Ø¯Ø© Ø¨Ø­Ø¯ Ø£Ù‚ØµÙ‰ Ù…Ø³ØªÙˆØ¯Ø¹ Ø§ÙØªØ±Ø§Ø¶ÙŠ ÙˆØ§Ø­Ø¯ØŒ
+  // ÙŠÙÙØ±ÙØ¶ Ù‡Ø°Ø§ ÙÙŠ warehouses.service Ø¹Ù†Ø¯ Ø§Ù„Ø¥Ù†Ø´Ø§Ø¡/Ø§Ù„ØªØ¹Ø¯ÙŠÙ„ (Ù…Ø´ Ù‚ÙŠØ¯ DB ØµØ±ÙŠØ­).
+  isDefault  Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  stockMovements       StockMovement[]
+  purchaseInvoiceLines PurchaseInvoiceLine[]
+
+  @@unique([tenantId, companyId, name])
+  @@map("warehouses")
+}
+
+enum StockMovementType {
+  in
+  out
+  issue
+  transfer_out
+  transfer_in
+}
+
+model StockMovement {
+  id                          String            @id @default(cuid())
+  tenantId                    String
+  tenant                      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                   String
+  company                     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  itemId                      String
+  item                        Item              @relation(fields: [itemId], references: [id])
+  warehouseId                 String
+  warehouse                   Warehouse         @relation(fields: [warehouseId], references: [id])
+  type                        StockMovementType
+  quantity                    Decimal           @db.Decimal(18, 4)
+  unitCost                    Decimal           @db.Decimal(18, 4)
+  date                        DateTime
+  note                        String?
+  journalEntryId              String?
+  transferGroupId             String? // ÙŠØ±Ø¨Ø· Ø³Ø·Ø±ÙŠ (ØµØ§Ø¯Ø±/ÙˆØ§Ø±Ø¯) Ù†ÙØ³ Ø¹Ù…Ù„ÙŠØ© Ø§Ù„ØªØ­ÙˆÙŠÙ„ Ø¨ÙŠÙ† Ø´Ø±ÙƒØªÙŠÙ†ØŒ Ù„Ø­Ø°ÙÙ‡Ù…Ø§ Ù…Ø¹Ø§Ù‹ Ø¹Ù†Ø¯ ÙÙƒ Ø§Ù„ØªØ±Ø­ÙŠÙ„
+  // ØªØªØ¨Ù‘Ø¹ Ù…ØµØ¯Ø± Ø§Ù„Ø­Ø±ÙƒØ© Ø¹Ù†Ø¯ Ø¥Ù†Ø´Ø§Ø¦Ù‡Ø§ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ù…Ù† ÙØ§ØªÙˆØ±Ø© (Ù„Ø­Ø°ÙÙ‡Ø§ Ù…Ø¹Ø§Ù‹ Ø¹Ù†Ø¯ ÙÙƒ ØªØ±Ø­ÙŠÙ„ Ø§Ù„ÙØ§ØªÙˆØ±Ø©)
+  sourcePurchaseInvoiceLineId String?           @unique
+  sourceSalesInvoiceLineId    String?           @unique
+  createdAt                   DateTime          @default(now())
+
+  @@map("stock_movements")
+}
+
+// ---------------------------------------------------------------------------
+// 4.7 Ø§Ù„Ø£ØµÙˆÙ„ Ø§Ù„Ø«Ø§Ø¨ØªØ©
+// ---------------------------------------------------------------------------
+
+enum FixedAssetStatus {
+  active
+  disposed
+}
+
+// Ø·Ø±ÙŠÙ‚Ø© Ø§Ù„Ù‚Ø³Ø· Ø§Ù„Ø«Ø§Ø¨Øª Ù‡ÙŠ Ø§Ù„ÙˆØ­ÙŠØ¯Ø© Ø§Ù„Ù…Ø­Ø³ÙˆØ¨Ø© ÙØ¹Ù„ÙŠØ§Ù‹ Ø­Ø§Ù„ÙŠØ§Ù‹ (src/lib/depreciation.ts) â€” Ø§Ù„Ù…ØªÙ†Ø§Ù‚Øµ
+// Ù…ÙØ¶Ø§Ù ÙƒØ®ÙŠØ§Ø± ØªØ®Ø²ÙŠÙ†/Ø¹Ø±Ø¶ ØªÙ…Ù‡ÙŠØ¯Ø§Ù‹ Ù„Ø¯Ø¹Ù…Ù‡ Ù„Ø§Ø­Ù‚Ø§Ù‹ØŒ ÙˆÙ„ÙŠØ³ Ù…Ø­Ø³ÙˆØ¨Ø§Ù‹ Ø¨Ø¹Ø¯Ø› Ø§Ù„Ø§Ø®ØªÙŠØ§Ø± ØºÙŠØ± Ø§Ù„Ù…Ø¯Ø¹ÙˆÙ… ÙŠÙØ±ÙÙØ¶ ÙÙŠ
+// Ø·Ø¨Ù‚Ø© Ø§Ù„Ù€ schema Ø¨Ø§Ù„Ø¨Ø§Ùƒ Ø¥Ù†Ø¯ (Phase B) Ù„Ø§ Ù‡Ù†Ø§.
+enum FixedAssetDepreciationMethod {
+  straight_line
+  declining_balance
+}
+
+// ØªØµÙ†ÙŠÙ Ø£ØµÙˆÙ„ (Phase C) â€” "Ø§Ù„Ù…Ø¬Ù…ÙˆØ¹Ø©" (groupName) ÙˆØµÙ Ø¹Ø±Ø¶/ØªØ¬Ù…ÙŠØ¹ ÙÙ‚Ø· Ø¨Ù„Ø§ Ø­Ø³Ø§Ø¨Ø§Øª Ø®Ø§ØµØ© Ø¨Ù‡ØŒ
+// Ø¨ÙŠÙ†Ù…Ø§ "Ø§Ù„ÙØ¦Ø©" (name) Ù‡ÙŠ Ø§Ù„Ù…Ø³ØªÙˆÙ‰ Ø§Ù„Ø°ÙŠ ÙŠØ­Ù…Ù„ Ø§Ù„Ø±Ø¨Ø· Ø§Ù„ÙØ¹Ù„ÙŠ Ø¨Ø«Ù„Ø§Ø«Ø© Ø­Ø³Ø§Ø¨Ø§Øª Ù…Ø­Ø§Ø³Ø¨ÙŠØ©. Ø§Ø®ØªÙŠØ§Ø± ÙØ¦Ø© Ø¹Ù†Ø¯
+// ØªØ³Ø¬ÙŠÙ„ Ø£ØµÙ„ Ø¬Ø¯ÙŠØ¯ ÙŠÙ…Ù„Ø£ Ø­Ø³Ø§Ø¨Ù‡ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ø¨Ø¯Ù„ Ø§Ø®ØªÙŠØ§Ø± Ø­Ø³Ø§Ø¨ Ø®Ø§Ù… ÙŠØ¯ÙˆÙŠØ§Ù‹ ÙÙŠ ÙƒÙ„ Ù…Ø±Ø©ØŒ ÙˆÙŠÙÙØ¹ÙÙ‘Ù„
+// isFixedAssetAccount ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ø¹Ù„Ù‰ Ø­Ø³Ø§Ø¨ Ø§Ù„Ø£ØµÙ„ Ø§Ù„Ù…Ø±ØªØ¨Ø·. Ù„Ø§ Ù…Ø³ØªÙˆÙ‰ "Ù‚Ø³Ù…" Ù…Ø³ØªÙ‚Ù„ Ù‡Ù†Ø§ â€” CostCenter
+// Ø§Ù„Ù…ÙˆØ¬ÙˆØ¯ Ø¨Ø§Ù„ÙØ¹Ù„ Ø¹Ù„Ù‰ FixedAsset.costCenterId ÙŠØºØ·ÙŠ Ù‡Ø°Ø§ Ø§Ù„Ù…ÙÙ‡ÙˆÙ….
+model AssetCategory {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  groupName String
+  name      String
+
+  assetAccountId String
+  assetAccount   Account @relation("AssetCategoryAssetAccount", fields: [assetAccountId], references: [id], onDelete: Restrict)
+
+  accumulatedDepreciationAccountId String
+  accumulatedDepreciationAccount   Account @relation("AssetCategoryAccumulatedDepreciationAccount", fields: [accumulatedDepreciationAccountId], references: [id], onDelete: Restrict)
+
+  depreciationExpenseAccountId String
+  depreciationExpenseAccount   Account @relation("AssetCategoryDepreciationExpenseAccount", fields: [depreciationExpenseAccountId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assets FixedAsset[]
+  items  Item[]       @relation("ItemAssetCategory")
+
+  @@unique([tenantId, companyId, name])
+  @@map("asset_categories")
+}
+
+model FixedAsset {
+  id                          String                       @id @default(cuid())
+  tenantId                    String
+  tenant                      Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                   String
+  company                     Company                      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Ø±Ù‚Ù… ØªØ³Ù„Ø³Ù„ÙŠ ØªÙ„Ù‚Ø§Ø¦ÙŠ Ø¨ØµÙŠØºØ© AST-00001 (Ù†ÙØ³ Ù†Ù…Ø· formatDocNumber Ø§Ù„Ù…Ø³ØªØ®Ø¯ÙÙ… Ù„Ø¨Ø§Ù‚ÙŠ Ø£Ø±Ù‚Ø§Ù…
+  // Ø§Ù„Ù…Ø³ØªÙ†Ø¯Ø§Øª) â€” ÙŠÙÙˆÙ„ÙÙ‘Ø¯ ÙÙŠ Ø§Ù„Ø¨Ø§Ùƒ Ø¥Ù†Ø¯ ÙˆÙ‚Øª Ø§Ù„Ø¥Ù†Ø´Ø§Ø¡ (Phase B)ØŒ ÙˆÙ„ÙŠØ³ Ù‡Ù†Ø§.
+  assetNumber                 String
+  name                        String
+  category                    String?
+  // ÙØ¦Ø© Ø§Ù„Ø£ØµÙ„ (Phase C) â€” Ø¹Ù†Ø¯ ØªØ­Ø¯ÙŠØ¯Ù‡Ø§ØŒ ØªÙØ´ØªÙ‚ Ù…Ù†Ù‡Ø§ Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª Ø§Ù„Ø«Ù„Ø§Ø«Ø© ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ø¨Ø¯Ù„ Ø§Ø®ØªÙŠØ§Ø± accountId
+  // ÙŠØ¯ÙˆÙŠØ§Ù‹Ø› nullable Ù„Ø¨Ù‚Ø§Ø¡ Ø§Ù„ØªÙˆØ§ÙÙ‚ Ù…Ø¹ Ø£ØµÙˆÙ„ Ù‚Ø¯ÙŠÙ…Ø©/Ø¨Ù„Ø§ ØªØµÙ†ÙŠÙ (ØªØ³Ù‚Ø· Ø¹Ù„Ù‰ Ø§Ù„Ù…Ø³Ø§Ø± Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠ Ø§Ù„Ù‚Ø¯ÙŠÙ…).
+  categoryId                  String?
+  categoryRef                 AssetCategory?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  serialNumber                String?
+  // ÙŠØ¸Ù‡Ø± ÙÙ‚Ø· ÙÙŠ Ø§Ù„ÙˆØ§Ø¬Ù‡Ø© Ù„Ùˆ category ÙŠÙˆØ­ÙŠ Ø¨Ù…Ø±ÙƒØ¨Ø© â€” Ù…ÙØ®Ø²ÙÙ‘Ù† Ø¯Ø§Ø¦Ù…Ø§Ù‹ Ø¨Ù„Ø§ Ù‚ÙŠØ¯ Ø¹Ù„Ù‰ Ù†ÙˆØ¹ Ø§Ù„Ø£ØµÙ„ Ù‡Ù†Ø§.
+  chassisNumber               String?
+  plateNumber                 String?
+  // Ø§Ù„Ù…ÙˆÙ‚Ø¹/Ø§Ù„ÙØ±Ø¹ â€” ÙŠØ¹ÙŠØ¯ Ø§Ø³ØªØ®Ø¯Ø§Ù… CostCenter Ø§Ù„Ù…ÙˆØ¬ÙˆØ¯ Ø¨Ø§Ù„ÙØ¹Ù„ (Ù†ÙØ³ Ù…ÙÙ‡ÙˆÙ… "Ø§Ù„Ù…ÙˆÙ‚Ø¹" Ø§Ù„Ù…Ø³ØªØ®Ø¯ÙÙ… ÙÙŠ
+  // Ø§Ù„Ù‚ÙŠÙˆØ¯ ÙˆÙ…Ø¨ÙŠØ¹Ø§Øª Ø§Ù„Ù…Ø­Ø·Ø§Øª) Ø¨Ø¯Ù„ Ù†Ù…ÙˆØ°Ø¬ Ù…Ø³ØªÙ‚Ù„ Ø¬Ø¯ÙŠØ¯ Ù„Ù…ÙÙ‡ÙˆÙ… Ù…Ø·Ø§Ø¨Ù‚.
+  costCenterId                String?
+  costCenter                  CostCenter?                  @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  // Ù…Ù† ÙŠØ­Ù…Ù„ Ù‡Ø°Ø§ Ø§Ù„Ø£ØµÙ„ ÙƒØ¹Ù‡Ø¯Ø© Ø­Ø§Ù„ÙŠØ§Ù‹ â€” ØªØªØ¨Ù‘Ø¹ Ø­Ø§Ù„Ø© Ø¨Ø³ÙŠØ· Ø¨Ù„Ø§ Ø£ÙŠ Ø£Ø«Ø± Ù…Ø­Ø§Ø³Ø¨ÙŠØŒ Ù…Ù†ÙØµÙ„ ØªÙ…Ø§Ù…Ø§Ù‹ Ø¹Ù†
+  // EmployeeAdvance Ø§Ù„Ù…Ø§Ù„ÙŠ. Ø£ÙŠ Ù†ÙˆØ¹ Ø£ØµÙ„ (Ù„Ø§ ÙŠÙ‚ØªØµØ± Ø¹Ù„Ù‰ Ù…Ø±ÙƒØ¨Ø§Øª). ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¹Ù‡Ø¯Ø© Ø¹Ø¨Ø± Ø§Ù„Ø²Ù…Ù† Ù…Ø¤Ø¬ÙÙ‘Ù„.
+  custodianEmployeeId         String?
+  custodian                   Employee?                    @relation("FixedAssetCustodian", fields: [custodianEmployeeId], references: [id], onDelete: SetNull)
+  purchaseDate                DateTime
+  cost                        Decimal                      @db.Decimal(18, 2)
+  // ØªØ§Ø±ÙŠØ® Ø¨Ø¯Ø¡ Ø­Ø³Ø§Ø¨ Ø§Ù„Ø¥Ù‡Ù„Ø§Ùƒ â€” Ù‚Ø¯ ÙŠØ®ØªÙ„Ù Ø¹Ù† ØªØ§Ø±ÙŠØ® Ø§Ù„Ø´Ø±Ø§Ø¡ (Ù…Ø«Ù„Ø§Ù‹ Ø£ØµÙ„ Ø§Ø´ØªÙØ±ÙŠ ÙˆÙ„Ù… ÙŠÙØ´ØºÙÙ‘Ù„ ÙÙˆØ±Ø§Ù‹).
+  // Nullable Ù„ØªÙˆØ§ÙÙ‚ Ø§Ù„Ø£ØµÙˆÙ„ Ø§Ù„Ù‚Ø¯ÙŠÙ…Ø©Ø› ÙŠÙØ³ØªØ®Ø¯ÙÙ… purchaseDate ÙƒØ§Ø­ØªÙŠØ§Ø·ÙŠ Ø¹Ù†Ø¯ ØºÙŠØ§Ø¨Ù‡.
+  depreciationStartDate       DateTime?
+  usefulLifeYears             Decimal                      @db.Decimal(6, 2)
+  salvageValue                Decimal                      @default(0) @db.Decimal(18, 2)
+  depreciationMethod          FixedAssetDepreciationMethod @default(straight_line)
+  // false Ù„Ø£ØµÙˆÙ„ Ù„Ø§ ØªÙØ³ØªÙ‡Ù„Ùƒ (Ù…Ø«Ù„ Ø§Ù„Ø£Ø±Ø§Ø¶ÙŠ) â€” ØªÙØ³ØªØ¨Ø¹ÙØ¯ Ù…Ù† Ø­Ø³Ø§Ø¨ Ø§Ù„Ø¥Ù‡Ù„Ø§Ùƒ Ø§Ù„Ø´Ù‡Ø±ÙŠ Ø¨Ø§Ù„ÙƒØ§Ù…Ù„.
+  isDepreciable               Boolean                      @default(true)
+  status                      FixedAssetStatus             @default(active)
+  disposalDate                DateTime?
+  disposalValue               Decimal?                     @db.Decimal(18, 2)
+  // Ø§Ù„Ø­Ø³Ø§Ø¨ Ø§Ù„ÙØ¹Ù„ÙŠ Ø§Ù„Ø°ÙŠ Ø±ÙØ­ÙÙ‘Ù„Øª Ø¹Ù„ÙŠÙ‡ ØªÙƒÙ„ÙØ© Ø§Ù‚ØªÙ†Ø§Ø¡ Ù‡Ø°Ø§ Ø§Ù„Ø£ØµÙ„ ØªØ­Ø¯ÙŠØ¯Ø§Ù‹ (Ø¨Ø¯Ù„ Ø­Ø³Ø§Ø¨ Ù…Ø´ØªØ±Ùƒ ÙˆØ§Ø­Ø¯ Ù„ÙƒÙ„
+  // Ø§Ù„Ø£ØµÙˆÙ„) â€” ÙŠÙØ³ØªØ®Ø¯ÙÙ… Ù„ØªØ±Ø­ÙŠÙ„ Ø§Ù„Ø¥Ù‡Ù„Ø§Ùƒ Ø§Ù„Ø´Ù‡Ø±ÙŠ ÙˆØ§Ù„Ø§Ø³ØªØ¨Ø¹Ø§Ø¯ Ø¹Ù„Ù‰ Ù†ÙØ³ Ø§Ù„Ø­Ø³Ø§Ø¨ ØªØ­Ø¯ÙŠØ¯Ø§Ù‹ (Phase B).
+  // Nullable Ø§Ø­ØªØ±Ø§Ø²ÙŠØ§Ù‹ ÙÙ‚Ø· (Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¨ÙŠØ§Ù†Ø§Øª Ù‚Ø¯ÙŠÙ…Ø© Ø¨Ù„Ø§ Ø­Ø³Ø§Ø¨ ÙØ¹Ù„ÙŠØ§Ù‹ ÙˆÙ‚Øª Ù‡Ø°Ø§ Ø§Ù„ØªØ¹Ø¯ÙŠÙ„) â€” Ø£ÙŠ Ø£ØµÙ„
+  // Ù…Ø³ØªÙ‚Ø¨Ù„ÙŠ Ø¨Ù„Ø§ accountId ÙŠÙ‚Ø¹ Ø¹Ù„Ù‰ Ø§Ù„Ù…Ø³Ø§Ø± Ø§Ù„Ø§Ø­ØªÙŠØ§Ø·ÙŠ Ø§Ù„Ù‚Ø¯ÙŠÙ… (Ø¨Ø­Ø« Ø¨Ø§Ù„Ø§Ø³Ù…) Ø¨Ø¯Ù„ ÙØ´Ù„ ØµØ±ÙŠØ­.
+  accountId                   String?
+  account                     Account?                     @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  journalEntryId              String?
+  // Ù„Ùˆ Ø§Ù„Ø£ØµÙ„ Ø§ØªØ³Ø¬Ù‘Ù„ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ù…Ù† Ø³Ø·Ø± ÙØ§ØªÙˆØ±Ø© Ù…Ø´ØªØ±ÙŠØ§Øª (ØµÙ†Ù Ù…Ù† Ù†ÙˆØ¹ "Ø£ØµÙ„ Ø«Ø§Ø¨Øª")ØŒ Ø¨ÙŠØ±Ø¨Ø· Ø¨Ù†ÙØ³
+  // Ù‚ÙŠØ¯ Ø§Ù„ÙØ§ØªÙˆØ±Ø© (journalEntryId Ø£Ø¹Ù„Ø§Ù‡) Ù…Ø´ Ù‚ÙŠØ¯ Ù…Ù†ÙØµÙ„ â€” Ù‡Ø°Ø§ Ø§Ù„Ø­Ù‚Ù„ Ù„Ù„ØªØªØ¨Ø¹/Ø§Ù„Ø­Ø°Ù Ø¹Ù†Ø¯ ÙÙƒ Ø§Ù„ØªØ±Ø­ÙŠÙ„ Ø¨Ø³.
+  sourcePurchaseInvoiceLineId String?                      @unique
+  // Ù†ÙØ³ Ø§Ù„Ù…Ø¨Ø¯Ø£ØŒ Ù„Ø£ØµÙ„ Ø£ÙÙ†Ø´Ø¦ Ù…Ù† Ù†Ø§ÙØ°Ø© Ø§Ø®ØªÙŠØ§Ø± Ø­Ø³Ø§Ø¨ Ø£ØµÙˆÙ„ Ø«Ø§Ø¨ØªØ© Ø¯Ø§Ø®Ù„ Ù‚ÙŠØ¯ ÙŠÙˆÙ…ÙŠØ© Ø¹Ø§Ø¯ÙŠ (Phase F).
+  sourceJournalEntryLineId    String?                      @unique
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+
+  journalEntryLines JournalEntryLine[]
+
+  @@unique([tenantId, companyId, assetNumber])
+  @@map("fixed_assets")
+}
+
+model DepreciationRun {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  month          String // YYYY-MM
+  totalAmount    Decimal  @db.Decimal(18, 2)
+  journalEntryId String?
+  createdAt      DateTime @default(now())
+
+  @@unique([tenantId, companyId, month])
+  @@map("depreciation_runs")
+}
+
+// ---------------------------------------------------------------------------
+// 4.8 Ø´Ø¦ÙˆÙ† Ø§Ù„Ù…ÙˆØ¸ÙÙŠÙ†
+// ---------------------------------------------------------------------------
+
+enum ContractType {
+  unlimited
+  limited
+}
+
+enum LeaveStatus {
+  active
+  onLeave
+}
+
+enum EmployeeStatus {
+  active
+  terminated
+}
+
+model Employee {
+  id                        String         @id @default(cuid())
+  tenantId                  String
+  tenant                    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                 String
+  company                   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                      String
+  jobTitle                  String?
+  department                String?
+  hireDate                  DateTime
+  contractType              ContractType   @default(unlimited)
+  contractEnd               DateTime?
+  basicSalary               Decimal        @db.Decimal(18, 2)
+  housingAllowance          Decimal        @default(0) @db.Decimal(18, 2)
+  transportAllowance        Decimal        @default(0) @db.Decimal(18, 2)
+  otherAllowance            Decimal        @default(0) @db.Decimal(18, 2)
+  gosiApplicable            Boolean        @default(true)
+  gosiAmount                Decimal?       @db.Decimal(18, 2)
+  advances                  Decimal        @default(0) @db.Decimal(18, 2)
+  otherDeductions           Decimal        @default(0) @db.Decimal(18, 2)
+  nationality               String?
+  dateOfBirth               DateTime?
+  bankName                  String?
+  bankAccount               String?
+  leaveStatus               LeaveStatus    @default(active)
+  lastLeaveReturnDate       DateTime?
+  probationEndDate          DateTime?
+  probationEvaluated        Boolean        @default(false)
+  status                    EmployeeStatus @default(active)
+  // --- Ø¨ÙˆØ§Ø¨Ø© Ø§Ù„Ù…ÙˆØ¸Ù (ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„Ø¬ÙˆØ§Ù„) â€” ØªØ³Ø¬ÙŠÙ„ Ø¯Ø®ÙˆÙ„ Ù…Ù†ÙØµÙ„ ØªÙ…Ø§Ù…Ø§Ù‹ Ø¹Ù† Ø­Ø³Ø§Ø¨Ø§Øª User Ø§Ù„Ø¥Ø¯Ø§Ø±ÙŠØ© ---
+  phone                     String? // Ø±Ù‚Ù… Ø¬ÙˆØ§Ù„ Ø§Ù„Ù…ÙˆØ¸Ù â€” Ù‚Ù†Ø§Ø© Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù„Ø¨ÙˆØ§Ø¨Ø© Ø§Ù„Ù…ÙˆØ¸Ù (ÙØ±ÙŠØ¯ Ø¶Ù…Ù† Ø§Ù„Ù…Ø³ØªØ£Ø¬Ø±)
+  pinHash                   String? // ØªØ¬Ø²Ø¦Ø© bcrypt Ù„Ø±Ù…Ø² PIN (Ù…Ø·Ø§Ø¨Ù‚ Ù„Ø£Ø³Ù„ÙˆØ¨ hashPassword)ØŒ Ù„Ø§ ÙŠÙØ®Ø²ÙÙ‘Ù† Ù†ØµØ§Ù‹ Ø£Ø¨Ø¯Ø§Ù‹
+  portalActive              Boolean        @default(false) // ØªÙØ¹Ù‘Ù„Ù‡ Ø§Ù„Ù…ÙˆØ§Ø±Ø¯ Ø§Ù„Ø¨Ø´Ø±ÙŠØ© ØµØ±Ø§Ø­Ø©Ù‹ Ø¨Ø¹Ø¯ ØªØ¹ÙŠÙŠÙ† Ø§Ù„Ù‡Ø§ØªÙ/PIN
+  failedPortalLoginAttempts Int            @default(0)
+  portalLockedUntil         DateTime?
+  managerId                 String?
+  manager                   Employee?      @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  // Ø­Ø³Ø§Ø¨ ØªÙØµÙŠÙ„ÙŠ Ù…Ø³ØªÙ‚Ù„ (Ù…Ø³ØªÙˆÙ‰ Ø±Ø§Ø¨Ø¹) ØªØ­Øª Ù…Ø¬Ù…ÙˆØ¹Ø© "Ø°Ù…Ù… Ø§Ù„Ù…ÙˆØ¸ÙÙŠÙ†" (Ø£ØµÙˆÙ„ Ù…ØªØ¯Ø§ÙˆÙ„Ø©) â€” ÙŠÙ…Ø«Ù‘Ù„ ØµØ§ÙÙŠ Ø§Ù„Ø±Ø§ØªØ¨
+  // Ø§Ù„Ù…Ø³ØªØ­Ù‚ Ù„Ù‡Ø°Ø§ Ø§Ù„Ù…ÙˆØ¸Ù ØªØ­Ø¯ÙŠØ¯Ø§Ù‹ (Ø¨Ø¯Ù„ Ø§Ù„Ø­Ø³Ø§Ø¨ Ø§Ù„Ù…Ø´ØªØ±Ùƒ "Ø±ÙˆØ§ØªØ¨ Ù…Ø³ØªØ­Ù‚Ø© Ù„Ù„ØµØ±Ù"/"Ø°Ù…Ù… Ø§Ù„Ù…ÙˆØ¸ÙÙŠÙ† -
+  // Ù…Ø³ØªØ­Ù‚Ø§Øª ÙˆØ¥Ø¬Ø§Ø²Ø§Øª" Ø§Ù„Ø³Ø§Ø¨Ù‚). Ù†ÙØ³ Ù…Ø¨Ø¯Ø£ Customer.accountId/Supplier.accountId.
+  accountId                 String?
+  account                   Account?       @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+
+  documents         EmployeeDocument[]
+  leaveRequests     LeaveRequest[]
+  leaveSettlements  LeaveSettlement[]
+  hrActions         HrAction[]
+  journalEntryLines JournalEntryLine[]
+  directReports     Employee[]                 @relation("EmployeeManager")
+  attendanceRecords AttendanceRecord[]
+  payrollComponents EmployeePayrollComponent[]
+  advanceRecords    EmployeeAdvance[]
+  // Ø£ØµÙˆÙ„ Ù…Ø­ØªÙÙØ¸ Ø¨Ù‡Ø§ ÙƒØ¹Ù‡Ø¯Ø© Ø­Ø§Ù„ÙŠØ§Ù‹ â€” ØªØªØ¨Ù‘Ø¹ Ø¨Ø³ÙŠØ· Ù„Ù…Ù† ÙŠØ­Ù…Ù„ Ø§Ù„Ø£ØµÙ„ Ø§Ù„Ø¢Ù† Ø¨Ù„Ø§ Ø£ÙŠ Ø£Ø«Ø± Ù…Ø­Ø§Ø³Ø¨ÙŠ (Ø¨Ø¹ÙƒØ³
+  // EmployeeAdvance)Ø› ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¹ÙÙ‡Ø¯Ø© Ø¹Ø¨Ø± Ø§Ù„Ø²Ù…Ù† Ù…Ø¤Ø¬ÙÙ‘Ù„ Ù„Ù…Ø±Ø­Ù„Ø© Ù…Ø³ØªÙ‚Ø¨Ù„ÙŠØ© (AssetCustodyHistory).
+  custodyAssets     FixedAsset[]               @relation("FixedAssetCustodian")
+
+  @@unique([tenantId, phone])
+  @@map("employees")
+}
+
+model EmployeeDocument {
+  id         String    @id @default(cuid())
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String
+  number     String?
+  expiryDate DateTime?
+
+  @@map("employee_documents")
+}
+
+enum LeaveRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+model LeaveRequest {
+  id         String             @id @default(cuid())
+  employeeId String
+  employee   Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       String
+  startDate  DateTime
+  endDate    DateTime
+  days       Int
+  status     LeaveRequestStatus @default(pending)
+  note       String?
+  createdAt  DateTime           @default(now())
+
+  @@map("leave_requests")
+}
+
+// Ø­Ø¶ÙˆØ± Ø§Ù„Ù…ÙˆØ¸Ù Ø§Ù„ÙŠÙˆÙ…ÙŠ â€” Ø³Ø¬Ù„ ÙˆØ§Ø­Ø¯ Ù„ÙƒÙ„ Ù…ÙˆØ¸Ù Ù„ÙƒÙ„ ÙŠÙˆÙ… ØªÙ‚ÙˆÙŠÙ…ÙŠ (ØªØ³Ø¬ÙŠÙ„ Ø­Ø¶ÙˆØ±/Ø§Ù†ØµØ±Ø§Ù Ù…Ù† Ø¨ÙˆØ§Ø¨Ø© Ø§Ù„Ø¬ÙˆØ§Ù„).
+// Ø§Ù„Ù…Ø±Ø­Ù„Ø© Ø§Ù„Ø­Ø§Ù„ÙŠØ© ØªÙƒØªÙÙŠ Ø¨Ø±ØµØ¯ "ØºÙŠØ§Ø¨ ØªØ§Ù…" (Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ø³Ø¬Ù„ Ø¥Ø·Ù„Ø§Ù‚Ø§Ù‹ Ù„Ù‡Ø°Ø§ Ø§Ù„ÙŠÙˆÙ…) Ø¯ÙˆÙ† ØªÙˆÙ‚ÙŠØªØ§Øª Ø¯ÙˆØ§Ù… Ø£Ùˆ
+// ÙƒØ´Ù ØªØ£Ø®ÙŠØ±/Ø§Ù†ØµØ±Ø§Ù Ù…Ø¨ÙƒØ± â€” ÙŠØ¤Ø¬ÙÙ‘Ù„ Ø°Ù„Ùƒ Ù„Ù…Ø±Ø­Ù„Ø© Ù„Ø§Ø­Ù‚Ø© Ø¹Ù†Ø¯ Ø¥Ø¶Ø§ÙØ© Ø¬Ø¯Ø§ÙˆÙ„ Ø§Ù„ÙˆØ±Ø¯ÙŠØ§Øª Ø§Ù„Ø±Ø³Ù…ÙŠØ©.
+model AttendanceRecord {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime // Ù…Ù†ØªØµÙ Ø§Ù„Ù„ÙŠÙ„ UTC Ù„Ù„ÙŠÙˆÙ… Ø§Ù„ØªÙ‚ÙˆÙŠÙ…ÙŠ (Ø¨Ù„Ø§ ÙˆÙ‚Øª) â€” Ù…ÙØªØ§Ø­ "ÙŠÙˆÙ… ÙˆØ§Ø­Ø¯" Ù„ÙƒÙ„ Ù…ÙˆØ¸Ù
+  checkInAt  DateTime?
+  checkOutAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([tenantId, companyId, date])
+  @@map("attendance_records")
+}
+
+enum LeaveSettlementStatus {
+  calculated
+  disbursed
+}
+
+model LeaveSettlement {
+  id                         String                @id @default(cuid())
+  tenantId                   String
+  tenant                     Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeId                 String
+  employee                   Employee              @relation(fields: [employeeId], references: [id])
+  leaveStartDate             DateTime
+  monthAmount                Decimal               @db.Decimal(18, 2)
+  daysWorked                 Decimal               @db.Decimal(6, 2)
+  bonuses                    Decimal               @default(0) @db.Decimal(18, 2)
+  deductions                 Decimal               @default(0) @db.Decimal(18, 2)
+  ticketAmount               Decimal               @default(0) @db.Decimal(18, 2)
+  visaAmount                 Decimal               @default(0) @db.Decimal(18, 2)
+  accruedDays                Decimal               @db.Decimal(6, 2)
+  netAmount                  Decimal               @db.Decimal(18, 2)
+  journalEntryId             String?
+  status                     LeaveSettlementStatus @default(calculated)
+  disbursementMethod         String?
+  disbursementDate           DateTime?
+  disbursementJournalEntryId String?
+  returnDate                 DateTime?
+  createdAt                  DateTime              @default(now())
+  updatedAt                  DateTime              @updatedAt
+
+  @@map("leave_settlements")
+}
+
+// ---------------------------------------------------------------------------
+// 4.9 Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø±ÙˆØ§ØªØ¨ Ø§Ù„Ù…Ø±Ù†Ø© â€” Ø¨Ù†ÙˆØ¯ Ù‚Ø§Ø¨Ù„Ø© Ù„Ù„ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„ÙƒØ§Ù…Ù„ (Phase H) Ø¨Ø¯Ù„ Ø§Ù„Ø­Ù‚ÙˆÙ„ Ø§Ù„Ø§Ø«Ù†ÙŠ Ø¹Ø´Ø±
+// Ø§Ù„Ø«Ø§Ø¨ØªØ© Ø³Ø§Ø¨Ù‚Ø§Ù‹ ÙÙŠ WidePayrollRow. Ø§Ù†Ø¸Ø± src/lib/payrollEngine.ts Ù„Ù…Ù†Ø·Ù‚ Ø§Ù„ØªÙ‚ÙŠÙŠÙ… Ø§Ù„ÙØ¹Ù„ÙŠØŒ
+// Ùˆ/root/.claude/plans/shimmering-popping-thunder.md Ù„ØªØµÙ…ÙŠÙ… Ø¨Ù†ÙŠØ© "Ø§Ù„ØµÙŠØºØ© Ø§Ù„Ù…Ø±ÙƒÙ‘Ø¨Ø©" (formula).
+// ---------------------------------------------------------------------------
+
+// Ø¨Ù†Ø¯ Ø±Ø§ØªØ¨ ÙˆØ§Ø­Ø¯ (Ø¥Ø¶Ø§ÙØ© Ø£Ùˆ Ø®ØµÙ…) â€” Ù‚Ø§Ø¨Ù„ Ù„Ù„ØªØ¹Ø¯ÙŠÙ„ Ø§Ù„ÙƒØ§Ù…Ù„ Ù…Ù† Ø´Ø§Ø´Ø© "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø±ÙˆØ§ØªØ¨"ØŒ Ù…Ø¹ Ø·Ø±ÙŠÙ‚Ø© Ø­Ø³Ø§Ø¨
+// Ù…Ø±Ù†Ø© (Ù‚ÙŠÙ…Ø© Ø«Ø§Ø¨ØªØ© / ØµÙŠØºØ© Ù…Ø±ÙƒÙ‘Ø¨Ø© ØªØ´Ù…Ù„ Ø§Ù„Ù†Ø³Ø¨Ø© Ø§Ù„Ù…Ø¦ÙˆÙŠØ© ÙƒØ­Ø§Ù„Ø© Ø®Ø§ØµØ© Ø¨Ø­Ø¯Ù‘ ÙˆØ§Ø­Ø¯ Ø¨Ù„Ø§ ØªØ­ÙˆÙŠÙ„ ÙˆØ­Ø¯Ø©).
+model PayrollComponent {
+  id                       String   @id @default(cuid())
+  tenantId                 String
+  tenant                   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                String
+  company                  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                     String
+  kind                     String // "addition" | "deduction"
+  accountId                String
+  account                  Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  calcMethod               String // "fixed" | "formula" â€” Ø§Ù†Ø¸Ø± PayrollFormula ÙÙŠ payrollEngine.ts
+  formula                  Json? // PayrollFormula â€” ÙÙ‚Ø· Ø¹Ù†Ø¯ calcMethod = "formula"
+  // { unitType: "hour"|"day", referenceComponentIds: string[] } | null â€” ÙŠÙØ¹Ù‘Ù„ Ø¥Ø¯Ø®Ø§Ù„ "ØªØ³ÙˆÙŠØ© Ø´Ù‡Ø±ÙŠØ©"
+  // (HrAction) ÙƒØ¹Ø¯Ø¯ ÙˆØ­Ø¯Ø§Øª (Ø£ÙŠØ§Ù…/Ø³Ø§Ø¹Ø§Øª) Ø¨Ø¯Ù„ Ù…Ø¨Ù„Øº Ø¬Ø§Ù‡Ø²ØŒ Ù…Ø­Ø³ÙˆØ¨Ø© Ø¨Ù†ÙØ³ Ù…Ù†Ø·Ù‚ Ø³Ø¹Ø± Ø§Ù„ÙˆØ­Ø¯Ø© ÙÙŠ formula.
+  adjustmentUnitBasis      Json?
+  allowsMonthlyAdjustments Boolean  @default(true)
+  // ÙŠÙØ·Ø¨ÙÙ‘Ù‚ ÙÙ‚Ø· Ø¹Ù„Ù‰ Ø§Ù„Ø¨Ù†ÙˆØ¯ Ø§Ù„Ù…Ø±ØªØ¨Ø·Ø© Ù…Ø¨Ø§Ø´Ø±Ø© Ø¨Ù…Ø±ØªØ¨ Ø§Ù„Ù…ÙˆØ¸Ù Ø§Ù„Ø£Ø³Ø§Ø³ÙŠ (ØªÙ†Ø§Ø³Ø¨ ØªÙ„Ù‚Ø§Ø¦ÙŠ Ø¹Ù†Ø¯ Ø¥Ø¬Ø§Ø²Ø©/Ø¹ÙˆØ¯Ø©
+  // Ù…Ù†ØªØµÙ Ø§Ù„Ø´Ù‡Ø±) â€” ÙŠØ·Ø§Ø¨Ù‚ Ù…Ù†Ø·Ù‚ computeWidePayrollRow Ø§Ù„Ù‚Ø¯ÙŠÙ… (returningThisMonth).
+  prorateOnPartialMonth    Boolean  @default(true)
+  // "basicSalary"|"housingAllowance"|"transportAllowance"|"otherAllowance"|null â€” Ù„Ù„Ø¨Ù†ÙˆØ¯ Ø§Ù„Ø£Ø±Ø¨Ø¹Ø©
+  // Ø§Ù„ØªÙŠ ÙŠØ¹ØªÙ…Ø¯ Ø¹Ù„ÙŠÙ‡Ø§ calcEOS/dailyRate Ù…Ø¨Ø§Ø´Ø±Ø© Ù…Ù† Ø£Ø¹Ù…Ø¯Ø© Employee Ø§Ù„Ø®Ø§Ù… (hrCalculations.ts)Ø› Ù‚ÙŠÙ…ØªÙ‡Ø§
+  // Ù…Ø±Ø¢Ø© Ø­ÙŠÙ‘Ø© Ù„Ø¹Ù…ÙˆØ¯ Employee Ø§Ù„Ù…Ø·Ø§Ø¨Ù‚ Ø¨Ø¯Ù„ Ù‚ÙŠÙ…Ø© Ù…Ø³ØªÙ‚Ù„Ø©ØŒ Ø­ÙØ§Ø¸Ø§Ù‹ Ø¹Ù„Ù‰ ØªÙ„Ùƒ Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠØ© Ø§Ù„Ø£Ø®Ø±Ù‰.
+  sourceEmployeeField      String?
+  isSystem                 Boolean  @default(false) // Ø¨Ù†ÙˆØ¯ Ù…Ù‡Ø§Ø¬ÙØ±Ø© Ù…Ù† Ø§Ù„Ù†Ø¸Ø§Ù… Ø§Ù„Ù‚Ø¯ÙŠÙ… â€” ØªÙÙ…Ù†Ø¹ Ù…Ù† Ø§Ù„Ø­Ø°Ù
+  // Ù…ÙØªØ§Ø­ Ø«Ø§Ø¨Øª Ø¯Ø§Ø®Ù„ÙŠ Ù„Ù„Ø¨Ù†ÙˆØ¯ Ø§Ù„Ù†Ø¸Ø§Ù…ÙŠØ© ÙÙ‚Ø· (Ù…Ø«Ù„ "basic"/"gosi") â€” ÙŠØ³Ù…Ø­ Ù„Ø³ÙƒØ±ÙŠØ¨Øª Ø§Ù„ØªØ¹Ø¨Ø¦Ø© Ø§Ù„Ø±Ø¬Ø¹ÙŠØ©
+  // ÙˆØµÙŠØº Ø§Ù„Ø¨Ù†ÙˆØ¯ Ø§Ù„Ø£Ø®Ø±Ù‰ (ÙƒØµÙŠØºØ© GOSI Ø§Ù„ØªÙŠ ØªØ´ÙŠØ± Ù„Ø¨Ù†Ø¯ "Ø§Ù„Ø£Ø³Ø§Ø³ÙŠ") Ø¨Ø¥ÙŠØ¬Ø§Ø¯ Ø¨Ù†Ø¯ Ù†Ø¸Ø§Ù…ÙŠ Ø¨Ø¹ÙŠÙ†Ù‡ Ù„ÙƒÙ„ Ø´Ø±ÙƒØ©
+  // Ø¨Ø´ÙƒÙ„ ØµØ§Ù…Ø¯ Ø£Ù…Ø§Ù… Ø¥Ø¹Ø§Ø¯Ø© ØªØ³Ù…ÙŠØ© Ø§Ù„Ø¹Ø±Ø¶ (name) Ù„Ø§Ø­Ù‚Ø§Ù‹ Ù…Ù† ÙˆØ§Ø¬Ù‡Ø© Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª. null Ù„Ø£ÙŠ Ø¨Ù†Ø¯ ØºÙŠØ± Ù†Ø¸Ø§Ù…ÙŠ.
+  systemKey                String?
+  isActive                 Boolean  @default(true)
+  sortOrder                Int      @default(0)
+  appliesByDefault         Boolean  @default(true) // ÙŠÙØ³Ù†Ø¯ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ù„ÙƒÙ„ Ù…ÙˆØ¸Ù Ø¬Ø¯ÙŠØ¯
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  employeeLinks EmployeePayrollComponent[]
+  hrActions     HrAction[]
+
+  @@unique([companyId, systemKey])
+  @@map("payroll_components")
+}
+
+// ØªØ¹ÙŠÙŠÙ† Ø¨Ù†Ø¯ Ø±Ø§ØªØ¨ Ù„Ù…ÙˆØ¸Ù Ù…Ø¹ÙŠÙ‘Ù† â€” ÙƒÙ„ Ù…ÙˆØ¸Ù Ù‚Ø¯ ØªÙ†Ø·Ø¨Ù‚ Ø¹Ù„ÙŠÙ‡ Ø¨Ù†ÙˆØ¯ Ù…Ø®ØªÙ„ÙØ©ØŒ ÙˆØ§Ù„Ù‚ÙŠÙ…Ø© Ø§Ù„Ø«Ø§Ø¨ØªØ© (Ø¹Ù†Ø¯
+// calcMethod = "fixed" ÙˆØ¨Ù„Ø§ sourceEmployeeField) ØªÙØ¯Ø®ÙÙ„ Ù‡Ù†Ø§ Ø®ØµÙŠØµØ§Ù‹ Ù„Ù‡Ø°Ø§ Ø§Ù„Ù…ÙˆØ¸Ù.
+model EmployeePayrollComponent {
+  id          String           @id @default(cuid())
+  tenantId    String
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  componentId String
+  component   PayrollComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  fixedValue  Decimal?         @db.Decimal(18, 2)
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  advance EmployeeAdvance?
+
+  @@unique([employeeId, componentId])
+  @@map("employee_payroll_components")
+}
+
+enum EmployeeAdvanceStatus {
+  active
+  settled
+}
+
+// Ø³Ù„ÙØ©/Ø¹Ù‡Ø¯Ø© Ù…ÙˆØ¸Ù â€” Ø£ÙÙ†Ø´Ø¦Øª Ù…Ù† Ù†Ø§ÙØ°Ø© Ø§Ø®ØªÙŠØ§Ø± Ø­Ø³Ø§Ø¨ "Ø¹Ù‡Ø¯Ø©/Ø³Ù„ÙØ©" Ø¯Ø§Ø®Ù„ Ù‚ÙŠØ¯ ÙŠÙˆÙ…ÙŠ (Phase F)ØŒ Ø£Ùˆ Ù…Ù†
+// Ø´Ø§Ø´Ø© Ù…Ø®ØµÙÙ‘ØµØ© Ù„Ø§Ø­Ù‚Ø§Ù‹. Ù„Ùˆ monthlyInstallment Ù…Ø­Ø¯ÙÙ‘Ø¯Ø©ØŒ ØªÙÙ†Ø´Ø¦ Ø¨Ù†Ø¯ Ø±Ø§ØªØ¨ Ù…Ø®ØµÙÙ‘Øµ Ù„Ù‡Ø°Ù‡ Ø§Ù„Ø³Ù„ÙØ© ØªØ­Ø¯ÙŠØ¯Ø§Ù‹
+// (employeePayrollComponentId) Ø¨Ø¯Ù„ Ø§Ø³ØªØ®Ø¯Ø§Ù… Ø¨Ù†Ø¯ "Ø³Ù„Ù Ù…ÙˆØ¸ÙÙŠÙ†" Ø§Ù„Ø¹Ø§Ù… Ø§Ù„Ù…Ø´ØªØ±Ùƒ â€” Ù„Ø£Ù†
+// EmployeePayrollComponent Ù…Ù‚ÙŠÙÙ‘Ø¯ Ø¨Ù€ @@unique([employeeId, componentId])ØŒ ÙØ¨Ù†Ø¯ Ù…Ø´ØªØ±Ùƒ ÙˆØ§Ø­Ø¯
+// ÙŠÙ…Ù†Ø¹ ÙˆØ¬ÙˆØ¯ Ø£ÙƒØ«Ø± Ù…Ù† Ø³Ù„ÙØ© Ù†Ø´Ø·Ø© Ù„Ù†ÙØ³ Ø§Ù„Ù…ÙˆØ¸Ù Ø¨Ø¬Ø¯ÙˆÙ„ÙŠ ØªÙ‚Ø³ÙŠØ· Ù…Ø®ØªÙ„ÙÙŠÙ† ÙÙŠ Ø¢Ù† ÙˆØ§Ø­Ø¯Ø› Ø¨Ù†Ø¯ Ù…Ø®ØµÙÙ‘Øµ Ù„ÙƒÙ„ Ø³Ù„ÙØ©
+// ÙŠØªÙØ§Ø¯Ù‰ Ù‡Ø°Ø§ Ø§Ù„Ù‚ÙŠØ¯ ØªÙ…Ø§Ù…Ø§Ù‹. null Ù„Ø¹Ù‡Ø¯Ø© Ù†Ù‚Ø¯ÙŠØ© Ø¹Ø§Ø¯ÙŠØ© ØºÙŠØ± Ù…ÙÙ‚Ø³Ù‘Ø·Ø© (Ø¨Ù„Ø§ ØªÙƒØ§Ù…Ù„ Ù…Ø¹ Ø§Ù„Ø±ÙˆØ§ØªØ¨ Ø¥Ø·Ù„Ø§Ù‚Ø§Ù‹).
+model EmployeeAdvance {
+  id                         String                    @id @default(cuid())
+  tenantId                   String
+  tenant                     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                  String
+  company                    Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employeeId                 String
+  employee                   Employee                  @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  // Ø§Ù„Ø­Ø³Ø§Ø¨ Ø§Ù„ÙØ¹Ù„ÙŠ (Ø¹Ù‡Ø¯Ø©/Ø³Ù„ÙØ© Ù‡Ø°Ø§ Ø§Ù„Ù…ÙˆØ¸Ù ØªØ­Ø¯ÙŠØ¯Ø§Ù‹) Ø§Ù„Ø°ÙŠ Ø±ÙØ­ÙÙ‘Ù„ Ø¹Ù„ÙŠÙ‡ Ù…Ø¨Ù„Øº Ø§Ù„Ø³Ù„ÙØ©.
+  accountId                  String
+  account                    Account                   @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  amount                     Decimal                   @db.Decimal(18, 2)
+  monthlyInstallment         Decimal?                  @db.Decimal(18, 2)
+  // ÙŠØ¨Ø¯Ø£ = amountØŒ ÙŠÙÙ†Ù‚ÙØµ ÙƒÙ„ ØªØ´ØºÙŠÙ„ Ø±ÙˆØ§ØªØ¨ Ø¨Ù…Ù‚Ø¯Ø§Ø± Ø§Ù„Ø®ØµÙ… Ø§Ù„ÙØ¹Ù„ÙŠ (Phase E) Ø­ØªÙ‰ ÙŠØµÙ„ ØµÙØ±Ø§Ù‹ ÙØªÙØµØ¨Ø­
+  // status = settled ÙˆÙŠÙØ¹Ø·ÙÙ‘Ù„ employeePayrollComponent ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹.
+  remainingBalance           Decimal                   @db.Decimal(18, 2)
+  startDate                  DateTime
+  status                     EmployeeAdvanceStatus     @default(active)
+  employeePayrollComponentId String?                   @unique
+  employeePayrollComponent   EmployeePayrollComponent? @relation(fields: [employeePayrollComponentId], references: [id], onDelete: SetNull)
+  // Ù‚ÙŠØ¯ Ø§Ù„ØµØ±Ù Ø§Ù„Ø®Ø§Øµ Ø¨Ù‡Ø°Ù‡ Ø§Ù„Ø³Ù„ÙØ© â€” ÙŠÙÙ…Ù„Ø£ ÙÙ‚Ø· Ù„Ùˆ Ø£ÙÙ†Ø´Ø¦Øª Ø¹Ø¨Ø± Ù…Ø³Ø§Ø± Ù…Ø³ØªÙ‚Ù„ ÙŠÙ†Ø´Ø¦ Ù‚ÙŠØ¯Ù‡ Ø§Ù„Ø®Ø§Øµ (Phase E)ØŒ
+  // Ù„Ø§ Ù„Ùˆ Ø£ÙÙ†Ø´Ø¦Øª Ø¯Ø§Ø®Ù„ Ø³Ø·Ø± Ù‚ÙŠØ¯ ÙŠÙˆÙ…ÙŠØ© Ø¹Ø§Ù… Ù…ÙˆØ¬ÙˆØ¯ Ø¨Ø§Ù„ÙØ¹Ù„ (Ø¹Ù†Ø¯Ù‡Ø§ sourceJournalEntryLineId Ø£Ø¯Ù†Ø§Ù‡ Ù‡Ùˆ Ø§Ù„Ù…Ø±Ø¬Ø¹).
+  journalEntryId             String?
+  // ÙŠØªØªØ¨Ù‘Ø¹ Ø³Ø·Ø± Ø§Ù„Ù‚ÙŠØ¯ Ø§Ù„Ø°ÙŠ Ø£Ù†Ø´Ø£ Ù‡Ø°Ù‡ Ø§Ù„Ø³Ù„ÙØ© Ø£ÙˆÙ„ Ù…Ø±Ø© (Ø£Ø«Ø± Ù…Ø±Ø§Ø¬Ø¹Ø©) â€” null Ù„Ùˆ Ø£ÙÙ†Ø´Ø¦Øª Ù…Ù† Ø´Ø§Ø´Ø© Ù…Ø®ØµÙÙ‘ØµØ©.
+  sourceJournalEntryLineId   String?                   @unique
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+
+  journalEntryLines JournalEntryLine[]
+  deductions        EmployeeAdvanceDeduction[]
+
+  @@map("employee_advances")
+}
+
+// Ø³Ø¬Ù„ Ø®ØµÙ… ÙØ¹Ù„ÙŠ Ù„Ø³Ù„ÙØ© Ø¶Ù…Ù† ØªØ´ØºÙŠÙ„ Ø±ÙˆØ§ØªØ¨ Ù…ÙØ±Ø­ÙÙ‘Ù„ ÙˆØ§Ø­Ø¯ (Phase E) â€” ÙŠÙÙ†Ø´Ø£ ÙÙ‚Ø· Ø¹Ù†Ø¯ ØªØ±Ø­ÙŠÙ„ Ø§Ù„ÙƒØ´Ù (Ù„Ø§ ÙˆÙ‚Øª
+// Ø§Ù„Ù…Ø¹Ø§ÙŠÙ†Ø©)ØŒ ÙˆÙŠÙØ³ØªØ®Ø¯ÙÙ… Ø¹Ù†Ø¯ ÙÙƒ Ø§Ù„ØªØ±Ø­ÙŠÙ„ Ù„Ø¥Ø±Ø¬Ø§Ø¹ remainingBalance Ø¨Ø¯Ù‚Ø© (ÙˆØ¥Ø¹Ø§Ø¯Ø© ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø³Ù„ÙØ©/Ø§Ù„Ø¨Ù†Ø¯ Ù„Ùˆ
+// ÙƒØ§Ù†Øª Ù‚Ø¯ Ø§Ø³ØªÙ‚Ø±Øª "settled" Ø¨Ø³Ø¨Ø¨ Ù‡Ø°Ø§ Ø§Ù„Ø®ØµÙ… Ø¨Ø§Ù„Ø°Ø§Øª) Ø¨Ø¯Ù„ Ø¥Ø¹Ø§Ø¯Ø© Ø­Ø³Ø§Ø¨Ù‡ ØªØ®Ù…ÙŠÙ†ÙŠØ§Ù‹ Ù…Ù† Ø§Ù„Ø­Ø§Ù„Ø© Ø§Ù„Ø­Ø§Ù„ÙŠØ©.
+model EmployeeAdvanceDeduction {
+  id                String          @id @default(cuid())
+  employeeAdvanceId String
+  employeeAdvance   EmployeeAdvance @relation(fields: [employeeAdvanceId], references: [id], onDelete: Cascade)
+  payrollRunId      String
+  payrollRun        PayrollRun      @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  amount            Decimal         @db.Decimal(18, 2)
+  createdAt         DateTime        @default(now())
+
+  @@unique([employeeAdvanceId, payrollRunId])
+  @@map("employee_advance_deductions")
+}
+
+// Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø±ÙˆØ§ØªØ¨ Ø¹Ø§Ù…Ø© Ù„ÙƒÙ„ Ø´Ø±ÙƒØ© â€” Ø§Ù„Ø³Ø§Ø¹Ø§Øª/Ø§Ù„Ø£ÙŠØ§Ù… Ø§Ù„Ù‚ÙŠØ§Ø³ÙŠØ© Ù„Ù„Ø´Ù‡Ø± (Ø£Ø³Ø§Ø³ Ø­Ø³Ø§Ø¨ Ø³Ø¹Ø± Ø§Ù„ÙˆØ­Ø¯Ø© ÙÙŠ
+// Ø§Ù„ØµÙŠØº Ø§Ù„Ù…Ø±ÙƒÙ‘Ø¨Ø©)ØŒ ÙˆØªØ±ØªÙŠØ¨/ØªØ³Ù…ÙŠØ© Ø£Ø¹Ù…Ø¯Ø© ÙƒØ´Ù Ø§Ù„Ø±ÙˆØ§ØªØ¨ Ø§Ù„Ù…Ø·Ø¨ÙˆØ¹ ÙˆØ§Ù„Ù…Ø¹Ø±ÙˆØ¶.
+model PayrollSettings {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId             String   @unique
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  standardHoursPerMonth Decimal  @default(240) @db.Decimal(6, 2)
+  standardDaysPerMonth  Decimal  @default(30) @db.Decimal(6, 2)
+  payslipColumns        Json // [{ componentId: string | null (null = "net"/"gross" Ù…Ø­Ø³ÙˆØ¨), label: string }]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("payroll_settings")
+}
+
+enum ReportScheduleFrequency {
+  daily
+  weekly
+  monthly
+}
+
+// Ø¬Ø¯ÙˆÙ„Ø© Ø¥Ø±Ø³Ø§Ù„ Ø¯ÙˆØ±ÙŠ ØªÙ„Ù‚Ø§Ø¦ÙŠ Ù„Ù„ØªÙ‚Ø§Ø±ÙŠØ± Ø§Ù„Ù…Ø§Ù„ÙŠØ© (Ù…ÙŠØ²Ø§Ù† Ø§Ù„Ù…Ø±Ø§Ø¬Ø¹Ø©ØŒ Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¯Ø®Ù„ØŒ Ø§Ù„Ù…Ø±ÙƒØ² Ø§Ù„Ù…Ø§Ù„ÙŠØŒ
+// Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ø´Ù‡Ø±ÙŠ Ø§Ù„Ø´Ø§Ù…Ù„) Ø¹Ø¨Ø± Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ Ù„Ù…Ø¯ÙŠØ± Ø§Ù„Ø­Ø³Ø§Ø¨Ø§Øª â€” Ø³Ø¬Ù„ ÙˆØ§Ø­Ø¯ ÙÙ‚Ø· Ù„ÙƒÙ„ Ø´Ø±ÙƒØ© (@unique
+// Ø¹Ù„Ù‰ companyId)ØŒ Ø¨Ù†ÙØ³ Ù†Ù…Ø· PayrollSettings Ø£Ø¹Ù„Ø§Ù‡. Ø§Ù„Ù…ÙØ±Ø³ÙÙ„ Ø§Ù„ÙØ¹Ù„ÙŠ ÙÙŠ
+// src/lib/reportScheduler.ts ÙŠÙØ­Øµ ÙƒÙ„ Ø§Ù„Ø¬Ø¯ÙˆÙ„Ø§Øª Ø§Ù„Ù…ÙØ¹Ù‘Ù„Ø© ÙƒÙ„ Ø³Ø§Ø¹Ø© ÙˆÙŠÙ‚Ø§Ø±Ù† lastSentPeriodKey Ù„ØªÙØ§Ø¯ÙŠ
+// Ø¥Ø±Ø³Ø§Ù„ Ù†ÙØ³ Ø§Ù„ÙØªØ±Ø© Ù…Ø±ØªÙŠÙ† Ø­ØªÙ‰ Ù„Ùˆ Ø£ÙØ¹ÙŠØ¯ ØªØ´ØºÙŠÙ„ Ø§Ù„Ø®Ø§Ø¯Ù… Ø£Ø«Ù†Ø§Ø¡ Ù†ÙØ³ Ø§Ù„Ø³Ø§Ø¹Ø© Ø§Ù„Ù…Ø³ØªÙ‡Ø¯ÙØ©.
+//
+// dayOfWeek/dayOfMonth/hourKsa Ø§Ù„Ø«Ù„Ø§Ø«Ø© Ø¨ØªÙˆÙ‚ÙŠØª Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠØ© Ø§Ù„Ù…Ø­Ù„ÙŠ (ASTØŒ UTC+3 Ø«Ø§Ø¨Øª Ø¨Ù„Ø§ ØªÙˆÙ‚ÙŠØª ØµÙŠÙÙŠ)
+// Ø¯Ø§Ø¦Ù…Ø§Ù‹ â€” ÙˆÙ„ÙŠØ³ UTC â€” Ø­ØªÙ‰ Ù„Ø§ ØªÙØ¶Ø·Ø± Ø£ÙŠ Ø¬Ù‡Ø© (Ø§Ù„ÙˆØ§Ø¬Ù‡Ø© Ø£Ùˆ Ø§Ù„Ù…ÙØ¬Ø¯ÙˆÙÙ„) Ù„ØªØ­ÙˆÙŠÙ„ ÙŠÙˆÙ… Ø§Ù„ØªÙ‚ÙˆÙŠÙ… Ø¹Ù†Ø¯ Ø¹Ø¨ÙˆØ±
+// Ù…Ù†ØªØµÙ Ø§Ù„Ù„ÙŠÙ„ Ø¨ÙŠÙ† Ø§Ù„Ù…Ù†Ø·Ù‚ØªÙŠÙ† (ÙƒØ§Ù†Øª Ù‡Ø°Ù‡ Ø¨Ø§Ù„Ø¶Ø¨Ø· Ù…Ø´ÙƒÙ„Ø© ØªØµÙ…ÙŠÙ… UTC Ø§Ù„Ø³Ø§Ø¨Ù‚: ØªØ­ÙˆÙŠÙ„ Ø§Ù„Ø³Ø§Ø¹Ø© ÙÙ‚Ø· Ø¯ÙˆÙ†
+// Ø§Ù„ÙŠÙˆÙ… Ø§Ù„Ù…Ø±Ø§ÙÙ‚ Ù„Ù‡Ø§ ÙŠÙ†ØªØ¬ ØªÙˆÙ‚ÙŠØªØ§Ù‹ Ø®Ø§Ø·Ø¦Ø§Ù‹ Ø¨ÙŠÙˆÙ… ÙƒØ§Ù…Ù„ Ù„Ø£ÙŠ Ø¬Ø¯ÙˆÙ„Ø© Ø¨ÙŠÙ† Ø§Ù„Ø³Ø§Ø¹Ø© 00:00 Ùˆ02:59 Ø¨ØªÙˆÙ‚ÙŠØª
+// Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠØ©). Ø§Ù„Ù…ÙØ¬Ø¯ÙˆÙÙ„ ÙŠØ­ÙˆÙ‘Ù„ "Ø§Ù„Ø¢Ù†" (UTC) Ù„ØªÙˆÙ‚ÙŠØª Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠØ© Ø¨Ø¥Ø¶Ø§ÙØ© 3 Ø³Ø§Ø¹Ø§Øª ÙÙ‚Ø· Ù‚Ø¨Ù„ Ø§Ù„Ù…Ù‚Ø§Ø±Ù†Ø©ØŒ ÙÙ„Ø§
+// Ø­Ø§Ø¬Ø© Ù„Ø£ÙŠ ØªØ­ÙˆÙŠÙ„ Ù…Ø¹Ø§ÙƒØ³ Ù‡Ù†Ø§ Ø£Ùˆ ÙÙŠ Ø§Ù„ÙˆØ§Ø¬Ù‡Ø©.
+model ReportSchedule {
+  id                          String                  @id @default(cuid())
+  tenantId                    String
+  tenant                      Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                   String                  @unique
+  company                     Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  frequency                   ReportScheduleFrequency @default(monthly)
+  dayOfWeek                   Int                     @default(0) // 0=Ø§Ù„Ø£Ø­Ø¯..6=Ø§Ù„Ø³Ø¨Øª (Ø¨ØªÙˆÙ‚ÙŠØª Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠØ©)ØŒ ÙŠÙØ³ØªØ®Ø¯ÙÙ… ÙÙ‚Ø· Ù…Ø¹ weekly
+  dayOfMonth                  Int                     @default(1) // 1-28 (Ø¨ØªÙˆÙ‚ÙŠØª Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠØ©)ØŒ ÙŠÙØ³ØªØ®Ø¯ÙÙ… ÙÙ‚Ø· Ù…Ø¹ monthly (Ø§Ù„Ø£Ø´Ù‡Ø± Ø§Ù„Ø£Ù‚ØµØ± Ù…Ù† 31 ÙŠÙˆÙ…Ø§Ù‹ ØªÙØ±Ø³ÙÙ„ ÙÙŠ Ø¢Ø®Ø± ÙŠÙˆÙ… Ù„Ù‡Ø§ Ø¨Ø¯Ù„ ØªØ®Ø·Ù‘ÙŠ Ø§Ù„Ø´Ù‡Ø± Ø¨Ø§Ù„ÙƒØ§Ù…Ù„)
+  hourKsa                     Int                     @default(6) // Ø³Ø§Ø¹Ø© Ø§Ù„Ø¥Ø±Ø³Ø§Ù„ Ø¨ØªÙˆÙ‚ÙŠØª Ø§Ù„Ø³Ø¹ÙˆØ¯ÙŠØ© Ø§Ù„Ù…Ø­Ù„ÙŠ (ASTØŒ UTC+3 Ø«Ø§Ø¨Øª) â€” 0-23
+  includeComprehensiveMonthly Boolean                 @default(true)
+  includeTrialBalance         Boolean                 @default(true)
+  includeIncomeStatement      Boolean                 @default(true)
+  includeBalanceSheet         Boolean                 @default(true)
+  // ÙØ§Ø±ØºØ© = ØªÙØ±Ø³ÙÙ„ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ù„ÙƒÙ„ Ù…Ø³ØªØ®Ø¯Ù…ÙŠ Ù‡Ø°Ù‡ Ø§Ù„Ø´Ø±ÙƒØ© (companyScope="all" Ø£Ùˆ = Ù‡Ø°Ù‡ Ø§Ù„Ø´Ø±ÙƒØ©) Ø¨Ø¯ÙˆØ±
+  // admin/finance_manager/super_adminØŒ Ø¨Ø¯Ù„ ØªÙƒØ±Ø§Ø± Ø¥Ø¯Ø®Ø§Ù„ Ù†ÙØ³ Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© ÙŠØ¯ÙˆÙŠØ§Ù‹ ÙÙŠ ÙƒÙ„ Ø´Ø±ÙƒØ©.
+  recipientEmails             String[]                @default([])
+  enabled                     Boolean                 @default(true)
+  lastSentAt                  DateTime?
+  // Ù…ÙØªØ§Ø­ Ø§Ù„ÙØªØ±Ø© Ø§Ù„Ù…ÙØ±Ø³ÙÙ„Ø© Ø¢Ø®Ø± Ù…Ø±Ø© (Ù…Ø«Ù„Ø§Ù‹ "2026-08-11" ÙŠÙˆÙ…ÙŠØ§Ù‹ØŒ "2026-W32" Ø£Ø³Ø¨ÙˆØ¹ÙŠØ§Ù‹ØŒ "2026-08"
+  // Ø´Ù‡Ø±ÙŠØ§Ù‹) â€” Ø£Ø¯Ù‚Ù‘ Ù…Ù† Ù…Ù‚Ø§Ø±Ù†Ø© lastSentAt Ø¨Ø§Ù„ØªØ§Ø±ÙŠØ® Ø§Ù„Ø­Ø§Ù„ÙŠ ÙÙ‚Ø·ØŒ ÙˆÙŠÙ…Ù†Ø¹ Ø¥Ø±Ø³Ø§Ù„ Ù…Ø²Ø¯ÙˆØ¬ Ù„Ù†ÙØ³ Ø§Ù„ÙØªØ±Ø© Ø¹Ù†Ø¯
+  // Ø¥Ø¹Ø§Ø¯Ø© ØªØ´ØºÙŠÙ„ Ø§Ù„Ø®Ø§Ø¯Ù… Ø£Ùˆ ØªØ¯Ø§Ø®Ù„ Ø¹Ø¯Ø© Ù†Ø¨Ø¶Ø§Øª cron Ø®Ù„Ø§Ù„ Ù†ÙØ³ Ø§Ù„Ø³Ø§Ø¹Ø© Ø§Ù„Ù…Ø³ØªÙ‡Ø¯ÙØ©.
+  lastSentPeriodKey           String?
+  createdAt                   DateTime                @default(now())
+  updatedAt                   DateTime                @updatedAt
+
+  @@map("report_schedules")
+}
+
+model HrAction {
+  id          String            @id @default(cuid())
+  tenantId    String
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeId  String
+  employee    Employee          @relation(fields: [employeeId], references: [id])
+  month       String // YYYY-MM
+  actionType  String
+  // Ø§Ù„Ø¨Ù†Ø¯ Ø§Ù„Ù…Ø³ØªÙ‡Ø¯ÙÙ Ù…Ù† "Ø¨Ù†ÙˆØ¯ Ø§Ù„Ø±ÙˆØ§ØªØ¨" â€” ÙŠÙØ³ØªØ¨Ø¯ÙÙ„ ØªØ¯Ø±ÙŠØ¬ÙŠØ§Ù‹ actionType Ø§Ù„Ø­Ø± Ø§Ù„Ø³Ø§Ø¨Ù‚Ø› Nullable Ù…Ø¤Ù‚ØªØ§Ù‹
+  // Ø­ØªÙ‰ ØªÙƒØªÙ…Ù„ Ø§Ù„ØªØ¹Ø¨Ø¦Ø© Ø§Ù„Ø±Ø¬Ø¹ÙŠØ© (backfillPayrollComponents.ts)ØŒ Ø«Ù… Ø¥Ù„Ø²Ø§Ù…ÙŠ.
+  componentId String?
+  component   PayrollComponent? @relation(fields: [componentId], references: [id])
+  value       Decimal           @db.Decimal(18, 2)
+  note        String?
+  batchId     String?
+  createdAt   DateTime          @default(now())
+
+  @@map("hr_actions")
+}
+
+model PayrollRun {
+  id             String        @id @default(cuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  month          String // YYYY-MM
+  employeeIds    String[]
+  status         JournalStatus @default(draft)
+  overrides      Json          @default("{}")
+  journalEntryId String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  advanceDeductions EmployeeAdvanceDeduction[]
+
+  @@unique([tenantId, companyId, month])
+  @@map("payroll_runs")
+}
+
+// Ù…Ø±ÙÙ‚Ø§Øª Ø§Ù„Ù…Ø³ØªÙ†Ø¯Ø§Øª Ø§Ù„Ù…Ø¤ÙŠØ¯Ø© Ù„Ø£ÙŠ Ù…Ø¹Ø§Ù…Ù„Ø© â€” Ù…ÙˆØ¯ÙŠÙˆÙ„ Ø¹Ø§Ù… Ù‚Ø§Ø¨Ù„ Ù„Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù… Ø¹Ø¨Ø± ÙƒÙ„ Ø§Ù„Ø´Ø§Ø´Ø§Øª
+// (Ù‚ÙŠÙˆØ¯ØŒ ÙÙˆØ§ØªÙŠØ±ØŒ Ù…Ø±Ø¯ÙˆØ¯Ø§ØªØŒ Ø³Ù†Ø¯Ø§ØªØŒ ÙƒØ´ÙˆÙ Ø±ÙˆØ§ØªØ¨ØŒ ØªØ³ÙˆÙŠØ§Øª Ø¥Ø¬Ø§Ø²Ø©ØŒ Ø£ØµÙˆÙ„ Ø«Ø§Ø¨ØªØ©...). entityType/entityId
+// Ù…Ø±Ø¬Ø¹ Ù…Ù†Ø·Ù‚ÙŠ Ø­Ø± (String ÙˆÙ„ÙŠØ³ Ø¹Ù„Ø§Ù‚Ø© FK ØµØ§Ø±Ù…Ø©) Ø¹Ù„Ù‰ ØºØ±Ø§Ø± sourceModule/sourceId ÙÙŠ JournalEntryØŒ
+// Ø­ØªÙ‰ Ù„Ø§ ÙŠØªØ·Ù„Ø¨ Ø£ÙŠ ÙƒÙŠØ§Ù† Ø¬Ø¯ÙŠØ¯ ØªØ¹Ø¯ÙŠÙ„Ø§Ù‹ ÙÙŠ Ù‡Ø°Ø§ Ø§Ù„Ù…Ø®Ø·Ø·. fileKey Ù‡Ùˆ Ù…Ø³Ø§Ø± Ø§Ù„Ù…Ù„Ù Ø§Ù„Ø¯Ø§Ø¦Ù… Ø¯Ø§Ø®Ù„ Ø­Ø§ÙˆÙŠØ©
+// R2 â€” Ø±Ø§Ø¨Ø· Ø§Ù„Ø¹Ø±Ø¶/Ø§Ù„ØªÙ†Ø²ÙŠÙ„ Ø§Ù„ÙØ¹Ù„ÙŠ (presigned URL) ÙŠÙÙˆÙ„ÙÙ‘Ø¯ Ø¹Ù†Ø¯ Ø§Ù„Ø·Ù„Ø¨ ÙÙ‚Ø· (Ø§Ù†Ø¸Ø± src/lib/storage.ts)
+// ÙˆÙ„Ø§ ÙŠÙØ®Ø²ÙÙ‘Ù† Ø¨Ø´ÙƒÙ„ Ø¯Ø§Ø¦Ù…ØŒ Ù„Ø£Ù†Ù‡ ØµØ§Ù„Ø­ Ù„ÙØªØ±Ø© Ù…Ø­Ø¯ÙˆØ¯Ø© ÙˆÙ„Ø£Ù† Ø­Ø§ÙˆÙŠØ© R2 ØºÙŠØ± Ù…ÙØ¹Ù„ÙÙ†Ø© ÙƒØ¹Ø§Ù…Ø© (public).
+model Attachment {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entityType String
+  entityId   String
+  fileName   String
+  fileKey    String
+  fileSize   Int
+  mimeType   String
+  uploadedBy String?
+  uploadedAt DateTime @default(now())
+
+  @@index([tenantId, entityType, entityId])
+  @@map("attachments")
+}
+
+enum HorseSex {
+  stallion
+  mare
+  gelding
+}
+
+enum HorseStatus {
+  active
+  training
+  resting
+  medical_hold
+  sold
+  deceased
+}
+
+enum StallStatus {
+  available
+  occupied
+  maintenance
+  inactive
+}
+
+enum BoardingContractStatus {
+  active
+  completed
+  cancelled
+}
+
+enum HorseCareType {
+  veterinary
+  vaccination
+  farrier
+  feeding
+  training
+  grooming
+  medication
+  other
+}
+
+model Stable {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  code        String?
+  location    String?
+  managerName String?
+  phone       String?
+  capacity    Int      @default(0)
+  notes       String?
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  stalls    StableStall[]
+  horses    Horse[]
+  contracts BoardingContract[]
+
+  @@unique([companyId, code])
+  @@index([tenantId, companyId])
+  @@map("stables")
+}
+
+model StableStall {
+  id        String      @id @default(cuid())
+  tenantId  String
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stableId  String
+  stable    Stable      @relation(fields: [stableId], references: [id], onDelete: Cascade)
+  number    String
+  type      String?
+  dailyRate Decimal?    @db.Decimal(18, 2)
+  status    StallStatus @default(available)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  horses    Horse[]
+  contracts BoardingContract[]
+
+  @@unique([stableId, number])
+  @@index([tenantId, companyId])
+  @@map("stable_stalls")
+}
+
+model Horse {
+  id             String       @id @default(cuid())
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stableId       String?
+  stable         Stable?      @relation(fields: [stableId], references: [id], onDelete: SetNull)
+  stallId        String?      @unique
+  stall          StableStall? @relation(fields: [stallId], references: [id], onDelete: SetNull)
+  name           String
+  registrationNo String?
+  microchipNo    String?
+  breed          String?
+  color          String?
+  sex            HorseSex
+  birthDate      DateTime?
+  ownerName      String?
+  ownerPhone     String?
+  status         HorseStatus  @default(active)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  contracts   BoardingContract[]
+  careRecords HorseCareRecord[]
+
+  @@unique([companyId, registrationNo])
+  @@unique([companyId, microchipNo])
+  @@index([tenantId, companyId])
+  @@map("horses")
+}
+
+model BoardingContract {
+  id            String                 @id @default(cuid())
+  tenantId      String
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stableId      String
+  stable        Stable                 @relation(fields: [stableId], references: [id])
+  horseId       String
+  horse         Horse                  @relation(fields: [horseId], references: [id])
+  stallId       String?
+  stall         StableStall?           @relation(fields: [stallId], references: [id])
+  startDate     DateTime
+  endDate       DateTime?
+  monthlyFee    Decimal                @db.Decimal(18, 2)
+  depositAmount Decimal?               @db.Decimal(18, 2)
+  contractNumber String?
+  ownerName      String?
+  ownerNationality String?
+  ownerNationalId String?
+  ownerIdIssuePlace String?
+  ownerPhone     String?
+  ownerEmail     String?
+  ownerCity      String?
+  ownerDistrict  String?
+  ownerStreet    String?
+  ownerBuildingNo String?
+  ownerPostalCode String?
+  sentAt         DateTime?
+  status        BoardingContractStatus @default(active)
+  notes         String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@index([tenantId, companyId, status])
+  @@unique([companyId, contractNumber])
+  @@map("boarding_contracts")
+}
+
+model HorseCareRecord {
+  id          String        @id @default(cuid())
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  horseId     String
+  horse       Horse         @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  type        HorseCareType
+  performedAt DateTime
+  provider    String?
+  description String
+  cost        Decimal?      @db.Decimal(18, 2)
+  nextDueDate DateTime?
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([tenantId, companyId, performedAt])
+  @@index([horseId, nextDueDate])
+  @@map("horse_care_records")
+}
+
