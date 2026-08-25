@@ -91,3 +91,37 @@ export const createCare: RequestHandler = async (req, res) => { await assertComp
 export const updateCare: RequestHandler = async (req, res) => { const row = await prisma.horseCareRecord.findFirst({ where: { id: req.params.id, ...tenantWhere(req) } }); if (!row) throw notFound("سجل الرعاية غير موجود"); assertCompanyAccess(req.auth!, row.companyId); res.json(await prisma.horseCareRecord.update({ where: { id: row.id }, data: req.body })); };
 export const deleteCare: RequestHandler = async (req, res) => { const row = await prisma.horseCareRecord.findFirst({ where: { id: req.params.id, ...tenantWhere(req) } }); if (!row) throw notFound("سجل الرعاية غير موجود"); assertCompanyAccess(req.auth!, row.companyId); await prisma.horseCareRecord.delete({ where: { id: row.id } }); res.status(204).send(); };
 
+const catalog = [
+  ["LIV-01","livery","إعاشة كاملة: بوكس وأعلاف ورودس ونشارة وسايس ومشاية","Full livery",3300,"month"],
+  ["LIV-02","livery","إعاشة للخيل العربي والبوني حتى 150 سم","Arabian horse and pony livery",3000,"month"],
+  ["LIV-03","livery","إعاشة بدون سايس","Livery without groom",2950,"month"],
+  ["LIV-04","livery","بايكة مكيفة صيفاً","Air-conditioned stable in summer",1000,"month"],
+  ["LIV-05","livery","مشاية الخيل","Horse walker",200,"service"],
+  ["NUR-01","nursing","خدمة تمريض شهرية للجروح السطحية","Monthly nursing for superficial wounds",230,"month"],
+  ["VET-01","veterinary","كشف طبيب بيطري أثناء الدوام","Veterinary visit",575,"visit"],
+  ["FAR-01","farrier","تحدية كاملة بحديد أوروبي بالنار","Full European shoe set",437,"service"],
+  ["FAR-02","farrier","تحدية أمامية","Front shoes only",300,"service"],
+  ["FAR-03","farrier","تقليم حوافر","Hoof trimming",200,"service"],
+  ["BRD-01","breeding","رعاية إضافية للفرس الحامل من الشهر الخامس","Pregnant mare extra livery",650,"month"],
+  ["BRD-02","breeding","رعاية المهر من الولادة حتى الفطام","Foal care until weaning",850,"month"],
+  ["GRM-01","grooming","حلاقة الخيل","Clipping",575,"service"],
+  ["DEN-01","dental","برد أسنان","Teeth rasping",360,"service"],
+  ["TRN-03","training","تدريب الخيل 3 أيام أسبوعياً","Horse training 3 days/week",2000,"month"],
+  ["TRN-06","training","تدريب الخيل 6 أيام أسبوعياً","Horse training 6 days/week",3000,"month"],
+  ["CMP-01","competition","تدريب بطولات 5 أيام أسبوعياً","Competition training",3500,"month"],
+  ["CMP-JED","competition","أتعاب السايس في مسابقات جدة لكل يوم","Groom at Jeddah competition",172.5,"day"],
+  ["CMP-RUH","competition","أتعاب السايس في مسابقات الرياض لكل يوم","Groom at Riyadh competition",287.5,"day"],
+] as const;
+
+async function listEntity(req:any,res:any,model:string,orderBy:any={createdAt:"desc"}) { const companyId=String(req.query.companyId||""); await assertCompany(req,companyId); res.json(await (prisma as any)[model].findMany({where:{...tenantWhere(req),companyId},orderBy})); }
+async function createEntity(req:any,res:any,model:string) { await assertCompany(req,req.body.companyId); res.status(201).json(await (prisma as any)[model].create({data:{...req.body,tenantId:req.auth!.tenantId}})); }
+async function updateEntity(req:any,res:any,model:string,label:string) { const row=await (prisma as any)[model].findFirst({where:{id:req.params.id,...tenantWhere(req)}}); if(!row)throw notFound(`${label} غير موجود`); assertCompanyAccess(req.auth!,row.companyId); res.json(await (prisma as any)[model].update({where:{id:row.id},data:req.body})); }
+async function deleteEntity(req:any,res:any,model:string,label:string) { const row=await (prisma as any)[model].findFirst({where:{id:req.params.id,...tenantWhere(req)}}); if(!row)throw notFound(`${label} غير موجود`); assertCompanyAccess(req.auth!,row.companyId); await (prisma as any)[model].delete({where:{id:row.id}}); res.status(204).send(); }
+
+export const listTrainers:RequestHandler=(q,s)=>listEntity(q,s,"ridingTrainer",{name:"asc"}); export const createTrainer:RequestHandler=(q,s)=>createEntity(q,s,"ridingTrainer"); export const updateTrainer:RequestHandler=(q,s)=>updateEntity(q,s,"ridingTrainer","المدرب"); export const deleteTrainer:RequestHandler=(q,s)=>deleteEntity(q,s,"ridingTrainer","المدرب");
+export const listLessonTypes:RequestHandler=(q,s)=>listEntity(q,s,"ridingLessonType",{name:"asc"}); export const createLessonType:RequestHandler=(q,s)=>createEntity(q,s,"ridingLessonType"); export const updateLessonType:RequestHandler=(q,s)=>updateEntity(q,s,"ridingLessonType","نوع الحصة"); export const deleteLessonType:RequestHandler=(q,s)=>deleteEntity(q,s,"ridingLessonType","نوع الحصة");
+export const listLessons:RequestHandler=(q,s)=>listEntity(q,s,"ridingLesson",{scheduledAt:"desc"}); export const createLesson:RequestHandler=(q,s)=>createEntity(q,s,"ridingLesson"); export const updateLesson:RequestHandler=(q,s)=>updateEntity(q,s,"ridingLesson","الحصة"); export const deleteLesson:RequestHandler=(q,s)=>deleteEntity(q,s,"ridingLesson","الحصة");
+export const listCompetitions:RequestHandler=(q,s)=>listEntity(q,s,"equestrianCompetition",{startDate:"desc"}); export const createCompetition:RequestHandler=(q,s)=>createEntity(q,s,"equestrianCompetition"); export const updateCompetition:RequestHandler=(q,s)=>updateEntity(q,s,"equestrianCompetition","المسابقة"); export const deleteCompetition:RequestHandler=(q,s)=>deleteEntity(q,s,"equestrianCompetition","المسابقة");
+export const listCareServices:RequestHandler=async(req,res)=>{const companyId=String(req.query.companyId||"");await assertCompany(req,companyId);const service=(prisma as any).horseCareService;if(!await service.count({where:{...tenantWhere(req),companyId}}))await service.createMany({data:catalog.map(([code,category,nameAr,nameEn,price,unit])=>({tenantId:req.auth!.tenantId,companyId,code,category,nameAr,nameEn,price,unit}))});res.json(await service.findMany({where:{...tenantWhere(req),companyId},orderBy:[{category:"asc"},{nameAr:"asc"}]}))};
+export const createCareService:RequestHandler=(q,s)=>createEntity(q,s,"horseCareService"); export const updateCareService:RequestHandler=(q,s)=>updateEntity(q,s,"horseCareService","الخدمة"); export const deleteCareService:RequestHandler=(q,s)=>deleteEntity(q,s,"horseCareService","الخدمة");
+

@@ -2109,3 +2109,101 @@ model HorseCareRecord {
   @@index([horseId, nextDueDate])
   @@map("horse_care_records")
 }
+
+model RidingTrainer {
+  id String @id @default(cuid())
+  tenantId String
+  companyId String
+  name String
+  phone String?
+  email String?
+  specialties String?
+  bio String?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tenantId, companyId])
+  @@map("riding_trainers")
+}
+
+model RidingLessonType {
+  id String @id @default(cuid())
+  tenantId String
+  companyId String
+  name String
+  level String
+  durationMinutes Int
+  format String
+  capacity Int @default(1)
+  price Decimal @db.Decimal(18, 2)
+  trainerId String?
+  description String?
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tenantId, companyId])
+  @@map("riding_lesson_types")
+}
+
+model RidingLesson {
+  id String @id @default(cuid())
+  tenantId String
+  companyId String
+  lessonTypeId String
+  trainerId String
+  horseId String?
+  studentName String
+  studentPhone String?
+  scheduledAt DateTime
+  participants Int @default(1)
+  price Decimal @db.Decimal(18, 2)
+  status String @default("scheduled")
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tenantId, companyId, scheduledAt])
+  @@map("riding_lessons")
+}
+
+model EquestrianCompetition {
+  id String @id @default(cuid())
+  tenantId String
+  companyId String
+  name String
+  discipline String
+  level String?
+  location String
+  startDate DateTime
+  endDate DateTime?
+  registrationDeadline DateTime?
+  entryFee Decimal? @db.Decimal(18, 2)
+  horseId String?
+  trainerId String?
+  riderName String?
+  status String @default("planned")
+  result String?
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([tenantId, companyId, startDate])
+  @@map("equestrian_competitions")
+}
+
+model HorseCareService {
+  id String @id @default(cuid())
+  tenantId String
+  companyId String
+  code String?
+  category String
+  nameAr String
+  nameEn String?
+  price Decimal? @db.Decimal(18, 2)
+  priceIncludesVat Boolean @default(true)
+  unit String @default("service")
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([companyId, code])
+  @@index([tenantId, companyId, category])
+  @@map("horse_care_services")
+}

@@ -8,5 +8,10 @@ export const stableApi = {
   listContracts: (c) => api.get(`/stables/contracts/list${q(c)}`), createContract: (v) => api.post("/stables/contracts", v), updateContract: (id, v) => api.patch(`/stables/contracts/${id}`, v), deleteContract: (id) => api.delete(`/stables/contracts/${id}`),
   downloadContract: (id) => api.getBlob(`/stables/contracts/${id}/pdf`), sendContract: (id, email) => api.post(`/stables/contracts/${id}/send-email`, { email }),
   listCare: (c) => api.get(`/stables/care/list${q(c)}`), createCare: (v) => api.post("/stables/care", v), updateCare: (id, v) => api.patch(`/stables/care/${id}`, v), deleteCare: (id) => api.delete(`/stables/care/${id}`),
+  listTrainers:(c)=>api.get(`/stables/trainers/list${q(c)}`),createTrainer:(v)=>api.post("/stables/trainers",v),updateTrainer:(id,v)=>api.patch(`/stables/trainers/${id}`,v),deleteTrainer:(id)=>api.delete(`/stables/trainers/${id}`),
+  listLessonTypes:(c)=>api.get(`/stables/lesson-types/list${q(c)}`),createLessonType:(v)=>api.post("/stables/lesson-types",v),updateLessonType:(id,v)=>api.patch(`/stables/lesson-types/${id}`,v),deleteLessonType:(id)=>api.delete(`/stables/lesson-types/${id}`),
+  listLessons:(c)=>api.get(`/stables/lessons/list${q(c)}`),createLesson:(v)=>api.post("/stables/lessons",v),updateLesson:(id,v)=>api.patch(`/stables/lessons/${id}`,v),deleteLesson:(id)=>api.delete(`/stables/lessons/${id}`),
+  listCompetitions:(c)=>api.get(`/stables/competitions/list${q(c)}`),createCompetition:(v)=>api.post("/stables/competitions",v),updateCompetition:(id,v)=>api.patch(`/stables/competitions/${id}`,v),deleteCompetition:(id)=>api.delete(`/stables/competitions/${id}`),
+  listServices:(c)=>api.get(`/stables/care-services/list${q(c)}`),createService:(v)=>api.post("/stables/care-services",v),updateService:(id,v)=>api.patch(`/stables/care-services/${id}`,v),deleteService:(id)=>api.delete(`/stables/care-services/${id}`),
 };
 
