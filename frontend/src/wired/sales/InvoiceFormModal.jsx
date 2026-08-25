@@ -43,6 +43,11 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
   const [date, setDate] = useState(() => (isEdit ? seed.date.slice(0, 10) : new Date().toISOString().slice(0, 10)));
   const [branchId, setBranchId] = useState(seed?.branchId || "");
+  const [dueDate, setDueDate] = useState(seed?.dueDate ? seed.dueDate.slice(0, 10) : "");
+  const [customerReference, setCustomerReference] = useState(seed?.customerReference || "");
+  const [poNumber, setPoNumber] = useState(seed?.poNumber || "");
+  const [salesperson, setSalesperson] = useState(seed?.salesperson || "");
+  const [otherId, setOtherId] = useState(seed?.otherId || "");
   const [lines, setLines] = useState(() => (seed ? seed.lines.map(lineFromExisting) : [emptySalesLine()]));
 
   const [newCustomerModal, setNewCustomerModal] = useState(null);
@@ -58,7 +63,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   useEffect(() => {
     if (!mountedRef.current) { mountedRef.current = true; return; }
     setDirty(true);
-  }, [customerId, date, branchId, lines]);
+  }, [customerId, date, branchId, dueDate, customerReference, poNumber, salesperson, otherId, lines]);
   useUnsavedChangesGuard(dirty);
 
   // راجع نفس التعليق في JournalEntryFormModal.jsx: إغلاق النافذة نفسها (×/خارجها/إلغاء) لا يمرّ
@@ -106,7 +111,12 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
 
   const cleanLines = () => lines.filter((l) => l.accountId && Number(l.unitPrice) > 0);
 
-  const buildPayload = () => ({ companyId, customerId, branchId: branchId || null, date, lines: cleanLines() });
+  const buildPayload = () => ({
+    companyId, customerId, branchId: branchId || null, date,
+    dueDate: dueDate || null, customerReference: customerReference || undefined,
+    poNumber: poNumber || undefined, salesperson: salesperson || undefined, otherId: otherId || undefined,
+    lines: cleanLines(),
+  });
 
   // إرسال الفاتورة بالإيميل يحدث فقط عند الترحيل الفعلي (لا عند الحفظ كمسودة) — النتيجة تصل هنا
   // ضمن استجابة الترحيل/الإنشاء نفسها، فتُضاف كجملة توضيحية لرسالة النجاح بدل نافذة منفصلة.
@@ -194,6 +204,19 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
             />
           </label>
         </div>
+
+        {/* حقول اختيارية إضافية تظهر في شريط معلومات الفاتورة لبعض القوالب (مثل "كلاسيكي احترافي")
+            — لا تأثير محاسبي/ضريبي لها إطلاقاً، وتبقى فارغة بلا أي إلزام. */}
+        <details className="invoice-extra-fields">
+          <summary>{t("salesInvoices.form.extraFieldsToggle")}</summary>
+          <div className="form-grid">
+            <label>{t("salesInvoices.form.dueDate")}<input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></label>
+            <label>{t("salesInvoices.form.customerReference")}<input type="text" value={customerReference} onChange={(e) => setCustomerReference(e.target.value)} /></label>
+            <label>{t("salesInvoices.form.poNumber")}<input type="text" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} /></label>
+            <label>{t("salesInvoices.form.salesperson")}<input type="text" value={salesperson} onChange={(e) => setSalesperson(e.target.value)} /></label>
+            <label>{t("salesInvoices.form.otherId")}<input type="text" value={otherId} onChange={(e) => setOtherId(e.target.value)} /></label>
+          </div>
+        </details>
 
         {customers.length === 0 && <p className="empty">{t("salesInvoices.form.noCustomersYet")}</p>}
 

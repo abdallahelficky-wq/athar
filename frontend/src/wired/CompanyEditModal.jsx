@@ -10,6 +10,9 @@ import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry } from ".
 const emptyForm = (c) => ({
   name: c.name || "",
   shortName: c.shortName || "",
+  nameEn: c.nameEn || "",
+  licenseNumber: c.licenseNumber || "",
+  unifiedEntityNumber: c.unifiedEntityNumber || "",
   country: c.country || "SA",
   currency: c.currency || "SAR",
   vatNumber: c.vatNumber || "",
@@ -134,6 +137,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         <div className="form-grid">
           <label>{t("settings.companyEdit.nameLabel")}<input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} /></label>
           <label>{t("settings.companyEdit.shortNameLabel")}<input type="text" value={form.shortName} onChange={(e) => set("shortName", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.nameEnLabel")}<input type="text" dir="ltr" value={form.nameEn} onChange={(e) => set("nameEn", e.target.value)} /></label>
           <label>
             {t("settings.newCompany.countryLabel")}
             <select value={form.country} onChange={(e) => { set("country", e.target.value); set("currency", defaultCurrencyForCountry(e.target.value)); }}>
@@ -164,6 +168,8 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
           <label>{t("settings.companyEdit.crNumberLabel")}<input type="text" value={form.crNumber} onChange={(e) => set("crNumber", e.target.value)} /></label>
           <label>{t("settings.companyEdit.crIssueDateLabel")}<input type="date" value={form.crIssueDate} onChange={(e) => set("crIssueDate", e.target.value)} /></label>
           <label>{t("settings.companyEdit.crExpiryDateLabel")}<input type="date" value={form.crExpiryDate} onChange={(e) => set("crExpiryDate", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.unifiedEntityNumberLabel")}<input type="text" value={form.unifiedEntityNumber} onChange={(e) => set("unifiedEntityNumber", e.target.value)} /></label>
+          <label>{t("settings.companyEdit.licenseNumberLabel")}<input type="text" value={form.licenseNumber} onChange={(e) => set("licenseNumber", e.target.value)} /></label>
 
           <label>{t("settings.companyEdit.officialEmailLabel")}<input type="email" value={form.officialEmail} onChange={(e) => set("officialEmail", e.target.value)} /></label>
           <label>{t("settings.companyEdit.phoneLabel")}<input type="text" value={form.phone} onChange={(e) => set("phone", e.target.value)} /></label>

@@ -23,7 +23,7 @@ export async function sendInvoiceByEmail(
 ): Promise<SendInvoiceEmailResult> {
   const invoice = await prisma.salesInvoice.findFirst({
     where: { id: invoiceId, tenantId },
-    include: { lines: { include: { account: true } }, customer: true, company: true },
+    include: { lines: { include: { account: true, item: true } }, customer: true, company: true, branch: true, receiptAllocations: true },
   });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن إرسال فاتورة لم تُرحَّل بعد");
@@ -38,20 +38,42 @@ export async function sendInvoiceByEmail(
     const companyAddress = [invoice.company.addressBuilding, invoice.company.addressStreet, invoice.company.addressCity]
       .filter(Boolean)
       .join("، ");
+    const customerAddress = [invoice.customer.buildingNo, invoice.customer.street, invoice.customer.city]
+      .filter(Boolean)
+      .join("، ");
+    const paid = invoice.receiptAllocations.reduce((s, a) => s + Number(a.amount), 0);
 
     const pdfBuffer = await buildPlainInvoicePdf({
+      template: invoice.company.invoiceTemplate,
       invoiceNumber: invoice.invoiceNumber,
       date: invoice.date,
+      dueDate: invoice.dueDate,
+      customerReference: invoice.customerReference,
+      poNumber: invoice.poNumber,
+      salesperson: invoice.salesperson,
+      otherId: invoice.otherId,
+      paymentMethod: invoice.customer.paymentTerms,
       companyName: invoice.company.name,
+      companyNameEn: invoice.company.nameEn,
       companyVatNumber: invoice.company.vatNumber,
+      companyCrNumber: invoice.company.crNumber,
+      companyUnifiedEntityNumber: invoice.company.unifiedEntityNumber,
+      companyLicenseNumber: invoice.company.licenseNumber,
       companyAddress: companyAddress || null,
+      companyPhone: invoice.company.phone,
       brandColor: invoice.company.brandColor,
+      branchName: invoice.branch?.nameAr,
       customerName: invoice.customer.name,
       customerVatNumber: invoice.customer.vatNumber,
+      customerUnifiedEntityNumber: invoice.customer.unifiedEntityNumber,
+      customerAddress: customerAddress || null,
       lines: invoice.lines.map((l) => ({
         description: l.description || l.account.name,
+        itemCode: l.item?.code ?? null,
+        unit: l.item?.unit ?? null,
         quantity: Number(l.quantity),
         unitPrice: Number(l.unitPrice),
+        discountPct: Number(l.discountPct),
         subtotal: Number(l.subtotal),
         vat: Number(l.vat),
         total: Number(l.total),
@@ -59,8 +81,10 @@ export async function sendInvoiceByEmail(
       subtotal: Number(invoice.subtotal),
       vatTotal: Number(invoice.vatTotal),
       grandTotal: Number(invoice.grandTotal),
+      paidAmount: paid,
       qrPayload: invoice.qrPayload,
       zatcaUuid: invoice.zatcaUuid,
+      bankAccounts: [],
     });
 
     await sendInvoiceEmail({

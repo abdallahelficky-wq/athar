@@ -4,22 +4,31 @@ import { PrintShell, QrImage, printWithOrientation } from "../../legacy/shared";
 import { fmt, fmt2 } from "../../legacy/constants";
 import { formatDateTime } from "../../i18n/dateFormat";
 import { currencyLabel } from "../../shared/countries";
+import ClassicProInvoiceView from "./invoiceTemplates/ClassicProInvoiceView";
 
 /**
  * عرض الفاتورة للقراءة فقط (بدون أي حقول قابلة للتعديل) + إمكانية الطباعة/تحميل PDF —
  * تُستخدَم من أيقونتي "عرض" و"طباعة" في قائمة الفواتير، وكذلك من زر "طباعة" داخل نافذة التعديل.
+ * قالب الفاتورة المعروض يتبع Company.invoiceTemplate لهذه الفاتورة تحديداً — "classicPro" يُفوَّض
+ * كلياً لمكوّن منفصل (ClassicProInvoiceView)، وبقية القيم ("modern"، الافتراضي) تستمر بنفس
+ * التصميم الحالي أدناه بلا أي تغيير.
  */
 export default function InvoiceViewModal({ invoice, companies, autoPrint, onClose }) {
   const { t, i18n } = useTranslation();
+  const companyForTemplate = companies?.find((c) => c.id === invoice.companyId) || invoice.company;
   useEffect(() => {
-    if (!autoPrint) return;
+    if (!autoPrint || companyForTemplate?.invoiceTemplate === "classicPro") return;
     const timer = setTimeout(() => printWithOrientation(false), 200);
     return () => clearTimeout(timer);
-  }, [autoPrint, invoice.id]);
+  }, [autoPrint, invoice.id, companyForTemplate?.invoiceTemplate]);
+
+  if (companyForTemplate?.invoiceTemplate === "classicPro") {
+    return <ClassicProInvoiceView invoice={invoice} companies={companies} autoPrint={autoPrint} onClose={onClose} />;
+  }
 
   // نُفضّل بيانات الشركة الحالية (شعار/عنوان/رقم ضريبي محدَّث) من القائمة الحقيقية المحمَّلة
   // على مستوى التطبيق بدل النسخة المضمَّنة في الفاتورة (والتي لا تحمل logoUrl صالحاً أصلاً)
-  const company = companies?.find((c) => c.id === invoice.companyId) || invoice.company;
+  const company = companyForTemplate;
   const customer = invoice.customer;
   const lastEmailLog = invoice.emailLogs?.[0];
   const branch = invoice.branch;

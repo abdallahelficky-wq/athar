@@ -7,6 +7,7 @@ import ReturnsTab from "./ReturnsTab";
 import ReceiptsTab from "./ReceiptsTab";
 import StationsTab from "./StationsTab";
 import SalesReportsTab from "./SalesReportsTab";
+import SalesSettingsTab from "./SalesSettingsTab";
 import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 import { useModuleTab } from "../shared/useModuleTab";
@@ -19,9 +20,10 @@ export const SALES_TABS = [
   { id: "receipts", labelKey: "nav.tabs.receipts" },
   { id: "stations", labelKey: "nav.tabs.stations" },
   { id: "reports", labelKey: "nav.tabs.reports" },
+  { id: "settings", labelKey: "nav.tabs.salesSettings" },
 ];
 
-export default function SalesWiredModule({ companies, companyId }) {
+export default function SalesWiredModule({ companies, companyId, reloadCompanies }) {
   const { t } = useTranslation();
   const [tab] = useModuleTab("/sales", SALES_TABS);
   return (
@@ -38,6 +40,7 @@ export default function SalesWiredModule({ companies, companyId }) {
       {tab === "receipts" && <ReceiptsTab companyId={companyId} companies={companies} />}
       {tab === "stations" && <StationsTab companyId={companyId} />}
       {tab === "reports" && <SalesReportsTab companyId={companyId} />}
+      {tab === "settings" && <SalesSettingsTab companyId={companyId} companies={companies} reloadCompanies={reloadCompanies} />}
     </div>
   );
 }

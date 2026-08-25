@@ -15,6 +15,7 @@ export const createCustomerSchema = z.object({
   city: z.string().optional(),
   postalCode: z.string().optional(),
   additionalNo: z.string().optional(),
+  unifiedEntityNumber: z.string().optional(),
   paymentTerms: z.string().optional(),
   creditLimit: z.coerce.number().min(0).optional(),
 });

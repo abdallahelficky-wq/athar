@@ -19,6 +19,12 @@ export const createSalesInvoiceSchema = z.object({
   // فرع اختياري تابع لنفس الشركة — تصنيف/عرض فقط، انظر Branch بالمخطط.
   branchId: z.string().nullable().optional(),
   date: z.coerce.date(),
+  // حقول اختيارية بحتة تظهر في شريط معلومات الفاتورة لبعض القوالب — لا تأثير محاسبي/ضريبي لها
+  dueDate: z.coerce.date().nullable().optional(),
+  customerReference: z.string().optional(),
+  poNumber: z.string().optional(),
+  salesperson: z.string().optional(),
+  otherId: z.string().optional(),
   lines: z.array(salesInvoiceLineSchema).min(1),
   post: z.boolean().default(true),
 });

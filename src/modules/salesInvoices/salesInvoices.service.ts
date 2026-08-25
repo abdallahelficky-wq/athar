@@ -32,6 +32,12 @@ interface InvoiceInput {
   customerId: string;
   branchId?: string | null;
   date: Date;
+  // حقول اختيارية بحتة (شريط معلومات الفاتورة لبعض القوالب) — لا تأثير محاسبي/ضريبي لها إطلاقاً
+  dueDate?: Date | null;
+  customerReference?: string;
+  poNumber?: string;
+  salesperson?: string;
+  otherId?: string;
   lines: LineInput[];
   post?: boolean;
   // مستودع محدَّد صراحةً (مثلاً من إعدادات جهاز نقطة بيع) يتجاوز مستودع الشركة الافتراضي —
@@ -54,7 +60,7 @@ async function resolveWarehouse(tx: Tx | typeof prisma, tenantId: string, compan
 }
 
 const invoiceInclude = {
-  lines: { include: { account: true } },
+  lines: { include: { account: true, item: true } },
   customer: true,
   company: true,
   branch: true,
@@ -276,6 +282,11 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
         customerId: input.customerId,
         branchId: input.branchId || undefined,
         date: input.date,
+        dueDate: input.dueDate || undefined,
+        customerReference: input.customerReference,
+        poNumber: input.poNumber,
+        salesperson: input.salesperson,
+        otherId: input.otherId,
         invoiceType: invType,
         status: "draft",
         qrPayload,
@@ -324,6 +335,11 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
         customerId: input.customerId,
         branchId: input.branchId || undefined,
         date: input.date,
+        dueDate: input.dueDate || undefined,
+        customerReference: input.customerReference,
+        poNumber: input.poNumber,
+        salesperson: input.salesperson,
+        otherId: input.otherId,
         invoiceType: invType,
         status: "posted",
         journalEntryId: entry.id,
@@ -370,6 +386,11 @@ export async function updateSalesInvoice(tenantId: string, id: string, input: In
         customerId: input.customerId,
         branchId: input.branchId ?? null,
         date: input.date,
+        dueDate: input.dueDate ?? null,
+        customerReference: input.customerReference,
+        poNumber: input.poNumber,
+        salesperson: input.salesperson,
+        otherId: input.otherId,
         invoiceType: invType,
         subtotal,
         vatTotal,

@@ -13,6 +13,7 @@ import { routes } from "../../routes";
 const emptyForm = () => ({
   name: "", customerType: "business", vatNumber: "", crNumber: "", nationalId: "",
   phone: "", email: "", buildingNo: "", street: "", district: "", city: "", postalCode: "", additionalNo: "",
+  unifiedEntityNumber: "",
   paymentTerms: "نقدي", creditLimit: "",
 });
 
@@ -210,6 +211,7 @@ export default function CustomersTab({ companyId, companies }) {
               </label>
               <label>{t("sales.customers.vatNumber")}<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => setForm({ ...form, vatNumber: e.target.value.replace(/\D/g, "") })} /></label>
               <label>{t("sales.customers.crNumber")}<input type="text" value={form.crNumber} onChange={(e) => setForm({ ...form, crNumber: e.target.value })} /></label>
+              <label>{t("sales.customers.unifiedEntityNumber")}<input type="text" value={form.unifiedEntityNumber} onChange={(e) => setForm({ ...form, unifiedEntityNumber: e.target.value })} /></label>
               <label>{t("sales.customers.phone")}<input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
               <label>{t("sales.customers.email")}<input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
               <label>{t("sales.customers.paymentTerms")}

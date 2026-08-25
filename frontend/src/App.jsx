@@ -242,8 +242,8 @@ function DashboardRoute() {
   return <Dashboard companies={companies} companyId={companyId} />;
 }
 function SalesRoute() {
-  const { companies, companyId } = useOutletContext();
-  return <SalesWiredModule companies={companies} companyId={companyId} />;
+  const { companies, companyId, reloadRealCompanies } = useOutletContext();
+  return <SalesWiredModule companies={companies} companyId={companyId} reloadCompanies={reloadRealCompanies} />;
 }
 function PurchasesRoute() {
   const { companies, companyId } = useOutletContext();
