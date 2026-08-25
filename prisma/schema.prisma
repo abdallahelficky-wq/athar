@@ -42,16 +42,17 @@ model Tenant {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  users            User[]
-  companies        Company[]
-  costCenters      CostCenter[]
-  departments      Department[]
-  branches         Branch[]
-  accounts         Account[]
-  companyDocuments CompanyDocument[]
-  leaseContracts   LeaseContract[]
-  journalEntries   JournalEntry[]
-  auditLogs        AuditLog[]
+  users               User[]
+  companies           Company[]
+  costCenters         CostCenter[]
+  departments         Department[]
+  branches            Branch[]
+  companyBankAccounts CompanyBankAccount[]
+  accounts            Account[]
+  companyDocuments    CompanyDocument[]
+  leaseContracts      LeaseContract[]
+  journalEntries      JournalEntry[]
+  auditLogs           AuditLog[]
 
   customers        Customer[]
   quotations       Quotation[]
@@ -262,6 +263,7 @@ model Company {
   costCenters          CostCenter[]
   departments          Department[]
   branches             Branch[]
+  bankAccounts         CompanyBankAccount[]
   companyDocuments     CompanyDocument[]
   leaseContracts       LeaseContract[]
   journalEntries       JournalEntry[]
@@ -575,6 +577,25 @@ model Branch {
 
   @@index([tenantId, companyId])
   @@map("branches")
+}
+
+// حساب بنكي رسمي للشركة — تُعرَض قائمتها في بعض قوالب الفواتير (مثل classicPro) عند وجودها،
+// ولا تُفرَض على أي قالب لا يدعمها. عدة حسابات لكل شركة (راجحي/رياض/...)، بترتيب عرض يدوي.
+model CompanyBankAccount {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bankName      String
+  accountNumber String
+  iban          String
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId, companyId])
+  @@map("company_bank_accounts")
 }
 
 model JournalEntry {
@@ -1986,41 +2007,41 @@ model Horse {
 }
 
 model BoardingContract {
-  id            String                 @id @default(cuid())
-  tenantId      String
-  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId     String
-  company       Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  stableId      String
-  stable        Stable                 @relation(fields: [stableId], references: [id])
-  horseId       String
-  horse         Horse                  @relation(fields: [horseId], references: [id])
-  stallId       String?
-  stall         StableStall?           @relation(fields: [stallId], references: [id])
-  startDate     DateTime
-  endDate       DateTime?
-  monthlyFee    Decimal                @db.Decimal(18, 2)
-  depositAmount Decimal?               @db.Decimal(18, 2)
-  contractNumber String?
-  ownerName      String?
-  ownerNationality String?
-  ownerNationalId String?
+  id                String                 @id @default(cuid())
+  tenantId          String
+  tenant            Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId         String
+  company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stableId          String
+  stable            Stable                 @relation(fields: [stableId], references: [id])
+  horseId           String
+  horse             Horse                  @relation(fields: [horseId], references: [id])
+  stallId           String?
+  stall             StableStall?           @relation(fields: [stallId], references: [id])
+  startDate         DateTime
+  endDate           DateTime?
+  monthlyFee        Decimal                @db.Decimal(18, 2)
+  depositAmount     Decimal?               @db.Decimal(18, 2)
+  contractNumber    String?
+  ownerName         String?
+  ownerNationality  String?
+  ownerNationalId   String?
   ownerIdIssuePlace String?
-  ownerPhone     String?
-  ownerEmail     String?
-  ownerCity      String?
-  ownerDistrict  String?
-  ownerStreet    String?
-  ownerBuildingNo String?
-  ownerPostalCode String?
-  sentAt         DateTime?
-  status        BoardingContractStatus @default(active)
-  notes         String?
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
+  ownerPhone        String?
+  ownerEmail        String?
+  ownerCity         String?
+  ownerDistrict     String?
+  ownerStreet       String?
+  ownerBuildingNo   String?
+  ownerPostalCode   String?
+  sentAt            DateTime?
+  status            BoardingContractStatus @default(active)
+  notes             String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
-  @@index([tenantId, companyId, status])
   @@unique([companyId, contractNumber])
+  @@index([tenantId, companyId, status])
   @@map("boarding_contracts")
 }
 
@@ -2046,4 +2067,3 @@ model HorseCareRecord {
   @@index([horseId, nextDueDate])
   @@map("horse_care_records")
 }
-

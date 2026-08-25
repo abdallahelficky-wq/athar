@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { updateCompany } from "../../api/companies";
+import { updateCompany, uploadCompanyLogo } from "../../api/companies";
 import InvoiceViewModal from "./InvoiceViewModal";
 import ClassicProInvoiceView from "./invoiceTemplates/ClassicProInvoiceView";
+
+const DEFAULT_BRAND_COLOR = "#10202E";
 
 const TEMPLATES = [
   { key: "modern", nameKey: "sales.settings.templateModernName", descKey: "sales.settings.templateModernDesc" },
@@ -53,10 +55,18 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [previewTemplate, setPreviewTemplate] = useState(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef(null);
 
   useEffect(() => { setSelectedCompanyId(companyId); }, [companyId]);
 
   const company = companies?.find((c) => c.id === selectedCompanyId);
+
+  // مسودة محلية للون قبل الحفظ — <input type=color> يُطلِق onChange مع كل حركة سحب داخل منتقي
+  // اللون، فحفظها فوراً في كل مرة يُرسِل عشرات الطلبات بلا داعٍ؛ الحفظ الفعلي يحدث فقط عند
+  // onBlur (إغلاق المنتقي)، بينما onChange يحدّث المعاينة اللونية محلياً بلا أي طلب شبكة.
+  const [colorDraft, setColorDraft] = useState(company?.brandColor || DEFAULT_BRAND_COLOR);
+  useEffect(() => { setColorDraft(company?.brandColor || DEFAULT_BRAND_COLOR); }, [company?.id, company?.brandColor]);
 
   const chooseTemplate = async (key) => {
     if (!company || company.invoiceTemplate === key) return;
@@ -69,6 +79,32 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const changeBrandColor = async (color) => {
+    if (!company) return;
+    try {
+      await updateCompany(company.id, { brandColor: color });
+      reloadCompanies?.();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const pickLogo = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !company) return;
+    setUploadingLogo(true);
+    setError("");
+    try {
+      await uploadCompanyLogo(company.id, file);
+      reloadCompanies?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
@@ -121,6 +157,34 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
           </div>
         )}
       </div>
+
+      {company && (
+        <div className="panel form-panel">
+          <h3 className="sub-head">{t("sales.settings.customizationTitle")}</h3>
+          <p className="note">{t("sales.settings.customizationNote")}</p>
+          <div className="form-grid">
+            <label>
+              {t("sales.settings.brandColorLabel")}
+              <input
+                type="color"
+                value={colorDraft}
+                onChange={(e) => setColorDraft(e.target.value)}
+                onBlur={(e) => changeBrandColor(e.target.value)}
+              />
+            </label>
+            <label>
+              {t("sales.settings.logoLabel")}
+              <div className="form-btn-group" style={{ justifyContent: "flex-start" }}>
+                {company.logoUrl && <img src={company.logoUrl} alt={company.name} style={{ height: 32, borderRadius: 6 }} />}
+                <input ref={logoInputRef} type="file" accept="image/*" hidden onChange={pickLogo} />
+                <button className="btn-ghost" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
+                  {uploadingLogo ? t("settings.companyEdit.uploadingLogo") : company.logoUrl ? t("settings.companyEdit.changeLogo") : t("settings.companyEdit.uploadLogo")}
+                </button>
+              </div>
+            </label>
+          </div>
+        </div>
+      )}
 
       {previewTemplate && company && previewTemplate === "classicPro" && (
         <ClassicProInvoiceView

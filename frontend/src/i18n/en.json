@@ -477,7 +477,11 @@
       "templateClassicProDesc": "Bilingual header with a circular logo, seller/buyer boxes, a horizontal info bar, a zebra-striped item table, and a bank accounts table when available.",
       "previewBtn": "Preview",
       "activeTemplate": "Currently active template",
-      "chooseTemplate": "Adopt this template"
+      "chooseTemplate": "Adopt this template",
+      "customizationTitle": "Invoice customization for this company",
+      "customizationNote": "Basic customization applied on top of the chosen template — color on the header/footer/tables, and the logo in the header.",
+      "brandColorLabel": "Invoice primary color",
+      "logoLabel": "Company logo"
     },
     "quotations": {
       "addBtn": "+ Add quotation",
@@ -1564,6 +1568,21 @@
       "activate": "Activate",
       "deactivate": "Deactivate",
       "empty": "No branches registered yet — entries and invoices stay attached to the parent company generally, with no specific branch."
+    },
+    "bankAccounts": {
+      "title": "Bank accounts",
+      "note": "These accounts are shown on some invoice templates (like \"Classic Professional\") only when set.",
+      "bankNameLabel": "Bank name",
+      "accountNumberLabel": "Account number",
+      "ibanLabel": "IBAN",
+      "addBtn": "+ Add bank account",
+      "saveChanges": "Save changes",
+      "errRequired": "Bank name, account number, and IBAN are required",
+      "confirmDelete": "Permanently delete bank account \"{{name}}\"?",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "table": { "bankName": "Bank name", "accountNumber": "Account number", "iban": "IBAN" },
+      "empty": "No bank accounts registered yet."
     },
     "users": {
       "nameLabel": "Name",

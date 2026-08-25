@@ -42,6 +42,10 @@ export async function sendInvoiceByEmail(
       .filter(Boolean)
       .join("، ");
     const paid = invoice.receiptAllocations.reduce((s, a) => s + Number(a.amount), 0);
+    const bankAccounts = await prisma.companyBankAccount.findMany({
+      where: { companyId: invoice.companyId, tenantId },
+      orderBy: { sortOrder: "asc" },
+    });
 
     const pdfBuffer = await buildPlainInvoicePdf({
       template: invoice.company.invoiceTemplate,
@@ -84,7 +88,7 @@ export async function sendInvoiceByEmail(
       paidAmount: paid,
       qrPayload: invoice.qrPayload,
       zatcaUuid: invoice.zatcaUuid,
-      bankAccounts: [],
+      bankAccounts: bankAccounts.map((b) => ({ bankName: b.bankName, accountNumber: b.accountNumber, iban: b.iban })),
     });
 
     await sendInvoiceEmail({

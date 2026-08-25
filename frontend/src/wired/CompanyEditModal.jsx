@@ -5,6 +5,7 @@ import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CompanyDocumentsPanel from "./CompanyDocumentsPanel";
 import LeaseContractsPanel from "./LeaseContractsPanel";
 import BranchesPanel from "./BranchesPanel";
+import CompanyBankAccountsPanel from "./CompanyBankAccountsPanel";
 import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry } from "../shared/countries";
 
 const emptyForm = (c) => ({
@@ -209,6 +210,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         </div>
 
         <BranchesPanel companyId={company.id} companyCurrency={form.currency} />
+        <CompanyBankAccountsPanel companyId={company.id} />
         <LeaseContractsPanel companyId={company.id} />
         <CompanyDocumentsPanel companyId={company.id} />
 

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../../../context/AuthContext";
 import { QrImage, formatCompanyAddress, printWithOrientation } from "../../../legacy/shared";
 import { fmt2 } from "../../../legacy/constants";
+import { listCompanyBankAccounts } from "../../../api/companyBankAccounts";
 
 /** يستنتج متصفح/نظام تشغيل/نوع جهاز المستخدم من navigator.userAgent — لمعلومات تدقيق (Audit
  * trail) بسيطة في تذييل الطباعة، بلا أي استدعاء خارجي أو تتبع لعنوان IP (غير متاح بأمان من
@@ -24,7 +25,7 @@ function detectClientInfo() {
  * مستقل تماماً عن PrintShell (لا يعدّله ولا يستبدله) — يُستخدَم فقط لما Company.invoiceTemplate
  * === "classicPro"، فيبقى القالب الحالي كما هو تماماً لبقية الشركات.
  */
-export default function ClassicProInvoiceView({ invoice, companies, autoPrint, bankAccounts = [], onClose }) {
+export default function ClassicProInvoiceView({ invoice, companies, autoPrint, bankAccounts: bankAccountsProp, onClose }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [printedAt, setPrintedAt] = useState(null);
@@ -35,6 +36,15 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
   const branch = invoice.branch;
   const accent = company?.brandColor || "#0B5E3B";
   const remaining = Number(invoice.grandTotal) - (invoice.paidAmount || 0);
+
+  // القيمة الحقيقية تُجلَب من الخادم عند عدم تمرير bankAccountsProp صراحة (فاتورة حقيقية) —
+  // المعاينة التجريبية من "إعدادات المبيعات" تمرّرها جاهزة (بيانات وهمية) فتتخطى الجلب.
+  const [fetchedBankAccounts, setFetchedBankAccounts] = useState([]);
+  useEffect(() => {
+    if (bankAccountsProp || !company?.id) return;
+    listCompanyBankAccounts(company.id).then(setFetchedBankAccounts).catch(() => setFetchedBankAccounts([]));
+  }, [bankAccountsProp, company?.id]);
+  const bankAccounts = bankAccountsProp || fetchedBankAccounts;
 
   useEffect(() => {
     if (!autoPrint) return;

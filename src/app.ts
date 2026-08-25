@@ -11,6 +11,7 @@ import { accountRoutes } from "./modules/accounts/accounts.routes";
 import { costCenterRoutes } from "./modules/costCenters/costCenters.routes";
 import { departmentRoutes } from "./modules/departments/departments.routes";
 import { branchRoutes } from "./modules/branches/branches.routes";
+import { companyBankAccountRoutes } from "./modules/companyBankAccounts/companyBankAccounts.routes";
 import { journalEntryRoutes } from "./modules/journalEntries/journalEntries.routes";
 import { reportRoutes } from "./modules/reports/reports.routes";
 import { reportScheduleRoutes } from "./modules/reportSchedules/reportSchedules.routes";
@@ -73,6 +74,7 @@ export function createApp() {
   app.use("/api/cost-centers", costCenterRoutes);
   app.use("/api/departments", departmentRoutes);
   app.use("/api/branches", branchRoutes);
+  app.use("/api/company-bank-accounts", companyBankAccountRoutes);
   app.use("/api/journal-entries", journalEntryRoutes);
   app.use("/api/reports", reportRoutes);
   app.use("/api/companies/:companyId", reportScheduleRoutes);
