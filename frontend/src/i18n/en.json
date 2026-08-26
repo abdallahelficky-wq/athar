@@ -1453,7 +1453,8 @@
         "manufacturing": "Factories / manufacturing",
         "retail": "Retail sales",
         "generalTrade": "General trade (import/export)",
-        "fuelStations": "Fuel stations"
+        "fuelStations": "Fuel stations",
+        "horseStables": "Horse stables, boarding and livery"
       },
       "countryLabel": "Country",
       "currencyLabel": "Accounting currency",
