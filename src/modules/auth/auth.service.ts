@@ -9,7 +9,9 @@ import {
   expiresInToDate,
 } from "../../lib/jwt";
 import { env } from "../../config/env";
-import { createDefaultChart } from "../../lib/defaultChartOfAccounts";
+import { createChartFromTemplate } from "../../lib/defaultChartOfAccounts";
+import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
+import { createStarterItems, createCashParties, createDefaultWarehouse } from "../../lib/starterData";
 import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../../lib/mailer";
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
 import type { Lang } from "../../lib/i18n/translate";
@@ -82,7 +84,7 @@ function assertTenantActive(tenant: Tenant) {
 }
 
 export async function register(
-  input: { tenantName: string; name: string; email: string; password: string },
+  input: { tenantName: string; businessActivity: BusinessActivity; name: string; email: string; password: string },
   lang: Lang = "ar",
 ) {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
@@ -103,7 +105,11 @@ export async function register(
         },
       });
 
-      await createDefaultChart(tx, tenant.id, null);
+      const company = await tx.company.create({ data: { tenantId: tenant.id, name: input.tenantName, businessActivity: input.businessActivity } });
+      const idByCode = await createChartFromTemplate(tx, tenant.id, company.id, CHART_TEMPLATE_BY_ACTIVITY[input.businessActivity]);
+      await createStarterItems(tx, tenant.id, company.id, input.businessActivity, idByCode);
+      await createCashParties(tx, tenant.id, company.id);
+      await createDefaultWarehouse(tx, tenant.id, company.id);
 
       const user = await tx.user.create({
         data: {
