@@ -24,6 +24,7 @@ const HORSE_STABLES_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   { code: "114005", name: "مخزون أدوية ومكملات الخيل", nameEn: "Horse Medicines and Supplements Inventory", type: "asset", level: 4, parentCode: "114", isPosting: true },
   { code: "121009", name: "تجهيزات الإسطبلات والبوكسات", nameEn: "Stable and Stall Equipment", type: "asset", level: 4, parentCode: "121", isPosting: true },
   { code: "121010", name: "خيول مملوكة للمنشأة", nameEn: "Business-Owned Horses", type: "asset", level: 4, parentCode: "121", isPosting: true },
+  { code: "212005", name: "عمولات مدربين مستحقة", nameEn: "Accrued Trainer Commissions", type: "liability", level: 4, parentCode: "212", isPosting: true },
   { code: "411003", name: "إيرادات إيواء وإعاشة الخيل", nameEn: "Horse Boarding and Livery Revenue", type: "revenue", level: 4, parentCode: "411", isPosting: true },
   { code: "411004", name: "إيرادات التدريب ومدرسة الركوب", nameEn: "Training and Riding School Revenue", type: "revenue", level: 4, parentCode: "411", isPosting: true },
   { code: "411005", name: "إيرادات خدمات الرعاية", nameEn: "Horse Care Services Revenue", type: "revenue", level: 4, parentCode: "411", isPosting: true },

@@ -8,6 +8,9 @@ export const stableRoutes = Router();
 stableRoutes.use(authenticate);
 const edit = requireRole("admin", "finance_manager");
 stableRoutes.get("/overview", c.overview);
+stableRoutes.get("/boarding-billing/owners", c.listBoardingOwners);
+stableRoutes.post("/boarding-billing/invoices", edit, validateBody(s.createBoardingInvoiceSchema), c.createBoardingInvoice);
+stableRoutes.get("/trainer-commissions/report", c.trainerCommissionReport);
 stableRoutes.get("/", c.listStables); stableRoutes.post("/", edit, validateBody(s.createStableSchema), c.createStable);
 stableRoutes.patch("/:id", edit, validateBody(s.updateStableSchema), c.updateStable); stableRoutes.delete("/:id", edit, c.deleteStable);
 stableRoutes.get("/stalls/list", c.listStalls); stableRoutes.post("/stalls", edit, validateBody(s.createStallSchema), c.createStall);
@@ -22,6 +25,6 @@ stableRoutes.patch("/care/:id", edit, validateBody(s.updateCareRecordSchema), c.
 stableRoutes.get("/trainers/list",c.listTrainers); stableRoutes.post("/trainers",edit,validateBody(s.trainerSchema),c.createTrainer); stableRoutes.patch("/trainers/:id",edit,validateBody(s.updateTrainerSchema),c.updateTrainer); stableRoutes.delete("/trainers/:id",edit,c.deleteTrainer);
 stableRoutes.get("/lesson-types/list",c.listLessonTypes); stableRoutes.post("/lesson-types",edit,validateBody(s.lessonTypeSchema),c.createLessonType); stableRoutes.patch("/lesson-types/:id",edit,validateBody(s.updateLessonTypeSchema),c.updateLessonType); stableRoutes.delete("/lesson-types/:id",edit,c.deleteLessonType);
 stableRoutes.get("/lessons/list",c.listLessons); stableRoutes.post("/lessons",edit,validateBody(s.lessonSchema),c.createLesson); stableRoutes.patch("/lessons/:id",edit,validateBody(s.updateLessonSchema),c.updateLesson); stableRoutes.delete("/lessons/:id",edit,c.deleteLesson);
+stableRoutes.post("/lessons/:id/invoice",edit,c.createLessonInvoice);
 stableRoutes.get("/competitions/list",c.listCompetitions); stableRoutes.post("/competitions",edit,validateBody(s.competitionSchema),c.createCompetition); stableRoutes.patch("/competitions/:id",edit,validateBody(s.updateCompetitionSchema),c.updateCompetition); stableRoutes.delete("/competitions/:id",edit,c.deleteCompetition);
 stableRoutes.get("/care-services/list",c.listCareServices); stableRoutes.post("/care-services",edit,validateBody(s.careServiceSchema),c.createCareService); stableRoutes.patch("/care-services/:id",edit,validateBody(s.updateCareServiceSchema),c.updateCareService); stableRoutes.delete("/care-services/:id",edit,c.deleteCareService);
-
