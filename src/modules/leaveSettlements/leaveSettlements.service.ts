@@ -26,54 +26,7 @@ function salaryBasis(emp: ReturnType<typeof empPayBase>, basis: string) {
   return emp.basicSalary + emp.housingAllowance + emp.transportAllowance + emp.otherAllowance;
 }
 
-async function calculatePreview(tenantId: string, emp: any, leaveStartDate: Date, options: { leaveEndDate: Date | null; settlementType: "actual_leave" | "cash_in_service"; cashLeaveDays: number }) {
-  const settings: any = await prisma.payrollSettings.findUnique({ where: { companyId: emp.companyId } });
-  const beforeFive = Number(settings?.leaveDaysBeforeFive ?? 21), afterFive = Number(settings?.leaveDaysAfterFive ?? 30);
-  const divisor = Number(settings?.leaveDailyRateDivisor ?? 30), basis = settings?.leaveSalaryBasis ?? "total";
-  const serviceDays = Math.max((leaveStartDate.getTime() - emp.hireDate.getTime()) / 86_400_000, 0);
-  const firstFiveDays = Math.min(serviceDays, 5 * 365), laterDays = Math.max(serviceDays - 5 * 365, 0);
-  const accruedDays = (firstFiveDays / 365) * beforeFive + (laterDays / 365) * afterFive;
-  const used: any = await (prisma.leaveSettlement as any).aggregate({ where: { employeeId: emp.id }, _sum: { leaveDays: true } });
-  const usedDays = Number(used._sum.leaveDays ?? 0), availableDays = Math.max(accruedDays - usedDays, 0);
-  const requestedDays = options.settlementType === "cash_in_service"
-    ? Math.max(options.cashLeaveDays || 0, 0)
-    : options.leaveEndDate ? Math.max(Math.floor((options.leaveEndDate.getTime() - leaveStartDate.getTime()) / 86_400_000) + 1, 0) : 0;
-  const leaveDays = Math.min(requestedDays, availableDays);
-  const pay = empPayBase(emp), leaveDaily = salaryBasis(pay, basis) / divisor;
-  const daysWorked = Math.max(leaveStartDate.getDate() - 1, 0);
-  const payrollMonth = leaveStartDate.toISOString().slice(0, 7);
-  const payrollSettings: PayrollSettingsLike = {
-    standardHoursPerMonth: Number(settings?.standardHoursPerMonth ?? 240),
-    standardDaysPerMonth: Number(settings?.standardDaysPerMonth ?? 30),
-  };
-  const { components, persisted } = await resolveEffectiveComponents(tenantId, emp.companyId);
-  const [assignments, actions] = await Promise.all([
-    persisted ? prisma.employeePayrollComponent.findMany({ where: { employeeId: emp.id, isActive: true } }) : Promise.resolve([]),
-    prisma.hrAction.findMany({ where: { employeeId: emp.id, month: payrollMonth }, orderBy: { createdAt: "asc" } }),
-  ]);
-  const assignedIds = new Set(assignments.map((a) => a.componentId));
-  const employeeComponents = persisted ? components.filter((c) => assignedIds.has(c.id)) : components;
-  const fixedValues = new Map<string, number>();
-  if (persisted) assignments.forEach((a) => { if (a.fixedValue != null) fixedValues.set(a.componentId, Number(a.fixedValue)); });
-  else {
-    if (Number(emp.advances)) fixedValues.set("legacy:advance", Number(emp.advances));
-    if (Number(emp.otherDeductions)) fixedValues.set("legacy:otherDed", Number(emp.otherDeductions));
-    if (emp.gosiAmount != null) fixedValues.set("legacy:gosi", Number(emp.gosiAmount));
-  }
-  const monthlyAdjustments = new Map<string, number>();
-  actions.forEach((action) => {
-    const id = action.componentId || (LEGACY_ACTION_TYPE_TO_KEY[action.actionType] ? `legacy:${LEGACY_ACTION_TYPE_TO_KEY[action.actionType]}` : null);
-    if (id) monthlyAdjustments.set(id, (monthlyAdjustments.get(id) || 0) + Number(action.value));
-  });
-  const payroll = computeEmployeePayroll({ employee: pay, components: employeeComponents, fixedValues, monthlyAdjustments,
-    settings: payrollSettings, fullyOnLeave: false, prorationFactor: Math.min(daysWorked / payrollSettings.standardDaysPerMonth, 1) });
-  const componentLines = employeeComponents.map((component) => ({ id: component.id, name: component.name, kind: component.kind,
-    amount: payroll.values.get(component.id) || 0, hasProcedure: monthlyAdjustments.has(component.id) })).filter((line) => line.amount !== 0 || line.hasProcedure);
-  return { daysWorked, daily: salaryBasis(pay, "total") / payrollSettings.standardDaysPerMonth, monthAmount: payroll.net,
-    salary: { additions: payroll.totalAdditions, deductions: payroll.totalDeductions, net: payroll.net, components: componentLines, procedureCount: actions.length },
-    accrual: { days: accruedDays, usedDays, availableDays, amount: availableDays * leaveDaily },
-    leaveDays, leaveDaily, leavePayAmount: leaveDays * leaveDaily, settings: { beforeFive, afterFive, divisor, basis } };
-}
+
 
 function empPayBase(emp: { basicSalary: unknown; housingAllowance: unknown; transportAllowance: unknown; otherAllowance: unknown }) {
   return {
@@ -225,4 +178,3 @@ export async function registerLeaveReturn(tenantId: string, employeeId: string, 
 
   return { settlement, preview: { month, workedDays, amount: previewAmount } };
 }
-
