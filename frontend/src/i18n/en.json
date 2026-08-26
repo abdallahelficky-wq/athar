@@ -29,10 +29,19 @@
       "wrongPin": "Incorrect PIN"
     },
     "invoiceLines": {
-      "account": "Account", "description": "Description", "descriptionPlaceholder": "Item/service description",
-      "quantity": "Qty", "unitPrice": "Unit price", "priceIncludesVat": "Incl. VAT?", "discount": "Disc. %",
-      "totalWithVat": "Total incl. VAT", "total": "Total", "addLine": "+ Add line",
-      "subtotal": "Subtotal before tax", "vat": "VAT (15%)", "grandTotal": "Total incl. VAT"
+      "account": "Account",
+      "description": "Description",
+      "descriptionPlaceholder": "Item/service description",
+      "quantity": "Qty",
+      "unitPrice": "Unit price",
+      "priceIncludesVat": "Incl. VAT?",
+      "discount": "Disc. %",
+      "totalWithVat": "Total incl. VAT",
+      "total": "Total",
+      "addLine": "+ Add line",
+      "subtotal": "Subtotal before tax",
+      "vat": "VAT (15%)",
+      "grandTotal": "Total incl. VAT"
     }
   },
   "stables": {
@@ -50,7 +59,10 @@
     "competitions": "Competitions"
   },
   "landing": {
-    "nav": { "login": "Log in", "startTrial": "Start your free trial" },
+    "nav": {
+      "login": "Log in",
+      "startTrial": "Start your free trial"
+    },
     "eyebrow": "Cloud accounting for Arab businesses",
     "title": "Athar Accounting",
     "heroSub": "A complete cloud accounting system for managing your whole business group — from journal entries and ZATCA-compliant tax invoices, to inventory, fixed assets, HR and payroll — all in one place, in an interface designed from the ground up for your market.",
@@ -65,12 +77,30 @@
       "eyebrow": "Why Athar Accounting",
       "title": "Designed to fit the way you work",
       "items": [
-        { "title": "ZATCA compliant (Saudi companies)", "desc": "Electronic tax invoices (standard and simplified) with a real QR code, built from the ground up to meet the requirements of the Zakat, Tax and Customs Authority — enabled automatically for any company that selects Saudi Arabia as its country." },
-        { "title": "A whole group in one place", "desc": "Manage all your companies from a single screen, with complete data separation per company and consolidated reports for the whole group." },
-        { "title": "A complete employee lifecycle", "desc": "From hiring and leave to payroll and end-of-service benefits, calculated automatically per the applicable labor system." },
-        { "title": "Instant financial reports", "desc": "The trial balance, income statement and balance sheet update live with every entry and invoice you record." },
-        { "title": "Integrated sales and purchases cycle", "desc": "From quotation to invoice to receipt, and from purchase order to supplier invoice, with full automatic accounting links." },
-        { "title": "An interface designed for your market", "desc": "Built from scratch to fit how accountants in the Arab market actually work, not an interface translated from a foreign system." }
+        {
+          "title": "ZATCA compliant (Saudi companies)",
+          "desc": "Electronic tax invoices (standard and simplified) with a real QR code, built from the ground up to meet the requirements of the Zakat, Tax and Customs Authority — enabled automatically for any company that selects Saudi Arabia as its country."
+        },
+        {
+          "title": "A whole group in one place",
+          "desc": "Manage all your companies from a single screen, with complete data separation per company and consolidated reports for the whole group."
+        },
+        {
+          "title": "A complete employee lifecycle",
+          "desc": "From hiring and leave to payroll and end-of-service benefits, calculated automatically per the applicable labor system."
+        },
+        {
+          "title": "Instant financial reports",
+          "desc": "The trial balance, income statement and balance sheet update live with every entry and invoice you record."
+        },
+        {
+          "title": "Integrated sales and purchases cycle",
+          "desc": "From quotation to invoice to receipt, and from purchase order to supplier invoice, with full automatic accounting links."
+        },
+        {
+          "title": "An interface designed for your market",
+          "desc": "Built from scratch to fit how accountants in the Arab market actually work, not an interface translated from a foreign system."
+        }
       ]
     },
     "pricing": {
@@ -83,20 +113,43 @@
       "cta": "Start free trial",
       "plans": [
         {
-          "name": "Basic", "tagline": "For startups and small business owners",
-          "features": ["One company", "Core journal entries and financial reports", "ZATCA-compliant sales and purchase invoices", "Up to 5 users", "Email support"]
+          "name": "Basic",
+          "tagline": "For startups and small business owners",
+          "features": [
+            "One company",
+            "Core journal entries and financial reports",
+            "ZATCA-compliant sales and purchase invoices",
+            "Up to 5 users",
+            "Email support"
+          ]
         },
         {
-          "name": "Professional", "tagline": "For multi-company groups and accounting teams",
-          "features": ["Up to 4 companies in one group", "Everything in the Basic plan", "Inventory and fixed assets", "Full HR and payroll", "Priority support"]
+          "name": "Professional",
+          "tagline": "For multi-company groups and accounting teams",
+          "features": [
+            "Up to 4 companies in one group",
+            "Everything in the Basic plan",
+            "Inventory and fixed assets",
+            "Full HR and payroll",
+            "Priority support"
+          ]
         },
         {
-          "name": "Enterprise", "tagline": "For large groups with advanced needs",
-          "features": ["Unlimited companies", "Everything in the Professional plan", "Advanced user permissions", "Unlimited Excel import/export", "Dedicated account manager"]
+          "name": "Enterprise",
+          "tagline": "For large groups with advanced needs",
+          "features": [
+            "Unlimited companies",
+            "Everything in the Professional plan",
+            "Advanced user permissions",
+            "Unlimited Excel import/export",
+            "Dedicated account manager"
+          ]
         }
       ]
     },
-    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved" }
+    "footer": {
+      "copyright": "© 2026 Athar Accounting — All rights reserved"
+    }
   },
   "auth": {
     "login": {
@@ -172,22 +225,54 @@
       "settings": "Settings"
     },
     "tabs": {
-      "customers": "Customers", "quotations": "Quotations", "invoices": "Sales Invoices",
-      "returns": "Sales Returns", "receipts": "Receipts", "stations": "Station Sales",
-      "reports": "Reports", "salesSettings": "Sales Settings", "suppliers": "Suppliers", "purchaseInvoices": "Purchase Invoices",
-      "purchaseReturns": "Purchase Returns", "items": "Items", "warehouses": "Warehouses",
-      "inout": "Stock In / Out", "issue": "Stock Issue", "transfer": "Branch Transfer",
-      "report": "Balances Report", "register": "Asset Register", "depreciation": "Monthly Depreciation",
-      "disposal": "Disposal / Sale", "fixedAssetsReports": "Reports", "categories": "Fixed Asset Settings",
-      "journal": "Journal Entries", "chartOfAccounts": "Chart of Accounts", "ledger": "Account Ledger",
-      "departments": "Departments", "zakat": "Zakat & Tax (estimated, sample data)",
-      "hrDashboard": "Dashboard", "directory": "Employee Directory", "leaves": "Leave Requests",
-      "leaveSettlement": "Leave Settlements", "leaveReturn": "Return from Leave", "hrActions": "Employee Actions",
-      "payroll": "Payroll", "payrollSettings": "Payroll Settings", "eos": "End of Service",
-      "hrReports": "Reports", "trial": "Trial Balance", "income": "Income Statement", "balance": "Balance Sheet",
-      "monthly": "Comprehensive Monthly Report", "automation": "Send Automation",
-      "companies": "Company Info", "profile": "Profile", "users": "Users & Permissions",
-      "jobTitles": "Job Titles", "locations": "Locations", "companyDocs": "Official Documents"
+      "customers": "Customers",
+      "quotations": "Quotations",
+      "invoices": "Sales Invoices",
+      "returns": "Sales Returns",
+      "receipts": "Receipts",
+      "stations": "Station Sales",
+      "reports": "Reports",
+      "salesSettings": "Sales Settings",
+      "suppliers": "Suppliers",
+      "purchaseInvoices": "Purchase Invoices",
+      "purchaseReturns": "Purchase Returns",
+      "items": "Items",
+      "warehouses": "Warehouses",
+      "inout": "Stock In / Out",
+      "issue": "Stock Issue",
+      "transfer": "Branch Transfer",
+      "report": "Balances Report",
+      "register": "Asset Register",
+      "depreciation": "Monthly Depreciation",
+      "disposal": "Disposal / Sale",
+      "fixedAssetsReports": "Reports",
+      "categories": "Fixed Asset Settings",
+      "journal": "Journal Entries",
+      "chartOfAccounts": "Chart of Accounts",
+      "ledger": "Account Ledger",
+      "departments": "Departments",
+      "zakat": "Zakat & Tax (estimated, sample data)",
+      "hrDashboard": "Dashboard",
+      "directory": "Employee Directory",
+      "leaves": "Leave Requests",
+      "leaveSettlement": "Leave Settlements",
+      "leaveReturn": "Return from Leave",
+      "hrActions": "Employee Actions",
+      "payroll": "Payroll",
+      "payrollSettings": "Payroll Settings",
+      "eos": "End of Service",
+      "hrReports": "Reports",
+      "trial": "Trial Balance",
+      "income": "Income Statement",
+      "balance": "Balance Sheet",
+      "monthly": "Comprehensive Monthly Report",
+      "automation": "Send Automation",
+      "companies": "Company Info",
+      "profile": "Profile",
+      "users": "Users & Permissions",
+      "jobTitles": "Job Titles",
+      "locations": "Locations",
+      "companyDocs": "Official Documents"
     },
     "activeCompanyLabel": "Active company:",
     "noCompanySelected": "Not selected yet",
@@ -213,7 +298,10 @@
     "emailWarningAfter": "variable in the deployment settings."
   },
   "dashboard": {
-    "breadcrumb": { "overview": "Overview", "realData": "Real data" },
+    "breadcrumb": {
+      "overview": "Overview",
+      "realData": "Real data"
+    },
     "title": "Financial Dashboard",
     "welcome": {
       "greetingMorning": "Good morning, {{name}}",
@@ -269,40 +357,85 @@
     "loadingAllCompanies": "Aggregating data for all companies...",
     "comparisonTitle": "Group companies comparison (current month)",
     "comparisonTable": {
-      "company": "Company", "netSales": "Net Sales", "netProfitEstimate": "Estimated Net Profit",
-      "cashBalance": "Cash Balance", "receivables": "Customer Receivables", "payables": "Supplier Payables",
+      "company": "Company",
+      "netSales": "Net Sales",
+      "netProfitEstimate": "Estimated Net Profit",
+      "cashBalance": "Cash Balance",
+      "receivables": "Customer Receivables",
+      "payables": "Supplier Payables",
       "total": "Total"
     },
     "loading": "Loading...",
     "kpi": {
-      "netSales": "Net sales (selected period)", "vsPreviousPeriod": "vs. previous period",
-      "netProfitEstimate": "Estimated net profit", "cashBalance": "Current cash balance",
-      "receivables": "Amounts due from customers", "payables": "Amounts due to suppliers"
+      "netSales": "Net sales (selected period)",
+      "vsPreviousPeriod": "vs. previous period",
+      "netProfitEstimate": "Estimated net profit",
+      "cashBalance": "Current cash balance",
+      "receivables": "Amounts due from customers",
+      "payables": "Amounts due to suppliers"
     },
-    "alerts": { "title": "⚠ Key alerts", "empty": "No alerts at the moment." },
-    "banner": { "viewAllAlerts": "View all alerts" },
-    "recentActivity": { "title": "Recent cash activity" },
+    "alerts": {
+      "title": "⚠ Key alerts",
+      "empty": "No alerts at the moment."
+    },
+    "banner": {
+      "viewAllAlerts": "View all alerts"
+    },
+    "recentActivity": {
+      "title": "Recent cash activity"
+    },
     "recentEntries": {
-      "title": "Recent journal entries", "empty": "No entries yet.",
-      "table": { "number": "Entry #", "date": "Date", "memo": "Memo", "total": "Total", "status": "Status" }
+      "title": "Recent journal entries",
+      "empty": "No entries yet.",
+      "table": {
+        "number": "Entry #",
+        "date": "Date",
+        "memo": "Memo",
+        "total": "Total",
+        "status": "Status"
+      }
     },
     "charts": {
-      "payrollAndDues": "Payroll & dues", "paid": "Paid", "unpaid": "Unpaid", "endOfService": "End of service",
-      "agingTitle": "Receivables & payables aging", "under30": "Under 30", "d30to60": "30–60", "d60to90": "60–90", "over90": "90+",
-      "receivable": "Receivable", "payable": "Payable",
-      "monthComparisonTitle": "This month vs. previous month", "current": "Current", "previous": "Previous",
-      "salesTrendTitle": "Sales trend (last 12 months)", "sales": "Sales",
-      "topCustomersTitle": "Top 10 customers (by net sales)", "netSales": "Net sales",
-      "cashBreakdownTitle": "Cash distribution by account", "noCashAccounts": "No cash/bank accounts classified yet.",
-      "monthlyCashFlowTitle": "Monthly cash flow (in vs. out)", "cashIn": "Cash in", "cashOut": "Cash out"
+      "payrollAndDues": "Payroll & dues",
+      "paid": "Paid",
+      "unpaid": "Unpaid",
+      "endOfService": "End of service",
+      "agingTitle": "Receivables & payables aging",
+      "under30": "Under 30",
+      "d30to60": "30–60",
+      "d60to90": "60–90",
+      "over90": "90+",
+      "receivable": "Receivable",
+      "payable": "Payable",
+      "monthComparisonTitle": "This month vs. previous month",
+      "current": "Current",
+      "previous": "Previous",
+      "salesTrendTitle": "Sales trend (last 12 months)",
+      "sales": "Sales",
+      "topCustomersTitle": "Top 10 customers (by net sales)",
+      "netSales": "Net sales",
+      "cashBreakdownTitle": "Cash distribution by account",
+      "noCashAccounts": "No cash/bank accounts classified yet.",
+      "monthlyCashFlowTitle": "Monthly cash flow (in vs. out)",
+      "cashIn": "Cash in",
+      "cashOut": "Cash out"
     },
     "topTransactions": {
-      "title": "Top cash transactions (last 180 days)", "empty": "No cash transactions yet.",
-      "date": "Date", "memo": "Memo", "account": "Account", "amount": "Amount", "direction": "Direction"
+      "title": "Top cash transactions (last 180 days)",
+      "empty": "No cash transactions yet.",
+      "date": "Date",
+      "memo": "Memo",
+      "account": "Account",
+      "amount": "Amount",
+      "direction": "Direction"
     },
     "position": {
-      "title": "Company financial position", "assets": "Assets", "liabilities": "Liabilities", "equity": "Equity",
-      "debtToEquity": "Debt-to-equity ratio", "currentRatio": "Current ratio (approximate)",
+      "title": "Company financial position",
+      "assets": "Assets",
+      "liabilities": "Liabilities",
+      "equity": "Equity",
+      "debtToEquity": "Debt-to-equity ratio",
+      "currentRatio": "Current ratio (approximate)",
       "currentRatioNote": "* The current ratio here is approximate (cash + receivables ÷ payables) since the chart of accounts does not yet classify accounts as current/non-current."
     }
   },
@@ -313,27 +446,53 @@
     "loading": "Loading...",
     "empty": "No invoices yet.",
     "zatcaStatus": {
-      "not_applicable": "Not applicable", "pending_clearance": "Sending (standard)", "pending_reporting": "Sending (simplified)",
-      "cleared": "Sent/accepted (standard)", "reported": "Sent/accepted (simplified)", "rejected": "Rejected/send failed"
+      "not_applicable": "Not applicable",
+      "pending_clearance": "Sending (standard)",
+      "pending_reporting": "Sending (simplified)",
+      "cleared": "Sent/accepted (standard)",
+      "reported": "Sent/accepted (simplified)",
+      "rejected": "Rejected/send failed"
     },
     "zatcaBadge": {
-      "not_applicable": "Not applicable", "pending_clearance": "Sending", "pending_reporting": "Sending",
-      "cleared": "Sent/accepted", "reported": "Sent/accepted", "rejected": "Rejected"
+      "not_applicable": "Not applicable",
+      "pending_clearance": "Sending",
+      "pending_reporting": "Sending",
+      "cleared": "Sent/accepted",
+      "reported": "Sent/accepted",
+      "rejected": "Rejected"
     },
     "table": {
-      "number": "Number", "customer": "Customer", "date": "Date", "total": "Total",
-      "postingStatus": "Posting status", "paymentStatus": "Payment status", "zatcaStatus": "ZATCA status", "actions": "Actions",
-      "posted": "Posted", "draft": "Draft"
+      "number": "Number",
+      "customer": "Customer",
+      "date": "Date",
+      "total": "Total",
+      "postingStatus": "Posting status",
+      "paymentStatus": "Payment status",
+      "zatcaStatus": "ZATCA status",
+      "actions": "Actions",
+      "posted": "Posted",
+      "draft": "Draft"
     },
     "actionsMenu": {
-      "view": "View invoice", "edit": "Edit invoice", "unpost": "Unpost", "unposting": "Sending...",
-      "resendZatca": "Resend invoice to ZATCA", "delete": "Delete invoice",
-      "print": "Print invoice", "duplicate": "Duplicate invoice (new invoice with the same data)",
-      "unlinkReceipt": "Unlink receipt", "linkReceipt": "Link to a receipt", "viewJournalEntry": "View journal entry",
-      "sendEmailTo": "Email to {{email}}", "sendEmailNoAddress": "Send by email (no email on file)",
+      "view": "View invoice",
+      "edit": "Edit invoice",
+      "unpost": "Unpost",
+      "unposting": "Sending...",
+      "resendZatca": "Resend invoice to ZATCA",
+      "delete": "Delete invoice",
+      "print": "Print invoice",
+      "duplicate": "Duplicate invoice (new invoice with the same data)",
+      "unlinkReceipt": "Unlink receipt",
+      "linkReceipt": "Link to a receipt",
+      "viewJournalEntry": "View journal entry",
+      "sendEmailTo": "Email to {{email}}",
+      "sendEmailNoAddress": "Send by email (no email on file)",
       "reprintReceipt": "Reprint as thermal receipt (58/80mm)"
     },
-    "blockAction": { "edit": "edit", "delete": "delete" },
+    "blockAction": {
+      "edit": "edit",
+      "delete": "delete"
+    },
     "notify": {
       "linkedToReceipt": "This invoice is linked to a receipt — unlink it first before deleting.",
       "confirmDelete": "Delete invoice {{number}}?",
@@ -396,12 +555,22 @@
       "savedNewPosted": "The invoice was saved and posted, with its journal entry created.",
       "savedNewDraft": "The invoice was saved as a draft.",
       "lines": {
-        "itemDescription": "Item/Description", "account": "Account", "quantity": "Qty", "unitPrice": "Unit price",
-        "priceIncludesVat": "Incl. VAT?", "vatApplicable": "VAT applicable?", "discount": "Disc. %", "totalWithVat": "Total incl. VAT",
+        "itemDescription": "Item/Description",
+        "account": "Account",
+        "quantity": "Qty",
+        "unitPrice": "Unit price",
+        "priceIncludesVat": "Incl. VAT?",
+        "vatApplicable": "VAT applicable?",
+        "discount": "Disc. %",
+        "totalWithVat": "Total incl. VAT",
         "itemPlaceholder": "Type an item name or free-text description",
-        "addNewItem": "+ Add new item", "addNewItemNamed": "+ Add new item named \"{{name}}\"",
-        "total": "Total", "addLine": "+ Add line",
-        "subtotal": "Subtotal before tax", "vat": "VAT (15%)", "grandTotal": "Total incl. VAT"
+        "addNewItem": "+ Add new item",
+        "addNewItemNamed": "+ Add new item named \"{{name}}\"",
+        "total": "Total",
+        "addLine": "+ Add line",
+        "subtotal": "Subtotal before tax",
+        "vat": "VAT (15%)",
+        "grandTotal": "Total incl. VAT"
       }
     },
     "view": {
@@ -418,21 +587,38 @@
       "lastEmail": "Last emailed",
       "sentTo": "to",
       "emailFailed": "(send failed)",
-      "table": { "description": "Description", "quantity": "Qty", "unitPrice": "Unit price", "discount": "Disc. %", "beforeTax": "Before tax", "tax": "Tax", "total": "Total" },
+      "table": {
+        "description": "Description",
+        "quantity": "Qty",
+        "unitPrice": "Unit price",
+        "discount": "Disc. %",
+        "beforeTax": "Before tax",
+        "tax": "Tax",
+        "total": "Total"
+      },
       "qrLabel": "QR code — per ZATCA standard",
       "qrPayloadSummary": "Show encoded data payload (Base64 TLV)"
     }
   },
   "statementOfAccount": {
-    "customer": "Customer", "supplier": "Supplier",
+    "customer": "Customer",
+    "supplier": "Supplier",
     "titleFailed": "Couldn't load the statement",
     "close": "Close",
     "subtitle": "{{party}} statement of account",
     "vatNumber": "VAT number",
     "closingBalance": "Closing balance",
-    "customerDebit": "Debit (owed to us)", "customerCredit": "Credit (we owe them)",
-    "supplierCredit": "Credit (owed to them)", "supplierDebit": "Debit (they owe us)",
-    "table": { "date": "Date", "memo": "Memo", "debit": "Debit", "credit": "Credit", "balance": "Balance" },
+    "customerDebit": "Debit (owed to us)",
+    "customerCredit": "Credit (we owe them)",
+    "supplierCredit": "Credit (owed to them)",
+    "supplierDebit": "Debit (they owe us)",
+    "table": {
+      "date": "Date",
+      "memo": "Memo",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance"
+    },
     "empty": "No transactions on this account yet.",
     "noMemo": "—"
   },
@@ -444,11 +630,22 @@
       "editTitle": "Edit customer",
       "searchPlaceholder": "Search by name, CR number, phone, email, or VAT number...",
       "noSearchResults": "No customers match your search.",
-      "name": "Customer name", "type": "Customer type", "typeBusiness": "Business (standard tax invoice)", "typeIndividual": "Individual (simplified tax invoice)",
-      "vatNumber": "VAT number (15 digits)", "crNumber": "CR number", "unifiedEntityNumber": "Unified entity number", "phone": "Phone", "email": "Email", "city": "City",
+      "name": "Customer name",
+      "type": "Customer type",
+      "typeBusiness": "Business (standard tax invoice)",
+      "typeIndividual": "Individual (simplified tax invoice)",
+      "vatNumber": "VAT number (15 digits)",
+      "crNumber": "CR number",
+      "unifiedEntityNumber": "Unified entity number",
+      "phone": "Phone",
+      "email": "Email",
+      "city": "City",
       "addressTitle": "Full national address",
-      "addressBuilding": "Building", "addressStreet": "Street", "addressDistrict": "District",
-      "addressPostalCode": "Postal code", "addressAdditionalNo": "Additional number",
+      "addressBuilding": "Building",
+      "addressStreet": "Street",
+      "addressDistrict": "District",
+      "addressPostalCode": "Postal code",
+      "addressAdditionalNo": "Additional number",
       "aiExtractTitle": "AI auto-fill from an official document",
       "aiExtractNote": "Upload any of the following documents separately for the system to automatically extract the related fields, shown as a preview in the form above for you to review and edit before clicking \"Save\" — nothing is saved automatically.",
       "docTypeCr": "Upload commercial registration",
@@ -460,14 +657,29 @@
       "extractionHighConfidence": "The following data was extracted automatically — review it then click \"Save\": {{note}}",
       "extractionFailed": "Failed to upload/analyze the document: {{message}}",
       "uploadedDocsTitle": "Uploaded official documents",
-      "paymentTerms": "Payment terms", "paymentCash": "Cash", "payment30": "Net 30 days", "payment60": "Net 60 days", "payment90": "Net 90 days",
+      "paymentTerms": "Payment terms",
+      "paymentCash": "Cash",
+      "payment30": "Net 30 days",
+      "payment60": "Net 60 days",
+      "payment90": "Net 90 days",
       "creditLimit": "Credit limit ({{currency}})",
-      "cancel": "Cancel", "saveChanges": "Save changes", "saveCustomer": "Save customer",
+      "cancel": "Cancel",
+      "saveChanges": "Save changes",
+      "saveCustomer": "Save customer",
       "loading": "Loading...",
-      "table": { "name": "Name", "type": "Type", "vatNumber": "VAT number", "paymentTerms": "Payment terms", "creditLimit": "Credit limit" },
-      "typeBusinessShort": "Business", "typeIndividualShort": "Individual",
-      "viewStatement": "Customer statement of account", "viewInChart": "View in chart of accounts",
-      "edit": "Edit", "delete": "Delete",
+      "table": {
+        "name": "Name",
+        "type": "Type",
+        "vatNumber": "VAT number",
+        "paymentTerms": "Payment terms",
+        "creditLimit": "Credit limit"
+      },
+      "typeBusinessShort": "Business",
+      "typeIndividualShort": "Individual",
+      "viewStatement": "Customer statement of account",
+      "viewInChart": "View in chart of accounts",
+      "edit": "Edit",
+      "delete": "Delete",
       "empty": "No customers yet.",
       "confirmDelete": "Delete customer \"{{name}}\"?",
       "deleted": "Customer \"{{name}}\" deleted."
@@ -512,14 +724,29 @@
     "quotations": {
       "addBtn": "+ Add quotation",
       "loading": "Loading...",
-      "status": { "draft": "Draft", "converted": "Converted" },
-      "table": { "number": "Number", "customer": "Customer", "date": "Date", "validUntil": "Valid until", "total": "Total", "status": "Status", "actions": "Actions" },
+      "status": {
+        "draft": "Draft",
+        "converted": "Converted"
+      },
+      "table": {
+        "number": "Number",
+        "customer": "Customer",
+        "date": "Date",
+        "validUntil": "Valid until",
+        "total": "Total",
+        "status": "Status",
+        "actions": "Actions"
+      },
       "actions": {
-        "view": "View quotation", "print": "Print quotation",
-        "edit": "Edit quotation", "editDisabled": "Cannot edit a quotation already converted to an invoice",
+        "view": "View quotation",
+        "print": "Print quotation",
+        "edit": "Edit quotation",
+        "editDisabled": "Cannot edit a quotation already converted to an invoice",
         "duplicate": "Duplicate quotation (new quotation with the same data)",
-        "viewInvoice": "View resulting invoice", "convert": "Convert to sales invoice",
-        "delete": "Delete quotation", "deleteDisabled": "Cannot delete a quotation already converted to an invoice"
+        "viewInvoice": "View resulting invoice",
+        "convert": "Convert to sales invoice",
+        "delete": "Delete quotation",
+        "deleteDisabled": "Cannot delete a quotation already converted to an invoice"
       },
       "confirmConvert": "Convert quotation {{number}} to a sales invoice? This action cannot be undone.",
       "convertedMsg": "Quotation {{number}} was converted to invoice {{invoiceNumber}}, and its journal entry was posted automatically.",
@@ -532,11 +759,17 @@
         "titleDuplicate": "New quotation (duplicated from {{number}})",
         "titleCreate": "New quotation",
         "close": "Close",
-        "customer": "Customer", "customerSearchPlaceholder": "Search for a customer or type a new name",
-        "addNewCustomer": "+ Add new customer", "addNewCustomerNamed": "+ Add new customer named \"{{name}}\"",
-        "quoteDate": "Quotation date", "validUntil": "Valid until (optional)",
+        "customer": "Customer",
+        "customerSearchPlaceholder": "Search for a customer or type a new name",
+        "addNewCustomer": "+ Add new customer",
+        "addNewCustomerNamed": "+ Add new customer named \"{{name}}\"",
+        "quoteDate": "Quotation date",
+        "validUntil": "Valid until (optional)",
         "noCustomersYet": "No customers yet — type a name in the customer field above to add one.",
-        "print": "Print", "cancel": "Cancel", "saveChanges": "Save changes", "saveQuote": "Save quotation",
+        "print": "Print",
+        "cancel": "Cancel",
+        "saveChanges": "Save changes",
+        "saveQuote": "Save quotation",
         "errChooseCustomer": "Choose a customer first",
         "errAddLine": "Add at least one line with a valid account and price",
         "savedEdit": "The changes to the quotation were saved.",
@@ -545,191 +778,424 @@
       },
       "view": {
         "subtitle": "Quotation",
-        "quoteNumber": "Quotation number", "date": "Date", "validUntil": "Valid until",
-        "issuer": "Issued by", "vatNumber": "VAT number", "vatNotEntered": "Not entered yet",
-        "customer": "Customer", "customerVat": "Customer VAT number", "vatUnregistered": "Not registered (individual)",
-        "table": { "description": "Description", "quantity": "Qty", "unitPrice": "Unit price", "discount": "Disc. %", "beforeTax": "Before tax", "tax": "Tax", "total": "Total" },
+        "quoteNumber": "Quotation number",
+        "date": "Date",
+        "validUntil": "Valid until",
+        "issuer": "Issued by",
+        "vatNumber": "VAT number",
+        "vatNotEntered": "Not entered yet",
+        "customer": "Customer",
+        "customerVat": "Customer VAT number",
+        "vatUnregistered": "Not registered (individual)",
+        "table": {
+          "description": "Description",
+          "quantity": "Qty",
+          "unitPrice": "Unit price",
+          "discount": "Disc. %",
+          "beforeTax": "Before tax",
+          "tax": "Tax",
+          "total": "Total"
+        },
         "total": "Total",
         "alreadyConverted": "This quotation has already been converted to a sales invoice."
       }
     },
     "returns": {
-      "customer": "Customer", "originalInvoice": "Original invoice (optional)", "noLink": "— No link —",
-      "date": "Return date", "refundMethod": "Refund method",
-      "refundAccount": "Deduct from customer balance (receivables)", "refundCash": "Cash refund", "refundBank": "Bank refund",
+      "customer": "Customer",
+      "originalInvoice": "Original invoice (optional)",
+      "noLink": "— No link —",
+      "date": "Return date",
+      "refundMethod": "Refund method",
+      "refundAccount": "Deduct from customer balance (receivables)",
+      "refundCash": "Cash refund",
+      "refundBank": "Bank refund",
       "reason": "Return reason",
       "saveAndPost": "Save and post return",
       "loading": "Loading...",
-      "table": { "number": "Number", "customer": "Customer", "date": "Date", "total": "Total", "status": "Status" },
-      "posted": "Posted", "draft": "Draft",
-      "unpost": "Unpost", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
+      "table": {
+        "number": "Number",
+        "customer": "Customer",
+        "date": "Date",
+        "total": "Total",
+        "status": "Status"
+      },
+      "posted": "Posted",
+      "draft": "Draft",
+      "unpost": "Unpost",
+      "attachmentsShow": "Attachments",
+      "attachmentsHide": "Hide attachments",
       "empty": "No returns yet."
     },
     "receipts": {
-      "customer": "Customer", "date": "Receipt date", "method": "Collection method", "methodCash": "Cash", "methodBank": "Bank",
-      "bankAccount": "Bank account", "noBankAccounts": "No bank accounts classified", "bankAccountPlaceholder": "Search for a bank account...",
+      "customer": "Customer",
+      "date": "Receipt date",
+      "method": "Collection method",
+      "methodCash": "Cash",
+      "methodBank": "Bank",
+      "bankAccount": "Bank account",
+      "noBankAccounts": "No bank accounts classified",
+      "bankAccountPlaceholder": "Search for a bank account...",
       "outstandingTitle": "Outstanding invoices for this customer",
-      "table": { "invoice": "Invoice", "total": "Total", "paid": "Paid", "remaining": "Remaining", "allocated": "Allocated amount" },
+      "table": {
+        "invoice": "Invoice",
+        "total": "Total",
+        "paid": "Paid",
+        "remaining": "Remaining",
+        "allocated": "Allocated amount"
+      },
       "noOutstanding": "No outstanding invoices for this customer.",
       "saveAndPost": "Save and post receipt ({{amount}} {{currency}})",
       "loading": "Loading...",
-      "listTable": { "number": "Number", "customer": "Customer", "date": "Date", "method": "Method", "total": "Total", "status": "Status" },
-      "posted": "Posted", "draft": "Draft",
-      "unpost": "Unpost", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
+      "listTable": {
+        "number": "Number",
+        "customer": "Customer",
+        "date": "Date",
+        "method": "Method",
+        "total": "Total",
+        "status": "Status"
+      },
+      "posted": "Posted",
+      "draft": "Draft",
+      "unpost": "Unpost",
+      "attachmentsShow": "Attachments",
+      "attachmentsHide": "Hide attachments",
       "empty": "No receipts yet."
     },
     "stations": {
-      "station": "Station (cost center)", "date": "Date", "liters": "Quantity (liters)", "pricePerLiter": "Price per liter", "shiftNote": "Shift note",
+      "station": "Station (cost center)",
+      "date": "Date",
+      "liters": "Quantity (liters)",
+      "pricePerLiter": "Price per liter",
+      "shiftNote": "Shift note",
       "save": "Save record",
       "loading": "Loading...",
-      "table": { "date": "Date", "station": "Station", "liters": "Quantity", "pricePerLiter": "Price/liter", "total": "Total" },
+      "table": {
+        "date": "Date",
+        "station": "Station",
+        "liters": "Quantity",
+        "pricePerLiter": "Price/liter",
+        "total": "Total"
+      },
       "delete": "Delete",
       "confirmDelete": "Delete this record?",
       "empty": "No station sales recorded yet."
     },
     "reports": {
-      "tabs": { "byCustomer": "By customer", "monthly": "Monthly trend", "aging": "Receivables aging", "vat": "VAT summary" },
-      "byCustomer": { "customer": "Customer", "invoiceCount": "Invoice count", "totalInvoices": "Total sales", "totalReturns": "Total returns", "netSales": "Net sales", "outstanding": "Outstanding balance" },
-      "monthly": { "month": "Month", "total": "Total sales" },
-      "aging": { "customer": "Customer", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding receivables." },
-      "vat": { "salesBase": "Total sales before tax", "outputVat": "Output VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netOutputVat": "Net output VAT due" },
+      "tabs": {
+        "byCustomer": "By customer",
+        "monthly": "Monthly trend",
+        "aging": "Receivables aging",
+        "vat": "VAT summary"
+      },
+      "byCustomer": {
+        "customer": "Customer",
+        "invoiceCount": "Invoice count",
+        "totalInvoices": "Total sales",
+        "totalReturns": "Total returns",
+        "netSales": "Net sales",
+        "outstanding": "Outstanding balance"
+      },
+      "monthly": {
+        "month": "Month",
+        "total": "Total sales"
+      },
+      "aging": {
+        "customer": "Customer",
+        "current": "0-30 days",
+        "d30": "31-60 days",
+        "d60": "61-90 days",
+        "d90": "Over 90 days",
+        "total": "Total",
+        "empty": "No outstanding receivables."
+      },
+      "vat": {
+        "salesBase": "Total sales before tax",
+        "outputVat": "Output VAT",
+        "returnsBase": "Total returns before tax",
+        "returnsVat": "Returns VAT",
+        "netOutputVat": "Net output VAT due"
+      },
       "empty": "No data yet."
     },
     "newCustomerModal": {
-      "title": "Add new customer", "close": "Close",
-      "name": "Customer name", "vatNumber": "VAT number (optional)", "phone": "Phone number (optional)", "email": "Email (optional)",
+      "title": "Add new customer",
+      "close": "Close",
+      "name": "Customer name",
+      "vatNumber": "VAT number (optional)",
+      "phone": "Phone number (optional)",
+      "email": "Email (optional)",
       "errNameRequired": "Customer name is required",
-      "cancel": "Cancel", "saving": "Saving...", "save": "Save customer"
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "save": "Save customer"
     },
     "newSellableItemModal": {
-      "title": "Add new item (service)", "close": "Close",
-      "name": "Item name", "salePrice": "Default sale price", "revenueAccount": "Linked account (revenue)", "vatApplicable": "Subject to VAT",
+      "title": "Add new item (service)",
+      "close": "Close",
+      "name": "Item name",
+      "salePrice": "Default sale price",
+      "revenueAccount": "Linked account (revenue)",
+      "vatApplicable": "Subject to VAT",
       "note": "To set up a stock item, fixed asset, or raw material, use the \"Items & Products\" screen directly.",
       "errRequired": "Item name and linked account are required",
-      "cancel": "Cancel", "saving": "Saving...", "save": "Save item"
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "save": "Save item"
     },
     "linkPaymentModal": {
-      "title": "Link invoice {{number}} to a receipt", "close": "Close",
+      "title": "Link invoice {{number}} to a receipt",
+      "close": "Close",
       "summary": "Total {{total}} {{currency}} — Paid {{paid}} {{currency}} — Remaining {{due}} {{currency}}",
       "linkedTitle": "Currently linked receipts",
-      "table": { "receiptNumber": "Receipt #", "date": "Date", "status": "Status", "allocated": "Allocated amount" },
-      "posted": "Posted", "draft": "Draft", "unlink": "Unlink",
+      "table": {
+        "receiptNumber": "Receipt #",
+        "date": "Date",
+        "status": "Status",
+        "allocated": "Allocated amount"
+      },
+      "posted": "Posted",
+      "draft": "Draft",
+      "unlink": "Unlink",
       "newLinkTitle": "Link to a new or existing receipt",
-      "existingReceipt": "Existing receipt", "newReceipt": "New receipt",
-      "receipt": "Receipt", "choose": "— Choose —",
+      "existingReceipt": "Existing receipt",
+      "newReceipt": "New receipt",
+      "receipt": "Receipt",
+      "choose": "— Choose —",
       "allocatedAmount": "Allocated amount",
-      "receiptDate": "Receipt date", "collectionMethod": "Collection method", "methodCash": "Cash", "methodBank": "Bank",
+      "receiptDate": "Receipt date",
+      "collectionMethod": "Collection method",
+      "methodCash": "Cash",
+      "methodBank": "Bank",
       "amount": "Amount",
-      "saving": "Saving...", "linkExisting": "Link to selected receipt", "createAndLink": "Create receipt and link",
+      "saving": "Saving...",
+      "linkExisting": "Link to selected receipt",
+      "createAndLink": "Create receipt and link",
       "close2": "Close",
       "confirmUnlink": "Unlink the invoice from receipt {{receiptNumber}}?",
       "linkedMsg": "Invoice {{number}} was linked to the receipt successfully.",
       "createdAndLinkedMsg": "A new receipt was created and linked to invoice {{number}} successfully.",
       "unlinkedMsg": "Invoice {{number}} was unlinked from receipt {{receiptNumber}}. Payment status is now: {{status}}.",
-      "statusUnpaid": "Unpaid", "statusPartial": "Partially paid", "statusPaid": "Paid"
+      "statusUnpaid": "Unpaid",
+      "statusPartial": "Partially paid",
+      "statusPaid": "Paid"
     },
     "postedBlockModal": {
-      "title": "You need to unpost the invoice first", "close": "Close",
+      "title": "You need to unpost the invoice first",
+      "close": "Close",
       "message": "Invoice {{number}} is posted, and cannot be {{action}} until it's unposted. Once unposted the invoice will revert to a draft and its journal entry will be deleted — only then can you {{action}} it.",
-      "cancel": "Cancel", "unpost": "Unpost",
+      "cancel": "Cancel",
+      "unpost": "Unpost",
       "unpostTitle": "Unpost invoice {{number}}"
     },
     "sendInvoiceEmailModal": {
-      "title": "Email invoice {{number}}", "close": "Close",
+      "title": "Email invoice {{number}}",
+      "close": "Close",
       "note": "This customer has no email on file — enter an alternate email to send a copy of the invoice to it once.",
-      "email": "Email address", "errRequired": "Email address is required",
+      "email": "Email address",
+      "errRequired": "Email address is required",
       "errFailed": "Couldn't send the invoice — try again later.",
-      "cancel": "Cancel", "sending": "Sending...", "send": "Send",
+      "cancel": "Cancel",
+      "sending": "Sending...",
+      "send": "Send",
       "sentMsg": "Invoice {{number}} was sent to {{email}}."
     },
     "reprintReceiptModal": {
-      "title": "Reprint receipt — {{number}}", "close": "Close",
+      "title": "Reprint receipt — {{number}}",
+      "close": "Close",
       "errBluetooth": "Couldn't print via Bluetooth",
-      "printingBluetooth": "Printing...", "printBluetooth": "Print via Bluetooth", "printNormal": "Regular print"
+      "printingBluetooth": "Printing...",
+      "printBluetooth": "Print via Bluetooth",
+      "printNormal": "Regular print"
     },
     "journalEntryViewModal": {
-      "title": "Invoice journal entry", "close": "Close",
+      "title": "Invoice journal entry",
+      "close": "Close",
       "loading": "Loading...",
-      "memo": "Memo", "noMemo": "No memo", "date": "Date",
-      "table": { "account": "Account", "department": "Department", "debit": "Debit", "credit": "Credit" },
+      "memo": "Memo",
+      "noMemo": "No memo",
+      "date": "Date",
+      "table": {
+        "account": "Account",
+        "department": "Department",
+        "debit": "Debit",
+        "credit": "Credit"
+      },
       "total": "Total"
     }
   },
   "purchases": {
     "suppliers": {
       "editingBanner": "Editing supplier — {{name}}",
-      "name": "Supplier name", "vatNumber": "VAT number", "crNumber": "CR number", "phone": "Phone", "email": "Email", "city": "City",
-      "paymentTerms": "Payment terms", "paymentCash": "Cash", "payment30": "Net 30 days", "payment60": "Net 60 days", "payment90": "Net 90 days",
-      "cancel": "Cancel", "saveChanges": "Save changes", "saveSupplier": "Save supplier",
+      "name": "Supplier name",
+      "vatNumber": "VAT number",
+      "crNumber": "CR number",
+      "phone": "Phone",
+      "email": "Email",
+      "city": "City",
+      "paymentTerms": "Payment terms",
+      "paymentCash": "Cash",
+      "payment30": "Net 30 days",
+      "payment60": "Net 60 days",
+      "payment90": "Net 90 days",
+      "cancel": "Cancel",
+      "saveChanges": "Save changes",
+      "saveSupplier": "Save supplier",
       "loading": "Loading...",
-      "table": { "name": "Name", "vatNumber": "VAT number", "city": "City", "paymentTerms": "Payment terms" },
-      "viewStatement": "Supplier statement of account", "viewInChart": "View in chart of accounts",
-      "edit": "Edit", "delete": "Delete",
+      "table": {
+        "name": "Name",
+        "vatNumber": "VAT number",
+        "city": "City",
+        "paymentTerms": "Payment terms"
+      },
+      "viewStatement": "Supplier statement of account",
+      "viewInChart": "View in chart of accounts",
+      "edit": "Edit",
+      "delete": "Delete",
       "empty": "No suppliers yet.",
       "confirmDelete": "Delete supplier \"{{name}}\"?",
       "deleted": "Supplier \"{{name}}\" deleted."
     },
     "invoices": {
-      "supplier": "Supplier", "invoiceDate": "Invoice date",
+      "supplier": "Supplier",
+      "invoiceDate": "Invoice date",
       "addSupplierFirst": "Add a supplier first from the \"Suppliers\" tab.",
       "saveAndPost": "Save and post invoice",
       "loading": "Loading...",
-      "table": { "number": "Number", "supplier": "Supplier", "date": "Date", "total": "Total", "status": "Status" },
-      "posted": "Posted", "draft": "Draft",
-      "view": "View invoice", "print": "Print invoice", "delete": "Delete", "post": "Post", "unpost": "Unpost",
-      "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
+      "table": {
+        "number": "Number",
+        "supplier": "Supplier",
+        "date": "Date",
+        "total": "Total",
+        "status": "Status"
+      },
+      "posted": "Posted",
+      "draft": "Draft",
+      "view": {
+        "subtitle": "Purchase invoice",
+        "invoiceNumber": "Invoice number",
+        "date": "Date",
+        "buyer": "Buyer",
+        "buyerVat": "Buyer VAT number",
+        "vatNotEntered": "Not entered yet",
+        "supplier": "Supplier",
+        "supplierVat": "Supplier VAT number",
+        "vatUnregistered": "Not registered",
+        "table": {
+          "description": "Description",
+          "quantity": "Qty",
+          "unitPrice": "Unit price",
+          "discount": "Disc. %",
+          "beforeTax": "Before tax",
+          "tax": "Tax",
+          "total": "Total"
+        },
+        "total": "Total"
+      },
+      "print": "Print invoice",
+      "delete": "Delete",
+      "post": "Post",
+      "unpost": "Unpost",
+      "attachmentsShow": "Attachments",
+      "attachmentsHide": "Hide attachments",
       "confirmDelete": "Delete invoice {{number}}?",
       "empty": "No purchase invoices yet.",
       "lines": {
-        "itemDescription": "Item/Description", "account": "Account", "itemDetails": "Item details",
-        "quantity": "Qty", "unitPrice": "Unit price", "priceIncludesVat": "Incl. VAT?", "discount": "Disc. %",
+        "itemDescription": "Item/Description",
+        "account": "Account",
+        "itemDetails": "Item details",
+        "quantity": "Qty",
+        "unitPrice": "Unit price",
+        "priceIncludesVat": "Incl. VAT?",
+        "discount": "Disc. %",
         "totalWithVat": "Total incl. VAT",
         "itemPlaceholder": "Choose an item from the catalog or type a free-text description",
         "noMatchingItems": "No matching items",
         "derivedAccountNote": "Derived automatically from the item type",
         "chooseWarehouse": "— Choose warehouse —",
-        "usefulLifeYears": "Useful life (years)", "salvageValue": "Salvage value",
-        "total": "Total", "addLine": "+ Add line",
-        "subtotal": "Subtotal before tax", "vat": "VAT (15%)", "grandTotal": "Total incl. VAT"
-      },
-      "view": {
-        "subtitle": "Purchase invoice",
-        "invoiceNumber": "Invoice number", "date": "Date",
-        "buyer": "Buyer", "buyerVat": "Buyer VAT number", "vatNotEntered": "Not entered yet",
-        "supplier": "Supplier", "supplierVat": "Supplier VAT number", "vatUnregistered": "Not registered",
-        "table": { "description": "Description", "quantity": "Qty", "unitPrice": "Unit price", "discount": "Disc. %", "beforeTax": "Before tax", "tax": "Tax", "total": "Total" },
-        "total": "Total"
+        "usefulLifeYears": "Useful life (years)",
+        "salvageValue": "Salvage value",
+        "total": "Total",
+        "addLine": "+ Add line",
+        "subtotal": "Subtotal before tax",
+        "vat": "VAT (15%)",
+        "grandTotal": "Total incl. VAT"
       }
     },
     "returns": {
-      "supplier": "Supplier", "originalInvoice": "Original invoice (optional)", "noLink": "— No link —",
-      "date": "Return date", "reason": "Return reason",
+      "supplier": "Supplier",
+      "originalInvoice": "Original invoice (optional)",
+      "noLink": "— No link —",
+      "date": "Return date",
+      "reason": "Return reason",
       "saveAndPost": "Save and post return",
       "loading": "Loading...",
-      "table": { "number": "Number", "supplier": "Supplier", "date": "Date", "total": "Total", "status": "Status" },
-      "posted": "Posted", "draft": "Draft",
-      "unpost": "Unpost", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
+      "table": {
+        "number": "Number",
+        "supplier": "Supplier",
+        "date": "Date",
+        "total": "Total",
+        "status": "Status"
+      },
+      "posted": "Posted",
+      "draft": "Draft",
+      "unpost": "Unpost",
+      "attachmentsShow": "Attachments",
+      "attachmentsHide": "Hide attachments",
       "empty": "No purchase returns yet."
     },
     "reports": {
-      "tabs": { "bySupplier": "By supplier", "monthly": "Monthly trend", "aging": "Payables aging", "vat": "VAT summary" },
-      "bySupplier": { "supplier": "Supplier", "invoiceCount": "Invoice count", "totalInvoices": "Total purchases", "totalReturns": "Total returns", "netPurchases": "Net purchases" },
-      "monthly": { "month": "Month", "total": "Total purchases" },
-      "aging": { "supplier": "Supplier", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding payables." },
+      "tabs": {
+        "bySupplier": "By supplier",
+        "monthly": "Monthly trend",
+        "aging": "Payables aging",
+        "vat": "VAT summary"
+      },
+      "bySupplier": {
+        "supplier": "Supplier",
+        "invoiceCount": "Invoice count",
+        "totalInvoices": "Total purchases",
+        "totalReturns": "Total returns",
+        "netPurchases": "Net purchases"
+      },
+      "monthly": {
+        "month": "Month",
+        "total": "Total purchases"
+      },
+      "aging": {
+        "supplier": "Supplier",
+        "current": "0-30 days",
+        "d30": "31-60 days",
+        "d60": "61-90 days",
+        "d90": "Over 90 days",
+        "total": "Total",
+        "empty": "No outstanding payables."
+      },
       "agingNote": "Note: there is no \"payment voucher\" module yet to record settling supplier invoices, so every posted invoice is treated as fully outstanding.",
-      "vat": { "purchasesBase": "Total purchases before tax", "inputVat": "Input VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netInputVat": "Net deductible input VAT" },
+      "vat": {
+        "purchasesBase": "Total purchases before tax",
+        "inputVat": "Input VAT",
+        "returnsBase": "Total returns before tax",
+        "returnsVat": "Returns VAT",
+        "netInputVat": "Net deductible input VAT"
+      },
       "empty": "No data yet."
     }
   },
   "inventory": {
     "breadcrumb": "Warehouse Management",
     "typeMeta": {
-      "inventory": "Inventory", "expense": "Expense", "service": "Service",
-      "fixed_asset": "Fixed asset", "raw_material": "Raw material", "bundle": "Bundle"
+      "inventory": "Inventory",
+      "expense": "Expense",
+      "service": "Service",
+      "fixed_asset": "Fixed asset",
+      "raw_material": "Raw material",
+      "bundle": "Bundle"
     },
     "accountLabels": {
-      "stockAccountId": "Inventory account", "cogsAccountId": "COGS account",
-      "revenueAccountId": "Revenue account", "expenseAccountId": "Expense account"
+      "stockAccountId": "Inventory account",
+      "cogsAccountId": "COGS account",
+      "revenueAccountId": "Revenue account",
+      "expenseAccountId": "Expense account"
     },
     "items": {
       "addNew": "Add new item",
@@ -737,121 +1203,227 @@
       "importBtn": "Import items",
       "exportBtn": "Export items",
       "exportFileName": "items.csv",
-      "csvHeaders": { "code": "Item code", "name": "Item name", "type": "Item type", "unit": "Unit", "category": "Category", "averageCost": "Average cost", "salePrice": "Sale price", "reorderLevel": "Reorder level" },
+      "csvHeaders": {
+        "code": "Item code",
+        "name": "Item name",
+        "type": "Item type",
+        "unit": "Unit",
+        "category": "Category",
+        "averageCost": "Average cost",
+        "salePrice": "Sale price",
+        "reorderLevel": "Reorder level"
+      },
       "unitsDisabled": "Unit-of-measure management is not available in the current API interface",
       "unitsBtn": "Units of measure",
       "transferBtn": "Transfer between warehouses",
       "columnsBtn": "Columns",
       "columnsMenuTitle": "Additional table columns",
-      "extraColumns": { "lastPurchasePrice": "Last purchase price", "averageCost": "Average cost", "stockValue": "Stock value" },
+      "extraColumns": {
+        "lastPurchasePrice": "Last purchase price",
+        "averageCost": "Average cost",
+        "stockValue": "Stock value"
+      },
       "form": {
-        "titleEdit": "Edit item — {{name}}", "titleCreate": "Add new item", "close": "Close",
-        "type": "Item type", "code": "Item code", "name": "Item name",
+        "titleEdit": "Edit item — {{name}}",
+        "titleCreate": "Add new item",
+        "close": "Close",
+        "type": "Item type",
+        "code": "Item code",
+        "name": "Item name",
         "barcode": "Barcode (optional, for POS scanning)",
-        "unit": "Unit", "unitPlaceholder": "Liter, piece...", "category": "Category",
+        "unit": "Unit",
+        "unitPlaceholder": "Liter, piece...",
+        "category": "Category",
         "reorderLevel": "Reorder level",
         "allowDirectSale": "This raw material can be sold directly to customers",
         "assetCategory": "Asset category (determines acquisition/depreciation accounts automatically on purchase)",
         "noCategoryYet": "— No category yet —",
         "assetCategoryNote": "The asset category is required when the item is actually purchased via a purchase invoice (accounts are determined from it automatically); the item can be saved without a category now and completed later. Asset life and salvage value are entered on the purchase invoice line.",
-        "salePrice": "Suggested sale price", "vatApplicable": "Subject to VAT",
+        "salePrice": "Suggested sale price",
+        "vatApplicable": "Subject to VAT",
         "bom": {
-          "title": "Product components (BOM)", "addComponent": "+ Add component",
-          "component": "Component", "quantityPerUnit": "Qty per unit", "chooseItem": "— Choose an item —",
+          "title": "Product components (BOM)",
+          "addComponent": "+ Add component",
+          "component": "Component",
+          "quantityPerUnit": "Qty per unit",
+          "chooseItem": "— Choose an item —",
           "emptyHint": "Add at least one component"
         },
-        "cancel": "Cancel", "saveChanges": "Save changes", "saveItem": "Save item"
+        "cancel": "Cancel",
+        "saveChanges": "Save changes",
+        "saveItem": "Save item"
       },
-      "tabActive": "Active", "tabArchived": "Archived",
+      "tabActive": "Active",
+      "tabArchived": "Archived",
       "filters": {
-        "searchAria": "Search by name or code", "searchPlaceholder": "Search by item name or code...",
-        "typeAria": "Item type", "allTypes": "All item types",
-        "categoryAria": "Category", "allCategories": "All categories",
-        "lowStock": "Low stock", "clearFilters": "Clear filters", "showResults": "Show results"
+        "searchAria": "Search by name or code",
+        "searchPlaceholder": "Search by item name or code...",
+        "typeAria": "Item type",
+        "allTypes": "All item types",
+        "categoryAria": "Category",
+        "allCategories": "All categories",
+        "lowStock": "Low stock",
+        "clearFilters": "Clear filters",
+        "showResults": "Show results"
       },
       "loading": "Loading items...",
       "table": {
-        "code": "Item code", "name": "Item name", "type": "Item type", "unit": "Unit",
-        "quantity": "Current qty", "lastPurchasePrice": "Last purchase price", "salePrice": "Sale price",
-        "averageCost": "Average cost", "stockValue": "Stock value", "actions": "Actions"
+        "code": "Item code",
+        "name": "Item name",
+        "type": "Item type",
+        "unit": "Unit",
+        "quantity": "Current qty",
+        "lastPurchasePrice": "Last purchase price",
+        "salePrice": "Sale price",
+        "averageCost": "Average cost",
+        "stockValue": "Stock value",
+        "actions": "Actions"
       },
-      "notCategorized": "Uncategorized", "unspecifiedType": "Unspecified",
+      "notCategorized": "Uncategorized",
+      "unspecifiedType": "Unspecified",
       "actions": {
-        "view": "View", "edit": "Edit", "duplicate": "Duplicate item",
-        "archive": "Archive item", "unarchive": "Unarchive",
-        "delete": "Delete", "deleteTitle": "Delete — the system may block this if the item is linked to transactions",
+        "view": "View",
+        "edit": "Edit",
+        "duplicate": "Duplicate item",
+        "archive": "Archive item",
+        "unarchive": "Unarchive",
+        "delete": "Delete",
+        "deleteTitle": "Delete — the system may block this if the item is linked to transactions",
         "print": "Print item card"
       },
-      "emptyTitle": "No matching items", "emptySubtitle": "Try adjusting your search/filter criteria",
+      "emptyTitle": "No matching items",
+      "emptySubtitle": "Try adjusting your search/filter criteria",
       "footer": "Showing {{shown}} of {{total}} items",
       "confirmDelete": "Delete item \"{{name}}\"?",
       "duplicateSuffix": "Copy",
       "view": {
-        "cardLabel": "Item card — {{type}}", "close": "Close",
-        "category": "Category", "unit": "Unit", "averageCost": "Average cost",
-        "salePrice": "Sale price", "reorderLevel": "Reorder level", "quantity": "Current qty",
+        "cardLabel": "Item card — {{type}}",
+        "close": "Close",
+        "category": "Category",
+        "unit": "Unit",
+        "averageCost": "Average cost",
+        "salePrice": "Sale price",
+        "reorderLevel": "Reorder level",
+        "quantity": "Current qty",
         "print": "Print card"
       }
     },
     "warehouses": {
-      "name": "Warehouse name", "code": "Warehouse code", "location": "Location",
+      "name": "Warehouse name",
+      "code": "Warehouse code",
+      "location": "Location",
       "isDefault": "Default warehouse for sales issuance",
-      "cancel": "Cancel", "saveChanges": "Save changes", "addWarehouse": "Add warehouse",
+      "cancel": "Cancel",
+      "saveChanges": "Save changes",
+      "addWarehouse": "Add warehouse",
       "loading": "Loading...",
-      "table": { "name": "Warehouse name", "code": "Code", "location": "Location", "isDefault": "Default", "status": "Status" },
-      "active": "Active", "archived": "Archived",
-      "edit": "Edit", "unarchive": "Unarchive", "archive": "Archive", "delete": "Delete",
+      "table": {
+        "name": "Warehouse name",
+        "code": "Code",
+        "location": "Location",
+        "isDefault": "Default",
+        "status": "Status"
+      },
+      "active": "Active",
+      "archived": "Archived",
+      "edit": "Edit",
+      "unarchive": "Unarchive",
+      "archive": "Archive",
+      "delete": "Delete",
       "empty": "No warehouses yet.",
       "confirmDelete": "Delete warehouse \"{{name}}\"?"
     },
     "stockInOut": {
-      "movementType": "Movement", "movementIn": "Add stock", "movementOut": "Remove / write off stock",
-      "item": "Item", "warehouse": "Warehouse", "quantity": "Quantity", "unitCost": "Unit cost",
-      "date": "Date", "note": "Note",
+      "movementType": "Movement",
+      "movementIn": "Add stock",
+      "movementOut": "Remove / write off stock",
+      "item": "Item",
+      "warehouse": "Warehouse",
+      "quantity": "Quantity",
+      "unitCost": "Unit cost",
+      "date": "Date",
+      "note": "Note",
       "currentBalance": "Current balance for this item at this warehouse:",
       "save": "Save movement",
       "removeMovementTitle": "Delete stock movement"
     },
     "issue": {
-      "item": "Item", "warehouse": "Warehouse", "department": "Receiving department",
-      "quantity": "Quantity", "date": "Date", "note": "Note",
-      "availableBalance": "Available balance:", "exceedsBalance": "— Requested quantity exceeds available balance",
+      "item": "Item",
+      "warehouse": "Warehouse",
+      "department": "Receiving department",
+      "quantity": "Quantity",
+      "date": "Date",
+      "note": "Note",
+      "availableBalance": "Available balance:",
+      "exceedsBalance": "— Requested quantity exceeds available balance",
       "issueBtn": "Issue from stock",
       "removeMovementTitle": "Delete issue movement"
     },
     "transfer": {
-      "item": "Item", "fromWarehouse": "From location (source)", "toCompany": "Receiving company",
-      "toWarehouse": "To location (destination)", "quantity": "Quantity", "date": "Date",
+      "item": "Item",
+      "fromWarehouse": "From location (source)",
+      "toCompany": "Receiving company",
+      "toWarehouse": "To location (destination)",
+      "quantity": "Quantity",
+      "date": "Date",
       "availableBalance": "Available balance at source:",
       "crossCompanyNote": "— Transfer between two different companies, will be posted through an intercompany account.",
       "execute": "Execute transfer",
       "removeMovementTitle": "Delete transfer"
     },
     "movementsTable": {
-      "date": "Date", "item": "Item", "location": "Location", "type": "Type", "quantity": "Quantity", "note": "Note", "delete": "Delete",
-      "types": { "in": "In", "out": "Out/write-off", "issue": "Issue", "transfer_out": "Transfer out", "transfer_in": "Transfer in" },
+      "date": "Date",
+      "item": "Item",
+      "location": "Location",
+      "type": "Type",
+      "quantity": "Quantity",
+      "note": "Note",
+      "delete": "Delete",
+      "types": {
+        "in": "In",
+        "out": "Out/write-off",
+        "issue": "Issue",
+        "transfer_out": "Transfer out",
+        "transfer_in": "Transfer in"
+      },
       "empty": "No movements yet."
     },
     "stockReport": {
-      "item": "Item", "code": "Code", "location": "Location", "balance": "Balance", "costPrice": "Cost price", "value": "Value",
+      "item": "Item",
+      "code": "Code",
+      "location": "Location",
+      "balance": "Balance",
+      "costPrice": "Cost price",
+      "value": "Value",
       "empty": "No stock balances yet."
     }
   },
   "fixedAssets": {
     "breadcrumb": "Fixed Assets",
-    "status": { "active": "Active", "disposed": "Disposed" },
-    "depreciationMethod": { "straight_line": "Straight line", "declining_balance": "Declining balance" },
+    "status": {
+      "active": "Active",
+      "disposed": "Disposed"
+    },
+    "depreciationMethod": {
+      "straight_line": "Straight line",
+      "declining_balance": "Declining balance"
+    },
     "register": {
       "editingBanner": "Editing asset — {{name}} (cost and purchase date cannot be edited after posting)",
-      "name": "Asset name", "category": "Category",
-      "assetCategory": "Asset category (determines accounting accounts automatically)", "chooseCategory": "— Choose a category —",
+      "name": "Asset name",
+      "category": "Category",
+      "assetCategory": "Asset category (determines accounting accounts automatically)",
+      "chooseCategory": "— Choose a category —",
       "account": "Accounting account",
       "useRawAccount": "Choose an accounting account directly instead of a category (for an asset with no suitable category yet)",
       "serialNumber": "Serial number (optional)",
-      "chassisNumber": "Chassis number", "plateNumber": "Plate number",
-      "costCenter": "Location/branch (optional)", "none": "— None —",
+      "chassisNumber": "Chassis number",
+      "plateNumber": "Plate number",
+      "costCenter": "Location/branch (optional)",
+      "none": "— None —",
       "custodian": "In custody of employee (optional — tracking only, no accounting effect)",
-      "purchaseDate": "Purchase date", "cost": "Cost",
+      "purchaseDate": "Purchase date",
+      "cost": "Cost",
       "depreciationStartDate": "Depreciation start date (optional — defaults to purchase date)",
       "usefulLifeYears": "Useful life (years)",
       "annualDepreciationRate": "Annual depreciation rate",
@@ -859,71 +1431,122 @@
       "decliningSoon": "Declining balance (coming soon)",
       "salvageValue": "Salvage value",
       "isDepreciable": "Depreciable (turn off for land, for example)",
-      "paymentMethod": "Payment method", "paymentCash": "Cash", "paymentBank": "Bank", "paymentCredit": "Credit (payables)",
-      "cancel": "Cancel", "saveChanges": "Save changes", "saveAsset": "Save asset and post purchase",
+      "paymentMethod": "Payment method",
+      "paymentCash": "Cash",
+      "paymentBank": "Bank",
+      "paymentCredit": "Credit (payables)",
+      "cancel": "Cancel",
+      "saveChanges": "Save changes",
+      "saveAsset": "Save asset and post purchase",
       "loading": "Loading...",
       "table": {
-        "assetNumber": "Asset #", "asset": "Asset", "category": "Category", "purchaseDate": "Purchase date",
-        "cost": "Cost", "accumulatedDepreciation": "Accumulated depreciation", "netBookValue": "Net book value",
+        "assetNumber": "Asset #",
+        "asset": "Asset",
+        "category": "Category",
+        "purchaseDate": "Purchase date",
+        "cost": "Cost",
+        "accumulatedDepreciation": "Accumulated depreciation",
+        "netBookValue": "Net book value",
         "status": "Status"
       },
-      "edit": "Edit", "delete": "Delete",
-      "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
+      "edit": "Edit",
+      "delete": "Delete",
+      "attachmentsShow": "Attachments",
+      "attachmentsHide": "Hide attachments",
       "printCard": "Print card",
       "empty": "No fixed assets registered yet.",
       "deleteTitle": "Delete asset"
     },
     "depreciation": {
-      "month": "Month", "showResults": "Show results",
+      "month": "Month",
+      "showResults": "Show results",
       "alreadyPosted": "Depreciation for this month was already posted for {{amount}} {{currency}}.",
       "postBtn": "Post month's depreciation",
-      "table": { "asset": "Asset", "cost": "Cost", "usefulLife": "Useful life", "monthlyDepreciation": "Monthly depreciation" },
-      "years": "years", "total": "Total",
+      "table": {
+        "asset": "Asset",
+        "cost": "Cost",
+        "usefulLife": "Useful life",
+        "monthlyDepreciation": "Monthly depreciation"
+      },
+      "years": "years",
+      "total": "Total",
       "empty": "No active assets to calculate depreciation for."
     },
     "disposal": {
-      "asset": "Asset", "disposalDate": "Disposal date",
+      "asset": "Asset",
+      "disposalDate": "Disposal date",
       "salePrice": "Sale price (zero if written off)",
-      "receiveMethod": "Receipt method", "methodCash": "Cash", "methodBank": "Bank",
-      "accumulatedDepreciation": "Accumulated depreciation as of disposal date", "netBookValue": "Net book value",
-      "gain": "Disposal gain", "loss": "Disposal loss",
+      "receiveMethod": "Receipt method",
+      "methodCash": "Cash",
+      "methodBank": "Bank",
+      "accumulatedDepreciation": "Accumulated depreciation as of disposal date",
+      "netBookValue": "Net book value",
+      "gain": "Disposal gain",
+      "loss": "Disposal loss",
       "postBtn": "Post disposal",
       "empty": "No active assets to dispose of."
     },
     "reports": {
-      "activeCount": "Active asset count", "disposedCount": "Disposed asset count",
-      "totalCost": "Total cost", "totalNetBookValue": "Total net book value of active assets",
+      "activeCount": "Active asset count",
+      "disposedCount": "Disposed asset count",
+      "totalCost": "Total cost",
+      "totalNetBookValue": "Total net book value of active assets",
       "byCategory": "By category",
-      "table": { "category": "Category", "count": "Count", "totalCost": "Total cost" },
+      "table": {
+        "category": "Category",
+        "count": "Count",
+        "totalCost": "Total cost"
+      },
       "loading": "Loading..."
     },
     "categories": {
-      "title": "Asset categories", "newCategory": "+ New category",
-      "table": { "category": "Category", "assetAccount": "Acquisition account", "accumulatedDepreciationAccount": "Accumulated depreciation account", "depreciationExpenseAccount": "Depreciation expense account" },
-      "edit": "Edit", "delete": "Delete",
+      "title": "Asset categories",
+      "newCategory": "+ New category",
+      "table": {
+        "category": "Category",
+        "assetAccount": "Acquisition account",
+        "accumulatedDepreciationAccount": "Accumulated depreciation account",
+        "depreciationExpenseAccount": "Depreciation expense account"
+      },
+      "edit": "Edit",
+      "delete": "Delete",
       "empty": "No asset categories registered yet.",
-      "formTitleEdit": "Edit category — {{name}}", "formTitleCreate": "New category",
-      "groupName": "Group (for display/grouping only)", "groupNamePlaceholder": "e.g. Vehicles",
-      "categoryName": "Category name", "categoryNamePlaceholder": "e.g. Sedan cars",
+      "formTitleEdit": "Edit category — {{name}}",
+      "formTitleCreate": "New category",
+      "groupName": "Group (for display/grouping only)",
+      "groupNamePlaceholder": "e.g. Vehicles",
+      "categoryName": "Category name",
+      "categoryNamePlaceholder": "e.g. Sedan cars",
       "assetAccount": "Asset acquisition account",
       "accumulatedDepreciationAccount": "Accumulated depreciation account",
       "depreciationExpenseAccount": "Depreciation expense account",
-      "cancel": "Cancel", "saveChanges": "Save changes", "saveCategory": "Save category",
+      "cancel": "Cancel",
+      "saveChanges": "Save changes",
+      "saveCategory": "Save category",
       "errAllFieldsRequired": "All fields are required: group, category, and the three accounts",
       "confirmDelete": "Delete category \"{{name}}\"?"
     },
     "printCard": {
       "subtitle": "Fixed asset card",
-      "assetNumber": "Asset #", "status": "Status",
-      "name": "Asset name", "category": "Category",
-      "purchaseDate": "Purchase date", "depreciationStartDate": "Depreciation start date",
-      "cost": "Cost", "salvageValue": "Salvage value",
-      "usefulLifeYears": "Useful life", "years": "years",
+      "assetNumber": "Asset #",
+      "status": "Status",
+      "name": "Asset name",
+      "category": "Category",
+      "purchaseDate": "Purchase date",
+      "depreciationStartDate": "Depreciation start date",
+      "cost": "Cost",
+      "salvageValue": "Salvage value",
+      "usefulLifeYears": "Useful life",
+      "years": "years",
       "annualDepreciationRate": "Annual depreciation rate",
       "depreciationMethod": "Depreciation method",
-      "accumulatedDepreciation": "Accumulated depreciation to date", "netBookValue": "Net book value",
-      "serialNumber": "Serial number", "chassisNumber": "Chassis number", "plateNumber": "Plate number",
-      "location": "Location/branch", "custodian": "In custody of"
+      "accumulatedDepreciation": "Accumulated depreciation to date",
+      "netBookValue": "Net book value",
+      "serialNumber": "Serial number",
+      "chassisNumber": "Chassis number",
+      "plateNumber": "Plate number",
+      "location": "Location/branch",
+      "custodian": "In custody of"
     }
   },
   "journalEntries": {
@@ -939,29 +1562,67 @@
     "bulkImport": "Bulk import entries",
     "exportCsv": "Export Excel/CSV",
     "csvFileName": "journal_entries.csv",
-    "csvHeaders": { "entryNumber": "Entry #", "date": "Date", "memo": "Memo", "status": "Status", "total": "Total" },
+    "csvHeaders": {
+      "entryNumber": "Entry #",
+      "date": "Date",
+      "memo": "Memo",
+      "status": "Status",
+      "total": "Total"
+    },
     "filters": {
-      "searchByMemo": "Search by memo", "entryNumber": "Entry #", "entryNumberPlaceholder": "Search by entry number",
-      "dateFrom": "From date", "dateTo": "To date", "showResults": "Show results", "clearFilters": "Clear filters",
+      "searchByMemo": "Search by memo",
+      "entryNumber": "Entry #",
+      "entryNumberPlaceholder": "Search by entry number",
+      "dateFrom": "From date",
+      "dateTo": "To date",
+      "showResults": "Show results",
+      "clearFilters": "Clear filters",
       "advancedToggle": "Advanced filters (specific account, entry status, amount)",
-      "specificAccount": "Specific account", "accountPlaceholder": "Filter by an account from the chart", "allAccounts": "— All accounts —",
-      "entryStatus": "Entry status", "all": "— All —", "saved": "Saved", "posted": "Posted",
-      "amount": "Amount", "amountFrom": "From", "amountTo": "To"
+      "specificAccount": "Specific account",
+      "accountPlaceholder": "Filter by an account from the chart",
+      "allAccounts": "— All accounts —",
+      "entryStatus": "Entry status",
+      "all": "— All —",
+      "saved": "Saved",
+      "posted": "Posted",
+      "amount": "Amount",
+      "amountFrom": "From",
+      "amountTo": "To"
     },
     "bulkToolbar": {
-      "selected": "entries selected", "printSelected": "Print selected (soon)", "exportSelected": "Export selected (soon)",
-      "clearSelection": "Clear selection", "comingSoon": "Bulk actions — coming soon"
+      "selected": "entries selected",
+      "printSelected": "Print selected (soon)",
+      "exportSelected": "Export selected (soon)",
+      "clearSelection": "Clear selection",
+      "comingSoon": "Bulk actions — coming soon"
     },
     "table": {
-      "selectAll": "Select all", "selectEntry": "Select entry",
-      "entryNumber": "Entry #", "date": "Date", "memo": "Memo", "noMemo": "No memo",
-      "lineCount": "Lines", "amount": "Amount", "status": "Status", "actions": "Actions"
+      "selectAll": "Select all",
+      "selectEntry": "Select entry",
+      "entryNumber": "Entry #",
+      "date": "Date",
+      "memo": "Memo",
+      "noMemo": "No memo",
+      "lineCount": "Lines",
+      "amount": "Amount",
+      "status": "Status",
+      "actions": "Actions"
     },
     "rowActions": {
-      "view": "View entry", "edit": "Edit", "editDisabled": "Cannot edit after posting — use reverse entry to correct it",
-      "delete": "Delete", "post": "Post", "reverse": "Reverse entry", "unpost": "Unpost (super_admin only)",
-      "print": "Print entry", "downloadPdf": "Download PDF", "duplicate": "Duplicate to a new entry", "mirror": "Create mirror entry in another company",
-      "links": "Entry links", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments"
+      "view": "View entry",
+      "edit": "Edit",
+      "editDisabled": "Cannot edit after posting — use reverse entry to correct it",
+      "delete": "Delete",
+      "post": "Post",
+      "reverse": "Reverse entry",
+      "unpost": "Unpost (super_admin only)",
+      "print": "Print entry",
+      "downloadPdf": "Download PDF",
+      "duplicate": "Duplicate to a new entry",
+      "mirror": "Create mirror entry in another company",
+      "links": "Entry links",
+      "attachmentsShow": "Attachments",
+      "attachmentsHide": "Hide attachments"
     },
     "linkInfo": {
       "loading": "Loading links...",
@@ -970,7 +1631,10 @@
       "reversedBy": "⚠ This entry was reversed by entry #{{id}} dated {{date}} — status: {{status}}",
       "none": "No links yet."
     },
-    "emptyState": { "title": "No matching entries", "subtitle": "Try adjusting your search/filter criteria, or add a new manual entry." },
+    "emptyState": {
+      "title": "No matching entries",
+      "subtitle": "Try adjusting your search/filter criteria, or add a new manual entry."
+    },
     "confirmDelete": "Permanently delete this entry?",
     "unpostWarning": "Unposting this entry will allow it to be edited or deleted. This is an exceptional action and is recorded in the audit log. Are you sure?",
     "unpostTitle": "Unpost entry {{number}}",
@@ -980,16 +1644,31 @@
       "reverseCreated": "The reversing entry was created as a draft — review it, then post it."
     },
     "form": {
-      "titleEdit": "Edit entry", "titleDuplicate": "Duplicate entry", "titleCreate": "Add journal entry",
+      "titleEdit": "Edit entry",
+      "titleDuplicate": "Duplicate entry",
+      "titleCreate": "Add journal entry",
       "close": "Close",
       "duplicateBanner": "The entry data was duplicated — review it before saving the new entry",
-      "date": "Date", "entryNumber": "Entry #", "entryNumberPreviewTitle": "Preview number only — not reserved until the moment of saving",
+      "date": "Date",
+      "entryNumber": "Entry #",
+      "entryNumberPreviewTitle": "Preview number only — not reserved until the moment of saving",
       "branchLabel": "Branch (optional)",
       "branchEquivalent": "Equivalent: {{amount}} {{currency}} (branch currency, display only)",
-      "memo": "Entry memo", "memoPlaceholder": "General description for the entry",
-      "lines": { "account": "Account", "debit": "Debit", "credit": "Credit", "description": "Description", "costCenter": "Cost Center", "department": "Department", "branch": "Branch" },
+      "memo": "Entry memo",
+      "memoPlaceholder": "General description for the entry",
+      "lines": {
+        "account": "Account",
+        "debit": "Debit",
+        "credit": "Credit",
+        "description": "Description",
+        "costCenter": "Cost Center",
+        "department": "Department",
+        "branch": "Branch"
+      },
       "descriptionPlaceholder": "Description specific to this line",
-      "newAsset": "New asset", "newAdvance": "New advance", "existingAdvance": "Existing advance",
+      "newAsset": "New asset",
+      "newAdvance": "New advance",
+      "existingAdvance": "Existing advance",
       "advanceLabel": "Advance — {{amount}} {{currency}}",
       "unlinkTitle": "Unlink",
       "total": "Total",
@@ -998,7 +1677,10 @@
       "unbalanced": "⚠ Unbalanced by {{amount}} {{currency}}",
       "enterAmounts": "Enter line amounts to see the balance status",
       "shortcutsHint": "Shortcuts: Ctrl+S save · Ctrl+Enter save and post · Enter in \"Description\" adds a new line",
-      "cancel": "Cancel", "save": "Save", "saving": "Saving...", "saveAndPost": "Save and post",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving...",
+      "saveAndPost": "Save and post",
       "savedEditPosted": "The changes were saved and the entry was posted. It can no longer be edited directly.",
       "savedEditDraft": "The entry changes were saved.",
       "savedDuplicatePosted": "A new copy of the entry was created and posted.",
@@ -1150,8 +1832,14 @@
     "openEntryTitle": "Open this entry's details in a new tab",
     "csvFileName": "account_statement.csv",
     "csvHeaders": {
-      "date": "Date", "entryNumber": "Entry #", "memo": "Memo", "description": "Description",
-      "postingAccount": "Posting account", "debit": "Debit", "credit": "Credit", "balance": "Balance"
+      "date": "Date",
+      "entryNumber": "Entry #",
+      "memo": "Memo",
+      "description": "Description",
+      "postingAccount": "Posting account",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance"
     },
     "selectPrompt": "Choose an account above and click \"Show results\" to view its statement.",
     "table": {
@@ -1245,12 +1933,19 @@
       "notes": "HR notes",
       "gosiApplicable": "Subject to social insurance (GOSI)",
       "docsTitle": "Official documents",
-      "docTable": { "type": "Document type", "number": "Number", "expiry": "Expiry date" },
+      "docTable": {
+        "type": "Document type",
+        "number": "Number",
+        "expiry": "Expiry date"
+      },
       "addDoc": "+ Add document",
       "attachmentsTitle": "Employee file attachments",
       "payrollComponentsTitle": "Payroll components assigned to this employee",
       "payrollComponentsNote": "Not all employees need the same salary components — choose here which components apply to this employee specifically, with a fixed value for components that need a manual amount per employee.",
-      "payrollTable": { "component": "Component", "fixedValue": "Fixed value" },
+      "payrollTable": {
+        "component": "Component",
+        "fixedValue": "Fixed value"
+      },
       "savePayrollComponents": "Save payroll components",
       "cancelEdit": "Cancel edit",
       "saveChanges": "Save changes",
@@ -1260,13 +1955,33 @@
       "statusTerminated": "Terminated",
       "export": {
         "sheetName": "Employees",
-        "employeeNumber": "Employee number", "name": "Employee name", "idNumber": "National ID / Iqama",
-        "nationality": "Nationality", "jobTitle": "Job title", "department": "Department", "workLocation": "Work location",
-        "phone": "Mobile", "workEmail": "Work email", "hireDate": "Hire date", "contractType": "Contract type",
-        "contractEnd": "Contract end", "basicSalary": "Basic salary", "housingAllowance": "Housing allowance",
-        "transportAllowance": "Transport allowance", "bankAccount": "IBAN", "annualLeaveDays": "Annual leave days", "status": "Status"
+        "employeeNumber": "Employee number",
+        "name": "Employee name",
+        "idNumber": "National ID / Iqama",
+        "nationality": "Nationality",
+        "jobTitle": "Job title",
+        "department": "Department",
+        "workLocation": "Work location",
+        "phone": "Mobile",
+        "workEmail": "Work email",
+        "hireDate": "Hire date",
+        "contractType": "Contract type",
+        "contractEnd": "Contract end",
+        "basicSalary": "Basic salary",
+        "housingAllowance": "Housing allowance",
+        "transportAllowance": "Transport allowance",
+        "bankAccount": "IBAN",
+        "annualLeaveDays": "Annual leave days",
+        "status": "Status"
       },
-      "table": { "name": "Name", "department": "Department", "basicSalary": "Basic", "leaveStatus": "Leave status" },
+      "table": {
+        "name": "Name",
+        "department": "Department",
+        "basicSalary": "Basic",
+        "leaveBalance": "Leave balance (days / amount)",
+        "eosBalance": "EOS balance as of today",
+        "leaveStatus": "Leave status"
+      },
       "statusOnLeave": "On leave",
       "statusActive": "Active",
       "viewAccount": "View in chart of accounts",
@@ -1274,14 +1989,25 @@
       "confirmDelete": "Delete employee file \"{{name}}\"?"
     },
     "leaves": {
-      "status": { "pending": "Pending review", "approved": "Approved", "rejected": "Rejected" },
+      "status": {
+        "pending": "Pending review",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
       "employee": "Employee",
       "type": "Leave type",
       "fromDate": "From date",
       "toDate": "To date",
       "notes": "Notes",
       "saveBtn": "Register leave",
-      "table": { "employee": "Employee", "type": "Type", "from": "From", "to": "To", "days": "Days", "status": "Status" },
+      "table": {
+        "employee": "Employee",
+        "type": "Type",
+        "from": "From",
+        "to": "To",
+        "days": "Days",
+        "status": "Status"
+      },
       "noManagerBadge": "No direct manager",
       "noManagerTooltip": "This employee has no direct manager registered — the request will not appear in any mobile inbox, and approval/rejection is only possible from here",
       "approve": "Approve",
@@ -1290,6 +2016,20 @@
       "empty": "No leaves registered yet."
     },
     "leaveSettlement": {
+      "requestSection": "Leave details and settlement method",
+      "settlementType": "Settlement type",
+      "actualLeave": "Actual leave (departure and return)",
+      "cashInService": "Cash leave allowance while in service",
+      "leaveEndDate": "Expected return date",
+      "cashLeaveDays": "Days to cash out",
+      "balanceSection": "Leave balance as of settlement date",
+      "accruedDays": "Total accrued days",
+      "usedDays": "Previously used days",
+      "availableDays": "Remaining days",
+      "balanceAmount": "Remaining balance amount",
+      "requestedDays": "Days in this settlement",
+      "leavePayAmount": "Leave allowance amount",
+      "adjustmentsSection": "Period salary, additions and deductions",
       "employee": "Employee",
       "leaveStartDate": "Leave start date",
       "bonuses": "Additions / bonuses",
@@ -1299,13 +2039,19 @@
       "previewDaysWorked": "Working days due for the month",
       "previewMonthAmount": "Salary for the month's days before leave",
       "previewAccrual": "Accrued leave balance",
+      "previewLeavePay": "Current leave days allowance",
       "previewBonuses": "Additions",
       "previewDeductions": "Deductions",
       "previewTicketVisa": "Travel ticket + visa",
       "previewNet": "Net amount due",
       "saveBtn": "Save and approve dues (posts an entry automatically)",
       "allOnLeave": "All employees of this company are currently on leave.",
-      "table": { "employee": "Employee", "leaveStart": "Leave start", "net": "Net", "status": "Status" },
+      "table": {
+        "employee": "Employee",
+        "leaveStart": "Leave start",
+        "net": "Net",
+        "status": "Status"
+      },
       "statusDisbursed": "Disbursed",
       "statusCalculated": "Calculated",
       "methodCash": "Cash",
@@ -1339,7 +2085,12 @@
       "employee": "Employee",
       "allNote": "This action will apply to all employees of this company ({{count}} employees).",
       "saveBtn": "Save action ({{count}} employees)",
-      "table": { "employee": "Employee", "action": "Action", "value": "Value", "note": "Note" },
+      "table": {
+        "employee": "Employee",
+        "action": "Action",
+        "value": "Value",
+        "note": "Note"
+      },
       "days": "days",
       "empty": "No actions registered for this month yet."
     },
@@ -1372,7 +2123,11 @@
       "total": "Total"
     },
     "eos": {
-      "reasons": { "resign": "Resignation", "employer": "Termination by employer", "contractEnd": "Contract term ended" },
+      "reasons": {
+        "resign": "Resignation",
+        "employer": "Termination by employer",
+        "contractEnd": "Contract term ended"
+      },
       "employee": "Employee",
       "endDate": "Service end date",
       "reason": "Reason for service end",
@@ -1392,14 +2147,36 @@
       "allTypes": "All types",
       "generateBtn": "Generate report",
       "title": "Employees with documents expiring within {{days}} days",
-      "table": { "employee": "Employee", "docType": "Document type", "number": "Number", "expiry": "Expiry date", "daysLeft": "Days left" },
+      "table": {
+        "employee": "Employee",
+        "docType": "Document type",
+        "number": "Number",
+        "expiry": "Expiry date",
+        "daysLeft": "Days left"
+      },
       "expiredSince": "Expired {{days}} days ago",
       "daysLeftValue": "{{days}} days",
       "empty": "No documents within this range."
     },
     "payrollSettings": {
-      "kindLabels": { "addition": "Addition", "deduction": "Deduction" },
-      "unitLabels": { "hour": "Hour", "day": "Day" },
+      "leavePolicyTitle": "Leave and end-of-service settings",
+      "leavePolicyNote": "These values control live balances and leave settlements for all company employees.",
+      "leaveDaysBeforeFive": "Annual entitlement before 5 years (days)",
+      "leaveDaysAfterFive": "Annual entitlement after 5 years (days)",
+      "leaveDailyRateDivisor": "Leave daily-rate divisor",
+      "leaveSalaryBasis": "Leave allowance salary basis",
+      "eosSalaryBasis": "End-of-service salary basis",
+      "basisBasic": "Basic salary",
+      "basisBasicHousing": "Basic + housing allowance",
+      "basisTotal": "Total salary and allowances",
+      "kindLabels": {
+        "addition": "Addition",
+        "deduction": "Deduction"
+      },
+      "unitLabels": {
+        "hour": "Hour",
+        "day": "Day"
+      },
       "standardTitle": "Standard hours and days per month",
       "standardNote": "Used to convert any component based on \"hourly/daily rate\" (like overtime or an absence deduction) into a monthly amount.",
       "standardHours": "Standard working hours per month",
@@ -1407,7 +2184,14 @@
       "componentsTitle": "Payroll components",
       "newComponent": "+ New component",
       "noComponentsWarning": "No custom components for this company yet — payroll currently runs on the twelve default components (basic, allowances, insurance...) automatically with no setup. ⚠️ Important notice: the first real component you create here switches this company's payroll entirely to relying on saved components only — meaning the old twelve components (including basic and allowances) stop being calculated immediately unless recreated here manually with the same values. Do not add any component manually before running the migration script (backfillPayrollComponents.ts --commit), which creates all twelve components at once with the current values — check with the technical team first.",
-      "table": { "name": "Name", "kind": "Type", "account": "Account", "calcMethod": "Calc method", "monthlyAdjustment": "Monthly adjustment", "status": "Status" },
+      "table": {
+        "name": "Name",
+        "kind": "Type",
+        "account": "Account",
+        "calcMethod": "Calc method",
+        "monthlyAdjustment": "Monthly adjustment",
+        "status": "Status"
+      },
       "systemTag": " (system)",
       "calcMethodFormula": "Composite formula",
       "calcMethodFixed": "Fixed value",
@@ -1428,7 +2212,11 @@
       "calcMethodFixedOption": "Fixed value per employee",
       "calcMethodFormulaOption": "Composite formula (includes percentages)",
       "formulaTitle": "Formula components — Total = Σ (quantity × reference, with optional hour/day conversion)",
-      "formulaTable": { "quantity": "Quantity", "unit": "Unit", "reference": "Reference" },
+      "formulaTable": {
+        "quantity": "Quantity",
+        "unit": "Unit",
+        "reference": "Reference"
+      },
       "unitDirect": "Direct (ratio/factor)",
       "unitHourPrice": "Hourly rate",
       "unitDayPrice": "Daily rate",
@@ -1448,7 +2236,10 @@
       "confirmDelete": "Delete component \"{{name}}\"?",
       "payslipColumnsTitle": "Payslip columns",
       "payslipColumnsNote": "Choose here which components appear as columns in the payroll screen and printout, with whatever label and order you want. The \"Net\" column always appears last.",
-      "payslipTable": { "component": "Component", "columnTitle": "Column title" },
+      "payslipTable": {
+        "component": "Component",
+        "columnTitle": "Column title"
+      },
       "payslipEmpty": "No customization — the payroll will be shown with all components in their default order.",
       "addColumn": "+ Add column",
       "saveColumnsOrder": "Save column order"
@@ -1460,7 +2251,11 @@
     "uploading": "Uploading...",
     "saveFirstTooltip": "Save the transaction first before attaching documents",
     "saveFirstNote": "Save the transaction first to be able to attach documents to it.",
-    "table": { "file": "File", "size": "Size", "uploadDate": "Upload date" },
+    "table": {
+      "file": "File",
+      "size": "Size",
+      "uploadDate": "Upload date"
+    },
     "download": "Download",
     "empty": "No documents attached yet.",
     "confirmDelete": "Delete attachment \"{{name}}\"?",
@@ -1500,7 +2295,12 @@
       "errGeneric": "Failed to create the company"
     },
     "companiesList": {
-      "table": { "name": "Name", "shortName": "Trade name", "vatNumber": "VAT number", "crNumber": "CR number" },
+      "table": {
+        "name": "Name",
+        "shortName": "Trade name",
+        "vatNumber": "VAT number",
+        "crNumber": "CR number"
+      },
       "zatcaLink": "ZATCA linkage",
       "confirmDelete": "Delete company \"{{name}}\"? It cannot be deleted if it has recorded journal entries.",
       "empty": "No companies yet — use the \"+ New company\" button above to add your first company."
@@ -1595,7 +2395,11 @@
       "expiryLabel": "Expiry date",
       "addBtn": "+ Add document",
       "confirmDelete": "Delete this document?",
-      "table": { "type": "Type", "number": "Number", "expiry": "Expiry date" },
+      "table": {
+        "type": "Type",
+        "number": "Number",
+        "expiry": "Expiry date"
+      },
       "empty": "No administrative documents registered yet."
     },
     "leaseContracts": {
@@ -1609,7 +2413,13 @@
       "addBtn": "+ Add lease contract",
       "errRequired": "Contract name and start/end dates are required",
       "confirmDelete": "Delete contract \"{{title}}\"?",
-      "table": { "title": "Contract", "counterparty": "Lessor", "monthlyRent": "Monthly rent", "start": "Start", "end": "End" },
+      "table": {
+        "title": "Contract",
+        "counterparty": "Lessor",
+        "monthlyRent": "Monthly rent",
+        "start": "Start",
+        "end": "End"
+      },
       "empty": "No lease contracts registered yet."
     },
     "branches": {
@@ -1624,7 +2434,12 @@
       "saveChanges": "Save changes",
       "errRequired": "Branch name, country and currency are required",
       "confirmDelete": "Permanently delete branch \"{{name}}\"?",
-      "table": { "name": "Branch", "country": "Country", "currency": "Currency", "status": "Status" },
+      "table": {
+        "name": "Branch",
+        "country": "Country",
+        "currency": "Currency",
+        "status": "Status"
+      },
       "statusActive": "Active",
       "statusInactive": "Inactive",
       "activate": "Activate",
@@ -1643,7 +2458,11 @@
       "confirmDelete": "Permanently delete bank account \"{{name}}\"?",
       "moveUp": "Move up",
       "moveDown": "Move down",
-      "table": { "bankName": "Bank name", "accountNumber": "Account number", "iban": "IBAN" },
+      "table": {
+        "bankName": "Bank name",
+        "accountNumber": "Account number",
+        "iban": "IBAN"
+      },
       "empty": "No bank accounts registered yet."
     },
     "users": {
@@ -1655,7 +2474,12 @@
       "inviteBtn": "Send invite to new user",
       "sending": "Sending...",
       "note": "The invitee will receive an email with a secure link to set their own password and activate their account.",
-      "table": { "name": "Name", "email": "Email", "role": "Role", "inviteStatus": "Invite status" },
+      "table": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "inviteStatus": "Invite status"
+      },
       "statusPending": "Pending activation",
       "statusActive": "Activated",
       "resend": "Resend invite",
@@ -1697,7 +2521,10 @@
       "companyLabel": "Company",
       "generalOption": "General for all companies",
       "addBtn": "Add location",
-      "table": { "location": "Location", "company": "Company" },
+      "table": {
+        "location": "Location",
+        "company": "Company"
+      },
       "generalValue": "General",
       "empty": "No locations yet.",
       "note": "These locations are used as cost centers in journal entries, warehouses in the inventory module, and branches for employees."
@@ -1710,7 +2537,13 @@
       "numberLabel": "Document number",
       "expiryLabel": "Expiry date",
       "saveBtn": "Save document",
-      "table": { "company": "Company", "docType": "Document type", "location": "Location", "number": "Number", "expiry": "Expiry date" },
+      "table": {
+        "company": "Company",
+        "docType": "Document type",
+        "location": "Location",
+        "number": "Number",
+        "expiry": "Expiry date"
+      },
       "generalValue": "General",
       "empty": "No official documents registered yet."
     }
@@ -1720,7 +2553,9 @@
       "title": "Reverse entry",
       "note": "A new, separate entry will be created with the same lines as the original entry (memo: {{memo}}), with debit and credit reversed on each line, and saved with \"Saved\" status for you to review before posting. The original entry will not change at all.",
       "dateLabel": "Reversal entry date",
-      "table": { "account": "Account" },
+      "table": {
+        "account": "Account"
+      },
       "saving": "Saving...",
       "createBtn": "Create reversal entry"
     },
@@ -1735,7 +2570,9 @@
       "noLinkWarning": "No linking account previously set between the two companies was found for this entry specifically, so the entry total was used and linking accounts were created automatically — review the amounts carefully before posting.",
       "dateLabel": "Date",
       "memoLabel": "Memo",
-      "table": { "account": "Account" },
+      "table": {
+        "account": "Account"
+      },
       "autoTag": "(automatic)",
       "accountPlaceholder": "Choose the account...",
       "back": "Back",
@@ -1755,7 +2592,9 @@
       "proposedTitle": "Suggested entry (editable)",
       "dateLabel": "Date",
       "memoLabel": "Memo",
-      "table": { "account": "Account" },
+      "table": {
+        "account": "Account"
+      },
       "addLine": "+ Add line",
       "balancedOk": "✓ Entry balanced",
       "balanceDiff": "Difference between debit and credit: {{amount}} {{currency}}",
@@ -1770,7 +2609,12 @@
       "analyzingFile": "Analyzing file and matching accounts...",
       "reviewSummary": "{{rows}} rows across {{groups}} entries. Review the account matching below before confirming.",
       "unbalancedWarning": "Warning: {{count}} unbalanced entries (debit ≠ credit) cannot be imported — first unbalanced entry: #{{groupKey}} ({{date}}).",
-      "table": { "accountNameInFile": "Account name in file", "lineCount": "Line count", "status": "Status", "accountInTree": "Account in company tree" },
+      "table": {
+        "accountNameInFile": "Account name in file",
+        "lineCount": "Line count",
+        "status": "Status",
+        "accountInTree": "Account in company tree"
+      },
       "statusMatched": "Matched automatically",
       "statusAmbiguous": "Uncertain (more than one account with this name)",
       "statusUnmatched": "Unmatched",
@@ -1972,7 +2816,13 @@
       "noLiabilities": "No classified liabilities.",
       "liabilitiesNote": "Shows current balances; due dates are not available for older accounts.",
       "sectionI": "I. Current month vs. previous month comparison",
-      "table": { "item": "Item", "current": "Current", "previous": "Previous", "difference": "Difference", "percentage": "Percentage" },
+      "table": {
+        "item": "Item",
+        "current": "Current",
+        "previous": "Previous",
+        "difference": "Difference",
+        "percentage": "Percentage"
+      },
       "sectionJ": "J. Key notes and financial recommendations",
       "notesAriaLabel": "Notes and recommendations",
       "notesNote": "The suggested notes are an editable draft, shown as-is in print."
@@ -1982,9 +2832,21 @@
       "title": "Automate financial report emails",
       "intro": "A summary of the reports selected below is sent automatically by email according to the set schedule — to all users of this company with an admin/finance-manager role by default, or to a custom mailing list if you add one below.",
       "frequencyLabel": "Delivery frequency",
-      "frequency": { "daily": "Daily", "weekly": "Weekly", "monthly": "Monthly" },
+      "frequency": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly"
+      },
       "dayOfWeekLabel": "Day of week (Saudi time)",
-      "weekdays": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+      "weekdays": [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday"
+      ],
       "dayOfMonthLabel": "Day of month (Saudi time)",
       "hourLabel": "Delivery hour (Saudi time)",
       "enableToggle": "Enable automatic delivery",
@@ -2153,4 +3015,3 @@
     "stayOnPage": "Stay on this page"
   }
 }
-
