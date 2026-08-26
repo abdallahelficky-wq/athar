@@ -1453,7 +1453,8 @@
         "manufacturing": "مصانع / تصنيع",
         "retail": "مبيعات تجزئة",
         "generalTrade": "أنشطة تجارية عامة (تجارة واستيراد وتصدير)",
-        "fuelStations": "محطات وقود"
+        "fuelStations": "محطات وقود",
+        "horseStables": "إسطبلات وإيواء وإعاشة الخيل"
       },
       "countryLabel": "الدولة",
       "currencyLabel": "عملة المحاسبة",
