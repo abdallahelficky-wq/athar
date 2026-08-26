@@ -80,6 +80,38 @@ export const createEmployee: RequestHandler = async (req, res) => {
   res.status(201).json(employee);
 };
 
+export const importEmployees: RequestHandler = async (req, res) => {
+  const { companyId, rows } = req.body;
+  await assertCompanyBelongsToTenant(req.auth!.tenantId, companyId);
+  const numbers = rows.map((row: any) => row.employeeNumber?.trim()).filter(Boolean);
+  const duplicateInFile = numbers.find((number: string, index: number) => numbers.indexOf(number) !== index);
+  if (duplicateInFile) throw conflict(`الرقم الوظيفي ${duplicateInFile} مكرر داخل ملف Excel`);
+  const existing: any = numbers.length ? await prisma.employee.findFirst({ where: { companyId, employeeNumber: { in: numbers } } as any }) : null;
+  if (existing) throw conflict(`الرقم الوظيفي ${existing.employeeNumber} موجود مسبقاً في هذه الشركة`);
+
+  const created = await prisma.$transaction(async (tx) => {
+    const defaultComponents = await tx.payrollComponent.findMany({
+      where: { tenantId: req.auth!.tenantId, companyId, isActive: true, appliesByDefault: true }, select: { id: true },
+    });
+    const result = [];
+    for (const row of rows) {
+      const { documents = [], ...data } = row;
+      const { accountId } = await ensurePartyAccount(tx, {
+        tenantId: req.auth!.tenantId, companyId, kind: "employee", partyName: data.name,
+      });
+      const employee = await tx.employee.create({
+        data: { ...data, companyId, tenantId: req.auth!.tenantId, accountId, documents: { create: documents } },
+      });
+      if (defaultComponents.length) await tx.employeePayrollComponent.createMany({
+        data: defaultComponents.map((component) => ({ tenantId: req.auth!.tenantId, employeeId: employee.id, componentId: component.id, isActive: true })),
+      });
+      result.push(employee);
+    }
+    return result;
+  });
+  res.status(201).json({ imported: created.length });
+};
+
 export const updateEmployee: RequestHandler = async (req, res) => {
   const existing = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("الموظف غير موجود");
@@ -160,3 +192,4 @@ export const deleteEmployee: RequestHandler = async (req, res) => {
   await prisma.employee.delete({ where: { id: existing.id } });
   res.status(204).send();
 };
+
