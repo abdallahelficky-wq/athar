@@ -1,6 +1,9 @@
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
-import { dailyRate, accruedLeaveDays, daysInMonth } from "../../lib/hrCalculations";
+import { dailyRate, daysInMonth } from "../../lib/hrCalculations";
+import { computeEmployeePayroll, PayrollSettingsLike } from "../../lib/payrollEngine";
+import { LEGACY_ACTION_TYPE_TO_KEY } from "../../lib/legacyPayrollComponents";
+import { resolveEffectiveComponents } from "../payrollRuns/payrollRuns.service";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx } from "../../lib/journalPosting";
@@ -38,8 +41,36 @@ async function calculatePreview(tenantId: string, emp: any, leaveStartDate: Date
   const leaveDays = Math.min(requestedDays, availableDays);
   const pay = empPayBase(emp), leaveDaily = salaryBasis(pay, basis) / divisor;
   const daysWorked = Math.max(leaveStartDate.getDate() - 1, 0);
-  const salaryDaily = salaryBasis(pay, "total") / Number(settings?.standardDaysPerMonth ?? 30);
-  return { daysWorked, daily: salaryDaily, monthAmount: salaryDaily * daysWorked,
+  const payrollMonth = leaveStartDate.toISOString().slice(0, 7);
+  const payrollSettings: PayrollSettingsLike = {
+    standardHoursPerMonth: Number(settings?.standardHoursPerMonth ?? 240),
+    standardDaysPerMonth: Number(settings?.standardDaysPerMonth ?? 30),
+  };
+  const { components, persisted } = await resolveEffectiveComponents(tenantId, emp.companyId);
+  const [assignments, actions] = await Promise.all([
+    persisted ? prisma.employeePayrollComponent.findMany({ where: { employeeId: emp.id, isActive: true } }) : Promise.resolve([]),
+    prisma.hrAction.findMany({ where: { employeeId: emp.id, month: payrollMonth }, orderBy: { createdAt: "asc" } }),
+  ]);
+  const assignedIds = new Set(assignments.map((a) => a.componentId));
+  const employeeComponents = persisted ? components.filter((c) => assignedIds.has(c.id)) : components;
+  const fixedValues = new Map<string, number>();
+  if (persisted) assignments.forEach((a) => { if (a.fixedValue != null) fixedValues.set(a.componentId, Number(a.fixedValue)); });
+  else {
+    if (Number(emp.advances)) fixedValues.set("legacy:advance", Number(emp.advances));
+    if (Number(emp.otherDeductions)) fixedValues.set("legacy:otherDed", Number(emp.otherDeductions));
+    if (emp.gosiAmount != null) fixedValues.set("legacy:gosi", Number(emp.gosiAmount));
+  }
+  const monthlyAdjustments = new Map<string, number>();
+  actions.forEach((action) => {
+    const id = action.componentId || (LEGACY_ACTION_TYPE_TO_KEY[action.actionType] ? `legacy:${LEGACY_ACTION_TYPE_TO_KEY[action.actionType]}` : null);
+    if (id) monthlyAdjustments.set(id, (monthlyAdjustments.get(id) || 0) + Number(action.value));
+  });
+  const payroll = computeEmployeePayroll({ employee: pay, components: employeeComponents, fixedValues, monthlyAdjustments,
+    settings: payrollSettings, fullyOnLeave: false, prorationFactor: Math.min(daysWorked / payrollSettings.standardDaysPerMonth, 1) });
+  const componentLines = employeeComponents.map((component) => ({ id: component.id, name: component.name, kind: component.kind,
+    amount: payroll.values.get(component.id) || 0, hasProcedure: monthlyAdjustments.has(component.id) })).filter((line) => line.amount !== 0 || line.hasProcedure);
+  return { daysWorked, daily: salaryBasis(pay, "total") / payrollSettings.standardDaysPerMonth, monthAmount: payroll.net,
+    salary: { additions: payroll.totalAdditions, deductions: payroll.totalDeductions, net: payroll.net, components: componentLines, procedureCount: actions.length },
     accrual: { days: accruedDays, usedDays, availableDays, amount: availableDays * leaveDaily },
     leaveDays, leaveDaily, leavePayAmount: leaveDays * leaveDaily, settings: { beforeFive, afterFive, divisor, basis } };
 }
@@ -194,3 +225,4 @@ export async function registerLeaveReturn(tenantId: string, employeeId: string, 
 
   return { settlement, preview: { month, workedDays, amount: previewAmount } };
 }
+
