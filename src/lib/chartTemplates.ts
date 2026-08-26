@@ -1,4 +1,4 @@
-import type { DefaultChartAccount } from "./defaultChartOfAccounts";
+import { DEFAULT_CHART_OF_ACCOUNTS, type DefaultChartAccount } from "./defaultChartOfAccounts";
 
 /**
  * قوالب شجرة الحسابات الخاصة بكل نشاط تجاري، مبنية من ملفات CSV التي زوّدنا بها المستخدم
@@ -12,11 +12,31 @@ export const BUSINESS_ACTIVITIES = [
   "retail",
   "general_trade",
   "fuel_stations",
+  "horse_stables",
 ] as const;
 
 export type BusinessActivity = (typeof BUSINESS_ACTIVITIES)[number];
 
+const HORSE_STABLES_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
+  ...DEFAULT_CHART_OF_ACCOUNTS,
+  { code: "114003", name: "مخزون أعلاف وتبن", nameEn: "Feed and Hay Inventory", type: "asset", level: 4, parentCode: "114", isPosting: true },
+  { code: "114004", name: "مخزون فرشة ونشارة", nameEn: "Bedding Inventory", type: "asset", level: 4, parentCode: "114", isPosting: true },
+  { code: "114005", name: "مخزون أدوية ومكملات الخيل", nameEn: "Horse Medicines and Supplements Inventory", type: "asset", level: 4, parentCode: "114", isPosting: true },
+  { code: "121009", name: "تجهيزات الإسطبلات والبوكسات", nameEn: "Stable and Stall Equipment", type: "asset", level: 4, parentCode: "121", isPosting: true },
+  { code: "121010", name: "خيول مملوكة للمنشأة", nameEn: "Business-Owned Horses", type: "asset", level: 4, parentCode: "121", isPosting: true },
+  { code: "411003", name: "إيرادات إيواء وإعاشة الخيل", nameEn: "Horse Boarding and Livery Revenue", type: "revenue", level: 4, parentCode: "411", isPosting: true },
+  { code: "411004", name: "إيرادات التدريب ومدرسة الركوب", nameEn: "Training and Riding School Revenue", type: "revenue", level: 4, parentCode: "411", isPosting: true },
+  { code: "411005", name: "إيرادات خدمات الرعاية", nameEn: "Horse Care Services Revenue", type: "revenue", level: 4, parentCode: "411", isPosting: true },
+  { code: "411006", name: "إيرادات المسابقات والفعاليات", nameEn: "Competitions and Events Revenue", type: "revenue", level: 4, parentCode: "411", isPosting: true },
+  { code: "511004", name: "تكلفة أعلاف وتغذية الخيل", nameEn: "Horse Feed Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
+  { code: "511005", name: "تكلفة الفرشة والنظافة", nameEn: "Bedding and Cleaning Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
+  { code: "511006", name: "تكلفة البيطرة والحدادة", nameEn: "Veterinary and Farrier Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
+  { code: "511007", name: "أجور وعمولات المدربين", nameEn: "Trainer Fees and Commissions", type: "expense", level: 4, parentCode: "511", isPosting: true },
+  { code: "511008", name: "تكلفة المسابقات والنقل", nameEn: "Competition and Transport Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
+];
+
 export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAccount[]> = {
+  horse_stables: HORSE_STABLES_CHART_OF_ACCOUNTS,
   contracting: [
 {
   "code": "1",
