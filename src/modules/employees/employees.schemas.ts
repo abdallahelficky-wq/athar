@@ -51,6 +51,11 @@ export const createEmployeeSchema = z.object({
 
 export const updateEmployeeSchema = createEmployeeSchema.partial();
 
+export const importEmployeesSchema = z.object({
+  companyId: z.string().min(1),
+  rows: z.array(createEmployeeSchema.omit({ companyId: true })).min(1).max(1000),
+});
+
 export const setPortalAccessSchema = z.object({
   phone: z.string().min(5, "رقم الجوال قصير جداً"),
   pin: z.string().regex(/^\d{4,6}$/, "الرمز يجب أن يكون من 4 إلى 6 أرقام"),

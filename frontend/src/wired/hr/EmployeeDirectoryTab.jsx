@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
-import { listEmployees, createEmployee, updateEmployee, deleteEmployee } from "../../api/employees";
+import { listEmployees, createEmployee, importEmployees, updateEmployee, deleteEmployee } from "../../api/employees";
 import { getEmployeePayrollComponents, setEmployeePayrollComponents } from "../../api/payrollSettings";
 import { DEPARTMENTS, fmt } from "../../legacy/constants";
 import { NATIONALITIES, EMPLOYEE_DOC_TYPES } from "../../legacy/hr";
@@ -29,6 +29,8 @@ export default function EmployeeDirectoryTab({ companyId }) {
   const [editingId, setEditingId] = useState(null);
   const [payrollComponents, setPayrollComponents] = useState([]);
   const [payrollError, setPayrollError] = useState("");
+  const [importResult, setImportResult] = useState("");
+  const importInputRef = useRef(null);
 
   const reloadPayrollComponents = (id) => {
     if (!id) { setPayrollComponents([]); return; }
@@ -132,6 +134,88 @@ export default function EmployeeDirectoryTab({ companyId }) {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, t("hr.directory.export.sheetName"));
     XLSX.writeFile(workbook, `employees-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const importColumns = () => [
+    ["employeeNumber", t("hr.directory.export.employeeNumber")], ["name", t("hr.directory.export.name")],
+    ["idNumber", t("hr.directory.export.idNumber")], ["nationality", t("hr.directory.export.nationality")],
+    ["jobTitle", t("hr.directory.export.jobTitle")], ["department", t("hr.directory.export.department")],
+    ["workLocation", t("hr.directory.export.workLocation")], ["phone", t("hr.directory.export.phone")],
+    ["workEmail", t("hr.directory.export.workEmail")], ["hireDate", t("hr.directory.export.hireDate")],
+    ["contractType", t("hr.directory.export.contractType")], ["contractEnd", t("hr.directory.export.contractEnd")],
+    ["basicSalary", t("hr.directory.export.basicSalary")], ["housingAllowance", t("hr.directory.export.housingAllowance")],
+    ["transportAllowance", t("hr.directory.export.transportAllowance")], ["otherAllowance", t("hr.directory.otherAllowance")],
+    ["bankName", t("hr.directory.bankName")], ["bankAccount", t("hr.directory.export.bankAccount")],
+    ["annualLeaveDays", t("hr.directory.export.annualLeaveDays")], ["gender", t("hr.directory.gender")],
+    ["maritalStatus", t("hr.directory.maritalStatus")], ["dateOfBirth", t("hr.directory.dateOfBirth")],
+    ["personalEmail", t("hr.directory.personalEmail")], ["alternatePhone", t("hr.directory.alternatePhone")],
+    ["address", t("hr.directory.address")], ["emergencyContactName", t("hr.directory.emergencyContactName")],
+    ["emergencyContactPhone", t("hr.directory.emergencyContactPhone")], ["emergencyContactRelation", t("hr.directory.emergencyContactRelation")],
+    ["medicalInsuranceProvider", t("hr.directory.medicalInsuranceProvider")], ["medicalInsuranceNumber", t("hr.directory.medicalInsuranceNumber")],
+    ["gosiApplicable", t("hr.directory.gosiApplicable")], ["notes", t("hr.directory.notes")],
+  ];
+
+  const downloadImportTemplate = () => {
+    const columns = importColumns();
+    const example = Object.fromEntries(columns.map(([key, label]) => [label,
+      ({ name: t("hr.directory.templateExampleName"), hireDate: "2026-01-01", basicSalary: 5000, housingAllowance: 0,
+        transportAllowance: 0, otherAllowance: 0, annualLeaveDays: 21, contractType: t("hr.directory.contractUnlimited"),
+        gosiApplicable: t("hr.directory.yes") }[key] ?? "")]));
+    const sheet = XLSX.utils.json_to_sheet([example]);
+    sheet["!cols"] = columns.map(([, label]) => ({ wch: Math.max(18, label.length + 4) }));
+    const instructions = XLSX.utils.aoa_to_sheet([
+      [t("hr.directory.importInstructionsTitle")],
+      [t("hr.directory.importRequiredFields")],
+      [t("hr.directory.importDateFormat")],
+      [t("hr.directory.importDoNotRename")],
+    ]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, t("hr.directory.export.sheetName"));
+    XLSX.utils.book_append_sheet(workbook, instructions, t("hr.directory.importInstructionsSheet"));
+    XLSX.writeFile(workbook, `employee-import-template-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const excelDate = (value) => {
+    if (!value) return undefined;
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    if (typeof value === "number") { const d = XLSX.SSF.parse_date_code(value); return d ? `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}` : undefined; }
+    return String(value).trim() || undefined;
+  };
+
+  const uploadEmployees = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setError(""); setImportResult("");
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+      const columns = importColumns();
+      const rows = rawRows.filter((row) => Object.values(row).some((value) => String(value).trim())).map((row, index) => {
+        const value = (key) => row[columns.find(([field]) => field === key)?.[1]];
+        const name = String(value("name") || "").trim(), basicSalary = Number(value("basicSalary") || 0), hireDate = excelDate(value("hireDate"));
+        if (!name || !basicSalary || !hireDate) throw new Error(t("hr.directory.importRowError", { row: index + 2 }));
+        const text = (key) => String(value(key) || "").trim() || undefined;
+        const numeric = (key, fallback = 0) => Number(value(key) || fallback);
+        const contractValue = text("contractType");
+        const genderValue = text("gender"), maritalValue = text("maritalStatus"), gosiValue = String(value("gosiApplicable") || "").toLowerCase();
+        return { name, employeeNumber: text("employeeNumber"), idNumber: text("idNumber"), nationality: text("nationality"),
+          jobTitle: text("jobTitle"), department: text("department"), workLocation: text("workLocation"), phone: text("phone"), workEmail: text("workEmail"),
+          hireDate, contractType: contractValue === t("hr.directory.contractLimited") || contractValue === "limited" ? "limited" : "unlimited",
+          contractEnd: excelDate(value("contractEnd")), basicSalary, housingAllowance: numeric("housingAllowance"),
+          transportAllowance: numeric("transportAllowance"), otherAllowance: numeric("otherAllowance"), bankName: text("bankName"), bankAccount: text("bankAccount"),
+          annualLeaveDays: numeric("annualLeaveDays", 21), gender: genderValue === t("hr.directory.genderFemale") || genderValue === "female" ? "female" : genderValue ? "male" : undefined,
+          maritalStatus: maritalValue === t("hr.directory.married") || maritalValue === "married" ? "married" : maritalValue ? "single" : undefined,
+          dateOfBirth: excelDate(value("dateOfBirth")), personalEmail: text("personalEmail"), alternatePhone: text("alternatePhone"), address: text("address"),
+          emergencyContactName: text("emergencyContactName"), emergencyContactPhone: text("emergencyContactPhone"), emergencyContactRelation: text("emergencyContactRelation"),
+          medicalInsuranceProvider: text("medicalInsuranceProvider"), medicalInsuranceNumber: text("medicalInsuranceNumber"),
+          gosiApplicable: !["لا", "no", "false", "0"].includes(gosiValue), notes: text("notes"), documents: [] };
+      });
+      if (!rows.length) throw new Error(t("hr.directory.importEmpty"));
+      const result = await importEmployees({ companyId, rows });
+      setImportResult(t("hr.directory.importSuccess", { count: result.imported }));
+      reload();
+    } catch (err) { setError(err.message); }
   };
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
@@ -250,7 +334,14 @@ export default function EmployeeDirectoryTab({ companyId }) {
         <div className="panel">
           <div className="form-btn-group" style={{ justifyContent: "space-between", marginBottom: 12 }}>
             <h3 style={{ margin: 0 }}>{t("hr.directory.listTitle")}</h3>
-            <button className="btn-ghost" onClick={exportEmployees} disabled={employees.length === 0}>{t("hr.directory.exportExcel")}</button>
+            <div className="form-btn-group">
+              <button className="btn-ghost" onClick={downloadImportTemplate}>{t("hr.directory.downloadImportTemplate")}</button>
+              <button className="btn-primary" onClick={() => importInputRef.current?.click()}>{t("hr.directory.uploadEmployees")}</button>
+              <input ref={importInputRef} type="file" accept=".xlsx,.xls" hidden onChange={uploadEmployees} />
+              <button className="btn-ghost" onClick={exportEmployees} disabled={employees.length === 0}>{t("hr.directory.exportExcel")}</button>
+            </div>
+          </div>
+          {importResult && <p className="balance-good">{importResult}</p>}
           </div>
           <table className="ledger-table">
             <thead><tr><th>{t("hr.directory.table.name")}</th><th>{t("hr.directory.table.department")}</th><th>{t("hr.directory.table.basicSalary")}</th><th>{t("hr.directory.table.leaveBalance")}</th><th>{t("hr.directory.table.eosBalance")}</th><th>{t("hr.directory.table.leaveStatus")}</th><th></th></tr></thead>
