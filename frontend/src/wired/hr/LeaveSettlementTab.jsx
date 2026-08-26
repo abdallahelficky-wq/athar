@@ -188,4 +188,3 @@ export default function LeaveSettlementTab({ companyId, companies }) {
     </div>
   );
 }
-
