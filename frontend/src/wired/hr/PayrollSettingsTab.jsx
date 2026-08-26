@@ -33,7 +33,7 @@ export default function PayrollSettingsTab({ companyId }) {
   const [components, setComponents] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [settings, setSettings] = useState(null);
-  const [settingsDraft, setSettingsDraft] = useState({ standardHoursPerMonth: "240", standardDaysPerMonth: "30" });
+  const [settingsDraft, setSettingsDraft] = useState({ standardHoursPerMonth: "240", standardDaysPerMonth: "30", leaveDaysBeforeFive: "21", leaveDaysAfterFive: "30", leaveDailyRateDivisor: "30", leaveSalaryBasis: "total", eosSalaryBasis: "basic_housing" });
   const [payslipColumns, setPayslipColumns] = useState([]);
   const [form, setForm] = useState(emptyForm());
   const [editingId, setEditingId] = useState(null);
@@ -50,7 +50,7 @@ export default function PayrollSettingsTab({ companyId }) {
     if (!companyId) return;
     getPayrollSettings(companyId).then((s) => {
       setSettings(s);
-      setSettingsDraft({ standardHoursPerMonth: String(s.standardHoursPerMonth), standardDaysPerMonth: String(s.standardDaysPerMonth) });
+      setSettingsDraft({ standardHoursPerMonth: String(s.standardHoursPerMonth), standardDaysPerMonth: String(s.standardDaysPerMonth), leaveDaysBeforeFive: String(s.leaveDaysBeforeFive ?? 21), leaveDaysAfterFive: String(s.leaveDaysAfterFive ?? 30), leaveDailyRateDivisor: String(s.leaveDailyRateDivisor ?? 30), leaveSalaryBasis: s.leaveSalaryBasis ?? "total", eosSalaryBasis: s.eosSalaryBasis ?? "basic_housing" });
       setPayslipColumns(s.payslipColumns?.length ? s.payslipColumns : []);
     }).catch((e) => setError(e.message));
   }, [companyId]);
@@ -128,6 +128,8 @@ export default function PayrollSettingsTab({ companyId }) {
     try {
       await updatePayrollSettings(companyId, {
         standardHoursPerMonth: Number(settingsDraft.standardHoursPerMonth), standardDaysPerMonth: Number(settingsDraft.standardDaysPerMonth),
+        leaveDaysBeforeFive: Number(settingsDraft.leaveDaysBeforeFive), leaveDaysAfterFive: Number(settingsDraft.leaveDaysAfterFive),
+        leaveDailyRateDivisor: Number(settingsDraft.leaveDailyRateDivisor), leaveSalaryBasis: settingsDraft.leaveSalaryBasis, eosSalaryBasis: settingsDraft.eosSalaryBasis,
       });
       setError("");
     } catch (err) { setError(err.message); }
@@ -163,6 +165,19 @@ export default function PayrollSettingsTab({ companyId }) {
         <div className="form-grid">
           <label>{t("hr.payrollSettings.standardHours")}<input type="number" value={settingsDraft.standardHoursPerMonth} onChange={(e) => setSettingsDraft({ ...settingsDraft, standardHoursPerMonth: e.target.value })} /></label>
           <label>{t("hr.payrollSettings.standardDays")}<input type="number" value={settingsDraft.standardDaysPerMonth} onChange={(e) => setSettingsDraft({ ...settingsDraft, standardDaysPerMonth: e.target.value })} /></label>
+        </div>
+        <button className="btn-primary" onClick={saveSettings}>{t("common.save")}</button>
+      </div>
+
+      <div className="panel form-panel">
+        <h3 className="sub-head">{t("hr.payrollSettings.leavePolicyTitle")}</h3>
+        <p className="note">{t("hr.payrollSettings.leavePolicyNote")}</p>
+        <div className="form-grid">
+          <label>{t("hr.payrollSettings.leaveDaysBeforeFive")}<input type="number" value={settingsDraft.leaveDaysBeforeFive} onChange={(e) => setSettingsDraft({ ...settingsDraft, leaveDaysBeforeFive: e.target.value })} /></label>
+          <label>{t("hr.payrollSettings.leaveDaysAfterFive")}<input type="number" value={settingsDraft.leaveDaysAfterFive} onChange={(e) => setSettingsDraft({ ...settingsDraft, leaveDaysAfterFive: e.target.value })} /></label>
+          <label>{t("hr.payrollSettings.leaveDailyRateDivisor")}<input type="number" value={settingsDraft.leaveDailyRateDivisor} onChange={(e) => setSettingsDraft({ ...settingsDraft, leaveDailyRateDivisor: e.target.value })} /></label>
+          <label>{t("hr.payrollSettings.leaveSalaryBasis")}<select value={settingsDraft.leaveSalaryBasis} onChange={(e) => setSettingsDraft({ ...settingsDraft, leaveSalaryBasis: e.target.value })}><option value="basic">{t("hr.payrollSettings.basisBasic")}</option><option value="basic_housing">{t("hr.payrollSettings.basisBasicHousing")}</option><option value="total">{t("hr.payrollSettings.basisTotal")}</option></select></label>
+          <label>{t("hr.payrollSettings.eosSalaryBasis")}<select value={settingsDraft.eosSalaryBasis} onChange={(e) => setSettingsDraft({ ...settingsDraft, eosSalaryBasis: e.target.value })}><option value="basic">{t("hr.payrollSettings.basisBasic")}</option><option value="basic_housing">{t("hr.payrollSettings.basisBasicHousing")}</option><option value="total">{t("hr.payrollSettings.basisTotal")}</option></select></label>
         </div>
         <button className="btn-primary" onClick={saveSettings}>{t("common.save")}</button>
       </div>
