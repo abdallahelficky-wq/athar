@@ -106,6 +106,18 @@ export default function LeaveSettlementTab({ companyId, companies }) {
           <div className="preview-row"><span>{t("hr.leaveSettlement.leavePayAmount")}</span><strong>{fmt(preview.leavePayAmount)} {currency}</strong></div>
         </div>}
 
+        {preview?.salary && <div className="preview-box">
+          <h3 className="sub-head">{t("hr.leaveSettlement.automaticSalarySection")}</h3>
+          <p className="note">{t("hr.leaveSettlement.automaticSalaryNote", { date: leaveStartDate, count: preview.salary.procedureCount })}</p>
+          {preview.salary.components.map((line) => <div className="preview-row" key={line.id}>
+            <span>{line.name}{line.hasProcedure ? ` — ${t("hr.leaveSettlement.includesProcedure")}` : ""}</span>
+            <strong className={line.kind === "deduction" ? "text-danger" : ""}>{line.kind === "deduction" ? "-" : "+"}{fmt(line.amount)} {currency}</strong>
+          </div>)}
+          <div className="preview-row"><span>{t("hr.leaveSettlement.salaryAdditions")}</span><strong>{fmt(preview.salary.additions)} {currency}</strong></div>
+          <div className="preview-row"><span>{t("hr.leaveSettlement.salaryDeductions")}</span><strong>-{fmt(preview.salary.deductions)} {currency}</strong></div>
+          <div className="preview-row total"><span>{t("hr.leaveSettlement.salaryNetToLeaveDate")}</span><strong>{fmt(preview.salary.net)} {currency}</strong></div>
+        </div>}
+
         <h3 className="sub-head">{t("hr.leaveSettlement.adjustmentsSection")}</h3>
         <div className="form-grid">
           <label>{t("hr.leaveSettlement.bonuses")}<input type="number" value={bonuses} onChange={(e) => setBonuses(e.target.value)} placeholder="0" /></label>
@@ -176,3 +188,4 @@ export default function LeaveSettlementTab({ companyId, companies }) {
     </div>
   );
 }
+
