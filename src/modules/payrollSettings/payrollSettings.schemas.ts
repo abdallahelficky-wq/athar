@@ -50,6 +50,11 @@ export const updateComponentSchema = z.object({
 export const updateSettingsSchema = z.object({
   standardHoursPerMonth: z.coerce.number().positive().optional(),
   standardDaysPerMonth: z.coerce.number().positive().optional(),
+  leaveDaysBeforeFive: z.coerce.number().positive().optional(),
+  leaveDaysAfterFive: z.coerce.number().positive().optional(),
+  leaveDailyRateDivisor: z.coerce.number().positive().optional(),
+  leaveSalaryBasis: z.enum(["basic", "basic_housing", "total"]).optional(),
+  eosSalaryBasis: z.enum(["basic", "basic_housing", "total"]).optional(),
   payslipColumns: z.array(z.object({ componentId: z.string().nullable(), label: z.string().min(1) })).optional(),
 });
 

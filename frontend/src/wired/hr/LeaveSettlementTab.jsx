@@ -17,6 +17,9 @@ export default function LeaveSettlementTab({ companyId, companies }) {
 
   const [employeeId, setEmployeeId] = useState("");
   const [leaveStartDate, setLeaveStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [leaveEndDate, setLeaveEndDate] = useState("");
+  const [settlementType, setSettlementType] = useState("actual_leave");
+  const [cashLeaveDays, setCashLeaveDays] = useState("");
   const [bonuses, setBonuses] = useState("");
   const [deductions, setDeductions] = useState("");
   const [ticketAmount, setTicketAmount] = useState("");
@@ -47,17 +50,18 @@ export default function LeaveSettlementTab({ companyId, companies }) {
 
   useEffect(() => {
     if (!employeeId || !leaveStartDate) { setPreview(null); return; }
-    previewLeaveSettlement(employeeId, leaveStartDate).then(setPreview).catch(() => setPreview(null));
-  }, [employeeId, leaveStartDate]);
+    previewLeaveSettlement(employeeId, leaveStartDate, leaveEndDate, settlementType, cashLeaveDays).then(setPreview).catch(() => setPreview(null));
+  }, [employeeId, leaveStartDate, leaveEndDate, settlementType, cashLeaveDays]);
 
   const bon = Number(bonuses || 0), ded = Number(deductions || 0), tic = Number(ticketAmount || 0), vis = Number(visaAmount || 0);
-  const net = preview ? preview.monthAmount + bon - ded + tic + vis : 0;
+  const net = preview ? preview.monthAmount + preview.leavePayAmount + bon - ded + tic + vis : 0;
 
   const save = async () => {
     if (!employeeId || !preview || net <= 0) return;
     try {
       await createLeaveSettlement({
-        employeeId, leaveStartDate, bonuses: bon, deductions: ded, ticketAmount: tic, visaAmount: vis,
+        employeeId, leaveStartDate, leaveEndDate: leaveEndDate || null, settlementType,
+        cashLeaveDays: Number(cashLeaveDays || 0), bonuses: bon, deductions: ded, ticketAmount: tic, visaAmount: vis,
       });
       setBonuses(""); setDeductions(""); setTicketAmount(""); setVisaAmount("");
       setError("");
@@ -84,9 +88,26 @@ export default function LeaveSettlementTab({ companyId, companies }) {
   return (
     <div>
       <div className="panel form-panel">
+        <h3 className="sub-head">{t("hr.leaveSettlement.requestSection")}</h3>
         <div className="form-grid">
           <label>{t("hr.leaveSettlement.employee")}<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>{availableEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
+          <label>{t("hr.leaveSettlement.settlementType")}<select value={settlementType} onChange={(e) => setSettlementType(e.target.value)}><option value="actual_leave">{t("hr.leaveSettlement.actualLeave")}</option><option value="cash_in_service">{t("hr.leaveSettlement.cashInService")}</option></select></label>
           <label>{t("hr.leaveSettlement.leaveStartDate")}<input type="date" value={leaveStartDate} onChange={(e) => setLeaveStartDate(e.target.value)} /></label>
+          {settlementType === "actual_leave" ? <label>{t("hr.leaveSettlement.leaveEndDate")}<input type="date" min={leaveStartDate} value={leaveEndDate} onChange={(e) => setLeaveEndDate(e.target.value)} /></label> : <label>{t("hr.leaveSettlement.cashLeaveDays")}<input type="number" min="0" step="0.5" value={cashLeaveDays} onChange={(e) => setCashLeaveDays(e.target.value)} /></label>}
+        </div>
+
+        {preview && <div className="preview-box">
+          <h3 className="sub-head">{t("hr.leaveSettlement.balanceSection")}</h3>
+          <div className="preview-row"><span>{t("hr.leaveSettlement.accruedDays")}</span><strong>{preview.accrual.days.toFixed(2)} {t("hr.dashboard.days")}</strong></div>
+          <div className="preview-row"><span>{t("hr.leaveSettlement.usedDays")}</span><strong>{preview.accrual.usedDays.toFixed(2)} {t("hr.dashboard.days")}</strong></div>
+          <div className="preview-row"><span>{t("hr.leaveSettlement.availableDays")}</span><strong>{preview.accrual.availableDays.toFixed(2)} {t("hr.dashboard.days")}</strong></div>
+          <div className="preview-row"><span>{t("hr.leaveSettlement.balanceAmount")}</span><strong>{fmt(preview.accrual.amount)} {currency}</strong></div>
+          <div className="preview-row"><span>{t("hr.leaveSettlement.requestedDays")}</span><strong>{preview.leaveDays.toFixed(2)} {t("hr.dashboard.days")}</strong></div>
+          <div className="preview-row"><span>{t("hr.leaveSettlement.leavePayAmount")}</span><strong>{fmt(preview.leavePayAmount)} {currency}</strong></div>
+        </div>}
+
+        <h3 className="sub-head">{t("hr.leaveSettlement.adjustmentsSection")}</h3>
+        <div className="form-grid">
           <label>{t("hr.leaveSettlement.bonuses")}<input type="number" value={bonuses} onChange={(e) => setBonuses(e.target.value)} placeholder="0" /></label>
           <label>{t("hr.leaveSettlement.deductions")}<input type="number" value={deductions} onChange={(e) => setDeductions(e.target.value)} placeholder="0" /></label>
           <label>{t("hr.leaveSettlement.ticketAmount")}<input type="number" value={ticketAmount} onChange={(e) => setTicketAmount(e.target.value)} placeholder="0" /></label>
@@ -97,7 +118,7 @@ export default function LeaveSettlementTab({ companyId, companies }) {
           <div className="preview-box">
             <div className="preview-row"><span>{t("hr.leaveSettlement.previewDaysWorked")}</span><strong>{preview.daysWorked} {t("hr.dashboard.days")}</strong></div>
             <div className="preview-row"><span>{t("hr.leaveSettlement.previewMonthAmount")}</span><strong>{fmt(preview.monthAmount)} {currency}</strong></div>
-            <div className="preview-row"><span>{t("hr.leaveSettlement.previewAccrual")}</span><strong>{preview.accrual.days.toFixed(1)} {t("hr.dashboard.days")}</strong></div>
+            <div className="preview-row"><span>{t("hr.leaveSettlement.previewLeavePay")}</span><strong>{fmt(preview.leavePayAmount)} {currency}</strong></div>
             <div className="preview-row"><span>{t("hr.leaveSettlement.previewBonuses")}</span><strong>{fmt(bon)} {currency}</strong></div>
             <div className="preview-row"><span>{t("hr.leaveSettlement.previewDeductions")}</span><strong>-{fmt(ded)} {currency}</strong></div>
             <div className="preview-row"><span>{t("hr.leaveSettlement.previewTicketVisa")}</span><strong>{fmt(tic + vis)} {currency}</strong></div>

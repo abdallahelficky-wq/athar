@@ -8,10 +8,40 @@ import { createJournalEntryTx } from "../../lib/journalPosting";
 interface CreateInput {
   employeeId: string;
   leaveStartDate: Date;
+  leaveEndDate?: Date | null;
+  settlementType: "actual_leave" | "cash_in_service";
+  cashLeaveDays?: number;
   bonuses: number;
   deductions: number;
   ticketAmount: number;
   visaAmount: number;
+}
+
+function salaryBasis(emp: ReturnType<typeof empPayBase>, basis: string) {
+  if (basis === "basic") return emp.basicSalary;
+  if (basis === "basic_housing") return emp.basicSalary + emp.housingAllowance;
+  return emp.basicSalary + emp.housingAllowance + emp.transportAllowance + emp.otherAllowance;
+}
+
+async function calculatePreview(tenantId: string, emp: any, leaveStartDate: Date, options: { leaveEndDate: Date | null; settlementType: "actual_leave" | "cash_in_service"; cashLeaveDays: number }) {
+  const settings: any = await prisma.payrollSettings.findUnique({ where: { companyId: emp.companyId } });
+  const beforeFive = Number(settings?.leaveDaysBeforeFive ?? 21), afterFive = Number(settings?.leaveDaysAfterFive ?? 30);
+  const divisor = Number(settings?.leaveDailyRateDivisor ?? 30), basis = settings?.leaveSalaryBasis ?? "total";
+  const serviceDays = Math.max((leaveStartDate.getTime() - emp.hireDate.getTime()) / 86_400_000, 0);
+  const firstFiveDays = Math.min(serviceDays, 5 * 365), laterDays = Math.max(serviceDays - 5 * 365, 0);
+  const accruedDays = (firstFiveDays / 365) * beforeFive + (laterDays / 365) * afterFive;
+  const used: any = await (prisma.leaveSettlement as any).aggregate({ where: { employeeId: emp.id }, _sum: { leaveDays: true } });
+  const usedDays = Number(used._sum.leaveDays ?? 0), availableDays = Math.max(accruedDays - usedDays, 0);
+  const requestedDays = options.settlementType === "cash_in_service"
+    ? Math.max(options.cashLeaveDays || 0, 0)
+    : options.leaveEndDate ? Math.max(Math.floor((options.leaveEndDate.getTime() - leaveStartDate.getTime()) / 86_400_000) + 1, 0) : 0;
+  const leaveDays = Math.min(requestedDays, availableDays);
+  const pay = empPayBase(emp), leaveDaily = salaryBasis(pay, basis) / divisor;
+  const daysWorked = Math.max(leaveStartDate.getDate() - 1, 0);
+  const salaryDaily = salaryBasis(pay, "total") / Number(settings?.standardDaysPerMonth ?? 30);
+  return { daysWorked, daily: salaryDaily, monthAmount: salaryDaily * daysWorked,
+    accrual: { days: accruedDays, usedDays, availableDays, amount: availableDays * leaveDaily },
+    leaveDays, leaveDaily, leavePayAmount: leaveDays * leaveDaily, settings: { beforeFive, afterFive, divisor, basis } };
 }
 
 function empPayBase(emp: { basicSalary: unknown; housingAllowance: unknown; transportAllowance: unknown; otherAllowance: unknown }) {
@@ -35,16 +65,12 @@ export async function listLeaveSettlements(tenantId: string, filters: { companyI
   });
 }
 
-export async function previewLeaveSettlement(tenantId: string, employeeId: string, leaveStartDate: Date) {
+export async function previewLeaveSettlement(tenantId: string, employeeId: string, leaveStartDate: Date, options: { leaveEndDate: Date | null; settlementType: "actual_leave" | "cash_in_service"; cashLeaveDays: number } = { leaveEndDate: null, settlementType: "actual_leave", cashLeaveDays: 0 }) {
   const emp = await prisma.employee.findFirst({ where: { id: employeeId, tenantId } });
   if (!emp) throw notFound("الموظف غير موجود");
   if (emp.leaveStatus === "onLeave") throw badRequest("الموظف في إجازة بالفعل");
 
-  const daysWorked = leaveStartDate.getDate();
-  const daily = dailyRate(empPayBase(emp));
-  const monthAmount = daily * daysWorked;
-  const accrual = accruedLeaveDays({ hireDate: emp.hireDate, lastLeaveReturnDate: emp.lastLeaveReturnDate }, leaveStartDate);
-  return { daysWorked, daily, monthAmount, accrual };
+  return calculatePreview(tenantId, emp, leaveStartDate, options);
 }
 
 export async function createLeaveSettlement(tenantId: string, userId: string, input: CreateInput) {
@@ -52,15 +78,13 @@ export async function createLeaveSettlement(tenantId: string, userId: string, in
   if (!emp) throw notFound("الموظف غير موجود");
   if (emp.leaveStatus === "onLeave") throw badRequest("الموظف في إجازة بالفعل");
 
-  const daysWorked = input.leaveStartDate.getDate();
-  const daily = dailyRate(empPayBase(emp));
-  const monthAmount = daily * daysWorked;
-  const net = monthAmount + input.bonuses - input.deductions + input.ticketAmount + input.visaAmount;
+  const preview = await calculatePreview(tenantId, emp, input.leaveStartDate, { leaveEndDate: input.leaveEndDate ?? null, settlementType: input.settlementType, cashLeaveDays: input.cashLeaveDays ?? 0 });
+  if (preview.leaveDays <= 0) throw badRequest("حدد مدة الإجازة أو عدد أيام البدل المطلوب صرفها");
+  const { daysWorked, monthAmount } = preview;
+  const net = monthAmount + preview.leavePayAmount + input.bonuses - input.deductions + input.ticketAmount + input.visaAmount;
   if (net <= 0) throw badRequest("صافي المبلغ المستحق يجب أن يكون أكبر من صفر");
 
-  const accrual = accruedLeaveDays({ hireDate: emp.hireDate, lastLeaveReturnDate: emp.lastLeaveReturnDate }, input.leaveStartDate);
-
-  const salaryPortion = monthAmount + input.bonuses - input.deductions;
+  const salaryPortion = monthAmount + preview.leavePayAmount + input.bonuses - input.deductions;
   const ticketVisaPortion = input.ticketAmount + input.visaAmount;
 
   const payableAccountId = await resolvePartyAccountId(tenantId, emp.companyId, emp, "ذمم الموظفين - مستحقات وإجازات");
@@ -91,22 +115,29 @@ export async function createLeaveSettlement(tenantId: string, userId: string, in
         tenantId,
         employeeId: emp.id,
         leaveStartDate: input.leaveStartDate,
+        leaveEndDate: input.leaveEndDate,
+        settlementType: input.settlementType,
+        leaveDays: preview.leaveDays,
+        usedLeaveDaysBefore: preview.accrual.usedDays,
+        remainingLeaveDays: preview.accrual.availableDays - preview.leaveDays,
+        leaveBalanceAmount: preview.accrual.amount,
+        leavePayAmount: preview.leavePayAmount,
         monthAmount,
         daysWorked,
         bonuses: input.bonuses,
         deductions: input.deductions,
         ticketAmount: input.ticketAmount,
         visaAmount: input.visaAmount,
-        accruedDays: accrual.days,
+        accruedDays: preview.accrual.days,
         netAmount: net,
         journalEntryId: entry.id,
         status: "calculated",
-      },
+      } as any,
       include: { employee: true },
     });
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: settlement.id } });
-    await tx.employee.update({ where: { id: emp.id }, data: { leaveStatus: "onLeave" } });
+    if (input.settlementType === "actual_leave") await tx.employee.update({ where: { id: emp.id }, data: { leaveStatus: "onLeave" } });
     return settlement;
   });
 }

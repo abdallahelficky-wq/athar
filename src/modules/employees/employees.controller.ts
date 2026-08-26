@@ -23,7 +23,22 @@ export const listEmployees: RequestHandler = async (req, res) => {
     include: { documents: true },
     orderBy: { createdAt: "asc" },
   });
-  res.json(employees);
+  const settingsByCompany = new Map<string, any>();
+  const result = await Promise.all(employees.map(async (employee) => {
+    let settings = settingsByCompany.get(employee.companyId);
+    if (!settings) { settings = await prisma.payrollSettings.findUnique({ where: { companyId: employee.companyId } }); settingsByCompany.set(employee.companyId, settings || {}); }
+    const today = new Date();
+    const serviceDays = Math.max((today.getTime() - employee.hireDate.getTime()) / 86_400_000, 0);
+    const firstFiveDays = Math.min(serviceDays, 5 * 365), laterDays = Math.max(serviceDays - 5 * 365, 0);
+    const accruedDays = firstFiveDays / 365 * Number(settings?.leaveDaysBeforeFive ?? 21) + laterDays / 365 * Number(settings?.leaveDaysAfterFive ?? 30);
+    const used: any = await (prisma.leaveSettlement as any).aggregate({ where: { employeeId: employee.id }, _sum: { leaveDays: true } });
+    const usedDays = Number(used._sum.leaveDays ?? 0), remainingDays = Math.max(accruedDays - usedDays, 0);
+    const totalSalary = Number(employee.basicSalary) + Number(employee.housingAllowance) + Number(employee.transportAllowance) + Number(employee.otherAllowance);
+    const leaveBasis = settings?.leaveSalaryBasis === "basic" ? Number(employee.basicSalary) : settings?.leaveSalaryBasis === "basic_housing" ? Number(employee.basicSalary) + Number(employee.housingAllowance) : totalSalary;
+    const eosBase = settings?.eosSalaryBasis === "basic" ? { basicSalary: Number(employee.basicSalary), housingAllowance: 0 } : settings?.eosSalaryBasis === "total" ? { basicSalary: totalSalary, housingAllowance: 0 } : { basicSalary: Number(employee.basicSalary), housingAllowance: Number(employee.housingAllowance) };
+    return { ...employee, liveBalances: { asOf: today, leave: { accruedDays, usedDays, remainingDays, amount: remainingDays * leaveBasis / Number(settings?.leaveDailyRateDivisor ?? 30) }, eos: calcEOS({ ...eosBase, hireDate: employee.hireDate }, today, "employer").finalAmount } };
+  }));
+  res.json(result);
 };
 
 export const getEmployee: RequestHandler = async (req, res) => {

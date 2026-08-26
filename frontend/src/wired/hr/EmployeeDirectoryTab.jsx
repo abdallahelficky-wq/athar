@@ -253,11 +253,11 @@ export default function EmployeeDirectoryTab({ companyId }) {
             <button className="btn-ghost" onClick={exportEmployees} disabled={employees.length === 0}>{t("hr.directory.exportExcel")}</button>
           </div>
           <table className="ledger-table">
-            <thead><tr><th>{t("hr.directory.table.name")}</th><th>{t("hr.directory.table.department")}</th><th>{t("hr.directory.table.basicSalary")}</th><th>{t("hr.directory.table.leaveStatus")}</th><th></th></tr></thead>
+            <thead><tr><th>{t("hr.directory.table.name")}</th><th>{t("hr.directory.table.department")}</th><th>{t("hr.directory.table.basicSalary")}</th><th>{t("hr.directory.table.leaveBalance")}</th><th>{t("hr.directory.table.eosBalance")}</th><th>{t("hr.directory.table.leaveStatus")}</th><th></th></tr></thead>
             <tbody>
               {employees.map((e) => (
                 <tr key={e.id}>
-                  <td>{e.name}</td><td>{e.department || "—"}</td><td className="num">{fmt(e.basicSalary)}</td>
+                  <td>{e.name}</td><td>{e.department || "—"}</td><td className="num">{fmt(e.basicSalary)}</td><td className="num">{e.liveBalances ? `${e.liveBalances.leave.remainingDays.toFixed(1)} / ${fmt(e.liveBalances.leave.amount)}` : "—"}</td><td className="num">{e.liveBalances ? fmt(e.liveBalances.eos) : "—"}</td>
                   <td><span className="status-badge">{e.leaveStatus === "onLeave" ? t("hr.directory.statusOnLeave") : t("hr.directory.statusActive")}</span></td>
                   <td className="row-actions">
                     {e.accountId && (
@@ -268,7 +268,7 @@ export default function EmployeeDirectoryTab({ companyId }) {
                   </td>
                 </tr>
               ))}
-              {employees.length === 0 && <tr><td className="empty" colSpan={5}>{t("hr.directory.empty")}</td></tr>}
+              {employees.length === 0 && <tr><td className="empty" colSpan={7}>{t("hr.directory.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

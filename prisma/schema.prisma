@@ -1664,6 +1664,13 @@ model LeaveSettlement {
   employeeId                 String
   employee                   Employee              @relation(fields: [employeeId], references: [id])
   leaveStartDate             DateTime
+  leaveEndDate               DateTime?
+  settlementType            String                @default("actual_leave")
+  leaveDays                  Decimal               @default(0) @db.Decimal(6, 2)
+  usedLeaveDaysBefore        Decimal               @default(0) @db.Decimal(6, 2)
+  remainingLeaveDays         Decimal               @default(0) @db.Decimal(6, 2)
+  leaveBalanceAmount         Decimal               @default(0) @db.Decimal(18, 2)
+  leavePayAmount             Decimal               @default(0) @db.Decimal(18, 2)
   monthAmount                Decimal               @db.Decimal(18, 2)
   daysWorked                 Decimal               @db.Decimal(6, 2)
   bonuses                    Decimal               @default(0) @db.Decimal(18, 2)
@@ -1825,6 +1832,11 @@ model PayrollSettings {
   company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   standardHoursPerMonth Decimal  @default(240) @db.Decimal(6, 2)
   standardDaysPerMonth  Decimal  @default(30) @db.Decimal(6, 2)
+  leaveDaysBeforeFive   Decimal  @default(21) @db.Decimal(6, 2)
+  leaveDaysAfterFive    Decimal  @default(30) @db.Decimal(6, 2)
+  leaveDailyRateDivisor Decimal  @default(30) @db.Decimal(6, 2)
+  leaveSalaryBasis      String   @default("total")
+  eosSalaryBasis        String   @default("basic_housing")
   payslipColumns        Json // [{ componentId: string | null (null = "net"/"gross" محسوب), label: string }]
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
