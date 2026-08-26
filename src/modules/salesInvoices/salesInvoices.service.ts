@@ -13,6 +13,7 @@ import { isStockTracked } from "../items/items.service";
 import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
 import { resubmitZatcaDocument } from "../../lib/zatca/resubmit";
 import { sendInvoiceByEmail } from "./salesInvoiceEmail.service";
+import { accrueTrainerCommissionsTx, reverseTrainerCommissionsTx } from "../stables/stablesBilling.service";
 
 type Tx = Prisma.TransactionClient;
 
@@ -454,6 +455,7 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
       include: invoiceInclude,
     });
     await createStockOutSideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id);
+    await accrueTrainerCommissionsTx(tx, tenantId, invoice.companyId, invoice.id, userId);
 
     return withPaymentStatus(updated);
   });
@@ -518,6 +520,7 @@ export async function unpostSalesInvoice(tenantId: string, userId: string, id: s
   await assertValidUnlockPin(tenantId, pin);
 
   return prisma.$transaction(async (tx) => {
+    await reverseTrainerCommissionsTx(tx, id);
     await removeStockOutSideEffectsTx(tx, id);
     await deleteJournalEntryTx(tx, invoice.journalEntryId);
     const updated = await tx.salesInvoice.update({

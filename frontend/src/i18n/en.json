@@ -47,7 +47,9 @@
     "trainers": "Trainers",
     "lessonTypes": "Lesson types",
     "lessons": "Training lessons",
-    "competitions": "Competitions"
+    "competitions": "Competitions",
+    "billing": "Create boarding invoice",
+    "commissions": "Trainer commissions"
   },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },
@@ -2200,4 +2202,3 @@
     "stayOnPage": "Stay on this page"
   }
 }
-

@@ -512,6 +512,7 @@ model Account {
   assetCategoryAssetLinks      AssetCategory[]       @relation("AssetCategoryAssetAccount")
   assetCategoryAccDepLinks     AssetCategory[]       @relation("AssetCategoryAccumulatedDepreciationAccount")
   assetCategoryDepExpenseLinks AssetCategory[]       @relation("AssetCategoryDepreciationExpenseAccount")
+  horseCareServiceRevenueLinks HorseCareService[]
 
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
@@ -768,6 +769,9 @@ model Customer {
   salesDebitNotes   SalesDebitNote[]
   receipts          Receipt[]
   journalEntryLines JournalEntryLine[]
+  horses            Horse[]
+  boardingInvoices  HorseBoardingInvoice[]
+  ridingLessons     RidingLesson[]
 
   @@map("customers")
 }
@@ -863,9 +867,12 @@ model SalesInvoice {
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
 
-  lines              SalesInvoiceLine[]
-  receiptAllocations ReceiptAllocation[]
-  emailLogs          InvoiceEmailLog[]
+  lines                SalesInvoiceLine[]
+  receiptAllocations   ReceiptAllocation[]
+  emailLogs            InvoiceEmailLog[]
+  horseBoardingInvoice HorseBoardingInvoice?
+  trainerCommissions   TrainerCommission[]
+  ridingLesson         RidingLesson?
 
   @@unique([tenantId, companyId, invoiceNumber])
   @@map("sales_invoices")
@@ -2075,31 +2082,38 @@ model StableStall {
 }
 
 model Horse {
-  id             String       @id @default(cuid())
-  tenantId       String
-  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId      String
-  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  stableId       String?
-  stable         Stable?      @relation(fields: [stableId], references: [id], onDelete: SetNull)
-  stallId        String?      @unique
-  stall          StableStall? @relation(fields: [stallId], references: [id], onDelete: SetNull)
-  name           String
-  registrationNo String?
-  microchipNo    String?
-  breed          String?
-  color          String?
-  sex            HorseSex
-  birthDate      DateTime?
-  ownerName      String?
-  ownerPhone     String?
-  status         HorseStatus  @default(active)
-  notes          String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id              String       @id @default(cuid())
+  tenantId        String
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stableId        String?
+  stable          Stable?      @relation(fields: [stableId], references: [id], onDelete: SetNull)
+  stallId         String?      @unique
+  stall           StableStall? @relation(fields: [stallId], references: [id], onDelete: SetNull)
+  name            String
+  registrationNo  String?
+  microchipNo     String?
+  breed           String?
+  color           String?
+  sex             HorseSex
+  birthDate       DateTime?
+  ownerName       String?
+  ownerPhone      String?
+  ownerEmail      String?
+  ownerNationalId String?
+  customerId      String?
+  customer        Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  status          HorseStatus  @default(active)
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
-  contracts   BoardingContract[]
-  careRecords HorseCareRecord[]
+  contracts            BoardingContract[]
+  careRecords          HorseCareRecord[]
+  monthlyServices      HorseMonthlyService[]
+  boardingInvoiceLines HorseBoardingInvoiceLine[]
+  trainerCommissions   TrainerCommission[]
 
   @@unique([companyId, registrationNo])
   @@unique([companyId, microchipNo])
@@ -2170,17 +2184,20 @@ model HorseCareRecord {
 }
 
 model RidingTrainer {
-  id          String   @id @default(cuid())
-  tenantId    String
-  companyId   String
-  name        String
-  phone       String?
-  email       String?
-  specialties String?
-  bio         String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String                @id @default(cuid())
+  tenantId        String
+  companyId       String
+  name            String
+  phone           String?
+  email           String?
+  specialties     String?
+  bio             String?
+  commissionPct   Decimal               @default(5) @db.Decimal(5, 2)
+  isActive        Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  monthlyServices HorseMonthlyService[]
+  commissions     TrainerCommission[]
 
   @@index([tenantId, companyId])
   @@map("riding_trainers")
@@ -2207,21 +2224,27 @@ model RidingLessonType {
 }
 
 model RidingLesson {
-  id           String   @id @default(cuid())
-  tenantId     String
-  companyId    String
-  lessonTypeId String
-  trainerId    String
-  horseId      String?
-  studentName  String
-  studentPhone String?
-  scheduledAt  DateTime
-  participants Int      @default(1)
-  price        Decimal  @db.Decimal(18, 2)
-  status       String   @default("scheduled")
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 String              @id @default(cuid())
+  tenantId           String
+  companyId          String
+  lessonTypeId       String
+  trainerId          String
+  horseId            String?
+  studentName        String
+  studentPhone       String?
+  studentEmail       String?
+  customerId         String?
+  customer           Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  salesInvoiceId     String?             @unique
+  salesInvoice       SalesInvoice?       @relation(fields: [salesInvoiceId], references: [id], onDelete: SetNull)
+  scheduledAt        DateTime
+  participants       Int                 @default(1)
+  price              Decimal             @db.Decimal(18, 2)
+  status             String              @default("scheduled")
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  trainerCommissions TrainerCommission[]
 
   @@index([tenantId, companyId, scheduledAt])
   @@map("riding_lessons")
@@ -2253,21 +2276,121 @@ model EquestrianCompetition {
 }
 
 model HorseCareService {
-  id               String   @id @default(cuid())
-  tenantId         String
-  companyId        String
-  code             String?
-  category         String
-  nameAr           String
-  nameEn           String?
-  price            Decimal? @db.Decimal(18, 2)
-  priceIncludesVat Boolean  @default(true)
-  unit             String   @default("service")
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                   String                     @id @default(cuid())
+  tenantId             String
+  companyId            String
+  code                 String?
+  category             String
+  nameAr               String
+  nameEn               String?
+  price                Decimal?                   @db.Decimal(18, 2)
+  priceIncludesVat     Boolean                    @default(true)
+  unit                 String                     @default("service")
+  revenueAccountId     String?
+  revenueAccount       Account?                   @relation(fields: [revenueAccountId], references: [id], onDelete: SetNull)
+  isActive             Boolean                    @default(true)
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  horseAssignments     HorseMonthlyService[]
+  boardingInvoiceLines HorseBoardingInvoiceLine[]
 
   @@unique([companyId, code])
   @@index([tenantId, companyId, category])
   @@map("horse_care_services")
+}
+
+model HorseMonthlyService {
+  id        String           @id @default(cuid())
+  tenantId  String
+  companyId String
+  horseId   String
+  horse     Horse            @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   HorseCareService @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  trainerId String?
+  trainer   RidingTrainer?   @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  quantity  Decimal          @default(1) @db.Decimal(18, 4)
+  unitPrice Decimal?         @db.Decimal(18, 2)
+  isActive  Boolean          @default(true)
+  startDate DateTime         @default(now())
+  endDate   DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([horseId, serviceId])
+  @@index([tenantId, companyId, isActive])
+  @@map("horse_monthly_services")
+}
+
+model HorseBoardingInvoice {
+  id             String                     @id @default(cuid())
+  tenantId       String
+  companyId      String
+  customerId     String
+  customer       Customer                   @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  billingMonth   DateTime
+  salesInvoiceId String                     @unique
+  salesInvoice   SalesInvoice               @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  lines          HorseBoardingInvoiceLine[]
+
+  @@unique([companyId, customerId, billingMonth])
+  @@index([tenantId, companyId, billingMonth])
+  @@map("horse_boarding_invoices")
+}
+
+model HorseBoardingInvoiceLine {
+  id                String               @id @default(cuid())
+  boardingInvoiceId String
+  boardingInvoice   HorseBoardingInvoice @relation(fields: [boardingInvoiceId], references: [id], onDelete: Cascade)
+  horseId           String
+  horse             Horse                @relation(fields: [horseId], references: [id], onDelete: Restrict)
+  serviceId         String
+  service           HorseCareService     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  trainerId         String?
+  quantity          Decimal              @db.Decimal(18, 4)
+  unitPrice         Decimal              @db.Decimal(18, 2)
+  netAmount         Decimal              @db.Decimal(18, 2)
+  vatAmount         Decimal              @db.Decimal(18, 2)
+  totalAmount       Decimal              @db.Decimal(18, 2)
+  createdAt         DateTime             @default(now())
+
+  @@index([boardingInvoiceId, horseId])
+  @@map("horse_boarding_invoice_lines")
+}
+
+enum TrainerCommissionStatus {
+  accrued
+  paid
+  cancelled
+}
+
+model TrainerCommission {
+  id                    String                  @id @default(cuid())
+  tenantId              String
+  companyId             String
+  trainerId             String
+  trainer               RidingTrainer           @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  horseId               String?
+  horse                 Horse?                  @relation(fields: [horseId], references: [id], onDelete: SetNull)
+  lessonId              String?
+  lesson                RidingLesson?           @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  sourceType            String                  @default("horse_training")
+  salesInvoiceId        String
+  salesInvoice          SalesInvoice            @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+  periodStart           DateTime
+  periodEnd             DateTime
+  netTrainingRevenue    Decimal                 @db.Decimal(18, 2)
+  commissionPct         Decimal                 @db.Decimal(5, 2)
+  commissionAmount      Decimal                 @db.Decimal(18, 2)
+  status                TrainerCommissionStatus @default(accrued)
+  accrualJournalEntryId String?
+  paidAt                DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  @@unique([trainerId, salesInvoiceId, horseId])
+  @@index([tenantId, companyId, periodStart, periodEnd])
+  @@map("trainer_commissions")
 }

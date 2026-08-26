@@ -1,9 +1,13 @@
 import { RequestHandler } from "express";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import { buildLiveryContractPdf, LiveryContractView } from "../../lib/liveryContractPdf";
 import { sendLiveryContractEmail } from "../../lib/mailer";
+import { ensurePartyAccount } from "../../lib/partyAccounts";
+import { createSalesInvoice } from "../salesInvoices/salesInvoices.service";
+import { computeInvoiceLine } from "../../lib/invoiceLine";
 
 const tenantWhere = (req: any) => ({ tenantId: req.auth!.tenantId });
 async function assertCompany(req: any, companyId: string) {
@@ -54,9 +58,29 @@ export const createStall: RequestHandler = async (req, res) => { await assertCom
 export const updateStall: RequestHandler = async (req, res) => { const row = await prisma.stableStall.findFirst({ where: { id: req.params.id, ...tenantWhere(req) } }); if (!row) throw notFound("البوكس غير موجود"); assertCompanyAccess(req.auth!, row.companyId); res.json(await prisma.stableStall.update({ where: { id: row.id }, data: req.body })); };
 export const deleteStall: RequestHandler = async (req, res) => { const row = await prisma.stableStall.findFirst({ where: { id: req.params.id, ...tenantWhere(req) }, include: { _count: { select: { horses: true, contracts: true } } } }); if (!row) throw notFound("البوكس غير موجود"); assertCompanyAccess(req.auth!, row.companyId); if (row._count.horses || row._count.contracts) throw badRequest("لا يمكن حذف بوكس مستخدم"); await prisma.stableStall.delete({ where: { id: row.id } }); res.status(204).send(); };
 
-export const listHorses: RequestHandler = async (req, res) => { const companyId = String(req.query.companyId || ""); await assertCompany(req, companyId); const search = typeof req.query.search === "string" ? req.query.search.trim() : ""; res.json(await prisma.horse.findMany({ where: { ...tenantWhere(req), companyId, ...(search ? { OR: [{ name: { contains: search, mode: "insensitive" } }, { registrationNo: { contains: search, mode: "insensitive" } }, { ownerName: { contains: search, mode: "insensitive" } }] } : {}) }, include: { stable: { select: { id: true, name: true } }, stall: { select: { id: true, number: true } } }, orderBy: { name: "asc" } })); };
-export const createHorse: RequestHandler = async (req, res) => { await assertCompany(req, req.body.companyId); await validatePlacement(req, req.body.companyId, req.body.stableId, req.body.stallId); res.status(201).json(await prisma.$transaction(async tx => { const horse = await tx.horse.create({ data: { ...req.body, tenantId: req.auth!.tenantId } }); if (req.body.stallId) await tx.stableStall.update({ where: { id: req.body.stallId }, data: { status: "occupied" } }); return horse; })); };
-export const updateHorse: RequestHandler = async (req, res) => { const row = await assertHorse(req, req.params.id); const hasStable = Object.prototype.hasOwnProperty.call(req.body, "stableId"); const hasStall = Object.prototype.hasOwnProperty.call(req.body, "stallId"); const nextStableId = hasStable ? req.body.stableId : row.stableId; const nextStallId = hasStall ? req.body.stallId : row.stallId; if (hasStable && nextStableId !== row.stableId && !hasStall) throw badRequest("اختر البوكس من الإسطبل الجديد أو أفرغ حقل البوكس"); await validatePlacement(req, row.companyId, nextStableId, nextStallId, row.id); res.json(await prisma.$transaction(async tx => { const horse = await tx.horse.update({ where: { id: row.id }, data: req.body }); if (row.stallId && row.stallId !== horse.stallId) await tx.stableStall.update({ where: { id: row.stallId }, data: { status: "available" } }); if (horse.stallId) await tx.stableStall.update({ where: { id: horse.stallId }, data: { status: "occupied" } }); return horse; })); };
+const horseInclude = { stable: { select: { id: true, name: true } }, stall: { select: { id: true, number: true } }, customer: true, monthlyServices: { include: { service: true, trainer: true } } } as const;
+
+async function ensureOwnerCustomer(tx: Prisma.TransactionClient, tenantId: string, companyId: string, body: any) {
+  if (!body.ownerName?.trim()) return null;
+  const ownerName = body.ownerName.trim();
+  const existing = await tx.customer.findFirst({ where: { tenantId, companyId, name: ownerName, ...(body.ownerPhone ? { phone: body.ownerPhone } : {}) } });
+  if (existing) return tx.customer.update({ where: { id: existing.id }, data: { phone: body.ownerPhone || existing.phone, email: body.ownerEmail || existing.email, nationalId: body.ownerNationalId || existing.nationalId } });
+  const { accountId } = await ensurePartyAccount(tx, { tenantId, companyId, kind: "customer", partyName: ownerName });
+  return tx.customer.create({ data: { tenantId, companyId, name: ownerName, customerType: "individual", phone: body.ownerPhone, email: body.ownerEmail, nationalId: body.ownerNationalId, paymentTerms: "شهري", accountId } });
+}
+
+async function replaceMonthlyServices(tx: Prisma.TransactionClient, tenantId: string, companyId: string, horseId: string, assignments: any[] | undefined) {
+  if (!assignments) return;
+  const serviceIds = assignments.map((x) => x.serviceId);
+  const services = serviceIds.length ? await tx.horseCareService.findMany({ where: { id: { in: serviceIds }, tenantId, companyId, isActive: true } }) : [];
+  if (services.length !== new Set(serviceIds).size) throw badRequest("إحدى الخدمات الشهرية غير موجودة أو غير فعالة");
+  await tx.horseMonthlyService.deleteMany({ where: { horseId } });
+  if (assignments.length) await tx.horseMonthlyService.createMany({ data: assignments.map((x) => ({ tenantId, companyId, horseId, serviceId: x.serviceId, trainerId: x.trainerId || null, quantity: x.quantity ?? 1, unitPrice: x.unitPrice ?? null })) });
+}
+
+export const listHorses: RequestHandler = async (req, res) => { const companyId = String(req.query.companyId || ""); await assertCompany(req, companyId); const search = typeof req.query.search === "string" ? req.query.search.trim() : ""; res.json(await prisma.horse.findMany({ where: { ...tenantWhere(req), companyId, ...(search ? { OR: [{ name: { contains: search, mode: "insensitive" } }, { registrationNo: { contains: search, mode: "insensitive" } }, { ownerName: { contains: search, mode: "insensitive" } }] } : {}) }, include: horseInclude, orderBy: { name: "asc" } })); };
+export const createHorse: RequestHandler = async (req, res) => { await assertCompany(req, req.body.companyId); await validatePlacement(req, req.body.companyId, req.body.stableId, req.body.stallId); res.status(201).json(await prisma.$transaction(async tx => { const { monthlyServices, ...horseData } = req.body; const customer = await ensureOwnerCustomer(tx, req.auth!.tenantId, req.body.companyId, horseData); const horse = await tx.horse.create({ data: { ...horseData, customerId: customer?.id || null, tenantId: req.auth!.tenantId } }); await replaceMonthlyServices(tx, req.auth!.tenantId, req.body.companyId, horse.id, monthlyServices); if (req.body.stallId) await tx.stableStall.update({ where: { id: req.body.stallId }, data: { status: "occupied" } }); return tx.horse.findUniqueOrThrow({ where: { id: horse.id }, include: horseInclude }); })); };
+export const updateHorse: RequestHandler = async (req, res) => { const row = await assertHorse(req, req.params.id); const hasStable = Object.prototype.hasOwnProperty.call(req.body, "stableId"); const hasStall = Object.prototype.hasOwnProperty.call(req.body, "stallId"); const nextStableId = hasStable ? req.body.stableId : row.stableId; const nextStallId = hasStall ? req.body.stallId : row.stallId; if (hasStable && nextStableId !== row.stableId && !hasStall) throw badRequest("اختر البوكس من الإسطبل الجديد أو أفرغ حقل البوكس"); await validatePlacement(req, row.companyId, nextStableId, nextStallId, row.id); res.json(await prisma.$transaction(async tx => { const { monthlyServices, ...horseData } = req.body; const customer = await ensureOwnerCustomer(tx, req.auth!.tenantId, row.companyId, { ...row, ...horseData }); const horse = await tx.horse.update({ where: { id: row.id }, data: { ...horseData, customerId: customer?.id ?? row.customerId } }); await replaceMonthlyServices(tx, req.auth!.tenantId, row.companyId, row.id, monthlyServices); if (row.stallId && row.stallId !== horse.stallId) await tx.stableStall.update({ where: { id: row.stallId }, data: { status: "available" } }); if (horse.stallId) await tx.stableStall.update({ where: { id: horse.stallId }, data: { status: "occupied" } }); return tx.horse.findUniqueOrThrow({ where: { id: horse.id }, include: horseInclude }); })); };
 export const deleteHorse: RequestHandler = async (req, res) => { const row = await assertHorse(req, req.params.id); if (await prisma.boardingContract.count({ where: { horseId: row.id } })) throw badRequest("لا يمكن حذف خيل له عقود؛ غيّر حالته بدلاً من الحذف"); await prisma.$transaction(async tx => { await tx.horse.delete({ where: { id: row.id } }); if (row.stallId) await tx.stableStall.update({ where: { id: row.stallId }, data: { status: "available" } }); }); res.status(204).send(); };
 
 export const listContracts: RequestHandler = async (req, res) => { const companyId = String(req.query.companyId || ""); await assertCompany(req, companyId); res.json(await prisma.boardingContract.findMany({ where: { ...tenantWhere(req), companyId }, include: { horse: { select: { id: true, name: true } }, stable: { select: { id: true, name: true } }, stall: { select: { id: true, number: true } } }, orderBy: { startDate: "desc" } })); };
@@ -122,8 +146,117 @@ async function deleteEntity(req:any,res:any,model:string,label:string) { const r
 
 export const listTrainers:RequestHandler=(q,s)=>listEntity(q,s,"ridingTrainer",{name:"asc"}); export const createTrainer:RequestHandler=(q,s)=>createEntity(q,s,"ridingTrainer"); export const updateTrainer:RequestHandler=(q,s)=>updateEntity(q,s,"ridingTrainer","المدرب"); export const deleteTrainer:RequestHandler=(q,s)=>deleteEntity(q,s,"ridingTrainer","المدرب");
 export const listLessonTypes:RequestHandler=(q,s)=>listEntity(q,s,"ridingLessonType",{name:"asc"}); export const createLessonType:RequestHandler=(q,s)=>createEntity(q,s,"ridingLessonType"); export const updateLessonType:RequestHandler=(q,s)=>updateEntity(q,s,"ridingLessonType","نوع الحصة"); export const deleteLessonType:RequestHandler=(q,s)=>deleteEntity(q,s,"ridingLessonType","نوع الحصة");
-export const listLessons:RequestHandler=(q,s)=>listEntity(q,s,"ridingLesson",{scheduledAt:"desc"}); export const createLesson:RequestHandler=(q,s)=>createEntity(q,s,"ridingLesson"); export const updateLesson:RequestHandler=(q,s)=>updateEntity(q,s,"ridingLesson","الحصة"); export const deleteLesson:RequestHandler=(q,s)=>deleteEntity(q,s,"ridingLesson","الحصة");
+export const listLessons:RequestHandler=async(req,res)=>{const companyId=String(req.query.companyId||"");await assertCompany(req,companyId);res.json(await prisma.ridingLesson.findMany({where:{...tenantWhere(req),companyId},include:{customer:true,salesInvoice:{select:{id:true,invoiceNumber:true,status:true}},},orderBy:{scheduledAt:"desc"}}))};
+export const createLesson:RequestHandler=async(req,res)=>{await assertCompany(req,req.body.companyId);const lesson=await prisma.$transaction(async tx=>{const customer=await ensureOwnerCustomer(tx,req.auth!.tenantId,req.body.companyId,{ownerName:req.body.studentName,ownerPhone:req.body.studentPhone,ownerEmail:req.body.studentEmail});return tx.ridingLesson.create({data:{...req.body,customerId:customer?.id||null,tenantId:req.auth!.tenantId}})});res.status(201).json(lesson)};
+export const updateLesson:RequestHandler=async(req,res)=>{const row=await prisma.ridingLesson.findFirst({where:{id:req.params.id,...tenantWhere(req)}});if(!row)throw notFound("الحصة غير موجودة");assertCompanyAccess(req.auth!,row.companyId);if(row.salesInvoiceId&&["price","participants","trainerId","studentName","studentPhone","studentEmail","scheduledAt"].some(key=>Object.prototype.hasOwnProperty.call(req.body,key)))throw badRequest("لا يمكن تعديل البيانات المالية للحصة بعد إصدار فاتورتها");res.json(await prisma.ridingLesson.update({where:{id:row.id},data:req.body}))};
+export const deleteLesson:RequestHandler=async(req,res)=>{const row=await prisma.ridingLesson.findFirst({where:{id:req.params.id,...tenantWhere(req)}});if(!row)throw notFound("الحصة غير موجودة");assertCompanyAccess(req.auth!,row.companyId);if(row.salesInvoiceId)throw badRequest("لا يمكن حذف حصة صدرت لها فاتورة");await prisma.ridingLesson.delete({where:{id:row.id}});res.status(204).send()};
+
+export const createLessonInvoice:RequestHandler=async(req,res)=>{
+  const lesson=await prisma.ridingLesson.findFirst({where:{id:req.params.id,...tenantWhere(req)},include:{customer:true}});
+  if(!lesson)throw notFound("الحصة غير موجودة");assertCompanyAccess(req.auth!,lesson.companyId);
+  if(lesson.salesInvoiceId)throw badRequest("تم إصدار فاتورة لهذه الحصة بالفعل");
+  if(lesson.status==="cancelled"||lesson.status==="no_show")throw badRequest("لا يمكن إصدار فاتورة لحصة ملغاة أو لم يحضرها المتدرب");
+  let customer=lesson.customer;
+  if(!customer){customer=await prisma.$transaction(tx=>ensureOwnerCustomer(tx,req.auth!.tenantId,lesson.companyId,{ownerName:lesson.studentName,ownerPhone:lesson.studentPhone,ownerEmail:lesson.studentEmail}));}
+  if(!customer)throw badRequest("بيانات المتدرب غير مكتملة لإنشاء العميل");
+  const revenueAccount=await prisma.account.findFirst({where:{tenantId:req.auth!.tenantId,companyId:lesson.companyId,code:"411002",isPosting:true,isActive:true,isArchived:false}});
+  if(!revenueAccount)throw badRequest("حساب إيرادات التدريب والحصص (411002) غير موجود في شجرة الحسابات");
+  const invoice=await createSalesInvoice(req.auth!.tenantId,req.auth!.sub,{companyId:lesson.companyId,customerId:customer.id,date:lesson.scheduledAt,post:false,lines:[{accountId:revenueAccount.id,description:`حصة فروسية — ${lesson.studentName}${lesson.participants>1?` (${lesson.participants} مشاركين)`:""}`,quantity:1,unitPrice:Number(lesson.price),discountPct:0,priceIncludesVat:true,vatApplicable:true}]});
+  await prisma.ridingLesson.update({where:{id:lesson.id},data:{customerId:customer.id,salesInvoiceId:invoice.id}});
+  res.status(201).json(invoice);
+};
 export const listCompetitions:RequestHandler=(q,s)=>listEntity(q,s,"equestrianCompetition",{startDate:"desc"}); export const createCompetition:RequestHandler=(q,s)=>createEntity(q,s,"equestrianCompetition"); export const updateCompetition:RequestHandler=(q,s)=>updateEntity(q,s,"equestrianCompetition","المسابقة"); export const deleteCompetition:RequestHandler=(q,s)=>deleteEntity(q,s,"equestrianCompetition","المسابقة");
 export const listCareServices:RequestHandler=async(req,res)=>{const companyId=String(req.query.companyId||"");await assertCompany(req,companyId);const service=(prisma as any).horseCareService;if(!await service.count({where:{...tenantWhere(req),companyId}}))await service.createMany({data:catalog.map(([code,category,nameAr,nameEn,price,unit])=>({tenantId:req.auth!.tenantId,companyId,code,category,nameAr,nameEn,price,unit}))});res.json(await service.findMany({where:{...tenantWhere(req),companyId},orderBy:[{category:"asc"},{nameAr:"asc"}]}))};
 export const createCareService:RequestHandler=(q,s)=>createEntity(q,s,"horseCareService"); export const updateCareService:RequestHandler=(q,s)=>updateEntity(q,s,"horseCareService","الخدمة"); export const deleteCareService:RequestHandler=(q,s)=>deleteEntity(q,s,"horseCareService","الخدمة");
 
+const monthStart = (value: string) => {
+  if (!/^\d{4}-\d{2}$/.test(value)) throw badRequest("الشهر مطلوب بصيغة YYYY-MM");
+  return new Date(`${value}-01T00:00:00.000Z`);
+};
+
+export const listBoardingOwners: RequestHandler = async (req, res) => {
+  const companyId = String(req.query.companyId || ""); await assertCompany(req, companyId);
+  // تعبئة رجعية آمنة للخيول الموجودة قبل إضافة الربط: أول فتح للشاشة ينشئ عميل المالك وحسابه
+  // التفصيلي ثم يربطه بالخيل، حتى لا يضطر المستخدم لإعادة حفظ كل خيل يدوياً.
+  const legacyHorses = await prisma.horse.findMany({ where: { tenantId: req.auth!.tenantId, companyId, customerId: null, ownerName: { not: null } } });
+  if (legacyHorses.length) await prisma.$transaction(async (tx) => {
+    for (const horse of legacyHorses) {
+      const customer = await ensureOwnerCustomer(tx, req.auth!.tenantId, companyId, horse);
+      if (customer) await tx.horse.update({ where: { id: horse.id }, data: { customerId: customer.id } });
+    }
+  });
+  const customers = await prisma.customer.findMany({
+    where: { tenantId: req.auth!.tenantId, companyId, horses: { some: { status: { notIn: ["sold", "deceased"] } } } },
+    include: { horses: { where: { status: { notIn: ["sold", "deceased"] } }, include: { monthlyServices: { where: { isActive: true }, include: { service: true, trainer: true } } } } },
+    orderBy: { name: "asc" },
+  });
+  res.json(customers);
+};
+
+export const createBoardingInvoice: RequestHandler = async (req, res) => {
+  const { companyId, customerId, billingMonth, trainerSelections = {} } = req.body;
+  await assertCompany(req, companyId); const period = monthStart(billingMonth);
+  const existing = await prisma.horseBoardingInvoice.findUnique({ where: { companyId_customerId_billingMonth: { companyId, customerId, billingMonth: period } }, include: { salesInvoice: true } });
+  if (existing) throw badRequest(`تم إنشاء فاتورة إعاشة لهذا المالك عن الشهر المحدد بالفعل (${existing.salesInvoice.invoiceNumber})`);
+  const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId: req.auth!.tenantId, companyId } });
+  if (!customer) throw badRequest("مالك الخيل غير موجود ضمن عملاء الشركة");
+  const horses = await prisma.horse.findMany({
+    where: { tenantId: req.auth!.tenantId, companyId, customerId, status: { notIn: ["sold", "deceased"] } },
+    include: { monthlyServices: { where: { isActive: true, startDate: { lte: new Date(Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, 0, 23, 59, 59)) }, OR: [{ endDate: null }, { endDate: { gte: period } }] }, include: { service: true } } },
+  });
+  const assignments = horses.flatMap((horse) => horse.monthlyServices.map((assignment) => ({ horse, assignment })));
+  if (!assignments.length) throw badRequest("لا توجد خدمات شهرية فعالة مرتبطة بخيول هذا المالك");
+  const trainingAssignments = assignments.filter(({ assignment }) => ["training", "competition"].includes(assignment.service.category));
+  const selectedTrainerIds = [...new Set(trainingAssignments.map(({ assignment }) => trainerSelections[assignment.id] || assignment.trainerId).filter(Boolean))] as string[];
+  if (trainingAssignments.some(({ assignment }) => !(trainerSelections[assignment.id] || assignment.trainerId))) throw badRequest("حدد المدرب لكل خدمة تدريب قبل إنشاء الفاتورة");
+  if (selectedTrainerIds.length) {
+    const validTrainers = await prisma.ridingTrainer.count({ where: { id: { in: selectedTrainerIds }, tenantId: req.auth!.tenantId, companyId, isActive: true } });
+    if (validTrainers !== selectedTrainerIds.length) throw badRequest("أحد المدربين المحددين غير موجود أو غير فعال");
+  }
+  const accountCodes = [...new Set(assignments.map(({ assignment }) => ["training", "competition"].includes(assignment.service.category) ? "411002" : "411001"))];
+  const accounts = await prisma.account.findMany({ where: { tenantId: req.auth!.tenantId, companyId, code: { in: accountCodes }, isPosting: true, isActive: true, isArchived: false } });
+  const accountByCode = new Map(accounts.map((account) => [account.code, account.id]));
+  if (accounts.length !== accountCodes.length) throw badRequest("شجرة الحسابات لا تحتوي حسابات إيرادات الإعاشة والتدريب المطلوبة (411001 و411002)");
+  const invoiceLines = assignments.map(({ horse, assignment }) => ({
+    accountId: assignment.service.revenueAccountId || accountByCode.get(["training", "competition"].includes(assignment.service.category) ? "411002" : "411001")!,
+    description: `${horse.name} — ${assignment.service.nameAr}`,
+    quantity: Number(assignment.quantity), unitPrice: Number(assignment.unitPrice ?? assignment.service.price ?? 0), discountPct: 0,
+    priceIncludesVat: assignment.service.priceIncludesVat, vatApplicable: true,
+  }));
+  if (invoiceLines.some((line) => line.unitPrice <= 0)) throw badRequest("إحدى الخدمات الشهرية بلا سعر؛ حدّث سعرها قبل إنشاء الفاتورة");
+  const invoice = await createSalesInvoice(req.auth!.tenantId, req.auth!.sub, { companyId, customerId, date: new Date(Date.UTC(period.getUTCFullYear(), period.getUTCMonth() + 1, 0, 12)), lines: invoiceLines, post: false });
+  try {
+    const boarding = await prisma.horseBoardingInvoice.create({
+      data: { tenantId: req.auth!.tenantId, companyId, customerId, billingMonth: period, salesInvoiceId: invoice.id,
+        lines: { create: assignments.map(({ horse, assignment }) => {
+          const price = Number(assignment.unitPrice ?? assignment.service.price ?? 0); const quantity = Number(assignment.quantity);
+          const amounts = computeInvoiceLine({ quantity, unitPrice: price, priceIncludesVat: assignment.service.priceIncludesVat, vatApplicable: true });
+          return { horseId: horse.id, serviceId: assignment.serviceId, trainerId: trainerSelections[assignment.id] || assignment.trainerId || null, quantity, unitPrice: price, netAmount: amounts.subtotal, vatAmount: amounts.vat, totalAmount: amounts.total };
+        }) },
+      }, include: { salesInvoice: true, lines: { include: { horse: true, service: true } } },
+    });
+    res.status(201).json(boarding);
+  } catch (error) {
+    await prisma.salesInvoice.deleteMany({ where: { id: invoice.id, tenantId: req.auth!.tenantId, status: "draft" } });
+    throw error;
+  }
+};
+
+export const trainerCommissionReport: RequestHandler = async (req, res) => {
+  const companyId = String(req.query.companyId || ""); await assertCompany(req, companyId);
+  const from = typeof req.query.from === "string" && req.query.from ? new Date(`${req.query.from}T00:00:00.000Z`) : undefined;
+  const to = typeof req.query.to === "string" && req.query.to ? new Date(`${req.query.to}T23:59:59.999Z`) : undefined;
+  const rows = await prisma.trainerCommission.findMany({
+    where: { tenantId: req.auth!.tenantId, companyId, ...(from || to ? { periodStart: { lte: to }, periodEnd: { gte: from } } : {}) },
+    include: { trainer: true, horse: true, salesInvoice: { select: { invoiceNumber: true, date: true, status: true } } },
+    orderBy: [{ trainer: { name: "asc" } }, { periodStart: "asc" }],
+  });
+  const totals = rows.reduce((acc, row) => {
+    const commission = Number(row.commissionAmount); const net = Number(row.netTrainingRevenue);
+    acc.netRevenue += net; acc.commission += commission;
+    if (row.sourceType === "riding_lesson") { acc.lessonRevenue += net; acc.lessonCommission += commission; }
+    else { acc.horseTrainingRevenue += net; acc.horseTrainingCommission += commission; }
+    return acc;
+  }, { netRevenue: 0, commission: 0, lessonRevenue: 0, lessonCommission: 0, horseTrainingRevenue: 0, horseTrainingCommission: 0 });
+  res.json({ rows, totals });
+};
