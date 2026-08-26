@@ -61,4 +61,3 @@ export const setPortalAccessSchema = z.object({
   pin: z.string().regex(/^\d{4,6}$/, "الرمز يجب أن يكون من 4 إلى 6 أرقام"),
   portalActive: z.boolean().default(true),
 });
-
