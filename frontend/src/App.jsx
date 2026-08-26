@@ -65,13 +65,15 @@ function isPlainLeftClick(e) {
 function AppShell() {
   const { t, i18n } = useTranslation();
   const { user, tenant, logout, emailServiceConfigured, platformNotices } = useAuth();
-  // تصفية القائمة الجانبية حسب الموديولات الممنوحة لهذه الشركة من لوحة تحكم مدير المنصة
-  // (Tenant.enabledModules) — مصفوفة فارغة/غير موجودة تعني "كل الموديولات مفعّلة" (السلوك
-  // الافتراضي لكل شركة لم تُخصَّص لها قيود بعد، بلا أي كسر لأي شركة قديمة).
-  const visibleNavGroups = tenant?.enabledModules?.length
-    ? NAV_GROUPS.filter((g) => tenant.enabledModules.includes(g.id))
-    : NAV_GROUPS;
   const real = useCompanies();
+  const activeCompany = useMemo(() => real.companies.find((c) => c.id === real.companyId), [real.companies, real.companyId]);
+  // صلاحيات مدير المنصة تحدد الموديولات المتاحة للمستأجر، ثم نشاط الشركة النشطة يحدد الموديولات
+  // القطاعية التي تخصها. مديول الإسطبلات لا يظهر ولا يُفتح إلا لنشاط الإسطبلات والإعاشة.
+  const visibleNavGroups = NAV_GROUPS.filter((group) => {
+    const platformAllows = !tenant?.enabledModules?.length || tenant.enabledModules.includes(group.id);
+    const activityAllows = group.id !== "stables" || activeCompany?.businessActivity === "horse_stables";
+    return platformAllows && activityAllows;
+  });
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -130,7 +132,6 @@ function AppShell() {
     }
   };
 
-  const activeCompany = useMemo(() => real.companies.find((c) => c.id === real.companyId), [real.companies, real.companyId]);
   const navBadges = { sales: overdueInvoicesCount, hr: pendingLeaveCount };
 
   const outletContext = {
@@ -265,7 +266,9 @@ function InventoryRoute() {
   return <InventoryWiredModule companies={companies} companyId={companyId} />;
 }
 function StablesRoute() {
-  const { companyId } = useOutletContext();
+  const { companies, companyId } = useOutletContext();
+  const company = companies.find((item) => item.id === companyId);
+  if (company?.businessActivity !== "horse_stables") return <Navigate to={routes.dashboard()} replace />;
   return <StablesModule companyId={companyId} />;
 }
 function FixedAssetsRoute() {
