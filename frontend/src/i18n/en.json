@@ -42,7 +42,12 @@
     "stalls": "Stalls",
     "horses": "Horses",
     "contracts": "Boarding",
-    "care": "Care records"
+    "care": "Care records",
+    "services": "Care services",
+    "trainers": "Trainers",
+    "lessonTypes": "Lesson types",
+    "lessons": "Training lessons",
+    "competitions": "Competitions"
   },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },
