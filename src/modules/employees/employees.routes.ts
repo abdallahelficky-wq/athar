@@ -19,4 +19,3 @@ employeeRoutes.post("/", canWrite, validateBody(createEmployeeSchema), createEmp
 employeeRoutes.patch("/:id", canWrite, validateBody(updateEmployeeSchema), updateEmployee);
 employeeRoutes.post("/:id/portal-access", canWrite, validateBody(setPortalAccessSchema), setEmployeePortalAccess);
 employeeRoutes.delete("/:id", canWrite, deleteEmployee);
-
