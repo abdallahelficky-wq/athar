@@ -7,4 +7,3 @@ export const importEmployees = (payload) => api.post("/employees/import", payloa
 export const updateEmployee = (id, payload) => api.patch(`/employees/${id}`, payload);
 export const deleteEmployee = (id) => api.delete(`/employees/${id}`);
 export const getEmployeeEos = (id, endDate, reason) => api.get(`/employees/${id}/eos?endDate=${endDate}&reason=${reason}`);
-
