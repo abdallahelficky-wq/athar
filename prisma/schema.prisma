@@ -389,6 +389,7 @@ enum BusinessActivity {
   retail
   general_trade
   fuel_stations
+  horse_stables
 }
 
 // حالة استخراج شهادة ربط فاتورة (ZATCA CSID) لهذه الشركة تحديداً
