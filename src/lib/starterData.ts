@@ -27,6 +27,13 @@ interface StarterItemSpec {
 }
 
 const STARTER_ITEMS_BY_ACTIVITY: Record<BusinessActivity, StarterItemSpec[]> = {
+  horse_stables: [
+    { code: "STB-001", name: "إيواء وإعاشة شهرية", type: "service", unit: "شهر", revenueAccountCode: "411003" },
+    { code: "TRN-001", name: "حصة تدريب فردية", type: "service", unit: "حصة", revenueAccountCode: "411004" },
+    { code: "CAR-001", name: "خدمة رعاية الخيل", type: "service", unit: "خدمة", revenueAccountCode: "411005" },
+    { code: "EVT-001", name: "رسوم مسابقة أو فعالية", type: "service", unit: "مشاركة", revenueAccountCode: "411006" },
+    { code: "FED-001", name: "أعلاف وتبن", type: "inventory", unit: "كجم", stockAccountCode: "114003", cogsAccountCode: "511004", revenueAccountCode: "411005" },
+  ],
   // مثال المستخدم التوضيحي: صنف خدمي "أعمال مقاولات"
   contracting: [
     { code: "0001", name: "أعمال مقاولات عامة", type: "service", unit: "عقد", revenueAccountCode: "411001" },
