@@ -65,6 +65,7 @@ function NewCompanyForm({ onCompanyCreated }) {
     { value: "retail", label: t("settings.newCompany.businessActivity.retail") },
     { value: "general_trade", label: t("settings.newCompany.businessActivity.generalTrade") },
     { value: "fuel_stations", label: t("settings.newCompany.businessActivity.fuelStations") },
+    { value: "horse_stables", label: t("settings.newCompany.businessActivity.horseStables") },
   ];
 
   const [showForm, setShowForm] = useState(false);
