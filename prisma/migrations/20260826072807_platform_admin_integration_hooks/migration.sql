@@ -1,5 +1,5 @@
 -- AlterEnum
-ALTER TYPE "BusinessActivity" ADD VALUE 'horse_stables';
+ALTER TYPE "BusinessActivity" ADD VALUE IF NOT EXISTS 'horse_stables';
 
 -- AlterEnum
 ALTER TYPE "SubscriptionStatus" ADD VALUE 'suspended';
