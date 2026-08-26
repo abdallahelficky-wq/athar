@@ -11,9 +11,13 @@ export const listHandler: RequestHandler = async (req, res) => {
 };
 
 export const previewHandler: RequestHandler = async (req, res) => {
-  const { employeeId, leaveStartDate } = req.query;
+  const { employeeId, leaveStartDate, leaveEndDate, settlementType, cashLeaveDays } = req.query;
   if (typeof employeeId !== "string" || typeof leaveStartDate !== "string") throw badRequest("employeeId و leaveStartDate مطلوبان");
-  res.json(await service.previewLeaveSettlement(req.auth!.tenantId, employeeId, new Date(leaveStartDate)));
+  res.json(await service.previewLeaveSettlement(req.auth!.tenantId, employeeId, new Date(leaveStartDate), {
+    leaveEndDate: typeof leaveEndDate === "string" && leaveEndDate ? new Date(leaveEndDate) : null,
+    settlementType: settlementType === "cash_in_service" ? "cash_in_service" : "actual_leave",
+    cashLeaveDays: typeof cashLeaveDays === "string" ? Number(cashLeaveDays) : 0,
+  }));
 };
 
 export const createHandler: RequestHandler = async (req, res) => {
