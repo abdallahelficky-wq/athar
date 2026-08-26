@@ -8,7 +8,9 @@ import { sendLiveryContractEmail } from "../../lib/mailer";
 const tenantWhere = (req: any) => ({ tenantId: req.auth!.tenantId });
 async function assertCompany(req: any, companyId: string) {
   assertCompanyAccess(req.auth!, companyId);
-  if (!await prisma.company.findFirst({ where: { id: companyId, tenantId: req.auth!.tenantId } })) throw badRequest("الشركة غير موجودة");
+  const company = await prisma.company.findFirst({ where: { id: companyId, tenantId: req.auth!.tenantId }, select: { businessActivity: true } });
+  if (!company) throw badRequest("الشركة غير موجودة");
+  if (company.businessActivity !== "horse_stables") throw badRequest("مديول الإسطبلات متاح فقط للشركات المسجلة بنشاط الإسطبلات والإعاشة");
 }
 async function assertStable(req: any, id: string, companyId?: string) {
   const row = await prisma.stable.findFirst({ where: { id, ...tenantWhere(req), ...(companyId ? { companyId } : {}) } });

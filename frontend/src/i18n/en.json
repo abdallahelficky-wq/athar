@@ -115,6 +115,9 @@
     "register": {
       "title": "Start your one-month free trial",
       "companyName": "Company / business name",
+      "businessActivity": "Company activity",
+      "selectActivity": "Select activity",
+      "activities": {"contracting":"Contracting","manufacturing":"Manufacturing","retail":"Retail","generalTrade":"General trade","fuelStations":"Fuel stations","horseStables":"Horse stables, boarding and livery"},
       "fullName": "Full name",
       "email": "Email address",
       "password": "Password",
