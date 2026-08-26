@@ -29,19 +29,10 @@
       "wrongPin": "الرقم السري غير صحيح"
     },
     "invoiceLines": {
-      "account": "الحساب",
-      "description": "الوصف",
-      "descriptionPlaceholder": "وصف الصنف/الخدمة",
-      "quantity": "الكمية",
-      "unitPrice": "سعر الوحدة",
-      "priceIncludesVat": "شامل الضريبة؟",
-      "discount": "خصم %",
-      "totalWithVat": "الإجمالي شامل الضريبة",
-      "total": "الإجمالي",
-      "addLine": "+ إضافة سطر",
-      "subtotal": "الإجمالي قبل الضريبة",
-      "vat": "ضريبة القيمة المضافة (15٪)",
-      "grandTotal": "الإجمالي شامل الضريبة"
+      "account": "الحساب", "description": "الوصف", "descriptionPlaceholder": "وصف الصنف/الخدمة",
+      "quantity": "الكمية", "unitPrice": "سعر الوحدة", "priceIncludesVat": "شامل الضريبة؟", "discount": "خصم %",
+      "totalWithVat": "الإجمالي شامل الضريبة", "total": "الإجمالي", "addLine": "+ إضافة سطر",
+      "subtotal": "الإجمالي قبل الضريبة", "vat": "ضريبة القيمة المضافة (15٪)", "grandTotal": "الإجمالي شامل الضريبة"
     }
   },
   "stables": {
@@ -59,10 +50,7 @@
     "competitions": "المسابقات والمنافسات"
   },
   "landing": {
-    "nav": {
-      "login": "تسجيل الدخول",
-      "startTrial": "ابدأ تجربتك المجانية"
-    },
+    "nav": { "login": "تسجيل الدخول", "startTrial": "ابدأ تجربتك المجانية" },
     "eyebrow": "نظام محاسبي سحابي للشركات العربية",
     "title": "أثر المحاسبي",
     "heroSub": "نظام محاسبي سحابي شامل لإدارة مجموعتك التجارية بالكامل — من القيود والفواتير الضريبية المتوافقة مع زاتكا، إلى المخزون والأصول الثابتة وشئون الموظفين والرواتب — في مكان واحد، وبواجهة مصمَّمة من الأساس لسوقك.",
@@ -77,30 +65,12 @@
       "eyebrow": "لماذا أثر المحاسبي",
       "title": "مصمَّم ليناسب طريقة عملك",
       "items": [
-        {
-          "title": "متوافق مع زاتكا (للشركات السعودية)",
-          "desc": "فواتير ضريبية إلكترونية (قياسية ومبسّطة) برمز QR فعلي، مبنية من الأساس وفق متطلبات هيئة الزكاة والضريبة والجمارك — تُفعَّل تلقائياً لأي شركة تختار السعودية كدولتها."
-        },
-        {
-          "title": "مجموعة كاملة في مكان واحد",
-          "desc": "تدير كل شركاتك من شاشة واحدة، مع فصل كامل لبيانات كل شركة وتقارير موحّدة للمجموعة ككل."
-        },
-        {
-          "title": "دورة موظف كاملة",
-          "desc": "من التعيين والإجازات والرواتب وحتى مكافأة نهاية الخدمة، محسوبة تلقائياً وفق نظام العمل المعتمد."
-        },
-        {
-          "title": "تقارير مالية فورية",
-          "desc": "ميزان المراجعة وقائمة الدخل والمركز المالي تتحدّث لحظياً مع كل قيد وفاتورة تسجّلها."
-        },
-        {
-          "title": "دورة مبيعات ومشتريات متكاملة",
-          "desc": "من عرض السعر إلى الفاتورة إلى سند القبض، ومن أمر الشراء إلى فاتورة المورد، بربط محاسبي تلقائي كامل."
-        },
-        {
-          "title": "واجهة مصمَّمة لسوقك",
-          "desc": "مبنية من الصفر لتناسب طريقة عمل المحاسب في السوق العربي، لا واجهة مترجمة عن نظام أجنبي."
-        }
+        { "title": "متوافق مع زاتكا (للشركات السعودية)", "desc": "فواتير ضريبية إلكترونية (قياسية ومبسّطة) برمز QR فعلي، مبنية من الأساس وفق متطلبات هيئة الزكاة والضريبة والجمارك — تُفعَّل تلقائياً لأي شركة تختار السعودية كدولتها." },
+        { "title": "مجموعة كاملة في مكان واحد", "desc": "تدير كل شركاتك من شاشة واحدة، مع فصل كامل لبيانات كل شركة وتقارير موحّدة للمجموعة ككل." },
+        { "title": "دورة موظف كاملة", "desc": "من التعيين والإجازات والرواتب وحتى مكافأة نهاية الخدمة، محسوبة تلقائياً وفق نظام العمل المعتمد." },
+        { "title": "تقارير مالية فورية", "desc": "ميزان المراجعة وقائمة الدخل والمركز المالي تتحدّث لحظياً مع كل قيد وفاتورة تسجّلها." },
+        { "title": "دورة مبيعات ومشتريات متكاملة", "desc": "من عرض السعر إلى الفاتورة إلى سند القبض، ومن أمر الشراء إلى فاتورة المورد، بربط محاسبي تلقائي كامل." },
+        { "title": "واجهة مصمَّمة لسوقك", "desc": "مبنية من الصفر لتناسب طريقة عمل المحاسب في السوق العربي، لا واجهة مترجمة عن نظام أجنبي." }
       ]
     },
     "pricing": {
@@ -113,43 +83,20 @@
       "cta": "ابدأ التجربة المجانية",
       "plans": [
         {
-          "name": "الأساسية",
-          "tagline": "للمنشآت الناشئة وأصحاب المشاريع الصغيرة",
-          "features": [
-            "شركة واحدة",
-            "القيود والتقارير المالية الأساسية",
-            "فواتير مبيعات ومشتريات متوافقة مع زاتكا",
-            "حتى 5 مستخدمين",
-            "دعم فني عبر البريد الإلكتروني"
-          ]
+          "name": "الأساسية", "tagline": "للمنشآت الناشئة وأصحاب المشاريع الصغيرة",
+          "features": ["شركة واحدة", "القيود والتقارير المالية الأساسية", "فواتير مبيعات ومشتريات متوافقة مع زاتكا", "حتى 5 مستخدمين", "دعم فني عبر البريد الإلكتروني"]
         },
         {
-          "name": "الاحترافية",
-          "tagline": "للمجموعات متعددة الشركات والفرق المحاسبية",
-          "features": [
-            "حتى 4 شركات ضمن مجموعة واحدة",
-            "كل مزايا الباقة الأساسية",
-            "المخزون والأصول الثابتة",
-            "شئون الموظفين والرواتب بالكامل",
-            "دعم فني ذو أولوية"
-          ]
+          "name": "الاحترافية", "tagline": "للمجموعات متعددة الشركات والفرق المحاسبية",
+          "features": ["حتى 4 شركات ضمن مجموعة واحدة", "كل مزايا الباقة الأساسية", "المخزون والأصول الثابتة", "شئون الموظفين والرواتب بالكامل", "دعم فني ذو أولوية"]
         },
         {
-          "name": "المؤسسات",
-          "tagline": "للمجموعات الكبيرة ذات الاحتياجات المتقدمة",
-          "features": [
-            "عدد غير محدود من الشركات",
-            "كل مزايا الباقة الاحترافية",
-            "صلاحيات مستخدمين متقدمة",
-            "استيراد وتصدير إكسل غير محدود",
-            "مدير حساب مخصص"
-          ]
+          "name": "المؤسسات", "tagline": "للمجموعات الكبيرة ذات الاحتياجات المتقدمة",
+          "features": ["عدد غير محدود من الشركات", "كل مزايا الباقة الاحترافية", "صلاحيات مستخدمين متقدمة", "استيراد وتصدير إكسل غير محدود", "مدير حساب مخصص"]
         }
       ]
     },
-    "footer": {
-      "copyright": "© 2026 أثر المحاسبي — جميع الحقوق محفوظة"
-    }
+    "footer": { "copyright": "© 2026 أثر المحاسبي — جميع الحقوق محفوظة" }
   },
   "auth": {
     "login": {
@@ -225,54 +172,22 @@
       "settings": "الإعدادات"
     },
     "tabs": {
-      "customers": "العملاء",
-      "quotations": "عروض الأسعار",
-      "invoices": "فواتير المبيعات",
-      "returns": "مردودات المبيعات",
-      "receipts": "سندات القبض",
-      "stations": "مبيعات المحطات",
-      "reports": "التقارير",
-      "salesSettings": "إعدادات المبيعات",
-      "suppliers": "الموردون",
-      "purchaseInvoices": "فواتير المشتريات",
-      "purchaseReturns": "مردودات المشتريات",
-      "items": "الأصناف",
-      "warehouses": "المستودعات",
-      "inout": "إدخال / إخراج",
-      "issue": "الصرف المخزني",
-      "transfer": "التحويل بين الفروع",
-      "report": "تقرير الأرصدة",
-      "register": "سجل الأصول",
-      "depreciation": "الإهلاك الشهري",
-      "disposal": "الاستبعاد/البيع",
-      "fixedAssetsReports": "التقارير",
-      "categories": "إعدادات الأصول الثابتة",
-      "journal": "القيود اليومية",
-      "chartOfAccounts": "شجرة الحسابات",
-      "ledger": "كشف حساب الأستاذ",
-      "departments": "الأقسام",
-      "zakat": "الزكاة والضريبة (تقديرية، بيانات تجريبية)",
-      "hrDashboard": "لوحة القيادة",
-      "directory": "ملفات الموظفين",
-      "leaves": "طلبات الإجازات",
-      "leaveSettlement": "مستحقات الإجازة",
-      "leaveReturn": "المباشرة بعد الإجازة",
-      "hrActions": "إجراءات الموظفين",
-      "payroll": "كشف الرواتب",
-      "payrollSettings": "إعدادات الرواتب",
-      "eos": "نهاية الخدمة",
-      "hrReports": "التقارير",
-      "trial": "ميزان المراجعة",
-      "income": "قائمة الدخل",
-      "balance": "المركز المالي",
-      "monthly": "التقرير المالي الشهري الشامل",
-      "automation": "أتمتة الإرسال",
-      "companies": "بيانات الشركات",
-      "profile": "الملف الشخصي",
-      "users": "المستخدمون والصلاحيات",
-      "jobTitles": "الوظائف",
-      "locations": "المواقع",
-      "companyDocs": "المستندات الرسمية"
+      "customers": "العملاء", "quotations": "عروض الأسعار", "invoices": "فواتير المبيعات",
+      "returns": "مردودات المبيعات", "receipts": "سندات القبض", "stations": "مبيعات المحطات",
+      "reports": "التقارير", "salesSettings": "إعدادات المبيعات", "suppliers": "الموردون", "purchaseInvoices": "فواتير المشتريات",
+      "purchaseReturns": "مردودات المشتريات", "items": "الأصناف", "warehouses": "المستودعات",
+      "inout": "إدخال / إخراج", "issue": "الصرف المخزني", "transfer": "التحويل بين الفروع",
+      "report": "تقرير الأرصدة", "register": "سجل الأصول", "depreciation": "الإهلاك الشهري",
+      "disposal": "الاستبعاد/البيع", "fixedAssetsReports": "التقارير", "categories": "إعدادات الأصول الثابتة",
+      "journal": "القيود اليومية", "chartOfAccounts": "شجرة الحسابات", "ledger": "كشف حساب الأستاذ",
+      "departments": "الأقسام", "zakat": "الزكاة والضريبة (تقديرية، بيانات تجريبية)",
+      "hrDashboard": "لوحة القيادة", "directory": "ملفات الموظفين", "leaves": "طلبات الإجازات",
+      "leaveSettlement": "مستحقات الإجازة", "leaveReturn": "المباشرة بعد الإجازة", "hrActions": "إجراءات الموظفين",
+      "payroll": "كشف الرواتب", "payrollSettings": "إعدادات الرواتب", "eos": "نهاية الخدمة",
+      "hrReports": "التقارير", "trial": "ميزان المراجعة", "income": "قائمة الدخل", "balance": "المركز المالي",
+      "monthly": "التقرير المالي الشهري الشامل", "automation": "أتمتة الإرسال",
+      "companies": "بيانات الشركات", "profile": "الملف الشخصي", "users": "المستخدمون والصلاحيات",
+      "jobTitles": "الوظائف", "locations": "المواقع", "companyDocs": "المستندات الرسمية"
     },
     "activeCompanyLabel": "الشركة النشطة:",
     "noCompanySelected": "لم تُختَر بعد",
@@ -298,10 +213,7 @@
     "emailWarningAfter": "في إعدادات النشر."
   },
   "dashboard": {
-    "breadcrumb": {
-      "overview": "نظرة عامة",
-      "realData": "بيانات حقيقية"
-    },
+    "breadcrumb": { "overview": "نظرة عامة", "realData": "بيانات حقيقية" },
     "title": "لوحة القيادة المالية",
     "welcome": {
       "greetingMorning": "صباح الخير، {{name}}",
@@ -357,85 +269,40 @@
     "loadingAllCompanies": "جارٍ تجميع بيانات كل الشركات...",
     "comparisonTitle": "مقارنة بين شركات المجموعة (الشهر الحالي)",
     "comparisonTable": {
-      "company": "الشركة",
-      "netSales": "صافي المبيعات",
-      "netProfitEstimate": "صافي الربح التقديري",
-      "cashBalance": "الرصيد النقدي",
-      "receivables": "مستحقات العملاء",
-      "payables": "مستحقات الموردين",
+      "company": "الشركة", "netSales": "صافي المبيعات", "netProfitEstimate": "صافي الربح التقديري",
+      "cashBalance": "الرصيد النقدي", "receivables": "مستحقات العملاء", "payables": "مستحقات الموردين",
       "total": "الإجمالي"
     },
     "loading": "جارٍ التحميل...",
     "kpi": {
-      "netSales": "صافي المبيعات (الفترة المختارة)",
-      "vsPreviousPeriod": "عن الفترة السابقة",
-      "netProfitEstimate": "صافي الربح التقديري",
-      "cashBalance": "الرصيد النقدي الحالي",
-      "receivables": "مستحقات على العملاء",
-      "payables": "مستحقات للموردين"
+      "netSales": "صافي المبيعات (الفترة المختارة)", "vsPreviousPeriod": "عن الفترة السابقة",
+      "netProfitEstimate": "صافي الربح التقديري", "cashBalance": "الرصيد النقدي الحالي",
+      "receivables": "مستحقات على العملاء", "payables": "مستحقات للموردين"
     },
-    "alerts": {
-      "title": "⚠ أهم التنبيهات",
-      "empty": "لا توجد تنبيهات حالياً."
-    },
-    "banner": {
-      "viewAllAlerts": "عرض كل التنبيهات"
-    },
-    "recentActivity": {
-      "title": "أحدث الحركات النقدية"
-    },
+    "alerts": { "title": "⚠ أهم التنبيهات", "empty": "لا توجد تنبيهات حالياً." },
+    "banner": { "viewAllAlerts": "عرض كل التنبيهات" },
+    "recentActivity": { "title": "أحدث الحركات النقدية" },
     "recentEntries": {
-      "title": "أحدث القيود اليومية",
-      "empty": "لا توجد قيود بعد.",
-      "table": {
-        "number": "رقم القيد",
-        "date": "التاريخ",
-        "memo": "البيان",
-        "total": "الإجمالي",
-        "status": "الحالة"
-      }
+      "title": "أحدث القيود اليومية", "empty": "لا توجد قيود بعد.",
+      "table": { "number": "رقم القيد", "date": "التاريخ", "memo": "البيان", "total": "الإجمالي", "status": "الحالة" }
     },
     "charts": {
-      "payrollAndDues": "الرواتب والمستحقات",
-      "paid": "مصروف",
-      "unpaid": "مستحق",
-      "endOfService": "نهاية خدمة",
-      "agingTitle": "تعمير الذمم المدينة والدائنة",
-      "under30": "أقل من 30",
-      "d30to60": "30–60",
-      "d60to90": "60–90",
-      "over90": "+90",
-      "receivable": "مدينة",
-      "payable": "دائنة",
-      "monthComparisonTitle": "مقارنة الشهر بالشهر السابق",
-      "current": "الحالي",
-      "previous": "السابق",
-      "salesTrendTitle": "اتجاه المبيعات (آخر ١٢ شهراً)",
-      "sales": "المبيعات",
-      "topCustomersTitle": "أفضل ١٠ عملاء (حسب صافي المبيعات)",
-      "netSales": "صافي المبيعات",
-      "cashBreakdownTitle": "توزيع الكاش على الحسابات",
-      "noCashAccounts": "لا توجد حسابات نقدية/بنكية مصنَّفة.",
-      "monthlyCashFlowTitle": "حركة الكاش الشهرية (وارد مقابل صادر)",
-      "cashIn": "وارد",
-      "cashOut": "صادر"
+      "payrollAndDues": "الرواتب والمستحقات", "paid": "مصروف", "unpaid": "مستحق", "endOfService": "نهاية خدمة",
+      "agingTitle": "تعمير الذمم المدينة والدائنة", "under30": "أقل من 30", "d30to60": "30–60", "d60to90": "60–90", "over90": "+90",
+      "receivable": "مدينة", "payable": "دائنة",
+      "monthComparisonTitle": "مقارنة الشهر بالشهر السابق", "current": "الحالي", "previous": "السابق",
+      "salesTrendTitle": "اتجاه المبيعات (آخر ١٢ شهراً)", "sales": "المبيعات",
+      "topCustomersTitle": "أفضل ١٠ عملاء (حسب صافي المبيعات)", "netSales": "صافي المبيعات",
+      "cashBreakdownTitle": "توزيع الكاش على الحسابات", "noCashAccounts": "لا توجد حسابات نقدية/بنكية مصنَّفة.",
+      "monthlyCashFlowTitle": "حركة الكاش الشهرية (وارد مقابل صادر)", "cashIn": "وارد", "cashOut": "صادر"
     },
     "topTransactions": {
-      "title": "أعلى حركات الكاش (آخر ١٨٠ يوماً)",
-      "empty": "لا توجد حركات كاش بعد.",
-      "date": "التاريخ",
-      "memo": "البيان",
-      "account": "الحساب",
-      "amount": "المبلغ",
-      "direction": "الاتجاه"
+      "title": "أعلى حركات الكاش (آخر ١٨٠ يوماً)", "empty": "لا توجد حركات كاش بعد.",
+      "date": "التاريخ", "memo": "البيان", "account": "الحساب", "amount": "المبلغ", "direction": "الاتجاه"
     },
     "position": {
-      "title": "المركز المالي للمنشأة",
-      "assets": "الأصول",
-      "liabilities": "الالتزامات",
-      "equity": "حقوق الملكية",
-      "debtToEquity": "نسبة الديون لحقوق الملكية",
-      "currentRatio": "نسبة التداول (تقريبية)",
+      "title": "المركز المالي للمنشأة", "assets": "الأصول", "liabilities": "الالتزامات", "equity": "حقوق الملكية",
+      "debtToEquity": "نسبة الديون لحقوق الملكية", "currentRatio": "نسبة التداول (تقريبية)",
       "currentRatioNote": "* نسبة التداول هنا تقريبية (كاش + ذمم مدينة ÷ ذمم دائنة) لعدم وجود تصنيف \"متداول/غير متداول\" في شجرة الحسابات حالياً."
     }
   },
@@ -446,53 +313,27 @@
     "loading": "جارٍ التحميل...",
     "empty": "لا توجد فواتير بعد.",
     "zatcaStatus": {
-      "not_applicable": "غير منطبق",
-      "pending_clearance": "قيد الإرسال (قياسية)",
-      "pending_reporting": "قيد الإرسال (مبسّطة)",
-      "cleared": "مُرسلة/مقبولة (قياسية)",
-      "reported": "مُرسلة/مقبولة (مبسّطة)",
-      "rejected": "مرفوضة/فشل الإرسال"
+      "not_applicable": "غير منطبق", "pending_clearance": "قيد الإرسال (قياسية)", "pending_reporting": "قيد الإرسال (مبسّطة)",
+      "cleared": "مُرسلة/مقبولة (قياسية)", "reported": "مُرسلة/مقبولة (مبسّطة)", "rejected": "مرفوضة/فشل الإرسال"
     },
     "zatcaBadge": {
-      "not_applicable": "غير منطبق",
-      "pending_clearance": "قيد الإرسال",
-      "pending_reporting": "قيد الإرسال",
-      "cleared": "مُرسلة/مقبولة",
-      "reported": "مُرسلة/مقبولة",
-      "rejected": "مرفوضة"
+      "not_applicable": "غير منطبق", "pending_clearance": "قيد الإرسال", "pending_reporting": "قيد الإرسال",
+      "cleared": "مُرسلة/مقبولة", "reported": "مُرسلة/مقبولة", "rejected": "مرفوضة"
     },
     "table": {
-      "number": "الرقم",
-      "customer": "العميل",
-      "date": "التاريخ",
-      "total": "الإجمالي",
-      "postingStatus": "حالة الترحيل",
-      "paymentStatus": "حالة السداد",
-      "zatcaStatus": "حالة زاتكا",
-      "actions": "الإجراءات",
-      "posted": "مرحّلة",
-      "draft": "مسودة"
+      "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي",
+      "postingStatus": "حالة الترحيل", "paymentStatus": "حالة السداد", "zatcaStatus": "حالة زاتكا", "actions": "الإجراءات",
+      "posted": "مرحّلة", "draft": "مسودة"
     },
     "actionsMenu": {
-      "view": "عرض الفاتورة",
-      "edit": "تعديل الفاتورة",
-      "unpost": "فك الترحيل",
-      "unposting": "قيد الإرسال...",
-      "resendZatca": "إعادة إرسال الفاتورة لزاتكا",
-      "delete": "حذف الفاتورة",
-      "print": "طباعة الفاتورة",
-      "duplicate": "نسخ الفاتورة (فاتورة جديدة بنفس البيانات)",
-      "unlinkReceipt": "فك ربط سند القبض",
-      "linkReceipt": "ربط بسند قبض",
-      "viewJournalEntry": "عرض القيد المحاسبي",
-      "sendEmailTo": "إرسال بالإيميل إلى {{email}}",
-      "sendEmailNoAddress": "إرسال بالإيميل (لا يوجد بريد مسجَّل)",
+      "view": "عرض الفاتورة", "edit": "تعديل الفاتورة", "unpost": "فك الترحيل", "unposting": "قيد الإرسال...",
+      "resendZatca": "إعادة إرسال الفاتورة لزاتكا", "delete": "حذف الفاتورة",
+      "print": "طباعة الفاتورة", "duplicate": "نسخ الفاتورة (فاتورة جديدة بنفس البيانات)",
+      "unlinkReceipt": "فك ربط سند القبض", "linkReceipt": "ربط بسند قبض", "viewJournalEntry": "عرض القيد المحاسبي",
+      "sendEmailTo": "إرسال بالإيميل إلى {{email}}", "sendEmailNoAddress": "إرسال بالإيميل (لا يوجد بريد مسجَّل)",
       "reprintReceipt": "إعادة طباعة كإيصال حراري (58/80مم)"
     },
-    "blockAction": {
-      "edit": "تعديل",
-      "delete": "حذف"
-    },
+    "blockAction": { "edit": "تعديل", "delete": "حذف" },
     "notify": {
       "linkedToReceipt": "هذه الفاتورة مرتبطة بسند قبض — يجب فك الربط أولاً قبل الحذف.",
       "confirmDelete": "حذف الفاتورة {{number}}؟",
@@ -555,22 +396,12 @@
       "savedNewPosted": "تم حفظ الفاتورة وترحيلها، وأُنشئ القيد المحاسبي المرتبط بها.",
       "savedNewDraft": "تم حفظ الفاتورة كمسودة.",
       "lines": {
-        "itemDescription": "الصنف/الوصف",
-        "account": "الحساب",
-        "quantity": "الكمية",
-        "unitPrice": "سعر الوحدة",
-        "priceIncludesVat": "شامل الضريبة؟",
-        "vatApplicable": "خاضع للضريبة؟",
-        "discount": "خصم %",
-        "totalWithVat": "الإجمالي شامل الضريبة",
+        "itemDescription": "الصنف/الوصف", "account": "الحساب", "quantity": "الكمية", "unitPrice": "سعر الوحدة",
+        "priceIncludesVat": "شامل الضريبة؟", "vatApplicable": "خاضع للضريبة؟", "discount": "خصم %", "totalWithVat": "الإجمالي شامل الضريبة",
         "itemPlaceholder": "اكتب اسم الصنف أو وصفاً حراً",
-        "addNewItem": "+ إضافة صنف جديد",
-        "addNewItemNamed": "+ إضافة صنف جديد باسم \"{{name}}\"",
-        "total": "الإجمالي",
-        "addLine": "+ إضافة سطر",
-        "subtotal": "الإجمالي قبل الضريبة",
-        "vat": "ضريبة القيمة المضافة (15٪)",
-        "grandTotal": "الإجمالي شامل الضريبة"
+        "addNewItem": "+ إضافة صنف جديد", "addNewItemNamed": "+ إضافة صنف جديد باسم \"{{name}}\"",
+        "total": "الإجمالي", "addLine": "+ إضافة سطر",
+        "subtotal": "الإجمالي قبل الضريبة", "vat": "ضريبة القيمة المضافة (15٪)", "grandTotal": "الإجمالي شامل الضريبة"
       }
     },
     "view": {
@@ -587,38 +418,21 @@
       "lastEmail": "آخر إرسال بالإيميل",
       "sentTo": "إلى",
       "emailFailed": "(فشل الإرسال)",
-      "table": {
-        "description": "الوصف",
-        "quantity": "الكمية",
-        "unitPrice": "سعر الوحدة",
-        "discount": "خصم %",
-        "beforeTax": "قبل الضريبة",
-        "tax": "الضريبة",
-        "total": "الإجمالي"
-      },
+      "table": { "description": "الوصف", "quantity": "الكمية", "unitPrice": "سعر الوحدة", "discount": "خصم %", "beforeTax": "قبل الضريبة", "tax": "الضريبة", "total": "الإجمالي" },
       "qrLabel": "رمز الاستجابة السريعة (QR) — وفق معيار زاتكا",
       "qrPayloadSummary": "عرض حمولة البيانات المشفّرة (Base64 TLV)"
     }
   },
   "statementOfAccount": {
-    "customer": "العميل",
-    "supplier": "المورد",
+    "customer": "العميل", "supplier": "المورد",
     "titleFailed": "تعذّر تحميل كشف الحساب",
     "close": "إغلاق",
     "subtitle": "كشف حساب {{party}}",
     "vatNumber": "الرقم الضريبي",
     "closingBalance": "الرصيد الختامي",
-    "customerDebit": "مدين (له علينا)",
-    "customerCredit": "دائن (لنا عليه)",
-    "supplierCredit": "دائن (علينا له)",
-    "supplierDebit": "مدين (له علينا)",
-    "table": {
-      "date": "التاريخ",
-      "memo": "البيان",
-      "debit": "مدين",
-      "credit": "دائن",
-      "balance": "الرصيد"
-    },
+    "customerDebit": "مدين (له علينا)", "customerCredit": "دائن (لنا عليه)",
+    "supplierCredit": "دائن (علينا له)", "supplierDebit": "مدين (له علينا)",
+    "table": { "date": "التاريخ", "memo": "البيان", "debit": "مدين", "credit": "دائن", "balance": "الرصيد" },
     "empty": "لا توجد حركات على هذا الحساب بعد.",
     "noMemo": "—"
   },
@@ -630,22 +444,11 @@
       "editTitle": "تعديل بيانات العميل",
       "searchPlaceholder": "ابحث بالاسم، السجل التجاري، الجوال، البريد الإلكتروني، أو الرقم الضريبي...",
       "noSearchResults": "لا توجد نتائج مطابقة للبحث.",
-      "name": "اسم العميل",
-      "type": "نوع العميل",
-      "typeBusiness": "منشأة (فاتورة ضريبية قياسية)",
-      "typeIndividual": "فرد (فاتورة ضريبية مبسّطة)",
-      "vatNumber": "الرقم الضريبي (15 رقم)",
-      "crNumber": "السجل التجاري",
-      "unifiedEntityNumber": "الرقم الموحد للمنشأة",
-      "phone": "الجوال",
-      "email": "البريد الإلكتروني",
-      "city": "المدينة",
+      "name": "اسم العميل", "type": "نوع العميل", "typeBusiness": "منشأة (فاتورة ضريبية قياسية)", "typeIndividual": "فرد (فاتورة ضريبية مبسّطة)",
+      "vatNumber": "الرقم الضريبي (15 رقم)", "crNumber": "السجل التجاري", "unifiedEntityNumber": "الرقم الموحد للمنشأة", "phone": "الجوال", "email": "البريد الإلكتروني", "city": "المدينة",
       "addressTitle": "العنوان الوطني الكامل",
-      "addressBuilding": "المبنى",
-      "addressStreet": "الشارع",
-      "addressDistrict": "الحي",
-      "addressPostalCode": "الرمز البريدي",
-      "addressAdditionalNo": "الرقم الإضافي",
+      "addressBuilding": "المبنى", "addressStreet": "الشارع", "addressDistrict": "الحي",
+      "addressPostalCode": "الرمز البريدي", "addressAdditionalNo": "الرقم الإضافي",
       "aiExtractTitle": "تعبئة تلقائية بالذكاء الاصطناعي من مستند رسمي",
       "aiExtractNote": "ارفع أياً من المستندات التالية بشكل منفصل ليستخرج النظام الحقول المرتبطة به تلقائياً، وتظهر لك كمعاينة في الفورم أعلاه للمراجعة والتعديل قبل الضغط على \"حفظ\" — لا يُحفظ شيء تلقائياً.",
       "docTypeCr": "رفع السجل التجاري",
@@ -657,29 +460,14 @@
       "extractionHighConfidence": "تم استخراج البيانات التالية تلقائياً — راجعها ثم اضغط \"حفظ\": {{note}}",
       "extractionFailed": "فشل رفع/تحليل المستند: {{message}}",
       "uploadedDocsTitle": "المستندات الرسمية المرفوعة",
-      "paymentTerms": "شروط الدفع",
-      "paymentCash": "نقدي",
-      "payment30": "آجل 30 يوم",
-      "payment60": "آجل 60 يوم",
-      "payment90": "آجل 90 يوم",
+      "paymentTerms": "شروط الدفع", "paymentCash": "نقدي", "payment30": "آجل 30 يوم", "payment60": "آجل 60 يوم", "payment90": "آجل 90 يوم",
       "creditLimit": "حد الائتمان ({{currency}})",
-      "cancel": "إلغاء",
-      "saveChanges": "حفظ التعديلات",
-      "saveCustomer": "حفظ بيانات العميل",
+      "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveCustomer": "حفظ بيانات العميل",
       "loading": "جارٍ التحميل...",
-      "table": {
-        "name": "الاسم",
-        "type": "النوع",
-        "vatNumber": "الرقم الضريبي",
-        "paymentTerms": "شروط الدفع",
-        "creditLimit": "حد الائتمان"
-      },
-      "typeBusinessShort": "منشأة",
-      "typeIndividualShort": "فرد",
-      "viewStatement": "كشف حساب العميل",
-      "viewInChart": "عرض في شجرة الحسابات",
-      "edit": "تعديل",
-      "delete": "حذف",
+      "table": { "name": "الاسم", "type": "النوع", "vatNumber": "الرقم الضريبي", "paymentTerms": "شروط الدفع", "creditLimit": "حد الائتمان" },
+      "typeBusinessShort": "منشأة", "typeIndividualShort": "فرد",
+      "viewStatement": "كشف حساب العميل", "viewInChart": "عرض في شجرة الحسابات",
+      "edit": "تعديل", "delete": "حذف",
       "empty": "لا يوجد عملاء بعد.",
       "confirmDelete": "حذف العميل \"{{name}}\"؟",
       "deleted": "تم حذف العميل \"{{name}}\"."
@@ -724,29 +512,14 @@
     "quotations": {
       "addBtn": "+ إضافة عرض سعر",
       "loading": "جارٍ التحميل...",
-      "status": {
-        "draft": "مسودة",
-        "converted": "تم التحويل"
-      },
-      "table": {
-        "number": "الرقم",
-        "customer": "العميل",
-        "date": "التاريخ",
-        "validUntil": "صالح حتى",
-        "total": "الإجمالي",
-        "status": "الحالة",
-        "actions": "الإجراءات"
-      },
+      "status": { "draft": "مسودة", "converted": "تم التحويل" },
+      "table": { "number": "الرقم", "customer": "العميل", "date": "التاريخ", "validUntil": "صالح حتى", "total": "الإجمالي", "status": "الحالة", "actions": "الإجراءات" },
       "actions": {
-        "view": "عرض عرض السعر",
-        "print": "طباعة عرض السعر",
-        "edit": "تعديل عرض السعر",
-        "editDisabled": "لا يمكن تعديل عرض سعر تم تحويله لفاتورة",
+        "view": "عرض عرض السعر", "print": "طباعة عرض السعر",
+        "edit": "تعديل عرض السعر", "editDisabled": "لا يمكن تعديل عرض سعر تم تحويله لفاتورة",
         "duplicate": "نسخ عرض السعر (عرض جديد بنفس البيانات)",
-        "viewInvoice": "عرض الفاتورة الناتجة",
-        "convert": "تحويل إلى فاتورة مبيعات",
-        "delete": "حذف عرض السعر",
-        "deleteDisabled": "لا يمكن حذف عرض سعر تم تحويله لفاتورة"
+        "viewInvoice": "عرض الفاتورة الناتجة", "convert": "تحويل إلى فاتورة مبيعات",
+        "delete": "حذف عرض السعر", "deleteDisabled": "لا يمكن حذف عرض سعر تم تحويله لفاتورة"
       },
       "confirmConvert": "تحويل عرض السعر {{number}} إلى فاتورة مبيعات؟ لا يمكن التراجع عن هذا الإجراء.",
       "convertedMsg": "تم تحويل عرض السعر {{number}} إلى الفاتورة {{invoiceNumber}}، ورُحِّل قيدها المحاسبي تلقائياً.",
@@ -759,17 +532,11 @@
         "titleDuplicate": "عرض سعر جديد (نسخ من {{number}})",
         "titleCreate": "عرض سعر جديد",
         "close": "إغلاق",
-        "customer": "العميل",
-        "customerSearchPlaceholder": "ابحث عن عميل أو اكتب اسماً جديداً",
-        "addNewCustomer": "+ إضافة عميل جديد",
-        "addNewCustomerNamed": "+ إضافة عميل جديد باسم \"{{name}}\"",
-        "quoteDate": "تاريخ العرض",
-        "validUntil": "صالح حتى (اختياري)",
+        "customer": "العميل", "customerSearchPlaceholder": "ابحث عن عميل أو اكتب اسماً جديداً",
+        "addNewCustomer": "+ إضافة عميل جديد", "addNewCustomerNamed": "+ إضافة عميل جديد باسم \"{{name}}\"",
+        "quoteDate": "تاريخ العرض", "validUntil": "صالح حتى (اختياري)",
         "noCustomersYet": "لا يوجد عملاء بعد — اكتب اسماً في حقل العميل أعلاه لإضافته.",
-        "print": "طباعة",
-        "cancel": "إلغاء",
-        "saveChanges": "حفظ التعديلات",
-        "saveQuote": "حفظ عرض السعر",
+        "print": "طباعة", "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveQuote": "حفظ عرض السعر",
         "errChooseCustomer": "اختر عميلاً أولاً",
         "errAddLine": "أضف سطراً واحداً على الأقل بحساب وسعر صحيحين",
         "savedEdit": "تم حفظ التعديلات على عرض السعر.",
@@ -778,424 +545,191 @@
       },
       "view": {
         "subtitle": "عرض سعر",
-        "quoteNumber": "رقم العرض",
-        "date": "التاريخ",
-        "validUntil": "صالح حتى",
-        "issuer": "مقدّم العرض",
-        "vatNumber": "الرقم الضريبي",
-        "vatNotEntered": "لم يُدخل بعد",
-        "customer": "العميل",
-        "customerVat": "الرقم الضريبي للعميل",
-        "vatUnregistered": "غير مسجّل (فرد)",
-        "table": {
-          "description": "الوصف",
-          "quantity": "الكمية",
-          "unitPrice": "سعر الوحدة",
-          "discount": "خصم %",
-          "beforeTax": "قبل الضريبة",
-          "tax": "الضريبة",
-          "total": "الإجمالي"
-        },
+        "quoteNumber": "رقم العرض", "date": "التاريخ", "validUntil": "صالح حتى",
+        "issuer": "مقدّم العرض", "vatNumber": "الرقم الضريبي", "vatNotEntered": "لم يُدخل بعد",
+        "customer": "العميل", "customerVat": "الرقم الضريبي للعميل", "vatUnregistered": "غير مسجّل (فرد)",
+        "table": { "description": "الوصف", "quantity": "الكمية", "unitPrice": "سعر الوحدة", "discount": "خصم %", "beforeTax": "قبل الضريبة", "tax": "الضريبة", "total": "الإجمالي" },
         "total": "الإجمالي",
         "alreadyConverted": "تم تحويل عرض السعر هذا إلى فاتورة مبيعات بالفعل."
       }
     },
     "returns": {
-      "customer": "العميل",
-      "originalInvoice": "الفاتورة الأصلية (اختياري)",
-      "noLink": "— بدون ربط —",
-      "date": "تاريخ المردود",
-      "refundMethod": "طريقة الرد",
-      "refundAccount": "خصم من رصيد العميل (ذمم)",
-      "refundCash": "رد نقدي",
-      "refundBank": "رد بنكي",
+      "customer": "العميل", "originalInvoice": "الفاتورة الأصلية (اختياري)", "noLink": "— بدون ربط —",
+      "date": "تاريخ المردود", "refundMethod": "طريقة الرد",
+      "refundAccount": "خصم من رصيد العميل (ذمم)", "refundCash": "رد نقدي", "refundBank": "رد بنكي",
       "reason": "سبب المردود",
       "saveAndPost": "حفظ وترحيل المردود",
       "loading": "جارٍ التحميل...",
-      "table": {
-        "number": "الرقم",
-        "customer": "العميل",
-        "date": "التاريخ",
-        "total": "الإجمالي",
-        "status": "الحالة"
-      },
-      "posted": "مرحّل",
-      "draft": "مسودة",
-      "unpost": "فك الترحيل",
-      "attachmentsShow": "المرفقات",
-      "attachmentsHide": "إخفاء المرفقات",
+      "table": { "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي", "status": "الحالة" },
+      "posted": "مرحّل", "draft": "مسودة",
+      "unpost": "فك الترحيل", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
       "empty": "لا توجد مردودات بعد."
     },
     "receipts": {
-      "customer": "العميل",
-      "date": "تاريخ السند",
-      "method": "طريقة التحصيل",
-      "methodCash": "كاش",
-      "methodBank": "بنك",
-      "bankAccount": "الحساب البنكي",
-      "noBankAccounts": "لا توجد حسابات بنكية مُصنَّفة",
-      "bankAccountPlaceholder": "ابحث عن حساب بنكي...",
+      "customer": "العميل", "date": "تاريخ السند", "method": "طريقة التحصيل", "methodCash": "كاش", "methodBank": "بنك",
+      "bankAccount": "الحساب البنكي", "noBankAccounts": "لا توجد حسابات بنكية مُصنَّفة", "bankAccountPlaceholder": "ابحث عن حساب بنكي...",
       "outstandingTitle": "الفواتير المستحقة على هذا العميل",
-      "table": {
-        "invoice": "الفاتورة",
-        "total": "الإجمالي",
-        "paid": "المسدد",
-        "remaining": "المتبقي",
-        "allocated": "المبلغ المخصص"
-      },
+      "table": { "invoice": "الفاتورة", "total": "الإجمالي", "paid": "المسدد", "remaining": "المتبقي", "allocated": "المبلغ المخصص" },
       "noOutstanding": "لا توجد فواتير مستحقة على هذا العميل.",
       "saveAndPost": "حفظ وترحيل السند ({{amount}} {{currency}})",
       "loading": "جارٍ التحميل...",
-      "listTable": {
-        "number": "الرقم",
-        "customer": "العميل",
-        "date": "التاريخ",
-        "method": "الطريقة",
-        "total": "الإجمالي",
-        "status": "الحالة"
-      },
-      "posted": "مرحّل",
-      "draft": "مسودة",
-      "unpost": "فك الترحيل",
-      "attachmentsShow": "المرفقات",
-      "attachmentsHide": "إخفاء المرفقات",
+      "listTable": { "number": "الرقم", "customer": "العميل", "date": "التاريخ", "method": "الطريقة", "total": "الإجمالي", "status": "الحالة" },
+      "posted": "مرحّل", "draft": "مسودة",
+      "unpost": "فك الترحيل", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
       "empty": "لا توجد سندات قبض بعد."
     },
     "stations": {
-      "station": "المحطة (مركز التكلفة)",
-      "date": "التاريخ",
-      "liters": "الكمية (لتر)",
-      "pricePerLiter": "سعر اللتر",
-      "shiftNote": "ملاحظة الوردية",
+      "station": "المحطة (مركز التكلفة)", "date": "التاريخ", "liters": "الكمية (لتر)", "pricePerLiter": "سعر اللتر", "shiftNote": "ملاحظة الوردية",
       "save": "حفظ السجل",
       "loading": "جارٍ التحميل...",
-      "table": {
-        "date": "التاريخ",
-        "station": "المحطة",
-        "liters": "الكمية",
-        "pricePerLiter": "سعر اللتر",
-        "total": "الإجمالي"
-      },
+      "table": { "date": "التاريخ", "station": "المحطة", "liters": "الكمية", "pricePerLiter": "سعر اللتر", "total": "الإجمالي" },
       "delete": "حذف",
       "confirmDelete": "حذف هذا السجل؟",
       "empty": "لا توجد مبيعات محطات مسجّلة بعد."
     },
     "reports": {
-      "tabs": {
-        "byCustomer": "حسب العميل",
-        "monthly": "الاتجاه الشهري",
-        "aging": "أعمار الذمم",
-        "vat": "ملخص الضريبة"
-      },
-      "byCustomer": {
-        "customer": "العميل",
-        "invoiceCount": "عدد الفواتير",
-        "totalInvoices": "إجمالي المبيعات",
-        "totalReturns": "إجمالي المردودات",
-        "netSales": "صافي المبيعات",
-        "outstanding": "الرصيد المستحق"
-      },
-      "monthly": {
-        "month": "الشهر",
-        "total": "إجمالي المبيعات"
-      },
-      "aging": {
-        "customer": "العميل",
-        "current": "0-30 يوم",
-        "d30": "31-60 يوم",
-        "d60": "61-90 يوم",
-        "d90": "أكثر من 90 يوم",
-        "total": "الإجمالي",
-        "empty": "لا توجد ذمم مستحقة."
-      },
-      "vat": {
-        "salesBase": "إجمالي المبيعات قبل الضريبة",
-        "outputVat": "ضريبة المخرجات",
-        "returnsBase": "إجمالي المردودات قبل الضريبة",
-        "returnsVat": "ضريبة المردودات",
-        "netOutputVat": "صافي ضريبة المخرجات المستحقة"
-      },
+      "tabs": { "byCustomer": "حسب العميل", "monthly": "الاتجاه الشهري", "aging": "أعمار الذمم", "vat": "ملخص الضريبة" },
+      "byCustomer": { "customer": "العميل", "invoiceCount": "عدد الفواتير", "totalInvoices": "إجمالي المبيعات", "totalReturns": "إجمالي المردودات", "netSales": "صافي المبيعات", "outstanding": "الرصيد المستحق" },
+      "monthly": { "month": "الشهر", "total": "إجمالي المبيعات" },
+      "aging": { "customer": "العميل", "current": "0-30 يوم", "d30": "31-60 يوم", "d60": "61-90 يوم", "d90": "أكثر من 90 يوم", "total": "الإجمالي", "empty": "لا توجد ذمم مستحقة." },
+      "vat": { "salesBase": "إجمالي المبيعات قبل الضريبة", "outputVat": "ضريبة المخرجات", "returnsBase": "إجمالي المردودات قبل الضريبة", "returnsVat": "ضريبة المردودات", "netOutputVat": "صافي ضريبة المخرجات المستحقة" },
       "empty": "لا توجد بيانات بعد."
     },
     "newCustomerModal": {
-      "title": "إضافة عميل جديد",
-      "close": "إغلاق",
-      "name": "اسم العميل",
-      "vatNumber": "الرقم الضريبي (اختياري)",
-      "phone": "رقم الهاتف (اختياري)",
-      "email": "البريد الإلكتروني (اختياري)",
+      "title": "إضافة عميل جديد", "close": "إغلاق",
+      "name": "اسم العميل", "vatNumber": "الرقم الضريبي (اختياري)", "phone": "رقم الهاتف (اختياري)", "email": "البريد الإلكتروني (اختياري)",
       "errNameRequired": "اسم العميل مطلوب",
-      "cancel": "إلغاء",
-      "saving": "جارٍ الحفظ...",
-      "save": "حفظ العميل"
+      "cancel": "إلغاء", "saving": "جارٍ الحفظ...", "save": "حفظ العميل"
     },
     "newSellableItemModal": {
-      "title": "إضافة صنف جديد (خدمة)",
-      "close": "إغلاق",
-      "name": "اسم الصنف",
-      "salePrice": "سعر البيع الافتراضي",
-      "revenueAccount": "الحساب المرتبط (إيراد)",
-      "vatApplicable": "خاضع لضريبة القيمة المضافة",
+      "title": "إضافة صنف جديد (خدمة)", "close": "إغلاق",
+      "name": "اسم الصنف", "salePrice": "سعر البيع الافتراضي", "revenueAccount": "الحساب المرتبط (إيراد)", "vatApplicable": "خاضع لضريبة القيمة المضافة",
       "note": "لضبط صنف مخزوني أو أصل ثابت أو مادة أولية، استخدم شاشة \"الأصناف والمنتجات\" مباشرة.",
       "errRequired": "اسم الصنف والحساب المرتبط مطلوبان",
-      "cancel": "إلغاء",
-      "saving": "جارٍ الحفظ...",
-      "save": "حفظ الصنف"
+      "cancel": "إلغاء", "saving": "جارٍ الحفظ...", "save": "حفظ الصنف"
     },
     "linkPaymentModal": {
-      "title": "ربط الفاتورة {{number}} بسند قبض",
-      "close": "إغلاق",
+      "title": "ربط الفاتورة {{number}} بسند قبض", "close": "إغلاق",
       "summary": "الإجمالي {{total}} {{currency}} — المسدد {{paid}} {{currency}} — المتبقي {{due}} {{currency}}",
       "linkedTitle": "السندات المرتبطة حالياً",
-      "table": {
-        "receiptNumber": "رقم السند",
-        "date": "التاريخ",
-        "status": "الحالة",
-        "allocated": "المبلغ المخصص"
-      },
-      "posted": "مرحّل",
-      "draft": "مسودة",
-      "unlink": "فك الربط",
+      "table": { "receiptNumber": "رقم السند", "date": "التاريخ", "status": "الحالة", "allocated": "المبلغ المخصص" },
+      "posted": "مرحّل", "draft": "مسودة", "unlink": "فك الربط",
       "newLinkTitle": "ربط بسند قبض جديد أو موجود",
-      "existingReceipt": "سند موجود",
-      "newReceipt": "سند جديد",
-      "receipt": "السند",
-      "choose": "— اختر —",
+      "existingReceipt": "سند موجود", "newReceipt": "سند جديد",
+      "receipt": "السند", "choose": "— اختر —",
       "allocatedAmount": "المبلغ المخصص",
-      "receiptDate": "تاريخ السند",
-      "collectionMethod": "طريقة التحصيل",
-      "methodCash": "كاش",
-      "methodBank": "بنك",
+      "receiptDate": "تاريخ السند", "collectionMethod": "طريقة التحصيل", "methodCash": "كاش", "methodBank": "بنك",
       "amount": "المبلغ",
-      "saving": "جارٍ الحفظ...",
-      "linkExisting": "ربط بالسند المحدد",
-      "createAndLink": "إنشاء السند وربطه",
+      "saving": "جارٍ الحفظ...", "linkExisting": "ربط بالسند المحدد", "createAndLink": "إنشاء السند وربطه",
       "close2": "إغلاق",
       "confirmUnlink": "فك ربط الفاتورة عن سند القبض {{receiptNumber}}؟",
       "linkedMsg": "تم ربط الفاتورة {{number}} بسند القبض بنجاح.",
       "createdAndLinkedMsg": "تم إنشاء سند قبض جديد وربطه بالفاتورة {{number}} بنجاح.",
       "unlinkedMsg": "تم فك ربط الفاتورة {{number}} عن سند القبض {{receiptNumber}}. حالة السداد الآن: {{status}}.",
-      "statusUnpaid": "غير مسددة",
-      "statusPartial": "مسددة جزئياً",
-      "statusPaid": "مسددة"
+      "statusUnpaid": "غير مسددة", "statusPartial": "مسددة جزئياً", "statusPaid": "مسددة"
     },
     "postedBlockModal": {
-      "title": "لازم تفك ترحيل الفاتورة أولاً",
-      "close": "إغلاق",
+      "title": "لازم تفك ترحيل الفاتورة أولاً", "close": "إغلاق",
       "message": "الفاتورة {{number}} مرحّلة، ولا يمكن {{action}} إلا بعد فك ترحيلها. بعد فك الترحيل ستتحول الفاتورة إلى مسودة ويُحذف القيد المحاسبي المرتبط بها، وعندها فقط يمكنك {{action}}.",
-      "cancel": "إلغاء",
-      "unpost": "فك الترحيل",
+      "cancel": "إلغاء", "unpost": "فك الترحيل",
       "unpostTitle": "فك ترحيل الفاتورة {{number}}"
     },
     "sendInvoiceEmailModal": {
-      "title": "إرسال الفاتورة {{number}} بالإيميل",
-      "close": "إغلاق",
+      "title": "إرسال الفاتورة {{number}} بالإيميل", "close": "إغلاق",
       "note": "لا يوجد بريد إلكتروني مسجَّل لهذا العميل — أدخل بريداً بديلاً لإرسال نسخة الفاتورة إليه لمرة واحدة.",
-      "email": "البريد الإلكتروني",
-      "errRequired": "البريد الإلكتروني مطلوب",
+      "email": "البريد الإلكتروني", "errRequired": "البريد الإلكتروني مطلوب",
       "errFailed": "تعذّر إرسال الفاتورة — حاول مرة أخرى لاحقاً.",
-      "cancel": "إلغاء",
-      "sending": "جارٍ الإرسال...",
-      "send": "إرسال",
+      "cancel": "إلغاء", "sending": "جارٍ الإرسال...", "send": "إرسال",
       "sentMsg": "تم إرسال الفاتورة {{number}} إلى {{email}}."
     },
     "reprintReceiptModal": {
-      "title": "إعادة طباعة الإيصال — {{number}}",
-      "close": "إغلاق",
+      "title": "إعادة طباعة الإيصال — {{number}}", "close": "إغلاق",
       "errBluetooth": "تعذّرت الطباعة عبر البلوتوث",
-      "printingBluetooth": "جارٍ الطباعة...",
-      "printBluetooth": "طباعة عبر البلوتوث",
-      "printNormal": "طباعة عادية"
+      "printingBluetooth": "جارٍ الطباعة...", "printBluetooth": "طباعة عبر البلوتوث", "printNormal": "طباعة عادية"
     },
     "journalEntryViewModal": {
-      "title": "القيد المحاسبي للفاتورة",
-      "close": "إغلاق",
+      "title": "القيد المحاسبي للفاتورة", "close": "إغلاق",
       "loading": "جارٍ التحميل...",
-      "memo": "البيان",
-      "noMemo": "بدون بيان",
-      "date": "التاريخ",
-      "table": {
-        "account": "الحساب",
-        "department": "القسم",
-        "debit": "مدين",
-        "credit": "دائن"
-      },
+      "memo": "البيان", "noMemo": "بدون بيان", "date": "التاريخ",
+      "table": { "account": "الحساب", "department": "القسم", "debit": "مدين", "credit": "دائن" },
       "total": "الإجمالي"
     }
   },
   "purchases": {
     "suppliers": {
       "editingBanner": "تعديل المورد — {{name}}",
-      "name": "اسم المورد",
-      "vatNumber": "الرقم الضريبي",
-      "crNumber": "السجل التجاري",
-      "phone": "الجوال",
-      "email": "البريد الإلكتروني",
-      "city": "المدينة",
-      "paymentTerms": "شروط الدفع",
-      "paymentCash": "نقدي",
-      "payment30": "آجل 30 يوم",
-      "payment60": "آجل 60 يوم",
-      "payment90": "آجل 90 يوم",
-      "cancel": "إلغاء",
-      "saveChanges": "حفظ التعديلات",
-      "saveSupplier": "حفظ بيانات المورد",
+      "name": "اسم المورد", "vatNumber": "الرقم الضريبي", "crNumber": "السجل التجاري", "phone": "الجوال", "email": "البريد الإلكتروني", "city": "المدينة",
+      "paymentTerms": "شروط الدفع", "paymentCash": "نقدي", "payment30": "آجل 30 يوم", "payment60": "آجل 60 يوم", "payment90": "آجل 90 يوم",
+      "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveSupplier": "حفظ بيانات المورد",
       "loading": "جارٍ التحميل...",
-      "table": {
-        "name": "الاسم",
-        "vatNumber": "الرقم الضريبي",
-        "city": "المدينة",
-        "paymentTerms": "شروط الدفع"
-      },
-      "viewStatement": "كشف حساب المورد",
-      "viewInChart": "عرض في شجرة الحسابات",
-      "edit": "تعديل",
-      "delete": "حذف",
+      "table": { "name": "الاسم", "vatNumber": "الرقم الضريبي", "city": "المدينة", "paymentTerms": "شروط الدفع" },
+      "viewStatement": "كشف حساب المورد", "viewInChart": "عرض في شجرة الحسابات",
+      "edit": "تعديل", "delete": "حذف",
       "empty": "لا يوجد موردون بعد.",
       "confirmDelete": "حذف المورد \"{{name}}\"؟",
       "deleted": "تم حذف المورد \"{{name}}\"."
     },
     "invoices": {
-      "supplier": "المورد",
-      "invoiceDate": "تاريخ الفاتورة",
+      "supplier": "المورد", "invoiceDate": "تاريخ الفاتورة",
       "addSupplierFirst": "أضف مورداً أولاً من تبويب \"الموردون\".",
       "saveAndPost": "حفظ وترحيل الفاتورة",
       "loading": "جارٍ التحميل...",
-      "table": {
-        "number": "الرقم",
-        "supplier": "المورد",
-        "date": "التاريخ",
-        "total": "الإجمالي",
-        "status": "الحالة"
-      },
-      "posted": "مرحّلة",
-      "draft": "مسودة",
-      "view": {
-        "subtitle": "فاتورة مشتريات",
-        "invoiceNumber": "رقم الفاتورة",
-        "date": "التاريخ",
-        "buyer": "المشتري",
-        "buyerVat": "الرقم الضريبي للمشتري",
-        "vatNotEntered": "لم يُدخل بعد",
-        "supplier": "المورد",
-        "supplierVat": "الرقم الضريبي للمورد",
-        "vatUnregistered": "غير مسجّل",
-        "table": {
-          "description": "الوصف",
-          "quantity": "الكمية",
-          "unitPrice": "سعر الوحدة",
-          "discount": "خصم %",
-          "beforeTax": "قبل الضريبة",
-          "tax": "الضريبة",
-          "total": "الإجمالي"
-        },
-        "total": "الإجمالي"
-      },
-      "print": "طباعة الفاتورة",
-      "delete": "حذف",
-      "post": "ترحيل",
-      "unpost": "فك الترحيل",
-      "attachmentsShow": "المرفقات",
-      "attachmentsHide": "إخفاء المرفقات",
+      "table": { "number": "الرقم", "supplier": "المورد", "date": "التاريخ", "total": "الإجمالي", "status": "الحالة" },
+      "posted": "مرحّلة", "draft": "مسودة",
+      "view": "عرض الفاتورة", "print": "طباعة الفاتورة", "delete": "حذف", "post": "ترحيل", "unpost": "فك الترحيل",
+      "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
       "confirmDelete": "حذف الفاتورة {{number}}؟",
       "empty": "لا توجد فواتير مشتريات بعد.",
       "lines": {
-        "itemDescription": "الصنف/الوصف",
-        "account": "الحساب",
-        "itemDetails": "تفاصيل الصنف",
-        "quantity": "الكمية",
-        "unitPrice": "سعر الوحدة",
-        "priceIncludesVat": "شامل الضريبة؟",
-        "discount": "خصم %",
+        "itemDescription": "الصنف/الوصف", "account": "الحساب", "itemDetails": "تفاصيل الصنف",
+        "quantity": "الكمية", "unitPrice": "سعر الوحدة", "priceIncludesVat": "شامل الضريبة؟", "discount": "خصم %",
         "totalWithVat": "الإجمالي شامل الضريبة",
         "itemPlaceholder": "اختر صنفاً من الكتالوج أو اكتب وصفاً حراً",
         "noMatchingItems": "لا توجد أصناف مطابقة",
         "derivedAccountNote": "يُشتق تلقائياً من نوع الصنف",
         "chooseWarehouse": "— اختر المستودع —",
-        "usefulLifeYears": "العمر الإنتاجي (سنوات)",
-        "salvageValue": "قيمة الخردة",
-        "total": "الإجمالي",
-        "addLine": "+ إضافة سطر",
-        "subtotal": "الإجمالي قبل الضريبة",
-        "vat": "ضريبة القيمة المضافة (15٪)",
-        "grandTotal": "الإجمالي شامل الضريبة"
+        "usefulLifeYears": "العمر الإنتاجي (سنوات)", "salvageValue": "قيمة الخردة",
+        "total": "الإجمالي", "addLine": "+ إضافة سطر",
+        "subtotal": "الإجمالي قبل الضريبة", "vat": "ضريبة القيمة المضافة (15٪)", "grandTotal": "الإجمالي شامل الضريبة"
+      },
+      "view": {
+        "subtitle": "فاتورة مشتريات",
+        "invoiceNumber": "رقم الفاتورة", "date": "التاريخ",
+        "buyer": "المشتري", "buyerVat": "الرقم الضريبي للمشتري", "vatNotEntered": "لم يُدخل بعد",
+        "supplier": "المورد", "supplierVat": "الرقم الضريبي للمورد", "vatUnregistered": "غير مسجّل",
+        "table": { "description": "الوصف", "quantity": "الكمية", "unitPrice": "سعر الوحدة", "discount": "خصم %", "beforeTax": "قبل الضريبة", "tax": "الضريبة", "total": "الإجمالي" },
+        "total": "الإجمالي"
       }
     },
     "returns": {
-      "supplier": "المورد",
-      "originalInvoice": "الفاتورة الأصلية (اختياري)",
-      "noLink": "— بدون ربط —",
-      "date": "تاريخ المردود",
-      "reason": "سبب المردود",
+      "supplier": "المورد", "originalInvoice": "الفاتورة الأصلية (اختياري)", "noLink": "— بدون ربط —",
+      "date": "تاريخ المردود", "reason": "سبب المردود",
       "saveAndPost": "حفظ وترحيل المردود",
       "loading": "جارٍ التحميل...",
-      "table": {
-        "number": "الرقم",
-        "supplier": "المورد",
-        "date": "التاريخ",
-        "total": "الإجمالي",
-        "status": "الحالة"
-      },
-      "posted": "مرحّل",
-      "draft": "مسودة",
-      "unpost": "فك الترحيل",
-      "attachmentsShow": "المرفقات",
-      "attachmentsHide": "إخفاء المرفقات",
+      "table": { "number": "الرقم", "supplier": "المورد", "date": "التاريخ", "total": "الإجمالي", "status": "الحالة" },
+      "posted": "مرحّل", "draft": "مسودة",
+      "unpost": "فك الترحيل", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
       "empty": "لا توجد مردودات مشتريات بعد."
     },
     "reports": {
-      "tabs": {
-        "bySupplier": "حسب المورد",
-        "monthly": "الاتجاه الشهري",
-        "aging": "أعمار الذمم",
-        "vat": "ملخص الضريبة"
-      },
-      "bySupplier": {
-        "supplier": "المورد",
-        "invoiceCount": "عدد الفواتير",
-        "totalInvoices": "إجمالي المشتريات",
-        "totalReturns": "إجمالي المردودات",
-        "netPurchases": "صافي المشتريات"
-      },
-      "monthly": {
-        "month": "الشهر",
-        "total": "إجمالي المشتريات"
-      },
-      "aging": {
-        "supplier": "المورد",
-        "current": "0-30 يوم",
-        "d30": "31-60 يوم",
-        "d60": "61-90 يوم",
-        "d90": "أكثر من 90 يوم",
-        "total": "الإجمالي",
-        "empty": "لا توجد ذمم مستحقة."
-      },
+      "tabs": { "bySupplier": "حسب المورد", "monthly": "الاتجاه الشهري", "aging": "أعمار الذمم", "vat": "ملخص الضريبة" },
+      "bySupplier": { "supplier": "المورد", "invoiceCount": "عدد الفواتير", "totalInvoices": "إجمالي المشتريات", "totalReturns": "إجمالي المردودات", "netPurchases": "صافي المشتريات" },
+      "monthly": { "month": "الشهر", "total": "إجمالي المشتريات" },
+      "aging": { "supplier": "المورد", "current": "0-30 يوم", "d30": "31-60 يوم", "d60": "61-90 يوم", "d90": "أكثر من 90 يوم", "total": "الإجمالي", "empty": "لا توجد ذمم مستحقة." },
       "agingNote": "ملاحظة: لا يوجد بعد موديول \"سند صرف\" لتسجيل سداد فواتير الموردين، لذا تُعتبر كل فاتورة مرحّلة مستحقة بالكامل.",
-      "vat": {
-        "purchasesBase": "إجمالي المشتريات قبل الضريبة",
-        "inputVat": "ضريبة المدخلات",
-        "returnsBase": "إجمالي المردودات قبل الضريبة",
-        "returnsVat": "ضريبة المردودات",
-        "netInputVat": "صافي ضريبة المدخلات القابلة للخصم"
-      },
+      "vat": { "purchasesBase": "إجمالي المشتريات قبل الضريبة", "inputVat": "ضريبة المدخلات", "returnsBase": "إجمالي المردودات قبل الضريبة", "returnsVat": "ضريبة المردودات", "netInputVat": "صافي ضريبة المدخلات القابلة للخصم" },
       "empty": "لا توجد بيانات بعد."
     }
   },
   "inventory": {
     "breadcrumb": "إدارة المخازن",
     "typeMeta": {
-      "inventory": "مخزون",
-      "expense": "مصروف",
-      "service": "خدمة",
-      "fixed_asset": "أصل ثابت",
-      "raw_material": "مادة أولية",
-      "bundle": "منتج مجمّع"
+      "inventory": "مخزون", "expense": "مصروف", "service": "خدمة",
+      "fixed_asset": "أصل ثابت", "raw_material": "مادة أولية", "bundle": "منتج مجمّع"
     },
     "accountLabels": {
-      "stockAccountId": "حساب المخزون",
-      "cogsAccountId": "حساب تكلفة البضاعة المباعة",
-      "revenueAccountId": "حساب الإيراد",
-      "expenseAccountId": "حساب المصروف"
+      "stockAccountId": "حساب المخزون", "cogsAccountId": "حساب تكلفة البضاعة المباعة",
+      "revenueAccountId": "حساب الإيراد", "expenseAccountId": "حساب المصروف"
     },
     "items": {
       "addNew": "إضافة صنف جديد",
@@ -1203,227 +737,121 @@
       "importBtn": "استيراد أصناف",
       "exportBtn": "تصدير أصناف",
       "exportFileName": "الأصناف.csv",
-      "csvHeaders": {
-        "code": "كود الصنف",
-        "name": "اسم الصنف",
-        "type": "نوع الصنف",
-        "unit": "الوحدة",
-        "category": "التصنيف",
-        "averageCost": "متوسط التكلفة",
-        "salePrice": "سعر البيع",
-        "reorderLevel": "حد إعادة الطلب"
-      },
+      "csvHeaders": { "code": "كود الصنف", "name": "اسم الصنف", "type": "نوع الصنف", "unit": "الوحدة", "category": "التصنيف", "averageCost": "متوسط التكلفة", "salePrice": "سعر البيع", "reorderLevel": "حد إعادة الطلب" },
       "unitsDisabled": "إدارة وحدات القياس غير متاحة في واجهة API الحالية",
       "unitsBtn": "وحدات القياس",
       "transferBtn": "نقل بين المستودعات",
       "columnsBtn": "الأعمدة",
       "columnsMenuTitle": "أعمدة إضافية للجدول",
-      "extraColumns": {
-        "lastPurchasePrice": "آخر سعر شراء",
-        "averageCost": "متوسط التكلفة",
-        "stockValue": "قيمة المخزون"
-      },
+      "extraColumns": { "lastPurchasePrice": "آخر سعر شراء", "averageCost": "متوسط التكلفة", "stockValue": "قيمة المخزون" },
       "form": {
-        "titleEdit": "تعديل الصنف — {{name}}",
-        "titleCreate": "إضافة صنف جديد",
-        "close": "إغلاق",
-        "type": "نوع الصنف",
-        "code": "كود الصنف",
-        "name": "اسم الصنف",
+        "titleEdit": "تعديل الصنف — {{name}}", "titleCreate": "إضافة صنف جديد", "close": "إغلاق",
+        "type": "نوع الصنف", "code": "كود الصنف", "name": "اسم الصنف",
         "barcode": "الباركود (اختياري، لمسحه في نقطة البيع)",
-        "unit": "الوحدة",
-        "unitPlaceholder": "لتر، قطعة...",
-        "category": "التصنيف",
+        "unit": "الوحدة", "unitPlaceholder": "لتر، قطعة...", "category": "التصنيف",
         "reorderLevel": "حد إعادة الطلب",
         "allowDirectSale": "يمكن بيع هذه المادة الأولية مباشرةً للعملاء",
         "assetCategory": "فئة الأصل (تحدد حسابات الاقتناء/الإهلاك تلقائياً عند الشراء)",
         "noCategoryYet": "— بلا فئة بعد —",
         "assetCategoryNote": "فئة الأصل مطلوبة عند شراء الصنف فعلياً عبر فاتورة مشتريات (تُحدَّد الحسابات منها تلقائياً)؛ يمكن حفظ الصنف بلا فئة الآن وإكمالها لاحقاً. عمر الأصل وقيمة الخردة يُدخَلان في سطر فاتورة الشراء.",
-        "salePrice": "سعر البيع المقترح",
-        "vatApplicable": "خاضع لضريبة القيمة المضافة",
+        "salePrice": "سعر البيع المقترح", "vatApplicable": "خاضع لضريبة القيمة المضافة",
         "bom": {
-          "title": "مكوّنات المنتج (BOM)",
-          "addComponent": "+ إضافة مكوّن",
-          "component": "المكوّن",
-          "quantityPerUnit": "الكمية لكل وحدة",
-          "chooseItem": "— اختر صنفاً —",
+          "title": "مكوّنات المنتج (BOM)", "addComponent": "+ إضافة مكوّن",
+          "component": "المكوّن", "quantityPerUnit": "الكمية لكل وحدة", "chooseItem": "— اختر صنفاً —",
           "emptyHint": "أضف مكوّناً واحداً على الأقل"
         },
-        "cancel": "إلغاء",
-        "saveChanges": "حفظ التعديلات",
-        "saveItem": "حفظ الصنف"
+        "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveItem": "حفظ الصنف"
       },
-      "tabActive": "نشط",
-      "tabArchived": "مؤرشف",
+      "tabActive": "نشط", "tabArchived": "مؤرشف",
       "filters": {
-        "searchAria": "بحث بالاسم أو الكود",
-        "searchPlaceholder": "ابحث باسم الصنف أو الكود...",
-        "typeAria": "نوع الصنف",
-        "allTypes": "كل أنواع الأصناف",
-        "categoryAria": "التصنيف",
-        "allCategories": "كل التصنيفات",
-        "lowStock": "مخزون منخفض",
-        "clearFilters": "مسح الفلاتر",
-        "showResults": "إظهار النتائج"
+        "searchAria": "بحث بالاسم أو الكود", "searchPlaceholder": "ابحث باسم الصنف أو الكود...",
+        "typeAria": "نوع الصنف", "allTypes": "كل أنواع الأصناف",
+        "categoryAria": "التصنيف", "allCategories": "كل التصنيفات",
+        "lowStock": "مخزون منخفض", "clearFilters": "مسح الفلاتر", "showResults": "إظهار النتائج"
       },
       "loading": "جارٍ تحميل الأصناف...",
       "table": {
-        "code": "كود الصنف",
-        "name": "اسم الصنف",
-        "type": "نوع الصنف",
-        "unit": "الوحدة",
-        "quantity": "الكمية الحالية",
-        "lastPurchasePrice": "آخر سعر شراء",
-        "salePrice": "سعر البيع",
-        "averageCost": "متوسط التكلفة",
-        "stockValue": "قيمة المخزون",
-        "actions": "الإجراءات"
+        "code": "كود الصنف", "name": "اسم الصنف", "type": "نوع الصنف", "unit": "الوحدة",
+        "quantity": "الكمية الحالية", "lastPurchasePrice": "آخر سعر شراء", "salePrice": "سعر البيع",
+        "averageCost": "متوسط التكلفة", "stockValue": "قيمة المخزون", "actions": "الإجراءات"
       },
-      "notCategorized": "غير مصنّف",
-      "unspecifiedType": "غير محدد",
+      "notCategorized": "غير مصنّف", "unspecifiedType": "غير محدد",
       "actions": {
-        "view": "عرض",
-        "edit": "تعديل",
-        "duplicate": "نسخ الصنف",
-        "archive": "أرشفة الصنف",
-        "unarchive": "إلغاء الأرشفة",
-        "delete": "حذف",
-        "deleteTitle": "الحذف — قد يمنعه النظام إذا كان الصنف مرتبطاً بمعاملات",
+        "view": "عرض", "edit": "تعديل", "duplicate": "نسخ الصنف",
+        "archive": "أرشفة الصنف", "unarchive": "إلغاء الأرشفة",
+        "delete": "حذف", "deleteTitle": "الحذف — قد يمنعه النظام إذا كان الصنف مرتبطاً بمعاملات",
         "print": "طباعة بطاقة الصنف"
       },
-      "emptyTitle": "لا توجد أصناف مطابقة",
-      "emptySubtitle": "جرّب تعديل معايير البحث أو الفلترة",
+      "emptyTitle": "لا توجد أصناف مطابقة", "emptySubtitle": "جرّب تعديل معايير البحث أو الفلترة",
       "footer": "عرض {{shown}} من أصل {{total}} صنف",
       "confirmDelete": "حذف الصنف \"{{name}}\"؟",
       "duplicateSuffix": "نسخة",
       "view": {
-        "cardLabel": "بطاقة الصنف — {{type}}",
-        "close": "إغلاق",
-        "category": "التصنيف",
-        "unit": "الوحدة",
-        "averageCost": "متوسط التكلفة",
-        "salePrice": "سعر البيع",
-        "reorderLevel": "حد إعادة الطلب",
-        "quantity": "الكمية الحالية",
+        "cardLabel": "بطاقة الصنف — {{type}}", "close": "إغلاق",
+        "category": "التصنيف", "unit": "الوحدة", "averageCost": "متوسط التكلفة",
+        "salePrice": "سعر البيع", "reorderLevel": "حد إعادة الطلب", "quantity": "الكمية الحالية",
         "print": "طباعة البطاقة"
       }
     },
     "warehouses": {
-      "name": "اسم المستودع",
-      "code": "كود المستودع",
-      "location": "الموقع",
+      "name": "اسم المستودع", "code": "كود المستودع", "location": "الموقع",
       "isDefault": "المستودع الافتراضي لصرف المبيعات",
-      "cancel": "إلغاء",
-      "saveChanges": "حفظ التعديلات",
-      "addWarehouse": "إضافة مستودع",
+      "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "addWarehouse": "إضافة مستودع",
       "loading": "جارٍ التحميل...",
-      "table": {
-        "name": "اسم المستودع",
-        "code": "الكود",
-        "location": "الموقع",
-        "isDefault": "الافتراضي",
-        "status": "الحالة"
-      },
-      "active": "نشط",
-      "archived": "مؤرشف",
-      "edit": "تعديل",
-      "unarchive": "إلغاء الأرشفة",
-      "archive": "أرشفة",
-      "delete": "حذف",
+      "table": { "name": "اسم المستودع", "code": "الكود", "location": "الموقع", "isDefault": "الافتراضي", "status": "الحالة" },
+      "active": "نشط", "archived": "مؤرشف",
+      "edit": "تعديل", "unarchive": "إلغاء الأرشفة", "archive": "أرشفة", "delete": "حذف",
       "empty": "لا توجد مستودعات بعد.",
       "confirmDelete": "حذف المستودع \"{{name}}\"؟"
     },
     "stockInOut": {
-      "movementType": "الحركة",
-      "movementIn": "إضافة مخزون",
-      "movementOut": "حذف / إتلاف مخزون",
-      "item": "الصنف",
-      "warehouse": "المستودع",
-      "quantity": "الكمية",
-      "unitCost": "تكلفة الوحدة",
-      "date": "التاريخ",
-      "note": "ملاحظة",
+      "movementType": "الحركة", "movementIn": "إضافة مخزون", "movementOut": "حذف / إتلاف مخزون",
+      "item": "الصنف", "warehouse": "المستودع", "quantity": "الكمية", "unitCost": "تكلفة الوحدة",
+      "date": "التاريخ", "note": "ملاحظة",
       "currentBalance": "الرصيد الحالي لهذا الصنف في هذا المستودع:",
       "save": "حفظ الحركة",
       "removeMovementTitle": "حذف الحركة المخزنية"
     },
     "issue": {
-      "item": "الصنف",
-      "warehouse": "المستودع",
-      "department": "القسم المستفيد",
-      "quantity": "الكمية",
-      "date": "التاريخ",
-      "note": "ملاحظة",
-      "availableBalance": "الرصيد المتاح:",
-      "exceedsBalance": "— الكمية المطلوبة أكبر من الرصيد المتاح",
+      "item": "الصنف", "warehouse": "المستودع", "department": "القسم المستفيد",
+      "quantity": "الكمية", "date": "التاريخ", "note": "ملاحظة",
+      "availableBalance": "الرصيد المتاح:", "exceedsBalance": "— الكمية المطلوبة أكبر من الرصيد المتاح",
       "issueBtn": "صرف من المخزون",
       "removeMovementTitle": "حذف حركة الصرف"
     },
     "transfer": {
-      "item": "الصنف",
-      "fromWarehouse": "من موقع (المصدر)",
-      "toCompany": "الشركة المستقبلة",
-      "toWarehouse": "إلى موقع (الوجهة)",
-      "quantity": "الكمية",
-      "date": "التاريخ",
+      "item": "الصنف", "fromWarehouse": "من موقع (المصدر)", "toCompany": "الشركة المستقبلة",
+      "toWarehouse": "إلى موقع (الوجهة)", "quantity": "الكمية", "date": "التاريخ",
       "availableBalance": "الرصيد المتاح بالمصدر:",
       "crossCompanyNote": "— تحويل بين شركتين مختلفتين، سيُرحّل عبر حساب جاري بين الشركات.",
       "execute": "تنفيذ التحويل",
       "removeMovementTitle": "حذف عملية التحويل"
     },
     "movementsTable": {
-      "date": "التاريخ",
-      "item": "الصنف",
-      "location": "الموقع",
-      "type": "النوع",
-      "quantity": "الكمية",
-      "note": "ملاحظة",
-      "delete": "حذف",
-      "types": {
-        "in": "إدخال",
-        "out": "إخراج/إتلاف",
-        "issue": "صرف",
-        "transfer_out": "تحويل صادر",
-        "transfer_in": "تحويل وارد"
-      },
+      "date": "التاريخ", "item": "الصنف", "location": "الموقع", "type": "النوع", "quantity": "الكمية", "note": "ملاحظة", "delete": "حذف",
+      "types": { "in": "إدخال", "out": "إخراج/إتلاف", "issue": "صرف", "transfer_out": "تحويل صادر", "transfer_in": "تحويل وارد" },
       "empty": "لا توجد حركات بعد."
     },
     "stockReport": {
-      "item": "الصنف",
-      "code": "الكود",
-      "location": "الموقع",
-      "balance": "الرصيد",
-      "costPrice": "سعر التكلفة",
-      "value": "القيمة",
+      "item": "الصنف", "code": "الكود", "location": "الموقع", "balance": "الرصيد", "costPrice": "سعر التكلفة", "value": "القيمة",
       "empty": "لا توجد أرصدة مخزون بعد."
     }
   },
   "fixedAssets": {
     "breadcrumb": "الأصول الثابتة",
-    "status": {
-      "active": "نشط",
-      "disposed": "مستبعد"
-    },
-    "depreciationMethod": {
-      "straight_line": "قسط ثابت",
-      "declining_balance": "قسط متناقص"
-    },
+    "status": { "active": "نشط", "disposed": "مستبعد" },
+    "depreciationMethod": { "straight_line": "قسط ثابت", "declining_balance": "قسط متناقص" },
     "register": {
       "editingBanner": "تعديل الأصل — {{name}} (لا يمكن تعديل التكلفة أو تاريخ الشراء بعد الترحيل)",
-      "name": "اسم الأصل",
-      "category": "التصنيف",
-      "assetCategory": "فئة الأصل (تحدد الحسابات المحاسبية تلقائياً)",
-      "chooseCategory": "— اختر فئة —",
+      "name": "اسم الأصل", "category": "التصنيف",
+      "assetCategory": "فئة الأصل (تحدد الحسابات المحاسبية تلقائياً)", "chooseCategory": "— اختر فئة —",
       "account": "الحساب المحاسبي",
       "useRawAccount": "اختيار حساب محاسبي مباشر بدل فئة (لأصل بلا فئة مناسبة بعد)",
       "serialNumber": "الرقم التسلسلي (اختياري)",
-      "chassisNumber": "رقم الهيكل",
-      "plateNumber": "رقم اللوحة",
-      "costCenter": "الموقع/الفرع (اختياري)",
-      "none": "— بلا —",
+      "chassisNumber": "رقم الهيكل", "plateNumber": "رقم اللوحة",
+      "costCenter": "الموقع/الفرع (اختياري)", "none": "— بلا —",
       "custodian": "عهدة لدى موظف (اختياري — تتبّع بلا أثر محاسبي)",
-      "purchaseDate": "تاريخ الشراء",
-      "cost": "التكلفة",
+      "purchaseDate": "تاريخ الشراء", "cost": "التكلفة",
       "depreciationStartDate": "تاريخ بدء الإهلاك (اختياري — افتراضياً تاريخ الشراء)",
       "usefulLifeYears": "العمر الإنتاجي (سنوات)",
       "annualDepreciationRate": "نسبة الإهلاك السنوية",
@@ -1431,122 +859,71 @@
       "decliningSoon": "قسط متناقص (قريباً)",
       "salvageValue": "القيمة التخريدية",
       "isDepreciable": "يُستهلك (أوقف التفعيل للأراضي مثلاً)",
-      "paymentMethod": "طريقة السداد",
-      "paymentCash": "نقدي",
-      "paymentBank": "بنكي",
-      "paymentCredit": "آجل (ذمم دائنة)",
-      "cancel": "إلغاء",
-      "saveChanges": "حفظ التعديلات",
-      "saveAsset": "حفظ الأصل وترحيل الشراء",
+      "paymentMethod": "طريقة السداد", "paymentCash": "نقدي", "paymentBank": "بنكي", "paymentCredit": "آجل (ذمم دائنة)",
+      "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveAsset": "حفظ الأصل وترحيل الشراء",
       "loading": "جارٍ التحميل...",
       "table": {
-        "assetNumber": "رقم الأصل",
-        "asset": "الأصل",
-        "category": "التصنيف",
-        "purchaseDate": "تاريخ الشراء",
-        "cost": "التكلفة",
-        "accumulatedDepreciation": "مجمع الإهلاك",
-        "netBookValue": "صافي القيمة الدفترية",
+        "assetNumber": "رقم الأصل", "asset": "الأصل", "category": "التصنيف", "purchaseDate": "تاريخ الشراء",
+        "cost": "التكلفة", "accumulatedDepreciation": "مجمع الإهلاك", "netBookValue": "صافي القيمة الدفترية",
         "status": "الحالة"
       },
-      "edit": "تعديل",
-      "delete": "حذف",
-      "attachmentsShow": "المرفقات",
-      "attachmentsHide": "إخفاء المرفقات",
+      "edit": "تعديل", "delete": "حذف",
+      "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
       "printCard": "طباعة البطاقة",
       "empty": "لا توجد أصول ثابتة مسجّلة بعد.",
       "deleteTitle": "حذف الأصل"
     },
     "depreciation": {
-      "month": "الشهر",
-      "showResults": "إظهار النتائج",
+      "month": "الشهر", "showResults": "إظهار النتائج",
       "alreadyPosted": "تم ترحيل إهلاك هذا الشهر مسبقاً بمبلغ {{amount}} {{currency}}.",
       "postBtn": "ترحيل إهلاك الشهر",
-      "table": {
-        "asset": "الأصل",
-        "cost": "التكلفة",
-        "usefulLife": "العمر الإنتاجي",
-        "monthlyDepreciation": "الإهلاك الشهري"
-      },
-      "years": "سنة",
-      "total": "الإجمالي",
+      "table": { "asset": "الأصل", "cost": "التكلفة", "usefulLife": "العمر الإنتاجي", "monthlyDepreciation": "الإهلاك الشهري" },
+      "years": "سنة", "total": "الإجمالي",
       "empty": "لا توجد أصول نشطة لحساب إهلاكها."
     },
     "disposal": {
-      "asset": "الأصل",
-      "disposalDate": "تاريخ الاستبعاد",
+      "asset": "الأصل", "disposalDate": "تاريخ الاستبعاد",
       "salePrice": "سعر البيع (صفر إن كان إتلافاً)",
-      "receiveMethod": "طريقة الاستلام",
-      "methodCash": "نقدي",
-      "methodBank": "بنكي",
-      "accumulatedDepreciation": "مجمع الإهلاك حتى تاريخ الاستبعاد",
-      "netBookValue": "صافي القيمة الدفترية",
-      "gain": "ربح الاستبعاد",
-      "loss": "خسارة الاستبعاد",
+      "receiveMethod": "طريقة الاستلام", "methodCash": "نقدي", "methodBank": "بنكي",
+      "accumulatedDepreciation": "مجمع الإهلاك حتى تاريخ الاستبعاد", "netBookValue": "صافي القيمة الدفترية",
+      "gain": "ربح الاستبعاد", "loss": "خسارة الاستبعاد",
       "postBtn": "ترحيل الاستبعاد",
       "empty": "لا توجد أصول نشطة لاستبعادها."
     },
     "reports": {
-      "activeCount": "عدد الأصول النشطة",
-      "disposedCount": "عدد الأصول المستبعدة",
-      "totalCost": "إجمالي التكلفة",
-      "totalNetBookValue": "إجمالي صافي القيمة الدفترية للأصول النشطة",
+      "activeCount": "عدد الأصول النشطة", "disposedCount": "عدد الأصول المستبعدة",
+      "totalCost": "إجمالي التكلفة", "totalNetBookValue": "إجمالي صافي القيمة الدفترية للأصول النشطة",
       "byCategory": "حسب التصنيف",
-      "table": {
-        "category": "التصنيف",
-        "count": "العدد",
-        "totalCost": "إجمالي التكلفة"
-      },
+      "table": { "category": "التصنيف", "count": "العدد", "totalCost": "إجمالي التكلفة" },
       "loading": "جارٍ التحميل..."
     },
     "categories": {
-      "title": "فئات الأصول",
-      "newCategory": "+ فئة جديدة",
-      "table": {
-        "category": "الفئة",
-        "assetAccount": "حساب الاقتناء",
-        "accumulatedDepreciationAccount": "حساب مجمع الإهلاك",
-        "depreciationExpenseAccount": "حساب مصروف الإهلاك"
-      },
-      "edit": "تعديل",
-      "delete": "حذف",
+      "title": "فئات الأصول", "newCategory": "+ فئة جديدة",
+      "table": { "category": "الفئة", "assetAccount": "حساب الاقتناء", "accumulatedDepreciationAccount": "حساب مجمع الإهلاك", "depreciationExpenseAccount": "حساب مصروف الإهلاك" },
+      "edit": "تعديل", "delete": "حذف",
       "empty": "لا توجد فئات أصول مسجَّلة بعد.",
-      "formTitleEdit": "تعديل فئة — {{name}}",
-      "formTitleCreate": "فئة جديدة",
-      "groupName": "المجموعة (للعرض/التجميع فقط)",
-      "groupNamePlaceholder": "مثال: مركبات",
-      "categoryName": "اسم الفئة",
-      "categoryNamePlaceholder": "مثال: سيارات صالون",
+      "formTitleEdit": "تعديل فئة — {{name}}", "formTitleCreate": "فئة جديدة",
+      "groupName": "المجموعة (للعرض/التجميع فقط)", "groupNamePlaceholder": "مثال: مركبات",
+      "categoryName": "اسم الفئة", "categoryNamePlaceholder": "مثال: سيارات صالون",
       "assetAccount": "حساب اقتناء الأصل",
       "accumulatedDepreciationAccount": "حساب مجمع الإهلاك",
       "depreciationExpenseAccount": "حساب مصروف الإهلاك",
-      "cancel": "إلغاء",
-      "saveChanges": "حفظ التعديلات",
-      "saveCategory": "حفظ الفئة",
+      "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveCategory": "حفظ الفئة",
       "errAllFieldsRequired": "كل الحقول مطلوبة: المجموعة، الفئة، والحسابات الثلاثة",
       "confirmDelete": "حذف فئة \"{{name}}\"؟"
     },
     "printCard": {
       "subtitle": "بطاقة أصل ثابت",
-      "assetNumber": "رقم الأصل",
-      "status": "الحالة",
-      "name": "اسم الأصل",
-      "category": "الفئة/التصنيف",
-      "purchaseDate": "تاريخ الشراء",
-      "depreciationStartDate": "تاريخ بدء الإهلاك",
-      "cost": "التكلفة",
-      "salvageValue": "القيمة التخريدية",
-      "usefulLifeYears": "العمر الإنتاجي",
-      "years": "سنوات",
+      "assetNumber": "رقم الأصل", "status": "الحالة",
+      "name": "اسم الأصل", "category": "الفئة/التصنيف",
+      "purchaseDate": "تاريخ الشراء", "depreciationStartDate": "تاريخ بدء الإهلاك",
+      "cost": "التكلفة", "salvageValue": "القيمة التخريدية",
+      "usefulLifeYears": "العمر الإنتاجي", "years": "سنوات",
       "annualDepreciationRate": "نسبة الإهلاك السنوية",
       "depreciationMethod": "طريقة الإهلاك",
-      "accumulatedDepreciation": "مجمع الإهلاك حتى اليوم",
-      "netBookValue": "صافي القيمة الدفترية",
-      "serialNumber": "الرقم التسلسلي",
-      "chassisNumber": "رقم الهيكل",
-      "plateNumber": "رقم اللوحة",
-      "location": "الموقع/الفرع",
-      "custodian": "عهدة لدى"
+      "accumulatedDepreciation": "مجمع الإهلاك حتى اليوم", "netBookValue": "صافي القيمة الدفترية",
+      "serialNumber": "الرقم التسلسلي", "chassisNumber": "رقم الهيكل", "plateNumber": "رقم اللوحة",
+      "location": "الموقع/الفرع", "custodian": "عهدة لدى"
     }
   },
   "journalEntries": {
@@ -1562,67 +939,29 @@
     "bulkImport": "استيراد قيود بالجملة",
     "exportCsv": "تصدير Excel/CSV",
     "csvFileName": "القيود_اليومية.csv",
-    "csvHeaders": {
-      "entryNumber": "رقم القيد",
-      "date": "التاريخ",
-      "memo": "البيان",
-      "status": "الحالة",
-      "total": "الإجمالي"
-    },
+    "csvHeaders": { "entryNumber": "رقم القيد", "date": "التاريخ", "memo": "البيان", "status": "الحالة", "total": "الإجمالي" },
     "filters": {
-      "searchByMemo": "بحث بالبيان",
-      "entryNumber": "رقم القيد",
-      "entryNumberPlaceholder": "بحث برقم القيد",
-      "dateFrom": "من تاريخ",
-      "dateTo": "إلى تاريخ",
-      "showResults": "إظهار النتائج",
-      "clearFilters": "مسح الفلاتر",
+      "searchByMemo": "بحث بالبيان", "entryNumber": "رقم القيد", "entryNumberPlaceholder": "بحث برقم القيد",
+      "dateFrom": "من تاريخ", "dateTo": "إلى تاريخ", "showResults": "إظهار النتائج", "clearFilters": "مسح الفلاتر",
       "advancedToggle": "فلاتر متقدمة (حساب معيّن، حالة القيد، المبلغ)",
-      "specificAccount": "حساب معيّن",
-      "accountPlaceholder": "فلترة بحساب من الشجرة",
-      "allAccounts": "— كل الحسابات —",
-      "entryStatus": "حالة القيد",
-      "all": "— الكل —",
-      "saved": "محفوظ",
-      "posted": "مرحّل",
-      "amount": "المبلغ",
-      "amountFrom": "من",
-      "amountTo": "إلى"
+      "specificAccount": "حساب معيّن", "accountPlaceholder": "فلترة بحساب من الشجرة", "allAccounts": "— كل الحسابات —",
+      "entryStatus": "حالة القيد", "all": "— الكل —", "saved": "محفوظ", "posted": "مرحّل",
+      "amount": "المبلغ", "amountFrom": "من", "amountTo": "إلى"
     },
     "bulkToolbar": {
-      "selected": "قيد محدَّد",
-      "printSelected": "طباعة المحدَّد (قريباً)",
-      "exportSelected": "تصدير المحدَّد (قريباً)",
-      "clearSelection": "إلغاء التحديد",
-      "comingSoon": "إجراءات جماعية — قريباً"
+      "selected": "قيد محدَّد", "printSelected": "طباعة المحدَّد (قريباً)", "exportSelected": "تصدير المحدَّد (قريباً)",
+      "clearSelection": "إلغاء التحديد", "comingSoon": "إجراءات جماعية — قريباً"
     },
     "table": {
-      "selectAll": "تحديد الكل",
-      "selectEntry": "تحديد القيد",
-      "entryNumber": "رقم القيد",
-      "date": "التاريخ",
-      "memo": "البيان",
-      "noMemo": "بدون بيان",
-      "lineCount": "عدد الأسطر",
-      "amount": "المبلغ",
-      "status": "الحالة",
-      "actions": "الإجراءات"
+      "selectAll": "تحديد الكل", "selectEntry": "تحديد القيد",
+      "entryNumber": "رقم القيد", "date": "التاريخ", "memo": "البيان", "noMemo": "بدون بيان",
+      "lineCount": "عدد الأسطر", "amount": "المبلغ", "status": "الحالة", "actions": "الإجراءات"
     },
     "rowActions": {
-      "view": "عرض القيد",
-      "edit": "تعديل",
-      "editDisabled": "لا يمكن التعديل بعد الترحيل — استخدم عكس القيد لتصحيحه",
-      "delete": "حذف",
-      "post": "ترحيل",
-      "reverse": "عكس القيد",
-      "unpost": "فك الترحيل (super_admin فقط)",
-      "print": "طباعة القيد",
-      "downloadPdf": "تحميل PDF",
-      "duplicate": "نسخ القيد إلى قيد جديد",
-      "mirror": "إنشاء قيد مرآة في شركة أخرى",
-      "links": "روابط القيد",
-      "attachmentsShow": "المرفقات",
-      "attachmentsHide": "إخفاء المرفقات"
+      "view": "عرض القيد", "edit": "تعديل", "editDisabled": "لا يمكن التعديل بعد الترحيل — استخدم عكس القيد لتصحيحه",
+      "delete": "حذف", "post": "ترحيل", "reverse": "عكس القيد", "unpost": "فك الترحيل (super_admin فقط)",
+      "print": "طباعة القيد", "downloadPdf": "تحميل PDF", "duplicate": "نسخ القيد إلى قيد جديد", "mirror": "إنشاء قيد مرآة في شركة أخرى",
+      "links": "روابط القيد", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات"
     },
     "linkInfo": {
       "loading": "جارٍ تحميل الروابط...",
@@ -1631,10 +970,7 @@
       "reversedBy": "⚠ تم عكس هذا القيد بالقيد رقم {{id}} بتاريخ {{date}} — الحالة: {{status}}",
       "none": "لا توجد روابط حالياً."
     },
-    "emptyState": {
-      "title": "لا توجد قيود مطابقة",
-      "subtitle": "جرّب تعديل معايير البحث/الفلترة، أو أضف قيداً يدوياً جديداً."
-    },
+    "emptyState": { "title": "لا توجد قيود مطابقة", "subtitle": "جرّب تعديل معايير البحث/الفلترة، أو أضف قيداً يدوياً جديداً." },
     "confirmDelete": "حذف هذا القيد نهائياً؟",
     "unpostWarning": "فك ترحيل القيد سيسمح بتعديله أو حذفه، وهذا إجراء استثنائي يُسجَّل في سجل التدقيق. هل أنت متأكد؟",
     "unpostTitle": "فك ترحيل القيد {{number}}",
@@ -1644,31 +980,16 @@
       "reverseCreated": "تم إنشاء القيد العكسي كمسودة — راجعه ثم رحّله."
     },
     "form": {
-      "titleEdit": "تعديل القيد",
-      "titleDuplicate": "نسخ القيد إلى قيد جديد",
-      "titleCreate": "إضافة قيد يومية",
+      "titleEdit": "تعديل القيد", "titleDuplicate": "نسخ القيد إلى قيد جديد", "titleCreate": "إضافة قيد يومية",
       "close": "إغلاق",
       "duplicateBanner": "تم نسخ بيانات القيد — راجعها قبل حفظ القيد الجديد",
-      "date": "التاريخ",
-      "entryNumber": "رقم القيد",
-      "entryNumberPreviewTitle": "رقم معاينة فقط — لا يُحجز إلا لحظة الحفظ",
+      "date": "التاريخ", "entryNumber": "رقم القيد", "entryNumberPreviewTitle": "رقم معاينة فقط — لا يُحجز إلا لحظة الحفظ",
       "branchLabel": "الفرع (اختياري)",
       "branchEquivalent": "ما يعادل: {{amount}} {{currency}} (بعملة الفرع، للعرض فقط)",
-      "memo": "بيان القيد",
-      "memoPlaceholder": "وصف عام للقيد",
-      "lines": {
-        "account": "الحساب",
-        "debit": "مدين",
-        "credit": "دائن",
-        "description": "الوصف",
-        "costCenter": "مركز التكلفة",
-        "department": "القسم",
-        "branch": "الفرع"
-      },
+      "memo": "بيان القيد", "memoPlaceholder": "وصف عام للقيد",
+      "lines": { "account": "الحساب", "debit": "مدين", "credit": "دائن", "description": "الوصف", "costCenter": "مركز التكلفة", "department": "القسم", "branch": "الفرع" },
       "descriptionPlaceholder": "وصف خاص بهذا السطر",
-      "newAsset": "أصل جديد",
-      "newAdvance": "سلفة جديدة",
-      "existingAdvance": "سلفة موجودة",
+      "newAsset": "أصل جديد", "newAdvance": "سلفة جديدة", "existingAdvance": "سلفة موجودة",
       "advanceLabel": "سلفة — {{amount}} {{currency}}",
       "unlinkTitle": "إلغاء الربط",
       "total": "الإجمالي",
@@ -1677,10 +998,7 @@
       "unbalanced": "⚠ غير متوازن بفرق {{amount}} {{currency}}",
       "enterAmounts": "أدخل مبالغ السطور لعرض حالة التوازن",
       "shortcutsHint": "اختصارات: Ctrl+S حفظ · Ctrl+Enter حفظ وترحيل · Enter في \"الوصف\" يضيف سطراً جديداً",
-      "cancel": "إلغاء",
-      "save": "حفظ",
-      "saving": "جارٍ الحفظ...",
-      "saveAndPost": "حفظ وترحيل",
+      "cancel": "إلغاء", "save": "حفظ", "saving": "جارٍ الحفظ...", "saveAndPost": "حفظ وترحيل",
       "savedEditPosted": "تم حفظ التعديلات وترحيل القيد. لن يمكن تعديله مباشرة بعد الآن.",
       "savedEditDraft": "تم حفظ تعديلات القيد.",
       "savedDuplicatePosted": "تم إنشاء نسخة جديدة من القيد وترحيلها.",
@@ -1832,14 +1150,8 @@
     "openEntryTitle": "فتح تفاصيل هذا القيد في تبويب جديد",
     "csvFileName": "كشف_حساب.csv",
     "csvHeaders": {
-      "date": "التاريخ",
-      "entryNumber": "رقم القيد",
-      "memo": "البيان",
-      "description": "الوصف",
-      "postingAccount": "حساب الترحيل",
-      "debit": "مدين",
-      "credit": "دائن",
-      "balance": "الرصيد"
+      "date": "التاريخ", "entryNumber": "رقم القيد", "memo": "البيان", "description": "الوصف",
+      "postingAccount": "حساب الترحيل", "debit": "مدين", "credit": "دائن", "balance": "الرصيد"
     },
     "selectPrompt": "اختر حساباً من الأعلى واضغط \"إظهار النتائج\" لعرض كشف حركته.",
     "table": {
@@ -1933,19 +1245,12 @@
       "notes": "ملاحظات الموارد البشرية",
       "gosiApplicable": "خاضع للتأمينات الاجتماعية (GOSI)",
       "docsTitle": "المستندات والوثائق الرسمية",
-      "docTable": {
-        "type": "نوع المستند",
-        "number": "الرقم",
-        "expiry": "تاريخ الانتهاء"
-      },
+      "docTable": { "type": "نوع المستند", "number": "الرقم", "expiry": "تاريخ الانتهاء" },
       "addDoc": "+ إضافة مستند",
       "attachmentsTitle": "مرفقات ملف الموظف",
       "payrollComponentsTitle": "بنود الرواتب المُسنَدة لهذا الموظف",
       "payrollComponentsNote": "ليس كل الموظفين بحاجة لنفس بنود الراتب — حدّد هنا أي البنود تُطبَّق على هذا الموظف تحديداً، مع قيمة ثابتة للبنود التي تحتاج مبلغاً يدوياً لكل موظف.",
-      "payrollTable": {
-        "component": "البند",
-        "fixedValue": "القيمة الثابتة"
-      },
+      "payrollTable": { "component": "البند", "fixedValue": "القيمة الثابتة" },
       "savePayrollComponents": "حفظ بنود الرواتب",
       "cancelEdit": "إلغاء التعديل",
       "saveChanges": "حفظ التعديلات",
@@ -1955,33 +1260,13 @@
       "statusTerminated": "منتهي الخدمة",
       "export": {
         "sheetName": "الموظفون",
-        "employeeNumber": "الرقم الوظيفي",
-        "name": "اسم الموظف",
-        "idNumber": "رقم الهوية / الإقامة",
-        "nationality": "الجنسية",
-        "jobTitle": "المسمى الوظيفي",
-        "department": "القسم",
-        "workLocation": "موقع العمل",
-        "phone": "الجوال",
-        "workEmail": "البريد الوظيفي",
-        "hireDate": "تاريخ المباشرة",
-        "contractType": "نوع العقد",
-        "contractEnd": "نهاية العقد",
-        "basicSalary": "الراتب الأساسي",
-        "housingAllowance": "بدل السكن",
-        "transportAllowance": "بدل النقل",
-        "bankAccount": "الآيبان",
-        "annualLeaveDays": "رصيد الإجازة السنوي",
-        "status": "الحالة"
+        "employeeNumber": "الرقم الوظيفي", "name": "اسم الموظف", "idNumber": "رقم الهوية / الإقامة",
+        "nationality": "الجنسية", "jobTitle": "المسمى الوظيفي", "department": "القسم", "workLocation": "موقع العمل",
+        "phone": "الجوال", "workEmail": "البريد الوظيفي", "hireDate": "تاريخ المباشرة", "contractType": "نوع العقد",
+        "contractEnd": "نهاية العقد", "basicSalary": "الراتب الأساسي", "housingAllowance": "بدل السكن",
+        "transportAllowance": "بدل النقل", "bankAccount": "الآيبان", "annualLeaveDays": "رصيد الإجازة السنوي", "status": "الحالة"
       },
-      "table": {
-        "name": "الاسم",
-        "department": "القسم",
-        "basicSalary": "الأساسي",
-        "leaveBalance": "رصيد الإجازة (يوم / مبلغ)",
-        "eosBalance": "نهاية الخدمة حتى اليوم",
-        "leaveStatus": "حالة الإجازة"
-      },
+      "table": { "name": "الاسم", "department": "القسم", "basicSalary": "الأساسي", "leaveBalance": "رصيد الإجازة (يوم / مبلغ)", "eosBalance": "نهاية الخدمة حتى اليوم", "leaveStatus": "حالة الإجازة" },
       "statusOnLeave": "في إجازة",
       "statusActive": "نشط",
       "viewAccount": "عرض في شجرة الحسابات",
@@ -1989,25 +1274,14 @@
       "confirmDelete": "حذف ملف الموظف \"{{name}}\"؟"
     },
     "leaves": {
-      "status": {
-        "pending": "قيد المراجعة",
-        "approved": "معتمدة",
-        "rejected": "مرفوضة"
-      },
+      "status": { "pending": "قيد المراجعة", "approved": "معتمدة", "rejected": "مرفوضة" },
       "employee": "الموظف",
       "type": "نوع الإجازة",
       "fromDate": "من تاريخ",
       "toDate": "إلى تاريخ",
       "notes": "ملاحظات",
       "saveBtn": "تسجيل الإجازة",
-      "table": {
-        "employee": "الموظف",
-        "type": "النوع",
-        "from": "من",
-        "to": "إلى",
-        "days": "الأيام",
-        "status": "الحالة"
-      },
+      "table": { "employee": "الموظف", "type": "النوع", "from": "من", "to": "إلى", "days": "الأيام", "status": "الحالة" },
       "noManagerBadge": "بلا مدير مباشر",
       "noManagerTooltip": "هذا الموظف بلا مدير مباشر مسجّل — لن يظهر الطلب في أي صندوق وارد بالجوال، والموافقة/الرفض من هنا فقط",
       "approve": "اعتماد",
@@ -2030,6 +1304,7 @@
       "requestedDays": "أيام هذه التسوية",
       "leavePayAmount": "مبلغ بدل الإجازة",
       "adjustmentsSection": "راتب الفترة والإضافات والخصومات",
+      "previewLeavePay": "بدل أيام الإجازة الحالية",
       "employee": "الموظف",
       "leaveStartDate": "تاريخ بداية الإجازة",
       "bonuses": "إضافات / مكافآت",
@@ -2039,19 +1314,13 @@
       "previewDaysWorked": "أيام العمل المستحقة من الشهر",
       "previewMonthAmount": "راتب أيام الشهر قبل الإجازة",
       "previewAccrual": "رصيد الإجازة المتراكم",
-      "previewLeavePay": "بدل أيام الإجازة الحالية",
       "previewBonuses": "الإضافات",
       "previewDeductions": "الخصومات",
       "previewTicketVisa": "تذكرة السفر + التأشيرة",
       "previewNet": "صافي المبلغ المستحق",
       "saveBtn": "حفظ واعتماد المستحقات (يرحّل قيداً تلقائياً)",
       "allOnLeave": "كل موظفي هذه الشركة في إجازة حالياً.",
-      "table": {
-        "employee": "الموظف",
-        "leaveStart": "بداية الإجازة",
-        "net": "الصافي",
-        "status": "الحالة"
-      },
+      "table": { "employee": "الموظف", "leaveStart": "بداية الإجازة", "net": "الصافي", "status": "الحالة" },
       "statusDisbursed": "مصروفة",
       "statusCalculated": "محتسبة",
       "methodCash": "كاش",
@@ -2085,12 +1354,7 @@
       "employee": "الموظف",
       "allNote": "سيُطبَّق هذا الإجراء على كل موظفي هذه الشركة ({{count}} موظف).",
       "saveBtn": "حفظ الإجراء ({{count}} موظف)",
-      "table": {
-        "employee": "الموظف",
-        "action": "الإجراء",
-        "value": "القيمة",
-        "note": "ملاحظة"
-      },
+      "table": { "employee": "الموظف", "action": "الإجراء", "value": "القيمة", "note": "ملاحظة" },
       "days": "يوم",
       "empty": "لا توجد إجراءات مسجّلة لهذا الشهر بعد."
     },
@@ -2123,11 +1387,7 @@
       "total": "الإجمالي"
     },
     "eos": {
-      "reasons": {
-        "resign": "استقالة",
-        "employer": "إنهاء من صاحب العمل",
-        "contractEnd": "انتهاء مدة العقد"
-      },
+      "reasons": { "resign": "استقالة", "employer": "إنهاء من صاحب العمل", "contractEnd": "انتهاء مدة العقد" },
       "employee": "الموظف",
       "endDate": "تاريخ انتهاء الخدمة",
       "reason": "سبب انتهاء الخدمة",
@@ -2147,13 +1407,7 @@
       "allTypes": "كل الأنواع",
       "generateBtn": "إصدار التقرير",
       "title": "الموظفون بمستندات تنتهي خلال {{days}} يوم",
-      "table": {
-        "employee": "الموظف",
-        "docType": "نوع المستند",
-        "number": "الرقم",
-        "expiry": "تاريخ الانتهاء",
-        "daysLeft": "الأيام المتبقية"
-      },
+      "table": { "employee": "الموظف", "docType": "نوع المستند", "number": "الرقم", "expiry": "تاريخ الانتهاء", "daysLeft": "الأيام المتبقية" },
       "expiredSince": "منتهٍ منذ {{days}} يوم",
       "daysLeftValue": "{{days}} يوم",
       "empty": "لا توجد مستندات ضمن هذا النطاق."
@@ -2169,14 +1423,8 @@
       "basisBasic": "الراتب الأساسي",
       "basisBasicHousing": "الأساسي + بدل السكن",
       "basisTotal": "إجمالي الراتب والبدلات",
-      "kindLabels": {
-        "addition": "إضافة",
-        "deduction": "استقطاع"
-      },
-      "unitLabels": {
-        "hour": "ساعة",
-        "day": "يوم"
-      },
+      "kindLabels": { "addition": "إضافة", "deduction": "استقطاع" },
+      "unitLabels": { "hour": "ساعة", "day": "يوم" },
       "standardTitle": "الساعات والأيام القياسية للشهر",
       "standardNote": "تُستخدَم لتحويل أي بند مبني على \"سعر الساعة/اليوم\" (كأجر إضافي أو خصم غياب) إلى مبلغ شهري.",
       "standardHours": "ساعات العمل القياسية شهرياً",
@@ -2184,14 +1432,7 @@
       "componentsTitle": "بنود الرواتب",
       "newComponent": "+ بند جديد",
       "noComponentsWarning": "لا توجد بنود مخصّصة لهذه الشركة بعد — الرواتب تعمل حالياً بالبنود الاثني عشر الافتراضية (الأساسي، البدلات، التأمينات...) تلقائياً بلا أي إعداد. ⚠️ تنبيه هام: أول بند حقيقي تُنشئه هنا يُحوِّل رواتب هذه الشركة بالكامل واحداً للاعتماد على البنود المحفوظة فقط — أي أن البنود الاثني عشر القديمة (ومن ضمنها الأساسي والبدلات) تتوقف فوراً ولن تُحتسب إلا إن أُعيد إنشاؤها هنا يدوياً بنفس القيم. لا تُضِف أي بند يدوياً قبل تشغيل سكريبت النقل (backfillPayrollComponents.ts --commit) الذي يُنشئ كل البنود الاثني عشر دفعة واحدة بنفس القيم الحالية — راجع الفريق التقني أولاً.",
-      "table": {
-        "name": "الاسم",
-        "kind": "النوع",
-        "account": "الحساب",
-        "calcMethod": "طريقة الحساب",
-        "monthlyAdjustment": "تسوية شهرية",
-        "status": "الحالة"
-      },
+      "table": { "name": "الاسم", "kind": "النوع", "account": "الحساب", "calcMethod": "طريقة الحساب", "monthlyAdjustment": "تسوية شهرية", "status": "الحالة" },
       "systemTag": " (نظامي)",
       "calcMethodFormula": "صيغة مركّبة",
       "calcMethodFixed": "قيمة ثابتة",
@@ -2212,11 +1453,7 @@
       "calcMethodFixedOption": "قيمة ثابتة لكل موظف",
       "calcMethodFormulaOption": "صيغة مركّبة (تشمل النسبة المئوية)",
       "formulaTitle": "مكوّنات الصيغة — المجموع = Σ (الكمية × المرجع، مع تحويل ساعة/يوم اختياري)",
-      "formulaTable": {
-        "quantity": "الكمية",
-        "unit": "الوحدة",
-        "reference": "المرجع"
-      },
+      "formulaTable": { "quantity": "الكمية", "unit": "الوحدة", "reference": "المرجع" },
       "unitDirect": "مباشر (نسبة/معامل)",
       "unitHourPrice": "سعر الساعة",
       "unitDayPrice": "سعر اليوم",
@@ -2236,10 +1473,7 @@
       "confirmDelete": "حذف بند \"{{name}}\"؟",
       "payslipColumnsTitle": "أعمدة كشف الرواتب",
       "payslipColumnsNote": "تختار هنا أي بنود تظهر كأعمدة في شاشة وطباعة كشف الرواتب، بأي تسمية وترتيب تريد. عمود \"الصافي\" يظهر دائماً في النهاية.",
-      "payslipTable": {
-        "component": "البند",
-        "columnTitle": "عنوان العمود"
-      },
+      "payslipTable": { "component": "البند", "columnTitle": "عنوان العمود" },
       "payslipEmpty": "لا يوجد تخصيص — سيُعرَض كشف الرواتب بكل البنود بترتيبها الافتراضي.",
       "addColumn": "+ إضافة عمود",
       "saveColumnsOrder": "حفظ ترتيب الأعمدة"
@@ -2251,11 +1485,7 @@
     "uploading": "جارٍ الرفع...",
     "saveFirstTooltip": "احفظ المعاملة أولاً قبل إرفاق مستندات",
     "saveFirstNote": "احفظ المعاملة أولاً لتتمكّن من إرفاق مستندات بها.",
-    "table": {
-      "file": "الملف",
-      "size": "الحجم",
-      "uploadDate": "تاريخ الرفع"
-    },
+    "table": { "file": "الملف", "size": "الحجم", "uploadDate": "تاريخ الرفع" },
     "download": "تنزيل",
     "empty": "لا توجد مستندات مرفقة بعد.",
     "confirmDelete": "حذف المرفق \"{{name}}\"؟",
@@ -2295,12 +1525,7 @@
       "errGeneric": "تعذّر إنشاء الشركة"
     },
     "companiesList": {
-      "table": {
-        "name": "الاسم",
-        "shortName": "الاسم التجاري",
-        "vatNumber": "الرقم الضريبي",
-        "crNumber": "السجل التجاري"
-      },
+      "table": { "name": "الاسم", "shortName": "الاسم التجاري", "vatNumber": "الرقم الضريبي", "crNumber": "السجل التجاري" },
       "zatcaLink": "ربط فاتورة (ZATCA)",
       "confirmDelete": "حذف شركة \"{{name}}\"؟ لن يمكن حذفها إن كان لديها قيود مسجّلة.",
       "empty": "لا توجد شركات بعد — استخدم زر \"+ شركة جديدة\" أعلاه لإضافة أول شركة."
@@ -2395,11 +1620,7 @@
       "expiryLabel": "تاريخ الانتهاء",
       "addBtn": "+ إضافة مستند",
       "confirmDelete": "حذف هذا المستند؟",
-      "table": {
-        "type": "النوع",
-        "number": "الرقم",
-        "expiry": "تاريخ الانتهاء"
-      },
+      "table": { "type": "النوع", "number": "الرقم", "expiry": "تاريخ الانتهاء" },
       "empty": "لا توجد مستندات إدارية مسجّلة بعد."
     },
     "leaseContracts": {
@@ -2413,13 +1634,7 @@
       "addBtn": "+ إضافة عقد إيجار",
       "errRequired": "اسم العقد وتاريخا البداية والنهاية مطلوبة",
       "confirmDelete": "حذف عقد \"{{title}}\"؟",
-      "table": {
-        "title": "العقد",
-        "counterparty": "المؤجِّر",
-        "monthlyRent": "الإيجار الشهري",
-        "start": "البداية",
-        "end": "النهاية"
-      },
+      "table": { "title": "العقد", "counterparty": "المؤجِّر", "monthlyRent": "الإيجار الشهري", "start": "البداية", "end": "النهاية" },
       "empty": "لا توجد عقود إيجار مسجّلة بعد."
     },
     "branches": {
@@ -2434,12 +1649,7 @@
       "saveChanges": "حفظ التعديلات",
       "errRequired": "اسم الفرع والدولة والعملة مطلوبة",
       "confirmDelete": "حذف فرع \"{{name}}\" نهائياً؟",
-      "table": {
-        "name": "الفرع",
-        "country": "الدولة",
-        "currency": "العملة",
-        "status": "الحالة"
-      },
+      "table": { "name": "الفرع", "country": "الدولة", "currency": "العملة", "status": "الحالة" },
       "statusActive": "نشط",
       "statusInactive": "غير نشط",
       "activate": "تفعيل",
@@ -2458,11 +1668,7 @@
       "confirmDelete": "حذف الحساب البنكي \"{{name}}\" نهائياً؟",
       "moveUp": "نقل لأعلى",
       "moveDown": "نقل لأسفل",
-      "table": {
-        "bankName": "اسم البنك",
-        "accountNumber": "رقم الحساب",
-        "iban": "رقم الآيبان"
-      },
+      "table": { "bankName": "اسم البنك", "accountNumber": "رقم الحساب", "iban": "رقم الآيبان" },
       "empty": "لا توجد حسابات بنكية مسجّلة بعد."
     },
     "users": {
@@ -2474,12 +1680,7 @@
       "inviteBtn": "إرسال دعوة لمستخدم جديد",
       "sending": "جارٍ الإرسال...",
       "note": "سيصل المدعوّ إيميل يحتوي رابطاً آمناً لتعيين كلمة مروره الخاصة وتفعيل حسابه بنفسه.",
-      "table": {
-        "name": "الاسم",
-        "email": "البريد الإلكتروني",
-        "role": "الصلاحية",
-        "inviteStatus": "حالة الدعوة"
-      },
+      "table": { "name": "الاسم", "email": "البريد الإلكتروني", "role": "الصلاحية", "inviteStatus": "حالة الدعوة" },
       "statusPending": "بانتظار التفعيل",
       "statusActive": "مفعَّل",
       "resend": "إعادة إرسال الدعوة",
@@ -2521,10 +1722,7 @@
       "companyLabel": "الشركة",
       "generalOption": "عام لكل الشركات",
       "addBtn": "إضافة موقع",
-      "table": {
-        "location": "الموقع",
-        "company": "الشركة"
-      },
+      "table": { "location": "الموقع", "company": "الشركة" },
       "generalValue": "عام",
       "empty": "لا توجد مواقع بعد.",
       "note": "هذه المواقع تُستخدم كمراكز تكلفة في القيود، ومخازن في وحدة المخزون، وأفرع للموظفين."
@@ -2537,13 +1735,7 @@
       "numberLabel": "رقم المستند",
       "expiryLabel": "تاريخ الانتهاء",
       "saveBtn": "حفظ المستند",
-      "table": {
-        "company": "الشركة",
-        "docType": "نوع المستند",
-        "location": "الموقع",
-        "number": "الرقم",
-        "expiry": "تاريخ الانتهاء"
-      },
+      "table": { "company": "الشركة", "docType": "نوع المستند", "location": "الموقع", "number": "الرقم", "expiry": "تاريخ الانتهاء" },
       "generalValue": "عام",
       "empty": "لا توجد مستندات رسمية مسجّلة بعد."
     }
@@ -2553,9 +1745,7 @@
       "title": "عكس القيد",
       "note": "سيُنشأ قيد جديد منفصل بنفس بنود القيد الأصلي (البيان: {{memo}}) مع عكس المدين والدائن على كل سطر، ويُحفَظ بحالة \"محفوظ\" لتراجعه قبل الترحيل. القيد الأصلي لن يتغيّر إطلاقاً.",
       "dateLabel": "تاريخ القيد العكسي",
-      "table": {
-        "account": "الحساب"
-      },
+      "table": { "account": "الحساب" },
       "saving": "جارٍ الحفظ...",
       "createBtn": "إنشاء القيد العكسي"
     },
@@ -2570,9 +1760,7 @@
       "noLinkWarning": "لم يُعثر على حساب ربط محدَّد مسبقاً بين الشركتين على هذا القيد تحديداً، فتم استخدام إجمالي القيد وإنشاء حسابات الربط تلقائياً — راجع المبالغ جيداً قبل الترحيل.",
       "dateLabel": "التاريخ",
       "memoLabel": "البيان",
-      "table": {
-        "account": "الحساب"
-      },
+      "table": { "account": "الحساب" },
       "autoTag": "(تلقائي)",
       "accountPlaceholder": "اختر الحساب...",
       "back": "رجوع",
@@ -2592,9 +1780,7 @@
       "proposedTitle": "القيد المقترح (قابل للتعديل)",
       "dateLabel": "التاريخ",
       "memoLabel": "البيان",
-      "table": {
-        "account": "الحساب"
-      },
+      "table": { "account": "الحساب" },
       "addLine": "+ إضافة سطر",
       "balancedOk": "✓ القيد متوازن",
       "balanceDiff": "الفرق بين المدين والدائن: {{amount}} {{currency}}",
@@ -2609,12 +1795,7 @@
       "analyzingFile": "جارٍ تحليل الملف ومطابقة الحسابات...",
       "reviewSummary": "{{rows}} سطر ضمن {{groups}} قيد. راجع مطابقة الحسابات أدناه قبل التأكيد.",
       "unbalancedWarning": "تحذير: {{count}} قيد غير متوازن (مدين ≠ دائن) ولن يمكن استيراده — أول قيد غير متوازن: رقم {{groupKey}} ({{date}}).",
-      "table": {
-        "accountNameInFile": "اسم الحساب في الملف",
-        "lineCount": "عدد الأسطر",
-        "status": "الحالة",
-        "accountInTree": "الحساب في شجرة الشركة"
-      },
+      "table": { "accountNameInFile": "اسم الحساب في الملف", "lineCount": "عدد الأسطر", "status": "الحالة", "accountInTree": "الحساب في شجرة الشركة" },
       "statusMatched": "متطابق تلقائياً",
       "statusAmbiguous": "غير مؤكد (أكثر من حساب بنفس الاسم)",
       "statusUnmatched": "غير متطابق",
@@ -2816,13 +1997,7 @@
       "noLiabilities": "لا توجد التزامات مصنفة.",
       "liabilitiesNote": "تعرض الأرصدة الحالية؛ تاريخ الاستحقاق غير متاح للحسابات القديمة.",
       "sectionI": "ط. مقارنة الشهر الحالي بالشهر السابق",
-      "table": {
-        "item": "البند",
-        "current": "الحالي",
-        "previous": "السابق",
-        "difference": "الفرق",
-        "percentage": "النسبة"
-      },
+      "table": { "item": "البند", "current": "الحالي", "previous": "السابق", "difference": "الفرق", "percentage": "النسبة" },
       "sectionJ": "ي. أبرز الملاحظات والتوصيات المالية",
       "notesAriaLabel": "الملاحظات والتوصيات",
       "notesNote": "الملاحظات المقترحة مسودة قابلة للتعديل وتظهر بصيغتها الحالية في الطباعة."
@@ -2832,21 +2007,9 @@
       "title": "أتمتة إرسال التقارير المالية بالبريد الإلكتروني",
       "intro": "يُرسَل ملخّص التقارير المختارة أدناه تلقائياً بالبريد الإلكتروني حسب الجدولة المحددة — لكل مستخدمي هذه الشركة بدور مدير/مدير حسابات افتراضياً، أو لقائمة بريدية مخصّصة إن أضفتها أدناه.",
       "frequencyLabel": "دورية الإرسال",
-      "frequency": {
-        "daily": "يومياً",
-        "weekly": "أسبوعياً",
-        "monthly": "شهرياً"
-      },
+      "frequency": { "daily": "يومياً", "weekly": "أسبوعياً", "monthly": "شهرياً" },
       "dayOfWeekLabel": "يوم الأسبوع (بتوقيت السعودية)",
-      "weekdays": [
-        "الأحد",
-        "الاثنين",
-        "الثلاثاء",
-        "الأربعاء",
-        "الخميس",
-        "الجمعة",
-        "السبت"
-      ],
+      "weekdays": ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"],
       "dayOfMonthLabel": "يوم الشهر (بتوقيت السعودية)",
       "hourLabel": "ساعة الإرسال (بتوقيت السعودية)",
       "enableToggle": "تفعيل الإرسال التلقائي",
@@ -3015,3 +2178,4 @@
     "stayOnPage": "البقاء في الصفحة"
   }
 }
+
