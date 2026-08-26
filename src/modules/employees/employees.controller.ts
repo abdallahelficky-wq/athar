@@ -192,4 +192,3 @@ export const deleteEmployee: RequestHandler = async (req, res) => {
   await prisma.employee.delete({ where: { id: existing.id } });
   res.status(204).send();
 };
-
