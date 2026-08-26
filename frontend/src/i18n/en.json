@@ -42,7 +42,12 @@
     "stalls": "Stalls",
     "horses": "Horses",
     "contracts": "Boarding",
-    "care": "Care records"
+    "care": "Care records",
+    "services": "Care services",
+    "trainers": "Trainers",
+    "lessonTypes": "Lesson types",
+    "lessons": "Training lessons",
+    "competitions": "Competitions"
   },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },
@@ -169,7 +174,7 @@
     "tabs": {
       "customers": "Customers", "quotations": "Quotations", "invoices": "Sales Invoices",
       "returns": "Sales Returns", "receipts": "Receipts", "stations": "Station Sales",
-      "reports": "Reports", "salesSettings": "Sales Settings", "suppliers": "Suppliers", "purchaseInvoices": "Purchase Invoices",
+      "reports": "Reports", "suppliers": "Suppliers", "purchaseInvoices": "Purchase Invoices",
       "purchaseReturns": "Purchase Returns", "items": "Items", "warehouses": "Warehouses",
       "inout": "Stock In / Out", "issue": "Stock Issue", "transfer": "Branch Transfer",
       "report": "Balances Report", "register": "Asset Register", "depreciation": "Monthly Depreciation",
@@ -340,22 +345,6 @@
       "zatcaRejectedAgain": "Invoice {{number}} was rejected again by ZATCA{{reason}}",
       "zatcaResentOk": "Invoice {{number}} was sent successfully — status is now \"{{status}}\"."
     },
-    "classicPro": {
-      "seller": "From / Seller",
-      "buyer": "To / Customer",
-      "unifiedEntityNumber": "Unified entity number",
-      "licenseNumber": "License number",
-      "unit": "Unit",
-      "scanToVerify": "Scan to verify",
-      "subTotal": "Sub Total",
-      "vat": "VAT",
-      "totalDue": "Total Due",
-      "remaining": "Remaining",
-      "bankName": "Bank Name",
-      "accountNumber": "Account No.",
-      "iban": "IBAN",
-      "printedBy": "Printed by: {{name}}"
-    },
     "form": {
       "titleEdit": "Edit invoice {{number}}",
       "titleDuplicate": "New invoice (duplicated from {{number}})",
@@ -370,12 +359,6 @@
       "invoiceTypeStandard": "Standard tax invoice (B2B)",
       "invoiceTypeSimplified": "Simplified tax invoice (B2C)",
       "invoiceTypeChooseCustomer": "Choose a customer first",
-      "extraFieldsToggle": "Extra optional fields (customer reference, PO number, salesman, due date...)",
-      "dueDate": "Due date",
-      "customerReference": "Customer reference",
-      "poNumber": "PO number",
-      "salesperson": "Salesman",
-      "otherId": "Other ID",
       "noCustomersYet": "No customers yet — type a name in the customer field above to add one.",
       "print": "Print",
       "cancel": "Cancel",
@@ -440,7 +423,7 @@
       "searchPlaceholder": "Search by name, CR number, phone, email, or VAT number...",
       "noSearchResults": "No customers match your search.",
       "name": "Customer name", "type": "Customer type", "typeBusiness": "Business (standard tax invoice)", "typeIndividual": "Individual (simplified tax invoice)",
-      "vatNumber": "VAT number (15 digits)", "crNumber": "CR number", "unifiedEntityNumber": "Unified entity number", "phone": "Phone", "email": "Email", "city": "City",
+      "vatNumber": "VAT number (15 digits)", "crNumber": "CR number", "phone": "Phone", "email": "Email", "city": "City",
       "addressTitle": "Full national address",
       "addressBuilding": "Building", "addressStreet": "Street", "addressDistrict": "District",
       "addressPostalCode": "Postal code", "addressAdditionalNo": "Additional number",
@@ -466,22 +449,6 @@
       "empty": "No customers yet.",
       "confirmDelete": "Delete customer \"{{name}}\"?",
       "deleted": "Customer \"{{name}}\" deleted."
-    },
-    "settings": {
-      "templateSectionTitle": "Sales invoice template",
-      "templateSectionNote": "Choose the printed/emailed sales invoice layout for each company individually — each company in the group may prefer a different template. Use \"Preview\" to see the template with sample data before adopting it.",
-      "companyLabel": "Company",
-      "templateModernName": "Modern (current)",
-      "templateModernDesc": "The template currently used by the system — a three-column header, a simple table, and a signature box.",
-      "templateClassicProName": "Classic Professional",
-      "templateClassicProDesc": "Bilingual header with a circular logo, seller/buyer boxes, a horizontal info bar, a zebra-striped item table, and a bank accounts table when available.",
-      "previewBtn": "Preview",
-      "activeTemplate": "Currently active template",
-      "chooseTemplate": "Adopt this template",
-      "customizationTitle": "Invoice customization for this company",
-      "customizationNote": "Basic customization applied on top of the chosen template — color on the header/footer/tables, and the logo in the header.",
-      "brandColorLabel": "Invoice primary color",
-      "logoLabel": "Company logo"
     },
     "quotations": {
       "addBtn": "+ Add quotation",
@@ -1447,9 +1414,6 @@
       "modalTitle": "Official company data — {{name}}",
       "nameLabel": "Name in commercial registration",
       "shortNameLabel": "Trade name (optional)",
-      "nameEnLabel": "Official English name (optional)",
-      "unifiedEntityNumberLabel": "Unified entity number (optional)",
-      "licenseNumberLabel": "License number (optional)",
       "vatNumberLabel": "VAT number",
       "numberingPrefixLabel": "Journal entry numbering prefix (e.g. J or TP)",
       "numberingPrefixNote": "The numbering prefix is used to number new journal entries for this company sequentially in the format [prefix][5 digits] (e.g. TP00001), starting from the first entry after it's set. This feature is not enabled for this company until the prefix is set here; older entries keep their old numbers as-is.",
@@ -1568,21 +1532,6 @@
       "activate": "Activate",
       "deactivate": "Deactivate",
       "empty": "No branches registered yet — entries and invoices stay attached to the parent company generally, with no specific branch."
-    },
-    "bankAccounts": {
-      "title": "Bank accounts",
-      "note": "These accounts are shown on some invoice templates (like \"Classic Professional\") only when set.",
-      "bankNameLabel": "Bank name",
-      "accountNumberLabel": "Account number",
-      "ibanLabel": "IBAN",
-      "addBtn": "+ Add bank account",
-      "saveChanges": "Save changes",
-      "errRequired": "Bank name, account number, and IBAN are required",
-      "confirmDelete": "Permanently delete bank account \"{{name}}\"?",
-      "moveUp": "Move up",
-      "moveDown": "Move down",
-      "table": { "bankName": "Bank name", "accountNumber": "Account number", "iban": "IBAN" },
-      "empty": "No bank accounts registered yet."
     },
     "users": {
       "nameLabel": "Name",
