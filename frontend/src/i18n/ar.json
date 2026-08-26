@@ -115,6 +115,9 @@
     "register": {
       "title": "ابدأ تجربتك المجانية لمدة شهر",
       "companyName": "اسم الشركة / المنشأة",
+      "businessActivity": "نشاط الشركة",
+      "selectActivity": "اختر النشاط",
+      "activities": {"contracting":"المقاولات","manufacturing":"المصانع والتصنيع","retail":"التجزئة","generalTrade":"التجارة العامة","fuelStations":"محطات الوقود","horseStables":"إسطبلات وإيواء وإعاشة الخيل"},
       "fullName": "الاسم الكامل",
       "email": "البريد الإلكتروني",
       "password": "كلمة المرور",
