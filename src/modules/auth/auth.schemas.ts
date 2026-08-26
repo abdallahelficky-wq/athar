@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const registerSchema = z.object({
   tenantName: z.string().min(2, "اسم المستأجر قصير جداً"),
+  businessActivity: z.enum(["contracting", "manufacturing", "retail", "general_trade", "fuel_stations", "horse_stables"]),
   name: z.string().min(2, "الاسم قصير جداً"),
   email: z.string().email("بريد إلكتروني غير صالح"),
   password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
