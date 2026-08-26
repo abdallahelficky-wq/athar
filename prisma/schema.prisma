@@ -1497,8 +1497,13 @@ model Employee {
   companyId                 String
   company                   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name                      String
+  employeeNumber            String?
+  idNumber                  String?
+  gender                    String?
+  maritalStatus             String?
   jobTitle                  String?
   department                String?
+  workLocation              String?
   hireDate                  DateTime
   contractType              ContractType   @default(unlimited)
   contractEnd               DateTime?
@@ -1512,8 +1517,19 @@ model Employee {
   otherDeductions           Decimal        @default(0) @db.Decimal(18, 2)
   nationality               String?
   dateOfBirth               DateTime?
+  personalEmail             String?
+  workEmail                 String?
+  alternatePhone            String?
+  address                   String?
+  emergencyContactName      String?
+  emergencyContactPhone     String?
+  emergencyContactRelation  String?
   bankName                  String?
   bankAccount               String?
+  medicalInsuranceProvider  String?
+  medicalInsuranceNumber    String?
+  annualLeaveDays           Int            @default(21)
+  notes                     String?
   leaveStatus               LeaveStatus    @default(active)
   lastLeaveReturnDate       DateTime?
   probationEndDate          DateTime?
@@ -1549,6 +1565,7 @@ model Employee {
   custodyAssets     FixedAsset[]               @relation("FixedAssetCustodian")
 
   @@unique([tenantId, phone])
+  @@unique([companyId, employeeNumber])
   @@map("employees")
 }
 
