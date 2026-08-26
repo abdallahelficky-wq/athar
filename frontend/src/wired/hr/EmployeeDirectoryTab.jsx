@@ -342,6 +342,7 @@ export default function EmployeeDirectoryTab({ companyId }) {
             </div>
           </div>
           {importResult && <p className="balance-good">{importResult}</p>}
+          </div>
           <table className="ledger-table">
             <thead><tr><th>{t("hr.directory.table.name")}</th><th>{t("hr.directory.table.department")}</th><th>{t("hr.directory.table.basicSalary")}</th><th>{t("hr.directory.table.leaveBalance")}</th><th>{t("hr.directory.table.eosBalance")}</th><th>{t("hr.directory.table.leaveStatus")}</th><th></th></tr></thead>
             <tbody>
@@ -366,4 +367,3 @@ export default function EmployeeDirectoryTab({ companyId }) {
     </div>
   );
 }
-
