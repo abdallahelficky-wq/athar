@@ -119,12 +119,19 @@ export async function getPayrollSettings(tenantId: string, companyId: string) {
   await assertCompanyBelongsToTenant(tenantId, companyId);
   const existing = await prisma.payrollSettings.findUnique({ where: { companyId } });
   if (existing) return existing;
-  return { id: null, tenantId, companyId, standardHoursPerMonth: 240, standardDaysPerMonth: 30, payslipColumns: [] as unknown[] };
+  return { id: null, tenantId, companyId, standardHoursPerMonth: 240, standardDaysPerMonth: 30,
+    leaveDaysBeforeFive: 21, leaveDaysAfterFive: 30, leaveDailyRateDivisor: 30,
+    leaveSalaryBasis: "total", eosSalaryBasis: "basic_housing", payslipColumns: [] as unknown[] };
 }
 
 interface SettingsInput {
   standardHoursPerMonth?: number;
   standardDaysPerMonth?: number;
+  leaveDaysBeforeFive?: number;
+  leaveDaysAfterFive?: number;
+  leaveDailyRateDivisor?: number;
+  leaveSalaryBasis?: "basic" | "basic_housing" | "total";
+  eosSalaryBasis?: "basic" | "basic_housing" | "total";
   payslipColumns?: { componentId: string | null; label: string }[];
 }
 
@@ -136,13 +143,23 @@ export async function updatePayrollSettings(tenantId: string, companyId: string,
       tenantId, companyId,
       standardHoursPerMonth: input.standardHoursPerMonth ?? 240,
       standardDaysPerMonth: input.standardDaysPerMonth ?? 30,
+      leaveDaysBeforeFive: input.leaveDaysBeforeFive ?? 21,
+      leaveDaysAfterFive: input.leaveDaysAfterFive ?? 30,
+      leaveDailyRateDivisor: input.leaveDailyRateDivisor ?? 30,
+      leaveSalaryBasis: input.leaveSalaryBasis ?? "total",
+      eosSalaryBasis: input.eosSalaryBasis ?? "basic_housing",
       payslipColumns: (input.payslipColumns ?? []) as unknown as Prisma.InputJsonValue,
-    },
+    } as any,
     update: {
       ...(input.standardHoursPerMonth != null && { standardHoursPerMonth: input.standardHoursPerMonth }),
       ...(input.standardDaysPerMonth != null && { standardDaysPerMonth: input.standardDaysPerMonth }),
+      ...(input.leaveDaysBeforeFive != null && { leaveDaysBeforeFive: input.leaveDaysBeforeFive }),
+      ...(input.leaveDaysAfterFive != null && { leaveDaysAfterFive: input.leaveDaysAfterFive }),
+      ...(input.leaveDailyRateDivisor != null && { leaveDailyRateDivisor: input.leaveDailyRateDivisor }),
+      ...(input.leaveSalaryBasis != null && { leaveSalaryBasis: input.leaveSalaryBasis }),
+      ...(input.eosSalaryBasis != null && { eosSalaryBasis: input.eosSalaryBasis }),
       ...(input.payslipColumns != null && { payslipColumns: input.payslipColumns as unknown as Prisma.InputJsonValue }),
-    },
+    } as any,
   });
 }
 
