@@ -43,6 +43,13 @@ export const env = {
   // (src/lib/zatca/pdf/renderPdf.ts) — يختلف حسب بيئة النشر، لا قيمة افتراضية آمنة عالمياً.
   chromiumExecutablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
 
+  // اختياري: سرّ مشترك تتحقق منه src/middleware/auth.ts's authenticatePlatformService لكل طلب
+  // على /api/platform-admin/* — يُستخدَمه فقط تطبيق "athar-platform-admin" المنفصل تماماً (مستودع
+  // كود وقاعدة بيانات مستقلَّين) للتحكم بالاشتراكات/الموديولات/الإشعارات من خارج هذا النظام. بلا
+  // اتصال مباشر بقاعدة البيانات بين النظامين إطلاقاً — هذا المفتاح هو حدود الثقة الوحيدة بينهما.
+  // بدونه، مسارات /api/platform-admin/* ترفض كل الطلبات (fail closed، لا fallback مطلقاً).
+  platformAdminApiKey: process.env.PLATFORM_ADMIN_API_KEY,
+
   resendApiKey: process.env.RESEND_API_KEY,
   emailFromAddress: process.env.EMAIL_FROM_ADDRESS ?? "أثر المحاسبي <onboarding@resend.dev>",
   // أساس الروابط الموجودة داخل الإيميلات (رابط إعادة تعيين كلمة المرور، رابط قبول الدعوة)؛

@@ -30,6 +30,10 @@ enum SubscriptionStatus {
   active
   past_due
   canceled
+  // تعليق إداري صريح من لوحة تحكم مدير المنصة (athar-platform-admin، مشروع منفصل تماماً) — يمنع
+  // تسجيل الدخول/تجديد الجلسة فوراً (انظر assertTenantActive في auth.service.ts)، بصرف النظر عن
+  // أي حالة اشتراك سابقة كانت عليها هذه الشركة.
+  suspended
 }
 
 model Tenant {
@@ -38,10 +42,19 @@ model Tenant {
   subscriptionPlan   SubscriptionPlan   @default(basic)
   subscriptionStatus SubscriptionStatus @default(trialing)
   trialEndsAt        DateTime?
+  // سبب التعليق الإداري (نصي، اختياري) — يُعرَض للمستخدم في رسالة رفض تسجيل الدخول عند
+  // subscriptionStatus = suspended. يُكتَب فقط من لوحة تحكم مدير المنصة (athar-platform-admin).
+  suspensionReason   String?
+  // الموديولات الممنوحة لهذه الشركة (مثال: ["sales","purchases","hr"]) — مصفوفة فارغة أو غير
+  // محدَّدة تعني "كل الموديولات مفعّلة" (السلوك الافتراضي الحالي لكل شركة، بلا أي تغيير حتى تُخصَّص
+  // صراحةً من لوحة تحكم مدير المنصة). القائمة الكاملة لمعرّفات الموديولات مطابقة لمعرّفات
+  // NAV_GROUPS في frontend/src/App.jsx.
+  enabledModules     String[]           @default([])
   unlockPin          String // قيمة مُشفّرة بـ bcrypt دائماً (انظر hashPassword في auth.service.ts)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
+  platformNotices           PlatformNotice[]
   users                     User[]
   companies                 Company[]
   costCenters               CostCenter[]
@@ -97,6 +110,22 @@ model Tenant {
   horseCareRecords  HorseCareRecord[]
 
   @@map("tenants")
+}
+
+// إشعار من مدير المنصة (athar-platform-admin) يظهر لمستخدمي شركة (Tenant) محدَّدة داخل واجهة أثر
+// المحاسبي نفسها — يُكتَب فقط عبر الـ API الداخلي المحمي بـ PLATFORM_ADMIN_API_KEY (انظر
+// src/modules/platformAdmin)، ويُعرَض عبر استجابة /api/auth/me (نفس أسلوب emailServiceConfigured
+// الموجود أصلاً). لا آلية "قراءة/إخفاء" لكل مستخدم بعد — كل إشعار يظهر لكل مستخدمي الشركة دائماً
+// حتى يُحذَف أو تنتهي صلاحيته يدوياً؛ إضافة تتبّع القراءة لكل مستخدم قرار مستقبلي إن احتيج فعلاً.
+model PlatformNotice {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("platform_notices")
 }
 
 enum UserRole {
@@ -2112,98 +2141,103 @@ model HorseCareRecord {
 }
 
 model RidingTrainer {
-  id String @id @default(cuid())
-  tenantId String
-  companyId String
-  name String
-  phone String?
-  email String?
+  id          String   @id @default(cuid())
+  tenantId    String
+  companyId   String
+  name        String
+  phone       String?
+  email       String?
   specialties String?
-  bio String?
-  isActive Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  bio         String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@index([tenantId, companyId])
   @@map("riding_trainers")
 }
 
 model RidingLessonType {
-  id String @id @default(cuid())
-  tenantId String
-  companyId String
-  name String
-  level String
+  id              String   @id @default(cuid())
+  tenantId        String
+  companyId       String
+  name            String
+  level           String
   durationMinutes Int
-  format String
-  capacity Int @default(1)
-  price Decimal @db.Decimal(18, 2)
-  trainerId String?
-  description String?
-  isActive Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  format          String
+  capacity        Int      @default(1)
+  price           Decimal  @db.Decimal(18, 2)
+  trainerId       String?
+  description     String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
   @@index([tenantId, companyId])
   @@map("riding_lesson_types")
 }
 
 model RidingLesson {
-  id String @id @default(cuid())
-  tenantId String
-  companyId String
+  id           String   @id @default(cuid())
+  tenantId     String
+  companyId    String
   lessonTypeId String
-  trainerId String
-  horseId String?
-  studentName String
+  trainerId    String
+  horseId      String?
+  studentName  String
   studentPhone String?
-  scheduledAt DateTime
-  participants Int @default(1)
-  price Decimal @db.Decimal(18, 2)
-  status String @default("scheduled")
-  notes String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  scheduledAt  DateTime
+  participants Int      @default(1)
+  price        Decimal  @db.Decimal(18, 2)
+  status       String   @default("scheduled")
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   @@index([tenantId, companyId, scheduledAt])
   @@map("riding_lessons")
 }
 
 model EquestrianCompetition {
-  id String @id @default(cuid())
-  tenantId String
-  companyId String
-  name String
-  discipline String
-  level String?
-  location String
-  startDate DateTime
-  endDate DateTime?
+  id                   String    @id @default(cuid())
+  tenantId             String
+  companyId            String
+  name                 String
+  discipline           String
+  level                String?
+  location             String
+  startDate            DateTime
+  endDate              DateTime?
   registrationDeadline DateTime?
-  entryFee Decimal? @db.Decimal(18, 2)
-  horseId String?
-  trainerId String?
-  riderName String?
-  status String @default("planned")
-  result String?
-  notes String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  entryFee             Decimal?  @db.Decimal(18, 2)
+  horseId              String?
+  trainerId            String?
+  riderName            String?
+  status               String    @default("planned")
+  result               String?
+  notes                String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
   @@index([tenantId, companyId, startDate])
   @@map("equestrian_competitions")
 }
 
 model HorseCareService {
-  id String @id @default(cuid())
-  tenantId String
-  companyId String
-  code String?
-  category String
-  nameAr String
-  nameEn String?
-  price Decimal? @db.Decimal(18, 2)
-  priceIncludesVat Boolean @default(true)
-  unit String @default("service")
-  isActive Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  tenantId         String
+  companyId        String
+  code             String?
+  category         String
+  nameAr           String
+  nameEn           String?
+  price            Decimal? @db.Decimal(18, 2)
+  priceIncludesVat Boolean  @default(true)
+  unit             String   @default("service")
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
   @@unique([companyId, code])
   @@index([tenantId, companyId, category])
   @@map("horse_care_services")

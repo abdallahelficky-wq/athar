@@ -64,7 +64,13 @@ function isPlainLeftClick(e) {
 
 function AppShell() {
   const { t, i18n } = useTranslation();
-  const { user, tenant, logout, emailServiceConfigured } = useAuth();
+  const { user, tenant, logout, emailServiceConfigured, platformNotices } = useAuth();
+  // تصفية القائمة الجانبية حسب الموديولات الممنوحة لهذه الشركة من لوحة تحكم مدير المنصة
+  // (Tenant.enabledModules) — مصفوفة فارغة/غير موجودة تعني "كل الموديولات مفعّلة" (السلوك
+  // الافتراضي لكل شركة لم تُخصَّص لها قيود بعد، بلا أي كسر لأي شركة قديمة).
+  const visibleNavGroups = tenant?.enabledModules?.length
+    ? NAV_GROUPS.filter((g) => tenant.enabledModules.includes(g.id))
+    : NAV_GROUPS;
   const real = useCompanies();
   const location = useLocation();
   const navigate = useNavigate();
@@ -76,7 +82,7 @@ function AppShell() {
   // إغلاقه يدوياً بينما لا يزال هو القسم الحالي لا يُعاد فتحه قسراً.
   const [openGroupId, setOpenGroupId] = useState(null);
   useEffect(() => {
-    if (NAV_GROUPS.some((g) => g.id === activeGroupId)) setOpenGroupId(activeGroupId);
+    if (visibleNavGroups.some((g) => g.id === activeGroupId)) setOpenGroupId(activeGroupId);
     setIsMobileSidebarOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroupId]);
@@ -167,7 +173,7 @@ function AppShell() {
           </div>
 
           <div className="nav-list">
-            {NAV_GROUPS.map((g) => {
+            {visibleNavGroups.map((g) => {
               const isActiveModule = activeGroupId === g.id;
               const isOpen = openGroupId === g.id;
               const badgeCount = navBadges[g.id] || 0;
@@ -226,6 +232,9 @@ function AppShell() {
 
         <div className="app-content">
           <div className="app-content-inner">
+            {platformNotices?.map((notice) => (
+              <div key={notice.id} className="platform-notice-banner">{notice.message}</div>
+            ))}
             {!emailServiceConfigured && (user?.role === "admin" || user?.role === "super_admin") && (
               <div className="system-warning-banner">
                 {t("nav.emailWarningBefore")} <code>RESEND_API_KEY</code> {t("nav.emailWarningAfter")}

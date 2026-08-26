@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { verifyAccessToken, verifyEmployeePortalToken } from "../lib/jwt";
 import { unauthorized, forbidden } from "../lib/httpError";
+import { env } from "../config/env";
 
 /** يتحقق من رمز JWT (access token) ويحمّل هوية المستخدم + المستأجر في req.auth */
 export const authenticate: RequestHandler = (req, _res, next) => {
@@ -33,6 +34,23 @@ export const authenticateEmployeePortal: RequestHandler = (req, _res, next) => {
   } catch {
     throw unauthorized("رمز الدخول غير صالح أو منتهي الصلاحية");
   }
+};
+
+/**
+ * يتحقق من سرّ مشترك ثابت (PLATFORM_ADMIN_API_KEY) بدل أي رمز JWT — لمسارات /api/platform-admin/*
+ * فقط، التي يستدعيها حصرياً تطبيق "athar-platform-admin" المنفصل تماماً (مستودع كود وقاعدة
+ * بيانات مستقلَّين). لا هوية مستخدم/مستأجر هنا إطلاقاً (بخلاف authenticate/authenticateEmployeePortal
+ * أعلاه) — هذه ثقة على مستوى الخدمة نفسها (service-to-service) لا مستوى مستخدم. Fail closed: لو
+ * PLATFORM_ADMIN_API_KEY غير مضبوط في env أصلاً، تُرفَض كل الطلبات دائماً (لا قيمة افتراضية).
+ */
+export const authenticatePlatformService: RequestHandler = (req, _res, next) => {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) throw unauthorized("رمز الدخول مفقود");
+  const key = header.slice("Bearer ".length);
+  if (!env.platformAdminApiKey || key !== env.platformAdminApiKey) {
+    throw unauthorized("رمز الدخول غير صالح");
+  }
+  next();
 };
 
 /**

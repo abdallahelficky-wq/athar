@@ -22,10 +22,14 @@ export function AuthProvider({ children }) {
   // مؤشّر تشخيصي فقط (من /auth/me، بلا تخزين محلي — يُعاد جلبه كل فتح تطبيق) لعرض تنبيه لوحة
   // الإدارة لو خدمة الإيميل غير مضبوطة على الخادم؛ انظر التحذير المطابق في server.ts.
   const [emailServiceConfigured, setEmailServiceConfigured] = useState(true);
+  // إشعارات من لوحة تحكم مدير المنصة (athar-platform-admin، مشروع منفصل تماماً) لهذه الشركة —
+  // بلا تخزين محلي أيضاً، تُعاد من كل استجابة تسجيل دخول/تسجيل/قبول دعوة/`/auth/me`.
+  const [platformNotices, setPlatformNotices] = useState([]);
 
   const reset = useCallback(() => {
     setUser(null);
     setTenant(null);
+    setPlatformNotices([]);
     localStorage.removeItem(SESSION_KEY);
   }, []);
 
@@ -48,6 +52,7 @@ export function AuthProvider({ children }) {
         setUser(result.user);
         setTenant(result.tenant);
         setEmailServiceConfigured(result.emailServiceConfigured !== false);
+        setPlatformNotices(result.platformNotices || []);
         localStorage.setItem(SESSION_KEY, JSON.stringify({ user: result.user, tenant: result.tenant }));
       })
       .catch(() => {
@@ -73,6 +78,7 @@ export function AuthProvider({ children }) {
     setUser(result.user);
     setTenant(result.tenant);
     if (result.emailServiceConfigured !== undefined) setEmailServiceConfigured(result.emailServiceConfigured);
+    setPlatformNotices(result.platformNotices || []);
     localStorage.setItem(SESSION_KEY, JSON.stringify({ user: result.user, tenant: result.tenant }));
   };
 
@@ -126,6 +132,7 @@ export function AuthProvider({ children }) {
     isAuthenticated: Boolean(user && getAccessToken()),
     initializing,
     emailServiceConfigured,
+    platformNotices,
     login,
     register,
     acceptInvite,

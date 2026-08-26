@@ -59,6 +59,28 @@ function publicTenant(tenant: Tenant) {
   return rest;
 }
 
+/**
+ * يرفض تسجيل الدخول/تجديد الجلسة لشركة (Tenant) مُعلَّقة إدارياً من لوحة تحكم مدير المنصة
+ * (athar-platform-admin، مشروع منفصل تماماً) أو انتهت فترتها التجريبية بلا ترقية. يُستدعى من
+ * login()/refresh() فقط (وليس authenticate middleware نفسه، الذي يبقى تحققاً من التوقيع فقط بلا
+ * أي استعلام لقاعدة البيانات) — فالتأثير الفعلي: رمز الدخول القديم لمستخدم شركة عُلِّقت للتو يبقى
+ * صالحاً حتى انتهاء صلاحيته الطبيعية (15 دقيقة افتراضياً) بما أنه لا يستطيع تجديده بعدها.
+ * حالتا subscriptionStatus الأخريان (past_due/canceled) لا تمنعان الدخول حالياً عمداً — إعلاميتان
+ * فقط في هذه المرحلة (تُعرَضان في لوحة تحكم مدير المنصة)، وليستا "منتهي" أو "معلَّق" صراحةً.
+ */
+function assertTenantActive(tenant: Tenant) {
+  if (tenant.subscriptionStatus === "suspended") {
+    throw unauthorized(
+      tenant.suspensionReason
+        ? `تم تعليق هذا الحساب من إدارة المنصة: ${tenant.suspensionReason}`
+        : "تم تعليق هذا الحساب من إدارة المنصة، تواصل مع الدعم الفني",
+    );
+  }
+  if (tenant.subscriptionStatus === "trialing" && tenant.trialEndsAt && tenant.trialEndsAt < new Date()) {
+    throw unauthorized("انتهت الفترة التجريبية لهذا الحساب، تواصل مع الدعم الفني لتفعيل الاشتراك");
+  }
+}
+
 export async function register(
   input: { tenantName: string; name: string; email: string; password: string },
   lang: Lang = "ar",
@@ -115,7 +137,7 @@ export async function register(
     console.error("فشل إرسال إيميل الترحيب:", err);
   }
 
-  return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey) };
+  return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices: [] as never[] };
 }
 
 export async function login(input: { email: string; password: string }) {
@@ -126,11 +148,14 @@ export async function login(input: { email: string; password: string }) {
   const valid = await verifyPassword(input.password, user.passwordHash);
   if (!valid) throw unauthorized("البريد الإلكتروني أو كلمة المرور غير صحيحة");
 
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
+  assertTenantActive(tenant);
+
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
   const tokens = await issueTokenPair(user);
-  return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey) };
+  const platformNotices = await prisma.platformNotice.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: "desc" } });
+  return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
 }
 
 export async function refresh(refreshToken: string) {
@@ -149,6 +174,9 @@ export async function refresh(refreshToken: string) {
 
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
   if (!user || !user.active) throw unauthorized("الحساب غير موجود أو معطّل");
+
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
+  assertTenantActive(tenant);
 
   // تدوير: إبطال الرمز القديم فور استخدامه لمنع إعادة استخدامه (refresh token rotation)
   await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
@@ -243,8 +271,10 @@ export async function acceptInvite(input: { token: string; password: string }) {
   });
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: updated.tenantId } });
+  assertTenantActive(tenant);
   const tokens = await issueTokenPair(updated);
-  return { tenant: publicTenant(tenant), user: publicUser(updated), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey) };
+  const platformNotices = await prisma.platformNotice.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: "desc" } });
+  return { tenant: publicTenant(tenant), user: publicUser(updated), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
 }
 
 export async function changeUnlockPin(tenantId: string, currentPin: string, newPin: string) {
@@ -275,9 +305,14 @@ export async function updateTenantName(tenantId: string, name: string) {
 export async function getMe(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
+  // تُستدعى هذه الدالة عند كل فتح تطبيق (انظر AuthContext) — إعادة فحص حالة الاشتراك هنا أيضاً
+  // (وليس فقط عند login/refresh) تعني أن تعليق شركة يُطرد مستخدميها المسجَّلين بالفعل فور أول
+  // إعادة تحميل للصفحة، لا فقط عند انتهاء صلاحية رمزهم الحالي.
+  assertTenantActive(tenant);
+  const platformNotices = await prisma.platformNotice.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: "desc" } });
   // مؤشّر تشخيصي للوحة الإدارة فقط (مجرد boolean، بلا كشف أي سرّ) — انظر التحذير المطابق عند
   // إقلاع الخادم في server.ts لنفس السبب.
-  return { user: publicUser(user), tenant: publicTenant(tenant), emailServiceConfigured: Boolean(env.resendApiKey) };
+  return { user: publicUser(user), tenant: publicTenant(tenant), emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
 }
 
 export async function updateMyName(userId: string, name: string) {
