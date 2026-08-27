@@ -1,7 +1,12 @@
 import { Router } from "express";
 import { authenticatePlatformService } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { updateSubscriptionSchema, updateModulesSchema, createNoticeSchema } from "./platformAdmin.schemas";
+import {
+  updateSubscriptionSchema,
+  updateModulesSchema,
+  createNoticeSchema,
+  updateAdminEmailSchema,
+} from "./platformAdmin.schemas";
 import * as controller from "./platformAdmin.controller";
 
 /**
@@ -17,6 +22,8 @@ platformAdminRoutes.get("/tenants", controller.listTenantsHandler);
 platformAdminRoutes.get("/tenants/:id", controller.getTenantHandler);
 platformAdminRoutes.patch("/tenants/:id/subscription", validateBody(updateSubscriptionSchema), controller.updateSubscriptionHandler);
 platformAdminRoutes.patch("/tenants/:id/modules", validateBody(updateModulesSchema), controller.updateModulesHandler);
+platformAdminRoutes.patch("/tenants/:id/admin-email", validateBody(updateAdminEmailSchema), controller.updateAdminEmailHandler);
+platformAdminRoutes.delete("/tenants/:id", controller.deleteTenantHandler);
 platformAdminRoutes.get("/tenants/:id/notices", controller.listNoticesHandler);
 platformAdminRoutes.post("/tenants/:id/notices", validateBody(createNoticeSchema), controller.createNoticeHandler);
 platformAdminRoutes.delete("/tenants/:id/notices/:noticeId", controller.deleteNoticeHandler);

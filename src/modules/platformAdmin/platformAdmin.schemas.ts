@@ -16,3 +16,7 @@ export const updateModulesSchema = z.object({
 export const createNoticeSchema = z.object({
   message: z.string().trim().min(1, "نص الإشعار مطلوب").max(2000),
 });
+
+export const updateAdminEmailSchema = z.object({
+  adminEmail: z.string().trim().toLowerCase().email("صيغة البريد الإلكتروني غير صحيحة"),
+});

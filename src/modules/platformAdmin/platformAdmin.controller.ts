@@ -29,3 +29,12 @@ export const deleteNoticeHandler: RequestHandler = async (req, res) => {
   await service.deleteTenantNotice(req.params.id, req.params.noticeId);
   res.status(204).send();
 };
+
+export const updateAdminEmailHandler: RequestHandler = async (req, res) => {
+  res.json(await service.updateTenantAdminEmail(req.params.id, req.body.adminEmail));
+};
+
+export const deleteTenantHandler: RequestHandler = async (req, res) => {
+  await service.deleteTenant(req.params.id);
+  res.status(204).send();
+};

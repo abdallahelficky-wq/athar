@@ -10,6 +10,8 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "صيغة البريد الإلكتروني غير صحيحة": "Invalid email format",
+  "لا يوجد أي مستخدم مسجَّل لهذه الشركة بعد": "No user has registered for this company yet",
   "الإسطبل غير موجود أو لا يتبع الشركة المحددة": "The stable does not exist or does not belong to the selected company",
   "الخيل غير موجود أو لا يتبع الشركة المحددة": "The horse does not exist or does not belong to the selected company",
   "البوكس لا يتبع الإسطبل المحدد": "The stall does not belong to the selected stable",
