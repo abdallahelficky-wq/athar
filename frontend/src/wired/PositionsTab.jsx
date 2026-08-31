@@ -8,8 +8,18 @@ import {
   deletePosition,
   assignMember,
   removeMember,
+  updatePositionActionPermission,
+  listUserOverrides,
+  upsertUserOverride,
+  deleteUserOverride,
 } from "../api/positions";
 import { useToast, ToastHost } from "./shared/Toast";
+
+// أول وحدة مُهاجَرة لنظام الصلاحيات الترتيبي — يجب أن تطابق PLATFORM_ACTIONS["leaveRequests"] في
+// src/lib/platformActions.ts بالخادم (تزامن يدوي، بنفس نمط PLATFORM_MODULE_IDS/NAV_GROUPS الحالي).
+const LEAVE_REQUESTS_MODULE_ID = "leaveRequests";
+const LEAVE_REQUEST_ACTIONS = ["view", "create", "edit", "delete", "approve"];
+const ACTION_LEVELS = ["none", "read", "edit", "approve", "full"];
 
 /**
  * المرحلة الأولى من نظام صلاحيات المناصب — شاشة صغيرة مقصورة على مالك الشركة فقط (الخادم يرفض
@@ -26,13 +36,18 @@ export default function PositionsTab() {
   const [allowUnpost, setAllowUnpost] = useState(false);
   const [saving, setSaving] = useState(false);
   const [memberSelections, setMemberSelections] = useState({});
+  const [overrides, setOverrides] = useState([]);
+  const [overrideUserId, setOverrideUserId] = useState("");
+  const [overrideActionId, setOverrideActionId] = useState("");
+  const [overrideLevel, setOverrideLevel] = useState("");
 
   const reload = () => {
     setLoading(true);
-    Promise.all([listPositions(), listAssignableUsers()])
-      .then(([p, u]) => {
+    Promise.all([listPositions(), listAssignableUsers(), listUserOverrides()])
+      .then(([p, u, o]) => {
         setPositions(p);
         setUsers(u);
+        setOverrides(o);
       })
       .catch((e) => notify(e.message, "error"))
       .finally(() => setLoading(false));
@@ -98,6 +113,44 @@ export default function PositionsTab() {
 
   const unassignedUsers = (position) => users.filter((u) => u.positionId !== position.id);
 
+  const changeLevel = async (position, actionId, level) => {
+    try {
+      await updatePositionActionPermission(position.id, { moduleId: LEAVE_REQUESTS_MODULE_ID, actionId, level });
+      reload();
+    } catch (err) {
+      notify(err.message, "error");
+    }
+  };
+
+  const addOverride = async () => {
+    if (!overrideUserId || !overrideActionId || !overrideLevel) return;
+    try {
+      await upsertUserOverride({
+        userId: overrideUserId,
+        moduleId: LEAVE_REQUESTS_MODULE_ID,
+        actionId: overrideActionId,
+        level: overrideLevel,
+      });
+      setOverrideUserId("");
+      setOverrideActionId("");
+      setOverrideLevel("");
+      reload();
+      notify(t("settings.positions.notifyOverrideAdded"), "success");
+    } catch (err) {
+      notify(err.message, "error");
+    }
+  };
+
+  const removeOverride = async (override) => {
+    try {
+      await deleteUserOverride(override.id);
+      reload();
+      notify(t("settings.positions.notifyOverrideRemoved"), "success");
+    } catch (err) {
+      notify(err.message, "error");
+    }
+  };
+
   if (loading) return <p className="empty">{t("common.loading")}</p>;
 
   return (
@@ -141,6 +194,29 @@ export default function PositionsTab() {
             {t("settings.positions.allowUnpostLabel")}
           </label>
 
+          <p className="note">{t("settings.positions.leaveRequestsTitle")}</p>
+          <table className="ledger-table">
+            <tbody>
+              {LEAVE_REQUEST_ACTIONS.map((actionId) => (
+                <tr key={actionId}>
+                  <td>{t(`settings.positions.actions.${actionId}`)}</td>
+                  <td>
+                    <select
+                      value={position.leaveRequestLevels?.[actionId] || "none"}
+                      onChange={(e) => changeLevel(position, actionId, e.target.value)}
+                    >
+                      {ACTION_LEVELS.map((level) => (
+                        <option key={level} value={level}>
+                          {t(`settings.positions.levels.${level}`)}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
           <div className="tag-cloud">
             {position.members.map((m) => (
               <span key={m.id} className="tag-chip">
@@ -169,6 +245,64 @@ export default function PositionsTab() {
           </div>
         </div>
       ))}
+
+      <div className="panel">
+        <h3>{t("settings.positions.overridesTitle")}</h3>
+
+        <div className="form-grid">
+          <select value={overrideUserId} onChange={(e) => setOverrideUserId(e.target.value)}>
+            <option value="">{t("settings.positions.chooseUser")}</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} ({u.email})
+              </option>
+            ))}
+          </select>
+          <select value={overrideActionId} onChange={(e) => setOverrideActionId(e.target.value)}>
+            <option value="">{t("settings.positions.chooseAction")}</option>
+            {LEAVE_REQUEST_ACTIONS.map((actionId) => (
+              <option key={actionId} value={actionId}>
+                {t(`settings.positions.actions.${actionId}`)}
+              </option>
+            ))}
+          </select>
+          <select value={overrideLevel} onChange={(e) => setOverrideLevel(e.target.value)}>
+            <option value="">{t("settings.positions.chooseLevel")}</option>
+            {ACTION_LEVELS.map((level) => (
+              <option key={level} value={level}>
+                {t(`settings.positions.levels.${level}`)}
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn-ghost"
+            onClick={addOverride}
+            disabled={!overrideUserId || !overrideActionId || !overrideLevel}
+          >
+            {t("settings.positions.addOverride")}
+          </button>
+        </div>
+
+        {overrides.length === 0 && <p className="note">{t("settings.positions.overridesEmpty")}</p>}
+        {overrides.length > 0 && (
+          <table className="ledger-table">
+            <tbody>
+              {overrides.map((o) => (
+                <tr key={o.id}>
+                  <td>{o.user.name} ({o.user.email})</td>
+                  <td>{t(`settings.positions.actions.${o.actionId}`)}</td>
+                  <td>{t(`settings.positions.levels.${o.level}`)}</td>
+                  <td>
+                    <button className="btn-ghost" onClick={() => removeOverride(o)}>
+                      {t("settings.positions.removeOverride")}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

@@ -7,3 +7,10 @@ export const createLeaveRequestSchema = z.object({
   endDate: z.coerce.date(),
   note: z.string().optional(),
 });
+
+export const updateLeaveRequestSchema = z.object({
+  type: z.string().min(1),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  note: z.string().optional(),
+});

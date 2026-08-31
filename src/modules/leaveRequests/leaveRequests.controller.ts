@@ -22,6 +22,11 @@ export const createLeaveRequest: RequestHandler = async (req, res) => {
   res.status(201).json(request);
 };
 
+export const updateLeaveRequestHandler: RequestHandler = async (req, res) => {
+  const request = await service.updateLeaveRequest(req.auth!.tenantId, req.params.id, req.body);
+  res.json(request);
+};
+
 export const approveLeaveRequestHandler: RequestHandler = async (req, res) => {
   const request = await service.transitionLeaveRequest(req.auth!.tenantId, req.params.id, "approved", {
     approverEmployeeId: null,

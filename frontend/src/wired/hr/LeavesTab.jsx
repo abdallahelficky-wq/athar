@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
-import { listLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest } from "../../api/leaveRequests";
+import { listLeaveRequests, createLeaveRequest, updateLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest } from "../../api/leaveRequests";
 import { LEAVE_TYPES } from "../../legacy/constants";
 
 export default function LeavesTab({ companyId }) {
@@ -17,6 +17,7 @@ export default function LeavesTab({ companyId }) {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
+  const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -30,11 +31,33 @@ export default function LeavesTab({ companyId }) {
   };
   useEffect(reload, [companyId]);
 
+  const resetForm = () => {
+    setEditingId(null);
+    setType(LEAVE_TYPES[0]);
+    setStartDate(new Date().toISOString().slice(0, 10));
+    setEndDate(new Date().toISOString().slice(0, 10));
+    setNote("");
+  };
+
+  const startEdit = (r) => {
+    setEditingId(r.id);
+    setEmployeeId(r.employeeId);
+    setType(r.type);
+    setStartDate(r.startDate.slice(0, 10));
+    setEndDate(r.endDate.slice(0, 10));
+    setNote(r.note || "");
+  };
+
   const save = async () => {
-    if (!employeeId) return;
     try {
-      await createLeaveRequest({ employeeId, type, startDate, endDate, note });
-      setNote("");
+      if (editingId) {
+        await updateLeaveRequest(editingId, { type, startDate, endDate, note });
+        resetForm();
+      } else {
+        if (!employeeId) return;
+        await createLeaveRequest({ employeeId, type, startDate, endDate, note });
+        setNote("");
+      }
       reload();
     } catch (err) {
       setError(err.message);
@@ -64,14 +87,17 @@ export default function LeavesTab({ companyId }) {
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>{t("hr.leaves.employee")}<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
+          <label>{t("hr.leaves.employee")}<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} disabled={Boolean(editingId)}>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
           <label>{t("hr.leaves.type")}<select value={type} onChange={(e) => setType(e.target.value)}>{LEAVE_TYPES.map((t2) => <option key={t2}>{t2}</option>)}</select></label>
           <label>{t("hr.leaves.fromDate")}<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
           <label>{t("hr.leaves.toDate")}<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label>
           <label className="memo-field">{t("hr.leaves.notes")}<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
         </div>
         {error && <p className="balance-bad">{error}</p>}
-        <button className="btn-primary" onClick={save} disabled={!employeeId}>{t("hr.leaves.saveBtn")}</button>
+        <button className="btn-primary" onClick={save} disabled={!editingId && !employeeId}>
+          {editingId ? t("hr.leaves.updateBtn") : t("hr.leaves.saveBtn")}
+        </button>
+        {editingId && <button className="btn-ghost" onClick={resetForm}>{t("hr.leaves.cancelEdit")}</button>}
       </div>
 
       {loading ? <p className="empty">{t("common.loading")}</p> : (
@@ -98,6 +124,7 @@ export default function LeavesTab({ companyId }) {
                   <td className="row-actions">
                     {r.status === "pending" && (
                       <>
+                        <button className="btn-ghost" onClick={() => startEdit(r)}>{t("hr.leaves.editBtn")}</button>
                         <button className="btn-ghost" onClick={() => approve(r)}>{t("hr.leaves.approve")}</button>
                         <button className="btn-ghost" onClick={() => reject(r)}>{t("hr.leaves.reject")}</button>
                       </>

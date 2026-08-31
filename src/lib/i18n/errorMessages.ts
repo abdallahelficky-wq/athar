@@ -18,6 +18,7 @@ export const AR_TO_EN: Record<string, string> = {
   "المستخدم غير موجود في هذه الشركة": "User not found in this company",
   "المستخدم غير مُسنَد لهذا المنصب": "User is not assigned to this position",
   "منصبك الوظيفي لا يملك صلاحية تنفيذ هذا الإجراء": "Your position does not have permission to perform this action",
+  "الاستثناء غير موجود": "Exception not found",
   "هذا الإجراء متاح فقط لمالك الشركة": "This action is only available to the company owner",
   "لا يوجد أي مستخدم مسجَّل لهذه الشركة بعد": "No user has registered for this company yet",
   "الإسطبل غير موجود أو لا يتبع الشركة المحددة": "The stable does not exist or does not belong to the selected company",

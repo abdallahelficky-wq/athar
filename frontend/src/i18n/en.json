@@ -1300,6 +1300,9 @@
       "toDate": "To date",
       "notes": "Notes",
       "saveBtn": "Register leave",
+      "updateBtn": "Update request",
+      "cancelEdit": "Cancel edit",
+      "editBtn": "Edit",
       "table": { "employee": "Employee", "type": "Type", "from": "From", "to": "To", "days": "Days", "status": "Status" },
       "noManagerBadge": "No direct manager",
       "noManagerTooltip": "This employee has no direct manager registered — the request will not appear in any mobile inbox, and approval/rejection is only possible from here",
@@ -1751,7 +1754,30 @@
       "addMember": "Add",
       "notifyCreated": "Position created successfully.",
       "notifyDeleted": "Position deleted.",
-      "confirmDelete": "Delete position \"{{name}}\"? Its members will lose its permissions immediately."
+      "confirmDelete": "Delete position \"{{name}}\"? Its members will lose its permissions immediately.",
+      "leaveRequestsTitle": "Leave request permissions",
+      "levels": {
+        "none": "No access",
+        "read": "Read only",
+        "edit": "Edit",
+        "approve": "Approve",
+        "full": "Full access"
+      },
+      "actions": {
+        "view": "View requests",
+        "create": "Create request",
+        "edit": "Edit request",
+        "delete": "Delete request",
+        "approve": "Approve/Reject"
+      },
+      "overridesTitle": "Individual user exceptions",
+      "overridesEmpty": "No individual exceptions yet.",
+      "chooseAction": "— Choose an action —",
+      "chooseLevel": "— Choose a level —",
+      "addOverride": "Add exception",
+      "notifyOverrideAdded": "Exception saved.",
+      "notifyOverrideRemoved": "Exception removed.",
+      "removeOverride": "Remove"
     },
     "locations": {
       "nameLabel": "Location / branch name",

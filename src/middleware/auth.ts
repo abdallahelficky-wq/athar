@@ -3,6 +3,7 @@ import { verifyAccessToken, verifyEmployeePortalToken } from "../lib/jwt";
 import { unauthorized, forbidden } from "../lib/httpError";
 import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
+import type { ActionLevel } from "../lib/platformActions";
 
 /** يتحقق من رمز JWT (access token) ويحمّل هوية المستخدم + المستأجر في req.auth */
 export const authenticate: RequestHandler = (req, _res, next) => {
@@ -118,6 +119,52 @@ export function requirePermission(moduleId: string, action: string): RequestHand
       : Boolean((permission?.extra as Record<string, boolean> | null | undefined)?.[action]);
 
     if (!allowed) throw forbidden("منصبك الوظيفي لا يملك صلاحية تنفيذ هذا الإجراء");
+    next();
+  };
+}
+
+/** رتبة كل مستوى ترتيبي — none أدنى شيء (0)، full أعلاه (4). المقارنة تحدث هنا في كود التطبيق دائماً،
+ * لا عبر ترتيب Postgres لقيم enum PermissionLevel. */
+const LEVEL_RANK: Record<ActionLevel, number> = { none: 0, read: 1, edit: 2, approve: 3, full: 4 };
+
+/**
+ * يقيّد نقطة نهاية بمستوى ترتيبي دقيق (PositionActionPermission/UserActionPermissionOverride) —
+ * الشكل الثاني (الترتيبي) من نظام صلاحيات المناصب، بديل تدريجي لـ requirePermission البوليانية أعلاه،
+ * وحدة واحدة في كل مرة (راجع PLATFORM_ACTIONS في lib/platformActions.ts). منطق الفحص:
+ *   1. super_admin → مسموح دائماً (كـ requireRole/requirePermission تماماً)
+ *   2. مالك الشركة (Tenant.ownerId) → مسموح دائماً (يُعامَل كـ "full")
+ *   3. استثناء فردي للمستخدم على هذا الإجراء تحديداً (UserActionPermissionOverride) إن وُجد → يُستخدم
+ *      مستواه مباشرة (نهائي، يتغلّب على صلاحية المنصب سواء كان أعلى أو أقل منها)
+ *   4. وإلا صلاحية منصب المستخدم على هذا الإجراء (PositionActionPermission) إن وُجدت
+ *   5. وإلا "none" افتراضياً (مرفوض/مخفي — رفض آمن افتراضي)
+ * يُسمَح فقط إن كانت رتبة المستوى المُحلَّل >= رتبة minLevel المطلوبة لهذا الـroute تحديداً.
+ */
+export function requireActionPermission(moduleId: string, actionId: string, minLevel: ActionLevel): RequestHandler {
+  return async (req, _res, next) => {
+    if (!req.auth) throw unauthorized();
+    if (req.auth.role === "super_admin") return next();
+    if (await isTenantOwner(req.auth)) return next();
+
+    const override = await prisma.userActionPermissionOverride.findUnique({
+      where: { userId_moduleId_actionId: { userId: req.auth.sub, moduleId, actionId } },
+    });
+
+    let level: ActionLevel = "none";
+    if (override) {
+      level = override.level as ActionLevel;
+    } else {
+      const user = await prisma.user.findUnique({ where: { id: req.auth.sub }, select: { positionId: true } });
+      if (user?.positionId) {
+        const permission = await prisma.positionActionPermission.findUnique({
+          where: { positionId_moduleId_actionId: { positionId: user.positionId, moduleId, actionId } },
+        });
+        if (permission) level = permission.level as ActionLevel;
+      }
+    }
+
+    if (LEVEL_RANK[level] < LEVEL_RANK[minLevel]) {
+      throw forbidden("منصبك الوظيفي لا يملك صلاحية تنفيذ هذا الإجراء");
+    }
     next();
   };
 }

@@ -175,6 +175,7 @@ model User {
   refreshTokens       RefreshToken[]
   auditLogs           AuditLog[]
   passwordResetTokens PasswordResetToken[]
+  actionPermissionOverrides UserActionPermissionOverride[]
 
   @@map("users")
 }
@@ -192,8 +193,9 @@ model Position {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  permissions PositionPermission[]
-  users       User[]
+  permissions       PositionPermission[]
+  actionPermissions PositionActionPermission[]
+  users             User[]
 
   @@unique([tenantId, name])
   @@map("positions")
@@ -218,6 +220,54 @@ model PositionPermission {
 
   @@unique([positionId, moduleId])
   @@map("position_permissions")
+}
+
+// مستوى ترتيبي واحد (كل مستوى يتضمن ما دونه): none < read < edit < approve < full — يُقارَن دائماً
+// عبر خريطة رتب ثابتة في كود التطبيق (LEVEL_RANK في middleware/auth.ts)، لا عبر ترتيب Postgres
+// لقيم enum. هذا هو الشكل الثاني (الترتيبي) لتمثيل الصلاحيات، بديل تدريجي لأعمدة PositionPermission
+// البوليانية أعلاه — يبدأ بوحدة leaveRequests فقط (راجع src/lib/platformActions.ts) بينما يبقى
+// PositionPermission قائماً بلا تغيير لخدمة صلاحية فك الترحيل الحالية أثناء فترة انتقالية.
+enum PermissionLevel {
+  none
+  read
+  edit
+  approve
+  full
+}
+
+// صلاحية منصب واحد لإجراء واحد (moduleId + actionId) بمستوى ترتيبي واحد — بديل PositionPermission
+// البوليانية لكل وحدة تُهاجَر تدريجياً لهذا الشكل الجديد (راجع PLATFORM_ACTIONS في
+// src/lib/platformActions.ts لسجل الوحدات/الإجراءات المُهاجَرة فعلياً).
+model PositionActionPermission {
+  id         String          @id @default(cuid())
+  positionId String
+  position   Position        @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  moduleId   String
+  actionId   String
+  level      PermissionLevel @default(none)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([positionId, moduleId, actionId])
+  @@map("position_action_permissions")
+}
+
+// استثناء فردي لمستخدم واحد على إجراء واحد — يتغلّب دائماً على صلاحية منصبه (PositionActionPermission)
+// عند وجوده (راجع requireActionPermission في middleware/auth.ts: يُفحَص هذا الجدول أولاً قبل أي
+// fallback لصلاحية المنصب). حالة نادرة عمداً (استثناء لا قاعدة عامة)، ولذلك جدول منفصل صغير بدل
+// توسيع PositionActionPermission نفسه.
+model UserActionPermissionOverride {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId  String
+  actionId  String
+  level     PermissionLevel
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([userId, moduleId, actionId])
+  @@map("user_action_permission_overrides")
 }
 
 model RefreshToken {

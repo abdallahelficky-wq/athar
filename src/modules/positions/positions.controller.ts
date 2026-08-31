@@ -17,6 +17,25 @@ export const updateHandler: RequestHandler = async (req, res) => {
   res.json(await service.updatePositionUnpost(req.auth!.tenantId, req.params.id, req.body.allowUnpost));
 };
 
+export const updateActionPermissionHandler: RequestHandler = async (req, res) => {
+  res.json(
+    await service.updatePositionActionPermission(req.auth!.tenantId, req.params.id, req.body.moduleId, req.body.actionId, req.body.level),
+  );
+};
+
+export const listUserOverridesHandler: RequestHandler = async (req, res) => {
+  res.json(await service.listUserOverrides(req.auth!.tenantId));
+};
+
+export const upsertUserOverrideHandler: RequestHandler = async (req, res) => {
+  res.json(await service.upsertUserOverride(req.auth!.tenantId, req.body));
+};
+
+export const deleteUserOverrideHandler: RequestHandler = async (req, res) => {
+  await service.deleteUserOverride(req.auth!.tenantId, req.params.overrideId);
+  res.status(204).send();
+};
+
 export const deleteHandler: RequestHandler = async (req, res) => {
   await service.deletePosition(req.auth!.tenantId, req.params.id);
   res.status(204).send();

@@ -1300,6 +1300,9 @@
       "toDate": "إلى تاريخ",
       "notes": "ملاحظات",
       "saveBtn": "تسجيل الإجازة",
+      "updateBtn": "تحديث الطلب",
+      "cancelEdit": "إلغاء التعديل",
+      "editBtn": "تعديل",
       "table": { "employee": "الموظف", "type": "النوع", "from": "من", "to": "إلى", "days": "الأيام", "status": "الحالة" },
       "noManagerBadge": "بلا مدير مباشر",
       "noManagerTooltip": "هذا الموظف بلا مدير مباشر مسجّل — لن يظهر الطلب في أي صندوق وارد بالجوال، والموافقة/الرفض من هنا فقط",
@@ -1751,7 +1754,30 @@
       "addMember": "إضافة",
       "notifyCreated": "تم إنشاء المنصب بنجاح.",
       "notifyDeleted": "تم حذف المنصب.",
-      "confirmDelete": "هل تريد حذف منصب \"{{name}}\"؟ سيفقد أعضاؤه صلاحياته فوراً."
+      "confirmDelete": "هل تريد حذف منصب \"{{name}}\"؟ سيفقد أعضاؤه صلاحياته فوراً.",
+      "leaveRequestsTitle": "صلاحيات طلبات الإجازة",
+      "levels": {
+        "none": "عدم رؤية",
+        "read": "قراءة فقط",
+        "edit": "تعديل",
+        "approve": "موافقة",
+        "full": "كل الصلاحيات"
+      },
+      "actions": {
+        "view": "عرض الطلبات",
+        "create": "إنشاء طلب",
+        "edit": "تعديل طلب",
+        "delete": "حذف طلب",
+        "approve": "الموافقة/الرفض"
+      },
+      "overridesTitle": "استثناءات فردية لمستخدمين",
+      "overridesEmpty": "لا توجد استثناءات فردية حالياً.",
+      "chooseAction": "— اختر إجراءً —",
+      "chooseLevel": "— اختر مستوى —",
+      "addOverride": "إضافة استثناء",
+      "notifyOverrideAdded": "تم حفظ الاستثناء.",
+      "notifyOverrideRemoved": "تم حذف الاستثناء.",
+      "removeOverride": "حذف"
     },
     "locations": {
       "nameLabel": "اسم الموقع / الفرع",
