@@ -617,10 +617,10 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
 }
 
 /**
- * تُبقى هذه الوظيفة موجودة في الخادم لأغراض تصحيح استثنائية محمية بالرقم السري، لكنها لم تعد
- * مُتاحة من واجهة شاشة القيود اليدوية — دورة الحياة الجديدة (القسم 4 من الطلب) تشترط أن يُقفَل
- * القيد المرحّل تماماً بلا أي تعديل مباشر، وتُحيل أي تصحيح لآلية "عكس القيد" حصراً بدل فك الترحيل
- * وإعادة التعديل، حتى لا يُلتَف على قاعدة "لا تعديل بعد الترحيل" عبر فك الترحيل ثم التعديل ثم إعادة الترحيل.
+ * إجراء استثنائي محمي بطبقتين مستقلتين: صلاحية الوصول للمسار نفسه (canUnpost في
+ * journalEntries.routes.ts — super_admin، أو مالك الشركة، أو منصب مُفوَّض صراحةً بهذه الصلاحية عبر
+ * PositionPermission)، ثم الرقم السري للشركة (unlockPin) هنا مهما كانت هوية المستخدم. متاحة فعلياً
+ * من واجهة شاشة القيود اليدوية (زر فك الترحيل يظهر فقط لمن يجتاز الصلاحيتين معاً).
  */
 export async function unpostJournalEntry(tenantId: string, id: string, userId: string, pin: string) {
   const entry = await prisma.journalEntry.findFirst({ where: { id, tenantId } });

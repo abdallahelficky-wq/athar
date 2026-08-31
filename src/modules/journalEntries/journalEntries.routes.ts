@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, requireRole, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { uploadSingleFile } from "../attachments/attachments.controller";
 import {
@@ -34,10 +34,13 @@ export const journalEntryRoutes = Router();
 journalEntryRoutes.use(authenticate);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
-// فك ترحيل قيد يومية مقفل إجراء استثنائي مقصود تقييده لـ super_admin تحديداً (أضيق من canWrite) —
-// خلاف كل شاشات الترحيل الأخرى في النظام؛ القيد اليومي هو السجل الذري الأخير، فتصحيحه المباشر بعد
-// الترحيل يحمل وزناً أكبر من فك ترحيل مستند تجاري (فاتورة/سند) يعتمد أصلاً على قيد يومية خلفه.
-const superAdminOnly = requireRole("super_admin");
+// فك ترحيل قيد يومية مقفل إجراء استثنائي — القيد اليومي هو السجل الذري الأخير، فتصحيحه المباشر
+// بعد الترحيل يحمل وزناً أكبر من فك ترحيل مستند تجاري (فاتورة/سند) يعتمد أصلاً على قيد يومية خلفه.
+// المرحلة الأولى من نظام صلاحيات المناصب (Position/PositionPermission): بدل تقييده على super_admin
+// وحده، يسمح به الآن أيضاً لمالك الشركة (Tenant.ownerId، دائماً) أو أي مستخدم بمنصب مُفوَّض صراحةً
+// بهذه الصلاحية تحديداً (extra.unpost على وحدة "accounts") — راجع requirePermission في
+// middleware/auth.ts وشاشة إدارة المناصب في الإعدادات.
+const canUnpost = requirePermission("accounts", "unpost");
 
 journalEntryRoutes.get("/", listHandler);
 // يجب أن يسبق "/:id" كي لا يُعامَل "next-number" كمعرّف قيد
@@ -57,7 +60,7 @@ journalEntryRoutes.post(
 journalEntryRoutes.patch("/:id", canWrite, validateBody(updateJournalEntrySchema), updateHandler);
 journalEntryRoutes.delete("/:id", canWrite, deleteHandler);
 journalEntryRoutes.post("/:id/post", canWrite, postHandler);
-journalEntryRoutes.post("/:id/unpost", superAdminOnly, validateBody(unpostSchema), unpostHandler);
+journalEntryRoutes.post("/:id/unpost", canUnpost, validateBody(unpostSchema), unpostHandler);
 journalEntryRoutes.post(
   "/:id/mirror-suggestion",
   canWrite,

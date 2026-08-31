@@ -16,6 +16,7 @@ import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../..
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
 import type { Lang } from "../../lib/i18n/translate";
 import type { Tenant, User } from "@prisma/client";
+import { canUnpostJournalEntries } from "../positions/positions.service";
 
 const TRIAL_DAYS = 30;
 const INVITE_EXPIRES_DAYS = 7;
@@ -54,6 +55,12 @@ async function issueTokenPair(user: User) {
 function publicUser(user: User) {
   const { passwordHash, inviteToken, ...rest } = user;
   return rest;
+}
+
+/** publicUser + مؤشّر canUnpostJournalEntries — حتى تعرف الواجهة متى تُظهر زر "فك الترحيل" أصلاً
+ * (راجع positions.service.ts: canUnpostJournalEntries) بدل الاعتماد فقط على رفض الخادم لاحقاً. */
+async function publicUserWithPermissions(user: User) {
+  return { ...publicUser(user), canUnpostJournalEntries: await canUnpostJournalEntries(user.tenantId, user.id, user.role) };
 }
 
 function publicTenant(tenant: Tenant) {
@@ -124,7 +131,12 @@ export async function register(
         },
       });
 
-      return { tenant, user };
+      // أول مستخدم يسجّل لهذه الشركة هو مالكها افتراضياً — يملك دائماً كل صلاحيات المناصب على
+      // شركته (راجع requirePermission في middleware/auth.ts) بلا حاجة لإعداد منصب له صراحةً.
+      // للشركات الأقدم من هذه الميزة، راجع scripts/backfillTenantOwners.ts.
+      await tx.tenant.update({ where: { id: tenant.id }, data: { ownerId: user.id } });
+
+      return { tenant: { ...tenant, ownerId: user.id }, user };
     },
     // مهلة أطول من الافتراضي (5 ثوانٍ) كإجراء احتياطي إضافي — لم يعد زرع الشجرة القياسية
     // بحاجة إليها فعلياً بعد التحويل إلى createMany دفعي واحد، لكنها تحمي من أي بطء عابر
@@ -143,7 +155,7 @@ export async function register(
     console.error("فشل إرسال إيميل الترحيب:", err);
   }
 
-  return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices: [] as never[] };
+  return { tenant: publicTenant(tenant), user: await publicUserWithPermissions(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices: [] as never[] };
 }
 
 export async function login(input: { email: string; password: string }) {
@@ -161,7 +173,7 @@ export async function login(input: { email: string; password: string }) {
 
   const tokens = await issueTokenPair(user);
   const platformNotices = await prisma.platformNotice.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: "desc" } });
-  return { tenant: publicTenant(tenant), user: publicUser(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
+  return { tenant: publicTenant(tenant), user: await publicUserWithPermissions(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
 }
 
 export async function refresh(refreshToken: string) {
@@ -280,7 +292,7 @@ export async function acceptInvite(input: { token: string; password: string }) {
   assertTenantActive(tenant);
   const tokens = await issueTokenPair(updated);
   const platformNotices = await prisma.platformNotice.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: "desc" } });
-  return { tenant: publicTenant(tenant), user: publicUser(updated), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
+  return { tenant: publicTenant(tenant), user: await publicUserWithPermissions(updated), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
 }
 
 export async function changeUnlockPin(tenantId: string, currentPin: string, newPin: string) {
@@ -318,7 +330,7 @@ export async function getMe(userId: string) {
   const platformNotices = await prisma.platformNotice.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: "desc" } });
   // مؤشّر تشخيصي للوحة الإدارة فقط (مجرد boolean، بلا كشف أي سرّ) — انظر التحذير المطابق عند
   // إقلاع الخادم في server.ts لنفس السبب.
-  return { user: publicUser(user), tenant: publicTenant(tenant), emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
+  return { user: await publicUserWithPermissions(user), tenant: publicTenant(tenant), emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
 }
 
 export async function updateMyName(userId: string, name: string) {

@@ -4,8 +4,10 @@ import { COMPANIES, PERMISSION_ROLES, COMPANY_DOC_TYPES, COST_CENTERS } from "./
 import CompaniesSettings from "../wired/CompaniesSettings";
 import MyAccountSettings from "../wired/MyAccountSettings";
 import UsersTab from "../wired/UsersTab";
+import PositionsTab from "../wired/PositionsTab";
 import SubTabs from "../wired/shared/SubTabs";
 import { useModuleTab } from "../wired/shared/useModuleTab";
+import { useAuth } from "../context/AuthContext";
 
 export function MyProfileSettings({ currentUser, setCurrentUser }) {
   const { t } = useTranslation();
@@ -161,11 +163,17 @@ export const SETTINGS_TABS = [
 
 export function SettingsModule({ currentUser, setCurrentUser, jobTitles, setJobTitles, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {
   const { t } = useTranslation();
-  const [tab] = useModuleTab("/settings", SETTINGS_TABS);
+  const { user, tenant } = useAuth();
+  // مالك الشركة (Tenant.ownerId) أو super_admin فقط يرون تبويب "المناصب" — الخادم يرفض أي طلب من
+  // غيرهم فعلياً (requireTenantOwner) بصرف النظر عن هذا الإخفاء في الواجهة، فهذا لتحسين تجربة
+  // الاستخدام فقط، وليس طبقة الحماية الحقيقية.
+  const isOwner = user?.role === "super_admin" || (tenant?.ownerId && tenant.ownerId === user?.id);
+  const tabs = isOwner ? [...SETTINGS_TABS, { id: "positions", labelKey: "nav.tabs.positions" }] : SETTINGS_TABS;
+  const [tab] = useModuleTab("/settings", tabs);
   return (
     <div>
       <div className="section-title"><span className="eyebrow">{t("settings.eyebrow")}</span><h2>{t("nav.groups.settings")}</h2></div>
-      <SubTabs tabs={SETTINGS_TABS} active={tab} basePath="/settings" />
+      <SubTabs tabs={tabs} active={tab} basePath="/settings" />
       {tab === "companies" && <CompaniesSettings companies={realCompanies} reload={reloadRealCompanies} onCompanyCreated={onRealCompanyCreated} />}
       {tab === "profile" && (
         <div>
@@ -177,6 +185,7 @@ export function SettingsModule({ currentUser, setCurrentUser, jobTitles, setJobT
       {tab === "jobTitles" && <JobTitlesSettings jobTitles={jobTitles} setJobTitles={setJobTitles} />}
       {tab === "locations" && <LocationsSettings onDataChange={onDataChange} />}
       {tab === "companyDocs" && <CompanyDocumentsSettings companyDocuments={companyDocuments} setCompanyDocuments={setCompanyDocuments} />}
+      {tab === "positions" && isOwner && <PositionsTab />}
     </div>
   );
 }

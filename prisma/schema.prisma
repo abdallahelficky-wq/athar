@@ -51,11 +51,19 @@ model Tenant {
   // NAV_GROUPS في frontend/src/App.jsx.
   enabledModules     String[]           @default([])
   unlockPin          String // قيمة مُشفّرة بـ bcrypt دائماً (انظر hashPassword في auth.service.ts)
+  // مالك الشركة (صاحب الاشتراك الأصلي) — مرجع حر بلا علاقة FK صارمة (بنفس أسلوب mirrorEntryId في
+  // JournalEntry)، يُملأ عند التسجيل بأول مستخدم (register في auth.service.ts)، وللشركات الأقدم
+  // عبر scripts/backfillTenantOwners.ts (بنفس منطق "أول مستخدم بالتاريخ"). قابل للتغيير مستقبلاً
+  // (نقل الملكية) بخلاف "أول مستخدم بالتاريخ" المشتق ديناميكياً وغير القابل للتعديل. المالك يملك
+  // دائماً كل الصلاحيات على شركته (راجع requirePermission في middleware/auth.ts) بلا حاجة لإعداد
+  // منصب له صراحةً.
+  ownerId            String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
   platformNotices           PlatformNotice[]
   users                     User[]
+  positions                 Position[]
   companies                 Company[]
   costCenters               CostCenter[]
   departments               Department[]
@@ -159,11 +167,57 @@ model User {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
+  // المنصب المُسنَد لهذا المستخدم (اختياري) — يحدّد صلاحياته الدقيقة عبر PositionPermission، بجانب
+  // (لا بدلاً من) دوره العام role أعلاه. حذف المنصب لا يحذف المستخدم (onDelete: SetNull).
+  positionId String?
+  position   Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
+
   refreshTokens       RefreshToken[]
   auditLogs           AuditLog[]
   passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+// منصب وظيفي داخل شركة (Tenant) واحدة — يحمل صلاحيات دقيقة (PositionPermission) قابلة للتخصيص من
+// مالك الشركة نفسه (tenant.ownerId)، بديلاً تدريجياً عن نظام الأدوار الثابتة (UserRole + requireRole)
+// لبعض الإجراءات الحسّاسة تحديداً. المرحلة الأولى (الحالية): تغطي فقط صلاحية "فك ترحيل القيود"
+// (extra.unpost على صف moduleId="accounts") — بقية الأعمدة/الوحدات موجودة بالبنية لكن غير مُستخدَمة
+// بعد، تمهيداً لتوسعة لاحقة بلا أي migration إضافي.
+model Position {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  permissions PositionPermission[]
+  users       User[]
+
+  @@unique([tenantId, name])
+  @@map("positions")
+}
+
+// صف صلاحيات منصب واحد لوحدة (moduleId) واحدة — معرّفات moduleId تطابق PLATFORM_MODULE_IDS
+// (src/lib/platformModules.ts) حرفياً: sales, purchases, inventory, stables, fixedAssets, accounts,
+// hr, reports, settings.
+model PositionPermission {
+  id         String   @id @default(cuid())
+  positionId String
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  moduleId   String
+  canRead    Boolean  @default(false)
+  canCreate  Boolean  @default(false)
+  canDelete  Boolean  @default(false)
+  canApprove Boolean  @default(false)
+  // صلاحيات استثنائية غير قياسية خاصة بوحدة معينة (مثال: {"unpost": true}) — JSON بدل عمود جديد
+  // لكل صلاحية خاصة تُضاف مستقبلاً، فلا حاجة لـ migration في كل مرة تظهر صلاحية غير قياسية لوحدة
+  // واحدة فقط.
+  extra      Json?
+
+  @@unique([positionId, moduleId])
+  @@map("position_permissions")
 }
 
 model RefreshToken {

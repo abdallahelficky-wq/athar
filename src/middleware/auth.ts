@@ -2,6 +2,7 @@ import { RequestHandler } from "express";
 import { verifyAccessToken, verifyEmployeePortalToken } from "../lib/jwt";
 import { unauthorized, forbidden } from "../lib/httpError";
 import { env } from "../config/env";
+import { prisma } from "../lib/prisma";
 
 /** يتحقق من رمز JWT (access token) ويحمّل هوية المستخدم + المستأجر في req.auth */
 export const authenticate: RequestHandler = (req, _res, next) => {
@@ -79,3 +80,55 @@ export function assertCompanyAccess(auth: { companyScope: string }, companyId: s
     throw forbidden("لا تملك صلاحية الوصول لبيانات هذه الشركة");
   }
 }
+
+/** true لو كان صاحب الطلب مالك الشركة (Tenant.ownerId) نفسه — يملك دائماً كل الصلاحيات على شركته
+ * بلا حاجة لإعداد منصب له صراحةً. super_admin (المنصّة) ليس مالك أي شركة بهذا المعنى، لكنه يمرّ
+ * دائماً من requirePermission أدناه عبر استثنائه المنفصل، بنفس أسلوب requireRole تماماً. */
+async function isTenantOwner(auth: { sub: string; tenantId: string }): Promise<boolean> {
+  const tenant = await prisma.tenant.findUnique({ where: { id: auth.tenantId }, select: { ownerId: true } });
+  return tenant?.ownerId === auth.sub;
+}
+
+/**
+ * يقيّد نقطة نهاية بصلاحية دقيقة (مصفوفة منصب المستخدم PositionPermission) بدل دور ثابت — المرحلة
+ * الأولى من نظام صلاحيات المناصب القابل للتخصيص لكل شركة (بديل تدريجي لـ requireRole لبعض
+ * الإجراءات الحسّاسة). moduleId يطابق PLATFORM_MODULE_IDS، وaction إمّا أحد الأعمدة القياسية
+ * (read/create/delete/approve) أو مفتاح حرّ داخل عمود extra JSON (مثال: "unpost") للصلاحيات غير
+ * القياسية الخاصة بوحدة واحدة، بلا حاجة لعمود/migration جديد لكل صلاحية استثنائية تُضاف مستقبلاً.
+ *
+ * ملاحظة أداء: خلافاً لـ requireRole المتزامن تماماً (فحص JWT فقط)، هذا الحارس غير متزامن (استعلامان
+ * إضافيان لقاعدة البيانات كحد أقصى) — مقبول للمرحلة الأولى المحدودة النطاق (مسار واحد فقط حالياً).
+ */
+export function requirePermission(moduleId: string, action: string): RequestHandler {
+  return async (req, _res, next) => {
+    if (!req.auth) throw unauthorized();
+    if (req.auth.role === "super_admin") return next();
+    if (await isTenantOwner(req.auth)) return next();
+
+    const user = await prisma.user.findUnique({ where: { id: req.auth.sub }, select: { positionId: true } });
+    const permission = user?.positionId
+      ? await prisma.positionPermission.findUnique({
+          where: { positionId_moduleId: { positionId: user.positionId, moduleId } },
+        })
+      : null;
+
+    const standardColumns = ["read", "create", "delete", "approve"] as const;
+    const allowed = (standardColumns as readonly string[]).includes(action)
+      ? Boolean(permission?.[`can${action[0].toUpperCase()}${action.slice(1)}` as "canRead"])
+      : Boolean((permission?.extra as Record<string, boolean> | null | undefined)?.[action]);
+
+    if (!allowed) throw forbidden("منصبك الوظيفي لا يملك صلاحية تنفيذ هذا الإجراء");
+    next();
+  };
+}
+
+/** يقصر الوصول على مالك الشركة (Tenant.ownerId) وsuper_admin فقط — لإدارة المناصب وصلاحياتها نفسها،
+ * التي يجب أن تبقى بيد مالك الشركة حصرياً (وليس أي admin عادي آخر داخل نفس الشركة). */
+export const requireTenantOwner: RequestHandler = async (req, _res, next) => {
+  if (!req.auth) throw unauthorized();
+  if (req.auth.role === "super_admin") return next();
+  if (!(await isTenantOwner(req.auth))) {
+    throw forbidden("هذا الإجراء متاح فقط لمالك الشركة");
+  }
+  next();
+};

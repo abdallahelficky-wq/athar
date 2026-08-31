@@ -11,6 +11,14 @@
  */
 export const AR_TO_EN: Record<string, string> = {
   "صيغة البريد الإلكتروني غير صحيحة": "Invalid email format",
+  "اسم المنصب مطلوب": "Position name is required",
+  "المستخدم مطلوب": "User is required",
+  "يوجد بالفعل منصب بهذا الاسم": "A position with this name already exists",
+  "المنصب غير موجود": "Position not found",
+  "المستخدم غير موجود في هذه الشركة": "User not found in this company",
+  "المستخدم غير مُسنَد لهذا المنصب": "User is not assigned to this position",
+  "منصبك الوظيفي لا يملك صلاحية تنفيذ هذا الإجراء": "Your position does not have permission to perform this action",
+  "هذا الإجراء متاح فقط لمالك الشركة": "This action is only available to the company owner",
   "لا يوجد أي مستخدم مسجَّل لهذه الشركة بعد": "No user has registered for this company yet",
   "الإسطبل غير موجود أو لا يتبع الشركة المحددة": "The stable does not exist or does not belong to the selected company",
   "الخيل غير موجود أو لا يتبع الشركة المحددة": "The horse does not exist or does not belong to the selected company",

@@ -192,7 +192,8 @@
       "hrReports": "Reports", "trial": "Trial Balance", "income": "Income Statement", "balance": "Balance Sheet",
       "monthly": "Comprehensive Monthly Report", "automation": "Send Automation",
       "companies": "Company Info", "profile": "Profile", "users": "Users & Permissions",
-      "jobTitles": "Job Titles", "locations": "Locations", "companyDocs": "Official Documents"
+      "jobTitles": "Job Titles", "locations": "Locations", "companyDocs": "Official Documents",
+      "positions": "Positions"
     },
     "activeCompanyLabel": "Active company:",
     "noCompanySelected": "Not selected yet",
@@ -964,7 +965,7 @@
     },
     "rowActions": {
       "view": "View entry", "edit": "Edit", "editDisabled": "Cannot edit after posting — use reverse entry to correct it",
-      "delete": "Delete", "post": "Post", "reverse": "Reverse entry", "unpost": "Unpost (super_admin only)",
+      "delete": "Delete", "post": "Post", "reverse": "Reverse entry", "unpost": "Unpost",
       "print": "Print entry", "downloadPdf": "Download PDF", "duplicate": "Duplicate to a new entry", "mirror": "Create mirror entry in another company",
       "links": "Entry links", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments"
     },
@@ -1739,6 +1740,18 @@
       "newTitleLabel": "New job title",
       "placeholder": "e.g. Sales supervisor",
       "empty": "No job titles registered yet."
+    },
+    "positions": {
+      "nameLabel": "Position name",
+      "namePlaceholder": "e.g. Senior accountant",
+      "allowUnpostLabel": "Allow unposting journal entries",
+      "empty": "No positions created yet.",
+      "noMembers": "No members assigned to this position yet.",
+      "chooseUser": "— Choose a user —",
+      "addMember": "Add",
+      "notifyCreated": "Position created successfully.",
+      "notifyDeleted": "Position deleted.",
+      "confirmDelete": "Delete position \"{{name}}\"? Its members will lose its permissions immediately."
     },
     "locations": {
       "nameLabel": "Location / branch name",

@@ -192,7 +192,8 @@
       "hrReports": "التقارير", "trial": "ميزان المراجعة", "income": "قائمة الدخل", "balance": "المركز المالي",
       "monthly": "التقرير المالي الشهري الشامل", "automation": "أتمتة الإرسال",
       "companies": "بيانات الشركات", "profile": "الملف الشخصي", "users": "المستخدمون والصلاحيات",
-      "jobTitles": "الوظائف", "locations": "المواقع", "companyDocs": "المستندات الرسمية"
+      "jobTitles": "الوظائف", "locations": "المواقع", "companyDocs": "المستندات الرسمية",
+      "positions": "المناصب"
     },
     "activeCompanyLabel": "الشركة النشطة:",
     "noCompanySelected": "لم تُختَر بعد",
@@ -964,7 +965,7 @@
     },
     "rowActions": {
       "view": "عرض القيد", "edit": "تعديل", "editDisabled": "لا يمكن التعديل بعد الترحيل — استخدم عكس القيد لتصحيحه",
-      "delete": "حذف", "post": "ترحيل", "reverse": "عكس القيد", "unpost": "فك الترحيل (super_admin فقط)",
+      "delete": "حذف", "post": "ترحيل", "reverse": "عكس القيد", "unpost": "فك الترحيل",
       "print": "طباعة القيد", "downloadPdf": "تحميل PDF", "duplicate": "نسخ القيد إلى قيد جديد", "mirror": "إنشاء قيد مرآة في شركة أخرى",
       "links": "روابط القيد", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات"
     },
@@ -1739,6 +1740,18 @@
       "newTitleLabel": "مسمّى وظيفي جديد",
       "placeholder": "مثال: مشرف مبيعات",
       "empty": "لا توجد مسمّيات وظيفية مسجّلة بعد."
+    },
+    "positions": {
+      "nameLabel": "اسم المنصب",
+      "namePlaceholder": "مثال: محاسب أول",
+      "allowUnpostLabel": "السماح بفك ترحيل القيود",
+      "empty": "لا توجد مناصب مُنشأة بعد.",
+      "noMembers": "لا يوجد أعضاء بهذا المنصب بعد.",
+      "chooseUser": "— اختر مستخدماً —",
+      "addMember": "إضافة",
+      "notifyCreated": "تم إنشاء المنصب بنجاح.",
+      "notifyDeleted": "تم حذف المنصب.",
+      "confirmDelete": "هل تريد حذف منصب \"{{name}}\"؟ سيفقد أعضاؤه صلاحياته فوراً."
     },
     "locations": {
       "nameLabel": "اسم الموقع / الفرع",
