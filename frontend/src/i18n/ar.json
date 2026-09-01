@@ -1060,6 +1060,18 @@
     "addAccount": "+ إضافة حساب",
     "expandView": "عرض الشجرة كاملة",
     "compactView": "عرض مصغّر",
+    "export": {
+      "exportExcel": "تصدير Excel",
+      "sheetName": "شجرة الحسابات",
+      "noParent": "—",
+      "columns": {
+        "code": "كود الحساب",
+        "name": "اسم الحساب",
+        "type": "نوع الحساب",
+        "parent": "الحساب الأب",
+        "posting": "قابل للترحيل"
+      }
+    },
     "form": {
       "nameAr": "اسم الحساب بالعربية",
       "nameEn": "اسم الحساب بالإنجليزية (اختياري)",

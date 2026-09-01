@@ -1060,6 +1060,18 @@
     "addAccount": "+ Add account",
     "expandView": "Show full tree",
     "compactView": "Compact view",
+    "export": {
+      "exportExcel": "Export Excel",
+      "sheetName": "Chart of Accounts",
+      "noParent": "—",
+      "columns": {
+        "code": "Account code",
+        "name": "Account name",
+        "type": "Account type",
+        "parent": "Parent account",
+        "posting": "Posting account"
+      }
+    },
     "form": {
       "nameAr": "Account name (Arabic)",
       "nameEn": "Account name (English) (optional)",
