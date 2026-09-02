@@ -235,6 +235,15 @@ export default function BulkImportJournalEntriesModal({ companyId, onClose, onIm
                 })}
               </div>
             )}
+            {preview.invalidDateGroups.length > 0 && (
+              <div className="balance-bad" style={{ marginBottom: 10 }}>
+                {t("journalModals.bulkImport.invalidDateWarning", {
+                  count: preview.invalidDateGroups.length,
+                  groupKey: preview.invalidDateGroups[0].groupKey,
+                  date: preview.invalidDateGroups[0].date,
+                })}
+              </div>
+            )}
             <div className="lines-table-wrap">
               <table className="lines-table">
                 <thead>
@@ -285,7 +294,7 @@ export default function BulkImportJournalEntriesModal({ companyId, onClose, onIm
               <button
                 className="btn-primary"
                 onClick={submit}
-                disabled={committing || !allResolved || preview.unbalancedGroups.length > 0}
+                disabled={committing || !allResolved || preview.unbalancedGroups.length > 0 || preview.invalidDateGroups.length > 0}
               >
                 {committing ? t("journalModals.bulkImport.committing") : t("journalModals.bulkImport.confirmImportBtn", { count: preview.totalGroups })}
               </button>

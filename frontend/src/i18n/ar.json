@@ -1870,6 +1870,7 @@
       "analyzingFile": "جارٍ تحليل الملف ومطابقة الحسابات...",
       "reviewSummary": "{{rows}} سطر ضمن {{groups}} قيد. راجع مطابقة الحسابات أدناه قبل التأكيد.",
       "unbalancedWarning": "تحذير: {{count}} قيد غير متوازن (مدين ≠ دائن) ولن يمكن استيراده — أول قيد غير متوازن: رقم {{groupKey}} ({{date}}).",
+      "invalidDateWarning": "تحذير: {{count}} قيد بتاريخ غير صالح (يجب أن يكون بصيغة YYYY-MM-DD) ولن يمكن استيراده — أول قيد: رقم {{groupKey}} بتاريخ \"{{date}}\".",
       "table": { "accountNameInFile": "اسم الحساب في الملف", "lineCount": "عدد الأسطر", "status": "الحالة", "accountInTree": "الحساب في شجرة الشركة" },
       "statusMatched": "متطابق تلقائياً",
       "statusAmbiguous": "غير مؤكد (أكثر من حساب بنفس الاسم)",

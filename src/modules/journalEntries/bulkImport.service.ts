@@ -4,6 +4,16 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 
 const BALANCE_EPSILON = 0.01;
+// صيغة التاريخ الوحيدة المقبولة: YYYY-MM-DD (مطابقة لما يُطبِّعه normalizeDate في الواجهة، ولنمط
+// bulkImport.service.ts نفسه). رفض صريح لأي صيغة أخرى (مثل DD/MM/YYYY) بدل تخمين الترتيب — تخمين
+// خاطئ لتاريخ مالي أخطر بكثير من رفضه وطلب تصحيحه يدوياً في الملف المصدر.
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function parseGroupDate(dateStr: string): Date | null {
+  if (!ISO_DATE_RE.test(dateStr.trim())) return null;
+  const parsed = new Date(dateStr.trim());
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 export interface BulkImportRow {
   groupKey: string;
@@ -43,6 +53,13 @@ function findUnbalancedGroups(groups: EntryGroup[]) {
       return { groupKey: g.groupKey, date: g.date, memo: g.memo, totalDebit, totalCredit, diff: totalDebit - totalCredit };
     })
     .filter((g) => Math.abs(g.diff) > BALANCE_EPSILON);
+}
+
+/** يعرض كل قيد تاريخه غير قابل للتحويل (صيغة مختلفة عن YYYY-MM-DD، أو تاريخ غير موجود فعلياً مثل
+ * 2023-13-45) — قبل أي محاولة كتابة، لا بعدها. راجع تعليق parseGroupDate أعلاه لسبب الرفض الصريح
+ * بدل التخمين. */
+function findInvalidDateGroups(groups: EntryGroup[]) {
+  return groups.filter((g) => parseGroupDate(g.date) === null).map((g) => ({ groupKey: g.groupKey, date: g.date, memo: g.memo }));
 }
 
 async function assertCompany(tenantId: string, companyId: string) {
@@ -93,12 +110,14 @@ export async function previewBulkImport(tenantId: string, companyId: string, row
 
   const groups = groupRows(rows);
   const unbalancedGroups = findUnbalancedGroups(groups);
+  const invalidDateGroups = findInvalidDateGroups(groups);
 
   return {
     totalRows: rows.length,
     totalGroups: groups.length,
     accountNames,
     unbalancedGroups,
+    invalidDateGroups,
   };
 }
 
@@ -122,6 +141,19 @@ export async function commitBulkImport(
   if (unbalanced.length) {
     throw badRequest(
       `${unbalanced.length} قيد غير متوازن (مدين ≠ دائن)، أول قيد غير متوازن: رقم ${unbalanced[0].groupKey} — لا يمكن استيراد أي قيد قبل إصلاح كل القيود غير المتوازنة`,
+    );
+  }
+
+  // يجب رفض أي تاريخ غير صالح هنا صراحة، قبل أي محاولة new Date() لاحقة — تمرير قيمة غير صالحة إلى
+  // Prisma.createMany لاحقاً يرمي PrismaClientValidationError تُضمِّن نسخة كاملة من كل السطور
+  // المُدخَلة في رسالة الخطأ نفسها (سلوك Prisma موثَّق فعلياً بالاختبار)، ما تسبب سابقاً في إغراق
+  // سجلات الإنتاج بعشرات آلاف الأسطر لخطأ واحد فقط. رسالة الخطأ هنا مختصرة عمداً (رقم القيد الأول
+  // فقط)، لا قائمة كاملة — القائمة الكاملة تظهر فقط في استجابة المعاينة (previewBulkImport) حتى
+  // يراجعها المستخدم في الواجهة، لا في سجل الخادم.
+  const invalidDates = findInvalidDateGroups(groups);
+  if (invalidDates.length) {
+    throw badRequest(
+      `${invalidDates.length} قيد بتاريخ غير صالح (يجب أن يكون بصيغة YYYY-MM-DD)، أول قيد: رقم ${invalidDates[0].groupKey} بتاريخ "${invalidDates[0].date}" — لا يمكن استيراد أي قيد قبل تصحيح كل التواريخ غير الصالحة`,
     );
   }
 
@@ -162,11 +194,13 @@ export async function commitBulkImport(
       groups.forEach((group, index) => {
         const entryId = randomUUID();
         const entryNumber = `${prefix}${String(startSeq + index).padStart(5, "0")}`;
+        // آمن دائماً هنا: تحقّقنا مسبقاً أعلاه (findInvalidDateGroups) أن كل تاريخ في groups صالح —
+        // parseGroupDate لا يمكن أن تُعيد null لأي عنصر وصل لهذه النقطة.
         entryRows.push({
           id: entryId,
           tenantId,
           companyId,
-          date: new Date(group.date),
+          date: parseGroupDate(group.date)!,
           memo: group.memo || null,
           status: "saved",
           entryNumber,

@@ -1870,6 +1870,7 @@
       "analyzingFile": "Analyzing file and matching accounts...",
       "reviewSummary": "{{rows}} rows across {{groups}} entries. Review the account matching below before confirming.",
       "unbalancedWarning": "Warning: {{count}} unbalanced entries (debit ≠ credit) cannot be imported — first unbalanced entry: #{{groupKey}} ({{date}}).",
+      "invalidDateWarning": "Warning: {{count}} entries have an invalid date (must be YYYY-MM-DD) and cannot be imported — first entry: #{{groupKey}} with date \"{{date}}\".",
       "table": { "accountNameInFile": "Account name in file", "lineCount": "Line count", "status": "Status", "accountInTree": "Account in company tree" },
       "statusMatched": "Matched automatically",
       "statusAmbiguous": "Uncertain (more than one account with this name)",
