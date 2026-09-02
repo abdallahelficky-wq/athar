@@ -59,6 +59,19 @@ async function refreshAccessToken() {
         setTokens(tokens);
         return tokens;
       })
+      .catch((err) => {
+        // رمز التجديد هذا تحديداً رُفض — قد يكون تبويب آخر لنفس المستخدم قد جدّده بالفعل قبل لحظات
+        // (كل رمز تجديد يُستخدم مرة واحدة فقط ثم يُستبدَل)، وtokenStore هنا أصبح محدَّثاً تلقائياً
+        // بالرمز الجديد فور وصول حدث "storage" من ذلك التبويب. إن كان الرمز الحالي فعلاً مختلفاً عمّا
+        // حاولنا تجديده، فهذا التبويب لا يزال جزءاً من جلسة صالحة تماماً — فقط كان يحمل نسخة قديمة،
+        // فنستخدم الرمز الحالي بدل إخراج المستخدم بالخطأ. لا نُخرِجه إلا لو ظل الرمز كما هو (تجديد
+        // فاشل فعلاً: منتهي، أو أُبطلت الجلسة بتسجيل خروج حقيقي).
+        const currentRefreshToken = getRefreshToken();
+        if (currentRefreshToken && currentRefreshToken !== refreshToken) {
+          return { accessToken: getAccessToken(), refreshToken: currentRefreshToken };
+        }
+        throw err;
+      })
       .finally(() => {
         refreshPromise = null;
       });
