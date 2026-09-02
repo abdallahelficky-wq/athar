@@ -4,15 +4,36 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 
 const BALANCE_EPSILON = 0.01;
-// صيغة التاريخ الوحيدة المقبولة: YYYY-MM-DD (مطابقة لما يُطبِّعه normalizeDate في الواجهة، ولنمط
-// bulkImport.service.ts نفسه). رفض صريح لأي صيغة أخرى (مثل DD/MM/YYYY) بدل تخمين الترتيب — تخمين
-// خاطئ لتاريخ مالي أخطر بكثير من رفضه وطلب تصحيحه يدوياً في الملف المصدر.
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * صيغتان مقبولتان صراحةً فقط، بلا أي تخمين بينهما — الفاصل نفسه (- أم /) يحدّد الصيغة حصرياً، فلا
+ * تعارض ممكن إطلاقاً بين الاثنتين: "2023-12-31" (ISO، ما يُطبِّعه normalizeDate في الواجهة عندما
+ * يُقرأ التاريخ من خلية Excel حقيقية) و"31/12/2023" (DD/MM/YYYY — صيغة ملفات تصدير خارجية شائعة،
+ * تأكَّد فعلياً أن هذه هي صيغة تصدير قيود على الأقل). **لا يُدعَم MM/DD/YYYY إطلاقاً وعمداً** — لو
+ * دُعِمت الصيغتان (DD/MM وMM/DD) معاً بفاصل "/" واحد لصار أي تاريخ بيوم ≤ 12 غامضاً حقيقياً (مثال:
+ * "03/04/2024" قد يعني 3 أبريل أو 4 مارس)، وتخمين خاطئ لتاريخ مالي أخطر بكثير من رفضه وطلب تصحيحه.
+ * أي صيغة ثالثة غير هاتين تُرفَض صراحةً بدل التخمين.
+ */
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const DMY_DATE_RE = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+
+/** يبني تاريخاً من مكوّناته ويتحقق أنه موجود فعلياً (يرفض مثل 30 فبراير التي يقبلها new Date()
+ * بصمت عبر "ترحيلها" تلقائياً لأول مارس) — يُستخدَم لكلا الصيغتين، لا الاعتماد على new Date(string)
+ * التي تفسّر "/" بشكل مختلف حسب المحرّك (وهي بالضبط سبب فشل DD/MM/YYYY أصلاً: new Date("31/12/2023")
+ * تُفسَّر كـMM/DD فتصير شهراً 31 غير موجود). */
+function dateFromParts(year: number, month: number, day: number): Date | null {
+  const d = new Date(Date.UTC(year, month - 1, day));
+  if (d.getUTCFullYear() !== year || d.getUTCMonth() !== month - 1 || d.getUTCDate() !== day) return null;
+  return d;
+}
 
 function parseGroupDate(dateStr: string): Date | null {
-  if (!ISO_DATE_RE.test(dateStr.trim())) return null;
-  const parsed = new Date(dateStr.trim());
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  const trimmed = dateStr.trim();
+  const iso = ISO_DATE_RE.exec(trimmed);
+  if (iso) return dateFromParts(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  const dmy = DMY_DATE_RE.exec(trimmed);
+  if (dmy) return dateFromParts(Number(dmy[3]), Number(dmy[2]), Number(dmy[1]));
+  return null;
 }
 
 export interface BulkImportRow {
