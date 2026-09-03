@@ -185,13 +185,22 @@ async function main() {
   console.log(`قيود المرجع الفريدة: ${reference.size}`);
   console.log(`قيود bulk_import المخزَّنة لشركة أرمي: ${dbEntries.length}`);
 
+  interface EntryFix {
+    entryId: string;
+    originalEntryNumber: number;
+    dateChange: { from: string; to: string } | null;
+    descriptionChanges: { lineId: string; from: string | null; to: string }[];
+  }
+
   let dateFixes = 0;
   let descriptionFixes = 0;
   let tieMatchedEntries = 0;
   const needsManualReview: { originalEntryNumber: number; dbLines: DbLine[]; refLines: ReferenceLine[] }[] = [];
   const noReference: number[] = [];
-  const plannedDateChanges: { entryId: string; originalEntryNumber: number; from: string; to: string }[] = [];
-  const plannedDescriptionChanges: { entryId: string; originalEntryNumber: number; lineId: string; from: string | null; to: string }[] = [];
+  // كل قيد يحمل تصحيحاته الخاصة معاً (تاريخه + كل تحديثات وصف أسطره) — وحدة تنفيذ ذرّية واحدة لاحقاً،
+  // بدل معاملة تفاعلية واحدة ضخمة تغطي آلاف القيود معاً (وهو تحديداً ما سبَّب P2028 سابقاً: انتهاء
+  // مهلة Prisma التفاعلية الافتراضية (5 ثوانٍ) أثناء تنفيذ آلاف عمليات update داخل حلقة واحدة).
+  const entryFixes: EntryFix[] = [];
 
   for (const entry of dbEntries) {
     if (entry.originalEntryNumber === -1) {
@@ -212,10 +221,12 @@ async function main() {
       continue;
     }
 
+    const fix: EntryFix = { entryId: entry.id, originalEntryNumber: entry.originalEntryNumber, dateChange: null, descriptionChanges: [] };
+
     const correctDate = refLines[0].date;
     if (entry.date !== correctDate) {
       dateFixes++;
-      plannedDateChanges.push({ entryId: entry.id, originalEntryNumber: entry.originalEntryNumber, from: entry.date, to: correctDate });
+      fix.dateChange = { from: entry.date, to: correctDate };
     }
     let hadTie = false;
     for (const m of matches) {
@@ -223,13 +234,11 @@ async function main() {
       const dbLine = entry.lines.find((l) => l.id === m.dbLineId)!;
       if ((dbLine.description || "") !== m.refDescription) {
         descriptionFixes++;
-        plannedDescriptionChanges.push({
-          entryId: entry.id, originalEntryNumber: entry.originalEntryNumber, lineId: m.dbLineId,
-          from: dbLine.description, to: m.refDescription,
-        });
+        fix.descriptionChanges.push({ lineId: m.dbLineId, from: dbLine.description, to: m.refDescription });
       }
     }
     if (hadTie) tieMatchedEntries++;
+    if (fix.dateChange || fix.descriptionChanges.length) entryFixes.push(fix);
   }
 
   console.log(`\n=== ملخص Dry-run ${commit ? "(سيُنفَّذ فعلياً الآن --commit)" : "(بلا أي كتابة)"} ===`);
@@ -251,16 +260,39 @@ async function main() {
     return;
   }
 
-  console.log("\n--commit مفعَّل: تنفيذ التصحيحات المعتمدة (التاريخ + الوصف) فقط لكل قيد سليم المطابقة...");
-  await prisma.$transaction(async (tx) => {
-    for (const c of plannedDateChanges) {
-      await tx.journalEntry.update({ where: { id: c.entryId }, data: { date: new Date(`${c.to}T00:00:00.000Z`) } });
+  console.log(`\n--commit مفعَّل: تنفيذ ${entryFixes.length} قيداً، كل قيد في معاملة قصيرة مستقلة (تاريخه + كل تحديثات وصف أسطره معاً)...`);
+  console.log("إعادة تشغيل هذا الأمر لاحقاً (بعد أي انقطاع لأي سبب) آمنة تماماً: كل قيد يُعاد فحصه من حالته الفعلية الحالية، فالقيود المصحَّحة بالفعل تُكتشَف كمطابقة للمرجع فعلاً وتُتخطَّى بصمت بلا أي ازدواج.");
+
+  let succeeded = 0;
+  const failed: { originalEntryNumber: number; error: string }[] = [];
+  for (let i = 0; i < entryFixes.length; i++) {
+    const fix = entryFixes[i];
+    try {
+      const ops = [];
+      if (fix.dateChange) {
+        ops.push(prisma.journalEntry.update({ where: { id: fix.entryId }, data: { date: new Date(`${fix.dateChange.to}T00:00:00.000Z`) } }));
+      }
+      for (const dc of fix.descriptionChanges) {
+        ops.push(prisma.journalEntryLine.update({ where: { id: dc.lineId }, data: { description: dc.to } }));
+      }
+      // صيغة $transaction المصفوفية (لا التفاعلية): تُرسَل كل عمليات هذا القيد كمعاملة واحدة قصيرة
+      // بلا جلسة طويلة معرَّضة لانتهاء مهلة تفاعلية — ذرّية على مستوى القيد الواحد (كل تحديثاته
+      // تنجح معاً أو تفشل معاً)، لا على مستوى التشغيلة كلها.
+      await prisma.$transaction(ops);
+      succeeded++;
+    } catch (err) {
+      failed.push({ originalEntryNumber: fix.originalEntryNumber, error: err instanceof Error ? err.message : String(err) });
     }
-    for (const c of plannedDescriptionChanges) {
-      await tx.journalEntryLine.update({ where: { id: c.lineId }, data: { description: c.to } });
+    if ((i + 1) % 200 === 0 || i === entryFixes.length - 1) {
+      console.log(`  تقدُّم: ${i + 1}/${entryFixes.length} قيداً (نجح ${succeeded}، فشل ${failed.length})`);
     }
-  });
-  console.log(`تم: ${plannedDateChanges.length} تصحيح تاريخ، ${plannedDescriptionChanges.length} تصحيح وصف سطر.`);
+  }
+
+  console.log(`\nتم بنجاح: ${succeeded} قيداً من ${entryFixes.length}.`);
+  if (failed.length) {
+    console.log(`\n⚠️ فشل ${failed.length} قيداً أثناء التنفيذ (لم تُطبَّق تصحيحاتها، ولم تتأثر أي قيود أخرى) — أعد تشغيل نفس الأمر لإعادة محاولتها فقط:`);
+    failed.forEach((f) => console.log(`  #${f.originalEntryNumber}: ${f.error}`));
+  }
   console.log(`لم يُلمَس إطلاقاً: ${needsManualReview.length} قيداً (عدم تطابق عدد/قيم الأسطر) — بانتظار قرار يدوي منفصل.`);
 }
 
