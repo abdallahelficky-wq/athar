@@ -6,6 +6,7 @@ import {
   loginSchema,
   refreshSchema,
   inviteSchema,
+  setUserActiveSchema,
   acceptInviteSchema,
   changeUnlockPinSchema,
   updateTenantSchema,
@@ -21,6 +22,8 @@ import {
   inviteHandler,
   listUsersHandler,
   resendInviteHandler,
+  setUserActiveHandler,
+  deleteUserHandler,
   acceptInviteHandler,
   changeUnlockPinHandler,
   updateTenantHandler,
@@ -50,6 +53,16 @@ authRoutes.post(
   requireRole("admin", "finance_manager"),
   resendInviteHandler,
 );
+authRoutes.patch(
+  "/users/:id/active",
+  authenticate,
+  requireRole("admin", "finance_manager"),
+  validateBody(setUserActiveSchema),
+  setUserActiveHandler,
+);
+// حذف نهائي أخطر من التعطيل (لا رجعة فيه) — يقتصر على admin فقط، بخلاف الدعوة/التعطيل المتاحين
+// أيضاً لـfinance_manager، بنفس منطق تقييد حذف الشركة نفسها في companies.routes.ts.
+authRoutes.delete("/users/:id", authenticate, requireRole("admin"), deleteUserHandler);
 authRoutes.post("/accept-invite", validateBody(acceptInviteSchema), acceptInviteHandler);
 authRoutes.patch(
   "/unlock-pin",

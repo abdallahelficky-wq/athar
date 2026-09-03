@@ -274,6 +274,51 @@ export async function listUsers(tenantId: string) {
   return users.map(publicUser);
 }
 
+/** يمنع المستخدم من تسجيل الدخول فوراً (auth.service.ts's login/refresh يتحققان من active بالفعل)
+ * بلا حذف أي شيء — سجله وكل ما أنشأه (قيود، مرفقات...) يبقى كما هو تماماً. */
+export async function setUserActive(tenantId: string, actingUserId: string, userId: string, active: boolean) {
+  if (userId === actingUserId) throw badRequest("لا يمكنك تعطيل حسابك أنت شخصياً");
+  const user = await prisma.user.findFirst({ where: { id: userId, tenantId } });
+  if (!user) throw notFound("المستخدم غير موجود");
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { ownerId: true } });
+  if (tenant.ownerId === userId) throw badRequest("لا يمكن تعطيل مالك الشركة");
+
+  const updated = await prisma.user.update({ where: { id: userId }, data: { active } });
+  return publicUser(updated);
+}
+
+/**
+ * حذف نهائي — يُرفَض لو كان المستخدم قد أنشأ أي قيد يومية أو رفع أي مرفق (createdBy/uploadedBy
+ * مرجعان حرّان بلا FK صارم في المخطط أصلاً، فحذف المستخدم لن يفشل على مستوى قاعدة البيانات، لكنه
+ * سيترك تلك السجلات بمرجع "من أنشأها" معلَّقاً بلا أي طريقة لاحقاً لمعرفة صاحبه — غير مقبول في
+ * نظام محاسبي). التعطيل (setUserActive) هو البديل الدائم الصحيح في هذه الحالة: يمنع الدخول
+ * فعلياً مع الحفاظ الكامل على أثر "من أنشأ ماذا". الجداول الأخرى المرتبطة بالمستخدم مباشرة عبر FK
+ * حقيقي (RefreshToken/PasswordResetToken/UserActionPermissionOverride) تُحذَف تلقائياً معه
+ * (onDelete: Cascade)، وAuditLog يبقى بصفّه لكن userId يُصفَّر (onDelete: SetNull) — سلوك موجود
+ * أصلاً في المخطط، لا تغيير مطلوب هنا.
+ */
+export async function deleteUser(tenantId: string, actingUserId: string, userId: string) {
+  if (userId === actingUserId) throw badRequest("لا يمكنك حذف حسابك أنت شخصياً");
+  const user = await prisma.user.findFirst({ where: { id: userId, tenantId } });
+  if (!user) throw notFound("المستخدم غير موجود");
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { ownerId: true } });
+  if (tenant.ownerId === userId) throw badRequest("لا يمكن حذف مالك الشركة");
+
+  const [journalEntryCount, attachmentCount] = await Promise.all([
+    prisma.journalEntry.count({ where: { createdBy: userId } }),
+    prisma.attachment.count({ where: { uploadedBy: userId } }),
+  ]);
+  if (journalEntryCount || attachmentCount) {
+    const reasons = [
+      journalEntryCount ? `${journalEntryCount} قيد يومية` : "",
+      attachmentCount ? `${attachmentCount} مرفق` : "",
+    ].filter(Boolean).join(" و");
+    throw badRequest(`لا يمكن حذف هذا المستخدم نهائياً لارتباطه بإنشاء ${reasons} — عطّله بدلاً من ذلك للحفاظ على سجل "من أنشأها".`);
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+}
+
 export async function acceptInvite(input: { token: string; password: string }) {
   const user = await prisma.user.findUnique({ where: { inviteToken: input.token } });
   if (!user) throw notFound("رابط الدعوة غير صالح");

@@ -37,6 +37,16 @@ export const resendInviteHandler: RequestHandler = async (req, res) => {
   res.json(result);
 };
 
+export const setUserActiveHandler: RequestHandler = async (req, res) => {
+  const result = await authService.setUserActive(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.active);
+  res.json(result);
+};
+
+export const deleteUserHandler: RequestHandler = async (req, res) => {
+  await authService.deleteUser(req.auth!.tenantId, req.auth!.sub, req.params.id);
+  res.status(204).send();
+};
+
 export const acceptInviteHandler: RequestHandler = async (req, res) => {
   const result = await authService.acceptInvite(req.body);
   res.json(result);

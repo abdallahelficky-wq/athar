@@ -50,3 +50,7 @@ export const resetPasswordSchema = z.object({
   token: z.string().min(1, "رمز إعادة التعيين مطلوب"),
   password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
 });
+
+export const setUserActiveSchema = z.object({
+  active: z.boolean(),
+});
