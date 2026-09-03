@@ -13,6 +13,11 @@ export const loginSchema = z.object({
   password: z.string().min(1, "كلمة المرور مطلوبة"),
 });
 
+export const completeLoginChoiceSchema = z.object({
+  identityToken: z.string().min(1, "رمز اختيار الحساب مطلوب"),
+  userId: z.string().min(1, "معرّف الحساب المطلوب تسجيل الدخول إليه مطلوب"),
+});
+
 export const refreshSchema = z.object({
   refreshToken: z.string().min(1, "رمز التحديث مطلوب"),
 });
@@ -26,7 +31,10 @@ export const inviteSchema = z.object({
 
 export const acceptInviteSchema = z.object({
   token: z.string().min(1, "رمز الدعوة مطلوب"),
-  password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
+  // اختيارية: مطلوبة فقط لو كانت هذه أول مرة تُحدَّد فيها كلمة مرور لهذه الهوية (تُتحقَّق فعلياً في
+  // acceptInvite بخدمة auth.service.ts) — لو كانت الهوية موجودة بالفعل بكلمة مرور من عضوية أخرى،
+  // فهذه الدعوة مجرد تأكيد انضمام لشركة إضافية بلا كلمة مرور جديدة.
+  password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل").optional(),
 });
 
 export const changeUnlockPinSchema = z.object({

@@ -22,6 +22,11 @@ export const logoutHandler: RequestHandler = async (req, res) => {
   res.status(204).send();
 };
 
+export const completeLoginChoiceHandler: RequestHandler = async (req, res) => {
+  const result = await authService.completeLoginChoice(req.body.identityToken, req.body.userId);
+  res.json(result);
+};
+
 export const inviteHandler: RequestHandler = async (req, res) => {
   const result = await authService.invite(req.auth!.tenantId, req.body, req.lang);
   res.status(201).json(result);
@@ -45,6 +50,11 @@ export const setUserActiveHandler: RequestHandler = async (req, res) => {
 export const deleteUserHandler: RequestHandler = async (req, res) => {
   await authService.deleteUser(req.auth!.tenantId, req.auth!.sub, req.params.id);
   res.status(204).send();
+};
+
+export const getInviteInfoHandler: RequestHandler = async (req, res) => {
+  const result = await authService.getInviteInfo(String(req.query.token ?? ""));
+  res.json(result);
 };
 
 export const acceptInviteHandler: RequestHandler = async (req, res) => {

@@ -18,6 +18,29 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
   return jwt.verify(token, env.jwtAccessSecret) as AccessTokenPayload;
 }
 
+export interface IdentityChoiceTokenPayload {
+  identityId: string;
+}
+
+/**
+ * رمز قصير الأجل (5 دقائق) يُصدَر بعد التحقق من كلمة مرور هوية (Identity) لها أكثر من عضوية
+ * (شركة/مستأجر) واحدة، لإتمام اختيار العضوية المطلوب تسجيل الدخول إليها فعلياً (الخطوة الثانية).
+ * موقّع بسرّ مُشتَق من سرّ رموز الدخول لكن مختلف عنه تماماً (نفس مبدأ فصل سرّ بوابة الموظف) —
+ * لا يمكن لهذا الرمز أبداً أن يُقبَل عبر verifyAccessToken أو العكس، ولا يحمل tenantId/role/
+ * companyScope إطلاقاً فلا يصلح كرمز دخول حقيقي حتى لو حاول أحد إساءة استخدامه.
+ */
+function identityChoiceSecret(): string {
+  return `${env.jwtAccessSecret}::identity-choice`;
+}
+
+export function signIdentityChoiceToken(payload: IdentityChoiceTokenPayload): string {
+  return jwt.sign(payload, identityChoiceSecret(), { expiresIn: "5m" });
+}
+
+export function verifyIdentityChoiceToken(token: string): IdentityChoiceTokenPayload {
+  return jwt.verify(token, identityChoiceSecret()) as IdentityChoiceTokenPayload;
+}
+
 export interface EmployeePortalTokenPayload {
   employeeId: string;
   tenantId: string;

@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import { badRequest, notFound } from "../../lib/httpError";
+import { badRequest, conflict, notFound } from "../../lib/httpError";
 import type { Prisma, Tenant } from "@prisma/client";
 
 const tenantSummarySelect = {
@@ -14,7 +14,7 @@ const tenantSummarySelect = {
   _count: { select: { users: true, companies: true } },
   // أول مستخدم سجَّل لهذه الشركة (المُنشَأ ضمن نفس معاملة التسجيل نفسها في auth.service.ts —
   // يحمل دائماً دور admin أو super_admin) — نجلب بريده الإلكتروني فقط لعرضه كـ adminEmail.
-  users: { select: { email: true }, orderBy: { createdAt: "asc" }, take: 1 },
+  users: { select: { identity: { select: { email: true } } }, orderBy: { createdAt: "asc" }, take: 1 },
 } satisfies Prisma.TenantSelect;
 
 type TenantSummaryRaw = Prisma.TenantGetPayload<{ select: typeof tenantSummarySelect }>;
@@ -23,7 +23,7 @@ type TenantSummaryRaw = Prisma.TenantGetPayload<{ select: typeof tenantSummarySe
  * adminEmail مباشرة بدل مصفوفة users. */
 function mapTenantSummary(tenant: TenantSummaryRaw) {
   const { users, ...rest } = tenant;
-  return { ...rest, adminEmail: users[0]?.email ?? null };
+  return { ...rest, adminEmail: users[0]?.identity.email ?? null };
 }
 
 /** كل الشركات (Tenants) المسجَّلة في أثر المحاسبي — بيانات إدارية على مستوى Tenant فقط (بلا أي
@@ -67,21 +67,37 @@ export async function updateTenantModules(tenantId: string, enabledModules: stri
 }
 
 /** يحدّث بريد أول مستخدم (المُعتبَر "أدمن" الشركة) — وليس حقلاً منفصلاً على Tenant نفسه، لأن
- * adminEmail في الأساس هو بريد ذلك المستخدم بالضبط (راجع mapTenantSummary). يُسجَّل القيمتان
- * القديمة والجديدة في سجل التدقيق (AuditLog) الخاص بأثر المحاسبي نفسه، بنفس النمط المستخدم في
- * بقية الوحدات (مثال: journalEntries.service.ts). */
+ * adminEmail في الأساس هو بريد الهوية (Identity) المرتبطة بذلك المستخدم (راجع mapTenantSummary).
+ * بما أن البريد أصبح خاصية على مستوى الهوية المشتركة بين كل عضويات نفس الشخص (بعد فصل Identity عن
+ * User)، يُرفض التعديل صراحةً لو كانت هذه الهوية مرتبطة بأكثر من مستأجر — تغييره هنا كان سيُغيّر
+ * بريد تسجيل الدخول لشركات أخرى غير هذه الشركة دون علم مالكها، وهذا خارج نطاق ما يعنيه "تعديل بريد
+ * أدمن هذه الشركة تحديداً". يُسجَّل القيمتان القديمة والجديدة في سجل التدقيق (AuditLog) الخاص بأثر
+ * المحاسبي نفسه، بنفس النمط المستخدم في بقية الوحدات (مثال: journalEntries.service.ts). */
 export async function updateTenantAdminEmail(tenantId: string, newEmail: string) {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw notFound("الشركة (Tenant) غير موجودة");
 
-  const firstUser = await prisma.user.findFirst({ where: { tenantId }, orderBy: { createdAt: "asc" } });
+  const firstUser = await prisma.user.findFirst({
+    where: { tenantId },
+    orderBy: { createdAt: "asc" },
+    include: { identity: { include: { _count: { select: { memberships: true } } } } },
+  });
   if (!firstUser) throw notFound("لا يوجد أي مستخدم مسجَّل لهذه الشركة بعد");
 
-  const oldEmail = firstUser.email;
+  const oldEmail = firstUser.identity.email;
   if (oldEmail === newEmail) return { adminEmail: newEmail };
 
-  const [updatedUser] = await prisma.$transaction([
-    prisma.user.update({ where: { id: firstUser.id }, data: { email: newEmail } }),
+  if (firstUser.identity._count.memberships > 1) {
+    throw badRequest(
+      "لا يمكن تعديل هذا البريد لأن حساب هذا المستخدم مرتبط بأكثر من شركة (نفس البريد وكلمة المرور) — تعديل البريد هنا كان سيُغيّر بريد تسجيل الدخول لكل تلك الشركات معاً.",
+    );
+  }
+
+  const emailTaken = await prisma.identity.findUnique({ where: { email: newEmail } });
+  if (emailTaken) throw conflict("هذا البريد الإلكتروني مستخدَم بالفعل بواسطة حساب آخر");
+
+  const [updatedIdentity] = await prisma.$transaction([
+    prisma.identity.update({ where: { id: firstUser.identityId }, data: { email: newEmail } }),
     prisma.auditLog.create({
       data: {
         tenantId,
@@ -94,7 +110,7 @@ export async function updateTenantAdminEmail(tenantId: string, newEmail: string)
     }),
   ]);
 
-  return { adminEmail: updatedUser.email };
+  return { adminEmail: updatedIdentity.email };
 }
 
 const DELETABLE_STATUS: Tenant["subscriptionStatus"] = "trialing";

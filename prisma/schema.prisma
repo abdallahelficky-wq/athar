@@ -150,13 +150,38 @@ enum InviteStatus {
   accepted
 }
 
+// هوية واحدة لكل إنسان حقيقي — البريد الإلكتروني وكلمة المرور يعيشان هنا فقط (فريدان على مستوى
+// قاعدة البيانات كاملة)، بمعزل عن أي مستأجر. تسمح بانتماء نفس الشخص (بنفس البريد وكلمة المرور)
+// لعدة شركات/مستأجرين منفصلين تماماً (كل عضوية = صفّ User مستقل بنطاق companyScope خاص به)، بنفس
+// مبدأ نظام "قيود": بيانات كل شركة معزولة تماماً عن الأخرى رغم تسجيل الدخول الموحّد. عضوية جديدة
+// بإيميل له هوية موجودة مسبقاً في مستأجر آخر تتطلّب دائماً تأكيداً صريحاً من صاحب الإيميل عبر رابط
+// دعوة (User.inviteStatus="pending" + inviteToken)، تماماً كأي دعوة أخرى — لا ربط تلقائي بلا موافقة.
+model Identity {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships         User[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("identities")
+}
+
+// عضوية هوية واحدة (Identity) داخل مستأجر واحد — كل ما كان قبل تقسيم Identity حقلاً هنا مباشرة
+// (الدور، نطاق الشركة، حالة الدعوة...) يبقى دون أي تغيير في المعنى أو الاستخدام؛ فقط email/
+// passwordHash انتقلا فعلياً إلى Identity. req.auth.sub في كل مكان بالنظام لا يزال معرّف صفّ User
+// هذا تحديداً (لا Identity) — التبديل بين شركات نفس الهوية = إصدار رمز JWT جديد فعلياً لعضوية
+// أخرى، لا تعديل حالة داخل نفس الجلسة، فيبقى companyScope/enforceCompanyScope وكل فحوصات العزل
+// الأخرى في النظام بلا أي تغيير مطلوب.
 model User {
   id              String       @id @default(cuid())
+  identityId      String
+  identity        Identity     @relation(fields: [identityId], references: [id], onDelete: Cascade)
   tenantId        String
   tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name            String
-  email           String       @unique
-  passwordHash    String?
   role            UserRole     @default(accountant)
   companyScope    String       @default("all") // "all" أو معرّف شركة محددة ضمن المستأجر
   active          Boolean      @default(true)
@@ -172,11 +197,14 @@ model User {
   positionId String?
   position   Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
-  refreshTokens       RefreshToken[]
-  auditLogs           AuditLog[]
-  passwordResetTokens PasswordResetToken[]
+  refreshTokens             RefreshToken[]
+  auditLogs                 AuditLog[]
   actionPermissionOverrides UserActionPermissionOverride[]
 
+  // نفس الهوية لا تنضم لنفس المستأجر مرتين (لا حاجة لعضويتين منفصلتين لنفس الشخص في نفس المستأجر —
+  // نطاق companyScope واحد يكفي، ولو احتاج صلاحيات مختلفة لشركتين من نفس المستأجر فذلك عبر
+  // companyScope="all" أو منصب مخصَّص، لا عضوية إضافية).
+  @@unique([identityId, tenantId])
   @@map("users")
 }
 
@@ -284,15 +312,17 @@ model RefreshToken {
 
 // رمز استعادة كلمة المرور — يُخزَّن مجزّأً (SHA-256) لا كنص خام، بنفس أسلوب RefreshToken،
 // أحادي الاستخدام (usedAt) ومحدود الصلاحية (expiresAt)، ويُستخدم أيضاً لتطبيق تحديد معدل
-// الطلبات (٣ طلبات لكل بريد إلكتروني في الساعة) بعدّ الصفوف المُنشأة حديثاً لنفس المستخدم.
+// الطلبات (٣ طلبات لكل بريد إلكتروني في الساعة) بعدّ الصفوف المُنشأة حديثاً لنفس الهوية.
+// يشير إلى Identity لا User: كلمة المرور مشتركة بين كل عضويات نفس الهوية الآن، فإعادة تعيينها
+// يجب أن تُغيّرها مرة واحدة للجميع، لا لعضوية واحدة فقط.
 model PasswordResetToken {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  identityId String
+  identity   Identity  @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
 
   @@map("password_reset_tokens")
 }
@@ -1776,7 +1806,7 @@ model LeaveSettlement {
   employee                   Employee              @relation(fields: [employeeId], references: [id])
   leaveStartDate             DateTime
   leaveEndDate               DateTime?
-  settlementType            String                @default("actual_leave")
+  settlementType             String                @default("actual_leave")
   leaveDays                  Decimal               @default(0) @db.Decimal(6, 2)
   usedLeaveDaysBefore        Decimal               @default(0) @db.Decimal(6, 2)
   remainingLeaveDays         Decimal               @default(0) @db.Decimal(6, 2)

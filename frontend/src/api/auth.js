@@ -2,6 +2,10 @@ import { api, apiFetch } from "./http";
 
 export const registerTenant = (payload) => apiFetch("/auth/register", { method: "POST", body: payload });
 export const login = (payload) => apiFetch("/auth/login", { method: "POST", body: payload });
+// الخطوة الثانية من تسجيل الدخول عندما تنتمي نفس الهوية (بريد وكلمة مرور) لأكثر من شركة — تُصدِر
+// رمز دخول حقيقي وموقَّع فعلياً من الخادم للشركة المُختارة، وليس مجرد تبديل حالة في المتصفح.
+export const completeLoginChoice = (identityToken, userId) =>
+  apiFetch("/auth/login/complete", { method: "POST", body: { identityToken, userId } });
 export const logout = (refreshToken) => apiFetch("/auth/logout", { method: "POST", body: { refreshToken } });
 export const changeUnlockPin = (payload) => api.patch("/auth/unlock-pin", payload);
 export const updateTenantName = (name) => api.patch("/auth/tenant", { name });
@@ -12,6 +16,7 @@ export const listUsers = () => api.get("/auth/users");
 export const resendInvite = (userId) => api.post(`/auth/users/${userId}/resend-invite`);
 export const setUserActive = (userId, active) => api.patch(`/auth/users/${userId}/active`, { active });
 export const deleteUser = (userId) => api.delete(`/auth/users/${userId}`);
+export const getInviteInfo = (token) => api.get(`/auth/invite-info?token=${encodeURIComponent(token)}`);
 export const acceptInvite = (payload) => api.post("/auth/accept-invite", payload);
 export const forgotPassword = (email) => api.post("/auth/forgot-password", { email });
 export const resetPassword = (token, password) => api.post("/auth/reset-password", { token, password });

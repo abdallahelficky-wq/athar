@@ -84,6 +84,16 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const result = await authApi.login({ email, password });
+    // لو كانت هذه الهوية (نفس البريد وكلمة المرور) منتمية لأكثر من شركة، لا يُصدِر الخادم جلسة
+    // كاملة بعد — يُعاد اختيار الشركة أولاً (LoginPage تعرض القائمة) ثم completeLogin يُتمّم
+    // الدخول الفعلي لاحقاً بإصدار رمز موقَّع حقيقي جديد من الخادم لتلك الشركة تحديداً.
+    if (result.chooseAccount) return result;
+    applySession(result);
+    return result;
+  };
+
+  const completeLogin = async (identityToken, userId) => {
+    const result = await authApi.completeLoginChoice(identityToken, userId);
     applySession(result);
     return result;
   };
@@ -137,6 +147,7 @@ export function AuthProvider({ children }) {
     emailServiceConfigured,
     platformNotices,
     login,
+    completeLogin,
     register,
     acceptInvite,
     renameTenant,

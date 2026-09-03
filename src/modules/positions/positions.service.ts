@@ -15,7 +15,7 @@ const LEAVE_REQUEST_ACTION_IDS = PLATFORM_ACTIONS.leaveRequests.map((a) => a.id)
 const positionInclude = {
   permissions: { where: { moduleId: UNPOST_MODULE_ID } },
   actionPermissions: { where: { moduleId: LEAVE_REQUESTS_MODULE_ID } },
-  users: { select: { id: true, name: true, email: true } },
+  users: { select: { id: true, name: true, identity: { select: { email: true } } } },
 } satisfies Prisma.PositionInclude;
 
 type PositionRaw = Prisma.PositionGetPayload<{ include: typeof positionInclude }>;
@@ -35,7 +35,7 @@ function publicPosition(position: PositionRaw) {
     createdAt: position.createdAt,
     allowUnpost,
     leaveRequestLevels,
-    members: position.users,
+    members: position.users.map((u) => ({ id: u.id, name: u.name, email: u.identity.email })),
   };
 }
 
@@ -101,7 +101,7 @@ export async function updatePositionActionPermission(
 }
 
 const userOverrideInclude = {
-  user: { select: { id: true, name: true, email: true } },
+  user: { select: { id: true, name: true, identity: { select: { email: true } } } },
 } satisfies Prisma.UserActionPermissionOverrideInclude;
 
 function publicUserOverride(override: Prisma.UserActionPermissionOverrideGetPayload<{ include: typeof userOverrideInclude }>) {
@@ -110,7 +110,7 @@ function publicUserOverride(override: Prisma.UserActionPermissionOverrideGetPayl
     moduleId: override.moduleId,
     actionId: override.actionId,
     level: override.level,
-    user: override.user,
+    user: { id: override.user.id, name: override.user.name, email: override.user.identity.email },
   };
 }
 
@@ -198,9 +198,10 @@ export async function canUnpostJournalEntries(tenantId: string, userId: string, 
 
 /** كل مستخدمي هذه الشركة — لعرضهم في قائمة "إضافة عضو لهذا المنصب" بالواجهة. */
 export async function listAssignableUsers(tenantId: string) {
-  return prisma.user.findMany({
+  const users = await prisma.user.findMany({
     where: { tenantId },
-    select: { id: true, name: true, email: true, role: true, positionId: true },
+    select: { id: true, name: true, role: true, positionId: true, identity: { select: { email: true } } },
     orderBy: { name: "asc" },
   });
+  return users.map(({ identity, ...rest }) => ({ ...rest, email: identity.email }));
 }

@@ -112,7 +112,11 @@
       "backToLanding": "Back to homepage",
       "note": "This account is connected to a real database — your data is completely isolated from any other tenant.",
       "errFillFields": "Please fill in your email and password.",
-      "errGeneric": "Couldn't log in, please try again."
+      "errGeneric": "Couldn't log in, please try again.",
+      "chooseAccountTitle": "Choose a company",
+      "chooseAccountSub": "This email is linked to more than one company — choose which one to log in to.",
+      "chooseAccountBack": "Back to login",
+      "chooseAccountErr": "Couldn't complete login for this company, please try again."
     },
     "register": {
       "title": "Start your one-month free trial",
@@ -159,7 +163,11 @@
       "note": "Choose a password for your account to complete activation — you'll be logged in automatically afterward.",
       "submitBtn": "Activate account and log in",
       "activating": "Activating...",
-      "errGeneric": "Couldn't activate the account, please try again."
+      "errGeneric": "Couldn't activate the account, please try again.",
+      "loading": "Checking the invite...",
+      "joinNote": "Your email ({{email}}) is already linked to an existing account. Confirming will join you to \"{{tenantName}}\" as \"{{role}}\" — using your current login details, no new password needed.",
+      "joinBtn": "Confirm and log in",
+      "joining": "Joining..."
     }
   },
   "nav": {
