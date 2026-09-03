@@ -15,6 +15,13 @@ import { useDeferredFilters } from "./shared/useDeferredFilters";
 
 const emptyFilters = { accountId: "", subAccountId: "", costCenterId: "", departmentId: "", branchId: "", dateFrom: "", dateTo: "" };
 
+/** يدمج بيان القيد العام مع وصف السطر التفصيلي (إن وُجد) في نص واحد لعمود "البيان" — عرض فقط،
+ * الحقلان يبقيان منفصلين تماماً في التخزين والاستجابة. */
+function combineMemo(memo, description) {
+  const parts = [memo, description].filter(Boolean);
+  return parts.length ? parts.join(" - ") : "—";
+}
+
 /** كل حسابات الترحيل (isPosting) تحت حساب مجموعة معيّن، بحث بالعمق عبر parentId — مطابق تماماً
  * لمنطق collectPostingDescendants في reports.service.ts (الخادم)، لكن على القائمة المحمَّلة محلياً. */
 function collectPostingDescendants(accounts, rootId) {
@@ -206,7 +213,7 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
               <table className="ledger-table">
                 <thead>
                   <tr>
-                    <th>{t("statementOfAccount.table.date")}</th><th>{t("accountLedger.table.entryNumber")}</th><th>{t("statementOfAccount.table.memo")}</th><th>{t("accountLedger.table.description")}</th>
+                    <th>{t("statementOfAccount.table.date")}</th><th>{t("accountLedger.table.entryNumber")}</th><th>{t("statementOfAccount.table.memo")}</th>
                     {!ledger.account.isPosting && <th>{t("accountLedger.table.postingAccount")}</th>}
                     <th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th><th>{t("statementOfAccount.table.balance")}</th>
                   </tr>
@@ -214,7 +221,7 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                 <tbody>
                   {alf.applied.dateFrom && (
                     <tr className="ledger-row-opening">
-                      <td colSpan={ledger.account.isPosting ? 6 : 7} className="foot-label">{t("statementOfAccount.openingBalance")}</td>
+                      <td colSpan={ledger.account.isPosting ? 5 : 6} className="foot-label">{t("statementOfAccount.openingBalance")}</td>
                       <td className="num strong">{fmt(ledger.openingBalance)}</td>
                     </tr>
                   )}
@@ -241,8 +248,7 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                           {r.entryNumber || r.journalEntryId.slice(-8)}
                         </a>
                       </td>
-                      <td>{r.entryMemo || "—"}</td>
-                      <td>{r.lineDescription || "—"}</td>
+                      <td>{combineMemo(r.entryMemo, r.lineDescription)}</td>
                       {!ledger.account.isPosting && <td>{r.accountCode} — {r.accountName}</td>}
                       <td className="num">{r.debit ? fmt(r.debit) : "—"}</td>
                       <td className="num">{r.credit ? fmt(r.credit) : "—"}</td>
@@ -250,10 +256,10 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                     </tr>
                     );
                   })}
-                  {ledger.rows.length === 0 && <tr><td className="empty" colSpan={ledger.account.isPosting ? 7 : 8}>{t("statementOfAccount.empty")}</td></tr>}
+                  {ledger.rows.length === 0 && <tr><td className="empty" colSpan={ledger.account.isPosting ? 6 : 7}>{t("statementOfAccount.empty")}</td></tr>}
                 </tbody>
                 <tfoot>
-                  <tr><td className="foot-label" colSpan={ledger.account.isPosting ? 6 : 7}>{t("statementOfAccount.closingBalance")}</td><td className="num strong">{fmt(ledger.closingBalance)}</td></tr>
+                  <tr><td className="foot-label" colSpan={ledger.account.isPosting ? 5 : 6}>{t("statementOfAccount.closingBalance")}</td><td className="num strong">{fmt(ledger.closingBalance)}</td></tr>
                 </tfoot>
               </table>
             </div>
