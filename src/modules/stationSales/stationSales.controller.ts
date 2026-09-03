@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 
 export const listHandler: RequestHandler = async (req, res) => {
   const { companyId } = req.query;
@@ -26,6 +27,7 @@ export const createHandler: RequestHandler = async (req, res) => {
 export const deleteHandler: RequestHandler = async (req, res) => {
   const existing = await prisma.stationSale.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("سجل المبيعات غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
   await prisma.stationSale.delete({ where: { id: existing.id } });
   res.status(204).send();
 };

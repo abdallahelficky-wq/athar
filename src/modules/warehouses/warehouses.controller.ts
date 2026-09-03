@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -33,6 +34,7 @@ export const updateWarehouse: RequestHandler = async (req, res) => {
   const tenantId = req.auth!.tenantId;
   const existing = await prisma.warehouse.findFirst({ where: { id: req.params.id, tenantId } });
   if (!existing) throw notFound("المستودع غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
 
   const warehouse = await prisma.$transaction(async (tx) => {
     if (req.body.isDefault) {
@@ -49,6 +51,7 @@ export const updateWarehouse: RequestHandler = async (req, res) => {
 export const deleteWarehouse: RequestHandler = async (req, res) => {
   const existing = await prisma.warehouse.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("المستودع غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
 
   const [movements, purchaseLines] = await Promise.all([
     prisma.stockMovement.count({ where: { warehouseId: existing.id } }),

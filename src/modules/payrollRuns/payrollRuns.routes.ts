@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createPayrollRunSchema, updateEmployeesSchema, setOverrideSchema, unpostSchema } from "./payrollRuns.schemas";
 import {
@@ -14,7 +14,7 @@ import {
 } from "./payrollRuns.controller";
 
 export const payrollRunRoutes = Router();
-payrollRunRoutes.use(authenticate);
+payrollRunRoutes.use(authenticate, enforceCompanyScope);
 
 const canWrite = requireRole("admin", "finance_manager", "hr_manager");
 

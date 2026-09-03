@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createAssetCategorySchema, updateAssetCategorySchema } from "./assetCategories.schemas";
 import { listHandler, createHandler, updateHandler, removeHandler } from "./assetCategories.controller";
 
 export const assetCategoryRoutes = Router();
-assetCategoryRoutes.use(authenticate);
+assetCategoryRoutes.use(authenticate, enforceCompanyScope);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 

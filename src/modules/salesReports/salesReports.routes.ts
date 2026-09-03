@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { authenticate } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope } from "../../middleware/auth";
 import { byCustomerHandler, monthlyHandler, vatSummaryHandler, agingHandler } from "./salesReports.controller";
 
 export const salesReportRoutes = Router();
-salesReportRoutes.use(authenticate);
+salesReportRoutes.use(authenticate, enforceCompanyScope);
 
 salesReportRoutes.get("/by-customer", byCustomerHandler);
 salesReportRoutes.get("/monthly", monthlyHandler);

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createCostCenterSchema, updateCostCenterSchema } from "./costCenters.schemas";
 import {
@@ -10,7 +10,7 @@ import {
 } from "./costCenters.controller";
 
 export const costCenterRoutes = Router();
-costCenterRoutes.use(authenticate);
+costCenterRoutes.use(authenticate, enforceCompanyScope);
 
 costCenterRoutes.get("/", listCostCenters);
 costCenterRoutes.post(

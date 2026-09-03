@@ -122,6 +122,9 @@ export function AuthProvider({ children }) {
       // نتجاهل فشل تسجيل الخروج من الخادم — المهم مسح الجلسة محلياً بأي حال
     }
     clearTokens();
+    // امسح "الشركة النشطة" المحفوظة لهذا المستأجر — بدونها، تسجيل دخول مستخدم آخر (بنطاق companyScope
+    // مختلف) على نفس المتصفح كان يرث شركة نشطة قد تقع خارج نطاقه لحظياً قبل أن تُصحَّح تلقائياً.
+    if (tenant?.id) localStorage.removeItem(`athar.activeCompanyId.${tenant.id}`);
     reset();
   };
 

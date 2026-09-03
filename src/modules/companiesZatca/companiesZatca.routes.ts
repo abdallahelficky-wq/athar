@@ -1,5 +1,5 @@
-import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { Router, RequestHandler } from "express";
+import { authenticate, requireRole, assertCompanyAccess } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { generateCsrSchema, complianceOtpSchema, setEnvironmentSchema } from "./companiesZatca.schemas";
 import {
@@ -14,7 +14,13 @@ import {
 // كل هذه المسارات إدارية بحتة (ربط CSID) — مقيَّدة لمدير النظام فقط، بخلاف بيانات الشركة العادية
 // التي يعدّلها المدير المالي أيضاً؛ التعامل مع مفاتيح/شهادات زاتكا أكثر حساسية.
 export const companyZatcaRoutes = Router({ mergeParams: true });
-companyZatcaRoutes.use(authenticate);
+// :id هنا (من app.ts: /api/companies/:id/zatca) هو معرّف الشركة نفسه — enforceCompanyScope
+// العام لا يغطيه لأنه يفحص فقط params.companyId، فيُفحَص هنا صراحة بنفس assertCompanyAccess.
+const enforceZatcaCompanyScope: RequestHandler = (req, _res, next) => {
+  assertCompanyAccess(req.auth!, req.params.id);
+  next();
+};
+companyZatcaRoutes.use(authenticate, enforceZatcaCompanyScope);
 
 const adminOnly = requireRole("admin");
 

@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 import { LEVEL_CODE_LENGTH, generateNextCode } from "../../lib/accountCodes";
@@ -91,6 +92,7 @@ export const createAccount: RequestHandler = async (req, res) => {
 export const updateAccount: RequestHandler = async (req, res) => {
   const existing = await prisma.account.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("الحساب غير موجود");
+  if (existing.companyId) assertCompanyAccess(req.auth!, existing.companyId);
   const { confirmMoveWithTransactions, code: _ignoredCode, level: _ignoredLevel, companyId: _ignoredCompany, ...requestedData } = req.body;
   const moving = requestedData.parentId !== undefined && (requestedData.parentId || null) !== (existing.parentId || null);
   if (moving) {
@@ -289,6 +291,7 @@ export const installStandardChart: RequestHandler = async (req, res) => {
 export const deleteAccount: RequestHandler = async (req, res) => {
   const existing = await prisma.account.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("الحساب غير موجود");
+  if (existing.companyId) assertCompanyAccess(req.auth!, existing.companyId);
   const [children, lines] = await Promise.all([
     prisma.account.count({ where: { parentId: existing.id } }),
     prisma.journalEntryLine.count({ where: { accountId: existing.id } }),

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import {
   createComponentSchema, updateComponentSchema, updateSettingsSchema, setEmployeeComponentsSchema,
@@ -10,7 +10,7 @@ const canWrite = requireRole("admin", "finance_manager", "hr_manager");
 
 // تُركَّب على /api/companies/:companyId/payroll-components و /api/companies/:companyId/payroll-settings
 export const companyPayrollSettingsRoutes = Router({ mergeParams: true });
-companyPayrollSettingsRoutes.use(authenticate);
+companyPayrollSettingsRoutes.use(authenticate, enforceCompanyScope);
 companyPayrollSettingsRoutes.get("/payroll-components/adjustable", controller.listAdjustableComponentsHandler);
 companyPayrollSettingsRoutes.get("/payroll-components", controller.listComponentsHandler);
 companyPayrollSettingsRoutes.post("/payroll-components", canWrite, validateBody(createComponentSchema), controller.createComponentHandler);

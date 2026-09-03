@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createPosSaleSchema } from "./pos.schemas";
 import { createPosSaleHandler, quickAccessItemsHandler } from "./pos.controller";
 
 export const posRoutes = Router();
-posRoutes.use(authenticate);
+posRoutes.use(authenticate, enforceCompanyScope);
 
 const canSell = requireRole("admin", "finance_manager", "accountant");
 

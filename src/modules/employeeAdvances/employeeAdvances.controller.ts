@@ -1,5 +1,7 @@
 import { RequestHandler } from "express";
 import * as service from "./employeeAdvances.service";
+import { prisma } from "../../lib/prisma";
+import { assertRecordCompanyScope } from "../../middleware/auth";
 
 export const listHandler: RequestHandler = async (req, res) => {
   const { companyId, employeeId } = req.query;
@@ -16,6 +18,7 @@ export const createHandler: RequestHandler = async (req, res) => {
 };
 
 export const removeHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.employeeAdvance, req.params.id);
   await service.removeEmployeeAdvance(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.pin);
   res.status(204).send();
 };

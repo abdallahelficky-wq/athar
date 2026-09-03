@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole, requirePermission } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { uploadSingleFile } from "../attachments/attachments.controller";
 import {
@@ -31,7 +31,7 @@ import {
 } from "./journalEntries.controller";
 
 export const journalEntryRoutes = Router();
-journalEntryRoutes.use(authenticate);
+journalEntryRoutes.use(authenticate, enforceCompanyScope);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 // فك ترحيل قيد يومية مقفل إجراء استثنائي — القيد اليومي هو السجل الذري الأخير، فتصحيحه المباشر

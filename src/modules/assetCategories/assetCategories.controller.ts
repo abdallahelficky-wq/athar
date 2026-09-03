@@ -1,5 +1,7 @@
 import { RequestHandler } from "express";
 import * as service from "./assetCategories.service";
+import { prisma } from "../../lib/prisma";
+import { assertRecordCompanyScope } from "../../middleware/auth";
 
 export const listHandler: RequestHandler = async (req, res) => {
   const { companyId } = req.query;
@@ -11,10 +13,12 @@ export const createHandler: RequestHandler = async (req, res) => {
 };
 
 export const updateHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.assetCategory, req.params.id);
   res.json(await service.updateAssetCategory(req.auth!.tenantId, req.params.id, req.body));
 };
 
 export const removeHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.assetCategory, req.params.id);
   await service.removeAssetCategory(req.auth!.tenantId, req.params.id);
   res.status(204).send();
 };

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createLeaseContractSchema, updateLeaseContractSchema } from "./leaseContracts.schemas";
 import {
@@ -10,7 +10,7 @@ import {
 } from "./leaseContracts.controller";
 
 export const leaseContractRoutes = Router();
-leaseContractRoutes.use(authenticate);
+leaseContractRoutes.use(authenticate, enforceCompanyScope);
 
 leaseContractRoutes.get("/", listLeaseContracts);
 leaseContractRoutes.post(

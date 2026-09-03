@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createReceiptSchema, unpostSchema, addAllocationSchema } from "./receipts.schemas";
 import {
@@ -14,7 +14,7 @@ import {
 } from "./receipts.controller";
 
 export const receiptRoutes = Router();
-receiptRoutes.use(authenticate);
+receiptRoutes.use(authenticate, enforceCompanyScope);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 

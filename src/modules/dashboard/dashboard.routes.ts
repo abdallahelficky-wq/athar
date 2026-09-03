@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope } from "../../middleware/auth";
 import {
   financialKpisHandler,
   cashBreakdownHandler,
@@ -17,7 +17,7 @@ import {
 } from "./dashboard.controller";
 
 export const dashboardRoutes = Router();
-dashboardRoutes.use(authenticate);
+dashboardRoutes.use(authenticate, enforceCompanyScope);
 
 dashboardRoutes.get("/financial-kpis", financialKpisHandler);
 dashboardRoutes.get("/cash-breakdown", cashBreakdownHandler);

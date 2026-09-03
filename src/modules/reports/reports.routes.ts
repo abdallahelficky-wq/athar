@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope } from "../../middleware/auth";
 import {
   trialBalanceHandler,
   trialBalanceTreeHandler,
@@ -13,7 +13,7 @@ import {
 } from "./reports.controller";
 
 export const reportRoutes = Router();
-reportRoutes.use(authenticate);
+reportRoutes.use(authenticate, enforceCompanyScope);
 
 reportRoutes.get("/trial-balance", trialBalanceHandler);
 reportRoutes.get("/trial-balance-tree", trialBalanceTreeHandler);

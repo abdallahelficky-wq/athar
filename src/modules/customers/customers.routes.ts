@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createCustomerSchema, updateCustomerSchema, extractCustomerDocumentSchema } from "./customers.schemas";
 import {
@@ -13,7 +13,7 @@ import {
 import { uploadSingleFile } from "../attachments/attachments.controller";
 
 export const customerRoutes = Router();
-customerRoutes.use(authenticate);
+customerRoutes.use(authenticate, enforceCompanyScope);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 

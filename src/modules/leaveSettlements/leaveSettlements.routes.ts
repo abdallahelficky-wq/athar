@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createLeaveSettlementSchema, disburseSchema } from "./leaveSettlements.schemas";
 import { listHandler, previewHandler, createHandler, disburseHandler } from "./leaveSettlements.controller";
 
 export const leaveSettlementRoutes = Router();
-leaveSettlementRoutes.use(authenticate);
+leaveSettlementRoutes.use(authenticate, enforceCompanyScope);
 
 const canWrite = requireRole("admin", "finance_manager", "hr_manager");
 

@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound, conflict } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 import { calcEOS, serviceDuration, TerminationReason } from "../../lib/hrCalculations";
 import { hashPassword } from "../../lib/password";
 import { ensurePartyAccount } from "../../lib/partyAccounts";
@@ -47,6 +48,7 @@ export const getEmployee: RequestHandler = async (req, res) => {
     include: { documents: true },
   });
   if (!employee) throw notFound("الموظف غير موجود");
+  assertCompanyAccess(req.auth!, employee.companyId);
   res.json(employee);
 };
 
@@ -115,6 +117,7 @@ export const importEmployees: RequestHandler = async (req, res) => {
 export const updateEmployee: RequestHandler = async (req, res) => {
   const existing = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("الموظف غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
   if (req.body.companyId) await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
   if (req.body.managerId) await assertManagerBelongsToTenant(req.auth!.tenantId, req.body.managerId, existing.id);
 
@@ -143,6 +146,7 @@ export const updateEmployee: RequestHandler = async (req, res) => {
 export const calculateEos: RequestHandler = async (req, res) => {
   const employee = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!employee) throw notFound("الموظف غير موجود");
+  assertCompanyAccess(req.auth!, employee.companyId);
 
   const { endDate, reason } = req.query;
   if (typeof endDate !== "string") throw badRequest("endDate مطلوب");
@@ -166,6 +170,7 @@ export const calculateEos: RequestHandler = async (req, res) => {
 export const setEmployeePortalAccess: RequestHandler = async (req, res) => {
   const existing = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("الموظف غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
 
   const other = await prisma.employee.findFirst({
     where: { tenantId: req.auth!.tenantId, phone: req.body.phone, id: { not: existing.id } },
@@ -189,6 +194,7 @@ export const setEmployeePortalAccess: RequestHandler = async (req, res) => {
 export const deleteEmployee: RequestHandler = async (req, res) => {
   const existing = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("الموظف غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
   await prisma.employee.delete({ where: { id: existing.id } });
   res.status(204).send();
 };

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createDepartmentSchema, updateDepartmentSchema } from "./departments.schemas";
 import {
@@ -10,7 +10,7 @@ import {
 } from "./departments.controller";
 
 export const departmentRoutes = Router();
-departmentRoutes.use(authenticate);
+departmentRoutes.use(authenticate, enforceCompanyScope);
 
 departmentRoutes.get("/", listDepartments);
 departmentRoutes.post(

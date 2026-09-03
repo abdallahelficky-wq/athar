@@ -2,6 +2,7 @@ import { RequestHandler } from "express";
 import multer from "multer";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claudeVision";
 import { createAttachment } from "../attachments/attachments.service";
@@ -63,6 +64,7 @@ export const updateCompany: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, existing.id);
 
   const company = await prisma.company.update({ where: { id: existing.id }, data: req.body });
   res.json(await withLogoUrl(company));
@@ -73,6 +75,7 @@ export const deleteCompany: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, existing.id);
 
   await prisma.company.delete({ where: { id: existing.id } });
   res.status(204).send();
@@ -83,6 +86,7 @@ export const uploadLogoHandler: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, existing.id);
   if (!req.file) throw badRequest("ملف الشعار مطلوب");
   if (!ALLOWED_LOGO_MIME_TYPES.includes(req.file.mimetype)) {
     throw badRequest("صيغة الملف غير مدعومة — استخدم PNG أو JPEG أو WEBP أو SVG");
@@ -100,6 +104,7 @@ export const extractDocumentHandler: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, existing.id);
   if (!req.file) throw badRequest("الملف مطلوب");
 
   const docType = req.body.docType as CompanyDocType;

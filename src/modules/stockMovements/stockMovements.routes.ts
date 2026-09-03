@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createInOutSchema, createIssueSchema, createTransferSchema, removeSchema } from "./stockMovements.schemas";
 import {
@@ -12,7 +12,7 @@ import {
 } from "./stockMovements.controller";
 
 export const stockMovementRoutes = Router();
-stockMovementRoutes.use(authenticate);
+stockMovementRoutes.use(authenticate, enforceCompanyScope);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 

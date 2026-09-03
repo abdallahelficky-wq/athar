@@ -1,5 +1,7 @@
 import { RequestHandler } from "express";
 import * as service from "./reports.service";
+import { prisma } from "../../lib/prisma";
+import { assertRecordCompanyScope } from "../../middleware/auth";
 
 const parseDate = (v: unknown) => (typeof v === "string" && v ? new Date(v) : undefined);
 const parseCompanyId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
@@ -80,6 +82,7 @@ export const updateMonthlyReportSettingsHandler: RequestHandler = async (req, re
 };
 
 export const customerStatementHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.customer, req.params.customerId);
   const result = await service.getCustomerStatement(
     req.auth!.tenantId,
     req.params.customerId,
@@ -91,6 +94,7 @@ export const customerStatementHandler: RequestHandler = async (req, res) => {
 };
 
 export const accountLedgerHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.account, req.params.accountId);
   const result = await service.getAccountLedger(
     req.auth!.tenantId,
     req.params.accountId,
@@ -103,6 +107,7 @@ export const accountLedgerHandler: RequestHandler = async (req, res) => {
 };
 
 export const supplierStatementHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.supplier, req.params.supplierId);
   const result = await service.getSupplierStatement(
     req.auth!.tenantId,
     req.params.supplierId,

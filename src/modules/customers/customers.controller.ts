@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 import { ensurePartyAccount, resolvePartyAccountId } from "../../lib/partyAccounts";
 import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claudeVision";
 import { createAttachment } from "../attachments/attachments.service";
@@ -24,6 +25,7 @@ export const listCustomers: RequestHandler = async (req, res) => {
 export const getCustomerBalance: RequestHandler = async (req, res) => {
   const customer = await prisma.customer.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!customer) throw notFound("العميل غير موجود");
+  assertCompanyAccess(req.auth!, customer.companyId);
   const accountId = await resolvePartyAccountId(req.auth!.tenantId, customer.companyId, customer, "ذمم مدينة");
 
   const lines = await prisma.journalEntryLine.findMany({
@@ -53,6 +55,7 @@ export const createCustomer: RequestHandler = async (req, res) => {
 export const updateCustomer: RequestHandler = async (req, res) => {
   const existing = await prisma.customer.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("العميل غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
   if (req.body.companyId) await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
 
   const customer = await prisma.$transaction(async (tx) => {
@@ -69,6 +72,7 @@ export const updateCustomer: RequestHandler = async (req, res) => {
 export const deleteCustomer: RequestHandler = async (req, res) => {
   const existing = await prisma.customer.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("العميل غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
 
   const [quotations, salesInvoices, salesReturns, receipts, journalLines] = await Promise.all([
     prisma.quotation.count({ where: { customerId: existing.id } }),
@@ -114,6 +118,7 @@ const CUSTOMER_UNSUPPORTED_FIELDS = new Set(["shortName", "crIssueDate", "crExpi
 export const extractCustomerDocument: RequestHandler = async (req, res) => {
   const existing = await prisma.customer.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("العميل غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
   if (!req.file) throw badRequest("الملف مطلوب");
 
   const docType = req.body.docType as CompanyDocType;

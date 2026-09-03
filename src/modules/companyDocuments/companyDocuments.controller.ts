@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -29,6 +30,7 @@ export const updateCompanyDocument: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("المستند غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
   if (req.body.companyId) await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
 
   const companyDocument = await prisma.companyDocument.update({ where: { id: existing.id }, data: req.body });
@@ -40,6 +42,7 @@ export const deleteCompanyDocument: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("المستند غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
 
   await prisma.companyDocument.delete({ where: { id: existing.id } });
   res.status(204).send();

@@ -82,6 +82,59 @@ export function assertCompanyAccess(auth: { companyScope: string }, companyId: s
   }
 }
 
+/**
+ * حارس مركزي إجباري لعزل بيانات الشركات (companyScope) — يُركَّب على مستوى الراوتر (بعد authenticate
+ * مباشرة) لا داخل كل handler على حدة، لسدّ ثغرة اكتُشفت حيث كانت عشرات الـcontrollers تتحقق من
+ * tenantId فقط وتتجاهل companyScope تماماً، فيستطيع أي مستخدم مقيّد بشركة واحدة تمرير أي companyId
+ * آخر (عبر query/body/params) والوصول الكامل لبيانات شركة أخرى من نفس المستأجر.
+ *
+ * السلوك: مستخدم companyScope="all" يمر دائماً بلا أي تغيير. أما المستخدم المقيّد بشركة واحدة:
+ *   - أي companyId صريح (query أو body أو params) يجب أن يطابق نطاقه تماماً، وإلا 403 فوراً.
+ *   - وإن غاب companyId عن الطلب تماماً (مثل نقاط نهاية لوحة القيادة التي تُرجع كل شركات المستأجر
+ *     حين لا يُحدَّد companyId)، يُحقَن ضمنياً نطاقه في query.companyId ليقتصر الرد على شركته فقط
+ *     بدل الافتراضي الخطير "كل شركات المستأجر".
+ *
+ * ملاحظة: هذا يغطي الغالبية الساحقة من نقاط النهاية (قوائم/بحث/تقارير/إنشاء تستقبل companyId
+ * صراحة). عمليات "جلب/تعديل/حذف مورد بمعرّفه" التي لا تحمل companyId في الطلب إطلاقاً تبقى مسؤولية
+ * الـhandler نفسه (التحقق من companyId السجلّ المُسترجَع من قاعدة البيانات عبر assertCompanyAccess).
+ */
+/**
+ * نسخة عامة قابلة لإعادة الاستخدام من فحص assertCompanyAccess لعمليات "جلب/تعديل/حذف مورد بمعرّفه"
+ * (params.id) التي لا تحمل companyId في الطلب نفسه إطلاقاً — enforceCompanyScope أعلاه لا يغطيها لأنه
+ * لا يرى الشركة الفعلية للسجلّ إلا بعد استعلام قاعدة البيانات. تُستدعى من الـcontroller قبل تمرير
+ * الطلب لطبقة service، باستعلام خفيف (companyId فقط) بلا تكرار منطق notFound — لو السجل غير موجود
+ * أصلاً تُترَك تلك الحالة لاستعلام service نفسه لاحقاً كالمعتاد. سجلّ بلا companyId (مورد عام على
+ * مستوى المستأجر كله) يبقى متاحاً لأي مستخدم من نفس المستأجر بصرف النظر عن نطاقه.
+ */
+export async function assertRecordCompanyScope(
+  auth: { tenantId: string; companyScope: string },
+  model: { findFirst: (args: { where: { id: string; tenantId: string }; select: { companyId: true } }) => Promise<{ companyId: string | null } | null> },
+  id: string,
+) {
+  if (auth.companyScope === "all") return;
+  const record = await model.findFirst({ where: { id, tenantId: auth.tenantId }, select: { companyId: true } });
+  if (record?.companyId) assertCompanyAccess(auth, record.companyId);
+}
+
+export const enforceCompanyScope: RequestHandler = (req, _res, next) => {
+  if (!req.auth) throw unauthorized();
+  const { companyScope } = req.auth;
+  if (companyScope === "all") return next();
+
+  const explicit =
+    (typeof req.params?.companyId === "string" && req.params.companyId) ||
+    (typeof req.query?.companyId === "string" && req.query.companyId) ||
+    (req.body && typeof req.body === "object" && typeof req.body.companyId === "string" && req.body.companyId) ||
+    undefined;
+
+  if (explicit) {
+    assertCompanyAccess(req.auth, explicit);
+  } else if (req.query && typeof req.query === "object" && !("companyId" in req.query)) {
+    (req.query as Record<string, unknown>).companyId = companyScope;
+  }
+  next();
+};
+
 /** true لو كان صاحب الطلب مالك الشركة (Tenant.ownerId) نفسه — يملك دائماً كل الصلاحيات على شركته
  * بلا حاجة لإعداد منصب له صراحةً. super_admin (المنصّة) ليس مالك أي شركة بهذا المعنى، لكنه يمرّ
  * دائماً من requirePermission أدناه عبر استثنائه المنفصل، بنفس أسلوب requireRole تماماً. */

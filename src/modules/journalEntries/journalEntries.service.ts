@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { verifyPassword } from "../../lib/password";
 import { badRequest, forbidden, notFound } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 import { extractJournalEntryFromDocument } from "../../lib/claudeVision";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 import { reserveEntryNumber } from "../../lib/journalPosting";
@@ -296,9 +297,10 @@ export async function listJournalEntries(tenantId: string, filters: JournalEntry
   return filtered.map((e) => ({ ...e, reversedByEntryId: reversedByMap.get(e.id) || null }));
 }
 
-export async function getJournalEntry(tenantId: string, id: string) {
+export async function getJournalEntry(tenantId: string, id: string, companyScope: string) {
   const entry = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
   if (!entry) throw notFound("القيد غير موجود");
+  assertCompanyAccess({ companyScope }, entry.companyId);
 
   const [mirrorEntry, reversalOfEntry, reversedByEntry] = await Promise.all([
     resolveLinkedEntry(tenantId, entry.mirrorEntryId),
@@ -400,9 +402,10 @@ export async function ensureIntercompanyAccount(tenantId: string, ownerCompanyId
  * سطر مرتبط صراحة بحساب الشركة الهدف (وهو المتوقع أول مرة يُنشأ فيها قيد مرآة بين شركتين، قبل أن
  * توجد الحسابات المُعلَّمة)، تُستخدَم القيمة الإجمالية للقيد كبديل مع الإشارة لذلك عبر detected:false.
  */
-export async function getMirrorSuggestion(tenantId: string, entryId: string, targetCompanyId: string) {
+export async function getMirrorSuggestion(tenantId: string, entryId: string, targetCompanyId: string, companyScope: string) {
   const entry = await prisma.journalEntry.findFirst({ where: { id: entryId, tenantId }, include: entryInclude });
   if (!entry) throw notFound("القيد غير موجود");
+  assertCompanyAccess({ companyScope }, entry.companyId);
   if (entry.status !== "posted") throw badRequest("لا يمكن إنشاء قيد مرآة إلا لقيد مرحّل");
   if (entry.companyId === targetCompanyId) throw badRequest("اختر شركة مختلفة عن شركة القيد الأصلي");
 
@@ -460,9 +463,12 @@ export async function createMirrorJournalEntry(
   userId: string,
   sourceEntryId: string,
   input: { targetCompanyId: string; date: Date; memo?: string; lines: JournalLineInput[] },
+  companyScope: string,
 ) {
   const source = await prisma.journalEntry.findFirst({ where: { id: sourceEntryId, tenantId } });
   if (!source) throw notFound("القيد الأصلي غير موجود");
+  assertCompanyAccess({ companyScope }, source.companyId);
+  assertCompanyAccess({ companyScope }, input.targetCompanyId);
   if (source.mirrorEntryId) throw badRequest("لهذا القيد بالفعل قيد مرآة مرتبط به");
   if (source.companyId === input.targetCompanyId) throw badRequest("اختر شركة مختلفة عن شركة القيد الأصلي");
 
@@ -523,9 +529,11 @@ export async function createJournalEntry(
   });
 }
 
-export async function updateJournalEntry(tenantId: string, id: string, input: JournalEntryInput) {
+export async function updateJournalEntry(tenantId: string, id: string, input: JournalEntryInput, companyScope: string) {
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId } });
   if (!existing) throw notFound("القيد غير موجود");
+  assertCompanyAccess({ companyScope }, existing.companyId);
+  assertCompanyAccess({ companyScope }, input.companyId);
   if (existing.status === "posted") {
     throw badRequest("لا يمكن تعديل قيد مرحّل مباشرة — استخدم عكس القيد لتصحيحه");
   }
@@ -544,18 +552,20 @@ export async function updateJournalEntry(tenantId: string, id: string, input: Jo
   });
 }
 
-export async function deleteJournalEntry(tenantId: string, id: string) {
+export async function deleteJournalEntry(tenantId: string, id: string, companyScope: string) {
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId } });
   if (!existing) throw notFound("القيد غير موجود");
+  assertCompanyAccess({ companyScope }, existing.companyId);
   if (existing.status === "posted") {
     throw badRequest("لا يمكن حذف قيد مرحّل مباشرة — استخدم عكس القيد لتصحيحه");
   }
   await prisma.journalEntry.delete({ where: { id } });
 }
 
-export async function postJournalEntry(tenantId: string, id: string) {
+export async function postJournalEntry(tenantId: string, id: string, companyScope: string) {
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
   if (!existing) throw notFound("القيد غير موجود");
+  assertCompanyAccess({ companyScope }, existing.companyId);
   if (existing.status === "posted") throw badRequest("القيد مرحّل بالفعل");
 
   assertBalanced(
@@ -574,9 +584,10 @@ export async function postJournalEntry(tenantId: string, id: string) {
  * القيد الجديد فقط) بدل تحديث الطرفين معاً كما في mirrorEntryId — أبسط هنا لأن معرفة "هل قيد ما تم
  * عكسه لاحقاً" ممكنة بالبحث العكسي (انظر resolveLinkedEntryBy)، فلا داعي لمعاملة تلمس صفّين.
  */
-export async function reverseJournalEntry(tenantId: string, userId: string, id: string, date: Date) {
+export async function reverseJournalEntry(tenantId: string, userId: string, id: string, date: Date, companyScope: string) {
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
   if (!existing) throw notFound("القيد غير موجود");
+  assertCompanyAccess({ companyScope }, existing.companyId);
   if (existing.status !== "posted") throw badRequest("لا يمكن عكس إلا قيداً مرحّلاً");
 
   const alreadyReversed = await prisma.journalEntry.findFirst({ where: { tenantId, reversalOfEntryId: id } });
@@ -622,9 +633,10 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
  * PositionPermission)، ثم الرقم السري للشركة (unlockPin) هنا مهما كانت هوية المستخدم. متاحة فعلياً
  * من واجهة شاشة القيود اليدوية (زر فك الترحيل يظهر فقط لمن يجتاز الصلاحيتين معاً).
  */
-export async function unpostJournalEntry(tenantId: string, id: string, userId: string, pin: string) {
+export async function unpostJournalEntry(tenantId: string, id: string, userId: string, pin: string, companyScope: string) {
   const entry = await prisma.journalEntry.findFirst({ where: { id, tenantId } });
   if (!entry) throw notFound("القيد غير موجود");
+  assertCompanyAccess({ companyScope }, entry.companyId);
   if (entry.status !== "posted") throw badRequest("القيد ليس مرحّلاً أصلاً");
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });

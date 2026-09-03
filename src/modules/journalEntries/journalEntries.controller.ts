@@ -33,7 +33,7 @@ export const nextNumberHandler: RequestHandler = async (req, res) => {
 };
 
 export const getHandler: RequestHandler = async (req, res) => {
-  const entry = await service.getJournalEntry(req.auth!.tenantId, req.params.id);
+  const entry = await service.getJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.companyScope);
   res.json(entry);
 };
 
@@ -41,7 +41,7 @@ export const getHandler: RequestHandler = async (req, res) => {
 // (renderHtmlToPdf عبر Puppeteer)، بلا مكتبة جديدة. Content-Disposition: attachment يجعل المتصفح
 // يُنزّل الملف فوراً بدل عرض معاينة/نافذة طباعة يحتاج المستخدم يضغط "حفظ" بنفسه.
 export const getPdfHandler: RequestHandler = async (req, res) => {
-  const entry = await service.getJournalEntry(req.auth!.tenantId, req.params.id);
+  const entry = await service.getJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.companyScope);
   const entryNumber = entry.entryNumber || entry.id.slice(-8);
   const hasBranchColumn = entry.lines.some((l) => l.branch);
   const pdf = await buildJournalVoucherPdf({
@@ -73,22 +73,22 @@ export const createHandler: RequestHandler = async (req, res) => {
 };
 
 export const updateHandler: RequestHandler = async (req, res) => {
-  const entry = await service.updateJournalEntry(req.auth!.tenantId, req.params.id, req.body);
+  const entry = await service.updateJournalEntry(req.auth!.tenantId, req.params.id, req.body, req.auth!.companyScope);
   res.json(entry);
 };
 
 export const deleteHandler: RequestHandler = async (req, res) => {
-  await service.deleteJournalEntry(req.auth!.tenantId, req.params.id);
+  await service.deleteJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.companyScope);
   res.status(204).send();
 };
 
 export const postHandler: RequestHandler = async (req, res) => {
-  const entry = await service.postJournalEntry(req.auth!.tenantId, req.params.id);
+  const entry = await service.postJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.companyScope);
   res.json(entry);
 };
 
 export const unpostHandler: RequestHandler = async (req, res) => {
-  const entry = await service.unpostJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.sub, req.body.pin);
+  const entry = await service.unpostJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.sub, req.body.pin, req.auth!.companyScope);
   res.json(entry);
 };
 
@@ -103,17 +103,17 @@ export const createFromDocumentHandler: RequestHandler = async (req, res) => {
 };
 
 export const mirrorSuggestionHandler: RequestHandler = async (req, res) => {
-  const suggestion = await service.getMirrorSuggestion(req.auth!.tenantId, req.params.id, req.body.targetCompanyId);
+  const suggestion = await service.getMirrorSuggestion(req.auth!.tenantId, req.params.id, req.body.targetCompanyId, req.auth!.companyScope);
   res.json(suggestion);
 };
 
 export const createMirrorHandler: RequestHandler = async (req, res) => {
-  const mirror = await service.createMirrorJournalEntry(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body);
+  const mirror = await service.createMirrorJournalEntry(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body, req.auth!.companyScope);
   res.status(201).json(mirror);
 };
 
 export const reverseHandler: RequestHandler = async (req, res) => {
-  const reversal = await service.reverseJournalEntry(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.date);
+  const reversal = await service.reverseJournalEntry(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.date, req.auth!.companyScope);
   res.status(201).json(reversal);
 };
 

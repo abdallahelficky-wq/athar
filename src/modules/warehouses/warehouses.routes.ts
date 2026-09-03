@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createWarehouseSchema, updateWarehouseSchema } from "./warehouses.schemas";
 import { listWarehouses, createWarehouse, updateWarehouse, deleteWarehouse } from "./warehouses.controller";
 
 export const warehouseRoutes = Router();
-warehouseRoutes.use(authenticate);
+warehouseRoutes.use(authenticate, enforceCompanyScope);
 
 warehouseRoutes.get("/", listWarehouses);
 warehouseRoutes.post("/", requireRole("admin", "finance_manager"), validateBody(createWarehouseSchema), createWarehouse);

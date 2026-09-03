@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createDepreciationRunSchema, removeSchema } from "./depreciation.schemas";
 import { listHandler, previewHandler, createHandler, removeHandler } from "./depreciation.controller";
 
 export const depreciationRunRoutes = Router();
-depreciationRunRoutes.use(authenticate);
+depreciationRunRoutes.use(authenticate, enforceCompanyScope);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 
