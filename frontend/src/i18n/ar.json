@@ -435,6 +435,7 @@
     "close": "إغلاق",
     "subtitle": "كشف حساب {{party}}",
     "vatNumber": "الرقم الضريبي",
+    "openingBalance": "الرصيد الافتتاحي",
     "closingBalance": "الرصيد الختامي",
     "customerDebit": "مدين (له علينا)", "customerCredit": "دائن (لنا عليه)",
     "supplierCredit": "دائن (علينا له)", "supplierDebit": "مدين (له علينا)",

@@ -27,6 +27,12 @@ export default function AccountLedgerPrintModal({ ledger, companyId, companies, 
           </tr>
         </thead>
         <tbody>
+          {Boolean(ledger.openingBalance) && (
+            <tr>
+              <td colSpan={ledger.account.isPosting ? 6 : 7} className="foot-label">{t("statementOfAccount.openingBalance")}</td>
+              <td className="num strong">{fmt(ledger.openingBalance)}</td>
+            </tr>
+          )}
           {ledger.rows.map((r, i) => (
             <tr key={r.journalEntryId + i}>
               <td>{r.date.slice(0, 10)}</td>

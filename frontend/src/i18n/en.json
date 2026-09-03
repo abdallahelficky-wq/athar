@@ -435,6 +435,7 @@
     "close": "Close",
     "subtitle": "{{party}} statement of account",
     "vatNumber": "VAT number",
+    "openingBalance": "Opening balance",
     "closingBalance": "Closing balance",
     "customerDebit": "Debit (owed to us)", "customerCredit": "Credit (we owe them)",
     "supplierCredit": "Credit (owed to them)", "supplierDebit": "Debit (they owe us)",

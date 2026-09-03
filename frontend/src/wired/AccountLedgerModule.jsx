@@ -212,6 +212,12 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                   </tr>
                 </thead>
                 <tbody>
+                  {alf.applied.dateFrom && (
+                    <tr className="ledger-row-opening">
+                      <td colSpan={ledger.account.isPosting ? 6 : 7} className="foot-label">{t("statementOfAccount.openingBalance")}</td>
+                      <td className="num strong">{fmt(ledger.openingBalance)}</td>
+                    </tr>
+                  )}
                   {ledger.rows.map((r, i) => {
                     // يفتح النظام الكامل (بالشريط العلوي وتسجيل الدخول) على شاشة "القيود اليومية"
                     // الحقيقية مع فتح نافذة القيد تلقائياً — لا صفحة عرض منفصلة معزولة عن التطبيق

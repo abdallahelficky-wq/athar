@@ -66,6 +66,13 @@ export default function StatementOfAccountModal({ kind, party, companyId, compan
           </tr>
         </thead>
         <tbody>
+          {Boolean(statement.openingBalance) && (
+            <tr>
+              <td className="foot-label" colSpan={2}>{t("statementOfAccount.openingBalance")}</td>
+              <td className="num" colSpan={2}></td>
+              <td className="num strong">{fmt(statement.openingBalance)}</td>
+            </tr>
+          )}
           {statement.rows.map((r, i) => (
             <tr key={r.journalEntryId + i}>
               <td>{r.date.slice(0, 10)}</td>
