@@ -263,12 +263,20 @@ export function formatCompanyAddress(company, { full = false } = {}) {
  * الدخول المشتركة الوحيدة لأي شاشة طباعة حالية أو مستقبلية) بدل تكرارهما في كل شاشة على
  * حدة، حتى ينطبق أي تعديل مستقبلي عليهما تلقائياً على كل المطبوعات دفعة واحدة.
  */
-export function PrintShell({ subtitle, refNode, children, onClose, onEdit, onDownload, showSignatures = true, company, landscape = false }) {
+export function PrintShell({
+  subtitle, refNode, children, onClose, onEdit, onDownload, showSignatures = true, company, landscape = false,
+  // تجاوز اختياري لاسم الشركة المعروض في الهيدر (الاسم الكامل كما بالسجل التجاري مثلاً)، بدل
+  // الافتراضي (company.shortName || company.name) — يخصّ الطرف المستدعي وحده، بلا أي أثر على
+  // بقية شاشات الطباعة التي لم تمرّره.
+  companyNameOverride,
+  // شعار أكبر من الحجم الافتراضي المشترك — لطرف مستدعٍ محدَّد فقط (راجع نفس الملاحظة أعلاه).
+  largeLogo = false,
+}) {
   const { user } = useAuth();
   const [printedAt, setPrintedAt] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const accent = company?.brandColor || "#10202E";
-  const displayName = company && company.id !== "all" ? (company.shortName || company.name) : "أثر المحاسبي";
+  const displayName = companyNameOverride || (company && company.id !== "all" ? (company.shortName || company.name) : "أثر المحاسبي");
   const address = formatCompanyAddress(company);
 
   const handlePrint = () => {
@@ -303,7 +311,7 @@ export function PrintShell({ subtitle, refNode, children, onClose, onEdit, onDow
             <div className="voucher-ref">{refNode}</div>
             <div className="voucher-logo-wrap">
               {company?.logoUrl ? (
-                <img src={company.logoUrl} alt={displayName} className="voucher-logo-img" />
+                <img src={company.logoUrl} alt={displayName} className={largeLogo ? "voucher-logo-img voucher-logo-img-lg" : "voucher-logo-img"} />
               ) : (
                 <div className="brand-mark voucher-mark" style={{ borderColor: accent }}>
                   <span className="brand-mark-needle" style={{ background: accent }} />

@@ -80,6 +80,15 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
   // لو الحساب المختار في الفلتر مجموعة (isPosting=false)، تظهر قائمة الحسابات الفرعية (التفصيلية
   // فقط) تحته — اختيار حساب فرعي محدَّد منها يُضيّق الكشف عليه وحده؛ بلا اختيار، يبقى السلوك
   // الافتراضي كشفاً مجمَّعاً لكل الحسابات الفرعية معاً (كما كان قبل هذه الإضافة).
+  // نفس أسلوب الفترة في طباعة ميزان المراجعة (TrialBalanceTreePrintModal) بالضبط، مُطبَّقاً هنا
+  // على فلاتر كشف حساب الأستاذ المُطبَّقة فعلياً (alf.applied)، لعرضها أعلى الشاشة وأعلى الطباعة معاً.
+  const periodLabel = alf.applied.dateFrom || alf.applied.dateTo
+    ? t("reports.trialPrint.periodWithDates", {
+        from: alf.applied.dateFrom || t("reports.trialPrint.periodDefaultFrom"),
+        to: alf.applied.dateTo || t("reports.trialPrint.periodDefaultTo"),
+      })
+    : t("reports.trialPrint.periodAllTime");
+
   const selectedAccount = useMemo(() => accounts.find((a) => a.id === alf.draft.accountId), [accounts, alf.draft.accountId]);
   const subAccountOptions = useMemo(
     () => (selectedAccount && !selectedAccount.isPosting ? collectPostingDescendants(accounts, selectedAccount.id) : []),
@@ -205,6 +214,7 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
             <div className="panel">
               <div className="voucher-meta">
                 <div><span>{t("accountLedger.accountLabel")}</span><strong>{ledger.account.name}</strong></div>
+                <div>{periodLabel}</div>
                 <div>
                   <span>{t("statementOfAccount.closingBalance")}</span>
                   <strong>{fmt(Math.abs(ledger.closingBalance))} {ledger.closingBalance >= 0 ? t("statementOfAccount.table.debit") : t("statementOfAccount.table.credit")}</strong>
@@ -268,7 +278,14 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
       )}
 
       {printOpen && ledger && (
-        <AccountLedgerPrintModal ledger={ledger} companyId={companyId} companies={companies} onClose={() => setPrintOpen(false)} />
+        <AccountLedgerPrintModal
+          ledger={ledger}
+          companyId={companyId}
+          companies={companies}
+          dateFrom={alf.applied.dateFrom}
+          dateTo={alf.applied.dateTo}
+          onClose={() => setPrintOpen(false)}
+        />
       )}
     </div>
   );

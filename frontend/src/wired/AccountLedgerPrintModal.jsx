@@ -11,18 +11,28 @@ function combineMemo(memo, description) {
 }
 
 /** نسخة قابلة للطباعة من كشف حساب الأستاذ لأي حساب — نفس أسلوب StatementOfAccountModal، داخل PrintShell المشترك */
-export default function AccountLedgerPrintModal({ ledger, companyId, companies, onClose }) {
+export default function AccountLedgerPrintModal({ ledger, companyId, companies, dateFrom, dateTo, onClose }) {
   const { t } = useTranslation();
   const company = companies?.find((c) => c.id === companyId);
+  // نفس أسلوب الفترة في طباعة ميزان المراجعة (TrialBalanceTreePrintModal) بالضبط — نص عام لا
+  // يخص ميزان المراجعة تحديداً بالرغم من مساحة الاسم trialPrint.
+  const periodLabel = dateFrom || dateTo
+    ? t("reports.trialPrint.periodWithDates", { from: dateFrom || t("reports.trialPrint.periodDefaultFrom"), to: dateTo || t("reports.trialPrint.periodDefaultTo") })
+    : t("reports.trialPrint.periodAllTime");
 
   return (
     <PrintShell
       subtitle={t("nav.tabs.ledger")}
       company={company}
+      // الاسم الكامل كما بالسجل التجاري (company.name) بدل الاسم المختصر (shortName) في هيدر
+      // هذا المستند تحديداً — بلا أثر على بقية شاشات الطباعة التي لا تمرّر هذا التجاوز.
+      companyNameOverride={company?.name}
+      largeLogo
       refNode={<div>{t("accountLedger.accountLabel")}: <strong>{ledger.account.name}</strong></div>}
       onClose={onClose}
     >
       <div className="voucher-meta">
+        <div>{periodLabel}</div>
         <div><span>{t("statementOfAccount.closingBalance")}</span><strong>{fmt(Math.abs(ledger.closingBalance))} {ledger.closingBalance >= 0 ? t("statementOfAccount.table.debit") : t("statementOfAccount.table.credit")}</strong></div>
       </div>
       <table className="ledger-table voucher-table">
@@ -43,7 +53,7 @@ export default function AccountLedgerPrintModal({ ledger, companyId, companies, 
           {ledger.rows.map((r, i) => (
             <tr key={r.journalEntryId + i}>
               <td>{r.date.slice(0, 10)}</td>
-              <td>{r.journalEntryId.slice(-8)}</td>
+              <td>{r.entryNumber || r.journalEntryId.slice(-8)}</td>
               <td>{combineMemo(r.entryMemo, r.lineDescription)}</td>
               {!ledger.account.isPosting && <td>{r.accountCode} — {r.accountName}</td>}
               <td className="num">{r.debit ? fmt(r.debit) : "—"}</td>

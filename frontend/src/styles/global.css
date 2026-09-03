@@ -106,6 +106,7 @@
           transform-origin: bottom center; transform: translate(-50%, -100%) rotate(35deg);
         }
         .voucher-logo-img { max-height: 52px; max-width: 160px; object-fit: contain; }
+        .voucher-logo-img-lg { max-height: 84px; max-width: 240px; }
 
         .company-list { display: flex; flex-direction: column; gap: 6px; }
         .company-btn {
