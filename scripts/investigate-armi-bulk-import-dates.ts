@@ -12,7 +12,13 @@
  * بدون الملف المرجعي، يُطبع فقط استخراج (رقم القيد الأصلي ← التاريخ المخزَّن) لكل قيد كجدول خام.
  */
 import { readFileSync, existsSync } from "node:fs";
-import { prisma } from "../src/lib/prisma";
+import { PrismaClient } from "@prisma/client";
+
+// عميل Prisma مستقل تماماً هنا (لا استيراد src/lib/prisma.ts) — ذاك الملف يستورد بدوره
+// src/config/env.ts الذي يتحقق إلزامياً من كل متغيرات بيئة التطبيق (أسرار JWT وغيرها) عند التحميل،
+// رغم أن هذا السكريبت قرائي بحت ولا يحتاج شيئاً غير DATABASE_URL. PrismaClient نفسه يقرأ
+// DATABASE_URL مباشرة من process.env بلا أي وسيط.
+const prisma = new PrismaClient();
 
 const ARMI_COMPANY_ID = "cmsrciyjv000ge8f57p2azqdd";
 const MEMO_ENTRY_NUMBER_RE = /قيد يدوي رقم\s*(\d+)/;
