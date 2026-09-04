@@ -224,7 +224,8 @@
       "purchaseInvoices": "Purchase invoices"
     },
     "emailWarningBefore": "⚠️ The email delivery service is not configured on the server — emails (welcome, user invites, invoice sending) will not reach any recipient. Check the",
-    "emailWarningAfter": "variable in the deployment settings."
+    "emailWarningAfter": "variable in the deployment settings.",
+    "readOnlyWarning": "⚠️ This company is in read-only mode because its subscription or trial period has ended — you can browse all data, but nothing can be added, edited, or deleted. Contact support to reactivate the subscription."
   },
   "dashboard": {
     "breadcrumb": { "overview": "Overview", "realData": "Real data" },

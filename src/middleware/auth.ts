@@ -135,6 +135,36 @@ export const enforceCompanyScope: RequestHandler = (req, _res, next) => {
   next();
 };
 
+/**
+ * قائمة بيضاء صريحة (fail-closed: أي مسار غير مذكور هنا يُرفَض افتراضياً) للمسارات التي تستخدم فعل
+ * POST/PUT/PATCH/DELETE رغم كونها قراءة صِرفة بلا أي كتابة لقاعدة البيانات — استثناء وحيد مؤكَّد
+ * حالياً في كل النظام (راجع previewBulkImport في bulkImport.service.ts: لا شيء فيها سوى استعلامات
+ * قراءة وتحقّق في الذاكرة). `path` نسبي لجذر الراوتر المُركَّب عليه (Express يُسقِط بادئة الـmount
+ * تلقائياً داخل كل Router فرعي)، فلا حاجة لبادئة `/api/journal-entries` هنا.
+ */
+const READ_ONLY_EXEMPT_ROUTES: { method: string; path: string }[] = [{ method: "POST", path: "/bulk-import/preview" }];
+
+/**
+ * حارس مركزي إجباري لوضع "عرض فقط" (اشتراك/فترة تجريبية منتهية على مستوى عضوية بعينها — راجع
+ * readOnly في AccessTokenPayload وisTenantReadOnly في auth.service.ts) — يُركَّب على مستوى الراوتر
+ * (بعد authenticate مباشرة) بنفس أسلوب enforceCompanyScope، لا داخل كل handler على حدة.
+ *
+ * القراءات (GET/HEAD/OPTIONS) تمر دائماً بلا أي قيد. أي طلب آخر من عضوية "عرض فقط" يُرفَض 403 إلا
+ * ما وَرَد صراحةً في READ_ONLY_EXEMPT_ROUTES أعلاه — القائمة البيضاء الصريحة اختيار متعمَّد بدل
+ * الاعتماد على كل مطوّر مستقبلي ليتذكَّر استثناء نقاط قراءة جديدة (نفس درس companyScope: الرفض
+ * الافتراضي أأمن من السماح الافتراضي).
+ */
+export const blockMutationsWhenReadOnly: RequestHandler = (req, _res, next) => {
+  if (!req.auth) throw unauthorized();
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
+  if (!req.auth.readOnly) return next();
+
+  const exempt = READ_ONLY_EXEMPT_ROUTES.some((r) => r.method === req.method && r.path === req.path);
+  if (exempt) return next();
+
+  throw forbidden("هذه الشركة في وضع (عرض فقط) بسبب انتهاء الاشتراك أو الفترة التجريبية — تواصل مع الدعم الفني لتفعيل الاشتراك قبل إجراء أي إضافة أو تعديل أو حذف.");
+};
+
 /** true لو كان صاحب الطلب مالك الشركة (Tenant.ownerId) نفسه — يملك دائماً كل الصلاحيات على شركته
  * بلا حاجة لإعداد منصب له صراحةً. super_admin (المنصّة) ليس مالك أي شركة بهذا المعنى، لكنه يمرّ
  * دائماً من requirePermission أدناه عبر استثنائه المنفصل، بنفس أسلوب requireRole تماماً. */

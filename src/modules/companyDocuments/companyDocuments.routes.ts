@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createCompanyDocumentSchema, updateCompanyDocumentSchema } from "./companyDocuments.schemas";
 import {
@@ -10,7 +10,7 @@ import {
 } from "./companyDocuments.controller";
 
 export const companyDocumentRoutes = Router();
-companyDocumentRoutes.use(authenticate, enforceCompanyScope);
+companyDocumentRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 companyDocumentRoutes.get("/", listCompanyDocuments);
 companyDocumentRoutes.post(

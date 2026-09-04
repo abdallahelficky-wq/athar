@@ -10,6 +10,36 @@ export class ApiError extends Error {
   }
 }
 
+/** يقرأ حمولة JWT دون أي تحقق من التوقيع — استخدام استشاري بحت هنا (رسالة فورية للمستخدم قبل حتى
+ * إرسال الطلب)، فلا أثر أمني لعدم التحقق: القيد الفعلي الملزم يبقى دائماً في الخادم
+ * (blockMutationsWhenReadOnly في middleware/auth.ts)، وأي تلاعب بهذه القراءة محلياً لن يتجاوزه. */
+function decodeAccessTokenPayload(token) {
+  try {
+    const [, payload] = token.split(".");
+    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+  } catch {
+    return null;
+  }
+}
+
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+// نفس الاستثناء الوحيد المضبوط في القائمة البيضاء على الخادم (READ_ONLY_EXEMPT_ROUTES في
+// middleware/auth.ts) — معاينة الاستيراد الجماعي لا تكتب شيئاً رغم استخدامها POST.
+const READ_ONLY_EXEMPT_PATH_SUFFIXES = ["/bulk-import/preview"];
+
+/** رسالة واضحة فورية (بلا أي طلب شبكة) لأي محاولة تعديل/إضافة/حذف من عضوية "عرض فقط" — الرفض
+ * الفعلي الملزم يحدث في الخادم بنفس الرسالة تقريباً حتى لو تجاوز أحد هذا الفحص المحلي. */
+function assertNotReadOnlyMutation(path, method) {
+  if (!MUTATING_METHODS.has(method)) return;
+  if (READ_ONLY_EXEMPT_PATH_SUFFIXES.some((suffix) => path.endsWith(suffix))) return;
+  const token = getAccessToken();
+  if (!token || !decodeAccessTokenPayload(token)?.readOnly) return;
+  throw new ApiError(
+    403,
+    "هذه الشركة في وضع (عرض فقط) بسبب انتهاء الاشتراك أو الفترة التجريبية — تواصل مع الدعم الفني لتفعيل الاشتراك قبل إجراء أي إضافة أو تعديل أو حذف.",
+  );
+}
+
 async function rawRequest(path, options, accessToken) {
   const isFormData = options.body instanceof FormData;
   const headers = { ...(options.headers || {}) };
@@ -84,6 +114,7 @@ async function refreshAccessToken() {
  * ثم يعيد المحاولة. إن فشل التجديد يُبطِل الجلسة بالكامل (clearTokens يُنبّه AuthContext).
  */
 export async function apiFetch(path, options = {}) {
+  assertNotReadOnlyMutation(path, options.method || "GET");
   const accessToken = getAccessToken();
   try {
     return await rawRequest(path, options, accessToken);

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireTenantOwner } from "../../middleware/auth";
+import { authenticate, requireTenantOwner, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import {
   createPositionSchema,
@@ -16,7 +16,7 @@ import * as controller from "./positions.controller";
  * (فك ترحيل القيود) — راجع positions.service.ts.
  */
 export const positionRoutes = Router();
-positionRoutes.use(authenticate, requireTenantOwner);
+positionRoutes.use(authenticate, requireTenantOwner, blockMutationsWhenReadOnly);
 
 positionRoutes.get("/", controller.listHandler);
 positionRoutes.get("/assignable-users", controller.listAssignableUsersHandler);

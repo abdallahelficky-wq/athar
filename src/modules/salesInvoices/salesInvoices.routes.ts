@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createSalesInvoiceSchema, updateSalesInvoiceSchema, unpostSchema, sendEmailSchema } from "./salesInvoices.schemas";
 import { listHandler, getHandler, createHandler, updateHandler, deleteHandler, postHandler, unpostHandler, sendEmailHandler, resendZatcaHandler } from "./salesInvoices.controller";
 
 export const salesInvoiceRoutes = Router();
-salesInvoiceRoutes.use(authenticate, enforceCompanyScope);
+salesInvoiceRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 

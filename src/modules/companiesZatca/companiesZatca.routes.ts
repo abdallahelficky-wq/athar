@@ -1,5 +1,5 @@
 import { Router, RequestHandler } from "express";
-import { authenticate, requireRole, assertCompanyAccess } from "../../middleware/auth";
+import { authenticate, requireRole, assertCompanyAccess, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { generateCsrSchema, complianceOtpSchema, setEnvironmentSchema } from "./companiesZatca.schemas";
 import {
@@ -20,7 +20,7 @@ const enforceZatcaCompanyScope: RequestHandler = (req, _res, next) => {
   assertCompanyAccess(req.auth!, req.params.id);
   next();
 };
-companyZatcaRoutes.use(authenticate, enforceZatcaCompanyScope);
+companyZatcaRoutes.use(authenticate, enforceZatcaCompanyScope, blockMutationsWhenReadOnly);
 
 const adminOnly = requireRole("admin");
 

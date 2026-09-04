@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import * as c from "./stables.controller";
 import * as s from "./stables.schemas";
 
 export const stableRoutes = Router();
-stableRoutes.use(authenticate);
+stableRoutes.use(authenticate, blockMutationsWhenReadOnly);
 const edit = requireRole("admin", "finance_manager");
 stableRoutes.get("/overview", c.overview);
 stableRoutes.get("/boarding-billing/owners", c.listBoardingOwners);

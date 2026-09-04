@@ -241,6 +241,9 @@ function AppShell() {
                 {t("nav.emailWarningBefore")} <code>RESEND_API_KEY</code> {t("nav.emailWarningAfter")}
               </div>
             )}
+            {user?.readOnly && (
+              <div className="system-warning-banner">{t("nav.readOnlyWarning")}</div>
+            )}
             <Outlet context={outletContext} />
           </div>
         </div>

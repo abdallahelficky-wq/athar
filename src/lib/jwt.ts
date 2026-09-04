@@ -7,6 +7,12 @@ export interface AccessTokenPayload {
   tenantId: string;
   role: string;
   companyScope: string;
+  // true لو كانت شركة *هذه العضوية تحديداً* في وضع "عرض فقط" (اشتراك/فترة تجريبية منتهية) لحظة
+  // إصدار هذا الرمز — يُحسَب من حالة Tenant الخاصة بـ user.tenantId فقط، لا من الهوية (Identity)
+  // المشتركة، فلا يتسرّب بين عضويتين مختلفتين لنفس الشخص (راجع auth.service.ts: isTenantReadOnly).
+  // يُعاد حسابه من جديد عند كل تجديد رمز (refresh)، فتفعيل الاشتراك ينعكس تلقائياً خلال 15 دقيقة
+  // كحد أقصى بلا حاجة لتسجيل خروج/دخول.
+  readOnly: boolean;
 }
 
 export function signAccessToken(payload: AccessTokenPayload): string {

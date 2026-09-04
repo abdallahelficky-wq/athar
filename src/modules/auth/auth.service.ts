@@ -35,12 +35,13 @@ const OWNER_EMAIL = "abdallah.elficky@gmail.com";
 
 type UserWithIdentity = User & { identity: Identity };
 
-async function issueTokenPair(user: User) {
+async function issueTokenPair(user: User, readOnly: boolean) {
   const accessToken = signAccessToken({
     sub: user.id,
     tenantId: user.tenantId,
     role: user.role,
     companyScope: user.companyScope,
+    readOnly,
   });
 
   const jti = generateInviteToken();
@@ -63,9 +64,15 @@ function publicUser(user: UserWithIdentity) {
 }
 
 /** publicUser + مؤشّر canUnpostJournalEntries — حتى تعرف الواجهة متى تُظهر زر "فك الترحيل" أصلاً
- * (راجع positions.service.ts: canUnpostJournalEntries) بدل الاعتماد فقط على رفض الخادم لاحقاً. */
-async function publicUserWithPermissions(user: UserWithIdentity) {
-  return { ...publicUser(user), canUnpostJournalEntries: await canUnpostJournalEntries(user.tenantId, user.id, user.role) };
+ * (راجع positions.service.ts: canUnpostJournalEntries) بدل الاعتماد فقط على رفض الخادم لاحقاً.
+ * readOnly تُمرَّر صراحةً من الطرف المستدعي (وليست تُحسَب هنا) لأنها محسوبة بالفعل مرة واحدة في
+ * completeLoginForUser/getMe، فتفادياً لاستعلام Tenant مكرر. */
+async function publicUserWithPermissions(user: UserWithIdentity, readOnly: boolean) {
+  return {
+    ...publicUser(user),
+    canUnpostJournalEntries: await canUnpostJournalEntries(user.tenantId, user.id, user.role),
+    readOnly,
+  };
 }
 
 function publicTenant(tenant: Tenant) {
@@ -74,13 +81,15 @@ function publicTenant(tenant: Tenant) {
 }
 
 /**
- * يرفض تسجيل الدخول/تجديد الجلسة لشركة (Tenant) مُعلَّقة إدارياً من لوحة تحكم مدير المنصة
- * (athar-platform-admin، مشروع منفصل تماماً) أو انتهت فترتها التجريبية بلا ترقية. يُستدعى من
- * login()/refresh() فقط (وليس authenticate middleware نفسه، الذي يبقى تحققاً من التوقيع فقط بلا
- * أي استعلام لقاعدة البيانات) — فالتأثير الفعلي: رمز الدخول القديم لمستخدم شركة عُلِّقت للتو يبقى
- * صالحاً حتى انتهاء صلاحيته الطبيعية (15 دقيقة افتراضياً) بما أنه لا يستطيع تجديده بعدها.
- * حالتا subscriptionStatus الأخريان (past_due/canceled) لا تمنعان الدخول حالياً عمداً — إعلاميتان
- * فقط في هذه المرحلة (تُعرَضان في لوحة تحكم مدير المنصة)، وليستا "منتهي" أو "معلَّق" صراحةً.
+ * يرفض تسجيل الدخول/تجديد الجلسة كلياً فقط لشركة (Tenant) مُعلَّقة إدارياً من لوحة تحكم مدير
+ * المنصة (athar-platform-admin، مشروع منفصل تماماً) — إجراء إداري متعمَّد (غالباً إساءة استخدام أو
+ * نزاع دفع)، أشد من مجرد انتهاء اشتراك عادي، فيبقى رفضاً كاملاً كما كان. انتهاء الفترة التجريبية أو
+ * تعطّل السداد (past_due/canceled) لم يعودا يمنعان الدخول إطلاقاً — يتحولان بدلاً من ذلك لوضع "عرض
+ * فقط" عبر isTenantReadOnly أدناه (راجع blockMutationsWhenReadOnly في middleware/auth.ts للتطبيق
+ * الفعلي). يُستدعى من completeLoginForUser/refresh/getMe فقط (وليس authenticate middleware نفسه،
+ * الذي يبقى تحققاً من التوقيع فقط بلا أي استعلام لقاعدة البيانات) — فالتأثير الفعلي: رمز الدخول
+ * القديم لمستخدم شركة عُلِّقت للتو يبقى صالحاً حتى انتهاء صلاحيته الطبيعية (15 دقيقة افتراضياً) بما
+ * أنه لا يستطيع تجديده بعدها.
  */
 function assertTenantActive(tenant: Tenant) {
   if (tenant.subscriptionStatus === "suspended") {
@@ -90,9 +99,17 @@ function assertTenantActive(tenant: Tenant) {
         : "تم تعليق هذا الحساب من إدارة المنصة، تواصل مع الدعم الفني",
     );
   }
-  if (tenant.subscriptionStatus === "trialing" && tenant.trialEndsAt && tenant.trialEndsAt < new Date()) {
-    throw unauthorized("انتهت الفترة التجريبية لهذا الحساب، تواصل مع الدعم الفني لتفعيل الاشتراك");
+}
+
+/** true لو انتهت الفترة التجريبية بلا ترقية، أو تعطّل السداد (past_due)، أو أُلغي الاشتراك
+ * (canceled) — في كل هذه الحالات يبقى الدخول والقراءة متاحين بالكامل، لكن أي إضافة/تعديل/حذف يُرفض
+ * (راجع blockMutationsWhenReadOnly). محسوبة من حالة Tenant الخاصة بعضوية (User) واحدة بعينها فقط،
+ * لا من الهوية (Identity) المشتركة — عضوية أخرى لنفس الشخص في شركة مختلفة غير متأثرة إطلاقاً. */
+function isTenantReadOnly(tenant: Pick<Tenant, "subscriptionStatus" | "trialEndsAt">): boolean {
+  if (tenant.subscriptionStatus === "trialing") {
+    return Boolean(tenant.trialEndsAt && tenant.trialEndsAt < new Date());
   }
+  return tenant.subscriptionStatus === "past_due" || tenant.subscriptionStatus === "canceled";
 }
 
 export async function register(
@@ -162,7 +179,8 @@ export async function register(
     { timeout: 20_000, maxWait: 10_000 },
   );
 
-  const tokens = await issueTokenPair(user);
+  // شركة جديدة الإنشاء دائماً (تجريبية بالكاد بدأت) — لا يمكن أن تكون "عرض فقط" لحظة التسجيل نفسه.
+  const tokens = await issueTokenPair(user, false);
 
   // فشل إرسال الإيميل الترحيبي (خدمة Resend متوقفة مثلاً) لا يجب أن يُفشل التسجيل نفسه — يُسجَّل
   // الخطأ فقط ويكمل الحساب الجديد إنشاءه بنجاح.
@@ -173,18 +191,19 @@ export async function register(
     console.error("فشل إرسال إيميل الترحيب:", err);
   }
 
-  return { tenant: publicTenant(tenant), user: await publicUserWithPermissions(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices: [] as never[] };
+  return { tenant: publicTenant(tenant), user: await publicUserWithPermissions(user, false), readOnly: false, ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices: [] as never[] };
 }
 
 async function completeLoginForUser(user: UserWithIdentity) {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
   assertTenantActive(tenant);
+  const readOnly = isTenantReadOnly(tenant);
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
-  const tokens = await issueTokenPair(user);
+  const tokens = await issueTokenPair(user, readOnly);
   const platformNotices = await prisma.platformNotice.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: "desc" } });
-  return { tenant: publicTenant(tenant), user: await publicUserWithPermissions(user), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
+  return { tenant: publicTenant(tenant), user: await publicUserWithPermissions(user, readOnly), readOnly, ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
 }
 
 /**
@@ -215,12 +234,27 @@ export async function login(input: { email: string; password: string }) {
   if (usable.length === 1) return completeLoginForUser(usable[0]);
 
   const identityToken = signIdentityChoiceToken({ identityId: identity.id });
-  const tenants = await prisma.tenant.findMany({ where: { id: { in: usable.map((m) => m.tenantId) } }, select: { id: true, name: true } });
-  const tenantNameById = new Map(tenants.map((t) => [t.id, t.name]));
+  const tenants = await prisma.tenant.findMany({
+    where: { id: { in: usable.map((m) => m.tenantId) } },
+    select: { id: true, name: true, subscriptionStatus: true, trialEndsAt: true, suspensionReason: true },
+  });
+  const tenantById = new Map(tenants.map((t) => [t.id, t]));
   return {
     chooseAccount: true as const,
     identityToken,
-    accounts: usable.map((m) => ({ userId: m.id, tenantId: m.tenantId, tenantName: tenantNameById.get(m.tenantId) || "", role: m.role })),
+    // readOnly هنا للعرض فقط في شاشة اختيار الشركة (يعرف المستخدم مسبقاً أي عضوية بوضع "عرض فقط"
+    // قبل اختيارها) — التحقق الفعلي الملزم يبقى دائماً في completeLoginChoice/completeLoginForUser
+    // لحظة إصدار الرمز الحقيقي، لا هنا.
+    accounts: usable.map((m) => {
+      const tenant = tenantById.get(m.tenantId);
+      return {
+        userId: m.id,
+        tenantId: m.tenantId,
+        tenantName: tenant?.name || "",
+        role: m.role,
+        readOnly: tenant ? isTenantReadOnly(tenant) : false,
+      };
+    }),
   };
 }
 
@@ -267,7 +301,10 @@ export async function refresh(refreshToken: string) {
   // تدوير: إبطال الرمز القديم فور استخدامه لمنع إعادة استخدامه (refresh token rotation)
   await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
 
-  return issueTokenPair(user);
+  // يُعاد حساب وضع "عرض فقط" من جديد في كل تجديد (لا يُنسَخ من الرمز القديم) — تفعيل الاشتراك بعد
+  // انتهاء تجريبي/تعطّل سداد ينعكس تلقائياً خلال 15 دقيقة كحد أقصى (مدة صلاحية رمز الدخول) بلا حاجة
+  // لتسجيل خروج/دخول، تماماً كما يحدث فعلياً لعكس تعليق الشركة إدارياً.
+  return issueTokenPair(user, isTenantReadOnly(tenant));
 }
 
 export async function logout(refreshToken: string) {
@@ -447,11 +484,9 @@ export async function acceptInvite(input: { token: string; password?: string }) 
     include: { identity: true },
   });
 
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: updated.tenantId } });
-  assertTenantActive(tenant);
-  const tokens = await issueTokenPair(updated);
-  const platformNotices = await prisma.platformNotice.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: "desc" } });
-  return { tenant: publicTenant(tenant), user: await publicUserWithPermissions(updated), ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
+  // نفس منطق تسجيل الدخول بالضبط بعد قبول الدعوة (فحص حالة الشركة، حساب readOnly، إصدار الرمزين،
+  // تحديث lastLoginAt، الإشعارات) — إعادة استخدام completeLoginForUser بدل تكرار كل هذا يدوياً هنا.
+  return completeLoginForUser(updated);
 }
 
 export async function changeUnlockPin(tenantId: string, currentPin: string, newPin: string) {
@@ -484,12 +519,14 @@ export async function getMe(userId: string) {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
   // تُستدعى هذه الدالة عند كل فتح تطبيق (انظر AuthContext) — إعادة فحص حالة الاشتراك هنا أيضاً
   // (وليس فقط عند login/refresh) تعني أن تعليق شركة يُطرد مستخدميها المسجَّلين بالفعل فور أول
-  // إعادة تحميل للصفحة، لا فقط عند انتهاء صلاحية رمزهم الحالي.
+  // إعادة تحميل للصفحة، لا فقط عند انتهاء صلاحية رمزهم الحالي. لم تعد تُستخدَم لطرد شركة انتهت
+  // فترتها التجريبية فقط (تصبح "عرض فقط" بدلاً من ذلك) — فقط للتعليق الإداري الفعلي.
   assertTenantActive(tenant);
+  const readOnly = isTenantReadOnly(tenant);
   const platformNotices = await prisma.platformNotice.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: "desc" } });
   // مؤشّر تشخيصي للوحة الإدارة فقط (مجرد boolean، بلا كشف أي سرّ) — انظر التحذير المطابق عند
   // إقلاع الخادم في server.ts لنفس السبب.
-  return { user: await publicUserWithPermissions(user), tenant: publicTenant(tenant), emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
+  return { user: await publicUserWithPermissions(user, readOnly), tenant: publicTenant(tenant), readOnly, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices };
 }
 
 export async function updateMyName(userId: string, name: string) {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createCompanySchema, updateCompanySchema, reopenFiscalClosingSchema, extractDocumentSchema } from "./companies.schemas";
 import {
@@ -15,7 +15,7 @@ import {
 import { uploadSingleFile } from "../attachments/attachments.controller";
 
 export const companyRoutes = Router();
-companyRoutes.use(authenticate);
+companyRoutes.use(authenticate, blockMutationsWhenReadOnly);
 
 companyRoutes.get("/", listCompanies);
 companyRoutes.post(

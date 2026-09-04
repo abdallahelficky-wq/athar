@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createEmployeeSchema, updateEmployeeSchema, importEmployeesSchema, setPortalAccessSchema } from "./employees.schemas";
 import {
@@ -7,7 +7,7 @@ import {
 } from "./employees.controller";
 
 export const employeeRoutes = Router();
-employeeRoutes.use(authenticate, enforceCompanyScope);
+employeeRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 const canWrite = requireRole("admin", "finance_manager", "hr_manager");
 

@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { authenticate, enforceCompanyScope, requireRole } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createFixedAssetSchema, updateFixedAssetSchema, disposeFixedAssetSchema, removeSchema } from "./fixedAssets.schemas";
 import { listHandler, createHandler, updateHandler, removeHandler, disposeHandler, summaryHandler } from "./fixedAssets.controller";
 
 export const fixedAssetRoutes = Router();
-fixedAssetRoutes.use(authenticate, enforceCompanyScope);
+fixedAssetRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 

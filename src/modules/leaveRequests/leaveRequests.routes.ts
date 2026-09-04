@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, enforceCompanyScope, requireActionPermission } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireActionPermission, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createLeaveRequestSchema, updateLeaveRequestSchema } from "./leaveRequests.schemas";
 import {
@@ -13,7 +13,7 @@ import {
  * عمداً (قرار تحكيم واحد بمستوى واحد، سواء انتهى بقبول أو رفض).
  */
 export const leaveRequestRoutes = Router();
-leaveRequestRoutes.use(authenticate, enforceCompanyScope);
+leaveRequestRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 leaveRequestRoutes.get("/", requireActionPermission("leaveRequests", "view", "read"), listLeaveRequests);
 leaveRequestRoutes.post(
