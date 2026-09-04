@@ -22,6 +22,8 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
 import JournalEntryStandalonePage from "./pages/JournalEntryStandalonePage";
 import Dashboard from "./wired/Dashboard";
+import AtharShellDashboardPilot from "./wired/AtharShellDashboardPilot";
+import AtharShellSalesPilot from "./wired/AtharShellSalesPilot";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
 import ReportsModule, { REPORT_TABS } from "./wired/ReportsModule";
 
@@ -37,7 +39,7 @@ import UserMenu from "./wired/shared/UserMenu";
 import { UnsavedChangesProvider } from "./wired/shared/UnsavedChangesContext";
 import UnsavedChangesBlocker from "./wired/shared/UnsavedChangesBlocker";
 
-const NAV_GROUPS = [
+export const NAV_GROUPS = [
   { id: "sales", labelKey: "nav.groups.sales", tabs: SALES_TABS, to: routes.sales },
   { id: "purchases", labelKey: "nav.groups.purchases", tabs: PURCHASE_TABS, to: routes.purchases },
   { id: "inventory", labelKey: "nav.groups.inventory", tabs: INVENTORY_TABS, to: routes.inventory },
@@ -391,6 +393,25 @@ function AcceptInviteRoute() {
   return <AcceptInvitePage token={searchParams.get("token")} onGoLogin={() => navigate("/login")} />;
 }
 
+// مسار معزول تماماً عن ProtectedLayout/AppShell — معاينة تجريبية لغلاف واجهة جديد (AtharShell)
+// على شاشة واحدة فقط (لوحة القيادة)، بلا أي أثر على المسار الحقيقي /dashboard أو أي مسار آخر.
+// راجع AtharShellDashboardPilot.jsx للتفاصيل الكاملة.
+function AtharShellPreviewRoute() {
+  const { isAuthenticated, initializing } = useAuth();
+  if (initializing) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <AtharShellDashboardPilot />;
+}
+
+// امتداد ثانٍ لنفس المعاينة المعزولة (بعد لوحة القيادة): وحدة المبيعات مُغلَّفة بهيكل أثر الجديد.
+// راجع AtharShellSalesPilot.jsx للتفاصيل الكاملة.
+function AtharShellSalesPreviewRoute() {
+  const { isAuthenticated, initializing } = useAuth();
+  if (initializing) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <AtharShellSalesPilot />;
+}
+
 const router = createBrowserRouter([
   { path: "/", element: <RootRoute /> },
   { path: "/login", element: <LoginRoute /> },
@@ -398,6 +419,9 @@ const router = createBrowserRouter([
   { path: "/forgot-password", element: <ForgotPasswordRoute /> },
   { path: "/accept-invite", element: <AcceptInviteRoute /> },
   { path: "/journal-entries/:id/view", element: <JournalEntryStandalonePage /> },
+  { path: "/ui-preview/dashboard", element: <AtharShellPreviewRoute /> },
+  { path: "/ui-preview/sales", element: <Navigate to="/ui-preview/sales/invoices" replace /> },
+  { path: "/ui-preview/sales/:tab", element: <AtharShellSalesPreviewRoute /> },
   {
     element: <ProtectedLayout />,
     children: [
