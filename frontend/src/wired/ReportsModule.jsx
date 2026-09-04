@@ -15,6 +15,7 @@ import TrialBalanceView from "./TrialBalanceView";
 import { collectGroupAccountIds, flattenVisibleTree } from "./shared/trialBalanceTree";
 import { exportTrialBalanceExcel } from "./shared/exportTrialBalanceExcel";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
+import { defaultDateRangeForCompany } from "./shared/fiscalClosing";
 import ComprehensiveMonthlyReport from "./ComprehensiveMonthlyReport";
 import ReportScheduleAutomation from "./ReportScheduleAutomation";
 
@@ -139,6 +140,18 @@ export default function ReportsModule({ companies, companyId }) {
   const tb = useDeferredFilters({ dateFrom: "", dateTo: "", level: 4, hideZeroActivity: true, search: "", branchId: "" });
   const [tbExpandedIds, setTbExpandedIds] = useState(new Set());
 
+  // الفترة الافتراضية (من اليوم التالي لتاريخ إقفال الشركة النشطة حتى اليوم) تُطبَّق مرة واحدة فقط
+  // بمجرد توفّر بيانات الشركة فعلياً (قد تُحمَّل بعد companyId بلحظات عند أول فتح للتطبيق) — لا تُعاد
+  // لاحقاً حتى لا تمحو فلتر اختاره المستخدم يدوياً بعدها.
+  const [tbDefaultApplied, setTbDefaultApplied] = useState(false);
+  const activeCompany = companies?.find((c) => c.id === companyId);
+  useEffect(() => {
+    if (tbDefaultApplied || !activeCompany) return;
+    tb.reset(defaultDateRangeForCompany(activeCompany, { dateFrom: "", dateTo: "", level: 4, hideZeroActivity: true, search: "", branchId: "" }));
+    setTbDefaultApplied(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompany, tbDefaultApplied]);
+
   useEffect(() => {
     if (!companyId) return;
     listAccounts({ tree: true, companyId }).then(setAccounts).catch(() => {});
@@ -189,7 +202,6 @@ export default function ReportsModule({ companies, companyId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, rollupFilters.applied]);
 
-  const activeCompany = companies?.find((c) => c.id === companyId);
   const tbVisibleRows = tbData ? flattenVisibleTree(tbData.roots, tbExpandedIds) : [];
 
   return (

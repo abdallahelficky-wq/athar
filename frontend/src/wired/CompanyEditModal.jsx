@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { updateCompany, uploadCompanyLogo, extractCompanyDocument } from "../api/companies";
+import { useAuth } from "../context/AuthContext";
+import { updateCompany, uploadCompanyLogo, extractCompanyDocument, reopenFiscalClosing } from "../api/companies";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CompanyDocumentsPanel from "./CompanyDocumentsPanel";
 import LeaseContractsPanel from "./LeaseContractsPanel";
@@ -34,12 +35,15 @@ const emptyForm = (c) => ({
   lowCashThreshold: c.lowCashThreshold ?? "",
   overdueInvoiceDays: c.overdueInvoiceDays ?? 30,
   staleDraftDays: c.staleDraftDays ?? 7,
+  fiscalYearClosingDate: c.fiscalYearClosingDate ? c.fiscalYearClosingDate.slice(0, 10) : "",
 });
 
 /** نافذة تعديل بيانات الشركة الرسمية الكاملة — شعار، عنوان وطني، تواريخ السجل التجاري،
  * بيانات التواصل، بالإضافة إلى استخراج تلقائي بالذكاء الاصطناعي من المستندات الرسمية. */
 export default function CompanyEditModal({ company, onClose, onSaved }) {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
+  const canReopen = user?.role === "admin" || user?.role === "super_admin";
   const DOC_TYPES = [
     { key: "cr", label: t("settings.companyEdit.docTypeCr") },
     { key: "national_address", label: t("settings.companyEdit.docTypeNationalAddress") },
@@ -54,6 +58,9 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
   const [extractionNote, setExtractionNote] = useState(null); // { confidence, text }
   const [error, setError] = useState("");
   const [attachmentsKey, setAttachmentsKey] = useState(0);
+  const [reopenDate, setReopenDate] = useState("");
+  const [reopening, setReopening] = useState(false);
+  const [reopenNotice, setReopenNotice] = useState("");
 
   const logoInputRef = useRef(null);
   const docInputRefs = useRef({});
@@ -73,12 +80,30 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         lowCashThreshold: form.lowCashThreshold === "" ? null : Number(form.lowCashThreshold),
         overdueInvoiceDays: Number(form.overdueInvoiceDays),
         staleDraftDays: Number(form.staleDraftDays),
+        fiscalYearClosingDate: form.fiscalYearClosingDate || null,
       });
       onSaved();
     } catch (err) {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const reopen = async () => {
+    if (!window.confirm(t("settings.companyEdit.reopenConfirm"))) return;
+    setReopening(true);
+    setError("");
+    setReopenNotice("");
+    try {
+      const updated = await reopenFiscalClosing(company.id, reopenDate || null);
+      setForm((prev) => ({ ...prev, fiscalYearClosingDate: updated.fiscalYearClosingDate ? updated.fiscalYearClosingDate.slice(0, 10) : "" }));
+      setReopenDate("");
+      setReopenNotice(t("settings.companyEdit.reopenSuccess"));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setReopening(false);
     }
   };
 
@@ -208,6 +233,29 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
             <input type="number" value={form.staleDraftDays} onChange={(e) => set("staleDraftDays", e.target.value)} />
           </label>
         </div>
+
+        <h4 className="sub-head">{t("settings.companyEdit.fiscalClosingTitle")}</h4>
+        <p className="note">{t("settings.companyEdit.fiscalClosingNote")}</p>
+        <div className="form-grid">
+          <label>{t("settings.companyEdit.fiscalClosingDateLabel")}
+            <input type="date" value={form.fiscalYearClosingDate} onChange={(e) => set("fiscalYearClosingDate", e.target.value)} />
+          </label>
+        </div>
+        {canReopen && (
+          <>
+            <h5>{t("settings.companyEdit.reopenTitle")}</h5>
+            <p className="note">{t("settings.companyEdit.reopenNote")}</p>
+            <div className="form-btn-group" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+              <label>{t("settings.companyEdit.reopenNewDateLabel")}
+                <input type="date" value={reopenDate} onChange={(e) => setReopenDate(e.target.value)} />
+              </label>
+              <button className="btn-ghost" onClick={reopen} disabled={reopening}>
+                {reopening ? t("settings.companyEdit.reopening") : t("settings.companyEdit.reopenBtn")}
+              </button>
+            </div>
+            {reopenNotice && <p className="note">{reopenNotice}</p>}
+          </>
+        )}
 
         <BranchesPanel companyId={company.id} companyCurrency={form.currency} />
         <CompanyBankAccountsPanel companyId={company.id} />

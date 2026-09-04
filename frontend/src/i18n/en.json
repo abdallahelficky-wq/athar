@@ -1626,7 +1626,18 @@
       "extractionHighConfidence": "The following data was extracted automatically — review it then click \"Save\": {{note}}",
       "extractionFailed": "Failed to upload/analyze the document: {{message}}",
       "uploadedDocsTitle": "Uploaded official documents",
-      "errNameRequired": "The name in the commercial registration is required"
+      "errNameRequired": "The name in the commercial registration is required",
+      "fiscalClosingTitle": "Fiscal year closing",
+      "fiscalClosingNote": "Once set, no journal entry (including invoices, payroll, and anything that posts a financial transaction) can be created, edited, deleted, or unposted with a date on or before this date. You can move it forward at any time from here; moving it back or clearing it requires admin permission via \"Reopen closing\" below.",
+      "fiscalClosingDateLabel": "Fiscal year closing date (optional)",
+      "fiscalClosingNoneOption": "No closing set",
+      "reopenTitle": "Reopen closing (admin only)",
+      "reopenNote": "Every use of this action is logged in the audit trail (who reopened it, when, and the old/new date).",
+      "reopenNewDateLabel": "New date (leave empty to clear the closing entirely)",
+      "reopenBtn": "Reopen closing",
+      "reopening": "Reopening...",
+      "reopenConfirm": "This is a sensitive action that reopens a previously closed period for editing. Continue?",
+      "reopenSuccess": "Closing reopened successfully."
     },
     "zatca": {
       "modalTitle": "ZATCA linkage — {{name}}",

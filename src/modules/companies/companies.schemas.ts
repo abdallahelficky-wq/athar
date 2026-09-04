@@ -50,9 +50,18 @@ export const createCompanySchema = z.object({
   // المطابقين بـ schema.prisma. زر امتثال زاتكا يظهر فقط لما country = "SA" (الواجهة الأمامية).
   country: z.enum(COUNTRY_CODES).optional(),
   currency: z.enum(CURRENCY_CODES).optional(),
+  // بعده يُمنع إنشاء/تعديل/حذف/فك ترحيل أي قيد بتاريخ يقع فيه أو قبله — راجع src/lib/fiscalClosing.ts.
+  // تقديمه للأمام (أو ضبطه لأول مرة) متاح هنا بصلاحية admin/finance_manager كبقية إعدادات الشركة؛
+  // تقديمه للخلف أو مسحه ("فتح الإقفال") مرفوض من هذا المسار عمداً (companies.controller.ts) ويتطلب
+  // مسار reopenFiscalClosing المخصَّص، admin فقط.
+  fiscalYearClosingDate: z.coerce.date().nullable().optional(),
 });
 
 export const updateCompanySchema = createCompanySchema.partial();
+
+export const reopenFiscalClosingSchema = z.object({
+  fiscalYearClosingDate: z.coerce.date().nullable(),
+});
 
 export const extractDocumentSchema = z.object({
   docType: z.enum(["cr", "national_address", "vat_certificate"]),

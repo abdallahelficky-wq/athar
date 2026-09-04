@@ -382,6 +382,13 @@ model Company {
   // ذرّياً (UPDATE ... RETURNING ضمن نفس معاملة إنشاء القيد) فقط لحظة الحفظ الفعلي، لا عند مجرد
   // فتح نافذة الإضافة أو معاينة الرقم التالي، تجنباً لفجوات Gaps بسبب عمليات مُلغاة.
   nextJournalEntrySeq          Int                   @default(1)
+  // تاريخ إقفال السنة المالية — بعد ضبطه، يُمنع إنشاء/تعديل/حذف/فك ترحيل أي قيد (وأي مستند يُنشئ
+  // قيداً: فواتير، سندات، رواتب...) بتاريخ يقع في هذا التاريخ أو قبله (راجع src/lib/fiscalClosing.ts
+  // لمنطق التحقق المركزي، وjournalPosting.ts لنقطة التجميع الفعلية لمعظم عمليات الكتابة). null يعني
+  // لا إقفال مضبوطاً إطلاقاً (السلوك الافتراضي، بلا أي تقييد). "فتح الإقفال" (تقديم هذا التاريخ للخلف
+  // أو مسحه) محصور بصلاحية admin فقط عبر مسار مخصّص مُسجَّل بالكامل في AuditLog — راجع
+  // companies.controller.ts::reopenFiscalClosing.
+  fiscalYearClosingDate        DateTime?
   // إعدادات تنبيهات الداشبورد المالية — قابلة للتعديل لكل شركة من الإعدادات
   vatFilingFrequency           VatFilingFrequency    @default(quarterly)
   zakatDeclarationDueDate      DateTime?

@@ -12,6 +12,7 @@ import AccountSearchSelect from "./shared/AccountSearchSelect";
 import Breadcrumb from "./shared/Breadcrumb";
 import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
+import { defaultDateRangeForCompany } from "./shared/fiscalClosing";
 
 const emptyFilters = { accountId: "", subAccountId: "", costCenterId: "", departmentId: "", branchId: "", dateFrom: "", dateTo: "" };
 
@@ -55,6 +56,11 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
   const [error, setError] = useState("");
   const [printOpen, setPrintOpen] = useState(false);
 
+  // تاريخ إقفال الشركة النشطة تحديداً (لا مصفوفة companies بأكملها) كتبعية للتأثير أدناه — يُعاد
+  // حساب الفترة الافتراضية بمجرد توفّر بيانات الشركات فعلياً (قد تُحمَّل بعد companyId بلحظات عند
+  // أول فتح للتطبيق)، بلا إعادة ضبط الفلاتر عند كل تغيّر غير متعلّق في المصفوفة نفسها.
+  const activeCompanyClosingDate = companies?.find((c) => c.id === companyId)?.fiscalYearClosingDate;
+
   useEffect(() => {
     if (!companyId) { setAccounts([]); alf.reset(emptyFilters); return; }
     // شجرة كاملة (وليس حسابات الترحيل فقط) — يمكن اختيار فرع تجميعي كامل (مثل "الذمم المدينة
@@ -63,9 +69,9 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
     listCostCenters().then(setCostCenters).catch((err) => setError(err.message));
     listDepartments().then(setDepartments).catch((err) => setError(err.message));
     listBranches(companyId).then(setBranches).catch((err) => setError(err.message));
-    alf.reset(emptyFilters);
+    alf.reset(defaultDateRangeForCompany(companies?.find((c) => c.id === companyId), emptyFilters));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId]);
+  }, [companyId, activeCompanyClosingDate]);
 
   // دخول مباشر لحساب معيّن (زر "عرض في شجرة الحسابات" من شاشة عميل/مورد/موظف) — يفتح الحساب
   // ويجلب كشفه فوراً بلا حاجة لاختياره يدوياً من القائمة، ثم يُستهلَك (onConsumeInitialAccountId)

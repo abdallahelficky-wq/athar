@@ -6,6 +6,7 @@ import { assertCompanyAccess } from "../../middleware/auth";
 import { extractJournalEntryFromDocument } from "../../lib/claudeVision";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 import { reserveEntryNumber } from "../../lib/journalPosting";
+import { assertPeriodNotClosed, lockCompanyClosingDate } from "../../lib/fiscalClosing";
 import { registerFixedAssetTx } from "../fixedAssets/fixedAssets.service";
 import { registerEmployeeAdvanceTx } from "../employeeAdvances/employeeAdvances.service";
 import { currencyLabel } from "../../lib/countries";
@@ -481,7 +482,7 @@ export async function createMirrorJournalEntry(
   });
 
   return prisma.$transaction(async (tx) => {
-    const entryNumber = await reserveEntryNumber(tx, tenantId, input.targetCompanyId);
+    const entryNumber = await reserveEntryNumber(tx, tenantId, input.targetCompanyId, input.date);
     const mirror = await tx.journalEntry.create({
       data: {
         tenantId,
@@ -511,7 +512,7 @@ export async function createJournalEntry(
   await assertReferencesBelongToTenant(tenantId, input);
 
   return prisma.$transaction(async (tx) => {
-    const entryNumber = await reserveEntryNumber(tx, tenantId, input.companyId);
+    const entryNumber = await reserveEntryNumber(tx, tenantId, input.companyId, input.date);
     const entry = await tx.journalEntry.create({
       data: {
         tenantId,
@@ -542,6 +543,15 @@ export async function updateJournalEntry(tenantId: string, id: string, input: Jo
   await assertReferencesBelongToTenant(tenantId, input);
 
   return prisma.$transaction(async (tx) => {
+    // يُتحقَّق من التاريخ القديم (بشجرة الشركة القديمة) والتاريخ الجديد (بشجرة الشركة الجديدة، التي
+    // قد تختلف عن القديمة — تعديل القيد يسمح بنقله لشركة أخرى) معاً؛ أي منهما يقع في فترة مُقفلة
+    // يكفي لرفض التعديل بالكامل.
+    const oldClosingDate = await lockCompanyClosingDate(tx, existing.companyId);
+    assertPeriodNotClosed(oldClosingDate, existing.date, "تعديل قيد بتاريخه الحالي");
+    const newClosingDate =
+      input.companyId === existing.companyId ? oldClosingDate : await lockCompanyClosingDate(tx, input.companyId);
+    assertPeriodNotClosed(newClosingDate, input.date, "تعديل قيد بالتاريخ الجديد");
+
     await tx.journalEntryLine.deleteMany({ where: { journalEntryId: id } });
     await tx.journalEntry.update({
       where: { id },
@@ -559,7 +569,11 @@ export async function deleteJournalEntry(tenantId: string, id: string, companySc
   if (existing.status === "posted") {
     throw badRequest("لا يمكن حذف قيد مرحّل مباشرة — استخدم عكس القيد لتصحيحه");
   }
-  await prisma.journalEntry.delete({ where: { id } });
+  await prisma.$transaction(async (tx) => {
+    const closingDate = await lockCompanyClosingDate(tx, existing.companyId);
+    assertPeriodNotClosed(closingDate, existing.date, "حذف قيد");
+    await tx.journalEntry.delete({ where: { id } });
+  });
 }
 
 export async function postJournalEntry(tenantId: string, id: string, companyScope: string) {
@@ -572,7 +586,13 @@ export async function postJournalEntry(tenantId: string, id: string, companyScop
     existing.lines.map((l) => ({ accountId: l.accountId, debit: Number(l.debit), credit: Number(l.credit) })),
   );
 
-  return prisma.journalEntry.update({ where: { id }, data: { status: "posted" }, include: entryInclude });
+  // قيد "محفوظ" أُنشئ قبل ضبط تاريخ إقفال يشمل تاريخه يبقى بلا أثر محاسبي فعلي طالما لم يُرحَّل —
+  // ترحيله الآن يمنحه ذلك الأثر لأول مرة، فيُعامَل كإنشاء فعلي من منظور الإقفال، لا مجرد تغيير حالة.
+  return prisma.$transaction(async (tx) => {
+    const closingDate = await lockCompanyClosingDate(tx, existing.companyId);
+    assertPeriodNotClosed(closingDate, existing.date, "ترحيل قيد");
+    return tx.journalEntry.update({ where: { id }, data: { status: "posted" }, include: entryInclude });
+  });
 }
 
 /**
@@ -608,7 +628,7 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
   }));
 
   return prisma.$transaction(async (tx) => {
-    const entryNumber = await reserveEntryNumber(tx, tenantId, existing.companyId);
+    const entryNumber = await reserveEntryNumber(tx, tenantId, existing.companyId, date);
     return tx.journalEntry.create({
       data: {
         tenantId,
@@ -643,9 +663,15 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
   const validPin = await verifyPassword(pin, tenant.unlockPin);
   if (!validPin) throw forbidden("الرقم السري غير صحيح");
 
-  const [updated] = await prisma.$transaction([
-    prisma.journalEntry.update({ where: { id }, data: { status: "saved" }, include: entryInclude }),
-    prisma.auditLog.create({
+  // فك الترحيل يُعامَل كنقطة تحقق مستقلة تماماً، لا يُفترض أنه "مجرد تغيير حالة" بلا أثر على الإقفال:
+  // فور فك الترحيل يعود القيد قابلاً للتعديل/الحذف عبر updateJournalEntry/deleteJournalEntry — فهو
+  // فعلياً بوابة غير مباشرة لإعادة فتح فترة مُقفلة لولا هذا التحقق هنا تحديداً.
+  return prisma.$transaction(async (tx) => {
+    const closingDate = await lockCompanyClosingDate(tx, entry.companyId);
+    assertPeriodNotClosed(closingDate, entry.date, "فك ترحيل قيد");
+
+    const updated = await tx.journalEntry.update({ where: { id }, data: { status: "saved" }, include: entryInclude });
+    await tx.auditLog.create({
       data: {
         tenantId,
         userId,
@@ -654,10 +680,9 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
         entityId: id,
         metadata: { previousStatus: "posted" },
       },
-    }),
-  ]);
-
-  return updated;
+    });
+    return updated;
+  });
 }
 
 /**
@@ -714,7 +739,7 @@ export async function createJournalEntryFromDocument(
   const date = extraction.date && !Number.isNaN(Date.parse(extraction.date)) ? new Date(extraction.date) : new Date();
 
   const entry = await prisma.$transaction(async (tx) => {
-    const entryNumber = await reserveEntryNumber(tx, tenantId, companyId);
+    const entryNumber = await reserveEntryNumber(tx, tenantId, companyId, date);
     return tx.journalEntry.create({
       data: {
         tenantId,

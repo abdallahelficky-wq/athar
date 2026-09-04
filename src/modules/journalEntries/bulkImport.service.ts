@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { fmtDateOnly } from "../../lib/fiscalClosing";
 
 const BALANCE_EPSILON = 0.01;
 
@@ -83,6 +84,20 @@ function findInvalidDateGroups(groups: EntryGroup[]) {
   return groups.filter((g) => parseGroupDate(g.date) === null).map((g) => ({ groupKey: g.groupKey, date: g.date, memo: g.memo }));
 }
 
+/** يعرض كل قيد تاريخه يقع في فترة مُقفلة (في أو قبل تاريخ إقفال السنة المالية) — يُستدعى فقط بعد
+ * findInvalidDateGroups (فتواريخ كل عناصر groups هنا مضمونة الصلاحية فعلياً، parseGroupDate لا يمكن
+ * أن تُعيد null). closingDate تُمرَّر صراحةً بدل قراءتها هنا مباشرة حتى تُستخدَم الدالة نفسها في كلا
+ * موضعي الفحص (قبل المعاملة، وداخلها مجدداً بالقيمة المقفولة ذرّياً — راجع commitBulkImport). */
+function findClosedPeriodGroups(groups: EntryGroup[], closingDate: Date | null) {
+  if (!closingDate) return [];
+  return groups
+    .filter((g) => {
+      const parsed = parseGroupDate(g.date);
+      return parsed !== null && parsed.getTime() <= closingDate.getTime();
+    })
+    .map((g) => ({ groupKey: g.groupKey, date: g.date, memo: g.memo }));
+}
+
 async function assertCompany(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
@@ -155,7 +170,7 @@ export async function commitBulkImport(
   rows: BulkImportRow[],
   accountMapping: Record<string, string>,
 ) {
-  await assertCompany(tenantId, companyId);
+  const company = await assertCompany(tenantId, companyId);
 
   const groups = groupRows(rows);
   const unbalanced = findUnbalancedGroups(groups);
@@ -175,6 +190,17 @@ export async function commitBulkImport(
   if (invalidDates.length) {
     throw badRequest(
       `${invalidDates.length} قيد بتاريخ غير صالح (يجب أن يكون بصيغة YYYY-MM-DD)، أول قيد: رقم ${invalidDates[0].groupKey} بتاريخ "${invalidDates[0].date}" — لا يمكن استيراد أي قيد قبل تصحيح كل التواريخ غير الصالحة`,
+    );
+  }
+
+  // فحص مبكر (نفس أسلوب الفحصين أعلاه) قبل أي محاولة كتابة — company هنا نفس الصف الكامل الذي
+  // أعادته assertCompany فوق، فلا استعلام إضافي. يُعاد نفس الفحص ذرّياً داخل المعاملة أدناه أيضاً
+  // (بالقيمة المقفولة فعلياً وقت الحجز) تحسّباً لسباق نادر: إقفال يُضبط بين هذا الفحص المبكر وبدء
+  // المعاملة الفعلية.
+  const closedPeriod = findClosedPeriodGroups(groups, company.fiscalYearClosingDate);
+  if (closedPeriod.length) {
+    throw badRequest(
+      `${closedPeriod.length} قيد بتاريخ يقع في فترة مُقفلة (تاريخ إقفال السنة المالية لهذه الشركة: ${fmtDateOnly(company.fiscalYearClosingDate!)})، أول قيد: رقم ${closedPeriod[0].groupKey} بتاريخ "${closedPeriod[0].date}" — لا يمكن استيراد أي قيد بتاريخ يقع في أو قبل تاريخ الإقفال`,
     );
   }
 
@@ -200,14 +226,24 @@ export async function commitBulkImport(
       // الحجز ضمن نفس معاملة الإدراج الفعلي (لا قبلها كاستدعاء منفصل) وإلا فأي فشل لاحق (حتى لو
       // غير متعلق بقاعدة البيانات إطلاقاً) يحرق أرقاماً محجوزة نهائياً بلا أي قيد يستخدمها —
       // بالضبط الفجوة التي صُمم نمط الحجز الذرّي في journalPosting.ts أصلاً لتفاديها.
-      const reserved = await tx.$queryRaw<{ startSeq: number; numberingPrefix: string }[]>`
+      const reserved = await tx.$queryRaw<{ startSeq: number; numberingPrefix: string; fiscalYearClosingDate: Date | null }[]>`
         UPDATE "companies" SET "nextJournalEntrySeq" = "nextJournalEntrySeq" + ${groups.length}
         WHERE "id" = ${companyId} AND "tenantId" = ${tenantId}
-        RETURNING ("nextJournalEntrySeq" - ${groups.length})::int AS "startSeq", "numberingPrefix"
+        RETURNING ("nextJournalEntrySeq" - ${groups.length})::int AS "startSeq", "numberingPrefix", "fiscalYearClosingDate"
       `;
       const startSeq = reserved[0]?.startSeq;
       const prefix = reserved[0]?.numberingPrefix;
       if (startSeq == null || !prefix) throw notFound("الشركة غير موجودة");
+
+      // إعادة نفس فحص الفترة المُقفلة بالقيمة المقفولة ذرّياً الآن (لا القيمة المقروءة قبل بدء
+      // المعاملة أعلاه) — يلتقط السباق النادر: إقفال يُضبط في اللحظة الفاصلة بين الفحص المبكر وبدء
+      // هذه المعاملة تحديداً.
+      const raceClosed = findClosedPeriodGroups(groups, reserved[0].fiscalYearClosingDate);
+      if (raceClosed.length) {
+        throw badRequest(
+          `تم ضبط إقفال سنة مالية يشمل ${raceClosed.length} من القيود المطلوب استيرادها أثناء إتمام هذه العملية تحديداً — أعد المحاولة بعد مراجعة التواريخ.`,
+        );
+      }
 
       const entryRows: Prisma.JournalEntryCreateManyInput[] = [];
       const lineRows: Prisma.JournalEntryLineCreateManyInput[] = [];
