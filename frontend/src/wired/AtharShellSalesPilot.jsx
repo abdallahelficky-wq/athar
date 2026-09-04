@@ -43,7 +43,7 @@ const WORKFLOW_STEP_ICONS = {
 };
 
 export default function AtharShellSalesPilot() {
-  const { t, real, activeCompany, modules, handleNavigate, handleLogout } = usePilotShell("sales");
+  const { t, real, activeCompany, modules, handleNavigate, handleLogout, readOnlyBanner } = usePilotShell("sales");
   const [tab, setTab] = useModuleTab("/ui-preview/sales", SALES_TABS);
 
   const steps = SALES_TABS.map((tabDef) => ({ id: tabDef.id, label: t(tabDef.labelKey), icon: WORKFLOW_STEP_ICONS[tabDef.id] }));
@@ -59,6 +59,7 @@ export default function AtharShellSalesPilot() {
         companyControl={<CompanySwitcher companies={real.companies} companyId={real.companyId} setCompanyId={real.setCompanyId} />}
         modeLabel={t("ledgerUi.pilotBadge")}
         onLogout={handleLogout}
+        warningBanner={readOnlyBanner}
       >
         <WorkflowSteps steps={steps} activeId={tab} onChange={setTab} />
         {tab === "customers" && <CustomersTab companyId={real.companyId} companies={real.companies} />}

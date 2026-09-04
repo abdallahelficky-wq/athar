@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -14,6 +14,7 @@ import { NAV_GROUPS } from "../../App";
 export const PILOT_ROUTES = {
   dashboard: () => "/ui-preview/dashboard",
   sales: (tab = "invoices") => `/ui-preview/sales/${tab}`,
+  accounts: (tab = "journal") => `/ui-preview/accounts/${tab}`,
 };
 
 /**
@@ -23,7 +24,7 @@ export const PILOT_ROUTES = {
  */
 export function usePilotShell(activeModuleId) {
   const { t } = useTranslation();
-  const { tenant, logout } = useAuth();
+  const { tenant, user, logout } = useAuth();
   const real = useCompanies();
   const navigate = useNavigate();
 
@@ -65,5 +66,10 @@ export function usePilotShell(activeModuleId) {
     navigate("/login");
   };
 
-  return { t, real, tenant, navigate, activeCompany, modules, handleNavigate, handleLogout };
+  // نفس بانر "وضع العرض فقط" الموجود في AppShell الحقيقي (App.jsx) — لم يكن يظهر إطلاقاً في
+  // مسارات /ui-preview/* لأنها معزولة عمداً عن ProtectedLayout حيث يُركَّب ذلك البانر. يُبنى هنا
+  // مرة واحدة فيستفيد منه كل غلاف معاينة (لوحة القيادة، المبيعات، الحسابات، ...) دون تكرار.
+  const readOnlyBanner = user?.readOnly ? <div className="system-warning-banner">{t("nav.readOnlyWarning")}</div> : null;
+
+  return { t, real, tenant, navigate, activeCompany, modules, handleNavigate, handleLogout, readOnlyBanner };
 }

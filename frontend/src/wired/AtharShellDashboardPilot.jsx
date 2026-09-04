@@ -19,7 +19,7 @@ import AtharShell from "../ui/ledger/AtharShell";
  * "مسودة غير محفوظة" الحقيقي (UnsavedChangesBlocker مُركَّب هنا أيضاً بشكل مستقل).
  */
 export default function AtharShellDashboardPilot() {
-  const { t, real, navigate, activeCompany, modules, handleNavigate, handleLogout } = usePilotShell("dashboard");
+  const { t, real, navigate, activeCompany, modules, handleNavigate, handleLogout, readOnlyBanner } = usePilotShell("dashboard");
 
   return (
     <>
@@ -32,6 +32,7 @@ export default function AtharShellDashboardPilot() {
         companyControl={<CompanySwitcher companies={real.companies} companyId={real.companyId} setCompanyId={real.setCompanyId} />}
         modeLabel={t("ledgerUi.pilotBadge")}
         onLogout={handleLogout}
+        warningBanner={readOnlyBanner}
       >
         <button type="button" className="outline" style={{ marginBottom: 20 }} onClick={() => navigate(routes.dashboard())}>
           {t("ledgerUi.backToClassicView")}

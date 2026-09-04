@@ -24,6 +24,7 @@ import JournalEntryStandalonePage from "./pages/JournalEntryStandalonePage";
 import Dashboard from "./wired/Dashboard";
 import AtharShellDashboardPilot from "./wired/AtharShellDashboardPilot";
 import AtharShellSalesPilot from "./wired/AtharShellSalesPilot";
+import AtharShellAccountsPilot from "./wired/AtharShellAccountsPilot";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
 import ReportsModule, { REPORT_TABS } from "./wired/ReportsModule";
 
@@ -412,6 +413,16 @@ function AtharShellSalesPreviewRoute() {
   return <AtharShellSalesPilot />;
 }
 
+// امتداد ثالث لنفس المعاينة المعزولة (بعد لوحة القيادة والمبيعات): وحدة الحسابات مُغلَّفة بهيكل
+// أثر الجديد (بلا تبويب الزكاة — بيانات تجريبية غير حقيقية، مُستبعَد عمداً من التجربة).
+// راجع AtharShellAccountsPilot.jsx للتفاصيل الكاملة.
+function AtharShellAccountsPreviewRoute() {
+  const { isAuthenticated, initializing } = useAuth();
+  if (initializing) return null;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <AtharShellAccountsPilot />;
+}
+
 const router = createBrowserRouter([
   { path: "/", element: <RootRoute /> },
   { path: "/login", element: <LoginRoute /> },
@@ -422,6 +433,8 @@ const router = createBrowserRouter([
   { path: "/ui-preview/dashboard", element: <AtharShellPreviewRoute /> },
   { path: "/ui-preview/sales", element: <Navigate to="/ui-preview/sales/invoices" replace /> },
   { path: "/ui-preview/sales/:tab", element: <AtharShellSalesPreviewRoute /> },
+  { path: "/ui-preview/accounts", element: <Navigate to="/ui-preview/accounts/journal" replace /> },
+  { path: "/ui-preview/accounts/:tab", element: <AtharShellAccountsPreviewRoute /> },
   {
     element: <ProtectedLayout />,
     children: [

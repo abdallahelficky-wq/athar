@@ -18,7 +18,7 @@ export default function AtharShell({
   modules = [], activeModuleId, onNavigate, children,
   companyName = '', companyControl, commands = [], onCommand,
   logoSrc = logo, initialTheme = 'light', modeLabel = '',
-  date = new Date(), footerText,
+  date = new Date(), footerText, warningBanner,
   onLogout,
 }) {
   const { t, i18n } = useTranslation();
@@ -66,7 +66,9 @@ export default function AtharShell({
         {onLogout && <button className="logout-button" type="button" onClick={onLogout}>{t('ledgerUi.logout')}</button>}
       </div>
     </header>
-    <div className="workspace"><div className="book">
+    <div className="workspace">
+      {warningBanner}
+      <div className="book">
       <nav className="index" aria-label={t('ledgerUi.navLabel')}>
         {modules.map(module => <button type="button" key={module.id} disabled={!onNavigate}
           className={module.id === activeModuleId ? 'active' : ''}

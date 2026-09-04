@@ -18,6 +18,11 @@ const paths = {
   returns: <><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 6 6v1" /></>,
   receipts: <><path d="M7 2h10v17l-1.5-1-1.5 1-1.5-1-1.5 1-1.5-1-1.5 1V2z" /><path d="M9 7h6M9 11h4" /></>,
   stations: <><path d="M3 9l1-5h16l1 5" /><path d="M4 9v10h16V9" /><path d="M9 19v-5h6v5" /></>,
+  // أيقونات تبويبات الحسابات الفرعية (WorkflowSteps) — بنفس أسلوب رسم الأيقونات أعلاه.
+  journal: <><path d="M6 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
+  chartOfAccounts: <><rect x="10" y="2" width="4" height="4" rx="1" /><rect x="3" y="17" width="4" height="4" rx="1" /><rect x="17" y="17" width="4" height="4" rx="1" /><path d="M12 6v4M12 10H5v7M12 10h7v7" /></>,
+  ledger: <><rect x="4" y="3" width="16" height="18" rx="1" /><path d="M12 3v18M7 8h2M7 12h2M7 16h2M15 8h2M15 12h2M15 16h2" /></>,
+  departments: <><rect x="3" y="10" width="7" height="11" rx="1" /><rect x="14" y="6" width="7" height="15" rx="1" /><path d="M6 14h1M6 17h1M17 10h1M17 13h1M17 16h1" /></>,
 };
 export default function Icon({ name = 'dashboard' }) {
   return <svg className="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">{paths[name] || paths.dashboard}</svg>;
