@@ -208,6 +208,8 @@ export interface FinancialAlert {
 /**
  * تنبيهات الداشبورد المالية — تُبنى لكل شركة على حدة (companyId فارغ = كل شركات المستأجر)
  * لأن حدود التنبيهات (مدة تأخر الفاتورة، الحد الأدنى للكاش...) قابلة للتحديد لكل شركة.
+ * TODO: "فاتورة متأخرة السداد" أدناه تحسب التأخر من تاريخ الفاتورة لا من dueDate الفعلي —
+ * راجع "ملاحظة معلّقة" في README.md الجذر لتفاصيل الأثر وسبب تأجيل معالجتها.
  */
 export async function getFinancialAlerts(tenantId: string, companyId: string | undefined, withinDays = 60, lang: Lang = "ar") {
   const companies = await prisma.company.findMany({ where: { tenantId, id: companyId || undefined } });

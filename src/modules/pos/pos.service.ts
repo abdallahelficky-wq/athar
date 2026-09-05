@@ -28,6 +28,8 @@ interface PosSaleInput {
   lines: PosLineInput[];
   payments: PosPaymentInput[];
   warehouseId?: string;
+  // إلزامي فعلياً فقط حين payments فارغة (بيع آجل) — pos.schemas.ts يتحقق من هذا الشرط عبر refine.
+  dueDate?: Date;
 }
 
 /** يحل مستودع الخصم الفعلي لهذا الجهاز: لو أرسل الجهاز warehouseId يتحقق أنه ينتمي لهذه الشركة
@@ -56,10 +58,22 @@ async function resolvePosWarehouseId(tenantId: string, companyId: string, reques
  * ملاحظة مهمة: إن فشل تطابق مجموع الدفعات، الفاتورة تكون بالفعل أُنشئت ومُرحَّلة (لا تراجع/rollback
  * عبر خدمتين منفصلتين لكل منهما معاملتها الخاصة) — نفس سلوك أي فاتورة تُرحَّل بلا سداد فوري في
  * النظام أصلاً؛ يمكن إتمام تحصيلها لاحقاً من شاشة سندات القبض العادية.
+ *
+ * بيع آجل (payments = []): لا يُنشأ أي سند قبض (الحلقة أدناه لا تكرَّر أصلاً)، والفاتورة تبقى
+ * مُرحَّلة وبكامل قيمتها كذمة على العميل — هذا هو سلوك أي فاتورة مبيعات بلا تحصيل فوري في النظام
+ * أصلاً (createSalesInvoice نفسها لا تعرف ولا تفرّق POS عن أي فاتورة أخرى). لذلك:
+ * (أ) لا يُطبَّق تحقّق "تطابق مجموع الدفعات" هنا إطلاقاً (0 ضد الإجمالي كان سيفشل دائماً وهذا مقصود).
+ * (ب) يُمنَع صراحة استخدام "العميل النقدي" الافتراضي — بيع آجل بلا عميل حقيقي محدَّد يُنشئ ذمة غير
+ *     قابلة للتحصيل من أحد بعينه لاحقاً، فيُرفَض هنا بدل قبوله بصمت.
  */
 export async function createPosSale(tenantId: string, userId: string, input: PosSaleInput) {
+  const isDeferred = input.payments.length === 0;
+
   let customerId = input.customerId;
   if (!customerId) {
+    if (isDeferred) {
+      throw badRequest("البيع الآجل (على حساب العميل) يتطلب اختيار عميل حقيقي — لا يمكن استخدام العميل النقدي الافتراضي");
+    }
     const cashCustomer = await prisma.customer.findFirst({
       where: { tenantId, companyId: input.companyId, name: CASH_CUSTOMER_NAME },
     });
@@ -76,15 +90,18 @@ export async function createPosSale(tenantId: string, userId: string, input: Pos
     lines: input.lines,
     post: true,
     warehouseId,
+    dueDate: input.dueDate,
   });
 
-  const grandTotal = Number(invoice.grandTotal);
-  const totalPayments = input.payments.reduce((s, p) => s + p.amount, 0);
-  if (Math.abs(totalPayments - grandTotal) > 0.01) {
-    throw badRequest(
-      `مجموع طرق الدفع (${totalPayments.toFixed(2)}) لا يطابق إجمالي الفاتورة (${grandTotal.toFixed(2)}) — ` +
-        `الفاتورة ${invoice.invoiceNumber} أُنشئت ورُحِّلت بالفعل، أكمل تسجيل السداد يدوياً من شاشة سندات القبض.`,
-    );
+  if (!isDeferred) {
+    const grandTotal = Number(invoice.grandTotal);
+    const totalPayments = input.payments.reduce((s, p) => s + p.amount, 0);
+    if (Math.abs(totalPayments - grandTotal) > 0.01) {
+      throw badRequest(
+        `مجموع طرق الدفع (${totalPayments.toFixed(2)}) لا يطابق إجمالي الفاتورة (${grandTotal.toFixed(2)}) — ` +
+          `الفاتورة ${invoice.invoiceNumber} أُنشئت ورُحِّلت بالفعل، أكمل تسجيل السداد يدوياً من شاشة سندات القبض.`,
+      );
+    }
   }
 
   const receipts = [];

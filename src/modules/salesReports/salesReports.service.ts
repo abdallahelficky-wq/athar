@@ -80,7 +80,9 @@ export async function getSalesVatSummary(tenantId: string, filters: Filters) {
   };
 }
 
-/** أعمار الذمم — يبني حِزَم 0-30/31-60/61-90/90+ يوماً من تاريخ كل فاتورة مستحقة حتى اليوم */
+/** أعمار الذمم — يبني حِزَم 0-30/31-60/61-90/90+ يوماً من تاريخ كل فاتورة مستحقة حتى اليوم
+ * TODO: يحسب من تاريخ الفاتورة لا من dueDate الفعلي — راجع "ملاحظة معلّقة" في README.md
+ * الجذر لتفاصيل الأثر وسبب تأجيل معالجتها. */
 export async function getReceivablesAging(tenantId: string, filters: Filters) {
   const invoices = await invoicesWithPaid(tenantId, filters.companyId);
   const today = new Date();
