@@ -2177,6 +2177,14 @@
       "submitting": "Completing...",
       "sumMismatchError": "Payments total ({{sum}}) doesn't match the total ({{total}})"
     },
+    "quickPayment": {
+      "fullPaymentTab": "Pay in full now",
+      "deferredTab": "On credit",
+      "selectCustomerToDefer": "Select a real customer to enable credit sale",
+      "deferredRequiresCustomer": "A credit sale requires selecting a real customer",
+      "dueDateLabel": "Due date",
+      "dueDateRequiredError": "Set the due date"
+    },
     "receipt": {
       "success": "Sale completed successfully",
       "invoiceNumber": "Invoice number {{number}}",

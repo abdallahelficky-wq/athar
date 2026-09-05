@@ -2177,6 +2177,14 @@
       "submitting": "جارٍ الإتمام...",
       "sumMismatchError": "مجموع الدفعات ({{sum}}) لا يطابق الإجمالي ({{total}})"
     },
+    "quickPayment": {
+      "fullPaymentTab": "دفع كامل الآن",
+      "deferredTab": "آجل",
+      "selectCustomerToDefer": "اختر عميلاً حقيقياً لتفعيل البيع الآجل",
+      "deferredRequiresCustomer": "البيع الآجل يتطلب اختيار عميل حقيقي",
+      "dueDateLabel": "تاريخ الاستحقاق",
+      "dueDateRequiredError": "حدّد تاريخ الاستحقاق"
+    },
     "receipt": {
       "success": "تمت عملية البيع بنجاح",
       "invoiceNumber": "فاتورة رقم {{number}}",

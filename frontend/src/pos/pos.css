@@ -115,6 +115,9 @@
 .pos-payment-total { text-align: center; margin-bottom: 20px; }
 .pos-payment-total span { display: block; font-size: 13px; color: #8A7C5E; }
 .pos-payment-total strong { font-size: 34px; font-weight: 800; color: #10202E; }
+.pos-payment-mode-row { display: flex; gap: 10px; margin-bottom: 12px; }
+.pos-payment-mode-row .m-btn { flex: 1; }
+.pos-payment-mode-hint { color: #8A7C5E; font-size: 13px; margin: 0 0 14px; text-align: center; }
 .pos-payment-quick-row { display: flex; gap: 10px; margin-bottom: 16px; }
 .pos-payment-quick-row .m-btn { width: auto; flex: 1; }
 .pos-cash-tender-box { background: #fff; border-radius: 14px; padding: 14px; margin: 10px 0; }
