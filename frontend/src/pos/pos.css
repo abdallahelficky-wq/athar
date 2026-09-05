@@ -83,6 +83,11 @@
   font-size: 18px; font-weight: 800; cursor: pointer;
 }
 .pos-qty-value { font-weight: 800; font-size: 15px; min-width: 24px; text-align: center; }
+.pos-qty-input {
+  width: 52px; font-weight: 800; font-size: 15px; text-align: center; font-family: inherit;
+  border: 1px solid rgba(16,32,46,0.2); border-radius: 8px; padding: 6px 2px; background: #fff; color: #10202E;
+}
+.pos-qty-input:focus { outline: none; border-color: #B98B4E; }
 .pos-qty-remove { margin-right: auto; background: none; border: none; color: #A8432B; font-size: 12.5px; cursor: pointer; }
 
 .pos-cart-footer { padding: 14px 16px; border-top: 1px solid rgba(16,32,46,0.1); }

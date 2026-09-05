@@ -5,6 +5,7 @@ import { getQuickAccessItems } from "../../api/pos";
 import { fmt2 } from "../../legacy/constants";
 import { isSellableItem } from "../itemFilters";
 import CustomerPickerModal from "../components/CustomerPickerModal";
+import QtyInput from "../components/QtyInput";
 
 function lineFromSelection(item, quantity) {
   return {
@@ -76,6 +77,16 @@ export default function QuickSaleScreen({ companyId, setCart, customer, setCusto
       const quantity = entry.quantity + delta;
       if (quantity <= 0) next.delete(itemId);
       else next.set(itemId, { ...entry, quantity });
+      return next;
+    });
+  };
+
+  const setQuantity = (itemId, quantity) => {
+    setSelected((prev) => {
+      const entry = prev.get(itemId);
+      if (!entry) return prev;
+      const next = new Map(prev);
+      next.set(itemId, { ...entry, quantity });
       return next;
     });
   };
@@ -161,7 +172,7 @@ export default function QuickSaleScreen({ companyId, setCart, customer, setCusto
               </div>
               <div className="pos-cart-line-controls">
                 <button className="pos-qty-btn" onClick={() => changeQuantity(item.id, -1)}>−</button>
-                <span className="pos-qty-value">{quantity}</span>
+                <QtyInput value={quantity} onChange={(qty) => setQuantity(item.id, qty)} />
                 <button className="pos-qty-btn" onClick={() => changeQuantity(item.id, 1)}>+</button>
                 <button className="pos-qty-remove" onClick={() => removeSelected(item.id)}>{t("pos.sale.removeBtn")}</button>
               </div>

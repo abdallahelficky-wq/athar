@@ -5,6 +5,7 @@ import { getQuickAccessItems } from "../../api/pos";
 import { fmt2 } from "../../legacy/constants";
 import BarcodeScannerModal from "../components/BarcodeScannerModal";
 import CustomerPickerModal from "../components/CustomerPickerModal";
+import QtyInput from "../components/QtyInput";
 import { isSellableItem } from "../itemFilters";
 
 function lineFromItem(item) {
@@ -71,6 +72,10 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
       .filter((l) => l.quantity > 0));
   };
 
+  const setQty = (itemId, quantity) => {
+    setCart((prev) => prev.map((l) => (l.itemId === itemId ? { ...l, quantity } : l)));
+  };
+
   const removeLine = (itemId) => setCart((prev) => prev.filter((l) => l.itemId !== itemId));
 
   const cartTotal = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
@@ -123,7 +128,7 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
               </div>
               <div className="pos-cart-line-controls">
                 <button className="pos-qty-btn" onClick={() => updateQty(line.itemId, -1)}>−</button>
-                <span className="pos-qty-value">{line.quantity}</span>
+                <QtyInput value={line.quantity} onChange={(qty) => setQty(line.itemId, qty)} />
                 <button className="pos-qty-btn" onClick={() => updateQty(line.itemId, 1)}>+</button>
                 <button className="pos-qty-remove" onClick={() => removeLine(line.itemId)}>{t("pos.sale.removeBtn")}</button>
               </div>
