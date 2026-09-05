@@ -55,6 +55,9 @@ export const createCompanySchema = z.object({
   // تقديمه للخلف أو مسحه ("فتح الإقفال") مرفوض من هذا المسار عمداً (companies.controller.ts) ويتطلب
   // مسار reopenFiscalClosing المخصَّص، admin فقط.
   fiscalYearClosingDate: z.coerce.date().nullable().optional(),
+  // إعداد على مستوى الشركة (لا الجهاز) لتفعيل "شاشة البيع السريعة" في نقطة البيع — راجع التعليق
+  // فوق الحقل المطابق في schema.prisma.
+  posQuickSaleEnabled: z.boolean().optional(),
 });
 
 export const updateCompanySchema = createCompanySchema.partial();

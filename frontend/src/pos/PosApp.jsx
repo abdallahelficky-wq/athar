@@ -7,7 +7,9 @@ import { loadPosWarehouseId, savePosWarehouseId } from "./posWarehouseSettings";
 import LanguageSwitcher from "../wired/shared/LanguageSwitcher";
 import PosLoginScreen from "./screens/PosLoginScreen";
 import SaleScreen from "./screens/SaleScreen";
+import QuickSaleScreen from "./screens/QuickSaleScreen";
 import PaymentScreen from "./screens/PaymentScreen";
+import QuickPaymentScreen from "./screens/QuickPaymentScreen";
 import ReceiptScreen from "./screens/ReceiptScreen";
 import PosSettingsScreen from "./screens/PosSettingsScreen";
 
@@ -55,6 +57,12 @@ function PosShell() {
   }
 
   const activeCompany = companies.find((c) => c.id === companyId);
+  // إعداد على مستوى الشركة (يضبطه صاحب الحساب من إعدادات المبيعات في التطبيق الرئيسي) لا على
+  // مستوى الجهاز — يُطبَّق على كل أجهزة نقطة البيع لهذه الشركة معاً بمجرد تحميل بيانات الشركة،
+  // بلا أي إعداد إضافي داخل PosApp نفسه.
+  const quickModeEnabled = Boolean(activeCompany?.posQuickSaleEnabled);
+  const SaleScreenComponent = quickModeEnabled ? QuickSaleScreen : SaleScreen;
+  const PaymentScreenComponent = quickModeEnabled ? QuickPaymentScreen : PaymentScreen;
 
   const resetCart = () => {
     setCart([]);
@@ -117,7 +125,11 @@ function PosShell() {
         )}
 
         {screen === "sale" && warehouseReady && (
-          <SaleScreen
+          <SaleScreenComponent
+            // key=companyId: يجبر إعادة تركيب المكوّن كاملاً عند تبديل الشركة من القائمة العلوية،
+            // فتُصفَّر حالة QuickSaleScreen الداخلية (step/selected) بدل بقائها من شركة سابقة —
+            // resetCart() تُصفِّر فقط cart/customer المرفوعتين هنا في PosApp، لا حالة المكوّن الداخلية.
+            key={companyId}
             companyId={companyId}
             cart={cart}
             setCart={setCart}
@@ -127,7 +139,8 @@ function PosShell() {
           />
         )}
         {screen === "payment" && warehouseReady && (
-          <PaymentScreen
+          <PaymentScreenComponent
+            company={activeCompany}
             companyId={companyId}
             warehouseId={warehouseId}
             cart={cart}

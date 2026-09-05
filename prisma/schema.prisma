@@ -437,6 +437,12 @@ model Company {
   zatcaNextIcv                 Int                   @default(1)
   // تجزئة (hash) آخر مستند تم إرساله فعلياً لزاتكا — تصبح PIH للمستند التالي في السلسلة.
   zatcaLastInvoiceHash         String?
+  // إعداد على مستوى الشركة (يضبطه صاحب الحساب من إعدادات المبيعات، admin/finance_manager فقط —
+  // نفس صلاحية بقية إعدادات الشركة) لا على مستوى جهاز نقطة البيع: يفعّل "شاشة البيع السريعة"
+  // (تحديد أصناف كبطاقات ← كميات ← عميل، مع دعم بيع آجل) بدل SaleScreen الكلاسيكية على كل أجهزة
+  // نقطة البيع لهذه الشركة معاً. القيمة الافتراضية false تُبقي كل الشركات على السلوك الحالي بلا
+  // أي تغيير حتى تُفعِّله الشركة صراحةً — راجع frontend/src/pos/PosApp.jsx لمنطق الاختيار.
+  posQuickSaleEnabled          Boolean               @default(false)
   createdAt                    DateTime              @default(now())
   updatedAt                    DateTime              @updatedAt
 
