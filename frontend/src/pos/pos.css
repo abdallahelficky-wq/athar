@@ -110,6 +110,21 @@
 
 .pos-scanner-video { width: 100%; border-radius: 12px; background: #000; }
 
+/* --- شاشة البيع السريعة --- */
+.pos-quick-sale-screen { flex: 1; padding: 14px; overflow-y: auto; width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; }
+.pos-quick-item-grid { flex: 1; }
+.pos-item-tile { position: relative; }
+.pos-item-tile-selected { background: rgba(185,139,78,0.18); border-color: #B98B4E; }
+.pos-item-tile-check {
+  position: absolute; top: 6px; inset-inline-end: 6px; width: 20px; height: 20px; border-radius: 50%;
+  background: #B98B4E; color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+}
+.pos-quick-sale-footer { position: sticky; bottom: 0; background: #ECE6D6; padding-top: 12px; margin-top: 12px; }
+.pos-quick-quantities-list { flex: 1; overflow-y: auto; }
+.pos-quick-sale-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.pos-quick-customer-step { justify-content: center; gap: 10px; text-align: center; }
+.pos-quick-customer-step .pos-big-btn, .pos-quick-customer-step .m-btn { max-width: 360px; margin: 0 auto; width: 100%; }
+
 /* --- شاشة الدفع --- */
 .pos-payment-screen { flex: 1; padding: 20px; overflow-y: auto; max-width: 480px; margin: 0 auto; width: 100%; }
 .pos-payment-total { text-align: center; margin-bottom: 20px; }

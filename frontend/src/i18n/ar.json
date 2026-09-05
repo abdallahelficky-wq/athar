@@ -2185,6 +2185,17 @@
       "dueDateLabel": "تاريخ الاستحقاق",
       "dueDateRequiredError": "حدّد تاريخ الاستحقاق"
     },
+    "quickSale": {
+      "continueBtnWithCount": "استمرار ({{count}})",
+      "continueBtnEmpty": "اختر صنفاً واحداً على الأقل",
+      "quantitiesTitle": "حدّد الكميات",
+      "backToItemsBtn": "رجوع للأصناف",
+      "continueToCustomerBtn": "استمرار",
+      "customerStepTitle": "العميل",
+      "customerStepHint": "اختر عميلاً حقيقياً إن كان البيع آجلاً، أو تابع بعميل نقدي للدفع الفوري",
+      "pickCustomerBtn": "اختيار عميل",
+      "backToQuantitiesBtn": "رجوع للكميات"
+    },
     "receipt": {
       "success": "تمت عملية البيع بنجاح",
       "invoiceNumber": "فاتورة رقم {{number}}",

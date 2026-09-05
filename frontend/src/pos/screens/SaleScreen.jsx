@@ -5,12 +5,7 @@ import { getQuickAccessItems } from "../../api/pos";
 import { fmt2 } from "../../legacy/constants";
 import BarcodeScannerModal from "../components/BarcodeScannerModal";
 import CustomerPickerModal from "../components/CustomerPickerModal";
-
-function isSellableItem(item) {
-  if (item.type === "expense" || item.type === "fixed_asset") return false;
-  if (item.type === "raw_material") return item.allowDirectSale === true;
-  return true;
-}
+import { isSellableItem } from "../itemFilters";
 
 function lineFromItem(item) {
   return {

@@ -2185,6 +2185,17 @@
       "dueDateLabel": "Due date",
       "dueDateRequiredError": "Set the due date"
     },
+    "quickSale": {
+      "continueBtnWithCount": "Continue ({{count}})",
+      "continueBtnEmpty": "Select at least one item",
+      "quantitiesTitle": "Set quantities",
+      "backToItemsBtn": "Back to items",
+      "continueToCustomerBtn": "Continue",
+      "customerStepTitle": "Customer",
+      "customerStepHint": "Pick a real customer for a credit sale, or continue with a cash customer for immediate payment",
+      "pickCustomerBtn": "Pick a customer",
+      "backToQuantitiesBtn": "Back to quantities"
+    },
     "receipt": {
       "success": "Sale completed successfully",
       "invoiceNumber": "Invoice number {{number}}",
