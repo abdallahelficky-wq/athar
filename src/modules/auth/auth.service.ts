@@ -18,7 +18,7 @@ import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../..
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
 import type { Lang } from "../../lib/i18n/translate";
 import type { Tenant, User, Identity } from "@prisma/client";
-import { canUnpostJournalEntries } from "../positions/positions.service";
+import { canUnpostJournalEntries, canDeferPosSale } from "../positions/positions.service";
 
 const TRIAL_DAYS = 30;
 const INVITE_EXPIRES_DAYS = 7;
@@ -63,14 +63,15 @@ function publicUser(user: UserWithIdentity) {
   return { ...rest, email: identity.email };
 }
 
-/** publicUser + مؤشّر canUnpostJournalEntries — حتى تعرف الواجهة متى تُظهر زر "فك الترحيل" أصلاً
- * (راجع positions.service.ts: canUnpostJournalEntries) بدل الاعتماد فقط على رفض الخادم لاحقاً.
- * readOnly تُمرَّر صراحةً من الطرف المستدعي (وليست تُحسَب هنا) لأنها محسوبة بالفعل مرة واحدة في
- * completeLoginForUser/getMe، فتفادياً لاستعلام Tenant مكرر. */
+/** publicUser + مؤشّرات canUnpostJournalEntries/canDeferPosSale — حتى تعرف الواجهة متى تُظهر زر
+ * "فك الترحيل"/تبويب "آجل" في نقطة البيع أصلاً (راجع positions.service.ts) بدل الاعتماد فقط على
+ * رفض الخادم لاحقاً. readOnly تُمرَّر صراحةً من الطرف المستدعي (وليست تُحسَب هنا) لأنها محسوبة
+ * بالفعل مرة واحدة في completeLoginForUser/getMe، فتفادياً لاستعلام Tenant مكرر. */
 async function publicUserWithPermissions(user: UserWithIdentity, readOnly: boolean) {
   return {
     ...publicUser(user),
     canUnpostJournalEntries: await canUnpostJournalEntries(user.tenantId, user.id, user.role),
+    canDeferPosSale: await canDeferPosSale(user.tenantId, user.id, user.role),
     readOnly,
   };
 }

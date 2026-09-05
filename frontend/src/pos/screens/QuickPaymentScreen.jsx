@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../../context/AuthContext";
 import { createPosSale } from "../../api/pos";
 import { fmt2 } from "../../legacy/constants";
 
@@ -19,14 +20,20 @@ function computeDefaultDueDate(company) {
  * خطوة الدفع الخاصة بشاشة البيع السريعة فقط — مكوّن منفصل تماماً عن PaymentScreen.jsx (لا تعديل
  * عليها ولا خطر على SaleScreen الحالية). يضيف خيار "آجل" (بلا أي دفعة، يُقيَّد على ذمة العميل)
  * بجانب "دفع كامل الآن" (نفس منطق PaymentScreen: نقدي/بطاقة، تحقق تطابق المجموع، حساب الباقي).
- * الآجل متاح فقط لعميل حقيقي محدَّد (customer غير null) — مطابقةً لقاعدة pos.service.ts نفسها.
+ * الآجل متاح فقط بشرطين معاً: عميل حقيقي محدَّد (customer غير null، مطابقةً لقاعدة pos.service.ts)،
+ * وصلاحية "البيع الآجل" على منصب المستخدم (user.canDeferPosSale من استجابة auth — راجع
+ * positions.service.ts/canDeferPosSale). هذا التعطيل في الواجهة لتجربة استخدام أفضل فقط؛ التحقق
+ * الحاسم فعلياً في pos.controller.ts على الخادم.
  */
 export default function QuickPaymentScreen({ company, companyId, warehouseId, cart, customer, onBack, onCompleted }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const METHOD_LABEL = { cash: t("pos.payment.methodCash"), bank: t("pos.payment.methodBank") };
   const total = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
 
   const hasRealCustomer = Boolean(customer?.id);
+  const hasDeferPermission = Boolean(user?.canDeferPosSale);
+  const canGoDeferred = hasRealCustomer && hasDeferPermission;
 
   const [mode, setMode] = useState("full"); // full | deferred
   const [cashAmount, setCashAmount] = useState(String(total.toFixed(2)));
@@ -49,11 +56,15 @@ export default function QuickPaymentScreen({ company, companyId, warehouseId, ca
   const setFullCash = () => { setCashAmount(total.toFixed(2)); setBankAmount("0"); };
   const setFullBank = () => { setCashAmount("0"); setBankAmount(total.toFixed(2)); };
 
-  const canSubmit = mode === "full" ? (sumMatches && !receivedTooLittle) : (hasRealCustomer && Boolean(dueDate));
+  const canSubmit = mode === "full" ? (sumMatches && !receivedTooLittle) : (canGoDeferred && Boolean(dueDate));
 
   const submit = async () => {
     if (mode === "full" && !sumMatches) {
       setError(t("pos.payment.sumMismatchError", { sum: fmt2(paymentsSum), total: fmt2(total) }));
+      return;
+    }
+    if (mode === "deferred" && !hasDeferPermission) {
+      setError(t("pos.quickPayment.deferredRequiresPermission"));
       return;
     }
     if (mode === "deferred" && !hasRealCustomer) {
@@ -114,13 +125,14 @@ export default function QuickPaymentScreen({ company, companyId, warehouseId, ca
         <button
           className={`m-btn ${mode === "deferred" ? "" : "secondary"}`}
           onClick={() => setMode("deferred")}
-          disabled={!hasRealCustomer}
+          disabled={!canGoDeferred}
         >
           {t("pos.quickPayment.deferredTab")}
         </button>
       </div>
 
-      {!hasRealCustomer && <p className="pos-payment-mode-hint">{t("pos.quickPayment.selectCustomerToDefer")}</p>}
+      {!hasDeferPermission && <p className="pos-payment-mode-hint">{t("pos.quickPayment.deferredRequiresPermission")}</p>}
+      {hasDeferPermission && !hasRealCustomer && <p className="pos-payment-mode-hint">{t("pos.quickPayment.selectCustomerToDefer")}</p>}
 
       {mode === "full" && (
         <>

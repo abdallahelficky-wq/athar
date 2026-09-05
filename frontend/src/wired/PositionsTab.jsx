@@ -34,6 +34,7 @@ export default function PositionsTab() {
   const { toast, notify, dismiss } = useToast();
   const [name, setName] = useState("");
   const [allowUnpost, setAllowUnpost] = useState(false);
+  const [allowPosDeferredSale, setAllowPosDeferredSale] = useState(false);
   const [saving, setSaving] = useState(false);
   const [memberSelections, setMemberSelections] = useState({});
   const [overrides, setOverrides] = useState([]);
@@ -58,9 +59,10 @@ export default function PositionsTab() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await createPosition({ name: name.trim(), allowUnpost });
+      await createPosition({ name: name.trim(), allowUnpost, allowPosDeferredSale });
       setName("");
       setAllowUnpost(false);
+      setAllowPosDeferredSale(false);
       reload();
       notify(t("settings.positions.notifyCreated"), "success");
     } catch (err) {
@@ -73,6 +75,15 @@ export default function PositionsTab() {
   const toggleUnpost = async (position) => {
     try {
       await updatePosition(position.id, { allowUnpost: !position.allowUnpost });
+      reload();
+    } catch (err) {
+      notify(err.message, "error");
+    }
+  };
+
+  const togglePosDeferredSale = async (position) => {
+    try {
+      await updatePosition(position.id, { allowPosDeferredSale: !position.allowPosDeferredSale });
       reload();
     } catch (err) {
       notify(err.message, "error");
@@ -172,6 +183,14 @@ export default function PositionsTab() {
             <input type="checkbox" checked={allowUnpost} onChange={(e) => setAllowUnpost(e.target.checked)} />
             {t("settings.positions.allowUnpostLabel")}
           </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={allowPosDeferredSale}
+              onChange={(e) => setAllowPosDeferredSale(e.target.checked)}
+            />
+            {t("settings.positions.allowPosDeferredSaleLabel")}
+          </label>
         </div>
         <button className="btn-primary" onClick={create} disabled={saving || !name.trim()}>
           {t("common.add")}
@@ -192,6 +211,14 @@ export default function PositionsTab() {
           <label className="checkbox-label">
             <input type="checkbox" checked={position.allowUnpost} onChange={() => toggleUnpost(position)} />
             {t("settings.positions.allowUnpostLabel")}
+          </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={position.allowPosDeferredSale}
+              onChange={() => togglePosDeferredSale(position)}
+            />
+            {t("settings.positions.allowPosDeferredSaleLabel")}
           </label>
 
           <p className="note">{t("settings.positions.leaveRequestsTitle")}</p>

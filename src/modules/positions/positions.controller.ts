@@ -10,11 +10,13 @@ export const listAssignableUsersHandler: RequestHandler = async (req, res) => {
 };
 
 export const createHandler: RequestHandler = async (req, res) => {
-  res.status(201).json(await service.createPosition(req.auth!.tenantId, req.body.name, req.body.allowUnpost));
+  res
+    .status(201)
+    .json(await service.createPosition(req.auth!.tenantId, req.body.name, req.body.allowUnpost, req.body.allowPosDeferredSale));
 };
 
 export const updateHandler: RequestHandler = async (req, res) => {
-  res.json(await service.updatePositionUnpost(req.auth!.tenantId, req.params.id, req.body.allowUnpost));
+  res.json(await service.updatePositionPermissions(req.auth!.tenantId, req.params.id, req.body));
 };
 
 export const updateActionPermissionHandler: RequestHandler = async (req, res) => {

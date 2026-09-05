@@ -1795,6 +1795,7 @@
       "nameLabel": "اسم المنصب",
       "namePlaceholder": "مثال: محاسب أول",
       "allowUnpostLabel": "السماح بفك ترحيل القيود",
+      "allowPosDeferredSaleLabel": "السماح بالبيع الآجل (بلا دفع فوري) في نقطة البيع",
       "empty": "لا توجد مناصب مُنشأة بعد.",
       "noMembers": "لا يوجد أعضاء بهذا المنصب بعد.",
       "chooseUser": "— اختر مستخدماً —",
@@ -2185,6 +2186,7 @@
       "deferredTab": "آجل",
       "selectCustomerToDefer": "اختر عميلاً حقيقياً لتفعيل البيع الآجل",
       "deferredRequiresCustomer": "البيع الآجل يتطلب اختيار عميل حقيقي",
+      "deferredRequiresPermission": "منصبك الوظيفي لا يملك صلاحية تسجيل بيع آجل",
       "dueDateLabel": "تاريخ الاستحقاق",
       "dueDateRequiredError": "حدّد تاريخ الاستحقاق"
     },

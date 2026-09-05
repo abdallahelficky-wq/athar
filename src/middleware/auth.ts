@@ -174,33 +174,46 @@ async function isTenantOwner(auth: { sub: string; tenantId: string }): Promise<b
 }
 
 /**
- * يقيّد نقطة نهاية بصلاحية دقيقة (مصفوفة منصب المستخدم PositionPermission) بدل دور ثابت — المرحلة
- * الأولى من نظام صلاحيات المناصب القابل للتخصيص لكل شركة (بديل تدريجي لـ requireRole لبعض
- * الإجراءات الحسّاسة). moduleId يطابق PLATFORM_MODULE_IDS، وaction إمّا أحد الأعمدة القياسية
+ * الفحص الفعلي وراء requirePermission أدناه، مستخرَج بصيغة قابلة للاستدعاء المباشر (لا Express
+ * middleware فقط) — لازم للمسارات التي تحتاج تطبيق الصلاحية بشرط داخل جسم الطلب نفسه (مثال:
+ * pos.service.ts يتحقق من extra.posDeferredSale فقط حين تكون الفاتورة آجلة فعلاً، لا على كل بيع
+ * نقطة بيع). moduleId يطابق PLATFORM_MODULE_IDS، وaction إمّا أحد الأعمدة القياسية
  * (read/create/delete/approve) أو مفتاح حرّ داخل عمود extra JSON (مثال: "unpost") للصلاحيات غير
  * القياسية الخاصة بوحدة واحدة، بلا حاجة لعمود/migration جديد لكل صلاحية استثنائية تُضاف مستقبلاً.
+ */
+export async function hasPermission(
+  auth: { sub: string; tenantId: string; role: string },
+  moduleId: string,
+  action: string,
+): Promise<boolean> {
+  if (auth.role === "super_admin") return true;
+  if (await isTenantOwner(auth)) return true;
+
+  const user = await prisma.user.findUnique({ where: { id: auth.sub }, select: { positionId: true } });
+  const permission = user?.positionId
+    ? await prisma.positionPermission.findUnique({
+        where: { positionId_moduleId: { positionId: user.positionId, moduleId } },
+      })
+    : null;
+
+  const standardColumns = ["read", "create", "delete", "approve"] as const;
+  return (standardColumns as readonly string[]).includes(action)
+    ? Boolean(permission?.[`can${action[0].toUpperCase()}${action.slice(1)}` as "canRead"])
+    : Boolean((permission?.extra as Record<string, boolean> | null | undefined)?.[action]);
+}
+
+/**
+ * يقيّد نقطة نهاية بصلاحية دقيقة (مصفوفة منصب المستخدم PositionPermission) بدل دور ثابت — المرحلة
+ * الأولى من نظام صلاحيات المناصب القابل للتخصيص لكل شركة (بديل تدريجي لـ requireRole لبعض
+ * الإجراءات الحسّاسة).
  *
  * ملاحظة أداء: خلافاً لـ requireRole المتزامن تماماً (فحص JWT فقط)، هذا الحارس غير متزامن (استعلامان
- * إضافيان لقاعدة البيانات كحد أقصى) — مقبول للمرحلة الأولى المحدودة النطاق (مسار واحد فقط حالياً).
+ * إضافيان لقاعدة البيانات كحد أقصى) — مقبول للمرحلة الأولى المحدودة النطاق (مسارات قليلة حالياً).
  */
 export function requirePermission(moduleId: string, action: string): RequestHandler {
   return async (req, _res, next) => {
     if (!req.auth) throw unauthorized();
-    if (req.auth.role === "super_admin") return next();
-    if (await isTenantOwner(req.auth)) return next();
-
-    const user = await prisma.user.findUnique({ where: { id: req.auth.sub }, select: { positionId: true } });
-    const permission = user?.positionId
-      ? await prisma.positionPermission.findUnique({
-          where: { positionId_moduleId: { positionId: user.positionId, moduleId } },
-        })
-      : null;
-
-    const standardColumns = ["read", "create", "delete", "approve"] as const;
-    const allowed = (standardColumns as readonly string[]).includes(action)
-      ? Boolean(permission?.[`can${action[0].toUpperCase()}${action.slice(1)}` as "canRead"])
-      : Boolean((permission?.extra as Record<string, boolean> | null | undefined)?.[action]);
-
+    const allowed = await hasPermission(req.auth, moduleId, action);
     if (!allowed) throw forbidden("منصبك الوظيفي لا يملك صلاحية تنفيذ هذا الإجراء");
     next();
   };

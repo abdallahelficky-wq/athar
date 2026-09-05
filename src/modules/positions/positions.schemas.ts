@@ -21,10 +21,12 @@ export const upsertUserOverrideSchema = z.object({
 export const createPositionSchema = z.object({
   name: z.string().trim().min(1, "اسم المنصب مطلوب").max(100),
   allowUnpost: z.boolean().optional().default(false),
+  allowPosDeferredSale: z.boolean().optional().default(false),
 });
 
 export const updatePositionSchema = z.object({
-  allowUnpost: z.boolean(),
+  allowUnpost: z.boolean().optional(),
+  allowPosDeferredSale: z.boolean().optional(),
 });
 
 export const assignMemberSchema = z.object({

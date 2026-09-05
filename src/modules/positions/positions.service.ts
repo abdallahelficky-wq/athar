@@ -2,10 +2,13 @@ import { prisma } from "../../lib/prisma";
 import { conflict, notFound } from "../../lib/httpError";
 import type { Prisma, PermissionLevel } from "@prisma/client";
 import { PLATFORM_ACTIONS } from "../../lib/platformActions";
+import { hasPermission } from "../../middleware/auth";
 
-// المرحلة الأولى من نظام صلاحيات المناصب تغطي فقط صلاحية "فك ترحيل القيود" (وحدة الحسابات) — بقية
-// الوحدات/الأعمدة موجودة بالبنية (Position/PositionPermission) لكن غير مُستخدَمة من هذه الشاشة بعد.
+// صلاحية "فك ترحيل القيود" (وحدة الحسابات) — أول صلاحية بوليانية غير قياسية أُضيفت لهذا النظام.
 const UNPOST_MODULE_ID = "accounts";
+// صلاحية "البيع الآجل في نقطة البيع" (وحدة المبيعات، نقطة البيع جزء منها) — ثاني صلاحية من نفس
+// النوع، بنفس النمط تماماً: عمود extra JSON بدل عمود مخصَّص، حقل allow* مخصَّص في الواجهة والمخطط.
+const POS_MODULE_ID = "sales";
 
 // أول وحدة مُهاجَرة لنظام الصلاحيات الترتيبي الجديد (PositionActionPermission) — راجع
 // PLATFORM_ACTIONS في lib/platformActions.ts.
@@ -13,7 +16,7 @@ const LEAVE_REQUESTS_MODULE_ID = "leaveRequests";
 const LEAVE_REQUEST_ACTION_IDS = PLATFORM_ACTIONS.leaveRequests.map((a) => a.id);
 
 const positionInclude = {
-  permissions: { where: { moduleId: UNPOST_MODULE_ID } },
+  permissions: { where: { moduleId: { in: [UNPOST_MODULE_ID, POS_MODULE_ID] } } },
   actionPermissions: { where: { moduleId: LEAVE_REQUESTS_MODULE_ID } },
   users: { select: { id: true, name: true, identity: { select: { email: true } } } },
 } satisfies Prisma.PositionInclude;
@@ -21,8 +24,10 @@ const positionInclude = {
 type PositionRaw = Prisma.PositionGetPayload<{ include: typeof positionInclude }>;
 
 function publicPosition(position: PositionRaw) {
-  const unpostPermission = position.permissions[0];
+  const unpostPermission = position.permissions.find((p) => p.moduleId === UNPOST_MODULE_ID);
   const allowUnpost = Boolean((unpostPermission?.extra as Record<string, boolean> | null)?.unpost);
+  const posPermission = position.permissions.find((p) => p.moduleId === POS_MODULE_ID);
+  const allowPosDeferredSale = Boolean((posPermission?.extra as Record<string, boolean> | null)?.posDeferredSale);
   const leaveRequestLevels = Object.fromEntries(
     LEAVE_REQUEST_ACTION_IDS.map((actionId) => [
       actionId,
@@ -34,6 +39,7 @@ function publicPosition(position: PositionRaw) {
     name: position.name,
     createdAt: position.createdAt,
     allowUnpost,
+    allowPosDeferredSale,
     leaveRequestLevels,
     members: position.users.map((u) => ({ id: u.id, name: u.name, email: u.identity.email })),
   };
@@ -48,30 +54,54 @@ export async function listPositions(tenantId: string) {
   return positions.map(publicPosition);
 }
 
-export async function createPosition(tenantId: string, name: string, allowUnpost: boolean) {
+export async function createPosition(
+  tenantId: string,
+  name: string,
+  allowUnpost: boolean,
+  allowPosDeferredSale: boolean,
+) {
   const existing = await prisma.position.findUnique({ where: { tenantId_name: { tenantId, name } } });
   if (existing) throw conflict("يوجد بالفعل منصب بهذا الاسم");
+
+  const permissionsToCreate: Prisma.PositionPermissionCreateWithoutPositionInput[] = [];
+  if (allowUnpost) permissionsToCreate.push({ moduleId: UNPOST_MODULE_ID, extra: { unpost: true } });
+  if (allowPosDeferredSale) permissionsToCreate.push({ moduleId: POS_MODULE_ID, extra: { posDeferredSale: true } });
 
   const position = await prisma.position.create({
     data: {
       tenantId,
       name,
-      permissions: allowUnpost ? { create: { moduleId: UNPOST_MODULE_ID, extra: { unpost: true } } } : undefined,
+      permissions: permissionsToCreate.length ? { create: permissionsToCreate } : undefined,
     },
     include: positionInclude,
   });
   return publicPosition(position);
 }
 
-export async function updatePositionUnpost(tenantId: string, positionId: string, allowUnpost: boolean) {
+/** يُحدِّث فقط الحقول المُرسَلة (allowUnpost و/أو allowPosDeferredSale) — كل صلاحية بوليانية غير
+ * قياسية لها صف PositionPermission مستقل (moduleId مختلف)، فتحديث إحداهما لا يمسّ الأخرى. */
+export async function updatePositionPermissions(
+  tenantId: string,
+  positionId: string,
+  input: { allowUnpost?: boolean; allowPosDeferredSale?: boolean },
+) {
   const position = await prisma.position.findFirst({ where: { id: positionId, tenantId } });
   if (!position) throw notFound("المنصب غير موجود");
 
-  await prisma.positionPermission.upsert({
-    where: { positionId_moduleId: { positionId, moduleId: UNPOST_MODULE_ID } },
-    create: { positionId, moduleId: UNPOST_MODULE_ID, extra: { unpost: allowUnpost } },
-    update: { extra: { unpost: allowUnpost } },
-  });
+  if (input.allowUnpost !== undefined) {
+    await prisma.positionPermission.upsert({
+      where: { positionId_moduleId: { positionId, moduleId: UNPOST_MODULE_ID } },
+      create: { positionId, moduleId: UNPOST_MODULE_ID, extra: { unpost: input.allowUnpost } },
+      update: { extra: { unpost: input.allowUnpost } },
+    });
+  }
+  if (input.allowPosDeferredSale !== undefined) {
+    await prisma.positionPermission.upsert({
+      where: { positionId_moduleId: { positionId, moduleId: POS_MODULE_ID } },
+      create: { positionId, moduleId: POS_MODULE_ID, extra: { posDeferredSale: input.allowPosDeferredSale } },
+      update: { extra: { posDeferredSale: input.allowPosDeferredSale } },
+    });
+  }
 
   const updated = await prisma.position.findUniqueOrThrow({ where: { id: positionId }, include: positionInclude });
   return publicPosition(updated);
@@ -177,23 +207,23 @@ export async function removeMember(tenantId: string, positionId: string, userId:
 
 /**
  * يحدّد هل يملك هذا المستخدم صلاحية فك ترحيل القيود فعلياً (owner/super_admin دائماً، أو منصب
- * مُفوَّض صراحةً) — نفس منطق requirePermission("accounts","unpost") في middleware/auth.ts بالضبط،
- * لكن كدالة قابلة للاستدعاء المباشر (بلا req/res) لتضمين النتيجة في استجابة auth (login/getMe/...)
- * حتى تعرف الواجهة متى تُظهر زر "فك الترحيل" أصلاً، بدل الاعتماد فقط على رفض الخادم بعد الضغط.
+ * مُفوَّض صراحةً) — عبر hasPermission المشتركة في middleware/auth.ts، بصيغة قابلة للاستدعاء المباشر
+ * (بلا req/res) لتضمين النتيجة في استجابة auth (login/getMe/...) حتى تعرف الواجهة متى تُظهر زر
+ * "فك الترحيل" أصلاً، بدل الاعتماد فقط على رفض الخادم بعد الضغط.
  */
 export async function canUnpostJournalEntries(tenantId: string, userId: string, role: string): Promise<boolean> {
-  if (role === "super_admin") return true;
+  return hasPermission({ sub: userId, tenantId, role }, UNPOST_MODULE_ID, "unpost");
+}
 
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { ownerId: true } });
-  if (tenant?.ownerId === userId) return true;
-
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { positionId: true } });
-  if (!user?.positionId) return false;
-
-  const permission = await prisma.positionPermission.findUnique({
-    where: { positionId_moduleId: { positionId: user.positionId, moduleId: UNPOST_MODULE_ID } },
-  });
-  return Boolean((permission?.extra as Record<string, boolean> | null)?.unpost);
+/**
+ * يحدّد هل يملك هذا المستخدم صلاحية تسجيل بيع آجل (بلا دفع فوري) في نقطة البيع — نفس منطق
+ * canUnpostJournalEntries أعلاه بالضبط (owner/super_admin دائماً، أو منصب مُفوَّض صراحةً عبر
+ * extra.posDeferredSale على وحدة "sales")، مُضمَّنة في استجابة auth حتى تعرف شاشة نقطة البيع متى
+ * تُفعِّل تبويب "آجل" أصلاً بدل الاعتماد فقط على رفض الخادم بعد الضغط — راجع pos.controller.ts
+ * للتحقق المطابق في الخادم (الوحيد الحاسم فعلياً؛ هذا فقط لتجربة استخدام أفضل).
+ */
+export async function canDeferPosSale(tenantId: string, userId: string, role: string): Promise<boolean> {
+  return hasPermission({ sub: userId, tenantId, role }, POS_MODULE_ID, "posDeferredSale");
 }
 
 /** كل مستخدمي هذه الشركة — لعرضهم في قائمة "إضافة عضو لهذا المنصب" بالواجهة. */

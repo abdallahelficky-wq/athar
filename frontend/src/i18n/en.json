@@ -1795,6 +1795,7 @@
       "nameLabel": "Position name",
       "namePlaceholder": "e.g. Senior accountant",
       "allowUnpostLabel": "Allow unposting journal entries",
+      "allowPosDeferredSaleLabel": "Allow credit sales (no immediate payment) at point of sale",
       "empty": "No positions created yet.",
       "noMembers": "No members assigned to this position yet.",
       "chooseUser": "— Choose a user —",
@@ -2185,6 +2186,7 @@
       "deferredTab": "On credit",
       "selectCustomerToDefer": "Select a real customer to enable credit sale",
       "deferredRequiresCustomer": "A credit sale requires selecting a real customer",
+      "deferredRequiresPermission": "Your position doesn't have permission to register a credit sale",
       "dueDateLabel": "Due date",
       "dueDateRequiredError": "Set the due date"
     },
