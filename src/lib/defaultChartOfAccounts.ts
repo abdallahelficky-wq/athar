@@ -1058,6 +1058,16 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "isBankOrCash": false
 },
 {
+  "code": "511004",
+  "name": "المشتريات",
+  "nameEn": "Purchases",
+  "type": "expense",
+  "level": 4,
+  "parentCode": "511",
+  "isPosting": true,
+  "isBankOrCash": false
+},
+{
   "code": "6",
   "name": "المصروفات التشغيلية",
   "nameEn": "Operating Expenses",

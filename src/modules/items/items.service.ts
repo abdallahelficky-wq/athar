@@ -2,7 +2,7 @@ import { Prisma, PrismaClient, Item } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { getItemTotalOnHand } from "../../lib/costingEngine";
-import { validateAccountsForType } from "./items.schemas";
+import { validateAccountsForType, PERIODIC_INVENTORY_ENABLED, PERIODIC_INVENTORY_DISABLED_MESSAGE } from "./items.schemas";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -113,7 +113,15 @@ export async function updateItemWithValidation(tenantId: string, id: string, pat
     cogsAccountId: patch.cogsAccountId !== undefined ? (patch.cogsAccountId as string | null) : existing.cogsAccountId,
     revenueAccountId: patch.revenueAccountId !== undefined ? (patch.revenueAccountId as string | null) : existing.revenueAccountId,
     expenseAccountId: patch.expenseAccountId !== undefined ? (patch.expenseAccountId as string | null) : existing.expenseAccountId,
+    purchasesAccountId: patch.purchasesAccountId !== undefined ? (patch.purchasesAccountId as string | null) : existing.purchasesAccountId,
   } as Parameters<typeof validateAccountsForType>[0];
+
+  // نفس بوابة الإتاحة المطبَّقة عند الإنشاء (createItemSchema) — بلا هذا التحقق كان بالإمكان
+  // الالتفاف عليها بإنشاء صنف بنوع آخر ثم تعديله لاحقاً إلى periodic_inventory (assertTypeNotLocked
+  // أعلاه يمنع هذا فقط بعد وجود معاملات، لا قبلها).
+  if (merged.type === "periodic_inventory" && !PERIODIC_INVENTORY_ENABLED) {
+    throw badRequest(PERIODIC_INVENTORY_DISABLED_MESSAGE);
+  }
 
   const error = validateAccountsForType(merged);
   if (error) throw badRequest(error);

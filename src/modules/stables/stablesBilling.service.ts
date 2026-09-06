@@ -41,10 +41,10 @@ export async function accrueTrainerCommissionsTx(
   if (!commissions.length) return;
 
   const [expenseAccount, payableAccount] = await Promise.all([
-    tx.account.findFirst({ where: { tenantId, companyId, code: "511007", isPosting: true, isActive: true, isArchived: false } }),
+    tx.account.findFirst({ where: { tenantId, companyId, code: "511008", isPosting: true, isActive: true, isArchived: false } }),
     tx.account.findFirst({ where: { tenantId, companyId, code: "212005", isPosting: true, isActive: true, isArchived: false } }),
   ]);
-  if (!expenseAccount || !payableAccount) throw badRequest("أكمل حسابي عمولات المدربين (511007) والعمولات المستحقة (212005) في شجرة الحسابات قبل الترحيل");
+  if (!expenseAccount || !payableAccount) throw badRequest("أكمل حسابي عمولات المدربين (511008) والعمولات المستحقة (212005) في شجرة الحسابات قبل الترحيل");
   const total = commissions.reduce((sum, row) => sum + row.amount, 0);
   const periodStart = billing ? new Date(billing.billingMonth) : new Date(lesson!.scheduledAt);
   const periodEnd = billing ? new Date(Date.UTC(periodStart.getUTCFullYear(), periodStart.getUTCMonth() + 1, 0, 23, 59, 59)) : new Date(lesson!.scheduledAt);

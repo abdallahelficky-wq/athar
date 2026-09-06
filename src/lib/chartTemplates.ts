@@ -29,11 +29,13 @@ const HORSE_STABLES_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   { code: "411004", name: "إيرادات التدريب ومدرسة الركوب", nameEn: "Training and Riding School Revenue", type: "revenue", level: 4, parentCode: "411", isPosting: true },
   { code: "411005", name: "إيرادات خدمات الرعاية", nameEn: "Horse Care Services Revenue", type: "revenue", level: 4, parentCode: "411", isPosting: true },
   { code: "411006", name: "إيرادات المسابقات والفعاليات", nameEn: "Competitions and Events Revenue", type: "revenue", level: 4, parentCode: "411", isPosting: true },
-  { code: "511004", name: "تكلفة أعلاف وتغذية الخيل", nameEn: "Horse Feed Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
-  { code: "511005", name: "تكلفة الفرشة والنظافة", nameEn: "Bedding and Cleaning Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
-  { code: "511006", name: "تكلفة البيطرة والحدادة", nameEn: "Veterinary and Farrier Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
-  { code: "511007", name: "أجور وعمولات المدربين", nameEn: "Trainer Fees and Commissions", type: "expense", level: 4, parentCode: "511", isPosting: true },
-  { code: "511008", name: "تكلفة المسابقات والنقل", nameEn: "Competition and Transport Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
+  // ملاحظة: 511004 أصبحت محجوزة لحساب "المشتريات" الجديد في DEFAULT_CHART_OF_ACCOUNTS (يُشارَك تلقائياً
+  // هنا عبر spread أعلاه) — الحسابات الخاصة بالإسطبلات أدناه أُزيحت تسلسلياً بدءاً من 511005 لتفادي التصادم.
+  { code: "511005", name: "تكلفة أعلاف وتغذية الخيل", nameEn: "Horse Feed Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
+  { code: "511006", name: "تكلفة الفرشة والنظافة", nameEn: "Bedding and Cleaning Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
+  { code: "511007", name: "تكلفة البيطرة والحدادة", nameEn: "Veterinary and Farrier Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
+  { code: "511008", name: "أجور وعمولات المدربين", nameEn: "Trainer Fees and Commissions", type: "expense", level: 4, parentCode: "511", isPosting: true },
+  { code: "511009", name: "تكلفة المسابقات والنقل", nameEn: "Competition and Transport Cost", type: "expense", level: 4, parentCode: "511", isPosting: true },
 ];
 
 export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAccount[]> = {
@@ -1303,6 +1305,16 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "code": "511006",
   "name": "تصاريح ورسوم مواقع العمل",
   "nameEn": "Site Permits and Fees",
+  "type": "expense",
+  "level": 4,
+  "parentCode": "511",
+  "isPosting": true,
+  "isBankOrCash": false
+},
+{
+  "code": "511007",
+  "name": "المشتريات",
+  "nameEn": "Purchases",
   "type": "expense",
   "level": 4,
   "parentCode": "511",
@@ -3242,6 +3254,16 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
+  "code": "511008",
+  "name": "المشتريات",
+  "nameEn": "Purchases",
+  "type": "expense",
+  "level": 4,
+  "parentCode": "511",
+  "isPosting": true,
+  "isBankOrCash": false
+},
+{
   "code": "6",
   "name": "المصروفات التشغيلية",
   "nameEn": "Operating Expenses",
@@ -5104,6 +5126,16 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
+  "code": "511004",
+  "name": "المشتريات",
+  "nameEn": "Purchases",
+  "type": "expense",
+  "level": 4,
+  "parentCode": "511",
+  "isPosting": true,
+  "isBankOrCash": false
+},
+{
   "code": "6",
   "name": "المصروفات التشغيلية",
   "nameEn": "Operating Expenses",
@@ -6949,6 +6981,16 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "code": "511004",
   "name": "مصاريف تخزين ومناولة",
   "nameEn": "Storage and Handling Expenses",
+  "type": "expense",
+  "level": 4,
+  "parentCode": "511",
+  "isPosting": true,
+  "isBankOrCash": false
+},
+{
+  "code": "511005",
+  "name": "المشتريات",
+  "nameEn": "Purchases",
   "type": "expense",
   "level": 4,
   "parentCode": "511",
@@ -8821,6 +8863,16 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "code": "511004",
   "name": "فاقد وعجز قياس الخزانات (Ullage)",
   "nameEn": "Tank Gauging Loss (Ullage)",
+  "type": "expense",
+  "level": 4,
+  "parentCode": "511",
+  "isPosting": true,
+  "isBankOrCash": false
+},
+{
+  "code": "511005",
+  "name": "المشتريات",
+  "nameEn": "Purchases",
   "type": "expense",
   "level": 4,
   "parentCode": "511",

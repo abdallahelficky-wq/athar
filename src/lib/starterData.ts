@@ -32,7 +32,7 @@ const STARTER_ITEMS_BY_ACTIVITY: Record<BusinessActivity, StarterItemSpec[]> = {
     { code: "TRN-001", name: "حصة تدريب فردية", type: "service", unit: "حصة", revenueAccountCode: "411004" },
     { code: "CAR-001", name: "خدمة رعاية الخيل", type: "service", unit: "خدمة", revenueAccountCode: "411005" },
     { code: "EVT-001", name: "رسوم مسابقة أو فعالية", type: "service", unit: "مشاركة", revenueAccountCode: "411006" },
-    { code: "FED-001", name: "أعلاف وتبن", type: "inventory", unit: "كجم", stockAccountCode: "114003", cogsAccountCode: "511004", revenueAccountCode: "411005" },
+    { code: "FED-001", name: "أعلاف وتبن", type: "inventory", unit: "كجم", stockAccountCode: "114003", cogsAccountCode: "511005", revenueAccountCode: "411005" },
   ],
   // مثال المستخدم التوضيحي: صنف خدمي "أعمال مقاولات"
   contracting: [

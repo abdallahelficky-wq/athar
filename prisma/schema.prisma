@@ -650,6 +650,7 @@ model Account {
   itemCogsLinks                Item[]                @relation("ItemCogsAccount")
   itemRevenueLinks             Item[]                @relation("ItemRevenueAccount")
   itemExpenseLinks             Item[]                @relation("ItemExpenseAccount")
+  itemPurchasesLinks           Item[]                @relation("ItemPurchasesAccount")
   customerLinks                Customer[]
   supplierLinks                Supplier[]
   employeeLinks                Employee[]
@@ -1390,6 +1391,11 @@ enum ItemType {
   fixed_asset // أصل ثابت — يُنشئ سجل أصل ثابت تلقائياً عند الشراء
   raw_material // مادة أولية — تُستهلك كمكوّن في منتج مجمّع، لا تُباع مباشرة إلا لو allowDirectSale
   bundle // منتج مجمّع — رصيده يزيد فقط عبر أمر تصنيع (مرحلة قادمة)، لا يُشترى مباشرة
+  // بضاعة بجرد دوري (Periodic Inventory) — تُشترى بلا مسّ حساب المخزون (مدين purchasesAccountId
+  // مباشرة)، وتُباع دائماً بصرف النظر عن الرصيد بلا أي قيد تكلفة لحظي (لا COGS ولا فحص كفاية رصيد) —
+  // الكمية تبقى متتبَّعة تشغيلياً فقط (StockMovement بلا أي أثر محاسبي). غير متاحة بعد لأي شركة حتى
+  // اكتمال شاشة تسوية الجرد الدوري — راجع PERIODIC_INVENTORY_ENABLED في items.schemas.ts.
+  periodic_inventory
 }
 
 // كتالوج الأصناف الموحّد — يحل محل Item (مخزون) و SellableItem (مبيعات) القديمين معاً.
@@ -1427,6 +1433,11 @@ model Item {
   revenueAccount   Account? @relation("ItemRevenueAccount", fields: [revenueAccountId], references: [id])
   expenseAccountId String?
   expenseAccount   Account? @relation("ItemExpenseAccount", fields: [expenseAccountId], references: [id])
+  // type == periodic_inventory فقط — حساب "المشتريات" المستقل (لا يُخلَط بـcogsAccountId إطلاقاً):
+  // يُقيَّد عليه الشراء مباشرة طوال الفترة، ويُصفَّر بقيد التسوية الدوري (مدين المخزون/دائن المشتريات)
+  // في شاشة الجرد الدوري المخصَّصة (مرحلة منفصلة لاحقة) لتصبح تكلفة البضاعة المباعة الفعلية.
+  purchasesAccountId String?
+  purchasesAccount   Account? @relation("ItemPurchasesAccount", fields: [purchasesAccountId], references: [id])
 
   // type == raw_material فقط
   allowDirectSale Boolean @default(false)
