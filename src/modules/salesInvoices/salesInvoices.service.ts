@@ -9,7 +9,7 @@ import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { reserveDocumentNumber } from "../../lib/docNumbering";
 import { getStockBalance } from "../stockMovements/stockMovements.service";
-import { isStockTracked } from "../items/items.service";
+import { isValueTrackedInLedger, isQuantityTracked } from "../items/items.service";
 import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
 import { resubmitZatcaDocument } from "../../lib/zatca/resubmit";
 import { sendInvoiceByEmail } from "./salesInvoiceEmail.service";
@@ -130,7 +130,9 @@ async function computeCogsJournalLines(tenantId: string, companyId: string, line
   if (!itemIds.length) return [];
   const items = await prisma.item.findMany({ where: { id: { in: itemIds }, tenantId, companyId } });
   const itemById = new Map(items.map((i) => [i.id, i]));
-  const stockLines = lines.filter((l) => l.itemId && isStockTracked(itemById.get(l.itemId)!.type));
+  // periodic_inventory مستثنى عمداً هنا (isValueTrackedInLedger لا isQuantityTracked): بلا قيد تكلفة
+  // وبلا فحص كفاية رصيد إطلاقاً لهذا النوع — راجع دليله في items.schemas.ts.
+  const stockLines = lines.filter((l) => l.itemId && isValueTrackedInLedger(itemById.get(l.itemId)!.type));
   if (!stockLines.length) return [];
 
   const warehouse = await resolveWarehouse(prisma, tenantId, companyId, warehouseId);
@@ -184,7 +186,9 @@ async function createStockOutSideEffectsTx(
   for (const line of persistedLines) {
     if (!line.itemId) continue;
     const item = await tx.item.findFirstOrThrow({ where: { id: line.itemId, tenantId } });
-    if (!isStockTracked(item.type)) continue;
+    // periodic_inventory يصل هنا فعلاً (isQuantityTracked لا isValueTrackedInLedger) — حركة "صادر"
+    // تشغيلية بحتة لتتبّع الكمية فقط، unitCost يبقى 0 دائماً لأن averageCost لا يُحدَّث لهذا النوع.
+    if (!isQuantityTracked(item.type)) continue;
     await tx.stockMovement.create({
       data: {
         tenantId, companyId, itemId: item.id, warehouseId: warehouse.id, type: "out",

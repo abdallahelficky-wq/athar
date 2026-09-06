@@ -6,10 +6,28 @@ import { validateAccountsForType, PERIODIC_INVENTORY_ENABLED, PERIODIC_INVENTORY
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
-const STOCK_TRACKED_TYPES = ["inventory", "expense", "raw_material", "bundle"] as const;
+const VALUE_TRACKED_TYPES = ["inventory", "expense", "raw_material", "bundle"] as const;
 
-export function isStockTracked(type: string) {
-  return (STOCK_TRACKED_TYPES as readonly string[]).includes(type);
+/**
+ * هل يُسجَّل قيد محاسبي فعلي لحركات هذا النوع من الأصناف — قيد تكلفة وفحص كفاية الرصيد عند البيع
+ * (computeCogsJournalLines)، تحديث متوسط التكلفة عند الشراء، والأهلية لصرف/تحويل مخزني يدوي بقيد
+ * (stockMovements.service.ts). **لا يشمل periodic_inventory عمداً** — بضاعة الجرد الدوري بلا أي أثر
+ * محاسبي لحركاتها بتصميم، حتى اكتمال شاشة التسوية الدورية (راجع دليل النوع في items.schemas.ts).
+ * كان هذا واسمه isStockTracked يخلطان هذا المعنى بمعنى isQuantityTracked أدناه في نفس الدالة —
+ * فُصلا لتفادي خطأ صامت عند إضافة periodic_inventory (كان سيُمنَع بيعه برصيد كافٍ كأي صنف مخزوني
+ * عادي، أو كان سيُسمَح بصرفه يدوياً بقيد رغم عدم امتلاكه حساب مخزون حقيقي).
+ */
+export function isValueTrackedInLedger(type: string) {
+  return (VALUE_TRACKED_TYPES as readonly string[]).includes(type);
+}
+
+/**
+ * هل تُسجَّل حركة مخزون (StockMovement) لهذا النوع أصلاً، بصرف النظر عن أي أثر محاسبي — تتبّع
+ * تشغيلي بحت (كم دخل/خرج) قد لا ينتج عنه أي قيد. يشمل كل ما يشمله isValueTrackedInLedger زائد
+ * periodic_inventory (الغرض الوحيد من حركاته هو تتبّع الكمية، بلا أي محاسبة).
+ */
+export function isQuantityTracked(type: string) {
+  return isValueTrackedInLedger(type) || type === "periodic_inventory";
 }
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
@@ -36,7 +54,9 @@ async function assertTypeNotLocked(tenantId: string, itemId: string, currentType
 }
 
 async function computeQuantityAndValue(tx: Tx, tenantId: string, item: Item) {
-  if (!isStockTracked(item.type)) return { quantity: null, stockValue: null };
+  // periodic_inventory: تُعرَض الكمية (تتبّع تشغيلي)، وstockValue تبقى 0 دائماً لأن averageCost لا
+  // يُحدَّث لهذا النوع إطلاقاً (لا قيمة مخزون مُثبَتة في الدفاتر له بتصميم).
+  if (!isQuantityTracked(item.type)) return { quantity: null, stockValue: null };
   const quantity = await getItemTotalOnHand(tx, tenantId, item.id);
   return { quantity, stockValue: quantity * Number(item.averageCost) };
 }
