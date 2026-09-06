@@ -84,7 +84,12 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
     }
 
     if (!line.warehouseId || !warehouseIdSet.has(line.warehouseId)) throw badRequest(`اختر مستودعاً صالحاً ضمن هذه الشركة للصنف "${item.name}"`);
-    const primaryAccountId = item.type === "expense" ? item.expenseAccountId : item.stockAccountId;
+    // periodic_inventory: مدين حساب "المشتريات" المستقل مباشرة — لا يمسّ stockAccountId إطلاقاً
+    // (لا يملكه أصلاً استخدامياً هنا، محجوز حصرياً لقيد التسوية الدوري لاحقاً).
+    const primaryAccountId =
+      item.type === "expense" ? item.expenseAccountId
+      : item.type === "periodic_inventory" ? item.purchasesAccountId
+      : item.stockAccountId;
     if (!primaryAccountId) throw badRequest(`لم يُحدَّد الحساب المحاسبي المرتبط بالصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
     resolved.push({ ...line, accountId: primaryAccountId });
   }
@@ -162,8 +167,11 @@ async function createInventorySideEffectsTx(
     const quantity = Number(line.quantity);
     const unitCost = quantity > 0 ? Number(line.subtotal) / quantity : 0;
     // متوسط التكلفة *قبل* تسجيل حركة "الوارد" نفسها (وإلا تُحتسَب هذه الحركة ضمن الرصيد
-    // القديم فتُضاعِف تأثيرها في المعادلة)
-    if (item.type !== "expense") await applyPurchaseToAverageCostTx(tx, tenantId, item.id, quantity, unitCost);
+    // القديم فتُضاعِف تأثيرها في المعادلة) — periodic_inventory مستبعد هنا بجانب expense: لا قيمة
+    // مخزون مُثبَتة في الدفاتر له بتصميم، averageCost يبقى 0 حتى قيد التسوية الدوري لاحقاً.
+    if (item.type !== "expense" && item.type !== "periodic_inventory") {
+      await applyPurchaseToAverageCostTx(tx, tenantId, item.id, quantity, unitCost);
+    }
     await tx.stockMovement.create({
       data: {
         tenantId, companyId, itemId: item.id, warehouseId: line.warehouseId!, type: "in",
