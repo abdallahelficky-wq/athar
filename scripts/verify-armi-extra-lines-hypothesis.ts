@@ -166,6 +166,30 @@ export function checkCombinedUnitHypothesis(dbEntry: DbEntryForCheck, correctEnt
   return { totalDbLines: dbTotal, matches };
 }
 
+export interface DateProximityMatch {
+  candidateReference: string;
+  candidatePattern: string;
+  dayDistance: number;
+}
+
+// معيار مُرجِّح إضافي فقط (لا فرضية مستقلة قائمة بذاتها) — يُستخدَم فقط لكسر التعادل بين عدة
+// مرشّحين حقّقوا تطابق multiset تاماً بنفس الدقة في checkCombinedUnitHypothesis، أو لعرض أقرب
+// مرشّحين زمنياً للمراجعة اليدوية حين لا يوجد أي تطابق رقمي إطلاقاً. لا يوجد في البيانات المصدرية
+// أي ترتيب زمني حقيقي داخل اليوم الواحد عبر أنواع القيود المختلفة (رقمي/PYT/INV له ترقيمه
+// المستقل)، لذلك أقصى ما يمكن قياسه بثقة هو "فرق الأيام" بين تاريخ القيد الصحيح وتاريخ كل مرشّح،
+// وليس ترتيباً تسلسلياً دقيقاً داخل نفس اليوم.
+export function findNearestByDate(correctDate: string, candidates: ExcelEntry[], limit = 5): DateProximityMatch[] {
+  const correctTime = new Date(`${correctDate}T00:00:00Z`).getTime();
+  return candidates
+    .map((c) => {
+      const candidateDate = [...c.dates][0];
+      const dayDistance = Math.round(Math.abs(new Date(`${candidateDate}T00:00:00Z`).getTime() - correctTime) / 86400000);
+      return { candidateReference: c.reference, candidatePattern: c.pattern, dayDistance };
+    })
+    .sort((a, b) => a.dayDistance - b.dayDistance)
+    .slice(0, limit);
+}
+
 interface DbLine extends SimpleLine {
   id: string;
 }
@@ -266,11 +290,42 @@ async function main() {
       console.log(`\n  ✅ الفرضية المُنقَّحة مؤكَّدة رقمياً: كل الأسطر المخزَّنة (${combined.totalDbLines}) = [القيد الصحيح (${correctEntry.lines.length} سطراً) + القيد "${m.candidateReference}" (${m.candidatePattern})] مكرَّرة ${m.multiplier} مرة/مرات بالضبط.`);
       confirmedCount++;
     } else if (combined.matches.length > 1) {
-      console.log(`\n  ⚠️ أكثر من مرشّح واحد يحقق الفرضية المُنقَّحة رقمياً بنفس الدقة — غموض يحتاج مراجعة يدوية (لا يمكن الجزم بأيهما الصحيح تلقائياً):`);
-      combined.matches.forEach((m) => console.log(`    "${m.candidateReference}" (${m.candidatePattern}) × ${m.multiplier}`));
+      console.log(`\n  ⚠️ أكثر من مرشّح واحد يحقق الفرضية المُنقَّحة رقمياً بنفس الدقة — غموض عددي (تطابق قيمة صدفة بين عدة قيود بمبالغ متطابقة):`);
+      const correctDate = [...correctEntry.dates][0];
+      combined.matches.forEach((m) => {
+        const candidateEntry = excelEntries.get(m.candidateReference);
+        const candidateDate = candidateEntry ? [...candidateEntry.dates][0] : "؟";
+        const dayDistance = candidateEntry ? Math.round(Math.abs(new Date(`${candidateDate}T00:00:00Z`).getTime() - new Date(`${correctDate}T00:00:00Z`).getTime()) / 86400000) : NaN;
+        console.log(`    "${m.candidateReference}" (${m.candidatePattern}) × ${m.multiplier} | تاريخه: ${candidateDate} | فرق الأيام عن تاريخ القيد الصحيح (${correctDate}): ${dayDistance}`);
+      });
+      const minDistance = Math.min(
+        ...combined.matches.map((m) => {
+          const candidateEntry = excelEntries.get(m.candidateReference);
+          if (!candidateEntry) return Infinity;
+          const candidateDate = [...candidateEntry.dates][0];
+          return Math.round(Math.abs(new Date(`${candidateDate}T00:00:00Z`).getTime() - new Date(`${correctDate}T00:00:00Z`).getTime()) / 86400000);
+        }),
+      );
+      const nearest = combined.matches.filter((m) => {
+        const candidateEntry = excelEntries.get(m.candidateReference);
+        if (!candidateEntry) return false;
+        const candidateDate = [...candidateEntry.dates][0];
+        const d = Math.round(Math.abs(new Date(`${candidateDate}T00:00:00Z`).getTime() - new Date(`${correctDate}T00:00:00Z`).getTime()) / 86400000);
+        return d === minDistance;
+      });
+      if (nearest.length === 1) {
+        console.log(`  ➡️ معيار قرب التاريخ يكسر التعادل: "${nearest[0].candidateReference}" هو الأقرب تاريخاً (فرق ${minDistance} يوم) — مرجَّح، غير مؤكَّد بيقين رقمي كامل.`);
+      } else {
+        console.log(`  ➡️ معيار قرب التاريخ لا يكسر التعادل هنا (${nearest.length} مرشّحين بنفس أقرب مسافة تاريخ: ${nearest.map((m) => m.candidateReference).join(", ")}) — يبقى غموضاً يحتاج مراجعة يدوية.`);
+      }
       unresolvedCount++;
     } else {
-      console.log(`\n  ❌ لا يوجد أي قيد PYT/INV واحد يجعل [الصحيح + ذلك القيد] يفسّر كل الأسطر المخزَّنة (${combined.totalDbLines}) كمضاعف تام. الفرضية المُنقَّحة غير مؤكَّدة لهذا القيد تحديداً — يحتاج مراجعة يدوية منفصلة قبل أي افتراض إضافي.`);
+      console.log(`\n  ❌ لا يوجد أي قيد PYT/INV واحد يجعل [الصحيح + ذلك القيد] يفسّر كل الأسطر المخزَّنة (${combined.totalDbLines}) كمضاعف تام. الفرضية المُنقَّحة غير مؤكَّدة لهذا القيد تحديداً.`);
+      const correctDate = [...correctEntry.dates][0];
+      const nearestByDate = findNearestByDate(correctDate, pytInvEntries, 5);
+      console.log(`  للاطلاع فقط (لا يشكّل تأكيداً — لا يوجد أي تطابق رقمي بين أسطاره وأسطر هذا القيد): أقرب قيود PYT/INV تاريخياً لتاريخ القيد الصحيح (${correctDate}):`);
+      nearestByDate.forEach((n) => console.log(`    "${n.candidateReference}" (${n.candidatePattern}) — فرق ${n.dayDistance} يوم`));
+      console.log(`  يحتاج مراجعة يدوية منفصلة (رجوع لسياق إضافي: فواتير، كشف بنك) — لا افتراض آلي هنا.`);
       unresolvedCount++;
     }
   }

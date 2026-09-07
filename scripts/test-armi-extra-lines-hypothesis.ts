@@ -5,7 +5,7 @@
  *
  * التشغيل: npx tsx scripts/test-armi-extra-lines-hypothesis.ts
  */
-import { checkExtraLinesHypothesis, checkCombinedUnitHypothesis, type DbEntryForCheck } from "./verify-armi-extra-lines-hypothesis";
+import { checkExtraLinesHypothesis, checkCombinedUnitHypothesis, findNearestByDate, type DbEntryForCheck } from "./verify-armi-extra-lines-hypothesis";
 import { groupExcelEntries, type ExcelLine } from "./investigate-armi-full-reconciliation";
 
 let failures = 0;
@@ -147,9 +147,34 @@ console.log("\n=== سيناريو 9: أسطر مخزَّنة لا تطابق [ا
 const c9 = checkCombinedUnitHypothesis(scenario4, correct401, candidates);
 check("لا يوجد أي تطابق", c9.matches.length === 0, `الفعلي=${c9.matches.length}`);
 
+console.log("\n\n=== اختبار findNearestByDate (معيار قرب التاريخ لكسر التعادل) ===\n");
+
+console.log("\n=== سيناريو 10: مرشّحان بمبالغ متطابقة، أحدهما بنفس تاريخ القيد الصحيح والآخر بتاريخ مختلف — قرب التاريخ يكسر التعادل ===\n");
+const tieCandidates = groupExcelEntries([
+  excelLine("PYT10", "2025-11-03", "البنك", 300, 0, "سند قبض"),
+  excelLine("PYT10", "2025-11-03", "العميل", 0, 300, "سند قبض"),
+  excelLine("PYT11", "2025-11-04", "البنك", 300, 0, "سند قبض"),
+  excelLine("PYT11", "2025-11-04", "العميل", 0, 300, "سند قبض"),
+]);
+const tieCandidateList = [...tieCandidates.values()];
+const nearest = findNearestByDate("2025-11-03", tieCandidateList, 5);
+check("أقرب مرشّح هو PYT10 (فرق 0 يوم)", nearest[0]?.candidateReference === "PYT10" && nearest[0]?.dayDistance === 0, `الفعلي=${JSON.stringify(nearest[0])}`);
+check("PYT11 يظهر ثانياً بفرق يوم واحد", nearest[1]?.candidateReference === "PYT11" && nearest[1]?.dayDistance === 1, `الفعلي=${JSON.stringify(nearest[1])}`);
+
+console.log("\n=== سيناريو 11: مرشّحان بنفس التاريخ بالضبط (حالة 688 الحقيقية) — يجب ألا يُدَّعى كسر تعادل زائف ===\n");
+const exactTieCandidates = groupExcelEntries([
+  excelLine("PYT12", "2025-12-01", "البنك", 400, 0, "سند قبض"),
+  excelLine("PYT12", "2025-12-01", "العميل", 0, 400, "سند قبض"),
+  excelLine("INV5", "2025-12-01", "البنك", 400, 0, "فاتورة مبيعات"),
+  excelLine("INV5", "2025-12-01", "العميل", 0, 400, "فاتورة مبيعات"),
+]);
+const exactTieList = [...exactTieCandidates.values()];
+const nearestExactTie = findNearestByDate("2025-12-01", exactTieList, 5);
+check("كلا المرشّحين بفرق 0 يوم (تعادل حقيقي لا يُكسَر بالتاريخ)", nearestExactTie[0]?.dayDistance === 0 && nearestExactTie[1]?.dayDistance === 0);
+
 console.log(`\n${"=".repeat(40)}`);
 if (failures === 0) {
-  console.log("✅ كل الاختبارات نجحت — منطق اكتشاف المضاعف k (كلا الفرضيتين: الوحدة المفردة والوحدة المركّبة) يعمل بدقة، بما فيه تمييز PYT7 عن PYT8 والتاريخ الصحيح، ورفض البنى غير المتجانسة.");
+  console.log("✅ كل الاختبارات نجحت — منطق اكتشاف المضاعف k (كلا الفرضيتين) ومعيار قرب التاريخ يعملان بدقة، ولا يدّعيان حل تعادل حقيقي (نفس التاريخ بالضبط) زائفاً.");
   process.exitCode = 0;
 } else {
   console.log(`❌ فشل ${failures} اختباراً — لا تُشغِّل سكريبت التحقق الحقيقي على الإنتاج قبل إصلاح هذا.`);
