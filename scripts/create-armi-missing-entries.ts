@@ -15,7 +15,9 @@
  *   3. يتحقق من توازن مدين/دائن للقيد نفسه (لا الإجمالي الكلي فقط).
  *   4. يربط كل اسم حساب باسمه الفعلي في شجرة حسابات الشركة بمطابقة نصية دقيقة تماماً فقط (لا تخمين
  *      ولا مطابقة جزئية) — يتوقف صراحة عن إنشاء أي قيد يستخدم اسم حساب غير موجود أو غامض (أكثر من
- *      حساب بنفس الاسم)، بدل الربط الخاطئ الصامت.
+ *      حساب بنفس الاسم)، بدل الربط الخاطئ الصامت. الاستثناء الوحيد: ACCOUNT_NAME_TO_CODE_OVERRIDES
+ *      أدناه — 3 أسماء أُقِرَّت يدوياً بعد استدلال رقمي من القيود الموثوقة (discover-armi-account-
+ *      mapping.ts)، تُطابَق بالكود الصريح بدل الاسم.
  *   5. يتحقق أن تاريخه لا يقع في أو قبل تاريخ إقفال السنة المالية المضبوط لهذه الشركة (إن وُجد).
  *   6. Idempotency: يبحث أولاً عن أي قيد bulk_import موجود بنفس نص الـmemo المستهدَف بالضبط — إن
  *      وُجد يُتخطَّى بصمت (لا إنشاء مكرَّر). إعادة تشغيل هذا الأمر بعد نجاح --commit آمنة تماماً
@@ -34,6 +36,17 @@ import { loadExcelLines, groupExcelEntries, type ExcelEntry } from "./investigat
 const prisma = new PrismaClient();
 const DEFAULT_ARMI_COMPANY_ID = "cmsrciyjv000ge8f57p2azqdd";
 const BALANCE_EPSILON = 0.01;
+
+// خريطة تحويل صريحة لأسماء حسابات قيود التي لا تطابق اسمها الفعلي في أثر حرفياً — اكتُشفت
+// بالاستدلال الرقمي من القيود الرقمية الموثوقة المستوردة فعلياً (scripts/discover-armi-account-
+// mapping.ts) وأُقِرَّت صراحةً بعد المراجعة. تُطابَق بالكود (أدق من الاسم، ويتفادى أي انحراف طفيف
+// لاحق في تسمية الحساب) بدل الاسم لهذه الثلاثة تحديداً فقط — كل اسم آخر يبقى على المطابقة النصية
+// الدقيقة الافتراضية بلا أي استثناء.
+export const ACCOUNT_NAME_TO_CODE_OVERRIDES: Record<string, string> = {
+  "المدينون": "112001", // عملاء - مبيعات جملة/عقود — عيّنة استدلال صغيرة (مطابقة واحدة)، أُقِرَّت يدوياً بعد مراجعة السياق (معاملات "Customer Cash")
+  "ضريبة القيمة المضافة المستحقة": "213001", // ضريبة القيمة المضافة المستحقة (مبيعات) — كل الأسطر هنا دائنة فقط (لا مدينة)، فلا حاجة لتفرقة جانب المدين/الدائن كما في الاستيراد الأصلي
+  "النقدية في الخزينة": "111001", // الصندوق النقدي - الإدارة العامة
+};
 
 function buildMemo(entry: ExcelEntry): string {
   if (entry.pattern === "PYT") return `سند قبض رقم ${entry.reference} - مستورد من قيود`;
@@ -141,14 +154,27 @@ export async function run(companyId: string, commit: boolean) {
     select: { id: true, code: true, name: true },
   });
   const byName = new Map<string, typeof accounts>();
+  const byCode = new Map<string, (typeof accounts)[number]>();
   for (const a of accounts) {
     const key = a.name.trim();
     byName.set(key, [...(byName.get(key) || []), a]);
+    byCode.set(a.code, a);
   }
 
   const accountMapping = new Map<string, string>();
   const accountProblems: string[] = [];
   for (const name of distinctAccountNames) {
+    const overrideCode = ACCOUNT_NAME_TO_CODE_OVERRIDES[name.trim()];
+    if (overrideCode) {
+      const account = byCode.get(overrideCode);
+      if (account) {
+        accountMapping.set(name, account.id);
+        console.log(`  (خريطة تحويل صريحة) "${name}" -> "${account.name}" [${account.code}]`);
+      } else {
+        accountProblems.push(`الحساب "${name}" له خريطة تحويل صريحة إلى الكود ${overrideCode}، لكن لا يوجد حساب ترحيل نشط بهذا الكود في شجرة حسابات الشركة حالياً — راجع الخريطة.`);
+      }
+      continue;
+    }
     const candidates = byName.get(name.trim()) || [];
     if (candidates.length === 1) {
       accountMapping.set(name, candidates[0].id);

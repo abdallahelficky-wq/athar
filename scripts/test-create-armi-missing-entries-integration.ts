@@ -15,7 +15,7 @@
  * التشغيل: DATABASE_URL=<محلي> npx tsx scripts/test-create-armi-missing-entries-integration.ts
  */
 import { PrismaClient } from "@prisma/client";
-import { run } from "./create-armi-missing-entries";
+import { run, ACCOUNT_NAME_TO_CODE_OVERRIDES } from "./create-armi-missing-entries";
 import { loadExcelLines, groupExcelEntries } from "./investigate-armi-full-reconciliation";
 
 const prisma = new PrismaClient();
@@ -48,9 +48,24 @@ async function createTempTenantAndCompany(namePrefix: string) {
   return { tenant, company };
 }
 
+// الأسماء الفعلية الحقيقية في أثر للحسابات الثلاثة ذات خريطة التحويل الصريحة — تُستخدَم هنا فقط
+// لواقعية بيانات الاختبار (المطابقة الفعلية تتم بالكود لا بالاسم لهذه الثلاثة، فالاسم هنا تجميلي).
+const OVERRIDE_DISPLAY_NAMES: Record<string, string> = {
+  "112001": "عملاء - مبيعات جملة/عقود",
+  "213001": "ضريبة القيمة المضافة المستحقة (مبيعات)",
+  "111001": "الصندوق النقدي - الإدارة العامة",
+};
+
 async function createAccounts(tenantId: string, companyId: string, names: string[]) {
   let code = 100000;
   for (const name of names) {
+    const overrideCode = ACCOUNT_NAME_TO_CODE_OVERRIDES[name.trim()];
+    if (overrideCode) {
+      await prisma.account.create({
+        data: { tenantId, companyId, code: overrideCode, level: 4, isPosting: true, name: OVERRIDE_DISPLAY_NAMES[overrideCode] || name, type: "asset" },
+      });
+      continue;
+    }
     code++;
     await prisma.account.create({
       data: { tenantId, companyId, code: String(code), level: 4, isPosting: true, name, type: "asset" },
