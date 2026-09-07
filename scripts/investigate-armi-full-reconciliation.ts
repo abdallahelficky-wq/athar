@@ -116,7 +116,7 @@ export function classifyReference(ref: string): RefPattern {
   return "OTHER";
 }
 
-function loadExcelLines(): ExcelLine[] {
+export function loadExcelLines(): ExcelLine[] {
   const lines: ExcelLine[] = [];
   for (const file of REFERENCE_FILES) {
     const fullPath = path.join(__dirname, "..", "reference", file);
