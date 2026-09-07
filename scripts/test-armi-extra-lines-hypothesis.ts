@@ -5,7 +5,7 @@
  *
  * التشغيل: npx tsx scripts/test-armi-extra-lines-hypothesis.ts
  */
-import { checkExtraLinesHypothesis, type DbEntryForCheck } from "./verify-armi-extra-lines-hypothesis";
+import { checkExtraLinesHypothesis, checkCombinedUnitHypothesis, type DbEntryForCheck } from "./verify-armi-extra-lines-hypothesis";
 import { groupExcelEntries, type ExcelLine } from "./investigate-armi-full-reconciliation";
 
 let failures = 0;
@@ -103,9 +103,53 @@ const r5 = checkExtraLinesHypothesis(scenario5, correct401, candidates);
 check("سطر صحيح واحد غير مطابَق (المصاريف/500 دائن)", r5.unresolvedCorrectLines.length === 1, `الفعلي=${r5.unresolvedCorrectLines.length}`);
 check("لا أسطر زائدة في هذا السيناريو", r5.unmatchedLines.length === 0);
 
+console.log("\n\n=== اختبار الفرضية المُنقَّحة checkCombinedUnitHypothesis (الوحدة المركّبة = الصحيح + مرشّح واحد) ===\n");
+
+console.log("=== سيناريو 6: كل الأسطر المخزَّنة = [الصحيح + PYT7] مرة واحدة بالضبط (k=1) ===\n");
+const scenario6: DbEntryForCheck = {
+  date: "2024-06-01",
+  lines: [
+    { debit: 500, credit: 0, accountName: "البنك", description: null },
+    { debit: 0, credit: 500, accountName: "المصاريف", description: null },
+    { debit: 80, credit: 0, accountName: "البنك", description: null },
+    { debit: 0, credit: 80, accountName: "العميل", description: null },
+  ],
+};
+const c6 = checkCombinedUnitHypothesis(scenario6, correct401, candidates);
+check("مرشّح واحد بالضبط", c6.matches.length === 1, `الفعلي=${c6.matches.length}`);
+check('المرشّح هو "PYT7"', c6.matches[0]?.candidateReference === "PYT7", `الفعلي=${c6.matches[0]?.candidateReference}`);
+check("k=1", c6.matches[0]?.multiplier === 1, `الفعلي=${c6.matches[0]?.multiplier}`);
+
+console.log("\n=== سيناريو 7: كل الأسطر المخزَّنة = [الصحيح + PYT7] مكرَّرة مرتين بالضبط (بما فيها الصحيح نفسه مرتين) ===\n");
+const scenario7: DbEntryForCheck = {
+  date: "2024-06-01",
+  lines: [
+    { debit: 500, credit: 0, accountName: "البنك", description: null },
+    { debit: 0, credit: 500, accountName: "المصاريف", description: null },
+    { debit: 80, credit: 0, accountName: "البنك", description: null },
+    { debit: 0, credit: 80, accountName: "العميل", description: null },
+    { debit: 500, credit: 0, accountName: "البنك", description: null },
+    { debit: 0, credit: 500, accountName: "المصاريف", description: null },
+    { debit: 80, credit: 0, accountName: "البنك", description: null },
+    { debit: 0, credit: 80, accountName: "العميل", description: null },
+  ],
+};
+const c7 = checkCombinedUnitHypothesis(scenario7, correct401, candidates);
+check("مرشّح واحد بالضبط", c7.matches.length === 1, `الفعلي=${c7.matches.length}`);
+check('المرشّح هو "PYT7" لا "PYT8"', c7.matches[0]?.candidateReference === "PYT7", `الفعلي=${c7.matches[0]?.candidateReference}`);
+check("k=2 بالضبط", c7.matches[0]?.multiplier === 2, `الفعلي=${c7.matches[0]?.multiplier}`);
+
+console.log("\n=== سيناريو 8: نفس بيانات سيناريو 3 (فرضية أولى صحيحة سابقاً: صحيح مرة + PYT7 مرتين) — يجب ألا تُحلّ بالفرضية المُنقَّحة لأن الصحيح لا يتكرر بنفس k ===\n");
+const c8 = checkCombinedUnitHypothesis(scenario3, correct401, candidates);
+check("لا يوجد أي مرشّح يحقق الفرضية المُنقَّحة هنا (بنية غير متجانسة، ليست k مرة من نفس الوحدة)", c8.matches.length === 0, `الفعلي=${c8.matches.length}`);
+
+console.log("\n=== سيناريو 9: أسطر مخزَّنة لا تطابق [الصحيح + أي مرشّح] بأي k (يجب أن تبقى بلا حل) ===\n");
+const c9 = checkCombinedUnitHypothesis(scenario4, correct401, candidates);
+check("لا يوجد أي تطابق", c9.matches.length === 0, `الفعلي=${c9.matches.length}`);
+
 console.log(`\n${"=".repeat(40)}`);
 if (failures === 0) {
-  console.log("✅ كل الاختبارات نجحت — منطق اكتشاف المضاعف k يعمل بدقة، بما فيه تمييز PYT7 عن PYT8 والتاريخ الصحيح.");
+  console.log("✅ كل الاختبارات نجحت — منطق اكتشاف المضاعف k (كلا الفرضيتين: الوحدة المفردة والوحدة المركّبة) يعمل بدقة، بما فيه تمييز PYT7 عن PYT8 والتاريخ الصحيح، ورفض البنى غير المتجانسة.");
   process.exitCode = 0;
 } else {
   console.log(`❌ فشل ${failures} اختباراً — لا تُشغِّل سكريبت التحقق الحقيقي على الإنتاج قبل إصلاح هذا.`);

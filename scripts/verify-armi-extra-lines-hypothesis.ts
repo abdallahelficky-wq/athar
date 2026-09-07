@@ -118,6 +118,54 @@ export function checkExtraLinesHypothesis(dbEntry: DbEntryForCheck, correctEntry
   return { unmatchedLines, unresolvedCorrectLines, resolved: false };
 }
 
+export interface CombinedUnitMatch {
+  candidateReference: string;
+  candidatePattern: string;
+  multiplier: number;
+}
+
+export interface CombinedUnitResult {
+  totalDbLines: number;
+  matches: CombinedUnitMatch[];
+}
+
+// فرضية أدق (مقترَحة بعد أن رفضت الأرقام الفرضية الأولى 0/11): الأسطر المخزَّنة بالكامل في أثر —
+// وليس فقط "الزائد" بعد طرح الصحيح مرة واحدة — هي تكرار (k مرة) لوحدة مركّبة واحدة = [كل أسطر
+// القيد الصحيح] + [كل أسطر قيد PYT/INV واحد محدد]، معاً كوحدة. أي أن أسطر القيد الصحيح نفسها قد
+// تتكرر k مرة أيضاً، لا مرة واحدة فقط كما افترضت الفرضية الأولى — وهذا سبب رفضها. لا تُفترَض أي
+// قيمة لـk أو أي قيد PYT/INV مرشَّح سلفاً؛ تُكتشَف رقمياً بمطابقة multiset كاملة تماماً.
+export function checkCombinedUnitHypothesis(dbEntry: DbEntryForCheck, correctEntry: ExcelEntry, candidates: ExcelEntry[]): CombinedUnitResult {
+  const dbMultiset = buildMultiset(dbEntry.lines);
+  const dbTotal = dbEntry.lines.length;
+  const correctMultiset = buildMultiset(correctEntry.lines);
+
+  const matches: CombinedUnitMatch[] = [];
+  for (const candidate of candidates) {
+    const combinedTotal = correctEntry.lines.length + candidate.lines.length;
+    if (combinedTotal === 0 || dbTotal % combinedTotal !== 0) continue;
+    const k = dbTotal / combinedTotal;
+    if (k < 1 || k > 6) continue;
+
+    const combinedMultiset = new Map(correctMultiset);
+    for (const [key, count] of buildMultiset(candidate.lines)) {
+      combinedMultiset.set(key, (combinedMultiset.get(key) || 0) + count);
+    }
+
+    let exact = true;
+    for (const [key, count] of combinedMultiset) {
+      if ((dbMultiset.get(key) || 0) !== count * k) { exact = false; break; }
+    }
+    if (exact) {
+      for (const [key, count] of dbMultiset) {
+        if ((combinedMultiset.get(key) || 0) * k !== count) { exact = false; break; }
+      }
+    }
+    if (exact) matches.push({ candidateReference: candidate.reference, candidatePattern: candidate.pattern, multiplier: k });
+  }
+
+  return { totalDbLines: dbTotal, matches };
+}
+
 interface DbLine extends SimpleLine {
   id: string;
 }
@@ -171,7 +219,7 @@ async function main() {
 
   const pytInvEntries = [...excelEntries.values()].filter((e) => e.pattern === "PYT" || e.pattern === "INV");
 
-  console.log(`=== اختبار فرضية "الأسطر الزائدة = قيد PYT/INV غائب من أثر، مكرَّراً عدداً صحيحاً من المرات" ===`);
+  console.log(`=== اختبار الفرضية المُنقَّحة: "كل أسطر القيد المخزَّن = تكرار (k مرة) لوحدة [القيد الصحيح + قيد PYT/INV واحد محدد] معاً" ===`);
   console.log(`(بلا أي كتابة — قراءة فقط. عدد قيود PYT/INV المتاحة كمرشَّحين: ${pytInvEntries.length})\n`);
 
   let confirmedCount = 0;
@@ -202,27 +250,27 @@ async function main() {
     console.log(`\n  --- الأسطر المخزَّنة فعلياً في أثر ---`);
     dbEntry.lines.forEach((l) => console.log(`    ${l.accountName} | مدين=${l.debit.toFixed(2)} دائن=${l.credit.toFixed(2)} | ${l.description || "—"}`));
 
-    const result = checkExtraLinesHypothesis(dbEntry, correctEntry, pytInvEntries);
-
-    if (result.unresolvedCorrectLines.length) {
-      console.log(`\n  ⚠️ ${result.unresolvedCorrectLines.length} سطراً صحيحاً من قيود لا يقابله سطر بنفس القيمة في أثر — القيد لا يحتوي كل الأسطر الصحيحة كاملة، الفرضية "الصحيح كامل + زيادة" غير متحققة بدقة هنا:`);
-      result.unresolvedCorrectLines.forEach((l) => console.log(`    مدين=${l.debit.toFixed(2)} دائن=${l.credit.toFixed(2)}`));
-    }
-
-    console.log(`\n  الأسطر "الزائدة" (غير مطابقة لأي سطر صحيح بنفس القيمة): ${result.unmatchedLines.length}`);
-    result.unmatchedLines.forEach((l) => console.log(`    ${l.accountName} | مدين=${l.debit.toFixed(2)} دائن=${l.credit.toFixed(2)} | ${l.description || "—"}`));
-
-    if (result.unmatchedLines.length === 0) {
-      console.log(`  ✅ لا توجد أي أسطر زائدة فعلياً بعد فحص القيم — القيد مطابق تماماً (ربما صُنِّف "أكثر أسطر" سابقاً بسبب فرق آخر، لا زيادة حقيقية).`);
+    // الفرضية الأولى (مرجَع تاريخياً هنا فقط للسياق — رُفضت رقمياً 0/11 على بيانات الإنتاج الفعلية):
+    // هل "الزائد بعد طرح الصحيح مرة واحدة" = مضاعف تام لقيد PYT/INV بمفرده؟
+    const legacyResult = checkExtraLinesHypothesis(dbEntry, correctEntry, pytInvEntries);
+    if (legacyResult.unmatchedLines.length === 0) {
+      console.log(`\n  ✅ (فرضية الوحدة المفردة) لا توجد أي أسطر زائدة فعلياً بعد فحص القيم — القيد مطابق تماماً.`);
       confirmedCount++;
       continue;
     }
 
-    if (result.resolved && result.matchedReference) {
-      console.log(`\n  ✅ الفرضية مؤكَّدة رقمياً: الأسطر الزائدة = أسطر القيد "${result.matchedReference}" (${result.matchedPattern}) مكرَّرة ${result.multiplier} مرة/مرات بالضبط.`);
+    // الفرضية المُنقَّحة: كل أسطر القيد المخزَّن بالكامل (لا الزائد فقط) = k × [الصحيح + مرشّح واحد]
+    const combined = checkCombinedUnitHypothesis(dbEntry, correctEntry, pytInvEntries);
+    if (combined.matches.length === 1) {
+      const m = combined.matches[0];
+      console.log(`\n  ✅ الفرضية المُنقَّحة مؤكَّدة رقمياً: كل الأسطر المخزَّنة (${combined.totalDbLines}) = [القيد الصحيح (${correctEntry.lines.length} سطراً) + القيد "${m.candidateReference}" (${m.candidatePattern})] مكرَّرة ${m.multiplier} مرة/مرات بالضبط.`);
       confirmedCount++;
+    } else if (combined.matches.length > 1) {
+      console.log(`\n  ⚠️ أكثر من مرشّح واحد يحقق الفرضية المُنقَّحة رقمياً بنفس الدقة — غموض يحتاج مراجعة يدوية (لا يمكن الجزم بأيهما الصحيح تلقائياً):`);
+      combined.matches.forEach((m) => console.log(`    "${m.candidateReference}" (${m.candidatePattern}) × ${m.multiplier}`));
+      unresolvedCount++;
     } else {
-      console.log(`\n  ❌ لم يُعثَر على أي قيد PYT/INV واحد يفسّر الأسطر الزائدة كمضاعف تام لأسطره — الفرضية غير مؤكَّدة لهذا القيد تحديداً. قد يكون مصدر الزيادة أكثر من قيد مصدر مجتمعَين معاً، أو شيئاً آخر تماماً — يحتاج مراجعة يدوية منفصلة قبل أي افتراض.`);
+      console.log(`\n  ❌ لا يوجد أي قيد PYT/INV واحد يجعل [الصحيح + ذلك القيد] يفسّر كل الأسطر المخزَّنة (${combined.totalDbLines}) كمضاعف تام. الفرضية المُنقَّحة غير مؤكَّدة لهذا القيد تحديداً — يحتاج مراجعة يدوية منفصلة قبل أي افتراض إضافي.`);
       unresolvedCount++;
     }
   }
