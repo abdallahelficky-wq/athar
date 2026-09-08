@@ -142,4 +142,7 @@ export const DYNAMIC_MESSAGE_PATTERNS: MessagePattern[] = [
   { match: /^الكمية المطلوبة \((.+?)\) أكبر من الرصيد المتاح \((.+?)\)$/, translate: (g) => `The requested quantity (${g[0]}) exceeds the available balance (${g[1]})` },
   { match: /^الكمية المطلوبة \((.+?)\) أكبر من الرصيد المتاح بالمصدر \((.+?)\)$/, translate: (g) => `The requested quantity (${g[0]}) exceeds the available balance at the source (${g[1]})` },
   { match: /^لا يوجد صنف مطابق بنفس الكود \((.+?)\) في شركة الوجهة؛ أنشئه أولاً هناك قبل التحويل$/, translate: (g) => `No matching item with the same code (${g[0]}) exists in the destination company; create it there first before transferring` },
+  { match: /^لم يُحدَّد حساب المصروف المرتبط بالصنف "(.+?)" بعد؛ أكمل بياناته من شاشة الأصناف أولاً$/, translate: (g) => `The expense account linked to item "${g[0]}" hasn't been set yet; complete its data from the items screen first` },
+  { match: /^الصنف "(.+?)" ليس من نوع "بضاعة بجرد دوري" — لا يمكن تسويته من هذه الشاشة$/, translate: (g) => `Item "${g[0]}" is not a "periodic inventory" item — it can't be settled from this screen` },
+  { match: /^لم تُحدَّد حسابات المخزون\/المشتريات للصنف "(.+?)" بعد؛ أكمل بياناته من شاشة الأصناف أولاً$/, translate: (g) => `The inventory/purchases accounts for item "${g[0]}" haven't been set yet; complete its data from the items screen first` },
 ];

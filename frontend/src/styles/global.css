@@ -1348,6 +1348,8 @@
         .item-type-badge.type-fixed-asset { color: #6B4C9A; background: rgba(107,76,154,.1); }
         .item-type-badge.type-raw-material { color: #7A0F1F; background: rgba(138,90,46,.1); }
         .item-type-badge.type-bundle { color: #1F7A5C; background: rgba(31,122,92,.1); }
+        .item-type-badge.type-periodic-inventory { color: #8A5A2E; background: rgba(138,90,46,.1); }
+        .item-type-badge.type-non-stock { color: #4A5568; background: rgba(74,85,104,.1); }
         .item-type-badge i { font-style: normal; color: var(--items-gold); }
         .items-accounts-grid { margin-top: 6px; }
         .bom-editor { margin-top: 16px; border-top: 1px dashed rgba(16,32,46,.15); padding-top: 14px; }

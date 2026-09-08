@@ -54,10 +54,12 @@ async function assertTypeNotLocked(tenantId: string, itemId: string, currentType
 }
 
 async function computeQuantityAndValue(tx: Tx, tenantId: string, item: Item) {
-  // periodic_inventory: تُعرَض الكمية (تتبّع تشغيلي)، وstockValue تبقى 0 دائماً لأن averageCost لا
-  // يُحدَّث لهذا النوع إطلاقاً (لا قيمة مخزون مُثبَتة في الدفاتر له بتصميم).
   if (!isQuantityTracked(item.type)) return { quantity: null, stockValue: null };
   const quantity = await getItemTotalOnHand(tx, tenantId, item.id);
+  // periodic_inventory: averageCost لا يُحدَّث له إطلاقاً (لا قيمة مخزون لحظية بتصميم) — القيمة
+  // المعروضة هي آخر قيمة مُعتمَدة من تسوية الجرد الدوري (periodicStockValue)، لا 0 مطلقاً ولا
+  // quantity × averageCost (سيكون صفراً دائماً وهذا مضلِّل).
+  if (item.type === "periodic_inventory") return { quantity, stockValue: Number(item.periodicStockValue) };
   return { quantity, stockValue: quantity * Number(item.averageCost) };
 }
 

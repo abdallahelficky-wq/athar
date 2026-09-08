@@ -738,6 +738,7 @@ enum SourceModule {
   stock_movement
   ai_document
   bulk_import
+  periodic_inventory_settlement
 }
 
 // فرع تابع لشركة واحدة — طبقة تصنيف وعرض إضافية فقط (بنفس مبدأ CostCenter/Department)، بدولة
@@ -1393,9 +1394,14 @@ enum ItemType {
   bundle // منتج مجمّع — رصيده يزيد فقط عبر أمر تصنيع (مرحلة قادمة)، لا يُشترى مباشرة
   // بضاعة بجرد دوري (Periodic Inventory) — تُشترى بلا مسّ حساب المخزون (مدين purchasesAccountId
   // مباشرة)، وتُباع دائماً بصرف النظر عن الرصيد بلا أي قيد تكلفة لحظي (لا COGS ولا فحص كفاية رصيد) —
-  // الكمية تبقى متتبَّعة تشغيلياً فقط (StockMovement بلا أي أثر محاسبي). غير متاحة بعد لأي شركة حتى
-  // اكتمال شاشة تسوية الجرد الدوري — راجع PERIODIC_INVENTORY_ENABLED في items.schemas.ts.
+  // الكمية تبقى متتبَّعة تشغيلياً فقط (StockMovement بلا أي أثر محاسبي). تُسوَّى دورياً عبر شاشة
+  // تسوية الجرد الدوري (periodicSettlement module) بقيد بحسابين فقط: stockAccountId/purchasesAccountId.
   periodic_inventory
+  // غير مخزن (Non-Stock) — لا حساب مخزون ولا تتبّع كمية إطلاقاً (بخلاف periodic_inventory الذي
+  // يتتبّع الكمية تشغيلياً)، ولا قيد تكلفة بضاعة مباعة فوري أو دوري بتاتاً. عند الشراء: مدين
+  // expenseAccountId مباشرة (بلا أي StockMovement). عند البيع: دائن revenueAccountId مباشرة (بلا أي
+  // فحص رصيد، بخلاف expense المحظور بيعه كلياً — هذا النوع مصمَّم ليُشترى ويُباع معاً).
+  non_stock
 }
 
 // كتالوج الأصناف الموحّد — يحل محل Item (مخزون) و SellableItem (مبيعات) القديمين معاً.
@@ -1438,6 +1444,13 @@ model Item {
   // في شاشة الجرد الدوري المخصَّصة (مرحلة منفصلة لاحقة) لتصبح تكلفة البضاعة المباعة الفعلية.
   purchasesAccountId String?
   purchasesAccount   Account? @relation("ItemPurchasesAccount", fields: [purchasesAccountId], references: [id])
+  // type == periodic_inventory فقط — قيمة المخزون الحالية المُعتمَدة لهذا الصنف تحديداً، محفوظة
+  // ومُحدَّثة حصرياً من شاشة تسوية الجرد الدوري (periodicSettlement module)، بمعزل تماماً عن أي
+  // حساب GL فعلي. السبب: stockAccountId قد يكون حساباً مشتركاً بين عدة أصناف بجرد دوري (كلها تحت
+  // "المخزون - جرد دوري" مثلاً)، فرصيد ذلك الحساب في دفتر الأستاذ يخلط كل الأصناف معاً ولا يصلح
+  // كـ"الرصيد الحالي لهذا الصنف بمفرده" عند حساب صافي فرق التسوية التالية. تبدأ 0 لأي صنف جديد
+  // (لا قيمة مُثبَتة قبل أول تسوية فعلية بتصميم periodic_inventory نفسه).
+  periodicStockValue Decimal @default(0) @db.Decimal(18, 2)
 
   // type == raw_material فقط
   allowDirectSale Boolean @default(false)
@@ -1512,6 +1525,10 @@ enum StockMovementType {
   issue
   transfer_out
   transfer_in
+  // تصحيح كمية صنف "بضاعة بجرد دوري" لتطابق الجرد الفعلي المُعَدّ يدوياً، عند تسوية الجرد الدوري —
+  // بلا أي أثر محاسبي بذاتها (القيد المحاسبي للتسوية منفصل تماماً، على مستوى القيمة الإجمالية لا
+  // الحركة الواحدة). الفرق موجب أو سالب حسب نتيجة الجرد الفعلي مقابل الرصيد التشغيلي المتراكم.
+  adjustment
 }
 
 model StockMovement {

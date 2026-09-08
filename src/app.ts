@@ -33,6 +33,7 @@ import { purchaseReportRoutes } from "./modules/purchaseReports/purchaseReports.
 import { itemRoutes } from "./modules/items/items.routes";
 import { warehouseRoutes } from "./modules/warehouses/warehouses.routes";
 import { stockMovementRoutes } from "./modules/stockMovements/stockMovements.routes";
+import { periodicSettlementRoutes } from "./modules/periodicSettlement/periodicSettlement.routes";
 import { inventoryReportRoutes } from "./modules/inventoryReports/inventoryReports.routes";
 import { fixedAssetRoutes } from "./modules/fixedAssets/fixedAssets.routes";
 import { assetCategoryRoutes } from "./modules/assetCategories/assetCategories.routes";
@@ -99,6 +100,7 @@ export function createApp() {
   app.use("/api/items", itemRoutes);
   app.use("/api/warehouses", warehouseRoutes);
   app.use("/api/stock-movements", stockMovementRoutes);
+  app.use("/api/periodic-settlement", periodicSettlementRoutes);
   app.use("/api/inventory-reports", inventoryReportRoutes);
   app.use("/api/fixed-assets", fixedAssetRoutes);
   app.use("/api/asset-categories", assetCategoryRoutes);

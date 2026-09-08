@@ -28,8 +28,9 @@ export default function StockReportTab({ companyId }) {
           {rows.map((r) => (
             <tr key={`${r.itemId}-${r.warehouseId}`}>
               <td>{r.itemName}</td><td>{r.itemCode}</td><td>{r.warehouseName}</td>
-              <td className="num">{fmt2(r.quantity)} {r.unit}</td><td className="num">{fmt2(r.costPrice)}</td>
-              <td className="num strong">{fmt(r.value)}</td>
+              <td className="num">{fmt2(r.quantity)} {r.unit}</td>
+              <td className="num">{r.valueTracked ? fmt2(r.costPrice) : <span className="note">{t("inventory.stockReport.notValueTracked")}</span>}</td>
+              <td className="num strong">{r.valueTracked ? fmt(r.value) : <span className="note">{t("inventory.stockReport.notValueTracked")}</span>}</td>
             </tr>
           ))}
           {rows.length === 0 && <tr><td className="empty" colSpan={6}>{t("inventory.stockReport.empty")}</td></tr>}

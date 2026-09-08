@@ -12,6 +12,9 @@ export async function getItemTotalOnHand(tx: Tx, tenantId: string, itemId: strin
     const qty = Number(m.quantity);
     if ((INBOUND_TYPES as readonly string[]).includes(m.type)) return sum + qty;
     if ((OUTBOUND_TYPES as readonly string[]).includes(m.type)) return sum - qty;
+    // adjustment (تسوية الجرد الدوري): الكمية المخزَّنة هنا إشارية (موجبة = زيادة عن المتتبَّع
+    // تشغيلياً، سالبة = نقص) بخلاف كل الأنواع الأخرى (مقادير موجبة دائماً) — تُضاف مباشرة بإشارتها.
+    if (m.type === "adjustment") return sum + qty;
     return sum;
   }, 0);
 }

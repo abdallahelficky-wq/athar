@@ -388,5 +388,6 @@ export const AR_TO_EN: Record<string, string> = {
   "تعذّر استخراج البيانات من هذا المستند": "Couldn't extract data from this document",
   "لو هذا البريد الإلكتروني مسجّل بالنظام، سيصلك رابط لإعادة تعيين كلمة المرور خلال دقائق.":
     "If this email is registered in the system, you'll receive a password reset link within minutes.",
+  "لا يمكن تكرار نفس الصنف أكثر من مرة في نفس التسوية": "The same item can't appear more than once in the same settlement",
 };
 

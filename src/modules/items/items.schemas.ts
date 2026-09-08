@@ -1,15 +1,13 @@
 import { z } from "zod";
 
-export const ITEM_TYPES = ["inventory", "expense", "service", "fixed_asset", "raw_material", "bundle", "periodic_inventory"] as const;
+export const ITEM_TYPES = ["inventory", "expense", "service", "fixed_asset", "raw_material", "bundle", "periodic_inventory", "non_stock"] as const;
 
 /**
- * "بضاعة بجرد دوري" غير متاحة بعد لأي شركة — بانتظار اكتمال شاشة تسوية الجرد الدوري (قيد نهاية
- * الفترة: مدين المخزون / دائن المشتريات). بدونها، مشتريات هذا النوع تتراكم في حساب "المشتريات"
- * بلا أي آلية لإقفالها لتصبح تكلفة بضاعة مباعة صحيحة — فيُرفض هذا النوع صراحةً من الخادم (لا مجرد
- * إخفائه في الواجهة، فطلب مباشر عبر الـ API لن يمر أيضاً) حتى تُفعَّل هذه الراية هنا صراحة بعد
- * اكتمال تلك الشاشة فعلياً. راجعها في createItemSchema أدناه وفي items.service.ts (مسار التعديل).
+ * "بضاعة بجرد دوري" كانت محجوبة عن الاستخدام الفعلي (حتى لو أُرسِلت مباشرة عبر الـ API) حتى اكتمال
+ * شاشة تسوية الجرد الدوري (قيد نهاية الفترة: مدين/دائن stockAccountId/purchasesAccountId — راجع
+ * periodicSettlement module) — أصبحت الآن مُفعَّلة بعد اكتمال تلك الشاشة فعلياً.
  */
-export const PERIODIC_INVENTORY_ENABLED = false;
+export const PERIODIC_INVENTORY_ENABLED = true;
 
 export const PERIODIC_INVENTORY_DISABLED_MESSAGE =
   "نوع \"بضاعة بجرد دوري\" غير متاح بعد — شاشة تسوية الجرد الدوري الخاصة به لم تكتمل";
@@ -68,9 +66,13 @@ export function requiredAccountFieldsForType(type: (typeof ITEM_TYPES)[number], 
       return [] as const;
     case "periodic_inventory":
       // stockAccountId هنا لا يُلمَس في أي معاملة شراء/بيع طوال الفترة — محجوز حصرياً لقيد التسوية
-      // الدوري في شاشة الجرد الدوري (مرحلة منفصلة لاحقة)، ويُطلَب إلزامياً من الآن حتى لا تُفاجَأ
-      // الشركة بضرورة تعديل كل صنف قبل أول إقفال.
+      // الدوري في شاشة الجرد الدوري، ويُطلَب إلزامياً من الآن حتى لا تُفاجَأ الشركة بضرورة تعديل كل
+      // صنف قبل أول تسوية.
       return ["purchasesAccountId", "stockAccountId", "revenueAccountId"] as const;
+    case "non_stock":
+      // أول نوع يحتاج حسابي الشراء والبيع معاً (لا أحدهما فقط كبقية الأنواع) — يُشترى ويُباع كلاهما
+      // مباشرة بلا أي حساب مخزون أو تكلفة بضاعة مباعة إطلاقاً.
+      return ["expenseAccountId", "revenueAccountId"] as const;
   }
 }
 

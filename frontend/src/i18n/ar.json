@@ -190,7 +190,8 @@
       "reports": "التقارير", "salesSettings": "إعدادات المبيعات", "suppliers": "الموردون", "purchaseInvoices": "فواتير المشتريات",
       "purchaseReturns": "مردودات المشتريات", "items": "الأصناف", "warehouses": "المستودعات",
       "inout": "إدخال / إخراج", "issue": "الصرف المخزني", "transfer": "التحويل بين الفروع",
-      "report": "تقرير الأرصدة", "register": "سجل الأصول", "depreciation": "الإهلاك الشهري",
+      "report": "تقرير الأرصدة", "periodicSettlement": "تسوية الجرد الدوري",
+      "register": "سجل الأصول", "depreciation": "الإهلاك الشهري",
       "disposal": "الاستبعاد/البيع", "fixedAssetsReports": "التقارير", "categories": "إعدادات الأصول الثابتة",
       "journal": "القيود اليومية", "chartOfAccounts": "شجرة الحسابات", "ledger": "كشف حساب الأستاذ",
       "departments": "الأقسام", "zakat": "الزكاة والضريبة (تقديرية، بيانات تجريبية)",
@@ -744,11 +745,13 @@
     "breadcrumb": "إدارة المخازن",
     "typeMeta": {
       "inventory": "مخزون", "expense": "مصروف", "service": "خدمة",
-      "fixed_asset": "أصل ثابت", "raw_material": "مادة أولية", "bundle": "منتج مجمّع"
+      "fixed_asset": "أصل ثابت", "raw_material": "مادة أولية", "bundle": "منتج مجمّع",
+      "periodic_inventory": "بضاعة بجرد دوري", "non_stock": "غير مخزن"
     },
     "accountLabels": {
       "stockAccountId": "حساب المخزون", "cogsAccountId": "حساب تكلفة البضاعة المباعة",
-      "revenueAccountId": "حساب الإيراد", "expenseAccountId": "حساب المصروف"
+      "revenueAccountId": "حساب الإيراد", "expenseAccountId": "حساب المصروف",
+      "purchasesAccountId": "حساب المشتريات"
     },
     "items": {
       "addNew": "إضافة صنف جديد",
@@ -848,12 +851,24 @@
     },
     "movementsTable": {
       "date": "التاريخ", "item": "الصنف", "location": "الموقع", "type": "النوع", "quantity": "الكمية", "note": "ملاحظة", "delete": "حذف",
-      "types": { "in": "إدخال", "out": "إخراج/إتلاف", "issue": "صرف", "transfer_out": "تحويل صادر", "transfer_in": "تحويل وارد" },
+      "types": { "in": "إدخال", "out": "إخراج/إتلاف", "issue": "صرف", "transfer_out": "تحويل صادر", "transfer_in": "تحويل وارد", "adjustment": "تسوية جرد دوري" },
       "empty": "لا توجد حركات بعد."
     },
     "stockReport": {
       "item": "الصنف", "code": "الكود", "location": "الموقع", "balance": "الرصيد", "costPrice": "سعر التكلفة", "value": "القيمة",
-      "empty": "لا توجد أرصدة مخزون بعد."
+      "empty": "لا توجد أرصدة مخزون بعد.",
+      "notValueTracked": "غير مُقيَّم محاسبياً"
+    },
+    "periodicSettlement": {
+      "intro": "تسوية دفعة واحدة لكل أصناف \"بضاعة بجرد دوري\" — أدخل الكمية المعدودة فعلياً وتكلفة الوحدة لكل صنف تريد تسويته، واترك الباقي فارغاً لتخطّيه في هذه الدفعة.",
+      "date": "تاريخ الجرد", "loading": "جارٍ التحميل...",
+      "empty": "لا توجد أصناف من نوع \"بضاعة بجرد دوري\" بعد.",
+      "item": "الصنف", "trackedQuantity": "الكمية المتتبَّعة تشغيلياً", "currentValue": "القيمة الحالية المُعتمَدة",
+      "countedQuantity": "الكمية المعدودة فعلياً", "unitCost": "تكلفة الوحدة",
+      "deviationWarning": "تنبيه: تختلف كثيراً عن آخر سعر شراء فعلي ({{price}}) — تحقق قبل الحفظ.",
+      "saveBtn": "حفظ التسوية", "saving": "جارٍ الحفظ...",
+      "resultsTitle": "نتيجة التسوية",
+      "netAdjustment": "صافي قيد التسوية", "quantityVariance": "فرق الكمية (جرد فعلي)", "newValue": "القيمة الجديدة المُعتمَدة"
     }
   },
   "fixedAssets": {

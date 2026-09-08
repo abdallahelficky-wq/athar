@@ -39,7 +39,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
     updateLine(idx, {
       itemId: item.id,
       description: item.name,
-      warehouseId: item.type === "fixed_asset" ? "" : (warehouses.find((w) => w.isDefault)?.id || warehouses[0]?.id || ""),
+      warehouseId: (item.type === "fixed_asset" || item.type === "non_stock") ? "" : (warehouses.find((w) => w.isDefault)?.id || warehouses[0]?.id || ""),
       usefulLifeYears: "",
       salvageValue: "",
       unitPrice: item.lastPurchasePrice != null ? Number(item.lastPurchasePrice) : "",
@@ -103,7 +103,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
                         <input type="number" min="0" value={l.salvageValue} onChange={(e) => updateLine(idx, { salvageValue: e.target.value })} placeholder={t("purchases.invoices.lines.salvageValue")} />
                       </div>
                     )}
-                    {selectedItem && selectedItem.type !== "fixed_asset" && (
+                    {selectedItem && selectedItem.type !== "fixed_asset" && selectedItem.type !== "non_stock" && (
                       <select value={l.warehouseId} onChange={(e) => updateLine(idx, { warehouseId: e.target.value })}>
                         <option value="">{t("purchases.invoices.lines.chooseWarehouse")}</option>
                         {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}

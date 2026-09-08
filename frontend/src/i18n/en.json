@@ -190,7 +190,8 @@
       "reports": "Reports", "salesSettings": "Sales Settings", "suppliers": "Suppliers", "purchaseInvoices": "Purchase Invoices",
       "purchaseReturns": "Purchase Returns", "items": "Items", "warehouses": "Warehouses",
       "inout": "Stock In / Out", "issue": "Stock Issue", "transfer": "Branch Transfer",
-      "report": "Balances Report", "register": "Asset Register", "depreciation": "Monthly Depreciation",
+      "report": "Balances Report", "periodicSettlement": "Periodic Inventory Settlement",
+      "register": "Asset Register", "depreciation": "Monthly Depreciation",
       "disposal": "Disposal / Sale", "fixedAssetsReports": "Reports", "categories": "Fixed Asset Settings",
       "journal": "Journal Entries", "chartOfAccounts": "Chart of Accounts", "ledger": "Account Ledger",
       "departments": "Departments", "zakat": "Zakat & Tax (estimated, sample data)",
@@ -744,11 +745,13 @@
     "breadcrumb": "Warehouse Management",
     "typeMeta": {
       "inventory": "Inventory", "expense": "Expense", "service": "Service",
-      "fixed_asset": "Fixed asset", "raw_material": "Raw material", "bundle": "Bundle"
+      "fixed_asset": "Fixed asset", "raw_material": "Raw material", "bundle": "Bundle",
+      "periodic_inventory": "Periodic inventory", "non_stock": "Non-stock"
     },
     "accountLabels": {
       "stockAccountId": "Inventory account", "cogsAccountId": "COGS account",
-      "revenueAccountId": "Revenue account", "expenseAccountId": "Expense account"
+      "revenueAccountId": "Revenue account", "expenseAccountId": "Expense account",
+      "purchasesAccountId": "Purchases account"
     },
     "items": {
       "addNew": "Add new item",
@@ -848,12 +851,24 @@
     },
     "movementsTable": {
       "date": "Date", "item": "Item", "location": "Location", "type": "Type", "quantity": "Quantity", "note": "Note", "delete": "Delete",
-      "types": { "in": "In", "out": "Out/write-off", "issue": "Issue", "transfer_out": "Transfer out", "transfer_in": "Transfer in" },
+      "types": { "in": "In", "out": "Out/write-off", "issue": "Issue", "transfer_out": "Transfer out", "transfer_in": "Transfer in", "adjustment": "Periodic settlement" },
       "empty": "No movements yet."
     },
     "stockReport": {
       "item": "Item", "code": "Code", "location": "Location", "balance": "Balance", "costPrice": "Cost price", "value": "Value",
-      "empty": "No stock balances yet."
+      "empty": "No stock balances yet.",
+      "notValueTracked": "Not value-tracked"
+    },
+    "periodicSettlement": {
+      "intro": "One batch settlement for all \"periodic inventory\" items — enter the actual counted quantity and unit cost for each item you want to settle, and leave the rest blank to skip them in this batch.",
+      "date": "Count date", "loading": "Loading...",
+      "empty": "No \"periodic inventory\" items yet.",
+      "item": "Item", "trackedQuantity": "Operationally tracked quantity", "currentValue": "Current recognized value",
+      "countedQuantity": "Actual counted quantity", "unitCost": "Unit cost",
+      "deviationWarning": "Warning: this differs significantly from the last actual purchase price ({{price}}) — double-check before saving.",
+      "saveBtn": "Save settlement", "saving": "Saving...",
+      "resultsTitle": "Settlement result",
+      "netAdjustment": "Net settlement entry", "quantityVariance": "Quantity variance (physical count)", "newValue": "New recognized value"
     }
   },
   "fixedAssets": {

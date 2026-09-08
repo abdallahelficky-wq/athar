@@ -83,6 +83,14 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
       continue;
     }
 
+    // non_stock: لا حساب مخزون ولا مستودع إطلاقاً — مدين expenseAccountId مباشرة، بلا أي حركة مخزون
+    // لاحقاً (راجع createInventorySideEffectsTx أدناه). يُستبعَد من فحص المستودع الإلزامي تحته.
+    if (item.type === "non_stock") {
+      if (!item.expenseAccountId) throw badRequest(`لم يُحدَّد حساب المصروف المرتبط بالصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
+      resolved.push({ ...line, accountId: item.expenseAccountId });
+      continue;
+    }
+
     if (!line.warehouseId || !warehouseIdSet.has(line.warehouseId)) throw badRequest(`اختر مستودعاً صالحاً ضمن هذه الشركة للصنف "${item.name}"`);
     // periodic_inventory: مدين حساب "المشتريات" المستقل مباشرة — لا يمسّ stockAccountId إطلاقاً
     // (لا يملكه أصلاً استخدامياً هنا، محجوز حصرياً لقيد التسوية الدوري لاحقاً).
@@ -163,6 +171,10 @@ async function createInventorySideEffectsTx(
       await tx.journalEntryLine.update({ where: { id: journalLine.id }, data: { fixedAssetId: asset.id } });
       continue;
     }
+
+    // non_stock: القيد المحاسبي (مدين expenseAccountId) بُني بالفعل من buildJournalLines عبر
+    // resolveLineAccounts — لا أثر إضافي هنا إطلاقاً (لا StockMovement، لا متوسط تكلفة، لا مستودع).
+    if (item.type === "non_stock") continue;
 
     const quantity = Number(line.quantity);
     const unitCost = quantity > 0 ? Number(line.subtotal) / quantity : 0;
