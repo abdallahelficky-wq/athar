@@ -34,6 +34,13 @@ const BALANCE_EPSILON = 0.01;
 
 const TARGET_ENTRY_NUMBERS = [401, 405, 496, 540, 600, 612, 627];
 
+// تصحيحات صريحة لأسماء حسابات وردت في ملفات قيود المرجعية بصياغة تختلف عن الاسم الفعلي الدقيق
+// في شجرة حسابات أثر. لهذه الحالات يُعتمَد الربط بالكود (أدق من مطابقة الاسم نصياً) بدل الاسم.
+// تأكيد المستخدم: "نفقات الإنترنت" في قيود هو نفسه حساب "اتصالات وإنترنت" بالكود 622002 في أثر.
+const ACCOUNT_NAME_OVERRIDES: Record<string, { code: string; correctName: string }> = {
+  "نفقات الإنترنت": { code: "622002", correctName: "اتصالات وإنترنت" },
+};
+
 // النص الإنجليزي الأصلي كما راجعه المستخدم من مصدر قيود مباشرة (PDF) — يُحافَظ حرفياً بما فيه أي
 // خطأ إملائي أصلي (401: "expesne").
 const CONFIRMED_MEMOS: Record<number, string> = {
@@ -173,14 +180,18 @@ export async function run(companyId: string, commit: boolean) {
     const resolvedLines: ResolvedLine[] = [];
     let accountProblem = false;
     for (const line of correctEntry.lines) {
-      const candidates = byName.get(line.account.trim()) || [];
+      const refName = line.account.trim();
+      const override = ACCOUNT_NAME_OVERRIDES[refName];
+      const candidates = override ? accounts.filter((a) => a.code === override.code) : byName.get(refName) || [];
       if (candidates.length === 1) {
         resolvedLines.push({ accountId: candidates[0].id, accountName: candidates[0].name, debit: line.debit, credit: line.credit });
       } else if (candidates.length === 0) {
-        problems.push(`القيد ${num}: الحساب "${line.account}" غير موجود في شجرة حسابات الشركة — لا يمكن تصحيح هذا القيد حتى يُحل.`);
+        const suffix = override ? ` (المطلوب بالكود ${override.code} - "${override.correctName}")` : "";
+        problems.push(`القيد ${num}: الحساب "${line.account}"${suffix} غير موجود في شجرة حسابات الشركة — لا يمكن تصحيح هذا القيد حتى يُحل.`);
         accountProblem = true;
       } else {
-        problems.push(`القيد ${num}: الحساب "${line.account}" غامض (${candidates.length} حسابات بنفس الاسم) — لا يمكن الربط تلقائياً بثقة.`);
+        const suffix = override ? ` (بالكود ${override.code})` : "";
+        problems.push(`القيد ${num}: الحساب "${line.account}"${suffix} غامض (${candidates.length} حسابات) — لا يمكن الربط تلقائياً بثقة.`);
         accountProblem = true;
       }
     }
@@ -319,4 +330,4 @@ if (require.main === module) {
     .finally(() => prisma.$disconnect());
 }
 
-export { linesMatch, amountKey };
+export { linesMatch, amountKey, ACCOUNT_NAME_OVERRIDES };

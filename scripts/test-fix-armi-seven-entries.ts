@@ -16,7 +16,7 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "node:crypto";
-import { run, linesMatch, amountKey } from "./fix-armi-seven-entries";
+import { run, linesMatch, amountKey, ACCOUNT_NAME_OVERRIDES } from "./fix-armi-seven-entries";
 import { loadExcelLines, groupExcelEntries } from "./investigate-armi-full-reconciliation";
 
 const prisma = new PrismaClient();
@@ -47,12 +47,18 @@ async function createTempTenantCompany(namePrefix: string) {
   return { tenant, company };
 }
 
+// لأسماء لها تحويل صريح في ACCOUNT_NAME_OVERRIDES (مثل "نفقات الإنترنت")، يُنشأ الحساب الفعلي
+// بالاسم/الكود الحقيقيين في أثر (لا باسم المرجع)، تماماً كما هي الحال في شركة أرمي الحقيقية —
+// محاكاة دقيقة لسيناريو "الاسم في قيود يختلف عن الاسم الفعلي في أثر" الذي يختبره السكريبت.
 async function createAccounts(tenantId: string, companyId: string, names: string[]) {
   let code = 500000;
   const byName = new Map<string, string>();
   for (const name of names) {
     code++;
-    const a = await prisma.account.create({ data: { tenantId, companyId, code: String(code), level: 4, isPosting: true, name, type: "expense" } });
+    const override = ACCOUNT_NAME_OVERRIDES[name];
+    const actualName = override?.correctName ?? name;
+    const actualCode = override?.code ?? String(code);
+    const a = await prisma.account.create({ data: { tenantId, companyId, code: actualCode, level: 4, isPosting: true, name: actualName, type: "expense" } });
     byName.set(name, a.id);
   }
   return byName;
