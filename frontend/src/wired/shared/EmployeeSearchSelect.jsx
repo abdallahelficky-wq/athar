@@ -1,4 +1,5 @@
 import React, { forwardRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 /**
  * قائمة موظفين قابلة للبحث الفوري — نفس بنية AccountSearchSelect (item-combo-cell/dropdown/option)
@@ -9,6 +10,7 @@ const EmployeeSearchSelect = forwardRef(function EmployeeSearchSelect(
   { employees, value, onChange, placeholder, allowClear, clearLabel, autoFocus },
   ref,
 ) {
+  const { t } = useTranslation();
   const [searchText, setSearchText] = useState("");
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
@@ -59,7 +61,7 @@ const EmployeeSearchSelect = forwardRef(function EmployeeSearchSelect(
         onFocus={() => { setSearchText(""); setOpen(true); setHighlight(0); }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={onKeyDown}
-        placeholder={placeholder || "ابحث باسم الموظف..."}
+        placeholder={placeholder || t("common.employeeSearchPlaceholder")}
       />
       {open && (
         <div className="item-combo-dropdown">
@@ -69,7 +71,7 @@ const EmployeeSearchSelect = forwardRef(function EmployeeSearchSelect(
               onMouseDown={() => pick("")}
               onMouseEnter={() => setHighlight(0)}
             >
-              {clearLabel || "— بلا —"}
+              {clearLabel || t("common.clearOption")}
             </div>
           )}
           {filtered.map((e, i) => {
@@ -85,7 +87,7 @@ const EmployeeSearchSelect = forwardRef(function EmployeeSearchSelect(
               </div>
             );
           })}
-          {filtered.length === 0 && <div className="item-combo-option">لا توجد نتائج</div>}
+          {filtered.length === 0 && <div className="item-combo-option">{t("common.noResults")}</div>}
         </div>
       )}
     </label>

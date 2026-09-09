@@ -20,6 +20,15 @@
     "currency": "SAR",
     "noCompany": "Create a company first from the dashboard.",
     "moreActions": "More",
+    "employeeSearchPlaceholder": "Search by employee name...",
+    "printShell": {
+      "downloadPdf": "Download PDF",
+      "preparedBy": "Prepared by",
+      "approvedBy": "Approved by",
+      "stamp": "Stamp",
+      "stampPlaceholder": "Official stamp here",
+      "printedBy": "Printed by"
+    },
     "unpost": {
       "title": "Unpost",
       "confirmPrompt": "Enter the PIN to confirm unposting. The server will actually verify it.",
@@ -2045,7 +2054,9 @@
         "account": "Account",
         "openingBalance": "Opening balance",
         "periodMovement": "Period movement",
-        "closingBalance": "Closing balance"
+        "closingBalance": "Closing balance",
+        "debit": "Debit",
+        "credit": "Credit"
       },
       "empty": "No accounts match this filter.",
       "totalLabel": "Grand total",

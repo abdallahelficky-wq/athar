@@ -20,6 +20,15 @@
     "currency": "ر.س",
     "noCompany": "أنشئ شركة أولاً من لوحة القيادة.",
     "moreActions": "المزيد",
+    "employeeSearchPlaceholder": "ابحث باسم الموظف...",
+    "printShell": {
+      "downloadPdf": "تحميل PDF",
+      "preparedBy": "أعدّه",
+      "approvedBy": "اعتمده",
+      "stamp": "الختم",
+      "stampPlaceholder": "مكان الختم المعتمد",
+      "printedBy": "طُبع بواسطة"
+    },
     "unpost": {
       "title": "فك الترحيل",
       "confirmPrompt": "أدخل الرقم السري لتأكيد فك الترحيل. سيتحقق الخادم من صحته فعلياً.",
@@ -2045,7 +2054,9 @@
         "account": "الحساب",
         "openingBalance": "الرصيد الافتتاحي",
         "periodMovement": "حركة الفترة",
-        "closingBalance": "الرصيد الختامي"
+        "closingBalance": "الرصيد الختامي",
+        "debit": "مدين",
+        "credit": "دائن"
       },
       "empty": "لا توجد حسابات مطابقة لهذا الفلتر.",
       "totalLabel": "الإجمالي العام",

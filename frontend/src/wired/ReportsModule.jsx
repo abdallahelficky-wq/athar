@@ -114,7 +114,7 @@ function BalanceSheetView({ data, accounts, filters, branches }) {
 }
 
 export default function ReportsModule({ companies, companyId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [tab] = useModuleTab("/reports", REPORT_TABS);
   const [accounts, setAccounts] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -240,6 +240,8 @@ export default function ReportsModule({ companies, companyId }) {
                 company: activeCompany,
                 dateFrom: tb.applied.dateFrom,
                 dateTo: tb.applied.dateTo,
+                t,
+                lang: i18n.language,
               })}
             />
           )}
