@@ -24,6 +24,10 @@ export const STATIONS = [
 /* ============ شئون الموظفين ============ */
 
 export const LEAVE_TYPES = ["سنوية", "مرضية", "بدون راتب", "عارضة"];
+// مفاتيح ترجمة مستقرة للعرض فقط — القيمة المخزَّنة/المُرسَلة تبقى النص العربي أعلاه حرفياً بلا أي
+// تغيير (راجع frontend/src/legacy/listLabels.js: labelForListValue). أي قيمة مخزَّنة فعلياً لا
+// مفتاح لها هنا (بيانات قديمة أو مختلفة) تُعرَض بنصها الأصلي كما هي، لا فارغة أبداً.
+export const LEAVE_TYPE_KEYS = { "سنوية": "annual", "مرضية": "sick", "بدون راتب": "unpaid", "عارضة": "casual" };
 export const CONTRACT_TYPES = { unlimited: "غير محدد المدة", limited: "محدد المدة" };
 export const TERMINATION_REASONS = [
   { id: "resign", label: "استقالة" },
@@ -487,6 +491,16 @@ export const DEPARTMENTS = [
   "الإدارة العليا", "الإدارة المالية", "العمليات", "التسويق",
   "خارجي", "الإدارة", "المشتريات", "الحسابات",
 ];
+// مفاتيح ترجمة مستقرة للعرض فقط — راجع الملاحظة أعلى LEAVE_TYPE_KEYS لنفس المبدأ. تُستخدَم لعرض
+// اسم القسم في كلا الحقلين اللذين يُخزَّنان منها فعلياً: Employee.department (ملف الموظف) و
+// JournalEntryLine.department (الصرف المخزني في IssueTab.jsx).
+export const DEPARTMENT_KEYS = {
+  "الإدارة العامة": "generalManagement", "المالية والحسابات": "financeAccounting", "التشغيل": "operations",
+  "المبيعات والتسويق": "salesMarketing", "الموارد البشرية": "humanResources", "الصيانة والدعم الفني": "maintenanceTechnicalSupport",
+  "الشئون الإدارية": "administrativeAffairs", "الصيانة": "maintenance", "المحطات": "stations", "شئون الموظفين": "staffAffairs", "المبيعات": "sales",
+  "الإدارة العليا": "topManagement", "الإدارة المالية": "financialManagement", "العمليات": "operationsDivision", "التسويق": "marketing",
+  "خارجي": "external", "الإدارة": "management", "المشتريات": "purchasing", "الحسابات": "accounts",
+};
 
 /* ============ المبيعات والعملاء ============ */
 
@@ -599,6 +613,12 @@ export const seedCompanyDocuments = [];
 /* ============ الأصول الثابتة ============ */
 
 export const ASSET_CATEGORIES = ["سيارات ومركبات", "معدات وآلات", "أثاث ومفروشات", "أجهزة حاسب وتقنية", "مباني وإنشاءات", "أخرى"];
+// مفاتيح ترجمة مستقرة للعرض فقط — نفس مبدأ LEAVE_TYPE_KEYS أعلاه. لا تُستخدَم في المقارنة المنطقية
+// في AssetRegisterTab.jsx (VEHICLE_CATEGORY) — تلك تبقى تقارن بالنص العربي المخزَّن نفسه دون تغيير.
+export const ASSET_CATEGORY_KEYS = {
+  "سيارات ومركبات": "vehicles", "معدات وآلات": "machinery", "أثاث ومفروشات": "furniture",
+  "أجهزة حاسب وتقنية": "itEquipment", "مباني وإنشاءات": "buildings", "أخرى": "other",
+};
 export const seedFixedAssets = [];
 export const seedDepreciationRuns = [];
 

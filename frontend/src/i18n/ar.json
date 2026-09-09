@@ -884,6 +884,10 @@
     "breadcrumb": "الأصول الثابتة",
     "status": { "active": "نشط", "disposed": "مستبعد" },
     "depreciationMethod": { "straight_line": "قسط ثابت", "declining_balance": "قسط متناقص" },
+    "categoryLabels": {
+      "vehicles": "سيارات ومركبات", "machinery": "معدات وآلات", "furniture": "أثاث ومفروشات",
+      "itEquipment": "أجهزة حاسب وتقنية", "buildings": "مباني وإنشاءات", "other": "أخرى"
+    },
     "register": {
       "editingBanner": "تعديل الأصل — {{name}} (لا يمكن تعديل التكلفة أو تاريخ الشراء بعد الترحيل)",
       "name": "اسم الأصل", "category": "التصنيف",
@@ -1238,6 +1242,23 @@
     "baseFinal": "الوعاء الزكوي التقديري"
   },
   "hr": {
+    "leaveTypeLabels": { "annual": "سنوية", "sick": "مرضية", "unpaid": "بدون راتب", "casual": "عارضة" },
+    "departmentLabels": {
+      "generalManagement": "الإدارة العامة", "financeAccounting": "المالية والحسابات", "operations": "التشغيل",
+      "salesMarketing": "المبيعات والتسويق", "humanResources": "الموارد البشرية", "maintenanceTechnicalSupport": "الصيانة والدعم الفني",
+      "administrativeAffairs": "الشئون الإدارية", "maintenance": "الصيانة", "stations": "المحطات", "staffAffairs": "شئون الموظفين", "sales": "المبيعات",
+      "topManagement": "الإدارة العليا", "financialManagement": "الإدارة المالية", "operationsDivision": "العمليات", "marketing": "التسويق",
+      "external": "خارجي", "management": "الإدارة", "purchasing": "المشتريات", "accounts": "الحسابات"
+    },
+    "nationalityLabels": {
+      "saudi": "سعودي", "egyptian": "مصري", "pakistani": "باكستاني", "bangladeshi": "بنغلاديشي",
+      "indian": "هندي", "yemeni": "يمني", "sudanese": "سوداني", "filipino": "فلبيني", "other": "أخرى"
+    },
+    "documentTypeLabels": {
+      "residencyId": "إقامة", "passport": "جواز سفر", "drivingLicense": "رخصة قيادة",
+      "publicTransportDriverCard": "بطاقة تشغيل سائق (نقل عام)", "healthCertificate": "شهادة صحية",
+      "medicalInsurance": "تأمين طبي", "other": "أخرى"
+    },
     "dashboard": {
       "activeEmployeeCount": "عدد الموظفين النشطين",
       "monthlyPayrollCost": "تكلفة الرواتب الشهرية الحالية",

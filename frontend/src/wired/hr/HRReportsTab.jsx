@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getExpiringDocuments } from "../../api/hrReports";
-import { EMPLOYEE_DOC_TYPES } from "../../legacy/hr";
+import { EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_KEYS } from "../../legacy/hr";
+import { labelForListValue } from "../../legacy/listLabels";
 
 export default function HRReportsTab({ companyId }) {
   const { t } = useTranslation();
@@ -30,7 +31,7 @@ export default function HRReportsTab({ companyId }) {
       <div className="panel form-panel">
         <div className="form-grid">
           <label>{t("hr.reports.withinDays")}<input type="number" value={withinDays} onChange={(e) => setWithinDays(Number(e.target.value) || 0)} /></label>
-          <label>{t("hr.reports.docType")}<select value={docTypeFilter} onChange={(e) => setDocTypeFilter(e.target.value)}><option value="">{t("hr.reports.allTypes")}</option>{EMPLOYEE_DOC_TYPES.map((t2) => <option key={t2}>{t2}</option>)}</select></label>
+          <label>{t("hr.reports.docType")}<select value={docTypeFilter} onChange={(e) => setDocTypeFilter(e.target.value)}><option value="">{t("hr.reports.allTypes")}</option>{EMPLOYEE_DOC_TYPES.map((v) => <option key={v} value={v}>{labelForListValue(t, EMPLOYEE_DOC_TYPE_KEYS, "hr.documentTypeLabels", v)}</option>)}</select></label>
         </div>
         {error && <p className="balance-bad">{error}</p>}
         <button className="btn-primary" onClick={load}>{t("hr.reports.generateBtn")}</button>
@@ -44,7 +45,7 @@ export default function HRReportsTab({ companyId }) {
             {rows.map((r, i) => (
               <tr key={i}>
                 <td>{r.employeeName}</td>
-                <td>{r.doc.type}</td><td>{r.doc.number || "—"}</td><td>{r.doc.expiryDate.slice(0, 10)}</td>
+                <td>{labelForListValue(t, EMPLOYEE_DOC_TYPE_KEYS, "hr.documentTypeLabels", r.doc.type)}</td><td>{r.doc.number || "—"}</td><td>{r.doc.expiryDate.slice(0, 10)}</td>
                 <td className={r.days < 0 ? "balance-bad" : "doc-warning-text"}>{r.days < 0 ? t("hr.reports.expiredSince", { days: Math.abs(r.days) }) : t("hr.reports.daysLeftValue", { days: r.days })}</td>
               </tr>
             ))}

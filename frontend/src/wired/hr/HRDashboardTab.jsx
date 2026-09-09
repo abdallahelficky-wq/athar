@@ -5,7 +5,9 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
 import { getHrKpis, getHrPayrollTrend, getHrHeadcount, getHrNationality, getHrAlerts } from "../../api/dashboard";
-import { fmt } from "../../legacy/constants";
+import { fmt, DEPARTMENT_KEYS } from "../../legacy/constants";
+import { NATIONALITY_KEYS } from "../../legacy/hr";
+import { labelForListValue } from "../../legacy/listLabels";
 import KpiCard from "../dashboard/KpiCard";
 import AlertsPanel from "../dashboard/AlertsPanel";
 import { CHART_PALETTE, CHART_GRID, CHART_AXIS, CHART_FONT, chartTooltipStyle, colorAt } from "../dashboard/chartTheme";
@@ -36,7 +38,12 @@ export default function HRDashboardTab({ companyId, companies }) {
       getHrAlerts(companyId, 60),
     ])
       .then(([k, pt, hc, nat, al]) => {
-        setKpis(k); setPayrollTrend(pt); setHeadcount(hc); setNationality(nat); setAlerts(al);
+        setKpis(k); setPayrollTrend(pt);
+        // hc.label قسم فعلي فقط لو هناك شركة محدَّدة (companyId) — عرض "كل الشركات" يستخدم نفس
+        // الحقل لاسم الشركة نفسه، فلا يجوز تمريره عبر خريطة ترجمة الأقسام حينها.
+        setHeadcount(companyId ? hc.map((h) => ({ ...h, label: labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", h.label) })) : hc);
+        setNationality(nat.map((n) => ({ ...n, label: labelForListValue(t, NATIONALITY_KEYS, "hr.nationalityLabels", n.label) })));
+        setAlerts(al);
       })
       .finally(() => setLoading(false));
   }, [companyId]);

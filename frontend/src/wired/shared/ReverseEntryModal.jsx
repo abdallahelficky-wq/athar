@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { reverseJournalEntry } from "../../api/journalEntries";
-import { fmt2 } from "../../legacy/constants";
+import { fmt2, DEPARTMENT_KEYS } from "../../legacy/constants";
+import { labelForListValue } from "../../legacy/listLabels";
 
 /**
  * "عكس القيد" — لا تُعدِّل أو تُرحِّل/تفك ترحيل القيد الأصلي إطلاقاً؛ تعرض معاينة القيد الجديد
@@ -51,7 +52,7 @@ export default function ReverseEntryModal({ entry, onClose, onCreated }) {
               {reversedLines.map((l) => (
                 <tr key={l.id}>
                   <td>{l.account?.name}</td>
-                  <td>{l.departmentRef?.name || l.department || "—"}</td>
+                  <td>{l.departmentRef?.name || (l.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", l.department) : "—")}</td>
                   <td>{l.description || "—"}</td>
                   <td className="num">{l.debit ? fmt2(l.debit) : "—"}</td>
                   <td className="num">{l.credit ? fmt2(l.credit) : "—"}</td>

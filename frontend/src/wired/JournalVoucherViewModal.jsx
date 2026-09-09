@@ -1,7 +1,8 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { PrintShell, downloadBlob } from "../legacy/shared";
-import { fmt } from "../legacy/constants";
+import { fmt, DEPARTMENT_KEYS } from "../legacy/constants";
+import { labelForListValue } from "../legacy/listLabels";
 import { currencyLabel } from "../shared/countries";
 import { getJournalEntryPdf } from "../api/journalEntries";
 
@@ -68,7 +69,7 @@ export default function JournalVoucherViewModal({ entry, companies, onClose }) {
             <tr key={l.id}>
               <td>{l.account?.name}</td>
               <td>{l.costCenter?.name || "—"}</td>
-              <td>{l.departmentRef?.name || l.department || "—"}</td>
+              <td>{l.departmentRef?.name || (l.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", l.department) : "—")}</td>
               {hasBranchedLines && <td>{l.branch?.nameAr || "—"}</td>}
               <td>{l.description || "—"}</td>
               <td className="num">{Number(l.debit) ? fmt(Number(l.debit)) : "—"}{lineEquivalent(l, Number(l.debit))}</td>

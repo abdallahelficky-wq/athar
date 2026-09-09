@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
 import { listLeaveRequests, createLeaveRequest, updateLeaveRequest, approveLeaveRequest, rejectLeaveRequest, deleteLeaveRequest } from "../../api/leaveRequests";
-import { LEAVE_TYPES } from "../../legacy/constants";
+import { LEAVE_TYPES, LEAVE_TYPE_KEYS } from "../../legacy/constants";
+import { labelForListValue } from "../../legacy/listLabels";
 
 export default function LeavesTab({ companyId }) {
   const { t } = useTranslation();
@@ -88,7 +89,7 @@ export default function LeavesTab({ companyId }) {
       <div className="panel form-panel">
         <div className="form-grid">
           <label>{t("hr.leaves.employee")}<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} disabled={Boolean(editingId)}>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
-          <label>{t("hr.leaves.type")}<select value={type} onChange={(e) => setType(e.target.value)}>{LEAVE_TYPES.map((t2) => <option key={t2}>{t2}</option>)}</select></label>
+          <label>{t("hr.leaves.type")}<select value={type} onChange={(e) => setType(e.target.value)}>{LEAVE_TYPES.map((v) => <option key={v} value={v}>{labelForListValue(t, LEAVE_TYPE_KEYS, "hr.leaveTypeLabels", v)}</option>)}</select></label>
           <label>{t("hr.leaves.fromDate")}<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
           <label>{t("hr.leaves.toDate")}<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label>
           <label className="memo-field">{t("hr.leaves.notes")}<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
@@ -107,7 +108,7 @@ export default function LeavesTab({ companyId }) {
             <tbody>
               {requests.map((r) => (
                 <tr key={r.id}>
-                  <td>{r.employee?.name}</td><td>{r.type}</td><td>{r.startDate.slice(0, 10)}</td><td>{r.endDate.slice(0, 10)}</td>
+                  <td>{r.employee?.name}</td><td>{labelForListValue(t, LEAVE_TYPE_KEYS, "hr.leaveTypeLabels", r.type)}</td><td>{r.startDate.slice(0, 10)}</td><td>{r.endDate.slice(0, 10)}</td>
                   <td className="num">{r.days}</td>
                   <td>
                     {STATUS_LABEL[r.status] || r.status}

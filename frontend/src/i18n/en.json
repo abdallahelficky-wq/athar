@@ -884,6 +884,10 @@
     "breadcrumb": "Fixed Assets",
     "status": { "active": "Active", "disposed": "Disposed" },
     "depreciationMethod": { "straight_line": "Straight line", "declining_balance": "Declining balance" },
+    "categoryLabels": {
+      "vehicles": "Vehicles", "machinery": "Machinery and equipment", "furniture": "Furniture",
+      "itEquipment": "IT equipment", "buildings": "Buildings and construction", "other": "Other"
+    },
     "register": {
       "editingBanner": "Editing asset — {{name}} (cost and purchase date cannot be edited after posting)",
       "name": "Asset name", "category": "Category",
@@ -1238,6 +1242,23 @@
     "baseFinal": "Estimated zakat base"
   },
   "hr": {
+    "leaveTypeLabels": { "annual": "Annual", "sick": "Sick", "unpaid": "Unpaid", "casual": "Casual" },
+    "departmentLabels": {
+      "generalManagement": "General Management", "financeAccounting": "Finance and Accounting", "operations": "Operations",
+      "salesMarketing": "Sales and Marketing", "humanResources": "Human Resources", "maintenanceTechnicalSupport": "Maintenance and Technical Support",
+      "administrativeAffairs": "Administrative Affairs", "maintenance": "Maintenance", "stations": "Stations", "staffAffairs": "Staff Affairs", "sales": "Sales",
+      "topManagement": "Top Management", "financialManagement": "Financial Management", "operationsDivision": "Operations", "marketing": "Marketing",
+      "external": "External", "management": "Management", "purchasing": "Purchasing", "accounts": "Accounts"
+    },
+    "nationalityLabels": {
+      "saudi": "Saudi", "egyptian": "Egyptian", "pakistani": "Pakistani", "bangladeshi": "Bangladeshi",
+      "indian": "Indian", "yemeni": "Yemeni", "sudanese": "Sudanese", "filipino": "Filipino", "other": "Other"
+    },
+    "documentTypeLabels": {
+      "residencyId": "Residency ID (Iqama)", "passport": "Passport", "drivingLicense": "Driving license",
+      "publicTransportDriverCard": "Public transport driver card", "healthCertificate": "Health certificate",
+      "medicalInsurance": "Medical insurance", "other": "Other"
+    },
     "dashboard": {
       "activeEmployeeCount": "Active employee count",
       "monthlyPayrollCost": "Current monthly payroll cost",

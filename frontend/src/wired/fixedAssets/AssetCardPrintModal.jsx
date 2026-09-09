@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { PrintShell, printWithOrientation } from "../../legacy/shared";
-import { fmt } from "../../legacy/constants";
+import { fmt, ASSET_CATEGORY_KEYS } from "../../legacy/constants";
+import { labelForListValue } from "../../legacy/listLabels";
 
 /**
  * بطاقة أصل ثابت قابلة للطباعة — تُفتَح من زر "طباعة البطاقة" في سجل الأصول. تعرض كل بيانات
@@ -35,7 +36,7 @@ export default function AssetCardPrintModal({ asset, companies, employees, costC
     >
       <div className="voucher-meta">
         <div><span>{t("fixedAssets.printCard.name")}</span><strong>{asset.name}</strong></div>
-        <div><span>{t("fixedAssets.printCard.category")}</span><strong>{asset.category || "—"}</strong></div>
+        <div><span>{t("fixedAssets.printCard.category")}</span><strong>{asset.category ? labelForListValue(t, ASSET_CATEGORY_KEYS, "fixedAssets.categoryLabels", asset.category) : "—"}</strong></div>
         <div><span>{t("fixedAssets.printCard.purchaseDate")}</span><strong>{asset.purchaseDate.slice(0, 10)}</strong></div>
         <div><span>{t("fixedAssets.printCard.depreciationStartDate")}</span><strong>{asset.depreciationStartDate ? asset.depreciationStartDate.slice(0, 10) : asset.purchaseDate.slice(0, 10)}</strong></div>
         <div><span>{t("fixedAssets.printCard.cost")}</span><strong>{fmt(asset.cost)}</strong></div>

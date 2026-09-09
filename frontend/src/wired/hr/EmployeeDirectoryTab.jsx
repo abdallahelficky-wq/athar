@@ -4,8 +4,9 @@ import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { listEmployees, createEmployee, importEmployees, updateEmployee, deleteEmployee } from "../../api/employees";
 import { getEmployeePayrollComponents, setEmployeePayrollComponents } from "../../api/payrollSettings";
-import { DEPARTMENTS, fmt } from "../../legacy/constants";
-import { NATIONALITIES, EMPLOYEE_DOC_TYPES } from "../../legacy/hr";
+import { DEPARTMENTS, DEPARTMENT_KEYS, fmt } from "../../legacy/constants";
+import { NATIONALITIES, NATIONALITY_KEYS, EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_KEYS } from "../../legacy/hr";
+import { labelForListValue } from "../../legacy/listLabels";
 import { routes } from "../../routes";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 
@@ -232,9 +233,9 @@ export default function EmployeeDirectoryTab({ companyId }) {
           <label>{t("hr.directory.gender")}<select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}><option value="">—</option><option value="male">{t("hr.directory.genderMale")}</option><option value="female">{t("hr.directory.genderFemale")}</option></select></label>
           <label>{t("hr.directory.maritalStatus")}<select value={form.maritalStatus} onChange={(e) => setForm({ ...form, maritalStatus: e.target.value })}><option value="">—</option><option value="single">{t("hr.directory.single")}</option><option value="married">{t("hr.directory.married")}</option></select></label>
           <label>{t("hr.directory.jobTitle")}<input type="text" value={form.jobTitle} onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} /></label>
-          <label>{t("hr.directory.department")}<select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></label>
+          <label>{t("hr.directory.department")}<select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>{DEPARTMENTS.map((d) => <option key={d} value={d}>{labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", d)}</option>)}</select></label>
           <label>{t("hr.directory.workLocation")}<input type="text" value={form.workLocation} onChange={(e) => setForm({ ...form, workLocation: e.target.value })} /></label>
-          <label>{t("hr.directory.nationality")}<select value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })}>{NATIONALITIES.map((n) => <option key={n}>{n}</option>)}</select></label>
+          <label>{t("hr.directory.nationality")}<select value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })}>{NATIONALITIES.map((n) => <option key={n} value={n}>{labelForListValue(t, NATIONALITY_KEYS, "hr.nationalityLabels", n)}</option>)}</select></label>
           <label>{t("hr.directory.dateOfBirth")}<input type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
           <label>{t("hr.directory.phone")}<input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
           <label>{t("hr.directory.alternatePhone")}<input type="tel" value={form.alternatePhone} onChange={(e) => setForm({ ...form, alternatePhone: e.target.value })} /></label>
@@ -284,7 +285,7 @@ export default function EmployeeDirectoryTab({ companyId }) {
             <tbody>
               {form.documents.map((d, idx) => (
                 <tr key={idx}>
-                  <td><select value={d.type} onChange={(e) => updateDoc(idx, "type", e.target.value)}>{EMPLOYEE_DOC_TYPES.map((t2) => <option key={t2}>{t2}</option>)}</select></td>
+                  <td><select value={d.type} onChange={(e) => updateDoc(idx, "type", e.target.value)}>{EMPLOYEE_DOC_TYPES.map((v) => <option key={v} value={v}>{labelForListValue(t, EMPLOYEE_DOC_TYPE_KEYS, "hr.documentTypeLabels", v)}</option>)}</select></td>
                   <td><input type="text" value={d.number} onChange={(e) => updateDoc(idx, "number", e.target.value)} /></td>
                   <td><input type="date" value={d.expiryDate} onChange={(e) => updateDoc(idx, "expiryDate", e.target.value)} /></td>
                   <td><button className="btn-remove-line" onClick={() => removeDoc(idx)}>✕</button></td>
@@ -347,7 +348,7 @@ export default function EmployeeDirectoryTab({ companyId }) {
             <tbody>
               {employees.map((e) => (
                 <tr key={e.id}>
-                  <td>{e.name}</td><td>{e.department || "—"}</td><td className="num">{fmt(e.basicSalary)}</td><td className="num">{e.liveBalances ? `${e.liveBalances.leave.remainingDays.toFixed(1)} / ${fmt(e.liveBalances.leave.amount)}` : "—"}</td><td className="num">{e.liveBalances ? fmt(e.liveBalances.eos) : "—"}</td>
+                  <td>{e.name}</td><td>{e.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", e.department) : "—"}</td><td className="num">{fmt(e.basicSalary)}</td><td className="num">{e.liveBalances ? `${e.liveBalances.leave.remainingDays.toFixed(1)} / ${fmt(e.liveBalances.leave.amount)}` : "—"}</td><td className="num">{e.liveBalances ? fmt(e.liveBalances.eos) : "—"}</td>
                   <td><span className="status-badge">{e.leaveStatus === "onLeave" ? t("hr.directory.statusOnLeave") : t("hr.directory.statusActive")}</span></td>
                   <td className="row-actions">
                     {e.accountId && (
