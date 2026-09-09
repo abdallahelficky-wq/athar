@@ -106,10 +106,11 @@ export const TARGET_ENTRIES: TargetEntrySpec[] = [
 interface ForeignMovementSpec {
   label: string;
   // اسم الحساب كما يظهر حرفياً في ملفات المرجع (قيود) — يختلف أحياناً عن اسم الحساب المقابل في
-  // شجرة حسابات أثر (مثال: "المدينون" في قيود مقابل "عملاء - مبيعات جملة/عقود" في أثر، أو
-  // "حساب البنك الاهلي 12300001016808" في قيود مقابل "بنك الأهلي 12300001016808" في أثر). اكتُشف
+  // شجرة حسابات أثر (مثال: "المدينون" في قيود مقابل "عملاء - مبيعات جملة/عقود" في أثر). اكتُشف
   // هذا الاختلاف فعلياً أثناء بناء هذا السكريبت (بحث أول بأسماء أثر رجّع صفر نتائج للعشرة كلها،
-  // فتأكّدنا بفحص الأسماء الـ83 الفعلية في المرجع قبل الاستقرار على هذه القائمة).
+  // فتأكّدنا بفحص الأسماء الـ83 الفعلية في المرجع قبل الاستقرار على هذه القائمة). هذه الخطوة
+  // معلوماتية بحتة (بحث في ملفات المرجع الخام، لا في شجرة حسابات أثر إطلاقاً)، فلا علاقة لها
+  // بمشكلة تسمية حساب البنك الأهلي في أثر نفسه (راجع printBalanceImpactTable أدناه).
   refAccount: string;
   amount: number;
   direction: "debit" | "credit";
@@ -137,22 +138,6 @@ export const FOREIGN_MOVEMENTS_TO_INVESTIGATE: ForeignMovementSpec[] = [
 // حصراً من TARGET_ENTRIES المؤكَّدة يدوياً)، فسماحية أوسع هنا مناسبة لتفادي نتائج سلبية كاذبة بسبب
 // فروق التقريب.
 const INVESTIGATION_EPSILON = 1;
-
-// جدول أثر التعديل يُطبَع لهذه الحسابات تحديداً (المطلوب صراحة) — بلا اعتماد على مطابقة نصية
-// حساسة تماماً لعلامات الترقيم (نطبّع الشرطة/الشرطة المائلة والمسافات قبل المقارنة).
-const IMPACT_ACCOUNT_NAMES = [
-  "ضريبة القيمة المضافة المستحقة (مبيعات)",
-  "الايرادات من بيع السكراب",
-  "إيرادات قطع الغيار",
-  "عملاء - مبيعات جملة/عقود",
-  "بنك الراجحي",
-  "بنك الأهلي 12300001016808",
-  "الصندوق النقدي - الإدارة العامة",
-];
-
-export function normalizeAccountName(s: string): string {
-  return s.trim().replace(/[/\-]+/g, "-").replace(/\s+/g, " ");
-}
 
 export function amountKey(debit: number, credit: number): string {
   return `${Math.round(debit * 100)}|${Math.round(credit * 100)}`;
@@ -241,22 +226,56 @@ interface AccountRow {
   type: AccountType;
 }
 
-async function printBalanceImpactTable(companyId: string, accounts: AccountRow[], deleteLinesAll: { accountId: string; debit: number; credit: number }[]) {
-  console.log(`=== جدول أثر التعديل على أرصدة الحسابات المتأثرة (الرصيد قبل / المبلغ المُزال / الرصيد بعد) ===`);
-  for (const name of IMPACT_ACCOUNT_NAMES) {
-    const norm = normalizeAccountName(name);
-    const candidates = accounts.filter((a) => normalizeAccountName(a.name) === norm);
-    if (candidates.length !== 1) {
-      console.log(`  ⚠️ "${name}": ${candidates.length === 0 ? "لم يُعثَر على حساب بهذا الاسم بالضبط في شجرة الحسابات" : `اسم غامض (${candidates.length} حسابات مطابقة) `} — تخطّي هذا السطر من الجدول.`);
+// يُشتَق نطاق الحسابات المطلوب تقريرها ديناميكياً من الحسابات الفعلية التي تخصّها الأسطر
+// المحذوفة فعلاً (بدل قائمة أسماء ثابتة مُسبَقة) — لسببين اكتُشفا فعلياً أثناء المراجعة:
+//   (أ) قائمة ثابتة بأسماء افتراضية عرضة لعدم مطابقة الاسم الفعلي الدقيق في شجرة حسابات الشركة
+//       حرفياً (حدث فعلاً مع "بنك الأهلي 12300001016808" — لم يُطابَق رغم أنه سيُحذَف منه مبلغ
+//       فعلي)، بينما DbLine يحمل بالفعل accountId/accountName الحقيقيين من القيد نفسه — لا حاجة
+//       لإعادة البحث بالاسم إطلاقاً.
+//   (ب) قائمة ثابتة أغفلت حسابات "الزوج الصحيح" نفسها رغم تأثّرها فعلاً: نسخته المكرَّرة (وليس
+//       المُبقاة) تُحذَف أيضاً — فحسابات مثل "التأمينات الاجتماعية (GOSI)" أو "عهدة اسلام احمد"
+//       تفقد سطراً مكرَّراً حقيقياً ويجب ظهورها في الجدول، لا فقط الحسابات "الأجنبية".
+//
+// نطاق حساب الرصيد: bulk_import فقط (قيود أرمي المستوردة من قيود تحديداً) — لا رصيد الشركة الحي
+// الكامل. أرمي شركة عميل حقيقية تستخدم أثر فعلياً بعد الاستيراد، فرصيد الحساب على مستوى الشركة
+// كاملة يخلط نشاطاً حياً لاحقاً غير ذي صلة بهذا التصحيح مع الأرصدة التاريخية المستورَدة — يُنتج هذا
+// أرقاماً مضلِّلة (مثال فعلي اكتُشف أثناء المراجعة: حساب ضريبة دائن الطبيعة يظهر رصيده الكلي مديناً
+// بسبب سداد ضريبة لاحق غير متصل بهذا التصحيح إطلاقاً)، لا خطأ في معادلة الإشارة نفسها.
+async function printBalanceImpactTable(companyId: string, deleteLinesAll: DbLine[]) {
+  console.log(`=== جدول أثر التعديل على أرصدة كل الحسابات المتأثرة فعلياً (نطاق قيود أرمي المستورَدة bulk_import فقط، لا كامل نشاط الشركة الحي) ===`);
+  const accountIds = [...new Set(deleteLinesAll.map((l) => l.accountId))];
+  const affectedAccounts: AccountRow[] = accountIds.length
+    ? await prisma.account.findMany({ where: { id: { in: accountIds } }, select: { id: true, code: true, name: true, type: true } })
+    : [];
+  const byId = new Map(affectedAccounts.map((a) => [a.id, a]));
+
+  for (const accountId of accountIds) {
+    const acc = byId.get(accountId);
+    if (!acc) {
+      const sample = deleteLinesAll.find((l) => l.accountId === accountId);
+      console.log(`  ⚠️ حساب "${sample?.accountName}" (id=${accountId}) لم يُعثَر عليه في شجرة الحسابات الحالية (أُرشِف أو حُذف؟) — تخطّي هذا السطر من الجدول.`);
       continue;
     }
-    const acc = candidates[0];
     const sign = normalBalanceSign(acc.type);
-    const lines = await prisma.journalEntryLine.findMany({ where: { accountId: acc.id, journalEntry: { companyId } }, select: { debit: true, credit: true } });
-    const before = lines.reduce((s, l) => s + signedAmount(sign, Number(l.debit), Number(l.credit)), 0);
-    const removed = deleteLinesAll.filter((l) => l.accountId === acc.id).reduce((s, l) => s + signedAmount(sign, l.debit, l.credit), 0);
+    const normalSide = sign === 1 ? "مدين" : "دائن";
+    const lines = await prisma.journalEntryLine.findMany({
+      where: { accountId: acc.id, journalEntry: { companyId, sourceModule: "bulk_import" } },
+      select: { debit: true, credit: true },
+    });
+    const rawDebit = lines.reduce((s, l) => s + Number(l.debit), 0);
+    const rawCredit = lines.reduce((s, l) => s + Number(l.credit), 0);
+    const before = signedAmount(sign, rawDebit, rawCredit);
+
+    const removedLines = deleteLinesAll.filter((l) => l.accountId === accountId);
+    const removedDebit = removedLines.reduce((s, l) => s + l.debit, 0);
+    const removedCredit = removedLines.reduce((s, l) => s + l.credit, 0);
+    const removed = signedAmount(sign, removedDebit, removedCredit);
     const after = before - removed;
-    console.log(`  ${acc.name} (${acc.code}): قبل=${before.toFixed(2)} | المُزال=${removed.toFixed(2)} | بعد=${after.toFixed(2)}`);
+
+    console.log(`  ${acc.name} (${acc.code}) [الطبيعة: ${normalSide}]`);
+    console.log(`    الرصيد الحالي (bulk_import فقط): إجمالي مدين=${rawDebit.toFixed(2)} / إجمالي دائن=${rawCredit.toFixed(2)} → صافي=${before.toFixed(2)}`);
+    console.log(`    سيُحذَف: مدين=${removedDebit.toFixed(2)} / دائن=${removedCredit.toFixed(2)} → صافي=${removed.toFixed(2)}`);
+    console.log(`    الرصيد بعد التصحيح: صافي=${after.toFixed(2)}`);
   }
   console.log();
 }
@@ -415,7 +434,7 @@ export async function run(companyId: string, commit: boolean) {
   }
 
   console.log(`=== ${commit ? "سيُنفَّذ الآن" : "Dry-run — تفصيل ما سيُصحَّح"}: ${toProcess.length} قيداً ===\n`);
-  const allDeleteLines: { accountId: string; debit: number; credit: number }[] = [];
+  const allDeleteLines: DbLine[] = [];
   for (const fix of toProcess) {
     console.log(`--- القيد ${fix.spec.num} (entryNumber=${fix.entryNumber}) ---`);
     console.log(`  البيان: "${fix.currentMemo}" -> "${fix.spec.targetMemo}"`);
@@ -431,7 +450,7 @@ export async function run(companyId: string, commit: boolean) {
     allDeleteLines.push(...fix.deleteLines);
   }
 
-  await printBalanceImpactTable(companyId, accounts, allDeleteLines);
+  await printBalanceImpactTable(companyId, allDeleteLines);
 
   if (!commit) {
     console.log(`(وضع Dry-run — لم يُكتَب أي شيء. أعد التشغيل بإضافة --commit للتنفيذ الفعلي بعد المراجعة والموافقة الصريحة.)`);
