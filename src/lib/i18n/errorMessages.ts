@@ -10,6 +10,15 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "الحساب البنكي غير موجود": "Bank account not found",
+  "اسم البنك مطلوب": "Bank name is required",
+  "رقم الحساب مطلوب": "Account number is required",
+  "رقم الآيبان مطلوب": "IBAN is required",
+  "نوع مستند غير معروف": "Unknown document type",
+  "البادئة مطلوبة": "Prefix is required",
+  "البادئة طويلة جداً": "Prefix is too long",
+  "3 أرقام على الأقل": "At least 3 digits",
+  "10 أرقام كحد أقصى": "At most 10 digits",
   "الإسطبل غير موجود أو لا يتبع الشركة المحددة": "The stable does not exist or does not belong to the selected company",
   "الخيل غير موجود أو لا يتبع الشركة المحددة": "The horse does not exist or does not belong to the selected company",
   "البوكس لا يتبع الإسطبل المحدد": "The stall does not belong to the selected stable",
