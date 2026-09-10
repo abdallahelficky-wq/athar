@@ -37,7 +37,10 @@ const SORT_COLUMNS = { entryNumber: "entryNumber", date: "date", amount: "amount
 export default function JournalModule({ companies, companyId }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
-  const isSuperAdmin = user?.role === "super_admin";
+  // super_admin أو مالك الشركة دائماً، أو أي مستخدم بمنصب مُفوَّض صراحةً بهذه الصلاحية — محسوبة
+  // في الخادم (canUnpostJournalEntries ضمن استجابة auth، راجع positions.service.ts) وليس هنا،
+  // فالخادم هو مصدر الحقيقة الوحيد؛ هذا فقط لإظهار/إخفاء الزر بلا حاجة لضغطة مرفوضة لمعرفة النتيجة.
+  const canUnpost = user?.canUnpostJournalEntries === true;
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -410,7 +413,7 @@ export default function JournalModule({ companies, companyId }) {
                             {posted && !e.reversedByEntryId && (
                               <button className="icon-btn" title={t("journalEntries.rowActions.reverse")} onClick={() => setReverseSource(e)}><Icon.Unlink /></button>
                             )}
-                            {posted && isSuperAdmin && (
+                            {posted && canUnpost && (
                               <button className="icon-btn icon-btn-warn" title={t("journalEntries.rowActions.unpost")} onClick={() => setUnpostTarget(e)}><Icon.Unlock /></button>
                             )}
                             <ActionsMenu

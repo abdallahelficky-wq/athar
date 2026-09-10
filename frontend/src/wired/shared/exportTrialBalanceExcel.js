@@ -11,10 +11,11 @@ const NUM_FMT = "#,##0.00;[Red]-#,##0.00";
  * exceljs (~1MB) يُحمَّل ديناميكياً هنا فقط عند الضغط الفعلي على "تحميل Excel" بدل استيراده أعلى
  * الملف، حتى لا يُثقِل الحزمة الرئيسية المحمَّلة لكل مستخدم بمكتبة نادرة الاستخدام نسبياً.
  */
-export async function exportTrialBalanceExcel({ visibleRows, totals, balanced, company, dateFrom, dateTo }) {
+export async function exportTrialBalanceExcel({ visibleRows, totals, balanced, company, dateFrom, dateTo, t, lang }) {
   const { default: ExcelJS } = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("ميزان المراجعة", { views: [{ rightToLeft: true }] });
+  const isRtl = lang !== "en";
+  const sheet = workbook.addWorksheet("ميزان المراجعة", { views: [{ rightToLeft: isRtl }] });
 
   sheet.columns = [
     { width: 42 },
@@ -40,12 +41,14 @@ export async function exportTrialBalanceExcel({ visibleRows, totals, balanced, c
 
   sheet.addRow([]);
 
-  const groupHeaderRow = sheet.addRow(["", "الرصيد الافتتاحي", "", "حركة الفترة", "", "الرصيد الختامي", ""]);
+  const groupHeaderRow = sheet.addRow(["", t("reports.trial.table.openingBalance"), "", t("reports.trial.table.periodMovement"), "", t("reports.trial.table.closingBalance"), ""]);
   sheet.mergeCells(groupHeaderRow.number, 2, groupHeaderRow.number, 3);
   sheet.mergeCells(groupHeaderRow.number, 4, groupHeaderRow.number, 5);
   sheet.mergeCells(groupHeaderRow.number, 6, groupHeaderRow.number, 7);
 
-  const columnTitlesRow = sheet.addRow(["الحساب", "مدين", "دائن", "مدين", "دائن", "مدين", "دائن"]);
+  const debitLabel = t("reports.trial.table.debit");
+  const creditLabel = t("reports.trial.table.credit");
+  const columnTitlesRow = sheet.addRow([t("reports.trial.table.account"), debitLabel, creditLabel, debitLabel, creditLabel, debitLabel, creditLabel]);
 
   [groupHeaderRow, columnTitlesRow].forEach((row) => {
     row.eachCell({ includeEmpty: true }, (cell) => {
@@ -78,7 +81,7 @@ export async function exportTrialBalanceExcel({ visibleRows, totals, balanced, c
   }
 
   const totalsRow = sheet.addRow([
-    "الإجمالي العام",
+    t("reports.trial.totalLabel"),
     totals.openingDebit, totals.openingCredit,
     totals.periodDebit, totals.periodCredit,
     totals.closingDebit, totals.closingCredit,
@@ -99,7 +102,7 @@ export async function exportTrialBalanceExcel({ visibleRows, totals, balanced, c
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "ميزان_المراجعة.xlsx";
+  a.download = `${t("nav.tabs.trial").replace(/\s+/g, "_")}.xlsx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

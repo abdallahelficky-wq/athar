@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import * as XLSX from "xlsx";
 import QRCode from "qrcode";
+import { useTranslation } from "react-i18next";
 import { fmt, fmt2, costCenterName, COMPANIES } from "./constants";
 import { useAuth } from "../context/AuthContext";
+import { formatDateTime } from "../i18n/dateFormat";
 
 export function Gauge({ label, value, max, unit, tone }) {
   const pct = Math.max(0, Math.min(1, value / max));
@@ -263,12 +265,21 @@ export function formatCompanyAddress(company, { full = false } = {}) {
  * الدخول المشتركة الوحيدة لأي شاشة طباعة حالية أو مستقبلية) بدل تكرارهما في كل شاشة على
  * حدة، حتى ينطبق أي تعديل مستقبلي عليهما تلقائياً على كل المطبوعات دفعة واحدة.
  */
-export function PrintShell({ subtitle, refNode, children, onClose, onEdit, onDownload, showSignatures = true, company, landscape = false }) {
+export function PrintShell({
+  subtitle, refNode, children, onClose, onEdit, onDownload, showSignatures = true, company, landscape = false,
+  // تجاوز اختياري لاسم الشركة المعروض في الهيدر (الاسم الكامل كما بالسجل التجاري مثلاً)، بدل
+  // الافتراضي (company.shortName || company.name) — يخصّ الطرف المستدعي وحده، بلا أي أثر على
+  // بقية شاشات الطباعة التي لم تمرّره.
+  companyNameOverride,
+  // شعار أكبر من الحجم الافتراضي المشترك — لطرف مستدعٍ محدَّد فقط (راجع نفس الملاحظة أعلاه).
+  largeLogo = false,
+}) {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [printedAt, setPrintedAt] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const accent = company?.brandColor || "#10202E";
-  const displayName = company && company.id !== "all" ? (company.shortName || company.name) : "أثر المحاسبي";
+  const displayName = companyNameOverride || (company && company.id !== "all" ? (company.shortName || company.name) : "أثر المحاسبي");
   const address = formatCompanyAddress(company);
 
   const handlePrint = () => {
@@ -293,7 +304,7 @@ export function PrintShell({ subtitle, refNode, children, onClose, onEdit, onDow
   return createPortal(
     <div className="voucher-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className="voucher-shell">
-        {onClose && <button type="button" className="voucher-close-x" onClick={onClose} aria-label="إغلاق">×</button>}
+        {onClose && <button type="button" className="voucher-close-x" onClick={onClose} aria-label={t("common.close")}>×</button>}
         <div className="voucher-print">
           {/* ترتيب الرأس مطلوب صراحة بهذا الشكل الثابت (يمين→يسار): رقم المستند وتاريخه، ثم
               الشعار في المنتصف تماماً، ثم بيانات الشركة — عبر شبكة ثلاثية الأعمدة (لا flex
@@ -303,7 +314,7 @@ export function PrintShell({ subtitle, refNode, children, onClose, onEdit, onDow
             <div className="voucher-ref">{refNode}</div>
             <div className="voucher-logo-wrap">
               {company?.logoUrl ? (
-                <img src={company.logoUrl} alt={displayName} className="voucher-logo-img" />
+                <img src={company.logoUrl} alt={displayName} className={largeLogo ? "voucher-logo-img voucher-logo-img-lg" : "voucher-logo-img"} />
               ) : (
                 <div className="brand-mark voucher-mark" style={{ borderColor: accent }}>
                   <span className="brand-mark-needle" style={{ background: accent }} />
@@ -322,23 +333,23 @@ export function PrintShell({ subtitle, refNode, children, onClose, onEdit, onDow
 
           {showSignatures && (
             <div className="voucher-signatures">
-              <div className="sig-box"><span>أعدّه</span><div className="sig-line" /></div>
-              <div className="sig-box"><span>اعتمده</span><div className="sig-line" /></div>
-              <div className="sig-box"><span>الختم</span><div className="sig-stamp">مكان الختم المعتمد</div></div>
+              <div className="sig-box"><span>{t("common.printShell.preparedBy")}</span><div className="sig-line" /></div>
+              <div className="sig-box"><span>{t("common.printShell.approvedBy")}</span><div className="sig-line" /></div>
+              <div className="sig-box"><span>{t("common.printShell.stamp")}</span><div className="sig-stamp">{t("common.printShell.stampPlaceholder")}</div></div>
             </div>
           )}
 
           <div className="voucher-print-footer">
-            <span>طُبع بواسطة: {user?.name || "—"}</span>
-            <span>{(printedAt || new Date()).toLocaleString("ar-SA")}</span>
+            <span>{t("common.printShell.printedBy")}: {user?.name || "—"}</span>
+            <span>{formatDateTime(printedAt || new Date(), i18n.language)}</span>
           </div>
         </div>
 
         <div className="voucher-actions">
           {onEdit && <button className="btn-ghost" onClick={onEdit}>تعديل</button>}
-          <button className="btn-ghost" onClick={handlePrint}>طباعة</button>
-          <button className="btn-primary" onClick={handleDownloadClick} disabled={downloading}>{downloading ? "جارٍ التحميل..." : "تحميل PDF"}</button>
-          <button className="btn-ghost" onClick={onClose}>إغلاق</button>
+          <button className="btn-ghost" onClick={handlePrint}>{t("common.print")}</button>
+          <button className="btn-primary" onClick={handleDownloadClick} disabled={downloading}>{downloading ? "جارٍ التحميل..." : t("common.printShell.downloadPdf")}</button>
+          <button className="btn-ghost" onClick={onClose}>{t("common.close")}</button>
         </div>
       </div>
     </div>,

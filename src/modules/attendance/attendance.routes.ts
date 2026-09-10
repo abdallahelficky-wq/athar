@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, authenticateEmployeePortal, requireRole } from "../../middleware/auth";
+import { authenticate, authenticateEmployeePortal, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { checkInHandler, checkOutHandler, myAttendance, dailyAttendance, absentTodayHandler } from "./attendance.controller";
 
 export const attendanceRoutes = Router();
@@ -11,5 +11,5 @@ attendanceRoutes.get("/me", authenticateEmployeePortal, myAttendance);
 
 // الواجهة الإدارية (سطح المكتب) — نفس نظام صلاحيات User الحالي
 const canView = requireRole("admin", "finance_manager", "hr_manager");
-attendanceRoutes.get("/daily", authenticate, canView, dailyAttendance);
-attendanceRoutes.get("/absent-today", authenticate, canView, absentTodayHandler);
+attendanceRoutes.get("/daily", authenticate, enforceCompanyScope, canView, dailyAttendance);
+attendanceRoutes.get("/absent-today", authenticate, enforceCompanyScope, canView, absentTodayHandler);

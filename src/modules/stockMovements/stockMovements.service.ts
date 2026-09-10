@@ -3,7 +3,7 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { applyPurchaseToAverageCostTx, recomputeAverageCostFromScratchTx } from "../../lib/costingEngine";
-import { isStockTracked } from "../items/items.service";
+import { isValueTrackedInLedger } from "../items/items.service";
 import crypto from "node:crypto";
 
 const INBOUND_TYPES = ["in", "transfer_in"] as const;
@@ -34,7 +34,9 @@ export async function getStockBalance(tenantId: string, itemId: string, warehous
 async function assertItemAndWarehouse(tenantId: string, itemId: string, warehouseId: string) {
   const item = await prisma.item.findFirst({ where: { id: itemId, tenantId } });
   if (!item) throw badRequest("الصنف غير موجود");
-  if (!isStockTracked(item.type)) throw badRequest("هذا النوع من الأصناف لا يُدار كمخزون");
+  // periodic_inventory يُستبعَد صراحةً هنا (isValueTrackedInLedger لا isQuantityTracked): صرف/تحويل
+  // مخزني يدوي بقيد يفترض حساب مخزون حقيقي يملكه الصنف — periodic_inventory لا يملك واحداً أصلاً.
+  if (!isValueTrackedInLedger(item.type)) throw badRequest("هذا النوع من الأصناف لا يُدار كمخزون");
   // لازم يتحقق من الشركة (لا المستأجر فقط)، وإلا يمكن اختيار مستودع شركة أخرى داخل نفس
   // المستأجر مع صنف هذه الشركة، فتُسجَّل حركة على مستودع لا يخصّها وتُفسِد رصيده.
   const warehouse = await prisma.warehouse.findFirst({ where: { id: warehouseId, tenantId, companyId: item.companyId } });

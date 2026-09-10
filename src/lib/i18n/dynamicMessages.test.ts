@@ -73,4 +73,22 @@ describe("dynamic (interpolated) message translation", () => {
       "الصنف \"قلم رصاص\" من نوع خدمي، لا يمكن شراؤه",
     );
   });
+
+  it("translates the non_stock missing-expense-account message", () => {
+    expect(translateMessage('لم يُحدَّد حساب المصروف المرتبط بالصنف "زيت محرك" بعد؛ أكمل بياناته من شاشة الأصناف أولاً', "en")).toBe(
+      'The expense account linked to item "زيت محرك" hasn\'t been set yet; complete its data from the items screen first',
+    );
+  });
+
+  it("translates the periodic-settlement wrong-item-type message", () => {
+    expect(translateMessage('الصنف "زيت محرك" ليس من نوع "بضاعة بجرد دوري" — لا يمكن تسويته من هذه الشاشة', "en")).toBe(
+      'Item "زيت محرك" is not a "periodic inventory" item — it can\'t be settled from this screen',
+    );
+  });
+
+  it("translates the periodic-settlement missing stock/purchases accounts message", () => {
+    expect(translateMessage('لم تُحدَّد حسابات المخزون/المشتريات للصنف "زيت محرك" بعد؛ أكمل بياناته من شاشة الأصناف أولاً', "en")).toBe(
+      'The inventory/purchases accounts for item "زيت محرك" haven\'t been set yet; complete its data from the items screen first',
+    );
+  });
 });

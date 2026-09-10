@@ -6,6 +6,7 @@ import StockInOutTab from "./StockInOutTab";
 import IssueTab from "./IssueTab";
 import TransferTab from "./TransferTab";
 import StockReportTab from "./StockReportTab";
+import PeriodicSettlementTab from "./PeriodicSettlementTab";
 import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 import { useModuleTab } from "../shared/useModuleTab";
@@ -17,6 +18,7 @@ export const INVENTORY_TABS = [
   { id: "issue", labelKey: "nav.tabs.issue" },
   { id: "transfer", labelKey: "nav.tabs.transfer" },
   { id: "report", labelKey: "nav.tabs.report" },
+  { id: "periodicSettlement", labelKey: "nav.tabs.periodicSettlement" },
 ];
 
 export default function InventoryWiredModule({ companies, companyId }) {
@@ -35,6 +37,7 @@ export default function InventoryWiredModule({ companies, companyId }) {
       {tab === "issue" && <IssueTab companyId={companyId} />}
       {tab === "transfer" && <TransferTab companyId={companyId} companies={companies} />}
       {tab === "report" && <StockReportTab companyId={companyId} />}
+      {tab === "periodicSettlement" && <PeriodicSettlementTab companyId={companyId} />}
     </div>
   );
 }

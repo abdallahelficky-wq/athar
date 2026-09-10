@@ -32,6 +32,26 @@ export async function createLeaveRequestFor(tenantId: string, employeeId: string
   });
 }
 
+/** تعديل بيانات طلب إجازة لم يُعالَج بعد — لا يجوز تعديل طلب سبقت الموافقة عليه أو رفضه (نفس قيد
+ * transitionLeaveRequest أدناه: حالة pending فقط قابلة للتغيير). */
+export async function updateLeaveRequest(tenantId: string, requestId: string, input: LeaveRequestInput) {
+  const request = await prisma.leaveRequest.findFirst({ where: { id: requestId, employee: { tenantId } } });
+  if (!request) throw notFound("طلب الإجازة غير موجود");
+  if (request.status !== "pending") throw badRequest("تمت معالجة هذا الطلب مسبقاً");
+
+  return prisma.leaveRequest.update({
+    where: { id: requestId },
+    data: {
+      type: input.type,
+      startDate: input.startDate,
+      endDate: input.endDate,
+      days: daysBetween(input.startDate, input.endDate),
+      note: input.note,
+    },
+    include: { employee: true },
+  });
+}
+
 export async function listOwnLeaveRequests(tenantId: string, employeeId: string) {
   return prisma.leaveRequest.findMany({
     where: { employeeId, employee: { tenantId } },

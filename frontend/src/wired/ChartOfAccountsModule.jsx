@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import * as XLSX from "xlsx";
 import { listAccounts, getNextAccountCode, createAccount, updateAccount, deleteAccount, installStandardChart } from "../api/accounts";
 import { fmt } from "../legacy/constants";
 import { Icon } from "../legacy/shared";
@@ -171,6 +172,25 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     }
   };
 
+  // يُصدَّر كامل accounts (شجرة النطاق الحالي بأكملها) لا rows المفلترة/المعروضة فقط — حتى تصدير
+  // كل الحسابات دائماً بصرف النظر عن أي فلتر بحث/مستوى/تصنيف/حالة نشط حالياً في الشاشة.
+  const exportAccounts = () => {
+    const byId = new Map(accounts.map((a) => [a.id, a]));
+    const exportRows = [...accounts]
+      .sort((a, b) => a.code.localeCompare(b.code))
+      .map((a) => ({
+        [t("chartOfAccounts.export.columns.code")]: a.code,
+        [t("chartOfAccounts.export.columns.name")]: a.name,
+        [t("chartOfAccounts.export.columns.type")]: TYPE_LABEL[a.type] || a.type,
+        [t("chartOfAccounts.export.columns.parent")]: a.parentId ? (byId.get(a.parentId)?.name || "") : t("chartOfAccounts.export.noParent"),
+        [t("chartOfAccounts.export.columns.posting")]: a.isPosting ? t("chartOfAccounts.table.postingAccount") : t("chartOfAccounts.table.groupAccount"),
+      }));
+    const sheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, t("chartOfAccounts.export.sheetName"));
+    XLSX.writeFile(workbook, `chart-of-accounts-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   // حقول الفورم مشتركة بالكامل بين وضع "إضافة حساب" ووضع "تعديل/نقل" — كلاهما الآن نافذة منبثقة
   // (accountModalOpen)، فقط العنوان وسلوك الحفظ يختلفان حسب editingId.
   const accountModalOpen = editingId || addModalOpen;
@@ -209,6 +229,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
           <div className="form-btn-group">
             <button className="btn-primary" onClick={openAddModal}>{t("chartOfAccounts.addAccount")}</button>
             <button className="btn-ghost" onClick={() => setCompact((v) => !v)}>{compact ? t("chartOfAccounts.expandView") : t("chartOfAccounts.compactView")}</button>
+            <button className="btn-ghost" onClick={exportAccounts} disabled={accounts.length === 0}>{t("chartOfAccounts.export.exportExcel")}</button>
             {isSuperAdmin && (
               <button className="btn-ghost" style={{ color: "#A8432B", borderColor: "rgba(168,67,43,0.35)" }} disabled={installing} onClick={installStandard}>
                 {installing ? t("chartOfAccounts.installing") : t("chartOfAccounts.installStandard")}

@@ -9,15 +9,17 @@ import { useDeferredFilters } from "../shared/useDeferredFilters";
 
 const emptyItemFilters = { query: "", category: "", typeFilter: "", lowStock: false };
 
-const ITEM_TYPES = ["inventory", "expense", "service", "fixed_asset", "raw_material", "bundle"];
-const STOCK_TRACKED_TYPES = ["inventory", "expense", "raw_material", "bundle"];
+const ITEM_TYPES = ["inventory", "expense", "service", "fixed_asset", "raw_material", "bundle", "periodic_inventory", "non_stock"];
+const STOCK_TRACKED_TYPES = ["inventory", "expense", "raw_material", "bundle", "periodic_inventory"];
 
 const TYPE_CSS = {
   inventory: "type-inventory", expense: "type-expense", service: "type-service",
   fixed_asset: "type-fixed-asset", raw_material: "type-raw-material", bundle: "type-bundle",
+  periodic_inventory: "type-periodic-inventory", non_stock: "type-non-stock",
 };
 const TYPE_ICON = {
   inventory: "◈", expense: "▢", service: "☆", fixed_asset: "▣", raw_material: "◪", bundle: "⬡",
+  periodic_inventory: "◫", non_stock: "◇",
 };
 
 /** يطابق نفس القاعدة في items.schemas.ts (requiredAccountFieldsForType) — يقرّر أي حقول ربط محاسبي تظهر إلزامية حسب نوع الصنف. */
@@ -28,6 +30,8 @@ function requiredAccountFieldsForType(type, allowDirectSale) {
     case "service": return ["revenueAccountId"];
     case "raw_material": return allowDirectSale ? ["stockAccountId", "revenueAccountId", "cogsAccountId"] : ["stockAccountId"];
     case "bundle": return ["stockAccountId", "revenueAccountId", "cogsAccountId"];
+    case "periodic_inventory": return ["purchasesAccountId", "stockAccountId", "revenueAccountId"];
+    case "non_stock": return ["expenseAccountId", "revenueAccountId"];
     default: return [];
   }
 }
@@ -35,7 +39,7 @@ function requiredAccountFieldsForType(type, allowDirectSale) {
 const emptyForm = () => ({
   code: "", name: "", barcode: "", type: "inventory", unit: "", category: "",
   salePrice: "", vatApplicable: true, reorderLevel: "",
-  stockAccountId: "", cogsAccountId: "", revenueAccountId: "", expenseAccountId: "",
+  stockAccountId: "", cogsAccountId: "", revenueAccountId: "", expenseAccountId: "", purchasesAccountId: "",
   allowDirectSale: false, assetCategoryId: "",
 });
 
@@ -125,7 +129,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
 
   // عمود "الكمية الحالية" لا معنى له إطلاقاً عند فلترة النوع على "خدمي" وحده (لا تتبّع مخزون لها
   // بالمرة)، فيُخفى العمود بالكامل في هذه الحالة بدل عرض "—" في كل صف.
-  const showQuantityColumn = itemFilters.applied.typeFilter !== "service";
+  const showQuantityColumn = itemFilters.applied.typeFilter !== "service" && itemFilters.applied.typeFilter !== "non_stock";
   const columnCount = 4 // كود، اسم، نوع، وحدة
     + (showQuantityColumn ? 1 : 0)
     + (extraColumns.lastPurchasePrice ? 1 : 0)
@@ -144,11 +148,12 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   );
 
   const requiredFields = requiredAccountFieldsForType(form.type, form.allowDirectSale);
-  const isSellableType = form.type === "inventory" || form.type === "service" || form.type === "bundle" || (form.type === "raw_material" && form.allowDirectSale);
+  const isSellableType = form.type === "inventory" || form.type === "service" || form.type === "bundle"
+    || form.type === "periodic_inventory" || form.type === "non_stock" || (form.type === "raw_material" && form.allowDirectSale);
   const componentOptions = useMemo(() => items.filter((i) => i.id !== editingId && i.type !== "bundle"), [items, editingId]);
 
   const changeType = (type) => setForm((f) => ({
-    ...f, type, stockAccountId: "", cogsAccountId: "", revenueAccountId: "", expenseAccountId: "",
+    ...f, type, stockAccountId: "", cogsAccountId: "", revenueAccountId: "", expenseAccountId: "", purchasesAccountId: "",
     allowDirectSale: false, assetCategoryId: "",
   }));
 
@@ -176,6 +181,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       cogsAccountId: form.cogsAccountId || undefined,
       revenueAccountId: form.revenueAccountId || undefined,
       expenseAccountId: form.expenseAccountId || undefined,
+      purchasesAccountId: form.purchasesAccountId || undefined,
       allowDirectSale: form.type === "raw_material" ? form.allowDirectSale : undefined,
       assetCategoryId: form.type === "fixed_asset" ? (form.assetCategoryId || undefined) : undefined,
     };
@@ -210,6 +216,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       salePrice: item.salePrice ?? "", vatApplicable: item.vatApplicable, reorderLevel: item.reorderLevel ?? "",
       stockAccountId: item.stockAccountId || "", cogsAccountId: item.cogsAccountId || "",
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
+      purchasesAccountId: item.purchasesAccountId || "",
       allowDirectSale: item.allowDirectSale || false, assetCategoryId: item.assetCategoryId || "",
     });
     await loadComponentsFor(item);
@@ -223,6 +230,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       salePrice: item.salePrice ?? "", vatApplicable: item.vatApplicable, reorderLevel: item.reorderLevel ?? "",
       stockAccountId: item.stockAccountId || "", cogsAccountId: item.cogsAccountId || "",
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
+      purchasesAccountId: item.purchasesAccountId || "",
       allowDirectSale: item.allowDirectSale || false, assetCategoryId: item.assetCategoryId || "",
     });
     await loadComponentsFor(item);
@@ -332,6 +340,9 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
           </label>}
           {requiredFields.includes("expenseAccountId") && <label>{ACCOUNT_LABELS.expenseAccountId}
             <AccountSearchSelect accounts={expenseAccounts} value={form.expenseAccountId} onChange={(id) => setForm({ ...form, expenseAccountId: id })} />
+          </label>}
+          {requiredFields.includes("purchasesAccountId") && <label>{ACCOUNT_LABELS.purchasesAccountId}
+            <AccountSearchSelect accounts={expenseAccounts} value={form.purchasesAccountId} onChange={(id) => setForm({ ...form, purchasesAccountId: id })} />
           </label>}
         </div>}
 

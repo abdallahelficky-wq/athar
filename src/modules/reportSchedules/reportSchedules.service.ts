@@ -66,9 +66,9 @@ export async function resolveRecipientEmails(tenantId: string, companyId: string
       role: { in: ["admin", "finance_manager", "super_admin"] },
       OR: [{ companyScope: "all" }, { companyScope: companyId }],
     },
-    select: { email: true },
+    select: { identity: { select: { email: true } } },
   });
-  return [...new Set(users.map((u) => u.email))];
+  return [...new Set(users.map((u) => u.identity.email))];
 }
 
 /** يُستدعى من زر "إرسال الآن" في شاشة الإعدادات لاختبار الجدولة فوراً دون انتظار موعدها،

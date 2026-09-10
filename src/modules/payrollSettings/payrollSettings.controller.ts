@@ -1,5 +1,7 @@
 import { RequestHandler } from "express";
 import * as service from "./payrollSettings.service";
+import { prisma } from "../../lib/prisma";
+import { assertRecordCompanyScope } from "../../middleware/auth";
 
 export const listComponentsHandler: RequestHandler = async (req, res) => {
   res.json(await service.listPayrollComponents(req.auth!.tenantId, req.params.companyId));
@@ -14,10 +16,12 @@ export const createComponentHandler: RequestHandler = async (req, res) => {
 };
 
 export const updateComponentHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.payrollComponent, req.params.id);
   res.json(await service.updatePayrollComponent(req.auth!.tenantId, req.params.id, req.body));
 };
 
 export const deleteComponentHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.payrollComponent, req.params.id);
   await service.deletePayrollComponent(req.auth!.tenantId, req.params.id);
   res.status(204).send();
 };
@@ -31,9 +35,11 @@ export const updateSettingsHandler: RequestHandler = async (req, res) => {
 };
 
 export const getEmployeeComponentsHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.employee, req.params.employeeId);
   res.json(await service.getEmployeePayrollComponents(req.auth!.tenantId, req.params.employeeId));
 };
 
 export const setEmployeeComponentsHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.employee, req.params.employeeId);
   res.json(await service.setEmployeePayrollComponents(req.auth!.tenantId, req.params.employeeId, req.body));
 };

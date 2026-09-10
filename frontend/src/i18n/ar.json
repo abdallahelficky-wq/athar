@@ -20,6 +20,15 @@
     "currency": "ر.س",
     "noCompany": "أنشئ شركة أولاً من لوحة القيادة.",
     "moreActions": "المزيد",
+    "employeeSearchPlaceholder": "ابحث باسم الموظف...",
+    "printShell": {
+      "downloadPdf": "تحميل PDF",
+      "preparedBy": "أعدّه",
+      "approvedBy": "اعتمده",
+      "stamp": "الختم",
+      "stampPlaceholder": "مكان الختم المعتمد",
+      "printedBy": "طُبع بواسطة"
+    },
     "unpost": {
       "title": "فك الترحيل",
       "confirmPrompt": "أدخل الرقم السري لتأكيد فك الترحيل. سيتحقق الخادم من صحته فعلياً.",
@@ -42,7 +51,14 @@
     "stalls": "البوكسات",
     "horses": "الخيول",
     "contracts": "عقود الإيواء",
-    "care": "الرعاية"
+    "care": "سجلات الرعاية",
+    "services": "خدمات الرعاية",
+    "trainers": "المدربون",
+    "lessonTypes": "أنواع الحصص",
+    "lessons": "الحصص التدريبية",
+    "competitions": "المسابقات والمنافسات",
+    "billing": "إنشاء فاتورة إعاشة",
+    "commissions": "عمولات المدربين"
   },
   "landing": {
     "nav": { "login": "تسجيل الدخول", "startTrial": "ابدأ تجربتك المجانية" },
@@ -105,11 +121,18 @@
       "backToLanding": "الرجوع للصفحة الرئيسية",
       "note": "هذا الحساب متصل فعلياً بقاعدة بيانات حقيقية — بياناتك معزولة تماماً عن أي مستأجر آخر.",
       "errFillFields": "يرجى تعبئة البريد الإلكتروني وكلمة المرور.",
-      "errGeneric": "تعذّر تسجيل الدخول، حاول مجدداً."
+      "errGeneric": "تعذّر تسجيل الدخول، حاول مجدداً.",
+      "chooseAccountTitle": "اختر الشركة",
+      "chooseAccountSub": "هذا البريد الإلكتروني مرتبط بأكثر من شركة — اختر الشركة التي تريد الدخول إليها.",
+      "chooseAccountBack": "الرجوع لتسجيل الدخول",
+      "chooseAccountErr": "تعذّر إتمام تسجيل الدخول لهذه الشركة، حاول مجدداً."
     },
     "register": {
       "title": "ابدأ تجربتك المجانية لمدة شهر",
       "companyName": "اسم الشركة / المنشأة",
+      "businessActivity": "نشاط الشركة",
+      "selectActivity": "اختر النشاط",
+      "activities": {"contracting":"المقاولات","manufacturing":"المصانع والتصنيع","retail":"التجزئة","generalTrade":"التجارة العامة","fuelStations":"محطات الوقود","horseStables":"إسطبلات وإيواء وإعاشة الخيل"},
       "fullName": "الاسم الكامل",
       "email": "البريد الإلكتروني",
       "password": "كلمة المرور",
@@ -149,7 +172,11 @@
       "note": "اختر كلمة مرور لحسابك لإتمام تفعيله — سيتم تسجيل دخولك تلقائياً بعد ذلك.",
       "submitBtn": "تفعيل الحساب والدخول",
       "activating": "جارٍ التفعيل...",
-      "errGeneric": "تعذّر تفعيل الحساب، حاول مجدداً."
+      "errGeneric": "تعذّر تفعيل الحساب، حاول مجدداً.",
+      "loading": "جارٍ التحقق من الدعوة...",
+      "joinNote": "بريدك الإلكتروني ({{email}}) مرتبط بحساب موجود بالفعل. بالضغط على تأكيد الانضمام ستنضم إلى \"{{tenantName}}\" بدور \"{{role}}\" — بنفس بيانات دخولك الحالية، بلا حاجة لكلمة مرور جديدة.",
+      "joinBtn": "تأكيد الانضمام والدخول",
+      "joining": "جارٍ الانضمام..."
     }
   },
   "nav": {
@@ -172,7 +199,8 @@
       "reports": "التقارير", "salesSettings": "إعدادات المبيعات", "suppliers": "الموردون", "purchaseInvoices": "فواتير المشتريات",
       "purchaseReturns": "مردودات المشتريات", "items": "الأصناف", "warehouses": "المستودعات",
       "inout": "إدخال / إخراج", "issue": "الصرف المخزني", "transfer": "التحويل بين الفروع",
-      "report": "تقرير الأرصدة", "register": "سجل الأصول", "depreciation": "الإهلاك الشهري",
+      "report": "تقرير الأرصدة", "periodicSettlement": "تسوية الجرد الدوري",
+      "register": "سجل الأصول", "depreciation": "الإهلاك الشهري",
       "disposal": "الاستبعاد/البيع", "fixedAssetsReports": "التقارير", "categories": "إعدادات الأصول الثابتة",
       "journal": "القيود اليومية", "chartOfAccounts": "شجرة الحسابات", "ledger": "كشف حساب الأستاذ",
       "departments": "الأقسام", "zakat": "الزكاة والضريبة (تقديرية، بيانات تجريبية)",
@@ -182,7 +210,8 @@
       "hrReports": "التقارير", "trial": "ميزان المراجعة", "income": "قائمة الدخل", "balance": "المركز المالي",
       "monthly": "التقرير المالي الشهري الشامل", "automation": "أتمتة الإرسال",
       "companies": "بيانات الشركات", "profile": "الملف الشخصي", "users": "المستخدمون والصلاحيات",
-      "jobTitles": "الوظائف", "locations": "المواقع", "companyDocs": "المستندات الرسمية"
+      "jobTitles": "الوظائف", "locations": "المواقع", "companyDocs": "المستندات الرسمية",
+      "positions": "المناصب"
     },
     "activeCompanyLabel": "الشركة النشطة:",
     "noCompanySelected": "لم تُختَر بعد",
@@ -205,7 +234,8 @@
       "purchaseInvoices": "فواتير المشتريات"
     },
     "emailWarningBefore": "⚠️ خدمة إرسال الإيميلات غير مفعَّلة على الخادم — الإيميلات (ترحيب، دعوة مستخدم، إرسال فاتورة) لن تصل لأي مستلم. راجِع متغيّر",
-    "emailWarningAfter": "في إعدادات النشر."
+    "emailWarningAfter": "في إعدادات النشر.",
+    "readOnlyWarning": "⚠️ هذه الشركة في وضع (عرض فقط) بسبب انتهاء الاشتراك أو الفترة التجريبية — يمكنك تصفّح كل البيانات، لكن لا يمكن إضافة أو تعديل أو حذف أي شيء. تواصل مع الدعم الفني لتفعيل الاشتراك."
   },
   "dashboard": {
     "breadcrumb": { "overview": "نظرة عامة", "realData": "بيانات حقيقية" },
@@ -424,6 +454,7 @@
     "close": "إغلاق",
     "subtitle": "كشف حساب {{party}}",
     "vatNumber": "الرقم الضريبي",
+    "openingBalance": "الرصيد الافتتاحي",
     "closingBalance": "الرصيد الختامي",
     "customerDebit": "مدين (له علينا)", "customerCredit": "دائن (لنا عليه)",
     "supplierCredit": "دائن (علينا له)", "supplierDebit": "مدين (له علينا)",
@@ -482,6 +513,9 @@
       "customizationNote": "تخصيص أساسي يُطبَّق فوق القالب المختار — اللون على الهيدر/الفوتر/الجداول، والشعار في الهيدر.",
       "brandColorLabel": "اللون الرئيسي للفاتورة",
       "logoLabel": "شعار الشركة",
+      "posSectionTitle": "نقطة البيع",
+      "posSectionNote": "إعداد على مستوى الشركة بالكامل (لا يخص جهازاً بعينه) — يُطبَّق فوراً على كل أجهزة نقطة البيع لهذه الشركة معاً.",
+      "posQuickSaleToggle": "تفعيل شاشة البيع السريعة (تحديد أصناف كبطاقات ← كميات ← عميل، مع دعم بيع آجل) بدل الشاشة الكلاسيكية",
       "numberingSectionTitle": "إعدادات الترقيم",
       "numberingSectionNote": "بادئة نصية وعدد أرقام العدّاد لكل نوع مستند، وإمكانية إعادة الترقيم من جديد كل سنة ميلادية أو الاستمرار تسلسلياً بلا انقطاع — لكل شركة على حدة.",
       "numberingInvoices": "فواتير المبيعات",
@@ -720,11 +754,13 @@
     "breadcrumb": "إدارة المخازن",
     "typeMeta": {
       "inventory": "مخزون", "expense": "مصروف", "service": "خدمة",
-      "fixed_asset": "أصل ثابت", "raw_material": "مادة أولية", "bundle": "منتج مجمّع"
+      "fixed_asset": "أصل ثابت", "raw_material": "مادة أولية", "bundle": "منتج مجمّع",
+      "periodic_inventory": "بضاعة بجرد دوري", "non_stock": "غير مخزن"
     },
     "accountLabels": {
       "stockAccountId": "حساب المخزون", "cogsAccountId": "حساب تكلفة البضاعة المباعة",
-      "revenueAccountId": "حساب الإيراد", "expenseAccountId": "حساب المصروف"
+      "revenueAccountId": "حساب الإيراد", "expenseAccountId": "حساب المصروف",
+      "purchasesAccountId": "حساب المشتريات"
     },
     "items": {
       "addNew": "إضافة صنف جديد",
@@ -824,18 +860,34 @@
     },
     "movementsTable": {
       "date": "التاريخ", "item": "الصنف", "location": "الموقع", "type": "النوع", "quantity": "الكمية", "note": "ملاحظة", "delete": "حذف",
-      "types": { "in": "إدخال", "out": "إخراج/إتلاف", "issue": "صرف", "transfer_out": "تحويل صادر", "transfer_in": "تحويل وارد" },
+      "types": { "in": "إدخال", "out": "إخراج/إتلاف", "issue": "صرف", "transfer_out": "تحويل صادر", "transfer_in": "تحويل وارد", "adjustment": "تسوية جرد دوري" },
       "empty": "لا توجد حركات بعد."
     },
     "stockReport": {
       "item": "الصنف", "code": "الكود", "location": "الموقع", "balance": "الرصيد", "costPrice": "سعر التكلفة", "value": "القيمة",
-      "empty": "لا توجد أرصدة مخزون بعد."
+      "empty": "لا توجد أرصدة مخزون بعد.",
+      "notValueTracked": "غير مُقيَّم محاسبياً"
+    },
+    "periodicSettlement": {
+      "intro": "تسوية دفعة واحدة لكل أصناف \"بضاعة بجرد دوري\" — أدخل الكمية المعدودة فعلياً وتكلفة الوحدة لكل صنف تريد تسويته، واترك الباقي فارغاً لتخطّيه في هذه الدفعة.",
+      "date": "تاريخ الجرد", "loading": "جارٍ التحميل...",
+      "empty": "لا توجد أصناف من نوع \"بضاعة بجرد دوري\" بعد.",
+      "item": "الصنف", "trackedQuantity": "الكمية المتتبَّعة تشغيلياً", "currentValue": "القيمة الحالية المُعتمَدة",
+      "countedQuantity": "الكمية المعدودة فعلياً", "unitCost": "تكلفة الوحدة",
+      "deviationWarning": "تنبيه: تختلف كثيراً عن آخر سعر شراء فعلي ({{price}}) — تحقق قبل الحفظ.",
+      "saveBtn": "حفظ التسوية", "saving": "جارٍ الحفظ...",
+      "resultsTitle": "نتيجة التسوية",
+      "netAdjustment": "صافي قيد التسوية", "quantityVariance": "فرق الكمية (جرد فعلي)", "newValue": "القيمة الجديدة المُعتمَدة"
     }
   },
   "fixedAssets": {
     "breadcrumb": "الأصول الثابتة",
     "status": { "active": "نشط", "disposed": "مستبعد" },
     "depreciationMethod": { "straight_line": "قسط ثابت", "declining_balance": "قسط متناقص" },
+    "categoryLabels": {
+      "vehicles": "سيارات ومركبات", "machinery": "معدات وآلات", "furniture": "أثاث ومفروشات",
+      "itEquipment": "أجهزة حاسب وتقنية", "buildings": "مباني وإنشاءات", "other": "أخرى"
+    },
     "register": {
       "editingBanner": "تعديل الأصل — {{name}} (لا يمكن تعديل التكلفة أو تاريخ الشراء بعد الترحيل)",
       "name": "اسم الأصل", "category": "التصنيف",
@@ -954,7 +1006,7 @@
     },
     "rowActions": {
       "view": "عرض القيد", "edit": "تعديل", "editDisabled": "لا يمكن التعديل بعد الترحيل — استخدم عكس القيد لتصحيحه",
-      "delete": "حذف", "post": "ترحيل", "reverse": "عكس القيد", "unpost": "فك الترحيل (super_admin فقط)",
+      "delete": "حذف", "post": "ترحيل", "reverse": "عكس القيد", "unpost": "فك الترحيل",
       "print": "طباعة القيد", "downloadPdf": "تحميل PDF", "duplicate": "نسخ القيد إلى قيد جديد", "mirror": "إنشاء قيد مرآة في شركة أخرى",
       "links": "روابط القيد", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات"
     },
@@ -1049,6 +1101,18 @@
     "addAccount": "+ إضافة حساب",
     "expandView": "عرض الشجرة كاملة",
     "compactView": "عرض مصغّر",
+    "export": {
+      "exportExcel": "تصدير Excel",
+      "sheetName": "شجرة الحسابات",
+      "noParent": "—",
+      "columns": {
+        "code": "كود الحساب",
+        "name": "اسم الحساب",
+        "type": "نوع الحساب",
+        "parent": "الحساب الأب",
+        "posting": "قابل للترحيل"
+      }
+    },
     "form": {
       "nameAr": "اسم الحساب بالعربية",
       "nameEn": "اسم الحساب بالإنجليزية (اختياري)",
@@ -1178,6 +1242,23 @@
     "baseFinal": "الوعاء الزكوي التقديري"
   },
   "hr": {
+    "leaveTypeLabels": { "annual": "سنوية", "sick": "مرضية", "unpaid": "بدون راتب", "casual": "عارضة" },
+    "departmentLabels": {
+      "generalManagement": "الإدارة العامة", "financeAccounting": "المالية والحسابات", "operations": "التشغيل",
+      "salesMarketing": "المبيعات والتسويق", "humanResources": "الموارد البشرية", "maintenanceTechnicalSupport": "الصيانة والدعم الفني",
+      "administrativeAffairs": "الشئون الإدارية", "maintenance": "الصيانة", "stations": "المحطات", "staffAffairs": "شئون الموظفين", "sales": "المبيعات",
+      "topManagement": "الإدارة العليا", "financialManagement": "الإدارة المالية", "operationsDivision": "العمليات", "marketing": "التسويق",
+      "external": "خارجي", "management": "الإدارة", "purchasing": "المشتريات", "accounts": "الحسابات"
+    },
+    "nationalityLabels": {
+      "saudi": "سعودي", "egyptian": "مصري", "pakistani": "باكستاني", "bangladeshi": "بنغلاديشي",
+      "indian": "هندي", "yemeni": "يمني", "sudanese": "سوداني", "filipino": "فلبيني", "other": "أخرى"
+    },
+    "documentTypeLabels": {
+      "residencyId": "إقامة", "passport": "جواز سفر", "drivingLicense": "رخصة قيادة",
+      "publicTransportDriverCard": "بطاقة تشغيل سائق (نقل عام)", "healthCertificate": "شهادة صحية",
+      "medicalInsurance": "تأمين طبي", "other": "أخرى"
+    },
     "dashboard": {
       "activeEmployeeCount": "عدد الموظفين النشطين",
       "monthlyPayrollCost": "تكلفة الرواتب الشهرية الحالية",
@@ -1198,11 +1279,30 @@
     },
     "directory": {
       "editingBanner": "تعديل ملف الموظف — {{name}}",
+      "personalSection": "البيانات الشخصية وبيانات التواصل",
+      "employmentSection": "البيانات الوظيفية والمالية",
       "name": "الاسم",
+      "employeeNumber": "الرقم الوظيفي",
+      "idNumber": "رقم الهوية / الإقامة",
+      "gender": "الجنس",
+      "genderMale": "ذكر",
+      "genderFemale": "أنثى",
+      "maritalStatus": "الحالة الاجتماعية",
+      "single": "أعزب",
+      "married": "متزوج",
       "jobTitle": "المسمّى الوظيفي",
       "department": "القسم",
+      "workLocation": "موقع العمل / الفرع",
       "nationality": "الجنسية",
       "dateOfBirth": "تاريخ الميلاد",
+      "phone": "رقم الجوال",
+      "alternatePhone": "رقم جوال بديل",
+      "personalEmail": "البريد الشخصي",
+      "workEmail": "البريد الوظيفي",
+      "address": "العنوان",
+      "emergencyContactName": "اسم شخص للطوارئ",
+      "emergencyContactPhone": "جوال شخص الطوارئ",
+      "emergencyContactRelation": "صلة القرابة",
       "hireDate": "تاريخ المباشرة",
       "contractType": "نوع العقد",
       "contractUnlimited": "غير محدد المدة",
@@ -1213,12 +1313,30 @@
       "basicSalary": "الأساسي",
       "housingAllowance": "بدل سكن",
       "transportAllowance": "بدل نقل",
+      "otherAllowance": "بدلات أخرى",
+      "yes": "نعم",
+      "downloadImportTemplate": "تنزيل نموذج رفع الموظفين",
+      "uploadEmployees": "رفع بيانات الموظفين",
+      "templateExampleName": "مثال — يُحذف قبل الرفع",
+      "importInstructionsTitle": "تعليمات تعبئة نموذج الموظفين",
+      "importRequiredFields": "الحقول الإلزامية: اسم الموظف، تاريخ المباشرة، الراتب الأساسي.",
+      "importDateFormat": "استخدم تنسيق التاريخ YYYY-MM-DD، مثل 2026-01-31.",
+      "importDoNotRename": "لا تغيّر أسماء الأعمدة ولا تضف أكثر من 1000 موظف في الملف الواحد.",
+      "importInstructionsSheet": "التعليمات",
+      "importRowError": "الصف {{row}} ناقص: اسم الموظف أو تاريخ المباشرة أو الراتب الأساسي.",
+      "importEmpty": "ملف Excel لا يحتوي على صفوف موظفين.",
+      "importSuccess": "تم استيراد {{count}} موظف بنجاح.",
+      "annualLeaveDays": "رصيد الإجازة السنوي بالأيام",
       "bankName": "اسم البنك",
       "bankAccount": "رقم الحساب / الآيبان",
+      "medicalInsuranceProvider": "شركة التأمين الطبي",
+      "medicalInsuranceNumber": "رقم وثيقة / بطاقة التأمين",
+      "notes": "ملاحظات الموارد البشرية",
       "gosiApplicable": "خاضع للتأمينات الاجتماعية (GOSI)",
       "docsTitle": "المستندات والوثائق الرسمية",
       "docTable": { "type": "نوع المستند", "number": "الرقم", "expiry": "تاريخ الانتهاء" },
       "addDoc": "+ إضافة مستند",
+      "attachmentsTitle": "مرفقات ملف الموظف",
       "payrollComponentsTitle": "بنود الرواتب المُسنَدة لهذا الموظف",
       "payrollComponentsNote": "ليس كل الموظفين بحاجة لنفس بنود الراتب — حدّد هنا أي البنود تُطبَّق على هذا الموظف تحديداً، مع قيمة ثابتة للبنود التي تحتاج مبلغاً يدوياً لكل موظف.",
       "payrollTable": { "component": "البند", "fixedValue": "القيمة الثابتة" },
@@ -1226,7 +1344,18 @@
       "cancelEdit": "إلغاء التعديل",
       "saveChanges": "حفظ التعديلات",
       "saveNew": "حفظ ملف الموظف",
-      "table": { "name": "الاسم", "department": "القسم", "basicSalary": "الأساسي", "leaveStatus": "حالة الإجازة" },
+      "listTitle": "قائمة الموظفين",
+      "exportExcel": "تصدير الموظفين إلى Excel",
+      "statusTerminated": "منتهي الخدمة",
+      "export": {
+        "sheetName": "الموظفون",
+        "employeeNumber": "الرقم الوظيفي", "name": "اسم الموظف", "idNumber": "رقم الهوية / الإقامة",
+        "nationality": "الجنسية", "jobTitle": "المسمى الوظيفي", "department": "القسم", "workLocation": "موقع العمل",
+        "phone": "الجوال", "workEmail": "البريد الوظيفي", "hireDate": "تاريخ المباشرة", "contractType": "نوع العقد",
+        "contractEnd": "نهاية العقد", "basicSalary": "الراتب الأساسي", "housingAllowance": "بدل السكن",
+        "transportAllowance": "بدل النقل", "bankAccount": "الآيبان", "annualLeaveDays": "رصيد الإجازة السنوي", "status": "الحالة"
+      },
+      "table": { "name": "الاسم", "department": "القسم", "basicSalary": "الأساسي", "leaveBalance": "رصيد الإجازة (يوم / مبلغ)", "eosBalance": "نهاية الخدمة حتى اليوم", "leaveStatus": "حالة الإجازة" },
       "statusOnLeave": "في إجازة",
       "statusActive": "نشط",
       "viewAccount": "عرض في شجرة الحسابات",
@@ -1241,6 +1370,9 @@
       "toDate": "إلى تاريخ",
       "notes": "ملاحظات",
       "saveBtn": "تسجيل الإجازة",
+      "updateBtn": "تحديث الطلب",
+      "cancelEdit": "إلغاء التعديل",
+      "editBtn": "تعديل",
       "table": { "employee": "الموظف", "type": "النوع", "from": "من", "to": "إلى", "days": "الأيام", "status": "الحالة" },
       "noManagerBadge": "بلا مدير مباشر",
       "noManagerTooltip": "هذا الموظف بلا مدير مباشر مسجّل — لن يظهر الطلب في أي صندوق وارد بالجوال، والموافقة/الرفض من هنا فقط",
@@ -1250,6 +1382,27 @@
       "empty": "لا توجد إجازات مسجّلة بعد."
     },
     "leaveSettlement": {
+      "requestSection": "بيانات الإجازة وطريقة التسوية",
+      "settlementType": "نوع التسوية",
+      "actualLeave": "إجازة فعلية (ذهاب وعودة)",
+      "cashInService": "صرف بدل الإجازة على رأس العمل",
+      "leaveEndDate": "تاريخ العودة المتوقع",
+      "cashLeaveDays": "عدد الأيام المطلوب صرفها",
+      "balanceSection": "رصيد الإجازة حتى تاريخ التسوية",
+      "accruedDays": "إجمالي الأيام المستحقة",
+      "usedDays": "الأيام المنصرفة سابقاً",
+      "availableDays": "الأيام المتبقية",
+      "balanceAmount": "قيمة الرصيد المتبقي",
+      "requestedDays": "أيام هذه التسوية",
+      "leavePayAmount": "مبلغ بدل الإجازة",
+      "adjustmentsSection": "راتب الفترة والإضافات والخصومات",
+      "previewLeavePay": "بدل أيام الإجازة الحالية",
+      "automaticSalarySection": "الراتب والإجراءات المحتسبة تلقائياً حتى الإجازة",
+      "automaticSalaryNote": "محسوب حتى اليوم السابق لتاريخ {{date}} ويشمل {{count}} إجراءً مسجلاً في هذا الشهر.",
+      "includesProcedure": "يشمل إجراء موظف",
+      "salaryAdditions": "إجمالي الاستحقاقات حتى الإجازة",
+      "salaryDeductions": "إجمالي الاستقطاعات والإجراءات",
+      "salaryNetToLeaveDate": "صافي الراتب حتى تاريخ الإجازة",
       "employee": "الموظف",
       "leaveStartDate": "تاريخ بداية الإجازة",
       "bonuses": "إضافات / مكافآت",
@@ -1358,6 +1511,16 @@
       "empty": "لا توجد مستندات ضمن هذا النطاق."
     },
     "payrollSettings": {
+      "leavePolicyTitle": "إعدادات الإجازات ونهاية الخدمة",
+      "leavePolicyNote": "تتحكم هذه القيم في احتساب الرصيد الحي وتسويات الإجازات لكل موظفي الشركة.",
+      "leaveDaysBeforeFive": "الاستحقاق السنوي قبل 5 سنوات (يوم)",
+      "leaveDaysAfterFive": "الاستحقاق السنوي بعد 5 سنوات (يوم)",
+      "leaveDailyRateDivisor": "مقسوم سعر يوم الإجازة",
+      "leaveSalaryBasis": "أساس احتساب بدل الإجازة",
+      "eosSalaryBasis": "أساس احتساب نهاية الخدمة",
+      "basisBasic": "الراتب الأساسي",
+      "basisBasicHousing": "الأساسي + بدل السكن",
+      "basisTotal": "إجمالي الراتب والبدلات",
       "kindLabels": { "addition": "إضافة", "deduction": "استقطاع" },
       "unitLabels": { "hour": "ساعة", "day": "يوم" },
       "standardTitle": "الساعات والأيام القياسية للشهر",
@@ -1448,7 +1611,8 @@
         "manufacturing": "مصانع / تصنيع",
         "retail": "مبيعات تجزئة",
         "generalTrade": "أنشطة تجارية عامة (تجارة واستيراد وتصدير)",
-        "fuelStations": "محطات وقود"
+        "fuelStations": "محطات وقود",
+        "horseStables": "إسطبلات وإيواء وإعاشة الخيل"
       },
       "countryLabel": "الدولة",
       "currencyLabel": "عملة المحاسبة",
@@ -1511,7 +1675,18 @@
       "extractionHighConfidence": "تم استخراج البيانات التالية تلقائياً — راجعها ثم اضغط \"حفظ\": {{note}}",
       "extractionFailed": "فشل رفع/تحليل المستند: {{message}}",
       "uploadedDocsTitle": "المستندات الرسمية المرفوعة",
-      "errNameRequired": "الاسم في السجل التجاري مطلوب"
+      "errNameRequired": "الاسم في السجل التجاري مطلوب",
+      "fiscalClosingTitle": "إقفال السنة المالية",
+      "fiscalClosingNote": "بعد ضبط هذا التاريخ، يُمنع إنشاء أو تعديل أو حذف أو فك ترحيل أي قيد (بما فيه الفواتير والرواتب وكل ما ينشئ حركة مالية) بتاريخ يقع في هذا التاريخ أو قبله. يمكنك تقديمه للأمام في أي وقت من هنا؛ تقديمه للخلف أو إلغاؤه يتطلب صلاحية مدير النظام عبر \"فتح الإقفال\" أدناه.",
+      "fiscalClosingDateLabel": "تاريخ إقفال السنة المالية (اختياري)",
+      "fiscalClosingNoneOption": "بلا إقفال",
+      "reopenTitle": "فتح الإقفال (admin فقط)",
+      "reopenNote": "يُسجَّل كل استخدام لهذا الإجراء في سجل التدقيق (من فتحه، ومتى، والتاريخ القديم والجديد).",
+      "reopenNewDateLabel": "التاريخ الجديد (اتركه فارغاً لإلغاء الإقفال بالكامل)",
+      "reopenBtn": "فتح الإقفال",
+      "reopening": "جارٍ الفتح...",
+      "reopenConfirm": "هذا إجراء حسّاس يُعيد فتح فترة مُقفلة سابقاً للتعديل. متأكد من المتابعة؟",
+      "reopenSuccess": "تم فتح الإقفال بنجاح."
     },
     "zatca": {
       "modalTitle": "ربط فاتورة (ZATCA) — {{name}}",
@@ -1614,15 +1789,26 @@
       "inviteBtn": "إرسال دعوة لمستخدم جديد",
       "sending": "جارٍ الإرسال...",
       "note": "سيصل المدعوّ إيميل يحتوي رابطاً آمناً لتعيين كلمة مروره الخاصة وتفعيل حسابه بنفسه.",
-      "table": { "name": "الاسم", "email": "البريد الإلكتروني", "role": "الصلاحية", "inviteStatus": "حالة الدعوة" },
+      "table": { "name": "الاسم", "email": "البريد الإلكتروني", "role": "الصلاحية", "inviteStatus": "حالة الدعوة", "status": "الحالة" },
       "statusPending": "بانتظار التفعيل",
       "statusActive": "مفعَّل",
+      "activeLabel": "نشط",
+      "disabledLabel": "معطّل",
       "resend": "إعادة إرسال الدعوة",
+      "disableBtn": "تعطيل",
+      "enableBtn": "تفعيل",
+      "deleteBtn": "حذف نهائي",
+      "confirmDisable": "تعطيل حساب {{name}}؟ لن يستطيع تسجيل الدخول بعدها، لكن بياناته وكل ما أنشأه يبقى كما هو.",
+      "confirmEnable": "إعادة تفعيل حساب {{name}}؟ سيستطيع تسجيل الدخول فوراً.",
+      "confirmDelete": "حذف {{name}} نهائياً؟ لا يمكن التراجع عن هذا الإجراء.",
       "empty": "لا يوجد مستخدمون بعد.",
       "notifyInviteSent": "تم إرسال دعوة إلى {{email}}.",
       "notifyInviteFailedCreated": "تم إنشاء المستخدم، لكن تعذّر إرسال إيميل الدعوة — استخدم زر (إعادة إرسال الدعوة) لاحقاً.",
       "notifyResendSent": "تم إرسال دعوة جديدة إلى {{email}}.",
       "notifyResendFailed": "تعذّر إرسال إيميل الدعوة — حاول مرة أخرى لاحقاً.",
+      "notifyDisabled": "تم تعطيل حساب {{name}}.",
+      "notifyEnabled": "تم تفعيل حساب {{name}}.",
+      "notifyDeleted": "تم حذف {{name}} نهائياً.",
       "roles": {
         "superAdmin": "مدير عام",
         "admin": "مدير النظام",
@@ -1649,6 +1835,42 @@
       "newTitleLabel": "مسمّى وظيفي جديد",
       "placeholder": "مثال: مشرف مبيعات",
       "empty": "لا توجد مسمّيات وظيفية مسجّلة بعد."
+    },
+    "positions": {
+      "nameLabel": "اسم المنصب",
+      "namePlaceholder": "مثال: محاسب أول",
+      "allowUnpostLabel": "السماح بفك ترحيل القيود",
+      "allowPosDeferredSaleLabel": "السماح بالبيع الآجل (بلا دفع فوري) في نقطة البيع",
+      "empty": "لا توجد مناصب مُنشأة بعد.",
+      "noMembers": "لا يوجد أعضاء بهذا المنصب بعد.",
+      "chooseUser": "— اختر مستخدماً —",
+      "addMember": "إضافة",
+      "notifyCreated": "تم إنشاء المنصب بنجاح.",
+      "notifyDeleted": "تم حذف المنصب.",
+      "confirmDelete": "هل تريد حذف منصب \"{{name}}\"؟ سيفقد أعضاؤه صلاحياته فوراً.",
+      "leaveRequestsTitle": "صلاحيات طلبات الإجازة",
+      "levels": {
+        "none": "عدم رؤية",
+        "read": "قراءة فقط",
+        "edit": "تعديل",
+        "approve": "موافقة",
+        "full": "كل الصلاحيات"
+      },
+      "actions": {
+        "view": "عرض الطلبات",
+        "create": "إنشاء طلب",
+        "edit": "تعديل طلب",
+        "delete": "حذف طلب",
+        "approve": "الموافقة/الرفض"
+      },
+      "overridesTitle": "استثناءات فردية لمستخدمين",
+      "overridesEmpty": "لا توجد استثناءات فردية حالياً.",
+      "chooseAction": "— اختر إجراءً —",
+      "chooseLevel": "— اختر مستوى —",
+      "addOverride": "إضافة استثناء",
+      "notifyOverrideAdded": "تم حفظ الاستثناء.",
+      "notifyOverrideRemoved": "تم حذف الاستثناء.",
+      "removeOverride": "حذف"
     },
     "locations": {
       "nameLabel": "اسم الموقع / الفرع",
@@ -1729,6 +1951,7 @@
       "analyzingFile": "جارٍ تحليل الملف ومطابقة الحسابات...",
       "reviewSummary": "{{rows}} سطر ضمن {{groups}} قيد. راجع مطابقة الحسابات أدناه قبل التأكيد.",
       "unbalancedWarning": "تحذير: {{count}} قيد غير متوازن (مدين ≠ دائن) ولن يمكن استيراده — أول قيد غير متوازن: رقم {{groupKey}} ({{date}}).",
+      "invalidDateWarning": "تحذير: {{count}} قيد بتاريخ غير صالح (يجب أن يكون بصيغة YYYY-MM-DD) ولن يمكن استيراده — أول قيد: رقم {{groupKey}} بتاريخ \"{{date}}\".",
       "table": { "accountNameInFile": "اسم الحساب في الملف", "lineCount": "عدد الأسطر", "status": "الحالة", "accountInTree": "الحساب في شجرة الشركة" },
       "statusMatched": "متطابق تلقائياً",
       "statusAmbiguous": "غير مؤكد (أكثر من حساب بنفس الاسم)",
@@ -1852,7 +2075,9 @@
         "account": "الحساب",
         "openingBalance": "الرصيد الافتتاحي",
         "periodMovement": "حركة الفترة",
-        "closingBalance": "الرصيد الختامي"
+        "closingBalance": "الرصيد الختامي",
+        "debit": "مدين",
+        "credit": "دائن"
       },
       "empty": "لا توجد حسابات مطابقة لهذا الفلتر.",
       "totalLabel": "الإجمالي العام",
@@ -2003,6 +2228,26 @@
       "submitting": "جارٍ الإتمام...",
       "sumMismatchError": "مجموع الدفعات ({{sum}}) لا يطابق الإجمالي ({{total}})"
     },
+    "quickPayment": {
+      "fullPaymentTab": "دفع كامل الآن",
+      "deferredTab": "آجل",
+      "selectCustomerToDefer": "اختر عميلاً حقيقياً لتفعيل البيع الآجل",
+      "deferredRequiresCustomer": "البيع الآجل يتطلب اختيار عميل حقيقي",
+      "deferredRequiresPermission": "منصبك الوظيفي لا يملك صلاحية تسجيل بيع آجل",
+      "dueDateLabel": "تاريخ الاستحقاق",
+      "dueDateRequiredError": "حدّد تاريخ الاستحقاق"
+    },
+    "quickSale": {
+      "continueBtnWithCount": "استمرار ({{count}})",
+      "continueBtnEmpty": "اختر صنفاً واحداً على الأقل",
+      "quantitiesTitle": "حدّد الكميات",
+      "backToItemsBtn": "رجوع للأصناف",
+      "continueToCustomerBtn": "استمرار",
+      "customerStepTitle": "العميل",
+      "customerStepHint": "اختر عميلاً حقيقياً إن كان البيع آجلاً، أو تابع بعميل نقدي للدفع الفوري",
+      "pickCustomerBtn": "اختيار عميل",
+      "backToQuantitiesBtn": "رجوع للكميات"
+    },
     "receipt": {
       "success": "تمت عملية البيع بنجاح",
       "invoiceNumber": "فاتورة رقم {{number}}",
@@ -2112,4 +2357,3 @@
     "stayOnPage": "البقاء في الصفحة"
   }
 }
-

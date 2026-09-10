@@ -64,8 +64,16 @@ function isPlainLeftClick(e) {
 
 function AppShell() {
   const { t, i18n } = useTranslation();
-  const { user, tenant, logout, emailServiceConfigured } = useAuth();
+  const { user, tenant, logout, emailServiceConfigured, platformNotices } = useAuth();
   const real = useCompanies();
+  const activeCompany = useMemo(() => real.companies.find((c) => c.id === real.companyId), [real.companies, real.companyId]);
+  // صلاحيات مدير المنصة تحدد الموديولات المتاحة للمستأجر، ثم نشاط الشركة النشطة يحدد الموديولات
+  // القطاعية التي تخصها. مديول الإسطبلات لا يظهر ولا يُفتح إلا لنشاط الإسطبلات والإعاشة.
+  const visibleNavGroups = NAV_GROUPS.filter((group) => {
+    const platformAllows = !tenant?.enabledModules?.length || tenant.enabledModules.includes(group.id);
+    const activityAllows = group.id !== "stables" || activeCompany?.businessActivity === "horse_stables";
+    return platformAllows && activityAllows;
+  });
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -76,7 +84,7 @@ function AppShell() {
   // إغلاقه يدوياً بينما لا يزال هو القسم الحالي لا يُعاد فتحه قسراً.
   const [openGroupId, setOpenGroupId] = useState(null);
   useEffect(() => {
-    if (NAV_GROUPS.some((g) => g.id === activeGroupId)) setOpenGroupId(activeGroupId);
+    if (visibleNavGroups.some((g) => g.id === activeGroupId)) setOpenGroupId(activeGroupId);
     setIsMobileSidebarOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroupId]);
@@ -124,7 +132,6 @@ function AppShell() {
     }
   };
 
-  const activeCompany = useMemo(() => real.companies.find((c) => c.id === real.companyId), [real.companies, real.companyId]);
   const navBadges = { sales: overdueInvoicesCount, hr: pendingLeaveCount };
 
   const outletContext = {
@@ -167,7 +174,7 @@ function AppShell() {
           </div>
 
           <div className="nav-list">
-            {NAV_GROUPS.map((g) => {
+            {visibleNavGroups.map((g) => {
               const isActiveModule = activeGroupId === g.id;
               const isOpen = openGroupId === g.id;
               const badgeCount = navBadges[g.id] || 0;
@@ -226,10 +233,16 @@ function AppShell() {
 
         <div className="app-content">
           <div className="app-content-inner">
+            {platformNotices?.map((notice) => (
+              <div key={notice.id} className="platform-notice-banner">{notice.message}</div>
+            ))}
             {!emailServiceConfigured && (user?.role === "admin" || user?.role === "super_admin") && (
               <div className="system-warning-banner">
                 {t("nav.emailWarningBefore")} <code>RESEND_API_KEY</code> {t("nav.emailWarningAfter")}
               </div>
+            )}
+            {user?.readOnly && (
+              <div className="system-warning-banner">{t("nav.readOnlyWarning")}</div>
             )}
             <Outlet context={outletContext} />
           </div>
@@ -256,7 +269,9 @@ function InventoryRoute() {
   return <InventoryWiredModule companies={companies} companyId={companyId} />;
 }
 function StablesRoute() {
-  const { companyId } = useOutletContext();
+  const { companies, companyId } = useOutletContext();
+  const company = companies.find((item) => item.id === companyId);
+  if (company?.businessActivity !== "horse_stables") return <Navigate to={routes.dashboard()} replace />;
   return <StablesModule companyId={companyId} />;
 }
 function FixedAssetsRoute() {

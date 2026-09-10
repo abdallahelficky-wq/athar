@@ -37,7 +37,7 @@ beforeEach(() => {
   vi.mocked(askAtharAi).mockResolvedValue({ answer: "تحليل", model: "openai/gpt-5.6-sol" });
 });
 function post(body: unknown, scope: string | null = "company-a", tenantId = "tenant-a") {
-  const token = scope === null ? "" : signAccessToken({ sub: "user-a", tenantId, role: "admin", companyScope: scope });
+  const token = scope === null ? "" : signAccessToken({ sub: "user-a", tenantId, role: "admin", companyScope: scope, readOnly: false });
   return fetch(base, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
 }
 function noDataRead() {

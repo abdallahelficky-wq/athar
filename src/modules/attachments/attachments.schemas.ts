@@ -14,6 +14,7 @@ export const attachmentEntityTypeEnum = z.enum([
   "payroll_run",
   "leave_settlement",
   "fixed_asset",
+  "employee",
 ]);
 
 export const listAttachmentsQuerySchema = z.object({

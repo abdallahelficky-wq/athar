@@ -1,12 +1,13 @@
 import { Router } from "express";
-import { authenticate, requireRole } from "../../middleware/auth";
+import { authenticate, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createCompanySchema, updateCompanySchema, extractDocumentSchema } from "./companies.schemas";
+import { createCompanySchema, updateCompanySchema, reopenFiscalClosingSchema, extractDocumentSchema } from "./companies.schemas";
 import {
   listCompanies,
   createCompany,
   updateCompany,
   deleteCompany,
+  reopenFiscalClosing,
   uploadLogoFile,
   uploadLogoHandler,
   extractDocumentHandler,
@@ -14,7 +15,7 @@ import {
 import { uploadSingleFile } from "../attachments/attachments.controller";
 
 export const companyRoutes = Router();
-companyRoutes.use(authenticate);
+companyRoutes.use(authenticate, blockMutationsWhenReadOnly);
 
 companyRoutes.get("/", listCompanies);
 companyRoutes.post(
@@ -30,6 +31,12 @@ companyRoutes.patch(
   updateCompany,
 );
 companyRoutes.delete("/:id", requireRole("admin"), deleteCompany);
+companyRoutes.post(
+  "/:id/fiscal-closing/reopen",
+  requireRole("admin"),
+  validateBody(reopenFiscalClosingSchema),
+  reopenFiscalClosing,
+);
 companyRoutes.post(
   "/:id/logo",
   requireRole("admin", "finance_manager"),

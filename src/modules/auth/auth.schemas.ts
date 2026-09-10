@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const registerSchema = z.object({
   tenantName: z.string().min(2, "اسم المستأجر قصير جداً"),
+  businessActivity: z.enum(["contracting", "manufacturing", "retail", "general_trade", "fuel_stations", "horse_stables"]),
   name: z.string().min(2, "الاسم قصير جداً"),
   email: z.string().email("بريد إلكتروني غير صالح"),
   password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
@@ -10,6 +11,11 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   password: z.string().min(1, "كلمة المرور مطلوبة"),
+});
+
+export const completeLoginChoiceSchema = z.object({
+  identityToken: z.string().min(1, "رمز اختيار الحساب مطلوب"),
+  userId: z.string().min(1, "معرّف الحساب المطلوب تسجيل الدخول إليه مطلوب"),
 });
 
 export const refreshSchema = z.object({
@@ -25,7 +31,10 @@ export const inviteSchema = z.object({
 
 export const acceptInviteSchema = z.object({
   token: z.string().min(1, "رمز الدعوة مطلوب"),
-  password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
+  // اختيارية: مطلوبة فقط لو كانت هذه أول مرة تُحدَّد فيها كلمة مرور لهذه الهوية (تُتحقَّق فعلياً في
+  // acceptInvite بخدمة auth.service.ts) — لو كانت الهوية موجودة بالفعل بكلمة مرور من عضوية أخرى،
+  // فهذه الدعوة مجرد تأكيد انضمام لشركة إضافية بلا كلمة مرور جديدة.
+  password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل").optional(),
 });
 
 export const changeUnlockPinSchema = z.object({
@@ -48,4 +57,8 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z.object({
   token: z.string().min(1, "رمز إعادة التعيين مطلوب"),
   password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
+});
+
+export const setUserActiveSchema = z.object({
+  active: z.boolean(),
 });

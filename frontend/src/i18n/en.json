@@ -20,6 +20,15 @@
     "currency": "SAR",
     "noCompany": "Create a company first from the dashboard.",
     "moreActions": "More",
+    "employeeSearchPlaceholder": "Search by employee name...",
+    "printShell": {
+      "downloadPdf": "Download PDF",
+      "preparedBy": "Prepared by",
+      "approvedBy": "Approved by",
+      "stamp": "Stamp",
+      "stampPlaceholder": "Official stamp here",
+      "printedBy": "Printed by"
+    },
     "unpost": {
       "title": "Unpost",
       "confirmPrompt": "Enter the PIN to confirm unposting. The server will actually verify it.",
@@ -42,7 +51,14 @@
     "stalls": "Stalls",
     "horses": "Horses",
     "contracts": "Boarding",
-    "care": "Care records"
+    "care": "Care records",
+    "services": "Care services",
+    "trainers": "Trainers",
+    "lessonTypes": "Lesson types",
+    "lessons": "Training lessons",
+    "competitions": "Competitions",
+    "billing": "Create boarding invoice",
+    "commissions": "Trainer commissions"
   },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },
@@ -105,11 +121,18 @@
       "backToLanding": "Back to homepage",
       "note": "This account is connected to a real database — your data is completely isolated from any other tenant.",
       "errFillFields": "Please fill in your email and password.",
-      "errGeneric": "Couldn't log in, please try again."
+      "errGeneric": "Couldn't log in, please try again.",
+      "chooseAccountTitle": "Choose a company",
+      "chooseAccountSub": "This email is linked to more than one company — choose which one to log in to.",
+      "chooseAccountBack": "Back to login",
+      "chooseAccountErr": "Couldn't complete login for this company, please try again."
     },
     "register": {
       "title": "Start your one-month free trial",
       "companyName": "Company / business name",
+      "businessActivity": "Company activity",
+      "selectActivity": "Select activity",
+      "activities": {"contracting":"Contracting","manufacturing":"Manufacturing","retail":"Retail","generalTrade":"General trade","fuelStations":"Fuel stations","horseStables":"Horse stables, boarding and livery"},
       "fullName": "Full name",
       "email": "Email address",
       "password": "Password",
@@ -149,7 +172,11 @@
       "note": "Choose a password for your account to complete activation — you'll be logged in automatically afterward.",
       "submitBtn": "Activate account and log in",
       "activating": "Activating...",
-      "errGeneric": "Couldn't activate the account, please try again."
+      "errGeneric": "Couldn't activate the account, please try again.",
+      "loading": "Checking the invite...",
+      "joinNote": "Your email ({{email}}) is already linked to an existing account. Confirming will join you to \"{{tenantName}}\" as \"{{role}}\" — using your current login details, no new password needed.",
+      "joinBtn": "Confirm and log in",
+      "joining": "Joining..."
     }
   },
   "nav": {
@@ -172,7 +199,8 @@
       "reports": "Reports", "salesSettings": "Sales Settings", "suppliers": "Suppliers", "purchaseInvoices": "Purchase Invoices",
       "purchaseReturns": "Purchase Returns", "items": "Items", "warehouses": "Warehouses",
       "inout": "Stock In / Out", "issue": "Stock Issue", "transfer": "Branch Transfer",
-      "report": "Balances Report", "register": "Asset Register", "depreciation": "Monthly Depreciation",
+      "report": "Balances Report", "periodicSettlement": "Periodic Inventory Settlement",
+      "register": "Asset Register", "depreciation": "Monthly Depreciation",
       "disposal": "Disposal / Sale", "fixedAssetsReports": "Reports", "categories": "Fixed Asset Settings",
       "journal": "Journal Entries", "chartOfAccounts": "Chart of Accounts", "ledger": "Account Ledger",
       "departments": "Departments", "zakat": "Zakat & Tax (estimated, sample data)",
@@ -182,7 +210,8 @@
       "hrReports": "Reports", "trial": "Trial Balance", "income": "Income Statement", "balance": "Balance Sheet",
       "monthly": "Comprehensive Monthly Report", "automation": "Send Automation",
       "companies": "Company Info", "profile": "Profile", "users": "Users & Permissions",
-      "jobTitles": "Job Titles", "locations": "Locations", "companyDocs": "Official Documents"
+      "jobTitles": "Job Titles", "locations": "Locations", "companyDocs": "Official Documents",
+      "positions": "Positions"
     },
     "activeCompanyLabel": "Active company:",
     "noCompanySelected": "Not selected yet",
@@ -205,7 +234,8 @@
       "purchaseInvoices": "Purchase invoices"
     },
     "emailWarningBefore": "⚠️ The email delivery service is not configured on the server — emails (welcome, user invites, invoice sending) will not reach any recipient. Check the",
-    "emailWarningAfter": "variable in the deployment settings."
+    "emailWarningAfter": "variable in the deployment settings.",
+    "readOnlyWarning": "⚠️ This company is in read-only mode because its subscription or trial period has ended — you can browse all data, but nothing can be added, edited, or deleted. Contact support to reactivate the subscription."
   },
   "dashboard": {
     "breadcrumb": { "overview": "Overview", "realData": "Real data" },
@@ -424,6 +454,7 @@
     "close": "Close",
     "subtitle": "{{party}} statement of account",
     "vatNumber": "VAT number",
+    "openingBalance": "Opening balance",
     "closingBalance": "Closing balance",
     "customerDebit": "Debit (owed to us)", "customerCredit": "Credit (we owe them)",
     "supplierCredit": "Credit (owed to them)", "supplierDebit": "Debit (they owe us)",
@@ -482,6 +513,9 @@
       "customizationNote": "Basic customization applied on top of the chosen template — color on the header/footer/tables, and the logo in the header.",
       "brandColorLabel": "Invoice primary color",
       "logoLabel": "Company logo",
+      "posSectionTitle": "Point of sale",
+      "posSectionNote": "A company-wide setting (not tied to a specific device) — applies immediately to every point-of-sale device for this company.",
+      "posQuickSaleToggle": "Enable the quick-sale screen (select items as cards → quantities → customer, with credit-sale support) instead of the classic screen",
       "numberingSectionTitle": "Numbering settings",
       "numberingSectionNote": "A text prefix and counter digit count per document type, with the option to reset the numbering every calendar year or keep one continuous, uninterrupted sequence — per company.",
       "numberingInvoices": "Sales invoices",
@@ -720,11 +754,13 @@
     "breadcrumb": "Warehouse Management",
     "typeMeta": {
       "inventory": "Inventory", "expense": "Expense", "service": "Service",
-      "fixed_asset": "Fixed asset", "raw_material": "Raw material", "bundle": "Bundle"
+      "fixed_asset": "Fixed asset", "raw_material": "Raw material", "bundle": "Bundle",
+      "periodic_inventory": "Periodic inventory", "non_stock": "Non-stock"
     },
     "accountLabels": {
       "stockAccountId": "Inventory account", "cogsAccountId": "COGS account",
-      "revenueAccountId": "Revenue account", "expenseAccountId": "Expense account"
+      "revenueAccountId": "Revenue account", "expenseAccountId": "Expense account",
+      "purchasesAccountId": "Purchases account"
     },
     "items": {
       "addNew": "Add new item",
@@ -824,18 +860,34 @@
     },
     "movementsTable": {
       "date": "Date", "item": "Item", "location": "Location", "type": "Type", "quantity": "Quantity", "note": "Note", "delete": "Delete",
-      "types": { "in": "In", "out": "Out/write-off", "issue": "Issue", "transfer_out": "Transfer out", "transfer_in": "Transfer in" },
+      "types": { "in": "In", "out": "Out/write-off", "issue": "Issue", "transfer_out": "Transfer out", "transfer_in": "Transfer in", "adjustment": "Periodic settlement" },
       "empty": "No movements yet."
     },
     "stockReport": {
       "item": "Item", "code": "Code", "location": "Location", "balance": "Balance", "costPrice": "Cost price", "value": "Value",
-      "empty": "No stock balances yet."
+      "empty": "No stock balances yet.",
+      "notValueTracked": "Not value-tracked"
+    },
+    "periodicSettlement": {
+      "intro": "One batch settlement for all \"periodic inventory\" items — enter the actual counted quantity and unit cost for each item you want to settle, and leave the rest blank to skip them in this batch.",
+      "date": "Count date", "loading": "Loading...",
+      "empty": "No \"periodic inventory\" items yet.",
+      "item": "Item", "trackedQuantity": "Operationally tracked quantity", "currentValue": "Current recognized value",
+      "countedQuantity": "Actual counted quantity", "unitCost": "Unit cost",
+      "deviationWarning": "Warning: this differs significantly from the last actual purchase price ({{price}}) — double-check before saving.",
+      "saveBtn": "Save settlement", "saving": "Saving...",
+      "resultsTitle": "Settlement result",
+      "netAdjustment": "Net settlement entry", "quantityVariance": "Quantity variance (physical count)", "newValue": "New recognized value"
     }
   },
   "fixedAssets": {
     "breadcrumb": "Fixed Assets",
     "status": { "active": "Active", "disposed": "Disposed" },
     "depreciationMethod": { "straight_line": "Straight line", "declining_balance": "Declining balance" },
+    "categoryLabels": {
+      "vehicles": "Vehicles", "machinery": "Machinery and equipment", "furniture": "Furniture",
+      "itEquipment": "IT equipment", "buildings": "Buildings and construction", "other": "Other"
+    },
     "register": {
       "editingBanner": "Editing asset — {{name}} (cost and purchase date cannot be edited after posting)",
       "name": "Asset name", "category": "Category",
@@ -954,7 +1006,7 @@
     },
     "rowActions": {
       "view": "View entry", "edit": "Edit", "editDisabled": "Cannot edit after posting — use reverse entry to correct it",
-      "delete": "Delete", "post": "Post", "reverse": "Reverse entry", "unpost": "Unpost (super_admin only)",
+      "delete": "Delete", "post": "Post", "reverse": "Reverse entry", "unpost": "Unpost",
       "print": "Print entry", "downloadPdf": "Download PDF", "duplicate": "Duplicate to a new entry", "mirror": "Create mirror entry in another company",
       "links": "Entry links", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments"
     },
@@ -1049,6 +1101,18 @@
     "addAccount": "+ Add account",
     "expandView": "Show full tree",
     "compactView": "Compact view",
+    "export": {
+      "exportExcel": "Export Excel",
+      "sheetName": "Chart of Accounts",
+      "noParent": "—",
+      "columns": {
+        "code": "Account code",
+        "name": "Account name",
+        "type": "Account type",
+        "parent": "Parent account",
+        "posting": "Posting account"
+      }
+    },
     "form": {
       "nameAr": "Account name (Arabic)",
       "nameEn": "Account name (English) (optional)",
@@ -1178,6 +1242,23 @@
     "baseFinal": "Estimated zakat base"
   },
   "hr": {
+    "leaveTypeLabels": { "annual": "Annual", "sick": "Sick", "unpaid": "Unpaid", "casual": "Casual" },
+    "departmentLabels": {
+      "generalManagement": "General Management", "financeAccounting": "Finance and Accounting", "operations": "Operations",
+      "salesMarketing": "Sales and Marketing", "humanResources": "Human Resources", "maintenanceTechnicalSupport": "Maintenance and Technical Support",
+      "administrativeAffairs": "Administrative Affairs", "maintenance": "Maintenance", "stations": "Stations", "staffAffairs": "Staff Affairs", "sales": "Sales",
+      "topManagement": "Top Management", "financialManagement": "Financial Management", "operationsDivision": "Operations", "marketing": "Marketing",
+      "external": "External", "management": "Management", "purchasing": "Purchasing", "accounts": "Accounts"
+    },
+    "nationalityLabels": {
+      "saudi": "Saudi", "egyptian": "Egyptian", "pakistani": "Pakistani", "bangladeshi": "Bangladeshi",
+      "indian": "Indian", "yemeni": "Yemeni", "sudanese": "Sudanese", "filipino": "Filipino", "other": "Other"
+    },
+    "documentTypeLabels": {
+      "residencyId": "Residency ID (Iqama)", "passport": "Passport", "drivingLicense": "Driving license",
+      "publicTransportDriverCard": "Public transport driver card", "healthCertificate": "Health certificate",
+      "medicalInsurance": "Medical insurance", "other": "Other"
+    },
     "dashboard": {
       "activeEmployeeCount": "Active employee count",
       "monthlyPayrollCost": "Current monthly payroll cost",
@@ -1198,11 +1279,30 @@
     },
     "directory": {
       "editingBanner": "Editing employee file — {{name}}",
+      "personalSection": "Personal and contact information",
+      "employmentSection": "Employment and financial information",
       "name": "Name",
+      "employeeNumber": "Employee number",
+      "idNumber": "National ID / Iqama",
+      "gender": "Gender",
+      "genderMale": "Male",
+      "genderFemale": "Female",
+      "maritalStatus": "Marital status",
+      "single": "Single",
+      "married": "Married",
       "jobTitle": "Job title",
       "department": "Department",
+      "workLocation": "Work location / branch",
       "nationality": "Nationality",
       "dateOfBirth": "Date of birth",
+      "phone": "Mobile number",
+      "alternatePhone": "Alternate mobile",
+      "personalEmail": "Personal email",
+      "workEmail": "Work email",
+      "address": "Address",
+      "emergencyContactName": "Emergency contact name",
+      "emergencyContactPhone": "Emergency contact phone",
+      "emergencyContactRelation": "Relationship",
       "hireDate": "Hire date",
       "contractType": "Contract type",
       "contractUnlimited": "Unlimited term",
@@ -1213,12 +1313,30 @@
       "basicSalary": "Basic",
       "housingAllowance": "Housing allowance",
       "transportAllowance": "Transport allowance",
+      "otherAllowance": "Other allowances",
+      "yes": "Yes",
+      "downloadImportTemplate": "Download employee import template",
+      "uploadEmployees": "Upload employee data",
+      "templateExampleName": "Example — delete before upload",
+      "importInstructionsTitle": "Employee import template instructions",
+      "importRequiredFields": "Required fields: employee name, hire date, and basic salary.",
+      "importDateFormat": "Use YYYY-MM-DD dates, for example 2026-01-31.",
+      "importDoNotRename": "Do not rename columns or add more than 1,000 employees per file.",
+      "importInstructionsSheet": "Instructions",
+      "importRowError": "Row {{row}} is missing employee name, hire date, or basic salary.",
+      "importEmpty": "The Excel file contains no employee rows.",
+      "importSuccess": "Successfully imported {{count}} employees.",
+      "annualLeaveDays": "Annual leave days",
       "bankName": "Bank name",
       "bankAccount": "Account number / IBAN",
+      "medicalInsuranceProvider": "Medical insurance provider",
+      "medicalInsuranceNumber": "Insurance policy / card number",
+      "notes": "HR notes",
       "gosiApplicable": "Subject to social insurance (GOSI)",
       "docsTitle": "Official documents",
       "docTable": { "type": "Document type", "number": "Number", "expiry": "Expiry date" },
       "addDoc": "+ Add document",
+      "attachmentsTitle": "Employee file attachments",
       "payrollComponentsTitle": "Payroll components assigned to this employee",
       "payrollComponentsNote": "Not all employees need the same salary components — choose here which components apply to this employee specifically, with a fixed value for components that need a manual amount per employee.",
       "payrollTable": { "component": "Component", "fixedValue": "Fixed value" },
@@ -1226,7 +1344,18 @@
       "cancelEdit": "Cancel edit",
       "saveChanges": "Save changes",
       "saveNew": "Save employee file",
-      "table": { "name": "Name", "department": "Department", "basicSalary": "Basic", "leaveStatus": "Leave status" },
+      "listTitle": "Employees",
+      "exportExcel": "Export employees to Excel",
+      "statusTerminated": "Terminated",
+      "export": {
+        "sheetName": "Employees",
+        "employeeNumber": "Employee number", "name": "Employee name", "idNumber": "National ID / Iqama",
+        "nationality": "Nationality", "jobTitle": "Job title", "department": "Department", "workLocation": "Work location",
+        "phone": "Mobile", "workEmail": "Work email", "hireDate": "Hire date", "contractType": "Contract type",
+        "contractEnd": "Contract end", "basicSalary": "Basic salary", "housingAllowance": "Housing allowance",
+        "transportAllowance": "Transport allowance", "bankAccount": "IBAN", "annualLeaveDays": "Annual leave days", "status": "Status"
+      },
+      "table": { "name": "Name", "department": "Department", "basicSalary": "Basic", "leaveBalance": "Leave balance (days / amount)", "eosBalance": "EOS balance as of today", "leaveStatus": "Leave status" },
       "statusOnLeave": "On leave",
       "statusActive": "Active",
       "viewAccount": "View in chart of accounts",
@@ -1241,6 +1370,9 @@
       "toDate": "To date",
       "notes": "Notes",
       "saveBtn": "Register leave",
+      "updateBtn": "Update request",
+      "cancelEdit": "Cancel edit",
+      "editBtn": "Edit",
       "table": { "employee": "Employee", "type": "Type", "from": "From", "to": "To", "days": "Days", "status": "Status" },
       "noManagerBadge": "No direct manager",
       "noManagerTooltip": "This employee has no direct manager registered — the request will not appear in any mobile inbox, and approval/rejection is only possible from here",
@@ -1250,6 +1382,27 @@
       "empty": "No leaves registered yet."
     },
     "leaveSettlement": {
+      "requestSection": "Leave details and settlement method",
+      "settlementType": "Settlement type",
+      "actualLeave": "Actual leave (departure and return)",
+      "cashInService": "Cash leave allowance while in service",
+      "leaveEndDate": "Expected return date",
+      "cashLeaveDays": "Days to cash out",
+      "balanceSection": "Leave balance as of settlement date",
+      "accruedDays": "Total accrued days",
+      "usedDays": "Previously used days",
+      "availableDays": "Remaining days",
+      "balanceAmount": "Remaining balance amount",
+      "requestedDays": "Days in this settlement",
+      "leavePayAmount": "Leave allowance amount",
+      "adjustmentsSection": "Period salary, additions and deductions",
+      "previewLeavePay": "Current leave days allowance",
+      "automaticSalarySection": "Automatic salary and procedures through leave date",
+      "automaticSalaryNote": "Calculated through the day before {{date}}, including {{count}} procedure(s) recorded for this month.",
+      "includesProcedure": "includes employee procedure",
+      "salaryAdditions": "Total earnings through leave date",
+      "salaryDeductions": "Total deductions and procedures",
+      "salaryNetToLeaveDate": "Net salary through leave date",
       "employee": "Employee",
       "leaveStartDate": "Leave start date",
       "bonuses": "Additions / bonuses",
@@ -1358,6 +1511,16 @@
       "empty": "No documents within this range."
     },
     "payrollSettings": {
+      "leavePolicyTitle": "Leave and end-of-service settings",
+      "leavePolicyNote": "These values control live balances and leave settlements for all company employees.",
+      "leaveDaysBeforeFive": "Annual entitlement before 5 years (days)",
+      "leaveDaysAfterFive": "Annual entitlement after 5 years (days)",
+      "leaveDailyRateDivisor": "Leave daily-rate divisor",
+      "leaveSalaryBasis": "Leave allowance salary basis",
+      "eosSalaryBasis": "End-of-service salary basis",
+      "basisBasic": "Basic salary",
+      "basisBasicHousing": "Basic + housing allowance",
+      "basisTotal": "Total salary and allowances",
       "kindLabels": { "addition": "Addition", "deduction": "Deduction" },
       "unitLabels": { "hour": "Hour", "day": "Day" },
       "standardTitle": "Standard hours and days per month",
@@ -1448,7 +1611,8 @@
         "manufacturing": "Factories / manufacturing",
         "retail": "Retail sales",
         "generalTrade": "General trade (import/export)",
-        "fuelStations": "Fuel stations"
+        "fuelStations": "Fuel stations",
+        "horseStables": "Horse stables, boarding and livery"
       },
       "countryLabel": "Country",
       "currencyLabel": "Accounting currency",
@@ -1511,7 +1675,18 @@
       "extractionHighConfidence": "The following data was extracted automatically — review it then click \"Save\": {{note}}",
       "extractionFailed": "Failed to upload/analyze the document: {{message}}",
       "uploadedDocsTitle": "Uploaded official documents",
-      "errNameRequired": "The name in the commercial registration is required"
+      "errNameRequired": "The name in the commercial registration is required",
+      "fiscalClosingTitle": "Fiscal year closing",
+      "fiscalClosingNote": "Once set, no journal entry (including invoices, payroll, and anything that posts a financial transaction) can be created, edited, deleted, or unposted with a date on or before this date. You can move it forward at any time from here; moving it back or clearing it requires admin permission via \"Reopen closing\" below.",
+      "fiscalClosingDateLabel": "Fiscal year closing date (optional)",
+      "fiscalClosingNoneOption": "No closing set",
+      "reopenTitle": "Reopen closing (admin only)",
+      "reopenNote": "Every use of this action is logged in the audit trail (who reopened it, when, and the old/new date).",
+      "reopenNewDateLabel": "New date (leave empty to clear the closing entirely)",
+      "reopenBtn": "Reopen closing",
+      "reopening": "Reopening...",
+      "reopenConfirm": "This is a sensitive action that reopens a previously closed period for editing. Continue?",
+      "reopenSuccess": "Closing reopened successfully."
     },
     "zatca": {
       "modalTitle": "ZATCA linkage — {{name}}",
@@ -1614,15 +1789,26 @@
       "inviteBtn": "Send invite to new user",
       "sending": "Sending...",
       "note": "The invitee will receive an email with a secure link to set their own password and activate their account.",
-      "table": { "name": "Name", "email": "Email", "role": "Role", "inviteStatus": "Invite status" },
+      "table": { "name": "Name", "email": "Email", "role": "Role", "inviteStatus": "Invite status", "status": "Status" },
       "statusPending": "Pending activation",
       "statusActive": "Activated",
+      "activeLabel": "Active",
+      "disabledLabel": "Disabled",
       "resend": "Resend invite",
+      "disableBtn": "Disable",
+      "enableBtn": "Enable",
+      "deleteBtn": "Delete permanently",
+      "confirmDisable": "Disable {{name}}'s account? They won't be able to log in afterward, but their data and everything they created stays as is.",
+      "confirmEnable": "Re-enable {{name}}'s account? They'll be able to log in immediately.",
+      "confirmDelete": "Permanently delete {{name}}? This cannot be undone.",
       "empty": "No users yet.",
       "notifyInviteSent": "Invite sent to {{email}}.",
       "notifyInviteFailedCreated": "The user was created, but the invite email could not be sent — use the (Resend invite) button later.",
       "notifyResendSent": "A new invite was sent to {{email}}.",
       "notifyResendFailed": "Could not send the invite email — try again later.",
+      "notifyDisabled": "{{name}}'s account was disabled.",
+      "notifyEnabled": "{{name}}'s account was enabled.",
+      "notifyDeleted": "{{name}} was permanently deleted.",
       "roles": {
         "superAdmin": "Super admin",
         "admin": "System admin",
@@ -1649,6 +1835,42 @@
       "newTitleLabel": "New job title",
       "placeholder": "e.g. Sales supervisor",
       "empty": "No job titles registered yet."
+    },
+    "positions": {
+      "nameLabel": "Position name",
+      "namePlaceholder": "e.g. Senior accountant",
+      "allowUnpostLabel": "Allow unposting journal entries",
+      "allowPosDeferredSaleLabel": "Allow credit sales (no immediate payment) at point of sale",
+      "empty": "No positions created yet.",
+      "noMembers": "No members assigned to this position yet.",
+      "chooseUser": "— Choose a user —",
+      "addMember": "Add",
+      "notifyCreated": "Position created successfully.",
+      "notifyDeleted": "Position deleted.",
+      "confirmDelete": "Delete position \"{{name}}\"? Its members will lose its permissions immediately.",
+      "leaveRequestsTitle": "Leave request permissions",
+      "levels": {
+        "none": "No access",
+        "read": "Read only",
+        "edit": "Edit",
+        "approve": "Approve",
+        "full": "Full access"
+      },
+      "actions": {
+        "view": "View requests",
+        "create": "Create request",
+        "edit": "Edit request",
+        "delete": "Delete request",
+        "approve": "Approve/Reject"
+      },
+      "overridesTitle": "Individual user exceptions",
+      "overridesEmpty": "No individual exceptions yet.",
+      "chooseAction": "— Choose an action —",
+      "chooseLevel": "— Choose a level —",
+      "addOverride": "Add exception",
+      "notifyOverrideAdded": "Exception saved.",
+      "notifyOverrideRemoved": "Exception removed.",
+      "removeOverride": "Remove"
     },
     "locations": {
       "nameLabel": "Location / branch name",
@@ -1729,6 +1951,7 @@
       "analyzingFile": "Analyzing file and matching accounts...",
       "reviewSummary": "{{rows}} rows across {{groups}} entries. Review the account matching below before confirming.",
       "unbalancedWarning": "Warning: {{count}} unbalanced entries (debit ≠ credit) cannot be imported — first unbalanced entry: #{{groupKey}} ({{date}}).",
+      "invalidDateWarning": "Warning: {{count}} entries have an invalid date (must be YYYY-MM-DD) and cannot be imported — first entry: #{{groupKey}} with date \"{{date}}\".",
       "table": { "accountNameInFile": "Account name in file", "lineCount": "Line count", "status": "Status", "accountInTree": "Account in company tree" },
       "statusMatched": "Matched automatically",
       "statusAmbiguous": "Uncertain (more than one account with this name)",
@@ -1852,7 +2075,9 @@
         "account": "Account",
         "openingBalance": "Opening balance",
         "periodMovement": "Period movement",
-        "closingBalance": "Closing balance"
+        "closingBalance": "Closing balance",
+        "debit": "Debit",
+        "credit": "Credit"
       },
       "empty": "No accounts match this filter.",
       "totalLabel": "Grand total",
@@ -2003,6 +2228,26 @@
       "submitting": "Completing...",
       "sumMismatchError": "Payments total ({{sum}}) doesn't match the total ({{total}})"
     },
+    "quickPayment": {
+      "fullPaymentTab": "Pay in full now",
+      "deferredTab": "On credit",
+      "selectCustomerToDefer": "Select a real customer to enable credit sale",
+      "deferredRequiresCustomer": "A credit sale requires selecting a real customer",
+      "deferredRequiresPermission": "Your position doesn't have permission to register a credit sale",
+      "dueDateLabel": "Due date",
+      "dueDateRequiredError": "Set the due date"
+    },
+    "quickSale": {
+      "continueBtnWithCount": "Continue ({{count}})",
+      "continueBtnEmpty": "Select at least one item",
+      "quantitiesTitle": "Set quantities",
+      "backToItemsBtn": "Back to items",
+      "continueToCustomerBtn": "Continue",
+      "customerStepTitle": "Customer",
+      "customerStepHint": "Pick a real customer for a credit sale, or continue with a cash customer for immediate payment",
+      "pickCustomerBtn": "Pick a customer",
+      "backToQuantitiesBtn": "Back to quantities"
+    },
     "receipt": {
       "success": "Sale completed successfully",
       "invoiceNumber": "Invoice number {{number}}",
@@ -2112,4 +2357,3 @@
     "stayOnPage": "Stay on this page"
   }
 }
-

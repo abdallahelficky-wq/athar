@@ -1,16 +1,23 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { listEmployees, createEmployee, updateEmployee, deleteEmployee } from "../../api/employees";
+import * as XLSX from "xlsx";
+import { listEmployees, createEmployee, importEmployees, updateEmployee, deleteEmployee } from "../../api/employees";
 import { getEmployeePayrollComponents, setEmployeePayrollComponents } from "../../api/payrollSettings";
-import { DEPARTMENTS, fmt } from "../../legacy/constants";
-import { NATIONALITIES, EMPLOYEE_DOC_TYPES } from "../../legacy/hr";
+import { DEPARTMENTS, DEPARTMENT_KEYS, fmt } from "../../legacy/constants";
+import { NATIONALITIES, NATIONALITY_KEYS, EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_KEYS } from "../../legacy/hr";
+import { labelForListValue } from "../../legacy/listLabels";
 import { routes } from "../../routes";
+import AttachmentsPanel from "../shared/AttachmentsPanel";
 
 const emptyForm = () => ({
-  name: "", jobTitle: "", department: DEPARTMENTS[0], hireDate: new Date().toISOString().slice(0, 10),
+  name: "", employeeNumber: "", idNumber: "", gender: "", maritalStatus: "",
+  jobTitle: "", department: DEPARTMENTS[0], workLocation: "", hireDate: new Date().toISOString().slice(0, 10),
   contractType: "unlimited", contractEnd: "", basicSalary: "", housingAllowance: "", transportAllowance: "",
-  gosiApplicable: true, nationality: NATIONALITIES[0], dateOfBirth: "", bankName: "", bankAccount: "",
+  gosiApplicable: true, nationality: NATIONALITIES[0], dateOfBirth: "", phone: "", alternatePhone: "",
+  personalEmail: "", workEmail: "", address: "", emergencyContactName: "", emergencyContactPhone: "",
+  emergencyContactRelation: "", bankName: "", bankAccount: "", medicalInsuranceProvider: "",
+  medicalInsuranceNumber: "", annualLeaveDays: 21, notes: "",
   probationEndDate: "", probationEvaluated: false, documents: [],
 });
 
@@ -23,6 +30,8 @@ export default function EmployeeDirectoryTab({ companyId }) {
   const [editingId, setEditingId] = useState(null);
   const [payrollComponents, setPayrollComponents] = useState([]);
   const [payrollError, setPayrollError] = useState("");
+  const [importResult, setImportResult] = useState("");
+  const importInputRef = useRef(null);
 
   const reloadPayrollComponents = (id) => {
     if (!id) { setPayrollComponents([]); return; }
@@ -50,8 +59,15 @@ export default function EmployeeDirectoryTab({ companyId }) {
     try {
       const payload = {
         ...form, companyId,
+        employeeNumber: form.employeeNumber.trim() || undefined,
+        idNumber: form.idNumber.trim() || undefined,
+        phone: form.phone.trim() || undefined,
+        alternatePhone: form.alternatePhone.trim() || undefined,
+        personalEmail: form.personalEmail.trim() || undefined,
+        workEmail: form.workEmail.trim() || undefined,
         basicSalary: Number(form.basicSalary), housingAllowance: Number(form.housingAllowance || 0),
-        transportAllowance: Number(form.transportAllowance || 0), contractEnd: form.contractEnd || undefined,
+        transportAllowance: Number(form.transportAllowance || 0), annualLeaveDays: Number(form.annualLeaveDays || 0),
+        contractEnd: form.contractEnd || undefined,
         dateOfBirth: form.dateOfBirth || undefined,
         probationEndDate: form.probationEndDate || null,
         documents: form.documents.map((d) => ({ ...d, expiryDate: d.expiryDate || undefined })),
@@ -93,18 +109,146 @@ export default function EmployeeDirectoryTab({ companyId }) {
   const addDoc = () => setForm((f) => ({ ...f, documents: [...f.documents, { type: EMPLOYEE_DOC_TYPES[0], number: "", expiryDate: "" }] }));
   const removeDoc = (idx) => setForm((f) => ({ ...f, documents: f.documents.filter((_, i) => i !== idx) }));
 
+  const exportEmployees = () => {
+    const rows = employees.map((e) => ({
+      [t("hr.directory.export.employeeNumber")]: e.employeeNumber || "",
+      [t("hr.directory.export.name")]: e.name,
+      [t("hr.directory.export.idNumber")]: e.idNumber || "",
+      [t("hr.directory.export.nationality")]: e.nationality || "",
+      [t("hr.directory.export.jobTitle")]: e.jobTitle || "",
+      [t("hr.directory.export.department")]: e.department || "",
+      [t("hr.directory.export.workLocation")]: e.workLocation || "",
+      [t("hr.directory.export.phone")]: e.phone || "",
+      [t("hr.directory.export.workEmail")]: e.workEmail || "",
+      [t("hr.directory.export.hireDate")]: e.hireDate?.slice(0, 10) || "",
+      [t("hr.directory.export.contractType")]: e.contractType === "limited" ? t("hr.directory.contractLimited") : t("hr.directory.contractUnlimited"),
+      [t("hr.directory.export.contractEnd")]: e.contractEnd?.slice(0, 10) || "",
+      [t("hr.directory.export.basicSalary")]: Number(e.basicSalary || 0),
+      [t("hr.directory.export.housingAllowance")]: Number(e.housingAllowance || 0),
+      [t("hr.directory.export.transportAllowance")]: Number(e.transportAllowance || 0),
+      [t("hr.directory.export.bankAccount")]: e.bankAccount || "",
+      [t("hr.directory.export.annualLeaveDays")]: e.annualLeaveDays ?? 21,
+      [t("hr.directory.export.status")]: e.status === "terminated" ? t("hr.directory.statusTerminated") : t("hr.directory.statusActive"),
+    }));
+    const sheet = XLSX.utils.json_to_sheet(rows);
+    sheet["!cols"] = Object.keys(rows[0] || {}).map((key) => ({ wch: Math.max(14, key.length + 4) }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, t("hr.directory.export.sheetName"));
+    XLSX.writeFile(workbook, `employees-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const importColumns = () => [
+    ["employeeNumber", t("hr.directory.export.employeeNumber")], ["name", t("hr.directory.export.name")],
+    ["idNumber", t("hr.directory.export.idNumber")], ["nationality", t("hr.directory.export.nationality")],
+    ["jobTitle", t("hr.directory.export.jobTitle")], ["department", t("hr.directory.export.department")],
+    ["workLocation", t("hr.directory.export.workLocation")], ["phone", t("hr.directory.export.phone")],
+    ["workEmail", t("hr.directory.export.workEmail")], ["hireDate", t("hr.directory.export.hireDate")],
+    ["contractType", t("hr.directory.export.contractType")], ["contractEnd", t("hr.directory.export.contractEnd")],
+    ["basicSalary", t("hr.directory.export.basicSalary")], ["housingAllowance", t("hr.directory.export.housingAllowance")],
+    ["transportAllowance", t("hr.directory.export.transportAllowance")], ["otherAllowance", t("hr.directory.otherAllowance")],
+    ["bankName", t("hr.directory.bankName")], ["bankAccount", t("hr.directory.export.bankAccount")],
+    ["annualLeaveDays", t("hr.directory.export.annualLeaveDays")], ["gender", t("hr.directory.gender")],
+    ["maritalStatus", t("hr.directory.maritalStatus")], ["dateOfBirth", t("hr.directory.dateOfBirth")],
+    ["personalEmail", t("hr.directory.personalEmail")], ["alternatePhone", t("hr.directory.alternatePhone")],
+    ["address", t("hr.directory.address")], ["emergencyContactName", t("hr.directory.emergencyContactName")],
+    ["emergencyContactPhone", t("hr.directory.emergencyContactPhone")], ["emergencyContactRelation", t("hr.directory.emergencyContactRelation")],
+    ["medicalInsuranceProvider", t("hr.directory.medicalInsuranceProvider")], ["medicalInsuranceNumber", t("hr.directory.medicalInsuranceNumber")],
+    ["gosiApplicable", t("hr.directory.gosiApplicable")], ["notes", t("hr.directory.notes")],
+  ];
+
+  const downloadImportTemplate = () => {
+    const columns = importColumns();
+    const example = Object.fromEntries(columns.map(([key, label]) => [label,
+      ({ name: t("hr.directory.templateExampleName"), hireDate: "2026-01-01", basicSalary: 5000, housingAllowance: 0,
+        transportAllowance: 0, otherAllowance: 0, annualLeaveDays: 21, contractType: t("hr.directory.contractUnlimited"),
+        gosiApplicable: t("hr.directory.yes") }[key] ?? "")]));
+    const sheet = XLSX.utils.json_to_sheet([example]);
+    sheet["!cols"] = columns.map(([, label]) => ({ wch: Math.max(18, label.length + 4) }));
+    const instructions = XLSX.utils.aoa_to_sheet([
+      [t("hr.directory.importInstructionsTitle")],
+      [t("hr.directory.importRequiredFields")],
+      [t("hr.directory.importDateFormat")],
+      [t("hr.directory.importDoNotRename")],
+    ]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, t("hr.directory.export.sheetName"));
+    XLSX.utils.book_append_sheet(workbook, instructions, t("hr.directory.importInstructionsSheet"));
+    XLSX.writeFile(workbook, `employee-import-template-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const excelDate = (value) => {
+    if (!value) return undefined;
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    if (typeof value === "number") { const d = XLSX.SSF.parse_date_code(value); return d ? `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}` : undefined; }
+    return String(value).trim() || undefined;
+  };
+
+  const uploadEmployees = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setError(""); setImportResult("");
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
+      const columns = importColumns();
+      const rows = rawRows.filter((row) => Object.values(row).some((value) => String(value).trim())).map((row, index) => {
+        const value = (key) => row[columns.find(([field]) => field === key)?.[1]];
+        const name = String(value("name") || "").trim(), basicSalary = Number(value("basicSalary") || 0), hireDate = excelDate(value("hireDate"));
+        if (!name || !basicSalary || !hireDate) throw new Error(t("hr.directory.importRowError", { row: index + 2 }));
+        const text = (key) => String(value(key) || "").trim() || undefined;
+        const numeric = (key, fallback = 0) => Number(value(key) || fallback);
+        const contractValue = text("contractType");
+        const genderValue = text("gender"), maritalValue = text("maritalStatus"), gosiValue = String(value("gosiApplicable") || "").toLowerCase();
+        return { name, employeeNumber: text("employeeNumber"), idNumber: text("idNumber"), nationality: text("nationality"),
+          jobTitle: text("jobTitle"), department: text("department"), workLocation: text("workLocation"), phone: text("phone"), workEmail: text("workEmail"),
+          hireDate, contractType: contractValue === t("hr.directory.contractLimited") || contractValue === "limited" ? "limited" : "unlimited",
+          contractEnd: excelDate(value("contractEnd")), basicSalary, housingAllowance: numeric("housingAllowance"),
+          transportAllowance: numeric("transportAllowance"), otherAllowance: numeric("otherAllowance"), bankName: text("bankName"), bankAccount: text("bankAccount"),
+          annualLeaveDays: numeric("annualLeaveDays", 21), gender: genderValue === t("hr.directory.genderFemale") || genderValue === "female" ? "female" : genderValue ? "male" : undefined,
+          maritalStatus: maritalValue === t("hr.directory.married") || maritalValue === "married" ? "married" : maritalValue ? "single" : undefined,
+          dateOfBirth: excelDate(value("dateOfBirth")), personalEmail: text("personalEmail"), alternatePhone: text("alternatePhone"), address: text("address"),
+          emergencyContactName: text("emergencyContactName"), emergencyContactPhone: text("emergencyContactPhone"), emergencyContactRelation: text("emergencyContactRelation"),
+          medicalInsuranceProvider: text("medicalInsuranceProvider"), medicalInsuranceNumber: text("medicalInsuranceNumber"),
+          gosiApplicable: !["لا", "no", "false", "0"].includes(gosiValue), notes: text("notes"), documents: [] };
+      });
+      if (!rows.length) throw new Error(t("hr.directory.importEmpty"));
+      const result = await importEmployees({ companyId, rows });
+      setImportResult(t("hr.directory.importSuccess", { count: result.imported }));
+      reload();
+    } catch (err) { setError(err.message); }
+  };
+
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
     <div>
       <div className="panel form-panel">
         {editingId && <div className="edit-banner">{t("hr.directory.editingBanner", { name: form.name })}</div>}
+        <h3 className="sub-head">{t("hr.directory.personalSection")}</h3>
         <div className="form-grid">
           <label>{t("hr.directory.name")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>{t("hr.directory.employeeNumber")}<input type="text" value={form.employeeNumber} onChange={(e) => setForm({ ...form, employeeNumber: e.target.value })} /></label>
+          <label>{t("hr.directory.idNumber")}<input type="text" value={form.idNumber} onChange={(e) => setForm({ ...form, idNumber: e.target.value })} /></label>
+          <label>{t("hr.directory.gender")}<select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}><option value="">—</option><option value="male">{t("hr.directory.genderMale")}</option><option value="female">{t("hr.directory.genderFemale")}</option></select></label>
+          <label>{t("hr.directory.maritalStatus")}<select value={form.maritalStatus} onChange={(e) => setForm({ ...form, maritalStatus: e.target.value })}><option value="">—</option><option value="single">{t("hr.directory.single")}</option><option value="married">{t("hr.directory.married")}</option></select></label>
           <label>{t("hr.directory.jobTitle")}<input type="text" value={form.jobTitle} onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} /></label>
-          <label>{t("hr.directory.department")}<select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>{DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}</select></label>
-          <label>{t("hr.directory.nationality")}<select value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })}>{NATIONALITIES.map((n) => <option key={n}>{n}</option>)}</select></label>
+          <label>{t("hr.directory.department")}<select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>{DEPARTMENTS.map((d) => <option key={d} value={d}>{labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", d)}</option>)}</select></label>
+          <label>{t("hr.directory.workLocation")}<input type="text" value={form.workLocation} onChange={(e) => setForm({ ...form, workLocation: e.target.value })} /></label>
+          <label>{t("hr.directory.nationality")}<select value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })}>{NATIONALITIES.map((n) => <option key={n} value={n}>{labelForListValue(t, NATIONALITY_KEYS, "hr.nationalityLabels", n)}</option>)}</select></label>
           <label>{t("hr.directory.dateOfBirth")}<input type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
+          <label>{t("hr.directory.phone")}<input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+          <label>{t("hr.directory.alternatePhone")}<input type="tel" value={form.alternatePhone} onChange={(e) => setForm({ ...form, alternatePhone: e.target.value })} /></label>
+          <label>{t("hr.directory.personalEmail")}<input type="email" value={form.personalEmail} onChange={(e) => setForm({ ...form, personalEmail: e.target.value })} /></label>
+          <label>{t("hr.directory.workEmail")}<input type="email" value={form.workEmail} onChange={(e) => setForm({ ...form, workEmail: e.target.value })} /></label>
+          <label>{t("hr.directory.address")}<input type="text" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
+          <label>{t("hr.directory.emergencyContactName")}<input type="text" value={form.emergencyContactName} onChange={(e) => setForm({ ...form, emergencyContactName: e.target.value })} /></label>
+          <label>{t("hr.directory.emergencyContactPhone")}<input type="tel" value={form.emergencyContactPhone} onChange={(e) => setForm({ ...form, emergencyContactPhone: e.target.value })} /></label>
+          <label>{t("hr.directory.emergencyContactRelation")}<input type="text" value={form.emergencyContactRelation} onChange={(e) => setForm({ ...form, emergencyContactRelation: e.target.value })} /></label>
+        </div>
+
+        <h3 className="sub-head">{t("hr.directory.employmentSection")}</h3>
+        <div className="form-grid">
           <label>{t("hr.directory.hireDate")}<input type="date" value={form.hireDate} onChange={(e) => setForm({ ...form, hireDate: e.target.value })} /></label>
           <label>{t("hr.directory.contractType")}
             <select value={form.contractType} onChange={(e) => setForm({ ...form, contractType: e.target.value })}>
@@ -122,13 +266,17 @@ export default function EmployeeDirectoryTab({ companyId }) {
           <label>{t("hr.directory.basicSalary")}<input type="number" value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} /></label>
           <label>{t("hr.directory.housingAllowance")}<input type="number" value={form.housingAllowance} onChange={(e) => setForm({ ...form, housingAllowance: e.target.value })} /></label>
           <label>{t("hr.directory.transportAllowance")}<input type="number" value={form.transportAllowance} onChange={(e) => setForm({ ...form, transportAllowance: e.target.value })} /></label>
+          <label>{t("hr.directory.annualLeaveDays")}<input type="number" min="0" value={form.annualLeaveDays} onChange={(e) => setForm({ ...form, annualLeaveDays: e.target.value })} /></label>
           <label>{t("hr.directory.bankName")}<input type="text" value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} /></label>
           <label>{t("hr.directory.bankAccount")}<input type="text" value={form.bankAccount} onChange={(e) => setForm({ ...form, bankAccount: e.target.value })} /></label>
+          <label>{t("hr.directory.medicalInsuranceProvider")}<input type="text" value={form.medicalInsuranceProvider} onChange={(e) => setForm({ ...form, medicalInsuranceProvider: e.target.value })} /></label>
+          <label>{t("hr.directory.medicalInsuranceNumber")}<input type="text" value={form.medicalInsuranceNumber} onChange={(e) => setForm({ ...form, medicalInsuranceNumber: e.target.value })} /></label>
           <label className="checkbox-field">
             <input type="checkbox" checked={form.gosiApplicable} onChange={(e) => setForm({ ...form, gosiApplicable: e.target.checked })} />
             {t("hr.directory.gosiApplicable")}
           </label>
         </div>
+        <label>{t("hr.directory.notes")}<textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} /></label>
 
         <h3 className="sub-head">{t("hr.directory.docsTitle")}</h3>
         <div className="lines-table-wrap">
@@ -137,7 +285,7 @@ export default function EmployeeDirectoryTab({ companyId }) {
             <tbody>
               {form.documents.map((d, idx) => (
                 <tr key={idx}>
-                  <td><select value={d.type} onChange={(e) => updateDoc(idx, "type", e.target.value)}>{EMPLOYEE_DOC_TYPES.map((t2) => <option key={t2}>{t2}</option>)}</select></td>
+                  <td><select value={d.type} onChange={(e) => updateDoc(idx, "type", e.target.value)}>{EMPLOYEE_DOC_TYPES.map((v) => <option key={v} value={v}>{labelForListValue(t, EMPLOYEE_DOC_TYPE_KEYS, "hr.documentTypeLabels", v)}</option>)}</select></td>
                   <td><input type="text" value={d.number} onChange={(e) => updateDoc(idx, "number", e.target.value)} /></td>
                   <td><input type="date" value={d.expiryDate} onChange={(e) => updateDoc(idx, "expiryDate", e.target.value)} /></td>
                   <td><button className="btn-remove-line" onClick={() => removeDoc(idx)}>✕</button></td>
@@ -147,6 +295,7 @@ export default function EmployeeDirectoryTab({ companyId }) {
           </table>
         </div>
         <button className="btn-ghost" onClick={addDoc}>{t("hr.directory.addDoc")}</button>
+        {editingId && <AttachmentsPanel entityType="employee" entityId={editingId} title={t("hr.directory.attachmentsTitle")} />}
 
         {editingId && payrollComponents.length > 0 && (
           <>
@@ -184,12 +333,22 @@ export default function EmployeeDirectoryTab({ companyId }) {
 
       {loading ? <p className="empty">{t("common.loading")}</p> : (
         <div className="panel">
+          <div className="form-btn-group" style={{ justifyContent: "space-between", marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>{t("hr.directory.listTitle")}</h3>
+            <div className="form-btn-group">
+              <button className="btn-ghost" onClick={downloadImportTemplate}>{t("hr.directory.downloadImportTemplate")}</button>
+              <button className="btn-primary" onClick={() => importInputRef.current?.click()}>{t("hr.directory.uploadEmployees")}</button>
+              <input ref={importInputRef} type="file" accept=".xlsx,.xls" hidden onChange={uploadEmployees} />
+              <button className="btn-ghost" onClick={exportEmployees} disabled={employees.length === 0}>{t("hr.directory.exportExcel")}</button>
+            </div>
+          </div>
+          {importResult && <p className="balance-good">{importResult}</p>}
           <table className="ledger-table">
-            <thead><tr><th>{t("hr.directory.table.name")}</th><th>{t("hr.directory.table.department")}</th><th>{t("hr.directory.table.basicSalary")}</th><th>{t("hr.directory.table.leaveStatus")}</th><th></th></tr></thead>
+            <thead><tr><th>{t("hr.directory.table.name")}</th><th>{t("hr.directory.table.department")}</th><th>{t("hr.directory.table.basicSalary")}</th><th>{t("hr.directory.table.leaveBalance")}</th><th>{t("hr.directory.table.eosBalance")}</th><th>{t("hr.directory.table.leaveStatus")}</th><th></th></tr></thead>
             <tbody>
               {employees.map((e) => (
                 <tr key={e.id}>
-                  <td>{e.name}</td><td>{e.department || "—"}</td><td className="num">{fmt(e.basicSalary)}</td>
+                  <td>{e.name}</td><td>{e.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", e.department) : "—"}</td><td className="num">{fmt(e.basicSalary)}</td><td className="num">{e.liveBalances ? `${e.liveBalances.leave.remainingDays.toFixed(1)} / ${fmt(e.liveBalances.leave.amount)}` : "—"}</td><td className="num">{e.liveBalances ? fmt(e.liveBalances.eos) : "—"}</td>
                   <td><span className="status-badge">{e.leaveStatus === "onLeave" ? t("hr.directory.statusOnLeave") : t("hr.directory.statusActive")}</span></td>
                   <td className="row-actions">
                     {e.accountId && (
@@ -200,7 +359,7 @@ export default function EmployeeDirectoryTab({ companyId }) {
                   </td>
                 </tr>
               ))}
-              {employees.length === 0 && <tr><td className="empty" colSpan={5}>{t("hr.directory.empty")}</td></tr>}
+              {employees.length === 0 && <tr><td className="empty" colSpan={7}>{t("hr.directory.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

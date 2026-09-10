@@ -34,3 +34,19 @@ export function onForcedLogout(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
+
+/**
+ * مزامنة بين تبويبات/نوافذ المتصفح لنفس الأصل: تحديث localStorage من تبويب يُطلق حدث "storage" في
+ * كل تبويب آخر مفتوح (لا في التبويب الذي أجرى التغيير نفسه). بدونها تبقى النسخة المخزَّنة في ذاكرة
+ * كل تبويب كما كانت لحظة تحميله فقط — فتبويب قديم يستمر لاحقاً بمحاولة استخدام refresh token أصبح
+ * مُلغى بالفعل (كل رمز تجديد يُستخدم مرة واحدة فقط ثم يُستبدَل، rotation) بمجرد أن يُجدِّده تبويب
+ * آخر لنفس المستخدم — فيُخرَج بالخطأ رغم أنه لم يسجّل خروجاً صراحةً من هذا التبويب تحديداً. هذا هو
+ * السبب الجذري الفعلي لمشكلة "فتح تبويب جديد يُخرِجني من القديم"، وليس أي تعمّد لفرض جلسة واحدة —
+ * الخادم لا يُبطل أي جلسات أخرى عند تسجيل دخول جديد (راجع auth.service.ts).
+ */
+window.addEventListener("storage", (event) => {
+  if (event.key !== null && event.key !== ACCESS_KEY && event.key !== REFRESH_KEY) return;
+  accessToken = localStorage.getItem(ACCESS_KEY) || null;
+  refreshToken = localStorage.getItem(REFRESH_KEY) || null;
+  if (!accessToken || !refreshToken) listeners.forEach((fn) => fn());
+});

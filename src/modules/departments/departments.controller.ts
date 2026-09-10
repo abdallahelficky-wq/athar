@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId?: string | null) {
   if (!companyId) return;
@@ -9,8 +10,12 @@ async function assertCompanyBelongsToTenant(tenantId: string, companyId?: string
 }
 
 export const listDepartments: RequestHandler = async (req, res) => {
+  const { companyScope } = req.auth!;
   const departments = await prisma.department.findMany({
-    where: { tenantId: req.auth!.tenantId },
+    where: {
+      tenantId: req.auth!.tenantId,
+      ...(companyScope === "all" ? {} : { OR: [{ companyId: null }, { companyId: companyScope }] }),
+    },
     orderBy: { createdAt: "asc" },
   });
   res.json(departments);
@@ -29,6 +34,7 @@ export const updateDepartment: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("القسم غير موجود");
+  if (existing.companyId) assertCompanyAccess(req.auth!, existing.companyId);
   await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
 
   const department = await prisma.department.update({ where: { id: existing.id }, data: req.body });
@@ -40,6 +46,7 @@ export const deleteDepartment: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("القسم غير موجود");
+  if (existing.companyId) assertCompanyAccess(req.auth!, existing.companyId);
 
   await prisma.department.delete({ where: { id: existing.id } });
   res.status(204).send();

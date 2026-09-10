@@ -90,6 +90,20 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
     }
   };
 
+  const toggleQuickSale = async (enabled) => {
+    if (!company) return;
+    setSaving(true);
+    setError("");
+    try {
+      await updateCompany(company.id, { posQuickSaleEnabled: enabled });
+      reloadCompanies?.();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const changeBrandColor = async (color) => {
     if (!company) return;
     try {
@@ -220,6 +234,22 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
               </div>
             </label>
           </div>
+        </div>
+      )}
+
+      {company && (
+        <div className="panel form-panel">
+          <h3 className="sub-head">{t("sales.settings.posSectionTitle")}</h3>
+          <p className="note">{t("sales.settings.posSectionNote")}</p>
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={!!company.posQuickSaleEnabled}
+              onChange={(e) => toggleQuickSale(e.target.checked)}
+              disabled={saving}
+            />
+            {t("sales.settings.posQuickSaleToggle")}
+          </label>
         </div>
       )}
 

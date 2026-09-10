@@ -30,6 +30,10 @@ enum SubscriptionStatus {
   active
   past_due
   canceled
+  // تعليق إداري صريح من لوحة تحكم مدير المنصة (athar-platform-admin، مشروع منفصل تماماً) — يمنع
+  // تسجيل الدخول/تجديد الجلسة فوراً (انظر assertTenantActive في auth.service.ts)، بصرف النظر عن
+  // أي حالة اشتراك سابقة كانت عليها هذه الشركة.
+  suspended
 }
 
 model Tenant {
@@ -38,11 +42,28 @@ model Tenant {
   subscriptionPlan   SubscriptionPlan   @default(basic)
   subscriptionStatus SubscriptionStatus @default(trialing)
   trialEndsAt        DateTime?
+  // سبب التعليق الإداري (نصي، اختياري) — يُعرَض للمستخدم في رسالة رفض تسجيل الدخول عند
+  // subscriptionStatus = suspended. يُكتَب فقط من لوحة تحكم مدير المنصة (athar-platform-admin).
+  suspensionReason   String?
+  // الموديولات الممنوحة لهذه الشركة (مثال: ["sales","purchases","hr"]) — مصفوفة فارغة أو غير
+  // محدَّدة تعني "كل الموديولات مفعّلة" (السلوك الافتراضي الحالي لكل شركة، بلا أي تغيير حتى تُخصَّص
+  // صراحةً من لوحة تحكم مدير المنصة). القائمة الكاملة لمعرّفات الموديولات مطابقة لمعرّفات
+  // NAV_GROUPS في frontend/src/App.jsx.
+  enabledModules     String[]           @default([])
   unlockPin          String // قيمة مُشفّرة بـ bcrypt دائماً (انظر hashPassword في auth.service.ts)
+  // مالك الشركة (صاحب الاشتراك الأصلي) — مرجع حر بلا علاقة FK صارمة (بنفس أسلوب mirrorEntryId في
+  // JournalEntry)، يُملأ عند التسجيل بأول مستخدم (register في auth.service.ts)، وللشركات الأقدم
+  // عبر scripts/backfillTenantOwners.ts (بنفس منطق "أول مستخدم بالتاريخ"). قابل للتغيير مستقبلاً
+  // (نقل الملكية) بخلاف "أول مستخدم بالتاريخ" المشتق ديناميكياً وغير القابل للتعديل. المالك يملك
+  // دائماً كل الصلاحيات على شركته (راجع requirePermission في middleware/auth.ts) بلا حاجة لإعداد
+  // منصب له صراحةً.
+  ownerId            String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
+  platformNotices           PlatformNotice[]
   users                     User[]
+  positions                 Position[]
   companies                 Company[]
   costCenters               CostCenter[]
   departments               Department[]
@@ -99,6 +120,22 @@ model Tenant {
   @@map("tenants")
 }
 
+// إشعار من مدير المنصة (athar-platform-admin) يظهر لمستخدمي شركة (Tenant) محدَّدة داخل واجهة أثر
+// المحاسبي نفسها — يُكتَب فقط عبر الـ API الداخلي المحمي بـ PLATFORM_ADMIN_API_KEY (انظر
+// src/modules/platformAdmin)، ويُعرَض عبر استجابة /api/auth/me (نفس أسلوب emailServiceConfigured
+// الموجود أصلاً). لا آلية "قراءة/إخفاء" لكل مستخدم بعد — كل إشعار يظهر لكل مستخدمي الشركة دائماً
+// حتى يُحذَف أو تنتهي صلاحيته يدوياً؛ إضافة تتبّع القراءة لكل مستخدم قرار مستقبلي إن احتيج فعلاً.
+model PlatformNotice {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("platform_notices")
+}
+
 enum UserRole {
   super_admin // مدير عام — الحساب الرئيسي المالك فقط، غير قابل للمنح عبر الدعوة العادية
   admin // مدير النظام
@@ -113,13 +150,38 @@ enum InviteStatus {
   accepted
 }
 
+// هوية واحدة لكل إنسان حقيقي — البريد الإلكتروني وكلمة المرور يعيشان هنا فقط (فريدان على مستوى
+// قاعدة البيانات كاملة)، بمعزل عن أي مستأجر. تسمح بانتماء نفس الشخص (بنفس البريد وكلمة المرور)
+// لعدة شركات/مستأجرين منفصلين تماماً (كل عضوية = صفّ User مستقل بنطاق companyScope خاص به)، بنفس
+// مبدأ نظام "قيود": بيانات كل شركة معزولة تماماً عن الأخرى رغم تسجيل الدخول الموحّد. عضوية جديدة
+// بإيميل له هوية موجودة مسبقاً في مستأجر آخر تتطلّب دائماً تأكيداً صريحاً من صاحب الإيميل عبر رابط
+// دعوة (User.inviteStatus="pending" + inviteToken)، تماماً كأي دعوة أخرى — لا ربط تلقائي بلا موافقة.
+model Identity {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships         User[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("identities")
+}
+
+// عضوية هوية واحدة (Identity) داخل مستأجر واحد — كل ما كان قبل تقسيم Identity حقلاً هنا مباشرة
+// (الدور، نطاق الشركة، حالة الدعوة...) يبقى دون أي تغيير في المعنى أو الاستخدام؛ فقط email/
+// passwordHash انتقلا فعلياً إلى Identity. req.auth.sub في كل مكان بالنظام لا يزال معرّف صفّ User
+// هذا تحديداً (لا Identity) — التبديل بين شركات نفس الهوية = إصدار رمز JWT جديد فعلياً لعضوية
+// أخرى، لا تعديل حالة داخل نفس الجلسة، فيبقى companyScope/enforceCompanyScope وكل فحوصات العزل
+// الأخرى في النظام بلا أي تغيير مطلوب.
 model User {
   id              String       @id @default(cuid())
+  identityId      String
+  identity        Identity     @relation(fields: [identityId], references: [id], onDelete: Cascade)
   tenantId        String
   tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name            String
-  email           String       @unique
-  passwordHash    String?
   role            UserRole     @default(accountant)
   companyScope    String       @default("all") // "all" أو معرّف شركة محددة ضمن المستأجر
   active          Boolean      @default(true)
@@ -130,11 +192,110 @@ model User {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  refreshTokens       RefreshToken[]
-  auditLogs           AuditLog[]
-  passwordResetTokens PasswordResetToken[]
+  // المنصب المُسنَد لهذا المستخدم (اختياري) — يحدّد صلاحياته الدقيقة عبر PositionPermission، بجانب
+  // (لا بدلاً من) دوره العام role أعلاه. حذف المنصب لا يحذف المستخدم (onDelete: SetNull).
+  positionId String?
+  position   Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
+  refreshTokens             RefreshToken[]
+  auditLogs                 AuditLog[]
+  actionPermissionOverrides UserActionPermissionOverride[]
+
+  // نفس الهوية لا تنضم لنفس المستأجر مرتين (لا حاجة لعضويتين منفصلتين لنفس الشخص في نفس المستأجر —
+  // نطاق companyScope واحد يكفي، ولو احتاج صلاحيات مختلفة لشركتين من نفس المستأجر فذلك عبر
+  // companyScope="all" أو منصب مخصَّص، لا عضوية إضافية).
+  @@unique([identityId, tenantId])
   @@map("users")
+}
+
+// منصب وظيفي داخل شركة (Tenant) واحدة — يحمل صلاحيات دقيقة (PositionPermission) قابلة للتخصيص من
+// مالك الشركة نفسه (tenant.ownerId)، بديلاً تدريجياً عن نظام الأدوار الثابتة (UserRole + requireRole)
+// لبعض الإجراءات الحسّاسة تحديداً. المرحلة الأولى (الحالية): تغطي فقط صلاحية "فك ترحيل القيود"
+// (extra.unpost على صف moduleId="accounts") — بقية الأعمدة/الوحدات موجودة بالبنية لكن غير مُستخدَمة
+// بعد، تمهيداً لتوسعة لاحقة بلا أي migration إضافي.
+model Position {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  permissions       PositionPermission[]
+  actionPermissions PositionActionPermission[]
+  users             User[]
+
+  @@unique([tenantId, name])
+  @@map("positions")
+}
+
+// صف صلاحيات منصب واحد لوحدة (moduleId) واحدة — معرّفات moduleId تطابق PLATFORM_MODULE_IDS
+// (src/lib/platformModules.ts) حرفياً: sales, purchases, inventory, stables, fixedAssets, accounts,
+// hr, reports, settings.
+model PositionPermission {
+  id         String   @id @default(cuid())
+  positionId String
+  position   Position @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  moduleId   String
+  canRead    Boolean  @default(false)
+  canCreate  Boolean  @default(false)
+  canDelete  Boolean  @default(false)
+  canApprove Boolean  @default(false)
+  // صلاحيات استثنائية غير قياسية خاصة بوحدة معينة (مثال: {"unpost": true}) — JSON بدل عمود جديد
+  // لكل صلاحية خاصة تُضاف مستقبلاً، فلا حاجة لـ migration في كل مرة تظهر صلاحية غير قياسية لوحدة
+  // واحدة فقط.
+  extra      Json?
+
+  @@unique([positionId, moduleId])
+  @@map("position_permissions")
+}
+
+// مستوى ترتيبي واحد (كل مستوى يتضمن ما دونه): none < read < edit < approve < full — يُقارَن دائماً
+// عبر خريطة رتب ثابتة في كود التطبيق (LEVEL_RANK في middleware/auth.ts)، لا عبر ترتيب Postgres
+// لقيم enum. هذا هو الشكل الثاني (الترتيبي) لتمثيل الصلاحيات، بديل تدريجي لأعمدة PositionPermission
+// البوليانية أعلاه — يبدأ بوحدة leaveRequests فقط (راجع src/lib/platformActions.ts) بينما يبقى
+// PositionPermission قائماً بلا تغيير لخدمة صلاحية فك الترحيل الحالية أثناء فترة انتقالية.
+enum PermissionLevel {
+  none
+  read
+  edit
+  approve
+  full
+}
+
+// صلاحية منصب واحد لإجراء واحد (moduleId + actionId) بمستوى ترتيبي واحد — بديل PositionPermission
+// البوليانية لكل وحدة تُهاجَر تدريجياً لهذا الشكل الجديد (راجع PLATFORM_ACTIONS في
+// src/lib/platformActions.ts لسجل الوحدات/الإجراءات المُهاجَرة فعلياً).
+model PositionActionPermission {
+  id         String          @id @default(cuid())
+  positionId String
+  position   Position        @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  moduleId   String
+  actionId   String
+  level      PermissionLevel @default(none)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([positionId, moduleId, actionId])
+  @@map("position_action_permissions")
+}
+
+// استثناء فردي لمستخدم واحد على إجراء واحد — يتغلّب دائماً على صلاحية منصبه (PositionActionPermission)
+// عند وجوده (راجع requireActionPermission في middleware/auth.ts: يُفحَص هذا الجدول أولاً قبل أي
+// fallback لصلاحية المنصب). حالة نادرة عمداً (استثناء لا قاعدة عامة)، ولذلك جدول منفصل صغير بدل
+// توسيع PositionActionPermission نفسه.
+model UserActionPermissionOverride {
+  id        String          @id @default(cuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId  String
+  actionId  String
+  level     PermissionLevel
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@unique([userId, moduleId, actionId])
+  @@map("user_action_permission_overrides")
 }
 
 model RefreshToken {
@@ -151,15 +312,17 @@ model RefreshToken {
 
 // رمز استعادة كلمة المرور — يُخزَّن مجزّأً (SHA-256) لا كنص خام، بنفس أسلوب RefreshToken،
 // أحادي الاستخدام (usedAt) ومحدود الصلاحية (expiresAt)، ويُستخدم أيضاً لتطبيق تحديد معدل
-// الطلبات (٣ طلبات لكل بريد إلكتروني في الساعة) بعدّ الصفوف المُنشأة حديثاً لنفس المستخدم.
+// الطلبات (٣ طلبات لكل بريد إلكتروني في الساعة) بعدّ الصفوف المُنشأة حديثاً لنفس الهوية.
+// يشير إلى Identity لا User: كلمة المرور مشتركة بين كل عضويات نفس الهوية الآن، فإعادة تعيينها
+// يجب أن تُغيّرها مرة واحدة للجميع، لا لعضوية واحدة فقط.
 model PasswordResetToken {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  identityId String
+  identity   Identity  @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
 
   @@map("password_reset_tokens")
 }
@@ -219,6 +382,13 @@ model Company {
   // ذرّياً (UPDATE ... RETURNING ضمن نفس معاملة إنشاء القيد) فقط لحظة الحفظ الفعلي، لا عند مجرد
   // فتح نافذة الإضافة أو معاينة الرقم التالي، تجنباً لفجوات Gaps بسبب عمليات مُلغاة.
   nextJournalEntrySeq          Int                   @default(1)
+  // تاريخ إقفال السنة المالية — بعد ضبطه، يُمنع إنشاء/تعديل/حذف/فك ترحيل أي قيد (وأي مستند يُنشئ
+  // قيداً: فواتير، سندات، رواتب...) بتاريخ يقع في هذا التاريخ أو قبله (راجع src/lib/fiscalClosing.ts
+  // لمنطق التحقق المركزي، وjournalPosting.ts لنقطة التجميع الفعلية لمعظم عمليات الكتابة). null يعني
+  // لا إقفال مضبوطاً إطلاقاً (السلوك الافتراضي، بلا أي تقييد). "فتح الإقفال" (تقديم هذا التاريخ للخلف
+  // أو مسحه) محصور بصلاحية admin فقط عبر مسار مخصّص مُسجَّل بالكامل في AuditLog — راجع
+  // companies.controller.ts::reopenFiscalClosing.
+  fiscalYearClosingDate        DateTime?
   // إعدادات تنبيهات الداشبورد المالية — قابلة للتعديل لكل شركة من الإعدادات
   vatFilingFrequency           VatFilingFrequency    @default(quarterly)
   zakatDeclarationDueDate      DateTime?
@@ -267,6 +437,12 @@ model Company {
   zatcaNextIcv                 Int                   @default(1)
   // تجزئة (hash) آخر مستند تم إرساله فعلياً لزاتكا — تصبح PIH للمستند التالي في السلسلة.
   zatcaLastInvoiceHash         String?
+  // إعداد على مستوى الشركة (يضبطه صاحب الحساب من إعدادات المبيعات، admin/finance_manager فقط —
+  // نفس صلاحية بقية إعدادات الشركة) لا على مستوى جهاز نقطة البيع: يفعّل "شاشة البيع السريعة"
+  // (تحديد أصناف كبطاقات ← كميات ← عميل، مع دعم بيع آجل) بدل SaleScreen الكلاسيكية على كل أجهزة
+  // نقطة البيع لهذه الشركة معاً. القيمة الافتراضية false تُبقي كل الشركات على السلوك الحالي بلا
+  // أي تغيير حتى تُفعِّله الشركة صراحةً — راجع frontend/src/pos/PosApp.jsx لمنطق الاختيار.
+  posQuickSaleEnabled          Boolean               @default(false)
   createdAt                    DateTime              @default(now())
   updatedAt                    DateTime              @updatedAt
 
@@ -389,6 +565,7 @@ enum BusinessActivity {
   retail
   general_trade
   fuel_stations
+  horse_stables
 }
 
 // حالة استخراج شهادة ربط فاتورة (ZATCA CSID) لهذه الشركة تحديداً
@@ -473,6 +650,7 @@ model Account {
   itemCogsLinks                Item[]                @relation("ItemCogsAccount")
   itemRevenueLinks             Item[]                @relation("ItemRevenueAccount")
   itemExpenseLinks             Item[]                @relation("ItemExpenseAccount")
+  itemPurchasesLinks           Item[]                @relation("ItemPurchasesAccount")
   customerLinks                Customer[]
   supplierLinks                Supplier[]
   employeeLinks                Employee[]
@@ -482,6 +660,7 @@ model Account {
   assetCategoryAssetLinks      AssetCategory[]       @relation("AssetCategoryAssetAccount")
   assetCategoryAccDepLinks     AssetCategory[]       @relation("AssetCategoryAccumulatedDepreciationAccount")
   assetCategoryDepExpenseLinks AssetCategory[]       @relation("AssetCategoryDepreciationExpenseAccount")
+  horseCareServiceRevenueLinks HorseCareService[]
 
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
@@ -559,6 +738,7 @@ enum SourceModule {
   stock_movement
   ai_document
   bulk_import
+  periodic_inventory_settlement
 }
 
 // فرع تابع لشركة واحدة — طبقة تصنيف وعرض إضافية فقط (بنفس مبدأ CostCenter/Department)، بدولة
@@ -738,6 +918,9 @@ model Customer {
   salesDebitNotes   SalesDebitNote[]
   receipts          Receipt[]
   journalEntryLines JournalEntryLine[]
+  horses            Horse[]
+  boardingInvoices  HorseBoardingInvoice[]
+  ridingLessons     RidingLesson[]
 
   @@map("customers")
 }
@@ -833,9 +1016,12 @@ model SalesInvoice {
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
 
-  lines              SalesInvoiceLine[]
-  receiptAllocations ReceiptAllocation[]
-  emailLogs          InvoiceEmailLog[]
+  lines                SalesInvoiceLine[]
+  receiptAllocations   ReceiptAllocation[]
+  emailLogs            InvoiceEmailLog[]
+  horseBoardingInvoice HorseBoardingInvoice?
+  trainerCommissions   TrainerCommission[]
+  ridingLesson         RidingLesson?
 
   @@unique([tenantId, companyId, invoiceNumber])
   @@map("sales_invoices")
@@ -1206,6 +1392,16 @@ enum ItemType {
   fixed_asset // أصل ثابت — يُنشئ سجل أصل ثابت تلقائياً عند الشراء
   raw_material // مادة أولية — تُستهلك كمكوّن في منتج مجمّع، لا تُباع مباشرة إلا لو allowDirectSale
   bundle // منتج مجمّع — رصيده يزيد فقط عبر أمر تصنيع (مرحلة قادمة)، لا يُشترى مباشرة
+  // بضاعة بجرد دوري (Periodic Inventory) — تُشترى بلا مسّ حساب المخزون (مدين purchasesAccountId
+  // مباشرة)، وتُباع دائماً بصرف النظر عن الرصيد بلا أي قيد تكلفة لحظي (لا COGS ولا فحص كفاية رصيد) —
+  // الكمية تبقى متتبَّعة تشغيلياً فقط (StockMovement بلا أي أثر محاسبي). تُسوَّى دورياً عبر شاشة
+  // تسوية الجرد الدوري (periodicSettlement module) بقيد بحسابين فقط: stockAccountId/purchasesAccountId.
+  periodic_inventory
+  // غير مخزن (Non-Stock) — لا حساب مخزون ولا تتبّع كمية إطلاقاً (بخلاف periodic_inventory الذي
+  // يتتبّع الكمية تشغيلياً)، ولا قيد تكلفة بضاعة مباعة فوري أو دوري بتاتاً. عند الشراء: مدين
+  // expenseAccountId مباشرة (بلا أي StockMovement). عند البيع: دائن revenueAccountId مباشرة (بلا أي
+  // فحص رصيد، بخلاف expense المحظور بيعه كلياً — هذا النوع مصمَّم ليُشترى ويُباع معاً).
+  non_stock
 }
 
 // كتالوج الأصناف الموحّد — يحل محل Item (مخزون) و SellableItem (مبيعات) القديمين معاً.
@@ -1243,6 +1439,18 @@ model Item {
   revenueAccount   Account? @relation("ItemRevenueAccount", fields: [revenueAccountId], references: [id])
   expenseAccountId String?
   expenseAccount   Account? @relation("ItemExpenseAccount", fields: [expenseAccountId], references: [id])
+  // type == periodic_inventory فقط — حساب "المشتريات" المستقل (لا يُخلَط بـcogsAccountId إطلاقاً):
+  // يُقيَّد عليه الشراء مباشرة طوال الفترة، ويُصفَّر بقيد التسوية الدوري (مدين المخزون/دائن المشتريات)
+  // في شاشة الجرد الدوري المخصَّصة (مرحلة منفصلة لاحقة) لتصبح تكلفة البضاعة المباعة الفعلية.
+  purchasesAccountId String?
+  purchasesAccount   Account? @relation("ItemPurchasesAccount", fields: [purchasesAccountId], references: [id])
+  // type == periodic_inventory فقط — قيمة المخزون الحالية المُعتمَدة لهذا الصنف تحديداً، محفوظة
+  // ومُحدَّثة حصرياً من شاشة تسوية الجرد الدوري (periodicSettlement module)، بمعزل تماماً عن أي
+  // حساب GL فعلي. السبب: stockAccountId قد يكون حساباً مشتركاً بين عدة أصناف بجرد دوري (كلها تحت
+  // "المخزون - جرد دوري" مثلاً)، فرصيد ذلك الحساب في دفتر الأستاذ يخلط كل الأصناف معاً ولا يصلح
+  // كـ"الرصيد الحالي لهذا الصنف بمفرده" عند حساب صافي فرق التسوية التالية. تبدأ 0 لأي صنف جديد
+  // (لا قيمة مُثبَتة قبل أول تسوية فعلية بتصميم periodic_inventory نفسه).
+  periodicStockValue Decimal @default(0) @db.Decimal(18, 2)
 
   // type == raw_material فقط
   allowDirectSale Boolean @default(false)
@@ -1317,6 +1525,10 @@ enum StockMovementType {
   issue
   transfer_out
   transfer_in
+  // تصحيح كمية صنف "بضاعة بجرد دوري" لتطابق الجرد الفعلي المُعَدّ يدوياً، عند تسوية الجرد الدوري —
+  // بلا أي أثر محاسبي بذاتها (القيد المحاسبي للتسوية منفصل تماماً، على مستوى القيمة الإجمالية لا
+  // الحركة الواحدة). الفرق موجب أو سالب حسب نتيجة الجرد الفعلي مقابل الرصيد التشغيلي المتراكم.
+  adjustment
 }
 
 model StockMovement {
@@ -1496,8 +1708,13 @@ model Employee {
   companyId                 String
   company                   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name                      String
+  employeeNumber            String?
+  idNumber                  String?
+  gender                    String?
+  maritalStatus             String?
   jobTitle                  String?
   department                String?
+  workLocation              String?
   hireDate                  DateTime
   contractType              ContractType   @default(unlimited)
   contractEnd               DateTime?
@@ -1511,8 +1728,19 @@ model Employee {
   otherDeductions           Decimal        @default(0) @db.Decimal(18, 2)
   nationality               String?
   dateOfBirth               DateTime?
+  personalEmail             String?
+  workEmail                 String?
+  alternatePhone            String?
+  address                   String?
+  emergencyContactName      String?
+  emergencyContactPhone     String?
+  emergencyContactRelation  String?
   bankName                  String?
   bankAccount               String?
+  medicalInsuranceProvider  String?
+  medicalInsuranceNumber    String?
+  annualLeaveDays           Int            @default(21)
+  notes                     String?
   leaveStatus               LeaveStatus    @default(active)
   lastLeaveReturnDate       DateTime?
   probationEndDate          DateTime?
@@ -1548,6 +1776,7 @@ model Employee {
   custodyAssets     FixedAsset[]               @relation("FixedAssetCustodian")
 
   @@unique([tenantId, phone])
+  @@unique([companyId, employeeNumber])
   @@map("employees")
 }
 
@@ -1617,6 +1846,13 @@ model LeaveSettlement {
   employeeId                 String
   employee                   Employee              @relation(fields: [employeeId], references: [id])
   leaveStartDate             DateTime
+  leaveEndDate               DateTime?
+  settlementType             String                @default("actual_leave")
+  leaveDays                  Decimal               @default(0) @db.Decimal(6, 2)
+  usedLeaveDaysBefore        Decimal               @default(0) @db.Decimal(6, 2)
+  remainingLeaveDays         Decimal               @default(0) @db.Decimal(6, 2)
+  leaveBalanceAmount         Decimal               @default(0) @db.Decimal(18, 2)
+  leavePayAmount             Decimal               @default(0) @db.Decimal(18, 2)
   monthAmount                Decimal               @db.Decimal(18, 2)
   daysWorked                 Decimal               @db.Decimal(6, 2)
   bonuses                    Decimal               @default(0) @db.Decimal(18, 2)
@@ -1778,6 +2014,11 @@ model PayrollSettings {
   company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   standardHoursPerMonth Decimal  @default(240) @db.Decimal(6, 2)
   standardDaysPerMonth  Decimal  @default(30) @db.Decimal(6, 2)
+  leaveDaysBeforeFive   Decimal  @default(21) @db.Decimal(6, 2)
+  leaveDaysAfterFive    Decimal  @default(30) @db.Decimal(6, 2)
+  leaveDailyRateDivisor Decimal  @default(30) @db.Decimal(6, 2)
+  leaveSalaryBasis      String   @default("total")
+  eosSalaryBasis        String   @default("basic_housing")
   payslipColumns        Json // [{ componentId: string | null (null = "net"/"gross" محسوب), label: string }]
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -2016,31 +2257,38 @@ model StableStall {
 }
 
 model Horse {
-  id             String       @id @default(cuid())
-  tenantId       String
-  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId      String
-  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  stableId       String?
-  stable         Stable?      @relation(fields: [stableId], references: [id], onDelete: SetNull)
-  stallId        String?      @unique
-  stall          StableStall? @relation(fields: [stallId], references: [id], onDelete: SetNull)
-  name           String
-  registrationNo String?
-  microchipNo    String?
-  breed          String?
-  color          String?
-  sex            HorseSex
-  birthDate      DateTime?
-  ownerName      String?
-  ownerPhone     String?
-  status         HorseStatus  @default(active)
-  notes          String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id              String       @id @default(cuid())
+  tenantId        String
+  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stableId        String?
+  stable          Stable?      @relation(fields: [stableId], references: [id], onDelete: SetNull)
+  stallId         String?      @unique
+  stall           StableStall? @relation(fields: [stallId], references: [id], onDelete: SetNull)
+  name            String
+  registrationNo  String?
+  microchipNo     String?
+  breed           String?
+  color           String?
+  sex             HorseSex
+  birthDate       DateTime?
+  ownerName       String?
+  ownerPhone      String?
+  ownerEmail      String?
+  ownerNationalId String?
+  customerId      String?
+  customer        Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  status          HorseStatus  @default(active)
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
-  contracts   BoardingContract[]
-  careRecords HorseCareRecord[]
+  contracts            BoardingContract[]
+  careRecords          HorseCareRecord[]
+  monthlyServices      HorseMonthlyService[]
+  boardingInvoiceLines HorseBoardingInvoiceLine[]
+  trainerCommissions   TrainerCommission[]
 
   @@unique([companyId, registrationNo])
   @@unique([companyId, microchipNo])
@@ -2111,99 +2359,213 @@ model HorseCareRecord {
 }
 
 model RidingTrainer {
-  id String @id @default(cuid())
-  tenantId String
-  companyId String
-  name String
-  phone String?
-  email String?
-  specialties String?
-  bio String?
-  isActive Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String                @id @default(cuid())
+  tenantId        String
+  companyId       String
+  name            String
+  phone           String?
+  email           String?
+  specialties     String?
+  bio             String?
+  commissionPct   Decimal               @default(5) @db.Decimal(5, 2)
+  isActive        Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  monthlyServices HorseMonthlyService[]
+  commissions     TrainerCommission[]
+
   @@index([tenantId, companyId])
   @@map("riding_trainers")
 }
 
 model RidingLessonType {
-  id String @id @default(cuid())
-  tenantId String
-  companyId String
-  name String
-  level String
+  id              String   @id @default(cuid())
+  tenantId        String
+  companyId       String
+  name            String
+  level           String
   durationMinutes Int
-  format String
-  capacity Int @default(1)
-  price Decimal @db.Decimal(18, 2)
-  trainerId String?
-  description String?
-  isActive Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  format          String
+  capacity        Int      @default(1)
+  price           Decimal  @db.Decimal(18, 2)
+  trainerId       String?
+  description     String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
   @@index([tenantId, companyId])
   @@map("riding_lesson_types")
 }
 
 model RidingLesson {
-  id String @id @default(cuid())
-  tenantId String
-  companyId String
-  lessonTypeId String
-  trainerId String
-  horseId String?
-  studentName String
-  studentPhone String?
-  scheduledAt DateTime
-  participants Int @default(1)
-  price Decimal @db.Decimal(18, 2)
-  status String @default("scheduled")
-  notes String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String              @id @default(cuid())
+  tenantId           String
+  companyId          String
+  lessonTypeId       String
+  trainerId          String
+  horseId            String?
+  studentName        String
+  studentPhone       String?
+  studentEmail       String?
+  customerId         String?
+  customer           Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  salesInvoiceId     String?             @unique
+  salesInvoice       SalesInvoice?       @relation(fields: [salesInvoiceId], references: [id], onDelete: SetNull)
+  scheduledAt        DateTime
+  participants       Int                 @default(1)
+  price              Decimal             @db.Decimal(18, 2)
+  status             String              @default("scheduled")
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  trainerCommissions TrainerCommission[]
+
   @@index([tenantId, companyId, scheduledAt])
   @@map("riding_lessons")
 }
 
 model EquestrianCompetition {
-  id String @id @default(cuid())
-  tenantId String
-  companyId String
-  name String
-  discipline String
-  level String?
-  location String
-  startDate DateTime
-  endDate DateTime?
+  id                   String    @id @default(cuid())
+  tenantId             String
+  companyId            String
+  name                 String
+  discipline           String
+  level                String?
+  location             String
+  startDate            DateTime
+  endDate              DateTime?
   registrationDeadline DateTime?
-  entryFee Decimal? @db.Decimal(18, 2)
-  horseId String?
-  trainerId String?
-  riderName String?
-  status String @default("planned")
-  result String?
-  notes String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  entryFee             Decimal?  @db.Decimal(18, 2)
+  horseId              String?
+  trainerId            String?
+  riderName            String?
+  status               String    @default("planned")
+  result               String?
+  notes                String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
   @@index([tenantId, companyId, startDate])
   @@map("equestrian_competitions")
 }
 
 model HorseCareService {
-  id String @id @default(cuid())
-  tenantId String
-  companyId String
-  code String?
-  category String
-  nameAr String
-  nameEn String?
-  price Decimal? @db.Decimal(18, 2)
-  priceIncludesVat Boolean @default(true)
-  unit String @default("service")
-  isActive Boolean @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String                     @id @default(cuid())
+  tenantId             String
+  companyId            String
+  code                 String?
+  category             String
+  nameAr               String
+  nameEn               String?
+  price                Decimal?                   @db.Decimal(18, 2)
+  priceIncludesVat     Boolean                    @default(true)
+  unit                 String                     @default("service")
+  revenueAccountId     String?
+  revenueAccount       Account?                   @relation(fields: [revenueAccountId], references: [id], onDelete: SetNull)
+  isActive             Boolean                    @default(true)
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  horseAssignments     HorseMonthlyService[]
+  boardingInvoiceLines HorseBoardingInvoiceLine[]
+
   @@unique([companyId, code])
   @@index([tenantId, companyId, category])
   @@map("horse_care_services")
+}
+
+model HorseMonthlyService {
+  id        String           @id @default(cuid())
+  tenantId  String
+  companyId String
+  horseId   String
+  horse     Horse            @relation(fields: [horseId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   HorseCareService @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  trainerId String?
+  trainer   RidingTrainer?   @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+  quantity  Decimal          @default(1) @db.Decimal(18, 4)
+  unitPrice Decimal?         @db.Decimal(18, 2)
+  isActive  Boolean          @default(true)
+  startDate DateTime         @default(now())
+  endDate   DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([horseId, serviceId])
+  @@index([tenantId, companyId, isActive])
+  @@map("horse_monthly_services")
+}
+
+model HorseBoardingInvoice {
+  id             String                     @id @default(cuid())
+  tenantId       String
+  companyId      String
+  customerId     String
+  customer       Customer                   @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  billingMonth   DateTime
+  salesInvoiceId String                     @unique
+  salesInvoice   SalesInvoice               @relation(fields: [salesInvoiceId], references: [id], onDelete: Cascade)
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  lines          HorseBoardingInvoiceLine[]
+
+  @@unique([companyId, customerId, billingMonth])
+  @@index([tenantId, companyId, billingMonth])
+  @@map("horse_boarding_invoices")
+}
+
+model HorseBoardingInvoiceLine {
+  id                String               @id @default(cuid())
+  boardingInvoiceId String
+  boardingInvoice   HorseBoardingInvoice @relation(fields: [boardingInvoiceId], references: [id], onDelete: Cascade)
+  horseId           String
+  horse             Horse                @relation(fields: [horseId], references: [id], onDelete: Restrict)
+  serviceId         String
+  service           HorseCareService     @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  trainerId         String?
+  quantity          Decimal              @db.Decimal(18, 4)
+  unitPrice         Decimal              @db.Decimal(18, 2)
+  netAmount         Decimal              @db.Decimal(18, 2)
+  vatAmount         Decimal              @db.Decimal(18, 2)
+  totalAmount       Decimal              @db.Decimal(18, 2)
+  createdAt         DateTime             @default(now())
+
+  @@index([boardingInvoiceId, horseId])
+  @@map("horse_boarding_invoice_lines")
+}
+
+enum TrainerCommissionStatus {
+  accrued
+  paid
+  cancelled
+}
+
+model TrainerCommission {
+  id                    String                  @id @default(cuid())
+  tenantId              String
+  companyId             String
+  trainerId             String
+  trainer               RidingTrainer           @relation(fields: [trainerId], references: [id], onDelete: Restrict)
+  horseId               String?
+  horse                 Horse?                  @relation(fields: [horseId], references: [id], onDelete: SetNull)
+  lessonId              String?
+  lesson                RidingLesson?           @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  sourceType            String                  @default("horse_training")
+  salesInvoiceId        String
+  salesInvoice          SalesInvoice            @relation(fields: [salesInvoiceId], references: [id], onDelete: Restrict)
+  periodStart           DateTime
+  periodEnd             DateTime
+  netTrainingRevenue    Decimal                 @db.Decimal(18, 2)
+  commissionPct         Decimal                 @db.Decimal(5, 2)
+  commissionAmount      Decimal                 @db.Decimal(18, 2)
+  status                TrainerCommissionStatus @default(accrued)
+  accrualJournalEntryId String?
+  paidAt                DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  @@unique([trainerId, salesInvoiceId, horseId])
+  @@index([tenantId, companyId, periodStart, periodEnd])
+  @@map("trainer_commissions")
 }

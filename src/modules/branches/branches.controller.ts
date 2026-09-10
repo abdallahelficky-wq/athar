@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -29,6 +30,7 @@ export const updateBranch: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("الفرع غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
   if (req.body.companyId) await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
 
   const branch = await prisma.branch.update({ where: { id: existing.id }, data: req.body });
@@ -46,6 +48,7 @@ export const deleteBranch: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("الفرع غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
 
   const [lineCount, salesCount, purchaseCount] = await Promise.all([
     prisma.journalEntryLine.count({ where: { branchId: existing.id } }),

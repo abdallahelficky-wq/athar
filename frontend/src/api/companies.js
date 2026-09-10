@@ -4,6 +4,10 @@ export const listCompanies = () => api.get("/companies");
 export const createCompany = (payload) => api.post("/companies", payload);
 export const updateCompany = (id, payload) => api.patch(`/companies/${id}`, payload);
 export const deleteCompany = (id) => api.delete(`/companies/${id}`);
+// "فتح الإقفال" — تقديم تاريخ إقفال السنة المالية للخلف أو مسحه بالكامل، admin فقط (راجع الرفض
+// المقابل لهذه الحالة في updateCompany العادي على الخادم).
+export const reopenFiscalClosing = (id, fiscalYearClosingDate) =>
+  api.post(`/companies/${id}/fiscal-closing/reopen`, { fiscalYearClosingDate });
 
 export const uploadCompanyLogo = (id, file) => {
   const form = new FormData();

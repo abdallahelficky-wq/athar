@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listUsers, inviteUser, resendInvite } from "../api/auth";
+import { listUsers, inviteUser, resendInvite, setUserActive, deleteUser } from "../api/auth";
+import { useAuth } from "../context/AuthContext";
 import { useToast, ToastHost } from "./shared/Toast";
 
 const emptyForm = () => ({ name: "", email: "", role: "accountant", companyScope: "all" });
@@ -12,6 +13,7 @@ const emptyForm = () => ({ name: "", email: "", role: "accountant", companyScope
  */
 export default function UsersTab({ realCompanies }) {
   const { t } = useTranslation();
+  const { user: me, tenant } = useAuth();
   const ROLES = [
     { id: "admin", label: t("settings.users.roles.admin") },
     { id: "finance_manager", label: t("settings.users.roles.financeManager") },
@@ -27,6 +29,7 @@ export default function UsersTab({ realCompanies }) {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [resendingId, setResendingId] = useState(null);
+  const [actingId, setActingId] = useState(null);
 
   const reload = () => {
     setLoading(true);
@@ -62,6 +65,35 @@ export default function UsersTab({ realCompanies }) {
     }
   };
 
+  const doToggleActive = async (u) => {
+    const key = u.active ? "confirmDisable" : "confirmEnable";
+    if (!window.confirm(t(`settings.users.${key}`, { name: u.name }))) return;
+    setActingId(u.id);
+    try {
+      await setUserActive(u.id, !u.active);
+      reload();
+      notify(t(u.active ? "settings.users.notifyDisabled" : "settings.users.notifyEnabled", { name: u.name }), "success");
+    } catch (err) {
+      notify(err.message, "error");
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const doDelete = async (u) => {
+    if (!window.confirm(t("settings.users.confirmDelete", { name: u.name }))) return;
+    setActingId(u.id);
+    try {
+      await deleteUser(u.id);
+      reload();
+      notify(t("settings.users.notifyDeleted", { name: u.name }), "success");
+    } catch (err) {
+      notify(err.message, "error");
+    } finally {
+      setActingId(null);
+    }
+  };
+
   return (
     <div>
       <div className="panel form-panel">
@@ -85,24 +117,36 @@ export default function UsersTab({ realCompanies }) {
       {loading ? <p className="empty">{t("common.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
-            <thead><tr><th>{t("settings.users.table.name")}</th><th>{t("settings.users.table.email")}</th><th>{t("settings.users.table.role")}</th><th>{t("settings.users.table.inviteStatus")}</th><th></th></tr></thead>
+            <thead><tr><th>{t("settings.users.table.name")}</th><th>{t("settings.users.table.email")}</th><th>{t("settings.users.table.role")}</th><th>{t("settings.users.table.inviteStatus")}</th><th>{t("settings.users.table.status")}</th><th></th></tr></thead>
             <tbody>
-              {users.map((u) => (
+              {users.map((u) => {
+                const isSelf = u.id === me?.id;
+                const isOwner = u.id === tenant?.ownerId;
+                const disableActions = isSelf || isOwner || actingId === u.id;
+                return (
                 <tr key={u.id}>
                   <td>{u.name}</td>
                   <td>{u.email}</td>
                   <td>{ROLE_LABELS[u.role] || u.role}</td>
                   <td><span className="status-badge">{u.inviteStatus === "pending" ? t("settings.users.statusPending") : t("settings.users.statusActive")}</span></td>
+                  <td><span className="status-badge">{u.active ? t("settings.users.activeLabel") : t("settings.users.disabledLabel")}</span></td>
                   <td className="row-actions">
                     {u.inviteStatus === "pending" && (
                       <button className="btn-ghost" onClick={() => doResend(u)} disabled={resendingId === u.id}>
                         {resendingId === u.id ? t("settings.users.sending") : t("settings.users.resend")}
                       </button>
                     )}
+                    <button className="btn-ghost" onClick={() => doToggleActive(u)} disabled={disableActions}>
+                      {u.active ? t("settings.users.disableBtn") : t("settings.users.enableBtn")}
+                    </button>
+                    <button className="btn-ghost" onClick={() => doDelete(u)} disabled={disableActions}>
+                      {t("settings.users.deleteBtn")}
+                    </button>
                   </td>
                 </tr>
-              ))}
-              {users.length === 0 && <tr><td className="empty" colSpan={5}>{t("settings.users.empty")}</td></tr>}
+                );
+              })}
+              {users.length === 0 && <tr><td className="empty" colSpan={6}>{t("settings.users.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

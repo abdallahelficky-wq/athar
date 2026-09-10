@@ -2,6 +2,7 @@ import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { ensurePartyAccount, resolvePartyAccountId } from "../../lib/partyAccounts";
+import { assertCompanyAccess } from "../../middleware/auth";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -20,6 +21,7 @@ export const listSuppliers: RequestHandler = async (req, res) => {
 export const getSupplierBalance: RequestHandler = async (req, res) => {
   const supplier = await prisma.supplier.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!supplier) throw notFound("المورد غير موجود");
+  assertCompanyAccess(req.auth!, supplier.companyId);
   const accountId = await resolvePartyAccountId(req.auth!.tenantId, supplier.companyId, supplier, "ذمم دائنة - موردين");
 
   const lines = await prisma.journalEntryLine.findMany({
@@ -49,6 +51,7 @@ export const createSupplier: RequestHandler = async (req, res) => {
 export const updateSupplier: RequestHandler = async (req, res) => {
   const existing = await prisma.supplier.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("المورد غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
   if (req.body.companyId) await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
 
   const supplier = await prisma.$transaction(async (tx) => {
@@ -64,6 +67,7 @@ export const updateSupplier: RequestHandler = async (req, res) => {
 export const deleteSupplier: RequestHandler = async (req, res) => {
   const existing = await prisma.supplier.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("المورد غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
 
   const [purchaseInvoices, purchaseReturns, journalLines] = await Promise.all([
     prisma.purchaseInvoice.count({ where: { supplierId: existing.id } }),

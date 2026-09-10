@@ -86,6 +86,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // احذف أي مخازن أنشأتها إصدارات سابقة حتى لا تبقى واجهة قديمة بعد النشر.
+        cleanupOutdatedCaches: true,
         // لا يُخزَّن مؤقتاً إطلاقاً أي طلب غير GET (POST/PATCH/DELETE) — نتائج مالية لا يجوز تقديمها من ذاكرة تخزين مؤقت قديمة
         runtimeCaching: [
           {

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getJournalEntry } from "../../api/journalEntries";
-import { fmt } from "../../legacy/constants";
+import { fmt, DEPARTMENT_KEYS } from "../../legacy/constants";
+import { labelForListValue } from "../../legacy/listLabels";
 
 /** يعرض القيد المحاسبي الذي أنشأته فاتورة مبيعات مرحّلة (للقراءة فقط) */
 export default function JournalEntryViewModal({ journalEntryId, onClose }) {
@@ -41,7 +42,7 @@ export default function JournalEntryViewModal({ journalEntryId, onClose }) {
                 {entry.lines.map((l) => (
                   <tr key={l.id}>
                     <td>{l.account?.name}</td>
-                    <td>{l.departmentRef?.name || l.department || "—"}</td>
+                    <td>{l.departmentRef?.name || (l.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", l.department) : "—")}</td>
                     <td className="num">{Number(l.debit) ? fmt(Number(l.debit)) : "—"}</td>
                     <td className="num">{Number(l.credit) ? fmt(Number(l.credit)) : "—"}</td>
                   </tr>

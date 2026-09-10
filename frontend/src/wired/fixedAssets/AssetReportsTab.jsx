@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getFixedAssetsSummary } from "../../api/fixedAssets";
-import { fmt } from "../../legacy/constants";
+import { fmt, ASSET_CATEGORY_KEYS } from "../../legacy/constants";
+import { labelForListValue } from "../../legacy/listLabels";
 
 export default function AssetReportsTab({ companyId }) {
   const { t } = useTranslation();
@@ -29,7 +30,7 @@ export default function AssetReportsTab({ companyId }) {
       <table className="ledger-table">
         <thead><tr><th>{t("fixedAssets.reports.table.category")}</th><th>{t("fixedAssets.reports.table.count")}</th><th>{t("fixedAssets.reports.table.totalCost")}</th></tr></thead>
         <tbody>
-          {summary.byCategory.map((c) => <tr key={c.category}><td>{c.category}</td><td className="num">{c.count}</td><td className="num">{fmt(c.cost)}</td></tr>)}
+          {summary.byCategory.map((c) => <tr key={c.category}><td>{labelForListValue(t, ASSET_CATEGORY_KEYS, "fixedAssets.categoryLabels", c.category)}</td><td className="num">{c.count}</td><td className="num">{fmt(c.cost)}</td></tr>)}
         </tbody>
       </table>
     </div>

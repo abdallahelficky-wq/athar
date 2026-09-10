@@ -11,6 +11,7 @@ const BUSINESS_ACTIVITY_INDUSTRY_LABEL: Record<string, string> = {
   retail: "تجزئة",
   general_trade: "تجارة عامة",
   fuel_stations: "محطات وقود",
+  horse_stables: "إسطبلات وإيواء وإعاشة الخيل",
 };
 
 async function getCompanyOrThrow(tenantId: string, companyId: string) {

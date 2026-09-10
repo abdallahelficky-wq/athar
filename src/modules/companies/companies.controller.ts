@@ -2,6 +2,7 @@ import { RequestHandler } from "express";
 import multer from "multer";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { assertCompanyAccess } from "../../middleware/auth";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claudeVision";
 import { createAttachment } from "../attachments/attachments.service";
@@ -63,8 +64,56 @@ export const updateCompany: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, existing.id);
+
+  // تقديم تاريخ إقفال السنة المالية للأمام (أو ضبطه لأول مرة) هو "إغلاق" عادي، متاح هنا بنفس
+  // صلاحية بقية إعدادات الشركة. أما تقديمه للخلف أو مسحه فهو "فتح إقفال" فعلياً — إجراء أخطر يتطلب
+  // صلاحية admin فقط وتسجيلاً في AuditLog، فيُرفَض من هذا المسار العام صراحة ويُوجَّه لمسار مخصّص
+  // (reopenFiscalClosing) بدل السماح به ضمنياً هنا بصلاحية finance_manager العادية.
+  if ("fiscalYearClosingDate" in req.body) {
+    const newValue = req.body.fiscalYearClosingDate as Date | null;
+    const oldValue = existing.fiscalYearClosingDate;
+    const isReopen = oldValue && (!newValue || newValue.getTime() < oldValue.getTime());
+    if (isReopen) {
+      throw badRequest(
+        "لا يمكن تقديم تاريخ إقفال السنة المالية للخلف أو إلغاؤه من هذا المسار — هذا يُعتبر \"فتح إقفال\" ويتطلب صلاحية مدير النظام (admin) عبر إجراء فتح الإقفال المخصَّص.",
+      );
+    }
+  }
 
   const company = await prisma.company.update({ where: { id: existing.id }, data: req.body });
+  res.json(await withLogoUrl(company));
+};
+
+/**
+ * "فتح الإقفال" — الإجراء الوحيد المسموح به لتقديم تاريخ إقفال السنة المالية للخلف أو مسحه بالكامل
+ * (راجع الرفض المقابل أعلاه في updateCompany). مقيَّد بصلاحية admin فقط (requireRole في الـroutes)
+ * ويُسجَّل دائماً في AuditLog (من فتحه، متى، والتاريخ القديم/الجديد) — بنفس نمط باقي الإجراءات
+ * الاستثنائية في النظام (مثال: journal_entry.unpost في journalEntries.service.ts).
+ */
+export const reopenFiscalClosing: RequestHandler = async (req, res) => {
+  const existing = await prisma.company.findFirst({
+    where: { id: req.params.id, tenantId: req.auth!.tenantId },
+  });
+  if (!existing) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, existing.id);
+
+  const newValue = req.body.fiscalYearClosingDate as Date | null;
+  const oldValue = existing.fiscalYearClosingDate;
+
+  const [company] = await prisma.$transaction([
+    prisma.company.update({ where: { id: existing.id }, data: { fiscalYearClosingDate: newValue } }),
+    prisma.auditLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        userId: req.auth!.sub,
+        action: "company.reopen_fiscal_closing",
+        entityType: "Company",
+        entityId: existing.id,
+        metadata: { oldClosingDate: oldValue, newClosingDate: newValue },
+      },
+    }),
+  ]);
   res.json(await withLogoUrl(company));
 };
 
@@ -73,6 +122,7 @@ export const deleteCompany: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, existing.id);
 
   await prisma.company.delete({ where: { id: existing.id } });
   res.status(204).send();
@@ -83,6 +133,7 @@ export const uploadLogoHandler: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, existing.id);
   if (!req.file) throw badRequest("ملف الشعار مطلوب");
   if (!ALLOWED_LOGO_MIME_TYPES.includes(req.file.mimetype)) {
     throw badRequest("صيغة الملف غير مدعومة — استخدم PNG أو JPEG أو WEBP أو SVG");
@@ -100,6 +151,7 @@ export const extractDocumentHandler: RequestHandler = async (req, res) => {
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
   });
   if (!existing) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, existing.id);
   if (!req.file) throw badRequest("الملف مطلوب");
 
   const docType = req.body.docType as CompanyDocType;

@@ -24,6 +24,17 @@ export const NAV_ICONS = {
   horses: svg(<><path d="M5 20c2-5 1-9 4-12 2-2 5-3 9-2l-2 3 2 3-4 1c0 4-2 7-5 7z"/><path d="M8 20h10"/></>),
   contracts: svg(<><path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4M9 12h6M9 16h6"/></>),
   care: svg(<><path d="M12 21s-8-4.8-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.2-8 11-8 11z"/><path d="M9 12h6M12 9v6"/></>),
+  services: svg(<><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="18" cy="17" r="2"/></>),
+  trainers: svg(<><circle cx="9" cy="7" r="3"/><path d="M3 20c0-4 2.7-7 6-7s6 3 6 7"/><path d="M17 4v7M14 7h6"/></>),
+  lessonTypes: svg(<><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h7M7 16h5"/></>),
+  lessons: svg(<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>),
+  competitions: svg(<><path d="M8 4h8v4c0 4-2 6-4 6s-4-2-4-6z"/><path d="M8 6H4c0 4 2 6 5 6M16 6h4c0 4-2 6-5 6M12 14v4M8 21h8M9 18h6"/></>),
+  billing: svg(<><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h4"/></>),
+  commissions: svg(<><circle cx="8" cy="8" r="3"/><circle cx="16" cy="16" r="3"/><path d="M6 18L18 6"/></>),
+  edit: svg(<><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></>),
+  delete: svg(<><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/><path d="M10 11v5M14 11v5"/></>),
+  send: svg(<><path d="M3 11l18-8-7 18-3-7z"/><path d="M11 14l4-5"/></>),
+  print: svg(<><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5h18v5a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v7H7z"/></>),
   fixedAssets: svg(<><path d="M4 21V9l8-5 8 5v12" /><path d="M9 21v-6h6v6" /><path d="M4 21h16" /></>),
   accounts: svg(<><path d="M12 5c-2-1.5-5-2-8-1.5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-13c-3-.5-6 0-8 1.5z" /><path d="M12 5v13" /></>),
   hr: svg(<><circle cx="8.5" cy="8" r="3" /><path d="M2 20c0-3.3 2.9-6 6.5-6S15 16.7 15 20" /><circle cx="17" cy="8.5" r="2.3" /><path d="M15.5 13.2c2.6.5 4.5 2.6 4.5 5.3" /></>),
@@ -82,4 +93,3 @@ export const NAV_ICONS = {
 export function NavIcon({ name }) {
   return NAV_ICONS[name] || NAV_ICONS.dashboard;
 }
-

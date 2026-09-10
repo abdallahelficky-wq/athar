@@ -13,7 +13,9 @@ import { departmentRoutes } from "./modules/departments/departments.routes";
 import { branchRoutes } from "./modules/branches/branches.routes";
 import { companyBankAccountRoutes } from "./modules/companyBankAccounts/companyBankAccounts.routes";
 import { companyDocumentNumberingSettingsRoutes } from "./modules/documentNumberingSettings/documentNumberingSettings.routes";
+import { platformAdminRoutes } from "./modules/platformAdmin/platformAdmin.routes";
 import { journalEntryRoutes } from "./modules/journalEntries/journalEntries.routes";
+import { positionRoutes } from "./modules/positions/positions.routes";
 import { reportRoutes } from "./modules/reports/reports.routes";
 import { reportScheduleRoutes } from "./modules/reportSchedules/reportSchedules.routes";
 import { customerRoutes } from "./modules/customers/customers.routes";
@@ -31,6 +33,7 @@ import { purchaseReportRoutes } from "./modules/purchaseReports/purchaseReports.
 import { itemRoutes } from "./modules/items/items.routes";
 import { warehouseRoutes } from "./modules/warehouses/warehouses.routes";
 import { stockMovementRoutes } from "./modules/stockMovements/stockMovements.routes";
+import { periodicSettlementRoutes } from "./modules/periodicSettlement/periodicSettlement.routes";
 import { inventoryReportRoutes } from "./modules/inventoryReports/inventoryReports.routes";
 import { fixedAssetRoutes } from "./modules/fixedAssets/fixedAssets.routes";
 import { assetCategoryRoutes } from "./modules/assetCategories/assetCategories.routes";
@@ -78,9 +81,11 @@ export function createApp() {
   app.use("/api/branches", branchRoutes);
   app.use("/api/company-bank-accounts", companyBankAccountRoutes);
   app.use("/api/journal-entries", journalEntryRoutes);
+  app.use("/api/positions", positionRoutes);
   app.use("/api/reports", reportRoutes);
   app.use("/api/companies/:companyId", reportScheduleRoutes);
   app.use("/api/companies/:companyId", companyDocumentNumberingSettingsRoutes);
+  app.use("/api/platform-admin", platformAdminRoutes);
   app.use("/api/customers", customerRoutes);
   app.use("/api/quotations", quotationRoutes);
   app.use("/api/sales-invoices", salesInvoiceRoutes);
@@ -96,6 +101,7 @@ export function createApp() {
   app.use("/api/items", itemRoutes);
   app.use("/api/warehouses", warehouseRoutes);
   app.use("/api/stock-movements", stockMovementRoutes);
+  app.use("/api/periodic-settlement", periodicSettlementRoutes);
   app.use("/api/inventory-reports", inventoryReportRoutes);
   app.use("/api/fixed-assets", fixedAssetRoutes);
   app.use("/api/asset-categories", assetCategoryRoutes);

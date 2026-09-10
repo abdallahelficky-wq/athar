@@ -2,14 +2,32 @@ import { Prisma, PrismaClient, Item } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { getItemTotalOnHand } from "../../lib/costingEngine";
-import { validateAccountsForType } from "./items.schemas";
+import { validateAccountsForType, PERIODIC_INVENTORY_ENABLED, PERIODIC_INVENTORY_DISABLED_MESSAGE } from "./items.schemas";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
-const STOCK_TRACKED_TYPES = ["inventory", "expense", "raw_material", "bundle"] as const;
+const VALUE_TRACKED_TYPES = ["inventory", "expense", "raw_material", "bundle"] as const;
 
-export function isStockTracked(type: string) {
-  return (STOCK_TRACKED_TYPES as readonly string[]).includes(type);
+/**
+ * هل يُسجَّل قيد محاسبي فعلي لحركات هذا النوع من الأصناف — قيد تكلفة وفحص كفاية الرصيد عند البيع
+ * (computeCogsJournalLines)، تحديث متوسط التكلفة عند الشراء، والأهلية لصرف/تحويل مخزني يدوي بقيد
+ * (stockMovements.service.ts). **لا يشمل periodic_inventory عمداً** — بضاعة الجرد الدوري بلا أي أثر
+ * محاسبي لحركاتها بتصميم، حتى اكتمال شاشة التسوية الدورية (راجع دليل النوع في items.schemas.ts).
+ * كان هذا واسمه isStockTracked يخلطان هذا المعنى بمعنى isQuantityTracked أدناه في نفس الدالة —
+ * فُصلا لتفادي خطأ صامت عند إضافة periodic_inventory (كان سيُمنَع بيعه برصيد كافٍ كأي صنف مخزوني
+ * عادي، أو كان سيُسمَح بصرفه يدوياً بقيد رغم عدم امتلاكه حساب مخزون حقيقي).
+ */
+export function isValueTrackedInLedger(type: string) {
+  return (VALUE_TRACKED_TYPES as readonly string[]).includes(type);
+}
+
+/**
+ * هل تُسجَّل حركة مخزون (StockMovement) لهذا النوع أصلاً، بصرف النظر عن أي أثر محاسبي — تتبّع
+ * تشغيلي بحت (كم دخل/خرج) قد لا ينتج عنه أي قيد. يشمل كل ما يشمله isValueTrackedInLedger زائد
+ * periodic_inventory (الغرض الوحيد من حركاته هو تتبّع الكمية، بلا أي محاسبة).
+ */
+export function isQuantityTracked(type: string) {
+  return isValueTrackedInLedger(type) || type === "periodic_inventory";
 }
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
@@ -36,8 +54,12 @@ async function assertTypeNotLocked(tenantId: string, itemId: string, currentType
 }
 
 async function computeQuantityAndValue(tx: Tx, tenantId: string, item: Item) {
-  if (!isStockTracked(item.type)) return { quantity: null, stockValue: null };
+  if (!isQuantityTracked(item.type)) return { quantity: null, stockValue: null };
   const quantity = await getItemTotalOnHand(tx, tenantId, item.id);
+  // periodic_inventory: averageCost لا يُحدَّث له إطلاقاً (لا قيمة مخزون لحظية بتصميم) — القيمة
+  // المعروضة هي آخر قيمة مُعتمَدة من تسوية الجرد الدوري (periodicStockValue)، لا 0 مطلقاً ولا
+  // quantity × averageCost (سيكون صفراً دائماً وهذا مضلِّل).
+  if (item.type === "periodic_inventory") return { quantity, stockValue: Number(item.periodicStockValue) };
   return { quantity, stockValue: quantity * Number(item.averageCost) };
 }
 
@@ -113,7 +135,15 @@ export async function updateItemWithValidation(tenantId: string, id: string, pat
     cogsAccountId: patch.cogsAccountId !== undefined ? (patch.cogsAccountId as string | null) : existing.cogsAccountId,
     revenueAccountId: patch.revenueAccountId !== undefined ? (patch.revenueAccountId as string | null) : existing.revenueAccountId,
     expenseAccountId: patch.expenseAccountId !== undefined ? (patch.expenseAccountId as string | null) : existing.expenseAccountId,
+    purchasesAccountId: patch.purchasesAccountId !== undefined ? (patch.purchasesAccountId as string | null) : existing.purchasesAccountId,
   } as Parameters<typeof validateAccountsForType>[0];
+
+  // نفس بوابة الإتاحة المطبَّقة عند الإنشاء (createItemSchema) — بلا هذا التحقق كان بالإمكان
+  // الالتفاف عليها بإنشاء صنف بنوع آخر ثم تعديله لاحقاً إلى periodic_inventory (assertTypeNotLocked
+  // أعلاه يمنع هذا فقط بعد وجود معاملات، لا قبلها).
+  if (merged.type === "periodic_inventory" && !PERIODIC_INVENTORY_ENABLED) {
+    throw badRequest(PERIODIC_INVENTORY_DISABLED_MESSAGE);
+  }
 
   const error = validateAccountsForType(merged);
   if (error) throw badRequest(error);

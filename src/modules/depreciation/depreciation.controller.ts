@@ -1,6 +1,8 @@
 import { RequestHandler } from "express";
 import * as service from "./depreciation.service";
 import { badRequest } from "../../lib/httpError";
+import { prisma } from "../../lib/prisma";
+import { assertRecordCompanyScope } from "../../middleware/auth";
 
 export const listHandler: RequestHandler = async (req, res) => {
   const { companyId } = req.query;
@@ -18,6 +20,7 @@ export const createHandler: RequestHandler = async (req, res) => {
 };
 
 export const removeHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.depreciationRun, req.params.id);
   await service.removeDepreciationRun(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.pin);
   res.status(204).send();
 };

@@ -2,6 +2,7 @@ import { Prisma, PrismaClient, SourceModule } from "@prisma/client";
 import { prisma } from "./prisma";
 import { verifyPassword } from "./password";
 import { badRequest, forbidden, notFound } from "./httpError";
+import { assertPeriodNotClosed, lockCompanyClosingDate } from "./fiscalClosing";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -11,22 +12,28 @@ type Tx = Prisma.TransactionClient | PrismaClient;
  * معاملة إنشاء القيد (tx)، فلا يُحجز الرقم فعلياً إلا لحظة الكتابة الفعلية في قاعدة البيانات؛
  * لو المعاملة فشلت أو أُلغيت العملية قبل الوصول لهذه النقطة، لا يتأثر العدّاد إطلاقاً ولا تظهر
  * فجوة (Gap) في التسلسل. تبدأ بادئة كل شركة افتراضياً بالحرف J ويمكن تعديلها من بيانات الشركة.
+ *
+ * بما أن هذه الدالة هي نقطة العبور شبه الوحيدة لإنشاء أي قيد في النظام (كل الوحدات المُدرجة أعلى
+ * الملف عبر createJournalEntryTx، بالإضافة لكل مسارات القيود اليدوية في journalEntries.service.ts)،
+ * فهي المكان الطبيعي للتحقق من إقفال السنة المالية أيضاً — عبر تضمين fiscalYearClosingDate في نفس
+ * عبارة UPDATE...RETURNING الذرّية (لا استعلام إضافي، ولا نافذة سباق: القيمة المُعادة هي بالضبط ما
+ * قفله الصف وقت هذا التحديث، وأي محاولة إقفال متزامنة أخرى ستنتظر حتى تنتهي معاملتنا).
  */
-export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: string): Promise<string> {
-  const company = await tx.company.findFirst({ where: { id: companyId, tenantId }, select: { numberingPrefix: true } });
-  if (!company) throw notFound("الشركة غير موجودة");
-
+export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: string, date: Date): Promise<string> {
   // نُرجِع القيمة *قبل* الزيادة (وهي بالضبط ما تعرضه previewNextEntryNumber أدناه من نفس العمود)،
   // بينما العمود المخزَّن يصبح +1 جاهزاً للاستدعاء التالي — عملية ذرّية واحدة عبر تعبير حسابي في
   // RETURNING بدل قراءة ثم تحديث منفصلَين، فيبقى الرقم المحجوز مطابقاً تماماً لما عاينه المستخدم.
-  const rows = await tx.$queryRaw<{ nextJournalEntrySeq: number }[]>`
+  const rows = await tx.$queryRaw<{ nextJournalEntrySeq: number; numberingPrefix: string; fiscalYearClosingDate: Date | null }[]>`
     UPDATE "companies" SET "nextJournalEntrySeq" = "nextJournalEntrySeq" + 1
     WHERE "id" = ${companyId} AND "tenantId" = ${tenantId}
-    RETURNING "nextJournalEntrySeq" - 1 AS "nextJournalEntrySeq"
+    RETURNING "nextJournalEntrySeq" - 1 AS "nextJournalEntrySeq", "numberingPrefix", "fiscalYearClosingDate"
   `;
-  const seq = rows[0]?.nextJournalEntrySeq;
-  if (seq == null) throw notFound("الشركة غير موجودة");
-  return `${company.numberingPrefix}${String(seq).padStart(5, "0")}`;
+  const row = rows[0];
+  if (!row) throw notFound("الشركة غير موجودة");
+  // يُتحقَّق هنا بعد التحديث فعلياً (لا قبله) — أي رفض يُرجع كل المعاملة بالكامل تلقائياً
+  // (Prisma تتراجع عن كل شيء عند رمي أي خطأ داخل $transaction)، فلا يُستهلك رقم تسلسلي بلا قيد.
+  assertPeriodNotClosed(row.fiscalYearClosingDate, date, "إنشاء قيد");
+  return `${row.numberingPrefix}${String(row.nextJournalEntrySeq).padStart(5, "0")}`;
 }
 
 /** معاينة الرقم التالي المتوقع بلا أي حجز أو تعديل على العدّاد — للعرض في نافذة إضافة قيد قبل الحفظ فقط */
@@ -91,7 +98,7 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
     throw badRequest("أحد حسابات القيد لا ينتمي إلى شجرة الشركة أو ليس حساب ترحيل نشطاً");
   }
 
-  const entryNumber = await reserveEntryNumber(tx, input.tenantId, input.companyId);
+  const entryNumber = await reserveEntryNumber(tx, input.tenantId, input.companyId, input.date);
   return tx.journalEntry.create({
     data: {
       tenantId: input.tenantId,
@@ -122,9 +129,21 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
   });
 }
 
-/** يحذف القيد المرتبط بمعاملة مصدر (فاتورة/سند/...) عند فك ترحيلها، وفق القسم 4.9 */
+/**
+ * يحذف القيد المرتبط بمعاملة مصدر (فاتورة/سند/...) عند فك ترحيلها، وفق القسم 4.9 — هذه هي نقطة
+ * العبور شبه الوحيدة لحذف/فك ترحيل قيد في كل الوحدات المصدرية (خلاف القيود اليدوية الحرة، المفحوصة
+ * باستقلالية في journalEntries.service.ts). تتحقق أولاً من تاريخ القيد الفعلي مقابل إقفال السنة
+ * المالية قبل أي حذف — بقفل صفّ الشركة (`FOR UPDATE`) طوال بقية هذه المعاملة، فلا يمكن لأي معاملة
+ * أخرى تُغيّر تاريخ الإقفال أن "تتسلل" بين لحظة التحقق ولحظة الحذف الفعلي.
+ */
 export async function deleteJournalEntryTx(tx: Tx, journalEntryId: string | null | undefined) {
   if (!journalEntryId) return;
+  const entry = await tx.journalEntry.findUnique({ where: { id: journalEntryId }, select: { date: true, companyId: true } });
+  if (!entry) return;
+
+  const closingDate = await lockCompanyClosingDate(tx, entry.companyId);
+  assertPeriodNotClosed(closingDate, entry.date, "حذف/فك ترحيل قيد");
+
   await tx.journalEntry.deleteMany({ where: { id: journalEntryId } });
 }
 

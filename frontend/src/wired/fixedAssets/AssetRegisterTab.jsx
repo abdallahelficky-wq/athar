@@ -5,7 +5,8 @@ import { listAccounts } from "../../api/accounts";
 import { listCostCenters } from "../../api/costCenters";
 import { listAssetCategories } from "../../api/assetCategories";
 import { listEmployees } from "../../api/employees";
-import { ASSET_CATEGORIES, fmt } from "../../legacy/constants";
+import { ASSET_CATEGORIES, ASSET_CATEGORY_KEYS, fmt } from "../../legacy/constants";
+import { labelForListValue } from "../../legacy/listLabels";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
@@ -123,7 +124,7 @@ export default function AssetRegisterTab({ companyId, companies }) {
         {editingId && <div className="edit-banner">{t("fixedAssets.register.editingBanner", { name: form.name })}</div>}
         <div className="form-grid">
           <label>{t("fixedAssets.register.name")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <label>{t("fixedAssets.register.category")}<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{ASSET_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></label>
+          <label>{t("fixedAssets.register.category")}<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{ASSET_CATEGORIES.map((c) => <option key={c} value={c}>{labelForListValue(t, ASSET_CATEGORY_KEYS, "fixedAssets.categoryLabels", c)}</option>)}</select></label>
           {!form.useRawAccount ? (
             <label>{t("fixedAssets.register.assetCategory")}
               <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}>
@@ -197,7 +198,7 @@ export default function AssetRegisterTab({ companyId, companies }) {
                 <React.Fragment key={a.id}>
                   <tr>
                     <td className="num">{a.assetNumber}</td>
-                    <td>{a.name}</td><td>{a.category}</td><td>{a.purchaseDate.slice(0, 10)}</td>
+                    <td>{a.name}</td><td>{labelForListValue(t, ASSET_CATEGORY_KEYS, "fixedAssets.categoryLabels", a.category)}</td><td>{a.purchaseDate.slice(0, 10)}</td>
                     <td className="num">{fmt(a.cost)}</td><td className="num">{fmt(a.accumulatedDepreciation)}</td>
                     <td className="num strong">{fmt(a.netBookValue)}</td>
                     <td><span className="status-badge">{a.status === "disposed" ? t("fixedAssets.status.disposed") : t("fixedAssets.status.active")}</span></td>

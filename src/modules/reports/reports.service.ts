@@ -554,6 +554,22 @@ async function buildPartyStatement(
   dateTo: Date | undefined,
   sign: 1 | -1,
 ) {
+  // رصيد افتتاحي = صافي كل الحركات من بداية عمر الحساب حتى يوم واحد قبل "من تاريخ" — بدونه، تطبيق
+  // فلتر بداية يجعل الرصيد المتحرك (وبالتالي الختامي) يبدأ من صفر بدل الرصيد الحقيقي المتراكم،
+  // فينقص كل رصيد لاحق بمقدار الرصيد الافتتاحي كاملاً (نفس منطق الرصيد الافتتاحي في
+  // getTrialBalanceReport أعلاه، لكن لحساب واحد بدل كل الحسابات).
+  let openingBalance = 0;
+  if (dateFrom) {
+    const openingDateTo = new Date(dateFrom.getTime() - 1);
+    const opening = await prisma.journalEntryLine.aggregate({
+      where: { accountId, journalEntry: { tenantId, companyId: companyId || undefined, date: { lte: openingDateTo } } },
+      _sum: { debit: true, credit: true },
+    });
+    const od = Number(opening._sum.debit || 0);
+    const oc = Number(opening._sum.credit || 0);
+    openingBalance = sign === 1 ? od - oc : oc - od;
+  }
+
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       accountId,
@@ -567,7 +583,7 @@ async function buildPartyStatement(
     orderBy: { journalEntry: { date: "asc" } },
   });
 
-  let balance = 0;
+  let balance = openingBalance;
   const rows = lines.map((l) => {
     const debit = Number(l.debit);
     const credit = Number(l.credit);
@@ -583,7 +599,7 @@ async function buildPartyStatement(
     };
   });
 
-  return { rows, closingBalance: balance };
+  return { rows, openingBalance, closingBalance: balance };
 }
 
 export async function getCustomerStatement(
@@ -652,6 +668,29 @@ export async function getAccountLedger(
         account.id,
       );
 
+  // رصيد افتتاحي = صافي كل حركات الحساب (بنفس فلاتر مركز التكلفة/القسم/الفرع) من بداية عمر الحساب
+  // حتى يوم واحد قبل "من تاريخ" — بدون هذا، فلترة الكشف بتاريخ بداية كانت تصفّر الرصيد المتحرك عند
+  // أول سطر داخل الفترة بدل استئنافه من الرصيد الحقيقي المتراكم، فينقص كل رصيد لاحق (بما فيه
+  // الختامي) بمقدار الرصيد الافتتاحي كاملاً — تماماً كما رُصِد فعلياً على حساب حقيقي (فرق 1,711,305
+  // بين كشف الفترة الكاملة وكشف "2026 فقط" يطابق رصيد الحساب المتراكم حتى نهاية 2025 بالضبط).
+  let openingBalance = 0;
+  if (dateFrom) {
+    const openingDateTo = new Date(dateFrom.getTime() - 1);
+    const opening = await prisma.journalEntryLine.aggregate({
+      where: {
+        accountId: { in: scopedAccountIds },
+        costCenterId: filters?.costCenterId || undefined,
+        departmentId: filters?.departmentId || undefined,
+        branchId: filters?.branchId || undefined,
+        journalEntry: { tenantId, companyId: companyId || undefined, date: { lte: openingDateTo } },
+      },
+      _sum: { debit: true, credit: true },
+    });
+    const od = Number(opening._sum.debit || 0);
+    const oc = Number(opening._sum.credit || 0);
+    openingBalance = normalSide === "debit" ? od - oc : oc - od;
+  }
+
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       accountId: { in: scopedAccountIds },
@@ -668,7 +707,7 @@ export async function getAccountLedger(
     orderBy: { journalEntry: { date: "asc" } },
   });
 
-  let balance = 0;
+  let balance = openingBalance;
   const rows = lines.map((l) => {
     const debit = Number(l.debit);
     const credit = Number(l.credit);
@@ -692,7 +731,7 @@ export async function getAccountLedger(
     };
   });
 
-  return { account, normalSide, rows, closingBalance: balance };
+  return { account, normalSide, openingBalance, rows, closingBalance: balance };
 }
 
 export async function getSupplierStatement(

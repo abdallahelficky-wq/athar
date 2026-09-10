@@ -12,8 +12,16 @@ import AccountSearchSelect from "./shared/AccountSearchSelect";
 import Breadcrumb from "./shared/Breadcrumb";
 import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
+import { defaultDateRangeForCompany } from "./shared/fiscalClosing";
 
 const emptyFilters = { accountId: "", subAccountId: "", costCenterId: "", departmentId: "", branchId: "", dateFrom: "", dateTo: "" };
+
+/** يدمج بيان القيد العام مع وصف السطر التفصيلي (إن وُجد) في نص واحد لعمود "البيان" — عرض فقط،
+ * الحقلان يبقيان منفصلين تماماً في التخزين والاستجابة. */
+function combineMemo(memo, description) {
+  const parts = [memo, description].filter(Boolean);
+  return parts.length ? parts.join(" - ") : "—";
+}
 
 /** كل حسابات الترحيل (isPosting) تحت حساب مجموعة معيّن، بحث بالعمق عبر parentId — مطابق تماماً
  * لمنطق collectPostingDescendants في reports.service.ts (الخادم)، لكن على القائمة المحمَّلة محلياً. */
@@ -48,6 +56,11 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
   const [error, setError] = useState("");
   const [printOpen, setPrintOpen] = useState(false);
 
+  // تاريخ إقفال الشركة النشطة تحديداً (لا مصفوفة companies بأكملها) كتبعية للتأثير أدناه — يُعاد
+  // حساب الفترة الافتراضية بمجرد توفّر بيانات الشركات فعلياً (قد تُحمَّل بعد companyId بلحظات عند
+  // أول فتح للتطبيق)، بلا إعادة ضبط الفلاتر عند كل تغيّر غير متعلّق في المصفوفة نفسها.
+  const activeCompanyClosingDate = companies?.find((c) => c.id === companyId)?.fiscalYearClosingDate;
+
   useEffect(() => {
     if (!companyId) { setAccounts([]); alf.reset(emptyFilters); return; }
     // شجرة كاملة (وليس حسابات الترحيل فقط) — يمكن اختيار فرع تجميعي كامل (مثل "الذمم المدينة
@@ -56,9 +69,9 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
     listCostCenters().then(setCostCenters).catch((err) => setError(err.message));
     listDepartments().then(setDepartments).catch((err) => setError(err.message));
     listBranches(companyId).then(setBranches).catch((err) => setError(err.message));
-    alf.reset(emptyFilters);
+    alf.reset(defaultDateRangeForCompany(companies?.find((c) => c.id === companyId), emptyFilters));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId]);
+  }, [companyId, activeCompanyClosingDate]);
 
   // دخول مباشر لحساب معيّن (زر "عرض في شجرة الحسابات" من شاشة عميل/مورد/موظف) — يفتح الحساب
   // ويجلب كشفه فوراً بلا حاجة لاختياره يدوياً من القائمة، ثم يُستهلَك (onConsumeInitialAccountId)
@@ -73,6 +86,15 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
   // لو الحساب المختار في الفلتر مجموعة (isPosting=false)، تظهر قائمة الحسابات الفرعية (التفصيلية
   // فقط) تحته — اختيار حساب فرعي محدَّد منها يُضيّق الكشف عليه وحده؛ بلا اختيار، يبقى السلوك
   // الافتراضي كشفاً مجمَّعاً لكل الحسابات الفرعية معاً (كما كان قبل هذه الإضافة).
+  // نفس أسلوب الفترة في طباعة ميزان المراجعة (TrialBalanceTreePrintModal) بالضبط، مُطبَّقاً هنا
+  // على فلاتر كشف حساب الأستاذ المُطبَّقة فعلياً (alf.applied)، لعرضها أعلى الشاشة وأعلى الطباعة معاً.
+  const periodLabel = alf.applied.dateFrom || alf.applied.dateTo
+    ? t("reports.trialPrint.periodWithDates", {
+        from: alf.applied.dateFrom || t("reports.trialPrint.periodDefaultFrom"),
+        to: alf.applied.dateTo || t("reports.trialPrint.periodDefaultTo"),
+      })
+    : t("reports.trialPrint.periodAllTime");
+
   const selectedAccount = useMemo(() => accounts.find((a) => a.id === alf.draft.accountId), [accounts, alf.draft.accountId]);
   const subAccountOptions = useMemo(
     () => (selectedAccount && !selectedAccount.isPosting ? collectPostingDescendants(accounts, selectedAccount.id) : []),
@@ -198,6 +220,7 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
             <div className="panel">
               <div className="voucher-meta">
                 <div><span>{t("accountLedger.accountLabel")}</span><strong>{ledger.account.name}</strong></div>
+                <div>{periodLabel}</div>
                 <div>
                   <span>{t("statementOfAccount.closingBalance")}</span>
                   <strong>{fmt(Math.abs(ledger.closingBalance))} {ledger.closingBalance >= 0 ? t("statementOfAccount.table.debit") : t("statementOfAccount.table.credit")}</strong>
@@ -206,12 +229,18 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
               <table className="ledger-table">
                 <thead>
                   <tr>
-                    <th>{t("statementOfAccount.table.date")}</th><th>{t("accountLedger.table.entryNumber")}</th><th>{t("statementOfAccount.table.memo")}</th><th>{t("accountLedger.table.description")}</th>
+                    <th>{t("statementOfAccount.table.date")}</th><th>{t("accountLedger.table.entryNumber")}</th><th>{t("statementOfAccount.table.memo")}</th>
                     {!ledger.account.isPosting && <th>{t("accountLedger.table.postingAccount")}</th>}
                     <th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th><th>{t("statementOfAccount.table.balance")}</th>
                   </tr>
                 </thead>
                 <tbody>
+                  {alf.applied.dateFrom && (
+                    <tr className="ledger-row-opening">
+                      <td colSpan={ledger.account.isPosting ? 5 : 6} className="foot-label">{t("statementOfAccount.openingBalance")}</td>
+                      <td className="num strong">{fmt(ledger.openingBalance)}</td>
+                    </tr>
+                  )}
                   {ledger.rows.map((r, i) => {
                     // يفتح النظام الكامل (بالشريط العلوي وتسجيل الدخول) على شاشة "القيود اليومية"
                     // الحقيقية مع فتح نافذة القيد تلقائياً — لا صفحة عرض منفصلة معزولة عن التطبيق
@@ -235,8 +264,7 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                           {r.entryNumber || r.journalEntryId.slice(-8)}
                         </a>
                       </td>
-                      <td>{r.entryMemo || "—"}</td>
-                      <td>{r.lineDescription || "—"}</td>
+                      <td>{combineMemo(r.entryMemo, r.lineDescription)}</td>
                       {!ledger.account.isPosting && <td>{r.accountCode} — {r.accountName}</td>}
                       <td className="num">{r.debit ? fmt(r.debit) : "—"}</td>
                       <td className="num">{r.credit ? fmt(r.credit) : "—"}</td>
@@ -244,10 +272,10 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                     </tr>
                     );
                   })}
-                  {ledger.rows.length === 0 && <tr><td className="empty" colSpan={ledger.account.isPosting ? 7 : 8}>{t("statementOfAccount.empty")}</td></tr>}
+                  {ledger.rows.length === 0 && <tr><td className="empty" colSpan={ledger.account.isPosting ? 6 : 7}>{t("statementOfAccount.empty")}</td></tr>}
                 </tbody>
                 <tfoot>
-                  <tr><td className="foot-label" colSpan={ledger.account.isPosting ? 6 : 7}>{t("statementOfAccount.closingBalance")}</td><td className="num strong">{fmt(ledger.closingBalance)}</td></tr>
+                  <tr><td className="foot-label" colSpan={ledger.account.isPosting ? 5 : 6}>{t("statementOfAccount.closingBalance")}</td><td className="num strong">{fmt(ledger.closingBalance)}</td></tr>
                 </tfoot>
               </table>
             </div>
@@ -256,7 +284,14 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
       )}
 
       {printOpen && ledger && (
-        <AccountLedgerPrintModal ledger={ledger} companyId={companyId} companies={companies} onClose={() => setPrintOpen(false)} />
+        <AccountLedgerPrintModal
+          ledger={ledger}
+          companyId={companyId}
+          companies={companies}
+          dateFrom={alf.applied.dateFrom}
+          dateTo={alf.applied.dateTo}
+          onClose={() => setPrintOpen(false)}
+        />
       )}
     </div>
   );

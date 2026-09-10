@@ -22,10 +22,14 @@ export function AuthProvider({ children }) {
   // مؤشّر تشخيصي فقط (من /auth/me، بلا تخزين محلي — يُعاد جلبه كل فتح تطبيق) لعرض تنبيه لوحة
   // الإدارة لو خدمة الإيميل غير مضبوطة على الخادم؛ انظر التحذير المطابق في server.ts.
   const [emailServiceConfigured, setEmailServiceConfigured] = useState(true);
+  // إشعارات من لوحة تحكم مدير المنصة (athar-platform-admin، مشروع منفصل تماماً) لهذه الشركة —
+  // بلا تخزين محلي أيضاً، تُعاد من كل استجابة تسجيل دخول/تسجيل/قبول دعوة/`/auth/me`.
+  const [platformNotices, setPlatformNotices] = useState([]);
 
   const reset = useCallback(() => {
     setUser(null);
     setTenant(null);
+    setPlatformNotices([]);
     localStorage.removeItem(SESSION_KEY);
   }, []);
 
@@ -48,6 +52,7 @@ export function AuthProvider({ children }) {
         setUser(result.user);
         setTenant(result.tenant);
         setEmailServiceConfigured(result.emailServiceConfigured !== false);
+        setPlatformNotices(result.platformNotices || []);
         localStorage.setItem(SESSION_KEY, JSON.stringify({ user: result.user, tenant: result.tenant }));
       })
       .catch(() => {
@@ -73,11 +78,22 @@ export function AuthProvider({ children }) {
     setUser(result.user);
     setTenant(result.tenant);
     if (result.emailServiceConfigured !== undefined) setEmailServiceConfigured(result.emailServiceConfigured);
+    setPlatformNotices(result.platformNotices || []);
     localStorage.setItem(SESSION_KEY, JSON.stringify({ user: result.user, tenant: result.tenant }));
   };
 
   const login = async (email, password) => {
     const result = await authApi.login({ email, password });
+    // لو كانت هذه الهوية (نفس البريد وكلمة المرور) منتمية لأكثر من شركة، لا يُصدِر الخادم جلسة
+    // كاملة بعد — يُعاد اختيار الشركة أولاً (LoginPage تعرض القائمة) ثم completeLogin يُتمّم
+    // الدخول الفعلي لاحقاً بإصدار رمز موقَّع حقيقي جديد من الخادم لتلك الشركة تحديداً.
+    if (result.chooseAccount) return result;
+    applySession(result);
+    return result;
+  };
+
+  const completeLogin = async (identityToken, userId) => {
+    const result = await authApi.completeLoginChoice(identityToken, userId);
     applySession(result);
     return result;
   };
@@ -116,6 +132,9 @@ export function AuthProvider({ children }) {
       // نتجاهل فشل تسجيل الخروج من الخادم — المهم مسح الجلسة محلياً بأي حال
     }
     clearTokens();
+    // امسح "الشركة النشطة" المحفوظة لهذا المستأجر — بدونها، تسجيل دخول مستخدم آخر (بنطاق companyScope
+    // مختلف) على نفس المتصفح كان يرث شركة نشطة قد تقع خارج نطاقه لحظياً قبل أن تُصحَّح تلقائياً.
+    if (tenant?.id) localStorage.removeItem(`athar.activeCompanyId.${tenant.id}`);
     reset();
   };
 
@@ -126,7 +145,9 @@ export function AuthProvider({ children }) {
     isAuthenticated: Boolean(user && getAccessToken()),
     initializing,
     emailServiceConfigured,
+    platformNotices,
     login,
+    completeLogin,
     register,
     acceptInvite,
     renameTenant,

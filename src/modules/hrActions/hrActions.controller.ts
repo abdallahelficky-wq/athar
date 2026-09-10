@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { LEGACY_KEY_TO_ACTION_TYPE, LegacyComponentKey } from "../../lib/legacyPayrollComponents";
+import { assertCompanyAccess } from "../../middleware/auth";
 
 export const listHrActions: RequestHandler = async (req, res) => {
   const { companyId, month } = req.query;
@@ -28,6 +29,7 @@ export const createHrActionBatch: RequestHandler = async (req, res) => {
   const { employeeIds, month, componentId, value, note } = req.body;
   const employees = await prisma.employee.findMany({ where: { id: { in: employeeIds }, tenantId: req.auth!.tenantId } });
   if (employees.length !== employeeIds.length) throw badRequest("أحد الموظفين المختارين غير موجود ضمن مستأجرك");
+  employees.forEach((employee) => assertCompanyAccess(req.auth!, employee.companyId));
 
   let realComponentId: string | null = null;
   let actionType: string;
@@ -56,8 +58,12 @@ export const createHrActionBatch: RequestHandler = async (req, res) => {
 };
 
 export const deleteHrAction: RequestHandler = async (req, res) => {
-  const existing = await prisma.hrAction.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
+  const existing = await prisma.hrAction.findFirst({
+    where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    include: { employee: { select: { companyId: true } } },
+  });
   if (!existing) throw notFound("الإجراء غير موجود");
+  assertCompanyAccess(req.auth!, existing.employee.companyId);
   await prisma.hrAction.delete({ where: { id: existing.id } });
   res.status(204).send();
 };

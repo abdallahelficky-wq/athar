@@ -1,5 +1,7 @@
 import { RequestHandler } from "express";
 import * as itemsService from "./items.service";
+import { prisma } from "../../lib/prisma";
+import { assertRecordCompanyScope } from "../../middleware/auth";
 
 export const listItems: RequestHandler = async (req, res) => {
   const { companyId, type, search } = req.query;
@@ -12,6 +14,7 @@ export const listItems: RequestHandler = async (req, res) => {
 };
 
 export const getItem: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.item, req.params.id);
   const item = await itemsService.getItemWithComputed(req.auth!.tenantId, req.params.id);
   res.json(item);
 };
@@ -32,21 +35,25 @@ export const createItem: RequestHandler = async (req, res) => {
 };
 
 export const updateItem: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.item, req.params.id);
   const item = await itemsService.updateItemWithValidation(req.auth!.tenantId, req.params.id, req.body);
   res.json(item);
 };
 
 export const deleteItem: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.item, req.params.id);
   await itemsService.deleteItem(req.auth!.tenantId, req.params.id);
   res.status(204).send();
 };
 
 export const getItemComponents: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.item, req.params.id);
   const components = await itemsService.getItemComponents(req.auth!.tenantId, req.params.id);
   res.json(components);
 };
 
 export const setItemComponents: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.item, req.params.id);
   const components = await itemsService.setItemComponents(req.auth!.tenantId, req.params.id, req.body.components);
   res.json(components);
 };
