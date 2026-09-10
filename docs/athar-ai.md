@@ -20,21 +20,23 @@ Set these on the backend service in the intended non-production environment:
 - `CLOUDFLARE_AI_GATEWAY_ID`: gateway ID within that account, not a URL.
 - `CLOUDFLARE_AI_GATEWAY_TOKEN`: Cloudflare API token with **Account > Workers AI > Read**
   for that account. An AI Gateway-only token cannot authenticate this REST API.
-- `ATHAR_AI_MODEL=openai/gpt-5.6-sol`.
+- `ATHAR_AI_MODEL=anthropic/claude-sonnet-5`.
 
 Third-party model requests require funded Cloudflare Unified Billing and access to
 the selected model. These settings are loaded on use; other backend endpoints can
 start without AI credentials. Never commit real values or put them in frontend variables.
 
 The transport uses
-`https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/responses`,
-Bearer authentication and `cf-aig-gateway-id`. It requests no response storage,
-skips the gateway cache and disables gateway content logs. Requests time out after
-60 seconds. Provider error bodies are neither logged nor returned; incomplete,
-failed, empty and malformed responses are rejected.
+`https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/messages`
+(Anthropic's Messages API schema), Bearer authentication and `cf-aig-gateway-id`.
+The request body uses `system` for instructions, `messages` for the conversation,
+and a required `max_tokens: 4000`. It skips the gateway cache and disables gateway
+content logs. Requests time out after 60 seconds. Provider error bodies are neither
+logged nor returned; incomplete, failed, empty, non-text and malformed responses
+(including a legacy OpenAI Responses-shaped body) are rejected.
 
 References: [Cloudflare REST API](https://developers.cloudflare.com/ai-gateway/usage/rest-api/)
-and [GPT-5.6 Sol](https://developers.openai.com/api/docs/models/gpt-5.6-sol).
+and [Anthropic provider on Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/providers/anthropic/).
 
 ## Verification
 

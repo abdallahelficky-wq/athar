@@ -34,7 +34,7 @@ beforeEach(() => {
   vi.mocked(prisma.company.findFirst).mockResolvedValue({ id: "company-a" } as never);
   for (const fn of Object.values(dashboard)) vi.mocked(fn).mockResolvedValue([] as never);
   vi.mocked(dashboard.getFinancialKpis).mockResolvedValue({ salesCurrent: 123 } as never);
-  vi.mocked(askAtharAi).mockResolvedValue({ answer: "تحليل", model: "openai/gpt-5.6-sol" });
+  vi.mocked(askAtharAi).mockResolvedValue({ answer: "تحليل", model: "anthropic/claude-sonnet-5" });
 });
 function post(body: unknown, scope: string | null = "company-a", tenantId = "tenant-a") {
   const token = scope === null ? "" : signAccessToken({ sub: "user-a", tenantId, role: "admin", companyScope: scope, readOnly: false });
