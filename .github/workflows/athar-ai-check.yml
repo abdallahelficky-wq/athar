@@ -1,0 +1,33 @@
+name: Athar AI checks
+
+on:
+  push:
+    branches:
+      - feature/athar-ai
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/athar_test
+      JWT_ACCESS_SECRET: ci-test-only-access-secret
+      JWT_REFRESH_SECRET: ci-test-only-refresh-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npm run lint
+      - run: npm run build
+      - name: Run tests with an ephemeral encryption key
+        run: |
+          export ZATCA_ENCRYPTION_KEY="$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64'))")"
+          npm test
