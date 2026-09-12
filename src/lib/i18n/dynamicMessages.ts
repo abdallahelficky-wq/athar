@@ -147,4 +147,5 @@ export const DYNAMIC_MESSAGE_PATTERNS: MessagePattern[] = [
   { match: /^لم تُحدَّد حسابات المخزون\/المشتريات للصنف "(.+?)" بعد؛ أكمل بياناته من شاشة الأصناف أولاً$/, translate: (g) => `The inventory/purchases accounts for item "${g[0]}" haven't been set yet; complete its data from the items screen first` },
   { match: /^قراءة العداد غير صحيحة للفوهة \((.+?)\): الكمية المحسوبة سالبة حتى بعد افتراض دورة كاملة للعداد$/, translate: (g) => `Invalid meter reading for nozzle (${g[0]}): the calculated volume is negative even after assuming a full meter rollover` },
   { match: /^لا يوجد سعر بيع سارٍ لمنتج "(.+?)" بتاريخ الوردية$/, translate: (g) => `No effective fuel price exists for product "${g[0]}" on the shift date` },
+  { match: /^لا يوجد حساب إيراد مُحدَّد لمنتج "(.+?)"$/, translate: (g) => `No revenue account is set for product "${g[0]}"` },
 ];

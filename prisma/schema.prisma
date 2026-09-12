@@ -208,6 +208,12 @@ model User {
   positionId String?
   position   Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
+  // المحطة (مركز التكلفة) التي يعمل بها هذا المستخدم كعامل محطة — تحدّد نطاقه في وحدة سجل
+  // ورديات المحطات (stationShifts): لا يمكنه فتح/تعديل وردية لأي محطة غير هذه إطلاقاً، بصرف
+  // النظر عن صلاحيته العامة على الوحدة. اختياري: يبقى null لأي مستخدم ليس عامل محطة.
+  assignedCostCenterId String?
+  assignedCostCenter   CostCenter? @relation(fields: [assignedCostCenterId], references: [id], onDelete: SetNull)
+
   refreshTokens             RefreshToken[]
   auditLogs                 AuditLog[]
   actionPermissionOverrides UserActionPermissionOverride[]
@@ -554,6 +560,7 @@ model CostCenter {
   stationShifts      StationShift[]
   tankDeliveries     TankDelivery[]
   tankDips           TankDip[]
+  assignedWorkers    User[]
 
   @@map("cost_centers")
 }

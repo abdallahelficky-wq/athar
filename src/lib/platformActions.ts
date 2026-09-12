@@ -18,4 +18,11 @@ export const PLATFORM_ACTIONS: Record<string, { id: string; minLevel: ActionLeve
     { id: "delete", minLevel: "full", label: { ar: "حذف طلب", en: "Delete request" } },
     { id: "approve", minLevel: "approve", label: { ar: "الموافقة/الرفض", en: "Approve/Reject" } },
   ],
+  // محوران مستقلان تماماً (لا أحدهما يتضمن الآخر): "worker" لعامل المحطة الذي يفتح الوردية ويُدخل
+  // القراءات/التحصيل، و"review" للمحاسب الذي يراجع/يصحّح/يعتمد أو يرفض — راجع تعليق
+  // stationShifts.routes.ts لتفصيل القرار.
+  stationShifts: [
+    { id: "worker", minLevel: "edit", label: { ar: "تشغيل وردية محطة (عامل)", en: "Operate a station shift (worker)" } },
+    { id: "review", minLevel: "approve", label: { ar: "مراجعة واعتماد ورديات المحطات (محاسب)", en: "Review and approve station shifts (accountant)" } },
+  ],
 };

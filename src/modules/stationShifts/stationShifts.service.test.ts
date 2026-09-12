@@ -9,7 +9,7 @@ import {
 
 const accounts: ShiftClosingAccounts = {
   cashAccountId: "acc-cash",
-  revenueAccountId: "acc-revenue",
+  revenueAccountByProduct: { diesel: "acc-revenue", gasoline_91: "acc-revenue-91", gasoline_95: "acc-revenue-95" },
   outputVatAccountId: "acc-vat",
   networkReceivableAccountId: "acc-network",
   fuelCardReceivableAccountId: "acc-fuelcard",
@@ -199,5 +199,33 @@ describe("computeShiftClosing", () => {
 
     // 5 + 10^6 - 999999 = 6, minus 1000 test liters = -994: still negative, must be rejected
     expect(() => computeShiftClosing(input)).toThrow(/قراءة العداد غير صحيحة/);
+  });
+
+  it("posts revenue to a separate account per product when multiple products are sold in the same shift", () => {
+    const result = computeShiftClosing(
+      baseInput({
+        readings: [
+          reading({ nozzleId: "nozzle-1", product: "diesel", openingReading: 0, closingReading: 500 }),
+          reading({ nozzleId: "nozzle-2", product: "gasoline_91", openingReading: 0, closingReading: 200 }),
+        ],
+        prices: [price({ product: "diesel" }), price({ product: "gasoline_91", priceInclVat: "1.15" })],
+        cashDelivered: 575 + 230,
+      }),
+    );
+
+    expect(result.lines.find((l) => l.accountId === "acc-revenue")?.credit).toBe(500);
+    expect(result.lines.find((l) => l.accountId === "acc-revenue-91")?.credit).toBe(200);
+    // ضريبة واحدة مشتركة (حساب واحد) على إجمالي الضريبتين معاً، لا حساب ضريبة منفصل لكل منتج
+    expect(result.lines.find((l) => l.accountId === "acc-vat")?.credit).toBe(105);
+    expect(result.grossSales.toNumber()).toBe(805);
+
+    const totalDebit = result.lines.reduce((s, l) => s + l.debit, 0);
+    const totalCredit = result.lines.reduce((s, l) => s + l.credit, 0);
+    expect(totalDebit).toBe(totalCredit);
+  });
+
+  it("rejects when no revenue account is configured for a product that was actually sold", () => {
+    const input = baseInput({ accounts: { ...accounts, revenueAccountByProduct: {} }, cashDelivered: 575 });
+    expect(() => computeShiftClosing(input)).toThrow(/لا يوجد حساب إيراد مُحدَّد لمنتج/);
   });
 });
