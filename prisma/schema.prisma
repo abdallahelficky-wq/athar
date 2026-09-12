@@ -2614,28 +2614,28 @@ model TrainerCommission {
 // ---------------------------------------------------------------------------
 
 enum StationFuelProduct {
-  DIESEL
-  GASOLINE_91
-  GASOLINE_95
+  diesel
+  gasoline_91
+  gasoline_95
 }
 
 enum StationMeterType {
-  MECHANICAL
-  ELECTRONIC
+  mechanical
+  electronic
 }
 
 enum StationShiftType {
-  MORNING
-  NIGHT
+  morning
+  night
 }
 
 enum StationShiftStatus {
-  OPEN
-  SUBMITTED
-  UNDER_REVIEW
-  APPROVED
-  POSTED
-  REJECTED
+  open
+  submitted
+  under_review
+  approved
+  posted
+  rejected
 }
 
 // فوهة وقود واحدة على مضخة داخل محطة (CostCenter) واحدة.
@@ -2684,7 +2684,7 @@ model FuelPrice {
 }
 
 // وردية محطة واحدة — دورة حياتها الكاملة من فتحها حتى ترحيل قيدها المحاسبي (journalEntryId يُملأ
-// فقط عند status=POSTED). فريدة على (costCenterId, shiftDate, shiftType): لا يمكن فتح ورديتين
+// فقط عند status=posted). فريدة على (costCenterId, shiftDate, shiftType): لا يمكن فتح ورديتين
 // بنفس النوع لنفس المحطة في نفس اليوم.
 model StationShift {
   id                  String             @id @default(cuid())
@@ -2700,13 +2700,13 @@ model StationShift {
   shiftType           StationShiftType
   openedAt            DateTime?
   closedAt            DateTime?
-  status              StationShiftStatus @default(OPEN)
+  status              StationShiftStatus @default(open)
   rejectionReasonCode String?
   rejectionNote       String?
   reviewedByUserId    String?
   reviewedByUser      User?              @relation("StationShiftReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
   // يُملأ فقط بعد اعتماد الوردية وترحيل قيدها المحاسبي فعلياً (createJournalEntryTx) — يبقى
-  // فارغاً طوال بقية دورة حياة الوردية (OPEN..APPROVED وREJECTED).
+  // فارغاً طوال بقية دورة حياة الوردية (open..approved وrejected).
   journalEntryId      String?            @unique
   journalEntry        JournalEntry?      @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
   createdAt           DateTime           @default(now())

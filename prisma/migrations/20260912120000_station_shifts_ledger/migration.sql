@@ -1,14 +1,14 @@
 -- CreateEnum
-CREATE TYPE "StationFuelProduct" AS ENUM ('DIESEL', 'GASOLINE_91', 'GASOLINE_95');
+CREATE TYPE "StationFuelProduct" AS ENUM ('diesel', 'gasoline_91', 'gasoline_95');
 
 -- CreateEnum
-CREATE TYPE "StationMeterType" AS ENUM ('MECHANICAL', 'ELECTRONIC');
+CREATE TYPE "StationMeterType" AS ENUM ('mechanical', 'electronic');
 
 -- CreateEnum
-CREATE TYPE "StationShiftType" AS ENUM ('MORNING', 'NIGHT');
+CREATE TYPE "StationShiftType" AS ENUM ('morning', 'night');
 
 -- CreateEnum
-CREATE TYPE "StationShiftStatus" AS ENUM ('OPEN', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'POSTED', 'REJECTED');
+CREATE TYPE "StationShiftStatus" AS ENUM ('open', 'submitted', 'under_review', 'approved', 'posted', 'rejected');
 
 -- AlterEnum
 ALTER TYPE "SourceModule" ADD VALUE 'station_shift';
@@ -58,7 +58,7 @@ CREATE TABLE "station_shifts" (
     "shiftType" "StationShiftType" NOT NULL,
     "openedAt" TIMESTAMP(3),
     "closedAt" TIMESTAMP(3),
-    "status" "StationShiftStatus" NOT NULL DEFAULT 'OPEN',
+    "status" "StationShiftStatus" NOT NULL DEFAULT 'open',
     "rejectionReasonCode" TEXT,
     "rejectionNote" TEXT,
     "reviewedByUserId" TEXT,
