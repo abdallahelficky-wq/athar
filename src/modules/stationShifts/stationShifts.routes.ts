@@ -23,6 +23,7 @@ import {
   getShiftByIdHandler,
   correctReadingHandler,
   approveShiftHandler,
+  postShiftHandler,
   rejectShiftHandler,
 } from "./stationShifts.controller";
 
@@ -55,4 +56,5 @@ stationShiftRoutes.get("/pending", reviewAccess, listPendingShiftsHandler);
 stationShiftRoutes.get("/:id", reviewAccess, getShiftByIdHandler);
 stationShiftRoutes.put("/:id/readings/:readingId", reviewAccess, validateBody(correctReadingSchema), correctReadingHandler);
 stationShiftRoutes.post("/:id/approve", reviewAccess, approveShiftHandler);
+stationShiftRoutes.post("/:id/post", reviewAccess, postShiftHandler);
 stationShiftRoutes.post("/:id/reject", reviewAccess, validateBody(rejectShiftSchema), rejectShiftHandler);

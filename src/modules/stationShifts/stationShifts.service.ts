@@ -342,27 +342,41 @@ async function tryResolveAccountIdByName(tenantId: string, companyId: string, na
 }
 
 /**
- * تحلّل كل الحسابات المحاسبية المطلوبة لترحيل قيد إقفال وردية محطة، بأسماء قياسية (عبر
- * getAccountIdByName — تتوافق مع أي قالب شجرة حسابات وليس فقط قالب "محطات وقود" مباشرة، طالما
- * الأسماء البديلة مسجَّلة في wellKnownAccounts.ts). قرارات اتُخذت هنا بلا نص صريح من أحد (راجع
- * الملخص المرافق):
- *   - شبكة نقاط البيع وبطاقات الوقود تُقيَّدان على نفس حساب "ذمم شركات بطاقات الوقود/الأسطول"
- *     الوحيد — قالب "محطات وقود" لا يحمل حساب ذمم شبكة منفصلاً.
- *   - عجز/زيادة الصندوق يُقيَّدان على "مصروفات إدارية عامة أخرى"/"إيرادات متنوعة أخرى" — لا يوجد
- *     حساب "فروقات صندوق" مخصَّص في أي قالب حالياً.
- *   - كل بنود StationShiftExpense (بصرف النظر عن category الحر) تُقيَّد على نفس حساب "مصروفات
- *     إدارية عامة أخرى" أيضاً — category نص وصفي فقط حالياً، لا مُحدِّد حساب.
+ * تحلّل كل الحسابات المحاسبية المطلوبة لترحيل قيد إقفال وردية محطة. أغلبها أسماء قياسية (عبر
+ * getAccountIdByName — تتوافق مع أي قالب شجرة حسابات، طالما الأسماء البديلة مسجَّلة في
+ * wellKnownAccounts.ts)، باستثناء عجز/زيادة الصندوق تحديداً: حقلان مضبوطان صراحةً على الشركة
+ * نفسها (Company.stationCashShortageAccountId/stationCashSurplusAccountId)، لا اسم ثابت — إظهار
+ * "عجز محطة كذا هذا الشهر" هو الغرض الأساسي من هذه الوحدة، فربطه باسم حساب عام قد لا يقصده كل
+ * مستأجر بنفس المعنى يجعل هذا السؤال بلا إجابة موثوقة. الشركة الجديدة بنشاط "محطات وقود" تُزرَع
+ * بحسابين مخصَّصين لهذا الغرض تلقائياً (createCompany في companies.controller.ts)، لكن الحقلين
+ * يبقيان قابلين لإعادة التوجيه لأي حساب آخر من إعدادات الشركة متى احتاج المستأجر ذلك.
+ *
+ * شبكة نقاط البيع (مدى) وبطاقات الوقود/الأسطول حسابان منفصلان تماماً: تسويات الشبكة تدخل البنك
+ * خلال أيام قليلة تلقائياً، بينما بطاقات الأسطول ذمم فعلية تحتاج فوترة وتحصيلاً يدوياً من شركة
+ * التعبئة — دمجهما في حساب واحد يجعل مطابقة تسويات الشبكة بالبنك مستحيلة.
+ *
+ * كل بنود StationShiftExpense (بصرف النظر عن category الحر) لا تزال تُقيَّد على حساب عام واحد
+ * ("مصروفات إدارية متنوعة أخرى") — category نص وصفي فقط حالياً، لا مُحدِّد حساب؛ قرار مقصود، ليس
+ * سهواً (راجع الملخص المرافق).
  */
 async function resolveShiftClosingAccounts(tenantId: string, companyId: string) {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { stationCashShortageAccountId: true, stationCashSurplusAccountId: true },
+  });
+  if (!company?.stationCashShortageAccountId || !company?.stationCashSurplusAccountId) {
+    throw badRequest("لم يُحدَّد حسابا عجز/زيادة نقدية ورديات المحطات لهذه الشركة بعد — اضبطهما من إعدادات الشركة أولاً");
+  }
+
   const [
     cashAccountId,
     dieselRevenueAccountId,
     gasoline91RevenueAccountId,
     gasoline95RevenueAccountId,
     outputVatAccountId,
-    cardReceivableAccountId,
+    fuelCardReceivableAccountId,
+    networkReceivableAccountId,
     otherExpenseAccountId,
-    otherRevenueAccountId,
   ] = await Promise.all([
     getAccountIdByName(tenantId, companyId, "صندوق نثرية الفروع/المواقع"),
     tryResolveAccountIdByName(tenantId, companyId, "إيراد مبيعات ديزل"),
@@ -370,8 +384,8 @@ async function resolveShiftClosingAccounts(tenantId: string, companyId: string) 
     tryResolveAccountIdByName(tenantId, companyId, "إيراد مبيعات بنزين 95"),
     getAccountIdByName(tenantId, companyId, "ضريبة القيمة المضافة - مخرجات"),
     getAccountIdByName(tenantId, companyId, "ذمم شركات بطاقات الوقود/الأسطول"),
-    getAccountIdByName(tenantId, companyId, "مصروفات إدارية عامة أخرى"),
-    getAccountIdByName(tenantId, companyId, "إيرادات متنوعة أخرى"),
+    getAccountIdByName(tenantId, companyId, "ذمم شبكة نقاط البيع (مدى)"),
+    getAccountIdByName(tenantId, companyId, "مصروفات إدارية متنوعة أخرى"),
   ]);
 
   const accounts: ShiftClosingAccounts = {
@@ -382,10 +396,10 @@ async function resolveShiftClosingAccounts(tenantId: string, companyId: string) 
       gasoline_95: gasoline95RevenueAccountId,
     },
     outputVatAccountId,
-    networkReceivableAccountId: cardReceivableAccountId,
-    fuelCardReceivableAccountId: cardReceivableAccountId,
-    cashShortageAccountId: otherExpenseAccountId,
-    cashSurplusAccountId: otherRevenueAccountId,
+    networkReceivableAccountId,
+    fuelCardReceivableAccountId,
+    cashShortageAccountId: company.stationCashShortageAccountId,
+    cashSurplusAccountId: company.stationCashSurplusAccountId,
   };
   return { accounts, expenseAccountId: otherExpenseAccountId };
 }
@@ -617,6 +631,10 @@ export async function submitShift(tenantId: string, userId: string, shiftId: str
 }
 
 const PENDING_STATUSES = ["submitted", "under_review"] as const;
+// approved فما دونها (بلا posted/rejected) — الرفض يبقى ممكناً حتى بعد الاعتماد طالما لم يُرحَّل
+// قيد بعد (لا شيء كُتب في الدفاتر)؛ التصحيح والاعتماد أنفسهما يبقيان مقصورين على PENDING_STATUSES
+// فقط (المراجعة تحديداً، لا "جاهزة للترحيل").
+const REJECTABLE_STATUSES = [...PENDING_STATUSES, "approved"] as const;
 
 export async function listPendingShifts(tenantId: string, companyId?: string) {
   return prisma.stationShift.findMany({
@@ -675,10 +693,14 @@ export async function correctReading(tenantId: string, userId: string, shiftId: 
   });
 }
 
-/** اعتماد وردية وترحيل قيدها المحاسبي تلقائياً في نفس الخطوة الواحدة — لا حالة "approved" منفصلة
- * فعلياً مخزَّنة قبل الترحيل رغم وجودها في enum الحالات (راجع الملخص المرافق): "المحاسب يراجع
- * ويعتمد، ويُنشأ قيد تلقائياً" وردت كخطوة واحدة، لا خطوتين. يُرفَض الاعتماد كاملاً (قبل أي كتابة)
- * لو نقصت قراءة فوهة نشطة واحدة، أو نقصت صورة عداد (Attachment) لقراءة موجودة فعلاً.
+/**
+ * اعتماد وردية — يُثبِّت أن أرقامها مكتملة وصحيحة (كل فوهة نشطة لها قراءة ومعها صورة عداد)
+ * وينقلها إلى الحالة "approved"، لكنه لا يكتب أي قيد محاسبي إطلاقاً ولا يمسّ journalEntryId؛
+ * الترحيل الفعلي خطوة ثانية منفصلة تماماً (postShift أدناه) — "الأرقام مؤكَّدة لكن الدفاتر لم
+ * تُمسّ بعد". يُرفَض الاعتماد كاملاً (قبل أي كتابة) لو نقصت قراءة فوهة نشطة واحدة، أو نقصت صورة
+ * عداد (Attachment) لقراءة موجودة فعلاً. لا يجوز تصحيح أي قراءة بعد هذه النقطة (correctReading
+ * مقصورة على PENDING_STATUSES) — اكتشاف خطأ بعد الاعتماد يتطلب رفض الوردية (rejectShift، لا يزال
+ * ممكناً من approved) بدل تصحيحها في مكانها.
  */
 export async function approveShift(tenantId: string, userId: string, shiftId: string) {
   const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
@@ -708,6 +730,34 @@ export async function approveShift(tenantId: string, userId: string, shiftId: st
     if (!withPhoto.has(reading.id)) throw badRequest("لا يمكن اعتماد الوردية: إحدى القراءات بلا صورة عداد مرفقة بعد");
   }
 
+  // يحسب الإقفال الآن أيضاً (لا فقط لاحقاً عند الترحيل) عمداً: لو حساب مفقود من إعدادات الشركة
+  // (مثال: عجز/زيادة الصندوق) سيظهر الخطأ هنا، لحظة "التأكيد"، لا مفاجأةً لاحقاً عند الترحيل.
+  const { input } = await loadShiftClosingInput(tenantId, shiftId);
+  computeShiftClosing(input);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.stationShiftAuditLog.create({
+      data: { tenantId, companyId: shift.companyId, shiftId, userId, action: "approve", fieldName: "status", oldValue: shift.status, newValue: "approved" },
+    });
+    return tx.stationShift.update({ where: { id: shift.id }, data: { status: "approved" } });
+  });
+}
+
+/**
+ * ترحيل وردية مُعتمَدة بالفعل — الخطوة الثانية والأخيرة، منفصلة تماماً عن approveShift أعلاه:
+ * تحسب الإقفال من جديد (نفس المدخلات لم تتغيّر — لا تصحيح ولا كتابة عامل ممكنان بعد الاعتماد)
+ * وتُنشئ القيد المحاسبي فعلياً عبر createJournalEntryTx، ثم تنقل الحالة إلى "posted" وتضبط
+ * journalEntryId في نفس المعاملة الذرّية. مضمونة عدم التكرار (idempotent): مقصورة على شرط
+ * الحالة = approved تحديداً، فترحيل وردية "posted" بالفعل (أو أي حالة أخرى) يُرفَض فوراً قبل أي
+ * كتابة، ولا يُنشئ أبداً قيداً ثانياً لنفس الوردية.
+ */
+export async function postShift(tenantId: string, userId: string, shiftId: string) {
+  const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
+  if (!shift) throw notFound("الوردية غير موجودة");
+  if (shift.status !== "approved") {
+    throw badRequest("لا يمكن ترحيل وردية لم تُعتمَد بعد، أو رُحِّلت بالفعل");
+  }
+
   const { input } = await loadShiftClosingInput(tenantId, shiftId);
   const summary = computeShiftClosing(input);
 
@@ -723,17 +773,20 @@ export async function approveShift(tenantId: string, userId: string, shiftId: st
       lines: summary.lines,
     });
     await tx.stationShiftAuditLog.create({
-      data: { tenantId, companyId: shift.companyId, shiftId, userId, action: "approve", fieldName: "status", oldValue: shift.status, newValue: "posted" },
+      data: { tenantId, companyId: shift.companyId, shiftId, userId, action: "post", fieldName: "status", oldValue: shift.status, newValue: "posted" },
     });
     return tx.stationShift.update({ where: { id: shift.id }, data: { status: "posted", journalEntryId: entry.id } });
   });
 }
 
+/** الرفض ممكن من أي حالة قيد المراجعة أو حتى بعد الاعتماد (approved) طالما لم يُرحَّل قيد بعد —
+ * بمجرد الترحيل (posted) لم يعد الرفض متاحاً إطلاقاً، لأن تصحيح خطأ بعدها يتطلب قيد عكسي لا رفضاً
+ * بسيطاً (راجع الملخص المرافق). */
 export async function rejectShift(tenantId: string, userId: string, shiftId: string, reasonCode: string, note: string | undefined) {
   const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
   if (!shift) throw notFound("الوردية غير موجودة");
-  if (!(PENDING_STATUSES as readonly string[]).includes(shift.status)) {
-    throw badRequest("لا يمكن رفض وردية ليست قيد المراجعة");
+  if (!(REJECTABLE_STATUSES as readonly string[]).includes(shift.status)) {
+    throw badRequest("لا يمكن رفض وردية ليست قيد المراجعة أو الاعتماد");
   }
 
   return prisma.$transaction(async (tx) => {

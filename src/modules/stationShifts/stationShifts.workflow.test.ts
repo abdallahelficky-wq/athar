@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../lib/prisma", () => ({
   prisma: {
     user: { findFirst: vi.fn() },
+    company: { findUnique: vi.fn() },
     costCenter: { findUnique: vi.fn() },
     stationNozzle: { findMany: vi.fn(), findFirst: vi.fn() },
     fuelPrice: { findMany: vi.fn() },
@@ -49,6 +50,10 @@ beforeEach(() => {
   vi.mocked(prisma.$transaction).mockImplementation(((cb: (tx: unknown) => unknown) => cb(prisma)) as typeof prisma.$transaction);
   vi.mocked(getAccountIdByName).mockResolvedValue("acc-generic");
   vi.mocked(createJournalEntryTx).mockResolvedValue({ id: "je-1" } as never);
+  vi.mocked(prisma.company.findUnique).mockResolvedValue({
+    stationCashShortageAccountId: "acc-shortage",
+    stationCashSurplusAccountId: "acc-surplus",
+  } as never);
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -195,7 +200,7 @@ describe("shift status transitions", () => {
     expect(prisma.stationShiftAuditLog.create).not.toHaveBeenCalled();
   });
 
-  it("approves a complete shift, posts the journal entry, and stores journalEntryId with status posted", async () => {
+  it("approves a complete shift, moves it to 'approved', and creates no journal entry at all", async () => {
     vi.mocked(prisma.stationShift.findFirst)
       .mockResolvedValueOnce(baseShift({ status: "submitted" }) as never) // approveShift's own lookup
       .mockResolvedValueOnce(baseShift({ status: "submitted", readings: [], creditSales: [], expenses: [], collection: null }) as never); // loadShiftClosingInput
@@ -203,16 +208,50 @@ describe("shift status transitions", () => {
     vi.mocked(prisma.stationShiftReading.findMany).mockResolvedValue([{ id: "reading-1", nozzleId: "nozzle-1" }] as never);
     vi.mocked(prisma.attachment.findMany).mockResolvedValue([{ entityId: "reading-1" }] as never);
     vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([] as never);
-    vi.mocked(prisma.stationShift.update).mockResolvedValue({ ...baseShift({ status: "posted" }), journalEntryId: "je-1" } as never);
+    vi.mocked(prisma.stationShift.update).mockResolvedValue(baseShift({ status: "approved" }) as never);
 
     const result = await service.approveShift(TENANT, "accountant-1", SHIFT_ID);
 
+    expect(createJournalEntryTx).not.toHaveBeenCalled();
+    expect(prisma.stationShiftAuditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ action: "approve", newValue: "approved" }) }),
+    );
+    expect(prisma.stationShift.update).toHaveBeenCalledWith({ where: { id: SHIFT_ID }, data: { status: "approved" } });
+    expect(result).toMatchObject({ status: "approved" });
+    expect(result).not.toHaveProperty("journalEntryId", "je-1");
+  });
+
+  it("posts an approved shift: creates the journal entry, sets journalEntryId, and moves status to posted", async () => {
+    vi.mocked(prisma.stationShift.findFirst)
+      .mockResolvedValueOnce(baseShift({ status: "approved" }) as never) // postShift's own lookup
+      .mockResolvedValueOnce(baseShift({ status: "approved", readings: [], creditSales: [], expenses: [], collection: null }) as never); // loadShiftClosingInput
+    vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.stationShift.update).mockResolvedValue({ ...baseShift({ status: "posted" }), journalEntryId: "je-1" } as never);
+
+    const result = await service.postShift(TENANT, "accountant-1", SHIFT_ID);
+
     expect(createJournalEntryTx).toHaveBeenCalled();
     expect(prisma.stationShiftAuditLog.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ action: "approve", newValue: "posted" }) }),
+      expect.objectContaining({ data: expect.objectContaining({ action: "post", newValue: "posted" }) }),
     );
     expect(prisma.stationShift.update).toHaveBeenCalledWith({ where: { id: SHIFT_ID }, data: { status: "posted", journalEntryId: "je-1" } });
     expect(result).toMatchObject({ journalEntryId: "je-1" });
+  });
+
+  it.each(["open", "submitted", "under_review", "posted", "rejected"])(
+    "refuses to post a shift with status %s, and never creates a journal entry",
+    async (status) => {
+      vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ status }) as never);
+      await expect(service.postShift(TENANT, "accountant-1", SHIFT_ID)).rejects.toMatchObject({ status: 400 });
+      expect(createJournalEntryTx).not.toHaveBeenCalled();
+    },
+  );
+
+  it("posting an already-posted shift fails and never creates a second journal entry", async () => {
+    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ status: "posted", journalEntryId: "je-1" }) as never);
+    await expect(service.postShift(TENANT, "accountant-1", SHIFT_ID)).rejects.toMatchObject({ status: 400 });
+    expect(createJournalEntryTx).not.toHaveBeenCalled();
+    expect(prisma.stationShift.update).not.toHaveBeenCalled();
   });
 
   it("rejects a shift with a reason code, writes an audit log row, and never touches the journal entry", async () => {
@@ -231,13 +270,41 @@ describe("shift status transitions", () => {
     );
   });
 
+  it("still allows rejecting a shift that has already been approved, as long as it hasn't been posted yet", async () => {
+    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ status: "approved" }) as never);
+    vi.mocked(prisma.stationShift.update).mockResolvedValue(baseShift({ status: "rejected" }) as never);
+
+    await service.rejectShift(TENANT, "accountant-1", SHIFT_ID, "numbers_wrong", undefined);
+
+    expect(createJournalEntryTx).not.toHaveBeenCalled();
+    expect(prisma.stationShift.update).toHaveBeenCalledWith({
+      where: { id: SHIFT_ID },
+      data: { status: "rejected", rejectionReasonCode: "numbers_wrong", rejectionNote: undefined },
+    });
+  });
+
+  it.each(["open", "posted", "rejected"])("rejects rejecting a shift with status %s", async (status) => {
+    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ status }) as never);
+    await expect(service.rejectShift(TENANT, "accountant-1", SHIFT_ID, "some_reason", undefined)).rejects.toMatchObject({ status: 400 });
+  });
+
   it.each(["open", "approved", "posted", "rejected"])("rejects approving a shift with status %s", async (status) => {
     vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ status }) as never);
     await expect(service.approveShift(TENANT, "accountant-1", SHIFT_ID)).rejects.toMatchObject({ status: 400 });
   });
+});
 
-  it.each(["open", "approved", "posted", "rejected"])("rejects rejecting a shift with status %s", async (status) => {
-    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ status }) as never);
-    await expect(service.rejectShift(TENANT, "accountant-1", SHIFT_ID, "some_reason", undefined)).rejects.toMatchObject({ status: 400 });
+describe("station cash variance accounts must be configured on the company", () => {
+  it("refuses to compute a shift closing when the company has no shortage/surplus accounts configured", async () => {
+    vi.mocked(prisma.company.findUnique).mockResolvedValue({
+      stationCashShortageAccountId: null,
+      stationCashSurplusAccountId: null,
+    } as never);
+    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(
+      baseShift({ status: "submitted", readings: [], creditSales: [], expenses: [], collection: null }) as never,
+    );
+    vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([] as never);
+
+    await expect(service.getShiftSummary(TENANT, SHIFT_ID)).rejects.toMatchObject({ status: 400 });
   });
 });

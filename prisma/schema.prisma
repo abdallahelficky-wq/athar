@@ -463,6 +463,16 @@ model Company {
   // نقطة البيع لهذه الشركة معاً. القيمة الافتراضية false تُبقي كل الشركات على السلوك الحالي بلا
   // أي تغيير حتى تُفعِّله الشركة صراحةً — راجع frontend/src/pos/PosApp.jsx لمنطق الاختيار.
   posQuickSaleEnabled          Boolean               @default(false)
+  // حساب عجز/زيادة النقد عند إقفال ورديات المحطات — مُعرَّف صراحةً هنا بدل الاعتماد على اسم قياسي
+  // ثابت في شجرة الحسابات: إظهار "عجز محطة كذا هذا الشهر" هو الغرض الأساسي من هذه الوحدة، فدفنه في
+  // حساب مصروفات عام يجعل هذا السؤال بلا إجابة. تُزرَع الشركة الجديدة بنشاط "محطات وقود" بحسابين
+  // مخصَّصين لهذا الغرض تلقائياً (راجع createCompany في companies.controller.ts)، لكن الحقل هنا
+  // قابل لإعادة التوجيه لأي حساب آخر من إعدادات الشركة. null يعني لم يُضبَط بعد — تُرفَض عمليات
+  // اعتماد ورديات المحطات بخطأ واضح حتى يُضبَط.
+  stationCashShortageAccountId String?
+  stationCashShortageAccount   Account?              @relation("StationCashShortageAccount", fields: [stationCashShortageAccountId], references: [id], onDelete: SetNull)
+  stationCashSurplusAccountId  String?
+  stationCashSurplusAccount    Account?              @relation("StationCashSurplusAccount", fields: [stationCashSurplusAccountId], references: [id], onDelete: SetNull)
   createdAt                    DateTime              @default(now())
   updatedAt                    DateTime              @updatedAt
 
@@ -697,6 +707,8 @@ model Account {
   assetCategoryAssetLinks      AssetCategory[]       @relation("AssetCategoryAssetAccount")
   assetCategoryAccDepLinks     AssetCategory[]       @relation("AssetCategoryAccumulatedDepreciationAccount")
   assetCategoryDepExpenseLinks AssetCategory[]       @relation("AssetCategoryDepreciationExpenseAccount")
+  stationCashShortageCompanies Company[]             @relation("StationCashShortageAccount")
+  stationCashSurplusCompanies  Company[]             @relation("StationCashSurplusAccount")
   horseCareServiceRevenueLinks HorseCareService[]
 
   @@unique([tenantId, companyId, code])

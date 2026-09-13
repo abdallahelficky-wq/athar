@@ -1848,20 +1848,14 @@
       "notifyCreated": "تم إنشاء المنصب بنجاح.",
       "notifyDeleted": "تم حذف المنصب.",
       "confirmDelete": "هل تريد حذف منصب \"{{name}}\"؟ سيفقد أعضاؤه صلاحياته فوراً.",
-      "leaveRequestsTitle": "صلاحيات طلبات الإجازة",
+      "permissionsTitle": "صلاحيات الوحدة المختارة",
+      "chooseModule": "— اختر وحدة —",
       "levels": {
         "none": "عدم رؤية",
         "read": "قراءة فقط",
         "edit": "تعديل",
         "approve": "موافقة",
         "full": "كل الصلاحيات"
-      },
-      "actions": {
-        "view": "عرض الطلبات",
-        "create": "إنشاء طلب",
-        "edit": "تعديل طلب",
-        "delete": "حذف طلب",
-        "approve": "الموافقة/الرفض"
       },
       "overridesTitle": "استثناءات فردية لمستخدمين",
       "overridesEmpty": "لا توجد استثناءات فردية حالياً.",

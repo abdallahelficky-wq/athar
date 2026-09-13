@@ -81,6 +81,11 @@ export const approveShiftHandler: RequestHandler = async (req, res) => {
   res.json(await service.approveShift(req.auth!.tenantId, req.auth!.sub, req.params.id));
 };
 
+export const postShiftHandler: RequestHandler = async (req, res) => {
+  await assertShiftCompanyAccess(req.auth!, req.params.id);
+  res.json(await service.postShift(req.auth!.tenantId, req.auth!.sub, req.params.id));
+};
+
 export const rejectShiftHandler: RequestHandler = async (req, res) => {
   await assertShiftCompanyAccess(req.auth!, req.params.id);
   const shift = await service.rejectShift(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.reasonCode, req.body.note);

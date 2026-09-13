@@ -58,6 +58,9 @@ export const createCompanySchema = z.object({
   // إعداد على مستوى الشركة (لا الجهاز) لتفعيل "شاشة البيع السريعة" في نقطة البيع — راجع التعليق
   // فوق الحقل المطابق في schema.prisma.
   posQuickSaleEnabled: z.boolean().optional(),
+  // حسابا عجز/زيادة نقد ورديات المحطات — راجع التعليق فوق الحقلين المطابقين في schema.prisma.
+  stationCashShortageAccountId: z.string().nullable().optional(),
+  stationCashSurplusAccountId: z.string().nullable().optional(),
 });
 
 export const updateCompanySchema = createCompanySchema.partial();

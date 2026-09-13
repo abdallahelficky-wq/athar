@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import {
   listPositions,
   listAssignableUsers,
+  listPlatformActions,
   createPosition,
   updatePosition,
   deletePosition,
@@ -15,21 +16,20 @@ import {
 } from "../api/positions";
 import { useToast, ToastHost } from "./shared/Toast";
 
-// أول وحدة مُهاجَرة لنظام الصلاحيات الترتيبي — يجب أن تطابق PLATFORM_ACTIONS["leaveRequests"] في
-// src/lib/platformActions.ts بالخادم (تزامن يدوي، بنفس نمط PLATFORM_MODULE_IDS/NAV_GROUPS الحالي).
-const LEAVE_REQUESTS_MODULE_ID = "leaveRequests";
-const LEAVE_REQUEST_ACTIONS = ["view", "create", "edit", "delete", "approve"];
 const ACTION_LEVELS = ["none", "read", "edit", "approve", "full"];
 
 /**
- * المرحلة الأولى من نظام صلاحيات المناصب — شاشة صغيرة مقصورة على مالك الشركة فقط (الخادم يرفض
- * أي طلب من غيره عبر requireTenantOwner، بصرف النظر عمّا تعرضه هذه الواجهة). تغطي صلاحية واحدة
- * فقط حالياً: "فك ترحيل القيود" — راجع positions.service.ts في الخادم لبقية التفاصيل.
+ * شاشة إدارة المناصب وصلاحياتها — مقصورة على مالك الشركة فقط (الخادم يرفض أي طلب من غيره عبر
+ * requireTenantOwner، بصرف النظر عمّا تعرضه هذه الواجهة). قائمة الوحدات/الإجراءات (platformActions
+ * أدناه) تُقرَأ من الخادم (PLATFORM_ACTIONS في lib/platformActions.ts) بدل كتابة وحدة واحدة صراحة
+ * هنا — أي وحدة جديدة تُهاجَر للنظام الترتيبي تظهر تلقائياً في مُحدِّد الوحدة بلا أي تعديل في هذا
+ * الملف.
  */
 export default function PositionsTab() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [positions, setPositions] = useState([]);
   const [users, setUsers] = useState([]);
+  const [platformActions, setPlatformActions] = useState({});
   const [loading, setLoading] = useState(true);
   const { toast, notify, dismiss } = useToast();
   const [name, setName] = useState("");
@@ -37,18 +37,26 @@ export default function PositionsTab() {
   const [allowPosDeferredSale, setAllowPosDeferredSale] = useState(false);
   const [saving, setSaving] = useState(false);
   const [memberSelections, setMemberSelections] = useState({});
+  const [moduleSelections, setModuleSelections] = useState({});
   const [overrides, setOverrides] = useState([]);
   const [overrideUserId, setOverrideUserId] = useState("");
+  const [overrideModuleId, setOverrideModuleId] = useState("");
   const [overrideActionId, setOverrideActionId] = useState("");
   const [overrideLevel, setOverrideLevel] = useState("");
 
+  const moduleIds = Object.keys(platformActions);
+  const actionLabel = (action) => (i18n.language === "en" ? action.label.en : action.label.ar);
+  const moduleActions = (moduleId) => platformActions[moduleId] || [];
+  const selectedModuleFor = (position) => moduleSelections[position.id] || moduleIds[0] || "";
+
   const reload = () => {
     setLoading(true);
-    Promise.all([listPositions(), listAssignableUsers(), listUserOverrides()])
-      .then(([p, u, o]) => {
+    Promise.all([listPositions(), listAssignableUsers(), listUserOverrides(), listPlatformActions()])
+      .then(([p, u, o, actions]) => {
         setPositions(p);
         setUsers(u);
         setOverrides(o);
+        setPlatformActions(actions);
       })
       .catch((e) => notify(e.message, "error"))
       .finally(() => setLoading(false));
@@ -124,9 +132,9 @@ export default function PositionsTab() {
 
   const unassignedUsers = (position) => users.filter((u) => u.positionId !== position.id);
 
-  const changeLevel = async (position, actionId, level) => {
+  const changeLevel = async (position, moduleId, actionId, level) => {
     try {
-      await updatePositionActionPermission(position.id, { moduleId: LEAVE_REQUESTS_MODULE_ID, actionId, level });
+      await updatePositionActionPermission(position.id, { moduleId, actionId, level });
       reload();
     } catch (err) {
       notify(err.message, "error");
@@ -134,15 +142,16 @@ export default function PositionsTab() {
   };
 
   const addOverride = async () => {
-    if (!overrideUserId || !overrideActionId || !overrideLevel) return;
+    if (!overrideUserId || !overrideModuleId || !overrideActionId || !overrideLevel) return;
     try {
       await upsertUserOverride({
         userId: overrideUserId,
-        moduleId: LEAVE_REQUESTS_MODULE_ID,
+        moduleId: overrideModuleId,
         actionId: overrideActionId,
         level: overrideLevel,
       });
       setOverrideUserId("");
+      setOverrideModuleId("");
       setOverrideActionId("");
       setOverrideLevel("");
       reload();
@@ -221,16 +230,28 @@ export default function PositionsTab() {
             {t("settings.positions.allowPosDeferredSaleLabel")}
           </label>
 
-          <p className="note">{t("settings.positions.leaveRequestsTitle")}</p>
+          <p className="note">{t("settings.positions.permissionsTitle")}</p>
+          <div className="form-grid">
+            <select
+              value={selectedModuleFor(position)}
+              onChange={(e) => setModuleSelections((prev) => ({ ...prev, [position.id]: e.target.value }))}
+            >
+              {moduleIds.map((moduleId) => (
+                <option key={moduleId} value={moduleId}>
+                  {moduleId}
+                </option>
+              ))}
+            </select>
+          </div>
           <table className="ledger-table">
             <tbody>
-              {LEAVE_REQUEST_ACTIONS.map((actionId) => (
-                <tr key={actionId}>
-                  <td>{t(`settings.positions.actions.${actionId}`)}</td>
+              {moduleActions(selectedModuleFor(position)).map((action) => (
+                <tr key={action.id}>
+                  <td>{actionLabel(action)}</td>
                   <td>
                     <select
-                      value={position.leaveRequestLevels?.[actionId] || "none"}
-                      onChange={(e) => changeLevel(position, actionId, e.target.value)}
+                      value={position.actionLevels?.[selectedModuleFor(position)]?.[action.id] || "none"}
+                      onChange={(e) => changeLevel(position, selectedModuleFor(position), action.id, e.target.value)}
                     >
                       {ACTION_LEVELS.map((level) => (
                         <option key={level} value={level}>
@@ -285,11 +306,25 @@ export default function PositionsTab() {
               </option>
             ))}
           </select>
-          <select value={overrideActionId} onChange={(e) => setOverrideActionId(e.target.value)}>
+          <select
+            value={overrideModuleId}
+            onChange={(e) => {
+              setOverrideModuleId(e.target.value);
+              setOverrideActionId("");
+            }}
+          >
+            <option value="">{t("settings.positions.chooseModule")}</option>
+            {moduleIds.map((moduleId) => (
+              <option key={moduleId} value={moduleId}>
+                {moduleId}
+              </option>
+            ))}
+          </select>
+          <select value={overrideActionId} onChange={(e) => setOverrideActionId(e.target.value)} disabled={!overrideModuleId}>
             <option value="">{t("settings.positions.chooseAction")}</option>
-            {LEAVE_REQUEST_ACTIONS.map((actionId) => (
-              <option key={actionId} value={actionId}>
-                {t(`settings.positions.actions.${actionId}`)}
+            {moduleActions(overrideModuleId).map((action) => (
+              <option key={action.id} value={action.id}>
+                {actionLabel(action)}
               </option>
             ))}
           </select>
@@ -304,7 +339,7 @@ export default function PositionsTab() {
           <button
             className="btn-ghost"
             onClick={addOverride}
-            disabled={!overrideUserId || !overrideActionId || !overrideLevel}
+            disabled={!overrideUserId || !overrideModuleId || !overrideActionId || !overrideLevel}
           >
             {t("settings.positions.addOverride")}
           </button>
@@ -314,18 +349,22 @@ export default function PositionsTab() {
         {overrides.length > 0 && (
           <table className="ledger-table">
             <tbody>
-              {overrides.map((o) => (
-                <tr key={o.id}>
-                  <td>{o.user.name} ({o.user.email})</td>
-                  <td>{t(`settings.positions.actions.${o.actionId}`)}</td>
-                  <td>{t(`settings.positions.levels.${o.level}`)}</td>
-                  <td>
-                    <button className="btn-ghost" onClick={() => removeOverride(o)}>
-                      {t("settings.positions.removeOverride")}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {overrides.map((o) => {
+                const action = moduleActions(o.moduleId).find((a) => a.id === o.actionId);
+                return (
+                  <tr key={o.id}>
+                    <td>{o.user.name} ({o.user.email})</td>
+                    <td>{o.moduleId}</td>
+                    <td>{action ? actionLabel(action) : o.actionId}</td>
+                    <td>{t(`settings.positions.levels.${o.level}`)}</td>
+                    <td>
+                      <button className="btn-ghost" onClick={() => removeOverride(o)}>
+                        {t("settings.positions.removeOverride")}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

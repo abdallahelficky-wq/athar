@@ -52,6 +52,19 @@ export const createCompany: RequestHandler = async (req, res) => {
       // مستودع افتراضي — شرط أساسي لبيع أي صنف مخزوني، بدونه لا تكتمل "بدون أي إعداد يدوي"
       await createDefaultWarehouse(tx, req.auth!.tenantId, created.id);
 
+      // شركات "محطات وقود" تُزرَع بحسابي عجز/زيادة نقد الورديات المخصَّصين (622005/431003) تلقائياً
+      // من نفس القالب، حتى تعمل ميزة إقفال ورديات المحطات فور إنشاء الشركة بلا إعداد يدوي إضافي —
+      // الحقلان يبقيان قابلين لإعادة التوجيه لاحقاً لأي حساب آخر من إعدادات الشركة.
+      if (activity === "fuel_stations" && (idByCode.get("622005") || idByCode.get("431003"))) {
+        await tx.company.update({
+          where: { id: created.id },
+          data: {
+            stationCashShortageAccountId: idByCode.get("622005"),
+            stationCashSurplusAccountId: idByCode.get("431003"),
+          },
+        });
+      }
+
       return created;
     },
     { timeout: 20_000, maxWait: 10_000 },

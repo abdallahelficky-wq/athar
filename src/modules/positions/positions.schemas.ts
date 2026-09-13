@@ -1,22 +1,31 @@
 import { z } from "zod";
 import { ACTION_LEVELS, PLATFORM_ACTIONS } from "../../lib/platformActions";
 
-// مقصور على وحدة leaveRequests فقط في هذه المرحلة (أول وحدة مُهاجَرة للنظام الترتيبي) — أي moduleId/
-// actionId آخر يُرفَض عند التحقق، بصرف النظر عمّا يُرسِله العميل.
-const LEAVE_REQUEST_ACTION_IDS = PLATFORM_ACTIONS.leaveRequests.map((a) => a.id) as [string, ...string[]];
+// أي وحدة مُسجَّلة فعلياً في PLATFORM_ACTIONS (لا وحدة واحدة مُسمّاة صراحة) — تتسع هذه القائمة
+// تلقائياً مع كل وحدة جديدة تُهاجَر للنظام الترتيبي بلا أي تعديل هنا. actionId يُتحقَّق منه
+// بالنسبة لنفس moduleId المُرسَل تحديداً عبر refine أدناه، لا بقائمة إجراءات كل الوحدات مجتمعة.
+const MODULE_IDS = Object.keys(PLATFORM_ACTIONS) as [string, ...string[]];
 
-export const updateActionPermissionSchema = z.object({
-  moduleId: z.literal("leaveRequests"),
-  actionId: z.enum(LEAVE_REQUEST_ACTION_IDS),
-  level: z.enum(ACTION_LEVELS),
-});
+function actionExistsInModule(data: { moduleId: string; actionId: string }): boolean {
+  return PLATFORM_ACTIONS[data.moduleId]?.some((action) => action.id === data.actionId) ?? false;
+}
 
-export const upsertUserOverrideSchema = z.object({
-  userId: z.string().min(1, "المستخدم مطلوب"),
-  moduleId: z.literal("leaveRequests"),
-  actionId: z.enum(LEAVE_REQUEST_ACTION_IDS),
-  level: z.enum(ACTION_LEVELS),
-});
+export const updateActionPermissionSchema = z
+  .object({
+    moduleId: z.enum(MODULE_IDS),
+    actionId: z.string().min(1),
+    level: z.enum(ACTION_LEVELS),
+  })
+  .refine(actionExistsInModule, { message: "الإجراء غير موجود ضمن هذه الوحدة", path: ["actionId"] });
+
+export const upsertUserOverrideSchema = z
+  .object({
+    userId: z.string().min(1, "المستخدم مطلوب"),
+    moduleId: z.enum(MODULE_IDS),
+    actionId: z.string().min(1),
+    level: z.enum(ACTION_LEVELS),
+  })
+  .refine(actionExistsInModule, { message: "الإجراء غير موجود ضمن هذه الوحدة", path: ["actionId"] });
 
 export const createPositionSchema = z.object({
   name: z.string().trim().min(1, "اسم المنصب مطلوب").max(100),

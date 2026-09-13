@@ -1848,20 +1848,14 @@
       "notifyCreated": "Position created successfully.",
       "notifyDeleted": "Position deleted.",
       "confirmDelete": "Delete position \"{{name}}\"? Its members will lose its permissions immediately.",
-      "leaveRequestsTitle": "Leave request permissions",
+      "permissionsTitle": "Selected module permissions",
+      "chooseModule": "— Choose a module —",
       "levels": {
         "none": "No access",
         "read": "Read only",
         "edit": "Edit",
         "approve": "Approve",
         "full": "Full access"
-      },
-      "actions": {
-        "view": "View requests",
-        "create": "Create request",
-        "edit": "Edit request",
-        "delete": "Delete request",
-        "approve": "Approve/Reject"
       },
       "overridesTitle": "Individual user exceptions",
       "overridesEmpty": "No individual exceptions yet.",

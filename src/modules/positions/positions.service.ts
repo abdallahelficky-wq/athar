@@ -10,37 +10,44 @@ const UNPOST_MODULE_ID = "accounts";
 // النوع، بنفس النمط تماماً: عمود extra JSON بدل عمود مخصَّص، حقل allow* مخصَّص في الواجهة والمخطط.
 const POS_MODULE_ID = "sales";
 
-// أول وحدة مُهاجَرة لنظام الصلاحيات الترتيبي الجديد (PositionActionPermission) — راجع
-// PLATFORM_ACTIONS في lib/platformActions.ts.
-const LEAVE_REQUESTS_MODULE_ID = "leaveRequests";
-const LEAVE_REQUEST_ACTION_IDS = PLATFORM_ACTIONS.leaveRequests.map((a) => a.id);
-
 const positionInclude = {
   permissions: { where: { moduleId: { in: [UNPOST_MODULE_ID, POS_MODULE_ID] } } },
-  actionPermissions: { where: { moduleId: LEAVE_REQUESTS_MODULE_ID } },
+  // كل الوحدات المُهاجَرة للنظام الترتيبي معاً (لا وحدة واحدة مُسمّاة) — القائمة تتسع تلقائياً مع
+  // أي وحدة جديدة تُضاف إلى PLATFORM_ACTIONS بلا أي تعديل هنا.
+  actionPermissions: true,
   users: { select: { id: true, name: true, identity: { select: { email: true } } } },
 } satisfies Prisma.PositionInclude;
 
 type PositionRaw = Prisma.PositionGetPayload<{ include: typeof positionInclude }>;
+
+/** مستوى كل إجراء مُسجَّل فعلياً (عبر PLATFORM_ACTIONS)، لكل وحدة على حدة — {moduleId: {actionId:
+ * level}}. صف actionPermissions غير موجود لإجراء ما يعني "none" افتراضياً (نفس افتراض
+ * requireActionPermission في middleware/auth.ts تماماً)، لا حقلاً غائباً من الاستجابة. */
+function buildActionLevels(actionPermissions: PositionRaw["actionPermissions"]): Record<string, Record<string, string>> {
+  const result: Record<string, Record<string, string>> = {};
+  for (const [moduleId, actions] of Object.entries(PLATFORM_ACTIONS)) {
+    result[moduleId] = Object.fromEntries(
+      actions.map((action) => [
+        action.id,
+        actionPermissions.find((p) => p.moduleId === moduleId && p.actionId === action.id)?.level ?? "none",
+      ]),
+    );
+  }
+  return result;
+}
 
 function publicPosition(position: PositionRaw) {
   const unpostPermission = position.permissions.find((p) => p.moduleId === UNPOST_MODULE_ID);
   const allowUnpost = Boolean((unpostPermission?.extra as Record<string, boolean> | null)?.unpost);
   const posPermission = position.permissions.find((p) => p.moduleId === POS_MODULE_ID);
   const allowPosDeferredSale = Boolean((posPermission?.extra as Record<string, boolean> | null)?.posDeferredSale);
-  const leaveRequestLevels = Object.fromEntries(
-    LEAVE_REQUEST_ACTION_IDS.map((actionId) => [
-      actionId,
-      position.actionPermissions.find((p) => p.actionId === actionId)?.level ?? "none",
-    ]),
-  );
   return {
     id: position.id,
     name: position.name,
     createdAt: position.createdAt,
     allowUnpost,
     allowPosDeferredSale,
-    leaveRequestLevels,
+    actionLevels: buildActionLevels(position.actionPermissions),
     members: position.users.map((u) => ({ id: u.id, name: u.name, email: u.identity.email })),
   };
 }
@@ -107,9 +114,9 @@ export async function updatePositionPermissions(
   return publicPosition(updated);
 }
 
-/** يضبط مستوى منصب واحد على إجراء واحد ضمن وحدة leaveRequests فقط (moduleId/actionId مُتحقَّق منهما
- * مسبقاً في positions.schemas.ts) — upsert لأن الصف قد لا يكون موجوداً بعد (المستوى الافتراضي none
- * حين لا يوجد صف إطلاقاً، راجع publicPosition أعلاه). */
+/** يضبط مستوى منصب واحد على إجراء واحد ضمن أي وحدة مُسجَّلة في PLATFORM_ACTIONS (moduleId/actionId
+ * مُتحقَّق منهما مسبقاً في positions.schemas.ts) — upsert لأن الصف قد لا يكون موجوداً بعد (المستوى
+ * الافتراضي none حين لا يوجد صف إطلاقاً، راجع buildActionLevels أعلاه). */
 export async function updatePositionActionPermission(
   tenantId: string,
   positionId: string,
@@ -224,6 +231,13 @@ export async function canUnpostJournalEntries(tenantId: string, userId: string, 
  */
 export async function canDeferPosSale(tenantId: string, userId: string, role: string): Promise<boolean> {
   return hasPermission({ sub: userId, tenantId, role }, POS_MODULE_ID, "posDeferredSale");
+}
+
+/** كل الوحدات/الإجراءات/الحدود الدنيا المُسجَّلة في نظام الصلاحيات الترتيبي — تُقرَأ من الواجهة
+ * لبناء قائمة اختيار الوحدة/الإجراء في شاشة المناصب بلا أي وحدة مكتوبة صراحة هناك (راجع
+ * PositionsTab.jsx)، فتظهر أي وحدة جديدة تلقائياً بمجرد تسجيلها هنا. */
+export function listPlatformActions() {
+  return PLATFORM_ACTIONS;
 }
 
 /** كل مستخدمي هذه الشركة — لعرضهم في قائمة "إضافة عضو لهذا المنصب" بالواجهة. */

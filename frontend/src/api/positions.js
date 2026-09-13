@@ -2,6 +2,7 @@ import { api } from "./http";
 
 export const listPositions = () => api.get("/positions");
 export const listAssignableUsers = () => api.get("/positions/assignable-users");
+export const listPlatformActions = () => api.get("/positions/actions");
 export const createPosition = (payload) => api.post("/positions", payload);
 export const updatePosition = (id, payload) => api.patch(`/positions/${id}`, payload);
 export const deletePosition = (id) => api.delete(`/positions/${id}`);
