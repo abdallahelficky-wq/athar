@@ -30,9 +30,10 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 const DEFAULT_ARMI_COMPANY_ID = "cmsrciyjv000ge8f57p2azqdd";
 
+// حسابا جاري الشريكين مُتوقَّعان اثنان بنفس الكلمتين المفتاحيتين — سطر واحد هنا يكفي ويطبع كل
+// تطابق فعلي (يظهر أدناه إن كان اثنين أو غير ذلك، لا افتراض العدد مسبقاً).
 const ACCOUNT_KEYWORD_CHECKS: { label: string; keywords: string[] }[] = [
-  { label: "جاري الشريك (١)", keywords: ["شريك", "جاري"] },
-  { label: "جاري الشريك (٢) — نفس الكلمات المفتاحية، يُميَّز يدوياً من النتائج إن وُجد أكثر من حساب", keywords: ["شريك", "جاري"] },
+  { label: "حسابا جاري الشريكين (متوقَّع اثنان)", keywords: ["شريك", "جاري"] },
   { label: "مشروعات تحت التنفيذ", keywords: ["مشروعات", "تحت التنفيذ"] },
   { label: "مجموعة حسابات الخردة", keywords: ["خردة"] },
   { label: "مجموعة حسابات قطع الغيار", keywords: ["قطع غيار"] },
