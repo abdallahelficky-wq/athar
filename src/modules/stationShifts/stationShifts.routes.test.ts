@@ -28,6 +28,8 @@ vi.mock("../../lib/journalPosting", () => ({ createJournalEntryTx: vi.fn(() => P
 import { stationShiftRoutes } from "./stationShifts.routes";
 import { signAccessToken } from "../../lib/jwt";
 import { prisma } from "../../lib/prisma";
+import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { createJournalEntryTx } from "../../lib/journalPosting";
 import { HttpError } from "../../lib/httpError";
 
 let server: Server;
@@ -89,6 +91,8 @@ beforeEach(() => {
     stationCashShortageAccountId: "acc-shortage",
     stationCashSurplusAccountId: "acc-surplus",
   } as never);
+  vi.mocked(getAccountIdByName).mockResolvedValue("acc-generic");
+  vi.mocked(createJournalEntryTx).mockResolvedValue({ id: "je-1" } as never);
 });
 
 describe("a worker with 'worker'/edit level", () => {
@@ -158,6 +162,43 @@ describe("an accountant with 'review'/approve level", () => {
 
     const response = await call("POST", `/${SHIFT_ID}/approve`, ACCOUNTANT);
     expect(response.status).toBe(200);
+  });
+
+  it("is still forbidden from posting — 'review' and 'post' are independent grants, not implied by each other", async () => {
+    const response = await call("POST", `/${SHIFT_ID}/post`, ACCOUNTANT);
+    expect(response.status).toBe(403);
+    expect(prisma.stationShift.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("an accountant with 'post'/approve level (but no 'review' grant)", () => {
+  beforeEach(() => grantPositionLevel(ACCOUNTANT, "post", "approve"));
+
+  it("can post an approved shift", async () => {
+    const baseShift = {
+      id: SHIFT_ID,
+      tenantId: TENANT,
+      companyId: "company-a",
+      costCenterId: "station-1",
+      status: "approved",
+      shiftDate: new Date("2026-07-01"),
+      shiftType: "morning",
+    };
+    vi.mocked(prisma.stationShift.findFirst)
+      .mockResolvedValueOnce(baseShift as never) // assertShiftCompanyAccess (controller)
+      .mockResolvedValueOnce(baseShift as never) // postShift's own status check
+      .mockResolvedValueOnce({ ...baseShift, readings: [], creditSales: [], expenses: [], collection: null } as never); // loadShiftClosingInput
+    vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.stationShift.update).mockResolvedValue({ id: SHIFT_ID, status: "posted", journalEntryId: "je-1" } as never);
+
+    const response = await call("POST", `/${SHIFT_ID}/post`, ACCOUNTANT);
+    expect(response.status).toBe(200);
+  });
+
+  it("is forbidden from approving — has no 'review' grant", async () => {
+    const response = await call("POST", `/${SHIFT_ID}/approve`, ACCOUNTANT);
+    expect(response.status).toBe(403);
+    expect(prisma.stationShift.findFirst).not.toHaveBeenCalled();
   });
 });
 

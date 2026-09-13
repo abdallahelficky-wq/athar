@@ -28,18 +28,21 @@ import {
 } from "./stationShifts.controller";
 
 /**
- * موديول واحد (stationShifts) بمحورين مستقلَّين على نظام الصلاحيات الترتيبي الجديد
+ * موديول واحد (stationShifts) بثلاثة محاور مستقلَّة تماماً على نظام الصلاحيات الترتيبي الجديد
  * (requireActionPermission، راجع lib/platformActions.ts): "worker" (edit) لكل ما يفعله عامل
- * المحطة على ورديته المفتوحة، و"review" (approve) لكل ما يفعله المحاسب أثناء المراجعة/الاعتماد —
- * محوران منفصلان تماماً (لا أحدهما يتضمن الآخر ضمنياً)، بعكس مستويات approve/edit الترتيبية
- * العامة لنفس actionId، لأن قدرة المحاسب على "المراجعة" لا تعني حاجته لصلاحية "تشغيل" وردية
- * كعامل تشغيل وردية، والعكس صحيح.
+ * المحطة على ورديته المفتوحة، و"review" (approve) للمراجعة/التصحيح/الاعتماد أو الرفض، و"post"
+ * (approve) لترحيل وردية مُعتمَدة فعلياً (إنشاء قيدها المحاسبي). review وpost منفصلان عمداً رغم
+ * تطابق مستوييهما الأدنى اليوم: المستأجر يمنحهما لنفس المنصب حالياً (محاسب واحد يعتمد ويرحّل)، لكن
+ * الفصل موجود من الآن ليقدر لاحقاً على فصل "من يعتمد" عن "من يرحّل" بلا أي تعديل في الكود — فقط
+ * بإنشاء منصبين بدل واحد من شاشة المناصب. لا محور من الثلاثة يتضمن الآخر ضمنياً، بعكس مستويات
+ * approve/edit الترتيبية العامة لنفس actionId.
  */
 export const stationShiftRoutes = Router();
 stationShiftRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 const workerAccess = requireActionPermission("stationShifts", "worker", "edit");
 const reviewAccess = requireActionPermission("stationShifts", "review", "approve");
+const postAccess = requireActionPermission("stationShifts", "post", "approve");
 
 // عامل المحطة
 stationShiftRoutes.get("/my-station", workerAccess, getMyStationHandler);
@@ -51,10 +54,12 @@ stationShiftRoutes.post("/:id/expenses", workerAccess, validateBody(addExpenseSc
 stationShiftRoutes.get("/:id/summary", workerAccess, getShiftSummaryHandler);
 stationShiftRoutes.post("/:id/submit", workerAccess, submitShiftHandler);
 
-// المحاسب
+// المحاسب — مراجعة/اعتماد/رفض
 stationShiftRoutes.get("/pending", reviewAccess, listPendingShiftsHandler);
 stationShiftRoutes.get("/:id", reviewAccess, getShiftByIdHandler);
 stationShiftRoutes.put("/:id/readings/:readingId", reviewAccess, validateBody(correctReadingSchema), correctReadingHandler);
 stationShiftRoutes.post("/:id/approve", reviewAccess, approveShiftHandler);
-stationShiftRoutes.post("/:id/post", reviewAccess, postShiftHandler);
 stationShiftRoutes.post("/:id/reject", reviewAccess, validateBody(rejectShiftSchema), rejectShiftHandler);
+
+// المحاسب — ترحيل (صلاحية مستقلة عن الاعتماد، راجع التعليق أعلاه)
+stationShiftRoutes.post("/:id/post", postAccess, postShiftHandler);

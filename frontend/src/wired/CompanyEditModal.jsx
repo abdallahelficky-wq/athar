@@ -1,12 +1,14 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { updateCompany, uploadCompanyLogo, extractCompanyDocument, reopenFiscalClosing } from "../api/companies";
+import { listAccounts } from "../api/accounts";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CompanyDocumentsPanel from "./CompanyDocumentsPanel";
 import LeaseContractsPanel from "./LeaseContractsPanel";
 import BranchesPanel from "./BranchesPanel";
 import CompanyBankAccountsPanel from "./CompanyBankAccountsPanel";
+import AccountSearchSelect from "./shared/AccountSearchSelect";
 import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry } from "../shared/countries";
 
 const emptyForm = (c) => ({
@@ -36,6 +38,8 @@ const emptyForm = (c) => ({
   overdueInvoiceDays: c.overdueInvoiceDays ?? 30,
   staleDraftDays: c.staleDraftDays ?? 7,
   fiscalYearClosingDate: c.fiscalYearClosingDate ? c.fiscalYearClosingDate.slice(0, 10) : "",
+  stationCashShortageAccountId: c.stationCashShortageAccountId || "",
+  stationCashSurplusAccountId: c.stationCashSurplusAccountId || "",
 });
 
 /** نافذة تعديل بيانات الشركة الرسمية الكاملة — شعار، عنوان وطني، تواريخ السجل التجاري،
@@ -61,9 +65,15 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
   const [reopenDate, setReopenDate] = useState("");
   const [reopening, setReopening] = useState(false);
   const [reopenNotice, setReopenNotice] = useState("");
+  const [accounts, setAccounts] = useState([]);
 
   const logoInputRef = useRef(null);
   const docInputRefs = useRef({});
+
+  useEffect(() => { listAccounts({ companyId: company.id }).then(setAccounts).catch(() => {}); }, [company.id]);
+  const postingAccounts = useMemo(() => accounts.filter((a) => a.isPosting && a.isActive && !a.isArchived), [accounts]);
+  const stationExpenseAccounts = useMemo(() => postingAccounts.filter((a) => a.type === "expense"), [postingAccounts]);
+  const stationRevenueAccounts = useMemo(() => postingAccounts.filter((a) => a.type === "revenue"), [postingAccounts]);
 
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -81,6 +91,8 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         overdueInvoiceDays: Number(form.overdueInvoiceDays),
         staleDraftDays: Number(form.staleDraftDays),
         fiscalYearClosingDate: form.fiscalYearClosingDate || null,
+        stationCashShortageAccountId: form.stationCashShortageAccountId || null,
+        stationCashSurplusAccountId: form.stationCashSurplusAccountId || null,
       });
       onSaved();
     } catch (err) {
@@ -233,6 +245,31 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
             <input type="number" value={form.staleDraftDays} onChange={(e) => set("staleDraftDays", e.target.value)} />
           </label>
         </div>
+
+        {company.businessActivity === "fuel_stations" && (
+          <>
+            <h4 className="sub-head">{t("settings.companyEdit.stationShiftsTitle")}</h4>
+            <p className="note">{t("settings.companyEdit.stationShiftsNote")}</p>
+            <div className="form-grid">
+              <label>{t("settings.companyEdit.stationCashShortageAccountLabel")}
+                <AccountSearchSelect
+                  accounts={stationExpenseAccounts}
+                  value={form.stationCashShortageAccountId}
+                  onChange={(id) => set("stationCashShortageAccountId", id)}
+                  allowClear
+                />
+              </label>
+              <label>{t("settings.companyEdit.stationCashSurplusAccountLabel")}
+                <AccountSearchSelect
+                  accounts={stationRevenueAccounts}
+                  value={form.stationCashSurplusAccountId}
+                  onChange={(id) => set("stationCashSurplusAccountId", id)}
+                  allowClear
+                />
+              </label>
+            </div>
+          </>
+        )}
 
         <h4 className="sub-head">{t("settings.companyEdit.fiscalClosingTitle")}</h4>
         <p className="note">{t("settings.companyEdit.fiscalClosingNote")}</p>
