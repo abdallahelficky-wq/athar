@@ -1098,6 +1098,7 @@
     "installStandard": "Install standard chart",
     "scopeLabel": "Tree scope",
     "scopeGroupOption": "Group template (not used in journal entries)",
+    "showPartyAccounts": "Show detailed customer/supplier/employee accounts",
     "addAccount": "+ Add account",
     "expandView": "Show full tree",
     "compactView": "Compact view",
