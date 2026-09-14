@@ -33,6 +33,7 @@ import InventoryWiredModule, { INVENTORY_TABS } from "./wired/inventory/Inventor
 import FixedAssetsWiredModule, { FIXED_ASSETS_TABS } from "./wired/fixedAssets/FixedAssetsWiredModule";
 import HRWiredModule, { HR_TABS } from "./wired/hr/HRWiredModule";
 import StablesModule, { STABLE_TABS } from "./wired/stables/StablesModule";
+import StationShiftsTestPanel from "./wired/StationShiftsTestPanel";
 import UserMenu from "./wired/shared/UserMenu";
 import { UnsavedChangesProvider } from "./wired/shared/UnsavedChangesContext";
 import UnsavedChangesBlocker from "./wired/shared/UnsavedChangesBlocker";
@@ -420,6 +421,7 @@ const router = createBrowserRouter([
       { path: "reports/:tab", element: <ReportsRoute /> },
       { path: "settings", element: <Navigate to={routes.settings()} replace /> },
       { path: "settings/:tab", element: <SettingsRoute /> },
+      { path: "station-shifts-test", element: <StationShiftsTestPanel /> },
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },
