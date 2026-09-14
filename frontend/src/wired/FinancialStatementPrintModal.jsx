@@ -2,8 +2,10 @@ import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { PrintShell, printWithOrientation } from "../legacy/shared";
 import { fmt } from "../legacy/constants";
+import { getAccountDisplayName } from "./shared/accountDisplayName";
 
 function TrialBalanceTable({ data, t }) {
+  const { i18n } = useTranslation();
   const rows = data.rows.filter(
     (r) => r.opening.debit || r.opening.credit || r.period.debit || r.period.credit || r.closing.debit || r.closing.credit,
   );
@@ -24,7 +26,7 @@ function TrialBalanceTable({ data, t }) {
         {rows.map((r) => (
           <tr key={r.accountId}>
             <td>{r.code}</td>
-            <td>{r.name}</td>
+            <td>{getAccountDisplayName(r, i18n.language)}</td>
             <td className="num">{r.opening.debit ? fmt(r.opening.debit) : "—"}</td>
             <td className="num">{r.opening.credit ? fmt(r.opening.credit) : "—"}</td>
             <td className="num">{r.period.debit ? fmt(r.period.debit) : "—"}</td>
@@ -51,10 +53,11 @@ function TrialBalanceTable({ data, t }) {
 
 /** صفوف شجرة مبلغ واحد للطباعة — نفس شجرة الشاشة (AmountTreeRows في ReportsModule)، موسّعة بالكامل دائماً. */
 function PrintAmountTreeRows({ nodes, depth = 0 }) {
+  const { i18n } = useTranslation();
   return nodes.map((node) => (
     <React.Fragment key={node.accountId}>
       <tr className={!node.isPosting ? "strong" : undefined}>
-        <td className="indent" style={{ paddingRight: 8 + depth * 22 }}>{node.code} — {node.name}</td>
+        <td className="indent" style={{ paddingRight: 8 + depth * 22 }}>{node.code} — {getAccountDisplayName(node, i18n.language)}</td>
         <td className="num">{fmt(node.amount)}</td>
       </tr>
       {node.children.length > 0 && <PrintAmountTreeRows nodes={node.children} depth={depth + 1} />}
