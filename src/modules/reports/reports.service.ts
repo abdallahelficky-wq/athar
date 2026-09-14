@@ -208,6 +208,7 @@ export async function getTrialBalanceReport(
       accountId: account.id,
       code: account.code,
       name: account.name,
+      nameEn: account.nameEn,
       level: account.level,
       opening: netSplit(openingNet),
       period: { debit: p.debit, credit: p.credit },
@@ -224,6 +225,7 @@ export async function getTrialBalanceReport(
       accountId: account.id,
       code: account.code,
       name: account.name,
+      nameEn: account.nameEn,
       level: account.level,
       opening: { debit: 0, credit: 0 },
       period: { debit: p.debit, credit: p.credit },
@@ -264,6 +266,7 @@ export interface TrialBalanceTreeNode {
   accountId: string;
   code: string;
   name: string;
+  nameEn: string | null;
   level: number;
   isPosting: boolean;
   opening: Zeroed;
@@ -280,6 +283,7 @@ function finalizeTreeNode(node: TreeNode<RawFlow>): TrialBalanceTreeNode {
     accountId: node.account.id,
     code: node.account.code,
     name: node.account.name,
+    nameEn: node.account.nameEn,
     level: node.account.level,
     isPosting: node.account.isPosting,
     opening: split(openingNet),
@@ -391,6 +395,7 @@ export interface AmountTreeNode {
   accountId: string;
   code: string;
   name: string;
+  nameEn: string | null;
   level: number;
   isPosting: boolean;
   amount: number;
@@ -402,6 +407,7 @@ function finalizeAmountNode(node: TreeNode<AmountValue>): AmountTreeNode {
     accountId: node.account.id,
     code: node.account.code,
     name: node.account.name,
+    nameEn: node.account.nameEn,
     level: node.account.level,
     isPosting: node.account.isPosting,
     amount: node.value.amount,

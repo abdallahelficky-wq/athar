@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { PrintShell } from "../legacy/shared";
 import { fmt } from "../legacy/constants";
+import { getAccountDisplayName } from "./shared/accountDisplayName";
 
 /**
  * نسخة قابلة للطباعة من ميزان المراجعة الهرمي — تعرض بالضبط نفس الصفوف الظاهرة حالياً على الشاشة
@@ -11,7 +12,7 @@ import { fmt } from "../legacy/constants";
  * الأعمدة تلقائياً في كل صفحة عبر آلية الطباعة الأصلية للمتصفح دون أي كود إضافي.
  */
 export default function TrialBalanceTreePrintModal({ visibleRows, totals, balanced, dateFrom, dateTo, company, onClose }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const periodLabel = dateFrom || dateTo
     ? t("reports.trialPrint.periodWithDates", { from: dateFrom || t("reports.trialPrint.periodDefaultFrom"), to: dateTo || t("reports.trialPrint.periodDefaultTo") })
     : t("reports.trialPrint.periodAllTime");
@@ -41,7 +42,7 @@ export default function TrialBalanceTreePrintModal({ visibleRows, totals, balanc
         <tbody>
           {visibleRows.map(({ node, depth }) => (
             <tr key={node.accountId} className={!node.isPosting ? "strong" : ""}>
-              <td style={{ paddingRight: 8 + depth * 18 }}>{node.code} — {node.name}</td>
+              <td style={{ paddingRight: 8 + depth * 18 }}>{node.code} — {getAccountDisplayName(node, i18n.language)}</td>
               <td className="num">{node.opening.debit ? fmt(node.opening.debit) : "—"}</td>
               <td className="num">{node.opening.credit ? fmt(node.opening.credit) : "—"}</td>
               <td className="num">{node.period.debit ? fmt(node.period.debit) : "—"}</td>
