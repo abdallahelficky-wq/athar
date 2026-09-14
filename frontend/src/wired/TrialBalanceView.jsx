@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fmt } from "../legacy/constants";
 import { collectGroupAccountIds, flattenVisibleTree } from "./shared/trialBalanceTree";
+import { getAccountDisplayName } from "./shared/accountDisplayName";
 
 /**
  * ميزان مراجعة هرمي (Tree View) — بنفس شكل شجرة الحسابات: كل حساب أب (مستوى 1-3) صف إجمالي
@@ -17,7 +18,7 @@ export default function TrialBalanceView({
   onPrint, onExportExcel,
   branches,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { draft, setField, apply } = filters;
   const allGroupIds = useMemo(() => (data ? collectGroupAccountIds(data.roots) : new Set()), [data]);
   const visibleRows = useMemo(() => (data ? flattenVisibleTree(data.roots, expandedIds) : []), [data, expandedIds]);
@@ -105,7 +106,7 @@ export default function TrialBalanceView({
                         disabled={node.children.length === 0}
                         onClick={() => toggle(node.accountId)}
                       >▾</button>
-                      {node.code} — {node.name}
+                      {node.code} — {getAccountDisplayName(node, i18n.language)}
                     </div>
                   </td>
                   <td className="num" data-label={t("statementOfAccount.table.debit")}>{node.opening.debit ? fmt(node.opening.debit) : "—"}</td>
