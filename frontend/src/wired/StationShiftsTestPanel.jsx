@@ -42,7 +42,7 @@ function WorkerPanel() {
   const [message, setMessage] = useState("");
 
   const loadStation = () => stationShiftsApi.getMyStation().then(setStation).catch((e) => setError(e.message));
-  useEffect(loadStation, []);
+  useEffect(() => { loadStation(); }, []);
 
   const setField = (nozzleId, field, value) =>
     setReadingForms((prev) => ({ ...prev, [nozzleId]: { ...prev[nozzleId], [field]: value } }));
@@ -198,7 +198,7 @@ function AccountantPanel() {
   const [corrections, setCorrections] = useState({});
 
   const loadPending = () => stationShiftsApi.listPendingShifts().then(setPending).catch((e) => setError(e.message));
-  useEffect(loadPending, []);
+  useEffect(() => { loadPending(); }, []);
 
   const loadDetail = (id) => {
     setError(""); setSelectedId(id);
