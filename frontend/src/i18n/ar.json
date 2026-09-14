@@ -1098,6 +1098,7 @@
     "installStandard": "تثبيت الشجرة القياسية",
     "scopeLabel": "نطاق الشجرة",
     "scopeGroupOption": "قالب المجموعة (غير مستخدم في القيود)",
+    "showPartyAccounts": "إظهار حسابات العملاء/الموردين/الموظفين التفصيلية",
     "addAccount": "+ إضافة حساب",
     "expandView": "عرض الشجرة كاملة",
     "compactView": "عرض مصغّر",

@@ -4,6 +4,8 @@ export const listAccounts = (filters = {}) => {
   const query = new URLSearchParams();
   if (filters.tree) query.set("tree", "true");
   if (filters.companyId) query.set("companyId", filters.companyId);
+  if (filters.includePartyAccounts === false) query.set("includePartyAccounts", "false");
+  if (filters.partySearch) query.set("partySearch", filters.partySearch);
   return api.get(`/accounts${query.size ? `?${query}` : ""}`);
 };
 export const createAccount = (payload) => api.post("/accounts", payload);
