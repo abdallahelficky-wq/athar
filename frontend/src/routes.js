@@ -9,6 +9,7 @@ export const routes = {
   purchases: (tab = "suppliers") => `/purchases/${tab}`,
   inventory: (tab = "items") => `/inventory/${tab}`,
   stables: (tab = "overview") => `/stables/${tab}`,
+  stationShifts: (tab = "pending") => `/stationShifts/${tab}`,
   fixedAssets: (tab = "register") => `/fixedAssets/${tab}`,
   accounts: (tab = "journal") => `/accounts/${tab}`,
   hr: (tab = "dashboard") => `/hr/${tab}`,

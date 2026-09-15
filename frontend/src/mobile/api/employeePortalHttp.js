@@ -10,17 +10,20 @@ export class ApiError extends Error {
   }
 }
 
-/** طلب API لبوابة الموظف — لا تجديد رمز تلقائياً (الرمز صالح أسبوعاً)؛ 401 يُبطل الجلسة فوراً */
+/** طلب API لبوابة الموظف — لا تجديد رمز تلقائياً (الرمز صالح أسبوعاً)؛ 401 يُبطل الجلسة فوراً.
+ * جسم FormData (رفع صورة) يُترَك للمتصفح ليضبط Content-Type بنفسه (يتضمّن boundary متعدد
+ * الأجزاء)، بعكس جسم JSON العادي — نفس أسلوب api/http.js في التطبيق الرئيسي تماماً. */
 export async function employeePortalFetch(path, options = {}) {
   const token = getEmployeePortalToken();
+  const isFormData = options.body instanceof FormData;
   const headers = { ...(options.headers || {}) };
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  if (options.body !== undefined && !isFormData) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    body: options.body === undefined ? undefined : isFormData ? options.body : JSON.stringify(options.body),
   });
 
   const text = await res.text();
@@ -36,4 +39,6 @@ export async function employeePortalFetch(path, options = {}) {
 export const employeePortalApi = {
   get: (path) => employeePortalFetch(path, { method: "GET" }),
   post: (path, body) => employeePortalFetch(path, { method: "POST", body }),
+  postForm: (path, formData) => employeePortalFetch(path, { method: "POST", body: formData }),
+  put: (path, body) => employeePortalFetch(path, { method: "PUT", body }),
 };
