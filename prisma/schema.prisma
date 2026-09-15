@@ -2734,6 +2734,13 @@ model StationShift {
   // فارغاً طوال بقية دورة حياة الوردية (open..approved وrejected).
   journalEntryId      String?            @unique
   journalEntry        JournalEntry?      @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+  // علامة صريحة على وردية بيانات بذرة (زُرعت بسكريبت اختبار محلي مثل
+  // scripts/seed-station-pumps-demo.ts، ليست وردية عمل حقيقية) — الحقل الوحيد الذي يميّزها فعلياً
+  // في البيانات نفسها؛ تقارير ورديات المحطات (stationShiftsReports) تستبعدها دائماً، بلا أي
+  // اعتماد على تاريخ معيّن أو نمط معرّف. لا صلة لهذا الحقل بحالة الوردية (status) ولا بالترحيل
+  // المحاسبي — وردية بذرة تبقى "posted" بلا قيد فعلي (راجع تعليق السكريبت)، وهذا الحقل تحديداً
+  // هو من يمنعها من تلويث أرقام التقارير رغم ذلك.
+  isSeedData          Boolean            @default(false)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 

@@ -24,6 +24,10 @@
  * المراجعة" ولا أي شاشة أخرى يستخدمها المحاسب أو العامل، ويتوقف اعتمادها تلقائياً بمجرد وجود
  * وردية حقيقية أحدث منها (تصبح هي "الأحدث" حينها، والبذرة تُستبعَد بلا أي تدخل إضافي).
  *
+ * isSeedData=true (لا معرّفها الثابت ولا تاريخها) هي العلامة الفعلية التي تستبعدها من كل تقارير
+ * ورديات المحطات (stationShiftsReports) — تلك الحقول الأخرى تخدم فقط آلية اشتقاق القراءة
+ * الافتتاحية أعلاه، ولا صلة لها بمنطق استبعاد التقارير إطلاقاً.
+ *
  * تحمل وردية البذرة قراءة واحدة لكل فوهة في المحطة بأكملها — فوهتا المضخة 1 القديمتين أيضاً، لكن
  * بقيمتيهما الحقيقيتين المُشتقّتين من آخر وردية فعلية سبق وجودها (تُحدَّث في كل تشغيل لتبقى مطابقة
  * لأحدث رقم حقيقي)، أو بقيمة بذرة معقولة لو لم توجد أي وردية حقيقية بعد — لا يُخترَع رقم جديد لهما
@@ -147,7 +151,7 @@ async function main() {
 
   const seedShift = await prisma.stationShift.upsert({
     where: { id: seedShiftId },
-    update: { shiftDate: seedShiftDate, shiftType: SEED_SHIFT_TYPE, employeeId: seedEmployee.id },
+    update: { shiftDate: seedShiftDate, shiftType: SEED_SHIFT_TYPE, employeeId: seedEmployee.id, isSeedData: true },
     create: {
       id: seedShiftId,
       tenantId,
@@ -159,6 +163,9 @@ async function main() {
       openedAt: seedShiftDate,
       closedAt: seedShiftDate,
       status: "posted",
+      // العلامة الفعلية التي تستبعد هذه الوردية من كل تقارير stationShiftsReports — راجع تعليق
+      // الحقل في schema.prisma؛ لا علاقة لمعرّفها الثابت أو تاريخها بهذا الاستبعاد إطلاقاً.
+      isSeedData: true,
     },
   });
 

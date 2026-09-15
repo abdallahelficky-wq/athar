@@ -9,7 +9,7 @@ type DecimalInput = Prisma.Decimal.Value;
 
 // ضريبة القيمة المضافة 15% — السعر عند المضخة يشملها دائماً (priceInclVat)، وفق القسم 4 من هذه
 // المواصفة صراحة؛ ليست إعداداً قابلاً للتخصيص هنا.
-const VAT_DIVISOR = new Prisma.Decimal("1.15");
+export const VAT_DIVISOR = new Prisma.Decimal("1.15");
 
 export interface NozzleReadingInput {
   nozzleId: string;
@@ -390,8 +390,12 @@ async function tryResolveAccountIdByName(tenantId: string, companyId: string, na
  * كل بنود StationShiftExpense (بصرف النظر عن category الحر) لا تزال تُقيَّد على حساب عام واحد
  * ("مصروفات إدارية متنوعة أخرى") — category نص وصفي فقط حالياً، لا مُحدِّد حساب؛ قرار مقصود، ليس
  * سهواً (راجع الملخص المرافق).
+ *
+ * مُصدَّرة (لا خاصة بهذا الملف فقط) لأن stationShiftsReports.service.ts تعيد استخدامها حرفياً —
+ * مرّة واحدة فقط لكل طلب تقرير (لا مرّة لكل وردية داخل حلقة)، تماماً كما هنا لكل استدعاء إقفال
+ * وردية واحدة؛ لا مسار تسعير/حسابات ثانٍ مختلف يُبنى في وحدة التقارير إطلاقاً.
  */
-async function resolveShiftClosingAccounts(tenantId: string, companyId: string) {
+export async function resolveShiftClosingAccounts(tenantId: string, companyId: string) {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: { stationCashShortageAccountId: true, stationCashSurplusAccountId: true },
