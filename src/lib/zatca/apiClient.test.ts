@@ -155,3 +155,24 @@ describe("apiClient schema validation on 2xx responses (malformedResponse)", () 
     expect(result.malformedResponse).toBeUndefined();
   });
 });
+
+// إعادة إنتاج العطل قيد التحقيق: fetch() نفسها ترمي (DNS/timeout/رفض اتصال...) قبل وصول أي استجابة
+// HTTP إطلاقاً — بلا هذا الالتقاط كانت تسقط كاستثناء خام يُسقِط معاملة Prisma بأكملها التي استدعتها
+// (بما فيها فاتورة نقطة بيع مبسّطة كانت ستُرحَّل بصرف النظر عن نتيجة هذا الإرسال أصلاً).
+describe("apiClient network-failure handling (fetch itself throws)", () => {
+  it("surfaces a fetch rejection as ok:false with networkError:true instead of throwing", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const result = await clearInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.ok).toBe(false);
+    expect(result.networkError).toBe(true);
+    expect(result.status).toBe(0);
+    expect(result.data).toBeNull();
+  });
+
+  it("also protects reportInvoice (the B2C/simplified submission path) the same way", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("getaddrinfo ENOTFOUND gw-fatoora.zatca.gov.sa")));
+    const result = await reportInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.ok).toBe(false);
+    expect(result.networkError).toBe(true);
+  });
+});

@@ -65,8 +65,10 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
   if (result.ok) {
     return { accepted: true, response: result.data, signedXml, invoiceHash, qrPayload };
   }
-  const reason = result.malformedResponse
-    ? "رد غير متوقع من زاتكا (نجاح HTTP لكن الشكل لا يطابق المتوقَّع) — لم تُعتمَد الاستجابة، حاول لاحقاً أو راجع الدعم الفني"
-    : extractRejectionReasons(result.data);
+  const reason = result.networkError
+    ? "تعذّر الاتصال بخادم هيئة الزكاة والضريبة والجمارك (زاتكا) — حاول لاحقاً أو راجع الدعم الفني"
+    : result.malformedResponse
+      ? "رد غير متوقع من زاتكا (نجاح HTTP لكن الشكل لا يطابق المتوقَّع) — لم تُعتمَد الاستجابة، حاول لاحقاً أو راجع الدعم الفني"
+      : extractRejectionReasons(result.data);
   return { accepted: false, response: result.data, reason, signedXml, invoiceHash };
 }

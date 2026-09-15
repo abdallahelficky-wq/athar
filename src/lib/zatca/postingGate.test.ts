@@ -191,4 +191,31 @@ describe("evaluateZatcaPostingGate", () => {
     expect(decision.proceedWithPosting).toBe(true);
     expect(decision.zatcaFields.zatcaStatus).toBe("rejected");
   });
+
+  // إعادة إنتاج مباشرة للعطل قيد التحقيق: شركة مرتبطة بزاتكا فعلياً، تبيع لعميل نقدي (فاتورة
+  // مبسّطة، حال أي بيع نقطة بيع كاش عادي) — لكن خادم الشركة لا يقدر يصل شبكة زاتكا فعلياً (fetch
+  // نفسها ترمي، لا مجرد رد رفض). قبل الإصلاح كان هذا الاستثناء الخام يسقط من evaluateZatcaPostingGate
+  // ليُسقِط معاملة إنشاء الفاتورة بأكملها في createSalesInvoice (500 عام، لا فاتورة تُنشأ إطلاقاً)
+  // رغم أن نفس الوردية بالضبط، لو رفضتها زاتكا صراحةً بدل تعذّر الاتصال، كانت ستُرحَّل بلا مشكلة
+  // (الاختبار السابق مباشرة). فشل الاتصال يجب أن يُعامَل بلا أقل من معاملة الرفض الصريح، لا أسوأ منها.
+  it("keeps a SIMPLIFIED (POS cash sale) invoice postable when ZATCA's network is simply unreachable", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 175,
+      vatTotal: 22.83,
+    });
+
+    expect(decision.proceedWithPosting).toBe(true);
+    expect(decision.zatcaFields.zatcaStatus).toBe("rejected");
+    expect(decision.rejectionReason).toContain("تعذّر الاتصال");
+  });
 });
