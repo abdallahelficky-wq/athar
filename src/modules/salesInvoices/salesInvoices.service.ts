@@ -588,22 +588,60 @@ export interface ZatcaAutoRetryRunSummary {
   stillFailing: number;
 }
 
+// سقف أمان لحجم الاستعلام نفسه فقط (لا علاقة له بعدد ما يُرسَل فعلياً لزاتكا في نبضة واحدة، راجع
+// ZATCA_AUTO_RETRY_BATCH_SIZE أدناه) — يمنع تحميل جدول ضخم بالكامل في الحالة النادرة لتراكم كبير جداً.
+const ZATCA_AUTO_RETRY_QUERY_LIMIT = 500;
+
+// أقصى عدد فواتير تُرسَل فعلياً لزاتكا في نبضة واحدة (كل 5 دقائق، راجع retryScheduler.ts) — يُصرِّف
+// تراكم انقطاع ليلي كامل (تقريباً 240 فاتورة لمحطة بمعدل 30 فاتورة/ساعة على مدى 8 ساعات) خلال نحو
+// ساعة تقريباً من عودة الاتصال (20 × نبضة كل 5 دقائق = 240 فاتورة/ساعة)، بدل إغراق زاتكا بمئات
+// الطلبات دفعة واحدة عند أول نبضة بعد عودة الشبكة.
+const ZATCA_AUTO_RETRY_BATCH_SIZE = 20;
+
 /**
- * يُستدعى دورياً من lib/zatca/retryScheduler.ts — يفحص كل الفواتير المُرحَّلة التي لم تصل لزاتكا
- * بنجاح بعد (تعذّر اتصال، أو لم تُرسَل أصلاً بسبب غياب شهادة الشركة وقت الترحيل) ويعيد محاولة
- * إرسالها. لا يمسّ القيد المحاسبي ولا حالة ترحيل الفاتورة إطلاقاً (نهائية بصرف النظر عن نتيجة
- * زاتكا) — فقط حقول زاتكا. فشل فاتورة واحدة (استثناء غير متوقَّع، شهادة أُلغيت، ...) لا يوقف
- * بقية الدفعة ولا الوظيفة الدورية نفسها.
+ * يُستدعى دورياً من lib/zatca/retryScheduler.ts — يفحص كل الفواتير المُرحَّلة (لأي شركة على
+ * المنصّة، بلا اقتصار على مستأجر واحد؛ هذا job خلفي بلا سياق طلب) التي لم تصل لزاتكا بنجاح بعد
+ * (تعذّر اتصال، أو لم تُرسَل أصلاً بسبب غياب شهادة الشركة وقت الترحيل) ويعيد محاولة إرسالها بشهادة
+ * *شركتها هي* تحديداً (invoice.company عبر invoiceInclude) — لا مشاركة حالة بين الشركات. لا يمسّ
+ * القيد المحاسبي ولا حالة ترحيل الفاتورة إطلاقاً (نهائية بصرف النظر عن نتيجة زاتكا) — فقط حقول
+ * زاتكا. فشل فاتورة واحدة (استثناء غير متوقَّع، شهادة شركة أُلغيت أو انتهت، ...) لا يوقف بقية
+ * الدفعة (شركات أخرى ضمنها) ولا الوظيفة الدورية نفسها.
+ *
+ * أمان تعدّد النُّسخ (Railway قد يُشغِّل أكثر من Instance): قبل أي محاولة فعلية لفاتورة، تُحجَز
+ * ذرّياً بـupdateMany تُطابِق قيمتي zatcaRetryCount/zatcaLastAttemptAt المقروءتين بالضبط في
+ * شرط WHERE (نفس أسلوب المطالبة الذرّية في reportScheduler.ts أعلاه بـlastSentPeriodKey) — لو
+ * نسخة أخرى من الخادم حجزت نفس الفاتورة أولاً (أو غيّرت حالتها) بين قراءتنا وتحديثنا، هذا التحديث
+ * يُطابِق صفراً من الصفوف فنتخطّى الفاتورة هذه النبضة بدل إرسالها مرتين. الحجز يحدث *قبل* أي اتصال
+ * فعلي بزاتكا، فانهيار العملية بعده مباشرة (قبل استدعاء fetch) لا يترك أثراً غير محاولة مؤجَّلة
+ * فقط. النافذة الوحيدة غير المُغلَقة فعلياً: انهيار العملية بعد أن يستلم زاتكا الطلب فعلياً وقبل أن
+ * يُكتَب نجاح ذلك محلياً — عندها ستُعاد المحاولة لاحقاً بنفس UUID/تجزئة المستند بالضبط؛ هذا الكود
+ * لا يفترض أن زاتكا يتعامل مع ذلك كطلب مكرر آمن (idempotent)، فهذه نافذة خطر متبقية فعلياً، ولا
+ * توجد في هذا التكامل أي نقطة API للتحقق من حالة مستند سبق إرساله قبل إعادة إرساله.
  */
 export async function runZatcaAutoRetry(now: Date = new Date()): Promise<ZatcaAutoRetryRunSummary> {
   const candidates = await prisma.salesInvoice.findMany({
     where: { status: "posted", zatcaStatus: { in: [...ZATCA_AUTO_RETRY_STATUSES] } },
+    orderBy: { zatcaSubmittedAt: "asc" }, // الأقدم أولاً — الأقرب لمهلة الـ24 ساعة القانونية للفاتورة المبسّطة
+    take: ZATCA_AUTO_RETRY_QUERY_LIMIT,
     include: invoiceInclude,
   });
 
   const summary: ZatcaAutoRetryRunSummary = { attempted: 0, succeeded: 0, rejected: 0, stillFailing: 0 };
   for (const invoice of candidates) {
+    if (summary.attempted >= ZATCA_AUTO_RETRY_BATCH_SIZE) break;
     if (!isDueForZatcaAutoRetry(invoice, now)) continue;
+
+    const claim = await prisma.salesInvoice.updateMany({
+      where: {
+        id: invoice.id,
+        zatcaStatus: { in: [...ZATCA_AUTO_RETRY_STATUSES] },
+        zatcaRetryCount: invoice.zatcaRetryCount,
+        zatcaLastAttemptAt: invoice.zatcaLastAttemptAt,
+      },
+      data: { zatcaLastAttemptAt: now },
+    });
+    if (claim.count === 0) continue; // نسخة أخرى من الخادم سبقتنا لهذه الفاتورة، أو تغيّرت حالتها منذ القراءة أعلاه
+
     summary.attempted++;
     try {
       const { updated } = await performZatcaResubmission(invoice);
@@ -614,12 +652,12 @@ export async function runZatcaAutoRetry(now: Date = new Date()): Promise<ZatcaAu
       summary.stillFailing++;
       // eslint-disable-next-line no-console
       console.error(`[zatcaAutoRetry] فشلت محاولة إعادة إرسال الفاتورة ${invoice.invoiceNumber} (${invoice.id}):`, err);
-      // نُسجّل وقت المحاولة حتى لو فشلت محلياً قبل الوصول لزاتكا فعلياً (مثال: الشركة لم تُهيّئ
-      // شهادتها بعد) — بدون هذا ستُعاد محاولة نفس الفاتورة كل نبضة بلا أي انتظار، رغم أن السبب لن
-      // يتغيّر خلال دقائق.
+      // وقت الحجز أعلاه (zatcaLastAttemptAt = now) يكفي وحده لتفعيل الانتظار (backoff) حتى لو
+      // فشلت المحاولة هنا محلياً قبل الوصول لزاتكا فعلياً (مثال: الشركة لم تُهيّئ شهادتها بعد) —
+      // فقط نزيد العدّاد هنا لتصعيد مدة الانتظار في المرة التالية.
       await prisma.salesInvoice
-        .update({ where: { id: invoice.id }, data: { zatcaLastAttemptAt: now, zatcaRetryCount: { increment: 1 } } })
-        .catch((updateErr) => console.error(`[zatcaAutoRetry] تعذّر تحديث وقت المحاولة للفاتورة ${invoice.invoiceNumber}:`, updateErr));
+        .update({ where: { id: invoice.id }, data: { zatcaRetryCount: { increment: 1 } } })
+        .catch((updateErr) => console.error(`[zatcaAutoRetry] تعذّر تحديث عدّاد المحاولات للفاتورة ${invoice.invoiceNumber}:`, updateErr));
     }
   }
   return summary;
