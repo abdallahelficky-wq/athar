@@ -26,6 +26,7 @@ import { salesDebitNoteRoutes } from "./modules/salesDebitNotes/salesDebitNotes.
 import { receiptRoutes } from "./modules/receipts/receipts.routes";
 import { stationSaleRoutes } from "./modules/stationSales/stationSales.routes";
 import { stationShiftRoutes } from "./modules/stationShifts/stationShifts.routes";
+import { stationShiftPortalRoutes } from "./modules/stationShifts/stationShifts.portal.routes";
 import { salesReportRoutes } from "./modules/salesReports/salesReports.routes";
 import { supplierRoutes } from "./modules/suppliers/suppliers.routes";
 import { purchaseInvoiceRoutes } from "./modules/purchaseInvoices/purchaseInvoices.routes";
@@ -126,6 +127,7 @@ export function createApp() {
   app.use("/api/employee-portal", employeePortalRoutes);
   app.use("/api/attendance", attendanceRoutes);
   app.use("/api/employee-portal/leave-requests", leaveRequestPortalRoutes);
+  app.use("/api/employee-portal/station-shifts", stationShiftPortalRoutes);
   app.use("/api/pos", posRoutes);
   app.use("/api/stables", stableRoutes);
   app.use("/api/ai", aiRoutes);

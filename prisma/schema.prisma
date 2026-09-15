@@ -208,16 +208,11 @@ model User {
   positionId String?
   position   Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
-  // المحطة (مركز التكلفة) التي يعمل بها هذا المستخدم كعامل محطة — تحدّد نطاقه في وحدة سجل
-  // ورديات المحطات (stationShifts): لا يمكنه فتح/تعديل وردية لأي محطة غير هذه إطلاقاً، بصرف
-  // النظر عن صلاحيته العامة على الوحدة. اختياري: يبقى null لأي مستخدم ليس عامل محطة.
-  assignedCostCenterId String?
-  assignedCostCenter   CostCenter? @relation(fields: [assignedCostCenterId], references: [id], onDelete: SetNull)
-
   refreshTokens             RefreshToken[]
   auditLogs                 AuditLog[]
   actionPermissionOverrides UserActionPermissionOverride[]
-  stationShiftsAsWorker     StationShift[]                 @relation("StationShiftEmployee")
+  // عامل ورديات المحطة (assignedCostCenterId) انتقل بالكامل إلى Employee — بوابة الموظف (الجوال)
+  // هي واجهة العامل الوحيدة الآن، لا حساب User إطلاقاً؛ راجع Employee.assignedCostCenterId.
   stationShiftsAsReviewer   StationShift[]                 @relation("StationShiftReviewer")
   stationShiftAuditLogs     StationShiftAuditLog[]
 
@@ -570,7 +565,7 @@ model CostCenter {
   stationShifts      StationShift[]
   tankDeliveries     TankDelivery[]
   tankDips           TankDip[]
-  assignedWorkers    User[]
+  assignedEmployees  Employee[]
 
   @@map("cost_centers")
 }
@@ -1806,6 +1801,14 @@ model Employee {
   portalLockedUntil         DateTime?
   managerId                 String?
   manager                   Employee?      @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  // المحطة (مركز التكلفة) التي يعمل بها هذا الموظف كعامل محطة عبر بوابة الموظف — تحدّد نطاقه
+  // الوحيد في وحدة سجل ورديات المحطات (stationShifts): لا يمكنه فتح/تعديل وردية لأي محطة غير
+  // هذه إطلاقاً. اختياري: يبقى null لأي موظف ليس عامل محطة. مطابق تماماً لمبدأ
+  // User.assignedCostCenterId السابق (نُقِل هنا بالكامل: بوابة الموظف لا تملك مفهوم
+  // Position/PositionActionPermission أصلاً، فوجود هذا التخصيص نفسه هو "الصلاحية" الوحيدة
+  // المطلوبة لفتح وردية — تماماً كمبدأ managerId أعلاه في صلاحيات وحدة الإجازات).
+  assignedCostCenterId      String?
+  assignedCostCenter        CostCenter?    @relation(fields: [assignedCostCenterId], references: [id], onDelete: SetNull)
   // حساب تفصيلي مستقل (مستوى رابع) تحت مجموعة "ذمم الموظفين" (أصول متداولة) — يمثّل صافي الراتب
   // المستحق لهذا الموظف تحديداً (بدل الحساب المشترك "رواتب مستحقة للصرف"/"ذمم الموظفين -
   // مستحقات وإجازات" السابق). نفس مبدأ Customer.accountId/Supplier.accountId.
@@ -1826,6 +1829,7 @@ model Employee {
   // أصول محتفَظ بها كعهدة حالياً — تتبّع بسيط لمن يحمل الأصل الآن بلا أي أثر محاسبي (بعكس
   // EmployeeAdvance)؛ تاريخ العُهدة عبر الزمن مؤجَّل لمرحلة مستقبلية (AssetCustodyHistory).
   custodyAssets     FixedAsset[]               @relation("FixedAssetCustodian")
+  stationShifts     StationShift[]             @relation("StationShiftEmployee")
 
   @@unique([tenantId, phone])
   @@unique([companyId, employeeNumber])
@@ -2713,8 +2717,9 @@ model StationShift {
   company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   costCenterId        String
   costCenter          CostCenter         @relation(fields: [costCenterId], references: [id])
-  employeeUserId      String
-  employeeUser        User               @relation("StationShiftEmployee", fields: [employeeUserId], references: [id])
+  // موظف عبر بوابة الموظف (الجوال) حصراً — لا حساب User إطلاقاً؛ راجع Employee.assignedCostCenterId
+  employeeId          String
+  employee            Employee           @relation("StationShiftEmployee", fields: [employeeId], references: [id])
   shiftDate           DateTime
   shiftType           StationShiftType
   openedAt            DateTime?

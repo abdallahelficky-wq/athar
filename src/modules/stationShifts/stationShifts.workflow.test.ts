@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../lib/prisma", () => ({
   prisma: {
-    user: { findFirst: vi.fn() },
+    employee: { findFirst: vi.fn() },
     company: { findUnique: vi.fn() },
     costCenter: { findUnique: vi.fn() },
     stationNozzle: { findMany: vi.fn(), findFirst: vi.fn() },
@@ -27,7 +27,7 @@ import { createJournalEntryTx } from "../../lib/journalPosting";
 import * as service from "./stationShifts.service";
 
 const TENANT = "tenant-1";
-const USER = "user-1";
+const EMPLOYEE = "employee-1";
 const SHIFT_ID = "shift-1";
 
 function baseShift(overrides: Partial<Record<string, unknown>> = {}) {
@@ -36,7 +36,7 @@ function baseShift(overrides: Partial<Record<string, unknown>> = {}) {
     tenantId: TENANT,
     companyId: "company-1",
     costCenterId: "station-1",
-    employeeUserId: USER,
+    employeeId: EMPLOYEE,
     shiftDate: new Date("2026-07-01"),
     shiftType: "morning",
     status: "open",
@@ -61,14 +61,14 @@ describe("worker actions are blocked once a shift leaves 'open'", () => {
   it.each(["submitted", "under_review", "approved", "posted", "rejected"])("rejects updateCollections when status is %s", async (status) => {
     vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ status }) as never);
     await expect(
-      service.updateCollections(TENANT, USER, SHIFT_ID, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 100 }),
+      service.updateCollections(TENANT, EMPLOYEE, SHIFT_ID, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 100 }),
     ).rejects.toMatchObject({ status: 403 });
     expect(prisma.stationShiftCollection.upsert).not.toHaveBeenCalled();
   });
 
   it("rejects a worker acting on a shift owned by someone else", async () => {
-    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ employeeUserId: "other-user" }) as never);
-    await expect(service.submitShift(TENANT, USER, SHIFT_ID)).rejects.toMatchObject({ status: 403 });
+    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ employeeId: "other-employee" }) as never);
+    await expect(service.submitShift(TENANT, EMPLOYEE, SHIFT_ID)).rejects.toMatchObject({ status: 403 });
   });
 });
 
@@ -80,7 +80,7 @@ describe("opening readings are always derived server-side", () => {
     vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel" } as never);
     vi.mocked(prisma.stationShiftReading.upsert).mockResolvedValue({ id: "reading-1" } as never);
 
-    await service.submitReading(TENANT, USER, SHIFT_ID, {
+    await service.submitReading(TENANT, EMPLOYEE, SHIFT_ID, {
       nozzleId: "nozzle-1",
       closingReading: 700,
       testLiters: 0,
@@ -99,7 +99,7 @@ describe("opening readings are always derived server-side", () => {
     vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel" } as never);
     vi.mocked(prisma.stationShiftReading.upsert).mockResolvedValue({ id: "reading-1" } as never);
 
-    await service.submitReading(TENANT, USER, SHIFT_ID, {
+    await service.submitReading(TENANT, EMPLOYEE, SHIFT_ID, {
       nozzleId: "nozzle-1",
       closingReading: 100,
       testLiters: 0,
@@ -118,7 +118,7 @@ describe("opening readings are always derived server-side", () => {
     vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel" } as never);
 
     await expect(
-      service.submitReading(TENANT, USER, SHIFT_ID, {
+      service.submitReading(TENANT, EMPLOYEE, SHIFT_ID, {
         nozzleId: "nozzle-1",
         closingReading: 5, // 5 + 10^6 - 999999 = 6, minus 1000 test liters = -994
         testLiters: 1000,
@@ -136,7 +136,7 @@ describe("approval completeness gate", () => {
     vi.mocked(prisma.stationNozzle.findMany).mockResolvedValue([{ id: "nozzle-1" }, { id: "nozzle-2" }] as never);
     vi.mocked(prisma.stationShiftReading.findMany).mockResolvedValue([{ id: "reading-1", nozzleId: "nozzle-1" }] as never);
 
-    await expect(service.approveShift(TENANT, USER, SHIFT_ID)).rejects.toMatchObject({ status: 400 });
+    await expect(service.approveShift(TENANT, "accountant-1", SHIFT_ID)).rejects.toMatchObject({ status: 400 });
     expect(createJournalEntryTx).not.toHaveBeenCalled();
     expect(prisma.stationShift.update).not.toHaveBeenCalled();
   });
@@ -147,7 +147,7 @@ describe("approval completeness gate", () => {
     vi.mocked(prisma.stationShiftReading.findMany).mockResolvedValue([{ id: "reading-1", nozzleId: "nozzle-1" }] as never);
     vi.mocked(prisma.attachment.findMany).mockResolvedValue([] as never);
 
-    await expect(service.approveShift(TENANT, USER, SHIFT_ID)).rejects.toMatchObject({ status: 400 });
+    await expect(service.approveShift(TENANT, "accountant-1", SHIFT_ID)).rejects.toMatchObject({ status: 400 });
     expect(createJournalEntryTx).not.toHaveBeenCalled();
   });
 });

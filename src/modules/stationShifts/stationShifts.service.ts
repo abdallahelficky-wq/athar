@@ -300,10 +300,10 @@ function assertShiftOpenForWorker(shift: { status: string }) {
 
 /** يحمّل وردية العامل نفسه فقط (لا وردية عامل آخر حتى لو بنفس المحطة) وهي لا تزال open — نقطة
  * تحقق واحدة يعاد استخدامها في كل نقاط نهاية العامل الكاتبة. */
-async function getOwnedOpenShift(tenantId: string, userId: string, shiftId: string) {
+async function getOwnedOpenShift(tenantId: string, employeeId: string, shiftId: string) {
   const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
   if (!shift) throw notFound("الوردية غير موجودة");
-  if (shift.employeeUserId !== userId) throw forbidden("هذه الوردية ليست لك");
+  if (shift.employeeId !== employeeId) throw forbidden("هذه الوردية ليست لك");
   assertShiftOpenForWorker(shift);
   return shift;
 }
@@ -311,11 +311,29 @@ async function getOwnedOpenShift(tenantId: string, userId: string, shiftId: stri
 /** مثل getOwnedOpenShift، لكن بلا شرط "لا تزال open" — لمسارات قراءة فقط يحتاجها العامل حتى بعد
  * إرسال/اعتماد/ترحيل ورديته (مراجعة ما أدخله بنفسه)، مع نفس تحقق الملكية الصارم: لا وردية عامل
  * آخر إطلاقاً بصرف النظر عن حالتها. */
-async function getOwnedShift(tenantId: string, userId: string, shiftId: string) {
+async function getOwnedShift(tenantId: string, employeeId: string, shiftId: string) {
   const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
   if (!shift) throw notFound("الوردية غير موجودة");
-  if (shift.employeeUserId !== userId) throw forbidden("هذه الوردية ليست لك");
+  if (shift.employeeId !== employeeId) throw forbidden("هذه الوردية ليست لك");
   return shift;
+}
+
+/** يتحقق أن هذه القراءة تخص فعلاً الوردية shiftId المذكورة، وأن هذه الوردية مملوكة لهذا الموظف
+ * بالذات — لرفع صورة عداد عبر بوابة الموظف (stationShifts.portal.routes.ts). لا شرط "لا تزال
+ * open" هنا عمداً: صورة العداد قد تُرفَع بعد الإرسال أيضاً (تصحيح نسيان لاحق قبل الاعتماد). */
+export async function assertOwnedReading(tenantId: string, employeeId: string, shiftId: string, readingId: string) {
+  const reading = await prisma.stationShiftReading.findFirst({ where: { id: readingId, tenantId }, include: { shift: true } });
+  if (!reading || reading.shiftId !== shiftId) throw notFound("القراءة غير موجودة");
+  if (reading.shift.employeeId !== employeeId) throw forbidden("هذه القراءة ليست لك");
+  return reading;
+}
+
+/** مثلها لمصروف وردية — راجع تعليق assertOwnedReading أعلاه. */
+export async function assertOwnedExpense(tenantId: string, employeeId: string, shiftId: string, expenseId: string) {
+  const expense = await prisma.stationShiftExpense.findFirst({ where: { id: expenseId, tenantId }, include: { shift: true } });
+  if (!expense || expense.shiftId !== shiftId) throw notFound("المصروف غير موجود");
+  if (expense.shift.employeeId !== employeeId) throw forbidden("هذا المصروف ليس لك");
+  return expense;
 }
 
 /** آخر وردية سابقة لهذه المحطة (بصرف النظر عن حالتها — القراءة الفيزيائية للعداد حقيقة واقعة لا
@@ -420,7 +438,7 @@ async function resolveShiftClosingAccounts(tenantId: string, companyId: string) 
 async function loadShiftClosingInput(tenantId: string, shiftId: string) {
   const shift = await prisma.stationShift.findFirst({
     where: { id: shiftId, tenantId },
-    include: { readings: { include: { nozzle: true } }, creditSales: true, expenses: true, collection: true },
+    include: { readings: { include: { nozzle: true } }, creditSales: true, expenses: true, collection: true, employee: { select: { id: true, name: true } } },
   });
   if (!shift) throw notFound("الوردية غير موجودة");
 
@@ -463,12 +481,15 @@ async function loadShiftClosingInput(tenantId: string, shiftId: string) {
   return { shift, input };
 }
 
-/** المحطة (مركز التكلفة) المُسنَدة لمستخدم عامل — تُشتَق من User.assignedCostCenterId حصراً، لا
- * من أي مدخل في الطلب، وفق القاعدة الصارمة: عامل لا يصل إلا لمحطته المُسنَدة. */
-async function getWorkerCostCenter(tenantId: string, userId: string) {
-  const user = await prisma.user.findFirst({ where: { id: userId, tenantId }, select: { assignedCostCenterId: true } });
-  if (!user?.assignedCostCenterId) throw badRequest("لا توجد محطة مُسنَدة لهذا المستخدم");
-  const costCenter = await prisma.costCenter.findUnique({ where: { id: user.assignedCostCenterId }, select: { id: true, companyId: true } });
+/** المحطة (مركز التكلفة) المُسنَدة لموظف عامل عبر بوابة الموظف — تُشتَق من
+ * Employee.assignedCostCenterId حصراً، لا من أي مدخل في الطلب، وفق القاعدة الصارمة: عامل لا
+ * يصل إلا لمحطته المُسنَدة. لا فحص صلاحية منفصل هنا عمداً (بخلاف Position/PositionActionPermission
+ * في الجانب الإداري) — بوابة الموظف لا تملك هذا المفهوم أصلاً، ووجود التخصيص نفسه هو "الصلاحية"
+ * الوحيدة المطلوبة، تماماً كمبدأ managerId في وحدة الإجازات. */
+async function getWorkerCostCenter(tenantId: string, employeeId: string) {
+  const employee = await prisma.employee.findFirst({ where: { id: employeeId, tenantId }, select: { assignedCostCenterId: true } });
+  if (!employee?.assignedCostCenterId) throw badRequest("لا توجد محطة مُسنَدة لهذا الموظف");
+  const costCenter = await prisma.costCenter.findUnique({ where: { id: employee.assignedCostCenterId }, select: { id: true, companyId: true } });
   if (!costCenter?.companyId) throw badRequest("محطة بلا شركة محددة، لا يمكن فتح وردية عليها");
   return { costCenterId: costCenter.id, companyId: costCenter.companyId };
 }
@@ -477,8 +498,8 @@ async function getWorkerCostCenter(tenantId: string, userId: string) {
  * (فارغة/null لمنتج بلا سعر مضبوط بعد بدل رفض الشاشة بالكامل — عرض فقط، لا التزام مالي)، وقراءات
  * إغلاق آخر وردية سابقة لكل فوهة (نفس ما سيُشتَق منه openingReading تلقائياً عند فتح وردية جديدة).
  */
-export async function getMyStation(tenantId: string, userId: string) {
-  const { costCenterId } = await getWorkerCostCenter(tenantId, userId);
+export async function getMyStation(tenantId: string, employeeId: string) {
+  const { costCenterId } = await getWorkerCostCenter(tenantId, employeeId);
 
   const [nozzles, priceRows] = await Promise.all([
     prisma.stationNozzle.findMany({ where: { costCenterId, isActive: true }, orderBy: [{ pumpNumber: "asc" }, { nozzleNumber: "asc" }] }),
@@ -524,8 +545,8 @@ const WORKER_SHIFT_SELECT = {
  * الفريد (costCenterId, shiftDate, shiftType) يمنع فتح وردية مكررة لنفس المحطة/اليوم/النوع —
  * يُتحقَّق منه هنا صراحة برسالة واضحة بدل الاعتماد على رسالة قيد قاعدة البيانات العامة فقط.
  */
-export async function openShift(tenantId: string, userId: string, input: OpenShiftInput) {
-  const { costCenterId, companyId } = await getWorkerCostCenter(tenantId, userId);
+export async function openShift(tenantId: string, employeeId: string, input: OpenShiftInput) {
+  const { costCenterId, companyId } = await getWorkerCostCenter(tenantId, employeeId);
   const shiftDate = new Date();
   shiftDate.setUTCHours(0, 0, 0, 0);
 
@@ -535,7 +556,7 @@ export async function openShift(tenantId: string, userId: string, input: OpenShi
   if (existing) throw badRequest("توجد وردية بالفعل لهذه المحطة بنفس التاريخ ونوع الوردية");
 
   return prisma.stationShift.create({
-    data: { tenantId, companyId, costCenterId, employeeUserId: userId, shiftDate, shiftType: input.shiftType, openedAt: new Date(), status: "open" },
+    data: { tenantId, companyId, costCenterId, employeeId, shiftDate, shiftType: input.shiftType, openedAt: new Date(), status: "open" },
     select: WORKER_SHIFT_SELECT,
   });
 }
@@ -557,8 +578,8 @@ export interface SubmitReadingInput {
  * لو ظلّت سالبة حتى بعد افتراض لفّة كاملة للعداد. upsert بدل create: العامل قد يعيد إرسال نفس
  * الفوهة أكثر من مرة قبل الإرسال النهائي (submit) لتصحيح خطأ إدخال بنفسه.
  */
-export async function submitReading(tenantId: string, userId: string, shiftId: string, input: SubmitReadingInput) {
-  const shift = await getOwnedOpenShift(tenantId, userId, shiftId);
+export async function submitReading(tenantId: string, employeeId: string, shiftId: string, input: SubmitReadingInput) {
+  const shift = await getOwnedOpenShift(tenantId, employeeId, shiftId);
 
   const nozzle = await prisma.stationNozzle.findFirst({
     where: { id: input.nozzleId, costCenterId: shift.costCenterId, tenantId, isActive: true },
@@ -626,8 +647,8 @@ export interface UpdateCollectionsInput {
   cashDelivered: number;
 }
 
-export async function updateCollections(tenantId: string, userId: string, shiftId: string, input: UpdateCollectionsInput) {
-  const shift = await getOwnedOpenShift(tenantId, userId, shiftId);
+export async function updateCollections(tenantId: string, employeeId: string, shiftId: string, input: UpdateCollectionsInput) {
+  const shift = await getOwnedOpenShift(tenantId, employeeId, shiftId);
   return prisma.stationShiftCollection.upsert({
     where: { shiftId: shift.id },
     create: { tenantId, companyId: shift.companyId, shiftId: shift.id, ...input },
@@ -641,8 +662,8 @@ export interface AddCreditSaleInput {
   voucherNumber: string;
 }
 
-export async function addCreditSale(tenantId: string, userId: string, shiftId: string, input: AddCreditSaleInput) {
-  const shift = await getOwnedOpenShift(tenantId, userId, shiftId);
+export async function addCreditSale(tenantId: string, employeeId: string, shiftId: string, input: AddCreditSaleInput) {
+  const shift = await getOwnedOpenShift(tenantId, employeeId, shiftId);
   const customer = await prisma.customer.findFirst({ where: { id: input.customerId, tenantId, companyId: shift.companyId } });
   if (!customer) throw badRequest("العميل غير موجود ضمن هذه الشركة");
   return prisma.stationShiftCreditSale.create({ data: { tenantId, companyId: shift.companyId, shiftId: shift.id, ...input } });
@@ -654,8 +675,8 @@ export interface AddExpenseInput {
   description?: string;
 }
 
-export async function addExpense(tenantId: string, userId: string, shiftId: string, input: AddExpenseInput) {
-  const shift = await getOwnedOpenShift(tenantId, userId, shiftId);
+export async function addExpense(tenantId: string, employeeId: string, shiftId: string, input: AddExpenseInput) {
+  const shift = await getOwnedOpenShift(tenantId, employeeId, shiftId);
   return prisma.stationShiftExpense.create({ data: { tenantId, companyId: shift.companyId, shiftId: shift.id, ...input } });
 }
 
@@ -671,8 +692,8 @@ export async function addExpense(tenantId: string, userId: string, shiftId: stri
  * وردية عامل آخر (حتى بمحطة مختلفة تماماً) ويرى تفاصيلها. يعمل بصرف النظر عن حالة الوردية (حتى
  * بعد الإرسال/الاعتماد/الترحيل) لأنه يبقى "ملخص وردية العامل نفسه"، لا مقصوراً على وهي مفتوحة.
  */
-export async function getShiftSummary(tenantId: string, userId: string, shiftId: string) {
-  const shift = await getOwnedShift(tenantId, userId, shiftId);
+export async function getShiftSummary(tenantId: string, employeeId: string, shiftId: string) {
+  const shift = await getOwnedShift(tenantId, employeeId, shiftId);
   const [readings, expenses, creditSales] = await Promise.all([
     prisma.stationShiftReading.findMany({ where: { shiftId: shift.id }, include: { nozzle: true }, orderBy: { capturedAt: "asc" } }),
     prisma.stationShiftExpense.findMany({ where: { shiftId: shift.id } }),
@@ -703,8 +724,8 @@ export async function getShiftSummary(tenantId: string, userId: string, shiftId:
   };
 }
 
-export async function submitShift(tenantId: string, userId: string, shiftId: string) {
-  const shift = await getOwnedOpenShift(tenantId, userId, shiftId);
+export async function submitShift(tenantId: string, employeeId: string, shiftId: string) {
+  const shift = await getOwnedOpenShift(tenantId, employeeId, shiftId);
   return prisma.stationShift.update({
     where: { id: shift.id },
     data: { status: "submitted", closedAt: new Date() },
@@ -721,7 +742,7 @@ const REJECTABLE_STATUSES = [...PENDING_STATUSES, "approved"] as const;
 export async function listPendingShifts(tenantId: string, companyId?: string) {
   return prisma.stationShift.findMany({
     where: { tenantId, companyId, status: { in: [...PENDING_STATUSES] } },
-    include: { costCenter: true, employeeUser: { select: { id: true, name: true } } },
+    include: { costCenter: true, employee: { select: { id: true, name: true } } },
     orderBy: { shiftDate: "asc" },
   });
 }

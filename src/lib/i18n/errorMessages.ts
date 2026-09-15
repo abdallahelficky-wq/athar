@@ -442,7 +442,7 @@ export const AR_TO_EN: Record<string, string> = {
   "لو هذا البريد الإلكتروني مسجّل بالنظام، سيصلك رابط لإعادة تعيين كلمة المرور خلال دقائق.":
     "If this email is registered in the system, you'll receive a password reset link within minutes.",
   "لا يمكن تكرار نفس الصنف أكثر من مرة في نفس التسوية": "The same item can't appear more than once in the same settlement",
-  "لا توجد محطة مُسنَدة لهذا المستخدم": "No station is assigned to this user",
+  "لا توجد محطة مُسنَدة لهذا الموظف": "No station is assigned to this employee",
   "محطة بلا شركة محددة، لا يمكن فتح وردية عليها": "The station has no company set — a shift can't be opened for it",
   "توجد وردية بالفعل لهذه المحطة بنفس التاريخ ونوع الوردية": "A shift already exists for this station on the same date and shift type",
   "لا يمكن للعامل تعديل وردية بعد إرسالها للمراجعة": "A worker can't modify a shift after it has been submitted for review",
@@ -452,6 +452,9 @@ export const AR_TO_EN: Record<string, string> = {
   "العميل المرتبط ببيع آجل في هذه الوردية بلا حساب محاسبي — أكمل بياناته أولاً": "The customer linked to a credit sale in this shift has no accounting account — complete their data first",
   "لا يمكن تصحيح قراءة لوردية ليست قيد المراجعة": "A reading can't be corrected for a shift that isn't under review",
   "القراءة غير موجودة": "The reading does not exist",
+  "هذه القراءة ليست لك": "This reading is not yours",
+  "المصروف غير موجود": "The expense does not exist",
+  "هذا المصروف ليس لك": "This expense is not yours",
   "لا يمكن اعتماد وردية ليست قيد المراجعة": "A shift that isn't under review can't be approved",
   "لا يمكن اعتماد الوردية: إحدى الفوهات بلا قراءة مسجَّلة بعد": "The shift can't be approved: one of the nozzles has no recorded reading yet",
   "لا يمكن اعتماد الوردية: إحدى القراءات بلا صورة عداد مرفقة بعد": "The shift can't be approved: one of the readings has no attached meter photo yet",
