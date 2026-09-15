@@ -33,12 +33,23 @@
  * المخطط (costCenterId+pumpNumber+nozzleNumber)، ووردية البذرة عبر upsert على معرّفها الثابت،
  * وقراءاتها عبر upsert على (shiftId+nozzleId) — إعادة التشغيل لا تُكرِّر مضخة/فوهة/وردية واحدة.
  *
+ * رافض للتشغيل من الأساس ما لم يكن DATABASE_URL يشير بوضوح لقاعدة تطوير محلية — راجع
+ * scripts/lib/assertLocalDevDatabase.ts لتفاصيل هذا الفحص وطريقة تجاوزه عمداً عند الحاجة.
+ *
  * الاستخدام:
  *   npm run seed:station-pumps
  *   (أو: npx tsx scripts/seed-station-pumps-demo.ts <companyId> لتشغيله على شركة أخرى غير الشركة
  *   التجريبية الافتراضية المذكورة أدناه)
+ *
+ * التنظيف: scripts/clean-station-pumps-demo.ts يزيل بالضبط ما ينشئه هذا السكريبت (لا أكثر) —
+ * كلاهما يستوردان تعريف المضخات/الفوهات من scripts/lib/stationPumpsSeedSpec.ts نفسه، فلا يمكن
+ * لأحدهما أن ينحرف عن الآخر.
  */
-import { Prisma, PrismaClient, StationFuelProduct } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
+import { assertLocalDevDatabase, positionalArgs } from "./lib/assertLocalDevDatabase";
+import { NEW_NOZZLES, seedShiftId as seedShiftIdFor, type NewNozzleSpec } from "./lib/stationPumpsSeedSpec";
+
+assertLocalDevDatabase();
 
 const prisma = new PrismaClient();
 
@@ -47,27 +58,6 @@ const SEED_SHIFT_TYPE = "night" as const;
 const FALLBACK_SEED_DATE = new Date(Date.UTC(2020, 0, 1));
 const PUMP_ONE_FALLBACK_READING = 12000;
 
-interface NewNozzleSpec {
-  pumpNumber: number;
-  nozzleNumber: number;
-  product: StationFuelProduct;
-  /** قراءة "أخيرة" معقولة غير صفرية لهذه الفوهة الجديدة — لا تاريخ حقيقي سابق لها لتُشتَق منه. */
-  seedReading: number;
-}
-
-const NEW_NOZZLES: NewNozzleSpec[] = [
-  { pumpNumber: 2, nozzleNumber: 1, product: "gasoline_91", seedReading: 48210 },
-  { pumpNumber: 2, nozzleNumber: 2, product: "gasoline_95", seedReading: 52340 },
-  { pumpNumber: 3, nozzleNumber: 1, product: "gasoline_91", seedReading: 31875 },
-  { pumpNumber: 3, nozzleNumber: 2, product: "gasoline_95", seedReading: 40120 },
-  { pumpNumber: 4, nozzleNumber: 1, product: "diesel", seedReading: 67450 },
-  { pumpNumber: 4, nozzleNumber: 2, product: "diesel", seedReading: 71200 },
-  { pumpNumber: 5, nozzleNumber: 1, product: "diesel", seedReading: 28900 },
-  { pumpNumber: 5, nozzleNumber: 2, product: "diesel", seedReading: 33150 },
-  // مضخة 6: فوهة واحدة فقط عمداً — للتحقق أن الشاشة لا تفترض دائماً فوهتين لكل مضخة.
-  { pumpNumber: 6, nozzleNumber: 1, product: "gasoline_91", seedReading: 15600 },
-];
-
 function addUtcDays(date: Date, days: number): Date {
   const result = new Date(date);
   result.setUTCDate(result.getUTCDate() + days);
@@ -75,7 +65,7 @@ function addUtcDays(date: Date, days: number): Date {
 }
 
 async function main() {
-  const companyId = process.argv[2] || DEFAULT_DEMO_COMPANY_ID;
+  const companyId = positionalArgs()[0] || DEFAULT_DEMO_COMPANY_ID;
 
   const company = await prisma.company.findUnique({ where: { id: companyId } });
   if (!company) throw new Error(`الشركة غير موجودة: ${companyId}`);
@@ -97,7 +87,7 @@ async function main() {
   }
   const costCenterId = existingPumpOneNozzle.costCenterId;
   const { meterDigits, meterType, hasMoneyMeter } = existingPumpOneNozzle;
-  const seedShiftId = `seed-station-pumps-demo-${costCenterId}`;
+  const seedShiftId = seedShiftIdFor(costCenterId);
 
   console.log(`المحطة (CostCenter): ${costCenterId}`);
   console.log(`قالب الفوهة المُستنسَخ عن المضخة 1: meterDigits=${meterDigits} meterType=${meterType} hasMoneyMeter=${hasMoneyMeter}`);
