@@ -502,19 +502,16 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
   return { ...posted, emailResult };
 }
 
+type InvoiceWithZatcaChain = Prisma.SalesInvoiceGetPayload<{ include: typeof invoiceInclude }>;
+
 /**
- * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" (رفضتها زاتكا صراحةً) أو
- * "submission_failed" (تعذّر الوصول إليها أصلاً) لزاتكا — بلا حجز رقم ICV جديد وبلا أي تعديل على
- * بيانات الفاتورة نفسها (نفس الأسطر/العميل/المبالغ المُرحَّلة أصلاً)، فقط إعادة توقيع وإرسال نفس
- * المحتوى. متاحة فقط لهاتين الحالتين تحديداً — أي حالة زاتكا أخرى تُرفَض صراحةً.
+ * ينفّذ إعادة الإرسال الفعلية (يدوية من resendInvoiceToZatca أو تلقائية من runZatcaAutoRetry) على
+ * فاتورة تحمل بيانات سلسلة زاتكا الأصلية بالفعل — بلا حجز رقم ICV جديد وبلا أي تعديل على بيانات
+ * الفاتورة نفسها، فقط إعادة توقيع وإرسال نفس المحتوى. يُحدِّث حقول زاتكا فقط (لا القيد المحاسبي
+ * ولا حالة الترحيل) بصرف النظر عن النتيجة، ويُصفِّر عدّاد المحاولات عند النجاح أو يزيده عند الفشل
+ * (يُستخدَم فقط لحساب فترة الانتظار قبل المحاولة التلقائية التالية، راجع isDueForZatcaAutoRetry).
  */
-export async function resendInvoiceToZatca(tenantId: string, id: string) {
-  const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
-  if (!invoice) throw notFound("الفاتورة غير موجودة");
-  if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
-  if (invoice.zatcaStatus !== "rejected" && invoice.zatcaStatus !== "submission_failed") {
-    throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا أو تعذّر إرسالها إليها");
-  }
+async function performZatcaResubmission(invoice: InvoiceWithZatcaChain) {
   if (invoice.icv == null || !invoice.previousInvoiceHash || !invoice.invoiceHash || !invoice.zatcaSubmittedAt) {
     throw badRequest("بيانات سلسلة زاتكا الأصلية لهذه الفاتورة غير مكتملة — تعذّرت إعادة الإرسال، راجع الدعم الفني");
   }
@@ -533,16 +530,99 @@ export async function resendInvoiceToZatca(tenantId: string, id: string) {
     issuedAt: invoice.zatcaSubmittedAt,
   });
 
+  const succeeded = result.zatcaStatus === "cleared" || result.zatcaStatus === "reported";
   const updated = await prisma.salesInvoice.update({
-    where: { id },
+    where: { id: invoice.id },
     data: {
       zatcaStatus: result.zatcaStatus,
       zatcaResponseRaw: (result.zatcaResponseRaw ?? Prisma.JsonNull) as Prisma.InputJsonValue,
       zatcaClearedOrReportedAt: result.zatcaClearedOrReportedAt,
+      zatcaLastAttemptAt: new Date(),
+      zatcaRetryCount: succeeded ? 0 : { increment: 1 },
     },
     include: invoiceInclude,
   });
-  return { ...withPaymentStatus(updated), rejectionReason: result.rejectionReason };
+  return { updated, rejectionReason: result.rejectionReason };
+}
+
+/**
+ * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" (رفضتها زاتكا صراحةً) أو
+ * "submission_failed" (تعذّر الوصول إليها أصلاً) لزاتكا. متاحة فقط لهاتين الحالتين تحديداً — أي
+ * حالة زاتكا أخرى تُرفَض صراحةً.
+ */
+export async function resendInvoiceToZatca(tenantId: string, id: string) {
+  const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
+  if (!invoice) throw notFound("الفاتورة غير موجودة");
+  if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
+  if (invoice.zatcaStatus !== "rejected" && invoice.zatcaStatus !== "submission_failed") {
+    throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا أو تعذّر إرسالها إليها");
+  }
+
+  const { updated, rejectionReason } = await performZatcaResubmission(invoice);
+  return { ...withPaymentStatus(updated), rejectionReason };
+}
+
+// حالات زاتكا المؤهَّلة لإعادة المحاولة التلقائية — لا "rejected" عمداً: رفض فعلي من زاتكا يحتاج
+// تصحيح بيانات بشرياً أولاً، وإعادة إرسال نفس المحتوى تلقائياً بلا تغيير سيفشل بنفس السبب دائماً
+// (راجع طلب المستخدم: "توقف عن إعادة المحاولة" لحالة الرفض الصريح تحديداً).
+const ZATCA_AUTO_RETRY_STATUSES = ["submission_failed", "pending_clearance", "pending_reporting"] as const;
+
+// فترات الانتظار (بالدقائق) بين محاولة تلقائية وأخرى لنفس الفاتورة، مفهرسة بعدد المحاولات
+// السابقة (zatcaRetryCount) — تصاعدية لتفادي إغراق زاتكا بمحاولات متكررة على فاتورة يبدو أنها
+// تفشل باستمرار (أو شركة لم تُهيّئ شهادتها بعد)، لكنها تبقى ضمن حد أقصى ساعة واحدة — كافٍ لعشرات
+// المحاولات خلال مهلة الـ24 ساعة القانونية للإبلاغ عن الفاتورة المبسّطة (Phase 2).
+const ZATCA_AUTO_RETRY_BACKOFF_MINUTES = [0, 5, 15, 30, 60] as const;
+
+/** مُصدَّرة للاختبار المباشر بلا حاجة لقاعدة بيانات — منطق حساب الاستحقاق نفسه لا يلمس Prisma. */
+export function isDueForZatcaAutoRetry(invoice: { zatcaRetryCount: number; zatcaLastAttemptAt: Date | null }, now: Date): boolean {
+  if (!invoice.zatcaLastAttemptAt) return true; // لم تُحاوَل تلقائياً بعد — مؤهَّلة فوراً
+  const idx = Math.min(invoice.zatcaRetryCount, ZATCA_AUTO_RETRY_BACKOFF_MINUTES.length - 1);
+  const dueAt = invoice.zatcaLastAttemptAt.getTime() + ZATCA_AUTO_RETRY_BACKOFF_MINUTES[idx] * 60_000;
+  return now.getTime() >= dueAt;
+}
+
+export interface ZatcaAutoRetryRunSummary {
+  attempted: number;
+  succeeded: number;
+  rejected: number;
+  stillFailing: number;
+}
+
+/**
+ * يُستدعى دورياً من lib/zatca/retryScheduler.ts — يفحص كل الفواتير المُرحَّلة التي لم تصل لزاتكا
+ * بنجاح بعد (تعذّر اتصال، أو لم تُرسَل أصلاً بسبب غياب شهادة الشركة وقت الترحيل) ويعيد محاولة
+ * إرسالها. لا يمسّ القيد المحاسبي ولا حالة ترحيل الفاتورة إطلاقاً (نهائية بصرف النظر عن نتيجة
+ * زاتكا) — فقط حقول زاتكا. فشل فاتورة واحدة (استثناء غير متوقَّع، شهادة أُلغيت، ...) لا يوقف
+ * بقية الدفعة ولا الوظيفة الدورية نفسها.
+ */
+export async function runZatcaAutoRetry(now: Date = new Date()): Promise<ZatcaAutoRetryRunSummary> {
+  const candidates = await prisma.salesInvoice.findMany({
+    where: { status: "posted", zatcaStatus: { in: [...ZATCA_AUTO_RETRY_STATUSES] } },
+    include: invoiceInclude,
+  });
+
+  const summary: ZatcaAutoRetryRunSummary = { attempted: 0, succeeded: 0, rejected: 0, stillFailing: 0 };
+  for (const invoice of candidates) {
+    if (!isDueForZatcaAutoRetry(invoice, now)) continue;
+    summary.attempted++;
+    try {
+      const { updated } = await performZatcaResubmission(invoice);
+      if (updated.zatcaStatus === "cleared" || updated.zatcaStatus === "reported") summary.succeeded++;
+      else if (updated.zatcaStatus === "rejected") summary.rejected++;
+      else summary.stillFailing++;
+    } catch (err) {
+      summary.stillFailing++;
+      // eslint-disable-next-line no-console
+      console.error(`[zatcaAutoRetry] فشلت محاولة إعادة إرسال الفاتورة ${invoice.invoiceNumber} (${invoice.id}):`, err);
+      // نُسجّل وقت المحاولة حتى لو فشلت محلياً قبل الوصول لزاتكا فعلياً (مثال: الشركة لم تُهيّئ
+      // شهادتها بعد) — بدون هذا ستُعاد محاولة نفس الفاتورة كل نبضة بلا أي انتظار، رغم أن السبب لن
+      // يتغيّر خلال دقائق.
+      await prisma.salesInvoice
+        .update({ where: { id: invoice.id }, data: { zatcaLastAttemptAt: now, zatcaRetryCount: { increment: 1 } } })
+        .catch((updateErr) => console.error(`[zatcaAutoRetry] تعذّر تحديث وقت المحاولة للفاتورة ${invoice.invoiceNumber}:`, updateErr));
+    }
+  }
+  return summary;
 }
 
 export async function unpostSalesInvoice(tenantId: string, userId: string, id: string, pin: string) {

@@ -1014,6 +1014,14 @@ model SalesInvoice {
   zatcaResponseRaw         Json?
   zatcaSubmittedAt         DateTime?
   zatcaClearedOrReportedAt DateTime?
+  // عدّاد محاولات إعادة الإرسال (يدوية من زر "إعادة إرسال" أو تلقائية من lib/zatca/retryScheduler.ts)
+  // منذ آخر نجاح — يُصفَّر عند النجاح، يُستخدَم فقط لحساب فترة الانتظار (backoff) قبل المحاولة
+  // التلقائية التالية، لا لأي غرض آخر.
+  zatcaRetryCount          Int                 @default(0)
+  // وقت آخر محاولة إرسال فعلية (يدوية أو تلقائية) — يختلف عن zatcaSubmittedAt (وقت المحاولة
+  // الأصلية عند الترحيل نفسه، لا يتغيّر بعدها) وعن zatcaClearedOrReportedAt (وقت النجاح فقط).
+  // null يعني: لم تُحدَث محاولة إعادة إرسال منذ الترحيل الأصلي بعد — تُعامَل كمؤهَّلة للمحاولة فوراً.
+  zatcaLastAttemptAt       DateTime?
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
 
