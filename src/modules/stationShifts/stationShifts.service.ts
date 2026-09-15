@@ -308,6 +308,16 @@ async function getOwnedOpenShift(tenantId: string, userId: string, shiftId: stri
   return shift;
 }
 
+/** مثل getOwnedOpenShift، لكن بلا شرط "لا تزال open" — لمسارات قراءة فقط يحتاجها العامل حتى بعد
+ * إرسال/اعتماد/ترحيل ورديته (مراجعة ما أدخله بنفسه)، مع نفس تحقق الملكية الصارم: لا وردية عامل
+ * آخر إطلاقاً بصرف النظر عن حالتها. */
+async function getOwnedShift(tenantId: string, userId: string, shiftId: string) {
+  const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
+  if (!shift) throw notFound("الوردية غير موجودة");
+  if (shift.employeeUserId !== userId) throw forbidden("هذه الوردية ليست لك");
+  return shift;
+}
+
 /** آخر وردية سابقة لهذه المحطة (بصرف النظر عن حالتها — القراءة الفيزيائية للعداد حقيقة واقعة لا
  * تتعلق برفض/قبول المحاسب لحساباتها)، وقراءاتها الختامية لكل فوهة (تصحيح المحاسب إن وُجد يتغلّب
  * على قراءة العامل الأصلية، بنفس منطق loadShiftClosingInput أدناه) — أساس اشتقاق قراءات الافتتاح
@@ -495,6 +505,20 @@ export interface OpenShiftInput {
   shiftType: StationShiftType;
 }
 
+// select صريح لأي StationShift يُعاد للعامل مباشرة (فتح/إرسال) — يستثني عمداً كل حقول ما بعد
+// المراجعة (journalEntryId، reviewedByUserId، rejectionReasonCode/Note) رغم كونها فارغة دائماً
+// في هاتين النقطتين تحديداً (الفتح والإرسال كلاهما ضمن status="open" فقط)؛ دفاع استباقي بحت حتى
+// لا يُسرَّب أي حقل يُضاف مستقبلاً لهذا الجدول بصمت لمجرد إضافته للمخطط.
+const WORKER_SHIFT_SELECT = {
+  id: true,
+  costCenterId: true,
+  shiftDate: true,
+  shiftType: true,
+  openedAt: true,
+  closedAt: true,
+  status: true,
+} as const;
+
 /** فتح وردية جديدة — costCenterId يُشتَق دائماً من تعيين المستخدم نفسه (لا من الطلب إطلاقاً)،
  * وshiftDate هو تاريخ اليوم الحالي (منتصف الليل UTC) لحظة الفتح، لا قيمة يختارها العامل. القيد
  * الفريد (costCenterId, shiftDate, shiftType) يمنع فتح وردية مكررة لنفس المحطة/اليوم/النوع —
@@ -512,6 +536,7 @@ export async function openShift(tenantId: string, userId: string, input: OpenShi
 
   return prisma.stationShift.create({
     data: { tenantId, companyId, costCenterId, employeeUserId: userId, shiftDate, shiftType: input.shiftType, openedAt: new Date(), status: "open" },
+    select: WORKER_SHIFT_SELECT,
   });
 }
 
@@ -552,6 +577,22 @@ export async function submitReading(tenantId: string, userId: string, shiftId: s
     testLiters: input.testLiters,
   });
 
+  // select صريح (لا يعيد الصف الخام كاملاً): يستثني تحديداً accountantConfirmedValue — غير
+  // قابل للتسريب فعلياً هنا (getOwnedOpenShift أعلاه يرفض أصلاً لو غادرت الوردية "open"، وتصحيح
+  // المحاسب لا يحدث إلا بعدها)، لكن دفاع استباقي: أي حقل مالي/تدقيقي يُضاف مستقبلاً لهذا الجدول
+  // لن يظهر في رد هذا المسار الخاص بالعامل بصمت لمجرد إضافته للمخطط.
+  const readingSelect = {
+    id: true,
+    nozzleId: true,
+    openingReading: true,
+    closingReading: true,
+    testLiters: true,
+    workerConfirmedValue: true,
+    capturedAt: true,
+    latitude: true,
+    longitude: true,
+  } as const;
+
   return prisma.stationShiftReading.upsert({
     where: { shiftId_nozzleId: { shiftId: shift.id, nozzleId: nozzle.id } },
     create: {
@@ -575,6 +616,7 @@ export async function submitReading(tenantId: string, userId: string, shiftId: s
       latitude: input.latitude,
       longitude: input.longitude,
     },
+    select: readingSelect,
   });
 }
 
@@ -617,17 +659,57 @@ export async function addExpense(tenantId: string, userId: string, shiftId: stri
   return prisma.stationShiftExpense.create({ data: { tenantId, companyId: shift.companyId, shiftId: shift.id, ...input } });
 }
 
-/** الملخص الحسابي الحي لوردية — يعمل حتى وهي لا تزال open وناقصة القراءات (ملخّص جزئي مفيد
- * للعامل نفسه قبل الإرسال)، عبر نفس computeShiftClosing الخالصة تماماً المستخدَمة عند الاعتماد
- * الفعلي لاحقاً — رقم واحد لا رقمان قد ينحرفان عن بعضهما. */
-export async function getShiftSummary(tenantId: string, shiftId: string) {
-  const { input } = await loadShiftClosingInput(tenantId, shiftId);
-  return computeShiftClosing(input);
+/**
+ * ملخص العامل الخاص بورديته — أمنياً مقصود أن يبقى مختلفاً تماماً عن getShiftById (المحاسب):
+ * لا يستدعي computeShiftClosing إطلاقاً، فلا cashDue/variance/expectedCash/lines أو حتى
+ * مبيعات/إيرادات محسوبة تصل لهذا المسار أبداً بأي شكل — فقط إعادة عرض بسيطة لما أدخله العامل
+ * نفسه فعلاً (قراءاته/تحصيله/مبيعاته الآجلة/مصروفاته)، بلا أي حساب مشتق. الفرق المالي (عجز/زيادة
+ * الصندوق) حصري تماماً لشاشة المحاسب (getShiftById، reviewAccess فقط).
+ *
+ * ملكية صارمة (لا company-scope عام فقط كما كان سابقاً): getOwnedShift يتحقق أن هذه الوردية
+ * تخص هذا العامل بالذات، وإلا يرفض — دون هذا التحقق كان أي عامل داخل نفس الشركة يقدر يمرّر معرّف
+ * وردية عامل آخر (حتى بمحطة مختلفة تماماً) ويرى تفاصيلها. يعمل بصرف النظر عن حالة الوردية (حتى
+ * بعد الإرسال/الاعتماد/الترحيل) لأنه يبقى "ملخص وردية العامل نفسه"، لا مقصوراً على وهي مفتوحة.
+ */
+export async function getShiftSummary(tenantId: string, userId: string, shiftId: string) {
+  const shift = await getOwnedShift(tenantId, userId, shiftId);
+  const [readings, expenses, creditSales] = await Promise.all([
+    prisma.stationShiftReading.findMany({ where: { shiftId: shift.id }, include: { nozzle: true }, orderBy: { capturedAt: "asc" } }),
+    prisma.stationShiftExpense.findMany({ where: { shiftId: shift.id } }),
+    prisma.stationShiftCreditSale.findMany({ where: { shiftId: shift.id } }),
+  ]);
+  const collection = await prisma.stationShiftCollection.findUnique({ where: { shiftId: shift.id } });
+
+  return {
+    id: shift.id,
+    status: shift.status,
+    shiftType: shift.shiftType,
+    shiftDate: shift.shiftDate,
+    readings: readings.map((r) => ({
+      id: r.id,
+      nozzleId: r.nozzleId,
+      pumpNumber: r.nozzle.pumpNumber,
+      nozzleNumber: r.nozzle.nozzleNumber,
+      product: r.nozzle.product,
+      openingReading: r.openingReading,
+      closingReading: r.closingReading,
+      testLiters: r.testLiters,
+      workerConfirmedValue: r.workerConfirmedValue,
+      capturedAt: r.capturedAt,
+    })),
+    collection: collection ? { networkAmount: collection.networkAmount, fuelCardAmount: collection.fuelCardAmount, cashDelivered: collection.cashDelivered } : null,
+    creditSales: creditSales.map((c) => ({ id: c.id, customerId: c.customerId, amount: c.amount, voucherNumber: c.voucherNumber })),
+    expenses: expenses.map((e) => ({ id: e.id, amount: e.amount, category: e.category, description: e.description })),
+  };
 }
 
 export async function submitShift(tenantId: string, userId: string, shiftId: string) {
   const shift = await getOwnedOpenShift(tenantId, userId, shiftId);
-  return prisma.stationShift.update({ where: { id: shift.id }, data: { status: "submitted", closedAt: new Date() } });
+  return prisma.stationShift.update({
+    where: { id: shift.id },
+    data: { status: "submitted", closedAt: new Date() },
+    select: WORKER_SHIFT_SELECT,
+  });
 }
 
 const PENDING_STATUSES = ["submitted", "under_review"] as const;
@@ -645,8 +727,10 @@ export async function listPendingShifts(tenantId: string, companyId?: string) {
 }
 
 /** تفاصيل وردية كاملة لشاشة المحاسب: السجل الخام (قراءات/تحصيل/مبيعات آجلة/مصروفات/سجل تدقيق)
- * بالإضافة إلى نفس الملخص الحي المحسوب لـ getShiftSummary — فلا يحتاج المحاسب استدعاء نقطة نهاية
- * العامل summary لرؤية نفس الأرقام. */
+ * بالإضافة إلى الملخص الحسابي الكامل عبر computeShiftClosing (عجز/زيادة الصندوق، سطور القيد
+ * المرتقب...). هذه هي النقطة الوحيدة في كل الوحدة التي تكشف هذا الحساب — reviewAccess فقط
+ * (راجع stationShifts.routes.ts)، ولا صلة لها إطلاقاً بـ getShiftSummary الخاصة بالعامل أدناه،
+ * والتي لا تحسب أي شيء مالي مشتق عمداً منذ إصلاح تسريب عجز/زيادة الصندوق لصلاحية العامل. */
 export async function getShiftById(tenantId: string, shiftId: string) {
   const { shift, input } = await loadShiftClosingInput(tenantId, shiftId);
   const [summary, auditLogs] = await Promise.all([

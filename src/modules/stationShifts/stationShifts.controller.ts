@@ -42,9 +42,12 @@ export const addExpenseHandler: RequestHandler = async (req, res) => {
   res.status(201).json(expense);
 };
 
+// لا assertShiftCompanyAccess هنا عمداً — service.getShiftSummary يتحقق من الملكية الصارمة
+// (وردية هذا العامل بالذات) بنفسه، وهو تحقق أدقّ وأكفى من فحص نطاق الشركة العام وحده (كان
+// سابقاً يسمح لأي عامل داخل نفس الشركة برؤية ملخص وردية عامل آخر، حتى بمحطة مختلفة تماماً، طالما
+// مرّر معرّفها — راجع تعليق getShiftSummary/getOwnedShift في stationShifts.service.ts).
 export const getShiftSummaryHandler: RequestHandler = async (req, res) => {
-  await assertShiftCompanyAccess(req.auth!, req.params.id);
-  res.json(await service.getShiftSummary(req.auth!.tenantId, req.params.id));
+  res.json(await service.getShiftSummary(req.auth!.tenantId, req.auth!.sub, req.params.id));
 };
 
 export const submitShiftHandler: RequestHandler = async (req, res) => {

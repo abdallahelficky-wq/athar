@@ -17,6 +17,9 @@ vi.mock("../../lib/prisma", () => ({
     fuelPrice: { findMany: vi.fn() },
     stationShift: { findFirst: vi.fn(), update: vi.fn() },
     stationShiftReading: { upsert: vi.fn(), findMany: vi.fn() },
+    stationShiftCollection: { findUnique: vi.fn() },
+    stationShiftCreditSale: { findMany: vi.fn() },
+    stationShiftExpense: { findMany: vi.fn() },
     stationShiftAuditLog: { create: vi.fn(), findMany: vi.fn() },
     attachment: { findMany: vi.fn() },
     $transaction: vi.fn(),
@@ -143,6 +146,53 @@ describe("a worker with 'worker'/edit level", () => {
 
     expect(response.status).toBe(403);
     expect(prisma.stationShiftReading.upsert).not.toHaveBeenCalled();
+  });
+
+  it("GET /:id/summary never exposes cashDue, variance, or posting lines to the worker — only their own submitted data", async () => {
+    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue({
+      id: SHIFT_ID,
+      tenantId: TENANT,
+      companyId: "company-a",
+      costCenterId: "station-1",
+      employeeUserId: WORKER,
+      status: "submitted",
+      shiftType: "morning",
+      shiftDate: new Date("2026-07-01"),
+    } as never);
+    vi.mocked(prisma.stationShiftReading.findMany).mockResolvedValue([
+      { id: "reading-1", nozzleId: "nozzle-1", openingReading: 100, closingReading: 500, testLiters: 0, workerConfirmedValue: 500, capturedAt: new Date(), nozzle: { pumpNumber: 1, nozzleNumber: 1, product: "diesel" } },
+    ] as never);
+    vi.mocked(prisma.stationShiftExpense.findMany).mockResolvedValue([{ id: "exp-1", amount: 50, category: "صيانة", description: null }] as never);
+    vi.mocked(prisma.stationShiftCreditSale.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.stationShiftCollection.findUnique).mockResolvedValue({ networkAmount: 200, fuelCardAmount: 0, cashDelivered: 900 } as never);
+
+    const response = await call("GET", `/${SHIFT_ID}/summary`, WORKER);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+
+    // فقط ما أدخله العامل نفسه — بلا أي حساب مالي مشتق
+    expect(body).toHaveProperty("readings");
+    expect(body).toHaveProperty("expenses");
+    expect(body).toHaveProperty("collection");
+    // الحقول التي كانت مسرَّبة سابقاً (عجز/زيادة الصندوق وسطور القيد المرتقب) يجب ألا تظهر إطلاقاً
+    for (const leakedField of ["cashDue", "variance", "expectedCash", "lines", "grossSales", "salesByProduct"]) {
+      expect(body).not.toHaveProperty(leakedField);
+    }
+  });
+
+  it("GET /:id/summary rejects a worker fetching another worker's shift — ownership check, not just company scope", async () => {
+    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue({
+      id: SHIFT_ID,
+      tenantId: TENANT,
+      companyId: "company-a",
+      costCenterId: "station-2",
+      employeeUserId: "a-different-worker",
+      status: "submitted",
+    } as never);
+
+    const response = await call("GET", `/${SHIFT_ID}/summary`, WORKER);
+    expect(response.status).toBe(403);
+    expect(prisma.stationShiftReading.findMany).not.toHaveBeenCalled();
   });
 });
 

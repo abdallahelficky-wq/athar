@@ -305,6 +305,9 @@ describe("station cash variance accounts must be configured on the company", () 
     );
     vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([] as never);
 
-    await expect(service.getShiftSummary(TENANT, SHIFT_ID)).rejects.toMatchObject({ status: 400 });
+    // getShiftById (شاشة المحاسب) هي المسار الوحيد المتبقي الذي يحسب computeShiftClosing فعلياً —
+    // getShiftSummary (شاشة العامل) لم تعد تستدعيه إطلاقاً بعد فصل ملخص العامل تماماً عن أي حساب
+    // مالي مشتق (راجع تعليق getShiftSummary في stationShifts.service.ts).
+    await expect(service.getShiftById(TENANT, SHIFT_ID)).rejects.toMatchObject({ status: 400 });
   });
 });
