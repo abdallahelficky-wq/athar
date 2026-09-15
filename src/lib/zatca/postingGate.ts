@@ -7,7 +7,7 @@ import { ZatcaDocumentKind } from "./types";
 
 type Tx = Prisma.TransactionClient;
 
-export type ZatcaPostingStatus = "not_applicable" | "pending_clearance" | "cleared" | "pending_reporting" | "reported" | "rejected";
+export type ZatcaPostingStatus = "not_applicable" | "pending_clearance" | "cleared" | "pending_reporting" | "reported" | "rejected" | "submission_failed";
 
 export interface ZatcaPostingFields {
   icv?: number;
@@ -106,12 +106,14 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
   }
 
   return {
+    // فاتورة قياسية تبقى ممنوعة من الترحيل سواء رفضتها زاتكا صراحةً أو تعذّر الوصول إليها أصلاً —
+    // التخليص (Clearance) شرط قانوني مسبق في الحالتين، لا فرق بينهما هنا.
     proceedWithPosting: chain.subtype !== "standard",
     zatcaFields: {
       icv: chain.icv,
       previousInvoiceHash: chain.previousInvoiceHash,
       invoiceHash: chain.invoiceHash,
-      zatcaStatus: "rejected",
+      zatcaStatus: outcome.networkError ? "submission_failed" : "rejected",
       zatcaSubmittedAt: chain.issuedAt,
       zatcaResponseRaw: (outcome.response ?? undefined) as Prisma.InputJsonValue | undefined,
     },

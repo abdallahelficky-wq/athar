@@ -21,16 +21,17 @@ export interface ResubmitZatcaDocumentParams {
 }
 
 export interface ResubmitZatcaDocumentResult {
-  zatcaStatus: Extract<ZatcaDocumentStatus, "cleared" | "reported" | "rejected">;
+  zatcaStatus: Extract<ZatcaDocumentStatus, "cleared" | "reported" | "rejected" | "submission_failed">;
   zatcaResponseRaw?: unknown;
   zatcaClearedOrReportedAt?: Date;
   rejectionReason?: string;
 }
 
 /**
- * يعيد محاولة إرسال مستند رفضته زاتكا سابقاً بنفس محتواه بالضبط — بلا حجز رقم ICV جديد ولا أي
- * تعديل على بيانات الفاتورة نفسها. يُستخدَم فقط من زر "إعادة إرسال" على فاتورة مُرحَّلة فعلاً
- * بحالة zatcaStatus = "rejected" (المُرحِّل هو المسؤول عن هذا التحقق قبل الاستدعاء).
+ * يعيد محاولة إرسال مستند رفضته زاتكا سابقاً أو تعذّر الوصول إليها عند الترحيل، بنفس محتواه
+ * بالضبط — بلا حجز رقم ICV جديد ولا أي تعديل على بيانات الفاتورة نفسها. يُستخدَم فقط من زر "إعادة
+ * إرسال" على فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" أو "submission_failed"
+ * (المُرحِّل هو المسؤول عن هذا التحقق قبل الاستدعاء).
  */
 export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams): Promise<ResubmitZatcaDocumentResult> {
   const rebuilt = rebuildZatcaDocumentXml({
@@ -70,5 +71,9 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
       zatcaClearedOrReportedAt: new Date(),
     };
   }
-  return { zatcaStatus: "rejected", zatcaResponseRaw: outcome.response ?? undefined, rejectionReason: outcome.reason };
+  return {
+    zatcaStatus: outcome.networkError ? "submission_failed" : "rejected",
+    zatcaResponseRaw: outcome.response ?? undefined,
+    rejectionReason: outcome.reason,
+  };
 }

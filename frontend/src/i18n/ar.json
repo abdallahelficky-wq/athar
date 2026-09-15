@@ -339,11 +339,13 @@
     "empty": "لا توجد فواتير بعد.",
     "zatcaStatus": {
       "not_applicable": "غير منطبق", "pending_clearance": "قيد الإرسال (قياسية)", "pending_reporting": "قيد الإرسال (مبسّطة)",
-      "cleared": "مُرسلة/مقبولة (قياسية)", "reported": "مُرسلة/مقبولة (مبسّطة)", "rejected": "مرفوضة/فشل الإرسال"
+      "cleared": "مُرسلة/مقبولة (قياسية)", "reported": "مُرسلة/مقبولة (مبسّطة)", "rejected": "مرفوضة",
+      "submission_failed": "تعذّر الإرسال (لم تصل لزاتكا)"
     },
     "zatcaBadge": {
       "not_applicable": "غير منطبق", "pending_clearance": "قيد الإرسال", "pending_reporting": "قيد الإرسال",
-      "cleared": "مُرسلة/مقبولة", "reported": "مُرسلة/مقبولة", "rejected": "مرفوضة"
+      "cleared": "مُرسلة/مقبولة", "reported": "مُرسلة/مقبولة", "rejected": "مرفوضة",
+      "submission_failed": "تعذّر الإرسال"
     },
     "table": {
       "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي",
@@ -368,6 +370,7 @@
       "emailSent": "تم إرسال الفاتورة {{number}} إلى {{email}}.",
       "emailFailed": "تعذّر إرسال الفاتورة — حاول مرة أخرى لاحقاً.",
       "zatcaRejectedAgain": "أعيد رفض الفاتورة {{number}} من زاتكا{{reason}}",
+      "zatcaStillUnreachable": "لا يزال تعذّر الوصول إلى زاتكا لإرسال الفاتورة {{number}} — حاول لاحقاً أو راجع الدعم الفني",
       "zatcaResentOk": "تم إرسال الفاتورة {{number}} بنجاح — الحالة الآن \"{{status}}\"."
     },
     "classicPro": {

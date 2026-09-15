@@ -198,7 +198,9 @@ describe("evaluateZatcaPostingGate", () => {
   // ليُسقِط معاملة إنشاء الفاتورة بأكملها في createSalesInvoice (500 عام، لا فاتورة تُنشأ إطلاقاً)
   // رغم أن نفس الوردية بالضبط، لو رفضتها زاتكا صراحةً بدل تعذّر الاتصال، كانت ستُرحَّل بلا مشكلة
   // (الاختبار السابق مباشرة). فشل الاتصال يجب أن يُعامَل بلا أقل من معاملة الرفض الصريح، لا أسوأ منها.
-  it("keeps a SIMPLIFIED (POS cash sale) invoice postable when ZATCA's network is simply unreachable", async () => {
+  // كما يجب ألا تُسجَّل كـ"rejected" — تلك مخصَّصة لرفض فعلي من زاتكا يحتاج تصحيح بيانات، بينما
+  // تعذّر الاتصال يحتاج فقط إعادة إرسال لاحقاً (راجع submission_failed).
+  it("keeps a SIMPLIFIED (POS cash sale) invoice postable when ZATCA's network is simply unreachable, and marks it submission_failed (not rejected)", async () => {
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
 
@@ -215,7 +217,27 @@ describe("evaluateZatcaPostingGate", () => {
     });
 
     expect(decision.proceedWithPosting).toBe(true);
-    expect(decision.zatcaFields.zatcaStatus).toBe("rejected");
+    expect(decision.zatcaFields.zatcaStatus).toBe("submission_failed");
     expect(decision.rejectionReason).toContain("تعذّر الاتصال");
+  });
+
+  it("still blocks a STANDARD (clearance) invoice when ZATCA is unreachable, same as an explicit rejection", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.proceedWithPosting).toBe(false);
+    expect(decision.zatcaFields.zatcaStatus).toBe("submission_failed");
   });
 });

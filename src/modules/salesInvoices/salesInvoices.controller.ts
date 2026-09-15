@@ -13,6 +13,14 @@ export const listHandler: RequestHandler = async (req, res) => {
   res.json(invoices);
 };
 
+export const zatcaBacklogHandler: RequestHandler = async (req, res) => {
+  const { companyId } = req.query;
+  const backlog = await service.listZatcaBacklog(req.auth!.tenantId, {
+    companyId: typeof companyId === "string" ? companyId : undefined,
+  });
+  res.json(backlog);
+};
+
 export const getHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
   res.json(await service.getSalesInvoice(req.auth!.tenantId, req.params.id));

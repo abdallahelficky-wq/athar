@@ -148,7 +148,7 @@ export const AR_TO_EN: Record<string, string> = {
   "إشعار الدائن/المدين يتطلب رقم الفاتورة المرتبطة (billingReferenceId)": "A credit/debit note requires the linked invoice number (billingReferenceId)",
   "أصل ثابت": "Fixed asset",
   "أضف مكوّناً واحداً على الأقل للمنتج المجمّع": "Add at least one component to the bundled product",
-  "إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا": "Resubmission is only available for invoices ZATCA rejected",
+  "إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا أو تعذّر إرسالها إليها": "Resubmission is only available for invoices ZATCA rejected or that failed to reach ZATCA",
   "اقترح الذكاء الاصطناعي نفس الحساب مديناً ودائناً معاً، وهذا غير منطقي محاسبياً — راجع المستند وأنشئ القيد يدوياً":
     "The AI suggested the same account as both debit and credit, which doesn't make accounting sense — review the document and create the entry manually",
   "الإجراء غير موجود": "The action does not exist",

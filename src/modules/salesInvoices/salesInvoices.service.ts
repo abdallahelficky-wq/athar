@@ -228,6 +228,37 @@ export async function listSalesInvoices(tenantId: string, filters: { companyId?:
   return invoices.map(withPaymentStatus);
 }
 
+// حالات زاتكا التي تعني أن الفاتورة لم تُبلَّغ/تُخلَّص بنجاح بعد — إما لا تزال قيد المحاولة الأولى
+// (pending_*) أو فشلت (رُفضت صراحةً أو تعذّر الوصول لزاتكا أصلاً). تُستخدَم فقط لعرض قائمة متابعة
+// للمستخدم — لا تُغيّر أي سلوك ترحيل.
+const ZATCA_BACKLOG_STATUSES = ["pending_clearance", "pending_reporting", "rejected", "submission_failed"] as const;
+
+/**
+ * قائمة الفواتير التي لم تُبلَّغ/تُخلَّص بنجاح لدى زاتكا بعد — لمتابعة أي فاتورة قد لا تصل إليها
+ * إطلاقاً (خصوصاً بعد معالجة تعذّر الاتصال بالشبكة بترحيلها بدل إسقاطها، راجع submission_failed).
+ */
+export async function listZatcaBacklog(tenantId: string, filters: { companyId?: string }) {
+  const invoices = await prisma.salesInvoice.findMany({
+    where: {
+      tenantId,
+      companyId: filters.companyId || undefined,
+      status: "posted",
+      zatcaStatus: { in: [...ZATCA_BACKLOG_STATUSES] },
+    },
+    select: { id: true, invoiceNumber: true, date: true, grandTotal: true, zatcaStatus: true, zatcaSubmittedAt: true },
+    orderBy: { date: "asc" },
+  });
+  const now = Date.now();
+  return invoices.map((inv) => ({
+    id: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    date: inv.date,
+    grandTotal: inv.grandTotal,
+    zatcaStatus: inv.zatcaStatus,
+    ageDays: Math.floor((now - (inv.zatcaSubmittedAt ?? inv.date).getTime()) / (1000 * 60 * 60 * 24)),
+  }));
+}
+
 export async function getSalesInvoice(tenantId: string, id: string) {
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
@@ -472,15 +503,18 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
 }
 
 /**
- * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" لزاتكا — بلا حجز رقم ICV
- * جديد وبلا أي تعديل على بيانات الفاتورة نفسها (نفس الأسطر/العميل/المبالغ المُرحَّلة أصلاً)، فقط
- * إعادة توقيع وإرسال نفس المحتوى. متاحة فقط لهذه الحالة تحديداً — أي حالة زاتكا أخرى تُرفَض صراحةً.
+ * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" (رفضتها زاتكا صراحةً) أو
+ * "submission_failed" (تعذّر الوصول إليها أصلاً) لزاتكا — بلا حجز رقم ICV جديد وبلا أي تعديل على
+ * بيانات الفاتورة نفسها (نفس الأسطر/العميل/المبالغ المُرحَّلة أصلاً)، فقط إعادة توقيع وإرسال نفس
+ * المحتوى. متاحة فقط لهاتين الحالتين تحديداً — أي حالة زاتكا أخرى تُرفَض صراحةً.
  */
 export async function resendInvoiceToZatca(tenantId: string, id: string) {
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
-  if (invoice.zatcaStatus !== "rejected") throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا");
+  if (invoice.zatcaStatus !== "rejected" && invoice.zatcaStatus !== "submission_failed") {
+    throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا أو تعذّر إرسالها إليها");
+  }
   if (invoice.icv == null || !invoice.previousInvoiceHash || !invoice.invoiceHash || !invoice.zatcaSubmittedAt) {
     throw badRequest("بيانات سلسلة زاتكا الأصلية لهذه الفاتورة غير مكتملة — تعذّرت إعادة الإرسال، راجع الدعم الفني");
   }

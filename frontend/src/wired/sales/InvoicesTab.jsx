@@ -22,6 +22,7 @@ const ZATCA_STATUS_KEYS = {
   cleared: "cleared",
   reported: "reported",
   rejected: "rejected",
+  submission_failed: "submission_failed",
 };
 const ZATCA_BADGE_CLASS = {
   not_applicable: "status-badge status-neutral",
@@ -30,7 +31,10 @@ const ZATCA_BADGE_CLASS = {
   cleared: "status-badge status-posted",
   reported: "status-badge status-posted",
   rejected: "status-badge status-rejected",
+  submission_failed: "status-badge status-rejected",
 };
+// حالتا زاتكا اللتان تحتاجان إعادة إرسال — رُفضت صراحةً أو تعذّر الوصول لزاتكا أصلاً (لم تُرسَل)
+const ZATCA_RESENDABLE = new Set(["rejected", "submission_failed"]);
 
 export default function InvoicesTab({ companyId, companies }) {
   const { t } = useTranslation();
@@ -140,11 +144,14 @@ export default function InvoicesTab({ companyId, companies }) {
       const updated = await resendInvoiceZatca(inv.id);
       reload();
       const badgeLabel = t(`salesInvoices.zatcaBadge.${updated.zatcaStatus}`, { defaultValue: updated.zatcaStatus });
+      const stillFailing = ZATCA_RESENDABLE.has(updated.zatcaStatus);
       notify(
-        updated.zatcaStatus === "rejected"
-          ? t("salesInvoices.notify.zatcaRejectedAgain", { number: inv.invoiceNumber, reason: updated.rejectionReason ? `: ${updated.rejectionReason}` : "." })
-          : t("salesInvoices.notify.zatcaResentOk", { number: inv.invoiceNumber, status: badgeLabel }),
-        updated.zatcaStatus === "rejected" ? "error" : "success",
+        updated.zatcaStatus === "submission_failed"
+          ? t("salesInvoices.notify.zatcaStillUnreachable", { number: inv.invoiceNumber })
+          : stillFailing
+            ? t("salesInvoices.notify.zatcaRejectedAgain", { number: inv.invoiceNumber, reason: updated.rejectionReason ? `: ${updated.rejectionReason}` : "." })
+            : t("salesInvoices.notify.zatcaResentOk", { number: inv.invoiceNumber, status: badgeLabel }),
+        stillFailing ? "error" : "success",
       );
     } catch (err) {
       notify(err.message, "error");
@@ -192,7 +199,7 @@ export default function InvoicesTab({ companyId, companies }) {
                 const posted = inv.status === "posted";
                 const linked = inv.receiptAllocations.length > 0;
                 const zatcaKey = ZATCA_STATUS_KEYS[inv.zatcaStatus] ? inv.zatcaStatus : "not_applicable";
-                const zatcaRejected = inv.zatcaStatus === "rejected";
+                const zatcaResendable = ZATCA_RESENDABLE.has(inv.zatcaStatus);
                 return (
                   <tr key={inv.id}>
                     <td data-label={t("salesInvoices.table.number")}>{inv.invoiceNumber}</td>
@@ -203,7 +210,7 @@ export default function InvoicesTab({ companyId, companies }) {
                     <td data-label={t("salesInvoices.table.paymentStatus")}><span className="status-badge">{inv.paymentStatus}</span></td>
                     {zatcaApplicable && (
                       <td data-label={t("salesInvoices.table.zatcaStatus")}>
-                        <span className={ZATCA_BADGE_CLASS[zatcaKey]} title={zatcaRejected && inv.zatcaResponseRaw ? JSON.stringify(inv.zatcaResponseRaw) : undefined}>
+                        <span className={ZATCA_BADGE_CLASS[zatcaKey]} title={zatcaResendable && inv.zatcaResponseRaw ? JSON.stringify(inv.zatcaResponseRaw) : undefined}>
                           {t(`salesInvoices.zatcaBadge.${zatcaKey}`)}
                         </span>
                       </td>
@@ -212,7 +219,7 @@ export default function InvoicesTab({ companyId, companies }) {
                       <button className="icon-btn" title={t("salesInvoices.actionsMenu.view")} onClick={() => setViewInvoice(inv)}><Icon.Eye /></button>
                       <button className="icon-btn" title={t("salesInvoices.actionsMenu.edit")} onClick={() => onEditClick(inv)}><Icon.Edit /></button>
                       {posted && <button className="icon-btn icon-btn-warn" title={t("salesInvoices.actionsMenu.unpost")} onClick={() => setUnpostTarget(inv)}><Icon.Unlock /></button>}
-                      {zatcaRejected && (
+                      {zatcaResendable && (
                         <button
                           className="icon-btn icon-btn-warn"
                           title={resendingZatcaId === inv.id ? t("salesInvoices.actionsMenu.unposting") : t("salesInvoices.actionsMenu.resendZatca")}
