@@ -72,6 +72,21 @@ describe("worker actions are blocked once a shift leaves 'open'", () => {
   });
 });
 
+describe("a shift opened through the employee portal is never seed data", () => {
+  it("always creates the shift with isSeedData: false explicitly, regardless of the schema default", async () => {
+    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ assignedCostCenterId: "station-1" } as never);
+    vi.mocked(prisma.costCenter.findUnique).mockResolvedValue({ id: "station-1", companyId: "company-1" } as never);
+    vi.mocked(prisma.stationShift.findUnique).mockResolvedValue(null as never); // لا وردية بنفس المحطة/التاريخ/النوع بعد
+    vi.mocked(prisma.stationShift.create).mockResolvedValue({ id: SHIFT_ID } as never);
+
+    await service.openShift(TENANT, EMPLOYEE, { shiftType: "morning" });
+
+    expect(prisma.stationShift.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ isSeedData: false }) }),
+    );
+  });
+});
+
 describe("opening readings are always derived server-side", () => {
   it("takes the opening reading from the previous shift's confirmed closing reading, ignoring anything the request could supply", async () => {
     vi.mocked(prisma.stationShift.findFirst)

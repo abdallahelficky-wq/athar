@@ -120,6 +120,37 @@ describe("net cash is gated behind the same reviewer permission as the accountan
   });
 });
 
+describe("seed-data exceptions — the isSeedData audit list", () => {
+  it("is gated behind the same reviewer permission as net-cash", async () => {
+    noPositionAtAll();
+    const response = await call("/seed-data-exceptions");
+    expect(response.status).toBe(403);
+    expect(prisma.stationShift.findMany).not.toHaveBeenCalled();
+  });
+
+  it("lists every isSeedData=true shift for a reviewer, regardless of status or date", async () => {
+    grantReviewPermission();
+    vi.mocked(prisma.stationShift.findMany).mockResolvedValue([
+      { id: "seed-shift-1", shiftDate: new Date("2020-01-01"), status: "posted", costCenter: { id: "station-1", name: "Station 1" } },
+    ] as never);
+
+    const response = await call("/seed-data-exceptions");
+    expect(response.status).toBe(200);
+    expect(prisma.stationShift.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ isSeedData: true }) }));
+    const body = await response.json();
+    expect(body.rows).toEqual([{ id: "seed-shift-1", costCenterId: "station-1", costCenterName: "Station 1", shiftDate: "2020-01-01T00:00:00.000Z", status: "posted" }]);
+  });
+
+  it("reports an empty list when there is no seed data at all — the expected state in production", async () => {
+    grantReviewPermission();
+    vi.mocked(prisma.stationShift.findMany).mockResolvedValue([] as never);
+
+    const response = await call("/seed-data-exceptions");
+    const body = await response.json();
+    expect(body.rows).toEqual([]);
+  });
+});
+
 describe("query filtering sent to the database", () => {
   beforeEach(() => noPositionAtAll());
 

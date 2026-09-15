@@ -1,4 +1,4 @@
-import { Prisma, StationFuelProduct } from "@prisma/client";
+import { Prisma, StationFuelProduct, StationShiftStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest } from "../../lib/httpError";
 import {
@@ -526,4 +526,30 @@ export async function getNetCashReport(tenantId: string, companyId: string, rang
     .sort((a, b) => a.costCenterName.localeCompare(b.costCenterName));
 
   return { daily, byStation: byStationRows, totals: mapStatusSplit(totals, toNetCashMetrics) };
+}
+
+// ---------------------------------------------------------------------------
+// 5) استثناءات بيانات البذرة — قائمة تدقيق فقط: كل وردية isSeedData=true فعلياً موجودة على هذه
+// الشركة، بصرف النظر عن حالتها أو تاريخها. الوجود المثالي في بيئة إنتاجية هو صفر دائماً؛ أي صف هنا
+// معناه إما تشغيل سكريبت بذرة (scripts/seed-station-pumps-demo.ts) بالخطأ على قاعدة حقيقية، أو
+// محاولة تلاعب بهذا الحقل من مكان لم يُدقَّق بعد — يُوضَع خلف نفس صلاحية صافي النقدية عمداً
+// (راجع stationShiftsReports.routes.ts)، لا لأنه رقم مالي حسّاس بذاته، بل لأنه أداة تدقيق مباشرة
+// لسلامة كل تقرير آخر في هذه الوحدة.
+// ---------------------------------------------------------------------------
+
+export interface SeedDataExceptionRow {
+  id: string;
+  costCenterId: string;
+  costCenterName: string;
+  shiftDate: Date;
+  status: StationShiftStatus;
+}
+
+export async function getSeedDataExceptionsReport(tenantId: string, companyId: string): Promise<SeedDataExceptionRow[]> {
+  const shifts = await prisma.stationShift.findMany({
+    where: { tenantId, companyId, isSeedData: true },
+    select: { id: true, shiftDate: true, status: true, costCenter: { select: { id: true, name: true } } },
+    orderBy: { shiftDate: "desc" },
+  });
+  return shifts.map((s) => ({ id: s.id, costCenterId: s.costCenter.id, costCenterName: s.costCenter.name, shiftDate: s.shiftDate, status: s.status }));
 }

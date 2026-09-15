@@ -578,7 +578,11 @@ export async function openShift(tenantId: string, employeeId: string, input: Ope
   if (existing) throw badRequest("توجد وردية بالفعل لهذه المحطة بنفس التاريخ ونوع الوردية");
 
   return prisma.stationShift.create({
-    data: { tenantId, companyId, costCenterId, employeeId, shiftDate, shiftType: input.shiftType, openedAt: new Date(), status: "open" },
+    // isSeedData: false صريحاً هنا (لا اعتماداً على @default(false) في المخطط فقط) — أي وردية
+    // حقيقية يفتحها عامل عبر بوابة الموظف يجب أن تكون false بنيوياً بصرف النظر عن أي تغيير مستقبلي
+    // للقيمة الافتراضية في المخطط؛ العلامة الوحيدة المسموح لها ضبطها true هي
+    // scripts/seed-station-pumps-demo.ts، لا أي مسار آخر في كل النظام.
+    data: { tenantId, companyId, costCenterId, employeeId, shiftDate, shiftType: input.shiftType, openedAt: new Date(), status: "open", isSeedData: false },
     select: WORKER_SHIFT_SELECT,
   });
 }

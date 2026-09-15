@@ -61,3 +61,8 @@ export const netCashHandler: RequestHandler = async (req, res) => {
   const result = await service.getNetCashReport(req.auth!.tenantId, parseCompanyId(req), parseRange(req), parseCostCenterIds(req));
   res.json(result);
 };
+
+export const seedDataExceptionsHandler: RequestHandler = async (req, res) => {
+  const rows = await service.getSeedDataExceptionsReport(req.auth!.tenantId, parseCompanyId(req));
+  res.json({ rows });
+};

@@ -13,7 +13,7 @@ vi.mock("../../lib/prisma", () => ({
     costCenter: { findUnique: vi.fn() },
     stationNozzle: { findMany: vi.fn(), findFirst: vi.fn() },
     fuelPrice: { findMany: vi.fn() },
-    stationShift: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    stationShift: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
     stationShiftReading: { upsert: vi.fn(), findMany: vi.fn() },
     stationShiftCollection: { findUnique: vi.fn() },
     stationShiftCreditSale: { findMany: vi.fn() },
@@ -56,6 +56,35 @@ function call(method: string, path: string, employeeId: string, body?: unknown) 
 }
 
 beforeEach(() => vi.resetAllMocks());
+
+describe("isSeedData can never be smuggled in through the employee portal", () => {
+  it("rejects an attempt to set isSeedData via the open-shift request body, and never calls create", async () => {
+    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ assignedCostCenterId: "station-1" } as never);
+    vi.mocked(prisma.costCenter.findUnique).mockResolvedValue({ id: "station-1", companyId: "company-a" } as never);
+    vi.mocked(prisma.stationShift.findUnique).mockResolvedValue(null as never);
+
+    const response = await call("POST", "/", WORKER, { shiftType: "morning", isSeedData: true });
+
+    // openShiftSchema صارمة (.strict()) — أي حقل غير مُعرَّف فيها، بما فيه isSeedData، يُرفَض بـ400
+    // قبل أن يصل الطلب لطبقة service إطلاقاً، لا أن يُقبَل ثم يُتجاهَل بصمت.
+    expect(response.status).toBe(400);
+    expect(prisma.stationShift.create).not.toHaveBeenCalled();
+  });
+
+  it("creates a real opened shift with isSeedData: false when the request is well-formed", async () => {
+    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ assignedCostCenterId: "station-1" } as never);
+    vi.mocked(prisma.costCenter.findUnique).mockResolvedValue({ id: "station-1", companyId: "company-a" } as never);
+    vi.mocked(prisma.stationShift.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.stationShift.create).mockResolvedValue({ id: "shift-new" } as never);
+
+    const response = await call("POST", "/", WORKER, { shiftType: "morning" });
+
+    expect(response.status).toBe(201);
+    expect(prisma.stationShift.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ isSeedData: false }) }),
+    );
+  });
+});
 
 describe("a worker (employee-portal token, no Position/PositionActionPermission involved at all)", () => {
   it("can submit a reading for their own open shift", async () => {
