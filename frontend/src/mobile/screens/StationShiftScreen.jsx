@@ -5,15 +5,22 @@ import * as api from "../api/stationShiftsPortal";
 const OPEN_SHIFT_STORAGE_KEY = "athar.mobile.stationShifts.openShiftId";
 
 /**
- * شاشة عامل المحطة (بوابة الموظف) — المرحلة الأولى بلا قراءة آلية للعداد بعد (OCR/رؤية حاسوبية):
- * صورة إلزامية لكل عداد + إدخال يدوي للقيمة جنباً إلى جنب (بدل استبدال الإدخال اليدوي بالكامل)،
- * حتى يمكن التحقق من تدفّق العمل والفصل الصارم لصلاحيات العامل/المحاسب أولاً، قبل إضافة قراءة
- * العداد آلياً من الصورة كمرحلة ثانية منفصلة تماماً — لا تغيير متوقَّع على هذه الشاشة عند إضافتها،
- * فقط تعبئة تلقائية مبدئية لحقل القيمة يبقى قابلاً للتصحيح.
+ * شاشة عامل المحطة (بوابة الموظف) — تصوير عداد كل فوهة فقط، بلا أي إدخال رقمي من العامل إطلاقاً:
+ * لا حقل قراءة، لا تأكيد قيمة. المحاسب هو من يكتب القيمة الفعلية أثناء المراجعة (شاشة المراجعة في
+ * التطبيق الرئيسي)، إلى أن تُفعَّل قراءة العداد آلياً من الصورة (OCR) كمرحلة لاحقة منفصلة تماماً.
+ * الفوهات تُعرض مجمَّعة حسب المضخة (pumpNumber) — كل مضخة بعدد فوهاتها الفعلي، لا عدداً ثابتاً.
  *
  * shiftId يُحفَظ في localStorage (لا نقطة نهاية لاسترجاع "ورديتي المفتوحة" في هذه المرحلة) حتى لا
  * يُفقَد التقدّم عند إغلاق المتصفح/تحديث الصفحة أثناء وردية حقيقية في محطة وقود.
  */
+function groupNozzlesByPump(nozzles) {
+  const byPump = new Map();
+  for (const n of nozzles) {
+    if (!byPump.has(n.pumpNumber)) byPump.set(n.pumpNumber, []);
+    byPump.get(n.pumpNumber).push(n);
+  }
+  return [...byPump.entries()];
+}
 export default function StationShiftScreen() {
   const { t } = useTranslation();
   const [station, setStation] = useState(null);
@@ -42,7 +49,7 @@ export default function StationShiftScreen() {
     api.getShiftSummary(shiftId).then((summary) => {
       const restored = {};
       for (const r of summary.readings || []) {
-        restored[r.nozzleId] = { value: String(r.closingReading), readingId: r.id, saved: true, photoName: null };
+        restored[r.nozzleId] = { readingId: r.id, saved: true, photoName: null };
       }
       setReadings(restored);
       if (summary.collection) {
@@ -78,16 +85,9 @@ export default function StationShiftScreen() {
     setError(""); setMessage("");
     const entry = readings[nozzleId] || {};
     if (!entry.file) return setError(t("mobile.stationShifts.photoRequired"));
-    if (entry.value === undefined || entry.value === "") return setError(t("mobile.stationShifts.readingRequired"));
     setBusy(true);
     try {
-      const reading = await api.submitReading(shiftId, {
-        nozzleId,
-        closingReading: Number(entry.value),
-        testLiters: 0,
-        workerConfirmedValue: Number(entry.value),
-        capturedAt: new Date().toISOString(),
-      });
+      const reading = await api.submitReading(shiftId, { nozzleId, capturedAt: new Date().toISOString() });
       await api.uploadReadingPhoto(shiftId, reading.id, entry.file);
       setReadings((prev) => ({ ...prev, [nozzleId]: { ...prev[nozzleId], readingId: reading.id, saved: true } }));
       setMessage(t("mobile.stationShifts.readingSaved"));
@@ -172,35 +172,32 @@ export default function StationShiftScreen() {
       {error && <p className="m-error">{error}</p>}
       {message && <p className="m-empty" style={{ color: "#2F5D5A" }}>{message}</p>}
 
-      <div className="m-card">
-        <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.nozzlesTitle")}</h4>
-        {station.nozzles.map((n) => {
-          const entry = readings[n.id] || {};
-          return (
-            <div key={n.id} className="m-list-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
-              <strong>{t("mobile.stationShifts.nozzleLabel", { pump: n.pumpNumber, nozzle: n.nozzleNumber, product: n.product })}</strong>
-              {entry.saved ? (
-                <span style={{ color: "#2F5D5A" }}>✓ {t("mobile.stationShifts.readingSaved")}</span>
-              ) : (
-                <>
-                  <label className="m-btn" style={{ display: "inline-block", textAlign: "center" }}>
-                    {entry.photoName ? t("mobile.stationShifts.retakePhoto") : t("mobile.stationShifts.takePhoto")}
-                    <input type="file" accept="image/*" capture="environment" hidden onChange={(e) => onNozzlePhoto(n.id, e.target.files?.[0])} />
-                  </label>
-                  {entry.photoName && <span style={{ fontSize: 12.5, color: "#6b7280" }}>{entry.photoName}</span>}
-                  <input
-                    type="number"
-                    placeholder={t("mobile.stationShifts.readingPlaceholder")}
-                    value={entry.value || ""}
-                    onChange={(e) => setReadings((prev) => ({ ...prev, [n.id]: { ...prev[n.id], value: e.target.value } }))}
-                  />
-                  <button className="m-btn" disabled={busy} onClick={() => saveReading(n.id)}>{t("common.save")}</button>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <h4>{t("mobile.stationShifts.nozzlesTitle")}</h4>
+      {groupNozzlesByPump(station.nozzles).map(([pumpNumber, nozzles]) => (
+        <div key={pumpNumber} className="m-card">
+          <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.pumpLabel", { pump: pumpNumber })}</h4>
+          {nozzles.map((n) => {
+            const entry = readings[n.id] || {};
+            return (
+              <div key={n.id} className="m-list-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
+                <strong>{t("mobile.stationShifts.nozzleLabel", { nozzle: n.nozzleNumber, product: n.product })}</strong>
+                {entry.saved ? (
+                  <span style={{ color: "#2F5D5A" }}>✓ {t("mobile.stationShifts.readingSaved")}</span>
+                ) : (
+                  <>
+                    <label className="m-btn" style={{ display: "inline-block", textAlign: "center" }}>
+                      {entry.photoName ? t("mobile.stationShifts.retakePhoto") : t("mobile.stationShifts.takePhoto")}
+                      <input type="file" accept="image/*" capture="environment" hidden onChange={(e) => onNozzlePhoto(n.id, e.target.files?.[0])} />
+                    </label>
+                    {entry.photoName && <span style={{ fontSize: 12.5, color: "#6b7280" }}>{entry.photoName}</span>}
+                    <button className="m-btn" disabled={busy} onClick={() => saveReading(n.id)}>{t("common.save")}</button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
 
       <div className="m-card">
         <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.collectionsTitle")}</h4>

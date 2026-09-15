@@ -458,6 +458,7 @@ export const AR_TO_EN: Record<string, string> = {
   "لا يمكن اعتماد وردية ليست قيد المراجعة": "A shift that isn't under review can't be approved",
   "لا يمكن اعتماد الوردية: إحدى الفوهات بلا قراءة مسجَّلة بعد": "The shift can't be approved: one of the nozzles has no recorded reading yet",
   "لا يمكن اعتماد الوردية: إحدى القراءات بلا صورة عداد مرفقة بعد": "The shift can't be approved: one of the readings has no attached meter photo yet",
+  "لا يمكن اعتماد الوردية: إحدى القراءات لم يراجعها المحاسب بعد": "The shift can't be approved: one of the readings hasn't been reviewed by the accountant yet",
   "الإجراء غير موجود ضمن هذه الوحدة": "The action does not exist within this module",
   "لم يُحدَّد حسابا عجز/زيادة نقدية ورديات المحطات لهذه الشركة بعد — اضبطهما من إعدادات الشركة أولاً":
     "This company's station-shift cash shortage/surplus accounts have not been set yet — configure them from company settings first",

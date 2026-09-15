@@ -350,7 +350,11 @@ async function getPreviousClosingReadings(tenantId: string, costCenterId: string
   });
   const closingByNozzle = new Map<string, Prisma.Decimal>();
   for (const reading of previousShift?.readings ?? []) {
-    closingByNozzle.set(reading.nozzleId, new Prisma.Decimal(reading.accountantConfirmedValue ?? reading.closingReading));
+    // القيمة قد تكون فارغة حتى الآن (صُوِّر العداد لكن لم يراجعها المحاسب بعد) — تُستثنى هذه
+    // الفوهة من الخريطة بدل رمي خطأ، فتؤول قراءة الافتتاح التالية للصفر بنفس منطق "أول وردية على
+    // الإطلاق" أدناه؛ حالة نادرة (وردية جديدة تُفتَح قبل مراجعة السابقة) لا تستحق رفض الفتح كله.
+    const value = reading.accountantConfirmedValue ?? reading.closingReading;
+    if (value != null) closingByNozzle.set(reading.nozzleId, new Prisma.Decimal(value));
   }
   return { previousShift, closingByNozzle };
 }
@@ -457,19 +461,33 @@ async function loadShiftClosingInput(tenantId: string, shiftId: string) {
     }),
   );
 
-  const input: ShiftClosingInput = {
-    costCenterId: shift.costCenterId,
-    shiftDate: shift.shiftDate,
-    readings: shift.readings.map((reading) => ({
+  // لم يعد closingReading يُملأ من العامل إطلاقاً (تصوير فقط) — القيمة الوحيدة الممكنة قبل مراجعة
+  // المحاسب هي accountantConfirmedValue؛ أي قراءة لم يراجعها المحاسب بعد (كلاهما فارغ) تُستثنى من
+  // مدخل الحساب ويُرفَع hasUnconfirmedReading بدل تمرير قيمة فارغة لـ computeNozzleLiters (الذي
+  // يفترض دائماً رقماً حقيقياً). المستدعي (getShiftById/approveShift) هو من يقرر ماذا يفعل بهذا
+  // العلم — لا حساب مالي ولا اعتماد يجوز أن يمرّا وبعض القراءات لا تزال بلا قيمة.
+  let hasUnconfirmedReading = false;
+  const readings: NozzleReadingInput[] = [];
+  for (const reading of shift.readings) {
+    const closingReading = reading.accountantConfirmedValue ?? reading.closingReading;
+    if (closingReading == null) {
+      hasUnconfirmedReading = true;
+      continue;
+    }
+    readings.push({
       nozzleId: reading.nozzleId,
       product: reading.nozzle.product,
       meterDigits: reading.nozzle.meterDigits,
       openingReading: reading.openingReading,
-      // تصحيح المحاسب (إن وُجد) هو القيمة المعتمَدة فعلياً للحساب المالي — القراءة الأصلية تبقى
-      // محفوظة بلا تعديل للتدقيق التاريخي فقط.
-      closingReading: reading.accountantConfirmedValue ?? reading.closingReading,
+      closingReading,
       testLiters: reading.testLiters,
-    })),
+    });
+  }
+
+  const input: ShiftClosingInput = {
+    costCenterId: shift.costCenterId,
+    shiftDate: shift.shiftDate,
+    readings,
     prices: priceRows,
     networkAmount: shift.collection?.networkAmount ?? 0,
     fuelCardAmount: shift.collection?.fuelCardAmount ?? 0,
@@ -478,7 +496,7 @@ async function loadShiftClosingInput(tenantId: string, shiftId: string) {
     expenses: shift.expenses.map((expense) => ({ accountId: expenseAccountId, amount: expense.amount })),
     accounts,
   };
-  return { shift, input };
+  return { shift, input, hasUnconfirmedReading };
 }
 
 /** المحطة (مركز التكلفة) المُسنَدة لموظف عامل عبر بوابة الموظف — تُشتَق من
@@ -563,20 +581,21 @@ export async function openShift(tenantId: string, employeeId: string, input: Ope
 
 export interface SubmitReadingInput {
   nozzleId: string;
-  closingReading: number;
-  testLiters: number;
-  workerConfirmedValue: number;
   capturedAt: Date;
   latitude?: number;
   longitude?: number;
 }
 
-/** إضافة/تعديل قراءة فوهة واحدة ضمن وردية العامل المفتوحة — openingReading يُشتَق دائماً من
- * قراءة الإغلاق في آخر وردية سابقة لنفس الفوهة (صفر لو أول وردية إطلاقاً)، ولا يُقبَل إطلاقاً من
- * الطلب (stationShifts.schemas.ts لا يعرّف هذا الحقل أصلاً ويرفض .strict() أي محاولة لتمريره).
- * تُرفَض القراءة فوراً بنفس منطق computeNozzleLiters الخالص (لا عند التلخيص/الاعتماد لاحقاً فقط)
- * لو ظلّت سالبة حتى بعد افتراض لفّة كاملة للعداد. upsert بدل create: العامل قد يعيد إرسال نفس
- * الفوهة أكثر من مرة قبل الإرسال النهائي (submit) لتصحيح خطأ إدخال بنفسه.
+/** تسجيل تصوير عداد فوهة واحدة ضمن وردية العامل المفتوحة — العامل لا يكتب أي رقم هنا إطلاقاً
+ * (بلا closingReading ولا testLiters ولا workerConfirmedValue)، فقط يوثِّق أنه صوَّر هذا العداد
+ * الآن (capturedAt/الموقع)؛ صورة العداد الفعلية تُرفَع بعدها عبر نقطة نهاية منفصلة
+ * (POST .../readings/:readingId/photo) تحتاج معرّف هذه القراءة. openingReading يُشتَق دائماً من
+ * قراءة الإغلاق المعتمَدة في آخر وردية سابقة لنفس الفوهة (صفر لو أول وردية، أو لو لم تُراجَع
+ * القراءة السابقة بعد — راجع تعليق getPreviousClosingReadings)، ولا يُقبَل إطلاقاً من الطلب.
+ * القيمة الفعلية (closingReading/accountantConfirmedValue) تبقى فارغة حتى يكتبها المحاسب أثناء
+ * المراجعة (correctReading) — لا تحقق من صحة الكمية هنا، إذ لا رقم بعد للتحقق منه؛ هذا التحقق
+ * (computeNozzleLiters) انتقل بالكامل لمرحلة إدخال المحاسب. upsert بدل create: العامل قد يعيد
+ * تصوير نفس الفوهة أكثر من مرة (إعادة تصوير) قبل الإرسال النهائي (submit).
  */
 export async function submitReading(tenantId: string, employeeId: string, shiftId: string, input: SubmitReadingInput) {
   const shift = await getOwnedOpenShift(tenantId, employeeId, shiftId);
@@ -588,15 +607,6 @@ export async function submitReading(tenantId: string, employeeId: string, shiftI
 
   const { closingByNozzle } = await getPreviousClosingReadings(tenantId, shift.costCenterId, shift.id);
   const openingReading = closingByNozzle.get(nozzle.id) ?? new Prisma.Decimal(0);
-
-  computeNozzleLiters({
-    nozzleId: nozzle.id,
-    product: nozzle.product,
-    meterDigits: nozzle.meterDigits,
-    openingReading,
-    closingReading: input.closingReading,
-    testLiters: input.testLiters,
-  });
 
   // select صريح (لا يعيد الصف الخام كاملاً): يستثني تحديداً accountantConfirmedValue — غير
   // قابل للتسريب فعلياً هنا (getOwnedOpenShift أعلاه يرفض أصلاً لو غادرت الوردية "open"، وتصحيح
@@ -622,17 +632,11 @@ export async function submitReading(tenantId: string, employeeId: string, shiftI
       shiftId: shift.id,
       nozzleId: nozzle.id,
       openingReading,
-      closingReading: input.closingReading,
-      testLiters: input.testLiters,
-      workerConfirmedValue: input.workerConfirmedValue,
       capturedAt: input.capturedAt,
       latitude: input.latitude,
       longitude: input.longitude,
     },
     update: {
-      closingReading: input.closingReading,
-      testLiters: input.testLiters,
-      workerConfirmedValue: input.workerConfirmedValue,
       capturedAt: input.capturedAt,
       latitude: input.latitude,
       longitude: input.longitude,
@@ -753,29 +757,44 @@ export async function listPendingShifts(tenantId: string, companyId?: string) {
  * (راجع stationShifts.routes.ts)، ولا صلة لها إطلاقاً بـ getShiftSummary الخاصة بالعامل أدناه،
  * والتي لا تحسب أي شيء مالي مشتق عمداً منذ إصلاح تسريب عجز/زيادة الصندوق لصلاحية العامل. */
 export async function getShiftById(tenantId: string, shiftId: string) {
-  const { shift, input } = await loadShiftClosingInput(tenantId, shiftId);
-  const [summary, auditLogs] = await Promise.all([
-    computeShiftClosing(input),
-    prisma.stationShiftAuditLog.findMany({ where: { shiftId }, orderBy: { createdAt: "desc" } }),
-  ]);
+  const { shift, input, hasUnconfirmedReading } = await loadShiftClosingInput(tenantId, shiftId);
+  const auditLogs = await prisma.stationShiftAuditLog.findMany({ where: { shiftId }, orderBy: { createdAt: "desc" } });
+  // لا يُحسَب أي شيء مالي (مبيعات/صافي نقدية/سطور قيد) طالما بقيت قراءة واحدة بلا قيمة مؤكَّدة من
+  // المحاسب — عرض رقم جزئي هنا (متجاهلاً فوهة لم تُراجَع بعد) أخطر من عدم عرض شيء إطلاقاً، فقد
+  // يُقرأ خطأً كرقم نهائي صحيح. الشاشة تعرض null هنا كـ"لم تكتمل المراجعة بعد" وتترك تفاصيل كل
+  // قراءة (readings أدناه) لتوضيح أيها لا يزال ناقصاً.
+  const summary = hasUnconfirmedReading ? null : computeShiftClosing(input);
   return { ...shift, summary, auditLogs };
 }
 
-/** تصحيح المحاسب لقراءة عداد واحدة أثناء المراجعة — يكتب دائماً صفاً في StationShiftAuditLog
- * (لا استثناء)، ويحوّل حالة الوردية إلى under_review تلقائياً لو كانت لا تزال submitted فقط
- * (أول تصحيح يبدأ "قيد المراجعة" فعلياً؛ التصحيحات التالية لا تُعيد هذا التحويل). القيمة
- * المصحَّحة (accountantConfirmedValue) هي ما يدخل الحساب المالي فعلياً بدل closingReading
- * الأصلية — راجع تعليق loadShiftClosingInput أعلاه.
+/** إدخال/تصحيح المحاسب لقيمة قراءة عداد واحدة أثناء المراجعة — منذ إزالة الإدخال اليدوي من شاشة
+ * العامل (تصوير فقط، بلا OCR بعد)، هذه هي المرة الأولى فعلياً التي يظهر فيها أي رقم لهذه القراءة
+ * في أغلب الأحيان، لا مجرد "تصحيح" قيمة عامل موجودة أصلاً — لكن نفس الآلية تبقى صالحة لتصحيح قيمة
+ * سبق إدخالها أيضاً. يكتب دائماً صفاً في StationShiftAuditLog (لا استثناء)، ويحوّل حالة الوردية
+ * إلى under_review تلقائياً لو كانت لا تزال submitted فقط (أول إدخال/تصحيح يبدأ "قيد المراجعة"
+ * فعلياً؛ ما يليه لا يُعيد هذا التحويل). القيمة المُدخَلة (accountantConfirmedValue) هي ما يدخل
+ * الحساب المالي فعلياً — راجع تعليق loadShiftClosingInput أعلاه. تُرفَض القيمة فوراً بنفس منطق
+ * computeNozzleLiters الخالص (لا عند الاعتماد لاحقاً فقط) لو نتجت عنها كمية سالبة حتى بعد افتراض
+ * لفّة كاملة للعداد — نفس فحص "فشل فوري" الذي كان يجري على إدخال العامل قبل هذه المرحلة.
  */
 export async function correctReading(tenantId: string, userId: string, shiftId: string, readingId: string, accountantConfirmedValue: number) {
   const reading = await prisma.stationShiftReading.findFirst({
     where: { id: readingId, shiftId, tenantId },
-    include: { shift: true },
+    include: { shift: true, nozzle: true },
   });
   if (!reading) throw notFound("القراءة غير موجودة");
   if (!(PENDING_STATUSES as readonly string[]).includes(reading.shift.status)) {
     throw badRequest("لا يمكن تصحيح قراءة لوردية ليست قيد المراجعة");
   }
+
+  computeNozzleLiters({
+    nozzleId: reading.nozzleId,
+    product: reading.nozzle.product,
+    meterDigits: reading.nozzle.meterDigits,
+    openingReading: reading.openingReading,
+    closingReading: accountantConfirmedValue,
+    testLiters: reading.testLiters,
+  });
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.stationShiftReading.update({ where: { id: readingId }, data: { accountantConfirmedValue } });
@@ -837,7 +856,13 @@ export async function approveShift(tenantId: string, userId: string, shiftId: st
 
   // يحسب الإقفال الآن أيضاً (لا فقط لاحقاً عند الترحيل) عمداً: لو حساب مفقود من إعدادات الشركة
   // (مثال: عجز/زيادة الصندوق) سيظهر الخطأ هنا، لحظة "التأكيد"، لا مفاجأةً لاحقاً عند الترحيل.
-  const { input } = await loadShiftClosingInput(tenantId, shiftId);
+  const { input, hasUnconfirmedReading } = await loadShiftClosingInput(tenantId, shiftId);
+  // العامل لا يكتب أي رقم إطلاقاً (تصوير فقط) — فمراجعة المحاسب (correctReading) لكل قراءة إلزامية
+  // قبل الاعتماد، لا اختيارية كما كانت أيام الإدخال اليدوي للعامل؛ بلا هذا الفحص كان
+  // computeShiftClosing سيتجاهل بصمت أي فوهة لم تُراجَع بعد (راجع تعليق loadShiftClosingInput).
+  if (hasUnconfirmedReading) {
+    throw badRequest("لا يمكن اعتماد الوردية: إحدى القراءات لم يراجعها المحاسب بعد");
+  }
   computeShiftClosing(input);
 
   return prisma.$transaction(async (tx) => {

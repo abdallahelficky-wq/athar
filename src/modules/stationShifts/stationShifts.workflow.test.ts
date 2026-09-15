@@ -73,18 +73,15 @@ describe("worker actions are blocked once a shift leaves 'open'", () => {
 });
 
 describe("opening readings are always derived server-side", () => {
-  it("takes the opening reading from the previous shift's closing reading, ignoring anything the request could supply", async () => {
+  it("takes the opening reading from the previous shift's confirmed closing reading, ignoring anything the request could supply", async () => {
     vi.mocked(prisma.stationShift.findFirst)
       .mockResolvedValueOnce(baseShift() as never) // getOwnedOpenShift
-      .mockResolvedValueOnce({ id: "previous-shift", readings: [{ nozzleId: "nozzle-1", closingReading: 500, accountantConfirmedValue: null }] } as never); // getPreviousClosingReadings
+      .mockResolvedValueOnce({ id: "previous-shift", readings: [{ nozzleId: "nozzle-1", closingReading: null, accountantConfirmedValue: 500 }] } as never); // getPreviousClosingReadings
     vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel" } as never);
     vi.mocked(prisma.stationShiftReading.upsert).mockResolvedValue({ id: "reading-1" } as never);
 
     await service.submitReading(TENANT, EMPLOYEE, SHIFT_ID, {
       nozzleId: "nozzle-1",
-      closingReading: 700,
-      testLiters: 0,
-      workerConfirmedValue: 700,
       capturedAt: new Date(),
     });
 
@@ -101,9 +98,6 @@ describe("opening readings are always derived server-side", () => {
 
     await service.submitReading(TENANT, EMPLOYEE, SHIFT_ID, {
       nozzleId: "nozzle-1",
-      closingReading: 100,
-      testLiters: 0,
-      workerConfirmedValue: 100,
       capturedAt: new Date(),
     });
 
@@ -111,22 +105,20 @@ describe("opening readings are always derived server-side", () => {
     expect(String(call.create.openingReading)).toBe("0");
   });
 
-  it("rejects a reading that is still negative after rollover handling, before writing anything", async () => {
+  it("also defaults the opening reading to zero when the previous shift's reading hasn't been reviewed yet", async () => {
     vi.mocked(prisma.stationShift.findFirst)
       .mockResolvedValueOnce(baseShift() as never)
-      .mockResolvedValueOnce({ id: "previous-shift", readings: [{ nozzleId: "nozzle-1", closingReading: 999999, accountantConfirmedValue: null }] } as never);
+      .mockResolvedValueOnce({ id: "previous-shift", readings: [{ nozzleId: "nozzle-1", closingReading: null, accountantConfirmedValue: null }] } as never);
     vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel" } as never);
+    vi.mocked(prisma.stationShiftReading.upsert).mockResolvedValue({ id: "reading-1" } as never);
 
-    await expect(
-      service.submitReading(TENANT, EMPLOYEE, SHIFT_ID, {
-        nozzleId: "nozzle-1",
-        closingReading: 5, // 5 + 10^6 - 999999 = 6, minus 1000 test liters = -994
-        testLiters: 1000,
-        workerConfirmedValue: 5,
-        capturedAt: new Date(),
-      }),
-    ).rejects.toMatchObject({ status: 400 });
-    expect(prisma.stationShiftReading.upsert).not.toHaveBeenCalled();
+    await service.submitReading(TENANT, EMPLOYEE, SHIFT_ID, {
+      nozzleId: "nozzle-1",
+      capturedAt: new Date(),
+    });
+
+    const call = vi.mocked(prisma.stationShiftReading.upsert).mock.calls[0][0] as { create: { openingReading: unknown } };
+    expect(String(call.create.openingReading)).toBe("0");
   });
 });
 
@@ -150,15 +142,50 @@ describe("approval completeness gate", () => {
     await expect(service.approveShift(TENANT, "accountant-1", SHIFT_ID)).rejects.toMatchObject({ status: 400 });
     expect(createJournalEntryTx).not.toHaveBeenCalled();
   });
+
+  it("blocks approval when a reading has its meter photo but the accountant hasn't entered/confirmed its value yet", async () => {
+    vi.mocked(prisma.stationShift.findFirst)
+      .mockResolvedValueOnce(baseShift({ status: "submitted" }) as never) // approveShift's own lookup
+      .mockResolvedValueOnce(
+        baseShift({
+          status: "submitted",
+          creditSales: [],
+          expenses: [],
+          collection: null,
+          readings: [
+            {
+              nozzleId: "nozzle-1",
+              openingReading: 0,
+              closingReading: null,
+              accountantConfirmedValue: null,
+              testLiters: 0,
+              nozzle: { product: "diesel", meterDigits: 6 },
+            },
+          ],
+        }) as never,
+      ); // loadShiftClosingInput
+    vi.mocked(prisma.stationNozzle.findMany).mockResolvedValue([{ id: "nozzle-1" }] as never);
+    vi.mocked(prisma.stationShiftReading.findMany).mockResolvedValue([{ id: "reading-1", nozzleId: "nozzle-1" }] as never);
+    vi.mocked(prisma.attachment.findMany).mockResolvedValue([{ entityId: "reading-1" }] as never);
+    vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([] as never);
+
+    await expect(service.approveShift(TENANT, "accountant-1", SHIFT_ID)).rejects.toMatchObject({ status: 400 });
+    expect(createJournalEntryTx).not.toHaveBeenCalled();
+    expect(prisma.stationShift.update).not.toHaveBeenCalled();
+  });
 });
 
 describe("shift status transitions", () => {
   it("moves a submitted shift to under_review on its first accountant correction, and always writes an audit log row", async () => {
     vi.mocked(prisma.stationShiftReading.findFirst).mockResolvedValue({
       id: "reading-1",
+      nozzleId: "nozzle-1",
       shiftId: SHIFT_ID,
       companyId: "company-1",
+      openingReading: 500,
+      testLiters: 0,
       accountantConfirmedValue: null,
+      nozzle: { product: "diesel", meterDigits: 6 },
       shift: baseShift({ status: "submitted" }),
     } as never);
     vi.mocked(prisma.stationShiftReading.update).mockResolvedValue({ id: "reading-1", accountantConfirmedValue: 650 } as never);
@@ -176,9 +203,13 @@ describe("shift status transitions", () => {
   it("does not re-trigger the under_review transition on a second correction", async () => {
     vi.mocked(prisma.stationShiftReading.findFirst).mockResolvedValue({
       id: "reading-1",
+      nozzleId: "nozzle-1",
       shiftId: SHIFT_ID,
       companyId: "company-1",
+      openingReading: 500,
+      testLiters: 0,
       accountantConfirmedValue: 650,
+      nozzle: { product: "diesel", meterDigits: 6 },
       shift: baseShift({ status: "under_review" }),
     } as never);
     vi.mocked(prisma.stationShiftReading.update).mockResolvedValue({ id: "reading-1", accountantConfirmedValue: 660 } as never);
@@ -197,6 +228,25 @@ describe("shift status transitions", () => {
     } as never);
 
     await expect(service.correctReading(TENANT, "accountant-1", SHIFT_ID, "reading-1", 650)).rejects.toMatchObject({ status: 400 });
+    expect(prisma.stationShiftAuditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects an accountant-entered value that is still negative after rollover handling, before writing anything", async () => {
+    vi.mocked(prisma.stationShiftReading.findFirst).mockResolvedValue({
+      id: "reading-1",
+      nozzleId: "nozzle-1",
+      shiftId: SHIFT_ID,
+      companyId: "company-1",
+      openingReading: 999999,
+      testLiters: 1000,
+      accountantConfirmedValue: null,
+      nozzle: { product: "diesel", meterDigits: 6 },
+      shift: baseShift({ status: "submitted" }),
+    } as never);
+
+    // 5 + 10^6 - 999999 = 6, minus 1000 test liters = -994
+    await expect(service.correctReading(TENANT, "accountant-1", SHIFT_ID, "reading-1", 5)).rejects.toMatchObject({ status: 400 });
+    expect(prisma.stationShiftReading.update).not.toHaveBeenCalled();
     expect(prisma.stationShiftAuditLog.create).not.toHaveBeenCalled();
   });
 
@@ -291,6 +341,63 @@ describe("shift status transitions", () => {
   it.each(["open", "approved", "posted", "rejected"])("rejects approving a shift with status %s", async (status) => {
     vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ status }) as never);
     await expect(service.approveShift(TENANT, "accountant-1", SHIFT_ID)).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe("getShiftById exposes the financial summary only once every reading is confirmed", () => {
+  it("returns summary: null while a reading is still pending accountant confirmation", async () => {
+    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(
+      baseShift({
+        status: "submitted",
+        creditSales: [],
+        expenses: [],
+        collection: null,
+        readings: [
+          {
+            nozzleId: "nozzle-1",
+            openingReading: 0,
+            closingReading: null,
+            accountantConfirmedValue: null,
+            testLiters: 0,
+            nozzle: { product: "diesel", meterDigits: 6 },
+          },
+        ],
+      }) as never,
+    );
+    vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.stationShiftAuditLog.findMany).mockResolvedValue([] as never);
+
+    const result = await service.getShiftById(TENANT, SHIFT_ID);
+    expect(result.summary).toBeNull();
+  });
+
+  it("computes the full financial summary once every reading has a confirmed value", async () => {
+    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(
+      baseShift({
+        status: "submitted",
+        creditSales: [],
+        expenses: [],
+        collection: null,
+        readings: [
+          {
+            nozzleId: "nozzle-1",
+            openingReading: 0,
+            closingReading: null,
+            accountantConfirmedValue: 100,
+            testLiters: 0,
+            nozzle: { product: "diesel", meterDigits: 6 },
+          },
+        ],
+      }) as never,
+    );
+    vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([
+      { product: "diesel", priceInclVat: 2.3, effectiveFrom: new Date("2026-01-01"), costCenterId: null },
+    ] as never);
+    vi.mocked(prisma.stationShiftAuditLog.findMany).mockResolvedValue([] as never);
+
+    const result = await service.getShiftById(TENANT, SHIFT_ID);
+    expect(result.summary).not.toBeNull();
+    expect(result.summary?.litersByNozzle).toHaveLength(1);
   });
 });
 

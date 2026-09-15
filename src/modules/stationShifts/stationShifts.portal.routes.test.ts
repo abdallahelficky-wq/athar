@@ -68,9 +68,6 @@ describe("a worker (employee-portal token, no Position/PositionActionPermission 
 
     const response = await call("POST", `/${SHIFT_ID}/readings`, WORKER, {
       nozzleId: "nozzle-1",
-      closingReading: 500,
-      testLiters: 0,
-      workerConfirmedValue: 500,
       capturedAt: new Date().toISOString(),
     });
 
@@ -89,9 +86,6 @@ describe("a worker (employee-portal token, no Position/PositionActionPermission 
 
     const response = await call("POST", `/${SHIFT_ID}/readings`, WORKER, {
       nozzleId: "nozzle-1",
-      closingReading: 500,
-      testLiters: 0,
-      workerConfirmedValue: 500,
       capturedAt: new Date().toISOString(),
     });
 

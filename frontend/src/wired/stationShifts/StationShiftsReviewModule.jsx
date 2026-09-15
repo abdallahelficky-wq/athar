@@ -118,7 +118,6 @@ export default function StationShiftsReviewModule({ companyId }) {
               <tr>
                 <th>{t("stationShiftsReview.table.nozzle")}</th>
                 <th>{t("stationShiftsReview.table.product")}</th>
-                <th>{t("stationShiftsReview.table.workerReading")}</th>
                 <th>{t("stationShiftsReview.table.confirmedReading")}</th>
                 <th>{t("stationShiftsReview.correctionLabel")}</th>
                 <th></th>
@@ -130,19 +129,18 @@ export default function StationShiftsReviewModule({ companyId }) {
                   <tr>
                     <td>{r.nozzle?.pumpNumber}-{r.nozzle?.nozzleNumber}</td>
                     <td>{r.nozzle?.product}</td>
-                    <td className="num">{r.closingReading}</td>
-                    <td className="num">{r.accountantConfirmedValue ?? "—"}</td>
+                    <td className="num">{r.accountantConfirmedValue ?? t("stationShiftsReview.notReviewedYet")}</td>
                     <td><input type="number" value={corrections[r.id] || ""} onChange={(e) => setCorrections({ ...corrections, [r.id]: e.target.value })} style={{ width: 100 }} /></td>
                     <td><button className="btn-ghost" onClick={() => doCorrect(r.id)}>{t("stationShiftsReview.correctBtn")}</button></td>
                   </tr>
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={5}>
                       <AttachmentsPanel entityType="station_shift_reading" entityId={r.id} title={t("stationShiftsReview.meterPhotoTitle", { nozzle: `${r.nozzle?.pumpNumber}-${r.nozzle?.nozzleNumber}` })} />
                     </td>
                   </tr>
                 </React.Fragment>
               ))}
-              {(!detail.readings || detail.readings.length === 0) && <tr><td className="empty" colSpan={6}>{t("stationShiftsReview.noReadings")}</td></tr>}
+              {(!detail.readings || detail.readings.length === 0) && <tr><td className="empty" colSpan={5}>{t("stationShiftsReview.noReadings")}</td></tr>}
             </tbody>
           </table>
 
@@ -168,21 +166,25 @@ export default function StationShiftsReviewModule({ companyId }) {
           </table>
 
           <h4>{t("stationShiftsReview.netCashTitle")}</h4>
-          <table className="ledger-table">
-            <tbody>
-              <tr><td>{t("stationShiftsReview.grossSales")}</td><td className="num">{fmt(detail.summary?.grossSales)}</td></tr>
-              <tr><td>{t("stationShiftsReview.expensesTotal")}</td><td className="num">{fmt(detail.summary?.expensesTotal)}</td></tr>
-              <tr><td>{t("stationShiftsReview.expectedCash")}</td><td className="num">{fmt(detail.summary?.expectedCash)}</td></tr>
-              <tr><td>{t("stationShiftsReview.cashDue")}</td><td className="num">{fmt(detail.summary?.cashDue)}</td></tr>
-              <tr className={Number(detail.summary?.variance) < 0 ? "balance-bad" : "balance-ok"}>
-                <td className="strong">{t("stationShiftsReview.variance")}</td>
-                <td className="num strong">{fmt(detail.summary?.variance)}</td>
-              </tr>
-            </tbody>
-          </table>
+          {detail.summary ? (
+            <table className="ledger-table">
+              <tbody>
+                <tr><td>{t("stationShiftsReview.grossSales")}</td><td className="num">{fmt(detail.summary.grossSales)}</td></tr>
+                <tr><td>{t("stationShiftsReview.expensesTotal")}</td><td className="num">{fmt(detail.summary.expensesTotal)}</td></tr>
+                <tr><td>{t("stationShiftsReview.expectedCash")}</td><td className="num">{fmt(detail.summary.expectedCash)}</td></tr>
+                <tr><td>{t("stationShiftsReview.cashDue")}</td><td className="num">{fmt(detail.summary.cashDue)}</td></tr>
+                <tr className={Number(detail.summary.variance) < 0 ? "balance-bad" : "balance-ok"}>
+                  <td className="strong">{t("stationShiftsReview.variance")}</td>
+                  <td className="num strong">{fmt(detail.summary.variance)}</td>
+                </tr>
+              </tbody>
+            </table>
+          ) : (
+            <p className="note">{t("stationShiftsReview.pendingConfirmation")}</p>
+          )}
 
           <div className="form-btn-group">
-            <button className="btn-primary" onClick={doApprove}>{t("stationShiftsReview.approveBtn")}</button>
+            <button className="btn-primary" disabled={!detail.summary} onClick={doApprove}>{t("stationShiftsReview.approveBtn")}</button>
             <button className="btn-primary" onClick={doPost}>{t("stationShiftsReview.postBtn")}</button>
             <button className="btn-ghost" onClick={doReject}>{t("stationShiftsReview.rejectBtn")}</button>
           </div>

@@ -9,12 +9,12 @@ export const openShiftSchema = z
   })
   .strict();
 
+// لا closingReading ولا testLiters ولا workerConfirmedValue هنا إطلاقاً: العامل يصوّر العداد
+// فقط، بلا أي إدخال رقمي — المحاسب هو من يكتب القيمة الفعلية أثناء المراجعة (correctReadingSchema
+// أدناه)، حتى تُفعَّل خدمة OCR لاحقاً وتملأ ocrValue آلياً.
 export const submitReadingSchema = z
   .object({
     nozzleId: z.string().min(1),
-    closingReading: z.coerce.number().nonnegative(),
-    testLiters: z.coerce.number().nonnegative().default(0),
-    workerConfirmedValue: z.coerce.number().nonnegative(),
     capturedAt: z.coerce.date(),
     latitude: z.coerce.number().min(-90).max(90).optional(),
     longitude: z.coerce.number().min(-180).max(180).optional(),

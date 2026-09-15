@@ -2682,6 +2682,7 @@ model StationNozzle {
 
   readings StationShiftReading[]
 
+  @@unique([costCenterId, pumpNumber, nozzleNumber])
   @@index([tenantId, companyId, costCenterId])
   @@map("station_nozzles")
 }
@@ -2761,13 +2762,20 @@ model StationShiftReading {
   nozzleId                 String
   nozzle                   StationNozzle @relation(fields: [nozzleId], references: [id])
   openingReading           Decimal       @db.Decimal(18, 3)
-  closingReading           Decimal       @db.Decimal(18, 3)
+  // فارغة من فتح القراءة (تصوير العامل للعداد) وحتى يُدخل المحاسب قيمتها أثناء المراجعة —
+  // العامل لا يكتب أي رقم إطلاقاً في هذه المرحلة (بلا OCR بعد)، فصورة العداد وحدها لا تكفي لحساب
+  // أي شيء مالي. راجع تعليق accountantConfirmedValue أدناه؛ هو المصدر الوحيد فعلياً لقيمة هذا
+  // الحقل حتى تُفعَّل خدمة OCR (ocrValue) لاحقاً.
+  closingReading           Decimal?      @db.Decimal(18, 3)
   testLiters               Decimal       @default(0) @db.Decimal(18, 3)
   // القراءة المستخرجة آلياً من صورة العداد (OCR) — فارغة إن لم تُفعَّل هذه الخدمة بعد أو تعذّرت
-  // القراءة؛ لا تمنع إدخال قيمة العامل ولا اعتماد المحاسب.
+  // القراءة؛ لا تمنع اعتماد المحاسب.
   ocrValue                 Decimal?      @db.Decimal(18, 3)
-  workerConfirmedValue     Decimal       @db.Decimal(18, 3)
-  // تصحيح المحاسب أثناء المراجعة عند اختلافه عن قيمة العامل — فارغ ما لم يُعدَّل شيء.
+  // لم يعد العامل يكتب أي قيمة إطلاقاً (تصوير العداد فقط) — يبقى الحقل فارغاً دائماً في هذه
+  // المرحلة، محفوظاً فقط لأن نفس الشكل (nullable) لازم لاحقاً لقيمة OCR المؤكَّدة تلقائياً.
+  workerConfirmedValue     Decimal?      @db.Decimal(18, 3)
+  // القيمة الوحيدة الفعلية لهذه القراءة قبل تفعيل OCR — إلزامية قبل اعتماد الوردية (راجع
+  // approveShift في stationShifts.service.ts)، لا مجرد "تصحيح" اختياري كما كان الاسم يوحي سابقاً.
   accountantConfirmedValue Decimal?      @db.Decimal(18, 3)
   capturedAt               DateTime
   latitude                 Float?
