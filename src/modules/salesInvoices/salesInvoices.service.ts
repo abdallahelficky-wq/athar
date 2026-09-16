@@ -516,6 +516,18 @@ async function performZatcaResubmission(invoice: InvoiceWithZatcaChain) {
     throw badRequest("بيانات سلسلة زاتكا الأصلية لهذه الفاتورة غير مكتملة — تعذّرت إعادة الإرسال، راجع الدعم الفني");
   }
 
+  if (invoice.zatcaRetryCount > 0) {
+    // تنبيه مميَّز مقصود (لا رسالة عادية) يُسجَّل *قبل* إرسال أي محاولة ثانية أو لاحقة لنفس
+    // المستند — إن اشتكت زاتكا يوماً من ازدواج مستند بنفس UUID، هذا أول مكان يجب البحث فيه بدل
+    // تخمين وقت الإرسال المزدوج من سجلات متفرقة.
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[zatcaResubmission] REPEATED SUBMISSION — محاولة رقم ${invoice.zatcaRetryCount + 1} لنفس المستند | ` +
+        `الفاتورة=${invoice.invoiceNumber} الشركة=${invoice.company.name} (companyId=${invoice.companyId}) ` +
+        `documentUuid=${invoice.zatcaUuid}`,
+    );
+  }
+
   const result = await resubmitZatcaDocument({
     company: invoice.company,
     customer: invoice.customer,
@@ -546,6 +558,24 @@ async function performZatcaResubmission(invoice: InvoiceWithZatcaChain) {
 }
 
 /**
+ * يحجز فاتورة ذرّياً قبل أي محاولة إرسال فعلية (يدوية أو تلقائية) — يُطابِق تحديثه في WHERE قيمتي
+ * zatcaRetryCount/zatcaLastAttemptAt المقروءتين بالضبط عند تحميل الفاتورة، فلو نسخة أخرى من
+ * الخادم (تدقة تلقائية متزامنة) أو نقرة "إعادة إرسال" أخرى سبقتنا لنفس الفاتورة، هذا التحديث
+ * يُطابِق صفراً من الصفوف. يمنع إرسال نفس المستند لزاتكا مرتين بسبب تزامن، سواء بين نسختي خادم أو
+ * بين محاولة تلقائية ونقرة يدوية على نفس الفاتورة في نفس اللحظة تقريباً.
+ */
+async function claimInvoiceForZatcaAttempt(
+  invoice: { id: string; zatcaStatus: InvoiceWithZatcaChain["zatcaStatus"]; zatcaRetryCount: number; zatcaLastAttemptAt: Date | null },
+  now: Date,
+): Promise<boolean> {
+  const claim = await prisma.salesInvoice.updateMany({
+    where: { id: invoice.id, zatcaStatus: invoice.zatcaStatus, zatcaRetryCount: invoice.zatcaRetryCount, zatcaLastAttemptAt: invoice.zatcaLastAttemptAt },
+    data: { zatcaLastAttemptAt: now },
+  });
+  return claim.count > 0;
+}
+
+/**
  * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" (رفضتها زاتكا صراحةً) أو
  * "submission_failed" (تعذّر الوصول إليها أصلاً) لزاتكا. متاحة فقط لهاتين الحالتين تحديداً — أي
  * حالة زاتكا أخرى تُرفَض صراحةً.
@@ -556,6 +586,11 @@ export async function resendInvoiceToZatca(tenantId: string, id: string) {
   if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
   if (invoice.zatcaStatus !== "rejected" && invoice.zatcaStatus !== "submission_failed") {
     throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا أو تعذّر إرسالها إليها");
+  }
+
+  const claimed = await claimInvoiceForZatcaAttempt(invoice, new Date());
+  if (!claimed) {
+    throw badRequest("جارٍ إعادة إرسال هذه الفاتورة بالفعل الآن (نقرة أخرى أو محاولة تلقائية متزامنة) — انتظر قليلاً ثم تحقّق من حالتها قبل إعادة المحاولة");
   }
 
   const { updated, rejectionReason } = await performZatcaResubmission(invoice);
@@ -599,6 +634,54 @@ const ZATCA_AUTO_RETRY_QUERY_LIMIT = 500;
 const ZATCA_AUTO_RETRY_BATCH_SIZE = 20;
 
 /**
+ * تُوزَّع فتحات الدفعة الواحدة بالتناوب (round-robin) على كل الشركات التي لديها فواتير مستحقة —
+ * فتحة واحدة لكل شركة في كل جولة، لا بحسب أقدم فاتورة على الإطلاق عبر المنصّة كلها — حتى لا
+ * تستحوذ شركة واحدة ذات تراكم كبير على الدفعة بأكملها بينما فاتورة شركة أخرى (قد تكون أقرب فعلياً
+ * لمهلة الـ24 ساعة القانونية الخاصة بها) تنتظر بلا داعٍ. الترتيب "الأقدم أولاً" يبقى محفوظاً *داخل*
+ * كل شركة (قائمة كل شركة مُرتَّبة سلفاً لأن invoicesDueOldestFirst مُرتَّبة، والتجميع أدناه يحافظ
+ * على هذا الترتيب).
+ *
+ * عندما يتجاوز عدد الشركات صاحبة العمل المعلَّق حجم الدفعة: كل شركة تحصل على فتحة واحدة على الأكثر
+ * في هذه النبضة (الجولة الأولى وحدها تملأ الدفعة)، فتُخدَم أول ZATCA_AUTO_RETRY_BATCH_SIZE شركة من
+ * قائمة `rotationOffset` الدوّارة هذه النبضة، والباقي ينتظر النبضة التالية. rotationOffset يتقدّم
+ * نبضة بعد أخرى (حالة داخل العملية فقط، بلا تأثير على الصحة) حتى لا تُخدَم نفس المجموعة من
+ * الشركات دائماً أولاً لو تجاوز عدد الشركات المتنافسة حجم الدفعة باستمرار — كل شركة تتقدّم في
+ * الصفّ على مدى عدة نبضات بدل أن تُحرَم إحداها بشكل دائم.
+ */
+export function allocateZatcaAutoRetryBatch<T extends { companyId: string }>(invoicesDueOldestFirst: T[], batchSize: number, rotationOffset = 0): T[] {
+  const byCompany = new Map<string, T[]>();
+  for (const invoice of invoicesDueOldestFirst) {
+    const queue = byCompany.get(invoice.companyId);
+    if (queue) queue.push(invoice);
+    else byCompany.set(invoice.companyId, [invoice]);
+  }
+  const companyQueues = [...byCompany.values()];
+  if (companyQueues.length === 0) return [];
+  const offset = rotationOffset % companyQueues.length;
+  const rotatedQueues = [...companyQueues.slice(offset), ...companyQueues.slice(0, offset)];
+
+  const selected: T[] = [];
+  let madeProgress = true;
+  while (selected.length < batchSize && madeProgress) {
+    madeProgress = false;
+    for (const queue of rotatedQueues) {
+      if (selected.length >= batchSize) break;
+      const next = queue.shift();
+      if (next !== undefined) {
+        selected.push(next);
+        madeProgress = true;
+      }
+    }
+  }
+  return selected;
+}
+
+// يدوّر أولوية الشركات بين نبضة وأخرى عند التنافس على الدفعة (راجع allocateZatcaAutoRetryBatch) —
+// حالة داخل العملية فقط لا تؤثر على الصحة إطلاقاً (مجرد عدالة أفضل عبر الزمن)، تُصفَّر بإعادة تشغيل
+// الخادم بلا أي مشكلة.
+let zatcaAutoRetryRotationOffset = 0;
+
+/**
  * يُستدعى دورياً من lib/zatca/retryScheduler.ts — يفحص كل الفواتير المُرحَّلة (لأي شركة على
  * المنصّة، بلا اقتصار على مستأجر واحد؛ هذا job خلفي بلا سياق طلب) التي لم تصل لزاتكا بنجاح بعد
  * (تعذّر اتصال، أو لم تُرسَل أصلاً بسبب غياب شهادة الشركة وقت الترحيل) ويعيد محاولة إرسالها بشهادة
@@ -608,39 +691,36 @@ const ZATCA_AUTO_RETRY_BATCH_SIZE = 20;
  * الدفعة (شركات أخرى ضمنها) ولا الوظيفة الدورية نفسها.
  *
  * أمان تعدّد النُّسخ (Railway قد يُشغِّل أكثر من Instance): قبل أي محاولة فعلية لفاتورة، تُحجَز
- * ذرّياً بـupdateMany تُطابِق قيمتي zatcaRetryCount/zatcaLastAttemptAt المقروءتين بالضبط في
- * شرط WHERE (نفس أسلوب المطالبة الذرّية في reportScheduler.ts أعلاه بـlastSentPeriodKey) — لو
- * نسخة أخرى من الخادم حجزت نفس الفاتورة أولاً (أو غيّرت حالتها) بين قراءتنا وتحديثنا، هذا التحديث
- * يُطابِق صفراً من الصفوف فنتخطّى الفاتورة هذه النبضة بدل إرسالها مرتين. الحجز يحدث *قبل* أي اتصال
- * فعلي بزاتكا، فانهيار العملية بعده مباشرة (قبل استدعاء fetch) لا يترك أثراً غير محاولة مؤجَّلة
- * فقط. النافذة الوحيدة غير المُغلَقة فعلياً: انهيار العملية بعد أن يستلم زاتكا الطلب فعلياً وقبل أن
- * يُكتَب نجاح ذلك محلياً — عندها ستُعاد المحاولة لاحقاً بنفس UUID/تجزئة المستند بالضبط؛ هذا الكود
- * لا يفترض أن زاتكا يتعامل مع ذلك كطلب مكرر آمن (idempotent)، فهذه نافذة خطر متبقية فعلياً، ولا
- * توجد في هذا التكامل أي نقطة API للتحقق من حالة مستند سبق إرساله قبل إعادة إرساله.
+ * ذرّياً عبر claimInvoiceForZatcaAttempt (نفس أسلوب المطالبة الذرّية في reportScheduler.ts أعلاه
+ * بـlastSentPeriodKey) — لو نسخة أخرى من الخادم حجزت نفس الفاتورة أولاً (أو غيّرت حالتها) بين
+ * قراءتنا وتحديثنا، الحجز يُطابِق صفراً من الصفوف فنتخطّى الفاتورة هذه النبضة بدل إرسالها مرتين.
+ * الحجز يحدث *قبل* أي اتصال فعلي بزاتكا، فانهيار العملية بعده مباشرة (قبل استدعاء fetch) لا يترك
+ * أثراً غير محاولة مؤجَّلة فقط. النافذة الوحيدة غير المُغلَقة فعلياً: انهيار العملية بعد أن يستلم
+ * زاتكا الطلب فعلياً وقبل أن يُكتَب نجاح ذلك محلياً — عندها ستُعاد المحاولة لاحقاً بنفس UUID/تجزئة
+ * المستند بالضبط؛ هذا الكود لا يفترض أن زاتكا يتعامل مع ذلك كطلب مكرر آمن (idempotent)، فهذه نافذة
+ * خطر متبقية فعلياً، ولا توجد في هذا التكامل أي نقطة API للتحقق من حالة مستند سبق إرساله قبل إعادة
+ * إرساله. performZatcaResubmission يُسجِّل تحذيراً مميَّزاً REPEATED SUBMISSION قبل أي محاولة
+ * ثانية أو لاحقة لنفس المستند (retryCount > 0) بمعرّفه (UUID) بالضبط، تحديداً لتتبّع هذه الحالة.
+ *
+ * عدالة بين المستأجرين: الفواتير المستحقة تُوزَّع بالتناوب على الشركات صاحبة العمل المعلَّق (راجع
+ * allocateZatcaAutoRetryBatch) بدل ملء الدفعة كلها من أقدم الفواتير على الإطلاق بصرف النظر عن
+ * الشركة — فتراكم كبير لشركة واحدة لا يدفع فاتورة شركة أخرى (ربما أقرب فعلياً لمهلتها الخاصة)
+ * خارج الدفعة باستمرار.
  */
 export async function runZatcaAutoRetry(now: Date = new Date()): Promise<ZatcaAutoRetryRunSummary> {
   const candidates = await prisma.salesInvoice.findMany({
     where: { status: "posted", zatcaStatus: { in: [...ZATCA_AUTO_RETRY_STATUSES] } },
-    orderBy: { zatcaSubmittedAt: "asc" }, // الأقدم أولاً — الأقرب لمهلة الـ24 ساعة القانونية للفاتورة المبسّطة
+    orderBy: { zatcaSubmittedAt: "asc" }, // الأقدم أولاً داخل كل شركة — الأقرب لمهلة الـ24 ساعة القانونية لتلك الشركة
     take: ZATCA_AUTO_RETRY_QUERY_LIMIT,
     include: invoiceInclude,
   });
+  const due = candidates.filter((invoice) => isDueForZatcaAutoRetry(invoice, now));
+  const batch = allocateZatcaAutoRetryBatch(due, ZATCA_AUTO_RETRY_BATCH_SIZE, zatcaAutoRetryRotationOffset++);
 
   const summary: ZatcaAutoRetryRunSummary = { attempted: 0, succeeded: 0, rejected: 0, stillFailing: 0 };
-  for (const invoice of candidates) {
-    if (summary.attempted >= ZATCA_AUTO_RETRY_BATCH_SIZE) break;
-    if (!isDueForZatcaAutoRetry(invoice, now)) continue;
-
-    const claim = await prisma.salesInvoice.updateMany({
-      where: {
-        id: invoice.id,
-        zatcaStatus: { in: [...ZATCA_AUTO_RETRY_STATUSES] },
-        zatcaRetryCount: invoice.zatcaRetryCount,
-        zatcaLastAttemptAt: invoice.zatcaLastAttemptAt,
-      },
-      data: { zatcaLastAttemptAt: now },
-    });
-    if (claim.count === 0) continue; // نسخة أخرى من الخادم سبقتنا لهذه الفاتورة، أو تغيّرت حالتها منذ القراءة أعلاه
+  for (const invoice of batch) {
+    const claimed = await claimInvoiceForZatcaAttempt(invoice, now);
+    if (!claimed) continue; // نسخة أخرى من الخادم سبقتنا لهذه الفاتورة، أو تغيّرت حالتها منذ القراءة أعلاه
 
     summary.attempted++;
     try {

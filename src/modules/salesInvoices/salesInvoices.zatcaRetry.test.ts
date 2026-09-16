@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDueForZatcaAutoRetry } from "./salesInvoices.service";
+import { allocateZatcaAutoRetryBatch, isDueForZatcaAutoRetry } from "./salesInvoices.service";
 
 // اختبار وحدة بحت لمنطق الـbackoff بلا أي اتصال بقاعدة بيانات — الدالة المُختبَرة هنا لا تلمس
 // Prisma إطلاقاً، فقط تقارن طوابع زمنية. الاختبارات الأخرى لهذه الوحدة (الاستعلام الفعلي عن
@@ -36,5 +36,49 @@ describe("isDueForZatcaAutoRetry", () => {
     const sixtyMinAgo = new Date(NOW.getTime() - 60 * 60 * 1000);
     expect(isDueForZatcaAutoRetry({ zatcaRetryCount: 50, zatcaLastAttemptAt: fiftyNineMinAgo }, NOW)).toBe(false);
     expect(isDueForZatcaAutoRetry({ zatcaRetryCount: 50, zatcaLastAttemptAt: sixtyMinAgo }, NOW)).toBe(true);
+  });
+});
+
+// اختبار وحدة بحت أيضاً — لا يلمس Prisma، فقط منطق تجميع/تناوب بحت على مصفوفات في الذاكرة.
+describe("allocateZatcaAutoRetryBatch", () => {
+  function invoice(companyId: string, invoiceNumber: string) {
+    return { companyId, invoiceNumber };
+  }
+
+  it("does not let one company's large backlog crowd out another company's single invoice", () => {
+    // شركة A لديها 30 فاتورة متأخرة (أقدم من فاتورة B)، شركة B لديها فاتورة واحدة فقط.
+    const dueOldestFirst = [
+      ...Array.from({ length: 30 }, (_, i) => invoice("company-A", `A-${i}`)),
+      invoice("company-B", "B-1"),
+    ];
+    const batch = allocateZatcaAutoRetryBatch(dueOldestFirst, 5);
+    // لو مُلئت الدفعة من الأقدم على الإطلاق بلا تمييز، فاتورة B لن تظهر إطلاقاً هذه النبضة.
+    expect(batch.some((inv) => inv.companyId === "company-B")).toBe(true);
+    expect(batch.filter((inv) => inv.companyId === "company-A")).toHaveLength(4);
+  });
+
+  it("keeps oldest-first order within each company's own queue", () => {
+    const dueOldestFirst = [invoice("company-A", "A-1"), invoice("company-A", "A-2"), invoice("company-A", "A-3")];
+    const batch = allocateZatcaAutoRetryBatch(dueOldestFirst, 2);
+    expect(batch.map((inv) => inv.invoiceNumber)).toEqual(["A-1", "A-2"]);
+  });
+
+  it("gives every company with pending work exactly one slot per round when companies outnumber the batch size", () => {
+    const dueOldestFirst = ["A", "B", "C", "D", "E"].map((c) => invoice(c, `${c}-1`));
+    const batch = allocateZatcaAutoRetryBatch(dueOldestFirst, 3);
+    expect(batch).toHaveLength(3);
+    expect(new Set(batch.map((inv) => inv.companyId)).size).toBe(3); // 3 شركات مختلفة، لا نفس الشركة مرتين
+  });
+
+  it("rotates which companies get priority across ticks so the same ones don't starve when companies exceed the batch size", () => {
+    const dueOldestFirst = ["A", "B", "C", "D", "E"].map((c) => invoice(c, `${c}-1`));
+    const firstTick = allocateZatcaAutoRetryBatch(dueOldestFirst, 2, 0).map((inv) => inv.companyId);
+    const secondTick = allocateZatcaAutoRetryBatch(dueOldestFirst, 2, 2).map((inv) => inv.companyId);
+    expect(firstTick).toEqual(["A", "B"]);
+    expect(secondTick).toEqual(["C", "D"]);
+  });
+
+  it("returns an empty batch when nothing is due", () => {
+    expect(allocateZatcaAutoRetryBatch([], 20)).toEqual([]);
   });
 });
