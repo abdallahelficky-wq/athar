@@ -42,6 +42,7 @@ function buildBasicAuthHeader(credentials: ZatcaApiCredentials): string {
 export interface ZatcaApiResponse<T> {
   ok: boolean;
   status: number;
+  statusText?: string;
   data: T | null;
   /** true فقط عند استجابة HTTP ناجحة (2xx) لكن جسمها لا يطابق المخطط المتوقَّع — يميّز هذه الحالة
    * صراحةً عن رفض فعلي من زاتكا أو فشل اتصال، حتى لا تُعرَض رسالة مضلِّلة ولا تُقبَل بيانات فاسدة. */
@@ -50,6 +51,12 @@ export interface ZatcaApiResponse<T> {
    * هذه الحالة عن رفض حقيقي من زاتكا، حتى تُعامَل كفشل إرسال مؤقت (نفس مسار malformedResponse) لا
    * كاستثناء غير مُتوقَّع يُسقِط معاملة الترحيل بأكملها. راجع تعليق zatcaRequest أدناه. */
   networkError?: boolean;
+  /** true لاستجابة غير ناجحة (non-2xx) وصلت فعلياً (بخلاف networkError) لكنها ليست رفضاً حقيقياً
+   * لمحتوى المستند — إما كودها كود نقل/مصادقة/توجيه واضح (401/403/404/5xx) بصرف النظر عن جسمها، أو
+   * جسمها لا يحمل بنية رفض معروفة من زاتكا (validationResults بأخطاء/تحذيرات فعلية) إطلاقاً. راجع
+   * hasRecognizableRejectionBody أدناه — هذا هو الفرق بين "رفضت زاتكا الفاتورة" (تحتاج تصحيح بيانات)
+   * و"تعذّر الوصول لزاتكا بصيغة مفهومة" (تحتاج مراجعة إعداد الربط: شهادة/صلاحيات/مسار). */
+  httpError?: boolean;
 }
 
 interface RequestParams<T> {
@@ -104,9 +111,14 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
     return { ok: false, status: 0, data: null, networkError: true };
   }
 
+  // نقرأ الجسم كنص خام أولاً، قبل أي محاولة تحليل JSON — إعادة إنتاج عطل إنتاج فعلي: جسم فارغ أو
+  // غير JSON (شائع لردود مصادقة/توجيه 401/403/404 من بوابات API) يجعل response.json() ترمي، فكان
+  // الجسم المُحلَّل يُصبح null بلا أي وسيلة لمعرفة السبب الفعلي لاحقاً — لا حتى كود الحالة نفسه، لأن
+  // شيئاً لم يكن يُسجِّل الصورة الكاملة (status/statusText/الترويسات/الجسم الخام) على الإطلاق.
+  const rawText = await response.text().catch(() => "");
   let rawData: unknown = null;
   try {
-    rawData = await response.json();
+    rawData = rawText ? JSON.parse(rawText) : null;
   } catch {
     rawData = null;
   }
@@ -117,7 +129,26 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
     // الفعلي. لا نعرف بعد يقيناً أن zatcaSubmissionResponseSchema أدناه يطابق شكل رفض زاتكا الحقيقي
     // (لم يُتحقَّق منه مباشرة ضد رفض حقيقي وقت كتابة هذا الملف، راجع التعليق أعلى الملف) — التحقّق
     // الشكلي في extractRejectionReasons يتعامل مع هذا بالتساهل بدل الرفض الصامت للبيانات هنا.
-    return { ok: false, status: response.status, data: rawData as T | null };
+    //
+    // السجلّ هنا هو الصورة الكاملة لأي استجابة غير ناجحة من زاتكا — status/statusText/الترويسات/
+    // الجسم الخام كنص قبل أي تحليل — على كل نداء زاتكا بلا استثناء (إصدار شهادة، تخليص، إبلاغ...).
+    const headersObject: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      headersObject[key] = value;
+    });
+    // eslint-disable-next-line no-console
+    console.error(
+      `[zatcaRequest] استجابة غير ناجحة من زاتكا — المسار=${params.path} status=${response.status} ${response.statusText} — ` +
+        `الترويسات: ${JSON.stringify(headersObject)} — الجسم الخام (نص، قبل أي تحليل): ${rawText.slice(0, 2000)}`,
+    );
+
+    // "رفضت زاتكا الفاتورة" (rejected) يعني أنها قيَّمت المستند فعلياً ورفضته — يحتاج تصحيح بيانات.
+    // أي شيء آخر (كود مصادقة/توجيه واضح 401/403/404/5xx بصرف النظر عن الجسم، أو جسم لا يحمل بنية
+    // رفض معروفة إطلاقاً) هو فشل نقل/مصادقة/إعداد، لا رفض فعلي لمحتوى المستند — راجع httpError أعلاه.
+    const isTransportOrAuthStatus = response.status === 401 || response.status === 403 || response.status === 404 || response.status >= 500;
+    const httpError = isTransportOrAuthStatus || !hasRecognizableRejectionBody(rawData);
+
+    return { ok: false, status: response.status, statusText: response.statusText, data: rawData as T | null, httpError };
   }
 
   const parsed = params.schema.safeParse(rawData);
@@ -230,6 +261,22 @@ export function clearInvoice(params: SubmitInvoiceParams) {
   });
 }
 
+function getValidationResults(data: unknown): { errorMessages?: unknown; warningMessages?: unknown } | undefined {
+  return (data as { validationResults?: unknown } | null)?.validationResults as
+    | { errorMessages?: unknown; warningMessages?: unknown }
+    | undefined;
+}
+
+/** true فقط لو حمل جسم الاستجابة بنية رفض حقيقية معروفة من زاتكا (أخطاء أو تحذيرات فعلية ضمن
+ * validationResults) — يميّز رفضاً فعلياً لمحتوى المستند عن استجابة فشل نقل/مصادقة لا علاقة لها
+ * بتقييم المستند إطلاقاً (401/403/404/5xx، أو أي جسم فارغ/غير مفهوم). راجع zatcaRequest أعلاه. */
+function hasRecognizableRejectionBody(data: unknown): boolean {
+  const validationResults = getValidationResults(data);
+  const errorMessages = Array.isArray(validationResults?.errorMessages) ? validationResults!.errorMessages : [];
+  const warningMessages = Array.isArray(validationResults?.warningMessages) ? validationResults!.warningMessages : [];
+  return errorMessages.length > 0 || warningMessages.length > 0;
+}
+
 function formatValidationMessage(m: unknown): string {
   if (m && typeof m === "object") {
     const obj = m as Record<string, unknown>;
@@ -253,9 +300,7 @@ function formatValidationMessage(m: unknown): string {
  * حقيقياً يظهر للمستخدم كـ"بلا تفاصيل إضافية" سابقاً، بلا أي معلومة فعلية يمكن التصرّف بناءً عليها.
  */
 export function extractRejectionReasons(response: ZatcaSubmissionResponse | null): string {
-  const validationResults = (response as { validationResults?: unknown } | null)?.validationResults as
-    | { errorMessages?: unknown; warningMessages?: unknown }
-    | undefined;
+  const validationResults = getValidationResults(response);
 
   const errorMessages = Array.isArray(validationResults?.errorMessages) ? (validationResults!.errorMessages as unknown[]) : [];
   if (errorMessages.length) {

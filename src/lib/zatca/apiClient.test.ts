@@ -10,11 +10,15 @@ import {
 
 const CREDENTIALS = { certificateBodyBase64: "ZmFrZS1jZXJ0LWJvZHk=", secret: "fake-secret" };
 
-function mockFetchOnce(status: number, body: unknown) {
+function mockFetchOnce(status: number, body: unknown, statusText = "") {
+  const bodyText = body === undefined ? "" : JSON.stringify(body);
   const fetchMock = vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
     status,
+    statusText,
     json: async () => body,
+    text: async () => bodyText,
+    headers: { forEach: (_cb: (value: string, key: string) => void) => undefined },
   });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
@@ -76,14 +80,91 @@ describe("apiClient request construction", () => {
     expect(url).toBe("https://gw-fatoora.zatca.gov.sa/e-invoicing/developer-portal/compliance/invoices");
   });
 
-  it("surfaces a non-2xx response as ok:false with the parsed error body intact", async () => {
+  it("surfaces a non-2xx response as ok:false with the parsed error body intact, and httpError:false since the body has a recognizable rejection structure", async () => {
     mockFetchOnce(400, {
       validationResults: { status: "FAIL", errorMessages: [{ type: "ERROR", message: "رقم ضريبي غير صالح" }] },
     });
     const result = await clearInvoice({ environment: "sandbox", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
     expect(result.ok).toBe(false);
     expect(result.status).toBe(400);
+    expect(result.httpError).toBeFalsy();
     expect(extractRejectionReasons(result.data)).toBe("رقم ضريبي غير صالح");
+  });
+
+  // إعادة إنتاج مباشرة لعطل إنتاج فعلي: زاتكا أعادت 401 (أو أي كود مصادقة/توجيه مشابه) بجسم فارغ
+  // تماماً — response.json() يرمي، لا شيء يُسجَّل الكود الفعلي، ويُعامَل كرفض فعلي بلا تفاصيل رغم
+  // أن زاتكا لم تُقيِّم المستند إطلاقاً. يجب أن يُصنَّف httpError:true تحديداً بسبب كود الحالة نفسه
+  // (401)، بصرف النظر التام عن الجسم (حتى لو كان فارغاً كما هنا).
+  it("marks a 401 with an empty body as httpError:true (auth failure, not a document rejection)", async () => {
+    mockFetchOnce(401, undefined, "Unauthorized");
+    const result = await clearInvoice({ environment: "sandbox", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe(401);
+    expect(result.statusText).toBe("Unauthorized");
+    expect(result.httpError).toBe(true);
+    expect(result.data).toBeNull();
+  });
+
+  it("marks a 404 as httpError:true even if it somehow carries a JSON body (routing failure, not a document rejection)", async () => {
+    mockFetchOnce(404, { message: "Not Found" }, "Not Found");
+    const result = await clearInvoice({ environment: "sandbox", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.httpError).toBe(true);
+  });
+
+  it("marks a 500 with an HTML error page body as httpError:true", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+        json: async () => {
+          throw new SyntaxError("Unexpected token <");
+        },
+        text: async () => "<html><body>502 Bad Gateway</body></html>",
+        headers: { forEach: () => undefined },
+      }),
+    );
+    const result = await clearInvoice({ environment: "sandbox", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.httpError).toBe(true);
+    expect(result.data).toBeNull();
+  });
+
+  it("does NOT mark a 400 with a real validation body as httpError (a genuine rejection is not an httpError)", async () => {
+    mockFetchOnce(400, { validationResults: { errorMessages: [{ type: "ERROR", message: "خطأ في البيانات" }] } });
+    const result = await clearInvoice({ environment: "sandbox", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.httpError).toBeFalsy();
+  });
+
+  // كان السجلّ السابق يطبع فقط الجسم المُحلَّل (data)، وهو null لو فشل تحليله كـJSON — عديم الفائدة
+  // تماماً للتشخيص، وهذا تحديداً ما جعل عطلاً حقيقياً في الإنتاج (401 بجسم فارغ) غير قابل للتفسير.
+  // الآن يجب أن تظهر الصورة الكاملة: كود الحالة، statusText، الترويسات، والنص الخام قبل أي تحليل.
+  it("logs the full HTTP picture (status, statusText, headers, raw text body) on every non-2xx response", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+        json: async () => {
+          throw new SyntaxError("Unexpected end of JSON input");
+        },
+        text: async () => "",
+        headers: { forEach: (cb: (value: string, key: string) => void) => cb("nginx/1.18.0", "server") },
+      }),
+    );
+
+    await clearInvoice({ environment: "sandbox", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+
+    const loggedCall = consoleErrorSpy.mock.calls.find((call) => String(call[0]).includes("[zatcaRequest]"));
+    expect(loggedCall).toBeDefined();
+    const logged = String(loggedCall![0]);
+    expect(logged).toContain("status=401");
+    expect(logged).toContain("Unauthorized");
+    expect(logged).toContain("/invoices/clearance/single");
+    expect(logged).toContain("nginx/1.18.0");
+    consoleErrorSpy.mockRestore();
   });
 
   it("extractRejectionReasons includes each error's code, numbered, when there are several", async () => {

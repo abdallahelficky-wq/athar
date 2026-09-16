@@ -38,6 +38,13 @@ export interface ZatcaSubmissionRejected {
   /** true إن فشل التوقيع محلياً (شهادة/مفتاح زاتكا غير صالح لهذه الشركة) قبل أي محاولة اتصال
    * بزاتكا إطلاقاً — راجع signAndSubmitDocument أدناه لتفاصيل الفرق عن networkError. */
   certificateError?: boolean;
+  /** true لاستجابة HTTP وصلت فعلياً من زاتكا (بخلاف networkError) لكنها ليست رفضاً حقيقياً لمحتوى
+   * المستند — كود نقل/مصادقة/توجيه واضح (401/403/404/5xx)، أو جسم لا يحمل بنية رفض معروفة من زاتكا
+   * إطلاقاً. راجع hasRecognizableRejectionBody في apiClient.ts. تحتاج مراجعة إعداد الربط (شهادة/
+   * صلاحيات/مسار)، لا تصحيح بيانات المستند. */
+  httpError?: boolean;
+  /** كود حالة HTTP الفعلي من زاتكا عند httpError — لعرضه في الرسالة للمستخدم بدل رسالة عامة. */
+  httpStatus?: number;
 }
 
 export type ZatcaSubmissionOutcome = ZatcaSubmissionAccepted | ZatcaSubmissionRejected;
@@ -99,6 +106,19 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
     ? "تعذّر الاتصال بخادم هيئة الزكاة والضريبة والجمارك (زاتكا) — حاول لاحقاً أو راجع الدعم الفني"
     : result.malformedResponse
       ? "رد غير متوقع من زاتكا (نجاح HTTP لكن الشكل لا يطابق المتوقَّع) — لم تُعتمَد الاستجابة، حاول لاحقاً أو راجع الدعم الفني"
-      : extractRejectionReasons(result.data);
-  return { accepted: false, response: result.data, reason, signedXml, invoiceHash, networkError: result.networkError };
+      : result.httpError
+        ? `تعذّر إتمام الإرسال إلى هيئة الزكاة والضريبة والجمارك (زاتكا) — رد الخادم بخطأ نقل أو مصادقة` +
+          ` (HTTP ${result.status}${result.statusText ? " " + result.statusText : ""}) لا رفضاً لمحتوى الفاتورة. ` +
+          `هذا يعني عادة مشكلة في إعداد الربط مع زاتكا (شهادة/صلاحيات/مسار الإرسال)، لا خطأ في بيانات الفاتورة نفسها — راجع الدعم الفني.`
+        : extractRejectionReasons(result.data);
+  return {
+    accepted: false,
+    response: result.data,
+    reason,
+    signedXml,
+    invoiceHash,
+    networkError: result.networkError,
+    httpError: result.httpError,
+    httpStatus: result.status,
+  };
 }

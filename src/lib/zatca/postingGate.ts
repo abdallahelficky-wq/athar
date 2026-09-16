@@ -144,13 +144,13 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
     };
   }
 
-  if (!outcome.certificateError && !outcome.networkError) {
-    // رفض فعلي وصريح من زاتكا (لا عطل شبكة، لا شهادة معطوبة) — كان هذا المسار صامتاً تماماً بلا
-    // أي سطر سجلّ حتى الآن، فلا وسيلة لمعرفة سبب رفض حقيقي إلا بقراءة zatcaResponseRaw من القاعدة
-    // مباشرة بلا أي أثر في سجلّات الخادم على وقوعه أصلاً — هذا ما جعل عطل رفض فعلي في الإنتاج غير
-    // قابل للتشخيص سابقاً. نسجّل الاستجابة الخام الكاملة كما وصلت من زاتكا بلا أي تصفية أو افتراض
-    // شكل مسبق — extractRejectionReasons (apiClient.ts) قد لا تلتقط كل شيء لو اختلف شكل استجابة
-    // زاتكا الفعلي عمّا افتُرِض في هذا الملف (لم يُتحقَّق منه فعلياً بعد ضد رفض حقيقي وقت كتابته).
+  if (!outcome.certificateError && !outcome.networkError && !outcome.httpError) {
+    // رفض فعلي وصريح من زاتكا (لا عطل شبكة، لا شهادة معطوبة، لا فشل نقل/مصادقة — تلك الثلاثة لها
+    // تصنيفها وسجلّها الخاص، بما فيها السجلّ الكامل داخل zatcaRequest نفسها لحالة httpError) — كان
+    // هذا المسار صامتاً تماماً بلا أي سطر سجلّ حتى الآن، فلا وسيلة لمعرفة سبب رفض حقيقي إلا بقراءة
+    // zatcaResponseRaw من القاعدة مباشرة. نسجّل الاستجابة الخام الكاملة كما وصلت من زاتكا بلا أي
+    // تصفية أو افتراض شكل مسبق — extractRejectionReasons (apiClient.ts) قد لا تلتقط كل شيء لو
+    // اختلف شكل استجابة زاتكا الفعلي عمّا افتُرِض في هذا الملف.
     // eslint-disable-next-line no-console
     console.error(
       `[evaluateZatcaPostingGate] رفضت زاتكا مستنداً — الشركة "${params.company.name}" (${params.company.id})، رقم المستند=${params.documentNumber}، ` +
@@ -160,15 +160,19 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
 
   return {
     // فاتورة قياسية تبقى ممنوعة من الترحيل سواء رفضتها زاتكا صراحةً أو تعذّر الوصول إليها أصلاً أو
-    // تعذّر توقيعها محلياً بشهادة غير صالحة — التخليص (Clearance) شرط قانوني مسبق في الحالات
-    // الثلاث كلها، لا فرق بينها هنا من ناحية قرار الترحيل نفسه (الفرق فقط في تصنيف zatcaStatus
-    // أدناه، لتمييز عطل شبكة عابر عن شهادة معطوبة تحتاج تدخلاً بشرياً).
+    // تعذّر توقيعها محلياً بشهادة غير صالحة أو فشل النقل/المصادقة — التخليص (Clearance) شرط قانوني
+    // مسبق في كل هذه الحالات، لا فرق بينها من ناحية قرار الترحيل نفسه (الفرق فقط في تصنيف
+    // zatcaStatus أدناه).
     proceedWithPosting: chain.subtype !== "standard",
     zatcaFields: {
       icv: chain.icv,
       previousInvoiceHash: chain.previousInvoiceHash,
       invoiceHash: chain.invoiceHash,
-      zatcaStatus: outcome.certificateError ? "certificate_error" : outcome.networkError ? "submission_failed" : "rejected",
+      // "rejected" محجوزة فقط لتقييم فعلي من زاتكا انتهى برفض المستند — تحتاج تصحيح بيانات. أي
+      // فشل نقل/مصادقة (httpError، مثل 401/403/404/5xx أو جسم غير مفهوم) لم تُقيَّم فيه الفاتورة
+      // على الإطلاق — تحتاج مراجعة إعداد الربط (شهادة/صلاحيات/مسار)، لا تصحيح بيانات المستند، فتُصنَّف
+      // submission_failed بنفس معاملة عطل الشبكة تماماً (راجع httpError في submission.ts/apiClient.ts).
+      zatcaStatus: outcome.certificateError ? "certificate_error" : outcome.networkError || outcome.httpError ? "submission_failed" : "rejected",
       zatcaSubmittedAt: chain.issuedAt,
       zatcaResponseRaw: (outcome.response ?? undefined) as Prisma.InputJsonValue | undefined,
     },

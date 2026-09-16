@@ -73,8 +73,19 @@ const LINES = [
 const ISSUED_AT = new Date("2026-08-01T10:00:00.000Z");
 const DOCUMENT_UUID = "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45";
 
-function mockFetchOnce(status: number, body: unknown) {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: status >= 200 && status < 300, status, json: async () => body }));
+function mockFetchOnce(status: number, body: unknown, statusText = "") {
+  const bodyText = body === undefined ? "" : JSON.stringify(body);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: status >= 200 && status < 300,
+      status,
+      statusText,
+      json: async () => body,
+      text: async () => bodyText,
+      headers: { forEach: (_cb: (value: string, key: string) => void) => undefined },
+    }),
+  );
 }
 
 afterEach(() => {
