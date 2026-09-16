@@ -112,6 +112,11 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
   }
 
   if (!response.ok) {
+    // عمداً بلا أي تحقق schema هنا (بخلاف فرع النجاح أدناه) — جسم رفض حقيقي من زاتكا يُخزَّن كاملاً
+    // كما وصل بلا أي تصفية أو رفض شكلي (يُحفَظ لاحقاً كما هو في zatcaResponseRaw)، مهما كان شكله
+    // الفعلي. لا نعرف بعد يقيناً أن zatcaSubmissionResponseSchema أدناه يطابق شكل رفض زاتكا الحقيقي
+    // (لم يُتحقَّق منه مباشرة ضد رفض حقيقي وقت كتابة هذا الملف، راجع التعليق أعلى الملف) — التحقّق
+    // الشكلي في extractRejectionReasons يتعامل مع هذا بالتساهل بدل الرفض الصامت للبيانات هنا.
     return { ok: false, status: response.status, data: rawData as T | null };
   }
 
@@ -225,9 +230,47 @@ export function clearInvoice(params: SubmitInvoiceParams) {
   });
 }
 
-/** يستخرج رسائل الأخطاء بصيغة نص عربي واحد قابل للعرض مباشرة للمستخدم من استجابة رفض */
+function formatValidationMessage(m: unknown): string {
+  if (m && typeof m === "object") {
+    const obj = m as Record<string, unknown>;
+    const code = typeof obj.code === "string" && obj.code ? `[${obj.code}] ` : "";
+    const message = typeof obj.message === "string" ? obj.message : JSON.stringify(obj);
+    return `${code}${message}`;
+  }
+  return String(m);
+}
+
+/**
+ * يستخرج رسائل الأخطاء بصيغة نص عربي واحد قابل للعرض مباشرة للمستخدم من استجابة رفض — يتضمّن كود
+ * كل خطأ (لا الرسالة فقط)، وسطراً مرقَّماً لكل خطأ حتى تبقى مقروءة مع تعدُّد الأخطاء، لا جملة واحدة
+ * مدموجة بلا تمييز.
+ *
+ * response هنا **غير مُتحقَّق منه فعلياً** ضد zatcaSubmissionResponseSchema وقت التشغيل — استجابات
+ * الرفض تمر بلا أي schema.safeParse إطلاقاً (راجع zatcaRequest أعلاه)، فقد يختلف شكل رفض زاتكا
+ * الحقيقي عمّا افتُرِض هنا (لم يُتحقَّق منه مباشرة ضد رفض حقيقي وقت كتابة هذا الملف). لذلك: كل قراءة
+ * حقل هنا دفاعية (duck-typing لا ثقة بنوع TypeScript المُعلَن)، ولو لم نجد أخطاء ولا تحذيرات بالشكل
+ * المتوقَّع، تُعرَض الاستجابة الخام كاملة بدل رسالة عامة عديمة الفائدة — هذا تحديداً ما جعل رفضاً
+ * حقيقياً يظهر للمستخدم كـ"بلا تفاصيل إضافية" سابقاً، بلا أي معلومة فعلية يمكن التصرّف بناءً عليها.
+ */
 export function extractRejectionReasons(response: ZatcaSubmissionResponse | null): string {
-  const errors = response?.validationResults?.errorMessages ?? [];
-  if (!errors.length) return "رفضت زاتكا الفاتورة بلا تفاصيل إضافية";
-  return errors.map((e) => e.message).join("؛ ");
+  const validationResults = (response as { validationResults?: unknown } | null)?.validationResults as
+    | { errorMessages?: unknown; warningMessages?: unknown }
+    | undefined;
+
+  const errorMessages = Array.isArray(validationResults?.errorMessages) ? (validationResults!.errorMessages as unknown[]) : [];
+  if (errorMessages.length) {
+    // ترقيم فقط عند تعدُّد الأخطاء — خطأ واحد لا يحتاج "1." لا فائدة منها، ويبقى قابلاً للقراءة أكثر بدونها.
+    if (errorMessages.length === 1) return formatValidationMessage(errorMessages[0]);
+    return errorMessages.map((e, i) => `${i + 1}. ${formatValidationMessage(e)}`).join(" | ");
+  }
+
+  const warningMessages = Array.isArray(validationResults?.warningMessages) ? (validationResults!.warningMessages as unknown[]) : [];
+  if (warningMessages.length) {
+    return `رفضت زاتكا الفاتورة (تحذيرات فقط، بلا أخطاء صريحة): ${warningMessages.map((w) => formatValidationMessage(w)).join(" | ")}`;
+  }
+
+  if (response) {
+    return `رفضت زاتكا الفاتورة (شكل الاستجابة لا يطابق أي بنية أخطاء معروفة) — الاستجابة الكاملة: ${JSON.stringify(response)}`;
+  }
+  return "رفضت زاتكا الفاتورة بلا أي استجابة قابلة للقراءة";
 }

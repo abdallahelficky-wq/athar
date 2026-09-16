@@ -71,6 +71,15 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
       zatcaClearedOrReportedAt: new Date(),
     };
   }
+  if (!outcome.certificateError && !outcome.networkError) {
+    // نفس تسجيل الرفض الصريح في postingGate.ts أعلاه، لمسار إعادة الإرسال (يدوية أو تلقائية) —
+    // كان صامتاً تماماً بلا أي سطر سجلّ حتى الآن أيضاً.
+    // eslint-disable-next-line no-console
+    console.error(
+      `[resubmitZatcaDocument] رفضت زاتكا مستنداً عند إعادة الإرسال — الشركة "${params.company.name}" (${params.company.id})، رقم المستند=${params.documentNumber}، ` +
+        `documentUuid=${params.documentUuid}، السبب المعروض للمستخدم=${outcome.reason} — الاستجابة الخام الكاملة من زاتكا: ${JSON.stringify(outcome.response)}`,
+    );
+  }
   return {
     zatcaStatus: outcome.certificateError ? "certificate_error" : outcome.networkError ? "submission_failed" : "rejected",
     zatcaResponseRaw: outcome.response ?? undefined,

@@ -86,9 +86,36 @@ describe("apiClient request construction", () => {
     expect(extractRejectionReasons(result.data)).toBe("رقم ضريبي غير صالح");
   });
 
-  it("extractRejectionReasons falls back to a generic message when no error details are present", () => {
-    expect(extractRejectionReasons(null)).toContain("بلا تفاصيل");
-    expect(extractRejectionReasons({})).toContain("بلا تفاصيل");
+  it("extractRejectionReasons includes each error's code, numbered, when there are several", async () => {
+    mockFetchOnce(400, {
+      validationResults: {
+        status: "FAIL",
+        errorMessages: [
+          { type: "ERROR", code: "BR-CO-15", message: "مجموع القيمة المضافة غير متطابق" },
+          { type: "ERROR", code: "BR-KSA-42", message: "رقم ضريبي غير صالح" },
+        ],
+      },
+    });
+    const result = await clearInvoice({ environment: "sandbox", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    const reason = extractRejectionReasons(result.data);
+    expect(reason).toContain("1. [BR-CO-15] مجموع القيمة المضافة غير متطابق");
+    expect(reason).toContain("2. [BR-KSA-42] رقم ضريبي غير صالح");
+  });
+
+  // كان هذا الفرع يُنتِج سابقاً "رفضت زاتكا الفاتورة بلا تفاصيل إضافية" — رسالة عامة عديمة الفائدة
+  // بلا أي معلومة فعلية، وهذا تحديداً ما تعذَّر تشخيصه في الإنتاج (لا تفاصيل، ولا سجلّ خادم أيضاً).
+  // الآن، بدل الصمت، تُعرَض الاستجابة الخام نفسها — حتى لو اختلف شكلها عمّا هو مفترَض هنا.
+  it("extractRejectionReasons shows the raw response instead of a generic message when its shape doesn't match any known error structure", () => {
+    const unexpectedShape = { someOtherField: "زاتكا قد تُعيد شكلاً مختلفاً لم نتحقق منه بعد" };
+    const reason = extractRejectionReasons(unexpectedShape as never);
+    expect(reason).not.toContain("بلا تفاصيل إضافية");
+    expect(reason).toContain("someOtherField");
+    expect(reason).toContain("زاتكا قد تُعيد شكلاً مختلفاً لم نتحقق منه بعد");
+  });
+
+  it("extractRejectionReasons handles a genuinely empty response without throwing", () => {
+    expect(() => extractRejectionReasons(null)).not.toThrow();
+    expect(extractRejectionReasons(null).length).toBeGreaterThan(0);
   });
 });
 
