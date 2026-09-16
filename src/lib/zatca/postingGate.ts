@@ -144,6 +144,20 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
     };
   }
 
+  if (!outcome.certificateError && !outcome.networkError) {
+    // رفض فعلي وصريح من زاتكا (لا عطل شبكة، لا شهادة معطوبة) — كان هذا المسار صامتاً تماماً بلا
+    // أي سطر سجلّ حتى الآن، فلا وسيلة لمعرفة سبب رفض حقيقي إلا بقراءة zatcaResponseRaw من القاعدة
+    // مباشرة بلا أي أثر في سجلّات الخادم على وقوعه أصلاً — هذا ما جعل عطل رفض فعلي في الإنتاج غير
+    // قابل للتشخيص سابقاً. نسجّل الاستجابة الخام الكاملة كما وصلت من زاتكا بلا أي تصفية أو افتراض
+    // شكل مسبق — extractRejectionReasons (apiClient.ts) قد لا تلتقط كل شيء لو اختلف شكل استجابة
+    // زاتكا الفعلي عمّا افتُرِض في هذا الملف (لم يُتحقَّق منه فعلياً بعد ضد رفض حقيقي وقت كتابته).
+    // eslint-disable-next-line no-console
+    console.error(
+      `[evaluateZatcaPostingGate] رفضت زاتكا مستنداً — الشركة "${params.company.name}" (${params.company.id})، رقم المستند=${params.documentNumber}، ` +
+        `documentUuid=${params.documentUuid}، السبب المعروض للمستخدم=${outcome.reason} — الاستجابة الخام الكاملة من زاتكا: ${JSON.stringify(outcome.response)}`,
+    );
+  }
+
   return {
     // فاتورة قياسية تبقى ممنوعة من الترحيل سواء رفضتها زاتكا صراحةً أو تعذّر الوصول إليها أصلاً أو
     // تعذّر توقيعها محلياً بشهادة غير صالحة — التخليص (Clearance) شرط قانوني مسبق في الحالات

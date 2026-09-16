@@ -183,6 +183,59 @@ describe("evaluateZatcaPostingGate", () => {
     expect(decision.rejectionReason).toContain("الرقم الضريبي للمشتري غير صحيح");
   });
 
+  // كان هذا المسار صامتاً تماماً بلا أي سطر سجلّ على الإطلاق قبل هذا الإصلاح — رفض فعلي في
+  // الإنتاج لا يترك أي أثر في سجلّات الخادم، فلا وسيلة لتشخيصه إلا بقراءة zatcaResponseRaw من
+  // القاعدة مباشرة. يجب أن يُسجَّل الآن بالاستجابة الخام الكاملة، ومعرّف/اسم الشركة، ورقم المستند.
+  it("logs the full raw ZATCA response server-side (with company and document number) on a genuine rejection", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    mockFetchOnce(400, { validationResults: { errorMessages: [{ type: "ERROR", code: "BR-KSA-42", message: "الرقم الضريبي للمشتري غير صحيح" }] } });
+
+    await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    const loggedCall = consoleErrorSpy.mock.calls.find((call) => String(call[0]).includes("رفضت زاتكا مستنداً"));
+    expect(loggedCall).toBeDefined();
+    const logged = String(loggedCall![0]);
+    expect(logged).toContain(COMPANY.id);
+    expect(logged).toContain(COMPANY.name);
+    expect(logged).toContain("INV-00001");
+    expect(logged).toContain("BR-KSA-42");
+    expect(logged).toContain("الرقم الضريبي للمشتري غير صحيح");
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("does NOT log a rejection-style message for network failures or certificate errors (those already have their own distinct logging)", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 175,
+      vatTotal: 22.83,
+    });
+
+    const rejectionLog = consoleErrorSpy.mock.calls.find((call) => String(call[0]).includes("رفضت زاتكا مستنداً"));
+    expect(rejectionLog).toBeUndefined();
+    consoleErrorSpy.mockRestore();
+  });
+
   it("keeps a rejected SIMPLIFIED (reporting) invoice postable, marking it rejected for later retry", async () => {
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
     mockFetchOnce(400, { validationResults: { errorMessages: [{ type: "ERROR", message: "خطأ تنسيق" }] } });
