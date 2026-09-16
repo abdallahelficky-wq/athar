@@ -1,37 +1,43 @@
 /**
  * سكربت قراءة فقط (read-only) — لا يعدّل أي بيانات، ولا يطبع أي شهادة أو مفتاح خاص أو أي بايتات
- * مفكوكة التشفير على الإطلاق. فقط أطوال (lengths) وقيم منطقية (booleans) عن قابلية تحليل الشهادة/
- * المفتاح المخزَّنين لشركة معيّنة كـPKI صالح — لتشخيص خطأ "asn1 encoding routines::wrong tag"
- * الذي يظهر فقط لاحقاً عند محاولة توقيع مستند فعلي، بلا الحاجة لإعادة إنتاج ذلك الخطأ يدوياً.
+ * مفكوكة التشفير على الإطلاق تحت أي مسار تنفيذ، بما فيها الأخطاء غير المتوقَّعة. فقط: معرّف/اسم/
+ * بيئة/حالة ربط الشركة (بيانات عادية غير سرّية أصلاً)، أطوال (lengths)، قيم منطقية (booleans)،
+ * ونصوص أخطاء OpenSSL الثابتة (مثل "asn1 encoding routines::wrong tag") — لتشخيص هذا الخطأ الذي
+ * يظهر فقط لاحقاً عند محاولة توقيع مستند فعلي، بلا الحاجة لإعادة إنتاجه يدوياً.
  *
  * لا يستورد src/config/env.ts أو src/lib/zatca/secretBox.ts عمداً (كلاهما يتطلّب متغيرات بيئة
  * غير متعلقة إطلاقاً بهذا التشخيص مثل JWT_ACCESS_SECRET) — بدلاً من ذلك يُعاد هنا فك التشفير
  * (AES-256-GCM، نفس صيغة المغلّف "v1:iv:tag:ciphertext" في secretBox.ts) مباشرة، معتمداً فقط على
  * DATABASE_URL وZATCA_ENCRYPTION_KEY.
  *
- * الاستخدام (من الجهاز الذي لديه بيانات اتصال قاعدة بيانات الإنتاج، مثال PowerShell على Windows):
+ * الاستخدام (مباشرة من Railway Console — القيمتان مضبوطتان هناك بالفعل كمتغيرات بيئة للخدمة):
  *
+ *   npx tsx scripts/check-zatca-certificate.ts
+ *     — بلا أي وسيط: يفحص كل شركة لديها أي سجل CompanyZatcaCredential على المنصّة كلها، ويطبع
+ *       معرّفها واسمها مع نفس الفحوصات، سطراً مختصراً لكل شركة (لا يحتاج كتابة أي نص عربي في
+ *       طرفية Railway، ولا معرفة معرّف شركة سلفاً).
+ *
+ *   npx tsx scripts/check-zatca-certificate.ts "<معرّف الشركة أو جزء من اسمها>"
+ *     — نفس السلوك التفصيلي السابق لشركة واحدة بالضبط.
+ *
+ * محلياً (من جهاز لديه بيانات اتصال قاعدة بيانات الإنتاج، مثال PowerShell على Windows):
  *   $env:DATABASE_URL="postgresql://...neon.tech/..."
  *   $env:ZATCA_ENCRYPTION_KEY="<نفس القيمة المضبوطة في Railway>"
- *   npx tsx scripts/check-zatca-certificate.ts "<معرّف الشركة أو جزء من اسمها>"
- *
- * أو في سطر واحد (bash/git-bash):
- *   DATABASE_URL="postgresql://..." ZATCA_ENCRYPTION_KEY="..." npx tsx scripts/check-zatca-certificate.ts "زاد الذهبية"
- *
- * القيمتان (DATABASE_URL وZATCA_ENCRYPTION_KEY) هما بالضبط ما هو مضبوط فعلياً في متغيرات بيئة
- * خدمة athar على Railway — انسخهما من هناك (Settings → Variables)، لا تُخزَّنا في أي ملف هنا.
+ *   npx tsx scripts/check-zatca-certificate.ts
  */
 import { PrismaClient } from "@prisma/client";
 import { createDecipheriv, X509Certificate, createPrivateKey } from "crypto";
 
 const prisma = new PrismaClient();
 
-function decryptSecretStandalone(envelope: string): string {
+function assertEncryptionKeyConfigured(): void {
   const keyB64 = process.env.ZATCA_ENCRYPTION_KEY;
   if (!keyB64) throw new Error("متغير البيئة ZATCA_ENCRYPTION_KEY غير مضبوط");
-  const key = Buffer.from(keyB64, "base64");
-  if (key.length !== 32) throw new Error("ZATCA_ENCRYPTION_KEY يجب أن يكون 32 بايت مُرمّزاً بـ base64");
+  if (Buffer.from(keyB64, "base64").length !== 32) throw new Error("ZATCA_ENCRYPTION_KEY يجب أن يكون 32 بايت مُرمّزاً بـ base64");
+}
 
+function decryptSecretStandalone(envelope: string): string {
+  const key = Buffer.from(process.env.ZATCA_ENCRYPTION_KEY!, "base64");
   const parts = envelope.split(":");
   if (parts.length !== 4 || parts[0] !== "v1") throw new Error("صيغة المغلّف المُشفَّر غير صالحة");
   const [, ivB64, tagB64, ciphertextB64] = parts;
@@ -95,13 +101,69 @@ function checkPrivateKey(raw: string) {
   return { length: raw.length, looksLikePemAlready, parsesAsEcSec1, parseError };
 }
 
-async function main() {
-  const query = process.argv[2];
-  if (!query) {
-    console.error('الاستخدام: npx tsx scripts/check-zatca-certificate.ts "معرّف الشركة أو جزء من اسمها"');
-    process.exit(1);
+/** ملخّص سطر واحد لنتيجة checkCertificate — لعرض مضغوط في الوضع الجماعي (كل الشركات). */
+function summarizeCertLine(label: string, certEnc: string | null): string {
+  if (!certEnc) return `${label}: غير موجودة`;
+  const result = checkCertificate(decryptSecretStandalone(certEnc));
+  const status = result.parsesAsSingleEncoded
+    ? "OK"
+    : result.parsesAfterOneExtraDecode
+      ? "OK-بعد-فك-ترميز-إضافي(!)" // إشارة قوية لترميز base64 مزدوج — راجع الفحص التفصيلي لهذه الشركة
+      : `FAIL[${result.parseErrorSingleEncodedAttempt}]`;
+  return `${label}: len=${result.length} pem=${result.looksLikePemAlready} parse=${status}`;
+}
+
+/** ملخّص سطر واحد لنتيجة checkPrivateKey — لعرض مضغوط في الوضع الجماعي. */
+function summarizeKeyLine(privateKeyEnc: string | null): string {
+  if (!privateKeyEnc) return "مفتاح خاص: غير موجود";
+  const result = checkPrivateKey(decryptSecretStandalone(privateKeyEnc));
+  const status = result.parsesAsEcSec1 ? "OK" : `FAIL[${result.parseError}]`;
+  return `مفتاح خاص: len=${result.length} pem=${result.looksLikePemAlready} parse=${status}`;
+}
+
+/** الوضع الجماعي (بلا وسيط): كل شركة لديها أي سجل CompanyZatcaCredential — سطر مختصر واحد لكل بند. */
+async function checkAllCompanies() {
+  assertEncryptionKeyConfigured();
+
+  const credentials = await prisma.companyZatcaCredential.findMany({
+    select: { companyId: true, complianceCertEnc: true, productionCertEnc: true, privateKeyEnc: true },
+  });
+  if (!credentials.length) {
+    console.log("لا توجد أي شركة لديها سجل CompanyZatcaCredential على الإطلاق.");
+    return;
   }
 
+  const companies = await prisma.company.findMany({
+    where: { id: { in: credentials.map((c) => c.companyId) } },
+    select: { id: true, name: true, zatcaEnvironment: true, zatcaOnboardingStatus: true },
+  });
+  const companyById = new Map(companies.map((c) => [c.id, c]));
+
+  console.log(`[check-zatca-certificate.ts] فحص ${credentials.length} شركة لديها ربط زاتكا (بلا وسيط)\n`);
+
+  for (const credential of credentials) {
+    const company = companyById.get(credential.companyId);
+    const header = company
+      ? `[${company.id}] "${company.name}" env=${company.zatcaEnvironment} status=${company.zatcaOnboardingStatus}`
+      : `[${credential.companyId}] (سجل شركة غير موجود؟)`;
+    console.log(header);
+    try {
+      const usesCompliance = !company || company.zatcaEnvironment !== "production";
+      const activeCertEnc = usesCompliance ? credential.complianceCertEnc : credential.productionCertEnc;
+      const activeLabel = usesCompliance ? "compliance-cert" : "production-cert";
+      console.log("  " + summarizeCertLine(activeLabel, activeCertEnc));
+      console.log("  " + summarizeKeyLine(credential.privateKeyEnc));
+    } catch (err) {
+      // خطأ غير متوقَّع لشركة واحدة (مثال: مغلّف تشفير تالف) لا يجب أن يوقف فحص بقية الشركات —
+      // رسالة الخطأ فقط (نص وصفي ثابت من Node/OpenSSL)، لا أي بيانات فعلية.
+      console.log(`  خطأ أثناء فحص هذه الشركة: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+}
+
+/** الوضع التفصيلي (بوسيط): معرّف دقيق أو جزء من اسم — سلوك مطابق تماماً لما كان عليه سابقاً. */
+async function checkSingleCompany(query: string) {
+  assertEncryptionKeyConfigured();
   console.log(`[check-zatca-certificate.ts] cwd=${process.cwd()} arg="${query}"`);
 
   const company =
@@ -147,6 +209,12 @@ async function main() {
   } else {
     console.log(JSON.stringify(checkCertificate(decryptSecretStandalone(otherCertEnc)), null, 2));
   }
+}
+
+async function main() {
+  const query = process.argv[2];
+  if (query) await checkSingleCompany(query);
+  else await checkAllCompanies();
 }
 
 main()
