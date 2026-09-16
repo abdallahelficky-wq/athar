@@ -21,6 +21,10 @@ export const zatcaBacklogHandler: RequestHandler = async (req, res) => {
   res.json(backlog);
 };
 
+export const zatcaChainGapsHandler: RequestHandler = async (req, res) => {
+  res.json(await service.listZatcaChainGaps(req.auth!.tenantId));
+};
+
 export const getHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
   res.json(await service.getSalesInvoice(req.auth!.tenantId, req.params.id));

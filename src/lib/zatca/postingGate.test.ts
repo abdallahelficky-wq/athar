@@ -8,6 +8,18 @@ import * as credentialsModule from "./credentials";
 
 vi.mock("./credentials", () => ({ loadCompanyZatcaCredentials: vi.fn() }));
 
+// بلا tx مُمرَّرة (مسار createSalesInvoice/postSalesInvoice المُعاد هيكلته) تحجز evaluateZatcaPostingGate
+// السلسلة عبر prisma.$transaction() الحقيقية بنفسها — نموِّه هنا بتنفيذ الاستدعاء فوراً بنفس شكل
+// fakeTx() أدناه (مُعاد تعريفها هنا محلياً تجنّباً لمشاكل ترتيب hoisting مع vi.mock)، فلا حاجة
+// لقاعدة بيانات فعلية لاختبار هذا المسار.
+vi.mock("../prisma", () => ({
+  prisma: {
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) =>
+      fn({ $queryRaw: vi.fn().mockResolvedValue([{ zatcaNextIcv: 5 }]), company: { update: vi.fn().mockResolvedValue({}) } }),
+    ),
+  },
+}));
+
 function run(cmd: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const proc = spawn(cmd, args);
@@ -239,5 +251,64 @@ describe("evaluateZatcaPostingGate", () => {
 
     expect(decision.proceedWithPosting).toBe(false);
     expect(decision.zatcaFields.zatcaStatus).toBe("submission_failed");
+  });
+
+  it("populates reservedChain whenever a chain was actually reserved, regardless of accept/reject outcome", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    mockFetchOnce(200, { reportingStatus: "REPORTED" });
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.reservedChain).toEqual({ icv: 5, invoiceHash: decision.zatcaFields.invoiceHash });
+  });
+
+  it("leaves reservedChain undefined when the company isn't onboarded (no chain to reserve at all)", async () => {
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: { ...COMPANY, zatcaOnboardingStatus: "not_onboarded" },
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.reservedChain).toBeUndefined();
+  });
+
+  // المسار المُعاد هيكلته (createSalesInvoice/postSalesInvoice) لا يمرّر tx إطلاقاً — يجب أن تحجز
+  // evaluateZatcaPostingGate السلسلة عبر معاملة قصيرة مستقلة بنفسها (prisma.$transaction، مُموَّهة
+  // أعلاه) بدل معاملة الاستدعاء، وأن يعمل بقية المنطق (الاتصال بزاتكا، بناء القرار) بلا أي تغيير.
+  it("reserves the chain via its own prisma.$transaction when no tx is passed at all (the restructured call path)", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    mockFetchOnce(200, { reportingStatus: "REPORTED" });
+
+    const decision = await evaluateZatcaPostingGate({
+      company: COMPANY,
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.proceedWithPosting).toBe(true);
+    expect(decision.zatcaFields.zatcaStatus).toBe("reported");
+    expect(decision.zatcaFields.icv).toBe(5);
+    expect(decision.reservedChain).toEqual({ icv: 5, invoiceHash: decision.zatcaFields.invoiceHash });
   });
 });
