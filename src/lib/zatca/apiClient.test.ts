@@ -155,3 +155,53 @@ describe("apiClient schema validation on 2xx responses (malformedResponse)", () 
     expect(result.malformedResponse).toBeUndefined();
   });
 });
+
+// إعادة إنتاج العطل قيد التحقيق: fetch() نفسها ترمي (DNS/timeout/رفض اتصال...) قبل وصول أي استجابة
+// HTTP إطلاقاً — بلا هذا الالتقاط كانت تسقط كاستثناء خام يُسقِط معاملة Prisma بأكملها التي استدعتها
+// (بما فيها فاتورة نقطة بيع مبسّطة كانت ستُرحَّل بصرف النظر عن نتيجة هذا الإرسال أصلاً).
+describe("apiClient network-failure handling (fetch itself throws)", () => {
+  it("surfaces a fetch rejection as ok:false with networkError:true instead of throwing", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const result = await clearInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.ok).toBe(false);
+    expect(result.networkError).toBe(true);
+    expect(result.status).toBe(0);
+    expect(result.data).toBeNull();
+  });
+
+  it("also protects reportInvoice (the B2C/simplified submission path) the same way", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("getaddrinfo ENOTFOUND gw-fatoora.zatca.gov.sa")));
+    const result = await reportInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.ok).toBe(false);
+    expect(result.networkError).toBe(true);
+  });
+});
+
+// كان هذا النداء بلا أي مهلة زمنية إطلاقاً — انتظار غير محدود بلا استجابة أو خطأ من زاتكا كان
+// يعني، قبل نقل هذا النداء خارج أي معاملة قاعدة بيانات مفتوحة (راجع postingGate.ts)، تعليق تلك
+// المعاملة حتى مهلتها الخاصة (فانتهت فعلياً بعطل إنتاج). الآن، حتى بلا معاملة مفتوحة، ما زال
+// المستخدم ينتظر أمام الشاشة، فمهلة صريحة تمنع انتظاراً غير محدود لو تعلّق اتصال زاتكا نفسه.
+describe("apiClient request timeout", () => {
+  it("attaches an AbortSignal to every outbound request so a hung connection cannot block forever", async () => {
+    const fetchMock = mockFetchOnce(200, { reportingStatus: "REPORTED" });
+    await reportInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init.signal.aborted).toBe(false);
+  });
+
+  it("treats an aborted/timed-out request the same as any other connection failure (networkError, not a throw)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => {
+        const err = new Error("The operation was aborted due to timeout");
+        err.name = "TimeoutError";
+        return Promise.reject(err);
+      }),
+    );
+    const result = await clearInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(result.ok).toBe(false);
+    expect(result.networkError).toBe(true);
+  });
+});

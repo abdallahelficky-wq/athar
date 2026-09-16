@@ -1,6 +1,7 @@
 import { createApp } from "./app";
 import { env } from "./config/env";
 import { startReportScheduler } from "./lib/reportScheduler";
+import { startZatcaRetryScheduler } from "./lib/zatca/retryScheduler";
 
 const app = createApp();
 
@@ -22,3 +23,4 @@ app.listen(env.port, () => {
 });
 
 startReportScheduler();
+startZatcaRetryScheduler();

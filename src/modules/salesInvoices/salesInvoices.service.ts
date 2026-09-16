@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { Prisma } from "@prisma/client";
+import { Item, Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine, invoiceTypeForCustomer } from "../../lib/invoiceLine";
@@ -124,16 +124,22 @@ async function assertRefs(tenantId: string, companyId: string, customerId: strin
   return { company, customer };
 }
 
-/** يبني سطور قيد تكلفة البضاعة المباعة (لو فيه أصناف مخزونية بالفاتورة)، ويتحقق من كفاية الرصيد قبل الترحيل — لا يكتب أي شيء لقاعدة البيانات، للاستدعاء قبل بناء القيد. */
+/**
+ * يبني سطور قيد تكلفة البضاعة المباعة (لو فيه أصناف مخزونية بالفاتورة)، ويتحقق من كفاية الرصيد قبل
+ * الترحيل — لا يكتب أي شيء لقاعدة البيانات، للاستدعاء قبل بناء القيد. يُعيد أيضاً خريطة الأصناف
+ * التي جلبها (itemById) ليعيد استخدامها createStockOutSideEffectsTx لاحقاً بدل إعادة جلبها صنفاً
+ * صنفاً داخل المعاملة النهائية — كانت تلك القراءات المتكرِّرة داخل المعاملة (بلا أي نداء شبكي حتى)
+ * تُطيل مدة حجز القفل بلا داعٍ فعلي، والبيانات نفسها مجلوبة هنا أصلاً قبل أي كتابة.
+ */
 async function computeCogsJournalLines(tenantId: string, companyId: string, lines: LineInput[], warehouseId?: string) {
   const itemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => Boolean(x)))];
-  if (!itemIds.length) return [];
+  if (!itemIds.length) return { cogsLines: [], itemById: new Map<string, Item>() };
   const items = await prisma.item.findMany({ where: { id: { in: itemIds }, tenantId, companyId } });
   const itemById = new Map(items.map((i) => [i.id, i]));
   // periodic_inventory مستثنى عمداً هنا (isValueTrackedInLedger لا isQuantityTracked): بلا قيد تكلفة
   // وبلا فحص كفاية رصيد إطلاقاً لهذا النوع — راجع دليله في items.schemas.ts.
   const stockLines = lines.filter((l) => l.itemId && isValueTrackedInLedger(itemById.get(l.itemId)!.type));
-  if (!stockLines.length) return [];
+  if (!stockLines.length) return { cogsLines: [], itemById };
 
   const warehouse = await resolveWarehouse(prisma, tenantId, companyId, warehouseId);
 
@@ -166,10 +172,20 @@ async function computeCogsJournalLines(tenantId: string, companyId: string, line
     add(item.stockAccountId, 0, amount);
   }
 
-  return [...byAccount.entries()].map(([accountId, { debit, credit }]) => ({ accountId, department: "المبيعات والتسويق", debit, credit }));
+  const cogsLines = [...byAccount.entries()].map(([accountId, { debit, credit }]) => ({ accountId, department: "المبيعات والتسويق", debit, credit }));
+  return { cogsLines, itemById };
 }
 
-/** يُنشئ حركة "صرف" مخزنية لكل سطر فاتورة مرتبط بصنف مخزوني — يُستدعى بعد حفظ الفاتورة فعلياً (يحتاج line.id). */
+/**
+ * يُنشئ حركة "صرف" مخزنية لكل سطر فاتورة مرتبط بصنف مخزوني — يُستدعى بعد حفظ الفاتورة فعلياً
+ * (يحتاج line.id). يأخذ itemById جاهزة (من computeCogsJournalLines، مجلوبة أصلاً قبل فتح هذه
+ * المعاملة) بدل إعادة جلب كل صنف على حدة هنا — كانت هذه القراءات المتكرِّرة صنفاً صنفاً داخل
+ * المعاملة (N قراءة لكل فاتورة N سطر) تُطيل مدة حجز القفل على صف الشركة بلا أي داعٍ فعلي، لبيانات
+ * مجلوبة أصلاً بالكامل قبل فتح المعاملة. فائدة إضافية: averageCost المُستخدَمة هنا الآن نفسها
+ * تماماً المُستخدَمة في حساب قيد التكلفة (computeCogsJournalLines) — قبل هذا التعديل كانت قراءة
+ * منفصلة لاحقة هنا قد تلتقط قيمة averageCost أحدث (لو تغيّرت بين اللحظتين)، فتُخزَّن على حركة
+ * المخزون قيمة تختلف عمّا رُحِّل فعلياً في القيد المحاسبي.
+ */
 async function createStockOutSideEffectsTx(
   tx: Tx,
   tenantId: string,
@@ -177,6 +193,7 @@ async function createStockOutSideEffectsTx(
   date: Date,
   persistedLines: Array<{ id: string; itemId: string | null; quantity: Prisma.Decimal }>,
   journalEntryId: string,
+  itemById: Map<string, Item>,
   warehouseId?: string,
 ) {
   const itemIds = persistedLines.map((l) => l.itemId).filter((x): x is string => Boolean(x));
@@ -185,7 +202,8 @@ async function createStockOutSideEffectsTx(
 
   for (const line of persistedLines) {
     if (!line.itemId) continue;
-    const item = await tx.item.findFirstOrThrow({ where: { id: line.itemId, tenantId } });
+    const item = itemById.get(line.itemId);
+    if (!item) throw badRequest(`أحد أصناف الفاتورة (${line.itemId}) غير موجود ضمن هذه الشركة`);
     // periodic_inventory يصل هنا فعلاً (isQuantityTracked لا isValueTrackedInLedger) — حركة "صادر"
     // تشغيلية بحتة لتتبّع الكمية فقط، unitCost يبقى 0 دائماً لأن averageCost لا يُحدَّث لهذا النوع.
     if (!isQuantityTracked(item.type)) continue;
@@ -202,6 +220,116 @@ async function removeStockOutSideEffectsTx(tx: Tx, invoiceId: string) {
   const lineIds = (await tx.salesInvoiceLine.findMany({ where: { invoiceId }, select: { id: true } })).map((l) => l.id);
   if (!lineIds.length) return;
   await tx.stockMovement.deleteMany({ where: { sourceSalesInvoiceLineId: { in: lineIds } } });
+}
+
+const ZATCA_CHAIN_GAP_ACTION = "zatca.chain_gap";
+const ZATCA_INVOICE_NUMBER_GAP_ACTION = "zatca.invoice_number_gap";
+
+/**
+ * تسجيل صريح وصاخب لـ"فجوة سلسلة" زاتكا: سلسلة ICV/PIH حُجزت فعلاً (عدّاد الشركة تقدَّم فعلياً،
+ * وآخر تجزئة مخزَّنة على الشركة أصبحت تشير لمستند لن يُكتَب أبداً) لكن كتابة المستند النهائية
+ * فشلت بعدها لسبب غير متوقَّع (لا رفض عادي من زاتكا — ذلك يُرفَض فوراً بلا وصول لهذه النقطة
+ * أصلاً، وليس "فجوة" بأي معنى، فقط رقم فاتورة غير مُستخدَم وهذا مقبول ومُوثَّق في أي دفتر ترقيم).
+ *
+ * قرار صريح من المستخدم: نادرة لكن "صاخبة" (تُسبِّب رفض زاتكا لكل فاتورة تالية على نفس السلسلة
+ * بسبب انقطاعها) يجب اكتشافها فوراً، لا بعد يومين من رفض غامض. تُسجَّل في مكانين: سطر console.error
+ * مميَّز قابل للبحث فوراً، وصفّ AuditLog دائم يظهر عبر GET /sales-invoices/zatca-chain-gaps
+ * (بنفس صلاحية قائمة زاتكا المتأخرة zatca-backlog).
+ */
+async function recordZatcaChainGap(
+  tenantId: string,
+  params: { company: { id: string; name: string }; reservedChain: { icv: number; invoiceHash: string }; documentUuid: string; attemptedDocumentNumber: string; error: unknown },
+) {
+  const errorMessage = params.error instanceof Error ? params.error.message : String(params.error);
+  // eslint-disable-next-line no-console
+  console.error(
+    `[zatcaChainGap] فجوة في سلسلة تجزئة زاتكا — الشركة "${params.company.name}" (${params.company.id})، ` +
+      `ICV=${params.reservedChain.icv}، invoiceHash=${params.reservedChain.invoiceHash}، documentUuid=${params.documentUuid}، ` +
+      `الرقم الذي حُووِل إصداره=${params.attemptedDocumentNumber} — فشلت كتابة المستند النهائية بعد حجز السلسلة: ${errorMessage}`,
+  );
+  await prisma.auditLog
+    .create({
+      data: {
+        tenantId,
+        action: ZATCA_CHAIN_GAP_ACTION,
+        entityType: "Company",
+        entityId: params.company.id,
+        metadata: {
+          companyName: params.company.name,
+          icv: params.reservedChain.icv,
+          invoiceHash: params.reservedChain.invoiceHash,
+          documentUuid: params.documentUuid,
+          attemptedDocumentNumber: params.attemptedDocumentNumber,
+          error: errorMessage,
+        } as Prisma.InputJsonValue,
+      },
+    })
+    .catch((auditErr) => console.error("[zatcaChainGap] تعذّر تسجيل فجوة السلسلة في AuditLog أيضاً:", auditErr));
+}
+
+/**
+ * تسجيل عادي (لا صاخب — راجع الفرق مع recordZatcaChainGap أعلاه) لرقم فاتورة "محروق": رقم حُجز
+ * فعلياً لفاتورة قياسية (B2B) رفضتها زاتكا قبل أي كتابة، فلن تُنشَأ الفاتورة إطلاقاً بهذا الرقم —
+ * فجوة في تسلسل الترقيم مقبولة تماماً (راجع التعليق في createSalesInvoice) لكنها يجب أن تكون
+ * قابلة للتفسير عند أي تدقيق: رقم مفقود في التسلسل بلا أي سجل يفسِّره غير مقبول، بخلاف رقم مفقود
+ * موثَّق برفض زاتكا وسببه. رفض زاتكا نتيجة متوقَّعة من العمل العادي، لا عطلاً — لذا console.info لا
+ * console.error، لكن بسطر مميَّز قابل للبحث فوراً مثل فجوة السلسلة تماماً.
+ */
+async function recordInvoiceNumberGap(
+  tenantId: string,
+  params: {
+    company: { id: string; name: string };
+    customer: { id: string; name: string };
+    invoiceNumber: string;
+    documentUuid: string;
+    rejectionReason: string | undefined;
+  },
+) {
+  // eslint-disable-next-line no-console
+  console.info(
+    `[zatcaInvoiceNumberGap] رقم فاتورة محروق برفض زاتكا — الشركة "${params.company.name}" (${params.company.id})، ` +
+      `العميل "${params.customer.name}" (${params.customer.id})، رقم الفاتورة=${params.invoiceNumber}، ` +
+      `documentUuid=${params.documentUuid} — سبب الرفض: ${params.rejectionReason ?? "غير محدَّد"}`,
+  );
+  await prisma.auditLog
+    .create({
+      data: {
+        tenantId,
+        action: ZATCA_INVOICE_NUMBER_GAP_ACTION,
+        entityType: "Company",
+        entityId: params.company.id,
+        metadata: {
+          companyName: params.company.name,
+          customerId: params.customer.id,
+          customerName: params.customer.name,
+          invoiceNumber: params.invoiceNumber,
+          documentUuid: params.documentUuid,
+          rejectionReason: params.rejectionReason ?? null,
+        } as Prisma.InputJsonValue,
+      },
+    })
+    .catch((auditErr) => console.error("[zatcaInvoiceNumberGap] تعذّر تسجيل فجوة الترقيم في AuditLog أيضاً:", auditErr));
+}
+
+/**
+ * قائمة "فجوات" مستندات زاتكا المُسجَّلة لهذا المستأجر — نوعان مختلفان تماماً بحسب type:
+ * "chain_gap" (فجوة سلسلة ICV/PIH صاخبة وغير متوقَّعة، راجع recordZatcaChainGap) و
+ * "invoice_number_gap" (رقم فاتورة محروق برفض زاتكا العادي، راجع recordInvoiceNumberGap أعلاه —
+ * متوقَّع وليس عطلاً). مدموجتان هنا في قائمة واحدة (بنفس صلاحية زاتكا-المتأخرة) ليطّلع من يتابع
+ * فواتير زاتكا على كل الأسباب التي قد تُفسِّر رقماً مفقوداً أو فاتورة غير مكتملة بلا حاجة لقراءة
+ * سجلات الخادم.
+ */
+export async function listZatcaChainGaps(tenantId: string) {
+  const gaps = await prisma.auditLog.findMany({
+    where: { tenantId, action: { in: [ZATCA_CHAIN_GAP_ACTION, ZATCA_INVOICE_NUMBER_GAP_ACTION] } },
+    orderBy: { createdAt: "desc" },
+  });
+  return gaps.map((g) => ({
+    id: g.id,
+    type: g.action === ZATCA_CHAIN_GAP_ACTION ? ("chain_gap" as const) : ("invoice_number_gap" as const),
+    createdAt: g.createdAt,
+    ...(g.metadata as Record<string, unknown>),
+  }));
 }
 
 function paidAmountOf(invoice: { receiptAllocations: { amount: unknown }[] }) {
@@ -226,6 +354,37 @@ export async function listSalesInvoices(tenantId: string, filters: { companyId?:
     orderBy: { createdAt: "desc" },
   });
   return invoices.map(withPaymentStatus);
+}
+
+// حالات زاتكا التي تعني أن الفاتورة لم تُبلَّغ/تُخلَّص بنجاح بعد — إما لا تزال قيد المحاولة الأولى
+// (pending_*) أو فشلت (رُفضت صراحةً أو تعذّر الوصول لزاتكا أصلاً). تُستخدَم فقط لعرض قائمة متابعة
+// للمستخدم — لا تُغيّر أي سلوك ترحيل.
+const ZATCA_BACKLOG_STATUSES = ["pending_clearance", "pending_reporting", "rejected", "submission_failed"] as const;
+
+/**
+ * قائمة الفواتير التي لم تُبلَّغ/تُخلَّص بنجاح لدى زاتكا بعد — لمتابعة أي فاتورة قد لا تصل إليها
+ * إطلاقاً (خصوصاً بعد معالجة تعذّر الاتصال بالشبكة بترحيلها بدل إسقاطها، راجع submission_failed).
+ */
+export async function listZatcaBacklog(tenantId: string, filters: { companyId?: string }) {
+  const invoices = await prisma.salesInvoice.findMany({
+    where: {
+      tenantId,
+      companyId: filters.companyId || undefined,
+      status: "posted",
+      zatcaStatus: { in: [...ZATCA_BACKLOG_STATUSES] },
+    },
+    select: { id: true, invoiceNumber: true, date: true, grandTotal: true, zatcaStatus: true, zatcaSubmittedAt: true },
+    orderBy: { date: "asc" },
+  });
+  const now = Date.now();
+  return invoices.map((inv) => ({
+    id: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    date: inv.date,
+    grandTotal: inv.grandTotal,
+    zatcaStatus: inv.zatcaStatus,
+    ageDays: Math.floor((now - (inv.zatcaSubmittedAt ?? inv.date).getTime()) / (1000 * 60 * 60 * 24)),
+  }));
 }
 
 export async function getSalesInvoice(tenantId: string, id: string) {
@@ -306,69 +465,101 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
     return withPaymentStatus(invoice);
   }
 
-  const cogsLines = await computeCogsJournalLines(tenantId, input.companyId, input.lines, input.warehouseId);
+  const { cogsLines, itemById } = await computeCogsJournalLines(tenantId, input.companyId, input.lines, input.warehouseId);
   const journalLines = await buildJournalLines(tenantId, input.companyId, customer, computed, vatTotal, grandTotal, cogsLines);
   const zatcaUuid = randomUUID();
 
-  const created = await prisma.$transaction(async (tx) => {
-    // رقم الفاتورة يُحجَز هنا داخل نفس المعاملة (وليس قبلها) — لو رفضته بوابة زاتكا أدناه فتُلغى
-    // المعاملة بالكامل، فلا يُستهلَك أي رقم لفاتورة لم تُنشَأ فعلياً (بلا فجوات في التسلسل).
-    const invoiceNumber = await reserveDocumentNumber(tx, tenantId, input.companyId, "sales_invoice");
+  // رقم الفاتورة يُحجَز الآن في معاملة قصيرة مستقلة *قبل* الاتصال بزاتكا (لا داخل معاملة الكتابة
+  // النهائية أدناه كما كان سابقاً) — لأن معرّف المستند (cbc:ID) يجب أن يكون معروفاً ومطابقاً تماماً
+  // لما سيُكتب فعلياً على الفاتورة قبل إرساله لزاتكا، فيستحيل تأجيل حجزه لِما بعد معرفة القرار.
+  // الأثر الجانبي المقبول: فاتورة قياسية (B2B) ترفضها زاتكا تُبقي هذا الرقم "محروقاً" غير مُستخدَم
+  // (فجوة في تسلسل الترقيم) بدل استرجاعه — فجوة في دفتر ترقيم عادي مقبولة ومفهومة (محاولة إصدار
+  // لم تكتمل)، بخلاف فجوة في سلسلة تجزئة ICV/PIH نفسها التي تُعطِّل كل فاتورة تالية، فتلك تُرصَد
+  // بشكل صريح (راجع recordZatcaChainGap أدناه) لا تُترَك بصمت.
+  const invoiceNumber = await prisma.$transaction((tx) => reserveDocumentNumber(tx, tenantId, input.companyId, "sales_invoice"));
 
-    // بوابة زاتكا أولاً، قبل أي كتابة فعلية: فاتورة قياسية (B2B) ترفضها زاتكا يجب ألا تُنشَأ ولا
-    // تُرحَّل إطلاقاً (لا تُعتبر فاتورة نهائية حتى تُقبَل فعلياً) — رمي الاستثناء هنا يُلغي المعاملة
-    // بأكملها بلا أي أثر جانبي متبقٍّ في قاعدة البيانات.
-    const gate = await evaluateZatcaPostingGate({
-      tx, company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: zatcaUuid,
-      lines: computed.map((l) => ({ ...l, description: l.description ?? null })), grandTotal, vatTotal,
-    });
-    if (!gate.proceedWithPosting) {
-      throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك الفاتورة: ${gate.rejectionReason}`);
-    }
+  // بوابة زاتكا بالكامل هنا، خارج أي معاملة قاعدة بيانات مفتوحة: تحجز سلسلة ICV/PIH في معاملة
+  // قصيرة خاصة بها (راجع evaluateZatcaPostingGate)، ثم تتصل فعلياً بزاتكا (قد يستغرق ثوانٍ) بلا أي
+  // قفل قاعدة بيانات محجوز أثناء الانتظار — هذا هو الإصلاح المباشر لعطل إنتاج فعلي
+  // (PrismaClientKnownRequestError: Transaction already closed) كان يحدث هنا بالضبط، حين كان هذا
+  // النداء الشبكي يقع داخل $transaction القديمة أدناه ويتجاوز مهلتها الافتراضية (5 ثوانٍ) لمجرد
+  // أن استجابة زاتكا تأخّرت قليلاً عن المعتاد.
+  const gate = await evaluateZatcaPostingGate({
+    company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: zatcaUuid,
+    lines: computed.map((l) => ({ ...l, description: l.description ?? null })), grandTotal, vatTotal,
+  });
+  if (!gate.proceedWithPosting) {
+    // فاتورة قياسية (B2B) رفضتها زاتكا — يجب ألا تُنشَأ ولا تُرحَّل إطلاقاً؛ لا كتابة فعلية حدثت
+    // بعد (لا معاملة فُتحت أصلاً)، فلا شيء يحتاج تراجعاً هنا. لكن invoiceNumber أعلاه حُجز فعلاً
+    // (بمعاملته القصيرة المستقلة) ولن يُستخدَم أبداً الآن — سجِّل هذه الفجوة في الترقيم صراحةً
+    // (راجع recordInvoiceNumberGap) بدل ترك رقم مفقود بلا تفسير في أي تدقيق لاحق.
+    await recordInvoiceNumberGap(tenantId, { company, customer, invoiceNumber, documentUuid: zatcaUuid, rejectionReason: gate.rejectionReason });
+    throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك الفاتورة: ${gate.rejectionReason}`);
+  }
 
-    const entry = await createJournalEntryTx(tx, {
-      tenantId,
-      companyId: input.companyId,
-      branchId: input.branchId || undefined,
-      date: input.date,
-      memo: `فاتورة مبيعات ${invoiceNumber} — ${customer.name}`,
-      sourceModule: "sales_invoice",
-      createdBy: userId,
-      lines: journalLines,
-    });
-
-    const invoice = await tx.salesInvoice.create({
-      data: {
+  let created;
+  try {
+    created = await prisma.$transaction(async (tx) => {
+      const entry = await createJournalEntryTx(tx, {
         tenantId,
-        invoiceNumber,
         companyId: input.companyId,
-        customerId: input.customerId,
         branchId: input.branchId || undefined,
         date: input.date,
-        dueDate: input.dueDate || undefined,
-        customerReference: input.customerReference,
-        poNumber: input.poNumber,
-        salesperson: input.salesperson,
-        otherId: input.otherId,
-        invoiceType: invType,
-        status: "posted",
-        journalEntryId: entry.id,
-        qrPayload,
-        zatcaUuid,
-        ...gate.zatcaFields,
-        subtotal,
-        vatTotal,
-        grandTotal,
-        lines: { create: computed },
-      },
-      include: invoiceInclude,
+        memo: `فاتورة مبيعات ${invoiceNumber} — ${customer.name}`,
+        sourceModule: "sales_invoice",
+        createdBy: userId,
+        lines: journalLines,
+      });
+
+      const invoice = await tx.salesInvoice.create({
+        data: {
+          tenantId,
+          invoiceNumber,
+          companyId: input.companyId,
+          customerId: input.customerId,
+          branchId: input.branchId || undefined,
+          date: input.date,
+          dueDate: input.dueDate || undefined,
+          customerReference: input.customerReference,
+          poNumber: input.poNumber,
+          salesperson: input.salesperson,
+          otherId: input.otherId,
+          invoiceType: invType,
+          status: "posted",
+          journalEntryId: entry.id,
+          qrPayload,
+          zatcaUuid,
+          ...gate.zatcaFields,
+          subtotal,
+          vatTotal,
+          grandTotal,
+          lines: { create: computed },
+        },
+        include: invoiceInclude,
+      });
+
+      await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
+      await createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, itemById, input.warehouseId);
+
+      return withPaymentStatus(invoice);
+    }, {
+      // مهلة صريحة بدل الاعتماد على افتراضي Prisma (5 ثوانٍ) — الآن بعد نقل الاتصال الشبكي بزاتكا
+      // خارج هذه المعاملة تماماً، لا شيء بداخلها سوى قراءات/كتابات محلية قليلة (حجز رقم القيد،
+      // إدراج القيد والفاتورة، تحديث سطر واحد، حركات مخزون بلا أي قراءة صنف إضافية) — 8 ثوانٍ هامش
+      // أمان معقول لبطء اتصال عرضي بقاعدة البيانات (Neon)، لا محاولة لإخفاء مشكلة أداء حقيقية.
+      timeout: 8000,
     });
-
-    await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
-    await createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, input.warehouseId);
-
-    return withPaymentStatus(invoice);
-  });
+  } catch (err) {
+    // وصلنا هنا فقط لو حُجزت سلسلة زاتكا فعلياً (gate.reservedChain) ثم فشلت الكتابة النهائية
+    // لسبب غير متوقَّع تماماً (لا رفض عادي من زاتكا — ذلك يُرفَض فوراً أعلاه بلا وصول لهذه النقطة) —
+    // هذه بالتحديد "فجوة السلسلة" التي يجب رصدها بصوت عالٍ لا تركها صامتة.
+    if (gate.reservedChain) {
+      await recordZatcaChainGap(tenantId, {
+        company, reservedChain: gate.reservedChain, documentUuid: zatcaUuid, attemptedDocumentNumber: invoiceNumber, error: err,
+      });
+    }
+    throw err;
+  }
 
   // نفس منطق الإرسال التلقائي في postSalesInvoice — مسار "حفظ وترحيل" هنا مستقل تماماً (إنشاء
   // وترحيل في نفس المعاملة) وليس استدعاءً لـ postSalesInvoice، فيحتاج نفس الخُطّاف صراحةً.
@@ -430,39 +621,56 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
     accountId: l.accountId, itemId: l.itemId ?? undefined, subtotal: Number(l.subtotal), vat: Number(l.vat), total: Number(l.total),
     quantity: Number(l.quantity), unitPrice: Number(l.unitPrice),
   }));
-  const cogsLines = await computeCogsJournalLines(tenantId, invoice.companyId, computed);
+  const { cogsLines, itemById } = await computeCogsJournalLines(tenantId, invoice.companyId, computed);
   const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customer, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
 
-  const posted = await prisma.$transaction(async (tx) => {
-    const gate = await evaluateZatcaPostingGate({
-      tx, company, customer: invoice.customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid,
-      lines: invoice.lines, grandTotal: Number(invoice.grandTotal), vatTotal: Number(invoice.vatTotal),
-    });
-    if (!gate.proceedWithPosting) {
-      throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك الفاتورة: ${gate.rejectionReason}`);
-    }
-
-    const entry = await createJournalEntryTx(tx, {
-      tenantId,
-      companyId: invoice.companyId,
-      branchId: invoice.branchId,
-      date: invoice.date,
-      memo: `فاتورة مبيعات ${invoice.invoiceNumber} — ${invoice.customer.name}`,
-      sourceModule: "sales_invoice",
-      sourceId: invoice.id,
-      createdBy: userId,
-      lines: journalLines,
-    });
-    const updated = await tx.salesInvoice.update({
-      where: { id },
-      data: { status: "posted", journalEntryId: entry.id, ...gate.zatcaFields },
-      include: invoiceInclude,
-    });
-    await createStockOutSideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id);
-    await accrueTrainerCommissionsTx(tx, tenantId, invoice.companyId, invoice.id, userId);
-
-    return withPaymentStatus(updated);
+  // بوابة زاتكا بالكامل هنا، خارج أي معاملة قاعدة بيانات مفتوحة — نفس إصلاح createSalesInvoice
+  // أعلاه بالضبط، ولنفس السبب: هذا المسار (ترحيل مسودة موجودة) يحمل بالضبط نفس النمط الذي سبَّب
+  // عطل الإنتاج (نداء شبكي بزاتكا داخل $transaction)، رغم أن الفاتورة التي فشلت فعلياً في الإنتاج
+  // مرّت عبر createSalesInvoice لا هذا المسار تحديداً.
+  const gate = await evaluateZatcaPostingGate({
+    company, customer: invoice.customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid,
+    lines: invoice.lines, grandTotal: Number(invoice.grandTotal), vatTotal: Number(invoice.vatTotal),
   });
+  if (!gate.proceedWithPosting) {
+    // لا فجوة ترقيم هنا خلافاً لـcreateSalesInvoice أعلاه: invoice.invoiceNumber كان مُخصَّصاً
+    // ومكتوباً فعلياً منذ إنشاء المسودة (راجع فرع shouldPost=false)، ورفض الترحيل يترك سجل الفاتورة
+    // نفسه موجوداً بحالة "draft" كدليل — رقم غير مفقود من التسلسل، فقط ترحيل لم يكتمل بعد.
+    throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك الفاتورة: ${gate.rejectionReason}`);
+  }
+
+  let posted;
+  try {
+    posted = await prisma.$transaction(async (tx) => {
+      const entry = await createJournalEntryTx(tx, {
+        tenantId,
+        companyId: invoice.companyId,
+        branchId: invoice.branchId,
+        date: invoice.date,
+        memo: `فاتورة مبيعات ${invoice.invoiceNumber} — ${invoice.customer.name}`,
+        sourceModule: "sales_invoice",
+        sourceId: invoice.id,
+        createdBy: userId,
+        lines: journalLines,
+      });
+      const updated = await tx.salesInvoice.update({
+        where: { id },
+        data: { status: "posted", journalEntryId: entry.id, ...gate.zatcaFields },
+        include: invoiceInclude,
+      });
+      await createStockOutSideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id, itemById);
+      await accrueTrainerCommissionsTx(tx, tenantId, invoice.companyId, invoice.id, userId);
+
+      return withPaymentStatus(updated);
+    }, { timeout: 8000 });
+  } catch (err) {
+    if (gate.reservedChain) {
+      await recordZatcaChainGap(tenantId, {
+        company, reservedChain: gate.reservedChain, documentUuid: invoice.zatcaUuid, attemptedDocumentNumber: invoice.invoiceNumber, error: err,
+      });
+    }
+    throw err;
+  }
 
   // إرسال الفاتورة بالإيميل يحدث فقط بعد نجاح الترحيل فعلياً (لا عند الحفظ كمسودة) — قرار
   // مقصود: فاتورة لسه قابلة للتعديل ليست جاهزة لتصل للعميل بعد. لا يُفشل الترحيل أبداً حتى لو
@@ -471,18 +679,30 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
   return { ...posted, emailResult };
 }
 
+type InvoiceWithZatcaChain = Prisma.SalesInvoiceGetPayload<{ include: typeof invoiceInclude }>;
+
 /**
- * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" لزاتكا — بلا حجز رقم ICV
- * جديد وبلا أي تعديل على بيانات الفاتورة نفسها (نفس الأسطر/العميل/المبالغ المُرحَّلة أصلاً)، فقط
- * إعادة توقيع وإرسال نفس المحتوى. متاحة فقط لهذه الحالة تحديداً — أي حالة زاتكا أخرى تُرفَض صراحةً.
+ * ينفّذ إعادة الإرسال الفعلية (يدوية من resendInvoiceToZatca أو تلقائية من runZatcaAutoRetry) على
+ * فاتورة تحمل بيانات سلسلة زاتكا الأصلية بالفعل — بلا حجز رقم ICV جديد وبلا أي تعديل على بيانات
+ * الفاتورة نفسها، فقط إعادة توقيع وإرسال نفس المحتوى. يُحدِّث حقول زاتكا فقط (لا القيد المحاسبي
+ * ولا حالة الترحيل) بصرف النظر عن النتيجة، ويُصفِّر عدّاد المحاولات عند النجاح أو يزيده عند الفشل
+ * (يُستخدَم فقط لحساب فترة الانتظار قبل المحاولة التلقائية التالية، راجع isDueForZatcaAutoRetry).
  */
-export async function resendInvoiceToZatca(tenantId: string, id: string) {
-  const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
-  if (!invoice) throw notFound("الفاتورة غير موجودة");
-  if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
-  if (invoice.zatcaStatus !== "rejected") throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا");
+async function performZatcaResubmission(invoice: InvoiceWithZatcaChain) {
   if (invoice.icv == null || !invoice.previousInvoiceHash || !invoice.invoiceHash || !invoice.zatcaSubmittedAt) {
     throw badRequest("بيانات سلسلة زاتكا الأصلية لهذه الفاتورة غير مكتملة — تعذّرت إعادة الإرسال، راجع الدعم الفني");
+  }
+
+  if (invoice.zatcaRetryCount > 0) {
+    // تنبيه مميَّز مقصود (لا رسالة عادية) يُسجَّل *قبل* إرسال أي محاولة ثانية أو لاحقة لنفس
+    // المستند — إن اشتكت زاتكا يوماً من ازدواج مستند بنفس UUID، هذا أول مكان يجب البحث فيه بدل
+    // تخمين وقت الإرسال المزدوج من سجلات متفرقة.
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[zatcaResubmission] REPEATED SUBMISSION — محاولة رقم ${invoice.zatcaRetryCount + 1} لنفس المستند | ` +
+        `الفاتورة=${invoice.invoiceNumber} الشركة=${invoice.company.name} (companyId=${invoice.companyId}) ` +
+        `documentUuid=${invoice.zatcaUuid}`,
+    );
   }
 
   const result = await resubmitZatcaDocument({
@@ -499,16 +719,205 @@ export async function resendInvoiceToZatca(tenantId: string, id: string) {
     issuedAt: invoice.zatcaSubmittedAt,
   });
 
+  const succeeded = result.zatcaStatus === "cleared" || result.zatcaStatus === "reported";
   const updated = await prisma.salesInvoice.update({
-    where: { id },
+    where: { id: invoice.id },
     data: {
       zatcaStatus: result.zatcaStatus,
       zatcaResponseRaw: (result.zatcaResponseRaw ?? Prisma.JsonNull) as Prisma.InputJsonValue,
       zatcaClearedOrReportedAt: result.zatcaClearedOrReportedAt,
+      zatcaLastAttemptAt: new Date(),
+      zatcaRetryCount: succeeded ? 0 : { increment: 1 },
     },
     include: invoiceInclude,
   });
-  return { ...withPaymentStatus(updated), rejectionReason: result.rejectionReason };
+  return { updated, rejectionReason: result.rejectionReason };
+}
+
+/**
+ * يحجز فاتورة ذرّياً قبل أي محاولة إرسال فعلية (يدوية أو تلقائية) — يُطابِق تحديثه في WHERE قيمتي
+ * zatcaRetryCount/zatcaLastAttemptAt المقروءتين بالضبط عند تحميل الفاتورة، فلو نسخة أخرى من
+ * الخادم (تدقة تلقائية متزامنة) أو نقرة "إعادة إرسال" أخرى سبقتنا لنفس الفاتورة، هذا التحديث
+ * يُطابِق صفراً من الصفوف. يمنع إرسال نفس المستند لزاتكا مرتين بسبب تزامن، سواء بين نسختي خادم أو
+ * بين محاولة تلقائية ونقرة يدوية على نفس الفاتورة في نفس اللحظة تقريباً.
+ */
+async function claimInvoiceForZatcaAttempt(
+  invoice: { id: string; zatcaStatus: InvoiceWithZatcaChain["zatcaStatus"]; zatcaRetryCount: number; zatcaLastAttemptAt: Date | null },
+  now: Date,
+): Promise<boolean> {
+  const claim = await prisma.salesInvoice.updateMany({
+    where: { id: invoice.id, zatcaStatus: invoice.zatcaStatus, zatcaRetryCount: invoice.zatcaRetryCount, zatcaLastAttemptAt: invoice.zatcaLastAttemptAt },
+    data: { zatcaLastAttemptAt: now },
+  });
+  return claim.count > 0;
+}
+
+/**
+ * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" (رفضتها زاتكا صراحةً) أو
+ * "submission_failed" (تعذّر الوصول إليها أصلاً) لزاتكا. متاحة فقط لهاتين الحالتين تحديداً — أي
+ * حالة زاتكا أخرى تُرفَض صراحةً.
+ */
+export async function resendInvoiceToZatca(tenantId: string, id: string) {
+  const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
+  if (!invoice) throw notFound("الفاتورة غير موجودة");
+  if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
+  if (invoice.zatcaStatus !== "rejected" && invoice.zatcaStatus !== "submission_failed") {
+    throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا أو تعذّر إرسالها إليها");
+  }
+
+  const claimed = await claimInvoiceForZatcaAttempt(invoice, new Date());
+  if (!claimed) {
+    throw badRequest("جارٍ إعادة إرسال هذه الفاتورة بالفعل الآن (نقرة أخرى أو محاولة تلقائية متزامنة) — انتظر قليلاً ثم تحقّق من حالتها قبل إعادة المحاولة");
+  }
+
+  const { updated, rejectionReason } = await performZatcaResubmission(invoice);
+  return { ...withPaymentStatus(updated), rejectionReason };
+}
+
+// حالات زاتكا المؤهَّلة لإعادة المحاولة التلقائية — لا "rejected" عمداً: رفض فعلي من زاتكا يحتاج
+// تصحيح بيانات بشرياً أولاً، وإعادة إرسال نفس المحتوى تلقائياً بلا تغيير سيفشل بنفس السبب دائماً
+// (راجع طلب المستخدم: "توقف عن إعادة المحاولة" لحالة الرفض الصريح تحديداً).
+const ZATCA_AUTO_RETRY_STATUSES = ["submission_failed", "pending_clearance", "pending_reporting"] as const;
+
+// فترات الانتظار (بالدقائق) بين محاولة تلقائية وأخرى لنفس الفاتورة، مفهرسة بعدد المحاولات
+// السابقة (zatcaRetryCount) — تصاعدية لتفادي إغراق زاتكا بمحاولات متكررة على فاتورة يبدو أنها
+// تفشل باستمرار (أو شركة لم تُهيّئ شهادتها بعد)، لكنها تبقى ضمن حد أقصى ساعة واحدة — كافٍ لعشرات
+// المحاولات خلال مهلة الـ24 ساعة القانونية للإبلاغ عن الفاتورة المبسّطة (Phase 2).
+const ZATCA_AUTO_RETRY_BACKOFF_MINUTES = [0, 5, 15, 30, 60] as const;
+
+/** مُصدَّرة للاختبار المباشر بلا حاجة لقاعدة بيانات — منطق حساب الاستحقاق نفسه لا يلمس Prisma. */
+export function isDueForZatcaAutoRetry(invoice: { zatcaRetryCount: number; zatcaLastAttemptAt: Date | null }, now: Date): boolean {
+  if (!invoice.zatcaLastAttemptAt) return true; // لم تُحاوَل تلقائياً بعد — مؤهَّلة فوراً
+  const idx = Math.min(invoice.zatcaRetryCount, ZATCA_AUTO_RETRY_BACKOFF_MINUTES.length - 1);
+  const dueAt = invoice.zatcaLastAttemptAt.getTime() + ZATCA_AUTO_RETRY_BACKOFF_MINUTES[idx] * 60_000;
+  return now.getTime() >= dueAt;
+}
+
+export interface ZatcaAutoRetryRunSummary {
+  attempted: number;
+  succeeded: number;
+  rejected: number;
+  stillFailing: number;
+}
+
+// سقف أمان لحجم الاستعلام نفسه فقط (لا علاقة له بعدد ما يُرسَل فعلياً لزاتكا في نبضة واحدة، راجع
+// ZATCA_AUTO_RETRY_BATCH_SIZE أدناه) — يمنع تحميل جدول ضخم بالكامل في الحالة النادرة لتراكم كبير جداً.
+const ZATCA_AUTO_RETRY_QUERY_LIMIT = 500;
+
+// أقصى عدد فواتير تُرسَل فعلياً لزاتكا في نبضة واحدة (كل 5 دقائق، راجع retryScheduler.ts) — يُصرِّف
+// تراكم انقطاع ليلي كامل (تقريباً 240 فاتورة لمحطة بمعدل 30 فاتورة/ساعة على مدى 8 ساعات) خلال نحو
+// ساعة تقريباً من عودة الاتصال (20 × نبضة كل 5 دقائق = 240 فاتورة/ساعة)، بدل إغراق زاتكا بمئات
+// الطلبات دفعة واحدة عند أول نبضة بعد عودة الشبكة.
+const ZATCA_AUTO_RETRY_BATCH_SIZE = 20;
+
+/**
+ * تُوزَّع فتحات الدفعة الواحدة بالتناوب (round-robin) على كل الشركات التي لديها فواتير مستحقة —
+ * فتحة واحدة لكل شركة في كل جولة، لا بحسب أقدم فاتورة على الإطلاق عبر المنصّة كلها — حتى لا
+ * تستحوذ شركة واحدة ذات تراكم كبير على الدفعة بأكملها بينما فاتورة شركة أخرى (قد تكون أقرب فعلياً
+ * لمهلة الـ24 ساعة القانونية الخاصة بها) تنتظر بلا داعٍ. الترتيب "الأقدم أولاً" يبقى محفوظاً *داخل*
+ * كل شركة (قائمة كل شركة مُرتَّبة سلفاً لأن invoicesDueOldestFirst مُرتَّبة، والتجميع أدناه يحافظ
+ * على هذا الترتيب).
+ *
+ * عندما يتجاوز عدد الشركات صاحبة العمل المعلَّق حجم الدفعة: كل شركة تحصل على فتحة واحدة على الأكثر
+ * في هذه النبضة (الجولة الأولى وحدها تملأ الدفعة)، فتُخدَم أول ZATCA_AUTO_RETRY_BATCH_SIZE شركة من
+ * قائمة `rotationOffset` الدوّارة هذه النبضة، والباقي ينتظر النبضة التالية. rotationOffset يتقدّم
+ * نبضة بعد أخرى (حالة داخل العملية فقط، بلا تأثير على الصحة) حتى لا تُخدَم نفس المجموعة من
+ * الشركات دائماً أولاً لو تجاوز عدد الشركات المتنافسة حجم الدفعة باستمرار — كل شركة تتقدّم في
+ * الصفّ على مدى عدة نبضات بدل أن تُحرَم إحداها بشكل دائم.
+ */
+export function allocateZatcaAutoRetryBatch<T extends { companyId: string }>(invoicesDueOldestFirst: T[], batchSize: number, rotationOffset = 0): T[] {
+  const byCompany = new Map<string, T[]>();
+  for (const invoice of invoicesDueOldestFirst) {
+    const queue = byCompany.get(invoice.companyId);
+    if (queue) queue.push(invoice);
+    else byCompany.set(invoice.companyId, [invoice]);
+  }
+  const companyQueues = [...byCompany.values()];
+  if (companyQueues.length === 0) return [];
+  const offset = rotationOffset % companyQueues.length;
+  const rotatedQueues = [...companyQueues.slice(offset), ...companyQueues.slice(0, offset)];
+
+  const selected: T[] = [];
+  let madeProgress = true;
+  while (selected.length < batchSize && madeProgress) {
+    madeProgress = false;
+    for (const queue of rotatedQueues) {
+      if (selected.length >= batchSize) break;
+      const next = queue.shift();
+      if (next !== undefined) {
+        selected.push(next);
+        madeProgress = true;
+      }
+    }
+  }
+  return selected;
+}
+
+// يدوّر أولوية الشركات بين نبضة وأخرى عند التنافس على الدفعة (راجع allocateZatcaAutoRetryBatch) —
+// حالة داخل العملية فقط لا تؤثر على الصحة إطلاقاً (مجرد عدالة أفضل عبر الزمن)، تُصفَّر بإعادة تشغيل
+// الخادم بلا أي مشكلة.
+let zatcaAutoRetryRotationOffset = 0;
+
+/**
+ * يُستدعى دورياً من lib/zatca/retryScheduler.ts — يفحص كل الفواتير المُرحَّلة (لأي شركة على
+ * المنصّة، بلا اقتصار على مستأجر واحد؛ هذا job خلفي بلا سياق طلب) التي لم تصل لزاتكا بنجاح بعد
+ * (تعذّر اتصال، أو لم تُرسَل أصلاً بسبب غياب شهادة الشركة وقت الترحيل) ويعيد محاولة إرسالها بشهادة
+ * *شركتها هي* تحديداً (invoice.company عبر invoiceInclude) — لا مشاركة حالة بين الشركات. لا يمسّ
+ * القيد المحاسبي ولا حالة ترحيل الفاتورة إطلاقاً (نهائية بصرف النظر عن نتيجة زاتكا) — فقط حقول
+ * زاتكا. فشل فاتورة واحدة (استثناء غير متوقَّع، شهادة شركة أُلغيت أو انتهت، ...) لا يوقف بقية
+ * الدفعة (شركات أخرى ضمنها) ولا الوظيفة الدورية نفسها.
+ *
+ * أمان تعدّد النُّسخ (Railway قد يُشغِّل أكثر من Instance): قبل أي محاولة فعلية لفاتورة، تُحجَز
+ * ذرّياً عبر claimInvoiceForZatcaAttempt (نفس أسلوب المطالبة الذرّية في reportScheduler.ts أعلاه
+ * بـlastSentPeriodKey) — لو نسخة أخرى من الخادم حجزت نفس الفاتورة أولاً (أو غيّرت حالتها) بين
+ * قراءتنا وتحديثنا، الحجز يُطابِق صفراً من الصفوف فنتخطّى الفاتورة هذه النبضة بدل إرسالها مرتين.
+ * الحجز يحدث *قبل* أي اتصال فعلي بزاتكا، فانهيار العملية بعده مباشرة (قبل استدعاء fetch) لا يترك
+ * أثراً غير محاولة مؤجَّلة فقط. النافذة الوحيدة غير المُغلَقة فعلياً: انهيار العملية بعد أن يستلم
+ * زاتكا الطلب فعلياً وقبل أن يُكتَب نجاح ذلك محلياً — عندها ستُعاد المحاولة لاحقاً بنفس UUID/تجزئة
+ * المستند بالضبط؛ هذا الكود لا يفترض أن زاتكا يتعامل مع ذلك كطلب مكرر آمن (idempotent)، فهذه نافذة
+ * خطر متبقية فعلياً، ولا توجد في هذا التكامل أي نقطة API للتحقق من حالة مستند سبق إرساله قبل إعادة
+ * إرساله. performZatcaResubmission يُسجِّل تحذيراً مميَّزاً REPEATED SUBMISSION قبل أي محاولة
+ * ثانية أو لاحقة لنفس المستند (retryCount > 0) بمعرّفه (UUID) بالضبط، تحديداً لتتبّع هذه الحالة.
+ *
+ * عدالة بين المستأجرين: الفواتير المستحقة تُوزَّع بالتناوب على الشركات صاحبة العمل المعلَّق (راجع
+ * allocateZatcaAutoRetryBatch) بدل ملء الدفعة كلها من أقدم الفواتير على الإطلاق بصرف النظر عن
+ * الشركة — فتراكم كبير لشركة واحدة لا يدفع فاتورة شركة أخرى (ربما أقرب فعلياً لمهلتها الخاصة)
+ * خارج الدفعة باستمرار.
+ */
+export async function runZatcaAutoRetry(now: Date = new Date()): Promise<ZatcaAutoRetryRunSummary> {
+  const candidates = await prisma.salesInvoice.findMany({
+    where: { status: "posted", zatcaStatus: { in: [...ZATCA_AUTO_RETRY_STATUSES] } },
+    orderBy: { zatcaSubmittedAt: "asc" }, // الأقدم أولاً داخل كل شركة — الأقرب لمهلة الـ24 ساعة القانونية لتلك الشركة
+    take: ZATCA_AUTO_RETRY_QUERY_LIMIT,
+    include: invoiceInclude,
+  });
+  const due = candidates.filter((invoice) => isDueForZatcaAutoRetry(invoice, now));
+  const batch = allocateZatcaAutoRetryBatch(due, ZATCA_AUTO_RETRY_BATCH_SIZE, zatcaAutoRetryRotationOffset++);
+
+  const summary: ZatcaAutoRetryRunSummary = { attempted: 0, succeeded: 0, rejected: 0, stillFailing: 0 };
+  for (const invoice of batch) {
+    const claimed = await claimInvoiceForZatcaAttempt(invoice, now);
+    if (!claimed) continue; // نسخة أخرى من الخادم سبقتنا لهذه الفاتورة، أو تغيّرت حالتها منذ القراءة أعلاه
+
+    summary.attempted++;
+    try {
+      const { updated } = await performZatcaResubmission(invoice);
+      if (updated.zatcaStatus === "cleared" || updated.zatcaStatus === "reported") summary.succeeded++;
+      else if (updated.zatcaStatus === "rejected") summary.rejected++;
+      else summary.stillFailing++;
+    } catch (err) {
+      summary.stillFailing++;
+      // eslint-disable-next-line no-console
+      console.error(`[zatcaAutoRetry] فشلت محاولة إعادة إرسال الفاتورة ${invoice.invoiceNumber} (${invoice.id}):`, err);
+      // وقت الحجز أعلاه (zatcaLastAttemptAt = now) يكفي وحده لتفعيل الانتظار (backoff) حتى لو
+      // فشلت المحاولة هنا محلياً قبل الوصول لزاتكا فعلياً (مثال: الشركة لم تُهيّئ شهادتها بعد) —
+      // فقط نزيد العدّاد هنا لتصعيد مدة الانتظار في المرة التالية.
+      await prisma.salesInvoice
+        .update({ where: { id: invoice.id }, data: { zatcaRetryCount: { increment: 1 } } })
+        .catch((updateErr) => console.error(`[zatcaAutoRetry] تعذّر تحديث عدّاد المحاولات للفاتورة ${invoice.invoiceNumber}:`, updateErr));
+    }
+  }
+  return summary;
 }
 
 export async function unpostSalesInvoice(tenantId: string, userId: string, id: string, pin: string) {

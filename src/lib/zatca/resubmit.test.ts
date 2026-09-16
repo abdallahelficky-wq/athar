@@ -171,4 +171,25 @@ describe("resubmitZatcaDocument", () => {
     expect(result.zatcaStatus).toBe("rejected");
     expect(result.rejectionReason).toContain("لا يزال هناك خطأ في التنسيق");
   });
+
+  it("marks the document submission_failed (not rejected) when ZATCA is still unreachable on retry", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const rebuilt = rebuildZatcaDocumentXml({
+      company: COMPANY, customer: SIMPLIFIED_CUSTOMER, kind: "invoice",
+      documentNumber: "INV-00001", documentUuid: DOCUMENT_UUID, lines: LINES as never,
+      icv: 5, previousInvoiceHash: "abc123", issuedAt: ISSUED_AT,
+    });
+
+    const result = await resubmitZatcaDocument({
+      company: COMPANY, customer: SIMPLIFIED_CUSTOMER,
+      documentNumber: "INV-00001", documentUuid: DOCUMENT_UUID, lines: LINES as never,
+      grandTotal: 115, vatTotal: 15,
+      icv: 5, previousInvoiceHash: "abc123", invoiceHash: rebuilt.invoiceHash,
+      issuedAt: ISSUED_AT,
+    });
+
+    expect(result.zatcaStatus).toBe("submission_failed");
+    expect(result.rejectionReason).toContain("تعذّر الاتصال");
+  });
 });

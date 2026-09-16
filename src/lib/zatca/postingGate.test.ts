@@ -8,6 +8,18 @@ import * as credentialsModule from "./credentials";
 
 vi.mock("./credentials", () => ({ loadCompanyZatcaCredentials: vi.fn() }));
 
+// بلا tx مُمرَّرة (مسار createSalesInvoice/postSalesInvoice المُعاد هيكلته) تحجز evaluateZatcaPostingGate
+// السلسلة عبر prisma.$transaction() الحقيقية بنفسها — نموِّه هنا بتنفيذ الاستدعاء فوراً بنفس شكل
+// fakeTx() أدناه (مُعاد تعريفها هنا محلياً تجنّباً لمشاكل ترتيب hoisting مع vi.mock)، فلا حاجة
+// لقاعدة بيانات فعلية لاختبار هذا المسار.
+vi.mock("../prisma", () => ({
+  prisma: {
+    $transaction: vi.fn((fn: (tx: unknown) => unknown) =>
+      fn({ $queryRaw: vi.fn().mockResolvedValue([{ zatcaNextIcv: 5 }]), company: { update: vi.fn().mockResolvedValue({}) } }),
+    ),
+  },
+}));
+
 function run(cmd: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
     const proc = spawn(cmd, args);
@@ -190,5 +202,113 @@ describe("evaluateZatcaPostingGate", () => {
     // مبسّطة: تُرحَّل رغم الرفض (سُلِّمت للعميل فعلاً) لكن بحالة rejected لإعادة المحاولة لاحقاً
     expect(decision.proceedWithPosting).toBe(true);
     expect(decision.zatcaFields.zatcaStatus).toBe("rejected");
+  });
+
+  // إعادة إنتاج مباشرة للعطل قيد التحقيق: شركة مرتبطة بزاتكا فعلياً، تبيع لعميل نقدي (فاتورة
+  // مبسّطة، حال أي بيع نقطة بيع كاش عادي) — لكن خادم الشركة لا يقدر يصل شبكة زاتكا فعلياً (fetch
+  // نفسها ترمي، لا مجرد رد رفض). قبل الإصلاح كان هذا الاستثناء الخام يسقط من evaluateZatcaPostingGate
+  // ليُسقِط معاملة إنشاء الفاتورة بأكملها في createSalesInvoice (500 عام، لا فاتورة تُنشأ إطلاقاً)
+  // رغم أن نفس الوردية بالضبط، لو رفضتها زاتكا صراحةً بدل تعذّر الاتصال، كانت ستُرحَّل بلا مشكلة
+  // (الاختبار السابق مباشرة). فشل الاتصال يجب أن يُعامَل بلا أقل من معاملة الرفض الصريح، لا أسوأ منها.
+  // كما يجب ألا تُسجَّل كـ"rejected" — تلك مخصَّصة لرفض فعلي من زاتكا يحتاج تصحيح بيانات، بينما
+  // تعذّر الاتصال يحتاج فقط إعادة إرسال لاحقاً (راجع submission_failed).
+  it("keeps a SIMPLIFIED (POS cash sale) invoice postable when ZATCA's network is simply unreachable, and marks it submission_failed (not rejected)", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 175,
+      vatTotal: 22.83,
+    });
+
+    expect(decision.proceedWithPosting).toBe(true);
+    expect(decision.zatcaFields.zatcaStatus).toBe("submission_failed");
+    expect(decision.rejectionReason).toContain("تعذّر الاتصال");
+  });
+
+  it("still blocks a STANDARD (clearance) invoice when ZATCA is unreachable, same as an explicit rejection", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.proceedWithPosting).toBe(false);
+    expect(decision.zatcaFields.zatcaStatus).toBe("submission_failed");
+  });
+
+  it("populates reservedChain whenever a chain was actually reserved, regardless of accept/reject outcome", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    mockFetchOnce(200, { reportingStatus: "REPORTED" });
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.reservedChain).toEqual({ icv: 5, invoiceHash: decision.zatcaFields.invoiceHash });
+  });
+
+  it("leaves reservedChain undefined when the company isn't onboarded (no chain to reserve at all)", async () => {
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: { ...COMPANY, zatcaOnboardingStatus: "not_onboarded" },
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.reservedChain).toBeUndefined();
+  });
+
+  // المسار المُعاد هيكلته (createSalesInvoice/postSalesInvoice) لا يمرّر tx إطلاقاً — يجب أن تحجز
+  // evaluateZatcaPostingGate السلسلة عبر معاملة قصيرة مستقلة بنفسها (prisma.$transaction، مُموَّهة
+  // أعلاه) بدل معاملة الاستدعاء، وأن يعمل بقية المنطق (الاتصال بزاتكا، بناء القرار) بلا أي تغيير.
+  it("reserves the chain via its own prisma.$transaction when no tx is passed at all (the restructured call path)", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    mockFetchOnce(200, { reportingStatus: "REPORTED" });
+
+    const decision = await evaluateZatcaPostingGate({
+      company: COMPANY,
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.proceedWithPosting).toBe(true);
+    expect(decision.zatcaFields.zatcaStatus).toBe("reported");
+    expect(decision.zatcaFields.icv).toBe(5);
+    expect(decision.reservedChain).toEqual({ icv: 5, invoiceHash: decision.zatcaFields.invoiceHash });
   });
 });

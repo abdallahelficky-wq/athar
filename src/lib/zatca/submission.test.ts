@@ -131,6 +131,28 @@ describe("signAndSubmitDocument", () => {
     expect(outcome.reason).not.toContain("بلا تفاصيل إضافية");
   });
 
+  it("surfaces a clear, distinct reason when the connection to ZATCA itself fails (not a rejection)", async () => {
+    // إعادة إنتاج العطل قيد التحقيق: fetch() ترمي (تعذّر الوصول لشبكة زاتكا) بدل أن تُعيد استجابة —
+    // يجب أن يُرفَض (accepted:false) برسالة اتصال واضحة، لا أن يسقط signAndSubmitDocument كاستثناء
+    // يُسقِط معاملة الترحيل بأكملها التي استدعته (راجع evaluateZatcaPostingGate).
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const xml = buildDocumentXml(sampleDocument());
+
+    const outcome = await signAndSubmitDocument({
+      xml,
+      uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      environment: "sandbox",
+      credentials,
+      kind: "reporting",
+      qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+    });
+
+    expect(outcome.accepted).toBe(false);
+    if (outcome.accepted) throw new Error("expected rejected outcome");
+    expect(outcome.reason).toContain("تعذّر الاتصال");
+    expect(outcome.signedXml).toContain("<ds:SignatureValue>");
+  });
+
   it("computes the same invoice hash whether the submission is accepted or rejected (hash is independent of the API outcome)", async () => {
     const xml = buildDocumentXml(sampleDocument());
     const baseParams = {

@@ -46,6 +46,10 @@ export interface ZatcaApiResponse<T> {
   /** true فقط عند استجابة HTTP ناجحة (2xx) لكن جسمها لا يطابق المخطط المتوقَّع — يميّز هذه الحالة
    * صراحةً عن رفض فعلي من زاتكا أو فشل اتصال، حتى لا تُعرَض رسالة مضلِّلة ولا تُقبَل بيانات فاسدة. */
   malformedResponse?: boolean;
+  /** true فقط لفشل اتصال فعلي (DNS/timeout/رفض اتصال...) قبل وصول أي استجابة HTTP إطلاقاً — يميّز
+   * هذه الحالة عن رفض حقيقي من زاتكا، حتى تُعامَل كفشل إرسال مؤقت (نفس مسار malformedResponse) لا
+   * كاستثناء غير مُتوقَّع يُسقِط معاملة الترحيل بأكملها. راجع تعليق zatcaRequest أدناه. */
+  networkError?: boolean;
 }
 
 interface RequestParams<T> {
@@ -60,6 +64,15 @@ interface RequestParams<T> {
   schema: z.ZodType<T>;
 }
 
+// كانت هذه المهلة غير محدودة إطلاقاً قبل هذا التعديل — وهي بالضبط كيف انتهى بنا الأمر لعطل
+// إنتاج فعلي: نداء fetch بلا مهلة داخل معاملة قاعدة بيانات بمهلتها الخاصة (5 ثوانٍ افتراضياً)
+// انتهى بـ"Transaction already closed" بمجرد أن أخذت زاتكا وقتاً أطول قليلاً من المعتاد. الآن
+// بعد نقل هذا النداء خارج أي معاملة مفتوحة (راجع postingGate.ts)، هذه المهلة تحديداً تحمي المستخدم
+// المنتظر أمام الشاشة من انتظار غير محدود لو تعليق شبكة زاتكا نفسها لا مجرد بطء عادي — 15 ثانية
+// كافية لزمن استجابة API حكومي طبيعي (بما فيه TLS handshake)، لا مجرد تكرار حد الـ5 ثوانٍ القديم
+// الذي كان مقاساً على DB محلية سريعة لا نداءً شبكياً خارجياً.
+const ZATCA_REQUEST_TIMEOUT_MS = 15_000;
+
 async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiResponse<T>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -71,11 +84,25 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
   if (params.otp) headers.OTP = params.otp;
   if (params.clearanceStatus) headers["Clearance-Status"] = params.clearanceStatus;
 
-  const response = await fetch(`${baseUrl(params.environment)}${params.path}`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(params.body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl(params.environment)}${params.path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(params.body),
+      signal: AbortSignal.timeout(ZATCA_REQUEST_TIMEOUT_MS),
+    });
+  } catch (err) {
+    // فشل اتصال حقيقي (DNS/timeout/رفض اتصال/شهادة TLS...) — بلا هذا الالتقاط كان يسقط كاستثناء
+    // خام غير مُعالَج يُسقِط معاملة Prisma بأكملها (بما فيها فاتورة نقطة بيع مبسّطة كانت ستُرحَّل
+    // بصرف النظر عن نتيجة هذا الإرسال أصلاً — راجع تعليق proceedWithPosting في postingGate.ts:
+    // chain.subtype !== "standard" يعني أن الفواتير المبسّطة تُرحَّل دائماً حتى لو رفضتها زاتكا
+    // صراحةً، فلا يوجد أي سبب يجعل *فشل الاتصال* تحديداً أخطر من *الرفض الصريح* ويستحق إسقاط كل
+    // العملية). يُعامَل هنا كفشل إرسال صريح بدل ذلك، بنفس مسار malformedResponse تماماً.
+    // eslint-disable-next-line no-console
+    console.error("فشل اتصال بخادم زاتكا (Fatoora):", err);
+    return { ok: false, status: 0, data: null, networkError: true };
+  }
 
   let rawData: unknown = null;
   try {
