@@ -23,6 +23,7 @@ const ZATCA_STATUS_KEYS = {
   reported: "reported",
   rejected: "rejected",
   submission_failed: "submission_failed",
+  certificate_error: "certificate_error",
 };
 const ZATCA_BADGE_CLASS = {
   not_applicable: "status-badge status-neutral",
@@ -32,9 +33,14 @@ const ZATCA_BADGE_CLASS = {
   reported: "status-badge status-posted",
   rejected: "status-badge status-rejected",
   submission_failed: "status-badge status-rejected",
+  // شارة مختلفة عمداً عن submission_failed/rejected — هذه ليست عطلاً عابراً ولا رفضاً من زاتكا،
+  // بل شهادة ربط زاتكا نفسها معطوبة، تحتاج إصلاح إعدادات الربط لا مجرد انتظار أو تصحيح بيانات الفاتورة.
+  certificate_error: "status-badge status-warning",
 };
-// حالتا زاتكا اللتان تحتاجان إعادة إرسال — رُفضت صراحةً أو تعذّر الوصول لزاتكا أصلاً (لم تُرسَل)
-const ZATCA_RESENDABLE = new Set(["rejected", "submission_failed"]);
+// ثلاث حالات زاتكا تحتاج إعادة إرسال يدوية — رُفضت صراحةً، تعذّر الوصول لزاتكا أصلاً (لم تُرسَل)،
+// أو تعذّر توقيعها محلياً بشهادة غير صالحة (certificate_error — يُفتَرض أن المستخدم أصلح إعدادات
+// ربط زاتكا أولاً، وإلا ستفشل بنفس السبب مجدداً).
+const ZATCA_RESENDABLE = new Set(["rejected", "submission_failed", "certificate_error"]);
 
 export default function InvoicesTab({ companyId, companies }) {
   const { t } = useTranslation();
@@ -148,9 +154,11 @@ export default function InvoicesTab({ companyId, companies }) {
       notify(
         updated.zatcaStatus === "submission_failed"
           ? t("salesInvoices.notify.zatcaStillUnreachable", { number: inv.invoiceNumber })
-          : stillFailing
-            ? t("salesInvoices.notify.zatcaRejectedAgain", { number: inv.invoiceNumber, reason: updated.rejectionReason ? `: ${updated.rejectionReason}` : "." })
-            : t("salesInvoices.notify.zatcaResentOk", { number: inv.invoiceNumber, status: badgeLabel }),
+          : updated.zatcaStatus === "certificate_error"
+            ? t("salesInvoices.notify.zatcaCertificateStillInvalid", { number: inv.invoiceNumber })
+            : stillFailing
+              ? t("salesInvoices.notify.zatcaRejectedAgain", { number: inv.invoiceNumber, reason: updated.rejectionReason ? `: ${updated.rejectionReason}` : "." })
+              : t("salesInvoices.notify.zatcaResentOk", { number: inv.invoiceNumber, status: badgeLabel }),
         stillFailing ? "error" : "success",
       );
     } catch (err) {
