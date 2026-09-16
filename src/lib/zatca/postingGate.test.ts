@@ -253,6 +253,54 @@ describe("evaluateZatcaPostingGate", () => {
     expect(decision.zatcaFields.zatcaStatus).toBe("submission_failed");
   });
 
+  // إعادة إنتاج مباشرة لعطل إنتاج فعلي لاحق: شهادة زاتكا مخزَّنة لهذه الشركة بصيغة غير صالحة
+  // (asn1 encoding routines::wrong tag) — يجب أن تُصنَّف certificate_error، لا submission_failed
+  // ولا rejected، لأنها فئة مختلفة تماماً: لا عطل شبكة عابر (قد يُحَل نفسه) ولا رفض فعلي من زاتكا
+  // (يحتاج تصحيح بيانات المستند)، بل شهادة معطوبة لن تعمل أبداً حتى يُصلَح إعداد الربط نفسه.
+  it("keeps a SIMPLIFIED invoice postable but marks it certificate_error (not submission_failed) when the stored certificate cannot be parsed", async () => {
+    const malformedCredentials = { ...credentials, certificateBodyBase64: Buffer.from(credentials.certificateBodyBase64, "utf8").toString("base64") };
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(malformedCredentials);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 175,
+      vatTotal: 22.83,
+    });
+
+    expect(decision.proceedWithPosting).toBe(true);
+    expect(decision.zatcaFields.zatcaStatus).toBe("certificate_error");
+    expect(decision.rejectionReason).toContain("شهادة");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("blocks a STANDARD invoice when the stored certificate cannot be parsed, same as an explicit rejection", async () => {
+    const malformedCredentials = { ...credentials, certificateBodyBase64: Buffer.from(credentials.certificateBodyBase64, "utf8").toString("base64") };
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(malformedCredentials);
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.proceedWithPosting).toBe(false);
+    expect(decision.zatcaFields.zatcaStatus).toBe("certificate_error");
+  });
+
   it("populates reservedChain whenever a chain was actually reserved, regardless of accept/reject outcome", async () => {
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
     mockFetchOnce(200, { reportingStatus: "REPORTED" });

@@ -340,12 +340,14 @@
     "zatcaStatus": {
       "not_applicable": "Not applicable", "pending_clearance": "Sending (standard)", "pending_reporting": "Sending (simplified)",
       "cleared": "Sent/accepted (standard)", "reported": "Sent/accepted (simplified)", "rejected": "Rejected",
-      "submission_failed": "Failed to send (never reached ZATCA)"
+      "submission_failed": "Failed to send (never reached ZATCA)",
+      "certificate_error": "Invalid ZATCA certificate"
     },
     "zatcaBadge": {
       "not_applicable": "Not applicable", "pending_clearance": "Sending", "pending_reporting": "Sending",
       "cleared": "Sent/accepted", "reported": "Sent/accepted", "rejected": "Rejected",
-      "submission_failed": "Failed to send"
+      "submission_failed": "Failed to send",
+      "certificate_error": "Invalid certificate"
     },
     "table": {
       "number": "Number", "customer": "Customer", "date": "Date", "total": "Total",
@@ -371,6 +373,7 @@
       "emailFailed": "Couldn't send the invoice — try again later.",
       "zatcaRejectedAgain": "Invoice {{number}} was rejected again by ZATCA{{reason}}",
       "zatcaStillUnreachable": "Still could not reach ZATCA to send invoice {{number}} — try again later or contact support",
+      "zatcaCertificateStillInvalid": "This company's ZATCA certificate is still invalid — fix the ZATCA connection settings before retrying invoice {{number}}",
       "zatcaResentOk": "Invoice {{number}} was sent successfully — status is now \"{{status}}\"."
     },
     "classicPro": {

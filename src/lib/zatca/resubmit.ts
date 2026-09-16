@@ -21,7 +21,7 @@ export interface ResubmitZatcaDocumentParams {
 }
 
 export interface ResubmitZatcaDocumentResult {
-  zatcaStatus: Extract<ZatcaDocumentStatus, "cleared" | "reported" | "rejected" | "submission_failed">;
+  zatcaStatus: Extract<ZatcaDocumentStatus, "cleared" | "reported" | "rejected" | "submission_failed" | "certificate_error">;
   zatcaResponseRaw?: unknown;
   zatcaClearedOrReportedAt?: Date;
   rejectionReason?: string;
@@ -72,7 +72,7 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
     };
   }
   return {
-    zatcaStatus: outcome.networkError ? "submission_failed" : "rejected",
+    zatcaStatus: outcome.certificateError ? "certificate_error" : outcome.networkError ? "submission_failed" : "rejected",
     zatcaResponseRaw: outcome.response ?? undefined,
     rejectionReason: outcome.reason,
   };
