@@ -58,10 +58,18 @@ function sampleDocument(): ZatcaDocumentInput {
   };
 }
 
-function mockFetchOnce(status: number, body: unknown) {
+function mockFetchOnce(status: number, body: unknown, statusText = "") {
+  const bodyText = body === undefined ? "" : JSON.stringify(body);
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockResolvedValue({ ok: status >= 200 && status < 300, status, json: async () => body }),
+    vi.fn().mockResolvedValue({
+      ok: status >= 200 && status < 300,
+      status,
+      statusText,
+      json: async () => body,
+      text: async () => bodyText,
+      headers: { forEach: (_cb: (value: string, key: string) => void) => undefined },
+    }),
   );
 }
 

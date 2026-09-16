@@ -90,8 +90,19 @@ function fakeTx() {
   } as unknown as Parameters<typeof evaluateZatcaPostingGate>[0]["tx"];
 }
 
-function mockFetchOnce(status: number, body: unknown) {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: status >= 200 && status < 300, status, json: async () => body }));
+function mockFetchOnce(status: number, body: unknown, statusText = "") {
+  const bodyText = body === undefined ? "" : JSON.stringify(body);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: status >= 200 && status < 300,
+      status,
+      statusText,
+      json: async () => body,
+      text: async () => bodyText,
+      headers: { forEach: (_cb: (value: string, key: string) => void) => undefined },
+    }),
+  );
 }
 
 afterEach(() => {
@@ -181,6 +192,55 @@ describe("evaluateZatcaPostingGate", () => {
     expect(decision.zatcaFields.zatcaStatus).toBe("rejected");
     expect(decision.zatcaFields.icv).toBe(5);
     expect(decision.rejectionReason).toContain("الرقم الضريبي للمشتري غير صحيح");
+  });
+
+  // إعادة إنتاج مباشرة لعطل إنتاج فعلي ثانٍ: زاتكا أعادت استجابة غير ناجحة بجسم فارغ تماماً (null)
+  // — لا validationResults، لا أخطاء. كانت تُسجَّل خطأً كـ"rejected" (زاتكا قيَّمت المستند ورفضته)
+  // رغم أن زاتكا لم تُقيِّم شيئاً على الإطلاق — هذا فشل نقل/مصادقة (401 هنا)، يحتاج مراجعة إعداد
+  // الربط، لا تصحيح بيانات الفاتورة. يجب أن يُصنَّف submission_failed، والرسالة يجب أن تذكر كود
+  // الحالة الفعلي (401) صراحةً.
+  it("classifies a 401 with an empty body as submission_failed (not rejected), with the HTTP status in the message", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    mockFetchOnce(401, undefined, "Unauthorized");
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.proceedWithPosting).toBe(false);
+    expect(decision.zatcaFields.zatcaStatus).toBe("submission_failed");
+    expect(decision.rejectionReason).toContain("401");
+    expect(decision.rejectionReason).not.toContain("رفضت زاتكا الفاتورة");
+  });
+
+  it("does NOT emit the 'رفضت زاتكا مستنداً' rejection log for an httpError (auth/transport failure) — it's already logged in full inside zatcaRequest", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    mockFetchOnce(401, undefined, "Unauthorized");
+
+    await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 175,
+      vatTotal: 22.83,
+    });
+
+    const rejectionLog = consoleErrorSpy.mock.calls.find((call) => String(call[0]).includes("رفضت زاتكا مستنداً"));
+    expect(rejectionLog).toBeUndefined();
+    consoleErrorSpy.mockRestore();
   });
 
   // كان هذا المسار صامتاً تماماً بلا أي سطر سجلّ على الإطلاق قبل هذا الإصلاح — رفض فعلي في
