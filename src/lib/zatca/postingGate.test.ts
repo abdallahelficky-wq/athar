@@ -257,8 +257,10 @@ describe("evaluateZatcaPostingGate", () => {
   // (asn1 encoding routines::wrong tag) — يجب أن تُصنَّف certificate_error، لا submission_failed
   // ولا rejected، لأنها فئة مختلفة تماماً: لا عطل شبكة عابر (قد يُحَل نفسه) ولا رفض فعلي من زاتكا
   // (يحتاج تصحيح بيانات المستند)، بل شهادة معطوبة لن تعمل أبداً حتى يُصلَح إعداد الربط نفسه.
-  it("keeps a SIMPLIFIED invoice postable but marks it certificate_error (not submission_failed) when the stored certificate cannot be parsed", async () => {
-    const malformedCredentials = { ...credentials, certificateBodyBase64: Buffer.from(credentials.certificateBodyBase64, "utf8").toString("base64") };
+  // شهادة تالفة فعلياً هنا (لا مُرمَّزة base64 مرتين فقط) — تلك أصبحت مُتسامَحاً معها (راجع
+  // الاختباريْن التاليين مباشرة)، فلم تعد تصلح لإعادة إنتاج certificate_error بعد إصلاحها.
+  it("keeps a SIMPLIFIED invoice postable but marks it certificate_error (not submission_failed) when the stored certificate is genuinely unparseable", async () => {
+    const malformedCredentials = { ...credentials, certificateBodyBase64: "this-is-not-a-valid-certificate-at-all" };
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(malformedCredentials);
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
@@ -281,8 +283,8 @@ describe("evaluateZatcaPostingGate", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("blocks a STANDARD invoice when the stored certificate cannot be parsed, same as an explicit rejection", async () => {
-    const malformedCredentials = { ...credentials, certificateBodyBase64: Buffer.from(credentials.certificateBodyBase64, "utf8").toString("base64") };
+  it("blocks a STANDARD invoice when the stored certificate is genuinely unparseable, same as an explicit rejection", async () => {
+    const malformedCredentials = { ...credentials, certificateBodyBase64: "this-is-not-a-valid-certificate-at-all" };
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(malformedCredentials);
 
     const decision = await evaluateZatcaPostingGate({
@@ -299,6 +301,30 @@ describe("evaluateZatcaPostingGate", () => {
 
     expect(decision.proceedWithPosting).toBe(false);
     expect(decision.zatcaFields.zatcaStatus).toBe("certificate_error");
+  });
+
+  // الحالة الحقيقية المُؤكَّدة فعلياً في الإنتاج: فاتورة قياسية (B2B) — بالضبط النوع الذي فشل فعلاً
+  // في الإنتاج — لشركة شهادتها المخزَّنة مُرمَّزة base64 مرتين. يجب أن تُخلَّص وتُرحَّل بنجاح، لا
+  // أن تُصنَّف certificate_error ولا أن تُمنَع من الترحيل، طالما فك ترميز إضافي واحد ينجح فعلياً.
+  it("clears and proceeds a STANDARD invoice normally when the stored certificate is merely double-base64-encoded (tolerated, not an error)", async () => {
+    const doubleEncodedCredentials = { ...credentials, certificateBodyBase64: Buffer.from(credentials.certificateBodyBase64, "utf8").toString("base64") };
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(doubleEncodedCredentials);
+    mockFetchOnce(200, { clearanceStatus: "CLEARED" });
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.proceedWithPosting).toBe(true);
+    expect(decision.zatcaFields.zatcaStatus).toBe("cleared");
   });
 
   it("populates reservedChain whenever a chain was actually reserved, regardless of accept/reject outcome", async () => {

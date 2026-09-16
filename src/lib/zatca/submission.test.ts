@@ -153,13 +153,39 @@ describe("signAndSubmitDocument", () => {
     expect(outcome.signedXml).toContain("<ds:SignatureValue>");
   });
 
-  it("returns certificateError:true with a clear Arabic message when the stored certificate cannot be parsed, without ever calling fetch", async () => {
-    // إعادة إنتاج عطل الإنتاج الفعلي (asn1 encoding routines::wrong tag): شهادة مخزَّنة بصيغة غير
-    // صالحة (هنا: مُرمَّزة base64 مرتين، محاكاةً للسبب المُرجَّح فعلياً) — يجب أن يُلتَقَط الخطأ هنا
-    // بدل أن يسقط كاستثناء خام غير معالَج، وبرسالة واضحة تسمّي "الشهادة" صراحةً لا خطأ عام، وبلا أي
-    // محاولة اتصال فعلي بزاتكا إطلاقاً (لم يصل الطلب لمرحلة الشبكة أصلاً).
+  it("returns certificateError:true with a clear Arabic message when the stored certificate is genuinely unparseable, without ever calling fetch", async () => {
+    // شهادة تالفة فعلياً بلا أي علاقة بترميز base64 مزدوج — يجب أن تفشل حتى بعد محاولة فك ترميز
+    // إضافي (راجع الاختبار التالي: الترميز المزدوج وحده لم يعد يُصنَّف certificateError بعد إصلاح
+    // getCertificateInfo). يجب أن يُلتَقَط الخطأ هنا بدل أن يسقط كاستثناء خام غير معالَج، وبرسالة
+    // واضحة تسمّي "الشهادة" صراحةً لا خطأ عام، وبلا أي محاولة اتصال فعلي بزاتكا إطلاقاً.
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
+    const xml = buildDocumentXml(sampleDocument());
+    const genuinelyBrokenCert = "this-is-not-a-valid-certificate-at-all";
+
+    const outcome = await signAndSubmitDocument({
+      xml,
+      uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      environment: "sandbox",
+      credentials: { ...credentials, certificateBodyBase64: genuinelyBrokenCert },
+      kind: "reporting",
+      qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+    });
+
+    expect(outcome.accepted).toBe(false);
+    if (outcome.accepted) throw new Error("expected rejected outcome");
+    expect(outcome.certificateError).toBe(true);
+    expect(outcome.networkError).toBeFalsy();
+    expect(outcome.reason).toContain("شهادة");
+    expect(outcome.reason).not.toBe("خطأ داخلي في الخادم");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("transparently tolerates a double-base64-encoded certificate: signs and submits normally, no certificateError", async () => {
+    // حالة حقيقية مُؤكَّدة فعلياً في الإنتاج: زاتكا أعادت binarySecurityToken مُرمَّزاً مرتين
+    // لشركة فعلية — يجب أن يُوقَّع المستند وتُرسَل الفاتورة بشكل طبيعي، لا أن تُصنَّف
+    // certificate_error، طالما فك ترميز إضافي واحد يُنتِج شهادة صالحة فعلاً.
+    mockFetchOnce(200, { reportingStatus: "REPORTED" });
     const xml = buildDocumentXml(sampleDocument());
     const doubleEncodedCertBody = Buffer.from(credentials.certificateBodyBase64, "utf8").toString("base64");
 
@@ -172,13 +198,13 @@ describe("signAndSubmitDocument", () => {
       qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
     });
 
-    expect(outcome.accepted).toBe(false);
-    if (outcome.accepted) throw new Error("expected rejected outcome");
-    expect(outcome.certificateError).toBe(true);
-    expect(outcome.networkError).toBeFalsy();
-    expect(outcome.reason).toContain("شهادة");
-    expect(outcome.reason).not.toBe("خطأ داخلي في الخادم");
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(outcome.accepted).toBe(true);
+    if (!outcome.accepted) throw new Error("expected accepted outcome");
+    // الأهم: الشهادة المُضمَّنة فعلياً في XML الموقَّع يجب أن تكون الشكل الصحيح بعد فك الترميز
+    // الإضافي، لا الجسم المزدوج الترميز كما وصل — وإلا استلمت زاتكا شهادة غير قابلة للتحليل فعلياً
+    // رغم نجاح التوقيع محلياً.
+    expect(outcome.signedXml).toContain(credentials.certificateBodyBase64);
+    expect(outcome.signedXml).not.toContain(doubleEncodedCertBody);
   });
 
   it("computes the same invoice hash whether the submission is accepted or rejected (hash is independent of the API outcome)", async () => {
