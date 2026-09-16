@@ -8,7 +8,15 @@ import { ZatcaDocumentKind } from "./types";
 
 type Tx = Prisma.TransactionClient;
 
-export type ZatcaPostingStatus = "not_applicable" | "pending_clearance" | "cleared" | "pending_reporting" | "reported" | "rejected" | "submission_failed";
+export type ZatcaPostingStatus =
+  | "not_applicable"
+  | "pending_clearance"
+  | "cleared"
+  | "pending_reporting"
+  | "reported"
+  | "rejected"
+  | "submission_failed"
+  | "certificate_error";
 
 export interface ZatcaPostingFields {
   icv?: number;
@@ -137,14 +145,16 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
   }
 
   return {
-    // فاتورة قياسية تبقى ممنوعة من الترحيل سواء رفضتها زاتكا صراحةً أو تعذّر الوصول إليها أصلاً —
-    // التخليص (Clearance) شرط قانوني مسبق في الحالتين، لا فرق بينهما هنا.
+    // فاتورة قياسية تبقى ممنوعة من الترحيل سواء رفضتها زاتكا صراحةً أو تعذّر الوصول إليها أصلاً أو
+    // تعذّر توقيعها محلياً بشهادة غير صالحة — التخليص (Clearance) شرط قانوني مسبق في الحالات
+    // الثلاث كلها، لا فرق بينها هنا من ناحية قرار الترحيل نفسه (الفرق فقط في تصنيف zatcaStatus
+    // أدناه، لتمييز عطل شبكة عابر عن شهادة معطوبة تحتاج تدخلاً بشرياً).
     proceedWithPosting: chain.subtype !== "standard",
     zatcaFields: {
       icv: chain.icv,
       previousInvoiceHash: chain.previousInvoiceHash,
       invoiceHash: chain.invoiceHash,
-      zatcaStatus: outcome.networkError ? "submission_failed" : "rejected",
+      zatcaStatus: outcome.certificateError ? "certificate_error" : outcome.networkError ? "submission_failed" : "rejected",
       zatcaSubmittedAt: chain.issuedAt,
       zatcaResponseRaw: (outcome.response ?? undefined) as Prisma.InputJsonValue | undefined,
     },

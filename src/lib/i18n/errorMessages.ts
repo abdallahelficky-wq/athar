@@ -148,7 +148,7 @@ export const AR_TO_EN: Record<string, string> = {
   "إشعار الدائن/المدين يتطلب رقم الفاتورة المرتبطة (billingReferenceId)": "A credit/debit note requires the linked invoice number (billingReferenceId)",
   "أصل ثابت": "Fixed asset",
   "أضف مكوّناً واحداً على الأقل للمنتج المجمّع": "Add at least one component to the bundled product",
-  "إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا أو تعذّر إرسالها إليها": "Resubmission is only available for invoices ZATCA rejected or that failed to reach ZATCA",
+  "إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا، تعذّر إرسالها إليها، أو تعذّر توقيعها بشهادة غير صالحة": "Resubmission is only available for invoices ZATCA rejected, that failed to reach ZATCA, or that failed to sign due to an invalid certificate",
   "جارٍ إعادة إرسال هذه الفاتورة بالفعل الآن (نقرة أخرى أو محاولة تلقائية متزامنة) — انتظر قليلاً ثم تحقّق من حالتها قبل إعادة المحاولة":
     "This invoice is already being resent right now (another click or a concurrent automatic retry) — wait a moment and check its status before trying again",
   "اقترح الذكاء الاصطناعي نفس الحساب مديناً ودائناً معاً، وهذا غير منطقي محاسبياً — راجع المستند وأنشئ القيد يدوياً":

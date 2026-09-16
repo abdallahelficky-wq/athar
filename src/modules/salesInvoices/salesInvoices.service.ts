@@ -357,13 +357,17 @@ export async function listSalesInvoices(tenantId: string, filters: { companyId?:
 }
 
 // حالات زاتكا التي تعني أن الفاتورة لم تُبلَّغ/تُخلَّص بنجاح بعد — إما لا تزال قيد المحاولة الأولى
-// (pending_*) أو فشلت (رُفضت صراحةً أو تعذّر الوصول لزاتكا أصلاً). تُستخدَم فقط لعرض قائمة متابعة
-// للمستخدم — لا تُغيّر أي سلوك ترحيل.
-const ZATCA_BACKLOG_STATUSES = ["pending_clearance", "pending_reporting", "rejected", "submission_failed"] as const;
+// (pending_*) أو فشلت (رُفضت صراحةً، تعذّر الوصول لزاتكا أصلاً، أو تعذّر توقيعها محلياً بشهادة
+// غير صالحة). تُستخدَم فقط لعرض قائمة متابعة للمستخدم — لا تُغيّر أي سلوك ترحيل. certificate_error
+// مُدرَجة عمداً هنا (نفس القائمة) لا في قائمة منفصلة — كل صف يحمل zatcaStatus الفعلي، فيبقى
+// الفرق بين "انتظر" (submission_failed/pending_*، قد يُحَل نفسه) و"اذهب أصلِح الربط"
+// (certificate_error، لن يُحَل نفسه أبداً) مرئياً بوضوح لمن يراجع هذه القائمة.
+const ZATCA_BACKLOG_STATUSES = ["pending_clearance", "pending_reporting", "rejected", "submission_failed", "certificate_error"] as const;
 
 /**
  * قائمة الفواتير التي لم تُبلَّغ/تُخلَّص بنجاح لدى زاتكا بعد — لمتابعة أي فاتورة قد لا تصل إليها
- * إطلاقاً (خصوصاً بعد معالجة تعذّر الاتصال بالشبكة بترحيلها بدل إسقاطها، راجع submission_failed).
+ * إطلاقاً (خصوصاً بعد معالجة تعذّر الاتصال بالشبكة بترحيلها بدل إسقاطها، راجع submission_failed)،
+ * أو تعطّلت بسبب شهادة زاتكا غير صالحة (certificate_error) وتحتاج إصلاح الربط نفسه لا مجرد انتظار.
  */
 export async function listZatcaBacklog(tenantId: string, filters: { companyId?: string }) {
   const invoices = await prisma.salesInvoice.findMany({
@@ -753,16 +757,17 @@ async function claimInvoiceForZatcaAttempt(
 }
 
 /**
- * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" (رفضتها زاتكا صراحةً) أو
- * "submission_failed" (تعذّر الوصول إليها أصلاً) لزاتكا. متاحة فقط لهاتين الحالتين تحديداً — أي
- * حالة زاتكا أخرى تُرفَض صراحةً.
+ * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" (رفضتها زاتكا صراحةً)،
+ * "submission_failed" (تعذّر الوصول إليها أصلاً)، أو "certificate_error" (تعذّر توقيعها محلياً
+ * بشهادة غير صالحة — يُفتَرض أن المستخدم أصلح إعدادات ربط زاتكا قبل الضغط هنا، وإلا ستفشل بنفس
+ * السبب مجدداً وتبقى certificate_error). متاحة فقط لهذه الحالات الثلاث — أي حالة زاتكا أخرى تُرفَض صراحةً.
  */
 export async function resendInvoiceToZatca(tenantId: string, id: string) {
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
-  if (invoice.zatcaStatus !== "rejected" && invoice.zatcaStatus !== "submission_failed") {
-    throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا أو تعذّر إرسالها إليها");
+  if (invoice.zatcaStatus !== "rejected" && invoice.zatcaStatus !== "submission_failed" && invoice.zatcaStatus !== "certificate_error") {
+    throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا، تعذّر إرسالها إليها، أو تعذّر توقيعها بشهادة غير صالحة");
   }
 
   const claimed = await claimInvoiceForZatcaAttempt(invoice, new Date());
@@ -774,9 +779,13 @@ export async function resendInvoiceToZatca(tenantId: string, id: string) {
   return { ...withPaymentStatus(updated), rejectionReason };
 }
 
-// حالات زاتكا المؤهَّلة لإعادة المحاولة التلقائية — لا "rejected" عمداً: رفض فعلي من زاتكا يحتاج
-// تصحيح بيانات بشرياً أولاً، وإعادة إرسال نفس المحتوى تلقائياً بلا تغيير سيفشل بنفس السبب دائماً
-// (راجع طلب المستخدم: "توقف عن إعادة المحاولة" لحالة الرفض الصريح تحديداً).
+// حالات زاتكا المؤهَّلة لإعادة المحاولة التلقائية — لا "rejected" ولا "certificate_error" عمداً:
+// كلاهما يحتاج تدخلاً بشرياً أولاً (تصحيح بيانات، أو إصلاح إعدادات ربط زاتكا نفسها)، وإعادة
+// المحاولة تلقائياً بلا تغيير ستفشل بنفس السبب كل مرة. الفرق بينهما تحديداً هو سبب استبعاد
+// certificate_error هنا: عطل شبكة عابر (submission_failed) قد يُحَل نفسه بمرور الوقت فيستحق
+// إعادة محاولة دورية، بينما شهادة تالفة (certificate_error) لن تُصلَح نفسها أبداً — استمرار
+// إعادة المحاولة عليها يستهلك فتحات الدفعة الدورية بلا أي فائدة، ويُخفي مشكلة إعداد حقيقية خلف
+// مظهر عطل عابر مؤقت (راجع طلب المستخدم: حالة منفصلة تماماً عن submission_failed لهذا السبب بالذات).
 const ZATCA_AUTO_RETRY_STATUSES = ["submission_failed", "pending_clearance", "pending_reporting"] as const;
 
 // فترات الانتظار (بالدقائق) بين محاولة تلقائية وأخرى لنفس الفاتورة، مفهرسة بعدد المحاولات

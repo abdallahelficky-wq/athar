@@ -4,6 +4,7 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { encryptSecret, decryptSecret } from "../../lib/zatca/secretBox";
 import { generateCsr, verifyCsrLocally } from "../../lib/zatca/csr";
 import { requestComplianceCsid, requestProductionCsid, ZatcaApiEnvironment } from "../../lib/zatca/apiClient";
+import { getCertificateInfo } from "../../lib/zatca/signing";
 
 const BUSINESS_ACTIVITY_INDUSTRY_LABEL: Record<string, string> = {
   contracting: "مقاولات",
@@ -18,6 +19,29 @@ async function getCompanyOrThrow(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw notFound("الشركة غير موجودة");
   return company;
+}
+
+/**
+ * يتحقق أن binarySecurityToken الذي أعادته زاتكا فعلياً قابل للتحليل كشهادة X.509 صالحة *قبل*
+ * تخزينه — بنفس دالة التحليل المُستخدَمة فعلياً لاحقاً عند التوقيع (getCertificateInfo)، فلو
+ * نجح هذا التحقق هنا فمن المضمون نجاحه هناك أيضاً بنفس المدخل بالضبط. لا تحقق شكلي (schema) على
+ * الاستجابة الخام يمنع تخزين قيمة "صحيحة الشكل كنص، لكن غير قابلة للاستخدام فعلياً كشهادة" (مثل
+ * ترميز base64 مزدوج) — وهو تحديداً ما تسبَّب في عطل إنتاج فعلي (asn1 encoding routines::wrong
+ * tag) عند محاولة توقيع فاتورة لاحقاً بشهادة لم تجتز أي تحقق حقيقي وقت حفظها. رفض هنا أفضل بما لا
+ * يُقاس من قبول شهادة لن تعمل أبداً، ثم اكتشاف ذلك بعد أيام عند أول محاولة ترحيل فعلية.
+ */
+function assertUsableZatcaCertificate(binarySecurityToken: string, csidLabel: string): void {
+  try {
+    getCertificateInfo(binarySecurityToken);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    // eslint-disable-next-line no-console
+    console.error(`[assertUsableZatcaCertificate] ${csidLabel}: الشهادة التي أعادتها زاتكا غير قابلة للتحليل، الخطأ الفعلي: ${detail}`);
+    throw badRequest(
+      `استجابة زاتكا لطلب ${csidLabel} تحتوي شهادة بصيغة غير صالحة (فشل تحليلها كشهادة X.509) — لم تُخزَّن أي بيانات. ` +
+        `هذا لا يعني عادة خطأ في هذا الطلب نفسه بقدر ما يعني أن الصيغة المُستلَمة من زاتكا تحتاج مراجعة تقنية. راجع الدعم الفني قبل إعادة المحاولة.`,
+    );
+  }
 }
 
 /**
@@ -104,6 +128,7 @@ export async function requestCompanyComplianceCsid(tenantId: string, companyId: 
   if (!result.ok || !result.data) {
     throw badRequest(`رفضت زاتكا طلب شهادة الاختبار: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
   }
+  assertUsableZatcaCertificate(result.data.binarySecurityToken, "شهادة الاختبار (Compliance)");
 
   await prisma.$transaction([
     prisma.companyZatcaCredential.update({
@@ -137,6 +162,7 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
   if (!result.ok || !result.data) {
     throw badRequest(`رفضت زاتكا طلب شهادة الإنتاج: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
   }
+  assertUsableZatcaCertificate(result.data.binarySecurityToken, "شهادة الإنتاج (Production)");
 
   await prisma.$transaction([
     prisma.companyZatcaCredential.update({

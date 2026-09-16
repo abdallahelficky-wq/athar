@@ -192,4 +192,25 @@ describe("resubmitZatcaDocument", () => {
     expect(result.zatcaStatus).toBe("submission_failed");
     expect(result.rejectionReason).toContain("تعذّر الاتصال");
   });
+
+  it("marks the document certificate_error (not rejected/submission_failed) when the stored certificate cannot be parsed on retry", async () => {
+    const malformedCredentials = { ...credentials, certificateBodyBase64: Buffer.from(credentials.certificateBodyBase64, "utf8").toString("base64") };
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(malformedCredentials);
+    const rebuilt = rebuildZatcaDocumentXml({
+      company: COMPANY, customer: SIMPLIFIED_CUSTOMER, kind: "invoice",
+      documentNumber: "INV-00001", documentUuid: DOCUMENT_UUID, lines: LINES as never,
+      icv: 5, previousInvoiceHash: "abc123", issuedAt: ISSUED_AT,
+    });
+
+    const result = await resubmitZatcaDocument({
+      company: COMPANY, customer: SIMPLIFIED_CUSTOMER,
+      documentNumber: "INV-00001", documentUuid: DOCUMENT_UUID, lines: LINES as never,
+      grandTotal: 115, vatTotal: 15,
+      icv: 5, previousInvoiceHash: "abc123", invoiceHash: rebuilt.invoiceHash,
+      issuedAt: ISSUED_AT,
+    });
+
+    expect(result.zatcaStatus).toBe("certificate_error");
+    expect(result.rejectionReason).toContain("شهادة");
+  });
 });
