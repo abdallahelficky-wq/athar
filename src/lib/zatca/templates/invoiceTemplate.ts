@@ -70,6 +70,7 @@ const template = /* XML */`
     </cac:Party>
   </cac:AccountingSupplierParty>
   SET_ACCOUNTING_CUSTOMER_PARTY
+  SET_DELIVERY_BLOCK
   SET_TAX_TOTAL
   SET_LEGAL_MONETARY_TOTAL
   SET_INVOICE_LINES

@@ -25,7 +25,7 @@ function computeDefaultDueDate(company) {
  * positions.service.ts/canDeferPosSale). هذا التعطيل في الواجهة لتجربة استخدام أفضل فقط؛ التحقق
  * الحاسم فعلياً في pos.controller.ts على الخادم.
  */
-export default function QuickPaymentScreen({ company, companyId, warehouseId, cart, customer, onBack, onCompleted }) {
+export default function QuickPaymentScreen({ company, companyId, warehouseId, cart, customer, supplyDate, onBack, onCompleted }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const METHOD_LABEL = { cash: t("pos.payment.methodCash"), bank: t("pos.payment.methodBank") };
@@ -94,6 +94,7 @@ export default function QuickPaymentScreen({ company, companyId, warehouseId, ca
         })),
         payments,
         dueDate: mode === "deferred" ? dueDate : undefined,
+        supplyDate,
       });
       onCompleted({
         ...result,

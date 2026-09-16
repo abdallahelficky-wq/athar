@@ -33,6 +33,9 @@ interface InvoiceInput {
   customerId: string;
   branchId?: string | null;
   date: Date;
+  // تاريخ التوريد/التسليم الفعلي — راجع تعليق الحقل المطابق على SalesInvoice في schema.prisma.
+  // اختياري: أي مسار غير نقطة البيع لا يمرّره فيتساوى تلقائياً مع date (لا تغيير سلوك).
+  supplyDate?: Date;
   // حقول اختيارية بحتة (شريط معلومات الفاتورة لبعض القوالب) — لا تأثير محاسبي/ضريبي لها إطلاقاً
   dueDate?: Date | null;
   customerReference?: string;
@@ -264,6 +267,9 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
   const { customer, company } = await assertRefs(tenantId, input.companyId, input.customerId, input.lines, input.branchId);
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
+  // يتساوى دائماً مع date لأي مسار لا يمرّر supplyDate صراحةً — راجع pos.service.ts للمسار الوحيد
+  // الذي يمرّر قيمة مختلفة فعلياً (بيع ميداني يُسجَّل لاحقاً بتاريخ توريد الزيارة الحقيقي).
+  const supplyDate = input.supplyDate ?? input.date;
 
   const invType = invoiceTypeForCustomer(customer);
   const qrPayload = buildZatcaQrPayload(
@@ -287,6 +293,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
           customerId: input.customerId,
           branchId: input.branchId || undefined,
           date: input.date,
+          supplyDate,
           dueDate: input.dueDate || undefined,
           customerReference: input.customerReference,
           poNumber: input.poNumber,
@@ -321,6 +328,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
     const gate = await evaluateZatcaPostingGate({
       tx, company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: zatcaUuid,
       lines: computed.map((l) => ({ ...l, description: l.description ?? null })), grandTotal, vatTotal,
+      supplyDate,
     });
     if (!gate.proceedWithPosting) {
       throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك الفاتورة: ${gate.rejectionReason}`);
@@ -345,6 +353,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
         customerId: input.customerId,
         branchId: input.branchId || undefined,
         date: input.date,
+        supplyDate,
         dueDate: input.dueDate || undefined,
         customerReference: input.customerReference,
         poNumber: input.poNumber,
@@ -366,6 +375,27 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
     await createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, input.warehouseId);
+
+    // تسجيل تدقيقي فقط حين يختلف تاريخ التوريد فعلياً عن تاريخ الإصدار (بيع ميداني مُسجَّل لاحقاً)
+    // — داخل نفس معاملة إنشاء الفاتورة عمداً حتى يستحيل وجود فاتورة بتاريخ توريد مُغايِر بلا أثر
+    // تدقيقي مطابق (لو فشلت الكتابة هنا تتراجع الفاتورة نفسها بالكامل، لا العكس).
+    if (supplyDate.getTime() !== input.date.getTime()) {
+      await tx.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: "sales_invoice.supply_date_backdated",
+          entityType: "SalesInvoice",
+          entityId: invoice.id,
+          metadata: {
+            invoiceNumber: invoice.invoiceNumber,
+            issueDate: input.date.toISOString(),
+            supplyDate: supplyDate.toISOString(),
+            daysBack: Math.round((input.date.getTime() - supplyDate.getTime()) / (1000 * 60 * 60 * 24)),
+          },
+        },
+      });
+    }
 
     return withPaymentStatus(invoice);
   });
@@ -396,6 +426,7 @@ export async function updateSalesInvoice(tenantId: string, id: string, input: In
         customerId: input.customerId,
         branchId: input.branchId ?? null,
         date: input.date,
+        supplyDate: input.supplyDate ?? input.date,
         dueDate: input.dueDate ?? null,
         customerReference: input.customerReference,
         poNumber: input.poNumber,
@@ -497,6 +528,7 @@ export async function resendInvoiceToZatca(tenantId: string, id: string) {
     previousInvoiceHash: invoice.previousInvoiceHash,
     invoiceHash: invoice.invoiceHash,
     issuedAt: invoice.zatcaSubmittedAt,
+    supplyDate: invoice.supplyDate,
   });
 
   const updated = await prisma.salesInvoice.update({

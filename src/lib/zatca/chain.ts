@@ -62,6 +62,10 @@ interface ReserveZatcaChainParams {
   documentUuid: string;
   billingReferenceId?: string;
   lines: ZatcaPersistedLineLike[];
+  /** تاريخ التوريد/التسليم الفعلي — راجع cac:Delivery/ActualDeliveryDate في xmlBuilder.ts. غير
+   * إلزامي: الفواتير/الإشعارات التي لا تملك مفهوم تاريخ توريد منفصل (كل شيء عدا فواتير نقطة
+   * البيع حالياً) تتركه فارغاً فيُطابِق تاريخ الإصدار الفعلي تلقائياً. */
+  supplyDate?: Date;
 }
 
 function mapCompanyToSeller(company: ZatcaCompanyLike): ZatcaPartyInput {
@@ -155,6 +159,7 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     uuid: params.documentUuid,
     issueDate: issuedAt.toISOString().slice(0, 10),
     issueTime: issuedAt.toISOString().slice(11, 19),
+    actualDeliveryDate: (params.supplyDate ?? issuedAt).toISOString().slice(0, 10),
     icv,
     previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,
@@ -191,6 +196,9 @@ export interface RebuildZatcaDocumentXmlParams {
   icv: number;
   previousInvoiceHash: string;
   issuedAt: Date;
+  /** يجب أن تكون القيمة المخزَّنة أصلاً على المستند بالضبط (لا قيمة جديدة) وإلا اختلفت التجزئة
+   * الناتجة عن التجزئة الأصلية المحفوظة، فيُرفَض التحقق في resubmit.ts قبل أي إرسال فعلي. */
+  supplyDate?: Date;
 }
 
 export interface RebuiltZatcaDocument {
@@ -216,6 +224,7 @@ export function rebuildZatcaDocumentXml(params: RebuildZatcaDocumentXmlParams): 
     uuid: params.documentUuid,
     issueDate: params.issuedAt.toISOString().slice(0, 10),
     issueTime: params.issuedAt.toISOString().slice(11, 19),
+    actualDeliveryDate: (params.supplyDate ?? params.issuedAt).toISOString().slice(0, 10),
     icv: params.icv,
     previousInvoiceHash: params.previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,

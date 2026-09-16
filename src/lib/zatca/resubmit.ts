@@ -18,6 +18,8 @@ export interface ResubmitZatcaDocumentParams {
   /** invoiceHash المخزَّن من محاولة الترحيل الأصلية — يُتحقَّق من مطابقته قبل إعادة الإرسال */
   invoiceHash: string;
   issuedAt: Date;
+  /** قيمة supplyDate المخزَّنة على المستند نفسه بالضبط — أي فرق عن القيمة الأصلية يُغيّر التجزئة الناتجة فيُرفَض التحقق أعلاه */
+  supplyDate?: Date;
 }
 
 export interface ResubmitZatcaDocumentResult {
@@ -43,6 +45,7 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
     icv: params.icv,
     previousInvoiceHash: params.previousInvoiceHash,
     issuedAt: params.issuedAt,
+    supplyDate: params.supplyDate,
   });
 
   if (rebuilt.invoiceHash !== params.invoiceHash) {

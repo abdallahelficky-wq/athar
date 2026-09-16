@@ -53,6 +53,21 @@
   font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap;
 }
 
+.pos-date-row {
+  display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+}
+.pos-date-item {
+  flex: 1; min-width: 130px; background: rgba(16,32,46,0.05); border-radius: 10px; padding: 6px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.pos-date-label { font-size: 11px; color: #8A7C5E; font-weight: 700; }
+.pos-date-value { font-size: 13px; color: #10202E; font-weight: 600; }
+.pos-date-item-editable { position: relative; }
+.pos-supply-date-input {
+  border: none; background: transparent; font-family: inherit; font-size: 13px; color: #10202E;
+  font-weight: 600; padding: 0; width: 100%; cursor: pointer;
+}
+
 .pos-section-label { font-size: 13px; font-weight: 700; color: #8A7C5E; margin: 10px 0 8px; }
 
 .pos-item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }

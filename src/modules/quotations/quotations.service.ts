@@ -172,6 +172,7 @@ export async function convertQuotationToInvoice(tenantId: string, userId: string
         companyId: quotation.companyId,
         customerId: quotation.customerId,
         date: quotation.date,
+        supplyDate: quotation.date,
         invoiceType: invType,
         status: "posted",
         journalEntryId: entry.id,

@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { forbidden } from "../../lib/httpError";
 import { hasPermission } from "../../middleware/auth";
-import { createPosSale, getQuickAccessItems } from "./pos.service";
+import { createPosSale, getQuickAccessItems, listPosFavoriteItems, addPosFavoriteItem, removePosFavoriteItem } from "./pos.service";
 
 /**
  * الفحص الحاسم فعلياً لصلاحية "البيع الآجل" — لا يُطبَّق كـ middleware عام على المسار بأكمله لأنه
@@ -20,11 +20,31 @@ export const createPosSaleHandler: RequestHandler = async (req, res) => {
 };
 
 export const quickAccessItemsHandler: RequestHandler = async (req, res) => {
-  const { companyId } = req.query;
-  if (typeof companyId !== "string") {
+  const { companyId, warehouseId } = req.query;
+  if (typeof companyId !== "string" || typeof warehouseId !== "string") {
     res.json([]);
     return;
   }
-  const items = await getQuickAccessItems(req.auth!.tenantId, companyId);
+  const items = await getQuickAccessItems(req.auth!.tenantId, companyId, warehouseId);
   res.json(items);
+};
+
+export const listFavoritesHandler: RequestHandler = async (req, res) => {
+  const { companyId, warehouseId } = req.query;
+  if (typeof companyId !== "string" || typeof warehouseId !== "string") {
+    res.json([]);
+    return;
+  }
+  const items = await listPosFavoriteItems(req.auth!.tenantId, companyId, warehouseId);
+  res.json(items);
+};
+
+export const addFavoriteHandler: RequestHandler = async (req, res) => {
+  const favorite = await addPosFavoriteItem(req.auth!.tenantId, req.body.companyId, req.body.warehouseId, req.body.itemId);
+  res.status(201).json(favorite);
+};
+
+export const removeFavoriteHandler: RequestHandler = async (req, res) => {
+  await removePosFavoriteItem(req.auth!.tenantId, req.params.warehouseId, req.params.itemId);
+  res.status(204).send();
 };

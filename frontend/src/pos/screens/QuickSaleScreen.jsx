@@ -6,6 +6,7 @@ import { fmt2 } from "../../legacy/constants";
 import { isSellableItem } from "../itemFilters";
 import CustomerPickerModal from "../components/CustomerPickerModal";
 import QtyInput from "../components/QtyInput";
+import PosDateRow from "../components/PosDateRow";
 
 function lineFromSelection(item, quantity) {
   return {
@@ -25,7 +26,7 @@ function lineFromSelection(item, quantity) {
  * الذي يفهمه PosApp (onProceedToPayment)، فيبقى الانتقال لشاشة الدفع (الكلاسيكية أو السريعة) خارج
  * هذا المكوّن تماماً.
  */
-export default function QuickSaleScreen({ companyId, setCart, customer, setCustomer, onProceedToPayment }) {
+export default function QuickSaleScreen({ companyId, warehouseId, setCart, customer, setCustomer, supplyDate, setSupplyDate, onProceedToPayment }) {
   const { t } = useTranslation();
   const [step, setStep] = useState("items"); // items | quantities | customer
 
@@ -40,8 +41,8 @@ export default function QuickSaleScreen({ companyId, setCart, customer, setCusto
   const [customerModalOpen, setCustomerModalOpen] = useState(false);
 
   useEffect(() => {
-    getQuickAccessItems(companyId).then(setQuickItems).catch(() => setQuickItems([]));
-  }, [companyId]);
+    getQuickAccessItems(companyId, warehouseId).then(setQuickItems).catch(() => setQuickItems([]));
+  }, [companyId, warehouseId]);
 
   useEffect(() => {
     const text = searchText.trim();
@@ -113,6 +114,7 @@ export default function QuickSaleScreen({ companyId, setCart, customer, setCusto
   if (step === "items") {
     return (
       <div className="pos-quick-sale-screen">
+        <PosDateRow supplyDate={supplyDate} onSupplyDateChange={setSupplyDate} />
         <div className="pos-search-row">
           <input
             className="pos-search-input"
@@ -123,7 +125,7 @@ export default function QuickSaleScreen({ companyId, setCart, customer, setCusto
           />
         </div>
 
-        {!searchText.trim() && <div className="pos-section-label">{t("pos.sale.bestSelling")}</div>}
+        {!searchText.trim() && <div className="pos-section-label">{t("pos.sale.quickItemsLabel")}</div>}
         {searching && <p className="m-empty">{t("pos.sale.searching")}</p>}
         {!searching && searchText.trim() && displayItems.length === 0 && <p className="m-empty">{t("pos.sale.noResults")}</p>}
         {!searchText.trim() && displayItems.length === 0 && <p className="m-empty">{t("pos.sale.noSalesYet")}</p>}

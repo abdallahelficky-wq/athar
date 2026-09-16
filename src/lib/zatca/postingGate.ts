@@ -37,6 +37,8 @@ export interface EvaluateZatcaPostingGateParams {
   lines: ZatcaPersistedLineLike[];
   grandTotal: number;
   vatTotal: number;
+  /** راجع ReserveZatcaChainParams.supplyDate في chain.ts */
+  supplyDate?: Date;
 }
 
 /**
@@ -61,6 +63,7 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
     documentUuid: params.documentUuid,
     billingReferenceId: params.billingReferenceId,
     lines: params.lines,
+    supplyDate: params.supplyDate,
   });
 
   if (!chain) {

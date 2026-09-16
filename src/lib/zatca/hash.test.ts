@@ -23,6 +23,7 @@ function sampleDocument(overrides: Partial<ZatcaDocumentInput> = {}): ZatcaDocum
     uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
     issueDate: "2026-08-01",
     issueTime: "10:00:00",
+    actualDeliveryDate: "2026-08-01",
     icv: 1,
     previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH,
     seller: SAMPLE_SELLER,

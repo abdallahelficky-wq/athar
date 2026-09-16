@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { createPosSale } from "../../api/pos";
 import { fmt2 } from "../../legacy/constants";
 
-export default function PaymentScreen({ companyId, warehouseId, cart, customer, onBack, onCompleted }) {
+export default function PaymentScreen({ companyId, warehouseId, cart, customer, supplyDate, onBack, onCompleted }) {
   const { t } = useTranslation();
   const METHOD_LABEL = { cash: t("pos.payment.methodCash"), bank: t("pos.payment.methodBank") };
   const total = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
@@ -46,6 +46,7 @@ export default function PaymentScreen({ companyId, warehouseId, cart, customer, 
           quantity: l.quantity, unitPrice: l.unitPrice, vatApplicable: l.vatApplicable,
         })),
         payments,
+        supplyDate,
       });
       onCompleted({ ...result, payments, receivedCash: cashNum > 0 ? receivedNum : null, change: cashNum > 0 ? change : null });
     } catch (err) {

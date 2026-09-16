@@ -19,6 +19,7 @@ export const AR_TO_EN: Record<string, string> = {
   "هذا البريد الإلكتروني مسجّل بالفعل في هذه الشركة": "This email is already registered in this company",
   "لا يمكنك تعطيل حسابك أنت شخصياً": "You cannot disable your own account",
   "لا يمكن تعطيل مالك الشركة": "The company owner cannot be disabled",
+  "لا يمكن أن يكون تاريخ التوريد في المستقبل": "The supply date cannot be in the future",
   "لا يمكنك حذف حسابك أنت شخصياً": "You cannot delete your own account",
   "لا يمكن حذف مالك الشركة": "The company owner cannot be deleted",
   "فتح الإقفال": "Reopen closed period",
@@ -225,6 +226,7 @@ export const AR_TO_EN: Record<string, string> = {
   "المستخدم غير موجود": "The user does not exist",
   "المستند غير موجود": "The document does not exist",
   "المستودع المحدد غير موجود ضمن هذه الشركة": "The specified warehouse does not exist in this company",
+  "الصنف المحدد غير موجود ضمن هذه الشركة": "The specified item does not exist in this company",
   "المستودع المحدد لنقطة البيع هذه لم يعد موجوداً ضمن هذه الشركة؛ أعد اختياره من إعدادات نقطة البيع":
     "The warehouse set for this point of sale no longer exists in this company; re-select it from the point-of-sale settings",
   "المستودع غير موجود": "The warehouse does not exist",

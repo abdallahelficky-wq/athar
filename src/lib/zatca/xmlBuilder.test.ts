@@ -33,6 +33,7 @@ function base(overrides: Partial<ZatcaDocumentInput> = {}): ZatcaDocumentInput {
     uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
     issueDate: "2026-08-01",
     issueTime: "10:00:00",
+    actualDeliveryDate: "2026-08-01",
     icv: 1,
     previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH,
     seller: SELLER,
@@ -130,5 +131,33 @@ describe("buildDocumentXml", () => {
     expect(xml).toContain("<cbc:LineExtensionAmount currencyID=\"SAR\">300.00</cbc:LineExtensionAmount>");
     expect(xml).toContain("<cbc:TaxInclusiveAmount currencyID=\"SAR\">345.00</cbc:TaxInclusiveAmount>");
     expect(xml).toContain("<cbc:PayableAmount currencyID=\"SAR\">345.00</cbc:PayableAmount>");
+  });
+
+  // ميزة مبيعات الجولات الميدانية (van sales): مندوب ينسى فوترة زيارة ويسجّلها لاحقاً بتاريخ توريد
+  // حقيقي مختلف عن تاريخ إصدار الفاتورة — راجع posSupplyDate في pos.service.ts.
+  describe("cac:Delivery / ActualDeliveryDate (supply/delivery date)", () => {
+    it("emits ActualDeliveryDate exactly as given, independent of issueDate", () => {
+      const xml = buildDocumentXml(base({ issueDate: "2026-08-10", actualDeliveryDate: "2026-08-07" }));
+      expect(xml).toContain("<cac:Delivery>\n    <cbc:ActualDeliveryDate>2026-08-07</cbc:ActualDeliveryDate>\n  </cac:Delivery>");
+      expect(xml).toContain("<cbc:IssueDate>2026-08-10</cbc:IssueDate>");
+    });
+
+    it("places cac:Delivery after AccountingCustomerParty and before TaxTotal (UBL 2.1 sequence)", () => {
+      const xml = buildDocumentXml(base({ subtype: "standard", buyer: BUYER, actualDeliveryDate: "2026-08-01" }));
+      const customerPartyIndex = xml.indexOf("<cac:AccountingCustomerParty>");
+      const deliveryIndex = xml.indexOf("<cac:Delivery>");
+      const taxTotalIndex = xml.indexOf("<cac:TaxTotal>");
+      expect(customerPartyIndex).toBeGreaterThan(-1);
+      expect(deliveryIndex).toBeGreaterThan(customerPartyIndex);
+      expect(taxTotalIndex).toBeGreaterThan(deliveryIndex);
+    });
+
+    it("produces XML that is still well-formed and parseable with the delivery block present", () => {
+      const xml = buildDocumentXml(base({ actualDeliveryDate: "2026-08-01" }));
+      const doc = parse(xml);
+      const delivery = doc.getElementsByTagName("cac:Delivery");
+      expect(delivery.length).toBe(1);
+      expect(doc.getElementsByTagName("cbc:ActualDeliveryDate")[0].textContent).toBe("2026-08-01");
+    });
   });
 });

@@ -22,6 +22,10 @@ function PosShell() {
   const [cart, setCart] = useState([]); // [{ itemId, name, unitPrice, quantity, accountId, vatApplicable }]
   const [customer, setCustomer] = useState(null); // null = عميل نقدي افتراضي
   const [lastSale, setLastSale] = useState(null); // { invoice, payments }
+  // تاريخ التوريد/التسليم الفعلي لهذا البيع — يبدأ دائماً اليوم، يبقى قابلاً للتعديل من شاشة البيع
+  // نفسها (PosDateRow) فقط، ويُصفَّر مع بقية حالة البيع عند بدء عملية جديدة. تاريخ الإصدار نفسه
+  // ليس حالة هنا إطلاقاً — الخادم وحده يقرّره وقت الإرسال الفعلي (راجع pos.service.ts).
+  const [supplyDate, setSupplyDate] = useState(() => new Date());
 
   // المستودع المرتبط بهذا الجهاز لهذه الشركة تحديداً — يُحمَّل من إعدادات الجهاز المحلية، ويُعاد
   // تحميله كلما تغيّرت الشركة النشطة (كل شركة لها إعداد مستودع مستقل). لو للشركة مستودع واحد بس،
@@ -67,6 +71,7 @@ function PosShell() {
   const resetCart = () => {
     setCart([]);
     setCustomer(null);
+    setSupplyDate(new Date());
   };
 
   const onSaleCompleted = (result) => {
@@ -131,10 +136,13 @@ function PosShell() {
             // resetCart() تُصفِّر فقط cart/customer المرفوعتين هنا في PosApp، لا حالة المكوّن الداخلية.
             key={companyId}
             companyId={companyId}
+            warehouseId={warehouseId}
             cart={cart}
             setCart={setCart}
             customer={customer}
             setCustomer={setCustomer}
+            supplyDate={supplyDate}
+            setSupplyDate={setSupplyDate}
             onProceedToPayment={() => setScreen("payment")}
           />
         )}
@@ -145,6 +153,7 @@ function PosShell() {
             warehouseId={warehouseId}
             cart={cart}
             customer={customer}
+            supplyDate={supplyDate}
             onBack={() => setScreen("sale")}
             onCompleted={onSaleCompleted}
           />

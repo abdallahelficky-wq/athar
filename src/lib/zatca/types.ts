@@ -43,6 +43,9 @@ export interface ZatcaDocumentInput {
   issueDate: string;
   /** بصيغة HH:mm:ss */
   issueTime: string;
+  /** تاريخ التوريد/التسليم الفعلي (قد يسبق issueDate — بيع ميداني يُفوَتَر لاحقاً)، بصيغة YYYY-MM-DD.
+   * تُعبَّأ دائماً (تُطابِق issueDate حين لا يوجد فرق فعلي) — راجع cac:Delivery في القالب. */
+  actualDeliveryDate: string;
   icv: number;
   /** تجزئة المستند السابق في سلسلة الشركة، أو ثابت "أول فاتورة" إن كان icv === 1 */
   previousInvoiceHash: string;

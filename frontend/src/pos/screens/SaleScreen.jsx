@@ -6,6 +6,7 @@ import { fmt2 } from "../../legacy/constants";
 import BarcodeScannerModal from "../components/BarcodeScannerModal";
 import CustomerPickerModal from "../components/CustomerPickerModal";
 import QtyInput from "../components/QtyInput";
+import PosDateRow from "../components/PosDateRow";
 import { isSellableItem } from "../itemFilters";
 
 function lineFromItem(item) {
@@ -19,7 +20,7 @@ function lineFromItem(item) {
   };
 }
 
-export default function SaleScreen({ companyId, cart, setCart, customer, setCustomer, onProceedToPayment }) {
+export default function SaleScreen({ companyId, warehouseId, cart, setCart, customer, setCustomer, supplyDate, setSupplyDate, onProceedToPayment }) {
   const { t } = useTranslation();
   const [quickItems, setQuickItems] = useState([]);
   const [searchText, setSearchText] = useState("");
@@ -30,8 +31,8 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getQuickAccessItems(companyId).then(setQuickItems).catch(() => setQuickItems([]));
-  }, [companyId]);
+    getQuickAccessItems(companyId, warehouseId).then(setQuickItems).catch(() => setQuickItems([]));
+  }, [companyId, warehouseId]);
 
   useEffect(() => {
     const text = searchText.trim();
@@ -84,6 +85,7 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
   return (
     <div className="pos-sale-screen">
       <div className="pos-catalog">
+        <PosDateRow supplyDate={supplyDate} onSupplyDateChange={setSupplyDate} />
         <div className="pos-search-row">
           <input
             className="pos-search-input"
@@ -96,7 +98,7 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
         </div>
         {error && <p className="m-error">{error}</p>}
 
-        {!searchText.trim() && <div className="pos-section-label">{t("pos.sale.bestSelling")}</div>}
+        {!searchText.trim() && <div className="pos-section-label">{t("pos.sale.quickItemsLabel")}</div>}
         {searching && <p className="m-empty">{t("pos.sale.searching")}</p>}
         {!searching && searchText.trim() && displayItems.length === 0 && <p className="m-empty">{t("pos.sale.noResults")}</p>}
         {!searchText.trim() && displayItems.length === 0 && <p className="m-empty">{t("pos.sale.noSalesYet")}</p>}

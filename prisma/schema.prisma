@@ -90,10 +90,11 @@ model Tenant {
   purchaseInvoices PurchaseInvoice[]
   purchaseReturns  PurchaseReturn[]
 
-  items          Item[]
-  itemComponents ItemComponent[]
-  warehouses     Warehouse[]
-  stockMovements StockMovement[]
+  items            Item[]
+  itemComponents   ItemComponent[]
+  warehouses       Warehouse[]
+  stockMovements   StockMovement[]
+  posFavoriteItems PosFavoriteItem[]
 
   fixedAssets      FixedAsset[]
   assetCategories  AssetCategory[]
@@ -443,6 +444,18 @@ model Company {
   // نقطة البيع لهذه الشركة معاً. القيمة الافتراضية false تُبقي كل الشركات على السلوك الحالي بلا
   // أي تغيير حتى تُفعِّله الشركة صراحةً — راجع frontend/src/pos/PosApp.jsx لمنطق الاختيار.
   posQuickSaleEnabled          Boolean               @default(false)
+  // أقصى عدد أيام يُسمَح بها بين تاريخ الإصدار (اليوم دوماً في نقطة البيع) وتاريخ التوريد الذي
+  // يُسجِّله المندوب لزيارة نسي فوترتها — راجع normalizeSupplyDate في pos.service.ts.
+  //
+  // تحذير صريح لأي تعديل مستقبلي: هذا الحد ليس مجرد راحة تشغيلية — جزء من الغرض منه تحديداً هو
+  // منع تاريخ التوريد من الوقوع في فترة إقرار ضريبة قيمة مضافة سبق تقديمها فعلياً (لا يوجد في
+  // النظام أي مفهوم "فترة ضريبية مُقفلة بالتقديم" مُسجَّل يُتحقَّق منه مباشرة — راجع الملاحظة
+  // الصريحة في normalizeSupplyDate — فهذا الحد الزمني القصير هو خط الدفاع الوحيد الفعلي حالياً).
+  // رفعه بشكل ملموس (أكثر من أيام قليلة) يُعيد فتح هذا الخطر تحديداً: الإقرارات هنا رُبعية، فتاريخ
+  // توريد يتراجع أسابيع قد يقع في ربع سابق مُقدَّم بالفعل بلا أي تحقق آلي يمنع ذلك. القيمة الافتراضية
+  // 3 والسقف الأقصى (راجع posSupplyDateMaxBackdatingDays في companies.schemas.ts) مقصودان لإبقاء
+  // هذا الخطر ضئيلاً عملياً (الأيام الأولى من ربع جديد فقط)، لا لإتاحة مرونة أكبر.
+  posSupplyDateMaxBackdatingDays Int                 @default(3)
   createdAt                    DateTime              @default(now())
   updatedAt                    DateTime              @updatedAt
 
@@ -470,6 +483,7 @@ model Company {
   items                     Item[]
   warehouses                Warehouse[]
   stockMovements            StockMovement[]
+  posFavoriteItems          PosFavoriteItem[]
   fixedAssets               FixedAsset[]
   assetCategories           AssetCategory[]
   depreciationRuns          DepreciationRun[]
@@ -984,6 +998,12 @@ model SalesInvoice {
   branchId                 String?
   branch                   Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
   date                     DateTime
+  // تاريخ التوريد/التسليم الفعلي (قد يسبق تاريخ الإصدار — مثال: مندوب مبيعات ميداني ينسى إصدار
+  // الفاتورة يوم الزيارة ويسجّلها لاحقاً بتاريخ توريد الزيارة الحقيقي). يبقى دائماً = date لأي
+  // مسار غير نقطة البيع (لا تغيير سلوك). يُستخدَم فقط في مطابقة زاتكا (ActualDeliveryDate) وفي هذا
+  // الحقل نفسه — لا يؤثر إطلاقاً على تاريخ القيد المحاسبي (journalEntryId يحمل تاريخه الخاص = date
+  // دوماً) ولا على الفترة المحاسبية التي يُرحَّل إليها القيد.
+  supplyDate               DateTime
   // حقول اختيارية إضافية تظهر في شريط معلومات الفاتورة الأفقي لبعض القوالب (مثل classicPro)
   // عند تعبئتها فقط — لا تأثير لها على الترحيل المحاسبي أو حسابات زاتكا بأي شكل.
   dueDate                  DateTime?
@@ -1469,6 +1489,7 @@ model Item {
   purchaseInvoiceLines PurchaseInvoiceLine[]
   bomLines             ItemComponent[]       @relation("BundleParent")
   usedInBundles        ItemComponent[]       @relation("ComponentItem")
+  posFavoriteOf        PosFavoriteItem[]
 
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, barcode])
@@ -1514,9 +1535,31 @@ model Warehouse {
 
   stockMovements       StockMovement[]
   purchaseInvoiceLines PurchaseInvoiceLine[]
+  posFavoriteItems     PosFavoriteItem[]
 
   @@unique([tenantId, companyId, name])
   @@map("warehouses")
+}
+
+// صنف "مفضّل" (وصول سريع) لمستودع مندوب مبيعات مُحدَّد — تُبنى شبكة نقطة البيع السريعة منها، مُصفّاة
+// دوماً وقت العرض بتوفّر رصيد فعلي > 0 في نفس المستودع (لا تُخزَّن هنا حالة توفّر، تُحسَب لحظياً عبر
+// getStockBalance). مقصودة بالتحديد لكل مستودع لا للشركة كلها: مناديب مختلفون يحملون بضائع مختلفة
+// على عرباتهم، فقائمة موحّدة على مستوى الشركة كانت ستعرض على المندوب أصنافاً لا يحملها فعلياً.
+model PosFavoriteItem {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  itemId      String
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([warehouseId, itemId])
+  @@index([tenantId, companyId])
+  @@map("pos_favorite_items")
 }
 
 enum StockMovementType {

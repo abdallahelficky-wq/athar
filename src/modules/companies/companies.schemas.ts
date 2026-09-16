@@ -58,6 +58,11 @@ export const createCompanySchema = z.object({
   // إعداد على مستوى الشركة (لا الجهاز) لتفعيل "شاشة البيع السريعة" في نقطة البيع — راجع التعليق
   // فوق الحقل المطابق في schema.prisma.
   posQuickSaleEnabled: z.boolean().optional(),
+  // أقصى عدد أيام تراجع مسموح بها لتاريخ توريد بيع نقطة بيع عن تاريخ إصداره — راجع التحذير الصريح
+  // فوق الحقل المطابق في schema.prisma: هذا ليس سقفاً دفاعياً بحتاً ضد قيمة غير منطقية فقط، بل حد
+  // مقصود يبقي احتمال وقوع تاريخ التوريد في ربع ضريبي سابق مُقدَّم بالفعل ضئيلاً عملياً. سقف 7 أيام
+  // (أسبوع) هنا يمنع تغيير الإعداد من فتح هذا الخطر فعلياً بصرف النظر عن نية من يضبطه.
+  posSupplyDateMaxBackdatingDays: z.coerce.number().int().min(0).max(7).optional(),
 });
 
 export const updateCompanySchema = createCompanySchema.partial();

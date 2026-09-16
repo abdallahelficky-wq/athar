@@ -75,6 +75,14 @@ function buildBillingReference(billingReferenceId: string | undefined): string {
   return billingReferenceTemplate.replace("SET_BILLING_REFERENCE_ID", escapeXml(billingReferenceId));
 }
 
+// ترتيب cac:Delivery في مخطط UBL 2.1 Invoice: بعد AccountingCustomerParty/PayeeParty/
+// TaxRepresentativeParty، وقبل PaymentMeans/TaxTotal — راجع موضع SET_DELIVERY_BLOCK في invoiceTemplate.ts.
+function buildDeliveryBlock(actualDeliveryDate: string): string {
+  return `  <cac:Delivery>
+    <cbc:ActualDeliveryDate>${escapeXml(actualDeliveryDate)}</cbc:ActualDeliveryDate>
+  </cac:Delivery>`;
+}
+
 function buildInvoiceLineXml(line: ZatcaLineInput): string {
   const isStandardRated = line.taxCategoryCode === "S";
   const percentXml = isStandardRated ? `\n          <cbc:Percent>${truncateDecimals(line.taxPercent)}</cbc:Percent>` : "";
@@ -206,6 +214,7 @@ export function buildDocumentXml(input: ZatcaDocumentInput): string {
   }
 
   xml = xml.replace("SET_ACCOUNTING_CUSTOMER_PARTY", buildBuyerBlock(input.buyer));
+  xml = xml.replace("SET_DELIVERY_BLOCK", buildDeliveryBlock(input.actualDeliveryDate));
   xml = xml.replace("SET_TAX_TOTAL", buildTaxTotalXml(input.lines, totalVat));
   xml = xml.replace("SET_LEGAL_MONETARY_TOTAL", buildLegalMonetaryTotalXml(subtotal, totalVat));
   xml = xml.replace("SET_INVOICE_LINES", input.lines.map(buildInvoiceLineXml).join("\n"));
