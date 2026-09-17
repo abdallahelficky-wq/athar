@@ -270,11 +270,23 @@ function getValidationResults(data: unknown): { errorMessages?: unknown; warning
 /** true فقط لو حمل جسم الاستجابة بنية رفض حقيقية معروفة من زاتكا (أخطاء أو تحذيرات فعلية ضمن
  * validationResults) — يميّز رفضاً فعلياً لمحتوى المستند عن استجابة فشل نقل/مصادقة لا علاقة لها
  * بتقييم المستند إطلاقاً (401/403/404/5xx، أو أي جسم فارغ/غير مفهوم). راجع zatcaRequest أعلاه. */
-function hasRecognizableRejectionBody(data: unknown): boolean {
+export function hasRecognizableRejectionBody(data: unknown): boolean {
   const validationResults = getValidationResults(data);
   const errorMessages = Array.isArray(validationResults?.errorMessages) ? validationResults!.errorMessages : [];
   const warningMessages = Array.isArray(validationResults?.warningMessages) ? validationResults!.warningMessages : [];
   return errorMessages.length > 0 || warningMessages.length > 0;
+}
+
+/** true فقط لو حمل جسم الاستجابة أخطاء فعلية (لا تحذيرات فقط) ضمن validationResults.errorMessages —
+ * أدق من hasRecognizableRejectionBody أعلاه (التي تُحسَب فيها التحذيرات أيضاً كـ"بنية رفض معروفة").
+ * تُستخدَم تحديداً للتحقّق من فحص الامتثال (/compliance/invoices): زاتكا قد تُعيد HTTP 200 حتى لو
+ * فشل الفحص فعلياً (خلافاً لنقطتَي التخليص/الإبلاغ الحقيقيتين حيث يعني الرفض كوداً غير 2xx) — لا
+ * نعرف ذلك بيقين تام (لم يُتحقَّق منه مباشرة ضد استجابة حقيقية)، فهذا فحص إضافي دفاعي على محتوى
+ * الجسم نفسه، بصرف النظر عن كود HTTP، ليعمل بشكل صحيح أياً كان سلوك زاتكا الفعلي. */
+export function hasValidationErrors(data: unknown): boolean {
+  const validationResults = getValidationResults(data);
+  const errorMessages = Array.isArray(validationResults?.errorMessages) ? validationResults!.errorMessages : [];
+  return errorMessages.length > 0;
 }
 
 function formatValidationMessage(m: unknown): string {

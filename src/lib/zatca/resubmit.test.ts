@@ -75,17 +75,16 @@ const DOCUMENT_UUID = "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45";
 
 function mockFetchOnce(status: number, body: unknown, statusText = "") {
   const bodyText = body === undefined ? "" : JSON.stringify(body);
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      statusText,
-      json: async () => body,
-      text: async () => bodyText,
-      headers: { forEach: (_cb: (value: string, key: string) => void) => undefined },
-    }),
-  );
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    statusText,
+    json: async () => body,
+    text: async () => bodyText,
+    headers: { forEach: (_cb: (value: string, key: string) => void) => undefined },
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
 afterEach(() => {
@@ -244,5 +243,30 @@ describe("resubmitZatcaDocument", () => {
     });
 
     expect(result.zatcaStatus).toBe("reported");
+  });
+
+  // نفس منطق resolveZatcaSubmissionKind المستخدَم في postingGate.ts — شركة لا تزال على شهادة اختبار
+  // يجب أن تعيد المحاولة عبر /compliance/invoices لا /invoices/reporting/single، وتُصنَّف
+  // compliance_checked لا reported (المستند لم يُبلَّغ لزاتكا قانونياً بعد) بلا zatcaClearedOrReportedAt.
+  it("resubmits through the compliance endpoint and marks compliance_checked (not reported) for a company still on a compliance CSID", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
+    const rebuilt = rebuildZatcaDocumentXml({
+      company: { ...COMPANY, zatcaOnboardingStatus: "compliance" }, customer: SIMPLIFIED_CUSTOMER, kind: "invoice",
+      documentNumber: "INV-00001", documentUuid: DOCUMENT_UUID, lines: LINES as never,
+      icv: 5, previousInvoiceHash: "abc123", issuedAt: ISSUED_AT,
+    });
+
+    const result = await resubmitZatcaDocument({
+      company: { ...COMPANY, zatcaOnboardingStatus: "compliance" }, customer: SIMPLIFIED_CUSTOMER,
+      documentNumber: "INV-00001", documentUuid: DOCUMENT_UUID, lines: LINES as never,
+      grandTotal: 115, vatTotal: 15,
+      icv: 5, previousInvoiceHash: "abc123", invoiceHash: rebuilt.invoiceHash,
+      issuedAt: ISSUED_AT,
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toContain("/compliance/invoices");
+    expect(result.zatcaStatus).toBe("compliance_checked");
+    expect(result.zatcaClearedOrReportedAt).toBeUndefined();
   });
 });

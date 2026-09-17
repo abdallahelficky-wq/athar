@@ -92,17 +92,16 @@ function fakeTx() {
 
 function mockFetchOnce(status: number, body: unknown, statusText = "") {
   const bodyText = body === undefined ? "" : JSON.stringify(body);
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      statusText,
-      json: async () => body,
-      text: async () => bodyText,
-      headers: { forEach: (_cb: (value: string, key: string) => void) => undefined },
-    }),
-  );
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    statusText,
+    json: async () => body,
+    text: async () => bodyText,
+    headers: { forEach: (_cb: (value: string, key: string) => void) => undefined },
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
 afterEach(() => {
@@ -497,5 +496,93 @@ describe("evaluateZatcaPostingGate", () => {
     expect(decision.zatcaFields.zatcaStatus).toBe("reported");
     expect(decision.zatcaFields.icv).toBe(5);
     expect(decision.reservedChain).toEqual({ icv: 5, invoiceHash: decision.zatcaFields.invoiceHash });
+  });
+
+  // تأكَّد فعلياً في الإنتاج: 401 عند استخدام شهادة اختبار (Compliance CSID) مع clearance/single —
+  // شركة لا تزال على شهادة اختبار يجب أن تُرسِل عبر /compliance/invoices فقط، لأي نوع مستند
+  // (قياسي أو مبسّط)، لا clearance/reporting.
+  it("submits through the compliance endpoint (not clearance/reporting) for a company still on a compliance CSID", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toContain("/compliance/invoices");
+    expect(fetchMock.mock.calls[0][0]).not.toContain("/invoices/clearance/single");
+  });
+
+  // فحص امتثال ناجح ليس تخليصاً/إبلاغاً فعلياً — المستند لم يُبلَّغ لزاتكا قانونياً بعد، فيجب ألا
+  // يُصنَّف cleared/reported (قد يُوهِم بأن الفاتورة أصبحت نهائية أمام زاتكا وهي ليست كذلك)، ولا
+  // يُملأ zatcaClearedOrReportedAt (لم يحدث تخليص/إبلاغ فعلي). البند 4 من طلب المستخدم: سياسة
+  // الترحيل نفسها لا تتغيّر — فاتورة قياسية أو مبسّطة تُرحَّل دائماً هنا لأن الفحص "نجح" (لم تُرفَض).
+  it("marks a successful compliance check as compliance_checked (not cleared/reported), with no zatcaClearedOrReportedAt, for both invoice subtypes", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+
+    mockFetchOnce(200, { validationResults: { status: "PASS" } });
+    const standardDecision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+    expect(standardDecision.proceedWithPosting).toBe(true);
+    expect(standardDecision.zatcaFields.zatcaStatus).toBe("compliance_checked");
+    expect(standardDecision.zatcaFields.zatcaClearedOrReportedAt).toBeUndefined();
+
+    mockFetchOnce(200, { validationResults: { status: "PASS" } });
+    const simplifiedDecision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00002",
+      documentUuid: "4df6eecf-2492-45a0-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+    expect(simplifiedDecision.proceedWithPosting).toBe(true);
+    expect(simplifiedDecision.zatcaFields.zatcaStatus).toBe("compliance_checked");
+    expect(simplifiedDecision.zatcaFields.zatcaClearedOrReportedAt).toBeUndefined();
+  });
+
+  // البند 4: فاتورة قياسية تبقى ممنوعة من الترحيل عند رفض فعلي، بصرف النظر عن كون المسار امتثالاً
+  // لا تخليصاً — نفس سياسة الرفض المعتادة، لا فرق بسبب مسار الإرسال.
+  it("still blocks a STANDARD invoice when the compliance check itself reports real validation errors", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    mockFetchOnce(200, {
+      validationResults: { status: "FAIL", errorMessages: [{ type: "ERROR", message: "خطأ في بيانات الفاتورة التجريبية" }] },
+    });
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.proceedWithPosting).toBe(false);
+    expect(decision.zatcaFields.zatcaStatus).toBe("rejected");
+    expect(decision.rejectionReason).toContain("خطأ في بيانات الفاتورة التجريبية");
   });
 });

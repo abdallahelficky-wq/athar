@@ -24,6 +24,7 @@ const ZATCA_STATUS_KEYS = {
   rejected: "rejected",
   submission_failed: "submission_failed",
   certificate_error: "certificate_error",
+  compliance_checked: "compliance_checked",
 };
 const ZATCA_BADGE_CLASS = {
   not_applicable: "status-badge status-neutral",
@@ -36,11 +37,15 @@ const ZATCA_BADGE_CLASS = {
   // شارة مختلفة عمداً عن submission_failed/rejected — هذه ليست عطلاً عابراً ولا رفضاً من زاتكا،
   // بل شهادة ربط زاتكا نفسها معطوبة، تحتاج إصلاح إعدادات الربط لا مجرد انتظار أو تصحيح بيانات الفاتورة.
   certificate_error: "status-badge status-warning",
+  // شارة تحذيرية أيضاً (لا "posted" كـcleared/reported) — نجح فحص الامتثال لكن المستند لم يُخلَّص/
+  // يُبلَّغ فعلياً بعد؛ الشركة لا تزال على شهادة اختبار وتحتاج استكمال الحصول على شهادة إنتاج.
+  compliance_checked: "status-badge status-warning",
 };
-// ثلاث حالات زاتكا تحتاج إعادة إرسال يدوية — رُفضت صراحةً، تعذّر الوصول لزاتكا أصلاً (لم تُرسَل)،
-// أو تعذّر توقيعها محلياً بشهادة غير صالحة (certificate_error — يُفتَرض أن المستخدم أصلح إعدادات
-// ربط زاتكا أولاً، وإلا ستفشل بنفس السبب مجدداً).
-const ZATCA_RESENDABLE = new Set(["rejected", "submission_failed", "certificate_error"]);
+// أربع حالات زاتكا تحتاج إعادة إرسال يدوية — رُفضت صراحةً، تعذّر الوصول لزاتكا أصلاً (لم تُرسَل)،
+// تعذّر توقيعها محلياً بشهادة غير صالحة (certificate_error — يُفتَرض أن المستخدم أصلح إعدادات
+// ربط زاتكا أولاً، وإلا ستفشل بنفس السبب مجدداً)، أو نجح فحص امتثال فقط دون تخليص/إبلاغ فعلي
+// (compliance_checked — إعادة الإرسال بعد استكمال شهادة الإنتاج هي كيف تُخلَّص هذه الفاتورة فعلياً).
+const ZATCA_RESENDABLE = new Set(["rejected", "submission_failed", "certificate_error", "compliance_checked"]);
 
 export default function InvoicesTab({ companyId, companies }) {
   const { t } = useTranslation();
@@ -156,10 +161,12 @@ export default function InvoicesTab({ companyId, companies }) {
           ? t("salesInvoices.notify.zatcaStillUnreachable", { number: inv.invoiceNumber })
           : updated.zatcaStatus === "certificate_error"
             ? t("salesInvoices.notify.zatcaCertificateStillInvalid", { number: inv.invoiceNumber })
-            : stillFailing
-              ? t("salesInvoices.notify.zatcaRejectedAgain", { number: inv.invoiceNumber, reason: updated.rejectionReason ? `: ${updated.rejectionReason}` : "." })
-              : t("salesInvoices.notify.zatcaResentOk", { number: inv.invoiceNumber, status: badgeLabel }),
-        stillFailing ? "error" : "success",
+            : updated.zatcaStatus === "compliance_checked"
+              ? t("salesInvoices.notify.zatcaStillComplianceOnly", { number: inv.invoiceNumber })
+              : stillFailing
+                ? t("salesInvoices.notify.zatcaRejectedAgain", { number: inv.invoiceNumber, reason: updated.rejectionReason ? `: ${updated.rejectionReason}` : "." })
+                : t("salesInvoices.notify.zatcaResentOk", { number: inv.invoiceNumber, status: badgeLabel }),
+        stillFailing && updated.zatcaStatus !== "compliance_checked" ? "error" : "success",
       );
     } catch (err) {
       notify(err.message, "error");
