@@ -4,7 +4,7 @@ import { tmpdir } from "os";
 import path from "path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildDocumentXml } from "./xmlBuilder";
-import { signAndSubmitDocument } from "./submission";
+import { resolveZatcaSubmissionKind, signAndSubmitDocument } from "./submission";
 import { decodeQrPayload } from "./qr";
 import { ZATCA_FIRST_INVOICE_PIH, ZatcaDocumentInput } from "./types";
 import { ResolvedZatcaCredentials } from "./credentials";
@@ -60,17 +60,16 @@ function sampleDocument(): ZatcaDocumentInput {
 
 function mockFetchOnce(status: number, body: unknown, statusText = "") {
   const bodyText = body === undefined ? "" : JSON.stringify(body);
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      statusText,
-      json: async () => body,
-      text: async () => bodyText,
-      headers: { forEach: (_cb: (value: string, key: string) => void) => undefined },
-    }),
-  );
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: status >= 200 && status < 300,
+    status,
+    statusText,
+    json: async () => body,
+    text: async () => bodyText,
+    headers: { forEach: (_cb: (value: string, key: string) => void) => undefined },
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
 describe("signAndSubmitDocument", () => {
@@ -232,5 +231,80 @@ describe("signAndSubmitDocument", () => {
     const rejected = await signAndSubmitDocument({ ...baseParams, kind: "reporting" });
 
     expect(accepted.invoiceHash).toBe(rejected.invoiceHash);
+  });
+
+  it("submits to the compliance endpoint and returns accepted:true when kind is 'compliance' and the check passes", async () => {
+    const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
+    const xml = buildDocumentXml(sampleDocument());
+
+    const outcome = await signAndSubmitDocument({
+      xml,
+      uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      environment: "sandbox",
+      credentials,
+      kind: "compliance",
+      qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toContain("/compliance/invoices");
+    expect(outcome.accepted).toBe(true);
+  });
+
+  // زاتكا قد تردّ 2xx على مسار الامتثال حتى لو "فشل" الفحص منطقياً (لا نعرف يقيناً أنها تستخدم كود
+  // HTTP غير ناجح كما في clearance/reporting) — يجب ألا يُعامَل هذا كقبول رغم نجاح HTTP.
+  it("does NOT treat a 2xx compliance response as accepted when its body carries real validation errors", async () => {
+    mockFetchOnce(200, {
+      validationResults: { status: "FAIL", errorMessages: [{ type: "ERROR", message: "خطأ في بيانات الفاتورة التجريبية" }] },
+    });
+    const xml = buildDocumentXml(sampleDocument());
+
+    const outcome = await signAndSubmitDocument({
+      xml,
+      uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      environment: "sandbox",
+      credentials,
+      kind: "compliance",
+      qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+    });
+
+    expect(outcome.accepted).toBe(false);
+    if (outcome.accepted) throw new Error("expected rejected outcome");
+    expect(outcome.reason).toContain("خطأ في بيانات الفاتورة التجريبية");
+  });
+
+  // نفس الفحص الدفاعي أعلاه يجب ألا يُطبَّق على clearance/reporting — هناك النجاح 2xx يعني قبولاً
+  // حقيقياً دائماً (زاتكا تستخدم كود الحالة نفسه للتمييز، كما تأكَّد فعلياً من 401 في الإنتاج).
+  it("treats a 2xx clearance response as accepted even if validationResults happens to carry warnings", async () => {
+    mockFetchOnce(200, { clearanceStatus: "CLEARED", validationResults: { warningMessages: [{ type: "WARNING", message: "تنبيه غير حاجز" }] } });
+    const xml = buildDocumentXml(sampleDocument());
+
+    const outcome = await signAndSubmitDocument({
+      xml,
+      uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      environment: "sandbox",
+      credentials,
+      kind: "clearance",
+      qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+    });
+
+    expect(outcome.accepted).toBe(true);
+  });
+});
+
+describe("resolveZatcaSubmissionKind", () => {
+  it("uses clearance/reporting only for a company on a production CSID", () => {
+    expect(resolveZatcaSubmissionKind("production", "standard")).toBe("clearance");
+    expect(resolveZatcaSubmissionKind("production", "simplified")).toBe("reporting");
+  });
+
+  // تأكَّد فعلياً في الإنتاج: شهادة اختبار (Compliance CSID) ترفض clearance/single بـ401 — لا يجوز
+  // استخدام مسار التخليص/الإبلاغ إلا بشهادة إنتاج فعلية.
+  it("uses compliance for a company still on a compliance CSID, regardless of invoice subtype", () => {
+    expect(resolveZatcaSubmissionKind("compliance", "standard")).toBe("compliance");
+    expect(resolveZatcaSubmissionKind("compliance", "simplified")).toBe("compliance");
+  });
+
+  it("uses compliance for a company that hasn't onboarded to ZATCA's certificate flow in a recognized state", () => {
+    expect(resolveZatcaSubmissionKind("not_onboarded", "standard")).toBe("compliance");
   });
 });

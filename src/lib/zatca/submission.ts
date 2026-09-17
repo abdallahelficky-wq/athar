@@ -1,13 +1,32 @@
 import { signDocument } from "./signing";
 import { buildSignedQrPayload, ZatcaQrUnsignedParams } from "./qr";
-import { clearInvoice, extractRejectionReasons, reportInvoice, ZatcaApiEnvironment, ZatcaSubmissionResponse } from "./apiClient";
+import {
+  checkInvoiceCompliance,
+  clearInvoice,
+  extractRejectionReasons,
+  hasValidationErrors,
+  reportInvoice,
+  ZatcaApiEnvironment,
+  ZatcaSubmissionResponse,
+} from "./apiClient";
 import { ResolvedZatcaCredentials } from "./credentials";
 
 // يجمع بين التوقيع (المرحلة C) والإرسال الفعلي (عميل API أعلاه) في خطوة واحدة — هذا ما يستدعيه
 // كل من salesInvoices/salesReturns/salesDebitNotes عند الترحيل فعلياً، بدل أن يكرّر كل موديول نفس
 // التسلسل (توقيع → بناء QR → إرسال → تفسير الرد).
 
-export type ZatcaSubmissionKind = "clearance" | "reporting";
+export type ZatcaSubmissionKind = "clearance" | "reporting" | "compliance";
+
+/** شركة لا تزال على شهادة اختبار (Compliance CSID) يجب أن تُرسِل عبر /compliance/invoices فقط —
+ * استخدام clearance/reporting بشهادة اختبار يفشل بـ401 (تأكَّد فعلياً في الإنتاج: شهادة اختبار
+ * سليمة الشكل + رفض 401 من مسار التخليص = الشهادة غير مخوَّلة لهذا المسار تحديداً، لا عطل توقيع). */
+export function resolveZatcaSubmissionKind(
+  onboardingStatus: string,
+  subtype: "standard" | "simplified",
+): ZatcaSubmissionKind {
+  if (onboardingStatus !== "production") return "compliance";
+  return subtype === "standard" ? "clearance" : "reporting";
+}
 
 export interface SubmitDocumentParams {
   /** XML غير موقّع من buildDocumentXml */
@@ -90,7 +109,8 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
   });
 
   const signedInvoiceBase64 = Buffer.from(signedXml, "utf8").toString("base64");
-  const submit = params.kind === "clearance" ? clearInvoice : reportInvoice;
+  const submit =
+    params.kind === "clearance" ? clearInvoice : params.kind === "reporting" ? reportInvoice : checkInvoiceCompliance;
   const result = await submit({
     environment: params.environment,
     credentials: params.credentials,
@@ -100,6 +120,22 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
   });
 
   if (result.ok) {
+    // مسار الامتثال (/compliance/invoices) تحديداً قد يردّ 2xx حتى لو "فشل" الفحص منطقياً — زاتكا لا
+    // توثّق صراحة أن رفض الامتثال يكون بكود HTTP غير ناجح كما في التخليص/الإبلاغ؛ الأرجح أنه، كونه
+    // مساراً تشخيصياً غير مُلزِم، يعيد 200 دائماً ويضع نتيجة الفحص داخل الجسم (validationResults
+    // بأخطاء فعلية) بدل تغيير كود الحالة. بما أننا لا نستطيع التحقق من هذا مباشرةً ضد زاتكا الحقيقية
+    // من هذه البيئة، نتعامل معه دفاعياً: 2xx بجسم يحمل أخطاء تحقّق فعلية على مسار الامتثال تحديداً
+    // لا يُعامَل كقبول — بخلاف clearance/reporting حيث النجاح 2xx يعني قبولاً حقيقياً بلا هذا الفحص
+    // الإضافي (زاتكا هناك تستخدم كود الحالة نفسه للتمييز، كما تأكَّد فعلياً من خطأ 401 في الإنتاج).
+    if (params.kind === "compliance" && hasValidationErrors(result.data)) {
+      return {
+        accepted: false,
+        response: result.data,
+        reason: extractRejectionReasons(result.data),
+        signedXml,
+        invoiceHash,
+      };
+    }
     return { accepted: true, response: result.data, signedXml, invoiceHash, qrPayload };
   }
   const reason = result.networkError

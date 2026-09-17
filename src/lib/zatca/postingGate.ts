@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { buildQrBaseParams, reserveZatcaChain, ZatcaCompanyLike, ZatcaCustomerLike, ZatcaPersistedLineLike } from "./chain";
 import { loadCompanyZatcaCredentials } from "./credentials";
-import { signAndSubmitDocument } from "./submission";
+import { resolveZatcaSubmissionKind, signAndSubmitDocument } from "./submission";
 import { ZatcaApiEnvironment } from "./apiClient";
 import { ZatcaDocumentKind } from "./types";
 
@@ -16,7 +16,13 @@ export type ZatcaPostingStatus =
   | "reported"
   | "rejected"
   | "submission_failed"
-  | "certificate_error";
+  | "certificate_error"
+  /** فحص امتثال ناجح (شركة لا تزال على شهادة اختبار Compliance CSID) — ليس تخليصاً ولا إبلاغاً
+   * فعلياً، والمستند لم يُبلَّغ لزاتكا قانونياً بعد. راجع resolveZatcaSubmissionKind في
+   * submission.ts؛ يُستبعَد عمداً من ZATCA_AUTO_RETRY_STATUSES في salesInvoices.service.ts (لا
+   * معنى لإعادة محاولة تلقائية لفحص امتثال ناجح بالفعل) لكنه مُدرَج في قائمة المتابعة اليدوية
+   * (ZATCA_BACKLOG_STATUSES) لأن الشركة تحتاج استكمال الحصول على شهادة إنتاج فعلية لاحقاً. */
+  | "compliance_checked";
 
 export interface ZatcaPostingFields {
   icv?: number;
@@ -124,20 +130,26 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
     uuid: params.documentUuid,
     environment: params.company.zatcaEnvironment as ZatcaApiEnvironment,
     credentials,
-    kind: chain.subtype === "standard" ? "clearance" : "reporting",
+    kind: resolveZatcaSubmissionKind(params.company.zatcaOnboardingStatus, chain.subtype),
     qrBaseParams: buildQrBaseParams(params.company, chain.issuedAt, params.grandTotal, params.vatTotal),
   });
 
   if (outcome.accepted) {
+    // نجاح فعلي على مسار التخليص/الإبلاغ (شهادة إنتاج) فقط يعني cleared/reported — نجاح فحص
+    // امتثال (شهادة اختبار) لا يُعتبَر تخليصاً أو إبلاغاً حقيقياً إطلاقاً (المستند لم يُبلَّغ لزاتكا
+    // قانونياً بعد)، فيُصنَّف compliance_checked بدلاً من ذلك حتى لو "قُبِل" الفحص نفسه.
+    const isProductionSubmission = params.company.zatcaOnboardingStatus === "production";
     return {
       proceedWithPosting: true,
       zatcaFields: {
         icv: chain.icv,
         previousInvoiceHash: chain.previousInvoiceHash,
         invoiceHash: chain.invoiceHash,
-        zatcaStatus: chain.subtype === "standard" ? "cleared" : "reported",
+        zatcaStatus: isProductionSubmission ? (chain.subtype === "standard" ? "cleared" : "reported") : "compliance_checked",
         zatcaSubmittedAt: chain.issuedAt,
-        zatcaClearedOrReportedAt: new Date(),
+        // تبقى غير مُعرَّفة لفحص امتثال ناجح — الاسم نفسه (Cleared Or Reported) يعني تخليصاً/إبلاغاً
+        // قانونياً فعلياً لم يحدث بعد، فلا نملأها بتاريخ زائف يُوهِم لاحقاً بأن المستند بُلِّغ فعلاً.
+        ...(isProductionSubmission ? { zatcaClearedOrReportedAt: new Date() } : {}),
         zatcaResponseRaw: (outcome.response ?? undefined) as Prisma.InputJsonValue | undefined,
       },
       reservedChain,

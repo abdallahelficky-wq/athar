@@ -341,13 +341,15 @@
       "not_applicable": "غير منطبق", "pending_clearance": "قيد الإرسال (قياسية)", "pending_reporting": "قيد الإرسال (مبسّطة)",
       "cleared": "مُرسلة/مقبولة (قياسية)", "reported": "مُرسلة/مقبولة (مبسّطة)", "rejected": "مرفوضة",
       "submission_failed": "تعذّر الإرسال (لم تصل لزاتكا)",
-      "certificate_error": "شهادة زاتكا غير صالحة"
+      "certificate_error": "شهادة زاتكا غير صالحة",
+      "compliance_checked": "فحص امتثال فقط (بانتظار شهادة الإنتاج)"
     },
     "zatcaBadge": {
       "not_applicable": "غير منطبق", "pending_clearance": "قيد الإرسال", "pending_reporting": "قيد الإرسال",
       "cleared": "مُرسلة/مقبولة", "reported": "مُرسلة/مقبولة", "rejected": "مرفوضة",
       "submission_failed": "تعذّر الإرسال",
-      "certificate_error": "شهادة غير صالحة"
+      "certificate_error": "شهادة غير صالحة",
+      "compliance_checked": "فحص امتثال فقط"
     },
     "table": {
       "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي",
@@ -374,6 +376,7 @@
       "zatcaRejectedAgain": "أعيد رفض الفاتورة {{number}} من زاتكا{{reason}}",
       "zatcaStillUnreachable": "لا يزال تعذّر الوصول إلى زاتكا لإرسال الفاتورة {{number}} — حاول لاحقاً أو راجع الدعم الفني",
       "zatcaCertificateStillInvalid": "شهادة زاتكا لهذه الشركة ما زالت غير صالحة — أصلح إعدادات ربط زاتكا أولاً قبل إعادة محاولة إرسال الفاتورة {{number}}",
+      "zatcaStillComplianceOnly": "نجح فحص الامتثال للفاتورة {{number}} لدى زاتكا، لكنها لم تُخلَّص/تُبلَّغ فعلياً بعد — هذه الشركة لا تزال على شهادة اختبار. أكمل الحصول على شهادة إنتاج فعلية من إعدادات ربط زاتكا ثم أعد إرسال الفاتورة.",
       "zatcaResentOk": "تم إرسال الفاتورة {{number}} بنجاح — الحالة الآن \"{{status}}\"."
     },
     "classicPro": {

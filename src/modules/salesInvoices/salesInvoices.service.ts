@@ -361,8 +361,17 @@ export async function listSalesInvoices(tenantId: string, filters: { companyId?:
 // غير صالحة). تُستخدَم فقط لعرض قائمة متابعة للمستخدم — لا تُغيّر أي سلوك ترحيل. certificate_error
 // مُدرَجة عمداً هنا (نفس القائمة) لا في قائمة منفصلة — كل صف يحمل zatcaStatus الفعلي، فيبقى
 // الفرق بين "انتظر" (submission_failed/pending_*، قد يُحَل نفسه) و"اذهب أصلِح الربط"
-// (certificate_error، لن يُحَل نفسه أبداً) مرئياً بوضوح لمن يراجع هذه القائمة.
-const ZATCA_BACKLOG_STATUSES = ["pending_clearance", "pending_reporting", "rejected", "submission_failed", "certificate_error"] as const;
+// (certificate_error، لن يُحَل نفسه أبداً) مرئياً بوضوح لمن يراجع هذه القائمة. compliance_checked
+// مُدرَجة أيضاً — لم تُخلَّص/تُبلَّغ فعلياً (الشركة لا تزال على شهادة اختبار)، تحتاج الشركة استكمال
+// الحصول على شهادة إنتاج فعلية، لا مجرد إعادة إرسال.
+const ZATCA_BACKLOG_STATUSES = [
+  "pending_clearance",
+  "pending_reporting",
+  "rejected",
+  "submission_failed",
+  "certificate_error",
+  "compliance_checked",
+] as const;
 
 /**
  * قائمة الفواتير التي لم تُبلَّغ/تُخلَّص بنجاح لدى زاتكا بعد — لمتابعة أي فاتورة قد لا تصل إليها
@@ -758,16 +767,24 @@ async function claimInvoiceForZatcaAttempt(
 
 /**
  * يعيد محاولة إرسال فاتورة مُرحَّلة فعلاً بحالة zatcaStatus = "rejected" (رفضتها زاتكا صراحةً)،
- * "submission_failed" (تعذّر الوصول إليها أصلاً)، أو "certificate_error" (تعذّر توقيعها محلياً
+ * "submission_failed" (تعذّر الوصول إليها أصلاً)، "certificate_error" (تعذّر توقيعها محلياً
  * بشهادة غير صالحة — يُفتَرض أن المستخدم أصلح إعدادات ربط زاتكا قبل الضغط هنا، وإلا ستفشل بنفس
- * السبب مجدداً وتبقى certificate_error). متاحة فقط لهذه الحالات الثلاث — أي حالة زاتكا أخرى تُرفَض صراحةً.
+ * السبب مجدداً وتبقى certificate_error)، أو "compliance_checked" (لا تزال الشركة على شهادة اختبار —
+ * إعادة الإرسال بعد استكمال الحصول على شهادة إنتاج فعلية هي كيف تُخلَّص/تُبلَّغ هذه الفاتورة فعلياً
+ * لأول مرة، راجع resolveZatcaSubmissionKind في submission.ts). متاحة فقط لهذه الحالات الأربع —
+ * أي حالة زاتكا أخرى تُرفَض صراحةً.
  */
 export async function resendInvoiceToZatca(tenantId: string, id: string) {
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
-  if (invoice.zatcaStatus !== "rejected" && invoice.zatcaStatus !== "submission_failed" && invoice.zatcaStatus !== "certificate_error") {
-    throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا، تعذّر إرسالها إليها، أو تعذّر توقيعها بشهادة غير صالحة");
+  if (
+    invoice.zatcaStatus !== "rejected" &&
+    invoice.zatcaStatus !== "submission_failed" &&
+    invoice.zatcaStatus !== "certificate_error" &&
+    invoice.zatcaStatus !== "compliance_checked"
+  ) {
+    throw badRequest("إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا، تعذّر إرسالها إليها، تعذّر توقيعها بشهادة غير صالحة، أو نجح فحص الامتثال لها فقط دون تخليص/إبلاغ فعلي");
   }
 
   const claimed = await claimInvoiceForZatcaAttempt(invoice, new Date());

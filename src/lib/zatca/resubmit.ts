@@ -1,7 +1,7 @@
 import { badRequest } from "../httpError";
 import { buildQrBaseParams, rebuildZatcaDocumentXml, ZatcaCompanyLike, ZatcaCustomerLike, ZatcaPersistedLineLike } from "./chain";
 import { loadCompanyZatcaCredentials } from "./credentials";
-import { signAndSubmitDocument } from "./submission";
+import { resolveZatcaSubmissionKind, signAndSubmitDocument } from "./submission";
 import { ZatcaApiEnvironment } from "./apiClient";
 import { ZatcaDocumentStatus } from "@prisma/client";
 
@@ -21,7 +21,10 @@ export interface ResubmitZatcaDocumentParams {
 }
 
 export interface ResubmitZatcaDocumentResult {
-  zatcaStatus: Extract<ZatcaDocumentStatus, "cleared" | "reported" | "rejected" | "submission_failed" | "certificate_error">;
+  zatcaStatus: Extract<
+    ZatcaDocumentStatus,
+    "cleared" | "reported" | "rejected" | "submission_failed" | "certificate_error" | "compliance_checked"
+  >;
   zatcaResponseRaw?: unknown;
   zatcaClearedOrReportedAt?: Date;
   rejectionReason?: string;
@@ -60,11 +63,17 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
     uuid: params.documentUuid,
     environment: params.company.zatcaEnvironment as ZatcaApiEnvironment,
     credentials,
-    kind: rebuilt.subtype === "standard" ? "clearance" : "reporting",
+    kind: resolveZatcaSubmissionKind(params.company.zatcaOnboardingStatus, rebuilt.subtype),
     qrBaseParams: buildQrBaseParams(params.company, params.issuedAt, params.grandTotal, params.vatTotal),
   });
 
   if (outcome.accepted) {
+    // راجع نفس التمييز في postingGate.ts: نجاح فحص امتثال (شهادة اختبار) لا يُعتبَر تخليصاً/إبلاغاً
+    // فعلياً — يُصنَّف compliance_checked بلا zatcaClearedOrReportedAt (لم يحدث تخليص/إبلاغ قانوني).
+    const isProductionSubmission = params.company.zatcaOnboardingStatus === "production";
+    if (!isProductionSubmission) {
+      return { zatcaStatus: "compliance_checked", zatcaResponseRaw: outcome.response ?? undefined };
+    }
     return {
       zatcaStatus: rebuilt.subtype === "standard" ? "cleared" : "reported",
       zatcaResponseRaw: outcome.response ?? undefined,

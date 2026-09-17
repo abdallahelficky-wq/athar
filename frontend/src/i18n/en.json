@@ -341,13 +341,15 @@
       "not_applicable": "Not applicable", "pending_clearance": "Sending (standard)", "pending_reporting": "Sending (simplified)",
       "cleared": "Sent/accepted (standard)", "reported": "Sent/accepted (simplified)", "rejected": "Rejected",
       "submission_failed": "Failed to send (never reached ZATCA)",
-      "certificate_error": "Invalid ZATCA certificate"
+      "certificate_error": "Invalid ZATCA certificate",
+      "compliance_checked": "Compliance check only (awaiting production certificate)"
     },
     "zatcaBadge": {
       "not_applicable": "Not applicable", "pending_clearance": "Sending", "pending_reporting": "Sending",
       "cleared": "Sent/accepted", "reported": "Sent/accepted", "rejected": "Rejected",
       "submission_failed": "Failed to send",
-      "certificate_error": "Invalid certificate"
+      "certificate_error": "Invalid certificate",
+      "compliance_checked": "Compliance check only"
     },
     "table": {
       "number": "Number", "customer": "Customer", "date": "Date", "total": "Total",
@@ -374,6 +376,7 @@
       "zatcaRejectedAgain": "Invoice {{number}} was rejected again by ZATCA{{reason}}",
       "zatcaStillUnreachable": "Still could not reach ZATCA to send invoice {{number}} — try again later or contact support",
       "zatcaCertificateStillInvalid": "This company's ZATCA certificate is still invalid — fix the ZATCA connection settings before retrying invoice {{number}}",
+      "zatcaStillComplianceOnly": "Invoice {{number}} passed ZATCA's compliance check, but has not actually been cleared/reported yet — this company is still on a test (compliance) certificate. Complete onboarding to a production certificate in the ZATCA connection settings, then resend this invoice.",
       "zatcaResentOk": "Invoice {{number}} was sent successfully — status is now \"{{status}}\"."
     },
     "classicPro": {

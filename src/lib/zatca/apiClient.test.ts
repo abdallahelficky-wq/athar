@@ -3,6 +3,7 @@ import {
   checkInvoiceCompliance,
   clearInvoice,
   extractRejectionReasons,
+  hasValidationErrors,
   reportInvoice,
   requestComplianceCsid,
   requestProductionCsid,
@@ -197,6 +198,17 @@ describe("apiClient request construction", () => {
   it("extractRejectionReasons handles a genuinely empty response without throwing", () => {
     expect(() => extractRejectionReasons(null)).not.toThrow();
     expect(extractRejectionReasons(null).length).toBeGreaterThan(0);
+  });
+
+  // hasValidationErrors تُستخدَم فقط للتحقّق الدفاعي على مسار الامتثال (/compliance/invoices) في
+  // submission.ts — لأن زاتكا هناك قد تردّ 2xx حتى لو "فشل" الفحص منطقياً، بخلاف
+  // clearance/reporting حيث الفشل يُعبَّر عنه بكود HTTP غير ناجح.
+  it("hasValidationErrors is true only when errorMessages is a non-empty array, not for warnings alone", () => {
+    expect(hasValidationErrors({ validationResults: { errorMessages: [{ type: "ERROR", message: "x" }] } })).toBe(true);
+    expect(hasValidationErrors({ validationResults: { warningMessages: [{ type: "WARNING", message: "x" }] } })).toBe(false);
+    expect(hasValidationErrors({ validationResults: { status: "PASS" } })).toBe(false);
+    expect(hasValidationErrors(null)).toBe(false);
+    expect(hasValidationErrors({})).toBe(false);
   });
 });
 
