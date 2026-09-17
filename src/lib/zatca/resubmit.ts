@@ -1,6 +1,6 @@
 import { badRequest } from "../httpError";
 import { buildQrBaseParams, rebuildZatcaDocumentXml, ZatcaCompanyLike, ZatcaCustomerLike, ZatcaPersistedLineLike } from "./chain";
-import { loadCompanyZatcaCredentials } from "./credentials";
+import { loadCompanyZatcaCredentials, zatcaEnvironmentMismatchMessage } from "./credentials";
 import { resolveZatcaSubmissionKind, signAndSubmitDocument } from "./submission";
 import { ZatcaApiEnvironment } from "./apiClient";
 import { ZatcaDocumentStatus } from "@prisma/client";
@@ -53,15 +53,23 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
     throw badRequest("تعذّرت إعادة الإرسال: بيانات المستند لا تطابق النسخة الأصلية المُرحَّلة — راجع الدعم الفني قبل المحاولة مجدداً");
   }
 
-  const credentials = await loadCompanyZatcaCredentials(params.company.id, params.company.zatcaEnvironment as ZatcaApiEnvironment);
-  if (!credentials) {
+  const environment = params.company.zatcaEnvironment as ZatcaApiEnvironment;
+  const loaded = await loadCompanyZatcaCredentials(params.company.id, environment);
+  if (!loaded.ok) {
+    if (loaded.reason === "environment_mismatch") {
+      // نفس تصنيف certificate_error تماماً (مشكلة إعداد ربط لن تُحَل نفسها بإعادة إرسال متكرر) —
+      // تُعاد كنتيجة "لينة" (لا استثناء) حتى يُحدَّث zatcaStatus/zatcaResponseRaw للمستند فعلياً
+      // بدل بقائه على حالته القديمة، تماماً كأي فشل توقيع/رفض آخر يُعالَج أدناه.
+      return { zatcaStatus: "certificate_error", rejectionReason: zatcaEnvironmentMismatchMessage(loaded.issuedFor, environment) };
+    }
     throw badRequest("لا توجد شهادة ربط زاتكا فعالة لهذه الشركة حالياً — أكمل خطوات الربط من شاشة \"ربط فاتورة\" أولاً");
   }
+  const credentials = loaded.credentials;
 
   const outcome = await signAndSubmitDocument({
     xml: rebuilt.xml,
     uuid: params.documentUuid,
-    environment: params.company.zatcaEnvironment as ZatcaApiEnvironment,
+    environment,
     credentials,
     kind: resolveZatcaSubmissionKind(params.company.zatcaOnboardingStatus, rebuilt.subtype),
     qrBaseParams: buildQrBaseParams(params.company, params.issuedAt, params.grandTotal, params.vatTotal),

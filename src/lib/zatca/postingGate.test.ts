@@ -6,7 +6,19 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { evaluateZatcaPostingGate } from "./postingGate";
 import * as credentialsModule from "./credentials";
 
-vi.mock("./credentials", () => ({ loadCompanyZatcaCredentials: vi.fn() }));
+vi.mock("./credentials", () => ({
+  loadCompanyZatcaCredentials: vi.fn(),
+  zatcaEnvironmentMismatchMessage: (issuedFor: string, requested: string) =>
+    `شهادة ربط زاتكا الحالية لهذه الشركة صادرة لبيئة "${issuedFor}"، بينما الشركة مضبوطة الآن على بيئة "${requested}"`,
+}));
+
+// كل استدعاءات loadCompanyZatcaCredentials في هذا الملف تمرّ عبر هاتين المساعدتين بدل القيمة
+// الخام مباشرة — منذ أصبحت الدالة تُعيد LoadZatcaCredentialsResult (نتيجة مُميَّزة) لا
+// ResolvedZatcaCredentials | null كما كانت — راجع credentials.ts.
+function okCreds(c: { certificateBodyBase64: string; secret: string; privateKeyPem: string }) {
+  return { ok: true as const, credentials: c };
+}
+const NOT_CONFIGURED = { ok: false as const, reason: "not_configured" as const };
 
 // بلا tx مُمرَّرة (مسار createSalesInvoice/postSalesInvoice المُعاد هيكلته) تحجز evaluateZatcaPostingGate
 // السلسلة عبر prisma.$transaction() الحقيقية بنفسها — نموِّه هنا بتنفيذ الاستدعاء فوراً بنفس شكل
@@ -128,7 +140,7 @@ describe("evaluateZatcaPostingGate", () => {
   });
 
   it("reserves the ICV/PIH chain but does not call the live API when the company has no CSID credentials yet", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(null);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(NOT_CONFIGURED);
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 
@@ -151,7 +163,7 @@ describe("evaluateZatcaPostingGate", () => {
   });
 
   it("proceeds and marks cleared when ZATCA accepts a standard (clearance) submission", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     mockFetchOnce(200, { clearanceStatus: "CLEARED" });
 
     const decision = await evaluateZatcaPostingGate({
@@ -172,7 +184,7 @@ describe("evaluateZatcaPostingGate", () => {
   });
 
   it("blocks posting entirely for a rejected STANDARD (clearance) invoice, even though the ICV/hash were reserved", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     mockFetchOnce(400, { validationResults: { errorMessages: [{ type: "ERROR", message: "الرقم الضريبي للمشتري غير صحيح" }] } });
 
     const decision = await evaluateZatcaPostingGate({
@@ -199,7 +211,7 @@ describe("evaluateZatcaPostingGate", () => {
   // الربط، لا تصحيح بيانات الفاتورة. يجب أن يُصنَّف submission_failed، والرسالة يجب أن تذكر كود
   // الحالة الفعلي (401) صراحةً.
   it("classifies a 401 with an empty body as submission_failed (not rejected), with the HTTP status in the message", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     mockFetchOnce(401, undefined, "Unauthorized");
 
     const decision = await evaluateZatcaPostingGate({
@@ -222,7 +234,7 @@ describe("evaluateZatcaPostingGate", () => {
 
   it("does NOT emit the 'رفضت زاتكا مستنداً' rejection log for an httpError (auth/transport failure) — it's already logged in full inside zatcaRequest", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     mockFetchOnce(401, undefined, "Unauthorized");
 
     await evaluateZatcaPostingGate({
@@ -247,7 +259,7 @@ describe("evaluateZatcaPostingGate", () => {
   // القاعدة مباشرة. يجب أن يُسجَّل الآن بالاستجابة الخام الكاملة، ومعرّف/اسم الشركة، ورقم المستند.
   it("logs the full raw ZATCA response server-side (with company and document number) on a genuine rejection", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     mockFetchOnce(400, { validationResults: { errorMessages: [{ type: "ERROR", code: "BR-KSA-42", message: "الرقم الضريبي للمشتري غير صحيح" }] } });
 
     await evaluateZatcaPostingGate({
@@ -275,7 +287,7 @@ describe("evaluateZatcaPostingGate", () => {
 
   it("does NOT log a rejection-style message for network failures or certificate errors (those already have their own distinct logging)", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
 
     await evaluateZatcaPostingGate({
@@ -296,7 +308,7 @@ describe("evaluateZatcaPostingGate", () => {
   });
 
   it("keeps a rejected SIMPLIFIED (reporting) invoice postable, marking it rejected for later retry", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     mockFetchOnce(400, { validationResults: { errorMessages: [{ type: "ERROR", message: "خطأ تنسيق" }] } });
 
     const decision = await evaluateZatcaPostingGate({
@@ -325,7 +337,7 @@ describe("evaluateZatcaPostingGate", () => {
   // كما يجب ألا تُسجَّل كـ"rejected" — تلك مخصَّصة لرفض فعلي من زاتكا يحتاج تصحيح بيانات، بينما
   // تعذّر الاتصال يحتاج فقط إعادة إرسال لاحقاً (راجع submission_failed).
   it("keeps a SIMPLIFIED (POS cash sale) invoice postable when ZATCA's network is simply unreachable, and marks it submission_failed (not rejected)", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
 
     const decision = await evaluateZatcaPostingGate({
@@ -346,7 +358,7 @@ describe("evaluateZatcaPostingGate", () => {
   });
 
   it("still blocks a STANDARD (clearance) invoice when ZATCA is unreachable, same as an explicit rejection", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
 
     const decision = await evaluateZatcaPostingGate({
@@ -373,7 +385,7 @@ describe("evaluateZatcaPostingGate", () => {
   // الاختباريْن التاليين مباشرة)، فلم تعد تصلح لإعادة إنتاج certificate_error بعد إصلاحها.
   it("keeps a SIMPLIFIED invoice postable but marks it certificate_error (not submission_failed) when the stored certificate is genuinely unparseable", async () => {
     const malformedCredentials = { ...credentials, certificateBodyBase64: "this-is-not-a-valid-certificate-at-all" };
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(malformedCredentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(malformedCredentials));
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 
@@ -397,7 +409,7 @@ describe("evaluateZatcaPostingGate", () => {
 
   it("blocks a STANDARD invoice when the stored certificate is genuinely unparseable, same as an explicit rejection", async () => {
     const malformedCredentials = { ...credentials, certificateBodyBase64: "this-is-not-a-valid-certificate-at-all" };
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(malformedCredentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(malformedCredentials));
 
     const decision = await evaluateZatcaPostingGate({
       tx: fakeTx(),
@@ -420,7 +432,7 @@ describe("evaluateZatcaPostingGate", () => {
   // أن تُصنَّف certificate_error ولا أن تُمنَع من الترحيل، طالما فك ترميز إضافي واحد ينجح فعلياً.
   it("clears and proceeds a STANDARD invoice normally when the stored certificate is merely double-base64-encoded (tolerated, not an error)", async () => {
     const doubleEncodedCredentials = { ...credentials, certificateBodyBase64: Buffer.from(credentials.certificateBodyBase64, "utf8").toString("base64") };
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(doubleEncodedCredentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(doubleEncodedCredentials));
     mockFetchOnce(200, { clearanceStatus: "CLEARED" });
 
     const decision = await evaluateZatcaPostingGate({
@@ -440,7 +452,7 @@ describe("evaluateZatcaPostingGate", () => {
   });
 
   it("populates reservedChain whenever a chain was actually reserved, regardless of accept/reject outcome", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     mockFetchOnce(200, { reportingStatus: "REPORTED" });
 
     const decision = await evaluateZatcaPostingGate({
@@ -478,7 +490,7 @@ describe("evaluateZatcaPostingGate", () => {
   // evaluateZatcaPostingGate السلسلة عبر معاملة قصيرة مستقلة بنفسها (prisma.$transaction، مُموَّهة
   // أعلاه) بدل معاملة الاستدعاء، وأن يعمل بقية المنطق (الاتصال بزاتكا، بناء القرار) بلا أي تغيير.
   it("reserves the chain via its own prisma.$transaction when no tx is passed at all (the restructured call path)", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     mockFetchOnce(200, { reportingStatus: "REPORTED" });
 
     const decision = await evaluateZatcaPostingGate({
@@ -502,7 +514,7 @@ describe("evaluateZatcaPostingGate", () => {
   // شركة لا تزال على شهادة اختبار يجب أن تُرسِل عبر /compliance/invoices فقط، لأي نوع مستند
   // (قياسي أو مبسّط)، لا clearance/reporting.
   it("submits through the compliance endpoint (not clearance/reporting) for a company still on a compliance CSID", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
 
     const decision = await evaluateZatcaPostingGate({
@@ -526,7 +538,7 @@ describe("evaluateZatcaPostingGate", () => {
   // يُملأ zatcaClearedOrReportedAt (لم يحدث تخليص/إبلاغ فعلي). البند 4 من طلب المستخدم: سياسة
   // الترحيل نفسها لا تتغيّر — فاتورة قياسية أو مبسّطة تُرحَّل دائماً هنا لأن الفحص "نجح" (لم تُرفَض).
   it("marks a successful compliance check as compliance_checked (not cleared/reported), with no zatcaClearedOrReportedAt, for both invoice subtypes", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
 
     mockFetchOnce(200, { validationResults: { status: "PASS" } });
     const standardDecision = await evaluateZatcaPostingGate({
@@ -564,7 +576,7 @@ describe("evaluateZatcaPostingGate", () => {
   // البند 4: فاتورة قياسية تبقى ممنوعة من الترحيل عند رفض فعلي، بصرف النظر عن كون المسار امتثالاً
   // لا تخليصاً — نفس سياسة الرفض المعتادة، لا فرق بسبب مسار الإرسال.
   it("still blocks a STANDARD invoice when the compliance check itself reports real validation errors", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(credentials);
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     mockFetchOnce(200, {
       validationResults: { status: "FAIL", errorMessages: [{ type: "ERROR", message: "خطأ في بيانات الفاتورة التجريبية" }] },
     });
@@ -584,5 +596,59 @@ describe("evaluateZatcaPostingGate", () => {
     expect(decision.proceedWithPosting).toBe(false);
     expect(decision.zatcaFields.zatcaStatus).toBe("rejected");
     expect(decision.rejectionReason).toContain("خطأ في بيانات الفاتورة التجريبية");
+  });
+
+  // عطل إنتاج فعلي مؤكَّد: شهادة اختبار حقيقية (OTP فعلي من بوابة فاتورة) صادرة بينما بيئة الشركة
+  // كانت sandbox — بوابة مطورين عامة ببيانات وهمية منفصلة تماماً لا تعرف هذه الشهادة إطلاقاً، فترفض
+  // بـ401 بلا أي علاقة بصحة الشهادة/التوقيع. يجب ألا تُحاوَل fetch إطلاقاً هنا (فشل مضمون سلفاً)،
+  // ويجب تصنيفه certificate_error (مشكلة إعداد ربط لن تُحَل بإعادة محاولة) لا submission_failed/rejected.
+  it("never calls fetch and marks certificate_error when the stored CSID was issued for a different environment", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue({
+      ok: false,
+      reason: "environment_mismatch",
+      issuedFor: "simulation",
+    });
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY, // env=sandbox في هذا الملف
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(decision.zatcaFields.zatcaStatus).toBe("certificate_error");
+    expect(decision.rejectionReason).toContain("simulation");
+    expect(decision.rejectionReason).toContain("sandbox");
+  });
+
+  it("still blocks a STANDARD invoice on an environment mismatch, same as any other certificate_error", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue({
+      ok: false,
+      reason: "environment_mismatch",
+      issuedFor: "simulation",
+    });
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: COMPANY,
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.proceedWithPosting).toBe(false);
+    expect(decision.zatcaFields.zatcaStatus).toBe("certificate_error");
   });
 });

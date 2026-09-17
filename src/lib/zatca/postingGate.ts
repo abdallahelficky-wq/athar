@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { buildQrBaseParams, reserveZatcaChain, ZatcaCompanyLike, ZatcaCustomerLike, ZatcaPersistedLineLike } from "./chain";
-import { loadCompanyZatcaCredentials } from "./credentials";
+import { loadCompanyZatcaCredentials, zatcaEnvironmentMismatchMessage } from "./credentials";
 import { resolveZatcaSubmissionKind, signAndSubmitDocument } from "./submission";
 import { ZatcaApiEnvironment } from "./apiClient";
 import { ZatcaDocumentKind } from "./types";
@@ -110,8 +110,25 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
   }
   const reservedChain = { icv: chain.icv, invoiceHash: chain.invoiceHash };
 
-  const credentials = await loadCompanyZatcaCredentials(params.company.id, params.company.zatcaEnvironment as ZatcaApiEnvironment);
-  if (!credentials) {
+  const environment = params.company.zatcaEnvironment as ZatcaApiEnvironment;
+  const loaded = await loadCompanyZatcaCredentials(params.company.id, environment);
+  if (!loaded.ok) {
+    if (loaded.reason === "environment_mismatch") {
+      // نفس تصنيف certificate_error تماماً (مشكلة إعداد ربط، لا مشكلة شبكة ولا رفض فعلي من زاتكا،
+      // ولن تُحَل نفسها بإعادة المحاولة — تحتاج تدخلاً بشرياً) — راجع zatcaEnvironmentMismatchMessage.
+      return {
+        proceedWithPosting: chain.subtype !== "standard",
+        zatcaFields: {
+          icv: chain.icv,
+          previousInvoiceHash: chain.previousInvoiceHash,
+          invoiceHash: chain.invoiceHash,
+          zatcaStatus: "certificate_error",
+          zatcaSubmittedAt: chain.issuedAt,
+        },
+        rejectionReason: zatcaEnvironmentMismatchMessage(loaded.issuedFor, environment),
+        reservedChain,
+      };
+    }
     return {
       proceedWithPosting: true,
       zatcaFields: {
@@ -124,11 +141,12 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
       reservedChain,
     };
   }
+  const credentials = loaded.credentials;
 
   const outcome = await signAndSubmitDocument({
     xml: chain.xml,
     uuid: params.documentUuid,
-    environment: params.company.zatcaEnvironment as ZatcaApiEnvironment,
+    environment,
     credentials,
     kind: resolveZatcaSubmissionKind(params.company.zatcaOnboardingStatus, chain.subtype),
     qrBaseParams: buildQrBaseParams(params.company, chain.issuedAt, params.grandTotal, params.vatTotal),

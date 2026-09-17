@@ -6,26 +6,61 @@ export interface ResolvedZatcaCredentials extends ZatcaApiCredentials {
   privateKeyPem: string;
 }
 
+export type LoadZatcaCredentialsResult =
+  | { ok: true; credentials: ResolvedZatcaCredentials }
+  /** لا شهادة CSID مناسبة لهذه البيئة بعد إطلاقاً — لا تزال الشركة في منتصف الربط (الحالة القديمة
+   * التي كانت تُمثَّل بـ null قبل هذا التمييز) — تُعامَل كـ"بانتظار الاستخراج"، لا كخطأ. */
+  | { ok: false; reason: "not_configured" }
+  /** الشهادة موجودة فعلاً، لكنها صادرة من زاتكا لبيئة مختلفة عن البيئة المطلوبة الآن — إرسالها
+   * مضمون الفشل بـ401 (تأكَّد فعلياً في الإنتاج: شهادة اختبار حقيقية صادرة بـOTP فعلي من بوابة
+   * فاتورة، لكن بيئة الشركة كانت مضبوطة على sandbox — بوابة المطورين العامة ببيانات وهمية منفصلة
+   * تماماً، لا تعرف هذه الشهادة إطلاقاً). لا تُعامَل كـ"بانتظار الاستخراج" (not_configured) ولا
+   * يُحاوَل الإرسال بها إطلاقاً — تحتاج إعادة إصدار الشهادة تحت البيئة الصحيحة، لا إعادة محاولة. */
+  | { ok: false; reason: "environment_mismatch"; issuedFor: ZatcaApiEnvironment };
+
 /**
  * يفكّ تشفير شهادة/سر API الفعليَين لشركة معيّنة، بحسب بيئتها الحالية (production يستخدم شهادة
- * الإنتاج، أي بيئة أخرى تستخدم شهادة الاختبار/Compliance). يُرجع null إن لم تُستخرَج شهادة مناسبة
- * لهذه البيئة بعد — لا يوجد أي احتياطي (fallback) بين البيئتين، فشهادة اختبار لا تُستخدَم أبداً
- * لإرسال حقيقي، والعكس.
+ * الإنتاج، أي بيئة أخرى تستخدم شهادة الاختبار/Compliance) — بعد التحقق أولاً أن الشهادة المخزَّنة
+ * صودرت فعلاً لهذه البيئة بالذات (راجع complianceCsidEnvironment/productionCsidEnvironment في
+ * companiesZatca.service.ts، حيث تُسجَّل وقت الإصدار). لا يوجد أي احتياطي (fallback) بين البيئتين،
+ * فشهادة اختبار لا تُستخدَم أبداً لإرسال حقيقي، والعكس.
+ *
+ * لصفوف قديمة سبقت إضافة هذا التسجيل (الحقل المُسجَّل فارغ/null): يُفتَرض تطابق البيئة الحالية —
+ * لا إنذار كاذب لربط يعمل فعلاً اليوم، خطر ذلك يقتصر على صفّ واحد قديم مُحتمَل الخطأ فعلاً بالفعل
+ * (وهو بالضبط ما دفع لإضافة هذا التسجيل)، لا يستحق تعطيل كل الشركات القائمة.
  */
 export async function loadCompanyZatcaCredentials(
   companyId: string,
   environment: ZatcaApiEnvironment,
-): Promise<ResolvedZatcaCredentials | null> {
+): Promise<LoadZatcaCredentialsResult> {
   const record = await prisma.companyZatcaCredential.findUnique({ where: { companyId } });
-  if (!record || !record.privateKeyEnc) return null;
+  if (!record || !record.privateKeyEnc) return { ok: false, reason: "not_configured" };
 
-  const certEnc = environment === "production" ? record.productionCertEnc : record.complianceCertEnc;
-  const secretEnc = environment === "production" ? record.productionSecretEnc : record.complianceSecretEnc;
-  if (!certEnc || !secretEnc) return null;
+  const isProduction = environment === "production";
+  const certEnc = isProduction ? record.productionCertEnc : record.complianceCertEnc;
+  const secretEnc = isProduction ? record.productionSecretEnc : record.complianceSecretEnc;
+  if (!certEnc || !secretEnc) return { ok: false, reason: "not_configured" };
+
+  const issuedFor = isProduction ? record.productionCsidEnvironment : record.complianceCsidEnvironment;
+  if (issuedFor && issuedFor !== environment) {
+    return { ok: false, reason: "environment_mismatch", issuedFor: issuedFor as ZatcaApiEnvironment };
+  }
 
   return {
-    certificateBodyBase64: decryptSecret(certEnc),
-    secret: decryptSecret(secretEnc),
-    privateKeyPem: decryptSecret(record.privateKeyEnc),
+    ok: true,
+    credentials: {
+      certificateBodyBase64: decryptSecret(certEnc),
+      secret: decryptSecret(secretEnc),
+      privateKeyPem: decryptSecret(record.privateKeyEnc),
+    },
   };
+}
+
+/** رسالة موحَّدة لعرضها للمستخدم عند environment_mismatch — يستخدمها postingGate.ts وresubmit.ts معاً. */
+export function zatcaEnvironmentMismatchMessage(issuedFor: ZatcaApiEnvironment, requested: ZatcaApiEnvironment): string {
+  return (
+    `شهادة ربط زاتكا الحالية لهذه الشركة صادرة لبيئة "${issuedFor}"، بينما الشركة مضبوطة الآن على بيئة "${requested}" — ` +
+    `شهادة صادرة لبيئة معيّنة لا تعمل أبداً مع بيئة أخرى (سترفضها زاتكا بخطأ مصادقة 401 بلا أي علاقة بصحة الشهادة أو التوقيع). ` +
+    `يجب إعادة ضبط ربط زاتكا لهذه الشركة ثم إعادة استخراج الشهادة (CSR ← Compliance ← Production) تحت بيئة "${requested}" قبل إعادة المحاولة.`
+  );
 }
