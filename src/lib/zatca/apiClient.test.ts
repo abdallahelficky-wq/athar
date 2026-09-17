@@ -74,11 +74,17 @@ describe("apiClient request construction", () => {
     expect(init.headers["Clearance-Status"]).toBe("0");
   });
 
-  it("checkInvoiceCompliance posts to /compliance/invoices", async () => {
+  // عطل إنتاج فعلي مؤكَّد: /compliance/invoices يرفض 401 بجسم فارغ (Cloudflare)، بينما /compliance
+  // (نفس مسار إصدار الشهادة) قبِل طلباً آخر لنفس الشهادة في نفس الجلسة (رفضه فعلياً بـ"Invalid-OTP"
+  // مُصادَق من التطبيق، لا رفض حافة) — حسب توجيه دعم زاتكا: فحص امتثال الفاتورة يُميَّز عن إصدار
+  // الشهادة بنوع المصادقة (Basic هنا) لا بمسار مختلف.
+  it("checkInvoiceCompliance posts to /compliance (same path as CSID issuance), with Basic auth not an OTP header", async () => {
     const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
     await checkInvoiceCompliance({ environment: "sandbox", credentials: CREDENTIALS, signedInvoiceBase64: "aW52b2ljZQ==", invoiceHash: "abc==", uuid: "u-1" });
-    const [url] = fetchMock.mock.calls[0];
-    expect(url).toBe("https://gw-fatoora.zatca.gov.sa/e-invoicing/developer-portal/compliance/invoices");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://gw-fatoora.zatca.gov.sa/e-invoicing/developer-portal/compliance");
+    expect(init.headers.Authorization).toMatch(/^Basic /);
+    expect(init.headers.OTP).toBeUndefined();
   });
 
   it("surfaces a non-2xx response as ok:false with the parsed error body intact, and httpError:false since the body has a recognizable rejection structure", async () => {
@@ -200,7 +206,7 @@ describe("apiClient request construction", () => {
     expect(extractRejectionReasons(null).length).toBeGreaterThan(0);
   });
 
-  // hasValidationErrors تُستخدَم فقط للتحقّق الدفاعي على مسار الامتثال (/compliance/invoices) في
+  // hasValidationErrors تُستخدَم فقط للتحقّق الدفاعي على مسار الامتثال (checkInvoiceCompliance، /compliance) في
   // submission.ts — لأن زاتكا هناك قد تردّ 2xx حتى لو "فشل" الفحص منطقياً، بخلاف
   // clearance/reporting حيث الفشل يُعبَّر عنه بكود HTTP غير ناجح.
   it("hasValidationErrors is true only when errorMessages is a non-empty array, not for warnings alone", () => {

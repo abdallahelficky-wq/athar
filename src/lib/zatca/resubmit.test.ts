@@ -257,8 +257,9 @@ describe("resubmitZatcaDocument", () => {
   });
 
   // نفس منطق resolveZatcaSubmissionKind المستخدَم في postingGate.ts — شركة لا تزال على شهادة اختبار
-  // يجب أن تعيد المحاولة عبر /compliance/invoices لا /invoices/reporting/single، وتُصنَّف
-  // compliance_checked لا reported (المستند لم يُبلَّغ لزاتكا قانونياً بعد) بلا zatcaClearedOrReportedAt.
+  // يجب أن تعيد المحاولة عبر مسار الامتثال (/compliance، نفس مسار إصدار الشهادة) لا
+  // /invoices/reporting/single، وتُصنَّف compliance_checked لا reported (المستند لم يُبلَّغ لزاتكا
+  // قانونياً بعد) بلا zatcaClearedOrReportedAt.
   it("resubmits through the compliance endpoint and marks compliance_checked (not reported) for a company still on a compliance CSID", async () => {
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
@@ -276,7 +277,8 @@ describe("resubmitZatcaDocument", () => {
       issuedAt: ISSUED_AT,
     });
 
-    expect(fetchMock.mock.calls[0][0]).toContain("/compliance/invoices");
+    expect(fetchMock.mock.calls[0][0]).toContain("/compliance");
+    expect(fetchMock.mock.calls[0][0]).not.toContain("/compliance/invoices");
     expect(result.zatcaStatus).toBe("compliance_checked");
     expect(result.zatcaClearedOrReportedAt).toBeUndefined();
   });

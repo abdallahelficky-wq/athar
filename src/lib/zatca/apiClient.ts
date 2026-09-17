@@ -226,11 +226,16 @@ interface SubmitInvoiceParams {
   uuid: string;
 }
 
+// عطل إنتاج فعلي مؤكَّد: /compliance/invoices يرفض 401 بجسم فارغ تماماً من Cloudflare (بلا رسالة
+// خطأ من زاتكا نفسها إطلاقاً) — نفس التوقيع بالضبط الذي رأيناه مع بيئة sandbox الخاطئة، لا رسالة
+// "Invalid-OTP" مُصادَق عليها من التطبيق كما ظهرت فعلياً على /compliance لنفس الشهادة في نفس
+// الجلسة. حسب توجيه دعم زاتكا (مطابق لتقرير مجتمعي مستقل): مسار فحص امتثال الفاتورة هو /compliance
+// نفسه المُستخدَم لإصدار الشهادة — يُميَّز بنوع المصادقة (Basic هنا بدل ترويسة OTP) لا بمسار مختلف.
 /** فحص امتثال فاتورة تجريبية (مطلوب أثناء الحصول على شهادة الاختبار، قبل شهادة الإنتاج) */
 export function checkInvoiceCompliance(params: SubmitInvoiceParams) {
   return zatcaRequest({
     environment: params.environment,
-    path: "/compliance/invoices",
+    path: "/compliance",
     body: { invoiceHash: params.invoiceHash, uuid: params.uuid, invoice: params.signedInvoiceBase64 },
     credentials: params.credentials,
     schema: zatcaSubmissionResponseSchema,
@@ -279,7 +284,7 @@ export function hasRecognizableRejectionBody(data: unknown): boolean {
 
 /** true فقط لو حمل جسم الاستجابة أخطاء فعلية (لا تحذيرات فقط) ضمن validationResults.errorMessages —
  * أدق من hasRecognizableRejectionBody أعلاه (التي تُحسَب فيها التحذيرات أيضاً كـ"بنية رفض معروفة").
- * تُستخدَم تحديداً للتحقّق من فحص الامتثال (/compliance/invoices): زاتكا قد تُعيد HTTP 200 حتى لو
+ * تُستخدَم تحديداً للتحقّق من فحص الامتثال (checkInvoiceCompliance، مسار /compliance): زاتكا قد تُعيد HTTP 200 حتى لو
  * فشل الفحص فعلياً (خلافاً لنقطتَي التخليص/الإبلاغ الحقيقيتين حيث يعني الرفض كوداً غير 2xx) — لا
  * نعرف ذلك بيقين تام (لم يُتحقَّق منه مباشرة ضد استجابة حقيقية)، فهذا فحص إضافي دفاعي على محتوى
  * الجسم نفسه، بصرف النظر عن كود HTTP، ليعمل بشكل صحيح أياً كان سلوك زاتكا الفعلي. */

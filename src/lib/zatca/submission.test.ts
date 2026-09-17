@@ -246,7 +246,8 @@ describe("signAndSubmitDocument", () => {
       qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
     });
 
-    expect(fetchMock.mock.calls[0][0]).toContain("/compliance/invoices");
+    expect(fetchMock.mock.calls[0][0]).toContain("/compliance");
+    expect(fetchMock.mock.calls[0][0]).not.toContain("/compliance/invoices");
     expect(outcome.accepted).toBe(true);
   });
 
