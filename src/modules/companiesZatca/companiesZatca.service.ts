@@ -116,7 +116,17 @@ export async function generateCompanyCsr(tenantId: string, companyId: string, in
     prisma.companyZatcaCredential.upsert({
       where: { companyId },
       create: { companyId, privateKeyEnc: encryptSecret(privateKeyPem), csrPem },
-      update: { privateKeyEnc: encryptSecret(privateKeyPem), csrPem, complianceCertEnc: null, complianceSecretEnc: null, complianceRequestId: null, productionCertEnc: null, productionSecretEnc: null },
+      update: {
+        privateKeyEnc: encryptSecret(privateKeyPem),
+        csrPem,
+        complianceCertEnc: null,
+        complianceSecretEnc: null,
+        complianceRequestId: null,
+        complianceCsidEnvironment: null,
+        productionCertEnc: null,
+        productionSecretEnc: null,
+        productionCsidEnvironment: null,
+      },
     }),
   ]);
 
@@ -146,6 +156,9 @@ export async function requestCompanyComplianceCsid(tenantId: string, companyId: 
         complianceCertEnc: encryptSecret(canonicalCert),
         complianceSecretEnc: encryptSecret(result.data.secret),
         complianceRequestId: String(result.data.requestID),
+        // البيئة الفعلية التي طُلبت منها هذه الشهادة تحديداً، لا بالضرورة ما ستصبح عليه
+        // company.zatcaEnvironment لاحقاً — راجع تعليق الحقل في schema.prisma وcredentials.ts.
+        complianceCsidEnvironment: environment,
       },
     }),
     prisma.company.update({ where: { id: companyId }, data: { zatcaOnboardingStatus: "compliance" } }),
@@ -179,6 +192,7 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
       data: {
         productionCertEnc: encryptSecret(canonicalCert),
         productionSecretEnc: encryptSecret(result.data.secret),
+        productionCsidEnvironment: environment,
       },
     }),
     prisma.company.update({ where: { id: companyId }, data: { zatcaOnboardingStatus: "production" } }),
@@ -187,12 +201,36 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
   return { requestId: String(result.data.requestID) };
 }
 
-/** تبديل البيئة الحالية (sandbox/simulation/production) — يُمنَع الانتقال لـ production بلا شهادة إنتاج فعلية. */
+/**
+ * تبديل البيئة الحالية (sandbox/simulation/production) — يُمنَع الانتقال لـ production بلا شهادة
+ * إنتاج فعلية، ويُمنَع أيضاً أي تبديل طالما توجد شهادة فعّالة صادرة للبيئة الحالية بالذات: شهادة
+ * زاتكا صادرة لبيئة معيّنة لا تعمل أبداً مع بيئة أخرى (عطل إنتاج فعلي مؤكَّد: شهادة اختبار حقيقية
+ * صادرة بينما الشركة على sandbox — بوابة مطورين عامة ببيانات وهمية لا تعرف هذه الشهادة إطلاقاً —
+ * فتغيير البيئة وحده، بلا إعادة إصدار الشهادة، يُبطلها فعلياً بصمت). المستخدم يجب أن يمرّ عمداً
+ * بزر "إعادة ضبط الربط" (resetCompanyZatcaLinkage) أولاً، ثم يعيد استخراج الشهادة تحت البيئة
+ * الجديدة — لا تبديل بنقرة واحدة يُسقِط ربطاً فعّالاً بصمت.
+ */
 export async function setCompanyZatcaEnvironment(tenantId: string, companyId: string, environment: ZatcaApiEnvironment) {
   const company = await getCompanyOrThrow(tenantId, companyId);
   if (environment === "production" && company.zatcaOnboardingStatus !== "production") {
     throw badRequest("لا يمكن التحويل لبيئة الإنتاج قبل استخراج شهادة إنتاج فعلية (Production CSID)");
   }
+
+  if (environment !== company.zatcaEnvironment) {
+    const credential = await prisma.companyZatcaCredential.findUnique({ where: { companyId } });
+    const usesComplianceNow = company.zatcaEnvironment !== "production";
+    const hasLiveCredentialForCurrentEnvironment = usesComplianceNow
+      ? Boolean(credential?.complianceCertEnc && credential?.complianceSecretEnc)
+      : Boolean(credential?.productionCertEnc && credential?.productionSecretEnc);
+    if (hasLiveCredentialForCurrentEnvironment) {
+      throw badRequest(
+        `لا يمكن تغيير بيئة زاتكا مباشرةً — توجد شهادة ربط فعّالة صادرة فعلياً لبيئة "${company.zatcaEnvironment}" الحالية. ` +
+          `شهادة صادرة لبيئة معيّنة لا تعمل أبداً مع بيئة أخرى (سترفضها زاتكا بخطأ مصادقة 401). ` +
+          `لتغيير البيئة: استخدم "إعادة ضبط الربط" أولاً لإبطال الربط الحالي عمداً، ثم أعد توليد CSR واستخراج الشهادة من جديد تحت البيئة الجديدة.`,
+      );
+    }
+  }
+
   await prisma.company.update({ where: { id: companyId }, data: { zatcaEnvironment: environment } });
   return getZatcaStatus(tenantId, companyId);
 }

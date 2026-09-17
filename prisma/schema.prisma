@@ -507,8 +507,17 @@ model CompanyZatcaCredential {
   complianceCertEnc   String? // شهادة الاختبار (Compliance CSID)، مُشفَّرة
   complianceSecretEnc String? // سر API المرافق لشهادة الاختبار، مُشفَّر
   complianceRequestId String? // request_id المُستخدَم لاحقاً لاستبداله بشهادة الإنتاج
+  // بيئة زاتكا (sandbox/simulation/production) التي كانت مضبوطة على الشركة *وقت إصدار* شهادة
+  // الاختبار فعلياً — تُسجَّل مرة واحدة عند الإصدار وتبقى ثابتة بعدها، بصرف النظر عمّا يصبح عليه
+  // Company.zatcaEnvironment لاحقاً. راجع credentials.ts: شهادة صادرة لبيئة تختلف عن البيئة
+  // المطلوبة الآن تُرفَض صراحةً قبل أي محاولة إرسال — عطل إنتاج فعلي مؤكَّد: شهادة اختبار صادرة
+  // بـOTP حقيقي من بوابة فاتورة بينما بيئة الشركة كانت مضبوطة على sandbox (بوابة مطورين عامة
+  // ببيانات وهمية منفصلة تماماً لا تعرف هذه الشهادة إطلاقاً) — 401 مضمون بلا أي علاقة بصحة التوقيع.
+  complianceCsidEnvironment ZatcaEnvironment?
   productionCertEnc   String? // شهادة الإنتاج (Production CSID)، مُشفَّرة
   productionSecretEnc String? // سر API المرافق لشهادة الإنتاج، مُشفَّر
+  // نفس فكرة complianceCsidEnvironment أعلاه، لشهادة الإنتاج.
+  productionCsidEnvironment ZatcaEnvironment?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

@@ -121,12 +121,28 @@ function summarizeKeyLine(privateKeyEnc: string | null): string {
   return `مفتاح خاص: len=${result.length} pem=${result.looksLikePemAlready} parse=${status}`;
 }
 
+// لا يوجد أي تحقق شكلي ممكن على السرّ (secret) — على خلاف الشهادة، هو سلسلة نص عادية بلا بنية
+// يمكن تحليلها (لا X.509 ولا PEM)، فلا وسيلة لمعرفة "هل هذه القيمة صحيحة فعلياً" آلياً، فقط طوله —
+// لكن هذا كافٍ لملاحظة أي شذوذ واضح (طول غير متوقَّع، أو صفر). الطول فقط يُطبَع، أبداً القيمة نفسها.
+function summarizeSecretLine(label: string, secretEnc: string | null): string {
+  if (!secretEnc) return `${label}: غير موجود`;
+  const secret = decryptSecretStandalone(secretEnc);
+  return `${label}: len=${secret.length}`;
+}
+
 /** الوضع الجماعي (بلا وسيط): كل شركة لديها أي سجل CompanyZatcaCredential — سطر مختصر واحد لكل بند. */
 async function checkAllCompanies() {
   assertEncryptionKeyConfigured();
 
   const credentials = await prisma.companyZatcaCredential.findMany({
-    select: { companyId: true, complianceCertEnc: true, productionCertEnc: true, privateKeyEnc: true },
+    select: {
+      companyId: true,
+      complianceCertEnc: true,
+      productionCertEnc: true,
+      complianceSecretEnc: true,
+      productionSecretEnc: true,
+      privateKeyEnc: true,
+    },
   });
   if (!credentials.length) {
     console.log("لا توجد أي شركة لديها سجل CompanyZatcaCredential على الإطلاق.");
@@ -150,8 +166,11 @@ async function checkAllCompanies() {
     try {
       const usesCompliance = !company || company.zatcaEnvironment !== "production";
       const activeCertEnc = usesCompliance ? credential.complianceCertEnc : credential.productionCertEnc;
+      const activeSecretEnc = usesCompliance ? credential.complianceSecretEnc : credential.productionSecretEnc;
       const activeLabel = usesCompliance ? "compliance-cert" : "production-cert";
+      const activeSecretLabel = usesCompliance ? "compliance-secret" : "production-secret";
       console.log("  " + summarizeCertLine(activeLabel, activeCertEnc));
+      console.log("  " + summarizeSecretLine(activeSecretLabel, activeSecretEnc));
       console.log("  " + summarizeKeyLine(credential.privateKeyEnc));
     } catch (err) {
       // خطأ غير متوقَّع لشركة واحدة (مثال: مغلّف تشفير تالف) لا يجب أن يوقف فحص بقية الشركات —
@@ -193,6 +212,11 @@ async function checkSingleCompany(query: string) {
     console.log(JSON.stringify(checkCertificate(decryptSecretStandalone(certEnc)), null, 2));
   }
 
+  const secretEnc = usesCompliance ? credential.complianceSecretEnc : credential.productionSecretEnc;
+  const secretLabel = usesCompliance ? "سرّ شهادة الاختبار (Compliance secret)" : "سرّ شهادة الإنتاج (Production secret)";
+  console.log(`\n--- ${secretLabel} — هذا السرّ يُستخدَم فعلياً في ترويسة Authorization حالياً بحسب بيئة الشركة (الطول فقط، لا القيمة) ---`);
+  console.log("  " + summarizeSecretLine(secretLabel, secretEnc));
+
   console.log("\n--- المفتاح الخاص (privateKeyEnc) — مشترك بين شهادتي الاختبار والإنتاج ---");
   if (!credential.privateKeyEnc) {
     console.log("غير موجود إطلاقاً في قاعدة البيانات.");
@@ -209,6 +233,11 @@ async function checkSingleCompany(query: string) {
   } else {
     console.log(JSON.stringify(checkCertificate(decryptSecretStandalone(otherCertEnc)), null, 2));
   }
+
+  const otherSecretEnc = usesCompliance ? credential.productionSecretEnc : credential.complianceSecretEnc;
+  const otherSecretLabel = usesCompliance ? "سرّ شهادة الإنتاج (Production secret)" : "سرّ شهادة الاختبار (Compliance secret)";
+  console.log(`\n--- ${otherSecretLabel} — للمعلومة فقط، غير مُستخدَم في بيئة الشركة الحالية (الطول فقط) ---`);
+  console.log("  " + summarizeSecretLine(otherSecretLabel, otherSecretEnc));
 }
 
 async function main() {
