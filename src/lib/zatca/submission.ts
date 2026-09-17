@@ -17,9 +17,10 @@ import { ResolvedZatcaCredentials } from "./credentials";
 
 export type ZatcaSubmissionKind = "clearance" | "reporting" | "compliance";
 
-/** شركة لا تزال على شهادة اختبار (Compliance CSID) يجب أن تُرسِل عبر /compliance/invoices فقط —
- * استخدام clearance/reporting بشهادة اختبار يفشل بـ401 (تأكَّد فعلياً في الإنتاج: شهادة اختبار
- * سليمة الشكل + رفض 401 من مسار التخليص = الشهادة غير مخوَّلة لهذا المسار تحديداً، لا عطل توقيع). */
+/** شركة لا تزال على شهادة اختبار (Compliance CSID) يجب أن تُرسِل عبر مسار الامتثال (/compliance، نفس
+ * مسار إصدار الشهادة، مُميَّزاً بمصادقة Basic بدل ترويسة OTP) فقط — استخدام clearance/reporting
+ * بشهادة اختبار يفشل بـ401 (تأكَّد فعلياً في الإنتاج: شهادة اختبار سليمة الشكل + رفض 401 من مسار
+ * التخليص = الشهادة غير مخوَّلة لهذا المسار تحديداً، لا عطل توقيع). */
 export function resolveZatcaSubmissionKind(
   onboardingStatus: string,
   subtype: "standard" | "simplified",
@@ -120,7 +121,7 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
   });
 
   if (result.ok) {
-    // مسار الامتثال (/compliance/invoices) تحديداً قد يردّ 2xx حتى لو "فشل" الفحص منطقياً — زاتكا لا
+    // مسار الامتثال (checkInvoiceCompliance، /compliance) تحديداً قد يردّ 2xx حتى لو "فشل" الفحص منطقياً — زاتكا لا
     // توثّق صراحة أن رفض الامتثال يكون بكود HTTP غير ناجح كما في التخليص/الإبلاغ؛ الأرجح أنه، كونه
     // مساراً تشخيصياً غير مُلزِم، يعيد 200 دائماً ويضع نتيجة الفحص داخل الجسم (validationResults
     // بأخطاء فعلية) بدل تغيير كود الحالة. بما أننا لا نستطيع التحقق من هذا مباشرةً ضد زاتكا الحقيقية

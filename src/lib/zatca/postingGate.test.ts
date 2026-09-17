@@ -511,9 +511,11 @@ describe("evaluateZatcaPostingGate", () => {
   });
 
   // تأكَّد فعلياً في الإنتاج: 401 عند استخدام شهادة اختبار (Compliance CSID) مع clearance/single —
-  // شركة لا تزال على شهادة اختبار يجب أن تُرسِل عبر /compliance/invoices فقط، لأي نوع مستند
-  // (قياسي أو مبسّط)، لا clearance/reporting.
-  it("submits through the compliance endpoint (not clearance/reporting) for a company still on a compliance CSID", async () => {
+  // شركة لا تزال على شهادة اختبار يجب أن تُرسِل عبر مسار الامتثال (/compliance، نفس مسار إصدار
+  // الشهادة) فقط، لأي نوع مستند (قياسي أو مبسّط)، لا clearance/reporting. /compliance/invoices
+  // (المسار المُستخدَم سابقاً) رفض هو نفسه بـ401 حافة (Cloudflare، جسم فارغ) في نفس الجلسة التي
+  // نجح فيها /compliance برسالة مُصادَقة من التطبيق — راجع apiClient.ts.
+  it("submits through the compliance endpoint (same path as CSID issuance, not clearance/reporting) for a company still on a compliance CSID", async () => {
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
 
@@ -529,7 +531,8 @@ describe("evaluateZatcaPostingGate", () => {
       vatTotal: 15,
     });
 
-    expect(fetchMock.mock.calls[0][0]).toContain("/compliance/invoices");
+    expect(fetchMock.mock.calls[0][0]).toContain("/compliance");
+    expect(fetchMock.mock.calls[0][0]).not.toContain("/compliance/invoices");
     expect(fetchMock.mock.calls[0][0]).not.toContain("/invoices/clearance/single");
   });
 
