@@ -5,6 +5,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { QrImage, formatCompanyAddress, printWithOrientation } from "../../../legacy/shared";
 import { fmt2 } from "../../../legacy/constants";
 import { listCompanyBankAccounts } from "../../../api/companyBankAccounts";
+import { getAccountDisplayName } from "../../shared/accountDisplayName";
 
 /** يستنتج متصفح/نظام تشغيل/نوع جهاز المستخدم من navigator.userAgent — لمعلومات تدقيق (Audit
  * trail) بسيطة في تذييل الطباعة، بلا أي استدعاء خارجي أو تتبع لعنوان IP (غير متاح بأمان من
@@ -126,7 +127,7 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
                 <tr key={l.id} className={i % 2 === 1 ? "cpi-alt" : ""}>
                   <td className="num">{i + 1}</td>
                   <td className="cpi-desc">
-                    {l.description || l.account?.name}
+                    {l.description || getAccountDisplayName(l.account, i18n.language)}
                     {l.item?.code && <div className="cpi-code">{l.item.code}</div>}
                   </td>
                   <td>{l.item?.unit || t("salesInvoices.classicPro.unit")}</td>
