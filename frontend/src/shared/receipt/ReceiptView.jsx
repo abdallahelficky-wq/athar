@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { QrImage } from "../../legacy/shared";
 import { formatDateTime } from "../../i18n/dateFormat";
+import { getAccountDisplayName } from "../../wired/shared/accountDisplayName";
 
 /**
  * معاينة/طباعة إيصال بعرض 58 أو 80مم — تُستخدَم كمعاينة على الشاشة داخل نقطة البيع، وكذلك
@@ -50,7 +51,7 @@ export default function ReceiptView({ company, invoice, paperWidthMm = 80, lastP
 
       {(invoice.lines || []).map((line) => (
         <div key={line.id || `${line.description}-${line.quantity}`} style={{ marginBottom: 4 }}>
-          <div className="receipt-line-name">{line.description || line.account?.name}</div>
+          <div className="receipt-line-name">{line.description || getAccountDisplayName(line.account, i18n.language)}</div>
           <div className="receipt-line-detail">
             <span>{Number(line.quantity)} × {Number(line.unitPrice).toFixed(2)}</span>
             <span>{Number(line.total).toFixed(2)}</span>

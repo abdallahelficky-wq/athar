@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { reverseJournalEntry } from "../../api/journalEntries";
 import { fmt2, DEPARTMENT_KEYS } from "../../legacy/constants";
 import { labelForListValue } from "../../legacy/listLabels";
+import { getAccountDisplayName } from "./accountDisplayName";
 
 /**
  * "عكس القيد" — لا تُعدِّل أو تُرحِّل/تفك ترحيل القيد الأصلي إطلاقاً؛ تعرض معاينة القيد الجديد
@@ -11,7 +12,7 @@ import { labelForListValue } from "../../legacy/listLabels";
  * التأكيد، ليراجعه المستخدم قبل الترحيل.
  */
 export default function ReverseEntryModal({ entry, onClose, onCreated }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -51,7 +52,7 @@ export default function ReverseEntryModal({ entry, onClose, onCreated }) {
             <tbody>
               {reversedLines.map((l) => (
                 <tr key={l.id}>
-                  <td>{l.account?.name}</td>
+                  <td>{getAccountDisplayName(l.account, i18n.language)}</td>
                   <td>{l.departmentRef?.name || (l.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", l.department) : "—")}</td>
                   <td>{l.description || "—"}</td>
                   <td className="num">{l.debit ? fmt2(l.debit) : "—"}</td>

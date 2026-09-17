@@ -5,6 +5,7 @@ import { fmt, DEPARTMENT_KEYS } from "../legacy/constants";
 import { labelForListValue } from "../legacy/listLabels";
 import { currencyLabel } from "../shared/countries";
 import { getJournalEntryPdf } from "../api/journalEntries";
+import { getAccountDisplayName } from "./shared/accountDisplayName";
 
 /** عرض/طباعة سند قيد محاسبي — يُستخدَم من شاشة القيود اليومية وصفحة عرض القيد المستقلة، يفيد من
  * هيدر/فوتر PrintShell المشترك تلقائياً. زر "تحميل PDF" يُنزّل ملفاً حقيقياً من الخادم (نفس آلية
@@ -67,7 +68,7 @@ export default function JournalVoucherViewModal({ entry, companies, onClose }) {
         <tbody>
           {entry.lines.map((l) => (
             <tr key={l.id}>
-              <td>{l.account?.name}</td>
+              <td>{getAccountDisplayName(l.account, i18n.language)}</td>
               <td>{l.costCenter?.name || "—"}</td>
               <td>{l.departmentRef?.name || (l.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", l.department) : "—")}</td>
               {hasBranchedLines && <td>{l.branch?.nameAr || "—"}</td>}

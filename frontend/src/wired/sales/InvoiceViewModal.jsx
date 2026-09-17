@@ -4,6 +4,7 @@ import { PrintShell, QrImage, printWithOrientation } from "../../legacy/shared";
 import { fmt, fmt2 } from "../../legacy/constants";
 import { formatDateTime } from "../../i18n/dateFormat";
 import { currencyLabel } from "../../shared/countries";
+import { getAccountDisplayName } from "../shared/accountDisplayName";
 import ClassicProInvoiceView from "./invoiceTemplates/ClassicProInvoiceView";
 
 /**
@@ -77,7 +78,7 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
         <tbody>
           {invoice.lines.map((l) => (
             <tr key={l.id}>
-              <td>{l.description || l.account?.name}</td>
+              <td>{l.description || getAccountDisplayName(l.account, i18n.language)}</td>
               <td className="num">{Number(l.quantity)}</td>
               <td className="num">{fmt2(Number(l.unitPrice))}</td>
               <td className="num">{Number(l.discountPct)}٪</td>
