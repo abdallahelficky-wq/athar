@@ -10,6 +10,8 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "تعذّر توليد PDF — مشكلة إعداد في الخادم (محرّك PDF غير مُهيَّأ، لا خطأ في بياناتك). راجع الدعم الفني.":
+    "Could not generate the PDF — this is a server configuration problem (the PDF engine is not set up), not an error in your data. Contact support.",
   "رمز الدخول غير صالح": "Invalid access token",
   "هذه الشركة في وضع (عرض فقط) بسبب انتهاء الاشتراك أو الفترة التجريبية — تواصل مع الدعم الفني لتفعيل الاشتراك قبل إجراء أي إضافة أو تعديل أو حذف.": "This company is read-only because its subscription or trial has expired. Contact support to activate the subscription before adding, editing, or deleting data.",
   "رمز اختيار الحساب مطلوب": "Account selection token is required",

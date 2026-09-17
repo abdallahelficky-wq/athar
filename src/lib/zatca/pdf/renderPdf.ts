@@ -1,5 +1,6 @@
 import puppeteer from "puppeteer-core";
 import { env } from "../../../config/env";
+import { serviceUnavailable } from "../../httpError";
 
 // يُصيّر HTML إلى PDF عبر Chromium بلا واجهة (headless) — يعتمد على ثنائي Chromium مثبَّت مسبقاً
 // في بيئة التشغيل (env.chromiumExecutablePath) بدل تنزيل نسخة خاصة عبر puppeteer الكامل؛ المسار
@@ -7,9 +8,14 @@ import { env } from "../../../config/env";
 // الخادم قد يعمل كـ root داخل حاويات؛ ليست مشكلة أمنية هنا لأن المحتوى المُصيَّر ذاتي المصدر بالكامل
 // (HTML نولّده نحن، لا محتوى خارجي غير موثوق).
 
+// خطأ إعداد خادم (لا خطأ من المستخدم، ولا خطأ داخلي غامض) — يُرمى كـ serviceUnavailable (503) لا
+// Error خام، حتى يصل errorHandler.ts رسالة صريحة تسمّي المشكلة الفعلية للمستخدم بدل الرسالة
+// العامة "خطأ داخلي في الخادم" التي كانت تُخفي هذا التحذير تماماً عن أي طرف عدا سجلات الخادم.
 function resolveExecutablePath(): string {
   if (!env.chromiumExecutablePath) {
-    throw new Error("متغيّر البيئة CHROMIUM_EXECUTABLE_PATH غير مضبوط — مطلوب مسار Chromium قابل للتنفيذ لتوليد PDF");
+    throw serviceUnavailable(
+      "تعذّر توليد PDF — مشكلة إعداد في الخادم (محرّك PDF غير مُهيَّأ، لا خطأ في بياناتك). راجع الدعم الفني.",
+    );
   }
   return env.chromiumExecutablePath;
 }
