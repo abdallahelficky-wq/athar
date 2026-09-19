@@ -5,6 +5,7 @@ import { encryptSecret, decryptSecret } from "../../lib/zatca/secretBox";
 import { generateCsr, verifyCsrLocally } from "../../lib/zatca/csr";
 import { requestComplianceCsid, requestProductionCsid, ZatcaApiEnvironment } from "../../lib/zatca/apiClient";
 import { getCertificateInfo } from "../../lib/zatca/signing";
+import { resolveZatcaRawCertificate } from "../../lib/zatca/credentials";
 import { env } from "../../config/env";
 
 const BUSINESS_ACTIVITY_INDUSTRY_LABEL: Record<string, string> = {
@@ -22,20 +23,31 @@ async function getCompanyOrThrow(tenantId: string, companyId: string) {
   return company;
 }
 
+interface NormalizedZatcaCertificate {
+  /** الشكل القانوني — ما نجح تحليله فعلياً كـX.509 صالح، يُخزَّن في complianceCertEnc/productionCertEnc
+   * ويُستخدَم فقط للتوقيع. */
+  canonical: string;
+  /** binarySecurityToken تماماً كما أعادته زاتكا (مُقصوصاً فقط)، بلا أي فك ترميز إضافي — يُخزَّن في
+   * complianceCertRawEnc/productionCertRawEnc ويُستخدَم فقط في ترويسة Basic Auth. راجع تعليق
+   * ZatcaApiCredentials في apiClient.ts لسبب هذا الفصل (عطل إنتاج فعلي مؤكَّد: دمجهما كسر ترويسة
+   * المصادقة بعد تطبيع شهادة كانت مُرمَّزة base64 مرتين). */
+  raw: string;
+}
+
 /**
  * يتحقق أن binarySecurityToken الذي أعادته زاتكا فعلياً قابل للتحليل كشهادة X.509 صالحة *قبل*
- * تخزينه، ويُعيد الشكل القانوني (canonical) الذي يجب تخزينه فعلياً — لا القيمة الخام كما وصلت
- * بالضرورة. getCertificateInfo (signing.ts) يتسامح تلقائياً مع ترميز base64 مزدوج (حالة حقيقية
- * مُؤكَّدة فعلياً من شركة على الإنتاج — راجع scripts/check-zatca-certificate.ts وتقرير التشخيص
- * المرتبط)، فيُعيد canonicalBodyBase64 مطابقاً لما نجح تحليله فعلياً كـX.509 صالح، بصرف النظر عن
- * الشكل الأصلي كما وصل. لا نطبِّق أي فك ترميز أعمى هنا — الشكل القانوني مُستخرَج فقط من محاولة
- * تحليل فعلية ناجحة، لا تخمين.
+ * تخزينه، ويُعيد شكلَين منفصلَين يجب تخزينهما معاً (راجع NormalizedZatcaCertificate أعلاه) — لا
+ * قيمة واحدة كما كان سابقاً. getCertificateInfo (signing.ts) يتسامح تلقائياً مع ترميز base64 مزدوج
+ * (حالة حقيقية مُؤكَّدة فعلياً من شركة على الإنتاج — راجع scripts/check-zatca-certificate.ts وتقرير
+ * التشخيص المرتبط)، فيُعيد canonicalBodyBase64 مطابقاً لما نجح تحليله فعلياً كـX.509 صالح، بصرف
+ * النظر عن الشكل الأصلي كما وصل. لا نطبِّق أي فك ترميز أعمى هنا — الشكل القانوني مُستخرَج فقط من
+ * محاولة تحليل فعلية ناجحة، لا تخمين.
  *
  * نُسجِّل أيّ شكل اكتُشِف فعلياً (مفرد أو مزدوج) — لم نُثبِت بعد أيّهما "المعيار" الفعلي لدى زاتكا
  * (قد يختلف بين بيئات، أو يكون غير ثابت حتى لدى زاتكا نفسها)، فهذا السجلّ هو مصدر المعرفة
  * التراكمية حول ذلك مع كل شركة جديدة تُربَط، لا افتراضاً مسبقاً.
  */
-function normalizeZatcaCertificate(binarySecurityToken: string, csidLabel: string): string {
+function normalizeZatcaCertificate(binarySecurityToken: string, csidLabel: string): NormalizedZatcaCertificate {
   let info;
   try {
     info = getCertificateInfo(binarySecurityToken);
@@ -48,10 +60,11 @@ function normalizeZatcaCertificate(binarySecurityToken: string, csidLabel: strin
         `هذا لا يعني عادة خطأ في هذا الطلب نفسه بقدر ما يعني أن الصيغة المُستلَمة من زاتكا تحتاج مراجعة تقنية. راجع الدعم الفني قبل إعادة المحاولة.`,
     );
   }
-  const detectedForm = binarySecurityToken.trim() === info.canonicalBodyBase64 ? "مفرد (كما وصلت من زاتكا)" : "مزدوج (احتاجت فك ترميز base64 إضافي)";
+  const raw = binarySecurityToken.trim();
+  const detectedForm = raw === info.canonicalBodyBase64 ? "مفرد (كما وصلت من زاتكا)" : "مزدوج (احتاجت فك ترميز base64 إضافي)";
   // eslint-disable-next-line no-console
   console.info(`[normalizeZatcaCertificate] ${csidLabel}: شكل ترميز الشهادة المكتشَف من زاتكا = ${detectedForm}`);
-  return info.canonicalBodyBase64;
+  return { canonical: info.canonicalBodyBase64, raw };
 }
 
 /**
@@ -148,13 +161,14 @@ export async function requestCompanyComplianceCsid(tenantId: string, companyId: 
   if (!result.ok || !result.data) {
     throw badRequest(`رفضت زاتكا طلب شهادة الاختبار: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
   }
-  const canonicalCert = normalizeZatcaCertificate(result.data.binarySecurityToken, "شهادة الاختبار (Compliance)");
+  const cert = normalizeZatcaCertificate(result.data.binarySecurityToken, "شهادة الاختبار (Compliance)");
 
   await prisma.$transaction([
     prisma.companyZatcaCredential.update({
       where: { companyId },
       data: {
-        complianceCertEnc: encryptSecret(canonicalCert),
+        complianceCertEnc: encryptSecret(cert.canonical),
+        complianceCertRawEnc: encryptSecret(cert.raw),
         complianceSecretEnc: encryptSecret(result.data.secret),
         complianceRequestId: String(result.data.requestID),
         // البيئة الفعلية التي طُلبت منها هذه الشهادة تحديداً، لا بالضرورة ما ستصبح عليه
@@ -177,7 +191,13 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
   }
 
   const environment = company.zatcaEnvironment as ZatcaApiEnvironment;
-  const credentials = { certificateBodyBase64: decryptSecret(credential.complianceCertEnc), secret: decryptSecret(credential.complianceSecretEnc) };
+  // هذا الطلب نفسه Basic-auth بشهادة الاختبار (compliance) — يحتاج شكلها الخام للترويسة، لا القانوني
+  // (راجع rawCertificateBodyBase64 في apiClient.ts وresolveZatcaRawCertificate في credentials.ts).
+  const credentials = {
+    certificateBodyBase64: decryptSecret(credential.complianceCertEnc),
+    rawCertificateBodyBase64: resolveZatcaRawCertificate(credential.complianceCertRawEnc, credential.complianceCertEnc),
+    secret: decryptSecret(credential.complianceSecretEnc),
+  };
   const result = await requestProductionCsid(
     environment,
     credentials,
@@ -192,13 +212,14 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
   if (!result.ok || !result.data) {
     throw badRequest(`رفضت زاتكا طلب شهادة الإنتاج: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
   }
-  const canonicalCert = normalizeZatcaCertificate(result.data.binarySecurityToken, "شهادة الإنتاج (Production)");
+  const cert = normalizeZatcaCertificate(result.data.binarySecurityToken, "شهادة الإنتاج (Production)");
 
   await prisma.$transaction([
     prisma.companyZatcaCredential.update({
       where: { companyId },
       data: {
-        productionCertEnc: encryptSecret(canonicalCert),
+        productionCertEnc: encryptSecret(cert.canonical),
+        productionCertRawEnc: encryptSecret(cert.raw),
         productionSecretEnc: encryptSecret(result.data.secret),
         productionCsidEnvironment: environment,
       },

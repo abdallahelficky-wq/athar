@@ -9,7 +9,13 @@ import {
   requestProductionCsid,
 } from "./apiClient";
 
-const CREDENTIALS = { certificateBodyBase64: "ZmFrZS1jZXJ0LWJvZHk=", secret: "fake-secret" };
+// قيمتان مختلفتان عمداً — canonical (بعد أي تطبيع محلي، للتوقيع) وraw (كما وصلت من زاتكا حرفياً،
+// لترويسة Basic Auth) — لإثبات أن buildBasicAuthHeader تستخدم raw تحديداً لا canonical.
+const CREDENTIALS = {
+  certificateBodyBase64: "ZmFrZS1jZXJ0LWJvZHk=",
+  rawCertificateBodyBase64: "cmF3LWNlcnQtYm9keQ==",
+  secret: "fake-secret",
+};
 
 function mockFetchOnce(status: number, body: unknown, statusText = "") {
   const bodyText = body === undefined ? "" : JSON.stringify(body);
@@ -50,9 +56,11 @@ describe("apiClient request construction", () => {
     expect(url).toBe("https://gw-fatoora.zatca.gov.sa/e-invoicing/simulation/production/csids");
     expect(JSON.parse(init.body)).toEqual({ compliance_request_id: "compliance-req-123" });
     expect(init.headers.Authorization).toMatch(/^Basic /);
-    // Basic auth is base64(base64(cert):secret) -- doubly-encoded per ZATCA's documented scheme
+    // يجب استخدام الشكل الخام (rawCertificateBodyBase64) في الترويسة، لا الشكل القانوني — عطل إنتاج
+    // فعلي مؤكَّد: استخدام القانوني هنا يُنتِج ترويسة زاتكا لم تُصدرها هي بالذات، فترفضها بـ401 فارغ.
     const decoded = Buffer.from(init.headers.Authorization.replace("Basic ", ""), "base64").toString("utf8");
-    expect(decoded).toBe(`${CREDENTIALS.certificateBodyBase64}:${CREDENTIALS.secret}`);
+    expect(decoded).toBe(`${CREDENTIALS.rawCertificateBodyBase64}:${CREDENTIALS.secret}`);
+    expect(decoded).not.toBe(`${CREDENTIALS.certificateBodyBase64}:${CREDENTIALS.secret}`);
   });
 
   it("clearInvoice posts to /invoices/clearance/single with Clearance-Status: 1", async () => {
@@ -74,15 +82,15 @@ describe("apiClient request construction", () => {
     expect(init.headers["Clearance-Status"]).toBe("0");
   });
 
-  // عطل إنتاج فعلي مؤكَّد: /compliance/invoices يرفض 401 بجسم فارغ (Cloudflare)، بينما /compliance
-  // (نفس مسار إصدار الشهادة) قبِل طلباً آخر لنفس الشهادة في نفس الجلسة (رفضه فعلياً بـ"Invalid-OTP"
-  // مُصادَق من التطبيق، لا رفض حافة) — حسب توجيه دعم زاتكا: فحص امتثال الفاتورة يُميَّز عن إصدار
-  // الشهادة بنوع المصادقة (Basic هنا) لا بمسار مختلف.
-  it("checkInvoiceCompliance posts to /compliance (same path as CSID issuance), with Basic auth not an OTP header", async () => {
+  // تصحيح: كنا نظنّ /compliance (بلا /invoices) صحيحاً بناءً على أن "Invalid-OTP" هناك بدا كرفض
+  // تطبيقي حقيقي — دليل onboardingDiagnostics صحَّح هذا: إرسال فاتورة فعلية إلى /compliance أعاد
+  // "Missing-OTP"، أي أن /compliance تُعامِل أي طلب إليها كطلب إصدار CSID (تحتاج OTP) لأنها هي مسار
+  // الإصدار نفسه، لا مساراً مشتركاً. /compliance/invoices هو المسار الصحيح لفحص امتثال الفاتورة.
+  it("checkInvoiceCompliance posts to /compliance/invoices, with Basic auth not an OTP header", async () => {
     const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
     await checkInvoiceCompliance({ environment: "sandbox", credentials: CREDENTIALS, signedInvoiceBase64: "aW52b2ljZQ==", invoiceHash: "abc==", uuid: "u-1" });
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("https://gw-fatoora.zatca.gov.sa/e-invoicing/developer-portal/compliance");
+    expect(url).toBe("https://gw-fatoora.zatca.gov.sa/e-invoicing/developer-portal/compliance/invoices");
     expect(init.headers.Authorization).toMatch(/^Basic /);
     expect(init.headers.OTP).toBeUndefined();
   });

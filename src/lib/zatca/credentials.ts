@@ -19,6 +19,17 @@ export type LoadZatcaCredentialsResult =
   | { ok: false; reason: "environment_mismatch"; issuedFor: ZatcaApiEnvironment };
 
 /**
+ * يفكّ تشفير الشكل الخام (raw) لشهادة CSID المخزَّن في العمود المنفصل rawEnc — يُستخدَم لترويسة
+ * Basic Auth تحديداً (راجع rawCertificateBodyBase64 في apiClient.ts). صفوف قديمة سبقت إضافة هذا
+ * العمود (rawEnc فارغ): يُستخدَم الشكل القانوني canonicalEnc بدلاً منه احتياطياً — هذا بالضبط
+ * السلوك المعطوب الذي كان قائماً قبل هذا الفصل، فلا يُحسِّن ولا يُسوِّئ حال هذه الصفوف القديمة إلى
+ * أن تُعاد معالجتها (إعادة إصدار CSID تكتب rawEnc من جديد تلقائياً — راجع companiesZatca.service.ts).
+ */
+export function resolveZatcaRawCertificate(rawEnc: string | null, canonicalEnc: string): string {
+  return decryptSecret(rawEnc ?? canonicalEnc);
+}
+
+/**
  * يفكّ تشفير شهادة/سر API الفعليَين لشركة معيّنة، بحسب بيئتها الحالية (production يستخدم شهادة
  * الإنتاج، أي بيئة أخرى تستخدم شهادة الاختبار/Compliance) — بعد التحقق أولاً أن الشهادة المخزَّنة
  * صودرت فعلاً لهذه البيئة بالذات (راجع complianceCsidEnvironment/productionCsidEnvironment في
@@ -38,6 +49,7 @@ export async function loadCompanyZatcaCredentials(
 
   const isProduction = environment === "production";
   const certEnc = isProduction ? record.productionCertEnc : record.complianceCertEnc;
+  const rawCertEnc = isProduction ? record.productionCertRawEnc : record.complianceCertRawEnc;
   const secretEnc = isProduction ? record.productionSecretEnc : record.complianceSecretEnc;
   if (!certEnc || !secretEnc) return { ok: false, reason: "not_configured" };
 
@@ -50,6 +62,7 @@ export async function loadCompanyZatcaCredentials(
     ok: true,
     credentials: {
       certificateBodyBase64: decryptSecret(certEnc),
+      rawCertificateBodyBase64: resolveZatcaRawCertificate(rawCertEnc, certEnc),
       secret: decryptSecret(secretEnc),
       privateKeyPem: decryptSecret(record.privateKeyEnc),
     },

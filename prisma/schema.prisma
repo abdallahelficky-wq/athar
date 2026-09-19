@@ -504,7 +504,15 @@ model CompanyZatcaCredential {
   company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   privateKeyEnc       String? // مفتاح secp256k1 الخاص (PEM)، مُشفَّر
   csrPem              String? // آخر CSR تم توليده — نص عادي (لا يحتوي سراً، PKCS#10 عام)
-  complianceCertEnc   String? // شهادة الاختبار (Compliance CSID)، مُشفَّرة
+  complianceCertEnc   String? // شهادة الاختبار (Compliance CSID) — الشكل القانوني (canonical) الناجح تحليله كـX.509،
+  // يُستخدَم فقط لتوقيع المستندات (signDocument) — راجع complianceCertRawEnc للشكل المُستخدَم في المصادقة.
+  // الشكل الخام تماماً كما أعادته زاتكا في binarySecurityToken (بلا أي فك ترميز إضافي)، يُستخدَم *فقط*
+  // لترويسة Basic Auth (buildBasicAuthHeader) — عطل إنتاج فعلي مؤكَّد: تطبيع الشهادة (فك ترميز base64
+  // إضافي لإصلاح التوقيع) غيَّر أيضاً قيمة هذه الترويسة عن الشكل الذي أصدرته زاتكا بالضبط، فرفضتها
+  // بوابتها بـ401 فارغ الجسم — الشكلان يخدمان غرضين مختلفين تماماً ولا يجوز دمجهما في حقل واحد.
+  // صفوف قديمة سبقت إضافة هذا الحقل: null — راجع credentials.ts للاحتياطي (يُستخدَم complianceCertEnc
+  // بدلاً منه، وهو بالضبط السلوك المعطوب سابقاً، إلى أن تُعاد معالجتها).
+  complianceCertRawEnc String?
   complianceSecretEnc String? // سر API المرافق لشهادة الاختبار، مُشفَّر
   complianceRequestId String? // request_id المُستخدَم لاحقاً لاستبداله بشهادة الإنتاج
   // بيئة زاتكا (sandbox/simulation/production) التي كانت مضبوطة على الشركة *وقت إصدار* شهادة
@@ -514,7 +522,9 @@ model CompanyZatcaCredential {
   // بـOTP حقيقي من بوابة فاتورة بينما بيئة الشركة كانت مضبوطة على sandbox (بوابة مطورين عامة
   // ببيانات وهمية منفصلة تماماً لا تعرف هذه الشهادة إطلاقاً) — 401 مضمون بلا أي علاقة بصحة التوقيع.
   complianceCsidEnvironment ZatcaEnvironment?
-  productionCertEnc   String? // شهادة الإنتاج (Production CSID)، مُشفَّرة
+  productionCertEnc   String? // شهادة الإنتاج (Production CSID) — الشكل القانوني، للتوقيع فقط. راجع
+  // complianceCertRawEnc أعلاه لشرح الفرق؛ نفس المنطق هنا بالضبط لشهادة الإنتاج.
+  productionCertRawEnc String?
   productionSecretEnc String? // سر API المرافق لشهادة الإنتاج، مُشفَّر
   // نفس فكرة complianceCsidEnvironment أعلاه، لشهادة الإنتاج.
   productionCsidEnvironment ZatcaEnvironment?

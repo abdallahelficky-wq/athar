@@ -28,15 +28,25 @@ function baseUrl(environment: ZatcaApiEnvironment): string {
 }
 
 export interface ZatcaApiCredentials {
-  /** جسم شهادة CSID بترميز base64 (بلا رأس/تذييل PEM) */
+  /** الشكل القانوني (canonical) لجسم شهادة CSID بترميز base64 (بلا رأس/تذييل PEM) — ما نجح تحليله
+   * فعلياً كـX.509 صالح (getCertificateInfo)، يُستخدَم *فقط* للتوقيع (signDocument) — راجع
+   * rawCertificateBodyBase64 أدناه لما يُستخدَم في ترويسة المصادقة، وهو مختلف عمداً. */
   certificateBodyBase64: string;
+  /** الشكل الخام تماماً كما أعادته زاتكا في binarySecurityToken، بلا أي فك ترميز إضافي — هذا
+   * تحديداً ما يجب أن تحمله ترويسة Basic Auth (buildBasicAuthHeader أدناه)، لأن زاتكا تتحقق من
+   * الترويسة مقابل القيمة التي أصدرتها هي بالذات، لا أي شكل أُعيد اشتقاقه محلياً. عطل إنتاج فعلي
+   * مؤكَّد: استخدام الشكل القانوني هنا بدل الخام (بعد تطبيع شهادة كانت مُرمَّزة base64 مرتين لإصلاح
+   * التوقيع) غيَّر قيمة هذه الترويسة عن الشكل الذي أصدرته زاتكا بالضبط، فرفضتها بوابتها بـ401 فارغ
+   * الجسم بلا أي علاقة بصحة التوقيع أو صحة الشهادة نفسها. */
+  rawCertificateBodyBase64: string;
   /** سر API المرافق للشهادة (Compliance أو Production) */
   secret: string;
 }
 
-/** Authorization: Basic base64(base64(الشهادة):السر) — ترميز مزدوج متعمَّد وفق توثيق زاتكا */
+/** Authorization: Basic base64(الشهادة الخامة:السر) — عمداً rawCertificateBodyBase64 لا
+ * certificateBodyBase64: راجع تعليق ZatcaApiCredentials أعلاه لسبب هذا الفصل. */
 function buildBasicAuthHeader(credentials: ZatcaApiCredentials): string {
-  const inner = `${credentials.certificateBodyBase64}:${credentials.secret}`;
+  const inner = `${credentials.rawCertificateBodyBase64}:${credentials.secret}`;
   return `Basic ${Buffer.from(inner, "utf8").toString("base64")}`;
 }
 
@@ -160,9 +170,21 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
       rawData !== null
         ? JSON.stringify(redactSensitiveOnboardingDiagnosticsFields(rawData))
         : "(تعذّر تحليل الجسم كـJSON — لا يُسجَّل نصاً خاماً تفادياً لاحتمال احتوائه على شهادة/سرّ في حقل لم نتعرّف على اسمه)";
+    // أيّ شكل شهادة اعتُمِد فعلياً في ترويسة Basic Auth لهذا الطلب — طول كل شكل فقط ومقارنة
+    // منطقية (تساوٍ من عدمه)، لا القيمة نفسها إطلاقاً — يُجيب مباشرة من السجلّ وحده هل شهادة هذه
+    // الشركة كانت "مفردة" (raw === canonical، لا مشكلة) أو "مزدوجة" الترميز (raw !== canonical،
+    // وهذا بالضبط ما قد يفسِّر 401 فارغاً سابقاً على /compliance/invoices لو استُخدِم الشكل الخطأ).
+    const authCertForm = params.credentials
+      ? {
+          rawLength: params.credentials.rawCertificateBodyBase64.length,
+          canonicalLength: params.credentials.certificateBodyBase64.length,
+          rawEqualsCanonical: params.credentials.rawCertificateBodyBase64 === params.credentials.certificateBodyBase64,
+        }
+      : "(بلا بيانات اعتماد على هذا الطلب — راجع otp أعلاه)";
     // eslint-disable-next-line no-console
     console.log(
-      `[zatca-onboarding-diagnostics] المسار=${params.path} status=${response.status} السياق=${JSON.stringify(params.onboardingDiagnostics)} — ` +
+      `[zatca-onboarding-diagnostics] المسار=${params.path} status=${response.status} السياق=${JSON.stringify(params.onboardingDiagnostics)} ` +
+        `شكل_شهادة_المصادقة=${JSON.stringify(authCertForm)} — ` +
         `الجسم بعد إخفاء الحقول الحسّاسة المعروفة (binarySecurityToken/secret/clearedInvoice/certificate/privateKey): ${redactedBody.slice(0, 10000)}`,
     );
   }
@@ -279,16 +301,21 @@ interface SubmitInvoiceParams {
   onboardingDiagnostics?: Record<string, unknown>;
 }
 
-// عطل إنتاج فعلي مؤكَّد: /compliance/invoices يرفض 401 بجسم فارغ تماماً من Cloudflare (بلا رسالة
-// خطأ من زاتكا نفسها إطلاقاً) — نفس التوقيع بالضبط الذي رأيناه مع بيئة sandbox الخاطئة، لا رسالة
-// "Invalid-OTP" مُصادَق عليها من التطبيق كما ظهرت فعلياً على /compliance لنفس الشهادة في نفس
-// الجلسة. حسب توجيه دعم زاتكا (مطابق لتقرير مجتمعي مستقل): مسار فحص امتثال الفاتورة هو /compliance
-// نفسه المُستخدَم لإصدار الشهادة — يُميَّز بنوع المصادقة (Basic هنا بدل ترويسة OTP) لا بمسار مختلف.
-/** فحص امتثال فاتورة تجريبية (مطلوب أثناء الحصول على شهادة الاختبار، قبل شهادة الإنتاج) */
+// تصحيح لمحاولة سابقة: كنا نظنّ /compliance (بلا /invoices) هو المسار الصحيح لفحص امتثال الفاتورة،
+// بناءً على أن استجابة "Invalid-OTP" على /compliance بدت كرفض تطبيقي حقيقي (بخلاف 401 الفارغ من
+// Cloudflare على /compliance/invoices). دليل السجلّ التشخيصي (onboardingDiagnostics) صحَّح هذا:
+// إرسال فاتورة فعلية إلى /compliance أعاد "Missing-OTP" — أي أن /compliance تُفسِّر أي طلب إليها،
+// حتى بجسم فاتورة، كطلب إصدار شهادة اختبار (CSID) يحتاج OTP، لأنها *هي* مسار إصدار CSID نفسه، لا
+// مسار مشترك يُميَّز بنوع المصادقة كما ظُنَّ. فـ/compliance/invoices كان المسار الصحيح للفحص طوال
+// الوقت، والـ401 الفارغ عليه سببه المرجَّح شكل شهادة مختلف في ترويسة Basic Auth (راجع
+// rawCertificateBodyBase64 في ZatcaApiCredentials أعلاه) لا خطأ في المسار — لم يُتحقَّق من هذا بعد
+// بشكل قاطع، ينتظر تأكيداً من المحاولة التالية عبر onboardingDiagnostics.
+/** فحص امتثال فاتورة تجريبية (مطلوب أثناء الحصول على شهادة الاختبار، قبل شهادة الإنتاج) — Basic auth
+ * بشهادة الاختبار (compliance CSID)، لا ترويسة OTP (تلك فقط لإصدار الشهادة نفسها عبر /compliance). */
 export function checkInvoiceCompliance(params: SubmitInvoiceParams) {
   return zatcaRequest({
     environment: params.environment,
-    path: "/compliance",
+    path: "/compliance/invoices",
     body: { invoiceHash: params.invoiceHash, uuid: params.uuid, invoice: params.signedInvoiceBase64 },
     credentials: params.credentials,
     schema: zatcaSubmissionResponseSchema,
@@ -338,7 +365,7 @@ export function hasRecognizableRejectionBody(data: unknown): boolean {
 
 /** true فقط لو حمل جسم الاستجابة أخطاء فعلية (لا تحذيرات فقط) ضمن validationResults.errorMessages —
  * أدق من hasRecognizableRejectionBody أعلاه (التي تُحسَب فيها التحذيرات أيضاً كـ"بنية رفض معروفة").
- * تُستخدَم تحديداً للتحقّق من فحص الامتثال (checkInvoiceCompliance، مسار /compliance): زاتكا قد تُعيد HTTP 200 حتى لو
+ * تُستخدَم تحديداً للتحقّق من فحص الامتثال (checkInvoiceCompliance، مسار /compliance/invoices): زاتكا قد تُعيد HTTP 200 حتى لو
  * فشل الفحص فعلياً (خلافاً لنقطتَي التخليص/الإبلاغ الحقيقيتين حيث يعني الرفض كوداً غير 2xx) — لا
  * نعرف ذلك بيقين تام (لم يُتحقَّق منه مباشرة ضد استجابة حقيقية)، فهذا فحص إضافي دفاعي على محتوى
  * الجسم نفسه، بصرف النظر عن كود HTTP، ليعمل بشكل صحيح أياً كان سلوك زاتكا الفعلي. */
