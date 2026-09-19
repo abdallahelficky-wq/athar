@@ -25,7 +25,7 @@ SN = SET_EGS_SERIAL_NUMBER
 # VAT Registration number of TaxPayer (Organization identifier [15 digits begins with 3 and ends with 3])
 UID = SET_VAT_REGISTRATION_NUMBER
 # Invoice type (TSCZ)(1 = supported, 0 not supported) (Tax, Simplified, future use, future use)
-title = 0100
+title = SET_INVOICE_TYPE_TITLE
 # Location (branch address or website)
 registeredAddress = SET_BRANCH_LOCATION
 # Industry (industry sector name)
@@ -48,6 +48,17 @@ organizationName = SET_TAXPAYER_NAME
 countryName = SA
 `;
 
+/** يطابق ZatcaCsrInvoiceType في schema.prisma حرفياً — راجع تعليقها هناك لشرح الأثر القانوني الكامل. */
+export type ZatcaCsrInvoiceType = "standard" | "simplified" | "both";
+
+/** قيمة حقل title الأربعة الخانات (TSCZ) لكل خيار — عطل حقيقي مؤكَّد: كان هذا القالب يفرض "0100"
+ * (مبسّط فقط) دائماً بصرف النظر عن احتياج الشركة الفعلي، قبل أن يصبح هذا معاملاً حقيقياً. */
+export const ZATCA_CSR_INVOICE_TYPE_TITLE: Record<ZatcaCsrInvoiceType, string> = {
+  standard: "1000",
+  simplified: "0100",
+  both: "1100",
+};
+
 export interface CsrConfigProps {
   /** false = شهادة اختبار (Compliance/Sandbox)، true = شهادة إنتاج فعلية */
   production: boolean;
@@ -60,6 +71,10 @@ export interface CsrConfigProps {
   branchName: string;
   taxpayerName: string;
   taxpayerProvidedId: string;
+  /** يحدّد ما تُخوَّل الشهادة الناتجة توقيعه فعلياً، وعدد/نوع مستندات الامتثال الستة التي تتطلبها
+   * زاتكا قبل شهادة الإنتاج — راجع ZATCA_CSR_INVOICE_TYPE_TITLE أعلاه وZatcaCsrInvoiceType في
+   * schema.prisma. */
+  invoiceType: ZatcaCsrInvoiceType;
 }
 
 export default function populate(props: CsrConfigProps): string {
@@ -67,6 +82,7 @@ export default function populate(props: CsrConfigProps): string {
     .replace("SET_PRODUCTION_VALUE", props.production ? "ZATCA-Code-Signing" : "TSTZATCA-Code-Signing")
     .replace("SET_EGS_SERIAL_NUMBER", `1-${props.solutionName}|2-${props.egsModel}|3-${props.egsSerialNumber}`)
     .replace("SET_VAT_REGISTRATION_NUMBER", props.vatNumber)
+    .replace("SET_INVOICE_TYPE_TITLE", ZATCA_CSR_INVOICE_TYPE_TITLE[props.invoiceType])
     .replace("SET_BRANCH_LOCATION", props.branchLocation)
     .replace("SET_BRANCH_INDUSTRY", props.branchIndustry)
     .replace("SET_COMMON_NAME", props.taxpayerProvidedId)

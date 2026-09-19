@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { encryptSecret, decryptSecret } from "../../lib/zatca/secretBox";
-import { generateCsr, verifyCsrLocally } from "../../lib/zatca/csr";
+import { generateCsr, verifyCsrLocally, ZatcaCsrInvoiceType } from "../../lib/zatca/csr";
 import { requestComplianceCsid, requestProductionCsid, ZatcaApiEnvironment } from "../../lib/zatca/apiClient";
 import { getCertificateInfo } from "../../lib/zatca/signing";
 import { resolveZatcaRawCertificate } from "../../lib/zatca/credentials";
@@ -84,6 +84,8 @@ export async function getZatcaStatus(tenantId: string, companyId: string) {
     nextIcv: company.zatcaNextIcv,
     hasHashChain: Boolean(company.zatcaLastInvoiceHash),
     hasCsr: Boolean(credential?.csrPem),
+    // نوع الفاتورة المُعلَن في CSR الحالي — null لصفّ لم يُولَّد له CSR بعد إضافة هذا الحقل بعد.
+    csrInvoiceType: credential?.csrInvoiceType ?? null,
     hasComplianceCertificate: Boolean(credential?.complianceCertEnc),
     hasProductionCertificate: Boolean(credential?.productionCertEnc),
   };
@@ -93,6 +95,10 @@ export interface GenerateCsrInput {
   production: boolean;
   solutionName?: string;
   model?: string;
+  /** يحدّد ما تُخوَّل الشهادة الناتجة توقيعه، وعدد مستندات الامتثال الستة/الثلاثة التي تتطلبها زاتكا
+   * لاحقاً — راجع ZatcaCsrInvoiceType في schema.prisma. الافتراضي "both" (الأكثر أماناً: يخوِّل كل
+   * أنواع الفواتير، لا أضيق احتياج ممكن). */
+  invoiceType?: ZatcaCsrInvoiceType;
 }
 
 /** يولّد مفتاح secp256k1 خاص جديد + CSR، ويُخزِّن المفتاح مشفَّراً — يستبدل أي CSR/مفتاح سابق لم يُستخدَم بعد. */
@@ -108,6 +114,7 @@ export async function generateCompanyCsr(tenantId: string, companyId: string, in
 
   const branchLocation = [company.addressBuilding, company.addressStreet, company.addressCity].filter(Boolean).join(" ") || company.name;
   const branchIndustry = (company.businessActivity && BUSINESS_ACTIVITY_INDUSTRY_LABEL[company.businessActivity]) || "تجارة عامة";
+  const invoiceType = input.invoiceType || "both";
 
   const { privateKeyPem, csrPem } = await generateCsr({
     production: input.production,
@@ -120,6 +127,7 @@ export async function generateCompanyCsr(tenantId: string, companyId: string, in
     branchName: company.shortName || company.name,
     taxpayerName: company.name,
     taxpayerProvidedId: company.crNumber,
+    invoiceType,
   });
 
   const csrValid = await verifyCsrLocally(csrPem);
@@ -129,15 +137,20 @@ export async function generateCompanyCsr(tenantId: string, companyId: string, in
     prisma.company.update({ where: { id: companyId }, data: { zatcaSolutionName: solutionName, zatcaModel: model, zatcaEgsUuid: egsUuid } }),
     prisma.companyZatcaCredential.upsert({
       where: { companyId },
-      create: { companyId, privateKeyEnc: encryptSecret(privateKeyPem), csrPem },
+      create: { companyId, privateKeyEnc: encryptSecret(privateKeyPem), csrPem, csrInvoiceType: invoiceType },
       update: {
         privateKeyEnc: encryptSecret(privateKeyPem),
         csrPem,
+        csrInvoiceType: invoiceType,
         complianceCertEnc: null,
+        // كانت هذه الحقول (rawEnc) مفقودة من إعادة الضبط عند تجديد CSR منذ إضافتها — شهادة raw
+        // قديمة تخصّ شهادة canonical سبق مسحها أعلاه يجب ألا تبقى، وإلا استُخدِمت خطأً لاحقاً.
+        complianceCertRawEnc: null,
         complianceSecretEnc: null,
         complianceRequestId: null,
         complianceCsidEnvironment: null,
         productionCertEnc: null,
+        productionCertRawEnc: null,
         productionSecretEnc: null,
         productionCsidEnvironment: null,
       },

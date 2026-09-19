@@ -24,6 +24,12 @@ export type LoadZatcaCredentialsResult =
  * العمود (rawEnc فارغ): يُستخدَم الشكل القانوني canonicalEnc بدلاً منه احتياطياً — هذا بالضبط
  * السلوك المعطوب الذي كان قائماً قبل هذا الفصل، فلا يُحسِّن ولا يُسوِّئ حال هذه الصفوف القديمة إلى
  * أن تُعاد معالجتها (إعادة إصدار CSID تكتب rawEnc من جديد تلقائياً — راجع companiesZatca.service.ts).
+ *
+ * تحذير متعمَّد: لا يوجد، ولن يُضاف، أي مسار لإعادة اشتقاق rawEnc الأصلي من canonicalEnc عبر إعادة
+ * الترميز (base64 encode) لصفّ سبق تطبيعه — البايتات الوسيطة التي أُسقِطت وقت التطبيع غير معروفة
+ * (قد تضمّنت رؤوس PEM/فراغات لا تُستعاد)، فأي "إعادة اشتقاق" هي تخمين لا إعادة بناء فعلية، قد ينجح
+ * صدفة أو يفشل صامتاً لاحقاً في الإنتاج. التعافي الصحيح لصفّ متأثر: إعادة استخراج CSID من الصفر
+ * (تُعيد كتابة rawEnc تلقائياً بالشكل الصحيح)، لا تخمين قيمته.
  */
 export function resolveZatcaRawCertificate(rawEnc: string | null, canonicalEnc: string): string {
   return decryptSecret(rawEnc ?? canonicalEnc);

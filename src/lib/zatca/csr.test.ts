@@ -27,6 +27,7 @@ const SAMPLE_PROPS = {
   branchName: "الفرع الرئيسي",
   taxpayerName: "شركة أثر التجريبية",
   taxpayerProvidedId: "athar-test-001",
+  invoiceType: "both" as const,
 };
 
 describe("generateCsr", () => {
@@ -82,5 +83,24 @@ describe("generateCsr", () => {
 
   it("rejects a garbage CSR as invalid", async () => {
     expect(await verifyCsrLocally("not a real csr")).toBe(false);
+  });
+
+  // عطل حقيقي مؤكَّد سابقاً: title كان مفروضاً "0100" (مبسّط فقط) دائماً بصرف النظر عن invoiceType —
+  // شركة تُصدر فواتير قياسية B2B فعلياً كانت تحصل على شهادة لا تُخوِّل ذلك إطلاقاً.
+  it.each([
+    ["standard" as const, "1000"],
+    ["simplified" as const, "0100"],
+    ["both" as const, "1100"],
+  ])("embeds title=%s for invoiceType=%s in the CSR", async (invoiceType, expectedTitle) => {
+    const { csrPem } = await generateCsr({ ...SAMPLE_PROPS, invoiceType });
+    const dir = await mkdtemp(path.join(tmpdir(), "zatca-csr-test-"));
+    try {
+      const csrFile = path.join(dir, "req.pem");
+      await writeFile(csrFile, csrPem);
+      const text = await run("openssl", ["req", "-in", csrFile, "-noout", "-text"]);
+      expect(text).toContain(expectedTitle);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
