@@ -32,7 +32,7 @@ beforeAll(async () => {
   const privateKeyPem = await readFile(keyFile, "utf8");
   const certificatePem = await readFile(certFile, "utf8");
   const certificateBodyBase64 = certificatePem.replace("-----BEGIN CERTIFICATE-----", "").replace("-----END CERTIFICATE-----", "").replace(/\r?\n/g, "");
-  credentials = { certificateBodyBase64, secret: "fake-api-secret", privateKeyPem };
+  credentials = { certificateBodyBase64, rawCertificateBodyBase64: certificateBodyBase64, secret: "fake-api-secret", privateKeyPem };
 });
 
 afterAll(async () => {
@@ -246,8 +246,7 @@ describe("signAndSubmitDocument", () => {
       qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
     });
 
-    expect(fetchMock.mock.calls[0][0]).toContain("/compliance");
-    expect(fetchMock.mock.calls[0][0]).not.toContain("/compliance/invoices");
+    expect(fetchMock.mock.calls[0][0]).toContain("/compliance/invoices");
     expect(outcome.accepted).toBe(true);
   });
 

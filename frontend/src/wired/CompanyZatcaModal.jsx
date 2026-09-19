@@ -27,6 +27,11 @@ export default function CompanyZatcaModal({ company, onClose }) {
     { value: "simulation", label: t("settings.zatca.envSimulation") },
     { value: "production", label: t("settings.zatca.envProduction") },
   ];
+  const INVOICE_TYPE_OPTIONS = [
+    { value: "both", label: t("settings.zatca.invoiceTypeBoth") },
+    { value: "standard", label: t("settings.zatca.invoiceTypeStandard") },
+    { value: "simplified", label: t("settings.zatca.invoiceTypeSimplified") },
+  ];
 
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,6 +40,7 @@ export default function CompanyZatcaModal({ company, onClose }) {
 
   const [csrPem, setCsrPem] = useState("");
   const [production, setProduction] = useState(false);
+  const [invoiceType, setInvoiceType] = useState("both");
   const [otp, setOtp] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -70,7 +76,7 @@ export default function CompanyZatcaModal({ company, onClose }) {
 
   const handleGenerateCsr = () =>
     runAction(async () => {
-      const result = await generateCompanyZatcaCsr(company.id, { production });
+      const result = await generateCompanyZatcaCsr(company.id, { production, invoiceType });
       setCsrPem(result.csrPem);
       return result;
     }, t("settings.zatca.csrSuccess"));
@@ -133,6 +139,22 @@ export default function CompanyZatcaModal({ company, onClose }) {
 
             <h4 className="sub-head">{t("settings.zatca.csrStepTitle")}</h4>
             <p className="note">{t("settings.zatca.csrStepNote")}</p>
+            <label style={{ display: "block", marginBottom: 8 }}>
+              {t("settings.zatca.invoiceTypeLabel")}
+              <select value={invoiceType} disabled={busy} onChange={(e) => setInvoiceType(e.target.value)} style={{ display: "block", marginTop: 4 }}>
+                {INVOICE_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <span className="note" style={{ display: "block", marginTop: 4 }}>{t("settings.zatca.invoiceTypeNote")}</span>
+            </label>
+            {status.csrInvoiceType && (
+              <p className="note">
+                {t("settings.zatca.currentInvoiceTypeLabel", {
+                  type: INVOICE_TYPE_OPTIONS.find((o) => o.value === status.csrInvoiceType)?.label || status.csrInvoiceType,
+                })}
+              </p>
+            )}
             <div className="form-btn-group" style={{ justifyContent: "flex-start" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <input type="checkbox" checked={production} onChange={(e) => setProduction(e.target.checked)} />

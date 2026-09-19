@@ -17,10 +17,12 @@ import { ResolvedZatcaCredentials } from "./credentials";
 
 export type ZatcaSubmissionKind = "clearance" | "reporting" | "compliance";
 
-/** شركة لا تزال على شهادة اختبار (Compliance CSID) يجب أن تُرسِل عبر مسار الامتثال (/compliance، نفس
- * مسار إصدار الشهادة، مُميَّزاً بمصادقة Basic بدل ترويسة OTP) فقط — استخدام clearance/reporting
- * بشهادة اختبار يفشل بـ401 (تأكَّد فعلياً في الإنتاج: شهادة اختبار سليمة الشكل + رفض 401 من مسار
- * التخليص = الشهادة غير مخوَّلة لهذا المسار تحديداً، لا عطل توقيع). */
+/** شركة لا تزال على شهادة اختبار (Compliance CSID) يجب أن تُرسِل عبر مسار الامتثال (/compliance/invoices،
+ * مُصادَق بـBasic (شهادة الاختبار:سرّها) لا ترويسة OTP — تلك فقط لإصدار الشهادة نفسها عبر /compliance
+ * المنفصل تماماً؛ خطأ Missing-OTP الفعلي عند تجربة /compliance لفاتورة أثبت أن /compliance هو مسار
+ * إصدار CSID حصراً) فقط — استخدام clearance/reporting بشهادة اختبار يفشل بـ401 (تأكَّد فعلياً في
+ * الإنتاج: شهادة اختبار سليمة الشكل + رفض 401 من مسار التخليص = الشهادة غير مخوَّلة لهذا المسار
+ * تحديداً، لا عطل توقيع). */
 export function resolveZatcaSubmissionKind(
   onboardingStatus: string,
   subtype: "standard" | "simplified",

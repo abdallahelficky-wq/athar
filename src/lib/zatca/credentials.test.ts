@@ -46,7 +46,37 @@ describe("loadCompanyZatcaCredentials", () => {
       productionCsidEnvironment: null,
     } as never);
     const result = await loadCompanyZatcaCredentials("company-1", "sandbox");
-    expect(result).toEqual({ ok: true, credentials: { certificateBodyBase64: "cert", secret: "secret", privateKeyPem: "key" } });
+    // لا عمود rawEnc على هذا الصفّ (سبق إضافته) — الاحتياطي يستخدم الشكل القانوني كما هو، نفس
+    // السلوك المعطوب سابقاً على شهادات "مزدوجة الترميز"، إلى أن تُعاد معالجتها.
+    expect(result).toEqual({
+      ok: true,
+      credentials: { certificateBodyBase64: "cert", rawCertificateBodyBase64: "cert", secret: "secret", privateKeyPem: "key" },
+    });
+  });
+
+  // العمود الجديد (rawEnc) موجود ومختلف عن الشكل القانوني — يجب أن يُستخدَم هو تحديداً، لا الاحتياطي.
+  it("prefers the raw certificate column over the canonical one when both are present and differ", async () => {
+    vi.mocked(prisma.companyZatcaCredential.findUnique).mockResolvedValue({
+      privateKeyEnc: "key",
+      complianceCertEnc: "canonical-cert",
+      complianceCertRawEnc: "raw-cert-as-zatca-issued-it",
+      complianceSecretEnc: "secret",
+      complianceCsidEnvironment: null,
+      productionCertEnc: null,
+      productionCertRawEnc: null,
+      productionSecretEnc: null,
+      productionCsidEnvironment: null,
+    } as never);
+    const result = await loadCompanyZatcaCredentials("company-1", "sandbox");
+    expect(result).toEqual({
+      ok: true,
+      credentials: {
+        certificateBodyBase64: "canonical-cert",
+        rawCertificateBodyBase64: "raw-cert-as-zatca-issued-it",
+        secret: "secret",
+        privateKeyPem: "key",
+      },
+    });
   });
 
   it("succeeds when the recorded issuance environment matches the requested one", async () => {
@@ -90,7 +120,10 @@ describe("loadCompanyZatcaCredentials", () => {
       productionCsidEnvironment: "production",
     } as never);
     const result = await loadCompanyZatcaCredentials("company-1", "production");
-    expect(result).toEqual({ ok: true, credentials: { certificateBodyBase64: "prod-cert", secret: "prod-secret", privateKeyPem: "key" } });
+    expect(result).toEqual({
+      ok: true,
+      credentials: { certificateBodyBase64: "prod-cert", rawCertificateBodyBase64: "prod-cert", secret: "prod-secret", privateKeyPem: "key" },
+    });
   });
 });
 
