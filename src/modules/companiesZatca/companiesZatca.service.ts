@@ -5,6 +5,7 @@ import { encryptSecret, decryptSecret } from "../../lib/zatca/secretBox";
 import { generateCsr, verifyCsrLocally } from "../../lib/zatca/csr";
 import { requestComplianceCsid, requestProductionCsid, ZatcaApiEnvironment } from "../../lib/zatca/apiClient";
 import { getCertificateInfo } from "../../lib/zatca/signing";
+import { env } from "../../config/env";
 
 const BUSINESS_ACTIVITY_INDUSTRY_LABEL: Record<string, string> = {
   contracting: "مقاولات",
@@ -177,7 +178,14 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
 
   const environment = company.zatcaEnvironment as ZatcaApiEnvironment;
   const credentials = { certificateBodyBase64: decryptSecret(credential.complianceCertEnc), secret: decryptSecret(credential.complianceSecretEnc) };
-  const result = await requestProductionCsid(environment, credentials, credential.complianceRequestId);
+  const result = await requestProductionCsid(
+    environment,
+    credentials,
+    credential.complianceRequestId,
+    // سقالة تشخيصية مؤقتة (راجع apiClient.ts) — فقط عند تفعيل العلَم، أثناء المشي اليدوي الحالي عبر
+    // ربط زاتكا. تُزال لاحقاً.
+    env.zatcaOnboardingDiagnostics ? { companyId, complianceRequestId: credential.complianceRequestId } : undefined,
+  );
   if (result.malformedResponse) {
     throw badRequest("رد غير متوقع من زاتكا — شكل الاستجابة لا يطابق شهادة إنتاج صالحة، لم تُخزَّن أي بيانات. تحقق من إصدار/مسار API ثم أعد المحاولة، أو راجع الدعم الفني.");
   }

@@ -37,6 +37,10 @@ export interface SubmitDocumentParams {
   credentials: ResolvedZatcaCredentials;
   kind: ZatcaSubmissionKind;
   qrBaseParams: ZatcaQrUnsignedParams;
+  /** سقالة تشخيصية مؤقتة (راجع env.zatcaOnboardingDiagnostics في apiClient.ts) — يمرّرها المستدعي
+   * (postingGate.ts/resubmit.ts، حيث تتوفر ICV/PIH الفعلية لهذا المستند) بلا تعديل حتى تُسجَّل
+   * كاملة مع الجسم الخام قبل أي تصفية. تُزال بعد انتهاء المشي اليدوي الحالي عبر ربط زاتكا. */
+  onboardingDiagnostics?: Record<string, unknown>;
 }
 
 export interface ZatcaSubmissionAccepted {
@@ -118,6 +122,7 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
     signedInvoiceBase64,
     invoiceHash,
     uuid: params.uuid,
+    onboardingDiagnostics: params.onboardingDiagnostics,
   });
 
   if (result.ok) {

@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
+import { env } from "../../config/env";
 import { buildQrBaseParams, reserveZatcaChain, ZatcaCompanyLike, ZatcaCustomerLike, ZatcaPersistedLineLike } from "./chain";
 import { loadCompanyZatcaCredentials, zatcaEnvironmentMismatchMessage } from "./credentials";
 import { resolveZatcaSubmissionKind, signAndSubmitDocument } from "./submission";
@@ -143,13 +144,26 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
   }
   const credentials = loaded.credentials;
 
+  const submissionKind = resolveZatcaSubmissionKind(params.company.zatcaOnboardingStatus, chain.subtype);
   const outcome = await signAndSubmitDocument({
     xml: chain.xml,
     uuid: params.documentUuid,
     environment,
     credentials,
-    kind: resolveZatcaSubmissionKind(params.company.zatcaOnboardingStatus, chain.subtype),
+    kind: submissionKind,
     qrBaseParams: buildQrBaseParams(params.company, chain.issuedAt, params.grandTotal, params.vatTotal),
+    // سقالة تشخيصية مؤقتة (راجع apiClient.ts) — فقط لمسار الامتثال، وفقط عند تفعيل العلَم، أثناء
+    // المشي اليدوي الحالي عبر ربط زاتكا. تُزال لاحقاً.
+    onboardingDiagnostics:
+      env.zatcaOnboardingDiagnostics && submissionKind === "compliance"
+        ? {
+            companyId: params.company.id,
+            documentKind: params.kind,
+            subtype: chain.subtype,
+            icv: chain.icv,
+            previousInvoiceHash: chain.previousInvoiceHash,
+          }
+        : undefined,
   });
 
   if (outcome.accepted) {

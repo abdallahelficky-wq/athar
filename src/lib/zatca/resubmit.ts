@@ -4,6 +4,7 @@ import { loadCompanyZatcaCredentials, zatcaEnvironmentMismatchMessage } from "./
 import { resolveZatcaSubmissionKind, signAndSubmitDocument } from "./submission";
 import { ZatcaApiEnvironment } from "./apiClient";
 import { ZatcaDocumentStatus } from "@prisma/client";
+import { env } from "../../config/env";
 
 export interface ResubmitZatcaDocumentParams {
   company: ZatcaCompanyLike;
@@ -66,13 +67,26 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
   }
   const credentials = loaded.credentials;
 
+  const submissionKind = resolveZatcaSubmissionKind(params.company.zatcaOnboardingStatus, rebuilt.subtype);
   const outcome = await signAndSubmitDocument({
     xml: rebuilt.xml,
     uuid: params.documentUuid,
     environment,
     credentials,
-    kind: resolveZatcaSubmissionKind(params.company.zatcaOnboardingStatus, rebuilt.subtype),
+    kind: submissionKind,
     qrBaseParams: buildQrBaseParams(params.company, params.issuedAt, params.grandTotal, params.vatTotal),
+    // سقالة تشخيصية مؤقتة (راجع apiClient.ts) — فقط لمسار الامتثال، وفقط عند تفعيل العلَم، أثناء
+    // المشي اليدوي الحالي عبر ربط زاتكا. تُزال لاحقاً.
+    onboardingDiagnostics:
+      env.zatcaOnboardingDiagnostics && submissionKind === "compliance"
+        ? {
+            companyId: params.company.id,
+            documentKind: "invoice",
+            subtype: rebuilt.subtype,
+            icv: params.icv,
+            previousInvoiceHash: params.previousInvoiceHash,
+          }
+        : undefined,
   });
 
   if (outcome.accepted) {
