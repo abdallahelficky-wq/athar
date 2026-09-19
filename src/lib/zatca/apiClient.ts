@@ -11,6 +11,7 @@
 // تخزين قيمة غير صالحة (مثلاً binarySecurityToken غائب) كأنها شهادة حقيقية — وهو ما تسبَّب فعلياً في
 // خطأ ERR_OSSL_ASN1_WRONG_TAG عند محاولة توقيع مستند لاحقاً بشهادة لم تكن قد اجتازت أي تحقق شكلي قط.
 import { z } from "zod";
+import { env } from "../../config/env";
 
 export type ZatcaApiEnvironment = "sandbox" | "simulation" | "production";
 
@@ -69,6 +70,10 @@ interface RequestParams<T> {
   /** يُطبَّق فقط على استجابات 2xx — استجابات الفشل (400/500...) تُعاد كما هي بلا تحقق شكلي، لأن
    * أشكالها متنوّعة (رسائل خطأ عامة من الخادم) ولا تُتخَذ منها قرارات حسّاسة أصلاً. */
   schema: z.ZodType<T>;
+  /** سقالة تشخيصية مؤقتة (راجع env.zatcaOnboardingDiagnostics) — سياق اختياري (ICV/PIH/نوع مستند/
+   * فرعه) يُملأه المستدعي وقت المشي اليدوي عبر ربط زاتكا فقط؛ لا يُستخدَم في أي قرار، فقط يُسجَّل
+   * كاملاً مع الجسم الخام *قبل* أي تصفية Zod (schema أعلاه قد تُسقِط حقولاً غير معروفة صامتة). */
+  onboardingDiagnostics?: Record<string, unknown>;
 }
 
 // كانت هذه المهلة غير محدودة إطلاقاً قبل هذا التعديل — وهي بالضبط كيف انتهى بنا الأمر لعطل
@@ -79,6 +84,24 @@ interface RequestParams<T> {
 // كافية لزمن استجابة API حكومي طبيعي (بما فيه TLS handshake)، لا مجرد تكرار حد الـ5 ثوانٍ القديم
 // الذي كان مقاساً على DB محلية سريعة لا نداءً شبكياً خارجياً.
 const ZATCA_REQUEST_TIMEOUT_MS = 15_000;
+
+// سقالة تشخيصية مؤقتة — أسماء الحقول (بغضّ النظر عن حالة الأحرف) التي تُخفى قبل تسجيل أي جسم رد خام
+// من زاتكا (راجع onboardingDiagnostics أدناه): binarySecurityToken/secret فعليان في رد /production/csids
+// (نفس القيمتين المُخزَّنتين لاحقاً)، clearedInvoice قد يحمل XML موقَّعاً يتضمّن الشهادة العامة. certificate
+// وprivateKey مُدرَجان احتياطاً لو أعادت زاتكا حقلاً بهذا الاسم لم نتوقعه صراحةً.
+const ONBOARDING_DIAGNOSTICS_REDACTED_KEYS = new Set(["binarysecuritytoken", "secret", "clearedinvoice", "certificate", "privatekey"]);
+
+function redactSensitiveOnboardingDiagnosticsFields(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactSensitiveOnboardingDiagnosticsFields);
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = ONBOARDING_DIAGNOSTICS_REDACTED_KEYS.has(key.toLowerCase()) ? "[REDACTED]" : redactSensitiveOnboardingDiagnosticsFields(v);
+    }
+    return out;
+  }
+  return value;
+}
 
 async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiResponse<T>> {
   const headers: Record<string, string> = {
@@ -121,6 +144,27 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
     rawData = rawText ? JSON.parse(rawText) : null;
   } catch {
     rawData = null;
+  }
+
+  // سقالة تشخيصية مؤقتة — راجع تعليق onboardingDiagnostics في RequestParams وenv.zatcaOnboardingDiagnostics.
+  // عمداً هنا قبل أي تصفية Zod (النجاح أدناه يُمرِّر عبر schema.safeParse الذي يُسقِط حقولاً غير
+  // معلنة صامتاً) — هذا بالضبط ما قد يُخفي مؤشر تقدّم عبر الأنواع الستة لو أعادته زاتكا فعلياً في
+  // حقل لم نتوقعه. يُزال هذا السطر بعد انتهاء المشي اليدوي الحالي عبر ربط زاتكا.
+  //
+  // مع ذلك: جسم /production/csids يحمل binarySecurityToken/secret الفعليين (نفس القيمتين اللتين
+  // تُخزَّنان بعد التشفير لحظات لاحقة)، وجسم /compliance قد يحمل clearedInvoice (XML موقَّع يتضمّن
+  // الشهادة العامة داخل توقيع XAdES). تسجيل هذين خاماً يُسرِّب مادة اعتماد/شهادة فعلية إلى سجلّات
+  // التطبيق — لذا تُخفى الحقول الحسّاسة المعروفة أدناه قبل التسجيل، لا الجسم الخام كما هو.
+  if (env.zatcaOnboardingDiagnostics && params.onboardingDiagnostics) {
+    const redactedBody =
+      rawData !== null
+        ? JSON.stringify(redactSensitiveOnboardingDiagnosticsFields(rawData))
+        : "(تعذّر تحليل الجسم كـJSON — لا يُسجَّل نصاً خاماً تفادياً لاحتمال احتوائه على شهادة/سرّ في حقل لم نتعرّف على اسمه)";
+    // eslint-disable-next-line no-console
+    console.log(
+      `[zatca-onboarding-diagnostics] المسار=${params.path} status=${response.status} السياق=${JSON.stringify(params.onboardingDiagnostics)} — ` +
+        `الجسم بعد إخفاء الحقول الحسّاسة المعروفة (binarySecurityToken/secret/clearedInvoice/certificate/privateKey): ${redactedBody.slice(0, 10000)}`,
+    );
   }
 
   if (!response.ok) {
@@ -175,13 +219,20 @@ export function requestComplianceCsid(environment: ZatcaApiEnvironment, csrBase6
 export type ProductionCsidResponse = z.infer<typeof csidResponseSchema>;
 
 /** يستبدل request_id الخاص بشهادة الاختبار بشهادة إنتاج فعلية (صالحة ~سنة) */
-export function requestProductionCsid(environment: ZatcaApiEnvironment, credentials: ZatcaApiCredentials, complianceRequestId: string) {
+export function requestProductionCsid(
+  environment: ZatcaApiEnvironment,
+  credentials: ZatcaApiCredentials,
+  complianceRequestId: string,
+  /** سقالة تشخيصية مؤقتة — راجع onboardingDiagnostics في RequestParams أعلاه. */
+  onboardingDiagnostics?: Record<string, unknown>,
+) {
   return zatcaRequest({
     environment,
     path: "/production/csids",
     body: { compliance_request_id: complianceRequestId },
     credentials,
     schema: csidResponseSchema,
+    onboardingDiagnostics,
   });
 }
 
@@ -224,6 +275,8 @@ interface SubmitInvoiceParams {
   signedInvoiceBase64: string;
   invoiceHash: string;
   uuid: string;
+  /** سقالة تشخيصية مؤقتة — راجع onboardingDiagnostics في RequestParams أعلاه. */
+  onboardingDiagnostics?: Record<string, unknown>;
 }
 
 // عطل إنتاج فعلي مؤكَّد: /compliance/invoices يرفض 401 بجسم فارغ تماماً من Cloudflare (بلا رسالة
@@ -239,6 +292,7 @@ export function checkInvoiceCompliance(params: SubmitInvoiceParams) {
     body: { invoiceHash: params.invoiceHash, uuid: params.uuid, invoice: params.signedInvoiceBase64 },
     credentials: params.credentials,
     schema: zatcaSubmissionResponseSchema,
+    onboardingDiagnostics: params.onboardingDiagnostics,
   });
 }
 
