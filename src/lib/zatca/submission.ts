@@ -105,7 +105,7 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
       certificateError: true,
     };
   }
-  const { signedXml, invoiceHash, digitalSignature, certificateInfo } = signed;
+  const { signedXml: signedXmlWithoutQr, invoiceHash, digitalSignature, certificateInfo } = signed;
 
   const qrPayload = buildSignedQrPayload({
     ...params.qrBaseParams,
@@ -114,6 +114,18 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
     publicKeyRaw: certificateInfo.publicKeyRaw,
     certificateSignatureRaw: certificateInfo.signatureRaw,
   });
+
+  // عطل إنتاج فعلي مؤكَّد: qrPayload كان يُحسَب هنا لكن لا يُعاد حقنه في XML قط — يُستخدَم فقط
+  // لاحقاً لعرض/طباعة QR (invoicePdf.ts)، فتصل زاتكا نسخة بحقل QR فارغاً دائماً رغم توقيعها بنجاح.
+  // التطبيق المرجعي (wes4m/zatca-xml-js، signing/index.ts) يحقن qr هنا بالضبط قبل الإرسال — خطوة
+  // سقطت عند نقل هذا المنطق هنا لأن buildDocumentXml (xmlBuilder.ts) يستبدل SET_QR_CODE_DATA بنص
+  // فارغ مبكراً، فلا يبقى أي عنصر نائب لاحقاً يمكن حقن القيمة الحقيقية فيه. getPureDocumentString
+  // (hash.ts) يستبعد عنصر QR بالكامل من حساب التجزئة بصرف النظر عن محتواه، فحقنه هنا لا يغيّر
+  // invoiceHash المحسوب أعلاه.
+  const signedXml = signedXmlWithoutQr.replace(
+    '<cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain"></cbc:EmbeddedDocumentBinaryObject>',
+    `<cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain">${qrPayload}</cbc:EmbeddedDocumentBinaryObject>`,
+  );
 
   const signedInvoiceBase64 = Buffer.from(signedXml, "utf8").toString("base64");
   const submit =

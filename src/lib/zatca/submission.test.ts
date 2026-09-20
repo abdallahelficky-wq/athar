@@ -96,6 +96,33 @@ describe("signAndSubmitDocument", () => {
     expect(decoded.certificateSignature).toBeDefined();
   });
 
+  // عطل إنتاج فعلي مؤكَّد: qrPayload كان يُحسَب بنجاح لكن لا يُعاد حقنه في XML قط قبل الإرسال —
+  // الفاتورة تصل زاتكا بحقل QR فارغاً دائماً رغم توقيعها بنجاح. راجع signedXmlWithoutQr في submission.ts.
+  it("embeds the actual QR payload in the transmitted XML and in the returned signedXml, not an empty placeholder", async () => {
+    const fetchMock = mockFetchOnce(200, { reportingStatus: "REPORTED" });
+    const xml = buildDocumentXml(sampleDocument());
+
+    const outcome = await signAndSubmitDocument({
+      xml,
+      uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      environment: "sandbox",
+      credentials,
+      kind: "reporting",
+      qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+    });
+    expect(outcome.accepted).toBe(true);
+    if (!outcome.accepted) throw new Error("expected accepted outcome");
+
+    expect(outcome.signedXml).not.toContain(
+      '<cbc:ID>QR</cbc:ID>\n        <cac:Attachment>\n            <cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain"></cbc:EmbeddedDocumentBinaryObject>',
+    );
+    expect(outcome.signedXml).toContain(outcome.qrPayload);
+
+    const [, init] = fetchMock.mock.calls[0];
+    const transmittedXml = Buffer.from(JSON.parse(init.body).invoice, "base64").toString("utf8");
+    expect(transmittedXml).toContain(outcome.qrPayload);
+  });
+
   it("returns accepted:false with a human-readable rejection reason when ZATCA rejects the submission", async () => {
     mockFetchOnce(400, {
       validationResults: { status: "FAIL", errorMessages: [{ type: "ERROR", message: "الرقم الضريبي للبائع غير صحيح" }] },
