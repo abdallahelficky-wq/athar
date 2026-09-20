@@ -1735,7 +1735,24 @@
       "complianceSuccess": "تم استخراج شهادة الاختبار (Compliance CSID) بنجاح.",
       "productionSuccess": "تم استخراج شهادة الإنتاج (Production CSID) بنجاح — الشركة الآن جاهزة للتشغيل الفعلي.",
       "envChangeSuccess": "تم التحويل إلى بيئة: {{env}}",
-      "resetSuccess": "تم مسح ربط زاتكا وإعادة الشركة لحالة \"غير مفعّل\"."
+      "resetSuccess": "تم مسح ربط زاتكا وإعادة الشركة لحالة \"غير مفعّل\".",
+      "complianceStepsProgressTitle": "تقدّم مستندات فحص الامتثال الستة",
+      "complianceStepsProgressNote": "تشترط زاتكا اجتياز فحص امتثال لكل الأنواع الستة (فاتورة وإشعار دائن وإشعار مدين، لكل من القياسية والمبسّطة) قبل إصدار شهادة الإنتاج.",
+      "complianceStepLabels": {
+        "standard-compliant": "فاتورة قياسية",
+        "simplified-compliant": "فاتورة مبسّطة",
+        "standard-credit-note-compliant": "إشعار دائن قياسي",
+        "simplified-credit-note-compliant": "إشعار دائن مبسّط",
+        "standard-debit-note-compliant": "إشعار مدين قياسي",
+        "simplified-debit-note-compliant": "إشعار مدين مبسّط"
+      },
+      "stepPassed": "اجتاز ✓",
+      "stepPending": "لم يُختبَر بعد",
+      "runStandardCreditNoteTestTitle": "اختبار: إشعار دائن قياسي (مستند اصطناعي)",
+      "runStandardCreditNoteTestNote": "يُرسِل مستنداً اصطناعياً بالكامل (عميل ومرجع فاتورة مُلفَّقان، لا يمسّان أي فاتورة أو قيد حقيقي في دفاترك) لاختبار فحص الامتثال لهذا النوع تحديداً. يحجز رقم تسلسل (ICV) حقيقياً بصرف النظر عن النتيجة، ولا يمكن التراجع عن ذلك.",
+      "runStandardCreditNoteTestBtn": "تشغيل الاختبار الآن",
+      "standardCreditNoteTestPassed": "نجح فحص الامتثال ✓ (الحالة: {{status}})",
+      "standardCreditNoteTestFailed": "فشل فحص الامتثال — السبب من زاتكا: {{reason}}"
     },
     "companyDocuments": {
       "title": "المستندات الإدارية (تراخيص، سجلات، عقود أمن وسلامة...)",

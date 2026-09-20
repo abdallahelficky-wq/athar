@@ -29,3 +29,8 @@ export const requestCompanyZatcaCompliance = (id, otp) => api.post(`/companies/$
 export const requestCompanyZatcaProduction = (id) => api.post(`/companies/${id}/zatca/production`, {});
 export const setCompanyZatcaEnvironment = (id, environment) => api.patch(`/companies/${id}/zatca/environment`, { environment });
 export const resetCompanyZatcaLinkage = (id) => api.delete(`/companies/${id}/zatca`);
+
+// مستندات فحص الامتثال الاصطناعية الستة — انظر src/lib/zatca/complianceAutomation.ts على الخادم.
+// خطوة واحدة فقط مُفعَّلة للتشغيل حالياً (الإشعار الدائن القياسي).
+export const getCompanyZatcaComplianceSteps = (id) => api.get(`/companies/${id}/zatca/compliance-steps`);
+export const runCompanyZatcaStandardCreditNoteTest = (id) => api.post(`/companies/${id}/zatca/compliance-steps/standard-credit-note-test`, {});

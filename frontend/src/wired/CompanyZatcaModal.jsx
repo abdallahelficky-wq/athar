@@ -7,6 +7,8 @@ import {
   requestCompanyZatcaProduction,
   setCompanyZatcaEnvironment,
   resetCompanyZatcaLinkage,
+  getCompanyZatcaComplianceSteps,
+  runCompanyZatcaStandardCreditNoteTest,
 } from "../api/companies";
 
 /**
@@ -43,11 +45,18 @@ export default function CompanyZatcaModal({ company, onClose }) {
   const [invoiceType, setInvoiceType] = useState("both");
   const [otp, setOtp] = useState("");
   const [busy, setBusy] = useState(false);
+  const [complianceSteps, setComplianceSteps] = useState([]);
+  const [stepTestResult, setStepTestResult] = useState(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      setStatus(await getCompanyZatcaStatus(company.id));
+      const [statusResult, stepsResult] = await Promise.all([
+        getCompanyZatcaStatus(company.id),
+        getCompanyZatcaComplianceSteps(company.id),
+      ]);
+      setStatus(statusResult);
+      setComplianceSteps(stepsResult.steps || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -94,6 +103,25 @@ export default function CompanyZatcaModal({ company, onClose }) {
 
   const handleEnvironmentChange = (environment) =>
     runAction(() => setCompanyZatcaEnvironment(company.id, environment), t("settings.zatca.envChangeSuccess", { env: ENVIRONMENT_OPTIONS.find((o) => o.value === environment)?.label }));
+
+  // مستند اصطناعي بالكامل (راجع src/lib/zatca/complianceAutomation.ts) — لا يمرّ عبر runAction
+  // العام عمداً: رفض زاتكا للفحص هنا نتيجة متوقَّعة عادية يجب عرضها بوضوح (البند الفعلي)، لا
+  // "خطأ" عام يُخفي السبب خلف رسالة نجاح/فشل عامة.
+  const handleRunStandardCreditNoteTest = async () => {
+    setBusy(true);
+    setError("");
+    setNote("");
+    setStepTestResult(null);
+    try {
+      const result = await runCompanyZatcaStandardCreditNoteTest(company.id);
+      setStepTestResult(result);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleReset = () => {
     if (!window.confirm(t("settings.zatca.confirmReset"))) return;
@@ -181,6 +209,38 @@ export default function CompanyZatcaModal({ company, onClose }) {
                 {t("settings.zatca.requestComplianceBtn")}
               </button>
             </div>
+
+            <h4 className="sub-head">{t("settings.zatca.complianceStepsProgressTitle")}</h4>
+            <p className="note">{t("settings.zatca.complianceStepsProgressNote")}</p>
+            <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px" }}>
+              {complianceSteps.map((step) => (
+                <li key={step.key} style={{ display: "flex", justifyContent: "space-between", padding: "3px 0", borderBottom: "1px solid var(--border, #eee)" }}>
+                  <span>{t(`settings.zatca.complianceStepLabels.${step.key}`)}</span>
+                  <span className={step.passed ? "status-badge status-posted" : "status-badge"}>
+                    {step.passed ? t("settings.zatca.stepPassed") : t("settings.zatca.stepPending")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <h4 className="sub-head">{t("settings.zatca.runStandardCreditNoteTestTitle")}</h4>
+            <p className="note">{t("settings.zatca.runStandardCreditNoteTestNote")}</p>
+            <div className="form-btn-group" style={{ justifyContent: "flex-start" }}>
+              <button className="btn-ghost" onClick={handleRunStandardCreditNoteTest} disabled={busy || !status.hasComplianceCertificate}>
+                {t("settings.zatca.runStandardCreditNoteTestBtn")}
+              </button>
+            </div>
+            {stepTestResult && (
+              stepTestResult.passed ? (
+                <p className="note" style={{ color: "var(--ok, green)" }}>
+                  {t("settings.zatca.standardCreditNoteTestPassed", { status: stepTestResult.zatcaStatus })}
+                </p>
+              ) : (
+                <p className="balance-bad">
+                  {t("settings.zatca.standardCreditNoteTestFailed", { reason: stepTestResult.rejectionReason || stepTestResult.zatcaStatus })}
+                </p>
+              )
+            )}
 
             <h4 className="sub-head">{t("settings.zatca.productionStepTitle")}</h4>
             <p className="note">{t("settings.zatca.productionStepNote")}</p>

@@ -1735,7 +1735,24 @@
       "complianceSuccess": "Test certificate (Compliance CSID) extracted successfully.",
       "productionSuccess": "Production certificate (Production CSID) extracted successfully — the company is now ready for actual operation.",
       "envChangeSuccess": "Switched to environment: {{env}}",
-      "resetSuccess": "ZATCA linkage cleared and the company returned to \"Not enabled\" status."
+      "resetSuccess": "ZATCA linkage cleared and the company returned to \"Not enabled\" status.",
+      "complianceStepsProgressTitle": "Progress on the six compliance-check documents",
+      "complianceStepsProgressNote": "ZATCA requires a passing compliance check for all six document types (invoice, credit note, and debit note, each in standard and simplified form) before issuing a production certificate.",
+      "complianceStepLabels": {
+        "standard-compliant": "Standard invoice",
+        "simplified-compliant": "Simplified invoice",
+        "standard-credit-note-compliant": "Standard credit note",
+        "simplified-credit-note-compliant": "Simplified credit note",
+        "standard-debit-note-compliant": "Standard debit note",
+        "simplified-debit-note-compliant": "Simplified debit note"
+      },
+      "stepPassed": "Passed ✓",
+      "stepPending": "Not tested yet",
+      "runStandardCreditNoteTestTitle": "Test: standard credit note (synthetic document)",
+      "runStandardCreditNoteTestNote": "Sends a fully synthetic document (fabricated customer and invoice reference — never touches any real invoice or journal entry in your books) to test the compliance check for this specific type. It reserves a real sequence number (ICV) regardless of outcome, and that cannot be undone.",
+      "runStandardCreditNoteTestBtn": "Run the test now",
+      "standardCreditNoteTestPassed": "Compliance check passed ✓ (status: {{status}})",
+      "standardCreditNoteTestFailed": "Compliance check failed — ZATCA's reason: {{reason}}"
     },
     "companyDocuments": {
       "title": "Administrative documents (licenses, registrations, security & safety contracts...)",
