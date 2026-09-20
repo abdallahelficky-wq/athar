@@ -54,17 +54,20 @@ describe("buildDocumentXml", () => {
     expect(doc.documentElement!.tagName).toBe("Invoice");
   });
 
-  it("uses reporting:1.0 profile and 0200000 type name for simplified invoices, no buyer block content", () => {
+  // BR-KSA-EN16931-01 (BT-23) رفضت زاتكا فعلياً كلاً من "clearance:1.0" و"standard:1.0" — القيمة
+  // الوحيدة المقبولة، حسب الجسم الخام الفعلي من زاتكا، هي السلسلة المجرَّدة "1.0" بلا أي بادئة،
+  // ونفسها للفاتورتين (القاعدة لا تشترط نوعاً دون آخر).
+  it("uses bare profile id '1.0' and 0200000 type name for simplified invoices, no buyer block content", () => {
     const xml = buildDocumentXml(base({ subtype: "simplified" }));
-    expect(xml).toContain("<cbc:ProfileID>reporting:1.0</cbc:ProfileID>");
+    expect(xml).toContain("<cbc:ProfileID>1.0</cbc:ProfileID>");
     expect(xml).toContain('name="0200000"');
     expect(xml).toContain(">388<");
     expect(xml).toContain("<cac:AccountingCustomerParty></cac:AccountingCustomerParty>");
   });
 
-  it("uses standard:1.0 profile, 0100000 type name, and full buyer block for standard invoices", () => {
+  it("uses bare profile id '1.0', 0100000 type name, and full buyer block for standard invoices", () => {
     const xml = buildDocumentXml(base({ subtype: "standard", buyer: BUYER }));
-    expect(xml).toContain("<cbc:ProfileID>standard:1.0</cbc:ProfileID>");
+    expect(xml).toContain("<cbc:ProfileID>1.0</cbc:ProfileID>");
     expect(xml).toContain('name="0100000"');
     expect(xml).toContain(BUYER.registrationName);
     expect(xml).toContain(BUYER.vatNumber);

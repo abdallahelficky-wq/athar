@@ -38,17 +38,15 @@ function invoiceTypeNameAttr(subtype: ZatcaDocumentInput["subtype"]): string {
   return subtype === "standard" ? "0100000" : "0200000";
 }
 
-// عطل إنتاج فعلي مؤكَّد (رد تحقّق فعلي من زاتكا: BR-KSA-EN16931-01 — "the value associated with
-// business process type (BT-23) must be '1.0'"): كانت هذه الدالة تُرجِع "clearance:1.0" للفاتورة
-// القياسية — قيمة مأخوذة من مصدر واحد غير رسمي (تعليق اختبار في مستودع مفتوح المصدر) لم يُتحقَّق
-// منه مباشرة ضد زاتكا وقتها. بعد الرفض الفعلي، تحقَّقنا من عدة مصادر مستقلة (توثيق ZATCA API
-// مخصَّص لفحص الامتثال القياسي B2B، ومكتبة invopop/gobl التجارية المُستخدَمة إنتاجياً) اتفقت جميعها
-// على "standard:1.0" للفاتورة القياسية — BT-23 يصف *نوع* المستند المُعلَن (المواصفة/الملف الشخصي)،
-// لا المسار القانوني الذي سيُعالَج به (تخليص/إبلاغ)، وهذا يفسّر لماذا "clearance:1.0" لم يكن الاسم
-// الصحيح لهذا الحقل تحديداً. لم نتحقّق من هذا مباشرة ضد زاتكا الحقيقية بعد — ينتظر تأكيداً من
-// المحاولة التالية.
-function profileId(subtype: ZatcaDocumentInput["subtype"]): string {
-  return subtype === "standard" ? "standard:1.0" : "reporting:1.0";
+// عطل إنتاج فعلي مؤكَّد ثانٍ لنفس الحقل — بعد "clearance:1.0" ثم "standard:1.0" (كلاهما مصادر
+// ثانوية غير مُتحقَّق منها مباشرة)، الجسم الخام الفعلي من زاتكا (سقالة التشخيص، راجع apiClient.ts)
+// حسم الأمر: BR-KSA-EN16931-01 يرفض أي شيء غير السلسلة المجرَّدة "1.0" — بلا أي بادئة ("clearance:"/
+// "standard:"/"reporting:"). القاعدة تفحص BT-23 مباشرة بلا أي شرط ظاهر على نوع الفاتورة (قياسية/
+// مبسّطة)، فمن غير المرجّح أن يُطبَّق على نوع دون آخر — لذا القيمة نفسها "1.0" للفاتورتين معاً، لا
+// فرق بحسب subtype، رغم أن "reporting:1.0" للمبسّطة لم يُختبَر مباشرة ضد زاتكا بعد (كان افتراضاً
+// دائماً، لا نتيجة تحقّق فعلي).
+function profileId(): string {
+  return "1.0";
 }
 
 function buildSupplierPlaceholders(seller: ZatcaPartyInput): Record<string, string> {
@@ -197,7 +195,7 @@ export function buildDocumentXml(input: ZatcaDocumentInput): string {
 
   let xml = invoiceTemplate;
   xml = xml.replace("SET_UBL_EXTENSIONS_STRING", "");
-  xml = xml.replace("SET_PROFILE_ID", profileId(input.subtype));
+  xml = xml.replace("SET_PROFILE_ID", profileId());
   xml = xml.replace("SET_INVOICE_SERIAL_NUMBER", escapeXml(input.id));
   xml = xml.replace("SET_TERMINAL_UUID", escapeXml(input.uuid));
   xml = xml.replace("SET_ISSUE_DATE", input.issueDate);
