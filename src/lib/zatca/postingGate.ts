@@ -11,9 +11,14 @@ type Tx = Prisma.TransactionClient;
 
 export type ZatcaPostingStatus =
   | "not_applicable"
-  | "pending_clearance"
+  /** سلسلة ICV/PIH حُجزت، لكن لم يُرسَل أي طلب لزاتكا إطلاقاً — لا شهادة CSID فعّالة بعد لمرحلة
+   * ربط هذه الشركة الحالية (compliance أو production، بحسب zatcaOnboardingStatus). عطل إنتاج فعلي
+   * مؤكَّد استبدل هذه الحالة بـpending_clearance/pending_reporting سابقاً (راجع chain.ts): اسمان
+   * يوحيان بأن زاتكا استلمت المستند وتُعالجه، بينما الحقيقة أن لا طلب وصلها أصلاً — راجع تعليق
+   * isProduction في credentials.ts للعطل الذي أنتج هذا الفرع فعلياً. الاسم هنا مقصود ليكون واضحاً
+   * بذاته: لا التباس ممكن مع أي حالة واردة فعلياً من زاتكا. */
+  | "not_submitted"
   | "cleared"
-  | "pending_reporting"
   | "reported"
   | "rejected"
   | "submission_failed"
@@ -115,7 +120,7 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
   const reservedChain = { icv: chain.icv, invoiceHash: chain.invoiceHash };
 
   const environment = params.company.zatcaEnvironment as ZatcaApiEnvironment;
-  const loaded = await loadCompanyZatcaCredentials(params.company.id, environment);
+  const loaded = await loadCompanyZatcaCredentials(params.company.id, environment, params.company.zatcaOnboardingStatus);
   if (!loaded.ok) {
     if (loaded.reason === "environment_mismatch") {
       // نفس تصنيف certificate_error تماماً (مشكلة إعداد ربط، لا مشكلة شبكة ولا رفض فعلي من زاتكا،
@@ -133,6 +138,10 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
         reservedChain,
       };
     }
+    // عطل إنتاج فعلي مؤكَّد كان هنا: chain.zatcaStatus (pending_clearance/pending_reporting) كان
+    // يُعرَض كأنه حالة واردة من زاتكا نفسها — بينما لا طلب أُرسِل إليها إطلاقاً في هذا الفرع تحديداً
+    // (لا شهادة CSID صالحة بعد لمرحلة الشركة الحالية). راجع تعليق not_submitted في types.ts/chain.ts
+    // وتعليق isProduction في credentials.ts لتفاصيل العطل الذي أنتج هذا الفرع فعلياً.
     return {
       proceedWithPosting: true,
       zatcaFields: {
@@ -142,6 +151,8 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
         zatcaStatus: chain.zatcaStatus,
         zatcaSubmittedAt: chain.issuedAt,
       },
+      rejectionReason:
+        "لم يُرسَل هذا المستند إلى هيئة الزكاة والضريبة والجمارك (زاتكا) إطلاقاً — لا توجد شهادة ربط زاتكا (CSID) فعّالة بعد لمرحلة ربط هذه الشركة الحالية. أكمل خطوات ربط زاتكا (CSR ← شهادة اختبار ← شهادة إنتاج) ثم أعد المحاولة.",
       reservedChain,
     };
   }

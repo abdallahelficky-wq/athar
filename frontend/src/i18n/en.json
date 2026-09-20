@@ -338,14 +338,14 @@
     "loading": "Loading...",
     "empty": "No invoices yet.",
     "zatcaStatus": {
-      "not_applicable": "Not applicable", "pending_clearance": "Sending (standard)", "pending_reporting": "Sending (simplified)",
+      "not_applicable": "Not applicable", "not_submitted": "Not sent — ZATCA credentials aren't set up yet for this stage",
       "cleared": "Sent/accepted (standard)", "reported": "Sent/accepted (simplified)", "rejected": "Rejected",
       "submission_failed": "Failed to send (never reached ZATCA)",
       "certificate_error": "Invalid ZATCA certificate",
       "compliance_checked": "Compliance check only (awaiting production certificate)"
     },
     "zatcaBadge": {
-      "not_applicable": "Not applicable", "pending_clearance": "Sending", "pending_reporting": "Sending",
+      "not_applicable": "Not applicable", "not_submitted": "Not sent yet",
       "cleared": "Sent/accepted", "reported": "Sent/accepted", "rejected": "Rejected",
       "submission_failed": "Failed to send",
       "certificate_error": "Invalid certificate",

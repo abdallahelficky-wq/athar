@@ -365,8 +365,7 @@ export async function listSalesInvoices(tenantId: string, filters: { companyId?:
 // مُدرَجة أيضاً — لم تُخلَّص/تُبلَّغ فعلياً (الشركة لا تزال على شهادة اختبار)، تحتاج الشركة استكمال
 // الحصول على شهادة إنتاج فعلية، لا مجرد إعادة إرسال.
 const ZATCA_BACKLOG_STATUSES = [
-  "pending_clearance",
-  "pending_reporting",
+  "not_submitted",
   "rejected",
   "submission_failed",
   "certificate_error",
@@ -803,7 +802,7 @@ export async function resendInvoiceToZatca(tenantId: string, id: string) {
 // إعادة محاولة دورية، بينما شهادة تالفة (certificate_error) لن تُصلَح نفسها أبداً — استمرار
 // إعادة المحاولة عليها يستهلك فتحات الدفعة الدورية بلا أي فائدة، ويُخفي مشكلة إعداد حقيقية خلف
 // مظهر عطل عابر مؤقت (راجع طلب المستخدم: حالة منفصلة تماماً عن submission_failed لهذا السبب بالذات).
-const ZATCA_AUTO_RETRY_STATUSES = ["submission_failed", "pending_clearance", "pending_reporting"] as const;
+const ZATCA_AUTO_RETRY_STATUSES = ["submission_failed", "not_submitted"] as const;
 
 // فترات الانتظار (بالدقائق) بين محاولة تلقائية وأخرى لنفس الفاتورة، مفهرسة بعدد المحاولات
 // السابقة (zatcaRetryCount) — تصاعدية لتفادي إغراق زاتكا بمحاولات متكررة على فاتورة يبدو أنها

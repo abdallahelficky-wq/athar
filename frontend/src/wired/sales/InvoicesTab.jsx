@@ -17,8 +17,7 @@ import ReprintReceiptModal from "./ReprintReceiptModal";
 // نفس قيم ZatcaDocumentStatus المخزَّنة على الفاتورة في الباك اند — لا حقل/منطق جديد، فقط عرضها.
 const ZATCA_STATUS_KEYS = {
   not_applicable: "not_applicable",
-  pending_clearance: "pending_clearance",
-  pending_reporting: "pending_reporting",
+  not_submitted: "not_submitted",
   cleared: "cleared",
   reported: "reported",
   rejected: "rejected",
@@ -26,10 +25,17 @@ const ZATCA_STATUS_KEYS = {
   certificate_error: "certificate_error",
   compliance_checked: "compliance_checked",
 };
+// pending_clearance/pending_reporting: قيمتان قديمتان لن تُكتَبا بعد الآن (استُبدِلتا بـ
+// not_submitted — راجع postingGate.ts/chain.ts) — أي صفّ قديم لا يزال يحملهما يُطبَّع أدناه (راجع
+// normalizeLegacyZatcaStatus) ليُعرَض بنفس نص not_submitted الصريح، لا "قيد الإرسال" المُضلِّل الذي
+// كانتا تعرضانه سابقاً (عطل إنتاج فعلي مؤكَّد: كان يُوهِم بأن زاتكا تُعالِج المستند فعلياً بينما لم
+// يصلها أي طلب إطلاقاً). لا تُعرَضان كخيارَي فلترة منفصلَين عمداً — خيار not_submitted وحده يكفي.
+function normalizeLegacyZatcaStatus(status) {
+  return status === "pending_clearance" || status === "pending_reporting" ? "not_submitted" : status;
+}
 const ZATCA_BADGE_CLASS = {
   not_applicable: "status-badge status-neutral",
-  pending_clearance: "status-badge status-saved",
-  pending_reporting: "status-badge status-saved",
+  not_submitted: "status-badge status-saved",
   cleared: "status-badge status-posted",
   reported: "status-badge status-posted",
   rejected: "status-badge status-rejected",
@@ -213,7 +219,8 @@ export default function InvoicesTab({ companyId, companies }) {
               {visibleInvoices.map((inv) => {
                 const posted = inv.status === "posted";
                 const linked = inv.receiptAllocations.length > 0;
-                const zatcaKey = ZATCA_STATUS_KEYS[inv.zatcaStatus] ? inv.zatcaStatus : "not_applicable";
+                const normalizedZatcaStatus = normalizeLegacyZatcaStatus(inv.zatcaStatus);
+                const zatcaKey = ZATCA_STATUS_KEYS[normalizedZatcaStatus] ? normalizedZatcaStatus : "not_applicable";
                 const zatcaResendable = ZATCA_RESENDABLE.has(inv.zatcaStatus);
                 return (
                   <tr key={inv.id}>
