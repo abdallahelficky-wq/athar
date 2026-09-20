@@ -235,8 +235,14 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
     // ربط زاتكا. تُزال لاحقاً.
     env.zatcaOnboardingDiagnostics ? { companyId, complianceRequestId: credential.complianceRequestId } : undefined,
   );
+  if (result.networkError) {
+    throw badRequest("انقطع الاتصال أثناء طلب شهادة الإنتاج؛ لم يصل تأكيد الإصدار ولم تُحفظ شهادة. قد يكون الطلب نُفّذ لدى زاتكا. احتفظ بالربط وراجع حالة الطلب قبل إعادة المحاولة أو إعادة الضبط.");
+  }
+  if (result.status === 401 || result.status === 403) {
+    throw badRequest(`رفضت زاتكا المصادقة على طلب شهادة الإنتاج (HTTP ${result.status}). احتفظ بالربط الحالي؛ يلزم فحص صلاحية شهادة الاختبار وحالة طلب الإصدار، خصوصاً إذا سبق انقطاع الاتصال. نجاح اختبارات الامتثال لا يؤكد إصدار شهادة الإنتاج.`);
+  }
   if (result.malformedResponse) {
-    throw badRequest("رد غير متوقع من زاتكا — شكل الاستجابة لا يطابق شهادة إنتاج صالحة، لم تُخزَّن أي بيانات. تحقق من إصدار/مسار API ثم أعد المحاولة، أو راجع الدعم الفني.");
+    throw badRequest("وصل رد نجاح من زاتكا لكن بيانات شهادة الإنتاج غير مكتملة؛ لم تُحفظ شهادة. راجع حالة طلب الإصدار قبل إعادة المحاولة.");
   }
   if (!result.ok || !result.data) {
     // تسوية اختيارية فقط (راجع lastMissingComplianceSteps في schema.prisma وcomplianceAutomation.ts):
@@ -254,7 +260,7 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
         });
       }
     }
-    throw badRequest(`رفضت زاتكا طلب شهادة الإنتاج: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
+    throw badRequest(`تعذّر إصدار شهادة الإنتاج (HTTP ${result.status}): ${result.data ? JSON.stringify(result.data) : "وصل رد من زاتكا بلا تفاصيل قابلة للقراءة"}`);
   }
   const cert = normalizeZatcaCertificate(result.data.binarySecurityToken, "شهادة الإنتاج (Production)");
 

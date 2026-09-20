@@ -412,3 +412,25 @@ describe("compliance nullable status placeholders", () => {
     expect(hasValidationErrors(result.data)).toBe(true);
   });
 });
+
+describe("production CSID request deadline", () => {
+  it("allows issuance 60 seconds without retrying an ambiguous timeout", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const fetchMock = vi.fn().mockRejectedValue(new DOMException("Timed out", "TimeoutError"));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const result = await requestProductionCsid("simulation", CREDENTIALS, "req");
+      expect(timeout).toHaveBeenCalledWith(60_000);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({ ok: false, networkError: true, status: 0 });
+    } finally { timeout.mockRestore(); }
+  });
+  it("keeps the existing deadline for invoice compliance", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    mockFetchOnce(200, { validationResults: { status: "PASS" } });
+    try {
+      await checkInvoiceCompliance({ environment: "simulation", credentials: CREDENTIALS, signedInvoiceBase64: "xml", invoiceHash: "hash", uuid: "id" });
+      expect(timeout).toHaveBeenCalledWith(15_000);
+    } finally { timeout.mockRestore(); }
+  });
+});
