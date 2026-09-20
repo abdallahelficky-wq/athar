@@ -371,6 +371,33 @@ describe("signAndSubmitDocument", () => {
   });
 });
 
+describe("signAndSubmitDocument — path logging", () => {
+  // طُلِب صراحةً بعد رفض 401 غير مُفسَّر على فاتورة مبسّطة أثناء الامتثال — يُثبت هذا الاختبار أن
+  // كل مسار (compliance/reporting/clearance) يُسجَّل بالمسار الصحيح المطابق فعلياً لما يستدعيه
+  // apiClient.ts (لا submissionKind وحده، الذي لا يثبت بمفرده أي URL استُخدِم فعلياً).
+  it.each([
+    ["compliance" as const, "/compliance/invoices"],
+    ["reporting" as const, "/invoices/reporting/single"],
+    ["clearance" as const, "/invoices/clearance/single"],
+  ])("logs the actual endpoint path for kind=%s", async (kind, expectedPath) => {
+    const consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    mockFetchOnce(200, { clearanceStatus: "CLEARED", reportingStatus: "REPORTED", validationResults: { status: "PASS", errorMessages: [] } });
+    const xml = buildDocumentXml(sampleDocument());
+
+    await signAndSubmitDocument({
+      xml,
+      uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      environment: "sandbox",
+      credentials,
+      kind,
+      qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+    });
+
+    expect(consoleInfoSpy).toHaveBeenCalledWith(expect.stringContaining(`submissionKind=${kind} path=${expectedPath}`));
+    consoleInfoSpy.mockRestore();
+  });
+});
+
 describe("resolveZatcaSubmissionKind", () => {
   it("uses clearance/reporting only for a company on a production CSID", () => {
     expect(resolveZatcaSubmissionKind("production", "standard")).toBe("clearance");

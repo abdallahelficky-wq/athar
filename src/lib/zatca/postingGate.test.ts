@@ -563,6 +563,28 @@ describe("evaluateZatcaPostingGate", () => {
     expect(fetchMock.mock.calls[0][0]).not.toContain("/invoices/clearance/single");
   });
 
+  // نفس البند لكن لعميل مبسّط تحديداً — لا يوجد أي تفرّع بحسب النوع الفرعي في مسار الامتثال؛
+  // الفاتورة المبسّطة يجب أن تصل /compliance/invoices تماماً كالقياسية، لا /invoices/reporting/single.
+  it("submits through the compliance endpoint for a SIMPLIFIED invoice too, for a company still on a compliance CSID", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
+    const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toContain("/compliance/invoices");
+    expect(fetchMock.mock.calls[0][0]).not.toContain("/invoices/reporting/single");
+  });
+
   // فحص امتثال ناجح ليس تخليصاً/إبلاغاً فعلياً — المستند لم يُبلَّغ لزاتكا قانونياً بعد، فيجب ألا
   // يُصنَّف cleared/reported (قد يُوهِم بأن الفاتورة أصبحت نهائية أمام زاتكا وهي ليست كذلك)، ولا
   // يُملأ zatcaClearedOrReportedAt (لم يحدث تخليص/إبلاغ فعلي). البند 4 من طلب المستخدم: سياسة

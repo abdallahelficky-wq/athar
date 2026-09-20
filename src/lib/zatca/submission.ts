@@ -18,6 +18,16 @@ import { env } from "../../config/env";
 
 export type ZatcaSubmissionKind = "clearance" | "reporting" | "compliance";
 
+// المسار الفعلي المُستخدَم لكل نوع إرسال — يُستخدَم فقط للتسجيل التشخيصي أدناه (submissionKind
+// نفسه هو ما يقرّر submit فعلياً، راجع apiClient.ts checkInvoiceCompliance/reportInvoice/
+// clearInvoice للمصدر الحقيقي لكل مسار). يُبقي هذا الجدول متزامناً معها يدوياً عمداً — لا يُشتَق
+// آلياً، لتفادي تعقيد لا داعي له لثلاث قيم ثابتة لا تتغيّر.
+const SUBMISSION_ENDPOINT_PATH: Record<ZatcaSubmissionKind, string> = {
+  compliance: "/compliance/invoices",
+  reporting: "/invoices/reporting/single",
+  clearance: "/invoices/clearance/single",
+};
+
 /** شركة لا تزال على شهادة اختبار (Compliance CSID) يجب أن تُرسِل عبر مسار الامتثال (/compliance/invoices،
  * مُصادَق بـBasic (شهادة الاختبار:سرّها) لا ترويسة OTP — تلك فقط لإصدار الشهادة نفسها عبر /compliance
  * المنفصل تماماً؛ خطأ Missing-OTP الفعلي عند تجربة /compliance لفاتورة أثبت أن /compliance هو مسار
@@ -136,6 +146,15 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
   const signedInvoiceBase64 = Buffer.from(signedXml, "utf8").toString("base64");
   const submit =
     params.kind === "clearance" ? clearInvoice : params.kind === "reporting" ? reportInvoice : checkInvoiceCompliance;
+
+  // سطر سجلّ دائم (لا مقيَّد بعلَم التشخيص zatcaOnboardingDiagnostics) — طُلِب صراحةً بعد رفض 401
+  // غير مُفسَّر على فاتورة مبسّطة أثناء مرحلة الامتثال: الفرضية أن submissionKind ربما ينحرف حسب
+  // subtype رغم أن resolveZatcaSubmissionKind أعلاه (والاختبار المقابل له) يثبتان أن هذا لا يحدث
+  // طالما الشركة ليست على "production" — راجع تقرير التحقيق. بصرف النظر عن سبب أي 401 مستقبلي، هذا
+  // السطر يُثبت المسار الفعلي المُستخدَم بلا حاجة لإعادة تخمينه من الأعراض فقط.
+  // eslint-disable-next-line no-console
+  console.info(`[signAndSubmitDocument] submissionKind=${params.kind} path=${SUBMISSION_ENDPOINT_PATH[params.kind]} uuid=${params.uuid}`);
+
   const result = await submit({
     environment: params.environment,
     credentials: params.credentials,
