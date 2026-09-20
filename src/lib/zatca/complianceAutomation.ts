@@ -19,32 +19,17 @@ import { ZatcaCustomerLike, ZatcaPersistedLineLike } from "./chain";
 // نفس أنبوب زاتكا (evaluateZatcaPostingGate → reserveZatcaChain → signAndSubmitDocument) الذي تستخدمه
 // أي فاتورة حقيقية — نفس الأنبوب لضمان بقاء سلسلة ICV/PIH متصلة، لا أنبوب مختلف.
 
-/**
- * الأنواع الستة الإلزامية — راجع ZatcaCsrInvoiceType في schema.prisma. المفاتيح (key) مطابقة
- * حرفياً لتسمية زاتكا نفسها في رفض Missing-ComplianceSteps الفعلي المُستلَم:
- *   {"code":"Missing-ComplianceSteps","message":"...following compliance steps yet
- *    [standard-credit-note-compliant,standard-debit-note-compliant,simplified-compliant,
- *    simplified-credit-note-compliant,simplified-debit-note-compliant]"}
- * "standard-compliant" غائبة عمداً عن تلك القائمة — هي الوحيدة التي اجتازت الفحص فعلاً، بفاتورة
- * قياسية حقيقية سبق ترحيلها، لا مستنداً اصطناعياً من هذا الملف.
- */
+/** أنواع الاختبارات الستة؛ نجاح شركة أو شهادة سابقة لا يعطّل اختبار الشهادة الحالية. */
 export interface ZatcaComplianceStepDefinition {
   key: string;
   kind: ZatcaDocumentKind;
   subtype: ZatcaInvoiceSubtype;
-  /**
-   * كانت خطوة واحدة فقط (الإشعار الدائن القياسي) مُفعَّلة عمداً في مرحلة أولى، ريثما يُتحقَّق من
-   * قبول زاتكا لمرجع ذاتي اصطناعي في الإشعارات (billingReferenceId) — تحقَّق ذلك فعلياً بلا أي
-   * اعتراض من زاتكا، فالأربع الباقية (بخلاف standard-compliant المُجتازة فعلاً بفاتورة حقيقية،
-   * فلا حاجة لتكرارها اصطناعياً) مُفعَّلة الآن أيضاً. runZatcaComplianceStep يرفض أي خطوة
-   * enabled=false صراحة — هذا قيد حقيقي داخل الدالة نفسها، لا مجرد اعتماد على أن الرابط الخارجي
-   * (route/controller) لا يعرض غيرها؛ كل خطوة لا تزال تحتاج ضغطة زر مقصودة منفصلة (لا تسلسل تلقائي).
-   */
+  /** يحدد توفر الاختبار من الخادم. */
   enabled: boolean;
 }
 
 export const ZATCA_COMPLIANCE_STEPS: readonly ZatcaComplianceStepDefinition[] = [
-  { key: "standard-compliant", kind: "invoice", subtype: "standard", enabled: false },
+  { key: "standard-compliant", kind: "invoice", subtype: "standard", enabled: true },
   { key: "simplified-compliant", kind: "invoice", subtype: "simplified", enabled: true },
   { key: "standard-credit-note-compliant", kind: "credit_note", subtype: "standard", enabled: true },
   { key: "simplified-credit-note-compliant", kind: "credit_note", subtype: "simplified", enabled: true },
@@ -157,14 +142,14 @@ export async function runZatcaComplianceStep(tenantId: string, companyId: string
   if (!step) throw badRequest(`خطوة امتثال زاتكا غير معروفة: ${stepKey}`);
   if (!step.enabled) {
     throw badRequest(
-      `خطوة الامتثال "${stepKey}" غير مُفعَّلة للتشغيل بعد — المرحلة الحالية تقتصر عمداً على standard-credit-note-compliant وحدها حتى يُتحقَّق من نتيجتها ضد رد فعلي من زاتكا.`,
+      `خطوة الامتثال "${stepKey}" غير مُفعَّلة للتشغيل.`,
     );
   }
 
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw notFound("الشركة غير موجودة");
-  if (company.zatcaOnboardingStatus === "not_onboarded") {
-    throw badRequest("الشركة غير مرتبطة بزاتكا بعد — يجب توليد CSR واستخراج شهادة الاختبار أولاً");
+  if (company.zatcaOnboardingStatus !== "compliance") {
+    throw badRequest("اختبارات الامتثال متاحة أثناء مرحلة شهادة الاختبار فقط، ولا يجوز إرسال مستندات اصطناعية بعد تفعيل الإنتاج");
   }
 
   const credential = await prisma.companyZatcaCredential.findUnique({ where: { companyId } });

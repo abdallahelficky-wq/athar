@@ -3,12 +3,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../lib/prisma", () => ({
   prisma: {
     company: { findFirst: vi.fn(), update: vi.fn() },
-    companyZatcaCredential: { findUnique: vi.fn() },
+    companyZatcaCredential: { findUnique: vi.fn(), update: vi.fn() },
+    $transaction: vi.fn(async (operations) => Promise.all(operations)),
   },
 }));
 
+vi.mock("../../lib/zatca/apiClient", () => ({ requestComplianceCsid: vi.fn() }));
+vi.mock("../../lib/zatca/secretBox", () => ({ encryptSecret: (value: string) => "encrypted:" + value }));
+vi.mock("../../lib/zatca/signing", () => ({ getCertificateInfo: () => ({ canonicalBodyBase64: "canonical" }) }));
+import { requestComplianceCsid } from "../../lib/zatca/apiClient";
 import { prisma } from "../../lib/prisma";
-import { setCompanyZatcaEnvironment } from "./companiesZatca.service";
+import { setCompanyZatcaEnvironment, requestCompanyComplianceCsid } from "./companiesZatca.service";
 
 const TENANT_ID = "tenant-1";
 const COMPANY_ID = "company-1";
@@ -88,5 +93,24 @@ describe("setCompanyZatcaEnvironment", () => {
 
     await setCompanyZatcaEnvironment(TENANT_ID, COMPANY_ID, "sandbox");
     expect(prisma.company.update).toHaveBeenCalledWith({ where: { id: COMPANY_ID }, data: { zatcaEnvironment: "sandbox" } });
+  });
+});
+
+
+describe("requestCompanyComplianceCsid", () => {
+  it("clears reconciliation evidence when replacing the compliance certificate", async () => {
+    vi.mocked(prisma.company.findFirst).mockResolvedValue(mockCompany() as never);
+    vi.mocked(prisma.companyZatcaCredential.findUnique).mockResolvedValue({
+      csrPem: "test-csr", complianceRequestId: "old-request",
+      lastMissingComplianceSteps: ["simplified-compliant"], lastComplianceStepsCheckedAt: new Date(),
+    } as never);
+    vi.mocked(requestComplianceCsid).mockResolvedValue({ ok: true, status: 200,
+      data: { requestID: "new-request", binarySecurityToken: "raw", secret: "test-secret" },
+    } as never);
+    await requestCompanyComplianceCsid(TENANT_ID, COMPANY_ID, "test-otp");
+    expect(prisma.companyZatcaCredential.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ complianceRequestId: "new-request",
+        lastMissingComplianceSteps: [], lastComplianceStepsCheckedAt: null }),
+    }));
   });
 });

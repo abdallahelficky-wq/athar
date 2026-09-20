@@ -37,8 +37,8 @@ describe("QR TLV encode/decode round-trip", () => {
     const decoded = decodeQrPayload(payload);
 
     expect(decoded.sellerName).toBe(UNSIGNED_PARAMS.sellerName);
-    expect(decoded.invoiceHash?.toString("base64")).toBe(invoiceHashBase64);
-    expect(decoded.digitalSignature?.toString("base64")).toBe(digitalSignatureBase64);
+    expect(decoded.invoiceHash?.toString("utf8")).toBe(invoiceHashBase64);
+    expect(decoded.digitalSignature?.toString("utf8")).toBe(digitalSignatureBase64);
     expect(decoded.publicKey?.equals(publicKeyRaw)).toBe(true);
     expect(decoded.certificateSignature?.equals(certificateSignatureRaw)).toBe(true);
   });

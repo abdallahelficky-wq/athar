@@ -185,6 +185,8 @@ export async function requestCompanyComplianceCsid(tenantId: string, companyId: 
         complianceCertRawEnc: encryptSecret(cert.raw),
         complianceSecretEnc: encryptSecret(result.data.secret),
         complianceRequestId: String(result.data.requestID),
+        lastMissingComplianceSteps: [],
+        lastComplianceStepsCheckedAt: null,
         // البيئة الفعلية التي طُلبت منها هذه الشهادة تحديداً، لا بالضرورة ما ستصبح عليه
         // company.zatcaEnvironment لاحقاً — راجع تعليق الحقل في schema.prisma وcredentials.ts.
         complianceCsidEnvironment: environment,
