@@ -2,7 +2,7 @@ import { spawn } from "child_process";
 import { mkdtemp, rm, writeFile, readFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
-import { createVerify, X509Certificate } from "crypto";
+import { createHash, createVerify, X509Certificate } from "crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildDocumentXml } from "./xmlBuilder";
 import { computeDocumentHash } from "./hash";
@@ -65,6 +65,19 @@ function sampleDocument(): ZatcaDocumentInput {
 }
 
 describe("signDocument", () => {
+  it("can reproduce the SignedProperties digest from the actual emitted block", () => {
+    const { signedXml } = signDocument({ xml: buildDocumentXml(sampleDocument()), certificatePem, privateKeyPem });
+    const properties = signedXml.match(/<xades:SignedProperties\b[\s\S]*?<\/xades:SignedProperties>/)![0];
+    // Isolated hashing representation described by ZATCA signing support:
+    // retain text/whitespace, declare ds locally, use an empty DigestMethod.
+    const isolated = properties
+      .replace(/<ds:(DigestMethod|DigestValue|X509IssuerName|X509SerialNumber)([ >])/g,
+        '<ds:$1 xmlns:ds="http://www.w3.org/2000/09/xmldsig#"$2')
+      .replace(/(<ds:DigestMethod[^>]+)><\/ds:DigestMethod>/, "$1/>");
+    const expected = Buffer.from(createHash("sha256").update(isolated).digest("hex")).toString("base64");
+    const reference = signedXml.match(/URI="#xadesSignedProperties"[\s\S]*?<ds:DigestValue>([^<]+)/)![1];
+    expect(reference).toBe(expected);
+  });
   it("computes the same invoice hash as computeDocumentHash on the unsigned XML", () => {
     const xml = buildDocumentXml(sampleDocument());
     const expectedHash = computeDocumentHash(xml);

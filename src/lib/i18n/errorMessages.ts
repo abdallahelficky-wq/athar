@@ -10,6 +10,7 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "اختبارات الامتثال متاحة أثناء مرحلة شهادة الاختبار فقط، ولا يجوز إرسال مستندات اصطناعية بعد تفعيل الإنتاج": "Compliance tests are only available during compliance onboarding; synthetic documents cannot be submitted after production activation.",
   "تعذّر توليد PDF — مشكلة إعداد في الخادم (محرّك PDF غير مُهيَّأ، لا خطأ في بياناتك). راجع الدعم الفني.":
     "Could not generate the PDF — this is a server configuration problem (the PDF engine is not set up), not an error in your data. Contact support.",
   "رمز الدخول غير صالح": "Invalid access token",

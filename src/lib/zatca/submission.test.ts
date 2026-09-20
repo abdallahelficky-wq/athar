@@ -122,6 +122,12 @@ describe("signAndSubmitDocument", () => {
     const [, init] = fetchMock.mock.calls[0];
     const transmittedXml = Buffer.from(JSON.parse(init.body).invoice, "base64").toString("utf8");
     expect(transmittedXml).toContain(outcome.qrPayload);
+    const decoded = decodeQrPayload(outcome.qrPayload);
+    const request = JSON.parse(init.body);
+    expect(decoded.invoiceHash?.toString("utf8")).toBe(request.invoiceHash);
+    expect(decoded.invoiceHash?.length).toBe(44);
+    const signature = transmittedXml.match(/<ds:SignatureValue>([^<]+)<\/ds:SignatureValue>/)?.[1];
+    expect(decoded.digitalSignature?.toString("utf8")).toBe(signature);
   });
 
   // زاتكا نفسها أعادت قالب رسالة عربية مشوَّهاً نحوياً لقاعدة BR-KSA-EN16931-01 (علامة اقتباس قبل

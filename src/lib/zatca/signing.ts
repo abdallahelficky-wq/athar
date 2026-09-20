@@ -91,24 +91,6 @@ function isoTimestampNoMillis(date: Date): string {
   return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
-/**
- * إصلاح مسافات بادئة مُوثَّق (مُقتبَس حرفياً) — مدقّق زاتكا الفعلي يتوقع محتوى <ds:Object> بمسافة
- * بادئة أقل بـ4 أحرف عمّا تنتجه السلسلة الطبيعية بعد التضمين، فيما عدا آخر سطر فيه. لا تفسير رسمي
- * موثّق لهذا من زاتكا نفسها؛ هذا يطابق سلوك المدقّق الفعلي المُلاحَظ في التطبيق المرجعي.
- */
-function fixSignedPropertiesIndentation(signedXml: string): string {
-  const afterFirstSplit = signedXml.split("<ds:Object>");
-  if (afterFirstSplit.length < 2) return signedXml;
-  const objectContent = afterFirstSplit[1].split("</ds:Object>")[0];
-  const lines = objectContent.split("\n");
-  const dedentedLines = lines.map((line) => line.slice(4));
-
-  const linesExceptLast = lines.slice(0, lines.length - 1);
-  const dedentedExceptLast = dedentedLines.slice(0, dedentedLines.length - 1);
-
-  return signedXml.replace(linesExceptLast.join("\n"), dedentedExceptLast.join("\n"));
-}
-
 export interface SignDocumentParams {
   /** XML غير موقّع من buildDocumentXml — يحتوي <ext:UBLExtensions></ext:UBLExtensions> فارغة والـ QR فارغ */
   xml: string;
@@ -149,8 +131,7 @@ export function signDocument({ xml, certificatePem, privateKeyPem }: SignDocumen
 
   const extensionXml = buildSignExtension(invoiceHash, signedPropertiesHash, digitalSignature, certificateBody, signedPropertiesXmlFinal);
 
-  let signedXml = xml.replace("<ext:UBLExtensions></ext:UBLExtensions>", `<ext:UBLExtensions>${extensionXml}</ext:UBLExtensions>`);
-  signedXml = fixSignedPropertiesIndentation(signedXml);
+  const signedXml = xml.replace("<ext:UBLExtensions></ext:UBLExtensions>", `<ext:UBLExtensions>${extensionXml}</ext:UBLExtensions>`);
 
   return { signedXml, invoiceHash, digitalSignature, certificateInfo };
 }

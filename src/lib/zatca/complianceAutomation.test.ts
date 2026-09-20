@@ -131,29 +131,18 @@ describe("runZatcaComplianceStep — ledger isolation (runtime)", () => {
     expect(gateArgs.issuanceReason).toBeUndefined();
   });
 
-  // مستند واحد فقط (الإشعار الدائن القياسي) كان مقيَّداً عمداً في مرحلة أولى؛ بعد أن قبلت زاتكا
-  // المرجع الذاتي الاصطناعي بلا اعتراض، فُعِّلت أربع خطوات إضافية. standard-compliant تبقى الوحيدة
-  // غير المُفعَّلة (اجتازت فعلاً بفاتورة حقيقية، فلا داعٍ لتكرارها اصطناعياً) — هذا قيد حقيقي داخل
-  // runZatcaComplianceStep نفسها (حقل enabled)، لا مجرد اعتماد على ما يعرضه الرابط الخارجي.
-  it("rejects the one remaining disabled step (standard-compliant) before touching the network at all", async () => {
-    await expect(runZatcaComplianceStep(TENANT_ID, COMPANY_ID, "standard-compliant")).rejects.toThrow(/غير مُفعَّلة/);
+  it("rejects synthetic tests after production activation before reserving a chain or sending", async () => {
+    vi.mocked(prisma.company.findFirst).mockResolvedValue({ id: COMPANY_ID, zatcaOnboardingStatus: "production" } as never);
+    await expect(runZatcaComplianceStep(TENANT_ID, COMPANY_ID, "simplified-compliant")).rejects.toThrow(/مرحلة شهادة الاختبار/);
     expect(evaluateZatcaPostingGate).not.toHaveBeenCalled();
-    expect(prisma.company.findFirst).not.toHaveBeenCalled();
+    expect(prisma.zatcaComplianceStepAttempt.upsert).not.toHaveBeenCalled();
   });
 
-  it("has exactly five enabled steps and one disabled (standard-compliant)", () => {
-    const enabledKeys = ZATCA_COMPLIANCE_STEPS.filter((s) => s.enabled).map((s) => s.key);
-    expect(enabledKeys.sort()).toEqual(
-      [
-        "simplified-compliant",
-        "standard-credit-note-compliant",
-        "simplified-credit-note-compliant",
-        "standard-debit-note-compliant",
-        "simplified-debit-note-compliant",
-      ].sort(),
-    );
-    expect(ZATCA_COMPLIANCE_STEPS.find((s) => s.key === "standard-compliant")?.enabled).toBe(false);
+  it("enables all six tests, including standard invoices for a new certificate", () => {
+    expect(ZATCA_COMPLIANCE_STEPS).toHaveLength(6);
+    expect(ZATCA_COMPLIANCE_STEPS.every(s => s.enabled)).toBe(true);
   });
+
 });
 
 describe("parseMissingComplianceSteps", () => {
@@ -191,8 +180,8 @@ describe("getZatcaComplianceProgress", () => {
     // لا دليل من زاتكا بعد (lastComplianceStepsCheckedAt فارغ) — بقية الخطوات "لم تُختبَر بعد"، لا "ناجزة صمتاً".
     expect(progress.steps.filter((s) => s.source === "zatca_missing_steps_reconciliation")).toEqual([]);
     expect(progress.steps.every((s) => s.key !== "standard-compliant" || s.passed === false)).toBe(true);
-    // standard-compliant وحدها غير مُفعَّلة للتشغيل (اجتازت فعلاً بفاتورة حقيقية).
-    expect(progress.steps.find((s) => s.key === "standard-compliant")?.enabled).toBe(false);
+    // الشهادة الجديدة يمكنها تشغيل الاختبار القياسي أيضاً.
+    expect(progress.steps.find((s) => s.key === "standard-compliant")?.enabled).toBe(true);
     expect(progress.steps.find((s) => s.key === "simplified-compliant")?.enabled).toBe(true);
   });
 
@@ -211,7 +200,7 @@ describe("getZatcaComplianceProgress", () => {
     const progress = await getZatcaComplianceProgress(TENANT_ID, COMPANY_ID);
     // standard-compliant غائبة عن القائمة المتبقية أعلاه (تطابق الرد الفعلي المُستلَم) — تُحتسَب مُجتازة.
     expect(progress.steps.find((s) => s.key === "standard-compliant")).toEqual({
-      key: "standard-compliant", passed: true, enabled: false, source: "zatca_missing_steps_reconciliation",
+      key: "standard-compliant", passed: true, enabled: true, source: "zatca_missing_steps_reconciliation",
     });
     expect(progress.steps.find((s) => s.key === "standard-credit-note-compliant")?.passed).toBe(false);
   });
