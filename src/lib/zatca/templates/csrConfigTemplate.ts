@@ -10,13 +10,13 @@ const template = `
 # ------------------------------------------------------------------
 [req]
 prompt = no
-utf8 = no
+utf8 = yes
 distinguished_name = my_req_dn_prompt
 req_extensions = v3_req
 
 [ v3_req ]
-# Production or Testing Template (TSTZATCA-Code-Signing - ZATCA-Code-Signing)
-1.3.6.1.4.1.311.20.2 = ASN1:UTF8String:SET_PRODUCTION_VALUE
+# Certificate template must match the API environment, including simulation
+1.3.6.1.4.1.311.20.2 = ASN1:PRINTABLESTRING:SET_PRODUCTION_VALUE
 subjectAltName=dirName:dir_sect
 
 [ dir_sect ]
@@ -60,8 +60,8 @@ export const ZATCA_CSR_INVOICE_TYPE_TITLE: Record<ZatcaCsrInvoiceType, string> =
 };
 
 export interface CsrConfigProps {
-  /** false = شهادة اختبار (Compliance/Sandbox)، true = شهادة إنتاج فعلية */
-  production: boolean;
+  /** API environment determines the CSR template, not the onboarding stage. */
+  environment: "sandbox" | "simulation" | "production";
   egsModel: string;
   egsSerialNumber: string;
   solutionName: string;
@@ -77,9 +77,15 @@ export interface CsrConfigProps {
   invoiceType: ZatcaCsrInvoiceType;
 }
 
+export const ZATCA_CSR_TEMPLATE = {
+  sandbox: "TSTZATCA-Code-Signing",
+  simulation: "PREZATCA-Code-Signing",
+  production: "ZATCA-Code-Signing",
+} as const;
+
 export default function populate(props: CsrConfigProps): string {
   return template
-    .replace("SET_PRODUCTION_VALUE", props.production ? "ZATCA-Code-Signing" : "TSTZATCA-Code-Signing")
+    .replace("SET_PRODUCTION_VALUE", ZATCA_CSR_TEMPLATE[props.environment])
     .replace("SET_EGS_SERIAL_NUMBER", `1-${props.solutionName}|2-${props.egsModel}|3-${props.egsSerialNumber}`)
     .replace("SET_VAT_REGISTRATION_NUMBER", props.vatNumber)
     .replace("SET_INVOICE_TYPE_TITLE", ZATCA_CSR_INVOICE_TYPE_TITLE[props.invoiceType])

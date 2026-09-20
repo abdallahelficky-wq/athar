@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../lib/prisma", () => ({
   prisma: {
     company: { findFirst: vi.fn(), update: vi.fn() },
-    companyZatcaCredential: { findUnique: vi.fn(), update: vi.fn() },
+    companyZatcaCredential: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn() },
     $transaction: vi.fn(async (operations) => Promise.all(operations)),
   },
 }));
@@ -11,9 +11,11 @@ vi.mock("../../lib/prisma", () => ({
 vi.mock("../../lib/zatca/apiClient", () => ({ requestComplianceCsid: vi.fn() }));
 vi.mock("../../lib/zatca/secretBox", () => ({ encryptSecret: (value: string) => "encrypted:" + value }));
 vi.mock("../../lib/zatca/signing", () => ({ getCertificateInfo: () => ({ canonicalBodyBase64: "canonical" }) }));
+vi.mock("../../lib/zatca/csr", () => ({ generateCsr: vi.fn(), verifyCsrLocally: vi.fn() }));
+import { generateCsr, verifyCsrLocally } from "../../lib/zatca/csr";
 import { requestComplianceCsid } from "../../lib/zatca/apiClient";
 import { prisma } from "../../lib/prisma";
-import { setCompanyZatcaEnvironment, requestCompanyComplianceCsid } from "./companiesZatca.service";
+import { setCompanyZatcaEnvironment, requestCompanyComplianceCsid, generateCompanyCsr } from "./companiesZatca.service";
 
 const TENANT_ID = "tenant-1";
 const COMPANY_ID = "company-1";
@@ -112,5 +114,18 @@ describe("requestCompanyComplianceCsid", () => {
       data: expect.objectContaining({ complianceRequestId: "new-request",
         lastMissingComplianceSteps: [], lastComplianceStepsCheckedAt: null }),
     }));
+  });
+});
+
+
+describe("generateCompanyCsr environment selection", () => {
+  it.each(["sandbox", "simulation", "production"])("uses stored %s environment even if an old client sends a conflicting production flag", async (environment) => {
+    vi.mocked(prisma.company.findFirst).mockResolvedValue({ ...mockCompany({ zatcaEnvironment: environment }),
+      name: "Test Company", vatNumber: "300000000000003", crNumber: "1010101010",
+    } as never);
+    vi.mocked(generateCsr).mockResolvedValue({ privateKeyPem: "test-key", csrPem: "test-csr" });
+    vi.mocked(verifyCsrLocally).mockResolvedValue(true);
+    await generateCompanyCsr(TENANT_ID, COMPANY_ID, { production: environment !== "production", invoiceType: "both" });
+    expect(generateCsr).toHaveBeenLastCalledWith(expect.objectContaining({ environment, invoiceType: "both" }));
   });
 });

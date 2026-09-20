@@ -41,7 +41,6 @@ export default function CompanyZatcaModal({ company, onClose }) {
   const [note, setNote] = useState("");
 
   const [csrPem, setCsrPem] = useState("");
-  const [production, setProduction] = useState(false);
   const [invoiceType, setInvoiceType] = useState("both");
   const [otp, setOtp] = useState("");
   const [busy, setBusy] = useState(false);
@@ -85,7 +84,7 @@ export default function CompanyZatcaModal({ company, onClose }) {
 
   const handleGenerateCsr = () =>
     runAction(async () => {
-      const result = await generateCompanyZatcaCsr(company.id, { production, invoiceType });
+      const result = await generateCompanyZatcaCsr(company.id, { invoiceType });
       setCsrPem(result.csrPem);
       return result;
     }, t("settings.zatca.csrSuccess"));
@@ -184,10 +183,6 @@ export default function CompanyZatcaModal({ company, onClose }) {
               </p>
             )}
             <div className="form-btn-group" style={{ justifyContent: "flex-start" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <input type="checkbox" checked={production} onChange={(e) => setProduction(e.target.checked)} />
-                {t("settings.zatca.generateProdCheckbox")}
-              </label>
               <button className="btn-ghost" onClick={handleGenerateCsr} disabled={busy}>
                 {status.hasCsr ? t("settings.zatca.regenerateCsrBtn") : t("settings.zatca.generateCsrBtn")}
               </button>
