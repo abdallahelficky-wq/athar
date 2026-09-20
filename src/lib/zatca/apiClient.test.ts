@@ -354,3 +354,45 @@ describe("apiClient request timeout", () => {
     expect(result.networkError).toBe(true);
   });
 });
+
+// Regression for the actual HTTP 202 compliance response observed on 2026-09-20.
+describe("compliance nullable status placeholders", () => {
+  const params = { environment: "simulation" as const, credentials: CREDENTIALS, signedInvoiceBase64: "eA==", invoiceHash: "hash", uuid: "test" };
+  const response = {
+    validationResults: {
+      infoMessages: [{ type: "INFO", code: "XSD_ZATCA_VALID", message: "Complied with UBL 2.1 standards in line with ZATCA specifications", status: "PASS" }],
+      warningMessages: [{ type: "WARNING", code: "BR-KSA-F-08", message: "Please recheck the CRN value", status: "WARNING" }],
+      errorMessages: [], status: "WARNING",
+    },
+    reportingStatus: null, clearanceStatus: "CLEARED", qrSellertStatus: null, qrBuyertStatus: null,
+  };
+
+  it("accepts the observed 202 response without losing warnings", async () => {
+    mockFetchOnce(202, response);
+    const result = await checkInvoiceCompliance(params);
+    expect(result.ok).toBe(true);
+    expect(result.data?.clearanceStatus).toBe("CLEARED");
+    expect(result.data?.validationResults?.warningMessages?.[0].code).toBe("BR-KSA-F-08");
+    expect(hasValidationErrors(result.data)).toBe(false);
+  });
+
+  it.each([clearInvoice, reportInvoice])("does not relax production endpoint schemas", async (submit) => {
+    mockFetchOnce(202, response);
+    const result = await submit(params);
+    expect(result.ok).toBe(false);
+    expect(result.malformedResponse).toBe(true);
+  });
+
+  it.each([{}, null, { reportingStatus: null, clearanceStatus: null }, { reportingStatus: 42 }, { validationResults: null }])("still rejects malformed compliance response %j", async (body) => {
+    mockFetchOnce(202, body);
+    const result = await checkInvoiceCompliance(params);
+    expect(result.ok).toBe(false);
+    expect(result.malformedResponse).toBe(true);
+  });
+
+  it("preserves validation errors in a nullable-status response", async () => {
+    mockFetchOnce(202, { ...response, validationResults: { status: "ERROR", errorMessages: [{ type: "ERROR", code: "INVALID", message: "Invalid invoice" }] } });
+    const result = await checkInvoiceCompliance(params);
+    expect(hasValidationErrors(result.data)).toBe(true);
+  });
+});

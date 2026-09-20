@@ -85,7 +85,7 @@ interface RequestParams<T> {
   acceptLanguage?: "ar" | "en";
   /** يُطبَّق فقط على استجابات 2xx — استجابات الفشل (400/500...) تُعاد كما هي بلا تحقق شكلي، لأن
    * أشكالها متنوّعة (رسائل خطأ عامة من الخادم) ولا تُتخَذ منها قرارات حسّاسة أصلاً. */
-  schema: z.ZodType<T>;
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>;
   /** سقالة تشخيصية مؤقتة (راجع env.zatcaOnboardingDiagnostics) — سياق اختياري (ICV/PIH/نوع مستند/
    * فرعه) يُملأه المستدعي وقت المشي اليدوي عبر ربط زاتكا فقط؛ لا يُستخدَم في أي قرار، فقط يُسجَّل
    * كاملاً مع الجسم الخام *قبل* أي تصفية Zod (schema أعلاه قد تُسقِط حقولاً غير معروفة صامتة). */
@@ -315,6 +315,19 @@ const zatcaSubmissionResponseSchema = z
 
 export type ZatcaSubmissionResponse = z.infer<typeof zatcaSubmissionResponseSchema>;
 
+// Observed on /compliance/invoices (2026-09-20): HTTP 202, CLEARED,
+// validationResults.status=WARNING, no errors, and reportingStatus=null.
+// Normalize only nullable status placeholders on this endpoint; retain the
+// existing schema and its non-empty response check for every other field.
+const zatcaComplianceResponseSchema = z.preprocess((data) => {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return data;
+  const normalized = { ...data } as Record<string, unknown>;
+  for (const field of ["clearanceStatus", "reportingStatus"]) {
+    if (normalized[field] === null) delete normalized[field];
+  }
+  return normalized;
+}, zatcaSubmissionResponseSchema);
+
 interface SubmitInvoiceParams {
   environment: ZatcaApiEnvironment;
   credentials: ZatcaApiCredentials;
@@ -345,7 +358,7 @@ export function checkInvoiceCompliance(params: SubmitInvoiceParams) {
     path: "/compliance/invoices",
     body: { invoiceHash: params.invoiceHash, uuid: params.uuid, invoice: params.signedInvoiceBase64 },
     credentials: params.credentials,
-    schema: zatcaSubmissionResponseSchema,
+    schema: zatcaComplianceResponseSchema,
     onboardingDiagnostics: params.onboardingDiagnostics,
     acceptLanguage: params.acceptLanguage,
   });

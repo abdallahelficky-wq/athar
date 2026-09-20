@@ -543,7 +543,7 @@ describe("evaluateZatcaPostingGate", () => {
   it("marks a successful compliance check as compliance_checked (not cleared/reported), with no zatcaClearedOrReportedAt, for both invoice subtypes", async () => {
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
 
-    mockFetchOnce(200, { validationResults: { status: "PASS" } });
+    mockFetchOnce(202, { clearanceStatus: "CLEARED", reportingStatus: null, validationResults: { status: "WARNING", errorMessages: [], warningMessages: [{ type: "WARNING", code: "BR-KSA-F-08", message: "Recheck CRN" }] } });
     const standardDecision = await evaluateZatcaPostingGate({
       tx: fakeTx(),
       company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
