@@ -234,6 +234,33 @@ describe("evaluateZatcaPostingGate", () => {
     expect(decision.rejectionReason).not.toContain("رفضت زاتكا الفاتورة");
   });
 
+  // إعادة إنتاج مباشرة لعطل إنتاج فعلي ثالث: زاتكا أعادت 2xx (نجاح فعلي — فحص امتثال بتحذيرات لا
+  // رفض) لكن الجسم لم يطابق zatcaComplianceResponseSchema المتوقَّع (قبل إصلاحها في apiClient.ts) —
+  // كان هذا "رفضنا نجاحاً" يُصنَّف "rejected" رغم أن زاتكا لم تُقيِّم المستند رفضاً على الإطلاق. أي
+  // 2xx لم يطابق الشكل المتوقَّع (malformedResponse) يجب أن يُصنَّف submission_failed مثل httpError
+  // تماماً، لا rejected — راجع تعليق malformedResponse في submission.ts.
+  it("classifies a 2xx response that fails schema validation as submission_failed (not rejected)", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
+    // جسم 2xx حقيقي لا يحمل أياً من clearanceStatus/reportingStatus/validationResults — يفشل
+    // .refine() في zatcaSubmissionResponseSchema بصرف النظر عن أي تطبيع لاحق.
+    mockFetchOnce(200, { unexpectedField: "زاتكا غيّرت شكل الرد" });
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
+      customer: STANDARD_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(decision.zatcaFields.zatcaStatus).toBe("submission_failed");
+    expect(decision.zatcaFields.zatcaStatus).not.toBe("rejected");
+  });
+
   it("does NOT emit the 'رفضت زاتكا مستنداً' rejection log for an httpError (auth/transport failure) — it's already logged in full inside zatcaRequest", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
@@ -543,7 +570,9 @@ describe("evaluateZatcaPostingGate", () => {
   it("marks a successful compliance check as compliance_checked (not cleared/reported), with no zatcaClearedOrReportedAt, for both invoice subtypes", async () => {
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
 
-    mockFetchOnce(200, { validationResults: { status: "PASS" } });
+    // الشكل الفعلي المُلاحَظ لرد امتثال ناجح (راجع apiClient.ts): HTTP 202، clearanceStatus
+    // "CLEARED" (لا "PASS")، reportingStatus null حرفياً، بتحذيرات لا أخطاء.
+    mockFetchOnce(202, { clearanceStatus: "CLEARED", reportingStatus: null, validationResults: { status: "WARNING", errorMessages: [], warningMessages: [{ type: "WARNING", code: "BR-KSA-F-08", message: "Recheck CRN" }] } });
     const standardDecision = await evaluateZatcaPostingGate({
       tx: fakeTx(),
       company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
@@ -558,8 +587,13 @@ describe("evaluateZatcaPostingGate", () => {
     expect(standardDecision.proceedWithPosting).toBe(true);
     expect(standardDecision.zatcaFields.zatcaStatus).toBe("compliance_checked");
     expect(standardDecision.zatcaFields.zatcaClearedOrReportedAt).toBeUndefined();
+    // البند الحرج: الرد الخام يحمل clearanceStatus="CLEARED" فعلياً (مخزَّن كما هو في
+    // zatcaResponseRaw للتدقيق) — لكن هذا لا يجب أن يُسرِّب "cleared" إلى zatcaStatus المُقيَّم
+    // فعلياً؛ ذلك محجوز حصراً لمسار الإنتاج (راجع isProductionSubmission في postingGate.ts).
+    expect((standardDecision.zatcaFields.zatcaResponseRaw as { clearanceStatus?: string } | undefined)?.clearanceStatus).toBe("CLEARED");
+    expect(standardDecision.zatcaFields.zatcaStatus).not.toBe("cleared");
 
-    mockFetchOnce(200, { validationResults: { status: "PASS" } });
+    mockFetchOnce(202, { clearanceStatus: "CLEARED", reportingStatus: null, validationResults: { status: "WARNING", errorMessages: [], warningMessages: [{ type: "WARNING", code: "BR-KSA-F-08", message: "Recheck CRN" }] } });
     const simplifiedDecision = await evaluateZatcaPostingGate({
       tx: fakeTx(),
       company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },

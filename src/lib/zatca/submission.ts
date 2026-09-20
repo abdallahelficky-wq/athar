@@ -70,6 +70,11 @@ export interface ZatcaSubmissionRejected {
    * إطلاقاً. راجع hasRecognizableRejectionBody في apiClient.ts. تحتاج مراجعة إعداد الربط (شهادة/
    * صلاحيات/مسار)، لا تصحيح بيانات المستند. */
   httpError?: boolean;
+  /** true لاستجابة HTTP ناجحة (2xx) فعلياً لكن جسمها لم يطابق المخطط المتوقَّع — عطل إنتاج فعلي
+   * مؤكَّد: كان هذا الحقل يصل هنا بلا أي تمييز عن رفض حقيقي من زاتكا (لم يكن يُمرَّر إطلاقاً)، فكان
+   * نجاح 2xx بشكل غير متوقَّع يُصنَّف "rejected" في postingGate.ts/resubmit.ts — أي "رفضنا نجاحاً"،
+   * لا رفضاً فعلياً من زاتكا. راجع apiClient.ts (RequestParams.schema/zatcaRequest) لمصدر هذا الحقل. */
+  malformedResponse?: boolean;
   /** كود حالة HTTP الفعلي من زاتكا عند httpError — لعرضه في الرسالة للمستخدم بدل رسالة عامة. */
   httpStatus?: number;
 }
@@ -182,6 +187,7 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
     invoiceHash,
     networkError: result.networkError,
     httpError: result.httpError,
+    malformedResponse: result.malformedResponse,
     httpStatus: result.status,
   };
 }

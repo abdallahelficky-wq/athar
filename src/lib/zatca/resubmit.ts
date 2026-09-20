@@ -102,7 +102,7 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
       zatcaClearedOrReportedAt: new Date(),
     };
   }
-  if (!outcome.certificateError && !outcome.networkError && !outcome.httpError) {
+  if (!outcome.certificateError && !outcome.networkError && !outcome.httpError && !outcome.malformedResponse) {
     // نفس تسجيل الرفض الصريح في postingGate.ts أعلاه، لمسار إعادة الإرسال (يدوية أو تلقائية) —
     // كان صامتاً تماماً بلا أي سطر سجلّ حتى الآن أيضاً. httpError مُستبعَدة هنا لنفس السبب: سُجِّلت
     // بالفعل بصورتها الكاملة (status/statusText/الترويسات/الجسم الخام) داخل zatcaRequest نفسها.
@@ -113,9 +113,14 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
     );
   }
   return {
-    // راجع نفس التمييز في postingGate.ts: httpError (فشل نقل/مصادقة، لا تقييم فعلي للمستند) تُصنَّف
+    // راجع نفس التمييز في postingGate.ts: httpError أو malformedResponse (فشل نقل/مصادقة، أو رد
+    // 2xx ناجح فعلياً لم يطابق الشكل المتوقَّع — لا تقييم فعلي للمستند في أي منهما) تُصنَّف
     // submission_failed بنفس معاملة عطل الشبكة، لا rejected.
-    zatcaStatus: outcome.certificateError ? "certificate_error" : outcome.networkError || outcome.httpError ? "submission_failed" : "rejected",
+    zatcaStatus: outcome.certificateError
+      ? "certificate_error"
+      : outcome.networkError || outcome.httpError || outcome.malformedResponse
+        ? "submission_failed"
+        : "rejected",
     zatcaResponseRaw: outcome.response ?? undefined,
     rejectionReason: outcome.reason,
   };

@@ -188,10 +188,10 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
     };
   }
 
-  if (!outcome.certificateError && !outcome.networkError && !outcome.httpError) {
-    // رفض فعلي وصريح من زاتكا (لا عطل شبكة، لا شهادة معطوبة، لا فشل نقل/مصادقة — تلك الثلاثة لها
-    // تصنيفها وسجلّها الخاص، بما فيها السجلّ الكامل داخل zatcaRequest نفسها لحالة httpError) — كان
-    // هذا المسار صامتاً تماماً بلا أي سطر سجلّ حتى الآن، فلا وسيلة لمعرفة سبب رفض حقيقي إلا بقراءة
+  if (!outcome.certificateError && !outcome.networkError && !outcome.httpError && !outcome.malformedResponse) {
+    // رفض فعلي وصريح من زاتكا (لا عطل شبكة، لا شهادة معطوبة، لا فشل نقل/مصادقة، لا رد 2xx ناجح
+    // فعلياً لم يطابق الشكل المتوقَّع — تلك الأربعة لها تصنيفها وسجلّها الخاص، بما فيها السجلّ الكامل
+    // داخل zatcaRequest نفسها لحالة httpError) — كان هذا المسار صامتاً تماماً بلا أي سطر سجلّ حتى الآن، فلا وسيلة لمعرفة سبب رفض حقيقي إلا بقراءة
     // zatcaResponseRaw من القاعدة مباشرة. نسجّل الاستجابة الخام الكاملة كما وصلت من زاتكا بلا أي
     // تصفية أو افتراض شكل مسبق — extractRejectionReasons (apiClient.ts) قد لا تلتقط كل شيء لو
     // اختلف شكل استجابة زاتكا الفعلي عمّا افتُرِض في هذا الملف.
@@ -213,10 +213,16 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
       previousInvoiceHash: chain.previousInvoiceHash,
       invoiceHash: chain.invoiceHash,
       // "rejected" محجوزة فقط لتقييم فعلي من زاتكا انتهى برفض المستند — تحتاج تصحيح بيانات. أي
-      // فشل نقل/مصادقة (httpError، مثل 401/403/404/5xx أو جسم غير مفهوم) لم تُقيَّم فيه الفاتورة
-      // على الإطلاق — تحتاج مراجعة إعداد الربط (شهادة/صلاحيات/مسار)، لا تصحيح بيانات المستند، فتُصنَّف
-      // submission_failed بنفس معاملة عطل الشبكة تماماً (راجع httpError في submission.ts/apiClient.ts).
-      zatcaStatus: outcome.certificateError ? "certificate_error" : outcome.networkError || outcome.httpError ? "submission_failed" : "rejected",
+      // فشل نقل/مصادقة (httpError، مثل 401/403/404/5xx أو جسم غير مفهوم) أو رد 2xx ناجح فعلياً لم
+      // يطابق الشكل المتوقَّع (malformedResponse — عطل إنتاج فعلي مؤكَّد: كان يُصنَّف "rejected" رغم
+      // أن زاتكا لم ترفض شيئاً، لأنها لم تُقيَّم فيه الفاتورة على الإطلاق) — تحتاج مراجعة إعداد الربط
+      // (شهادة/صلاحيات/مسار) أو تحديث المخطط المتوقَّع، لا تصحيح بيانات المستند، فتُصنَّف
+      // submission_failed بنفس معاملة عطل الشبكة تماماً (راجع httpError/malformedResponse في submission.ts/apiClient.ts).
+      zatcaStatus: outcome.certificateError
+        ? "certificate_error"
+        : outcome.networkError || outcome.httpError || outcome.malformedResponse
+          ? "submission_failed"
+          : "rejected",
       zatcaSubmittedAt: chain.issuedAt,
       zatcaResponseRaw: (outcome.response ?? undefined) as Prisma.InputJsonValue | undefined,
     },
