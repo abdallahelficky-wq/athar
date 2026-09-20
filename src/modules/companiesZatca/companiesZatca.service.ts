@@ -93,7 +93,8 @@ export async function getZatcaStatus(tenantId: string, companyId: string) {
 }
 
 export interface GenerateCsrInput {
-  production: boolean;
+  /** Deprecated client flag; CSR template is derived from the stored environment. */
+  production?: boolean;
   solutionName?: string;
   model?: string;
   /** يحدّد ما تُخوَّل الشهادة الناتجة توقيعه، وعدد مستندات الامتثال الستة/الثلاثة التي تتطلبها زاتكا
@@ -118,7 +119,7 @@ export async function generateCompanyCsr(tenantId: string, companyId: string, in
   const invoiceType = input.invoiceType || "both";
 
   const { privateKeyPem, csrPem } = await generateCsr({
-    production: input.production,
+    environment: company.zatcaEnvironment as ZatcaApiEnvironment,
     solutionName,
     egsModel: model,
     egsSerialNumber: egsUuid,
