@@ -13,6 +13,17 @@ function escapeXml(value: string | number | null | undefined): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * تقريب لأقرب هللة (half-away-from-zero) — يُستخدَم فقط قبل truncateDecimals على قيم هي مجموع
+ * أرقام مُقرَّبة أصلاً لخانتين عشريتين (إجماليات الرأس، ومجموع صافي+ضريبة كل سطر)، لا على القيم
+ * الذرّية نفسها. جمع عدة أرقام "نظيفة" بخانتين عشريتين في IEEE754 قد ينتج مثل 135.29999999999998
+ * بدل 135.3 بسبب تمثيل الفاصلة العائمة الثنائية — truncateDecimals كان سيبتر هذا لـ"135.29"
+ * فيُسقِط هللة كاملة من إجمالي الفاتورة رغم أن كل سطر بمفرده مُقرَّب بشكل صحيح تماماً.
+ */
+function roundMoney(n: number): number {
+  return (Math.sign(n) * Math.round(Math.abs(n) * 100)) / 100;
+}
+
 /** يقصّ الرقم لعدد منازل عشري محدد دون تقريب (مطابق toFixedNoRounding في المرجع) — زاتكا يرفض
  * فواتير تحتوي مبالغ مُقرَّبة تختلف عن المجموع الفعلي لبنودها بأكثر من هامش صغير جداً. */
 function truncateDecimals(num: number, digits = 2): string {
@@ -91,7 +102,7 @@ function buildInvoiceLineXml(line: ZatcaLineInput): string {
       <cbc:LineExtensionAmount currencyID="SAR">${truncateDecimals(line.lineSubtotal)}</cbc:LineExtensionAmount>
       <cac:TaxTotal>
         <cbc:TaxAmount currencyID="SAR">${truncateDecimals(line.lineVat)}</cbc:TaxAmount>
-        <cbc:RoundingAmount currencyID="SAR">${truncateDecimals(line.lineSubtotal + line.lineVat)}</cbc:RoundingAmount>
+        <cbc:RoundingAmount currencyID="SAR">${truncateDecimals(roundMoney(line.lineSubtotal + line.lineVat))}</cbc:RoundingAmount>
       </cac:TaxTotal>
       <cac:Item>
         <cbc:Name>${escapeXml(line.name)}</cbc:Name>
@@ -146,8 +157,8 @@ function buildTaxTotalXml(lines: ZatcaLineInput[], totalVat: number): string {
           ? `\n        <cbc:TaxExemptionReason>${escapeXml(g.taxExemptionReason)}</cbc:TaxExemptionReason>`
           : "";
       return `      <cac:TaxSubtotal>
-        <cbc:TaxableAmount currencyID="SAR">${truncateDecimals(g.taxableAmount)}</cbc:TaxableAmount>
-        <cbc:TaxAmount currencyID="SAR">${truncateDecimals(g.taxAmount)}</cbc:TaxAmount>
+        <cbc:TaxableAmount currencyID="SAR">${truncateDecimals(roundMoney(g.taxableAmount))}</cbc:TaxableAmount>
+        <cbc:TaxAmount currencyID="SAR">${truncateDecimals(roundMoney(g.taxAmount))}</cbc:TaxAmount>
         <cac:TaxCategory>
           <cbc:ID schemeAgencyID="6" schemeID="UN/ECE 5305">${g.taxCategoryCode}</cbc:ID>
           <cbc:Percent>${truncateDecimals(g.taxPercent)}</cbc:Percent>${exemptionXml}
@@ -161,20 +172,22 @@ function buildTaxTotalXml(lines: ZatcaLineInput[], totalVat: number): string {
 
   // عنصرا cac:TaxTotal مكرَّران عمداً على مستوى المستند — الأول يحمل تفصيل TaxSubtotal لكل فئة
   // ضريبية، والثاني ملخّص بلا تفصيل (قاعدة خاصة بملف زاتكا KSA، مُقتبَسة من التطبيق المرجعي).
+  const roundedTotalVat = roundMoney(totalVat);
   return `  <cac:TaxTotal>
-    <cbc:TaxAmount currencyID="SAR">${truncateDecimals(totalVat)}</cbc:TaxAmount>
+    <cbc:TaxAmount currencyID="SAR">${truncateDecimals(roundedTotalVat)}</cbc:TaxAmount>
 ${subtotalsXml}
   </cac:TaxTotal>
   <cac:TaxTotal>
-    <cbc:TaxAmount currencyID="SAR">${truncateDecimals(totalVat)}</cbc:TaxAmount>
+    <cbc:TaxAmount currencyID="SAR">${truncateDecimals(roundedTotalVat)}</cbc:TaxAmount>
   </cac:TaxTotal>`;
 }
 
 function buildLegalMonetaryTotalXml(subtotal: number, totalVat: number): string {
-  const grandTotal = subtotal + totalVat;
+  const roundedSubtotal = roundMoney(subtotal);
+  const grandTotal = roundMoney(subtotal + totalVat);
   return `  <cac:LegalMonetaryTotal>
-    <cbc:LineExtensionAmount currencyID="SAR">${truncateDecimals(subtotal)}</cbc:LineExtensionAmount>
-    <cbc:TaxExclusiveAmount currencyID="SAR">${truncateDecimals(subtotal)}</cbc:TaxExclusiveAmount>
+    <cbc:LineExtensionAmount currencyID="SAR">${truncateDecimals(roundedSubtotal)}</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="SAR">${truncateDecimals(roundedSubtotal)}</cbc:TaxExclusiveAmount>
     <cbc:TaxInclusiveAmount currencyID="SAR">${truncateDecimals(grandTotal)}</cbc:TaxInclusiveAmount>
     <cbc:AllowanceTotalAmount currencyID="SAR">0.00</cbc:AllowanceTotalAmount>
     <cbc:PrepaidAmount currencyID="SAR">0.00</cbc:PrepaidAmount>
