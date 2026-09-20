@@ -1,4 +1,4 @@
-import invoiceTemplate, { buyerPartyTemplate, billingReferenceTemplate } from "./templates/invoiceTemplate";
+import invoiceTemplate, { buyerPartyTemplate, billingReferenceTemplate, paymentMeansTemplate } from "./templates/invoiceTemplate";
 import { ZatcaDocumentInput, ZatcaLineInput, ZatcaPartyInput } from "./types";
 
 // بناء XML بصيغة UBL 2.1 لمستند فوترة إلكترونية (فاتورة/إشعار دائن/إشعار مدين) وفق زاتكا، من
@@ -91,6 +91,17 @@ function buildBuyerBlock(buyer: ZatcaPartyInput | undefined): string {
 function buildBillingReference(billingReferenceId: string | undefined): string {
   if (!billingReferenceId) return "";
   return billingReferenceTemplate.replace("SET_BILLING_REFERENCE_ID", escapeXml(billingReferenceId));
+}
+
+/**
+ * BR-KSA-17: سبب إصدار إشعار الدائن/المدين (KSA-10) إلزامي لهذين النوعين تحديداً (388/الفاتورة
+ * العادية لا تحتاجه إطلاقاً). عطل إنتاج فعلي رابع لنفس مسار الإشعارات — لم يُكتشَف إلا بعد أن قبلت
+ * زاتكا المرجع الذاتي الاصطناعي دون اعتراض (راجع تقرير الاختبار)، أي أن هذا هو الحقل الوحيد
+ * المتبقي، لا مشكلة إضافية في بنية المرجع نفسه.
+ */
+function buildPaymentMeansXml(kind: ZatcaDocumentInput["kind"], issuanceReason: string | undefined): string {
+  if (kind === "invoice" || !issuanceReason) return "";
+  return paymentMeansTemplate.replace("SET_INSTRUCTION_NOTE", escapeXml(issuanceReason));
 }
 
 function buildInvoiceLineXml(line: ZatcaLineInput): string {
@@ -202,6 +213,10 @@ export function buildDocumentXml(input: ZatcaDocumentInput): string {
   if ((input.kind === "credit_note" || input.kind === "debit_note") && !input.billingReferenceId) {
     throw new Error("إشعار الدائن/المدين يتطلب رقم الفاتورة المرتبطة (billingReferenceId)");
   }
+  if ((input.kind === "credit_note" || input.kind === "debit_note") && !input.issuanceReason) {
+    // BR-KSA-17: إلزامي لهذين النوعين فقط — راجع buildPaymentMeansXml أعلاه.
+    throw new Error("إشعار الدائن/المدين يتطلب سبب الإصدار (issuanceReason) — BR-KSA-17");
+  }
 
   const totalVat = input.lines.reduce((sum, l) => sum + l.lineVat, 0);
   const subtotal = input.lines.reduce((sum, l) => sum + l.lineSubtotal, 0);
@@ -226,6 +241,7 @@ export function buildDocumentXml(input: ZatcaDocumentInput): string {
   }
 
   xml = xml.replace("SET_ACCOUNTING_CUSTOMER_PARTY", buildBuyerBlock(input.buyer));
+  xml = xml.replace("SET_PAYMENT_MEANS", buildPaymentMeansXml(input.kind, input.issuanceReason));
   xml = xml.replace("SET_TAX_TOTAL", buildTaxTotalXml(input.lines, totalVat));
   xml = xml.replace("SET_LEGAL_MONETARY_TOTAL", buildLegalMonetaryTotalXml(subtotal, totalVat));
   xml = xml.replace("SET_INVOICE_LINES", input.lines.map(buildInvoiceLineXml).join("\n"));

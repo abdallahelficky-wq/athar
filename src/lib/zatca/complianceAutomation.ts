@@ -33,23 +33,23 @@ export interface ZatcaComplianceStepDefinition {
   kind: ZatcaDocumentKind;
   subtype: ZatcaInvoiceSubtype;
   /**
-   * المرحلة الحالية عمداً: خطوة واحدة فقط مُفعَّلة للتشغيل الفعلي (الإشعار الدائن القياسي) — قبول
-   * زاتكا لمرجع ذاتي اصطناعي في الإشعارات (billingReferenceId، راجع SYNTHETIC_BILLING_REFERENCE_ID
-   * أدناه) لم يُتحقَّق منه بعد ضد رد فعلي منها. runZatcaComplianceStep يرفض أي خطوة enabled=false
-   * صراحة — هذا قيد حقيقي داخل الدالة نفسها، لا مجرد اعتماد على أن الرابط الخارجي (route/controller)
-   * لا يعرض غيرها. الخطوات الأربع الباقية (بخلاف standard-compliant المُجتازة فعلاً بفاتورة حقيقية)
-   * تُفعَّل هنا صراحةً (enabled: true) فقط بعد التحقق من نتيجة هذه الخطوة تحديداً.
+   * كانت خطوة واحدة فقط (الإشعار الدائن القياسي) مُفعَّلة عمداً في مرحلة أولى، ريثما يُتحقَّق من
+   * قبول زاتكا لمرجع ذاتي اصطناعي في الإشعارات (billingReferenceId) — تحقَّق ذلك فعلياً بلا أي
+   * اعتراض من زاتكا، فالأربع الباقية (بخلاف standard-compliant المُجتازة فعلاً بفاتورة حقيقية،
+   * فلا حاجة لتكرارها اصطناعياً) مُفعَّلة الآن أيضاً. runZatcaComplianceStep يرفض أي خطوة
+   * enabled=false صراحة — هذا قيد حقيقي داخل الدالة نفسها، لا مجرد اعتماد على أن الرابط الخارجي
+   * (route/controller) لا يعرض غيرها؛ كل خطوة لا تزال تحتاج ضغطة زر مقصودة منفصلة (لا تسلسل تلقائي).
    */
   enabled: boolean;
 }
 
 export const ZATCA_COMPLIANCE_STEPS: readonly ZatcaComplianceStepDefinition[] = [
   { key: "standard-compliant", kind: "invoice", subtype: "standard", enabled: false },
-  { key: "simplified-compliant", kind: "invoice", subtype: "simplified", enabled: false },
+  { key: "simplified-compliant", kind: "invoice", subtype: "simplified", enabled: true },
   { key: "standard-credit-note-compliant", kind: "credit_note", subtype: "standard", enabled: true },
-  { key: "simplified-credit-note-compliant", kind: "credit_note", subtype: "simplified", enabled: false },
-  { key: "standard-debit-note-compliant", kind: "debit_note", subtype: "standard", enabled: false },
-  { key: "simplified-debit-note-compliant", kind: "debit_note", subtype: "simplified", enabled: false },
+  { key: "simplified-credit-note-compliant", kind: "credit_note", subtype: "simplified", enabled: true },
+  { key: "standard-debit-note-compliant", kind: "debit_note", subtype: "standard", enabled: true },
+  { key: "simplified-debit-note-compliant", kind: "debit_note", subtype: "simplified", enabled: true },
 ] as const;
 
 /**
@@ -78,6 +78,11 @@ const SYNTHETIC_DOC_NUMBER_PREFIX = "ZATCA-COMPLIANCE-TEST";
 // الامتثال (راجع تقرير التحقيق) — لكن هذا افتراض هيكلي غير مُتحقَّق منه بعد ضد رد فعلي، ولذا هذه أول
 // خطوة (الإشعار الدائن القياسي) تُختبَر بمفردها قبل الأربع الباقية.
 const SYNTHETIC_BILLING_REFERENCE_ID = "ZATCA-COMPLIANCE-TEST-ORIGINAL-INVOICE";
+
+// BR-KSA-17 (KSA-10): سبب إصدار ثابت وصريح بالعربية يُعلن أنه اختبار امتثال داخلي، لا معاملة
+// تجارية فعلية — بنفس منطق SYNTHETIC_PARTY_NAME أدناه (هذه المستندات تصل سجلّ التقديم الدائم لدى
+// زاتكا لهذا المكلَّف). إلزامي لإشعار الدائن/المدين فقط — الفاتورة (kind: "invoice") لا تحتاجه.
+const SYNTHETIC_ISSUANCE_REASON = "اختبار امتثال داخلي (Athar ERP) — مستند اصطناعي لا يمثّل معاملة تجارية فعلية";
 
 const SYNTHETIC_PARTY_NAME = "ATHAR ZATCA COMPLIANCE TEST — DO NOT PAY / اختبار امتثال داخلي — لا تُسدَّد";
 
@@ -177,6 +182,7 @@ export async function runZatcaComplianceStep(tenantId: string, companyId: string
     documentNumber,
     documentUuid,
     billingReferenceId: step.kind !== "invoice" ? SYNTHETIC_BILLING_REFERENCE_ID : undefined,
+    issuanceReason: step.kind !== "invoice" ? SYNTHETIC_ISSUANCE_REASON : undefined,
     lines: syntheticLines(),
     grandTotal: 1.15,
     vatTotal: 0.15,
@@ -239,19 +245,10 @@ export async function runZatcaComplianceStep(tenantId: string, companyId: string
   };
 }
 
-/**
- * المرحلة الحالية عمداً: خطوة واحدة فقط مُتاحة للتشغيل (الإشعار الدائن القياسي) — افتراض قبول زاتكا
- * لمرجع ذاتي اصطناعي في الإشعارات (راجع SYNTHETIC_BILLING_REFERENCE_ID أعلاه) لم يُتحقَّق منه بعد
- * ضد رد فعلي من زاتكا. الخطوات الأربع الباقية (بخلاف standard-compliant المُجتازة فعلاً) تُضاف هنا
- * فقط بعد التحقق من نتيجة هذه الخطوة تحديداً — لا تُوسَّع القائمة المُتاحة قبل ذلك.
- */
-export async function runStandardCreditNoteComplianceTest(tenantId: string, companyId: string) {
-  return runZatcaComplianceStep(tenantId, companyId, "standard-credit-note-compliant");
-}
 
 export interface ZatcaComplianceProgress {
   complianceRequestId: string | null;
-  steps: Array<{ key: string; passed: boolean; source: "local_attempt" | "zatca_missing_steps_reconciliation" | "not_yet_attempted" }>;
+  steps: Array<{ key: string; passed: boolean; enabled: boolean; source: "local_attempt" | "zatca_missing_steps_reconciliation" | "not_yet_attempted" }>;
 }
 
 /**
@@ -285,9 +282,9 @@ export async function getZatcaComplianceProgress(tenantId: string, companyId: st
   return {
     complianceRequestId,
     steps: ZATCA_COMPLIANCE_STEPS.map((s) => {
-      if (passedKeys.has(s.key)) return { key: s.key, passed: true, source: "local_attempt" as const };
-      if (hasZatcaEvidence && !lastMissing.has(s.key)) return { key: s.key, passed: true, source: "zatca_missing_steps_reconciliation" as const };
-      return { key: s.key, passed: false, source: "not_yet_attempted" as const };
+      if (passedKeys.has(s.key)) return { key: s.key, passed: true, enabled: s.enabled, source: "local_attempt" as const };
+      if (hasZatcaEvidence && !lastMissing.has(s.key)) return { key: s.key, passed: true, enabled: s.enabled, source: "zatca_missing_steps_reconciliation" as const };
+      return { key: s.key, passed: false, enabled: s.enabled, source: "not_yet_attempted" as const };
     }),
   };
 }

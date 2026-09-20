@@ -95,6 +95,10 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
     const gate = billingReferenceId
       ? await evaluateZatcaPostingGate({
           tx, company, customer, kind: "debit_note", documentNumber: debitNoteNumber, documentUuid: zatcaUuid, billingReferenceId,
+          // BR-KSA-17: إلزامي لإشعار المدين. reason حقل اختياري في نموذج الإدخال الحالي (لا علاقة
+          // لزاتكا بذلك قبل اليوم) — قيمة افتراضية معقولة عند تركه فارغاً حتى لا يُرفَض المستند
+          // شكلياً بلا سبب مكتوب؛ راجع تقرير الاختبار: يُستحسَن جعل الحقل إلزامياً في الواجهة لاحقاً.
+          issuanceReason: input.reason?.trim() || "إشعار مدين لعميل",
           lines: computed.map((l) => ({ ...l, description: l.description ?? null })), grandTotal, vatTotal,
         })
       : { proceedWithPosting: true, zatcaFields: { zatcaStatus: "not_applicable" as const } };

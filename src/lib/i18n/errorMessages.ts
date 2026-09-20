@@ -148,6 +148,7 @@ export const AR_TO_EN: Record<string, string> = {
   "اسم مركز التكلفة قصير جداً": "The cost center name is too short",
   "اسم/عنوان عقد الإيجار قصير جداً": "The lease contract name/title is too short",
   "إشعار الدائن/المدين يتطلب رقم الفاتورة المرتبطة (billingReferenceId)": "A credit/debit note requires the linked invoice number (billingReferenceId)",
+  "إشعار الدائن/المدين يتطلب سبب الإصدار (issuanceReason) — BR-KSA-17": "A credit/debit note requires an issuance reason (issuanceReason) — BR-KSA-17",
   "أصل ثابت": "Fixed asset",
   "أضف مكوّناً واحداً على الأقل للمنتج المجمّع": "Add at least one component to the bundled product",
   "إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا، تعذّر إرسالها إليها، تعذّر توقيعها بشهادة غير صالحة، أو نجح فحص الامتثال لها فقط دون تخليص/إبلاغ فعلي":

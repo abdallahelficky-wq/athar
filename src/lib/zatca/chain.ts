@@ -61,6 +61,8 @@ interface ReserveZatcaChainParams {
   documentNumber: string;
   documentUuid: string;
   billingReferenceId?: string;
+  /** BR-KSA-17 (KSA-10) — إلزامي لإشعار دائن/مدين، راجع buildPaymentMeansXml في xmlBuilder.ts */
+  issuanceReason?: string;
   lines: ZatcaPersistedLineLike[];
 }
 
@@ -158,6 +160,7 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     icv,
     previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,
+    issuanceReason: params.issuanceReason,
     seller: mapCompanyToSeller(params.company),
     buyer: subtype === "standard" ? mapCustomerToBuyer(params.customer) : undefined,
     lines: params.lines.map(mapPersistedLineToZatcaLine),

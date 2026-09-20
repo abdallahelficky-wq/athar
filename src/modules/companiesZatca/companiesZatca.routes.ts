@@ -9,7 +9,7 @@ import {
   requestProductionHandler,
   setEnvironmentHandler,
   resetLinkageHandler,
-  runStandardCreditNoteComplianceTestHandler,
+  runComplianceStepTestHandler,
   getComplianceProgressHandler,
 } from "./companiesZatca.controller";
 
@@ -34,7 +34,9 @@ companyZatcaRoutes.patch("/environment", adminOnly, validateBody(setEnvironmentS
 companyZatcaRoutes.delete("/", adminOnly, resetLinkageHandler);
 
 // راجع src/lib/zatca/complianceAutomation.ts — تشغيل/متابعة مستندات فحص الامتثال الاصطناعية الستة.
-// التشغيل الفعلي (يحجز رقم ICV حقيقياً بصرف النظر عن النتيجة) مقصور على admin فقط، مثل بقية مسارات
-// زاتكا الحسّاسة أعلاه؛ القراءة المجرَّدة للتقدّم متاحة لأي مستخدم له صلاحية الوصول لهذه الشركة.
+// :stepKey أحد مفاتيح ZATCA_COMPLIANCE_STEPS (مثل standard-credit-note-compliant) — يُتحقَّق منه
+// ومن enabled=false داخل runZatcaComplianceStep نفسها. التشغيل الفعلي (يحجز رقم ICV حقيقياً بصرف
+// النظر عن النتيجة) مقصور على admin فقط، مثل بقية مسارات زاتكا الحسّاسة أعلاه؛ القراءة المجرَّدة
+// للتقدّم متاحة لأي مستخدم له صلاحية الوصول لهذه الشركة.
 companyZatcaRoutes.get("/compliance-steps", getComplianceProgressHandler);
-companyZatcaRoutes.post("/compliance-steps/standard-credit-note-test", adminOnly, runStandardCreditNoteComplianceTestHandler);
+companyZatcaRoutes.post("/compliance-steps/:stepKey/test", adminOnly, runComplianceStepTestHandler);
