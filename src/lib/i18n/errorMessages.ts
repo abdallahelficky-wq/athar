@@ -198,6 +198,8 @@ export const AR_TO_EN: Record<string, string> = {
   "الفرع المحدد غير موجود ضمن هذه الشركة": "The specified branch does not exist within this company",
   "الشركة المستهدفة غير موجودة ضمن مستأجرك": "The target company does not exist in your tenant",
   "الشركة المستهدفة مطلوبة": "The target company is required",
+  "الشركة غير مرتبطة بزاتكا بعد — يجب توليد CSR واستخراج شهادة الاختبار أولاً":
+    "The company is not linked to ZATCA yet — a CSR must be generated and the compliance certificate obtained first",
   "الشركة غير موجودة": "The company does not exist",
   "الشركة غير موجودة ضمن مستأجرك": "The company does not exist in your tenant",
   "الشركة مطلوبة": "The company is required",
@@ -335,6 +337,7 @@ export const AR_TO_EN: Record<string, string> = {
   "لا توجد أصول نشطة لحساب إهلاكها": "There are no active assets to compute depreciation for",
   "لا توجد تسوية إجازة مفتوحة لهذا الموظف": "There is no open leave settlement for this employee",
   "لا توجد حسابات في شجرة حسابات هذه الشركة بعد": "There are no accounts in this company's chart of accounts yet",
+  "لا توجد شهادة اختبار (Compliance CSID) فعّالة لهذه الشركة بعد": "There is no active compliance (CSID) certificate for this company yet",
   "لا توجد شهادة ربط زاتكا فعالة لهذه الشركة حالياً — أكمل خطوات الربط من شاشة \\\"ربط فاتورة\\\" أولاً":
     "There is no active ZATCA onboarding certificate for this company right now — complete the onboarding steps from the \"Invoice Onboarding\" screen first",
   "لا يمكن إرسال فاتورة لم تُرحَّل بعد": "Can't email an invoice that hasn't been posted yet",

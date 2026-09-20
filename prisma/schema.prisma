@@ -122,6 +122,8 @@ model Tenant {
   boardingContracts BoardingContract[]
   horseCareRecords  HorseCareRecord[]
 
+  zatcaComplianceStepAttempts ZatcaComplianceStepAttempt[]
+
   @@map("tenants")
 }
 
@@ -490,6 +492,7 @@ model Company {
   payrollSettings           PayrollSettings?
   reportSchedule            ReportSchedule?
   employeeAdvances          EmployeeAdvance[]
+  zatcaComplianceStepAttempts ZatcaComplianceStepAttempt[]
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -537,10 +540,53 @@ model CompanyZatcaCredential {
   productionSecretEnc String? // سر API المرافق لشهادة الإنتاج، مُشفَّر
   // نفس فكرة complianceCsidEnvironment أعلاه، لشهادة الإنتاج.
   productionCsidEnvironment ZatcaEnvironment?
+  // آخر قائمة "خطوات امتثال متبقية" فعلية سمَّتها زاتكا صراحةً في رفض طلب شهادة الإنتاج بكود
+  // Missing-ComplianceSteps (راجع src/lib/zatca/complianceAutomation.ts) — تسوية اختيارية فقط،
+  // لا مصدر تتبّع أساسي (ذلك ZatcaComplianceStepAttempt): تُحدَّث فقط حين نُصادف هذا الرفض تحديداً
+  // فعلياً (لا نستدعي شهادة الإنتاج خصيصاً لمعرفة التقدّم)، فتبقى فارغة/قديمة بين محاولة وأخرى.
+  lastMissingComplianceSteps   String[]  @default([])
+  lastComplianceStepsCheckedAt DateTime?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   @@map("company_zatca_credentials")
+}
+
+// محاولة فحص امتثال لأحد الأنواع الستة الإلزامية (فاتورة/إشعار دائن/إشعار مدين × قياسية/مبسّطة) عبر
+// مستند اصطناعي (راجع src/lib/zatca/complianceAutomation.ts) — لا علاقة له بأي SalesInvoice/
+// SalesReturn/SalesDebitNote حقيقي: stepKey/kind/subtype/documentNumber/documentUuid كلها بيانات
+// مستند اصطناعي بُني في الذاكرة فقط، ولا FK هنا يشير لأي جدول محاسبي (SalesInvoice، JournalEntry...).
+// مفتاح فريد بـ(companyId, complianceRequestId, stepKey): "مرتبط بمحاولة شهادة الاختبار الحالية" حرفياً
+// كما طلب المستخدم — لو أُعيد استخراج شهادة اختبار جديدة (complianceRequestId مختلف)، محاولات الشهادة
+// القديمة تبقى مُسجَّلة تاريخياً لكن لا تُحتسَب ضمن تقدّم الشهادة الجديدة (upsert يُنشئ صفاً جديداً بدل
+// الكتابة فوق القديم). آخر محاولة لكل (kind, subtype) ضمن complianceRequestId الحالي هي الحاسمة.
+model ZatcaComplianceStepAttempt {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // لا FK رسمياً لـCompanyZatcaCredential (complianceRequestId ليس مفتاحاً فريداً هناك قابلاً
+  // للربط) — مجرد نص يُقارَن يدوياً بـCompanyZatcaCredential.complianceRequestId وقت القراءة، تماماً
+  // كما طلب المستخدم "keyed to the compliance request".
+  complianceRequestId String
+  // اسم الخطوة كما تُسمّيه زاتكا فعلياً في رفض Missing-ComplianceSteps (مثل
+  // "standard-credit-note-compliant") — راجع ZATCA_COMPLIANCE_STEPS في complianceAutomation.ts.
+  stepKey             String
+  kind                String // مطابق لـZatcaDocumentKind (invoice/credit_note/debit_note) — نص لا enum Prisma منفصل، تفادياً لازدواج المصدر مع النوع في types.ts
+  subtype             String // مطابق لـZatcaInvoiceSubtype (standard/simplified)
+  documentNumber      String // رقم اصطناعي ببادئة ثابتة خارج أي تسلسل ترقيم حقيقي (formatDocNumber/reserveDocumentNumber)
+  documentUuid        String
+  icv                 Int
+  previousInvoiceHash String
+  invoiceHash         String
+  passed              Boolean
+  rejectionReason     String?
+  zatcaResponseRaw    Json?
+  attemptedAt         DateTime               @default(now())
+
+  @@unique([companyId, complianceRequestId, stepKey])
+  @@map("zatca_compliance_step_attempts")
 }
 
 // مركز تكلفة/موقع/فرع/مخزن — قد يكون عاماً (companyId فارغ) أو خاصاً بشركة معينة

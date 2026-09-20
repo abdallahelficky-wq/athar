@@ -6,6 +6,7 @@ import { generateCsr, verifyCsrLocally, ZatcaCsrInvoiceType } from "../../lib/za
 import { requestComplianceCsid, requestProductionCsid, ZatcaApiEnvironment } from "../../lib/zatca/apiClient";
 import { getCertificateInfo } from "../../lib/zatca/signing";
 import { resolveZatcaRawCertificate } from "../../lib/zatca/credentials";
+import { parseMissingComplianceSteps } from "../../lib/zatca/complianceAutomation";
 import { env } from "../../config/env";
 
 const BUSINESS_ACTIVITY_INDUSTRY_LABEL: Record<string, string> = {
@@ -211,6 +212,18 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
     rawCertificateBodyBase64: resolveZatcaRawCertificate(credential.complianceCertRawEnc, credential.complianceCertEnc),
     secret: decryptSecret(credential.complianceSecretEnc),
   };
+
+  // سطر سجلّ مميَّز عمداً — هذه أول لحظة تُطلَب فيها شهادة الإنتاج فعلياً لهذه الشركة، واللحظة
+  // الوحيدة التي يمكن منها لاحقاً معرفة (بدليل، لا تخمين) هل تستمر سلسلة ICV/PIH بعد شهادة الإنتاج
+  // أم تُعاد من الصفر — سؤال مفتوح صراحةً (راجع تعليق env.zatcaOnboardingDiagnostics). المقارنة
+  // المطلوبة: ICV الفعلي لأول مستند إنتاج حقيقي لاحق مقابل zatcaNextIcv المُسجَّل هنا، وprevious
+  // hash ذلك المستند مقابل zatcaLastInvoiceHash هنا.
+  // eslint-disable-next-line no-console
+  console.info(
+    `[requestCompanyProductionCsid] طلب شهادة إنتاج — الشركة "${company.name}" (${companyId}) — ` +
+      `حالة السلسلة قبل الطلب: zatcaNextIcv=${company.zatcaNextIcv} zatcaLastInvoiceHash=${company.zatcaLastInvoiceHash ?? "(لا يوجد بعد)"}`,
+  );
+
   const result = await requestProductionCsid(
     environment,
     credentials,
@@ -223,6 +236,21 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
     throw badRequest("رد غير متوقع من زاتكا — شكل الاستجابة لا يطابق شهادة إنتاج صالحة، لم تُخزَّن أي بيانات. تحقق من إصدار/مسار API ثم أعد المحاولة، أو راجع الدعم الفني.");
   }
   if (!result.ok || !result.data) {
+    // تسوية اختيارية فقط (راجع lastMissingComplianceSteps في schema.prisma وcomplianceAutomation.ts):
+    // ZatcaComplianceStepAttempt المحلي هو مصدر التقدّم الأساسي دائماً — هذا فقط يلتقط رفض
+    // Missing-ComplianceSteps الفعلي *عندما نصادفه* بلا استدعاء متعمَّد لاستفزازه. تساهلي عمداً
+    // (بحث نصي على الجسم الخام كاملاً بصرف النظر عن مكان تداخل حقل message فيه) لأن الشكل الدقيق
+    // لجسم هذا الرفض تحديداً لم يُتحقَّق منه مباشرة بعد — راجع التحذير في parseMissingComplianceSteps.
+    const rawText = JSON.stringify(result.data ?? {});
+    if (rawText.includes("Missing-ComplianceSteps")) {
+      const remaining = parseMissingComplianceSteps(rawText);
+      if (remaining.length) {
+        await prisma.companyZatcaCredential.update({
+          where: { companyId },
+          data: { lastMissingComplianceSteps: remaining, lastComplianceStepsCheckedAt: new Date() },
+        });
+      }
+    }
     throw badRequest(`رفضت زاتكا طلب شهادة الإنتاج: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
   }
   const cert = normalizeZatcaCertificate(result.data.binarySecurityToken, "شهادة الإنتاج (Production)");
