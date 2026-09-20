@@ -121,6 +121,25 @@ describe("buildDocumentXml", () => {
     expect(docLevelTaxTotals.length).toBe(2);
   });
 
+  // 65.96 + 49.72 = 115.68 حسابياً، لكن IEEE754 يُنتج 115.67999999999999 — truncateDecimals كان
+  // سيبتر هذا لـ"115.67" فيُسقِط هللة كاملة من الإجمالي رغم أن كل سطر مُقرَّب بشكل صحيح تماماً
+  // بخانتين عشريتين. هذا اختبار تراجع لإصلاح roundMoney المُضاف قبل truncateDecimals لكل مجموع.
+  it("does not lose a halalah to floating-point noise when summing already-rounded line amounts", () => {
+    const xml = buildDocumentXml(
+      base({
+        lines: [
+          { id: "1", name: "أ", quantity: 1, unitPrice: 65.96, lineSubtotal: 65.96, lineVat: 0, taxCategoryCode: "E", taxPercent: 0, taxExemptionReason: "إعفاء" },
+          { id: "2", name: "ب", quantity: 1, unitPrice: 49.72, lineSubtotal: 49.72, lineVat: 0, taxCategoryCode: "E", taxPercent: 0, taxExemptionReason: "إعفاء" },
+        ],
+      }),
+    );
+    expect(xml).toContain('<cbc:TaxableAmount currencyID="SAR">115.68</cbc:TaxableAmount>');
+    expect(xml).toContain('<cbc:LineExtensionAmount currencyID="SAR">115.68</cbc:LineExtensionAmount>');
+    expect(xml).toContain('<cbc:TaxInclusiveAmount currencyID="SAR">115.68</cbc:TaxInclusiveAmount>');
+    expect(xml).toContain('<cbc:PayableAmount currencyID="SAR">115.68</cbc:PayableAmount>');
+    expect(xml).not.toContain("115.67<");
+  });
+
   it("computes LegalMonetaryTotal as the sum of all line subtotals/vat", () => {
     const xml = buildDocumentXml(
       base({
