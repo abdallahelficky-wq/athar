@@ -8,6 +8,7 @@ import { resolveZatcaSubmissionKind, signAndSubmitDocument } from "./submission"
 import { decodeQrPayload } from "./qr";
 import { ZATCA_FIRST_INVOICE_PIH, ZatcaDocumentInput } from "./types";
 import { ResolvedZatcaCredentials } from "./credentials";
+import { env } from "../../config/env";
 
 function run(cmd: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -121,6 +122,58 @@ describe("signAndSubmitDocument", () => {
     const [, init] = fetchMock.mock.calls[0];
     const transmittedXml = Buffer.from(JSON.parse(init.body).invoice, "base64").toString("utf8");
     expect(transmittedXml).toContain(outcome.qrPayload);
+  });
+
+  // زاتكا نفسها أعادت قالب رسالة عربية مشوَّهاً نحوياً لقاعدة BR-KSA-EN16931-01 (علامة اقتباس قبل
+  // النقطتين بدل بعدها)، مما أعاق تشخيص القيمة المتوقَّعة بدقة عبر ثلاث محاولات متتالية — الإنجليزية
+  // هي النص الأصلي غير المُترجَم. هذا مقصور على فحص الامتثال (compliance) أثناء تشخيص يدوي مفعَّل
+  // صراحةً (zatcaOnboardingDiagnostics)، لا التخليص/الإبلاغ الحقيقيَّين — تلك رسائل رفض تصل المستخدم
+  // النهائي ويجب أن تبقى عربية بصرف النظر عن هذا العلم.
+  describe("Accept-Language for the compliance check specifically", () => {
+    afterEach(() => {
+      (env as { zatcaOnboardingDiagnostics: boolean }).zatcaOnboardingDiagnostics = false;
+    });
+
+    it("requests English for the compliance check when onboarding diagnostics is on", async () => {
+      (env as { zatcaOnboardingDiagnostics: boolean }).zatcaOnboardingDiagnostics = true;
+      const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
+      const xml = buildDocumentXml(sampleDocument());
+
+      await signAndSubmitDocument({
+        xml, uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45", environment: "sandbox", credentials, kind: "compliance",
+        qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+      });
+
+      const [, init] = fetchMock.mock.calls[0];
+      expect(init.headers["Accept-Language"]).toBe("en");
+    });
+
+    it("keeps Arabic for the compliance check when diagnostics is off (the normal, non-debugging case)", async () => {
+      const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
+      const xml = buildDocumentXml(sampleDocument());
+
+      await signAndSubmitDocument({
+        xml, uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45", environment: "sandbox", credentials, kind: "compliance",
+        qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+      });
+
+      const [, init] = fetchMock.mock.calls[0];
+      expect(init.headers["Accept-Language"]).toBe("ar");
+    });
+
+    it("never switches clearance/reporting to English, even with diagnostics on — those are real user-facing rejections", async () => {
+      (env as { zatcaOnboardingDiagnostics: boolean }).zatcaOnboardingDiagnostics = true;
+      const fetchMock = mockFetchOnce(200, { clearanceStatus: "CLEARED" });
+      const xml = buildDocumentXml(sampleDocument());
+
+      await signAndSubmitDocument({
+        xml, uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45", environment: "sandbox", credentials, kind: "clearance",
+        qrBaseParams: { sellerName: "شركة أثر التجريبية", sellerVat: "300000000000003", isoTimestamp: "2026-08-01T10:00:00Z", invoiceTotal: 115, vatTotal: 15 },
+      });
+
+      const [, init] = fetchMock.mock.calls[0];
+      expect(init.headers["Accept-Language"]).toBe("ar");
+    });
   });
 
   it("returns accepted:false with a human-readable rejection reason when ZATCA rejects the submission", async () => {

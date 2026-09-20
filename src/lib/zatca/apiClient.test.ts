@@ -95,6 +95,21 @@ describe("apiClient request construction", () => {
     expect(init.headers.OTP).toBeUndefined();
   });
 
+  it("defaults Accept-Language to ar when not specified", async () => {
+    const fetchMock = mockFetchOnce(200, { clearanceStatus: "CLEARED" });
+    await clearInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(fetchMock.mock.calls[0][1].headers["Accept-Language"]).toBe("ar");
+  });
+
+  // نقطة الانطلاق لهذا الخيار: قالب الرسالة العربية من زاتكا نفسها وصل مشوَّهاً نحوياً لقاعدة
+  // BR-KSA-EN16931-01 (علامة اقتباس قبل النقطتين بدل بعدها)، مما أعاق تشخيص القيمة المتوقَّعة بدقة
+  // عبر ثلاث محاولات متتالية — راجع سبب الحصر بفحص الامتثال فقط في submission.test.ts.
+  it("honors an explicit acceptLanguage override on checkInvoiceCompliance", async () => {
+    const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
+    await checkInvoiceCompliance({ environment: "sandbox", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z", acceptLanguage: "en" });
+    expect(fetchMock.mock.calls[0][1].headers["Accept-Language"]).toBe("en");
+  });
+
   it("surfaces a non-2xx response as ok:false with the parsed error body intact, and httpError:false since the body has a recognizable rejection structure", async () => {
     mockFetchOnce(400, {
       validationResults: { status: "FAIL", errorMessages: [{ type: "ERROR", message: "رقم ضريبي غير صالح" }] },
