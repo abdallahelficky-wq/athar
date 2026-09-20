@@ -48,6 +48,9 @@ export interface ZatcaDocumentInput {
   previousInvoiceHash: string;
   /** رقم الفاتورة الأصلية المرتبطة — إلزامي لإشعار دائن/مدين */
   billingReferenceId?: string;
+  /** سبب إصدار إشعار الدائن/المدين (KSA-10) — إلزامي لإشعار دائن/مدين (BR-KSA-17)، بلا معنى
+   * للفاتورة العادية. راجع buildPaymentMeansXml في xmlBuilder.ts لموضعه في XML. */
+  issuanceReason?: string;
   seller: ZatcaPartyInput;
   /** إلزامي للفاتورة القياسية (standard)، يُترك فارغاً للمبسّطة (simplified) */
   buyer?: ZatcaPartyInput;

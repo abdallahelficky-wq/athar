@@ -31,6 +31,6 @@ export const setCompanyZatcaEnvironment = (id, environment) => api.patch(`/compa
 export const resetCompanyZatcaLinkage = (id) => api.delete(`/companies/${id}/zatca`);
 
 // مستندات فحص الامتثال الاصطناعية الستة — انظر src/lib/zatca/complianceAutomation.ts على الخادم.
-// خطوة واحدة فقط مُفعَّلة للتشغيل حالياً (الإشعار الدائن القياسي).
+// stepKey أحد المفاتيح التي يُعيدها getCompanyZatcaComplianceSteps (مثل standard-credit-note-compliant).
 export const getCompanyZatcaComplianceSteps = (id) => api.get(`/companies/${id}/zatca/compliance-steps`);
-export const runCompanyZatcaStandardCreditNoteTest = (id) => api.post(`/companies/${id}/zatca/compliance-steps/standard-credit-note-test`, {});
+export const runCompanyZatcaComplianceStepTest = (id, stepKey) => api.post(`/companies/${id}/zatca/compliance-steps/${stepKey}/test`, {});

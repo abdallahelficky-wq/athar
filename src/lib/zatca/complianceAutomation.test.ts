@@ -70,7 +70,6 @@ import { prisma } from "../prisma";
 import { evaluateZatcaPostingGate } from "./postingGate";
 import {
   runZatcaComplianceStep,
-  runStandardCreditNoteComplianceTest,
   parseMissingComplianceSteps,
   getZatcaComplianceProgress,
   ZATCA_COMPLIANCE_STEPS,
@@ -99,29 +98,61 @@ describe("runZatcaComplianceStep — ledger isolation (runtime)", () => {
     } as never);
     vi.mocked(prisma.zatcaComplianceStepAttempt.upsert).mockResolvedValue({} as never);
 
-    const result = await runStandardCreditNoteComplianceTest(TENANT_ID, COMPANY_ID);
+    const result = await runZatcaComplianceStep(TENANT_ID, COMPANY_ID, "standard-credit-note-compliant");
 
     expect(result.passed).toBe(true);
     expect(result.stepKey).toBe("standard-credit-note-compliant");
-    // البند 4 من طلب المستخدم: مرجع ذاتي اصطناعي، لا فاتورة حقيقية — نتحقّق من القيمة الفعلية
-    // المُمرَّرة لبوابة زاتكا، لا من افتراضها فقط.
-    const gateArgs = vi.mocked(evaluateZatcaPostingGate).mock.calls[0][0] as { billingReferenceId?: string; kind: string };
+    // مرجع ذاتي اصطناعي، لا فاتورة حقيقية — نتحقّق من القيمة الفعلية المُمرَّرة لبوابة زاتكا، لا من
+    // افتراضها فقط. وBR-KSA-17: سبب الإصدار (issuanceReason) يجب أن يصل أيضاً لمستندات الإشعارات.
+    const gateArgs = vi.mocked(evaluateZatcaPostingGate).mock.calls[0][0] as { billingReferenceId?: string; issuanceReason?: string; kind: string };
     expect(gateArgs.kind).toBe("credit_note");
     expect(gateArgs.billingReferenceId).toBeTruthy();
     expect(gateArgs.billingReferenceId).not.toBe("");
-    // بند 6: المشتري الاصطناعي يجب أن يُعلن نفسه صراحة كاختبار امتثال، لا اسماً يبدو كعميل حقيقي.
+    expect(gateArgs.issuanceReason).toBeTruthy();
+    // المشتري الاصطناعي يجب أن يُعلن نفسه صراحة كاختبار امتثال، لا اسماً يبدو كعميل حقيقي.
     const customer = (gateArgs as unknown as { customer: { name: string } }).customer;
     expect(customer.name).toMatch(/COMPLIANCE TEST/i);
   });
 
-  // البند (أ) من طلب المستخدم: مستند واحد فقط، لا الخمسة. هذا قيد حقيقي داخل runZatcaComplianceStep
-  // نفسها (حقل enabled على كل خطوة) — لا مجرد اعتماد على أن الرابط الخارجي (route/controller) لا
-  // يعرض غير هذه الخطوة. simplified-compliant معرَّفة في ZATCA_COMPLIANCE_STEPS (للتوثيق ولتحليل
-  // Missing-ComplianceSteps لاحقاً) لكنها enabled:false، فيُرفَض تشغيلها صراحة قبل أي اتصال بزاتكا.
-  it("rejects any step other than the enabled one, before touching the network at all", async () => {
-    await expect(runZatcaComplianceStep(TENANT_ID, COMPANY_ID, "simplified-compliant")).rejects.toThrow(/غير مُفعَّلة/);
+  it("does not pass an issuanceReason for the invoice-kind step (BR-KSA-17 doesn't apply to invoices)", async () => {
+    vi.mocked(prisma.company.findFirst).mockResolvedValue({ id: COMPANY_ID, name: "شركة تجريبية", zatcaOnboardingStatus: "compliance" } as never);
+    vi.mocked(prisma.companyZatcaCredential.findUnique).mockResolvedValue({
+      complianceRequestId: "req-1", complianceCertEnc: "x", complianceSecretEnc: "y",
+    } as never);
+    vi.mocked(evaluateZatcaPostingGate).mockResolvedValue({
+      proceedWithPosting: true,
+      zatcaFields: { zatcaStatus: "compliance_checked", icv: 7, previousInvoiceHash: "prev==", invoiceHash: "hash==" },
+    } as never);
+    vi.mocked(prisma.zatcaComplianceStepAttempt.upsert).mockResolvedValue({} as never);
+
+    await runZatcaComplianceStep(TENANT_ID, COMPANY_ID, "simplified-compliant");
+    const gateArgs = vi.mocked(evaluateZatcaPostingGate).mock.calls[0][0] as { billingReferenceId?: string; issuanceReason?: string };
+    expect(gateArgs.billingReferenceId).toBeUndefined();
+    expect(gateArgs.issuanceReason).toBeUndefined();
+  });
+
+  // مستند واحد فقط (الإشعار الدائن القياسي) كان مقيَّداً عمداً في مرحلة أولى؛ بعد أن قبلت زاتكا
+  // المرجع الذاتي الاصطناعي بلا اعتراض، فُعِّلت أربع خطوات إضافية. standard-compliant تبقى الوحيدة
+  // غير المُفعَّلة (اجتازت فعلاً بفاتورة حقيقية، فلا داعٍ لتكرارها اصطناعياً) — هذا قيد حقيقي داخل
+  // runZatcaComplianceStep نفسها (حقل enabled)، لا مجرد اعتماد على ما يعرضه الرابط الخارجي.
+  it("rejects the one remaining disabled step (standard-compliant) before touching the network at all", async () => {
+    await expect(runZatcaComplianceStep(TENANT_ID, COMPANY_ID, "standard-compliant")).rejects.toThrow(/غير مُفعَّلة/);
     expect(evaluateZatcaPostingGate).not.toHaveBeenCalled();
     expect(prisma.company.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("has exactly five enabled steps and one disabled (standard-compliant)", () => {
+    const enabledKeys = ZATCA_COMPLIANCE_STEPS.filter((s) => s.enabled).map((s) => s.key);
+    expect(enabledKeys.sort()).toEqual(
+      [
+        "simplified-compliant",
+        "standard-credit-note-compliant",
+        "simplified-credit-note-compliant",
+        "standard-debit-note-compliant",
+        "simplified-debit-note-compliant",
+      ].sort(),
+    );
+    expect(ZATCA_COMPLIANCE_STEPS.find((s) => s.key === "standard-compliant")?.enabled).toBe(false);
   });
 });
 
@@ -155,11 +186,14 @@ describe("getZatcaComplianceProgress", () => {
 
     const progress = await getZatcaComplianceProgress(TENANT_ID, COMPANY_ID);
     expect(progress.steps.find((s) => s.key === "standard-credit-note-compliant")).toEqual({
-      key: "standard-credit-note-compliant", passed: true, source: "local_attempt",
+      key: "standard-credit-note-compliant", passed: true, enabled: true, source: "local_attempt",
     });
     // لا دليل من زاتكا بعد (lastComplianceStepsCheckedAt فارغ) — بقية الخطوات "لم تُختبَر بعد"، لا "ناجزة صمتاً".
     expect(progress.steps.filter((s) => s.source === "zatca_missing_steps_reconciliation")).toEqual([]);
     expect(progress.steps.every((s) => s.key !== "standard-compliant" || s.passed === false)).toBe(true);
+    // standard-compliant وحدها غير مُفعَّلة للتشغيل (اجتازت فعلاً بفاتورة حقيقية).
+    expect(progress.steps.find((s) => s.key === "standard-compliant")?.enabled).toBe(false);
+    expect(progress.steps.find((s) => s.key === "simplified-compliant")?.enabled).toBe(true);
   });
 
   it("reconciles a step as passed when ZATCA's own missing-steps list no longer names it", async () => {
@@ -177,7 +211,7 @@ describe("getZatcaComplianceProgress", () => {
     const progress = await getZatcaComplianceProgress(TENANT_ID, COMPANY_ID);
     // standard-compliant غائبة عن القائمة المتبقية أعلاه (تطابق الرد الفعلي المُستلَم) — تُحتسَب مُجتازة.
     expect(progress.steps.find((s) => s.key === "standard-compliant")).toEqual({
-      key: "standard-compliant", passed: true, source: "zatca_missing_steps_reconciliation",
+      key: "standard-compliant", passed: true, enabled: false, source: "zatca_missing_steps_reconciliation",
     });
     expect(progress.steps.find((s) => s.key === "standard-credit-note-compliant")?.passed).toBe(false);
   });

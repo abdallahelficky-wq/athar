@@ -67,6 +67,8 @@ export interface EvaluateZatcaPostingGateParams {
   documentNumber: string;
   documentUuid: string;
   billingReferenceId?: string;
+  /** BR-KSA-17 (KSA-10) — إلزامي لإشعار دائن/مدين، راجع buildPaymentMeansXml في xmlBuilder.ts */
+  issuanceReason?: string;
   lines: ZatcaPersistedLineLike[];
   grandTotal: number;
   vatTotal: number;
@@ -100,6 +102,7 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
     documentNumber: params.documentNumber,
     documentUuid: params.documentUuid,
     billingReferenceId: params.billingReferenceId,
+    issuanceReason: params.issuanceReason,
     lines: params.lines,
   };
   const chain = params.tx

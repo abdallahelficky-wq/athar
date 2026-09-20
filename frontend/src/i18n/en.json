@@ -1748,11 +1748,11 @@
       },
       "stepPassed": "Passed ✓",
       "stepPending": "Not tested yet",
-      "runStandardCreditNoteTestTitle": "Test: standard credit note (synthetic document)",
-      "runStandardCreditNoteTestNote": "Sends a fully synthetic document (fabricated customer and invoice reference — never touches any real invoice or journal entry in your books) to test the compliance check for this specific type. It reserves a real sequence number (ICV) regardless of outcome, and that cannot be undone.",
-      "runStandardCreditNoteTestBtn": "Run the test now",
-      "standardCreditNoteTestPassed": "Compliance check passed ✓ (status: {{status}})",
-      "standardCreditNoteTestFailed": "Compliance check failed — ZATCA's reason: {{reason}}"
+      "complianceStepsWarning": "Each test sends a fully synthetic document (fabricated customer and invoice reference — never touches any real invoice or journal entry in your books). It reserves a real sequence number (ICV) regardless of outcome, and that cannot be undone — each step needs its own deliberate button press.",
+      "runComplianceStepTestBtn": "Run test",
+      "complianceStepTestPassed": "Passed ✓ (status: {{status}})",
+      "complianceStepTestFailed": "Failed — ZATCA's reason: {{reason}}",
+      "stepNotEnabledYet": "Not available to run yet"
     },
     "companyDocuments": {
       "title": "Administrative documents (licenses, registrations, security & safety contracts...)",

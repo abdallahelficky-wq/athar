@@ -79,18 +79,41 @@ describe("buildDocumentXml", () => {
   });
 
   it("uses invoice type code 381 for credit notes and 383 for debit notes, with a billing reference", () => {
-    const credit = buildDocumentXml(base({ kind: "credit_note", billingReferenceId: "INV-00001" }));
+    const credit = buildDocumentXml(base({ kind: "credit_note", billingReferenceId: "INV-00001", issuanceReason: "سبب الإصدار" }));
     expect(credit).toContain(">381<");
     expect(credit).toContain("<cac:BillingReference>");
     expect(credit).toContain("INV-00001");
 
-    const debit = buildDocumentXml(base({ kind: "debit_note", billingReferenceId: "INV-00001" }));
+    const debit = buildDocumentXml(base({ kind: "debit_note", billingReferenceId: "INV-00001", issuanceReason: "سبب الإصدار" }));
     expect(debit).toContain(">383<");
   });
 
   it("throws if a credit/debit note is built without a billing reference", () => {
-    expect(() => buildDocumentXml(base({ kind: "credit_note" }))).toThrow();
-    expect(() => buildDocumentXml(base({ kind: "debit_note" }))).toThrow();
+    expect(() => buildDocumentXml(base({ kind: "credit_note", issuanceReason: "سبب الإصدار" }))).toThrow();
+    expect(() => buildDocumentXml(base({ kind: "debit_note", issuanceReason: "سبب الإصدار" }))).toThrow();
+  });
+
+  // BR-KSA-17 (KSA-10): زاتكا قبلت المرجع الذاتي الاصطناعي بلا اعتراض وكشفت هذا الحقل الوحيد
+  // المتبقي — إلزامي لإشعار الدائن/المدين فقط، لا الفاتورة العادية.
+  it("throws if a credit/debit note is built without an issuance reason (BR-KSA-17)", () => {
+    expect(() => buildDocumentXml(base({ kind: "credit_note", billingReferenceId: "INV-00001" }))).toThrow();
+    expect(() => buildDocumentXml(base({ kind: "debit_note", billingReferenceId: "INV-00001" }))).toThrow();
+  });
+
+  it("emits the issuance reason as cac:PaymentMeans/cbc:InstructionNote, positioned after AccountingCustomerParty and before TaxTotal, for credit/debit notes only", () => {
+    const credit = buildDocumentXml(base({ kind: "credit_note", billingReferenceId: "INV-00001", issuanceReason: "سلعة تالفة" }));
+    expect(credit).toContain("<cac:PaymentMeans>");
+    expect(credit).toContain("<cbc:InstructionNote>سلعة تالفة</cbc:InstructionNote>");
+    const customerPartyPos = credit.indexOf("<cac:AccountingCustomerParty");
+    const paymentMeansPos = credit.indexOf("<cac:PaymentMeans>");
+    const taxTotalPos = credit.indexOf("<cac:TaxTotal>");
+    expect(customerPartyPos).toBeLessThan(paymentMeansPos);
+    expect(paymentMeansPos).toBeLessThan(taxTotalPos);
+
+    // الفاتورة العادية لا تحتاج هذا العنصر إطلاقاً، حتى لو مُرِّرت issuanceReason خطأً.
+    const invoice = buildDocumentXml(base({ kind: "invoice", issuanceReason: "لا معنى له هنا" }));
+    expect(invoice).not.toContain("<cac:PaymentMeans>");
+    expect(invoice).not.toContain("InstructionNote");
   });
 
   it("embeds the ICV and previous invoice hash exactly as given", () => {

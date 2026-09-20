@@ -1748,11 +1748,11 @@
       },
       "stepPassed": "اجتاز ✓",
       "stepPending": "لم يُختبَر بعد",
-      "runStandardCreditNoteTestTitle": "اختبار: إشعار دائن قياسي (مستند اصطناعي)",
-      "runStandardCreditNoteTestNote": "يُرسِل مستنداً اصطناعياً بالكامل (عميل ومرجع فاتورة مُلفَّقان، لا يمسّان أي فاتورة أو قيد حقيقي في دفاترك) لاختبار فحص الامتثال لهذا النوع تحديداً. يحجز رقم تسلسل (ICV) حقيقياً بصرف النظر عن النتيجة، ولا يمكن التراجع عن ذلك.",
-      "runStandardCreditNoteTestBtn": "تشغيل الاختبار الآن",
-      "standardCreditNoteTestPassed": "نجح فحص الامتثال ✓ (الحالة: {{status}})",
-      "standardCreditNoteTestFailed": "فشل فحص الامتثال — السبب من زاتكا: {{reason}}"
+      "complianceStepsWarning": "كل اختبار يُرسِل مستنداً اصطناعياً بالكامل (عميل ومرجع فاتورة مُلفَّقان، لا يمسّان أي فاتورة أو قيد حقيقي في دفاترك). يحجز رقم تسلسل (ICV) حقيقياً بصرف النظر عن النتيجة، ولا يمكن التراجع عن ذلك — كل خطوة تحتاج ضغطة زر مقصودة منفصلة.",
+      "runComplianceStepTestBtn": "تشغيل الاختبار",
+      "complianceStepTestPassed": "نجح ✓ (الحالة: {{status}})",
+      "complianceStepTestFailed": "فشل — السبب من زاتكا: {{reason}}",
+      "stepNotEnabledYet": "غير متاحة للتشغيل بعد"
     },
     "companyDocuments": {
       "title": "المستندات الإدارية (تراخيص، سجلات، عقود أمن وسلامة...)",

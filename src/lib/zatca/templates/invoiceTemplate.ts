@@ -70,6 +70,7 @@ const template = /* XML */`
     </cac:Party>
   </cac:AccountingSupplierParty>
   SET_ACCOUNTING_CUSTOMER_PARTY
+  SET_PAYMENT_MEANS
   SET_TAX_TOTAL
   SET_LEGAL_MONETARY_TOTAL
   SET_INVOICE_LINES
@@ -109,5 +110,15 @@ const billingReferenceTemplate = /* XML */`<cac:BillingReference>
 </cac:InvoiceDocumentReference>
 </cac:BillingReference>`;
 
+// KSA-10 (سبب إصدار إشعار الدائن/المدين، BR-KSA-17) — زاتكا تُمثِّله عبر cac:PaymentMeans/
+// cbc:InstructionNote، لا عنصراً منفصلاً خاصاً بالسبب (لا يوجد في UBL 2.1 القياسي). PaymentMeansCode
+// "10" (نقداً، UN/CEFACT 4461) قيمة ثابتة لا معنى فعلياً لها هنا — عنصر PaymentMeansCode إلزامي
+// شكلياً كلما وُجد PaymentMeans، لكن BR-KSA-17 لا يشترط قيمة معيّنة له، فقط وجود InstructionNote
+// الفعلي. راجع تعليق buildPaymentMeansXml في xmlBuilder.ts لحدود التحقّق من هذا الموضع.
+const paymentMeansTemplate = /* XML */`<cac:PaymentMeans>
+    <cbc:PaymentMeansCode>10</cbc:PaymentMeansCode>
+    <cbc:InstructionNote>SET_INSTRUCTION_NOTE</cbc:InstructionNote>
+  </cac:PaymentMeans>`;
+
 export default template;
-export { buyerPartyTemplate, billingReferenceTemplate };
+export { buyerPartyTemplate, billingReferenceTemplate, paymentMeansTemplate };
