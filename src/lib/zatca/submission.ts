@@ -10,6 +10,7 @@ import {
   ZatcaSubmissionResponse,
 } from "./apiClient";
 import { ResolvedZatcaCredentials } from "./credentials";
+import { env } from "../../config/env";
 
 // يجمع بين التوقيع (المرحلة C) والإرسال الفعلي (عميل API أعلاه) في خطوة واحدة — هذا ما يستدعيه
 // كل من salesInvoices/salesReturns/salesDebitNotes عند الترحيل فعلياً، بدل أن يكرّر كل موديول نفس
@@ -137,6 +138,12 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
     invoiceHash,
     uuid: params.uuid,
     onboardingDiagnostics: params.onboardingDiagnostics,
+    // فحص الامتثال تحديداً (لا التخليص/الإبلاغ الحقيقيَّين — تلك رسائل رفض حقيقية تصل المستخدم
+    // النهائي، ويجب أن تبقى عربية) يطلب الإنجليزية أثناء المشي اليدوي عبر ربط زاتكا فقط
+    // (zatcaOnboardingDiagnostics): قالب الرسالة العربية من زاتكا نفسها وصل مشوَّهاً نحوياً لقاعدة
+    // BR-KSA-EN16931-01 (علامة اقتباس قبل النقطتين بدل بعدها)، وأعاق ذلك تشخيص القيمة المتوقَّعة
+    // بدقة عبر ثلاث محاولات متتالية — الإنجليزية هي النص الأصلي غير المُترجَم، لا نسخة مشتقة منه.
+    acceptLanguage: params.kind === "compliance" && env.zatcaOnboardingDiagnostics ? "en" : undefined,
   });
 
   if (result.ok) {

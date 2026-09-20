@@ -77,6 +77,12 @@ interface RequestParams<T> {
   credentials?: ZatcaApiCredentials;
   otp?: string;
   clearanceStatus?: "0" | "1";
+  /** لغة رسائل الرفض/الأخطاء التي تُعيدها زاتكا — "ar" افتراضياً (الصحيح للمسارات الحقيقية
+   * المُعروضة للمستخدم النهائي: تخليص/إبلاغ فاتورة فعلية). "en" مخصَّصة لتشخيص يدوي فقط (راجع
+   * acceptLanguage في checkInvoiceCompliance أدناه) — قالب الرسالة العربية من زاتكا نفسها وصل
+   * فعلياً مشوَّهاً نحوياً (علامة اقتباس قبل النقطتين بدل بعدهما) لقاعدة BR-KSA-EN16931-01، مما
+   * أعاق تشخيص القيمة المتوقَّعة بدقة عبر عدة محاولات — الإنجليزية هي المصدر غير المُترجَم. */
+  acceptLanguage?: "ar" | "en";
   /** يُطبَّق فقط على استجابات 2xx — استجابات الفشل (400/500...) تُعاد كما هي بلا تحقق شكلي، لأن
    * أشكالها متنوّعة (رسائل خطأ عامة من الخادم) ولا تُتخَذ منها قرارات حسّاسة أصلاً. */
   schema: z.ZodType<T>;
@@ -133,7 +139,7 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
     "Content-Type": "application/json",
     Accept: "application/json",
     "Accept-Version": "V2",
-    "Accept-Language": "ar",
+    "Accept-Language": params.acceptLanguage ?? "ar",
   };
   if (params.credentials) headers.Authorization = buildBasicAuthHeader(params.credentials);
   if (params.otp) headers.OTP = params.otp;
@@ -201,7 +207,7 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
     const transmittedXml = extractTransmittedXmlFromBody(params.body);
     // eslint-disable-next-line no-console
     console.log(
-      `[zatca-onboarding-diagnostics] المسار=${params.path} status=${response.status} السياق=${JSON.stringify(params.onboardingDiagnostics)} ` +
+      `[zatca-onboarding-diagnostics] المسار=${params.path} status=${response.status} Accept-Language=${params.acceptLanguage ?? "ar"} السياق=${JSON.stringify(params.onboardingDiagnostics)} ` +
         `شكل_شهادة_المصادقة=${JSON.stringify(authCertForm)} — ` +
         `الجسم بعد إخفاء الحقول الحسّاسة المعروفة (binarySecurityToken/secret/clearedInvoice/certificate/privateKey): ${redactedBody.slice(0, 10000)}` +
         (transmittedXml ? ` — XML المُرسَل فعلياً (كامل، بعد التوقيع وحقن QR): ${transmittedXml}` : ""),
@@ -318,6 +324,8 @@ interface SubmitInvoiceParams {
   uuid: string;
   /** سقالة تشخيصية مؤقتة — راجع onboardingDiagnostics في RequestParams أعلاه. */
   onboardingDiagnostics?: Record<string, unknown>;
+  /** راجع acceptLanguage في RequestParams أعلاه — تمرَّر كما هي، "ar" افتراضياً إن أُغفِلت. */
+  acceptLanguage?: "ar" | "en";
 }
 
 // تصحيح لمحاولة سابقة: كنا نظنّ /compliance (بلا /invoices) هو المسار الصحيح لفحص امتثال الفاتورة،
@@ -339,6 +347,7 @@ export function checkInvoiceCompliance(params: SubmitInvoiceParams) {
     credentials: params.credentials,
     schema: zatcaSubmissionResponseSchema,
     onboardingDiagnostics: params.onboardingDiagnostics,
+    acceptLanguage: params.acceptLanguage,
   });
 }
 
