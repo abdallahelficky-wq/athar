@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { badRequest, notFound } from "../httpError";
+import { env } from "../../config/env";
 import { evaluateZatcaPostingGate } from "./postingGate";
 import { ZatcaDocumentKind, ZatcaInvoiceSubtype } from "./types";
 import { ZatcaCustomerLike, ZatcaPersistedLineLike } from "./chain";
@@ -217,6 +218,17 @@ export async function runZatcaComplianceStep(tenantId: string, companyId: string
       `ICV=${icv} invoiceHash=${invoiceHash} documentUuid=${documentUuid} documentNumber=${documentNumber}` +
       (gate.rejectionReason ? ` — السبب: ${gate.rejectionReason}` : ""),
   );
+
+  // سقالة تشخيصية (نفس علَم env.zatcaOnboardingDiagnostics المستخدَم في apiClient.ts) — طُلِبت
+  // صراحةً بعد ملاحظة أن زاتكا لا تزال تُدرِج كل الأنواع الستة ضمن Missing-ComplianceSteps رغم
+  // تسجيلنا المحلي لبعضها كناجح: نحتاج الجسم الخام الكامل (validationResults.status/الرسائل،
+  // clearanceStatus، reportingStatus) كما وصل حرفياً من زاتكا لهذه الخطوة تحديداً، لا فقط ملخّص
+  // نجح/فشل أعلاه — لمعرفة هل النجاح المحلي المُسجَّل يطابق فعلاً ما تعتبره زاتكا اجتيازاً حقيقياً،
+  // أم أنه قُبِل محلياً (لا أخطاء) بينما زاتكا نفسها لا تعتدّ به لسبب آخر (تحذير، حالة غير نهائية...).
+  if (env.zatcaOnboardingDiagnostics) {
+    // eslint-disable-next-line no-console
+    console.info(`[zatcaComplianceStep-diagnostics] ${step.key} — الجسم الخام الكامل من زاتكا: ${JSON.stringify(gate.zatcaFields.zatcaResponseRaw ?? null)}`);
+  }
 
   return {
     stepKey: step.key,

@@ -78,6 +78,27 @@ describe("buildDocumentXml", () => {
     expect(() => buildDocumentXml(base({ subtype: "standard" }))).toThrow();
   });
 
+  // BR-KSA-14: عطل إنتاج فعلي مؤكَّد (BR-KSA-F-08 "Please recheck the CRN value") — كان الكود
+  // يضع دائماً schemeID="CRN" حتى حين لا يوجد رقم سجل تجاري للمشتري، فتصل زاتكا وسماً "CRN" بقيمة
+  // فارغة بدل استخدام الرقم الضريبي (TIN) الفعلي المتوفر، رغم أن BR-KSA-14 يشترط استخدام أيّ معرِّف
+  // متوفر فعلياً بترتيب أولوية زاتكا (TIN قبل CRN).
+  it("identifies the buyer by TIN (vatNumber) per BR-KSA-14 priority, even when a crNumber also exists", () => {
+    const xml = buildDocumentXml(base({ subtype: "standard", buyer: BUYER }));
+    expect(xml).toContain(`<cbc:ID schemeID="TIN">${BUYER.vatNumber}</cbc:ID>`);
+    // البائع يستمر على CRN كالمعتاد (BR-KSA-08) — الفحص هنا يستهدف كتلة المشتري تحديداً.
+    const buyerBlock = xml.slice(xml.indexOf("<cac:AccountingCustomerParty"));
+    expect(buyerBlock).not.toContain('schemeID="CRN"');
+  });
+
+  it("falls back to CRN when the buyer has no VAT number", () => {
+    const xml = buildDocumentXml(base({ subtype: "standard", buyer: { ...BUYER, vatNumber: null } }));
+    expect(xml).toContain(`<cbc:ID schemeID="CRN">${BUYER.crNumber}</cbc:ID>`);
+  });
+
+  it("throws if the buyer has neither a VAT number nor a CR number", () => {
+    expect(() => buildDocumentXml(base({ subtype: "standard", buyer: { ...BUYER, vatNumber: null, crNumber: null } }))).toThrow();
+  });
+
   it("uses invoice type code 381 for credit notes and 383 for debit notes, with a billing reference", () => {
     const credit = buildDocumentXml(base({ kind: "credit_note", billingReferenceId: "INV-00001", issuanceReason: "سبب الإصدار" }));
     expect(credit).toContain(">381<");

@@ -346,7 +346,8 @@ export const AR_TO_EN: Record<string, string> = {
   "لا يمكن استخدام نفس الحساب لأكثر من دور ضمن نفس الفئة": "The same account can't be used for more than one role within the same category",
   "لا يمكن إضافة حساب فرعي تحت حساب ترحيل": "Can't add a sub-account under a posting account",
   "لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة": "Resubmission is only possible for a posted invoice",
-  "لا يمكن التحويل لبيئة الإنتاج قبل استخراج شهادة إنتاج فعلية (Production CSID)": "Can't switch to the production environment before obtaining an actual production certificate (Production CSID)",
+  "لا يمكن تحديد هوية المشتري لزاتكا — لا يوجد رقم ضريبي (VAT) ولا رقم سجل تجاري (CRN) مسجَّل لهذا العميل":
+    "The buyer's ZATCA identification can't be determined — this customer has neither a VAT number nor a CR number on record",
   "لا يمكن أن يكون الصنف مكوّناً لنفسه": "An item can't be a component of itself",
   "لا يمكن أن يكون الموظف مديراً مباشراً لنفسه": "An employee can't be their own direct manager",
   "لا يمكن إنشاء حساب ربط للشركة مع نفسها": "Can't create a linking account for a company with itself",
