@@ -62,9 +62,9 @@ describe("buildDocumentXml", () => {
     expect(xml).toContain("<cac:AccountingCustomerParty></cac:AccountingCustomerParty>");
   });
 
-  it("uses clearance:1.0 profile, 0100000 type name, and full buyer block for standard invoices", () => {
+  it("uses standard:1.0 profile, 0100000 type name, and full buyer block for standard invoices", () => {
     const xml = buildDocumentXml(base({ subtype: "standard", buyer: BUYER }));
-    expect(xml).toContain("<cbc:ProfileID>clearance:1.0</cbc:ProfileID>");
+    expect(xml).toContain("<cbc:ProfileID>standard:1.0</cbc:ProfileID>");
     expect(xml).toContain('name="0100000"');
     expect(xml).toContain(BUYER.registrationName);
     expect(xml).toContain(BUYER.vatNumber);

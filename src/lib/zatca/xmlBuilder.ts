@@ -38,8 +38,17 @@ function invoiceTypeNameAttr(subtype: ZatcaDocumentInput["subtype"]): string {
   return subtype === "standard" ? "0100000" : "0200000";
 }
 
+// عطل إنتاج فعلي مؤكَّد (رد تحقّق فعلي من زاتكا: BR-KSA-EN16931-01 — "the value associated with
+// business process type (BT-23) must be '1.0'"): كانت هذه الدالة تُرجِع "clearance:1.0" للفاتورة
+// القياسية — قيمة مأخوذة من مصدر واحد غير رسمي (تعليق اختبار في مستودع مفتوح المصدر) لم يُتحقَّق
+// منه مباشرة ضد زاتكا وقتها. بعد الرفض الفعلي، تحقَّقنا من عدة مصادر مستقلة (توثيق ZATCA API
+// مخصَّص لفحص الامتثال القياسي B2B، ومكتبة invopop/gobl التجارية المُستخدَمة إنتاجياً) اتفقت جميعها
+// على "standard:1.0" للفاتورة القياسية — BT-23 يصف *نوع* المستند المُعلَن (المواصفة/الملف الشخصي)،
+// لا المسار القانوني الذي سيُعالَج به (تخليص/إبلاغ)، وهذا يفسّر لماذا "clearance:1.0" لم يكن الاسم
+// الصحيح لهذا الحقل تحديداً. لم نتحقّق من هذا مباشرة ضد زاتكا الحقيقية بعد — ينتظر تأكيداً من
+// المحاولة التالية.
 function profileId(subtype: ZatcaDocumentInput["subtype"]): string {
-  return subtype === "standard" ? "clearance:1.0" : "reporting:1.0";
+  return subtype === "standard" ? "standard:1.0" : "reporting:1.0";
 }
 
 function buildSupplierPlaceholders(seller: ZatcaPartyInput): Record<string, string> {
