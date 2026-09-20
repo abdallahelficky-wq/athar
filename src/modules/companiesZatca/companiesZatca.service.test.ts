@@ -37,10 +37,28 @@ afterEach(() => {
 });
 
 describe("setCompanyZatcaEnvironment", () => {
-  it("still blocks moving to production without an actual production CSID (pre-existing rule, unchanged)", async () => {
-    vi.mocked(prisma.company.findFirst).mockResolvedValue(mockCompany({ zatcaOnboardingStatus: "compliance" }) as never);
+  // عطل جمود فعلي مؤكَّد كان هنا: كان هذا الفحص يمنع الانتقال لبيئة "production" قبل صدور شهادة
+  // إنتاج فعلية — لكن شهادة الإنتاج نفسها تُطلَب من مضيف البيئة الحالية (company.zatcaEnvironment)،
+  // فيستحيل الوصول لشهادة إنتاج أصلاً بلا التحويل للبيئة أولاً. لا شهادة بعد ⇐ لا حارس يمنع التحويل.
+  it("allows switching to production before a production CSID exists, when no live credential exists yet at all", async () => {
+    vi.mocked(prisma.company.findFirst).mockResolvedValue(mockCompany({ zatcaOnboardingStatus: "compliance", zatcaEnvironment: "sandbox" }) as never);
+    vi.mocked(prisma.companyZatcaCredential.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.company.update).mockResolvedValue({} as never);
 
-    await expect(setCompanyZatcaEnvironment(TENANT_ID, COMPANY_ID, "production")).rejects.toThrow(/شهادة إنتاج فعلية/);
+    await setCompanyZatcaEnvironment(TENANT_ID, COMPANY_ID, "production");
+    expect(prisma.company.update).toHaveBeenCalledWith({ where: { id: COMPANY_ID }, data: { zatcaEnvironment: "production" } });
+  });
+
+  it("still blocks switching to production while a live credential exists for the current (different) environment", async () => {
+    vi.mocked(prisma.company.findFirst).mockResolvedValue(mockCompany({ zatcaOnboardingStatus: "compliance", zatcaEnvironment: "sandbox" }) as never);
+    vi.mocked(prisma.companyZatcaCredential.findUnique).mockResolvedValue({
+      complianceCertEnc: "cert",
+      complianceSecretEnc: "secret",
+      productionCertEnc: null,
+      productionSecretEnc: null,
+    } as never);
+
+    await expect(setCompanyZatcaEnvironment(TENANT_ID, COMPANY_ID, "production")).rejects.toThrow(/إعادة ضبط الربط/);
     expect(prisma.company.update).not.toHaveBeenCalled();
   });
 
