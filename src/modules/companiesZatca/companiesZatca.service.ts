@@ -275,19 +275,26 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
 }
 
 /**
- * تبديل البيئة الحالية (sandbox/simulation/production) — يُمنَع الانتقال لـ production بلا شهادة
- * إنتاج فعلية، ويُمنَع أيضاً أي تبديل طالما توجد شهادة فعّالة صادرة للبيئة الحالية بالذات: شهادة
- * زاتكا صادرة لبيئة معيّنة لا تعمل أبداً مع بيئة أخرى (عطل إنتاج فعلي مؤكَّد: شهادة اختبار حقيقية
- * صادرة بينما الشركة على sandbox — بوابة مطورين عامة ببيانات وهمية لا تعرف هذه الشهادة إطلاقاً —
- * فتغيير البيئة وحده، بلا إعادة إصدار الشهادة، يُبطلها فعلياً بصمت). المستخدم يجب أن يمرّ عمداً
- * بزر "إعادة ضبط الربط" (resetCompanyZatcaLinkage) أولاً، ثم يعيد استخراج الشهادة تحت البيئة
- * الجديدة — لا تبديل بنقرة واحدة يُسقِط ربطاً فعّالاً بصمت.
+ * تبديل البيئة الحالية (sandbox/simulation/production) — يُمنَع أي تبديل طالما توجد شهادة فعّالة
+ * صادرة للبيئة الحالية بالذات: شهادة زاتكا صادرة لبيئة معيّنة لا تعمل أبداً مع بيئة أخرى (عطل
+ * إنتاج فعلي مؤكَّد: شهادة اختبار حقيقية صادرة بينما الشركة على sandbox — بوابة مطورين عامة
+ * ببيانات وهمية لا تعرف هذه الشهادة إطلاقاً — فتغيير البيئة وحده، بلا إعادة إصدار الشهادة، يُبطلها
+ * فعلياً بصمت). المستخدم يجب أن يمرّ عمداً بزر "إعادة ضبط الربط" (resetCompanyZatcaLinkage) أولاً،
+ * ثم يعيد استخراج الشهادة تحت البيئة الجديدة — لا تبديل بنقرة واحدة يُسقِط ربطاً فعّالاً بصمت.
+ *
+ * عطل جمود (deadlock) فعلي مؤكَّد أُزيل هنا: كان هذا الحارس يمنع أيضاً الانتقال لبيئة "production"
+ * قبل صدور شهادة إنتاج فعلية (zatcaOnboardingStatus === "production") — لكن requestCompanyProductionCsid
+ * أعلاه يطلب شهادة الإنتاج نفسها من مضيف بيئة company.zatcaEnvironment الحالية (نفس الأمر
+ * لـrequestCompanyComplianceCsid وشهادة الاختبار)، أي أن البيئة يجب أن تكون "production" *قبل*
+ * بدء الربط بالكامل (توليد CSR بعلَم production، ثم شهادة الاختبار، ثم شهادة الإنتاج) لا بعد
+ * اكتماله — فيستحيل الوصول لـzatcaOnboardingStatus === "production" أصلاً لو مُنِع التحويل للبيئة
+ * قبله. الحماية الفعلية من تقديم فواتير حقيقية بلا شهادة إنتاج ليست هذا الحارس أصلاً — هي
+ * resolveZatcaSubmissionKind (submission.ts)، التي تفحص zatcaOnboardingStatus وحده بصرف النظر
+ * تماماً عن zatcaEnvironment. الفحص الوحيد المتبقي هنا (أدناه) هو الحماية الحقيقية التي بُني هذا
+ * الحارس من أجلها: منع تبديل بيئة توجد لها شهادة فعّالة بالفعل.
  */
 export async function setCompanyZatcaEnvironment(tenantId: string, companyId: string, environment: ZatcaApiEnvironment) {
   const company = await getCompanyOrThrow(tenantId, companyId);
-  if (environment === "production" && company.zatcaOnboardingStatus !== "production") {
-    throw badRequest("لا يمكن التحويل لبيئة الإنتاج قبل استخراج شهادة إنتاج فعلية (Production CSID)");
-  }
 
   if (environment !== company.zatcaEnvironment) {
     const credential = await prisma.companyZatcaCredential.findUnique({ where: { companyId } });
