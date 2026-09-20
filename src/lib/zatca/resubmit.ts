@@ -55,7 +55,7 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
   }
 
   const environment = params.company.zatcaEnvironment as ZatcaApiEnvironment;
-  const loaded = await loadCompanyZatcaCredentials(params.company.id, environment);
+  const loaded = await loadCompanyZatcaCredentials(params.company.id, environment, params.company.zatcaOnboardingStatus);
   if (!loaded.ok) {
     if (loaded.reason === "environment_mismatch") {
       // نفس تصنيف certificate_error تماماً (مشكلة إعداد ربط لن تُحَل نفسها بإعادة إرسال متكرر) —

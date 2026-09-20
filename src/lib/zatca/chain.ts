@@ -47,7 +47,9 @@ export interface ZatcaChainResult {
   previousInvoiceHash: string;
   invoiceHash: string;
   issuedAt: Date;
-  zatcaStatus: "pending_clearance" | "pending_reporting";
+  /** بمثابة عنصر نائب فقط — لا تُعرَض أبداً كحالة نهائية إلا لو تعذّر حتى محاولة الإرسال (راجع
+   * not_submitted في postingGate.ts وtypes.ts). */
+  zatcaStatus: "not_submitted";
   /** XML غير موقّع لهذا المستند بالضبط — يُعاد استخدامه في المرحلة E (التوقيع + الإرسال) بدل إعادة
    * بنائه، حتى تبقى التجزئة والمحتوى المُرسَل مضمونَي التطابق دائماً. */
   xml: string;
@@ -176,7 +178,7 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     previousInvoiceHash,
     invoiceHash,
     issuedAt,
-    zatcaStatus: subtype === "standard" ? "pending_clearance" : "pending_reporting",
+    zatcaStatus: "not_submitted",
     xml,
     subtype,
   };

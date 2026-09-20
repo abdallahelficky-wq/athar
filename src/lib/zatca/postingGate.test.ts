@@ -141,7 +141,10 @@ describe("evaluateZatcaPostingGate", () => {
     expect(decision.zatcaFields.icv).toBeUndefined();
   });
 
-  it("reserves the ICV/PIH chain but does not call the live API when the company has no CSID credentials yet", async () => {
+  // عطل إنتاج فعلي مؤكَّد كان هنا: هذه الحالة كانت تُصنَّف pending_clearance/pending_reporting —
+  // اسمان يوحيان بأن زاتكا استلمت المستند وتُعالجه، بينما لا طلب وصلها إطلاقاً (fetchSpy أدناه
+  // يثبت ذلك مباشرة). not_submitted الآن + رسالة صريحة تقول ذلك بالنص، لا تخمين.
+  it("reserves the ICV/PIH chain but does not call the live API when the company has no CSID credentials yet — reports not_submitted, not a ZATCA-sounding status", async () => {
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(NOT_CONFIGURED);
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
@@ -159,9 +162,37 @@ describe("evaluateZatcaPostingGate", () => {
     });
 
     expect(decision.proceedWithPosting).toBe(true);
-    expect(decision.zatcaFields.zatcaStatus).toBe("pending_reporting");
+    expect(decision.zatcaFields.zatcaStatus).toBe("not_submitted");
     expect(decision.zatcaFields.icv).toBe(5);
     expect(fetchSpy).not.toHaveBeenCalled();
+    expect(decision.rejectionReason).toContain("لم يُرسَل");
+  });
+
+  // البند 3 من طلب المستخدم: هذا الترابط انكسر بصمت مرة (راجع تعليق isProduction في credentials.ts)
+  // — يجب ألا يتكرر بلا اختبار يكشفه فوراً. company.zatcaEnvironment هنا "production" عمداً
+  // (البيئة/المضيف)، بينما zatcaOnboardingStatus لا يزال "compliance" (مرحلة الربط) — التمرير
+  // الصحيح لـloadCompanyZatcaCredentials يعتمد على onboardingStatus لا environment، فيجب أن تصل
+  // شهادة الاختبار (لا شهادة الإنتاج غير الموجودة بعد) وأن يصل الاتصال الشبكي الفعلي.
+  it("loads the compliance credential and reaches the HTTP layer when environment is 'production' but onboardingStatus is still 'compliance'", async () => {
+    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
+    const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
+
+    const decision = await evaluateZatcaPostingGate({
+      tx: fakeTx(),
+      company: { ...COMPANY, zatcaEnvironment: "production", zatcaOnboardingStatus: "compliance" },
+      customer: SIMPLIFIED_CUSTOMER,
+      kind: "invoice",
+      documentNumber: "INV-00001",
+      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
+      lines: LINES as never,
+      grandTotal: 115,
+      vatTotal: 15,
+    });
+
+    expect(credentialsModule.loadCompanyZatcaCredentials).toHaveBeenCalledWith("company-1", "production", "compliance");
+    expect(fetchMock).toHaveBeenCalled();
+    expect(fetchMock.mock.calls[0][0]).toContain("/compliance/invoices");
+    expect(decision.zatcaFields.zatcaStatus).toBe("compliance_checked");
   });
 
   it("proceeds and marks cleared when ZATCA accepts a standard (clearance) submission", async () => {

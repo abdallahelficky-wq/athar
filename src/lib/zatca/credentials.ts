@@ -36,24 +36,38 @@ export function resolveZatcaRawCertificate(rawEnc: string | null, canonicalEnc: 
 }
 
 /**
- * يفكّ تشفير شهادة/سر API الفعليَين لشركة معيّنة، بحسب بيئتها الحالية (production يستخدم شهادة
- * الإنتاج، أي بيئة أخرى تستخدم شهادة الاختبار/Compliance) — بعد التحقق أولاً أن الشهادة المخزَّنة
- * صودرت فعلاً لهذه البيئة بالذات (راجع complianceCsidEnvironment/productionCsidEnvironment في
- * companiesZatca.service.ts، حيث تُسجَّل وقت الإصدار). لا يوجد أي احتياطي (fallback) بين البيئتين،
- * فشهادة اختبار لا تُستخدَم أبداً لإرسال حقيقي، والعكس.
+ * يفكّ تشفير شهادة/سر API الفعليَين لشركة معيّنة، بحسب مرحلة ربطها الحالية (onboardingStatus:
+ * production تستخدم شهادة الإنتاج، أي مرحلة أخرى — compliance أو not_onboarded — تستخدم شهادة
+ * الاختبار/Compliance) — بعد التحقق أولاً أن الشهادة المخزَّنة صودرت فعلاً لبيئة (environment)
+ * الاتصال الحالية بالذات (راجع complianceCsidEnvironment/productionCsidEnvironment في
+ * companiesZatca.service.ts، حيث تُسجَّل وقت الإصدار). لا يوجد أي احتياطي (fallback) بين
+ * المجموعتين، فشهادة اختبار لا تُستخدَم أبداً لإرسال حقيقي، والعكس.
  *
- * لصفوف قديمة سبقت إضافة هذا التسجيل (الحقل المُسجَّل فارغ/null): يُفتَرض تطابق البيئة الحالية —
- * لا إنذار كاذب لربط يعمل فعلاً اليوم، خطر ذلك يقتصر على صفّ واحد قديم مُحتمَل الخطأ فعلاً بالفعل
- * (وهو بالضبط ما دفع لإضافة هذا التسجيل)، لا يستحق تعطيل كل الشركات القائمة.
+ * عطل إنتاج فعلي مؤكَّد أُصلِح هنا: كان اختيار مجموعة الشهادة (isProduction) يعتمد على environment
+ * (أي مضيف زاتكا نتصل به: sandbox/simulation/production) لا onboardingStatus (أي مرحلة ربط بلغتها
+ * الشركة فعلياً) — قيمتان مستقلّتان تماماً، كانتا متلازمتين صدفة فقط طالما تعذّر الوصول لبيئة
+ * "production" قبل شهادة إنتاج فعلية (حارس قديم في setCompanyZatcaEnvironment، أُزيل لاحقاً عمداً
+ * لأنه كان يمنع بدء الربط أصلاً). بعد إتاحة التحويل المبكر لبيئة الإنتاج، شركة لا تزال على مرحلة
+ * compliance لكن بيئتها production كانت تُعامَل هنا وكأنها production فعلاً، فيبحث الكود عن
+ * productionCertEnc (غير موجود بعد عمداً — هذا بالضبط ما تحصل عليه الشركة من اجتياز الخطوات الستة)،
+ * فيُعيد not_configured ولا يُرسِل أي طلب لزاتكا إطلاقاً — بصمت تام، بلا أي كود حالة HTTP يمكن
+ * تسجيله لأن لا طلب أُرسِل من الأساس. راجع اختبار "compliance credential even when environment is
+ * production" أدناه، وnot_submitted في postingGate.ts لكيفية عرض هذه الحالة تحديداً الآن.
+ *
+ * لصفوف قديمة سبقت إضافة تسجيل complianceCsidEnvironment/productionCsidEnvironment (الحقل
+ * المُسجَّل فارغ/null): يُفتَرض تطابق البيئة الحالية — لا إنذار كاذب لربط يعمل فعلاً اليوم، خطر ذلك
+ * يقتصر على صفّ واحد قديم مُحتمَل الخطأ فعلاً بالفعل (وهو بالضبط ما دفع لإضافة هذا التسجيل)، لا
+ * يستحق تعطيل كل الشركات القائمة.
  */
 export async function loadCompanyZatcaCredentials(
   companyId: string,
   environment: ZatcaApiEnvironment,
+  onboardingStatus: string,
 ): Promise<LoadZatcaCredentialsResult> {
   const record = await prisma.companyZatcaCredential.findUnique({ where: { companyId } });
   if (!record || !record.privateKeyEnc) return { ok: false, reason: "not_configured" };
 
-  const isProduction = environment === "production";
+  const isProduction = onboardingStatus === "production";
   const certEnc = isProduction ? record.productionCertEnc : record.complianceCertEnc;
   const rawCertEnc = isProduction ? record.productionCertRawEnc : record.complianceCertRawEnc;
   const secretEnc = isProduction ? record.productionSecretEnc : record.complianceSecretEnc;
