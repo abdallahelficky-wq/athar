@@ -74,10 +74,29 @@ function buildSupplierPlaceholders(seller: ZatcaPartyInput): Record<string, stri
   };
 }
 
+/**
+ * BR-KSA-14: هوية المشتري (PartyIdentification) يجب أن تحمل schemeID مطابقاً لأيّ معرِّف
+ * فعلياً متوفّر، بترتيب أولوية زاتكا الموثَّق (TIN, CRN, MOM, MLS, 700, SAG, NAT, GCC, IQA, PAS,
+ * OTH) — لا "CRN" ثابتاً بصرف النظر عن البيانات المتوفرة فعلياً. عطل إنتاج فعلي مؤكَّد (BR-KSA-F-08
+ * "Please recheck the CRN value"): كان الكود يضع دائماً schemeID="CRN" حتى حين لا يوجد رقم سجل
+ * تجاري للمشتري (crNumber فارغ) — فتصل زاتكا وسماً "CRN" بقيمة فارغة، بدل استخدام رقم الهوية
+ * الضريبي (vatNumber) الفعلي المتوفر بالضرورة لكل فاتورة قياسية (subtypeForCustomer في chain.ts
+ * تشترط وجود vatNumber أصلاً لتصنيف العميل "standard"). ندعم فقط TIN وCRN حالياً (الحقلان
+ * المتوفران في نموذج بياناتنا)؛ الأنواع الأخرى (MOM/MLS/700/SAG/NAT/GCC/IQA/PAS) تحتاج حقولاً
+ * إضافية غير مُخزَّنة بعد.
+ */
+function resolveBuyerIdentification(buyer: ZatcaPartyInput): { schemeID: string; value: string } {
+  if (buyer.vatNumber) return { schemeID: "TIN", value: buyer.vatNumber };
+  if (buyer.crNumber) return { schemeID: "CRN", value: buyer.crNumber };
+  throw new Error("لا يمكن تحديد هوية المشتري لزاتكا — لا يوجد رقم ضريبي (VAT) ولا رقم سجل تجاري (CRN) مسجَّل لهذا العميل");
+}
+
 function buildBuyerBlock(buyer: ZatcaPartyInput | undefined): string {
   if (!buyer) return "<cac:AccountingCustomerParty></cac:AccountingCustomerParty>";
+  const identification = resolveBuyerIdentification(buyer);
   return buyerPartyTemplate
-    .replace("SET_BUYER_CRN", escapeXml(buyer.crNumber))
+    .replace("SET_BUYER_ID_SCHEME", identification.schemeID)
+    .replace("SET_BUYER_ID_VALUE", escapeXml(identification.value))
     .replace("SET_BUYER_STREET_NAME", escapeXml(buyer.street))
     .replace("SET_BUYER_BUILDING_NUMBER", escapeXml(buyer.buildingNumber))
     .replace("SET_BUYER_CITY_SUBDIVISION", escapeXml(buyer.citySubdivision))

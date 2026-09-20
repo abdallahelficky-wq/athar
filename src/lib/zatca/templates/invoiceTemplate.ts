@@ -80,7 +80,7 @@ const template = /* XML */`
 const buyerPartyTemplate = /* XML */`<cac:AccountingCustomerParty>
     <cac:Party>
       <cac:PartyIdentification>
-        <cbc:ID schemeID="CRN">SET_BUYER_CRN</cbc:ID>
+        <cbc:ID schemeID="SET_BUYER_ID_SCHEME">SET_BUYER_ID_VALUE</cbc:ID>
       </cac:PartyIdentification>
       <cac:PostalAddress>
         <cbc:StreetName>SET_BUYER_STREET_NAME</cbc:StreetName>
