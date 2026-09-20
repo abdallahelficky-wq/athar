@@ -85,7 +85,7 @@ interface RequestParams<T> {
   acceptLanguage?: "ar" | "en";
   /** يُطبَّق فقط على استجابات 2xx — استجابات الفشل (400/500...) تُعاد كما هي بلا تحقق شكلي، لأن
    * أشكالها متنوّعة (رسائل خطأ عامة من الخادم) ولا تُتخَذ منها قرارات حسّاسة أصلاً. */
-  schema: z.ZodType<T>;
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>;
   /** سقالة تشخيصية مؤقتة (راجع env.zatcaOnboardingDiagnostics) — سياق اختياري (ICV/PIH/نوع مستند/
    * فرعه) يُملأه المستدعي وقت المشي اليدوي عبر ربط زاتكا فقط؛ لا يُستخدَم في أي قرار، فقط يُسجَّل
    * كاملاً مع الجسم الخام *قبل* أي تصفية Zod (schema أعلاه قد تُسقِط حقولاً غير معروفة صامتة). */
@@ -315,6 +315,41 @@ const zatcaSubmissionResponseSchema = z
 
 export type ZatcaSubmissionResponse = z.infer<typeof zatcaSubmissionResponseSchema>;
 
+// الجسم الفعلي المُلاحَظ فعلياً على /compliance/invoices (2026-09-20، عبر Accept-Language: en —
+// راجع apiClient.ts أعلاه): HTTP 202 (لا 200)، clearanceStatus="CLEARED"، reportingStatus=null
+// حرفياً (لا غائباً)، validationResults.status="WARNING" مع warningMessages فعلية (BR-KSA-F-08) و
+// errorMessages فارغة. أي: فحص الامتثال قد "يقبل بتحذيرات" لا يرفض ولا يقبل بلا ملاحظات — حالة لم
+// يفترضها zatcaSubmissionResponseSchema، الذي يقرأ z.string().optional() على reportingStatus: تلك
+// تسمح بحقل *غائب*، لا حقل *موجود وقيمته null* صراحةً (فشل .refine() لأن reportingStatus !== undefined
+// كان true لقيمة null نفسها). النتيجة: هذا الرد 2xx الناجح فعلياً كان يُصنَّف malformedResponse ثم
+// "rejected" في postingGate.ts — أي "رفضنا نجاحاً" لا "رفضت زاتكا مستندنا".
+//
+// ملاحظة صريحة تجيب سؤالاً مفتوحاً في تصميم أتمتة الربط: **هذا الجسم لا يحمل أي مؤشر تقدّم عبر
+// الأنواع الستة الإلزامية** (فاتورة/إشعار دائن/إشعار مدين × قياسية/مبسّطة) — لا عدّاد، لا اسم نوع
+// المستند المُتحقَّق منه، لا أي حقل مشابه. الحقول الإضافية المُلاحَظة (qrSellertStatus/qrBuyertStatus،
+// كذا حرفياً بما فيها الخطأ الإملائي الظاهر في اسميهما) تتعلق بتحقّق QR البائع/المشتري لا بتتبّع
+// تقدّم الأنواع الستة. تتبّع أي الأنواع الستة اجتازت الفحص يبقى مسؤولية تطبيقنا نفسه (تسجيل كل
+// submissionKind/subtype أُرسِل بنجاح)، لا شيئاً يمكن استخلاصه من رد زاتكا.
+//
+// تنبيه أمانة: هذا الشكل وصلني منقولاً (عبر أداة أخرى نقلت التشخيص من هذا السجلّ)، لا من قراءتي
+// المباشرة للبايتات الخام — لم أتحقّق منه بنفسي من هذه البيئة (لا اتصال شبكي بزاتكا ولا وصول
+// لسجلّات الإنتاج من هنا). الحقول غير المُعلَنة في zatcaValidationMessageSchema/zatcaSubmissionResponseSchema
+// (مثل status على مستوى كل رسالة، أو qrSellertStatus/qrBuyertStatus أعلاه) تُسقَط بصمت طالما لا
+// .strict() على أي من الكائنين — غير ضارة لهذا الإصلاح، لكن لو أعاد سجلّ لاحق شكلاً مختلفاً قليلاً
+// (200 لا 202، أو رسالة بلا status)، يجب تحديث هذا التعليق ليطابق الدليل الجديد لا الاحتفاظ بهذا كمرجع ثابت.
+//
+// معالجة نطاقها مسار الامتثال حصراً (checkInvoiceCompliance أدناه) — التخليص/الإبلاغ الحقيقيَّان
+// (clearInvoice/reportInvoice) يستمران على zatcaSubmissionResponseSchema الصارم دون أي تطبيع، لأن
+// شكل رديهما الفعلي لم يُلاحَظ بعد ولا سبب لافتراض نفس سلوك null هذا عليهما.
+const zatcaComplianceResponseSchema = z.preprocess((data) => {
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return data;
+  const normalized = { ...(data as Record<string, unknown>) };
+  for (const field of ["clearanceStatus", "reportingStatus"] as const) {
+    if (normalized[field] === null) delete normalized[field];
+  }
+  return normalized;
+}, zatcaSubmissionResponseSchema);
+
 interface SubmitInvoiceParams {
   environment: ZatcaApiEnvironment;
   credentials: ZatcaApiCredentials;
@@ -345,7 +380,7 @@ export function checkInvoiceCompliance(params: SubmitInvoiceParams) {
     path: "/compliance/invoices",
     body: { invoiceHash: params.invoiceHash, uuid: params.uuid, invoice: params.signedInvoiceBase64 },
     credentials: params.credentials,
-    schema: zatcaSubmissionResponseSchema,
+    schema: zatcaComplianceResponseSchema,
     onboardingDiagnostics: params.onboardingDiagnostics,
     acceptLanguage: params.acceptLanguage,
   });

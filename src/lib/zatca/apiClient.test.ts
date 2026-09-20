@@ -354,3 +354,61 @@ describe("apiClient request timeout", () => {
     expect(result.networkError).toBe(true);
   });
 });
+
+// عطل إنتاج فعلي مؤكَّد: زاتكا أعادت HTTP 202 (نجاح فعلي، فحص امتثال بتحذيرات لا رفض) لكن
+// reportingStatus وصلت null حرفياً (لا غائبة) — z.string().optional() يرفض null، فكان هذا الرد
+// الناجح فعلياً يُصنَّف malformedResponse ثم "rejected" لاحقاً في postingGate.ts. راجع التعليق
+// الكامل فوق zatcaComplianceResponseSchema في apiClient.ts لتفاصيل الشكل الملاحَظ وحدود الثقة به.
+describe("compliance nullable status placeholders", () => {
+  const params = { environment: "simulation" as const, credentials: CREDENTIALS, signedInvoiceBase64: "eA==", invoiceHash: "hash", uuid: "test" };
+  // الجسم كما وُصِف من السجلّ التشخيصي — بما فيه حقول لم يتوقّعها مخططنا أصلاً (status على مستوى كل
+  // رسالة، qrSellertStatus/qrBuyertStatus بخطأيهما الإملائيين الظاهرين) لإثبات أنها تُسقَط بأمان.
+  const observedResponse = {
+    validationResults: {
+      infoMessages: [{ type: "INFO", code: "XSD_ZATCA_VALID", message: "Complied with UBL 2.1 standards in line with ZATCA specifications", status: "PASS" }],
+      warningMessages: [{ type: "WARNING", code: "BR-KSA-F-08", message: "Please recheck the CRN value", status: "WARNING" }],
+      errorMessages: [],
+      status: "WARNING",
+    },
+    reportingStatus: null,
+    clearanceStatus: "CLEARED",
+    qrSellertStatus: null,
+    qrBuyertStatus: null,
+  };
+
+  it("accepts the observed HTTP 202 response without losing warnings", async () => {
+    mockFetchOnce(202, observedResponse);
+    const result = await checkInvoiceCompliance(params);
+    expect(result.ok).toBe(true);
+    expect(result.data?.clearanceStatus).toBe("CLEARED");
+    expect(result.data?.validationResults?.warningMessages?.[0].code).toBe("BR-KSA-F-08");
+    expect(hasValidationErrors(result.data)).toBe(false);
+  });
+
+  // نطاق الإصلاح مقصور على مسار الامتثال حصراً — clearance/reporting الحقيقيَّان يستمران على
+  // المخطط الصارم بلا أي تطبيع، لأن شكل ردّيهما الفعلي لم يُلاحَظ بعد.
+  it.each([clearInvoice, reportInvoice])("does not relax clearance/reporting schemas the same way", async (submit) => {
+    mockFetchOnce(202, observedResponse);
+    const result = await submit(params);
+    expect(result.ok).toBe(false);
+    expect(result.malformedResponse).toBe(true);
+  });
+
+  // كلا الحالتين null معاً يجب أن يبقيا مرفوضين — التطبيع يزيل null الفردي فقط ليعادل "غائب"، لا
+  // يُسقِط شرط .refine() الذي يتطلّب حقلاً واحداً معرَّفاً على الأقل من الثلاثة.
+  it.each([{}, null, { reportingStatus: null, clearanceStatus: null }, { reportingStatus: 42 }, { validationResults: null }])(
+    "still rejects a genuinely malformed compliance response %j",
+    async (body) => {
+      mockFetchOnce(202, body);
+      const result = await checkInvoiceCompliance(params);
+      expect(result.ok).toBe(false);
+      expect(result.malformedResponse).toBe(true);
+    },
+  );
+
+  it("still preserves real validation errors in a response that also carries the nullable placeholders", async () => {
+    mockFetchOnce(202, { ...observedResponse, validationResults: { status: "ERROR", errorMessages: [{ type: "ERROR", code: "INVALID", message: "Invalid invoice" }] } });
+    const result = await checkInvoiceCompliance(params);
+    expect(hasValidationErrors(result.data)).toBe(true);
+  });
+});
