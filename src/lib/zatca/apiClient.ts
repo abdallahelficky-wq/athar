@@ -113,6 +113,21 @@ function redactSensitiveOnboardingDiagnosticsFields(value: unknown): unknown {
   return value;
 }
 
+// سقالة تشخيصية مؤقتة — يستخرج XML المُرسَل فعلياً (بعد التوقيع وحقن QR) من جسم الطلب، لا الرد،
+// لإثبات ما وصل زاتكا فعلاً بايتاً بايت — لا نص وسيط أُعيد بناؤه محلياً. آمن للتسجيل كاملاً بلا
+// اقتطاع ولا إخفاء: هذا محتوى وثيقتنا نفسها (بما فيها الشهادة العامة ضمن توقيع XAdES — مادة مفتاح
+// عام مصمَّمة للنشر، لا سرّاً)، لا رد زاتكا الذي قد يحمل حقولاً غير متوقَّعة.
+function extractTransmittedXmlFromBody(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const invoice = (body as Record<string, unknown>).invoice;
+  if (typeof invoice !== "string" || !invoice) return null;
+  try {
+    return Buffer.from(invoice, "base64").toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
 async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiResponse<T>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -181,11 +196,15 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
           rawEqualsCanonical: params.credentials.rawCertificateBodyBase64 === params.credentials.certificateBodyBase64,
         }
       : "(بلا بيانات اعتماد على هذا الطلب — راجع otp أعلاه)";
+    // XML المُرسَل فعلياً في هذا الطلب (بعد التوقيع وحقن QR) — كاملاً بلا اقتطاع، لإثبات وجود
+    // cbc:ProfileID وموضعه وقيمته وعدد تكراره في البايتات الفعلية المرسَلة، لا نسخة مُعاد بناؤها.
+    const transmittedXml = extractTransmittedXmlFromBody(params.body);
     // eslint-disable-next-line no-console
     console.log(
       `[zatca-onboarding-diagnostics] المسار=${params.path} status=${response.status} السياق=${JSON.stringify(params.onboardingDiagnostics)} ` +
         `شكل_شهادة_المصادقة=${JSON.stringify(authCertForm)} — ` +
-        `الجسم بعد إخفاء الحقول الحسّاسة المعروفة (binarySecurityToken/secret/clearedInvoice/certificate/privateKey): ${redactedBody.slice(0, 10000)}`,
+        `الجسم بعد إخفاء الحقول الحسّاسة المعروفة (binarySecurityToken/secret/clearedInvoice/certificate/privateKey): ${redactedBody.slice(0, 10000)}` +
+        (transmittedXml ? ` — XML المُرسَل فعلياً (كامل، بعد التوقيع وحقن QR): ${transmittedXml}` : ""),
     );
   }
 
