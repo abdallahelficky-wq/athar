@@ -134,6 +134,14 @@ function extractTransmittedXmlFromBody(body: unknown): string | null {
   }
 }
 
+// STEP-3 تشخيص مؤقت (غير مُلتزَم — بانتظار موافقة المستخدم) — يقتصر عمداً على /production/csids
+// فقط، سجلّ خام كامل غير مشروط بأي علَم، قبل أي تحليل/تفسير للجسم، بما في ذلك حالة فشل الاتصال.
+function maskAuthHeaderForDebugLog(value: string | undefined): string {
+  if (!value) return "(لا توجد ترويسة Authorization على هذا الطلب)";
+  if (value.length <= 20) return value;
+  return `${value.slice(0, 12)}...${value.slice(-8)}`;
+}
+
 async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiResponse<T>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -145,15 +153,31 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
   if (params.otp) headers.OTP = params.otp;
   if (params.clearanceStatus) headers["Clearance-Status"] = params.clearanceStatus;
 
+  const isProductionCsidDebug = params.path === "/production/csids";
+  const debugUrl = `${baseUrl(params.environment)}${params.path}`;
+  if (isProductionCsidDebug) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[STEP3-DEBUG][production-csid-request] URL=${debugUrl} method=POST headers=${JSON.stringify({
+        ...headers,
+        Authorization: maskAuthHeaderForDebugLog(headers.Authorization),
+      })} body=${JSON.stringify(params.body)}`,
+    );
+  }
+
   let response: Response;
   try {
-    response = await fetch(`${baseUrl(params.environment)}${params.path}`, {
+    response = await fetch(debugUrl, {
       method: "POST",
       headers,
       body: JSON.stringify(params.body),
       signal: AbortSignal.timeout(ZATCA_REQUEST_TIMEOUT_MS),
     });
   } catch (err) {
+    if (isProductionCsidDebug) {
+      // eslint-disable-next-line no-console
+      console.log(`[STEP3-DEBUG][production-csid-request] فشل fetch نفسه قبل وصول أي استجابة — الخطأ الخام:`, err);
+    }
     // فشل اتصال حقيقي (DNS/timeout/رفض اتصال/شهادة TLS...) — بلا هذا الالتقاط كان يسقط كاستثناء
     // خام غير مُعالَج يُسقِط معاملة Prisma بأكملها (بما فيها فاتورة نقطة بيع مبسّطة كانت ستُرحَّل
     // بصرف النظر عن نتيجة هذا الإرسال أصلاً — راجع تعليق proceedWithPosting في postingGate.ts:
@@ -175,6 +199,18 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
     rawData = rawText ? JSON.parse(rawText) : null;
   } catch {
     rawData = null;
+  }
+
+  if (isProductionCsidDebug) {
+    const debugHeadersObject: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      debugHeadersObject[key] = value;
+    });
+    // eslint-disable-next-line no-console
+    console.log(
+      `[STEP3-DEBUG][production-csid-response] status=${response.status} statusText=${response.statusText} ` +
+        `headers=${JSON.stringify(debugHeadersObject)} rawBody=${JSON.stringify(rawText)}`,
+    );
   }
 
   // سقالة تشخيصية مؤقتة — راجع تعليق onboardingDiagnostics في RequestParams وenv.zatcaOnboardingDiagnostics.
@@ -280,6 +316,9 @@ export function requestProductionCsid(
     credentials,
     schema: csidResponseSchema,
     onboardingDiagnostics,
+    // STEP-3 تشخيص مؤقت (غير مُلتزَم): زاتكا تُترجِم رسائل الرفض/الأخطاء، وقالبها العربي معطوب فعلياً
+    // (راجع acceptLanguage في RequestParams أعلاه) — لا نُشخِّص من نص عربي قد يكون مبتوراً.
+    acceptLanguage: "en",
   });
 }
 
