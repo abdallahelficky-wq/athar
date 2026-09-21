@@ -98,12 +98,37 @@ function subtypeForCustomer(customer: ZatcaCustomerLike): "standard" | "simplifi
   return customer.customerType === "business" && Boolean(customer.vatNumber) ? "standard" : "simplified";
 }
 
+/**
+ * مصدر واحد مشترك لأي تمثيل نصّي لـissuedAt يُستخدَم في XML أو QR — كلاهما (cbc:IssueTime وQR
+ * Tag 3) يجب أن يشتقّا من هذه السلسلة نفسها، لا من استدعاءين منفصلين لـtoISOString()، حتى لا
+ * ينحرفا عن بعضهما أبداً ولو بمجرد اختلاف تنسيق.
+ *
+ * عطل إنتاج فعلي مؤكَّد دفع لعزل هذه الدالة: زاتكا رفضت كل مستند مبسَّط بتحذير "Time on QR Code does
+ * not match with Invoice Issue Time (KSA-25)" رغم أن IssueTime وQR Tag 3 كانا يحملان نفس الأرقام
+ * حرفياً (نفس issuedAt). السبب الفعلي ليس اختلاف اللحظة، بل اختلاف تفسيرها: معيار XML لزاتكا لحقل
+ * الوقت (البند 10، القاعدة BR-KSA-70) ينصّ صراحة أن قيمة الوقت بلا لاحقة "Z" تُقرَأ كتوقيت محلي
+ * بالمملكة (AST، UTC+3)، بينما لاحقة "Z" تعني UTC صراحة — ومعيار الأمان (جدول 3: QR Code content TLV
+ * field definitions، الوسم 3) يُلزِم صيغة ISO 8601 بلاحقة "Z" دائماً (المثال الرسمي المذكور:
+ * 2022-02-21T12:13:57Z). كانت IssueTime تُقتطَع من toISOString() (UTC حكماً) بـ.slice(11,19) بلا
+ * إبقاء "Z" — فتصل زاتكا رقماً UTC فعلياً، لكن بلا اللاحقة التي تُفسِّره كذلك، فتقرأه كتوقيت محلي
+ * (AST) خطأً — فرق ٣ ساعات فعلي عن QR Tag 3 الصريح UTC، رغم تطابق الأرقام حرفياً في كلا الحقلين.
+ */
+function isoUtcTimestamp(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+/** "HH:mm:ssZ" — يُشتَقّ من isoUtcTimestamp نفسها (راجع تعليقها أعلاه)، لا استدعاء toISOString()
+ * منفصل، حتى يبقى مطابقاً حرفياً لما يحمله QR Tag 3 لنفس issuedAt دائماً. */
+function formatIssueTimeUtc(date: Date): string {
+  return isoUtcTimestamp(date).slice(11);
+}
+
 /** حقول QR 1-5 (النصية) من بيانات الشركة والمبلغ الإجمالي — لاستخدامها في المرحلة E عند بناء QR الكامل الموقّع */
 export function buildQrBaseParams(company: ZatcaCompanyLike, issuedAt: Date, grandTotal: number, vatTotal: number) {
   return {
     sellerName: company.name,
     sellerVat: company.vatNumber || "",
-    isoTimestamp: issuedAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
+    isoTimestamp: isoUtcTimestamp(issuedAt),
     invoiceTotal: grandTotal,
     vatTotal,
   };
@@ -158,7 +183,9 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     id: params.documentNumber,
     uuid: params.documentUuid,
     issueDate: issuedAt.toISOString().slice(0, 10),
-    issueTime: issuedAt.toISOString().slice(11, 19),
+    // "Z" إلزامية هنا — راجع formatIssueTimeUtc أعلاه لسبب غيابها كان يُنتِج عدم تطابق فعلي مع QR
+    // Tag 3 رغم كون كلاهما نفس اللحظة الفعلية بالضبط (issuedAt نفسها).
+    issueTime: formatIssueTimeUtc(issuedAt),
     icv,
     previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,
@@ -221,7 +248,7 @@ export function rebuildZatcaDocumentXml(params: RebuildZatcaDocumentXmlParams): 
     id: params.documentNumber,
     uuid: params.documentUuid,
     issueDate: params.issuedAt.toISOString().slice(0, 10),
-    issueTime: params.issuedAt.toISOString().slice(11, 19),
+    issueTime: formatIssueTimeUtc(params.issuedAt),
     icv: params.icv,
     previousInvoiceHash: params.previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,
