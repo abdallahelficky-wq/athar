@@ -3,6 +3,7 @@ import { env } from "./config/env";
 import { startReportScheduler } from "./lib/reportScheduler";
 import { startZatcaRetryScheduler } from "./lib/zatca/retryScheduler";
 import { renderHtmlToPdf } from "./lib/zatca/pdf/renderPdf";
+import { hasArabicCapableFont } from "./lib/zatca/pdf/arabicFontCheck";
 
 const app = createApp();
 
@@ -35,7 +36,9 @@ app.listen(env.port, () => {
   // العمل حتى لو فشل هذا الفحص تماماً — نفس فلسفة sendInvoiceByEmail بالضبط: تسجيل الفشل بصوت
   // عالٍ، بلا إيقاف أي شيء آخر.
   if (env.nodeEnv === "production") {
-    renderHtmlToPdf("<html><body>ping</body></html>")
+    // نص عربي فعلي هنا لا "ping" لاتينية — راجع فحص الخط المنفصل أدناه لسبب عدم كفاية نجاح هذا
+    // التصيير وحده لإثبات ظهور فواتير عربية فعلياً.
+    renderHtmlToPdf('<html><body style="font-family: \'Segoe UI\', Tahoma, Arial, sans-serif; direction: rtl;">فحص تصيير PDF</body></html>')
       .then(() => {
         // eslint-disable-next-line no-console
         console.log("✅ محرّك توليد PDF (Chromium) يعمل بنجاح عند الإقلاع.");
@@ -49,6 +52,34 @@ app.listen(env.port, () => {
             "بالإيميل. تحقّق من نجاح تثبيت حزمة Chromium في صورة البناء (railpack.json) ومن " +
             `CHROMIUM_EXECUTABLE_PATH إن كان مضبوطاً. الخطأ الفعلي: ${err instanceof Error ? err.message : String(err)} ⚠️⚠️⚠️`,
         );
+      });
+
+    // فحص منفصل تماماً عن الفحص أعلاه — عطل صامت أخطر أثبتناه تجريبياً أثناء المراجعة: حاوية بها
+    // Chromium يعمل بنجاح تام (يُقلِع، يُصيِّر، renderHtmlToPdf أعلاه "ينجح" بلا أي خطأ) لكن بلا أي
+    // خط يغطي العربية مثبَّت تُصيِّر كل فاتورة (نصها عربي بالكامل) كصفحة PDF بيضاء تماماً — صالحة
+    // تقنياً، فارغة بصرياً بالكامل، بلا أي خطأ ظاهر لأي طرف. نجاح renderHtmlToPdf وحده لا يكتشف هذا
+    // إطلاقاً؛ راجع hasArabicCapableFont/fc-list :lang=ar لتفاصيل الإثبات التجريبي الكامل.
+    hasArabicCapableFont()
+      .then((found) => {
+        if (found) {
+          // eslint-disable-next-line no-console
+          console.log("✅ يوجد خط يغطي العربية مثبَّت في بيئة الإنتاج (fc-list :lang=ar).");
+          return;
+        }
+        // eslint-disable-next-line no-console
+        console.error(
+          "⚠️⚠️⚠️ تحذير: لا يوجد أي خط يغطي العربية مثبَّت في بيئة الإنتاج (fc-list :lang=ar لم يُعِد " +
+            "أي نتيجة، أو الأداة نفسها غير موجودة) — كل الفواتير وسندات القيد وعقود إيواء الخيل " +
+            "(نصها عربي بالكامل) ستُصيَّر كصفحة PDF بيضاء تماماً بلا أي نص مرئي، بلا أي خطأ ظاهر " +
+            "(الملف صالح تقنياً، فارغ بصرياً فقط). أضِف حزمة خط عربي (مثل fonts-noto-core) إلى " +
+            "aptPackages في railpack.json ثم أعد النشر. ⚠️⚠️⚠️",
+        );
+      })
+      .catch(() => {
+        // execFile نفسها رمت لسبب غير متوقَّع تماماً (لا "fc-list غير موجودة" — تلك حالة معالَجة
+        // بالفعل داخل hasArabicCapableFont وتُعامَل كـfalse) — تسجيل فقط، بلا إيقاف أي شيء.
+        // eslint-disable-next-line no-console
+        console.error("⚠️ تعذّر التحقّق من توفّر خط عربي عند الإقلاع (فحص غير حاسم، راجع hasArabicCapableFont).");
       });
   }
 });
