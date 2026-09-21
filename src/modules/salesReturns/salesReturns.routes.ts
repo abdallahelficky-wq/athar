@@ -2,7 +2,15 @@ import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createSalesReturnSchema, unpostSchema } from "./salesReturns.schemas";
-import { listHandler, createHandler, deleteHandler, postHandler, unpostHandler } from "./salesReturns.controller";
+import {
+  listHandler,
+  createHandler,
+  deleteHandler,
+  postHandler,
+  unpostHandler,
+  retryZatcaSubmissionHandler,
+  completeZatcaPostingHandler,
+} from "./salesReturns.controller";
 
 export const salesReturnRoutes = Router();
 salesReturnRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
@@ -14,3 +22,5 @@ salesReturnRoutes.post("/", canWrite, validateBody(createSalesReturnSchema), cre
 salesReturnRoutes.delete("/:id", canWrite, deleteHandler);
 salesReturnRoutes.post("/:id/post", canWrite, postHandler);
 salesReturnRoutes.post("/:id/unpost", canWrite, validateBody(unpostSchema), unpostHandler);
+salesReturnRoutes.post("/:id/retry-zatca-submission", canWrite, retryZatcaSubmissionHandler);
+salesReturnRoutes.post("/:id/complete-zatca-posting", canWrite, completeZatcaPostingHandler);

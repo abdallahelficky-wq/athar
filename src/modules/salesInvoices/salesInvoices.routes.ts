@@ -12,6 +12,8 @@ import {
   unpostHandler,
   sendEmailHandler,
   resendZatcaHandler,
+  retryZatcaSubmissionHandler,
+  completeZatcaPostingHandler,
   zatcaBacklogHandler,
   zatcaChainGapsHandler,
 } from "./salesInvoices.controller";
@@ -35,3 +37,5 @@ salesInvoiceRoutes.post("/:id/post", canWrite, postHandler);
 salesInvoiceRoutes.post("/:id/unpost", canWrite, validateBody(unpostSchema), unpostHandler);
 salesInvoiceRoutes.post("/:id/send-email", canWrite, validateBody(sendEmailSchema), sendEmailHandler);
 salesInvoiceRoutes.post("/:id/resend-zatca", canWrite, resendZatcaHandler);
+salesInvoiceRoutes.post("/:id/retry-zatca-submission", canWrite, retryZatcaSubmissionHandler);
+salesInvoiceRoutes.post("/:id/complete-zatca-posting", canWrite, completeZatcaPostingHandler);

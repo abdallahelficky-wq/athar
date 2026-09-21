@@ -31,3 +31,15 @@ export const unpostHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.salesReturn, req.params.id);
   res.json(await service.unpostSalesReturn(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.pin));
 };
+
+// إعادة محاولة مردود عالق بحالة pending_submission — بنفس UUID/ICV/رقم المردود المحجوزة أصلاً.
+export const retryZatcaSubmissionHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesReturn, req.params.id);
+  res.json(await service.retryPendingZatcaSubmission(req.auth!.tenantId, req.auth!.sub, req.params.id));
+};
+
+// إكمال الترحيل المحلي (القيد فقط) لمردود استلم ردّاً من زاتكا بالفعل لكن المرحلة المحلية فشلت.
+export const completeZatcaPostingHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesReturn, req.params.id);
+  res.json(await service.completeZatcaAcceptedPosting(req.auth!.tenantId, req.auth!.sub, req.params.id));
+};

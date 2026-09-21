@@ -191,6 +191,7 @@ export interface RebuildZatcaDocumentXmlParams {
   documentNumber: string;
   documentUuid: string;
   billingReferenceId?: string;
+  issuanceReason?: string;
   lines: ZatcaPersistedLineLike[];
   /** icv/previousInvoiceHash/issuedAt محجوزة بالفعل من محاولة ترحيل سابقة — لا تُحجَز هنا من جديد */
   icv: number;
@@ -224,6 +225,7 @@ export function rebuildZatcaDocumentXml(params: RebuildZatcaDocumentXmlParams): 
     icv: params.icv,
     previousInvoiceHash: params.previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,
+    issuanceReason: params.issuanceReason,
     seller: mapCompanyToSeller(params.company),
     buyer: subtype === "standard" ? mapCustomerToBuyer(params.customer) : undefined,
     lines: params.lines.map(mapPersistedLineToZatcaLine),
