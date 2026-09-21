@@ -10,6 +10,8 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "انقطع الاتصال أثناء طلب شهادة الإنتاج؛ لم يصل تأكيد الإصدار ولم تُحفظ شهادة. قد يكون الطلب نُفّذ لدى زاتكا. احتفظ بالربط وراجع حالة الطلب قبل إعادة المحاولة أو إعادة الضبط.": "Connection was lost while requesting the production certificate. Issuance is unconfirmed and no certificate was saved. ZATCA may have processed the request. Preserve the current onboarding and check its status before retrying or resetting.",
+  "وصل رد نجاح من زاتكا لكن بيانات شهادة الإنتاج غير مكتملة؛ لم تُحفظ شهادة. راجع حالة طلب الإصدار قبل إعادة المحاولة.": "ZATCA returned success with incomplete production certificate data. No certificate was saved. Check issuance status before retrying.",
   "اختبارات الامتثال متاحة أثناء مرحلة شهادة الاختبار فقط، ولا يجوز إرسال مستندات اصطناعية بعد تفعيل الإنتاج": "Compliance tests are only available during compliance onboarding; synthetic documents cannot be submitted after production activation.",
   "تعذّر توليد PDF — مشكلة إعداد في الخادم (محرّك PDF غير مُهيَّأ، لا خطأ في بياناتك). راجع الدعم الفني.":
     "Could not generate the PDF — this is a server configuration problem (the PDF engine is not set up), not an error in your data. Contact support.",
@@ -453,4 +455,3 @@ export const AR_TO_EN: Record<string, string> = {
     "If this email is registered in the system, you'll receive a password reset link within minutes.",
   "لا يمكن تكرار نفس الصنف أكثر من مرة في نفس التسوية": "The same item can't appear more than once in the same settlement",
 };
-
