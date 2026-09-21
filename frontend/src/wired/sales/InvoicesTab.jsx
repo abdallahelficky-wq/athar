@@ -14,44 +14,8 @@ import PostedBlockModal from "./PostedBlockModal";
 import SendInvoiceEmailModal from "./SendInvoiceEmailModal";
 import ReprintReceiptModal from "./ReprintReceiptModal";
 
-// نفس قيم ZatcaDocumentStatus المخزَّنة على الفاتورة في الباك اند — لا حقل/منطق جديد، فقط عرضها.
-const ZATCA_STATUS_KEYS = {
-  not_applicable: "not_applicable",
-  not_submitted: "not_submitted",
-  cleared: "cleared",
-  reported: "reported",
-  rejected: "rejected",
-  submission_failed: "submission_failed",
-  certificate_error: "certificate_error",
-  compliance_checked: "compliance_checked",
-};
-// pending_clearance/pending_reporting: قيمتان قديمتان لن تُكتَبا بعد الآن (استُبدِلتا بـ
-// not_submitted — راجع postingGate.ts/chain.ts) — أي صفّ قديم لا يزال يحملهما يُطبَّع أدناه (راجع
-// normalizeLegacyZatcaStatus) ليُعرَض بنفس نص not_submitted الصريح، لا "قيد الإرسال" المُضلِّل الذي
-// كانتا تعرضانه سابقاً (عطل إنتاج فعلي مؤكَّد: كان يُوهِم بأن زاتكا تُعالِج المستند فعلياً بينما لم
-// يصلها أي طلب إطلاقاً). لا تُعرَضان كخيارَي فلترة منفصلَين عمداً — خيار not_submitted وحده يكفي.
-function normalizeLegacyZatcaStatus(status) {
-  return status === "pending_clearance" || status === "pending_reporting" ? "not_submitted" : status;
-}
-const ZATCA_BADGE_CLASS = {
-  not_applicable: "status-badge status-neutral",
-  not_submitted: "status-badge status-saved",
-  cleared: "status-badge status-posted",
-  reported: "status-badge status-posted",
-  rejected: "status-badge status-rejected",
-  submission_failed: "status-badge status-rejected",
-  // شارة مختلفة عمداً عن submission_failed/rejected — هذه ليست عطلاً عابراً ولا رفضاً من زاتكا،
-  // بل شهادة ربط زاتكا نفسها معطوبة، تحتاج إصلاح إعدادات الربط لا مجرد انتظار أو تصحيح بيانات الفاتورة.
-  certificate_error: "status-badge status-warning",
-  // شارة تحذيرية أيضاً (لا "posted" كـcleared/reported) — نجح فحص الامتثال لكن المستند لم يُخلَّص/
-  // يُبلَّغ فعلياً بعد؛ الشركة لا تزال على شهادة اختبار وتحتاج استكمال الحصول على شهادة إنتاج.
-  compliance_checked: "status-badge status-warning",
-};
-// أربع حالات زاتكا تحتاج إعادة إرسال يدوية — رُفضت صراحةً، تعذّر الوصول لزاتكا أصلاً (لم تُرسَل)،
-// تعذّر توقيعها محلياً بشهادة غير صالحة (certificate_error — يُفتَرض أن المستخدم أصلح إعدادات
-// ربط زاتكا أولاً، وإلا ستفشل بنفس السبب مجدداً)، أو نجح فحص امتثال فقط دون تخليص/إبلاغ فعلي
-// (compliance_checked — إعادة الإرسال بعد استكمال شهادة الإنتاج هي كيف تُخلَّص هذه الفاتورة فعلياً).
-const ZATCA_RESENDABLE = new Set(["rejected", "submission_failed", "certificate_error", "compliance_checked"]);
+import { invoiceZatcaState } from "./invoiceZatcaState";
+const STATUS_OPTIONS = ["sent", "sent_with_notes", "not_sent", "not_applicable"];
 
 // حالة الفاتورة أصبحت أربع قيم ممكنة منذ إصلاح مسار الترحيل الآمن على ثلاث مراحل لزاتكا، لا
 // اثنتين فقط (posted/draft) كما كانت — pending_submission وzatca_accepted_posting_incomplete
@@ -93,11 +57,7 @@ export default function InvoicesTab({ companyId, companies }) {
 
   if (!companyId) return <p className="empty">{t("salesInvoices.noCompany")}</p>;
 
-  // العمود/الفلتر يظهران فقط للشركات المفعَّلة على زاتكا — لغيرها كل الفواتير "غير منطبق" ثابتة
-  // فلا داعي لإرباك الشاشة بعمود لا معنى له.
-  const activeCompany = companies?.find((c) => c.id === companyId);
-  const zatcaApplicable = activeCompany?.zatcaOnboardingStatus && activeCompany.zatcaOnboardingStatus !== "not_onboarded";
-  const visibleInvoices = zatcaApplicable && zatcaStatusFilter ? invoices.filter((inv) => inv.zatcaStatus === zatcaStatusFilter) : invoices;
+  const visibleInvoices = zatcaStatusFilter ? invoices.filter((inv) => invoiceZatcaState(inv).key === zatcaStatusFilter) : invoices;
 
   const onSaved = (message) => {
     setFormModal(null);
@@ -168,12 +128,13 @@ export default function InvoicesTab({ companyId, companies }) {
   };
 
   const onResendZatcaClick = async (inv) => {
+    if (resendingZatcaId) return;
     setResendingZatcaId(inv.id);
     try {
       const updated = await resendInvoiceZatca(inv.id);
       reload();
-      const badgeLabel = t(`salesInvoices.zatcaBadge.${updated.zatcaStatus}`, { defaultValue: updated.zatcaStatus });
-      const stillFailing = ZATCA_RESENDABLE.has(updated.zatcaStatus);
+      const badgeLabel = t(`salesInvoices.zatcaSummary.${invoiceZatcaState(updated).key}`);
+      const stillFailing = !["sent", "sent_with_notes"].includes(invoiceZatcaState(updated).key);
       notify(
         updated.zatcaStatus === "submission_failed"
           ? t("salesInvoices.notify.zatcaStillUnreachable", { number: inv.invoiceNumber })
@@ -193,7 +154,7 @@ export default function InvoicesTab({ companyId, companies }) {
     }
   };
 
-  const colSpan = zatcaApplicable ? 8 : 7;
+  const colSpan = 8;
 
   return (
     <div>
@@ -201,19 +162,17 @@ export default function InvoicesTab({ companyId, companies }) {
         <button className="btn-primary" onClick={() => setFormModal({ mode: "create" })}>{t("salesInvoices.addInvoice")}</button>
       </div>
 
-      {zatcaApplicable && (
-        <form className="filter-bar" onSubmit={(e) => e.preventDefault()} style={{ marginBottom: 14 }}>
+      <form className="filter-bar" onSubmit={(e) => e.preventDefault()} style={{ marginBottom: 14 }}>
           <label>
             {t("salesInvoices.zatcaStatusFilterLabel")}
             <select value={zatcaStatusFilter} onChange={(e) => setZatcaStatusFilter(e.target.value)}>
               <option value="">{t("common.allOption")}</option>
-              {Object.keys(ZATCA_STATUS_KEYS).map((key) => (
-                <option key={key} value={key}>{t(`salesInvoices.zatcaStatus.${key}`)}</option>
+              {STATUS_OPTIONS.map((key) => (
+                <option key={key} value={key}>{t(`salesInvoices.zatcaSummary.${key}`)}</option>
               ))}
             </select>
           </label>
-        </form>
-      )}
+      </form>
 
       {loading ? <p className="empty">{t("salesInvoices.loading")}</p> : (
         <div className="panel">
@@ -223,7 +182,7 @@ export default function InvoicesTab({ companyId, companies }) {
                 <th>{t("salesInvoices.table.number")}</th><th>{t("salesInvoices.table.customer")}</th>
                 <th>{t("salesInvoices.table.date")}</th><th>{t("salesInvoices.table.total")}</th>
                 <th>{t("salesInvoices.table.postingStatus")}</th><th>{t("salesInvoices.table.paymentStatus")}</th>
-                {zatcaApplicable && <th>{t("salesInvoices.table.zatcaStatus")}</th>}
+                <th>{t("salesInvoices.table.zatcaStatus")}</th>
                 <th>{t("salesInvoices.table.actions")}</th>
               </tr>
             </thead>
@@ -231,9 +190,7 @@ export default function InvoicesTab({ companyId, companies }) {
               {visibleInvoices.map((inv) => {
                 const posted = inv.status === "posted";
                 const linked = inv.receiptAllocations.length > 0;
-                const normalizedZatcaStatus = normalizeLegacyZatcaStatus(inv.zatcaStatus);
-                const zatcaKey = ZATCA_STATUS_KEYS[normalizedZatcaStatus] ? normalizedZatcaStatus : "not_applicable";
-                const zatcaResendable = ZATCA_RESENDABLE.has(inv.zatcaStatus);
+                const zatca = invoiceZatcaState(inv);
                 return (
                   <tr key={inv.id}>
                     <td data-label={t("salesInvoices.table.number")}>{inv.invoiceNumber}</td>
@@ -242,25 +199,18 @@ export default function InvoicesTab({ companyId, companies }) {
                     <td className="num" data-label={t("salesInvoices.table.total")}>{fmt(Number(inv.grandTotal))}</td>
                     <td data-label={t("salesInvoices.table.postingStatus")}><span className="status-badge">{postingStatusLabel(inv.status, t)}</span></td>
                     <td data-label={t("salesInvoices.table.paymentStatus")}><span className="status-badge">{inv.paymentStatus}</span></td>
-                    {zatcaApplicable && (
-                      <td data-label={t("salesInvoices.table.zatcaStatus")}>
-                        <span className={ZATCA_BADGE_CLASS[zatcaKey]} title={zatcaResendable && inv.zatcaResponseRaw ? JSON.stringify(inv.zatcaResponseRaw) : undefined}>
-                          {t(`salesInvoices.zatcaBadge.${zatcaKey}`)}
-                        </span>
-                      </td>
-                    )}
+                    <td data-label={t("salesInvoices.table.zatcaStatus")}>
+                        <button type="button" className={zatca.className} onClick={() => setViewInvoice(inv)}>
+                          {t(`salesInvoices.zatcaSummary.${zatca.key}`)}
+                        </button>
+                        {zatca.canResend && <button type="button" className="btn-secondary" disabled={!!resendingZatcaId} onClick={() => onResendZatcaClick(inv)}>
+                          {t(resendingZatcaId === inv.id ? "salesInvoices.zatcaSummary.sending" : "salesInvoices.zatcaSummary.resend")}
+                        </button>}
+                    </td>
                     <td className="row-actions">
                       <button className="icon-btn" title={t("salesInvoices.actionsMenu.view")} onClick={() => setViewInvoice(inv)}><Icon.Eye /></button>
                       <button className="icon-btn" title={t("salesInvoices.actionsMenu.edit")} onClick={() => onEditClick(inv)}><Icon.Edit /></button>
                       {posted && <button className="icon-btn icon-btn-warn" title={t("salesInvoices.actionsMenu.unpost")} onClick={() => setUnpostTarget(inv)}><Icon.Unlock /></button>}
-                      {zatcaResendable && (
-                        <button
-                          className="icon-btn icon-btn-warn"
-                          title={resendingZatcaId === inv.id ? t("salesInvoices.actionsMenu.unposting") : t("salesInvoices.actionsMenu.resendZatca")}
-                          disabled={resendingZatcaId === inv.id}
-                          onClick={() => onResendZatcaClick(inv)}
-                        ><Icon.Refresh /></button>
-                      )}
                       <button className="icon-btn icon-btn-danger" title={t("salesInvoices.actionsMenu.delete")} onClick={() => onDeleteClick(inv)}><Icon.Trash /></button>
                       <ActionsMenu
                         items={[

@@ -334,6 +334,7 @@
   "salesInvoices": {
     "noCompany": "أنشئ شركة أولاً من لوحة القيادة.",
     "addInvoice": "+ إضافة فاتورة",
+    "zatcaSummary": {"sent": "أُرسلت", "sent_with_notes": "أُرسلت مع ملاحظات", "not_sent": "غير مرسلة", "not_applicable": "لا تنطبق", "resend": "إعادة إرسال", "sending": "جارٍ الإرسال…", "notes": "ملاحظات زاتكا", "errors": "أسباب رفض زاتكا"},
     "zatcaStatusFilterLabel": "حالة زاتكا",
     "loading": "جارٍ التحميل...",
     "empty": "لا توجد فواتير بعد.",

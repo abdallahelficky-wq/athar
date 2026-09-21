@@ -334,6 +334,7 @@
   "salesInvoices": {
     "noCompany": "Create a company first from the dashboard.",
     "addInvoice": "+ Add invoice",
+    "zatcaSummary": {"sent": "Sent", "sent_with_notes": "Sent with notes", "not_sent": "Not sent", "not_applicable": "Not applicable", "resend": "Resend", "sending": "Sending…", "notes": "ZATCA notes", "errors": "ZATCA rejection reasons"},
     "zatcaStatusFilterLabel": "ZATCA status",
     "loading": "Loading...",
     "empty": "No invoices yet.",
