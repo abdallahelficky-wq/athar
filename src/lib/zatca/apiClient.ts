@@ -71,6 +71,7 @@ export interface ZatcaApiResponse<T> {
 }
 
 interface RequestParams<T> {
+  timeoutMs?: number;
   environment: ZatcaApiEnvironment;
   path: string;
   body: unknown;
@@ -151,7 +152,7 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
       method: "POST",
       headers,
       body: JSON.stringify(params.body),
-      signal: AbortSignal.timeout(ZATCA_REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(params.timeoutMs ?? ZATCA_REQUEST_TIMEOUT_MS),
     });
   } catch (err) {
     // فشل اتصال حقيقي (DNS/timeout/رفض اتصال/شهادة TLS...) — بلا هذا الالتقاط كان يسقط كاستثناء
@@ -276,6 +277,9 @@ export function requestProductionCsid(
   return zatcaRequest({
     environment,
     path: "/production/csids",
+    // Certificate issuance may outlive the invoice request deadline. Never retry
+    // automatically: a lost response does not prove that issuance failed.
+    timeoutMs: 60_000,
     body: { compliance_request_id: complianceRequestId },
     credentials,
     schema: csidResponseSchema,

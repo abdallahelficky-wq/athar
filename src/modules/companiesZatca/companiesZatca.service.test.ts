@@ -8,14 +8,14 @@ vi.mock("../../lib/prisma", () => ({
   },
 }));
 
-vi.mock("../../lib/zatca/apiClient", () => ({ requestComplianceCsid: vi.fn() }));
-vi.mock("../../lib/zatca/secretBox", () => ({ encryptSecret: (value: string) => "encrypted:" + value }));
+vi.mock("../../lib/zatca/apiClient", () => ({ requestComplianceCsid: vi.fn(), requestProductionCsid: vi.fn() }));
+vi.mock("../../lib/zatca/secretBox", () => ({ encryptSecret: (value: string) => "encrypted:" + value, decryptSecret: (value: string) => value }));
 vi.mock("../../lib/zatca/signing", () => ({ getCertificateInfo: () => ({ canonicalBodyBase64: "canonical" }) }));
 vi.mock("../../lib/zatca/csr", () => ({ generateCsr: vi.fn(), verifyCsrLocally: vi.fn() }));
 import { generateCsr, verifyCsrLocally } from "../../lib/zatca/csr";
-import { requestComplianceCsid } from "../../lib/zatca/apiClient";
+import { requestComplianceCsid, requestProductionCsid } from "../../lib/zatca/apiClient";
 import { prisma } from "../../lib/prisma";
-import { setCompanyZatcaEnvironment, requestCompanyComplianceCsid, generateCompanyCsr } from "./companiesZatca.service";
+import { requestCompanyProductionCsid, setCompanyZatcaEnvironment, requestCompanyComplianceCsid, generateCompanyCsr } from "./companiesZatca.service";
 
 const TENANT_ID = "tenant-1";
 const COMPANY_ID = "company-1";
@@ -145,5 +145,24 @@ describe("generateCompanyCsr environment selection", () => {
     vi.mocked(verifyCsrLocally).mockResolvedValue(true);
     await generateCompanyCsr(TENANT_ID, COMPANY_ID, { production: environment !== "production", invoiceType: "both" });
     expect(generateCsr).toHaveBeenLastCalledWith(expect.objectContaining({ environment, invoiceType: "both" }));
+  });
+});
+
+describe("production CSID failure recovery", () => {
+  it.each([
+    [{ ok: false, status: 0, data: null, networkError: true }, /انقطع الاتصال/],
+    [{ ok: false, status: 401, data: null }, /HTTP 401/],
+    [{ ok: false, status: 403, data: null }, /HTTP 403/],
+    [{ ok: false, status: 502, data: null }, /HTTP 502/],
+    [{ ok: false, status: 200, data: null, malformedResponse: true }, /بيانات شهادة الإنتاج غير مكتملة/],
+  ])("keeps credentials intact and reports the actual failure", async (response, expected) => {
+    vi.mocked(prisma.company.findFirst).mockResolvedValue(mockCompany({ zatcaEnvironment: "simulation" }) as never);
+    vi.mocked(prisma.companyZatcaCredential.findUnique).mockResolvedValue({ complianceCertEnc: "canonical", complianceCertRawEnc: "raw", complianceSecretEnc: "secret", complianceRequestId: "request-1" } as never);
+    vi.mocked(prisma.companyZatcaCredential.update).mockClear();
+    vi.mocked(requestProductionCsid).mockResolvedValue(response as never);
+    await expect(requestCompanyProductionCsid(TENANT_ID, COMPANY_ID)).rejects.toThrow(expected);
+    expect(prisma.companyZatcaCredential.update).not.toHaveBeenCalled();
+    expect(prisma.company.update).not.toHaveBeenCalled();
+    expect(requestProductionCsid).toHaveBeenLastCalledWith("simulation", { certificateBodyBase64: "canonical", rawCertificateBodyBase64: "raw", secret: "secret" }, "request-1", undefined);
   });
 });
