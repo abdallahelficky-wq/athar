@@ -238,6 +238,15 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
   if (result.malformedResponse) {
     throw badRequest("رد غير متوقع من زاتكا — شكل الاستجابة لا يطابق شهادة إنتاج صالحة، لم تُخزَّن أي بيانات. تحقق من إصدار/مسار API ثم أعد المحاولة، أو راجع الدعم الفني.");
   }
+  // انتهاء مهلة تحديداً (لا فشل اتصال آخر) — راجع تعليق timedOut في ZatcaApiResponse (apiClient.ts):
+  // الطلب رُبما وصل زاتكا فعلاً واستُلم قبل انقطاعنا نحن عن انتظار الردّ. رقم طلب الامتثال
+  // (complianceRequestId) لا يصلح لإعادة الاستخدام إن كانت الشهادة قد صدرت بالفعل على جانب زاتكا —
+  // فرسالة عامة بلا تحذير هنا قد تدفع لإعادة محاولة تحرق رقماً صدرت شهادته فعلاً بصمت.
+  if (result.timedOut) {
+    throw badRequest(
+      "انتهت مهلة انتظار ردّ زاتكا على طلب شهادة الإنتاج (60 ثانية) — قد تكون الشهادة صدرت فعلياً رغم عدم وصول الرد قبل انتهاء المهلة. لا تُعِد المحاولة بنفس رقم طلب الامتثال (complianceRequestId)؛ راجع سجلات الخادم لمعرفة ما ردّت به زاتكا فعلياً، أو تواصل مع الدعم الفني قبل أي محاولة أخرى.",
+    );
+  }
   if (!result.ok || !result.data) {
     // تسوية اختيارية فقط (راجع lastMissingComplianceSteps في schema.prisma وcomplianceAutomation.ts):
     // ZatcaComplianceStepAttempt المحلي هو مصدر التقدّم الأساسي دائماً — هذا فقط يلتقط رفض
@@ -256,17 +265,30 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
     }
     throw badRequest(`رفضت زاتكا طلب شهادة الإنتاج: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
   }
+  // نحفظ الشكل الخام (كما وصل تماماً، بلا أي فك ترميز إضافي) والسر ورقم الطلب فوراً بمجرد وصول ردّ
+  // ناجح من زاتكا — *قبل* أي محاولة تحليل الشهادة كـX.509 صالحة (normalizeZatcaCertificate أدناه قد
+  // تفشل وترمي). هذا يمنع ضياع دليل إصدار فعلي بصمت: لو فشل التحليل لاحقاً، تبقى الشهادة/السر/رقم
+  // الطلب الذي أصدرَته زاتكا فعلاً محفوظة، فلا حاجة أبداً لإعادة استدعاء /production/csids (وبالتالي
+  // حرق complianceRequestId، راجع تعليق timedOut أعلاه) لمجرد استرجاع ما صدر بالفعل.
+  const rawCertificateToken = result.data.binarySecurityToken.trim();
+  await prisma.companyZatcaCredential.update({
+    where: { companyId },
+    data: {
+      productionCertRawEnc: encryptSecret(rawCertificateToken),
+      productionSecretEnc: encryptSecret(result.data.secret),
+      productionRequestId: String(result.data.requestID),
+      productionCsidEnvironment: environment,
+    },
+  });
+
   const cert = normalizeZatcaCertificate(result.data.binarySecurityToken, "شهادة الإنتاج (Production)");
 
+  // الشكل القانوني (canonical) لا يُعرَف إلا بعد نجاح التحليل أعلاه — يُكتَب هنا مع تأكيد حالة الربط
+  // فقط بعد التحقق من أن الشهادة صالحة فعلاً للتوقيع، لا قبل ذلك.
   await prisma.$transaction([
     prisma.companyZatcaCredential.update({
       where: { companyId },
-      data: {
-        productionCertEnc: encryptSecret(cert.canonical),
-        productionCertRawEnc: encryptSecret(cert.raw),
-        productionSecretEnc: encryptSecret(result.data.secret),
-        productionCsidEnvironment: environment,
-      },
+      data: { productionCertEnc: encryptSecret(cert.canonical) },
     }),
     prisma.company.update({ where: { id: companyId }, data: { zatcaOnboardingStatus: "production" } }),
   ]);

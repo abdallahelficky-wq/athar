@@ -105,6 +105,11 @@ export const DYNAMIC_MESSAGE_PATTERNS: MessagePattern[] = [
   { match: /^رفضت زاتكا طلب شهادة الاختبار: ([\s\S]+)$/, translate: (g) => `ZATCA rejected the compliance certificate request: ${g[0].split("لا يوجد رد").join("No response")}` },
   { match: /^رفضت زاتكا طلب شهادة الإنتاج: ([\s\S]+)$/, translate: (g) => `ZATCA rejected the production certificate request: ${g[0].split("لا يوجد رد").join("No response")}` },
   {
+    match: /^انتهت مهلة انتظار ردّ زاتكا على طلب شهادة الإنتاج \(60 ثانية\) — قد تكون الشهادة صدرت فعلياً رغم عدم وصول الرد قبل انتهاء المهلة\. لا تُعِد المحاولة بنفس رقم طلب الامتثال \(complianceRequestId\)؛ راجع سجلات الخادم لمعرفة ما ردّت به زاتكا فعلياً، أو تواصل مع الدعم الفني قبل أي محاولة أخرى\.$/,
+    translate: () =>
+      "Timed out waiting for ZATCA's response to the production certificate request (60s) — the certificate may already have been issued even though no response arrived before the timeout. Do not retry with the same compliance request ID (complianceRequestId); check the server logs for what ZATCA actually returned, or contact support before trying again.",
+  },
+  {
     match: /^لا يمكن حذف هذا العميل لارتباطه بـ (.+)\. عدّل بيانات العميل بدلاً من حذفه إن لزم الأمر\.$/,
     translate: (g) => `Can't delete this customer because it's linked to ${translateReasonsList(g[0], CUSTOMER_REASON_LABELS)}. Edit the customer's data instead of deleting it if needed.`,
   },

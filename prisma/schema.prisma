@@ -538,6 +538,12 @@ model CompanyZatcaCredential {
   // complianceCertRawEnc أعلاه لشرح الفرق؛ نفس المنطق هنا بالضبط لشهادة الإنتاج.
   productionCertRawEnc String?
   productionSecretEnc String? // سر API المرافق لشهادة الإنتاج، مُشفَّر
+  // request_id الذي أعادته زاتكا فعلياً عند إصدار شهادة الإنتاج نفسها — لم يكن يُحفَظ سابقاً (خلافاً
+  // لـcomplianceRequestId أعلاه)، رغم أنه يُعاد فعلياً في نفس استجابة /production/csids الناجحة إلى
+  // جانب binarySecurityToken/secret. يُكتَب فوراً بمجرد وصول استجابة ناجحة من زاتكا، قبل أي محاولة
+  // تحليل الشهادة كـX.509 (راجع requestCompanyProductionCsid) — حتى لو فشل ذلك التحليل لاحقاً، يبقى
+  // دليل الإصدار الفعلي محفوظاً هنا بدل أن يضيع بصمت.
+  productionRequestId String?
   // نفس فكرة complianceCsidEnvironment أعلاه، لشهادة الإنتاج.
   productionCsidEnvironment ZatcaEnvironment?
   // آخر قائمة "خطوات امتثال متبقية" فعلية سمَّتها زاتكا صراحةً في رفض طلب شهادة الإنتاج بكود
