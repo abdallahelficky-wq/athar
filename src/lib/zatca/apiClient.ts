@@ -152,14 +152,6 @@ function extractTransmittedXmlFromBody(body: unknown): string | null {
   }
 }
 
-// STEP-3 تشخيص مؤقت (غير مُلتزَم — بانتظار موافقة المستخدم) — يقتصر عمداً على /production/csids
-// فقط، سجلّ خام كامل غير مشروط بأي علَم، قبل أي تحليل/تفسير للجسم، بما في ذلك حالة فشل الاتصال.
-function maskAuthHeaderForDebugLog(value: string | undefined): string {
-  if (!value) return "(لا توجد ترويسة Authorization على هذا الطلب)";
-  if (value.length <= 20) return value;
-  return `${value.slice(0, 12)}...${value.slice(-8)}`;
-}
-
 async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiResponse<T>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -171,22 +163,20 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
   if (params.otp) headers.OTP = params.otp;
   if (params.clearanceStatus) headers["Clearance-Status"] = params.clearanceStatus;
 
-  const isProductionCsidDebug = params.path === "/production/csids";
-  const debugUrl = `${baseUrl(params.environment)}${params.path}`;
+  const requestUrl = `${baseUrl(params.environment)}${params.path}`;
   const resolvedTimeoutMs = params.timeoutMs ?? ZATCA_REQUEST_TIMEOUT_MS;
-  if (isProductionCsidDebug) {
+  // سطر سجلّ آمن ثابت (لا ترويسات، لا جسم، لا أي محتوى حسّاس) — يقتصر عمداً على /production/csids
+  // (نادر الاستدعاء، مرة واحدة أثناء الربط، بخلاف تخليص/إبلاغ اللذين قد يتكرران عشرات المرات
+  // بالساعة) — يُثبِت أنّ المهلة الأطول (ZATCA_PRODUCTION_CSID_TIMEOUT_MS أعلاه) فعلاً مُطبَّقة على
+  // هذا النداء تحديداً في سجلّات الإنتاج الحيّة، بلا أي خطر تسريب.
+  if (params.path === "/production/csids") {
     // eslint-disable-next-line no-console
-    console.log(
-      `[STEP3-DEBUG][production-csid-request] URL=${debugUrl} method=POST timeoutMs=${resolvedTimeoutMs} headers=${JSON.stringify({
-        ...headers,
-        Authorization: maskAuthHeaderForDebugLog(headers.Authorization),
-      })} body=${JSON.stringify(params.body)}`,
-    );
+    console.info(`[zatcaRequest] إرسال طلب شهادة الإنتاج — timeoutMs=${resolvedTimeoutMs}`);
   }
 
   let response: Response;
   try {
-    response = await fetch(debugUrl, {
+    response = await fetch(requestUrl, {
       method: "POST",
       headers,
       body: JSON.stringify(params.body),
@@ -198,10 +188,6 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
     // فعلاً، فقط لم يصلنا الردّ في وقتنا" عن فشل اتصال حقيقي لم يصل فيه الطلب لزاتكا إطلاقاً. راجع
     // تعليق timedOut في ZatcaApiResponse أعلاه لسبب أهمية هذا التمييز تحديداً لإصدار الشهادات.
     const timedOut = err instanceof Error && err.name === "TimeoutError";
-    if (isProductionCsidDebug) {
-      // eslint-disable-next-line no-console
-      console.log(`[STEP3-DEBUG][production-csid-request] فشل fetch نفسه قبل وصول أي استجابة — timedOut=${timedOut} — الخطأ الخام:`, err);
-    }
     // فشل اتصال حقيقي (DNS/timeout/رفض اتصال/شهادة TLS...) — بلا هذا الالتقاط كان يسقط كاستثناء
     // خام غير مُعالَج يُسقِط معاملة Prisma بأكملها (بما فيها فاتورة نقطة بيع مبسّطة كانت ستُرحَّل
     // بصرف النظر عن نتيجة هذا الإرسال أصلاً — راجع تعليق proceedWithPosting في postingGate.ts:
@@ -223,18 +209,6 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
     rawData = rawText ? JSON.parse(rawText) : null;
   } catch {
     rawData = null;
-  }
-
-  if (isProductionCsidDebug) {
-    const debugHeadersObject: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      debugHeadersObject[key] = value;
-    });
-    // eslint-disable-next-line no-console
-    console.log(
-      `[STEP3-DEBUG][production-csid-response] status=${response.status} statusText=${response.statusText} ` +
-        `headers=${JSON.stringify(debugHeadersObject)} rawBody=${JSON.stringify(rawText)}`,
-    );
   }
 
   // سقالة تشخيصية مؤقتة — راجع تعليق onboardingDiagnostics في RequestParams وenv.zatcaOnboardingDiagnostics.

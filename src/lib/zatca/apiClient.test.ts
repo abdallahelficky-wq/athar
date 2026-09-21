@@ -419,6 +419,64 @@ describe("apiClient request timeout", () => {
   });
 });
 
+// عطل إنتاج فعلي مؤكَّد: سجلّ [STEP3-DEBUG][production-csid-response] كان يطبع جسم الاستجابة الخام
+// كاملاً بلا أي إخفاء — بما فيه binarySecurityToken وsecret الفعليَّين — إلى سجلّات الإنتاج، مؤكَّد
+// من سجلّات حقيقية. هذا القسم يمنع تكرار ذلك: لا احتمال لظهور القيمة الفعلية لأي من الحقلين في أي
+// استدعاء console.* على الإطلاق، سواء نجح الطلب أو فشل أو انتهت مهلته أو انقطع اتصاله.
+describe("apiClient does not leak CSID secrets to logs", () => {
+  const SECRET_TOKEN = "super-secret-binary-security-token-value";
+  const SECRET_VALUE = "super-secret-api-secret-value";
+
+  function spyOnAllConsoleMethods() {
+    return {
+      log: vi.spyOn(console, "log").mockImplementation(() => undefined),
+      info: vi.spyOn(console, "info").mockImplementation(() => undefined),
+      warn: vi.spyOn(console, "warn").mockImplementation(() => undefined),
+      error: vi.spyOn(console, "error").mockImplementation(() => undefined),
+      debug: vi.spyOn(console, "debug").mockImplementation(() => undefined),
+    };
+  }
+
+  function assertNothingLogged(spies: ReturnType<typeof spyOnAllConsoleMethods>) {
+    for (const spy of Object.values(spies)) {
+      for (const call of spy.mock.calls) {
+        const serialized = call.map((arg) => (typeof arg === "string" ? arg : JSON.stringify(arg))).join(" ");
+        expect(serialized).not.toContain(SECRET_TOKEN);
+        expect(serialized).not.toContain(SECRET_VALUE);
+        expect(serialized).not.toContain("STEP3-DEBUG");
+      }
+      spy.mockRestore();
+    }
+  }
+
+  it("never logs the raw binarySecurityToken/secret on a successful /production/csids response", async () => {
+    const spies = spyOnAllConsoleMethods();
+    mockFetchOnce(200, { requestID: 99, binarySecurityToken: SECRET_TOKEN, secret: SECRET_VALUE });
+    const result = await requestProductionCsid("production", CREDENTIALS, "compliance-req-123");
+    expect(result.ok).toBe(true);
+    assertNothingLogged(spies);
+  });
+
+  it("never logs the raw binarySecurityToken/secret on a successful compliance CSID response", async () => {
+    const spies = spyOnAllConsoleMethods();
+    mockFetchOnce(200, { requestID: 1, binarySecurityToken: SECRET_TOKEN, secret: SECRET_VALUE });
+    const result = await requestComplianceCsid("sandbox", "base64-csr-content", "123456");
+    expect(result.ok).toBe(true);
+    assertNothingLogged(spies);
+  });
+
+  it("still logs nothing containing the secret on a timed-out or network-failed /production/csids request", async () => {
+    const spies = spyOnAllConsoleMethods();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new DOMException("Timed out", "TimeoutError")),
+    );
+    const result = await requestProductionCsid("production", CREDENTIALS, "compliance-req-123");
+    expect(result.timedOut).toBe(true);
+    assertNothingLogged(spies);
+  });
+});
+
 // عطل إنتاج فعلي مؤكَّد: زاتكا أعادت HTTP 202 (نجاح فعلي، فحص امتثال بتحذيرات لا رفض) لكن
 // reportingStatus وصلت null حرفياً (لا غائبة) — z.string().optional() يرفض null، فكان هذا الرد
 // الناجح فعلياً يُصنَّف malformedResponse ثم "rejected" لاحقاً في postingGate.ts. راجع التعليق
