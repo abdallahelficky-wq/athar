@@ -114,3 +114,68 @@ export async function sendInvoiceByEmail(
     return { sent: false, reason: "send_failed" };
   }
 }
+
+export interface InvoiceWithoutSuccessfulEmail {
+  id: string;
+  invoiceNumber: string;
+  date: Date;
+  grandTotal: string;
+  customerId: string;
+  customerName: string;
+  customerEmail: string | null;
+  // آخر محاولة إرسال مُسجَّلة (نجحت أو فشلت) لهذه الفاتورة إن وُجدت — null يعني لم تُحاوَل الفاتورة
+  // إطلاقاً بعد (عادة لأن العميل بلا بريد إلكتروني مسجَّل، فـsendInvoiceByEmail تعيد {sent:false,
+  // reason:"no_email"} فوراً بلا تسجيل أي محاولة في InvoiceEmailLog — راجع تعليقها أعلاه).
+  lastAttempt: { at: Date; method: string; reason: string | null } | null;
+}
+
+/**
+ * قائمة للمتابعة اليدوية فقط (بلا أي أثر جانبي) — كل فاتورة مبيعات "posted" لهذا المستأجر لم
+ * يُرسَل بريدها بنجاح ولو مرة واحدة قط، بصرف النظر عن السبب: لم تُحاوَل إطلاقاً (لا بريد إلكتروني
+ * مسجَّل للعميل)، أو حاولت وفشلت مرة أو أكثر (خدمة Resend متوقفة، أو فشل توليد PDF — بالضبط عطل
+ * Chromium الذي دفع لهذا الإصلاح). عطل إنتاج فعلي كان السبب: كل هذه الحالات كانت تفشل بصمت تام
+ * (sendInvoiceByEmail تبتلع الخطأ عمداً حتى لا توقف الترحيل) بلا أي وسيلة لمعرفة أي الفواتير
+ * تحتاج متابعة يدوية إلا بقراءة سجلات الخادم مباشرة. راجع resendInvoiceEmail أدناه لإعادة
+ * المحاولة يدوياً — لا إعادة إرسال تلقائية إطلاقاً من هذه الدالة أو أي مكان آخر.
+ */
+export async function listInvoicesWithoutSuccessfulEmail(
+  tenantId: string,
+  filters: { companyId?: string },
+): Promise<InvoiceWithoutSuccessfulEmail[]> {
+  const invoices = await prisma.salesInvoice.findMany({
+    where: {
+      tenantId,
+      companyId: filters.companyId || undefined,
+      status: "posted",
+      emailLogs: { none: { success: true } },
+    },
+    include: {
+      customer: { select: { id: true, name: true, email: true } },
+      emailLogs: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
+    orderBy: { date: "asc" },
+  });
+
+  return invoices.map((inv) => ({
+    id: inv.id,
+    invoiceNumber: inv.invoiceNumber,
+    date: inv.date,
+    grandTotal: inv.grandTotal.toString(),
+    customerId: inv.customer.id,
+    customerName: inv.customer.name,
+    customerEmail: inv.customer.email,
+    lastAttempt: inv.emailLogs[0]
+      ? { at: inv.emailLogs[0].createdAt, method: inv.emailLogs[0].method, reason: inv.emailLogs[0].error }
+      : null,
+  }));
+}
+
+/**
+ * إعادة إرسال يدوية صريحة لفاتورة من قائمة listInvoicesWithoutSuccessfulEmail أعلاه — بالضبط نفس
+ * منطق sendInvoiceByEmail(method: "manual") الذي تستخدمه بالفعل نقطة نهاية إعادة الإرسال العادية
+ * (POST /:id/send-email)، تحت اسم واضح الغرض لهذا المسار تحديداً. لا إعادة إرسال تلقائية أو
+ * مجدولة إطلاقاً من أي مكان — يتطلب طلباً صريحاً من مستخدم حقيقي في كل مرة.
+ */
+export async function resendInvoiceEmail(tenantId: string, invoiceId: string, overrideEmail?: string): Promise<SendInvoiceEmailResult> {
+  return sendInvoiceByEmail(tenantId, invoiceId, { method: "manual", overrideEmail });
+}
