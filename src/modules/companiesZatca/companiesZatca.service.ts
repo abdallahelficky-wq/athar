@@ -235,17 +235,24 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
     // ربط زاتكا. تُزال لاحقاً.
     env.zatcaOnboardingDiagnostics ? { companyId, complianceRequestId: credential.complianceRequestId } : undefined,
   );
-  if (result.malformedResponse) {
-    throw badRequest("رد غير متوقع من زاتكا — شكل الاستجابة لا يطابق شهادة إنتاج صالحة، لم تُخزَّن أي بيانات. تحقق من إصدار/مسار API ثم أعد المحاولة، أو راجع الدعم الفني.");
-  }
-  // انتهاء مهلة تحديداً (لا فشل اتصال آخر) — راجع تعليق timedOut في ZatcaApiResponse (apiClient.ts):
-  // الطلب رُبما وصل زاتكا فعلاً واستُلم قبل انقطاعنا نحن عن انتظار الردّ. رقم طلب الامتثال
-  // (complianceRequestId) لا يصلح لإعادة الاستخدام إن كانت الشهادة قد صدرت بالفعل على جانب زاتكا —
-  // فرسالة عامة بلا تحذير هنا قد تدفع لإعادة محاولة تحرق رقماً صدرت شهادته فعلاً بصمت.
+  // انتهاء مهلة تحديداً (فرع أكثر تحديداً من networkError العام أدناه — timedOut لا يُضبَط true إلا
+  // مع networkError:true أيضاً، راجع apiClient.ts، فيجب فحصه أولاً وإلا أصبح فرعاً ميتاً لا يُصَل
+  // إليه أبداً). الطلب رُبما وصل زاتكا فعلاً واستُلم قبل انقطاعنا نحن عن انتظار الردّ — رقم طلب
+  // الامتثال (complianceRequestId) لا يصلح لإعادة الاستخدام إن كانت الشهادة قد صدرت بالفعل على جانب
+  // زاتكا، خلافاً لفشل اتصال آخر (DNS/رفض اتصال) لم يصل فيه الطلب لزاتكا إطلاقاً.
   if (result.timedOut) {
     throw badRequest(
       "انتهت مهلة انتظار ردّ زاتكا على طلب شهادة الإنتاج (60 ثانية) — قد تكون الشهادة صدرت فعلياً رغم عدم وصول الرد قبل انتهاء المهلة. لا تُعِد المحاولة بنفس رقم طلب الامتثال (complianceRequestId)؛ راجع سجلات الخادم لمعرفة ما ردّت به زاتكا فعلياً، أو تواصل مع الدعم الفني قبل أي محاولة أخرى.",
     );
+  }
+  if (result.networkError) {
+    throw badRequest("انقطع الاتصال أثناء طلب شهادة الإنتاج؛ لم يصل تأكيد الإصدار ولم تُحفظ شهادة. قد يكون الطلب نُفّذ لدى زاتكا. احتفظ بالربط وراجع حالة الطلب قبل إعادة المحاولة أو إعادة الضبط.");
+  }
+  if (result.status === 401 || result.status === 403) {
+    throw badRequest(`رفضت زاتكا المصادقة على طلب شهادة الإنتاج (HTTP ${result.status}). احتفظ بالربط الحالي؛ يلزم فحص صلاحية شهادة الاختبار وحالة طلب الإصدار، خصوصاً إذا سبق انقطاع الاتصال. نجاح اختبارات الامتثال لا يؤكد إصدار شهادة الإنتاج.`);
+  }
+  if (result.malformedResponse) {
+    throw badRequest("وصل رد نجاح من زاتكا لكن بيانات شهادة الإنتاج غير مكتملة؛ لم تُحفظ شهادة. راجع حالة طلب الإصدار قبل إعادة المحاولة.");
   }
   if (!result.ok || !result.data) {
     // تسوية اختيارية فقط (راجع lastMissingComplianceSteps في schema.prisma وcomplianceAutomation.ts):
@@ -263,7 +270,7 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
         });
       }
     }
-    throw badRequest(`رفضت زاتكا طلب شهادة الإنتاج: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
+    throw badRequest(`تعذّر إصدار شهادة الإنتاج (HTTP ${result.status}): ${result.data ? JSON.stringify(result.data) : "وصل رد من زاتكا بلا تفاصيل قابلة للقراءة"}`);
   }
   // نحفظ الشكل الخام (كما وصل تماماً، بلا أي فك ترميز إضافي) والسر ورقم الطلب فوراً بمجرد وصول ردّ
   // ناجح من زاتكا — *قبل* أي محاولة تحليل الشهادة كـX.509 صالحة (normalizeZatcaCertificate أدناه قد
