@@ -79,7 +79,9 @@ const template = /* XML */`
 
 const buyerPartyTemplate = /* XML */`<cac:AccountingCustomerParty>
     <cac:Party>
-      SET_BUYER_IDENTIFICATION_BLOCK
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="SET_BUYER_ID_SCHEME">SET_BUYER_ID_VALUE</cbc:ID>
+      </cac:PartyIdentification>
       <cac:PostalAddress>
         <cbc:StreetName>SET_BUYER_STREET_NAME</cbc:StreetName>
         <cbc:BuildingNumber>SET_BUYER_BUILDING_NUMBER</cbc:BuildingNumber>
