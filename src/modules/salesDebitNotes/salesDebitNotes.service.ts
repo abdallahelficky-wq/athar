@@ -11,11 +11,17 @@ import { reserveZatcaChain, rebuildZatcaDocumentXml, ZatcaCompanyLike, ZatcaPers
 import { submitZatcaChainDocument } from "../../lib/zatca/postingGate";
 import { newQueryCounter, counted, logPostingPhaseTiming } from "../../lib/zatca/postingInstrumentation";
 
-/** انظر التعليق المطابق في salesReturns.service.ts — نفس المنطق لإشعار مدين */
+/** انظر التعليق المطابق في salesReturns.service.ts — نفس المنطق لإشعار مدين، بما في ذلك اشتراط
+ * أن تكون الفاتورة المرتبطة "posted" فعلياً (لا مسودة، ولا pending_submission/
+ * zatca_accepted_posting_incomplete). */
 async function resolveBillingReferenceNumber(tenantId: string, relatedInvoiceId: string | null | undefined): Promise<string | undefined> {
   if (!relatedInvoiceId) return undefined;
-  const relatedInvoice = await prisma.salesInvoice.findFirst({ where: { id: relatedInvoiceId, tenantId }, select: { invoiceNumber: true } });
-  return relatedInvoice?.invoiceNumber;
+  const relatedInvoice = await prisma.salesInvoice.findFirst({ where: { id: relatedInvoiceId, tenantId }, select: { invoiceNumber: true, status: true } });
+  if (!relatedInvoice) return undefined;
+  if (relatedInvoice.status !== "posted") {
+    throw badRequest("لا يمكن إصدار إشعار مدين لفاتورة لم تُرحَّل بعد — الفاتورة الأصلية إما مسودة أو لا تزال قيد معالجة زاتكا (في انتظار الإرسال أو لم يكتمل ترحيلها المحلي بعد)");
+  }
+  return relatedInvoice.invoiceNumber;
 }
 
 interface LineInput {

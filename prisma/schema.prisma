@@ -1295,7 +1295,15 @@ model SalesDebitNote {
 
   lines SalesDebitNoteLine[]
 
-  @@unique([tenantId, debitNoteNumber])
+  // كانت (tenantId, debitNoteNumber) فقط — أي على مستوى المستأجر بالكامل، مطابقاً لترقيم
+  // formatDocNumber("DBN", count) القديم (عدّاد واحد لكل المستأجر بصرف النظر عن الشركة). بعد
+  // التحوّل لـreserveDocumentNumber (عدّاد ذرّي منفصل لكل شركة على حدة، تماماً كـSalesInvoice/
+  // SalesReturn) أصبح لزاماً أن يكون القيد الفريد بنفس نطاق العدّاد (tenantId, companyId,
+  // debitNoteNumber) — وإلا فشركتان مختلفتان بنفس المستأجر تتصادمان حتماً على "DBN-00001" فور
+  // إنشاء كل منهما أول إشعار مدين جديد بعد هذا التحوّل (كلتاهما تبدآن العدّ من 1 بشكل مستقل تماماً
+  // في document_numbering_settings، لكن كانتا ستُقارَنان بقيد فريد واحد يشمل المستأجر كله). راجع
+  // migration.sql المرافق لتفاصيل الترحيل والتحقّق من التوافق مع البيانات القديمة.
+  @@unique([tenantId, companyId, debitNoteNumber])
   @@map("sales_debit_notes")
 }
 

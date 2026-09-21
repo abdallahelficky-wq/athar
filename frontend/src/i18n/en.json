@@ -354,7 +354,7 @@
     "table": {
       "number": "Number", "customer": "Customer", "date": "Date", "total": "Total",
       "postingStatus": "Posting status", "paymentStatus": "Payment status", "zatcaStatus": "ZATCA status", "actions": "Actions",
-      "posted": "Posted", "draft": "Draft"
+      "posted": "Posted", "draft": "Draft", "pendingSubmission": "Awaiting ZATCA submission", "postingIncomplete": "ZATCA response received, local posting incomplete"
     },
     "actionsMenu": {
       "view": "View invoice", "edit": "Edit invoice", "unpost": "Unpost", "unposting": "Sending...",
@@ -599,7 +599,7 @@
       "saveAndPost": "Save and post return",
       "loading": "Loading...",
       "table": { "number": "Number", "customer": "Customer", "date": "Date", "total": "Total", "status": "Status" },
-      "posted": "Posted", "draft": "Draft",
+      "posted": "Posted", "draft": "Draft", "pendingSubmission": "Awaiting ZATCA submission", "postingIncomplete": "ZATCA response received, local posting incomplete",
       "unpost": "Unpost", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
       "empty": "No returns yet."
     },

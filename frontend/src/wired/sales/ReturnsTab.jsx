@@ -10,6 +10,15 @@ import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import { currencyLabel } from "../../shared/countries";
 
+// حالة المردود أصبحت أربع قيم ممكنة منذ إصلاح مسار الترحيل الآمن على ثلاث مراحل لزاتكا، لا
+// اثنتين فقط (posted/draft) — راجع نفس الشرح بالضبط في postingStatusLabel بملف InvoicesTab.jsx.
+function postingStatusLabel(status, t) {
+  if (status === "posted") return t("sales.returns.posted");
+  if (status === "pending_submission") return t("sales.returns.pendingSubmission");
+  if (status === "zatca_accepted_posting_incomplete") return t("sales.returns.postingIncomplete");
+  return t("sales.returns.draft");
+}
+
 export default function ReturnsTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
   const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
@@ -44,7 +53,10 @@ export default function ReturnsTab({ companyId, companies }) {
   };
   useEffect(reload, [companyId]);
 
-  const customerInvoices = invoices.filter((i) => i.customerId === customerId);
+  // فاتورة أصلية غير مرحّلة (مسودة، أو بانتظار إرسال زاتكا، أو استُلم ردّها لكن لم يكتمل ترحيلها
+  // المحلي بعد) لا يجوز ربط إشعار دائن بها — الخادم يرفض هذا صراحةً الآن، فتُستبعَد من القائمة هنا
+  // حتى لا يظهر خيار سيُرفَض عند الحفظ.
+  const customerInvoices = invoices.filter((i) => i.customerId === customerId && i.status === "posted");
 
   const save = async () => {
     if (!customerId || saving) return;
@@ -121,7 +133,7 @@ export default function ReturnsTab({ companyId, companies }) {
                   <tr>
                     <td>{r.returnNumber}</td><td>{r.customer?.name}</td><td>{r.date.slice(0, 10)}</td>
                     <td className="num">{fmt(r.grandTotal)}</td>
-                    <td><span className="status-badge">{r.status === "posted" ? t("sales.returns.posted") : t("sales.returns.draft")}</span></td>
+                    <td><span className="status-badge">{postingStatusLabel(r.status, t)}</span></td>
                     <td className="row-actions">
                       {r.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(r)}>{t("sales.returns.unpost")}</button>}
                       <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === r.id ? null : r.id)}>

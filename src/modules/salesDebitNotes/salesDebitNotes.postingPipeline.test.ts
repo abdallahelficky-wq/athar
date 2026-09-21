@@ -52,7 +52,7 @@ function setupCommonMocks() {
   vi.mocked(prisma.company.findFirstOrThrow).mockResolvedValue(COMPANY_ROW as never);
   vi.mocked(prisma.customer.findFirst).mockResolvedValue(CUSTOMER_ROW as never);
   vi.mocked(prisma.account.findMany).mockResolvedValue([{ id: ACCOUNT_ID }] as never);
-  vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001" } as never);
+  vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted" } as never);
   vi.mocked(getAccountIdByName).mockResolvedValue("vat-output-account");
   vi.mocked(resolvePartyAccountId).mockResolvedValue("receivable-account");
   vi.mocked(reserveDocumentNumber).mockResolvedValue("DBN-00001");
@@ -233,5 +233,34 @@ describe("ZATCA rejection (debit note) — no journal entry for a rejected STAND
     expect(phase3aData.status).toBe("pending_submission");
     expect(phase3aData.zatcaStatus).toBe("rejected");
     expect(result.rejectionReason).toBe("خطأ في تنسيق إشعار المدين");
+  });
+});
+
+// CHECK 1 (مراجعة PR #76): راجع نفس الشرح بالضبط في salesReturns.postingPipeline.test.ts —
+// إشعار مدين أيضاً لا يجوز أن يُصدَر إشارة إلى فاتورة لم تُرحَّل بعد فعلياً.
+describe("debit note eligibility — cannot reference a non-posted invoice (draft or either new ZATCA-pending status)", () => {
+  it.each(["draft", "pending_submission", "zatca_accepted_posting_incomplete"])(
+    "rejects createSalesDebitNote when the related invoice's status is %s",
+    async (relatedInvoiceStatus) => {
+      setupCommonMocks();
+      vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: relatedInvoiceStatus } as never);
+
+      await expect(createSalesDebitNote(TENANT_ID, "user-1", debitNoteInput())).rejects.toThrow(/لم تُرحَّل بعد/);
+      expect(reserveZatcaChain).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still allows a debit note referencing a genuinely posted invoice", async () => {
+    setupCommonMocks();
+    vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted" } as never);
+    vi.mocked(submitZatcaChainDocument).mockResolvedValue({
+      proceedWithPosting: true,
+      zatcaFields: { zatcaStatus: "cleared", icv: 9, previousInvoiceHash: "PIH-9", invoiceHash: "HASH-9", zatcaSubmittedAt: CHAIN_RESULT.issuedAt },
+    } as never);
+
+    const result = await createSalesDebitNote(TENANT_ID, "user-1", debitNoteInput());
+
+    expect(result.rejectionReason).toBeUndefined();
+    expect(reserveZatcaChain).toHaveBeenCalledTimes(1);
   });
 });

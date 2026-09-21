@@ -53,7 +53,7 @@ function setupCommonMocks() {
   vi.mocked(prisma.company.findFirstOrThrow).mockResolvedValue(COMPANY_ROW as never);
   vi.mocked(prisma.customer.findFirst).mockResolvedValue(CUSTOMER_ROW as never);
   vi.mocked(prisma.account.findMany).mockResolvedValue([{ id: ACCOUNT_ID }] as never);
-  vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001" } as never);
+  vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted" } as never);
   vi.mocked(getAccountIdByName).mockResolvedValue("vat-output-account");
   vi.mocked(resolvePartyAccountId).mockResolvedValue("receivable-account");
   vi.mocked(reserveDocumentNumber).mockResolvedValue("RET-00001");
@@ -234,5 +234,36 @@ describe("ZATCA rejection (credit note) — no journal entry for a rejected STAN
     expect(phase3aData.status).toBe("pending_submission");
     expect(phase3aData.zatcaStatus).toBe("rejected");
     expect(result.rejectionReason).toBe("خطأ في تنسيق إشعار الدائن");
+  });
+});
+
+// CHECK 1 (مراجعة PR #76): إشعار دائن لا يجوز أن يُصدَر إشارة إلى فاتورة لم تُرحَّل بعد فعلياً —
+// لا "posted" حرفياً. مسودة لم تُقيَّد بعد، أو pending_submission/zatca_accepted_posting_incomplete
+// (سلسلة زاتكا حُجزت وربما أُرسِلت، لكن لا قيد محاسبي بعد ولا ضمان أن زاتكا خلَّصتها فعلاً) — كل
+// هذه حالات يجب ألا يُسمَح بربط إشعار دائن بها إطلاقاً.
+describe("credit note eligibility — cannot reference a non-posted invoice (draft or either new ZATCA-pending status)", () => {
+  it.each(["draft", "pending_submission", "zatca_accepted_posting_incomplete"])(
+    "rejects createSalesReturn when the related invoice's status is %s",
+    async (relatedInvoiceStatus) => {
+      setupCommonMocks();
+      vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: relatedInvoiceStatus } as never);
+
+      await expect(createSalesReturn(TENANT_ID, "user-1", returnInput())).rejects.toThrow(/لم تُرحَّل بعد/);
+      expect(reserveZatcaChain).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still allows a credit note referencing a genuinely posted invoice", async () => {
+    setupCommonMocks();
+    vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted" } as never);
+    vi.mocked(submitZatcaChainDocument).mockResolvedValue({
+      proceedWithPosting: true,
+      zatcaFields: { zatcaStatus: "cleared", icv: 7, previousInvoiceHash: "PIH-7", invoiceHash: "HASH-7", zatcaSubmittedAt: CHAIN_RESULT.issuedAt },
+    } as never);
+
+    const result = await createSalesReturn(TENANT_ID, "user-1", returnInput());
+
+    expect(result.rejectionReason).toBeUndefined();
+    expect(reserveZatcaChain).toHaveBeenCalledTimes(1);
   });
 });

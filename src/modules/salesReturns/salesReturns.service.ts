@@ -15,11 +15,21 @@ import { newQueryCounter, counted, logPostingPhaseTiming } from "../../lib/zatca
  * إشعار دائن (SalesReturn) مرتبط بزاتكا يتطلب رقم الفاتورة الأصلية (BillingReference) — لا نُصدر
  * ICV/تجزئة لمردود بلا فاتورة مرتبطة محدَّدة (relatedInvoiceId فارغ)، فيبقى الحقل "غير منطبق"
  * حتى تُربط لاحقاً؛ هذا لا يمنع الاستخدام المحاسبي العادي للمردود إطلاقاً.
+ *
+ * الفاتورة المرتبطة يجب أن تكون "posted" فعلياً — لا مسودة (لم تُرقَّم/تُقيَّد بعد)، ولا
+ * pending_submission/zatca_accepted_posting_incomplete (سلسلة ICV/PIH حُجزت وربما رُسِلت لزاتكا،
+ * لكن لا قيد محاسبي بعد ولا ضمان أن زاتكا خلَّصتها أصلاً) — إصدار إشعار دائن يُشير لرقم فاتورة
+ * لم تُخلَّص/تُقيَّد بعد يخالف BR-KSA-17 (الإشعار يجب أن يشير لمستند صادر فعلياً) ويُنتِج فجوة محاسبية
+ * حقيقية إن رُفضت الفاتورة الأصلية لاحقاً فلم تُقيَّد أبداً بينما إشعار الدائن عليها مُقيَّد بالفعل.
  */
 async function resolveBillingReferenceNumber(tenantId: string, relatedInvoiceId: string | null | undefined): Promise<string | undefined> {
   if (!relatedInvoiceId) return undefined;
-  const relatedInvoice = await prisma.salesInvoice.findFirst({ where: { id: relatedInvoiceId, tenantId }, select: { invoiceNumber: true } });
-  return relatedInvoice?.invoiceNumber;
+  const relatedInvoice = await prisma.salesInvoice.findFirst({ where: { id: relatedInvoiceId, tenantId }, select: { invoiceNumber: true, status: true } });
+  if (!relatedInvoice) return undefined;
+  if (relatedInvoice.status !== "posted") {
+    throw badRequest("لا يمكن إصدار إشعار دائن لفاتورة لم تُرحَّل بعد — الفاتورة الأصلية إما مسودة أو لا تزال قيد معالجة زاتكا (في انتظار الإرسال أو لم يكتمل ترحيلها المحلي بعد)");
+  }
+  return relatedInvoice.invoiceNumber;
 }
 
 interface LineInput {
