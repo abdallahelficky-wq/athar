@@ -53,6 +53,18 @@ const ZATCA_BADGE_CLASS = {
 // (compliance_checked — إعادة الإرسال بعد استكمال شهادة الإنتاج هي كيف تُخلَّص هذه الفاتورة فعلياً).
 const ZATCA_RESENDABLE = new Set(["rejected", "submission_failed", "certificate_error", "compliance_checked"]);
 
+// حالة الفاتورة أصبحت أربع قيم ممكنة منذ إصلاح مسار الترحيل الآمن على ثلاث مراحل لزاتكا، لا
+// اثنتين فقط (posted/draft) كما كانت — pending_submission وzatca_accepted_posting_incomplete
+// عطل إنتاج فعلي كانا سيُعرَضان خطأً كـ"مسودة" لو استُخدم فحص ثنائي بسيط هنا (posted ? .. : draft)،
+// موهماً بأن الفاتورة لم تُرقَّم/تُحجز لها سلسلة زاتكا بعد بينما هي فعلياً محجوزة ومُرسَلة أو
+// مُستلَم ردّها بالفعل، فقط الترحيل المحلي (قيد/مخزون) لم يكتمل.
+function postingStatusLabel(status, t) {
+  if (status === "posted") return t("salesInvoices.table.posted");
+  if (status === "pending_submission") return t("salesInvoices.table.pendingSubmission");
+  if (status === "zatca_accepted_posting_incomplete") return t("salesInvoices.table.postingIncomplete");
+  return t("salesInvoices.table.draft");
+}
+
 export default function InvoicesTab({ companyId, companies }) {
   const { t } = useTranslation();
   const [invoices, setInvoices] = useState([]);
@@ -228,7 +240,7 @@ export default function InvoicesTab({ companyId, companies }) {
                     <td data-label={t("salesInvoices.table.customer")}>{inv.customer?.name}</td>
                     <td data-label={t("salesInvoices.table.date")}>{inv.date.slice(0, 10)}</td>
                     <td className="num" data-label={t("salesInvoices.table.total")}>{fmt(Number(inv.grandTotal))}</td>
-                    <td data-label={t("salesInvoices.table.postingStatus")}><span className="status-badge">{posted ? t("salesInvoices.table.posted") : t("salesInvoices.table.draft")}</span></td>
+                    <td data-label={t("salesInvoices.table.postingStatus")}><span className="status-badge">{postingStatusLabel(inv.status, t)}</span></td>
                     <td data-label={t("salesInvoices.table.paymentStatus")}><span className="status-badge">{inv.paymentStatus}</span></td>
                     {zatcaApplicable && (
                       <td data-label={t("salesInvoices.table.zatcaStatus")}>

@@ -354,7 +354,7 @@
     "table": {
       "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي",
       "postingStatus": "حالة الترحيل", "paymentStatus": "حالة السداد", "zatcaStatus": "حالة زاتكا", "actions": "الإجراءات",
-      "posted": "مرحّلة", "draft": "مسودة"
+      "posted": "مرحّلة", "draft": "مسودة", "pendingSubmission": "بانتظار إرسال زاتكا", "postingIncomplete": "استُلم ردّ زاتكا، ترحيل محلي غير مكتمل"
     },
     "actionsMenu": {
       "view": "عرض الفاتورة", "edit": "تعديل الفاتورة", "unpost": "فك الترحيل", "unposting": "قيد الإرسال...",
@@ -599,7 +599,7 @@
       "saveAndPost": "حفظ وترحيل المردود",
       "loading": "جارٍ التحميل...",
       "table": { "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي", "status": "الحالة" },
-      "posted": "مرحّل", "draft": "مسودة",
+      "posted": "مرحّل", "draft": "مسودة", "pendingSubmission": "بانتظار إرسال زاتكا", "postingIncomplete": "استُلم ردّ زاتكا، ترحيل محلي غير مكتمل",
       "unpost": "فك الترحيل", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
       "empty": "لا توجد مردودات بعد."
     },
