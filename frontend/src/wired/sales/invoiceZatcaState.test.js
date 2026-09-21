@@ -26,3 +26,8 @@ test("malformed messages cannot crash the view and rejection details remain read
  assert.equal(result.warnings.length, 0); assert.equal(result.errors.length, 2);
  assert.equal(result.errors[1].code, "BR-2");
 });
+
+test("pending submissions can retry but accepted incomplete posting cannot resend", () => {
+ assert.equal(state({status: "pending_submission", zatcaStatus: "not_submitted"}).canResend, true);
+ assert.equal(state({status: "zatca_accepted_posting_incomplete", zatcaStatus: "cleared"}).canResend, false);
+});

@@ -12,6 +12,6 @@ export function invoiceZatcaState(invoice) {
   const status = ["pending_clearance", "pending_reporting"].includes(invoice.zatcaStatus) ? "not_submitted" : invoice.zatcaStatus;
   const accepted = status === "cleared" || status === "reported";
   const key = accepted ? (warnings.length ? "sent_with_notes" : "sent") : status === "not_applicable" ? "not_applicable" : "not_sent";
-  return { key, status, warnings, errors, canResend: invoice.status === "posted" && retryStatuses.has(invoice.zatcaStatus),
+  return { key, status, warnings, errors, canResend: ["posted", "pending_submission"].includes(invoice.status) && retryStatuses.has(invoice.zatcaStatus),
     className: `status-badge ${key === "sent" ? "status-posted" : key === "not_applicable" ? "status-neutral" : "status-warning"}` };
 }

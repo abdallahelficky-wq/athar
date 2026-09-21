@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listSalesInvoices, deleteSalesInvoice, unpostSalesInvoice, sendInvoiceEmail, resendInvoiceZatca } from "../../api/salesInvoices";
+import { listSalesInvoices, deleteSalesInvoice, unpostSalesInvoice, sendInvoiceEmail, resendInvoiceZatca, retryInvoiceZatcaSubmission } from "../../api/salesInvoices";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
 import { useToast, ToastHost } from "../shared/Toast";
@@ -131,7 +131,7 @@ export default function InvoicesTab({ companyId, companies }) {
     if (resendingZatcaId) return;
     setResendingZatcaId(inv.id);
     try {
-      const updated = await resendInvoiceZatca(inv.id);
+      const updated = await (inv.status === "pending_submission" ? retryInvoiceZatcaSubmission(inv.id) : resendInvoiceZatca(inv.id));
       reload();
       const badgeLabel = t(`salesInvoices.zatcaSummary.${invoiceZatcaState(updated).key}`);
       const stillFailing = !["sent", "sent_with_notes"].includes(invoiceZatcaState(updated).key);
