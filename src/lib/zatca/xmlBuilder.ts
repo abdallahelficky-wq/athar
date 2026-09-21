@@ -75,28 +75,47 @@ function buildSupplierPlaceholders(seller: ZatcaPartyInput): Record<string, stri
 }
 
 /**
- * BR-KSA-14: هوية المشتري (PartyIdentification) يجب أن تحمل schemeID مطابقاً لأيّ معرِّف
- * فعلياً متوفّر، بترتيب أولوية زاتكا الموثَّق (TIN, CRN, MOM, MLS, 700, SAG, NAT, GCC, IQA, PAS,
- * OTH) — لا "CRN" ثابتاً بصرف النظر عن البيانات المتوفرة فعلياً. عطل إنتاج فعلي مؤكَّد (BR-KSA-F-08
- * "Please recheck the CRN value"): كان الكود يضع دائماً schemeID="CRN" حتى حين لا يوجد رقم سجل
- * تجاري للمشتري (crNumber فارغ) — فتصل زاتكا وسماً "CRN" بقيمة فارغة، بدل استخدام رقم الهوية
- * الضريبي (vatNumber) الفعلي المتوفر بالضرورة لكل فاتورة قياسية (subtypeForCustomer في chain.ts
- * تشترط وجود vatNumber أصلاً لتصنيف العميل "standard"). ندعم فقط TIN وCRN حالياً (الحقلان
- * المتوفران في نموذج بياناتنا)؛ الأنواع الأخرى (MOM/MLS/700/SAG/NAT/GCC/IQA/PAS) تحتاج حقولاً
- * إضافية غير مُخزَّنة بعد.
+ * BR-KSA-14 (ZATCA E-Invoice XML Implementation Standard v1.1، ص40-41): "The buyer identification
+ * (BT-46) must exist only once with one of the scheme ID (BT-46-1) (NAT, IQA, PAS, CRN, MOM, MLS,
+ * SAG, GCC, OTH) and must contain only alphanumeric characters." — القيمة يجب أن تطابق فعلياً نوع
+ * المعرِّف المُعلَن بالـschemeID، لا أي قيمة أخرى وُضِعت خطأً تحت وسمٍ لا يطابقها.
+ *
+ * عطل إنتاج فعلي مؤكَّد سابق (BR-KSA-F-08 "Please recheck the CRN value"): كان الكود يضع دائماً
+ * schemeID="CRN" حتى حين لا يوجد رقم سجل تجاري للمشتري (crNumber فارغ). أُصلِح لاحقاً بوضع
+ * vatNumber (15 رقماً) تحت schemeID="TIN" بدلاً من ذلك — لكن هذا عطل آخر، لا إصلاح: "TIN" (Tax
+ * Identification Number) معرِّف مختلف عن رقم تسجيل ضريبة القيمة المضافة (VAT number) الذي نملكه
+ * فعلياً في vatNumber؛ رقم VAT مكانه الصحيح الوحيد هو BT-48 (cac:PartyTaxScheme/cbc:CompanyID)،
+ * الذي تُلزِمه BR-KSA-44 بالضبط بأن يكون 15 رقماً أوّلها وآخرها "3" — ونحن نُرسِله هناك فعلاً
+ * ودائماً (buildBuyerBlock أدناه، SET_BUYER_VAT_NUMBER، بلا علاقة بهذه الدالة). لا يوجد حقل TIN
+ * فعلي (10 أرقام، مصدره تصريح المستخدم بهذه المهمة، يطابق البنية العامة المعروفة لأرقام زاتكا:
+ * VAT = "3" + TIN(10 أرقام) + رمز فرع/تدقيق 4 أرقام = 15 رقماً؛ معيار XML لزاتكا المتوفر محلياً لا
+ * يُعرِّف طول TIN صراحةً) مُخزَّن في نموذج بياناتنا لوضعه هنا بصدق.
+ *
+ * BR-KSA-49 (ص46): "If the tax exemption reason code (BT-121) is equal to VATEX-SA-EDU or
+ * VATEX-SA-HEA, then the other buyer ID (BT-46) is mandatory and must be national ID (BT-46-1 =
+ * NAT)" — هذه هي القاعدة الوحيدة التي تُلزِم BT-46 صراحةً في هذا المعيار، ومقصورة على إعفاءات
+ * تعليم/صحة تحديداً، وتتطلب NAT لا TIN. لا وجود لأي قاعدة أخرى في هذا المعيار تُلزِم BT-46 لمجرد
+ * وجود رقم VAT للمشتري — أي: BT-46 اختياري في الحالة العامة، وBT-48 وحده يكفي لهوية المشتري
+ * الضريبية. لذا: إن وُجد رقم سجل تجاري حقيقي (crNumber) نستخدمه بصدق تحت CRN؛ وإلا (رقم VAT فقط،
+ * وهي الحالة المضمونة لكل فاتورة قياسية عبر subtypeForCustomer في chain.ts) لا نُصدِر BT-46 إطلاقاً
+ * بدل اختلاق قيمة/نوع لا نملكه فعلياً — رقم VAT يبقى مُرسَلاً بصدق عبر BT-48 وحده.
  */
-function resolveBuyerIdentification(buyer: ZatcaPartyInput): { schemeID: string; value: string } {
-  if (buyer.vatNumber) return { schemeID: "TIN", value: buyer.vatNumber };
+function resolveBuyerIdentification(buyer: ZatcaPartyInput): { schemeID: string; value: string } | null {
   if (buyer.crNumber) return { schemeID: "CRN", value: buyer.crNumber };
+  if (buyer.vatNumber) return null;
   throw new Error("لا يمكن تحديد هوية المشتري لزاتكا — لا يوجد رقم ضريبي (VAT) ولا رقم سجل تجاري (CRN) مسجَّل لهذا العميل");
+}
+
+function buildBuyerIdentificationBlock(identification: { schemeID: string; value: string } | null): string {
+  if (!identification) return "";
+  return `<cac:PartyIdentification>\n        <cbc:ID schemeID="${identification.schemeID}">${escapeXml(identification.value)}</cbc:ID>\n      </cac:PartyIdentification>`;
 }
 
 function buildBuyerBlock(buyer: ZatcaPartyInput | undefined): string {
   if (!buyer) return "<cac:AccountingCustomerParty></cac:AccountingCustomerParty>";
   const identification = resolveBuyerIdentification(buyer);
   return buyerPartyTemplate
-    .replace("SET_BUYER_ID_SCHEME", identification.schemeID)
-    .replace("SET_BUYER_ID_VALUE", escapeXml(identification.value))
+    .replace("SET_BUYER_IDENTIFICATION_BLOCK", buildBuyerIdentificationBlock(identification))
     .replace("SET_BUYER_STREET_NAME", escapeXml(buyer.street))
     .replace("SET_BUYER_BUILDING_NUMBER", escapeXml(buyer.buildingNumber))
     .replace("SET_BUYER_CITY_SUBDIVISION", escapeXml(buyer.citySubdivision))

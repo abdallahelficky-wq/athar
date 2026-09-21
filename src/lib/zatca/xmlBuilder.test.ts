@@ -78,21 +78,36 @@ describe("buildDocumentXml", () => {
     expect(() => buildDocumentXml(base({ subtype: "standard" }))).toThrow();
   });
 
-  // BR-KSA-14: عطل إنتاج فعلي مؤكَّد (BR-KSA-F-08 "Please recheck the CRN value") — كان الكود
-  // يضع دائماً schemeID="CRN" حتى حين لا يوجد رقم سجل تجاري للمشتري، فتصل زاتكا وسماً "CRN" بقيمة
-  // فارغة بدل استخدام الرقم الضريبي (TIN) الفعلي المتوفر، رغم أن BR-KSA-14 يشترط استخدام أيّ معرِّف
-  // متوفر فعلياً بترتيب أولوية زاتكا (TIN قبل CRN).
-  it("identifies the buyer by TIN (vatNumber) per BR-KSA-14 priority, even when a crNumber also exists", () => {
+  // BR-KSA-14 (ZATCA XML Implementation Standard v1.1): "The buyer identification (BT-46) must
+  // exist only once with one of the scheme ID (BT-46-1) (NAT, IQA, PAS, CRN, MOM, MLS, SAG, GCC,
+  // OTH) and must contain only alphanumeric characters." — عطل إنتاج فعلي مؤكَّد سابق (BR-KSA-F-08
+  // "Please recheck the CRN value") أُصلِح خطأً بوضع vatNumber (15 رقماً، رقم VAT فعلياً لا TIN)
+  // تحت schemeID="TIN" — عطل مختلف، لا إصلاح، لأن "TIN" معرِّف مختلف تماماً عن رقم VAT. رقم CR
+  // الحقيقي (حين يوجد) هو المعرِّف الصادق الوحيد المتوفر لدينا لهذا الوسم.
+  it("identifies the buyer by CRN (a genuine commercial registration number) when one exists, never by TIN", () => {
     const xml = buildDocumentXml(base({ subtype: "standard", buyer: BUYER }));
-    expect(xml).toContain(`<cbc:ID schemeID="TIN">${BUYER.vatNumber}</cbc:ID>`);
-    // البائع يستمر على CRN كالمعتاد (BR-KSA-08) — الفحص هنا يستهدف كتلة المشتري تحديداً.
+    expect(xml).toContain(`<cbc:ID schemeID="CRN">${BUYER.crNumber}</cbc:ID>`);
     const buyerBlock = xml.slice(xml.indexOf("<cac:AccountingCustomerParty"));
-    expect(buyerBlock).not.toContain('schemeID="CRN"');
+    expect(buyerBlock).not.toContain('schemeID="TIN"');
+    // رقم VAT يبقى مُرسَلاً بصدق عبر BT-48 (cac:PartyTaxScheme/cbc:CompanyID) دائماً، بلا علاقة بالوسم أعلاه.
+    expect(buyerBlock).toContain(`<cbc:CompanyID>${BUYER.vatNumber}</cbc:CompanyID>`);
   });
 
-  it("falls back to CRN when the buyer has no VAT number", () => {
-    const xml = buildDocumentXml(base({ subtype: "standard", buyer: { ...BUYER, vatNumber: null } }));
-    expect(xml).toContain(`<cbc:ID schemeID="CRN">${BUYER.crNumber}</cbc:ID>`);
+  // BR-KSA-49 هي القاعدة الوحيدة التي تُلزِم BT-46 صراحةً (لإعفاءات VATEX-SA-EDU/HEA فقط، وبـNAT لا
+  // TIN) — لا قاعدة تُلزِمه لمجرد وجود رقم VAT للمشتري. حين لا يوجد رقم سجل تجاري حقيقي، لا نملك أي
+  // معرِّف آخر صادق لوضعه هنا (لا TIN فعلياً 10 أرقام مُخزَّناً في نموذج بياناتنا) — فنحذف BT-46
+  // كاملاً بدل اختلاق قيمة/نوع خاطئ، مع بقاء BT-48 (رقم VAT) كافياً وحده لهوية المشتري الضريبية.
+  // هذا يتفادى أيضاً عنصراً فارغاً (BR-KSA-F-03: "Document MUST not contain empty elements").
+  it("omits cac:PartyIdentification (BT-46) entirely when the buyer has only a VAT number and no CR number", () => {
+    const xml = buildDocumentXml(base({ subtype: "standard", buyer: { ...BUYER, crNumber: null } }));
+    // يبقى XML سليم البنية رغم الحذف — لا يترك المكان الفارغ عنصراً مشوَّهاً أو نصاً غير مُغلَق.
+    const doc = parse(xml);
+    expect(doc.documentElement!.tagName).toBe("Invoice");
+    const buyerBlock = xml.slice(xml.indexOf("<cac:AccountingCustomerParty"), xml.indexOf("</cac:AccountingCustomerParty>"));
+    expect(buyerBlock).not.toContain("<cac:PartyIdentification>");
+    expect(buyerBlock).not.toContain("schemeID=");
+    // رقم VAT لا يزال مُرسَلاً عبر BT-48 وحده.
+    expect(buyerBlock).toContain(`<cbc:CompanyID>${BUYER.vatNumber}</cbc:CompanyID>`);
   });
 
   it("throws if the buyer has neither a VAT number nor a CR number", () => {
