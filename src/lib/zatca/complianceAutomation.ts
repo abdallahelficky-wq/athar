@@ -175,9 +175,9 @@ export async function runZatcaComplianceStep(tenantId: string, companyId: string
   });
 
   const passed = gate.zatcaFields.zatcaStatus === "compliance_checked";
-  const icv = gate.zatcaFields.icv ?? gate.reservedChain?.icv ?? 0;
+  const icv = gate.zatcaFields.icv ?? 0;
   const previousInvoiceHash = gate.zatcaFields.previousInvoiceHash ?? "";
-  const invoiceHash = gate.zatcaFields.invoiceHash ?? gate.reservedChain?.invoiceHash ?? "";
+  const invoiceHash = gate.zatcaFields.invoiceHash ?? "";
 
   await prisma.zatcaComplianceStepAttempt.upsert({
     where: { companyId_complianceRequestId_stepKey: { companyId, complianceRequestId: credential.complianceRequestId, stepKey: step.key } },

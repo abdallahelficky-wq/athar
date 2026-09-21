@@ -28,6 +28,7 @@ export default function ReturnsTab({ companyId, companies }) {
   const [lines, setLines] = useState([emptyInvoiceLine()]);
   const [unpostTarget, setUnpostTarget] = useState(null);
   const [attachmentsFor, setAttachmentsFor] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -46,7 +47,8 @@ export default function ReturnsTab({ companyId, companies }) {
   const customerInvoices = invoices.filter((i) => i.customerId === customerId);
 
   const save = async () => {
-    if (!customerId) return;
+    if (!customerId || saving) return;
+    setSaving(true);
     try {
       await createSalesReturn({
         companyId, customerId, relatedInvoiceId: relatedInvoiceId || undefined, date, reason, refundMethod,
@@ -57,6 +59,8 @@ export default function ReturnsTab({ companyId, companies }) {
       reload();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -97,7 +101,7 @@ export default function ReturnsTab({ companyId, companies }) {
         <InvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} showVatToggle={false} currency={currency} />
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          <button className="btn-primary" onClick={save} disabled={!customerId}>{t("sales.returns.saveAndPost")}</button>
+          <button className="btn-primary" onClick={save} disabled={!customerId || saving}>{t("sales.returns.saveAndPost")}</button>
         </div>
       </div>
 

@@ -68,3 +68,17 @@ export const resendZatcaHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
   res.json(await service.resendInvoiceToZatca(req.auth!.tenantId, req.params.id));
 };
+
+// إعادة محاولة فاتورة عالقة بحالة pending_submission (لم يصلها ردّ نهائي من زاتكا بعد) — بنفس
+// UUID/ICV/رقم الفاتورة المحجوزة أصلاً، بلا حجز أي شيء جديد. راجع retryPendingZatcaSubmission.
+export const retryZatcaSubmissionHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
+  res.json(await service.retryPendingZatcaSubmission(req.auth!.tenantId, req.auth!.sub, req.params.id));
+};
+
+// إكمال الترحيل المحلي (قيد + مخزون + عمولات) لفاتورة استلمت ردّاً من زاتكا بالفعل لكن المرحلة
+// المحلية اللاحقة فشلت — بلا أي اتصال جديد بزاتكا إطلاقاً. راجع completeZatcaAcceptedPosting.
+export const completeZatcaPostingHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
+  res.json(await service.completeZatcaAcceptedPosting(req.auth!.tenantId, req.auth!.sub, req.params.id));
+};

@@ -455,4 +455,25 @@ export const AR_TO_EN: Record<string, string> = {
   "لو هذا البريد الإلكتروني مسجّل بالنظام، سيصلك رابط لإعادة تعيين كلمة المرور خلال دقائق.":
     "If this email is registered in the system, you'll receive a password reset link within minutes.",
   "لا يمكن تكرار نفس الصنف أكثر من مرة في نفس التسوية": "The same item can't appear more than once in the same settlement",
+  // رسائل مسار الترحيل الآمن على ثلاث مراحل لزاتكا (فواتير/مردودات/إشعارات مدين) — راجع
+  // reserveZatcaChainForPosting/submitZatcaChainDocument في postingGate.ts
+  "سبب إصدار إشعار المدين (BR-KSA-17) إلزامي عند ربطه بفاتورة أصلية سترسَل لزاتكا": "A debit note reason (BR-KSA-17) is required when it is linked to an original invoice that will be sent to ZATCA",
+  "هذا الإشعار قيد معالجة زاتكا بالفعل — استخدم إعادة المحاولة أو إكمال الترحيل بدلاً من الترحيل من جديد": "This note is already in ZATCA processing — use retry or complete posting instead of posting it again",
+  "إعادة المحاولة متاحة فقط لإشعار مدين في انتظار الإرسال لزاتكا": "Retry is only available for a debit note awaiting submission to ZATCA",
+  "بيانات سلسلة زاتكا لهذا الإشعار غير مكتملة — تعذّرت إعادة المحاولة، راجع الدعم الفني": "This note's ZATCA chain data is incomplete — retry failed, contact support",
+  "تعذّرت إعادة المحاولة: الفاتورة الأصلية المرتبطة بهذا الإشعار لم تعد موجودة — راجع الدعم الفني": "Retry failed: the original invoice linked to this note no longer exists — contact support",
+  "تعذّرت إعادة المحاولة: بيانات الإشعار المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى": "Retry failed: the note's stored data no longer matches what the chain was originally reserved for — contact support before trying again",
+  "إكمال الترحيل متاح فقط لإشعار مدين استلم ردّاً من زاتكا لكن لم يكتمل ترحيله المحلي بعد": "Completing posting is only available for a debit note that received a ZATCA response but whose local posting is not yet complete",
+  "إعادة المحاولة متاحة فقط لفاتورة في انتظار الإرسال لزاتكا": "Retry is only available for an invoice awaiting submission to ZATCA",
+  "بيانات سلسلة زاتكا لهذه الفاتورة غير مكتملة — تعذّرت إعادة المحاولة، راجع الدعم الفني": "This invoice's ZATCA chain data is incomplete — retry failed, contact support",
+  "جارٍ إعادة محاولة إرسال هذه الفاتورة بالفعل الآن — انتظر قليلاً ثم تحقّق من حالتها قبل إعادة المحاولة": "This invoice is already being retried right now — wait a moment then check its status before retrying again",
+  "تعذّرت إعادة المحاولة: بيانات الفاتورة المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى": "Retry failed: the invoice's stored data no longer matches what the chain was originally reserved for — contact support before trying again",
+  "إكمال الترحيل متاح فقط لفاتورة استلمت ردّاً من زاتكا لكن لم يكتمل ترحيلها المحلي بعد": "Completing posting is only available for an invoice that received a ZATCA response but whose local posting is not yet complete",
+  "هذه الفاتورة قيد معالجة زاتكا بالفعل (انتظار إرسال أو ترحيل محلي غير مكتمل) — استخدم إعادة المحاولة أو إكمال الترحيل بدلاً من الترحيل من جديد": "This invoice is already in ZATCA processing (awaiting submission or with incomplete local posting) — use retry or complete posting instead of posting it again",
+  "سبب إصدار إشعار الدائن (BR-KSA-17) إلزامي عند ربطه بفاتورة أصلية سترسَل لزاتكا": "A credit note reason (BR-KSA-17) is required when it is linked to an original invoice that will be sent to ZATCA",
+  "هذا المردود قيد معالجة زاتكا بالفعل — استخدم إعادة المحاولة أو إكمال الترحيل بدلاً من الترحيل من جديد": "This return is already in ZATCA processing — use retry or complete posting instead of posting it again",
+  "إعادة المحاولة متاحة فقط لمردود في انتظار الإرسال لزاتكا": "Retry is only available for a return awaiting submission to ZATCA",
+  "بيانات سلسلة زاتكا لهذا المردود غير مكتملة — تعذّرت إعادة المحاولة، راجع الدعم الفني": "This return's ZATCA chain data is incomplete — retry failed, contact support",
+  "تعذّرت إعادة المحاولة: بيانات المردود المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى": "Retry failed: the return's stored data no longer matches what the chain was originally reserved for — contact support before trying again",
+  "إكمال الترحيل متاح فقط لمردود استلم ردّاً من زاتكا لكن لم يكتمل ترحيله المحلي بعد": "Completing posting is only available for a return that received a ZATCA response but whose local posting is not yet complete",
 };

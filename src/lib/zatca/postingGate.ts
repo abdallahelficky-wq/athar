@@ -45,27 +45,9 @@ export interface ZatcaPostingDecision {
   proceedWithPosting: boolean;
   zatcaFields: ZatcaPostingFields;
   rejectionReason?: string;
-  /** فقط لو حُجزت سلسلة ICV/PIH فعلياً (الشركة مرتبطة بزاتكا) — تُعبَّأ بصرف النظر عن نتيجة
-   * القبول/الرفض، لأن أي حجز فعلي يعني عداد ICV الشركة تقدَّم بالفعل. يُستخدَم فقط لتسجيل "فجوة
-   * سلسلة" صريحة لو فشلت كتابة المستند النهائية بعد هذه النقطة لسبب غير متوقَّع — راجع
-   * recordZatcaChainGap في salesInvoices.service.ts. */
-  reservedChain?: { icv: number; invoiceHash: string };
 }
 
 export interface EvaluateZatcaPostingGateParams {
-  /**
-   * مُمرَّرة فقط من المسارات القديمة التي لم تُعَد هيكلتها بعد (salesReturns/salesDebitNotes
-   * حالياً) — تحجز سلسلة ICV/PIH ضمن معاملة الكتابة النهائية نفسها للمستدعي، فيحدث الاتصال
-   * الشبكي الفعلي بزاتكا (signAndSubmitDocument) وتلك المعاملة لا تزال مفتوحة — بنفس المخاطر
-   * التي سبَّبت عطل إنتاج فعلي (Transaction already closed: A query cannot be executed on an
-   * expired transaction) على مسار الفواتير قبل إصلاحه.
-   *
-   * المسارات المُعاد هيكلتها (createSalesInvoice/postSalesInvoice في salesInvoices.service.ts)
-   * لا تُمرِّرها إطلاقاً — عندئذٍ تُحجَز السلسلة هنا في معاملة قصيرة مستقلة خاصة بها، والاتصال
-   * بزاتكا يحدث بعدها بلا أي معاملة مفتوحة إطلاقاً؛ معاملة الكتابة النهائية للمستدعي (القيد
-   * المحاسبي + سطر المستند) تُفتَح لاحقاً هو نفسه، بعد معرفة قرار زاتكا مسبقاً.
-   */
-  tx?: Tx;
   company: ZatcaCompanyLike;
   customer: ZatcaCustomerLike;
   kind: ZatcaDocumentKind;
@@ -80,47 +62,24 @@ export interface EvaluateZatcaPostingGateParams {
 }
 
 /**
- * البوابة الوحيدة التي يستدعيها كل من salesInvoices/salesReturns/salesDebitNotes عند الترحيل
- * الفعلي — تقرّر: هل السلسلة (ICV/PIH) تُحجَز؟ هل تُرسَل الفاتورة فعلياً لزاتكا؟ وهل يُسمَح
- * بإكمال الترحيل (إنشاء القيد المحاسبي) أم يجب رفضه؟
- *
- * ثلاث حالات:
- * 1. الشركة غير مرتبطة بزاتكا بعد (not_onboarded) → لا حجز، لا إرسال، ترحيل عادي كما هو اليوم.
- * 2. مرتبطة لكن بلا شهادة CSID فعلية بعد (CompanyZatcaCredential غير مكتملة) → يُحجَز ICV/PIH
- *    فقط (سلسلة التجزئة تبدأ من الآن)، لكن بلا إرسال فعلي حتى تُستكمَل الشهادات لاحقاً.
- * 3. مرتبطة ولديها شهادة فعلية → توقيع + إرسال حقيقي؛ فاتورة قياسية مرفوضة تمنع الترحيل تماماً
- *    (لا تُعتبر نهائية حتى تُقبَل)، بينما فاتورة مبسّطة تُرحَّل دائماً (سُلِّمت للعميل فعلياً) وتُعاد
- *    محاولة الإبلاغ عنها لاحقاً إن رُفضت أول مرة.
- *
- * ملاحظة أداء/سلامة معاملات: حجز السلسلة (reserveZatcaChain) يحدث دائماً ضمن معاملة قصيرة (إما
- * معاملة المستدعي القديمة إن مُرِّرت tx، أو معاملة مستقلة أُنشئت هنا) — لكن الاتصال الشبكي الفعلي
- * بزاتكا (signAndSubmitDocument) يحدث *بعد* أن تُغلَق تلك المعاملة القصيرة دائماً، بصرف النظر عن
- * وجود tx من عدمه. الفرق الوحيد بين الوضعين: مع tx، معاملة المستدعي نفسها لا تزال مفتوحة أثناء
- * الاتصال الشبكي (تُبقيها البنية القديمة مفتوحة حتى بعد عودة هذه الدالة)؛ بدون tx، لا توجد أي
- * معاملة مفتوحة إطلاقاً في تلك اللحظة.
+ * جزء "الإرسال الفعلي" من evaluateZatcaPostingGate — مُعزول عن حجز السلسلة عمداً (راجع
+ * reserveZatcaChainForPosting أدناه) حتى تستخدمه مسارات الترحيل الآمنة على ثلاث مراحل
+ * (postingPipeline.ts): المرحلة 1 تحجز السلسلة وتكتب الصف أولاً؛ هذه الدالة (المرحلة 2) لا تكتب
+ * إلى قاعدة البيانات إطلاقاً — فقط تتصل بزاتكا وتُصنِّف الرد. لا معاملة مفتوحة هنا ولا يمكن أن
+ * تكون، لأن هذه الدالة لا تستقبل tx أصلاً.
  */
-export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateParams): Promise<ZatcaPostingDecision> {
-  const chainParams = {
-    company: params.company,
-    customer: params.customer,
-    kind: params.kind,
-    documentNumber: params.documentNumber,
-    documentUuid: params.documentUuid,
-    billingReferenceId: params.billingReferenceId,
-    issuanceReason: params.issuanceReason,
-    lines: params.lines,
-  };
-  const chain = params.tx
-    ? await reserveZatcaChain(params.tx, chainParams)
-    : await prisma.$transaction((tx) => reserveZatcaChain(tx, chainParams));
-
-  if (!chain) {
-    return { proceedWithPosting: true, zatcaFields: { zatcaStatus: "not_applicable" } };
-  }
-  const reservedChain = { icv: chain.icv, invoiceHash: chain.invoiceHash };
-
-  const environment = params.company.zatcaEnvironment as ZatcaApiEnvironment;
-  const loaded = await loadCompanyZatcaCredentials(params.company.id, environment, params.company.zatcaOnboardingStatus);
+export async function submitZatcaChainDocument(params: {
+  company: ZatcaCompanyLike;
+  documentNumber: string;
+  documentUuid: string;
+  kind: ZatcaDocumentKind;
+  chain: { xml: string; subtype: "standard" | "simplified"; icv: number; previousInvoiceHash: string; invoiceHash: string; issuedAt: Date };
+  grandTotal: number;
+  vatTotal: number;
+}): Promise<ZatcaPostingDecision> {
+  const { company, documentNumber, documentUuid, kind, chain, grandTotal, vatTotal } = params;
+  const environment = company.zatcaEnvironment as ZatcaApiEnvironment;
+  const loaded = await loadCompanyZatcaCredentials(company.id, environment, company.zatcaOnboardingStatus);
   if (!loaded.ok) {
     if (loaded.reason === "environment_mismatch") {
       // نفس تصنيف certificate_error تماماً (مشكلة إعداد ربط، لا مشكلة شبكة ولا رفض فعلي من زاتكا،
@@ -135,7 +94,6 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
           zatcaSubmittedAt: chain.issuedAt,
         },
         rejectionReason: zatcaEnvironmentMismatchMessage(loaded.issuedFor, environment),
-        reservedChain,
       };
     }
     // عطل إنتاج فعلي مؤكَّد كان هنا: chain.zatcaStatus (pending_clearance/pending_reporting) كان
@@ -148,31 +106,30 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
         icv: chain.icv,
         previousInvoiceHash: chain.previousInvoiceHash,
         invoiceHash: chain.invoiceHash,
-        zatcaStatus: chain.zatcaStatus,
+        zatcaStatus: "not_submitted",
         zatcaSubmittedAt: chain.issuedAt,
       },
       rejectionReason:
         "لم يُرسَل هذا المستند إلى هيئة الزكاة والضريبة والجمارك (زاتكا) إطلاقاً — لا توجد شهادة ربط زاتكا (CSID) فعّالة بعد لمرحلة ربط هذه الشركة الحالية. أكمل خطوات ربط زاتكا (CSR ← شهادة اختبار ← شهادة إنتاج) ثم أعد المحاولة.",
-      reservedChain,
     };
   }
   const credentials = loaded.credentials;
 
-  const submissionKind = resolveZatcaSubmissionKind(params.company.zatcaOnboardingStatus, chain.subtype);
+  const submissionKind = resolveZatcaSubmissionKind(company.zatcaOnboardingStatus, chain.subtype);
   const outcome = await signAndSubmitDocument({
     xml: chain.xml,
-    uuid: params.documentUuid,
+    uuid: documentUuid,
     environment,
     credentials,
     kind: submissionKind,
-    qrBaseParams: buildQrBaseParams(params.company, chain.issuedAt, params.grandTotal, params.vatTotal),
+    qrBaseParams: buildQrBaseParams(company, chain.issuedAt, grandTotal, vatTotal),
     // سقالة تشخيصية مؤقتة (راجع apiClient.ts) — فقط لمسار الامتثال، وفقط عند تفعيل العلَم، أثناء
     // المشي اليدوي الحالي عبر ربط زاتكا. تُزال لاحقاً.
     onboardingDiagnostics:
       env.zatcaOnboardingDiagnostics && submissionKind === "compliance"
         ? {
-            companyId: params.company.id,
-            documentKind: params.kind,
+            companyId: company.id,
+            documentKind: kind,
             subtype: chain.subtype,
             icv: chain.icv,
             previousInvoiceHash: chain.previousInvoiceHash,
@@ -184,7 +141,7 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
     // نجاح فعلي على مسار التخليص/الإبلاغ (شهادة إنتاج) فقط يعني cleared/reported — نجاح فحص
     // امتثال (شهادة اختبار) لا يُعتبَر تخليصاً أو إبلاغاً حقيقياً إطلاقاً (المستند لم يُبلَّغ لزاتكا
     // قانونياً بعد)، فيُصنَّف compliance_checked بدلاً من ذلك حتى لو "قُبِل" الفحص نفسه.
-    const isProductionSubmission = params.company.zatcaOnboardingStatus === "production";
+    const isProductionSubmission = company.zatcaOnboardingStatus === "production";
     return {
       proceedWithPosting: true,
       zatcaFields: {
@@ -198,7 +155,6 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
         ...(isProductionSubmission ? { zatcaClearedOrReportedAt: new Date() } : {}),
         zatcaResponseRaw: (outcome.response ?? undefined) as Prisma.InputJsonValue | undefined,
       },
-      reservedChain,
     };
   }
 
@@ -211,8 +167,8 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
     // اختلف شكل استجابة زاتكا الفعلي عمّا افتُرِض في هذا الملف.
     // eslint-disable-next-line no-console
     console.error(
-      `[evaluateZatcaPostingGate] رفضت زاتكا مستنداً — الشركة "${params.company.name}" (${params.company.id})، رقم المستند=${params.documentNumber}، ` +
-        `documentUuid=${params.documentUuid}، السبب المعروض للمستخدم=${outcome.reason} — الاستجابة الخام الكاملة من زاتكا: ${JSON.stringify(outcome.response)}`,
+      `[submitZatcaChainDocument] رفضت زاتكا مستنداً — الشركة "${company.name}" (${company.id})، رقم المستند=${documentNumber}، ` +
+        `documentUuid=${documentUuid}، السبب المعروض للمستخدم=${outcome.reason} — الاستجابة الخام الكاملة من زاتكا: ${JSON.stringify(outcome.response)}`,
     );
   }
 
@@ -241,6 +197,56 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
       zatcaResponseRaw: (outcome.response ?? undefined) as Prisma.InputJsonValue | undefined,
     },
     rejectionReason: outcome.reason,
-    reservedChain,
   };
+}
+
+/**
+ * حجز سلسلة ICV/PIH فقط (المرحلة 1 من postingPipeline.ts) — دائماً ضمن معاملة قصيرة مستقلة خاصة
+ * بها (لا tx خارجي يُقبَل هنا إطلاقاً)، لا اتصال شبكي بزاتكا داخلها مطلقاً. راجع submitZatcaChainDocument
+ * أعلاه للاتصال الفعلي بزاتكا بعد أن يُغلَق هذا الحجز.
+ */
+export async function reserveZatcaChainForPosting(params: {
+  company: ZatcaCompanyLike;
+  customer: ZatcaCustomerLike;
+  kind: ZatcaDocumentKind;
+  documentNumber: string;
+  documentUuid: string;
+  billingReferenceId?: string;
+  issuanceReason?: string;
+  lines: ZatcaPersistedLineLike[];
+}) {
+  return prisma.$transaction((tx) => reserveZatcaChain(tx, params));
+}
+
+/**
+ * البوابة القديمة "دفعة واحدة" (حجز + إرسال معاً) — لا تُستخدَم إلا من complianceAutomation.ts
+ * (مستندات اصطناعية بالكامل، لا كتابة محاسبية حقيقية بعدها إطلاقاً، فلا خطر "فجوة" ممكناً هناك أصلاً
+ * — راجع تعليق الملف). مسارات الترحيل الحقيقية الثلاثة (فواتير/مردودات/إشعارات مدين) تستخدم
+ * reserveZatcaChainForPosting وsubmitZatcaChainDocument منفصلتين عبر postingPipeline.ts بدلاً من
+ * هذه الدالة، لأن الصف المحاسبي يجب أن يُكتَب بين المرحلتين (بعد الحجز، قبل الإرسال) — شيء لا تسمح
+ * به دالة واحدة تُنفِّذ الاثنين معاً بلا توقف.
+ */
+export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateParams): Promise<ZatcaPostingDecision> {
+  const chain = await reserveZatcaChainForPosting({
+    company: params.company,
+    customer: params.customer,
+    kind: params.kind,
+    documentNumber: params.documentNumber,
+    documentUuid: params.documentUuid,
+    billingReferenceId: params.billingReferenceId,
+    issuanceReason: params.issuanceReason,
+    lines: params.lines,
+  });
+  if (!chain) {
+    return { proceedWithPosting: true, zatcaFields: { zatcaStatus: "not_applicable" } };
+  }
+  return submitZatcaChainDocument({
+    company: params.company,
+    documentNumber: params.documentNumber,
+    documentUuid: params.documentUuid,
+    kind: params.kind,
+    chain,
+    grandTotal: params.grandTotal,
+    vatTotal: params.vatTotal,
+  });
 }

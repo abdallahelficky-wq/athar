@@ -3,12 +3,13 @@ import { prisma } from "./prisma";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
-export type DocNumberingType = "sales_invoice" | "quotation" | "sales_return";
+export type DocNumberingType = "sales_invoice" | "quotation" | "sales_return" | "sales_debit_note";
 
 const DEFAULT_PREFIX: Record<DocNumberingType, string> = {
   sales_invoice: "INV",
   quotation: "QUO",
   sales_return: "RET",
+  sales_debit_note: "DBN",
 };
 
 /** يستبدل الرمز الخاص {year} في البادئة بالسنة الميلادية الحالية — يسمح ببادئة مثل "INV/{year}/"
