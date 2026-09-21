@@ -1,3 +1,4 @@
+import InvoiceZatcaDetails from "../InvoiceZatcaDetails";
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -66,6 +67,7 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
     <div className="cpi-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className="cpi-shell">
         {onClose && <button type="button" className="cpi-close-x" onClick={onClose} aria-label={t("common.close")}>×</button>}
+      <InvoiceZatcaDetails invoice={invoice} />
         <div className="cpi-print">
           <div className="cpi-head">
             <div className="cpi-head-title" style={{ color: accent }}>

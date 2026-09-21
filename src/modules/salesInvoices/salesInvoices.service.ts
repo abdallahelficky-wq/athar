@@ -930,7 +930,7 @@ async function claimInvoiceForZatcaAttempt(
  * بشهادة غير صالحة — يُفتَرض أن المستخدم أصلح إعدادات ربط زاتكا قبل الضغط هنا، وإلا ستفشل بنفس
  * السبب مجدداً وتبقى certificate_error)، أو "compliance_checked" (لا تزال الشركة على شهادة اختبار —
  * إعادة الإرسال بعد استكمال الحصول على شهادة إنتاج فعلية هي كيف تُخلَّص/تُبلَّغ هذه الفاتورة فعلياً
- * لأول مرة، راجع resolveZatcaSubmissionKind في submission.ts). متاحة فقط لهذه الحالات الأربع —
+ * لأول مرة، راجع resolveZatcaSubmissionKind في submission.ts)، أو not_submitted بعد إصلاح الربط —
  * أي حالة زاتكا أخرى تُرفَض صراحةً.
  */
 export async function resendInvoiceToZatca(tenantId: string, id: string) {
@@ -938,6 +938,7 @@ export async function resendInvoiceToZatca(tenantId: string, id: string) {
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
   if (
+    invoice.zatcaStatus !== "not_submitted" &&
     invoice.zatcaStatus !== "rejected" &&
     invoice.zatcaStatus !== "submission_failed" &&
     invoice.zatcaStatus !== "certificate_error" &&

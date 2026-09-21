@@ -1,3 +1,4 @@
+import InvoiceZatcaDetails from "./InvoiceZatcaDetails";
 import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { PrintShell, QrImage, printWithOrientation } from "../../legacy/shared";
@@ -48,6 +49,7 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
       }
       onClose={onClose}
     >
+      <InvoiceZatcaDetails invoice={invoice} />
       <div className="voucher-meta">
         <div><span>{t("salesInvoices.view.seller")}</span><strong>{company?.name}</strong></div>
         <div><span>{t("salesInvoices.view.sellerVat")}</span><strong>{company?.vatNumber || t("salesInvoices.view.vatNotEntered")}</strong></div>
