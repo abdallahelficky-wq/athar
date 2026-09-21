@@ -235,6 +235,16 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
     // ربط زاتكا. تُزال لاحقاً.
     env.zatcaOnboardingDiagnostics ? { companyId, complianceRequestId: credential.complianceRequestId } : undefined,
   );
+  // انتهاء مهلة تحديداً (فرع أكثر تحديداً من networkError العام أدناه — timedOut لا يُضبَط true إلا
+  // مع networkError:true أيضاً، راجع apiClient.ts، فيجب فحصه أولاً وإلا أصبح فرعاً ميتاً لا يُصَل
+  // إليه أبداً). الطلب رُبما وصل زاتكا فعلاً واستُلم قبل انقطاعنا نحن عن انتظار الردّ — رقم طلب
+  // الامتثال (complianceRequestId) لا يصلح لإعادة الاستخدام إن كانت الشهادة قد صدرت بالفعل على جانب
+  // زاتكا، خلافاً لفشل اتصال آخر (DNS/رفض اتصال) لم يصل فيه الطلب لزاتكا إطلاقاً.
+  if (result.timedOut) {
+    throw badRequest(
+      "انتهت مهلة انتظار ردّ زاتكا على طلب شهادة الإنتاج (60 ثانية) — قد تكون الشهادة صدرت فعلياً رغم عدم وصول الرد قبل انتهاء المهلة. لا تُعِد المحاولة بنفس رقم طلب الامتثال (complianceRequestId)؛ راجع سجلات الخادم لمعرفة ما ردّت به زاتكا فعلياً، أو تواصل مع الدعم الفني قبل أي محاولة أخرى.",
+    );
+  }
   if (result.networkError) {
     throw badRequest("انقطع الاتصال أثناء طلب شهادة الإنتاج؛ لم يصل تأكيد الإصدار ولم تُحفظ شهادة. قد يكون الطلب نُفّذ لدى زاتكا. احتفظ بالربط وراجع حالة الطلب قبل إعادة المحاولة أو إعادة الضبط.");
   }
@@ -262,17 +272,30 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
     }
     throw badRequest(`تعذّر إصدار شهادة الإنتاج (HTTP ${result.status}): ${result.data ? JSON.stringify(result.data) : "وصل رد من زاتكا بلا تفاصيل قابلة للقراءة"}`);
   }
+  // نحفظ الشكل الخام (كما وصل تماماً، بلا أي فك ترميز إضافي) والسر ورقم الطلب فوراً بمجرد وصول ردّ
+  // ناجح من زاتكا — *قبل* أي محاولة تحليل الشهادة كـX.509 صالحة (normalizeZatcaCertificate أدناه قد
+  // تفشل وترمي). هذا يمنع ضياع دليل إصدار فعلي بصمت: لو فشل التحليل لاحقاً، تبقى الشهادة/السر/رقم
+  // الطلب الذي أصدرَته زاتكا فعلاً محفوظة، فلا حاجة أبداً لإعادة استدعاء /production/csids (وبالتالي
+  // حرق complianceRequestId، راجع تعليق timedOut أعلاه) لمجرد استرجاع ما صدر بالفعل.
+  const rawCertificateToken = result.data.binarySecurityToken.trim();
+  await prisma.companyZatcaCredential.update({
+    where: { companyId },
+    data: {
+      productionCertRawEnc: encryptSecret(rawCertificateToken),
+      productionSecretEnc: encryptSecret(result.data.secret),
+      productionRequestId: String(result.data.requestID),
+      productionCsidEnvironment: environment,
+    },
+  });
+
   const cert = normalizeZatcaCertificate(result.data.binarySecurityToken, "شهادة الإنتاج (Production)");
 
+  // الشكل القانوني (canonical) لا يُعرَف إلا بعد نجاح التحليل أعلاه — يُكتَب هنا مع تأكيد حالة الربط
+  // فقط بعد التحقق من أن الشهادة صالحة فعلاً للتوقيع، لا قبل ذلك.
   await prisma.$transaction([
     prisma.companyZatcaCredential.update({
       where: { companyId },
-      data: {
-        productionCertEnc: encryptSecret(cert.canonical),
-        productionCertRawEnc: encryptSecret(cert.raw),
-        productionSecretEnc: encryptSecret(result.data.secret),
-        productionCsidEnvironment: environment,
-      },
+      data: { productionCertEnc: encryptSecret(cert.canonical) },
     }),
     prisma.company.update({ where: { id: companyId }, data: { zatcaOnboardingStatus: "production" } }),
   ]);

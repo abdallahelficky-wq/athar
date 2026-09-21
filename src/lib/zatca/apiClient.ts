@@ -62,6 +62,11 @@ export interface ZatcaApiResponse<T> {
    * هذه الحالة عن رفض حقيقي من زاتكا، حتى تُعامَل كفشل إرسال مؤقت (نفس مسار malformedResponse) لا
    * كاستثناء غير مُتوقَّع يُسقِط معاملة الترحيل بأكملها. راجع تعليق zatcaRequest أدناه. */
   networkError?: boolean;
+  /** true فقط عندما networkError نتج تحديداً عن انتهاء مهلة AbortSignal.timeout (timeoutMs أدناه)، لا
+   * عن فشل اتصال آخر (DNS/رفض اتصال/شهادة TLS...) — يميّز "أرسلنا الطلب فعلياً وانتظرنا، لكن لا نعرف
+   * هل استلمته زاتكا ونفّذته قبل انقطاعنا نحن" (حالة خطرة تحديداً لإصدار الشهادات — إعادة المحاولة قد
+   * تحرق رقم طلب امتثال شهادة صدرت بالفعل) عن "لم يصل الطلب لزاتكا إطلاقاً" (إعادة المحاولة آمنة). */
+  timedOut?: boolean;
   /** true لاستجابة غير ناجحة (non-2xx) وصلت فعلياً (بخلاف networkError) لكنها ليست رفضاً حقيقياً
    * لمحتوى المستند — إما كودها كود نقل/مصادقة/توجيه واضح (401/403/404/5xx) بصرف النظر عن جسمها، أو
    * جسمها لا يحمل بنية رفض معروفة من زاتكا (validationResults بأخطاء/تحذيرات فعلية) إطلاقاً. راجع
@@ -71,7 +76,6 @@ export interface ZatcaApiResponse<T> {
 }
 
 interface RequestParams<T> {
-  timeoutMs?: number;
   environment: ZatcaApiEnvironment;
   path: string;
   body: unknown;
@@ -91,6 +95,9 @@ interface RequestParams<T> {
    * فرعه) يُملأه المستدعي وقت المشي اليدوي عبر ربط زاتكا فقط؛ لا يُستخدَم في أي قرار، فقط يُسجَّل
    * كاملاً مع الجسم الخام *قبل* أي تصفية Zod (schema أعلاه قد تُسقِط حقولاً غير معروفة صامتة). */
   onboardingDiagnostics?: Record<string, unknown>;
+  /** يتجاوز ZATCA_REQUEST_TIMEOUT_MS العام لهذا الطلب تحديداً فقط — راجع
+   * ZATCA_PRODUCTION_CSID_TIMEOUT_MS أدناه لسبب وجود هذا التجاوز. */
+  timeoutMs?: number;
 }
 
 // كانت هذه المهلة غير محدودة إطلاقاً قبل هذا التعديل — وهي بالضبط كيف انتهى بنا الأمر لعطل
@@ -101,6 +108,16 @@ interface RequestParams<T> {
 // كافية لزمن استجابة API حكومي طبيعي (بما فيه TLS handshake)، لا مجرد تكرار حد الـ5 ثوانٍ القديم
 // الذي كان مقاساً على DB محلية سريعة لا نداءً شبكياً خارجياً.
 const ZATCA_REQUEST_TIMEOUT_MS = 15_000;
+
+// مهلة أطول خاصة بإصدار شهادة الإنتاج (/production/csids) فقط — لا تغيّر ZATCA_REQUEST_TIMEOUT_MS
+// العام أعلاه، الذي يبقى 15 ثانية لكل نداء آخر (تخليص/إبلاغ/فحص امتثال/شهادة اختبار). سبب التمييز:
+// هذا النداء يُصدر شهادة إنتاج فعلية حقيقية (لا مجرد يقيّم مستنداً) وقد يأخذ زاتكا وقتاً أطول لتنفيذه
+// فعلياً من نداء تخليص/إبلاغ عادي — و**لا يوجد أي إعادة محاولة تلقائية على هذا النداء تحديداً بأي
+// شكل** (راجع requestCompanyProductionCsid في companiesZatca.service.ts؛ هذا خلافاً لفواتير
+// التخليص/الإبلاغ التي لها إعادة محاولة تلقائية عبر retryScheduler.ts، حيث مهلة أقصر ثم إعادة محاولة
+// لاحقة آمنة تماماً). فمهلة أقصر هنا فقط تعني الحكم بالفشل قبل أن تُتاح لزاتكا فرصة معقولة للردّ على
+// عملية إصدار فعلية — بلا أي شبكة أمان لاحقة تُصحِّح ذلك.
+const ZATCA_PRODUCTION_CSID_TIMEOUT_MS = 60_000;
 
 // سقالة تشخيصية مؤقتة — أسماء الحقول (بغضّ النظر عن حالة الأحرف) التي تُخفى قبل تسجيل أي جسم رد خام
 // من زاتكا (راجع onboardingDiagnostics أدناه): binarySecurityToken/secret فعليان في رد /production/csids
@@ -135,6 +152,14 @@ function extractTransmittedXmlFromBody(body: unknown): string | null {
   }
 }
 
+// STEP-3 تشخيص مؤقت (غير مُلتزَم — بانتظار موافقة المستخدم) — يقتصر عمداً على /production/csids
+// فقط، سجلّ خام كامل غير مشروط بأي علَم، قبل أي تحليل/تفسير للجسم، بما في ذلك حالة فشل الاتصال.
+function maskAuthHeaderForDebugLog(value: string | undefined): string {
+  if (!value) return "(لا توجد ترويسة Authorization على هذا الطلب)";
+  if (value.length <= 20) return value;
+  return `${value.slice(0, 12)}...${value.slice(-8)}`;
+}
+
 async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiResponse<T>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -146,15 +171,37 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
   if (params.otp) headers.OTP = params.otp;
   if (params.clearanceStatus) headers["Clearance-Status"] = params.clearanceStatus;
 
+  const isProductionCsidDebug = params.path === "/production/csids";
+  const debugUrl = `${baseUrl(params.environment)}${params.path}`;
+  const resolvedTimeoutMs = params.timeoutMs ?? ZATCA_REQUEST_TIMEOUT_MS;
+  if (isProductionCsidDebug) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `[STEP3-DEBUG][production-csid-request] URL=${debugUrl} method=POST timeoutMs=${resolvedTimeoutMs} headers=${JSON.stringify({
+        ...headers,
+        Authorization: maskAuthHeaderForDebugLog(headers.Authorization),
+      })} body=${JSON.stringify(params.body)}`,
+    );
+  }
+
   let response: Response;
   try {
-    response = await fetch(`${baseUrl(params.environment)}${params.path}`, {
+    response = await fetch(debugUrl, {
       method: "POST",
       headers,
       body: JSON.stringify(params.body),
-      signal: AbortSignal.timeout(params.timeoutMs ?? ZATCA_REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(resolvedTimeoutMs),
     });
   } catch (err) {
+    // AbortSignal.timeout() يرمي تحديداً DOMException باسم "TimeoutError" عند انتهاء المهلة (تحقَّق
+    // منه فعلياً في Node — يختلف عن اسم أي فشل اتصال آخر) — يميّز "أُرسِل الطلب وربما استلمته زاتكا
+    // فعلاً، فقط لم يصلنا الردّ في وقتنا" عن فشل اتصال حقيقي لم يصل فيه الطلب لزاتكا إطلاقاً. راجع
+    // تعليق timedOut في ZatcaApiResponse أعلاه لسبب أهمية هذا التمييز تحديداً لإصدار الشهادات.
+    const timedOut = err instanceof Error && err.name === "TimeoutError";
+    if (isProductionCsidDebug) {
+      // eslint-disable-next-line no-console
+      console.log(`[STEP3-DEBUG][production-csid-request] فشل fetch نفسه قبل وصول أي استجابة — timedOut=${timedOut} — الخطأ الخام:`, err);
+    }
     // فشل اتصال حقيقي (DNS/timeout/رفض اتصال/شهادة TLS...) — بلا هذا الالتقاط كان يسقط كاستثناء
     // خام غير مُعالَج يُسقِط معاملة Prisma بأكملها (بما فيها فاتورة نقطة بيع مبسّطة كانت ستُرحَّل
     // بصرف النظر عن نتيجة هذا الإرسال أصلاً — راجع تعليق proceedWithPosting في postingGate.ts:
@@ -163,7 +210,7 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
     // العملية). يُعامَل هنا كفشل إرسال صريح بدل ذلك، بنفس مسار malformedResponse تماماً.
     // eslint-disable-next-line no-console
     console.error("فشل اتصال بخادم زاتكا (Fatoora):", err);
-    return { ok: false, status: 0, data: null, networkError: true };
+    return { ok: false, status: 0, data: null, networkError: true, timedOut };
   }
 
   // نقرأ الجسم كنص خام أولاً، قبل أي محاولة تحليل JSON — إعادة إنتاج عطل إنتاج فعلي: جسم فارغ أو
@@ -176,6 +223,18 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
     rawData = rawText ? JSON.parse(rawText) : null;
   } catch {
     rawData = null;
+  }
+
+  if (isProductionCsidDebug) {
+    const debugHeadersObject: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      debugHeadersObject[key] = value;
+    });
+    // eslint-disable-next-line no-console
+    console.log(
+      `[STEP3-DEBUG][production-csid-response] status=${response.status} statusText=${response.statusText} ` +
+        `headers=${JSON.stringify(debugHeadersObject)} rawBody=${JSON.stringify(rawText)}`,
+    );
   }
 
   // سقالة تشخيصية مؤقتة — راجع تعليق onboardingDiagnostics في RequestParams وenv.zatcaOnboardingDiagnostics.
@@ -277,13 +336,16 @@ export function requestProductionCsid(
   return zatcaRequest({
     environment,
     path: "/production/csids",
-    // Certificate issuance may outlive the invoice request deadline. Never retry
-    // automatically: a lost response does not prove that issuance failed.
-    timeoutMs: 60_000,
     body: { compliance_request_id: complianceRequestId },
     credentials,
     schema: csidResponseSchema,
     onboardingDiagnostics,
+    // STEP-3 تشخيص مؤقت (غير مُلتزَم): زاتكا تُترجِم رسائل الرفض/الأخطاء، وقالبها العربي معطوب فعلياً
+    // (راجع acceptLanguage في RequestParams أعلاه) — لا نُشخِّص من نص عربي قد يكون مبتوراً.
+    acceptLanguage: "en",
+    // راجع ZATCA_PRODUCTION_CSID_TIMEOUT_MS أعلاه — 60 ثانية لهذا النداء تحديداً فقط، لا 15 ثانية
+    // العامة، ولا إعادة محاولة تلقائية على الإطلاق إن انتهت (راجع requestCompanyProductionCsid).
+    timeoutMs: ZATCA_PRODUCTION_CSID_TIMEOUT_MS,
   });
 }
 
