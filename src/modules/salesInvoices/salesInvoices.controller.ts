@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import * as service from "./salesInvoices.service";
-import { sendInvoiceByEmail } from "./salesInvoiceEmail.service";
+import { sendInvoiceByEmail, listInvoicesWithoutSuccessfulEmail, resendInvoiceEmail } from "./salesInvoiceEmail.service";
 import { prisma } from "../../lib/prisma";
 import { assertRecordCompanyScope } from "../../middleware/auth";
 
@@ -61,6 +61,24 @@ export const sendEmailHandler: RequestHandler = async (req, res) => {
     method: "manual",
     overrideEmail: req.body?.email || undefined,
   });
+  res.json(result);
+};
+
+// قائمة متابعة يدوية: فواتير مرحّلة لم يُرسَل بريدها بنجاح ولو مرة (لم تُحاوَل إطلاقاً، أو حاولت
+// وفشلت — راجع listInvoicesWithoutSuccessfulEmail). بلا أي إعادة إرسال تلقائية هنا.
+export const emailBacklogHandler: RequestHandler = async (req, res) => {
+  const { companyId } = req.query;
+  const backlog = await listInvoicesWithoutSuccessfulEmail(req.auth!.tenantId, {
+    companyId: typeof companyId === "string" ? companyId : undefined,
+  });
+  res.json(backlog);
+};
+
+// إعادة إرسال يدوية صريحة لفاتورة من قائمة email-backlog أعلاه — نفس منطق sendEmailHandler بالضبط
+// (method: "manual")، بمسار مستقل واضح الغرض لهذه الشاشة تحديداً.
+export const resendEmailHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
+  const result = await resendInvoiceEmail(req.auth!.tenantId, req.params.id, req.body?.email || undefined);
   res.json(result);
 };
 
