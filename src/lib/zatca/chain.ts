@@ -94,7 +94,10 @@ function mapCustomerToBuyer(customer: ZatcaCustomerLike): ZatcaPartyInput {
   };
 }
 
-function subtypeForCustomer(customer: ZatcaCustomerLike): "standard" | "simplified" {
+// مُصدَّرة (لا خاصة) عمداً — تُستخدَم أيضاً في salesReturns.service.ts للتحقق من أن نوع إشعار
+// الدائن (قياسي/مبسّط) المُشتق من العميل الحالي يطابق نوع الفاتورة الأصلية المرتبطة، بدل تكرار
+// نفس المنطق هناك بنسخة قد تنحرف عن هذه لاحقاً.
+export function subtypeForCustomer(customer: ZatcaCustomerLike): "standard" | "simplified" {
   return customer.customerType === "business" && Boolean(customer.vatNumber) ? "standard" : "simplified";
 }
 

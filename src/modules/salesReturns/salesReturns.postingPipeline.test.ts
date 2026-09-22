@@ -13,7 +13,13 @@ vi.mock("../../lib/prisma", () => ({
     $transaction: vi.fn(),
   },
 }));
-vi.mock("../../lib/zatca/chain", () => ({ reserveZatcaChain: vi.fn(), rebuildZatcaDocumentXml: vi.fn() }));
+// subtypeForCustomer الحقيقية تبقى غير مُموَّهة عمداً — تُستخدَم الآن أيضاً داخل validateLinkedReturn
+// (تحقّق تطابق نوع إشعار الدائن مع نوع الفاتورة الأصلية)، فتمويهها هنا كان سيُخفي أي انحراف فعلي
+// بين CUSTOMER_ROW وinvoiceType الفواتير الوهمية أدناه بدل كشفه.
+vi.mock("../../lib/zatca/chain", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib/zatca/chain")>();
+  return { ...actual, reserveZatcaChain: vi.fn(), rebuildZatcaDocumentXml: vi.fn() };
+});
 vi.mock("../../lib/zatca/postingGate", () => ({ submitZatcaChainDocument: vi.fn() }));
 vi.mock("../../lib/docNumbering", () => ({ reserveDocumentNumber: vi.fn() }));
 vi.mock("../../lib/journalPosting", () => ({
@@ -53,7 +59,7 @@ function setupCommonMocks() {
   vi.mocked(prisma.company.findFirstOrThrow).mockResolvedValue(COMPANY_ROW as never);
   vi.mocked(prisma.customer.findFirst).mockResolvedValue(CUSTOMER_ROW as never);
   vi.mocked(prisma.account.findMany).mockResolvedValue([{ id: ACCOUNT_ID }] as never);
-  vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted", grandTotal: 115, lines: [{ id: "line-1", accountId: ACCOUNT_ID, quantity: 1, unitPrice: 100, discountPct: 0, priceIncludesVat: false, vatApplicable: true, taxCategoryCode: "S" }] } as never);
+  vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted", invoiceType: "standard", date: new Date("2025-12-01"), grandTotal: 115, lines: [{ id: "line-1", accountId: ACCOUNT_ID, quantity: 1, unitPrice: 100, discountPct: 0, priceIncludesVat: false, vatApplicable: true, taxCategoryCode: "S" }] } as never);
   vi.mocked(getAccountIdByName).mockResolvedValue("vat-output-account");
   vi.mocked(resolvePartyAccountId).mockResolvedValue("receivable-account");
   vi.mocked(reserveDocumentNumber).mockResolvedValue("RET-00001");
@@ -258,7 +264,7 @@ describe("credit note eligibility — cannot reference a non-posted invoice (dra
 
   it("still allows a credit note referencing a genuinely posted invoice", async () => {
     setupCommonMocks();
-    vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted", grandTotal: 115, lines: [{ id: "line-1", accountId: ACCOUNT_ID, quantity: 1, unitPrice: 100, discountPct: 0, priceIncludesVat: false, vatApplicable: true, taxCategoryCode: "S" }] } as never);
+    vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted", invoiceType: "standard", date: new Date("2025-12-01"), grandTotal: 115, lines: [{ id: "line-1", accountId: ACCOUNT_ID, quantity: 1, unitPrice: 100, discountPct: 0, priceIncludesVat: false, vatApplicable: true, taxCategoryCode: "S" }] } as never);
     vi.mocked(submitZatcaChainDocument).mockResolvedValue({
       proceedWithPosting: true,
       zatcaFields: { zatcaStatus: "cleared", icv: 7, previousInvoiceHash: "PIH-7", invoiceHash: "HASH-7", zatcaSubmittedAt: CHAIN_RESULT.issuedAt },

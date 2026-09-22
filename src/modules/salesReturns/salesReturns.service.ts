@@ -8,7 +8,7 @@ import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { reserveDocumentNumber } from "../../lib/docNumbering";
-import { reserveZatcaChain, rebuildZatcaDocumentXml, ZatcaCompanyLike, ZatcaCustomerLike, ZatcaPersistedLineLike } from "../../lib/zatca/chain";
+import { reserveZatcaChain, rebuildZatcaDocumentXml, subtypeForCustomer, ZatcaCompanyLike, ZatcaCustomerLike, ZatcaPersistedLineLike } from "../../lib/zatca/chain";
 import { submitZatcaChainDocument } from "../../lib/zatca/postingGate";
 import { newQueryCounter, counted, logPostingPhaseTiming } from "../../lib/zatca/postingInstrumentation";
 
@@ -124,12 +124,36 @@ async function resolveCreditAccountId(tenantId: string, companyId: string, custo
     : getAccountIdByName(tenantId, companyId, REFUND_ACCOUNT_NAME[refundMethod] ?? REFUND_ACCOUNT_NAME.account);
 }
 
-async function validateLinkedReturn(tx: Prisma.TransactionClient, tenantId: string, companyId: string, customerId: string, invoiceId: string | null | undefined,
-  lines: { originalInvoiceLineId?: string | null; accountId: string; quantity: unknown }[], total: number, excludeId?: string) {
+/**
+ * تحقّقات إشعار الدائن المرتبط بفاتورة أصلية — تُستدعى من الثلاثة (create/update/post) بنفس
+ * القيود بالضبط، excludeId يستثني صف المردود نفسه عند إعادة الفحص (تعديل/ترحيل) لا عند الإنشاء:
+ * - الفاتورة يجب أن تخص نفس العميل/الشركة (فلتر customerId ضمن findFirst — لا نتيجة إن اختلف
+ *   العميل المُرسَل عن عميل الفاتورة الفعلي) وأن تكون مرحّلة فعلياً.
+ * - نوع إشعار الدائن (قياسي/مبسّط)، المُشتق من العميل الحالي (subtypeForCustomer — راجع تعليقها في
+ *   chain.ts)، يجب أن يطابق نوع الفاتورة الأصلية (invoiceType) — إشعار دائن قياسي على فاتورة
+ *   مبسّطة (أو العكس) مستند غير متّسق يُخالف اشتراطات زاتكا لمرجع الفاتورة (BillingReference).
+ *   يحمي هذا أيضاً حالة تغيّر بيانات العميل (نوعه/رقمه الضريبي) بين تاريخ الفاتورة الأصلية وتاريخ
+ *   الإشعار، لا فقط حالة اختيار عميل مختلف تماماً (تلك مرفوضة أصلاً أعلاه بفلتر customerId).
+ * - تاريخ الإشعار يجب ألا يسبق تاريخ الفاتورة الأصلية — مردود لا معنى له قبل صدور مستنده الأصلي.
+ * - سقف الاستخدام التراكمي (الكمية والصافي) عبر كل إشعارات الدائن الأخرى المرتبطة بنفس الفاتورة،
+ *   باستثناء هذا المردود نفسه (excludeId) — راجع assertReturnLimits.
+ */
+async function validateLinkedReturn(
+  tx: Prisma.TransactionClient, tenantId: string, companyId: string,
+  customer: ZatcaCustomerLike & { id: string },
+  invoiceId: string | null | undefined, date: Date,
+  lines: { originalInvoiceLineId?: string | null; accountId: string; quantity: unknown }[], total: number, excludeId?: string,
+) {
   if (!invoiceId) return;
   await tx.$queryRaw`SELECT id FROM sales_invoices WHERE id = ${invoiceId} AND "tenantId" = ${tenantId} FOR UPDATE`;
-  const invoice = await tx.salesInvoice.findFirst({ where: { id: invoiceId, tenantId, companyId, customerId }, include: { lines: true } });
+  const invoice = await tx.salesInvoice.findFirst({ where: { id: invoiceId, tenantId, companyId, customerId: customer.id }, include: { lines: true } });
   if (!invoice || invoice.status !== "posted") throw badRequest("الفاتورة الأصلية لا تخص العميل والشركة المحددين أو غير مرحلة");
+  if (subtypeForCustomer(customer) !== invoice.invoiceType) {
+    throw badRequest("نوع إشعار الدائن (قياسي/مبسّط) يجب أن يطابق نوع الفاتورة الأصلية");
+  }
+  if (date.getTime() < invoice.date.getTime()) {
+    throw badRequest("تاريخ إشعار الدائن يجب ألا يسبق تاريخ الفاتورة الأصلية");
+  }
   const previous = await tx.salesReturn.findMany({ where: { tenantId, relatedInvoiceId: invoiceId, ...(excludeId ? { id: { not: excludeId } } : {}) }, include: { lines: true } });
   assertReturnLimits(invoice, previous, lines, total);
 }
@@ -184,7 +208,7 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
   let phase1: { kind: "done"; salesReturn: SalesReturnWithZatcaChain } | { kind: "pending"; salesReturn: SalesReturnWithZatcaChain; xml: string; subtype: "standard" | "simplified" };
   try {
     phase1 = await prisma.$transaction(async (tx) => {
-      await validateLinkedReturn(tx, tenantId, input.companyId, input.customerId, input.relatedInvoiceId, computed, grandTotal);
+      await validateLinkedReturn(tx, tenantId, input.companyId, customer, input.relatedInvoiceId, input.date, computed, grandTotal);
       const returnNumber = await counted(counter1, reserveDocumentNumber(tx, tenantId, input.companyId, "sales_return"));
       const chain = billingReferenceId
         ? await counted(
@@ -275,6 +299,17 @@ export async function updateSalesReturn(tenantId: string, id: string, input: Ret
   const existing = await prisma.salesReturn.findFirst({ where: { id, tenantId } });
   if (!existing) throw notFound("المردود غير موجود");
   if (existing.status !== "draft") throw badRequest("لا يمكن تعديل مردود مرحّل، يجب فك ترحيله أولاً");
+  // العميل والفاتورة الأصلية المرتبطة (إن وُجدت) ثابتان بعد الإنشاء — لا يجوز "إعادة ربط" مردود
+  // موجود بعميل أو فاتورة أصلية مختلفة عبر التعديل مهما كانت متّسقة داخلياً (فاتورة مرحّلة فعلاً
+  // تخص ذلك العميل الجديد)، فذلك يُلغي معنى كون الإشعار مرتبطاً بمستند بعينه؛ التعديل يُغيّر بيانات
+  // المردود نفسه (الأسطر/الكميات/السبب/طريقة الرد) فقط. مردود بحاجة لعميل/فاتورة مختلفين يجب أن
+  // يُنشأ من جديد.
+  if (existing.customerId !== input.customerId) {
+    throw badRequest("لا يمكن تغيير عميل مردود موجود — أنشئ مردوداً جديداً بدلاً من ذلك");
+  }
+  if ((existing.relatedInvoiceId ?? null) !== (input.relatedInvoiceId ?? null)) {
+    throw badRequest("لا يمكن تغيير الفاتورة الأصلية المرتبطة بمردود موجود — أنشئ مردوداً جديداً بدلاً من ذلك");
+  }
 
   const company = await prisma.company.findFirst({ where: { id: input.companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
@@ -311,7 +346,7 @@ export async function updateSalesReturn(tenantId: string, id: string, input: Ret
   }
 
   return prisma.$transaction(async (tx) => {
-    await validateLinkedReturn(tx, tenantId, input.companyId, input.customerId, input.relatedInvoiceId, computed, grandTotal, id);
+    await validateLinkedReturn(tx, tenantId, input.companyId, customer, input.relatedInvoiceId, input.date, computed, grandTotal, id);
     await tx.salesReturnLine.deleteMany({ where: { returnId: id } });
     return tx.salesReturn.update({
       where: { id },
@@ -464,7 +499,7 @@ export async function postSalesReturn(tenantId: string, userId: string, id: stri
   let phase1: { kind: "done"; salesReturn: SalesReturnWithZatcaChain } | { kind: "pending"; salesReturn: SalesReturnWithZatcaChain; xml: string; subtype: "standard" | "simplified" };
   try {
     phase1 = await prisma.$transaction(async (tx) => {
-      await validateLinkedReturn(tx, tenantId, salesReturn.companyId, salesReturn.customerId, salesReturn.relatedInvoiceId, salesReturn.lines, Number(salesReturn.grandTotal), salesReturn.id);
+      await validateLinkedReturn(tx, tenantId, salesReturn.companyId, salesReturn.customer, salesReturn.relatedInvoiceId, salesReturn.date, salesReturn.lines, Number(salesReturn.grandTotal), salesReturn.id);
       const chain = billingReferenceId
         ? await counted(
             counter1,
