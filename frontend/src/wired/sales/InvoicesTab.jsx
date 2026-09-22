@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { searchSalesInvoices, getSalesInvoice, deleteSalesInvoice, unpostSalesInvoice, sendInvoiceEmail, resendInvoiceZatca, retryInvoiceZatcaSubmission } from "../../api/salesInvoices";
 import { fmt } from "../../legacy/constants";
 import { currencyLabel } from "../../shared/countries";
+import { currentFiscalYearStartDateOnly, todayDateOnly } from "../../shared/fiscalYear";
+import { routes } from "../../routes";
 import { Icon } from "../../legacy/shared";
 import { useToast, ToastHost } from "../shared/Toast";
 import UnpostModal from "../shared/UnpostModal";
@@ -323,7 +326,14 @@ export default function InvoicesTab({ companyId, companies }) {
                 return (
                   <tr key={row.id}>
                     <td data-label={t("salesInvoices.table.number")}>{row.invoiceNumber}</td>
-                    <td data-label={t("salesInvoices.table.customer")}>{row.customerName}</td>
+                    <td data-label={t("salesInvoices.table.customer")}>
+                      <Link
+                        className="drill-link"
+                        to={routes.customerStatement(row.customerId, row.companyId, currentFiscalYearStartDateOnly(), todayDateOnly())}
+                      >
+                        {row.customerName}
+                      </Link>
+                    </td>
                     <td data-label={t("salesInvoices.table.date")}>{row.date.slice(0, 10)}</td>
                     <td className="num" data-label={t("salesInvoices.table.total")}>{fmt(Number(row.grandTotal))}</td>
                     <td data-label={t("salesInvoices.table.postingStatus")}><span className="status-badge">{postingStatusLabel(row.status, t)}</span></td>
@@ -410,6 +420,7 @@ export default function InvoicesTab({ companyId, companies }) {
           companies={companies}
           autoPrint={autoPrint}
           onClose={() => { setViewInvoice(null); setAutoPrint(false); }}
+          onChanged={reload}
         />
       )}
 

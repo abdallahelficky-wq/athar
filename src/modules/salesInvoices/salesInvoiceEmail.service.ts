@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { buildPlainInvoicePdf } from "../../lib/invoicePdf";
@@ -8,6 +9,87 @@ import { currencyLabel } from "../../lib/countries";
 export interface SendInvoiceEmailResult {
   sent: boolean;
   reason?: "no_email" | "send_failed";
+}
+
+const invoicePdfInclude = { lines: { include: { account: true, item: true } }, customer: true, company: true, branch: true, receiptAllocations: true } as const;
+type InvoiceForPdf = Prisma.SalesInvoiceGetPayload<{ include: typeof invoicePdfInclude }>;
+
+/**
+ * يبني PDF الفاتورة نفسه (بلا XML موقّع مُرفَق — راجع تعليق buildPlainInvoicePdf، هذا PDF بسيط
+ * وليس PDF/A-3 المُخصَّص لزاتكا) — مُستخرَجة من sendInvoiceByEmail أدناه لإعادة استخدامها في تحميل
+ * نسخة PDF مطابقة تماماً لما يصل بالإيميل فعلياً (لا شاشة HTML مُصوَّرة)، دون تكرار بناء الكائن.
+ */
+async function buildInvoicePdfBuffer(tenantId: string, invoice: InvoiceForPdf): Promise<Buffer> {
+  const companyAddress = [invoice.company.addressBuilding, invoice.company.addressStreet, invoice.company.addressCity]
+    .filter(Boolean)
+    .join("، ");
+  const customerAddress = [invoice.customer.buildingNo, invoice.customer.street, invoice.customer.city]
+    .filter(Boolean)
+    .join("، ");
+  const paid = invoice.receiptAllocations.reduce((s, a) => s + Number(a.amount), 0);
+  const bankAccounts = await prisma.companyBankAccount.findMany({
+    where: { companyId: invoice.companyId, tenantId },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  return buildPlainInvoicePdf({
+    template: invoice.company.invoiceTemplate,
+    invoiceNumber: invoice.invoiceNumber,
+    date: invoice.date,
+    dueDate: invoice.dueDate,
+    customerReference: invoice.customerReference,
+    poNumber: invoice.poNumber,
+    salesperson: invoice.salesperson,
+    otherId: invoice.otherId,
+    paymentMethod: invoice.customer.paymentTerms,
+    companyName: invoice.company.name,
+    companyNameEn: invoice.company.nameEn,
+    companyVatNumber: invoice.company.vatNumber,
+    companyCrNumber: invoice.company.crNumber,
+    companyUnifiedEntityNumber: invoice.company.unifiedEntityNumber,
+    companyLicenseNumber: invoice.company.licenseNumber,
+    companyAddress: companyAddress || null,
+    companyPhone: invoice.company.phone,
+    brandColor: invoice.company.brandColor,
+    branchName: invoice.branch?.nameAr,
+    customerName: invoice.customer.name,
+    customerVatNumber: invoice.customer.vatNumber,
+    customerUnifiedEntityNumber: invoice.customer.unifiedEntityNumber,
+    customerAddress: customerAddress || null,
+    lines: invoice.lines.map((l) => ({
+      description: l.description || l.account.name,
+      itemCode: l.item?.code ?? null,
+      unit: l.item?.unit ?? null,
+      quantity: Number(l.quantity),
+      unitPrice: Number(l.unitPrice),
+      discountPct: Number(l.discountPct),
+      subtotal: Number(l.subtotal),
+      vat: Number(l.vat),
+      total: Number(l.total),
+    })),
+    subtotal: Number(invoice.subtotal),
+    vatTotal: Number(invoice.vatTotal),
+    grandTotal: Number(invoice.grandTotal),
+    paidAmount: paid,
+    qrPayload: invoice.qrPayload,
+    zatcaUuid: invoice.zatcaUuid,
+    bankAccounts: bankAccounts.map((b) => ({ bankName: b.bankName, accountNumber: b.accountNumber, iban: b.iban })),
+  });
+}
+
+/**
+ * تحميل نفس نسخة PDF المُرسَلة بالإيميل — لزر "تحميل PDF" في شاشة عرض الفاتورة، بدل الاعتماد على
+ * طباعة/تصوير شاشة الـHTML (سلوك PrintShell الافتراضي بلا onDownload). يتطلب فاتورة مرحّلة فقط،
+ * بنفس شرط sendInvoiceByEmail بالضبط — تحميل "نسخة رسمية" لمسودة لم تُرقَّم/تُرحَّل بعد لا معنى له.
+ */
+export async function getSalesInvoicePdf(tenantId: string, invoiceId: string): Promise<{ buffer: Buffer; fileName: string }> {
+  const invoice = await prisma.salesInvoice.findFirst({ where: { id: invoiceId, tenantId }, include: invoicePdfInclude });
+  if (!invoice) throw notFound("الفاتورة غير موجودة");
+  if (invoice.status !== "posted") throw badRequest("لا يمكن تحميل PDF لفاتورة لم تُرحَّل بعد");
+  const buffer = await buildInvoicePdfBuffer(tenantId, invoice);
+  // اسم إنجليزي بحت (بخلاف اسم مرفق الإيميل أعلاه) — يذهب داخل ترويسة HTTP خام (Content-Disposition)
+  // لا حمولة JSON لواجهة Resend، وترويسات HTTP لا تضمن ترميز UTF-8 بأمان بلا ترميز RFC 5987 إضافي.
+  return { buffer, fileName: `invoice-${invoice.invoiceNumber}.pdf` };
 }
 
 /**
@@ -23,7 +105,7 @@ export async function sendInvoiceByEmail(
 ): Promise<SendInvoiceEmailResult> {
   const invoice = await prisma.salesInvoice.findFirst({
     where: { id: invoiceId, tenantId },
-    include: { lines: { include: { account: true, item: true } }, customer: true, company: true, branch: true, receiptAllocations: true },
+    include: invoicePdfInclude,
   });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن إرسال فاتورة لم تُرحَّل بعد");
@@ -35,61 +117,7 @@ export async function sendInvoiceByEmail(
     // نستخدم لغة الشركة نفسها (Company.language) لا لغة الطلب الحالي — رسالة موجَّهة للعميل
     // الخارجي، فيجب أن تتبع تفضيل الشركة بصرف النظر عن لغة واجهة الموظف الذي أطلق الإرسال.
     const lang = (invoice.company.language as Lang) ?? "ar";
-    const companyAddress = [invoice.company.addressBuilding, invoice.company.addressStreet, invoice.company.addressCity]
-      .filter(Boolean)
-      .join("، ");
-    const customerAddress = [invoice.customer.buildingNo, invoice.customer.street, invoice.customer.city]
-      .filter(Boolean)
-      .join("، ");
-    const paid = invoice.receiptAllocations.reduce((s, a) => s + Number(a.amount), 0);
-    const bankAccounts = await prisma.companyBankAccount.findMany({
-      where: { companyId: invoice.companyId, tenantId },
-      orderBy: { sortOrder: "asc" },
-    });
-
-    const pdfBuffer = await buildPlainInvoicePdf({
-      template: invoice.company.invoiceTemplate,
-      invoiceNumber: invoice.invoiceNumber,
-      date: invoice.date,
-      dueDate: invoice.dueDate,
-      customerReference: invoice.customerReference,
-      poNumber: invoice.poNumber,
-      salesperson: invoice.salesperson,
-      otherId: invoice.otherId,
-      paymentMethod: invoice.customer.paymentTerms,
-      companyName: invoice.company.name,
-      companyNameEn: invoice.company.nameEn,
-      companyVatNumber: invoice.company.vatNumber,
-      companyCrNumber: invoice.company.crNumber,
-      companyUnifiedEntityNumber: invoice.company.unifiedEntityNumber,
-      companyLicenseNumber: invoice.company.licenseNumber,
-      companyAddress: companyAddress || null,
-      companyPhone: invoice.company.phone,
-      brandColor: invoice.company.brandColor,
-      branchName: invoice.branch?.nameAr,
-      customerName: invoice.customer.name,
-      customerVatNumber: invoice.customer.vatNumber,
-      customerUnifiedEntityNumber: invoice.customer.unifiedEntityNumber,
-      customerAddress: customerAddress || null,
-      lines: invoice.lines.map((l) => ({
-        description: l.description || l.account.name,
-        itemCode: l.item?.code ?? null,
-        unit: l.item?.unit ?? null,
-        quantity: Number(l.quantity),
-        unitPrice: Number(l.unitPrice),
-        discountPct: Number(l.discountPct),
-        subtotal: Number(l.subtotal),
-        vat: Number(l.vat),
-        total: Number(l.total),
-      })),
-      subtotal: Number(invoice.subtotal),
-      vatTotal: Number(invoice.vatTotal),
-      grandTotal: Number(invoice.grandTotal),
-      paidAmount: paid,
-      qrPayload: invoice.qrPayload,
-      zatcaUuid: invoice.zatcaUuid,
-      bankAccounts: bankAccounts.map((b) => ({ bankName: b.bankName, accountNumber: b.accountNumber, iban: b.iban })),
-    });
+    const pdfBuffer = await buildInvoicePdfBuffer(tenantId, invoice);
 
     await sendInvoiceEmail({
       to,

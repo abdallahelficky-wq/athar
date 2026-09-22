@@ -850,6 +850,10 @@
           .cpi-print { padding: 0 !important; }
           .cpi-actions { display: none !important; }
           .cpi-close-x { display: none !important; }
+
+          /* روابط "تفصيلي" (drill-link) تُطبَع كنص عادي تماماً — بلا لون رابط ولا خط تحتي ولا أي
+             أثر يكشف أنها كانت قابلة للنقر في الشاشة. */
+          .drill-link { color: inherit !important; text-decoration: none !important; cursor: default !important; }
         }
 
         /* قالب الفاتورة "كلاسيكي احترافي" — انظر ClassicProInvoiceView.jsx للبنية الكاملة */
@@ -1110,6 +1114,12 @@
 
         /* صف إجمالي النتائج المُفلترة (كامل المجموعة، لا الصفحة الحالية فقط). */
         .filtered-summary-row td { background: rgba(47,93,90,0.06); font-weight: 700; border-top: 2px solid rgba(47,93,90,0.25); }
+
+        /* رابط "تفصيلي" (اسم عميل ← كشف حسابه، سطر صنف ← كرت الصنف) — يظهر ككتلة نص عادية
+           بلا أي مؤشر رابط (لون/خط تحتي) في الشاشة، ويُحيَّد تماماً عند الطباعة/PDF أدناه، حتى لا
+           يظهر أي أثر للرابط في المطبوعة نفسها. تأثير التفاعل (تسطير) يظهر فقط عند المرور بالمؤشر. */
+        .drill-link { color: inherit; text-decoration: none; cursor: pointer; }
+        .drill-link:hover { text-decoration: underline; }
 
         .invoices-table-wrap { overflow-x: auto; }
         .invoices-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }

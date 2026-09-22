@@ -892,6 +892,11 @@
       "types": { "in": "In", "out": "Out/write-off", "issue": "Issue", "transfer_out": "Transfer out", "transfer_in": "Transfer in", "adjustment": "Periodic settlement" },
       "empty": "No movements yet."
     },
+    "itemCard": {
+      "subtitle": "Item card", "titleFailed": "Could not load the item card", "type": "Item type",
+      "document": "Document", "quantityIn": "In", "quantityOut": "Out", "balance": "Balance",
+      "unitCost": "Cost", "closingBalance": "Closing balance"
+    },
     "stockReport": {
       "item": "Item", "code": "Code", "location": "Location", "balance": "Balance", "costPrice": "Cost price", "value": "Value",
       "empty": "No stock balances yet.",
