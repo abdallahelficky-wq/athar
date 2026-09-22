@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { searchQueryBaseSchema, DATE_RANGE_ORDER_MESSAGE, AMOUNT_RANGE_ORDER_MESSAGE } from "../../lib/searchQueryBase";
 
 export const salesInvoiceLineSchema = z.object({
   accountId: z.string().min(1),
@@ -35,36 +36,19 @@ export const unpostSchema = z.object({ pin: z.string().min(1) });
 
 export const sendEmailSchema = z.object({ email: z.string().email("بريد إلكتروني غير صالح").optional() });
 
-// أحجام صفحة محدَّدة سلفاً فقط — لا حجم حرّ (يمنع طلب صفحة بحجم ضخم يُثقِل قاعدة البيانات).
-export const INVOICE_SEARCH_PAGE_SIZES = [15, 25, 50, 100, 200] as const;
-const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+// مُعاد تصديرها للتوافق مع الاختبار القائم — القيمة الفعلية الآن في src/lib/searchPagination.ts
+// (مُشترَكة مع مردودات المبيعات، راجع salesReturns.schemas.ts).
+export { SEARCH_PAGE_SIZES as INVOICE_SEARCH_PAGE_SIZES } from "../../lib/searchPagination";
 
 /**
  * مُدخَلات بحث/فلترة/ترقيم قائمة فواتير المبيعات (searchSalesInvoices في
  * salesInvoicesSearch.service.ts) — تُطبَّق بالكامل داخل استعلام قاعدة البيانات، لا بعد الجلب.
  * كل قيمة نصية قادمة من req.query (Express لا يُحوِّل الاستعلامات تلقائياً)، لذا z.coerce لكل رقم.
+ * الحقول المشترَكة (صفحة/بحث سريع/نطاق تاريخ/نطاق مبلغ) من searchQueryBaseSchema — راجع
+ * salesReturns.schemas.ts لنفس الأساس مُوسَّعاً بحقول مردودات المبيعات بدل هذه الحقول.
  */
-export const searchSalesInvoicesQuerySchema = z
-  .object({
-    companyId: z.string().min(1).optional(),
-    page: z.coerce.number().int().min(1).default(1),
-    pageSize: z.coerce
-      .number()
-      .int()
-      .refine((v): v is (typeof INVOICE_SEARCH_PAGE_SIZES)[number] => (INVOICE_SEARCH_PAGE_SIZES as readonly number[]).includes(v), {
-        message: `حجم الصفحة يجب أن يكون أحد القيم التالية: ${INVOICE_SEARCH_PAGE_SIZES.join("، ")}`,
-      })
-      .default(25),
-    q: z
-      .string()
-      .trim()
-      .min(1)
-      .optional()
-      .transform((v) => v || undefined),
-    dateFrom: z.string().regex(DATE_ONLY_RE, "تاريخ البداية يجب أن يكون بصيغة YYYY-MM-DD").optional(),
-    dateTo: z.string().regex(DATE_ONLY_RE, "تاريخ النهاية يجب أن يكون بصيغة YYYY-MM-DD").optional(),
-    amountMin: z.coerce.number().optional(),
-    amountMax: z.coerce.number().optional(),
+export const searchSalesInvoicesQuerySchema = searchQueryBaseSchema
+  .extend({
     customerId: z.string().min(1).optional(),
     invoiceType: z.enum(["standard", "simplified"]).optional(),
     status: z.enum(["draft", "posted", "pending_submission", "zatca_accepted_posting_incomplete"]).optional(),
@@ -77,11 +61,11 @@ export const searchSalesInvoicesQuerySchema = z
     sortDir: z.enum(["asc", "desc"]).default("desc"),
   })
   .refine((data) => !data.dateFrom || !data.dateTo || data.dateFrom <= data.dateTo, {
-    message: "تاريخ البداية يجب ألا يكون بعد تاريخ النهاية",
+    message: DATE_RANGE_ORDER_MESSAGE,
     path: ["dateFrom"],
   })
   .refine((data) => data.amountMin === undefined || data.amountMax === undefined || data.amountMin <= data.amountMax, {
-    message: "الحد الأدنى للمبلغ يجب ألا يكون أكبر من الحد الأعلى",
+    message: AMOUNT_RANGE_ORDER_MESSAGE,
     path: ["amountMin"],
   });
 

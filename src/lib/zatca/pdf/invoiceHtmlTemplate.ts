@@ -63,6 +63,10 @@ export interface InvoicePdfData {
   grandTotal: number;
   qrDataUrl: string;
   zatcaUuid: string;
+  // إشعار دائن/مدين مرتبط بفاتورة أصلية فقط (راجع resolveBillingReferenceNumber في
+  // salesReturns.service.ts) — غائب تماماً لفاتورة ضريبية عادية، أو لإشعار داخلي بلا فاتورة مرتبطة.
+  billingReference?: { number: string; date: string } | null;
+  issuanceReason?: string | null;
 }
 
 export function buildInvoiceHtml(data: InvoicePdfData): string {
@@ -138,6 +142,12 @@ export function buildInvoiceHtml(data: InvoicePdfData): string {
   <div class="meta-row">
     <div>${bi("العميل", "Customer")}: <strong>${escapeHtml(data.customerName)}</strong>${data.customerVatNumber ? ` — ${bi("الرقم الضريبي", "VAT Number")}: ${escapeHtml(data.customerVatNumber)}` : ""}</div>
   </div>
+  ${data.billingReference ? `<div class="meta-row">
+    <div>${bi("الفاتورة الأصلية", "Original Invoice")}: <strong>${escapeHtml(data.billingReference.number)}</strong> — ${escapeHtml(data.billingReference.date)}</div>
+  </div>` : ""}
+  ${data.issuanceReason ? `<div class="meta-row">
+    <div>${bi("السبب", "Reason")}: <strong>${escapeHtml(data.issuanceReason)}</strong></div>
+  </div>` : ""}
 
   <table class="lines">
     <thead>

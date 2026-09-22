@@ -1,23 +1,41 @@
-import { useSearchParams, Link } from "react-router-dom";
-import { listItems } from "../../api/items";
-import ReturnLinesEditor from "./ReturnLinesEditor";
-import { returnInvoiceLines } from "./returnInvoiceLines";
 import React, { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { listCustomers } from "../../api/customers";
-import { listAccounts } from "../../api/accounts";
-import { listSalesInvoices, getSalesInvoice } from "../../api/salesInvoices";
-import { listSalesReturns, createSalesReturn, unpostSalesReturn, retrySalesReturn, completeSalesReturn } from "../../api/salesReturns";
+import { searchSalesReturns, getSalesReturn, deleteSalesReturn, unpostSalesReturn, retrySalesReturn, completeSalesReturn } from "../../api/salesReturns";
 import { fmt } from "../../legacy/constants";
-import { emptySalesLine as emptyInvoiceLine } from "./SalesInvoiceLinesEditor";
-import UnpostModal from "../shared/UnpostModal";
-import AttachmentsPanel from "../shared/AttachmentsPanel";
 import { currencyLabel } from "../../shared/countries";
 import { currentFiscalYearStartDateOnly, todayDateOnly } from "../../shared/fiscalYear";
 import { routes } from "../../routes";
+import { Icon } from "../../legacy/shared";
+import { useToast, ToastHost } from "../shared/Toast";
+import UnpostModal from "../shared/UnpostModal";
+import AttachmentsPanel from "../shared/AttachmentsPanel";
+import FilterBar from "../shared/FilterBar";
+import PaginationBar from "../shared/PaginationBar";
+import SortableTh from "../shared/SortableTh";
+import CustomerPicker from "../shared/CustomerPicker";
+import { useUrlQueryState } from "../shared/useUrlQueryState";
+import { useDebouncedValue } from "../shared/useDebouncedValue";
+import InvoicePicker from "./InvoicePicker";
+import SalesReturnFormModal from "./SalesReturnFormModal";
+import SalesReturnViewModal from "./SalesReturnViewModal";
+import ReturnPostedBlockModal from "./ReturnPostedBlockModal";
 
-// حالة المردود أصبحت أربع قيم ممكنة منذ إصلاح مسار الترحيل الآمن على ثلاث مراحل لزاتكا، لا
-// اثنتين فقط (posted/draft) — راجع نفس الشرح بالضبط في postingStatusLabel بملف InvoicesTab.jsx.
+const PAGE_SIZE_OPTIONS = [15, 25, 50, 100, 200];
+const SUBTYPE_OPTIONS = ["standard", "simplified"];
+const REFUND_METHOD_OPTIONS = ["account", "cash", "bank"];
+const POSTING_STATUS_OPTIONS = ["draft", "posted", "pending_submission", "zatca_accepted_posting_incomplete"];
+const ZATCA_STATUS_OPTIONS = ["sent", "sent_with_notes", "not_sent", "not_applicable"];
+
+const FILTER_DEFAULTS = {
+  q: "", dateFrom: "", dateTo: "", amountMin: "", amountMax: "", customerId: "", originalInvoiceId: "",
+  subtype: "", refundMethod: "", status: "", zatcaStatus: "",
+  sortBy: "date", sortDir: "desc", page: 1, pageSize: 25,
+};
+const DRAFT_KEYS = ["dateFrom", "dateTo", "amountMin", "amountMax", "customerId", "originalInvoiceId", "subtype", "refundMethod", "status", "zatcaStatus"];
+const EMPTY_SUMMARY = { count: 0, netTotal: "0", vatTotal: "0", grandTotal: "0" };
+
+// نفس تبرير postingStatusLabel في InvoicesTab.jsx بالضبط — أربع حالات ترحيل ممكنة، لا اثنتين.
 function postingStatusLabel(status, t) {
   if (status === "posted") return t("sales.returns.posted");
   if (status === "pending_submission") return t("sales.returns.pendingSubmission");
@@ -25,197 +43,342 @@ function postingStatusLabel(status, t) {
   return t("sales.returns.draft");
 }
 
+function zatcaGroupClassName(group) {
+  return `status-badge ${group === "sent" ? "status-posted" : group === "not_applicable" ? "status-neutral" : "status-warning"}`;
+}
+
 export default function ReturnsTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
   const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [loadingInvoice, setLoadingInvoice] = useState(false);
-  const [items, setItems] = useState([]);
-  const [message, setMessage] = useState("");
-  const [customers, setCustomers] = useState([]);
-  const [accounts, setAccounts] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [returns, setReturns] = useState([]);
+  const [urlState, setUrlState] = useUrlQueryState(FILTER_DEFAULTS);
+  const [result, setResult] = useState({ items: [], totalCount: 0, summary: EMPTY_SUMMARY });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [reloadTick, setReloadTick] = useState(0);
+  const { toast, notify, dismiss } = useToast();
 
-  const [customerId, setCustomerId] = useState("");
-  const [relatedInvoiceId, setRelatedInvoiceId] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [reason, setReason] = useState("");
-  const [refundMethod, setRefundMethod] = useState("account");
-  const [lines, setLines] = useState([emptyInvoiceLine()]);
+  const [qInput, setQInput] = useState(urlState.q);
+  const debouncedQ = useDebouncedValue(qInput, 400);
+  useEffect(() => { setQInput(urlState.q); }, [urlState.q]);
+  useEffect(() => {
+    if (debouncedQ !== urlState.q) setUrlState({ q: debouncedQ, page: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQ]);
+
+  const [draft, setDraft] = useState(() => Object.fromEntries(DRAFT_KEYS.map((k) => [k, urlState[k]])));
+  useEffect(() => {
+    setDraft(Object.fromEntries(DRAFT_KEYS.map((k) => [k, urlState[k]])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...DRAFT_KEYS.map((k) => urlState[k])]);
+
+  const [formModal, setFormModal] = useState(null);
+  const [viewReturn, setViewReturn] = useState(null);
+  const [autoPrint, setAutoPrint] = useState(false);
+  const [blockModal, setBlockModal] = useState(null);
   const [unpostTarget, setUnpostTarget] = useState(null);
   const [attachmentsFor, setAttachmentsFor] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [resumingId, setResumingId] = useState(null);
+
+  const reload = () => setReloadTick((n) => n + 1);
 
   useEffect(() => {
-    if (!companyId) return;
-    let cancelled = false;
-    setSelectedInvoice(null); setRelatedInvoiceId(""); setLines([emptyInvoiceLine()]); setError("");
-    Promise.all([listCustomers(companyId), listAccounts({ companyId }), listSalesInvoices(companyId), listItems(companyId)])
-      .then(([cs, accs, invs, loadedItems]) => {
-        if (cancelled) return;
-        setCustomers(cs); setAccounts(accs.filter((a) => a.type === "revenue")); setInvoices(invs); setItems(loadedItems);
-        const id = searchParams.get("invoiceId");
-        const invoice = invs.find((inv) => inv.id === id && inv.status === "posted");
-        setCustomerId(invoice?.customerId || cs[0]?.id || "");
-        if (invoice) { setRelatedInvoiceId(invoice.id); setRefundMethod("account"); }
-        else if (id) setError(t("creditNote.unavailable"));
-      }).catch((e) => !cancelled && setError(e.message));
-    return () => { cancelled = true; };
-  }, [companyId, searchParams.get("invoiceId")]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setSelectedInvoice(null); setError("");
-    if (!relatedInvoiceId) { setLines([emptyInvoiceLine()]); setLoadingInvoice(false); return; }
-    setLoadingInvoice(true); setLines([]);
-    getSalesInvoice(relatedInvoiceId).then((invoice) => {
-      if (cancelled) return;
-      if (invoice.companyId !== companyId || invoice.customerId !== customerId || invoice.status !== "posted") throw new Error(t("creditNote.unavailable"));
-      setSelectedInvoice(invoice); setLines(returnInvoiceLines(invoice));
-    }).catch((e) => !cancelled && setError(e.message)).finally(() => !cancelled && setLoadingInvoice(false));
-    return () => { cancelled = true; };
-  }, [relatedInvoiceId, companyId, customerId]);
-
-  const reload = () => {
     if (!companyId) return;
     setLoading(true);
-    listSalesReturns(companyId).then(setReturns).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    searchSalesReturns(companyId, urlState)
+      .then(setResult)
+      .catch((e) => notify(e.message, "error"))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, JSON.stringify(urlState), reloadTick]);
+
+  // يُبقي تدفّق "↩ إرجاع الفاتورة" من InvoiceCreditNotes.jsx يعمل تماماً كما كان: يفتح نافذة
+  // الإنشاء مُعبَّأة مسبقاً بفاتورة محدَّدة، لا فلترة القائمة بها — راجع SalesReturnFormModal.jsx.
+  useEffect(() => {
+    const invoiceId = searchParams.get("invoiceId");
+    if (invoiceId) {
+      setFormModal({ mode: "create", prefillInvoiceId: invoiceId });
+      setSearchParams((prev) => { const next = new URLSearchParams(prev); next.delete("invoiceId"); return next; }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
+
+  const money = (n) => `${fmt(Number(n))} ${currency}`;
+
+  const applyDraft = () => setUrlState({ ...draft, page: 1 });
+  const resetFilters = () => {
+    setDraft(Object.fromEntries(DRAFT_KEYS.map((k) => [k, FILTER_DEFAULTS[k]])));
+    setQInput("");
+    setUrlState({ ...FILTER_DEFAULTS });
   };
-  useEffect(reload, [companyId]);
 
-  // فاتورة أصلية غير مرحّلة (مسودة، أو بانتظار إرسال زاتكا، أو استُلم ردّها لكن لم يكتمل ترحيلها
-  // المحلي بعد) لا يجوز ربط إشعار دائن بها — الخادم يرفض هذا صراحةً الآن، فتُستبعَد من القائمة هنا
-  // حتى لا يظهر خيار سيُرفَض عند الحفظ.
-  const customerInvoices = invoices.filter((i) => i.customerId === customerId && i.status === "posted");
+  const onSort = (sortBy, sortDir) => setUrlState({ sortBy, sortDir, page: 1 });
 
-  const save = async () => {
-    if (!customerId || saving || loadingInvoice) return;
-    if (relatedInvoiceId && (!selectedInvoice || !reason.trim())) { setError(t("creditNote.reasonRequired")); return; }
-    setError(""); setMessage("");
-    setSaving(true);
+  const withFullReturn = async (id, then) => {
     try {
-      const created = await createSalesReturn({
-        companyId, customerId, relatedInvoiceId: relatedInvoiceId || undefined, date, reason, refundMethod,
-        lines: lines.filter((l) => l.accountId && Number(l.quantity) > 0).map((l) => ({ ...l, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), discountPct: Number(l.discountPct) })),
-      });
-      setMessage(t(created.status === "posted" ? "creditNote.saved" : "creditNote.savedPending", { number: created.returnNumber }));
-      setRelatedInvoiceId(""); setSelectedInvoice(null); setSearchParams({});
-      setLines([emptyInvoiceLine()]);
-      setReason("");
-      reload();
+      const full = await getSalesReturn(id);
+      then(full);
     } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
+      notify(err.message, "error");
     }
   };
 
-  const resumeReturn = async (salesReturn) => {
-    if (saving) return;
-    setSaving(true); setError("");
+  const onSaved = (message) => {
+    setFormModal(null);
+    reload();
+    notify(message);
+  };
+
+  const onViewClick = (row) => withFullReturn(row.id, setViewReturn);
+  const onPrintClick = (row) => withFullReturn(row.id, (full) => { setViewReturn(full); setAutoPrint(true); });
+
+  const onEditClick = (row) => {
+    if (row.status === "posted") { setBlockModal({ id: row.id, number: row.returnNumber, action: t("sales.returns.blockAction.edit") }); return; }
+    withFullReturn(row.id, (full) => setFormModal({ mode: "edit", editingReturn: full }));
+  };
+
+  const onDeleteClick = async (row) => {
+    if (row.status !== "draft") { notify(t("sales.returns.notify.deleteNonDraft"), "error"); return; }
+    if (!window.confirm(t("sales.returns.notify.confirmDelete", { number: row.returnNumber }))) return;
     try {
-      const updated = await (salesReturn.status === "pending_submission" ? retrySalesReturn(salesReturn.id) : completeSalesReturn(salesReturn.id));
-      setMessage(t(updated.status === "posted" ? "creditNote.saved" : "creditNote.savedPending", { number: updated.returnNumber }));
-      if (updated.rejectionReason) setError(updated.rejectionReason);
+      await deleteSalesReturn(row.id);
       reload();
-    } catch (err) { setError(err.message); } finally { setSaving(false); }
+      notify(t("sales.returns.notify.deleted", { number: row.returnNumber }));
+    } catch (err) {
+      notify(err.message, "error");
+    }
   };
 
   const doUnpost = async (pin) => {
     await unpostSalesReturn(unpostTarget.id, pin);
+    const number = unpostTarget.returnNumber;
     setUnpostTarget(null);
     reload();
+    notify(t("sales.returns.notify.unposted", { number }));
   };
 
-  if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
+  const onUnpostedFromBlock = () => {
+    setBlockModal(null);
+    reload();
+    notify(t("sales.returns.notify.unpostedFromBlock", { number: blockModal.number }));
+  };
+
+  const resumeReturn = async (row) => {
+    if (resumingId) return;
+    setResumingId(row.id);
+    try {
+      const updated = await (row.status === "pending_submission" ? retrySalesReturn(row.id) : completeSalesReturn(row.id));
+      reload();
+      const baseMessage = t(updated.status === "posted" ? "creditNote.saved" : "creditNote.savedPending", { number: updated.returnNumber });
+      notify(updated.rejectionReason ? `${baseMessage} — ${updated.rejectionReason}` : baseMessage, updated.rejectionReason ? "error" : "success");
+    } catch (err) {
+      notify(err.message, "error");
+    } finally {
+      setResumingId(null);
+    }
+  };
+
+  const colSpan = 8;
+  const items = result.items;
+  const summary = result.summary || EMPTY_SUMMARY;
 
   return (
     <div>
-      <div className="panel form-panel">
-        <div className="form-grid header-grid">
-          <label>{t("sales.returns.customer")}
-            <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); setRelatedInvoiceId(""); }}>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </label>
-          <label>{t("sales.returns.originalInvoice")}
-            <select value={relatedInvoiceId} onChange={(e) => setRelatedInvoiceId(e.target.value)}>
-              <option value="">{t("sales.returns.noLink")}</option>
-              {customerInvoices.map((i) => <option key={i.id} value={i.id}>{i.invoiceNumber}</option>)}
-            </select>
-          </label>
-          <label>{t("sales.returns.date")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-          <label>{t("sales.returns.refundMethod")}
-            <select value={refundMethod} onChange={(e) => setRefundMethod(e.target.value)}>
-              <option value="account">{t("sales.returns.refundAccount")}</option>
-              <option value="cash">{t("sales.returns.refundCash")}</option>
-              <option value="bank">{t("sales.returns.refundBank")}</option>
-            </select>
-          </label>
-          <label className="memo-field">{t("sales.returns.reason")}<input type="text" value={reason} onChange={(e) => setReason(e.target.value)} /></label>
-        </div>
-
-        {loadingInvoice ? <p>{t("salesInvoices.loading")}</p> : <ReturnLinesEditor lines={lines} setLines={setLines} invoice={selectedInvoice} items={items} accounts={accounts} currency={currency} />}
-        {selectedInvoice && <p>{t("creditNote.editHint")}</p>}
-        {message && <p role="status">{message}</p>}
-        {error && <p className="balance-bad">{error}</p>}
-        <div className="form-btn-group">
-          <button className="btn-primary" onClick={save} disabled={!customerId || saving || loadingInvoice || !lines.some((line) => Number(line.quantity) > 0) || (!!relatedInvoiceId && !selectedInvoice)}>{t("sales.returns.saveAndPost")}</button>
-        </div>
+      <div className="form-btn-group" style={{ justifyContent: "flex-start", marginBottom: 14 }}>
+        <button className="btn-primary" onClick={() => setFormModal({ mode: "create" })}>{t("sales.returns.addButton")}</button>
       </div>
+
+      <FilterBar onSearch={applyDraft} onReset={resetFilters}>
+        <label>
+          {t("sales.returns.search.quickSearchLabel")}
+          <input type="text" value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("sales.returns.search.quickSearchPlaceholder")} />
+        </label>
+        <label>
+          {t("filters.dateFrom")}
+          <input type="date" value={draft.dateFrom} onChange={(e) => setDraft((d) => ({ ...d, dateFrom: e.target.value }))} />
+        </label>
+        <label>
+          {t("filters.dateTo")}
+          <input type="date" value={draft.dateTo} onChange={(e) => setDraft((d) => ({ ...d, dateTo: e.target.value }))} />
+        </label>
+        <label>
+          {t("filters.amountMin")}
+          <input type="number" step="0.01" value={draft.amountMin} onChange={(e) => setDraft((d) => ({ ...d, amountMin: e.target.value }))} />
+        </label>
+        <label>
+          {t("filters.amountMax")}
+          <input type="number" step="0.01" value={draft.amountMax} onChange={(e) => setDraft((d) => ({ ...d, amountMax: e.target.value }))} />
+        </label>
+        <label>
+          {t("filters.customer")}
+          <CustomerPicker companyId={companyId} value={draft.customerId} onChange={(id) => setDraft((d) => ({ ...d, customerId: id }))} />
+        </label>
+        <label>
+          {t("sales.returns.originalInvoice")}
+          <InvoicePicker companyId={companyId} value={draft.originalInvoiceId} onChange={(id) => setDraft((d) => ({ ...d, originalInvoiceId: id }))} />
+        </label>
+        <label>
+          {t("sales.returns.search.subtypeLabel")}
+          <select value={draft.subtype} onChange={(e) => setDraft((d) => ({ ...d, subtype: e.target.value }))}>
+            <option value="">{t("sales.returns.search.subtypeAll")}</option>
+            {SUBTYPE_OPTIONS.map((v) => (
+              <option key={v} value={v}>{t(`salesInvoices.search.invoiceType${v === "standard" ? "Standard" : "Simplified"}`)}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t("sales.returns.search.refundMethodLabel")}
+          <select value={draft.refundMethod} onChange={(e) => setDraft((d) => ({ ...d, refundMethod: e.target.value }))}>
+            <option value="">{t("sales.returns.search.refundMethodAll")}</option>
+            {REFUND_METHOD_OPTIONS.map((v) => (
+              <option key={v} value={v}>{t(`sales.returns.refund${v === "cash" ? "Cash" : v === "bank" ? "Bank" : "Account"}`)}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t("sales.returns.search.postingStatusLabel")}
+          <select value={draft.status} onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))}>
+            <option value="">{t("sales.returns.search.postingStatusAll")}</option>
+            {POSTING_STATUS_OPTIONS.map((v) => (
+              <option key={v} value={v}>{postingStatusLabel(v, t)}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t("salesInvoices.zatcaStatusFilterLabel")}
+          <select value={draft.zatcaStatus} onChange={(e) => setDraft((d) => ({ ...d, zatcaStatus: e.target.value }))}>
+            <option value="">{t("salesInvoices.search.zatcaStatusAll")}</option>
+            {ZATCA_STATUS_OPTIONS.map((key) => (
+              <option key={key} value={key}>{t(`salesInvoices.zatcaSummary.${key}`)}</option>
+            ))}
+          </select>
+        </label>
+      </FilterBar>
 
       {loading ? <p className="empty">{t("sales.returns.loading")}</p> : (
         <div className="panel">
-          <table className="ledger-table">
+          <table className="ledger-table responsive-table">
             <thead>
               <tr>
-                <th>{t("sales.returns.table.number")}</th><th>{t("sales.returns.table.customer")}</th>
-                <th>{t("sales.returns.table.date")}</th><th>{t("sales.returns.table.total")}</th>
-                <th>{t("sales.returns.table.status")}</th><th></th>
+                <SortableTh label={t("sales.returns.table.number")} sortKey="returnNumber" sort={urlState} onSort={onSort} />
+                <SortableTh label={t("sales.returns.table.customer")} sortKey="customerName" sort={urlState} onSort={onSort} />
+                <th>{t("sales.returns.table.originalInvoice")}</th>
+                <SortableTh label={t("sales.returns.table.date")} sortKey="date" sort={urlState} onSort={onSort} />
+                <SortableTh label={t("sales.returns.table.total")} sortKey="grandTotal" sort={urlState} onSort={onSort} className="num" />
+                <th>{t("sales.returns.table.postingStatus")}</th>
+                <th>{t("sales.returns.table.zatcaStatus")}</th>
+                <th>{t("sales.returns.table.actions")}</th>
               </tr>
             </thead>
             <tbody>
-              {returns.map((r) => (
-                <React.Fragment key={r.id}>
-                  <tr>
-                    <td>{r.returnNumber}</td>
-                    <td>
-                      {r.customer?.id ? (
+              {items.map((row) => {
+                const posted = row.status === "posted";
+                const isDraft = row.status === "draft";
+                return (
+                  <React.Fragment key={row.id}>
+                    <tr>
+                      <td data-label={t("sales.returns.table.number")}>{row.returnNumber}</td>
+                      <td data-label={t("sales.returns.table.customer")}>
                         <Link
                           className="drill-link"
-                          to={routes.customerStatement(r.customer.id, r.companyId, currentFiscalYearStartDateOnly(), todayDateOnly())}
+                          to={routes.customerStatement(row.customerId, row.companyId, currentFiscalYearStartDateOnly(), todayDateOnly())}
                         >
-                          {r.customer.name}
+                          {row.customerName}
                         </Link>
-                      ) : r.customer?.name}
-                    </td>
-                    <td>{r.date.slice(0, 10)}</td>
-                    <td className="num">{fmt(r.grandTotal)}</td>
-                    <td><span className="status-badge">{postingStatusLabel(r.status, t)}</span></td>
-                    <td className="row-actions">
-                      {["pending_submission", "zatca_accepted_posting_incomplete"].includes(r.status) && <button className="btn-secondary" disabled={saving} onClick={() => resumeReturn(r)}>{t(r.status === "pending_submission" ? "salesInvoices.zatcaSummary.resend" : "creditNote.complete")}</button>}
-                      {r.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(r)}>{t("sales.returns.unpost")}</button>}
-                      <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === r.id ? null : r.id)}>
-                        {attachmentsFor === r.id ? t("sales.returns.attachmentsHide") : t("sales.returns.attachmentsShow")}
-                      </button>
-                    </td>
-                  </tr>
-                  {attachmentsFor === r.id && (
-                    <tr><td colSpan={6}><AttachmentsPanel entityType="sales_return" entityId={r.id} /></td></tr>
-                  )}
-                </React.Fragment>
-              ))}
-              {returns.length === 0 && <tr><td className="empty" colSpan={6}>{t("sales.returns.empty")}</td></tr>}
+                      </td>
+                      <td data-label={t("sales.returns.table.originalInvoice")}>
+                        {row.relatedInvoiceNumber ? (
+                          <Link className="drill-link" to={routes.invoiceByNumber(row.relatedInvoiceNumber)}>{row.relatedInvoiceNumber}</Link>
+                        ) : t("sales.returns.noLink")}
+                      </td>
+                      <td data-label={t("sales.returns.table.date")}>{row.date.slice(0, 10)}</td>
+                      <td className="num" data-label={t("sales.returns.table.total")}>{fmt(Number(row.grandTotal))}</td>
+                      <td data-label={t("sales.returns.table.postingStatus")}><span className="status-badge">{postingStatusLabel(row.status, t)}</span></td>
+                      <td data-label={t("sales.returns.table.zatcaStatus")}>
+                        <button type="button" className={zatcaGroupClassName(row.zatcaGroup)} onClick={() => onViewClick(row)}>
+                          {t(`salesInvoices.zatcaSummary.${row.zatcaGroup}`)}
+                        </button>
+                        {["pending_submission", "zatca_accepted_posting_incomplete"].includes(row.status) && (
+                          <button type="button" className="btn-secondary" disabled={!!resumingId} onClick={() => resumeReturn(row)}>
+                            {t(resumingId === row.id ? "salesInvoices.zatcaSummary.sending" : row.status === "pending_submission" ? "salesInvoices.zatcaSummary.resend" : "creditNote.complete")}
+                          </button>
+                        )}
+                      </td>
+                      <td className="row-actions">
+                        <button className="icon-btn" title={t("sales.returns.actionsMenu.view")} onClick={() => onViewClick(row)}><Icon.Eye /></button>
+                        <button className="icon-btn" title={t("sales.returns.actionsMenu.edit")} onClick={() => onEditClick(row)}><Icon.Edit /></button>
+                        {posted && <button className="icon-btn icon-btn-warn" title={t("sales.returns.unpost")} onClick={() => setUnpostTarget(row)}><Icon.Unlock /></button>}
+                        {isDraft && <button className="icon-btn icon-btn-danger" title={t("sales.returns.actionsMenu.delete")} onClick={() => onDeleteClick(row)}><Icon.Trash /></button>}
+                        <button className="icon-btn" title={t("sales.returns.actionsMenu.print")} onClick={() => onPrintClick(row)}><Icon.Printer /></button>
+                        <button className="icon-btn" title={attachmentsFor === row.id ? t("sales.returns.attachmentsHide") : t("sales.returns.attachmentsShow")} onClick={() => setAttachmentsFor(attachmentsFor === row.id ? null : row.id)}>
+                          <Icon.BookOpen />
+                        </button>
+                      </td>
+                    </tr>
+                    {attachmentsFor === row.id && (
+                      <tr><td colSpan={colSpan}><AttachmentsPanel entityType="sales_return" entityId={row.id} /></td></tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+              {items.length === 0 && <tr><td className="empty" colSpan={colSpan}>{t("sales.returns.empty")}</td></tr>}
+              {items.length > 0 && (
+                <tr className="filtered-summary-row">
+                  <td colSpan={2}>{t("sales.returns.search.summary.count")}: {summary.count}</td>
+                  <td>{t("sales.returns.search.summary.netTotal")}: {money(summary.netTotal)}</td>
+                  <td className="num">{t("sales.returns.search.summary.vatTotal")}: {money(summary.vatTotal)}</td>
+                  <td colSpan={4}>{t("sales.returns.search.summary.grandTotal")}: {money(summary.grandTotal)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
+
+          <PaginationBar
+            page={urlState.page}
+            pageSize={urlState.pageSize}
+            totalCount={result.totalCount}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            onPageChange={(page) => setUrlState({ page })}
+            onPageSizeChange={(pageSize) => setUrlState({ pageSize, page: 1 })}
+          />
         </div>
       )}
 
+      {formModal && (
+        <SalesReturnFormModal
+          companyId={companyId}
+          companies={companies}
+          editingReturn={formModal.mode === "edit" ? formModal.editingReturn : null}
+          prefillInvoiceId={formModal.mode === "create" ? formModal.prefillInvoiceId : undefined}
+          onClose={() => setFormModal(null)}
+          onSaved={onSaved}
+        />
+      )}
+
+      {viewReturn && (
+        <SalesReturnViewModal
+          salesReturn={viewReturn}
+          companies={companies}
+          autoPrint={autoPrint}
+          onClose={() => { setViewReturn(null); setAutoPrint(false); }}
+          onChanged={reload}
+        />
+      )}
+
+      {blockModal && (
+        <ReturnPostedBlockModal
+          returnId={blockModal.id}
+          returnNumber={blockModal.number}
+          action={blockModal.action}
+          onClose={() => setBlockModal(null)}
+          onUnposted={onUnpostedFromBlock}
+        />
+      )}
+
       {unpostTarget && <UnpostModal onCancel={() => setUnpostTarget(null)} onConfirm={doUnpost} />}
+
+      <ToastHost toast={toast} onDismiss={dismiss} />
     </div>
   );
 }

@@ -618,10 +618,51 @@
       "reason": "Return reason",
       "saveAndPost": "Save and post return",
       "loading": "Loading...",
-      "table": { "number": "Number", "customer": "Customer", "date": "Date", "total": "Total", "status": "Status" },
+      "addButton": "+ Add credit note",
+      "search": {
+        "quickSearchLabel": "Quick search", "quickSearchPlaceholder": "Credit note number, customer name, or original invoice number...",
+        "subtypeLabel": "Note type", "subtypeAll": "— All types —",
+        "refundMethodLabel": "Refund method", "refundMethodAll": "— All refund methods —",
+        "postingStatusLabel": "Posting status", "postingStatusAll": "— All posting statuses —",
+        "originalInvoicePlaceholder": "Search by invoice number...", "originalInvoiceAll": "— All invoices —",
+        "summary": { "count": "Total posted credit notes", "netTotal": "Net total", "vatTotal": "VAT total", "grandTotal": "Grand total" }
+      },
+      "table": {
+        "number": "Number", "customer": "Customer", "originalInvoice": "Original invoice", "date": "Date", "total": "Total",
+        "postingStatus": "Posting status", "zatcaStatus": "ZATCA status", "actions": "Actions"
+      },
       "posted": "Posted", "draft": "Draft", "pendingSubmission": "Awaiting ZATCA submission", "postingIncomplete": "ZATCA response received, local posting incomplete",
       "unpost": "Unpost", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
-      "empty": "No returns yet."
+      "empty": "No returns yet.",
+      "blockAction": { "edit": "edit" },
+      "actionsMenu": { "view": "View credit note", "edit": "Edit credit note", "delete": "Delete credit note", "print": "Print credit note" },
+      "notify": {
+        "deleteNonDraft": "Can't delete a posted credit note — it must be unposted first.",
+        "confirmDelete": "Delete credit note {{number}}?",
+        "deleted": "Credit note {{number}} deleted.",
+        "unposted": "Credit note {{number}} was unposted, and its journal entry was deleted. It's now a draft.",
+        "unpostedFromBlock": "Credit note {{number}} was unposted. It's now a draft and you can continue.",
+        "emailSent": "Credit note {{number}} was sent to {{email}}.",
+        "emailFailed": "Couldn't send the credit note — try again later."
+      },
+      "form": {
+        "titleCreate": "New credit note", "titleEdit": "Edit credit note {{number}}",
+        "cancel": "Cancel", "close": "Close", "saveChanges": "Save changes",
+        "savedEdit": "Changes to credit note {{number}} were saved."
+      },
+      "view": { "subtitle": "Credit note", "returnNumber": "Credit note number", "date": "Date", "subtype": "Note type" },
+      "postedBlockModal": {
+        "title": "Unpost the credit note first", "close": "Close",
+        "message": "Credit note {{number}} is posted, and can't be {{action}} until it's unposted. After unposting, the credit note becomes a draft and its journal entry is deleted — only then can you {{action}} it.",
+        "cancel": "Cancel", "unpost": "Unpost",
+        "unpostTitle": "Unpost credit note {{number}}"
+      },
+      "sendEmailModal": {
+        "title": "Email credit note {{number}}", "close": "Close",
+        "note": "This customer has no email on file — enter an alternate email to send a copy of the credit note to it, one time.",
+        "email": "Email", "errRequired": "Email is required", "errFailed": "Couldn't send — try again",
+        "cancel": "Cancel", "send": "Send", "sending": "Sending..."
+      }
     },
     "receipts": {
       "customer": "Customer", "date": "Receipt date", "method": "Collection method", "methodCash": "Cash", "methodBank": "Bank",

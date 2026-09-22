@@ -232,6 +232,99 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
   });
 }
 
+/** جلب مردود واحد كاملاً بمعرّفه — لشاشة عرض إشعار الدائن (نفس نمط getSalesInvoice تماماً)،
+ * لا نقطة نهاية GET /:id كانت موجودة لمردودات المبيعات قبل هذا. relatedInvoiceId حقل خام بلا
+ * علاقة Prisma معرَّفة (راجع schema.prisma — لا @relation عليه)، فالفاتورة الأصلية (رقمها/تاريخها/
+ * إجماليها، لعرضها كرابط في شاشة العرض) تُجلَب هنا بجلب إضافي منفصل بدل include، بلا أي تعديل
+ * على المخطط (schema) أو أي منطق زاتكا — قراءة عرض بحتة.
+ *
+ * SalesReturnLine (خلافاً لـSalesInvoiceLine) لا يحمل itemId إطلاقاً — لا رابط "كرت الصنف" مباشر
+ * لسطر مردود. لسطر مأخوذ فعلياً من فاتورة أصلية (originalInvoiceLineId)، يُشتق itemId هنا بمطابقته
+ * بسطر تلك الفاتورة (نفس الفاتورة المجلوبة أعلاه لهذا الغرض بالضبط)؛ سطر بلا originalInvoiceLineId
+ * (مردود داخلي/سطر أُضيف يدوياً) يبقى بلا رابط صنف، لا خطأ. */
+export async function getSalesReturn(tenantId: string, id: string) {
+  const salesReturn = await prisma.salesReturn.findFirst({ where: { id, tenantId }, include: returnInclude });
+  if (!salesReturn) throw notFound("المردود غير موجود");
+  const relatedInvoice = salesReturn.relatedInvoiceId
+    ? await prisma.salesInvoice.findFirst({
+        where: { id: salesReturn.relatedInvoiceId, tenantId },
+        select: { id: true, invoiceNumber: true, date: true, grandTotal: true },
+      })
+    : null;
+  const originalLines = salesReturn.relatedInvoiceId
+    ? await prisma.salesInvoiceLine.findMany({
+        where: { invoiceId: salesReturn.relatedInvoiceId },
+        select: { id: true, itemId: true },
+      })
+    : [];
+  const itemIdByOriginalLineId = new Map(originalLines.map((l) => [l.id, l.itemId]));
+  const lines = salesReturn.lines.map((l) => ({
+    ...l,
+    itemId: l.originalInvoiceLineId ? itemIdByOriginalLineId.get(l.originalInvoiceLineId) ?? null : null,
+  }));
+  return { ...salesReturn, lines, relatedInvoice };
+}
+
+/**
+ * تعديل مسودة مردود (بعد فك ترحيل — راجع unpostSalesReturn: لا يُسمَح بفكّ ترحيل مردود مرتبط
+ * بسلسلة زاتكا أصلاً، فأي "مسودة" هنا zatcaStatus=not_applicable دائماً وbلا قيد محاسبي بعد) —
+ * يُحدِّث بيانات الصف وسطوره فقط، بلا أي حجز/إرسال زاتكا (ذلك حصراً في postSalesReturn المنفصلة
+ * أدناه، بنفس فصل المسؤوليتين تماماً في updateSalesInvoice/postSalesInvoice).
+ */
+export async function updateSalesReturn(tenantId: string, id: string, input: ReturnInput): Promise<SalesReturnWithZatcaChain> {
+  const existing = await prisma.salesReturn.findFirst({ where: { id, tenantId } });
+  if (!existing) throw notFound("المردود غير موجود");
+  if (existing.status !== "draft") throw badRequest("لا يمكن تعديل مردود مرحّل، يجب فك ترحيله أولاً");
+
+  const company = await prisma.company.findFirst({ where: { id: input.companyId, tenantId } });
+  if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
+  const customer = await prisma.customer.findFirst({ where: { id: input.customerId, tenantId, companyId: input.companyId } });
+  if (!customer) throw badRequest("العميل غير موجود ضمن هذه الشركة");
+  assertCreditNoteRequiredFieldsForOnboardedCompany(company, input.relatedInvoiceId, input.reason);
+
+  const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
+  const accounts = await prisma.account.findMany({
+    where: { id: { in: accountIds }, tenantId, companyId: input.companyId, type: "revenue", isPosting: true, isActive: true, isArchived: false },
+  });
+  if (accounts.length !== accountIds.length) throw badRequest("أحد حسابات الإيراد المختارة غير صالح");
+
+  const original = input.relatedInvoiceId
+    ? await prisma.salesInvoice.findFirst({ where: { id: input.relatedInvoiceId, tenantId, companyId: input.companyId, customerId: input.customerId }, include: { lines: true } })
+    : null;
+  if (input.relatedInvoiceId && !original) throw badRequest("الفاتورة الأصلية لا تخص العميل والشركة المحددين");
+  const billingReferenceId = await resolveBillingReferenceNumber(tenantId, input.relatedInvoiceId);
+  const computed = input.lines.map(({ vatApplicable, ...l }) => {
+    const source = l.originalInvoiceLineId ? original?.lines.find((line) => line.id === l.originalInvoiceLineId) : null;
+    if (input.relatedInvoiceId && !source) throw badRequest("أحد أصناف المرتجع لا ينتمي إلى الفاتورة الأصلية");
+    const taxable = source ? source.vatApplicable : vatApplicable;
+    if (source) l = { ...l, accountId: source.accountId, description: source.description || undefined, unitPrice: Number(source.unitPrice), discountPct: Number(source.discountPct), priceIncludesVat: source.priceIncludesVat };
+    return { ...l, ...computeInvoiceLine({ ...l, vatApplicable: taxable }), taxCategoryCode: source?.taxCategoryCode ?? (taxable === false ? "O" as const : "S" as const), taxExemptionReason: source?.taxExemptionReason ?? null };
+  });
+  const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
+  const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
+  const grandTotal = subtotal + vatTotal;
+  if (grandTotal <= 0) throw badRequest("إجمالي المردود يجب أن يكون أكبر من صفر");
+
+  const issuanceReason = input.reason?.trim();
+  if (billingReferenceId && !issuanceReason) {
+    throw badRequest("سبب إصدار إشعار الدائن (BR-KSA-17) إلزامي عند ربطه بفاتورة أصلية سترسَل لزاتكا");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await validateLinkedReturn(tx, tenantId, input.companyId, input.customerId, input.relatedInvoiceId, computed, grandTotal, id);
+    await tx.salesReturnLine.deleteMany({ where: { returnId: id } });
+    return tx.salesReturn.update({
+      where: { id },
+      data: {
+        companyId: input.companyId, customerId: input.customerId, relatedInvoiceId: input.relatedInvoiceId ?? null,
+        date: input.date, reason: input.reason, refundMethod: input.refundMethod,
+        subtotal, vatTotal, grandTotal, lines: { create: computed },
+      },
+      include: returnInclude,
+    });
+  });
+}
+
 /** المراحل 2 (لا معاملة) + 3أ (تحديث سطر واحد) + 3ب (معاملة منفصلة: القيد فقط، لا مخزون ولا
  * عمولات لمردودات المبيعات) — مُشتركة بين createSalesReturn/postSalesReturn/retryPendingZatcaSubmission. */
 async function finishCreditNoteZatcaSubmission(

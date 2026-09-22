@@ -117,3 +117,59 @@ export async function buildPlainInvoicePdf(input: PlainInvoicePdfInput): Promise
   const html = buildInvoiceHtml(data);
   return renderHtmlToPdf(html);
 }
+
+export interface PlainCreditNotePdfInput {
+  returnNumber: string;
+  date: Date;
+  companyName: string;
+  companyVatNumber?: string | null;
+  companyAddress?: string | null;
+  brandColor?: string | null;
+  customerName: string;
+  customerVatNumber?: string | null;
+  lines: InvoicePdfLine[];
+  subtotal: number;
+  vatTotal: number;
+  grandTotal: number;
+  qrPayload?: string | null;
+  zatcaUuid?: string | null;
+  // الفاتورة الأصلية (BillingReference) والسبب — كلاهما غائبان لإشعار داخلي بلا فاتورة مرتبطة
+  // (راجع resolveBillingReferenceNumber في salesReturns.service.ts)، فيُعرَض المستند بلا هذين
+  // السطرين فقط بدل رمي خطأ أو عرض حقول فارغة.
+  billingReferenceNumber?: string | null;
+  billingReferenceDate?: string | null; // YYYY-MM-DD
+  reason?: string | null;
+}
+
+/**
+ * PDF بسيط لإشعار دائن (بلا XML موقّع مُرفَق) — نفس أنبوب buildPlainInvoicePdf أعلاه بالضبط
+ * (نفس buildInvoiceHtml وrenderHtmlToPdf)، فرق البيانات فقط: عنوان "إشعار دائن" بدل "فاتورة
+ * ضريبية"، وسطرا الفاتورة الأصلية/السبب إن وُجدا. "بسيط" مؤقتاً بتصميم — راجع نفس ملاحظة
+ * buildInvoicePdf.ts (PDF/A-3 مع XML مُضمَّن): هذا المسار حالياً غير مُفعَّل في أي تدفّق فعلي
+ * (لا للفواتير ولا لإشعارات الدائن)؛ خطة لاحقة منفصلة تُفعِّله للاثنين معاً.
+ */
+export async function buildPlainCreditNotePdf(input: PlainCreditNotePdfInput): Promise<Buffer> {
+  const qrDataUrl = await QRCode.toDataURL(input.qrPayload || "", { margin: 1, width: 150 });
+  const data: InvoicePdfData = {
+    documentTitleAr: "إشعار دائن",
+    documentNumber: input.returnNumber,
+    issueDate: input.date.toISOString().slice(0, 10),
+    companyName: input.companyName,
+    companyVatNumber: input.companyVatNumber,
+    companyAddress: input.companyAddress,
+    companyLogoDataUrl: null,
+    brandColor: input.brandColor,
+    customerName: input.customerName,
+    customerVatNumber: input.customerVatNumber,
+    lines: input.lines,
+    subtotal: input.subtotal,
+    vatTotal: input.vatTotal,
+    grandTotal: input.grandTotal,
+    qrDataUrl,
+    zatcaUuid: input.zatcaUuid || "",
+    billingReference: input.billingReferenceNumber ? { number: input.billingReferenceNumber, date: input.billingReferenceDate || "" } : null,
+    issuanceReason: input.reason || null,
+  };
+
+  return renderHtmlToPdf(buildInvoiceHtml(data));
+}
