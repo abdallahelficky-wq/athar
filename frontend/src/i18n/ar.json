@@ -618,10 +618,51 @@
       "reason": "سبب المردود",
       "saveAndPost": "حفظ وترحيل المردود",
       "loading": "جارٍ التحميل...",
-      "table": { "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي", "status": "الحالة" },
+      "addButton": "+ إضافة إشعار دائن",
+      "search": {
+        "quickSearchLabel": "بحث سريع", "quickSearchPlaceholder": "رقم الإشعار، اسم العميل، أو رقم الفاتورة الأصلية...",
+        "subtypeLabel": "نوع الإشعار", "subtypeAll": "— كل الأنواع —",
+        "refundMethodLabel": "طريقة الرد", "refundMethodAll": "— كل طرق الرد —",
+        "postingStatusLabel": "حالة الترحيل", "postingStatusAll": "— كل حالات الترحيل —",
+        "originalInvoicePlaceholder": "ابحث برقم الفاتورة...", "originalInvoiceAll": "— كل الفواتير —",
+        "summary": { "count": "إجمالي الإشعارات المرحّلة", "netTotal": "الإجمالي قبل الضريبة", "vatTotal": "ضريبة القيمة المضافة", "grandTotal": "الإجمالي شامل الضريبة" }
+      },
+      "table": {
+        "number": "الرقم", "customer": "العميل", "originalInvoice": "الفاتورة الأصلية", "date": "التاريخ", "total": "الإجمالي",
+        "postingStatus": "حالة الترحيل", "zatcaStatus": "حالة زاتكا", "actions": "الإجراءات"
+      },
       "posted": "مرحّل", "draft": "مسودة", "pendingSubmission": "بانتظار إرسال زاتكا", "postingIncomplete": "استُلم ردّ زاتكا، ترحيل محلي غير مكتمل",
       "unpost": "فك الترحيل", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
-      "empty": "لا توجد مردودات بعد."
+      "empty": "لا توجد مردودات بعد.",
+      "blockAction": { "edit": "تعديل" },
+      "actionsMenu": { "view": "عرض الإشعار", "edit": "تعديل الإشعار", "delete": "حذف الإشعار", "print": "طباعة الإشعار" },
+      "notify": {
+        "deleteNonDraft": "لا يمكن حذف إشعار مرحّل — يجب فك ترحيله أولاً.",
+        "confirmDelete": "حذف الإشعار {{number}}؟",
+        "deleted": "تم حذف الإشعار {{number}}.",
+        "unposted": "تم فك ترحيل الإشعار {{number}}، وحُذف القيد المحاسبي المرتبط به. أصبح الآن مسودة.",
+        "unpostedFromBlock": "تم فك ترحيل الإشعار {{number}}. أصبح الآن مسودة ويمكنك المتابعة.",
+        "emailSent": "تم إرسال الإشعار {{number}} إلى {{email}}.",
+        "emailFailed": "تعذّر إرسال الإشعار — حاول مرة أخرى لاحقاً."
+      },
+      "form": {
+        "titleCreate": "إشعار دائن جديد", "titleEdit": "تعديل الإشعار {{number}}",
+        "cancel": "إلغاء", "close": "إغلاق", "saveChanges": "حفظ التعديلات",
+        "savedEdit": "تم حفظ التعديلات على الإشعار {{number}}."
+      },
+      "view": { "subtitle": "إشعار دائن", "returnNumber": "رقم الإشعار", "date": "التاريخ", "subtype": "نوع الإشعار" },
+      "postedBlockModal": {
+        "title": "لازم تفك ترحيل الإشعار أولاً", "close": "إغلاق",
+        "message": "الإشعار {{number}} مرحّل، ولا يمكن {{action}} إلا بعد فك ترحيله. بعد فك الترحيل سيتحول الإشعار إلى مسودة ويُحذف القيد المحاسبي المرتبط به، وعندها فقط يمكنك {{action}}.",
+        "cancel": "إلغاء", "unpost": "فك الترحيل",
+        "unpostTitle": "فك ترحيل الإشعار {{number}}"
+      },
+      "sendEmailModal": {
+        "title": "إرسال الإشعار {{number}} بالإيميل", "close": "إغلاق",
+        "note": "لا يوجد بريد إلكتروني مسجَّل لهذا العميل — أدخل بريداً بديلاً لإرسال نسخة الإشعار إليه لمرة واحدة.",
+        "email": "البريد الإلكتروني", "errRequired": "البريد الإلكتروني مطلوب", "errFailed": "تعذّر الإرسال — حاول مرة أخرى",
+        "cancel": "إلغاء", "send": "إرسال", "sending": "جارٍ الإرسال..."
+      }
     },
     "receipts": {
       "customer": "العميل", "date": "تاريخ السند", "method": "طريقة التحصيل", "methodCash": "كاش", "methodBank": "بنك",

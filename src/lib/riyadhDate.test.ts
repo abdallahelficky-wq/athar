@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { riyadhDayStartUtc, riyadhDayEndExclusiveUtc } from "./salesInvoicesSearch.service";
+import { riyadhDayStartUtc, riyadhDayEndExclusiveUtc } from "./riyadhDate";
 
 // طلب المستخدم صراحةً: dateTo يجب أن يشمل اليوم السعودي (Asia/Riyadh، UTC+3) بالكامل — بما في ذلك
 // فاتورة مسجَّلة الساعة 23:30 بتوقيت الرياض من نفس اليوم. الرياض بلا توقيت صيفي (إزاحة +3 ثابتة).

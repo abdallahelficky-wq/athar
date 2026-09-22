@@ -1239,6 +1239,10 @@ model SalesReturn {
 
   @@unique([tenantId, companyId, returnNumber])
   @@index([tenantId, relatedInvoiceId], map: "sales_returns_tenant_related_invoice_idx")
+  // قائمة مردودات المبيعات المُرقَّمة/المُفلترة (searchSalesReturns) تُفلتِر دائماً بـ(tenantId,
+  // companyId) وتُرتِّب افتراضياً بـdate تنازلياً — نفس تبرير الفهرس المطابق على sales_invoices
+  // بالضبط (راجع migration 20260922090000_sales_invoices_company_date_index).
+  @@index([tenantId, companyId, date])
   @@map("sales_returns")
 }
 

@@ -498,4 +498,11 @@ export const AR_TO_EN: Record<string, string> = {
 
   "الفاتورة الأصلية وسبب الإصدار إلزاميان لإشعار الدائن لشركة مرتبطة بزاتكا — إشعار دائن بلا فاتورة أصلية مرتبطة لن يُرسَل لزاتكا إطلاقاً، وهذا غير مسموح لشركة مُلزَمة بالإبلاغ": "The original invoice and issuance reason are required for a credit note at a ZATCA-onboarded company — a credit note without a linked original invoice will never be sent to ZATCA, which isn't allowed for a company obligated to report",
   "لا يمكن تحميل PDF لفاتورة لم تُرحَّل بعد": "Cannot download a PDF for an invoice that isn't posted yet",
+  "لا يمكن تحميل PDF لمردود لم يُرحَّل بعد": "Cannot download a PDF for a sales return that isn't posted yet",
+  "لا يمكن إرسال مردود لم يُرحَّل بعد": "Can't email a sales return that hasn't been posted yet",
+  "لا يمكن تعديل مردود مرحّل، يجب فك ترحيله أولاً": "Can't edit a posted sales return, it must be unposted first",
+  "نوع إشعار الدائن (قياسي/مبسّط) يجب أن يطابق نوع الفاتورة الأصلية": "The credit note's type (standard/simplified) must match the original invoice's type",
+  "تاريخ إشعار الدائن يجب ألا يسبق تاريخ الفاتورة الأصلية": "The credit note's date must not be earlier than the original invoice's date",
+  "لا يمكن تغيير عميل مردود موجود — أنشئ مردوداً جديداً بدلاً من ذلك": "Can't change the customer on an existing sales return — create a new one instead",
+  "لا يمكن تغيير الفاتورة الأصلية المرتبطة بمردود موجود — أنشئ مردوداً جديداً بدلاً من ذلك": "Can't change the original invoice linked to an existing sales return — create a new one instead",
 };

@@ -1,27 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import { riyadhDayStartUtc, riyadhDayEndExclusiveUtc } from "../../lib/riyadhDate";
+import { zatcaGroupExpr } from "../../lib/zatca/zatcaStatusGroup";
 import { SearchSalesInvoicesQuery } from "./salesInvoices.schemas";
-
-// السعودية بلا توقيت صيفي — إزاحة ثابتة +3 ساعات عن UTC دائماً (Asia/Riyadh)، لا حاجة لمكتبة
-// مناطق زمنية كاملة لهذا الحساب البسيط.
-const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000;
-
-/** بداية اليوم السعودي (00:00 توقيت الرياض) بتوقيت UTC — تُستخدَم كحدّ أدنى شامل لـdateFrom. */
-export function riyadhDayStartUtc(dateOnly: string): Date {
-  return new Date(Date.parse(`${dateOnly}T00:00:00.000Z`) - RIYADH_OFFSET_MS);
-}
-
-/**
- * نهاية اليوم السعودي الحصرية (00:00 توقيت الرياض لليوم التالي) بتوقيت UTC — تُستخدَم كحدّ أعلى
- * حصري لـdateTo، حتى يشمل فلتر "حتى تاريخ X" فعلياً كل لحظة من يوم X بتوقيت الرياض (مثلاً فاتورة
- * مسجَّلة الساعة 23:30 بتوقيت الرياض من نفس اليوم) — لا فقط حتى منتصف ليل UTC الذي يقع الساعة 3
- * فجراً بتوقيت الرياض من نفس اليوم، فيستبعد خطأً كل ما بعد ذلك من نفس اليوم السعودي الفعلي.
- */
-export function riyadhDayEndExclusiveUtc(dateOnly: string): Date {
-  // 24 ساعة - 3 ساعات إزاحة = 21 ساعة بعد منتصف ليل UTC لنفس التاريخ التقويمي المُدخَل، تماماً
-  // منتصف الليل بتوقيت الرياض لليوم التالي.
-  return new Date(Date.parse(`${dateOnly}T00:00:00.000Z`) + (24 * 60 * 60 * 1000 - RIYADH_OFFSET_MS));
-}
 
 export interface SalesInvoiceSearchRow {
   id: string;
@@ -67,20 +48,8 @@ export interface SalesInvoiceSearchResult {
   summary: SalesInvoiceSearchSummary;
 }
 
-// نفس التصنيف الرباعي المعروض في شاشة الفواتير (راجع invoiceZatcaState.js بالواجهة) مبنيّاً هنا
-// بـSQL مباشرة — sent/sent_with_notes مبنيّتان من zatcaStatus وتحذيرات zatcaResponseRaw
-// (validationResults.warningMessages) معاً، بنفس منطق الواجهة الحالي تماماً. jsonb_typeof يحمي من
-// أي قيمة غير مصفوفة أو غائبة (يُعيد NULL بدل رمي خطأ)، فتُقيَّم كـ"بلا تحذيرات" بأمان.
-const ZATCA_GROUP_EXPR = Prisma.sql`
-  CASE
-    WHEN si."zatcaStatus" IN ('cleared', 'reported') THEN
-      CASE WHEN jsonb_typeof(si."zatcaResponseRaw"->'validationResults'->'warningMessages') = 'array'
-        AND jsonb_array_length(si."zatcaResponseRaw"->'validationResults'->'warningMessages') > 0
-        THEN 'sent_with_notes' ELSE 'sent' END
-    WHEN si."zatcaStatus" = 'not_applicable' THEN 'not_applicable'
-    ELSE 'not_sent'
-  END
-`;
+// راجع src/lib/zatca/zatcaStatusGroup.ts — مُشترَكة الآن مع مردودات المبيعات (salesReturnsSearch.service.ts).
+const ZATCA_GROUP_EXPR = zatcaGroupExpr("si");
 
 // نفس منطق summarizeInvoiceCredits/withInvoiceCredits في src/lib/invoiceCredits.ts بالضبط (الحقل
 // الوحيد الذي تعرضه شاشة الفواتير فعلياً كـ"حالة السداد") — لا receiptAllocations وحدها: مردود
