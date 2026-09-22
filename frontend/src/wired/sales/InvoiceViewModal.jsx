@@ -1,3 +1,4 @@
+import InvoiceCreditNotes from "./InvoiceCreditNotes";
 import InvoiceZatcaDetails from "./InvoiceZatcaDetails";
 import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -112,6 +113,7 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
           <div className="qr-box-payload">{invoice.qrPayload}</div>
         </details>
       </div>
+      <InvoiceCreditNotes invoice={invoice} onClose={onClose} />
     </PrintShell>
   );
 }

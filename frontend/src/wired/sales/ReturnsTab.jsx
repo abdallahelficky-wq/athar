@@ -1,11 +1,15 @@
+import { useSearchParams } from "react-router-dom";
+import { listItems } from "../../api/items";
+import ReturnLinesEditor from "./ReturnLinesEditor";
+import { returnInvoiceLines } from "./returnInvoiceLines";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
 import { listAccounts } from "../../api/accounts";
-import { listSalesInvoices } from "../../api/salesInvoices";
-import { listSalesReturns, createSalesReturn, unpostSalesReturn } from "../../api/salesReturns";
+import { listSalesInvoices, getSalesInvoice } from "../../api/salesInvoices";
+import { listSalesReturns, createSalesReturn, unpostSalesReturn, retrySalesReturn, completeSalesReturn } from "../../api/salesReturns";
 import { fmt } from "../../legacy/constants";
-import InvoiceLinesEditor, { emptyInvoiceLine } from "../shared/InvoiceLinesEditor";
+import { emptySalesLine as emptyInvoiceLine } from "./SalesInvoiceLinesEditor";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import { currencyLabel } from "../../shared/countries";
@@ -22,6 +26,11 @@ function postingStatusLabel(status, t) {
 export default function ReturnsTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
   const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [loadingInvoice, setLoadingInvoice] = useState(false);
+  const [items, setItems] = useState([]);
+  const [message, setMessage] = useState("");
   const [customers, setCustomers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [invoices, setInvoices] = useState([]);
@@ -41,10 +50,33 @@ export default function ReturnsTab({ companyId, companies }) {
 
   useEffect(() => {
     if (!companyId) return;
-    listCustomers(companyId).then((cs) => { setCustomers(cs); if (cs[0]) setCustomerId((c) => c || cs[0].id); });
-    listAccounts({ companyId }).then((accs) => setAccounts(accs.filter((a) => a.type === "revenue")));
-    listSalesInvoices(companyId).then(setInvoices);
-  }, [companyId]);
+    let cancelled = false;
+    setSelectedInvoice(null); setRelatedInvoiceId(""); setLines([emptyInvoiceLine()]); setError("");
+    Promise.all([listCustomers(companyId), listAccounts({ companyId }), listSalesInvoices(companyId), listItems(companyId)])
+      .then(([cs, accs, invs, loadedItems]) => {
+        if (cancelled) return;
+        setCustomers(cs); setAccounts(accs.filter((a) => a.type === "revenue")); setInvoices(invs); setItems(loadedItems);
+        const id = searchParams.get("invoiceId");
+        const invoice = invs.find((inv) => inv.id === id && inv.status === "posted");
+        setCustomerId(invoice?.customerId || cs[0]?.id || "");
+        if (invoice) { setRelatedInvoiceId(invoice.id); setRefundMethod("account"); }
+        else if (id) setError(t("creditNote.unavailable"));
+      }).catch((e) => !cancelled && setError(e.message));
+    return () => { cancelled = true; };
+  }, [companyId, searchParams.get("invoiceId")]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSelectedInvoice(null); setError("");
+    if (!relatedInvoiceId) { setLines([emptyInvoiceLine()]); setLoadingInvoice(false); return; }
+    setLoadingInvoice(true); setLines([]);
+    getSalesInvoice(relatedInvoiceId).then((invoice) => {
+      if (cancelled) return;
+      if (invoice.companyId !== companyId || invoice.customerId !== customerId || invoice.status !== "posted") throw new Error(t("creditNote.unavailable"));
+      setSelectedInvoice(invoice); setLines(returnInvoiceLines(invoice));
+    }).catch((e) => !cancelled && setError(e.message)).finally(() => !cancelled && setLoadingInvoice(false));
+    return () => { cancelled = true; };
+  }, [relatedInvoiceId, companyId, customerId]);
 
   const reload = () => {
     if (!companyId) return;
@@ -59,13 +91,17 @@ export default function ReturnsTab({ companyId, companies }) {
   const customerInvoices = invoices.filter((i) => i.customerId === customerId && i.status === "posted");
 
   const save = async () => {
-    if (!customerId || saving) return;
+    if (!customerId || saving || loadingInvoice) return;
+    if (relatedInvoiceId && (!selectedInvoice || !reason.trim())) { setError(t("creditNote.reasonRequired")); return; }
+    setError(""); setMessage("");
     setSaving(true);
     try {
-      await createSalesReturn({
+      const created = await createSalesReturn({
         companyId, customerId, relatedInvoiceId: relatedInvoiceId || undefined, date, reason, refundMethod,
-        lines: lines.filter((l) => l.accountId && Number(l.unitPrice) > 0),
+        lines: lines.filter((l) => l.accountId && Number(l.quantity) > 0).map((l) => ({ ...l, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), discountPct: Number(l.discountPct) })),
       });
+      setMessage(t(created.status === "posted" ? "creditNote.saved" : "creditNote.savedPending", { number: created.returnNumber }));
+      setRelatedInvoiceId(""); setSelectedInvoice(null); setSearchParams({});
       setLines([emptyInvoiceLine()]);
       setReason("");
       reload();
@@ -74,6 +110,17 @@ export default function ReturnsTab({ companyId, companies }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const resumeReturn = async (salesReturn) => {
+    if (saving) return;
+    setSaving(true); setError("");
+    try {
+      const updated = await (salesReturn.status === "pending_submission" ? retrySalesReturn(salesReturn.id) : completeSalesReturn(salesReturn.id));
+      setMessage(t(updated.status === "posted" ? "creditNote.saved" : "creditNote.savedPending", { number: updated.returnNumber }));
+      if (updated.rejectionReason) setError(updated.rejectionReason);
+      reload();
+    } catch (err) { setError(err.message); } finally { setSaving(false); }
   };
 
   const doUnpost = async (pin) => {
@@ -110,10 +157,12 @@ export default function ReturnsTab({ companyId, companies }) {
           <label className="memo-field">{t("sales.returns.reason")}<input type="text" value={reason} onChange={(e) => setReason(e.target.value)} /></label>
         </div>
 
-        <InvoiceLinesEditor lines={lines} setLines={setLines} accounts={accounts} showVatToggle={false} currency={currency} />
+        {loadingInvoice ? <p>{t("salesInvoices.loading")}</p> : <ReturnLinesEditor lines={lines} setLines={setLines} invoice={selectedInvoice} items={items} accounts={accounts} currency={currency} />}
+        {selectedInvoice && <p>{t("creditNote.editHint")}</p>}
+        {message && <p role="status">{message}</p>}
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          <button className="btn-primary" onClick={save} disabled={!customerId || saving}>{t("sales.returns.saveAndPost")}</button>
+          <button className="btn-primary" onClick={save} disabled={!customerId || saving || loadingInvoice || !lines.some((line) => Number(line.quantity) > 0) || (!!relatedInvoiceId && !selectedInvoice)}>{t("sales.returns.saveAndPost")}</button>
         </div>
       </div>
 
@@ -135,6 +184,7 @@ export default function ReturnsTab({ companyId, companies }) {
                     <td className="num">{fmt(r.grandTotal)}</td>
                     <td><span className="status-badge">{postingStatusLabel(r.status, t)}</span></td>
                     <td className="row-actions">
+                      {["pending_submission", "zatca_accepted_posting_incomplete"].includes(r.status) && <button className="btn-secondary" disabled={saving} onClick={() => resumeReturn(r)}>{t(r.status === "pending_submission" ? "salesInvoices.zatcaSummary.resend" : "creditNote.complete")}</button>}
                       {r.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(r)}>{t("sales.returns.unpost")}</button>}
                       <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === r.id ? null : r.id)}>
                         {attachmentsFor === r.id ? t("sales.returns.attachmentsHide") : t("sales.returns.attachmentsShow")}

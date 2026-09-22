@@ -1,4 +1,5 @@
 {
+  "creditNote": {"complete": "Complete credit note posting", "noItems": "No matching items", "title": "Linked credit notes", "returnInvoice": "Return invoice", "returned": "Returned total", "net": "Net after returns", "due": "Outstanding balance", "customerCredit": "Customer credit balance", "pending": "Pending — balance not reduced yet", "full": "Fully returned", "partial": "Partially returned", "search": "Search for an item to add to the return", "unavailable": "Invoice is not available for return in this company", "reasonRequired": "Select the invoice and enter a return reason", "saved": "Credit note {{number}} posted and invoice balance updated", "savedPending": "Credit note {{number}} saved and pending; invoice balance has not been reduced yet", "editHint": "Adjust quantities or remove lines that are not being returned. Prices, discounts and tax come from the original invoice."},
   "common": {
     "languageName": "English",
     "switchToArabic": "Switch to Arabic",

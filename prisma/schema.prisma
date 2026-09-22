@@ -1234,6 +1234,7 @@ model SalesReturn {
   lines SalesReturnLine[]
 
   @@unique([tenantId, companyId, returnNumber])
+  @@index([tenantId, relatedInvoiceId], map: "sales_returns_tenant_related_invoice_idx")
   @@map("sales_returns")
 }
 
@@ -1241,6 +1242,7 @@ model SalesReturnLine {
   id                 String          @id @default(cuid())
   returnId           String
   salesReturn        SalesReturn     @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  originalInvoiceLineId String?
   accountId          String
   account            Account         @relation(fields: [accountId], references: [id])
   description        String?

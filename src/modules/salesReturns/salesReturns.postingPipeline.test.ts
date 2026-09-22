@@ -53,7 +53,7 @@ function setupCommonMocks() {
   vi.mocked(prisma.company.findFirstOrThrow).mockResolvedValue(COMPANY_ROW as never);
   vi.mocked(prisma.customer.findFirst).mockResolvedValue(CUSTOMER_ROW as never);
   vi.mocked(prisma.account.findMany).mockResolvedValue([{ id: ACCOUNT_ID }] as never);
-  vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted" } as never);
+  vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted", grandTotal: 115, lines: [{ id: "line-1", accountId: ACCOUNT_ID, quantity: 1, unitPrice: 100, discountPct: 0, priceIncludesVat: false, vatApplicable: true, taxCategoryCode: "S" }] } as never);
   vi.mocked(getAccountIdByName).mockResolvedValue("vat-output-account");
   vi.mocked(resolvePartyAccountId).mockResolvedValue("receivable-account");
   vi.mocked(reserveDocumentNumber).mockResolvedValue("RET-00001");
@@ -64,7 +64,10 @@ function setupCommonMocks() {
   } as never);
 
   const tx = {
+    $queryRaw: vi.fn().mockResolvedValue([]),
+    salesInvoice: { findFirst: prisma.salesInvoice.findFirst },
     salesReturn: {
+      findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn().mockImplementation(((args: any) => Promise.resolve({ id: "return-1", ...args.data, customer: CUSTOMER_ROW })) as never),
       update: vi.fn().mockResolvedValue({ id: "return-1", companyId: COMPANY_ID, date: new Date("2026-01-01"), returnNumber: "RET-00001", customer: CUSTOMER_ROW }),
     },
@@ -82,7 +85,7 @@ function returnInput() {
     reason: "بضاعة تالفة",
     date: new Date("2026-01-01"),
     refundMethod: "account" as const,
-    lines: [{ accountId: ACCOUNT_ID, quantity: 1, unitPrice: 100, priceIncludesVat: false }],
+    lines: [{ originalInvoiceLineId: "line-1", accountId: ACCOUNT_ID, quantity: 1, unitPrice: 100, priceIncludesVat: false }],
   };
 }
 
@@ -255,7 +258,7 @@ describe("credit note eligibility — cannot reference a non-posted invoice (dra
 
   it("still allows a credit note referencing a genuinely posted invoice", async () => {
     setupCommonMocks();
-    vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted" } as never);
+    vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({ invoiceNumber: "INV-00001", status: "posted", grandTotal: 115, lines: [{ id: "line-1", accountId: ACCOUNT_ID, quantity: 1, unitPrice: 100, discountPct: 0, priceIncludesVat: false, vatApplicable: true, taxCategoryCode: "S" }] } as never);
     vi.mocked(submitZatcaChainDocument).mockResolvedValue({
       proceedWithPosting: true,
       zatcaFields: { zatcaStatus: "cleared", icv: 7, previousInvoiceHash: "PIH-7", invoiceHash: "HASH-7", zatcaSubmittedAt: CHAIN_RESULT.issuedAt },
@@ -265,5 +268,28 @@ describe("credit note eligibility — cannot reference a non-posted invoice (dra
 
     expect(result.rejectionReason).toBeUndefined();
     expect(reserveZatcaChain).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("linked credit note integrity", () => {
+  it("rejects a missing or differently scoped invoice before sending anything", async () => {
+    setupCommonMocks(); vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue(null);
+    await expect(createSalesReturn(TENANT_ID, "user-1", returnInput())).rejects.toThrow();
+    expect(prisma.salesInvoice.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: RELATED_INVOICE_ID, tenantId: TENANT_ID, companyId: COMPANY_ID, customerId: CUSTOMER_ID } }));
+    expect(reserveZatcaChain).not.toHaveBeenCalled();
+  });
+  it("uses original prices and tax rather than client-supplied changes", async () => {
+    const { tx } = setupCommonMocks();
+    vi.mocked(reserveZatcaChain).mockResolvedValue(null);
+    const input = returnInput(); input.lines[0].unitPrice = 1;
+    await createSalesReturn(TENANT_ID, "user-1", input);
+    expect(tx.salesReturn.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ grandTotal: 115, lines: { create: [expect.objectContaining({ originalInvoiceLineId: "line-1", unitPrice: 100 })] } }) }));
+    expect(tx.$queryRaw).toHaveBeenCalled();
+  });
+  it("checks existing reservations inside the transaction before reserving a new ZATCA chain", async () => {
+    const { tx } = setupCommonMocks();
+    tx.salesReturn.findMany.mockResolvedValue([{status: "pending_submission", grandTotal: 115, lines: []}] as never);
+    await expect(createSalesReturn(TENANT_ID, "user-1", returnInput())).rejects.toThrow();
+    expect(tx.$queryRaw).toHaveBeenCalled(); expect(reserveZatcaChain).not.toHaveBeenCalled();
   });
 });

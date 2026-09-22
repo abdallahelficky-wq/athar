@@ -5,3 +5,6 @@ export const createSalesReturn = (payload) => api.post("/sales-returns", payload
 export const deleteSalesReturn = (id) => api.delete(`/sales-returns/${id}`);
 export const postSalesReturn = (id) => api.post(`/sales-returns/${id}/post`);
 export const unpostSalesReturn = (id, pin) => api.post(`/sales-returns/${id}/unpost`, { pin });
+
+export const retrySalesReturn = (id) => api.post(`/sales-returns/${id}/retry-zatca-submission`);
+export const completeSalesReturn = (id) => api.post(`/sales-returns/${id}/complete-zatca-posting`);
