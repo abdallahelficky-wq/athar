@@ -25,3 +25,7 @@ export const sendInvoiceEmail = (id, email) => api.post(`/sales-invoices/${id}/s
 export const resendInvoiceZatca = (id) => api.post(`/sales-invoices/${id}/resend-zatca`);
 
 export const retryInvoiceZatcaSubmission = (id) => api.post(`/sales-invoices/${id}/retry-zatca-submission`);
+
+// نفس نسخة PDF المُرسَلة بالإيميل فعلياً (راجع getSalesInvoicePdf بالخادم) — لا معاينة/طباعة شاشة
+// HTML. يُعيد Blob + اسم الملف المقترَح من ترويسة Content-Disposition (راجع apiFetchBlob بـhttp.js).
+export const getSalesInvoicePdfBlob = (id) => api.getBlob(`/sales-invoices/${id}/pdf`);

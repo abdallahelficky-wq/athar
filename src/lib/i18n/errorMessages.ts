@@ -495,4 +495,7 @@ export const AR_TO_EN: Record<string, string> = {
   "مسددة": "Paid",
   "مسددة جزئياً": "Partially paid",
   "غير مسددة": "Unpaid",
+
+  "الفاتورة الأصلية وسبب الإصدار إلزاميان لإشعار الدائن لشركة مرتبطة بزاتكا — إشعار دائن بلا فاتورة أصلية مرتبطة لن يُرسَل لزاتكا إطلاقاً، وهذا غير مسموح لشركة مُلزَمة بالإبلاغ": "The original invoice and issuance reason are required for a credit note at a ZATCA-onboarded company — a credit note without a linked original invoice will never be sent to ZATCA, which isn't allowed for a company obligated to report",
+  "لا يمكن تحميل PDF لفاتورة لم تُرحَّل بعد": "Cannot download a PDF for an invoice that isn't posted yet",
 };

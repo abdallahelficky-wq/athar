@@ -19,6 +19,7 @@ import {
   emailBacklogHandler,
   resendEmailHandler,
   searchHandler,
+  downloadPdfHandler,
 } from "./salesInvoices.controller";
 
 export const salesInvoiceRoutes = Router();
@@ -39,6 +40,7 @@ salesInvoiceRoutes.get("/zatca-chain-gaps", canWrite, zatcaChainGapsHandler);
 // إرسال تلقائية إطلاقاً؛ resend-email أدناه دائماً طلب صريح من مستخدم حقيقي.
 salesInvoiceRoutes.get("/email-backlog", canWrite, emailBacklogHandler);
 salesInvoiceRoutes.get("/:id", getHandler);
+salesInvoiceRoutes.get("/:id/pdf", downloadPdfHandler);
 salesInvoiceRoutes.post("/", canWrite, validateBody(createSalesInvoiceSchema), createHandler);
 salesInvoiceRoutes.patch("/:id", canWrite, validateBody(updateSalesInvoiceSchema), updateHandler);
 salesInvoiceRoutes.delete("/:id", canWrite, deleteHandler);

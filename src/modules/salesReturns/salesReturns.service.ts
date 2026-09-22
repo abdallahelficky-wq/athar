@@ -33,6 +33,26 @@ async function resolveBillingReferenceNumber(tenantId: string, relatedInvoiceId:
   return relatedInvoice.invoiceNumber;
 }
 
+/**
+ * لشركة مرتبطة فعلياً بزاتكا (compliance أو production — أي زاتكا "تنطبق" عليها ولو بشهادة اختبار)،
+ * إشعار الدائن بلا فاتورة أصلية مرتبطة لا يُرسَل لزاتكا إطلاقاً (zatcaStatus=not_applicable، راجع
+ * تعليق resolveBillingReferenceNumber أعلاه) — وهذا يعني أن الشركة قد "تُصدر" إشعارات دائن حقيقية
+ * دون إبلاغ زاتكا بها إطلاقاً رغم التزامها بالإبلاغ، وهي ثغرة امتثال صامتة. لشركة لم تُربَط بزاتكا
+ * بعد، مردود محاسبي داخلي بلا فاتورة أصلية أداة دفترية مشروعة تماماً؛ هذا القيد لا يمسّها.
+ */
+function assertCreditNoteRequiredFieldsForOnboardedCompany(
+  company: { zatcaOnboardingStatus: string },
+  relatedInvoiceId: string | null | undefined,
+  reason: string | null | undefined,
+): void {
+  if (company.zatcaOnboardingStatus === "not_onboarded") return;
+  if (!relatedInvoiceId || !reason?.trim()) {
+    throw badRequest(
+      "الفاتورة الأصلية وسبب الإصدار إلزاميان لإشعار الدائن لشركة مرتبطة بزاتكا — إشعار دائن بلا فاتورة أصلية مرتبطة لن يُرسَل لزاتكا إطلاقاً، وهذا غير مسموح لشركة مُلزَمة بالإبلاغ",
+    );
+  }
+}
+
 interface LineInput {
   originalInvoiceLineId?: string;
   vatApplicable?: boolean;
@@ -119,6 +139,7 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
   const customer = await prisma.customer.findFirst({ where: { id: input.customerId, tenantId, companyId: input.companyId } });
   if (!customer) throw badRequest("العميل غير موجود ضمن هذه الشركة");
+  assertCreditNoteRequiredFieldsForOnboardedCompany(company, input.relatedInvoiceId, input.reason);
 
   const accountIds = [...new Set(input.lines.map((l) => l.accountId))];
   const accounts = await prisma.account.findMany({
@@ -333,6 +354,9 @@ export async function postSalesReturn(tenantId: string, userId: string, id: stri
   }
   const company = await prisma.company.findFirstOrThrow({ where: { id: salesReturn.companyId, tenantId } });
   const customer = salesReturn.customer;
+  // إعادة الفحص هنا عمداً (لا فقط عند الإنشاء) — الشركة قد تكون كانت غير مرتبطة بزاتكا وقت إنشاء
+  // هذا المردود كمسودة، ثم اكتمل ربطها بزاتكا قبل أن يُرحَّل (فك ترحيل/إعادة ترحيل لاحقة مثلاً).
+  assertCreditNoteRequiredFieldsForOnboardedCompany(company, salesReturn.relatedInvoiceId, salesReturn.reason);
 
   const computed = toComputedReturnLines(salesReturn.lines);
   const vatOutputId = await getAccountIdByName(tenantId, salesReturn.companyId, "ضريبة القيمة المضافة - مخرجات");

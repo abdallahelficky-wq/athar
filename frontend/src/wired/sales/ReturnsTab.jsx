@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { listItems } from "../../api/items";
 import ReturnLinesEditor from "./ReturnLinesEditor";
 import { returnInvoiceLines } from "./returnInvoiceLines";
@@ -13,6 +13,8 @@ import { emptySalesLine as emptyInvoiceLine } from "./SalesInvoiceLinesEditor";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import { currencyLabel } from "../../shared/countries";
+import { currentFiscalYearStartDateOnly, todayDateOnly } from "../../shared/fiscalYear";
+import { routes } from "../../routes";
 
 // حالة المردود أصبحت أربع قيم ممكنة منذ إصلاح مسار الترحيل الآمن على ثلاث مراحل لزاتكا، لا
 // اثنتين فقط (posted/draft) — راجع نفس الشرح بالضبط في postingStatusLabel بملف InvoicesTab.jsx.
@@ -180,7 +182,18 @@ export default function ReturnsTab({ companyId, companies }) {
               {returns.map((r) => (
                 <React.Fragment key={r.id}>
                   <tr>
-                    <td>{r.returnNumber}</td><td>{r.customer?.name}</td><td>{r.date.slice(0, 10)}</td>
+                    <td>{r.returnNumber}</td>
+                    <td>
+                      {r.customer?.id ? (
+                        <Link
+                          className="drill-link"
+                          to={routes.customerStatement(r.customer.id, r.companyId, currentFiscalYearStartDateOnly(), todayDateOnly())}
+                        >
+                          {r.customer.name}
+                        </Link>
+                      ) : r.customer?.name}
+                    </td>
+                    <td>{r.date.slice(0, 10)}</td>
                     <td className="num">{fmt(r.grandTotal)}</td>
                     <td><span className="status-badge">{postingStatusLabel(r.status, t)}</span></td>
                     <td className="row-actions">

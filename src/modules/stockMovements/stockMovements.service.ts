@@ -31,6 +31,91 @@ export async function getStockBalance(tenantId: string, itemId: string, warehous
   }, 0);
 }
 
+function signedQuantity(type: string, quantity: number): number {
+  if (type === "adjustment") return quantity; // مخزَّنة مُوقَّعة أصلاً (موجبة أو سالبة) — راجع periodicSettlement.service.ts
+  if ((INBOUND_TYPES as readonly string[]).includes(type)) return quantity;
+  if ((OUTBOUND_TYPES as readonly string[]).includes(type)) return -quantity;
+  return 0;
+}
+
+/**
+ * كرت صنف للقراءة فقط — سجل حركاته (بضمنه المستند المصدر إن وُجد ورقمه) ورصيد متحرّك، بنفس نمط
+ * buildPartyStatement في reports.service.ts بالضبط (رصيد افتتاحي = صافي كل الحركات السابقة لتاريخ
+ * البداية، ثم مشي للأمام). لا حساب تكلفة جديد هنا إطلاقاً — unitCost يُعرَض كما هو مخزَّن على كل
+ * حركة (لقطة تاريخية وقت وقوعها)، لا استدعاء لـcostingEngine.
+ *
+ * المستند المصدر يُحَل فقط لحركتين نوعهما "out"/"in" الناتجتين تلقائياً من فاتورة (sourceSalesInvoiceLineId/
+ * sourcePurchaseInvoiceLineId) — هذان العمودان أعمدة نصية عادية بلا علاقة Prisma معرَّفة (@relation)،
+ * فتُحَل دفعة واحدة بجلب السطور/الفواتير المطابقة بمعرّفاتها بدل include مباشر. أي حركة أخرى (يدوية:
+ * إدخال/إخراج/صرف/تحويل، أو تسوية جرد دوري) لا "مستند" مصدر حقيقي لها — نوعها نفسه هو الوصف.
+ */
+export async function getItemCard(
+  tenantId: string,
+  itemId: string,
+  filters: { companyId?: string; dateFrom?: Date; dateTo?: Date },
+) {
+  const item = await prisma.item.findFirst({ where: { id: itemId, tenantId, companyId: filters.companyId || undefined } });
+  if (!item) throw notFound("الصنف غير موجود");
+
+  let openingBalance = 0;
+  if (filters.dateFrom) {
+    const priorMovements = await prisma.stockMovement.findMany({
+      where: { tenantId, itemId, companyId: filters.companyId || undefined, date: { lt: filters.dateFrom } },
+      select: { type: true, quantity: true },
+    });
+    openingBalance = priorMovements.reduce((s, m) => s + signedQuantity(m.type, Number(m.quantity)), 0);
+  }
+
+  const movements = await prisma.stockMovement.findMany({
+    where: {
+      tenantId,
+      itemId,
+      companyId: filters.companyId || undefined,
+      date: { gte: filters.dateFrom, lte: filters.dateTo },
+    },
+    include: { warehouse: true },
+    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+  });
+
+  const salesLineIds = [...new Set(movements.map((m) => m.sourceSalesInvoiceLineId).filter((x): x is string => Boolean(x)))];
+  const purchaseLineIds = [...new Set(movements.map((m) => m.sourcePurchaseInvoiceLineId).filter((x): x is string => Boolean(x)))];
+
+  const [salesLines, purchaseLines] = await Promise.all([
+    salesLineIds.length
+      ? prisma.salesInvoiceLine.findMany({ where: { id: { in: salesLineIds } }, select: { id: true, invoice: { select: { id: true, invoiceNumber: true } } } })
+      : [],
+    purchaseLineIds.length
+      ? prisma.purchaseInvoiceLine.findMany({ where: { id: { in: purchaseLineIds } }, select: { id: true, invoice: { select: { id: true, invoiceNumber: true } } } })
+      : [],
+  ]);
+  const salesInvoiceByLineId = new Map(salesLines.map((l) => [l.id, l.invoice]));
+  const purchaseInvoiceByLineId = new Map(purchaseLines.map((l) => [l.id, l.invoice]));
+
+  let balance = openingBalance;
+  const rows = movements.map((m) => {
+    const signed = signedQuantity(m.type, Number(m.quantity));
+    balance += signed;
+    const salesInvoice = m.sourceSalesInvoiceLineId ? salesInvoiceByLineId.get(m.sourceSalesInvoiceLineId) : undefined;
+    const purchaseInvoice = m.sourcePurchaseInvoiceLineId ? purchaseInvoiceByLineId.get(m.sourcePurchaseInvoiceLineId) : undefined;
+    return {
+      id: m.id,
+      date: m.date,
+      type: m.type,
+      warehouseName: m.warehouse.name,
+      note: m.note,
+      unitCost: m.unitCost,
+      quantityIn: signed > 0 ? signed : 0,
+      quantityOut: signed < 0 ? -signed : 0,
+      documentType: salesInvoice ? ("sales_invoice" as const) : purchaseInvoice ? ("purchase_invoice" as const) : ("manual" as const),
+      documentNumber: salesInvoice?.invoiceNumber ?? purchaseInvoice?.invoiceNumber ?? null,
+      documentId: salesInvoice?.id ?? purchaseInvoice?.id ?? null,
+      runningBalance: balance,
+    };
+  });
+
+  return { item, openingBalance, rows, closingBalance: balance };
+}
+
 async function assertItemAndWarehouse(tenantId: string, itemId: string, warehouseId: string) {
   const item = await prisma.item.findFirst({ where: { id: itemId, tenantId } });
   if (!item) throw badRequest("الصنف غير موجود");

@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import * as service from "./salesInvoices.service";
-import { sendInvoiceByEmail, listInvoicesWithoutSuccessfulEmail, resendInvoiceEmail } from "./salesInvoiceEmail.service";
+import { sendInvoiceByEmail, listInvoicesWithoutSuccessfulEmail, resendInvoiceEmail, getSalesInvoicePdf } from "./salesInvoiceEmail.service";
 import { searchSalesInvoices } from "./salesInvoicesSearch.service";
 import { searchSalesInvoicesQuerySchema } from "./salesInvoices.schemas";
 import { prisma } from "../../lib/prisma";
@@ -26,6 +26,17 @@ export const searchHandler: RequestHandler = async (req, res) => {
     throw badRequest("معايير البحث غير صالحة", parsed.error.flatten());
   }
   res.json(await searchSalesInvoices(req.auth!.tenantId, parsed.data));
+};
+
+// تحميل مباشر لنفس نسخة PDF المُرسَلة بالإيميل فعلياً (buildPlainInvoicePdf) — لا معاينة/طباعة شاشة
+// HTML. راجع تعليق getSalesInvoicePdf: PDF بسيط بلا XML مُرفَق، وليس PDF/A-3 (ذاك الكود موجود في
+// src/lib/zatca/pdf/buildInvoicePdf.ts لكنه غير مُفعَّل في أي مسار فعلي حالياً — راجع تقرير الميزة).
+export const downloadPdfHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
+  const { buffer, fileName } = await getSalesInvoicePdf(req.auth!.tenantId, req.params.id);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(fileName)}"`);
+  res.send(buffer);
 };
 
 export const zatcaBacklogHandler: RequestHandler = async (req, res) => {

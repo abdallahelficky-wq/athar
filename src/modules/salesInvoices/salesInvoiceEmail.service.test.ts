@@ -18,7 +18,7 @@ vi.mock("../../lib/mailer", () => ({ sendInvoiceEmail: vi.fn() }));
 import { prisma } from "../../lib/prisma";
 import { buildPlainInvoicePdf } from "../../lib/invoicePdf";
 import { sendInvoiceEmail } from "../../lib/mailer";
-import { listInvoicesWithoutSuccessfulEmail, resendInvoiceEmail } from "./salesInvoiceEmail.service";
+import { listInvoicesWithoutSuccessfulEmail, resendInvoiceEmail, getSalesInvoicePdf } from "./salesInvoiceEmail.service";
 
 const TENANT_ID = "tenant-1";
 const COMPANY_ID = "company-1";
@@ -118,5 +118,40 @@ describe("resendInvoiceEmail — manual only, never automatic", () => {
         tenantId: TENANT_ID, invoiceId: "inv-1", method: "manual", success: false, error: "تعذّر توليد PDF",
       }),
     });
+  });
+});
+
+describe("getSalesInvoicePdf — the 'Download PDF' action bar item", () => {
+  it("returns the same PDF buffer buildPlainInvoicePdf produces, with a filename derived from the invoice number", async () => {
+    vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({
+      id: "inv-1", invoiceNumber: "INV-00042", status: "posted", customerId: "cust-1", companyId: COMPANY_ID,
+      customer: { email: "customer@example.com", name: "عميل" }, company: { language: "ar", currency: "SAR" },
+      lines: [], receiptAllocations: [], grandTotal: 115,
+    } as never);
+    vi.mocked(prisma.companyBankAccount.findMany).mockResolvedValue([] as never);
+    const fakePdf = Buffer.from("%PDF-fake");
+    vi.mocked(buildPlainInvoicePdf).mockResolvedValue(fakePdf as never);
+
+    const result = await getSalesInvoicePdf(TENANT_ID, "inv-1");
+
+    expect(result.buffer).toBe(fakePdf);
+    expect(result.fileName).toBe("invoice-INV-00042.pdf");
+  });
+
+  it("rejects a draft (not yet posted) invoice — no 'official' PDF copy before it's finalized", async () => {
+    vi.mocked(buildPlainInvoicePdf).mockClear();
+    vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({
+      id: "inv-1", invoiceNumber: "INV-00042", status: "draft", customerId: "cust-1", companyId: COMPANY_ID,
+      customer: { email: null, name: "عميل" }, company: { language: "ar", currency: "SAR" },
+      lines: [], receiptAllocations: [], grandTotal: 115,
+    } as never);
+
+    await expect(getSalesInvoicePdf(TENANT_ID, "inv-1")).rejects.toThrow(/لم تُرحَّل بعد/);
+    expect(buildPlainInvoicePdf).not.toHaveBeenCalled();
+  });
+
+  it("throws not-found for an invoice outside this tenant", async () => {
+    vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue(null as never);
+    await expect(getSalesInvoicePdf(TENANT_ID, "inv-does-not-exist")).rejects.toThrow(/غير موجودة/);
   });
 });

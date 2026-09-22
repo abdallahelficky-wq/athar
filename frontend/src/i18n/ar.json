@@ -892,6 +892,11 @@
       "types": { "in": "إدخال", "out": "إخراج/إتلاف", "issue": "صرف", "transfer_out": "تحويل صادر", "transfer_in": "تحويل وارد", "adjustment": "تسوية جرد دوري" },
       "empty": "لا توجد حركات بعد."
     },
+    "itemCard": {
+      "subtitle": "كرت الصنف", "titleFailed": "تعذّر تحميل كرت الصنف", "type": "نوع الصنف",
+      "document": "المستند", "quantityIn": "وارد", "quantityOut": "صادر", "balance": "الرصيد",
+      "unitCost": "التكلفة", "closingBalance": "الرصيد الختامي"
+    },
     "stockReport": {
       "item": "الصنف", "code": "الكود", "location": "الموقع", "balance": "الرصيد", "costPrice": "سعر التكلفة", "value": "القيمة",
       "empty": "لا توجد أرصدة مخزون بعد.",
