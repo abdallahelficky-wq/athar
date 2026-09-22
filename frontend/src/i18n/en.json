@@ -45,6 +45,15 @@
       "subtotal": "Subtotal before tax", "vat": "VAT (15%)", "grandTotal": "Total incl. VAT"
     }
   },
+  "filters": {
+    "search": "Search", "reset": "Reset", "quickSearchPlaceholder": "Quick search (invoice number or customer name)...",
+    "dateFrom": "Date from", "dateTo": "Date to", "amountMin": "Amount min", "amountMax": "Amount max",
+    "customer": "Customer", "customerSearchPlaceholder": "Search for a customer...", "allCustomers": "— All customers —"
+  },
+  "pagination": {
+    "pageSizeLabel": "Rows per page", "showingRange": "Showing {{from}}–{{to}} of {{total}}", "showingEmpty": "No results",
+    "prev": "Previous", "next": "Next", "pageOf": "Page {{page}} of {{totalPages}}"
+  },
   "stables": {
     "title": "Horse Stables",
     "overview": "Overview",
@@ -339,6 +348,15 @@
     "zatcaStatusFilterLabel": "ZATCA status",
     "loading": "Loading...",
     "empty": "No invoices yet.",
+    "search": {
+      "quickSearchLabel": "Quick search",
+      "invoiceTypeLabel": "Invoice type", "invoiceTypeAll": "— All types —", "invoiceTypeStandard": "Standard", "invoiceTypeSimplified": "Simplified",
+      "postingStatusLabel": "Posting status", "postingStatusAll": "— All posting statuses —",
+      "paymentStatusLabel": "Payment status", "paymentStatusAll": "— All payment statuses —",
+      "zatcaStatusAll": "— All ZATCA statuses —",
+      "sortBy": {"date": "Date", "invoiceNumber": "Invoice number", "customerName": "Customer name", "grandTotal": "Grand total"},
+      "summary": {"count": "Total posted invoices", "netTotal": "Net total", "vatTotal": "VAT total", "grandTotal": "Grand total"}
+    },
     "zatcaStatus": {
       "not_applicable": "Not applicable", "not_submitted": "Not sent — ZATCA credentials aren't set up yet for this stage",
       "cleared": "Sent/accepted (standard)", "reported": "Sent/accepted (simplified)", "rejected": "Rejected",
