@@ -355,7 +355,7 @@
       "paymentStatusLabel": "حالة السداد", "paymentStatusAll": "— كل حالات السداد —",
       "zatcaStatusAll": "— كل حالات زاتكا —",
       "sortBy": {"date": "التاريخ", "invoiceNumber": "رقم الفاتورة", "customerName": "اسم العميل", "grandTotal": "الإجمالي"},
-      "summary": {"count": "عدد الفواتير", "netTotal": "الإجمالي قبل الضريبة", "vatTotal": "ضريبة القيمة المضافة", "grandTotal": "الإجمالي شامل الضريبة"}
+      "summary": {"count": "إجمالي الفواتير المرحّلة", "netTotal": "الإجمالي قبل الضريبة", "vatTotal": "ضريبة القيمة المضافة", "grandTotal": "الإجمالي شامل الضريبة"}
     },
     "zatcaStatus": {
       "not_applicable": "غير منطبق", "not_submitted": "لم تُرسَل — لا توجد شهادة ربط زاتكا بعد لهذه المرحلة",

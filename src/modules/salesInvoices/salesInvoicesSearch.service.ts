@@ -49,6 +49,9 @@ export interface SalesInvoiceSearchRow {
   companyId: string;
 }
 
+// دائماً فواتير مرحّلة (status = posted) فقط، بصرف النظر عن فلتر حالة الترحيل الذي اختاره
+// المستخدم — راجع تعليق forcePostedOnly في buildWhereSql. القائمة المُرقَّمة (items) تستمر بعرض
+// كل الحالات المطابقة لفلاتر المستخدم كما هي؛ هذا التقييد خاص بالملخّص فقط.
 export interface SalesInvoiceSearchSummary {
   count: number;
   netTotal: string;
@@ -111,7 +114,7 @@ const SORT_COLUMN: Record<SearchSalesInvoicesQuery["sortBy"], Prisma.Sql> = {
   grandTotal: Prisma.sql`si."grandTotal"`,
 };
 
-function buildWhereSql(tenantId: string, params: SearchSalesInvoicesQuery): Prisma.Sql {
+function buildWhereSql(tenantId: string, params: SearchSalesInvoicesQuery, opts: { forcePostedOnly?: boolean } = {}): Prisma.Sql {
   const conditions: Prisma.Sql[] = [Prisma.sql`si."tenantId" = ${tenantId}`];
   if (params.companyId) conditions.push(Prisma.sql`si."companyId" = ${params.companyId}`);
   if (params.q) {
@@ -124,7 +127,13 @@ function buildWhereSql(tenantId: string, params: SearchSalesInvoicesQuery): Pris
   if (params.amountMax !== undefined) conditions.push(Prisma.sql`si."grandTotal" <= ${params.amountMax}`);
   if (params.customerId) conditions.push(Prisma.sql`si."customerId" = ${params.customerId}`);
   if (params.invoiceType) conditions.push(Prisma.sql`si."invoiceType" = ${params.invoiceType}::"InvoiceType"`);
-  if (params.status) conditions.push(Prisma.sql`si."status" = ${params.status}::"InvoiceStatus"`);
+  // ملخّص المجموعة المفلترة (opts.forcePostedOnly) يتجاهل فلتر حالة الترحيل الذي اختاره المستخدم
+  // عمداً ويقتصر دائماً على المرحّلة فقط — طلب مستخدم صريح: مسودة/بانتظار إرسال زاتكا/ترحيل محلي
+  // غير مكتمل لا قيد محاسبي فعلي لها بعد (أو له لكن غير نهائي)، فجمعها مع المرحّلة في "الإجمالي"
+  // يُضخّم الأرقام المعروضة بمبالغ لم تُرحَّل فعلياً بعد. القائمة المُرقَّمة نفسها (whereSql بلا هذا
+  // الخيار) تستمر بعرض كل الحالات حسب فلتر المستخدم كما هي — هذا التقييد خاص بملخّص الإجمالي فقط.
+  if (opts.forcePostedOnly) conditions.push(Prisma.sql`si."status" = 'posted'::"InvoiceStatus"`);
+  else if (params.status) conditions.push(Prisma.sql`si."status" = ${params.status}::"InvoiceStatus"`);
   if (params.paymentStatus) conditions.push(Prisma.sql`(${PAYMENT_STATUS_EXPR}) = ${params.paymentStatus}`);
   if (params.zatcaStatus) conditions.push(Prisma.sql`(${ZATCA_GROUP_EXPR}) = ${params.zatcaStatus}`);
   return Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`;
@@ -138,6 +147,7 @@ function buildWhereSql(tenantId: string, params: SearchSalesInvoicesQuery): Pris
  */
 export async function searchSalesInvoices(tenantId: string, params: SearchSalesInvoicesQuery): Promise<SalesInvoiceSearchResult> {
   const whereSql = buildWhereSql(tenantId, params);
+  const summaryWhereSql = buildWhereSql(tenantId, params, { forcePostedOnly: true });
   const dirSql = params.sortDir === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
   // "invoiceNumber DESC" مُذيَّل دائماً كفارز ثانوي حاسم — الافتراضي المطلوب صراحةً (date تنازلياً
   // ثم رقم الفاتورة تنازلياً)، ويبقى مفيداً حتى مع فرز آخر: يضمن ترتيباً ثابتاً للصفحات (لا تكرار
@@ -168,7 +178,7 @@ export async function searchSalesInvoices(tenantId: string, params: SearchSalesI
         COALESCE(SUM(si."vatTotal"), 0) AS "vatTotal",
         COALESCE(SUM(si."grandTotal"), 0) AS "grandTotal"
       ${FROM_JOINS}
-      ${whereSql}
+      ${summaryWhereSql}
     `),
   ]);
 

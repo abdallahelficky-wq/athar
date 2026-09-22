@@ -355,7 +355,7 @@
       "paymentStatusLabel": "Payment status", "paymentStatusAll": "— All payment statuses —",
       "zatcaStatusAll": "— All ZATCA statuses —",
       "sortBy": {"date": "Date", "invoiceNumber": "Invoice number", "customerName": "Customer name", "grandTotal": "Grand total"},
-      "summary": {"count": "Invoice count", "netTotal": "Net total", "vatTotal": "VAT total", "grandTotal": "Grand total"}
+      "summary": {"count": "Total posted invoices", "netTotal": "Net total", "vatTotal": "VAT total", "grandTotal": "Grand total"}
     },
     "zatcaStatus": {
       "not_applicable": "Not applicable", "not_submitted": "Not sent — ZATCA credentials aren't set up yet for this stage",

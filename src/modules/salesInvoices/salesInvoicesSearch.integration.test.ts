@@ -193,6 +193,40 @@ describe("searchSalesInvoices (integration)", () => {
       zatcaResponseRaw: { validationResults: { warningMessages: ["ملاحظة"] } },
     });
 
+    // ثلاث فواتير بنفس التاريخ (يوم معزول لا تتقاطع فيه فواتير أخرى): مسودة، بانتظار إرسال زاتكا،
+    // ومرحّلة — لإثبات أن ملخّص الإجمالي (summary) يقتصر دائماً على المرحّلة فقط، حتى عندما لا
+    // يُحدَّد المستخدم أي فلتر لحالة الترحيل (فيرى القائمة المُرقَّمة الثلاث كلها كما هي).
+    await makeInvoice({
+      key: "summaryDraft",
+      invoiceNumber: "INV-5001",
+      customerId: customerAId,
+      companyId,
+      tenantId,
+      date: new Date("2026-05-01T06:00:00.000Z"),
+      grandTotal: 500,
+      status: "draft",
+    });
+    await makeInvoice({
+      key: "summaryPending",
+      invoiceNumber: "INV-5002",
+      customerId: customerAId,
+      companyId,
+      tenantId,
+      date: new Date("2026-05-01T07:00:00.000Z"),
+      grandTotal: 600,
+      status: "pending_submission",
+    });
+    await makeInvoice({
+      key: "summaryPosted",
+      invoiceNumber: "INV-5003",
+      customerId: customerAId,
+      companyId,
+      tenantId,
+      date: new Date("2026-05-01T08:00:00.000Z"),
+      grandTotal: 900,
+      status: "posted",
+    });
+
     // فواتير إضافية بنفس التاريخ — تكفي لتغطية صفحتين كاملتين بأصغر pageSize مسموح به (15)،
     // لاختبار الترقيم (totalCount عبر الصفحات) والترتيب الثانوي عند تساوي عمود الفرز الأساسي.
     for (let i = 0; i < 20; i++) {
@@ -380,15 +414,48 @@ describe("searchSalesInvoices (integration)", () => {
   });
 
   it("summary reflects the FULL filtered set, not just the current page", async () => {
+    // dateTo يستبعد عمداً فواتير summaryDraft/summaryPending/summaryPosted (2026-05-01) — تلك
+    // مخصَّصة لاختبار "الإجمالي يقتصر على المرحّلة فقط" أدناه؛ بقاء هذا الاختبار على فواتير مرحّلة
+    // بالكامل فقط يُبقي التكافؤ summary.count === totalCount صحيحاً كما كان.
     const pageSize = "15";
-    const page1 = await searchSalesInvoices(tenantId, parseQuery({ customerId: customerAId, pageSize, page: "1" }));
-    const fullPage = await searchSalesInvoices(tenantId, parseQuery({ customerId: customerAId, pageSize: "200", page: "1" }));
+    const page1 = await searchSalesInvoices(tenantId, parseQuery({ customerId: customerAId, dateTo: "2026-04-30", pageSize, page: "1" }));
+    const fullPage = await searchSalesInvoices(tenantId, parseQuery({ customerId: customerAId, dateTo: "2026-04-30", pageSize: "200", page: "1" }));
 
     expect(page1.summary.count).toBe(fullPage.summary.count);
     expect(page1.summary.count).toBe(page1.totalCount);
     expect(page1.items.length).toBeLessThan(page1.summary.count);
     expect(Number(page1.summary.grandTotal)).toBeCloseTo(Number(fullPage.summary.grandTotal), 2);
     expect(Number(page1.summary.netTotal) + Number(page1.summary.vatTotal)).toBeCloseTo(Number(page1.summary.grandTotal), 1);
+  });
+
+  it("summary is restricted to POSTED invoices only, even with a draft and a pending invoice in the result set and no posting-status filter applied", async () => {
+    const result = await searchSalesInvoices(
+      tenantId,
+      parseQuery({ dateFrom: "2026-05-01", dateTo: "2026-05-01", pageSize: "200" }),
+    );
+
+    // القائمة المُرقَّمة نفسها تعرض الثلاث فواتير كما هي (بلا فلتر حالة ترحيل) — لا تغيير هنا.
+    const ids = result.items.map((i) => i.id);
+    expect(ids).toEqual(expect.arrayContaining([invoiceIds.summaryDraft, invoiceIds.summaryPending, invoiceIds.summaryPosted]));
+    expect(result.totalCount).toBe(3);
+
+    // لكن الإجمالي (summary) يقتصر على المرحّلة فقط: فاتورة واحدة بقيمة 900، لا الثلاث معاً (2000).
+    expect(result.summary.count).toBe(1);
+    expect(Number(result.summary.grandTotal)).toBeCloseTo(900, 2);
+    expect(Number(result.summary.netTotal) + Number(result.summary.vatTotal)).toBeCloseTo(900, 1);
+  });
+
+  it("summary ignores the user's posting-status filter entirely and always reflects posted totals for the other active filters", async () => {
+    const draftFiltered = await searchSalesInvoices(
+      tenantId,
+      parseQuery({ dateFrom: "2026-05-01", dateTo: "2026-05-01", status: "draft", pageSize: "200" }),
+    );
+    // القائمة تعرض فقط المسودة (فلتر المستخدم صريح لحالة الترحيل)، لكن الإجمالي يتجاهل ذلك الفلتر
+    // تماماً ويستمر بعرض فاتورة summaryPosted المرحّلة (900) لنفس نطاق التاريخ — لا صفراً، ولا قيمة
+    // المسودة المعروضة في القائمة بأي حال.
+    expect(draftFiltered.items.map((i) => i.id)).toEqual([invoiceIds.summaryDraft]);
+    expect(draftFiltered.summary.count).toBe(1);
+    expect(Number(draftFiltered.summary.grandTotal)).toBeCloseTo(900, 2);
   });
 
   it("rejects an out-of-range pageSize before hitting the database", () => {
