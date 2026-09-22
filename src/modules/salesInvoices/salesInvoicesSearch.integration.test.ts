@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../../lib/prisma";
+import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integrationTestGuard";
 import { searchSalesInvoices } from "./salesInvoicesSearch.service";
 import { searchSalesInvoicesQuerySchema } from "./salesInvoices.schemas";
 
@@ -9,6 +10,10 @@ import { searchSalesInvoicesQuerySchema } from "./salesInvoices.schemas";
  * الإجمالي على المجموعة المفلترة كاملة) تكمن في SQL الخام نفسه؛ تمويه $queryRaw لا يختبر شيئاً من
  * هذا المنطق فعلياً. تُنشئ بياناتها الخاصة ضمن مستأجر معزول وتُنظِّفه بالكامل بعد الانتهاء.
  */
+// يُنفَّذ فوراً لحظة تحميل هذا الملف (خارج أي describe/beforeAll) — قبل أي prisma.*.create فعلي
+// أدناه بسطر واحد فقط. راجع integrationTestGuard.ts لسبب وجوده.
+guardAgainstUnsafeIntegrationTestDatabase();
+
 describe("searchSalesInvoices (integration)", () => {
   let tenantId: string;
   let otherTenantId: string;
