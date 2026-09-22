@@ -1,7 +1,10 @@
 import { RequestHandler } from "express";
 import * as service from "./salesInvoices.service";
 import { sendInvoiceByEmail, listInvoicesWithoutSuccessfulEmail, resendInvoiceEmail } from "./salesInvoiceEmail.service";
+import { searchSalesInvoices } from "./salesInvoicesSearch.service";
+import { searchSalesInvoicesQuerySchema } from "./salesInvoices.schemas";
 import { prisma } from "../../lib/prisma";
+import { badRequest } from "../../lib/httpError";
 import { assertRecordCompanyScope } from "../../middleware/auth";
 
 export const listHandler: RequestHandler = async (req, res) => {
@@ -11,6 +14,18 @@ export const listHandler: RequestHandler = async (req, res) => {
     customerId: typeof customerId === "string" ? customerId : undefined,
   });
   res.json(invoices);
+};
+
+// نقطة نهاية مستقلة تماماً عن listHandler أعلاه (لا تُغيّره ولا تستبدله) — عدّة استدعاءات موجودة
+// فعلاً (QuickSearch، شاشة المردودات) تعتمد على أن /sales-invoices تُعيد كل الفواتير كمصفوفة خام
+// بلا ترقيم؛ تغيير ذلك يكسرها. هذه الشاشة الجديدة (قائمة فواتير المبيعات بالبحث/الفلترة/الترقيم)
+// تستخدم مساراً منفصلاً بنتيجة مختلفة الشكل عمداً ({items, totalCount, summary, ...}).
+export const searchHandler: RequestHandler = async (req, res) => {
+  const parsed = searchSalesInvoicesQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    throw badRequest("معايير البحث غير صالحة", parsed.error.flatten());
+  }
+  res.json(await searchSalesInvoices(req.auth!.tenantId, parsed.data));
 };
 
 export const zatcaBacklogHandler: RequestHandler = async (req, res) => {

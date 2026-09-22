@@ -1154,6 +1154,10 @@ model SalesInvoice {
   ridingLesson         RidingLesson?
 
   @@unique([tenantId, companyId, invoiceNumber])
+  // قائمة الفواتير المُرقَّمة/المُفلترة (searchSalesInvoices) تُفلتِر دائماً بـ(tenantId, companyId)
+  // وتُرتِّب افتراضياً بـdate تنازلياً — هذا الفهرس يخدم كلا الأمرين معاً (بادئة tenantId+companyId
+  // تخدم أي فلتر آخر أيضاً، وترتيب date كعمود أخير يخدم مسح النطاق المرتَّب دون فرز إضافي).
+  @@index([tenantId, companyId, date])
   @@map("sales_invoices")
 }
 

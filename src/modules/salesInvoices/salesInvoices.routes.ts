@@ -18,6 +18,7 @@ import {
   zatcaChainGapsHandler,
   emailBacklogHandler,
   resendEmailHandler,
+  searchHandler,
 } from "./salesInvoices.controller";
 
 export const salesInvoiceRoutes = Router();
@@ -26,6 +27,9 @@ salesInvoiceRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenRead
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 
 salesInvoiceRoutes.get("/", listHandler);
+// قائمة قابلة للبحث/الفلترة/الترقيم من جانب الخادم — منفصلة عن "/" أعلاه عمداً (راجع تعليق
+// searchHandler)، ويجب أن تُسجَّل قبل GET "/:id" وإلا التقطها Express كمعرّف فاتورة حرفي "search".
+salesInvoiceRoutes.get("/search", searchHandler);
 // يجب أن يُسجَّلا قبل GET "/:id" وإلا التقطهما Express كمعرّف فاتورة حرفي "zatca-backlog"/"zatca-chain-gaps".
 salesInvoiceRoutes.get("/zatca-backlog", canWrite, zatcaBacklogHandler);
 // نفس صلاحية zatca-backlog عمداً — راجع recordZatcaChainGap في salesInvoices.service.ts: يجب أن

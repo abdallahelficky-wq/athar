@@ -45,6 +45,15 @@
       "subtotal": "الإجمالي قبل الضريبة", "vat": "ضريبة القيمة المضافة (15٪)", "grandTotal": "الإجمالي شامل الضريبة"
     }
   },
+  "filters": {
+    "search": "بحث", "reset": "إعادة تعيين", "quickSearchPlaceholder": "بحث سريع (رقم الفاتورة أو اسم العميل)...",
+    "dateFrom": "من تاريخ", "dateTo": "إلى تاريخ", "amountMin": "أقل مبلغ", "amountMax": "أعلى مبلغ",
+    "customer": "العميل", "customerSearchPlaceholder": "ابحث عن عميل...", "allCustomers": "— كل العملاء —"
+  },
+  "pagination": {
+    "pageSizeLabel": "عدد الصفوف", "showingRange": "عرض {{from}}–{{to}} من {{total}}", "showingEmpty": "لا توجد نتائج",
+    "prev": "السابق", "next": "التالي", "pageOf": "صفحة {{page}} من {{totalPages}}"
+  },
   "stables": {
     "title": "إسطبلات الخيل",
     "overview": "نظرة عامة",
@@ -339,6 +348,15 @@
     "zatcaStatusFilterLabel": "حالة زاتكا",
     "loading": "جارٍ التحميل...",
     "empty": "لا توجد فواتير بعد.",
+    "search": {
+      "quickSearchLabel": "بحث سريع",
+      "invoiceTypeLabel": "نوع الفاتورة", "invoiceTypeAll": "— كل الأنواع —", "invoiceTypeStandard": "قياسية", "invoiceTypeSimplified": "مبسّطة",
+      "postingStatusLabel": "حالة الترحيل", "postingStatusAll": "— كل حالات الترحيل —",
+      "paymentStatusLabel": "حالة السداد", "paymentStatusAll": "— كل حالات السداد —",
+      "zatcaStatusAll": "— كل حالات زاتكا —",
+      "sortBy": {"date": "التاريخ", "invoiceNumber": "رقم الفاتورة", "customerName": "اسم العميل", "grandTotal": "الإجمالي"},
+      "summary": {"count": "عدد الفواتير", "netTotal": "الإجمالي قبل الضريبة", "vatTotal": "ضريبة القيمة المضافة", "grandTotal": "الإجمالي شامل الضريبة"}
+    },
     "zatcaStatus": {
       "not_applicable": "غير منطبق", "not_submitted": "لم تُرسَل — لا توجد شهادة ربط زاتكا بعد لهذه المرحلة",
       "cleared": "مُرسلة/مقبولة (قياسية)", "reported": "مُرسلة/مقبولة (مبسّطة)", "rejected": "مرفوضة",

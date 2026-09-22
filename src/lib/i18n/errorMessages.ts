@@ -486,4 +486,13 @@ export const AR_TO_EN: Record<string, string> = {
   "إكمال الترحيل متاح فقط لمردود استلم ردّاً من زاتكا لكن لم يكتمل ترحيله المحلي بعد": "Completing posting is only available for a return that received a ZATCA response but whose local posting is not yet complete",
   "لا يمكن إصدار إشعار دائن لفاتورة لم تُرحَّل بعد — الفاتورة الأصلية إما مسودة أو لا تزال قيد معالجة زاتكا (في انتظار الإرسال أو لم يكتمل ترحيلها المحلي بعد)": "A credit note cannot be issued for an invoice that isn't posted yet — the original invoice is either a draft or still in ZATCA processing (awaiting submission or with incomplete local posting)",
   "لا يمكن إصدار إشعار مدين لفاتورة لم تُرحَّل بعد — الفاتورة الأصلية إما مسودة أو لا تزال قيد معالجة زاتكا (في انتظار الإرسال أو لم يكتمل ترحيلها المحلي بعد)": "A debit note cannot be issued for an invoice that isn't posted yet — the original invoice is either a draft or still in ZATCA processing (awaiting submission or with incomplete local posting)",
+
+  "معايير البحث غير صالحة": "Invalid search parameters",
+  "تاريخ البداية يجب أن يكون بصيغة YYYY-MM-DD": "Start date must be in YYYY-MM-DD format",
+  "تاريخ النهاية يجب أن يكون بصيغة YYYY-MM-DD": "End date must be in YYYY-MM-DD format",
+  "تاريخ البداية يجب ألا يكون بعد تاريخ النهاية": "Start date must not be after end date",
+  "الحد الأدنى للمبلغ يجب ألا يكون أكبر من الحد الأعلى": "Minimum amount must not be greater than maximum amount",
+  "مسددة": "Paid",
+  "مسددة جزئياً": "Partially paid",
+  "غير مسددة": "Unpaid",
 };
