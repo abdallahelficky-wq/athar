@@ -1,3 +1,4 @@
+import { assertReturnLimits } from "./returnLimits";
 import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
@@ -25,7 +26,7 @@ import { newQueryCounter, counted, logPostingPhaseTiming } from "../../lib/zatca
 async function resolveBillingReferenceNumber(tenantId: string, relatedInvoiceId: string | null | undefined): Promise<string | undefined> {
   if (!relatedInvoiceId) return undefined;
   const relatedInvoice = await prisma.salesInvoice.findFirst({ where: { id: relatedInvoiceId, tenantId }, select: { invoiceNumber: true, status: true } });
-  if (!relatedInvoice) return undefined;
+  if (!relatedInvoice) throw badRequest("الفاتورة الأصلية غير موجودة");
   if (relatedInvoice.status !== "posted") {
     throw badRequest("لا يمكن إصدار إشعار دائن لفاتورة لم تُرحَّل بعد — الفاتورة الأصلية إما مسودة أو لا تزال قيد معالجة زاتكا (في انتظار الإرسال أو لم يكتمل ترحيلها المحلي بعد)");
   }
@@ -33,6 +34,8 @@ async function resolveBillingReferenceNumber(tenantId: string, relatedInvoiceId:
 }
 
 interface LineInput {
+  originalInvoiceLineId?: string;
+  vatApplicable?: boolean;
   accountId: string;
   description?: string;
   quantity: number;
@@ -101,6 +104,16 @@ async function resolveCreditAccountId(tenantId: string, companyId: string, custo
     : getAccountIdByName(tenantId, companyId, REFUND_ACCOUNT_NAME[refundMethod] ?? REFUND_ACCOUNT_NAME.account);
 }
 
+async function validateLinkedReturn(tx: Prisma.TransactionClient, tenantId: string, companyId: string, customerId: string, invoiceId: string | null | undefined,
+  lines: { originalInvoiceLineId?: string | null; accountId: string; quantity: unknown }[], total: number, excludeId?: string) {
+  if (!invoiceId) return;
+  await tx.$queryRaw`SELECT id FROM sales_invoices WHERE id = ${invoiceId} AND "tenantId" = ${tenantId} FOR UPDATE`;
+  const invoice = await tx.salesInvoice.findFirst({ where: { id: invoiceId, tenantId, companyId, customerId }, include: { lines: true } });
+  if (!invoice || invoice.status !== "posted") throw badRequest("الفاتورة الأصلية لا تخص العميل والشركة المحددين أو غير مرحلة");
+  const previous = await tx.salesReturn.findMany({ where: { tenantId, relatedInvoiceId: invoiceId, ...(excludeId ? { id: { not: excludeId } } : {}) }, include: { lines: true } });
+  assertReturnLimits(invoice, previous, lines, total);
+}
+
 export async function createSalesReturn(tenantId: string, userId: string, input: ReturnInput): Promise<SalesReturnPostingOutcome> {
   const company = await prisma.company.findFirst({ where: { id: input.companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
@@ -113,14 +126,22 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
   });
   if (accounts.length !== accountIds.length) throw badRequest("أحد حسابات الإيراد المختارة غير صالح");
 
-  const computed = input.lines.map((l) => ({ ...l, ...computeInvoiceLine(l), taxCategoryCode: "S" as const, taxExemptionReason: null as string | null }));
+  const original = input.relatedInvoiceId ? await prisma.salesInvoice.findFirst({ where: { id: input.relatedInvoiceId, tenantId, companyId: input.companyId, customerId: input.customerId }, include: { lines: true } }) : null;
+  if (input.relatedInvoiceId && !original) throw badRequest("الفاتورة الأصلية لا تخص العميل والشركة المحددين");
+  const billingReferenceId = await resolveBillingReferenceNumber(tenantId, input.relatedInvoiceId);
+  const computed = input.lines.map(({ vatApplicable, ...l }) => {
+    const source = l.originalInvoiceLineId ? original?.lines.find((line) => line.id === l.originalInvoiceLineId) : null;
+    if (input.relatedInvoiceId && !source) throw badRequest("أحد أصناف المرتجع لا ينتمي إلى الفاتورة الأصلية");
+    const taxable = source ? source.vatApplicable : vatApplicable;
+    if (source) l = { ...l, accountId: source.accountId, description: source.description || undefined, unitPrice: Number(source.unitPrice), discountPct: Number(source.discountPct), priceIncludesVat: source.priceIncludesVat };
+    return { ...l, ...computeInvoiceLine({ ...l, vatApplicable: taxable }), taxCategoryCode: source?.taxCategoryCode ?? (taxable === false ? "O" as const : "S" as const), taxExemptionReason: source?.taxExemptionReason ?? null };
+  });
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
   if (grandTotal <= 0) throw badRequest("إجمالي المردود يجب أن يكون أكبر من صفر");
 
   const zatcaUuid = randomUUID();
-  const billingReferenceId = await resolveBillingReferenceNumber(tenantId, input.relatedInvoiceId);
   // BR-KSA-17: إلزامي لإشعار الدائن كلما ارتبط بفاتورة أصلية فعلياً (عندئذٍ فقط يُرسَل لزاتكا) —
   // مردود بلا فاتورة أصلية مرتبطة يبقى مستنداً محاسبياً داخلياً بحتاً (zatcaStatus=not_applicable)،
   // فلا يحتاج سبباً إلزامياً لزاتكا لأنه لن يصلها إطلاقاً.
@@ -142,6 +163,7 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
   let phase1: { kind: "done"; salesReturn: SalesReturnWithZatcaChain } | { kind: "pending"; salesReturn: SalesReturnWithZatcaChain; xml: string; subtype: "standard" | "simplified" };
   try {
     phase1 = await prisma.$transaction(async (tx) => {
+      await validateLinkedReturn(tx, tenantId, input.companyId, input.customerId, input.relatedInvoiceId, computed, grandTotal);
       const returnNumber = await counted(counter1, reserveDocumentNumber(tx, tenantId, input.companyId, "sales_return"));
       const chain = billingReferenceId
         ? await counted(
@@ -325,6 +347,7 @@ export async function postSalesReturn(tenantId: string, userId: string, id: stri
   let phase1: { kind: "done"; salesReturn: SalesReturnWithZatcaChain } | { kind: "pending"; salesReturn: SalesReturnWithZatcaChain; xml: string; subtype: "standard" | "simplified" };
   try {
     phase1 = await prisma.$transaction(async (tx) => {
+      await validateLinkedReturn(tx, tenantId, salesReturn.companyId, salesReturn.customerId, salesReturn.relatedInvoiceId, salesReturn.lines, Number(salesReturn.grandTotal), salesReturn.id);
       const chain = billingReferenceId
         ? await counted(
             counter1,

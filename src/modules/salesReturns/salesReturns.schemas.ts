@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 const lineSchema = z.object({
+  originalInvoiceLineId: z.string().optional(),
+  vatApplicable: z.boolean().default(true),
   accountId: z.string().min(1),
   description: z.string().optional(),
   quantity: z.coerce.number().positive(),

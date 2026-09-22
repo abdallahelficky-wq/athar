@@ -192,11 +192,11 @@ export default function InvoicesTab({ companyId, companies }) {
                 const linked = inv.receiptAllocations.length > 0;
                 const zatca = invoiceZatcaState(inv);
                 return (
-                  <tr key={inv.id}>
-                    <td data-label={t("salesInvoices.table.number")}>{inv.invoiceNumber}</td>
+                  <tr key={inv.id} style={Number(inv.returnedAmount) > 0 ? { background: "#fff7ed" } : undefined}>
+                    <td data-label={t("salesInvoices.table.number")}>{inv.invoiceNumber}{inv.creditNotes?.some((note) => note.status !== "posted" && note.status !== "draft") && <div className="status-badge status-warning">↩ {t("creditNote.pending")}</div>}{Number(inv.returnedAmount) > 0 && <div><span className="status-badge status-warning">↩ {t(inv.returnStatus === "full" ? "creditNote.full" : "creditNote.partial")}</span></div>}</td>
                     <td data-label={t("salesInvoices.table.customer")}>{inv.customer?.name}</td>
                     <td data-label={t("salesInvoices.table.date")}>{inv.date.slice(0, 10)}</td>
-                    <td className="num" data-label={t("salesInvoices.table.total")}>{fmt(Number(inv.grandTotal))}</td>
+                    <td className="num" data-label={t("salesInvoices.table.total")}>{fmt(Number(inv.grandTotal))}{Number(inv.returnedAmount) > 0 && <div>{t("creditNote.net")}: {fmt(Number(inv.netGrandTotal))}</div>}</td>
                     <td data-label={t("salesInvoices.table.postingStatus")}><span className="status-badge">{postingStatusLabel(inv.status, t)}</span></td>
                     <td data-label={t("salesInvoices.table.paymentStatus")}><span className="status-badge">{inv.paymentStatus}</span></td>
                     <td data-label={t("salesInvoices.table.zatcaStatus")}>

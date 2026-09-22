@@ -10,6 +10,14 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "قيمة المرتجع تتجاوز المتبقي القابل للإرجاع من الفاتورة": "Return amount exceeds the remaining returnable invoice value.",
+  "أحد أصناف المرتجع لا ينتمي إلى الفاتورة الأصلية": "A return line does not belong to the original invoice.",
+  "كمية المرتجع تتجاوز الكمية المتبقية في الفاتورة الأصلية": "Return quantity exceeds the remaining original invoice quantity.",
+  "الفاتورة الأصلية غير موجودة": "Original invoice not found.",
+  "الفاتورة الأصلية لا تخص العميل والشركة المحددين": "Original invoice does not belong to the selected customer and company.",
+  "الفاتورة الأصلية لا تخص العميل والشركة المحددين أو غير مرحلة": "Original invoice does not belong to the selected customer and company or is not posted.",
+  "لا يمكن فك ترحيل فاتورة لها إشعار دائن معتمد أو قيد المعالجة": "Cannot unpost an invoice with a posted or pending credit note.",
+
   "انقطع الاتصال أثناء طلب شهادة الإنتاج؛ لم يصل تأكيد الإصدار ولم تُحفظ شهادة. قد يكون الطلب نُفّذ لدى زاتكا. احتفظ بالربط وراجع حالة الطلب قبل إعادة المحاولة أو إعادة الضبط.": "Connection was lost while requesting the production certificate. Issuance is unconfirmed and no certificate was saved. ZATCA may have processed the request. Preserve the current onboarding and check its status before retrying or resetting.",
   "وصل رد نجاح من زاتكا لكن بيانات شهادة الإنتاج غير مكتملة؛ لم تُحفظ شهادة. راجع حالة طلب الإصدار قبل إعادة المحاولة.": "ZATCA returned success with incomplete production certificate data. No certificate was saved. Check issuance status before retrying.",
   "اختبارات الامتثال متاحة أثناء مرحلة شهادة الاختبار فقط، ولا يجوز إرسال مستندات اصطناعية بعد تفعيل الإنتاج": "Compliance tests are only available during compliance onboarding; synthetic documents cannot be submitted after production activation.",

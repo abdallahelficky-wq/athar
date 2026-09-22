@@ -25,7 +25,7 @@ export default function LinkPaymentModal({ invoice: initialInvoice, companyId, o
   const [error, setError] = useState("");
 
   const paid = invoice.receiptAllocations.reduce((s, a) => s + Number(a.amount), 0);
-  const due = Math.max(0, Number(invoice.grandTotal) - paid);
+  const due = Math.max(0, Number(invoice.grandTotal) - Number(invoice.accountCreditAmount || 0) - paid);
 
   const loadReceipts = () => listReceipts(companyId, invoice.customerId).then(setReceipts);
   useEffect(() => { loadReceipts(); }, [invoice.customerId]);
@@ -81,7 +81,7 @@ export default function LinkPaymentModal({ invoice: initialInvoice, companyId, o
       await removeReceiptAllocation(receiptId, invoice.id);
       const fresh = await refresh();
       const freshPaid = fresh.receiptAllocations.reduce((s, a) => s + Number(a.amount), 0);
-      const status = freshPaid <= 0 ? t("sales.linkPaymentModal.statusUnpaid") : (freshPaid < Number(fresh.grandTotal) - 0.5 ? t("sales.linkPaymentModal.statusPartial") : t("sales.linkPaymentModal.statusPaid"));
+      const status = freshPaid <= 0 ? t("sales.linkPaymentModal.statusUnpaid") : (freshPaid < Number(fresh.grandTotal) - Number(fresh.accountCreditAmount || 0) - 0.5 ? t("sales.linkPaymentModal.statusPartial") : t("sales.linkPaymentModal.statusPaid"));
       onChanged(t("sales.linkPaymentModal.unlinkedMsg", { number: invoice.invoiceNumber, receiptNumber, status }));
     } catch (err) {
       setError(err.message);

@@ -1,3 +1,4 @@
+import { withInvoiceCredits } from "../../lib/invoiceCredits";
 import { randomUUID } from "crypto";
 import { Item, Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
@@ -295,7 +296,7 @@ export async function listSalesInvoices(tenantId: string, filters: { companyId?:
     include: invoiceInclude,
     orderBy: { createdAt: "desc" },
   });
-  return invoices.map(withPaymentStatus);
+  return withInvoiceCredits(tenantId, invoices);
 }
 
 // حالات زاتكا التي تعني أن الفاتورة لم تُبلَّغ/تُخلَّص بنجاح بعد — إما لا تزال قيد المحاولة الأولى
@@ -344,7 +345,7 @@ export async function listZatcaBacklog(tenantId: string, filters: { companyId?: 
 export async function getSalesInvoice(tenantId: string, id: string) {
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
-  return withPaymentStatus(invoice);
+  return (await withInvoiceCredits(tenantId, [invoice]))[0];
 }
 
 async function buildJournalLines(
@@ -1119,6 +1120,10 @@ export async function unpostSalesInvoice(tenantId: string, userId: string, id: s
   await assertValidUnlockPin(tenantId, pin);
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM sales_invoices WHERE id = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`;
+    if (await tx.salesReturn.count({ where: { tenantId, relatedInvoiceId: id, status: { not: "draft" } } })) {
+      throw badRequest("لا يمكن فك ترحيل فاتورة لها إشعار دائن معتمد أو قيد المعالجة");
+    }
     await reverseTrainerCommissionsTx(tx, id);
     await removeStockOutSideEffectsTx(tx, id);
     await deleteJournalEntryTx(tx, invoice.journalEntryId);
