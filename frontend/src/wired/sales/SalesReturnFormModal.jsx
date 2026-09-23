@@ -40,7 +40,8 @@ export default function SalesReturnFormModal({ companyId, companies, editingRetu
     unitPrice: Number(l.unitPrice),
     discountPct: Number(l.discountPct),
     priceIncludesVat: l.priceIncludesVat,
-    vatApplicable: l.taxCategoryCode !== "O",
+    vatApplicable: l.taxCategoryCode === "S",
+    taxCategoryCode: l.taxCategoryCode, taxExemptionReasonCode: l.taxExemptionReasonCode, taxExemptionReason: l.taxExemptionReason,
   })) : [emptyInvoiceLine()]));
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);

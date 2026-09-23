@@ -1,3 +1,4 @@
+import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/itemTax";
 import { withInvoiceCredits } from "../../lib/invoiceCredits";
 import { randomUUID } from "crypto";
 import { Item, Prisma } from "@prisma/client";
@@ -29,6 +30,9 @@ export interface LineInput {
   discountPct?: number;
   priceIncludesVat?: boolean;
   vatApplicable?: boolean;
+  taxCategoryCode?: TaxFields["taxCategoryCode"];
+  taxExemptionReasonCode?: string | null;
+  taxExemptionReason?: string | null;
 }
 
 interface InvoiceInput {
@@ -92,10 +96,9 @@ function computeLines(lines: LineInput[]) {
   const computed = lines.map((l) => ({
     ...l,
     ...computeInvoiceLine(l),
-    // فئة الضريبة القياسية لزاتكا (S/O) تُشتق من vatApplicable الحالي — لا حقل إدخال جديد بعد.
-    taxCategoryCode: l.vatApplicable === false ? ("O" as const) : ("S" as const),
-    taxExemptionReason: null as string | null,
+    ...normalizeTax(l),
   }));
+  assertCompatibleTaxReasons(computed);
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
@@ -120,7 +123,7 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
     if (item.type === "fixed_asset") throw badRequest(`الصنف "${item.name}" أصل ثابت، لا يُباع عبر فاتورة مبيعات`);
     if (item.type === "raw_material" && !item.allowDirectSale) throw badRequest(`الصنف "${item.name}" مادة أولية غير مسموح ببيعها منفردة`);
     if (!item.revenueAccountId) throw badRequest(`لم يُحدَّد حساب الإيراد المرتبط بالصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
-    return { ...line, accountId: item.revenueAccountId };
+    return { ...line, ...(line.taxCategoryCode == null && item.taxCategoryCode ? normalizeTax(item) : {}), accountId: item.revenueAccountId };
   });
 }
 
@@ -636,6 +639,7 @@ interface StoredInvoiceLineLike {
   unitPrice: Prisma.Decimal | number;
   taxCategoryCode: string;
   taxExemptionReason: string | null;
+  taxExemptionReasonCode?: string | null;
 }
 
 /** الشكل المطلوب لـcomputeCogsJournalLines/buildJournalLines فقط (LineInput) — بلا description
@@ -664,6 +668,7 @@ function toZatcaLines(lines: StoredInvoiceLineLike[]): ZatcaPersistedLineLike[] 
     vat: Number(l.vat),
     taxCategoryCode: l.taxCategoryCode,
     taxExemptionReason: l.taxExemptionReason,
+    taxExemptionReasonCode: l.taxExemptionReasonCode,
   }));
 }
 

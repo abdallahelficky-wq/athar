@@ -299,3 +299,11 @@ describe("linked credit note integrity", () => {
     expect(tx.$queryRaw).toHaveBeenCalled(); expect(reserveZatcaChain).not.toHaveBeenCalled();
   });
 });
+
+it("a return keeps its source zero rate and reason rather than the current form defaults", async () => {
+ const {tx}=setupCommonMocks();
+ vi.mocked(reserveZatcaChain).mockResolvedValue(null);
+ vi.mocked(prisma.salesInvoice.findFirst).mockResolvedValue({invoiceNumber:"INV-00001",status:"posted",invoiceType:"standard",date:new Date("2025-12-01"),grandTotal:100,lines:[{id:"line-1",accountId:ACCOUNT_ID,quantity:1,unitPrice:100,discountPct:0,priceIncludesVat:false,vatApplicable:false,taxCategoryCode:"Z",taxExemptionReasonCode:"VATEX-SA-35",taxExemptionReason:"Medicine"}]} as never);
+ await createSalesReturn(TENANT_ID,"user-1",returnInput());
+ expect(tx.salesReturn.create).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({grandTotal:100,vatTotal:0,lines:{create:[expect.objectContaining({taxCategoryCode:"Z",taxExemptionReasonCode:"VATEX-SA-35",vat:0})]}})}));
+});

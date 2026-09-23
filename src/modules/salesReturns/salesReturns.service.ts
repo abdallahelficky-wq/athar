@@ -1,3 +1,4 @@
+import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/itemTax";
 import { assertReturnLimits } from "./returnLimits";
 import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
@@ -57,6 +58,9 @@ function assertCreditNoteRequiredFieldsForOnboardedCompany(
 interface LineInput {
   originalInvoiceLineId?: string;
   vatApplicable?: boolean;
+  taxCategoryCode?: TaxFields["taxCategoryCode"];
+  taxExemptionReasonCode?: string | null;
+  taxExemptionReason?: string | null;
   accountId: string;
   description?: string;
   quantity: number;
@@ -184,8 +188,10 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
     if (input.relatedInvoiceId && !source) throw badRequest("أحد أصناف المرتجع لا ينتمي إلى الفاتورة الأصلية");
     const taxable = source ? source.vatApplicable : vatApplicable;
     if (source) l = { ...l, accountId: source.accountId, description: source.description || undefined, unitPrice: Number(source.unitPrice), discountPct: Number(source.discountPct), priceIncludesVat: source.priceIncludesVat };
-    return { ...l, ...computeInvoiceLine({ ...l, vatApplicable: taxable }), taxCategoryCode: source?.taxCategoryCode ?? (taxable === false ? "O" as const : "S" as const), taxExemptionReason: source?.taxExemptionReason ?? null };
+    const { vatApplicable: _taxable, ...tax } = normalizeTax(source || { ...l, vatApplicable: taxable });
+    return { ...l, ...computeInvoiceLine({ ...l, ...tax, vatApplicable: taxable }), ...tax };
   });
+  assertCompatibleTaxReasons(computed);
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
@@ -338,8 +344,10 @@ export async function updateSalesReturn(tenantId: string, id: string, input: Ret
     if (input.relatedInvoiceId && !source) throw badRequest("أحد أصناف المرتجع لا ينتمي إلى الفاتورة الأصلية");
     const taxable = source ? source.vatApplicable : vatApplicable;
     if (source) l = { ...l, accountId: source.accountId, description: source.description || undefined, unitPrice: Number(source.unitPrice), discountPct: Number(source.discountPct), priceIncludesVat: source.priceIncludesVat };
-    return { ...l, ...computeInvoiceLine({ ...l, vatApplicable: taxable }), taxCategoryCode: source?.taxCategoryCode ?? (taxable === false ? "O" as const : "S" as const), taxExemptionReason: source?.taxExemptionReason ?? null };
+    const { vatApplicable: _taxable, ...tax } = normalizeTax(source || { ...l, vatApplicable: taxable });
+    return { ...l, ...computeInvoiceLine({ ...l, ...tax, vatApplicable: taxable }), ...tax };
   });
+  assertCompatibleTaxReasons(computed);
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
@@ -468,6 +476,7 @@ function toZatcaReturnLines(lines: SalesReturnWithZatcaChain["lines"]): ZatcaPer
     vat: Number(l.vat),
     taxCategoryCode: l.taxCategoryCode,
     taxExemptionReason: l.taxExemptionReason,
+    taxExemptionReasonCode: l.taxExemptionReasonCode,
   }));
 }
 

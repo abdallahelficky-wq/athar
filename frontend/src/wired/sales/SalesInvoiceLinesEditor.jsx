@@ -1,3 +1,5 @@
+import { itemTaxDefaults, itemDescription, itemMatches } from "../shared/itemDefaults";
+import TaxCategoryFields from "../shared/TaxCategoryFields";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { computeInvoiceLine } from "../shared/invoiceLine";
@@ -40,15 +42,15 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, ite
   const pickItem = (idx, item) => {
     updateLine(idx, {
       itemId: item.id,
-      description: item.name,
+      description: itemDescription(item),
       accountId: item.revenueAccountId,
       unitPrice: item.salePrice != null ? Number(item.salePrice) : 0,
-      vatApplicable: item.vatApplicable,
+      ...itemTaxDefaults(item),
     });
     setOpenDropdownIdx(null);
   };
 
-  const filtered = (text) => sellableItems.filter((it) => !text || it.name.includes(text));
+  const filtered = (text) => sellableItems.filter((it) => !text || itemMatches(it, text));
   const currency = currencyProp || t("common.currency");
 
   return (
@@ -59,7 +61,7 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, ite
             <tr>
               <th>{t("salesInvoices.form.lines.itemDescription")}</th><th>{t("salesInvoices.form.lines.account")}</th>
               <th>{t("salesInvoices.form.lines.quantity")}</th><th>{t("salesInvoices.form.lines.unitPrice")}</th>
-              <th>{t("salesInvoices.form.lines.priceIncludesVat")}</th><th>{t("salesInvoices.form.lines.vatApplicable")}</th>
+              <th>{t("salesInvoices.form.lines.priceIncludesVat")}</th><th>{t("itemTax.category")}</th>
               <th>{t("salesInvoices.form.lines.discount")}</th><th>{t("salesInvoices.form.lines.totalWithVat")}</th><th></th>
             </tr>
           </thead>
@@ -79,7 +81,7 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, ite
                     <div className="item-combo-dropdown">
                       {filtered(searchText).map((it) => (
                         <div key={it.id} className="item-combo-option" onMouseDown={() => pickItem(idx, it)}>
-                          {it.name} <span className="note" style={{ margin: 0 }}>({fmt2(Number(it.salePrice || 0))} {currency})</span>
+                          {itemDescription(it)} <span className="note" style={{ margin: 0 }}>({fmt2(Number(it.salePrice || 0))} {currency})</span>
                         </div>
                       ))}
                       <div
@@ -100,7 +102,7 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, ite
                   <input type="checkbox" checked={l.priceIncludesVat} onChange={(e) => updateLine(idx, { priceIncludesVat: e.target.checked })} />
                 </td>
                 <td style={{ textAlign: "center" }}>
-                  <input type="checkbox" checked={l.vatApplicable} onChange={(e) => updateLine(idx, { vatApplicable: e.target.checked })} />
+                  <TaxCategoryFields value={l} onChange={(patch) => updateLine(idx, patch)} />
                 </td>
                 <td><input type="number" className="amount-input" value={l.discountPct} onChange={(e) => updateLine(idx, { discountPct: e.target.value })} /></td>
                 <td className="num">{fmt2(l.total)}</td>
