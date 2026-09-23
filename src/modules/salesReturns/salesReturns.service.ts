@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
+import { riyadhCalendarDay } from "../../lib/riyadhDate";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
@@ -135,6 +136,10 @@ async function resolveCreditAccountId(tenantId: string, companyId: string, custo
  *   يحمي هذا أيضاً حالة تغيّر بيانات العميل (نوعه/رقمه الضريبي) بين تاريخ الفاتورة الأصلية وتاريخ
  *   الإشعار، لا فقط حالة اختيار عميل مختلف تماماً (تلك مرفوضة أصلاً أعلاه بفلتر customerId).
  * - تاريخ الإشعار يجب ألا يسبق تاريخ الفاتورة الأصلية — مردود لا معنى له قبل صدور مستنده الأصلي.
+ *   المقارنة بيوم تقويمي سعودي (riyadhCalendarDay) لا بالطابع الزمني UTC الخام: فاتورة مُسجَّلة
+ *   الساعة 23:30 بتوقيت الرياض (20:30 UTC) وإشعار بنفس اليوم السعودي لكن بمنتصف ليل UTC (00:00،
+ *   أي 03:00 صباحاً بتوقيت الرياض من نفس اليوم بالضبط) طابعاهما الخامان UTC مختلفان (00:00 يسبق
+ *   20:30 رقمياً) رغم كونهما نفس اليوم السعودي فعلياً — مقارنة الطابع الخام كانت سترفض هذا خطأً.
  * - سقف الاستخدام التراكمي (الكمية والصافي) عبر كل إشعارات الدائن الأخرى المرتبطة بنفس الفاتورة،
  *   باستثناء هذا المردود نفسه (excludeId) — راجع assertReturnLimits.
  */
@@ -151,7 +156,7 @@ async function validateLinkedReturn(
   if (subtypeForCustomer(customer) !== invoice.invoiceType) {
     throw badRequest("نوع إشعار الدائن (قياسي/مبسّط) يجب أن يطابق نوع الفاتورة الأصلية");
   }
-  if (date.getTime() < invoice.date.getTime()) {
+  if (riyadhCalendarDay(date) < riyadhCalendarDay(invoice.date)) {
     throw badRequest("تاريخ إشعار الدائن يجب ألا يسبق تاريخ الفاتورة الأصلية");
   }
   const previous = await tx.salesReturn.findMany({ where: { tenantId, relatedInvoiceId: invoiceId, ...(excludeId ? { id: { not: excludeId } } : {}) }, include: { lines: true } });
