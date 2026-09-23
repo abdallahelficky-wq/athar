@@ -505,4 +505,5 @@ export const AR_TO_EN: Record<string, string> = {
   "تاريخ إشعار الدائن يجب ألا يسبق تاريخ الفاتورة الأصلية": "The credit note's date must not be earlier than the original invoice's date",
   "لا يمكن تغيير عميل مردود موجود — أنشئ مردوداً جديداً بدلاً من ذلك": "Can't change the customer on an existing sales return — create a new one instead",
   "لا يمكن تغيير الفاتورة الأصلية المرتبطة بمردود موجود — أنشئ مردوداً جديداً بدلاً من ذلك": "Can't change the original invoice linked to an existing sales return — create a new one instead",
+  "إجمالي الفاتورة المستوردة يجب أن يكون أكبر من صفر": "The imported invoice's grand total must be greater than zero",
 };
