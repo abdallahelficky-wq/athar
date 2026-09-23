@@ -13,170 +13,183 @@
 -- exact set of standard accounts seeded under 112/211 differs across the chart templates
 -- (5 to 7 for customers, 4 to 5 for suppliers, depending on business activity).
 --
--- Every step below is scoped to companies whose chart already matches the exact expected
--- shape (right code, level, type, isPosting, and — for 117/217 — right parent), so a
--- tenant/company with a customized or unexpected chart is left untouched rather than
--- guessed at. Every step is also independently idempotent: re-running this migration
--- against an already-migrated (or freshly-seeded, already-correct) database updates zero
--- rows.
+-- DEPLOY SAFETY: this runs as part of every production boot (`prisma migrate deploy &&
+-- node server.js`), against every company on the platform, so it must never abort the
+-- deployment. Every company is processed inside its own BEGIN/EXCEPTION block: a missing
+-- or mismatched 112/211, a "117"/"217" code already taken by something else, an
+-- already-migrated (or already-correct freshly-seeded) chart, or any other unanticipated
+-- error is caught, logged, and that one company is skipped — the loop always continues to
+-- the next company, and this DO block itself never raises past its own boundary. Every
+-- skip is logged via RAISE NOTICE with the company id, name and the specific reason
+-- (visible in Railway's deploy logs), plus one final summary line with the totals.
+DO $migration$
+DECLARE
+  company_row RECORD;
+  companies_examined INT := 0;
+  companies_migrated INT := 0;
+  companies_skipped INT := 0;
+  company_label TEXT;
 
--- ============================== Receivables: 112 -> 117 ==============================
+  v11_id TEXT; v112_id TEXT; v117_id TEXT;
+  v117_level INT; v117_type TEXT; v117_isposting BOOLEAN; v117_parentid TEXT;
+  v21_id TEXT; v211_id TEXT; v217_id TEXT;
+  v217_level INT; v217_type TEXT; v217_isposting BOOLEAN; v217_parentid TEXT;
+  moved_count INT;
+  renamed_count INT;
+  created_117 BOOLEAN;
+  created_217 BOOLEAN;
+  receivables_ok BOOLEAN;
+  payables_ok BOOLEAN;
+  receivables_reason TEXT;
+  payables_reason TEXT;
+BEGIN
+  FOR company_row IN
+    SELECT DISTINCT a."tenantId" AS tenant_id, a."companyId" AS company_id
+    FROM "accounts" a
+    WHERE a."code" IN ('112', '211')
+  LOOP
+    companies_examined := companies_examined + 1;
+    receivables_ok := false;
+    payables_ok := false;
+    receivables_reason := NULL;
+    payables_reason := NULL;
 
--- Step 1: create the new "الذمم المدينة القياسية" / "Standard Trade Receivables" group
--- (117) as a sibling of 112 under the same "11" parent, for every company that has a
--- properly-shaped 112 and does not already have a matching 117.
-WITH r112 AS (
-  SELECT a."id" AS a112_id, a."tenantId", a."companyId", p11."id" AS a11_id
-  FROM "accounts" a
-  JOIN "accounts" p11 ON p11."id" = a."parentId"
-  WHERE a."code" = '112' AND a."level" = 3 AND a."type" = 'asset' AND a."isPosting" = false
-    AND p11."code" = '11' AND p11."level" = 2 AND p11."type" = 'asset' AND p11."isPosting" = false
-),
-existing117 AS (
-  SELECT "id", "tenantId", "companyId", "parentId", "level", "type", "isPosting"
-  FROM "accounts" WHERE "code" = '117'
-)
-INSERT INTO "accounts" (
-  "id", "tenantId", "companyId", "parentId", "code", "level", "isPosting", "isArchived",
-  "name", "nameEn", "type", "isActive", "isBankOrCash", "createdAt", "updatedAt"
-)
-SELECT
-  md5('party-subledger-grouping-117-' || r."tenantId" || '-' || COALESCE(r."companyId", 'group')),
-  r."tenantId", r."companyId", r.a11_id, '117', 3, false, false,
-  'الذمم المدينة القياسية', 'Standard Trade Receivables', 'asset', true, false, NOW(), NOW()
-FROM r112 r
-LEFT JOIN existing117 e
-  ON e."tenantId" = r."tenantId" AND e."companyId" IS NOT DISTINCT FROM r."companyId"
-WHERE e."id" IS NULL;
+    BEGIN
+      SELECT c."name" INTO company_label FROM "companies" c WHERE c."id" = company_row.company_id;
+      IF company_label IS NULL THEN
+        company_label := '(نطاق عام بلا شركة محدَّدة — المستأجر ' || company_row.tenant_id || ')';
+      END IF;
 
--- Step 2: move every direct child of 112 that is NOT a customer's own sub-ledger account
--- (i.e. no Customer.accountId points at it) onto the new 117 group. Scoped to companies
--- where 117 now exists with exactly the expected shape (just-inserted above, or already
--- present and valid from an earlier run) — a company whose "117" code is taken by something
--- else entirely is excluded here and left untouched.
-WITH r112 AS (
-  SELECT a."id" AS a112_id, a."tenantId", a."companyId", p11."id" AS a11_id
-  FROM "accounts" a
-  JOIN "accounts" p11 ON p11."id" = a."parentId"
-  WHERE a."code" = '112' AND a."level" = 3 AND a."type" = 'asset' AND a."isPosting" = false
-    AND p11."code" = '11' AND p11."level" = 2 AND p11."type" = 'asset' AND p11."isPosting" = false
-),
-target117 AS (
-  SELECT r.a112_id, r."tenantId", r."companyId", e."id" AS a117_id
-  FROM r112 r
-  JOIN "accounts" e
-    ON e."tenantId" = r."tenantId" AND e."companyId" IS NOT DISTINCT FROM r."companyId"
-   AND e."code" = '117' AND e."level" = 3 AND e."type" = 'asset' AND e."isPosting" = false
-   AND e."parentId" = r.a11_id
-)
-UPDATE "accounts" child
-SET "parentId" = t.a117_id
-FROM target117 t
-WHERE child."parentId" = t.a112_id
-  AND child."level" = 4
-  AND child."isPosting" = true
-  AND NOT EXISTS (
-    SELECT 1 FROM "customers" c
-    WHERE c."tenantId" = t."tenantId" AND c."companyId" IS NOT DISTINCT FROM t."companyId"
-      AND c."accountId" = child."id"
-  );
+      -- ============================== Receivables: 112 -> 117 ==============================
+      v11_id := NULL; v112_id := NULL;
+      SELECT a."id", p."id" INTO v112_id, v11_id
+      FROM "accounts" a
+      JOIN "accounts" p ON p."id" = a."parentId"
+      WHERE a."tenantId" = company_row.tenant_id AND a."companyId" IS NOT DISTINCT FROM company_row.company_id
+        AND a."code" = '112' AND a."level" = 3 AND a."type" = 'asset' AND a."isPosting" = false
+        AND p."code" = '11' AND p."level" = 2 AND p."type" = 'asset' AND p."isPosting" = false;
 
--- Step 3: rename 112 to reflect that it now holds only the auto-generated customer
--- sub-ledger accounts. Gated on the same "117 exists and matches" condition as step 2, so
--- it only fires for companies actually processed above.
-WITH r112 AS (
-  SELECT a."id" AS a112_id, a."tenantId", a."companyId", p11."id" AS a11_id
-  FROM "accounts" a
-  JOIN "accounts" p11 ON p11."id" = a."parentId"
-  WHERE a."code" = '112' AND a."level" = 3 AND a."type" = 'asset' AND a."isPosting" = false
-    AND p11."code" = '11' AND p11."level" = 2 AND p11."type" = 'asset' AND p11."isPosting" = false
-),
-target117 AS (
-  SELECT r.a112_id, r."tenantId", r."companyId"
-  FROM r112 r
-  JOIN "accounts" e
-    ON e."tenantId" = r."tenantId" AND e."companyId" IS NOT DISTINCT FROM r."companyId"
-   AND e."code" = '117' AND e."level" = 3 AND e."type" = 'asset' AND e."isPosting" = false
-   AND e."parentId" = r.a11_id
-)
-UPDATE "accounts" a
-SET "name" = 'عملاء', "nameEn" = 'Customers'
-FROM target117 t
-WHERE a."id" = t.a112_id;
+      IF v112_id IS NULL THEN
+        receivables_reason := 'لا يوجد حساب "112" مطابق للشكل المتوقع (مستوى 3 / أصول / غير قابل للترحيل) تحت أب "11" صحيح';
+      ELSE
+        v117_id := NULL; v117_level := NULL; v117_type := NULL; v117_isposting := NULL; v117_parentid := NULL;
+        SELECT "id", "level", "type"::text, "isPosting", "parentId"
+          INTO v117_id, v117_level, v117_type, v117_isposting, v117_parentid
+        FROM "accounts"
+        WHERE "tenantId" = company_row.tenant_id AND "companyId" IS NOT DISTINCT FROM company_row.company_id AND "code" = '117';
 
--- ============================== Payables: 211 -> 217 ==============================
+        IF v117_id IS NOT NULL AND NOT (v117_level = 3 AND v117_type = 'asset' AND v117_isposting = false AND v117_parentid = v11_id) THEN
+          receivables_reason := 'الكود "117" مستخدَم بالفعل بحساب لا يطابق شكل مجموعة الذمم المدينة القياسية المتوقّع';
+        ELSE
+          created_117 := false;
+          IF v117_id IS NULL THEN
+            v117_id := md5('party-subledger-grouping-117-' || company_row.tenant_id || '-' || COALESCE(company_row.company_id, 'group'));
+            INSERT INTO "accounts" (
+              "id", "tenantId", "companyId", "parentId", "code", "level", "isPosting", "isArchived",
+              "name", "nameEn", "type", "isActive", "isBankOrCash", "createdAt", "updatedAt"
+            ) VALUES (
+              v117_id, company_row.tenant_id, company_row.company_id, v11_id, '117', 3, false, false,
+              'الذمم المدينة القياسية', 'Standard Trade Receivables', 'asset', true, false, NOW(), NOW()
+            );
+            created_117 := true;
+          END IF;
 
--- Mirror of the three receivables steps above: "217" الذمم الدائنة القياسية / "Standard
--- Trade Payables" as a new sibling of 211 under the same "21" parent, standard (non-
--- supplier-linked) children of 211 moved onto it, then 211 renamed to "موردون" / "Suppliers".
+          UPDATE "accounts" child SET "parentId" = v117_id
+          WHERE child."parentId" = v112_id AND child."level" = 4 AND child."isPosting" = true
+            AND NOT EXISTS (
+              SELECT 1 FROM "customers" c
+              WHERE c."tenantId" = company_row.tenant_id AND c."companyId" IS NOT DISTINCT FROM company_row.company_id
+                AND c."accountId" = child."id"
+            );
+          GET DIAGNOSTICS moved_count = ROW_COUNT;
 
-WITH r211 AS (
-  SELECT a."id" AS a211_id, a."tenantId", a."companyId", p21."id" AS a21_id
-  FROM "accounts" a
-  JOIN "accounts" p21 ON p21."id" = a."parentId"
-  WHERE a."code" = '211' AND a."level" = 3 AND a."type" = 'liability' AND a."isPosting" = false
-    AND p21."code" = '21' AND p21."level" = 2 AND p21."type" = 'liability' AND p21."isPosting" = false
-),
-existing217 AS (
-  SELECT "id", "tenantId", "companyId", "parentId", "level", "type", "isPosting"
-  FROM "accounts" WHERE "code" = '217'
-)
-INSERT INTO "accounts" (
-  "id", "tenantId", "companyId", "parentId", "code", "level", "isPosting", "isArchived",
-  "name", "nameEn", "type", "isActive", "isBankOrCash", "createdAt", "updatedAt"
-)
-SELECT
-  md5('party-subledger-grouping-217-' || r."tenantId" || '-' || COALESCE(r."companyId", 'group')),
-  r."tenantId", r."companyId", r.a21_id, '217', 3, false, false,
-  'الذمم الدائنة القياسية', 'Standard Trade Payables', 'liability', true, false, NOW(), NOW()
-FROM r211 r
-LEFT JOIN existing217 e
-  ON e."tenantId" = r."tenantId" AND e."companyId" IS NOT DISTINCT FROM r."companyId"
-WHERE e."id" IS NULL;
+          UPDATE "accounts" SET "name" = 'عملاء', "nameEn" = 'Customers'
+          WHERE "id" = v112_id AND ("name" IS DISTINCT FROM 'عملاء' OR "nameEn" IS DISTINCT FROM 'Customers');
+          GET DIAGNOSTICS renamed_count = ROW_COUNT;
 
-WITH r211 AS (
-  SELECT a."id" AS a211_id, a."tenantId", a."companyId", p21."id" AS a21_id
-  FROM "accounts" a
-  JOIN "accounts" p21 ON p21."id" = a."parentId"
-  WHERE a."code" = '211' AND a."level" = 3 AND a."type" = 'liability' AND a."isPosting" = false
-    AND p21."code" = '21' AND p21."level" = 2 AND p21."type" = 'liability' AND p21."isPosting" = false
-),
-target217 AS (
-  SELECT r.a211_id, r."tenantId", r."companyId", e."id" AS a217_id
-  FROM r211 r
-  JOIN "accounts" e
-    ON e."tenantId" = r."tenantId" AND e."companyId" IS NOT DISTINCT FROM r."companyId"
-   AND e."code" = '217' AND e."level" = 3 AND e."type" = 'liability' AND e."isPosting" = false
-   AND e."parentId" = r.a21_id
-)
-UPDATE "accounts" child
-SET "parentId" = t.a217_id
-FROM target217 t
-WHERE child."parentId" = t.a211_id
-  AND child."level" = 4
-  AND child."isPosting" = true
-  AND NOT EXISTS (
-    SELECT 1 FROM "suppliers" s
-    WHERE s."tenantId" = t."tenantId" AND s."companyId" IS NOT DISTINCT FROM t."companyId"
-      AND s."accountId" = child."id"
-  );
+          IF created_117 OR moved_count > 0 OR renamed_count > 0 THEN
+            receivables_ok := true;
+          ELSE
+            receivables_reason := 'الشركة محدَّثة بالفعل (117 موجودة ومطابقة، ولا حسابات قياسية متبقية تحت 112، والاسم صحيح بالفعل)';
+          END IF;
+        END IF;
+      END IF;
 
-WITH r211 AS (
-  SELECT a."id" AS a211_id, a."tenantId", a."companyId", p21."id" AS a21_id
-  FROM "accounts" a
-  JOIN "accounts" p21 ON p21."id" = a."parentId"
-  WHERE a."code" = '211' AND a."level" = 3 AND a."type" = 'liability' AND a."isPosting" = false
-    AND p21."code" = '21' AND p21."level" = 2 AND p21."type" = 'liability' AND p21."isPosting" = false
-),
-target217 AS (
-  SELECT r.a211_id, r."tenantId", r."companyId"
-  FROM r211 r
-  JOIN "accounts" e
-    ON e."tenantId" = r."tenantId" AND e."companyId" IS NOT DISTINCT FROM r."companyId"
-   AND e."code" = '217' AND e."level" = 3 AND e."type" = 'liability' AND e."isPosting" = false
-   AND e."parentId" = r.a21_id
-)
-UPDATE "accounts" a
-SET "name" = 'موردون', "nameEn" = 'Suppliers'
-FROM target217 t
-WHERE a."id" = t.a211_id;
+      -- ============================== Payables: 211 -> 217 ==============================
+      v21_id := NULL; v211_id := NULL;
+      SELECT a."id", p."id" INTO v211_id, v21_id
+      FROM "accounts" a
+      JOIN "accounts" p ON p."id" = a."parentId"
+      WHERE a."tenantId" = company_row.tenant_id AND a."companyId" IS NOT DISTINCT FROM company_row.company_id
+        AND a."code" = '211' AND a."level" = 3 AND a."type" = 'liability' AND a."isPosting" = false
+        AND p."code" = '21' AND p."level" = 2 AND p."type" = 'liability' AND p."isPosting" = false;
+
+      IF v211_id IS NULL THEN
+        payables_reason := 'لا يوجد حساب "211" مطابق للشكل المتوقع (مستوى 3 / التزامات / غير قابل للترحيل) تحت أب "21" صحيح';
+      ELSE
+        v217_id := NULL; v217_level := NULL; v217_type := NULL; v217_isposting := NULL; v217_parentid := NULL;
+        SELECT "id", "level", "type"::text, "isPosting", "parentId"
+          INTO v217_id, v217_level, v217_type, v217_isposting, v217_parentid
+        FROM "accounts"
+        WHERE "tenantId" = company_row.tenant_id AND "companyId" IS NOT DISTINCT FROM company_row.company_id AND "code" = '217';
+
+        IF v217_id IS NOT NULL AND NOT (v217_level = 3 AND v217_type = 'liability' AND v217_isposting = false AND v217_parentid = v21_id) THEN
+          payables_reason := 'الكود "217" مستخدَم بالفعل بحساب لا يطابق شكل مجموعة الذمم الدائنة القياسية المتوقّع';
+        ELSE
+          created_217 := false;
+          IF v217_id IS NULL THEN
+            v217_id := md5('party-subledger-grouping-217-' || company_row.tenant_id || '-' || COALESCE(company_row.company_id, 'group'));
+            INSERT INTO "accounts" (
+              "id", "tenantId", "companyId", "parentId", "code", "level", "isPosting", "isArchived",
+              "name", "nameEn", "type", "isActive", "isBankOrCash", "createdAt", "updatedAt"
+            ) VALUES (
+              v217_id, company_row.tenant_id, company_row.company_id, v21_id, '217', 3, false, false,
+              'الذمم الدائنة القياسية', 'Standard Trade Payables', 'liability', true, false, NOW(), NOW()
+            );
+            created_217 := true;
+          END IF;
+
+          UPDATE "accounts" child SET "parentId" = v217_id
+          WHERE child."parentId" = v211_id AND child."level" = 4 AND child."isPosting" = true
+            AND NOT EXISTS (
+              SELECT 1 FROM "suppliers" s
+              WHERE s."tenantId" = company_row.tenant_id AND s."companyId" IS NOT DISTINCT FROM company_row.company_id
+                AND s."accountId" = child."id"
+            );
+          GET DIAGNOSTICS moved_count = ROW_COUNT;
+
+          UPDATE "accounts" SET "name" = 'موردون', "nameEn" = 'Suppliers'
+          WHERE "id" = v211_id AND ("name" IS DISTINCT FROM 'موردون' OR "nameEn" IS DISTINCT FROM 'Suppliers');
+          GET DIAGNOSTICS renamed_count = ROW_COUNT;
+
+          IF created_217 OR moved_count > 0 OR renamed_count > 0 THEN
+            payables_ok := true;
+          ELSE
+            payables_reason := 'الشركة محدَّثة بالفعل (217 موجودة ومطابقة، ولا حسابات قياسية متبقية تحت 211، والاسم صحيح بالفعل)';
+          END IF;
+        END IF;
+      END IF;
+
+      IF receivables_ok OR payables_ok THEN
+        companies_migrated := companies_migrated + 1;
+        RAISE NOTICE '[party_subledger_grouping] MIGRATED company_id=% company_name=% receivables=% payables=%',
+          COALESCE(company_row.company_id, '(group)'), company_label,
+          CASE WHEN receivables_ok THEN 'done' ELSE COALESCE(receivables_reason, 'n/a') END,
+          CASE WHEN payables_ok THEN 'done' ELSE COALESCE(payables_reason, 'n/a') END;
+      ELSE
+        companies_skipped := companies_skipped + 1;
+        RAISE NOTICE '[party_subledger_grouping] SKIPPED company_id=% company_name=% receivables_reason=% payables_reason=%',
+          COALESCE(company_row.company_id, '(group)'), company_label,
+          COALESCE(receivables_reason, 'n/a'), COALESCE(payables_reason, 'n/a');
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      companies_skipped := companies_skipped + 1;
+      RAISE NOTICE '[party_subledger_grouping] SKIPPED (unexpected error) company_id=% tenant_id=% error=%',
+        COALESCE(company_row.company_id, '(group)'), company_row.tenant_id, SQLERRM;
+    END;
+  END LOOP;
+
+  RAISE NOTICE '[party_subledger_grouping] SUMMARY companies_examined=% companies_migrated=% companies_skipped=%',
+    companies_examined, companies_migrated, companies_skipped;
+END;
+$migration$;

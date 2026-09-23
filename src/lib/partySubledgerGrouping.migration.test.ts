@@ -45,8 +45,11 @@ function leaves(nodes: AmountTreeNode[]): AmountTreeNode[] {
   return result.sort((a, b) => a.code.localeCompare(b.code));
 }
 
-/** ينفّذ ملف الـmigration الفعلي المشحون حرفياً (لا نسخة منه) ضد قاعدة الاختبار — تقسيم بسيط على
- * الفاصلة المنقوطة في نهاية السطر يكفي هنا لأن جمل SQL بالملف لا تحوي فاصلة منقوطة داخل أي نص. */
+/** ينفّذ ملف الـmigration الفعلي المشحون حرفياً (لا نسخة منه) ضد قاعدة الاختبار. الملف بأكمله
+ * جملة SQL واحدة فقط (DO $migration$ ... $migration$;) — الفاصلات المنقوطة الكثيرة بداخله جزء من
+ * جسم الكتلة المقتبس بعلامة $، لا فواصل بين جمل عليا، فيُرسَل الملف كاملاً (بعد حذف تعليقات "--"
+ * فقط) كنداء $executeRawUnsafe واحد، تماماً كما يرسله prisma migrate deploy فعلياً.
+ */
 async function runShippedMigration() {
   const sqlPath = path.join(__dirname, "..", "..", "prisma", "migrations", "20260923100000_party_subledger_grouping", "migration.sql");
   const raw = readFileSync(sqlPath, "utf8");
@@ -54,10 +57,7 @@ async function runShippedMigration() {
     .split("\n")
     .filter((line) => !line.trim().startsWith("--"))
     .join("\n");
-  const statements = withoutComments.split(/;\s*\n/).map((s) => s.trim()).filter(Boolean);
-  for (const statement of statements) {
-    await prisma.$executeRawUnsafe(statement);
-  }
+  await prisma.$executeRawUnsafe(withoutComments);
 }
 
 describe("party sub-ledger grouping migration (integration)", () => {
