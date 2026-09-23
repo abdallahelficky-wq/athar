@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as XLSX from "xlsx";
 import { listAccounts, getNextAccountCode, createAccount, updateAccount, deleteAccount, installStandardChart } from "../api/accounts";
@@ -22,6 +22,10 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const isSuperAdmin = user?.role === "super_admin";
   const [scope, setScope] = useState(companyId || "group");
   const [accounts, setAccounts] = useState([]);
+  // القائمة الكاملة غير المفلترة (بصرف النظر عن مفتاح الإخفاء) — تُستخدَم حصراً للتحقق من تكرار
+  // الكود/وجود الأب الأصل أثناء الاستيراد (AccountImportPanel)، حتى لا يُقبَل صف يحمل كوداً يخص
+  // حساب طرف مخفي حالياً عن الشجرة ثم يُرفَض لاحقاً في الخادم بسبب تكرار الكود.
+  const [allAccounts, setAllAccounts] = useState([]);
   const [expanded, setExpanded] = useState(new Set());
   const [compact, setCompact] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -46,16 +50,34 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   });
 
   useEffect(() => { if (companyId) setScope(companyId); }, [companyId]);
-  const reload = () => listAccounts({
-    tree: true,
-    companyId: scope === "group" ? undefined : scope,
-    includePartyAccounts: showPartyAccounts,
-    // partySearch استثناء البحث المباشر: حتى مع إطفاء المفتاح، حساب طرف بعينه يطابق نص البحث المطبَّق
-    // يظل ظاهراً في نتيجة البحث بدل اختفائه تماماً من الشجرة.
-    partySearch: !showPartyAccounts ? chartFilters.applied.search.trim() : "",
-  })
-    .then((rows) => { setAccounts(rows); setExpanded(new Set(rows.filter((a) => a.level < 4).map((a) => a.id))); setError(""); })
-    .catch((err) => setError(err.message));
+  // رقم تسلسلي لكل نداء reload — الاستجابة تُطبَّق فقط إن كانت لا تزال الأحدث وقت وصولها، حتى لا
+  // يطبّق طلب أبطأ (لبحث/فلترة سابقة) نتيجته فوق نداء أحدث سبقه في الإطلاق ولحقه في الوصول.
+  const reloadSeq = useRef(0);
+  const reload = () => {
+    const seq = (reloadSeq.current += 1);
+    const displayPromise = listAccounts({
+      tree: true,
+      companyId: scope === "group" ? undefined : scope,
+      includePartyAccounts: showPartyAccounts,
+      // partySearch استثناء البحث المباشر: حتى مع إطفاء المفتاح، حساب طرف بعينه يطابق نص البحث المطبَّق
+      // يظل ظاهراً في نتيجة البحث بدل اختفائه تماماً من الشجرة.
+      partySearch: !showPartyAccounts ? chartFilters.applied.search.trim() : "",
+    });
+    // لما يكون المفتاح مفعّلاً أصلاً، accounts هي بالفعل القائمة الكاملة — نفس الطلب يُستخدَم لكليهما
+    // بلا طلب شبكة إضافي. لما يكون مطفأً، نجلب النسخة الكاملة (بلا فلترة ولا partySearch) بالتوازي.
+    const fullPromise = showPartyAccounts
+      ? displayPromise
+      : listAccounts({ tree: true, companyId: scope === "group" ? undefined : scope, includePartyAccounts: true });
+    return Promise.all([displayPromise, fullPromise])
+      .then(([rows, allRows]) => {
+        if (reloadSeq.current !== seq) return; // استجابة قديمة — نداء أحدث سبقها بالفعل
+        setAccounts(rows);
+        setAllAccounts(allRows);
+        setExpanded(new Set(rows.filter((a) => a.level < 4).map((a) => a.id)));
+        setError("");
+      })
+      .catch((err) => { if (reloadSeq.current === seq) setError(err.message); });
+  };
   // بحث النص لا يُعاد جلبه من الخادم إلا لما المفتاح مطفأ (عشان استثناء البحث أعلاه) — لما يكون مفعّلاً
   // الفلترة كلها بالفعل من جانب العميل على accounts المحمّلة، فلا داعي لإعادة الطلب مع كل بحث مطبَّق.
   const searchDependency = showPartyAccounts ? "" : chartFilters.applied.search;
@@ -296,7 +318,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         </form>
       </div>
 
-      <AccountImportPanel scope={scope} accounts={accounts} onImported={reload} />
+      <AccountImportPanel scope={scope} accounts={allAccounts} onImported={reload} />
 
       {accountModalOpen && (
         <div className="invoice-modal-overlay" onClick={() => !saving && closeAccountModal()}>
