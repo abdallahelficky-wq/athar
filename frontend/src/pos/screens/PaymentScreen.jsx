@@ -44,6 +44,7 @@ export default function PaymentScreen({ companyId, warehouseId, cart, customer, 
         lines: cart.map((l) => ({
           accountId: l.accountId, itemId: l.itemId, description: l.name,
           quantity: l.quantity, unitPrice: l.unitPrice, vatApplicable: l.vatApplicable,
+          priceIncludesVat: l.priceIncludesVat,
         })),
         payments,
       });

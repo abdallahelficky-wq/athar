@@ -91,6 +91,7 @@ export default function QuickPaymentScreen({ company, companyId, warehouseId, ca
         lines: cart.map((l) => ({
           accountId: l.accountId, itemId: l.itemId, description: l.name,
           quantity: l.quantity, unitPrice: l.unitPrice, vatApplicable: l.vatApplicable,
+          priceIncludesVat: l.priceIncludesVat,
         })),
         payments,
         dueDate: mode === "deferred" ? dueDate : undefined,

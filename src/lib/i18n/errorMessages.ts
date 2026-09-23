@@ -46,6 +46,7 @@ export const AR_TO_EN: Record<string, string> = {
   "هذا البريد الإلكتروني مستخدَم بالفعل بواسطة حساب آخر": "This email is already used by another account",
   "الإشعار غير موجود": "Notification not found",
   "منصبك الوظيفي لا يملك صلاحية تسجيل بيع آجل (بلا دفع) في نقطة البيع": "Your position does not have permission to record a credit sale without payment at the point of sale",
+  "منصبك الوظيفي لا يملك صلاحية تعديل سعر الوحدة في نقطة البيع": "Your position does not have permission to override the unit price at the point of sale",
   "تطابق مجموع الدفعات مع الإجمالي": "Total payments must match the total amount",
   "البيع الآجل (بلا أي دفعة) يتطلب تحديد تاريخ استحقاق": "A credit sale without payment requires a due date",
   "البيع الآجل (على حساب العميل) يتطلب اختيار عميل حقيقي — لا يمكن استخدام العميل النقدي الافتراضي": "A credit sale requires selecting an actual customer; the default cash customer cannot be used",

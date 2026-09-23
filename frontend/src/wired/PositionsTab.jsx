@@ -35,6 +35,7 @@ export default function PositionsTab() {
   const [name, setName] = useState("");
   const [allowUnpost, setAllowUnpost] = useState(false);
   const [allowPosDeferredSale, setAllowPosDeferredSale] = useState(false);
+  const [allowPosPriceOverride, setAllowPosPriceOverride] = useState(false);
   const [saving, setSaving] = useState(false);
   const [memberSelections, setMemberSelections] = useState({});
   const [overrides, setOverrides] = useState([]);
@@ -59,10 +60,11 @@ export default function PositionsTab() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await createPosition({ name: name.trim(), allowUnpost, allowPosDeferredSale });
+      await createPosition({ name: name.trim(), allowUnpost, allowPosDeferredSale, allowPosPriceOverride });
       setName("");
       setAllowUnpost(false);
       setAllowPosDeferredSale(false);
+      setAllowPosPriceOverride(false);
       reload();
       notify(t("settings.positions.notifyCreated"), "success");
     } catch (err) {
@@ -84,6 +86,15 @@ export default function PositionsTab() {
   const togglePosDeferredSale = async (position) => {
     try {
       await updatePosition(position.id, { allowPosDeferredSale: !position.allowPosDeferredSale });
+      reload();
+    } catch (err) {
+      notify(err.message, "error");
+    }
+  };
+
+  const togglePosPriceOverride = async (position) => {
+    try {
+      await updatePosition(position.id, { allowPosPriceOverride: !position.allowPosPriceOverride });
       reload();
     } catch (err) {
       notify(err.message, "error");
@@ -191,6 +202,14 @@ export default function PositionsTab() {
             />
             {t("settings.positions.allowPosDeferredSaleLabel")}
           </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={allowPosPriceOverride}
+              onChange={(e) => setAllowPosPriceOverride(e.target.checked)}
+            />
+            {t("settings.positions.allowPosPriceOverrideLabel")}
+          </label>
         </div>
         <button className="btn-primary" onClick={create} disabled={saving || !name.trim()}>
           {t("common.add")}
@@ -219,6 +238,14 @@ export default function PositionsTab() {
               onChange={() => togglePosDeferredSale(position)}
             />
             {t("settings.positions.allowPosDeferredSaleLabel")}
+          </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={position.allowPosPriceOverride}
+              onChange={() => togglePosPriceOverride(position)}
+            />
+            {t("settings.positions.allowPosPriceOverrideLabel")}
           </label>
 
           <p className="note">{t("settings.positions.leaveRequestsTitle")}</p>

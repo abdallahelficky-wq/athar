@@ -7,6 +7,9 @@ import { isSellableItem } from "../itemFilters";
 import CustomerPickerModal from "../components/CustomerPickerModal";
 import QtyInput from "../components/QtyInput";
 
+// لا تعديل سعر ولا مفتاح شامل/غير شامل في وضع البيع السريع (بلا شاشة سطور تفصيلية أصلاً) —
+// priceIncludesVat: true هنا صريح فقط لمطابقة نفس افتراض SaleScreen/نموذج الفاتورة العادية، لا
+// لأنه يغيّر أي رقم (Zod يطبّق نفس الافتراض تلقائياً لو حُذف الحقل تماماً).
 function lineFromSelection(item, quantity) {
   return {
     itemId: item.id,
@@ -15,6 +18,7 @@ function lineFromSelection(item, quantity) {
     quantity,
     accountId: item.revenueAccountId,
     vatApplicable: item.vatApplicable,
+    priceIncludesVat: true,
   };
 }
 
