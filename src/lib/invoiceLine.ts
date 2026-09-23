@@ -6,6 +6,7 @@ export interface InvoiceLineInput {
   discountPct?: number;
   priceIncludesVat?: boolean;
   vatApplicable?: boolean;
+  taxCategoryCode?: string | null;
 }
 
 /**
@@ -24,7 +25,7 @@ export function computeInvoiceLine(l: InvoiceLineInput) {
   const disc = Number(l.discountPct || 0);
   const grossLine = qty * price * (1 - disc / 100);
 
-  if (l.vatApplicable === false) {
+  if (l.taxCategoryCode ? l.taxCategoryCode !== "S" : l.vatApplicable === false) {
     return { subtotal: grossLine, vat: 0, total: grossLine };
   }
 

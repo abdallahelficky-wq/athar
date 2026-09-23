@@ -2485,5 +2485,36 @@
     "leaveWithoutSaving": "Leave without saving",
     "openInNewTab": "Open in a new tab instead",
     "stayOnPage": "Stay on this page"
+  },
+  "itemTax": {
+    "nameAr": "Arabic item name",
+    "nameEn": "English item name",
+    "category": "VAT treatment",
+    "S": "Standard rated 15%",
+    "Z": "Zero rated 0%",
+    "E": "VAT exempt",
+    "O": "Outside scope — previous setting",
+    "priceBasis": "Entered price",
+    "inclusive": "VAT inclusive",
+    "exclusive": "VAT exclusive",
+    "reason": "Exemption or zero-rating reason",
+    "chooseReason": "Choose a reason",
+    "reasons": {
+      "VATEX-SA-29": "Financial services",
+      "VATEX-SA-29-7": "Life insurance",
+      "VATEX-SA-30": "Exempt real estate supplies",
+      "VATEX-SA-32": "Export of goods",
+      "VATEX-SA-33": "Export of services",
+      "VATEX-SA-34-1": "International goods transport",
+      "VATEX-SA-34-2": "International passenger transport",
+      "VATEX-SA-34-3": "Services related to international passenger transport",
+      "VATEX-SA-34-4": "Qualifying means of transport",
+      "VATEX-SA-34-5": "Goods and passenger transport services",
+      "VATEX-SA-35": "Qualifying medicines and medical equipment",
+      "VATEX-SA-36": "Qualifying metals",
+      "VATEX-SA-EDU": "Private education for citizens",
+      "VATEX-SA-HEA": "Healthcare for citizens",
+      "VATEX-SA-MLTRY": "Qualifying military goods"
+    }
   }
 }

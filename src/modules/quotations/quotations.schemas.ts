@@ -8,6 +8,9 @@ const lineSchema = z.object({
   unitPrice: z.coerce.number().min(0),
   discountPct: z.coerce.number().min(0).max(100).default(0),
   priceIncludesVat: z.boolean().default(true),
+  taxCategoryCode: z.enum(["S", "Z", "E", "O"]).optional(),
+  taxExemptionReasonCode: z.string().trim().nullable().optional(),
+  taxExemptionReason: z.string().trim().nullable().optional(),
   vatApplicable: z.boolean().default(true),
 });
 

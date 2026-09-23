@@ -39,6 +39,7 @@ export interface ZatcaPersistedLineLike {
   subtotal: Prisma.Decimal | number;
   vat: Prisma.Decimal | number;
   taxCategoryCode: string;
+  taxExemptionReasonCode?: string | null;
   taxExemptionReason: string | null;
 }
 
@@ -154,6 +155,7 @@ export function mapPersistedLineToZatcaLine(line: ZatcaPersistedLineLike, index:
     taxCategoryCode: line.taxCategoryCode as ZatcaLineInput["taxCategoryCode"],
     taxPercent,
     taxExemptionReason: line.taxExemptionReason,
+    taxExemptionReasonCode: line.taxExemptionReasonCode,
   };
 }
 

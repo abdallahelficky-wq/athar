@@ -1,3 +1,5 @@
+import TaxCategoryFields from "../shared/TaxCategoryFields";
+import { itemTaxDefaults, itemMatches, taxCategory } from "../shared/itemDefaults";
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -39,7 +41,7 @@ function requiredAccountFieldsForType(type, allowDirectSale) {
 }
 
 const emptyForm = () => ({
-  code: "", name: "", barcode: "", type: "inventory", unit: "", category: "",
+  code: "", name: "", nameEn: "", taxCategoryCode: "S", taxExemptionReasonCode: null, taxExemptionReason: null, priceIncludesVat: true, barcode: "", type: "inventory", unit: "", category: "",
   salePrice: "", vatApplicable: true, reorderLevel: "",
   stockAccountId: "", cogsAccountId: "", revenueAccountId: "", expenseAccountId: "", purchasesAccountId: "",
   allowDirectSale: false, assetCategoryId: "",
@@ -133,7 +135,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
     const f = itemFilters.applied;
     const text = f.query.trim().toLocaleLowerCase("ar");
     return items.filter((item) => {
-      const matchesQuery = !text || item.name?.toLocaleLowerCase("ar").includes(text) || item.code?.toLocaleLowerCase("ar").includes(text);
+      const matchesQuery = !text || itemMatches(item, text);
       const matchesCategory = !f.category || item.category === f.category;
       const matchesType = !f.typeFilter || item.type === f.typeFilter;
       const matchesStock = !f.lowStock || (item.quantity != null && item.reorderLevel != null && Number(item.quantity) < Number(item.reorderLevel));
@@ -185,6 +187,8 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       companyId,
       code: form.code.trim(),
       name: form.name.trim(),
+      nameEn: form.nameEn.trim() || null,
+      ...itemTaxDefaults(form),
       barcode: form.barcode.trim() || undefined,
       type: form.type,
       unit: form.unit || undefined,
@@ -228,6 +232,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
     setEditingId(item.id);
     setForm({
       code: item.code, name: item.name, barcode: item.barcode || "", type: item.type, unit: item.unit || "", category: item.category || "",
+      nameEn: item.nameEn || "", ...itemTaxDefaults(item),
       salePrice: item.salePrice ?? "", vatApplicable: item.vatApplicable, reorderLevel: item.reorderLevel ?? "",
       stockAccountId: item.stockAccountId || "", cogsAccountId: item.cogsAccountId || "",
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
@@ -242,6 +247,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
     setEditingId(null);
     setForm({
       code: `${item.code}-COPY`, name: `${item.name} — ${t("inventory.items.duplicateSuffix")}`, barcode: "", type: item.type, unit: item.unit || "", category: item.category || "",
+      nameEn: item.nameEn || "", ...itemTaxDefaults(item),
       salePrice: item.salePrice ?? "", vatApplicable: item.vatApplicable, reorderLevel: item.reorderLevel ?? "",
       stockAccountId: item.stockAccountId || "", cogsAccountId: item.cogsAccountId || "",
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
@@ -263,9 +269,9 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
 
   const exportItems = () => {
     const csvHeaders = t("inventory.items.csvHeaders", { returnObjects: true });
-    const headings = [csvHeaders.code, csvHeaders.name, csvHeaders.type, csvHeaders.unit, csvHeaders.category, csvHeaders.averageCost, csvHeaders.salePrice, csvHeaders.reorderLevel];
+    const headings = [csvHeaders.code, csvHeaders.name, t("itemTax.nameEn"), t("itemTax.category"), t("itemTax.priceBasis"), csvHeaders.type, csvHeaders.unit, csvHeaders.category, csvHeaders.averageCost, csvHeaders.salePrice, csvHeaders.reorderLevel];
     const rows = items.map((item) => [
-      item.code, item.name, TYPE_LABEL[item.type] || item.type, item.unit || "", item.category || "",
+      item.code, item.name, item.nameEn || "", t(`itemTax.${taxCategory(item)}`), t(item.priceIncludesVat === false ? "itemTax.exclusive" : "itemTax.inclusive"), TYPE_LABEL[item.type] || item.type, item.unit || "", item.category || "",
       item.averageCost, item.salePrice ?? "", item.reorderLevel || "",
     ]);
     const csv = `﻿${[headings, ...rows].map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n")}`;
@@ -312,7 +318,8 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
             </select>
           </label>
           <label>{t("inventory.items.form.code")}<input type="text" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></label>
-          <label>{t("inventory.items.form.name")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>{t("itemTax.nameAr")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label>{t("itemTax.nameEn")}<input dir="ltr" value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} /></label>
           <label>{t("inventory.items.form.barcode")}<input type="text" value={form.barcode} onChange={(e) => setForm({ ...form, barcode: e.target.value })} /></label>
           <label>{t("inventory.items.form.unit")}<input type="text" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder={t("inventory.items.form.unitPlaceholder")} /></label>
           <label>{t("inventory.items.form.category")}<input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></label>
@@ -340,7 +347,8 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
 
         {isSellableType && <div className="form-grid">
           <label>{t("inventory.items.form.salePrice")}<input type="number" value={form.salePrice} onChange={(e) => setForm({ ...form, salePrice: e.target.value })} placeholder="0.00" /></label>
-          <label className="checkbox-label"><input type="checkbox" checked={form.vatApplicable} onChange={(e) => setForm({ ...form, vatApplicable: e.target.checked })} /> {t("inventory.items.form.vatApplicable")}</label>
+          <TaxCategoryFields value={form} onChange={(patch) => setForm({ ...form, ...patch })} />
+          <label>{t("itemTax.priceBasis")}<select value={String(form.priceIncludesVat)} onChange={(e) => setForm({ ...form, priceIncludesVat: e.target.value === "true" })}><option value="true">{t("itemTax.inclusive")}</option><option value="false">{t("itemTax.exclusive")}</option></select></label>
         </div>}
 
         {requiredFields.length > 0 && <div className="form-grid items-accounts-grid">
@@ -424,7 +432,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
               <tbody>
                 {filteredItems.map((item) => <tr key={item.id}>
                   <td data-label={t("inventory.items.table.code")}><span className="item-code">{item.code}</span></td>
-                  <td data-label={t("inventory.items.table.name")}><div className="item-name-cell"><span className="item-avatar">◇</span><span><strong>{item.name}</strong><small>{item.category || t("inventory.items.notCategorized")}</small></span></div></td>
+                  <td data-label={t("inventory.items.table.name")}><div className="item-name-cell"><span className="item-avatar">◇</span><span><strong>{item.name}</strong>{item.nameEn && <small dir="ltr">{item.nameEn}</small>}<small>{item.category || t("inventory.items.notCategorized")}</small></span></div></td>
                   <td data-label={t("inventory.items.table.type")}><span className={`item-type-badge ${TYPE_CSS[item.type] || "type-unknown"}`}><i>{TYPE_ICON[item.type] || "◇"}</i> {TYPE_LABEL[item.type] || t("inventory.items.unspecifiedType")}</span></td>
                   <td data-label={t("inventory.items.table.unit")}>{item.unit || "—"}</td>
                   {showQuantityColumn && <td data-label={t("inventory.items.table.quantity")} className="num">{item.quantity ?? "—"}</td>}
@@ -452,8 +460,10 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
 
       {viewItem && <div className="voucher-overlay item-view-overlay" onMouseDown={() => setViewItem(null)}><div className="voucher-shell item-view-card" onMouseDown={(e) => e.stopPropagation()}>
         <button type="button" className="voucher-close-x" onClick={() => setViewItem(null)} aria-label={t("inventory.items.view.close")}>×</button>
-        <div className="item-view-head"><span className="item-avatar large">{TYPE_ICON[viewItem.type] || "◇"}</span><div><small>{t("inventory.items.view.cardLabel", { type: TYPE_LABEL[viewItem.type] || t("inventory.items.unspecifiedType") })}</small><h3>{viewItem.name}</h3><span className="item-code">{viewItem.code}</span></div></div>
+        <div className="item-view-head"><span className="item-avatar large">{TYPE_ICON[viewItem.type] || "◇"}</span><div><small>{t("inventory.items.view.cardLabel", { type: TYPE_LABEL[viewItem.type] || t("inventory.items.unspecifiedType") })}</small><h3>{viewItem.name}</h3><p dir="ltr">{viewItem.nameEn}</p><span className="item-code">{viewItem.code}</span></div></div>
         <dl>
+          <div><dt>{t("itemTax.category")}</dt><dd>{t(`itemTax.${taxCategory(viewItem)}`)}</dd></div>
+          <div><dt>{t("itemTax.priceBasis")}</dt><dd>{t(viewItem.priceIncludesVat === false ? "itemTax.exclusive" : "itemTax.inclusive")}</dd></div>
           <div><dt>{t("inventory.items.view.category")}</dt><dd>{viewItem.category || "—"}</dd></div>
           <div><dt>{t("inventory.items.view.unit")}</dt><dd>{viewItem.unit || "—"}</dd></div>
           <div><dt>{t("inventory.items.view.averageCost")}</dt><dd>{fmt2(viewItem.averageCost || 0)}</dd></div>

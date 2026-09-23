@@ -1,3 +1,4 @@
+import TaxCategoryFields from "../shared/TaxCategoryFields";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createItem } from "../../api/items";
@@ -8,7 +9,8 @@ export default function NewSellableItemModal({ companyId, accounts, initialName,
   const { t } = useTranslation();
   const [name, setName] = useState(initialName || "");
   const [salePrice, setSalePrice] = useState("");
-  const [vatApplicable, setVatApplicable] = useState(true);
+  const [nameEn, setNameEn] = useState("");
+  const [tax, setTax] = useState({ taxCategoryCode: "S", priceIncludesVat: true });
   const [revenueAccountId, setRevenueAccountId] = useState(accounts[0]?.id || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -20,7 +22,7 @@ export default function NewSellableItemModal({ companyId, accounts, initialName,
     try {
       const item = await createItem({
         companyId, name: name.trim(), code: `SVC-${Date.now()}`, type: "service",
-        salePrice: Number(salePrice || 0), vatApplicable, revenueAccountId,
+        salePrice: Number(salePrice || 0), ...tax, nameEn: nameEn.trim() || null, revenueAccountId,
       });
       onCreated(item);
     } catch (err) {
@@ -38,15 +40,14 @@ export default function NewSellableItemModal({ companyId, accounts, initialName,
           <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label={t("sales.newSellableItemModal.close")}>×</button>
         </div>
         <div className="form-grid">
-          <label>{t("sales.newSellableItemModal.name")}<input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
+          <label>{t("itemTax.nameAr")}<input type="text" value={name} onChange={(e) => setName(e.target.value)} autoFocus /></label>
+          <label>{t("itemTax.nameEn")}<input value={nameEn} dir="ltr" onChange={(e) => setNameEn(e.target.value)} /></label>
           <label>{t("sales.newSellableItemModal.salePrice")}<input type="number" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="0.00" /></label>
           <label>{t("sales.newSellableItemModal.revenueAccount")}
             <AccountSearchSelect accounts={accounts} value={revenueAccountId} onChange={setRevenueAccountId} />
           </label>
-          <label className="checkbox-field">
-            <input type="checkbox" checked={vatApplicable} onChange={(e) => setVatApplicable(e.target.checked)} />
-            {t("sales.newSellableItemModal.vatApplicable")}
-          </label>
+          <TaxCategoryFields value={tax} onChange={(patch) => setTax({ ...tax, ...patch })} />
+          <label>{t("itemTax.priceBasis")}<select value={String(tax.priceIncludesVat)} onChange={(e) => setTax({ ...tax, priceIncludesVat: e.target.value === "true" })}><option value="true">{t("itemTax.inclusive")}</option><option value="false">{t("itemTax.exclusive")}</option></select></label>
         </div>
         <p className="note">{t("sales.newSellableItemModal.note")}</p>
         {error && <p className="balance-bad">{error}</p>}

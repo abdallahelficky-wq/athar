@@ -1,4 +1,5 @@
 import InvoiceZatcaDetails from "./InvoiceZatcaDetails";
+import { itemTaxDefaults, itemDescription, itemMatches } from "../shared/itemDefaults";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
@@ -21,6 +22,7 @@ const lineFromExisting = (l) => ({
   unitPrice: Number(l.unitPrice),
   discountPct: Number(l.discountPct),
   priceIncludesVat: l.priceIncludesVat,
+  taxCategoryCode: l.taxCategoryCode, taxExemptionReasonCode: l.taxExemptionReasonCode, taxExemptionReason: l.taxExemptionReason,
   vatApplicable: l.vatApplicable,
 });
 
@@ -113,10 +115,10 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
     setLines((prev) => prev.map((l, i) => (i === newItemModal.idx ? {
       ...l,
       itemId: item.id,
-      description: item.name,
+      description: itemDescription(item),
       accountId: item.revenueAccountId,
       unitPrice: item.salePrice != null ? Number(item.salePrice) : 0,
-      vatApplicable: item.vatApplicable,
+      ...itemTaxDefaults(item),
     } : l)));
     setNewItemModal(null);
   };

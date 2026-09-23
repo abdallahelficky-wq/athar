@@ -153,6 +153,7 @@ interface TaxGroup {
   taxCategoryCode: string;
   taxPercent: number;
   taxExemptionReason?: string | null;
+  taxExemptionReasonCode?: string | null;
   taxableAmount: number;
   taxAmount: number;
 }
@@ -170,6 +171,7 @@ function groupLinesByTaxCategory(lines: ZatcaLineInput[]): TaxGroup[] {
         taxCategoryCode: line.taxCategoryCode,
         taxPercent: line.taxPercent,
         taxExemptionReason: line.taxExemptionReason,
+        taxExemptionReasonCode: line.taxExemptionReasonCode,
         taxableAmount: line.lineSubtotal,
         taxAmount: line.lineVat,
       });
@@ -191,7 +193,7 @@ function buildTaxTotalXml(lines: ZatcaLineInput[], totalVat: number): string {
         <cbc:TaxAmount currencyID="SAR">${truncateDecimals(roundMoney(g.taxAmount))}</cbc:TaxAmount>
         <cac:TaxCategory>
           <cbc:ID schemeAgencyID="6" schemeID="UN/ECE 5305">${g.taxCategoryCode}</cbc:ID>
-          <cbc:Percent>${truncateDecimals(g.taxPercent)}</cbc:Percent>${exemptionXml}
+          <cbc:Percent>${truncateDecimals(g.taxPercent)}</cbc:Percent>${g.taxCategoryCode !== "S" && g.taxExemptionReasonCode ? `<cbc:TaxExemptionReasonCode>${escapeXml(g.taxExemptionReasonCode)}</cbc:TaxExemptionReasonCode>` : ""}${exemptionXml}
           <cac:TaxScheme>
             <cbc:ID schemeAgencyID="6" schemeID="UN/ECE 5153">VAT</cbc:ID>
           </cac:TaxScheme>

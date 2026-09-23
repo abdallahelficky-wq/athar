@@ -1,3 +1,5 @@
+import { computeInvoiceLine } from "../../wired/shared/invoiceLine";
+import { itemTaxDefaults, itemDescription } from "../../wired/shared/itemDefaults";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listItems, getItemByBarcode } from "../../api/items";
@@ -9,20 +11,20 @@ import CustomerPickerModal from "../components/CustomerPickerModal";
 import QtyInput from "../components/QtyInput";
 import { isSellableItem } from "../itemFilters";
 
-// نفس افتراض priceIncludesVat في نموذج الفاتورة العادية (SalesInvoiceLinesEditor.jsx:
-// emptySalesLine) — سعر الصنف (salePrice) شامل الضريبة دائماً بالاصطلاح، وZod يطبّق نفس الافتراض
-// true تلقائياً حتى لو حُذف الحقل من الطلب (راجع تقرير الميزة)، فهذا لا يغيّر أي رقم فعلي، فقط
-// يجعله صريحاً في الواجهة بدل ضمنيّته السابقة.
+// originalPrice يحفظ سعر الصنف المسجَّل وقت الإضافة للسلة — المرجع الذي تُقارَن به أي تعديل يدوي
+// لاحقاً على unitPrice (راجع pos.service.ts/detectAndAuthorizePriceOverrides للتحقق الحاسم فعلياً
+// على الخادم). بقية حقول الضريبة (priceIncludesVat/vatApplicable/taxCategoryCode/...) من
+// itemTaxDefaults مباشرة — نفس الأساس الضريبي الفعلي للصنف (قد يكون غير شامل الضريبة أو معفى/صفري
+// حسب إعداده)، لا افتراضاً ثابتاً هنا.
 function lineFromItem(item) {
   return {
     itemId: item.id,
-    name: item.name,
+    name: itemDescription(item),
     unitPrice: item.salePrice != null ? Number(item.salePrice) : 0,
     originalPrice: item.salePrice != null ? Number(item.salePrice) : 0,
     quantity: 1,
     accountId: item.revenueAccountId,
-    vatApplicable: item.vatApplicable,
-    priceIncludesVat: true,
+    ...itemTaxDefaults(item),
   };
 }
 
@@ -98,7 +100,7 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
 
   const removeLine = (itemId) => setCart((prev) => prev.filter((l) => l.itemId !== itemId));
 
-  const cartTotal = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const cartTotal = cart.reduce((s, l) => s + computeInvoiceLine(l).total, 0);
   const displayItems = searchText.trim() ? searchResults : quickItems;
 
   return (
@@ -153,10 +155,10 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
                       value={line.unitPrice}
                       onChange={(e) => setUnitPrice(line.itemId, Number(e.target.value) || 0)}
                     />
-                    <span>× {line.quantity} = {fmt2(line.unitPrice * line.quantity)}</span>
+                    <span>× {line.quantity} = {fmt2(computeInvoiceLine(line).total)}</span>
                   </span>
                 ) : (
-                  <span className="pos-cart-line-price">{fmt2(line.unitPrice)} × {line.quantity} = {fmt2(line.unitPrice * line.quantity)}</span>
+                  <span className="pos-cart-line-price">{fmt2(line.unitPrice)} × {line.quantity} = {fmt2(computeInvoiceLine(line).total)}</span>
                 )}
               </div>
               <label className="pos-price-vat-toggle">

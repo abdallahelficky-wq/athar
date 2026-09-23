@@ -1,3 +1,4 @@
+import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/itemTax";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine, invoiceTypeForCustomer } from "../../lib/invoiceLine";
@@ -16,6 +17,9 @@ interface LineInput {
   discountPct?: number;
   priceIncludesVat?: boolean;
   vatApplicable?: boolean;
+  taxCategoryCode?: TaxFields["taxCategoryCode"];
+  taxExemptionReasonCode?: string | null;
+  taxExemptionReason?: string | null;
 }
 
 interface QuotationInput {
@@ -27,7 +31,8 @@ interface QuotationInput {
 }
 
 function computeLines(lines: LineInput[]) {
-  const computed = lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
+  const computed = lines.map((l) => ({ ...l, ...computeInvoiceLine(l), ...normalizeTax(l) }));
+  assertCompatibleTaxReasons(computed);
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
