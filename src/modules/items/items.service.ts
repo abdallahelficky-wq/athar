@@ -1,3 +1,4 @@
+import { normalizeTax, TaxFields } from "../../lib/itemTax";
 import { Prisma, PrismaClient, Item } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
@@ -76,6 +77,7 @@ export async function listItemsWithComputed(tenantId: string, filters: { company
         ? {
             OR: [
               { name: { contains: search, mode: "insensitive" as const } },
+              { nameEn: { contains: search, mode: "insensitive" as const } },
               { code: { contains: search, mode: "insensitive" as const } },
               { barcode: { contains: search, mode: "insensitive" as const } },
             ],
@@ -111,7 +113,7 @@ export async function createItemWithComponents(
   const { components, ...itemData } = input;
 
   return prisma.$transaction(async (tx) => {
-    const item = await tx.item.create({ data: { ...itemData, tenantId } as Prisma.ItemUncheckedCreateInput });
+    const item = await tx.item.create({ data: { ...itemData, ...normalizeTax(itemData as TaxFields), tenantId } as Prisma.ItemUncheckedCreateInput });
     if (input.type === "bundle" && components?.length) {
       await assertComponentsBelongToCompany(tx, tenantId, input.companyId, components);
       await tx.itemComponent.createMany({
@@ -151,7 +153,9 @@ export async function updateItemWithValidation(tenantId: string, id: string, pat
   if (patch.companyId) await assertCompanyBelongsToTenant(tenantId, patch.companyId as string);
   if (patch.assetCategoryId) await assertValidAssetCategory(tenantId, existing.companyId, patch.assetCategoryId as string);
 
-  return prisma.item.update({ where: { id: existing.id }, data: patch as Prisma.ItemUncheckedUpdateInput });
+  const changesTax = ["taxCategoryCode", "vatApplicable", "taxExemptionReasonCode", "taxExemptionReason"].some((key) => key in patch);
+  const tax = changesTax ? normalizeTax({ ...existing, ...patch } as TaxFields) : {};
+  return prisma.item.update({ where: { id: existing.id }, data: { ...patch, ...tax } as Prisma.ItemUncheckedUpdateInput });
 }
 
 export async function deleteItem(tenantId: string, id: string) {

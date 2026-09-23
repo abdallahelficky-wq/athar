@@ -1196,6 +1196,7 @@ model SalesInvoiceLine {
   // vatApplicable أعلاه (true => S، false => O) عند عدم تحديده صراحةً.
   taxCategoryCode    TaxCategoryCode @default(S)
   taxExemptionReason String?
+  taxExemptionReasonCode String?
   subtotal           Decimal         @db.Decimal(18, 2)
   vat                Decimal         @db.Decimal(18, 2)
   total              Decimal         @db.Decimal(18, 2)
@@ -1260,6 +1261,7 @@ model SalesReturnLine {
   priceIncludesVat   Boolean         @default(false)
   taxCategoryCode    TaxCategoryCode @default(S)
   taxExemptionReason String?
+  taxExemptionReasonCode String?
   subtotal           Decimal         @db.Decimal(18, 2)
   vat                Decimal         @db.Decimal(18, 2)
   total              Decimal         @db.Decimal(18, 2)
@@ -1562,6 +1564,11 @@ model Item {
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   code       String
   name       String
+  nameEn     String?
+  taxCategoryCode TaxCategoryCode?
+  taxExemptionReasonCode String?
+  taxExemptionReason String?
+  priceIncludesVat Boolean @default(true)
   // باركود اختياري لمسحه ضوئياً في نقطة البيع (POS) — فريد لكل شركة لو محدَّد، بلا قيد على الشركات
   // الأخرى (نفس الباركود قد يتكرر بين شركات مختلفة لنفس المنتج التجاري).
   barcode    String?

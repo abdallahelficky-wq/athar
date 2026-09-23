@@ -1,3 +1,4 @@
+import { TaxFields } from "../../lib/itemTax";
 import { prisma } from "../../lib/prisma";
 import { badRequest } from "../../lib/httpError";
 import { CASH_CUSTOMER_NAME } from "../../lib/starterData";
@@ -13,6 +14,9 @@ interface PosLineInput {
   discountPct?: number;
   priceIncludesVat?: boolean;
   vatApplicable?: boolean;
+  taxCategoryCode?: TaxFields["taxCategoryCode"];
+  taxExemptionReasonCode?: string | null;
+  taxExemptionReason?: string | null;
 }
 
 interface PosPaymentInput {

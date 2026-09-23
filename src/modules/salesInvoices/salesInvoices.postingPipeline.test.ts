@@ -254,3 +254,9 @@ describe("ZATCA rejection — no journal entry is ever created for a rejected ST
     expect(result.rejectionReason).toBe("الرقم الضريبي للمشتري غير صحيح");
   });
 });
+
+it("persists zero-rated invoice lines without adding 15% and snapshots the exemption", async () => {
+ const {tx}=setupCommonMocks();
+ await createSalesInvoice(TENANT_ID,"user-1",{...invoiceInput(),post:false,lines:[{accountId:ACCOUNT_ID,quantity:1,unitPrice:100,priceIncludesVat:false,vatApplicable:true,taxCategoryCode:"Z",taxExemptionReasonCode:"VATEX-SA-35",taxExemptionReason:"Medicine"}]});
+ expect(tx.salesInvoice.create.mock.calls[0][0].data).toMatchObject({grandTotal:100,vatTotal:0,lines:{create:[expect.objectContaining({taxCategoryCode:"Z",taxExemptionReasonCode:"VATEX-SA-35",vat:0,vatApplicable:false})]}});
+});

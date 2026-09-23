@@ -1,3 +1,5 @@
+import { computeInvoiceLine } from "../../wired/shared/invoiceLine";
+import { itemTaxDefaults, itemDescription } from "../../wired/shared/itemDefaults";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listItems, getItemByBarcode } from "../../api/items";
@@ -11,11 +13,11 @@ import { isSellableItem } from "../itemFilters";
 function lineFromItem(item) {
   return {
     itemId: item.id,
-    name: item.name,
+    name: itemDescription(item),
     unitPrice: item.salePrice != null ? Number(item.salePrice) : 0,
     quantity: 1,
     accountId: item.revenueAccountId,
-    vatApplicable: item.vatApplicable,
+    ...itemTaxDefaults(item),
   };
 }
 
@@ -78,7 +80,7 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
 
   const removeLine = (itemId) => setCart((prev) => prev.filter((l) => l.itemId !== itemId));
 
-  const cartTotal = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const cartTotal = cart.reduce((s, l) => s + computeInvoiceLine(l).total, 0);
   const displayItems = searchText.trim() ? searchResults : quickItems;
 
   return (
@@ -124,7 +126,7 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
             <div className="pos-cart-line" key={line.itemId}>
               <div className="pos-cart-line-info">
                 <span className="pos-cart-line-name">{line.name}</span>
-                <span className="pos-cart-line-price">{fmt2(line.unitPrice)} × {line.quantity} = {fmt2(line.unitPrice * line.quantity)}</span>
+                <span className="pos-cart-line-price">{fmt2(line.unitPrice)} × {line.quantity} = {fmt2(computeInvoiceLine(line).total)}</span>
               </div>
               <div className="pos-cart-line-controls">
                 <button className="pos-qty-btn" onClick={() => updateQty(line.itemId, -1)}>−</button>

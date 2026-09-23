@@ -1,3 +1,4 @@
+import { itemDescription, itemMatches } from "../shared/itemDefaults";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { computeInvoiceLine } from "../shared/invoiceLine";
@@ -38,7 +39,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
   const pickItem = (idx, item) => {
     updateLine(idx, {
       itemId: item.id,
-      description: item.name,
+      description: itemDescription(item),
       warehouseId: (item.type === "fixed_asset" || item.type === "non_stock") ? "" : (warehouses.find((w) => w.isDefault)?.id || warehouses[0]?.id || ""),
       usefulLifeYears: "",
       salvageValue: "",
@@ -49,7 +50,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
 
   const clearItem = (idx, text) => updateLine(idx, { itemId: "", description: text, warehouseId: "", usefulLifeYears: "", salvageValue: "" });
 
-  const filtered = (text) => purchasableItems.filter((it) => !text || it.name.includes(text) || it.code?.includes(text));
+  const filtered = (text) => purchasableItems.filter((it) => !text || itemMatches(it, text));
 
   return (
     <div>
@@ -82,7 +83,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
                       <div className="item-combo-dropdown">
                         {filtered(searchText).map((it) => (
                           <div key={it.id} className="item-combo-option" onMouseDown={() => pickItem(idx, it)}>
-                            {it.name} <span className="note" style={{ margin: 0 }}>({it.code})</span>
+                            {itemDescription(it)} <span className="note" style={{ margin: 0 }}>({it.code})</span>
                           </div>
                         ))}
                         {filtered(searchText).length === 0 && <div className="item-combo-option" style={{ cursor: "default" }}>{t("purchases.invoices.lines.noMatchingItems")}</div>}

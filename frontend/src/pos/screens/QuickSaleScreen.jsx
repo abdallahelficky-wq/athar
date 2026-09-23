@@ -1,3 +1,5 @@
+import { computeInvoiceLine } from "../../wired/shared/invoiceLine";
+import { itemTaxDefaults, itemDescription } from "../../wired/shared/itemDefaults";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listItems } from "../../api/items";
@@ -10,11 +12,11 @@ import QtyInput from "../components/QtyInput";
 function lineFromSelection(item, quantity) {
   return {
     itemId: item.id,
-    name: item.name,
+    name: itemDescription(item),
     unitPrice: item.salePrice != null ? Number(item.salePrice) : 0,
     quantity,
     accountId: item.revenueAccountId,
-    vatApplicable: item.vatApplicable,
+    ...itemTaxDefaults(item),
   };
 }
 
@@ -157,7 +159,7 @@ export default function QuickSaleScreen({ companyId, setCart, customer, setCusto
   }
 
   if (step === "quantities") {
-    const total = selectedList.reduce((s, { item, quantity }) => s + Number(item.salePrice || 0) * quantity, 0);
+    const total = selectedList.reduce((s, { item, quantity }) => s + computeInvoiceLine(lineFromSelection(item, quantity)).total, 0);
     return (
       <div className="pos-quick-sale-screen">
         <div className="pos-section-label">{t("pos.quickSale.quantitiesTitle")}</div>
@@ -167,7 +169,7 @@ export default function QuickSaleScreen({ companyId, setCart, customer, setCusto
               <div className="pos-cart-line-info">
                 <span className="pos-cart-line-name">{item.name}</span>
                 <span className="pos-cart-line-price">
-                  {fmt2(Number(item.salePrice || 0))} × {quantity} = {fmt2(Number(item.salePrice || 0) * quantity)}
+                  {fmt2(Number(item.salePrice || 0))} × {quantity} = {fmt2(computeInvoiceLine(lineFromSelection(item, quantity)).total)}
                 </span>
               </div>
               <div className="pos-cart-line-controls">

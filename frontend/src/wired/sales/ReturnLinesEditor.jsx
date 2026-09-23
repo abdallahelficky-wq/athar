@@ -1,3 +1,5 @@
+import { itemTaxDefaults, itemDescription } from "../shared/itemDefaults";
+import TaxCategoryFields from "../shared/TaxCategoryFields";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { computeInvoiceLine } from "../shared/invoiceLine";
@@ -7,7 +9,7 @@ import { isSellableItem, emptySalesLine } from "./SalesInvoiceLinesEditor";
 export default function ReturnLinesEditor({ lines, setLines, invoice, items, accounts, currency }) {
  const { t } = useTranslation();
  const [query, setQuery] = useState("");
- const choices = invoice ? returnInvoiceLines(invoice) : items.filter(isSellableItem).map((item) => ({ accountId: item.revenueAccountId || "", description: item.name, quantity: 1, unitPrice: Number(item.salePrice || 0), discountPct: 0, priceIncludesVat: true, vatApplicable: item.vatApplicable }));
+ const choices = invoice ? returnInvoiceLines(invoice) : items.filter(isSellableItem).map((item) => ({ accountId: item.revenueAccountId || "", description: itemDescription(item), quantity: 1, unitPrice: Number(item.salePrice || 0), discountPct: 0, ...itemTaxDefaults(item) }));
  const matches = choices.filter((item) => item.description.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
  const add = (choice) => {
   if (choice.originalInvoiceLineId && lines.some((line) => line.originalInvoiceLineId === choice.originalInvoiceLineId)) return;
@@ -27,7 +29,7 @@ export default function ReturnLinesEditor({ lines, setLines, invoice, items, acc
    <td><input type="number" min="0" step="0.0001" readOnly={!!invoice} value={line.unitPrice} onChange={(e) => update(index, { unitPrice: e.target.value })} /></td>
    <td><input type="number" min="0" max="100" readOnly={!!invoice} value={line.discountPct} onChange={(e) => update(index, { discountPct: e.target.value })} /></td>
    <td><input type="checkbox" checked={line.priceIncludesVat} disabled={!!invoice} onChange={(e) => update(index, { priceIncludesVat: e.target.checked })} /></td>
-   <td><input type="checkbox" checked={line.vatApplicable} disabled={!!invoice} onChange={(e) => update(index, { vatApplicable: e.target.checked })} /></td>
+   <td><TaxCategoryFields value={line} disabled={!!invoice} onChange={(patch) => update(index, patch)} /></td>
    <td>{fmt2(computeInvoiceLine(line).total)}</td><td><button type="button" className="btn-remove-line" aria-label={t("common.delete")} onClick={() => setLines((old) => old.filter((_, i) => i !== index))}>×</button></td>
   </tr>)}</tbody></table></div>
   {!invoice && <button type="button" className="btn-ghost" onClick={() => setLines((old) => [...old, emptySalesLine()])}>{t("salesInvoices.form.lines.addLine")}</button>}

@@ -3,6 +3,9 @@ import { searchQueryBaseSchema, DATE_RANGE_ORDER_MESSAGE, AMOUNT_RANGE_ORDER_MES
 
 const lineSchema = z.object({
   originalInvoiceLineId: z.string().optional(),
+  taxCategoryCode: z.enum(["S", "Z", "E", "O"]).optional(),
+  taxExemptionReasonCode: z.string().trim().nullable().optional(),
+  taxExemptionReason: z.string().trim().nullable().optional(),
   vatApplicable: z.boolean().default(true),
   accountId: z.string().min(1),
   description: z.string().optional(),
