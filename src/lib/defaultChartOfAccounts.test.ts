@@ -38,7 +38,21 @@ describe("standard default chart of accounts", () => {
     }
   });
 
-  it("uses four strict levels (1-2-3-4 digit codes) with consistent, parent-extending codes and keeps every posting account at level 4 as a leaf", () => {
+  // "112" (عملاء) و"211" (موردون) استثناءان متعمَّدان من قاعدتي "كل مجموعة مستوى 3 لها ابن واحد
+  // على الأقل بالقالب الثابت" و"كود الابن يمتد من كود أبيه": أُفرِغا عمداً من القالب الثابت (تماماً
+  // كمجموعة "ذمم الموظفين" التي لا تُزرَع بالقالب إطلاقاً) لأن أبناءهما الوحيدين الآن هم حسابات
+  // العملاء/الموردين المُنشأة تلقائياً وقت التشغيل (partyAccounts.ts) — لا شيء يُزرَع تحتهما هنا.
+  // الحسابات القياسية الخمسة/الأربعة التي كانت تحتهما سابقاً (112001-112005، 211001-211004) نُقلت
+  // إلى مجموعتين شقيقتين جديدتين ("117"، "217") مع إبقاء أكوادها القديمة كما هي دون تغيير — فكودها
+  // لا يزال يبدأ بـ"112"/"211" رغم أن أباها الفعلي الآن "117"/"217"، تماماً كحساب حقيقي يُنقَل عبر
+  // updateAccount (يُبقي كوده القديم كما هو، بلا اشتراط مطابقة بادئة الأب الجديد).
+  const EMPTY_TEMPLATE_GROUPS = new Set(["112", "211"]);
+  const LEGACY_PREFIXED_CHILDREN = new Set([
+    "112001", "112002", "112003", "112004", "112005",
+    "211001", "211002", "211003", "211004",
+  ]);
+
+  it("uses four strict levels (1-2-3-4 digit codes), keeps every posting account at level 4 as a leaf, and extends parent codes except for the deliberately re-parented receivable/payable sub-ledger accounts", () => {
     const parentCodes = new Set(DEFAULT_CHART_OF_ACCOUNTS.map((account) => account.parentCode).filter(Boolean));
     const posting = DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.isPosting);
 
@@ -46,7 +60,10 @@ describe("standard default chart of accounts", () => {
     expect(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level < 4).every((account) => !account.isPosting)).toBe(true);
     expect(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level === 4).every((account) => account.isPosting)).toBe(true);
     const coveredLevelThree = new Set(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level === 4).map((account) => account.parentCode));
-    expect(DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level === 3).every((account) => coveredLevelThree.has(account.code))).toBe(true);
+    expect(
+      DEFAULT_CHART_OF_ACCOUNTS.filter((account) => account.level === 3 && !EMPTY_TEMPLATE_GROUPS.has(account.code))
+        .every((account) => coveredLevelThree.has(account.code)),
+    ).toBe(true);
     expect(posting.some((account) => account.level === 4)).toBe(true);
     expect(DEFAULT_CHART_OF_ACCOUNTS.every((account) => account.level <= 4)).toBe(true);
     for (const account of posting) {
@@ -55,7 +72,7 @@ describe("standard default chart of accounts", () => {
     }
     for (const account of DEFAULT_CHART_OF_ACCOUNTS) {
       expect(account.code.length).toBe(LEVEL_CODE_LENGTH[account.level]);
-      if (account.parentCode) {
+      if (account.parentCode && !LEGACY_PREFIXED_CHILDREN.has(account.code)) {
         expect(account.code.startsWith(account.parentCode), `code ${account.code} must extend parent code ${account.parentCode}`).toBe(true);
       }
     }
@@ -99,7 +116,9 @@ describe("standard default chart of accounts", () => {
 
     for (const account of DEFAULT_CHART_OF_ACCOUNTS.filter((item) => item.level === 4)) {
       expect(account.code).toHaveLength(6);
-      expect(account.code.startsWith(account.parentCode as string)).toBe(true);
+      if (!LEGACY_PREFIXED_CHILDREN.has(account.code)) {
+        expect(account.code.startsWith(account.parentCode as string)).toBe(true);
+      }
     }
   });
 
