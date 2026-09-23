@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../../lib/prisma";
 import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integrationTestGuard";
-import { updateSalesReturn, postSalesReturn } from "./salesReturns.service";
+import { createSalesReturn, updateSalesReturn, postSalesReturn } from "./salesReturns.service";
 
 /**
  * اختبارات تكامل حقيقية على Postgres فعلي (لا تمويه) لكل قيود إشعار الدائن المرتبط بفاتورة أصلية —
@@ -58,6 +58,11 @@ describe("credit note linkage rules — enforced on update AND post (integration
   }, 30000);
 
   afterAll(async () => {
+    // اختبار "نفس اليوم السعودي" أدناه يُنجز ترحيلاً محلياً حقيقياً (createSalesReturn/
+    // postSalesReturn ناجحين فعلاً، لا مرفوضين) — ينشئ قيوداً محاسبية حقيقية تُشير لحسابات الشركة،
+    // فيجب حذفها أولاً قبل حذف الحسابات نفسها (قيد مفتاح أجنبي على accountId).
+    await prisma.journalEntryLine.deleteMany({ where: { journalEntry: { tenantId } } });
+    await prisma.journalEntry.deleteMany({ where: { tenantId } });
     await prisma.salesReturnLine.deleteMany({ where: { salesReturn: { tenantId } } });
     await prisma.salesReturn.deleteMany({ where: { tenantId } });
     await prisma.salesInvoiceLine.deleteMany({ where: { invoice: { tenantId } } });
@@ -234,6 +239,46 @@ describe("credit note linkage rules — enforced on update AND post (integration
 
       await prisma.salesReturn.update({ where: { id: draft.id }, data: { date: new Date("2026-01-15") } });
       await expect(postSalesReturn(tenantId, "user-1", draft.id)).rejects.toThrow(/يسبق/);
+    });
+
+    // الفاتورة عند الساعة 23:30 بتوقيت الرياض (20:30 UTC) من 2026-01-15 — نفس رقم الساعة المستخدَم
+    // في اختبارات dateTo لقائمة البحث (راجع salesReturnsSearch.integration.test.ts) لتغطية نفس
+    // حافة اليوم السعودي بالضبط. إشعار الدائن بنفس اليوم السعودي لكن بتوقيت UTC "أبكر" رقمياً
+    // (00:00 UTC لنفس التاريخ، أي 03:00 صباحاً بتوقيت الرياض من نفس اليوم) يجب أن يُقبَل — مقارنة
+    // الطابع الزمني الخام (Date.getTime()) كانت سترفضه خطأً رغم كونه نفس اليوم السعودي فعلياً.
+    it("accepts a credit note on the same Saudi calendar day as the original invoice on create, update, and post, regardless of the time-of-day stored on either date", async () => {
+      const invoiceDate = new Date("2026-01-15T20:30:00.000Z");
+      const sameDayEarlierUtc = new Date("2026-01-15T00:00:00.000Z");
+
+      // 1) الإنشاء (createSalesReturn) — يستدعي نفس validateLinkedReturn المشترَكة.
+      const invoiceForCreate = await makeInvoice({ invoiceNumber: "INV-CNR-R5-SAMEDAY-CREATE", customerId: customerAId, quantity: 5, date: invoiceDate });
+      const created = await createSalesReturn(tenantId, "user-1", {
+        companyId, customerId: customerAId, relatedInvoiceId: invoiceForCreate.id, date: sameDayEarlierUtc,
+        reason: "بضاعة تالفة", refundMethod: "account",
+        lines: [{ originalInvoiceLineId: invoiceForCreate.lines[0].id, accountId: revenueAccountId, quantity: 1 }],
+      } as never);
+      expect((created as { id: string }).id).toBeTruthy();
+
+      // 2) التعديل (updateSalesReturn) — مسودة صالحة بتاريخ آخر تُعدَّل لتحمل نفس يوم الفاتورة
+      // السعودي بتوقيت UTC أبكر رقمياً.
+      const invoiceForUpdate = await makeInvoice({ invoiceNumber: "INV-CNR-R5-SAMEDAY-UPDATE", customerId: customerAId, quantity: 5, date: invoiceDate });
+      const draftForUpdate = await makeDraftReturn({
+        invoiceId: invoiceForUpdate.id, originalLineId: invoiceForUpdate.lines[0].id, customerId: customerAId, quantity: 1, date: new Date("2026-02-01"),
+      });
+      await expect(
+        updateSalesReturn(tenantId, draftForUpdate.id, baseInput({
+          relatedInvoiceId: invoiceForUpdate.id, date: sameDayEarlierUtc,
+          lines: [{ originalInvoiceLineId: invoiceForUpdate.lines[0].id, accountId: revenueAccountId, quantity: 1 }],
+        })),
+      ).resolves.toBeTruthy();
+
+      // 3) الترحيل (postSalesReturn) — مسودة مخزَّنة بالفعل بنفس يوم الفاتورة السعودي بتوقيت UTC
+      // أبكر رقمياً من توقيت الفاتورة نفسه.
+      const invoiceForPost = await makeInvoice({ invoiceNumber: "INV-CNR-R5-SAMEDAY-POST", customerId: customerAId, quantity: 5, date: invoiceDate });
+      const draftForPost = await makeDraftReturn({
+        invoiceId: invoiceForPost.id, originalLineId: invoiceForPost.lines[0].id, customerId: customerAId, quantity: 1, date: sameDayEarlierUtc,
+      });
+      await expect(postSalesReturn(tenantId, "user-1", draftForPost.id)).resolves.toBeTruthy();
     });
   });
 });
