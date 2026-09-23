@@ -20,7 +20,7 @@ import { accrueTrainerCommissionsTx, reverseTrainerCommissionsTx } from "../stab
 
 type Tx = Prisma.TransactionClient;
 
-interface LineInput {
+export interface LineInput {
   accountId: string;
   itemId?: string;
   description?: string;
@@ -52,7 +52,7 @@ interface InvoiceInput {
 /** يحل المستودع الفعلي المطلوب خصم المخزون منه: المستودع المُمرَّر صراحةً (بعد التحقق أنه ينتمي
  * لنفس الشركة/المستأجر) وإلا المستودع الافتراضي للشركة — بنفس رسالة الخطأ القديمة حرفياً في حالة
  * عدم التمرير، حتى لا يتغيّر سلوك أي مسار حالي لا يمرّر warehouseId. */
-async function resolveWarehouse(tx: Tx | typeof prisma, tenantId: string, companyId: string, warehouseId?: string) {
+export async function resolveWarehouse(tx: Tx | typeof prisma, tenantId: string, companyId: string, warehouseId?: string) {
   if (warehouseId) {
     const warehouse = await tx.warehouse.findFirst({ where: { id: warehouseId, tenantId, companyId } });
     if (!warehouse) throw badRequest("المستودع المحدد غير موجود ضمن هذه الشركة");
@@ -63,7 +63,7 @@ async function resolveWarehouse(tx: Tx | typeof prisma, tenantId: string, compan
   return warehouse;
 }
 
-const invoiceInclude = {
+export const invoiceInclude = {
   lines: { include: { account: true, item: true } },
   customer: true,
   company: true,
@@ -124,7 +124,7 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
   });
 }
 
-async function assertRefs(tenantId: string, companyId: string, customerId: string, lines: LineInput[], branchId?: string | null) {
+export async function assertRefs(tenantId: string, companyId: string, customerId: string, lines: LineInput[], branchId?: string | null) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
   const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId, companyId } });
@@ -149,7 +149,7 @@ async function assertRefs(tenantId: string, companyId: string, customerId: strin
  * صنفاً داخل المعاملة النهائية — كانت تلك القراءات المتكرِّرة داخل المعاملة (بلا أي نداء شبكي حتى)
  * تُطيل مدة حجز القفل بلا داعٍ فعلي، والبيانات نفسها مجلوبة هنا أصلاً قبل أي كتابة.
  */
-async function computeCogsJournalLines(tenantId: string, companyId: string, lines: LineInput[], warehouseId?: string) {
+export async function computeCogsJournalLines(tenantId: string, companyId: string, lines: LineInput[], warehouseId?: string) {
   const itemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => Boolean(x)))];
   if (!itemIds.length) return { cogsLines: [], itemById: new Map<string, Item>() };
   const items = await prisma.item.findMany({ where: { id: { in: itemIds }, tenantId, companyId } });
@@ -204,7 +204,7 @@ async function computeCogsJournalLines(tenantId: string, companyId: string, line
  * منفصلة لاحقة هنا قد تلتقط قيمة averageCost أحدث (لو تغيّرت بين اللحظتين)، فتُخزَّن على حركة
  * المخزون قيمة تختلف عمّا رُحِّل فعلياً في القيد المحاسبي.
  */
-async function createStockOutSideEffectsTx(
+export async function createStockOutSideEffectsTx(
   tx: Tx,
   tenantId: string,
   companyId: string,
@@ -285,7 +285,7 @@ function paymentStatusOf(grandTotal: number, paid: number) {
   return "غير مسددة";
 }
 
-function withPaymentStatus<T extends { grandTotal: unknown; receiptAllocations: { amount: unknown }[] }>(invoice: T) {
+export function withPaymentStatus<T extends { grandTotal: unknown; receiptAllocations: { amount: unknown }[] }>(invoice: T) {
   const paid = paidAmountOf(invoice);
   return { ...invoice, paidAmount: paid, paymentStatus: paymentStatusOf(Number(invoice.grandTotal), paid) };
 }
@@ -348,7 +348,7 @@ export async function getSalesInvoice(tenantId: string, id: string) {
   return (await withInvoiceCredits(tenantId, [invoice]))[0];
 }
 
-async function buildJournalLines(
+export async function buildJournalLines(
   tenantId: string,
   companyId: string,
   customer: { id: string; accountId: string | null },
