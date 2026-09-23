@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { PrintShell, printWithOrientation } from "../../legacy/shared";
 import { fmt, fmt2 } from "../../legacy/constants";
+import { getAccountDisplayName } from "../shared/accountDisplayName";
 
 /**
  * عرض عرض السعر للقراءة فقط + إمكانية الطباعة/تحميل PDF عبر PrintShell المشترك (نفس
@@ -9,7 +10,7 @@ import { fmt, fmt2 } from "../../legacy/constants";
  * في قائمة عروض الأسعار، وكذلك من زر "طباعة" داخل نافذة التعديل.
  */
 export default function QuotationViewModal({ quotation, companies, autoPrint, onClose }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useEffect(() => {
     if (!autoPrint) return;
     const timer = setTimeout(() => printWithOrientation(false), 200);
@@ -50,7 +51,7 @@ export default function QuotationViewModal({ quotation, companies, autoPrint, on
         <tbody>
           {quotation.lines.map((l, idx) => (
             <tr key={idx}>
-              <td>{l.description || l.account?.name}</td>
+              <td>{l.description || getAccountDisplayName(l.account, i18n.language)}</td>
               <td className="num">{Number(l.quantity)}</td>
               <td className="num">{fmt2(Number(l.unitPrice))}</td>
               <td className="num">{Number(l.discountPct)}٪</td>

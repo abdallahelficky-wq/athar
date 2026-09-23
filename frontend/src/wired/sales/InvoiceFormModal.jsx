@@ -1,3 +1,4 @@
+import InvoiceZatcaDetails from "./InvoiceZatcaDetails";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
@@ -172,6 +173,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
           <button type="button" className="modal-close-btn" onClick={requestClose} disabled={saving} aria-label={t("salesInvoices.form.close")}>×</button>
         </div>
 
+        {editingInvoice && <InvoiceZatcaDetails invoice={editingInvoice} />}
         <div className="form-grid header-grid">
           <label className="item-combo-cell">
             {t("salesInvoices.form.customer")}

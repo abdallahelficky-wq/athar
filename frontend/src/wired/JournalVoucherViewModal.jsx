@@ -5,6 +5,8 @@ import { fmt, DEPARTMENT_KEYS } from "../legacy/constants";
 import { labelForListValue } from "../legacy/listLabels";
 import { currencyLabel } from "../shared/countries";
 import { getJournalEntryPdf } from "../api/journalEntries";
+import { getAccountDisplayName } from "./shared/accountDisplayName";
+import { useToast, ToastHost } from "./shared/Toast";
 
 /** عرض/طباعة سند قيد محاسبي — يُستخدَم من شاشة القيود اليومية وصفحة عرض القيد المستقلة، يفيد من
  * هيدر/فوتر PrintShell المشترك تلقائياً. زر "تحميل PDF" يُنزّل ملفاً حقيقياً من الخادم (نفس آلية
@@ -12,13 +14,17 @@ import { getJournalEntryPdf } from "../api/journalEntries";
 export default function JournalVoucherViewModal({ entry, companies, onClose }) {
   const { t, i18n } = useTranslation();
   const entryNumber = entry.entryNumber || entry.id.slice(-8);
+  const { toast, notify, dismiss } = useToast();
 
   const handleDownload = async () => {
     try {
       const { blob, filename } = await getJournalEntryPdf(entry.id);
       downloadBlob(blob, filename || `${entryNumber}.pdf`);
     } catch (err) {
-      window.alert(err.message);
+      // toast غير حاجب (خلافاً لـ window.alert سابقاً) — تجميد الصفحة كاملة خلف نافذة تنبيه المتصفح
+      // كان يبدو وكأن الزر "عالق" على "جارٍ التحميل..." للمستخدم، رغم أن حالته تُصفَّر فعلياً في
+      // PrintShell.handleDownloadClick (finally) فور إغلاق تلك النافذة الحاجبة.
+      notify(err.message, "error");
     }
   };
 
@@ -40,18 +46,20 @@ export default function JournalVoucherViewModal({ entry, companies, onClose }) {
   };
 
   return (
-    <PrintShell
-      subtitle={t("journalEntries.printModal.subtitle")}
-      company={company}
-      refNode={
-        <>
-          <div>{t("journalEntries.table.entryNumber")}: <strong>{entryNumber}</strong></div>
-          <div>{t("journalEntries.table.date")}: <strong>{entry.date.slice(0, 10)}</strong></div>
-        </>
-      }
-      onClose={onClose}
-      onDownload={handleDownload}
-    >
+    <>
+      <ToastHost toast={toast} onDismiss={dismiss} />
+      <PrintShell
+        subtitle={t("journalEntries.printModal.subtitle")}
+        company={company}
+        refNode={
+          <>
+            <div>{t("journalEntries.table.entryNumber")}: <strong>{entryNumber}</strong></div>
+            <div>{t("journalEntries.table.date")}: <strong>{entry.date.slice(0, 10)}</strong></div>
+          </>
+        }
+        onClose={onClose}
+        onDownload={handleDownload}
+      >
       <div className="voucher-meta">
         <div><span>{t("journalEntries.table.memo")}</span><strong>{entry.memo || t("journalEntries.table.noMemo")}</strong></div>
         <div><span>{t("journalEntries.table.status")}</span><strong>{entry.status === "posted" ? t("journalEntries.statusPosted") : t("journalEntries.statusSaved")}</strong></div>
@@ -67,7 +75,7 @@ export default function JournalVoucherViewModal({ entry, companies, onClose }) {
         <tbody>
           {entry.lines.map((l) => (
             <tr key={l.id}>
-              <td>{l.account?.name}</td>
+              <td>{getAccountDisplayName(l.account, i18n.language)}</td>
               <td>{l.costCenter?.name || "—"}</td>
               <td>{l.departmentRef?.name || (l.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", l.department) : "—")}</td>
               {hasBranchedLines && <td>{l.branch?.nameAr || "—"}</td>}
@@ -85,5 +93,6 @@ export default function JournalVoucherViewModal({ entry, companies, onClose }) {
         </tfoot>
       </table>
     </PrintShell>
+    </>
   );
 }

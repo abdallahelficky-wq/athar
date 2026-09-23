@@ -1,0 +1,47 @@
+name: Migration replay check
+
+# يعيد هذا الفحص تطبيق كامل تاريخ الـmigrations بنفس الأمر الذي يُشغِّله الإنتاج فعلياً عند كل
+# إقلاع (`prisma migrate deploy` — راجع package.json: "start")، ضد قاعدة بيانات فارغة جديدة —
+# لا shadow database من `prisma migrate dev` (مسار كود مختلف تماماً لا يضمن نفس نتيجة النشر
+# الفعلي). فشل هذا الفحص يعني أن أي نشر لهذا الفرع سيفشل بنفس الطريقة بالضبط: migrate deploy
+# يفشل، فيتوقّف الخادم عن الإقلاع بالكامل (راجع package.json وprisma/migrations/README.md).
+#
+# يعمل على كل push لأي فرع، لا على الـpull_request فقط — خطأ من هذا النوع يجب أن يظهر فور
+# ارتكابه على أي فرع تطوير، لا أن ينتظر فتح PR.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate-deploy-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: athar_migration_check
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/athar_migration_check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Replay full migration history against an empty database (same command production runs)
+        run: npx prisma migrate deploy

@@ -2,8 +2,12 @@ import { randomUUID } from "crypto";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { encryptSecret, decryptSecret } from "../../lib/zatca/secretBox";
-import { generateCsr, verifyCsrLocally } from "../../lib/zatca/csr";
+import { generateCsr, verifyCsrLocally, ZatcaCsrInvoiceType } from "../../lib/zatca/csr";
 import { requestComplianceCsid, requestProductionCsid, ZatcaApiEnvironment } from "../../lib/zatca/apiClient";
+import { getCertificateInfo } from "../../lib/zatca/signing";
+import { resolveZatcaRawCertificate } from "../../lib/zatca/credentials";
+import { parseMissingComplianceSteps } from "../../lib/zatca/complianceAutomation";
+import { env } from "../../config/env";
 
 const BUSINESS_ACTIVITY_INDUSTRY_LABEL: Record<string, string> = {
   contracting: "مقاولات",
@@ -18,6 +22,50 @@ async function getCompanyOrThrow(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw notFound("الشركة غير موجودة");
   return company;
+}
+
+interface NormalizedZatcaCertificate {
+  /** الشكل القانوني — ما نجح تحليله فعلياً كـX.509 صالح، يُخزَّن في complianceCertEnc/productionCertEnc
+   * ويُستخدَم فقط للتوقيع. */
+  canonical: string;
+  /** binarySecurityToken تماماً كما أعادته زاتكا (مُقصوصاً فقط)، بلا أي فك ترميز إضافي — يُخزَّن في
+   * complianceCertRawEnc/productionCertRawEnc ويُستخدَم فقط في ترويسة Basic Auth. راجع تعليق
+   * ZatcaApiCredentials في apiClient.ts لسبب هذا الفصل (عطل إنتاج فعلي مؤكَّد: دمجهما كسر ترويسة
+   * المصادقة بعد تطبيع شهادة كانت مُرمَّزة base64 مرتين). */
+  raw: string;
+}
+
+/**
+ * يتحقق أن binarySecurityToken الذي أعادته زاتكا فعلياً قابل للتحليل كشهادة X.509 صالحة *قبل*
+ * تخزينه، ويُعيد شكلَين منفصلَين يجب تخزينهما معاً (راجع NormalizedZatcaCertificate أعلاه) — لا
+ * قيمة واحدة كما كان سابقاً. getCertificateInfo (signing.ts) يتسامح تلقائياً مع ترميز base64 مزدوج
+ * (حالة حقيقية مُؤكَّدة فعلياً من شركة على الإنتاج — راجع scripts/check-zatca-certificate.ts وتقرير
+ * التشخيص المرتبط)، فيُعيد canonicalBodyBase64 مطابقاً لما نجح تحليله فعلياً كـX.509 صالح، بصرف
+ * النظر عن الشكل الأصلي كما وصل. لا نطبِّق أي فك ترميز أعمى هنا — الشكل القانوني مُستخرَج فقط من
+ * محاولة تحليل فعلية ناجحة، لا تخمين.
+ *
+ * نُسجِّل أيّ شكل اكتُشِف فعلياً (مفرد أو مزدوج) — لم نُثبِت بعد أيّهما "المعيار" الفعلي لدى زاتكا
+ * (قد يختلف بين بيئات، أو يكون غير ثابت حتى لدى زاتكا نفسها)، فهذا السجلّ هو مصدر المعرفة
+ * التراكمية حول ذلك مع كل شركة جديدة تُربَط، لا افتراضاً مسبقاً.
+ */
+function normalizeZatcaCertificate(binarySecurityToken: string, csidLabel: string): NormalizedZatcaCertificate {
+  let info;
+  try {
+    info = getCertificateInfo(binarySecurityToken);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    // eslint-disable-next-line no-console
+    console.error(`[normalizeZatcaCertificate] ${csidLabel}: الشهادة التي أعادتها زاتكا غير قابلة للتحليل حتى بعد محاولة فك ترميز base64 إضافي، الخطأ الفعلي: ${detail}`);
+    throw badRequest(
+      `استجابة زاتكا لطلب ${csidLabel} تحتوي شهادة بصيغة غير صالحة (فشل تحليلها كشهادة X.509 حتى بعد محاولة فك ترميز إضافي) — لم تُخزَّن أي بيانات. ` +
+        `هذا لا يعني عادة خطأ في هذا الطلب نفسه بقدر ما يعني أن الصيغة المُستلَمة من زاتكا تحتاج مراجعة تقنية. راجع الدعم الفني قبل إعادة المحاولة.`,
+    );
+  }
+  const raw = binarySecurityToken.trim();
+  const detectedForm = raw === info.canonicalBodyBase64 ? "مفرد (كما وصلت من زاتكا)" : "مزدوج (احتاجت فك ترميز base64 إضافي)";
+  // eslint-disable-next-line no-console
+  console.info(`[normalizeZatcaCertificate] ${csidLabel}: شكل ترميز الشهادة المكتشَف من زاتكا = ${detectedForm}`);
+  return { canonical: info.canonicalBodyBase64, raw };
 }
 
 /**
@@ -37,15 +85,22 @@ export async function getZatcaStatus(tenantId: string, companyId: string) {
     nextIcv: company.zatcaNextIcv,
     hasHashChain: Boolean(company.zatcaLastInvoiceHash),
     hasCsr: Boolean(credential?.csrPem),
+    // نوع الفاتورة المُعلَن في CSR الحالي — null لصفّ لم يُولَّد له CSR بعد إضافة هذا الحقل بعد.
+    csrInvoiceType: credential?.csrInvoiceType ?? null,
     hasComplianceCertificate: Boolean(credential?.complianceCertEnc),
     hasProductionCertificate: Boolean(credential?.productionCertEnc),
   };
 }
 
 export interface GenerateCsrInput {
-  production: boolean;
+  /** Deprecated client flag; CSR template is derived from the stored environment. */
+  production?: boolean;
   solutionName?: string;
   model?: string;
+  /** يحدّد ما تُخوَّل الشهادة الناتجة توقيعه، وعدد مستندات الامتثال الستة/الثلاثة التي تتطلبها زاتكا
+   * لاحقاً — راجع ZatcaCsrInvoiceType في schema.prisma. الافتراضي "both" (الأكثر أماناً: يخوِّل كل
+   * أنواع الفواتير، لا أضيق احتياج ممكن). */
+  invoiceType?: ZatcaCsrInvoiceType;
 }
 
 /** يولّد مفتاح secp256k1 خاص جديد + CSR، ويُخزِّن المفتاح مشفَّراً — يستبدل أي CSR/مفتاح سابق لم يُستخدَم بعد. */
@@ -61,9 +116,10 @@ export async function generateCompanyCsr(tenantId: string, companyId: string, in
 
   const branchLocation = [company.addressBuilding, company.addressStreet, company.addressCity].filter(Boolean).join(" ") || company.name;
   const branchIndustry = (company.businessActivity && BUSINESS_ACTIVITY_INDUSTRY_LABEL[company.businessActivity]) || "تجارة عامة";
+  const invoiceType = input.invoiceType || "both";
 
   const { privateKeyPem, csrPem } = await generateCsr({
-    production: input.production,
+    environment: company.zatcaEnvironment as ZatcaApiEnvironment,
     solutionName,
     egsModel: model,
     egsSerialNumber: egsUuid,
@@ -73,6 +129,7 @@ export async function generateCompanyCsr(tenantId: string, companyId: string, in
     branchName: company.shortName || company.name,
     taxpayerName: company.name,
     taxpayerProvidedId: company.crNumber,
+    invoiceType,
   });
 
   const csrValid = await verifyCsrLocally(csrPem);
@@ -82,8 +139,23 @@ export async function generateCompanyCsr(tenantId: string, companyId: string, in
     prisma.company.update({ where: { id: companyId }, data: { zatcaSolutionName: solutionName, zatcaModel: model, zatcaEgsUuid: egsUuid } }),
     prisma.companyZatcaCredential.upsert({
       where: { companyId },
-      create: { companyId, privateKeyEnc: encryptSecret(privateKeyPem), csrPem },
-      update: { privateKeyEnc: encryptSecret(privateKeyPem), csrPem, complianceCertEnc: null, complianceSecretEnc: null, complianceRequestId: null, productionCertEnc: null, productionSecretEnc: null },
+      create: { companyId, privateKeyEnc: encryptSecret(privateKeyPem), csrPem, csrInvoiceType: invoiceType },
+      update: {
+        privateKeyEnc: encryptSecret(privateKeyPem),
+        csrPem,
+        csrInvoiceType: invoiceType,
+        complianceCertEnc: null,
+        // كانت هذه الحقول (rawEnc) مفقودة من إعادة الضبط عند تجديد CSR منذ إضافتها — شهادة raw
+        // قديمة تخصّ شهادة canonical سبق مسحها أعلاه يجب ألا تبقى، وإلا استُخدِمت خطأً لاحقاً.
+        complianceCertRawEnc: null,
+        complianceSecretEnc: null,
+        complianceRequestId: null,
+        complianceCsidEnvironment: null,
+        productionCertEnc: null,
+        productionCertRawEnc: null,
+        productionSecretEnc: null,
+        productionCsidEnvironment: null,
+      },
     }),
   ]);
 
@@ -104,14 +176,21 @@ export async function requestCompanyComplianceCsid(tenantId: string, companyId: 
   if (!result.ok || !result.data) {
     throw badRequest(`رفضت زاتكا طلب شهادة الاختبار: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
   }
+  const cert = normalizeZatcaCertificate(result.data.binarySecurityToken, "شهادة الاختبار (Compliance)");
 
   await prisma.$transaction([
     prisma.companyZatcaCredential.update({
       where: { companyId },
       data: {
-        complianceCertEnc: encryptSecret(result.data.binarySecurityToken),
+        complianceCertEnc: encryptSecret(cert.canonical),
+        complianceCertRawEnc: encryptSecret(cert.raw),
         complianceSecretEnc: encryptSecret(result.data.secret),
         complianceRequestId: String(result.data.requestID),
+        lastMissingComplianceSteps: [],
+        lastComplianceStepsCheckedAt: null,
+        // البيئة الفعلية التي طُلبت منها هذه الشهادة تحديداً، لا بالضرورة ما ستصبح عليه
+        // company.zatcaEnvironment لاحقاً — راجع تعليق الحقل في schema.prisma وcredentials.ts.
+        complianceCsidEnvironment: environment,
       },
     }),
     prisma.company.update({ where: { id: companyId }, data: { zatcaOnboardingStatus: "compliance" } }),
@@ -129,22 +208,94 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
   }
 
   const environment = company.zatcaEnvironment as ZatcaApiEnvironment;
-  const credentials = { certificateBodyBase64: decryptSecret(credential.complianceCertEnc), secret: decryptSecret(credential.complianceSecretEnc) };
-  const result = await requestProductionCsid(environment, credentials, credential.complianceRequestId);
+  // هذا الطلب نفسه Basic-auth بشهادة الاختبار (compliance) — يحتاج شكلها الخام للترويسة، لا القانوني
+  // (راجع rawCertificateBodyBase64 في apiClient.ts وresolveZatcaRawCertificate في credentials.ts).
+  const credentials = {
+    certificateBodyBase64: decryptSecret(credential.complianceCertEnc),
+    rawCertificateBodyBase64: resolveZatcaRawCertificate(credential.complianceCertRawEnc, credential.complianceCertEnc),
+    secret: decryptSecret(credential.complianceSecretEnc),
+  };
+
+  // سطر سجلّ مميَّز عمداً — هذه أول لحظة تُطلَب فيها شهادة الإنتاج فعلياً لهذه الشركة، واللحظة
+  // الوحيدة التي يمكن منها لاحقاً معرفة (بدليل، لا تخمين) هل تستمر سلسلة ICV/PIH بعد شهادة الإنتاج
+  // أم تُعاد من الصفر — سؤال مفتوح صراحةً (راجع تعليق env.zatcaOnboardingDiagnostics). المقارنة
+  // المطلوبة: ICV الفعلي لأول مستند إنتاج حقيقي لاحق مقابل zatcaNextIcv المُسجَّل هنا، وprevious
+  // hash ذلك المستند مقابل zatcaLastInvoiceHash هنا.
+  // eslint-disable-next-line no-console
+  console.info(
+    `[requestCompanyProductionCsid] طلب شهادة إنتاج — الشركة "${company.name}" (${companyId}) — ` +
+      `حالة السلسلة قبل الطلب: zatcaNextIcv=${company.zatcaNextIcv} zatcaLastInvoiceHash=${company.zatcaLastInvoiceHash ?? "(لا يوجد بعد)"}`,
+  );
+
+  const result = await requestProductionCsid(
+    environment,
+    credentials,
+    credential.complianceRequestId,
+    // سقالة تشخيصية مؤقتة (راجع apiClient.ts) — فقط عند تفعيل العلَم، أثناء المشي اليدوي الحالي عبر
+    // ربط زاتكا. تُزال لاحقاً.
+    env.zatcaOnboardingDiagnostics ? { companyId, complianceRequestId: credential.complianceRequestId } : undefined,
+  );
+  // انتهاء مهلة تحديداً (فرع أكثر تحديداً من networkError العام أدناه — timedOut لا يُضبَط true إلا
+  // مع networkError:true أيضاً، راجع apiClient.ts، فيجب فحصه أولاً وإلا أصبح فرعاً ميتاً لا يُصَل
+  // إليه أبداً). الطلب رُبما وصل زاتكا فعلاً واستُلم قبل انقطاعنا نحن عن انتظار الردّ — رقم طلب
+  // الامتثال (complianceRequestId) لا يصلح لإعادة الاستخدام إن كانت الشهادة قد صدرت بالفعل على جانب
+  // زاتكا، خلافاً لفشل اتصال آخر (DNS/رفض اتصال) لم يصل فيه الطلب لزاتكا إطلاقاً.
+  if (result.timedOut) {
+    throw badRequest(
+      "انتهت مهلة انتظار ردّ زاتكا على طلب شهادة الإنتاج (60 ثانية) — قد تكون الشهادة صدرت فعلياً رغم عدم وصول الرد قبل انتهاء المهلة. لا تُعِد المحاولة بنفس رقم طلب الامتثال (complianceRequestId)؛ راجع سجلات الخادم لمعرفة ما ردّت به زاتكا فعلياً، أو تواصل مع الدعم الفني قبل أي محاولة أخرى.",
+    );
+  }
+  if (result.networkError) {
+    throw badRequest("انقطع الاتصال أثناء طلب شهادة الإنتاج؛ لم يصل تأكيد الإصدار ولم تُحفظ شهادة. قد يكون الطلب نُفّذ لدى زاتكا. احتفظ بالربط وراجع حالة الطلب قبل إعادة المحاولة أو إعادة الضبط.");
+  }
+  if (result.status === 401 || result.status === 403) {
+    throw badRequest(`رفضت زاتكا المصادقة على طلب شهادة الإنتاج (HTTP ${result.status}). احتفظ بالربط الحالي؛ يلزم فحص صلاحية شهادة الاختبار وحالة طلب الإصدار، خصوصاً إذا سبق انقطاع الاتصال. نجاح اختبارات الامتثال لا يؤكد إصدار شهادة الإنتاج.`);
+  }
   if (result.malformedResponse) {
-    throw badRequest("رد غير متوقع من زاتكا — شكل الاستجابة لا يطابق شهادة إنتاج صالحة، لم تُخزَّن أي بيانات. تحقق من إصدار/مسار API ثم أعد المحاولة، أو راجع الدعم الفني.");
+    throw badRequest("وصل رد نجاح من زاتكا لكن بيانات شهادة الإنتاج غير مكتملة؛ لم تُحفظ شهادة. راجع حالة طلب الإصدار قبل إعادة المحاولة.");
   }
   if (!result.ok || !result.data) {
-    throw badRequest(`رفضت زاتكا طلب شهادة الإنتاج: ${result.data ? JSON.stringify(result.data) : "لا يوجد رد"}`);
+    // تسوية اختيارية فقط (راجع lastMissingComplianceSteps في schema.prisma وcomplianceAutomation.ts):
+    // ZatcaComplianceStepAttempt المحلي هو مصدر التقدّم الأساسي دائماً — هذا فقط يلتقط رفض
+    // Missing-ComplianceSteps الفعلي *عندما نصادفه* بلا استدعاء متعمَّد لاستفزازه. تساهلي عمداً
+    // (بحث نصي على الجسم الخام كاملاً بصرف النظر عن مكان تداخل حقل message فيه) لأن الشكل الدقيق
+    // لجسم هذا الرفض تحديداً لم يُتحقَّق منه مباشرة بعد — راجع التحذير في parseMissingComplianceSteps.
+    const rawText = JSON.stringify(result.data ?? {});
+    if (rawText.includes("Missing-ComplianceSteps")) {
+      const remaining = parseMissingComplianceSteps(rawText);
+      if (remaining.length) {
+        await prisma.companyZatcaCredential.update({
+          where: { companyId },
+          data: { lastMissingComplianceSteps: remaining, lastComplianceStepsCheckedAt: new Date() },
+        });
+      }
+    }
+    throw badRequest(`تعذّر إصدار شهادة الإنتاج (HTTP ${result.status}): ${result.data ? JSON.stringify(result.data) : "وصل رد من زاتكا بلا تفاصيل قابلة للقراءة"}`);
   }
+  // نحفظ الشكل الخام (كما وصل تماماً، بلا أي فك ترميز إضافي) والسر ورقم الطلب فوراً بمجرد وصول ردّ
+  // ناجح من زاتكا — *قبل* أي محاولة تحليل الشهادة كـX.509 صالحة (normalizeZatcaCertificate أدناه قد
+  // تفشل وترمي). هذا يمنع ضياع دليل إصدار فعلي بصمت: لو فشل التحليل لاحقاً، تبقى الشهادة/السر/رقم
+  // الطلب الذي أصدرَته زاتكا فعلاً محفوظة، فلا حاجة أبداً لإعادة استدعاء /production/csids (وبالتالي
+  // حرق complianceRequestId، راجع تعليق timedOut أعلاه) لمجرد استرجاع ما صدر بالفعل.
+  const rawCertificateToken = result.data.binarySecurityToken.trim();
+  await prisma.companyZatcaCredential.update({
+    where: { companyId },
+    data: {
+      productionCertRawEnc: encryptSecret(rawCertificateToken),
+      productionSecretEnc: encryptSecret(result.data.secret),
+      productionRequestId: String(result.data.requestID),
+      productionCsidEnvironment: environment,
+    },
+  });
 
+  const cert = normalizeZatcaCertificate(result.data.binarySecurityToken, "شهادة الإنتاج (Production)");
+
+  // الشكل القانوني (canonical) لا يُعرَف إلا بعد نجاح التحليل أعلاه — يُكتَب هنا مع تأكيد حالة الربط
+  // فقط بعد التحقق من أن الشهادة صالحة فعلاً للتوقيع، لا قبل ذلك.
   await prisma.$transaction([
     prisma.companyZatcaCredential.update({
       where: { companyId },
-      data: {
-        productionCertEnc: encryptSecret(result.data.binarySecurityToken),
-        productionSecretEnc: encryptSecret(result.data.secret),
-      },
+      data: { productionCertEnc: encryptSecret(cert.canonical) },
     }),
     prisma.company.update({ where: { id: companyId }, data: { zatcaOnboardingStatus: "production" } }),
   ]);
@@ -152,12 +303,43 @@ export async function requestCompanyProductionCsid(tenantId: string, companyId: 
   return { requestId: String(result.data.requestID) };
 }
 
-/** تبديل البيئة الحالية (sandbox/simulation/production) — يُمنَع الانتقال لـ production بلا شهادة إنتاج فعلية. */
+/**
+ * تبديل البيئة الحالية (sandbox/simulation/production) — يُمنَع أي تبديل طالما توجد شهادة فعّالة
+ * صادرة للبيئة الحالية بالذات: شهادة زاتكا صادرة لبيئة معيّنة لا تعمل أبداً مع بيئة أخرى (عطل
+ * إنتاج فعلي مؤكَّد: شهادة اختبار حقيقية صادرة بينما الشركة على sandbox — بوابة مطورين عامة
+ * ببيانات وهمية لا تعرف هذه الشهادة إطلاقاً — فتغيير البيئة وحده، بلا إعادة إصدار الشهادة، يُبطلها
+ * فعلياً بصمت). المستخدم يجب أن يمرّ عمداً بزر "إعادة ضبط الربط" (resetCompanyZatcaLinkage) أولاً،
+ * ثم يعيد استخراج الشهادة تحت البيئة الجديدة — لا تبديل بنقرة واحدة يُسقِط ربطاً فعّالاً بصمت.
+ *
+ * عطل جمود (deadlock) فعلي مؤكَّد أُزيل هنا: كان هذا الحارس يمنع أيضاً الانتقال لبيئة "production"
+ * قبل صدور شهادة إنتاج فعلية (zatcaOnboardingStatus === "production") — لكن requestCompanyProductionCsid
+ * أعلاه يطلب شهادة الإنتاج نفسها من مضيف بيئة company.zatcaEnvironment الحالية (نفس الأمر
+ * لـrequestCompanyComplianceCsid وشهادة الاختبار)، أي أن البيئة يجب أن تكون "production" *قبل*
+ * بدء الربط بالكامل (توليد CSR بعلَم production، ثم شهادة الاختبار، ثم شهادة الإنتاج) لا بعد
+ * اكتماله — فيستحيل الوصول لـzatcaOnboardingStatus === "production" أصلاً لو مُنِع التحويل للبيئة
+ * قبله. الحماية الفعلية من تقديم فواتير حقيقية بلا شهادة إنتاج ليست هذا الحارس أصلاً — هي
+ * resolveZatcaSubmissionKind (submission.ts)، التي تفحص zatcaOnboardingStatus وحده بصرف النظر
+ * تماماً عن zatcaEnvironment. الفحص الوحيد المتبقي هنا (أدناه) هو الحماية الحقيقية التي بُني هذا
+ * الحارس من أجلها: منع تبديل بيئة توجد لها شهادة فعّالة بالفعل.
+ */
 export async function setCompanyZatcaEnvironment(tenantId: string, companyId: string, environment: ZatcaApiEnvironment) {
   const company = await getCompanyOrThrow(tenantId, companyId);
-  if (environment === "production" && company.zatcaOnboardingStatus !== "production") {
-    throw badRequest("لا يمكن التحويل لبيئة الإنتاج قبل استخراج شهادة إنتاج فعلية (Production CSID)");
+
+  if (environment !== company.zatcaEnvironment) {
+    const credential = await prisma.companyZatcaCredential.findUnique({ where: { companyId } });
+    const usesComplianceNow = company.zatcaEnvironment !== "production";
+    const hasLiveCredentialForCurrentEnvironment = usesComplianceNow
+      ? Boolean(credential?.complianceCertEnc && credential?.complianceSecretEnc)
+      : Boolean(credential?.productionCertEnc && credential?.productionSecretEnc);
+    if (hasLiveCredentialForCurrentEnvironment) {
+      throw badRequest(
+        `لا يمكن تغيير بيئة زاتكا مباشرةً — توجد شهادة ربط فعّالة صادرة فعلياً لبيئة "${company.zatcaEnvironment}" الحالية. ` +
+          `شهادة صادرة لبيئة معيّنة لا تعمل أبداً مع بيئة أخرى (سترفضها زاتكا بخطأ مصادقة 401). ` +
+          `لتغيير البيئة: استخدم "إعادة ضبط الربط" أولاً لإبطال الربط الحالي عمداً، ثم أعد توليد CSR واستخراج الشهادة من جديد تحت البيئة الجديدة.`,
+      );
+    }
   }
+
   await prisma.company.update({ where: { id: companyId }, data: { zatcaEnvironment: environment } });
   return getZatcaStatus(tenantId, companyId);
 }

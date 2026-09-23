@@ -9,6 +9,7 @@ import { fmt } from "../legacy/constants";
 import { downloadCsv } from "../legacy/shared";
 import { routes } from "../routes";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
+import { getAccountDisplayName } from "./shared/accountDisplayName";
 import Breadcrumb from "./shared/Breadcrumb";
 import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
@@ -45,7 +46,7 @@ function collectPostingDescendants(accounts, rootId) {
  * الحساب يفهم تفاصيل كل حركة دون فتح القيد الكامل.
  */
 export default function AccountLedgerModule({ companyId, companies, initialAccountId, onConsumeInitialAccountId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [accounts, setAccounts] = useState([]);
   const [costCenters, setCostCenters] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -219,7 +220,7 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
           {ledger && !loading && (
             <div className="panel">
               <div className="voucher-meta">
-                <div><span>{t("accountLedger.accountLabel")}</span><strong>{ledger.account.name}</strong></div>
+                <div><span>{t("accountLedger.accountLabel")}</span><strong>{getAccountDisplayName(ledger.account, i18n.language)}</strong></div>
                 <div>{periodLabel}</div>
                 <div>
                   <span>{t("statementOfAccount.closingBalance")}</span>

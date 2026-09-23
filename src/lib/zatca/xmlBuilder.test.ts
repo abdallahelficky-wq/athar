@@ -54,7 +54,11 @@ describe("buildDocumentXml", () => {
     expect(doc.documentElement!.tagName).toBe("Invoice");
   });
 
-  it("uses reporting:1.0 profile and 0200000 type name for simplified invoices, no buyer block content", () => {
+  // BR-KSA-EN16931-01 (BT-23): زاتكا رفضت فعلياً "clearance:1.0"، ثم "standard:1.0"، ثم "1.0"
+  // المجرَّدة — كل واحدة استُنتِجت من رسالة رفض عربية مشوَّهة نحوياً كانت تُسقِط الكلمة الفعلية.
+  // طلب الرسالة بالإنجليزية (Accept-Language: en أثناء التشخيص) حسم الأمر بنص واضح: القيمة
+  // الصحيحة هي "reporting:1.0" للفاتورتين معاً، بلا فرق بحسب subtype.
+  it("uses profile id 'reporting:1.0' and 0200000 type name for simplified invoices, no buyer block content", () => {
     const xml = buildDocumentXml(base({ subtype: "simplified" }));
     expect(xml).toContain("<cbc:ProfileID>reporting:1.0</cbc:ProfileID>");
     expect(xml).toContain('name="0200000"');
@@ -62,9 +66,9 @@ describe("buildDocumentXml", () => {
     expect(xml).toContain("<cac:AccountingCustomerParty></cac:AccountingCustomerParty>");
   });
 
-  it("uses clearance:1.0 profile, 0100000 type name, and full buyer block for standard invoices", () => {
+  it("uses profile id 'reporting:1.0', 0100000 type name, and full buyer block for standard invoices", () => {
     const xml = buildDocumentXml(base({ subtype: "standard", buyer: BUYER }));
-    expect(xml).toContain("<cbc:ProfileID>clearance:1.0</cbc:ProfileID>");
+    expect(xml).toContain("<cbc:ProfileID>reporting:1.0</cbc:ProfileID>");
     expect(xml).toContain('name="0100000"');
     expect(xml).toContain(BUYER.registrationName);
     expect(xml).toContain(BUYER.vatNumber);
@@ -74,19 +78,63 @@ describe("buildDocumentXml", () => {
     expect(() => buildDocumentXml(base({ subtype: "standard" }))).toThrow();
   });
 
+  // BR-KSA-14: عطل إنتاج فعلي مؤكَّد (BR-KSA-F-08 "Please recheck the CRN value") — كان الكود
+  // يضع دائماً schemeID="CRN" حتى حين لا يوجد رقم سجل تجاري للمشتري، فتصل زاتكا وسماً "CRN" بقيمة
+  // فارغة بدل استخدام الرقم الضريبي (TIN) الفعلي المتوفر، رغم أن BR-KSA-14 يشترط استخدام أيّ معرِّف
+  // متوفر فعلياً بترتيب أولوية زاتكا (TIN قبل CRN).
+  it("identifies the buyer by TIN (vatNumber) per BR-KSA-14 priority, even when a crNumber also exists", () => {
+    const xml = buildDocumentXml(base({ subtype: "standard", buyer: BUYER }));
+    expect(xml).toContain(`<cbc:ID schemeID="TIN">${BUYER.vatNumber}</cbc:ID>`);
+    // البائع يستمر على CRN كالمعتاد (BR-KSA-08) — الفحص هنا يستهدف كتلة المشتري تحديداً.
+    const buyerBlock = xml.slice(xml.indexOf("<cac:AccountingCustomerParty"));
+    expect(buyerBlock).not.toContain('schemeID="CRN"');
+  });
+
+  it("falls back to CRN when the buyer has no VAT number", () => {
+    const xml = buildDocumentXml(base({ subtype: "standard", buyer: { ...BUYER, vatNumber: null } }));
+    expect(xml).toContain(`<cbc:ID schemeID="CRN">${BUYER.crNumber}</cbc:ID>`);
+  });
+
+  it("throws if the buyer has neither a VAT number nor a CR number", () => {
+    expect(() => buildDocumentXml(base({ subtype: "standard", buyer: { ...BUYER, vatNumber: null, crNumber: null } }))).toThrow();
+  });
+
   it("uses invoice type code 381 for credit notes and 383 for debit notes, with a billing reference", () => {
-    const credit = buildDocumentXml(base({ kind: "credit_note", billingReferenceId: "INV-00001" }));
+    const credit = buildDocumentXml(base({ kind: "credit_note", billingReferenceId: "INV-00001", issuanceReason: "سبب الإصدار" }));
     expect(credit).toContain(">381<");
     expect(credit).toContain("<cac:BillingReference>");
     expect(credit).toContain("INV-00001");
 
-    const debit = buildDocumentXml(base({ kind: "debit_note", billingReferenceId: "INV-00001" }));
+    const debit = buildDocumentXml(base({ kind: "debit_note", billingReferenceId: "INV-00001", issuanceReason: "سبب الإصدار" }));
     expect(debit).toContain(">383<");
   });
 
   it("throws if a credit/debit note is built without a billing reference", () => {
-    expect(() => buildDocumentXml(base({ kind: "credit_note" }))).toThrow();
-    expect(() => buildDocumentXml(base({ kind: "debit_note" }))).toThrow();
+    expect(() => buildDocumentXml(base({ kind: "credit_note", issuanceReason: "سبب الإصدار" }))).toThrow();
+    expect(() => buildDocumentXml(base({ kind: "debit_note", issuanceReason: "سبب الإصدار" }))).toThrow();
+  });
+
+  // BR-KSA-17 (KSA-10): زاتكا قبلت المرجع الذاتي الاصطناعي بلا اعتراض وكشفت هذا الحقل الوحيد
+  // المتبقي — إلزامي لإشعار الدائن/المدين فقط، لا الفاتورة العادية.
+  it("throws if a credit/debit note is built without an issuance reason (BR-KSA-17)", () => {
+    expect(() => buildDocumentXml(base({ kind: "credit_note", billingReferenceId: "INV-00001" }))).toThrow();
+    expect(() => buildDocumentXml(base({ kind: "debit_note", billingReferenceId: "INV-00001" }))).toThrow();
+  });
+
+  it("emits the issuance reason as cac:PaymentMeans/cbc:InstructionNote, positioned after AccountingCustomerParty and before TaxTotal, for credit/debit notes only", () => {
+    const credit = buildDocumentXml(base({ kind: "credit_note", billingReferenceId: "INV-00001", issuanceReason: "سلعة تالفة" }));
+    expect(credit).toContain("<cac:PaymentMeans>");
+    expect(credit).toContain("<cbc:InstructionNote>سلعة تالفة</cbc:InstructionNote>");
+    const customerPartyPos = credit.indexOf("<cac:AccountingCustomerParty");
+    const paymentMeansPos = credit.indexOf("<cac:PaymentMeans>");
+    const taxTotalPos = credit.indexOf("<cac:TaxTotal>");
+    expect(customerPartyPos).toBeLessThan(paymentMeansPos);
+    expect(paymentMeansPos).toBeLessThan(taxTotalPos);
+
+    // الفاتورة العادية لا تحتاج هذا العنصر إطلاقاً، حتى لو مُرِّرت issuanceReason خطأً.
+    const invoice = buildDocumentXml(base({ kind: "invoice", issuanceReason: "لا معنى له هنا" }));
+    expect(invoice).not.toContain("<cac:PaymentMeans>");
+    expect(invoice).not.toContain("InstructionNote");
   });
 
   it("embeds the ICV and previous invoice hash exactly as given", () => {
@@ -116,6 +164,25 @@ describe("buildDocumentXml", () => {
       (n) => (n as { tagName?: string }).tagName === "cac:TaxTotal",
     );
     expect(docLevelTaxTotals.length).toBe(2);
+  });
+
+  // 65.96 + 49.72 = 115.68 حسابياً، لكن IEEE754 يُنتج 115.67999999999999 — truncateDecimals كان
+  // سيبتر هذا لـ"115.67" فيُسقِط هللة كاملة من الإجمالي رغم أن كل سطر مُقرَّب بشكل صحيح تماماً
+  // بخانتين عشريتين. هذا اختبار تراجع لإصلاح roundMoney المُضاف قبل truncateDecimals لكل مجموع.
+  it("does not lose a halalah to floating-point noise when summing already-rounded line amounts", () => {
+    const xml = buildDocumentXml(
+      base({
+        lines: [
+          { id: "1", name: "أ", quantity: 1, unitPrice: 65.96, lineSubtotal: 65.96, lineVat: 0, taxCategoryCode: "E", taxPercent: 0, taxExemptionReason: "إعفاء" },
+          { id: "2", name: "ب", quantity: 1, unitPrice: 49.72, lineSubtotal: 49.72, lineVat: 0, taxCategoryCode: "E", taxPercent: 0, taxExemptionReason: "إعفاء" },
+        ],
+      }),
+    );
+    expect(xml).toContain('<cbc:TaxableAmount currencyID="SAR">115.68</cbc:TaxableAmount>');
+    expect(xml).toContain('<cbc:LineExtensionAmount currencyID="SAR">115.68</cbc:LineExtensionAmount>');
+    expect(xml).toContain('<cbc:TaxInclusiveAmount currencyID="SAR">115.68</cbc:TaxInclusiveAmount>');
+    expect(xml).toContain('<cbc:PayableAmount currencyID="SAR">115.68</cbc:PayableAmount>');
+    expect(xml).not.toContain("115.67<");
   });
 
   it("computes LegalMonetaryTotal as the sum of all line subtotals/vat", () => {

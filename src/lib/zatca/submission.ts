@@ -1,13 +1,46 @@
 import { signDocument } from "./signing";
 import { buildSignedQrPayload, ZatcaQrUnsignedParams } from "./qr";
-import { clearInvoice, extractRejectionReasons, reportInvoice, ZatcaApiEnvironment, ZatcaSubmissionResponse } from "./apiClient";
+import {
+  checkInvoiceCompliance,
+  clearInvoice,
+  extractRejectionReasons,
+  hasValidationErrors,
+  reportInvoice,
+  ZatcaApiEnvironment,
+  ZatcaSubmissionResponse,
+} from "./apiClient";
 import { ResolvedZatcaCredentials } from "./credentials";
+import { env } from "../../config/env";
 
 // يجمع بين التوقيع (المرحلة C) والإرسال الفعلي (عميل API أعلاه) في خطوة واحدة — هذا ما يستدعيه
 // كل من salesInvoices/salesReturns/salesDebitNotes عند الترحيل فعلياً، بدل أن يكرّر كل موديول نفس
 // التسلسل (توقيع → بناء QR → إرسال → تفسير الرد).
 
-export type ZatcaSubmissionKind = "clearance" | "reporting";
+export type ZatcaSubmissionKind = "clearance" | "reporting" | "compliance";
+
+// المسار الفعلي المُستخدَم لكل نوع إرسال — يُستخدَم فقط للتسجيل التشخيصي أدناه (submissionKind
+// نفسه هو ما يقرّر submit فعلياً، راجع apiClient.ts checkInvoiceCompliance/reportInvoice/
+// clearInvoice للمصدر الحقيقي لكل مسار). يُبقي هذا الجدول متزامناً معها يدوياً عمداً — لا يُشتَق
+// آلياً، لتفادي تعقيد لا داعي له لثلاث قيم ثابتة لا تتغيّر.
+const SUBMISSION_ENDPOINT_PATH: Record<ZatcaSubmissionKind, string> = {
+  compliance: "/compliance/invoices",
+  reporting: "/invoices/reporting/single",
+  clearance: "/invoices/clearance/single",
+};
+
+/** شركة لا تزال على شهادة اختبار (Compliance CSID) يجب أن تُرسِل عبر مسار الامتثال (/compliance/invoices،
+ * مُصادَق بـBasic (شهادة الاختبار:سرّها) لا ترويسة OTP — تلك فقط لإصدار الشهادة نفسها عبر /compliance
+ * المنفصل تماماً؛ خطأ Missing-OTP الفعلي عند تجربة /compliance لفاتورة أثبت أن /compliance هو مسار
+ * إصدار CSID حصراً) فقط — استخدام clearance/reporting بشهادة اختبار يفشل بـ401 (تأكَّد فعلياً في
+ * الإنتاج: شهادة اختبار سليمة الشكل + رفض 401 من مسار التخليص = الشهادة غير مخوَّلة لهذا المسار
+ * تحديداً، لا عطل توقيع). */
+export function resolveZatcaSubmissionKind(
+  onboardingStatus: string,
+  subtype: "standard" | "simplified",
+): ZatcaSubmissionKind {
+  if (onboardingStatus !== "production") return "compliance";
+  return subtype === "standard" ? "clearance" : "reporting";
+}
 
 export interface SubmitDocumentParams {
   /** XML غير موقّع من buildDocumentXml */
@@ -17,6 +50,10 @@ export interface SubmitDocumentParams {
   credentials: ResolvedZatcaCredentials;
   kind: ZatcaSubmissionKind;
   qrBaseParams: ZatcaQrUnsignedParams;
+  /** سقالة تشخيصية مؤقتة (راجع env.zatcaOnboardingDiagnostics في apiClient.ts) — يمرّرها المستدعي
+   * (postingGate.ts/resubmit.ts، حيث تتوفر ICV/PIH الفعلية لهذا المستند) بلا تعديل حتى تُسجَّل
+   * كاملة مع الجسم الخام قبل أي تصفية. تُزال بعد انتهاء المشي اليدوي الحالي عبر ربط زاتكا. */
+  onboardingDiagnostics?: Record<string, unknown>;
 }
 
 export interface ZatcaSubmissionAccepted {
@@ -33,16 +70,58 @@ export interface ZatcaSubmissionRejected {
   reason: string;
   signedXml: string;
   invoiceHash: string;
+  /** true إن كان الرفض بسبب تعذّر الاتصال بزاتكا نفسه (لم يُرسَل شيء أصلاً) لا رد رفض فعلي منها */
+  networkError?: boolean;
+  /** true إن فشل التوقيع محلياً (شهادة/مفتاح زاتكا غير صالح لهذه الشركة) قبل أي محاولة اتصال
+   * بزاتكا إطلاقاً — راجع signAndSubmitDocument أدناه لتفاصيل الفرق عن networkError. */
+  certificateError?: boolean;
+  /** true لاستجابة HTTP وصلت فعلياً من زاتكا (بخلاف networkError) لكنها ليست رفضاً حقيقياً لمحتوى
+   * المستند — كود نقل/مصادقة/توجيه واضح (401/403/404/5xx)، أو جسم لا يحمل بنية رفض معروفة من زاتكا
+   * إطلاقاً. راجع hasRecognizableRejectionBody في apiClient.ts. تحتاج مراجعة إعداد الربط (شهادة/
+   * صلاحيات/مسار)، لا تصحيح بيانات المستند. */
+  httpError?: boolean;
+  /** true لاستجابة HTTP ناجحة (2xx) فعلياً لكن جسمها لم يطابق المخطط المتوقَّع — عطل إنتاج فعلي
+   * مؤكَّد: كان هذا الحقل يصل هنا بلا أي تمييز عن رفض حقيقي من زاتكا (لم يكن يُمرَّر إطلاقاً)، فكان
+   * نجاح 2xx بشكل غير متوقَّع يُصنَّف "rejected" في postingGate.ts/resubmit.ts — أي "رفضنا نجاحاً"،
+   * لا رفضاً فعلياً من زاتكا. راجع apiClient.ts (RequestParams.schema/zatcaRequest) لمصدر هذا الحقل. */
+  malformedResponse?: boolean;
+  /** كود حالة HTTP الفعلي من زاتكا عند httpError — لعرضه في الرسالة للمستخدم بدل رسالة عامة. */
+  httpStatus?: number;
 }
 
 export type ZatcaSubmissionOutcome = ZatcaSubmissionAccepted | ZatcaSubmissionRejected;
 
 export async function signAndSubmitDocument(params: SubmitDocumentParams): Promise<ZatcaSubmissionOutcome> {
-  const { signedXml, invoiceHash, digitalSignature, certificateInfo } = signDocument({
-    xml: params.xml,
-    certificatePem: params.credentials.certificateBodyBase64,
-    privateKeyPem: params.credentials.privateKeyPem,
-  });
+  let signed: ReturnType<typeof signDocument>;
+  try {
+    signed = signDocument({
+      xml: params.xml,
+      certificatePem: params.credentials.certificateBodyBase64,
+      privateKeyPem: params.credentials.privateKeyPem,
+    });
+  } catch (err) {
+    // خطأ تشفيري خام (OpenSSL، مثل "asn1 encoding routines::wrong tag") عند محاولة تحليل شهادة أو
+    // مفتاح زاتكا المخزَّنين لهذه الشركة — سببه شبه مؤكَّد شهادة/مفتاح بصيغة غير صالحة (راجع
+    // scripts/check-zatca-certificate.ts لتشخيص دقيق بلا كشف أي سرّ)، لا عطل في منطق التوقيع نفسه،
+    // ولا علاقة له بزاتكا أو بالشبكة إطلاقاً — لم يصل الطلب لزاتكا أصلاً. يُسجَّل هنا فقط (لا يُرفَع
+    // كاستثناء خام يُسقِط الطلب بخطأ 500 عام لا يفسّر شيئاً للمستخدم)، ويُصنَّف certificateError
+    // (لا networkError) تحديداً لاستبعاده من إعادة المحاولة التلقائية — راجع postingGate.ts
+    // وZATCA_AUTO_RETRY_STATUSES في salesInvoices.service.ts.
+    // eslint-disable-next-line no-console
+    console.error(
+      `[signAndSubmitDocument] فشل توقيع مستند زاتكا محلياً — شهادة/مفتاح غير صالح لهذه الشركة. الخطأ الفعلي: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return {
+      accepted: false,
+      response: null,
+      reason:
+        "تعذّر توقيع الفاتورة إلكترونياً — شهادة الربط مع هيئة الزكاة والضريبة والجمارك (زاتكا) المسجَّلة لهذه الشركة غير صالحة أو تالفة. راجع إعدادات ربط زاتكا لهذه الشركة (قد تحتاج إعادة استخراج الشهادة)، أو تواصل مع الدعم الفني إن استمرت المشكلة.",
+      signedXml: "",
+      invoiceHash: "",
+      certificateError: true,
+    };
+  }
+  const { signedXml: signedXmlWithoutQr, invoiceHash, digitalSignature, certificateInfo } = signed;
 
   const qrPayload = buildSignedQrPayload({
     ...params.qrBaseParams,
@@ -52,21 +131,82 @@ export async function signAndSubmitDocument(params: SubmitDocumentParams): Promi
     certificateSignatureRaw: certificateInfo.signatureRaw,
   });
 
+  // عطل إنتاج فعلي مؤكَّد: qrPayload كان يُحسَب هنا لكن لا يُعاد حقنه في XML قط — يُستخدَم فقط
+  // لاحقاً لعرض/طباعة QR (invoicePdf.ts)، فتصل زاتكا نسخة بحقل QR فارغاً دائماً رغم توقيعها بنجاح.
+  // التطبيق المرجعي (wes4m/zatca-xml-js، signing/index.ts) يحقن qr هنا بالضبط قبل الإرسال — خطوة
+  // سقطت عند نقل هذا المنطق هنا لأن buildDocumentXml (xmlBuilder.ts) يستبدل SET_QR_CODE_DATA بنص
+  // فارغ مبكراً، فلا يبقى أي عنصر نائب لاحقاً يمكن حقن القيمة الحقيقية فيه. getPureDocumentString
+  // (hash.ts) يستبعد عنصر QR بالكامل من حساب التجزئة بصرف النظر عن محتواه، فحقنه هنا لا يغيّر
+  // invoiceHash المحسوب أعلاه.
+  const signedXml = signedXmlWithoutQr.replace(
+    '<cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain"></cbc:EmbeddedDocumentBinaryObject>',
+    `<cbc:EmbeddedDocumentBinaryObject mimeCode="text/plain">${qrPayload}</cbc:EmbeddedDocumentBinaryObject>`,
+  );
+
   const signedInvoiceBase64 = Buffer.from(signedXml, "utf8").toString("base64");
-  const submit = params.kind === "clearance" ? clearInvoice : reportInvoice;
+  const submit =
+    params.kind === "clearance" ? clearInvoice : params.kind === "reporting" ? reportInvoice : checkInvoiceCompliance;
+
+  // سطر سجلّ دائم (لا مقيَّد بعلَم التشخيص zatcaOnboardingDiagnostics) — طُلِب صراحةً بعد رفض 401
+  // غير مُفسَّر على فاتورة مبسّطة أثناء مرحلة الامتثال: الفرضية أن submissionKind ربما ينحرف حسب
+  // subtype رغم أن resolveZatcaSubmissionKind أعلاه (والاختبار المقابل له) يثبتان أن هذا لا يحدث
+  // طالما الشركة ليست على "production" — راجع تقرير التحقيق. بصرف النظر عن سبب أي 401 مستقبلي، هذا
+  // السطر يُثبت المسار الفعلي المُستخدَم بلا حاجة لإعادة تخمينه من الأعراض فقط.
+  // eslint-disable-next-line no-console
+  console.info(`[signAndSubmitDocument] submissionKind=${params.kind} path=${SUBMISSION_ENDPOINT_PATH[params.kind]} uuid=${params.uuid}`);
+
   const result = await submit({
     environment: params.environment,
     credentials: params.credentials,
     signedInvoiceBase64,
     invoiceHash,
     uuid: params.uuid,
+    onboardingDiagnostics: params.onboardingDiagnostics,
+    // فحص الامتثال تحديداً (لا التخليص/الإبلاغ الحقيقيَّين — تلك رسائل رفض حقيقية تصل المستخدم
+    // النهائي، ويجب أن تبقى عربية) يطلب الإنجليزية أثناء المشي اليدوي عبر ربط زاتكا فقط
+    // (zatcaOnboardingDiagnostics): قالب الرسالة العربية من زاتكا نفسها وصل مشوَّهاً نحوياً لقاعدة
+    // BR-KSA-EN16931-01 (علامة اقتباس قبل النقطتين بدل بعدها)، وأعاق ذلك تشخيص القيمة المتوقَّعة
+    // بدقة عبر ثلاث محاولات متتالية — الإنجليزية هي النص الأصلي غير المُترجَم، لا نسخة مشتقة منه.
+    acceptLanguage: params.kind === "compliance" && env.zatcaOnboardingDiagnostics ? "en" : undefined,
   });
 
   if (result.ok) {
+    // مسار الامتثال (checkInvoiceCompliance، /compliance) تحديداً قد يردّ 2xx حتى لو "فشل" الفحص منطقياً — زاتكا لا
+    // توثّق صراحة أن رفض الامتثال يكون بكود HTTP غير ناجح كما في التخليص/الإبلاغ؛ الأرجح أنه، كونه
+    // مساراً تشخيصياً غير مُلزِم، يعيد 200 دائماً ويضع نتيجة الفحص داخل الجسم (validationResults
+    // بأخطاء فعلية) بدل تغيير كود الحالة. بما أننا لا نستطيع التحقق من هذا مباشرةً ضد زاتكا الحقيقية
+    // من هذه البيئة، نتعامل معه دفاعياً: 2xx بجسم يحمل أخطاء تحقّق فعلية على مسار الامتثال تحديداً
+    // لا يُعامَل كقبول — بخلاف clearance/reporting حيث النجاح 2xx يعني قبولاً حقيقياً بلا هذا الفحص
+    // الإضافي (زاتكا هناك تستخدم كود الحالة نفسه للتمييز، كما تأكَّد فعلياً من خطأ 401 في الإنتاج).
+    if (params.kind === "compliance" && hasValidationErrors(result.data)) {
+      return {
+        accepted: false,
+        response: result.data,
+        reason: extractRejectionReasons(result.data),
+        signedXml,
+        invoiceHash,
+      };
+    }
     return { accepted: true, response: result.data, signedXml, invoiceHash, qrPayload };
   }
-  const reason = result.malformedResponse
-    ? "رد غير متوقع من زاتكا (نجاح HTTP لكن الشكل لا يطابق المتوقَّع) — لم تُعتمَد الاستجابة، حاول لاحقاً أو راجع الدعم الفني"
-    : extractRejectionReasons(result.data);
-  return { accepted: false, response: result.data, reason, signedXml, invoiceHash };
+  const reason = result.networkError
+    ? "تعذّر الاتصال بخادم هيئة الزكاة والضريبة والجمارك (زاتكا) — حاول لاحقاً أو راجع الدعم الفني"
+    : result.malformedResponse
+      ? "رد غير متوقع من زاتكا (نجاح HTTP لكن الشكل لا يطابق المتوقَّع) — لم تُعتمَد الاستجابة، حاول لاحقاً أو راجع الدعم الفني"
+      : result.httpError
+        ? `تعذّر إتمام الإرسال إلى هيئة الزكاة والضريبة والجمارك (زاتكا) — رد الخادم بخطأ نقل أو مصادقة` +
+          ` (HTTP ${result.status}${result.statusText ? " " + result.statusText : ""}) لا رفضاً لمحتوى الفاتورة. ` +
+          `هذا يعني عادة مشكلة في إعداد الربط مع زاتكا (شهادة/صلاحيات/مسار الإرسال)، لا خطأ في بيانات الفاتورة نفسها — راجع الدعم الفني.`
+        : extractRejectionReasons(result.data);
+  return {
+    accepted: false,
+    response: result.data,
+    reason,
+    signedXml,
+    invoiceHash,
+    networkError: result.networkError,
+    httpError: result.httpError,
+    malformedResponse: result.malformedResponse,
+    httpStatus: result.status,
+  };
 }

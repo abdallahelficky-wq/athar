@@ -1,3 +1,4 @@
+import { withInvoiceCredits } from "../../lib/invoiceCredits";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
@@ -54,10 +55,10 @@ export async function getOutstandingInvoices(tenantId: string, customerId: strin
     include: { receiptAllocations: true },
     orderBy: { date: "asc" },
   });
-  return invoices
+  return (await withInvoiceCredits(tenantId, invoices))
     .map((inv) => {
       const paid = inv.receiptAllocations.reduce((s, a) => s + Number(a.amount), 0);
-      return { id: inv.id, invoiceNumber: inv.invoiceNumber, date: inv.date, grandTotal: Number(inv.grandTotal), paid, due: Number(inv.grandTotal) - paid };
+      return { id: inv.id, invoiceNumber: inv.invoiceNumber, date: inv.date, grandTotal: Number(inv.grandTotal), paid, due: inv.outstandingAmount };
     })
     .filter((inv) => inv.due > 0.5);
 }
@@ -218,8 +219,8 @@ async function dueAmountOf(tenantId: string, invoiceId: string) {
   });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن ربط سند قبض بفاتورة غير مرحّلة");
-  const paid = invoice.receiptAllocations.reduce((s, a) => s + Number(a.amount), 0);
-  return { invoice, due: Number(invoice.grandTotal) - paid };
+  const summary = (await withInvoiceCredits(tenantId, [invoice]))[0];
+  return { invoice, due: summary.outstandingAmount };
 }
 
 /** ربط فاتورة إضافية بسند قبض موجود بالفعل — يزيد إجمالي السند وقيده المحاسبي المرتبط */

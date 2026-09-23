@@ -9,15 +9,15 @@ import { fmt } from "../legacy/constants";
  * على حساب الذمم فقط) ويعرضها داخل PrintShell المشترك، فتظهر جاهزة للطباعة مباشرة (زرّا
  * "طباعة"/"تحميل PDF" من PrintShell نفسه) بنفس هيدر/فوتر أي مطبوعة أخرى في النظام.
  */
-export default function StatementOfAccountModal({ kind, party, companyId, companies, onClose }) {
+export default function StatementOfAccountModal({ kind, party, companyId, companies, from, to, onClose }) {
   const { t } = useTranslation();
   const [statement, setStatement] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const fetcher = kind === "customer" ? getCustomerStatement : getSupplierStatement;
-    fetcher(party.id, { companyId }).then(setStatement).catch((e) => setError(e.message));
-  }, [kind, party.id, companyId]);
+    fetcher(party.id, { companyId, from, to }).then(setStatement).catch((e) => setError(e.message));
+  }, [kind, party.id, companyId, from, to]);
 
   const company = companies?.find((c) => c.id === companyId);
   const partyLabel = kind === "customer" ? t("statementOfAccount.customer") : t("statementOfAccount.supplier");

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { listCustomers, createCustomer, updateCustomer, deleteCustomer, extractCustomerDocument } from "../../api/customers";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
@@ -33,6 +33,8 @@ export default function CustomersTab({ companyId, companies }) {
   const [editingId, setEditingId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [statementFor, setStatementFor] = useState(null);
+  const [statementCompanyId, setStatementCompanyId] = useState(null);
+  const [statementRange, setStatementRange] = useState({ from: undefined, to: undefined });
   const [extracting, setExtracting] = useState(null); // docType الجاري استخراجه
   const [extractionNote, setExtractionNote] = useState(null); // { confidence, text }
   const [attachmentsKey, setAttachmentsKey] = useState(0);
@@ -62,6 +64,33 @@ export default function CustomersTab({ companyId, companies }) {
   };
 
   useEffect(reload, [companyId]);
+
+  // دخول مباشر لكشف حساب عميل محدَّد (رابط تفصيلي من شاشة الفاتورة/قائمة الفواتير) عبر
+  // ?statementCustomerId= في رابط حقيقي (routes.customerStatement) — بنفس نمط ?accountId= في
+  // routes.accountLedger بالضبط. companyId هنا هو شركة الفاتورة التي فُتح الرابط منها، وقد تختلف
+  // عن الشركة النشطة حالياً في مُبدّل الشركات؛ لذا يُجلَب العميل مباشرة بهذه الشركة تحديداً بدل
+  // الاعتماد على قائمة customers المحمَّلة أصلاً بنطاق الشركة النشطة. يُستهلَك (يُحذَف من الرابط)
+  // بمجرد فتح الكشف حتى لا يُفرَض على أي فتح لاحق للتبويب.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const statementCustomerId = searchParams.get("statementCustomerId");
+    if (!statementCustomerId) return;
+    const targetCompanyId = searchParams.get("statementCompanyId") || companyId;
+    if (!targetCompanyId) return;
+    let cancelled = false;
+    listCustomers(targetCompanyId).then((list) => {
+      if (cancelled) return;
+      const found = list.find((c) => c.id === statementCustomerId);
+      if (found) {
+        setStatementFor(found);
+        setStatementCompanyId(targetCompanyId);
+        setStatementRange({ from: searchParams.get("statementFrom") || undefined, to: searchParams.get("statementTo") || undefined });
+      }
+      setSearchParams({}, { replace: true });
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get("statementCustomerId")]);
 
   const openAddForm = () => {
     setEditingId(null);
@@ -280,9 +309,11 @@ export default function CustomersTab({ companyId, companies }) {
         <StatementOfAccountModal
           kind="customer"
           party={statementFor}
-          companyId={companyId}
+          companyId={statementCompanyId || companyId}
           companies={companies}
-          onClose={() => setStatementFor(null)}
+          from={statementRange.from}
+          to={statementRange.to}
+          onClose={() => { setStatementFor(null); setStatementCompanyId(null); setStatementRange({ from: undefined, to: undefined }); }}
         />
       )}
 

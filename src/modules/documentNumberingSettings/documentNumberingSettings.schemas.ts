@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const docTypeParamSchema = z.enum(["sales_invoice", "quotation", "sales_return"]);
+export const docTypeParamSchema = z.enum(["sales_invoice", "quotation", "sales_return", "sales_debit_note"]);
 
 export const updateDocumentNumberingSettingsSchema = z.object({
   // بادئة نصية حرة تدعم الرمز الخاص {year} (يُستبدَل بالسنة الميلادية الحالية عند كل توليد رقم)

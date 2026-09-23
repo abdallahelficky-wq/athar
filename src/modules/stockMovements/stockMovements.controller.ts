@@ -12,6 +12,23 @@ export const listHandler: RequestHandler = async (req, res) => {
   res.json(movements);
 };
 
+const parseDate = (v: unknown) => (typeof v === "string" && v ? new Date(v) : undefined);
+const parseCompanyId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+
+// كرت صنف للقراءة فقط — راجع service.getItemCard لتفاصيل الرصيد المتحرك/حلّ المستند المصدر.
+// assertRecordCompanyScope هنا (لا فقط تمرير companyId من الاستعلام لدالة الخدمة) يمنع مستخدماً
+// بصلاحية محدودة على شركة معيّنة من الاطّلاع على كرت صنف شركة أخرى بمجرد تخمين itemId، حتى لو
+// أرسل companyId مختلفاً في الاستعلام (نفس نمط balanceHandler أعلاه بالضبط).
+export const itemCardHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.item, req.params.itemId);
+  const result = await service.getItemCard(req.auth!.tenantId, req.params.itemId, {
+    companyId: parseCompanyId(req.query.companyId),
+    dateFrom: parseDate(req.query.from),
+    dateTo: parseDate(req.query.to),
+  });
+  res.json(result);
+};
+
 export const balanceHandler: RequestHandler = async (req, res) => {
   const { itemId, warehouseId } = req.query;
   if (typeof itemId !== "string" || typeof warehouseId !== "string") {

@@ -1,4 +1,4 @@
-import { ErrorRequestHandler } from "express";
+import { ErrorRequestHandler, Request } from "express";
 import { HttpError } from "../lib/httpError";
 import { Prisma } from "@prisma/client";
 import { translateMessage, translateZodDetails } from "../lib/i18n/translate";
@@ -30,7 +30,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   }
 
   // eslint-disable-next-line no-console
-  console.error(formatUnexpectedErrorForLog(err));
+  console.error(formatUnexpectedErrorForLog(err), formatRequestContextForLog(req));
   res.status(500).json({ error: translateMessage("خطأ داخلي في الخادم", lang) });
 };
 
@@ -52,4 +52,45 @@ function formatUnexpectedErrorForLog(err: unknown) {
     };
   }
   return err;
+}
+
+// أسماء حقول لا تُسجَّل أبداً حتى في سياق خطأ غير متوقع — كلمات مرور/أرقام PIN/مفاتيح خاصة/شهادات
+// قد تظهر في جسم طلب أي مسار (فتح وردية بوابة موظف، فك ترحيل بـPIN، ضبط شهادات زاتكا...)، وهذا
+// المُسجِّل عام لكل الوحدات لا خاص بمسار نقطة البيع وحده.
+const REDACTED_BODY_KEYS = new Set(["password", "newPassword", "currentPassword", "pin", "secret", "privateKeyPem", "certificateBodyBase64", "token", "otp"]);
+
+function redactBody(value: unknown, depth = 0): unknown {
+  if (depth > 2 || value == null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.slice(0, 20).map((v) => redactBody(v, depth + 1));
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, v]) => [
+      key,
+      REDACTED_BODY_KEYS.has(key) ? "[محذوف]" : redactBody(v, depth + 1),
+    ]),
+  );
+}
+
+/**
+ * سياق الطلب الذي أنتج هذا الخطأ غير المتوقَّع — الطريقة/المسار، هوية المستخدم (لوحة التحكم
+ * الرئيسية عبر req.auth، أو بوابة الموظف عبر req.employeeAuth)، الشركة المستهدفة (إن ظهرت في
+ * الاستعلام أو الجسم)، وجسم الطلب نفسه (بعد حجب الحقول الحسّاسة وقصّ طوله بنفس حد الخطأ نفسه) —
+ * دون هذا، رسالة الخطأ وحدها لا تكفي لمعرفة *لأي شركة/مستخدم* حدث الفشل ولا *بأي بيانات* (مثال:
+ * مسار نقطة البيع لا يظهر فيه تفصيل الدفعات إطلاقاً بدون هذا). لا يُغيِّر الرد المُعاد للعميل
+ * (يبقى الرسالة العامة كما هي) — إضافة للتسجيل الخادمي فقط.
+ */
+function formatRequestContextForLog(req: Request) {
+  const body = req.body as Record<string, unknown> | undefined;
+  const companyId =
+    (typeof req.query?.companyId === "string" && req.query.companyId) ||
+    (body && typeof body === "object" && typeof body.companyId === "string" && body.companyId) ||
+    undefined;
+  return {
+    method: req.method,
+    path: req.originalUrl,
+    tenantId: req.auth?.tenantId ?? req.employeeAuth?.tenantId,
+    userId: req.auth?.sub,
+    employeeId: req.employeeAuth?.employeeId,
+    companyId,
+    body: redactBody(body),
+  };
 }

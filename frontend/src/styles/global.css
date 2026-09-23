@@ -850,6 +850,10 @@
           .cpi-print { padding: 0 !important; }
           .cpi-actions { display: none !important; }
           .cpi-close-x { display: none !important; }
+
+          /* روابط "تفصيلي" (drill-link) تُطبَع كنص عادي تماماً — بلا لون رابط ولا خط تحتي ولا أي
+             أثر يكشف أنها كانت قابلة للنقر في الشاشة. */
+          .drill-link { color: inherit !important; text-decoration: none !important; cursor: default !important; }
         }
 
         /* قالب الفاتورة "كلاسيكي احترافي" — انظر ClassicProInvoiceView.jsx للبنية الكاملة */
@@ -1077,6 +1081,46 @@
         .filter-bar label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #8A7C5E; font-weight: 500; }
         .filter-field-pair { display: flex; gap: 6px; }
         .filter-field-pair input { width: 100%; }
+
+        /* لوحة الفلاتر بنمط برامج المحاسبة (FilterBar.jsx) — شبكة filter-bar الحالية + صفّ أزرار
+           بحث/إعادة تعيين يمتد بعرض الشبكة كاملاً في سطره الخاص. */
+        .document-filter-bar { align-items: end; }
+        .filter-bar-actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-start; }
+
+        /* منتقي عميل بحقل بحث منسدل (CustomerPicker.jsx) — نفس مظهر item-combo-dropdown الحالي. */
+        .customer-picker { position: relative; }
+
+        /* رأس عمود جدول قابل للترتيب (SortableTh.jsx). */
+        .sortable-th-btn {
+          display: inline-flex; align-items: center; gap: 4px; background: transparent; border: none;
+          padding: 0; font: inherit; color: inherit; text-transform: inherit; cursor: pointer;
+        }
+        .sortable-th-arrow { font-size: 9px; color: rgba(20,20,20,0.3); }
+        .sortable-th-arrow-active { color: #2F5D5A; }
+
+        /* شريط ترقيم الصفحات (PaginationBar.jsx). */
+        .pagination-bar {
+          display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+          gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(16,32,46,0.12);
+          font-size: 12.5px; color: #445565;
+        }
+        .pagination-page-size { display: flex; align-items: center; gap: 6px; }
+        .pagination-page-size select {
+          font-family: 'Tajawal', sans-serif; border: 1px solid rgba(16,32,46,0.18); border-radius: 8px;
+          padding: 5px 8px; font-size: 12.5px; background: #fff; color: #141414;
+        }
+        .pagination-nav { display: flex; align-items: center; gap: 10px; }
+        .pagination-page-of { font-family: 'JetBrains Mono', monospace; }
+
+        /* صف إجمالي النتائج المُفلترة (كامل المجموعة، لا الصفحة الحالية فقط). */
+        .filtered-summary-row td { background: rgba(47,93,90,0.06); font-weight: 700; border-top: 2px solid rgba(47,93,90,0.25); }
+
+        /* رابط "تفصيلي" (اسم عميل ← كشف حسابه، سطر صنف ← كرت الصنف) — يظهر ككتلة نص عادية
+           بلا أي مؤشر رابط (لون/خط تحتي) في الشاشة، ويُحيَّد تماماً عند الطباعة/PDF أدناه، حتى لا
+           يظهر أي أثر للرابط في المطبوعة نفسها. تأثير التفاعل (تسطير) يظهر فقط عند المرور بالمؤشر. */
+        .drill-link { color: inherit; text-decoration: none; cursor: pointer; }
+        .drill-link:hover { text-decoration: underline; }
+
         .invoices-table-wrap { overflow-x: auto; }
         .invoices-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
         .invoices-table th { text-align: right; font-size: 11px; color: #8A7C5E; text-transform: uppercase; padding: 8px; border-bottom: 2px solid rgba(16,32,46,0.12); white-space: nowrap; }
@@ -1531,6 +1575,8 @@
         .status-badge.status-saved { background: rgba(200,16,46,0.16); color: #7A0F1F; }
         .status-badge.status-neutral { background: rgba(138,124,94,0.14); color: #8A7C5E; }
         .status-badge.status-rejected { background: rgba(168,67,43,0.14); color: #A8432B; }
+        /* لحالات تحتاج إصلاح إعداد/ربط، لا مجرد انتظار أو تصحيح بيانات فاتورة — مثل زاتكا certificate_error */
+        .status-badge.status-warning { background: rgba(196,138,13,0.16); color: #8A5A0D; }
 
         /* حالة تحميل الهيكل العظمي (Skeleton) — صفوف رمادية نابضة بدل سبينر بسيط */
         @keyframes skeleton-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }

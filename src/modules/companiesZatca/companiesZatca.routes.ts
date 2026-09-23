@@ -9,6 +9,8 @@ import {
   requestProductionHandler,
   setEnvironmentHandler,
   resetLinkageHandler,
+  runComplianceStepTestHandler,
+  getComplianceProgressHandler,
 } from "./companiesZatca.controller";
 
 // كل هذه المسارات إدارية بحتة (ربط CSID) — مقيَّدة لمدير النظام فقط، بخلاف بيانات الشركة العادية
@@ -30,3 +32,11 @@ companyZatcaRoutes.post("/compliance", adminOnly, validateBody(complianceOtpSche
 companyZatcaRoutes.post("/production", adminOnly, requestProductionHandler);
 companyZatcaRoutes.patch("/environment", adminOnly, validateBody(setEnvironmentSchema), setEnvironmentHandler);
 companyZatcaRoutes.delete("/", adminOnly, resetLinkageHandler);
+
+// راجع src/lib/zatca/complianceAutomation.ts — تشغيل/متابعة مستندات فحص الامتثال الاصطناعية الستة.
+// :stepKey أحد مفاتيح ZATCA_COMPLIANCE_STEPS (مثل standard-credit-note-compliant) — يُتحقَّق منه
+// ومن enabled=false داخل runZatcaComplianceStep نفسها. التشغيل الفعلي (يحجز رقم ICV حقيقياً بصرف
+// النظر عن النتيجة) مقصور على admin فقط، مثل بقية مسارات زاتكا الحسّاسة أعلاه؛ القراءة المجرَّدة
+// للتقدّم متاحة لأي مستخدم له صلاحية الوصول لهذه الشركة.
+companyZatcaRoutes.get("/compliance-steps", getComplianceProgressHandler);
+companyZatcaRoutes.post("/compliance-steps/:stepKey/test", adminOnly, runComplianceStepTestHandler);

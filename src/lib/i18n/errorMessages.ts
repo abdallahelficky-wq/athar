@@ -10,6 +10,19 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "قيمة المرتجع تتجاوز المتبقي القابل للإرجاع من الفاتورة": "Return amount exceeds the remaining returnable invoice value.",
+  "أحد أصناف المرتجع لا ينتمي إلى الفاتورة الأصلية": "A return line does not belong to the original invoice.",
+  "كمية المرتجع تتجاوز الكمية المتبقية في الفاتورة الأصلية": "Return quantity exceeds the remaining original invoice quantity.",
+  "الفاتورة الأصلية غير موجودة": "Original invoice not found.",
+  "الفاتورة الأصلية لا تخص العميل والشركة المحددين": "Original invoice does not belong to the selected customer and company.",
+  "الفاتورة الأصلية لا تخص العميل والشركة المحددين أو غير مرحلة": "Original invoice does not belong to the selected customer and company or is not posted.",
+  "لا يمكن فك ترحيل فاتورة لها إشعار دائن معتمد أو قيد المعالجة": "Cannot unpost an invoice with a posted or pending credit note.",
+
+  "انقطع الاتصال أثناء طلب شهادة الإنتاج؛ لم يصل تأكيد الإصدار ولم تُحفظ شهادة. قد يكون الطلب نُفّذ لدى زاتكا. احتفظ بالربط وراجع حالة الطلب قبل إعادة المحاولة أو إعادة الضبط.": "Connection was lost while requesting the production certificate. Issuance is unconfirmed and no certificate was saved. ZATCA may have processed the request. Preserve the current onboarding and check its status before retrying or resetting.",
+  "وصل رد نجاح من زاتكا لكن بيانات شهادة الإنتاج غير مكتملة؛ لم تُحفظ شهادة. راجع حالة طلب الإصدار قبل إعادة المحاولة.": "ZATCA returned success with incomplete production certificate data. No certificate was saved. Check issuance status before retrying.",
+  "اختبارات الامتثال متاحة أثناء مرحلة شهادة الاختبار فقط، ولا يجوز إرسال مستندات اصطناعية بعد تفعيل الإنتاج": "Compliance tests are only available during compliance onboarding; synthetic documents cannot be submitted after production activation.",
+  "تعذّر توليد PDF — مشكلة إعداد في الخادم (محرّك PDF غير مُهيَّأ، لا خطأ في بياناتك). راجع الدعم الفني.":
+    "Could not generate the PDF — this is a server configuration problem (the PDF engine is not set up), not an error in your data. Contact support.",
   "رمز الدخول غير صالح": "Invalid access token",
   "هذه الشركة في وضع (عرض فقط) بسبب انتهاء الاشتراك أو الفترة التجريبية — تواصل مع الدعم الفني لتفعيل الاشتراك قبل إجراء أي إضافة أو تعديل أو حذف.": "This company is read-only because its subscription or trial has expired. Contact support to activate the subscription before adding, editing, or deleting data.",
   "رمز اختيار الحساب مطلوب": "Account selection token is required",
@@ -146,9 +159,13 @@ export const AR_TO_EN: Record<string, string> = {
   "اسم مركز التكلفة قصير جداً": "The cost center name is too short",
   "اسم/عنوان عقد الإيجار قصير جداً": "The lease contract name/title is too short",
   "إشعار الدائن/المدين يتطلب رقم الفاتورة المرتبطة (billingReferenceId)": "A credit/debit note requires the linked invoice number (billingReferenceId)",
+  "إشعار الدائن/المدين يتطلب سبب الإصدار (issuanceReason) — BR-KSA-17": "A credit/debit note requires an issuance reason (issuanceReason) — BR-KSA-17",
   "أصل ثابت": "Fixed asset",
   "أضف مكوّناً واحداً على الأقل للمنتج المجمّع": "Add at least one component to the bundled product",
-  "إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا": "Resubmission is only available for invoices ZATCA rejected",
+  "إعادة الإرسال متاحة فقط للفواتير التي رفضتها زاتكا، تعذّر إرسالها إليها، تعذّر توقيعها بشهادة غير صالحة، أو نجح فحص الامتثال لها فقط دون تخليص/إبلاغ فعلي":
+    "Resubmission is only available for invoices ZATCA rejected, that failed to reach ZATCA, that failed to sign due to an invalid certificate, or that only passed a compliance check without actually being cleared/reported",
+  "جارٍ إعادة إرسال هذه الفاتورة بالفعل الآن (نقرة أخرى أو محاولة تلقائية متزامنة) — انتظر قليلاً ثم تحقّق من حالتها قبل إعادة المحاولة":
+    "This invoice is already being resent right now (another click or a concurrent automatic retry) — wait a moment and check its status before trying again",
   "اقترح الذكاء الاصطناعي نفس الحساب مديناً ودائناً معاً، وهذا غير منطقي محاسبياً — راجع المستند وأنشئ القيد يدوياً":
     "The AI suggested the same account as both debit and credit, which doesn't make accounting sense — review the document and create the entry manually",
   "الإجراء غير موجود": "The action does not exist",
@@ -193,6 +210,8 @@ export const AR_TO_EN: Record<string, string> = {
   "الفرع المحدد غير موجود ضمن هذه الشركة": "The specified branch does not exist within this company",
   "الشركة المستهدفة غير موجودة ضمن مستأجرك": "The target company does not exist in your tenant",
   "الشركة المستهدفة مطلوبة": "The target company is required",
+  "الشركة غير مرتبطة بزاتكا بعد — يجب توليد CSR واستخراج شهادة الاختبار أولاً":
+    "The company is not linked to ZATCA yet — a CSR must be generated and the compliance certificate obtained first",
   "الشركة غير موجودة": "The company does not exist",
   "الشركة غير موجودة ضمن مستأجرك": "The company does not exist in your tenant",
   "الشركة مطلوبة": "The company is required",
@@ -330,13 +349,15 @@ export const AR_TO_EN: Record<string, string> = {
   "لا توجد أصول نشطة لحساب إهلاكها": "There are no active assets to compute depreciation for",
   "لا توجد تسوية إجازة مفتوحة لهذا الموظف": "There is no open leave settlement for this employee",
   "لا توجد حسابات في شجرة حسابات هذه الشركة بعد": "There are no accounts in this company's chart of accounts yet",
+  "لا توجد شهادة اختبار (Compliance CSID) فعّالة لهذه الشركة بعد": "There is no active compliance (CSID) certificate for this company yet",
   "لا توجد شهادة ربط زاتكا فعالة لهذه الشركة حالياً — أكمل خطوات الربط من شاشة \\\"ربط فاتورة\\\" أولاً":
     "There is no active ZATCA onboarding certificate for this company right now — complete the onboarding steps from the \"Invoice Onboarding\" screen first",
   "لا يمكن إرسال فاتورة لم تُرحَّل بعد": "Can't email an invoice that hasn't been posted yet",
   "لا يمكن استخدام نفس الحساب لأكثر من دور ضمن نفس الفئة": "The same account can't be used for more than one role within the same category",
   "لا يمكن إضافة حساب فرعي تحت حساب ترحيل": "Can't add a sub-account under a posting account",
   "لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة": "Resubmission is only possible for a posted invoice",
-  "لا يمكن التحويل لبيئة الإنتاج قبل استخراج شهادة إنتاج فعلية (Production CSID)": "Can't switch to the production environment before obtaining an actual production certificate (Production CSID)",
+  "لا يمكن تحديد هوية المشتري لزاتكا — لا يوجد رقم ضريبي (VAT) ولا رقم سجل تجاري (CRN) مسجَّل لهذا العميل":
+    "The buyer's ZATCA identification can't be determined — this customer has neither a VAT number nor a CR number on record",
   "لا يمكن أن يكون الصنف مكوّناً لنفسه": "An item can't be a component of itself",
   "لا يمكن أن يكون الموظف مديراً مباشراً لنفسه": "An employee can't be their own direct manager",
   "لا يمكن إنشاء حساب ربط للشركة مع نفسها": "Can't create a linking account for a company with itself",
@@ -442,5 +463,47 @@ export const AR_TO_EN: Record<string, string> = {
   "لو هذا البريد الإلكتروني مسجّل بالنظام، سيصلك رابط لإعادة تعيين كلمة المرور خلال دقائق.":
     "If this email is registered in the system, you'll receive a password reset link within minutes.",
   "لا يمكن تكرار نفس الصنف أكثر من مرة في نفس التسوية": "The same item can't appear more than once in the same settlement",
-};
+  // رسائل مسار الترحيل الآمن على ثلاث مراحل لزاتكا (فواتير/مردودات/إشعارات مدين) — راجع
+  // reserveZatcaChainForPosting/submitZatcaChainDocument في postingGate.ts
+  "سبب إصدار إشعار المدين (BR-KSA-17) إلزامي عند ربطه بفاتورة أصلية سترسَل لزاتكا": "A debit note reason (BR-KSA-17) is required when it is linked to an original invoice that will be sent to ZATCA",
+  "هذا الإشعار قيد معالجة زاتكا بالفعل — استخدم إعادة المحاولة أو إكمال الترحيل بدلاً من الترحيل من جديد": "This note is already in ZATCA processing — use retry or complete posting instead of posting it again",
+  "إعادة المحاولة متاحة فقط لإشعار مدين في انتظار الإرسال لزاتكا": "Retry is only available for a debit note awaiting submission to ZATCA",
+  "بيانات سلسلة زاتكا لهذا الإشعار غير مكتملة — تعذّرت إعادة المحاولة، راجع الدعم الفني": "This note's ZATCA chain data is incomplete — retry failed, contact support",
+  "تعذّرت إعادة المحاولة: الفاتورة الأصلية المرتبطة بهذا الإشعار لم تعد موجودة — راجع الدعم الفني": "Retry failed: the original invoice linked to this note no longer exists — contact support",
+  "تعذّرت إعادة المحاولة: بيانات الإشعار المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى": "Retry failed: the note's stored data no longer matches what the chain was originally reserved for — contact support before trying again",
+  "إكمال الترحيل متاح فقط لإشعار مدين استلم ردّاً من زاتكا لكن لم يكتمل ترحيله المحلي بعد": "Completing posting is only available for a debit note that received a ZATCA response but whose local posting is not yet complete",
+  "إعادة المحاولة متاحة فقط لفاتورة في انتظار الإرسال لزاتكا": "Retry is only available for an invoice awaiting submission to ZATCA",
+  "بيانات سلسلة زاتكا لهذه الفاتورة غير مكتملة — تعذّرت إعادة المحاولة، راجع الدعم الفني": "This invoice's ZATCA chain data is incomplete — retry failed, contact support",
+  "جارٍ إعادة محاولة إرسال هذه الفاتورة بالفعل الآن — انتظر قليلاً ثم تحقّق من حالتها قبل إعادة المحاولة": "This invoice is already being retried right now — wait a moment then check its status before retrying again",
+  "تعذّرت إعادة المحاولة: بيانات الفاتورة المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى": "Retry failed: the invoice's stored data no longer matches what the chain was originally reserved for — contact support before trying again",
+  "إكمال الترحيل متاح فقط لفاتورة استلمت ردّاً من زاتكا لكن لم يكتمل ترحيلها المحلي بعد": "Completing posting is only available for an invoice that received a ZATCA response but whose local posting is not yet complete",
+  "هذه الفاتورة قيد معالجة زاتكا بالفعل (انتظار إرسال أو ترحيل محلي غير مكتمل) — استخدم إعادة المحاولة أو إكمال الترحيل بدلاً من الترحيل من جديد": "This invoice is already in ZATCA processing (awaiting submission or with incomplete local posting) — use retry or complete posting instead of posting it again",
+  "سبب إصدار إشعار الدائن (BR-KSA-17) إلزامي عند ربطه بفاتورة أصلية سترسَل لزاتكا": "A credit note reason (BR-KSA-17) is required when it is linked to an original invoice that will be sent to ZATCA",
+  "هذا المردود قيد معالجة زاتكا بالفعل — استخدم إعادة المحاولة أو إكمال الترحيل بدلاً من الترحيل من جديد": "This return is already in ZATCA processing — use retry or complete posting instead of posting it again",
+  "إعادة المحاولة متاحة فقط لمردود في انتظار الإرسال لزاتكا": "Retry is only available for a return awaiting submission to ZATCA",
+  "بيانات سلسلة زاتكا لهذا المردود غير مكتملة — تعذّرت إعادة المحاولة، راجع الدعم الفني": "This return's ZATCA chain data is incomplete — retry failed, contact support",
+  "تعذّرت إعادة المحاولة: بيانات المردود المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى": "Retry failed: the return's stored data no longer matches what the chain was originally reserved for — contact support before trying again",
+  "إكمال الترحيل متاح فقط لمردود استلم ردّاً من زاتكا لكن لم يكتمل ترحيله المحلي بعد": "Completing posting is only available for a return that received a ZATCA response but whose local posting is not yet complete",
+  "لا يمكن إصدار إشعار دائن لفاتورة لم تُرحَّل بعد — الفاتورة الأصلية إما مسودة أو لا تزال قيد معالجة زاتكا (في انتظار الإرسال أو لم يكتمل ترحيلها المحلي بعد)": "A credit note cannot be issued for an invoice that isn't posted yet — the original invoice is either a draft or still in ZATCA processing (awaiting submission or with incomplete local posting)",
+  "لا يمكن إصدار إشعار مدين لفاتورة لم تُرحَّل بعد — الفاتورة الأصلية إما مسودة أو لا تزال قيد معالجة زاتكا (في انتظار الإرسال أو لم يكتمل ترحيلها المحلي بعد)": "A debit note cannot be issued for an invoice that isn't posted yet — the original invoice is either a draft or still in ZATCA processing (awaiting submission or with incomplete local posting)",
 
+  "معايير البحث غير صالحة": "Invalid search parameters",
+  "تاريخ البداية يجب أن يكون بصيغة YYYY-MM-DD": "Start date must be in YYYY-MM-DD format",
+  "تاريخ النهاية يجب أن يكون بصيغة YYYY-MM-DD": "End date must be in YYYY-MM-DD format",
+  "تاريخ البداية يجب ألا يكون بعد تاريخ النهاية": "Start date must not be after end date",
+  "الحد الأدنى للمبلغ يجب ألا يكون أكبر من الحد الأعلى": "Minimum amount must not be greater than maximum amount",
+  "مسددة": "Paid",
+  "مسددة جزئياً": "Partially paid",
+  "غير مسددة": "Unpaid",
+
+  "الفاتورة الأصلية وسبب الإصدار إلزاميان لإشعار الدائن لشركة مرتبطة بزاتكا — إشعار دائن بلا فاتورة أصلية مرتبطة لن يُرسَل لزاتكا إطلاقاً، وهذا غير مسموح لشركة مُلزَمة بالإبلاغ": "The original invoice and issuance reason are required for a credit note at a ZATCA-onboarded company — a credit note without a linked original invoice will never be sent to ZATCA, which isn't allowed for a company obligated to report",
+  "لا يمكن تحميل PDF لفاتورة لم تُرحَّل بعد": "Cannot download a PDF for an invoice that isn't posted yet",
+  "لا يمكن تحميل PDF لمردود لم يُرحَّل بعد": "Cannot download a PDF for a sales return that isn't posted yet",
+  "لا يمكن إرسال مردود لم يُرحَّل بعد": "Can't email a sales return that hasn't been posted yet",
+  "لا يمكن تعديل مردود مرحّل، يجب فك ترحيله أولاً": "Can't edit a posted sales return, it must be unposted first",
+  "نوع إشعار الدائن (قياسي/مبسّط) يجب أن يطابق نوع الفاتورة الأصلية": "The credit note's type (standard/simplified) must match the original invoice's type",
+  "تاريخ إشعار الدائن يجب ألا يسبق تاريخ الفاتورة الأصلية": "The credit note's date must not be earlier than the original invoice's date",
+  "لا يمكن تغيير عميل مردود موجود — أنشئ مردوداً جديداً بدلاً من ذلك": "Can't change the customer on an existing sales return — create a new one instead",
+  "لا يمكن تغيير الفاتورة الأصلية المرتبطة بمردود موجود — أنشئ مردوداً جديداً بدلاً من ذلك": "Can't change the original invoice linked to an existing sales return — create a new one instead",
+  "إجمالي الفاتورة المستوردة يجب أن يكون أكبر من صفر": "The imported invoice's grand total must be greater than zero",
+};

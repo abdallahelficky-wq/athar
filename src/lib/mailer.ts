@@ -189,6 +189,47 @@ export async function sendInvoiceEmail(params: InvoiceEmailParams) {
   });
 }
 
+interface CreditNoteEmailParams {
+  to: string;
+  customerName: string;
+  returnNumber: string;
+  grandTotal: string;
+  companyName: string;
+  pdfBuffer: Buffer;
+  pdfFileName: string;
+  lang?: Lang;
+  currency?: string;
+}
+
+/**
+ * إرسال يدوي لإشعار دائن من زر "إرسال بالإيميل" في شاشة عرض إشعار الدائن — لا إرسال تلقائي عند
+ * الترحيل (خلافاً لـsendInvoiceEmail أعلاه)؛ لا سجل InvoiceEmailLog مرتبطاً بإشعارات الدائن حالياً
+ * (ذلك الجدول مرتبط بـSalesInvoice تحديداً عبر عمود إلزامي)، فهذا الإرسال ينجح/يفشل بلا سجل تدقيق
+ * دائم — يُبلَّغ الناتج للمستخدم فوراً في الواجهة فقط.
+ */
+export async function sendCreditNoteEmail(params: CreditNoteEmailParams) {
+  const en = params.lang === "en";
+  const currency = params.currency || (en ? "SAR" : "ر.س");
+  await sendEmail({
+    to: params.to,
+    subject: en ? `Credit Note #${params.returnNumber} from ${params.companyName}` : `إشعار دائن رقم ${params.returnNumber} من ${params.companyName}`,
+    logLabel: en ? `Sending credit note ${params.returnNumber}` : `إرسال إشعار دائن ${params.returnNumber}`,
+    logBody: en ? `Customer: ${params.customerName} — Total: ${currency} ${params.grandTotal}` : `العميل: ${params.customerName} — الإجمالي: ${params.grandTotal} ${currency}`,
+    attachments: [{ filename: params.pdfFileName, content: params.pdfBuffer }],
+    html: renderEmailShell(en ? `
+      <h2 style="color:#10202E;">Credit note from ${params.companyName}</h2>
+      <p>Dear ${params.customerName},</p>
+      <p>Attached is credit note <strong>#${params.returnNumber}</strong> for a total of <strong>${currency} ${params.grandTotal}</strong>.</p>
+      <p style="color:#6b7c8c; font-size: 12.5px;">You can open the attached PDF file to view the full credit note details.</p>
+    ` : `
+      <h2 style="color:#10202E;">إشعار دائن من ${params.companyName}</h2>
+      <p>عزيزي/عزيزتي ${params.customerName}،</p>
+      <p>مرفق مع هذه الرسالة إشعار دائن رقم <strong>${params.returnNumber}</strong> بإجمالي <strong>${params.grandTotal} ${currency}</strong>.</p>
+      <p style="color:#6b7c8c; font-size: 12.5px;">يمكنكم فتح الملف المرفق (PDF) لعرض تفاصيل الإشعار كاملة.</p>
+    `, params.lang ?? "ar"),
+  });
+}
+
 export async function sendLiveryContractEmail(params: { to: string; ownerName: string; companyName: string; contractNumber?: string | null; pdfBuffer: Buffer; pdfFileName: string; }) {
   const number = params.contractNumber ? ` رقم ${params.contractNumber}` : "";
   await sendEmail({

@@ -1,3 +1,5 @@
+import { getAccountDisplayName } from "./accountDisplayName";
+
 const HEADER_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FFECE6D6" } };
 const GROUP_FILL = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7F1E3" } };
 const NUM_FMT = "#,##0.00;[Red]-#,##0.00";
@@ -62,7 +64,7 @@ export async function exportTrialBalanceExcel({ visibleRows, totals, balanced, c
   for (const { node, depth } of visibleRows) {
     const isGroup = !node.isPosting;
     const row = sheet.addRow([
-      `${node.code} — ${node.name}`,
+      `${node.code} — ${getAccountDisplayName(node, lang)}`,
       node.opening.debit || 0,
       node.opening.credit || 0,
       node.period.debit || 0,

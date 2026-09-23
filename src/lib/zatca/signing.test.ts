@@ -2,11 +2,11 @@ import { spawn } from "child_process";
 import { mkdtemp, rm, writeFile, readFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
-import { createVerify, X509Certificate } from "crypto";
+import { createHash, createVerify, X509Certificate } from "crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildDocumentXml } from "./xmlBuilder";
 import { computeDocumentHash } from "./hash";
-import { signDocument } from "./signing";
+import { signDocument, getCertificateInfo } from "./signing";
 import { ZATCA_FIRST_INVOICE_PIH, ZatcaDocumentInput } from "./types";
 
 function run(cmd: string, args: string[]): Promise<string> {
@@ -65,6 +65,19 @@ function sampleDocument(): ZatcaDocumentInput {
 }
 
 describe("signDocument", () => {
+  it("can reproduce the SignedProperties digest from the actual emitted block", () => {
+    const { signedXml } = signDocument({ xml: buildDocumentXml(sampleDocument()), certificatePem, privateKeyPem });
+    const properties = signedXml.match(/<xades:SignedProperties\b[\s\S]*?<\/xades:SignedProperties>/)![0];
+    // Isolated hashing representation described by ZATCA signing support:
+    // retain text/whitespace, declare ds locally, use an empty DigestMethod.
+    const isolated = properties
+      .replace(/<ds:(DigestMethod|DigestValue|X509IssuerName|X509SerialNumber)([ >])/g,
+        '<ds:$1 xmlns:ds="http://www.w3.org/2000/09/xmldsig#"$2')
+      .replace(/(<ds:DigestMethod[^>]+)><\/ds:DigestMethod>/, "$1/>");
+    const expected = Buffer.from(createHash("sha256").update(isolated).digest("hex")).toString("base64");
+    const reference = signedXml.match(/URI="#xadesSignedProperties"[\s\S]*?<ds:DigestValue>([^<]+)/)![1];
+    expect(reference).toBe(expected);
+  });
   it("computes the same invoice hash as computeDocumentHash on the unsigned XML", () => {
     const xml = buildDocumentXml(sampleDocument());
     const expectedHash = computeDocumentHash(xml);
@@ -112,5 +125,35 @@ describe("signDocument", () => {
     // البيتات الأخيرة تحمل نقطة المنحنى الخام غير المضغوطة (0x04 || X || Y، 65 بايت)
     const rawPoint = certificateInfo.publicKeyRaw.subarray(certificateInfo.publicKeyRaw.length - 65);
     expect(rawPoint[0]).toBe(0x04);
+  });
+
+  // حالة حقيقية مُؤكَّدة فعلياً على الإنتاج: زاتكا أعادت binarySecurityToken لشركة فعلية مُرمَّزاً
+  // base64 مرتين. getCertificateInfo يجب أن يتسامح مع هذا تلقائياً، ويُعيد canonicalBodyBase64
+  // مطابقاً للجسم الصحيح بعد فك الترميز الإضافي — لا الجسم المزدوج الترميز كما وصل.
+  describe("getCertificateInfo tolerates double-base64-encoded certificates", () => {
+    it("parses a double-encoded certificate body and reports the correctly-decoded canonical form", () => {
+      const certificateBodyBase64 = certificatePem.replace("-----BEGIN CERTIFICATE-----", "").replace("-----END CERTIFICATE-----", "").replace(/\r?\n/g, "");
+      const doubleEncoded = Buffer.from(certificateBodyBase64, "utf8").toString("base64");
+
+      const info = getCertificateInfo(doubleEncoded);
+
+      expect(info.canonicalBodyBase64).toBe(certificateBodyBase64);
+      expect(info.serialNumber).toBe(getCertificateInfo(certificateBodyBase64).serialNumber);
+    });
+
+    it("embeds the correctly-decoded certificate body in the signed XML, not the double-encoded input", () => {
+      const xml = buildDocumentXml(sampleDocument());
+      const certificateBodyBase64 = certificatePem.replace("-----BEGIN CERTIFICATE-----", "").replace("-----END CERTIFICATE-----", "").replace(/\r?\n/g, "");
+      const doubleEncoded = Buffer.from(certificateBodyBase64, "utf8").toString("base64");
+
+      const { signedXml } = signDocument({ xml, certificatePem: doubleEncoded, privateKeyPem });
+
+      expect(signedXml).toContain(certificateBodyBase64);
+      expect(signedXml).not.toContain(doubleEncoded);
+    });
+
+    it("still throws the original (single-encoded) parse error when the certificate is genuinely unparseable, not a double-encoding artifact", () => {
+      expect(() => getCertificateInfo("this-is-not-a-valid-certificate-at-all")).toThrow(/asn1|PEM|base64/i);
+    });
   });
 });

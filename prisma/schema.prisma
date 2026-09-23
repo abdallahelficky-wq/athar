@@ -4,6 +4,11 @@
 // (لتكون الأساس الجاهز لكل المراحل القادمة)، لكن الـ API المبني فعلياً في
 // هذه المرحلة يغطي فقط: المصادقة، الشركات، شجرة الحسابات، مراكز التكلفة،
 // القيود اليومية، والتقارير المالية الثلاثة.
+//
+// ⚠️ كل موديل هنا مُعرَّف بـ@@map إلى اسم جدول مختلف تماماً عن اسم الموديل (snake_case) —
+// لا تكتب أي migration.sql يدوياً بالاعتماد على اسم الموديل، سيفشل دائماً عند التطبيق الفعلي.
+// استخدم `prisma migrate dev` دوماً ليستنتج SQL الحقيقي من فرق فعلي مع قاعدة بيانات تعمل.
+// التفاصيل والسبب: prisma/migrations/README.md
 // ============================================================================
 
 generator client {
@@ -116,6 +121,8 @@ model Tenant {
   horses            Horse[]
   boardingContracts BoardingContract[]
   horseCareRecords  HorseCareRecord[]
+
+  zatcaComplianceStepAttempts ZatcaComplianceStepAttempt[]
 
   @@map("tenants")
 }
@@ -485,6 +492,7 @@ model Company {
   payrollSettings           PayrollSettings?
   reportSchedule            ReportSchedule?
   employeeAdvances          EmployeeAdvance[]
+  zatcaComplianceStepAttempts ZatcaComplianceStepAttempt[]
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -499,15 +507,92 @@ model CompanyZatcaCredential {
   company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   privateKeyEnc       String? // مفتاح secp256k1 الخاص (PEM)، مُشفَّر
   csrPem              String? // آخر CSR تم توليده — نص عادي (لا يحتوي سراً، PKCS#10 عام)
-  complianceCertEnc   String? // شهادة الاختبار (Compliance CSID)، مُشفَّرة
+  // نوع الفاتورة المُعلَن في CSR أعلاه (راجع تعريف ZatcaCsrInvoiceType) — يُسجَّل هنا وقت توليد CSR
+  // فعلياً حتى يكون لدى منطق التلقيم الآلي المستقبلي (توليد مستندات الامتثال) مصدراً موثوقاً لمعرفة
+  // كم مستنداً ومن أي نوع تتطلبه زاتكا، بدل افتراض الستة كاملة دائماً. null لصفوف قديمة سبقت هذا الحقل.
+  csrInvoiceType      ZatcaCsrInvoiceType?
+  complianceCertEnc   String? // شهادة الاختبار (Compliance CSID) — الشكل القانوني (canonical) الناجح تحليله كـX.509،
+  // يُستخدَم فقط لتوقيع المستندات (signDocument) — راجع complianceCertRawEnc للشكل المُستخدَم في المصادقة.
+  // الشكل الخام تماماً كما أعادته زاتكا في binarySecurityToken (بلا أي فك ترميز إضافي)، يُستخدَم *فقط*
+  // لترويسة Basic Auth (buildBasicAuthHeader) — عطل إنتاج فعلي مؤكَّد: تطبيع الشهادة (فك ترميز base64
+  // إضافي لإصلاح التوقيع) غيَّر أيضاً قيمة هذه الترويسة عن الشكل الذي أصدرته زاتكا بالضبط، فرفضتها
+  // بوابتها بـ401 فارغ الجسم — الشكلان يخدمان غرضين مختلفين تماماً ولا يجوز دمجهما في حقل واحد.
+  // صفوف قديمة سبقت إضافة هذا الحقل: null — راجع credentials.ts للاحتياطي (يُستخدَم complianceCertEnc
+  // بدلاً منه، وهو بالضبط السلوك المعطوب سابقاً، إلى أن تُعاد معالجتها). تحذير متعمَّد: لا تُحاوِل
+  // إعادة اشتقاق القيمة الخام الأصلية من canonicalEnc عبر إعادة الترميز (base64 encode) — البايتات
+  // الوسيطة التي أُسقِطت أثناء التطبيع (قد تتضمّن رؤوس PEM/فراغات لا تُستعاد) غير معروفة، فأي محاولة
+  // إعادة اشتقاق هي تخمين لا إعادة بناء فعلية. الشركة الوحيدة المؤكَّد تأثّرها (راجع تقرير
+  // scripts/check-zatca-certificate.ts) تُعاد استخراج شهادتها من الصفر بدلاً من ذلك — أرخص وأضمن من
+  // تخمين قد يفشل بصمت لاحقاً في الإنتاج.
+  complianceCertRawEnc String?
   complianceSecretEnc String? // سر API المرافق لشهادة الاختبار، مُشفَّر
   complianceRequestId String? // request_id المُستخدَم لاحقاً لاستبداله بشهادة الإنتاج
-  productionCertEnc   String? // شهادة الإنتاج (Production CSID)، مُشفَّرة
+  // بيئة زاتكا (sandbox/simulation/production) التي كانت مضبوطة على الشركة *وقت إصدار* شهادة
+  // الاختبار فعلياً — تُسجَّل مرة واحدة عند الإصدار وتبقى ثابتة بعدها، بصرف النظر عمّا يصبح عليه
+  // Company.zatcaEnvironment لاحقاً. راجع credentials.ts: شهادة صادرة لبيئة تختلف عن البيئة
+  // المطلوبة الآن تُرفَض صراحةً قبل أي محاولة إرسال — عطل إنتاج فعلي مؤكَّد: شهادة اختبار صادرة
+  // بـOTP حقيقي من بوابة فاتورة بينما بيئة الشركة كانت مضبوطة على sandbox (بوابة مطورين عامة
+  // ببيانات وهمية منفصلة تماماً لا تعرف هذه الشهادة إطلاقاً) — 401 مضمون بلا أي علاقة بصحة التوقيع.
+  complianceCsidEnvironment ZatcaEnvironment?
+  productionCertEnc   String? // شهادة الإنتاج (Production CSID) — الشكل القانوني، للتوقيع فقط. راجع
+  // complianceCertRawEnc أعلاه لشرح الفرق؛ نفس المنطق هنا بالضبط لشهادة الإنتاج.
+  productionCertRawEnc String?
   productionSecretEnc String? // سر API المرافق لشهادة الإنتاج، مُشفَّر
+  // request_id الذي أعادته زاتكا فعلياً عند إصدار شهادة الإنتاج نفسها — لم يكن يُحفَظ سابقاً (خلافاً
+  // لـcomplianceRequestId أعلاه)، رغم أنه يُعاد فعلياً في نفس استجابة /production/csids الناجحة إلى
+  // جانب binarySecurityToken/secret. يُكتَب فوراً بمجرد وصول استجابة ناجحة من زاتكا، قبل أي محاولة
+  // تحليل الشهادة كـX.509 (راجع requestCompanyProductionCsid) — حتى لو فشل ذلك التحليل لاحقاً، يبقى
+  // دليل الإصدار الفعلي محفوظاً هنا بدل أن يضيع بصمت.
+  productionRequestId String?
+  // نفس فكرة complianceCsidEnvironment أعلاه، لشهادة الإنتاج.
+  productionCsidEnvironment ZatcaEnvironment?
+  // آخر قائمة "خطوات امتثال متبقية" فعلية سمَّتها زاتكا صراحةً في رفض طلب شهادة الإنتاج بكود
+  // Missing-ComplianceSteps (راجع src/lib/zatca/complianceAutomation.ts) — تسوية اختيارية فقط،
+  // لا مصدر تتبّع أساسي (ذلك ZatcaComplianceStepAttempt): تُحدَّث فقط حين نُصادف هذا الرفض تحديداً
+  // فعلياً (لا نستدعي شهادة الإنتاج خصيصاً لمعرفة التقدّم)، فتبقى فارغة/قديمة بين محاولة وأخرى.
+  lastMissingComplianceSteps   String[]  @default([])
+  lastComplianceStepsCheckedAt DateTime?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   @@map("company_zatca_credentials")
+}
+
+// محاولة فحص امتثال لأحد الأنواع الستة الإلزامية (فاتورة/إشعار دائن/إشعار مدين × قياسية/مبسّطة) عبر
+// مستند اصطناعي (راجع src/lib/zatca/complianceAutomation.ts) — لا علاقة له بأي SalesInvoice/
+// SalesReturn/SalesDebitNote حقيقي: stepKey/kind/subtype/documentNumber/documentUuid كلها بيانات
+// مستند اصطناعي بُني في الذاكرة فقط، ولا FK هنا يشير لأي جدول محاسبي (SalesInvoice، JournalEntry...).
+// مفتاح فريد بـ(companyId, complianceRequestId, stepKey): "مرتبط بمحاولة شهادة الاختبار الحالية" حرفياً
+// كما طلب المستخدم — لو أُعيد استخراج شهادة اختبار جديدة (complianceRequestId مختلف)، محاولات الشهادة
+// القديمة تبقى مُسجَّلة تاريخياً لكن لا تُحتسَب ضمن تقدّم الشهادة الجديدة (upsert يُنشئ صفاً جديداً بدل
+// الكتابة فوق القديم). آخر محاولة لكل (kind, subtype) ضمن complianceRequestId الحالي هي الحاسمة.
+model ZatcaComplianceStepAttempt {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // لا FK رسمياً لـCompanyZatcaCredential (complianceRequestId ليس مفتاحاً فريداً هناك قابلاً
+  // للربط) — مجرد نص يُقارَن يدوياً بـCompanyZatcaCredential.complianceRequestId وقت القراءة، تماماً
+  // كما طلب المستخدم "keyed to the compliance request".
+  complianceRequestId String
+  // اسم الخطوة كما تُسمّيه زاتكا فعلياً في رفض Missing-ComplianceSteps (مثل
+  // "standard-credit-note-compliant") — راجع ZATCA_COMPLIANCE_STEPS في complianceAutomation.ts.
+  stepKey             String
+  kind                String // مطابق لـZatcaDocumentKind (invoice/credit_note/debit_note) — نص لا enum Prisma منفصل، تفادياً لازدواج المصدر مع النوع في types.ts
+  subtype             String // مطابق لـZatcaInvoiceSubtype (standard/simplified)
+  documentNumber      String // رقم اصطناعي ببادئة ثابتة خارج أي تسلسل ترقيم حقيقي (formatDocNumber/reserveDocumentNumber)
+  documentUuid        String
+  icv                 Int
+  previousInvoiceHash String
+  invoiceHash         String
+  passed              Boolean
+  rejectionReason     String?
+  zatcaResponseRaw    Json?
+  attemptedAt         DateTime               @default(now())
+
+  @@unique([companyId, complianceRequestId, stepKey])
+  @@map("zatca_compliance_step_attempts")
 }
 
 // مركز تكلفة/موقع/فرع/مخزن — قد يكون عاماً (companyId فارغ) أو خاصاً بشركة معينة
@@ -575,6 +660,17 @@ enum ZatcaOnboardingStatus {
   production // تم استخراج شهادة الإنتاج (Production CSID) — جاهزة للتشغيل الفعلي
 }
 
+// نوع الفاتورة المُعلَن في حقل title بقسم v3_req من CSR الحالي — يُحدِّد ما تُخوَّل شهادة CSID
+// الناتجة توقيعه فعلياً، وعدد/نوع مستندات الامتثال الستة التي تتطلبها زاتكا قبل شهادة الإنتاج
+// (both=1100 تتطلب الستة كاملة، standard=1000 أو simplified=0100 تتطلب ثلاثة فقط من نوع واحد).
+// عطل حقيقي مؤكَّد: كان قالب CSR (csrConfigTemplate.ts) يفرض 0100 (مبسّط فقط) دائماً بصرف النظر
+// عن احتياج الشركة الفعلي — شركة تُصدر فواتير قياسية B2B فعلياً كانت تحصل على شهادة لا تُخوِّل ذلك.
+enum ZatcaCsrInvoiceType {
+  standard // فواتير قياسية (Tax) B2B فقط — title=1000
+  simplified // فواتير مبسّطة (Simplified) B2C فقط — title=0100
+  both // كلاهما — title=1100، القيمة الافتراضية
+}
+
 // البيئة الحالية التي تُرسَل إليها فواتير هذه الشركة فعلياً
 enum ZatcaEnvironment {
   sandbox // بوابة المطورين العامة (بيانات/شهادات وهمية للاختبار فقط)
@@ -585,11 +681,22 @@ enum ZatcaEnvironment {
 // حالة مستند فوترة إلكترونية واحد أمام زاتكا (فاتورة/إشعار دائن/إشعار مدين)
 enum ZatcaDocumentStatus {
   not_applicable // الشركة لم تُفعّل الربط مع زاتكا بعد لهذا المستند
-  pending_clearance // فاتورة قياسية (B2B) بانتظار رد التخليص (Clearance) قبل تسليمها للعميل
+  // pending_clearance/pending_reporting: قيمتان قديمتان مُستبعَدتان من أي كتابة جديدة (عطل إنتاج
+  // فعلي مؤكَّد: كانتا تُستخدَمان لسلسلة ICV/PIH حُجزت لكن لم يُرسَل أي طلب لزاتكا إطلاقاً — الاسمان
+  // يوحيان بأن زاتكا استلمت المستند وتُعالجه، بينما الحقيقة معاكسة تماماً). أُبقيتا في هذا الـenum
+  // فقط توافقاً مع أي صفوف قديمة قد تحملهما فعلياً (Postgres لا يسمح بحذف قيمة enum بأمان) — لا
+  // تُستخدَمان في أي كود جديد؛ استُبدِلتا بـnot_submitted أدناه، وواجهة الويب تعرض النص نفسه لكلتيهما.
+  pending_clearance
   cleared // تم تخليصها من زاتكا بنجاح
-  pending_reporting // فاتورة مبسّطة (B2C) سُلّمت للعميل وبانتظار الإبلاغ عنها خلال 24 ساعة
+  pending_reporting
   reported // تم الإبلاغ عنها لزاتكا بنجاح
-  rejected // رفضتها زاتكا — تبقى المسودة غير مرحّلة نهائياً حتى تصحيحها وإعادة الإرسال
+  // سلسلة ICV/PIH حُجزت، لكن لم يُرسَل أي طلب لزاتكا إطلاقاً — لا شهادة CSID فعّالة بعد لمرحلة ربط
+  // هذه الشركة الحالية (compliance أو production). راجع تعليق isProduction في credentials.ts.
+  not_submitted
+  rejected // رفضتها زاتكا صراحةً (ردّ فعلي بالرفض) — تحتاج تصحيح بيانات ثم إعادة إرسال
+  submission_failed // تعذّر الوصول إلى زاتكا أصلاً (خطأ شبكة/رد غير مفهوم) — لم تُرفَض، فقط لم تُرسَل، تحتاج إعادة إرسال فقط دون تصحيح بيانات
+  certificate_error // فشل توقيع المستند محلياً بسبب شهادة/مفتاح زاتكا غير صالح لهذه الشركة — لا علاقة له بالشبكة ولا برد زاتكا، ولن يُصلَح نفسه بإعادة المحاولة (مستبعَد عمداً من إعادة المحاولة التلقائية)؛ يحتاج إصلاح إعدادات ربط زاتكا نفسها ثم إعادة إرسال يدوية
+  compliance_checked // نجح فحص الامتثال (شركة لا تزال على شهادة اختبار Compliance CSID، لم تحصل على شهادة إنتاج بعد) — ليس تخليصاً ولا إبلاغاً فعلياً؛ المستند لم يُبلَّغ لزاتكا قانونياً، تحتاج الشركة استكمال الحصول على شهادة إنتاج فعلية
 }
 
 // تصنيف الضريبة على مستوى السطر وفق قائمة أكواد زاتكا/UBL القياسية
@@ -970,6 +1077,21 @@ enum InvoiceTemplate {
 enum InvoiceStatus {
   draft
   posted
+  // ثلاث المرحلة الآمنة للترحيل المرتبط بزاتكا (راجع src/lib/zatca/postingGate.ts وpostingInstrumentation.ts، وتطبيقها في salesInvoices/salesReturns/salesDebitNotes.service.ts): الصف
+  // مكتوب فعلياً برقم مستند/UUID/ICV حقيقيين قبل أي اتصال شبكي بزاتكا (المرحلة 1)، فلا يمكن أن
+  // يضيع رد زاتكا لاحقاً حتى لو فشلت أي كتابة محلية تالية — كل ما قد يحدث هو بقاء الصف في إحدى
+  // هاتين الحالتين، لا اختفاؤه.
+  //
+  // لم يصل ردّ نهائي من زاتكا بعد (لم تُرسَل المحاولة إطلاقاً، أو أُرسِلت وفشلت/رُفضت لمستند
+  // قياسي يُمنَع ترحيله بلا تخليص) — راجع retryPendingZatcaSubmission: يعيد المحاولة بنفس
+  // UUID/ICV/التجزئة المخزَّنة على الصف بالضبط، لا يحجز شيئاً جديداً أبداً.
+  pending_submission
+  // ردّت زاتكا فعلياً (قبولاً حقيقياً، أو رفضاً لمستند مبسّط يُرحَّل دائماً بصرف النظر عن الرد —
+  // سُلِّم للعميل فعلياً) والردّ محفوظ بالفعل على الصف (zatcaStatus/zatcaResponseRaw)، لكن الكتابة
+  // المحاسبية المحلية (قيد + مخزون + عمولات) لم تكتمل بعد — إما لم تُحاوَل بعد أو فشلت (مهلة
+  // اتصال بقاعدة البيانات مثلاً). راجع completeZatcaAcceptedPosting: يكمل الكتابة المحلية فقط،
+  // بلا أي اتصال جديد بزاتكا إطلاقاً — الردّ المحفوظ هنا هو مصدر الحقيقة الوحيد.
+  zatca_accepted_posting_incomplete
 }
 
 model SalesInvoice {
@@ -1013,6 +1135,14 @@ model SalesInvoice {
   zatcaResponseRaw         Json?
   zatcaSubmittedAt         DateTime?
   zatcaClearedOrReportedAt DateTime?
+  // عدّاد محاولات إعادة الإرسال (يدوية من زر "إعادة إرسال" أو تلقائية من lib/zatca/retryScheduler.ts)
+  // منذ آخر نجاح — يُصفَّر عند النجاح، يُستخدَم فقط لحساب فترة الانتظار (backoff) قبل المحاولة
+  // التلقائية التالية، لا لأي غرض آخر.
+  zatcaRetryCount          Int                 @default(0)
+  // وقت آخر محاولة إرسال فعلية (يدوية أو تلقائية) — يختلف عن zatcaSubmittedAt (وقت المحاولة
+  // الأصلية عند الترحيل نفسه، لا يتغيّر بعدها) وعن zatcaClearedOrReportedAt (وقت النجاح فقط).
+  // null يعني: لم تُحدَث محاولة إعادة إرسال منذ الترحيل الأصلي بعد — تُعامَل كمؤهَّلة للمحاولة فوراً.
+  zatcaLastAttemptAt       DateTime?
   createdAt                DateTime            @default(now())
   updatedAt                DateTime            @updatedAt
 
@@ -1024,6 +1154,10 @@ model SalesInvoice {
   ridingLesson         RidingLesson?
 
   @@unique([tenantId, companyId, invoiceNumber])
+  // قائمة الفواتير المُرقَّمة/المُفلترة (searchSalesInvoices) تُفلتِر دائماً بـ(tenantId, companyId)
+  // وتُرتِّب افتراضياً بـdate تنازلياً — هذا الفهرس يخدم كلا الأمرين معاً (بادئة tenantId+companyId
+  // تخدم أي فلتر آخر أيضاً، وترتيب date كعمود أخير يخدم مسح النطاق المرتَّب دون فرز إضافي).
+  @@index([tenantId, companyId, date])
   @@map("sales_invoices")
 }
 
@@ -1104,6 +1238,11 @@ model SalesReturn {
   lines SalesReturnLine[]
 
   @@unique([tenantId, companyId, returnNumber])
+  @@index([tenantId, relatedInvoiceId], map: "sales_returns_tenant_related_invoice_idx")
+  // قائمة مردودات المبيعات المُرقَّمة/المُفلترة (searchSalesReturns) تُفلتِر دائماً بـ(tenantId,
+  // companyId) وتُرتِّب افتراضياً بـdate تنازلياً — نفس تبرير الفهرس المطابق على sales_invoices
+  // بالضبط (راجع migration 20260922090000_sales_invoices_company_date_index).
+  @@index([tenantId, companyId, date])
   @@map("sales_returns")
 }
 
@@ -1111,6 +1250,7 @@ model SalesReturnLine {
   id                 String          @id @default(cuid())
   returnId           String
   salesReturn        SalesReturn     @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  originalInvoiceLineId String?
   accountId          String
   account            Account         @relation(fields: [accountId], references: [id])
   description        String?
@@ -1165,7 +1305,15 @@ model SalesDebitNote {
 
   lines SalesDebitNoteLine[]
 
-  @@unique([tenantId, debitNoteNumber])
+  // كانت (tenantId, debitNoteNumber) فقط — أي على مستوى المستأجر بالكامل، مطابقاً لترقيم
+  // formatDocNumber("DBN", count) القديم (عدّاد واحد لكل المستأجر بصرف النظر عن الشركة). بعد
+  // التحوّل لـreserveDocumentNumber (عدّاد ذرّي منفصل لكل شركة على حدة، تماماً كـSalesInvoice/
+  // SalesReturn) أصبح لزاماً أن يكون القيد الفريد بنفس نطاق العدّاد (tenantId, companyId,
+  // debitNoteNumber) — وإلا فشركتان مختلفتان بنفس المستأجر تتصادمان حتماً على "DBN-00001" فور
+  // إنشاء كل منهما أول إشعار مدين جديد بعد هذا التحوّل (كلتاهما تبدآن العدّ من 1 بشكل مستقل تماماً
+  // في document_numbering_settings، لكن كانتا ستُقارَنان بقيد فريد واحد يشمل المستأجر كله). راجع
+  // migration.sql المرافق لتفاصيل الترحيل والتحقّق من التوافق مع البيانات القديمة.
+  @@unique([tenantId, companyId, debitNoteNumber])
   @@map("sales_debit_notes")
 }
 

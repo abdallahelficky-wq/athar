@@ -6,6 +6,7 @@ import {
   getPayrollSettings, updatePayrollSettings,
 } from "../../api/payrollSettings";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
+import { getAccountDisplayName } from "../shared/accountDisplayName";
 
 const GROSS_TOTAL_REF = "system:GROSS_TOTAL";
 const encodeRef = (ref) => (ref.kind === "system" ? GROSS_TOTAL_REF : `component:${ref.componentId}`);
@@ -28,7 +29,7 @@ const emptyForm = () => ({
  * تُنشئ بنوداً بعد (تبقى تعمل بالمنطق القديم تلقائياً حتى تُضاف بنودها هنا لأول مرة).
  */
 export default function PayrollSettingsTab({ companyId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const KIND_LABELS = t("hr.payrollSettings.kindLabels", { returnObjects: true });
   const [components, setComponents] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -195,7 +196,7 @@ export default function PayrollSettingsTab({ companyId }) {
                 <tr key={c.id}>
                   <td>{c.name}{c.isSystem && <small>{t("hr.payrollSettings.systemTag")}</small>}</td>
                   <td>{KIND_LABELS[c.kind]}</td>
-                  <td>{c.account?.code} — {c.account?.name}</td>
+                  <td>{c.account?.code} — {getAccountDisplayName(c.account, i18n.language)}</td>
                   <td>{c.calcMethod === "formula" ? t("hr.payrollSettings.calcMethodFormula") : t("hr.payrollSettings.calcMethodFixed")}</td>
                   <td>{c.allowsMonthlyAdjustments ? t("hr.payrollSettings.yes") : "—"}</td>
                   <td><span className="status-badge">{c.isActive ? t("hr.payrollSettings.statusActive") : t("hr.payrollSettings.statusStopped")}</span></td>

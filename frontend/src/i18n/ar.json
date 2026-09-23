@@ -1,4 +1,5 @@
 {
+  "creditNote": {"complete": "إكمال اعتماد الإشعار", "noItems": "لا توجد أصناف مطابقة", "title": "الإشعارات الدائنة المرتبطة", "returnInvoice": "إرجاع الفاتورة", "returned": "إجمالي المرتجع", "net": "الصافي بعد المرتجع", "due": "المتبقي للسداد", "customerCredit": "رصيد دائن للعميل", "pending": "قيد المعالجة — لم يخصم من الرصيد بعد", "full": "مرتجع كامل", "partial": "مرتجع جزئي", "search": "البحث عن صنف لإضافته إلى المرتجع", "unavailable": "الفاتورة غير متاحة للإرجاع ضمن هذه الشركة", "reasonRequired": "اختر الفاتورة واكتب سبب الإرجاع", "saved": "تم اعتماد الإشعار {{number}} وتحديث رصيد الفاتورة", "savedPending": "تم حفظ الإشعار {{number}} وهو قيد المعالجة؛ لم يخصم من رصيد الفاتورة بعد", "editHint": "عدّل الكميات أو احذف السطور غير المرتجعة. الأسعار والخصم والضريبة مأخوذة من الفاتورة الأصلية."},
   "common": {
     "languageName": "العربية",
     "switchToArabic": "التبديل إلى العربية",
@@ -43,6 +44,15 @@
       "totalWithVat": "الإجمالي شامل الضريبة", "total": "الإجمالي", "addLine": "+ إضافة سطر",
       "subtotal": "الإجمالي قبل الضريبة", "vat": "ضريبة القيمة المضافة (15٪)", "grandTotal": "الإجمالي شامل الضريبة"
     }
+  },
+  "filters": {
+    "search": "بحث", "reset": "إعادة تعيين", "quickSearchPlaceholder": "بحث سريع (رقم الفاتورة أو اسم العميل)...",
+    "dateFrom": "من تاريخ", "dateTo": "إلى تاريخ", "amountMin": "أقل مبلغ", "amountMax": "أعلى مبلغ",
+    "customer": "العميل", "customerSearchPlaceholder": "ابحث عن عميل...", "allCustomers": "— كل العملاء —"
+  },
+  "pagination": {
+    "pageSizeLabel": "عدد الصفوف", "showingRange": "عرض {{from}}–{{to}} من {{total}}", "showingEmpty": "لا توجد نتائج",
+    "prev": "السابق", "next": "التالي", "pageOf": "صفحة {{page}} من {{totalPages}}"
   },
   "stables": {
     "title": "إسطبلات الخيل",
@@ -334,21 +344,37 @@
   "salesInvoices": {
     "noCompany": "أنشئ شركة أولاً من لوحة القيادة.",
     "addInvoice": "+ إضافة فاتورة",
+    "zatcaSummary": {"sent": "أُرسلت", "sent_with_notes": "أُرسلت مع ملاحظات", "not_sent": "غير مرسلة", "not_applicable": "لا تنطبق", "resend": "إعادة إرسال", "sending": "جارٍ الإرسال…", "notes": "ملاحظات زاتكا", "errors": "أسباب رفض زاتكا"},
     "zatcaStatusFilterLabel": "حالة زاتكا",
     "loading": "جارٍ التحميل...",
     "empty": "لا توجد فواتير بعد.",
+    "search": {
+      "quickSearchLabel": "بحث سريع",
+      "invoiceTypeLabel": "نوع الفاتورة", "invoiceTypeAll": "— كل الأنواع —", "invoiceTypeStandard": "قياسية", "invoiceTypeSimplified": "مبسّطة",
+      "postingStatusLabel": "حالة الترحيل", "postingStatusAll": "— كل حالات الترحيل —",
+      "paymentStatusLabel": "حالة السداد", "paymentStatusAll": "— كل حالات السداد —",
+      "zatcaStatusAll": "— كل حالات زاتكا —",
+      "sortBy": {"date": "التاريخ", "invoiceNumber": "رقم الفاتورة", "customerName": "اسم العميل", "grandTotal": "الإجمالي"},
+      "summary": {"count": "إجمالي الفواتير المرحّلة", "netTotal": "الإجمالي قبل الضريبة", "vatTotal": "ضريبة القيمة المضافة", "grandTotal": "الإجمالي شامل الضريبة"}
+    },
     "zatcaStatus": {
-      "not_applicable": "غير منطبق", "pending_clearance": "قيد الإرسال (قياسية)", "pending_reporting": "قيد الإرسال (مبسّطة)",
-      "cleared": "مُرسلة/مقبولة (قياسية)", "reported": "مُرسلة/مقبولة (مبسّطة)", "rejected": "مرفوضة/فشل الإرسال"
+      "not_applicable": "غير منطبق", "not_submitted": "لم تُرسَل — لا توجد شهادة ربط زاتكا بعد لهذه المرحلة",
+      "cleared": "مُرسلة/مقبولة (قياسية)", "reported": "مُرسلة/مقبولة (مبسّطة)", "rejected": "مرفوضة",
+      "submission_failed": "تعذّر الإرسال (لم تصل لزاتكا)",
+      "certificate_error": "شهادة زاتكا غير صالحة",
+      "compliance_checked": "فحص امتثال فقط (بانتظار شهادة الإنتاج)"
     },
     "zatcaBadge": {
-      "not_applicable": "غير منطبق", "pending_clearance": "قيد الإرسال", "pending_reporting": "قيد الإرسال",
-      "cleared": "مُرسلة/مقبولة", "reported": "مُرسلة/مقبولة", "rejected": "مرفوضة"
+      "not_applicable": "غير منطبق", "not_submitted": "لم تُرسَل بعد",
+      "cleared": "مُرسلة/مقبولة", "reported": "مُرسلة/مقبولة", "rejected": "مرفوضة",
+      "submission_failed": "تعذّر الإرسال",
+      "certificate_error": "شهادة غير صالحة",
+      "compliance_checked": "فحص امتثال فقط"
     },
     "table": {
       "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي",
       "postingStatus": "حالة الترحيل", "paymentStatus": "حالة السداد", "zatcaStatus": "حالة زاتكا", "actions": "الإجراءات",
-      "posted": "مرحّلة", "draft": "مسودة"
+      "posted": "مرحّلة", "draft": "مسودة", "pendingSubmission": "بانتظار إرسال زاتكا", "postingIncomplete": "استُلم ردّ زاتكا، ترحيل محلي غير مكتمل"
     },
     "actionsMenu": {
       "view": "عرض الفاتورة", "edit": "تعديل الفاتورة", "unpost": "فك الترحيل", "unposting": "قيد الإرسال...",
@@ -368,6 +394,9 @@
       "emailSent": "تم إرسال الفاتورة {{number}} إلى {{email}}.",
       "emailFailed": "تعذّر إرسال الفاتورة — حاول مرة أخرى لاحقاً.",
       "zatcaRejectedAgain": "أعيد رفض الفاتورة {{number}} من زاتكا{{reason}}",
+      "zatcaStillUnreachable": "لا يزال تعذّر الوصول إلى زاتكا لإرسال الفاتورة {{number}} — حاول لاحقاً أو راجع الدعم الفني",
+      "zatcaCertificateStillInvalid": "شهادة زاتكا لهذه الشركة ما زالت غير صالحة — أصلح إعدادات ربط زاتكا أولاً قبل إعادة محاولة إرسال الفاتورة {{number}}",
+      "zatcaStillComplianceOnly": "نجح فحص الامتثال للفاتورة {{number}} لدى زاتكا، لكنها لم تُخلَّص/تُبلَّغ فعلياً بعد — هذه الشركة لا تزال على شهادة اختبار. أكمل الحصول على شهادة إنتاج فعلية من إعدادات ربط زاتكا ثم أعد إرسال الفاتورة.",
       "zatcaResentOk": "تم إرسال الفاتورة {{number}} بنجاح — الحالة الآن \"{{status}}\"."
     },
     "classicPro": {
@@ -589,10 +618,51 @@
       "reason": "سبب المردود",
       "saveAndPost": "حفظ وترحيل المردود",
       "loading": "جارٍ التحميل...",
-      "table": { "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي", "status": "الحالة" },
-      "posted": "مرحّل", "draft": "مسودة",
+      "addButton": "+ إضافة إشعار دائن",
+      "search": {
+        "quickSearchLabel": "بحث سريع", "quickSearchPlaceholder": "رقم الإشعار، اسم العميل، أو رقم الفاتورة الأصلية...",
+        "subtypeLabel": "نوع الإشعار", "subtypeAll": "— كل الأنواع —",
+        "refundMethodLabel": "طريقة الرد", "refundMethodAll": "— كل طرق الرد —",
+        "postingStatusLabel": "حالة الترحيل", "postingStatusAll": "— كل حالات الترحيل —",
+        "originalInvoicePlaceholder": "ابحث برقم الفاتورة...", "originalInvoiceAll": "— كل الفواتير —",
+        "summary": { "count": "إجمالي الإشعارات المرحّلة", "netTotal": "الإجمالي قبل الضريبة", "vatTotal": "ضريبة القيمة المضافة", "grandTotal": "الإجمالي شامل الضريبة" }
+      },
+      "table": {
+        "number": "الرقم", "customer": "العميل", "originalInvoice": "الفاتورة الأصلية", "date": "التاريخ", "total": "الإجمالي",
+        "postingStatus": "حالة الترحيل", "zatcaStatus": "حالة زاتكا", "actions": "الإجراءات"
+      },
+      "posted": "مرحّل", "draft": "مسودة", "pendingSubmission": "بانتظار إرسال زاتكا", "postingIncomplete": "استُلم ردّ زاتكا، ترحيل محلي غير مكتمل",
       "unpost": "فك الترحيل", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
-      "empty": "لا توجد مردودات بعد."
+      "empty": "لا توجد مردودات بعد.",
+      "blockAction": { "edit": "تعديل" },
+      "actionsMenu": { "view": "عرض الإشعار", "edit": "تعديل الإشعار", "delete": "حذف الإشعار", "print": "طباعة الإشعار" },
+      "notify": {
+        "deleteNonDraft": "لا يمكن حذف إشعار مرحّل — يجب فك ترحيله أولاً.",
+        "confirmDelete": "حذف الإشعار {{number}}؟",
+        "deleted": "تم حذف الإشعار {{number}}.",
+        "unposted": "تم فك ترحيل الإشعار {{number}}، وحُذف القيد المحاسبي المرتبط به. أصبح الآن مسودة.",
+        "unpostedFromBlock": "تم فك ترحيل الإشعار {{number}}. أصبح الآن مسودة ويمكنك المتابعة.",
+        "emailSent": "تم إرسال الإشعار {{number}} إلى {{email}}.",
+        "emailFailed": "تعذّر إرسال الإشعار — حاول مرة أخرى لاحقاً."
+      },
+      "form": {
+        "titleCreate": "إشعار دائن جديد", "titleEdit": "تعديل الإشعار {{number}}",
+        "cancel": "إلغاء", "close": "إغلاق", "saveChanges": "حفظ التعديلات",
+        "savedEdit": "تم حفظ التعديلات على الإشعار {{number}}."
+      },
+      "view": { "subtitle": "إشعار دائن", "returnNumber": "رقم الإشعار", "date": "التاريخ", "subtype": "نوع الإشعار" },
+      "postedBlockModal": {
+        "title": "لازم تفك ترحيل الإشعار أولاً", "close": "إغلاق",
+        "message": "الإشعار {{number}} مرحّل، ولا يمكن {{action}} إلا بعد فك ترحيله. بعد فك الترحيل سيتحول الإشعار إلى مسودة ويُحذف القيد المحاسبي المرتبط به، وعندها فقط يمكنك {{action}}.",
+        "cancel": "إلغاء", "unpost": "فك الترحيل",
+        "unpostTitle": "فك ترحيل الإشعار {{number}}"
+      },
+      "sendEmailModal": {
+        "title": "إرسال الإشعار {{number}} بالإيميل", "close": "إغلاق",
+        "note": "لا يوجد بريد إلكتروني مسجَّل لهذا العميل — أدخل بريداً بديلاً لإرسال نسخة الإشعار إليه لمرة واحدة.",
+        "email": "البريد الإلكتروني", "errRequired": "البريد الإلكتروني مطلوب", "errFailed": "تعذّر الإرسال — حاول مرة أخرى",
+        "cancel": "إلغاء", "send": "إرسال", "sending": "جارٍ الإرسال..."
+      }
     },
     "receipts": {
       "customer": "العميل", "date": "تاريخ السند", "method": "طريقة التحصيل", "methodCash": "كاش", "methodBank": "بنك",
@@ -862,6 +932,11 @@
       "date": "التاريخ", "item": "الصنف", "location": "الموقع", "type": "النوع", "quantity": "الكمية", "note": "ملاحظة", "delete": "حذف",
       "types": { "in": "إدخال", "out": "إخراج/إتلاف", "issue": "صرف", "transfer_out": "تحويل صادر", "transfer_in": "تحويل وارد", "adjustment": "تسوية جرد دوري" },
       "empty": "لا توجد حركات بعد."
+    },
+    "itemCard": {
+      "subtitle": "كرت الصنف", "titleFailed": "تعذّر تحميل كرت الصنف", "type": "نوع الصنف",
+      "document": "المستند", "quantityIn": "وارد", "quantityOut": "صادر", "balance": "الرصيد",
+      "unitCost": "التكلفة", "closingBalance": "الرصيد الختامي"
     },
     "stockReport": {
       "item": "الصنف", "code": "الكود", "location": "الموقع", "balance": "الرصيد", "costPrice": "سعر التكلفة", "value": "القيمة",
@@ -1702,6 +1777,12 @@
       "egsInfo": "معرّف جهاز الفوترة (EGS): {{egsUuid}} — الحل: {{solutionName}} — عدّاد الفواتير التالي (ICV): {{nextIcv}}",
       "csrStepTitle": "1) توليد طلب توقيع الشهادة (CSR)",
       "csrStepNote": "يُولَّد مفتاح تشفير خاص بهذه الشركة تحديداً (لا يُشارَك مع أي شركة أخرى) و CSR يجب تقديمه في بوابة فاتورة الحقيقية (زاتكا) للحصول على رمز تحقق (OTP) خاص بهذا الجهاز.",
+      "invoiceTypeLabel": "نوع الفواتير التي ستُصدرها هذه الشركة",
+      "invoiceTypeNote": "يُحدِّد هذا الخيار ما تُخوَّل شهادة الربط الناتجة توقيعه فعلياً، وعدد مستندات الاختبار التي تطلبها زاتكا قبل تفعيل الإنتاج (كلاهما يتطلب الستة كاملة، وأي خيار آخر يتطلب ثلاثة فقط من نوعه). اختر بحسب ما تُصدره الشركة فعلياً؛ \"كلاهما\" هو الخيار الآمن عند التردد.",
+      "invoiceTypeStandard": "قياسية فقط (فواتير للشركات B2B)",
+      "invoiceTypeSimplified": "مبسّطة فقط (فواتير للأفراد B2C)",
+      "invoiceTypeBoth": "كلاهما (قياسية ومبسّطة)",
+      "currentInvoiceTypeLabel": "نوع الفواتير المُعلَن في CSR الحالي: {{type}}",
       "generateProdCheckbox": "توليد لبيئة الإنتاج مباشرة (بدل الاختبار)",
       "generateCsrBtn": "توليد CSR",
       "regenerateCsrBtn": "إعادة توليد CSR",
@@ -1721,7 +1802,24 @@
       "complianceSuccess": "تم استخراج شهادة الاختبار (Compliance CSID) بنجاح.",
       "productionSuccess": "تم استخراج شهادة الإنتاج (Production CSID) بنجاح — الشركة الآن جاهزة للتشغيل الفعلي.",
       "envChangeSuccess": "تم التحويل إلى بيئة: {{env}}",
-      "resetSuccess": "تم مسح ربط زاتكا وإعادة الشركة لحالة \"غير مفعّل\"."
+      "resetSuccess": "تم مسح ربط زاتكا وإعادة الشركة لحالة \"غير مفعّل\".",
+      "complianceStepsProgressTitle": "تقدّم مستندات فحص الامتثال الستة",
+      "complianceStepsProgressNote": "تشترط زاتكا اجتياز فحص امتثال لكل الأنواع الستة (فاتورة وإشعار دائن وإشعار مدين، لكل من القياسية والمبسّطة) قبل إصدار شهادة الإنتاج.",
+      "complianceStepLabels": {
+        "standard-compliant": "فاتورة قياسية",
+        "simplified-compliant": "فاتورة مبسّطة",
+        "standard-credit-note-compliant": "إشعار دائن قياسي",
+        "simplified-credit-note-compliant": "إشعار دائن مبسّط",
+        "standard-debit-note-compliant": "إشعار مدين قياسي",
+        "simplified-debit-note-compliant": "إشعار مدين مبسّط"
+      },
+      "stepPassed": "اجتاز ✓",
+      "stepPending": "لم يُختبَر بعد",
+      "complianceStepsWarning": "كل اختبار يُرسِل مستنداً اصطناعياً بالكامل (عميل ومرجع فاتورة مُلفَّقان، لا يمسّان أي فاتورة أو قيد حقيقي في دفاترك). يحجز رقم تسلسل (ICV) حقيقياً بصرف النظر عن النتيجة، ولا يمكن التراجع عن ذلك — كل خطوة تحتاج ضغطة زر مقصودة منفصلة.",
+      "runComplianceStepTestBtn": "تشغيل الاختبار",
+      "complianceStepTestPassed": "نجح ✓ (الحالة: {{status}})",
+      "complianceStepTestFailed": "فشل — السبب من زاتكا: {{reason}}",
+      "stepNotEnabledYet": "غير متاحة للتشغيل بعد"
     },
     "companyDocuments": {
       "title": "المستندات الإدارية (تراخيص، سجلات، عقود أمن وسلامة...)",

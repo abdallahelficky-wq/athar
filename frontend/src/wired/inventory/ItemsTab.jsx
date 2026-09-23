@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { listItems, createItem, updateItem, deleteItem, getItemComponents, setItemComponents } from "../../api/items";
 import { listAccounts } from "../../api/accounts";
 import { listAssetCategories } from "../../api/assetCategories";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
+import ItemCardModal from "./ItemCardModal";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
 
 const emptyItemFilters = { query: "", category: "", typeFilter: "", lowStock: false };
@@ -45,7 +47,7 @@ const emptyForm = () => ({
 
 const Icons = {
   add: "＋", import: "⇧", export: "⇩", units: "▦", transfer: "⇄", columns: "☰",
-  view: "◉", edit: "✎", duplicate: "▣", archive: "▾", remove: "×", print: "▤",
+  view: "◉", edit: "✎", duplicate: "▣", archive: "▾", remove: "×", print: "▤", itemCard: "▥",
 };
 
 // أعمدة ثانوية (أقل أهمية للتصفح اليومي) — مخفيّة افتراضياً لتقليل ازدحام الجدول وتفادي السكرول
@@ -96,6 +98,19 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   const [viewItem, setViewItem] = useState(null);
   const [extraColumns, setExtraColumns] = useState(loadColumnPrefs);
   const [columnMenuOpen, setColumnMenuOpen] = useState(false);
+
+  // دخول مباشر لكرت صنف محدَّد (رابط تفصيلي من سطر فاتورة/حركة مخزون) عبر ?itemCardId= في رابط
+  // حقيقي (routes.itemCard) — بنفس نمط ?statementCustomerId=/?accountId= بالضبط. itemCardCompanyId
+  // هو شركة الفاتورة/الحركة التي فُتح الرابط منها (قد تختلف عن الشركة النشطة حالياً).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [itemCard, setItemCard] = useState(null);
+  useEffect(() => {
+    const itemCardId = searchParams.get("itemCardId");
+    if (!itemCardId) return;
+    setItemCard({ itemId: itemCardId, companyId: searchParams.get("itemCardCompanyId") || companyId });
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.get("itemCardId")]);
 
   const toggleColumn = (key) => setExtraColumns((prev) => {
     const next = { ...prev, [key]: !prev[key] };
@@ -424,6 +439,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
                     <ActionButton icon={Icons.archive} label={item.isArchived ? t("inventory.items.actions.unarchive") : t("inventory.items.actions.archive")} onClick={() => toggleArchive(item)} />
                     <ActionButton icon={Icons.remove} label={t("inventory.items.actions.delete")} danger onClick={() => remove(item)} title={t("inventory.items.actions.deleteTitle")} />
                     <ActionButton icon={Icons.print} label={t("inventory.items.actions.print")} onClick={() => { setViewItem(item); setTimeout(() => window.print(), 0); }} />
+                    <ActionButton icon={Icons.itemCard} label={t("inventory.itemCard.subtitle")} onClick={() => setItemCard({ itemId: item.id, companyId })} />
                   </div></td>
                 </tr>)}
                 {filteredItems.length === 0 && <tr><td className="empty items-empty" colSpan={columnCount}><span>⌕</span><strong>{t("inventory.items.emptyTitle")}</strong><small>{t("inventory.items.emptySubtitle")}</small></td></tr>}
@@ -447,6 +463,10 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
         </dl>
         <div className="voucher-actions"><button className="btn-ghost" onClick={() => setViewItem(null)}>{t("inventory.items.view.close")}</button><button className="btn-primary" onClick={() => window.print()}>{t("inventory.items.view.print")}</button></div>
       </div></div>}
+
+      {itemCard && (
+        <ItemCardModal itemId={itemCard.itemId} companyId={itemCard.companyId} onClose={() => setItemCard(null)} />
+      )}
     </div>
   );
 }

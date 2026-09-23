@@ -1,5 +1,6 @@
 import React, { forwardRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getAccountDisplayName } from "./accountDisplayName";
 
 /**
  * قائمة حسابات قابلة للبحث الفوري داخل نفس الحقل (Search-as-you-type) — تُستخدَم بدل <select> عادي
@@ -27,7 +28,7 @@ const AccountSearchSelect = forwardRef(function AccountSearchSelect(
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
 
-  const displayName = (a) => (i18n.language === "en" && a.nameEn ? a.nameEn : a.name);
+  const displayName = (a) => getAccountDisplayName(a, i18n.language);
   const label = (a) => `${a.code} — ${displayName(a)}`;
   const norm = (s) => (s || "").toString().toLowerCase();
 

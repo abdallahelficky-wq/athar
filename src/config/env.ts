@@ -43,6 +43,13 @@ export const env = {
   // (src/lib/zatca/pdf/renderPdf.ts) — يختلف حسب بيئة النشر، لا قيمة افتراضية آمنة عالمياً.
   chromiumExecutablePath: process.env.CHROMIUM_EXECUTABLE_PATH,
 
+  // سقالة تشخيصية مؤقتة (temporary scaffolding) للمشي اليدوي الحالي عبر ربط زاتكا — تُسجِّل ICV/PIH
+  // ونوع/فرع المستند والجسم الخام الكامل (قبل أي تصفية Zod) لكل محاولة فحص امتثال وطلب شهادة إنتاج،
+  // للإجابة يقيناً من السجلّات وحدها عن أسئلة لم تُتحقَّق بعد: هل تستمر سلسلة ICV/PIH بعد شهادة
+  // الإنتاج أم تُعاد من الصفر، هل يُشير ردّ فحص الامتثال لتقدّم عبر الأنواع الستة، وما الذي يُسمّيه
+  // Missing-ComplianceSteps تحديداً. تُزال بعد انتهاء هذا المشي اليدوي — راجع apiClient.ts.
+  zatcaOnboardingDiagnostics: process.env.ZATCA_ONBOARDING_DIAGNOSTICS === "true",
+
   // اختياري: سرّ مشترك تتحقق منه src/middleware/auth.ts's authenticatePlatformService لكل طلب
   // على /api/platform-admin/* — يُستخدَمه فقط تطبيق "athar-platform-admin" المنفصل تماماً (مستودع
   // كود وقاعدة بيانات مستقلَّين) للتحكم بالاشتراكات/الموديولات/الإشعارات من خارج هذا النظام. بلا
