@@ -123,8 +123,18 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
 },
 {
   "code": "112",
-  "name": "الذمم المدينة التجارية",
-  "nameEn": "Trade Receivables",
+  "name": "عملاء",
+  "nameEn": "Customers",
+  "type": "asset",
+  "level": 3,
+  "parentCode": "11",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "117",
+  "name": "الذمم المدينة القياسية",
+  "nameEn": "Standard Trade Receivables",
   "type": "asset",
   "level": 3,
   "parentCode": "11",
@@ -137,7 +147,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -147,7 +157,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -157,7 +167,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Notes Receivable",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -167,7 +177,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Related Parties",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -177,7 +187,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -187,7 +197,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Retention Receivable",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -197,7 +207,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Progress Billings Under Collection",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -593,8 +603,18 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
 },
 {
   "code": "211",
-  "name": "الذمم الدائنة التجارية",
-  "nameEn": "Trade Payables",
+  "name": "موردون",
+  "nameEn": "Suppliers",
+  "type": "liability",
+  "level": 3,
+  "parentCode": "21",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "217",
+  "name": "الذمم الدائنة القياسية",
+  "nameEn": "Standard Trade Payables",
   "type": "liability",
   "level": 3,
   "parentCode": "21",
@@ -607,7 +627,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Local",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -617,7 +637,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Importers",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -627,7 +647,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Notes Payable",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -637,7 +657,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -647,7 +667,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Subcontractors Payable",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -2075,8 +2095,18 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
 },
 {
   "code": "112",
-  "name": "الذمم المدينة التجارية",
-  "nameEn": "Trade Receivables",
+  "name": "عملاء",
+  "nameEn": "Customers",
+  "type": "asset",
+  "level": 3,
+  "parentCode": "11",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "117",
+  "name": "الذمم المدينة القياسية",
+  "nameEn": "Standard Trade Receivables",
   "type": "asset",
   "level": 3,
   "parentCode": "11",
@@ -2089,7 +2119,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -2099,7 +2129,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -2109,7 +2139,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Notes Receivable",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -2119,7 +2149,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Related Parties",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -2129,7 +2159,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -2555,8 +2585,18 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
 },
 {
   "code": "211",
-  "name": "الذمم الدائنة التجارية",
-  "nameEn": "Trade Payables",
+  "name": "موردون",
+  "nameEn": "Suppliers",
+  "type": "liability",
+  "level": 3,
+  "parentCode": "21",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "217",
+  "name": "الذمم الدائنة القياسية",
+  "nameEn": "Standard Trade Payables",
   "type": "liability",
   "level": 3,
   "parentCode": "21",
@@ -2569,7 +2609,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Local",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -2579,7 +2619,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Importers",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -2589,7 +2629,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Notes Payable",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -2599,7 +2639,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -2609,7 +2649,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Raw Material Suppliers - Credit",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -4017,8 +4057,18 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
 },
 {
   "code": "112",
-  "name": "الذمم المدينة التجارية",
-  "nameEn": "Trade Receivables",
+  "name": "عملاء",
+  "nameEn": "Customers",
+  "type": "asset",
+  "level": 3,
+  "parentCode": "11",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "117",
+  "name": "الذمم المدينة القياسية",
+  "nameEn": "Standard Trade Receivables",
   "type": "asset",
   "level": 3,
   "parentCode": "11",
@@ -4031,7 +4081,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -4041,7 +4091,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -4051,7 +4101,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Notes Receivable",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -4061,7 +4111,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Related Parties",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -4071,7 +4121,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -4477,8 +4527,18 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
 },
 {
   "code": "211",
-  "name": "الذمم الدائنة التجارية",
-  "nameEn": "Trade Payables",
+  "name": "موردون",
+  "nameEn": "Suppliers",
+  "type": "liability",
+  "level": 3,
+  "parentCode": "21",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "217",
+  "name": "الذمم الدائنة القياسية",
+  "nameEn": "Standard Trade Payables",
   "type": "liability",
   "level": 3,
   "parentCode": "21",
@@ -4491,7 +4551,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Local",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -4501,7 +4561,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Importers",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -4511,7 +4571,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Notes Payable",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -4521,7 +4581,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -5879,8 +5939,18 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
 },
 {
   "code": "112",
-  "name": "الذمم المدينة التجارية",
-  "nameEn": "Trade Receivables",
+  "name": "عملاء",
+  "nameEn": "Customers",
+  "type": "asset",
+  "level": 3,
+  "parentCode": "11",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "117",
+  "name": "الذمم المدينة القياسية",
+  "nameEn": "Standard Trade Receivables",
   "type": "asset",
   "level": 3,
   "parentCode": "11",
@@ -5893,7 +5963,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -5903,7 +5973,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -5913,7 +5983,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Notes Receivable",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -5923,7 +5993,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Related Parties",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -5933,7 +6003,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -6319,8 +6389,18 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
 },
 {
   "code": "211",
-  "name": "الذمم الدائنة التجارية",
-  "nameEn": "Trade Payables",
+  "name": "موردون",
+  "nameEn": "Suppliers",
+  "type": "liability",
+  "level": 3,
+  "parentCode": "21",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "217",
+  "name": "الذمم الدائنة القياسية",
+  "nameEn": "Standard Trade Payables",
   "type": "liability",
   "level": 3,
   "parentCode": "21",
@@ -6333,7 +6413,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Local",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -6343,7 +6423,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Importers",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -6353,7 +6433,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Notes Payable",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -6363,7 +6443,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -6373,7 +6453,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Foreign Suppliers - Export/Import",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -7751,8 +7831,18 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
 },
 {
   "code": "112",
-  "name": "الذمم المدينة التجارية",
-  "nameEn": "Trade Receivables",
+  "name": "عملاء",
+  "nameEn": "Customers",
+  "type": "asset",
+  "level": 3,
+  "parentCode": "11",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "117",
+  "name": "الذمم المدينة القياسية",
+  "nameEn": "Standard Trade Receivables",
   "type": "asset",
   "level": 3,
   "parentCode": "11",
@@ -7765,7 +7855,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -7775,7 +7865,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -7785,7 +7875,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Notes Receivable",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -7795,7 +7885,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Customers - Related Parties",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -7805,7 +7895,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -7815,7 +7905,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Fuel/Fleet Card Companies Receivables",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -8201,8 +8291,18 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
 },
 {
   "code": "211",
-  "name": "الذمم الدائنة التجارية",
-  "nameEn": "Trade Payables",
+  "name": "موردون",
+  "nameEn": "Suppliers",
+  "type": "liability",
+  "level": 3,
+  "parentCode": "21",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "217",
+  "name": "الذمم الدائنة القياسية",
+  "nameEn": "Standard Trade Payables",
   "type": "liability",
   "level": 3,
   "parentCode": "21",
@@ -8215,7 +8315,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Local",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -8225,7 +8325,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Importers",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -8235,7 +8335,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Notes Payable",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -8245,7 +8345,7 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },

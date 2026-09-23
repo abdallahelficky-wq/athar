@@ -3,6 +3,11 @@ import { BUSINESS_ACTIVITIES, CHART_TEMPLATE_BY_ACTIVITY } from "./chartTemplate
 
 const LEVEL_CODE_LENGTH: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 6 };
 
+// "112" (عملاء) و"211" (موردون) نُقلت حساباتهما القياسية القديمة إلى مجموعتين شقيقتين جديدتين
+// ("117"، "218"->"217") مع إبقاء أكوادها القديمة (تبدأ بـ112/211) دون تغيير رغم أن أباها الفعلي
+// أصبح 117/217 — راجع التعليق المطابق في defaultChartOfAccounts.test.ts لتفاصيل السبب.
+const LEGACY_PREFIXED_PARENT_EXCEPTIONS = new Set(["117", "217"]);
+
 describe("business activity chart of accounts templates", () => {
   for (const activity of BUSINESS_ACTIVITIES) {
     describe(activity, () => {
@@ -22,7 +27,9 @@ describe("business activity chart of accounts templates", () => {
             const parent = byCode.get(account.parentCode || "");
             expect(parent, `missing parent ${account.parentCode} for ${account.code}`).toBeDefined();
             expect(parent?.level).toBe(account.level - 1);
-            expect(account.code.startsWith(account.parentCode as string)).toBe(true);
+            if (!LEGACY_PREFIXED_PARENT_EXCEPTIONS.has(account.parentCode as string)) {
+              expect(account.code.startsWith(account.parentCode as string)).toBe(true);
+            }
           }
         }
       });
