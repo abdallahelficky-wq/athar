@@ -83,6 +83,28 @@ guarded by a runtime `WRITE_EXTERNAL_STORAGE` permission request on Android 9 an
 `http(s)` downloads (any other file the POS might ever link directly) go through the standard
 `DownloadManager` instead.
 
+## Releases (installable APK links)
+
+Besides the workflow artifact (which comes zipped and needs `unzip`ping, awkward on a phone), CI
+also publishes plain GitHub Releases with the raw `.apk` attached as a release asset — those give a
+direct download link a phone browser can open and install straight away.
+
+- **Rolling "latest" pre-release** — tag `android-pos-latest`, asset `athar-pos-latest.apk`.
+  Every successful build of `android/**` pushed to `feature/android-pos-wrapper` updates this same
+  release in place (same tag, asset replaced), so the link never changes but always points at the
+  newest build:
+  `https://github.com/<owner>/<repo>/releases/download/android-pos-latest/athar-pos-latest.apk`
+- **Pinned releases** (e.g. `android-pos-v0.1.0`) — a specific, frozen build kept around under its
+  own tag/asset name, published on demand by running this workflow manually
+  (Actions → **Android debug APK** → **Run workflow**) with the `release_tag` input set (e.g.
+  `android-pos-v0.1.0`). Leave it empty to just build without publishing a pinned release.
+
+Both are marked as **pre-releases** (these are unsigned debug builds, not production releases) and
+published via [`softprops/action-gh-release`](https://github.com/softprops/action-gh-release)
+using the workflow's own `GITHUB_TOKEN` — no separate credential needed, and it never runs for
+`pull_request` events (including forks, which don't have write access to that token anyway) or on
+any branch other than `feature/android-pos-wrapper`.
+
 ## Build
 
 ### Locally

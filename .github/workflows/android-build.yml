@@ -13,6 +13,14 @@ on:
     paths:
       - "android/**"
       - ".github/workflows/android-build.yml"
+  # يسمح بنشر إصدار (release) مثبَّت على وسم مُحدَّد يدوياً (مثال: android-pos-v0.1.0)، بمعزل عن
+  # الإصدار الدائري (rolling) الذي يتحدّث تلقائياً في كل دفعة ناجحة — راجع الخطوات أدناه.
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Tag for a one-off pinned pre-release (e.g. android-pos-v0.1.0). Leave empty to just build."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -21,6 +29,10 @@ jobs:
   build-debug-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # لازمة فقط لخطوتي نشر الإصدار أدناه (إنشاء/تحديث Release عبر GITHUB_TOKEN المُقدَّم تلقائياً) —
+    # لا تمنح شيئاً إضافياً لبناء PR (مُستبعَد صراحةً من كلتا الخطوتين، بما فيها الفروع الخارجية/forks).
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: android
@@ -49,3 +61,45 @@ jobs:
           name: athar-pos-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # الإصدار الدائري (rolling) — نفس الوسم دائماً (android-pos-latest)، فيبقى نفس رابط التنزيل
+      # صالحاً ويُشير دائماً لآخر بناء ناجح على هذا الفرع تحديداً. مُستبعَد من pull_request (بما فيها
+      # forks، التي لا تملك أصلاً GITHUB_TOKEN بصلاحية كتابة) ومن أي فرع آخر غير هذا صراحةً.
+      - name: Prepare rolling release asset
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/android-pos-wrapper'
+        run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/athar-pos-latest.apk
+
+      - name: Publish/update rolling pre-release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/android-pos-wrapper'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-pos-latest
+          name: "Athar POS (Sunmi V2 wrapper) — latest build"
+          body: "Automatically updated on every successful build of `android/**` on `feature/android-pos-wrapper`. Always the same link; always the newest debug build."
+          prerelease: true
+          files: android/app/build/outputs/apk/debug/athar-pos-latest.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # إصدار مثبَّت لمرة واحدة على وسم مُحدَّد صراحةً — فقط عند تشغيل الفحص يدوياً (workflow_dispatch)
+      # مع تمرير release_tag؛ لا يعمل تلقائياً على أي دفعة عادية.
+      - name: Prepare pinned release asset
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        id: pinned_asset
+        run: |
+          version="${{ inputs.release_tag }}"
+          version="${version#android-pos-}"
+          filename="athar-pos-${version}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/${filename}"
+          echo "filename=${filename}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish pinned pre-release
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: "Athar POS (Sunmi V2 wrapper) ${{ inputs.release_tag }}"
+          prerelease: true
+          files: android/app/build/outputs/apk/debug/${{ steps.pinned_asset.outputs.filename }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
