@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">أثر - نقطة البيع</string>
+
+    <string name="settings_title">إعدادات الخادم</string>
+    <string name="settings_url_label">رابط خادم أثر المحاسبي</string>
+    <string name="settings_url_hint">https://example.com/pos.html</string>
+    <string name="settings_save">حفظ</string>
+    <string name="settings_invalid_url">أدخل رابطاً صحيحاً يبدأ بـ http:// أو https://</string>
+
+    <string name="printer_service_unavailable">خدمة طابعة Sunmi غير متاحة على هذا الجهاز</string>
+    <string name="printer_send_failed">تعذّر إرسال البيانات لخدمة الطباعة</string>
+    <string name="printer_run_failed">فشلت الطابعة في تنفيذ أمر الطباعة</string>
+    <string name="printer_exception">خطأ من خدمة الطباعة (%1$d): %2$s</string>
+
+    <string name="download_started">جارٍ تنزيل %1$s…</string>
+    <string name="download_saved">تم حفظ %1$s في مجلد التنزيلات</string>
+    <string name="download_failed">تعذّر حفظ الملف المُنزَّل</string>
+    <string name="download_permission_denied">التنزيل يحتاج صلاحية التخزين — رُفضت</string>
+</resources>

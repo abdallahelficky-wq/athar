@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ألوان مطابقة لهوية واجهة نقطة البيع على الويب (frontend/src/pos/pos.css: كحلي داكن +
+         ذهبي) — تناسق بصري فقط، لا وظيفة إضافية. -->
+    <style name="Theme.AtharPos" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#10202E</item>
+        <item name="colorPrimaryDark">#10202E</item>
+        <item name="colorAccent">#B98B4E</item>
+    </style>
+</resources>
