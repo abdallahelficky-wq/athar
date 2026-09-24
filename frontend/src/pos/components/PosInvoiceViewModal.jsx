@@ -5,7 +5,7 @@ import { downloadBlob } from "../../legacy/shared";
 import { fmt2 } from "../../legacy/constants";
 import { formatDateTime } from "../../i18n/dateFormat";
 import {
-  buildReceiptEscPos, requestBluetoothPrinter, sendToBluetoothPrinter, hasNativePrinterBridge, printViaNativeBridge,
+  buildReceiptEscPos, buildReceiptEscPosChunks, requestBluetoothPrinter, sendToBluetoothPrinter, hasNativePrinterBridge, printViaNativeBridge,
 } from "../../shared/receipt/escpos";
 import { loadPrinterSettings } from "../../shared/receipt/posLocalSettings";
 import { invoiceZatcaState } from "../../wired/sales/invoiceZatcaState";
@@ -43,8 +43,8 @@ export default function PosInvoiceViewModal({ invoiceId, onClose }) {
     setError("");
     try {
       if (hasNativePrinterBridge()) {
-        const bytes = buildReceiptEscPos({ company: invoice.company, invoice }, loadPrinterSettings().paperWidthMm);
-        printViaNativeBridge(bytes);
+        const chunks = buildReceiptEscPosChunks({ company: invoice.company, invoice }, loadPrinterSettings().paperWidthMm);
+        printViaNativeBridge(chunks);
         return;
       }
       const settings = loadPrinterSettings();

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import ReceiptView from "../../shared/receipt/ReceiptView";
 import { loadPrinterSettings } from "../../shared/receipt/posLocalSettings";
 import {
-  buildReceiptEscPos, requestBluetoothPrinter, sendToBluetoothPrinter, hasNativePrinterBridge, printViaNativeBridge,
+  buildReceiptEscPos, buildReceiptEscPosChunks, requestBluetoothPrinter, sendToBluetoothPrinter, hasNativePrinterBridge, printViaNativeBridge,
 } from "../../shared/receipt/escpos";
 
 export default function ReceiptScreen({ company, sale, onNewSale }) {
@@ -37,8 +37,8 @@ export default function ReceiptScreen({ company, sale, onNewSale }) {
     setPrinting(true);
     setPrintError("");
     try {
-      const bytes = buildReceiptEscPos({ company, invoice }, settings.paperWidthMm);
-      printViaNativeBridge(bytes);
+      const chunks = buildReceiptEscPosChunks({ company, invoice }, settings.paperWidthMm);
+      printViaNativeBridge(chunks);
     } catch (err) {
       setPrintError(err.message);
     } finally {
