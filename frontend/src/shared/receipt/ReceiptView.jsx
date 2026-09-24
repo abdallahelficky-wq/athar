@@ -4,15 +4,37 @@ import { QrImage } from "../../legacy/shared";
 import { formatDateTime } from "../../i18n/dateFormat";
 import { getAccountDisplayName } from "../../wired/shared/accountDisplayName";
 
+/** عنوان بريدي مُجمَّع بنفس ترتيب/فاصل companyAddress/customerAddress في قالب إيميل الفاتورة
+ * (راجع salesInvoiceEmail.service.ts) — يبقى "العنوان الكامل" متسقاً عبر كل نقاط عرضه بالنظام. */
+function joinAddressParts(parts) {
+  return parts.filter(Boolean).join("، ");
+}
+
+/** نص حالة زاتكا المعروض — من invoice.zatcaStatus الفعلي المخزَّن لا نصاً ثابتاً؛ null لأي حالة
+ * غير "cleared"/"reported" (لم تُقبَل زاتكا المستند بعد)، فلا يظهر شيء بدل رسالة تخمينية. */
+function zatcaAcceptanceLabelKey(zatcaStatus) {
+  if (zatcaStatus === "cleared") return "receiptView.zatcaCleared";
+  if (zatcaStatus === "reported") return "receiptView.zatcaReported";
+  return null;
+}
+
 /**
  * معاينة/طباعة إيصال بعرض 58 أو 80مم — تُستخدَم كمعاينة على الشاشة داخل نقطة البيع، وكذلك
  * كمصدر طباعة عادية عبر window.print() لأي جهاز (خصوصاً آيفون/آيباد حيث Web Bluetooth غير مدعوم).
  * تصميم عمود واحد بسيط بلا أي عناصر A4 (لا صناديق توقيع، لا رأس ثلاثي الأعمدة).
+ *
+ * كتلتا البائع/المشتري هنا تطابقان buildReceiptEscPos (escpos.js) حرفياً — نفس الحقول الإلزامية
+ * زاتكا (بائع: اسم/رقم ضريبي/عنوان دائماً؛ مشتري: + عنوان/رقم ضريبي للفاتورة القياسية فقط)،
+ * حتى تعرض المعاينة على الشاشة فعلياً ما سيُطبَع على الورق، لا نسخة مبسَّطة عنه.
  */
 export default function ReceiptView({ company, invoice, paperWidthMm = 80, lastPayments }) {
   const { t, i18n } = useTranslation();
   const width = paperWidthMm === 58 ? "58mm" : "80mm";
   const dir = i18n.language === "en" ? "ltr" : "rtl";
+  const isStandard = invoice.invoiceType === "standard";
+  const sellerAddress = joinAddressParts([company?.addressBuilding, company?.addressStreet, company?.addressCity]);
+  const buyerAddress = joinAddressParts([invoice.customer?.buildingNo, invoice.customer?.street, invoice.customer?.city]);
+  const zatcaLabelKey = zatcaAcceptanceLabelKey(invoice.zatcaStatus);
   return (
     <div className="receipt-print-root">
       <style>{`
@@ -41,12 +63,19 @@ export default function ReceiptView({ company, invoice, paperWidthMm = 80, lastP
       <div className="receipt-center">
         <div className="receipt-company-name">{company?.name}</div>
         {company?.vatNumber && <div>{t("receiptView.vatNumberLabel")}: {company.vatNumber}</div>}
+        {sellerAddress && <div>{t("receiptView.addressLabel")}: {sellerAddress}</div>}
       </div>
       <div className="receipt-divider" />
 
       <div>{t("receiptView.invoiceNumberLabel")}: <strong>{invoice.invoiceNumber}</strong></div>
       <div>{formatDateTime(invoice.date, i18n.language)}</div>
       <div>{t("receiptView.customerLabel")}: {invoice.customer?.name || t("receiptView.cashCustomer")}</div>
+      {isStandard && invoice.customer?.vatNumber && (
+        <div>{t("receiptView.customerVatNumberLabel")}: {invoice.customer.vatNumber}</div>
+      )}
+      {isStandard && buyerAddress && (
+        <div>{t("receiptView.customerAddressLabel")}: {buyerAddress}</div>
+      )}
       <div className="receipt-divider" />
 
       {(invoice.lines || []).map((line) => (
@@ -81,6 +110,9 @@ export default function ReceiptView({ company, invoice, paperWidthMm = 80, lastP
           )}
         </>
       )}
+
+      {invoice.issuedByName && <div>{t("receiptView.issuedByLabel")}: {invoice.issuedByName}</div>}
+      {zatcaLabelKey && <div className="receipt-center">{t(zatcaLabelKey)}</div>}
 
       {invoice.qrPayload && (
         <div className="receipt-qr-box">

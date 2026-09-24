@@ -129,7 +129,7 @@ export async function createPosSale(tenantId: string, userId: string, role: stri
   const warehouseId = await resolvePosWarehouseId(tenantId, input.companyId, input.warehouseId);
   const priceOverridesToAudit = await detectAndAuthorizePriceOverrides(tenantId, userId, role, input.companyId, input.lines);
 
-  const invoice = await createSalesInvoice(tenantId, userId, {
+  const createdInvoice = await createSalesInvoice(tenantId, userId, {
     companyId: input.companyId,
     customerId,
     date: input.date,
@@ -139,6 +139,12 @@ export async function createPosSale(tenantId: string, userId: string, role: stri
     warehouseId,
     dueDate: input.dueDate,
   });
+
+  // اسم مُصدِر الفاتورة لطباعة إيصال نقطة البيع (راجع buildReceiptEscPos/ReceiptView) — يُعرَف
+  // مباشرة هنا من userId الحالي (لا حاجة لعبور JournalEntry كما في getSalesInvoice، لأننا للتو
+  // من أنشأ القيد بهذا الـuserId بالضبط أعلاه).
+  const issuer = await prisma.user.findFirst({ where: { id: userId, tenantId }, select: { name: true } });
+  const invoice = { ...createdInvoice, issuedByName: issuer?.name ?? null };
 
   if (!isDeferred) {
     const grandTotal = Number(invoice.grandTotal);
