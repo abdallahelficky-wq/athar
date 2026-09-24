@@ -70,6 +70,16 @@
     "billing": "Create boarding invoice",
     "commissions": "Trainer commissions"
   },
+  "download": {
+    "appName": "Athar POS",
+    "version": "Version {{version}}",
+    "description": "Point-of-sale app for Android devices (Sunmi V2 with a built-in thermal printer) — runs on your device without a separate browser.",
+    "downloadBtn": "Download the app (APK)",
+    "stepsTitle": "Install steps",
+    "step1": "In your device settings, allow \"Install from unknown sources\" for the browser you'll use to download the file.",
+    "step2": "Open the downloaded athar-pos.apk file, then tap \"Install\".",
+    "disclaimer": "Debug build — not yet tested on a real Sunmi V2 device."
+  },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },
     "eyebrow": "Cloud accounting for Arab businesses",

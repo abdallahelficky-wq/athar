@@ -1321,6 +1321,21 @@
         .link-btn { background: none; border: none; color: #2F5D5A; font-size: 12.5px; cursor: pointer; text-decoration: underline; }
         .auth-note { text-align: center; margin-top: 18px; font-size: 11px; }
 
+        /* ===== صفحة تنزيل تطبيق نقطة البيع (أندرويد) — بطاقة .auth-card نفسها، عناصر إضافية فقط ===== */
+        .download-app-name { margin-bottom: 4px; }
+        .download-meta { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; font-size: 12.5px; color: #445565; }
+        .download-version { font-weight: 700; color: #10202E; }
+        .download-desc { text-align: center; margin: 0 0 22px; font-size: 13px; line-height: 1.6; }
+        .download-btn { width: 100%; padding: 16px !important; font-size: 16px !important; border-radius: 10px !important; }
+        .download-steps { margin-top: 22px; background: #F3EEE0; border-radius: 12px; padding: 16px 18px; }
+        .download-steps-title { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+        .download-steps ol { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; line-height: 1.6; color: #445565; }
+        .download-disclaimer { color: #8A7C5E; }
+
+        @media (max-width: 480px) {
+          .download-card { padding: 30px 22px; }
+        }
+
         @media (max-width: 640px) {
           .landing-hero h1 { font-size: 32px; }
           .landing-nav { padding: 16px 20px; flex-direction: column; gap: 12px; }

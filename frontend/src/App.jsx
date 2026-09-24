@@ -20,6 +20,7 @@ import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
+import DownloadPage from "./pages/DownloadPage";
 import JournalEntryStandalonePage from "./pages/JournalEntryStandalonePage";
 import Dashboard from "./wired/Dashboard";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
@@ -397,6 +398,10 @@ const router = createBrowserRouter([
   { path: "/register", element: <RegisterRoute /> },
   { path: "/forgot-password", element: <ForgotPasswordRoute /> },
   { path: "/accept-invite", element: <AcceptInviteRoute /> },
+  // بلا أي تحقّق دخول أو تحويل بحسب isAuthenticated عمداً — يجب أن تعمل هذه الصفحة لأي زائر (مثلاً
+  // من رابط أُرسِل واتساب لجهاز نقطة بيع جديد لم يُسجَّل دخوله بعد على أي شيء إطلاقاً)، ولا سبب
+  // لإخفائها عمّن هو مسجَّل دخوله بالفعل (قد يريد مشاركة الرابط أو تنزيله على جهاز آخر).
+  { path: "/download", element: <DownloadPage /> },
   { path: "/journal-entries/:id/view", element: <JournalEntryStandalonePage /> },
   {
     element: <ProtectedLayout />,
