@@ -4,7 +4,9 @@ import { getSalesInvoice, getSalesInvoicePdfBlob, sendInvoiceEmail } from "../..
 import { downloadBlob } from "../../legacy/shared";
 import { fmt2 } from "../../legacy/constants";
 import { formatDateTime } from "../../i18n/dateFormat";
-import { buildReceiptEscPos, requestBluetoothPrinter, sendToBluetoothPrinter } from "../../shared/receipt/escpos";
+import {
+  buildReceiptEscPos, requestBluetoothPrinter, sendToBluetoothPrinter, hasNativePrinterBridge, printViaNativeBridge,
+} from "../../shared/receipt/escpos";
 import { loadPrinterSettings } from "../../shared/receipt/posLocalSettings";
 import { invoiceZatcaState } from "../../wired/sales/invoiceZatcaState";
 import PosSendInvoiceEmailModal from "./PosSendInvoiceEmailModal";
@@ -37,10 +39,15 @@ export default function PosInvoiceViewModal({ invoiceId, onClose }) {
   }, [invoiceId]);
 
   const printReceipt = async () => {
-    const settings = loadPrinterSettings();
     setPrinting(true);
     setError("");
     try {
+      if (hasNativePrinterBridge()) {
+        const bytes = buildReceiptEscPos({ company: invoice.company, invoice }, loadPrinterSettings().paperWidthMm);
+        printViaNativeBridge(bytes);
+        return;
+      }
+      const settings = loadPrinterSettings();
       if (settings.method === "bluetooth") {
         const device = await requestBluetoothPrinter();
         const bytes = buildReceiptEscPos({ company: invoice.company, invoice }, settings.paperWidthMm);
