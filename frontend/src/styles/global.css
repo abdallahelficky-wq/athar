@@ -1263,7 +1263,11 @@
         .landing-nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; }
         .landing-brand { display: flex; align-items: center; gap: 10px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 17px; color: #141414; }
         .landing-mark { border-color: #B98B4E; }
-        .landing-nav-actions { display: flex; gap: 10px; }
+        /* شعار أثر الأفقي الكامل (نفس صورة .auth-logo في بطاقات الدخول/التسجيل) — بعرض أصغر هنا
+           لأنه في شريط تنقّل أفقي مضغوط لا بطاقة مركزية، لكن يبقى كبيراً بما يكفي لقراءة السطر
+           الرئيسي "أثر المحاسبي" بوضوح على شاشة هاتف. */
+        .landing-logo { display: block; width: 160px; max-width: 45vw; height: auto; }
+        .landing-nav-actions { display: flex; gap: 10px; align-items: center; }
 
         .landing-hero { text-align: center; padding: 70px 24px 90px; max-width: 780px; margin: 0 auto; }
         .landing-eyebrow { font-family: 'JetBrains Mono', monospace; letter-spacing: 2px; color: #C8102E; font-size: 12px; text-transform: uppercase; margin-bottom: 14px; }
@@ -1300,7 +1304,11 @@
         .pricing-monthly-option { font-size: 12px; font-weight: 400; color: #8A7C5E; margin-top: -4px; }
         .pricing-features { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; font-size: 13px; color: #445565; flex: 1; }
 
-        .landing-footer { display: flex; justify-content: space-between; align-items: center; padding: 26px 48px; border-top: 1px solid rgba(16,32,46,0.08); font-size: 12.5px; color: #8A7C5E; }
+        .landing-footer { display: flex; justify-content: space-between; align-items: center; padding: 26px 48px; border-top: 1px solid rgba(16,32,46,0.08); font-size: 12.5px; color: #8A7C5E; flex-wrap: wrap; gap: 12px; }
+        .landing-footer-actions { display: flex; align-items: center; gap: 10px; }
+        /* رابط تنزيل تطبيق نقطة البيع — إجراء ثانوي عمداً بجانب رابط الدخول في التذييل، بعيداً عن
+           زرَّي "تسجيل الدخول"/"ابدأ تجربتك المجانية" الأساسيين في الشريط العلوي حتى لا ينافسهما. */
+        .landing-download-link { font-size: 12.5px !important; padding: 8px 14px !important; }
 
         /* ===== صفحات الدخول والتسجيل ===== */
         .auth-root { width: 100%; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #ECE6D6; padding: 30px; }

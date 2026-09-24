@@ -127,7 +127,7 @@
         }
       ]
     },
-    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved" }
+    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved", "downloadApp": "Download the POS app" }
   },
   "auth": {
     "login": {
