@@ -9,7 +9,9 @@ Bluetooth/`window.print()` on any device that doesn't have this wrapper installe
 
 ## What this app does
 
-- Loads the POS URL you configure on first run — **no URL is hardcoded anywhere**.
+- Opens straight to the POS login page out of the box, using a build-time default URL — no
+  first-run prompt — while staying fully editable from the settings screen at any time (see
+  "Setting the server URL" below).
 - Grants camera access to the WebView (via `WebChromeClient.onPermissionRequest`, backed by the
   real Android runtime `CAMERA` permission) so the existing barcode scanner keeps working.
 - Handles file downloads, including the invoice PDF download button — the POS actually downloads
@@ -146,11 +148,13 @@ completely separate workflow file with its own trigger.
 
 ## Setting the server URL
 
-- **First run**: the app opens straight to the settings screen and asks for the Athar POS URL
-  (e.g. `https://your-domain.example.com/pos.html`) — nothing loads until one is entered and
-  saved.
-- **Later**: tap the gear icon in the app's top bar at any time to reopen the same screen and
-  change the URL; the WebView reloads with the new address after saving.
+- **First run**: no prompt — the app loads `DEFAULT_SERVER_URL` (a build constant at the bottom of
+  `MainActivity.kt`, currently `https://www.atharerp.com/pos`) immediately and saves it as the
+  current setting, so the login page appears right away. To point a build at a different Athar
+  deployment, change that one constant before building — it's commented specifically for this.
+- **Later**: tap the gear icon in the app's top bar at any time to open the settings screen (it
+  shows the current URL, pre-filled) and change it; the WebView reloads with the new address after
+  saving.
 
 ## Known limitations / not built here
 

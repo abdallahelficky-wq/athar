@@ -2,8 +2,8 @@ package com.athar.pos
 
 import android.content.Context
 
-/** تخزين رابط خادم أثر الذي يُدخله المستخدم — بلا أي قيمة افتراضية مدمجة بالكود إطلاقاً؛ التطبيق
- * يطلبه صراحةً في أول تشغيل (راجع MainActivity) ولا يعمل بلا رابط محفوظ. */
+/** تخزين رابط خادم أثر الحالي — يُحفَظ هنا سواء أُدخِل يدوياً من شاشة الإعدادات أو كان الافتراضي
+ * (DEFAULT_SERVER_URL في MainActivity) المحفوظ تلقائياً في أول تشغيل بلا رابط سابق. */
 object ServerUrlStore {
     private const val PREFS_NAME = "athar_pos_prefs"
     private const val KEY_SERVER_URL = "server_url"

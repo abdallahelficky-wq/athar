@@ -6,8 +6,9 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
-/** شاشة صغيرة لإدخال/تعديل رابط خادم أثر — تُفتَح إجبارياً في أول تشغيل (لا رابط محفوظ بعد)، وبعدها
- * اختيارياً من قائمة MainActivity في أي وقت لتغيير الرابط. */
+/** شاشة صغيرة لتعديل رابط خادم أثر — تُفتَح دائماً اختيارياً من قائمة MainActivity؛ التطبيق لا
+ * يفتحها تلقائياً في أول تشغيل بعد الآن (يُحمَّل الافتراضي DEFAULT_SERVER_URL مباشرة)، لكنها تعرض
+ * القيمة الحالية دائماً (سواء كانت الافتراضي أو رابطاً أُدخِل يدوياً) قابلة للتعديل. */
 class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {

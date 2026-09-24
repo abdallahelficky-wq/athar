@@ -111,17 +111,14 @@ class MainActivity : AppCompatActivity() {
         else if (!granted) Toast.makeText(this, R.string.download_permission_denied, Toast.LENGTH_LONG).show()
     }
 
-    // --- شاشة الإعدادات (أول تشغيل إجبارياً، بعدها اختيارياً من القائمة) ---
+    // --- شاشة الإعدادات (اختيارية دائماً من القائمة — رابط محفوظ مضمون الوجود منذ onCreate) ---
     private val settingsLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             // حُفِظ رابط جديد فعلياً — أعِد تحميل الصفحة به
             ServerUrlStore.get(this)?.let { loadServerUrl(it) }
-        } else if (ServerUrlStore.get(this) == null) {
-            // لا رابط محفوظ إطلاقاً وأُغلقت شاشة الإعدادات بلا حفظ (أول تشغيل) — لا معنى للاستمرار
-            finish()
         }
-        // وإلا: رابط محفوظ بالفعل وأُلغيَت الشاشة بلا تغيير — لا داعي لإعادة تحميل الصفحة وفقدان
-        // حالة الجلسة الحالية (سلة بيع مفتوحة مثلاً) بلا أي سبب فعلي.
+        // وإلا: أُلغيَت الشاشة بلا حفظ — لا داعي لإعادة تحميل الصفحة وفقدان حالة الجلسة الحالية (سلة
+        // بيع مفتوحة مثلاً) بلا أي سبب فعلي.
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -142,7 +139,11 @@ class MainActivity : AppCompatActivity() {
 
         val savedUrl = ServerUrlStore.get(this)
         if (savedUrl.isNullOrBlank()) {
-            settingsLauncher.launch(Intent(this, SettingsActivity::class.java))
+            // أول تشغيل بلا رابط محفوظ — استخدم الافتراضي واحفظه فوراً كأنه أُدخِل يدوياً، فيُفتَح
+            // التطبيق مباشرة على صفحة الدخول بلا أي خطوة إضافية، ويظهر لاحقاً كقيمة حالية (لا حقلاً
+            // فارغاً) لو فُتِحت شاشة الإعدادات لتغييره.
+            ServerUrlStore.set(this, DEFAULT_SERVER_URL)
+            loadServerUrl(DEFAULT_SERVER_URL)
         } else {
             loadServerUrl(savedUrl)
         }
@@ -396,6 +397,12 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val TAG = "AtharPos"
+
+        // الرابط الذي يفتح عليه التطبيق تلقائياً في أول تشغيل بلا أي إدخال يدوي (يُحفَظ كأنه أُدخِل
+        // فعلياً — راجع onCreate — فيظهر لاحقاً كقيمة حالية قابلة للتعديل في شاشة الإعدادات، لا حقلاً
+        // فارغاً). غيّر هذا الثابت فقط عند تجهيز نسخة من هذا الغلاف لنشر أثر آخر (خادم مختلف).
+        private const val DEFAULT_SERVER_URL = "https://www.atharerp.com/pos"
+
         private const val PRINTER_SERVICE_PACKAGE = "woyou.aidlservice.jiuiv5"
         private const val PRINTER_SERVICE_ACTION = "woyou.aidlservice.jiuiv5.IWoyouService"
 
