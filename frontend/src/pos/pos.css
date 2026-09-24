@@ -32,6 +32,14 @@
 .pos-loading { padding: 40px; text-align: center; color: #45525c; width: 100%; }
 .pos-loading .pos-big-btn { max-width: 320px; margin: 16px auto 0; }
 
+/* .m-error/.m-empty مُستخدَمتان في عدة شاشات نقطة بيع (الفواتير، الإعدادات...) لكنهما غير مُعرَّفتين
+   في هذا الملف إطلاقاً — pos-main.jsx يحمّل pos.css فقط، لا mobile.css/global.css حيث تُعرَّفان
+   فعلياً، فكانت تصل بلا أي تنسيق (نص أسود عادي بلا تمييز)، ما يجعل خطأ فعلياً (كرفض الخادم لطلب
+   البحث، راجع PosInvoicesScreen.jsx) يسهل تفويته وسط قائمة تبدو فارغة فقط. نفس القيم المستخدَمة في
+   mobile.css تماماً لاتساق اللون/الحجم عبر النظام. */
+.m-error { color: #A8432B; font-size: 13.5px; margin: 8px 0; font-weight: 700; }
+.m-empty { color: #6b7280; font-size: 14px; text-align: center; padding: 24px 0; }
+
 .pos-big-btn {
   width: 100%; padding: 20px; border-radius: 16px; border: none; cursor: pointer;
   font-family: inherit; font-size: 19px; font-weight: 800; color: #fff; background: #10202E;
