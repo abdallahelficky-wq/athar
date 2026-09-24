@@ -2375,6 +2375,7 @@
       "paper58": "58 mm",
       "paper80": "80 mm",
       "autoPrintLabel": "Auto-print after every sale",
+      "printLogoLabel": "Print Athar logo at the top of the receipt",
       "doneBtn": "Done"
     },
     "customerPicker": {

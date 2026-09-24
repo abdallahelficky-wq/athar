@@ -13,7 +13,12 @@
 //   ٣) رمز QR (GS v 0 صورة نقطية، راجع qrImage أدناه) — أمر قياسي مدعوم على نطاق واسع، لكن نفس
 //      تحفّظ عدم الاختبار الفعلي أعلاه ينطبق عليه: حجم/دقة الطباعة (moduleScale) قد يحتاج ضبطاً
 //      بعد اختبار حقيقي للتأكد من قابلية مسح الرمز ضوئياً على الورق الفعلي.
+//   ٤) شعار أثر (GS v 0 أيضاً، راجع logoImage/receiptLogo.js) — نفس التحفّظ: قد يظهر باهتاً أو
+//      مشوَّهاً حسب دقة رأس الطباعة الفعلي. لهذا بالتحديد إعداد printLogo في posLocalSettings.js
+//      قابل للتعطيل بسهولة من شاشة إعدادات نقطة البيع (PosSettingsScreen.jsx) بلا لمس الكود.
 import QRCode from "qrcode";
+import { RECEIPT_LOGO_WIDTH, RECEIPT_LOGO_HEIGHT, RECEIPT_LOGO_RASTER_BASE64 } from "./receiptLogo";
+import { loadPrinterSettings } from "./posLocalSettings";
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -96,6 +101,20 @@ class EscPosBuilder {
     return this;
   }
 
+  /**
+   * يُدرج شعار أثر (الرمز المربّع، أحادي اللون) أعلى الإيصال بنفس أمر GS v 0 المستخدَم في qrImage
+   * أعلاه — الفرق أن بيانات الشعار هنا جاهزة مسبقاً بنفس تنسيق الأمر (راجع receiptLogo.js)، فلا
+   * حاجة لأي تجميع بت إضافي هنا، فقط فك Base64 وإرسالها كما هي. الحجم (130×179 نقطة) صغير بما
+   * يكفي ليبقى ضمن عرض الورق لكل من 58مم (384 نقطة) و80مم (576 نقطة) دون أي تحجيم إضافي.
+   */
+  logoImage() {
+    const bytes = base64ToBytes(RECEIPT_LOGO_RASTER_BASE64);
+    const widthBytes = Math.ceil(RECEIPT_LOGO_WIDTH / 8);
+    this.chunks.push(byte(GS, 0x76, 0x30, 0x00, widthBytes & 0xff, (widthBytes >> 8) & 0xff, RECEIPT_LOGO_HEIGHT & 0xff, (RECEIPT_LOGO_HEIGHT >> 8) & 0xff));
+    this.chunks.push(bytes);
+    return this;
+  }
+
   cut() {
     this.feed(3);
     // GS V 66 0 — قص جزئي مع تغذية ورق، الشكل الأكثر توافقاً عبر طرازات ESC/POS المختلفة
@@ -119,6 +138,13 @@ function byte(...vals) {
   return Uint8Array.from(vals);
 }
 
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 /**
  * يبني بايتات ESC/POS كاملة لإيصال بيع من بيانات الفاتورة — عرض العمود (بالأحرف) يعتمد على
  * مقاس الورق: 32 حرفاً تقريباً لـ 58مم، 48 حرفاً لـ 80مم (بخط قياسي على أغلب الطابعات الحرارية).
@@ -126,6 +152,12 @@ function byte(...vals) {
 export function buildReceiptEscPos({ company, invoice, lastEmailOrNote }, paperWidthMm) {
   const width = paperWidthMm === 58 ? 32 : 48;
   const b = new EscPosBuilder();
+
+  // شعار أثر التجارية (لا شعار الشركة) — يُطبَع أولاً أعلى كل شيء، ويُعطَّل بالكامل عبر إعداد
+  // printLogo المحلي للجهاز (posLocalSettings.js) لو ظهر مشوَّهاً على طابعة حرارية حقيقية معيّنة.
+  if (loadPrinterSettings().printLogo) {
+    b.align(1).logoImage().feed(1);
+  }
 
   b.align(1).doubleSize(true).bold(true).line(company?.name || "").doubleSize(false).bold(false);
   if (company?.vatNumber) b.align(1).line(`الرقم الضريبي: ${company.vatNumber}`);

@@ -45,10 +45,7 @@ export default function LoginPage({ onGoLanding, onGoRegister, onGoForgotPasswor
     return (
       <div className="auth-root">
         <div className="auth-card">
-          <div className="landing-brand auth-brand">
-            <div className="brand-mark landing-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
-            <span>{t("common.brandName")}</span>
-          </div>
+          <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
           <h2 className="auth-title">{t("auth.login.chooseAccountTitle")}</h2>
           <p className="note auth-note">{t("auth.login.chooseAccountSub")}</p>
           {error && <p className="balance-bad">{error}</p>}
@@ -77,10 +74,7 @@ export default function LoginPage({ onGoLanding, onGoRegister, onGoForgotPasswor
   return (
     <div className="auth-root">
       <div className="auth-card">
-        <div className="landing-brand auth-brand">
-          <div className="brand-mark landing-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
-          <span>{t("common.brandName")}</span>
-        </div>
+        <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
         <h2 className="auth-title">{t("auth.login.title")}</h2>
         <div className="auth-form">
           <label>{t("auth.login.email")}
