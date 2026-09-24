@@ -201,3 +201,41 @@ export async function sendToBluetoothPrinter(device, bytes) {
   }
   throw new Error("تعذّر إيجاد قناة كتابة على هذا الجهاز — قد تحتاج تحديد بروتوكول الطابعة يدوياً بعد اختبار حقيقي");
 }
+
+// جسر طباعة أصلي اختياري (تطبيق أندرويد غلافي حول WebView لجهاز Sunmi V2 بطابعته الحرارية
+// المدمجة) — يُحقَن ككائن @JavascriptInterface باسم AtharPrinter على window قبل تحميل هذه الصفحة.
+// عند وجوده يُستخدَم بدل بلوتوث/window.print تماماً (طابعة Sunmi V2 المدمجة ليست جهاز Bluetooth
+// يمكن لـ Web Bluetooth الوصول إليه، ولا نافذة طباعة النظام تصل إليها افتراضياً؛ تحتاج SDK أندرويد
+// الخاص بها — راجع تقرير الميزة). لا تغيير إطلاقاً على أي جهاز آخر لا يحقن هذا الكائن.
+//
+// العقد المتوقَّع من التطبيق الأصلي (يُبنى مقابله بشكل منفصل):
+//   window.AtharPrinter.printEscPos(base64Data: string): string
+//     base64Data: بايتات ESC/POS الكاملة (نفس مخرَج buildReceiptEscPos) مُرمَّزة Base64 قياسي.
+//     المُخرَج: نص JSON متزامن — إما {"success": true} أو {"success": false, "error": "..."}
+//     (رسالة الخطأ بالعربية إن أمكن؛ ستُعرَض للمستخدم كما هي).
+export function hasNativePrinterBridge() {
+  return typeof window !== "undefined" && typeof window.AtharPrinter?.printEscPos === "function";
+}
+
+/** يحوّل بايتات خام إلى Base64 على دفعات (بلا نشر المصفوفة بالكامل كوسائط لـ String.fromCharCode
+ * دفعة واحدة، الذي يفشل على مصفوفات كبيرة نسبياً كصورة QR النقطية). */
+export function bytesToBase64(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+/** يُرسِل عبر الجسر الأصلي إن وُجد، ويرمي خطأً واضحاً من نص الخطأ الذي يعيده التطبيق عند الفشل. */
+export function printViaNativeBridge(bytes) {
+  const resultJson = window.AtharPrinter.printEscPos(bytesToBase64(bytes));
+  let result;
+  try {
+    result = JSON.parse(resultJson);
+  } catch {
+    throw new Error("رد غير متوقَّع من تطبيق الطباعة");
+  }
+  if (!result?.success) throw new Error(result?.error || "تعذّرت الطباعة عبر تطبيق أثر");
+}
