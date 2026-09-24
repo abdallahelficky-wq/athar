@@ -17,8 +17,8 @@
 //      مشوَّهاً حسب دقة رأس الطباعة الفعلي. لهذا بالتحديد إعداد printLogo في posLocalSettings.js
 //      قابل للتعطيل بسهولة من شاشة إعدادات نقطة البيع (PosSettingsScreen.jsx) بلا لمس الكود.
 import QRCode from "qrcode";
-import { RECEIPT_LOGO_WIDTH, RECEIPT_LOGO_HEIGHT, RECEIPT_LOGO_RASTER_BASE64 } from "./receiptLogo";
-import { loadPrinterSettings } from "./posLocalSettings";
+import { RECEIPT_LOGO_WIDTH, RECEIPT_LOGO_HEIGHT, RECEIPT_LOGO_RASTER_BASE64 } from "./receiptLogo.js";
+import { loadPrinterSettings } from "./posLocalSettings.js";
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -55,6 +55,12 @@ class EscPosBuilder {
 
   divider(width) {
     return this.line("-".repeat(width));
+  }
+
+  /** يطبع نصاً طويلاً (عنوان) ملتفّاً على عدة أسطر ضمن عرض الورق — راجع wrapText أدناه. */
+  lineWrapped(text, width) {
+    for (const line of wrapText(text, width)) this.line(line);
+    return this;
   }
 
   feed(lines = 1) {
@@ -145,12 +151,67 @@ function base64ToBytes(b64) {
   return bytes;
 }
 
+/** يقسّم نصاً طويلاً (عنوان غالباً) إلى أسطر لا تتجاوز عرض الورق بالأحرف — التفاف على حدود الكلمات
+ * لا بتر، حتى لا يُفقَد أي جزء من عنوان إلزامي (زاتكا) لمجرد ضيق الورق. كلمة مفردة أطول من العرض
+ * نفسه (نادر جداً في عنوان فعلي) تُقسَّم قسراً حرفاً حرفاً بدل تجاوزها لحافة الورق فعلياً. */
+function wrapText(text, width) {
+  if (!text) return [];
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let current = "";
+  for (let word of words) {
+    while (word.length > width) {
+      if (current) { lines.push(current); current = ""; }
+      lines.push(word.slice(0, width));
+      word = word.slice(width);
+    }
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length > width && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+/** عنوان بريدي مُجمَّع من أجزائه (مبنى، شارع، مدينة) بنفس الترتيب والفاصل المُستخدَمين أصلاً في
+ * companyAddress/customerAddress بقالب إيميل الفاتورة (راجع salesInvoiceEmail.service.ts) — بلا
+ * حي/رمز بريدي هنا لأنهما غير معروضين هناك أيضاً، حتى يبقى "العنوان الكامل" متسقاً عبر النظام. */
+function joinAddressParts(parts) {
+  return parts.filter(Boolean).join("، ");
+}
+
+/**
+ * نص حالة زاتكا للطباعة — مُشتَقّ من invoice.zatcaStatus الفعلي المخزَّن على الفاتورة (لا نص ثابت
+ * بصرف النظر عن الحالة الحقيقية): "cleared" لفاتورة قياسية خُلِّصت فعلياً، "reported" لفاتورة
+ * مبسّطة أُبلِغت فعلياً (راجع تعليق enum ZatcaDocumentStatus في schema.prisma). أي حالة أخرى
+ * (not_applicable/not_submitted/rejected/submission_failed/certificate_error/compliance_checked)
+ * تعني أن زاتكا لم تقبل المستند فعلياً بعد — لا شيء يُطبَع، لا رسالة تخمينية مضلِّلة.
+ */
+function zatcaAcceptanceLine(zatcaStatus) {
+  if (zatcaStatus === "cleared") return "تم تخليص الفاتورة إلكترونياً (زاتكا) — Cleared";
+  if (zatcaStatus === "reported") return "تم إبلاغ الفاتورة إلكترونياً (زاتكا) — Reported";
+  return null;
+}
+
 /**
  * يبني بايتات ESC/POS كاملة لإيصال بيع من بيانات الفاتورة — عرض العمود (بالأحرف) يعتمد على
  * مقاس الورق: 32 حرفاً تقريباً لـ 58مم، 48 حرفاً لـ 80مم (بخط قياسي على أغلب الطابعات الحرارية).
+ *
+ * الحقول الإلزامية زاتكا المضافة هنا (راجع تقرير التحقق من المصدر الذي سبق هذا التعديل):
+ *   - بيانات البائع (اسم/رقم ضريبي/عنوان كامل) تُطبَع دائماً بصرف النظر عن نوع الفاتورة — كتلة
+ *     AccountingSupplierParty في xmlBuilder.ts غير مشروطة بالـsubtype إطلاقاً، خلافاً للمشتري.
+ *   - بيانات المشتري (اسم/عنوان كامل/رقم ضريبي) الثلاثة تُطبَع فقط لفاتورة قياسية (invoiceType
+ *     === "standard") — buildBuyerBlock في xmlBuilder.ts ونوعها في types.ts يشترطان بيانات
+ *     المشتري لهذا النوع تحديداً؛ الفاتورة المبسّطة تبقى بلا عنوان/رقم ضريبي للعميل (غير مطلوبين
+ *     زاتكا لها، راجع buildDocumentXml الذي يترك AccountingCustomerParty فارغة تماماً لها).
  */
 export function buildReceiptEscPos({ company, invoice, lastEmailOrNote }, paperWidthMm) {
   const width = paperWidthMm === 58 ? 32 : 48;
+  const isStandard = invoice.invoiceType === "standard";
   const b = new EscPosBuilder();
 
   // شعار أثر التجارية (لا شعار الشركة) — يُطبَع أولاً أعلى كل شيء، ويُعطَّل بالكامل عبر إعداد
@@ -159,14 +220,24 @@ export function buildReceiptEscPos({ company, invoice, lastEmailOrNote }, paperW
     b.align(1).logoImage().feed(1);
   }
 
+  // --- كتلة البائع: اسم + رقم ضريبي + عنوان كامل، دائماً بصرف النظر عن نوع الفاتورة ---
   b.align(1).doubleSize(true).bold(true).line(company?.name || "").doubleSize(false).bold(false);
   if (company?.vatNumber) b.align(1).line(`الرقم الضريبي: ${company.vatNumber}`);
+  const sellerAddress = joinAddressParts([company?.addressBuilding, company?.addressStreet, company?.addressCity]);
+  if (sellerAddress) b.align(1).lineWrapped(`العنوان: ${sellerAddress}`, width);
   b.align(1).divider(width);
 
   b.align(0);
   b.line(`فاتورة رقم: ${invoice.invoiceNumber}`);
   b.line(`التاريخ: ${new Date(invoice.date).toLocaleString("ar-SA")}`);
+
+  // --- كتلة المشتري: الاسم فقط للمبسّطة؛ + عنوان كامل ورقم ضريبي إضافيين للقياسية ---
   b.line(`العميل: ${invoice.customer?.name || "عميل نقدي"}`);
+  if (isStandard) {
+    if (invoice.customer?.vatNumber) b.line(`الرقم الضريبي للعميل: ${invoice.customer.vatNumber}`);
+    const buyerAddress = joinAddressParts([invoice.customer?.buildingNo, invoice.customer?.street, invoice.customer?.city]);
+    if (buyerAddress) b.lineWrapped(`عنوان العميل: ${buyerAddress}`, width);
+  }
   b.divider(width);
 
   for (const line of invoice.lines || []) {
@@ -183,6 +254,16 @@ export function buildReceiptEscPos({ company, invoice, lastEmailOrNote }, paperW
   b.align(0);
 
   if (lastEmailOrNote) b.line(lastEmailOrNote);
+
+  // اسم مُصدِر الفاتورة (المستخدم الذي أنشأها فعلياً) — يصل جاهزاً على invoice.issuedByName من
+  // الخادم (pos.service.ts لفاتورة طازجة، getSalesInvoice لإعادة طباعة فاتورة سابقة عبر القيد
+  // المحاسبي المرتبط بها)؛ لا سطر إن تعذّر تحديده (فاتورة بلا قيد محاسبي مرتبط بعد، نادر).
+  if (invoice.issuedByName) b.align(0).line(`البائع: ${invoice.issuedByName}`);
+
+  // حالة زاتكا الفعلية المخزَّنة على الفاتورة — لا شيء يُطبَع إن لم تُقبَل بعد (راجع تعليق
+  // zatcaAcceptanceLine أعلاه لسبب استبعاد كل الحالات الأخرى عمداً).
+  const zatcaLine = zatcaAcceptanceLine(invoice.zatcaStatus);
+  if (zatcaLine) b.align(1).line(zatcaLine);
 
   // رمز زاتكا (QR) للفاتورة الضريبية المبسّطة — إلزامي على الإيصال المطبوع (متطلب امتثال، وليس
   // شكلياً)، ونفس qrPayload المخزَّن على الفاتورة والمعروض أصلاً في شاشة عرض الفاتورة العادية.

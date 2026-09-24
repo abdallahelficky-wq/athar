@@ -369,10 +369,29 @@ export async function listZatcaBacklog(tenantId: string, filters: { companyId?: 
   }));
 }
 
+/**
+ * اسم مُصدِر الفاتورة الفعلي — لا حقل مباشر على SalesInvoice نفسها لهذا الغرض، فيُشتَق من
+ * JournalEntry.createdBy (userId مُخزَّن نصياً وقت الترحيل، راجع createJournalEntryTx في
+ * createSalesInvoice أعلاه) عبر journalEntryId المحفوظ على الفاتورة، ثم اسم المستخدم من جدوله.
+ * يُستخدَم فقط لطباعة إيصال نقطة البيع (راجع buildReceiptEscPos/ReceiptView) — فاتورة بلا قيد
+ * محاسبي مرتبط بعد (نادر، أو مسار غير POS) تُعيد null بدل رمي خطأ لعنصر عرضي غير حرج.
+ */
+async function resolveIssuedByName(tenantId: string, journalEntryId: string | null): Promise<string | null> {
+  if (!journalEntryId) return null;
+  const entry = await prisma.journalEntry.findFirst({ where: { id: journalEntryId, tenantId }, select: { createdBy: true } });
+  if (!entry?.createdBy) return null;
+  const user = await prisma.user.findFirst({ where: { id: entry.createdBy, tenantId }, select: { name: true } });
+  return user?.name ?? null;
+}
+
 export async function getSalesInvoice(tenantId: string, id: string) {
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
-  return (await withInvoiceCredits(tenantId, [invoice]))[0];
+  const [withCredits, issuedByName] = await Promise.all([
+    withInvoiceCredits(tenantId, [invoice]),
+    resolveIssuedByName(tenantId, invoice.journalEntryId),
+  ]);
+  return { ...withCredits[0], issuedByName };
 }
 
 export async function buildJournalLines(
