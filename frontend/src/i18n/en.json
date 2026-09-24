@@ -1940,6 +1940,7 @@
       "namePlaceholder": "e.g. Senior accountant",
       "allowUnpostLabel": "Allow unposting journal entries",
       "allowPosDeferredSaleLabel": "Allow credit sales (no immediate payment) at point of sale",
+      "allowPosPriceOverrideLabel": "Allow manually overriding the item price at point of sale",
       "empty": "No positions created yet.",
       "noMembers": "No members assigned to this position yet.",
       "chooseUser": "— Choose a user —",
@@ -2305,6 +2306,7 @@
       "cashCustomer": "Cash customer",
       "changeCustomer": "Change ›",
       "emptyCart": "Cart is empty — search or scan an item",
+      "priceIncludesVat": "Price includes VAT",
       "removeBtn": "Remove",
       "totalLabel": "Total",
       "proceedBtn": "Proceed to payment",
@@ -2390,6 +2392,35 @@
     "scanner": {
       "header": "Point the camera at the barcode",
       "cameraError": "Couldn't start the camera — make sure permission is granted, or use manual search instead"
+    },
+    "invoicesIconTitle": "Invoices",
+    "invoices": {
+      "title": "Invoices",
+      "empty": "No invoices yet"
+    },
+    "invoiceView": {
+      "title": "Invoice details",
+      "subtotal": "Subtotal",
+      "vat": "VAT",
+      "grandTotal": "Grand total",
+      "qrSummary": "QR code",
+      "printBtn": "🖨 Print",
+      "downloadPdfBtn": "Download PDF",
+      "downloading": "Downloading...",
+      "sendEmailBtn": "Send by email",
+      "sendingEmail": "Sending...",
+      "emailSent": "Invoice sent to {{email}}",
+      "emailFailed": "Couldn't send the invoice by email"
+    },
+    "sendEmailModal": {
+      "title": "Send invoice #{{number}}",
+      "email": "Email address",
+      "errRequired": "Enter an email address",
+      "errFailed": "Couldn't send the invoice by email",
+      "sentMsg": "Invoice #{{number}} sent to {{email}}",
+      "cancel": "Cancel",
+      "send": "Send",
+      "sending": "Sending..."
     }
   },
   "receiptView": {

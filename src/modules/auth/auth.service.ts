@@ -18,7 +18,7 @@ import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../..
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
 import type { Lang } from "../../lib/i18n/translate";
 import type { Tenant, User, Identity } from "@prisma/client";
-import { canUnpostJournalEntries, canDeferPosSale } from "../positions/positions.service";
+import { canUnpostJournalEntries, canDeferPosSale, canOverridePosPrice } from "../positions/positions.service";
 
 const TRIAL_DAYS = 30;
 const INVITE_EXPIRES_DAYS = 7;
@@ -72,6 +72,7 @@ async function publicUserWithPermissions(user: UserWithIdentity, readOnly: boole
     ...publicUser(user),
     canUnpostJournalEntries: await canUnpostJournalEntries(user.tenantId, user.id, user.role),
     canDeferPosSale: await canDeferPosSale(user.tenantId, user.id, user.role),
+    canOverridePosPrice: await canOverridePosPrice(user.tenantId, user.id, user.role),
     readOnly,
   };
 }

@@ -12,13 +12,14 @@ import PaymentScreen from "./screens/PaymentScreen";
 import QuickPaymentScreen from "./screens/QuickPaymentScreen";
 import ReceiptScreen from "./screens/ReceiptScreen";
 import PosSettingsScreen from "./screens/PosSettingsScreen";
+import PosInvoicesScreen from "./screens/PosInvoicesScreen";
 
 function PosShell() {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
   const { companies, companyId, setCompanyId, loading: companiesLoading } = useCompanies();
 
-  const [screen, setScreen] = useState("sale"); // sale | payment | receipt | settings
+  const [screen, setScreen] = useState("sale"); // sale | payment | receipt | settings | invoices
   const [cart, setCart] = useState([]); // [{ itemId, name, unitPrice, quantity, accountId, vatApplicable }]
   const [customer, setCustomer] = useState(null); // null = عميل نقدي افتراضي
   const [lastSale, setLastSale] = useState(null); // { invoice, payments }
@@ -103,21 +104,22 @@ function PosShell() {
         <div className="pos-topbar-actions">
           <span className="pos-user-name">{user?.name}</span>
           <LanguageSwitcher className="pos-icon-btn" />
+          <button className="pos-icon-btn" title={t("pos.invoicesIconTitle")} onClick={() => setScreen("invoices")}>🧾</button>
           <button className="pos-icon-btn" title={t("pos.settingsIconTitle")} onClick={() => setScreen("settings")}>⚙</button>
           <button className="pos-icon-btn" title={t("pos.logoutIconTitle")} onClick={logout}>⎋</button>
         </div>
       </div>
 
       <div className="pos-body">
-        {screen !== "settings" && warehouses === null && <div className="pos-loading">{t("common.loading")}</div>}
+        {screen !== "settings" && screen !== "invoices" && warehouses === null && <div className="pos-loading">{t("common.loading")}</div>}
 
-        {screen !== "settings" && noWarehouseAtAll && (
+        {screen !== "settings" && screen !== "invoices" && noWarehouseAtAll && (
           <div className="pos-loading">
             <p>{t("pos.noWarehouseAtAll")}</p>
           </div>
         )}
 
-        {screen !== "settings" && warehouseMissing && (
+        {screen !== "settings" && screen !== "invoices" && warehouseMissing && (
           <div className="pos-loading">
             <p>{t("pos.warehouseMissing")}</p>
             <button className="pos-big-btn" onClick={() => setScreen("settings")}>{t("pos.openSettingsBtn")}</button>
@@ -153,6 +155,7 @@ function PosShell() {
           <ReceiptScreen company={activeCompany} sale={lastSale} onNewSale={startNewSale} />
         )}
         {screen === "settings" && <PosSettingsScreen companyId={companyId} onClose={closeSettings} />}
+        {screen === "invoices" && <PosInvoicesScreen companyId={companyId} onBack={() => setScreen("sale")} />}
       </div>
     </div>
   );

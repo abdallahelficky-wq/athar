@@ -1940,6 +1940,7 @@
       "namePlaceholder": "مثال: محاسب أول",
       "allowUnpostLabel": "السماح بفك ترحيل القيود",
       "allowPosDeferredSaleLabel": "السماح بالبيع الآجل (بلا دفع فوري) في نقطة البيع",
+      "allowPosPriceOverrideLabel": "السماح بتعديل سعر الصنف يدوياً في نقطة البيع",
       "empty": "لا توجد مناصب مُنشأة بعد.",
       "noMembers": "لا يوجد أعضاء بهذا المنصب بعد.",
       "chooseUser": "— اختر مستخدماً —",
@@ -2305,6 +2306,7 @@
       "cashCustomer": "عميل نقدي",
       "changeCustomer": "تغيير ›",
       "emptyCart": "السلة فارغة — ابحث أو امسح صنفاً",
+      "priceIncludesVat": "السعر شامل الضريبة",
       "removeBtn": "حذف",
       "totalLabel": "الإجمالي",
       "proceedBtn": "متابعة للدفع",
@@ -2390,6 +2392,35 @@
     "scanner": {
       "header": "وجّه الكاميرا نحو الباركود",
       "cameraError": "تعذّر تشغيل الكاميرا — تأكد من منح الإذن، أو استخدم البحث اليدوي بدلاً منه"
+    },
+    "invoicesIconTitle": "الفواتير",
+    "invoices": {
+      "title": "الفواتير",
+      "empty": "لا توجد فواتير بعد"
+    },
+    "invoiceView": {
+      "title": "تفاصيل الفاتورة",
+      "subtotal": "الإجمالي قبل الضريبة",
+      "vat": "الضريبة",
+      "grandTotal": "الإجمالي شامل الضريبة",
+      "qrSummary": "رمز الاستجابة السريعة (QR)",
+      "printBtn": "🖨 طباعة",
+      "downloadPdfBtn": "تحميل PDF",
+      "downloading": "جارٍ التحميل...",
+      "sendEmailBtn": "إرسال بالإيميل",
+      "sendingEmail": "جارٍ الإرسال...",
+      "emailSent": "أُرسلت الفاتورة إلى {{email}}",
+      "emailFailed": "تعذّر إرسال الفاتورة بالإيميل"
+    },
+    "sendEmailModal": {
+      "title": "إرسال فاتورة رقم {{number}}",
+      "email": "البريد الإلكتروني",
+      "errRequired": "أدخل بريداً إلكترونياً",
+      "errFailed": "تعذّر إرسال الفاتورة بالإيميل",
+      "sentMsg": "أُرسلت الفاتورة رقم {{number}} إلى {{email}}",
+      "cancel": "إلغاء",
+      "send": "إرسال",
+      "sending": "جارٍ الإرسال..."
     }
   },
   "receiptView": {

@@ -10,6 +10,11 @@
 //   ٢) خدمة/خاصية البلوتوث (service/characteristic UUID): لا يوجد معيار موحّد بين الشركات
 //      المصنّعة لطابعات BLE الرخيصة؛ الكود أدناه يجرّب أشهر المعرّفات المُلاحَظة فعلياً في هذه
 //      الفئة من الطابعات بالترتيب، ويستخدم أول قناة كتابة (write/writeWithoutResponse) يجدها.
+//   ٣) رمز QR (GS v 0 صورة نقطية، راجع qrImage أدناه) — أمر قياسي مدعوم على نطاق واسع، لكن نفس
+//      تحفّظ عدم الاختبار الفعلي أعلاه ينطبق عليه: حجم/دقة الطباعة (moduleScale) قد يحتاج ضبطاً
+//      بعد اختبار حقيقي للتأكد من قابلية مسح الرمز ضوئياً على الورق الفعلي.
+import QRCode from "qrcode";
+
 const ESC = 0x1b;
 const GS = 0x1d;
 
@@ -52,11 +57,42 @@ class EscPosBuilder {
     return this;
   }
 
-  qrImage(dataUrlImageBytes) {
-    // إدراج QR كصورة نقطية (raster) بدل أمر QR الأصلي في الطابعة — أبسط وأكثر توافقاً عبر
-    // الموديلات المختلفة (لا يعتمد على دعم أمر GS ( k الخاص بـ QR الذي يختلف تنفيذه بين الشركات).
-    // يُترَك التنفيذ الفعلي (تحويل الصورة لبكسلات وحزمها كـ GS v 0) لمرحلة لاحقة بعد اختبار حقيقي
-    // للتأكد من دقة تفسير كل طابعة لأمر الصورة النقطية — حالياً نكتفي برابط/نص QR كبديل نصي.
+  /**
+   * يُدرج رمز QR (رمز زاتكا للفاتورة الضريبية المبسّطة إلزامي على الإيصال المطبوع، وليس رفاهية)
+   * كصورة نقطية (raster) عبر أمر GS v 0 القياسي — أوسع توافقاً بين طرازات الطابعات من أمر GS ( k
+   * الخاص برموز QR الأصلية في الطابعة (تنفيذه غير موحّد بين الشركات المصنِّعة)، ولا يعتمد على أي
+   * قدرة QR مدمجة في الطابعة أصلاً. QRCode.create من نفس مكتبة qrcode المستخدمة لعرض الرمز في
+   * شاشة الفاتورة العادية (legacy/shared.jsx) — نفس البيانات (qrPayload) ونفس الترميز، فقط بمخرج
+   * مصفوفة وحدات خام (modules) بدل صورة DOM. هامش أبيض (marginModules) حول الرمز ضروري لقابلية
+   * المسح الضوئي (منطقة هادئة/quiet zone حسب مواصفة QR)، وmoduleScale يحدد حجم كل وحدة بالنقاط.
+   */
+  qrImage(payload, { moduleScale = 4, marginModules = 4 } = {}) {
+    const qr = QRCode.create(payload, { errorCorrectionLevel: "M" });
+    const qrSize = qr.modules.size;
+    const finalSize = qrSize + marginModules * 2;
+    const matrix = new Uint8Array(finalSize * finalSize);
+    for (let y = 0; y < qrSize; y++) {
+      for (let x = 0; x < qrSize; x++) {
+        matrix[(y + marginModules) * finalSize + (x + marginModules)] = qr.modules.data[y * qrSize + x];
+      }
+    }
+
+    const dotSize = finalSize * moduleScale;
+    const widthBytes = Math.ceil(dotSize / 8);
+    const rows = new Uint8Array(widthBytes * dotSize);
+    for (let row = 0; row < dotSize; row++) {
+      const moduleRow = Math.floor(row / moduleScale);
+      for (let col = 0; col < dotSize; col++) {
+        if (matrix[moduleRow * finalSize + Math.floor(col / moduleScale)]) {
+          rows[row * widthBytes + Math.floor(col / 8)] |= 0x80 >> (col % 8);
+        }
+      }
+    }
+
+    // GS v 0 m xL xH yL yH d1...dk — m=0 (وضع عادي)، عرض الصورة بالبايتات (xL/xH) وارتفاعها
+    // بالنقاط (yL/yH) بترتيب little-endian 16-بت، ثم بيانات الصورة صفاً صفاً (كل بت = نقطة).
+    this.chunks.push(byte(GS, 0x76, 0x30, 0x00, widthBytes & 0xff, (widthBytes >> 8) & 0xff, dotSize & 0xff, (dotSize >> 8) & 0xff));
+    this.chunks.push(rows);
     return this;
   }
 
@@ -115,6 +151,13 @@ export function buildReceiptEscPos({ company, invoice, lastEmailOrNote }, paperW
   b.align(0);
 
   if (lastEmailOrNote) b.line(lastEmailOrNote);
+
+  // رمز زاتكا (QR) للفاتورة الضريبية المبسّطة — إلزامي على الإيصال المطبوع (متطلب امتثال، وليس
+  // شكلياً)، ونفس qrPayload المخزَّن على الفاتورة والمعروض أصلاً في شاشة عرض الفاتورة العادية.
+  if (invoice.qrPayload) {
+    const moduleScale = paperWidthMm === 58 ? 4 : 5;
+    b.align(1).feed(1).qrImage(invoice.qrPayload, { moduleScale }).feed(1);
+  }
 
   b.align(1).feed(1).line("شكراً لتعاملكم معنا");
   b.cut();

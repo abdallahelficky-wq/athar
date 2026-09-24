@@ -15,7 +15,7 @@ export const createPosSaleHandler: RequestHandler = async (req, res) => {
   if (isDeferred && !(await hasPermission(req.auth!, "sales", "posDeferredSale"))) {
     throw forbidden("منصبك الوظيفي لا يملك صلاحية تسجيل بيع آجل (بلا دفع) في نقطة البيع");
   }
-  const result = await createPosSale(req.auth!.tenantId, req.auth!.sub, req.body);
+  const result = await createPosSale(req.auth!.tenantId, req.auth!.sub, req.auth!.role, req.body);
   res.status(201).json(result);
 };
 

@@ -51,6 +51,30 @@ interface InvoiceInput {
   // مستودع محدَّد صراحةً (مثلاً من إعدادات جهاز نقطة بيع) يتجاوز مستودع الشركة الافتراضي —
   // اختياري: الفواتير العادية (شاشة فواتير المبيعات) تستمر باستخدام المستودع الافتراضي كما هي.
   warehouseId?: string;
+  // سجلات تدقيق لتعديلات سعر الوحدة اليدوية في نقطة البيع (posPriceOverride) — يملأها pos.service.ts
+  // فقط بعد التحقق من الصلاحية؛ فواتير المبيعات العادية لا تمرّرها إطلاقاً فتبقى []. تُكتَب داخل نفس
+  // معاملة إنشاء الفاتورة (المرحلة 1) حتى لا يُفقَد تعديل سعر أبداً حتى لو حدث خطأ لاحقاً غير محاسبي.
+  priceOverridesToAudit?: Array<{ itemId: string; originalPrice: number; newPrice: number }>;
+}
+
+async function writePriceOverrideAuditLogsTx(
+  tx: Tx,
+  tenantId: string,
+  userId: string,
+  invoiceId: string,
+  overrides: Array<{ itemId: string; originalPrice: number; newPrice: number }> | undefined,
+) {
+  if (!overrides?.length) return;
+  await tx.auditLog.createMany({
+    data: overrides.map((o) => ({
+      tenantId,
+      userId,
+      action: "pos_sale.price_override",
+      entityType: "SalesInvoice",
+      entityId: invoiceId,
+      metadata: { itemId: o.itemId, originalPrice: o.originalPrice, newPrice: o.newPrice } as Prisma.InputJsonValue,
+    })),
+  });
 }
 
 /** يحل المستودع الفعلي المطلوب خصم المخزون منه: المستودع المُمرَّر صراحةً (بعد التحقق أنه ينتمي
@@ -478,6 +502,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
         await counted(counter1, tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } }));
         await counted(counter1, createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, itemById, input.warehouseId));
         await counted(counter1, accrueTrainerCommissionsTx(tx, tenantId, input.companyId, invoice.id, userId));
+        await writePriceOverrideAuditLogsTx(tx, tenantId, userId, invoice.id, input.priceOverridesToAudit);
         return { kind: "done" as const, invoice: withPaymentStatus(invoice) };
       }
       const invoice = await counted(counter1, tx.salesInvoice.create({
@@ -492,6 +517,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
         },
         include: invoiceInclude,
       }));
+      await writePriceOverrideAuditLogsTx(tx, tenantId, userId, invoice.id, input.priceOverridesToAudit);
       return { kind: "pending" as const, invoice, xml: chain.xml, subtype: chain.subtype };
     }, { timeout: 8000 });
     phase1Outcome = "committed";

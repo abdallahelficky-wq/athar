@@ -77,6 +77,14 @@
 .pos-cart-line-info { display: flex; justify-content: space-between; margin-bottom: 6px; }
 .pos-cart-line-name { font-weight: 700; font-size: 14px; }
 .pos-cart-line-price { font-size: 12.5px; color: #6b7280; }
+.pos-cart-line-price-edit { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #6b7280; }
+.pos-price-input {
+  width: 70px; font-weight: 700; font-size: 13px; text-align: center; font-family: inherit;
+  border: 1px solid rgba(16,32,46,0.2); border-radius: 8px; padding: 4px 2px; background: #fff; color: #10202E;
+}
+.pos-price-vat-toggle {
+  display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6b7280; margin-bottom: 6px; cursor: pointer;
+}
 .pos-cart-line-controls { display: flex; align-items: center; gap: 10px; }
 .pos-qty-btn {
   width: 34px; height: 34px; border-radius: 9px; border: none; background: #10202E; color: #fff;
@@ -167,3 +175,66 @@
   .pos-sale-screen { flex-direction: column; }
   .pos-cart { border-right: none; border-top: 1px solid rgba(16,32,46,0.08); max-height: 45vh; }
 }
+
+/* --- إجراءات نافذة منبثقة مرصوصة (إرسال بالإيميل، عرض الفاتورة) --- */
+.pos-modal-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+
+/* --- قائمة فواتير نقطة البيع --- */
+.pos-invoices-screen { flex: 1; padding: 0 14px 14px; overflow-y: auto; width: 100%; max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; }
+.pos-invoices-header {
+  display: flex; align-items: center; justify-content: space-between; padding: 14px 0;
+  font-weight: 800; font-size: 16px; color: #10202E; position: sticky; top: 0; background: #ECE6D6; z-index: 1;
+}
+.pos-invoices-list { display: flex; flex-direction: column; gap: 8px; }
+.pos-invoices-row {
+  display: flex; align-items: center; justify-content: space-between; width: 100%; text-align: right;
+  padding: 12px 14px; background: #fff; border: none; border-radius: 12px; font-family: inherit; cursor: pointer;
+}
+.pos-invoices-row-main, .pos-invoices-row-side { display: flex; flex-direction: column; gap: 3px; }
+.pos-invoices-row-side { align-items: flex-start; }
+.pos-invoices-row-number { font-weight: 800; font-size: 14.5px; color: #10202E; }
+.pos-invoices-row-time { font-size: 12px; color: #8A7C5E; }
+.pos-invoices-row-total { font-weight: 800; font-size: 14.5px; color: #10202E; }
+.pos-invoices-row-status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.pos-invoices-row-status-paid { background: rgba(47,93,90,0.15); color: #2F5D5A; }
+.pos-invoices-row-status-partial { background: rgba(185,139,78,0.2); color: #8A5A2E; }
+.pos-invoices-row-status-unpaid { background: rgba(168,67,43,0.15); color: #A8432B; }
+
+/* --- شريط الترقيم (نفس PaginationBar المشترك) --- */
+.pagination-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(16,32,46,0.15);
+  font-size: 12.5px; color: #45525c;
+}
+.pagination-page-size { display: flex; align-items: center; gap: 6px; }
+.pagination-page-size select {
+  font-family: inherit; border: 1px solid rgba(16,32,46,0.18); border-radius: 8px;
+  padding: 5px 8px; font-size: 12.5px; background: #fff; color: #10202E;
+}
+.pagination-nav { display: flex; align-items: center; gap: 8px; }
+.pagination-page-of { font-family: monospace; }
+.btn-secondary {
+  background: #fff; color: #10202E; border: 1.5px solid rgba(16,32,46,0.28); border-radius: 8px;
+  padding: 8px 14px; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer;
+}
+.btn-secondary:disabled { color: #B7BFC6; border-color: rgba(16,32,46,0.12); cursor: not-allowed; }
+
+/* --- عرض فاتورة سابقة --- */
+.pos-invoice-view-box { max-width: 480px; }
+.pos-invoice-view-meta { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 13px; color: #45525c; }
+.pos-invoice-view-zatca { font-weight: 700; }
+.pos-invoice-view-lines { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.pos-invoice-view-line { display: flex; justify-content: space-between; font-size: 13.5px; padding-bottom: 8px; border-bottom: 1px solid rgba(16,32,46,0.08); }
+.pos-invoice-view-totals { background: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+.pos-invoice-view-totals > div { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13.5px; }
+.pos-invoice-view-grand-total { font-size: 16px; font-weight: 800; color: #10202E; border-top: 1px solid rgba(16,32,46,0.1); margin-top: 4px; padding-top: 8px !important; }
+.pos-invoice-view-qr { margin-bottom: 12px; font-size: 13px; color: #45525c; }
+.pos-invoice-view-qr-payload { word-break: break-all; font-size: 11px; color: #8A7C5E; margin-top: 6px; }
+.pos-invoice-view-notice { color: #2F5D5A; font-size: 13.5px; margin: 8px 0; }
+.pos-invoice-view-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+
+/* --- حالة زاتكا (نفس status-badge المشترك) --- */
+.status-badge { font-weight: 700; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+.status-badge.status-posted { background: rgba(47,93,90,0.15); color: #2F5D5A; }
+.status-badge.status-neutral { background: rgba(16,32,46,0.08); color: #45525c; }
+.status-badge.status-warning { background: rgba(185,139,78,0.2); color: #8A5A2E; }
