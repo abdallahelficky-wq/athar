@@ -468,6 +468,28 @@ describe("searchSalesInvoices (integration)", () => {
     expect(parsed.success).toBe(false);
   });
 
+  // عطل إنتاج فعلي مؤكَّد (راجع PosInvoicesScreen.jsx): كانت شاشة فواتير نقطة البيع تبعث
+  // pageSize=20 افتراضياً — قيمة يرفضها الاختبار أعلاه تحديداً (30 مرفوضة، و20 كذلك، راجع
+  // salesInvoicesSearch.schema.test.ts: "rejects disallowed pageSize" تتضمّن 20 صراحة) — فكان كل
+  // طلب أول لهذه الشاشة يُرفَض قبل الوصول لقاعدة البيانات إطلاقاً، فتظهر القائمة فارغة دوماً بصرف
+  // النظر عن عدد الفواتير المرحّلة الفعلي لهذه الشركة. هذا الاختبار يستخدم بالضبط نفس شكل الطلب
+  // الذي ترسله الشاشة بعد الإصلاح (companyId + page الأولى + حجم صفحة صالح)، ويتحقق أن الشركة التي
+  // لها فواتير مرحّلة فعلياً (مُهيَّأة في beforeAll أعلاه) تظهر نتائجها فعلاً.
+  it("POS invoices screen's request shape (companyId + page 1, valid pageSize) returns rows for a company with posted invoices", async () => {
+    const parsed = searchSalesInvoicesQuerySchema.safeParse({ companyId, page: "1", pageSize: "15" });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+
+    const result = await searchSalesInvoices(tenantId, parsed.data);
+    expect(result.items.length).toBeGreaterThan(0);
+    expect(result.totalCount).toBeGreaterThan(0);
+    expect(result.items.every((row) => row.companyId === companyId)).toBe(true);
+    // بعض تركيبات الاختبار الأخرى في هذا الملف تُضيف أيضاً فواتير مسودة/بانتظار إرسال زاتكا لنفس
+    // الشركة (راجع "summaryDraft"/"summaryPending" أعلاه) — لا فلتر status هنا فتظهر معها، لكن
+    // المهم إثباته هو وصول فواتير *مرحّلة* فعلياً ضمن النتيجة، لا اقتصارها على تلك وحدها.
+    expect(result.items.some((row) => row.status === "posted")).toBe(true);
+  });
+
   it("rejects dateFrom after dateTo before hitting the database", () => {
     const parsed = searchSalesInvoicesQuerySchema.safeParse({ companyId, dateFrom: "2026-03-01", dateTo: "2026-01-01" });
     expect(parsed.success).toBe(false);
