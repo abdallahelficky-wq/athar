@@ -114,6 +114,10 @@ export default function PosSettingsScreen({ companyId, onClose }) {
           <input type="checkbox" checked={settings.autoPrint} onChange={(e) => update({ autoPrint: e.target.checked })} />
           {t("pos.settings.autoPrintLabel")}
         </label>
+        <label className="pos-radio-row">
+          <input type="checkbox" checked={settings.printLogo} onChange={(e) => update({ printLogo: e.target.checked })} />
+          {t("pos.settings.printLogoLabel")}
+        </label>
       </div>
 
       <button className="pos-big-btn" onClick={onClose} disabled={warehouses !== null && warehouses.length > 0 && !warehouseId}>{t("pos.settings.doneBtn")}</button>

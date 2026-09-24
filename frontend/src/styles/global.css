@@ -99,6 +99,9 @@
         .sidebar-nav-scroll::-webkit-scrollbar { width: 4px; }
         .sidebar-nav-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
         .brand { display: flex; align-items: center; gap: 10px; }
+        /* شعار أثر الفعلي (العلامة المربّعة) في رأس الشريط الجانبي — يحل محل الشارة التجريدية
+           السابقة (دائرة + إبرة) بأيقونة العلامة التجارية الحقيقية، بنفس أبعاد الشارة القديمة تقريباً. */
+        .brand-logo-icon { width: 38px; height: 38px; object-fit: contain; flex-shrink: 0; border-radius: 8px; }
         .brand-mark { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #B98B4E; position: relative; flex-shrink: 0; }
         .brand-mark::before {
           content: ''; position: absolute; top: 50%; left: 50%;
@@ -1303,6 +1306,9 @@
         .auth-root { width: 100%; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #ECE6D6; padding: 30px; }
         .auth-card { background: #FBF9F3; border-radius: 18px; padding: 40px 38px; max-width: 420px; width: 100%; box-shadow: 0 10px 40px rgba(16,32,46,0.08); }
         .auth-brand { justify-content: center; margin-bottom: 26px; }
+        /* شعار أثر الأفقي (علامة + اسم عربي مدمجَين) في أعلى بطاقة الدخول — البطاقة عريضة كفاية
+           (max-width: 420px) لعرضه كاملاً بدل الاكتفاء بالعلامة المربّعة فقط. */
+        .auth-logo { display: block; max-width: 220px; width: 100%; height: auto; margin: 0 auto 22px; }
         .auth-title { text-align: center; font-size: 20px; margin: 0 0 24px; }
         .auth-form { display: flex; flex-direction: column; gap: 14px; }
         .auth-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: #445565; font-weight: 500; }

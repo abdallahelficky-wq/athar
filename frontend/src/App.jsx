@@ -151,7 +151,7 @@ function AppShell() {
       {isMobileSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsMobileSidebarOpen(false)} />}
       <div className={"sidebar" + (isMobileSidebarOpen ? " sidebar-open" : "")}>
         <div className="brand">
-          <div className="brand-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
+          <img src="/brand/athar-logo-square.png" alt={t("common.brandName")} className="brand-logo-icon" />
           <div>
             <div className="brand-name">{t("common.brandName")}</div>
             <div className="brand-sub">{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</div>

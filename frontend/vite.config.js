@@ -67,7 +67,7 @@ export default defineConfig({
       // الخاص بها (مذكور أولاً في <head> قبل الرابط المحقون تلقائياً) لمنحها هوية/أيقونة مستقلة
       // عند "إضافة للشاشة الرئيسية" — تكرار الرابط غير مؤذٍ عملياً (المتصفحات تعتمد أول رابط تصادفه).
       manifestFilename: "manifest.webmanifest",
-      includeAssets: ["icons/favicon-32.png", "icons/apple-touch-icon.png"],
+      includeAssets: ["icons/favicon.ico", "icons/favicon-16.png", "icons/favicon-32.png", "icons/apple-touch-icon.png"],
       manifest: {
         name: "أثر المحاسبي",
         short_name: "أثر",

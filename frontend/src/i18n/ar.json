@@ -2375,6 +2375,7 @@
       "paper58": "58 مم",
       "paper80": "80 مم",
       "autoPrintLabel": "طباعة تلقائية بعد كل عملية بيع",
+      "printLogoLabel": "طباعة شعار أثر أعلى الإيصال",
       "doneBtn": "تم"
     },
     "customerPicker": {
