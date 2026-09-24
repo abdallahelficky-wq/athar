@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -46,6 +47,13 @@ import java.util.concurrent.TimeUnit
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
+
+    // مضيف الصفحة المُحمَّلة حالياً في الـWebView — يُحدَّث فقط عند تنقّل الإطار الرئيسي فعلياً
+    // (onPageStarted لا يُستدعى لإطارات فرعية/موارد داخلية)، ويُقرَأ من خيط جسر جافاسكربت الخلفي في
+    // printEscPos؛ لذا @Volatile لضمان رؤية القيمة الأحدث عبر الخيوط بلا حاجة لقفل صريح لقراءة/كتابة
+    // بسيطة كهذه. راجع isPrinterOriginAllowed لسبب وجوده أصلاً (تقييد جسر الطباعة على أصل مسموح).
+    @Volatile
+    private var currentPageHost: String? = null
 
     // --- ربط خدمة طابعة Sunmi المدمجة (woyou.aidlservice.jiuiv5) ---
     private var printerService: IWoyouService? = null
@@ -153,7 +161,12 @@ class MainActivity : AppCompatActivity() {
         // IndexedDB يعمل تلقائياً في WebView الحديثة (Chromium) بمجرد تفعيل domStorageEnabled —
         // لا خاصية WebSettings منفصلة له.
 
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                currentPageHost = runCatching { Uri.parse(url).host }.getOrNull()
+            }
+        }
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
@@ -293,10 +306,20 @@ class MainActivity : AppCompatActivity() {
     //   window.AtharPrinter.printEscPos(base64Data: string): string
     // يعيد نص JSON متزامن {"success": true} أو {"success": false, "error": "..."}. راجع README.md
     // لشرح كامل لمعنى "success" هنا بالضبط (قبول البيانات من الخدمة، لا تأكيد الطباعة الفعلية).
+    //
+    // هذا الجسر مُتاح لأي صفحة تُحمَّل في الـWebView (رابط الخادم قابل للتعديل من المستخدم)، فلا
+    // يكفي الاعتماد على أن المستخدم لن يُدخل رابطاً خاطئاً/ضاراً — printEscPos يرفض العمل صراحةً ما
+    // لم يكن مضيف الصفحة الحالية ضمن allowed-hosts (راجع isPrinterOriginAllowed أدناه وREADME.md)،
+    // وإلا فبإمكان أي صفحة غير موثوقة يُحمِّلها الجهاز طباعة بايتات ESC/POS خام تعسفاً على طابعة
+    // المحل الفعلية.
     // =========================================================================================
     inner class AtharPrinterBridge {
         @JavascriptInterface
         fun printEscPos(base64Data: String): String {
+            if (!isPrinterOriginAllowed()) {
+                Log.w(TAG, "printEscPos مرفوض — المضيف الحالي ($currentPageHost) خارج القائمة المسموحة")
+                return errorJson(getString(R.string.printer_origin_not_allowed))
+            }
             return try {
                 val service = awaitPrinterService(PRINTER_BIND_TIMEOUT_MS)
                     ?: return errorJson(getString(R.string.printer_service_unavailable))
@@ -335,6 +358,16 @@ class MainActivity : AppCompatActivity() {
         return printerService
     }
 
+    /** يسمح بجسر الطباعة فقط للمضيف الحالي المُحمَّل فعلياً في الـWebView — انظر
+     * PRINTER_ALLOWED_HOST_SUFFIXES/PRINTER_ALLOWED_EXACT_HOSTS وREADME.md لقائمة المضيفين المسموحة
+     * والتعليمات على توسيعها عمداً. المطابقة على المضيف فقط (لا المخطط/المنفذ) كافية هنا: النطاق
+     * المُشترَك (atharerp.com) يُملَكه أثر، وlocalhost مقصور فعلياً على جهاز التطوير نفسه. */
+    private fun isPrinterOriginAllowed(): Boolean {
+        val host = currentPageHost?.lowercase() ?: return false
+        if (PRINTER_ALLOWED_EXACT_HOSTS.contains(host)) return true
+        return PRINTER_ALLOWED_HOST_SUFFIXES.any { host == it || host.endsWith(".$it") }
+    }
+
     private fun successJson(): String = JSONObject().put("success", true).toString()
 
     private fun errorJson(message: String): String = JSONObject().put("success", false).put("error", message).toString()
@@ -365,6 +398,12 @@ class MainActivity : AppCompatActivity() {
         private const val TAG = "AtharPos"
         private const val PRINTER_SERVICE_PACKAGE = "woyou.aidlservice.jiuiv5"
         private const val PRINTER_SERVICE_ACTION = "woyou.aidlservice.jiuiv5.IWoyouService"
+
+        // القائمة المسموحة لتشغيل جسر الطباعة (window.AtharPrinter) — عدِّلها عمداً عند الحاجة فقط،
+        // راجع README.md لنفس القائمة موثَّقة للقارئ. مطابقة النطاقات الفرعية بلاحقة ".domain" (لا
+        // startsWith) لتفادي تطابق مضيف زائف مثل "evilatharerp.com".
+        private val PRINTER_ALLOWED_HOST_SUFFIXES = listOf("atharerp.com")
+        private val PRINTER_ALLOWED_EXACT_HOSTS = setOf("localhost")
         private const val PRINTER_BIND_TIMEOUT_MS = 3000L
     }
 }

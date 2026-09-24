@@ -42,6 +42,30 @@ If the printer service can't be reached at all — not installed, or `bindServic
 after 3 seconds — `printEscPos` returns `{"success": false, "error": "..."}` immediately instead,
 so the web page can show a real error rather than a false "success".
 
+## Printer bridge is restricted to allowed hosts
+
+The server URL is user-editable (see "Setting the server URL" below), and `window.AtharPrinter` is
+injected into every page the WebView loads. Without a check, any page the device is ever pointed
+at — including one reached by mistake, a bad redirect, or a maliciously reconfigured "server URL"
+— could call `printEscPos` and print arbitrary raw ESC/POS bytes to the shop's physical printer.
+
+To prevent that, `printEscPos` first checks the **host of the page currently loaded in the
+WebView** (tracked via `WebViewClient.onPageStarted`, which only fires for real top-level
+navigations, not iframes/sub-resources) against an allowlist, and returns
+`{"success": false, "error": "..."}` immediately — without touching the printer service at all —
+if the current host isn't on it. The check is on the host only (matched by exact value or a
+leading-dot suffix, so `evilatharerp.com` does not match `atharerp.com`), not the scheme or port.
+
+**Allowed hosts** (see `PRINTER_ALLOWED_HOST_SUFFIXES` / `PRINTER_ALLOWED_EXACT_HOSTS` at the
+bottom of `MainActivity.kt`):
+
+- `atharerp.com` and any subdomain of it (e.g. `shop1.atharerp.com`)
+- `localhost` (exact match only — for local development)
+
+Extend this list deliberately (e.g. adding a staging domain) by editing those two constants; don't
+widen it casually, since it's the only thing standing between an untrusted page and physical
+control of the printer.
+
 ## Download handling
 
 The POS downloads files (e.g. the invoice PDF) by fetching them as a `Blob`, calling

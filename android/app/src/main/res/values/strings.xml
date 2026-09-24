@@ -8,6 +8,7 @@
     <string name="settings_save">حفظ</string>
     <string name="settings_invalid_url">أدخل رابطاً صحيحاً يبدأ بـ http:// أو https://</string>
 
+    <string name="printer_origin_not_allowed">الطباعة غير مسموحة من هذا الرابط</string>
     <string name="printer_service_unavailable">خدمة طابعة Sunmi غير متاحة على هذا الجهاز</string>
     <string name="printer_send_failed">تعذّر إرسال البيانات لخدمة الطباعة</string>
     <string name="printer_run_failed">فشلت الطابعة في تنفيذ أمر الطباعة</string>
