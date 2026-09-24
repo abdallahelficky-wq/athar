@@ -349,7 +349,13 @@ function RootRoute() {
 
   if (initializing) return null;
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
-  return <LandingPage onGoLogin={() => navigate("/login")} onGoRegister={() => navigate("/register")} />;
+  return (
+    <LandingPage
+      onGoLogin={() => navigate("/login")}
+      onGoRegister={() => navigate("/register")}
+      onGoDownload={() => navigate("/download")}
+    />
+  );
 }
 
 function LoginRoute() {
