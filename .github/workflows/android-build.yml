@@ -32,8 +32,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
-
+      # ubuntu-latest يأتي بحزمة SDK أندرويد مثبَّتة مسبقاً (ANDROID_HOME/ANDROID_SDK_ROOT مُعدّان
+      # تلقائياً) — android-actions/setup-android@v3 فشل هنا فعلياً (يطلب حزمة "tools" القديمة التي
+      # أزالتها جوجل من مستودعها، sdkmanager يرفضها بخطأ "Failed to find package 'tools'")، فلا حاجة
+      # له إطلاقاً؛ AGP نفسه يُنزِّل أي إصدار platform/build-tools محدَّد في app/build.gradle.kts
+      # وغير موجود مسبقاً، والتراخيص الشائعة مقبولة مسبقاً على صورة هذا المُشغِّل.
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
