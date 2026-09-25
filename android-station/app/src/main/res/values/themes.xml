@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- كحلي أيقونة التطبيق نفسها + نحاسي الرمز — تناسق بصري فقط. -->
+    <style name="Theme.AtharStation" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#1C203E</item>
+        <item name="colorPrimaryDark">#1C203E</item>
+        <item name="colorAccent">#C46228</item>
+    </style>
+</resources>

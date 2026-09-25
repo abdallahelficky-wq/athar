@@ -128,11 +128,18 @@
     "appName": "Athar POS",
     "version": "Version {{version}}",
     "description": "Point-of-sale app for Android devices (Sunmi V2 with a built-in thermal printer) — runs on your device without a separate browser.",
-    "downloadBtn": "Download the app (APK)",
     "stepsTitle": "Install steps",
     "step1": "In your device settings, allow \"Install from unknown sources\" for the browser you'll use to download the file.",
-    "step2": "Open the downloaded athar-pos.apk file, then tap \"Install\".",
-    "disclaimer": "Debug build — not yet tested on a real Sunmi V2 device."
+    "disclaimer": "Debug build — not yet tested on a real Sunmi V2 device.",
+    "audience": "For Sunmi V2 cashier devices at points of sale",
+    "downloadBtnFor": "Download {{app}} (APK)",
+    "stepOpenFile": "Open the downloaded {{fileName}} file, then tap \"Install\".",
+    "station": {
+      "appName": "Athar Station",
+      "audience": "For fuel-station workers — on any Android phone",
+      "description": "Fuel-station shift app: photograph pump meters and expense receipts and submit the shift straight from the camera, without a separate browser.",
+      "disclaimer": "Debug build — photo capture was tested on an Android emulator, not yet on a real worker's phone."
+    }
   },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },

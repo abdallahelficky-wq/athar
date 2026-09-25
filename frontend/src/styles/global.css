@@ -1339,6 +1339,11 @@
         .download-steps-title { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
         .download-steps ol { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; line-height: 1.6; color: #445565; }
         .download-disclaimer { color: #8A7C5E; }
+        /* تطبيقان في نفس البطاقة (نقطة البيع ثم عامل المحطة) — فاصل واضح بين كل مدخل والذي يليه */
+        .download-entry { display: flex; flex-direction: column; }
+        .download-entry + .download-entry { margin-top: 28px; padding-top: 28px; border-top: 2px solid rgba(16,32,46,0.12); }
+        .download-app-icon { width: 72px; height: 72px; margin: 0 auto 10px; border-radius: 18px; box-shadow: 0 2px 8px rgba(16,32,46,0.18); }
+        .download-audience { text-align: center; margin: 0 0 8px; font-size: 13px; font-weight: 700; color: #2F5D5A; }
 
         @media (max-width: 480px) {
           .download-card { padding: 30px 22px; }
