@@ -12,6 +12,8 @@
 // ⚠️ لا تُعدَّل هذه الازدواجية اللغوية مستقبلاً لجعلها تتبع لغة الواجهة/الشركة (i18n) — هذا إلزام
 // قانوني ثابت (المادة 53 أعلاه)، لا خياراً تصميمياً قابلاً للتوحيد مع بقية شاشات النظام.
 
+import { ATHAR_BRAND_LOGO_DATA_URL } from "./brandLogo";
+
 function escapeHtml(value: string | number | null | undefined): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -129,6 +131,10 @@ export function buildInvoiceHtmlClassicPro(data: ClassicProInvoicePdfData): stri
   body { font-family: "Segoe UI", Tahoma, Arial, sans-serif; color: #1a2733; margin: 0; direction: rtl; font-size: 12px; }
   .en { font-size: 0.88em; color: #52606d; font-weight: 400; unicode-bidi: isolate; }
 
+  /* شعار أثر التجارية نفسها (لا شعار الشركة المُصدِرة، ذاك في .head-logo أدناه) — شريط صغير أعلى
+     الترويسة الحالية بلا التعدي عليها، بارتفاع صغير حتى لا يدفع محتوى الفاتورة لصفحة ثانية. */
+  .athar-brand-strip { text-align: center; margin-bottom: 8px; }
+  .athar-brand-strip img { height: 18px; width: auto; }
   .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
   .head-title { font-size: 20px; font-weight: 700; color: ${accent}; }
   .head-title .en { display: block; font-size: 12px; font-weight: 600; }
@@ -171,6 +177,7 @@ export function buildInvoiceHtmlClassicPro(data: ClassicProInvoicePdfData): stri
 </style>
 </head>
 <body>
+  ${ATHAR_BRAND_LOGO_DATA_URL ? `<div class="athar-brand-strip"><img src="${ATHAR_BRAND_LOGO_DATA_URL}" alt="Athar ERP" /></div>` : ""}
   <div class="head">
     <div class="head-title">${bi("فاتورة ضريبية", "Tax Invoice")}</div>
     <div class="head-company">

@@ -99,6 +99,9 @@
         .sidebar-nav-scroll::-webkit-scrollbar { width: 4px; }
         .sidebar-nav-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
         .brand { display: flex; align-items: center; gap: 10px; }
+        /* شعار أثر الفعلي (العلامة المربّعة) في رأس الشريط الجانبي — يحل محل الشارة التجريدية
+           السابقة (دائرة + إبرة) بأيقونة العلامة التجارية الحقيقية، بنفس أبعاد الشارة القديمة تقريباً. */
+        .brand-logo-icon { width: 38px; height: 38px; object-fit: contain; flex-shrink: 0; border-radius: 8px; }
         .brand-mark { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #B98B4E; position: relative; flex-shrink: 0; }
         .brand-mark::before {
           content: ''; position: absolute; top: 50%; left: 50%;
@@ -850,6 +853,10 @@
           .cpi-print { padding: 0 !important; }
           .cpi-actions { display: none !important; }
           .cpi-close-x { display: none !important; }
+
+          /* روابط "تفصيلي" (drill-link) تُطبَع كنص عادي تماماً — بلا لون رابط ولا خط تحتي ولا أي
+             أثر يكشف أنها كانت قابلة للنقر في الشاشة. */
+          .drill-link { color: inherit !important; text-decoration: none !important; cursor: default !important; }
         }
 
         /* قالب الفاتورة "كلاسيكي احترافي" — انظر ClassicProInvoiceView.jsx للبنية الكاملة */
@@ -1077,6 +1084,46 @@
         .filter-bar label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #8A7C5E; font-weight: 500; }
         .filter-field-pair { display: flex; gap: 6px; }
         .filter-field-pair input { width: 100%; }
+
+        /* لوحة الفلاتر بنمط برامج المحاسبة (FilterBar.jsx) — شبكة filter-bar الحالية + صفّ أزرار
+           بحث/إعادة تعيين يمتد بعرض الشبكة كاملاً في سطره الخاص. */
+        .document-filter-bar { align-items: end; }
+        .filter-bar-actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-start; }
+
+        /* منتقي عميل بحقل بحث منسدل (CustomerPicker.jsx) — نفس مظهر item-combo-dropdown الحالي. */
+        .customer-picker { position: relative; }
+
+        /* رأس عمود جدول قابل للترتيب (SortableTh.jsx). */
+        .sortable-th-btn {
+          display: inline-flex; align-items: center; gap: 4px; background: transparent; border: none;
+          padding: 0; font: inherit; color: inherit; text-transform: inherit; cursor: pointer;
+        }
+        .sortable-th-arrow { font-size: 9px; color: rgba(20,20,20,0.3); }
+        .sortable-th-arrow-active { color: #2F5D5A; }
+
+        /* شريط ترقيم الصفحات (PaginationBar.jsx). */
+        .pagination-bar {
+          display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+          gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(16,32,46,0.12);
+          font-size: 12.5px; color: #445565;
+        }
+        .pagination-page-size { display: flex; align-items: center; gap: 6px; }
+        .pagination-page-size select {
+          font-family: 'Tajawal', sans-serif; border: 1px solid rgba(16,32,46,0.18); border-radius: 8px;
+          padding: 5px 8px; font-size: 12.5px; background: #fff; color: #141414;
+        }
+        .pagination-nav { display: flex; align-items: center; gap: 10px; }
+        .pagination-page-of { font-family: 'JetBrains Mono', monospace; }
+
+        /* صف إجمالي النتائج المُفلترة (كامل المجموعة، لا الصفحة الحالية فقط). */
+        .filtered-summary-row td { background: rgba(47,93,90,0.06); font-weight: 700; border-top: 2px solid rgba(47,93,90,0.25); }
+
+        /* رابط "تفصيلي" (اسم عميل ← كشف حسابه، سطر صنف ← كرت الصنف) — يظهر ككتلة نص عادية
+           بلا أي مؤشر رابط (لون/خط تحتي) في الشاشة، ويُحيَّد تماماً عند الطباعة/PDF أدناه، حتى لا
+           يظهر أي أثر للرابط في المطبوعة نفسها. تأثير التفاعل (تسطير) يظهر فقط عند المرور بالمؤشر. */
+        .drill-link { color: inherit; text-decoration: none; cursor: pointer; }
+        .drill-link:hover { text-decoration: underline; }
+
         .invoices-table-wrap { overflow-x: auto; }
         .invoices-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
         .invoices-table th { text-align: right; font-size: 11px; color: #8A7C5E; text-transform: uppercase; padding: 8px; border-bottom: 2px solid rgba(16,32,46,0.12); white-space: nowrap; }
@@ -1216,7 +1263,11 @@
         .landing-nav { display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; }
         .landing-brand { display: flex; align-items: center; gap: 10px; font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 17px; color: #141414; }
         .landing-mark { border-color: #B98B4E; }
-        .landing-nav-actions { display: flex; gap: 10px; }
+        /* شعار أثر الأفقي الكامل (نفس صورة .auth-logo في بطاقات الدخول/التسجيل) — بعرض أصغر هنا
+           لأنه في شريط تنقّل أفقي مضغوط لا بطاقة مركزية، لكن يبقى كبيراً بما يكفي لقراءة السطر
+           الرئيسي "أثر المحاسبي" بوضوح على شاشة هاتف. */
+        .landing-logo { display: block; width: 160px; max-width: 45vw; height: auto; }
+        .landing-nav-actions { display: flex; gap: 10px; align-items: center; }
 
         .landing-hero { text-align: center; padding: 70px 24px 90px; max-width: 780px; margin: 0 auto; }
         .landing-eyebrow { font-family: 'JetBrains Mono', monospace; letter-spacing: 2px; color: #C8102E; font-size: 12px; text-transform: uppercase; margin-bottom: 14px; }
@@ -1253,12 +1304,19 @@
         .pricing-monthly-option { font-size: 12px; font-weight: 400; color: #8A7C5E; margin-top: -4px; }
         .pricing-features { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; font-size: 13px; color: #445565; flex: 1; }
 
-        .landing-footer { display: flex; justify-content: space-between; align-items: center; padding: 26px 48px; border-top: 1px solid rgba(16,32,46,0.08); font-size: 12.5px; color: #8A7C5E; }
+        .landing-footer { display: flex; justify-content: space-between; align-items: center; padding: 26px 48px; border-top: 1px solid rgba(16,32,46,0.08); font-size: 12.5px; color: #8A7C5E; flex-wrap: wrap; gap: 12px; }
+        .landing-footer-actions { display: flex; align-items: center; gap: 10px; }
+        /* رابط تنزيل تطبيق نقطة البيع — إجراء ثانوي عمداً بجانب رابط الدخول في التذييل، بعيداً عن
+           زرَّي "تسجيل الدخول"/"ابدأ تجربتك المجانية" الأساسيين في الشريط العلوي حتى لا ينافسهما. */
+        .landing-download-link { font-size: 12.5px !important; padding: 8px 14px !important; }
 
         /* ===== صفحات الدخول والتسجيل ===== */
         .auth-root { width: 100%; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #ECE6D6; padding: 30px; }
         .auth-card { background: #FBF9F3; border-radius: 18px; padding: 40px 38px; max-width: 420px; width: 100%; box-shadow: 0 10px 40px rgba(16,32,46,0.08); }
         .auth-brand { justify-content: center; margin-bottom: 26px; }
+        /* شعار أثر الأفقي (علامة + اسم عربي مدمجَين) في أعلى بطاقة الدخول — البطاقة عريضة كفاية
+           (max-width: 420px) لعرضه كاملاً بدل الاكتفاء بالعلامة المربّعة فقط. */
+        .auth-logo { display: block; max-width: 220px; width: 100%; height: auto; margin: 0 auto 22px; }
         .auth-title { text-align: center; font-size: 20px; margin: 0 0 24px; }
         .auth-form { display: flex; flex-direction: column; gap: 14px; }
         .auth-form label { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: #445565; font-weight: 500; }
@@ -1270,6 +1328,21 @@
         .auth-links { display: flex; flex-direction: column; gap: 8px; align-items: center; margin-top: 18px; }
         .link-btn { background: none; border: none; color: #2F5D5A; font-size: 12.5px; cursor: pointer; text-decoration: underline; }
         .auth-note { text-align: center; margin-top: 18px; font-size: 11px; }
+
+        /* ===== صفحة تنزيل تطبيق نقطة البيع (أندرويد) — بطاقة .auth-card نفسها، عناصر إضافية فقط ===== */
+        .download-app-name { margin-bottom: 4px; }
+        .download-meta { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; font-size: 12.5px; color: #445565; }
+        .download-version { font-weight: 700; color: #10202E; }
+        .download-desc { text-align: center; margin: 0 0 22px; font-size: 13px; line-height: 1.6; }
+        .download-btn { width: 100%; padding: 16px !important; font-size: 16px !important; border-radius: 10px !important; }
+        .download-steps { margin-top: 22px; background: #F3EEE0; border-radius: 12px; padding: 16px 18px; }
+        .download-steps-title { font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+        .download-steps ol { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; line-height: 1.6; color: #445565; }
+        .download-disclaimer { color: #8A7C5E; }
+
+        @media (max-width: 480px) {
+          .download-card { padding: 30px 22px; }
+        }
 
         @media (max-width: 640px) {
           .landing-hero h1 { font-size: 32px; }
@@ -1531,6 +1604,8 @@
         .status-badge.status-saved { background: rgba(200,16,46,0.16); color: #7A0F1F; }
         .status-badge.status-neutral { background: rgba(138,124,94,0.14); color: #8A7C5E; }
         .status-badge.status-rejected { background: rgba(168,67,43,0.14); color: #A8432B; }
+        /* لحالات تحتاج إصلاح إعداد/ربط، لا مجرد انتظار أو تصحيح بيانات فاتورة — مثل زاتكا certificate_error */
+        .status-badge.status-warning { background: rgba(196,138,13,0.16); color: #8A5A0D; }
 
         /* حالة تحميل الهيكل العظمي (Skeleton) — صفوف رمادية نابضة بدل سبينر بسيط */
         @keyframes skeleton-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }

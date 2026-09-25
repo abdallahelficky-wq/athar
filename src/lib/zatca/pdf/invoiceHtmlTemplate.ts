@@ -14,6 +14,8 @@
 // ⚠️ لا تُعدَّل هذه الازدواجية اللغوية مستقبلاً لجعلها تتبع لغة الواجهة/الشركة (i18n) — هذا إلزام
 // قانوني ثابت (المادة 53 أعلاه)، لا خياراً تصميمياً قابلاً للتوحيد مع بقية شاشات النظام.
 
+import { ATHAR_BRAND_LOGO_DATA_URL } from "./brandLogo";
+
 function escapeHtml(value: string | number | null | undefined): string {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -63,6 +65,10 @@ export interface InvoicePdfData {
   grandTotal: number;
   qrDataUrl: string;
   zatcaUuid: string;
+  // إشعار دائن/مدين مرتبط بفاتورة أصلية فقط (راجع resolveBillingReferenceNumber في
+  // salesReturns.service.ts) — غائب تماماً لفاتورة ضريبية عادية، أو لإشعار داخلي بلا فاتورة مرتبطة.
+  billingReference?: { number: string; date: string } | null;
+  issuanceReason?: string | null;
 }
 
 export function buildInvoiceHtml(data: InvoicePdfData): string {
@@ -96,6 +102,11 @@ export function buildInvoiceHtml(data: InvoicePdfData): string {
   /* النص الإنجليزي الثانوي بجانب كل تسمية عربية — أصغر قليلاً ومحايد اللون، لكن يبقى مقروءاً
      تماماً وغير مخفي، حتى لا "يُهمَّش" فعلياً رغم وجوده شكلياً فقط. */
   .en { font-size: 0.9em; color: #445565; font-weight: 400; unicode-bidi: isolate; }
+  /* شعار أثر التجارية نفسها (لا شعار الشركة المُصدِرة للفاتورة، ذاك في .logo-wrap أدناه) — شريط
+     صغير أعلى الترويسة الرئيسية عمداً بلا التعدي على أعمدتها الثلاثة (مرجع/شعار الشركة/بيانات
+     الشركة)، وبارتفاع صغير (٢٠ بكسل + هامش) حتى لا يدفع محتوى الفاتورة لصفحة ثانية. */
+  .athar-brand-strip { text-align: center; margin-bottom: 8px; }
+  .athar-brand-strip img { height: 20px; width: auto; }
   .head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 3px solid ${accent}; padding-bottom: 12px; margin-bottom: 16px; }
   .ref div { margin-bottom: 4px; font-size: 13px; }
   .logo-wrap { text-align: center; }
@@ -119,6 +130,7 @@ export function buildInvoiceHtml(data: InvoicePdfData): string {
 </style>
 </head>
 <body>
+  ${ATHAR_BRAND_LOGO_DATA_URL ? `<div class="athar-brand-strip"><img src="${ATHAR_BRAND_LOGO_DATA_URL}" alt="Athar ERP" /></div>` : ""}
   <div class="head">
     <div class="ref">
       <div>${bi("رقم المستند", "Document No.")}: <strong>${escapeHtml(data.documentNumber)}</strong></div>
@@ -138,6 +150,12 @@ export function buildInvoiceHtml(data: InvoicePdfData): string {
   <div class="meta-row">
     <div>${bi("العميل", "Customer")}: <strong>${escapeHtml(data.customerName)}</strong>${data.customerVatNumber ? ` — ${bi("الرقم الضريبي", "VAT Number")}: ${escapeHtml(data.customerVatNumber)}` : ""}</div>
   </div>
+  ${data.billingReference ? `<div class="meta-row">
+    <div>${bi("الفاتورة الأصلية", "Original Invoice")}: <strong>${escapeHtml(data.billingReference.number)}</strong> — ${escapeHtml(data.billingReference.date)}</div>
+  </div>` : ""}
+  ${data.issuanceReason ? `<div class="meta-row">
+    <div>${bi("السبب", "Reason")}: <strong>${escapeHtml(data.issuanceReason)}</strong></div>
+  </div>` : ""}
 
   <table class="lines">
     <thead>

@@ -1,26 +1,37 @@
+import { computeInvoiceLine } from "../../wired/shared/invoiceLine";
+import { itemTaxDefaults, itemDescription } from "../../wired/shared/itemDefaults";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listItems, getItemByBarcode } from "../../api/items";
 import { getQuickAccessItems } from "../../api/pos";
 import { fmt2 } from "../../legacy/constants";
+import { useAuth } from "../../context/AuthContext";
 import BarcodeScannerModal from "../components/BarcodeScannerModal";
 import CustomerPickerModal from "../components/CustomerPickerModal";
 import QtyInput from "../components/QtyInput";
 import { isSellableItem } from "../itemFilters";
 
+// originalPrice يحفظ سعر الصنف المسجَّل وقت الإضافة للسلة — المرجع الذي تُقارَن به أي تعديل يدوي
+// لاحقاً على unitPrice (راجع pos.service.ts/detectAndAuthorizePriceOverrides للتحقق الحاسم فعلياً
+// على الخادم). بقية حقول الضريبة (priceIncludesVat/vatApplicable/taxCategoryCode/...) من
+// itemTaxDefaults مباشرة — نفس الأساس الضريبي الفعلي للصنف (قد يكون غير شامل الضريبة أو معفى/صفري
+// حسب إعداده)، لا افتراضاً ثابتاً هنا.
 function lineFromItem(item) {
   return {
     itemId: item.id,
-    name: item.name,
+    name: itemDescription(item),
     unitPrice: item.salePrice != null ? Number(item.salePrice) : 0,
+    originalPrice: item.salePrice != null ? Number(item.salePrice) : 0,
     quantity: 1,
     accountId: item.revenueAccountId,
-    vatApplicable: item.vatApplicable,
+    ...itemTaxDefaults(item),
   };
 }
 
 export default function SaleScreen({ companyId, cart, setCart, customer, setCustomer, onProceedToPayment }) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const canOverridePrice = Boolean(user?.canOverridePosPrice);
   const [quickItems, setQuickItems] = useState([]);
   const [searchText, setSearchText] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -76,9 +87,20 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
     setCart((prev) => prev.map((l) => (l.itemId === itemId ? { ...l, quantity } : l)));
   };
 
+  // كلاهما محمي مضاعفاً: الواجهة تُخفي حقل السعر تماماً (للقراءة فقط) بلا صلاحية posPriceOverride،
+  // والخادم (pos.service.ts/detectAndAuthorizePriceOverrides) هو التحقق الحاسم فعلياً — تعديل هذه
+  // الدالة نفسها بلا صلاحية حقيقية على الخادم لن يُغيّر شيئاً، الطلب سيُرفَض بـ403.
+  const setUnitPrice = (itemId, unitPrice) => {
+    setCart((prev) => prev.map((l) => (l.itemId === itemId ? { ...l, unitPrice } : l)));
+  };
+
+  const setPriceIncludesVat = (itemId, priceIncludesVat) => {
+    setCart((prev) => prev.map((l) => (l.itemId === itemId ? { ...l, priceIncludesVat } : l)));
+  };
+
   const removeLine = (itemId) => setCart((prev) => prev.filter((l) => l.itemId !== itemId));
 
-  const cartTotal = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const cartTotal = cart.reduce((s, l) => s + computeInvoiceLine(l).total, 0);
   const displayItems = searchText.trim() ? searchResults : quickItems;
 
   return (
@@ -124,8 +146,29 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
             <div className="pos-cart-line" key={line.itemId}>
               <div className="pos-cart-line-info">
                 <span className="pos-cart-line-name">{line.name}</span>
-                <span className="pos-cart-line-price">{fmt2(line.unitPrice)} × {line.quantity} = {fmt2(line.unitPrice * line.quantity)}</span>
+                {canOverridePrice ? (
+                  <span className="pos-cart-line-price-edit">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      className="pos-price-input"
+                      value={line.unitPrice}
+                      onChange={(e) => setUnitPrice(line.itemId, Number(e.target.value) || 0)}
+                    />
+                    <span>× {line.quantity} = {fmt2(computeInvoiceLine(line).total)}</span>
+                  </span>
+                ) : (
+                  <span className="pos-cart-line-price">{fmt2(line.unitPrice)} × {line.quantity} = {fmt2(computeInvoiceLine(line).total)}</span>
+                )}
               </div>
+              <label className="pos-price-vat-toggle">
+                <input
+                  type="checkbox"
+                  checked={line.priceIncludesVat}
+                  onChange={(e) => setPriceIncludesVat(line.itemId, e.target.checked)}
+                />
+                {t("pos.sale.priceIncludesVat")}
+              </label>
               <div className="pos-cart-line-controls">
                 <button className="pos-qty-btn" onClick={() => updateQty(line.itemId, -1)}>−</button>
                 <QtyInput value={line.quantity} onChange={(qty) => setQty(line.itemId, qty)} />

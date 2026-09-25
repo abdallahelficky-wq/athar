@@ -16,7 +16,15 @@ export const listPlatformActionsHandler: RequestHandler = (_req, res) => {
 export const createHandler: RequestHandler = async (req, res) => {
   res
     .status(201)
-    .json(await service.createPosition(req.auth!.tenantId, req.body.name, req.body.allowUnpost, req.body.allowPosDeferredSale));
+    .json(
+      await service.createPosition(
+        req.auth!.tenantId,
+        req.body.name,
+        req.body.allowUnpost,
+        req.body.allowPosDeferredSale,
+        req.body.allowPosPriceOverride,
+      ),
+    );
 };
 
 export const updateHandler: RequestHandler = async (req, res) => {

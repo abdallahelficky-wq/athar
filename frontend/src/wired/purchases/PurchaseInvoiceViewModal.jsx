@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { PrintShell, printWithOrientation } from "../../legacy/shared";
 import { fmt, fmt2 } from "../../legacy/constants";
 import { currencyLabel } from "../../shared/countries";
+import { getAccountDisplayName } from "../shared/accountDisplayName";
 
 /** عرض فاتورة المشتريات للقراءة فقط + طباعة/تحميل PDF — يستخدم PrintShell المشترك فيرث هيدر/فوتر الشركة تلقائياً */
 export default function PurchaseInvoiceViewModal({ invoice, companies, autoPrint, onClose }) {
@@ -52,7 +53,7 @@ export default function PurchaseInvoiceViewModal({ invoice, companies, autoPrint
         <tbody>
           {invoice.lines.map((l) => (
             <tr key={l.id}>
-              <td>{l.description || l.account?.name}</td>
+              <td>{l.description || getAccountDisplayName(l.account, i18n.language)}</td>
               <td className="num">{Number(l.quantity)}</td>
               <td className="num">{fmt2(Number(l.unitPrice))}</td>
               <td className="num">{Number(l.discountPct)}٪</td>

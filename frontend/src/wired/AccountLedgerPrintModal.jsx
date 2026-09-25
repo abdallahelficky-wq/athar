@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { PrintShell } from "../legacy/shared";
 import { fmt } from "../legacy/constants";
+import { getAccountDisplayName } from "./shared/accountDisplayName";
 
 /** يدمج بيان القيد العام مع وصف السطر التفصيلي (إن وُجد) في نص واحد لعمود "البيان" — عرض فقط،
  * الحقلان يبقيان منفصلين تماماً في التخزين والاستجابة (مطابق لنفس الدالة في AccountLedgerModule.jsx). */
@@ -12,7 +13,7 @@ function combineMemo(memo, description) {
 
 /** نسخة قابلة للطباعة من كشف حساب الأستاذ لأي حساب — نفس أسلوب StatementOfAccountModal، داخل PrintShell المشترك */
 export default function AccountLedgerPrintModal({ ledger, companyId, companies, dateFrom, dateTo, onClose }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const company = companies?.find((c) => c.id === companyId);
   // نفس أسلوب الفترة في طباعة ميزان المراجعة (TrialBalanceTreePrintModal) بالضبط — نص عام لا
   // يخص ميزان المراجعة تحديداً بالرغم من مساحة الاسم trialPrint.
@@ -28,7 +29,7 @@ export default function AccountLedgerPrintModal({ ledger, companyId, companies, 
       // هذا المستند تحديداً — بلا أثر على بقية شاشات الطباعة التي لا تمرّر هذا التجاوز.
       companyNameOverride={company?.name}
       largeLogo
-      refNode={<div>{t("accountLedger.accountLabel")}: <strong>{ledger.account.name}</strong></div>}
+      refNode={<div>{t("accountLedger.accountLabel")}: <strong>{getAccountDisplayName(ledger.account, i18n.language)}</strong></div>}
       onClose={onClose}
     >
       <div className="voucher-meta">

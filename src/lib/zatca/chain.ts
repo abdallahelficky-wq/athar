@@ -39,6 +39,7 @@ export interface ZatcaPersistedLineLike {
   subtotal: Prisma.Decimal | number;
   vat: Prisma.Decimal | number;
   taxCategoryCode: string;
+  taxExemptionReasonCode?: string | null;
   taxExemptionReason: string | null;
 }
 
@@ -47,7 +48,9 @@ export interface ZatcaChainResult {
   previousInvoiceHash: string;
   invoiceHash: string;
   issuedAt: Date;
-  zatcaStatus: "pending_clearance" | "pending_reporting";
+  /** بمثابة عنصر نائب فقط — لا تُعرَض أبداً كحالة نهائية إلا لو تعذّر حتى محاولة الإرسال (راجع
+   * not_submitted في postingGate.ts وtypes.ts). */
+  zatcaStatus: "not_submitted";
   /** XML غير موقّع لهذا المستند بالضبط — يُعاد استخدامه في المرحلة E (التوقيع + الإرسال) بدل إعادة
    * بنائه، حتى تبقى التجزئة والمحتوى المُرسَل مضمونَي التطابق دائماً. */
   xml: string;
@@ -61,6 +64,8 @@ interface ReserveZatcaChainParams {
   documentNumber: string;
   documentUuid: string;
   billingReferenceId?: string;
+  /** BR-KSA-17 (KSA-10) — إلزامي لإشعار دائن/مدين، راجع buildPaymentMeansXml في xmlBuilder.ts */
+  issuanceReason?: string;
   lines: ZatcaPersistedLineLike[];
 }
 
@@ -90,8 +95,36 @@ function mapCustomerToBuyer(customer: ZatcaCustomerLike): ZatcaPartyInput {
   };
 }
 
-function subtypeForCustomer(customer: ZatcaCustomerLike): "standard" | "simplified" {
+// مُصدَّرة (لا خاصة) عمداً — تُستخدَم أيضاً في salesReturns.service.ts للتحقق من أن نوع إشعار
+// الدائن (قياسي/مبسّط) المُشتق من العميل الحالي يطابق نوع الفاتورة الأصلية المرتبطة، بدل تكرار
+// نفس المنطق هناك بنسخة قد تنحرف عن هذه لاحقاً.
+export function subtypeForCustomer(customer: ZatcaCustomerLike): "standard" | "simplified" {
   return customer.customerType === "business" && Boolean(customer.vatNumber) ? "standard" : "simplified";
+}
+
+/**
+ * مصدر واحد مشترك لأي تمثيل نصّي لـissuedAt يُستخدَم في XML أو QR — كلاهما (cbc:IssueTime وQR
+ * Tag 3) يجب أن يشتقّا من هذه السلسلة نفسها، لا من استدعاءين منفصلين لـtoISOString()، حتى لا
+ * ينحرفا عن بعضهما أبداً ولو بمجرد اختلاف تنسيق.
+ *
+ * عطل إنتاج فعلي مؤكَّد دفع لعزل هذه الدالة: زاتكا رفضت كل مستند مبسَّط بتحذير "Time on QR Code does
+ * not match with Invoice Issue Time (KSA-25)" رغم أن IssueTime وQR Tag 3 كانا يحملان نفس الأرقام
+ * حرفياً (نفس issuedAt). السبب الفعلي ليس اختلاف اللحظة، بل اختلاف تفسيرها: معيار XML لزاتكا لحقل
+ * الوقت (البند 10، القاعدة BR-KSA-70) ينصّ صراحة أن قيمة الوقت بلا لاحقة "Z" تُقرَأ كتوقيت محلي
+ * بالمملكة (AST، UTC+3)، بينما لاحقة "Z" تعني UTC صراحة — ومعيار الأمان (جدول 3: QR Code content TLV
+ * field definitions، الوسم 3) يُلزِم صيغة ISO 8601 بلاحقة "Z" دائماً (المثال الرسمي المذكور:
+ * 2022-02-21T12:13:57Z). كانت IssueTime تُقتطَع من toISOString() (UTC حكماً) بـ.slice(11,19) بلا
+ * إبقاء "Z" — فتصل زاتكا رقماً UTC فعلياً، لكن بلا اللاحقة التي تُفسِّره كذلك، فتقرأه كتوقيت محلي
+ * (AST) خطأً — فرق ٣ ساعات فعلي عن QR Tag 3 الصريح UTC، رغم تطابق الأرقام حرفياً في كلا الحقلين.
+ */
+function isoUtcTimestamp(date: Date): string {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+/** "HH:mm:ssZ" — يُشتَقّ من isoUtcTimestamp نفسها (راجع تعليقها أعلاه)، لا استدعاء toISOString()
+ * منفصل، حتى يبقى مطابقاً حرفياً لما يحمله QR Tag 3 لنفس issuedAt دائماً. */
+function formatIssueTimeUtc(date: Date): string {
+  return isoUtcTimestamp(date).slice(11);
 }
 
 /** حقول QR 1-5 (النصية) من بيانات الشركة والمبلغ الإجمالي — لاستخدامها في المرحلة E عند بناء QR الكامل الموقّع */
@@ -99,7 +132,7 @@ export function buildQrBaseParams(company: ZatcaCompanyLike, issuedAt: Date, gra
   return {
     sellerName: company.name,
     sellerVat: company.vatNumber || "",
-    isoTimestamp: issuedAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
+    isoTimestamp: isoUtcTimestamp(issuedAt),
     invoiceTotal: grandTotal,
     vatTotal,
   };
@@ -122,6 +155,7 @@ export function mapPersistedLineToZatcaLine(line: ZatcaPersistedLineLike, index:
     taxCategoryCode: line.taxCategoryCode as ZatcaLineInput["taxCategoryCode"],
     taxPercent,
     taxExemptionReason: line.taxExemptionReason,
+    taxExemptionReasonCode: line.taxExemptionReasonCode,
   };
 }
 
@@ -154,10 +188,13 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     id: params.documentNumber,
     uuid: params.documentUuid,
     issueDate: issuedAt.toISOString().slice(0, 10),
-    issueTime: issuedAt.toISOString().slice(11, 19),
+    // "Z" إلزامية هنا — راجع formatIssueTimeUtc أعلاه لسبب غيابها كان يُنتِج عدم تطابق فعلي مع QR
+    // Tag 3 رغم كون كلاهما نفس اللحظة الفعلية بالضبط (issuedAt نفسها).
+    issueTime: formatIssueTimeUtc(issuedAt),
     icv,
     previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,
+    issuanceReason: params.issuanceReason,
     seller: mapCompanyToSeller(params.company),
     buyer: subtype === "standard" ? mapCustomerToBuyer(params.customer) : undefined,
     lines: params.lines.map(mapPersistedLineToZatcaLine),
@@ -173,7 +210,7 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     previousInvoiceHash,
     invoiceHash,
     issuedAt,
-    zatcaStatus: subtype === "standard" ? "pending_clearance" : "pending_reporting",
+    zatcaStatus: "not_submitted",
     xml,
     subtype,
   };
@@ -186,6 +223,7 @@ export interface RebuildZatcaDocumentXmlParams {
   documentNumber: string;
   documentUuid: string;
   billingReferenceId?: string;
+  issuanceReason?: string;
   lines: ZatcaPersistedLineLike[];
   /** icv/previousInvoiceHash/issuedAt محجوزة بالفعل من محاولة ترحيل سابقة — لا تُحجَز هنا من جديد */
   icv: number;
@@ -215,10 +253,11 @@ export function rebuildZatcaDocumentXml(params: RebuildZatcaDocumentXmlParams): 
     id: params.documentNumber,
     uuid: params.documentUuid,
     issueDate: params.issuedAt.toISOString().slice(0, 10),
-    issueTime: params.issuedAt.toISOString().slice(11, 19),
+    issueTime: formatIssueTimeUtc(params.issuedAt),
     icv: params.icv,
     previousInvoiceHash: params.previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,
+    issuanceReason: params.issuanceReason,
     seller: mapCompanyToSeller(params.company),
     buyer: subtype === "standard" ? mapCustomerToBuyer(params.customer) : undefined,
     lines: params.lines.map(mapPersistedLineToZatcaLine),

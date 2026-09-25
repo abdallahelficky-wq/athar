@@ -1,7 +1,7 @@
 // رمز الاستجابة السريعة (QR) بصيغة TLV/Base64 وفق زاتكا — المرحلة الثانية (تُضيف الوسوم 6-9 على
 // الوسوم 1-5 الأصلية من src/lib/zatcaQr.ts، فقط للمستندات الموقّعة). التركيب: بايت الوسم (1-9) +
-// بايت الطول (حتى 255) + القيمة الخام. الوسوم 1-5 نصوص UTF-8؛ 6-9 بايتات خام (تجزئة/توقيع/مفتاح
-// عام/توقيع شهادة) — لا تُرمَّز إلى base64 نصاً قبل التضمين، بل تُفكّ من base64 إلى بايتات خام أولاً.
+// الوسوم 1-7 نصوص UTF-8 (6 و7 يحتفظان بنص Base64 الموجود في XML).
+// الوسمان 8 و9 بايتات DER خام؛ ثم تُرمَّز حمولة TLV كاملة إلى Base64.
 
 function tlvEntry(tag: number, value: Buffer): Buffer {
   if (value.length > 255) throw new Error(`قيمة الوسم ${tag} تتجاوز 255 بايت — الحد الأقصى لبنية TLV`);
@@ -46,8 +46,10 @@ export function buildUnsignedQrPayload(params: ZatcaQrUnsignedParams): string {
 export function buildSignedQrPayload(params: ZatcaQrSignedParams): string {
   const tags = [
     ...unsignedTags(params),
-    tlvEntry(6, Buffer.from(params.invoiceHashBase64, "base64")),
-    tlvEntry(7, Buffer.from(params.digitalSignatureBase64, "base64")),
+    // ZATCA Detailed Technical Guideline, section 6.2: tag 6 is the
+    // 44-byte Base64 text and tag 7 is the XML SignatureValue text.
+    tlvEntry(6, Buffer.from(params.invoiceHashBase64, "utf8")),
+    tlvEntry(7, Buffer.from(params.digitalSignatureBase64, "utf8")),
     tlvEntry(8, params.publicKeyRaw),
     tlvEntry(9, params.certificateSignatureRaw),
   ];

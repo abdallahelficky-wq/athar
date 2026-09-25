@@ -40,13 +40,19 @@ function publicPosition(position: PositionRaw) {
   const unpostPermission = position.permissions.find((p) => p.moduleId === UNPOST_MODULE_ID);
   const allowUnpost = Boolean((unpostPermission?.extra as Record<string, boolean> | null)?.unpost);
   const posPermission = position.permissions.find((p) => p.moduleId === POS_MODULE_ID);
-  const allowPosDeferredSale = Boolean((posPermission?.extra as Record<string, boolean> | null)?.posDeferredSale);
+  const posExtra = posPermission?.extra as Record<string, boolean> | null;
+  const allowPosDeferredSale = Boolean(posExtra?.posDeferredSale);
+  // صلاحية "تعديل سعر الوحدة في نقطة البيع" — ثالث صلاحية بوليانية غير قياسية، نفس النمط ونفس
+  // وحدة "sales" تماماً مثل posDeferredSale (صف PositionPermission واحد، مفتاحان مستقلان في نفس
+  // extra JSON بدل عمودين/صفّين منفصلين).
+  const allowPosPriceOverride = Boolean(posExtra?.posPriceOverride);
   return {
     id: position.id,
     name: position.name,
     createdAt: position.createdAt,
     allowUnpost,
     allowPosDeferredSale,
+    allowPosPriceOverride,
     actionLevels: buildActionLevels(position.actionPermissions),
     members: position.users.map((u) => ({ id: u.id, name: u.name, email: u.identity.email })),
   };
@@ -66,13 +72,19 @@ export async function createPosition(
   name: string,
   allowUnpost: boolean,
   allowPosDeferredSale: boolean,
+  allowPosPriceOverride: boolean = false,
 ) {
   const existing = await prisma.position.findUnique({ where: { tenantId_name: { tenantId, name } } });
   if (existing) throw conflict("يوجد بالفعل منصب بهذا الاسم");
 
   const permissionsToCreate: Prisma.PositionPermissionCreateWithoutPositionInput[] = [];
   if (allowUnpost) permissionsToCreate.push({ moduleId: UNPOST_MODULE_ID, extra: { unpost: true } });
-  if (allowPosDeferredSale) permissionsToCreate.push({ moduleId: POS_MODULE_ID, extra: { posDeferredSale: true } });
+  if (allowPosDeferredSale || allowPosPriceOverride) {
+    permissionsToCreate.push({
+      moduleId: POS_MODULE_ID,
+      extra: { posDeferredSale: allowPosDeferredSale, posPriceOverride: allowPosPriceOverride },
+    });
+  }
 
   const position = await prisma.position.create({
     data: {
@@ -85,14 +97,21 @@ export async function createPosition(
   return publicPosition(position);
 }
 
-/** يُحدِّث فقط الحقول المُرسَلة (allowUnpost و/أو allowPosDeferredSale) — كل صلاحية بوليانية غير
- * قياسية لها صف PositionPermission مستقل (moduleId مختلف)، فتحديث إحداهما لا يمسّ الأخرى. */
+/** يُحدِّث فقط الحقول المُرسَلة (allowUnpost و/أو allowPosDeferredSale و/أو allowPosPriceOverride) —
+ * allowUnpost له صف PositionPermission مستقل (moduleId مختلف تماماً). أما allowPosDeferredSale
+ * وallowPosPriceOverride فيتشاركان صفاً واحداً (نفس moduleId="sales")، فتحديث أحدهما يجب أن يدمج
+ * القيمة الجديدة في extra JSON الحالي لا أن يستبدله بالكامل — وإلا فتحديث أحد المفتاحين يمحو الآخر
+ * صامتاً (هذا بالضبط ما كان سيحدث لو بقي extra: {posDeferredSale: ...} وحده كما كان قبل إضافة
+ * posPriceOverride). */
 export async function updatePositionPermissions(
   tenantId: string,
   positionId: string,
-  input: { allowUnpost?: boolean; allowPosDeferredSale?: boolean },
+  input: { allowUnpost?: boolean; allowPosDeferredSale?: boolean; allowPosPriceOverride?: boolean },
 ) {
-  const position = await prisma.position.findFirst({ where: { id: positionId, tenantId } });
+  const position = await prisma.position.findFirst({
+    where: { id: positionId, tenantId },
+    include: { permissions: { where: { moduleId: POS_MODULE_ID } } },
+  });
   if (!position) throw notFound("المنصب غير موجود");
 
   if (input.allowUnpost !== undefined) {
@@ -102,11 +121,16 @@ export async function updatePositionPermissions(
       update: { extra: { unpost: input.allowUnpost } },
     });
   }
-  if (input.allowPosDeferredSale !== undefined) {
+  if (input.allowPosDeferredSale !== undefined || input.allowPosPriceOverride !== undefined) {
+    const existingExtra = (position.permissions[0]?.extra as Record<string, boolean> | null) || {};
+    const mergedExtra = {
+      posDeferredSale: input.allowPosDeferredSale ?? Boolean(existingExtra.posDeferredSale),
+      posPriceOverride: input.allowPosPriceOverride ?? Boolean(existingExtra.posPriceOverride),
+    };
     await prisma.positionPermission.upsert({
       where: { positionId_moduleId: { positionId, moduleId: POS_MODULE_ID } },
-      create: { positionId, moduleId: POS_MODULE_ID, extra: { posDeferredSale: input.allowPosDeferredSale } },
-      update: { extra: { posDeferredSale: input.allowPosDeferredSale } },
+      create: { positionId, moduleId: POS_MODULE_ID, extra: mergedExtra },
+      update: { extra: mergedExtra },
     });
   }
 
@@ -238,6 +262,17 @@ export async function canDeferPosSale(tenantId: string, userId: string, role: st
  * PositionsTab.jsx)، فتظهر أي وحدة جديدة تلقائياً بمجرد تسجيلها هنا. */
 export function listPlatformActions() {
   return PLATFORM_ACTIONS;
+}
+
+/**
+ * يحدّد هل يملك هذا المستخدم صلاحية تعديل سعر الوحدة يدوياً في سطر نقطة البيع — نفس منطق
+ * canDeferPosSale أعلاه بالضبط (owner/super_admin دائماً، أو منصب مُفوَّض صراحةً عبر
+ * extra.posPriceOverride على نفس وحدة "sales")، مُضمَّنة في استجابة auth حتى تعرف شاشة نقطة البيع
+ * متى تُتيح تعديل السعر أصلاً بدل حقل للقراءة فقط — راجع pos.service.ts للتحقق المطابق في الخادم
+ * (الوحيد الحاسم فعلياً؛ هذا فقط لتجربة استخدام أفضل).
+ */
+export async function canOverridePosPrice(tenantId: string, userId: string, role: string): Promise<boolean> {
+  return hasPermission({ sub: userId, tenantId, role }, POS_MODULE_ID, "posPriceOverride");
 }
 
 /** كل مستخدمي هذه الشركة — لعرضهم في قائمة "إضافة عضو لهذا المنصب" بالواجهة. */

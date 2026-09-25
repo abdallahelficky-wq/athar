@@ -20,6 +20,7 @@ import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
+import DownloadPage from "./pages/DownloadPage";
 import JournalEntryStandalonePage from "./pages/JournalEntryStandalonePage";
 import Dashboard from "./wired/Dashboard";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
@@ -155,7 +156,7 @@ function AppShell() {
       {isMobileSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsMobileSidebarOpen(false)} />}
       <div className={"sidebar" + (isMobileSidebarOpen ? " sidebar-open" : "")}>
         <div className="brand">
-          <div className="brand-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
+          <img src="/brand/athar-logo-square.png" alt={t("common.brandName")} className="brand-logo-icon" />
           <div>
             <div className="brand-name">{t("common.brandName")}</div>
             <div className="brand-sub">{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</div>
@@ -358,7 +359,13 @@ function RootRoute() {
 
   if (initializing) return null;
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
-  return <LandingPage onGoLogin={() => navigate("/login")} onGoRegister={() => navigate("/register")} />;
+  return (
+    <LandingPage
+      onGoLogin={() => navigate("/login")}
+      onGoRegister={() => navigate("/register")}
+      onGoDownload={() => navigate("/download")}
+    />
+  );
 }
 
 function LoginRoute() {
@@ -407,6 +414,10 @@ const router = createBrowserRouter([
   { path: "/register", element: <RegisterRoute /> },
   { path: "/forgot-password", element: <ForgotPasswordRoute /> },
   { path: "/accept-invite", element: <AcceptInviteRoute /> },
+  // بلا أي تحقّق دخول أو تحويل بحسب isAuthenticated عمداً — يجب أن تعمل هذه الصفحة لأي زائر (مثلاً
+  // من رابط أُرسِل واتساب لجهاز نقطة بيع جديد لم يُسجَّل دخوله بعد على أي شيء إطلاقاً)، ولا سبب
+  // لإخفائها عمّن هو مسجَّل دخوله بالفعل (قد يريد مشاركة الرابط أو تنزيله على جهاز آخر).
+  { path: "/download", element: <DownloadPage /> },
   { path: "/journal-entries/:id/view", element: <JournalEntryStandalonePage /> },
   {
     element: <ProtectedLayout />,

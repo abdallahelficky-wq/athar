@@ -20,6 +20,8 @@ export const bomLineSchema = z.object({
 const baseItemFields = {
   companyId: z.string().min(1),
   code: z.string().min(1),
+  nameEn: z.string().trim().max(200).nullable().optional(),
+  priceIncludesVat: z.boolean().optional(),
   name: z.string().min(2, "اسم الصنف قصير جداً"),
   // نص فارغ يُطبَّع إلى undefined حتى لا يتصادم مع صنف آخر بلا باركود على القيد الفريد
   // (تجزئة null المتعددة في Postgres لا تتصادم، لكن "" ليست null فتتصادم لو تُركت كما هي).
@@ -31,6 +33,9 @@ const baseItemFields = {
   unit: z.string().optional(),
   category: z.string().optional(),
   salePrice: z.coerce.number().min(0).optional(),
+  taxCategoryCode: z.enum(["S", "Z", "E", "O"]).optional(),
+  taxExemptionReasonCode: z.string().trim().nullable().optional(),
+  taxExemptionReason: z.string().trim().nullable().optional(),
   vatApplicable: z.boolean().optional(),
   reorderLevel: z.coerce.number().min(0).optional(),
   isArchived: z.boolean().optional(),

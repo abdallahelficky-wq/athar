@@ -1,3 +1,5 @@
+import { computeInvoiceLine } from "../../wired/shared/invoiceLine";
+import { itemTaxDefaults, itemDescription } from "../../wired/shared/itemDefaults";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../context/AuthContext";
@@ -29,7 +31,7 @@ export default function QuickPaymentScreen({ company, companyId, warehouseId, ca
   const { t } = useTranslation();
   const { user } = useAuth();
   const METHOD_LABEL = { cash: t("pos.payment.methodCash"), bank: t("pos.payment.methodBank") };
-  const total = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const total = cart.reduce((s, l) => s + computeInvoiceLine(l).total, 0);
 
   const hasRealCustomer = Boolean(customer?.id);
   const hasDeferPermission = Boolean(user?.canDeferPosSale);
@@ -90,7 +92,7 @@ export default function QuickPaymentScreen({ company, companyId, warehouseId, ca
         customerId: customer?.id || undefined,
         lines: cart.map((l) => ({
           accountId: l.accountId, itemId: l.itemId, description: l.name,
-          quantity: l.quantity, unitPrice: l.unitPrice, vatApplicable: l.vatApplicable,
+          quantity: l.quantity, unitPrice: l.unitPrice, ...itemTaxDefaults(l),
         })),
         payments,
         dueDate: mode === "deferred" ? dueDate : undefined,

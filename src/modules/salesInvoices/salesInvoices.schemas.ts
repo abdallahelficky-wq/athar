@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { searchQueryBaseSchema, DATE_RANGE_ORDER_MESSAGE, AMOUNT_RANGE_ORDER_MESSAGE } from "../../lib/searchQueryBase";
 
 export const salesInvoiceLineSchema = z.object({
   accountId: z.string().min(1),
@@ -10,6 +11,9 @@ export const salesInvoiceLineSchema = z.object({
   unitPrice: z.coerce.number().min(0),
   discountPct: z.coerce.number().min(0).max(100).default(0),
   priceIncludesVat: z.boolean().default(true),
+  taxCategoryCode: z.enum(["S", "Z", "E", "O"]).optional(),
+  taxExemptionReasonCode: z.string().trim().nullable().optional(),
+  taxExemptionReason: z.string().trim().nullable().optional(),
   vatApplicable: z.boolean().default(true),
 });
 
@@ -34,3 +38,38 @@ export const updateSalesInvoiceSchema = createSalesInvoiceSchema;
 export const unpostSchema = z.object({ pin: z.string().min(1) });
 
 export const sendEmailSchema = z.object({ email: z.string().email("بريد إلكتروني غير صالح").optional() });
+
+// مُعاد تصديرها للتوافق مع الاختبار القائم — القيمة الفعلية الآن في src/lib/searchPagination.ts
+// (مُشترَكة مع مردودات المبيعات، راجع salesReturns.schemas.ts).
+export { SEARCH_PAGE_SIZES as INVOICE_SEARCH_PAGE_SIZES } from "../../lib/searchPagination";
+
+/**
+ * مُدخَلات بحث/فلترة/ترقيم قائمة فواتير المبيعات (searchSalesInvoices في
+ * salesInvoicesSearch.service.ts) — تُطبَّق بالكامل داخل استعلام قاعدة البيانات، لا بعد الجلب.
+ * كل قيمة نصية قادمة من req.query (Express لا يُحوِّل الاستعلامات تلقائياً)، لذا z.coerce لكل رقم.
+ * الحقول المشترَكة (صفحة/بحث سريع/نطاق تاريخ/نطاق مبلغ) من searchQueryBaseSchema — راجع
+ * salesReturns.schemas.ts لنفس الأساس مُوسَّعاً بحقول مردودات المبيعات بدل هذه الحقول.
+ */
+export const searchSalesInvoicesQuerySchema = searchQueryBaseSchema
+  .extend({
+    customerId: z.string().min(1).optional(),
+    invoiceType: z.enum(["standard", "simplified"]).optional(),
+    status: z.enum(["draft", "posted", "pending_submission", "zatca_accepted_posting_incomplete"]).optional(),
+    paymentStatus: z.enum(["مسددة", "مسددة جزئياً", "غير مسددة"]).optional(),
+    // نفس التصنيف الرباعي المعروض أصلاً في شاشة الفواتير (راجع invoiceZatcaState.js بالواجهة) —
+    // لا قيم enum زاتكا الخام (تسع قيم مربكة كفلتر) — sent/sent_with_notes مبنيّتان من zatcaStatus
+    // وتحذيرات zatcaResponseRaw معاً، بنفس منطق الواجهة الحالي تماماً (راجع الخدمة).
+    zatcaStatus: z.enum(["sent", "sent_with_notes", "not_sent", "not_applicable"]).optional(),
+    sortBy: z.enum(["date", "invoiceNumber", "customerName", "grandTotal"]).default("date"),
+    sortDir: z.enum(["asc", "desc"]).default("desc"),
+  })
+  .refine((data) => !data.dateFrom || !data.dateTo || data.dateFrom <= data.dateTo, {
+    message: DATE_RANGE_ORDER_MESSAGE,
+    path: ["dateFrom"],
+  })
+  .refine((data) => data.amountMin === undefined || data.amountMax === undefined || data.amountMin <= data.amountMax, {
+    message: AMOUNT_RANGE_ORDER_MESSAGE,
+    path: ["amountMin"],
+  });
+
+export type SearchSalesInvoicesQuery = z.infer<typeof searchSalesInvoicesQuerySchema>;

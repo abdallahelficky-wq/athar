@@ -1,4 +1,5 @@
 {
+  "creditNote": {"complete": "Complete credit note posting", "noItems": "No matching items", "title": "Linked credit notes", "returnInvoice": "Return invoice", "returned": "Returned total", "net": "Net after returns", "due": "Outstanding balance", "customerCredit": "Customer credit balance", "pending": "Pending — balance not reduced yet", "full": "Fully returned", "partial": "Partially returned", "search": "Search for an item to add to the return", "unavailable": "Invoice is not available for return in this company", "reasonRequired": "Select the invoice and enter a return reason", "saved": "Credit note {{number}} posted and invoice balance updated", "savedPending": "Credit note {{number}} saved and pending; invoice balance has not been reduced yet", "editHint": "Adjust quantities or remove lines that are not being returned. Prices, discounts and tax come from the original invoice."},
   "common": {
     "languageName": "English",
     "switchToArabic": "Switch to Arabic",
@@ -43,6 +44,15 @@
       "totalWithVat": "Total incl. VAT", "total": "Total", "addLine": "+ Add line",
       "subtotal": "Subtotal before tax", "vat": "VAT (15%)", "grandTotal": "Total incl. VAT"
     }
+  },
+  "filters": {
+    "search": "Search", "reset": "Reset", "quickSearchPlaceholder": "Quick search (invoice number or customer name)...",
+    "dateFrom": "Date from", "dateTo": "Date to", "amountMin": "Amount min", "amountMax": "Amount max",
+    "customer": "Customer", "customerSearchPlaceholder": "Search for a customer...", "allCustomers": "— All customers —"
+  },
+  "pagination": {
+    "pageSizeLabel": "Rows per page", "showingRange": "Showing {{from}}–{{to}} of {{total}}", "showingEmpty": "No results",
+    "prev": "Previous", "next": "Next", "pageOf": "Page {{page}} of {{totalPages}}"
   },
   "stables": {
     "title": "Horse Stables",
@@ -114,6 +124,16 @@
     "postedMsg": "Shift posted — journal entry created.",
     "rejectedMsg": "Shift rejected."
   },
+  "download": {
+    "appName": "Athar POS",
+    "version": "Version {{version}}",
+    "description": "Point-of-sale app for Android devices (Sunmi V2 with a built-in thermal printer) — runs on your device without a separate browser.",
+    "downloadBtn": "Download the app (APK)",
+    "stepsTitle": "Install steps",
+    "step1": "In your device settings, allow \"Install from unknown sources\" for the browser you'll use to download the file.",
+    "step2": "Open the downloaded athar-pos.apk file, then tap \"Install\".",
+    "disclaimer": "Debug build — not yet tested on a real Sunmi V2 device."
+  },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },
     "eyebrow": "Cloud accounting for Arab businesses",
@@ -161,7 +181,7 @@
         }
       ]
     },
-    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved" }
+    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved", "downloadApp": "Download the POS app" }
   },
   "auth": {
     "login": {
@@ -388,21 +408,37 @@
   "salesInvoices": {
     "noCompany": "Create a company first from the dashboard.",
     "addInvoice": "+ Add invoice",
+    "zatcaSummary": {"sent": "Sent", "sent_with_notes": "Sent with notes", "not_sent": "Not sent", "not_applicable": "Not applicable", "resend": "Resend", "sending": "Sending…", "notes": "ZATCA notes", "errors": "ZATCA rejection reasons"},
     "zatcaStatusFilterLabel": "ZATCA status",
     "loading": "Loading...",
     "empty": "No invoices yet.",
+    "search": {
+      "quickSearchLabel": "Quick search",
+      "invoiceTypeLabel": "Invoice type", "invoiceTypeAll": "— All types —", "invoiceTypeStandard": "Standard", "invoiceTypeSimplified": "Simplified",
+      "postingStatusLabel": "Posting status", "postingStatusAll": "— All posting statuses —",
+      "paymentStatusLabel": "Payment status", "paymentStatusAll": "— All payment statuses —",
+      "zatcaStatusAll": "— All ZATCA statuses —",
+      "sortBy": {"date": "Date", "invoiceNumber": "Invoice number", "customerName": "Customer name", "grandTotal": "Grand total"},
+      "summary": {"count": "Total posted invoices", "netTotal": "Net total", "vatTotal": "VAT total", "grandTotal": "Grand total"}
+    },
     "zatcaStatus": {
-      "not_applicable": "Not applicable", "pending_clearance": "Sending (standard)", "pending_reporting": "Sending (simplified)",
-      "cleared": "Sent/accepted (standard)", "reported": "Sent/accepted (simplified)", "rejected": "Rejected/send failed"
+      "not_applicable": "Not applicable", "not_submitted": "Not sent — ZATCA credentials aren't set up yet for this stage",
+      "cleared": "Sent/accepted (standard)", "reported": "Sent/accepted (simplified)", "rejected": "Rejected",
+      "submission_failed": "Failed to send (never reached ZATCA)",
+      "certificate_error": "Invalid ZATCA certificate",
+      "compliance_checked": "Compliance check only (awaiting production certificate)"
     },
     "zatcaBadge": {
-      "not_applicable": "Not applicable", "pending_clearance": "Sending", "pending_reporting": "Sending",
-      "cleared": "Sent/accepted", "reported": "Sent/accepted", "rejected": "Rejected"
+      "not_applicable": "Not applicable", "not_submitted": "Not sent yet",
+      "cleared": "Sent/accepted", "reported": "Sent/accepted", "rejected": "Rejected",
+      "submission_failed": "Failed to send",
+      "certificate_error": "Invalid certificate",
+      "compliance_checked": "Compliance check only"
     },
     "table": {
       "number": "Number", "customer": "Customer", "date": "Date", "total": "Total",
       "postingStatus": "Posting status", "paymentStatus": "Payment status", "zatcaStatus": "ZATCA status", "actions": "Actions",
-      "posted": "Posted", "draft": "Draft"
+      "posted": "Posted", "draft": "Draft", "pendingSubmission": "Awaiting ZATCA submission", "postingIncomplete": "ZATCA response received, local posting incomplete"
     },
     "actionsMenu": {
       "view": "View invoice", "edit": "Edit invoice", "unpost": "Unpost", "unposting": "Sending...",
@@ -422,6 +458,9 @@
       "emailSent": "Invoice {{number}} was sent to {{email}}.",
       "emailFailed": "Couldn't send the invoice — try again later.",
       "zatcaRejectedAgain": "Invoice {{number}} was rejected again by ZATCA{{reason}}",
+      "zatcaStillUnreachable": "Still could not reach ZATCA to send invoice {{number}} — try again later or contact support",
+      "zatcaCertificateStillInvalid": "This company's ZATCA certificate is still invalid — fix the ZATCA connection settings before retrying invoice {{number}}",
+      "zatcaStillComplianceOnly": "Invoice {{number}} passed ZATCA's compliance check, but has not actually been cleared/reported yet — this company is still on a test (compliance) certificate. Complete onboarding to a production certificate in the ZATCA connection settings, then resend this invoice.",
       "zatcaResentOk": "Invoice {{number}} was sent successfully — status is now \"{{status}}\"."
     },
     "classicPro": {
@@ -643,10 +682,51 @@
       "reason": "Return reason",
       "saveAndPost": "Save and post return",
       "loading": "Loading...",
-      "table": { "number": "Number", "customer": "Customer", "date": "Date", "total": "Total", "status": "Status" },
-      "posted": "Posted", "draft": "Draft",
+      "addButton": "+ Add credit note",
+      "search": {
+        "quickSearchLabel": "Quick search", "quickSearchPlaceholder": "Credit note number, customer name, or original invoice number...",
+        "subtypeLabel": "Note type", "subtypeAll": "— All types —",
+        "refundMethodLabel": "Refund method", "refundMethodAll": "— All refund methods —",
+        "postingStatusLabel": "Posting status", "postingStatusAll": "— All posting statuses —",
+        "originalInvoicePlaceholder": "Search by invoice number...", "originalInvoiceAll": "— All invoices —",
+        "summary": { "count": "Total posted credit notes", "netTotal": "Net total", "vatTotal": "VAT total", "grandTotal": "Grand total" }
+      },
+      "table": {
+        "number": "Number", "customer": "Customer", "originalInvoice": "Original invoice", "date": "Date", "total": "Total",
+        "postingStatus": "Posting status", "zatcaStatus": "ZATCA status", "actions": "Actions"
+      },
+      "posted": "Posted", "draft": "Draft", "pendingSubmission": "Awaiting ZATCA submission", "postingIncomplete": "ZATCA response received, local posting incomplete",
       "unpost": "Unpost", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
-      "empty": "No returns yet."
+      "empty": "No returns yet.",
+      "blockAction": { "edit": "edit" },
+      "actionsMenu": { "view": "View credit note", "edit": "Edit credit note", "delete": "Delete credit note", "print": "Print credit note" },
+      "notify": {
+        "deleteNonDraft": "Can't delete a posted credit note — it must be unposted first.",
+        "confirmDelete": "Delete credit note {{number}}?",
+        "deleted": "Credit note {{number}} deleted.",
+        "unposted": "Credit note {{number}} was unposted, and its journal entry was deleted. It's now a draft.",
+        "unpostedFromBlock": "Credit note {{number}} was unposted. It's now a draft and you can continue.",
+        "emailSent": "Credit note {{number}} was sent to {{email}}.",
+        "emailFailed": "Couldn't send the credit note — try again later."
+      },
+      "form": {
+        "titleCreate": "New credit note", "titleEdit": "Edit credit note {{number}}",
+        "cancel": "Cancel", "close": "Close", "saveChanges": "Save changes",
+        "savedEdit": "Changes to credit note {{number}} were saved."
+      },
+      "view": { "subtitle": "Credit note", "returnNumber": "Credit note number", "date": "Date", "subtype": "Note type" },
+      "postedBlockModal": {
+        "title": "Unpost the credit note first", "close": "Close",
+        "message": "Credit note {{number}} is posted, and can't be {{action}} until it's unposted. After unposting, the credit note becomes a draft and its journal entry is deleted — only then can you {{action}} it.",
+        "cancel": "Cancel", "unpost": "Unpost",
+        "unpostTitle": "Unpost credit note {{number}}"
+      },
+      "sendEmailModal": {
+        "title": "Email credit note {{number}}", "close": "Close",
+        "note": "This customer has no email on file — enter an alternate email to send a copy of the credit note to it, one time.",
+        "email": "Email", "errRequired": "Email is required", "errFailed": "Couldn't send — try again",
+        "cancel": "Cancel", "send": "Send", "sending": "Sending..."
+      }
     },
     "receipts": {
       "customer": "Customer", "date": "Receipt date", "method": "Collection method", "methodCash": "Cash", "methodBank": "Bank",
@@ -917,6 +997,11 @@
       "types": { "in": "In", "out": "Out/write-off", "issue": "Issue", "transfer_out": "Transfer out", "transfer_in": "Transfer in", "adjustment": "Periodic settlement" },
       "empty": "No movements yet."
     },
+    "itemCard": {
+      "subtitle": "Item card", "titleFailed": "Could not load the item card", "type": "Item type",
+      "document": "Document", "quantityIn": "In", "quantityOut": "Out", "balance": "Balance",
+      "unitCost": "Cost", "closingBalance": "Closing balance"
+    },
     "stockReport": {
       "item": "Item", "code": "Code", "location": "Location", "balance": "Balance", "costPrice": "Cost price", "value": "Value",
       "empty": "No stock balances yet.",
@@ -1152,6 +1237,7 @@
     "installStandard": "Install standard chart",
     "scopeLabel": "Tree scope",
     "scopeGroupOption": "Group template (not used in journal entries)",
+    "showPartyAccounts": "Show detailed customer/supplier/employee accounts",
     "addAccount": "+ Add account",
     "expandView": "Show full tree",
     "compactView": "Compact view",
@@ -1759,6 +1845,12 @@
       "egsInfo": "Billing device ID (EGS): {{egsUuid}} — Solution: {{solutionName}} — Next invoice counter (ICV): {{nextIcv}}",
       "csrStepTitle": "1) Generate certificate signing request (CSR)",
       "csrStepNote": "A private encryption key specific to this company (not shared with any other company) and a CSR are generated, which must be submitted in the actual Fatoora portal (ZATCA) to obtain a one-time password (OTP) specific to this device.",
+      "invoiceTypeLabel": "Invoice types this company will issue",
+      "invoiceTypeNote": "This determines what the resulting linkage certificate is actually authorized to sign, and how many test documents ZATCA requires before enabling production (both requires all six; any other choice requires three of its own type only). Choose based on what the company actually issues; \"both\" is the safe choice when unsure.",
+      "invoiceTypeStandard": "Standard only (B2B invoices)",
+      "invoiceTypeSimplified": "Simplified only (B2C invoices)",
+      "invoiceTypeBoth": "Both (standard and simplified)",
+      "currentInvoiceTypeLabel": "Invoice type declared in the current CSR: {{type}}",
       "generateProdCheckbox": "Generate for production environment directly (instead of testing)",
       "generateCsrBtn": "Generate CSR",
       "regenerateCsrBtn": "Regenerate CSR",
@@ -1778,7 +1870,24 @@
       "complianceSuccess": "Test certificate (Compliance CSID) extracted successfully.",
       "productionSuccess": "Production certificate (Production CSID) extracted successfully — the company is now ready for actual operation.",
       "envChangeSuccess": "Switched to environment: {{env}}",
-      "resetSuccess": "ZATCA linkage cleared and the company returned to \"Not enabled\" status."
+      "resetSuccess": "ZATCA linkage cleared and the company returned to \"Not enabled\" status.",
+      "complianceStepsProgressTitle": "Progress on the six compliance-check documents",
+      "complianceStepsProgressNote": "ZATCA requires a passing compliance check for all six document types (invoice, credit note, and debit note, each in standard and simplified form) before issuing a production certificate.",
+      "complianceStepLabels": {
+        "standard-compliant": "Standard invoice",
+        "simplified-compliant": "Simplified invoice",
+        "standard-credit-note-compliant": "Standard credit note",
+        "simplified-credit-note-compliant": "Simplified credit note",
+        "standard-debit-note-compliant": "Standard debit note",
+        "simplified-debit-note-compliant": "Simplified debit note"
+      },
+      "stepPassed": "Passed ✓",
+      "stepPending": "Not tested yet",
+      "complianceStepsWarning": "Each test sends a fully synthetic document (fabricated customer and invoice reference — never touches any real invoice or journal entry in your books). It reserves a real sequence number (ICV) regardless of outcome, and that cannot be undone — each step needs its own deliberate button press.",
+      "runComplianceStepTestBtn": "Run test",
+      "complianceStepTestPassed": "Passed ✓ (status: {{status}})",
+      "complianceStepTestFailed": "Failed — ZATCA's reason: {{reason}}",
+      "stepNotEnabledYet": "Not available to run yet"
     },
     "companyDocuments": {
       "title": "Administrative documents (licenses, registrations, security & safety contracts...)",
@@ -1899,6 +2008,7 @@
       "namePlaceholder": "e.g. Senior accountant",
       "allowUnpostLabel": "Allow unposting journal entries",
       "allowPosDeferredSaleLabel": "Allow credit sales (no immediate payment) at point of sale",
+      "allowPosPriceOverrideLabel": "Allow manually overriding the item price at point of sale",
       "empty": "No positions created yet.",
       "noMembers": "No members assigned to this position yet.",
       "chooseUser": "— Choose a user —",
@@ -2258,6 +2368,7 @@
       "cashCustomer": "Cash customer",
       "changeCustomer": "Change ›",
       "emptyCart": "Cart is empty — search or scan an item",
+      "priceIncludesVat": "Price includes VAT",
       "removeBtn": "Remove",
       "totalLabel": "Total",
       "proceedBtn": "Proceed to payment",
@@ -2326,6 +2437,7 @@
       "paper58": "58 mm",
       "paper80": "80 mm",
       "autoPrintLabel": "Auto-print after every sale",
+      "printLogoLabel": "Print the company logo at the top of the receipt",
       "doneBtn": "Done"
     },
     "customerPicker": {
@@ -2343,13 +2455,48 @@
     "scanner": {
       "header": "Point the camera at the barcode",
       "cameraError": "Couldn't start the camera — make sure permission is granted, or use manual search instead"
+    },
+    "invoicesIconTitle": "Invoices",
+    "invoices": {
+      "title": "Invoices",
+      "empty": "No invoices yet"
+    },
+    "invoiceView": {
+      "title": "Invoice details",
+      "subtotal": "Subtotal",
+      "vat": "VAT",
+      "grandTotal": "Grand total",
+      "qrSummary": "QR code",
+      "printBtn": "🖨 Print",
+      "downloadPdfBtn": "Download PDF",
+      "downloading": "Downloading...",
+      "sendEmailBtn": "Send by email",
+      "sendingEmail": "Sending...",
+      "emailSent": "Invoice sent to {{email}}",
+      "emailFailed": "Couldn't send the invoice by email"
+    },
+    "sendEmailModal": {
+      "title": "Send invoice #{{number}}",
+      "email": "Email address",
+      "errRequired": "Enter an email address",
+      "errFailed": "Couldn't send the invoice by email",
+      "sentMsg": "Invoice #{{number}} sent to {{email}}",
+      "cancel": "Cancel",
+      "send": "Send",
+      "sending": "Sending..."
     }
   },
   "receiptView": {
     "vatNumberLabel": "VAT number",
+    "addressLabel": "Address",
     "invoiceNumberLabel": "Invoice number",
     "customerLabel": "Customer",
     "cashCustomer": "Cash customer",
+    "customerVatNumberLabel": "Customer VAT number",
+    "customerAddressLabel": "Customer address",
+    "issuedByLabel": "Issued by",
+    "zatcaCleared": "Cleared electronically (ZATCA)",
+    "zatcaReported": "Reported electronically (ZATCA)",
     "beforeVat": "Before VAT",
     "vat": "VAT",
     "total": "Total",
@@ -2439,5 +2586,36 @@
     "leaveWithoutSaving": "Leave without saving",
     "openInNewTab": "Open in a new tab instead",
     "stayOnPage": "Stay on this page"
+  },
+  "itemTax": {
+    "nameAr": "Arabic item name",
+    "nameEn": "English item name",
+    "category": "VAT treatment",
+    "S": "Standard rated 15%",
+    "Z": "Zero rated 0%",
+    "E": "VAT exempt",
+    "O": "Outside scope — previous setting",
+    "priceBasis": "Entered price",
+    "inclusive": "VAT inclusive",
+    "exclusive": "VAT exclusive",
+    "reason": "Exemption or zero-rating reason",
+    "chooseReason": "Choose a reason",
+    "reasons": {
+      "VATEX-SA-29": "Financial services",
+      "VATEX-SA-29-7": "Life insurance",
+      "VATEX-SA-30": "Exempt real estate supplies",
+      "VATEX-SA-32": "Export of goods",
+      "VATEX-SA-33": "Export of services",
+      "VATEX-SA-34-1": "International goods transport",
+      "VATEX-SA-34-2": "International passenger transport",
+      "VATEX-SA-34-3": "Services related to international passenger transport",
+      "VATEX-SA-34-4": "Qualifying means of transport",
+      "VATEX-SA-34-5": "Goods and passenger transport services",
+      "VATEX-SA-35": "Qualifying medicines and medical equipment",
+      "VATEX-SA-36": "Qualifying metals",
+      "VATEX-SA-EDU": "Private education for citizens",
+      "VATEX-SA-HEA": "Healthcare for citizens",
+      "VATEX-SA-MLTRY": "Qualifying military goods"
+    }
   }
 }

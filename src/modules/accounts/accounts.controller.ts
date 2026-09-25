@@ -70,7 +70,40 @@ export const listAccounts: RequestHandler = async (req, res) => {
   accounts.forEach((account) => byParent.set(account.parentId, [...(byParent.get(account.parentId) || []), account]));
   const balance = (account: (typeof accounts)[number]): number =>
     (direct.get(account.id) || 0) + (byParent.get(account.id) || []).reduce((sum, child) => sum + balance(child), 0);
-  res.json(accounts.map((account) => ({ ...account, balance: balance(account) })));
+  const result = accounts.map((account) => ({ ...account, balance: balance(account) }));
+
+  // شاشة شجرة الحسابات فقط تطلب هذا الإخفاء (عبر includePartyAccounts=false) — الحسابات التفصيلية
+  // التلقائية لكل عميل/مورد/موظف (Phase G) تبقى ضمن الاستعلام أعلاه دائماً حتى يظل رصيد حساب الأصل
+  // التجميعي (byParent/balance) صحيحاً، ونُقصي بعضها فقط من الاستجابة النهائية هنا — لا من الاستعلام
+  // نفسه — حتى لا تُحمَّل آلاف الحسابات التفصيلية لواجهة المستخدم عند تصفّح الشجرة العادية. partySearch
+  // استثناء: يُبقي على أي حساب طرف يطابق نص البحث ظاهراً حتى مع إطفاء المفتاح.
+  const includePartyAccounts = req.query.includePartyAccounts !== "false";
+  if (!includePartyAccounts) {
+    const partyAccountIds = new Set<string>();
+    if (companyId) {
+      const partyWhere = { tenantId: req.auth!.tenantId, companyId, accountId: { not: null } } as const;
+      const [customers, suppliers, employees] = await Promise.all([
+        prisma.customer.findMany({ where: partyWhere, select: { accountId: true } }),
+        prisma.supplier.findMany({ where: partyWhere, select: { accountId: true } }),
+        prisma.employee.findMany({ where: partyWhere, select: { accountId: true } }),
+      ]);
+      [...customers, ...suppliers, ...employees].forEach((party) => partyAccountIds.add(party.accountId as string));
+    }
+    const partySearch = typeof req.query.partySearch === "string" ? req.query.partySearch.trim().toLocaleLowerCase("ar") : "";
+    return res.json(
+      result.filter((account) => {
+        if (!partyAccountIds.has(account.id)) return true;
+        if (!partySearch) return false;
+        return (
+          account.name.toLocaleLowerCase("ar").includes(partySearch) ||
+          Boolean(account.nameEn?.toLowerCase().includes(partySearch)) ||
+          account.code.includes(partySearch)
+        );
+      }),
+    );
+  }
+
+  res.json(result);
 };
 
 export const createAccount: RequestHandler = async (req, res) => {

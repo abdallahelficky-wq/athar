@@ -17,7 +17,7 @@ function run(cmd: string, args: string[]): Promise<string> {
 }
 
 const SAMPLE_PROPS = {
-  production: false,
+  environment: "sandbox" as const,
   egsModel: "v1",
   egsSerialNumber: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
   solutionName: "AtharAlMuhasabi",
@@ -27,6 +27,7 @@ const SAMPLE_PROPS = {
   branchName: "الفرع الرئيسي",
   taxpayerName: "شركة أثر التجريبية",
   taxpayerProvidedId: "athar-test-001",
+  invoiceType: "both" as const,
 };
 
 describe("generateCsr", () => {
@@ -37,28 +38,23 @@ describe("generateCsr", () => {
     expect(await verifyCsrLocally(csrPem)).toBe(true);
   });
 
-  it("embeds the compliance (test) template OID value, not production, when production=false", async () => {
-    const { csrPem } = await generateCsr({ ...SAMPLE_PROPS, production: false });
+  it.each([
+    ["sandbox", "TSTZATCA-Code-Signing"],
+    ["simulation", "PREZATCA-Code-Signing"],
+    ["production", "ZATCA-Code-Signing"],
+  ] as const)("encodes the %s template as ASN.1 PrintableString", async (environment, template) => {
+    const { csrPem } = await generateCsr({ ...SAMPLE_PROPS, environment });
     const dir = await mkdtemp(path.join(tmpdir(), "zatca-csr-test-"));
     try {
       const csrFile = path.join(dir, "req.pem");
       await writeFile(csrFile, csrPem);
-      const text = await run("openssl", ["req", "-in", csrFile, "-noout", "-text"]);
-      expect(text).toContain("TSTZATCA-Code-Signing");
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("embeds the production template OID value when production=true", async () => {
-    const { csrPem } = await generateCsr({ ...SAMPLE_PROPS, production: true });
-    const dir = await mkdtemp(path.join(tmpdir(), "zatca-csr-test-"));
-    try {
-      const csrFile = path.join(dir, "req.pem");
-      await writeFile(csrFile, csrPem);
-      const text = await run("openssl", ["req", "-in", csrFile, "-noout", "-text"]);
-      expect(text).toContain("ZATCA-Code-Signing");
-      expect(text).not.toContain("TSTZATCA-Code-Signing");
+      const text = await run("openssl", ["req", "-in", csrFile, "-noout", "-text", "-nameopt", "utf8"]);
+      expect(text).toContain(template);
+      expect(text).toContain(SAMPLE_PROPS.taxpayerName);
+      const asn1 = await run("openssl", ["asn1parse", "-in", csrFile]);
+      const expectedDer = Buffer.concat([Buffer.from([0x13, template.length]), Buffer.from(template)]).toString("hex").toUpperCase();
+      expect(asn1).toContain(expectedDer);
+      expect(await verifyCsrLocally(csrPem)).toBe(true);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -82,5 +78,24 @@ describe("generateCsr", () => {
 
   it("rejects a garbage CSR as invalid", async () => {
     expect(await verifyCsrLocally("not a real csr")).toBe(false);
+  });
+
+  // عطل حقيقي مؤكَّد سابقاً: title كان مفروضاً "0100" (مبسّط فقط) دائماً بصرف النظر عن invoiceType —
+  // شركة تُصدر فواتير قياسية B2B فعلياً كانت تحصل على شهادة لا تُخوِّل ذلك إطلاقاً.
+  it.each([
+    ["standard" as const, "1000"],
+    ["simplified" as const, "0100"],
+    ["both" as const, "1100"],
+  ])("embeds title=%s for invoiceType=%s in the CSR", async (invoiceType, expectedTitle) => {
+    const { csrPem } = await generateCsr({ ...SAMPLE_PROPS, invoiceType });
+    const dir = await mkdtemp(path.join(tmpdir(), "zatca-csr-test-"));
+    try {
+      const csrFile = path.join(dir, "req.pem");
+      await writeFile(csrFile, csrPem);
+      const text = await run("openssl", ["req", "-in", csrFile, "-noout", "-text"]);
+      expect(text).toContain(expectedTitle);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

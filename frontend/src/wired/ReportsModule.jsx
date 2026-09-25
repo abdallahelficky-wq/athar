@@ -14,6 +14,7 @@ import ReportRollupFilter from "./shared/ReportRollupFilter";
 import TrialBalanceView from "./TrialBalanceView";
 import { collectGroupAccountIds, flattenVisibleTree } from "./shared/trialBalanceTree";
 import { exportTrialBalanceExcel } from "./shared/exportTrialBalanceExcel";
+import { getAccountDisplayName } from "./shared/accountDisplayName";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
 import { defaultDateRangeForCompany } from "./shared/fiscalClosing";
 import ComprehensiveMonthlyReport from "./ComprehensiveMonthlyReport";
@@ -33,10 +34,11 @@ export const REPORT_TABS = [
  * أصلاً محدود بنوع الحساب فلا داعي لأداة طي إضافية. تُستخدَم لكل الأقسام الخمسة في الشاشتين.
  */
 function AmountTreeRows({ nodes, depth = 0 }) {
+  const { i18n } = useTranslation();
   return nodes.map((node) => (
     <React.Fragment key={node.accountId}>
       <tr className={"tb-tree-row" + (!node.isPosting ? " tb-group" : "")}>
-        <td style={{ paddingRight: 8 + depth * 22 }}>{node.code} — {node.name}</td>
+        <td style={{ paddingRight: 8 + depth * 22 }}>{node.code} — {getAccountDisplayName(node, i18n.language)}</td>
         <td className="num">{fmt(node.amount)}</td>
       </tr>
       {node.children.length > 0 && <AmountTreeRows nodes={node.children} depth={depth + 1} />}

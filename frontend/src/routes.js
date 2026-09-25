@@ -22,5 +22,24 @@ export const routes = {
    * عرض منفصلة) — يُستخدَم من رابط كشف حساب الأستاذ. JournalModule يقرأ entryId ويفتح نافذة
    * التعديل/العرض المناسبة تلقائياً فور التحميل (راجع التعليق هناك). */
   journalEntry: (entryId) => (entryId ? `/accounts/journal?entryId=${encodeURIComponent(entryId)}` : "/accounts/journal"),
+  /** كشف حساب عميل لشركة مُحدَّدة (شركة الفاتورة/المردود التي فُتح الرابط منها، لا بالضرورة الشركة
+   * النشطة حالياً في مُبدّل الشركات) — يفتح تبويب العملاء ويعرض النافذة تلقائياً (راجع CustomersTab.jsx).
+   * from/to اختياريان؛ يمرّرهما الطرف المستدعي (مثلاً بداية السنة المالية الحالية حتى اليوم). */
+  customerStatement: (customerId, companyId, from, to) => {
+    const params = new URLSearchParams({ statementCustomerId: customerId });
+    if (companyId) params.set("statementCompanyId", companyId);
+    if (from) params.set("statementFrom", from);
+    if (to) params.set("statementTo", to);
+    return `/sales/customers?${params.toString()}`;
+  },
+  /** كرت صنف للقراءة فقط لشركة مُحدَّدة — يفتح تبويب الأصناف ويعرض الكرت تلقائياً (راجع ItemsTab.jsx). */
+  itemCard: (itemId, companyId) => {
+    const params = new URLSearchParams({ itemCardId: itemId });
+    if (companyId) params.set("itemCardCompanyId", companyId);
+    return `/inventory/items?${params.toString()}`;
+  },
+  /** يفتح قائمة فواتير المبيعات مُفلترة برقم فاتورة محدَّد عبر البحث السريع الموجود أصلاً — يُستخدَم
+   * لربط حركة مخزون ناتجة عن فاتورة بمستندها (راجع GET /sales-invoices/search). */
+  invoiceByNumber: (invoiceNumber) => `/sales/invoices?q=${encodeURIComponent(invoiceNumber)}`,
 };
 

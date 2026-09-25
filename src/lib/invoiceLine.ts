@@ -6,6 +6,7 @@ export interface InvoiceLineInput {
   discountPct?: number;
   priceIncludesVat?: boolean;
   vatApplicable?: boolean;
+  taxCategoryCode?: string | null;
 }
 
 /**
@@ -14,23 +15,27 @@ export interface InvoiceLineInput {
  * ترسله أصلاً) لدعم أصناف قابلة للبيع غير خاضعة للضريبة بالكامل — عند false يكون الناتج
  * صفر ضريبة دائماً بغض النظر عن priceIncludesVat.
  */
+function roundMoney(n: number): number {
+  return (Math.sign(n) * Math.round(Math.abs(n) * 100)) / 100;
+}
+
 export function computeInvoiceLine(l: InvoiceLineInput) {
   const qty = Number(l.quantity || 0);
   const price = Number(l.unitPrice || 0);
   const disc = Number(l.discountPct || 0);
   const grossLine = qty * price * (1 - disc / 100);
 
-  if (l.vatApplicable === false) {
+  if (l.taxCategoryCode ? l.taxCategoryCode !== "S" : l.vatApplicable === false) {
     return { subtotal: grossLine, vat: 0, total: grossLine };
   }
 
   if (l.priceIncludesVat) {
-    const subtotal = grossLine / (1 + VAT_RATE);
-    const vat = grossLine - subtotal;
+    const vat = roundMoney(grossLine - grossLine / (1 + VAT_RATE));
+    const subtotal = grossLine - vat;
     return { subtotal, vat, total: grossLine };
   }
   const subtotal = grossLine;
-  const vat = subtotal * VAT_RATE;
+  const vat = roundMoney(subtotal * VAT_RATE);
   return { subtotal, vat, total: subtotal + vat };
 }
 

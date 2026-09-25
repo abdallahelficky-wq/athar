@@ -9,7 +9,7 @@ import { AR_TO_EN } from "./errorMessages";
  * بتحويل موقعي منفصل (انظر خطة الترجمة، الفئة 2)، لا بهذا القاموس. */
 
 const SRC_ROOT = path.resolve(__dirname, "..", "..");
-const ERROR_CALL_RE = /(?:badRequest|notFound|conflict|forbidden|unauthorized|throw new Error)\(\s*(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g;
+const ERROR_CALL_RE = /(?:badRequest|notFound|conflict|forbidden|unauthorized|serviceUnavailable|throw new Error)\(\s*(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g;
 const ARABIC_RE = /[؀-ۿ]/;
 const STRING_LIT_RE = /(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g;
 

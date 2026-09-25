@@ -4,6 +4,8 @@ import { tmpdir } from "os";
 import path from "path";
 import buildCsrConfig, { CsrConfigProps } from "./templates/csrConfigTemplate";
 
+export type { ZatcaCsrInvoiceType } from "./templates/csrConfigTemplate";
+
 // توليد مفتاح secp256k1 خاص + CSR (PKCS#10) عبر سطر أوامر OpenSSL — منطق مُقتبَس من
 // `src/zatca/egs/index.ts` في wes4m/zatca-xml-js (رخصة MIT). لا توجد مكتبة JS أصلية تبني CSR
 // موقّعاً (PKCS#10)؛ Node.js نفسه يدعم secp256k1 عبر crypto.createSign مباشرة (مُتحقَّق منه)، لكن

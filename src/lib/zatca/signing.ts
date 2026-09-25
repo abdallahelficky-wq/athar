@@ -31,26 +31,51 @@ export interface CertificateInfo {
    * فعلياً في وسم QR رقم 8، مطابقةً للتطبيق المرجعي (مُتحقَّق منه: يبدأ بـ 0x30 SEQUENCE). */
   publicKeyRaw: Buffer;
   signatureRaw: Buffer;
+  /** الجسم القانوني (base64 مفرد، بلا رؤوس PEM) الذي نجح تحليله فعلياً كشهادة X.509 صالحة — قد
+   * يختلف عن المُدخَل الأصلي إن كان مُرمَّزاً بـ base64 مرتين (راجع getCertificateInfo أدناه). هذا
+   * تحديداً ما يجب تضمينه في <ds:X509Certificate> بالتوقيع، لا المُدخَل الخام كما وصل. */
+  canonicalBodyBase64: string;
 }
 
-/** يستخرج تجزئة/مُصدر/رقم تسلسلي/مفتاح عام خام/توقيع خام من شهادة X.509 (PEM أو نص Base64 فقط بلا رأس/تذييل) */
-export function getCertificateInfo(certificatePemOrBody: string): CertificateInfo {
-  const bodyOnly = stripPemHeaders(certificatePemOrBody, "CERTIFICATE");
+function parseCertificateBody(bodyOnly: string): CertificateInfo {
   const wrapped = wrapPem(bodyOnly, "CERTIFICATE");
-
   const hashHex = createHash("sha256").update(bodyOnly).digest("hex");
-  const hashBase64 = Buffer.from(hashHex).toString("base64");
-
   const x509 = new X509Certificate(wrapped);
   const fidmCert = FidmCertificate.fromPEM(Buffer.from(wrapped));
 
   return {
-    hashBase64,
+    hashBase64: Buffer.from(hashHex).toString("base64"),
     issuer: x509.issuer.split("\n").reverse().join(", "),
     serialNumber: BigInt(`0x${x509.serialNumber}`).toString(10),
     publicKeyRaw: fidmCert.publicKeyRaw,
     signatureRaw: fidmCert.signature,
+    canonicalBodyBase64: bodyOnly,
   };
+}
+
+/**
+ * يستخرج تجزئة/مُصدر/رقم تسلسلي/مفتاح عام خام/توقيع خام من شهادة X.509 (PEM أو نص Base64 فقط
+ * بلا رأس/تذييل). تتسامح مع ترميز base64 مزدوج: لو فشل التحليل كما وصلت، تُجرَّب محاولة واحدة
+ * بفك ترميز base64 إضافي قبل الاستسلام — حالة حقيقية مُؤكَّدة فعلياً من شركة على الإنتاج (زاتكا
+ * أعادت binarySecurityToken مُرمَّزاً مرتين لهذه الشركة تحديداً؛ راجع تشخيص
+ * scripts/check-zatca-certificate.ts والتقرير المرتبط). لا نعرف بعد أيّ الشكلين "المعيار" الفعلي
+ * لدى زاتكا، فهذا التسامح شبكة أمان ضرورية بصرف النظر — انظر canonicalBodyBase64 في CertificateInfo
+ * لمعرفة أيّ شكل نجح فعلياً.
+ */
+export function getCertificateInfo(certificatePemOrBody: string): CertificateInfo {
+  const bodyOnly = stripPemHeaders(certificatePemOrBody, "CERTIFICATE");
+  try {
+    return parseCertificateBody(bodyOnly);
+  } catch (singleEncodedError) {
+    const onceDecoded = stripPemHeaders(Buffer.from(bodyOnly, "base64").toString("utf8"), "CERTIFICATE");
+    try {
+      return parseCertificateBody(onceDecoded);
+    } catch {
+      // فشلت المحاولتان معاً — نرمي خطأ المحاولة الأولى (الأوضح لشهادة تالفة فعلياً بلا علاقة
+      // بترميز مزدوج على الإطلاق)، لا خطأ محاولة فك الترميز الإضافي الأقل دلالة لقارئ الخطأ.
+      throw singleEncodedError;
+    }
+  }
 }
 
 /** يوقّع تجزئة المستند (base64) بمفتاح secp256k1 خاص — يُرجع التوقيع بترميز base64 */
@@ -64,24 +89,6 @@ export function createDigitalSignature(invoiceHashBase64: string, privateKeyPemO
 
 function isoTimestampNoMillis(date: Date): string {
   return date.toISOString().replace(/\.\d{3}Z$/, "Z");
-}
-
-/**
- * إصلاح مسافات بادئة مُوثَّق (مُقتبَس حرفياً) — مدقّق زاتكا الفعلي يتوقع محتوى <ds:Object> بمسافة
- * بادئة أقل بـ4 أحرف عمّا تنتجه السلسلة الطبيعية بعد التضمين، فيما عدا آخر سطر فيه. لا تفسير رسمي
- * موثّق لهذا من زاتكا نفسها؛ هذا يطابق سلوك المدقّق الفعلي المُلاحَظ في التطبيق المرجعي.
- */
-function fixSignedPropertiesIndentation(signedXml: string): string {
-  const afterFirstSplit = signedXml.split("<ds:Object>");
-  if (afterFirstSplit.length < 2) return signedXml;
-  const objectContent = afterFirstSplit[1].split("</ds:Object>")[0];
-  const lines = objectContent.split("\n");
-  const dedentedLines = lines.map((line) => line.slice(4));
-
-  const linesExceptLast = lines.slice(0, lines.length - 1);
-  const dedentedExceptLast = dedentedLines.slice(0, dedentedLines.length - 1);
-
-  return signedXml.replace(linesExceptLast.join("\n"), dedentedExceptLast.join("\n"));
 }
 
 export interface SignDocumentParams {
@@ -115,12 +122,16 @@ export function signDocument({ xml, certificatePem, privateKeyPem }: SignDocumen
   const signedPropertiesHash = Buffer.from(signedPropertiesHashHex).toString("base64");
 
   const signedPropertiesXmlFinal = signedPropertiesFinal(signedPropertiesProps);
-  const certificateBody = stripPemHeaders(certificatePem, "CERTIFICATE");
+  // certificateInfo.canonicalBodyBase64 عمداً هنا، لا stripPemHeaders(certificatePem, ...) مباشرة:
+  // لو كانت الشهادة المخزَّنة مُرمَّزة base64 مرتين، getCertificateInfo أعلاه تسامح مع ذلك واستخرج
+  // معلوماتها من الشكل الصحيح بعد فك الترميز الإضافي — يجب تضمين نفس الشكل الصحيح هذا بالضبط في
+  // <ds:X509Certificate>، لا الجسم الخام المُرمَّز مرتين كما وصل، وإلا كانت زاتكا لتستلم شهادة
+  // غير قابلة للتحليل فعلياً في المستند الموقَّع نفسه رغم نجاح التوقيع محلياً.
+  const certificateBody = certificateInfo.canonicalBodyBase64;
 
   const extensionXml = buildSignExtension(invoiceHash, signedPropertiesHash, digitalSignature, certificateBody, signedPropertiesXmlFinal);
 
-  let signedXml = xml.replace("<ext:UBLExtensions></ext:UBLExtensions>", `<ext:UBLExtensions>${extensionXml}</ext:UBLExtensions>`);
-  signedXml = fixSignedPropertiesIndentation(signedXml);
+  const signedXml = xml.replace("<ext:UBLExtensions></ext:UBLExtensions>", `<ext:UBLExtensions>${extensionXml}</ext:UBLExtensions>`);
 
   return { signedXml, invoiceHash, digitalSignature, certificateInfo };
 }

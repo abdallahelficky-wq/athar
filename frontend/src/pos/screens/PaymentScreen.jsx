@@ -1,3 +1,5 @@
+import { computeInvoiceLine } from "../../wired/shared/invoiceLine";
+import { itemTaxDefaults, itemDescription } from "../../wired/shared/itemDefaults";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createPosSale } from "../../api/pos";
@@ -6,7 +8,7 @@ import { fmt2 } from "../../legacy/constants";
 export default function PaymentScreen({ companyId, warehouseId, cart, customer, onBack, onCompleted }) {
   const { t } = useTranslation();
   const METHOD_LABEL = { cash: t("pos.payment.methodCash"), bank: t("pos.payment.methodBank") };
-  const total = cart.reduce((s, l) => s + l.unitPrice * l.quantity, 0);
+  const total = cart.reduce((s, l) => s + computeInvoiceLine(l).total, 0);
 
   // payments[method] = المبلغ المُدخَل لهذه الطريقة (نص خام أثناء الكتابة، يُحوَّل رقماً عند الإرسال)
   const [cashAmount, setCashAmount] = useState(String(total.toFixed(2)));
@@ -43,7 +45,7 @@ export default function PaymentScreen({ companyId, warehouseId, cart, customer, 
         customerId: customer?.id || undefined,
         lines: cart.map((l) => ({
           accountId: l.accountId, itemId: l.itemId, description: l.name,
-          quantity: l.quantity, unitPrice: l.unitPrice, vatApplicable: l.vatApplicable,
+          quantity: l.quantity, unitPrice: l.unitPrice, ...itemTaxDefaults(l),
         })),
         payments,
       });

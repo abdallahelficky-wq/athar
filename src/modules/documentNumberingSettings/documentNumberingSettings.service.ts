@@ -6,6 +6,7 @@ const DEFAULT_PREFIX: Record<DocNumberingType, string> = {
   sales_invoice: "INV-",
   quotation: "QUO-",
   sales_return: "RET-",
+  sales_debit_note: "DBN-",
 };
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {

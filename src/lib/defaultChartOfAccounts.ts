@@ -99,8 +99,18 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
 },
 {
   "code": "112",
-  "name": "الذمم المدينة التجارية",
-  "nameEn": "Trade Receivables",
+  "name": "عملاء",
+  "nameEn": "Customers",
+  "type": "asset",
+  "level": 3,
+  "parentCode": "11",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "117",
+  "name": "الذمم المدينة القياسية",
+  "nameEn": "Standard Trade Receivables",
   "type": "asset",
   "level": 3,
   "parentCode": "11",
@@ -113,7 +123,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "nameEn": "Customers - Wholesale/Contract Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -123,7 +133,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "nameEn": "Customers - Cash/Retail Sales",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -133,7 +143,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "nameEn": "Notes Receivable",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -143,7 +153,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "nameEn": "Customers - Related Parties",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -153,7 +163,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "nameEn": "Allowance for Doubtful Debts (Contra)",
   "type": "asset",
   "level": 4,
-  "parentCode": "112",
+  "parentCode": "117",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -479,8 +489,18 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
 },
 {
   "code": "211",
-  "name": "الذمم الدائنة التجارية",
-  "nameEn": "Trade Payables",
+  "name": "موردون",
+  "nameEn": "Suppliers",
+  "type": "liability",
+  "level": 3,
+  "parentCode": "21",
+  "isPosting": false,
+  "isBankOrCash": false
+},
+{
+  "code": "217",
+  "name": "الذمم الدائنة القياسية",
+  "nameEn": "Standard Trade Payables",
   "type": "liability",
   "level": 3,
   "parentCode": "21",
@@ -493,7 +513,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "nameEn": "Suppliers - Local",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -503,7 +523,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "nameEn": "Suppliers - Importers",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -513,7 +533,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "nameEn": "Notes Payable",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },
@@ -523,7 +543,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultChartAccount[] = [
   "nameEn": "Suppliers - Related Parties",
   "type": "liability",
   "level": 4,
-  "parentCode": "211",
+  "parentCode": "217",
   "isPosting": true,
   "isBankOrCash": false
 },

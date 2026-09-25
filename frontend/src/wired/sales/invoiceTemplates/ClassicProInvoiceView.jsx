@@ -1,3 +1,5 @@
+import InvoiceCreditNotes from "../InvoiceCreditNotes";
+import InvoiceZatcaDetails from "../InvoiceZatcaDetails";
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -5,6 +7,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { QrImage, formatCompanyAddress, printWithOrientation } from "../../../legacy/shared";
 import { fmt2 } from "../../../legacy/constants";
 import { listCompanyBankAccounts } from "../../../api/companyBankAccounts";
+import { getAccountDisplayName } from "../../shared/accountDisplayName";
 
 /** يستنتج متصفح/نظام تشغيل/نوع جهاز المستخدم من navigator.userAgent — لمعلومات تدقيق (Audit
  * trail) بسيطة في تذييل الطباعة، بلا أي استدعاء خارجي أو تتبع لعنوان IP (غير متاح بأمان من
@@ -35,7 +38,7 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
   const customer = invoice.customer;
   const branch = invoice.branch;
   const accent = company?.brandColor || "#0B5E3B";
-  const remaining = Number(invoice.grandTotal) - (invoice.paidAmount || 0);
+  const remaining = invoice.outstandingAmount ?? Math.max(0, Number(invoice.grandTotal) - (invoice.paidAmount || 0));
 
   // القيمة الحقيقية تُجلَب من الخادم عند عدم تمرير bankAccountsProp صراحة (فاتورة حقيقية) —
   // المعاينة التجريبية من "إعدادات المبيعات" تمرّرها جاهزة (بيانات وهمية) فتتخطى الجلب.
@@ -65,6 +68,7 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
     <div className="cpi-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className="cpi-shell">
         {onClose && <button type="button" className="cpi-close-x" onClick={onClose} aria-label={t("common.close")}>×</button>}
+      <InvoiceZatcaDetails invoice={invoice} />
         <div className="cpi-print">
           <div className="cpi-head">
             <div className="cpi-head-title" style={{ color: accent }}>
@@ -126,7 +130,7 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
                 <tr key={l.id} className={i % 2 === 1 ? "cpi-alt" : ""}>
                   <td className="num">{i + 1}</td>
                   <td className="cpi-desc">
-                    {l.description || l.account?.name}
+                    {l.description || getAccountDisplayName(l.account, i18n.language)}
                     {l.item?.code && <div className="cpi-code">{l.item.code}</div>}
                   </td>
                   <td>{l.item?.unit || t("salesInvoices.classicPro.unit")}</td>
@@ -177,6 +181,7 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
           </div>
         </div>
 
+      <InvoiceCreditNotes invoice={invoice} onClose={onClose} />
         <div className="cpi-actions">
           <button className="btn-primary" onClick={handlePrint}>{t("salesInvoices.form.print")}</button>
         </div>

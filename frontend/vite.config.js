@@ -54,10 +54,46 @@ function forceUtf8Text() {
   };
 }
 
+// نسخة APK نقطة البيع (public/app/athar-pos.apk، راجع src/pages/DownloadPage.jsx) — تحقّق محلي
+// فعلي عبر `vite preview` كشف أن خادم Vite الساكن (dev/preview) لا يستنتج نوع محتوى صحيح لامتداد
+// .apk أصلاً (يُرسِل ترويسة Content-Type فارغة)، وبعض متصفحات أندرويد لا تعرض هذا الملف كملف
+// قابل للتثبيت في هذه الحالة (قد تفتحه كملف عام غير معروف بدل تنزيله للتثبيت). يُفرَض هنا صراحةً
+// بنفس أسلوب forceUtf8Text أعلاه (تصحيح أي محاولة لاحقة لضبط Content-Type لهذا المسار تحديداً، لا
+// استبدال الترويسة مرة واحدة فقط) — هذا يضمن الصحة محلياً ولأي نشر فعلي يُشغِّل خادم Vite (dev أو
+// preview) لتقديم الواجهة المبنية؛ الاستضافة الفعلية للواجهة في الإنتاج خدمة ثابتة منفصلة تماماً
+// عن الخادم الخلفي (server.ts لا يخدم الواجهة إطلاقاً) ولا يمكن التحقق من إعداد MIME الخاص بها من
+// هذا المستودع، فهذا أفضل ضمان متاح من داخله.
+function fixApkContentType() {
+  const APK_URL_SUFFIX = "/app/athar-pos.apk";
+  const patchResponse = (req, res) => {
+    if (!req.url || !req.url.split("?")[0].endsWith(APK_URL_SUFFIX)) return;
+    const originalSetHeader = res.setHeader.bind(res);
+    res.setHeader = (name, value) =>
+      originalSetHeader(name, name.toLowerCase() === "content-type" ? "application/vnd.android.package-archive" : value);
+  };
+
+  return {
+    name: "fix-apk-content-type",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        patchResponse(req, res);
+        next();
+      });
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => {
+        patchResponse(req, res);
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
     forceUtf8Text(),
+    fixApkContentType(),
     VitePWA({
       registerType: "autoUpdate",
       // vite-plugin-pwa يحقن سكربت تسجيل الـ Service Worker ورابط manifest.webmanifest في *كل*
@@ -67,7 +103,7 @@ export default defineConfig({
       // الخاص بها (مذكور أولاً في <head> قبل الرابط المحقون تلقائياً) لمنحها هوية/أيقونة مستقلة
       // عند "إضافة للشاشة الرئيسية" — تكرار الرابط غير مؤذٍ عملياً (المتصفحات تعتمد أول رابط تصادفه).
       manifestFilename: "manifest.webmanifest",
-      includeAssets: ["icons/favicon-32.png", "icons/apple-touch-icon.png"],
+      includeAssets: ["icons/favicon.ico", "icons/favicon-16.png", "icons/favicon-32.png", "icons/apple-touch-icon.png"],
       manifest: {
         name: "أثر المحاسبي",
         short_name: "أثر",

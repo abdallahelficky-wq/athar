@@ -1,8 +1,10 @@
+import { TaxFields } from "../../lib/itemTax";
 import { prisma } from "../../lib/prisma";
-import { badRequest } from "../../lib/httpError";
+import { badRequest, forbidden } from "../../lib/httpError";
 import { CASH_CUSTOMER_NAME } from "../../lib/starterData";
 import { createSalesInvoice } from "../salesInvoices/salesInvoices.service";
 import { createReceipt } from "../receipts/receipts.service";
+import { canOverridePosPrice } from "../positions/positions.service";
 
 interface PosLineInput {
   accountId: string;
@@ -13,6 +15,9 @@ interface PosLineInput {
   discountPct?: number;
   priceIncludesVat?: boolean;
   vatApplicable?: boolean;
+  taxCategoryCode?: TaxFields["taxCategoryCode"];
+  taxExemptionReasonCode?: string | null;
+  taxExemptionReason?: string | null;
 }
 
 interface PosPaymentInput {
@@ -48,6 +53,46 @@ async function resolvePosWarehouseId(tenantId: string, companyId: string, reques
 }
 
 /**
+ * يفحص كل سطر له itemId فعلياً مقابل سعر الصنف المُسجَّل (Item.salePrice) — أي سطر يختلف سعر
+ * وحدته عن سعر الصنف (بفارق أكبر من هللة واحدة، تفادياً لأخطاء التقريب العشري) يُعَدّ تعديلاً يدوياً
+ * للسعر. سطر بلا itemId (بند حر يدوي) لا "سعر أصلي" له فيُستبعَد من هذا الفحص تماماً — لا مفهوم
+ * "تعديل" على بند لم يكن له سعر مرجعي أصلاً.
+ *
+ * أي تعديل يتطلب صلاحية posPriceOverride صراحةً (owner/super_admin دائماً معفيان، مثل أي صلاحية
+ * أخرى في هذا النظام) — رفضه هنا هو التحقق الحاسم فعلياً على الخادم؛ حقل السعر للقراءة فقط في
+ * الواجهة تجربة استخدام فقط، لا حماية حقيقية بذاته.
+ */
+async function detectAndAuthorizePriceOverrides(
+  tenantId: string,
+  userId: string,
+  role: string,
+  companyId: string,
+  lines: PosLineInput[],
+): Promise<Array<{ itemId: string; originalPrice: number; newPrice: number }>> {
+  const itemIds = [...new Set(lines.map((l) => l.itemId).filter((id): id is string => Boolean(id)))];
+  if (itemIds.length === 0) return [];
+
+  const items = await prisma.item.findMany({ where: { id: { in: itemIds }, tenantId, companyId }, select: { id: true, salePrice: true } });
+  const salePriceById = new Map(items.map((i) => [i.id, i.salePrice != null ? Number(i.salePrice) : null]));
+
+  const overrides: Array<{ itemId: string; originalPrice: number; newPrice: number }> = [];
+  for (const line of lines) {
+    if (!line.itemId) continue;
+    const originalPrice = salePriceById.get(line.itemId);
+    if (originalPrice == null) continue; // صنف بلا سعر مسجَّل أصلاً — لا مرجع للمقارنة
+    if (Math.abs(Number(line.unitPrice) - originalPrice) > 0.01) {
+      overrides.push({ itemId: line.itemId, originalPrice, newPrice: Number(line.unitPrice) });
+    }
+  }
+  if (overrides.length === 0) return [];
+
+  if (!(await canOverridePosPrice(tenantId, userId, role))) {
+    throw forbidden("منصبك الوظيفي لا يملك صلاحية تعديل سعر الوحدة في نقطة البيع");
+  }
+  return overrides;
+}
+
+/**
  * يبني فاتورة مبيعات وسندات القبض الخاصة بتحصيلها الفوري (طريقة/طرق دفع متعددة لنفس الفاتورة) في
  * خطوة واحدة لنقطة البيع — يعيد استخدام createSalesInvoice/createReceipt الموجودتين بالفعل حرفياً
  * (لا منطق ترحيل/محاسبة/زاتكا/مخزون مكرَّر هنا)، فقط ينسّق بينهما: ينشئ الفاتورة مُرحَّلة أولاً
@@ -66,7 +111,7 @@ async function resolvePosWarehouseId(tenantId: string, companyId: string, reques
  * (ب) يُمنَع صراحة استخدام "العميل النقدي" الافتراضي — بيع آجل بلا عميل حقيقي محدَّد يُنشئ ذمة غير
  *     قابلة للتحصيل من أحد بعينه لاحقاً، فيُرفَض هنا بدل قبوله بصمت.
  */
-export async function createPosSale(tenantId: string, userId: string, input: PosSaleInput) {
+export async function createPosSale(tenantId: string, userId: string, role: string, input: PosSaleInput) {
   const isDeferred = input.payments.length === 0;
 
   let customerId = input.customerId;
@@ -82,16 +127,24 @@ export async function createPosSale(tenantId: string, userId: string, input: Pos
   }
 
   const warehouseId = await resolvePosWarehouseId(tenantId, input.companyId, input.warehouseId);
+  const priceOverridesToAudit = await detectAndAuthorizePriceOverrides(tenantId, userId, role, input.companyId, input.lines);
 
-  const invoice = await createSalesInvoice(tenantId, userId, {
+  const createdInvoice = await createSalesInvoice(tenantId, userId, {
     companyId: input.companyId,
     customerId,
     date: input.date,
+    priceOverridesToAudit,
     lines: input.lines,
     post: true,
     warehouseId,
     dueDate: input.dueDate,
   });
+
+  // اسم مُصدِر الفاتورة لطباعة إيصال نقطة البيع (راجع buildReceiptEscPos/ReceiptView) — يُعرَف
+  // مباشرة هنا من userId الحالي (لا حاجة لعبور JournalEntry كما في getSalesInvoice، لأننا للتو
+  // من أنشأ القيد بهذا الـuserId بالضبط أعلاه).
+  const issuer = await prisma.user.findFirst({ where: { id: userId, tenantId }, select: { name: true } });
+  const invoice = { ...createdInvoice, issuedByName: issuer?.name ?? null };
 
   if (!isDeferred) {
     const grandTotal = Number(invoice.grandTotal);
