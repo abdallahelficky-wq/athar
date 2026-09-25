@@ -41,8 +41,12 @@ expected_version="$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)"
 echo "$badging" | grep -q "^package: name='${expected_package}' " || { echo "::error::applicationId is not ${expected_package}"; exit 1; }
 echo "$badging" | grep -q "versionName='${expected_version}'" || { echo "::error::versionName is not ${expected_version}"; exit 1; }
 
-certs="$("$build_tools/apksigner" verify --print-certs "$output_name")"
-echo "$certs" | grep -E "Signer #1 certificate (DN|SHA-256 digest)"
+# الإخراج الكامل لـapksigner يُطبَع كما هو (لا أسرار فيه: شهادة عامة وبصماتها فقط)
+certs="$("$build_tools/apksigner" verify --verbose --print-certs "$output_name" 2>&1)" || { echo "$certs"; echo "::error::apksigner verification failed"; exit 1; }
+echo "$certs"
+cert_sha256="$(echo "$certs" | grep -i -m1 -E 'certificate SHA-256 digest' | sed -E 's/.*digest: *//' || true)"
+[ -n "$cert_sha256" ] || { echo "::error::could not read the signing certificate SHA-256 from apksigner"; exit 1; }
+echo "Signing certificate SHA-256: ${cert_sha256}"
 if [ "$signed" = true ] && echo "$certs" | grep -q "CN=Android Debug"; then
   echo "::error::signed with a debug certificate, not the release key"
   exit 1
@@ -50,4 +54,5 @@ fi
 
 sha256sum "$output_name"
 echo "signed=${signed}" >> "$GITHUB_OUTPUT"
+echo "cert_sha256=${cert_sha256}" >> "$GITHUB_OUTPUT"
 echo "apk=${project_dir}/${output_name}" >> "$GITHUB_OUTPUT"
