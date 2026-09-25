@@ -28,8 +28,11 @@
 // ⚠️ نتائج الاختبار الثاني (بعد إصلاح الترميز العربي أعلاه): النص العربي طُبع مُشكَّلاً وصحيحاً —
 //    الحل بالصورة النقطية نجح. سبعة أعطال أخرى ظهرت، كلها أُصلِحت في هذا التعديل عدا ما ذُكِر خلافه:
 //   ١) معادلة سطر الصنف كانت تطبع "الكمية × سعر الوحدة = total"، وtotal شامل الضريبة لا ناتج
-//      الضربة الفعلي — معادلة خاطئة حسابياً. أُصلِحت لاستخدام line.subtotal (قبل الضريبة، مطابق
-//      فعلياً دائماً لأن نقطة البيع لا تدعم خصم سطر إطلاقاً) — راجع buildReceiptContentModel.
+//      الضربة الفعلي — معادلة خاطئة حسابياً. الإصلاح الأول (استبدال total بـsubtotal) اعتمد على
+//      أن نقطة البيع لا تدعم خصم سطر حالياً — افتراض هشّ سيتعطّل بمجرد إضافة خصم السطور المخطَّط
+//      له. أُصلِح جذرياً بدل ذلك: لا "=" على الإطلاق — صف بحقلين منفصلين (الكمية × سعر الوحدة،
+//      وصافي السطر) بلا أي ادّعاء تساوٍ بينهما، فيبقى صحيحاً مهما صار منطق الخصم لاحقاً — راجع
+//      addRow في buildReceiptContentModel.
 //   ٢) سطرا "قبل الضريبة"/"الضريبة" (كانا موجودين في مسار النص القديم ومعاينة الشاشة ReceiptView.jsx
 //      دائماً) سقطا سهواً عند إعادة الكتابة كصورة نقطية — أُعيدا.
 //   ٣) لا عنوان لنوع المستند إطلاقاً (فاتورة ضريبية/مبسّطة) — أُضيف عبر documentTitle.
@@ -39,12 +42,13 @@
 //      المُلاحَظ بين ساعة الجهاز وتوقيت الإيصال المطبوع لم يُعثَر على أي كود يفرض إزاحة توقيت هنا —
 //      راجع تعليق formatGregorianDateTime أعلاه لتفصيل هذا (على الأرجح إعداد المنطقة الزمنية على
 //      الجهاز نفسه وقت الاختبار، لا كود في هذا المستودع).
-//   ٥) سطر واحد أعلى الإيصال ظهر كرموز صينية (نفس عطل الترميز الأصلي) رغم أن كل النصوص هنا صور
-//      نقطية الآن — لم يُعثَر على أي استدعاء نص خام متبقٍّ في هذا الملف أو MainActivity.kt (لا
-//      text()، لا printText/printTextWithFont AIDL في أي مسار). الاحتمال الأقوى المدعوم بالأدلة:
-//      حزمة JS قديمة مخبَّأة على الجهاز (WebView/CDN) لم تُحدَّث لآخر نشر — الحزمة النصية القديمة
-//      كانت تطبع اسم الشركة كأول سطر نصي مباشرة بعد الشعار، ما يطابق الموضع المُبلَّغ عنه تماماً.
-//      يحتاج تأكيداً على جهاز حقيقي بعد تفريغ ذاكرة التخزين المؤقت للـWebView/إعادة تحميل قسري.
+//   ٥) سطر واحد أعلى الإيصال ظهر كرموز صينية. تخمين أول (حزمة JS قديمة مخبَّأة على الجهاز) مرفوض
+//      بالصورة نفسها: لو كان الجهاز يشغِّل الحزمة النصية القديمة فعلاً، لكان الإيصال بالكامل قد
+//      طُبع كرموز صينية كما حدث ليلة الاختبار الأول — لا سطر واحد فقط. متن الإيصال طُبع مُشكَّلاً
+//      وصحيحاً بالكامل عدا هذا السطر، ما يثبت أن الكود الجديد (الصورة النقطية) هو ما نفَّذ الطباعة
+//      فعلياً. الاحتمال الأقوى الآن: هذا السطر هو ذيل الطباعة *السابقة* الواقع فوق خط القص — أي لا
+//      علاقة له بهذا الإيصال إطلاقاً. هذا سؤال حالة ورق/طابعة يُحسَم باختبار نظيف على جهاز حقيقي (قصّ
+//      الورق قبل الطباعة والتأكد أن لا شيء متبقٍّ فوقها)، لا بتغيير كود — لم يُطبَّق أي تعديل هنا.
 //   ٦) كل الأسطر كانت محاذاة يساراً رغم أن المستند عربي/RTL بالكامل — بقية من محاذاة ESC/POS
 //      الفعلية القديمة (0 يسار)، لا قراراً تصميمياً. أُصلِحت لـ"right" — راجع buildReceiptContentModel.
 //   ٧) شعار أثر التجاري كان يُطبَع بدل شعار الشركة البائعة الفعلي. الحقل (Company.logoKey) وواجهة
@@ -257,6 +261,9 @@ export function buildReceiptContentModel({ company, invoice, lastEmailOrNote }) 
   const addLine = (text, align = "center") => { if (text) blocks.push({ type: "line", text: String(text), align, bold: false, large: false }); };
   const addEmphasisLine = (text, align = "center") => { if (text) blocks.push({ type: "line", text: String(text), align, bold: true, large: true }); };
   const addDivider = () => blocks.push({ type: "divider" });
+  // سطر بحقلين منفصلين بلا أي علامة "=" تربطهما — راجع renderContentModelToCanvas لكيفية رسمهما
+  // (rightText يلتصق باليمين، leftText باليسار، بلا أي حساب بينهما هنا إطلاقاً).
+  const addRow = (rightText, leftText) => blocks.push({ type: "row", rightText: String(rightText), leftText: String(leftText) });
 
   addEmphasisLine(documentTitle({ subtype: invoice.invoiceType }), "center");
 
@@ -290,13 +297,13 @@ export function buildReceiptContentModel({ company, invoice, lastEmailOrNote }) 
     addLine(name, "right");
     const qty = Number(line.quantity);
     const unitPrice = Number(line.unitPrice);
-    // lineSubtotal (صافي السطر قبل الضريبة، عمود subtotal في SalesInvoiceLine) لا line.total (شامل
-    // الضريبة) — الاختبار الثاني على جهاز حقيقي كشف معادلة خاطئة حسابياً هنا ("3.50 × 60 = 241.50"،
-    // بينما 3.50×60 = 210.00 فعلياً؛ 241.50 هو الإجمالي شامل ضريبة 15%). نقطة البيع لا تدعم خصم سطر
-    // إطلاقاً (discountPct دائماً صفر لمبيعاتها، راجع absence أي واجهة إدخال خصم في frontend/src/pos)
-    // فالمعادلة هنا صحيحة حسابياً دائماً فعلياً، لا فقط تقريباً.
-    const lineSubtotal = Number(line.subtotal);
-    addLine(`  ${qty} × ${unitPrice.toFixed(2)} = ${lineSubtotal.toFixed(2)}`, "right");
+    // صف بحقلين منفصلين، بلا "=" يربطهما — الاختبار الثاني على جهاز حقيقي كشف طباعة معادلة خاطئة
+    // حسابياً هنا ("3.50 × 60 = 241.50"، بينما 3.50×60 = 210.00 فعلياً؛ 241.50 هو الإجمالي شامل
+    // ضريبة 15%). الإصلاح الأول (استبدال المعادلة بـline.subtotal بدل line.total) اعتمد على أن
+    // نقطة البيع لا تدعم خصم سطر حالياً — افتراض لن يصمد لاحقاً (خصم السطور مطلوب فعلياً). لهذا لا
+    // "=" على الإطلاق بعد الآن: rightText (الكمية × سعر الوحدة) وleftText (صافي السطر) حقيقتان
+    // منفصلتان تماماً، تبقيان صحيحتين مهما صار منطق الخصم لاحقاً — لا ادّعاء تساوٍ قد يصبح كاذباً.
+    addRow(`${qty} × ${unitPrice.toFixed(2)}`, Number(line.subtotal).toFixed(2));
   }
   addDivider();
 
@@ -401,6 +408,17 @@ export function renderContentModelToCanvas(blocks, dotWidth) {
       y += DIVIDER_GAP_PX;
       ctx.fillRect(RASTER_MARGIN_PX, y, usableWidth, DIVIDER_THICKNESS_PX);
       y += DIVIDER_THICKNESS_PX + DIVIDER_GAP_PX;
+      continue;
+    }
+    if (block.type === "row") {
+      // حقلان منفصلان بلا أي علامة تساوٍ بينهما — rightText يلتصق باليمين وleftText باليسار، بلا
+      // أي حساب/تحقّق هنا (راجع addRow في buildReceiptContentModel لسبب تعمّد ذلك).
+      ctx.font = `${NORMAL_FONT_PX}px sans-serif`;
+      ctx.textAlign = "right";
+      ctx.fillText(block.rightText, dotWidth - RASTER_MARGIN_PX, y);
+      ctx.textAlign = "left";
+      ctx.fillText(block.leftText, RASTER_MARGIN_PX, y);
+      y += Math.round(NORMAL_FONT_PX * LINE_HEIGHT_RATIO) + BLOCK_GAP_PX;
       continue;
     }
     const fontPx = block.large ? LARGE_FONT_PX : NORMAL_FONT_PX;

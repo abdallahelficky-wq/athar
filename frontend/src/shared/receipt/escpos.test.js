@@ -133,19 +133,29 @@ test("line items and grand total appear with the expected alignment", () => {
   assert.equal(totalLine.bold, true);
 });
 
-test("the item calculation line is qty × unitPrice = pre-VAT subtotal, never the VAT-inclusive total — a receipt must not print a false equation", () => {
-  // الاختبار الثاني على جهاز حقيقي كشف طباعة "3.50 × 60 = 241.50" — معادلة خاطئة حسابياً، لأن
-  // 241.50 هو total شامل ضريبة 15% لا ناتج الضرب الفعلي (3.50×60=210.00). نقطة البيع لا تدعم خصم
-  // سطر إطلاقاً، فـ qty×unitPrice يساوي subtotal دائماً فعلياً هنا.
+test("the item quantity/price and the line amount are two separate fields with no '=' asserting they are equal — a receipt must not print an equation that a future line discount could make false", () => {
+  // الاختبار الثاني على جهاز حقيقي كشف طباعة "3.50 × 60 = 241.50" — معادلة خاطئة حسابياً (241.50
+  // هو total شامل ضريبة 15%، لا ناتج الضرب الفعلي 210.00). إصلاح أول استبدل total بـsubtotal
+  // بافتراض أن نقطة البيع لا تدعم خصم سطر — افتراض هشّ سيتعطّل بمجرد إضافة خصم السطور المخطَّط له.
+  // الإصلاح النهائي: لا "=" على الإطلاق، صف بحقلين مستقلّين (rightText/leftText) يبقيان صحيحين
+  // بصرف النظر عن أي منطق خصم لاحق.
   const invoice = baseInvoice({
     lines: [{ description: "صنف", quantity: 3.5, unitPrice: 60, subtotal: 210, vat: 31.5, total: 241.5 }],
     subtotal: 210,
     vatTotal: 31.5,
     grandTotal: 241.5,
   });
-  const text = textOf(buildReceiptContentModel({ company, invoice }));
-  assert.match(text, /3\.5 × 60\.00 = 210\.00/);
-  assert.doesNotMatch(text, /= 241\.50/, "must never claim qty × unitPrice equals the VAT-inclusive total");
+  const blocks = buildReceiptContentModel({ company, invoice });
+  const row = blocks.find((b) => b.type === "row");
+  assert.ok(row, "expected a row block for the item quantity/price and amount");
+  assert.equal(row.rightText, "3.5 × 60.00");
+  assert.equal(row.leftText, "210.00");
+  assert.doesNotMatch(row.rightText, /=/);
+  assert.doesNotMatch(row.leftText, /=/);
+  // لا سطر نصي عادي (type: "line") يحمل "=" بين الكمية والمبلغ — التأكيد أن المعادلة القديمة
+  // اختفت تماماً من النموذج، لا فقط أن الصف الجديد صحيح.
+  const text = textOf(blocks);
+  assert.doesNotMatch(text, /×.*=/);
 });
 
 test("the pre-VAT subtotal and VAT amount print as separate lines before the grand total (ZATCA requires the VAT amount to be shown)", () => {
