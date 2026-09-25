@@ -64,9 +64,10 @@ function forceUtf8Text() {
 // عن الخادم الخلفي (server.ts لا يخدم الواجهة إطلاقاً) ولا يمكن التحقق من إعداد MIME الخاص بها من
 // هذا المستودع، فهذا أفضل ضمان متاح من داخله.
 function fixApkContentType() {
-  const APK_URL_SUFFIX = "/app/athar-pos.apk";
+  // كل ملفات APK المنشورة تحت /app/ (نقطة البيع athar-pos.apk وعامل المحطة athar-station.apk)
+  const APK_URL_PATTERN = /\/app\/[^/]+\.apk$/;
   const patchResponse = (req, res) => {
-    if (!req.url || !req.url.split("?")[0].endsWith(APK_URL_SUFFIX)) return;
+    if (!req.url || !APK_URL_PATTERN.test(req.url.split("?")[0])) return;
     const originalSetHeader = res.setHeader.bind(res);
     res.setHeader = (name, value) =>
       originalSetHeader(name, name.toLowerCase() === "content-type" ? "application/vnd.android.package-archive" : value);
