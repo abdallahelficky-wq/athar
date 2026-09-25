@@ -6,6 +6,7 @@ import LoginScreen from "./screens/LoginScreen";
 import CheckInScreen from "./screens/CheckInScreen";
 import LeaveRequestsScreen from "./screens/LeaveRequestsScreen";
 import ManagerInboxScreen from "./screens/ManagerInboxScreen";
+import StationShiftScreen from "./screens/StationShiftScreen";
 
 function Shell() {
   const { t } = useTranslation();
@@ -14,6 +15,9 @@ function Shell() {
     { id: "attendance", label: t("mobile.tabs.attendance"), icon: "⏱" },
     { id: "leave", label: t("mobile.tabs.leave"), icon: "📅" },
   ];
+  // تبويب ورديات المحطة يظهر فقط لموظف مُسنَد لمحطة (Employee.assignedCostCenterId) — نفس مبدأ
+  // "inbox" أدناه (يظهر فقط لمدير له مرؤوسون)، بلا أي Position/صلاحية منفصلة.
+  if (employee?.assignedCostCenterId) TABS.push({ id: "stationShifts", label: t("mobile.tabs.stationShifts"), icon: "⛽" });
   const tabs = employee?.isManager ? [...TABS, { id: "inbox", label: t("mobile.tabs.inbox"), icon: "📥" }] : TABS;
   const [tab, setTab] = useState("attendance");
 
@@ -34,6 +38,7 @@ function Shell() {
       <div className="m-main">
         {tab === "attendance" && <CheckInScreen />}
         {tab === "leave" && <LeaveRequestsScreen />}
+        {tab === "stationShifts" && employee?.assignedCostCenterId && <StationShiftScreen />}
         {tab === "inbox" && employee?.isManager && <ManagerInboxScreen />}
       </div>
       <div className="m-tabbar">

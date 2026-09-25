@@ -25,6 +25,9 @@ import { salesReturnRoutes } from "./modules/salesReturns/salesReturns.routes";
 import { salesDebitNoteRoutes } from "./modules/salesDebitNotes/salesDebitNotes.routes";
 import { receiptRoutes } from "./modules/receipts/receipts.routes";
 import { stationSaleRoutes } from "./modules/stationSales/stationSales.routes";
+import { stationShiftRoutes } from "./modules/stationShifts/stationShifts.routes";
+import { stationShiftPortalRoutes } from "./modules/stationShifts/stationShifts.portal.routes";
+import { stationShiftsReportRoutes } from "./modules/stationShiftsReports/stationShiftsReports.routes";
 import { salesReportRoutes } from "./modules/salesReports/salesReports.routes";
 import { supplierRoutes } from "./modules/suppliers/suppliers.routes";
 import { purchaseInvoiceRoutes } from "./modules/purchaseInvoices/purchaseInvoices.routes";
@@ -93,6 +96,8 @@ export function createApp() {
   app.use("/api/sales-debit-notes", salesDebitNoteRoutes);
   app.use("/api/receipts", receiptRoutes);
   app.use("/api/station-sales", stationSaleRoutes);
+  app.use("/api/station-shifts", stationShiftRoutes);
+  app.use("/api/station-shifts-reports", stationShiftsReportRoutes);
   app.use("/api/sales-reports", salesReportRoutes);
   app.use("/api/suppliers", supplierRoutes);
   app.use("/api/purchase-invoices", purchaseInvoiceRoutes);
@@ -124,6 +129,7 @@ export function createApp() {
   app.use("/api/employee-portal", employeePortalRoutes);
   app.use("/api/attendance", attendanceRoutes);
   app.use("/api/employee-portal/leave-requests", leaveRequestPortalRoutes);
+  app.use("/api/employee-portal/station-shifts", stationShiftPortalRoutes);
   app.use("/api/pos", posRoutes);
   app.use("/api/stables", stableRoutes);
   app.use("/api/ai", aiRoutes);

@@ -240,6 +240,7 @@ export const AR_TO_EN: Record<string, string> = {
   "المبلغ يجب أن يكون أكبر من صفر": "The amount must be greater than zero",
   "المحطة (مركز التكلفة) غير موجودة": "The station (cost center) does not exist",
   "المدير المباشر المحدد غير موجود ضمن مستأجرك": "The specified direct manager does not exist in your tenant",
+  "المحطة المحددة ليست مركز تكلفة ضمن شركة هذا الموظف": "The selected station is not a cost center of this employee's company",
   "المردود غير موجود": "The return does not exist",
   "المردود ليس مرحّلاً أصلاً": "The return isn't posted in the first place",
   "المردود مرحّل بالفعل": "The return is already posted",
@@ -466,6 +467,41 @@ export const AR_TO_EN: Record<string, string> = {
   "لو هذا البريد الإلكتروني مسجّل بالنظام، سيصلك رابط لإعادة تعيين كلمة المرور خلال دقائق.":
     "If this email is registered in the system, you'll receive a password reset link within minutes.",
   "لا يمكن تكرار نفس الصنف أكثر من مرة في نفس التسوية": "The same item can't appear more than once in the same settlement",
+  "لا توجد محطة مُسنَدة لهذا الموظف": "No station is assigned to this employee",
+  "محطة بلا شركة محددة، لا يمكن فتح وردية عليها": "The station has no company set — a shift can't be opened for it",
+  "توجد وردية بالفعل لهذه المحطة بنفس التاريخ ونوع الوردية": "A shift already exists for this station on the same date and shift type",
+  "لا يمكن للعامل تعديل وردية بعد إرسالها للمراجعة": "A worker can't modify a shift after it has been submitted for review",
+  "هذه الوردية ليست لك": "This shift is not yours",
+  "الفوهة غير موجودة أو لا تتبع محطة هذه الوردية": "The nozzle does not exist or does not belong to this shift's station",
+  "الوردية غير موجودة": "The shift does not exist",
+  "العميل المرتبط ببيع آجل في هذه الوردية بلا حساب محاسبي — أكمل بياناته أولاً": "The customer linked to a credit sale in this shift has no accounting account — complete their data first",
+  "لا يمكن تصحيح قراءة لوردية ليست قيد المراجعة": "A reading can't be corrected for a shift that isn't under review",
+  "القراءة غير موجودة": "The reading does not exist",
+  "هذه القراءة ليست لك": "This reading is not yours",
+  "المصروف غير موجود": "The expense does not exist",
+  "هذا المصروف ليس لك": "This expense is not yours",
+  "لا يمكن اعتماد وردية ليست قيد المراجعة": "A shift that isn't under review can't be approved",
+  "لا يمكن اعتماد الوردية: إحدى الفوهات بلا قراءة مسجَّلة بعد": "The shift can't be approved: one of the nozzles has no recorded reading yet",
+  "لا يمكن اعتماد الوردية: إحدى القراءات بلا صورة عداد مرفقة بعد": "The shift can't be approved: one of the readings has no attached meter photo yet",
+  "لا يمكن اعتماد الوردية: إحدى القراءات لم يراجعها المحاسب بعد": "The shift can't be approved: one of the readings hasn't been reviewed by the accountant yet",
+  "الإجراء غير موجود ضمن هذه الوحدة": "The action does not exist within this module",
+  "لم يُحدَّد حسابا عجز/زيادة نقدية ورديات المحطات لهذه الشركة بعد — اضبطهما من إعدادات الشركة أولاً":
+    "This company's station-shift cash shortage/surplus accounts have not been set yet — configure them from company settings first",
+  "لا يمكن ترحيل وردية لم تُعتمَد بعد، أو رُحِّلت بالفعل": "A shift that hasn't been approved yet, or has already been posted, can't be posted",
+  "لا يمكن رفض وردية ليست قيد المراجعة أو الاعتماد": "A shift that isn't under review or approved can't be rejected",
+
+  // stationShiftsReports.service.ts / stationShiftsReports.controller.ts
+  "companyId مطلوب لتقارير ورديات المحطات": "companyId is required for station-shift reports",
+  "groupBy مطلوب ويجب أن يكون أحد: pump, station, product": "groupBy is required and must be one of: pump, station, product",
+  "تاريخ البداية يجب أن يسبق تاريخ النهاية أو يساويه": "The start date must be before or equal to the end date",
+  "المدى الزمني المطلوب أطول من الحد الأقصى المسموح لتقارير ورديات المحطات (366 يوماً) — قسّم الطلب لفترات أقصر":
+    "The requested date range is longer than the maximum allowed for station-shift reports (366 days) — split the request into shorter periods",
+  "إحدى المحطات (مراكز التكلفة) المطلوبة غير موجودة ضمن هذه الشركة": "One of the requested stations (cost centers) does not exist within this company",
+  "قراءة بلا قيمة مؤكَّدة ضمن وردية معتمَدة/مرحَّلة — تحقّق من اتساق البيانات":
+    "A reading with no confirmed value inside an approved/posted shift — check data consistency",
+  "عميل مرتبط ببيع آجل بلا حساب محاسبي ضمن إحدى الورديات المشمولة بالتقرير — أكمل بياناته أولاً":
+    "A customer linked to a credit sale in one of the shifts covered by the report has no accounting account — complete their data first",
+
   // رسائل مسار الترحيل الآمن على ثلاث مراحل لزاتكا (فواتير/مردودات/إشعارات مدين) — راجع
   // reserveZatcaChainForPosting/submitZatcaChainDocument في postingGate.ts
   "سبب إصدار إشعار المدين (BR-KSA-17) إلزامي عند ربطه بفاتورة أصلية سترسَل لزاتكا": "A debit note reason (BR-KSA-17) is required when it is linked to an original invoice that will be sent to ZATCA",

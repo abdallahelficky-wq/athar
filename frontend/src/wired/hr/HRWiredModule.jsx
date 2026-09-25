@@ -38,7 +38,12 @@ export default function HRWiredModule({ companies, companyId }) {
       </div>
       <SubTabs tabs={HR_TABS} active={tab} basePath="/hr" />
       {tab === "dashboard" && <HRDashboardTab companyId={companyId} companies={companies} />}
-      {tab === "directory" && <EmployeeDirectoryTab companyId={companyId} />}
+      {tab === "directory" && (
+        <EmployeeDirectoryTab
+          companyId={companyId}
+          isFuelStations={companies?.find((c) => c.id === companyId)?.businessActivity === "fuel_stations"}
+        />
+      )}
       {tab === "leaves" && <LeavesTab companyId={companyId} />}
       {tab === "leaveSettlement" && <LeaveSettlementTab companyId={companyId} companies={companies} />}
       {tab === "leaveReturn" && <LeaveReturnTab companyId={companyId} companies={companies} />}

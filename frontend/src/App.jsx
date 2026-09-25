@@ -34,6 +34,7 @@ import InventoryWiredModule, { INVENTORY_TABS } from "./wired/inventory/Inventor
 import FixedAssetsWiredModule, { FIXED_ASSETS_TABS } from "./wired/fixedAssets/FixedAssetsWiredModule";
 import HRWiredModule, { HR_TABS } from "./wired/hr/HRWiredModule";
 import StablesModule, { STABLE_TABS } from "./wired/stables/StablesModule";
+import StationShiftsReviewModule, { STATION_SHIFTS_TABS } from "./wired/stationShifts/StationShiftsReviewModule";
 import UserMenu from "./wired/shared/UserMenu";
 import { UnsavedChangesProvider } from "./wired/shared/UnsavedChangesContext";
 import UnsavedChangesBlocker from "./wired/shared/UnsavedChangesBlocker";
@@ -43,6 +44,7 @@ const NAV_GROUPS = [
   { id: "purchases", labelKey: "nav.groups.purchases", tabs: PURCHASE_TABS, to: routes.purchases },
   { id: "inventory", labelKey: "nav.groups.inventory", tabs: INVENTORY_TABS, to: routes.inventory },
   { id: "stables", labelKey: "stables.title", tabs: STABLE_TABS, to: routes.stables },
+  { id: "stationShifts", labelKey: "stationShiftsReview.title", tabs: STATION_SHIFTS_TABS, to: routes.stationShifts },
   { id: "fixedAssets", labelKey: "nav.groups.fixedAssets", tabs: FIXED_ASSETS_TABS, to: routes.fixedAssets },
   { id: "accounts", labelKey: "nav.groups.accounts", tabs: ACCOUNTS_TABS, to: routes.accounts },
   { id: "hr", labelKey: "nav.groups.hr", tabs: HR_TABS, to: routes.hr },
@@ -72,7 +74,9 @@ function AppShell() {
   // القطاعية التي تخصها. مديول الإسطبلات لا يظهر ولا يُفتح إلا لنشاط الإسطبلات والإعاشة.
   const visibleNavGroups = NAV_GROUPS.filter((group) => {
     const platformAllows = !tenant?.enabledModules?.length || tenant.enabledModules.includes(group.id);
-    const activityAllows = group.id !== "stables" || activeCompany?.businessActivity === "horse_stables";
+    const activityAllows =
+      (group.id !== "stables" || activeCompany?.businessActivity === "horse_stables") &&
+      (group.id !== "stationShifts" || activeCompany?.businessActivity === "fuel_stations");
     return platformAllows && activityAllows;
   });
   const location = useLocation();
@@ -275,6 +279,12 @@ function StablesRoute() {
   if (company?.businessActivity !== "horse_stables") return <Navigate to={routes.dashboard()} replace />;
   return <StablesModule companyId={companyId} />;
 }
+function StationShiftsReviewRoute() {
+  const { companies, companyId } = useOutletContext();
+  const company = companies.find((item) => item.id === companyId);
+  if (company?.businessActivity !== "fuel_stations") return <Navigate to={routes.dashboard()} replace />;
+  return <StationShiftsReviewModule companyId={companyId} />;
+}
 function FixedAssetsRoute() {
   const { companies, companyId } = useOutletContext();
   return <FixedAssetsWiredModule companies={companies} companyId={companyId} />;
@@ -421,6 +431,8 @@ const router = createBrowserRouter([
       { path: "inventory/:tab", element: <InventoryRoute /> },
       { path: "stables", element: <Navigate to={routes.stables()} replace /> },
       { path: "stables/:tab", element: <StablesRoute /> },
+      { path: "stationShifts", element: <Navigate to={routes.stationShifts()} replace /> },
+      { path: "stationShifts/:tab", element: <StationShiftsReviewRoute /> },
       { path: "fixedAssets", element: <Navigate to={routes.fixedAssets()} replace /> },
       { path: "fixedAssets/:tab", element: <FixedAssetsRoute /> },
       { path: "accounts", element: <Navigate to={routes.accounts()} replace /> },

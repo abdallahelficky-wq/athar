@@ -12,14 +12,17 @@ import * as controller from "./positions.controller";
 
 /**
  * إدارة المناصب وصلاحياتها — مقصورة على مالك الشركة (Tenant.ownerId) وsuper_admin فقط
- * (requireTenantOwner)، وليس أي admin عادي آخر داخل نفس الشركة. المرحلة الأولى: صلاحية واحدة فقط
- * (فك ترحيل القيود) — راجع positions.service.ts.
+ * (requireTenantOwner)، وليس أي admin عادي آخر داخل نفس الشركة. تغطي كل الوحدات المُسجَّلة في
+ * نظام الصلاحيات الترتيبي معاً (PLATFORM_ACTIONS) بلا أي وحدة مكتوبة صراحة هنا، بالإضافة لصلاحيتي
+ * PositionPermission البوليانيتين القديمتين (فك ترحيل القيود، البيع الآجل في نقطة البيع) — راجع
+ * positions.service.ts.
  */
 export const positionRoutes = Router();
 positionRoutes.use(authenticate, requireTenantOwner, blockMutationsWhenReadOnly);
 
 positionRoutes.get("/", controller.listHandler);
 positionRoutes.get("/assignable-users", controller.listAssignableUsersHandler);
+positionRoutes.get("/actions", controller.listPlatformActionsHandler);
 positionRoutes.post("/", validateBody(createPositionSchema), controller.createHandler);
 positionRoutes.patch("/:id", validateBody(updatePositionSchema), controller.updateHandler);
 positionRoutes.patch("/:id/action-permissions", validateBody(updateActionPermissionSchema), controller.updateActionPermissionHandler);

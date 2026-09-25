@@ -7910,6 +7910,16 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
+  "code": "112007",
+  "name": "ذمم شبكة نقاط البيع (مدى)",
+  "nameEn": "POS Network Settlement Receivable (mada)",
+  "type": "asset",
+  "level": 4,
+  "parentCode": "112",
+  "isPosting": true,
+  "isBankOrCash": false
+},
+{
   "code": "113",
   "name": "ذمم مدينة أخرى",
   "nameEn": "Other Receivables",
@@ -8900,6 +8910,16 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "isBankOrCash": false
 },
 {
+  "code": "431003",
+  "name": "زيادة نقدية ورديات المحطات",
+  "nameEn": "Station Shift Cash Surpluses",
+  "type": "revenue",
+  "level": 4,
+  "parentCode": "431",
+  "isPosting": true,
+  "isBankOrCash": false
+},
+{
   "code": "5",
   "name": "تكلفة الإيرادات",
   "nameEn": "Cost of Revenue",
@@ -9143,6 +9163,26 @@ export const CHART_TEMPLATE_BY_ACTIVITY: Record<BusinessActivity, DefaultChartAc
   "code": "622003",
   "name": "صيانة أجهزة وبرامج",
   "nameEn": "Hardware and Software Maintenance",
+  "type": "expense",
+  "level": 4,
+  "parentCode": "622",
+  "isPosting": true,
+  "isBankOrCash": false
+},
+{
+  "code": "622004",
+  "name": "مصروفات إدارية متنوعة أخرى",
+  "nameEn": "Other Miscellaneous Administrative Expenses",
+  "type": "expense",
+  "level": 4,
+  "parentCode": "622",
+  "isPosting": true,
+  "isBankOrCash": false
+},
+{
+  "code": "622005",
+  "name": "عجز نقدية ورديات المحطات",
+  "nameEn": "Station Shift Cash Shortages",
   "type": "expense",
   "level": 4,
   "parentCode": "622",

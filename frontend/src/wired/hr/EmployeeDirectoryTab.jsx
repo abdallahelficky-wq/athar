@@ -8,6 +8,7 @@ import { DEPARTMENTS, DEPARTMENT_KEYS, fmt } from "../../legacy/constants";
 import { NATIONALITIES, NATIONALITY_KEYS, EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_KEYS } from "../../legacy/hr";
 import { labelForListValue } from "../../legacy/listLabels";
 import { routes } from "../../routes";
+import { listCostCenters } from "../../api/costCenters";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 
 const emptyForm = () => ({
@@ -18,10 +19,10 @@ const emptyForm = () => ({
   personalEmail: "", workEmail: "", address: "", emergencyContactName: "", emergencyContactPhone: "",
   emergencyContactRelation: "", bankName: "", bankAccount: "", medicalInsuranceProvider: "",
   medicalInsuranceNumber: "", annualLeaveDays: 21, notes: "",
-  probationEndDate: "", probationEvaluated: false, documents: [],
+  probationEndDate: "", probationEvaluated: false, documents: [], assignedCostCenterId: "",
 });
 
-export default function EmployeeDirectoryTab({ companyId }) {
+export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
   const { t } = useTranslation();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,12 @@ export default function EmployeeDirectoryTab({ companyId }) {
   const [payrollError, setPayrollError] = useState("");
   const [importResult, setImportResult] = useState("");
   const importInputRef = useRef(null);
+  // محطات هذه الشركة فقط (مراكز تكلفة بشركة محددة) — مركز مشترك بلا شركة يرفضه الخادم كمحطة
+  const [stations, setStations] = useState([]);
+  useEffect(() => {
+    if (!companyId || !isFuelStations) { setStations([]); return; }
+    listCostCenters().then((ccs) => setStations(ccs.filter((c) => c.companyId === companyId))).catch((e) => setError(e.message));
+  }, [companyId, isFuelStations]);
 
   const reloadPayrollComponents = (id) => {
     if (!id) { setPayrollComponents([]); return; }
@@ -71,6 +78,8 @@ export default function EmployeeDirectoryTab({ companyId }) {
         dateOfBirth: form.dateOfBirth || undefined,
         probationEndDate: form.probationEndDate || null,
         documents: form.documents.map((d) => ({ ...d, expiryDate: d.expiryDate || undefined })),
+        // يُرسَل فقط لشركة محطات وقود؛ فارغ يعني إلغاء إسناد المحطة (يختفي تبويب الورديات من بوابة الموظف)
+        assignedCostCenterId: isFuelStations ? form.assignedCostCenterId || null : undefined,
       };
       if (editingId) await updateEmployee(editingId, payload);
       else await createEmployee(payload);
@@ -90,6 +99,7 @@ export default function EmployeeDirectoryTab({ companyId }) {
       hireDate: e.hireDate.slice(0, 10), contractEnd: e.contractEnd?.slice(0, 10) || "",
       dateOfBirth: e.dateOfBirth?.slice(0, 10) || "",
       probationEndDate: e.probationEndDate?.slice(0, 10) || "",
+      assignedCostCenterId: e.assignedCostCenterId || "",
       documents: (e.documents || []).map((d) => ({ ...d, expiryDate: d.expiryDate?.slice(0, 10) || "" })),
     });
     reloadPayrollComponents(e.id);
@@ -235,6 +245,14 @@ export default function EmployeeDirectoryTab({ companyId }) {
           <label>{t("hr.directory.jobTitle")}<input type="text" value={form.jobTitle} onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} /></label>
           <label>{t("hr.directory.department")}<select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>{DEPARTMENTS.map((d) => <option key={d} value={d}>{labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", d)}</option>)}</select></label>
           <label>{t("hr.directory.workLocation")}<input type="text" value={form.workLocation} onChange={(e) => setForm({ ...form, workLocation: e.target.value })} /></label>
+          {isFuelStations && (
+            <label>{t("hr.directory.station")}
+              <select value={form.assignedCostCenterId} onChange={(e) => setForm({ ...form, assignedCostCenterId: e.target.value })}>
+                <option value="">{t("hr.directory.stationNone")}</option>
+                {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </label>
+          )}
           <label>{t("hr.directory.nationality")}<select value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })}>{NATIONALITIES.map((n) => <option key={n} value={n}>{labelForListValue(t, NATIONALITY_KEYS, "hr.nationalityLabels", n)}</option>)}</select></label>
           <label>{t("hr.directory.dateOfBirth")}<input type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
           <label>{t("hr.directory.phone")}<input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>

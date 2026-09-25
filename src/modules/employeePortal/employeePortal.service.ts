@@ -46,7 +46,7 @@ export async function employeePortalLogin(tenantId: string, phone: string, pin: 
 export async function employeePortalProfile(employeeId: string, tenantId: string) {
   const employee = await prisma.employee.findFirst({
     where: { id: employeeId, tenantId },
-    select: { id: true, name: true, jobTitle: true, department: true, companyId: true },
+    select: { id: true, name: true, jobTitle: true, department: true, companyId: true, assignedCostCenterId: true },
   });
   if (!employee) throw unauthorized("الحساب غير موجود");
   const directReportsCount = await prisma.employee.count({ where: { managerId: employeeId, tenantId } });
