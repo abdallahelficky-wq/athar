@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { Item, Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { getPresignedGetUrl } from "../../lib/storage";
 import { computeInvoiceLine, invoiceTypeForCustomer } from "../../lib/invoiceLine";
 import { buildZatcaQrPayload } from "../../lib/zatcaQr";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
@@ -387,11 +388,18 @@ async function resolveIssuedByName(tenantId: string, journalEntryId: string | nu
 export async function getSalesInvoice(tenantId: string, id: string) {
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
-  const [withCredits, issuedByName] = await Promise.all([
+  const [withCredits, issuedByName, companyLogoUrl] = await Promise.all([
     withInvoiceCredits(tenantId, [invoice]),
     resolveIssuedByName(tenantId, invoice.journalEntryId),
+    invoice.company.logoKey ? getPresignedGetUrl(invoice.company.logoKey) : Promise.resolve(null),
   ]);
-  return { ...withCredits[0], issuedByName };
+  // company.logoUrl: رابط مؤقّت موقَّع مسبقاً، بنفس نمط withLogoUrl في companies.controller.ts (حتى
+  // استبدال logoKey الداخلي بدل تعريضه خاماً للعميل) — كانت غائبة هنا رغم توفّرها في استجابة قائمة
+  // الشركات، فيعتمد إيصال نقطة البيع عند إعادة الطباعة (PosInvoiceViewModal.jsx يجلب الفاتورة عبر
+  // هذه الدالة تحديداً، لا قائمة الشركات) على شعار الشركة الفعلي بدل شعار أثر الثابت الذي كان
+  // يُطبَع سابقاً — راجع تعليق escpos.js.
+  const { logoKey: _logoKey, ...companyWithoutLogoKey } = withCredits[0].company;
+  return { ...withCredits[0], issuedByName, company: { ...companyWithoutLogoKey, logoUrl: companyLogoUrl } };
 }
 
 export async function buildJournalLines(

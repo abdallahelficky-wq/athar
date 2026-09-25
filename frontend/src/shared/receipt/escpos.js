@@ -24,9 +24,42 @@
 //      الفئة من الطابعات بالترتيب، ويستخدم أول قناة كتابة (write/writeWithoutResponse) يجدها.
 //   ٢) رمز QR (GS v 0 صورة نقطية، راجع qrImage أدناه) — أُبقي بلا تغيير عمداً (يعمل فعلياً على
 //      حسب الاختبار الأول)، لكن moduleScale نفسه لم يُتحقَّق من قابليته للمسح الضوئي على ورق فعلي.
+//
+// ⚠️ نتائج الاختبار الثاني (بعد إصلاح الترميز العربي أعلاه): النص العربي طُبع مُشكَّلاً وصحيحاً —
+//    الحل بالصورة النقطية نجح. سبعة أعطال أخرى ظهرت، كلها أُصلِحت في هذا التعديل عدا ما ذُكِر خلافه:
+//   ١) معادلة سطر الصنف كانت تطبع "الكمية × سعر الوحدة = total"، وtotal شامل الضريبة لا ناتج
+//      الضربة الفعلي — معادلة خاطئة حسابياً. الإصلاح الأول (استبدال total بـsubtotal) اعتمد على
+//      أن نقطة البيع لا تدعم خصم سطر حالياً — افتراض هشّ سيتعطّل بمجرد إضافة خصم السطور المخطَّط
+//      له. أُصلِح جذرياً بدل ذلك: لا "=" على الإطلاق — صف بحقلين منفصلين (الكمية × سعر الوحدة،
+//      وصافي السطر) بلا أي ادّعاء تساوٍ بينهما، فيبقى صحيحاً مهما صار منطق الخصم لاحقاً — راجع
+//      addRow في buildReceiptContentModel.
+//   ٢) سطرا "قبل الضريبة"/"الضريبة" (كانا موجودين في مسار النص القديم ومعاينة الشاشة ReceiptView.jsx
+//      دائماً) سقطا سهواً عند إعادة الكتابة كصورة نقطية — أُعيدا.
+//   ٣) لا عنوان لنوع المستند إطلاقاً (فاتورة ضريبية/مبسّطة) — أُضيف عبر documentTitle.
+//   ٤) التاريخ طُبع هجرياً فقط رغم طلب ميلادي صراحة ("١٤٤٦/٤/١٤ هـ") — سبب toLocaleString("ar-SA")
+//      العادية: تقويمها الافتراضي في ICU/V8 هجري (أم القرى)، لا ميلادي كما قد يُفتَرض. أُصلِح عبر
+//      formatGregorianDateTime (calendar: "gregory", numberingSystem: "latn" صراحة). فارق الساعة
+//      المُلاحَظ بين ساعة الجهاز وتوقيت الإيصال المطبوع لم يُعثَر على أي كود يفرض إزاحة توقيت هنا —
+//      راجع تعليق formatGregorianDateTime أعلاه لتفصيل هذا (على الأرجح إعداد المنطقة الزمنية على
+//      الجهاز نفسه وقت الاختبار، لا كود في هذا المستودع).
+//   ٥) سطر واحد أعلى الإيصال ظهر كرموز صينية. تخمين أول (حزمة JS قديمة مخبَّأة على الجهاز) مرفوض
+//      بالصورة نفسها: لو كان الجهاز يشغِّل الحزمة النصية القديمة فعلاً، لكان الإيصال بالكامل قد
+//      طُبع كرموز صينية كما حدث ليلة الاختبار الأول — لا سطر واحد فقط. متن الإيصال طُبع مُشكَّلاً
+//      وصحيحاً بالكامل عدا هذا السطر، ما يثبت أن الكود الجديد (الصورة النقطية) هو ما نفَّذ الطباعة
+//      فعلياً. الاحتمال الأقوى الآن: هذا السطر هو ذيل الطباعة *السابقة* الواقع فوق خط القص — أي لا
+//      علاقة له بهذا الإيصال إطلاقاً. هذا سؤال حالة ورق/طابعة يُحسَم باختبار نظيف على جهاز حقيقي (قصّ
+//      الورق قبل الطباعة والتأكد أن لا شيء متبقٍّ فوقها)، لا بتغيير كود — لم يُطبَّق أي تعديل هنا.
+//   ٦) كل الأسطر كانت محاذاة يساراً رغم أن المستند عربي/RTL بالكامل — بقية من محاذاة ESC/POS
+//      الفعلية القديمة (0 يسار)، لا قراراً تصميمياً. أُصلِحت لـ"right" — راجع buildReceiptContentModel.
+//   ٧) شعار أثر التجاري كان يُطبَع بدل شعار الشركة البائعة الفعلي. الحقل (Company.logoKey) وواجهة
+//      الرفع (CompanyEditModal.jsx عبر companies.controller.ts) موجودان فعلاً في المنصة ومُستخدَمان
+//      في قوالب PDF الأخرى — لم يكن ينقص سوى استخدامهما هنا. أُصلِح عبر renderCompanyLogoRaster
+//      (يجلب company.logoUrl حياً وقت الطباعة، لا صورة ثابتة مُعبَّأة مسبقاً كما كان شعار أثر). هذا
+//      أضاف الحاجة لتعريض company.logoUrl على استجابة getSalesInvoice أيضاً (لم تكن مُعرَّضة هناك
+//      رغم وجودها في استجابة قائمة الشركات) — راجع salesInvoices.service.ts.
 import QRCode from "qrcode";
-import { RECEIPT_LOGO_WIDTH, RECEIPT_LOGO_HEIGHT, RECEIPT_LOGO_RASTER_BASE64 } from "./receiptLogo.js";
 import { loadPrinterSettings } from "./posLocalSettings.js";
+import { formatGregorianDateTime } from "../../i18n/dateFormat.js";
 
 const ESC = 0x1b;
 const GS = 0x1d;
@@ -87,18 +120,6 @@ class EscPosBuilder {
     }
 
     this.rasterBands(dotSize, dotSize, rows);
-    return this;
-  }
-
-  /**
-   * يُدرج شعار أثر (الرمز المربّع، أحادي اللون) أعلى الإيصال — بيانات جاهزة مسبقاً بنفس تنسيق
-   * أمر GS v 0 (راجع receiptLogo.js)، فلا حاجة لأي تجميع بت إضافي هنا، فقط فك Base64 وإرسالها.
-   * الحجم (130×179 نقطة) صغير بما يكفي ليبقى ضمن عرض الورق لكل من 58مم (384 نقطة) و80مم (576
-   * نقطة) دون أي تحجيم إضافي. **مؤكَّد يعمل فعلياً على جهاز Sunmi V2 حقيقي** (أول اختبار طباعة).
-   */
-  logoImage() {
-    const bytes = base64ToBytes(RECEIPT_LOGO_RASTER_BASE64);
-    this.rasterBands(RECEIPT_LOGO_WIDTH, RECEIPT_LOGO_HEIGHT, bytes);
     return this;
   }
 
@@ -178,13 +199,6 @@ function byte(...vals) {
   return Uint8Array.from(vals);
 }
 
-function base64ToBytes(b64) {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
 /** عنوان بريدي مُجمَّع من أجزائه (مبنى، شارع، مدينة) بنفس الترتيب والفاصل المُستخدَمين أصلاً في
  * companyAddress/customerAddress بقالب إيميل الفاتورة (راجع salesInvoiceEmail.service.ts) — بلا
  * حي/رمز بريدي هنا لأنهما غير معروضين هناك أيضاً، حتى يبقى "العنوان الكامل" متسقاً عبر النظام. */
@@ -206,17 +220,40 @@ function zatcaAcceptanceLine(zatcaStatus) {
 }
 
 /**
+ * عنوان نوع المستند — إلزامي زاتكا أن يُذكر نوع المستند على الفاتورة نفسها (اللائحة التنفيذية
+ * لضريبة القيمة المضافة المادة 53، ودليل زاتكا الإرشادي التفصيلي للفوترة الإلكترونية)، وهو أمر
+ * غائب تماماً عن الإيصال حتى الآن. "فاتورة ضريبية" مقابل "فاتورة ضريبية مبسطة" هما التسميتان
+ * المعتمَدتان لتمييز القياسية عن المبسّطة (المادة 53(6)/(8))، و"إشعار دائن"/"إشعار مدين" نفس
+ * تسميتي DOCUMENT_TITLE_EN في invoiceHtmlTemplate.ts لقالب PDF/A-3 الموقَّع — نفس الاسم حرفياً
+ * حتى يتطابق مستندا نفس الفاتورة (PDF المُرسَل بالإيميل والإيصال المطبوع). kind بمعامل صريح (لا
+ * افتراض دائم "invoice") لأن نقطة البيع تطبع فواتير بيع فقط حالياً؛ لو أُعيد استخدام هذا المُصيِّر
+ * مستقبلاً لإشعار دائن/مدين (مردودات نقطة البيع مثلاً) يُمرَّر kind الفعلي دون تعديل هنا.
+ */
+function documentTitle({ kind = "invoice", subtype }) {
+  if (kind === "credit_note") return "إشعار دائن";
+  if (kind === "debit_note") return "إشعار مدين";
+  return subtype === "standard" ? "فاتورة ضريبية" : "فاتورة ضريبية مبسطة";
+}
+
+/**
  * "نموذج المحتوى" — قائمة كتل وصفية بحتة (نص/فاصل)، بلا أي رسم أو تشفير بايتات هنا إطلاقاً. مُستقلّ
  * تماماً عن DOM/canvas عمداً حتى يبقى قابلاً للاختبار المباشر (node:test، بلا حاجة لمتصفح) — راجع
  * escpos.test.js. renderContentModelToCanvas أدناه (يحتاج متصفحاً فعلياً) يستهلك هذا الناتج فقط.
  *
- * align هنا يطابق حرفياً معنى ESC/POS القديم (0 يسار/1 وسط/2 يمين) الذي كان مُستخدَماً فعلياً قبل
- * هذا التعديل — لم يتغيّر أي شيء في التخطيط البصري نفسه، فقط طريقة تحويل النص لبكسلات.
+ * align: "center"/"left"/"right" — لكل الأسطر عدا كتلة البائع/الإجمالي/حالة زاتكا "right" الآن (لا
+ * "left" كما كانت قبل الاختبار الثاني على جهاز حقيقي): المستند عربي/RTL بالكامل، ومحاذاته يساراً
+ * كانت بقية من مسار النص القديم بمحاذاة ESC/POS الفعلية (0 يسار)، لا قراراً تصميمياً. direction:
+ * "rtl" في renderContentModelToCanvas يضبط ترتيب/تشكيل الحروف داخل السطر فقط، لا أي جهة يلتصق بها
+ * السطر على الورق — هذا الأخير من مسؤولية textAlign هنا فعلياً.
  *
- * الحقول الإلزامية زاتكا (راجع تقرير التحقق من المصدر الذي سبق إضافتها):
+ * الحقول الإلزامية زاتكا (راجع تقرير التحقق من المصدر الذي سبق إضافتها، وتقرير الاختبار الثاني
+ * على جهاز حقيقي الذي كشف غياب عنوان المستند وسطري الإجمالي قبل/بعد الضريبة):
+ *   - عنوان نوع المستند (فاتورة ضريبية/مبسّطة) أعلى كل شيء — راجع documentTitle أعلاه.
  *   - بيانات البائع (اسم/رقم ضريبي/عنوان كامل) دائماً بصرف النظر عن نوع الفاتورة.
  *   - بيانات المشتري (اسم/عنوان كامل/رقم ضريبي) الثلاثة فقط لفاتورة قياسية (invoiceType
  *     === "standard")؛ المبسّطة تبقى بلا عنوان/رقم ضريبي للعميل.
+ *   - الإجمالي قبل الضريبة وقيمة الضريبة كسطرين منفصلين قبل الإجمالي الكلي (كانا موجودين في مسار
+ *     النص القديم ومعاينة الشاشة ReceiptView.jsx، وسقطا سهواً عند إعادة الكتابة كصورة نقطية).
  */
 export function buildReceiptContentModel({ company, invoice, lastEmailOrNote }) {
   const isStandard = invoice.invoiceType === "standard";
@@ -224,6 +261,11 @@ export function buildReceiptContentModel({ company, invoice, lastEmailOrNote }) 
   const addLine = (text, align = "center") => { if (text) blocks.push({ type: "line", text: String(text), align, bold: false, large: false }); };
   const addEmphasisLine = (text, align = "center") => { if (text) blocks.push({ type: "line", text: String(text), align, bold: true, large: true }); };
   const addDivider = () => blocks.push({ type: "divider" });
+  // سطر بحقلين منفصلين بلا أي علامة "=" تربطهما — راجع renderContentModelToCanvas لكيفية رسمهما
+  // (rightText يلتصق باليمين، leftText باليسار، بلا أي حساب بينهما هنا إطلاقاً).
+  const addRow = (rightText, leftText) => blocks.push({ type: "row", rightText: String(rightText), leftText: String(leftText) });
+
+  addEmphasisLine(documentTitle({ subtype: invoice.invoiceType }), "center");
 
   // --- كتلة البائع: اسم + رقم ضريبي + عنوان كامل، دائماً بصرف النظر عن نوع الفاتورة (وسط) ---
   addEmphasisLine(company?.name || "", "center");
@@ -232,36 +274,51 @@ export function buildReceiptContentModel({ company, invoice, lastEmailOrNote }) 
   if (sellerAddress) addLine(`العنوان: ${sellerAddress}`, "center");
   addDivider();
 
-  addLine(`فاتورة رقم: ${invoice.invoiceNumber}`, "left");
-  addLine(`التاريخ: ${new Date(invoice.date).toLocaleString("ar-SA")}`, "left");
+  addLine(`فاتورة رقم: ${invoice.invoiceNumber}`, "right");
+  // تقويم ميلادي وأرقام غربية إلزامياً (BT-2) — راجع formatGregorianDateTime لسبب عدم كفاية
+  // toLocaleString("ar-SA") العادية (تقويمها الافتراضي هجري في ICU/V8، كشفه الاختبار الثاني على
+  // جهاز حقيقي: "١٤٤٦/٤/١٤ هـ" بدل تاريخ ميلادي). التوقيت المطبوع هنا هو توقيت نظام تشغيل الجهاز
+  // نفسه (لا منطقة زمنية مفروضة صراحة) — نفس اللحظة الزمنية المُرسَلة لزاتكا فعلياً (UTC صراحة عبر
+  // formatIssueTimeUtc في chain.ts)، فقط مُحوَّلة لعرضها محلياً؛ أي فرق عن ساعة الجهاز نفسها مصدره
+  // إعداد المنطقة الزمنية على الجهاز، لا كود هذا الملف (راجع تقرير التحقيق المرفق لتفصيل هذا).
+  addLine(`التاريخ: ${formatGregorianDateTime(invoice.date, "ar")}`, "right");
 
-  // --- كتلة المشتري: الاسم فقط للمبسّطة؛ + عنوان كامل ورقم ضريبي إضافيين للقياسية (يسار) ---
-  addLine(`العميل: ${invoice.customer?.name || "عميل نقدي"}`, "left");
+  // --- كتلة المشتري: الاسم فقط للمبسّطة؛ + عنوان كامل ورقم ضريبي إضافيين للقياسية ---
+  addLine(`العميل: ${invoice.customer?.name || "عميل نقدي"}`, "right");
   if (isStandard) {
-    if (invoice.customer?.vatNumber) addLine(`الرقم الضريبي للعميل: ${invoice.customer.vatNumber}`, "left");
+    if (invoice.customer?.vatNumber) addLine(`الرقم الضريبي للعميل: ${invoice.customer.vatNumber}`, "right");
     const buyerAddress = joinAddressParts([invoice.customer?.buildingNo, invoice.customer?.street, invoice.customer?.city]);
-    if (buyerAddress) addLine(`عنوان العميل: ${buyerAddress}`, "left");
+    if (buyerAddress) addLine(`عنوان العميل: ${buyerAddress}`, "right");
   }
   addDivider();
 
   for (const line of invoice.lines || []) {
     const name = line.description || line.account?.name || "";
-    addLine(name, "left");
+    addLine(name, "right");
     const qty = Number(line.quantity);
     const unitPrice = Number(line.unitPrice);
-    const total = Number(line.total);
-    addLine(`  ${qty} × ${unitPrice.toFixed(2)} = ${total.toFixed(2)}`, "left");
+    // صف بحقلين منفصلين، بلا "=" يربطهما — الاختبار الثاني على جهاز حقيقي كشف طباعة معادلة خاطئة
+    // حسابياً هنا ("3.50 × 60 = 241.50"، بينما 3.50×60 = 210.00 فعلياً؛ 241.50 هو الإجمالي شامل
+    // ضريبة 15%). الإصلاح الأول (استبدال المعادلة بـline.subtotal بدل line.total) اعتمد على أن
+    // نقطة البيع لا تدعم خصم سطر حالياً — افتراض لن يصمد لاحقاً (خصم السطور مطلوب فعلياً). لهذا لا
+    // "=" على الإطلاق بعد الآن: rightText (الكمية × سعر الوحدة) وleftText (صافي السطر) حقيقتان
+    // منفصلتان تماماً، تبقيان صحيحتين مهما صار منطق الخصم لاحقاً — لا ادّعاء تساوٍ قد يصبح كاذباً.
+    addRow(`${qty} × ${unitPrice.toFixed(2)}`, Number(line.subtotal).toFixed(2));
   }
   addDivider();
 
+  // الإجمالي قبل الضريبة وقيمة الضريبة — نفس تسميتي receiptView.beforeVat/vat في ar.json (المعاينة
+  // على الشاشة)، حتى يتطابق نص المستندين حرفياً لا الحقول فقط.
+  addLine(`قبل الضريبة: ${Number(invoice.subtotal).toFixed(2)}`, "right");
+  addLine(`الضريبة: ${Number(invoice.vatTotal).toFixed(2)}`, "right");
   addEmphasisLine(`الإجمالي: ${Number(invoice.grandTotal).toFixed(2)}`, "right");
 
-  if (lastEmailOrNote) addLine(lastEmailOrNote, "left");
+  if (lastEmailOrNote) addLine(lastEmailOrNote, "right");
 
   // اسم مُصدِر الفاتورة (المستخدم الذي أنشأها فعلياً) — يصل جاهزاً على invoice.issuedByName من
   // الخادم (pos.service.ts لفاتورة طازجة، getSalesInvoice لإعادة طباعة فاتورة سابقة عبر القيد
   // المحاسبي المرتبط بها)؛ لا سطر إن تعذّر تحديده (فاتورة بلا قيد محاسبي مرتبط بعد، نادر).
-  if (invoice.issuedByName) addLine(`البائع: ${invoice.issuedByName}`, "left");
+  if (invoice.issuedByName) addLine(`البائع: ${invoice.issuedByName}`, "right");
 
   // حالة زاتكا الفعلية المخزَّنة على الفاتورة — لا شيء يُطبَع إن لم تُقبَل بعد.
   const zatcaLine = zatcaAcceptanceLine(invoice.zatcaStatus);
@@ -353,6 +410,17 @@ export function renderContentModelToCanvas(blocks, dotWidth) {
       y += DIVIDER_THICKNESS_PX + DIVIDER_GAP_PX;
       continue;
     }
+    if (block.type === "row") {
+      // حقلان منفصلان بلا أي علامة تساوٍ بينهما — rightText يلتصق باليمين وleftText باليسار، بلا
+      // أي حساب/تحقّق هنا (راجع addRow في buildReceiptContentModel لسبب تعمّد ذلك).
+      ctx.font = `${NORMAL_FONT_PX}px sans-serif`;
+      ctx.textAlign = "right";
+      ctx.fillText(block.rightText, dotWidth - RASTER_MARGIN_PX, y);
+      ctx.textAlign = "left";
+      ctx.fillText(block.leftText, RASTER_MARGIN_PX, y);
+      y += Math.round(NORMAL_FONT_PX * LINE_HEIGHT_RATIO) + BLOCK_GAP_PX;
+      continue;
+    }
     const fontPx = block.large ? LARGE_FONT_PX : NORMAL_FONT_PX;
     ctx.font = `${block.bold ? "bold " : ""}${fontPx}px sans-serif`;
     const lineHeight = Math.round(fontPx * LINE_HEIGHT_RATIO);
@@ -395,15 +463,55 @@ function renderBlocksToRaster(blocks, dotWidth) {
   return { width, height, bits: canvasToPackedBits(canvas, width, height) };
 }
 
+const LOGO_MAX_WIDTH_PX = 300;
+const LOGO_MAX_HEIGHT_PX = 220;
+
+/**
+ * يجلب شعار الشركة البائعة نفسها (company.logoUrl — رابط مؤقّت موقَّع مسبقاً من الخادم، راجع
+ * withLogoUrl في companies.controller.ts وgetSalesInvoice في salesInvoices.service.ts) ويرسمه على
+ * canvas ثم يحوّله لصورة 1-bit بنفس منطق canvasToPackedBits — لا شعار أثر التجاري مُعبَّأ مسبقاً
+ * بعد اليوم (راجع تقرير الاختبار الثاني على جهاز حقيقي: هذا مستند ضريبي للعميل، لا إعلان لأثر).
+ * لا يوجد شعار جاهز مسبقاً بصيغة GS v 0 لكل شركة محتملة كما كان الحال لشعار أثر الثابت، فلا بد من
+ * جلب الصورة الفعلية (أي امتداد يدعمه <img> عادةً) حياً وقت الطباعة نفسها — هذا سبب تحوّل
+ * populateReceiptBuilder/buildReceiptEscPos(Chunks) لدوال async.
+ * يُعيد null بصمت (لا يوقف الطباعة كاملة) لو: لا شعار مرفوع للشركة أصلاً (logoUrl فارغة)، تعذّر
+ * الجلب (لا اتصال إنترنت على الجهاز وقتها — وارد فعلياً على جهاز POS)، أو تعذّر فك الصورة.
+ */
+async function renderCompanyLogoRaster(logoUrl, dotWidth) {
+  if (!logoUrl) return null;
+  try {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = logoUrl;
+    await img.decode();
+    const maxWidth = Math.min(LOGO_MAX_WIDTH_PX, dotWidth - RASTER_MARGIN_PX * 2);
+    const scale = Math.min(1, maxWidth / img.naturalWidth, LOGO_MAX_HEIGHT_PX / img.naturalHeight);
+    const width = Math.max(1, Math.round(img.naturalWidth * scale));
+    const height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    return { width, height, bits: canvasToPackedBits(canvas, width, height) };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * يبني بايتات ESC/POS كاملة لإيصال بيع من بيانات الفاتورة — متن الإيصال بالكامل (باستثناء الشعار
  * ورمز QR، راجع تعليق الملف أعلاه) يُرسَم الآن كصورة نقطية واحدة بدل نص خام، لتفادي مشكلة ترميز
  * النص العربي المؤكَّدة على جهاز حقيقي. يحتاج DOM حقيقياً (canvas) — غير قابل للاستدعاء من
  * node:test مباشرة؛ راجع buildReceiptContentModel للجزء القابل للاختبار بلا متصفح.
+ * async (منذ الاختبار الثاني على جهاز حقيقي): شعار الشركة البائعة يُجلَب حياً عبر الشبكة الآن بدل
+ * كونه بيانات ثابتة مُعبَّأة في الحزمة — راجع renderCompanyLogoRaster.
  */
-export function buildReceiptEscPos({ company, invoice, lastEmailOrNote }, paperWidthMm) {
+export async function buildReceiptEscPos({ company, invoice, lastEmailOrNote }, paperWidthMm) {
   const b = new EscPosBuilder();
-  populateReceiptBuilder(b, { company, invoice, lastEmailOrNote }, paperWidthMm);
+  await populateReceiptBuilder(b, { company, invoice, lastEmailOrNote }, paperWidthMm);
   return b.toBytes();
 }
 
@@ -414,23 +522,25 @@ export function buildReceiptEscPos({ company, invoice, lastEmailOrNote }, paperW
  * محدودة الحجم لكل استدعاء. مسار البلوتوث لا يحتاجها (له تجزئته الخاصة على مستوى BLE أصلاً)، ومسار
  * المتصفح/A4 لا يستخدم أياً من هذا الملف إطلاقاً.
  */
-export function buildReceiptEscPosChunks({ company, invoice, lastEmailOrNote }, paperWidthMm) {
+export async function buildReceiptEscPosChunks({ company, invoice, lastEmailOrNote }, paperWidthMm) {
   const b = new EscPosBuilder();
-  populateReceiptBuilder(b, { company, invoice, lastEmailOrNote }, paperWidthMm);
+  await populateReceiptBuilder(b, { company, invoice, lastEmailOrNote }, paperWidthMm);
   return b.toSafeSendChunks(NATIVE_BRIDGE_SAFE_CHUNK_BYTES);
 }
 
-function populateReceiptBuilder(b, { company, invoice, lastEmailOrNote }, paperWidthMm) {
+async function populateReceiptBuilder(b, { company, invoice, lastEmailOrNote }, paperWidthMm) {
   const dotWidth = dotWidthForPaper(paperWidthMm);
 
-  // شعار أثر التجارية (لا شعار الشركة) — يُطبَع أولاً أعلى كل شيء، ويُعطَّل بالكامل عبر إعداد
-  // printLogo المحلي للجهاز (posLocalSettings.js) لو ظهر مشوَّهاً على طابعة حرارية حقيقية معيّنة.
-  if (loadPrinterSettings().printLogo) {
-    b.align(1).logoImage().feed(1);
+  // شعار الشركة البائعة نفسها (لا شعار أثر التجاري بعد اليوم) — يُطبَع أولاً أعلى كل شيء، ويُعطَّل
+  // بالكامل عبر إعداد printLogo المحلي للجهاز (posLocalSettings.js). لا شيء يُطبَع لو لم تُحمِّل
+  // الشركة شعاراً بعد أو تعذّر جلبه — راجع renderCompanyLogoRaster.
+  if (loadPrinterSettings().printLogo && company?.logoUrl) {
+    const logo = await renderCompanyLogoRaster(company.logoUrl, dotWidth);
+    if (logo) b.align(1).rasterBands(logo.width, logo.height, logo.bits).feed(1);
   }
 
-  // متن الإيصال الكامل (بائع/مشتري/بنود/إجمالي/مُصدِر/حالة زاتكا) — صورة نقطية واحدة، راجع تعليق
-  // الملف أعلاه لسبب ذلك.
+  // متن الإيصال الكامل (عنوان المستند/بائع/مشتري/بنود/إجمالي/مُصدِر/حالة زاتكا) — صورة نقطية واحدة،
+  // راجع تعليق الملف أعلاه لسبب ذلك.
   const bodyBlocks = buildReceiptContentModel({ company, invoice, lastEmailOrNote });
   const body = renderBlocksToRaster(bodyBlocks, dotWidth);
   b.align(0).rasterBands(body.width, body.height, body.bits);

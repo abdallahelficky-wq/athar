@@ -22,7 +22,7 @@ export default function ReceiptScreen({ company, sale, onNewSale }) {
     setPrintError("");
     try {
       const device = await requestBluetoothPrinter();
-      const bytes = buildReceiptEscPos({ company, invoice }, settings.paperWidthMm);
+      const bytes = await buildReceiptEscPos({ company, invoice }, settings.paperWidthMm);
       await sendToBluetoothPrinter(device, bytes);
     } catch (err) {
       setPrintError(err.message || t("pos.receipt.bluetoothPrintError"));
@@ -37,7 +37,7 @@ export default function ReceiptScreen({ company, sale, onNewSale }) {
     setPrinting(true);
     setPrintError("");
     try {
-      const chunks = buildReceiptEscPosChunks({ company, invoice }, settings.paperWidthMm);
+      const chunks = await buildReceiptEscPosChunks({ company, invoice }, settings.paperWidthMm);
       printViaNativeBridge(chunks);
     } catch (err) {
       setPrintError(err.message);

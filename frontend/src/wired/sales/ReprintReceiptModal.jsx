@@ -17,7 +17,7 @@ export default function ReprintReceiptModal({ invoice, company, onClose }) {
     setError("");
     try {
       const device = await requestBluetoothPrinter();
-      const bytes = buildReceiptEscPos({ company, invoice }, settings.paperWidthMm);
+      const bytes = await buildReceiptEscPos({ company, invoice }, settings.paperWidthMm);
       await sendToBluetoothPrinter(device, bytes);
     } catch (err) {
       setError(err.message || t("sales.reprintReceiptModal.errBluetooth"));
