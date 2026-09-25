@@ -1274,6 +1274,12 @@
         .tenant-portal-code .note { margin-top: 10px; }
         .tenant-portal-code-value { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; letter-spacing: 2px; color: #10202E; background: #F3EEE0; border-radius: 8px; padding: 6px 14px; }
 
+        /* تبويب "عمال المحطات" داخل موديول المحطات (StationWorkersTab.jsx) */
+        .station-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .station-worker-mode { display: flex; gap: 18px; margin: 4px 0 12px; font-size: 13px; }
+        .station-worker-mode label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+        .station-worker-portal { margin-top: 18px; }
+
         /* قسم الدخول لبوابة الموظف داخل ملف الموظف (EmployeePortalAccessPanel.jsx) */
         .portal-access-panel { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(16,32,46,0.10); }
         .portal-access-state { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }

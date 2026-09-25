@@ -70,6 +70,7 @@
     "billing": "إنشاء فاتورة إعاشة",
     "commissions": "عمولات المدربين"
   },
+  "stationWorkers": {"tabTitle": "عمال المحطات", "stationsTitle": "المحطات", "stationsNote": "كل محطة مركز تكلفة لهذه الشركة؛ يُسنَد إليها العامل فيفتح ورديته عليها من تطبيق محطة أثر.", "noStations": "لا توجد محطات بعد — أضف أول محطة بالأسفل.", "newStationPlaceholder": "اسم المحطة، مثال: محطة طريق المدينة", "addStation": "إضافة محطة", "assignTitle": "إعداد عامل محطة", "modeExisting": "موظف موجود", "modeNew": "موظف جديد", "employee": "الموظف", "pickEmployee": "— اختر موظفاً —", "name": "اسم العامل", "basicSalary": "الراتب الأساسي", "hireDate": "تاريخ المباشرة", "station": "المحطة", "pickStation": "— اختر المحطة —", "assignBtn": "حفظ وإسناد للمحطة", "saving": "جارٍ الحفظ...", "assignedNote": "تم إسناد {{name}} إلى {{station}}. اضبط الآن رقم جواله ورمزه السري للدخول من تطبيق محطة أثر:", "listTitle": "العمال المُسنَدون للمحطات", "noWorkers": "لم يُسنَد أي عامل لمحطة بعد.", "phone": "الجوال", "setUpBtn": "الدخول للبوابة", "defaultJobTitle": "عامل محطة", "errStationName": "اسم المحطة قصير جداً", "errStation": "اختر المحطة", "errName": "اسم العامل قصير جداً", "errSalary": "أدخل الراتب الأساسي", "errPick": "اختر الموظف"},
   "stationShiftsReview": {
     "tabTitle": "قيد المراجعة",
     "breadcrumb": "ورديات المحطات",

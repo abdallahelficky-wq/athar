@@ -8,7 +8,7 @@ import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claude
 import { createAttachment } from "../attachments/attachments.service";
 import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
-import { createStarterItems, createCashParties, createDefaultWarehouse } from "../../lib/starterData";
+import { createStarterItems, createCashParties, createDefaultWarehouse, linkStationCashAccounts } from "../../lib/starterData";
 import { translateMessage } from "../../lib/i18n/translate";
 
 const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB يكفي لأي شعار
@@ -52,18 +52,8 @@ export const createCompany: RequestHandler = async (req, res) => {
       // مستودع افتراضي — شرط أساسي لبيع أي صنف مخزوني، بدونه لا تكتمل "بدون أي إعداد يدوي"
       await createDefaultWarehouse(tx, req.auth!.tenantId, created.id);
 
-      // شركات "محطات وقود" تُزرَع بحسابي عجز/زيادة نقد الورديات المخصَّصين (622005/431003) تلقائياً
-      // من نفس القالب، حتى تعمل ميزة إقفال ورديات المحطات فور إنشاء الشركة بلا إعداد يدوي إضافي —
-      // الحقلان يبقيان قابلين لإعادة التوجيه لاحقاً لأي حساب آخر من إعدادات الشركة.
-      if (activity === "fuel_stations" && (idByCode.get("622005") || idByCode.get("431003"))) {
-        await tx.company.update({
-          where: { id: created.id },
-          data: {
-            stationCashShortageAccountId: idByCode.get("622005"),
-            stationCashSurplusAccountId: idByCode.get("431003"),
-          },
-        });
-      }
+      // شركات "محطات وقود": ربط حسابي عجز/زيادة نقد الورديات تلقائياً (راجع linkStationCashAccounts)
+      await linkStationCashAccounts(tx, created.id, activity, idByCode);
 
       return created;
     },

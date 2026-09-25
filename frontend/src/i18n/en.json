@@ -70,6 +70,7 @@
     "billing": "Create boarding invoice",
     "commissions": "Trainer commissions"
   },
+  "stationWorkers": {"tabTitle": "Station workers", "stationsTitle": "Stations", "stationsNote": "Each station is a cost center of this company; a worker assigned to it opens their shift there from the Athar Station app.", "noStations": "No stations yet — add the first one below.", "newStationPlaceholder": "Station name, e.g. Madinah Road station", "addStation": "Add station", "assignTitle": "Set up a station worker", "modeExisting": "Existing employee", "modeNew": "New employee", "employee": "Employee", "pickEmployee": "— choose an employee —", "name": "Worker name", "basicSalary": "Basic salary", "hireDate": "Start date", "station": "Station", "pickStation": "— choose a station —", "assignBtn": "Save and assign to station", "saving": "Saving...", "assignedNote": "{{name}} is assigned to {{station}}. Now set their mobile number and PIN for the Athar Station app:", "listTitle": "Workers assigned to stations", "noWorkers": "No worker is assigned to a station yet.", "phone": "Mobile", "setUpBtn": "Portal access", "defaultJobTitle": "Station worker", "errStationName": "Station name is too short", "errStation": "Choose the station", "errName": "Worker name is too short", "errSalary": "Enter the basic salary", "errPick": "Choose the employee"},
   "stationShiftsReview": {
     "tabTitle": "Pending Review",
     "breadcrumb": "Station Shifts",
