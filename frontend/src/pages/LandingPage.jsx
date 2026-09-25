@@ -5,6 +5,15 @@ import LanguageSwitcher from "../wired/shared/LanguageSwitcher";
 
 const PRICES = [500, 1000, 1500];
 
+// تطبيقا أندرويد في أعلى الصفحة — نفس ملفات APK والأيقونات التي تخدمها صفحة /download (public/app/)،
+// وبنفس نصوص الاسم والجمهور من مفاتيح download.*، فلا يوجد مصدر ثانٍ لأي منها. كل بطاقة تنزيل مباشر
+// للـAPK بنقرة واحدة؛ خطوات التثبيت (ومنها الحذف لمرة واحدة للنسخ القديمة) تبقى على /download عبر
+// رابط "خطوات التثبيت" أسفل البطاقتين.
+const APPS = [
+  { key: "pos", i18n: "download", apkPath: "/app/athar-pos.apk", apkFileName: "athar-pos.apk", iconPath: "/app/athar-pos-icon.png" },
+  { key: "station", i18n: "download.station", apkPath: "/app/athar-station.apk", apkFileName: "athar-station.apk", iconPath: "/app/athar-station-icon.png" },
+];
+
 export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload }) {
   const { t } = useTranslation();
   const whyItems = t("landing.why.items", { returnObjects: true });
@@ -21,13 +30,41 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload }) {
         </div>
       </header>
 
+      <section className="landing-apps" aria-labelledby="landing-apps-title">
+        <div className="landing-apps-head">
+          <h2 id="landing-apps-title" className="landing-apps-title">{t("landing.apps.title")}</h2>
+          <button type="button" className="landing-apps-steps" onClick={onGoDownload}>{t("landing.apps.installSteps")}</button>
+        </div>
+        <div className="landing-apps-grid">
+          {APPS.map((app) => {
+            const appName = t(`${app.i18n}.appName`);
+            return (
+              <a
+                key={app.key}
+                className="landing-app"
+                href={app.apkPath}
+                download={app.apkFileName}
+                aria-label={t("download.downloadBtnFor", { app: appName })}
+              >
+                <img src={app.iconPath} alt="" className="landing-app-icon" width="52" height="52" />
+                <span className="landing-app-text">
+                  <span className="landing-app-name">{appName}</span>
+                  <span className="landing-app-audience">{t(`${app.i18n}.audience`)}</span>
+                </span>
+                <span className="landing-app-get" aria-hidden="true">⬇</span>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+
       <section className="landing-hero">
         <div className="landing-eyebrow">{t("landing.eyebrow")}</div>
         <h1>{t("landing.title")}</h1>
         <p className="landing-hero-sub">{t("landing.heroSub")}</p>
+        {/* دعوة أساسية واحدة هنا: تسجيل الدخول موجود دائماً في شريط التنقّل أعلاه وفي التذييل */}
         <div className="landing-hero-actions">
           <button className="btn-primary landing-cta" onClick={onGoRegister}>{t("landing.heroCtaTrial")}</button>
-          <button className="btn-ghost landing-cta" onClick={onGoLogin}>{t("landing.heroCtaLogin")}</button>
         </div>
       </section>
 
@@ -80,9 +117,6 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload }) {
       <footer className="landing-footer">
         <div>{t("landing.footer.copyright")}</div>
         <div className="landing-footer-actions">
-          <button className="btn-ghost landing-download-link" onClick={onGoDownload}>
-            <span aria-hidden="true">⬇</span> {t("landing.footer.downloadApp")}
-          </button>
           <button className="btn-ghost" onClick={onGoLogin}>{t("landing.nav.login")}</button>
         </div>
       </footer>
