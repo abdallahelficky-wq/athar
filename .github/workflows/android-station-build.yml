@@ -53,6 +53,18 @@ jobs:
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/athar-station-debug.apk
 
+      # تحقّق بـaapt2 (من build-tools المثبَّتة على المُشغِّل) أن الـAPK الفعلي هو تطبيق المحطة بالإصدار
+      # المُعلَن في build.gradle.kts — لا تطبيق نقطة البيع ولا رقم إصدار قديم — قبل رفعه أو نشره.
+      - name: Verify APK identity with aapt2
+        run: |
+          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
+          badging="$("$aapt2" dump badging app/build/outputs/apk/debug/athar-station-debug.apk)"
+          echo "$badging" | grep -E "^(package|application-label|application):"
+          expected_version="$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)"
+          echo "$badging" | grep -q "^package: name='com.athar.station' " || { echo "::error::wrong applicationId"; exit 1; }
+          echo "$badging" | grep -q "versionName='${expected_version}'" || { echo "::error::versionName is not ${expected_version}"; exit 1; }
+          sha256sum app/build/outputs/apk/debug/athar-station-debug.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -128,6 +140,13 @@ jobs:
           filename="athar-station-${version}.apk"
           cp apk/athar-station-debug.apk "apk/${filename}"
           echo "filename=${filename}" >> "$GITHUB_OUTPUT"
+
+      # نفس تحقّق aapt2 على الملف الذي سيُنشَر بعينه، مع بصمته (sha256) لمطابقة أي نسخة تُنزَّل منه لاحقاً
+      - name: Verify release asset with aapt2
+        run: |
+          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
+          "$aapt2" dump badging "apk/${{ steps.pinned_asset.outputs.filename }}" | grep -E "^(package|application-label|application):"
+          sha256sum "apk/${{ steps.pinned_asset.outputs.filename }}"
 
       - name: Publish pinned pre-release
         uses: softprops/action-gh-release@v2
