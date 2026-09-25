@@ -111,6 +111,13 @@ jobs:
           working-directory: android-station
           script: ./gradlew connectedDebugAndroidTest --stacktrace
 
+      # نتيجة كل اختبار بالاسم في سجل الفحص نفسه (لا في التقرير المرفوع فقط)
+      - name: Print per-test results
+        if: always()
+        run: |
+          find app/build/outputs/androidTest-results -name '*.xml' -print0 2>/dev/null \
+            | xargs -0 -r grep -h -o -E '<testcase name="[^"]+"|<failure message="[^"]{0,300}' || true
+
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
