@@ -22,7 +22,7 @@ const APPS = [
     apkFileName: "athar-station.apk",
     iconPath: "/app/athar-station-icon.png",
     version: "1.0", // مطابق لـ versionName في android-station/app/build.gradle.kts
-    sizeLabel: "STATION_APK_SIZE", // يُملأ بعد بناء الملف الفعلي — راجع تعليق التحديث أدناه
+    sizeLabel: "٥.٦ ميجابايت", // 5,891,020 بايت وقت آخر تحديث لهذا الملف — راجع تعليق التحديث أدناه
   },
 ];
 
