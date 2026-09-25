@@ -43,14 +43,14 @@ export default function PosInvoiceViewModal({ invoiceId, onClose }) {
     setError("");
     try {
       if (hasNativePrinterBridge()) {
-        const chunks = buildReceiptEscPosChunks({ company: invoice.company, invoice }, loadPrinterSettings().paperWidthMm);
+        const chunks = await buildReceiptEscPosChunks({ company: invoice.company, invoice }, loadPrinterSettings().paperWidthMm);
         printViaNativeBridge(chunks);
         return;
       }
       const settings = loadPrinterSettings();
       if (settings.method === "bluetooth") {
         const device = await requestBluetoothPrinter();
-        const bytes = buildReceiptEscPos({ company: invoice.company, invoice }, settings.paperWidthMm);
+        const bytes = await buildReceiptEscPos({ company: invoice.company, invoice }, settings.paperWidthMm);
         await sendToBluetoothPrinter(device, bytes);
       } else {
         window.print();
