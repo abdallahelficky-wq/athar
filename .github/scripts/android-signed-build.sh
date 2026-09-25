@@ -9,6 +9,9 @@
 # في الحالتين: aapt2 يتحقق من applicationId وversionName، وapksigner يطبع بصمة شهادة التوقيع.
 set -euo pipefail
 
+# خطأ ظاهر في السجل نفسه أيضاً — أسطر ::error:: تُحوَّل إلى تنبيهات ولا تظهر في سجل الخطوة الخام
+fail() { echo "ERROR: $*"; echo "::error::$*"; exit 1; }
+
 project_dir="$1"
 expected_package="$2"
 output_name="$3"
@@ -36,20 +39,20 @@ fi
 cp "$apk" "$output_name"
 
 badging="$("$build_tools/aapt2" dump badging "$output_name")"
-echo "$badging" | grep -E "^(package|application-label|application):"
+grep -E "^(package|application-label|application):" <<<"$badging"
 expected_version="$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)"
-echo "$badging" | grep -q "^package: name='${expected_package}' " || { echo "::error::applicationId is not ${expected_package}"; exit 1; }
-echo "$badging" | grep -q "versionName='${expected_version}'" || { echo "::error::versionName is not ${expected_version}"; exit 1; }
+# here-strings لا أنابيب: مع pipefail، "echo | grep -q" قد يفشل بـSIGPIPE حين يخرج grep عند أول تطابق
+grep -q "^package: name='${expected_package}' " <<<"$badging" || fail "applicationId is not ${expected_package}"
+grep -q "versionName='${expected_version}'" <<<"$badging" || fail "versionName is not ${expected_version}"
 
 # الإخراج الكامل لـapksigner يُطبَع كما هو (لا أسرار فيه: شهادة عامة وبصماتها فقط)
-certs="$("$build_tools/apksigner" verify --verbose --print-certs "$output_name" 2>&1)" || { echo "$certs"; echo "::error::apksigner verification failed"; exit 1; }
+certs="$("$build_tools/apksigner" verify --verbose --print-certs "$output_name" 2>&1)" || { echo "$certs"; fail "apksigner verification failed"; }
 echo "$certs"
-cert_sha256="$(echo "$certs" | grep -i -m1 -E 'certificate SHA-256 digest' | sed -E 's/.*digest: *//' || true)"
-[ -n "$cert_sha256" ] || { echo "::error::could not read the signing certificate SHA-256 from apksigner"; exit 1; }
+cert_sha256="$(grep -i -m1 -E 'certificate SHA-256 digest' <<<"$certs" | sed -E 's/.*digest: *//' || true)"
+[ -n "$cert_sha256" ] || fail "could not read the signing certificate SHA-256 from apksigner"
 echo "Signing certificate SHA-256: ${cert_sha256}"
-if [ "$signed" = true ] && echo "$certs" | grep -q "CN=Android Debug"; then
-  echo "::error::signed with a debug certificate, not the release key"
-  exit 1
+if [ "$signed" = true ] && grep -q "CN=Android Debug" <<<"$certs"; then
+  fail "signed with a debug certificate, not the release key"
 fi
 
 sha256sum "$output_name"
