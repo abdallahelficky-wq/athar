@@ -1433,6 +1433,8 @@
       "jobTitle": "المسمّى الوظيفي",
       "department": "القسم",
       "workLocation": "موقع العمل / الفرع",
+      "station": "المحطة (عامل ورديات المحطات)",
+      "stationNone": "— ليس عامل محطة —",
       "nationality": "الجنسية",
       "dateOfBirth": "تاريخ الميلاد",
       "phone": "رقم الجوال",

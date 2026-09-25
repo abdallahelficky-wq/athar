@@ -46,6 +46,8 @@ export const createEmployeeSchema = z.object({
   probationEndDate: z.coerce.date().nullable().optional(),
   probationEvaluated: z.boolean().default(false),
   managerId: z.string().nullable().optional(),
+  // محطة عامل ورديات المحطات (مركز تكلفة من نفس الشركة) — يُتحقَّق منها في employees.controller.ts
+  assignedCostCenterId: z.string().min(1).nullable().optional(),
   documents: z.array(documentSchema).default([]),
 });
 
@@ -53,7 +55,8 @@ export const updateEmployeeSchema = createEmployeeSchema.partial();
 
 export const importEmployeesSchema = z.object({
   companyId: z.string().min(1),
-  rows: z.array(createEmployeeSchema.omit({ companyId: true })).min(1).max(1000),
+  // الاستيراد لا يُسنِد محطات: لا تحقق لكل صف من مركز التكلفة هنا، فيُستبعَد الحقل تماماً
+  rows: z.array(createEmployeeSchema.omit({ companyId: true, assignedCostCenterId: true })).min(1).max(1000),
 });
 
 export const setPortalAccessSchema = z.object({

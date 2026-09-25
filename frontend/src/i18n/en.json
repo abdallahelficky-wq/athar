@@ -1433,6 +1433,8 @@
       "jobTitle": "Job title",
       "department": "Department",
       "workLocation": "Work location / branch",
+      "station": "Station (station shift worker)",
+      "stationNone": "— Not a station worker —",
       "nationality": "Nationality",
       "dateOfBirth": "Date of birth",
       "phone": "Mobile number",

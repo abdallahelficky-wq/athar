@@ -451,7 +451,11 @@ async function loadShiftClosingInput(tenantId: string, shiftId: string) {
   if (!shift) throw notFound("الوردية غير موجودة");
 
   const [priceRows, { accounts, expenseAccountId }] = await Promise.all([
-    prisma.fuelPrice.findMany({ where: { OR: [{ costCenterId: shift.costCenterId }, { costCenterId: null }] } }),
+    // مقيَّد بالمستأجر والشركة صراحةً — السعر العام (costCenterId فارغ) لا يخص محطة بعينها، فبدون هذا
+    // القيد كانت أسعار أي شركة أخرى تدخل الحساب (نفس نطاق stationShiftsReports.service.ts)
+    prisma.fuelPrice.findMany({
+      where: { tenantId: shift.tenantId, companyId: shift.companyId, OR: [{ costCenterId: shift.costCenterId }, { costCenterId: null }] },
+    }),
     resolveShiftClosingAccounts(shift.tenantId, shift.companyId),
   ]);
 
@@ -521,11 +525,11 @@ async function getWorkerCostCenter(tenantId: string, employeeId: string) {
  * إغلاق آخر وردية سابقة لكل فوهة (نفس ما سيُشتَق منه openingReading تلقائياً عند فتح وردية جديدة).
  */
 export async function getMyStation(tenantId: string, employeeId: string) {
-  const { costCenterId } = await getWorkerCostCenter(tenantId, employeeId);
+  const { costCenterId, companyId } = await getWorkerCostCenter(tenantId, employeeId);
 
   const [nozzles, priceRows] = await Promise.all([
     prisma.stationNozzle.findMany({ where: { costCenterId, isActive: true }, orderBy: [{ pumpNumber: "asc" }, { nozzleNumber: "asc" }] }),
-    prisma.fuelPrice.findMany({ where: { OR: [{ costCenterId }, { costCenterId: null }] } }),
+    prisma.fuelPrice.findMany({ where: { tenantId, companyId, OR: [{ costCenterId }, { costCenterId: null }] } }),
   ]);
 
   const today = new Date();
@@ -900,6 +904,17 @@ export async function postShift(tenantId: string, userId: string, shiftId: strin
   const summary = computeShiftClosing(input);
 
   return prisma.$transaction(async (tx) => {
+    // حجز الوردية ذرّياً قبل إنشاء القيد: فحص الحالة أعلاه وحده لا يمنع طلبَي ترحيل متزامنين من
+    // قراءة "approved" معاً وإنشاء قيدين. التحديث المشروط يمرّ لطلب واحد فقط، والآخر يُرفَض وتُلغى
+    // معاملته قبل أي قيد.
+    const claimed = await tx.stationShift.updateMany({
+      where: { id: shift.id, tenantId, status: "approved" },
+      data: { status: "posted" },
+    });
+    if (claimed.count !== 1) {
+      throw badRequest("لا يمكن ترحيل وردية لم تُعتمَد بعد، أو رُحِّلت بالفعل");
+    }
+
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: shift.companyId,
@@ -928,10 +943,16 @@ export async function rejectShift(tenantId: string, userId: string, shiftId: str
   }
 
   return prisma.$transaction(async (tx) => {
-    const updated = await tx.stationShift.update({
-      where: { id: shift.id },
+    // مشروط بنفس الحالة المقروءة أعلاه: لو رُحِّلت الوردية بين القراءة وهذا التحديث (ترحيل متزامن)
+    // لا يجوز وسم وردية ذات قيد مرحَّل بأنها "مرفوضة" — يُرفَض الطلب بدلاً من ذلك.
+    const claimed = await tx.stationShift.updateMany({
+      where: { id: shift.id, tenantId, status: shift.status },
       data: { status: "rejected", rejectionReasonCode: reasonCode, rejectionNote: note },
     });
+    if (claimed.count !== 1) {
+      throw badRequest("لا يمكن رفض وردية ليست قيد المراجعة أو الاعتماد");
+    }
+    const updated = await tx.stationShift.findUniqueOrThrow({ where: { id: shift.id } });
     await tx.stationShiftAuditLog.create({
       data: { tenantId, companyId: shift.companyId, shiftId, userId, action: "reject", fieldName: "status", oldValue: shift.status, newValue: "rejected" },
     });

@@ -15,7 +15,7 @@ vi.mock("../../lib/prisma", () => ({
     costCenter: { findUnique: vi.fn() },
     stationNozzle: { findMany: vi.fn(), findFirst: vi.fn() },
     fuelPrice: { findMany: vi.fn() },
-    stationShift: { findFirst: vi.fn(), update: vi.fn() },
+    stationShift: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     stationShiftReading: { upsert: vi.fn(), findMany: vi.fn() },
     stationShiftAuditLog: { create: vi.fn(), findMany: vi.fn() },
     attachment: { findMany: vi.fn() },
@@ -139,6 +139,7 @@ describe("an accountant with 'post'/approve level (but no 'review' grant)", () =
       .mockResolvedValueOnce(baseShift as never) // postShift's own status check
       .mockResolvedValueOnce({ ...baseShift, readings: [], creditSales: [], expenses: [], collection: null } as never); // loadShiftClosingInput
     vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.stationShift.updateMany).mockResolvedValue({ count: 1 } as never);
     vi.mocked(prisma.stationShift.update).mockResolvedValue({ id: SHIFT_ID, status: "posted", journalEntryId: "je-1" } as never);
 
     const response = await call("POST", `/${SHIFT_ID}/post`, ACCOUNTANT);

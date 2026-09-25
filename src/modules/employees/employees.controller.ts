@@ -17,6 +17,13 @@ async function assertManagerBelongsToTenant(tenantId: string, managerId: string,
   if (!manager) throw badRequest("المدير المباشر المحدد غير موجود ضمن مستأجرك");
 }
 
+/** محطة عامل ورديات المحطات يجب أن تكون مركز تكلفة من نفس المستأجر ونفس شركة الموظف تحديداً — لا
+ * مركزاً مشتركاً بلا شركة (getWorkerCostCenter في stationShifts.service.ts يرفضه أصلاً عند الفتح). */
+async function assertStationBelongsToCompany(tenantId: string, costCenterId: string, companyId: string) {
+  const costCenter = await prisma.costCenter.findFirst({ where: { id: costCenterId, tenantId, companyId } });
+  if (!costCenter) throw badRequest("المحطة المحددة ليست مركز تكلفة ضمن شركة هذا الموظف");
+}
+
 export const listEmployees: RequestHandler = async (req, res) => {
   const { companyId } = req.query;
   const employees = await prisma.employee.findMany({
@@ -58,6 +65,7 @@ export const createEmployee: RequestHandler = async (req, res) => {
   const { documents, ...data } = req.body;
   await assertCompanyBelongsToTenant(req.auth!.tenantId, data.companyId);
   if (data.managerId) await assertManagerBelongsToTenant(req.auth!.tenantId, data.managerId);
+  if (data.assignedCostCenterId) await assertStationBelongsToCompany(req.auth!.tenantId, data.assignedCostCenterId, data.companyId);
   const employee = await prisma.$transaction(async (tx) => {
     const { accountId } = await ensurePartyAccount(tx, {
       tenantId: req.auth!.tenantId, companyId: data.companyId, kind: "employee", partyName: data.name,
@@ -120,6 +128,12 @@ export const updateEmployee: RequestHandler = async (req, res) => {
   assertCompanyAccess(req.auth!, existing.companyId);
   if (req.body.companyId) await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
   if (req.body.managerId) await assertManagerBelongsToTenant(req.auth!.tenantId, req.body.managerId, existing.id);
+  // يُتحقَّق من المحطة الفعلية بعد التعديل (الجديدة أو القائمة) مقابل الشركة الفعلية بعد التعديل — يغطي
+  // أيضاً نقل موظف مُسنَد لمحطة إلى شركة أخرى دون تغيير محطته.
+  const effectiveStationId = req.body.assignedCostCenterId !== undefined ? req.body.assignedCostCenterId : existing.assignedCostCenterId;
+  if (effectiveStationId && (req.body.assignedCostCenterId !== undefined || req.body.companyId)) {
+    await assertStationBelongsToCompany(req.auth!.tenantId, effectiveStationId, req.body.companyId ?? existing.companyId);
+  }
 
   const { documents, ...data } = req.body;
   const employee = await prisma.$transaction(async (tx) => {

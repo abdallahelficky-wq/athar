@@ -240,6 +240,7 @@ export const AR_TO_EN: Record<string, string> = {
   "المبلغ يجب أن يكون أكبر من صفر": "The amount must be greater than zero",
   "المحطة (مركز التكلفة) غير موجودة": "The station (cost center) does not exist",
   "المدير المباشر المحدد غير موجود ضمن مستأجرك": "The specified direct manager does not exist in your tenant",
+  "المحطة المحددة ليست مركز تكلفة ضمن شركة هذا الموظف": "The selected station is not a cost center of this employee's company",
   "المردود غير موجود": "The return does not exist",
   "المردود ليس مرحّلاً أصلاً": "The return isn't posted in the first place",
   "المردود مرحّل بالفعل": "The return is already posted",
