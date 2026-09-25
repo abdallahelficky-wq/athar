@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
         pendingPhotoFile = null
         // saved=false يعني إلغاء (أو فشل تطبيق الكاميرا) — يُرَد null صراحةً، لا يُترك الـcallback معلّقاً.
         // بعض تطبيقات الكاميرا تُعيد نجاحاً دون كتابة أي بايت — ملف فارغ يُعامَل كإلغاء لا كصورة.
+        if (!saved) return@registerForActivityResult // NEGATIVE CONTROL: deliberately leaves the page callback unanswered on cancel
         val photoWritten = saved && uri != null && file != null && file.length() > 0
         if (!photoWritten) file?.delete()
         deliverFileResult(if (photoWritten) arrayOf(uri!!) else null)
