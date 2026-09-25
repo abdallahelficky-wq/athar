@@ -148,7 +148,6 @@
     "title": "Athar Accounting",
     "heroSub": "A complete cloud accounting system for managing your whole business group — from journal entries and ZATCA-compliant tax invoices, to inventory, fixed assets, HR and payroll — all in one place, in an interface designed from the ground up for your market.",
     "heroCtaTrial": "Try free for a full month",
-    "heroCtaLogin": "I already have an account",
     "about": {
       "eyebrow": "About us",
       "title": "About Athar Accounting",
@@ -189,7 +188,8 @@
         }
       ]
     },
-    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved", "downloadApp": "Download the POS app" }
+    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved" },
+    "apps": { "title": "Android apps for your team", "installSteps": "Install steps" }
   },
   "auth": {
     "login": {

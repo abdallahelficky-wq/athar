@@ -1269,6 +1269,32 @@
         .landing-logo { display: block; width: 160px; max-width: 45vw; height: auto; }
         .landing-nav-actions { display: flex; gap: 10px; align-items: center; }
 
+        /* تطبيقا أندرويد أعلى الصفحة مباشرة تحت شريط التنقّل: بطاقات بأيقونة التطبيق لا أزرار ممتلئة،
+           حتى لا تنافس الدعوة الأساسية (التجربة المجانية) بصرياً — جمهورها موظفو العملاء (كاشير، عامل
+           محطة) لا الزائر المحتمل، وكل بطاقة تنزيل مباشر للـAPK. */
+        .landing-apps { max-width: 1100px; margin: 0 auto; padding: 4px 48px 0; }
+        .landing-apps-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+        .landing-apps-title { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 14px; font-weight: 700; color: #10202E; margin: 0; }
+        .landing-apps-steps { background: none; border: none; padding: 4px 0; font: inherit; font-size: 12.5px; color: #2F5D5A; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+        .landing-apps-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .landing-app {
+          display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 76px;
+          background: #FBF9F3; border: 1px solid rgba(16,32,46,0.12); border-radius: 14px;
+          box-shadow: 0 2px 8px rgba(16,32,46,0.06); color: inherit; text-decoration: none;
+          transition: border-color .15s, box-shadow .15s, transform .15s;
+        }
+        .landing-app:hover { border-color: rgba(16,32,46,0.28); box-shadow: 0 4px 14px rgba(16,32,46,0.10); }
+        .landing-app:active { transform: translateY(1px); }
+        .landing-app:focus-visible { outline: 3px solid #2F5D5A; outline-offset: 2px; }
+        .landing-app-icon { width: 52px; height: 52px; flex-shrink: 0; border-radius: 12px; box-shadow: 0 1px 4px rgba(16,32,46,0.18); }
+        .landing-app-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+        .landing-app-name { font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 15px; color: #141414; }
+        .landing-app-audience { font-size: 12px; line-height: 1.5; color: #445565; }
+        .landing-app-get {
+          display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+          width: 34px; height: 34px; border-radius: 50%; background: #10202E; color: #FBF9F3; font-size: 15px;
+        }
+
         .landing-hero { text-align: center; padding: 70px 24px 90px; max-width: 780px; margin: 0 auto; }
         .landing-eyebrow { font-family: 'JetBrains Mono', monospace; letter-spacing: 2px; color: #C8102E; font-size: 12px; text-transform: uppercase; margin-bottom: 14px; }
         .landing-hero h1 { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 46px; font-weight: 700; color: #141414; margin: 0 0 20px; }
@@ -1308,7 +1334,6 @@
         .landing-footer-actions { display: flex; align-items: center; gap: 10px; }
         /* رابط تنزيل تطبيق نقطة البيع — إجراء ثانوي عمداً بجانب رابط الدخول في التذييل، بعيداً عن
            زرَّي "تسجيل الدخول"/"ابدأ تجربتك المجانية" الأساسيين في الشريط العلوي حتى لا ينافسهما. */
-        .landing-download-link { font-size: 12.5px !important; padding: 8px 14px !important; }
 
         /* ===== صفحات الدخول والتسجيل ===== */
         .auth-root { width: 100%; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #ECE6D6; padding: 30px; }
@@ -1352,6 +1377,9 @@
         @media (max-width: 640px) {
           .landing-hero h1 { font-size: 32px; }
           .landing-nav { padding: 16px 20px; flex-direction: column; gap: 12px; }
+          .landing-apps { padding: 0 16px; }
+          .landing-apps-grid { grid-template-columns: 1fr; gap: 10px; }
+          .landing-hero { padding-top: 40px; }
         }
 
         /* القائمة الجانبية على سطح المكتب ثابتة دائماً — زر الهمبرغر/زر الإغلاق/الخلفية المعتمة
