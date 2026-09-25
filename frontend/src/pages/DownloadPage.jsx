@@ -12,8 +12,8 @@ const APPS = [
     apkPath: "/app/athar-pos.apk",
     apkFileName: "athar-pos.apk",
     iconPath: "/app/athar-pos-icon.png",
-    version: "1.1", // مطابق لـ versionName في android/app/build.gradle.kts
-    sizeLabel: "٥.٦ ميجابايت", // 5,882,270 بايت وقت آخر تحديث لهذا الملف — راجع تعليق التحديث أدناه
+    version: "1.2", // مطابق لـ versionName في android/app/build.gradle.kts
+    sizeLabel: "٤.٦ ميجابايت", // 4,827,742 بايت (إصدار android-pos-v1.2 الموقَّع) — راجع تعليق التحديث أدناه
   },
   {
     key: "station",
@@ -21,8 +21,8 @@ const APPS = [
     apkPath: "/app/athar-station.apk",
     apkFileName: "athar-station.apk",
     iconPath: "/app/athar-station-icon.png",
-    version: "1.0", // مطابق لـ versionName في android-station/app/build.gradle.kts
-    sizeLabel: "٥.٦ ميجابايت", // 5,891,020 بايت وقت آخر تحديث لهذا الملف — راجع تعليق التحديث أدناه
+    version: "1.1", // مطابق لـ versionName في android-station/app/build.gradle.kts
+    sizeLabel: "٤.٦ ميجابايت", // 4,842,446 بايت (إصدار android-station-v1.1 الموقَّع) — راجع تعليق التحديث أدناه
   },
 ];
 
@@ -80,6 +80,9 @@ export default function DownloadPage() {
 //        android-station-v1.1) — لا يبدأ التوقيع إلا بعد نجاح اختبار التصوير على المحاكي وموافقتك على
 //        بيئة android-release.
 //     2. نزِّل APK الناتج من صفحة الإصدار واستبدل به frontend/public/app/athar-station.apk.
-//   ثم لكليهما: تحقّق بـ `aapt2 dump badging` أن applicationId/versionName صحيحان، وحدِّث version
+//   ثم لكليهما: تحقّق بـ `aapt2 dump badging` أن applicationId/versionName صحيحان، وبـ `apksigner verify
+//   --print-certs` أن بصمة الشهادة SHA-256 هي بصمة مفتاح الإصدار الدائم
+//   (35e7bb91e52eaeff6921e7042c5952c5cb88cf79d7ed1b497931d91944b9600d) — أي بصمة أخرى تعني أن التحديث لن
+//   يُثبَّت فوق النسخ الموجودة على الأجهزة. وحدِّث version
 //   وsizeLabel في APPS أعلاه ليطابقا versionName الفعلي وحجم الملف الجديد، ثم أعد بناء الواجهة
 //   (npm run build) وتحقّق من ظهور الملف في dist/app/.
