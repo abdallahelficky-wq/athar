@@ -1,24 +1,30 @@
-name: Android debug APK
+name: Android POS APK
 
-# يبني APK تجريبي (assembleDebug) فقط عند تعديل مجلد android/ — منفصل تماماً عن فحوصات الخادم/
-# الترحيل (athar-ai-check.yml وmigration-check.yml)، بملف عمل مستقل ومسار زناد مقصور على android/**
-# بحيث لا يمكن لهذا الفحص أن يؤثر عليهما إطلاقاً (ولا العكس)، ولا يبطئ أي دفعة لا تلمس هذا المجلد.
+# تطبيق نقطة البيع (android/) — منفصل تماماً عن فحوصات الخادم/الترحيل (athar-ai-check.yml
+# وmigration-check.yml)، بملف عمل مستقل ومسار زناد مقصور على android/** بحيث لا يمكن لهذا الفحص أن
+# يؤثر عليهما إطلاقاً (ولا العكس)، ولا يبطئ أي دفعة لا تلمس هذا المجلد. مهمّتان:
+#   1. build-apk — APK debug بلا أي سر، في كل دفعة وكل PR.
+#   2. release   — المهمة الوحيدة التي ترى مفتاح التوقيع: يدوية فقط (workflow_dispatch + release_tag)،
+#                  داخل بيئة GitHub "android-release" (مقصورة على فرع production وتنتظر موافقة
+#                  المراجِع قبل أن تبدأ). تبني APK موقَّعاً وتتحقق منه وتنشره كإصدار مثبَّت.
+# لا يوجد إصدار دائري (android-pos-latest) بعد الآن: كان يُنشَر مع كل دفعة، أي أنه يحتاج المفتاح على
+# فرع عادي بلا موافقة.
 
 on:
   push:
     paths:
       - "android/**"
       - ".github/workflows/android-build.yml"
+      - ".github/scripts/android-signed-build.sh"
   pull_request:
     paths:
       - "android/**"
       - ".github/workflows/android-build.yml"
-  # يسمح بنشر إصدار (release) مثبَّت على وسم مُحدَّد يدوياً (مثال: android-pos-v0.1.0)، بمعزل عن
-  # الإصدار الدائري (rolling) الذي يتحدّث تلقائياً في كل دفعة ناجحة — راجع الخطوات أدناه.
+      - ".github/scripts/android-signed-build.sh"
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Tag for a one-off pinned pre-release (e.g. android-pos-v0.1.0). Leave empty to just build."
+        description: "Tag for a pinned pre-release (e.g. android-pos-v1.2). Leave empty to just build."
         required: false
         type: string
 
@@ -26,13 +32,9 @@ permissions:
   contents: read
 
 jobs:
-  build-debug-apk:
+  build-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # لازمة فقط لخطوتي نشر الإصدار أدناه (إنشاء/تحديث Release عبر GITHUB_TOKEN المُقدَّم تلقائياً) —
-    # لا تمنح شيئاً إضافياً لبناء PR (مُستبعَد صراحةً من كلتا الخطوتين، بما فيها الفروع الخارجية/forks).
-    permissions:
-      contents: write
     defaults:
       run:
         working-directory: android
@@ -49,57 +51,104 @@ jobs:
       # أزالتها جوجل من مستودعها، sdkmanager يرفضها بخطأ "Failed to find package 'tools'")، فلا حاجة
       # له إطلاقاً؛ AGP نفسه يُنزِّل أي إصدار platform/build-tools محدَّد في app/build.gradle.kts
       # وغير موجود مسبقاً، والتراخيص الشائعة مقبولة مسبقاً على صورة هذا المُشغِّل.
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+      # البناء والتحقق (aapt2 + apksigner) في السكربت المشترك مع تطبيق عامل المحطة. لا أسرار هنا.
+      - name: Build and verify debug APK
+        id: apk
+        working-directory: .
+        run: .github/scripts/android-signed-build.sh debug android com.athar.pos athar-pos.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: athar-pos-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: ${{ steps.apk.outputs.apk }}
           if-no-files-found: error
 
-      # الإصدار الدائري (rolling) — نفس الوسم دائماً (android-pos-latest)، فيبقى نفس رابط التنزيل
-      # صالحاً ويُشير دائماً لآخر بناء ناجح على هذا الفرع تحديداً. مُستبعَد من pull_request (بما فيها
-      # forks، التي لا تملك أصلاً GITHUB_TOKEN بصلاحية كتابة) ومن أي فرع آخر غير هذا صراحةً.
-      - name: Prepare rolling release asset
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/android-pos-wrapper'
-        run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/athar-pos-latest.apk
+  release:
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    needs: [build-apk]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # أسرار التوقيع أسرار بيئة لا أسرار مستودع: لا تصل إلا لمهمة مرتبطة بهذه البيئة، على فرع تسمح به
+    # البيئة (production)، وبعد موافقة المراجِع المطلوب.
+    environment: android-release
+    # لازمة فقط لإنشاء الإصدار عبر GITHUB_TOKEN
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Publish/update rolling pre-release
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feature/android-pos-wrapper'
-        uses: softprops/action-gh-release@v2
+      - uses: actions/setup-java@v4
         with:
-          tag_name: android-pos-latest
-          name: "Athar POS (Sunmi V2 wrapper) — latest build"
-          body: "Automatically updated on every successful build of `android/**` on `feature/android-pos-wrapper`. Always the same link; always the newest debug build."
-          prerelease: true
-          files: android/app/build/outputs/apk/debug/athar-pos-latest.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          distribution: temurin
+          java-version: "17"
 
-      # إصدار مثبَّت لمرة واحدة على وسم مُحدَّد صراحةً — فقط عند تشغيل الفحص يدوياً (workflow_dispatch)
-      # مع تمرير release_tag؛ لا يعمل تلقائياً على أي دفعة عادية.
+      # الخطوة الوحيدة التي تستلم المفتاح. الاسم المستعار متغيّر بيئة لا سر: قيمته ("athar") لو سُجِّلت
+      # سراً لأخفى GitHub كل "athar" في السجلات، ومنها سطر هوية الحزمة com.athar.pos نفسه.
+      - name: Build, sign and verify release APK
+        id: apk
+        working-directory: .
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+        run: .github/scripts/android-signed-build.sh release android com.athar.pos athar-pos.apk
+
+      # احتياط لما يتخطّى فخ السكربت (قتل قسري للعملية): يعمل دائماً، حتى عند الفشل أو الإلغاء
+      - name: Remove decoded keystore
+        if: always()
+        working-directory: .
+        run: rm -f "$RUNNER_TEMP/release.jks"
+
+      # لا يُنشَر أبداً APK غير موقَّع بالمفتاح الدائم — تحديثه فوق أي نسخة مثبَّتة سيفشل على الأجهزة
+      - name: Refuse to publish an APK not signed with the release key
+        run: |
+          if [ "${{ steps.apk.outputs.signed }}" != "true" ]; then
+            echo "ERROR: the APK was not signed with the release key. Not publishing."
+            echo "::error::The APK was not signed with the release key. Not publishing."
+            exit 1
+          fi
+
       - name: Prepare pinned release asset
-        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
         id: pinned_asset
         run: |
           version="${{ inputs.release_tag }}"
           version="${version#android-pos-}"
           filename="athar-pos-${version}.apk"
-          cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/${filename}"
+          cp athar-pos.apk "${filename}"
           echo "filename=${filename}" >> "$GITHUB_OUTPUT"
 
+      # نفس التحقق على الملف الذي سيُنشَر بعينه: الهوية (aapt2)، شهادة التوقيع (apksigner)، والبصمة (sha256)
+      - name: Verify release asset
+        run: |
+          set -euo pipefail
+          f="${{ steps.pinned_asset.outputs.filename }}"
+          build_tools="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)"
+          badging="$("$build_tools/aapt2" dump badging "$f")"
+          grep -E "^(package|application-label|application):" <<<"$badging"
+          certs="$("$build_tools/apksigner" verify --verbose --print-certs "$f" 2>&1)"
+          grep -i -E "certificate (DN|SHA-256 digest)" <<<"$certs"
+          if grep -q "CN=Android Debug" <<<"$certs"; then echo "ERROR: debug certificate"; exit 1; fi
+          sha256sum "$f"
+
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: athar-pos-release-apk
+          path: android/${{ steps.pinned_asset.outputs.filename }}
+          if-no-files-found: error
+
       - name: Publish pinned pre-release
-        if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag }}
+          target_commitish: ${{ github.sha }}
           name: "Athar POS (Sunmi V2 wrapper) ${{ inputs.release_tag }}"
           prerelease: true
-          files: android/app/build/outputs/apk/debug/${{ steps.pinned_asset.outputs.filename }}
+          files: android/${{ steps.pinned_asset.outputs.filename }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

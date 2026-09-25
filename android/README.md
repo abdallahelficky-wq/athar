@@ -87,25 +87,18 @@ guarded by a runtime `WRITE_EXTERNAL_STORAGE` permission request on Android 9 an
 
 ## Releases (installable APK links)
 
-Besides the workflow artifact (which comes zipped and needs `unzip`ping, awkward on a phone), CI
-also publishes plain GitHub Releases with the raw `.apk` attached as a release asset — those give a
-direct download link a phone browser can open and install straight away.
+Besides the workflow artifact (which comes zipped and needs `unzip`ping, awkward on a phone), the
+workflow's `release` job publishes a GitHub pre-release with the raw `.apk` attached — a direct
+download link a phone browser can open and install straight away.
 
-- **Rolling "latest" pre-release** — tag `android-pos-latest`, asset `athar-pos-latest.apk`.
-  Every successful build of `android/**` pushed to `feature/android-pos-wrapper` updates this same
-  release in place (same tag, asset replaced), so the link never changes but always points at the
-  newest build:
-  `https://github.com/<owner>/<repo>/releases/download/android-pos-latest/athar-pos-latest.apk`
-- **Pinned releases** (e.g. `android-pos-v0.1.0`) — a specific, frozen build kept around under its
-  own tag/asset name, published on demand by running this workflow manually
-  (Actions → **Android debug APK** → **Run workflow**) with the `release_tag` input set (e.g.
-  `android-pos-v0.1.0`). Leave it empty to just build without publishing a pinned release.
+- **Pinned releases only** (e.g. `android-pos-v1.2`): run this workflow manually on `production`
+  (Actions → **Android POS APK** → **Run workflow**) with the `release_tag` input set, then approve
+  the `android-release` deployment when GitHub asks. Leave `release_tag` empty to just build.
+- There is no rolling `android-pos-latest` release any more: it was republished on every push to a
+  feature branch, which would have needed the signing key there without approval.
 
-Both are marked as **pre-releases** (these are unsigned debug builds, not production releases) and
-published via [`softprops/action-gh-release`](https://github.com/softprops/action-gh-release)
-using the workflow's own `GITHUB_TOKEN` — no separate credential needed, and it never runs for
-`pull_request` events (including forks, which don't have write access to that token anyway) or on
-any branch other than `feature/android-pos-wrapper`.
+Releases are published via [`softprops/action-gh-release`](https://github.com/softprops/action-gh-release)
+using the workflow's own `GITHUB_TOKEN`, and never run for `push` or `pull_request` events.
 
 ## Build
 
@@ -128,14 +121,43 @@ The debug APK lands at `android/app/build/outputs/apk/debug/app-debug.apk`.
 
 ### From GitHub Actions (no local Android setup needed)
 
-Any push touching `android/**` triggers the **Android debug APK** workflow
-(`.github/workflows/android-build.yml`), which runs `./gradlew assembleDebug` and uploads the
-result as a workflow artifact. It is path-filtered so it never runs on backend or frontend-only
+Any push touching `android/**` triggers the **Android POS APK** workflow
+(`.github/workflows/android-build.yml`), which builds a debug APK (no signing key; see "Release
+signing") and uploads it as a workflow artifact. It is path-filtered so it never runs on backend or frontend-only
 changes, and it cannot affect the existing `backend`/`migrate-deploy-replay` checks — it's a
 completely separate workflow file with its own trigger.
 
-1. On GitHub, open **Actions** → **Android debug APK** → the run for your commit.
+1. On GitHub, open **Actions** → **Android POS APK** → the run for your commit.
 2. Under **Artifacts**, download the `athar-pos-debug-apk` zip (it contains the `.apk`).
+
+## Release signing
+
+Published APKs (both this app and the station worker (`../android-station/`) app) are signed with **one permanent release key**,
+so every new version installs as an update over the previous one. Android refuses an update signed
+with a different key, and uninstalling instead wipes the app's WebView data (login, saved state).
+
+- The key never lives in this repository, and it is **not** a repository secret. It lives in the
+  GitHub Environment **`android-release`**, which only allows the `production` branch and requires
+  a reviewer's approval before any job using it starts:
+  - environment secrets `ANDROID_KEYSTORE_BASE64` (the `.jks` file, base64 on one line),
+    `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`;
+  - environment **variable** `ANDROID_KEY_ALIAS` — a variable on purpose: GitHub masks every
+    occurrence of a secret's value in logs, and an alias of `athar` would turn `com.athar.*` into
+    `com.***.*` in the very lines that prove the package identity.
+- Ordinary pushes and pull requests build a **debug** APK and never receive the key. Only the
+  workflow's `release` job — manual (`workflow_dispatch` with a `release_tag`), run on `production`,
+  approved by the reviewer — builds `assembleRelease`.
+- `.github/scripts/android-signed-build.sh release …` fails if any of the four values is empty (it
+  never falls back to debug), decodes the keystore into the runner's temp directory (owner-only,
+  removed on exit, failure, `INT`/`TERM`, plus an `if: always()` cleanup step), runs Gradle with
+  `--no-daemon`, then checks the APK with `aapt2` (applicationId, versionName) and `apksigner`
+  (fails on a debug certificate) and prints the certificate's SHA-256. The certificate DN is public
+  (it is in every APK and in the log).
+- **Losing the keystore or its password means no future update can install over existing copies.**
+  Keep backups outside GitHub; secrets cannot be read back from GitHub.
+- Local builds: `./gradlew assembleDebug` needs no key. For a signed release build, set
+  `ANDROID_KEYSTORE_FILE` (path to the `.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+  `ANDROID_KEY_PASSWORD`, then run `./gradlew assembleRelease`.
 
 ## Install on the Sunmi V2 (sideload)
 
@@ -143,7 +165,7 @@ completely separate workflow file with its own trigger.
    one-time per-source prompt the first time you open the file — the exact wording depends on the
    Android version). This is expected: Sunmi terminals are typically not Play Store devices.
 2. Get the downloaded `.apk` onto the device — a USB cable + file manager, `adb push` +
-   `adb install app-debug.apk`, or opening a download link on the device itself all work.
+   `adb install athar-pos.apk`, or opening a download link on the device itself all work.
 3. Open the `.apk` file on the device and confirm the install prompt.
 
 ## Setting the server URL
@@ -160,7 +182,6 @@ completely separate workflow file with its own trigger.
 
 - Placeholder launcher icon (a simple vector shape) — swap `app/src/main/res/drawable/ic_launcher.xml`
   for a real one when convenient.
-- No release signing configuration — only `assembleDebug` is wired up, matching the workflow.
 - **Not tested on real Sunmi hardware.** The printer binding, `sendRAWData` call, and download
   handling are implemented against Sunmi's documented AIDL interface (`woyou.aidlservice.jiuiv5`,
   confirmed from real third-party source code — see the main repo's chat history for citations)
