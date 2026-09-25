@@ -56,9 +56,10 @@ cd android-station
 ./gradlew connectedDebugAndroidTest     # needs a running emulator or device
 ```
 
-Releases: run the workflow manually (`workflow_dispatch`) with a `release_tag` such as
-`android-station-v1.0`; it publishes `athar-station-<version>.apk` as a pre-release only after
-the build (release-signed, see "Release signing") and the emulator camera test both pass. The download page serves a committed copy at
+Releases: run the workflow manually on `production` (`workflow_dispatch`) with a `release_tag`
+such as `android-station-v1.1`; after the debug build and the emulator camera test both pass, the
+`release` job waits for approval of the `android-release` environment, then builds, signs (see
+"Release signing") and publishes `athar-station-<version>.apk` as a pre-release. The download page serves a committed copy at
 `frontend/public/app/athar-station.apk` — see the update notes at the bottom of
 `frontend/src/pages/DownloadPage.jsx`.
 
@@ -68,14 +69,23 @@ Published APKs (both this app and the POS (`../android/`) app) are signed with *
 so every new version installs as an update over the previous one. Android refuses an update signed
 with a different key, and uninstalling instead wipes the app's WebView data (login, saved state).
 
-- The key never lives in this repository. CI reads it from four GitHub Actions secrets:
-  `ANDROID_KEYSTORE_BASE64` (the `.jks` file, base64), `ANDROID_KEYSTORE_PASSWORD`,
-  `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`.
-- `.github/scripts/android-signed-build.sh` decodes the keystore into the runner's temp directory,
-  runs `assembleRelease`, then checks the APK with `aapt2` (applicationId, versionName) and
-  `apksigner` (fails if the certificate is a debug one) and prints the certificate's SHA-256.
-- Without the secrets (for example a fork), it builds a debug APK with a warning, and the publish
-  steps refuse to release it.
+- The key never lives in this repository, and it is **not** a repository secret. It lives in the
+  GitHub Environment **`android-release`**, which only allows the `production` branch and requires
+  a reviewer's approval before any job using it starts:
+  - environment secrets `ANDROID_KEYSTORE_BASE64` (the `.jks` file, base64 on one line),
+    `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD`;
+  - environment **variable** `ANDROID_KEY_ALIAS` — a variable on purpose: GitHub masks every
+    occurrence of a secret's value in logs, and an alias of `athar` would turn `com.athar.*` into
+    `com.***.*` in the very lines that prove the package identity.
+- Ordinary pushes and pull requests build a **debug** APK and never receive the key. Only the
+  workflow's `release` job — manual (`workflow_dispatch` with a `release_tag`), run on `production`,
+  approved by the reviewer — builds `assembleRelease`.
+- `.github/scripts/android-signed-build.sh release …` fails if any of the four values is empty (it
+  never falls back to debug), decodes the keystore into the runner's temp directory (owner-only,
+  removed on exit, failure, `INT`/`TERM`, plus an `if: always()` cleanup step), runs Gradle with
+  `--no-daemon`, then checks the APK with `aapt2` (applicationId, versionName) and `apksigner`
+  (fails on a debug certificate) and prints the certificate's SHA-256. The certificate DN is public
+  (it is in every APK and in the log).
 - **Losing the keystore or its password means no future update can install over existing copies.**
   Keep backups outside GitHub; secrets cannot be read back from GitHub.
 - Local builds: `./gradlew assembleDebug` needs no key. For a signed release build, set

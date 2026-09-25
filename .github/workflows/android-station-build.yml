@@ -2,11 +2,12 @@ name: Android station APK
 
 # تطبيق عامل المحطة (android-station/) — ملف عمل مستقل تماماً عن android-build.yml (تطبيق نقطة
 # البيع)، بمسار زناد مقصور على android-station/** فلا يتأثر أحدهما بتعديل الآخر إطلاقاً. ثلاث مهام:
-#   1. build        — APK تجريبي (assembleDebug) باسمه الخاص athar-station-*.
+#   1. build        — APK debug بلا أي سر، في كل دفعة وكل PR.
 #   2. camera-test  — اختبار التصوير الفعلي (app/src/androidTest/CameraCaptureTest.kt) على محاكي
 #                     أندرويد حقيقي: السبب الوحيد لوجود هذا التطبيق، فلا يُعتبَر بناءٌ صالحاً دونه.
-#   3. publish      — إصدار مثبَّت على وسم يُمرَّر يدوياً (workflow_dispatch + release_tag)، فقط بعد نجاح
-#                     المهمّتين السابقتين معاً.
+#   3. release      — المهمة الوحيدة التي ترى مفتاح التوقيع: يدوية فقط (workflow_dispatch + release_tag)،
+#                     بعد نجاح المهمّتين السابقتين، داخل بيئة GitHub "android-release" (مقصورة على فرع
+#                     production وتنتظر موافقة المراجِع قبل أن تبدأ). تبني APK موقَّعاً وتتحقق منه وتنشره.
 
 on:
   push:
@@ -33,8 +34,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    outputs:
-      signed: ${{ steps.apk.outputs.signed }}
     defaults:
       run:
         working-directory: android-station
@@ -47,21 +46,16 @@ jobs:
           java-version: "17"
 
       # ubuntu-latest يأتي بـAndroid SDK مثبَّت مسبقاً، وAGP يُنزِّل أي platform/build-tools ناقص بنفسه.
-      # البناء والتوقيع والتحقق (aapt2 + apksigner) كلها في السكربت المشترك مع تطبيق نقطة البيع.
-      - name: Build, sign and verify APK
+      # البناء والتحقق (aapt2 + apksigner) في السكربت المشترك مع تطبيق نقطة البيع. لا أسرار هنا.
+      - name: Build and verify debug APK
         id: apk
         working-directory: .
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: .github/scripts/android-signed-build.sh android-station com.athar.station athar-station.apk
+        run: .github/scripts/android-signed-build.sh debug android-station com.athar.station athar-station.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: athar-station-apk
+          name: athar-station-debug-apk
           path: ${{ steps.apk.outputs.apk }}
           if-no-files-found: error
 
@@ -119,26 +113,54 @@ jobs:
           path: android-station/app/build/reports/androidTests/connected/
           if-no-files-found: ignore
 
-  publish:
+  release:
     if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
     needs: [build, camera-test]
     runs-on: ubuntu-latest
-    # لازمة فقط لإنشاء الإصدار عبر GITHUB_TOKEN — هذه المهمّة لا تعمل إطلاقاً على pull_request
+    timeout-minutes: 20
+    # أسرار التوقيع أسرار بيئة لا أسرار مستودع: لا تصل إلا لمهمة مرتبطة بهذه البيئة، على فرع تسمح به
+    # البيئة (production)، وبعد موافقة المراجِع المطلوب.
+    environment: android-release
+    # لازمة فقط لإنشاء الإصدار عبر GITHUB_TOKEN
     permissions:
       contents: write
+    defaults:
+      run:
+        working-directory: android-station
     steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # الخطوة الوحيدة التي تستلم المفتاح. الاسم المستعار متغيّر بيئة لا سر: قيمته ("athar") لو سُجِّلت
+      # سراً لأخفى GitHub كل "athar" في السجلات، ومنها سطر هوية الحزمة com.athar.station نفسه.
+      - name: Build, sign and verify release APK
+        id: apk
+        working-directory: .
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+        run: .github/scripts/android-signed-build.sh release android-station com.athar.station athar-station.apk
+
+      # احتياط لما يتخطّى فخ السكربت (قتل قسري للعملية): يعمل دائماً، حتى عند الفشل أو الإلغاء
+      - name: Remove decoded keystore
+        if: always()
+        working-directory: .
+        run: rm -f "$RUNNER_TEMP/release.jks"
+
       # لا يُنشَر أبداً APK غير موقَّع بالمفتاح الدائم — تحديثه فوق أي نسخة مثبَّتة سيفشل على الأجهزة
       - name: Refuse to publish an APK not signed with the release key
         run: |
-          if [ "${{ needs.build.outputs.signed }}" != "true" ]; then
-            echo "::error::The APK was not signed with the release key (ANDROID_KEYSTORE_* secrets missing). Not publishing."
+          if [ "${{ steps.apk.outputs.signed }}" != "true" ]; then
+            echo "ERROR: the APK was not signed with the release key. Not publishing."
+            echo "::error::The APK was not signed with the release key. Not publishing."
             exit 1
           fi
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: athar-station-apk
-          path: apk
 
       - name: Prepare pinned release asset
         id: pinned_asset
@@ -146,16 +168,28 @@ jobs:
           version="${{ inputs.release_tag }}"
           version="${version#android-station-}"
           filename="athar-station-${version}.apk"
-          cp apk/athar-station.apk "apk/${filename}"
+          cp athar-station.apk "${filename}"
           echo "filename=${filename}" >> "$GITHUB_OUTPUT"
 
       # نفس التحقق على الملف الذي سيُنشَر بعينه: الهوية (aapt2)، شهادة التوقيع (apksigner)، والبصمة (sha256)
       - name: Verify release asset
         run: |
+          set -euo pipefail
+          f="${{ steps.pinned_asset.outputs.filename }}"
           build_tools="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)"
-          "$build_tools/aapt2" dump badging "apk/${{ steps.pinned_asset.outputs.filename }}" | grep -E "^(package|application-label|application):"
-          "$build_tools/apksigner" verify --print-certs "apk/${{ steps.pinned_asset.outputs.filename }}" | grep -E "Signer #1 certificate (DN|SHA-256 digest)"
-          sha256sum "apk/${{ steps.pinned_asset.outputs.filename }}"
+          badging="$("$build_tools/aapt2" dump badging "$f")"
+          grep -E "^(package|application-label|application):" <<<"$badging"
+          certs="$("$build_tools/apksigner" verify --verbose --print-certs "$f" 2>&1)"
+          grep -i -E "certificate (DN|SHA-256 digest)" <<<"$certs"
+          if grep -q "CN=Android Debug" <<<"$certs"; then echo "ERROR: debug certificate"; exit 1; fi
+          sha256sum "$f"
+
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: athar-station-release-apk
+          path: android-station/${{ steps.pinned_asset.outputs.filename }}
+          if-no-files-found: error
 
       - name: Publish pinned pre-release
         uses: softprops/action-gh-release@v2
@@ -164,6 +198,6 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: "Athar Station (محطة أثر) ${{ inputs.release_tag }}"
           prerelease: true
-          files: apk/${{ steps.pinned_asset.outputs.filename }}
+          files: android-station/${{ steps.pinned_asset.outputs.filename }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,40 +1,61 @@
 #!/usr/bin/env bash
 # بناء APK أندرويد والتحقق منه — مشترك بين android-build.yml (نقطة البيع) وandroid-station-build.yml
 # (عامل المحطة). الاستخدام:
-#   android-signed-build.sh <مجلد المشروع> <applicationId المتوقَّع> <اسم ملف الإخراج>
+#   android-signed-build.sh <debug|release> <مجلد المشروع> <applicationId المتوقَّع> <اسم ملف الإخراج>
 #
-# - أسرار التوقيع موجودة (ANDROID_KEYSTORE_BASE64 + كلمات المرور + الاسم المستعار): يبني
-#   assembleRelease موقَّعاً بالمفتاح الدائم، ويرفض الشهادة لو كانت شهادة debug.
-# - غير موجودة: يبني assembleDebug مع تحذير ظاهر، ويُعلِن signed=false فترفض مهمة النشر إصداره.
+# - debug: كل دفعة وكل PR — assembleDebug بلا أي سر (مهام البناء العادية لا تستلم أسرار التوقيع إطلاقاً).
+# - release: مهمة release اليدوية فقط، داخل بيئة GitHub "android-release" (مقصورة على فرع production
+#   وتنتظر موافقة المراجِع). يفشل إن نقص أي من القيم الأربع، ولا يرجع أبداً إلى debug بصمت، ويرفض
+#   الشهادة لو كانت شهادة debug.
 # في الحالتين: aapt2 يتحقق من applicationId وversionName، وapksigner يطبع بصمة شهادة التوقيع.
+#
+# لا set -x هنا ولا في أي خطوة تستدعيه: التتبّع يطبع القيم الموسَّعة ويتجاوز إخفاء GitHub للأسرار.
 set -euo pipefail
 
 # خطأ ظاهر في السجل نفسه أيضاً — أسطر ::error:: تُحوَّل إلى تنبيهات ولا تظهر في سجل الخطوة الخام
 fail() { echo "ERROR: $*"; echo "::error::$*"; exit 1; }
 
-project_dir="$1"
-expected_package="$2"
-output_name="$3"
+mode="$1"
+project_dir="$2"
+expected_package="$3"
+output_name="$4"
 
 cd "$project_dir"
 chmod +x gradlew
 build_tools="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)"
 
-keystore=""
-if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
-  keystore="$RUNNER_TEMP/release.jks"
-  printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
-  trap 'rm -f "$keystore"' EXIT
-  export ANDROID_KEYSTORE_FILE="$keystore"
-  ./gradlew assembleRelease --stacktrace
-  apk="app/build/outputs/apk/release/app-release.apk"
-  signed=true
-else
-  echo "::warning::Release signing secrets are not configured — building a DEBUG APK. It will not be published."
-  ./gradlew assembleDebug --stacktrace
-  apk="app/build/outputs/apk/debug/app-debug.apk"
-  signed=false
-fi
+case "$mode" in
+  release)
+    # أسماء القيم الناقصة فقط — لا تُطبَع أي قيمة
+    for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+      [ -n "${!name:-}" ] || fail "${name} is empty — register it in the android-release environment. Not building."
+    done
+
+    # الحذف مُسجَّل قبل كتابة أي بايت: فشل base64 -d في منتصف الكتابة لا يترك ملفاً جزئياً. INT/TERM
+    # (إلغاء المهمة) تمرّ عبر exit فيعمل فخ EXIT نفسه. القتل القسري (SIGKILL) يتخطّى أي فخ — لذلك
+    # خطوة تنظيف if: always() في ملف العمل، ثم RUNNER_TEMP الذي يفرغه GitHub بعد كل مهمة.
+    keystore="$RUNNER_TEMP/release.jks"
+    trap 'rm -f "$keystore"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    # printf أمر داخلي في bash: السر لا يظهر في سطر أوامر أي عملية. الملف مقروء للمالك فقط.
+    ( umask 077; printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore" )
+    export ANDROID_KEYSTORE_FILE="$keystore"
+
+    # --no-daemon: لا تبقى عملية Gradle تحمل كلمات المرور في بيئتها بعد انتهاء هذه الخطوة
+    ./gradlew assembleRelease --no-daemon --stacktrace
+    apk="app/build/outputs/apk/release/app-release.apk"
+    signed=true
+    ;;
+  debug)
+    ./gradlew assembleDebug --stacktrace
+    apk="app/build/outputs/apk/debug/app-debug.apk"
+    signed=false
+    ;;
+  *)
+    fail "mode must be debug or release, got '${mode}'"
+    ;;
+esac
 
 cp "$apk" "$output_name"
 

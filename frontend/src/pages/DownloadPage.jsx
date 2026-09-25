@@ -72,12 +72,13 @@ export default function DownloadPage() {
 
 // لتحديث النسخة المنشورة هنا لبناء أحدث:
 //   نقطة البيع (android/):
-//     1. شغِّل .github/workflows/android-build.yml يدوياً (workflow_dispatch) بوسم إصدار مثبَّت (مثال
-//        android-pos-v1.2)، أو ادفع إلى feature/android-pos-wrapper لتحديث الإصدار الدائري android-pos-latest.
+//     1. شغِّل .github/workflows/android-build.yml يدوياً على production (workflow_dispatch) بوسم إصدار
+//        مثبَّت (مثال android-pos-v1.2)، ثم وافق على نشر بيئة android-release حين يطلبها GitHub.
 //     2. نزِّل APK الناتج من صفحة الإصدار على GitHub واستبدل به frontend/public/app/athar-pos.apk.
 //   عامل المحطة (android-station/):
-//     1. شغِّل .github/workflows/android-station-build.yml يدوياً بوسم (مثال android-station-v1.1) —
-//        لا يُنشَر الإصدار إلا بعد نجاح اختبار التصوير على المحاكي.
+//     1. شغِّل .github/workflows/android-station-build.yml يدوياً على production بوسم (مثال
+//        android-station-v1.1) — لا يبدأ التوقيع إلا بعد نجاح اختبار التصوير على المحاكي وموافقتك على
+//        بيئة android-release.
 //     2. نزِّل APK الناتج من صفحة الإصدار واستبدل به frontend/public/app/athar-station.apk.
 //   ثم لكليهما: تحقّق بـ `aapt2 dump badging` أن applicationId/versionName صحيحان، وحدِّث version
 //   وsizeLabel في APPS أعلاه ليطابقا versionName الفعلي وحجم الملف الجديد، ثم أعد بناء الواجهة
