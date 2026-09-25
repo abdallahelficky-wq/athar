@@ -1426,6 +1426,7 @@
       "eosFootnote": "* The end-of-service accrual is an estimate assuming a normal termination by the employer today for all active employees (without deducting the resignation ratio), not an actual settlement."
     },
     "directory": {
+      "portal": {"title": "Employee portal access (mobile)", "note": "The employee signs in from the Athar Station app or the portal page on their phone with the company code, their mobile number and a 6-digit PIN — for attendance, leave and station shifts.", "stateNotSet": "Not enabled — no PIN set yet", "stateActive": "Enabled", "stateDisabled": "Disabled", "stateLocked": "Temporarily locked after failed attempts until {{until}} — saving here unlocks it", "inactiveEmployee": "This employee's status is not “active”, so they cannot sign in until it is.", "phone": "Mobile number", "pinNew": "New PIN (6 digits)", "pinChange": "New PIN (leave empty to keep the current one)", "pin": "PIN", "enabled": "Allow sign-in", "save": "Save portal access", "saving": "Saving...", "errPhone": "Mobile number is too short", "errPin": "The PIN must be 6 digits", "issuedTitle": "Sign-in details to give the employee", "companyCode": "Company code", "pinUnchanged": "unchanged", "issuedNote": "The PIN will not be shown again after you leave this screen."},
       "editingBanner": "Editing employee file — {{name}}",
       "personalSection": "Personal and contact information",
       "employmentSection": "Employment and financial information",
@@ -1746,7 +1747,7 @@
       "title": "Company name (shown at the top of the screen and in the sidebar)",
       "label": "Company name",
       "editBtn": "Edit name",
-      "errRequired": "Company name is required"
+      "errRequired": "Company name is required", "portalCodeLabel": "Company code for the employee portal", "portalCodeCopy": "Copy", "portalCodeCopied": "Copied", "portalCodeNote": "Your employees enter it in the Athar Station app and the mobile portal together with their mobile number and PIN. This number is an identifier, not a secret; each employee's PIN is what protects the account."
     },
     "newCompany": {
       "title": "Companies (real)",
@@ -2528,7 +2529,7 @@
     "login": {
       "intro": "Log in to check in/out and track your leave requests from your phone.",
       "tenantIdLabel": "Company code",
-      "tenantIdPlaceholder": "Sent to you by HR",
+      "tenantIdPlaceholder": "7-digit number from HR, e.g. 1000001",
       "phoneLabel": "Mobile number",
       "pinLabel": "PIN"
     },

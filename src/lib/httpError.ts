@@ -17,3 +17,4 @@ export const conflict = (message: string) => new HttpError(409, message);
 /** مشكلة إعداد/تبعية في الخادم نفسه (مثال: محرّك PDF غير مُهيَّأ) — لا خطأ من المستخدم ولا خطأ
  * داخلي غامض، فتستحق كوداً ورسالة مختلفَين عن الاثنين معاً. */
 export const serviceUnavailable = (message: string) => new HttpError(503, message);
+export const tooManyRequests = (message: string) => new HttpError(429, message);

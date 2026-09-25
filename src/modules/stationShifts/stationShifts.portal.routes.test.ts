@@ -10,6 +10,8 @@ vi.mock("../../config/env", () => ({
 vi.mock("../../lib/prisma", () => ({
   prisma: {
     employee: { findFirst: vi.fn() },
+    // authenticateEmployeePortal يتحقق الآن من أن المنشأة غير معلَّقة إدارياً قبل كل طلب بوابة
+    tenant: { findUnique: vi.fn() },
     costCenter: { findUnique: vi.fn() },
     stationNozzle: { findMany: vi.fn(), findFirst: vi.fn() },
     fuelPrice: { findMany: vi.fn() },
@@ -55,7 +57,10 @@ function call(method: string, path: string, employeeId: string, body?: unknown) 
   });
 }
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(prisma.tenant.findUnique).mockResolvedValue({ subscriptionStatus: "active", suspensionReason: null } as any);
+});
 
 describe("isSeedData can never be smuggled in through the employee portal", () => {
   it("rejects an attempt to set isSeedData via the open-shift request body, and never calls create", async () => {
