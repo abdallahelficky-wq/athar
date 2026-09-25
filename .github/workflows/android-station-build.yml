@@ -13,10 +13,12 @@ on:
     paths:
       - "android-station/**"
       - ".github/workflows/android-station-build.yml"
+      - ".github/scripts/android-signed-build.sh"
   pull_request:
     paths:
       - "android-station/**"
       - ".github/workflows/android-station-build.yml"
+      - ".github/scripts/android-signed-build.sh"
   workflow_dispatch:
     inputs:
       release_tag:
@@ -31,6 +33,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      signed: ${{ steps.apk.outputs.signed }}
     defaults:
       run:
         working-directory: android-station
@@ -42,34 +46,23 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # نفس ملاحظة android-build.yml: ubuntu-latest يأتي بـAndroid SDK مثبَّت مسبقاً، وAGP يُنزِّل أي
-      # platform/build-tools ناقص بنفسه.
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
-
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/athar-station-debug.apk
-
-      # تحقّق بـaapt2 (من build-tools المثبَّتة على المُشغِّل) أن الـAPK الفعلي هو تطبيق المحطة بالإصدار
-      # المُعلَن في build.gradle.kts — لا تطبيق نقطة البيع ولا رقم إصدار قديم — قبل رفعه أو نشره.
-      - name: Verify APK identity with aapt2
-        run: |
-          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
-          badging="$("$aapt2" dump badging app/build/outputs/apk/debug/athar-station-debug.apk)"
-          echo "$badging" | grep -E "^(package|application-label|application):"
-          expected_version="$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)"
-          echo "$badging" | grep -q "^package: name='com.athar.station' " || { echo "::error::wrong applicationId"; exit 1; }
-          echo "$badging" | grep -q "versionName='${expected_version}'" || { echo "::error::versionName is not ${expected_version}"; exit 1; }
-          sha256sum app/build/outputs/apk/debug/athar-station-debug.apk
+      # ubuntu-latest يأتي بـAndroid SDK مثبَّت مسبقاً، وAGP يُنزِّل أي platform/build-tools ناقص بنفسه.
+      # البناء والتوقيع والتحقق (aapt2 + apksigner) كلها في السكربت المشترك مع تطبيق نقطة البيع.
+      - name: Build, sign and verify APK
+        id: apk
+        working-directory: .
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: .github/scripts/android-signed-build.sh android-station com.athar.station athar-station.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: athar-station-debug-apk
-          path: android-station/app/build/outputs/apk/debug/athar-station-debug.apk
+          name: athar-station-apk
+          path: ${{ steps.apk.outputs.apk }}
           if-no-files-found: error
 
   camera-test:
@@ -134,9 +127,17 @@ jobs:
     permissions:
       contents: write
     steps:
+      # لا يُنشَر أبداً APK غير موقَّع بالمفتاح الدائم — تحديثه فوق أي نسخة مثبَّتة سيفشل على الأجهزة
+      - name: Refuse to publish an APK not signed with the release key
+        run: |
+          if [ "${{ needs.build.outputs.signed }}" != "true" ]; then
+            echo "::error::The APK was not signed with the release key (ANDROID_KEYSTORE_* secrets missing). Not publishing."
+            exit 1
+          fi
+
       - uses: actions/download-artifact@v4
         with:
-          name: athar-station-debug-apk
+          name: athar-station-apk
           path: apk
 
       - name: Prepare pinned release asset
@@ -145,14 +146,15 @@ jobs:
           version="${{ inputs.release_tag }}"
           version="${version#android-station-}"
           filename="athar-station-${version}.apk"
-          cp apk/athar-station-debug.apk "apk/${filename}"
+          cp apk/athar-station.apk "apk/${filename}"
           echo "filename=${filename}" >> "$GITHUB_OUTPUT"
 
-      # نفس تحقّق aapt2 على الملف الذي سيُنشَر بعينه، مع بصمته (sha256) لمطابقة أي نسخة تُنزَّل منه لاحقاً
-      - name: Verify release asset with aapt2
+      # نفس التحقق على الملف الذي سيُنشَر بعينه: الهوية (aapt2)، شهادة التوقيع (apksigner)، والبصمة (sha256)
+      - name: Verify release asset
         run: |
-          aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2"
-          "$aapt2" dump badging "apk/${{ steps.pinned_asset.outputs.filename }}" | grep -E "^(package|application-label|application):"
+          build_tools="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)"
+          "$build_tools/aapt2" dump badging "apk/${{ steps.pinned_asset.outputs.filename }}" | grep -E "^(package|application-label|application):"
+          "$build_tools/apksigner" verify --print-certs "apk/${{ steps.pinned_asset.outputs.filename }}" | grep -E "Signer #1 certificate (DN|SHA-256 digest)"
           sha256sum "apk/${{ steps.pinned_asset.outputs.filename }}"
 
       - name: Publish pinned pre-release

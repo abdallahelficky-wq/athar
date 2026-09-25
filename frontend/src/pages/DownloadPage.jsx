@@ -47,6 +47,7 @@ function AppEntry({ app }) {
       <div className="download-steps">
         <div className="download-steps-title">{t("download.stepsTitle")}</div>
         <ol>
+          <li>{t("download.stepUninstallOld")}</li>
           <li>{t("download.step1")}</li>
           <li>{t("download.stepOpenFile", { fileName: app.apkFileName })}</li>
         </ol>

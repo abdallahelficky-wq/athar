@@ -57,10 +57,30 @@ cd android-station
 ```
 
 Releases: run the workflow manually (`workflow_dispatch`) with a `release_tag` such as
-`android-station-v1.0`; it publishes `athar-station-1.0.apk` as a pre-release only after the
-build and the emulator camera test both pass. The download page serves a committed copy at
+`android-station-v1.0`; it publishes `athar-station-<version>.apk` as a pre-release only after
+the build (release-signed, see "Release signing") and the emulator camera test both pass. The download page serves a committed copy at
 `frontend/public/app/athar-station.apk` — see the update notes at the bottom of
 `frontend/src/pages/DownloadPage.jsx`.
+
+## Release signing
+
+Published APKs (both this app and the POS (`../android/`) app) are signed with **one permanent release key**,
+so every new version installs as an update over the previous one. Android refuses an update signed
+with a different key, and uninstalling instead wipes the app's WebView data (login, saved state).
+
+- The key never lives in this repository. CI reads it from four GitHub Actions secrets:
+  `ANDROID_KEYSTORE_BASE64` (the `.jks` file, base64), `ANDROID_KEYSTORE_PASSWORD`,
+  `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`.
+- `.github/scripts/android-signed-build.sh` decodes the keystore into the runner's temp directory,
+  runs `assembleRelease`, then checks the APK with `aapt2` (applicationId, versionName) and
+  `apksigner` (fails if the certificate is a debug one) and prints the certificate's SHA-256.
+- Without the secrets (for example a fork), it builds a debug APK with a warning, and the publish
+  steps refuse to release it.
+- **Losing the keystore or its password means no future update can install over existing copies.**
+  Keep backups outside GitHub; secrets cannot be read back from GitHub.
+- Local builds: `./gradlew assembleDebug` needs no key. For a signed release build, set
+  `ANDROID_KEYSTORE_FILE` (path to the `.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+  `ANDROID_KEY_PASSWORD`, then run `./gradlew assembleRelease`.
 
 ## Icon
 

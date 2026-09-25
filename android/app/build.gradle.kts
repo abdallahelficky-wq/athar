@@ -11,8 +11,8 @@ android {
         applicationId = "com.athar.pos"
         minSdk = 24
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     buildFeatures {
@@ -30,9 +30,26 @@ android {
         jvmTarget = "17"
     }
 
+    // توقيع إصدار دائم (release) — مفتاح واحد ثابت لكل الإصدارات حتى يُثبَّت أي تحديث فوق النسخة
+    // السابقة على الجهاز. المفتاح لا يُحفَظ في المستودع إطلاقاً: يُمرَّر فقط عبر متغيرات بيئة يضبطها CI
+    // من أسرار GitHub (ANDROID_KEYSTORE_*). بدونها يخرج assembleRelease غير موقَّع — لا يُوقَّع أبداً
+    // بمفتاح debug مؤقت بصمت.
+    val releaseKeystore = System.getenv("ANDROID_KEYSTORE_FILE")
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("release")
         }
     }
 }
