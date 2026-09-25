@@ -4,6 +4,7 @@ import { unauthorized, forbidden } from "../lib/httpError";
 import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
 import type { ActionLevel } from "../lib/platformActions";
+import { tenantSuspendedMessage } from "../modules/employeePortal/employeePortal.service";
 
 /** يتحقق من رمز JWT (access token) ويحمّل هوية المستخدم + المستأجر في req.auth */
 export const authenticate: RequestHandler = (req, _res, next) => {
@@ -24,18 +25,28 @@ export const authenticate: RequestHandler = (req, _res, next) => {
  * يتحقق من رمز بوابة الموظف (تطبيق الجوال) — موقّع بسرّ منفصل تماماً عن رموز User الإدارية،
  * فلا يمكن لهذا الرمز أن يُقبَل أبداً في مسارات authenticate العادية أو العكس.
  */
-export const authenticateEmployeePortal: RequestHandler = (req, _res, next) => {
+export const authenticateEmployeePortal: RequestHandler = async (req, _res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     throw unauthorized("رمز الدخول مفقود");
   }
   const token = header.slice("Bearer ".length);
+  let payload: ReturnType<typeof verifyEmployeePortalToken>;
   try {
-    req.employeeAuth = verifyEmployeePortalToken(token);
-    next();
+    payload = verifyEmployeePortalToken(token);
   } catch {
     throw unauthorized("رمز الدخول غير صالح أو منتهي الصلاحية");
   }
+  // تعليق المنشأة إدارياً يسري فوراً على بوابة الموظف أيضاً، لا عند انتهاء رمز الدخول (7 أيام) فقط —
+  // بنفس قاعدة assertTenantActive لحسابات User في auth.service.ts.
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: payload.tenantId },
+    select: { subscriptionStatus: true, suspensionReason: true },
+  });
+  if (!tenant) throw unauthorized("الحساب غير موجود");
+  if (tenant.subscriptionStatus === "suspended") throw unauthorized(tenantSuspendedMessage(tenant.suspensionReason));
+  req.employeeAuth = payload;
+  next();
 };
 
 /**

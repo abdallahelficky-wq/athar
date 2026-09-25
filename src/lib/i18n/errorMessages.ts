@@ -545,4 +545,9 @@ export const AR_TO_EN: Record<string, string> = {
   "لا يمكن تغيير عميل مردود موجود — أنشئ مردوداً جديداً بدلاً من ذلك": "Can't change the customer on an existing sales return — create a new one instead",
   "لا يمكن تغيير الفاتورة الأصلية المرتبطة بمردود موجود — أنشئ مردوداً جديداً بدلاً من ذلك": "Can't change the original invoice linked to an existing sales return — create a new one instead",
   "إجمالي الفاتورة المستوردة يجب أن يكون أكبر من صفر": "The imported invoice's grand total must be greater than zero",
+  "الرمز السري (6 أرقام) مطلوب لتفعيل الدخول أول مرة": "A 6-digit PIN is required to enable sign-in for the first time",
+  "الرمز السري يجب أن يكون 6 أرقام": "The PIN must be 6 digits",
+  "رقم الجوال أو الرمز السري غير صحيح": "Incorrect mobile number or PIN",
+  "محاولات دخول فاشلة كثيرة من هذا الجهاز، حاول مرة أخرى بعد قليل": "Too many failed sign-in attempts from this device — try again shortly",
+  "تم تعليق هذا الحساب من إدارة المنصة، تواصل مع الدعم الفني": "This account has been suspended by the platform administration — contact support",
 };

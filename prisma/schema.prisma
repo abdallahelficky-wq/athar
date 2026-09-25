@@ -12,7 +12,10 @@
 // ============================================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // omitApi: يسمح بإخفاء Employee.pinHash عالمياً من كل استعلام وكل include متداخل (راجع
+  // src/lib/prisma.ts) — لا يمسّ قاعدة البيانات، فقط الكود المُولَّد للعميل.
+  previewFeatures = ["omitApi"]
 }
 
 datasource db {
@@ -63,6 +66,10 @@ model Tenant {
   // دائماً كل الصلاحيات على شركته (راجع requirePermission في middleware/auth.ts) بلا حاجة لإعداد
   // منصب له صراحةً.
   ownerId            String?
+  // رمز المنشأة الرقمي الذي يكتبه الموظف في بوابة الجوال بدل id (cuid طويل) — فريد على مستوى المنصة
+  // كلها، يبدأ من 1000001 ويُخصَّص من تسلسل Postgres (nextval ذرّي: لا تصادم بين تسجيلين متزامنين).
+  // حقل إضافي بجوار id لا بديل عنه: كل علاقة وكل JWT يبقى على id. مُعرِّف ظاهر للموظفين، ليس سراً.
+  code               Int                @unique @default(autoincrement())
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -1952,8 +1959,9 @@ model Employee {
   phone                     String? // رقم جوال الموظف — قناة الدخول لبوابة الموظف (فريد ضمن المستأجر)
   pinHash                   String? // تجزئة bcrypt لرمز PIN (مطابق لأسلوب hashPassword)، لا يُخزَّن نصاً أبداً
   portalActive              Boolean        @default(false) // تفعّله الموارد البشرية صراحةً بعد تعيين الهاتف/PIN
-  failedPortalLoginAttempts Int            @default(0)
+  failedPortalLoginAttempts Int            @default(0) // لا يُصفَّر عند انتهاء القفل — فقط عند دخول ناجح أو ضبط PIN جديد
   portalLockedUntil         DateTime?
+  portalLockoutCount        Int            @default(0) // عدد مرات القفل المتتالية: كل قفل جديد أطول من سابقه
   managerId                 String?
   manager                   Employee?      @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
   // المحطة (مركز التكلفة) التي يعمل بها هذا الموظف كعامل محطة عبر بوابة الموظف — تحدّد نطاقه
@@ -3058,4 +3066,15 @@ model StationShiftAuditLog {
 
   @@index([tenantId, companyId, shiftId])
   @@map("station_shift_audit_logs")
+}
+
+/// عدّاد محاولات الدخول الفاشلة لبوابة الموظف لكل عنوان IP (نافذة زمنية ثابتة) — في قاعدة البيانات لا
+/// في ذاكرة العملية، حتى يبقى الحدّ صحيحاً مع أكثر من نسخة خادم واحدة.
+model PortalLoginThrottle {
+  key         String   @id
+  windowStart DateTime
+  failures    Int      @default(0)
+
+  @@index([windowStart])
+  @@map("portal_login_throttle")
 }

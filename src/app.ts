@@ -1,4 +1,5 @@
 import "express-async-errors";
+import { env } from "./config/env";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -67,6 +68,9 @@ import { aiRoutes } from "./modules/ai/ai.routes";
 
 export function createApp() {
   const app = express();
+  // req.ip = عنوان العميل الفعلي من X-Forwarded-For بعد عدد الوكلاء الموثوقين فقط (لا أول قيمة يرسلها
+  // العميل نفسه) — يعتمد عليه حدّ محاولات دخول بوابة الموظف لكل IP.
+  app.set("trust proxy", env.trustProxyHops);
 
   app.use(helmet());
   app.use(cors());

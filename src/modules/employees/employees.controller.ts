@@ -180,30 +180,60 @@ export const calculateEos: RequestHandler = async (req, res) => {
 /**
  * تفعيل/تحديث دخول الموظف لبوابة الجوال (رقم جوال + رمز PIN منفصل تماماً عن حسابات User
  * الإدارية) — الموارد البشرية فقط من يضبطه، ويُخزَّن الـ PIN مجزّأً (bcrypt) كما كلمات مرور User.
+ * أي ضبط هنا يُصفّر كل عدّادات القفل: الموارد البشرية هي طريق فك قفل حساب موظف.
  */
 export const setEmployeePortalAccess: RequestHandler = async (req, res) => {
-  const existing = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
+  const existing = await prisma.employee.findFirst({
+    where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    omit: { pinHash: false },
+  });
   if (!existing) throw notFound("الموظف غير موجود");
   assertCompanyAccess(req.auth!, existing.companyId);
+
+  if (!req.body.pin && !existing.pinHash) throw badRequest("الرمز السري (6 أرقام) مطلوب لتفعيل الدخول أول مرة");
 
   const other = await prisma.employee.findFirst({
     where: { tenantId: req.auth!.tenantId, phone: req.body.phone, id: { not: existing.id } },
   });
   if (other) throw conflict("رقم الجوال هذا مستخدم بالفعل من موظف آخر في مستأجرك");
 
-  const pinHash = await hashPassword(req.body.pin);
   const employee = await prisma.employee.update({
     where: { id: existing.id },
     data: {
       phone: req.body.phone,
-      pinHash,
+      ...(req.body.pin ? { pinHash: await hashPassword(req.body.pin) } : {}),
       portalActive: req.body.portalActive,
       failedPortalLoginAttempts: 0,
       portalLockedUntil: null,
+      portalLockoutCount: 0,
     },
   });
-  res.json({ id: employee.id, phone: employee.phone, portalActive: employee.portalActive });
+  res.json(await portalAccessStatus(employee.id));
 };
+
+/** حالة دخول الموظف للبوابة كما تعرضها شاشة الموظف — "مضبوط أم لا" فقط، لا التجزئة نفسها أبداً */
+export const getEmployeePortalAccess: RequestHandler = async (req, res) => {
+  const existing = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
+  if (!existing) throw notFound("الموظف غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
+  res.json(await portalAccessStatus(existing.id));
+};
+
+async function portalAccessStatus(employeeId: string) {
+  const e = await prisma.employee.findUniqueOrThrow({
+    where: { id: employeeId },
+    select: { id: true, phone: true, portalActive: true, pinHash: true, portalLockedUntil: true, status: true },
+  });
+  const locked = !!e.portalLockedUntil && e.portalLockedUntil > new Date();
+  return {
+    id: e.id,
+    phone: e.phone,
+    portalActive: e.portalActive,
+    pinSet: !!e.pinHash,
+    lockedUntil: locked ? e.portalLockedUntil : null,
+    employeeActive: e.status === "active",
+  };
+}
 
 export const deleteEmployee: RequestHandler = async (req, res) => {
   const existing = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });

@@ -59,8 +59,10 @@ export const importEmployeesSchema = z.object({
   rows: z.array(createEmployeeSchema.omit({ companyId: true, assignedCostCenterId: true })).min(1).max(1000),
 });
 
+// أي PIN جديد 6 أرقام بالضبط (رموز 4 أو 5 أرقام ضُبطت سابقاً تبقى صالحة للدخول حتى تُغيَّر). الـ PIN
+// اختياري هنا فقط لموظف لديه PIN مضبوط أصلاً — لتعديل الجوال أو إيقاف/تفعيل الدخول دون إعادة ضبطه.
 export const setPortalAccessSchema = z.object({
-  phone: z.string().min(5, "رقم الجوال قصير جداً"),
-  pin: z.string().regex(/^\d{4,6}$/, "الرمز يجب أن يكون من 4 إلى 6 أرقام"),
+  phone: z.string().trim().min(5, "رقم الجوال قصير جداً"),
+  pin: z.string().regex(/^\d{6}$/, "الرمز السري يجب أن يكون 6 أرقام").optional(),
   portalActive: z.boolean().default(true),
 });
