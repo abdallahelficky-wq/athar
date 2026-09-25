@@ -6,8 +6,8 @@ import { useTranslation } from "react-i18next";
 // (ولا حاجة لتسجيل دخول مطلقاً، مطابقاً لطلب "تنزيل بلا فتح GitHub"). لتحديثها لبناء أحدث، راجع
 // تعليق "لتحديث النسخة" أسفل هذا الملف.
 const APK_PATH = "/app/athar-pos.apk";
-const APK_VERSION = "1.0"; // مطابق لـ versionName في android/app/build.gradle.kts
-const APK_SIZE_LABEL = "٥.٤ ميجابايت"; // 5,661,331 بايت وقت آخر تحديث لهذا الملف — راجع تعليق التحديث أدناه
+const APK_VERSION = "1.1"; // مطابق لـ versionName في android/app/build.gradle.kts
+const APK_SIZE_LABEL = "٥.٦ ميجابايت"; // 5,882,270 بايت وقت آخر تحديث لهذا الملف — راجع تعليق التحديث أدناه
 
 export default function DownloadPage() {
   const { t } = useTranslation();
