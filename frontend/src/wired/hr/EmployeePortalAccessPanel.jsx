@@ -8,7 +8,7 @@ import { getEmployeePortalAccess, setEmployeePortalAccess } from "../../api/empl
  * رقم جوال + PIN من 6 أرقام + تفعيل/إيقاف. لا يُعرَض الـ PIN المخزَّن أبداً (الخادم لا يعيد إلا "مضبوط
  * أم لا")؛ بعد الحفظ تظهر بيانات الدخول الثلاث التي يُسلِّمها المسؤول للموظف: رمز المنشأة، الجوال، الـ PIN.
  */
-export default function EmployeePortalAccessPanel({ employeeId, defaultPhone, employeeStatus }) {
+export default function EmployeePortalAccessPanel({ employeeId, defaultPhone, employeeStatus, onSaved }) {
   const { t } = useTranslation();
   const { tenant } = useAuth();
   const [status, setStatus] = useState(null);
@@ -47,6 +47,7 @@ export default function EmployeePortalAccessPanel({ employeeId, defaultPhone, em
       const next = await setEmployeePortalAccess(employeeId, { phone: phone.trim(), portalActive: active, ...(pin ? { pin } : {}) });
       setStatus(next);
       setIssued(next.portalActive ? { phone: next.phone, pin: pin || null } : null);
+      onSaved?.(next);
       setPin("");
     } catch (e) {
       setError(e.message);

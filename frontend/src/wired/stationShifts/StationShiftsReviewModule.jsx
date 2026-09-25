@@ -6,8 +6,12 @@ import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 import { useModuleTab } from "../shared/useModuleTab";
 import { fmt } from "../../legacy/constants";
+import StationWorkersTab from "./StationWorkersTab";
 
-export const STATION_SHIFTS_TABS = [{ id: "pending", labelKey: "stationShiftsReview.tabTitle" }];
+export const STATION_SHIFTS_TABS = [
+  { id: "pending", labelKey: "stationShiftsReview.tabTitle" },
+  { id: "workers", labelKey: "stationWorkers.tabTitle" },
+];
 
 /**
  * شاشة المحاسب لمراجعة/اعتماد/ترحيل ورديات المحطات — محور العامل منفصل تماماً في بوابة الموظف
@@ -65,13 +69,28 @@ export default function StationShiftsReviewModule({ companyId }) {
     catch (e) { setError(e.message); }
   };
 
-  return (
-    <div>
+  const header = (
+    <>
       <div className="section-title">
         <Breadcrumb parts={[t("stationShiftsReview.breadcrumb")]} />
         <h2>{t("stationShiftsReview.title")}</h2>
       </div>
       <SubTabs tabs={STATION_SHIFTS_TABS.map((x) => ({ ...x, label: t(x.labelKey) }))} active={tab} basePath="/stationShifts" />
+    </>
+  );
+
+  if (tab === "workers") {
+    return (
+      <div>
+        {header}
+        <StationWorkersTab companyId={companyId} />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {header}
 
       {error && <p className="balance-bad">{error}</p>}
       {message && <p className="note">{message}</p>}

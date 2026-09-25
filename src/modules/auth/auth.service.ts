@@ -13,7 +13,7 @@ import {
 import { env } from "../../config/env";
 import { createChartFromTemplate } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
-import { createStarterItems, createCashParties, createDefaultWarehouse } from "../../lib/starterData";
+import { createStarterItems, createCashParties, createDefaultWarehouse, linkStationCashAccounts } from "../../lib/starterData";
 import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../../lib/mailer";
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
 import type { Lang } from "../../lib/i18n/translate";
@@ -154,6 +154,7 @@ export async function register(
       await createStarterItems(tx, tenant.id, company.id, input.businessActivity, idByCode);
       await createCashParties(tx, tenant.id, company.id);
       await createDefaultWarehouse(tx, tenant.id, company.id);
+      await linkStationCashAccounts(tx, company.id, input.businessActivity, idByCode);
 
       const user = await tx.user.create({
         data: {
