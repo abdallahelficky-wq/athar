@@ -26,7 +26,7 @@ import java.io.File
 /**
  * غلاف WebView كامل الشاشة حول بوابة الموظف في أثر (mobile.html) لعمّال محطات الوقود على هواتف
  * عادية — بلا أي منطق أعمال هنا، فقط: تحميل رابط الخادم، وتنفيذ حقول رفع الصور في صفحة الويب
- * (<input type="file" accept="image/*" capture="environment">) التي لا تفعل شيئاً إطلاقاً داخل WebView
+ * (<input type="file" accept="image/…" capture="environment">) التي لا تفعل شيئاً إطلاقاً داخل WebView
  * ما لم يُنفِّذ التطبيق WebChromeClient.onShowFileChooser بنفسه — وهذا سبب وجود هذا التطبيق أصلاً
  * (تصوير عدّادات المضخات وإيصالات المصروفات). بلا طابعة Sunmi ولا جسر تنزيل (البوابة لا تنزِّل ملفات).
  *

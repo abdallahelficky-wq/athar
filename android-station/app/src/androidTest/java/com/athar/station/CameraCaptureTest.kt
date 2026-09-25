@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 /**
  * يختبر المسار الفعلي الذي يستخدمه عامل المحطة: صفحة ويب داخل WebView التطبيق فيها نفس الحقل
- * <input type="file" accept="image/*" capture="environment"> المستخدم في StationShiftScreen.jsx، يُنقَر
+ * <input type="file" accept="image/…" capture="environment"> المستخدم في StationShiftScreen.jsx، يُنقَر
  * بلمسة حقيقية على الشاشة (UiAutomator — لا نقر برمجي بجافاسكربت، فالمتصفح لا يفتح اختيار ملفات إلا عن
  * تفاعل مستخدم حقيقي)، ثم يُعترَض طلب الكاميرا (ACTION_IMAGE_CAPTURE) بـEspresso-Intents بدل تطبيق كاميرا
  * حقيقي — يكتب "المُصوِّر" البديل صورة JPEG فعلية في نفس EXTRA_OUTPUT الذي جهّزه التطبيق عبر FileProvider،
