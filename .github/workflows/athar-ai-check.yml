@@ -13,6 +13,24 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # خدمة Postgres حقيقية — منذ salesInvoicesSearch.integration.test.ts (قائمة الفواتير المُرقَّمة/
+    # المُفلترة) أصبح جزء من الاختبارات يعمل ضد قاعدة بيانات فعلية فعلاً، لا Prisma مُموَّهة كبقية
+    # الاختبارات؛ بلا هذه الخدمة يفشل ذلك الملف بخطأ اتصال (لا شيء يستمع على localhost:5432) بصرف
+    # النظر عن صحة الكود نفسه. نفس صورة/إعدادات خدمة migration-check.yml بالضبط.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: athar_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DATABASE_URL: postgresql://test:test@localhost:5432/athar_test
       JWT_ACCESS_SECRET: ci-test-only-access-secret
@@ -25,6 +43,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run prisma:generate
+      # لا بدّ من تطبيق تاريخ الـmigrations كاملاً على القاعدة الفارغة أعلاه قبل أي اختبار حقيقي
+      # يقرأ/يكتب جداولها فعلياً (نفس أمر migration-check.yml، بلا علاقة بفحص الـreplay نفسه هنا).
+      - run: npx prisma migrate deploy
       - run: npm run lint
       - run: npm run build
       - name: Run tests with an ephemeral encryption key

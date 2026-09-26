@@ -105,6 +105,11 @@ export const DYNAMIC_MESSAGE_PATTERNS: MessagePattern[] = [
   { match: /^رفضت زاتكا طلب شهادة الاختبار: ([\s\S]+)$/, translate: (g) => `ZATCA rejected the compliance certificate request: ${g[0].split("لا يوجد رد").join("No response")}` },
   { match: /^رفضت زاتكا طلب شهادة الإنتاج: ([\s\S]+)$/, translate: (g) => `ZATCA rejected the production certificate request: ${g[0].split("لا يوجد رد").join("No response")}` },
   {
+    match: /^انتهت مهلة انتظار ردّ زاتكا على طلب شهادة الإنتاج \(60 ثانية\) — قد تكون الشهادة صدرت فعلياً رغم عدم وصول الرد قبل انتهاء المهلة\. لا تُعِد المحاولة بنفس رقم طلب الامتثال \(complianceRequestId\)؛ راجع سجلات الخادم لمعرفة ما ردّت به زاتكا فعلياً، أو تواصل مع الدعم الفني قبل أي محاولة أخرى\.$/,
+    translate: () =>
+      "Timed out waiting for ZATCA's response to the production certificate request (60s) — the certificate may already have been issued even though no response arrived before the timeout. Do not retry with the same compliance request ID (complianceRequestId); check the server logs for what ZATCA actually returned, or contact support before trying again.",
+  },
+  {
     match: /^لا يمكن حذف هذا العميل لارتباطه بـ (.+)\. عدّل بيانات العميل بدلاً من حذفه إن لزم الأمر\.$/,
     translate: (g) => `Can't delete this customer because it's linked to ${translateReasonsList(g[0], CUSTOMER_REASON_LABELS)}. Edit the customer's data instead of deleting it if needed.`,
   },
@@ -145,4 +150,7 @@ export const DYNAMIC_MESSAGE_PATTERNS: MessagePattern[] = [
   { match: /^لم يُحدَّد حساب المصروف المرتبط بالصنف "(.+?)" بعد؛ أكمل بياناته من شاشة الأصناف أولاً$/, translate: (g) => `The expense account linked to item "${g[0]}" hasn't been set yet; complete its data from the items screen first` },
   { match: /^الصنف "(.+?)" ليس من نوع "بضاعة بجرد دوري" — لا يمكن تسويته من هذه الشاشة$/, translate: (g) => `Item "${g[0]}" is not a "periodic inventory" item — it can't be settled from this screen` },
   { match: /^لم تُحدَّد حسابات المخزون\/المشتريات للصنف "(.+?)" بعد؛ أكمل بياناته من شاشة الأصناف أولاً$/, translate: (g) => `The inventory/purchases accounts for item "${g[0]}" haven't been set yet; complete its data from the items screen first` },
+  { match: /^قراءة العداد غير صحيحة للفوهة \((.+?)\): الكمية المحسوبة سالبة حتى بعد افتراض دورة كاملة للعداد$/, translate: (g) => `Invalid meter reading for nozzle (${g[0]}): the calculated volume is negative even after assuming a full meter rollover` },
+  { match: /^لا يوجد سعر بيع سارٍ لمنتج "(.+?)" بتاريخ الوردية$/, translate: (g) => `No effective fuel price exists for product "${g[0]}" on the shift date` },
+  { match: /^لا يوجد حساب إيراد مُحدَّد لمنتج "(.+?)"$/, translate: (g) => `No revenue account is set for product "${g[0]}"` },
 ];

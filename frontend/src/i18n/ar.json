@@ -1,4 +1,5 @@
 {
+  "creditNote": {"complete": "إكمال اعتماد الإشعار", "noItems": "لا توجد أصناف مطابقة", "title": "الإشعارات الدائنة المرتبطة", "returnInvoice": "إرجاع الفاتورة", "returned": "إجمالي المرتجع", "net": "الصافي بعد المرتجع", "due": "المتبقي للسداد", "customerCredit": "رصيد دائن للعميل", "pending": "قيد المعالجة — لم يخصم من الرصيد بعد", "full": "مرتجع كامل", "partial": "مرتجع جزئي", "search": "البحث عن صنف لإضافته إلى المرتجع", "unavailable": "الفاتورة غير متاحة للإرجاع ضمن هذه الشركة", "reasonRequired": "اختر الفاتورة واكتب سبب الإرجاع", "saved": "تم اعتماد الإشعار {{number}} وتحديث رصيد الفاتورة", "savedPending": "تم حفظ الإشعار {{number}} وهو قيد المعالجة؛ لم يخصم من رصيد الفاتورة بعد", "editHint": "عدّل الكميات أو احذف السطور غير المرتجعة. الأسعار والخصم والضريبة مأخوذة من الفاتورة الأصلية."},
   "common": {
     "languageName": "العربية",
     "switchToArabic": "التبديل إلى العربية",
@@ -44,6 +45,15 @@
       "subtotal": "الإجمالي قبل الضريبة", "vat": "ضريبة القيمة المضافة (15٪)", "grandTotal": "الإجمالي شامل الضريبة"
     }
   },
+  "filters": {
+    "search": "بحث", "reset": "إعادة تعيين", "quickSearchPlaceholder": "بحث سريع (رقم الفاتورة أو اسم العميل)...",
+    "dateFrom": "من تاريخ", "dateTo": "إلى تاريخ", "amountMin": "أقل مبلغ", "amountMax": "أعلى مبلغ",
+    "customer": "العميل", "customerSearchPlaceholder": "ابحث عن عميل...", "allCustomers": "— كل العملاء —"
+  },
+  "pagination": {
+    "pageSizeLabel": "عدد الصفوف", "showingRange": "عرض {{from}}–{{to}} من {{total}}", "showingEmpty": "لا توجد نتائج",
+    "prev": "السابق", "next": "التالي", "pageOf": "صفحة {{page}} من {{totalPages}}"
+  },
   "stables": {
     "title": "إسطبلات الخيل",
     "overview": "نظرة عامة",
@@ -59,6 +69,81 @@
     "competitions": "المسابقات والمنافسات",
     "billing": "إنشاء فاتورة إعاشة",
     "commissions": "عمولات المدربين"
+  },
+  "stationSetup": {"tabTitle": "إعداد المحطات", "title": "المحطات ومضخاتها", "note": "كل مضخة فوهتان: مضخة بنزين (91 و95) أو مضخة ديزل (فوهتا ديزل). لا تُفتح أي وردية على محطة بلا مضخات.", "noPumpsBadge": "بلا مضخات — لا يمكن فتح ورديات", "pumpCount": "{{count}} مضخة", "pump": "المضخة", "nozzle": "الفوهة", "product": "الوقود", "meterDigits": "خانات العداد", "initialReading": "القراءة عند التعريف", "pumpN": "طرمبة {{n}}", "nozzleN": "الفوهة {{n}}", "retire": "إيقاف المضخة", "retireConfirm": "إيقاف طرمبة {{n}}؟ لن تظهر للعمال في الورديات الجديدة.", "edit": "تعديل", "editDigitsPrompt": "عدد خانات العداد قبل الفاصلة العشرية:", "hasShifts": "عليها ورديات", "addPump": "+ إضافة مضخة", "newPumpTitle": "مضخة جديدة", "pumpTypeLabel": "نوع المضخة", "meterTypeLabel": "نوع العداد", "currentReading": "قراءة العداد الآن", "meterDigitsPlaceholder": "مثال: 6", "digitsHelp": "خانات العداد = عدد الأرقام قبل الفاصلة العشرية في عداد اللترات التراكمي (مثلاً 999999.99 = 6 خانات). عند تجاوز العداد آخر رقم يعود للصفر؛ هذا الرقم هو ما يحسب به النظام اللترات عند تلك «اللفّة»، فرقم خاطئ يعطي كمية مبيعات خاطئة. القراءة الحالية تصبح قراءة الافتتاح لأول وردية.", "savePump": "حفظ المضخة", "pumpAdded": "أُضيفت المضخة.", "saved": "تم الحفظ.", "errNozzleFields": "أدخل عدد خانات العداد والقراءة الحالية لكلتا الفوهتين", "pumpType": {"petrol": "بنزين (91 + 95)", "diesel": "ديزل"}, "meterType": {"mechanical": "عداد ميكانيكي", "electronic": "عداد إلكتروني"}, "products": {"gasoline_91": "بنزين 91", "gasoline_95": "بنزين 95", "diesel": "ديزل"}},
+  "fuelPrices": {"tabTitle": "أسعار الوقود", "currency": "ر.س/لتر", "inForceSince": "ساري منذ {{date}}", "notSet": "لا يوجد سعر ساري — لا تُفتح ورديات لهذا الوقود", "nextChange": "يتغير إلى {{price}} في {{date}}", "addTitle": "إضافة سعر جديد", "note": "السعر شامل الضريبة ويسري على كل محطات الشركة من تاريخ السريان. الأسعار لا تُعدَّل بعد إضافتها لأن الورديات المُرحَّلة قُيِّمت بها — عند تغيّر السعر أضف سعراً جديداً بتاريخه.", "product": "الوقود", "price": "السعر شامل الضريبة", "effectiveFrom": "تاريخ السريان", "status": "الحالة", "addBtn": "إضافة السعر", "added": "أُضيف السعر.", "errPrice": "أدخل سعراً أكبر من صفر", "historyTitle": "سجل الأسعار", "noPrices": "لا توجد أسعار بعد.", "deleteUpcoming": "حذف (لم يسرِ بعد)", "deleteConfirm": "حذف هذا السعر المجدول؟", "statuses": {"current": "ساري الآن", "upcoming": "مجدول", "past": "سابق"}},
+  "stationWorkers": {"tabTitle": "عمال المحطات", "stationsTitle": "المحطات", "stationsNote": "كل محطة مركز تكلفة لهذه الشركة؛ يُسنَد إليها العامل فيفتح ورديته عليها من تطبيق محطة أثر.", "noStations": "لا توجد محطات بعد — أضف أول محطة بالأسفل.", "newStationPlaceholder": "اسم المحطة، مثال: محطة طريق المدينة", "addStation": "إضافة محطة", "assignTitle": "إعداد عامل محطة", "modeExisting": "موظف موجود", "modeNew": "موظف جديد", "employee": "الموظف", "pickEmployee": "— اختر موظفاً —", "name": "اسم العامل", "basicSalary": "الراتب الأساسي", "hireDate": "تاريخ المباشرة", "station": "المحطة", "pickStation": "— اختر المحطة —", "assignBtn": "حفظ وإسناد للمحطة", "saving": "جارٍ الحفظ...", "assignedNote": "تم إسناد {{name}} إلى {{station}}. اضبط الآن رقم جواله ورمزه السري للدخول من تطبيق محطة أثر:", "listTitle": "العمال المُسنَدون للمحطات", "noWorkers": "لم يُسنَد أي عامل لمحطة بعد.", "phone": "الجوال", "setUpBtn": "الدخول للبوابة", "defaultJobTitle": "عامل محطة", "errStationName": "اسم المحطة قصير جداً", "errStation": "اختر المحطة", "errName": "اسم العامل قصير جداً", "errSalary": "أدخل الراتب الأساسي", "errPick": "اختر الموظف"},
+  "stationShiftsReview": {
+    "tabTitle": "قيد المراجعة",
+    "breadcrumb": "ورديات المحطات",
+    "title": "مراجعة ورديات المحطات",
+    "pendingTitle": "الورديات قيد المراجعة",
+    "refreshBtn": "تحديث",
+    "table": { "openingReading": "قراءة الافتتاح",
+      "employee": "العامل",
+      "station": "المحطة",
+      "shiftType": "نوع الوردية",
+      "date": "التاريخ",
+      "status": "الحالة",
+      "nozzle": "الفوهة",
+      "product": "المنتج",
+      "confirmedReading": "القراءة المؤكَّدة",
+      "description": "الوصف",
+      "amount": "المبلغ"
+    },
+    "shiftType": { "morning": "صباحية", "night": "مسائية" },
+    "status": {
+      "open": "مفتوحة",
+      "submitted": "مُرسَلة",
+      "under_review": "قيد المراجعة",
+      "approved": "مُعتمَدة",
+      "posted": "مُرحَّلة",
+      "rejected": "مرفوضة"
+    },
+    "openBtn": "فتح",
+    "noPending": "لا توجد ورديات قيد المراجعة حالياً",
+    "detailTitle": "تفاصيل وردية {{employee}} — {{status}}",
+    "readingsTitle": "قراءات الفوهات",
+    "notReviewedYet": "لم تُراجَع بعد", "digitsSuffix": "{{n}} خانات",
+    "correctionLabel": "قراءة المحاسب",
+    "correctBtn": "حفظ",
+    "meterPhotoTitle": "صورة عداد الفوهة {{nozzle}}",
+    "noReadings": "لا توجد قراءات مسجَّلة بعد",
+    "expensesTitle": "المصروفات",
+    "receiptPhotoTitle": "صورة الإيصال",
+    "noExpenses": "لا توجد مصروفات مسجَّلة",
+    "netCashTitle": "صافي النقدية (يظهر للمحاسب فقط)",
+    "pendingConfirmation": "أدخل قراءة كل فوهة أولاً لعرض صافي النقدية",
+    "grossSales": "إجمالي المبيعات",
+    "expensesTotal": "إجمالي المصروفات",
+    "expectedCash": "النقدية المتوقَّعة",
+    "cashDue": "النقدية المستحقة",
+    "variance": "الفرق (عجز/زيادة)",
+    "approveBtn": "اعتماد الوردية",
+    "postBtn": "ترحيل الوردية",
+    "rejectBtn": "رفض الوردية",
+    "rejectPrompt": "سبب الرفض:",
+    "approvedMsg": "تم اعتماد الوردية (بدون قيد محاسبي بعد).",
+    "postedMsg": "تم ترحيل الوردية — أُنشئ القيد المحاسبي.",
+    "rejectedMsg": "تم رفض الوردية."
+  },
+  "download": {
+    "appName": "أثر - نقطة البيع",
+    "version": "الإصدار {{version}}",
+    "description": "تطبيق نقطة البيع لأجهزة أندرويد (Sunmi V2 ذات الطابعة الحرارية المدمجة)، يعمل داخل جهازك بلا حاجة لمتصفح منفصل.",
+    "stepsTitle": "خطوات التثبيت",
+    "step1": "من إعدادات جهازك، فعِّل \"السماح بالتثبيت من مصادر غير معروفة\" للمتصفح الذي ستُنزِّل به الملف.",
+    "disclaimer": "نسخة تجريبية — لم تُختبَر بعد على جهاز Sunmi V2 حقيقي.",
+    "audience": "لأجهزة الكاشير Sunmi V2 في نقاط البيع",
+    "downloadBtnFor": "تنزيل {{app}} (APK)",
+    "stepUninstallOld": "إن كان لديك إصدار سابق من هذا التطبيق مثبَّتاً، احذفه أولاً — مرة واحدة فقط؛ الإصدارات القادمة تُثبَّت فوقه مباشرة.",
+    "stepOpenFile": "افتح ملف {{fileName}} الذي نزّلته، ثم اضغط \"تثبيت\".",
+    "station": {
+      "appName": "محطة أثر",
+      "audience": "لعمّال محطات الوقود — على أي هاتف أندرويد",
+      "description": "تطبيق ورديات محطات الوقود: تصوير عدّادات المضخات وإيصالات المصروفات وإرسال الوردية مباشرة من الكاميرا، دون متصفح منفصل.",
+      "disclaimer": "نسخة تجريبية — اختُبر التصوير على محاكي أندرويد، ولم يُختبَر بعد على هاتف عامل حقيقي."
+    }
   },
   "landing": {
     "nav": { "login": "تسجيل الدخول", "startTrial": "ابدأ تجربتك المجانية" },
@@ -107,7 +192,7 @@
         }
       ]
     },
-    "footer": { "copyright": "© 2026 أثر المحاسبي — جميع الحقوق محفوظة" }
+    "footer": { "copyright": "© 2026 أثر المحاسبي — جميع الحقوق محفوظة", "downloadApp": "تنزيل تطبيق نقطة البيع" }
   },
   "auth": {
     "login": {
@@ -334,9 +419,19 @@
   "salesInvoices": {
     "noCompany": "أنشئ شركة أولاً من لوحة القيادة.",
     "addInvoice": "+ إضافة فاتورة",
+    "zatcaSummary": {"sent": "أُرسلت", "sent_with_notes": "أُرسلت مع ملاحظات", "not_sent": "غير مرسلة", "not_applicable": "لا تنطبق", "resend": "إعادة إرسال", "sending": "جارٍ الإرسال…", "notes": "ملاحظات زاتكا", "errors": "أسباب رفض زاتكا"},
     "zatcaStatusFilterLabel": "حالة زاتكا",
     "loading": "جارٍ التحميل...",
     "empty": "لا توجد فواتير بعد.",
+    "search": {
+      "quickSearchLabel": "بحث سريع",
+      "invoiceTypeLabel": "نوع الفاتورة", "invoiceTypeAll": "— كل الأنواع —", "invoiceTypeStandard": "قياسية", "invoiceTypeSimplified": "مبسّطة",
+      "postingStatusLabel": "حالة الترحيل", "postingStatusAll": "— كل حالات الترحيل —",
+      "paymentStatusLabel": "حالة السداد", "paymentStatusAll": "— كل حالات السداد —",
+      "zatcaStatusAll": "— كل حالات زاتكا —",
+      "sortBy": {"date": "التاريخ", "invoiceNumber": "رقم الفاتورة", "customerName": "اسم العميل", "grandTotal": "الإجمالي"},
+      "summary": {"count": "إجمالي الفواتير المرحّلة", "netTotal": "الإجمالي قبل الضريبة", "vatTotal": "ضريبة القيمة المضافة", "grandTotal": "الإجمالي شامل الضريبة"}
+    },
     "zatcaStatus": {
       "not_applicable": "غير منطبق", "not_submitted": "لم تُرسَل — لا توجد شهادة ربط زاتكا بعد لهذه المرحلة",
       "cleared": "مُرسلة/مقبولة (قياسية)", "reported": "مُرسلة/مقبولة (مبسّطة)", "rejected": "مرفوضة",
@@ -354,7 +449,7 @@
     "table": {
       "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي",
       "postingStatus": "حالة الترحيل", "paymentStatus": "حالة السداد", "zatcaStatus": "حالة زاتكا", "actions": "الإجراءات",
-      "posted": "مرحّلة", "draft": "مسودة"
+      "posted": "مرحّلة", "draft": "مسودة", "pendingSubmission": "بانتظار إرسال زاتكا", "postingIncomplete": "استُلم ردّ زاتكا، ترحيل محلي غير مكتمل"
     },
     "actionsMenu": {
       "view": "عرض الفاتورة", "edit": "تعديل الفاتورة", "unpost": "فك الترحيل", "unposting": "قيد الإرسال...",
@@ -598,10 +693,51 @@
       "reason": "سبب المردود",
       "saveAndPost": "حفظ وترحيل المردود",
       "loading": "جارٍ التحميل...",
-      "table": { "number": "الرقم", "customer": "العميل", "date": "التاريخ", "total": "الإجمالي", "status": "الحالة" },
-      "posted": "مرحّل", "draft": "مسودة",
+      "addButton": "+ إضافة إشعار دائن",
+      "search": {
+        "quickSearchLabel": "بحث سريع", "quickSearchPlaceholder": "رقم الإشعار، اسم العميل، أو رقم الفاتورة الأصلية...",
+        "subtypeLabel": "نوع الإشعار", "subtypeAll": "— كل الأنواع —",
+        "refundMethodLabel": "طريقة الرد", "refundMethodAll": "— كل طرق الرد —",
+        "postingStatusLabel": "حالة الترحيل", "postingStatusAll": "— كل حالات الترحيل —",
+        "originalInvoicePlaceholder": "ابحث برقم الفاتورة...", "originalInvoiceAll": "— كل الفواتير —",
+        "summary": { "count": "إجمالي الإشعارات المرحّلة", "netTotal": "الإجمالي قبل الضريبة", "vatTotal": "ضريبة القيمة المضافة", "grandTotal": "الإجمالي شامل الضريبة" }
+      },
+      "table": {
+        "number": "الرقم", "customer": "العميل", "originalInvoice": "الفاتورة الأصلية", "date": "التاريخ", "total": "الإجمالي",
+        "postingStatus": "حالة الترحيل", "zatcaStatus": "حالة زاتكا", "actions": "الإجراءات"
+      },
+      "posted": "مرحّل", "draft": "مسودة", "pendingSubmission": "بانتظار إرسال زاتكا", "postingIncomplete": "استُلم ردّ زاتكا، ترحيل محلي غير مكتمل",
       "unpost": "فك الترحيل", "attachmentsShow": "المرفقات", "attachmentsHide": "إخفاء المرفقات",
-      "empty": "لا توجد مردودات بعد."
+      "empty": "لا توجد مردودات بعد.",
+      "blockAction": { "edit": "تعديل" },
+      "actionsMenu": { "view": "عرض الإشعار", "edit": "تعديل الإشعار", "delete": "حذف الإشعار", "print": "طباعة الإشعار" },
+      "notify": {
+        "deleteNonDraft": "لا يمكن حذف إشعار مرحّل — يجب فك ترحيله أولاً.",
+        "confirmDelete": "حذف الإشعار {{number}}؟",
+        "deleted": "تم حذف الإشعار {{number}}.",
+        "unposted": "تم فك ترحيل الإشعار {{number}}، وحُذف القيد المحاسبي المرتبط به. أصبح الآن مسودة.",
+        "unpostedFromBlock": "تم فك ترحيل الإشعار {{number}}. أصبح الآن مسودة ويمكنك المتابعة.",
+        "emailSent": "تم إرسال الإشعار {{number}} إلى {{email}}.",
+        "emailFailed": "تعذّر إرسال الإشعار — حاول مرة أخرى لاحقاً."
+      },
+      "form": {
+        "titleCreate": "إشعار دائن جديد", "titleEdit": "تعديل الإشعار {{number}}",
+        "cancel": "إلغاء", "close": "إغلاق", "saveChanges": "حفظ التعديلات",
+        "savedEdit": "تم حفظ التعديلات على الإشعار {{number}}."
+      },
+      "view": { "subtitle": "إشعار دائن", "returnNumber": "رقم الإشعار", "date": "التاريخ", "subtype": "نوع الإشعار" },
+      "postedBlockModal": {
+        "title": "لازم تفك ترحيل الإشعار أولاً", "close": "إغلاق",
+        "message": "الإشعار {{number}} مرحّل، ولا يمكن {{action}} إلا بعد فك ترحيله. بعد فك الترحيل سيتحول الإشعار إلى مسودة ويُحذف القيد المحاسبي المرتبط به، وعندها فقط يمكنك {{action}}.",
+        "cancel": "إلغاء", "unpost": "فك الترحيل",
+        "unpostTitle": "فك ترحيل الإشعار {{number}}"
+      },
+      "sendEmailModal": {
+        "title": "إرسال الإشعار {{number}} بالإيميل", "close": "إغلاق",
+        "note": "لا يوجد بريد إلكتروني مسجَّل لهذا العميل — أدخل بريداً بديلاً لإرسال نسخة الإشعار إليه لمرة واحدة.",
+        "email": "البريد الإلكتروني", "errRequired": "البريد الإلكتروني مطلوب", "errFailed": "تعذّر الإرسال — حاول مرة أخرى",
+        "cancel": "إلغاء", "send": "إرسال", "sending": "جارٍ الإرسال..."
+      }
     },
     "receipts": {
       "customer": "العميل", "date": "تاريخ السند", "method": "طريقة التحصيل", "methodCash": "كاش", "methodBank": "بنك",
@@ -872,6 +1008,11 @@
       "types": { "in": "إدخال", "out": "إخراج/إتلاف", "issue": "صرف", "transfer_out": "تحويل صادر", "transfer_in": "تحويل وارد", "adjustment": "تسوية جرد دوري" },
       "empty": "لا توجد حركات بعد."
     },
+    "itemCard": {
+      "subtitle": "كرت الصنف", "titleFailed": "تعذّر تحميل كرت الصنف", "type": "نوع الصنف",
+      "document": "المستند", "quantityIn": "وارد", "quantityOut": "صادر", "balance": "الرصيد",
+      "unitCost": "التكلفة", "closingBalance": "الرصيد الختامي"
+    },
     "stockReport": {
       "item": "الصنف", "code": "الكود", "location": "الموقع", "balance": "الرصيد", "costPrice": "سعر التكلفة", "value": "القيمة",
       "empty": "لا توجد أرصدة مخزون بعد.",
@@ -1107,6 +1248,7 @@
     "installStandard": "تثبيت الشجرة القياسية",
     "scopeLabel": "نطاق الشجرة",
     "scopeGroupOption": "قالب المجموعة (غير مستخدم في القيود)",
+    "showPartyAccounts": "إظهار حسابات العملاء/الموردين/الموظفين التفصيلية",
     "addAccount": "+ إضافة حساب",
     "expandView": "عرض الشجرة كاملة",
     "compactView": "عرض مصغّر",
@@ -1287,6 +1429,7 @@
       "eosFootnote": "* مخصص نهاية الخدمة تقدير مبني على افتراض إنهاء عادي من صاحب العمل اليوم لكل الموظفين النشطين (بدون خصم نسبة الاستقالة)، وليس تصفية فعلية."
     },
     "directory": {
+      "portal": {"title": "الدخول لبوابة الموظف (الجوال)", "note": "يسجّل الموظف دخوله من تطبيق محطة أثر أو من صفحة البوابة على هاتفه برمز المنشأة ورقم جواله ورمز سري من 6 أرقام — للحضور والإجازات وورديات المحطة.", "stateNotSet": "غير مفعَّل — لم يُضبط رمز سري بعد", "stateActive": "مفعَّل", "stateDisabled": "موقوف", "stateLocked": "مقفل مؤقتاً بعد محاولات خاطئة حتى {{until}} — الحفظ هنا يفك القفل", "inactiveEmployee": "حالة الموظف ليست «نشط»، فلن يستطيع الدخول حتى تُفعَّل.", "phone": "رقم الجوال", "pinNew": "رمز سري جديد (6 أرقام)", "pinChange": "رمز سري جديد (اتركه فارغاً للإبقاء على الحالي)", "pin": "الرمز السري", "enabled": "السماح بالدخول", "save": "حفظ الدخول للبوابة", "saving": "جارٍ الحفظ...", "errPhone": "رقم الجوال قصير جداً", "errPin": "الرمز السري يجب أن يكون 6 أرقام", "issuedTitle": "بيانات الدخول التي تُسلَّم للموظف", "companyCode": "رمز المنشأة", "pinUnchanged": "دون تغيير", "issuedNote": "لن يظهر الرمز السري مرة أخرى بعد مغادرة هذه الشاشة."},
       "editingBanner": "تعديل ملف الموظف — {{name}}",
       "personalSection": "البيانات الشخصية وبيانات التواصل",
       "employmentSection": "البيانات الوظيفية والمالية",
@@ -1302,6 +1445,8 @@
       "jobTitle": "المسمّى الوظيفي",
       "department": "القسم",
       "workLocation": "موقع العمل / الفرع",
+      "station": "المحطة (عامل ورديات المحطات)",
+      "stationNone": "— ليس عامل محطة —",
       "nationality": "الجنسية",
       "dateOfBirth": "تاريخ الميلاد",
       "phone": "رقم الجوال",
@@ -1605,7 +1750,7 @@
       "title": "اسم المنشأة (يظهر في أعلى الشاشة والشريط الجانبي)",
       "label": "اسم المنشأة",
       "editBtn": "تعديل الاسم",
-      "errRequired": "اسم المنشأة مطلوب"
+      "errRequired": "اسم المنشأة مطلوب", "portalCodeLabel": "رمز المنشأة لبوابة الموظفين", "portalCodeCopy": "نسخ", "portalCodeCopied": "تم النسخ", "portalCodeNote": "يكتبه موظفوك في تطبيق محطة أثر وبوابة الجوال مع رقم جوالهم ورمزهم السري. هذا الرقم مُعرِّف وليس سراً؛ الحماية في الرمز السري لكل موظف."
     },
     "newCompany": {
       "title": "بيانات الشركات (حقيقية)",
@@ -1685,6 +1830,10 @@
       "extractionFailed": "فشل رفع/تحليل المستند: {{message}}",
       "uploadedDocsTitle": "المستندات الرسمية المرفوعة",
       "errNameRequired": "الاسم في السجل التجاري مطلوب",
+      "stationShiftsTitle": "إعدادات ورديات المحطات",
+      "stationShiftsNote": "الحسابان اللذان يُقيَّد عليهما عجز/زيادة النقد عند اعتماد ورديات المحطات — تُزرَع الشركة الجديدة بنشاط \"محطات وقود\" بحسابين مخصَّصين تلقائياً، ويمكن إعادة توجيههما لأي حساب آخر من هنا في أي وقت.",
+      "stationCashShortageAccountLabel": "حساب عجز نقدية الورديات",
+      "stationCashSurplusAccountLabel": "حساب زيادة نقدية الورديات",
       "fiscalClosingTitle": "إقفال السنة المالية",
       "fiscalClosingNote": "بعد ضبط هذا التاريخ، يُمنع إنشاء أو تعديل أو حذف أو فك ترحيل أي قيد (بما فيه الفواتير والرواتب وكل ما ينشئ حركة مالية) بتاريخ يقع في هذا التاريخ أو قبله. يمكنك تقديمه للأمام في أي وقت من هنا؛ تقديمه للخلف أو إلغاؤه يتطلب صلاحية مدير النظام عبر \"فتح الإقفال\" أدناه.",
       "fiscalClosingDateLabel": "تاريخ إقفال السنة المالية (اختياري)",
@@ -1873,6 +2022,7 @@
       "namePlaceholder": "مثال: محاسب أول",
       "allowUnpostLabel": "السماح بفك ترحيل القيود",
       "allowPosDeferredSaleLabel": "السماح بالبيع الآجل (بلا دفع فوري) في نقطة البيع",
+      "allowPosPriceOverrideLabel": "السماح بتعديل سعر الصنف يدوياً في نقطة البيع",
       "empty": "لا توجد مناصب مُنشأة بعد.",
       "noMembers": "لا يوجد أعضاء بهذا المنصب بعد.",
       "chooseUser": "— اختر مستخدماً —",
@@ -1880,20 +2030,14 @@
       "notifyCreated": "تم إنشاء المنصب بنجاح.",
       "notifyDeleted": "تم حذف المنصب.",
       "confirmDelete": "هل تريد حذف منصب \"{{name}}\"؟ سيفقد أعضاؤه صلاحياته فوراً.",
-      "leaveRequestsTitle": "صلاحيات طلبات الإجازة",
+      "permissionsTitle": "صلاحيات الوحدة المختارة",
+      "chooseModule": "— اختر وحدة —",
       "levels": {
         "none": "عدم رؤية",
         "read": "قراءة فقط",
         "edit": "تعديل",
         "approve": "موافقة",
         "full": "كل الصلاحيات"
-      },
-      "actions": {
-        "view": "عرض الطلبات",
-        "create": "إنشاء طلب",
-        "edit": "تعديل طلب",
-        "delete": "حذف طلب",
-        "approve": "الموافقة/الرفض"
       },
       "overridesTitle": "استثناءات فردية لمستخدمين",
       "overridesEmpty": "لا توجد استثناءات فردية حالياً.",
@@ -2238,6 +2382,7 @@
       "cashCustomer": "عميل نقدي",
       "changeCustomer": "تغيير ›",
       "emptyCart": "السلة فارغة — ابحث أو امسح صنفاً",
+      "priceIncludesVat": "السعر شامل الضريبة",
       "removeBtn": "حذف",
       "totalLabel": "الإجمالي",
       "proceedBtn": "متابعة للدفع",
@@ -2306,6 +2451,7 @@
       "paper58": "58 مم",
       "paper80": "80 مم",
       "autoPrintLabel": "طباعة تلقائية بعد كل عملية بيع",
+      "printLogoLabel": "طباعة شعار الشركة أعلى الإيصال",
       "doneBtn": "تم"
     },
     "customerPicker": {
@@ -2323,13 +2469,48 @@
     "scanner": {
       "header": "وجّه الكاميرا نحو الباركود",
       "cameraError": "تعذّر تشغيل الكاميرا — تأكد من منح الإذن، أو استخدم البحث اليدوي بدلاً منه"
+    },
+    "invoicesIconTitle": "الفواتير",
+    "invoices": {
+      "title": "الفواتير",
+      "empty": "لا توجد فواتير بعد"
+    },
+    "invoiceView": {
+      "title": "تفاصيل الفاتورة",
+      "subtotal": "الإجمالي قبل الضريبة",
+      "vat": "الضريبة",
+      "grandTotal": "الإجمالي شامل الضريبة",
+      "qrSummary": "رمز الاستجابة السريعة (QR)",
+      "printBtn": "🖨 طباعة",
+      "downloadPdfBtn": "تحميل PDF",
+      "downloading": "جارٍ التحميل...",
+      "sendEmailBtn": "إرسال بالإيميل",
+      "sendingEmail": "جارٍ الإرسال...",
+      "emailSent": "أُرسلت الفاتورة إلى {{email}}",
+      "emailFailed": "تعذّر إرسال الفاتورة بالإيميل"
+    },
+    "sendEmailModal": {
+      "title": "إرسال فاتورة رقم {{number}}",
+      "email": "البريد الإلكتروني",
+      "errRequired": "أدخل بريداً إلكترونياً",
+      "errFailed": "تعذّر إرسال الفاتورة بالإيميل",
+      "sentMsg": "أُرسلت الفاتورة رقم {{number}} إلى {{email}}",
+      "cancel": "إلغاء",
+      "send": "إرسال",
+      "sending": "جارٍ الإرسال..."
     }
   },
   "receiptView": {
     "vatNumberLabel": "الرقم الضريبي",
+    "addressLabel": "العنوان",
     "invoiceNumberLabel": "رقم الفاتورة",
     "customerLabel": "العميل",
     "cashCustomer": "عميل نقدي",
+    "customerVatNumberLabel": "الرقم الضريبي للعميل",
+    "customerAddressLabel": "عنوان العميل",
+    "issuedByLabel": "البائع",
+    "zatcaCleared": "تم تخليص الفاتورة إلكترونياً (زاتكا)",
+    "zatcaReported": "تم إبلاغ الفاتورة إلكترونياً (زاتكا)",
     "beforeVat": "قبل الضريبة",
     "vat": "الضريبة",
     "total": "الإجمالي",
@@ -2345,12 +2526,13 @@
     "tabs": {
       "attendance": "الحضور",
       "leave": "إجازاتي",
+      "stationShifts": "ورديات المحطة",
       "inbox": "طلبات فريقي"
     },
     "login": {
       "intro": "سجّل الدخول لتسجيل حضورك وانصرافك ومتابعة طلبات إجازتك من هاتفك.",
       "tenantIdLabel": "رمز المنشأة",
-      "tenantIdPlaceholder": "يُرسَل لك من الموارد البشرية",
+      "tenantIdPlaceholder": "رقم من 7 خانات من الموارد البشرية، مثال 1000001",
       "phoneLabel": "رقم الجوال",
       "pinLabel": "الرمز السري (PIN)"
     },
@@ -2379,6 +2561,37 @@
       "noPending": "لا توجد طلبات معلّقة حالياً.",
       "approveBtn": "موافقة"
     },
+    "stationShifts": {
+      "openShiftTitle": "فتح وردية",
+      "shiftTypeLabel": "نوع الوردية",
+      "morning": "صباحية",
+      "night": "مسائية",
+      "openShiftBtn": "فتح وردية جديدة",
+      "nozzlesTitle": "قراءات الفوهات",
+      "pumpLabel": "مضخة {{pump}}",
+      "nozzleLabel": "فوهة {{nozzle}} ({{product}})",
+      "readingSaved": "تم حفظ صورة العداد",
+      "takePhoto": "تصوير العداد",
+      "retakePhoto": "إعادة التصوير",
+      "photoRequired": "صورة العداد مطلوبة",
+      "cashRequired": "النقدية المُسلَّمة مطلوبة",
+      "collectionsTitle": "التحصيل",
+      "collectionsSaved": "تم حفظ التحصيل",
+      "networkLabel": "مبيعات الشبكة/البطاقة (مدى)",
+      "cashDeliveredLabel": "النقدية المُسلَّمة",
+      "expensesTitle": "المصروفات",
+      "noExpenses": "لا توجد مصروفات مضافة بعد",
+      "addExpensePhotoBtn": "تصوير الإيصال",
+      "expenseDescriptionLabel": "وصف المصروف",
+      "expenseAmountLabel": "المبلغ",
+      "addExpenseBtn": "إضافة المصروف",
+      "expenseFieldsRequired": "الوصف والمبلغ مطلوبان",
+      "expenseSaved": "تم حفظ المصروف",
+      "incompleteNozzles": "صوِّر عداد كل الفوهات أولاً",
+      "collectionsRequired": "احفظ بيانات التحصيل أولاً",
+      "shiftSubmitted": "تم إرسال الوردية للمراجعة",
+      "submitShiftBtn": "إرسال الوردية"
+    },
     "dateRangeWithDays": "{{start}} → {{end}} ({{days}} يوم)"
   },
   "unsavedChanges": {
@@ -2387,5 +2600,36 @@
     "leaveWithoutSaving": "مغادرة بدون حفظ",
     "openInNewTab": "فتح في تبويب جديد بدلاً من ذلك",
     "stayOnPage": "البقاء في الصفحة"
+  },
+  "itemTax": {
+    "nameAr": "اسم الصنف بالعربية",
+    "nameEn": "اسم الصنف بالإنجليزية",
+    "category": "المعاملة الضريبية",
+    "S": "خاضع للضريبة 15%",
+    "Z": "خاضع لنسبة الصفر 0%",
+    "E": "معفي من الضريبة",
+    "O": "غير خاضع — إعداد سابق",
+    "priceBasis": "السعر المدخل",
+    "inclusive": "شامل الضريبة",
+    "exclusive": "بدون الضريبة",
+    "reason": "سبب الإعفاء أو نسبة الصفر",
+    "chooseReason": "اختر السبب",
+    "reasons": {
+      "VATEX-SA-29": "الخدمات المالية",
+      "VATEX-SA-29-7": "التأمين على الحياة",
+      "VATEX-SA-30": "التوريدات العقارية المعفاة",
+      "VATEX-SA-32": "تصدير السلع",
+      "VATEX-SA-33": "تصدير الخدمات",
+      "VATEX-SA-34-1": "النقل الدولي للسلع",
+      "VATEX-SA-34-2": "النقل الدولي للركاب",
+      "VATEX-SA-34-3": "خدمات مرتبطة بالنقل الدولي للركاب",
+      "VATEX-SA-34-4": "توريد وسائل النقل المؤهلة",
+      "VATEX-SA-34-5": "خدمات نقل السلع والركاب",
+      "VATEX-SA-35": "الأدوية والمعدات الطبية المؤهلة",
+      "VATEX-SA-36": "المعادن المؤهلة",
+      "VATEX-SA-EDU": "التعليم الأهلي للمواطنين",
+      "VATEX-SA-HEA": "الرعاية الصحية للمواطنين",
+      "VATEX-SA-MLTRY": "السلع العسكرية المؤهلة"
+    }
   }
 }

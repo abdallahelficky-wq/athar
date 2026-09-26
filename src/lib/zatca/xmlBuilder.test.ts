@@ -199,3 +199,12 @@ describe("buildDocumentXml", () => {
     expect(xml).toContain("<cbc:PayableAmount currencyID=\"SAR\">345.00</cbc:PayableAmount>");
   });
 });
+
+it("writes distinct zero-rated and exempt categories and their reason codes", () => {
+ const xml = buildDocumentXml(base({ lines: [
+  {id:"1",name:"Zero",quantity:1,unitPrice:100,lineSubtotal:100,lineVat:0,taxCategoryCode:"Z",taxPercent:0,taxExemptionReasonCode:"VATEX-SA-35",taxExemptionReason:"Medicine"},
+  {id:"2",name:"Exempt",quantity:1,unitPrice:50,lineSubtotal:50,lineVat:0,taxCategoryCode:"E",taxPercent:0,taxExemptionReasonCode:"VATEX-SA-29",taxExemptionReason:"Financial services"},
+ ] }));
+ expect(xml).toContain("<cbc:TaxExemptionReasonCode>VATEX-SA-35</cbc:TaxExemptionReasonCode>");
+ expect(xml).toContain("<cbc:TaxExemptionReasonCode>VATEX-SA-29</cbc:TaxExemptionReasonCode>");
+});

@@ -1,7 +1,10 @@
 import { RequestHandler } from "express";
 import * as service from "./salesInvoices.service";
-import { sendInvoiceByEmail } from "./salesInvoiceEmail.service";
+import { sendInvoiceByEmail, listInvoicesWithoutSuccessfulEmail, resendInvoiceEmail, getSalesInvoicePdf } from "./salesInvoiceEmail.service";
+import { searchSalesInvoices } from "./salesInvoicesSearch.service";
+import { searchSalesInvoicesQuerySchema } from "./salesInvoices.schemas";
 import { prisma } from "../../lib/prisma";
+import { badRequest } from "../../lib/httpError";
 import { assertRecordCompanyScope } from "../../middleware/auth";
 
 export const listHandler: RequestHandler = async (req, res) => {
@@ -11,6 +14,29 @@ export const listHandler: RequestHandler = async (req, res) => {
     customerId: typeof customerId === "string" ? customerId : undefined,
   });
   res.json(invoices);
+};
+
+// نقطة نهاية مستقلة تماماً عن listHandler أعلاه (لا تُغيّره ولا تستبدله) — عدّة استدعاءات موجودة
+// فعلاً (QuickSearch، شاشة المردودات) تعتمد على أن /sales-invoices تُعيد كل الفواتير كمصفوفة خام
+// بلا ترقيم؛ تغيير ذلك يكسرها. هذه الشاشة الجديدة (قائمة فواتير المبيعات بالبحث/الفلترة/الترقيم)
+// تستخدم مساراً منفصلاً بنتيجة مختلفة الشكل عمداً ({items, totalCount, summary, ...}).
+export const searchHandler: RequestHandler = async (req, res) => {
+  const parsed = searchSalesInvoicesQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    throw badRequest("معايير البحث غير صالحة", parsed.error.flatten());
+  }
+  res.json(await searchSalesInvoices(req.auth!.tenantId, parsed.data));
+};
+
+// تحميل مباشر لنفس نسخة PDF المُرسَلة بالإيميل فعلياً (buildPlainInvoicePdf) — لا معاينة/طباعة شاشة
+// HTML. راجع تعليق getSalesInvoicePdf: PDF بسيط بلا XML مُرفَق، وليس PDF/A-3 (ذاك الكود موجود في
+// src/lib/zatca/pdf/buildInvoicePdf.ts لكنه غير مُفعَّل في أي مسار فعلي حالياً — راجع تقرير الميزة).
+export const downloadPdfHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
+  const { buffer, fileName } = await getSalesInvoicePdf(req.auth!.tenantId, req.params.id);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(fileName)}"`);
+  res.send(buffer);
 };
 
 export const zatcaBacklogHandler: RequestHandler = async (req, res) => {
@@ -64,7 +90,39 @@ export const sendEmailHandler: RequestHandler = async (req, res) => {
   res.json(result);
 };
 
+// قائمة متابعة يدوية: فواتير مرحّلة لم يُرسَل بريدها بنجاح ولو مرة (لم تُحاوَل إطلاقاً، أو حاولت
+// وفشلت — راجع listInvoicesWithoutSuccessfulEmail). بلا أي إعادة إرسال تلقائية هنا.
+export const emailBacklogHandler: RequestHandler = async (req, res) => {
+  const { companyId } = req.query;
+  const backlog = await listInvoicesWithoutSuccessfulEmail(req.auth!.tenantId, {
+    companyId: typeof companyId === "string" ? companyId : undefined,
+  });
+  res.json(backlog);
+};
+
+// إعادة إرسال يدوية صريحة لفاتورة من قائمة email-backlog أعلاه — نفس منطق sendEmailHandler بالضبط
+// (method: "manual")، بمسار مستقل واضح الغرض لهذه الشاشة تحديداً.
+export const resendEmailHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
+  const result = await resendInvoiceEmail(req.auth!.tenantId, req.params.id, req.body?.email || undefined);
+  res.json(result);
+};
+
 export const resendZatcaHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
   res.json(await service.resendInvoiceToZatca(req.auth!.tenantId, req.params.id));
+};
+
+// إعادة محاولة فاتورة عالقة بحالة pending_submission (لم يصلها ردّ نهائي من زاتكا بعد) — بنفس
+// UUID/ICV/رقم الفاتورة المحجوزة أصلاً، بلا حجز أي شيء جديد. راجع retryPendingZatcaSubmission.
+export const retryZatcaSubmissionHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
+  res.json(await service.retryPendingZatcaSubmission(req.auth!.tenantId, req.auth!.sub, req.params.id));
+};
+
+// إكمال الترحيل المحلي (قيد + مخزون + عمولات) لفاتورة استلمت ردّاً من زاتكا بالفعل لكن المرحلة
+// المحلية اللاحقة فشلت — بلا أي اتصال جديد بزاتكا إطلاقاً. راجع completeZatcaAcceptedPosting.
+export const completeZatcaPostingHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
+  res.json(await service.completeZatcaAcceptedPosting(req.auth!.tenantId, req.auth!.sub, req.params.id));
 };

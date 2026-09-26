@@ -353,6 +353,128 @@ describe("apiClient request timeout", () => {
     expect(result.ok).toBe(false);
     expect(result.networkError).toBe(true);
   });
+
+  // يميّز networkError الناتج تحديداً عن انتهاء المهلة (AbortSignal.timeout) عن أي فشل اتصال آخر —
+  // راجع تعليق timedOut في ZatcaApiResponse (apiClient.ts): إعادة محاولة بعد فشل اتصال عادي آمنة
+  // (الطلب لم يصل زاتكا أصلاً)، لكن إعادتها بعد timedOut خطرة تحديداً لإصدار الشهادات (قد تكون
+  // زاتكا استلمت الطلب ونفّذته قبل أن ننقطع نحن عن الانتظار).
+  it("sets timedOut:true only when the failure is specifically an AbortSignal.timeout TimeoutError, not any other connection failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => {
+        const err = new Error("The operation was aborted due to timeout");
+        err.name = "TimeoutError";
+        return Promise.reject(err);
+      }),
+    );
+    const timedOutResult = await clearInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(timedOutResult.networkError).toBe(true);
+    expect(timedOutResult.timedOut).toBe(true);
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const otherFailureResult = await clearInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+    expect(otherFailureResult.networkError).toBe(true);
+    expect(otherFailureResult.timedOut).toBeFalsy();
+  });
+
+  // عطل إنتاج فعلي مؤكَّد دفع لهذا التمييز: مهلة 15 ثانية العامة كانت تحكم بالفشل على /production/csids
+  // قبل أن تُتاح لزاتكا فرصة معقولة لتنفيذ إصدار شهادة فعلي، بلا أي إعادة محاولة آمنة لاحقة (خلافاً
+  // لتخليص/إبلاغ الفواتير). يثبت هذا الاختبار أن التمييز مضبوط فعلياً على مستوى AbortSignal.timeout
+  // نفسها، لا مجرد قيمة مُمرَّرة بلا أثر.
+  it("uses a 60-second timeout for /production/csids specifically, not the 15-second default used by every other call", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    try {
+      const fetchMock = mockFetchOnce(200, { requestID: 2, binarySecurityToken: "prod-cert", secret: "prod-secret" });
+      await requestProductionCsid("production", CREDENTIALS, "compliance-req-123");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(timeoutSpy).toHaveBeenCalledWith(60_000);
+      expect(timeoutSpy).not.toHaveBeenCalledWith(15_000);
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  it("keeps the global 15-second timeout for every other ZATCA call (compliance CSID, compliance check, clearance, reporting)", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    try {
+      mockFetchOnce(200, { requestID: 1, binarySecurityToken: "cert", secret: "s" });
+      await requestComplianceCsid("sandbox", "base64-csr-content", "123456");
+
+      mockFetchOnce(200, { validationResults: { status: "PASS" } });
+      await checkInvoiceCompliance({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+
+      mockFetchOnce(200, { clearanceStatus: "CLEARED" });
+      await clearInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+
+      mockFetchOnce(200, { reportingStatus: "REPORTED" });
+      await reportInvoice({ environment: "production", credentials: CREDENTIALS, signedInvoiceBase64: "x", invoiceHash: "y", uuid: "z" });
+
+      expect(timeoutSpy).toHaveBeenCalledTimes(4);
+      for (const call of timeoutSpy.mock.calls) {
+        expect(call).toEqual([15_000]);
+      }
+    } finally {
+      timeoutSpy.mockRestore();
+    }
+  });
+});
+
+// عطل إنتاج فعلي مؤكَّد: سجلّ [STEP3-DEBUG][production-csid-response] كان يطبع جسم الاستجابة الخام
+// كاملاً بلا أي إخفاء — بما فيه binarySecurityToken وsecret الفعليَّين — إلى سجلّات الإنتاج، مؤكَّد
+// من سجلّات حقيقية. هذا القسم يمنع تكرار ذلك: لا احتمال لظهور القيمة الفعلية لأي من الحقلين في أي
+// استدعاء console.* على الإطلاق، سواء نجح الطلب أو فشل أو انتهت مهلته أو انقطع اتصاله.
+describe("apiClient does not leak CSID secrets to logs", () => {
+  const SECRET_TOKEN = "super-secret-binary-security-token-value";
+  const SECRET_VALUE = "super-secret-api-secret-value";
+
+  function spyOnAllConsoleMethods() {
+    return {
+      log: vi.spyOn(console, "log").mockImplementation(() => undefined),
+      info: vi.spyOn(console, "info").mockImplementation(() => undefined),
+      warn: vi.spyOn(console, "warn").mockImplementation(() => undefined),
+      error: vi.spyOn(console, "error").mockImplementation(() => undefined),
+      debug: vi.spyOn(console, "debug").mockImplementation(() => undefined),
+    };
+  }
+
+  function assertNothingLogged(spies: ReturnType<typeof spyOnAllConsoleMethods>) {
+    for (const spy of Object.values(spies)) {
+      for (const call of spy.mock.calls) {
+        const serialized = call.map((arg) => (typeof arg === "string" ? arg : JSON.stringify(arg))).join(" ");
+        expect(serialized).not.toContain(SECRET_TOKEN);
+        expect(serialized).not.toContain(SECRET_VALUE);
+        expect(serialized).not.toContain("STEP3-DEBUG");
+      }
+      spy.mockRestore();
+    }
+  }
+
+  it("never logs the raw binarySecurityToken/secret on a successful /production/csids response", async () => {
+    const spies = spyOnAllConsoleMethods();
+    mockFetchOnce(200, { requestID: 99, binarySecurityToken: SECRET_TOKEN, secret: SECRET_VALUE });
+    const result = await requestProductionCsid("production", CREDENTIALS, "compliance-req-123");
+    expect(result.ok).toBe(true);
+    assertNothingLogged(spies);
+  });
+
+  it("never logs the raw binarySecurityToken/secret on a successful compliance CSID response", async () => {
+    const spies = spyOnAllConsoleMethods();
+    mockFetchOnce(200, { requestID: 1, binarySecurityToken: SECRET_TOKEN, secret: SECRET_VALUE });
+    const result = await requestComplianceCsid("sandbox", "base64-csr-content", "123456");
+    expect(result.ok).toBe(true);
+    assertNothingLogged(spies);
+  });
+
+  it("still logs nothing containing the secret on a timed-out or network-failed /production/csids request", async () => {
+    const spies = spyOnAllConsoleMethods();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new DOMException("Timed out", "TimeoutError")),
+    );
+    const result = await requestProductionCsid("production", CREDENTIALS, "compliance-req-123");
+    expect(result.timedOut).toBe(true);
+    assertNothingLogged(spies);
+  });
 });
 
 // عطل إنتاج فعلي مؤكَّد: زاتكا أعادت HTTP 202 (نجاح فعلي، فحص امتثال بتحذيرات لا رفض) لكن

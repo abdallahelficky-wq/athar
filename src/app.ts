@@ -1,4 +1,5 @@
 import "express-async-errors";
+import { env } from "./config/env";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -25,6 +26,9 @@ import { salesReturnRoutes } from "./modules/salesReturns/salesReturns.routes";
 import { salesDebitNoteRoutes } from "./modules/salesDebitNotes/salesDebitNotes.routes";
 import { receiptRoutes } from "./modules/receipts/receipts.routes";
 import { stationSaleRoutes } from "./modules/stationSales/stationSales.routes";
+import { stationShiftRoutes } from "./modules/stationShifts/stationShifts.routes";
+import { stationShiftPortalRoutes } from "./modules/stationShifts/stationShifts.portal.routes";
+import { stationShiftsReportRoutes } from "./modules/stationShiftsReports/stationShiftsReports.routes";
 import { salesReportRoutes } from "./modules/salesReports/salesReports.routes";
 import { supplierRoutes } from "./modules/suppliers/suppliers.routes";
 import { purchaseInvoiceRoutes } from "./modules/purchaseInvoices/purchaseInvoices.routes";
@@ -57,6 +61,7 @@ import { leaseContractRoutes } from "./modules/leaseContracts/leaseContracts.rou
 import { companyDocumentRoutes } from "./modules/companyDocuments/companyDocuments.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 import { employeePortalRoutes } from "./modules/employeePortal/employeePortal.routes";
+import { stationSetupRoutes } from "./modules/stationSetup/stationSetup.routes";
 import { attendanceRoutes } from "./modules/attendance/attendance.routes";
 import { posRoutes } from "./modules/pos/pos.routes";
 import { stableRoutes } from "./modules/stables/stables.routes";
@@ -64,6 +69,9 @@ import { aiRoutes } from "./modules/ai/ai.routes";
 
 export function createApp() {
   const app = express();
+  // req.ip = عنوان العميل الفعلي من X-Forwarded-For بعد عدد الوكلاء الموثوقين فقط (لا أول قيمة يرسلها
+  // العميل نفسه) — يعتمد عليه حدّ محاولات دخول بوابة الموظف لكل IP.
+  app.set("trust proxy", env.trustProxyHops);
 
   app.use(helmet());
   app.use(cors());
@@ -93,6 +101,8 @@ export function createApp() {
   app.use("/api/sales-debit-notes", salesDebitNoteRoutes);
   app.use("/api/receipts", receiptRoutes);
   app.use("/api/station-sales", stationSaleRoutes);
+  app.use("/api/station-shifts", stationShiftRoutes);
+  app.use("/api/station-shifts-reports", stationShiftsReportRoutes);
   app.use("/api/sales-reports", salesReportRoutes);
   app.use("/api/suppliers", supplierRoutes);
   app.use("/api/purchase-invoices", purchaseInvoiceRoutes);
@@ -121,9 +131,11 @@ export function createApp() {
   app.use("/api/lease-contracts", leaseContractRoutes);
   app.use("/api/company-documents", companyDocumentRoutes);
   app.use("/api/dashboard", dashboardRoutes);
+  app.use("/api/station-setup", stationSetupRoutes);
   app.use("/api/employee-portal", employeePortalRoutes);
   app.use("/api/attendance", attendanceRoutes);
   app.use("/api/employee-portal/leave-requests", leaveRequestPortalRoutes);
+  app.use("/api/employee-portal/station-shifts", stationShiftPortalRoutes);
   app.use("/api/pos", posRoutes);
   app.use("/api/stables", stableRoutes);
   app.use("/api/ai", aiRoutes);

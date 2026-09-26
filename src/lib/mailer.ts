@@ -1,6 +1,28 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { Resend } from "resend";
 import { env } from "../config/env";
 import { Lang } from "./i18n/translate";
+
+// شعار أثر (نفس الصورة المُضمَّنة في ترويسة PDF، راجع src/lib/zatca/pdf/brandLogo.ts) — يُقرَأ هنا
+// بشكل مستقل (لا استيراد من وحدة PDF، فهذه وحدة بريد لا علاقة لها بـPuppeteer/HTML-to-PDF) لأنه
+// يُرسَل كمرفق CID مضمَّن (inline attachment)، لا Base64 داخل الـHTML مباشرة: عملاء بريد شائعة
+// (Outlook سطح المكتب تحديداً) تحجب أو لا تعرض data: URIs في الصور، بينما مرجع cid: لمرفق مضمَّن
+// مدعوم على نطاق واسع فعلياً. فشل القراءة يُعامَل بتدهور رشيق (بريد بلا شعار، لا فشل إرسال).
+const ATHAR_LOGO_PATH = join(process.cwd(), "assets", "brand", "generated", "athar-logo-horizontal-pdf.png");
+const ATHAR_LOGO_CID = "athar-brand-logo";
+
+function loadAtharLogoBuffer(): Buffer | null {
+  try {
+    return readFileSync(ATHAR_LOGO_PATH);
+  } catch {
+    // eslint-disable-next-line no-console
+    console.warn(`تعذّرت قراءة شعار أثر لإرفاقه بالإيميل (${ATHAR_LOGO_PATH}) — سيُرسَل بلا شعار.`);
+    return null;
+  }
+}
+
+const ATHAR_LOGO_BUFFER = loadAtharLogoBuffer();
 
 /**
  * غلاف بسيط لإرسال البريد الإلكتروني عبر Resend. بدون RESEND_API_KEY (بيئة تطوير محلية لم
@@ -12,6 +34,9 @@ const resend = env.resendApiKey ? new Resend(env.resendApiKey) : null;
 interface EmailAttachment {
   filename: string;
   content: Buffer;
+  // مُعرَّف مرجعي لو كان هذا مرفقاً مضمَّناً (inline) يُشار إليه من داخل HTML بصيغة cid:<contentId>
+  // (راجع تعليق ATHAR_LOGO_CID أعلاه) — غائب لمرفقات التنزيل العادية (PDF الفاتورة/الإشعار).
+  contentId?: string;
 }
 
 interface SendEmailParams {
@@ -38,7 +63,11 @@ async function sendEmail(params: SendEmailParams) {
     to: params.to,
     subject: params.subject,
     html: params.html,
-    attachments: params.attachments,
+    attachments: params.attachments?.map((a) => ({
+      filename: a.filename,
+      content: a.content,
+      contentId: a.contentId,
+    })),
   });
 
   if (result.error) {
@@ -51,12 +80,19 @@ async function sendEmail(params: SendEmailParams) {
  * الأمامية (#10202E داكن، #ECE6D6 فاتح، Tahoma/Arial)، بترويسة اسم "أثر المحاسبي" وتذييل ثابت،
  * حتى تبدو كل الرسائل (ترحيب، دعوة، فاتورة، استعادة كلمة مرور) بهوية بصرية واحدة متّسقة.
  */
-function renderEmailShell(bodyHtml: string, lang: Lang, maxWidth = 480): string {
+// includeLogo=true (فاتورة/إشعار دائن فقط، راجع sendInvoiceEmail/sendCreditNoteEmail أدناه) يستبدل
+// اسم "أثر المحاسبي" النصي بشعار أثر الفعلي كصورة — مرجَعاً عبر cid: لمرفق مضمَّن (راجع تعليق
+// ATHAR_LOGO_CID أعلى الملف)، لا Base64 مباشر في الـHTML. بقية أنواع الرسائل (دعوة/ترحيب/استعادة
+// كلمة مرور) غير مُتأثرة إطلاقاً — لم يطلبها المستخدم، وتبقى بنفس شكلها النصي الحالي.
+function renderEmailShell(bodyHtml: string, lang: Lang, maxWidth = 480, includeLogo = false): string {
   const en = lang === "en";
+  const brandHeader = includeLogo && ATHAR_LOGO_BUFFER
+    ? `<img src="cid:${ATHAR_LOGO_CID}" alt="${en ? "Athar Accounting" : "أثر المحاسبي"}" width="150" style="max-width:150px; width:100%; height:auto; display:inline-block;" />`
+    : `<span style="font-size: 18px; font-weight: 700; color: #10202E;">${en ? "Athar Accounting" : "أثر المحاسبي"}</span>`;
   return `
     <div dir="${en ? "ltr" : "rtl"}" style="font-family: Tahoma, Arial, sans-serif; max-width: ${maxWidth}px; margin: 0 auto; color: #10202E; background: #FBF9F3; padding: 24px; border-radius: 12px;">
       <div style="text-align: center; margin-bottom: 20px;">
-        <span style="font-size: 18px; font-weight: 700; color: #10202E;">${en ? "Athar Accounting" : "أثر المحاسبي"}</span>
+        ${brandHeader}
       </div>
       ${bodyHtml}
       <p style="color:#8A7C5E; font-size: 11.5px; margin-top: 32px; border-top: 1px solid rgba(16,32,46,0.12); padding-top: 12px;">
@@ -174,7 +210,10 @@ export async function sendInvoiceEmail(params: InvoiceEmailParams) {
     subject: en ? `Invoice #${params.invoiceNumber} from ${params.companyName}` : `فاتورة رقم ${params.invoiceNumber} من ${params.companyName}`,
     logLabel: en ? `Sending invoice ${params.invoiceNumber}` : `إرسال فاتورة ${params.invoiceNumber}`,
     logBody: en ? `Customer: ${params.customerName} — Total: ${currency} ${params.grandTotal}` : `العميل: ${params.customerName} — الإجمالي: ${params.grandTotal} ${currency}`,
-    attachments: [{ filename: params.pdfFileName, content: params.pdfBuffer }],
+    attachments: [
+      { filename: params.pdfFileName, content: params.pdfBuffer },
+      ...(ATHAR_LOGO_BUFFER ? [{ filename: "athar-logo.png", content: ATHAR_LOGO_BUFFER, contentId: ATHAR_LOGO_CID }] : []),
+    ],
     html: renderEmailShell(en ? `
       <h2 style="color:#10202E;">New invoice from ${params.companyName}</h2>
       <p>Dear ${params.customerName},</p>
@@ -185,7 +224,51 @@ export async function sendInvoiceEmail(params: InvoiceEmailParams) {
       <p>عزيزي/عزيزتي ${params.customerName}،</p>
       <p>مرفق مع هذه الرسالة فاتورة رقم <strong>${params.invoiceNumber}</strong> بإجمالي <strong>${params.grandTotal} ${currency}</strong>.</p>
       <p style="color:#6b7c8c; font-size: 12.5px;">يمكنكم فتح الملف المرفق (PDF) لعرض تفاصيل الفاتورة كاملة.</p>
-    `, params.lang ?? "ar"),
+    `, params.lang ?? "ar", 480, true),
+  });
+}
+
+interface CreditNoteEmailParams {
+  to: string;
+  customerName: string;
+  returnNumber: string;
+  grandTotal: string;
+  companyName: string;
+  pdfBuffer: Buffer;
+  pdfFileName: string;
+  lang?: Lang;
+  currency?: string;
+}
+
+/**
+ * إرسال يدوي لإشعار دائن من زر "إرسال بالإيميل" في شاشة عرض إشعار الدائن — لا إرسال تلقائي عند
+ * الترحيل (خلافاً لـsendInvoiceEmail أعلاه)؛ لا سجل InvoiceEmailLog مرتبطاً بإشعارات الدائن حالياً
+ * (ذلك الجدول مرتبط بـSalesInvoice تحديداً عبر عمود إلزامي)، فهذا الإرسال ينجح/يفشل بلا سجل تدقيق
+ * دائم — يُبلَّغ الناتج للمستخدم فوراً في الواجهة فقط.
+ */
+export async function sendCreditNoteEmail(params: CreditNoteEmailParams) {
+  const en = params.lang === "en";
+  const currency = params.currency || (en ? "SAR" : "ر.س");
+  await sendEmail({
+    to: params.to,
+    subject: en ? `Credit Note #${params.returnNumber} from ${params.companyName}` : `إشعار دائن رقم ${params.returnNumber} من ${params.companyName}`,
+    logLabel: en ? `Sending credit note ${params.returnNumber}` : `إرسال إشعار دائن ${params.returnNumber}`,
+    logBody: en ? `Customer: ${params.customerName} — Total: ${currency} ${params.grandTotal}` : `العميل: ${params.customerName} — الإجمالي: ${params.grandTotal} ${currency}`,
+    attachments: [
+      { filename: params.pdfFileName, content: params.pdfBuffer },
+      ...(ATHAR_LOGO_BUFFER ? [{ filename: "athar-logo.png", content: ATHAR_LOGO_BUFFER, contentId: ATHAR_LOGO_CID }] : []),
+    ],
+    html: renderEmailShell(en ? `
+      <h2 style="color:#10202E;">Credit note from ${params.companyName}</h2>
+      <p>Dear ${params.customerName},</p>
+      <p>Attached is credit note <strong>#${params.returnNumber}</strong> for a total of <strong>${currency} ${params.grandTotal}</strong>.</p>
+      <p style="color:#6b7c8c; font-size: 12.5px;">You can open the attached PDF file to view the full credit note details.</p>
+    ` : `
+      <h2 style="color:#10202E;">إشعار دائن من ${params.companyName}</h2>
+      <p>عزيزي/عزيزتي ${params.customerName}،</p>
+      <p>مرفق مع هذه الرسالة إشعار دائن رقم <strong>${params.returnNumber}</strong> بإجمالي <strong>${params.grandTotal} ${currency}</strong>.</p>
+      <p style="color:#6b7c8c; font-size: 12.5px;">يمكنكم فتح الملف المرفق (PDF) لعرض تفاصيل الإشعار كاملة.</p>
+    `, params.lang ?? "ar", 480, true),
   });
 }
 

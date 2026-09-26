@@ -1,4 +1,5 @@
 {
+  "creditNote": {"complete": "Complete credit note posting", "noItems": "No matching items", "title": "Linked credit notes", "returnInvoice": "Return invoice", "returned": "Returned total", "net": "Net after returns", "due": "Outstanding balance", "customerCredit": "Customer credit balance", "pending": "Pending — balance not reduced yet", "full": "Fully returned", "partial": "Partially returned", "search": "Search for an item to add to the return", "unavailable": "Invoice is not available for return in this company", "reasonRequired": "Select the invoice and enter a return reason", "saved": "Credit note {{number}} posted and invoice balance updated", "savedPending": "Credit note {{number}} saved and pending; invoice balance has not been reduced yet", "editHint": "Adjust quantities or remove lines that are not being returned. Prices, discounts and tax come from the original invoice."},
   "common": {
     "languageName": "English",
     "switchToArabic": "Switch to Arabic",
@@ -44,6 +45,15 @@
       "subtotal": "Subtotal before tax", "vat": "VAT (15%)", "grandTotal": "Total incl. VAT"
     }
   },
+  "filters": {
+    "search": "Search", "reset": "Reset", "quickSearchPlaceholder": "Quick search (invoice number or customer name)...",
+    "dateFrom": "Date from", "dateTo": "Date to", "amountMin": "Amount min", "amountMax": "Amount max",
+    "customer": "Customer", "customerSearchPlaceholder": "Search for a customer...", "allCustomers": "— All customers —"
+  },
+  "pagination": {
+    "pageSizeLabel": "Rows per page", "showingRange": "Showing {{from}}–{{to}} of {{total}}", "showingEmpty": "No results",
+    "prev": "Previous", "next": "Next", "pageOf": "Page {{page}} of {{totalPages}}"
+  },
   "stables": {
     "title": "Horse Stables",
     "overview": "Overview",
@@ -59,6 +69,81 @@
     "competitions": "Competitions",
     "billing": "Create boarding invoice",
     "commissions": "Trainer commissions"
+  },
+  "stationSetup": {"tabTitle": "Station setup", "title": "Stations and pumps", "note": "Every pump has two nozzles: a petrol pump (91 and 95) or a diesel pump (two diesel nozzles). No shift can be opened on a station without pumps.", "noPumpsBadge": "No pumps — shifts cannot be opened", "pumpCount": "{{count}} pumps", "pump": "Pump", "nozzle": "Nozzle", "product": "Fuel", "meterDigits": "Meter digits", "initialReading": "Reading at setup", "pumpN": "Pump {{n}}", "nozzleN": "Nozzle {{n}}", "retire": "Retire pump", "retireConfirm": "Retire pump {{n}}? Workers will not see it in new shifts.", "edit": "Edit", "editDigitsPrompt": "Meter digits before the decimal point:", "hasShifts": "has shifts", "addPump": "+ Add pump", "newPumpTitle": "New pump", "pumpTypeLabel": "Pump type", "meterTypeLabel": "Meter type", "currentReading": "Current meter reading", "meterDigitsPlaceholder": "e.g. 6", "digitsHelp": "Meter digits = the number of digits before the decimal point on the cumulative litre meter (e.g. 999999.99 = 6 digits). When the meter passes its last value it wraps to zero; the system uses this number to compute litres at that rollover, so a wrong value gives a wrong sales figure. The current reading becomes the opening reading of the first shift.", "savePump": "Save pump", "pumpAdded": "Pump added.", "saved": "Saved.", "errNozzleFields": "Enter the meter digits and current reading for both nozzles", "pumpType": {"petrol": "Petrol (91 + 95)", "diesel": "Diesel"}, "meterType": {"mechanical": "Mechanical meter", "electronic": "Electronic meter"}, "products": {"gasoline_91": "Petrol 91", "gasoline_95": "Petrol 95", "diesel": "Diesel"}},
+  "fuelPrices": {"tabTitle": "Fuel prices", "currency": "SAR/L", "inForceSince": "In force since {{date}}", "notSet": "No price in force — shifts cannot be opened for this fuel", "nextChange": "Changes to {{price}} on {{date}}", "addTitle": "Add a new price", "note": "The price includes VAT and applies to all of the company's stations from its effective date. Prices cannot be edited once added, because posted shifts were valued at them — when the price changes, add a new dated price.", "product": "Fuel", "price": "Price incl. VAT", "effectiveFrom": "Effective from", "status": "Status", "addBtn": "Add price", "added": "Price added.", "errPrice": "Enter a price greater than zero", "historyTitle": "Price history", "noPrices": "No prices yet.", "deleteUpcoming": "Delete (not in force yet)", "deleteConfirm": "Delete this scheduled price?", "statuses": {"current": "In force", "upcoming": "Scheduled", "past": "Previous"}},
+  "stationWorkers": {"tabTitle": "Station workers", "stationsTitle": "Stations", "stationsNote": "Each station is a cost center of this company; a worker assigned to it opens their shift there from the Athar Station app.", "noStations": "No stations yet — add the first one below.", "newStationPlaceholder": "Station name, e.g. Madinah Road station", "addStation": "Add station", "assignTitle": "Set up a station worker", "modeExisting": "Existing employee", "modeNew": "New employee", "employee": "Employee", "pickEmployee": "— choose an employee —", "name": "Worker name", "basicSalary": "Basic salary", "hireDate": "Start date", "station": "Station", "pickStation": "— choose a station —", "assignBtn": "Save and assign to station", "saving": "Saving...", "assignedNote": "{{name}} is assigned to {{station}}. Now set their mobile number and PIN for the Athar Station app:", "listTitle": "Workers assigned to stations", "noWorkers": "No worker is assigned to a station yet.", "phone": "Mobile", "setUpBtn": "Portal access", "defaultJobTitle": "Station worker", "errStationName": "Station name is too short", "errStation": "Choose the station", "errName": "Worker name is too short", "errSalary": "Enter the basic salary", "errPick": "Choose the employee"},
+  "stationShiftsReview": {
+    "tabTitle": "Pending Review",
+    "breadcrumb": "Station Shifts",
+    "title": "Station Shifts Review",
+    "pendingTitle": "Shifts Pending Review",
+    "refreshBtn": "Refresh",
+    "table": { "openingReading": "Opening reading",
+      "employee": "Worker",
+      "station": "Station",
+      "shiftType": "Shift Type",
+      "date": "Date",
+      "status": "Status",
+      "nozzle": "Nozzle",
+      "product": "Product",
+      "confirmedReading": "Confirmed Reading",
+      "description": "Description",
+      "amount": "Amount"
+    },
+    "shiftType": { "morning": "Morning", "night": "Night" },
+    "status": {
+      "open": "Open",
+      "submitted": "Submitted",
+      "under_review": "Under Review",
+      "approved": "Approved",
+      "posted": "Posted",
+      "rejected": "Rejected"
+    },
+    "openBtn": "Open",
+    "noPending": "No shifts pending review right now",
+    "detailTitle": "{{employee}}'s shift — {{status}}",
+    "readingsTitle": "Nozzle Readings",
+    "notReviewedYet": "Not reviewed yet", "digitsSuffix": "{{n}} digits",
+    "correctionLabel": "Accountant's Reading",
+    "correctBtn": "Save",
+    "meterPhotoTitle": "Meter photo — nozzle {{nozzle}}",
+    "noReadings": "No readings recorded yet",
+    "expensesTitle": "Expenses",
+    "receiptPhotoTitle": "Receipt photo",
+    "noExpenses": "No expenses recorded",
+    "netCashTitle": "Net Cash (accountant only)",
+    "pendingConfirmation": "Enter each nozzle's reading first to see net cash",
+    "grossSales": "Gross Sales",
+    "expensesTotal": "Total Expenses",
+    "expectedCash": "Expected Cash",
+    "cashDue": "Cash Due",
+    "variance": "Variance (shortage/surplus)",
+    "approveBtn": "Approve Shift",
+    "postBtn": "Post Shift",
+    "rejectBtn": "Reject Shift",
+    "rejectPrompt": "Reason for rejection:",
+    "approvedMsg": "Shift approved (no journal entry yet).",
+    "postedMsg": "Shift posted — journal entry created.",
+    "rejectedMsg": "Shift rejected."
+  },
+  "download": {
+    "appName": "Athar POS",
+    "version": "Version {{version}}",
+    "description": "Point-of-sale app for Android devices (Sunmi V2 with a built-in thermal printer) — runs on your device without a separate browser.",
+    "stepsTitle": "Install steps",
+    "step1": "In your device settings, allow \"Install from unknown sources\" for the browser you'll use to download the file.",
+    "disclaimer": "Pilot build — not yet tested on a real Sunmi V2 device.",
+    "audience": "For Sunmi V2 cashier devices at points of sale",
+    "downloadBtnFor": "Download {{app}} (APK)",
+    "stepUninstallOld": "If you already have an earlier version of this app installed, uninstall it first — once only; later versions install over it directly.",
+    "stepOpenFile": "Open the downloaded {{fileName}} file, then tap \"Install\".",
+    "station": {
+      "appName": "Athar Station",
+      "audience": "For fuel-station workers — on any Android phone",
+      "description": "Fuel-station shift app: photograph pump meters and expense receipts and submit the shift straight from the camera, without a separate browser.",
+      "disclaimer": "Pilot build — photo capture was tested on an Android emulator, not yet on a real worker's phone."
+    }
   },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial" },
@@ -107,7 +192,7 @@
         }
       ]
     },
-    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved" }
+    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved", "downloadApp": "Download the POS app" }
   },
   "auth": {
     "login": {
@@ -334,9 +419,19 @@
   "salesInvoices": {
     "noCompany": "Create a company first from the dashboard.",
     "addInvoice": "+ Add invoice",
+    "zatcaSummary": {"sent": "Sent", "sent_with_notes": "Sent with notes", "not_sent": "Not sent", "not_applicable": "Not applicable", "resend": "Resend", "sending": "Sending…", "notes": "ZATCA notes", "errors": "ZATCA rejection reasons"},
     "zatcaStatusFilterLabel": "ZATCA status",
     "loading": "Loading...",
     "empty": "No invoices yet.",
+    "search": {
+      "quickSearchLabel": "Quick search",
+      "invoiceTypeLabel": "Invoice type", "invoiceTypeAll": "— All types —", "invoiceTypeStandard": "Standard", "invoiceTypeSimplified": "Simplified",
+      "postingStatusLabel": "Posting status", "postingStatusAll": "— All posting statuses —",
+      "paymentStatusLabel": "Payment status", "paymentStatusAll": "— All payment statuses —",
+      "zatcaStatusAll": "— All ZATCA statuses —",
+      "sortBy": {"date": "Date", "invoiceNumber": "Invoice number", "customerName": "Customer name", "grandTotal": "Grand total"},
+      "summary": {"count": "Total posted invoices", "netTotal": "Net total", "vatTotal": "VAT total", "grandTotal": "Grand total"}
+    },
     "zatcaStatus": {
       "not_applicable": "Not applicable", "not_submitted": "Not sent — ZATCA credentials aren't set up yet for this stage",
       "cleared": "Sent/accepted (standard)", "reported": "Sent/accepted (simplified)", "rejected": "Rejected",
@@ -354,7 +449,7 @@
     "table": {
       "number": "Number", "customer": "Customer", "date": "Date", "total": "Total",
       "postingStatus": "Posting status", "paymentStatus": "Payment status", "zatcaStatus": "ZATCA status", "actions": "Actions",
-      "posted": "Posted", "draft": "Draft"
+      "posted": "Posted", "draft": "Draft", "pendingSubmission": "Awaiting ZATCA submission", "postingIncomplete": "ZATCA response received, local posting incomplete"
     },
     "actionsMenu": {
       "view": "View invoice", "edit": "Edit invoice", "unpost": "Unpost", "unposting": "Sending...",
@@ -598,10 +693,51 @@
       "reason": "Return reason",
       "saveAndPost": "Save and post return",
       "loading": "Loading...",
-      "table": { "number": "Number", "customer": "Customer", "date": "Date", "total": "Total", "status": "Status" },
-      "posted": "Posted", "draft": "Draft",
+      "addButton": "+ Add credit note",
+      "search": {
+        "quickSearchLabel": "Quick search", "quickSearchPlaceholder": "Credit note number, customer name, or original invoice number...",
+        "subtypeLabel": "Note type", "subtypeAll": "— All types —",
+        "refundMethodLabel": "Refund method", "refundMethodAll": "— All refund methods —",
+        "postingStatusLabel": "Posting status", "postingStatusAll": "— All posting statuses —",
+        "originalInvoicePlaceholder": "Search by invoice number...", "originalInvoiceAll": "— All invoices —",
+        "summary": { "count": "Total posted credit notes", "netTotal": "Net total", "vatTotal": "VAT total", "grandTotal": "Grand total" }
+      },
+      "table": {
+        "number": "Number", "customer": "Customer", "originalInvoice": "Original invoice", "date": "Date", "total": "Total",
+        "postingStatus": "Posting status", "zatcaStatus": "ZATCA status", "actions": "Actions"
+      },
+      "posted": "Posted", "draft": "Draft", "pendingSubmission": "Awaiting ZATCA submission", "postingIncomplete": "ZATCA response received, local posting incomplete",
       "unpost": "Unpost", "attachmentsShow": "Attachments", "attachmentsHide": "Hide attachments",
-      "empty": "No returns yet."
+      "empty": "No returns yet.",
+      "blockAction": { "edit": "edit" },
+      "actionsMenu": { "view": "View credit note", "edit": "Edit credit note", "delete": "Delete credit note", "print": "Print credit note" },
+      "notify": {
+        "deleteNonDraft": "Can't delete a posted credit note — it must be unposted first.",
+        "confirmDelete": "Delete credit note {{number}}?",
+        "deleted": "Credit note {{number}} deleted.",
+        "unposted": "Credit note {{number}} was unposted, and its journal entry was deleted. It's now a draft.",
+        "unpostedFromBlock": "Credit note {{number}} was unposted. It's now a draft and you can continue.",
+        "emailSent": "Credit note {{number}} was sent to {{email}}.",
+        "emailFailed": "Couldn't send the credit note — try again later."
+      },
+      "form": {
+        "titleCreate": "New credit note", "titleEdit": "Edit credit note {{number}}",
+        "cancel": "Cancel", "close": "Close", "saveChanges": "Save changes",
+        "savedEdit": "Changes to credit note {{number}} were saved."
+      },
+      "view": { "subtitle": "Credit note", "returnNumber": "Credit note number", "date": "Date", "subtype": "Note type" },
+      "postedBlockModal": {
+        "title": "Unpost the credit note first", "close": "Close",
+        "message": "Credit note {{number}} is posted, and can't be {{action}} until it's unposted. After unposting, the credit note becomes a draft and its journal entry is deleted — only then can you {{action}} it.",
+        "cancel": "Cancel", "unpost": "Unpost",
+        "unpostTitle": "Unpost credit note {{number}}"
+      },
+      "sendEmailModal": {
+        "title": "Email credit note {{number}}", "close": "Close",
+        "note": "This customer has no email on file — enter an alternate email to send a copy of the credit note to it, one time.",
+        "email": "Email", "errRequired": "Email is required", "errFailed": "Couldn't send — try again",
+        "cancel": "Cancel", "send": "Send", "sending": "Sending..."
+      }
     },
     "receipts": {
       "customer": "Customer", "date": "Receipt date", "method": "Collection method", "methodCash": "Cash", "methodBank": "Bank",
@@ -872,6 +1008,11 @@
       "types": { "in": "In", "out": "Out/write-off", "issue": "Issue", "transfer_out": "Transfer out", "transfer_in": "Transfer in", "adjustment": "Periodic settlement" },
       "empty": "No movements yet."
     },
+    "itemCard": {
+      "subtitle": "Item card", "titleFailed": "Could not load the item card", "type": "Item type",
+      "document": "Document", "quantityIn": "In", "quantityOut": "Out", "balance": "Balance",
+      "unitCost": "Cost", "closingBalance": "Closing balance"
+    },
     "stockReport": {
       "item": "Item", "code": "Code", "location": "Location", "balance": "Balance", "costPrice": "Cost price", "value": "Value",
       "empty": "No stock balances yet.",
@@ -1107,6 +1248,7 @@
     "installStandard": "Install standard chart",
     "scopeLabel": "Tree scope",
     "scopeGroupOption": "Group template (not used in journal entries)",
+    "showPartyAccounts": "Show detailed customer/supplier/employee accounts",
     "addAccount": "+ Add account",
     "expandView": "Show full tree",
     "compactView": "Compact view",
@@ -1287,6 +1429,7 @@
       "eosFootnote": "* The end-of-service accrual is an estimate assuming a normal termination by the employer today for all active employees (without deducting the resignation ratio), not an actual settlement."
     },
     "directory": {
+      "portal": {"title": "Employee portal access (mobile)", "note": "The employee signs in from the Athar Station app or the portal page on their phone with the company code, their mobile number and a 6-digit PIN — for attendance, leave and station shifts.", "stateNotSet": "Not enabled — no PIN set yet", "stateActive": "Enabled", "stateDisabled": "Disabled", "stateLocked": "Temporarily locked after failed attempts until {{until}} — saving here unlocks it", "inactiveEmployee": "This employee's status is not “active”, so they cannot sign in until it is.", "phone": "Mobile number", "pinNew": "New PIN (6 digits)", "pinChange": "New PIN (leave empty to keep the current one)", "pin": "PIN", "enabled": "Allow sign-in", "save": "Save portal access", "saving": "Saving...", "errPhone": "Mobile number is too short", "errPin": "The PIN must be 6 digits", "issuedTitle": "Sign-in details to give the employee", "companyCode": "Company code", "pinUnchanged": "unchanged", "issuedNote": "The PIN will not be shown again after you leave this screen."},
       "editingBanner": "Editing employee file — {{name}}",
       "personalSection": "Personal and contact information",
       "employmentSection": "Employment and financial information",
@@ -1302,6 +1445,8 @@
       "jobTitle": "Job title",
       "department": "Department",
       "workLocation": "Work location / branch",
+      "station": "Station (station shift worker)",
+      "stationNone": "— Not a station worker —",
       "nationality": "Nationality",
       "dateOfBirth": "Date of birth",
       "phone": "Mobile number",
@@ -1605,7 +1750,7 @@
       "title": "Company name (shown at the top of the screen and in the sidebar)",
       "label": "Company name",
       "editBtn": "Edit name",
-      "errRequired": "Company name is required"
+      "errRequired": "Company name is required", "portalCodeLabel": "Company code for the employee portal", "portalCodeCopy": "Copy", "portalCodeCopied": "Copied", "portalCodeNote": "Your employees enter it in the Athar Station app and the mobile portal together with their mobile number and PIN. This number is an identifier, not a secret; each employee's PIN is what protects the account."
     },
     "newCompany": {
       "title": "Companies (real)",
@@ -1685,6 +1830,10 @@
       "extractionFailed": "Failed to upload/analyze the document: {{message}}",
       "uploadedDocsTitle": "Uploaded official documents",
       "errNameRequired": "The name in the commercial registration is required",
+      "stationShiftsTitle": "Station shifts settings",
+      "stationShiftsNote": "The two accounts that cash shortages/surpluses post to when a station shift is approved — a new company with the \"fuel stations\" activity is seeded with two dedicated accounts automatically, and either can be redirected to a different account from here at any time.",
+      "stationCashShortageAccountLabel": "Shift cash shortage account",
+      "stationCashSurplusAccountLabel": "Shift cash surplus account",
       "fiscalClosingTitle": "Fiscal year closing",
       "fiscalClosingNote": "Once set, no journal entry (including invoices, payroll, and anything that posts a financial transaction) can be created, edited, deleted, or unposted with a date on or before this date. You can move it forward at any time from here; moving it back or clearing it requires admin permission via \"Reopen closing\" below.",
       "fiscalClosingDateLabel": "Fiscal year closing date (optional)",
@@ -1873,6 +2022,7 @@
       "namePlaceholder": "e.g. Senior accountant",
       "allowUnpostLabel": "Allow unposting journal entries",
       "allowPosDeferredSaleLabel": "Allow credit sales (no immediate payment) at point of sale",
+      "allowPosPriceOverrideLabel": "Allow manually overriding the item price at point of sale",
       "empty": "No positions created yet.",
       "noMembers": "No members assigned to this position yet.",
       "chooseUser": "— Choose a user —",
@@ -1880,20 +2030,14 @@
       "notifyCreated": "Position created successfully.",
       "notifyDeleted": "Position deleted.",
       "confirmDelete": "Delete position \"{{name}}\"? Its members will lose its permissions immediately.",
-      "leaveRequestsTitle": "Leave request permissions",
+      "permissionsTitle": "Selected module permissions",
+      "chooseModule": "— Choose a module —",
       "levels": {
         "none": "No access",
         "read": "Read only",
         "edit": "Edit",
         "approve": "Approve",
         "full": "Full access"
-      },
-      "actions": {
-        "view": "View requests",
-        "create": "Create request",
-        "edit": "Edit request",
-        "delete": "Delete request",
-        "approve": "Approve/Reject"
       },
       "overridesTitle": "Individual user exceptions",
       "overridesEmpty": "No individual exceptions yet.",
@@ -2238,6 +2382,7 @@
       "cashCustomer": "Cash customer",
       "changeCustomer": "Change ›",
       "emptyCart": "Cart is empty — search or scan an item",
+      "priceIncludesVat": "Price includes VAT",
       "removeBtn": "Remove",
       "totalLabel": "Total",
       "proceedBtn": "Proceed to payment",
@@ -2306,6 +2451,7 @@
       "paper58": "58 mm",
       "paper80": "80 mm",
       "autoPrintLabel": "Auto-print after every sale",
+      "printLogoLabel": "Print the company logo at the top of the receipt",
       "doneBtn": "Done"
     },
     "customerPicker": {
@@ -2323,13 +2469,48 @@
     "scanner": {
       "header": "Point the camera at the barcode",
       "cameraError": "Couldn't start the camera — make sure permission is granted, or use manual search instead"
+    },
+    "invoicesIconTitle": "Invoices",
+    "invoices": {
+      "title": "Invoices",
+      "empty": "No invoices yet"
+    },
+    "invoiceView": {
+      "title": "Invoice details",
+      "subtotal": "Subtotal",
+      "vat": "VAT",
+      "grandTotal": "Grand total",
+      "qrSummary": "QR code",
+      "printBtn": "🖨 Print",
+      "downloadPdfBtn": "Download PDF",
+      "downloading": "Downloading...",
+      "sendEmailBtn": "Send by email",
+      "sendingEmail": "Sending...",
+      "emailSent": "Invoice sent to {{email}}",
+      "emailFailed": "Couldn't send the invoice by email"
+    },
+    "sendEmailModal": {
+      "title": "Send invoice #{{number}}",
+      "email": "Email address",
+      "errRequired": "Enter an email address",
+      "errFailed": "Couldn't send the invoice by email",
+      "sentMsg": "Invoice #{{number}} sent to {{email}}",
+      "cancel": "Cancel",
+      "send": "Send",
+      "sending": "Sending..."
     }
   },
   "receiptView": {
     "vatNumberLabel": "VAT number",
+    "addressLabel": "Address",
     "invoiceNumberLabel": "Invoice number",
     "customerLabel": "Customer",
     "cashCustomer": "Cash customer",
+    "customerVatNumberLabel": "Customer VAT number",
+    "customerAddressLabel": "Customer address",
+    "issuedByLabel": "Issued by",
+    "zatcaCleared": "Cleared electronically (ZATCA)",
+    "zatcaReported": "Reported electronically (ZATCA)",
     "beforeVat": "Before VAT",
     "vat": "VAT",
     "total": "Total",
@@ -2345,12 +2526,13 @@
     "tabs": {
       "attendance": "Attendance",
       "leave": "My Leave",
+      "stationShifts": "Station Shifts",
       "inbox": "Team Requests"
     },
     "login": {
       "intro": "Log in to check in/out and track your leave requests from your phone.",
       "tenantIdLabel": "Company code",
-      "tenantIdPlaceholder": "Sent to you by HR",
+      "tenantIdPlaceholder": "7-digit number from HR, e.g. 1000001",
       "phoneLabel": "Mobile number",
       "pinLabel": "PIN"
     },
@@ -2379,6 +2561,37 @@
       "noPending": "No pending requests right now.",
       "approveBtn": "Approve"
     },
+    "stationShifts": {
+      "openShiftTitle": "Open Shift",
+      "shiftTypeLabel": "Shift Type",
+      "morning": "Morning",
+      "night": "Night",
+      "openShiftBtn": "Open New Shift",
+      "nozzlesTitle": "Nozzle Readings",
+      "pumpLabel": "Pump {{pump}}",
+      "nozzleLabel": "Nozzle {{nozzle}} ({{product}})",
+      "readingSaved": "Meter photo saved",
+      "takePhoto": "Take Meter Photo",
+      "retakePhoto": "Retake Photo",
+      "photoRequired": "A meter photo is required",
+      "cashRequired": "Cash delivered is required",
+      "collectionsTitle": "Collections",
+      "collectionsSaved": "Collections saved",
+      "networkLabel": "Network/card sales (mada)",
+      "cashDeliveredLabel": "Cash delivered",
+      "expensesTitle": "Expenses",
+      "noExpenses": "No expenses added yet",
+      "addExpensePhotoBtn": "Take Receipt Photo",
+      "expenseDescriptionLabel": "Expense description",
+      "expenseAmountLabel": "Amount",
+      "addExpenseBtn": "Add Expense",
+      "expenseFieldsRequired": "Description and amount are required",
+      "expenseSaved": "Expense saved",
+      "incompleteNozzles": "Photograph every nozzle's meter first",
+      "collectionsRequired": "Save collections first",
+      "shiftSubmitted": "Shift submitted for review",
+      "submitShiftBtn": "Submit Shift"
+    },
     "dateRangeWithDays": "{{start}} → {{end}} ({{days}} days)"
   },
   "unsavedChanges": {
@@ -2387,5 +2600,36 @@
     "leaveWithoutSaving": "Leave without saving",
     "openInNewTab": "Open in a new tab instead",
     "stayOnPage": "Stay on this page"
+  },
+  "itemTax": {
+    "nameAr": "Arabic item name",
+    "nameEn": "English item name",
+    "category": "VAT treatment",
+    "S": "Standard rated 15%",
+    "Z": "Zero rated 0%",
+    "E": "VAT exempt",
+    "O": "Outside scope — previous setting",
+    "priceBasis": "Entered price",
+    "inclusive": "VAT inclusive",
+    "exclusive": "VAT exclusive",
+    "reason": "Exemption or zero-rating reason",
+    "chooseReason": "Choose a reason",
+    "reasons": {
+      "VATEX-SA-29": "Financial services",
+      "VATEX-SA-29-7": "Life insurance",
+      "VATEX-SA-30": "Exempt real estate supplies",
+      "VATEX-SA-32": "Export of goods",
+      "VATEX-SA-33": "Export of services",
+      "VATEX-SA-34-1": "International goods transport",
+      "VATEX-SA-34-2": "International passenger transport",
+      "VATEX-SA-34-3": "Services related to international passenger transport",
+      "VATEX-SA-34-4": "Qualifying means of transport",
+      "VATEX-SA-34-5": "Goods and passenger transport services",
+      "VATEX-SA-35": "Qualifying medicines and medical equipment",
+      "VATEX-SA-36": "Qualifying metals",
+      "VATEX-SA-EDU": "Private education for citizens",
+      "VATEX-SA-HEA": "Healthcare for citizens",
+      "VATEX-SA-MLTRY": "Qualifying military goods"
+    }
   }
 }

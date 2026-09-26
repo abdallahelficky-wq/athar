@@ -33,10 +33,7 @@ export default function RegisterPage({ onGoLanding, onGoLogin }) {
   return (
     <div className="auth-root">
       <div className="auth-card">
-        <div className="landing-brand auth-brand">
-          <div className="brand-mark landing-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
-          <span>{t("common.brandName")}</span>
-        </div>
+        <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
         <h2 className="auth-title">{t("auth.register.title")}</h2>
         <div className="auth-form">
           <label>{t("auth.register.companyName")}<input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} /></label>

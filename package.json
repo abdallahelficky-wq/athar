@@ -13,6 +13,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:studio": "prisma studio",
+    "seed:station-pumps": "tsx scripts/seed-station-pumps-demo.ts",
+    "seed:station-pumps:clean": "tsx scripts/clean-station-pumps-demo.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc -p tsconfig.json --noEmit"

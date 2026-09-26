@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as XLSX from "xlsx";
 import { listAccounts, getNextAccountCode, createAccount, updateAccount, deleteAccount, installStandardChart } from "../api/accounts";
@@ -13,6 +13,7 @@ import { getAccountDisplayName } from "./shared/accountDisplayName";
 const LEVEL_CODE_LENGTH = { 1: 1, 2: 2, 3: 3, 4: 6 };
 const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false, isEmployeeAdvanceAccount: false };
 const emptyChartFilters = { search: "", level: 4, type: "", status: "active" };
+const SHOW_PARTY_ACCOUNTS_KEY = "chartOfAccounts.showPartyAccounts";
 
 export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const { t, i18n } = useTranslation();
@@ -21,6 +22,10 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const isSuperAdmin = user?.role === "super_admin";
   const [scope, setScope] = useState(companyId || "group");
   const [accounts, setAccounts] = useState([]);
+  // القائمة الكاملة غير المفلترة (بصرف النظر عن مفتاح الإخفاء) — تُستخدَم حصراً للتحقق من تكرار
+  // الكود/وجود الأب الأصل أثناء الاستيراد (AccountImportPanel)، حتى لا يُقبَل صف يحمل كوداً يخص
+  // حساب طرف مخفي حالياً عن الشجرة ثم يُرفَض لاحقاً في الخادم بسبب تكرار الكود.
+  const [allAccounts, setAllAccounts] = useState([]);
   const [expanded, setExpanded] = useState(new Set());
   const [compact, setCompact] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -31,12 +36,52 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [installing, setInstalling] = useState(false);
+  // مطفأ افتراضياً: يخفي الحسابات التفصيلية التلقائية للعملاء/الموردين/الموظفين (Phase G) عن شجرة
+  // الحسابات فقط — بلا أي أثر على شاشات اختيار الحساب الأخرى في النظام. الفلترة تتم في الباك إند
+  // (استعلام includePartyAccounts=false) لا بإخفاء بصري بعد تحميل الكل، حتى تظل الشاشة سريعة مهما
+  // كان عدد العملاء/الموردين. حالة المفتاح محفوظة محلياً لكل مستخدم فيبقى كما تركه بين الزيارات.
+  const [showPartyAccounts, setShowPartyAccounts] = useState(() => {
+    try { return localStorage.getItem(SHOW_PARTY_ACCOUNTS_KEY) === "true"; } catch { return false; }
+  });
+  const toggleShowPartyAccounts = () => setShowPartyAccounts((current) => {
+    const next = !current;
+    try { localStorage.setItem(SHOW_PARTY_ACCOUNTS_KEY, String(next)); } catch { /* بيئة بلا localStorage — نتابع بلا حفظ */ }
+    return next;
+  });
 
   useEffect(() => { if (companyId) setScope(companyId); }, [companyId]);
-  const reload = () => listAccounts({ tree: true, companyId: scope === "group" ? undefined : scope })
-    .then((rows) => { setAccounts(rows); setExpanded(new Set(rows.filter((a) => a.level < 4).map((a) => a.id))); setError(""); })
-    .catch((err) => setError(err.message));
-  useEffect(() => { reload(); }, [scope]); // eslint-disable-line react-hooks/exhaustive-deps
+  // رقم تسلسلي لكل نداء reload — الاستجابة تُطبَّق فقط إن كانت لا تزال الأحدث وقت وصولها، حتى لا
+  // يطبّق طلب أبطأ (لبحث/فلترة سابقة) نتيجته فوق نداء أحدث سبقه في الإطلاق ولحقه في الوصول.
+  const reloadSeq = useRef(0);
+  const reload = () => {
+    const seq = (reloadSeq.current += 1);
+    const displayPromise = listAccounts({
+      tree: true,
+      companyId: scope === "group" ? undefined : scope,
+      includePartyAccounts: showPartyAccounts,
+      // partySearch استثناء البحث المباشر: حتى مع إطفاء المفتاح، حساب طرف بعينه يطابق نص البحث المطبَّق
+      // يظل ظاهراً في نتيجة البحث بدل اختفائه تماماً من الشجرة.
+      partySearch: !showPartyAccounts ? chartFilters.applied.search.trim() : "",
+    });
+    // لما يكون المفتاح مفعّلاً أصلاً، accounts هي بالفعل القائمة الكاملة — نفس الطلب يُستخدَم لكليهما
+    // بلا طلب شبكة إضافي. لما يكون مطفأً، نجلب النسخة الكاملة (بلا فلترة ولا partySearch) بالتوازي.
+    const fullPromise = showPartyAccounts
+      ? displayPromise
+      : listAccounts({ tree: true, companyId: scope === "group" ? undefined : scope, includePartyAccounts: true });
+    return Promise.all([displayPromise, fullPromise])
+      .then(([rows, allRows]) => {
+        if (reloadSeq.current !== seq) return; // استجابة قديمة — نداء أحدث سبقها بالفعل
+        setAccounts(rows);
+        setAllAccounts(allRows);
+        setExpanded(new Set(rows.filter((a) => a.level < 4).map((a) => a.id)));
+        setError("");
+      })
+      .catch((err) => { if (reloadSeq.current === seq) setError(err.message); });
+  };
+  // بحث النص لا يُعاد جلبه من الخادم إلا لما المفتاح مطفأ (عشان استثناء البحث أعلاه) — لما يكون مفعّلاً
+  // الفلترة كلها بالفعل من جانب العميل على accounts المحمّلة، فلا داعي لإعادة الطلب مع كل بحث مطبَّق.
+  const searchDependency = showPartyAccounts ? "" : chartFilters.applied.search;
+  useEffect(() => { reload(); }, [scope, showPartyAccounts, searchDependency]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedParent = accounts.find((a) => a.id === form.parentId);
   const level = selectedParent ? selectedParent.level + 1 : 1;
@@ -239,6 +284,11 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
           </div>
         </div>
 
+        <label className="checkbox-label" style={{ margin: "8px 0" }}>
+          <input type="checkbox" checked={showPartyAccounts} onChange={toggleShowPartyAccounts} />
+          {t("chartOfAccounts.showPartyAccounts")}
+        </label>
+
         <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); chartFilters.apply(); }}>
           <label>{t("chartOfAccounts.filters.searchLabel")}
             <input type="text" value={chartFilters.draft.search} onChange={(e) => chartFilters.setField("search", e.target.value)} placeholder={t("chartOfAccounts.filters.searchPlaceholder")} />
@@ -268,7 +318,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         </form>
       </div>
 
-      <AccountImportPanel scope={scope} accounts={accounts} onImported={reload} />
+      <AccountImportPanel scope={scope} accounts={allAccounts} onImported={reload} />
 
       {accountModalOpen && (
         <div className="invoice-modal-overlay" onClick={() => !saving && closeAccountModal()}>

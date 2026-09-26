@@ -51,6 +51,31 @@ function TenantNameSettings() {
         </div>
       )}
       {error && <p className="balance-bad">{error}</p>}
+      <TenantPortalCode code={tenant?.code} />
+    </div>
+  );
+}
+
+/** رمز المنشأة الرقمي الذي يكتبه الموظفون في بوابة الجوال (Tenant.code) — للقراءة فقط، يُسلَّم للموظفين */
+function TenantPortalCode({ code }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  if (!code) return null;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(String(code));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* المتصفح منع الحافظة — الرقم ظاهر ويمكن نسخه يدوياً */ }
+  };
+  return (
+    <div className="tenant-portal-code">
+      <div className="tenant-portal-code-label">{t("settings.tenantName.portalCodeLabel")}</div>
+      <div className="form-btn-group">
+        <span className="tenant-portal-code-value" dir="ltr">{code}</span>
+        <button className="btn-ghost" onClick={copy}>{copied ? t("settings.tenantName.portalCodeCopied") : t("settings.tenantName.portalCodeCopy")}</button>
+      </div>
+      <p className="note">{t("settings.tenantName.portalCodeNote")}</p>
     </div>
   );
 }

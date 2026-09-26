@@ -30,6 +30,7 @@ export interface ZatcaLineInput {
   taxCategoryCode: ZatcaTaxCategoryCode;
   /** نسبة الضريبة 0-100 — ذات معنى فقط عند taxCategoryCode === "S" */
   taxPercent: number;
+  taxExemptionReasonCode?: string | null;
   taxExemptionReason?: string | null;
 }
 

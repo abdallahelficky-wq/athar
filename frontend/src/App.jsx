@@ -20,6 +20,7 @@ import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
+import DownloadPage from "./pages/DownloadPage";
 import JournalEntryStandalonePage from "./pages/JournalEntryStandalonePage";
 import Dashboard from "./wired/Dashboard";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
@@ -33,6 +34,7 @@ import InventoryWiredModule, { INVENTORY_TABS } from "./wired/inventory/Inventor
 import FixedAssetsWiredModule, { FIXED_ASSETS_TABS } from "./wired/fixedAssets/FixedAssetsWiredModule";
 import HRWiredModule, { HR_TABS } from "./wired/hr/HRWiredModule";
 import StablesModule, { STABLE_TABS } from "./wired/stables/StablesModule";
+import StationShiftsReviewModule, { STATION_SHIFTS_TABS } from "./wired/stationShifts/StationShiftsReviewModule";
 import UserMenu from "./wired/shared/UserMenu";
 import { UnsavedChangesProvider } from "./wired/shared/UnsavedChangesContext";
 import UnsavedChangesBlocker from "./wired/shared/UnsavedChangesBlocker";
@@ -42,6 +44,7 @@ const NAV_GROUPS = [
   { id: "purchases", labelKey: "nav.groups.purchases", tabs: PURCHASE_TABS, to: routes.purchases },
   { id: "inventory", labelKey: "nav.groups.inventory", tabs: INVENTORY_TABS, to: routes.inventory },
   { id: "stables", labelKey: "stables.title", tabs: STABLE_TABS, to: routes.stables },
+  { id: "stationShifts", labelKey: "stationShiftsReview.title", tabs: STATION_SHIFTS_TABS, to: routes.stationShifts },
   { id: "fixedAssets", labelKey: "nav.groups.fixedAssets", tabs: FIXED_ASSETS_TABS, to: routes.fixedAssets },
   { id: "accounts", labelKey: "nav.groups.accounts", tabs: ACCOUNTS_TABS, to: routes.accounts },
   { id: "hr", labelKey: "nav.groups.hr", tabs: HR_TABS, to: routes.hr },
@@ -70,8 +73,14 @@ function AppShell() {
   // صلاحيات مدير المنصة تحدد الموديولات المتاحة للمستأجر، ثم نشاط الشركة النشطة يحدد الموديولات
   // القطاعية التي تخصها. مديول الإسطبلات لا يظهر ولا يُفتح إلا لنشاط الإسطبلات والإعاشة.
   const visibleNavGroups = NAV_GROUPS.filter((group) => {
-    const platformAllows = !tenant?.enabledModules?.length || tenant.enabledModules.includes(group.id);
-    const activityAllows = group.id !== "stables" || activeCompany?.businessActivity === "horse_stables";
+    // ورديات المحطات تظهر تلقائياً لكل شركة نشاطها "محطات وقود" بلا أي تفعيل يدوي — نشاط الشركة وحده
+    // يحكمها، لا قائمة موديولات المنصة: هذه القائمة (PLATFORM_MODULE_IDS) لم تتضمّن هذا الموديول قط،
+    // فأي مستأجر قُيِّدت موديولاته مرة واحدة من لوحة مدير المنصة كان يفقده نهائياً بلا طريقة لإعادته.
+    const platformAllows =
+      group.id === "stationShifts" || !tenant?.enabledModules?.length || tenant.enabledModules.includes(group.id);
+    const activityAllows =
+      (group.id !== "stables" || activeCompany?.businessActivity === "horse_stables") &&
+      (group.id !== "stationShifts" || activeCompany?.businessActivity === "fuel_stations");
     return platformAllows && activityAllows;
   });
   const location = useLocation();
@@ -137,6 +146,7 @@ function AppShell() {
   const outletContext = {
     companies: real.companies,
     companyId: real.companyId,
+    companiesLoading: real.loading,
     currentUser, setCurrentUser,
     jobTitles, setJobTitles,
     companyDocuments, setCompanyDocuments,
@@ -151,7 +161,7 @@ function AppShell() {
       {isMobileSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsMobileSidebarOpen(false)} />}
       <div className={"sidebar" + (isMobileSidebarOpen ? " sidebar-open" : "")}>
         <div className="brand">
-          <div className="brand-mark"><span className="brand-mark-needle" style={{ background: "#B98B4E" }} /></div>
+          <img src="/brand/athar-logo-square.png" alt={t("common.brandName")} className="brand-logo-icon" />
           <div>
             <div className="brand-name">{t("common.brandName")}</div>
             <div className="brand-sub">{activeCompany?.shortName || activeCompany?.name || t("nav.noCompanySelected")}</div>
@@ -268,11 +278,22 @@ function InventoryRoute() {
   const { companies, companyId } = useOutletContext();
   return <InventoryWiredModule companies={companies} companyId={companyId} />;
 }
+// أثناء تحميل قائمة الشركات لا يُعرَف نشاط الشركة النشطة بعد — التحويل للوحة القيادة في تلك اللحظة
+// كان يطرد كل من يفتح رابطاً مباشراً أو يحدّث الصفحة على موديول قطاعي، حتى لو كانت شركته من نفس
+// النشاط تماماً. الانتظار حتى يكتمل التحميل ثم الحكم.
 function StablesRoute() {
-  const { companies, companyId } = useOutletContext();
+  const { companies, companyId, companiesLoading } = useOutletContext();
   const company = companies.find((item) => item.id === companyId);
+  if (!company && companiesLoading) return null;
   if (company?.businessActivity !== "horse_stables") return <Navigate to={routes.dashboard()} replace />;
   return <StablesModule companyId={companyId} />;
+}
+function StationShiftsReviewRoute() {
+  const { companies, companyId, companiesLoading } = useOutletContext();
+  const company = companies.find((item) => item.id === companyId);
+  if (!company && companiesLoading) return null;
+  if (company?.businessActivity !== "fuel_stations") return <Navigate to={routes.dashboard()} replace />;
+  return <StationShiftsReviewModule companyId={companyId} />;
 }
 function FixedAssetsRoute() {
   const { companies, companyId } = useOutletContext();
@@ -348,7 +369,13 @@ function RootRoute() {
 
   if (initializing) return null;
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
-  return <LandingPage onGoLogin={() => navigate("/login")} onGoRegister={() => navigate("/register")} />;
+  return (
+    <LandingPage
+      onGoLogin={() => navigate("/login")}
+      onGoRegister={() => navigate("/register")}
+      onGoDownload={() => navigate("/download")}
+    />
+  );
 }
 
 function LoginRoute() {
@@ -397,6 +424,10 @@ const router = createBrowserRouter([
   { path: "/register", element: <RegisterRoute /> },
   { path: "/forgot-password", element: <ForgotPasswordRoute /> },
   { path: "/accept-invite", element: <AcceptInviteRoute /> },
+  // بلا أي تحقّق دخول أو تحويل بحسب isAuthenticated عمداً — يجب أن تعمل هذه الصفحة لأي زائر (مثلاً
+  // من رابط أُرسِل واتساب لجهاز نقطة بيع جديد لم يُسجَّل دخوله بعد على أي شيء إطلاقاً)، ولا سبب
+  // لإخفائها عمّن هو مسجَّل دخوله بالفعل (قد يريد مشاركة الرابط أو تنزيله على جهاز آخر).
+  { path: "/download", element: <DownloadPage /> },
   { path: "/journal-entries/:id/view", element: <JournalEntryStandalonePage /> },
   {
     element: <ProtectedLayout />,
@@ -410,6 +441,8 @@ const router = createBrowserRouter([
       { path: "inventory/:tab", element: <InventoryRoute /> },
       { path: "stables", element: <Navigate to={routes.stables()} replace /> },
       { path: "stables/:tab", element: <StablesRoute /> },
+      { path: "stationShifts", element: <Navigate to={routes.stationShifts()} replace /> },
+      { path: "stationShifts/:tab", element: <StationShiftsReviewRoute /> },
       { path: "fixedAssets", element: <Navigate to={routes.fixedAssets()} replace /> },
       { path: "fixedAssets/:tab", element: <FixedAssetsRoute /> },
       { path: "accounts", element: <Navigate to={routes.accounts()} replace /> },

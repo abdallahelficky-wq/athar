@@ -13,12 +13,12 @@ import {
 import { env } from "../../config/env";
 import { createChartFromTemplate } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
-import { createStarterItems, createCashParties, createDefaultWarehouse } from "../../lib/starterData";
+import { createStarterItems, createCashParties, createDefaultWarehouse, linkStationCashAccounts } from "../../lib/starterData";
 import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../../lib/mailer";
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
 import type { Lang } from "../../lib/i18n/translate";
 import type { Tenant, User, Identity } from "@prisma/client";
-import { canUnpostJournalEntries, canDeferPosSale } from "../positions/positions.service";
+import { canUnpostJournalEntries, canDeferPosSale, canOverridePosPrice } from "../positions/positions.service";
 
 const TRIAL_DAYS = 30;
 const INVITE_EXPIRES_DAYS = 7;
@@ -72,6 +72,7 @@ async function publicUserWithPermissions(user: UserWithIdentity, readOnly: boole
     ...publicUser(user),
     canUnpostJournalEntries: await canUnpostJournalEntries(user.tenantId, user.id, user.role),
     canDeferPosSale: await canDeferPosSale(user.tenantId, user.id, user.role),
+    canOverridePosPrice: await canOverridePosPrice(user.tenantId, user.id, user.role),
     readOnly,
   };
 }
@@ -153,6 +154,7 @@ export async function register(
       await createStarterItems(tx, tenant.id, company.id, input.businessActivity, idByCode);
       await createCashParties(tx, tenant.id, company.id);
       await createDefaultWarehouse(tx, tenant.id, company.id);
+      await linkStationCashAccounts(tx, company.id, input.businessActivity, idByCode);
 
       const user = await tx.user.create({
         data: {

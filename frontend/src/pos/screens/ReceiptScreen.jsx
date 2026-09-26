@@ -2,7 +2,9 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import ReceiptView from "../../shared/receipt/ReceiptView";
 import { loadPrinterSettings } from "../../shared/receipt/posLocalSettings";
-import { buildReceiptEscPos, requestBluetoothPrinter, sendToBluetoothPrinter } from "../../shared/receipt/escpos";
+import {
+  buildReceiptEscPos, buildReceiptEscPosChunks, requestBluetoothPrinter, sendToBluetoothPrinter, hasNativePrinterBridge, printViaNativeBridge,
+} from "../../shared/receipt/escpos";
 
 export default function ReceiptScreen({ company, sale, onNewSale }) {
   const { t } = useTranslation();
@@ -20,7 +22,7 @@ export default function ReceiptScreen({ company, sale, onNewSale }) {
     setPrintError("");
     try {
       const device = await requestBluetoothPrinter();
-      const bytes = buildReceiptEscPos({ company, invoice }, settings.paperWidthMm);
+      const bytes = await buildReceiptEscPos({ company, invoice }, settings.paperWidthMm);
       await sendToBluetoothPrinter(device, bytes);
     } catch (err) {
       setPrintError(err.message || t("pos.receipt.bluetoothPrintError"));
@@ -29,7 +31,25 @@ export default function ReceiptScreen({ company, sale, onNewSale }) {
     }
   };
 
-  const doPrint = () => (settings.method === "bluetooth" ? printViaBluetooth() : printViaBrowser());
+  // جهاز يحقن جسر طباعة أصلي (راجع escpos.js) — يُستخدَم دائماً بالأولوية بصرف النظر عن
+  // إعداد طريقة الطباعة المحفوظ محلياً (bluetooth/browser)، إذ لا معنى لهما على هذا الجهاز أصلاً.
+  const printViaNative = async () => {
+    setPrinting(true);
+    setPrintError("");
+    try {
+      const chunks = await buildReceiptEscPosChunks({ company, invoice }, settings.paperWidthMm);
+      printViaNativeBridge(chunks);
+    } catch (err) {
+      setPrintError(err.message);
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const doPrint = () => {
+    if (hasNativePrinterBridge()) return printViaNative();
+    return settings.method === "bluetooth" ? printViaBluetooth() : printViaBrowser();
+  };
 
   useEffect(() => {
     if (settings.autoPrint) doPrint();

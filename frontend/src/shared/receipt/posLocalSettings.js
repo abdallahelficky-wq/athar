@@ -7,6 +7,7 @@ const DEFAULTS = {
   paperWidthMm: 80, // 58 | 80
   autoPrint: true,
   bluetoothDeviceName: null, // للعرض فقط — Web Bluetooth لا يحفظ اتصالاً دائماً بلا بادرة مستخدم
+  printLogo: true, // طباعة شعار الشركة البائعة أعلى الإيصال — يُعطَّل بسهولة لو ظهر مشوَّهاً على طابعة حقيقية
 };
 
 export function loadPrinterSettings() {

@@ -9,10 +9,22 @@ export const listAssignableUsersHandler: RequestHandler = async (req, res) => {
   res.json(await service.listAssignableUsers(req.auth!.tenantId));
 };
 
+export const listPlatformActionsHandler: RequestHandler = (_req, res) => {
+  res.json(service.listPlatformActions());
+};
+
 export const createHandler: RequestHandler = async (req, res) => {
   res
     .status(201)
-    .json(await service.createPosition(req.auth!.tenantId, req.body.name, req.body.allowUnpost, req.body.allowPosDeferredSale));
+    .json(
+      await service.createPosition(
+        req.auth!.tenantId,
+        req.body.name,
+        req.body.allowUnpost,
+        req.body.allowPosDeferredSale,
+        req.body.allowPosPriceOverride,
+      ),
+    );
 };
 
 export const updateHandler: RequestHandler = async (req, res) => {

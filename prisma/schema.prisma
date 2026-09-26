@@ -12,7 +12,10 @@
 // ============================================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // omitApi: يسمح بإخفاء Employee.pinHash عالمياً من كل استعلام وكل include متداخل (راجع
+  // src/lib/prisma.ts) — لا يمسّ قاعدة البيانات، فقط الكود المُولَّد للعميل.
+  previewFeatures = ["omitApi"]
 }
 
 datasource db {
@@ -63,6 +66,10 @@ model Tenant {
   // دائماً كل الصلاحيات على شركته (راجع requirePermission في middleware/auth.ts) بلا حاجة لإعداد
   // منصب له صراحةً.
   ownerId            String?
+  // رمز المنشأة الرقمي الذي يكتبه الموظف في بوابة الجوال بدل id (cuid طويل) — فريد على مستوى المنصة
+  // كلها، يبدأ من 1000001 ويُخصَّص من تسلسل Postgres (nextval ذرّي: لا تصادم بين تسجيلين متزامنين).
+  // حقل إضافي بجوار id لا بديل عنه: كل علاقة وكل JWT يبقى على id. مُعرِّف ظاهر للموظفين، ليس سراً.
+  code               Int                @unique @default(autoincrement())
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -90,6 +97,17 @@ model Tenant {
   salesDebitNotes  SalesDebitNote[]
   receipts         Receipt[]
   stationSales     StationSale[]
+
+  stationNozzles          StationNozzle[]
+  fuelPrices              FuelPrice[]
+  stationShifts           StationShift[]
+  stationShiftReadings    StationShiftReading[]
+  stationShiftCreditSales StationShiftCreditSale[]
+  stationShiftExpenses    StationShiftExpense[]
+  stationShiftCollections StationShiftCollection[]
+  tankDeliveries          TankDelivery[]
+  tankDips                TankDip[]
+  stationShiftAuditLogs   StationShiftAuditLog[]
 
   suppliers        Supplier[]
   purchaseInvoices PurchaseInvoice[]
@@ -207,6 +225,10 @@ model User {
   refreshTokens             RefreshToken[]
   auditLogs                 AuditLog[]
   actionPermissionOverrides UserActionPermissionOverride[]
+  // عامل ورديات المحطة (assignedCostCenterId) انتقل بالكامل إلى Employee — بوابة الموظف (الجوال)
+  // هي واجهة العامل الوحيدة الآن، لا حساب User إطلاقاً؛ راجع Employee.assignedCostCenterId.
+  stationShiftsAsReviewer   StationShift[]                 @relation("StationShiftReviewer")
+  stationShiftAuditLogs     StationShiftAuditLog[]
 
   // نفس الهوية لا تنضم لنفس المستأجر مرتين (لا حاجة لعضويتين منفصلتين لنفس الشخص في نفس المستأجر —
   // نطاق companyScope واحد يكفي، ولو احتاج صلاحيات مختلفة لشركتين من نفس المستأجر فذلك عبر
@@ -450,6 +472,16 @@ model Company {
   // نقطة البيع لهذه الشركة معاً. القيمة الافتراضية false تُبقي كل الشركات على السلوك الحالي بلا
   // أي تغيير حتى تُفعِّله الشركة صراحةً — راجع frontend/src/pos/PosApp.jsx لمنطق الاختيار.
   posQuickSaleEnabled          Boolean               @default(false)
+  // حساب عجز/زيادة النقد عند إقفال ورديات المحطات — مُعرَّف صراحةً هنا بدل الاعتماد على اسم قياسي
+  // ثابت في شجرة الحسابات: إظهار "عجز محطة كذا هذا الشهر" هو الغرض الأساسي من هذه الوحدة، فدفنه في
+  // حساب مصروفات عام يجعل هذا السؤال بلا إجابة. تُزرَع الشركة الجديدة بنشاط "محطات وقود" بحسابين
+  // مخصَّصين لهذا الغرض تلقائياً (راجع createCompany في companies.controller.ts)، لكن الحقل هنا
+  // قابل لإعادة التوجيه لأي حساب آخر من إعدادات الشركة. null يعني لم يُضبَط بعد — تُرفَض عمليات
+  // اعتماد ورديات المحطات بخطأ واضح حتى يُضبَط.
+  stationCashShortageAccountId String?
+  stationCashShortageAccount   Account?              @relation("StationCashShortageAccount", fields: [stationCashShortageAccountId], references: [id], onDelete: SetNull)
+  stationCashSurplusAccountId  String?
+  stationCashSurplusAccount    Account?              @relation("StationCashSurplusAccount", fields: [stationCashSurplusAccountId], references: [id], onDelete: SetNull)
   createdAt                    DateTime              @default(now())
   updatedAt                    DateTime              @updatedAt
 
@@ -471,6 +503,16 @@ model Company {
   zatcaCredential           CompanyZatcaCredential?
   receipts                  Receipt[]
   stationSales              StationSale[]
+  stationNozzles            StationNozzle[]
+  fuelPrices                FuelPrice[]
+  stationShifts             StationShift[]
+  stationShiftReadings      StationShiftReading[]
+  stationShiftCreditSales   StationShiftCreditSale[]
+  stationShiftExpenses      StationShiftExpense[]
+  stationShiftCollections   StationShiftCollection[]
+  tankDeliveries            TankDelivery[]
+  tankDips                  TankDip[]
+  stationShiftAuditLogs     StationShiftAuditLog[]
   suppliers                 Supplier[]
   purchaseInvoices          PurchaseInvoice[]
   purchaseReturns           PurchaseReturn[]
@@ -538,6 +580,12 @@ model CompanyZatcaCredential {
   // complianceCertRawEnc أعلاه لشرح الفرق؛ نفس المنطق هنا بالضبط لشهادة الإنتاج.
   productionCertRawEnc String?
   productionSecretEnc String? // سر API المرافق لشهادة الإنتاج، مُشفَّر
+  // request_id الذي أعادته زاتكا فعلياً عند إصدار شهادة الإنتاج نفسها — لم يكن يُحفَظ سابقاً (خلافاً
+  // لـcomplianceRequestId أعلاه)، رغم أنه يُعاد فعلياً في نفس استجابة /production/csids الناجحة إلى
+  // جانب binarySecurityToken/secret. يُكتَب فوراً بمجرد وصول استجابة ناجحة من زاتكا، قبل أي محاولة
+  // تحليل الشهادة كـX.509 (راجع requestCompanyProductionCsid) — حتى لو فشل ذلك التحليل لاحقاً، يبقى
+  // دليل الإصدار الفعلي محفوظاً هنا بدل أن يضيع بصمت.
+  productionRequestId String?
   // نفس فكرة complianceCsidEnvironment أعلاه، لشهادة الإنتاج.
   productionCsidEnvironment ZatcaEnvironment?
   // آخر قائمة "خطوات امتثال متبقية" فعلية سمَّتها زاتكا صراحةً في رفض طلب شهادة الإنتاج بكود
@@ -603,6 +651,13 @@ model CostCenter {
   journalEntryLines JournalEntryLine[]
   stationSales      StationSale[]
   fixedAssets       FixedAsset[]
+
+  stationNozzles     StationNozzle[]
+  fuelPriceOverrides FuelPrice[]
+  stationShifts      StationShift[]
+  tankDeliveries     TankDelivery[]
+  tankDips           TankDip[]
+  assignedEmployees  Employee[]
 
   @@map("cost_centers")
 }
@@ -761,6 +816,8 @@ model Account {
   assetCategoryAssetLinks      AssetCategory[]       @relation("AssetCategoryAssetAccount")
   assetCategoryAccDepLinks     AssetCategory[]       @relation("AssetCategoryAccumulatedDepreciationAccount")
   assetCategoryDepExpenseLinks AssetCategory[]       @relation("AssetCategoryDepreciationExpenseAccount")
+  stationCashShortageCompanies Company[]             @relation("StationCashShortageAccount")
+  stationCashSurplusCompanies  Company[]             @relation("StationCashSurplusAccount")
   horseCareServiceRevenueLinks HorseCareService[]
 
   @@unique([tenantId, companyId, code])
@@ -840,6 +897,7 @@ enum SourceModule {
   ai_document
   bulk_import
   periodic_inventory_settlement
+  station_shift
 }
 
 // فرع تابع لشركة واحدة — طبقة تصنيف وعرض إضافية فقط (بنفس مبدأ CostCenter/Department)، بدولة
@@ -915,7 +973,8 @@ model JournalEntry {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
-  lines JournalEntryLine[]
+  lines        JournalEntryLine[]
+  stationShift StationShift?
 
   @@unique([companyId, entryNumber])
   @@index([tenantId, companyId, date])
@@ -1013,15 +1072,16 @@ model Customer {
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
-  quotations        Quotation[]
-  salesInvoices     SalesInvoice[]
-  salesReturns      SalesReturn[]
-  salesDebitNotes   SalesDebitNote[]
-  receipts          Receipt[]
-  journalEntryLines JournalEntryLine[]
-  horses            Horse[]
-  boardingInvoices  HorseBoardingInvoice[]
-  ridingLessons     RidingLesson[]
+  quotations              Quotation[]
+  salesInvoices           SalesInvoice[]
+  salesReturns            SalesReturn[]
+  salesDebitNotes         SalesDebitNote[]
+  receipts                Receipt[]
+  journalEntryLines       JournalEntryLine[]
+  horses                  Horse[]
+  boardingInvoices        HorseBoardingInvoice[]
+  ridingLessons           RidingLesson[]
+  stationShiftCreditSales StationShiftCreditSale[]
 
   @@map("customers")
 }
@@ -1071,6 +1131,21 @@ enum InvoiceTemplate {
 enum InvoiceStatus {
   draft
   posted
+  // ثلاث المرحلة الآمنة للترحيل المرتبط بزاتكا (راجع src/lib/zatca/postingGate.ts وpostingInstrumentation.ts، وتطبيقها في salesInvoices/salesReturns/salesDebitNotes.service.ts): الصف
+  // مكتوب فعلياً برقم مستند/UUID/ICV حقيقيين قبل أي اتصال شبكي بزاتكا (المرحلة 1)، فلا يمكن أن
+  // يضيع رد زاتكا لاحقاً حتى لو فشلت أي كتابة محلية تالية — كل ما قد يحدث هو بقاء الصف في إحدى
+  // هاتين الحالتين، لا اختفاؤه.
+  //
+  // لم يصل ردّ نهائي من زاتكا بعد (لم تُرسَل المحاولة إطلاقاً، أو أُرسِلت وفشلت/رُفضت لمستند
+  // قياسي يُمنَع ترحيله بلا تخليص) — راجع retryPendingZatcaSubmission: يعيد المحاولة بنفس
+  // UUID/ICV/التجزئة المخزَّنة على الصف بالضبط، لا يحجز شيئاً جديداً أبداً.
+  pending_submission
+  // ردّت زاتكا فعلياً (قبولاً حقيقياً، أو رفضاً لمستند مبسّط يُرحَّل دائماً بصرف النظر عن الرد —
+  // سُلِّم للعميل فعلياً) والردّ محفوظ بالفعل على الصف (zatcaStatus/zatcaResponseRaw)، لكن الكتابة
+  // المحاسبية المحلية (قيد + مخزون + عمولات) لم تكتمل بعد — إما لم تُحاوَل بعد أو فشلت (مهلة
+  // اتصال بقاعدة البيانات مثلاً). راجع completeZatcaAcceptedPosting: يكمل الكتابة المحلية فقط،
+  // بلا أي اتصال جديد بزاتكا إطلاقاً — الردّ المحفوظ هنا هو مصدر الحقيقة الوحيد.
+  zatca_accepted_posting_incomplete
 }
 
 model SalesInvoice {
@@ -1133,6 +1208,10 @@ model SalesInvoice {
   ridingLesson         RidingLesson?
 
   @@unique([tenantId, companyId, invoiceNumber])
+  // قائمة الفواتير المُرقَّمة/المُفلترة (searchSalesInvoices) تُفلتِر دائماً بـ(tenantId, companyId)
+  // وتُرتِّب افتراضياً بـdate تنازلياً — هذا الفهرس يخدم كلا الأمرين معاً (بادئة tenantId+companyId
+  // تخدم أي فلتر آخر أيضاً، وترتيب date كعمود أخير يخدم مسح النطاق المرتَّب دون فرز إضافي).
+  @@index([tenantId, companyId, date])
   @@map("sales_invoices")
 }
 
@@ -1171,6 +1250,7 @@ model SalesInvoiceLine {
   // vatApplicable أعلاه (true => S، false => O) عند عدم تحديده صراحةً.
   taxCategoryCode    TaxCategoryCode @default(S)
   taxExemptionReason String?
+  taxExemptionReasonCode String?
   subtotal           Decimal         @db.Decimal(18, 2)
   vat                Decimal         @db.Decimal(18, 2)
   total              Decimal         @db.Decimal(18, 2)
@@ -1213,6 +1293,11 @@ model SalesReturn {
   lines SalesReturnLine[]
 
   @@unique([tenantId, companyId, returnNumber])
+  @@index([tenantId, relatedInvoiceId], map: "sales_returns_tenant_related_invoice_idx")
+  // قائمة مردودات المبيعات المُرقَّمة/المُفلترة (searchSalesReturns) تُفلتِر دائماً بـ(tenantId,
+  // companyId) وتُرتِّب افتراضياً بـdate تنازلياً — نفس تبرير الفهرس المطابق على sales_invoices
+  // بالضبط (راجع migration 20260922090000_sales_invoices_company_date_index).
+  @@index([tenantId, companyId, date])
   @@map("sales_returns")
 }
 
@@ -1220,6 +1305,7 @@ model SalesReturnLine {
   id                 String          @id @default(cuid())
   returnId           String
   salesReturn        SalesReturn     @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  originalInvoiceLineId String?
   accountId          String
   account            Account         @relation(fields: [accountId], references: [id])
   description        String?
@@ -1229,6 +1315,7 @@ model SalesReturnLine {
   priceIncludesVat   Boolean         @default(false)
   taxCategoryCode    TaxCategoryCode @default(S)
   taxExemptionReason String?
+  taxExemptionReasonCode String?
   subtotal           Decimal         @db.Decimal(18, 2)
   vat                Decimal         @db.Decimal(18, 2)
   total              Decimal         @db.Decimal(18, 2)
@@ -1274,7 +1361,15 @@ model SalesDebitNote {
 
   lines SalesDebitNoteLine[]
 
-  @@unique([tenantId, debitNoteNumber])
+  // كانت (tenantId, debitNoteNumber) فقط — أي على مستوى المستأجر بالكامل، مطابقاً لترقيم
+  // formatDocNumber("DBN", count) القديم (عدّاد واحد لكل المستأجر بصرف النظر عن الشركة). بعد
+  // التحوّل لـreserveDocumentNumber (عدّاد ذرّي منفصل لكل شركة على حدة، تماماً كـSalesInvoice/
+  // SalesReturn) أصبح لزاماً أن يكون القيد الفريد بنفس نطاق العدّاد (tenantId, companyId,
+  // debitNoteNumber) — وإلا فشركتان مختلفتان بنفس المستأجر تتصادمان حتماً على "DBN-00001" فور
+  // إنشاء كل منهما أول إشعار مدين جديد بعد هذا التحوّل (كلتاهما تبدآن العدّ من 1 بشكل مستقل تماماً
+  // في document_numbering_settings، لكن كانتا ستُقارَنان بقيد فريد واحد يشمل المستأجر كله). راجع
+  // migration.sql المرافق لتفاصيل الترحيل والتحقّق من التوافق مع البيانات القديمة.
+  @@unique([tenantId, companyId, debitNoteNumber])
   @@map("sales_debit_notes")
 }
 
@@ -1523,6 +1618,11 @@ model Item {
   company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   code       String
   name       String
+  nameEn     String?
+  taxCategoryCode TaxCategoryCode?
+  taxExemptionReasonCode String?
+  taxExemptionReason String?
+  priceIncludesVat Boolean @default(true)
   // باركود اختياري لمسحه ضوئياً في نقطة البيع (POS) — فريد لكل شركة لو محدَّد، بلا قيد على الشركات
   // الأخرى (نفس الباركود قد يتكرر بين شركات مختلفة لنفس المنتج التجاري).
   barcode    String?
@@ -1540,14 +1640,14 @@ model Item {
   reorderLevel      Decimal? @db.Decimal(18, 2)
 
   // الربط المحاسبي — حسب النوع (انظر التحقق الديناميكي في items.schemas.ts)
-  stockAccountId   String?
-  stockAccount     Account? @relation("ItemStockAccount", fields: [stockAccountId], references: [id])
-  cogsAccountId    String?
-  cogsAccount      Account? @relation("ItemCogsAccount", fields: [cogsAccountId], references: [id])
-  revenueAccountId String?
-  revenueAccount   Account? @relation("ItemRevenueAccount", fields: [revenueAccountId], references: [id])
-  expenseAccountId String?
-  expenseAccount   Account? @relation("ItemExpenseAccount", fields: [expenseAccountId], references: [id])
+  stockAccountId     String?
+  stockAccount       Account? @relation("ItemStockAccount", fields: [stockAccountId], references: [id])
+  cogsAccountId      String?
+  cogsAccount        Account? @relation("ItemCogsAccount", fields: [cogsAccountId], references: [id])
+  revenueAccountId   String?
+  revenueAccount     Account? @relation("ItemRevenueAccount", fields: [revenueAccountId], references: [id])
+  expenseAccountId   String?
+  expenseAccount     Account? @relation("ItemExpenseAccount", fields: [expenseAccountId], references: [id])
   // type == periodic_inventory فقط — حساب "المشتريات" المستقل (لا يُخلَط بـcogsAccountId إطلاقاً):
   // يُقيَّد عليه الشراء مباشرة طوال الفترة، ويُصفَّر بقيد التسوية الدوري (مدين المخزون/دائن المشتريات)
   // في شاشة الجرد الدوري المخصَّصة (مرحلة منفصلة لاحقة) لتصبح تكلفة البضاعة المباعة الفعلية.
@@ -1559,7 +1659,7 @@ model Item {
   // "المخزون - جرد دوري" مثلاً)، فرصيد ذلك الحساب في دفتر الأستاذ يخلط كل الأصناف معاً ولا يصلح
   // كـ"الرصيد الحالي لهذا الصنف بمفرده" عند حساب صافي فرق التسوية التالية. تبدأ 0 لأي صنف جديد
   // (لا قيمة مُثبَتة قبل أول تسوية فعلية بتصميم periodic_inventory نفسه).
-  periodicStockValue Decimal @default(0) @db.Decimal(18, 2)
+  periodicStockValue Decimal  @default(0) @db.Decimal(18, 2)
 
   // type == raw_material فقط
   allowDirectSale Boolean @default(false)
@@ -1859,10 +1959,19 @@ model Employee {
   phone                     String? // رقم جوال الموظف — قناة الدخول لبوابة الموظف (فريد ضمن المستأجر)
   pinHash                   String? // تجزئة bcrypt لرمز PIN (مطابق لأسلوب hashPassword)، لا يُخزَّن نصاً أبداً
   portalActive              Boolean        @default(false) // تفعّله الموارد البشرية صراحةً بعد تعيين الهاتف/PIN
-  failedPortalLoginAttempts Int            @default(0)
+  failedPortalLoginAttempts Int            @default(0) // لا يُصفَّر عند انتهاء القفل — فقط عند دخول ناجح أو ضبط PIN جديد
   portalLockedUntil         DateTime?
+  portalLockoutCount        Int            @default(0) // عدد مرات القفل المتتالية: كل قفل جديد أطول من سابقه
   managerId                 String?
   manager                   Employee?      @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
+  // المحطة (مركز التكلفة) التي يعمل بها هذا الموظف كعامل محطة عبر بوابة الموظف — تحدّد نطاقه
+  // الوحيد في وحدة سجل ورديات المحطات (stationShifts): لا يمكنه فتح/تعديل وردية لأي محطة غير
+  // هذه إطلاقاً. اختياري: يبقى null لأي موظف ليس عامل محطة. مطابق تماماً لمبدأ
+  // User.assignedCostCenterId السابق (نُقِل هنا بالكامل: بوابة الموظف لا تملك مفهوم
+  // Position/PositionActionPermission أصلاً، فوجود هذا التخصيص نفسه هو "الصلاحية" الوحيدة
+  // المطلوبة لفتح وردية — تماماً كمبدأ managerId أعلاه في صلاحيات وحدة الإجازات).
+  assignedCostCenterId      String?
+  assignedCostCenter        CostCenter?    @relation(fields: [assignedCostCenterId], references: [id], onDelete: SetNull)
   // حساب تفصيلي مستقل (مستوى رابع) تحت مجموعة "ذمم الموظفين" (أصول متداولة) — يمثّل صافي الراتب
   // المستحق لهذا الموظف تحديداً (بدل الحساب المشترك "رواتب مستحقة للصرف"/"ذمم الموظفين -
   // مستحقات وإجازات" السابق). نفس مبدأ Customer.accountId/Supplier.accountId.
@@ -1883,6 +1992,7 @@ model Employee {
   // أصول محتفَظ بها كعهدة حالياً — تتبّع بسيط لمن يحمل الأصل الآن بلا أي أثر محاسبي (بعكس
   // EmployeeAdvance)؛ تاريخ العُهدة عبر الزمن مؤجَّل لمرحلة مستقبلية (AssetCustodyHistory).
   custodyAssets     FixedAsset[]               @relation("FixedAssetCustodian")
+  stationShifts     StationShift[]             @relation("StationShiftEmployee")
 
   @@unique([tenantId, phone])
   @@unique([companyId, employeeNumber])
@@ -2677,4 +2787,299 @@ model TrainerCommission {
   @@unique([trainerId, salesInvoiceId, horseId])
   @@index([tenantId, companyId, periodStart, periodEnd])
   @@map("trainer_commissions")
+}
+
+// ---------------------------------------------------------------------------
+// 4.x سجل ورديات المحطات — يحل تدريجياً محل StationSale كمصدر حقيقة لأحجام المحطات (راجع
+// تعليق StationSale أعلاه؛ StationSale تبقى بلا أي تعديل كسجل تاريخي للقراءة فقط حتى إشعار آخر).
+// "المحطة" هنا مركز تكلفة (CostCenter) موجود أصلاً، بنفس الاتفاق المستخدم في StationSale — وليست
+// Branch (التي تحمل دولة/عملة/سعر صرف خاصين بها، وهو غير مناسب لمحطات داخل نفس الدولة والعملة).
+// صور عدّادات الوقود لا تُخزَّن كعمود هنا: تُرفَع عبر نظام المرفقات العام (Attachment) بـ
+// entityType="station_shift_reading" وentityId=StationShiftReading.id، بنفس أسلوب أي مستند آخر
+// في النظام (راجع attachments.schemas.ts/attachments.controller.ts).
+// ---------------------------------------------------------------------------
+
+enum StationFuelProduct {
+  diesel
+  gasoline_91
+  gasoline_95
+}
+
+enum StationMeterType {
+  mechanical
+  electronic
+}
+
+enum StationShiftType {
+  morning
+  night
+}
+
+enum StationShiftStatus {
+  open
+  submitted
+  under_review
+  approved
+  posted
+  rejected
+}
+
+// فوهة وقود واحدة على مضخة داخل محطة (CostCenter) واحدة.
+model StationNozzle {
+  id            String             @id @default(cuid())
+  tenantId      String
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenterId  String
+  costCenter    CostCenter         @relation(fields: [costCenterId], references: [id])
+  product       StationFuelProduct
+  pumpNumber    Int
+  nozzleNumber  Int
+  // عدد خانات العداد قبل الفاصلة العشرية — يحدد نقطة "اللفّة" (10^meterDigits) في computeNozzleLiters.
+  // إعداد صريح لكل فوهة، لا افتراض ثابت: عدد خاطئ يحوّل لفّة حقيقية لكمية سالبة أو خيالية.
+  meterDigits   Int
+  meterType     StationMeterType
+  hasMoneyMeter Boolean            @default(false)
+  // قراءة العداد لحظة تعريف الفوهة — قراءة الافتتاح لأول وردية عليها (كانت صفراً دائماً، فتُحسَب
+  // كل القراءة التراكمية للعداد كلترات مبيعة في أول وردية).
+  initialReading Decimal           @default(0) @db.Decimal(18, 3)
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  readings StationShiftReading[]
+
+  @@unique([costCenterId, pumpNumber, nozzleNumber])
+  @@index([tenantId, companyId, costCenterId])
+  @@map("station_nozzles")
+}
+
+// سعر بيع منتج وقود سارٍ من تاريخ مُعيّن — costCenterId فارغ يعني سعراً عاماً لكل محطات الشركة؛
+// مُعبَّأ يعني سعراً خاصاً بمحطة واحدة يتغلّب على السعر العام لنفس المنتج ونفس تاريخ السريان.
+model FuelPrice {
+  id            String             @id @default(cuid())
+  tenantId      String
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product       StationFuelProduct
+  priceInclVat  Decimal            @db.Decimal(18, 4)
+  effectiveFrom DateTime
+  costCenterId  String?
+  costCenter    CostCenter?        @relation(fields: [costCenterId], references: [id])
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([tenantId, companyId, product, effectiveFrom])
+  @@map("fuel_prices")
+}
+
+// وردية محطة واحدة — دورة حياتها الكاملة من فتحها حتى ترحيل قيدها المحاسبي (journalEntryId يُملأ
+// فقط عند status=posted). فريدة على (costCenterId, shiftDate, shiftType): لا يمكن فتح ورديتين
+// بنفس النوع لنفس المحطة في نفس اليوم.
+model StationShift {
+  id                  String             @id @default(cuid())
+  tenantId            String
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId           String
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenterId        String
+  costCenter          CostCenter         @relation(fields: [costCenterId], references: [id])
+  // موظف عبر بوابة الموظف (الجوال) حصراً — لا حساب User إطلاقاً؛ راجع Employee.assignedCostCenterId
+  employeeId          String
+  employee            Employee           @relation("StationShiftEmployee", fields: [employeeId], references: [id])
+  shiftDate           DateTime
+  shiftType           StationShiftType
+  openedAt            DateTime?
+  closedAt            DateTime?
+  status              StationShiftStatus @default(open)
+  rejectionReasonCode String?
+  rejectionNote       String?
+  reviewedByUserId    String?
+  reviewedByUser      User?              @relation("StationShiftReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  // يُملأ فقط بعد اعتماد الوردية وترحيل قيدها المحاسبي فعلياً (createJournalEntryTx) — يبقى
+  // فارغاً طوال بقية دورة حياة الوردية (open..approved وrejected).
+  journalEntryId      String?            @unique
+  journalEntry        JournalEntry?      @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+  // علامة صريحة على وردية بيانات بذرة (زُرعت بسكريبت اختبار محلي مثل
+  // scripts/seed-station-pumps-demo.ts، ليست وردية عمل حقيقية) — الحقل الوحيد الذي يميّزها فعلياً
+  // في البيانات نفسها؛ تقارير ورديات المحطات (stationShiftsReports) تستبعدها دائماً، بلا أي
+  // اعتماد على تاريخ معيّن أو نمط معرّف. لا صلة لهذا الحقل بحالة الوردية (status) ولا بالترحيل
+  // المحاسبي — وردية بذرة تبقى "posted" بلا قيد فعلي (راجع تعليق السكريبت)، وهذا الحقل تحديداً
+  // هو من يمنعها من تلويث أرقام التقارير رغم ذلك.
+  isSeedData          Boolean            @default(false)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  readings    StationShiftReading[]
+  creditSales StationShiftCreditSale[]
+  expenses    StationShiftExpense[]
+  collection  StationShiftCollection?
+  auditLogs   StationShiftAuditLog[]
+
+  @@unique([costCenterId, shiftDate, shiftType])
+  @@index([tenantId, companyId, costCenterId, shiftDate])
+  @@index([tenantId, companyId, status])
+  @@map("station_shifts")
+}
+
+// قراءة عداد فوهة واحدة ضمن وردية واحدة — فريدة على (shiftId, nozzleId): لا تُقرأ نفس الفوهة
+// مرتين في نفس الوردية.
+model StationShiftReading {
+  id                       String        @id @default(cuid())
+  tenantId                 String
+  tenant                   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                String
+  company                  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  shiftId                  String
+  shift                    StationShift  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  nozzleId                 String
+  nozzle                   StationNozzle @relation(fields: [nozzleId], references: [id])
+  openingReading           Decimal       @db.Decimal(18, 3)
+  // فارغة من فتح القراءة (تصوير العامل للعداد) وحتى يُدخل المحاسب قيمتها أثناء المراجعة —
+  // العامل لا يكتب أي رقم إطلاقاً في هذه المرحلة (بلا OCR بعد)، فصورة العداد وحدها لا تكفي لحساب
+  // أي شيء مالي. راجع تعليق accountantConfirmedValue أدناه؛ هو المصدر الوحيد فعلياً لقيمة هذا
+  // الحقل حتى تُفعَّل خدمة OCR (ocrValue) لاحقاً.
+  closingReading           Decimal?      @db.Decimal(18, 3)
+  testLiters               Decimal       @default(0) @db.Decimal(18, 3)
+  // القراءة المستخرجة آلياً من صورة العداد (OCR) — فارغة إن لم تُفعَّل هذه الخدمة بعد أو تعذّرت
+  // القراءة؛ لا تمنع اعتماد المحاسب.
+  ocrValue                 Decimal?      @db.Decimal(18, 3)
+  // لم يعد العامل يكتب أي قيمة إطلاقاً (تصوير العداد فقط) — يبقى الحقل فارغاً دائماً في هذه
+  // المرحلة، محفوظاً فقط لأن نفس الشكل (nullable) لازم لاحقاً لقيمة OCR المؤكَّدة تلقائياً.
+  workerConfirmedValue     Decimal?      @db.Decimal(18, 3)
+  // القيمة الوحيدة الفعلية لهذه القراءة قبل تفعيل OCR — إلزامية قبل اعتماد الوردية (راجع
+  // approveShift في stationShifts.service.ts)، لا مجرد "تصحيح" اختياري كما كان الاسم يوحي سابقاً.
+  accountantConfirmedValue Decimal?      @db.Decimal(18, 3)
+  capturedAt               DateTime
+  latitude                 Float?
+  longitude                Float?
+  createdAt                DateTime      @default(now())
+
+  @@unique([shiftId, nozzleId])
+  @@index([tenantId, companyId, nozzleId])
+  @@map("station_shift_readings")
+}
+
+model StationShiftCreditSale {
+  id            String       @id @default(cuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId     String
+  company       Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  shiftId       String
+  shift         StationShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  customerId    String
+  customer      Customer     @relation(fields: [customerId], references: [id])
+  amount        Decimal      @db.Decimal(18, 2)
+  voucherNumber String
+  createdAt     DateTime     @default(now())
+
+  @@index([tenantId, companyId, shiftId])
+  @@index([customerId])
+  @@map("station_shift_credit_sales")
+}
+
+model StationShiftExpense {
+  id          String       @id @default(cuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  shiftId     String
+  shift       StationShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  amount      Decimal      @db.Decimal(18, 2)
+  category    String
+  description String?
+  createdAt   DateTime     @default(now())
+
+  @@index([tenantId, companyId, shiftId])
+  @@map("station_shift_expenses")
+}
+
+// ملخص التحصيل النقدي/الإلكتروني لوردية واحدة — سطر واحد بالضبط لكل وردية (shiftId فريد).
+model StationShiftCollection {
+  id             String       @id @default(cuid())
+  tenantId       String
+  tenant         Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  shiftId        String       @unique
+  shift          StationShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  networkAmount  Decimal      @default(0) @db.Decimal(18, 2)
+  fuelCardAmount Decimal      @default(0) @db.Decimal(18, 2)
+  cashDelivered  Decimal      @default(0) @db.Decimal(18, 2)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("station_shift_collections")
+}
+
+model TankDelivery {
+  id                 String             @id @default(cuid())
+  tenantId           String
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId          String
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenterId       String
+  costCenter         CostCenter         @relation(fields: [costCenterId], references: [id])
+  product            StationFuelProduct
+  liters             Decimal            @db.Decimal(18, 3)
+  supplierInvoiceRef String?
+  deliveredAt        DateTime
+  createdAt          DateTime           @default(now())
+
+  @@index([tenantId, companyId, costCenterId, deliveredAt])
+  @@map("tank_deliveries")
+}
+
+model TankDip {
+  id             String             @id @default(cuid())
+  tenantId       String
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenterId   String
+  costCenter     CostCenter         @relation(fields: [costCenterId], references: [id])
+  product        StationFuelProduct
+  measuredLiters Decimal            @db.Decimal(18, 3)
+  measuredAt     DateTime
+  createdAt      DateTime           @default(now())
+
+  @@index([tenantId, companyId, costCenterId, measuredAt])
+  @@map("tank_dips")
+}
+
+// سجل تدقيق حقلي مخصّص لتعديلات الورديات (بخلاف AuditLog العام متعدد الأشكال) — صف واحد لكل
+// تعديل حقل واحد، يحتفظ بالقيمة القديمة والجديدة كنص خام لعرضها في تاريخ الوردية.
+model StationShiftAuditLog {
+  id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  shiftId   String
+  shift     StationShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  fieldName String?
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime     @default(now())
+
+  @@index([tenantId, companyId, shiftId])
+  @@map("station_shift_audit_logs")
+}
+
+/// عدّاد محاولات الدخول الفاشلة لبوابة الموظف لكل عنوان IP (نافذة زمنية ثابتة) — في قاعدة البيانات لا
+/// في ذاكرة العملية، حتى يبقى الحدّ صحيحاً مع أكثر من نسخة خادم واحدة.
+model PortalLoginThrottle {
+  key         String   @id
+  windowStart DateTime
+  failures    Int      @default(0)
+
+  @@index([windowStart])
+  @@map("portal_login_throttle")
 }

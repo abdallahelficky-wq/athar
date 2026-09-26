@@ -1,7 +1,10 @@
+import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/itemTax";
+import { withInvoiceCredits } from "../../lib/invoiceCredits";
 import { randomUUID } from "crypto";
 import { Item, Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { getPresignedGetUrl } from "../../lib/storage";
 import { computeInvoiceLine, invoiceTypeForCustomer } from "../../lib/invoiceLine";
 import { buildZatcaQrPayload } from "../../lib/zatcaQr";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
@@ -10,14 +13,16 @@ import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, write
 import { reserveDocumentNumber } from "../../lib/docNumbering";
 import { getStockBalance } from "../stockMovements/stockMovements.service";
 import { isValueTrackedInLedger, isQuantityTracked } from "../items/items.service";
-import { evaluateZatcaPostingGate } from "../../lib/zatca/postingGate";
+import { reserveZatcaChainForPosting, submitZatcaChainDocument, ZatcaPostingDecision } from "../../lib/zatca/postingGate";
+import { reserveZatcaChain, rebuildZatcaDocumentXml, ZatcaCompanyLike, ZatcaCustomerLike, ZatcaPersistedLineLike } from "../../lib/zatca/chain";
+import { newQueryCounter, counted, logPostingPhaseTiming } from "../../lib/zatca/postingInstrumentation";
 import { resubmitZatcaDocument } from "../../lib/zatca/resubmit";
-import { sendInvoiceByEmail } from "./salesInvoiceEmail.service";
+import { sendInvoiceByEmail, SendInvoiceEmailResult } from "./salesInvoiceEmail.service";
 import { accrueTrainerCommissionsTx, reverseTrainerCommissionsTx } from "../stables/stablesBilling.service";
 
 type Tx = Prisma.TransactionClient;
 
-interface LineInput {
+export interface LineInput {
   accountId: string;
   itemId?: string;
   description?: string;
@@ -26,6 +31,9 @@ interface LineInput {
   discountPct?: number;
   priceIncludesVat?: boolean;
   vatApplicable?: boolean;
+  taxCategoryCode?: TaxFields["taxCategoryCode"];
+  taxExemptionReasonCode?: string | null;
+  taxExemptionReason?: string | null;
 }
 
 interface InvoiceInput {
@@ -44,12 +52,36 @@ interface InvoiceInput {
   // مستودع محدَّد صراحةً (مثلاً من إعدادات جهاز نقطة بيع) يتجاوز مستودع الشركة الافتراضي —
   // اختياري: الفواتير العادية (شاشة فواتير المبيعات) تستمر باستخدام المستودع الافتراضي كما هي.
   warehouseId?: string;
+  // سجلات تدقيق لتعديلات سعر الوحدة اليدوية في نقطة البيع (posPriceOverride) — يملأها pos.service.ts
+  // فقط بعد التحقق من الصلاحية؛ فواتير المبيعات العادية لا تمرّرها إطلاقاً فتبقى []. تُكتَب داخل نفس
+  // معاملة إنشاء الفاتورة (المرحلة 1) حتى لا يُفقَد تعديل سعر أبداً حتى لو حدث خطأ لاحقاً غير محاسبي.
+  priceOverridesToAudit?: Array<{ itemId: string; originalPrice: number; newPrice: number }>;
+}
+
+async function writePriceOverrideAuditLogsTx(
+  tx: Tx,
+  tenantId: string,
+  userId: string,
+  invoiceId: string,
+  overrides: Array<{ itemId: string; originalPrice: number; newPrice: number }> | undefined,
+) {
+  if (!overrides?.length) return;
+  await tx.auditLog.createMany({
+    data: overrides.map((o) => ({
+      tenantId,
+      userId,
+      action: "pos_sale.price_override",
+      entityType: "SalesInvoice",
+      entityId: invoiceId,
+      metadata: { itemId: o.itemId, originalPrice: o.originalPrice, newPrice: o.newPrice } as Prisma.InputJsonValue,
+    })),
+  });
 }
 
 /** يحل المستودع الفعلي المطلوب خصم المخزون منه: المستودع المُمرَّر صراحةً (بعد التحقق أنه ينتمي
  * لنفس الشركة/المستأجر) وإلا المستودع الافتراضي للشركة — بنفس رسالة الخطأ القديمة حرفياً في حالة
  * عدم التمرير، حتى لا يتغيّر سلوك أي مسار حالي لا يمرّر warehouseId. */
-async function resolveWarehouse(tx: Tx | typeof prisma, tenantId: string, companyId: string, warehouseId?: string) {
+export async function resolveWarehouse(tx: Tx | typeof prisma, tenantId: string, companyId: string, warehouseId?: string) {
   if (warehouseId) {
     const warehouse = await tx.warehouse.findFirst({ where: { id: warehouseId, tenantId, companyId } });
     if (!warehouse) throw badRequest("المستودع المحدد غير موجود ضمن هذه الشركة");
@@ -60,7 +92,7 @@ async function resolveWarehouse(tx: Tx | typeof prisma, tenantId: string, compan
   return warehouse;
 }
 
-const invoiceInclude = {
+export const invoiceInclude = {
   lines: { include: { account: true, item: true } },
   customer: true,
   company: true,
@@ -70,14 +102,28 @@ const invoiceInclude = {
   emailLogs: { orderBy: { createdAt: "desc" as const }, take: 1 },
 } as const;
 
+type InvoiceWithZatcaChain = Prisma.SalesInvoiceGetPayload<{ include: typeof invoiceInclude }>;
+
+/**
+ * شكل إعادة موحَّد لكل نتائج مسارات الترحيل (create/post/retry/complete) — كل حقول الفاتورة
+ * دائماً موجودة (id/invoiceNumber/...) بصرف النظر عن أي مرحلة توقَّف عندها التنفيذ فعلياً؛ الحقول
+ * الإضافية اختيارية بحسب ما حدث تحديداً (رفض من زاتكا، أو نجاح استلام الردّ لكن تعذّر إكمال
+ * الترحيل المحلي). بلا هذا التوحيد الصريح، كل return مختلف الشكل قليلاً يُنتِج اتحاداً (union) لا
+ * يضمن لمستدعٍ مثل pos.service.ts وجود .id على الإطلاق.
+ */
+type InvoicePostingOutcome = ReturnType<typeof withPaymentStatus<InvoiceWithZatcaChain>> & {
+  emailResult?: SendInvoiceEmailResult;
+  rejectionReason?: string;
+  postingIncomplete?: boolean;
+};
+
 function computeLines(lines: LineInput[]) {
   const computed = lines.map((l) => ({
     ...l,
     ...computeInvoiceLine(l),
-    // فئة الضريبة القياسية لزاتكا (S/O) تُشتق من vatApplicable الحالي — لا حقل إدخال جديد بعد.
-    taxCategoryCode: l.vatApplicable === false ? ("O" as const) : ("S" as const),
-    taxExemptionReason: null as string | null,
+    ...normalizeTax(l),
   }));
+  assertCompatibleTaxReasons(computed);
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
@@ -102,11 +148,11 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
     if (item.type === "fixed_asset") throw badRequest(`الصنف "${item.name}" أصل ثابت، لا يُباع عبر فاتورة مبيعات`);
     if (item.type === "raw_material" && !item.allowDirectSale) throw badRequest(`الصنف "${item.name}" مادة أولية غير مسموح ببيعها منفردة`);
     if (!item.revenueAccountId) throw badRequest(`لم يُحدَّد حساب الإيراد المرتبط بالصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
-    return { ...line, accountId: item.revenueAccountId };
+    return { ...line, ...(line.taxCategoryCode == null && item.taxCategoryCode ? normalizeTax(item) : {}), accountId: item.revenueAccountId };
   });
 }
 
-async function assertRefs(tenantId: string, companyId: string, customerId: string, lines: LineInput[], branchId?: string | null) {
+export async function assertRefs(tenantId: string, companyId: string, customerId: string, lines: LineInput[], branchId?: string | null) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
   if (!company) throw badRequest("الشركة غير موجودة ضمن مستأجرك");
   const customer = await prisma.customer.findFirst({ where: { id: customerId, tenantId, companyId } });
@@ -131,7 +177,7 @@ async function assertRefs(tenantId: string, companyId: string, customerId: strin
  * صنفاً داخل المعاملة النهائية — كانت تلك القراءات المتكرِّرة داخل المعاملة (بلا أي نداء شبكي حتى)
  * تُطيل مدة حجز القفل بلا داعٍ فعلي، والبيانات نفسها مجلوبة هنا أصلاً قبل أي كتابة.
  */
-async function computeCogsJournalLines(tenantId: string, companyId: string, lines: LineInput[], warehouseId?: string) {
+export async function computeCogsJournalLines(tenantId: string, companyId: string, lines: LineInput[], warehouseId?: string) {
   const itemIds = [...new Set(lines.map((l) => l.itemId).filter((x): x is string => Boolean(x)))];
   if (!itemIds.length) return { cogsLines: [], itemById: new Map<string, Item>() };
   const items = await prisma.item.findMany({ where: { id: { in: itemIds }, tenantId, companyId } });
@@ -186,7 +232,7 @@ async function computeCogsJournalLines(tenantId: string, companyId: string, line
  * منفصلة لاحقة هنا قد تلتقط قيمة averageCost أحدث (لو تغيّرت بين اللحظتين)، فتُخزَّن على حركة
  * المخزون قيمة تختلف عمّا رُحِّل فعلياً في القيد المحاسبي.
  */
-async function createStockOutSideEffectsTx(
+export async function createStockOutSideEffectsTx(
   tx: Tx,
   tenantId: string,
   companyId: string,
@@ -222,50 +268,14 @@ async function removeStockOutSideEffectsTx(tx: Tx, invoiceId: string) {
   await tx.stockMovement.deleteMany({ where: { sourceSalesInvoiceLineId: { in: lineIds } } });
 }
 
+// كلا الإجراءين أدناه أصبحا تاريخيَّين فقط منذ postingPipeline.ts (راجع تعليقها): الصف المحاسبي
+// يُكتَب فعلياً في المرحلة 1 *قبل* أي اتصال بزاتكا وبرقم مستند حقيقي دائماً — فلا "فجوة سلسلة"
+// (رقم حُجز والصف لم يُكتَب قط) ولا "فجوة ترقيم" (رقم حُجز فاتورة رُفضت فلم تُكتَب) يمكن أن تقعا
+// بنيوياً بعد اليوم لهذا المسار. الثابتان يبقيان فقط ليقرأهما listZatcaChainGaps أدناه — لعرض
+// حوادث تاريخية سُجِّلت فعلياً قبل هذا الإصلاح (وهذه بالتحديد الحادثة التي دفعت إليه) — لا يُكتب
+// إليهما أي صفّ جديد بعد اليوم.
 const ZATCA_CHAIN_GAP_ACTION = "zatca.chain_gap";
 const ZATCA_INVOICE_NUMBER_GAP_ACTION = "zatca.invoice_number_gap";
-
-/**
- * تسجيل صريح وصاخب لـ"فجوة سلسلة" زاتكا: سلسلة ICV/PIH حُجزت فعلاً (عدّاد الشركة تقدَّم فعلياً،
- * وآخر تجزئة مخزَّنة على الشركة أصبحت تشير لمستند لن يُكتَب أبداً) لكن كتابة المستند النهائية
- * فشلت بعدها لسبب غير متوقَّع (لا رفض عادي من زاتكا — ذلك يُرفَض فوراً بلا وصول لهذه النقطة
- * أصلاً، وليس "فجوة" بأي معنى، فقط رقم فاتورة غير مُستخدَم وهذا مقبول ومُوثَّق في أي دفتر ترقيم).
- *
- * قرار صريح من المستخدم: نادرة لكن "صاخبة" (تُسبِّب رفض زاتكا لكل فاتورة تالية على نفس السلسلة
- * بسبب انقطاعها) يجب اكتشافها فوراً، لا بعد يومين من رفض غامض. تُسجَّل في مكانين: سطر console.error
- * مميَّز قابل للبحث فوراً، وصفّ AuditLog دائم يظهر عبر GET /sales-invoices/zatca-chain-gaps
- * (بنفس صلاحية قائمة زاتكا المتأخرة zatca-backlog).
- */
-async function recordZatcaChainGap(
-  tenantId: string,
-  params: { company: { id: string; name: string }; reservedChain: { icv: number; invoiceHash: string }; documentUuid: string; attemptedDocumentNumber: string; error: unknown },
-) {
-  const errorMessage = params.error instanceof Error ? params.error.message : String(params.error);
-  // eslint-disable-next-line no-console
-  console.error(
-    `[zatcaChainGap] فجوة في سلسلة تجزئة زاتكا — الشركة "${params.company.name}" (${params.company.id})، ` +
-      `ICV=${params.reservedChain.icv}، invoiceHash=${params.reservedChain.invoiceHash}، documentUuid=${params.documentUuid}، ` +
-      `الرقم الذي حُووِل إصداره=${params.attemptedDocumentNumber} — فشلت كتابة المستند النهائية بعد حجز السلسلة: ${errorMessage}`,
-  );
-  await prisma.auditLog
-    .create({
-      data: {
-        tenantId,
-        action: ZATCA_CHAIN_GAP_ACTION,
-        entityType: "Company",
-        entityId: params.company.id,
-        metadata: {
-          companyName: params.company.name,
-          icv: params.reservedChain.icv,
-          invoiceHash: params.reservedChain.invoiceHash,
-          documentUuid: params.documentUuid,
-          attemptedDocumentNumber: params.attemptedDocumentNumber,
-          error: errorMessage,
-        } as Prisma.InputJsonValue,
-      },
-    })
-    .catch((auditErr) => console.error("[zatcaChainGap] تعذّر تسجيل فجوة السلسلة في AuditLog أيضاً:", auditErr));
-}
 
 /**
  * تسجيل عادي (لا صاخب — راجع الفرق مع recordZatcaChainGap أعلاه) لرقم فاتورة "محروق": رقم حُجز
@@ -275,49 +285,10 @@ async function recordZatcaChainGap(
  * موثَّق برفض زاتكا وسببه. رفض زاتكا نتيجة متوقَّعة من العمل العادي، لا عطلاً — لذا console.info لا
  * console.error، لكن بسطر مميَّز قابل للبحث فوراً مثل فجوة السلسلة تماماً.
  */
-async function recordInvoiceNumberGap(
-  tenantId: string,
-  params: {
-    company: { id: string; name: string };
-    customer: { id: string; name: string };
-    invoiceNumber: string;
-    documentUuid: string;
-    rejectionReason: string | undefined;
-  },
-) {
-  // eslint-disable-next-line no-console
-  console.info(
-    `[zatcaInvoiceNumberGap] رقم فاتورة محروق برفض زاتكا — الشركة "${params.company.name}" (${params.company.id})، ` +
-      `العميل "${params.customer.name}" (${params.customer.id})، رقم الفاتورة=${params.invoiceNumber}، ` +
-      `documentUuid=${params.documentUuid} — سبب الرفض: ${params.rejectionReason ?? "غير محدَّد"}`,
-  );
-  await prisma.auditLog
-    .create({
-      data: {
-        tenantId,
-        action: ZATCA_INVOICE_NUMBER_GAP_ACTION,
-        entityType: "Company",
-        entityId: params.company.id,
-        metadata: {
-          companyName: params.company.name,
-          customerId: params.customer.id,
-          customerName: params.customer.name,
-          invoiceNumber: params.invoiceNumber,
-          documentUuid: params.documentUuid,
-          rejectionReason: params.rejectionReason ?? null,
-        } as Prisma.InputJsonValue,
-      },
-    })
-    .catch((auditErr) => console.error("[zatcaInvoiceNumberGap] تعذّر تسجيل فجوة الترقيم في AuditLog أيضاً:", auditErr));
-}
-
 /**
- * قائمة "فجوات" مستندات زاتكا المُسجَّلة لهذا المستأجر — نوعان مختلفان تماماً بحسب type:
- * "chain_gap" (فجوة سلسلة ICV/PIH صاخبة وغير متوقَّعة، راجع recordZatcaChainGap) و
- * "invoice_number_gap" (رقم فاتورة محروق برفض زاتكا العادي، راجع recordInvoiceNumberGap أعلاه —
- * متوقَّع وليس عطلاً). مدموجتان هنا في قائمة واحدة (بنفس صلاحية زاتكا-المتأخرة) ليطّلع من يتابع
- * فواتير زاتكا على كل الأسباب التي قد تُفسِّر رقماً مفقوداً أو فاتورة غير مكتملة بلا حاجة لقراءة
- * سجلات الخادم.
+ * قائمة "فجوات" مستندات زاتكا المُسجَّلة تاريخياً لهذا المستأجر (راجع تعليق الثابتين أعلاه — لا
+ * يُكتَب صفّ جديد إليها بعد اليوم، تبقى فقط لعرض حوادث سابقة). نوعان بحسب type: "chain_gap" (فجوة
+ * سلسلة ICV/PIH) و"invoice_number_gap" (رقم فاتورة محروق برفض زاتكا).
  */
 export async function listZatcaChainGaps(tenantId: string) {
   const gaps = await prisma.auditLog.findMany({
@@ -342,7 +313,7 @@ function paymentStatusOf(grandTotal: number, paid: number) {
   return "غير مسددة";
 }
 
-function withPaymentStatus<T extends { grandTotal: unknown; receiptAllocations: { amount: unknown }[] }>(invoice: T) {
+export function withPaymentStatus<T extends { grandTotal: unknown; receiptAllocations: { amount: unknown }[] }>(invoice: T) {
   const paid = paidAmountOf(invoice);
   return { ...invoice, paidAmount: paid, paymentStatus: paymentStatusOf(Number(invoice.grandTotal), paid) };
 }
@@ -353,7 +324,7 @@ export async function listSalesInvoices(tenantId: string, filters: { companyId?:
     include: invoiceInclude,
     orderBy: { createdAt: "desc" },
   });
-  return invoices.map(withPaymentStatus);
+  return withInvoiceCredits(tenantId, invoices);
 }
 
 // حالات زاتكا التي تعني أن الفاتورة لم تُبلَّغ/تُخلَّص بنجاح بعد — إما لا تزال قيد المحاولة الأولى
@@ -399,13 +370,39 @@ export async function listZatcaBacklog(tenantId: string, filters: { companyId?: 
   }));
 }
 
+/**
+ * اسم مُصدِر الفاتورة الفعلي — لا حقل مباشر على SalesInvoice نفسها لهذا الغرض، فيُشتَق من
+ * JournalEntry.createdBy (userId مُخزَّن نصياً وقت الترحيل، راجع createJournalEntryTx في
+ * createSalesInvoice أعلاه) عبر journalEntryId المحفوظ على الفاتورة، ثم اسم المستخدم من جدوله.
+ * يُستخدَم فقط لطباعة إيصال نقطة البيع (راجع buildReceiptEscPos/ReceiptView) — فاتورة بلا قيد
+ * محاسبي مرتبط بعد (نادر، أو مسار غير POS) تُعيد null بدل رمي خطأ لعنصر عرضي غير حرج.
+ */
+async function resolveIssuedByName(tenantId: string, journalEntryId: string | null): Promise<string | null> {
+  if (!journalEntryId) return null;
+  const entry = await prisma.journalEntry.findFirst({ where: { id: journalEntryId, tenantId }, select: { createdBy: true } });
+  if (!entry?.createdBy) return null;
+  const user = await prisma.user.findFirst({ where: { id: entry.createdBy, tenantId }, select: { name: true } });
+  return user?.name ?? null;
+}
+
 export async function getSalesInvoice(tenantId: string, id: string) {
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
-  return withPaymentStatus(invoice);
+  const [withCredits, issuedByName, companyLogoUrl] = await Promise.all([
+    withInvoiceCredits(tenantId, [invoice]),
+    resolveIssuedByName(tenantId, invoice.journalEntryId),
+    invoice.company.logoKey ? getPresignedGetUrl(invoice.company.logoKey) : Promise.resolve(null),
+  ]);
+  // company.logoUrl: رابط مؤقّت موقَّع مسبقاً، بنفس نمط withLogoUrl في companies.controller.ts (حتى
+  // استبدال logoKey الداخلي بدل تعريضه خاماً للعميل) — كانت غائبة هنا رغم توفّرها في استجابة قائمة
+  // الشركات، فيعتمد إيصال نقطة البيع عند إعادة الطباعة (PosInvoiceViewModal.jsx يجلب الفاتورة عبر
+  // هذه الدالة تحديداً، لا قائمة الشركات) على شعار الشركة الفعلي بدل شعار أثر الثابت الذي كان
+  // يُطبَع سابقاً — راجع تعليق escpos.js.
+  const { logoKey: _logoKey, ...companyWithoutLogoKey } = withCredits[0].company;
+  return { ...withCredits[0], issuedByName, company: { ...companyWithoutLogoKey, logoUrl: companyLogoUrl } };
 }
 
-async function buildJournalLines(
+export async function buildJournalLines(
   tenantId: string,
   companyId: string,
   customer: { id: string; accountId: string | null },
@@ -430,7 +427,7 @@ async function buildJournalLines(
   ];
 }
 
-export async function createSalesInvoice(tenantId: string, userId: string, input: InvoiceInput) {
+export async function createSalesInvoice(tenantId: string, userId: string, input: InvoiceInput): Promise<InvoicePostingOutcome> {
   input = { ...input, lines: await resolveLineAccounts(tenantId, input.companyId, input.lines) };
   const { customer, company } = await assertRefs(tenantId, input.companyId, input.customerId, input.lines, input.branchId);
   const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
@@ -480,103 +477,321 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
   const { cogsLines, itemById } = await computeCogsJournalLines(tenantId, input.companyId, input.lines, input.warehouseId);
   const journalLines = await buildJournalLines(tenantId, input.companyId, customer, computed, vatTotal, grandTotal, cogsLines);
   const zatcaUuid = randomUUID();
+  const zatcaLines = computed.map((l) => ({ ...l, description: l.description ?? null }));
 
-  // رقم الفاتورة يُحجَز الآن في معاملة قصيرة مستقلة *قبل* الاتصال بزاتكا (لا داخل معاملة الكتابة
-  // النهائية أدناه كما كان سابقاً) — لأن معرّف المستند (cbc:ID) يجب أن يكون معروفاً ومطابقاً تماماً
-  // لما سيُكتب فعلياً على الفاتورة قبل إرساله لزاتكا، فيستحيل تأجيل حجزه لِما بعد معرفة القرار.
-  // الأثر الجانبي المقبول: فاتورة قياسية (B2B) ترفضها زاتكا تُبقي هذا الرقم "محروقاً" غير مُستخدَم
-  // (فجوة في تسلسل الترقيم) بدل استرجاعه — فجوة في دفتر ترقيم عادي مقبولة ومفهومة (محاولة إصدار
-  // لم تكتمل)، بخلاف فجوة في سلسلة تجزئة ICV/PIH نفسها التي تُعطِّل كل فاتورة تالية، فتلك تُرصَد
-  // بشكل صريح (راجع recordZatcaChainGap أدناه) لا تُترَك بصمت.
-  const invoiceNumber = await prisma.$transaction((tx) => reserveDocumentNumber(tx, tenantId, input.companyId, "sales_invoice"));
-
-  // بوابة زاتكا بالكامل هنا، خارج أي معاملة قاعدة بيانات مفتوحة: تحجز سلسلة ICV/PIH في معاملة
-  // قصيرة خاصة بها (راجع evaluateZatcaPostingGate)، ثم تتصل فعلياً بزاتكا (قد يستغرق ثوانٍ) بلا أي
-  // قفل قاعدة بيانات محجوز أثناء الانتظار — هذا هو الإصلاح المباشر لعطل إنتاج فعلي
-  // (PrismaClientKnownRequestError: Transaction already closed) كان يحدث هنا بالضبط، حين كان هذا
-  // النداء الشبكي يقع داخل $transaction القديمة أدناه ويتجاوز مهلتها الافتراضية (5 ثوانٍ) لمجرد
-  // أن استجابة زاتكا تأخّرت قليلاً عن المعتاد.
-  const gate = await evaluateZatcaPostingGate({
-    company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: zatcaUuid,
-    lines: computed.map((l) => ({ ...l, description: l.description ?? null })), grandTotal, vatTotal,
-  });
-  if (!gate.proceedWithPosting) {
-    // فاتورة قياسية (B2B) رفضتها زاتكا — يجب ألا تُنشَأ ولا تُرحَّل إطلاقاً؛ لا كتابة فعلية حدثت
-    // بعد (لا معاملة فُتحت أصلاً)، فلا شيء يحتاج تراجعاً هنا. لكن invoiceNumber أعلاه حُجز فعلاً
-    // (بمعاملته القصيرة المستقلة) ولن يُستخدَم أبداً الآن — سجِّل هذه الفجوة في الترقيم صراحةً
-    // (راجع recordInvoiceNumberGap) بدل ترك رقم مفقود بلا تفسير في أي تدقيق لاحق.
-    await recordInvoiceNumberGap(tenantId, { company, customer, invoiceNumber, documentUuid: zatcaUuid, rejectionReason: gate.rejectionReason });
-    throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك الفاتورة: ${gate.rejectionReason}`);
-  }
-
-  let created;
+  // المرحلة 1 — معاملة قصيرة واحدة فقط: تحجز رقم الفاتورة وسلسلة ICV/PIH (بلا أي اتصال شبكي
+  // بزاتكا هنا إطلاقاً) وتكتب صفّ الفاتورة وسطورها فوراً — بحالة pending_submission إن كانت
+  // زاتكا ستُستدعى بعدها، أو posted مباشرة إن لم تنطبق زاتكا على هذه الشركة أصلاً. رقم الفاتورة
+  // وUUID وICV والتجزئة تُكتَب على الصف *قبل* أي محاولة اتصال فعلي بزاتكا — فلا يمكن بعد اليوم أن
+  // يُحجَز رقم/سلسلة بلا أن يقابلها صفّ حقيقي (راجع تعليق ZATCA_CHAIN_GAP_ACTION أعلاه).
+  const counter1 = newQueryCounter();
+  const startedAt1 = Date.now();
+  let phase1Outcome: "committed" | "failed" = "failed";
+  let phase1: { kind: "done"; invoice: ReturnType<typeof withPaymentStatus<InvoiceWithZatcaChain>> } | { kind: "pending"; invoice: InvoiceWithZatcaChain; xml: string; subtype: "standard" | "simplified" };
   try {
-    created = await prisma.$transaction(async (tx) => {
-      const entry = await createJournalEntryTx(tx, {
+    phase1 = await prisma.$transaction(async (tx) => {
+      const invoiceNumber = await counted(counter1, reserveDocumentNumber(tx, tenantId, input.companyId, "sales_invoice"));
+      const chain = await counted(
+        counter1,
+        reserveZatcaChain(tx, { company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: zatcaUuid, lines: zatcaLines }),
+      );
+      const baseData = {
         tenantId,
+        invoiceNumber,
         companyId: input.companyId,
+        customerId: input.customerId,
         branchId: input.branchId || undefined,
         date: input.date,
-        memo: `فاتورة مبيعات ${invoiceNumber} — ${customer.name}`,
-        sourceModule: "sales_invoice",
-        createdBy: userId,
-        lines: journalLines,
-      });
-
-      const invoice = await tx.salesInvoice.create({
+        dueDate: input.dueDate || undefined,
+        customerReference: input.customerReference,
+        poNumber: input.poNumber,
+        salesperson: input.salesperson,
+        otherId: input.otherId,
+        invoiceType: invType,
+        qrPayload,
+        zatcaUuid,
+        subtotal,
+        vatTotal,
+        grandTotal,
+        lines: { create: computed },
+      };
+      if (!chain) {
+        // زاتكا لا تنطبق على هذه الشركة بعد (not_onboarded) — لا داعي لأي مرحلة لاحقة، الترحيل
+        // الكامل (قيد + مخزون + عمولات) يحدث الآن مباشرة، تماماً كما كان يحدث سابقاً في هذه الحالة.
+        const entry = await counted(counter1, createJournalEntryTx(tx, {
+          tenantId, companyId: input.companyId, branchId: input.branchId || undefined, date: input.date,
+          memo: `فاتورة مبيعات ${invoiceNumber} — ${customer.name}`, sourceModule: "sales_invoice", createdBy: userId, lines: journalLines,
+        }));
+        const invoice = await counted(counter1, tx.salesInvoice.create({
+          data: { ...baseData, status: "posted", journalEntryId: entry.id, zatcaStatus: "not_applicable" },
+          include: invoiceInclude,
+        }));
+        await counted(counter1, tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } }));
+        await counted(counter1, createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, itemById, input.warehouseId));
+        await counted(counter1, accrueTrainerCommissionsTx(tx, tenantId, input.companyId, invoice.id, userId));
+        await writePriceOverrideAuditLogsTx(tx, tenantId, userId, invoice.id, input.priceOverridesToAudit);
+        return { kind: "done" as const, invoice: withPaymentStatus(invoice) };
+      }
+      const invoice = await counted(counter1, tx.salesInvoice.create({
         data: {
-          tenantId,
-          invoiceNumber,
-          companyId: input.companyId,
-          customerId: input.customerId,
-          branchId: input.branchId || undefined,
-          date: input.date,
-          dueDate: input.dueDate || undefined,
-          customerReference: input.customerReference,
-          poNumber: input.poNumber,
-          salesperson: input.salesperson,
-          otherId: input.otherId,
-          invoiceType: invType,
-          status: "posted",
-          journalEntryId: entry.id,
-          qrPayload,
-          zatcaUuid,
-          ...gate.zatcaFields,
-          subtotal,
-          vatTotal,
-          grandTotal,
-          lines: { create: computed },
+          ...baseData,
+          status: "pending_submission",
+          icv: chain.icv,
+          previousInvoiceHash: chain.previousInvoiceHash,
+          invoiceHash: chain.invoiceHash,
+          zatcaStatus: "not_submitted",
+          zatcaSubmittedAt: chain.issuedAt,
         },
         include: invoiceInclude,
-      });
-
-      await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
-      await createStockOutSideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, itemById, input.warehouseId);
-
-      return withPaymentStatus(invoice);
-    }, {
-      // مهلة صريحة بدل الاعتماد على افتراضي Prisma (5 ثوانٍ) — الآن بعد نقل الاتصال الشبكي بزاتكا
-      // خارج هذه المعاملة تماماً، لا شيء بداخلها سوى قراءات/كتابات محلية قليلة (حجز رقم القيد،
-      // إدراج القيد والفاتورة، تحديث سطر واحد، حركات مخزون بلا أي قراءة صنف إضافية) — 8 ثوانٍ هامش
-      // أمان معقول لبطء اتصال عرضي بقاعدة البيانات (Neon)، لا محاولة لإخفاء مشكلة أداء حقيقية.
-      timeout: 8000,
-    });
-  } catch (err) {
-    // وصلنا هنا فقط لو حُجزت سلسلة زاتكا فعلياً (gate.reservedChain) ثم فشلت الكتابة النهائية
-    // لسبب غير متوقَّع تماماً (لا رفض عادي من زاتكا — ذلك يُرفَض فوراً أعلاه بلا وصول لهذه النقطة) —
-    // هذه بالتحديد "فجوة السلسلة" التي يجب رصدها بصوت عالٍ لا تركها صامتة.
-    if (gate.reservedChain) {
-      await recordZatcaChainGap(tenantId, {
-        company, reservedChain: gate.reservedChain, documentUuid: zatcaUuid, attemptedDocumentNumber: invoiceNumber, error: err,
-      });
-    }
-    throw err;
+      }));
+      await writePriceOverrideAuditLogsTx(tx, tenantId, userId, invoice.id, input.priceOverridesToAudit);
+      return { kind: "pending" as const, invoice, xml: chain.xml, subtype: chain.subtype };
+    }, { timeout: 8000 });
+    phase1Outcome = "committed";
+  } finally {
+    logPostingPhaseTiming({ phase: "1", kind: "invoice", startedAt: startedAt1, counter: counter1, outcome: phase1Outcome });
   }
 
-  // نفس منطق الإرسال التلقائي في postSalesInvoice — مسار "حفظ وترحيل" هنا مستقل تماماً (إنشاء
-  // وترحيل في نفس المعاملة) وليس استدعاءً لـ postSalesInvoice، فيحتاج نفس الخُطّاف صراحةً.
-  const emailResult = await sendInvoiceByEmail(tenantId, created.id, { method: "auto" });
-  return { ...created, emailResult };
+  if (phase1.kind === "done") {
+    const emailResult = await sendInvoiceByEmail(tenantId, phase1.invoice.id, { method: "auto" });
+    return { ...phase1.invoice, emailResult };
+  }
+
+  return finishInvoiceZatcaSubmission(tenantId, userId, {
+    invoice: phase1.invoice, xml: phase1.xml, subtype: phase1.subtype, company,
+    grandTotal, vatTotal, journalLines, itemById, warehouseId: input.warehouseId, sendEmail: true,
+  });
+}
+
+/**
+ * المرحلتان 2 (لا معاملة — الاتصال الفعلي بزاتكا) و3أ (تحديث سطر واحد فقط، فوراً بعد الرد، لا
+ * عمل آخر معه إطلاقاً حتى يستحيل انتهاء مهلته) و3ب (معاملة منفصلة قصيرة: القيد + المخزون +
+ * العمولات + الحالة النهائية، فقط لو كان يجب الترحيل فعلياً). مُشتركة بين createSalesInvoice
+ * وpostSalesInvoice وretryPendingZatcaSubmission — الفرق الوحيد بينها هو من أين يأتي xml/subtype
+ * (بناء طازج من reserveZatcaChain، أو إعادة بناء من rebuildZatcaDocumentXml لمستند مُعاد محاولته).
+ */
+async function finishInvoiceZatcaSubmission(
+  tenantId: string,
+  userId: string,
+  params: {
+    invoice: InvoiceWithZatcaChain;
+    xml: string;
+    subtype: "standard" | "simplified";
+    company: ZatcaCompanyLike;
+    grandTotal: number;
+    vatTotal: number;
+    journalLines: Awaited<ReturnType<typeof buildJournalLines>>;
+    itemById: Map<string, Item>;
+    warehouseId: string | undefined;
+    sendEmail: boolean;
+  },
+): Promise<InvoicePostingOutcome> {
+  const { invoice, xml, subtype, company, grandTotal, vatTotal, journalLines, itemById, warehouseId, sendEmail } = params;
+
+  // المرحلة 2 — بلا أي معاملة قاعدة بيانات مفتوحة إطلاقاً.
+  const decision = await submitZatcaChainDocument({
+    company,
+    documentNumber: invoice.invoiceNumber,
+    documentUuid: invoice.zatcaUuid,
+    kind: "invoice",
+    chain: {
+      xml,
+      subtype,
+      icv: invoice.icv!,
+      previousInvoiceHash: invoice.previousInvoiceHash!,
+      invoiceHash: invoice.invoiceHash!,
+      issuedAt: invoice.zatcaSubmittedAt!,
+    },
+    grandTotal,
+    vatTotal,
+  });
+
+  // المرحلة 3أ — تحديث سطر واحد فقط، فوراً، لا عمل آخر معه — يحفظ ردّ زاتكا الكامل بصرف النظر عن
+  // نتيجته، قبل أي محاولة كتابة محاسبية محلية قد تفشل لسبب لا علاقة له بزاتكا إطلاقاً (هذا بالضبط
+  // ما فقد ردّ زاتكا فعلياً في الحادثة التي دفعت لهذا التصميم).
+  const afterResponse = await prisma.salesInvoice.update({
+    where: { id: invoice.id },
+    data: {
+      zatcaStatus: decision.zatcaFields.zatcaStatus,
+      zatcaResponseRaw: (decision.zatcaFields.zatcaResponseRaw ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+      zatcaClearedOrReportedAt: decision.zatcaFields.zatcaClearedOrReportedAt,
+      status: decision.proceedWithPosting ? "zatca_accepted_posting_incomplete" : "pending_submission",
+    },
+    include: invoiceInclude,
+  });
+
+  if (!decision.proceedWithPosting) {
+    // فاتورة قياسية رفضتها زاتكا (أو تعذّر الوصول إليها/توقيعها) — الردّ محفوظ بالفعل أعلاه، لا
+    // قيد محاسبي إطلاقاً، والصف يبقى pending_submission قابلاً لإعادة المحاولة (نفس UUID/ICV/التجزئة
+    // بالضبط) عبر retryPendingZatcaSubmission بعد تصحيح السبب.
+    return { ...withPaymentStatus(afterResponse), rejectionReason: decision.rejectionReason };
+  }
+
+  try {
+    const posted = await completeInvoiceLocalPosting(tenantId, userId, afterResponse, journalLines, itemById, warehouseId);
+    if (!sendEmail) return posted;
+    const emailResult = await sendInvoiceByEmail(tenantId, posted.id, { method: "auto" });
+    return { ...posted, emailResult };
+  } catch (err) {
+    // المرحلة 3ب فشلت — الصف يبقى zatca_accepted_posting_incomplete بردّ زاتكا محفوظاً فعلاً (كُتب
+    // أعلاه قبل هذه المحاولة بالذات) — لا نرمي 500 عاماً، نُعيد الصف كما هو: حالة مفهومة يمكن
+    // إكمالها لاحقاً عبر completeZatcaAcceptedPosting بلا أي اتصال جديد بزاتكا إطلاقاً.
+    // eslint-disable-next-line no-console
+    console.error(
+      `[zatca-posting-instrumentation] phase=3b kind=invoice outcome=failed documentUuid=${invoice.zatcaUuid} invoiceNumber=${invoice.invoiceNumber} — سيُكتمَل لاحقاً عبر completeZatcaAcceptedPosting:`,
+      err,
+    );
+    return { ...withPaymentStatus(afterResponse), postingIncomplete: true };
+  }
+}
+
+/** المرحلة 3ب وحدها — معاملة قصيرة منفصلة، بلا أي اتصال بزاتكا إطلاقاً. مُشتركة بين المسار العادي
+ * (finishInvoiceZatcaSubmission) وcompleteZatcaAcceptedPosting (استئناف لاحق لصف zatca_accepted_posting_incomplete). */
+async function completeInvoiceLocalPosting(
+  tenantId: string,
+  userId: string,
+  invoice: InvoiceWithZatcaChain,
+  journalLines: Awaited<ReturnType<typeof buildJournalLines>>,
+  itemById: Map<string, Item>,
+  warehouseId: string | undefined,
+) {
+  const counter = newQueryCounter();
+  const startedAt = Date.now();
+  let outcome: "committed" | "failed" = "failed";
+  try {
+    const posted = await prisma.$transaction(async (tx) => {
+      const entry = await counted(counter, createJournalEntryTx(tx, {
+        tenantId, companyId: invoice.companyId, branchId: invoice.branchId, date: invoice.date,
+        memo: `فاتورة مبيعات ${invoice.invoiceNumber} — ${invoice.customer.name}`, sourceModule: "sales_invoice",
+        sourceId: invoice.id, createdBy: userId, lines: journalLines,
+      }));
+      const updated = await counted(counter, tx.salesInvoice.update({
+        where: { id: invoice.id },
+        data: { status: "posted", journalEntryId: entry.id },
+        include: invoiceInclude,
+      }));
+      await counted(counter, createStockOutSideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, updated.lines, entry.id, itemById, warehouseId));
+      await counted(counter, accrueTrainerCommissionsTx(tx, tenantId, invoice.companyId, invoice.id, userId));
+      return withPaymentStatus(updated);
+    }, { timeout: 8000 });
+    outcome = "committed";
+    return posted;
+  } finally {
+    logPostingPhaseTiming({ phase: "3b", kind: "invoice", startedAt, counter, outcome });
+  }
+}
+
+interface StoredInvoiceLineLike {
+  accountId: string;
+  itemId: string | null;
+  description: string | null;
+  subtotal: Prisma.Decimal | number;
+  vat: Prisma.Decimal | number;
+  total: Prisma.Decimal | number;
+  quantity: Prisma.Decimal | number;
+  unitPrice: Prisma.Decimal | number;
+  taxCategoryCode: string;
+  taxExemptionReason: string | null;
+  taxExemptionReasonCode?: string | null;
+}
+
+/** الشكل المطلوب لـcomputeCogsJournalLines/buildJournalLines فقط (LineInput) — بلا description
+ * (غير مقروء في أيّ منهما، راجع buildJournalLines) وبلا حقول زاتكا (تلك في toZatcaLines أدناه،
+ * لأن description هناك يجب أن يكون string|null، لا string|undefined كما يتطلبه LineInput هنا). */
+function toComputedLines(lines: StoredInvoiceLineLike[]) {
+  return lines.map((l) => ({
+    accountId: l.accountId,
+    itemId: l.itemId ?? undefined,
+    subtotal: Number(l.subtotal),
+    vat: Number(l.vat),
+    total: Number(l.total),
+    quantity: Number(l.quantity),
+    unitPrice: Number(l.unitPrice),
+  }));
+}
+
+/** الشكل المطلوب لـreserveZatcaChain/rebuildZatcaDocumentXml (ZatcaPersistedLineLike) — من نفس
+ * صفوف SalesInvoiceLine المخزَّنة مباشرة، لا من toComputedLines أعلاه (شكل مختلف الغرض). */
+function toZatcaLines(lines: StoredInvoiceLineLike[]): ZatcaPersistedLineLike[] {
+  return lines.map((l) => ({
+    description: l.description,
+    quantity: Number(l.quantity),
+    unitPrice: Number(l.unitPrice),
+    subtotal: Number(l.subtotal),
+    vat: Number(l.vat),
+    taxCategoryCode: l.taxCategoryCode,
+    taxExemptionReason: l.taxExemptionReason,
+    taxExemptionReasonCode: l.taxExemptionReasonCode,
+  }));
+}
+
+/**
+ * تعيد محاولة إرسال فاتورة عالقة بحالة pending_submission (لم يصلها ردّ نهائي من زاتكا بعد — إما
+ * لم تُحاوَل إطلاقاً بعد انهيار محتمل بين المرحلة 1 والمرحلة 2، أو حاولت ورُفضت/تعذّر الوصول
+ * لزاتكا) — بنفس UUID/ICV/التجزئة المخزَّنة على الصف بالضبط، بلا حجز أي شيء جديد إطلاقاً؛ الأمانة
+ * تُتحقَّق منها فعلياً (rebuildZatcaDocumentXml يُعيد نفس invoiceHash المخزَّن أصلاً وإلا تُرفَض
+ * إعادة المحاولة). راجع claimInvoiceForZatcaAttempt أدناه لمنع إرسال مزدوج متزامن.
+ */
+export async function retryPendingZatcaSubmission(tenantId: string, userId: string, id: string): Promise<InvoicePostingOutcome> {
+  const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
+  if (!invoice) throw notFound("الفاتورة غير موجودة");
+  if (invoice.status !== "pending_submission") {
+    throw badRequest("إعادة المحاولة متاحة فقط لفاتورة في انتظار الإرسال لزاتكا");
+  }
+  if (invoice.icv == null || !invoice.previousInvoiceHash || !invoice.invoiceHash || !invoice.zatcaSubmittedAt) {
+    throw badRequest("بيانات سلسلة زاتكا لهذه الفاتورة غير مكتملة — تعذّرت إعادة المحاولة، راجع الدعم الفني");
+  }
+
+  const claimed = await claimInvoiceForZatcaAttempt(invoice, new Date());
+  if (!claimed) {
+    throw badRequest("جارٍ إعادة محاولة إرسال هذه الفاتورة بالفعل الآن — انتظر قليلاً ثم تحقّق من حالتها قبل إعادة المحاولة");
+  }
+
+  const company = await prisma.company.findFirstOrThrow({ where: { id: invoice.companyId, tenantId } });
+  const computed = toComputedLines(invoice.lines);
+  const rebuilt = rebuildZatcaDocumentXml({
+    company,
+    customer: invoice.customer,
+    kind: "invoice",
+    documentNumber: invoice.invoiceNumber,
+    documentUuid: invoice.zatcaUuid,
+    lines: toZatcaLines(invoice.lines),
+    icv: invoice.icv,
+    previousInvoiceHash: invoice.previousInvoiceHash,
+    issuedAt: invoice.zatcaSubmittedAt,
+  });
+  if (rebuilt.invoiceHash !== invoice.invoiceHash) {
+    throw badRequest("تعذّرت إعادة المحاولة: بيانات الفاتورة المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى");
+  }
+
+  const { cogsLines, itemById } = await computeCogsJournalLines(tenantId, invoice.companyId, computed);
+  const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customer, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
+
+  return finishInvoiceZatcaSubmission(tenantId, userId, {
+    invoice, xml: rebuilt.xml, subtype: rebuilt.subtype, company,
+    grandTotal: Number(invoice.grandTotal), vatTotal: Number(invoice.vatTotal), journalLines, itemById, warehouseId: undefined, sendEmail: true,
+  });
+}
+
+/**
+ * تُكمل الترحيل المحلي (قيد + مخزون + عمولات) لفاتورة استلمت ردّاً من زاتكا بالفعل (zatcaStatus
+ * ومحتواه الخام محفوظان أصلاً على الصف من المرحلة 3أ) لكن المرحلة 3ب السابقة فشلت — بلا أي اتصال
+ * جديد بزاتكا إطلاقاً؛ الردّ المحفوظ هو مصدر الحقيقة الوحيد المُعتمَد هنا.
+ */
+export async function completeZatcaAcceptedPosting(tenantId: string, userId: string, id: string): Promise<InvoicePostingOutcome> {
+  const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
+  if (!invoice) throw notFound("الفاتورة غير موجودة");
+  if (invoice.status !== "zatca_accepted_posting_incomplete") {
+    throw badRequest("إكمال الترحيل متاح فقط لفاتورة استلمت ردّاً من زاتكا لكن لم يكتمل ترحيلها المحلي بعد");
+  }
+
+  const computed = toComputedLines(invoice.lines);
+  const { cogsLines, itemById } = await computeCogsJournalLines(tenantId, invoice.companyId, computed);
+  const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customer, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
+
+  const posted = await completeInvoiceLocalPosting(tenantId, userId, invoice, journalLines, itemById, undefined);
+  const emailResult = await sendInvoiceByEmail(tenantId, posted.id, { method: "auto" });
+  return { ...posted, emailResult };
 }
 
 export async function updateSalesInvoice(tenantId: string, id: string, input: InvoiceInput) {
@@ -623,75 +838,79 @@ export async function deleteSalesInvoice(tenantId: string, id: string) {
   await prisma.salesInvoice.delete({ where: { id } });
 }
 
-export async function postSalesInvoice(tenantId: string, userId: string, id: string) {
+export async function postSalesInvoice(tenantId: string, userId: string, id: string): Promise<InvoicePostingOutcome> {
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: { lines: true, customer: true } });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
+  // فقط مسودة يمكن ترحيلها من هنا — الحالات الأخرى (pending_submission، zatca_accepted_posting_incomplete)
+  // لها مساراها الخاص للاستئناف (retryPendingZatcaSubmission/completeZatcaAcceptedPosting)، بلا
+  // حجز أي رقم/سلسلة جديدة؛ رسالة واضحة لكل حالة بدل "مرحّلة بالفعل" العامة السابقة.
   if (invoice.status === "posted") throw badRequest("الفاتورة مرحّلة بالفعل");
+  if (invoice.status !== "draft") {
+    throw badRequest("هذه الفاتورة قيد معالجة زاتكا بالفعل (انتظار إرسال أو ترحيل محلي غير مكتمل) — استخدم إعادة المحاولة أو إكمال الترحيل بدلاً من الترحيل من جديد");
+  }
   const company = await prisma.company.findFirstOrThrow({ where: { id: invoice.companyId, tenantId } });
+  const customer = invoice.customer;
 
-  const computed = invoice.lines.map((l) => ({
-    accountId: l.accountId, itemId: l.itemId ?? undefined, subtotal: Number(l.subtotal), vat: Number(l.vat), total: Number(l.total),
-    quantity: Number(l.quantity), unitPrice: Number(l.unitPrice),
-  }));
+  const computed = toComputedLines(invoice.lines);
   const { cogsLines, itemById } = await computeCogsJournalLines(tenantId, invoice.companyId, computed);
-  const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customer, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
+  const journalLines = await buildJournalLines(tenantId, invoice.companyId, customer, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
+  const zatcaUuid = invoice.zatcaUuid;
 
-  // بوابة زاتكا بالكامل هنا، خارج أي معاملة قاعدة بيانات مفتوحة — نفس إصلاح createSalesInvoice
-  // أعلاه بالضبط، ولنفس السبب: هذا المسار (ترحيل مسودة موجودة) يحمل بالضبط نفس النمط الذي سبَّب
-  // عطل الإنتاج (نداء شبكي بزاتكا داخل $transaction)، رغم أن الفاتورة التي فشلت فعلياً في الإنتاج
-  // مرّت عبر createSalesInvoice لا هذا المسار تحديداً.
-  const gate = await evaluateZatcaPostingGate({
-    company, customer: invoice.customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid,
-    lines: invoice.lines, grandTotal: Number(invoice.grandTotal), vatTotal: Number(invoice.vatTotal),
-  });
-  if (!gate.proceedWithPosting) {
-    // لا فجوة ترقيم هنا خلافاً لـcreateSalesInvoice أعلاه: invoice.invoiceNumber كان مُخصَّصاً
-    // ومكتوباً فعلياً منذ إنشاء المسودة (راجع فرع shouldPost=false)، ورفض الترحيل يترك سجل الفاتورة
-    // نفسه موجوداً بحالة "draft" كدليل — رقم غير مفقود من التسلسل، فقط ترحيل لم يكتمل بعد.
-    throw badRequest(`رفضت هيئة الزكاة والضريبة والجمارك الفاتورة: ${gate.rejectionReason}`);
-  }
-
-  let posted;
+  // المرحلة 1 — معاملة قصيرة واحدة: تحجز سلسلة ICV/PIH (رقم الفاتورة موجود بالفعل منذ إنشاء
+  // المسودة) وتنقل الصف الموجود فعلاً من draft إلى pending_submission (أو posted مباشرة لو لم
+  // تنطبق زاتكا) — بلا أي اتصال شبكي بزاتكا داخلها.
+  const counter1 = newQueryCounter();
+  const startedAt1 = Date.now();
+  let phase1Outcome: "committed" | "failed" = "failed";
+  let phase1: { kind: "done"; invoice: ReturnType<typeof withPaymentStatus<InvoiceWithZatcaChain>> } | { kind: "pending"; invoice: InvoiceWithZatcaChain; xml: string; subtype: "standard" | "simplified" };
   try {
-    posted = await prisma.$transaction(async (tx) => {
-      const entry = await createJournalEntryTx(tx, {
-        tenantId,
-        companyId: invoice.companyId,
-        branchId: invoice.branchId,
-        date: invoice.date,
-        memo: `فاتورة مبيعات ${invoice.invoiceNumber} — ${invoice.customer.name}`,
-        sourceModule: "sales_invoice",
-        sourceId: invoice.id,
-        createdBy: userId,
-        lines: journalLines,
-      });
-      const updated = await tx.salesInvoice.update({
+    phase1 = await prisma.$transaction(async (tx) => {
+      const chain = await counted(
+        counter1,
+        reserveZatcaChain(tx, { company, customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: zatcaUuid, lines: toZatcaLines(invoice.lines) }),
+      );
+      if (!chain) {
+        const entry = await counted(counter1, createJournalEntryTx(tx, {
+          tenantId, companyId: invoice.companyId, branchId: invoice.branchId, date: invoice.date,
+          memo: `فاتورة مبيعات ${invoice.invoiceNumber} — ${customer.name}`, sourceModule: "sales_invoice",
+          sourceId: invoice.id, createdBy: userId, lines: journalLines,
+        }));
+        const updated = await counted(counter1, tx.salesInvoice.update({
+          where: { id }, data: { status: "posted", journalEntryId: entry.id, zatcaStatus: "not_applicable" }, include: invoiceInclude,
+        }));
+        await counted(counter1, createStockOutSideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, updated.lines, entry.id, itemById));
+        await counted(counter1, accrueTrainerCommissionsTx(tx, tenantId, invoice.companyId, invoice.id, userId));
+        return { kind: "done" as const, invoice: withPaymentStatus(updated) };
+      }
+      const updated = await counted(counter1, tx.salesInvoice.update({
         where: { id },
-        data: { status: "posted", journalEntryId: entry.id, ...gate.zatcaFields },
+        data: {
+          status: "pending_submission",
+          icv: chain.icv,
+          previousInvoiceHash: chain.previousInvoiceHash,
+          invoiceHash: chain.invoiceHash,
+          zatcaStatus: "not_submitted",
+          zatcaSubmittedAt: chain.issuedAt,
+        },
         include: invoiceInclude,
-      });
-      await createStockOutSideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id, itemById);
-      await accrueTrainerCommissionsTx(tx, tenantId, invoice.companyId, invoice.id, userId);
-
-      return withPaymentStatus(updated);
+      }));
+      return { kind: "pending" as const, invoice: updated, xml: chain.xml, subtype: chain.subtype };
     }, { timeout: 8000 });
-  } catch (err) {
-    if (gate.reservedChain) {
-      await recordZatcaChainGap(tenantId, {
-        company, reservedChain: gate.reservedChain, documentUuid: invoice.zatcaUuid, attemptedDocumentNumber: invoice.invoiceNumber, error: err,
-      });
-    }
-    throw err;
+    phase1Outcome = "committed";
+  } finally {
+    logPostingPhaseTiming({ phase: "1", kind: "invoice", startedAt: startedAt1, counter: counter1, outcome: phase1Outcome });
   }
 
-  // إرسال الفاتورة بالإيميل يحدث فقط بعد نجاح الترحيل فعلياً (لا عند الحفظ كمسودة) — قرار
-  // مقصود: فاتورة لسه قابلة للتعديل ليست جاهزة لتصل للعميل بعد. لا يُفشل الترحيل أبداً حتى لو
-  // فشل الإرسال أو لم يكن للعميل بريد مسجَّل — النتيجة تُعاد للواجهة لعرض تنبيه مناسب فقط.
-  const emailResult = await sendInvoiceByEmail(tenantId, id, { method: "auto" });
-  return { ...posted, emailResult };
-}
+  if (phase1.kind === "done") {
+    const emailResult = await sendInvoiceByEmail(tenantId, id, { method: "auto" });
+    return { ...phase1.invoice, emailResult };
+  }
 
-type InvoiceWithZatcaChain = Prisma.SalesInvoiceGetPayload<{ include: typeof invoiceInclude }>;
+  return finishInvoiceZatcaSubmission(tenantId, userId, {
+    invoice: phase1.invoice, xml: phase1.xml, subtype: phase1.subtype, company,
+    grandTotal: Number(invoice.grandTotal), vatTotal: Number(invoice.vatTotal), journalLines, itemById, warehouseId: undefined, sendEmail: true,
+  });
+}
 
 /**
  * ينفّذ إعادة الإرسال الفعلية (يدوية من resendInvoiceToZatca أو تلقائية من runZatcaAutoRetry) على
@@ -770,7 +989,7 @@ async function claimInvoiceForZatcaAttempt(
  * بشهادة غير صالحة — يُفتَرض أن المستخدم أصلح إعدادات ربط زاتكا قبل الضغط هنا، وإلا ستفشل بنفس
  * السبب مجدداً وتبقى certificate_error)، أو "compliance_checked" (لا تزال الشركة على شهادة اختبار —
  * إعادة الإرسال بعد استكمال الحصول على شهادة إنتاج فعلية هي كيف تُخلَّص/تُبلَّغ هذه الفاتورة فعلياً
- * لأول مرة، راجع resolveZatcaSubmissionKind في submission.ts). متاحة فقط لهذه الحالات الأربع —
+ * لأول مرة، راجع resolveZatcaSubmissionKind في submission.ts)، أو not_submitted بعد إصلاح الربط —
  * أي حالة زاتكا أخرى تُرفَض صراحةً.
  */
 export async function resendInvoiceToZatca(tenantId: string, id: string) {
@@ -778,6 +997,7 @@ export async function resendInvoiceToZatca(tenantId: string, id: string) {
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
   if (
+    invoice.zatcaStatus !== "not_submitted" &&
     invoice.zatcaStatus !== "rejected" &&
     invoice.zatcaStatus !== "submission_failed" &&
     invoice.zatcaStatus !== "certificate_error" &&
@@ -958,6 +1178,10 @@ export async function unpostSalesInvoice(tenantId: string, userId: string, id: s
   await assertValidUnlockPin(tenantId, pin);
 
   return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM sales_invoices WHERE id = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`;
+    if (await tx.salesReturn.count({ where: { tenantId, relatedInvoiceId: id, status: { not: "draft" } } })) {
+      throw badRequest("لا يمكن فك ترحيل فاتورة لها إشعار دائن معتمد أو قيد المعالجة");
+    }
     await reverseTrainerCommissionsTx(tx, id);
     await removeStockOutSideEffectsTx(tx, id);
     await deleteJournalEntryTx(tx, invoice.journalEntryId);

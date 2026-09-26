@@ -3,7 +3,7 @@ import { mkdtemp, rm, readFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { evaluateZatcaPostingGate } from "./postingGate";
+import { evaluateZatcaPostingGate, submitZatcaChainDocument, reserveZatcaChainForPosting } from "./postingGate";
 import * as credentialsModule from "./credentials";
 
 vi.mock("./credentials", () => ({
@@ -22,10 +22,9 @@ function okCreds(c: { certificateBodyBase64: string; secret: string; privateKeyP
 }
 const NOT_CONFIGURED = { ok: false as const, reason: "not_configured" as const };
 
-// بلا tx مُمرَّرة (مسار createSalesInvoice/postSalesInvoice المُعاد هيكلته) تحجز evaluateZatcaPostingGate
-// السلسلة عبر prisma.$transaction() الحقيقية بنفسها — نموِّه هنا بتنفيذ الاستدعاء فوراً بنفس شكل
-// fakeTx() أدناه (مُعاد تعريفها هنا محلياً تجنّباً لمشاكل ترتيب hoisting مع vi.mock)، فلا حاجة
-// لقاعدة بيانات فعلية لاختبار هذا المسار.
+// evaluateZatcaPostingGate/reserveZatcaChainForPosting لا يقبلان tx خارجية إطلاقاً بعد اليوم —
+// كلاهما يحجز عبر prisma.$transaction() الحقيقية بنفسه دائماً. نموِّه هنا بتنفيذ الاستدعاء فوراً
+// بنفس شكل tx وهمية، فلا حاجة لقاعدة بيانات فعلية لاختبار هذا المسار.
 vi.mock("../prisma", () => ({
   prisma: {
     $transaction: vi.fn((fn: (tx: unknown) => unknown) =>
@@ -97,13 +96,6 @@ const LINES = [
   { description: "خدمة", quantity: 1, unitPrice: 100, subtotal: 100, vat: 15, taxCategoryCode: "S", taxExemptionReason: null },
 ];
 
-function fakeTx() {
-  return {
-    $queryRaw: vi.fn().mockResolvedValue([{ zatcaNextIcv: 5 }]),
-    company: { update: vi.fn().mockResolvedValue({}) },
-  } as unknown as Parameters<typeof evaluateZatcaPostingGate>[0]["tx"];
-}
-
 function mockFetchOnce(status: number, body: unknown, statusText = "") {
   const bodyText = body === undefined ? "" : JSON.stringify(body);
   const fetchMock = vi.fn().mockResolvedValue({
@@ -126,7 +118,6 @@ afterEach(() => {
 describe("evaluateZatcaPostingGate", () => {
   it("is a no-op (not_applicable, always proceed) when the company is not onboarded", async () => {
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: { ...COMPANY, zatcaOnboardingStatus: "not_onboarded" },
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -150,7 +141,6 @@ describe("evaluateZatcaPostingGate", () => {
     vi.stubGlobal("fetch", fetchSpy);
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -178,7 +168,6 @@ describe("evaluateZatcaPostingGate", () => {
     const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: { ...COMPANY, zatcaEnvironment: "production", zatcaOnboardingStatus: "compliance" },
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -200,7 +189,6 @@ describe("evaluateZatcaPostingGate", () => {
     mockFetchOnce(200, { clearanceStatus: "CLEARED" });
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -221,7 +209,6 @@ describe("evaluateZatcaPostingGate", () => {
     mockFetchOnce(400, { validationResults: { errorMessages: [{ type: "ERROR", message: "الرقم الضريبي للمشتري غير صحيح" }] } });
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -248,7 +235,6 @@ describe("evaluateZatcaPostingGate", () => {
     mockFetchOnce(401, undefined, "Unauthorized");
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -277,7 +263,6 @@ describe("evaluateZatcaPostingGate", () => {
     mockFetchOnce(200, { unexpectedField: "زاتكا غيّرت شكل الرد" });
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -298,7 +283,6 @@ describe("evaluateZatcaPostingGate", () => {
     mockFetchOnce(401, undefined, "Unauthorized");
 
     await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -323,7 +307,6 @@ describe("evaluateZatcaPostingGate", () => {
     mockFetchOnce(400, { validationResults: { errorMessages: [{ type: "ERROR", code: "BR-KSA-42", message: "الرقم الضريبي للمشتري غير صحيح" }] } });
 
     await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -351,7 +334,6 @@ describe("evaluateZatcaPostingGate", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
 
     await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -372,7 +354,6 @@ describe("evaluateZatcaPostingGate", () => {
     mockFetchOnce(400, { validationResults: { errorMessages: [{ type: "ERROR", message: "خطأ تنسيق" }] } });
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -401,7 +382,6 @@ describe("evaluateZatcaPostingGate", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -422,7 +402,6 @@ describe("evaluateZatcaPostingGate", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -450,7 +429,6 @@ describe("evaluateZatcaPostingGate", () => {
     vi.stubGlobal("fetch", fetchSpy);
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -472,7 +450,6 @@ describe("evaluateZatcaPostingGate", () => {
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(malformedCredentials));
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -496,7 +473,6 @@ describe("evaluateZatcaPostingGate", () => {
     mockFetchOnce(200, { clearanceStatus: "CLEARED" });
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -511,45 +487,37 @@ describe("evaluateZatcaPostingGate", () => {
     expect(decision.zatcaFields.zatcaStatus).toBe("cleared");
   });
 
-  it("populates reservedChain whenever a chain was actually reserved, regardless of accept/reject outcome", async () => {
-    vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
-    mockFetchOnce(200, { reportingStatus: "REPORTED" });
-
-    const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
-      company: COMPANY,
-      customer: SIMPLIFIED_CUSTOMER,
-      kind: "invoice",
-      documentNumber: "INV-00001",
-      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
-      lines: LINES as never,
-      grandTotal: 115,
-      vatTotal: 15,
-    });
-
-    expect(decision.reservedChain).toEqual({ icv: 5, invoiceHash: decision.zatcaFields.invoiceHash });
+  // عطل الإنتاج الذي دفع لهذا الإصلاح بالكامل: كان ممكناً تمرير tx خاصة بالمستدعي إلى
+  // evaluateZatcaPostingGate فتُفتَح معاملة تحتوي الاتصال الشبكي البطيء بزاتكا نفسه (راجع الحادثة
+  // في تقرير STEP 1: 8228-8502ms داخل معاملة سقفها 8000ms). الحقل أُزيل نهائياً من
+  // EvaluateZatcaPostingGateParams — هذا اختبار على مستوى النوع (لا وقت تشغيل): لو أُعيد أي حقل
+  // tx إلى الواجهة، Params يحتوي "tx" مجدداً، HasTx تصبح true، وإسنادها لمتغيّر مُعلَن false
+  // يفشل تحت tsc (يعني فشل بناء المشروع بالكامل، لا فشل هذا الاختبار وحده فقط).
+  it("never accepts an external tx again — EvaluateZatcaPostingGateParams has no tx field (regression guard)", () => {
+    type Params = Parameters<typeof evaluateZatcaPostingGate>[0];
+    type HasTx = "tx" extends keyof Params ? true : false;
+    const hasTx: HasTx = false;
+    expect(hasTx).toBe(false);
   });
 
-  it("leaves reservedChain undefined when the company isn't onboarded (no chain to reserve at all)", async () => {
-    const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
-      company: { ...COMPANY, zatcaOnboardingStatus: "not_onboarded" },
-      customer: SIMPLIFIED_CUSTOMER,
-      kind: "invoice",
-      documentNumber: "INV-00001",
-      documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
-      lines: LINES as never,
-      grandTotal: 115,
-      vatTotal: 15,
-    });
-
-    expect(decision.reservedChain).toBeUndefined();
+  // نفس الضمان لـsubmitZatcaChainDocument (المرحلة 2) وreserveZatcaChainForPosting (المرحلة 1) —
+  // كلتاهما مُصمَّمتان عمداً بلا معامل tx على الإطلاق، فلا مسار ممكن لإعادة فتح اتصال زاتكا داخل
+  // معاملة قاعدة بيانات عبر أي منهما.
+  it("never accepts an external tx on submitZatcaChainDocument or reserveZatcaChainForPosting either", () => {
+    type SubmitParams = Parameters<typeof submitZatcaChainDocument>[0];
+    type ReserveParams = Parameters<typeof reserveZatcaChainForPosting>[0];
+    type SubmitHasTx = "tx" extends keyof SubmitParams ? true : false;
+    type ReserveHasTx = "tx" extends keyof ReserveParams ? true : false;
+    const submitHasTx: SubmitHasTx = false;
+    const reserveHasTx: ReserveHasTx = false;
+    expect(submitHasTx).toBe(false);
+    expect(reserveHasTx).toBe(false);
   });
 
-  // المسار المُعاد هيكلته (createSalesInvoice/postSalesInvoice) لا يمرّر tx إطلاقاً — يجب أن تحجز
-  // evaluateZatcaPostingGate السلسلة عبر معاملة قصيرة مستقلة بنفسها (prisma.$transaction، مُموَّهة
-  // أعلاه) بدل معاملة الاستدعاء، وأن يعمل بقية المنطق (الاتصال بزاتكا، بناء القرار) بلا أي تغيير.
-  it("reserves the chain via its own prisma.$transaction when no tx is passed at all (the restructured call path)", async () => {
+  // كل استدعاءات evaluateZatcaPostingGate في هذا الملف لا تمرّر tx إطلاقاً (المسار الوحيد الممكن
+  // بعد اليوم) — يجب أن تحجز السلسلة عبر معاملة قصيرة مستقلة بنفسها (prisma.$transaction، مُموَّهة
+  // أعلاه)، وأن يعمل بقية المنطق (الاتصال بزاتكا، بناء القرار) بلا أي تغيير.
+  it("reserves the chain via its own prisma.$transaction and proceeds normally", async () => {
     vi.mocked(credentialsModule.loadCompanyZatcaCredentials).mockResolvedValue(okCreds(credentials));
     mockFetchOnce(200, { reportingStatus: "REPORTED" });
 
@@ -567,7 +535,6 @@ describe("evaluateZatcaPostingGate", () => {
     expect(decision.proceedWithPosting).toBe(true);
     expect(decision.zatcaFields.zatcaStatus).toBe("reported");
     expect(decision.zatcaFields.icv).toBe(5);
-    expect(decision.reservedChain).toEqual({ icv: 5, invoiceHash: decision.zatcaFields.invoiceHash });
   });
 
   // تأكَّد فعلياً في الإنتاج: 401 عند استخدام شهادة اختبار (Compliance CSID) مع clearance/single —
@@ -579,7 +546,6 @@ describe("evaluateZatcaPostingGate", () => {
     const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -601,7 +567,6 @@ describe("evaluateZatcaPostingGate", () => {
     const fetchMock = mockFetchOnce(200, { validationResults: { status: "PASS" } });
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -627,7 +592,6 @@ describe("evaluateZatcaPostingGate", () => {
     // "CLEARED" (لا "PASS")، reportingStatus null حرفياً، بتحذيرات لا أخطاء.
     mockFetchOnce(202, { clearanceStatus: "CLEARED", reportingStatus: null, validationResults: { status: "WARNING", errorMessages: [], warningMessages: [{ type: "WARNING", code: "BR-KSA-F-08", message: "Recheck CRN" }] } });
     const standardDecision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -648,7 +612,6 @@ describe("evaluateZatcaPostingGate", () => {
 
     mockFetchOnce(202, { clearanceStatus: "CLEARED", reportingStatus: null, validationResults: { status: "WARNING", errorMessages: [], warningMessages: [{ type: "WARNING", code: "BR-KSA-F-08", message: "Recheck CRN" }] } });
     const simplifiedDecision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -672,7 +635,6 @@ describe("evaluateZatcaPostingGate", () => {
     });
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: { ...COMPANY, zatcaOnboardingStatus: "compliance" },
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
@@ -702,7 +664,6 @@ describe("evaluateZatcaPostingGate", () => {
     vi.stubGlobal("fetch", fetchSpy);
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY, // env=sandbox في هذا الملف
       customer: SIMPLIFIED_CUSTOMER,
       kind: "invoice",
@@ -727,7 +688,6 @@ describe("evaluateZatcaPostingGate", () => {
     });
 
     const decision = await evaluateZatcaPostingGate({
-      tx: fakeTx(),
       company: COMPANY,
       customer: STANDARD_CUSTOMER,
       kind: "invoice",
