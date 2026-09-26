@@ -70,6 +70,8 @@
     "billing": "إنشاء فاتورة إعاشة",
     "commissions": "عمولات المدربين"
   },
+  "stationSetup": {"tabTitle": "إعداد المحطات", "title": "المحطات ومضخاتها", "note": "كل مضخة فوهتان: مضخة بنزين (91 و95) أو مضخة ديزل (فوهتا ديزل). لا تُفتح أي وردية على محطة بلا مضخات.", "noPumpsBadge": "بلا مضخات — لا يمكن فتح ورديات", "pumpCount": "{{count}} مضخة", "pump": "المضخة", "nozzle": "الفوهة", "product": "الوقود", "meterDigits": "خانات العداد", "initialReading": "القراءة عند التعريف", "pumpN": "طرمبة {{n}}", "nozzleN": "الفوهة {{n}}", "retire": "إيقاف المضخة", "retireConfirm": "إيقاف طرمبة {{n}}؟ لن تظهر للعمال في الورديات الجديدة.", "edit": "تعديل", "editDigitsPrompt": "عدد خانات العداد قبل الفاصلة العشرية:", "hasShifts": "عليها ورديات", "addPump": "+ إضافة مضخة", "newPumpTitle": "مضخة جديدة", "pumpTypeLabel": "نوع المضخة", "meterTypeLabel": "نوع العداد", "currentReading": "قراءة العداد الآن", "meterDigitsPlaceholder": "مثال: 6", "digitsHelp": "خانات العداد = عدد الأرقام قبل الفاصلة العشرية في عداد اللترات التراكمي (مثلاً 999999.99 = 6 خانات). عند تجاوز العداد آخر رقم يعود للصفر؛ هذا الرقم هو ما يحسب به النظام اللترات عند تلك «اللفّة»، فرقم خاطئ يعطي كمية مبيعات خاطئة. القراءة الحالية تصبح قراءة الافتتاح لأول وردية.", "savePump": "حفظ المضخة", "pumpAdded": "أُضيفت المضخة.", "saved": "تم الحفظ.", "errNozzleFields": "أدخل عدد خانات العداد والقراءة الحالية لكلتا الفوهتين", "pumpType": {"petrol": "بنزين (91 + 95)", "diesel": "ديزل"}, "meterType": {"mechanical": "عداد ميكانيكي", "electronic": "عداد إلكتروني"}, "products": {"gasoline_91": "بنزين 91", "gasoline_95": "بنزين 95", "diesel": "ديزل"}},
+  "fuelPrices": {"tabTitle": "أسعار الوقود", "currency": "ر.س/لتر", "inForceSince": "ساري منذ {{date}}", "notSet": "لا يوجد سعر ساري — لا تُفتح ورديات لهذا الوقود", "nextChange": "يتغير إلى {{price}} في {{date}}", "addTitle": "إضافة سعر جديد", "note": "السعر شامل الضريبة ويسري على كل محطات الشركة من تاريخ السريان. الأسعار لا تُعدَّل بعد إضافتها لأن الورديات المُرحَّلة قُيِّمت بها — عند تغيّر السعر أضف سعراً جديداً بتاريخه.", "product": "الوقود", "price": "السعر شامل الضريبة", "effectiveFrom": "تاريخ السريان", "status": "الحالة", "addBtn": "إضافة السعر", "added": "أُضيف السعر.", "errPrice": "أدخل سعراً أكبر من صفر", "historyTitle": "سجل الأسعار", "noPrices": "لا توجد أسعار بعد.", "deleteUpcoming": "حذف (لم يسرِ بعد)", "deleteConfirm": "حذف هذا السعر المجدول؟", "statuses": {"current": "ساري الآن", "upcoming": "مجدول", "past": "سابق"}},
   "stationWorkers": {"tabTitle": "عمال المحطات", "stationsTitle": "المحطات", "stationsNote": "كل محطة مركز تكلفة لهذه الشركة؛ يُسنَد إليها العامل فيفتح ورديته عليها من تطبيق محطة أثر.", "noStations": "لا توجد محطات بعد — أضف أول محطة بالأسفل.", "newStationPlaceholder": "اسم المحطة، مثال: محطة طريق المدينة", "addStation": "إضافة محطة", "assignTitle": "إعداد عامل محطة", "modeExisting": "موظف موجود", "modeNew": "موظف جديد", "employee": "الموظف", "pickEmployee": "— اختر موظفاً —", "name": "اسم العامل", "basicSalary": "الراتب الأساسي", "hireDate": "تاريخ المباشرة", "station": "المحطة", "pickStation": "— اختر المحطة —", "assignBtn": "حفظ وإسناد للمحطة", "saving": "جارٍ الحفظ...", "assignedNote": "تم إسناد {{name}} إلى {{station}}. اضبط الآن رقم جواله ورمزه السري للدخول من تطبيق محطة أثر:", "listTitle": "العمال المُسنَدون للمحطات", "noWorkers": "لم يُسنَد أي عامل لمحطة بعد.", "phone": "الجوال", "setUpBtn": "الدخول للبوابة", "defaultJobTitle": "عامل محطة", "errStationName": "اسم المحطة قصير جداً", "errStation": "اختر المحطة", "errName": "اسم العامل قصير جداً", "errSalary": "أدخل الراتب الأساسي", "errPick": "اختر الموظف"},
   "stationShiftsReview": {
     "tabTitle": "قيد المراجعة",
@@ -77,7 +79,7 @@
     "title": "مراجعة ورديات المحطات",
     "pendingTitle": "الورديات قيد المراجعة",
     "refreshBtn": "تحديث",
-    "table": {
+    "table": { "openingReading": "قراءة الافتتاح",
       "employee": "العامل",
       "station": "المحطة",
       "shiftType": "نوع الوردية",
@@ -102,7 +104,7 @@
     "noPending": "لا توجد ورديات قيد المراجعة حالياً",
     "detailTitle": "تفاصيل وردية {{employee}} — {{status}}",
     "readingsTitle": "قراءات الفوهات",
-    "notReviewedYet": "لم تُراجَع بعد",
+    "notReviewedYet": "لم تُراجَع بعد", "digitsSuffix": "{{n}} خانات",
     "correctionLabel": "قراءة المحاسب",
     "correctBtn": "حفظ",
     "meterPhotoTitle": "صورة عداد الفوهة {{nozzle}}",

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   computeShiftClosing,
+  computeNozzleLiters,
+  MAX_PLAUSIBLE_LITERS_PER_NOZZLE_SHIFT,
   type ShiftClosingAccounts,
   type ShiftClosingInput,
   type NozzleReadingInput,
@@ -199,6 +201,34 @@ describe("computeShiftClosing", () => {
 
     // 5 + 10^6 - 999999 = 6, minus 1000 test liters = -994: still negative, must be rejected
     expect(() => computeShiftClosing(input)).toThrow(/قراءة العداد غير صحيحة/);
+  });
+
+  describe("meter digit count is enforced, so a wrong setting cannot post an absurd litres figure", () => {
+    it("rejects a reading that does not fit the configured digits (configured 5, meter really has 6)", () => {
+      const input = baseInput({ readings: [reading({ meterDigits: 5, openingReading: 999900, closingReading: 100 })] });
+      expect(() => computeShiftClosing(input)).toThrow(/لا تتسع في عداد من 5 خانات/);
+    });
+
+    it("rejects a rollover inflated by too many digits (configured 8, meter really rolled at 10^6)", () => {
+      // الحقيقة: 999900 → 100 على عداد 6 خانات = 200 لتر. بـ 8 خانات يصبح 100 + 10^8 − 999900 = 99,000,200 لتر
+      const input = baseInput({ readings: [reading({ meterDigits: 8, openingReading: 999900, closingReading: 100 })] });
+      expect(() => computeShiftClosing(input)).toThrow(/أكبر من المعقول.*لفّة عداد/);
+    });
+
+    it("rejects a closing reading typed lower than the opening that would otherwise pass as a rollover", () => {
+      // 12,345 بدل 12,445: بدون الحد كانت ستُعامَل لفّة = 999,900 لتر مبيعات
+      const input = baseInput({ readings: [reading({ meterDigits: 6, openingReading: 12445, closingReading: 12345 })] });
+      expect(() => computeShiftClosing(input)).toThrow(/أكبر من المعقول/);
+    });
+
+    it("still accepts a genuine rollover with the correct digit count, and a 7-digit rollover", () => {
+      expect(computeNozzleLiters(reading({ meterDigits: 6, openingReading: 999950.5, closingReading: 120.25 })).toNumber()).toBe(169.75);
+      expect(computeNozzleLiters(reading({ meterDigits: 7, openingReading: 9999000, closingReading: 500 })).toNumber()).toBe(1500);
+    });
+
+    it(`rejects more than ${MAX_PLAUSIBLE_LITERS_PER_NOZZLE_SHIFT} litres on one nozzle even without a rollover`, () => {
+      expect(() => computeNozzleLiters(reading({ meterDigits: 7, openingReading: 100, closingReading: 60100 }))).toThrow(/أكبر من المعقول/);
+    });
   });
 
   it("posts revenue to a separate account per product when multiple products are sold in the same shift", () => {

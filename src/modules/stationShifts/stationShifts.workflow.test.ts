@@ -78,12 +78,35 @@ describe("a shift opened through the employee portal is never seed data", () => 
     vi.mocked(prisma.costCenter.findUnique).mockResolvedValue({ id: "station-1", companyId: "company-1" } as never);
     vi.mocked(prisma.stationShift.findUnique).mockResolvedValue(null as never); // لا وردية بنفس المحطة/التاريخ/النوع بعد
     vi.mocked(prisma.stationShift.create).mockResolvedValue({ id: SHIFT_ID } as never);
+    vi.mocked(prisma.stationNozzle.findMany).mockResolvedValue([{ product: "diesel" }] as never);
+    vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([{ product: "diesel" }] as never);
 
     await service.openShift(TENANT, EMPLOYEE, { shiftType: "morning" });
 
     expect(prisma.stationShift.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ isSeedData: false }) }),
     );
+  });
+});
+
+describe("a shift cannot be opened on a station that is not set up", () => {
+  beforeEach(() => {
+    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ assignedCostCenterId: "station-1" } as never);
+    vi.mocked(prisma.costCenter.findUnique).mockResolvedValue({ id: "station-1", companyId: "company-1" } as never);
+    vi.mocked(prisma.stationShift.findUnique).mockResolvedValue(null as never);
+  });
+
+  it("refuses when the station has no pumps, and says what the administrator must add", async () => {
+    vi.mocked(prisma.stationNozzle.findMany).mockResolvedValue([] as never);
+    await expect(service.openShift(TENANT, EMPLOYEE, { shiftType: "morning" })).rejects.toThrow(/لا توجد مضخات.*إعداد المحطات/);
+    expect(prisma.stationShift.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses when a product the station sells has no price in force, naming the product", async () => {
+    vi.mocked(prisma.stationNozzle.findMany).mockResolvedValue([{ product: "gasoline_91" }, { product: "diesel" }] as never);
+    vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([{ product: "diesel" }] as never);
+    await expect(service.openShift(TENANT, EMPLOYEE, { shiftType: "morning" })).rejects.toThrow(/بنزين 91.*أسعار الوقود/);
+    expect(prisma.stationShift.create).not.toHaveBeenCalled();
   });
 });
 
@@ -104,11 +127,11 @@ describe("opening readings are always derived server-side", () => {
     expect(String(call.create.openingReading)).toBe("500");
   });
 
-  it("defaults the opening reading to zero for a nozzle with no prior shift", async () => {
+  it("opens a nozzle's first shift at the meter reading recorded when the nozzle was set up (not zero)", async () => {
     vi.mocked(prisma.stationShift.findFirst)
       .mockResolvedValueOnce(baseShift() as never)
       .mockResolvedValueOnce(null as never); // no previous shift at all
-    vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel" } as never);
+    vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel", initialReading: "734512.5" } as never);
     vi.mocked(prisma.stationShiftReading.upsert).mockResolvedValue({ id: "reading-1" } as never);
 
     await service.submitReading(TENANT, EMPLOYEE, SHIFT_ID, {
@@ -117,14 +140,14 @@ describe("opening readings are always derived server-side", () => {
     });
 
     const call = vi.mocked(prisma.stationShiftReading.upsert).mock.calls[0][0] as { create: { openingReading: unknown } };
-    expect(String(call.create.openingReading)).toBe("0");
+    expect(String(call.create.openingReading)).toBe("734512.5");
   });
 
-  it("also defaults the opening reading to zero when the previous shift's reading hasn't been reviewed yet", async () => {
+  it("falls back to the nozzle's setup reading when the previous shift's reading hasn't been reviewed yet", async () => {
     vi.mocked(prisma.stationShift.findFirst)
       .mockResolvedValueOnce(baseShift() as never)
       .mockResolvedValueOnce({ id: "previous-shift", readings: [{ nozzleId: "nozzle-1", closingReading: null, accountantConfirmedValue: null }] } as never);
-    vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel" } as never);
+    vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel", initialReading: 0 } as never);
     vi.mocked(prisma.stationShiftReading.upsert).mockResolvedValue({ id: "reading-1" } as never);
 
     await service.submitReading(TENANT, EMPLOYEE, SHIFT_ID, {
