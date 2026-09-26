@@ -13,6 +13,8 @@ export const VAT_DIVISOR = new Prisma.Decimal("1.15");
 
 export interface NozzleReadingInput {
   nozzleId: string;
+  /** "رقم المضخة-رقم الفوهة" لرسائل الخطأ (المحاسب لا يعرف المعرّف الداخلي للفوهة) */
+  label?: string;
   product: StationFuelProduct;
   meterDigits: number;
   openingReading: DecimalInput;
@@ -138,7 +140,7 @@ export function computeNozzleLiters(reading: NozzleReadingInput): Prisma.Decimal
   for (const [label, value] of [["الافتتاحية", opening], ["الختامية", closing]] as const) {
     if (value.isNegative() || value.greaterThanOrEqualTo(capacity)) {
       throw badRequest(
-        `القراءة ${label} (${value.toString()}) لا تتسع في عداد من ${reading.meterDigits} خانات للفوهة (${reading.nozzleId}) — ` +
+        `القراءة ${label} (${value.toString()}) لا تتسع في عداد من ${reading.meterDigits} خانات للفوهة (${reading.label ?? reading.nozzleId}) — ` +
           "تحقّق من القراءة، أو من عدد خانات العداد في «إعداد المحطات»",
       );
     }
@@ -149,11 +151,11 @@ export function computeNozzleLiters(reading: NozzleReadingInput): Prisma.Decimal
   }
   const liters = closing.minus(opening).minus(new Prisma.Decimal(reading.testLiters));
   if (liters.isNegative()) {
-    throw badRequest(`قراءة العداد غير صحيحة للفوهة (${reading.nozzleId}): الكمية المحسوبة سالبة حتى بعد افتراض دورة كاملة للعداد`);
+    throw badRequest(`قراءة العداد غير صحيحة للفوهة (${reading.label ?? reading.nozzleId}): الكمية المحسوبة سالبة حتى بعد افتراض دورة كاملة للعداد`);
   }
   if (liters.greaterThan(MAX_PLAUSIBLE_LITERS_PER_NOZZLE_SHIFT)) {
     throw badRequest(
-      `الكمية المحسوبة للفوهة (${reading.nozzleId}) = ${liters.toDecimalPlaces(3).toString()} لتر، أكبر من المعقول لوردية واحدة ` +
+      `الكمية المحسوبة للفوهة (${reading.label ?? reading.nozzleId}) = ${liters.toDecimalPlaces(3).toString()} لتر، أكبر من المعقول لوردية واحدة ` +
         `(${MAX_PLAUSIBLE_LITERS_PER_NOZZLE_SHIFT} لتر)` +
         (rolledOver ? " — القراءة الختامية أقل من الافتتاحية فاعتُبرت لفّة عداد؛ " : " — ") +
         "تحقّق من القراءة ومن عدد خانات العداد في «إعداد المحطات»",
@@ -513,6 +515,7 @@ async function loadShiftClosingInput(tenantId: string, shiftId: string) {
     }
     readings.push({
       nozzleId: reading.nozzleId,
+      label: `${reading.nozzle.pumpNumber}-${reading.nozzle.nozzleNumber}`,
       product: reading.nozzle.product,
       meterDigits: reading.nozzle.meterDigits,
       openingReading: reading.openingReading,
@@ -865,6 +868,7 @@ export async function correctReading(tenantId: string, userId: string, shiftId: 
 
   computeNozzleLiters({
     nozzleId: reading.nozzleId,
+    label: `${reading.nozzle.pumpNumber}-${reading.nozzle.nozzleNumber}`,
     product: reading.nozzle.product,
     meterDigits: reading.nozzle.meterDigits,
     openingReading: reading.openingReading,

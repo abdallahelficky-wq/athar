@@ -131,9 +131,11 @@ export default function StationSetupTab({ companyId }) {
                       <tr key={nozzle.id}>
                         {i === 0 && (
                           <td rowSpan={pump.nozzles.length}>
-                            <strong>{t("stationSetup.pumpN", { n: pump.pumpNumber })}</strong>
-                            <div className="note">{t(`stationSetup.pumpType.${pump.pumpType}`)} · {t(`stationSetup.meterType.${pump.meterType}`)}</div>
-                            <button className="btn-ghost btn-small" onClick={() => retire(station.id, pump.pumpNumber)}>{t("stationSetup.retire")}</button>
+                            <div className="station-pump-cell">
+                              <strong>{t("stationSetup.pumpN", { n: pump.pumpNumber })}</strong>
+                              <span className="station-pump-meta">{t(`stationSetup.pumpType.${pump.pumpType}`)} · {t(`stationSetup.meterType.${pump.meterType}`)}</span>
+                              <button className="btn-ghost btn-small" onClick={() => retire(station.id, pump.pumpNumber)}>{t("stationSetup.retire")}</button>
+                            </div>
                           </td>
                         )}
                         <td>{nozzle.nozzleNumber}</td>
