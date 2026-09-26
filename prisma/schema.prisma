@@ -2836,9 +2836,14 @@ model StationNozzle {
   product       StationFuelProduct
   pumpNumber    Int
   nozzleNumber  Int
+  // عدد خانات العداد قبل الفاصلة العشرية — يحدد نقطة "اللفّة" (10^meterDigits) في computeNozzleLiters.
+  // إعداد صريح لكل فوهة، لا افتراض ثابت: عدد خاطئ يحوّل لفّة حقيقية لكمية سالبة أو خيالية.
   meterDigits   Int
   meterType     StationMeterType
   hasMoneyMeter Boolean            @default(false)
+  // قراءة العداد لحظة تعريف الفوهة — قراءة الافتتاح لأول وردية عليها (كانت صفراً دائماً، فتُحسَب
+  // كل القراءة التراكمية للعداد كلترات مبيعة في أول وردية).
+  initialReading Decimal           @default(0) @db.Decimal(18, 3)
   isActive      Boolean            @default(true)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt

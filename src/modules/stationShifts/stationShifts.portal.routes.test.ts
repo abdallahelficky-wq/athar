@@ -81,6 +81,8 @@ describe("isSeedData can never be smuggled in through the employee portal", () =
     vi.mocked(prisma.costCenter.findUnique).mockResolvedValue({ id: "station-1", companyId: "company-a" } as never);
     vi.mocked(prisma.stationShift.findUnique).mockResolvedValue(null as never);
     vi.mocked(prisma.stationShift.create).mockResolvedValue({ id: "shift-new" } as never);
+    vi.mocked(prisma.stationNozzle.findMany).mockResolvedValue([{ product: "diesel" }] as never);
+    vi.mocked(prisma.fuelPrice.findMany).mockResolvedValue([{ product: "diesel" }] as never);
 
     const response = await call("POST", "/", WORKER, { shiftType: "morning" });
 
@@ -97,7 +99,7 @@ describe("a worker (employee-portal token, no Position/PositionActionPermission 
     vi.mocked(prisma.stationShift.findFirst)
       .mockResolvedValueOnce({ id: SHIFT_ID, tenantId: TENANT, companyId: "company-a", costCenterId: "station-1", employeeId: WORKER, status: "open" } as never)
       .mockResolvedValueOnce(null as never);
-    vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel" } as never);
+    vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel", initialReading: 0 } as never);
     vi.mocked(prisma.stationShiftReading.upsert).mockResolvedValue({ id: "reading-1" } as never);
 
     const response = await call("POST", `/${SHIFT_ID}/readings`, WORKER, {

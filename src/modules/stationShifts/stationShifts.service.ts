@@ -13,6 +13,8 @@ export const VAT_DIVISOR = new Prisma.Decimal("1.15");
 
 export interface NozzleReadingInput {
   nozzleId: string;
+  /** "رقم المضخة-رقم الفوهة" لرسائل الخطأ (المحاسب لا يعرف المعرّف الداخلي للفوهة) */
+  label?: string;
   product: StationFuelProduct;
   meterDigits: number;
   openingReading: DecimalInput;
@@ -120,15 +122,44 @@ export interface ShiftClosingResult {
  * عند حدوث لفّة فعلية. أي ناتج سالب (سواء لعدم كفاية افتراض اللفّة، أو لترات اختبار أكبر من
  * الكمية الفعلية) خطأ بيانات يُرفَض فوراً، لا يُصفَّر أو يُتجاهَل بصمت.
  */
+/**
+ * أقصى كمية معقولة لفوهة واحدة في وردية واحدة: فوهة تجارية تصرف نحو 40–50 لتراً في الدقيقة، أي أقل من
+ * ذلك بكثير فعلياً طوال وردية كاملة حتى بتشغيل متواصل. أي ناتج أكبر ليس بيعاً بل خطأ: قراءة مكتوبة
+ * أقل من الافتتاحية بالخطأ (فتُعامَل كلفّة وتضيف 10^meterDigits كاملة)، أو عدد خانات عداد خاطئ في
+ * إعداد الفوهة — كلاهما كان سيُرحَّل للقيد كمبيعات خيالية.
+ */
+export const MAX_PLAUSIBLE_LITERS_PER_NOZZLE_SHIFT = 40_000;
+
 export function computeNozzleLiters(reading: NozzleReadingInput): Prisma.Decimal {
   const opening = new Prisma.Decimal(reading.openingReading);
   let closing = new Prisma.Decimal(reading.closingReading);
-  if (closing.lessThan(opening)) {
-    closing = closing.plus(new Prisma.Decimal(10).pow(reading.meterDigits));
+  // سعة العداد = 10^meterDigits: لا يمكن لعداد بعدد خانات N أن يعرض قراءة ≥ هذه القيمة. قراءة تتجاوزها
+  // تعني أن عدد الخانات المضبوط للفوهة أقل من الحقيقي — وهو نفس الخطأ الذي يُفسد حساب اللفّة، فيُرفَض
+  // هنا صراحةً بدل أن يمرّ حساباً خاطئاً.
+  const capacity = new Prisma.Decimal(10).pow(reading.meterDigits);
+  for (const [label, value] of [["الافتتاحية", opening], ["الختامية", closing]] as const) {
+    if (value.isNegative() || value.greaterThanOrEqualTo(capacity)) {
+      throw badRequest(
+        `القراءة ${label} (${value.toString()}) لا تتسع في عداد من ${reading.meterDigits} خانات للفوهة (${reading.label ?? reading.nozzleId}) — ` +
+          "تحقّق من القراءة، أو من عدد خانات العداد في «إعداد المحطات»",
+      );
+    }
+  }
+  const rolledOver = closing.lessThan(opening);
+  if (rolledOver) {
+    closing = closing.plus(capacity);
   }
   const liters = closing.minus(opening).minus(new Prisma.Decimal(reading.testLiters));
   if (liters.isNegative()) {
-    throw badRequest(`قراءة العداد غير صحيحة للفوهة (${reading.nozzleId}): الكمية المحسوبة سالبة حتى بعد افتراض دورة كاملة للعداد`);
+    throw badRequest(`قراءة العداد غير صحيحة للفوهة (${reading.label ?? reading.nozzleId}): الكمية المحسوبة سالبة حتى بعد افتراض دورة كاملة للعداد`);
+  }
+  if (liters.greaterThan(MAX_PLAUSIBLE_LITERS_PER_NOZZLE_SHIFT)) {
+    throw badRequest(
+      `الكمية المحسوبة للفوهة (${reading.label ?? reading.nozzleId}) = ${liters.toDecimalPlaces(3).toString()} لتر، أكبر من المعقول لوردية واحدة ` +
+        `(${MAX_PLAUSIBLE_LITERS_PER_NOZZLE_SHIFT} لتر)` +
+        (rolledOver ? " — القراءة الختامية أقل من الافتتاحية فاعتُبرت لفّة عداد؛ " : " — ") +
+        "تحقّق من القراءة ومن عدد خانات العداد في «إعداد المحطات»",
+    );
   }
   return liters.toDecimalPlaces(3);
 }
@@ -484,6 +515,7 @@ async function loadShiftClosingInput(tenantId: string, shiftId: string) {
     }
     readings.push({
       nozzleId: reading.nozzleId,
+      label: `${reading.nozzle.pumpNumber}-${reading.nozzle.nozzleNumber}`,
       product: reading.nozzle.product,
       meterDigits: reading.nozzle.meterDigits,
       openingReading: reading.openingReading,
@@ -543,10 +575,42 @@ export async function getMyStation(tenantId: string, employeeId: string) {
   }
 
   const { previousShift, closingByNozzle } = await getPreviousClosingReadings(tenantId, costCenterId);
-  const previousClosingReadings = Object.fromEntries([...closingByNozzle].map(([nozzleId, value]) => [nozzleId, value.toNumber()]));
+  // نفس قاعدة submitReading: فوهة بلا وردية سابقة تبدأ من قراءتها المُسجَّلة عند التعريف
+  const previousClosingReadings = Object.fromEntries(
+    nozzles.map((n) => [n.id, (closingByNozzle.get(n.id) ?? new Prisma.Decimal(n.initialReading)).toNumber()]),
+  );
 
   return { costCenterId, nozzles, effectivePrices, previousShiftId: previousShift?.id ?? null, previousClosingReadings };
 }
+
+/**
+ * لا تُفتَح وردية على محطة غير مُعدَّة: بلا مضخات لا شيء يُقرأ (كانت الشاشة تظهر فارغة بلا تفسير)، وبلا
+ * سعر ساري لمنتج تبيعه المحطة لا يمكن تسعير الوردية ولا ترحيلها لاحقاً. الرسالة موجّهة لما ينقص تحديداً،
+ * ليُبلِغ العامل المسؤول بدل أن يعلق في وردية لا تكتمل.
+ */
+export async function assertStationReadyForShift(tenantId: string, companyId: string, costCenterId: string, shiftDate: Date) {
+  const nozzles = await prisma.stationNozzle.findMany({ where: { tenantId, costCenterId, isActive: true }, select: { product: true } });
+  if (nozzles.length === 0) {
+    throw badRequest("لا يمكن فتح وردية: لا توجد مضخات مُعرَّفة لهذه المحطة بعد — على المسؤول إضافتها من «ورديات المحطات ← إعداد المحطات»");
+  }
+  const prices = await prisma.fuelPrice.findMany({
+    where: { tenantId, companyId, OR: [{ costCenterId }, { costCenterId: null }], effectiveFrom: { lte: shiftDate } },
+    select: { product: true, priceInclVat: true, effectiveFrom: true, costCenterId: true },
+  });
+  const missing = [...new Set(nozzles.map((n) => n.product))].filter((product) => !prices.some((p) => p.product === product));
+  if (missing.length > 0) {
+    throw badRequest(
+      `لا يمكن فتح وردية: لا يوجد سعر بيع ساري اليوم لـ ${missing.map((p) => FUEL_PRODUCT_LABEL_AR[p]).join("، ")} — ` +
+        "على المسؤول إضافته من «ورديات المحطات ← أسعار الوقود»",
+    );
+  }
+}
+
+export const FUEL_PRODUCT_LABEL_AR: Record<StationFuelProduct, string> = {
+  gasoline_91: "بنزين 91",
+  gasoline_95: "بنزين 95",
+  diesel: "ديزل",
+};
 
 export interface OpenShiftInput {
   shiftType: StationShiftType;
@@ -575,6 +639,7 @@ export async function openShift(tenantId: string, employeeId: string, input: Ope
   const { costCenterId, companyId } = await getWorkerCostCenter(tenantId, employeeId);
   const shiftDate = new Date();
   shiftDate.setUTCHours(0, 0, 0, 0);
+  await assertStationReadyForShift(tenantId, companyId, costCenterId, shiftDate);
 
   const existing = await prisma.stationShift.findUnique({
     where: { costCenterId_shiftDate_shiftType: { costCenterId, shiftDate, shiftType: input.shiftType } },
@@ -618,7 +683,9 @@ export async function submitReading(tenantId: string, employeeId: string, shiftI
   if (!nozzle) throw badRequest("الفوهة غير موجودة أو لا تتبع محطة هذه الوردية");
 
   const { closingByNozzle } = await getPreviousClosingReadings(tenantId, shift.costCenterId, shift.id);
-  const openingReading = closingByNozzle.get(nozzle.id) ?? new Prisma.Decimal(0);
+  // أول وردية على هذه الفوهة: قراءة العداد المُسجَّلة عند تعريفها في «إعداد المحطات» (initialReading)،
+  // لا صفر — الصفر كان يحتسب كامل القراءة التراكمية للعداد مبيعاتٍ في أول وردية.
+  const openingReading = closingByNozzle.get(nozzle.id) ?? new Prisma.Decimal(nozzle.initialReading);
 
   // select صريح (لا يعيد الصف الخام كاملاً): يستثني تحديداً accountantConfirmedValue — غير
   // قابل للتسريب فعلياً هنا (getOwnedOpenShift أعلاه يرفض أصلاً لو غادرت الوردية "open"، وتصحيح
@@ -801,6 +868,7 @@ export async function correctReading(tenantId: string, userId: string, shiftId: 
 
   computeNozzleLiters({
     nozzleId: reading.nozzleId,
+    label: `${reading.nozzle.pumpNumber}-${reading.nozzle.nozzleNumber}`,
     product: reading.nozzle.product,
     meterDigits: reading.nozzle.meterDigits,
     openingReading: reading.openingReading,
