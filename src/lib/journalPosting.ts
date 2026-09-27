@@ -147,21 +147,89 @@ export async function deleteJournalEntryTx(tx: Tx, journalEntryId: string | null
   await tx.journalEntry.deleteMany({ where: { id: journalEntryId } });
 }
 
-/** يتحقق من الرقم السري لفك الترحيل الخاص بالمستأجر، ويرمي خطأ 403 إن كان خاطئاً */
-export async function assertValidUnlockPin(tenantId: string, pin: string) {
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
-  const valid = await verifyPassword(pin, tenant.unlockPin);
-  if (!valid) throw forbidden("الرقم السري غير صحيح");
+export const UNLOCK_PIN_MAX_FAILED_ATTEMPTS = 5;
+export const UNLOCK_PIN_LOCK_MINUTES = 15;
+
+/**
+ * يتحقق من الرقم السري لفك الترحيل الخاص بالمستأجر، لمستخدم بعينه. كل محاولة خاطئة تُكتَب في سجل
+ * التدقيق باسم المستخدم (unlock_pin.failed)، وبعد 5 محاولات خاطئة متتالية يُقفَل فك الترحيل لهذا
+ * المستخدم 15 دقيقة (403 بلا التحقق من الرقم أصلاً طوال القفل). المحاولة الصحيحة تُصفّر العدّاد.
+ * القفل لكل مستخدم لا للمستأجر كله: فلا يستطيع مستخدم واحد تعطيل فك الترحيل على زملائه.
+ *
+ * تُكتَب العدّادات وصف التدقيق عبر prisma مباشرة (لا tx المستدعي) عمداً: كل المستدعين يتحققون قبل
+ * بدء معاملتهم، والخطأ الذي يليها مباشرة لا يجب أن يُلغي تسجيل المحاولة الفاشلة نفسها.
+ */
+export async function assertValidUnlockPin(tenantId: string, pin: string, userId: string) {
+  const user = await prisma.user.findFirstOrThrow({
+    where: { id: userId, tenantId },
+    select: { unlockPinLockedUntil: true },
+  });
+  const now = new Date();
+  if (user.unlockPinLockedUntil && user.unlockPinLockedUntil > now) {
+    const minutes = Math.ceil((user.unlockPinLockedUntil.getTime() - now.getTime()) / 60_000);
+    throw forbidden(`فك الترحيل مقفل مؤقتاً بعد محاولات خاطئة متكررة للرقم السري — حاول بعد ${minutes} دقيقة`);
+  }
+
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { unlockPin: true } });
+  if (await verifyPassword(pin, tenant.unlockPin)) {
+    await prisma.user.updateMany({ where: { id: userId, unlockPinFailedAttempts: { gt: 0 } }, data: { unlockPinFailedAttempts: 0 } });
+    return;
+  }
+
+  const { unlockPinFailedAttempts: attempts } = await prisma.user.update({
+    where: { id: userId },
+    data: { unlockPinFailedAttempts: { increment: 1 } },
+    select: { unlockPinFailedAttempts: true },
+  });
+  const locked = attempts >= UNLOCK_PIN_MAX_FAILED_ATTEMPTS;
+  const lockedUntil = locked ? new Date(now.getTime() + UNLOCK_PIN_LOCK_MINUTES * 60_000) : null;
+  if (locked) {
+    await prisma.user.update({ where: { id: userId }, data: { unlockPinFailedAttempts: 0, unlockPinLockedUntil: lockedUntil } });
+  }
+  await prisma.auditLog.create({
+    data: {
+      tenantId,
+      userId,
+      action: "unlock_pin.failed",
+      entityType: "User",
+      entityId: userId,
+      metadata: { attempt: attempts, locked, lockedUntil: lockedUntil?.toISOString() ?? null },
+    },
+  });
+  if (locked) {
+    throw forbidden(`الرقم السري غير صحيح — قُفل فك الترحيل ${UNLOCK_PIN_LOCK_MINUTES} دقيقة بعد ${UNLOCK_PIN_MAX_FAILED_ATTEMPTS} محاولات خاطئة`);
+  }
+  throw forbidden("الرقم السري غير صحيح");
 }
 
-/** يسجّل حدث فك ترحيل في سجل التدقيق (audit log) وفق ما يطلبه القسم 4.9 صراحة */
+/** يسجّل حدث فك ترحيل في سجل التدقيق (audit log) وفق ما يطلبه القسم 4.9 صراحة، مع شركة المستند كعمود
+ * عادي. مسارات "الإزالة" التي تحذف المستند نفسه قبل هذا الاستدعاء (دفعات الإهلاك، السُّلف، الأصول
+ * الثابتة، حركات المخزون) تمرّر companyId صراحةً من السجل المُحمَّل قبل الحذف؛ وإلا تُقرأ الشركة من
+ * المستند نفسه (كل entityType مُمرَّر هنا نموذج Prisma يحمل companyId، واسم مفوّضه = entityType بحرف
+ * أول صغير). */
 export async function writeUnpostAuditLogTx(
   tx: Tx,
+  params: { tenantId: string; userId: string; entityType: string; entityId: string; companyId?: string; metadata?: Record<string, unknown> },
+) {
+  if (params.companyId) {
+    await writeUnpostAuditRow(tx, params, params.companyId);
+    return;
+  }
+  const delegateName = params.entityType[0].toLowerCase() + params.entityType.slice(1);
+  const delegate = (tx as unknown as Record<string, { findUnique?: (args: unknown) => Promise<{ companyId: string } | null> }>)[delegateName];
+  const document = await delegate?.findUnique?.({ where: { id: params.entityId }, select: { companyId: true } });
+  await writeUnpostAuditRow(tx, params, document?.companyId ?? null);
+}
+
+async function writeUnpostAuditRow(
+  tx: Tx,
   params: { tenantId: string; userId: string; entityType: string; entityId: string; metadata?: Record<string, unknown> },
+  companyId: string | null,
 ) {
   await tx.auditLog.create({
     data: {
       tenantId: params.tenantId,
+      companyId,
       userId: params.userId,
       action: `${params.entityType.toLowerCase()}.unpost`,
       entityType: params.entityType,

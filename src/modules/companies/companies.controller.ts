@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import multer from "multer";
 import { prisma } from "../../lib/prisma";
-import { badRequest, notFound } from "../../lib/httpError";
+import { badRequest, methodNotAllowed, notFound } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claudeVision";
@@ -130,15 +130,14 @@ export const reopenFiscalClosing: RequestHandler = async (req, res) => {
   res.json(await withLogoUrl(company));
 };
 
-export const deleteCompany: RequestHandler = async (req, res) => {
-  const existing = await prisma.company.findFirst({
-    where: { id: req.params.id, tenantId: req.auth!.tenantId },
-  });
-  if (!existing) throw notFound("الشركة غير موجودة");
-  assertCompanyAccess(req.auth!, existing.id);
-
-  await prisma.company.delete({ where: { id: existing.id } });
-  res.status(204).send();
+/**
+ * حذف الشركة غير متاح من التطبيق إطلاقاً — كان يحذف فعلياً (onDelete: Cascade) كل دفاتر الشركة بضغطة
+ * زر واحدة: القيود المرحّلة، الفواتير المُعتمَدة من زاتكا، الرواتب، وسجل تدقيق ورديات المحطات. الشركة
+ * بلا مستندات مرحّلة اليوم ستحملها غداً، فلا شرط "آمن" يبقي الحذف متاحاً. لو لزم حذف شركة فعلاً، فذلك
+ * عملية مقصودة مباشرة على قاعدة البيانات لا زر في الواجهة. المسار يبقى قائماً ليُعيد 405 صريحاً بدل 404.
+ */
+export const deleteCompany: RequestHandler = async () => {
+  throw methodNotAllowed("حذف الشركة غير متاح من التطبيق");
 };
 
 export const uploadLogoHandler: RequestHandler = async (req, res) => {

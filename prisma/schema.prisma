@@ -86,7 +86,6 @@ model Tenant {
   companyDocuments          CompanyDocument[]
   leaseContracts            LeaseContract[]
   journalEntries            JournalEntry[]
-  auditLogs                 AuditLog[]
 
   customers        Customer[]
   quotations       Quotation[]
@@ -107,7 +106,6 @@ model Tenant {
   stationShiftCollections StationShiftCollection[]
   tankDeliveries          TankDelivery[]
   tankDips                TankDip[]
-  stationShiftAuditLogs   StationShiftAuditLog[]
 
   suppliers        Supplier[]
   purchaseInvoices PurchaseInvoice[]
@@ -214,6 +212,10 @@ model User {
   inviteToken     String?      @unique
   inviteExpiresAt DateTime?
   lastLoginAt     DateTime?
+  // قفل فك الترحيل لهذا المستخدم بعد 5 محاولات خاطئة متتالية للرقم السري (15 دقيقة) — راجع
+  // assertValidUnlockPin في lib/journalPosting.ts. كل محاولة خاطئة تُكتَب أيضاً في audit_logs باسمه.
+  unlockPinFailedAttempts Int       @default(0)
+  unlockPinLockedUntil    DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -223,12 +225,10 @@ model User {
   position   Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
   refreshTokens             RefreshToken[]
-  auditLogs                 AuditLog[]
   actionPermissionOverrides UserActionPermissionOverride[]
   // عامل ورديات المحطة (assignedCostCenterId) انتقل بالكامل إلى Employee — بوابة الموظف (الجوال)
   // هي واجهة العامل الوحيدة الآن، لا حساب User إطلاقاً؛ راجع Employee.assignedCostCenterId.
   stationShiftsAsReviewer   StationShift[]                 @relation("StationShiftReviewer")
-  stationShiftAuditLogs     StationShiftAuditLog[]
 
   // نفس الهوية لا تنضم لنفس المستأجر مرتين (لا حاجة لعضويتين منفصلتين لنفس الشخص في نفس المستأجر —
   // نطاق companyScope واحد يكفي، ولو احتاج صلاحيات مختلفة لشركتين من نفس المستأجر فذلك عبر
@@ -357,12 +357,20 @@ model PasswordResetToken {
 }
 
 // سجل تدقيق فك الترحيل وأي أحداث حساسة أخرى — غير موجود في البروتوتايب، مطلوب في القسم 4.9
+//
+// لا مفاتيح أجنبية إطلاقاً (tenantId/companyId/userId أعمدة نصية عادية) عمداً: كان حذف المستأجر يحذف
+// سجله كاملاً (Cascade) وحذف المستخدم يمسح منفّذ كل صف (SetNull)، فيُمحى السجل بصمت كأثر جانبي لحذف
+// شيء آخر. الآن لا يصل أي حذف لأي جدول إلى هذا الجدول. actorName/actorEmail نسختان مخزّنتان من اسم
+// المنفّذ وبريده لحظة الحدث، يملؤهما trigger في قاعدة البيانات (audit_logs_fill_actor) من users
+// وidentities عند الإدراج — فتبقى النسبة قائمة حتى لو تغيّر اسم المستخدم أو بريده لاحقاً، وبلا اعتماد
+// على تذكّر كل مسار كتابة أن يمرّرهما.
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String?
   userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorName  String?
+  actorEmail String?
   action     String // مثال: "journal_entry.unpost"
   entityType String // مثال: "JournalEntry"
   entityId   String
@@ -370,6 +378,7 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([tenantId, entityType, entityId])
+  @@index([userId])
   @@map("audit_logs")
 }
 
@@ -512,7 +521,6 @@ model Company {
   stationShiftCollections   StationShiftCollection[]
   tankDeliveries            TankDelivery[]
   tankDips                  TankDip[]
-  stationShiftAuditLogs     StationShiftAuditLog[]
   suppliers                 Supplier[]
   purchaseInvoices          PurchaseInvoice[]
   purchaseReturns           PurchaseReturn[]
@@ -2916,7 +2924,6 @@ model StationShift {
   creditSales StationShiftCreditSale[]
   expenses    StationShiftExpense[]
   collection  StationShiftCollection?
-  auditLogs   StationShiftAuditLog[]
 
   @@unique([costCenterId, shiftDate, shiftType])
   @@index([tenantId, companyId, costCenterId, shiftDate])
@@ -3054,22 +3061,23 @@ model TankDip {
 // سجل تدقيق حقلي مخصّص لتعديلات الورديات (بخلاف AuditLog العام متعدد الأشكال) — صف واحد لكل
 // تعديل حقل واحد، يحتفظ بالقيمة القديمة والجديدة كنص خام لعرضها في تاريخ الوردية.
 model StationShiftAuditLog {
-  id        String       @id @default(cuid())
-  tenantId  String
-  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId String
-  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  shiftId   String
-  shift     StationShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  userId    String?
-  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action    String
-  fieldName String?
-  oldValue  String?
-  newValue  String?
-  createdAt DateTime     @default(now())
+  // نفس مبدأ AuditLog: أعمدة عادية بلا مفاتيح أجنبية (لا Cascade من المستأجر/الشركة/الوردية ولا SetNull
+  // من المستخدم)، ونسختا اسم المنفّذ وبريده يملؤهما trigger (station_shift_audit_logs_fill_actor).
+  id         String   @id @default(cuid())
+  tenantId   String
+  companyId  String
+  shiftId    String
+  userId     String?
+  actorName  String?
+  actorEmail String?
+  action     String
+  fieldName  String?
+  oldValue   String?
+  newValue   String?
+  createdAt  DateTime @default(now())
 
   @@index([tenantId, companyId, shiftId])
+  @@index([userId])
   @@map("station_shift_audit_logs")
 }
 

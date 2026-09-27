@@ -142,7 +142,7 @@ export async function unpostPurchaseReturn(tenantId: string, userId: string, id:
   if (!purchaseReturn) throw notFound("المردود غير موجود");
   if (purchaseReturn.status !== "posted") throw badRequest("المردود ليس مرحّلاً أصلاً");
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   return prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, purchaseReturn.journalEntryId);

@@ -423,7 +423,7 @@ export async function unpostSalesDebitNote(tenantId: string, userId: string, id:
     throw badRequest("لا يمكن فك ترحيل إشعار مدين مرتبط بسلسلة تجزئة زاتكا (ICV/PIH) — هذا يكسر السلسلة بشكل غير قابل للإصلاح");
   }
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   return prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, debitNote.journalEntryId);

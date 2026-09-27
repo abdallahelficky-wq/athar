@@ -618,7 +618,7 @@ export async function unpostSalesReturn(tenantId: string, userId: string, id: st
     throw badRequest("لا يمكن فك ترحيل مردود مرتبط بسلسلة تجزئة زاتكا (ICV/PIH) — هذا يكسر السلسلة بشكل غير قابل للإصلاح");
   }
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   return prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, salesReturn.journalEntryId);

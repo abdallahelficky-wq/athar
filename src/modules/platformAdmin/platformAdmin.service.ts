@@ -1,6 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { badRequest, conflict, notFound } from "../../lib/httpError";
-import type { Prisma, Tenant } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 const tenantSummarySelect = {
   id: true,
@@ -111,51 +111,6 @@ export async function updateTenantAdminEmail(tenantId: string, newEmail: string)
   ]);
 
   return { adminEmail: updatedIdentity.email };
-}
-
-const DELETABLE_STATUS: Tenant["subscriptionStatus"] = "trialing";
-
-/**
- * حذف نهائي كامل لشركة (Tenant) وكل بياناتها — مسموح فقط للشركات التجريبية (trialing)، ويُتحقَّق
- * من هذا الشرط هنا في الخادم صراحةً (بلا أي ثقة بما يرسله الطرف المستدعي) لمنع حذف أي شركة دفعت
- * فعلياً أو مُعلَّقة إدارياً بالخطأ. الحذف الفعلي عملية DELETE ذرّية واحدة تعتمد على cascading
- * foreign keys (onDelete: Cascade مضبوطة على كل الـ 47 علاقة المرتبطة بـ Tenant في schema.prisma)
- * — Postgres نفسه يحذف كل الجداول التابعة تلقائياً وبشكل ذرّي بالكامل ضمن نفس العملية، فلا حاجة
- * لتعداد كل جدول يدوياً، ولا احتمال لحذف جزئي (فشل أي قيد يُرجع كل شيء تلقائياً).
- *
- * ⚠️ ملاحظة مهمة: أي ملفات مخزَّنة خارجياً (مرفقات، شعارات شركات، ...) في التخزين السحابي (R2/S3)
- * لن تُحذف مع هذه العملية — سجلاتها في قاعدة البيانات فقط هي ما يُحذف، فتبقى الملفات الفعلية
- * "يتيمة" في التخزين الخارجي. تنظيفها يحتاج خطوة منفصلة خارج نطاق هذه الدالة.
- *
- * ⚠️ ملاحظة أخرى: سجل التدقيق (AuditLog) نفسه مرتبط بـ Tenant عبر onDelete: Cascade، فسجل "محاولة
- * الحذف" الذي نكتبه هنا قبل التنفيذ سيُحذف تلقائياً بمجرد نجاح حذف الـ Tenant لاحقاً — هو مفيد فقط
- * كأثر يبقى لو فشلت عملية الحذف أو تم التراجع عنها، وليس كسجل دائم بعد نجاح الحذف الفعلي.
- */
-export async function deleteTenant(tenantId: string) {
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!tenant) throw notFound("الشركة (Tenant) غير موجودة");
-
-  if (tenant.subscriptionStatus !== DELETABLE_STATUS) {
-    throw badRequest(
-      `لا يمكن حذف هذه الشركة نهائياً إلا إذا كانت حالة اشتراكها "تجريبي" (trialing) — حالتها الحالية: "${tenant.subscriptionStatus}". أوقف الاشتراك أو غيّر حالته أولاً لو كنت متأكداً من رغبتك في الحذف رغم ذلك.`,
-    );
-  }
-
-  // كتابة منفصلة (commit مستقل) قبل بدء الحذف الفعلي — راجع الملاحظة أعلاه بخصوص Cascade.
-  await prisma.auditLog.create({
-    data: {
-      tenantId,
-      userId: null,
-      action: "platform_admin.delete_tenant_attempt",
-      entityType: "Tenant",
-      entityId: tenantId,
-      metadata: { tenantName: tenant.name, subscriptionStatus: tenant.subscriptionStatus },
-    },
-  });
-
-  await prisma.$transaction(async (tx) => {
-    await tx.tenant.delete({ where: { id: tenantId } });
-  });
 }
 
 export async function createTenantNotice(tenantId: string, message: string) {

@@ -1394,6 +1394,8 @@
           .download-card { padding: 30px 22px; }
         }
 
+        .unlock-pin-done { color: #1F7A4D; font-size: 13px; margin: 0 0 8px; }
+
         /* إضافة شركة: الاختيار بين «ضمن نفس المجموعة» و«شركة مستقلة» (مستأجر جديد) — راجع NewCompanyForm */
         .company-mode-choice { border: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .company-mode-choice legend { font-weight: 700; font-size: 13px; margin-bottom: 8px; padding: 0; }

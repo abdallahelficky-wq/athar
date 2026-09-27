@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createSalesReturnSchema, updateSalesReturnSchema, unpostSchema, sendEmailSchema } from "./salesReturns.schemas";
 import {
@@ -21,6 +21,9 @@ export const salesReturnRoutes = Router();
 salesReturnRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
+// فك ترحيل/إزالة مستند مرحّل (يحذف قيده) يتطلب صلاحية "فك الترحيل" على منصب المستخدم نفسها التي
+// يتطلبها فك ترحيل قيد يومية مباشرة — لا الدور وحده. المالك وsuper_admin معفيان كما في كل صلاحية.
+const canUnpost = requirePermission("accounts", "unpost");
 
 salesReturnRoutes.get("/", listHandler);
 // يجب أن تُسجَّل قبل GET "/:id" وإلا التقطها Express كمعرّف مردود حرفي "search" — نفس تبرير
@@ -33,6 +36,6 @@ salesReturnRoutes.patch("/:id", canWrite, validateBody(updateSalesReturnSchema),
 salesReturnRoutes.delete("/:id", canWrite, deleteHandler);
 salesReturnRoutes.post("/:id/send-email", canWrite, validateBody(sendEmailSchema), sendEmailHandler);
 salesReturnRoutes.post("/:id/post", canWrite, postHandler);
-salesReturnRoutes.post("/:id/unpost", canWrite, validateBody(unpostSchema), unpostHandler);
+salesReturnRoutes.post("/:id/unpost", canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
 salesReturnRoutes.post("/:id/retry-zatca-submission", canWrite, retryZatcaSubmissionHandler);
 salesReturnRoutes.post("/:id/complete-zatca-posting", canWrite, completeZatcaPostingHandler);

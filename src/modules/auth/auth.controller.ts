@@ -68,7 +68,7 @@ export const acceptInviteHandler: RequestHandler = async (req, res) => {
 };
 
 export const changeUnlockPinHandler: RequestHandler = async (req, res) => {
-  await authService.changeUnlockPin(req.auth!.tenantId, req.body.currentPin, req.body.newPin);
+  await authService.changeUnlockPin(req.auth!.tenantId, req.auth!.sub, req.body.currentPin, req.body.newPin);
   res.status(204).send();
 };
 

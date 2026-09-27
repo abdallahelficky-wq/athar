@@ -38,7 +38,8 @@ companyRoutes.patch(
   validateBody(updateCompanySchema),
   updateCompany,
 );
-companyRoutes.delete("/:id", requireRole("admin"), deleteCompany);
+// حذف الشركة أُزيل من التطبيق — يُعيد 405 دائماً لأي مستخدم (راجع deleteCompany)
+companyRoutes.delete("/:id", deleteCompany);
 companyRoutes.post(
   "/:id/fiscal-closing/reopen",
   requireRole("admin"),

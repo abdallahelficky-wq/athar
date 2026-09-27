@@ -5,7 +5,7 @@ import { badRequest, forbidden, notFound } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import { extractJournalEntryFromDocument } from "../../lib/claudeVision";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
-import { reserveEntryNumber } from "../../lib/journalPosting";
+import { reserveEntryNumber, assertValidUnlockPin } from "../../lib/journalPosting";
 import { assertPeriodNotClosed, lockCompanyClosingDate } from "../../lib/fiscalClosing";
 import { registerFixedAssetTx } from "../fixedAssets/fixedAssets.service";
 import { registerEmployeeAdvanceTx } from "../employeeAdvances/employeeAdvances.service";
@@ -659,9 +659,7 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
   assertCompanyAccess({ companyScope }, entry.companyId);
   if (entry.status !== "posted") throw badRequest("القيد ليس مرحّلاً أصلاً");
 
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
-  const validPin = await verifyPassword(pin, tenant.unlockPin);
-  if (!validPin) throw forbidden("الرقم السري غير صحيح");
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   // فك الترحيل يُعامَل كنقطة تحقق مستقلة تماماً، لا يُفترض أنه "مجرد تغيير حالة" بلا أثر على الإقفال:
   // فور فك الترحيل يعود القيد قابلاً للتعديل/الحذف عبر updateJournalEntry/deleteJournalEntry — فهو
@@ -674,6 +672,7 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
     await tx.auditLog.create({
       data: {
         tenantId,
+        companyId: updated.companyId,
         userId,
         action: "journal_entry.unpost",
         entityType: "JournalEntry",
