@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma";
+import { round2, type VatPeriod } from "../../lib/vatPeriod";
 
 interface Filters {
   companyId?: string;
@@ -40,18 +41,26 @@ export async function getPurchasesMonthlyTrend(tenantId: string, filters: Filter
   return [...byMonth.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, total]) => ({ month, total }));
 }
 
-export async function getPurchasesVatSummary(tenantId: string, filters: Filters) {
+/**
+ * ملخص ضريبة المدخلات لشركة واحدة عن فترة إقرار محددة. تاريخ الضريبة هو تاريخ فاتورة المورد
+ * (`date`) — المستندات المرحَّلة المؤرَّخة داخل الفترة: فواتير المشتريات − مردوداتها.
+ */
+export async function getPurchasesVatSummary(tenantId: string, period: VatPeriod) {
+  const where = { tenantId, companyId: period.companyId, status: "posted" as const, date: { gte: period.start, lt: period.endExclusive } };
+  const sum = { _sum: { subtotal: true, vatTotal: true }, _count: { _all: true } } as const;
   const [invoices, returns] = await Promise.all([
-    prisma.purchaseInvoice.findMany({ where: { tenantId, companyId: filters.companyId || undefined, status: "posted" }, select: { vatTotal: true, subtotal: true } }),
-    prisma.purchaseReturn.findMany({ where: { tenantId, companyId: filters.companyId || undefined, status: "posted" }, select: { vatTotal: true, subtotal: true } }),
+    prisma.purchaseInvoice.aggregate({ where, ...sum }),
+    prisma.purchaseReturn.aggregate({ where, ...sum }),
   ]);
-  const purchasesBase = invoices.reduce((s, i) => s + Number(i.subtotal), 0);
-  const inputVat = invoices.reduce((s, i) => s + Number(i.vatTotal), 0);
-  const returnsBase = returns.reduce((s, r) => s + Number(r.subtotal), 0);
-  const returnsVat = returns.reduce((s, r) => s + Number(r.vatTotal), 0);
+  const purchasesBase = Number(invoices._sum.subtotal ?? 0);
+  const inputVat = Number(invoices._sum.vatTotal ?? 0);
+  const returnsBase = Number(returns._sum.subtotal ?? 0);
+  const returnsVat = Number(returns._sum.vatTotal ?? 0);
   return {
-    purchasesBase, inputVat, returnsBase, returnsVat,
-    netPurchasesBase: purchasesBase - returnsBase, netInputVat: inputVat - returnsVat,
+    period: { companyId: period.companyId, from: period.from, to: period.to },
+    invoiceCount: invoices._count._all, purchasesBase, inputVat,
+    returnCount: returns._count._all, returnsBase, returnsVat,
+    netPurchasesBase: round2(purchasesBase - returnsBase), netInputVat: round2(inputVat - returnsVat),
   };
 }
 

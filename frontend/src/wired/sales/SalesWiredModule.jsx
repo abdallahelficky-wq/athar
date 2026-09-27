@@ -39,7 +39,7 @@ export default function SalesWiredModule({ companies, companyId, reloadCompanies
       {tab === "returns" && <ReturnsTab companyId={companyId} companies={companies} />}
       {tab === "receipts" && <ReceiptsTab companyId={companyId} companies={companies} />}
       {tab === "stations" && <StationsTab companyId={companyId} />}
-      {tab === "reports" && <SalesReportsTab companyId={companyId} />}
+      {tab === "reports" && <SalesReportsTab companyId={companyId} companies={companies} />}
       {tab === "settings" && <SalesSettingsTab companyId={companyId} companies={companies} reloadCompanies={reloadCompanies} />}
     </div>
   );

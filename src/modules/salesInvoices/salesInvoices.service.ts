@@ -19,6 +19,7 @@ import { newQueryCounter, counted, logPostingPhaseTiming } from "../../lib/zatca
 import { resubmitZatcaDocument } from "../../lib/zatca/resubmit";
 import { sendInvoiceByEmail, SendInvoiceEmailResult } from "./salesInvoiceEmail.service";
 import { accrueTrainerCommissionsTx, reverseTrainerCommissionsTx } from "../stables/stablesBilling.service";
+import { unpostVatSnapshot } from "../../lib/vatAccounts";
 
 type Tx = Prisma.TransactionClient;
 
@@ -1190,7 +1191,7 @@ export async function unpostSalesInvoice(tenantId: string, userId: string, id: s
       data: { status: "draft", journalEntryId: null },
       include: invoiceInclude,
     });
-    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "SalesInvoice", entityId: id });
+    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "SalesInvoice", entityId: id, ...unpostVatSnapshot(invoice, invoice.invoiceNumber) });
     return withPaymentStatus(updated);
   });
 }

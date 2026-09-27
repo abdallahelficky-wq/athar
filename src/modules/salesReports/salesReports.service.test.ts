@@ -34,15 +34,37 @@ const INVOICES = [
   { id: "inv-posted", tenantId: TENANT_ID, companyId: COMPANY_ID, customerId: CUSTOMER_ID, status: "posted", date: new Date("2026-01-08"), grandTotal: 100, subtotal: 86.96, vatTotal: 13.04, customer: { id: CUSTOMER_ID, name: "عميل تجريبي" }, receiptAllocations: [] },
 ];
 
+function aggregateOf(rows: Record<string, unknown>[]) {
+  return {
+    _sum: {
+      subtotal: rows.reduce((s, r) => s + Number(r.subtotal), 0),
+      vatTotal: rows.reduce((s, r) => s + Number(r.vatTotal), 0),
+    },
+    _count: { _all: rows.length },
+  };
+}
+const EMPTY_AGGREGATE = { _sum: { subtotal: null, vatTotal: null }, _count: { _all: 0 } };
+
 vi.mock("../../lib/prisma", () => ({
   prisma: {
     salesInvoice: {
       findMany: vi.fn((args: any) => Promise.resolve(INVOICES.filter((r) => matchesWhere(r, args.where)))),
+      aggregate: vi.fn((args: any) => Promise.resolve(aggregateOf(INVOICES.filter((r) => matchesWhere(r, args.where))))),
     },
     salesReturn: {
       findMany: vi.fn(() => Promise.resolve([])), // بلا مردودات في هذا الاختبار — التركيز على الفواتير فقط
+      aggregate: vi.fn(() => Promise.resolve(EMPTY_AGGREGATE)),
+    },
+    salesDebitNote: {
+      aggregate: vi.fn(() => Promise.resolve(EMPTY_AGGREGATE)),
     },
   },
+}));
+
+vi.mock("../../lib/vatAccounts", () => ({
+  OUTPUT_VAT_ACCOUNT_NAME: "ضريبة القيمة المضافة - مخرجات",
+  resolveVatAccount: vi.fn(() => Promise.resolve(null)),
+  stationShiftOutputVat: vi.fn(() => Promise.resolve({ vat: 0, shiftCount: 0 })),
 }));
 
 import { getSalesByCustomer, getSalesVatSummary, getReceivablesAging, invoicesWithPaid } from "./salesReports.service";
@@ -61,9 +83,13 @@ describe("sales reports exclude pending_submission / zatca_accepted_posting_inco
   });
 
   it("getSalesVatSummary's outputVat reflects only the posted invoice's VAT (13.04), not the sum of all four", async () => {
-    const summary = await getSalesVatSummary(TENANT_ID, { companyId: COMPANY_ID });
+    const summary = await getSalesVatSummary(TENANT_ID, {
+      companyId: COMPANY_ID, from: "2026-01-01", to: "2026-01-31",
+      start: new Date("2025-12-31T21:00:00Z"), endExclusive: new Date("2026-01-31T21:00:00Z"),
+    });
     expect(summary.salesBase).toBe(86.96);
     expect(summary.outputVat).toBe(13.04);
+    expect(summary.netOutputVat).toBe(13.04);
   });
 
   it("getReceivablesAging never surfaces the pending/incomplete invoices' due amounts", async () => {
