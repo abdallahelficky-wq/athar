@@ -578,5 +578,5 @@ export const AR_TO_EN: Record<string, string> = {
   "تقارير الضريبة تتطلب فترة الإقرار (من، إلى)": "VAT reports require the filing period (from, to)",
   "تاريخ الفترة غير صالح (الصيغة المطلوبة YYYY-MM-DD)": "The period date is not valid (expected format YYYY-MM-DD)",
   "بداية الفترة بعد نهايتها": "The period starts after it ends",
-  "تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر.": "Installing the chart is only available for an empty company, and it never deletes any books.",
+  "لا يمكن تثبيت الشجرة القياسية: شركات المستأجر تحتوي على قيود أو مستندات مالية. تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر.": "The standard chart can't be installed: the tenant's companies hold journal entries or financial documents. Installing the chart is only available for an empty company, and it never deletes any books.",
 };

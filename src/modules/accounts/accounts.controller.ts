@@ -1,4 +1,5 @@
 import { RequestHandler } from "express";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, conflict, notFound } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
@@ -248,25 +249,25 @@ export const importAccounts: RequestHandler = async (req, res) => {
 };
 
 /** عدد صفوف كل جدول دفاتر في النطاق — أي صف (مرحّل أو مسودة) يعني أن الشركة ليست فارغة. */
-async function countBooks(scope: { tenantId: string; companyId?: string }) {
+async function countBooks(client: Prisma.TransactionClient, scope: { tenantId: string; companyId?: string }) {
   const [journalEntries, salesInvoices, salesReturns, salesDebitNotes, purchaseInvoices, purchaseReturns, receipts, quotations,
     stockMovements, fixedAssets, depreciationRuns, payrollRuns, employeeAdvances, stationShifts] = await Promise.all([
-    prisma.journalEntry.count({ where: scope }),
-    prisma.salesInvoice.count({ where: scope }),
-    prisma.salesReturn.count({ where: scope }),
-    prisma.salesDebitNote.count({ where: scope }),
-    prisma.purchaseInvoice.count({ where: scope }),
-    prisma.purchaseReturn.count({ where: scope }),
-    prisma.receipt.count({ where: scope }),
-    prisma.quotation.count({ where: scope }),
-    prisma.stockMovement.count({ where: scope }),
-    prisma.fixedAsset.count({ where: scope }),
-    prisma.depreciationRun.count({ where: scope }),
-    prisma.payrollRun.count({ where: scope }),
-    prisma.employeeAdvance.count({ where: scope }),
-    prisma.stationShift.count({ where: scope }),
+    client.journalEntry.count({ where: scope }),
+    client.salesInvoice.count({ where: scope }),
+    client.salesReturn.count({ where: scope }),
+    client.salesDebitNote.count({ where: scope }),
+    client.purchaseInvoice.count({ where: scope }),
+    client.purchaseReturn.count({ where: scope }),
+    client.receipt.count({ where: scope }),
+    client.quotation.count({ where: scope }),
+    client.stockMovement.count({ where: scope }),
+    client.fixedAsset.count({ where: scope }),
+    client.depreciationRun.count({ where: scope }),
+    client.payrollRun.count({ where: scope }),
+    client.employeeAdvance.count({ where: scope }),
+    client.stationShift.count({ where: scope }),
   ]);
-  const leaveSettlements = await prisma.leaveSettlement.count({
+  const leaveSettlements = await client.leaveSettlement.count({
     where: scope.companyId ? { tenantId: scope.tenantId, employee: { companyId: scope.companyId } } : { tenantId: scope.tenantId },
   });
   return {
@@ -291,17 +292,25 @@ export const installStandardChart: RequestHandler = async (req, res) => {
   // مرحَّلاً كان أو مسودة. لا يوجد إطلاقاً "أعد تثبيت الشجرة واحذف دفاتري": هذا المسار كان يحذف كل
   // القيود والفواتير (بما فيها المُبلَّغة لزاتكا) — حُذف ذلك الحذف كلياً، فلا يبقى إلا استبدال شجرة
   // شركة لم يُسجَّل فيها شيء بعد.
-  const booksScope = companyId ? { tenantId, companyId } : { tenantId };
-  const bookCounts = await countBooks(booksScope);
-  const nonEmpty = Object.entries(bookCounts).filter(([, n]) => n > 0);
-  if (nonEmpty.length) {
-    throw conflict(
-      `لا يمكن تثبيت الشجرة القياسية: ${companyId ? `شركة "${company!.name}"` : "شركات المستأجر"} تحتوي على قيود أو مستندات مالية. تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر.`,
-    );
-  }
-
   const result = await prisma.$transaction(
     async (tx) => {
+      // الفحص داخل نفس المعاملة وبعد قفل صفوف الشركات في النطاق (FOR UPDATE): كل قيد يُنشأ في النظام
+      // يحدّث صف شركته أولاً (حجز رقم القيد في journalPosting.ts)، فلا يمكن أن يُرحَّل شيء بين الفحص
+      // والاستبدال. وأي سطر مستند أو قيد يشير لحساب قديم يمنع حذفه بقيد المفتاح الأجنبي.
+      if (companyId) {
+        await tx.$queryRaw`SELECT id FROM "companies" WHERE "tenantId" = ${tenantId} AND id = ${companyId} FOR UPDATE`;
+      } else {
+        await tx.$queryRaw`SELECT id FROM "companies" WHERE "tenantId" = ${tenantId} ORDER BY id FOR UPDATE`;
+      }
+      const bookCounts = await countBooks(tx, companyId ? { tenantId, companyId } : { tenantId });
+      if (Object.values(bookCounts).some((n) => n > 0)) {
+        throw conflict(
+          companyId
+            ? `لا يمكن تثبيت الشجرة القياسية: شركة "${company!.name}" تحتوي على قيود أو مستندات مالية. تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر.`
+            : "لا يمكن تثبيت الشجرة القياسية: شركات المستأجر تحتوي على قيود أو مستندات مالية. تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر.",
+        );
+      }
+
       const accountScope = { tenantId, companyId };
       let deletedAccounts = 0;
       for (let level = 4; level >= 1; level -= 1) {

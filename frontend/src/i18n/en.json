@@ -1239,7 +1239,7 @@
     "archived": "Account archived.",
     "deleted": "Account deleted.",
     "confirmDelete": "Delete account \"{{name}}\"?",
-    "installScopeGroup": "the chart of accounts of every company in the tenant",
+    "installScopeGroup": "the group template tree (accounts not attached to any company)",
     "installScopeCompany": "the company's chart of accounts",
     "confirmInstall": "This will replace {{scope}} with the standard chart. It is only available for a company with no entries or documents at all, and is refused otherwise; no books are deleted. Continue?",
     "installPrompt": "To confirm, type the word: تثبيت",
