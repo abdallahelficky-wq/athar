@@ -5,6 +5,7 @@ import { getPayablesAging } from "../purchaseReports/purchaseReports.service";
 import { calcEOS, accruedLeaveDays, PAYROLL_JOURNAL_MAP } from "../../lib/hrCalculations";
 import { Lang } from "../../lib/i18n/translate";
 import { currencyLabel } from "../../lib/countries";
+import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 
 /** يبني تسمية "ينتهي خلال/منتهٍ منذ N يوماً" — مكرَّرة حرفياً في 3 تنبيهات مختلفة (لوحتا القيادة
  * المالية وشئون الموظفين)، فوُحِّدت هنا بدل تكرار نفس الشرط ثلاث مرات. */
@@ -104,9 +105,9 @@ export async function getCashFlowMonthly(tenantId: string, companyId?: string, m
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       account: { tenantId, isBankOrCash: true },
-      // القيود "المحفوظة" (غير المرحّلة) تؤثر على كل التقارير المالية فور حفظها، تماماً كالمرحّلة —
-      // لا يوجد فلتر status هنا عمداً (انظر تعليق مطابق في reports.service.ts)
-      journalEntry: { tenantId, companyId: companyId || undefined, date: { gte: dateFrom } },
+      // القيود المحتسبة فقط (المرحَّلة، أو المحفوظة في شركة لم يُفعَّل فيها balancesPostedOnly) — راجع
+      // aggregateAccountBalances في reports.service.ts
+      journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { gte: dateFrom } },
     },
     select: { debit: true, credit: true, journalEntry: { select: { date: true } } },
   });
@@ -129,7 +130,7 @@ export async function getTopCashTransactions(tenantId: string, companyId?: strin
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       account: { tenantId, isBankOrCash: true },
-      journalEntry: { tenantId, companyId: companyId || undefined, date: { gte: since } },
+      journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { gte: since } },
     },
     include: { account: true, journalEntry: true },
   });
@@ -344,7 +345,7 @@ async function getMonthlyPayrollCost(tenantId: string, companyId: string | undef
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       account: { tenantId, name: { in: PAYROLL_DEBIT_ACCOUNT_NAMES } },
-      journalEntry: { tenantId, sourceModule: "payroll", companyId: companyId || undefined, date: { gte: dateFrom, lte: dateTo } },
+      journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, sourceModule: "payroll", companyId: companyId || undefined, date: { gte: dateFrom, lte: dateTo } },
     },
     select: { debit: true },
   });

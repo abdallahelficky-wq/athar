@@ -138,6 +138,8 @@ export default function BulkImportJournalEntriesModal({ companyId, onClose, onIm
   const [committing, setCommitting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  // محفوظة للمراجعة (الافتراضي) أو مرحَّلة مباشرة (ترحيل تاريخ مُقفَل من نظام آخر) — الأرصدة تحتسب المرحَّل فقط
+  const [importStatus, setImportStatus] = useState("saved");
 
   const handleFile = (e) => {
     const file = e.target.files[0];
@@ -188,7 +190,7 @@ export default function BulkImportJournalEntriesModal({ companyId, onClose, onIm
     setCommitting(true);
     setError("");
     try {
-      const commitResult = await commitBulkImportJournalEntries(companyId, rows, mapping);
+      const commitResult = await commitBulkImportJournalEntries(companyId, rows, mapping, importStatus);
       const autoMatched = preview.accountNames.filter((a) => a.status === "matched").length;
       const manuallyResolved = preview.accountNames.length - autoMatched;
       setResult({ ...commitResult, totalGroups: preview.totalGroups, autoMatched, manuallyResolved });
@@ -288,6 +290,17 @@ export default function BulkImportJournalEntriesModal({ companyId, onClose, onIm
                 </tbody>
               </table>
             </div>
+            <fieldset className="bulk-import-status">
+              <legend>{t("journalModals.bulkImport.statusLegend")}</legend>
+              <label>
+                <input type="radio" name="bulk-import-status" value="saved" checked={importStatus === "saved"} onChange={() => setImportStatus("saved")} />
+                {t("journalModals.bulkImport.statusSaved")}
+              </label>
+              <label>
+                <input type="radio" name="bulk-import-status" value="posted" checked={importStatus === "posted"} onChange={() => setImportStatus("posted")} />
+                {t("journalModals.bulkImport.statusPosted")}
+              </label>
+            </fieldset>
             {error && <p className="balance-bad">{error}</p>}
             <div className="form-btn-group">
               <button className="btn-ghost" onClick={onClose} disabled={committing}>{t("common.cancel")}</button>
@@ -305,7 +318,7 @@ export default function BulkImportJournalEntriesModal({ companyId, onClose, onIm
 
         {step === "done" && result && (
           <>
-            <p className="note">{t("journalModals.bulkImport.doneNote")}</p>
+            <p className="note">{t(importStatus === "posted" ? "journalModals.bulkImport.doneNotePosted" : "journalModals.bulkImport.doneNote")}</p>
             <div className="lines-table-wrap">
               <table className="lines-table">
                 <tbody>

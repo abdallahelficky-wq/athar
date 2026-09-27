@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import type { Account } from "@prisma/client";
+import type { Account, Prisma } from "@prisma/client";
 import { notFound } from "../../lib/httpError";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { Lang } from "../../lib/i18n/translate";
@@ -12,6 +12,7 @@ import {
   findTreeNode,
   TreeNode,
 } from "../../lib/reportRollup";
+import { COUNTED_ENTRY_WHERE, UNCOUNTED_DRAFT_WHERE } from "../../lib/countedEntries";
 
 export interface DateRange {
   companyId?: string;
@@ -30,13 +31,11 @@ export interface AccountBalance {
 }
 
 /**
- * تجميع أرصدة الحسابات من أسطر كل القيود — "محفوظة" (saved) أو "مرحّلة" (posted) معاً، بلا فلتر
- * status هنا عمداً: قرار صريح من المستخدم أن يؤثر القيد "المحفوظ" على كل التقارير المالية فور
- * حفظه (لا يقتصر التأثير على "مرحّل" فقط كما كان سابقاً)، طالما لا يوجد إطلاقاً في هذا النظام أي
- * حالة ثالثة "لا تؤثر" (مثل "مسودة" القديمة) — أي قيد موجود في الجدول يُحتسَب. مطابق أصلاً لمنطق
- * aggregateAccounts في AtharAlMuhasabi.jsx، مع إضافة تصفية بالتاريخ والشركة كما تتطلبها توقيعات
- * endpoints في القسم 5 من المستند. كل التقارير تُحسب من هذه الدالة فقط ولا تُخزَّن أرقامها في
- * مكان منفصل (مبدأ القسم 3).
+ * تجميع أرصدة الحسابات من أسطر القيود المحتسبة فقط (COUNTED_ENTRY_WHERE): المرحَّلة، والمحفوظة فقط في
+ * شركة لم يُفعَّل فيها بعدُ مفتاح balancesPostedOnly. قرار المالك (2026-09-27) عكس القرار السابق الذي
+ * كان يحتسب "المحفوظ" فور حفظه: فك ترحيل قيد يدوي لم يكن يغيّر أي رقم، فكانت صلاحية فك الترحيل ورقمها
+ * السري بلا أثر. ما يبقى محفوظاً يُعرَض في كل شاشة أرصدة كسطر مستقل "قيود محفوظة غير محتسبة" (راجع
+ * getDraftEntriesSummary). كل التقارير تُحسب من هذه الدالة ولا تُخزَّن أرقامها في مكان منفصل.
  */
 export async function aggregateAccountBalances(tenantId: string, range: DateRange): Promise<Map<string, AccountBalance>> {
   const accounts = await prisma.account.findMany({
@@ -50,6 +49,7 @@ export async function aggregateAccountBalances(tenantId: string, range: DateRang
     where: {
       branchId: range.branchId || undefined,
       journalEntry: {
+        AND: [COUNTED_ENTRY_WHERE],
         tenantId,
         companyId: range.companyId || undefined,
         date: {
@@ -568,7 +568,7 @@ async function buildPartyStatement(
   if (dateFrom) {
     const openingDateTo = new Date(dateFrom.getTime() - 1);
     const opening = await prisma.journalEntryLine.aggregate({
-      where: { accountId, journalEntry: { tenantId, companyId: companyId || undefined, date: { lte: openingDateTo } } },
+      where: { accountId, journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { lte: openingDateTo } } },
       _sum: { debit: true, credit: true },
     });
     const od = Number(opening._sum.debit || 0);
@@ -580,6 +580,7 @@ async function buildPartyStatement(
     where: {
       accountId,
       journalEntry: {
+        AND: [COUNTED_ENTRY_WHERE],
         tenantId,
         companyId: companyId || undefined,
         date: { gte: dateFrom, lte: dateTo },
@@ -688,7 +689,7 @@ export async function getAccountLedger(
         costCenterId: filters?.costCenterId || undefined,
         departmentId: filters?.departmentId || undefined,
         branchId: filters?.branchId || undefined,
-        journalEntry: { tenantId, companyId: companyId || undefined, date: { lte: openingDateTo } },
+        journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { lte: openingDateTo } },
       },
       _sum: { debit: true, credit: true },
     });
@@ -704,6 +705,7 @@ export async function getAccountLedger(
       departmentId: filters?.departmentId || undefined,
       branchId: filters?.branchId || undefined,
       journalEntry: {
+        AND: [COUNTED_ENTRY_WHERE],
         tenantId,
         companyId: companyId || undefined,
         date: { gte: dateFrom, lte: dateTo },
@@ -752,4 +754,49 @@ export async function getSupplierStatement(
   const accountId = await resolvePartyAccountId(tenantId, supplier.companyId, supplier, "ذمم دائنة - موردين");
   const statement = await buildPartyStatement(tenantId, accountId, companyId, dateFrom, dateTo, -1);
   return { supplier, ...statement };
+}
+
+/**
+ * سطر "قيود محفوظة" في شاشات الأرصدة: القيود المحفوظة (غير المرحّلة) في نفس نطاق الشاشة (الشركة، الفترة،
+ * الفرع، والحساب لشاشة الأستاذ) مقسومة قسمين:
+ * - uncounted: في شركات تحتسب أرصدتها المرحَّل فقط — لا تدخل الأرقام المعروضة؛
+ * - counted: في شركات لم يُفعَّل فيها المفتاح بعد — تدخل الأرقام المعروضة رغم أنها غير مرحّلة.
+ */
+export async function getDraftEntriesSummary(
+  tenantId: string,
+  filters: { companyId?: string; branchId?: string; accountId?: string; dateFrom?: Date; dateTo?: Date },
+) {
+  // حساب تجميعي (شاشة الأستاذ تقبله): نفس نطاقه في الأرصدة — هو وكل حساباته الفرعية
+  let accountIds: string[] | undefined;
+  if (filters.accountId) {
+    accountIds = [filters.accountId];
+    let frontier = [filters.accountId];
+    while (frontier.length) {
+      const children = await prisma.account.findMany({ where: { tenantId, parentId: { in: frontier } }, select: { id: true } });
+      frontier = children.map((c) => c.id);
+      accountIds.push(...frontier);
+    }
+  }
+  const lineWhere = (entryScope: Prisma.JournalEntryWhereInput): Prisma.JournalEntryLineWhereInput => ({
+    accountId: accountIds ? { in: accountIds } : undefined,
+    branchId: filters.branchId || undefined,
+    journalEntry: {
+      AND: [entryScope],
+      tenantId,
+      companyId: filters.companyId || undefined,
+      date: { gte: filters.dateFrom, lte: filters.dateTo },
+    },
+  });
+  const summarize = async (entryScope: Prisma.JournalEntryWhereInput) => {
+    const [agg, entries] = await Promise.all([
+      prisma.journalEntryLine.aggregate({ where: lineWhere(entryScope), _sum: { debit: true, credit: true } }),
+      prisma.journalEntryLine.findMany({ where: lineWhere(entryScope), distinct: ["journalEntryId"], select: { journalEntryId: true } }),
+    ]);
+    return { entryCount: entries.length, debit: money(Number(agg._sum.debit ?? 0)), credit: money(Number(agg._sum.credit ?? 0)) };
+  };
+  const [uncounted, counted] = await Promise.all([
+    summarize(UNCOUNTED_DRAFT_WHERE),
+    summarize({ status: "saved", company: { balancesPostedOnly: false } }),
+  ]);
+  return { uncounted, counted };
 }

@@ -78,3 +78,5 @@ export const reopenFiscalClosingSchema = z.object({
 export const extractDocumentSchema = z.object({
   docType: z.enum(["cr", "national_address", "vat_certificate"]),
 });
+
+export const balancesPostedOnlySchema = z.object({ enabled: z.boolean() });
