@@ -41,11 +41,12 @@ async function resolveCreditAccountId(tenantId: string, companyId: string, metho
 }
 
 export async function listReceipts(tenantId: string, filters: { companyId?: string; customerId?: string }) {
-  return prisma.receipt.findMany({
+  const receipts = await prisma.receipt.findMany({
     where: { tenantId, companyId: filters.companyId || undefined, customerId: filters.customerId || undefined },
     include: receiptInclude,
     orderBy: { createdAt: "desc" },
   });
+  return receipts.map((r) => ({ ...r, unappliedAmount: unappliedAmountOf(r) }));
 }
 
 /** الفواتير المستحقة على عميل معيّن (غير مسددة بالكامل بعد) — مطابق للفلترة في ReceiptsModule */
@@ -117,7 +118,7 @@ export async function createReceipt(tenantId: string, userId: string, input: Rec
         totalAmount: totalAllocated,
         status: "posted",
         journalEntryId: entry.id,
-        allocations: { create: input.allocations.map((a) => ({ invoiceId: a.invoiceId, amount: a.amount })) },
+        allocations: { create: input.allocations.map((a) => ({ invoiceId: a.invoiceId, amount: a.amount, createdByUserId: userId })) },
       },
       include: receiptInclude,
     });
@@ -178,106 +179,100 @@ export async function unpostReceipt(tenantId: string, userId: string, id: string
   });
 }
 
-/**
- * يُعيد إنشاء قيد السند بإجمالي جديد (بعد إضافة/إزالة تخصيص) — يحذف القيد القديم وينشئ
- * قيداً جديداً بدلاً منه بنفس منطق الإنشاء الأصلي، حتى يبقى القيد مطابقاً دائماً لمجموع
- * التخصيصات الفعلي على السند. لا يُنفَّذ شيء إن كان السند أصلاً غير مرحّل (draft).
- */
-async function repostReceiptEntryTx(
-  tx: Parameters<typeof createJournalEntryTx>[0],
-  receipt: {
-    id: string; tenantId: string; companyId: string; customerId: string; date: Date; receiptNumber: string;
-    method: "cash" | "bank"; bankAccountId: string | null; status: string; journalEntryId: string | null;
-    customer: { accountId: string | null };
-  },
-  customerName: string,
-  newTotal: number,
-) {
-  if (receipt.status !== "posted") return null;
-  await deleteJournalEntryTx(tx, receipt.journalEntryId);
-  const creditAccountId = await resolveCreditAccountId(receipt.tenantId, receipt.companyId, receipt.method, receipt.bankAccountId);
-  const receivableId = await resolvePartyAccountId(receipt.tenantId, receipt.companyId, receipt.customer, "ذمم مدينة");
-  const entry = await createJournalEntryTx(tx, {
-    tenantId: receipt.tenantId,
-    companyId: receipt.companyId,
-    date: receipt.date,
-    memo: `سند قبض ${receipt.receiptNumber} — ${customerName}`,
-    sourceModule: "receipt",
-    sourceId: receipt.id,
-    lines: [
-      { accountId: creditAccountId, department: "المالية والحسابات", debit: newTotal, credit: 0, customerId: receipt.customerId },
-      { accountId: receivableId, department: "المالية والحسابات", debit: 0, credit: newTotal, customerId: receipt.customerId },
-    ],
-  });
-  return entry.id;
-}
-
-async function dueAmountOf(tenantId: string, invoiceId: string) {
-  const invoice = await prisma.salesInvoice.findFirst({
+async function dueAmountOf(tenantId: string, invoiceId: string, client: Pick<typeof prisma, "salesInvoice" | "salesReturn"> = prisma) {
+  const invoice = await client.salesInvoice.findFirst({
     where: { id: invoiceId, tenantId },
     include: { receiptAllocations: true },
   });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن ربط سند قبض بفاتورة غير مرحّلة");
-  const summary = (await withInvoiceCredits(tenantId, [invoice]))[0];
+  const summary = (await withInvoiceCredits(tenantId, [invoice], client))[0];
   return { invoice, due: summary.outstandingAmount };
 }
 
-/** ربط فاتورة إضافية بسند قبض موجود بالفعل — يزيد إجمالي السند وقيده المحاسبي المرتبط */
-export async function addReceiptAllocation(tenantId: string, id: string, invoiceId: string, amount: number) {
-  const receipt = await prisma.receipt.findFirst({ where: { id, tenantId }, include: receiptInclude });
-  if (!receipt) throw notFound("سند القبض غير موجود");
-  if (amount <= 0) throw badRequest("المبلغ يجب أن يكون أكبر من صفر");
+type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
-  if (receipt.allocations.some((a) => a.invoiceId === invoiceId)) {
-    throw badRequest("هذه الفاتورة مرتبطة بالفعل بهذا السند");
-  }
+/** الجزء غير المخصَّص من سند قبض: مبلغه الثابت منذ الترحيل ناقص مجموع تخصيصاته الحالية. */
+export function unappliedAmountOf(receipt: { totalAmount: unknown; allocations: { amount: unknown }[] }) {
+  const allocated = receipt.allocations.reduce((sum, a) => sum + Number(a.amount), 0);
+  return Math.round((Number(receipt.totalAmount) - allocated) * 100) / 100;
+}
 
-  const { invoice, due } = await dueAmountOf(tenantId, invoiceId);
-  if (invoice.customerId !== receipt.customerId) {
-    throw badRequest("لا يمكن ربط فاتورة عميل مختلف عن عميل السند");
-  }
-  if (amount > due + 0.01) {
-    throw badRequest(`المبلغ أكبر من المتبقي على هذه الفاتورة (${due.toFixed(2)})`);
-  }
+const allocationSnapshot = (allocations: { invoiceId: string; amount: unknown }[]) =>
+  allocations.map((a) => ({ invoiceId: a.invoiceId, amount: Number(a.amount) }));
 
-  const newTotal = Number(receipt.totalAmount) + amount;
-
-  return prisma.$transaction(async (tx) => {
-    const newEntryId = await repostReceiptEntryTx(tx, receipt, receipt.customer.name, newTotal);
-    return tx.receipt.update({
-      where: { id },
-      data: {
-        totalAmount: newTotal,
-        ...(newEntryId ? { journalEntryId: newEntryId } : {}),
-        allocations: { create: { invoiceId, amount } },
-      },
-      include: receiptInclude,
-    });
+async function writeAllocationAuditTx(
+  tx: Tx,
+  params: {
+    tenantId: string; companyId: string; userId: string; receiptId: string; receiptNumber: string;
+    action: "receipt.allocation_added" | "receipt.allocation_removed";
+    invoiceId: string; invoiceNumber: string | null; amount: number;
+    before: { invoiceId: string; amount: number }[]; after: { invoiceId: string; amount: number }[];
+    unappliedBefore: number; unappliedAfter: number;
+  },
+) {
+  const { tenantId, companyId, userId, receiptId, action, ...metadata } = params;
+  await tx.auditLog.create({
+    data: { tenantId, companyId, userId, action, entityType: "Receipt", entityId: receiptId, metadata },
   });
 }
 
-/** فك ربط فاتورة عن سند قبض — يُنقص إجمالي السند وقيده المحاسبي، ويُرفَض إن كان آخر تخصيص */
-export async function removeReceiptAllocation(tenantId: string, id: string, invoiceId: string) {
-  const receipt = await prisma.receipt.findFirst({ where: { id, tenantId }, include: receiptInclude });
-  if (!receipt) throw notFound("سند القبض غير موجود");
-
-  const allocation = receipt.allocations.find((a) => a.invoiceId === invoiceId);
-  if (!allocation) throw notFound("هذه الفاتورة غير مرتبطة بهذا السند");
-
-  if (receipt.allocations.length === 1) {
-    throw badRequest("هذا آخر تخصيص في هذا السند — احذف السند نفسه (بعد فك ترحيله إن كان مرحّلاً) بدل فك ربط آخر فاتورة فيه");
-  }
-
-  const newTotal = Number(receipt.totalAmount) - Number(allocation.amount);
-
+/**
+ * تخصيص جزء من سند قبض لفاتورة — عملية دفتر عملاء فقط: لا يتغيّر مبلغ السند ولا قيده المرحَّل إطلاقاً.
+ * المتاح للتخصيص هو الجزء غير المخصَّص من السند (مبلغه ناقص تخصيصاته)، ولا يتجاوز المتبقي على
+ * الفاتورة. استلام نقد إضافي يعني سند قبض جديداً، لا تكبير سند قائم. السند والفاتورة يُقفلان داخل
+ * المعاملة (FOR UPDATE) حتى لا يتجاوز تخصيصان متزامنان الرصيد المتاح.
+ */
+export async function addReceiptAllocation(tenantId: string, userId: string, id: string, invoiceId: string, amount: number) {
+  if (!(amount > 0)) throw badRequest("المبلغ يجب أن يكون أكبر من صفر");
   return prisma.$transaction(async (tx) => {
-    const newEntryId = await repostReceiptEntryTx(tx, receipt, receipt.customer.name, newTotal);
-    await tx.receiptAllocation.delete({ where: { id: allocation.id } });
-    return tx.receipt.update({
-      where: { id },
-      data: { totalAmount: newTotal, ...(newEntryId ? { journalEntryId: newEntryId } : {}) },
-      include: receiptInclude,
+    await tx.$queryRaw`SELECT id FROM "receipts" WHERE id = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM "sales_invoices" WHERE id = ${invoiceId} AND "tenantId" = ${tenantId} FOR UPDATE`;
+    const receipt = await tx.receipt.findFirst({ where: { id, tenantId }, include: { allocations: true } });
+    if (!receipt) throw notFound("سند القبض غير موجود");
+    if (receipt.allocations.some((a) => a.invoiceId === invoiceId)) throw badRequest("هذه الفاتورة مرتبطة بالفعل بهذا السند");
+
+    const { invoice, due } = await dueAmountOf(tenantId, invoiceId, tx);
+    if (invoice.customerId !== receipt.customerId) throw badRequest("لا يمكن ربط فاتورة عميل مختلف عن عميل السند");
+    const unapplied = unappliedAmountOf(receipt);
+    if (amount > unapplied + 0.005) {
+      throw badRequest(`المبلغ أكبر من غير المخصَّص من السند (${unapplied.toFixed(2)}) — النقد الإضافي يُسجَّل بسند قبض جديد`);
+    }
+    if (amount > due + 0.01) throw badRequest(`المبلغ أكبر من المتبقي على هذه الفاتورة (${due.toFixed(2)})`);
+
+    const before = allocationSnapshot(receipt.allocations);
+    await tx.receiptAllocation.create({ data: { receiptId: id, invoiceId, amount, createdByUserId: userId } });
+    await writeAllocationAuditTx(tx, {
+      tenantId, companyId: receipt.companyId, userId, receiptId: id, receiptNumber: receipt.receiptNumber,
+      action: "receipt.allocation_added", invoiceId, invoiceNumber: invoice.invoiceNumber, amount,
+      before, after: [...before, { invoiceId, amount }],
+      unappliedBefore: unapplied, unappliedAfter: Math.round((unapplied - amount) * 100) / 100,
     });
+    return tx.receipt.findUniqueOrThrow({ where: { id }, include: receiptInclude });
+  });
+}
+
+/**
+ * فك تخصيص فاتورة عن سند قبض — يعود مبلغه إلى الجزء غير المخصَّص من السند، ولا يتغيّر مبلغ السند
+ * ولا قيده المرحَّل. مسموح حتى لآخر تخصيص (يبقى السند كاملاً غير مخصَّص).
+ */
+export async function removeReceiptAllocation(tenantId: string, userId: string, id: string, invoiceId: string) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "receipts" WHERE id = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`;
+    const receipt = await tx.receipt.findFirst({ where: { id, tenantId }, include: { allocations: { include: { invoice: { select: { invoiceNumber: true } } } } } });
+    if (!receipt) throw notFound("سند القبض غير موجود");
+    const allocation = receipt.allocations.find((a) => a.invoiceId === invoiceId);
+    if (!allocation) throw notFound("هذه الفاتورة غير مرتبطة بهذا السند");
+
+    const before = allocationSnapshot(receipt.allocations);
+    const unapplied = unappliedAmountOf(receipt);
+    await tx.receiptAllocation.delete({ where: { id: allocation.id } });
+    await writeAllocationAuditTx(tx, {
+      tenantId, companyId: receipt.companyId, userId, receiptId: id, receiptNumber: receipt.receiptNumber,
+      action: "receipt.allocation_removed", invoiceId, invoiceNumber: allocation.invoice.invoiceNumber, amount: Number(allocation.amount),
+      before, after: before.filter((a) => a.invoiceId !== invoiceId),
+      unappliedBefore: unapplied, unappliedAfter: Math.round((unapplied + Number(allocation.amount)) * 100) / 100,
+    });
+    return tx.receipt.findUniqueOrThrow({ where: { id }, include: receiptInclude });
   });
 }

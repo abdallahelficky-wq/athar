@@ -1440,6 +1440,10 @@ model ReceiptAllocation {
   invoiceId String
   invoice   SalesInvoice @relation(fields: [invoiceId], references: [id])
   amount    Decimal      @db.Decimal(18, 2)
+  // متى ومن أضاف هذا التخصيص — فارغان للتخصيصات السابقة لهذا العمود (لا يُعرف وقتها)، ومسجَّلان لكل
+  // تخصيص جديد. بلا علاقة مفتاح أجنبي للمستخدم، بنفس مبدأ سجلات التدقيق: الأثر لا يُمحى مع المستخدم.
+  createdAt       DateTime? @default(now())
+  createdByUserId String?
 
   @@map("receipt_allocations")
 }

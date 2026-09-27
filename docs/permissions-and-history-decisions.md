@@ -55,3 +55,12 @@ generated positions are needed.
 
 What isn't wanted is a "pick a template" chooser in the Positions screen. Owners build positions from
 the matrix itself, using the select-all controls for a row, a column or the whole matrix.
+
+## 5. On the list: rename `super_admin`
+
+`super_admin` is a role on a user inside a tenant, granted at registration only to one hard-coded email
+(`OWNER_EMAIL` in `auth.service.ts`), that bypasses every role, position and permission check in the
+tenants that email belongs to. It has no platform authority: platform administration uses the separate
+service secret (`authenticatePlatformService`). Its name led both the owner and the assistant to misread
+it as "every tenant owner" in the same week. The comments were corrected in #111; the rename itself (a
+`UserRole` enum value, every role check, and the frontend) is still to do, as its own change.

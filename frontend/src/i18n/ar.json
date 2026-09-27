@@ -783,6 +783,7 @@
       "cancel": "إلغاء", "saving": "جارٍ الحفظ...", "save": "حفظ الصنف"
     },
     "linkPaymentModal": {
+      "unappliedOf": "غير مخصَّص {{unapplied}} من {{total}} {{currency}}", "existingNote": "الربط بسند قائم يخصّص جزءاً من مبلغه غير المخصَّص فقط — لا يتغيّر مبلغ السند ولا قيده. إن استُلم نقد إضافي فسجّله بسند جديد.", "noUnappliedReceipts": "لا يوجد سند قبض لهذا العميل فيه مبلغ غير مخصَّص — سجّل النقد المستلم بسند جديد.",
       "title": "ربط الفاتورة {{number}} بسند قبض", "close": "إغلاق",
       "summary": "الإجمالي {{total}} {{currency}} — المسدد {{paid}} {{currency}} — المتبقي {{due}} {{currency}}",
       "linkedTitle": "السندات المرتبطة حالياً",
@@ -796,7 +797,7 @@
       "amount": "المبلغ",
       "saving": "جارٍ الحفظ...", "linkExisting": "ربط بالسند المحدد", "createAndLink": "إنشاء السند وربطه",
       "close2": "إغلاق",
-      "confirmUnlink": "فك ربط الفاتورة عن سند القبض {{receiptNumber}}؟",
+      "confirmUnlink": "فك ربط الفاتورة عن سند القبض {{receiptNumber}}؟ يعود المبلغ المخصَّص إلى رصيد السند غير المخصَّص، ولا يتغيّر مبلغ السند ولا قيده.",
       "linkedMsg": "تم ربط الفاتورة {{number}} بسند القبض بنجاح.",
       "createdAndLinkedMsg": "تم إنشاء سند قبض جديد وربطه بالفاتورة {{number}} بنجاح.",
       "unlinkedMsg": "تم فك ربط الفاتورة {{number}} عن سند القبض {{receiptNumber}}. حالة السداد الآن: {{status}}.",
