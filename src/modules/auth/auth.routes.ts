@@ -5,6 +5,7 @@ import {
   registerSchema,
   loginSchema,
   completeLoginChoiceSchema,
+  switchAccountSchema,
   refreshSchema,
   inviteSchema,
   setUserActiveSchema,
@@ -19,6 +20,7 @@ import {
   registerHandler,
   loginHandler,
   completeLoginChoiceHandler,
+  switchAccountHandler,
   refreshHandler,
   logoutHandler,
   inviteHandler,
@@ -41,6 +43,9 @@ export const authRoutes = Router();
 authRoutes.post("/register", validateBody(registerSchema), registerHandler);
 authRoutes.post("/login", validateBody(loginSchema), loginHandler);
 authRoutes.post("/login/complete", validateBody(completeLoginChoiceSchema), completeLoginChoiceHandler);
+// تبديل مقصود إلى عضوية أخرى لنفس الهوية من داخل جلسة قائمة — بلا blockMutationsWhenReadOnly عمداً:
+// التبديل لا يعدّل بيانات أي مستأجر، ويجب أن يبقى متاحاً حتى لمن مستأجره الحالي بوضع "عرض فقط".
+authRoutes.post("/switch", authenticate, validateBody(switchAccountSchema), switchAccountHandler);
 authRoutes.post("/refresh", validateBody(refreshSchema), refreshHandler);
 authRoutes.post("/logout", validateBody(refreshSchema), logoutHandler);
 authRoutes.post(

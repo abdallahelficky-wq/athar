@@ -17,7 +17,7 @@ import { createStarterItems, createCashParties, createDefaultWarehouse, linkStat
 import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../../lib/mailer";
 import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
 import type { Lang } from "../../lib/i18n/translate";
-import type { Tenant, User, Identity } from "@prisma/client";
+import type { Prisma, Tenant, User, Identity } from "@prisma/client";
 import { canUnpostJournalEntries, canDeferPosSale, canOverridePosPrice } from "../positions/positions.service";
 
 const TRIAL_DAYS = 30;
@@ -114,6 +114,65 @@ function isTenantReadOnly(tenant: Pick<Tenant, "subscriptionStatus" | "trialEnds
   return tenant.subscriptionStatus === "past_due" || tenant.subscriptionStatus === "canceled";
 }
 
+type OwnedTenantCompanyInput = {
+  name: string;
+  businessActivity: BusinessActivity;
+  shortName?: string;
+  country?: string;
+  currency?: string;
+};
+
+/**
+ * المصدر الوحيد لإنشاء مستأجر جديد مملوك لهوية قائمة، بشركته الأولى وبياناتها الابتدائية كاملة:
+ * المستأجر (تجريبي)، الشركة، شجرة الحسابات حسب النشاط، الأصناف الابتدائية، العميل والمورد النقديان،
+ * المستودع الافتراضي، حسابا عجز/زيادة نقد المحطات، ثم عضوية المالك (User) وربطها كمالك.
+ * يستدعيها كلٌّ من register() (تسجيل جديد) وcreateIndependentTenant() («شركة مستقلة» من داخل جلسة
+ * قائمة) — نسخة زرع واحدة فقط، حتى لا تنحرف شجرة حسابات أحد المسارين عن الآخر مع الوقت.
+ * تعمل داخل معاملة المستدعي (tx) ولا تُصدِر أي رموز دخول ولا ترسل أي بريد.
+ */
+async function createOwnedTenant(
+  tx: Prisma.TransactionClient,
+  input: { identity: Identity; ownerName: string; unlockPinHash: string; company: OwnedTenantCompanyInput },
+) {
+  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000);
+  const tenant = await tx.tenant.create({
+    data: {
+      name: input.company.name,
+      subscriptionStatus: "trialing",
+      trialEndsAt,
+      unlockPin: input.unlockPinHash,
+    },
+  });
+
+  const { businessActivity } = input.company;
+  const company = await tx.company.create({ data: { ...input.company, tenantId: tenant.id } });
+  const idByCode = await createChartFromTemplate(tx, tenant.id, company.id, CHART_TEMPLATE_BY_ACTIVITY[businessActivity]);
+  await createStarterItems(tx, tenant.id, company.id, businessActivity, idByCode);
+  await createCashParties(tx, tenant.id, company.id);
+  await createDefaultWarehouse(tx, tenant.id, company.id);
+  await linkStationCashAccounts(tx, company.id, businessActivity, idByCode);
+
+  const user = await tx.user.create({
+    data: {
+      tenantId: tenant.id,
+      identityId: input.identity.id,
+      name: input.ownerName,
+      role: input.identity.email.toLowerCase() === OWNER_EMAIL ? "super_admin" : "admin",
+      companyScope: "all",
+      active: true,
+      inviteStatus: "accepted",
+    },
+    include: { identity: true },
+  });
+
+  // أول مستخدم في المستأجر هو مالكه — يملك دائماً كل صلاحيات المناصب على شركته (راجع
+  // requirePermission في middleware/auth.ts) بلا حاجة لإعداد منصب له صراحةً.
+  // للشركات الأقدم من هذه الميزة، راجع scripts/backfillTenantOwners.ts.
+  await tx.tenant.update({ where: { id: tenant.id }, data: { ownerId: user.id } });
+
+  return { tenant: { ...tenant, ownerId: user.id }, company, user };
+}
+
 export async function register(
   input: { tenantName: string; businessActivity: BusinessActivity; name: string; email: string; password: string },
   lang: Lang = "ar",
@@ -127,7 +186,6 @@ export async function register(
     if (!valid) throw conflict("هذا البريد الإلكتروني مسجّل بالفعل بكلمة مرور مختلفة");
   }
 
-  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000);
   const unlockPinHash = await hashPassword(env.defaultUnlockPin);
 
   const { tenant, user } = await prisma.$transaction(
@@ -140,41 +198,12 @@ export async function register(
           : await tx.identity.update({ where: { id: existingIdentity.id }, data: { passwordHash: await hashPassword(input.password) } })
         : await tx.identity.create({ data: { email: input.email, passwordHash: await hashPassword(input.password) } });
 
-      const tenant = await tx.tenant.create({
-        data: {
-          name: input.tenantName,
-          subscriptionStatus: "trialing",
-          trialEndsAt,
-          unlockPin: unlockPinHash,
-        },
+      return createOwnedTenant(tx, {
+        identity,
+        ownerName: input.name,
+        unlockPinHash,
+        company: { name: input.tenantName, businessActivity: input.businessActivity },
       });
-
-      const company = await tx.company.create({ data: { tenantId: tenant.id, name: input.tenantName, businessActivity: input.businessActivity } });
-      const idByCode = await createChartFromTemplate(tx, tenant.id, company.id, CHART_TEMPLATE_BY_ACTIVITY[input.businessActivity]);
-      await createStarterItems(tx, tenant.id, company.id, input.businessActivity, idByCode);
-      await createCashParties(tx, tenant.id, company.id);
-      await createDefaultWarehouse(tx, tenant.id, company.id);
-      await linkStationCashAccounts(tx, company.id, input.businessActivity, idByCode);
-
-      const user = await tx.user.create({
-        data: {
-          tenantId: tenant.id,
-          identityId: identity.id,
-          name: input.name,
-          role: input.email.toLowerCase() === OWNER_EMAIL ? "super_admin" : "admin",
-          companyScope: "all",
-          active: true,
-          inviteStatus: "accepted",
-        },
-        include: { identity: true },
-      });
-
-      // أول مستخدم يسجّل لهذه الشركة هو مالكها افتراضياً — يملك دائماً كل صلاحيات المناصب على
-      // شركته (راجع requirePermission في middleware/auth.ts) بلا حاجة لإعداد منصب له صراحةً.
-      // للشركات الأقدم من هذه الميزة، راجع scripts/backfillTenantOwners.ts.
-      await tx.tenant.update({ where: { id: tenant.id }, data: { ownerId: user.id } });
-
-      return { tenant: { ...tenant, ownerId: user.id }, user };
     },
     // مهلة أطول من الافتراضي (5 ثوانٍ) كإجراء احتياطي إضافي — لم يعد زرع الشجرة القياسية
     // بحاجة إليها فعلياً بعد التحويل إلى createMany دفعي واحد، لكنها تحمي من أي بطء عابر
@@ -279,6 +308,49 @@ export async function completeLoginChoice(identityToken: string, userId: string)
   if (!user.active) throw unauthorized("هذا الحساب معطّل، تواصل مع مدير النظام لديك");
 
   return completeLoginForUser(user);
+}
+
+/**
+ * «شركة مستقلة» من داخل جلسة قائمة: مستأجر جديد كلياً (رمزه، شجرته، اشتراكه التجريبي) مالكه هو نفس
+ * هوية المستخدم الحالي — عبر createOwnedTenant نفسها التي يستخدمها التسجيل. الهوية تُقرأ من عضوية
+ * المستخدم الحالي في قاعدة البيانات (req.auth.sub)، لا من أي مدخل في الطلب، فلا يمكن إنشاء مستأجر
+ * باسم هوية أخرى. لا يُصدِر أي رمز دخول ولا يمسّ الجلسة الحالية: الانتقال للمستأجر الجديد قرار صريح
+ * لاحق من المستخدم (switchAccount أدناه، أو شاشة اختيار الحساب عند الدخول).
+ */
+export async function createIndependentTenant(currentUserId: string, company: OwnedTenantCompanyInput) {
+  const current = await prisma.user.findUnique({ where: { id: currentUserId }, include: { identity: true } });
+  if (!current || !current.active) throw unauthorized("الحساب غير موجود أو معطّل");
+
+  const unlockPinHash = await hashPassword(env.defaultUnlockPin);
+  const { tenant, company: created, user } = await prisma.$transaction(
+    (tx) => createOwnedTenant(tx, { identity: current.identity, ownerName: current.name, unlockPinHash, company }),
+    { timeout: 20_000, maxWait: 10_000 },
+  );
+  return {
+    tenant: { id: tenant.id, name: tenant.name, code: tenant.code, trialEndsAt: tenant.trialEndsAt },
+    company: { id: created.id, name: created.name },
+    userId: user.id,
+  };
+}
+
+/**
+ * تبديل مقصود من داخل جلسة قائمة إلى عضوية أخرى لنفس الهوية (نفس البريد) — بديل عن تسجيل الخروج ثم
+ * الدخول واختيار الحساب. الهوية تُحدَّد من عضوية المستخدم الحالي في قاعدة البيانات، والعضوية المطلوبة
+ * يجب أن تعود لنفس الهوية بالضبط (مقبولة ومفعّلة)؛ أي userId آخر يُعامَل كغير موجود. يُصدَر رمز الدخول
+ * الجديد بنفس مسار الدخول العادي تماماً (completeLoginForUser: فحص تعليق المستأجر، وضع "عرض فقط").
+ */
+export async function switchAccount(currentUserId: string, targetUserId: string) {
+  const current = await prisma.user.findUnique({ where: { id: currentUserId } });
+  if (!current || !current.active) throw unauthorized("الحساب غير موجود أو معطّل");
+
+  const target = await prisma.user.findFirst({
+    where: { id: targetUserId, identityId: current.identityId, inviteStatus: "accepted" },
+    include: { identity: true },
+  });
+  if (!target) throw notFound("الحساب غير موجود");
+  if (!target.active) throw unauthorized("هذا الحساب معطّل، تواصل مع مدير النظام لديك");
+
+  return completeLoginForUser(target);
 }
 
 export async function refresh(refreshToken: string) {

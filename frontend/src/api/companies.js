@@ -2,6 +2,8 @@ import { api } from "./http";
 
 export const listCompanies = () => api.get("/companies");
 export const createCompany = (payload) => api.post("/companies", payload);
+// «شركة مستقلة»: مستأجر جديد كلياً لنفس هوية المستخدم — لا يُعيد رموز دخول ولا يغيّر الجلسة الحالية
+export const createIndependentCompany = (payload) => api.post("/companies/independent", payload);
 export const updateCompany = (id, payload) => api.patch(`/companies/${id}`, payload);
 export const deleteCompany = (id) => api.delete(`/companies/${id}`);
 // "فتح الإقفال" — تقديم تاريخ إقفال السنة المالية للخلف أو مسحه بالكامل، admin فقط (راجع الرفض

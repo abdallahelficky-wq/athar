@@ -98,6 +98,18 @@ export function AuthProvider({ children }) {
     return result;
   };
 
+  // انتقال مقصود إلى عضوية أخرى لنفس الهوية: رمز جديد من الخادم لتلك العضوية، ثم إبطال رمز التحديث
+  // القديم (كتسجيل خروج من المستأجر السابق) ومسح شركته النشطة المحفوظة. المستدعي يعيد تحميل الصفحة
+  // بعدها حتى لا يبقى في الذاكرة أي شيء محمَّل من المستأجر السابق.
+  const switchAccount = async (userId) => {
+    const previousRefreshToken = getRefreshToken();
+    const result = await authApi.switchAccount(userId);
+    if (tenant?.id) localStorage.removeItem(`athar.activeCompanyId.${tenant.id}`);
+    applySession(result);
+    if (previousRefreshToken) await authApi.logout(previousRefreshToken).catch(() => undefined);
+    return result;
+  };
+
   const register = async (payload) => {
     const result = await authApi.registerTenant(payload);
     applySession(result);
@@ -148,6 +160,7 @@ export function AuthProvider({ children }) {
     platformNotices,
     login,
     completeLogin,
+    switchAccount,
     register,
     acceptInvite,
     renameTenant,

@@ -18,6 +18,10 @@ export const completeLoginChoiceSchema = z.object({
   userId: z.string().min(1, "معرّف الحساب المطلوب تسجيل الدخول إليه مطلوب"),
 });
 
+export const switchAccountSchema = z.object({
+  userId: z.string().min(1, "معرّف الحساب المطلوب الانتقال إليه مطلوب"),
+});
+
 export const refreshSchema = z.object({
   refreshToken: z.string().min(1, "رمز التحديث مطلوب"),
 });

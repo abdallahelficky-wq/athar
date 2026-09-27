@@ -1774,7 +1774,10 @@
       "createBtn": "Create company",
       "creating": "Saving...",
       "errNameRequired": "Company name is required",
-      "errGeneric": "Failed to create the company"
+      "errGeneric": "Failed to create the company",
+      "modeLabel": "Where should the new company go?",
+      "group": {"title": "Within the same group", "desc": "Joins the current group as usual: same users and subscription, and it can be shown with the group's other companies in reports and the dashboard."},
+      "independent": {"title": "Independent company", "desc": "A completely separate organisation with its own subscription, owned by you under the same email.", "warningTitle": "An independent company shares nothing with the current group:", "warnNoUsers": "No shared users — this group's users won't see it, and anyone who needs it is invited to it alone.", "warnNoReports": "No shared reports — it won't appear in this group's reports or dashboard, and it can't see any of this group's data.", "warnNoTransfers": "No stock transfers or intercompany entries with this group's companies.", "warnOwnCode": "Its own organisation code for the employee mobile portal, different from this group's code.", "warnOwnSubscription": "Its own subscription, starting with a 30-day free trial, managed and billed separately.", "warnAccess": "You open it by choice: with the switch button after it's created, or from the account picker when you sign in with the same email and password.", "selectActivity": "Choose the business activity", "errActivityRequired": "A business activity is required for an independent company, to set up its chart of accounts", "createBtn": "Create independent company", "createdTitle": "Independent company “{{name}}” created", "createdCode": "Organisation code for the employee portal:", "createdNote": "You're still in the current group. Switch to it now, or later from the account picker when you sign in.", "switchNow": "Switch to it now", "switching": "Switching...", "stayHere": "Stay here", "errSwitch": "Couldn't switch to the independent company"}
     },
     "companiesList": {
       "table": { "name": "Name", "shortName": "Trade name", "vatNumber": "VAT number", "crNumber": "CR number" },
