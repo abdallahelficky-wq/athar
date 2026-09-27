@@ -783,6 +783,7 @@
       "cancel": "Cancel", "saving": "Saving...", "save": "Save item"
     },
     "linkPaymentModal": {
+      "unappliedOf": "{{unapplied}} unapplied of {{total}} {{currency}}", "existingNote": "Linking an existing receipt applies part of its unapplied amount only; the receipt's amount and its entry don't change. Record any extra cash received as a new receipt.", "noUnappliedReceipts": "This customer has no receipt with an unapplied amount. Record the cash received as a new receipt.",
       "title": "Link invoice {{number}} to a receipt", "close": "Close",
       "summary": "Total {{total}} {{currency}} — Paid {{paid}} {{currency}} — Remaining {{due}} {{currency}}",
       "linkedTitle": "Currently linked receipts",
@@ -796,7 +797,7 @@
       "amount": "Amount",
       "saving": "Saving...", "linkExisting": "Link to selected receipt", "createAndLink": "Create receipt and link",
       "close2": "Close",
-      "confirmUnlink": "Unlink the invoice from receipt {{receiptNumber}}?",
+      "confirmUnlink": "Unlink the invoice from receipt {{receiptNumber}}? The allocated amount goes back to the receipt's unapplied balance; the receipt's amount and its entry don't change.",
       "linkedMsg": "Invoice {{number}} was linked to the receipt successfully.",
       "createdAndLinkedMsg": "A new receipt was created and linked to invoice {{number}} successfully.",
       "unlinkedMsg": "Invoice {{number}} was unlinked from receipt {{receiptNumber}}. Payment status is now: {{status}}.",
