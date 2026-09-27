@@ -68,7 +68,8 @@ export const authenticatePlatformService: RequestHandler = (req, _res, next) => 
 
 /**
  * يقيّد نقطة النهاية بأدوار معينة فقط، بعد المصادقة.
- * دور super_admin (الحساب المالك الوحيد) يتضمن دائماً كل صلاحيات أي دور آخر تلقائياً ويمرّ من
+ * دور super_admin (دور داخل المستأجر مربوط ببريد واحد — راجع OWNER_EMAIL في auth.service.ts؛ ليس
+ * صلاحية منصّة ولا يعني "مالك المستأجر") يتضمن دائماً كل صلاحيات أي دور آخر تلقائياً ويمرّ من
  * أي بوابة requireRole أياً كانت الأدوار المذكورة فيها — فيما عدا القوائم غير الفارغة التي لا
  * تتضمنه أصلاً هو نفسه بالاسم بديهياً (requireRole("super_admin") يبقى حصرياً عليه فقط، بما أنه
  * الدور الوحيد في القائمة). بدون هذا الاستثناء، أي بوابة تفحص أدواراً أخرى فقط (مثل "admin" أو
@@ -189,8 +190,9 @@ export const blockMutationsWhenReadOnly: RequestHandler = (req, _res, next) => {
 };
 
 /** true لو كان صاحب الطلب مالك الشركة (Tenant.ownerId) نفسه — يملك دائماً كل الصلاحيات على شركته
- * بلا حاجة لإعداد منصب له صراحةً. super_admin (المنصّة) ليس مالك أي شركة بهذا المعنى، لكنه يمرّ
- * دائماً من requirePermission أدناه عبر استثنائه المنفصل، بنفس أسلوب requireRole تماماً. */
+ * بلا حاجة لإعداد منصب له صراحةً. super_admin ليس دور منصّة بل دور داخل هذا المستأجر مربوط
+ * ببريد واحد (راجع OWNER_EMAIL في auth.service.ts)، ويمرّ دائماً من requirePermission أدناه عبر
+ * استثنائه المنفصل، بنفس أسلوب requireRole تماماً. */
 async function isTenantOwner(auth: { sub: string; tenantId: string }): Promise<boolean> {
   const tenant = await prisma.tenant.findUnique({ where: { id: auth.tenantId }, select: { ownerId: true } });
   return tenant?.ownerId === auth.sub;
