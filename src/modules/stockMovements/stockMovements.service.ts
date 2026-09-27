@@ -326,7 +326,7 @@ export async function removeStockMovement(tenantId: string, userId: string, id: 
   const movement = await prisma.stockMovement.findFirst({ where: { id, tenantId } });
   if (!movement) throw notFound("الحركة غير موجودة");
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   const group = movement.transferGroupId
     ? await prisma.stockMovement.findMany({ where: { tenantId, transferGroupId: movement.transferGroupId } })

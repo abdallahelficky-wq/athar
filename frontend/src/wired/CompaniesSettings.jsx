@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { createCompany, createIndependentCompany, deleteCompany } from "../api/companies";
+import { createCompany, createIndependentCompany } from "../api/companies";
 import { useAuth } from "../context/AuthContext";
+import { changeUnlockPin } from "../api/auth";
 import CompanyEditModal from "./CompanyEditModal";
 import CompanyZatcaModal from "./CompanyZatcaModal";
 import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry } from "../shared/countries";
@@ -76,6 +77,64 @@ function TenantPortalCode({ code }) {
         <button className="btn-ghost" onClick={copy}>{copied ? t("settings.tenantName.portalCodeCopied") : t("settings.tenantName.portalCodeCopy")}</button>
       </div>
       <p className="note">{t("settings.tenantName.portalCodeNote")}</p>
+    </div>
+  );
+}
+
+/** الرقم السري لفك الترحيل — لمالك الشركة وحده (الخادم يرفض غيره). كل محاولة برقم حالي خاطئ تُسجَّل
+ * باسمه وتحتسب ضمن قفل الـ5 محاولات، تماماً كفك الترحيل نفسه. */
+function UnlockPinSettings() {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  const reset = () => { setCurrentPin(""); setNewPin(""); setConfirmPin(""); setError(""); };
+
+  const save = async () => {
+    if (!/^\d{4,8}$/.test(newPin)) { setError(t("settings.unlockPin.errFormat")); return; }
+    if (newPin !== confirmPin) { setError(t("settings.unlockPin.errMismatch")); return; }
+    setSaving(true);
+    setError("");
+    try {
+      await changeUnlockPin({ currentPin, newPin });
+      reset();
+      setOpen(false);
+      setDone(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="panel form-panel">
+      <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
+        <h3 style={{ margin: 0 }}>{t("settings.unlockPin.title")}</h3>
+        <button type="button" className="btn-ghost" onClick={() => { setOpen((v) => !v); reset(); setDone(false); }}>
+          {open ? t("common.cancel") : t("settings.unlockPin.changeBtn")}
+        </button>
+      </div>
+      <p className="note" style={{ marginTop: 8 }}>{t("settings.unlockPin.note")}</p>
+      {done && <p className="unlock-pin-done">{t("settings.unlockPin.done")}</p>}
+      {open && (
+        <div className="form-grid">
+          <label>{t("settings.unlockPin.current")}<input type="password" inputMode="numeric" autoComplete="off" value={currentPin} onChange={(e) => setCurrentPin(e.target.value)} /></label>
+          <label>{t("settings.unlockPin.new")}<input type="password" inputMode="numeric" autoComplete="new-password" value={newPin} onChange={(e) => setNewPin(e.target.value)} /></label>
+          <label>{t("settings.unlockPin.confirm")}<input type="password" inputMode="numeric" autoComplete="new-password" value={confirmPin} onChange={(e) => setConfirmPin(e.target.value)} /></label>
+          <div style={{ alignSelf: "end" }}>
+            <button className="btn-primary" onClick={save} disabled={saving || !currentPin || !newPin}>
+              {saving ? t("settings.myAccount.saving") : t("common.save")}
+            </button>
+          </div>
+        </div>
+      )}
+      {error && <p className="balance-bad">{error}</p>}
     </div>
   );
 }
@@ -298,16 +357,8 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
   const [editingCompany, setEditingCompany] = useState(null);
   const [zatcaCompany, setZatcaCompany] = useState(null);
   const [error, setError] = useState("");
-
-  const remove = async (c) => {
-    if (!window.confirm(t("settings.companiesList.confirmDelete", { name: c.name }))) return;
-    try {
-      await deleteCompany(c.id);
-      reload();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+  const { user, tenant } = useAuth();
+  const isOwner = user?.role === "super_admin" || (tenant?.ownerId && tenant.ownerId === user?.id);
 
   const handleCreated = (company) => {
     onCompanyCreated?.(company);
@@ -317,6 +368,7 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
   return (
     <div>
       <TenantNameSettings />
+      {isOwner && <UnlockPinSettings />}
       <NewCompanyForm onCompanyCreated={handleCreated} />
       <div className="panel form-panel">
         {error && <p className="balance-bad">{error}</p>}
@@ -334,7 +386,6 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
                 {c.country === "SA" && (
                   <button className="btn-ghost" onClick={() => setZatcaCompany(c)}>{t("settings.companiesList.zatcaLink")}</button>
                 )}
-                <button className="btn-ghost" onClick={() => remove(c)}>{t("common.delete")}</button>
               </td>
             </tr>
           ))}

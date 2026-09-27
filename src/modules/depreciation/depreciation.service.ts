@@ -97,7 +97,7 @@ export async function removeDepreciationRun(tenantId: string, userId: string, id
   const run = await prisma.depreciationRun.findFirst({ where: { id, tenantId } });
   if (!run) throw notFound("سجل الإهلاك غير موجود");
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   await prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, run.journalEntryId);

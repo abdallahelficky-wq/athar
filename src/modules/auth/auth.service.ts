@@ -19,6 +19,7 @@ import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpErro
 import type { Lang } from "../../lib/i18n/translate";
 import type { Prisma, Tenant, User, Identity } from "@prisma/client";
 import { canUnpostJournalEntries, canDeferPosSale, canOverridePosPrice } from "../positions/positions.service";
+import { assertValidUnlockPin } from "../../lib/journalPosting";
 
 const TRIAL_DAYS = 30;
 const INVITE_EXPIRES_DAYS = 7;
@@ -473,6 +474,9 @@ export async function setUserActive(tenantId: string, actingUserId: string, user
   if (tenant.ownerId === userId) throw badRequest("لا يمكن تعطيل مالك الشركة");
 
   const updated = await prisma.user.update({ where: { id: userId }, data: { active }, include: { identity: true } });
+  // التعطيل يسري فوراً: إبطال رموز التحديث القائمة يمنع تجديد أي جلسة مفتوحة (رمز الدخول الحالي
+  // ينتهي خلال 15 دقيقة كحد أقصى، وrefresh يرفض المستخدم المعطَّل أصلاً).
+  if (!active) await prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
   return publicUser(updated);
 }
 
@@ -488,6 +492,12 @@ export async function setUserActive(tenantId: string, actingUserId: string, user
  * آخر عضوية لها — قد يُدعى نفس البريد لاحقاً لشركة أخرى، فتبقى هويته قائمة بصرف النظر عن مصير
  * عضوياته الفردية.
  */
+/**
+ * المستخدمون لا يُحذَفون — يُعطَّلون (setUserActive): لا يستطيع الدخول، ويحتفظ بمعرّفه، وتبقى كل صفوف
+ * سجل التدقيق منسوبة إليه. الحذف الفعلي باقٍ فقط لحساب أُنشئ بالخطأ ولم يُستخدَم قط، ويُرفَض متى ظهر
+ * المستخدم في أي أثر على الإطلاق: دخول سابق، أي صف تدقيق (عام أو ورديات محطات)، قيد، مرفق، أو
+ * مراجعة وردية. المستندات نفسها لا تحمل منشئها، فالقيود (createdBy) وسجل التدقيق هما أثرها الوحيد.
+ */
 export async function deleteUser(tenantId: string, actingUserId: string, userId: string) {
   if (userId === actingUserId) throw badRequest("لا يمكنك حذف حسابك أنت شخصياً");
   const user = await prisma.user.findFirst({ where: { id: userId, tenantId } });
@@ -495,16 +505,17 @@ export async function deleteUser(tenantId: string, actingUserId: string, userId:
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { ownerId: true } });
   if (tenant.ownerId === userId) throw badRequest("لا يمكن حذف مالك الشركة");
 
-  const [journalEntryCount, attachmentCount] = await Promise.all([
+  const [refreshTokens, auditRows, shiftAuditRows, journalEntries, attachments, reviewedShifts] = await Promise.all([
+    prisma.refreshToken.count({ where: { userId } }),
+    prisma.auditLog.count({ where: { userId } }),
+    prisma.stationShiftAuditLog.count({ where: { userId } }),
     prisma.journalEntry.count({ where: { createdBy: userId } }),
     prisma.attachment.count({ where: { uploadedBy: userId } }),
+    prisma.stationShift.count({ where: { reviewedByUserId: userId } }),
   ]);
-  if (journalEntryCount || attachmentCount) {
-    const reasons = [
-      journalEntryCount ? `${journalEntryCount} قيد يومية` : "",
-      attachmentCount ? `${attachmentCount} مرفق` : "",
-    ].filter(Boolean).join(" و");
-    throw badRequest(`لا يمكن حذف هذا المستخدم نهائياً لارتباطه بإنشاء ${reasons} — عطّله بدلاً من ذلك للحفاظ على سجل "من أنشأها".`);
+  const everUsed = user.lastLoginAt !== null || refreshTokens > 0;
+  if (everUsed || auditRows || shiftAuditRows || journalEntries || attachments || reviewedShifts) {
+    throw badRequest("لا يمكن حذف مستخدم استُخدم حسابه أو ارتبط اسمه بأي عملية في النظام — عطّله بدلاً من ذلك، فيُمنَع من الدخول ويبقى سجله منسوباً إليه.");
   }
 
   await prisma.user.delete({ where: { id: userId } });
@@ -564,13 +575,22 @@ export async function acceptInvite(input: { token: string; password?: string }) 
   return completeLoginForUser(updated);
 }
 
-export async function changeUnlockPin(tenantId: string, currentPin: string, newPin: string) {
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
-  const valid = await verifyPassword(currentPin, tenant.unlockPin);
-  if (!valid) throw badRequest("الرقم السري الحالي غير صحيح");
+/**
+ * يضبط المالك الرقم السري لفك الترحيل لشركته. الرقم الحالي يُتحقَّق منه بنفس فحص فك الترحيل تماماً
+ * (assertValidUnlockPin): المحاولة الخاطئة تُسجَّل باسم المستخدم وتحتسب ضمن قفل الـ5 محاولات، فلا تصبح
+ * شاشة تغيير الرقم طريقاً لتخمينه بلا حدّ. كل تغيير ناجح يُسجَّل في سجل التدقيق (بلا أي قيمة للرقم).
+ */
+export async function changeUnlockPin(tenantId: string, userId: string, currentPin: string, newPin: string) {
+  await assertValidUnlockPin(tenantId, currentPin, userId);
+  if (currentPin === newPin) throw badRequest("الرقم السري الجديد مطابق للحالي");
 
   const newHash = await hashPassword(newPin);
-  await prisma.tenant.update({ where: { id: tenantId }, data: { unlockPin: newHash } });
+  await prisma.$transaction([
+    prisma.tenant.update({ where: { id: tenantId }, data: { unlockPin: newHash } }),
+    prisma.auditLog.create({
+      data: { tenantId, userId, action: "unlock_pin.changed", entityType: "Tenant", entityId: tenantId },
+    }),
+  ]);
 }
 
 /**

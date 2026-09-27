@@ -332,7 +332,7 @@ export async function unpostPayrollRun(tenantId: string, userId: string, id: str
   if (!run) throw notFound("كشف الرواتب غير موجود");
   if (run.status !== "posted") throw badRequest("كشف الرواتب ليس مرحّلاً أصلاً");
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   return prisma.$transaction(async (tx) => {
     // يُرجِع رصيد أي سلفة نُقِص منها هذا التشغيل بالضبط بنفس المبلغ المسجَّل وقت الترحيل (لا يُعاد

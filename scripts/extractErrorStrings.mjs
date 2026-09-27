@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync, writeFileSync } from "fs";
 import path from "path";
 
 const ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..", "src");
-const ERROR_CALL_RE = /(?:badRequest|notFound|conflict|forbidden|unauthorized|throw new Error)\(\s*(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g;
+const ERROR_CALL_RE = /(?:badRequest|notFound|conflict|forbidden|unauthorized|methodNotAllowed|throw new Error)\(\s*(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g;
 const ARABIC_RE = /[؀-ۿ]/;
 const STRING_LIT_RE = /(`(?:[^`\\]|\\.)*`|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/g;
 

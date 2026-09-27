@@ -293,7 +293,7 @@ export async function removeFixedAsset(tenantId: string, userId: string, id: str
   if (!asset) throw notFound("الأصل غير موجود");
   if (asset.status === "disposed") throw badRequest("لا يمكن حذف أصل مستبعد بالفعل");
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   await prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, asset.journalEntryId);

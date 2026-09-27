@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { validateBody } from "../../middleware/validate";
-import { authenticate, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
+import { authenticate, requireRole, blockMutationsWhenReadOnly, requireTenantOwner } from "../../middleware/auth";
 import {
   registerSchema,
   loginSchema,
@@ -81,7 +81,8 @@ authRoutes.patch(
   "/unlock-pin",
   authenticate,
   blockMutationsWhenReadOnly,
-  requireRole("admin", "finance_manager"),
+  // ضبط الرقم السري لفك الترحيل للمالك وحده — كان متاحاً للمدير والمدير المالي
+  requireTenantOwner,
   validateBody(changeUnlockPinSchema),
   changeUnlockPinHandler,
 );

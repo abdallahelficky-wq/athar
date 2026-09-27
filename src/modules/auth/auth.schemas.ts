@@ -43,7 +43,10 @@ export const acceptInviteSchema = z.object({
 
 export const changeUnlockPinSchema = z.object({
   currentPin: z.string().min(1, "الرقم السري الحالي مطلوب"),
-  newPin: z.string().min(4, "الرقم السري الجديد يجب أن يكون 4 أرقام على الأقل"),
+  newPin: z
+    .string()
+    .regex(/^\d{4,8}$/, "الرقم السري الجديد يجب أن يكون من 4 إلى 8 أرقام")
+    .refine((v) => v !== "1234", "اختر رقماً سرياً غير الرقم الافتراضي 1234"),
 });
 
 export const updateTenantSchema = z.object({

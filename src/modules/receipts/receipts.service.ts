@@ -168,7 +168,7 @@ export async function unpostReceipt(tenantId: string, userId: string, id: string
   if (!receipt) throw notFound("سند القبض غير موجود");
   if (receipt.status !== "posted") throw badRequest("السند ليس مرحّلاً أصلاً");
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   return prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, receipt.journalEntryId);

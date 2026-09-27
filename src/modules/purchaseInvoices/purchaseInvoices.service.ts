@@ -364,7 +364,7 @@ export async function unpostPurchaseInvoice(tenantId: string, userId: string, id
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("الفاتورة ليست مرحّلة أصلاً");
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   return prisma.$transaction(async (tx) => {
     await removeInventorySideEffectsTx(tx, tenantId, id);

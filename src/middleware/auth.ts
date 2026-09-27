@@ -86,6 +86,18 @@ export function requireRole(...roles: string[]): RequestHandler {
   };
 }
 
+/**
+ * الأدوار التي تقرأ بيانات الموارد البشرية الحسّاسة (الرواتب والبدلات، مسيرات الرواتب وقسائمها، بنود
+ * الراتب، تسويات الإجازات، إجراءات الموارد البشرية وتقاريرها، والبيانات الشخصية للموظف) — نفس الأدوار
+ * التي تكتبها أصلاً. أضيق إصلاح متاح قبل مصفوفة صلاحيات المناصب: كانت كل هذه القراءات مفتوحة لأي
+ * مستخدم مسجَّل (بما فيه "مشاهدة فقط"). super_admin يمرّ دائماً عبر requireRole كالمعتاد.
+ */
+export const HR_READ_ROLES = ["admin", "finance_manager", "hr_manager"] as const;
+export const requireHrRead = requireRole(...HR_READ_ROLES);
+export function canReadHrData(auth: { role: string }): boolean {
+  return auth.role === "super_admin" || (HR_READ_ROLES as readonly string[]).includes(auth.role);
+}
+
 /** يتحقق أن نطاق شركة المستخدم (companyScope) يسمح له بالوصول لهذه الشركة تحديداً */
 export function assertCompanyAccess(auth: { companyScope: string }, companyId: string) {
   if (auth.companyScope !== "all" && auth.companyScope !== companyId) {

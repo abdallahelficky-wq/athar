@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requireHrRead } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createEmployeeSchema, updateEmployeeSchema, importEmployeesSchema, setPortalAccessSchema } from "./employees.schemas";
 import {
@@ -12,8 +12,8 @@ employeeRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly
 const canWrite = requireRole("admin", "finance_manager", "hr_manager");
 
 employeeRoutes.get("/", listEmployees);
-employeeRoutes.get("/:id", getEmployee);
-employeeRoutes.get("/:id/eos", calculateEos);
+employeeRoutes.get("/:id", requireHrRead, getEmployee);
+employeeRoutes.get("/:id/eos", requireHrRead, calculateEos);
 employeeRoutes.post("/import", canWrite, validateBody(importEmployeesSchema), importEmployees);
 employeeRoutes.post("/", canWrite, validateBody(createEmployeeSchema), createEmployee);
 employeeRoutes.patch("/:id", canWrite, validateBody(updateEmployeeSchema), updateEmployee);

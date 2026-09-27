@@ -157,7 +157,7 @@ export async function removeEmployeeAdvance(tenantId: string, userId: string, id
   }
   if (!advance.journalEntryId) throw badRequest("هذه السلفة غير مرتبطة بقيد صرف مستقل يمكن حذفه من هنا");
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   await prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, advance.journalEntryId);

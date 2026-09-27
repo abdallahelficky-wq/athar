@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound, conflict } from "../../lib/httpError";
-import { assertCompanyAccess } from "../../middleware/auth";
+import { assertCompanyAccess, canReadHrData } from "../../middleware/auth";
 import { calcEOS, serviceDuration, TerminationReason } from "../../lib/hrCalculations";
 import { hashPassword } from "../../lib/password";
 import { ensurePartyAccount } from "../../lib/partyAccounts";
@@ -24,8 +24,26 @@ async function assertStationBelongsToCompany(tenantId: string, costCenterId: str
   if (!costCenter) throw badRequest("المحطة المحددة ليست مركز تكلفة ضمن شركة هذا الموظف");
 }
 
+/**
+ * الأدوار خارج الموارد البشرية (محاسب، مشاهدة فقط) تحتاج قائمة الموظفين كمنتقٍ فقط: موظف سطر سلفة في
+ * نموذج القيد، أمين عهدة أصل ثابت، عامل محطة — فتُعاد لها حقول التعريف وحدها بلا راتب ولا بدلات ولا
+ * هوية ولا حساب بنكي ولا أرصدة إجازة/نهاية خدمة. القائمة الكاملة لأدوار الموارد البشرية فقط.
+ */
+const EMPLOYEE_PICKER_FIELDS = {
+  id: true, companyId: true, name: true, employeeNumber: true, jobTitle: true, department: true,
+  status: true, assignedCostCenterId: true, accountId: true, managerId: true,
+} as const;
+
 export const listEmployees: RequestHandler = async (req, res) => {
   const { companyId } = req.query;
+  if (!canReadHrData(req.auth!)) {
+    res.json(await prisma.employee.findMany({
+      where: { tenantId: req.auth!.tenantId, companyId: typeof companyId === "string" ? companyId : undefined },
+      select: EMPLOYEE_PICKER_FIELDS,
+      orderBy: { createdAt: "asc" },
+    }));
+    return;
+  }
   const employees = await prisma.employee.findMany({
     where: { tenantId: req.auth!.tenantId, companyId: typeof companyId === "string" ? companyId : undefined },
     include: { documents: true },

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requireHrRead } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import {
   createComponentSchema, updateComponentSchema, updateSettingsSchema, setEmployeeComponentsSchema,
@@ -11,10 +11,10 @@ const canWrite = requireRole("admin", "finance_manager", "hr_manager");
 // تُركَّب على /api/companies/:companyId/payroll-components و /api/companies/:companyId/payroll-settings
 export const companyPayrollSettingsRoutes = Router({ mergeParams: true });
 companyPayrollSettingsRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
-companyPayrollSettingsRoutes.get("/payroll-components/adjustable", controller.listAdjustableComponentsHandler);
-companyPayrollSettingsRoutes.get("/payroll-components", controller.listComponentsHandler);
+companyPayrollSettingsRoutes.get("/payroll-components/adjustable", requireHrRead, controller.listAdjustableComponentsHandler);
+companyPayrollSettingsRoutes.get("/payroll-components", requireHrRead, controller.listComponentsHandler);
 companyPayrollSettingsRoutes.post("/payroll-components", canWrite, validateBody(createComponentSchema), controller.createComponentHandler);
-companyPayrollSettingsRoutes.get("/payroll-settings", controller.getSettingsHandler);
+companyPayrollSettingsRoutes.get("/payroll-settings", requireHrRead, controller.getSettingsHandler);
 companyPayrollSettingsRoutes.patch("/payroll-settings", canWrite, validateBody(updateSettingsSchema), controller.updateSettingsHandler);
 
 // تُركَّب على /api/payroll-components/:id
@@ -26,5 +26,5 @@ payrollComponentRoutes.delete("/:id", canWrite, controller.deleteComponentHandle
 // تُركَّب على /api/employees/:employeeId/payroll-components
 export const employeePayrollComponentRoutes = Router({ mergeParams: true });
 employeePayrollComponentRoutes.use(authenticate);
-employeePayrollComponentRoutes.get("/", controller.getEmployeeComponentsHandler);
+employeePayrollComponentRoutes.get("/", requireHrRead, controller.getEmployeeComponentsHandler);
 employeePayrollComponentRoutes.put("/", canWrite, validateBody(setEmployeeComponentsSchema), controller.setEmployeeComponentsHandler);
