@@ -10,6 +10,7 @@ import { reserveDocumentNumber } from "../../lib/docNumbering";
 import { reserveZatcaChain, rebuildZatcaDocumentXml, ZatcaCompanyLike, ZatcaPersistedLineLike } from "../../lib/zatca/chain";
 import { submitZatcaChainDocument } from "../../lib/zatca/postingGate";
 import { newQueryCounter, counted, logPostingPhaseTiming } from "../../lib/zatca/postingInstrumentation";
+import { unpostVatSnapshot } from "../../lib/vatAccounts";
 
 /** انظر التعليق المطابق في salesReturns.service.ts — نفس المنطق لإشعار مدين، بما في ذلك اشتراط
  * أن تكون الفاتورة المرتبطة "posted" فعلياً (لا مسودة، ولا pending_submission/
@@ -432,7 +433,7 @@ export async function unpostSalesDebitNote(tenantId: string, userId: string, id:
       data: { status: "draft", journalEntryId: null },
       include: debitNoteInclude,
     });
-    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "SalesDebitNote", entityId: id });
+    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "SalesDebitNote", entityId: id, ...unpostVatSnapshot(debitNote, debitNote.debitNoteNumber) });
     return updated;
   });
 }

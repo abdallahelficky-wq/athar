@@ -25,23 +25,50 @@ export function lastCompleteFilingPeriod(frequency, now = new Date()) {
 }
 
 /**
- * فترة الإقرار المعروضة في شاشات الضريبة: تبدأ بآخر فترة مكتملة حسب دورية إقرار الشركة، وتُعاد
- * لها عند تغيير الشركة. `draft` ما في الحقلين، و`applied` ما يُرسَل فعلاً للخادم بعد "عرض".
+ * فترة الإقرار المعروضة في شاشات الضريبة: تبدأ بآخر فترة مكتملة حسب دورية إقرار الشركة. الحالة
+ * مفتاحها الشركة ودوريتها معاً، فعند تغيير الشركة تُشتَق الفترة الجديدة في نفس الرسم (لا في effect
+ * لاحق) — فلا يُرسَل أبداً طلب للشركة الجديدة بفترة الشركة السابقة. `draft` ما في الحقلين، و`applied`
+ * ما يُرسَل فعلاً للخادم بعد "عرض".
  */
 export function useVatPeriod(company) {
   const frequency = company?.vatFilingFrequency || "quarterly";
-  const [draft, setDraft] = useState(() => lastCompleteFilingPeriod(frequency));
-  const [applied, setApplied] = useState(draft);
-  useEffect(() => {
-    const next = lastCompleteFilingPeriod(frequency);
-    setDraft(next);
-    setApplied(next);
-  }, [company?.id, frequency]);
+  const key = `${company?.id || ""}|${frequency}`;
+  const [state, setState] = useState(() => {
+    const p = lastCompleteFilingPeriod(frequency);
+    return { key, draft: p, applied: p };
+  });
+  let current = state;
+  if (state.key !== key) {
+    const p = lastCompleteFilingPeriod(frequency);
+    current = { key, draft: p, applied: p };
+    setState(current);
+  }
   return {
     frequency,
-    draft,
-    applied,
-    setField: (field, value) => setDraft((d) => ({ ...d, [field]: value })),
-    apply: () => setApplied(draft),
+    key,
+    draft: current.draft,
+    applied: current.applied,
+    setField: (field, value) => setState((s) => ({ ...s, draft: { ...s.draft, [field]: value } })),
+    apply: () => setState((s) => ({ ...s, applied: s.draft })),
   };
+}
+
+/**
+ * يجلب بيانات شاشة ضريبية ويتجاهل أي رد وصل بعد تغيّر الطلب (شركة أو فترة أخرى) — آخر طلب وحده
+ * يُعرَض، مهما كان ترتيب وصول الردود.
+ */
+export function useVatFetch(fetcher, companyId, applied) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!companyId) return undefined;
+    let live = true;
+    setData(null);
+    setError("");
+    fetcher({ companyId, ...applied })
+      .then((d) => { if (live) setData(d); })
+      .catch((e) => { if (live) setError(e.message); });
+    return () => { live = false; };
+  }, [companyId, applied.from, applied.to]);
+  return { data, error };
 }

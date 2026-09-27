@@ -45,3 +45,15 @@ export async function stationShiftOutputVat(tenantId: string, period: VatPeriod,
   const vat = lines.reduce((s, l) => s + Number(l.credit) - Number(l.debit), 0);
   return { vat, shiftCount: new Set(lines.map((l) => l.journalEntryId)).size };
 }
+
+/**
+ * لقطة المستند الضريبية تُحفَظ في صف تدقيق فك الترحيل نفسه (companyId + metadata.vatSnapshot)، حتى
+ * تبقى مطابقة الفترة التي رُحِّل فيها أصلاً قادرة على إظهاره مهما عُدِّل المستند أو حُذف بعد عودته
+ * مسودة — لا تُبنى من حالته الحالية.
+ */
+export function unpostVatSnapshot(doc: { companyId: string; date: Date; vatTotal: { toString(): string } | number }, number: string) {
+  return {
+    companyId: doc.companyId,
+    metadata: { vatSnapshot: { number, date: doc.date.toISOString(), vatTotal: Number(doc.vatTotal) } },
+  };
+}

@@ -8,6 +8,7 @@ import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, write
 import { formatDocNumber } from "../../lib/docNumber";
 import { applyPurchaseToAverageCostTx, recomputeAverageCostFromScratchTx } from "../../lib/costingEngine";
 import { registerFixedAssetTx, resolveAssetAccount } from "../fixedAssets/fixedAssets.service";
+import { unpostVatSnapshot } from "../../lib/vatAccounts";
 
 type Tx = Prisma.TransactionClient;
 
@@ -370,7 +371,7 @@ export async function unpostPurchaseInvoice(tenantId: string, userId: string, id
     await removeInventorySideEffectsTx(tx, tenantId, id);
     await deleteJournalEntryTx(tx, invoice.journalEntryId);
     const updated = await tx.purchaseInvoice.update({ where: { id }, data: { status: "draft", journalEntryId: null }, include: invoiceInclude });
-    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "PurchaseInvoice", entityId: id });
+    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "PurchaseInvoice", entityId: id, ...unpostVatSnapshot(invoice, invoice.invoiceNumber) });
     return updated;
   });
 }

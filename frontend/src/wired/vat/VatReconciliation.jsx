@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getVatReconciliation } from "../../api/vatReconciliation";
 import { fmt } from "../../legacy/constants";
 import VatPeriodBar from "../shared/VatPeriodBar";
-import { useVatPeriod } from "../shared/vatPeriod";
+import { useVatFetch, useVatPeriod } from "../shared/vatPeriod";
 
 const ITEM_KEYS = ["otherSources", "stationShifts", "documentEntryOutsidePeriod", "entryForDocumentOutsidePeriod", "amountMismatch"];
 const day = (iso) => (iso ? iso.slice(0, 10) : "—");
@@ -102,7 +102,14 @@ function OutsideBothSides({ data }) {
             <tr key={d.id} className="vat-detail-row">
               <td>
                 {t(`vat.recon.doc.${d.entityType}`)} {d.number} · {day(d.date)}
-                <div className="vat-note">{t("vat.recon.outside.unpostedAt", { at: day(d.unpostedAt), by: d.unpostedBy || "—" })}{d.zatcaStatus && d.zatcaStatus !== "not_applicable" ? ` · ZATCA: ${d.zatcaStatus}` : ""}</div>
+                <div className="vat-note">
+                  {t("vat.recon.outside.unpostedAt", { at: day(d.unpostedAt), by: d.unpostedBy || "—" })}
+                  {" · "}
+                  {d.current
+                    ? t("vat.recon.outside.currentState", { status: d.current.status, date: day(d.current.date), vat: fmt(d.current.documentVat) })
+                    : t("vat.recon.outside.deletedSince")}
+                  {d.current?.zatcaStatus && d.current.zatcaStatus !== "not_applicable" ? ` · ZATCA: ${d.current.zatcaStatus}` : ""}
+                </div>
               </td>
               <td className="num">{fmt(d.documentVat)}</td>
             </tr>
@@ -129,15 +136,7 @@ function OutsideBothSides({ data }) {
 export default function VatReconciliation({ companyId, companies }) {
   const { t } = useTranslation();
   const period = useVatPeriod(companies?.find((c) => c.id === companyId));
-  const [data, setData] = useState(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!companyId) return;
-    setData(null);
-    setError("");
-    getVatReconciliation({ companyId, ...period.applied }).then(setData).catch((e) => setError(e.message));
-  }, [companyId, period.applied]);
+  const { data, error } = useVatFetch(getVatReconciliation, companyId, period.applied);
 
   return (
     <div>

@@ -220,26 +220,52 @@ async function reconcileSide(tenantId: string, period: VatPeriod, side: Side, ac
   const residual = round2(difference - itemised);
 
   // ---- خارج المعادلة ----
-  const draftDocs = (await Promise.all(kinds.map((k) => findDocs(k, { ...base, status: "draft", date: dateRange })))).flat();
-  const unpostRows = draftDocs.length
-    ? await prisma.auditLog.findMany({
-        where: {
-          tenantId, entityType: { in: kinds.map((k) => k.entityType) }, entityId: { in: draftDocs.map((d) => d.id) },
-          action: { endsWith: ".unpost" },
-        },
-        orderBy: { createdAt: "desc" },
-        select: { entityId: true, createdAt: true, actorName: true, actorEmail: true },
-      })
-    : [];
-  const lastUnpost = new Map<string, (typeof unpostRows)[number]>();
-  for (const r of unpostRows) if (!lastUnpost.has(r.entityId)) lastUnpost.set(r.entityId, r);
-  const unpostedDocuments = draftDocs
-    .filter((d) => lastUnpost.has(d.id))
-    .map((d) => {
-      const u = lastUnpost.get(d.id)!;
+  // مستندات رُحِّلت بتاريخ داخل الفترة ثم أُلغي ترحيلها: من صفوف التدقيق نفسها (لقطة المستند وقت
+  // فك الترحيل)، لا من المسودات الحالية — فتبقى ظاهرة ولو عُدِّل المستند أو حُذف بعد ذلك. الصفوف
+  // الأقدم بلا لقطة تُكمَّل من المستند الحالي إن بقي (ويضيع ما حُذف منها، إذ لا شيء يحدّد فترته).
+  const unpostRows = await prisma.auditLog.findMany({
+    where: {
+      tenantId, entityType: { in: kinds.map((k) => k.entityType) }, action: { endsWith: ".unpost" },
+      OR: [{ companyId: period.companyId }, { companyId: null }],
+    },
+    orderBy: { createdAt: "asc" },
+    select: { entityType: true, entityId: true, companyId: true, createdAt: true, actorName: true, actorEmail: true, metadata: true },
+  });
+  type Snapshot = { number: string; date: string; vatTotal: number };
+  const snapshotOf = (m: Prisma.JsonValue): Snapshot | null => {
+    const snap = m && typeof m === "object" && !Array.isArray(m) ? (m as Record<string, unknown>).vatSnapshot : null;
+    return snap && typeof snap === "object" ? (snap as Snapshot) : null;
+  };
+  const touchedIds = [...new Set(unpostRows.map((r) => r.entityId))];
+  const currentDocs = new Map<string, Doc>();
+  if (touchedIds.length) {
+    for (const k of kinds) for (const d of await findDocs(k, { ...base, id: { in: touchedIds } })) currentDocs.set(d.id, d);
+  }
+  const kindOf = new Map(kinds.map((k) => [k.entityType as string, k]));
+  const lastUnpostInPeriod = new Map<string, { row: (typeof unpostRows)[number]; number: string; date: Date; vat: number; fromSnapshot: boolean }>();
+  for (const r of unpostRows) {
+    const snap = snapshotOf(r.metadata);
+    const kind = kindOf.get(r.entityType)!;
+    let candidate: { number: string; date: Date; vat: number; fromSnapshot: boolean } | null = null;
+    if (snap && r.companyId === period.companyId) {
+      candidate = { number: snap.number, date: new Date(snap.date), vat: kind.sign * Number(snap.vatTotal), fromSnapshot: true };
+    } else if (!snap) {
+      const d = currentDocs.get(r.entityId);
+      if (d) candidate = { number: d.number, date: d.date, vat: d.vat, fromSnapshot: false };
+    }
+    if (candidate && inPeriod(candidate.date, period)) lastUnpostInPeriod.set(r.entityId, { row: r, ...candidate });
+  }
+  const unpostedDocuments = [...lastUnpostInPeriod.entries()]
+    .filter(([id]) => {
+      const now = currentDocs.get(id);
+      return !(now && now.status === "posted" && inPeriod(now.date, period)); // أُعيد ترحيله داخل الفترة: عاد للطرفين
+    })
+    .map(([id, u]) => {
+      const now = currentDocs.get(id);
       return {
-        entityType: d.entityType, id: d.id, number: d.number, date: day(d.date), documentVat: round2(d.vat),
-        zatcaStatus: d.zatcaStatus ?? null, unpostedAt: day(u.createdAt), unpostedBy: u.actorName ?? u.actorEmail ?? null,
+        entityType: u.row.entityType, id, number: u.number, date: day(u.date), documentVat: round2(u.vat),
+        unpostedAt: day(u.row.createdAt), unpostedBy: u.row.actorName ?? u.row.actorEmail ?? null, fromSnapshot: u.fromSnapshot,
+        current: now ? { status: now.status, date: day(now.date), documentVat: round2(now.vat), zatcaStatus: now.zatcaStatus ?? null } : null,
       };
     });
 

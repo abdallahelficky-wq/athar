@@ -4,7 +4,7 @@ import { getSalesByCustomer, getSalesMonthly, getSalesVatSummary, getReceivables
 import { fmt } from "../../legacy/constants";
 import SubTabs from "../shared/SubTabs";
 import VatPeriodBar from "../shared/VatPeriodBar";
-import { useVatPeriod } from "../shared/vatPeriod";
+import { useVatFetch, useVatPeriod } from "../shared/vatPeriod";
 
 const TABS = [
   { id: "byCustomer", labelKey: "sales.reports.tabs.byCustomer" },
@@ -19,9 +19,8 @@ export default function SalesReportsTab({ companyId, companies }) {
   const [byCustomer, setByCustomer] = useState([]);
   const [monthly, setMonthly] = useState([]);
   const [aging, setAging] = useState([]);
-  const [vat, setVat] = useState(null);
-  const [vatError, setVatError] = useState("");
   const vatPeriod = useVatPeriod(companies?.find((c) => c.id === companyId));
+  const { data: vat, error: vatError } = useVatFetch(getSalesVatSummary, companyId, vatPeriod.applied);
 
   useEffect(() => {
     if (!companyId) return;
@@ -30,12 +29,6 @@ export default function SalesReportsTab({ companyId, companies }) {
     getReceivablesAging(companyId).then(setAging);
   }, [companyId]);
 
-  useEffect(() => {
-    if (!companyId) return;
-    setVat(null);
-    setVatError("");
-    getSalesVatSummary({ companyId, ...vatPeriod.applied }).then(setVat).catch((e) => setVatError(e.message));
-  }, [companyId, vatPeriod.applied]);
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 

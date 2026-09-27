@@ -174,6 +174,19 @@ describe("VAT summaries and reconciliation (integration)", () => {
     const unposted = await invoice("2026-08-25T09:00:00.000Z", 92);
     const up = await call("POST", `/sales-invoices/${unposted.id}/unpost`, { pin: PIN });
     expect(up.status, up.text).toBe(200);
+    // ثم عُدِّل بعد فك الترحيل (تاريخ خارج الفترة وضريبة أخرى): يبقى ظاهراً بلقطته وقت فك الترحيل
+    await prisma.salesInvoice.update({ where: { id: unposted.id }, data: { date: new Date("2026-12-01T09:00:00.000Z"), vatTotal: 99 } });
+    // ومستند آخر أُلغي ترحيله ثم حُذف نهائياً (ضريبة 6): يبقى ظاهراً من سجل التدقيق وحده
+    const deletedLater = await invoice("2026-08-26T09:00:00.000Z", 46);
+    expect((await call("POST", `/sales-invoices/${deletedLater.id}/unpost`, { pin: PIN })).status).toBe(200);
+    const del = await call("DELETE", `/sales-invoices/${deletedLater.id}`);
+    expect(del.status, del.text).toBeLessThan(300);
+    expect(await prisma.salesInvoice.count({ where: { id: deletedLater.id } })).toBe(0);
+    // ومستند أُلغي ترحيله ثم أُعيد ترحيله في الفترة نفسها: عاد للطرفين، فلا يُعرَض (ضريبة 3)
+    const reposted = await invoice("2026-08-27T09:00:00.000Z", 23);
+    expect((await call("POST", `/sales-invoices/${reposted.id}/unpost`, { pin: PIN })).status).toBe(200);
+    const rp = await call("POST", `/sales-invoices/${reposted.id}/post`);
+    expect(rp.status, rp.text).toBeLessThan(300);
 
     // فاتورة مشتريات في الفترة (ضريبة 60)
     const pi = await call("POST", "/purchase-invoices", {
@@ -195,14 +208,14 @@ describe("VAT summaries and reconciliation (integration)", () => {
     // ---- ملخص المبيعات ----
     const sales = await call("GET", `/sales-reports/vat-summary?companyId=${companyId}&${Q}`);
     expect(sales.status, sales.text).toBe(200);
-    expect(sales.body.invoiceCount).toBe(3); // 150 + 15 (حد الرياض) + 45 (قيده منقول لكن المستند في الفترة)
-    expect(sales.body.outputVat).toBe(210);
+    expect(sales.body.invoiceCount).toBe(4); // 150 + 15 (حد الرياض) + 45 (قيده منقول لكن المستند في الفترة) + 3 (أُعيد ترحيله)
+    expect(sales.body.outputVat).toBe(213);
     expect(sales.body.debitNoteCount).toBe(1);
     expect(sales.body.debitNotesVat).toBe(15);
-    expect(sales.body.netOutputVat).toBe(225);
+    expect(sales.body.netOutputVat).toBe(228);
     expect(sales.body.stationShiftVat).toBe(30);
     expect(sales.body.stationShiftCount).toBe(1);
-    expect(sales.body.totalOutputVatWithStations).toBe(255);
+    expect(sales.body.totalOutputVatWithStations).toBe(258);
 
     const purchases = await call("GET", `/purchase-reports/vat-summary?companyId=${companyId}&${Q}`);
     expect(purchases.status, purchases.text).toBe(200);
@@ -214,9 +227,9 @@ describe("VAT summaries and reconciliation (integration)", () => {
     expect(recon.status, recon.text).toBe(200);
     const out = recon.body.output;
     expect(out.account.code).toBe("213001");
-    expect(out.documentVat).toBe(225);
-    // الحساب: 150 + 15 + 15 (إشعار) + 60 (قيد لمستند أكتوبر) + 40 (يدوي) + 30 (وردية) = 310؛ الـ45 خرج مع قيده
-    expect(out.ledgerMovement).toBe(310);
+    expect(out.documentVat).toBe(228);
+    // الحساب: 150 + 15 + 3 + 15 (إشعار) + 60 (قيد لمستند أكتوبر) + 40 (يدوي) + 30 (وردية) = 313؛ الـ45 خرج مع قيده
+    expect(out.ledgerMovement).toBe(313);
     expect(out.difference).toBe(85);
     expect(out.items.otherSources.total).toBe(40);
     expect(out.items.otherSources.rows).toHaveLength(1);
@@ -228,9 +241,15 @@ describe("VAT summaries and reconciliation (integration)", () => {
     expect(out.items.amountMismatch.rows).toHaveLength(0);
     expect(out.residual).toBe(0);
 
-    expect(out.outsideBothSides.unpostedDocuments).toHaveLength(1);
-    expect(out.outsideBothSides.unpostedDocuments[0]).toMatchObject({ id: unposted.id, documentVat: 12 });
-    expect(out.outsideBothSides.unpostedDocuments[0].unpostedBy).toBeTruthy();
+    const unpostedRows = out.outsideBothSides.unpostedDocuments;
+    expect(unpostedRows.map((r: { id: string }) => r.id).sort()).toEqual([unposted.id, deletedLater.id].sort());
+    const edited = unpostedRows.find((r: { id: string }) => r.id === unposted.id);
+    expect(edited).toMatchObject({ number: unposted.invoiceNumber, documentVat: 12, fromSnapshot: true });
+    expect(edited.date.slice(0, 10)).toBe("2026-08-25");
+    expect(edited.current).toMatchObject({ status: "draft", documentVat: 99 });
+    expect(edited.unpostedBy).toBeTruthy();
+    const gone = unpostedRows.find((r: { id: string }) => r.id === deletedLater.id);
+    expect(gone).toMatchObject({ number: deletedLater.invoiceNumber, documentVat: 6, current: null });
     expect(out.outsideBothSides.savedEntries).toHaveLength(1);
     expect(out.outsideBothSides.savedEntries[0].amount).toBe(7);
 
@@ -242,7 +261,7 @@ describe("VAT summaries and reconciliation (integration)", () => {
 
     expect(recon.body.otherVatNamedAccounts.map((a: { code: string }) => a.code)).toEqual(["213099"]);
     expect(recon.body.otherVatNamedAccounts[0].credit).toBe(9);
-    expect(recon.body.netVatPerDocuments).toBe(165);
-    expect(recon.body.netVatPerLedger).toBe(250);
+    expect(recon.body.netVatPerDocuments).toBe(168);
+    expect(recon.body.netVatPerLedger).toBe(253);
   }, 120_000);
 });
