@@ -455,9 +455,10 @@ export async function getMirrorSuggestion(tenantId: string, entryId: string, tar
 }
 
 /**
- * تُنشئ قيد المرآة فعلياً في الشركة المستهدفة كقيد "محفوظ" (غير مرحّل تلقائياً أبداً، ليراجعه
- * المستخدم قبل الترحيل) وتربطه بالقيد الأصلي تبادلياً عبر mirrorEntryId على القيدين معاً، وتحجز
- * له رقماً تسلسلياً ضمن شركة الهدف، كل ذلك ضمن معاملة واحدة.
+ * تُنشئ قيد المرآة فعلياً في الشركة المستهدفة بنفس حالة القيد الأصلي (مرحَّلاً إن كان الأصل مرحَّلاً)
+ * وتربطه بالقيد الأصلي تبادلياً عبر mirrorEntryId على القيدين معاً، وتحجز له رقماً تسلسلياً ضمن
+ * شركة الهدف، كل ذلك ضمن معاملة واحدة. نصفا معاملة واحدة بين شركتين لا يكونان أبداً في حالتين
+ * مختلفتين: ترحيل أو فك ترحيل أيٍّ منهما يُطبَّق على الآخر معه (postJournalEntry/unpostJournalEntry).
  */
 export async function createMirrorJournalEntry(
   tenantId: string,
@@ -489,7 +490,7 @@ export async function createMirrorJournalEntry(
         companyId: input.targetCompanyId,
         date: input.date,
         memo: input.memo,
-        status: "saved",
+        status: source.status,
         entryNumber,
         sourceModule: "manual",
         createdBy: userId,
@@ -576,6 +577,20 @@ export async function deleteJournalEntry(tenantId: string, id: string, companySc
   });
 }
 
+/** يطبّق نفس الحالة على قيد المرآة (نصف المعاملة في الشركة الأخرى)، مع فحص إقفال شركته هو. */
+async function syncMirrorStatusTx(tx: Prisma.TransactionClient, mirrorEntryId: string | null, status: "posted" | "saved", action: string) {
+  if (!mirrorEntryId) return;
+  const mirror = await tx.journalEntry.findUnique({ where: { id: mirrorEntryId }, select: { id: true, companyId: true, date: true, status: true } });
+  if (!mirror || mirror.status === status) return;
+  const closingDate = await lockCompanyClosingDate(tx, mirror.companyId);
+  assertPeriodNotClosed(closingDate, mirror.date, action);
+  if (status === "posted") {
+    const lines = await tx.journalEntryLine.findMany({ where: { journalEntryId: mirror.id }, select: { accountId: true, debit: true, credit: true } });
+    assertBalanced(lines.map((l) => ({ accountId: l.accountId, debit: Number(l.debit), credit: Number(l.credit) })));
+  }
+  await tx.journalEntry.update({ where: { id: mirror.id }, data: { status } });
+}
+
 export async function postJournalEntry(tenantId: string, id: string, companyScope: string) {
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
   if (!existing) throw notFound("القيد غير موجود");
@@ -591,6 +606,7 @@ export async function postJournalEntry(tenantId: string, id: string, companyScop
   return prisma.$transaction(async (tx) => {
     const closingDate = await lockCompanyClosingDate(tx, existing.companyId);
     assertPeriodNotClosed(closingDate, existing.date, "ترحيل قيد");
+    await syncMirrorStatusTx(tx, existing.mirrorEntryId, "posted", "ترحيل قيد");
     return tx.journalEntry.update({ where: { id }, data: { status: "posted" }, include: entryInclude });
   });
 }
@@ -635,7 +651,9 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
         companyId: existing.companyId,
         date,
         memo: existing.memo,
-        status: "saved",
+        // قيد العكس يُرحَّل فور إنشائه: لا يحمل أي اجتهاد مستقل — هو مرآة قيد مرحَّل. تركه محفوظاً كان
+        // سيُعيد الخطأ المعكوس إلى الأرصدة (الأرصدة تحتسب المرحَّل فقط). إقفال الفترة يُفحَص عند حجز الرقم.
+        status: "posted",
         entryNumber,
         sourceModule: "manual",
         createdBy: userId,
@@ -668,6 +686,7 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
     const closingDate = await lockCompanyClosingDate(tx, entry.companyId);
     assertPeriodNotClosed(closingDate, entry.date, "فك ترحيل قيد");
 
+    await syncMirrorStatusTx(tx, entry.mirrorEntryId, "saved", "فك ترحيل قيد");
     const updated = await tx.journalEntry.update({ where: { id }, data: { status: "saved" }, include: entryInclude });
     await tx.auditLog.create({
       data: {

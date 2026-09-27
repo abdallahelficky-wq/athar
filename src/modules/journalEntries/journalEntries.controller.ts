@@ -129,6 +129,7 @@ export const bulkImportCommitHandler: RequestHandler = async (req, res) => {
     req.body.companyId,
     req.body.rows,
     req.body.accountMapping,
+    req.body.status === "posted" ? "posted" : "saved",
   );
   res.status(201).json(result);
 };
