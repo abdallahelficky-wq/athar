@@ -160,7 +160,7 @@ model PlatformNotice {
 }
 
 enum UserRole {
-  super_admin // مدير عام — الحساب الرئيسي المالك فقط، غير قابل للمنح عبر الدعوة العادية
+  super_admin // دور داخل المستأجر لبريد واحد محدد (OWNER_EMAIL في auth.service.ts) — ليس صلاحية منصّة ولا يعني مالك المستأجر؛ يتجاوز كل فحوص المستأجر الذي هو عضو فيه، ولا يُمنَح عبر الدعوة
   admin // مدير النظام
   finance_manager // مدير مالي
   accountant // محاسب
