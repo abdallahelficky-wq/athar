@@ -29,6 +29,7 @@ export const AR_TO_EN: Record<string, string> = {
   "هذه الشركة في وضع (عرض فقط) بسبب انتهاء الاشتراك أو الفترة التجريبية — تواصل مع الدعم الفني لتفعيل الاشتراك قبل إجراء أي إضافة أو تعديل أو حذف.": "This company is read-only because its subscription or trial has expired. Contact support to activate the subscription before adding, editing, or deleting data.",
   "رمز اختيار الحساب مطلوب": "Account selection token is required",
   "معرّف الحساب المطلوب تسجيل الدخول إليه مطلوب": "The account ID to sign in to is required",
+  "معرّف الحساب المطلوب الانتقال إليه مطلوب": "The account ID to switch to is required",
   "هذا البريد الإلكتروني مسجّل بالفعل بكلمة مرور مختلفة": "This email is already registered with a different password",
   "انتهت صلاحية عملية تسجيل الدخول، ابدأ من جديد": "The sign-in session has expired. Please start again",
   "هذا البريد الإلكتروني مسجّل بالفعل في هذه الشركة": "This email is already registered in this company",

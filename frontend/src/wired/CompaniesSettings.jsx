@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { createCompany, deleteCompany } from "../api/companies";
+import { createCompany, createIndependentCompany, deleteCompany } from "../api/companies";
 import { useAuth } from "../context/AuthContext";
 import CompanyEditModal from "./CompanyEditModal";
 import CompanyZatcaModal from "./CompanyZatcaModal";
@@ -101,6 +101,14 @@ function NewCompanyForm({ onCompanyCreated }) {
   const [currency, setCurrency] = useState("SAR");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  // "group" = ضمن نفس المجموعة (المستأجر الحالي، كما كان دائماً)، "independent" = مستأجر جديد كلياً
+  const [mode, setMode] = useState("group");
+  const [independentResult, setIndependentResult] = useState(null);
+  const [switching, setSwitching] = useState(false);
+  const { switchAccount } = useAuth();
+  const isIndependent = mode === "independent";
+  // المستقلة تُزرَع بدالة التسجيل نفسها، والتي تشترط النشاط — فلا خيار "بدون تحديد" لها
+  const activityOptions = isIndependent ? BUSINESS_ACTIVITY_OPTIONS.filter((opt) => opt.value) : BUSINESS_ACTIVITY_OPTIONS;
 
   // اختيار الدولة يقترح عملتها الافتراضية تلقائياً (قابلة للتعديل بعد ذلك دون أن يُعاد الكتابة
   // فوقها لو غيّر المستخدم الدولة مجدداً بالخطأ ثم رجع — الاقتراح فقط، لا فرض).
@@ -109,8 +117,59 @@ function NewCompanyForm({ onCompanyCreated }) {
     setCurrency(defaultCurrencyForCountry(value));
   };
 
+  const resetFields = () => {
+    setName("");
+    setShortName("");
+    setBusinessActivity("");
+    setCountry("SA");
+    setCurrency("SAR");
+  };
+
+  const chooseMode = (value) => {
+    setMode(value);
+    setError("");
+  };
+
+  const submitIndependent = async () => {
+    if (!businessActivity) { setError(t("settings.newCompany.independent.errActivityRequired")); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const result = await createIndependentCompany({
+        name: name.trim(),
+        shortName: shortName.trim() || undefined,
+        businessActivity,
+        country,
+        currency,
+      });
+      resetFields();
+      setShowForm(false);
+      setMode("group");
+      setIndependentResult(result);
+    } catch (err) {
+      setError(err.message || t("settings.newCompany.errGeneric"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // انتقال صريح يطلبه المستخدم بنفسه — ثم إعادة تحميل كاملة حتى لا يبقى في الذاكرة أي بيانات مُحمَّلة
+  // من المستأجر الحالي داخل جلسة المستأجر الجديد
+  const switchToIndependent = async () => {
+    setSwitching(true);
+    setError("");
+    try {
+      await switchAccount(independentResult.userId);
+      window.location.assign("/dashboard");
+    } catch (err) {
+      setError(err.message || t("settings.newCompany.independent.errSwitch"));
+      setSwitching(false);
+    }
+  };
+
   const submit = async () => {
     if (!name.trim()) { setError(t("settings.newCompany.errNameRequired")); return; }
+    if (isIndependent) { await submitIndependent(); return; }
     setSaving(true);
     setError("");
     try {
@@ -143,6 +202,53 @@ function NewCompanyForm({ onCompanyCreated }) {
           {showForm ? t("common.cancel") : t("settings.newCompany.newBtn")}
         </button>
       </div>
+      {independentResult && (
+        <div className="independent-result" role="status">
+          <div className="independent-result-title">{t("settings.newCompany.independent.createdTitle", { name: independentResult.company.name })}</div>
+          <p>{t("settings.newCompany.independent.createdCode")} <strong className="independent-code">{independentResult.tenant.code}</strong></p>
+          <p className="note" style={{ margin: "0 0 12px" }}>{t("settings.newCompany.independent.createdNote")}</p>
+          <div className="form-btn-group">
+            <button type="button" className="btn-primary" onClick={switchToIndependent} disabled={switching}>
+              {switching ? t("settings.newCompany.independent.switching") : t("settings.newCompany.independent.switchNow")}
+            </button>
+            <button type="button" className="btn-ghost" onClick={() => setIndependentResult(null)} disabled={switching}>
+              {t("settings.newCompany.independent.stayHere")}
+            </button>
+          </div>
+        </div>
+      )}
+      {showForm && (
+        <fieldset className="company-mode-choice" style={{ marginTop: 14 }}>
+          <legend>{t("settings.newCompany.modeLabel")}</legend>
+          <label className={"company-mode-option" + (mode === "group" ? " selected" : "")}>
+            <input type="radio" name="company-mode" value="group" checked={mode === "group"} onChange={() => chooseMode("group")} />
+            <span>
+              <strong>{t("settings.newCompany.group.title")}</strong>
+              <small>{t("settings.newCompany.group.desc")}</small>
+            </span>
+          </label>
+          <label className={"company-mode-option" + (isIndependent ? " selected" : "")}>
+            <input type="radio" name="company-mode" value="independent" checked={isIndependent} onChange={() => chooseMode("independent")} />
+            <span>
+              <strong>{t("settings.newCompany.independent.title")}</strong>
+              <small>{t("settings.newCompany.independent.desc")}</small>
+            </span>
+          </label>
+          {isIndependent && (
+            <div className="independent-warning">
+              <strong>{t("settings.newCompany.independent.warningTitle")}</strong>
+              <ul>
+                <li>{t("settings.newCompany.independent.warnNoUsers")}</li>
+                <li>{t("settings.newCompany.independent.warnNoReports")}</li>
+                <li>{t("settings.newCompany.independent.warnNoTransfers")}</li>
+                <li>{t("settings.newCompany.independent.warnOwnCode")}</li>
+                <li>{t("settings.newCompany.independent.warnOwnSubscription")}</li>
+                <li>{t("settings.newCompany.independent.warnAccess")}</li>
+              </ul>
+            </div>
+          )}
+        </fieldset>
+      )}
       {showForm && (
         <div className="form-grid" style={{ marginTop: 14 }}>
           <label>{t("settings.newCompany.nameLabel")}<input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("settings.newCompany.namePlaceholder")} /></label>
@@ -150,7 +256,8 @@ function NewCompanyForm({ onCompanyCreated }) {
           <label>
             {t("settings.newCompany.businessActivityLabel")}
             <select value={businessActivity} onChange={(e) => setBusinessActivity(e.target.value)}>
-              {BUSINESS_ACTIVITY_OPTIONS.map((opt) => (
+              {isIndependent && <option value="">{t("settings.newCompany.independent.selectActivity")}</option>}
+              {activityOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
@@ -174,7 +281,7 @@ function NewCompanyForm({ onCompanyCreated }) {
           </label>
           <div style={{ alignSelf: "end" }}>
             <button className="btn-primary" onClick={submit} disabled={saving}>
-              {saving ? t("settings.newCompany.creating") : t("settings.newCompany.createBtn")}
+              {saving ? t("settings.newCompany.creating") : isIndependent ? t("settings.newCompany.independent.createBtn") : t("settings.newCompany.createBtn")}
             </button>
           </div>
         </div>

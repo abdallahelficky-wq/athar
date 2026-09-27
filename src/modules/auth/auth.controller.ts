@@ -27,6 +27,11 @@ export const completeLoginChoiceHandler: RequestHandler = async (req, res) => {
   res.json(result);
 };
 
+export const switchAccountHandler: RequestHandler = async (req, res) => {
+  const result = await authService.switchAccount(req.auth!.sub, req.body.userId);
+  res.json(result);
+};
+
 export const inviteHandler: RequestHandler = async (req, res) => {
   const result = await authService.invite(req.auth!.tenantId, req.body, req.lang);
   res.status(201).json(result);

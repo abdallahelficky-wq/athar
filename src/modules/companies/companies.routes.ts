@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { authenticate, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createCompanySchema, updateCompanySchema, reopenFiscalClosingSchema, extractDocumentSchema } from "./companies.schemas";
+import { createCompanySchema, createIndependentCompanySchema, updateCompanySchema, reopenFiscalClosingSchema, extractDocumentSchema } from "./companies.schemas";
 import {
   listCompanies,
   createCompany,
+  createIndependentCompany,
   updateCompany,
   deleteCompany,
   reopenFiscalClosing,
@@ -23,6 +24,13 @@ companyRoutes.post(
   requireRole("admin", "finance_manager"),
   validateBody(createCompanySchema),
   createCompany,
+);
+// «شركة مستقلة» — مستأجر جديد لنفس هوية المستخدم، بنفس صلاحية إضافة شركة ضمن المجموعة أعلاه
+companyRoutes.post(
+  "/independent",
+  requireRole("admin", "finance_manager"),
+  validateBody(createIndependentCompanySchema),
+  createIndependentCompany,
 );
 companyRoutes.patch(
   "/:id",

@@ -6,6 +6,9 @@ export const login = (payload) => apiFetch("/auth/login", { method: "POST", body
 // رمز دخول حقيقي وموقَّع فعلياً من الخادم للشركة المُختارة، وليس مجرد تبديل حالة في المتصفح.
 export const completeLoginChoice = (identityToken, userId) =>
   apiFetch("/auth/login/complete", { method: "POST", body: { identityToken, userId } });
+// انتقال مقصود من داخل الجلسة إلى عضوية أخرى لنفس الهوية (مثلاً شركة مستقلة أُنشئت للتو) — يُصدِر
+// الخادم رمز دخول جديداً لتلك العضوية فقط بعد التحقق أنها لنفس الهوية
+export const switchAccount = (userId) => api.post("/auth/switch", { userId });
 export const logout = (refreshToken) => apiFetch("/auth/logout", { method: "POST", body: { refreshToken } });
 export const changeUnlockPin = (payload) => api.patch("/auth/unlock-pin", payload);
 export const updateTenantName = (name) => api.patch("/auth/tenant", { name });

@@ -1394,6 +1394,22 @@
           .download-card { padding: 30px 22px; }
         }
 
+        /* إضافة شركة: الاختيار بين «ضمن نفس المجموعة» و«شركة مستقلة» (مستأجر جديد) — راجع NewCompanyForm */
+        .company-mode-choice { border: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .company-mode-choice legend { font-weight: 700; font-size: 13px; margin-bottom: 8px; padding: 0; }
+        .company-mode-option { display: flex; gap: 10px; align-items: flex-start; border: 1px solid rgba(16,32,46,0.12); border-radius: 10px; padding: 12px 14px; cursor: pointer; background: #fff; }
+        .company-mode-option.selected { border-color: #C8102E; box-shadow: 0 0 0 1px #C8102E inset; }
+        .company-mode-option input { margin-top: 3px; }
+        .company-mode-option span { display: flex; flex-direction: column; gap: 4px; }
+        .company-mode-option small { color: #445565; font-size: 12px; line-height: 1.6; }
+        .independent-warning { grid-column: 1 / -1; background: #FFF6E5; border: 1px solid #F0D9A8; border-radius: 10px; padding: 12px 16px; font-size: 12.5px; color: #5A4520; line-height: 1.7; }
+        .independent-warning ul { margin: 6px 0 0; padding-inline-start: 20px; }
+        .independent-result { margin-top: 14px; background: #EEF6F1; border: 1px solid #BFDCCB; border-radius: 10px; padding: 14px 16px; font-size: 13px; }
+        .independent-result-title { font-weight: 700; margin-bottom: 6px; }
+        .independent-result p { margin: 0 0 6px; }
+        .independent-code { font-family: 'JetBrains Mono', monospace; font-size: 15px; }
+        @media (max-width: 640px) { .company-mode-choice { grid-template-columns: 1fr; } }
+
         /* صفحة وثيقة "حماية بيانات العملاء" العامة (src/pages/DataProtectionPage.jsx) — نفس خلفية ورأس
            صفحة الهبوط، والنص في بطاقة قراءة بعرض سطر مريح */
         .legal-root { padding-bottom: 60px; }

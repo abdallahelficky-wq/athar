@@ -10,6 +10,7 @@ import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/de
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 import { createStarterItems, createCashParties, createDefaultWarehouse, linkStationCashAccounts } from "../../lib/starterData";
 import { translateMessage } from "../../lib/i18n/translate";
+import { createIndependentTenant } from "../auth/auth.service";
 
 const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB يكفي لأي شعار
 const ALLOWED_LOGO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
@@ -33,6 +34,15 @@ export const listCompanies: RequestHandler = async (req, res) => {
     orderBy: { createdAt: "asc" },
   });
   res.json(await Promise.all(companies.map(withLogoUrl)));
+};
+
+/**
+ * «شركة مستقلة»: تُنشئ مستأجراً جديداً كلياً مالكه نفس هوية المستخدم الحالي (راجع createIndependentTenant)
+ * — لا شيء منه يُضاف لمستأجر الجلسة الحالية، ولا تُصدَر أي رموز دخول؛ يُعاد فقط ما يلزم لعرض النتيجة
+ * وللانتقال المقصود إليه لاحقاً (userId لعضوية المالك في المستأجر الجديد، يُمرَّر لـ POST /auth/switch).
+ */
+export const createIndependentCompany: RequestHandler = async (req, res) => {
+  res.status(201).json(await createIndependentTenant(req.auth!.sub, req.body));
 };
 
 export const createCompany: RequestHandler = async (req, res) => {
