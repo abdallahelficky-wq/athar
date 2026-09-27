@@ -102,6 +102,6 @@ export async function removeDepreciationRun(tenantId: string, userId: string, id
   await prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, run.journalEntryId);
     await tx.depreciationRun.delete({ where: { id } });
-    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "DepreciationRun", entityId: id });
+    await writeUnpostAuditLogTx(tx, { tenantId, userId, companyId: run.companyId, entityType: "DepreciationRun", entityId: id });
   });
 }

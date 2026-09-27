@@ -172,6 +172,6 @@ export async function removeEmployeeAdvance(tenantId: string, userId: string, id
         await tx.payrollComponent.delete({ where: { id: ec.componentId } });
       }
     }
-    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "EmployeeAdvance", entityId: id });
+    await writeUnpostAuditLogTx(tx, { tenantId, userId, companyId: advance.companyId, entityType: "EmployeeAdvance", entityId: id });
   });
 }

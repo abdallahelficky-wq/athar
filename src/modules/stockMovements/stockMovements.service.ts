@@ -341,6 +341,6 @@ export async function removeStockMovement(tenantId: string, userId: string, id: 
     for (const jId of journalEntryIds) await deleteJournalEntryTx(tx, jId);
     await tx.stockMovement.deleteMany({ where: { id: { in: group.map((m) => m.id) } } });
     for (const itemId of affectedItemIds) await recomputeAverageCostFromScratchTx(tx, tenantId, itemId);
-    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "StockMovement", entityId: id, metadata: { relatedIds: group.map((m) => m.id) } });
+    await writeUnpostAuditLogTx(tx, { tenantId, userId, companyId: movement.companyId, entityType: "StockMovement", entityId: id, metadata: { relatedIds: group.map((m) => m.id) } });
   });
 }

@@ -202,20 +202,34 @@ export async function assertValidUnlockPin(tenantId: string, pin: string, userId
   throw forbidden("الرقم السري غير صحيح");
 }
 
-/** يسجّل حدث فك ترحيل في سجل التدقيق (audit log) وفق ما يطلبه القسم 4.9 صراحة. شركة المستند تُقرأ
- * من المستند نفسه (كل entityType مُمرَّر هنا نموذج Prisma يحمل companyId، واسم مفوّضه = entityType
- * بحرف أول صغير) فتُخزَّن في السجل كعمود عادي دون أن يمرّرها كل مستدعٍ. */
+/** يسجّل حدث فك ترحيل في سجل التدقيق (audit log) وفق ما يطلبه القسم 4.9 صراحة، مع شركة المستند كعمود
+ * عادي. مسارات "الإزالة" التي تحذف المستند نفسه قبل هذا الاستدعاء (دفعات الإهلاك، السُّلف، الأصول
+ * الثابتة، حركات المخزون) تمرّر companyId صراحةً من السجل المُحمَّل قبل الحذف؛ وإلا تُقرأ الشركة من
+ * المستند نفسه (كل entityType مُمرَّر هنا نموذج Prisma يحمل companyId، واسم مفوّضه = entityType بحرف
+ * أول صغير). */
 export async function writeUnpostAuditLogTx(
   tx: Tx,
-  params: { tenantId: string; userId: string; entityType: string; entityId: string; metadata?: Record<string, unknown> },
+  params: { tenantId: string; userId: string; entityType: string; entityId: string; companyId?: string; metadata?: Record<string, unknown> },
 ) {
+  if (params.companyId) {
+    await writeUnpostAuditRow(tx, params, params.companyId);
+    return;
+  }
   const delegateName = params.entityType[0].toLowerCase() + params.entityType.slice(1);
   const delegate = (tx as unknown as Record<string, { findUnique?: (args: unknown) => Promise<{ companyId: string } | null> }>)[delegateName];
   const document = await delegate?.findUnique?.({ where: { id: params.entityId }, select: { companyId: true } });
+  await writeUnpostAuditRow(tx, params, document?.companyId ?? null);
+}
+
+async function writeUnpostAuditRow(
+  tx: Tx,
+  params: { tenantId: string; userId: string; entityType: string; entityId: string; metadata?: Record<string, unknown> },
+  companyId: string | null,
+) {
   await tx.auditLog.create({
     data: {
       tenantId: params.tenantId,
-      companyId: document?.companyId ?? null,
+      companyId,
       userId: params.userId,
       action: `${params.entityType.toLowerCase()}.unpost`,
       entityType: params.entityType,

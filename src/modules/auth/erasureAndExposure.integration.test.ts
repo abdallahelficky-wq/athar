@@ -220,6 +220,24 @@ describe("erasure and exposure fixes (integration)", () => {
     const full = await call("GET", `/employees?companyId=${companyId}`, tokens.hr_manager);
     expect(Number(full.body.find((e: { id: string }) => e.id === employeeId).basicSalary)).toBe(9000);
 
+    // طلبات الإجازة تُضمِّن الموظف: لمستخدم خارج الموارد البشرية بصلاحية عرض الطلبات، حقول التعريف وحدها
+    expect((await call("POST", "/leave-requests", ownerToken, { employeeId, type: "annual", startDate: "2026-10-01", endDate: "2026-10-03" })).status).toBe(201);
+    const position = await prisma.position.create({ data: { tenantId, name: `عرض الإجازات ${stamp}` } });
+    await prisma.positionActionPermission.create({ data: { positionId: position.id, moduleId: "leaveRequests", actionId: "view", level: "read" } });
+    await prisma.user.update({ where: { id: userIds.accountant }, data: { positionId: position.id } });
+    const leaves = await call("GET", `/leave-requests?companyId=${companyId}`, tokens.accountant);
+    expect(leaves.status).toBe(200);
+    expect(leaves.body.some((r: { employee: { name: string } }) => r.employee.name === "موظف براتب")).toBe(true);
+    expect(leaves.text).not.toMatch(/basicSalary|housingAllowance|idNumber|bankAccount/);
+
+    // إزالة مستند مرحّل تحذف سجلّه قبل كتابة صف التدقيق — الشركة تُمرَّر صراحةً فلا تضيع
+    const cash = await prisma.account.findFirstOrThrow({ where: { companyId, code: "111001" } });
+    const advance = await call("POST", "/employee-advances", ownerToken, { companyId, employeeId, accountId: cash.id, amount: 500, startDate: "2026-09-01" });
+    expect(advance.status).toBe(201);
+    expect((await call("DELETE", `/employee-advances/${advance.body.id}`, ownerToken, { pin: "1234" })).status).toBe(204);
+    const removal = await prisma.auditLog.findFirstOrThrow({ where: { tenantId, entityType: "EmployeeAdvance", entityId: advance.body.id } });
+    expect(removal.companyId).toBe(companyId);
+
     const settings = { expenseIncreasePct: 15, minimumCash: 1000, maximumReceivables: 50000 };
     expect((await call("PATCH", `/reports/comprehensive-monthly/settings?companyId=${companyId}`, tokens.viewer, settings)).status).toBe(403);
     expect((await call("PATCH", `/reports/comprehensive-monthly/settings?companyId=${companyId}`, tokens.accountant, settings)).status).toBe(403);

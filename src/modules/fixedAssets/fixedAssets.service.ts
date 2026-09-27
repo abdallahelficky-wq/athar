@@ -298,7 +298,7 @@ export async function removeFixedAsset(tenantId: string, userId: string, id: str
   await prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, asset.journalEntryId);
     await tx.fixedAsset.delete({ where: { id } });
-    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "FixedAsset", entityId: id });
+    await writeUnpostAuditLogTx(tx, { tenantId, userId, companyId: asset.companyId, entityType: "FixedAsset", entityId: id });
   });
 }
 
