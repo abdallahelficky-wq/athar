@@ -620,7 +620,8 @@ export async function getCustomerStatement(
   if (!customer) throw notFound("العميل غير موجود");
   const accountId = await resolvePartyAccountId(tenantId, customer.companyId, customer, "ذمم مدينة");
   const statement = await buildPartyStatement(tenantId, accountId, companyId, dateFrom, dateTo, 1);
-  return { customer, ...statement };
+  // accountId: الحساب الذي بُني منه الكشف — تحتاجه الشاشة لسطر "قيود محفوظة" على نفس الحساب
+  return { customer, accountId, ...statement };
 }
 
 function collectPostingDescendants(accounts: Account[], rootId: string): string[] {
@@ -753,7 +754,7 @@ export async function getSupplierStatement(
   if (!supplier) throw notFound("المورد غير موجود");
   const accountId = await resolvePartyAccountId(tenantId, supplier.companyId, supplier, "ذمم دائنة - موردين");
   const statement = await buildPartyStatement(tenantId, accountId, companyId, dateFrom, dateTo, -1);
-  return { supplier, ...statement };
+  return { supplier, accountId, ...statement };
 }
 
 /**

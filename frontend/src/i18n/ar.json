@@ -2662,5 +2662,5 @@
       "source": { "manual": "قيد يدوي", "bulk_import": "استيراد قيود", "ai_document": "مستند بالذكاء الاصطناعي", "station_shift": "وردية محطة", "sales_invoice": "فاتورة مبيعات", "sales_return": "مردود مبيعات", "sales_debit_note": "إشعار مدين", "purchase_invoice": "فاتورة مشتريات", "purchase_return": "مردود مشتريات", "receipt": "سند قبض", "payroll": "مسير رواتب", "depreciation": "إهلاك", "asset_disposal": "استبعاد أصل", "leave_settlement": "تسوية إجازة", "stock_movement": "حركة مخزون", "periodic_inventory_settlement": "تسوية جرد دوري" }
     }
   },
-  "draftEntries": {"uncounted": "قيود محفوظة غير مرحّلة ضمن هذا النطاق لا تدخل الأرقام أعلاه: {{count}} قيد — مدين {{debit}} / دائن {{credit}}.", "counted": "هذه الشركة لم تُفعِّل بعدُ احتساب المرحَّل فقط، فالأرقام أعلاه تتضمن {{count}} قيداً محفوظاً غير مرحّل — مدين {{debit}} / دائن {{credit}}.", "view": "عرض القيود"}
+  "draftEntries": {"monthlyLabel": "قيود محفوظة غير مرحّلة حتى نهاية {{month}}", "uncounted": "قيود محفوظة غير مرحّلة ضمن هذا النطاق لا تدخل الأرقام أعلاه: {{count}} قيد — مدين {{debit}} / دائن {{credit}}.", "counted": "هذه الشركة لم تُفعِّل بعدُ احتساب المرحَّل فقط، فالأرقام أعلاه تتضمن {{count}} قيداً محفوظاً غير مرحّل — مدين {{debit}} / دائن {{credit}}.", "view": "عرض القيود"}
 }

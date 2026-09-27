@@ -39,7 +39,7 @@
 .row-actions button { display: inline-flex; align-items: center; gap: 5px; }
 .row-actions .danger { color: #b42318; }
 .commission-report tfoot th { border-top: 2px solid currentColor; }
-@media print { .no-print, .sidebar, .app-header, .subtabs-bar { display: none !important; } .commission-report { border: 0; box-shadow: none; } }
+@media print { .no-print, .draft-entries-notice:not(.draft-entries-print), .sidebar, .app-header, .subtabs-bar { display: none !important; } .commission-report { border: 0; box-shadow: none; } }
 @media (max-width: 760px) { .stable-service-choice, .boarding-service-row { grid-template-columns: 1fr; } }
 
         * { box-sizing: border-box; }

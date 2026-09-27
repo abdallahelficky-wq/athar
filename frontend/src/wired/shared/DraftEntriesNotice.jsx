@@ -11,7 +11,9 @@ import { routes } from "../../routes";
  * مالكها المفتاح بعد) — مع رابط لتلك القيود في شاشة القيود. يُبقي قصد "حفظتُ القيد فلماذا لا يظهر في
  * رصيدي؟" واضحاً دون أن تدخل المسودات الأرقام.
  */
-export default function DraftEntriesNotice({ companyId, branchId, accountId, dateFrom, dateTo }) {
+// printable: يُطبع مع التقرير (التقرير الشهري الشامل تقرير إدارة يُطبع ويُوزَّع)؛ وإلا يُخفى في الطباعة
+// (كشف الحساب المطبوع يُرسَل للعميل/المورد، والسطر معلومة داخلية).
+export default function DraftEntriesNotice({ companyId, branchId, accountId, dateFrom, dateTo, printable = false, label }) {
   const { t } = useTranslation();
   const [data, setData] = useState(null);
 
@@ -27,7 +29,8 @@ export default function DraftEntriesNotice({ companyId, branchId, accountId, dat
   if (!data || (data.uncounted.entryCount === 0 && data.counted.entryCount === 0)) return null;
   const link = routes.draftEntries({ accountId, dateFrom, dateTo });
   return (
-    <div className="draft-entries-notice" data-testid="draft-entries-notice">
+    <div className={"draft-entries-notice" + (printable ? " draft-entries-print" : "")} data-testid="draft-entries-notice">
+      {label && <p className="strong">{label}</p>}
       {data.uncounted.entryCount > 0 && (
         <p>
           {t("draftEntries.uncounted", { count: data.uncounted.entryCount, debit: fmt(data.uncounted.debit), credit: fmt(data.uncounted.credit) })}{" "}

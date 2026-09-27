@@ -7,6 +7,7 @@ import { hashPassword } from "../../lib/password";
 import { signAccessToken } from "../../lib/jwt";
 import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
+import { buildReportDigestEmail } from "../../lib/reportDigest";
 
 /**
  * الأرصدة تحتسب القيود المرحَّلة فقط، عبر مسارات HTTP الحقيقية على Postgres فعلي:
@@ -210,5 +211,25 @@ describe("balances count posted entries only (integration)", () => {
     expect((await call("PATCH", `/companies/${companyId}/balances-posted-only`, { enabled: true })).status).toBe(200);
     expect(await cashBalance()).toBe(posted);
   });
-});
 
+  it("the customer statement names its account so the screen can show the drafts on it", async () => {
+    const customer = await call("POST", "/customers", { companyId, name: "عميل المسودات" });
+    expect(customer.status, customer.text).toBe(201);
+    const customerAccountId = (await prisma.customer.findUniqueOrThrow({ where: { id: customer.body.id } })).accountId!;
+    await call("POST", "/journal-entries", {
+      companyId, date: "2026-08-15T09:00:00.000Z", memo: "مسودة على العميل", post: false,
+      lines: [{ accountId: customerAccountId, debit: 25, credit: 0, customerId: customer.body.id }, { accountId: acc.revenue, debit: 0, credit: 25 }],
+    });
+    const statement = await call("GET", `/reports/customer-statement/${customer.body.id}?companyId=${companyId}`);
+    expect(statement.status, statement.text).toBe(200);
+    expect(statement.body.accountId).toBe(customerAccountId);
+    expect(statement.text).not.toContain("مسودة على العميل");
+    const onAccount = await call("GET", `/reports/draft-entries-summary?companyId=${companyId}&accountId=${customerAccountId}`);
+    expect(onAccount.body.uncounted).toMatchObject({ entryCount: 1, debit: 25 });
+  });
+
+  it("the scheduled report email carries the same draft notice as the screens", async () => {
+    const email = await buildReportDigestEmail(tenantId, companyId, { includeTrialBalance: true, includeComprehensiveMonthly: false, includeIncomeStatement: false, includeBalanceSheet: false });
+    expect(email.bodyHtml).toContain("غير محتسبة في الأرقام أعلاه");
+  });
+});
