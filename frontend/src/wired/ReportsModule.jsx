@@ -19,11 +19,13 @@ import { useDeferredFilters } from "./shared/useDeferredFilters";
 import { defaultDateRangeForCompany } from "./shared/fiscalClosing";
 import ComprehensiveMonthlyReport from "./ComprehensiveMonthlyReport";
 import ReportScheduleAutomation from "./ReportScheduleAutomation";
+import VatReconciliation from "./vat/VatReconciliation";
 
 export const REPORT_TABS = [
   { id: "trial", labelKey: "nav.tabs.trial" },
   { id: "income", labelKey: "nav.tabs.income" },
   { id: "balance", labelKey: "nav.tabs.balance" },
+  { id: "vat", labelKey: "nav.tabs.vatReconciliation" },
   { id: "monthly", labelKey: "nav.tabs.monthly" },
   { id: "automation", labelKey: "nav.tabs.automation" },
 ];
@@ -224,10 +226,11 @@ export default function ReportsModule({ companies, companyId }) {
             tabs={REPORT_TABS}
             active={tab}
             basePath="/reports"
-            trailing={<button className="icon-btn" title={t("reports.printCurrent")} onClick={() => setPrinting(true)}><Icon.Printer /></button>}
+            trailing={<button className="icon-btn" title={t("reports.printCurrent")} onClick={() => (tab === "vat" ? window.print() : setPrinting(true))}><Icon.Printer /></button>}
           />
           {tab === "monthly" && <ComprehensiveMonthlyReport companyId={companyId} companies={companies} />}
           {tab === "automation" && <ReportScheduleAutomation companyId={companyId} />}
+          {tab === "vat" && <VatReconciliation companyId={companyId} companies={companies} />}
           {tab === "trial" && (
             <TrialBalanceView
               data={tbData}

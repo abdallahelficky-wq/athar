@@ -574,4 +574,8 @@ export const AR_TO_EN: Record<string, string> = {
   "السعر غير موجود": "The price does not exist",
   "لا يُحذف سعر سرى بالفعل — الورديات قُيِّمت به؛ أضف سعراً جديداً بتاريخ لاحق بدلاً من ذلك": "A price that has already taken effect cannot be deleted — shifts were valued at it; add a new price with a later date instead",
   "لا يمكن فتح وردية: لا توجد مضخات مُعرَّفة لهذه المحطة بعد — على المسؤول إضافتها من «ورديات المحطات ← إعداد المحطات»": "Cannot open a shift: this station has no pumps yet — an administrator must add them under “Station shifts → Station setup”",
+  "تقارير الضريبة تتطلب تحديد الشركة": "VAT reports require a company",
+  "تقارير الضريبة تتطلب فترة الإقرار (من، إلى)": "VAT reports require the filing period (from, to)",
+  "تاريخ الفترة غير صالح (الصيغة المطلوبة YYYY-MM-DD)": "The period date is not valid (expected format YYYY-MM-DD)",
+  "بداية الفترة بعد نهايتها": "The period starts after it ends",
 };

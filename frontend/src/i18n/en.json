@@ -293,7 +293,7 @@
       "leaveSettlement": "Leave Settlements", "leaveReturn": "Return from Leave", "hrActions": "Employee Actions",
       "payroll": "Payroll", "payrollSettings": "Payroll Settings", "eos": "End of Service",
       "hrReports": "Reports", "trial": "Trial Balance", "income": "Income Statement", "balance": "Balance Sheet",
-      "monthly": "Comprehensive Monthly Report", "automation": "Send Automation",
+      "vatReconciliation": "VAT Reconciliation", "monthly": "Comprehensive Monthly Report", "automation": "Send Automation",
       "companies": "Company Info", "profile": "Profile", "users": "Users & Permissions",
       "jobTitles": "Job Titles", "locations": "Locations", "companyDocs": "Official Documents",
       "positions": "Positions"
@@ -766,7 +766,7 @@
       "byCustomer": { "customer": "Customer", "invoiceCount": "Invoice count", "totalInvoices": "Total sales", "totalReturns": "Total returns", "netSales": "Net sales", "outstanding": "Outstanding balance" },
       "monthly": { "month": "Month", "total": "Total sales" },
       "aging": { "customer": "Customer", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding receivables." },
-      "vat": { "salesBase": "Total sales before tax", "outputVat": "Output VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netOutputVat": "Net output VAT due" },
+      "vat": { "salesBase": "Total sales before tax", "outputVat": "Output VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netOutputVat": "Net output VAT due", "debitNotesBase": "Total debit notes before tax", "debitNotesVat": "Debit notes VAT", "stationShiftVat": "Station shift output VAT", "stationShiftNote": "Posted to the output VAT account with no tax invoice, and may overlap POS fuel invoices for the same day, so it is shown separately and not included in the document net.", "totalWithStations": "Total output VAT including station shifts" },
       "empty": "No data yet."
     },
     "newCustomerModal": {
@@ -2634,6 +2634,30 @@
       "VATEX-SA-EDU": "Private education for citizens",
       "VATEX-SA-HEA": "Healthcare for citizens",
       "VATEX-SA-MLTRY": "Qualifying military goods"
+    }
+  },
+  "vat": {
+    "period": { "title": "period {{from}} to {{to}}", "from": "From", "to": "To", "show": "Show", "frequency": { "monthly": "monthly return", "quarterly": "quarterly return" }},
+    "recon": {
+      "output": { "title": "Output VAT (sales)" },
+      "input": { "title": "Input VAT (purchases)" },
+      "account": "Account",
+      "noAccount": "This company's chart has no VAT account that posting uses, so posting itself will be refused.",
+      "documentVat": "Document VAT",
+      "documentVatTotal": "VAT on posted documents in the period",
+      "ledgerMovement": "VAT account movement in the period (posted entries)",
+      "difference": "Difference (account movement − document VAT)",
+      "entry": "Entry",
+      "items": { "otherSources": "Manual, imported or other-source entries touching the account", "stationShifts": "Station shift VAT (no tax document)", "documentEntryOutsidePeriod": "Documents in the period whose entry is not in the period movement", "entryForDocumentOutsidePeriod": "Entries in the period for documents outside it", "amountMismatch": "Documents whose entry amount differs from their VAT" },
+      "reason": { "no_entry": "Posted with no entry", "entry_outside_period": "Entry dated outside the period", "entry_without_vat_line": "Entry in the period but does not touch this account" },
+      "residual": "Residual after itemising",
+      "residualWarning": "The residual is not zero: a difference remains that no item above explains. Do not sign the return before checking it.",
+      "netPerDocuments": "Net VAT per documents (output − input)",
+      "netPerLedger": "Net VAT per accounts (output − input)",
+      "outside": { "title": "Missing from both sides (not in the difference)", "note": "Neither the documents nor the account count these now, but a previous return may have included them, or they were already sent to ZATCA.", "unposted": "Documents dated in the period that were un-posted", "unpostedAt": "Un-posted {{at}} by {{by}}", "notFullyPosted": "Documents sent to or awaiting ZATCA whose accounting write is incomplete", "saved": "Saved, unposted entries touching the account (counted by the trial balance)" },
+      "otherAccounts": { "title": "Other VAT accounts with movement in the period", "note": "These accounts are named «ضريبة القيمة المضافة» but are not the account posting uses now, so their movement is outside the reconciliation above. Their presence means VAT is split across more than one account.", "debit": "Debit", "credit": "Credit" },
+      "doc": { "SalesInvoice": "Sales invoice", "SalesDebitNote": "Debit note", "SalesReturn": "Sales return", "PurchaseInvoice": "Purchase invoice", "PurchaseReturn": "Purchase return" },
+      "source": { "manual": "Manual entry", "bulk_import": "Entry import", "ai_document": "AI document", "station_shift": "Station shift", "sales_invoice": "Sales invoice", "sales_return": "Sales return", "sales_debit_note": "Debit note", "purchase_invoice": "Purchase invoice", "purchase_return": "Purchase return", "receipt": "Receipt", "payroll": "Payroll run", "depreciation": "Depreciation", "asset_disposal": "Asset disposal", "leave_settlement": "Leave settlement", "stock_movement": "Stock movement", "periodic_inventory_settlement": "Periodic inventory settlement" }
     }
   }
 }

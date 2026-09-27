@@ -2534,7 +2534,7 @@ model BoardingContract {
   horseId           String
   horse             Horse                  @relation(fields: [horseId], references: [id])
   stallId           String?
-  stall             StableStall?           @relation(fields: [stallId], references: [id])
+  stall             StableStall?           @relation(fields: [stallId], references: [id], onDelete: Restrict)
   startDate         DateTime
   endDate           DateTime?
   monthlyFee        Decimal                @db.Decimal(18, 2)
@@ -2793,7 +2793,7 @@ model TrainerCommission {
   updatedAt             DateTime                @updatedAt
 
   @@unique([trainerId, salesInvoiceId, horseId])
-  @@index([tenantId, companyId, periodStart, periodEnd])
+  @@index([tenantId, companyId, periodStart, periodEnd], map: "trainer_commissions_tenantId_companyId_periodStart_periodEnd_id")
   @@map("trainer_commissions")
 }
 

@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import * as service from "./salesReports.service";
+import { parseVatPeriod } from "../../lib/vatPeriod";
 
 const filters = (req: Parameters<RequestHandler>[0]) => ({
   companyId: typeof req.query.companyId === "string" ? req.query.companyId : undefined,
@@ -14,7 +15,7 @@ export const monthlyHandler: RequestHandler = async (req, res) => {
 };
 
 export const vatSummaryHandler: RequestHandler = async (req, res) => {
-  res.json(await service.getSalesVatSummary(req.auth!.tenantId, filters(req)));
+  res.json(await service.getSalesVatSummary(req.auth!.tenantId, await parseVatPeriod(req.auth!.tenantId, req.query)));
 };
 
 export const agingHandler: RequestHandler = async (req, res) => {

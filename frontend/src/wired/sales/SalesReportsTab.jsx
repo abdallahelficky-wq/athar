@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { getSalesByCustomer, getSalesMonthly, getSalesVatSummary, getReceivablesAging } from "../../api/salesReports";
 import { fmt } from "../../legacy/constants";
 import SubTabs from "../shared/SubTabs";
+import VatPeriodBar from "../shared/VatPeriodBar";
+import { useVatPeriod } from "../shared/vatPeriod";
 
 const TABS = [
   { id: "byCustomer", labelKey: "sales.reports.tabs.byCustomer" },
@@ -11,21 +13,29 @@ const TABS = [
   { id: "vat", labelKey: "sales.reports.tabs.vat" },
 ];
 
-export default function SalesReportsTab({ companyId }) {
+export default function SalesReportsTab({ companyId, companies }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState("byCustomer");
   const [byCustomer, setByCustomer] = useState([]);
   const [monthly, setMonthly] = useState([]);
   const [aging, setAging] = useState([]);
   const [vat, setVat] = useState(null);
+  const [vatError, setVatError] = useState("");
+  const vatPeriod = useVatPeriod(companies?.find((c) => c.id === companyId));
 
   useEffect(() => {
     if (!companyId) return;
     getSalesByCustomer(companyId).then(setByCustomer);
     getSalesMonthly(companyId).then(setMonthly);
     getReceivablesAging(companyId).then(setAging);
-    getSalesVatSummary(companyId).then(setVat);
   }, [companyId]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    setVat(null);
+    setVatError("");
+    getSalesVatSummary({ companyId, ...vatPeriod.applied }).then(setVat).catch((e) => setVatError(e.message));
+  }, [companyId, vatPeriod.applied]);
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
@@ -92,17 +102,25 @@ export default function SalesReportsTab({ companyId }) {
         </div>
       )}
 
-      {tab === "vat" && vat && (
+      {tab === "vat" && (
         <div className="panel">
-          <table className="ledger-table">
-            <tbody>
-              <tr><td>{t("sales.reports.vat.salesBase")}</td><td className="num">{fmt(vat.salesBase)}</td></tr>
-              <tr><td>{t("sales.reports.vat.outputVat")}</td><td className="num">{fmt(vat.outputVat)}</td></tr>
-              <tr><td>{t("sales.reports.vat.returnsBase")}</td><td className="num">{fmt(vat.returnsBase)}</td></tr>
-              <tr><td>{t("sales.reports.vat.returnsVat")}</td><td className="num">{fmt(vat.returnsVat)}</td></tr>
-              <tr className="net-row"><td className="strong">{t("sales.reports.vat.netOutputVat")}</td><td className="num strong">{fmt(vat.netOutputVat)}</td></tr>
-            </tbody>
-          </table>
+          <VatPeriodBar title={t("sales.reports.tabs.vat")} period={vatPeriod} />
+          {vatError && <p className="balance-bad">{vatError}</p>}
+          {vat && (
+            <table className="ledger-table">
+              <tbody>
+                <tr><td>{t("sales.reports.vat.salesBase")} ({vat.invoiceCount})</td><td className="num">{fmt(vat.salesBase)}</td></tr>
+                <tr><td>{t("sales.reports.vat.outputVat")}</td><td className="num">{fmt(vat.outputVat)}</td></tr>
+                <tr><td>{t("sales.reports.vat.debitNotesBase")} ({vat.debitNoteCount})</td><td className="num">{fmt(vat.debitNotesBase)}</td></tr>
+                <tr><td>{t("sales.reports.vat.debitNotesVat")}</td><td className="num">{fmt(vat.debitNotesVat)}</td></tr>
+                <tr><td>{t("sales.reports.vat.returnsBase")} ({vat.returnCount})</td><td className="num">{fmt(vat.returnsBase)}</td></tr>
+                <tr><td>{t("sales.reports.vat.returnsVat")}</td><td className="num">{fmt(vat.returnsVat)}</td></tr>
+                <tr className="net-row"><td className="strong">{t("sales.reports.vat.netOutputVat")}</td><td className="num strong">{fmt(vat.netOutputVat)}</td></tr>
+                <tr><td>{t("sales.reports.vat.stationShiftVat")} ({vat.stationShiftCount})<div className="vat-note">{t("sales.reports.vat.stationShiftNote")}</div></td><td className="num">{fmt(vat.stationShiftVat)}</td></tr>
+                <tr className="net-row"><td className="strong">{t("sales.reports.vat.totalWithStations")}</td><td className="num strong">{fmt(vat.totalOutputVatWithStations)}</td></tr>
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>
