@@ -21,6 +21,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
 import DownloadPage from "./pages/DownloadPage";
+import DataProtectionPage from "./pages/DataProtectionPage";
 import JournalEntryStandalonePage from "./pages/JournalEntryStandalonePage";
 import Dashboard from "./wired/Dashboard";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
@@ -374,6 +375,7 @@ function RootRoute() {
       onGoLogin={() => navigate("/login")}
       onGoRegister={() => navigate("/register")}
       onGoDownload={() => navigate("/download")}
+      onGoDataProtection={() => navigate("/data-protection")}
     />
   );
 }
@@ -398,6 +400,13 @@ function RegisterRoute() {
   if (initializing) return null;
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
   return <RegisterPage onGoLanding={() => navigate("/")} onGoLogin={() => navigate("/login")} />;
+}
+
+// صفحة عامة للقراءة فقط — بلا تحقّق دخول ولا تحويل بحسب isAuthenticated (مثل /download)، حتى يصلها
+// أي زائر أو مشترك حالي قبل التسجيل وبعده.
+function DataProtectionRoute() {
+  const navigate = useNavigate();
+  return <DataProtectionPage onGoLanding={() => navigate("/")} />;
 }
 
 function ForgotPasswordRoute() {
@@ -428,6 +437,7 @@ const router = createBrowserRouter([
   // من رابط أُرسِل واتساب لجهاز نقطة بيع جديد لم يُسجَّل دخوله بعد على أي شيء إطلاقاً)، ولا سبب
   // لإخفائها عمّن هو مسجَّل دخوله بالفعل (قد يريد مشاركة الرابط أو تنزيله على جهاز آخر).
   { path: "/download", element: <DownloadPage /> },
+  { path: "/data-protection", element: <DataProtectionRoute /> },
   { path: "/journal-entries/:id/view", element: <JournalEntryStandalonePage /> },
   {
     element: <ProtectedLayout />,

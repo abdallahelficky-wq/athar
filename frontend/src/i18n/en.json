@@ -146,7 +146,7 @@
     }
   },
   "landing": {
-    "nav": { "login": "Log in", "startTrial": "Start your free trial" },
+    "nav": { "login": "Log in", "startTrial": "Start your free trial", "dataProtection": "Data protection" },
     "eyebrow": "Cloud accounting for Arab businesses",
     "title": "Athar Accounting",
     "heroSub": "A complete cloud accounting system for managing your whole business group — from journal entries and ZATCA-compliant tax invoices, to inventory, fixed assets, HR and payroll — all in one place, in an interface designed from the ground up for your market.",

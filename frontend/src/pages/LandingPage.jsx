@@ -5,7 +5,7 @@ import LanguageSwitcher from "../wired/shared/LanguageSwitcher";
 
 const PRICES = [500, 1000, 1500];
 
-export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload }) {
+export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload, onGoDataProtection }) {
   const { t } = useTranslation();
   const whyItems = t("landing.why.items", { returnObjects: true });
   const plans = t("landing.pricing.plans", { returnObjects: true });
@@ -16,6 +16,7 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload }) {
         <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="landing-logo" />
         <div className="landing-nav-actions">
           <LanguageSwitcher />
+          <button className="btn-ghost" onClick={onGoDataProtection}>{t("landing.nav.dataProtection")}</button>
           <button className="btn-ghost" onClick={onGoLogin}>{t("landing.nav.login")}</button>
           <button className="btn-primary" onClick={onGoRegister}>{t("landing.nav.startTrial")}</button>
         </div>
@@ -83,6 +84,7 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload }) {
           <button className="btn-ghost landing-download-link" onClick={onGoDownload}>
             <span aria-hidden="true">⬇</span> {t("landing.footer.downloadApp")}
           </button>
+          <button className="btn-ghost" onClick={onGoDataProtection}>{t("landing.nav.dataProtection")}</button>
           <button className="btn-ghost" onClick={onGoLogin}>{t("landing.nav.login")}</button>
         </div>
       </footer>
