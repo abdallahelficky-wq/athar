@@ -179,14 +179,14 @@ export async function unpostReceipt(tenantId: string, userId: string, id: string
   });
 }
 
-async function dueAmountOf(tenantId: string, invoiceId: string, client: Pick<typeof prisma, "salesInvoice"> = prisma) {
+async function dueAmountOf(tenantId: string, invoiceId: string, client: Pick<typeof prisma, "salesInvoice" | "salesReturn"> = prisma) {
   const invoice = await client.salesInvoice.findFirst({
     where: { id: invoiceId, tenantId },
     include: { receiptAllocations: true },
   });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن ربط سند قبض بفاتورة غير مرحّلة");
-  const summary = (await withInvoiceCredits(tenantId, [invoice]))[0];
+  const summary = (await withInvoiceCredits(tenantId, [invoice], client))[0];
   return { invoice, due: summary.outstandingAmount };
 }
 
