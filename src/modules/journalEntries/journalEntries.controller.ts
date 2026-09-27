@@ -10,7 +10,7 @@ const asNumber = (v: unknown) => (typeof v === "string" && v !== "" ? Number(v) 
 const asStatus = (v: unknown) => (v === "saved" || v === "posted" ? v : undefined);
 
 export const listHandler: RequestHandler = async (req, res) => {
-  const { companyId, dateFrom, dateTo, search, entryNumber, accountId, amount, amountMin, amountMax, status } = req.query;
+  const { companyId, dateFrom, dateTo, search, entryNumber, accountId, amount, amountMin, amountMax, status, branchId } = req.query;
   const entries = await service.listJournalEntries(req.auth!.tenantId, {
     companyId: asString(companyId),
     dateFrom: asString(dateFrom),
@@ -22,6 +22,7 @@ export const listHandler: RequestHandler = async (req, res) => {
     amountMin: asNumber(amountMin),
     amountMax: asNumber(amountMax),
     status: asStatus(status),
+    branchId: asString(branchId),
   });
   res.json(entries);
 };

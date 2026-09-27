@@ -233,6 +233,7 @@ export interface JournalEntryFilters {
   amountMin?: number;
   amountMax?: number;
   status?: "saved" | "posted";
+  branchId?: string;
 }
 
 /**
@@ -242,6 +243,21 @@ export interface JournalEntryFilters {
  * التطبيق لكل شركة معقول لهذا النهج، ويتفادى استعلام SQL مجمَّع أعقد لفائدة هامشية).
  */
 export async function listJournalEntries(tenantId: string, filters: JournalEntryFilters) {
+  // حساب تجميعي يشمل كل حساباته الفرعية — نفس نطاق الأرصدة وسطر "قيود محفوظة" الذي قد يفتح هذه الشاشة
+  let accountIds: string[] | undefined;
+  if (filters.accountId) {
+    accountIds = [filters.accountId];
+    let frontier = [filters.accountId];
+    while (frontier.length) {
+      const children = await prisma.account.findMany({ where: { tenantId, parentId: { in: frontier } }, select: { id: true } });
+      frontier = children.map((c) => c.id);
+      accountIds.push(...frontier);
+    }
+  }
+  const lineFilter = {
+    ...(accountIds ? { accountId: { in: accountIds } } : {}),
+    ...(filters.branchId ? { branchId: filters.branchId } : {}),
+  };
   const entries = await prisma.journalEntry.findMany({
     where: {
       tenantId,
@@ -268,7 +284,7 @@ export async function listJournalEntries(tenantId: string, filters: JournalEntry
             ]
           : []),
       ],
-      ...(filters.accountId ? { lines: { some: { accountId: filters.accountId } } } : {}),
+      ...(Object.keys(lineFilter).length ? { lines: { some: lineFilter } } : {}),
     },
     include: entryInclude,
     // الأحدث إنشاءً يظهر أولاً دائماً؛ id كفاصل حاسم يجعل الترتيب ثابتاً حتى لو تشابه وقت الإنشاء.
@@ -577,11 +593,22 @@ export async function deleteJournalEntry(tenantId: string, id: string, companySc
   });
 }
 
-/** يطبّق نفس الحالة على قيد المرآة (نصف المعاملة في الشركة الأخرى)، مع فحص إقفال شركته هو. */
-async function syncMirrorStatusTx(tx: Prisma.TransactionClient, mirrorEntryId: string | null, status: "posted" | "saved", action: string) {
+/**
+ * يطبّق نفس الحالة على قيد المرآة (نصف المعاملة في الشركة الأخرى): يُرفَض ما لم يكن للمستخدم وصول
+ * لشركة المرآة أيضاً (نصف في شركة لا يصلها لا يُمسّ من خلال نصفها الآخر)، ويُفحَص إقفال شركتها هي،
+ * ويُكتب صف تدقيق لقيد المرآة نفسه عند فك ترحيله.
+ */
+async function syncMirrorStatusTx(
+  tx: Prisma.TransactionClient,
+  mirrorEntryId: string | null,
+  status: "posted" | "saved",
+  action: string,
+  actor: { tenantId: string; userId?: string; companyScope: string; sourceEntryId: string },
+) {
   if (!mirrorEntryId) return;
   const mirror = await tx.journalEntry.findUnique({ where: { id: mirrorEntryId }, select: { id: true, companyId: true, date: true, status: true } });
   if (!mirror || mirror.status === status) return;
+  assertCompanyAccess({ companyScope: actor.companyScope }, mirror.companyId);
   const closingDate = await lockCompanyClosingDate(tx, mirror.companyId);
   assertPeriodNotClosed(closingDate, mirror.date, action);
   if (status === "posted") {
@@ -589,6 +616,15 @@ async function syncMirrorStatusTx(tx: Prisma.TransactionClient, mirrorEntryId: s
     assertBalanced(lines.map((l) => ({ accountId: l.accountId, debit: Number(l.debit), credit: Number(l.credit) })));
   }
   await tx.journalEntry.update({ where: { id: mirror.id }, data: { status } });
+  if (status === "saved") {
+    await tx.auditLog.create({
+      data: {
+        tenantId: actor.tenantId, companyId: mirror.companyId, userId: actor.userId, action: "journal_entry.unpost",
+        entityType: "JournalEntry", entityId: mirror.id,
+        metadata: { previousStatus: "posted", viaMirrorOf: actor.sourceEntryId },
+      },
+    });
+  }
 }
 
 export async function postJournalEntry(tenantId: string, id: string, companyScope: string) {
@@ -606,7 +642,7 @@ export async function postJournalEntry(tenantId: string, id: string, companyScop
   return prisma.$transaction(async (tx) => {
     const closingDate = await lockCompanyClosingDate(tx, existing.companyId);
     assertPeriodNotClosed(closingDate, existing.date, "ترحيل قيد");
-    await syncMirrorStatusTx(tx, existing.mirrorEntryId, "posted", "ترحيل قيد");
+    await syncMirrorStatusTx(tx, existing.mirrorEntryId, "posted", "ترحيل قيد", { tenantId, companyScope, sourceEntryId: id });
     return tx.journalEntry.update({ where: { id }, data: { status: "posted" }, include: entryInclude });
   });
 }
@@ -686,7 +722,7 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
     const closingDate = await lockCompanyClosingDate(tx, entry.companyId);
     assertPeriodNotClosed(closingDate, entry.date, "فك ترحيل قيد");
 
-    await syncMirrorStatusTx(tx, entry.mirrorEntryId, "saved", "فك ترحيل قيد");
+    await syncMirrorStatusTx(tx, entry.mirrorEntryId, "saved", "فك ترحيل قيد", { tenantId, userId, companyScope, sourceEntryId: id });
     const updated = await tx.journalEntry.update({ where: { id }, data: { status: "saved" }, include: entryInclude });
     await tx.auditLog.create({
       data: {

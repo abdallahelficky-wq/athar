@@ -22,9 +22,10 @@ export const routes = {
    * عرض منفصلة) — يُستخدَم من رابط كشف حساب الأستاذ. JournalModule يقرأ entryId ويفتح نافذة
    * التعديل/العرض المناسبة تلقائياً فور التحميل (راجع التعليق هناك). */
   /** القيود المحفوظة (غير المرحّلة) في شاشة القيود — من سطر "قيود محفوظة" في شاشات الأرصدة. */
-  draftEntries: ({ accountId, dateFrom, dateTo } = {}) => {
+  draftEntries: ({ accountId, branchId, dateFrom, dateTo } = {}) => {
     const params = new URLSearchParams({ status: "saved" });
     if (accountId) params.set("accountId", accountId);
+    if (branchId) params.set("branchId", branchId);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     return `/accounts/journal?${params}`;

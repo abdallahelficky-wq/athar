@@ -2,8 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createCompany, createIndependentCompany, setBalancesPostedOnly } from "../api/companies";
 import { getDraftEntriesSummary } from "../api/reports";
-import { Link } from "react-router-dom";
-import { routes } from "../routes";
 import { fmt } from "../legacy/constants";
 import { useAuth } from "../context/AuthContext";
 import { changeUnlockPin } from "../api/auth";
@@ -408,7 +406,7 @@ function BalancesPostedOnlySettings({ companies, reload }) {
                 <td>{c.balancesPostedOnly ? t("settings.balancesPostedOnly.on") : <span className="balance-bad">{t("settings.balancesPostedOnly.off")}</span>}</td>
                 <td>
                   {saved === null ? "…" : saved.count === 0 ? "—" : (
-                    <Link to={routes.draftEntries()}>{t("settings.balancesPostedOnly.savedSummary", { count: saved.count, debit: fmt(saved.debit) })}</Link>
+                    t("settings.balancesPostedOnly.savedSummary", { count: saved.count, debit: fmt(saved.debit) })
                   )}
                 </td>
                 <td>

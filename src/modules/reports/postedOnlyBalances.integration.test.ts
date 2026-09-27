@@ -157,6 +157,10 @@ describe("balances count posted entries only (integration)", () => {
     expect((await call("POST", `/journal-entries/${mirror.body.id}/unpost`, { pin: PIN })).status).toBe(200);
     expect((await prisma.journalEntry.findUniqueOrThrow({ where: { id: source } })).status).toBe("saved");
     expect(await cashBalance(otherCompanyId)).toBe(0);
+    // فك الترحيل الضمني لنصف المرآة الآخر مسجَّل في التدقيق على قيده هو وشركته هي
+    const implicit = await prisma.auditLog.findFirstOrThrow({ where: { tenantId, action: "journal_entry.unpost", entityId: source } });
+    expect(implicit.companyId).toBe(companyId);
+    expect(implicit.metadata).toMatchObject({ viaMirrorOf: mirror.body.id });
 
     // ومرآة قيد مرحَّل تولد مرحَّلة
     const postedSource = await entry(12, true);
@@ -231,5 +235,35 @@ describe("balances count posted entries only (integration)", () => {
   it("the scheduled report email carries the same draft notice as the screens", async () => {
     const email = await buildReportDigestEmail(tenantId, companyId, { includeTrialBalance: true, includeComprehensiveMonthly: false, includeIncomeStatement: false, includeBalanceSheet: false });
     expect(email.bodyHtml).toContain("غير محتسبة في الأرقام أعلاه");
+  });
+
+  it("a user restricted to one company cannot post or un-post the other company's half of a mirror", async () => {
+    const source = await entry(15, false);
+    const mirror = await call("POST", `/journal-entries/${source}/mirror`, {
+      targetCompanyId: otherCompanyId, date: "2026-08-10T09:00:00.000Z",
+      lines: [{ accountId: acc.otherCash, debit: 15, credit: 0 }, { accountId: acc.otherRevenue, debit: 0, credit: 15 }],
+    });
+    expect(mirror.body.status).toBe("saved");
+    const identity = await prisma.identity.create({ data: { email: `posted-only-scoped-${stamp}@example.com` } });
+    const scoped = await prisma.user.create({
+      data: { tenantId, identityId: identity.id, name: "محاسب شركة واحدة", role: "accountant", companyScope: companyId, inviteStatus: "accepted" },
+    });
+    const scopedToken = signAccessToken({ sub: scoped.id, tenantId, role: "accountant", companyScope: companyId, readOnly: false });
+    const res = await call("POST", `/journal-entries/${source}/post`, undefined, scopedToken);
+    expect(res.status).toBe(403);
+    expect((await prisma.journalEntry.findUniqueOrThrow({ where: { id: source } })).status).toBe("saved");
+    expect((await prisma.journalEntry.findUniqueOrThrow({ where: { id: mirror.body.id } })).status).toBe("saved");
+    await prisma.user.delete({ where: { id: scoped.id } });
+    await prisma.identity.delete({ where: { id: identity.id } });
+  });
+
+  it("the journal list filtered by a group account includes its sub-accounts (the draft line's link)", async () => {
+    const cashAccount = await prisma.account.findUniqueOrThrow({ where: { id: acc.cash } });
+    const saved = await entry(3, false);
+    const byGroup = await call("GET", `/journal-entries?companyId=${companyId}&status=saved&accountId=${cashAccount.parentId}`);
+    expect(byGroup.status).toBe(200);
+    expect(byGroup.body.map((e: { id: string }) => e.id)).toContain(saved);
+    const summary = await call("GET", `/reports/draft-entries-summary?companyId=${companyId}&accountId=${cashAccount.parentId}`);
+    expect(summary.body.uncounted.entryCount).toBe(byGroup.body.length);
   });
 });
