@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { listSuppliers } from "../../api/suppliers";
 import { listAccounts } from "../../api/accounts";
@@ -20,6 +21,10 @@ import { useUnsavedChangesGuard } from "../shared/UnsavedChangesContext";
 export default function PurchaseInvoicesTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
   const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
+  const [formOpen, setFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const formRef = useRef(null);
+  const addButtonRef = useRef(null);
   const [suppliers, setSuppliers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [items, setItems] = useState([]);
@@ -46,6 +51,26 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
   const [dirty, setDirty] = useState(false);
   const markDirty = () => setDirty(true);
   useUnsavedChangesGuard(dirty);
+  const closeForm = () => {
+    if (saving || (dirty && !window.confirm(t("purchases.invoices.discard")))) return;
+    setFormOpen(false); setDirty(false); setLines([emptyPurchaseLine()]); setError("");
+    addButtonRef.current?.focus();
+  };
+  useEffect(() => {
+    if (!formOpen) return;
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    formRef.current?.querySelector("button")?.focus();
+    return () => { document.body.style.overflow = oldOverflow; };
+  }, [formOpen]);
+  const modalKeyDown = (event) => {
+    if (event.key === "Escape") { event.preventDefault(); closeForm(); }
+    if (event.key !== "Tab") return;
+    const controls = [...formRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]')].filter(el => el.getClientRects().length);
+    const first = controls[0], last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  };
 
   useEffect(() => {
     if (!companyId) return;
@@ -87,15 +112,18 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
     }));
 
   const save = async () => {
-    if (!supplierId) return;
+    if (!supplierId || saving) return;
+    setSaving(true); setError("");
     try {
       await createPurchaseInvoice({ companyId, supplierId, branchId: branchId || null, date, lines: cleanLines() });
       setLines([emptyPurchaseLine()]);
       setDirty(false);
+      setFormOpen(false);
+      addButtonRef.current?.focus();
       reload();
     } catch (err) {
       setError(err.message);
-    }
+    } finally { setSaving(false); }
   };
 
   const remove = async (inv) => {
@@ -127,7 +155,11 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
 
   return (
     <div>
-      <div className="panel form-panel">
+      <div className="form-btn-group"><button ref={addButtonRef} className="btn-primary" onClick={() => { setError(""); setFormOpen(true); }}>{t("purchases.invoices.add")}</button></div>
+      {!formOpen && error && <p className="balance-bad">{error}</p>}
+      {formOpen && createPortal(<div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && closeForm()}>
+      <div ref={formRef} className="invoice-modal-box" style={{ maxWidth: 1280 }} role="dialog" aria-modal="true" aria-labelledby="purchase-form-title" onKeyDown={modalKeyDown}>
+        <div className="modal-title-row"><h3 id="purchase-form-title">{t("purchases.invoices.add")}</h3><button className="modal-close-btn" disabled={saving} onClick={closeForm} aria-label={t("common.close")}>×</button></div>
         <div className="form-grid header-grid">
           <label>{t("purchases.invoices.supplier")}<select value={supplierId} onChange={(e) => { setSupplierId(e.target.value); markDirty(); }}>{suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
           <label>{t("purchases.invoices.invoiceDate")}<input type="date" value={date} onChange={(e) => { setDate(e.target.value); markDirty(); }} /></label>
@@ -146,9 +178,10 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
         <PurchaseInvoiceLinesEditor lines={lines} setLines={(v) => { markDirty(); setLines(v); }} accounts={accounts} items={items} warehouses={warehouses} currency={currency} />
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
-          <button className="btn-primary" onClick={save} disabled={!supplierId}>{t("purchases.invoices.saveAndPost")}</button>
+          <button className="btn-primary" onClick={save} disabled={!supplierId || saving}>{t("purchases.invoices.saveAndPost")}</button>
+          <button className="btn-ghost" onClick={closeForm} disabled={saving}>{t("common.cancel")}</button>
         </div>
-      </div>
+      </div></div>, document.body)}
 
       {loading ? <p className="empty">{t("purchases.invoices.loading")}</p> : (
         <div className="panel">

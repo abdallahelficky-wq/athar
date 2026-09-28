@@ -20,3 +20,11 @@ it("retains an explicit zero-rate snapshot after catalog changes", async () => {
  expect(saved).toMatchObject({subtotal:68400,vatTotal:0,grandTotal:68400});
  expect((saved as any).lines.create[0].taxCategoryCode).toBe("Z");
 });
+
+it.each(["E", "Z"] as const)("accepts purchase %s without a reason", async category => {
+ db.item.findMany.mockResolvedValue([{id:"item",type:"non_stock",expenseAccountId:"expense",taxCategoryCode:"S"}]);
+ const input=createPurchaseInvoiceSchema.parse({companyId:"c",supplierId:"s",date:"2026-09-28",lines:[{accountId:"item",itemId:"item",quantity:90,unitPrice:760,taxCategoryCode:category}]});
+ const saved=await updatePurchaseInvoice("tenant","invoice",input);
+ expect(saved).toMatchObject({vatTotal:0,grandTotal:68400});
+ expect((saved as any).lines.create[0]).toMatchObject({taxCategoryCode:category,taxExemptionReasonCode:null,taxExemptionReason:null});
+});

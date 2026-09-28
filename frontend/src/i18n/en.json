@@ -845,6 +845,9 @@
       "deleted": "Supplier \"{{name}}\" deleted."
     },
     "invoices": {
+      "add": "Add purchase invoice",
+      "vatLabel": "Value added tax",
+      "discard": "Discard changes and close the invoice?",
       "supplier": "Supplier", "invoiceDate": "Invoice date",
       "addSupplierFirst": "Add a supplier first from the \"Suppliers\" tab.",
       "saveAndPost": "Save and post invoice",

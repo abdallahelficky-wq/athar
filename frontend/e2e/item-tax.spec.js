@@ -52,3 +52,29 @@ test("purchase item exemption and zero rate suppress VAT for 90 x 760", async ({
  await form.getByLabel("المعاملة الضريبية").selectOption("S");
  await expect(form.locator(".net-row")).toContainText("78,660.00");
 });
+
+test("purchase modal saves zero rate without asking for reasons", async ({page}) => {
+ let payload;
+ await page.route("http://localhost:4000/api/**",async route=>{
+  const path=new URL(route.request().url()).pathname; let data=[];
+  if(path.endsWith("/suppliers")) data=[{id:"supplier",name:"Supplier"}];
+  if(path.endsWith("/items")) data=[{id:"scrap",code:"SC001",name:"Scrap",type:"non_stock",lastPurchasePrice:760,taxCategoryCode:"S"}];
+  if(path.endsWith("/purchase-invoices") && route.request().method()==="POST"){payload=route.request().postDataJSON();data={id:"new"};}
+  await route.fulfill({json:data});
+ });
+ await page.goto("/e2e/fixtures/item-tax.html");
+ await expect(page.getByRole("dialog")).toHaveCount(0);
+ await page.getByRole("button",{name:"إضافة فاتورة مشتريات",exact:true}).click();
+ const modal=page.getByRole("dialog");
+ await expect(modal).toBeVisible();
+ await modal.locator(".item-combo-cell input").first().fill("Scrap");
+ await modal.locator(".item-combo-option").click();
+ await modal.getByLabel("المعاملة الضريبية").selectOption("Z");
+ await expect(modal.getByText("سبب الإعفاء أو نسبة الصفر")).toHaveCount(0);
+ await modal.getByRole("button",{name:"حفظ وترحيل الفاتورة"}).click();
+ await expect(modal).toHaveCount(0);
+ expect(payload.lines[0]).toMatchObject({taxCategoryCode:"Z",vatApplicable:false,taxExemptionReasonCode:null});
+ await page.getByRole("button",{name:"إضافة فاتورة مشتريات",exact:true}).click();
+ await page.keyboard.press("Escape");
+ await expect(page.getByRole("dialog")).toHaveCount(0);
+});
