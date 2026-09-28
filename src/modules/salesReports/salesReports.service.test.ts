@@ -67,6 +67,7 @@ vi.mock("../../lib/prisma", () => ({
     journalEntryLine: {
       groupBy: vi.fn(() => Promise.resolve([{ accountId: "account-customer-1", _sum: { debit: 100, credit: 0 } }])),
     },
+    auditLog: { findMany: vi.fn(() => Promise.resolve([])) }, // لا تخصيصات مفكوكة في هذا الاختبار
   },
 }));
 

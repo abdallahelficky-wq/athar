@@ -28,6 +28,8 @@ let customerId = "";
 let otherCustomerId = "";
 let supplierId = "";
 let supplierAccountId = "";
+let thirdCustomerId = "";
+let secondSupplierId = "";
 
 async function call(method: string, path: string, body?: unknown) {
   const res = await fetch(`${baseUrl}/api${path}`, {
@@ -57,6 +59,15 @@ async function purchaseInvoice(date: string, net: number) {
   expect(created.status, created.text).toBe(201);
   if (created.body.status !== "posted") expect((await call("POST", `/purchase-invoices/${created.body.id}/post`)).status).toBe(200);
   return prisma.purchaseInvoice.findUniqueOrThrow({ where: { id: created.body.id } });
+}
+
+async function purchaseInvoice2(date: string, net: number) {
+  const created = await call("POST", "/purchase-invoices", {
+    companyId, supplierId: secondSupplierId, date, lines: [{ accountId: acc.expense, description: "مشتريات", quantity: 1, unitPrice: net, priceIncludesVat: true }],
+  });
+  expect(created.status, created.text).toBe(201);
+  if (created.body.status !== "posted") expect((await call("POST", `/purchase-invoices/${created.body.id}/post`)).status).toBe(200);
+  return created.body as { id: string };
 }
 
 async function receivablesRow(asOf: string, id = customerId) {
@@ -91,6 +102,8 @@ describe("aging as at a date (integration)", () => {
     acc.cash = (await prisma.account.findFirstOrThrow({ where: { companyId, code: "111001" } })).id;
     customerId = (await call("POST", "/customers", { companyId, name: "عميل الأعمار" })).body.id;
     otherCustomerId = (await call("POST", "/customers", { companyId, name: "عميل التخصيص القديم" })).body.id;
+    thirdCustomerId = (await call("POST", "/customers", { companyId, name: "عميل النقل والاسترداد" })).body.id;
+    secondSupplierId = (await call("POST", "/suppliers", { companyId, name: "مورد المرتجعات" })).body.id;
     const supplier = await call("POST", "/suppliers", { companyId, name: "مورد الأعمار" });
     expect(supplier.status, supplier.text).toBe(201);
     supplierId = supplier.body.id;
@@ -101,6 +114,8 @@ describe("aging as at a date (integration)", () => {
     server?.close();
     await prisma.receipt.deleteMany({ where: { tenantId } });
     await prisma.salesReturn.deleteMany({ where: { tenantId } });
+    await prisma.salesDebitNote.deleteMany({ where: { tenantId } });
+    await prisma.purchaseReturn.deleteMany({ where: { tenantId } });
     await prisma.salesInvoice.deleteMany({ where: { tenantId } });
     await prisma.purchaseInvoice.deleteMany({ where: { tenantId } });
     await prisma.stockMovement.deleteMany({ where: { tenantId } });
@@ -131,25 +146,47 @@ describe("aging as at a date (integration)", () => {
     expect((await monthly("2026-09")).receivables.total).toBe(0);
   });
 
-  it("receivables: a receipt dated inside the month but allocated after it counts as unallocated cash at month end, not against the invoice", async () => {
-    const july = await salesInvoice(customerId, "2026-07-05T09:00:00.000Z", 575);
+  it("receivables: an allocation moved to another invoice after the month leaves the month as it was", async () => {
+    const julyX = await salesInvoice(thirdCustomerId, "2026-07-05T09:00:00.000Z", 575);
+    const julyY = await salesInvoice(thirdCustomerId, "2026-07-06T09:00:00.000Z", 575);
     const receipt = await call("POST", "/receipts", {
-      companyId, customerId, date: "2026-07-20T09:00:00.000Z", method: "cash", allocations: [{ invoiceId: july, amount: 575 }],
+      companyId, customerId: thirdCustomerId, date: "2026-07-20T09:00:00.000Z", method: "cash", allocations: [{ invoiceId: julyX, amount: 575 }],
     });
     expect(receipt.status, receipt.text).toBe(201);
-    // مُسجَّلاً مع السند: يُنقِص الفاتورة من تاريخ السند
-    expect((await receivablesRow("2026-07-31")).current).toBe(0);
-    // فُكَّ وأُعيد تخصيصه اليوم (سبتمبر) — بعد نهاية يوليو: في نهاية يوليو كان نقداً غير مخصَّص
-    expect((await call("DELETE", `/receipts/${receipt.body.id}/allocations/${july}`)).status).toBe(200);
-    await new Promise((r) => setTimeout(r, 1100));
-    await prisma.receipt.update({ where: { id: receipt.body.id }, data: { createdAt: new Date(Date.now() - 5 * 60_000) } });
-    expect((await call("POST", `/receipts/${receipt.body.id}/allocations`, { invoiceId: july, amount: 575 })).status).toBe(201);
+    const before = await receivablesRow("2026-07-31", thirdCustomerId);
+    expect(before.current).toBe(575); // Y مفتوحة، X مسدَّدة
+    expect(before.unallocated).toBe(0);
 
-    const atJuly = await receivablesRow("2026-07-31");
-    // الفاتورة مفتوحة بالكامل في نهاية يوليو، والنقد المقبوض غير مخصَّص — والإجمالي رصيد الأستاذ
-    expect(atJuly.current).toBe(575);
-    expect(atJuly.unallocated).toBe(-575);
-    expect(atJuly.total).toBe(1150); // يونيو 1150 + يوليو 575 − نقد يوليو 575
+    // سبتمبر: يُفكّ من X ويُخصَّص لـY — نهاية يوليو كما كانت (X مسدَّدة، Y مفتوحة)
+    expect((await call("DELETE", `/receipts/${receipt.body.id}/allocations/${julyX}`)).status).toBe(200);
+    expect((await call("POST", `/receipts/${receipt.body.id}/allocations`, { invoiceId: julyY, amount: 575 })).status).toBe(201);
+    expect(await receivablesRow("2026-07-31", thirdCustomerId)).toEqual(before);
+    // واليوم: Y مسدَّدة وX مفتوحة
+    const now = await call("GET", `/sales-reports/aging?companyId=${companyId}`);
+    const today = now.body.find((r: { customerId: string }) => r.customerId === thirdCustomerId);
+    expect(today.total).toBe(575);
+    expect(today.unallocated).toBe(0);
+  });
+
+  it("receivables: a return refunded in cash and a debit note charged in cash don't move the receivable's age buckets", async () => {
+    const inv = await salesInvoice(thirdCustomerId, "2026-08-02T09:00:00.000Z", 1150);
+    const line = await prisma.salesInvoiceLine.findFirstOrThrow({ where: { invoiceId: inv } });
+    const before = await receivablesRow("2026-08-31", thirdCustomerId);
+    const ret = await call("POST", "/sales-returns", {
+      companyId, customerId: thirdCustomerId, relatedInvoiceId: inv, date: "2026-08-20T09:00:00.000Z", refundMethod: "cash", reason: "استرداد نقدي",
+      lines: [{ originalInvoiceLineId: line.id, accountId: acc.revenue, description: "مرتجع", quantity: 0.2, unitPrice: 1150, priceIncludesVat: true }],
+    });
+    expect(ret.status, ret.text).toBe(201);
+    if (ret.body.status !== "posted") expect((await call("POST", `/sales-returns/${ret.body.id}/post`)).status).toBe(200);
+    const dn = await call("POST", "/sales-debit-notes", {
+      companyId, customerId: thirdCustomerId, date: "2026-08-21T09:00:00.000Z", chargeMethod: "cash", reason: "رسوم",
+      lines: [{ accountId: acc.revenue, description: "رسوم", quantity: 1, unitPrice: 115, priceIncludesVat: true }],
+    });
+    expect(dn.status, dn.text).toBe(201);
+    if (dn.body.status !== "posted") expect((await call("POST", `/sales-debit-notes/${dn.body.id}/post`)).status).toBe(200);
+
+    const after = await receivablesRow("2026-08-31", thirdCustomerId);
+    expect(after).toEqual(before);
   });
 
   it("receivables: an old allocation with no recorded time counts from its receipt's date", async () => {
@@ -209,6 +246,25 @@ describe("aging as at a date (integration)", () => {
     expect(july.d60 + july.d90).toBe(0);
     expect((await monthly("2026-07")).payables.total).toBe(500);
     expect((await monthly("2026-07")).payables.aging.d30to60).toBe(500);
+  });
+
+  it("payables: a return linked to an invoice reduces that invoice before the balance is matched newest-first", async () => {
+    const may = await purchaseInvoice2("2026-05-03T09:00:00.000Z", 1000);
+    const aug = await purchaseInvoice2("2026-08-03T09:00:00.000Z", 1000);
+    const ret = await call("POST", "/purchase-returns", {
+      companyId, supplierId: secondSupplierId, relatedInvoiceId: aug.id, date: "2026-08-10T09:00:00.000Z",
+      lines: [{ accountId: acc.expense, description: "مرتجع", quantity: 1, unitPrice: 500, priceIncludesVat: true }],
+    });
+    expect(ret.status, ret.text).toBe(201);
+    if (ret.body.status !== "posted") expect((await call("POST", `/purchase-returns/${ret.body.id}/post`)).status).toBe(200);
+    void may;
+
+    const res = await call("GET", `/purchase-reports/aging?companyId=${companyId}&asOf=2026-08-31`);
+    const row = res.body.find((r: { supplierId: string }) => r.supplierId === secondSupplierId);
+    expect(row.total).toBe(1500);
+    expect(row.current).toBe(500); // أغسطس بعد المرتجع
+    expect(row.d90).toBe(1000); // مايو كاملة — لا يُحمَّل المرتجع عليها
+    expect(row.unallocated).toBe(0);
   });
 
   it("payables: an overpayment shows as a negative, unallocated balance rather than vanishing", async () => {

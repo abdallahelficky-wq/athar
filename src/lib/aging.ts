@@ -10,14 +10,16 @@ import { HttpError } from "./httpError";
  * الأعمار تُوزَّع على المستندات؛ ما لا يفسّره أي مستند مفتوح (سند قبض غير مخصَّص، رصيد افتتاحي، قيد يدوي) يظهر في
  * عمود "غير مخصَّص" بدل أن يُسقَط أو يُلصَق بفاتورة لا تخصّه.
  *
- * الذمم المدينة: الفاتورة المفتوحة = قيمتها − ما خُصِّص لها من سندات قبض حتى ذلك التاريخ − المرتجعات المرتبطة بها
- * المؤرَّخة حتى ذلك التاريخ. تاريخ التخصيص الفعلي: التخصيص المُسجَّل مع السند نفسه (أو القديم بلا وقت تسجيل) بتاريخ
+ * الذمم المدينة: الفاتورة المفتوحة = قيمتها − ما كان مخصَّصاً لها من سندات قبض في ذلك التاريخ − المرتجعات المرتبطة بها
+ * المؤرَّخة حتى ذلك التاريخ والمُسوّاة على حساب العميل (لا نقداً ولا بنكياً — تلك لا تمسّ الذمة). "ما كان مخصَّصاً في ذلك
+ * التاريخ" يشمل تخصيصاً فُكَّ لاحقاً: فكّه بعد ذلك التاريخ حدث لاحق لا يغيّره (يُستعاد من سجل التدقيق
+ * receipt.allocation_removed، منذ #112). تاريخ التخصيص الفعلي: التخصيص المُسجَّل مع السند نفسه (أو القديم بلا وقت تسجيل) بتاريخ
  * السند؛ التخصيص المُضاف لاحقاً بوقت إضافته — فسند يوليو خُصِّص في سبتمبر نقدٌ غير مخصَّص في نهاية يوليو، والفاتورة
  * مفتوحة. الإشعار المدين مستند مفتوح بتاريخه.
  *
  * الذمم الدائنة: لا يوجد بعد سند صرف يخصّص السداد لفواتير الموردين — السداد قيد يومية على حساب المورد. فالرصيد في
- * ذلك التاريخ يُوزَّع على فواتير المورد المؤرَّخة حتى ذلك التاريخ من الأحدث إلى الأقدم (الأقدم يُفترض مسدَّداً أولاً)،
- * والزائد عن مجموعها "غير مخصَّص".
+ * ذلك التاريخ يُوزَّع على فواتير المورد المؤرَّخة حتى ذلك التاريخ — كلٌّ بعد طرح مرتجعات المشتريات المرتبطة بها حتى ذلك
+ * التاريخ — من الأحدث إلى الأقدم (الأقدم يُفترض مسدَّداً أولاً)، والزائد عن مجموعها "غير مخصَّص".
  *
  * العمر بالأيام من تاريخ المستند إلى asOf (لا من تاريخ الاستحقاق — راجع ملاحظة dueDate في README).
  */
@@ -62,10 +64,53 @@ export function endOfDay(date: Date) {
 
 type Party = { id: string; name: string; accountId: string | null };
 
-/** التخصيص المُسجَّل مع السند (خلال دقيقة من إنشائه) جزء من السند فيأخذ تاريخه؛ المُضاف بعده يأخذ وقت إضافته */
-function allocationDate(a: { createdAt: Date | null; receipt: { date: Date; createdAt: Date } }) {
-  if (!a.createdAt) return a.receipt.date;
-  return Math.abs(a.createdAt.getTime() - a.receipt.createdAt.getTime()) < 60_000 ? a.receipt.date : a.createdAt;
+/**
+ * تخصيصات كانت قائمة في asOf ثم فُكَّت بعده — تُستعاد لكل فاتورة من سجل التدقيق (receipt.allocation_removed/added، منذ
+ * #112): الفكّ بعد asOf، والتخصيص نفسه فعّال قبله (أُضيف قبله، أو سُجِّل مع السند فتاريخه تاريخ السند). ما قبل #112
+ * (تخصيصات عُدِّلت بتعديل السند نفسه) لا سجل له فلا يُستعاد.
+ */
+type AllocationEvent = { entityId: string | null; action: string; createdAt: Date; metadata: unknown };
+
+async function loadAllocationEvents(tenantId: string, companyId: string | undefined): Promise<AllocationEvent[]> {
+  return prisma.auditLog.findMany({
+    where: { tenantId, companyId: companyId || undefined, entityType: "Receipt", action: { in: ["receipt.allocation_added", "receipt.allocation_removed"] } },
+    select: { entityId: true, action: true, createdAt: true, metadata: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+const eventInvoice = (e: AllocationEvent) => (e.metadata as { invoiceId?: string } | null)?.invoiceId;
+
+async function allocationsRemovedAfter(tenantId: string, events: AllocationEvent[], asOf: Date): Promise<Map<string, number>> {
+  const restored = new Map<string, number>();
+  const removals = events.filter((e) => e.action === "receipt.allocation_removed" && e.createdAt > asOf);
+  if (!removals.length) return restored;
+  const receipts = await prisma.receipt.findMany({
+    where: { tenantId, id: { in: [...new Set(removals.map((r) => r.entityId as string))] } },
+    select: { id: true, date: true, status: true },
+  });
+  const receiptById = new Map(receipts.map((r) => [r.id, r]));
+  for (const removal of removals) {
+    const meta = removal.metadata as { invoiceId?: string; amount?: number } | null;
+    const receipt = receiptById.get(removal.entityId as string);
+    if (!meta?.invoiceId || !meta.amount || !receipt || receipt.status !== "posted" || receipt.date > asOf) continue;
+    const added = events
+      .filter((e) => e.action === "receipt.allocation_added" && e.entityId === removal.entityId && eventInvoice(e) === meta.invoiceId && e.createdAt < removal.createdAt)
+      .pop();
+    const effective = added ? added.createdAt : receipt.date;
+    if (effective > asOf) continue;
+    restored.set(meta.invoiceId, (restored.get(meta.invoiceId) || 0) + Number(meta.amount));
+  }
+  return restored;
+}
+
+/**
+ * تاريخ التخصيص الفعلي: المُضاف لاحقاً (له صف تدقيق receipt.allocation_added) بوقت إضافته؛ المُسجَّل مع السند (لا صف
+ * تدقيق له) — ومنه القديم بلا وقت — بتاريخ السند.
+ */
+function allocationDate(a: { receiptId: string; invoiceId: string; receipt: { date: Date } }, events: AllocationEvent[]) {
+  const added = events.filter((e) => e.action === "receipt.allocation_added" && e.entityId === a.receiptId && eventInvoice(e) === a.invoiceId).pop();
+  return added ? added.createdAt : a.receipt.date;
 }
 
 /**
@@ -151,15 +196,22 @@ export async function receivablesAgingAsOf(tenantId: string, companyId: string |
       where: { ...scope, status: "posted", date: { lte: asOf } },
       select: {
         id: true, customerId: true, date: true, grandTotal: true,
-        receiptAllocations: { select: { amount: true, createdAt: true, receipt: { select: { date: true, status: true, createdAt: true } } } },
+        receiptAllocations: { select: { receiptId: true, invoiceId: true, amount: true, receipt: { select: { date: true, status: true } } } },
       },
     }),
+    // المرتجع والإشعار المدين المُسوّيان نقداً أو بنكياً لا يمسّان الذمة (قيدهما على الصندوق/البنك) — السجلات القديمة بلا
+    // طريقة كانت على الحساب (الافتراضي)
     prisma.salesReturn.findMany({
-      where: { ...scope, status: "posted", date: { lte: asOf }, relatedInvoiceId: { not: null } },
+      where: { ...scope, status: "posted", date: { lte: asOf }, relatedInvoiceId: { not: null }, OR: [{ refundMethod: null }, { refundMethod: "account" }] },
       select: { relatedInvoiceId: true, grandTotal: true },
     }),
-    prisma.salesDebitNote.findMany({ where: { ...scope, status: "posted", date: { lte: asOf } }, select: { customerId: true, date: true, grandTotal: true } }),
+    prisma.salesDebitNote.findMany({
+      where: { ...scope, status: "posted", date: { lte: asOf }, OR: [{ chargeMethod: null }, { chargeMethod: "account" }] },
+      select: { customerId: true, date: true, grandTotal: true },
+    }),
   ]);
+  const events = await loadAllocationEvents(tenantId, companyId);
+  const restored = await allocationsRemovedAfter(tenantId, events, asOf);
 
   const returnedByInvoice = new Map<string, number>();
   for (const r of returns) returnedByInvoice.set(r.relatedInvoiceId!, (returnedByInvoice.get(r.relatedInvoiceId!) || 0) + Number(r.grandTotal));
@@ -174,9 +226,9 @@ export async function receivablesAgingAsOf(tenantId: string, companyId: string |
 
   for (const inv of invoices) {
     const applied = inv.receiptAllocations
-      .filter((a) => a.receipt.status === "posted" && a.receipt.date <= asOf && allocationDate(a) <= asOf)
+      .filter((a) => a.receipt.status === "posted" && a.receipt.date <= asOf && allocationDate(a, events) <= asOf)
       .reduce((s, a) => s + Number(a.amount), 0);
-    const open = Number(inv.grandTotal) - applied - (returnedByInvoice.get(inv.id) || 0);
+    const open = Number(inv.grandTotal) - applied - (restored.get(inv.id) || 0) - (returnedByInvoice.get(inv.id) || 0);
     if (Math.abs(open) < 0.005) continue;
     addToBucket(rowFor(inv.customerId), inv.date, asOf, open);
   }
@@ -194,14 +246,21 @@ export async function receivablesAgingAsOf(tenantId: string, companyId: string |
 export async function payablesAgingAsOf(tenantId: string, companyId: string | undefined, asOfDate: Date): Promise<AgingReport> {
   const asOf = endOfDay(asOfDate);
   const scope = { tenantId, companyId: companyId || undefined };
-  const [suppliers, invoices] = await Promise.all([
+  const [suppliers, invoices, returns] = await Promise.all([
     prisma.supplier.findMany({ where: scope, select: { id: true, name: true, accountId: true } }),
     prisma.purchaseInvoice.findMany({
       where: { ...scope, status: "posted", date: { lte: asOf } },
-      select: { supplierId: true, date: true, grandTotal: true },
+      select: { id: true, supplierId: true, date: true, grandTotal: true },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
+    // مرتجع المشتريات يُنقِص فاتورته هو (قيده دائماً على حساب المورد) — قبل التوزيع، لا كسداد يُوزَّع على الأقدم
+    prisma.purchaseReturn.findMany({
+      where: { ...scope, status: "posted", date: { lte: asOf }, relatedInvoiceId: { not: null } },
+      select: { relatedInvoiceId: true, grandTotal: true },
+    }),
   ]);
+  const returnedByInvoice = new Map<string, number>();
+  for (const r of returns) returnedByInvoice.set(r.relatedInvoiceId!, (returnedByInvoice.get(r.relatedInvoiceId!) || 0) + Number(r.grandTotal));
   const ledger = await ledgerBalances(tenantId, companyId, asOf, suppliers, "supplier");
   const nameOf = new Map(suppliers.map((s) => [s.id, s.name]));
   const invoicesBySupplier = new Map<string, typeof invoices>();
@@ -214,7 +273,9 @@ export async function payablesAgingAsOf(tenantId: string, companyId: string | un
     let remaining = balance;
     for (const inv of invoicesBySupplier.get(id) || []) {
       if (remaining <= 0.005) break;
-      const take = Math.min(Number(inv.grandTotal), remaining);
+      const open = Number(inv.grandTotal) - (returnedByInvoice.get(inv.id) || 0);
+      if (open <= 0.005) continue;
+      const take = Math.min(open, remaining);
       addToBucket(row, inv.date, asOf, take);
       remaining -= take;
     }
