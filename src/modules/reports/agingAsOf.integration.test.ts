@@ -5,7 +5,7 @@ import { prisma } from "../../lib/prisma";
 import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integrationTestGuard";
 import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
-import { monthEnd, newAging, oldAging } from "../../../scripts/aging-before-after";
+import { monthEnd, newAging, oldAging } from "../../lib/agingComparison";
 
 /**
  * أعمار الذمم كما في نهاية الشهر، عبر مسارات HTTP الحقيقية على Postgres فعلي. كل حالة هنا تدور حول حدث يقع *بعد*
