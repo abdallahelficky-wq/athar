@@ -105,14 +105,14 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const en = lang === "en";
   const { from, to, previousFrom, previousTo } = monthRange(month);
   const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
-  const [currentRaw, previousRaw, closingRaw, companies, receivableAging, payableAging, payrollRuns] = await Promise.all([
+  const [currentRaw, previousRaw, closingRaw, companies, receivableAging, payableAging, employeeAccounts] = await Promise.all([
     aggregateAccountBalances(tenantId, { companyId, dateFrom: from, dateTo: to }),
     aggregateAccountBalances(tenantId, { companyId, dateFrom: previousFrom, dateTo: previousTo }),
     aggregateAccountBalances(tenantId, { companyId, dateTo: to }),
     prisma.company.findMany({ where: { tenantId, id: companyId || undefined } }),
     prisma.salesInvoice.findMany({ where: { tenantId, companyId: companyId || undefined, status: "posted", date: { lte: to } }, include: { receiptAllocations: true } }),
     prisma.purchaseInvoice.findMany({ where: { tenantId, companyId: companyId || undefined, status: "posted", date: { lte: to } } }),
-    prisma.payrollRun.findMany({ where: { tenantId, companyId: companyId || undefined, month } }),
+    prisma.employee.findMany({ where: { tenantId, companyId: companyId || undefined, accountId: { not: null } }, select: { accountId: true } }),
   ]);
   const values = (raw: Map<string, AccountBalance>) => new Map([...raw].map(([id, b]) => [id, { debit: b.debit, credit: b.credit }]));
   const rolled = (raw: Map<string, AccountBalance>) => rollupAccountValues(accounts, values(raw), ZERO_DC, { level: 4 });
@@ -135,7 +135,43 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const receivables = money(arDocs.reduce((s,x)=>s+Math.max(x.due,0),0)), payables = money(apDocs.reduce((s,x)=>s+x.due,0));
   const liabilityRows = closing.filter(r => r.account.type === "liability" && /(قرض|قسط|ضريبة|قيمة مضافة|زكاة|مستحق)/.test(r.account.name)).map(r => ({ name:r.account.name, amount:money(natural(r)), dueDate:null }));
   const salaryAccounts = closing.filter(r => /(رواتب مستحقة|نهاية خدمة)/.test(r.account.name));
-  const payroll = { paid: money(payrollRuns.filter(r=>r.status === "posted").reduce((s,r)=>s + Number((r.overrides as any)?.netTotal || 0),0)), unpaid: money(salaryAccounts.filter(r=>/رواتب/.test(r.account.name)).reduce((s,r)=>s+natural(r),0)), endOfService: money(salaryAccounts.filter(r=>/نهاية خدمة/.test(r.account.name)).reduce((s,r)=>s+natural(r),0)) };
+  // الرواتب المستحقة تقع في مكانين: حساب «رواتب مستحقة» (الترحيل بالإجماليات، ومن أي قيد يدوي)، والحسابات الفرعية
+  // للموظفين (الترحيل القديم: صافي كل موظف على حسابه، وتسويات الإجازة). غير المدفوع = رصيد الأول + الأرصدة الدائنة
+  // للحسابات الفرعية في نهاية الشهر (رصيد مدين لموظف ذمة عليه لا يُنقِص ما هو مستحق لغيره) — فتصحّ الأشهر القديمة أيضاً.
+  // المصروف = ما سُدِّد خلال الشهر من هذه الحسابات نقداً أو بنكياً (راجع paysCash أدناه)، مطروحاً منه ما عُكِس من سداد.
+  // الحسابات الفرعية للموظفين من شجرة الحسابات لا من صفوف الموظفين الحالية: حذف موظف يُبقي حسابه وقيوده، فلا يجوز
+  // أن يختفي رصيده من أشهر مضت. المجموعات: «ذمم الموظفين» باسمها، وأي مجموعة تضم حساب موظف حالي.
+  const employeeGroupIds = new Set([
+    ...accounts.filter((a) => !a.isPosting && a.name === "ذمم الموظفين").map((a) => a.id),
+    ...accounts.filter((a) => employeeAccounts.some((e) => e.accountId === a.id) && a.parentId).map((a) => a.parentId as string),
+  ]);
+  const employeeAccountIds = new Set(accounts.filter((a) => a.isPosting && a.parentId && employeeGroupIds.has(a.parentId)).map((a) => a.id));
+  const payableIds = new Set(accounts.filter((a) => a.isPosting && /رواتب مستحقة/.test(a.name)).map((a) => a.id));
+  const employeeOwed = [...employeeAccountIds].reduce((s, id) => {
+    const b = closingRaw.get(id);
+    return s + (b ? Math.max(b.credit - b.debit, 0) : 0);
+  }, 0);
+  const payableOwed = salaryAccounts.filter((r) => payableIds.has(r.account.id)).reduce((s, r) => s + natural(r), 0);
+  const payrollAccountIds = [...payableIds, ...employeeAccountIds];
+  const monthEntries = { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { gte: from, lte: to } };
+  // السداد قيدٌ يُنقِص هذه الحسابات ويُخرِج نقداً أو من بنك في القيد نفسه — إعادة تصنيف بين حساب موظف و«رواتب مستحقة»
+  // (أو أي تسوية بلا نقد) ليست صرفاً. عكس السداد (يُعيد النقد) يُطرَح بالقاعدة نفسها.
+  // ⚠ حدّ معروف (docs/reports/comprehensive-monthly.md): صرف يمرّ بحساب وسيط في قيد منفصل — حماية الأجور (WPS) أو
+  // «مدد»: «رواتب مستحقة» ← حساب وسيط، ثم الوسيط ← البنك — لا يُحتسَب مصروفاً، فيَنقص الرقم بلا أي إشارة. يصحّ اليوم
+  // لأن الرواتب تُصرَف من البنك مباشرة. عند إضافة حساب وسيط للرواتب يجب توسيع paysCash ليعدّه (علامة على الحساب مثلاً).
+  const paysCash = { lines: { some: { credit: { gt: 0 }, account: { isBankOrCash: true } } } };
+  const receivesCash = { lines: { some: { debit: { gt: 0 }, account: { isBankOrCash: true } } } };
+  const [payments, reversedPayments] = await Promise.all([
+    prisma.journalEntryLine.aggregate({
+      where: { accountId: { in: payrollAccountIds }, debit: { gt: 0 }, journalEntry: { ...monthEntries, ...paysCash, reversalOfEntryId: null, sourceModule: { not: "payroll" } } },
+      _sum: { debit: true },
+    }),
+    prisma.journalEntryLine.aggregate({
+      where: { accountId: { in: payrollAccountIds }, credit: { gt: 0 }, journalEntry: { ...monthEntries, ...receivesCash, reversalOfEntryId: { not: null } } },
+      _sum: { credit: true },
+    }),
+  ]);
+  const payroll = { paid: money(Number(payments._sum.debit || 0) - Number(reversedPayments._sum.credit || 0)), unpaid: money(payableOwed + employeeOwed), endOfService: money(salaryAccounts.filter(r=>/نهاية خدمة/.test(r.account.name)).reduce((s,r)=>s+natural(r),0)) };
   const pct = (now:number, old:number) => old === 0 ? null : money(((now-old)/Math.abs(old))*100);
   const comparisonLabels = en
     ? ["Revenue","Expenses","Net profit","Receipts","Payments","Net cash flow"]
