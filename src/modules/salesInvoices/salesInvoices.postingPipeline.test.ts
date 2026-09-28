@@ -260,3 +260,74 @@ it("persists zero-rated invoice lines without adding 15% and snapshots the exemp
  await createSalesInvoice(TENANT_ID,"user-1",{...invoiceInput(),post:false,lines:[{accountId:ACCOUNT_ID,quantity:1,unitPrice:100,priceIncludesVat:false,vatApplicable:true,taxCategoryCode:"Z",taxExemptionReasonCode:"VATEX-SA-35",taxExemptionReason:"Medicine"}]});
  expect(tx.salesInvoice.create.mock.calls[0][0].data).toMatchObject({grandTotal:100,vatTotal:0,lines:{create:[expect.objectContaining({taxCategoryCode:"Z",taxExemptionReasonCode:"VATEX-SA-35",vat:0,vatApplicable:false})]}});
 });
+
+describe("ZATCA archive — the accepted original is written in the same transaction as the saved response", () => {
+  const ARCHIVE = {
+    signedXml: "<Invoice><cbc:ID>INV-00001</cbc:ID></Invoice>", clearedInvoiceBase64: Buffer.from("<Cleared/>").toString("base64"),
+    subtype: "standard" as const, icv: 42, invoiceHash: "HASH-42", issuedAt: CHAIN_RESULT.issuedAt,
+  };
+
+  it("writes the response and the archive row through one transaction client, with both XMLs gzipped and hashed", async () => {
+    const { tx } = setupCommonMocks();
+    const archiveCreate = vi.fn().mockResolvedValue({});
+    Object.assign(tx, { zatcaDocumentArchive: { create: archiveCreate } });
+    const order: string[] = [];
+    vi.mocked(tx.salesInvoice.update).mockImplementation((async (args: any) => {
+      order.push(args.data.zatcaStatus ? "3a-update-in-tx" : "3b-update");
+      return { id: "invoice-1", lines: [], receiptAllocations: [], grandTotal: 115, companyId: COMPANY_ID, branchId: null, date: new Date("2026-01-01"), invoiceNumber: "INV-00001", customer: CUSTOMER_ROW, zatcaUuid: "uuid-1", ...args.data };
+    }) as never);
+    archiveCreate.mockImplementation(async () => { order.push("archive-in-tx"); return {}; });
+    vi.mocked(submitZatcaChainDocument).mockResolvedValue({
+      proceedWithPosting: true, archive: ARCHIVE,
+      zatcaFields: { zatcaStatus: "cleared", icv: 42, previousInvoiceHash: "PIH-42", invoiceHash: "HASH-42", zatcaSubmittedAt: CHAIN_RESULT.issuedAt, zatcaResponseRaw: { ok: true } },
+    } as never);
+
+    await createSalesInvoice(TENANT_ID, "user-1", invoiceInput());
+
+    // المرحلة 3أ لم تعد تحديثاً منفرداً على prisma — بل عبر نفس tx الذي يكتب الأرشيف
+    expect(prisma.salesInvoice.update).not.toHaveBeenCalled();
+    expect(order.slice(0, 2)).toEqual(["3a-update-in-tx", "archive-in-tx"]);
+    const row = archiveCreate.mock.calls[0][0].data;
+    expect(row).toMatchObject({ tenantId: TENANT_ID, companyId: COMPANY_ID, documentType: "sales_invoice", documentId: "invoice-1", documentNumber: "INV-00001", icv: 42, invoiceHash: "HASH-42", subtype: "standard", submissionKind: "clearance", compression: "gzip", source: "submission" });
+    const { gunzipSync } = await import("zlib");
+    const { createHash } = await import("crypto");
+    expect(gunzipSync(row.signedXml).toString()).toBe(ARCHIVE.signedXml);
+    expect(gunzipSync(row.clearedXml).toString()).toBe("<Cleared/>");
+    expect(row.signedXmlSha256).toBe(createHash("sha256").update(ARCHIVE.signedXml).digest("hex"));
+  });
+
+  it("if the archive write fails, ZATCA's accepted response is still saved (on its own) and the failure is logged — never lost", async () => {
+    const { tx } = setupCommonMocks();
+    Object.assign(tx, { zatcaDocumentArchive: { create: vi.fn().mockRejectedValue(new Error("archive insert failed")) } });
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    let plainData: any;
+    vi.mocked(prisma.salesInvoice.update).mockImplementation((async (args: any) => {
+      plainData = args.data;
+      return { id: "invoice-1", lines: [], receiptAllocations: [], grandTotal: 115, companyId: COMPANY_ID, branchId: null, date: new Date("2026-01-01"), invoiceNumber: "INV-00001", customer: CUSTOMER_ROW, ...args.data };
+    }) as never);
+    vi.mocked(submitZatcaChainDocument).mockResolvedValue({
+      proceedWithPosting: true, archive: ARCHIVE,
+      zatcaFields: { zatcaStatus: "cleared", icv: 42, previousInvoiceHash: "PIH-42", invoiceHash: "HASH-42", zatcaSubmittedAt: CHAIN_RESULT.issuedAt, zatcaResponseRaw: { cleared: true } },
+    } as never);
+
+    const result = await createSalesInvoice(TENANT_ID, "user-1", invoiceInput());
+
+    // الرد محفوظ (إعادة الإرسال بنفس UUID كانت ستُنتج ازدواجاً لدى زاتكا)، والترحيل يكتمل، والفشل مسجَّل
+    expect(plainData.zatcaStatus).toBe("cleared");
+    expect(plainData.zatcaResponseRaw).toEqual({ cleared: true });
+    expect(createJournalEntryTx).toHaveBeenCalled();
+    expect(result.postingIncomplete).toBeUndefined();
+    expect(logged.mock.calls.some((c) => String(c[0]).includes("[zatca-archive] FAILED"))).toBe(true);
+  });
+
+  it("a rejected or failed submission archives nothing and keeps the single-row write", async () => {
+    setupCommonMocks();
+    vi.mocked(submitZatcaChainDocument).mockResolvedValue({
+      proceedWithPosting: false,
+      zatcaFields: { zatcaStatus: "rejected", icv: 42, previousInvoiceHash: "PIH-42", invoiceHash: "HASH-42", zatcaSubmittedAt: CHAIN_RESULT.issuedAt },
+      rejectionReason: "مرفوض",
+    } as never);
+    await createSalesInvoice(TENANT_ID, "user-1", invoiceInput());
+    expect(prisma.salesInvoice.update).toHaveBeenCalledTimes(1);
+  });
+});

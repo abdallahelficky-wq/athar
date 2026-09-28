@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { getUnarchivedZatcaDocuments } from "../api/vatReconciliation";
 import { useTranslation } from "react-i18next";
 import {
   getCompanyZatcaStatus,
@@ -46,6 +47,8 @@ export default function CompanyZatcaModal({ company, onClose }) {
   const [busy, setBusy] = useState(false);
   const [complianceSteps, setComplianceSteps] = useState([]);
   const [stepResults, setStepResults] = useState({});
+  // مستندات قبلتها زاتكا منذ بدء الأرشفة بلا أصل محفوظ — يجب أن يكون صفراً
+  const [unarchived, setUnarchived] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -56,6 +59,7 @@ export default function CompanyZatcaModal({ company, onClose }) {
       ]);
       setStatus(statusResult);
       setComplianceSteps(stepsResult.steps || []);
+      getUnarchivedZatcaDocuments(company.id).then(setUnarchived).catch(() => setUnarchived(null));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -141,6 +145,13 @@ export default function CompanyZatcaModal({ company, onClose }) {
           <p className="note">{t("common.loading")}</p>
         ) : (
           <>
+            {unarchived && unarchived.since && (
+              <p className={unarchived.count ? "balance-bad" : "note"} data-testid="zatca-unarchived">
+                {unarchived.count
+                  ? t("settings.zatca.unarchivedBad", { count: unarchived.count, numbers: unarchived.latest.map((d) => d.documentNumber).join("، ") })
+                  : t("settings.zatca.unarchivedOk", { since: String(unarchived.since).slice(0, 10) })}
+              </p>
+            )}
             <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
               <div>
                 <span className="note" style={{ marginInlineEnd: 8 }}>{t("settings.zatca.currentStatusLabel")}</span>

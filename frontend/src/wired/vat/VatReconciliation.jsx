@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getVatReconciliation } from "../../api/vatReconciliation";
+import { getVatReconciliation, exportZatcaArchive } from "../../api/vatReconciliation";
+import { downloadBlob } from "../../legacy/shared";
 import { fmt } from "../../legacy/constants";
 import VatPeriodBar from "../shared/VatPeriodBar";
 import { useVatFetch, useVatPeriod } from "../shared/vatPeriod";
@@ -83,6 +84,42 @@ function SideTable({ side, data }) {
       {data.residual !== 0 && <p className="balance-bad">{t("vat.recon.residualWarning")}</p>}
 
       <OutsideBothSides data={data.outsideBothSides} />
+    </div>
+  );
+}
+
+/**
+ * تصدير أرشيف مستندات زاتكا لنفس الشركة والفترة (الملحق 1: ملفات XML بأسماء الرقم الضريبي وتاريخ ووقت الإصدار ورقم
+ * المستند، وmanifest.csv). يعرض بعد التصدير عدد المستندات المحفوظة وعدد المقبولة لدى زاتكا بلا أصل محفوظ.
+ */
+function ZatcaArchiveExport({ companyId, period }) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const run = async () => {
+    setBusy(true); setError(""); setResult(null);
+    try {
+      const { blob, filename, headers } = await exportZatcaArchive({ companyId, from: period.from, to: period.to });
+      downloadBlob(blob, filename || `zatca-archive_${period.from}_${period.to}.zip`);
+      setResult({ archived: Number(headers?.get("X-Archived-Count") ?? 0), missing: Number(headers?.get("X-Missing-Count") ?? 0) });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="panel" data-testid="zatca-archive-export">
+      <h3>{t("vat.archive.title")}</h3>
+      <p className="vat-note">{t("vat.archive.note")}</p>
+      <button className="btn-primary" disabled={busy || !companyId} onClick={run}>{t("vat.archive.export", { from: period.from, to: period.to })}</button>
+      {error && <p className="balance-bad">{error}</p>}
+      {result && (
+        <p className={result.missing ? "balance-bad" : "vat-note"}>
+          {t("vat.archive.result", { archived: result.archived, missing: result.missing })}
+        </p>
+      )}
     </div>
   );
 }
@@ -172,6 +209,7 @@ export default function VatReconciliation({ companyId, companies }) {
           )}
         </>
       )}
+      <ZatcaArchiveExport companyId={companyId} period={period.applied} />
     </div>
   );
 }

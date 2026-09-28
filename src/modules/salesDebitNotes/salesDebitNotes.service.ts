@@ -1,3 +1,4 @@
+import { saveZatcaResponseWithArchive } from "../../lib/zatca/archive";
 import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
@@ -213,7 +214,8 @@ async function finishDebitNoteZatcaSubmission(
     grandTotal, vatTotal,
   });
 
-  const afterResponse = await prisma.salesDebitNote.update({
+  // أصل المستند المقبول يُحفَظ في zatca_document_archive في نفس المعاملة — لا "مقبول" بلا أصل محفوظ
+  const afterResponseArgs = {
     where: { id: debitNote.id },
     data: {
       zatcaStatus: decision.zatcaFields.zatcaStatus,
@@ -222,6 +224,16 @@ async function finishDebitNoteZatcaSubmission(
       status: decision.proceedWithPosting ? "zatca_accepted_posting_incomplete" : "pending_submission",
     },
     include: debitNoteInclude,
+  } satisfies Prisma.SalesDebitNoteUpdateArgs;
+  const afterResponse = await saveZatcaResponseWithArchive({
+    payload: decision.archive,
+    doc: {
+        tenantId: tenantId, companyId: debitNote.companyId, documentType: "sales_debit_note", documentId: debitNote.id,
+        documentNumber: debitNote.debitNoteNumber, documentUuid: debitNote.zatcaUuid,
+    },
+    source: "submission",
+    inTx: (tx) => tx.salesDebitNote.update(afterResponseArgs),
+    plain: () => prisma.salesDebitNote.update(afterResponseArgs),
   });
 
   if (!decision.proceedWithPosting) {

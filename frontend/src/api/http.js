@@ -74,7 +74,7 @@ async function rawBlobRequest(path, accessToken) {
     throw new ApiError(res.status, data?.error || "حدث خطأ غير متوقع", data?.details);
   }
   const match = /filename="?([^";]+)"?/.exec(res.headers.get("Content-Disposition") || "");
-  return { blob: await res.blob(), filename: match?.[1] };
+  return { blob: await res.blob(), filename: match?.[1], headers: res.headers };
 }
 
 let refreshPromise = null;
