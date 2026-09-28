@@ -2314,7 +2314,7 @@
       "noComparison": "No comparison available",
       "vsLastMonth": "{{pct}}% vs last month",
       "sectionC": "C. Payroll, wages, and dues",
-      "payrollPaid": "Payroll paid",
+      "payrollPaidNote": "\"Payroll paid\" counts payments made straight from cash or bank in the same entry. Payments routed through a clearing account (WPS or Mudad) in a separate entry don't appear here.", "payrollPaid": "Payroll paid",
       "payrollUnpaid": "Unpaid payroll dues",
       "eosAccrual": "End-of-service accrual",
       "sectionD": "D. Operating and administrative expenses",

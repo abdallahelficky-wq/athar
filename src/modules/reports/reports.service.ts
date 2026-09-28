@@ -156,6 +156,9 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const monthEntries = { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { gte: from, lte: to } };
   // السداد قيدٌ يُنقِص هذه الحسابات ويُخرِج نقداً أو من بنك في القيد نفسه — إعادة تصنيف بين حساب موظف و«رواتب مستحقة»
   // (أو أي تسوية بلا نقد) ليست صرفاً. عكس السداد (يُعيد النقد) يُطرَح بالقاعدة نفسها.
+  // ⚠ حدّ معروف (docs/reports/comprehensive-monthly.md): صرف يمرّ بحساب وسيط في قيد منفصل — حماية الأجور (WPS) أو
+  // «مدد»: «رواتب مستحقة» ← حساب وسيط، ثم الوسيط ← البنك — لا يُحتسَب مصروفاً، فيَنقص الرقم بلا أي إشارة. يصحّ اليوم
+  // لأن الرواتب تُصرَف من البنك مباشرة. عند إضافة حساب وسيط للرواتب يجب توسيع paysCash ليعدّه (علامة على الحساب مثلاً).
   const paysCash = { lines: { some: { credit: { gt: 0 }, account: { isBankOrCash: true } } } };
   const receivesCash = { lines: { some: { debit: { gt: 0 }, account: { isBankOrCash: true } } } };
   const [payments, reversedPayments] = await Promise.all([
