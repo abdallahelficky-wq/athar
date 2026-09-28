@@ -37,3 +37,18 @@ test("English search selects original price basis and calculates 15%", async ({p
  await invoice.getByLabel("سبب الإعفاء أو نسبة الصفر").selectOption("VATEX-SA-29");
  await expect(invoice.locator(".preview-row.net-row")).toContainText("100.00");
 });
+
+test("purchase item exemption and zero rate suppress VAT for 90 x 760", async ({page}) => {
+ await page.route("http://localhost:4000/api/**",route=>route.fulfill({json:[]}));
+ await page.goto("/e2e/fixtures/item-tax.html");
+ const form=page.getByTestId("purchase");
+ await form.locator(".item-combo-cell input").first().fill("Scrap");
+ await form.locator(".item-combo-option").click();
+ await form.locator('input[type="number"]').nth(0).fill("90");
+ await expect(form.getByLabel("المعاملة الضريبية")).toHaveValue("E");
+ await expect(form.locator(".net-row")).toContainText("68,400.00");
+ await form.getByLabel("المعاملة الضريبية").selectOption("Z");
+ await expect(form.locator(".net-row")).toContainText("68,400.00");
+ await form.getByLabel("المعاملة الضريبية").selectOption("S");
+ await expect(form.locator(".net-row")).toContainText("78,660.00");
+});

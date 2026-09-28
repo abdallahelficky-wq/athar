@@ -1,3 +1,4 @@
+import { normalizeTax, TaxFields } from "../../lib/itemTax";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
@@ -12,7 +13,7 @@ import { unpostVatSnapshot } from "../../lib/vatAccounts";
 
 type Tx = Prisma.TransactionClient;
 
-interface LineInput {
+interface LineInput extends TaxFields {
   accountId: string;
   itemId?: string;
   warehouseId?: string;
@@ -40,7 +41,7 @@ interface InvoiceInput {
 const invoiceInclude = { lines: { include: { account: true, item: true, warehouse: true } }, supplier: true, company: true, branch: true } as const;
 
 function computeLines(lines: LineInput[]) {
-  const computed = lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
+  const computed = lines.map((l) => ({ ...l, ...normalizeTax(l), ...computeInvoiceLine(l) }));
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
@@ -69,10 +70,12 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
   const resolved: LineInput[] = [];
   for (const line of lines) {
     if (!line.itemId) {
-      resolved.push(line);
+      resolved.push({ ...line, ...normalizeTax(line) });
       continue;
     }
     const item = itemById.get(line.itemId)!;
+    // Explicit line metadata is a snapshot; older callers inherit catalog tax defaults.
+    const tax = normalizeTax(line.taxCategoryCode != null || line.vatApplicable != null ? line : item);
     if (item.type === "service") throw badRequest(`الصنف "${item.name}" من نوع خدمي، لا يمكن شراؤه`);
     if (item.type === "bundle") throw badRequest(`الصنف "${item.name}" منتج مجمّع — رصيده يزيد فقط عبر أمر تصنيع، لا الشراء المباشر`);
 
@@ -80,7 +83,7 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
       if (!line.usefulLifeYears || line.salvageValue == null) throw badRequest(`أدخل العمر الإنتاجي وقيمة الخردة للصنف "${item.name}"`);
       if (!item.assetCategoryId) throw badRequest(`حدّد فئة الأصل للصنف "${item.name}" من شاشة الأصناف أولاً`);
       const { accountId } = await resolveAssetAccount(prisma, tenantId, companyId, { categoryId: item.assetCategoryId });
-      resolved.push({ ...line, accountId, isFixedAssetLine: true });
+      resolved.push({ ...line, ...tax, accountId, isFixedAssetLine: true });
       continue;
     }
 
@@ -88,7 +91,7 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
     // لاحقاً (راجع createInventorySideEffectsTx أدناه). يُستبعَد من فحص المستودع الإلزامي تحته.
     if (item.type === "non_stock") {
       if (!item.expenseAccountId) throw badRequest(`لم يُحدَّد حساب المصروف المرتبط بالصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
-      resolved.push({ ...line, accountId: item.expenseAccountId });
+      resolved.push({ ...line, ...tax, accountId: item.expenseAccountId });
       continue;
     }
 
@@ -100,7 +103,7 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
       : item.type === "periodic_inventory" ? item.purchasesAccountId
       : item.stockAccountId;
     if (!primaryAccountId) throw badRequest(`لم يُحدَّد الحساب المحاسبي المرتبط بالصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
-    resolved.push({ ...line, accountId: primaryAccountId });
+    resolved.push({ ...line, ...tax, accountId: primaryAccountId });
   }
   return resolved;
 }
