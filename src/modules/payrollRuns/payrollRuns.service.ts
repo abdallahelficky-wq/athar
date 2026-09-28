@@ -250,6 +250,111 @@ export async function getPayrollRunRows(tenantId: string, id: string) {
   return { run, rows, totals, columns: components.map((c) => ({ id: c.id, name: c.name, kind: c.kind })) };
 }
 
+type PayrollJournalLine = { accountId: string; department: string; debit: number; credit: number; lineDescription?: string; employeeId?: string; employeeAdvanceId?: string };
+type ActiveAdvance = { id: string; remainingBalance: Prisma.Decimal };
+
+/** قيمة البند المُرحَّلة: قسط السلفة لا يتجاوز رصيدها المتبقي أبداً (حتى لو عُدِّل يدوياً عبر override) */
+function postedValue(rawValue: number, advance: ActiveAdvance | undefined) {
+  return advance ? Math.min(rawValue, Number(advance.remainingBalance)) : rawValue;
+}
+
+/**
+ * الترحيل القديم (قبل شهر التحويل أو بلا شهر): سطر لكل موظف لكل بند غير صفري (موسوم بـ employeeId)، ثم
+ * صافي كل موظف على حسابه المستقل (Phase G).
+ */
+async function buildPerEmployeeLines(
+  tenantId: string,
+  companyId: string,
+  employeeIds: string[],
+  rows: RunRow[],
+  componentById: Map<string, RunComponent>,
+  advanceByComponentId: Map<string, ActiveAdvance>,
+  advanceDeductions: { advanceId: string; amount: number }[],
+): Promise<PayrollJournalLine[]> {
+  const employees = await prisma.employee.findMany({ where: { id: { in: employeeIds }, tenantId }, select: { id: true, accountId: true } });
+  const employeeById = new Map(employees.map((e) => [e.id, e]));
+  const lines: PayrollJournalLine[] = [];
+  for (const row of rows) {
+    for (const [componentId, rawValue] of Object.entries(row.componentValues)) {
+      if (!rawValue) continue;
+      const component = componentById.get(componentId);
+      if (!component) continue;
+      const advance = advanceByComponentId.get(componentId);
+      const value = postedValue(rawValue, advance);
+      if (!value) continue;
+      const isDebit = component.kind === "addition";
+      lines.push({
+        accountId: component.accountId, department: "المالية والحسابات", debit: isDebit ? value : 0, credit: isDebit ? 0 : value,
+        employeeId: row.employeeId, employeeAdvanceId: advance?.id,
+      });
+      if (advance) advanceDeductions.push({ advanceId: advance.id, amount: value });
+    }
+    if (!row.net) continue;
+    const employee = employeeById.get(row.employeeId)!;
+    const netAccountId = await resolvePartyAccountId(tenantId, companyId, employee, "رواتب مستحقة للصرف");
+    lines.push({ accountId: netAccountId, department: "المالية والحسابات", debit: 0, credit: row.net, employeeId: row.employeeId });
+  }
+  return lines;
+}
+
+/**
+ * الترحيل بالإجماليات (من شهر Company.payrollTotalsFromMonth، قرار المالك 2026-09-28): سطر واحد لكل بند
+ * بمجموعه لكل الموظفين بلا وسم موظف، وصافٍ واحد على «رواتب مستحقة للصرف». الاستثناء أقساط السلف: سطر لكل
+ * موظف موسوم بالموظف والسلفة، لأنه يسدّد سلفة ذلك الموظف تحديداً — والسلفة وأقساطها تبقى باسم صاحبها للجميع.
+ * التفصيل لكل موظف يبقى في كشف الرواتب نفسه (القيد مرتبط به عبر sourceId) لأدوار الموارد البشرية.
+ */
+async function buildTotalsLines(
+  tenantId: string,
+  companyId: string,
+  rows: RunRow[],
+  componentById: Map<string, RunComponent>,
+  advanceByComponentId: Map<string, ActiveAdvance>,
+  advanceDeductions: { advanceId: string; amount: number }[],
+): Promise<PayrollJournalLine[]> {
+  const totals = new Map<string, number>();
+  const advanceLines: PayrollJournalLine[] = [];
+  for (const row of rows) {
+    for (const [componentId, rawValue] of Object.entries(row.componentValues)) {
+      if (!rawValue) continue;
+      const component = componentById.get(componentId);
+      if (!component) continue;
+      const advance = advanceByComponentId.get(componentId);
+      const value = postedValue(rawValue, advance);
+      if (!value) continue;
+      if (advance) {
+        const isDebit = component.kind === "addition";
+        advanceLines.push({
+          accountId: component.accountId, department: "المالية والحسابات", debit: isDebit ? value : 0, credit: isDebit ? 0 : value,
+          lineDescription: component.name, employeeId: row.employeeId, employeeAdvanceId: advance.id,
+        });
+        advanceDeductions.push({ advanceId: advance.id, amount: value });
+        continue;
+      }
+      totals.set(componentId, (totals.get(componentId) || 0) + value);
+    }
+  }
+
+  const lines: PayrollJournalLine[] = [];
+  for (const [componentId, total] of totals) {
+    const component = componentById.get(componentId)!;
+    const amount = Math.round(total * 100) / 100;
+    if (!amount) continue;
+    const isDebit = component.kind === "addition";
+    lines.push({ accountId: component.accountId, department: "المالية والحسابات", debit: isDebit ? amount : 0, credit: isDebit ? 0 : amount, lineDescription: component.name });
+  }
+  lines.push(...advanceLines);
+  // الصافي من الأسطر نفسها بعد تقريبها — فيتوازن القيد دائماً ولا يبقى فرق هللة بين مجموع البنود والصافي
+  const netAmount = Math.round(lines.reduce((s, l) => s + l.debit - l.credit, 0) * 100) / 100;
+  if (netAmount) {
+    const netAccountId = await getAccountIdByName(tenantId, companyId, "رواتب مستحقة للصرف");
+    lines.push({
+      accountId: netAccountId, department: "المالية والحسابات", lineDescription: "صافي الرواتب المستحقة",
+      debit: netAmount < 0 ? -netAmount : 0, credit: netAmount > 0 ? netAmount : 0,
+    });
+  }
+  return lines;
+}
+
 export async function postPayrollRun(tenantId: string, userId: string, id: string) {
   const run = await prisma.payrollRun.findFirst({ where: { id, tenantId } });
   if (!run) throw notFound("كشف الرواتب غير موجود");
@@ -268,33 +373,15 @@ export async function postPayrollRun(tenantId: string, userId: string, id: strin
   });
   const advanceByComponentId = new Map(activeAdvances.filter((a) => a.employeePayrollComponent).map((a) => [a.employeePayrollComponent!.componentId, a]));
 
-  // سطر واحد لكل موظف لكل بند غير صفري (موسوم بـ employeeId)، ثم سطر ختامي واحد لكل موظف: صافي
-  // المستحق يُقيَّد على حسابه المستقل هو (Phase G) — بدل جمع كل الموظفين في سطر واحد بلا أي وسم
-  // بالموظف كما كان في المنطق القديم.
-  const employees = await prisma.employee.findMany({ where: { id: { in: run.employeeIds }, tenantId }, select: { id: true, accountId: true } });
-  const employeeById = new Map(employees.map((e) => [e.id, e]));
+  const company = await prisma.company.findUniqueOrThrow({ where: { id: run.companyId }, select: { payrollTotalsFromMonth: true } });
+  const postTotals = company.payrollTotalsFromMonth != null && run.month >= company.payrollTotalsFromMonth;
 
-  const journalLines: { accountId: string; department: string; debit: number; credit: number; employeeId?: string; employeeAdvanceId?: string }[] = [];
+  const journalLines: PayrollJournalLine[] = [];
   const advanceDeductions: { advanceId: string; amount: number }[] = [];
-  for (const row of rows) {
-    for (const [componentId, rawValue] of Object.entries(row.componentValues)) {
-      if (!rawValue) continue;
-      const component = componentById.get(componentId);
-      if (!component) continue;
-      const advance = advanceByComponentId.get(componentId);
-      const value = advance ? Math.min(rawValue, Number(advance.remainingBalance)) : rawValue;
-      if (!value) continue;
-      const isDebit = component.kind === "addition";
-      journalLines.push({
-        accountId: component.accountId, department: "المالية والحسابات", debit: isDebit ? value : 0, credit: isDebit ? 0 : value,
-        employeeId: row.employeeId, employeeAdvanceId: advance?.id,
-      });
-      if (advance) advanceDeductions.push({ advanceId: advance.id, amount: value });
-    }
-    if (!row.net) continue;
-    const employee = employeeById.get(row.employeeId)!;
-    const netAccountId = await resolvePartyAccountId(tenantId, run.companyId, employee, "رواتب مستحقة للصرف");
-    journalLines.push({ accountId: netAccountId, department: "المالية والحسابات", debit: 0, credit: row.net, employeeId: row.employeeId });
+  if (postTotals) {
+    journalLines.push(...(await buildTotalsLines(tenantId, run.companyId, rows, componentById, advanceByComponentId, advanceDeductions)));
+  } else {
+    journalLines.push(...(await buildPerEmployeeLines(tenantId, run.companyId, run.employeeIds, rows, componentById, advanceByComponentId, advanceDeductions)));
   }
 
   const [y, m] = run.month.split("-").map(Number);

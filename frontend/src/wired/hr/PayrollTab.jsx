@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 import { listEmployees } from "../../api/employees";
 import {
   listPayrollRuns, createPayrollRun, getPayrollRunRows, updatePayrollRunEmployees,
@@ -24,7 +25,10 @@ function buildDisplayColumns(columns, payslipColumns) {
 export default function PayrollTab({ companyId, companies }) {
   const { t } = useTranslation();
   const [employees, setEmployees] = useState([]);
-  const mf = useDeferredFilters({ month: "2026-07" });
+  // ?month= يأتي من رابط قيد الرواتب في شاشة القيود (الانتقال من القيد إلى كشفه)
+  const [searchParams] = useSearchParams();
+  const linkedMonth = /^\d{4}-\d{2}$/.test(searchParams.get("month") || "") ? searchParams.get("month") : null;
+  const mf = useDeferredFilters({ month: linkedMonth || "2026-07" });
   const [scope, setScope] = useState("all");
   const [selectedIds, setSelectedIds] = useState([]);
   const [run, setRun] = useState(null);

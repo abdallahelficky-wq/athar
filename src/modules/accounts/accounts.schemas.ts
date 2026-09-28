@@ -13,6 +13,7 @@ export const createAccountSchema = z.object({
   isActive: z.boolean().optional(),
   isBankOrCash: z.boolean().optional(),
   isEmployeeAdvanceAccount: z.boolean().optional(),
+  isPersonalGroup: z.boolean().optional(),
 });
 
 export const updateAccountSchema = createAccountSchema.partial().extend({

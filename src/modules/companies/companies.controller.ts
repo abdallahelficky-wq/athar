@@ -1,3 +1,4 @@
+import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 import { RequestHandler } from "express";
 import multer from "multer";
 import { prisma } from "../../lib/prisma";
@@ -216,4 +217,38 @@ export const setBalancesPostedOnly: RequestHandler = async (req, res) => {
     return result;
   });
   res.json({ id: updated.id, balancesPostedOnly: updated.balancesPostedOnly });
+};
+
+/**
+ * أول شهر يُرحَّل فيه كشف الرواتب إجماليات لكل بند وصافٍ واحد على «رواتب مستحقة للصرف» (بدل سطر لكل موظف
+ * وصافٍ على حسابه الفرعي) — للمالك وحده، ومسجَّل في التدقيق بالقيمتين وبرصيد الحسابات الفرعية للموظفين لحظتها
+ * (وهو ما يبقى هناك ويُصرَف منها بعد التحويل). الكشوف المرحَّلة سابقاً لا يُعاد كتابتها؛ الشهر يحكم الترحيل
+ * القادم فقط (بما فيه إعادة ترحيل كشف فُكَّ ترحيله).
+ */
+export const setPayrollTotalsFromMonth: RequestHandler = async (req, res) => {
+  const tenantId = req.auth!.tenantId;
+  const month: string | null = req.body.month ?? null;
+  const company = await prisma.company.findFirst({ where: { id: req.params.id, tenantId } });
+  if (!company) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, company.id);
+  const updated = await prisma.$transaction(async (tx) => {
+    const employeeAccounts = await tx.employee.findMany({ where: { tenantId, companyId: company.id, accountId: { not: null } }, select: { accountId: true } });
+    const balance = await tx.journalEntryLine.aggregate({
+      where: { accountId: { in: employeeAccounts.map((e) => e.accountId!) }, journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: company.id } },
+      _sum: { debit: true, credit: true },
+    });
+    const result = await tx.company.update({ where: { id: company.id }, data: { payrollTotalsFromMonth: month } });
+    await tx.auditLog.create({
+      data: {
+        tenantId, companyId: company.id, userId: req.auth!.sub, action: "company.payroll_totals_from_month_changed",
+        entityType: "Company", entityId: company.id,
+        metadata: {
+          before: company.payrollTotalsFromMonth, after: month,
+          employeeSubAccountsNet: Number(balance._sum.debit || 0) - Number(balance._sum.credit || 0),
+        },
+      },
+    });
+    return result;
+  });
+  res.json({ id: updated.id, payrollTotalsFromMonth: updated.payrollTotalsFromMonth });
 };

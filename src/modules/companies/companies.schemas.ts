@@ -80,3 +80,4 @@ export const extractDocumentSchema = z.object({
 });
 
 export const balancesPostedOnlySchema = z.object({ enabled: z.boolean() });
+export const payrollTotalsFromMonthSchema = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "الشهر بصيغة YYYY-MM").nullable() });

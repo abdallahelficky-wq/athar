@@ -12,6 +12,8 @@ import {
   findTreeNode,
   TreeNode,
 } from "../../lib/reportRollup";
+import { foldAccountList, foldValueMap, personalFoldFromAccounts, loadPersonalFold, assertNotPersonalAccount } from "../../lib/personalAccounts";
+import { collapseHrLines, hrEntryKinds, redactHrMemo } from "../../lib/hrRedaction";
 import { COUNTED_ENTRY_WHERE, UNCOUNTED_DRAFT_WHERE } from "../../lib/countedEntries";
 
 export interface DateRange {
@@ -174,8 +176,9 @@ export async function getTrialBalanceReport(
   dateTo: Date | undefined,
   rollup: ReportRollupParams,
   branchId?: string,
+  hrView = true,
 ) {
-  const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
+  const allAccounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
   const openingDateTo = dateFrom ? new Date(dateFrom.getTime() - 1) : undefined;
 
   const [openingBalances, periodBalances] = await Promise.all([
@@ -183,8 +186,9 @@ export async function getTrialBalanceReport(
     aggregateAccountBalances(tenantId, { companyId, branchId, dateFrom, dateTo }),
   ]);
 
-  const opening = new Map<string, Zeroed>();
-  const period = new Map<string, Zeroed>();
+  let opening = new Map<string, Zeroed>();
+  let period = new Map<string, Zeroed>();
+  const accounts = allAccounts;
   for (const account of accounts) {
     if (!account.isPosting) continue;
     const o = openingBalances?.get(account.id);
@@ -193,9 +197,15 @@ export async function getTrialBalanceReport(
     period.set(account.id, { debit: p?.debit || 0, credit: p?.credit || 0 });
   }
 
+  // غير أدوار الموارد البشرية: مجموعات حسابات الأشخاص رصيد واحد (راجع personalAccounts.ts)
+  const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);
+  const reportAccounts = foldAccountList(accounts, fold);
+  opening = foldValueMap(opening, fold);
+  period = foldValueMap(period, fold);
+
   const rollupOptions: RollupOptions = { level: rollup.level, accountId: rollup.accountId, includeDetails: rollup.includeDetails };
-  const openingRolled = rollupAccountValues(accounts, opening, ZERO_DC, rollupOptions);
-  const periodRolled = rollupAccountValues(accounts, period, ZERO_DC, rollupOptions);
+  const openingRolled = rollupAccountValues(reportAccounts, opening, ZERO_DC, rollupOptions);
+  const periodRolled = rollupAccountValues(reportAccounts, period, ZERO_DC, rollupOptions);
   const periodByAccountId = new Map(periodRolled.map((r) => [r.account.id, r.value]));
 
   const netSplit = (net: number) => ({ debit: Math.max(net, 0), credit: Math.max(-net, 0) });
@@ -310,9 +320,13 @@ export async function getTrialBalanceTree(
   dateTo: Date | undefined,
   options: { level?: number; hideZeroActivity?: boolean; search?: string },
   branchId?: string,
+  hrView = true,
 ) {
   const level = options.level && options.level >= 1 && options.level <= 4 ? options.level : 4;
-  const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
+  const allAccounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
+  // غير أدوار الموارد البشرية: مجموعات حسابات الأشخاص رصيد واحد (راجع personalAccounts.ts)
+  const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);
+  const accounts = foldAccountList(allAccounts, fold);
   const openingDateTo = dateFrom ? new Date(dateFrom.getTime() - 1) : undefined;
 
   const [openingBalances, periodBalances] = await Promise.all([
@@ -326,20 +340,21 @@ export async function getTrialBalanceTree(
   // الأرصدة المدينة الصافية مقابل مجموع الأرصدة الدائنة الصافية لكل حساب — رقمان مختلفان يتساويان
   // فقط لأن النظام متوازن ككل، لا لأنهما نفس الجمع الخام. تبقى الإجماليات ثابتة بصرف النظر عن
   // التشذيب/الطي المعروض حالياً (بحث أو إخفاء المعدوم)، تماماً كما في getTrialBalanceReport.
-  const postingValues = new Map<string, RawFlow>();
-  const totals = { openingDebit: 0, openingCredit: 0, periodDebit: 0, periodCredit: 0, closingDebit: 0, closingCredit: 0 };
-  for (const account of accounts) {
+  const rawValues = new Map<string, RawFlow>();
+  for (const account of allAccounts) {
     if (!account.isPosting) continue;
     const o = openingBalances?.get(account.id);
     const p = periodBalances.get(account.id);
-    const flow: RawFlow = {
+    rawValues.set(account.id, {
       openingDebit: o?.debit || 0,
       openingCredit: o?.credit || 0,
       periodDebit: p?.debit || 0,
       periodCredit: p?.credit || 0,
-    };
-    postingValues.set(account.id, flow);
-
+    });
+  }
+  const postingValues = foldValueMap(rawValues, fold);
+  const totals = { openingDebit: 0, openingCredit: 0, periodDebit: 0, periodCredit: 0, closingDebit: 0, closingCredit: 0 };
+  for (const flow of postingValues.values()) {
     const openingNet = flow.openingDebit - flow.openingCredit;
     const closingNet = openingNet + flow.periodDebit - flow.periodCredit;
     totals.openingDebit += Math.max(openingNet, 0);
@@ -450,11 +465,14 @@ export async function getIncomeStatement(
   dateTo?: Date,
   rollup: ReportRollupParams = {},
   branchId?: string,
+  hrView = true,
 ) {
-  const [balances, accounts] = await Promise.all([
+  const [balances, allAccounts] = await Promise.all([
     aggregateAccountBalances(tenantId, { companyId, branchId, dateFrom, dateTo }),
     prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } }),
   ]);
+  const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);
+  const accounts = foldAccountList(allAccounts, fold);
 
   // الإجماليات تُحسب مباشرة من كل الأرصدة دائماً (لا من الشجرة المعروضة) — تبقى صحيحة بصرف النظر
   // عن المستوى/الفرع/البحث المختار للعرض، تماماً كإجمالي ميزان المراجعة العام.
@@ -477,8 +495,8 @@ export async function getIncomeStatement(
   }
   const netIncome = totalRevenue - totalExpense;
 
-  const revenueRoots = buildFilteredSectionTree(accounts, revenueValues, ["revenue"], rollup);
-  const expenseRoots = buildFilteredSectionTree(accounts, expenseValues, ["expense"], rollup);
+  const revenueRoots = buildFilteredSectionTree(accounts, foldValueMap(revenueValues, fold), ["revenue"], rollup);
+  const expenseRoots = buildFilteredSectionTree(accounts, foldValueMap(expenseValues, fold), ["expense"], rollup);
 
   return { revenueRoots, expenseRoots, totalRevenue, totalExpense, netIncome };
 }
@@ -489,11 +507,15 @@ export async function getBalanceSheet(
   asOfDate?: Date,
   rollup: ReportRollupParams = {},
   branchId?: string,
+  hrView = true,
 ) {
-  const [balances, accounts] = await Promise.all([
+  const [balances, allAccounts] = await Promise.all([
     aggregateAccountBalances(tenantId, { companyId, branchId, dateTo: asOfDate }),
     prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } }),
   ]);
+  // غير أدوار الموارد البشرية: مجموعات حسابات الأشخاص رصيد واحد (راجع personalAccounts.ts)
+  const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);
+  const accounts = foldAccountList(allAccounts, fold);
 
   // صافي الربح التراكمي حتى تاريخ التقرير يُضاف لحقوق الملكية (أرباح مرحّلة) — رقم إجمالي على
   // مستوى الشركة كاملة دائماً، بصرف النظر عن أي فلتر عرض على صفوف الأصول/الالتزامات/حقوق الملكية،
@@ -527,9 +549,9 @@ export async function getBalanceSheet(
   }
   const totalEquity = totalEquityBase + netIncome;
 
-  const assetRoots = buildFilteredSectionTree(accounts, assetValues, ["asset"], rollup);
-  const liabilityRoots = buildFilteredSectionTree(accounts, liabilityValues, ["liability"], rollup);
-  const equityRoots = buildFilteredSectionTree(accounts, equityValues, ["equity"], rollup);
+  const assetRoots = buildFilteredSectionTree(accounts, foldValueMap(assetValues, fold), ["asset"], rollup);
+  const liabilityRoots = buildFilteredSectionTree(accounts, foldValueMap(liabilityValues, fold), ["liability"], rollup);
+  const equityRoots = buildFilteredSectionTree(accounts, foldValueMap(equityValues, fold), ["equity"], rollup);
 
   return {
     assetRoots,
@@ -661,11 +683,14 @@ export async function getAccountLedger(
   dateFrom?: Date,
   dateTo?: Date,
   filters?: { costCenterId?: string; departmentId?: string; branchId?: string },
+  hrView = true,
 ) {
   const account = await prisma.account.findFirst({
     where: { id: accountId, tenantId, companyId: companyId || undefined },
   });
   if (!account) throw notFound("الحساب غير موجود");
+  // غير أدوار الموارد البشرية: لا كشف لحساب شخص بعينه — كشف المجموعة فقط (راجع personalAccounts.ts)
+  await assertNotPersonalAccount(hrView, tenantId, account.id);
 
   const normalSide: "debit" | "credit" = account.type === "asset" || account.type === "expense" ? "debit" : "credit";
 
@@ -716,16 +741,37 @@ export async function getAccountLedger(
     orderBy: { journalEntry: { date: "asc" } },
   });
 
+  let visibleLines = lines.map((l) => ({ ...l, debit: Number(l.debit), credit: Number(l.credit) }));
+  const memoOf = new Map(lines.map((l) => [l.journalEntryId, l.journalEntry.memo]));
+  if (!hrView) {
+    // غير أدوار الموارد البشرية: حسابات الأشخاص تُنسَب لمجموعتها، وقيود الرواتب والتسويات (وعكسها) تُطوى
+    // لسطر لكل حساب في القيد بلا وصف ولا اسم — راجع hrRedaction.ts. الرصيد المتحرك يُحسَب بعد الطيّ.
+    const [fold, kinds] = await Promise.all([
+      loadPersonalFold(tenantId, companyId),
+      hrEntryKinds(tenantId, [...new Map(lines.map((l) => [l.journalEntryId, l.journalEntry])).values()]),
+    ]);
+    const byEntry = new Map<string, typeof visibleLines>();
+    for (const l of visibleLines) byEntry.set(l.journalEntryId, [...(byEntry.get(l.journalEntryId) || []), l]);
+    visibleLines = [...byEntry.entries()].flatMap(([entryId, entryLines]) => {
+      const kind = kinds.get(entryId);
+      if (kind) memoOf.set(entryId, redactHrMemo(kind, memoOf.get(entryId) ?? null));
+      const folded = kind ? collapseHrLines(entryLines, fold) : entryLines;
+      return folded.map((l) => {
+        const group = fold.get(l.accountId);
+        return group ? { ...l, accountId: group.id, account: group } : l;
+      });
+    });
+  }
+
   let balance = openingBalance;
-  const rows = lines.map((l) => {
-    const debit = Number(l.debit);
-    const credit = Number(l.credit);
+  const rows = visibleLines.map((l) => {
+    const { debit, credit } = l;
     balance += normalSide === "debit" ? debit - credit : credit - debit;
     return {
       date: l.journalEntry.date,
       journalEntryId: l.journalEntryId,
       entryNumber: l.journalEntry.entryNumber,
-      entryMemo: l.journalEntry.memo,
+      entryMemo: memoOf.get(l.journalEntryId) ?? null,
       lineDescription: l.description,
       costCenterName: l.costCenter?.name || null,
       departmentName: l.departmentRef?.name || l.department || null,

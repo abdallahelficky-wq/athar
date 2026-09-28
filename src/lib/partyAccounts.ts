@@ -21,18 +21,21 @@ const PARTY_PARENT_CODE: Record<"customer" | "supplier", string> = {
  */
 async function ensureAccountGroup(
   client: Prisma.TransactionClient,
-  params: { tenantId: string; companyId: string; name: string; type: Account["type"]; parentCode: string },
+  params: { tenantId: string; companyId: string; name: string; type: Account["type"]; parentCode: string; isPersonalGroup?: boolean },
 ): Promise<Account> {
-  const { tenantId, companyId, name, type, parentCode } = params;
+  const { tenantId, companyId, name, type, parentCode, isPersonalGroup = false } = params;
   const existing = await client.account.findFirst({ where: { tenantId, companyId, name, isPosting: false } });
-  if (existing) return existing;
+  if (existing) {
+    if (isPersonalGroup && !existing.isPersonalGroup) return client.account.update({ where: { id: existing.id }, data: { isPersonalGroup: true } });
+    return existing;
+  }
 
   const parent = await client.account.findFirst({ where: { tenantId, companyId, code: parentCode, isPosting: false } });
   if (!parent) throw badRequest(`حساب التجميع بالكود "${parentCode}" غير موجود في شجرة هذه الشركة`);
 
   const code = await generateNextCode(client, tenantId, companyId, parent.id);
   return client.account.create({
-    data: { tenantId, companyId, parentId: parent.id, code, name, type, level: parent.level + 1, isPosting: false },
+    data: { tenantId, companyId, parentId: parent.id, code, name, type, level: parent.level + 1, isPosting: false, isPersonalGroup },
   });
 }
 
@@ -50,7 +53,7 @@ export async function ensurePartyAccount(
 
   const parent =
     kind === "employee"
-      ? await ensureAccountGroup(client, { tenantId, companyId, name: "ذمم الموظفين", type: "asset", parentCode: "11" })
+      ? await ensureAccountGroup(client, { tenantId, companyId, name: "ذمم الموظفين", type: "asset", parentCode: "11", isPersonalGroup: true })
       : await client.account.findFirst({ where: { tenantId, companyId, code: PARTY_PARENT_CODE[kind], isPosting: false } });
   if (!parent) throw badRequest(`حساب التجميع المطلوب (${PARTY_PARENT_CODE[kind as "customer" | "supplier"]}) غير موجود في شجرة هذه الشركة`);
 

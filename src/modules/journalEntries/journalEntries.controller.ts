@@ -4,6 +4,8 @@ import * as bulkImportService from "./bulkImport.service";
 import { badRequest } from "../../lib/httpError";
 import { previewNextEntryNumber } from "../../lib/journalPosting";
 import { buildJournalVoucherPdf } from "../../lib/journalVoucherPdf";
+import { canReadHrData } from "../../middleware/auth";
+import { assertNotPersonalAccount } from "../../lib/personalAccounts";
 
 const asString = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const asNumber = (v: unknown) => (typeof v === "string" && v !== "" ? Number(v) : undefined);
@@ -11,6 +13,9 @@ const asStatus = (v: unknown) => (v === "saved" || v === "posted" ? v : undefine
 
 export const listHandler: RequestHandler = async (req, res) => {
   const { companyId, dateFrom, dateTo, search, entryNumber, accountId, amount, amountMin, amountMax, status, branchId } = req.query;
+  const hrView = canReadHrData(req.auth!);
+  // غير أدوار الموارد البشرية لا يفلترون بحساب شخص بعينه — المجموعة فقط (راجع personalAccounts.ts)
+  await assertNotPersonalAccount(hrView, req.auth!.tenantId, asString(accountId));
   const entries = await service.listJournalEntries(req.auth!.tenantId, {
     companyId: asString(companyId),
     dateFrom: asString(dateFrom),
@@ -23,6 +28,7 @@ export const listHandler: RequestHandler = async (req, res) => {
     amountMax: asNumber(amountMax),
     status: asStatus(status),
     branchId: asString(branchId),
+    hrView,
   });
   res.json(entries);
 };
@@ -34,7 +40,7 @@ export const nextNumberHandler: RequestHandler = async (req, res) => {
 };
 
 export const getHandler: RequestHandler = async (req, res) => {
-  const entry = await service.getJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.companyScope);
+  const entry = await service.getJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.companyScope, canReadHrData(req.auth!));
   res.json(entry);
 };
 
@@ -42,7 +48,7 @@ export const getHandler: RequestHandler = async (req, res) => {
 // (renderHtmlToPdf عبر Puppeteer)، بلا مكتبة جديدة. Content-Disposition: attachment يجعل المتصفح
 // يُنزّل الملف فوراً بدل عرض معاينة/نافذة طباعة يحتاج المستخدم يضغط "حفظ" بنفسه.
 export const getPdfHandler: RequestHandler = async (req, res) => {
-  const entry = await service.getJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.companyScope);
+  const entry = await service.getJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.companyScope, canReadHrData(req.auth!));
   const entryNumber = entry.entryNumber || entry.id.slice(-8);
   const hasBranchColumn = entry.lines.some((l) => l.branch);
   const pdf = await buildJournalVoucherPdf({
@@ -70,12 +76,12 @@ export const getPdfHandler: RequestHandler = async (req, res) => {
 
 export const createHandler: RequestHandler = async (req, res) => {
   const entry = await service.createJournalEntry(req.auth!.tenantId, req.auth!.sub, req.body);
-  res.status(201).json(entry);
+  res.status(201).json(await service.redactEntryForViewer(req.auth!.tenantId, entry, canReadHrData(req.auth!)));
 };
 
 export const updateHandler: RequestHandler = async (req, res) => {
-  const entry = await service.updateJournalEntry(req.auth!.tenantId, req.params.id, req.body, req.auth!.companyScope);
-  res.json(entry);
+  const entry = await service.updateJournalEntry(req.auth!.tenantId, req.params.id, req.body, req.auth!.companyScope, canReadHrData(req.auth!));
+  res.json(await service.redactEntryForViewer(req.auth!.tenantId, entry, canReadHrData(req.auth!)));
 };
 
 export const deleteHandler: RequestHandler = async (req, res) => {
@@ -85,12 +91,12 @@ export const deleteHandler: RequestHandler = async (req, res) => {
 
 export const postHandler: RequestHandler = async (req, res) => {
   const entry = await service.postJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.companyScope);
-  res.json(entry);
+  res.json(await service.redactEntryForViewer(req.auth!.tenantId, entry, canReadHrData(req.auth!)));
 };
 
 export const unpostHandler: RequestHandler = async (req, res) => {
   const entry = await service.unpostJournalEntry(req.auth!.tenantId, req.params.id, req.auth!.sub, req.body.pin, req.auth!.companyScope);
-  res.json(entry);
+  res.json(await service.redactEntryForViewer(req.auth!.tenantId, entry, canReadHrData(req.auth!)));
 };
 
 export const createFromDocumentHandler: RequestHandler = async (req, res) => {
@@ -104,18 +110,18 @@ export const createFromDocumentHandler: RequestHandler = async (req, res) => {
 };
 
 export const mirrorSuggestionHandler: RequestHandler = async (req, res) => {
-  const suggestion = await service.getMirrorSuggestion(req.auth!.tenantId, req.params.id, req.body.targetCompanyId, req.auth!.companyScope);
+  const suggestion = await service.getMirrorSuggestion(req.auth!.tenantId, req.params.id, req.body.targetCompanyId, req.auth!.companyScope, canReadHrData(req.auth!));
   res.json(suggestion);
 };
 
 export const createMirrorHandler: RequestHandler = async (req, res) => {
   const mirror = await service.createMirrorJournalEntry(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body, req.auth!.companyScope);
-  res.status(201).json(mirror);
+  res.status(201).json(await service.redactEntryForViewer(req.auth!.tenantId, mirror, canReadHrData(req.auth!)));
 };
 
 export const reverseHandler: RequestHandler = async (req, res) => {
   const reversal = await service.reverseJournalEntry(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.date, req.auth!.companyScope);
-  res.status(201).json(reversal);
+  res.status(201).json(await service.redactEntryForViewer(req.auth!.tenantId, reversal, canReadHrData(req.auth!)));
 };
 
 export const bulkImportPreviewHandler: RequestHandler = async (req, res) => {

@@ -1125,6 +1125,7 @@
     }
   },
   "journalEntries": {
+    "hrCollapsed": "Payroll / leave settlement entry shown as one line per account — per-employee detail is for HR roles only.", "openPayrollRun": "Open the linked payroll run",
     "breadcrumb": "Journal",
     "statusSaved": "Saved",
     "statusPosted": "Posted",
@@ -1265,7 +1266,7 @@
         "posting": "Posting account"
       }
     },
-    "form": {
+    "form": {"personalGroup": "Group of personal accounts (one balance for non-HR roles)", "personalGroupHint": "This group's sub-accounts are named after individuals — for non-HR roles it shows as one balance, with no per-person breakdown, in the trial balance, chart of accounts and ledger.", 
       "nameAr": "Account name (Arabic)",
       "nameEn": "Account name (English) (optional)",
       "code": "Account code",
@@ -1304,7 +1305,7 @@
       "noteLevelPosting": "Level {{level}} of 4 — automatically a posting account.",
       "noteLevelGroup": "Level {{level}} of 4 — a group account."
     },
-    "table": {
+    "table": {"personalGroup": "collapsed balance", "personalGroupHint": "Personal accounts — per-person detail is for HR roles only", 
       "code": "Code",
       "account": "Account",
       "level": "Level",
@@ -1747,6 +1748,7 @@
   },
   "settings": {
     "eyebrow": "System administration",
+    "payrollTotals": {"title": "Payroll posted in totals", "note": "From the chosen month, a payroll run posts one line per pay component and a single net line to «رواتب مستحقة للصرف» (salaries payable), instead of a line per employee and net pay on each employee's sub-account. Runs posted before it are not changed, and existing balances on employee sub-accounts stay there to be paid from. After the switch, salary payments debit salaries payable.", "company": "Company", "current": "Current", "fromMonth": "From month", "since": "Totals from {{month}}", "legacy": "Line per employee (legacy posting)", "save": "Save", "clear": "Cancel switch", "confirm": "Post {{company}}'s payroll in totals from {{month}}? Runs already posted are not changed."},
     "balancesPostedOnly": {"title": "Balances count posted entries only", "note": "When on, saved (unposted) entries are left out of the trial balance, ledger, financial statements and dashboard, and are shown beneath them as a separate line. Companies that already had saved entries start with this switch off until those entries are reviewed — review them, post what is final, then turn the switch on.", "company": "Company", "state": "State", "savedEntries": "Saved entries now", "on": "On — posted only", "off": "Off — saved entries counted", "savedSummary": "{{count}} entries (debit {{debit}})", "enable": "Turn on", "disable": "Turn off", "confirmEnable": "Count posted entries only for {{company}}? {{count}} saved entries will leave all of its balances and statements.", "confirmDisable": "Turn the switch off for {{company}}? Saved entries will return to its balances and statements."},
     "unlockPin": {"title": "Un-posting PIN", "changeBtn": "Change PIN", "note": "Required to un-post any document. New accounts start with 1234 — change it. Five wrong attempts in a row lock un-posting for that user for 15 minutes, and every wrong attempt is logged under their name.", "current": "Current PIN", "new": "New PIN (4 to 8 digits)", "confirm": "Confirm new PIN", "errFormat": "The PIN must be 4 to 8 digits", "errMismatch": "The confirmation doesn't match the new PIN", "done": "The un-posting PIN has been changed."},
     "tenantName": {

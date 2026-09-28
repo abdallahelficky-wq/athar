@@ -7,6 +7,7 @@ export const createIndependentCompany = (payload) => api.post("/companies/indepe
 export const updateCompany = (id, payload) => api.patch(`/companies/${id}`, payload);
 // مفتاح "الأرصدة تحتسب المرحَّل فقط" — للمالك وحده
 export const setBalancesPostedOnly = (id, enabled) => api.patch(`/companies/${id}/balances-posted-only`, { enabled });
+export const setPayrollTotalsFromMonth = (id, month) => api.patch(`/companies/${id}/payroll-totals-from-month`, { month });
 // "فتح الإقفال" — تقديم تاريخ إقفال السنة المالية للخلف أو مسحه بالكامل، admin فقط (راجع الرفض
 // المقابل لهذه الحالة في updateCompany العادي على الخادم).
 export const reopenFiscalClosing = (id, fiscalYearClosingDate) =>
