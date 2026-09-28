@@ -19,6 +19,8 @@ export default function SalesReportsTab({ companyId, companies }) {
   const [byCustomer, setByCustomer] = useState([]);
   const [monthly, setMonthly] = useState([]);
   const [aging, setAging] = useState([]);
+  // المركز كما في تاريخ — فارغ = اليوم
+  const [agingAsOf, setAgingAsOf] = useState("");
   const vatPeriod = useVatPeriod(companies?.find((c) => c.id === companyId));
   const { data: vat, error: vatError } = useVatFetch(getSalesVatSummary, companyId, vatPeriod.applied);
 
@@ -26,8 +28,12 @@ export default function SalesReportsTab({ companyId, companies }) {
     if (!companyId) return;
     getSalesByCustomer(companyId).then(setByCustomer);
     getSalesMonthly(companyId).then(setMonthly);
-    getReceivablesAging(companyId).then(setAging);
   }, [companyId]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    getReceivablesAging(companyId, agingAsOf).then(setAging);
+  }, [companyId, agingAsOf]);
 
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
@@ -74,22 +80,23 @@ export default function SalesReportsTab({ companyId, companies }) {
 
       {tab === "aging" && (
         <div className="panel">
+          <label className="aging-asof">{t("sales.reports.aging.asOf")} <input type="date" value={agingAsOf} onChange={(e) => setAgingAsOf(e.target.value)} /></label>
           <table className="ledger-table">
             <thead>
               <tr>
                 <th>{t("sales.reports.aging.customer")}</th><th>{t("sales.reports.aging.current")}</th>
                 <th>{t("sales.reports.aging.d30")}</th><th>{t("sales.reports.aging.d60")}</th>
-                <th>{t("sales.reports.aging.d90")}</th><th>{t("sales.reports.aging.total")}</th>
+                <th>{t("sales.reports.aging.d90")}</th><th title={t("sales.reports.aging.unallocatedHint")}>{t("sales.reports.aging.unallocated")}</th><th>{t("sales.reports.aging.total")}</th>
               </tr>
             </thead>
             <tbody>
               {aging.map((r) => (
                 <tr key={r.customerId}>
                   <td>{r.customerName}</td><td className="num">{fmt(r.current)}</td><td className="num">{fmt(r.d30)}</td>
-                  <td className="num">{fmt(r.d60)}</td><td className="num">{fmt(r.d90)}</td><td className="num strong">{fmt(r.total)}</td>
+                  <td className="num">{fmt(r.d60)}</td><td className="num">{fmt(r.d90)}</td><td className="num">{fmt(r.unallocated)}</td><td className="num strong">{fmt(r.total)}</td>
                 </tr>
               ))}
-              {aging.length === 0 && <tr><td className="empty" colSpan={6}>{t("sales.reports.aging.empty")}</td></tr>}
+              {aging.length === 0 && <tr><td className="empty" colSpan={7}>{t("sales.reports.aging.empty")}</td></tr>}
             </tbody>
           </table>
         </div>

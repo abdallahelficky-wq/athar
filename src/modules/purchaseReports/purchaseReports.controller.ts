@@ -19,5 +19,7 @@ export const vatSummaryHandler: RequestHandler = async (req, res) => {
 };
 
 export const agingHandler: RequestHandler = async (req, res) => {
-  res.json(await service.getPayablesAging(req.auth!.tenantId, filters(req)));
+  // asOf=YYYY-MM-DD: المركز كما في ذلك اليوم؛ بدونه اليوم
+  const asOf = typeof req.query.asOf === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.asOf) ? new Date(`${req.query.asOf}T00:00:00.000Z`) : undefined;
+  res.json(await service.getPayablesAging(req.auth!.tenantId, { ...filters(req), asOf }));
 };

@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { round2, type VatPeriod } from "../../lib/vatPeriod";
+import { receivablesAgingAsOf } from "../../lib/aging";
 import { OUTPUT_VAT_ACCOUNT_NAME, resolveVatAccount, stationShiftOutputVat } from "../../lib/vatAccounts";
 
 interface Filters {
@@ -101,24 +102,9 @@ export async function getSalesVatSummary(tenantId: string, period: VatPeriod) {
   };
 }
 
-/** أعمار الذمم — يبني حِزَم 0-30/31-60/61-90/90+ يوماً من تاريخ كل فاتورة مستحقة حتى اليوم
- * TODO: يحسب من تاريخ الفاتورة لا من dueDate الفعلي — راجع "ملاحظة معلّقة" في README.md
- * الجذر لتفاصيل الأثر وسبب تأجيل معالجتها. */
-export async function getReceivablesAging(tenantId: string, filters: Filters) {
-  const invoices = await invoicesWithPaid(tenantId, filters.companyId);
-  const today = new Date();
-
-  const byCustomer = new Map<string, { customerId: string; customerName: string; current: number; d30: number; d60: number; d90: number; total: number }>();
-  invoices.filter((i) => i.due > 0.5).forEach((inv) => {
-    const days = Math.floor((today.getTime() - inv.date.getTime()) / 86_400_000);
-    const row = byCustomer.get(inv.customerId) || { customerId: inv.customerId, customerName: inv.customer.name, current: 0, d30: 0, d60: 0, d90: 0, total: 0 };
-    if (days <= 30) row.current += inv.due;
-    else if (days <= 60) row.d30 += inv.due;
-    else if (days <= 90) row.d60 += inv.due;
-    else row.d90 += inv.due;
-    row.total += inv.due;
-    byCustomer.set(inv.customerId, row);
-  });
-
-  return [...byCustomer.values()];
+/** أعمار الذمم المدينة كما في تاريخ (الافتراضي اليوم) — راجع lib/aging.ts. الإجمالي لكل عميل رصيد حسابه في الأستاذ.
+ * TODO: العمر من تاريخ الفاتورة لا من dueDate الفعلي — راجع "ملاحظة معلّقة" في README.md الجذر. */
+export async function getReceivablesAging(tenantId: string, filters: Filters & { asOf?: Date }) {
+  const report = await receivablesAgingAsOf(tenantId, filters.companyId, filters.asOf ?? new Date());
+  return report.rows.map(({ partyId, partyName, ...b }) => ({ customerId: partyId, customerName: partyName, ...b }));
 }

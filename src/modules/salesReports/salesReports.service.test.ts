@@ -57,7 +57,17 @@ vi.mock("../../lib/prisma", () => ({
     },
     salesDebitNote: {
       aggregate: vi.fn(() => Promise.resolve(EMPTY_AGGREGATE)),
+      findMany: vi.fn(() => Promise.resolve([])),
     },
+    // أعمار الذمم (lib/aging.ts): إجمالي العميل رصيد حسابه في الأستاذ — وفيه الفاتورة المرحّلة وحدها (100)،
+    // لأن المعلّقة لدى زاتكا والناقصة الترحيل لا قيد لها
+    customer: {
+      findMany: vi.fn(() => Promise.resolve([{ id: CUSTOMER_ID, name: "عميل تجريبي", accountId: "account-customer-1" }])),
+    },
+    journalEntryLine: {
+      groupBy: vi.fn(() => Promise.resolve([{ accountId: "account-customer-1", _sum: { debit: 100, credit: 0 } }])),
+    },
+    auditLog: { findMany: vi.fn(() => Promise.resolve([])) }, // لا تخصيصات مفكوكة في هذا الاختبار
   },
 }));
 
@@ -100,6 +110,10 @@ describe("sales reports exclude pending_submission / zatca_accepted_posting_inco
     expect(totals).not.toContain(1000);
     expect(totals).not.toContain(2000);
     expect(totals).not.toContain(4000);
-    if (aging.length) expect(aging[0].total).toBe(100);
+    expect(aging).toHaveLength(1);
+    expect(aging[0].total).toBe(100);
+    // والأعمار نفسها لا تحمل مبالغها: الفاتورة المرحّلة وحدها في الحِزم، ولا فرق غير مخصَّص
+    expect(aging[0].current + aging[0].d30 + aging[0].d60 + aging[0].d90).toBe(100);
+    expect(aging[0].unallocated).toBe(0);
   });
 });
