@@ -1860,7 +1860,7 @@
     },
     "zatca": {
       "modalTitle": "ربط فاتورة (ZATCA) — {{name}}",
-      "statusNotOnboarded": "غير مفعّل",
+      "unarchivedOk": "أرشيف زاتكا: كل مستند قبلته زاتكا منذ {{since}} محفوظ أصله (0 ناقص).", "unarchivedBad": "⚠ أرشيف زاتكا: {{count}} مستند قبلته زاتكا منذ بدء الأرشفة بلا أصل محفوظ — كتابة الأرشيف تفشل. أحدثها: {{numbers}}", "statusNotOnboarded": "غير مفعّل",
       "statusCompliance": "بيئة اختبار (Compliance)",
       "statusProduction": "الإنتاج (مفعّلة)",
       "envSandbox": "بيئة المطورين العامة (Sandbox)",

@@ -102,6 +102,7 @@ describe("ZATCA document archive (integration)", () => {
     server?.close();
     // صفوف الأرشيف تبقى (للإضافة فقط، بلا مفتاح أجنبي يمنع حذف المستأجر)
     await prisma.salesInvoice.deleteMany({ where: { tenantId } });
+    await prisma.customer.deleteMany({ where: { tenantId } });
     await prisma.stockMovement.deleteMany({ where: { tenantId } });
     await prisma.journalEntry.deleteMany({ where: { tenantId } });
     await prisma.tenant.update({ where: { id: tenantId }, data: { ownerId: null } }).catch(() => undefined);
@@ -192,5 +193,38 @@ describe("ZATCA document archive (integration)", () => {
     expect((await call("GET", `/zatca-archive/export?companyId=${companyId}&from=2026-09-01&to=2026-09-30`, scopedToken)).status).toBe(403);
     expect((await call("GET", `/zatca-archive/export?companyId=${otherCompanyId}&from=2026-09-01&to=2026-09-30`, scopedToken)).status).toBe(200);
     expect((await call("GET", `/zatca-archive/export?companyId=${companyId}`)).status).toBe(400);
+  });
+
+  it("counts documents accepted since archiving began that have no stored original — the number that must stay zero", async () => {
+    const q = () => call("GET", `/zatca-archive/unarchived?companyId=${otherCompanyId}`).then((r) => r.json());
+    expect((await q()).count).toBe(0);
+    const inv = await prisma.salesInvoice.create({
+      data: {
+        tenantId, companyId: otherCompanyId, customerId: (await prisma.customer.create({ data: { tenantId, companyId: otherCompanyId, name: "عميل ب" } })).id,
+        invoiceNumber: `GAP-${stamp}`, date: new Date(), invoiceType: "simplified", status: "posted", subtotal: 100, vatTotal: 15, grandTotal: 115,
+        zatcaStatus: "reported", zatcaClearedOrReportedAt: new Date(), icv: 99, invoiceHash: "hx", zatcaSubmittedAt: new Date(),
+      } as never,
+    });
+    // قبل بدء الأرشفة: فجوة تاريخية معروفة، لا تُعَدّ هنا
+    await prisma.salesInvoice.create({
+      data: {
+        tenantId, companyId: otherCompanyId, customerId: inv.customerId, invoiceNumber: `OLD-${stamp}`, date: new Date("2020-01-01"), invoiceType: "simplified",
+        status: "posted", subtotal: 100, vatTotal: 15, grandTotal: 115, zatcaStatus: "reported", zatcaClearedOrReportedAt: new Date("2020-01-01"),
+      } as never,
+    });
+    const gap = await q();
+    expect(gap.count).toBe(1);
+    expect(gap.latest[0].documentNumber).toBe(`GAP-${stamp}`);
+    const report = await (await call("GET", `/reports/comprehensive-monthly?companyId=${otherCompanyId}&month=${new Date().toISOString().slice(0, 7)}`)).json();
+    expect(report.zatcaUnarchived).toBe(1);
+    expect(report.generatedNotes.join(" ")).toContain("[zatca-archive] FAILED");
+
+    await prisma.$transaction((tx) => writeZatcaArchiveTx(tx, {
+      tenantId, companyId: otherCompanyId, documentType: "sales_invoice", documentId: inv.id, documentNumber: inv.invoiceNumber, documentUuid: inv.zatcaUuid,
+    }, { signedXml: docXml(inv.invoiceNumber, "2026-09-28", "10:00:00"), subtype: "simplified", icv: 99, invoiceHash: "hx", issuedAt: new Date() }, "submission"));
+    expect((await q()).count).toBe(0);
+    const clean = await (await call("GET", `/reports/comprehensive-monthly?companyId=${otherCompanyId}&month=${new Date().toISOString().slice(0, 7)}`)).json();
+    expect(clean.zatcaUnarchived).toBe(0);
+    expect(clean.generatedNotes.join(" ")).not.toContain("zatca-archive");
   });
 });

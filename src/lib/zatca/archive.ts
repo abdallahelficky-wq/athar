@@ -256,3 +256,54 @@ export async function exportZatcaArchive(tenantId: string, companyId: string, fr
     missingCount: missing.length,
   };
 }
+
+// ---------------------------------------------------------------------------
+// عدّاد الفجوة الجارية — يجب أن يبقى صفراً
+// ---------------------------------------------------------------------------
+export const ARCHIVE_MIGRATION = "20260928140000_zatca_document_archive";
+
+export interface UnarchivedSummary {
+  /** متى بدأت الأرشفة فعلاً على هذه القاعدة (وقت تطبيق الترحيل)؛ null إن لم يُطبَّق */
+  since: Date | null;
+  count: number;
+  byType: Record<string, number>;
+  /** أحدث المستندات الناقصة (حتى 20) للمتابعة */
+  latest: { documentType: string; documentNumber: string; companyId: string; acceptedAt: Date }[];
+}
+
+/**
+ * مستندات قبلتها زاتكا **بعد** بدء الأرشفة ولا أصل لها في الأرشيف. رقم يجب أن يكون صفراً دائماً: غير الصفر يعني أن
+ * كتابة الأرشيف تفشل (saveZatcaResponseWithArchive حفظ الرد وحده) — فجوة جديدة تتراكم. ما قبل بدء الأرشفة فجوة تاريخية
+ * معروفة (docs/zatca-archive.md) ولا يُحسَب هنا.
+ */
+export async function unarchivedSinceArchiving(tenantId: string, companyId?: string): Promise<UnarchivedSummary> {
+  const live = await prisma.$queryRawUnsafe<{ finished_at: Date | null }[]>(
+    `SELECT finished_at FROM _prisma_migrations WHERE migration_name = $1 AND finished_at IS NOT NULL AND rolled_back_at IS NULL LIMIT 1`,
+    ARCHIVE_MIGRATION,
+  );
+  const since = live[0]?.finished_at ?? null;
+  if (!since) return { since: null, count: 0, byType: {}, latest: [] };
+  const rows = await prisma.$queryRawUnsafe<{ kind: string; number: string; companyId: string; at: Date }[]>(
+    `SELECT d.kind, d.number, d."companyId", d.at FROM (
+       SELECT 'sales_invoice' AS kind, id, "invoiceNumber" AS number, "tenantId", "companyId", "zatcaClearedOrReportedAt" AS at FROM sales_invoices WHERE "zatcaStatus" IN ('cleared', 'reported')
+       UNION ALL
+       SELECT 'sales_return', id, "returnNumber", "tenantId", "companyId", "zatcaClearedOrReportedAt" FROM sales_returns WHERE "zatcaStatus" IN ('cleared', 'reported')
+       UNION ALL
+       SELECT 'sales_debit_note', id, "debitNoteNumber", "tenantId", "companyId", "zatcaClearedOrReportedAt" FROM sales_debit_notes WHERE "zatcaStatus" IN ('cleared', 'reported')
+     ) d
+     WHERE d."tenantId" = $1 AND ($2::text IS NULL OR d."companyId" = $2) AND d.at >= $3
+       AND NOT EXISTS (SELECT 1 FROM zatca_document_archive a WHERE a."documentType" = d.kind AND a."documentId" = d.id)
+     ORDER BY d.at DESC`,
+    tenantId,
+    companyId ?? null,
+    since,
+  );
+  const byType: Record<string, number> = {};
+  for (const r of rows) byType[r.kind] = (byType[r.kind] || 0) + 1;
+  return {
+    since,
+    count: rows.length,
+    byType,
+    latest: rows.slice(0, 20).map((r) => ({ documentType: r.kind, documentNumber: r.number, companyId: r.companyId, acceptedAt: r.at })),
+  };
+}

@@ -1860,7 +1860,7 @@
     },
     "zatca": {
       "modalTitle": "ZATCA linkage — {{name}}",
-      "statusNotOnboarded": "Not enabled",
+      "unarchivedOk": "ZATCA archive: every document accepted since {{since}} has its original stored (0 missing).", "unarchivedBad": "⚠ ZATCA archive: {{count}} documents accepted since archiving began have no stored original — archive writes are failing. Latest: {{numbers}}", "statusNotOnboarded": "Not enabled",
       "statusCompliance": "Test environment (Compliance)",
       "statusProduction": "Production (enabled)",
       "envSandbox": "Public developer environment (Sandbox)",
