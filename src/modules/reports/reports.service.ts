@@ -14,6 +14,7 @@ import {
 } from "../../lib/reportRollup";
 import { foldAccountList, foldValueMap, personalFoldFromAccounts, loadPersonalFold, assertNotPersonalAccount } from "../../lib/personalAccounts";
 import { collapseHrLines, hrEntryKinds, redactHrMemo } from "../../lib/hrRedaction";
+import { monthlyAgingShape, payablesAgingAsOf, receivablesAgingAsOf } from "../../lib/aging";
 import { COUNTED_ENTRY_WHERE, UNCOUNTED_DRAFT_WHERE } from "../../lib/countedEntries";
 
 export interface DateRange {
@@ -110,8 +111,9 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
     aggregateAccountBalances(tenantId, { companyId, dateFrom: previousFrom, dateTo: previousTo }),
     aggregateAccountBalances(tenantId, { companyId, dateTo: to }),
     prisma.company.findMany({ where: { tenantId, id: companyId || undefined } }),
-    prisma.salesInvoice.findMany({ where: { tenantId, companyId: companyId || undefined, status: "posted", date: { lte: to } }, include: { receiptAllocations: true } }),
-    prisma.purchaseInvoice.findMany({ where: { tenantId, companyId: companyId || undefined, status: "posted", date: { lte: to } } }),
+    // الأعمار كما في نهاية الشهر: ما خُصِّص أو سُدِّد بعده لا يُنقِص ذمة ذلك الشهر (راجع lib/aging.ts)
+    receivablesAgingAsOf(tenantId, companyId, to),
+    payablesAgingAsOf(tenantId, companyId, to),
     prisma.employee.findMany({ where: { tenantId, companyId: companyId || undefined, accountId: { not: null } }, select: { accountId: true } }),
   ]);
   const values = (raw: Map<string, AccountBalance>) => new Map([...raw].map(([id, b]) => [id, { debit: b.debit, credit: b.credit }]));
@@ -129,10 +131,7 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const cashIds = new Set(accounts.filter(a => a.isBankOrCash).map(a => a.id));
   const cashFlow = (rows: typeof cur) => rows.filter(r => cashIds.has(r.account.id)).reduce((a,r) => ({ receipts: a.receipts+r.value.debit, payments: a.payments+r.value.credit }), { receipts: 0, payments: 0 });
   const cf = cashFlow(cur), pcf = cashFlow(prev);
-  const aging = (docs: Array<{ date: Date; due: number }>) => docs.reduce((a,d) => { const days=Math.floor((to.getTime()-d.date.getTime())/86400000); const k=days<=30?"under30":days<=60?"d30to60":days<=90?"d60to90":"over90"; a[k]+=Math.max(d.due,0); return a; }, { under30:0,d30to60:0,d60to90:0,over90:0 });
-  const arDocs = receivableAging.map(i => ({ date:i.date, due:Number(i.grandTotal)-i.receiptAllocations.reduce((s,a)=>s+Number(a.amount),0) }));
-  const apDocs = payableAging.map(i => ({ date:i.date, due:Number(i.grandTotal) }));
-  const receivables = money(arDocs.reduce((s,x)=>s+Math.max(x.due,0),0)), payables = money(apDocs.reduce((s,x)=>s+x.due,0));
+  const receivables = money(receivableAging.totals.total), payables = money(payableAging.totals.total);
   const liabilityRows = closing.filter(r => r.account.type === "liability" && /(قرض|قسط|ضريبة|قيمة مضافة|زكاة|مستحق)/.test(r.account.name)).map(r => ({ name:r.account.name, amount:money(natural(r)), dueDate:null }));
   const salaryAccounts = closing.filter(r => /(رواتب مستحقة|نهاية خدمة)/.test(r.account.name));
   // الرواتب المستحقة تقع في مكانين: حساب «رواتب مستحقة» (الترحيل بالإجماليات، ومن أي قيد يدوي)، والحسابات الفرعية
@@ -183,7 +182,7 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const notes:string[]=[]; expenseDetails.forEach(e => { const old=prev.find(r=>r.account.id===e.accountId); const change=pct(e.value,old?natural(old):0); if(change!=null && change>=settings.expenseIncreasePct) notes.push(en ? `Expense ${e.name} increased by ${change}% from the previous month.` : `مصروف ${e.name} زاد بنسبة ${change}% عن الشهر السابق.`); });
   if (pct(revenue-expense, previousRevenue-previousExpense)! < 0 && revenue>previousRevenue) notes.push(en ? "Net profit declined despite increased revenue — expenses are worth reviewing." : "صافي الربح انخفض رغم زيادة الإيرادات — يستحق مراجعة المصروفات.");
   const totalCash=money(cashRows.reduce((s,x)=>s+x.balance,0)); if(settings.maximumReceivables>0&&receivables>settings.maximumReceivables) notes.push(en ? `Receivables exceeded the set limit (${settings.maximumReceivables}).` : `الذمم المدينة تجاوزت الحد المحدد (${settings.maximumReceivables}).`); if(totalCash<settings.minimumCash) notes.push(en ? `Cash balance is below the set minimum (${settings.minimumCash}).` : `رصيد النقدية أقل من الحد الأدنى المحدد (${settings.minimumCash}).`);
-  return { month, scope:companyId?"company":"group", revenue, expense, netProfit:money(revenue-expense), netProfitChangePct:pct(revenue-expense,previousRevenue-previousExpense), expenseSummary, expenseDetails:expenseDetails.slice(0,10), cashFlow:{ receipts:money(cf.receipts),payments:money(cf.payments),net:money(cf.receipts-cf.payments) }, cashAccounts:cashRows, totalCash, payroll, receivables:{ total:receivables,aging:aging(arDocs) }, payables:{ total:payables,aging:aging(apDocs) }, liabilities:liabilityRows, comparison, settings, generatedNotes:notes };
+  return { month, scope:companyId?"company":"group", revenue, expense, netProfit:money(revenue-expense), netProfitChangePct:pct(revenue-expense,previousRevenue-previousExpense), expenseSummary, expenseDetails:expenseDetails.slice(0,10), cashFlow:{ receipts:money(cf.receipts),payments:money(cf.payments),net:money(cf.receipts-cf.payments) }, cashAccounts:cashRows, totalCash, payroll, receivables:{ total:receivables,aging:monthlyAgingShape(receivableAging) }, payables:{ total:payables,aging:monthlyAgingShape(payableAging) }, liabilities:liabilityRows, comparison, settings, generatedNotes:notes };
 }
 
 export async function updateMonthlyReportSettings(tenantId:string, companyId:string, input:any) {

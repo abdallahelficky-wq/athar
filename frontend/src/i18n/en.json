@@ -766,7 +766,7 @@
       "tabs": { "byCustomer": "By customer", "monthly": "Monthly trend", "aging": "Receivables aging", "vat": "VAT summary" },
       "byCustomer": { "customer": "Customer", "invoiceCount": "Invoice count", "totalInvoices": "Total sales", "totalReturns": "Total returns", "netSales": "Net sales", "outstanding": "Outstanding balance" },
       "monthly": { "month": "Month", "total": "Total sales" },
-      "aging": { "customer": "Customer", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding receivables." },
+      "aging": { "asOf": "As at date (empty = today)", "unallocated": "Unallocated", "unallocatedHint": "Difference between the customer's ledger balance and its open invoices: receipts not allocated to an invoice, opening balances or manual entries. Total = ledger balance.", "customer": "Customer", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding receivables." },
       "vat": { "salesBase": "Total sales before tax", "outputVat": "Output VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netOutputVat": "Net output VAT due", "debitNotesBase": "Total debit notes before tax", "debitNotesVat": "Debit notes VAT", "stationShiftVat": "Station shift output VAT", "stationShiftNote": "Posted to the output VAT account with no tax invoice, and may overlap POS fuel invoices for the same day, so it is shown separately and not included in the document net.", "totalWithStations": "Total output VAT including station shifts" },
       "empty": "No data yet."
     },
@@ -894,8 +894,8 @@
       "tabs": { "bySupplier": "By supplier", "monthly": "Monthly trend", "aging": "Payables aging", "vat": "VAT summary" },
       "bySupplier": { "supplier": "Supplier", "invoiceCount": "Invoice count", "totalInvoices": "Total purchases", "totalReturns": "Total returns", "netPurchases": "Net purchases" },
       "monthly": { "month": "Month", "total": "Total purchases" },
-      "aging": { "supplier": "Supplier", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding payables." },
-      "agingNote": "Note: there is no \"payment voucher\" module yet to record settling supplier invoices, so every posted invoice is treated as fully outstanding.",
+      "aging": { "asOf": "As at date (empty = today)", "unallocated": "Unallocated", "unallocatedHint": "The supplier's ledger balance is matched to its invoices newest first; anything beyond them (opening balance or manual entry) shows here. Total = ledger balance.", "supplier": "Supplier", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding payables." },
+      "agingNote": "There is no payment voucher yet that allocates a payment to a specific invoice — payments are journal entries on the supplier's account. So the total is the supplier's ledger balance as at the chosen date, matched to its invoices newest first (the oldest are treated as paid first).",
       "vat": { "purchasesBase": "Total purchases before tax", "inputVat": "Input VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netInputVat": "Net deductible input VAT" },
       "empty": "No data yet."
     }

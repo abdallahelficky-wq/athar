@@ -19,6 +19,8 @@ export default function PurchaseReportsTab({ companyId, companies }) {
   const [bySupplier, setBySupplier] = useState([]);
   const [monthly, setMonthly] = useState([]);
   const [aging, setAging] = useState([]);
+  // المركز كما في تاريخ — فارغ = اليوم
+  const [agingAsOf, setAgingAsOf] = useState("");
   const vatPeriod = useVatPeriod(companies?.find((c) => c.id === companyId));
   const { data: vat, error: vatError } = useVatFetch(getPurchasesVatSummary, companyId, vatPeriod.applied);
 
@@ -26,8 +28,12 @@ export default function PurchaseReportsTab({ companyId, companies }) {
     if (!companyId) return;
     getPurchasesBySupplier(companyId).then(setBySupplier);
     getPurchasesMonthly(companyId).then(setMonthly);
-    getPayablesAging(companyId).then(setAging);
   }, [companyId]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    getPayablesAging(companyId, agingAsOf).then(setAging);
+  }, [companyId, agingAsOf]);
 
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
@@ -74,22 +80,23 @@ export default function PurchaseReportsTab({ companyId, companies }) {
 
       {tab === "aging" && (
         <div className="panel">
+          <label className="aging-asof">{t("purchases.reports.aging.asOf")} <input type="date" value={agingAsOf} onChange={(e) => setAgingAsOf(e.target.value)} /></label>
           <table className="ledger-table">
             <thead>
               <tr>
                 <th>{t("purchases.reports.aging.supplier")}</th><th>{t("purchases.reports.aging.current")}</th>
                 <th>{t("purchases.reports.aging.d30")}</th><th>{t("purchases.reports.aging.d60")}</th>
-                <th>{t("purchases.reports.aging.d90")}</th><th>{t("purchases.reports.aging.total")}</th>
+                <th>{t("purchases.reports.aging.d90")}</th><th title={t("purchases.reports.aging.unallocatedHint")}>{t("purchases.reports.aging.unallocated")}</th><th>{t("purchases.reports.aging.total")}</th>
               </tr>
             </thead>
             <tbody>
               {aging.map((r) => (
                 <tr key={r.supplierId}>
                   <td>{r.supplierName}</td><td className="num">{fmt(r.current)}</td><td className="num">{fmt(r.d30)}</td>
-                  <td className="num">{fmt(r.d60)}</td><td className="num">{fmt(r.d90)}</td><td className="num strong">{fmt(r.total)}</td>
+                  <td className="num">{fmt(r.d60)}</td><td className="num">{fmt(r.d90)}</td><td className="num">{fmt(r.unallocated)}</td><td className="num strong">{fmt(r.total)}</td>
                 </tr>
               ))}
-              {aging.length === 0 && <tr><td className="empty" colSpan={6}>{t("purchases.reports.aging.empty")}</td></tr>}
+              {aging.length === 0 && <tr><td className="empty" colSpan={7}>{t("purchases.reports.aging.empty")}</td></tr>}
             </tbody>
           </table>
           <p className="note">{t("purchases.reports.agingNote")}</p>
