@@ -2,9 +2,9 @@ import { RequestHandler } from "express";
 import multer from "multer";
 import * as service from "./attachments.service";
 import { attachmentEntityTypeEnum } from "./attachments.schemas";
-import { badRequest, notFound } from "../../lib/httpError";
+import { badRequest, forbidden, notFound } from "../../lib/httpError";
 import { prisma } from "../../lib/prisma";
-import { assertCompanyAccess } from "../../middleware/auth";
+import { assertCompanyAccess, canReadHrData } from "../../middleware/auth";
 
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB — يكفي لصور/PDF مستندات مسحوبة ضوئياً
 
@@ -12,10 +12,18 @@ export const uploadSingleFile = multer({ storage: multer.memoryStorage(), limits
   "file",
 );
 
+const HR_ATTACHMENT_TYPES: readonly string[] = ["employee", "payroll_run", "leave_settlement"];
+
 /** نظام مرفقات متعدد الأشكال (entityType/entityId حرّان) — كل نوع كيان يُحلَّل هنا لاستخراج
  * companyId الفعلي للتحقق من enforceCompanyScope (الذي لا يغطي هذا النمط لأنه غير مرتبط مباشرة
  * بـcompanyId في الطلب). سجلّ غير موجود يُترَك بصمت لطبقة service لترمي notFound كالمعتاد. */
-async function assertEntityCompanyAccess(auth: { tenantId: string; companyScope: string }, entityType: string, entityId: string) {
+async function assertEntityCompanyAccess(auth: { tenantId: string; companyScope: string; role: string }, entityType: string, entityId: string) {
+  // ملفات الموظف وكشف الرواتب وتسوية الإجازة (عقود، هويات، مسيّرات رواتب) — وأسماؤها وحدها تكشف — لأدوار
+  // الموارد البشرية فقط: عرضاً وتحميلاً (الرابط المؤقت لا يُسلَّم إلا مع القائمة) ورفعاً وحذفاً. هذه المرفقات
+  // مربوطة بسجلّها لا تُنسَخ مع قيد عكس أو مرآة (تلك قيود يومية جديدة بلا مرفقات)، فلا طريق جانبياً إليها.
+  if (HR_ATTACHMENT_TYPES.includes(entityType) && !canReadHrData(auth)) {
+    throw forbidden("مرفقات الموظفين والرواتب وتسويات الإجازة لأدوار الموارد البشرية فقط");
+  }
   if (auth.companyScope === "all") return;
   const record = await (
     {

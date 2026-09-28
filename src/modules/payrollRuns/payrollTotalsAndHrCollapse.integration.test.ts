@@ -124,6 +124,7 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
 
   afterAll(async () => {
     server?.close();
+    await prisma.attachment.deleteMany({ where: { tenantId } });
     await prisma.payrollRun.deleteMany({ where: { tenantId } });
     await prisma.leaveSettlement.deleteMany({ where: { tenantId } });
     await prisma.employeeAdvanceDeduction.deleteMany({ where: { employeeAdvance: { tenantId } } });
@@ -381,6 +382,31 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
     const acct = await call("GET", `/journal-entries/${advanceEntry.id}`, accountantToken);
     expect(acct.body.memo).toContain(emp.a.name);
     expect(acct.body.hrCollapsed).toBeUndefined();
+  });
+
+  it("employee, payroll-run and leave-settlement attachments are for HR roles only — listing, uploading and deleting", async () => {
+    const run = await prisma.payrollRun.findFirstOrThrow({ where: { tenantId } });
+    const settlement = await prisma.leaveSettlement.findFirstOrThrow({ where: { tenantId } });
+    const targets: [string, string][] = [["employee", emp.a.id], ["payroll_run", run.id], ["leave_settlement", settlement.id]];
+    for (const [entityType, entityId] of targets) {
+      const file = await prisma.attachment.create({
+        data: { tenantId, entityType, entityId, fileName: `عقد ${emp.a.name}.pdf`, fileKey: `test/${stamp}/${entityType}`, fileSize: 10, mimeType: "application/pdf" },
+      });
+      const listed = await call("GET", `/attachments?entityType=${entityType}&entityId=${entityId}`, accountantToken);
+      expect(listed.status, `${entityType}: ${listed.text}`).toBe(403);
+      expect(listed.text).not.toContain(emp.a.name);
+      expect((await call("DELETE", `/attachments/${file.id}`, accountantToken)).status).toBe(403);
+      expect(await prisma.attachment.count({ where: { id: file.id } })).toBe(1);
+      const upload = new FormData();
+      upload.append("entityType", entityType);
+      upload.append("entityId", entityId);
+      upload.append("file", new Blob(["x"], { type: "application/pdf" }), "x.pdf");
+      const uploaded = await fetch(`${baseUrl}/api/attachments`, { method: "POST", headers: { authorization: `Bearer ${accountantToken}` }, body: upload });
+      expect(uploaded.status).toBe(403);
+      expect((await call("GET", `/attachments?entityType=${entityType}&entityId=${entityId}`, ownerToken)).status).not.toBe(403);
+    }
+    // مرفقات القيود اليومية كما هي لغير الموارد البشرية
+    expect((await call("GET", `/attachments?entityType=journal_entry&entityId=${julyEntryId}`, accountantToken)).status).toBe(200);
   });
 
   it("only HR roles can change which groups collapse", async () => {
