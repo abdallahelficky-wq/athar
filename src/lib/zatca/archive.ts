@@ -28,9 +28,30 @@ export interface ZatcaArchivePayload {
 
 const sha256 = (buf: Buffer) => createHash("sha256").update(buf).digest("hex");
 
+/**
+ * يفكّ base64 الذي أعادته زاتكا بصرامة: Buffer.from(…, "base64") في Node لا يرمي أبداً ويُرجع بايتات عشوائية لأي
+ * نص، فيُحفَظ الهراء "مستنداً قانونياً" ويُصدَّر بدل الأصل الموقَّع. يُقبَل فقط base64 قياسي صالح يُفكّ إلى ما يبدأ
+ * (بعد BOM والمسافات) بـ"<" — نفس شرط zatca_archive_try_decode_base64 في ترحيل الاستكمال الرجعي. غير ذلك: null.
+ */
+export function decodeClearedXml(b64: string | undefined | null): Buffer | null {
+  if (typeof b64 !== "string") return null;
+  const compact = b64.replace(/\s+/g, "");
+  if (!compact || compact.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(compact)) return null;
+  const buf = Buffer.from(compact, "base64");
+  if (buf.toString("base64") !== compact) return null;
+  let i = buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf ? 3 : 0;
+  while (i < buf.length && (buf[i] === 9 || buf[i] === 10 || buf[i] === 13 || buf[i] === 32)) i++;
+  return i < buf.length && buf[i] === 0x3c ? buf : null;
+}
+
+/** الجزء الجذري من مستند UBL بلا <ext:UBLExtensions> — التوقيع وختم زاتكا يحملان عناصر cbc:ID وغيرها داخلها */
+function withoutExtensions(xml: string) {
+  return xml.replace(/<ext:UBLExtensions>[\s\S]*?<\/ext:UBLExtensions>/, "");
+}
+
 /** الرقم الضريبي للبائع كما في المستند (cac:AccountingSupplierParty ← cac:PartyTaxScheme ← cbc:CompanyID) */
 export function sellerVatFromXml(xml: string): string | null {
-  const supplier = xml.match(/<cac:AccountingSupplierParty>([\s\S]*?)<\/cac:AccountingSupplierParty>/);
+  const supplier = withoutExtensions(xml).match(/<cac:AccountingSupplierParty>([\s\S]*?)<\/cac:AccountingSupplierParty>/);
   const scheme = supplier?.[1].match(/<cac:PartyTaxScheme>[\s\S]*?<cbc:CompanyID>([^<]+)<\/cbc:CompanyID>/);
   return scheme ? scheme[1].trim() : null;
 }
@@ -42,7 +63,11 @@ export async function writeZatcaArchiveTx(
   source: "submission" | "resubmission",
 ) {
   const signed = Buffer.from(payload.signedXml, "utf8");
-  const cleared = payload.clearedInvoiceBase64 ? Buffer.from(payload.clearedInvoiceBase64, "base64") : null;
+  const cleared = decodeClearedXml(payload.clearedInvoiceBase64);
+  if (payload.clearedInvoiceBase64 && !cleared) {
+    // eslint-disable-next-line no-console
+    console.error(`[zatca-archive] clearedInvoice من زاتكا ليس base64 صالحاً لمستند XML — ${doc.documentType} ${doc.documentNumber}؛ يُحفَظ الموقَّع وحده`);
+  }
   await tx.zatcaDocumentArchive.create({
     data: {
       ...doc,
@@ -55,19 +80,22 @@ export async function writeZatcaArchiveTx(
       compression: "gzip",
       signedXml: gzipSync(signed),
       signedXmlSha256: sha256(signed),
-      clearedXml: cleared && cleared.length ? gzipSync(cleared) : null,
-      clearedXmlSha256: cleared && cleared.length ? sha256(cleared) : null,
+      clearedXml: cleared ? gzipSync(cleared) : null,
+      clearedXmlSha256: cleared ? sha256(cleared) : null,
       source,
     },
   });
 }
 
 /**
- * يحفظ ردّ زاتكا المقبول وأصل المستند في معاملة واحدة. لو فشلت كتابة الأرشيف (نادراً — خلل في القاعدة نفسها)
- * لا نُسقِط ردّ زاتكا معها: فقدان الرد هو الحادثة الأصلية التي بُني لأجلها الترحيل على ثلاث مراحل (إعادة الإرسال
- * بنفس UUID تُنتج ازدواجاً لدى زاتكا). يُحفَظ الرد وحده ويُسجَّل الفشل بصوت عالٍ، ويظهر المستند في manifest التصدير
- * "missing" — فجوة ظاهرة لا صامتة.
+ * يحفظ ردّ زاتكا المقبول وأصل المستند في معاملة واحدة. لو فشلت (كتابة الأرشيف، أو بدء المعاملة/إنهاؤها تحت ضغط
+ * الاتصالات) لا نُسقِط ردّ زاتكا معها: فقدان الرد هو الحادثة الأصلية التي بُني لأجلها الترحيل على ثلاث مراحل (إعادة
+ * الإرسال بنفس UUID تكسر سلسلة ICV/التجزئة). يُحفَظ الرد وحده (plain) أولاً، ثم محاولة واحدة مستقلة لكتابة الأرشيف
+ * (الأصل الموقَّع موجود في الذاكرة فقط — لا فرصة ثانية بعد هذه الدالة). إن فشلت أيضاً يُسجَّل بصوت عالٍ، ويظهر
+ * المستند في عدّاد "مقبول بلا أصل" وفي manifest التصدير "missing".
  */
+export const ARCHIVE_TX_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
+
 export async function saveZatcaResponseWithArchive<T>(opts: {
   payload: ZatcaArchivePayload | undefined;
   doc: Parameters<typeof writeZatcaArchiveTx>[1];
@@ -77,21 +105,32 @@ export async function saveZatcaResponseWithArchive<T>(opts: {
 }): Promise<T> {
   if (!opts.payload) return opts.plain();
   const payload = opts.payload;
+  const label = `${opts.doc.documentType} ${opts.doc.documentNumber} (uuid=${opts.doc.documentUuid})`;
+  let stage: "begin" | "response" | "archive" | "commit" = "begin";
   try {
     return await prisma.$transaction(async (tx) => {
+      stage = "response";
       const saved = await opts.inTx(tx);
+      stage = "archive";
       await writeZatcaArchiveTx(tx, opts.doc, payload, opts.source);
+      stage = "commit";
       return saved;
-    });
+    }, ARCHIVE_TX_OPTIONS);
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(
-      `[zatca-archive] FAILED — لم يُحفَظ أصل المستند المقبول ${opts.doc.documentType} ${opts.doc.documentNumber} (uuid=${opts.doc.documentUuid}); ` +
-        `يُحفَظ ردّ زاتكا وحده حتى لا يضيع، وسيظهر المستند "missing" في تصدير الأرشيف:`,
-      err,
-    );
-    return opts.plain();
+    console.error(`[zatca-archive] FAILED at ${stage} — ${label}; يُحفَظ ردّ زاتكا وحده ثم محاولة أرشفة مستقلة:`, err);
   }
+  // الرد أولاً — لو فشل هنا أيضاً فالخطأ يصعد كما كان قبل الأرشيف (لا يُبتلَع)
+  const saved = await opts.plain();
+  try {
+    await writeZatcaArchiveTx(prisma as unknown as Prisma.TransactionClient, opts.doc, payload, opts.source);
+    // eslint-disable-next-line no-console
+    console.error(`[zatca-archive] RECOVERED — أُرشِف ${label} في المحاولة المستقلة بعد فشل المعاملة`);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`[zatca-archive] FAILED — لم يُحفَظ أصل ${label} نهائياً؛ سيظهر في عدّاد "مقبول بلا أصل" و"missing" في التصدير:`, err);
+  }
+  return saved;
 }
 
 function unpack(bytes: Uint8Array | null, compression: string): Buffer | null {
@@ -107,9 +146,11 @@ function unpack(bytes: Uint8Array | null, compression: string): Buffer | null {
  */
 export function annex1FileName(xml: string, fallback: { sellerVatNumber: string | null; issuedAt: Date; documentNumber: string }) {
   const vat = sellerVatFromXml(xml) ?? fallback.sellerVatNumber ?? "VAT";
-  const date = xml.match(/<cbc:IssueDate>([^<]+)<\/cbc:IssueDate>/)?.[1] ?? fallback.issuedAt.toISOString().slice(0, 10);
-  const time = xml.match(/<cbc:IssueTime>([^<]+)<\/cbc:IssueTime>/)?.[1] ?? fallback.issuedAt.toISOString().slice(11, 19);
-  const irn = xml.match(/<cbc:ID>([^<]+)<\/cbc:ID>/)?.[1] ?? fallback.documentNumber;
+  const root = withoutExtensions(xml);
+  const date = root.match(/<cbc:IssueDate>([^<]+)<\/cbc:IssueDate>/)?.[1] ?? fallback.issuedAt.toISOString().slice(0, 10);
+  const time = root.match(/<cbc:IssueTime>([^<]+)<\/cbc:IssueTime>/)?.[1] ?? fallback.issuedAt.toISOString().slice(11, 19);
+  // رقم المستند من الجذر فقط: أول cbc:ID في المستند الموقَّع هو معرّف التوقيع داخل UBLExtensions لا رقم الفاتورة
+  const irn = root.match(/<cbc:ID>([^<]+)<\/cbc:ID>/)?.[1] ?? fallback.documentNumber;
   const clean = (s: string) => s.replace(/[^0-9A-Za-z]+/g, "-").replace(/^-+|-+$/g, "");
   return `${clean(vat)}_${date.replace(/-/g, "")}T${time.replace(/:/g, "").slice(0, 6)}_${clean(irn)}.xml`;
 }
@@ -133,7 +174,25 @@ export function crc32(buf: Buffer) {
   return (c ^ 0xffffffff) >>> 0;
 }
 
+/** حدود ZIP الكلاسيكي (بلا ZIP64): 65,535 ملفاً، و4 GiB لأي حجم أو إزاحة. التصدير يرفض قبلها برسالة واضحة. */
+export const ZIP_MAX_ENTRIES = 0xffff;
+export const ZIP_MAX_BYTES = 0xffffffff;
+export class ZipLimitError extends Error {}
+
+/** وقت DOS بتوقيت السعودية (UTC+3، بلا توقيت صيفي) — كما يعرضه مستكشف ويندوز و7-Zip؛ السنة محصورة في 1980–2107 */
+function dosDateTime(date: Date) {
+  const d = new Date(date.getTime() + 3 * 3_600_000);
+  const year = d.getUTCFullYear();
+  if (year < 1980) return { dosTime: 0, dosDate: (1 << 5) | 1 };
+  if (year > 2107) return { dosTime: (23 << 11) | (59 << 5) | 29, dosDate: (127 << 9) | (12 << 5) | 31 };
+  return {
+    dosTime: (d.getUTCHours() << 11) | (d.getUTCMinutes() << 5) | Math.floor(d.getUTCSeconds() / 2),
+    dosDate: ((year - 1980) << 9) | ((d.getUTCMonth() + 1) << 5) | d.getUTCDate(),
+  };
+}
+
 export function buildZip(files: { name: string; data: Buffer; date: Date }[]): Buffer {
+  if (files.length > ZIP_MAX_ENTRIES) throw new ZipLimitError(`عدد الملفات ${files.length} يتجاوز حد ZIP (${ZIP_MAX_ENTRIES})`);
   const locals: Buffer[] = [];
   const centrals: Buffer[] = [];
   let offset = 0;
@@ -141,9 +200,10 @@ export function buildZip(files: { name: string; data: Buffer; date: Date }[]): B
     const name = Buffer.from(f.name, "utf8");
     const compressed = deflateRawSync(f.data);
     const crc = crc32(f.data);
-    const d = f.date;
-    const dosTime = (d.getUTCHours() << 11) | (d.getUTCMinutes() << 5) | Math.floor(d.getUTCSeconds() / 2);
-    const dosDate = ((Math.max(d.getUTCFullYear(), 1980) - 1980) << 9) | ((d.getUTCMonth() + 1) << 5) | d.getUTCDate();
+    const { dosTime, dosDate } = dosDateTime(f.date);
+    if (f.data.length > ZIP_MAX_BYTES || compressed.length > ZIP_MAX_BYTES || offset > ZIP_MAX_BYTES) {
+      throw new ZipLimitError("حجم التصدير يتجاوز حد ZIP (4 GiB)");
+    }
 
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
@@ -176,6 +236,7 @@ export function buildZip(files: { name: string; data: Buffer; date: Date }[]): B
     offset += local.length + name.length + compressed.length;
   }
   const centralSize = centrals.reduce((s, b) => s + b.length, 0);
+  if (offset > ZIP_MAX_BYTES || centralSize > ZIP_MAX_BYTES) throw new ZipLimitError("حجم التصدير يتجاوز حد ZIP (4 GiB)");
   const end = Buffer.alloc(22);
   end.writeUInt32LE(0x06054b50, 0);
   end.writeUInt16LE(files.length, 8);
@@ -188,9 +249,11 @@ export function buildZip(files: { name: string; data: Buffer; date: Date }[]): B
 // ---------------------------------------------------------------------------
 // تصدير الملحق 1 — لشركة وفترة
 // ---------------------------------------------------------------------------
-const csv = (v: unknown) => {
-  const s = v == null ? "" : String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+export const csvCell = (v: unknown) => {
+  let s = v == null ? "" : String(v);
+  // حقن الصيغ: رقم المستند نص حرّ من إعدادات الترقيم — Excel ينفّذ ما يبدأ بـ = + - @ أو محرف تحكّم
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
 /**
@@ -203,6 +266,11 @@ export async function exportZatcaArchive(tenantId: string, companyId: string, fr
     where: { tenantId, companyId, issuedAt: { gte: from, lt: toExclusive } },
     orderBy: [{ issuedAt: "asc" }, { archivedAt: "asc" }],
   });
+  // حد ZIP الكلاسيكي (بلا ZIP64): رفض واضح قبل تحميل المحتوى، لا خطأ 500 ولا ملف تالف
+  const perDocument = new Set(rows.map((r) => `${r.documentType}:${r.documentId}`)).size;
+  if (perDocument + 1 > ZIP_MAX_ENTRIES) {
+    throw new ZipLimitError(`الفترة تضم ${perDocument} مستنداً — أكثر من حد ملف ZIP الواحد (${ZIP_MAX_ENTRIES - 1}). قسّمها إلى فترات أقصر`);
+  }
   // أحدث نسخة لكل مستند (إعادة إرسال بعد فشل تُنتج صفاً جديداً؛ يبقى الأقدم في الأرشيف)
   const latest = new Map<string, (typeof rows)[number]>();
   for (const r of rows) latest.set(`${r.documentType}:${r.documentId}`, r);
@@ -212,11 +280,11 @@ export async function exportZatcaArchive(tenantId: string, companyId: string, fr
   const archivedIds = new Set<string>();
   const manifest: string[] = ["documentType,documentNumber,uuid,icv,issuedAt,subtype,status,file,signedXmlSha256,clearedXmlSha256,note"];
   for (const r of latest.values()) {
-    archivedIds.add(`${r.documentType}:${r.documentId}`);
     const cleared = unpack(r.clearedXml, r.compression);
     const signed = unpack(r.signedXml, r.compression);
-    const doc = cleared ?? signed;
-    if (!doc) continue;
+    const doc = cleared?.length ? cleared : signed?.length ? signed : null;
+    if (!doc) continue; // صف بلا أي محتوى — يُعدّ "missing" أدناه لا "archived"
+    archivedIds.add(`${r.documentType}:${r.documentId}`);
     let name = annex1FileName(doc.toString("utf8"), r);
     if (usedNames.has(name)) name = name.replace(/\.xml$/, `_${r.icv}.xml`);
     usedNames.add(name);
@@ -225,7 +293,7 @@ export async function exportZatcaArchive(tenantId: string, companyId: string, fr
       r.documentType, r.documentNumber, r.documentUuid, r.icv, r.issuedAt.toISOString(), r.subtype, "archived", name,
       r.signedXmlSha256 ?? "", r.clearedXmlSha256 ?? "",
       r.source === "backfill" ? "المُخلَّص من زاتكا فقط — ملف XML الموقَّع المُرسَل لم يُحفَظ قبل الأرشفة" : "",
-    ].map(csv).join(","));
+    ].map(csvCell).join(","));
   }
 
   // المستندات المقبولة في الفترة بلا أصل محفوظ — الفجوة التاريخية
@@ -246,13 +314,13 @@ export async function exportZatcaArchive(tenantId: string, companyId: string, fr
       d.status === "cleared"
         ? "أُرسِل قبل الأرشفة ولم يبقَ ملف XML المُخلَّص في ردّ زاتكا المحفوظ — لا أصل له"
         : "مبسّطة أُبلِغ عنها قبل الأرشفة — زاتكا لا تُعيد نسخة، والأصل الموقَّع لم يُحفَظ: فجوة دائمة",
-    ].map(csv).join(","));
+    ].map(csvCell).join(","));
   }
 
   files.push({ name: "manifest.csv", data: Buffer.from("﻿" + manifest.join("\n") + "\n", "utf8"), date: new Date() });
   return {
     zip: buildZip(files),
-    archivedCount: latest.size,
+    archivedCount: archivedIds.size,
     missingCount: missing.length,
   };
 }
@@ -261,6 +329,9 @@ export async function exportZatcaArchive(tenantId: string, companyId: string, fr
 // عدّاد الفجوة الجارية — يجب أن يبقى صفراً
 // ---------------------------------------------------------------------------
 export const ARCHIVE_MIGRATION = "20260928140000_zatca_document_archive";
+/** start = prisma migrate deploy && node … — النسخة القديمة تظل تستقبل طلبات حتى تعمل الجديدة؛ ما تقبله زاتكا في
+ * تلك الدقائق لا يمرّ بكود الأرشفة أصلاً. مهلة ثابتة بعد تطبيق الترحيل حتى لا يبدأ العدّاد بإنذار كاذب لا يزول. */
+export const ARCHIVE_ROLLOUT_GRACE_MS = 15 * 60_000;
 
 export interface UnarchivedSummary {
   /** متى بدأت الأرشفة فعلاً على هذه القاعدة (وقت تطبيق الترحيل)؛ null إن لم يُطبَّق */
@@ -281,8 +352,9 @@ export async function unarchivedSinceArchiving(tenantId: string, companyId?: str
     `SELECT finished_at FROM _prisma_migrations WHERE migration_name = $1 AND finished_at IS NOT NULL AND rolled_back_at IS NULL LIMIT 1`,
     ARCHIVE_MIGRATION,
   );
-  const since = live[0]?.finished_at ?? null;
-  if (!since) return { since: null, count: 0, byType: {}, latest: [] };
+  const applied = live[0]?.finished_at ?? null;
+  if (!applied) return { since: null, count: 0, byType: {}, latest: [] };
+  const since = new Date(applied.getTime() + ARCHIVE_ROLLOUT_GRACE_MS);
   const rows = await prisma.$queryRawUnsafe<{ kind: string; number: string; companyId: string; at: Date }[]>(
     `SELECT d.kind, d.number, d."companyId", d.at FROM (
        SELECT 'sales_invoice' AS kind, id, "invoiceNumber" AS number, "tenantId", "companyId", "zatcaClearedOrReportedAt" AS at FROM sales_invoices WHERE "zatcaStatus" IN ('cleared', 'reported')
@@ -293,6 +365,8 @@ export async function unarchivedSinceArchiving(tenantId: string, companyId?: str
      ) d
      WHERE d."tenantId" = $1 AND ($2::text IS NULL OR d."companyId" = $2) AND d.at >= $3
        AND NOT EXISTS (SELECT 1 FROM zatca_document_archive a WHERE a."documentType" = d.kind AND a."documentId" = d.id)
+       -- المستوردة يدوياً من سجلات زاتكا (importClearedSalesInvoice) لم تمرّ بتوقيع ولا إرسال — لا أصل لها أصلاً
+       AND NOT EXISTS (SELECT 1 FROM audit_logs l WHERE l.action = 'sales_invoice.imported_from_zatca' AND l."entityId" = d.id)
      ORDER BY d.at DESC`,
     tenantId,
     companyId ?? null,

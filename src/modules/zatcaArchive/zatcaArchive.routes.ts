@@ -2,7 +2,7 @@ import { Router, RequestHandler } from "express";
 import { authenticate, enforceCompanyScope, requireRole, assertCompanyAccess } from "../../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
-import { exportZatcaArchive, unarchivedSinceArchiving } from "../../lib/zatca/archive";
+import { exportZatcaArchive, unarchivedSinceArchiving, ZipLimitError } from "../../lib/zatca/archive";
 
 /**
  * تصدير أرشيف مستندات زاتكا لشركة وفترة (الملحق 1 من قرار الإلزام: قدرة الحل على التصدير إلى نظام أرشفة خارجي، بأسماء
@@ -21,9 +21,17 @@ const exportHandler: RequestHandler = async (req, res) => {
   if (!company) throw notFound("الشركة غير موجودة");
   assertCompanyAccess(req.auth!, company.id);
 
-  const result = await exportZatcaArchive(req.auth!.tenantId, company.id, start, endExclusive);
+  let result: Awaited<ReturnType<typeof exportZatcaArchive>>;
+  try {
+    result = await exportZatcaArchive(req.auth!.tenantId, company.id, start, endExclusive);
+  } catch (err) {
+    if (err instanceof ZipLimitError) throw badRequest(err.message);
+    throw err;
+  }
+  // الرقم الضريبي حقل حرّ — محارف غير ASCII في الترويسة تُسقِط الطلب (ERR_INVALID_CHAR)
+  const tag = (company.vatNumber ?? company.id).replace(/[^0-9A-Za-z-]+/g, "") || "company";
   res.setHeader("Content-Type", "application/zip");
-  res.setHeader("Content-Disposition", `attachment; filename="zatca-archive_${company.vatNumber ?? company.id}_${from}_${to}.zip"`);
+  res.setHeader("Content-Disposition", `attachment; filename="zatca-archive_${tag}_${from}_${to}.zip"`);
   res.setHeader("X-Archived-Count", String(result.archivedCount));
   res.setHeader("X-Missing-Count", String(result.missingCount));
   res.setHeader("Access-Control-Expose-Headers", "X-Archived-Count, X-Missing-Count, Content-Disposition");

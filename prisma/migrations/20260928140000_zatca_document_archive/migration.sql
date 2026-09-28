@@ -48,10 +48,20 @@ CREATE TRIGGER zatca_document_archive_no_truncate
   BEFORE TRUNCATE ON "zatca_document_archive"
   FOR EACH STATEMENT EXECUTE FUNCTION zatca_document_archive_immutable();
 
--- فكّ base64 بلا إسقاط الترحيل: قيمة تالفة في رد زاتكا المحفوظ تُتخطّى (NULL) بدل أن تُفشِل النشر كله
+-- فكّ base64 بلا إسقاط الترحيل: قيمة تالفة في رد زاتكا المحفوظ تُتخطّى (NULL) بدل أن تُفشِل النشر كله. ولا يُقبَل إلا ما
+-- يبدو مستند XML فعلاً: غير فارغ، وأول بايت بعد BOM والمسافات البيضاء هو "<" — وإلا فالنتيجة NULL (يظهر "missing"
+-- في التصدير بدل ملف فارغ أو بايتات عشوائية مُعلَّمة "archived").
 CREATE FUNCTION zatca_archive_try_decode_base64(v TEXT) RETURNS BYTEA AS $$
+DECLARE
+  b BYTEA;
+  i INT := 0;
 BEGIN
-  RETURN decode(v, 'base64');
+  IF v IS NULL THEN RETURN NULL; END IF;
+  b := decode(v, 'base64');
+  IF length(b) >= 3 AND substring(b FROM 1 FOR 3) = '\xefbbbf'::bytea THEN i := 3; END IF;
+  WHILE i < length(b) AND get_byte(b, i) IN (9, 10, 13, 32) LOOP i := i + 1; END LOOP;
+  IF i >= length(b) OR get_byte(b, i) <> 60 THEN RETURN NULL; END IF;
+  RETURN b;
 EXCEPTION WHEN others THEN
   RETURN NULL;
 END;
@@ -63,29 +73,29 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 INSERT INTO "zatca_document_archive" ("id", "tenantId", "companyId", "documentType", "documentId", "documentNumber",
   "documentUuid", "icv", "invoiceHash", "subtype", "submissionKind", "issuedAt", "sellerVatNumber", "compression",
   "clearedXml", "clearedXmlSha256", "source")
-SELECT 'bf_' || d.id, d."tenantId", d."companyId", 'sales_invoice', d.id, d."invoiceNumber", d."zatcaUuid", d.icv, d."invoiceHash",
+SELECT 'bf_inv_' || d.id, d."tenantId", d."companyId", 'sales_invoice', d.id, d."invoiceNumber", d."zatcaUuid", d.icv, d."invoiceHash",
   'standard', 'clearance', d."zatcaSubmittedAt", c."vatNumber", 'none',
   zatca_archive_try_decode_base64(d."zatcaResponseRaw"->>'clearedInvoice'), encode(sha256(zatca_archive_try_decode_base64(d."zatcaResponseRaw"->>'clearedInvoice')), 'hex'), 'backfill'
 FROM "sales_invoices" d JOIN "companies" c ON c.id = d."companyId"
-WHERE d."zatcaStatus" = 'cleared' AND d."zatcaResponseRaw" ? 'clearedInvoice' AND d.icv IS NOT NULL AND d."invoiceHash" IS NOT NULL AND d."zatcaSubmittedAt" IS NOT NULL
+WHERE d."zatcaStatus" = 'cleared' AND jsonb_typeof(d."zatcaResponseRaw"->'clearedInvoice') = 'string' AND d.icv IS NOT NULL AND d."invoiceHash" IS NOT NULL AND d."zatcaSubmittedAt" IS NOT NULL
   AND zatca_archive_try_decode_base64(d."zatcaResponseRaw"->>'clearedInvoice') IS NOT NULL;
 
 INSERT INTO "zatca_document_archive" ("id", "tenantId", "companyId", "documentType", "documentId", "documentNumber",
   "documentUuid", "icv", "invoiceHash", "subtype", "submissionKind", "issuedAt", "sellerVatNumber", "compression",
   "clearedXml", "clearedXmlSha256", "source")
-SELECT 'bf_' || d.id, d."tenantId", d."companyId", 'sales_return', d.id, d."returnNumber", d."zatcaUuid", d.icv, d."invoiceHash",
+SELECT 'bf_ret_' || d.id, d."tenantId", d."companyId", 'sales_return', d.id, d."returnNumber", d."zatcaUuid", d.icv, d."invoiceHash",
   'standard', 'clearance', d."zatcaSubmittedAt", c."vatNumber", 'none',
   zatca_archive_try_decode_base64(d."zatcaResponseRaw"->>'clearedInvoice'), encode(sha256(zatca_archive_try_decode_base64(d."zatcaResponseRaw"->>'clearedInvoice')), 'hex'), 'backfill'
 FROM "sales_returns" d JOIN "companies" c ON c.id = d."companyId"
-WHERE d."zatcaStatus" = 'cleared' AND d."zatcaResponseRaw" ? 'clearedInvoice' AND d.icv IS NOT NULL AND d."invoiceHash" IS NOT NULL AND d."zatcaSubmittedAt" IS NOT NULL
+WHERE d."zatcaStatus" = 'cleared' AND jsonb_typeof(d."zatcaResponseRaw"->'clearedInvoice') = 'string' AND d.icv IS NOT NULL AND d."invoiceHash" IS NOT NULL AND d."zatcaSubmittedAt" IS NOT NULL
   AND zatca_archive_try_decode_base64(d."zatcaResponseRaw"->>'clearedInvoice') IS NOT NULL;
 
 INSERT INTO "zatca_document_archive" ("id", "tenantId", "companyId", "documentType", "documentId", "documentNumber",
   "documentUuid", "icv", "invoiceHash", "subtype", "submissionKind", "issuedAt", "sellerVatNumber", "compression",
   "clearedXml", "clearedXmlSha256", "source")
-SELECT 'bf_' || d.id, d."tenantId", d."companyId", 'sales_debit_note', d.id, d."debitNoteNumber", d."zatcaUuid", d.icv, d."invoiceHash",
+SELECT 'bf_dn_' || d.id, d."tenantId", d."companyId", 'sales_debit_note', d.id, d."debitNoteNumber", d."zatcaUuid", d.icv, d."invoiceHash",
   'standard', 'clearance', d."zatcaSubmittedAt", c."vatNumber", 'none',
   zatca_archive_try_decode_base64(d."zatcaResponseRaw"->>'clearedInvoice'), encode(sha256(zatca_archive_try_decode_base64(d."zatcaResponseRaw"->>'clearedInvoice')), 'hex'), 'backfill'
 FROM "sales_debit_notes" d JOIN "companies" c ON c.id = d."companyId"
-WHERE d."zatcaStatus" = 'cleared' AND d."zatcaResponseRaw" ? 'clearedInvoice' AND d.icv IS NOT NULL AND d."invoiceHash" IS NOT NULL AND d."zatcaSubmittedAt" IS NOT NULL
+WHERE d."zatcaStatus" = 'cleared' AND jsonb_typeof(d."zatcaResponseRaw"->'clearedInvoice') = 'string' AND d.icv IS NOT NULL AND d."invoiceHash" IS NOT NULL AND d."zatcaSubmittedAt" IS NOT NULL
   AND zatca_archive_try_decode_base64(d."zatcaResponseRaw"->>'clearedInvoice') IS NOT NULL;

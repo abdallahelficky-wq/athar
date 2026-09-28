@@ -9,7 +9,7 @@ import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integration
 import { signAccessToken } from "../../lib/jwt";
 import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
-import { writeZatcaArchiveTx, annex1FileName } from "../../lib/zatca/archive";
+import { writeZatcaArchiveTx, annex1FileName, ARCHIVE_MIGRATION, ARCHIVE_ROLLOUT_GRACE_MS } from "../../lib/zatca/archive";
 
 /**
  * أرشيف مستندات زاتكا على Postgres فعلي:
@@ -130,7 +130,26 @@ describe("ZATCA document archive (integration)", () => {
     await prisma.salesInvoice.update({ where: { id: good.id }, data: { zatcaStatus: "cleared", icv: 7, invoiceHash: "hg", zatcaSubmittedAt: new Date("2026-08-10T09:00:00Z"), zatcaResponseRaw: { clearedInvoice: Buffer.from(clearedXml).toString("base64") } } });
     await prisma.salesInvoice.update({ where: { id: bad.id }, data: { zatcaStatus: "cleared", icv: 8, invoiceHash: "hb", zatcaSubmittedAt: new Date("2026-08-11T09:00:00Z"), zatcaResponseRaw: { clearedInvoice: "@@not base64@@" } } });
 
+    // ما وجده المراجِع: فارغ (كان يُحفَظ 0 بايت "archived")، رقم لا نص، base64 سليم لبايتات ليست XML — كلها تُتخطّى
+    const junk = {
+      empty: "",
+      number: 12345678,
+      notXml: Buffer.from([0xff, 0xfe, 0x00, 0xc3]).toString("base64"),
+    } as const;
+    const junkIds: string[] = [];
+    let n = 20;
+    for (const value of Object.values(junk)) {
+      const inv = await invoice(`2026-08-${n}T09:00:00.000Z`);
+      await prisma.salesInvoice.update({ where: { id: inv.id }, data: { zatcaStatus: "cleared", icv: n, invoiceHash: `hj${n}`, zatcaSubmittedAt: new Date(`2026-08-${n}T09:00:00Z`), zatcaResponseRaw: { clearedInvoice: value } } });
+      junkIds.push(inv.id);
+      n++;
+    }
+
     const sql = readFileSync("prisma/migrations/20260928140000_zatca_document_archive/migration.sql", "utf8");
+    // دالة الفكّ كما في الترحيل الحالي حرفياً (قاعدة الاختبار قد تحمل نسخة أقدم طُبِّقت قبل تعديلها)
+    const fnStart = sql.indexOf("CREATE FUNCTION zatca_archive_try_decode_base64");
+    const fn = sql.slice(fnStart, sql.indexOf("LANGUAGE plpgsql IMMUTABLE;", fnStart) + "LANGUAGE plpgsql IMMUTABLE".length);
+    await prisma.$executeRawUnsafe(fn.replace("CREATE FUNCTION", "CREATE OR REPLACE FUNCTION"));
     const insert = sql.slice(sql.indexOf('INSERT INTO "zatca_document_archive"'), sql.indexOf("INSERT INTO", sql.indexOf('INSERT INTO "zatca_document_archive"') + 10));
     // نفس جملة الترحيل حرفياً، مقصورة على مستأجر هذا الاختبار
     await prisma.$executeRawUnsafe(insert.trim().replace(/;$/, "") + ` AND d."tenantId" = '${tenantId}'`);
@@ -140,6 +159,8 @@ describe("ZATCA document archive (integration)", () => {
     expect(Buffer.from(row.clearedXml!).toString()).toBe(clearedXml);
     expect(row.clearedXmlSha256).toBe(createHash("sha256").update(clearedXml).digest("hex"));
     expect(await prisma.zatcaDocumentArchive.count({ where: { documentId: bad.id } })).toBe(0);
+    expect(await prisma.zatcaDocumentArchive.count({ where: { documentId: { in: junkIds } } })).toBe(0);
+    expect(row.id).toBe(`bf_inv_${good.id}`);
   });
 
   it("exports the period as Annex 1 files named from the document itself, with a manifest that counts the gap", async () => {
@@ -198,13 +219,24 @@ describe("ZATCA document archive (integration)", () => {
   it("counts documents accepted since archiving began that have no stored original — the number that must stay zero", async () => {
     const q = () => call("GET", `/zatca-archive/unarchived?companyId=${otherCompanyId}`).then((r) => r.json());
     expect((await q()).count).toBe(0);
-    const inv = await prisma.salesInvoice.create({
+    // العدّاد يبدأ بعد مهلة من تطبيق الترحيل (النسخة القديمة تظل تستقبل طلبات أثناء النشر). في CI يُطبَّق الترحيل قبل
+    // الاختبار بدقائق، فأوقات القبول هنا نسبية إلى وقت التطبيق الفعلي لا إلى "الآن"
+    const [{ finished_at: applied }] = await prisma.$queryRawUnsafe<{ finished_at: Date }[]>(
+      `SELECT finished_at FROM _prisma_migrations WHERE migration_name = $1 AND finished_at IS NOT NULL AND rolled_back_at IS NULL LIMIT 1`, ARCHIVE_MIGRATION);
+    const afterGrace = new Date(Math.max(Date.now(), applied.getTime() + ARCHIVE_ROLLOUT_GRACE_MS) + 60_000);
+    const customerId = (await prisma.customer.create({ data: { tenantId, companyId: otherCompanyId, name: "عميل ب" } })).id;
+    const accepted = (number: string, at: Date) => prisma.salesInvoice.create({
       data: {
-        tenantId, companyId: otherCompanyId, customerId: (await prisma.customer.create({ data: { tenantId, companyId: otherCompanyId, name: "عميل ب" } })).id,
-        invoiceNumber: `GAP-${stamp}`, date: new Date(), invoiceType: "simplified", status: "posted", subtotal: 100, vatTotal: 15, grandTotal: 115,
-        zatcaStatus: "reported", zatcaClearedOrReportedAt: new Date(), icv: 99, invoiceHash: "hx", zatcaSubmittedAt: new Date(),
+        tenantId, companyId: otherCompanyId, customerId, invoiceNumber: number, date: at, invoiceType: "simplified", status: "posted", subtotal: 100, vatTotal: 15, grandTotal: 115,
+        zatcaStatus: "reported", zatcaClearedOrReportedAt: at, icv: 99, invoiceHash: "hx", zatcaSubmittedAt: at,
       } as never,
     });
+    const inv = await accepted(`GAP-${stamp}`, afterGrace);
+    // داخل مهلة النشر: قبلته النسخة القديمة بلا كود أرشفة — لا يُعَدّ (وإلا بقي إنذاراً كاذباً لا يزول)
+    await accepted(`ROLLOUT-${stamp}`, new Date(applied.getTime() + 60_000));
+    // مستوردة يدوياً من سجلات زاتكا: لم تمرّ بتوقيع ولا إرسال، فلا أصل لها أصلاً — لا تُعَدّ
+    const imported = await accepted(`IMP-${stamp}`, afterGrace);
+    await prisma.auditLog.create({ data: { tenantId, action: "sales_invoice.imported_from_zatca", entityType: "SalesInvoice", entityId: imported.id } });
     // قبل بدء الأرشفة: فجوة تاريخية معروفة، لا تُعَدّ هنا
     await prisma.salesInvoice.create({
       data: {
@@ -215,7 +247,8 @@ describe("ZATCA document archive (integration)", () => {
     const gap = await q();
     expect(gap.count).toBe(1);
     expect(gap.latest[0].documentNumber).toBe(`GAP-${stamp}`);
-    const report = await (await call("GET", `/reports/comprehensive-monthly?companyId=${otherCompanyId}&month=${new Date().toISOString().slice(0, 7)}`)).json();
+    const month = afterGrace.toISOString().slice(0, 7);
+    const report = await (await call("GET", `/reports/comprehensive-monthly?companyId=${otherCompanyId}&month=${month}`)).json();
     expect(report.zatcaUnarchived).toBe(1);
     expect(report.generatedNotes.join(" ")).toContain("[zatca-archive] FAILED");
 
@@ -223,7 +256,7 @@ describe("ZATCA document archive (integration)", () => {
       tenantId, companyId: otherCompanyId, documentType: "sales_invoice", documentId: inv.id, documentNumber: inv.invoiceNumber, documentUuid: inv.zatcaUuid,
     }, { signedXml: docXml(inv.invoiceNumber, "2026-09-28", "10:00:00"), subtype: "simplified", icv: 99, invoiceHash: "hx", issuedAt: new Date() }, "submission"));
     expect((await q()).count).toBe(0);
-    const clean = await (await call("GET", `/reports/comprehensive-monthly?companyId=${otherCompanyId}&month=${new Date().toISOString().slice(0, 7)}`)).json();
+    const clean = await (await call("GET", `/reports/comprehensive-monthly?companyId=${otherCompanyId}&month=${month}`)).json();
     expect(clean.zatcaUnarchived).toBe(0);
     expect(clean.generatedNotes.join(" ")).not.toContain("zatca-archive");
   });
