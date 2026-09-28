@@ -1,3 +1,4 @@
+import "../styles/public-brand.css";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { fmt } from "../legacy/constants";
@@ -11,11 +12,14 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload, onG
   const plans = t("landing.pricing.plans", { returnObjects: true });
 
   return (
-    <div className="landing-root">
+    <div className="landing-root public-brand">
       <header className="landing-nav">
         <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="landing-logo" />
         <div className="landing-nav-actions">
           <LanguageSwitcher />
+          <button className="btn-ghost landing-download-link" onClick={onGoDownload}>
+            <span aria-hidden="true">⬇</span> {t("publicApps.title")}
+          </button>
           <button className="btn-ghost" onClick={onGoDataProtection}>{t("landing.nav.dataProtection")}</button>
           <button className="btn-ghost" onClick={onGoLogin}>{t("landing.nav.login")}</button>
           <button className="btn-primary" onClick={onGoRegister}>{t("landing.nav.startTrial")}</button>
@@ -81,9 +85,6 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload, onG
       <footer className="landing-footer">
         <div>{t("landing.footer.copyright")}</div>
         <div className="landing-footer-actions">
-          <button className="btn-ghost landing-download-link" onClick={onGoDownload}>
-            <span aria-hidden="true">⬇</span> {t("landing.footer.downloadApp")}
-          </button>
           <button className="btn-ghost" onClick={onGoDataProtection}>{t("landing.nav.dataProtection")}</button>
           <button className="btn-ghost" onClick={onGoLogin}>{t("landing.nav.login")}</button>
         </div>

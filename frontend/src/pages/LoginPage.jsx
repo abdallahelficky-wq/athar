@@ -1,3 +1,4 @@
+import "../styles/public-brand.css";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
@@ -43,7 +44,7 @@ export default function LoginPage({ onGoLanding, onGoRegister, onGoForgotPasswor
 
   if (chooseAccount) {
     return (
-      <div className="auth-root">
+      <div className="auth-root public-brand public-login">
         <div className="auth-card">
           <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
           <h2 className="auth-title">{t("auth.login.chooseAccountTitle")}</h2>
@@ -72,7 +73,7 @@ export default function LoginPage({ onGoLanding, onGoRegister, onGoForgotPasswor
   }
 
   return (
-    <div className="auth-root">
+    <div className="auth-root public-brand public-login">
       <div className="auth-card">
         <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
         <h2 className="auth-title">{t("auth.login.title")}</h2>

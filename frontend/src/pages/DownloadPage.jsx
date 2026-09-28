@@ -1,10 +1,12 @@
+import "../styles/public-brand.css";
+import LanguageSwitcher from "../wired/shared/LanguageSwitcher";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
 // تطبيقات أندرويد المنشورة هنا — كل APK مُثبَّت فعلياً كملف ثابت (public/app/*.apk) لا مجلوب عند الطلب
 // من إصدار GitHub، حتى تعمل هذه الصفحة بلا أي اعتماد على GitHub وقت التنزيل (ولا حاجة لتسجيل دخول
 // مطلقاً، مطابقاً لطلب "تنزيل بلا فتح GitHub"). لتحديث أيٍّ منهما لبناء أحدث، راجع تعليق "لتحديث
-// النسخة" أسفل هذا الملف. الترتيب مقصود: نقطة البيع أولاً، ثم تطبيق عامل المحطة أسفلها.
+// النسخة" أسفل هذا الملف. الترتيب مقصود: نقطة البيع أولاً، ثم تطبيق عامل المحطة بجانبها على الشاشات الواسعة.
 const APPS = [
   {
     key: "pos",
@@ -61,11 +63,15 @@ function AppEntry({ app }) {
 export default function DownloadPage() {
   const { t } = useTranslation();
   return (
-    <div className="auth-root">
-      <div className="auth-card download-card">
-        <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
-        {APPS.map((app) => <AppEntry key={app.key} app={app} />)}
-      </div>
+    <div className="public-brand public-apps">
+      <header className="landing-nav">
+        <a href="/" aria-label={t("publicApps.home")}><img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="landing-logo" /></a>
+        <div className="landing-nav-actions"><LanguageSwitcher /><a className="btn-ghost" href="/">{t("publicApps.home")}</a></div>
+      </header>
+      <main className="public-apps-content">
+        <div className="landing-section-title"><h1>{t("publicApps.title")}</h1><p>{t("publicApps.subtitle")}</p></div>
+        <div className="public-apps-grid">{APPS.map((app) => <AppEntry key={app.key} app={app} />)}</div>
+      </main>
     </div>
   );
 }
