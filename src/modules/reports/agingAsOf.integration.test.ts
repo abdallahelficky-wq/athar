@@ -5,6 +5,7 @@ import { prisma } from "../../lib/prisma";
 import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integrationTestGuard";
 import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
+import { monthEnd, newAging, oldAging } from "../../../scripts/aging-before-after";
 
 /**
  * أعمار الذمم كما في نهاية الشهر، عبر مسارات HTTP الحقيقية على Postgres فعلي. كل حالة هنا تدور حول حدث يقع *بعد*
@@ -277,5 +278,21 @@ describe("aging as at a date (integration)", () => {
     expect(aug.total).toBe(-200);
     expect(aug.unallocated).toBe(-200);
     expect(aug.current + aug.d30 + aug.d60 + aug.d90).toBe(0);
+  });
+
+  it("the before/after script reproduces the old monthly-report aging and the new one, so the delta can be put in writing", async () => {
+    // قديم يونيو: فاتورة يونيو 1150 مطروحاً منها تخصيص سبتمبر (المنطق القديم يطرح كل التخصيصات الحالية) = 0؛ جديد: 1150
+    const june = { before: await oldAging(companyId, monthEnd("2026-06")), after: await newAging(tenantId, companyId, monthEnd("2026-06")) };
+    expect(june.before.receivables.total).toBe(0);
+    expect(june.after.receivables.total).toBe(1150);
+    // قديم يوليو للدائنة: كل فواتير المشتريات حتى 31 يوليو بلا أي سداد (1000 + 500 للمورد الأول، 1000 للثاني) = 2500؛
+    // جديد: رصيد الأستاذ (500 بعد سداد يوليو، و1000 للثاني) = 1500
+    const july = { before: await oldAging(companyId, monthEnd("2026-07")), after: await newAging(tenantId, companyId, monthEnd("2026-07")) };
+    expect(july.before.payables.total).toBe(2500);
+    expect(july.after.payables.total).toBe(1500);
+    // "بعد" هو نفس ما يعرضه التقرير الشهري الجديد
+    const report = await monthly("2026-07");
+    expect(report.payables.total).toBe(july.after.payables.total);
+    expect(report.receivables.total).toBe(july.after.receivables.total);
   });
 });
