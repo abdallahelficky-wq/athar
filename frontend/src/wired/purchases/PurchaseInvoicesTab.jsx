@@ -80,6 +80,10 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
       unitPrice: Number(l.unitPrice),
       discountPct: Number(l.discountPct || 0),
       priceIncludesVat: l.priceIncludesVat,
+      taxCategoryCode: l.taxCategoryCode,
+      vatApplicable: l.vatApplicable,
+      taxExemptionReasonCode: l.taxExemptionReasonCode,
+      taxExemptionReason: l.taxExemptionReason,
     }));
 
   const save = async () => {

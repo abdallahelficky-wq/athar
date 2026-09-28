@@ -1532,6 +1532,10 @@ model PurchaseInvoiceLine {
   unitPrice        Decimal         @db.Decimal(18, 4)
   discountPct      Decimal         @default(0) @db.Decimal(5, 2)
   priceIncludesVat Boolean         @default(false)
+  taxCategoryCode TaxCategoryCode @default(S)
+  vatApplicable Boolean @default(true)
+  taxExemptionReasonCode String?
+  taxExemptionReason String?
   subtotal         Decimal         @db.Decimal(18, 2)
   vat              Decimal         @db.Decimal(18, 2)
   total            Decimal         @db.Decimal(18, 2)
