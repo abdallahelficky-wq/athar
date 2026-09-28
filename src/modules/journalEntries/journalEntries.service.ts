@@ -367,14 +367,14 @@ export async function getJournalEntry(tenantId: string, id: string, companyScope
     resolveLinkedEntry(tenantId, entry.reversalOfEntryId),
     resolveLinkedEntryBy(tenantId, "reversalOfEntryId", entry.id),
   ]);
-  // الأصل وعكسه يحملان البيان نفسه: إن كان هذا القيد حساساً فبيان المرتبط به عكساً يُحذَف منه الاسم أيضاً
+  // الأصل وعكسه ومرآته تحمل البيان نفسه: إن كان هذا القيد حساساً فبيان كل مرتبط به يُحذَف منه الاسم أيضاً
   const hrKind = hrView ? undefined : (await hrEntryKinds(tenantId, [raw])).get(raw.id);
   const redactLinked = <L extends { memo: string | null } | null>(linked: L): L => (linked && hrKind ? { ...linked, memo: redactHrMemo(hrKind, linked.memo) } : linked);
 
   // قيد الرواتب مرتبط بكشفه (sourceId) — رابط التفاصيل لأدوار الموارد البشرية فقط
   const payrollRunId = hrView && raw.sourceModule === "payroll" ? raw.sourceId : null;
 
-  return { ...entry, mirrorEntry, reversalOfEntry: redactLinked(reversalOfEntry), reversedByEntry: redactLinked(reversedByEntry), payrollRunId };
+  return { ...entry, mirrorEntry: redactLinked(mirrorEntry), reversalOfEntry: redactLinked(reversalOfEntry), reversedByEntry: redactLinked(reversedByEntry), payrollRunId };
 }
 
 /** يحل مرجعاً حراً (id) يدوياً (بلا include صريح، بنفس أسلوب sourceId/sourceModule) لعرض ملخص القيد المرتبط، أياً كان نوع الربط (مرآة بين شركات أو عكس قيد) */

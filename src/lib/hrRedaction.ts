@@ -9,8 +9,8 @@ import type { PersonalFold } from "./personalAccounts";
  *   فيبقى الأستاذ مطابقاً لميزان المراجعة.
  * - تسوية الإجازة وصرفها: نفس الطيّ، ويُحذَف اسم الموظف من البيان («مستحقات إجازة — الاسم»).
  * - السلف وأقساطها تبقى باسم صاحبها للجميع: أسطر السلف (employeeAdvanceId) لا تُطوى.
- * - قيد العكس ينسخ بيان الأصل وأسطره بمصدر "manual"، فيُعامَل عكس قيد حساس معاملة الأصل — وإلا صار العكس
- *   طريقاً جانبياً للاسم.
+ * - قيد العكس ينسخ بيان الأصل وأسطره، وقيد المرآة ينسخ بيانه، كلاهما بمصدر "manual" — فيُعامَل كل قيد يصل
+ *   بهذين الرابطين (مباشرةً أو تسلسلاً) إلى قيد حساس معاملة الأصل، وإلا صار طريقاً جانبياً للاسم.
  */
 export type HrEntryKind = "payroll" | "leave_settlement";
 
@@ -18,20 +18,46 @@ const HR_MODULES: readonly string[] = ["payroll", "leave_settlement"];
 
 export async function hrEntryKinds(
   tenantId: string,
-  entries: { id: string; sourceModule: string; reversalOfEntryId?: string | null }[],
+  entries: { id: string; sourceModule: string; reversalOfEntryId?: string | null; mirrorEntryId?: string | null }[],
 ): Promise<Map<string, HrEntryKind>> {
   const kinds = new Map<string, HrEntryKind>();
-  const reversalTargets = new Map<string, string[]>();
+  // العكس والمرآة ينسخان بيان الأصل بمصدر "manual" وقد يتسلسلان (عكسُ مرآةٍ لقيد تسوية) — فيُتتبَّع الرابطان
+  // معاً حتى أصل من الرواتب أو التسويات، بعدد قفزات محدود. pending: معرّف مرتبط ← القيود التي تستمد حساسيتها منه
+  let pending = new Map<string, string[]>();
+  const link = (map: Map<string, string[]>, target: string | null | undefined, origins: string[]) => {
+    if (target) map.set(target, [...(map.get(target) || []), ...origins]);
+  };
   for (const e of entries) {
     if (HR_MODULES.includes(e.sourceModule)) kinds.set(e.id, e.sourceModule as HrEntryKind);
-    else if (e.reversalOfEntryId) reversalTargets.set(e.reversalOfEntryId, [...(reversalTargets.get(e.reversalOfEntryId) || []), e.id]);
+    else {
+      link(pending, e.reversalOfEntryId, [e.id]);
+      link(pending, e.mirrorEntryId, [e.id]);
+    }
   }
-  if (reversalTargets.size) {
-    const sources = await prisma.journalEntry.findMany({
-      where: { tenantId, id: { in: [...reversalTargets.keys()] }, sourceModule: { in: ["payroll", "leave_settlement"] } },
-      select: { id: true, sourceModule: true },
+  const seen = new Set(entries.map((e) => e.id));
+  for (let hop = 0; hop < 4 && pending.size; hop++) {
+    const targets = [...pending.keys()];
+    targets.forEach((id) => seen.add(id));
+    const linked = await prisma.journalEntry.findMany({
+      where: { tenantId, id: { in: targets } },
+      select: { id: true, sourceModule: true, reversalOfEntryId: true, mirrorEntryId: true },
     });
-    for (const s of sources) for (const id of reversalTargets.get(s.id) || []) kinds.set(id, s.sourceModule as HrEntryKind);
+    const next = new Map<string, string[]>();
+    for (const l of linked) {
+      const origins = pending.get(l.id) || [];
+      if (HR_MODULES.includes(l.sourceModule)) {
+        for (const id of origins) if (!kinds.has(id)) kinds.set(id, l.sourceModule as HrEntryKind);
+        continue;
+      }
+      for (const target of [l.reversalOfEntryId, l.mirrorEntryId]) if (target && !seen.has(target)) link(next, target, origins);
+    }
+    pending = next;
+  }
+  // مباشرةً في القائمة نفسها: قيد في القائمة مرتبط بقيد حساس في القائمة ذاتها
+  for (const e of entries) {
+    if (kinds.has(e.id)) continue;
+    const direct = [e.reversalOfEntryId, e.mirrorEntryId].map((id) => (id ? kinds.get(id) : undefined)).find(Boolean);
+    if (direct) kinds.set(e.id, direct);
   }
   return kinds;
 }

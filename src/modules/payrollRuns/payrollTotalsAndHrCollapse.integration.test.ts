@@ -83,6 +83,7 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
   let juneEntryId = "";
   let julyEntryId = "";
   let settlementEntryId = "";
+  let payoutId = "";
 
   beforeAll(async () => {
     server = createApp().listen(0);
@@ -295,6 +296,7 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
     const disbursed = await call("POST", `/leave-settlements/${created.body.id}/disburse`, ownerToken, { method: "cash", date: new Date().toISOString() });
     expect(disbursed.status, disbursed.text).toBe(200);
     const payoutEntryId = disbursed.body.disbursementJournalEntryId;
+    payoutId = payoutEntryId;
 
     const hr = await call("GET", `/journal-entries/${payoutEntryId}`, ownerToken);
     expect(hr.body.memo).toContain(emp.b.name);
@@ -332,6 +334,33 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
     const reverseAsAcct = await call("POST", `/journal-entries/${settlementEntryId}/reverse`, accountantToken, { date: new Date().toISOString() });
     expect(reverseAsAcct.status, reverseAsAcct.text).toBe(201);
     expect(JSON.stringify(reverseAsAcct.body)).not.toContain(emp.b.name);
+  });
+
+  it("a mirror of a settlement (which copies its memo), and a reversal of that mirror, hide the name too", async () => {
+    const other = await call("POST", "/companies", ownerToken, { name: `شركة المرآة ${stamp}`, businessActivity: "retail" });
+    expect(other.status, other.text).toBe(201);
+    const cash = (await prisma.account.findFirstOrThrow({ where: { companyId: other.body.id, code: "111001" } })).id;
+    const revenue = (await prisma.account.findFirstOrThrow({ where: { companyId: other.body.id, type: "revenue", isPosting: true } })).id;
+    const source = await prisma.journalEntry.findUniqueOrThrow({ where: { id: payoutId }, include: { lines: true } });
+    const amount = sum(source.lines, "debit");
+    const mirror = await call("POST", `/journal-entries/${payoutId}/mirror`, ownerToken, {
+      targetCompanyId: other.body.id, date: source.date.toISOString(), memo: source.memo,
+      lines: [{ accountId: cash, debit: amount, credit: 0 }, { accountId: revenue, debit: 0, credit: amount }],
+    });
+    expect(mirror.status, mirror.text).toBe(201);
+    expect(mirror.body.memo).toContain(emp.b.name);
+
+    const mirrorAcct = await call("GET", `/journal-entries/${mirror.body.id}`, accountantToken);
+    expect(JSON.stringify(mirrorAcct.body)).not.toContain(emp.b.name);
+    const listed = await call("GET", `/journal-entries?companyId=${other.body.id}`, accountantToken);
+    expect(JSON.stringify(listed.body)).not.toContain(emp.b.name);
+    const sourceAcct = await call("GET", `/journal-entries/${payoutId}`, accountantToken);
+    expect(JSON.stringify(sourceAcct.body.mirrorEntry)).not.toContain(emp.b.name);
+
+    const reversal = await call("POST", `/journal-entries/${mirror.body.id}/reverse`, ownerToken, { date: new Date().toISOString() });
+    expect(reversal.status, reversal.text).toBe(201);
+    expect(JSON.stringify((await call("GET", `/journal-entries/${reversal.body.id}`, accountantToken)).body)).not.toContain(emp.b.name);
+    expect((await call("GET", `/journal-entries/${reversal.body.id}`, ownerToken)).body.memo).toContain(emp.b.name);
   });
 
   it("an accountant cannot save over an un-posted payroll or settlement entry from its collapsed view", async () => {
