@@ -1,4 +1,5 @@
-import { normalizeTax, TaxFields } from "../../lib/itemTax";
+import { TaxFields } from "../../lib/itemTax";
+import { normalizePurchaseTax } from "./purchaseTax";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
@@ -40,7 +41,7 @@ interface InvoiceInput {
 const invoiceInclude = { lines: { include: { account: true, item: true, warehouse: true } }, supplier: true, company: true, branch: true } as const;
 
 function computeLines(lines: LineInput[]) {
-  const computed = lines.map((l) => ({ ...l, ...normalizeTax(l), ...computeInvoiceLine(l) }));
+  const computed = lines.map((l) => ({ ...l, ...normalizePurchaseTax(l), ...computeInvoiceLine(l) }));
   const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
   const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
   const grandTotal = subtotal + vatTotal;
@@ -69,12 +70,12 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
   const resolved: LineInput[] = [];
   for (const line of lines) {
     if (!line.itemId) {
-      resolved.push({ ...line, ...normalizeTax(line) });
+      resolved.push({ ...line, ...normalizePurchaseTax(line) });
       continue;
     }
     const item = itemById.get(line.itemId)!;
     // Explicit line metadata is a snapshot; older callers inherit catalog tax defaults.
-    const tax = normalizeTax(line.taxCategoryCode != null || line.vatApplicable != null ? line : item);
+    const tax = normalizePurchaseTax(line.taxCategoryCode != null || line.vatApplicable != null ? line : item);
     if (item.type === "service") throw badRequest(`الصنف "${item.name}" من نوع خدمي، لا يمكن شراؤه`);
     if (item.type === "bundle") throw badRequest(`الصنف "${item.name}" منتج مجمّع — رصيده يزيد فقط عبر أمر تصنيع، لا الشراء المباشر`);
 
