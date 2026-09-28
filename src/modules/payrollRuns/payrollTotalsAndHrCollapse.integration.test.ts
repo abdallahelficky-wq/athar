@@ -285,7 +285,8 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
     const june = await prisma.journalEntry.findUniqueOrThrow({ where: { id: juneEntryId }, include: { lines: true } });
     expect(june.lines.filter((l) => l.accountId === emp.a.accountId)).toHaveLength(1);
     const monthly = await call("GET", `/reports/comprehensive-monthly?companyId=${companyId}&month=2026-07`, ownerToken);
-    expect(monthly.body.payroll.unpaid).toBe(8700);
+    // غير المدفوع = صافي يوليو في «رواتب مستحقة» + صافي يونيو الباقي في الحسابات الفرعية للموظفين
+    expect(monthly.body.payroll.unpaid).toBe(17400);
   });
 
   it("a leave settlement hides the employee's name from an accountant everywhere its memo is served", async () => {
@@ -412,5 +413,28 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
   it("only HR roles can change which groups collapse", async () => {
     expect((await call("PATCH", `/accounts/${employeesGroupId}`, accountantToken, { isPersonalGroup: false })).status).toBe(403);
     expect((await prisma.account.findUniqueOrThrow({ where: { id: employeesGroupId } })).isPersonalGroup).toBe(true);
+  });
+
+  it("the monthly report counts salaries paid in the month, and unpaid net pay wherever it sits — old months included", async () => {
+    // يونيو: الصافي في الحسابات الفرعية وحدها (الترحيل القديم) — كان التقرير يُظهر صفراً هنا
+    const june = await call("GET", `/reports/comprehensive-monthly?companyId=${companyId}&month=2026-06`, ownerToken);
+    expect(june.body.payroll.unpaid).toBe(8700);
+    expect(june.body.payroll.paid).toBe(0);
+
+    const cash = await getAccountIdByName(tenantId, companyId, "النقدية بالصندوق");
+    const payment = await call("POST", "/journal-entries", ownerToken, {
+      companyId, date: "2026-10-05T09:00:00.000Z", memo: "صرف رواتب", post: true,
+      lines: [{ accountId: emp.a.accountId, debit: 4700, credit: 0 }, { accountId: cash, debit: 0, credit: 4700 }],
+    });
+    expect(payment.status, payment.text).toBe(201);
+    const october = await call("GET", `/reports/comprehensive-monthly?companyId=${companyId}&month=2026-10`, ownerToken);
+    expect(october.body.payroll.paid).toBe(4700);
+    expect(october.body.payroll.unpaid).toBe(17400 - 4700);
+
+    // صرف معكوس لم يُصرَف: يعود المستحق ويخرج من المصروف
+    expect((await call("POST", `/journal-entries/${payment.body.id}/reverse`, ownerToken, { date: "2026-10-06T09:00:00.000Z" })).status).toBe(201);
+    const reversed = await call("GET", `/reports/comprehensive-monthly?companyId=${companyId}&month=2026-10`, ownerToken);
+    expect(reversed.body.payroll.paid).toBe(0);
+    expect(reversed.body.payroll.unpaid).toBe(17400);
   });
 });
