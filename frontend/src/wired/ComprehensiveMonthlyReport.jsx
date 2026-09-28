@@ -5,10 +5,13 @@ import { getComprehensiveMonthly, updateComprehensiveSettings } from "../api/rep
 import { fmt } from "../legacy/constants";
 import { CHART_PALETTE, CHART_GRID, chartTooltipStyle, colorAt } from "./dashboard/chartTheme";
 import { currencyLabel } from "../shared/countries";
+import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 const ChartBox = ({ title, children }) => <div className="panel chart-panel"><h3>{title}</h3>{children}</div>;
 const Aging = ({ data, t }) => <table className="ledger-table"><thead><tr><th>{t("reports.monthly.agingUnder30")}</th><th>{t("reports.monthly.aging30to60")}</th><th>{t("reports.monthly.aging60to90")}</th><th>{t("reports.monthly.agingOver90")}</th></tr></thead><tbody><tr>{["under30","d30to60","d60to90","over90"].map(k=><td className="num" key={k}>{fmt(data[k])}</td>)}</tr></tbody></table>;
+
+const monthEnd = (m) => { const [y, mm] = m.split("-").map(Number); return new Date(Date.UTC(y, mm, 0)).toISOString().slice(0, 10); };
 
 export default function ComprehensiveMonthlyReport({ companyId, companies }) {
   const { t, i18n } = useTranslation();
@@ -24,6 +27,8 @@ export default function ComprehensiveMonthlyReport({ companyId, companies }) {
     <div className="filter-bar no-print"><label>{t("reports.monthly.monthLabel")}<input type="month" value={month} onChange={e=>setMonth(e.target.value)}/></label><button className="btn-primary" onClick={()=>window.print()}>{t("reports.monthly.exportBtn")}</button>{companyId&&<button className="btn-secondary" onClick={()=>setEditing(!editing)}>{t("reports.monthly.alertThresholdsBtn")}</button>}</div>
     {editing&&<div className="panel no-print"><h3>{t("reports.monthly.alertThresholdsTitle")}</h3><div className="filter-bar"><label>{t("reports.monthly.expenseIncreasePctLabel")}<input type="number" value={settings.expenseIncreasePct} onChange={e=>setSettings({...settings,expenseIncreasePct:e.target.value})}/></label><label>{t("reports.monthly.minimumCashLabel")}<input type="number" value={settings.minimumCash} onChange={e=>setSettings({...settings,minimumCash:e.target.value})}/></label><label>{t("reports.monthly.maximumReceivablesLabel")}<input type="number" value={settings.maximumReceivables} onChange={e=>setSettings({...settings,maximumReceivables:e.target.value})}/></label><button className="btn-primary" onClick={saveSettings}>{t("common.save")}</button></div></div>}
     <h2>{t("reports.monthly.titleWithMonth", { month, scope: data.scope==="group"?t("reports.monthly.scopeGroup"):"" })}</h2>
+    {/* الأرقام أدناه تشمل أرصدة حتى نهاية الشهر (النقدية والذمم) — فنطاق السطر: كل ما هو محفوظ حتى نهاية الشهر */}
+    <DraftEntriesNotice printable companyId={companyId || undefined} dateTo={monthEnd(month)} label={t("draftEntries.monthlyLabel", { month })} />
     <section><h3>{t("reports.monthly.sectionA")}</h3><table className="ledger-table"><tbody><tr><td>{t("reports.income.totalRevenue")}</td><td className="num">{fmt(data.revenue)}</td></tr>{data.expenseSummary.map(x=><tr key={x.category}><td>{x.category}</td><td className="num">{fmt(x.value)}</td></tr>)}<tr><td className="strong">{t("reports.income.totalExpenses")}</td><td className="num strong">{fmt(data.expense)}</td></tr></tbody></table><ChartBox title={t("reports.monthly.chartRevenueExpense")}><ResponsiveContainer width="100%" height={220}><BarChart data={[{name:t("reports.monthly.revenueLabel"),value:data.revenue},{name:t("reports.monthly.expenseLabel"),value:data.expense}]}><CartesianGrid stroke={CHART_GRID}/><XAxis dataKey="name"/><YAxis/><Tooltip {...chartTooltipStyle}/><Bar dataKey="value" fill={CHART_PALETTE[0]}/></BarChart></ResponsiveContainer></ChartBox></section>
     <section><h3>{t("reports.monthly.sectionB")}</h3><div className={`panel net-row ${data.netProfitChangePct>=0?"balance-ok":"balance-bad"}`}><div style={{fontSize:30,fontWeight:800}}>{fmt(data.netProfit)} {currency}</div><div>{data.netProfitChangePct==null?t("reports.monthly.noComparison"):t("reports.monthly.vsLastMonth",{pct:data.netProfitChangePct})}</div></div></section>
     <section><h3>{t("reports.monthly.sectionC")}</h3><table className="ledger-table"><tbody><tr><td>{t("reports.monthly.payrollPaid")}</td><td className="num">{fmt(data.payroll.paid)}</td></tr><tr><td>{t("reports.monthly.payrollUnpaid")}</td><td className="num">{fmt(data.payroll.unpaid)}</td></tr><tr><td>{t("reports.monthly.eosAccrual")}</td><td className="num">{fmt(data.payroll.endOfService)}</td></tr></tbody></table></section>

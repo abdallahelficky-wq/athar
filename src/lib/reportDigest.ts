@@ -145,6 +145,26 @@ export async function buildReportDigestEmail(tenantId: string, companyId: string
     );
   }
 
+  // أي رقم أرصدة في الرسالة يحتسب المرحَّل فقط (أو المحفوظ أيضاً لشركة لم تُفعِّل المفتاح بعد) — فتحمل
+  // الرسالة نفس سطر "قيود محفوظة" الذي تحمله الشاشات، حتى لا يصل رقم مفلتَر بلا تنبيه.
+  if (sections.length) {
+    const drafts = await reportsService.getDraftEntriesSummary(tenantId, { companyId, dateTo: now });
+    const lines: string[] = [];
+    if (drafts.uncounted.entryCount > 0) {
+      lines.push(en
+        ? `${drafts.uncounted.entryCount} saved, unposted entries (debit ${money(drafts.uncounted.debit, lang)} / credit ${money(drafts.uncounted.credit, lang)}) are not included in the figures above.`
+        : `${drafts.uncounted.entryCount} قيد محفوظ غير مرحّل (مدين ${money(drafts.uncounted.debit, lang)} / دائن ${money(drafts.uncounted.credit, lang)}) غير محتسبة في الأرقام أعلاه.`);
+    }
+    if (drafts.counted.entryCount > 0) {
+      lines.push(en
+        ? `This company has not yet switched to counting posted entries only: the figures above include ${drafts.counted.entryCount} saved, unposted entries (debit ${money(drafts.counted.debit, lang)} / credit ${money(drafts.counted.credit, lang)}).`
+        : `هذه الشركة لم تُفعِّل بعدُ احتساب المرحَّل فقط: الأرقام أعلاه تتضمن ${drafts.counted.entryCount} قيداً محفوظاً غير مرحّل (مدين ${money(drafts.counted.debit, lang)} / دائن ${money(drafts.counted.credit, lang)}).`);
+    }
+    if (lines.length) {
+      sections.push(`<div style="margin-top:14px; border-inline-start:3px solid #B98B4E; background:#fbf6ee; padding:10px 14px; font-size:12.5px; color:#5c4a28;">${lines.map((l) => `<div>${l}</div>`).join("")}</div>`);
+    }
+  }
+
   if (!sections.length) {
     sections.push(`<p style="font-size:13px; color:#5c6b78;">${en ? "No report was selected to send in this schedule's settings." : "لم يُحدَّد أي تقرير للإرسال ضمن إعدادات هذه الجدولة."}</p>`);
   }

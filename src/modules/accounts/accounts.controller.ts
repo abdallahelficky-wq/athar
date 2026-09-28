@@ -6,6 +6,7 @@ import { assertCompanyAccess } from "../../middleware/auth";
 import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 import { LEVEL_CODE_LENGTH, generateNextCode } from "../../lib/accountCodes";
+import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 
 const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ? value : null);
 
@@ -63,7 +64,7 @@ export const listAccounts: RequestHandler = async (req, res) => {
 
   const lines = await prisma.journalEntryLine.groupBy({
     by: ["accountId"],
-    where: { journalEntry: { tenantId: req.auth!.tenantId, companyId: companyId || undefined } },
+    where: { journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId: req.auth!.tenantId, companyId: companyId || undefined } },
     _sum: { debit: true, credit: true },
   });
   const direct = new Map(lines.map((line) => [line.accountId, Number(line._sum.debit || 0) - Number(line._sum.credit || 0)]));

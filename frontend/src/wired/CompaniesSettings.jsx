@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { createCompany, createIndependentCompany } from "../api/companies";
+import { createCompany, createIndependentCompany, setBalancesPostedOnly } from "../api/companies";
+import { getDraftEntriesSummary } from "../api/reports";
+import { fmt } from "../legacy/constants";
 import { useAuth } from "../context/AuthContext";
 import { changeUnlockPin } from "../api/auth";
 import CompanyEditModal from "./CompanyEditModal";
@@ -350,6 +352,77 @@ function NewCompanyForm({ onCompanyCreated }) {
   );
 }
 
+/**
+ * مفتاح "الأرصدة تحتسب المرحَّل فقط" لكل شركة — للمالك وحده. عند تفعيله تخرج القيود المحفوظة (غير
+ * المرحّلة) من كل الأرصدة والقوائم ولوحة المتابعة؛ عدد تلك القيود ومجموعها معروضان قبل التفعيل حتى يُعرف
+ * أثره مسبقاً. كل تغيير مسجَّل في سجل التدقيق.
+ */
+function BalancesPostedOnlySettings({ companies, reload }) {
+  const { t } = useTranslation();
+  const [drafts, setDrafts] = useState({});
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let live = true;
+    Promise.all(companies.map((c) => getDraftEntriesSummary({ companyId: c.id }).then((d) => [c.id, d]).catch(() => [c.id, null])))
+      .then((pairs) => { if (live) setDrafts(Object.fromEntries(pairs)); });
+    return () => { live = false; };
+  }, [companies]);
+
+  const toggle = async (company) => {
+    const enabling = !company.balancesPostedOnly;
+    const d = drafts[company.id];
+    const pending = d ? d.uncounted.entryCount + d.counted.entryCount : 0;
+    if (enabling && !window.confirm(t("settings.balancesPostedOnly.confirmEnable", { company: company.name, count: pending }))) return;
+    if (!enabling && !window.confirm(t("settings.balancesPostedOnly.confirmDisable", { company: company.name }))) return;
+    setBusyId(company.id); setError("");
+    try {
+      await setBalancesPostedOnly(company.id, enabling);
+      await reload();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div className="panel form-panel" data-testid="balances-posted-only-settings">
+      <h3>{t("settings.balancesPostedOnly.title")}</h3>
+      <p className="note">{t("settings.balancesPostedOnly.note")}</p>
+      {error && <p className="balance-bad">{error}</p>}
+      <table className="ledger-table">
+        <thead>
+          <tr><th>{t("settings.balancesPostedOnly.company")}</th><th>{t("settings.balancesPostedOnly.state")}</th><th>{t("settings.balancesPostedOnly.savedEntries")}</th><th></th></tr>
+        </thead>
+        <tbody>
+          {companies.map((c) => {
+            const d = drafts[c.id];
+            const saved = d ? { count: d.uncounted.entryCount + d.counted.entryCount, debit: d.uncounted.debit + d.counted.debit } : null;
+            return (
+              <tr key={c.id}>
+                <td>{c.name}</td>
+                <td>{c.balancesPostedOnly ? t("settings.balancesPostedOnly.on") : <span className="balance-bad">{t("settings.balancesPostedOnly.off")}</span>}</td>
+                <td>
+                  {saved === null ? "…" : saved.count === 0 ? "—" : (
+                    t("settings.balancesPostedOnly.savedSummary", { count: saved.count, debit: fmt(saved.debit) })
+                  )}
+                </td>
+                <td>
+                  <button className={c.balancesPostedOnly ? "btn-ghost" : "btn-primary"} disabled={busyId === c.id} onClick={() => toggle(c)}>
+                    {c.balancesPostedOnly ? t("settings.balancesPostedOnly.disable") : t("settings.balancesPostedOnly.enable")}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /** إدارة كاملة (إنشاء/تعديل/حذف) للشركات الحقيقية — يُستخدم داخل تبويب "بيانات الشركات" بالإعدادات،
  * وهو المكان الوحيد في النظام لإنشاء شركة جديدة بعد إزالة هذا الخيار من كل شاشات المعاملات */
 export default function CompaniesSettings({ companies, reload, onCompanyCreated }) {
@@ -369,6 +442,7 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
     <div>
       <TenantNameSettings />
       {isOwner && <UnlockPinSettings />}
+      {isOwner && companies.length > 0 && <BalancesPostedOnlySettings companies={companies} reload={reload} />}
       <NewCompanyForm onCompanyCreated={handleCreated} />
       <div className="panel form-panel">
         {error && <p className="balance-bad">{error}</p>}

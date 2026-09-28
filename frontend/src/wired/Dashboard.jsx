@@ -7,6 +7,7 @@ import FinancialDashboard from "./dashboard/FinancialDashboard";
 import Breadcrumb from "./shared/Breadcrumb";
 import WelcomeBanner from "./shared/WelcomeBanner";
 import { routes } from "../routes";
+import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 
 /** جدول مقارنة سريع بين شركات المجموعة (كل شركة على حدة) يُكمّل الأرقام المجمّعة لكل
  * المجموعة التي تعرضها FinancialDashboard نفسها (بدون تمرير companyId = تجميع تلقائي) */
@@ -115,6 +116,7 @@ export default function Dashboard({ companies, companyId }) {
         </div>
       ) : (
         <>
+          <DraftEntriesNotice companyId={viewMode === "consolidated" ? undefined : companyId || undefined} />
           {viewMode === "consolidated" ? (
             <>
               <FinancialDashboard companyId={undefined} companies={companies} />

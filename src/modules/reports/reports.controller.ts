@@ -117,3 +117,15 @@ export const supplierStatementHandler: RequestHandler = async (req, res) => {
   );
   res.json(result);
 };
+
+export const draftEntriesSummaryHandler: RequestHandler = async (req, res) => {
+  res.json(
+    await service.getDraftEntriesSummary(req.auth!.tenantId, {
+      companyId: typeof req.query.companyId === "string" ? req.query.companyId : undefined,
+      branchId: typeof req.query.branchId === "string" ? req.query.branchId : undefined,
+      accountId: typeof req.query.accountId === "string" ? req.query.accountId : undefined,
+      dateFrom: parseDate(req.query.from),
+      dateTo: parseDate(req.query.to),
+    }),
+  );
+};

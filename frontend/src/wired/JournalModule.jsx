@@ -30,7 +30,17 @@ import JournalVoucherViewModal from "./JournalVoucherViewModal";
 import JournalEntryFormModal from "./JournalEntryFormModal";
 import { formatDate } from "../i18n/dateFormat";
 
-const emptyFilters = { search: "", dateFrom: "", dateTo: "", amountMin: "", amountMax: "", entryNumber: "", accountId: "", status: "" };
+// branchId: لا حقل له في شريط الفلاتر — يصل فقط من رابط سطر "قيود محفوظة" ليطابق نطاقه، ويُمسَح بإعادة الضبط
+const emptyFilters = { search: "", dateFrom: "", dateTo: "", amountMin: "", amountMax: "", entryNumber: "", accountId: "", status: "", branchId: "" };
+function initialFiltersFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const out = { ...emptyFilters };
+  for (const key of ["status", "accountId", "branchId", "dateFrom", "dateTo"]) {
+    const value = params.get(key);
+    if (value) out[key] = value;
+  }
+  return out;
+}
 
 const SORT_COLUMNS = { entryNumber: "entryNumber", date: "date", amount: "amount" };
 
@@ -55,7 +65,9 @@ export default function JournalModule({ companies, companyId }) {
   const entryNumberLabel = (e) => e.entryNumber || e.id.slice(-8);
   const fmtDate = (d) => formatDate(d, i18n.language);
 
-  const jf = useDeferredFilters(emptyFilters);
+  // فلاتر أولية من الرابط (مثلاً ?status=saved&accountId=… من سطر "قيود محفوظة غير محتسبة" في شاشات
+  // الأرصدة) — تُقرأ مرة واحدة عند الفتح فقط.
+  const jf = useDeferredFilters(initialFiltersFromUrl());
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [sort, setSort] = useState({ key: null, dir: "asc" });
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -127,6 +139,7 @@ export default function JournalModule({ companies, companyId }) {
       entryNumber: f.entryNumber || undefined,
       accountId: f.accountId || undefined,
       status: f.status || undefined,
+      branchId: f.branchId || undefined,
     })
       .then(setEntries)
       .catch((err) => setError(err.message))

@@ -192,3 +192,28 @@ export const extractDocumentHandler: RequestHandler = async (req, res) => {
     });
   }
 };
+
+/**
+ * مفتاح "الأرصدة تحتسب المرحَّل فقط" لشركة واحدة — للمالك وحده (requireTenantOwner)، وكل تغيير يكتب صف
+ * تدقيق بالقيمتين قبل وبعد وعدد القيود المحفوظة لحظتها (وهي بالضبط ما سيخرج من الأرصدة أو يعود إليها).
+ */
+export const setBalancesPostedOnly: RequestHandler = async (req, res) => {
+  const tenantId = req.auth!.tenantId;
+  const enabled = req.body.enabled === true;
+  const company = await prisma.company.findFirst({ where: { id: req.params.id, tenantId } });
+  if (!company) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, company.id);
+  const updated = await prisma.$transaction(async (tx) => {
+    const savedEntries = await tx.journalEntry.count({ where: { tenantId, companyId: company.id, status: "saved" } });
+    const result = await tx.company.update({ where: { id: company.id }, data: { balancesPostedOnly: enabled } });
+    await tx.auditLog.create({
+      data: {
+        tenantId, companyId: company.id, userId: req.auth!.sub, action: "company.balances_posted_only_changed",
+        entityType: "Company", entityId: company.id,
+        metadata: { before: company.balancesPostedOnly, after: enabled, savedEntries },
+      },
+    });
+    return result;
+  });
+  res.json({ id: updated.id, balancesPostedOnly: updated.balancesPostedOnly });
+};

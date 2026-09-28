@@ -18,6 +18,7 @@ import { getAccountDisplayName } from "./shared/accountDisplayName";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
 import { defaultDateRangeForCompany } from "./shared/fiscalClosing";
 import ComprehensiveMonthlyReport from "./ComprehensiveMonthlyReport";
+import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 import ReportScheduleAutomation from "./ReportScheduleAutomation";
 import VatReconciliation from "./vat/VatReconciliation";
 
@@ -48,7 +49,7 @@ function AmountTreeRows({ nodes, depth = 0 }) {
   ));
 }
 
-function IncomeStatementView({ data, accounts, filters, branches }) {
+function IncomeStatementView({ data, accounts, filters, branches, companyId }) {
   const { t } = useTranslation();
   if (!data) return null;
   const { draft, setField, apply } = filters;
@@ -61,6 +62,7 @@ function IncomeStatementView({ data, accounts, filters, branches }) {
         <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} branches={branches} />
         <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("reports.income.showResults")}</button>
       </form>
+      <DraftEntriesNotice companyId={companyId} branchId={filters.applied.branchId || undefined} dateFrom={filters.applied.dateFrom || undefined} dateTo={filters.applied.dateTo || undefined} />
       <table className="ledger-table">
         <tbody>
           <tr><td className="strong section-row" colSpan={2}>{t("reports.income.revenue")}</td></tr>
@@ -78,7 +80,7 @@ function IncomeStatementView({ data, accounts, filters, branches }) {
   );
 }
 
-function BalanceSheetView({ data, accounts, filters, branches }) {
+function BalanceSheetView({ data, accounts, filters, branches, companyId }) {
   const { t } = useTranslation();
   if (!data) return null;
   const { draft, setField, apply } = filters;
@@ -90,6 +92,7 @@ function BalanceSheetView({ data, accounts, filters, branches }) {
         <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} branches={branches} />
         <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("reports.balance.showResults")}</button>
       </form>
+      <DraftEntriesNotice companyId={companyId} branchId={filters.applied.branchId || undefined} dateTo={filters.applied.asOfDate || undefined} />
       <table className="ledger-table">
         <tbody>
           <tr><td className="strong section-row" colSpan={2}>{t("reports.balance.assets")}</td></tr>
@@ -233,6 +236,7 @@ export default function ReportsModule({ companies, companyId }) {
           {tab === "vat" && <VatReconciliation companyId={companyId} companies={companies} />}
           {tab === "trial" && (
             <TrialBalanceView
+              companyId={companyId}
               data={tbData}
               filters={tb}
               branches={branches}
@@ -251,10 +255,10 @@ export default function ReportsModule({ companies, companyId }) {
             />
           )}
           {tab === "income" && (
-            <IncomeStatementView data={incomeStatement} accounts={accounts} filters={rollupFilters} branches={branches} />
+            <IncomeStatementView data={incomeStatement} accounts={accounts} filters={rollupFilters} branches={branches} companyId={companyId} />
           )}
           {tab === "balance" && (
-            <BalanceSheetView data={balanceSheet} accounts={accounts} filters={rollupFilters} branches={branches} />
+            <BalanceSheetView data={balanceSheet} accounts={accounts} filters={rollupFilters} branches={branches} companyId={companyId} />
           )}
         </>
       )}

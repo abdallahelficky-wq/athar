@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { authenticate, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
+import { authenticate, requireRole, requireTenantOwner, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createCompanySchema, createIndependentCompanySchema, updateCompanySchema, reopenFiscalClosingSchema, extractDocumentSchema } from "./companies.schemas";
+import { createCompanySchema, createIndependentCompanySchema, updateCompanySchema, reopenFiscalClosingSchema, extractDocumentSchema, balancesPostedOnlySchema } from "./companies.schemas";
 import {
   listCompanies,
   createCompany,
@@ -12,6 +12,7 @@ import {
   uploadLogoFile,
   uploadLogoHandler,
   extractDocumentHandler,
+  setBalancesPostedOnly,
 } from "./companies.controller";
 import { uploadSingleFile } from "../attachments/attachments.controller";
 
@@ -40,6 +41,8 @@ companyRoutes.patch(
 );
 // حذف الشركة أُزيل من التطبيق — يُعيد 405 دائماً لأي مستخدم (راجع deleteCompany)
 companyRoutes.delete("/:id", deleteCompany);
+// مفتاح "الأرصدة تحتسب المرحَّل فقط" — يغيّر كل رقم معروض للشركة، فهو للمالك وحده
+companyRoutes.patch("/:id/balances-posted-only", requireTenantOwner, validateBody(balancesPostedOnlySchema), setBalancesPostedOnly);
 companyRoutes.post(
   "/:id/fiscal-closing/reopen",
   requireRole("admin"),

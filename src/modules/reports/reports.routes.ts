@@ -10,6 +10,7 @@ import {
   accountLedgerHandler,
   comprehensiveMonthlyHandler,
   updateMonthlyReportSettingsHandler,
+  draftEntriesSummaryHandler,
 } from "./reports.controller";
 
 export const reportRoutes = Router();
@@ -20,6 +21,7 @@ reportRoutes.get("/trial-balance-tree", trialBalanceTreeHandler);
 reportRoutes.get("/income-statement", incomeStatementHandler);
 reportRoutes.get("/balance-sheet", balanceSheetHandler);
 reportRoutes.get("/comprehensive-monthly", comprehensiveMonthlyHandler);
+reportRoutes.get("/draft-entries-summary", draftEntriesSummaryHandler);
 // حدود تنبيه التقرير الشهري الشامل إعداد على مستوى الشركة — بنفس صلاحية تعديل بيانات الشركة نفسها
 // (كانت مفتوحة لأي مستخدم مسجَّل، بما فيه "مشاهدة فقط").
 reportRoutes.patch("/comprehensive-monthly/settings", requireRole("admin", "finance_manager"), updateMonthlyReportSettingsHandler);

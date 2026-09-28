@@ -23,4 +23,7 @@ export const previewBulkImportSchema = z.object({
 export const commitBulkImportSchema = previewBulkImportSchema.extend({
   // اسم الحساب في الملف -> معرّف الحساب الفعلي في شجرة الشركة (بعد مراجعة المستخدم للمطابقة التلقائية)
   accountMapping: z.record(z.string(), z.string().min(1)),
+  // محفوظة للمراجعة (الافتراضي)، أو مرحَّلة مباشرة لترحيل تاريخ مُقفَل من نظام آخر — اختيار صريح وقت
+  // الاستيراد، لأن الأرصدة تحتسب المرحَّل فقط.
+  status: z.enum(["saved", "posted"]).default("saved"),
 });

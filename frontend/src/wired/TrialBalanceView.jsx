@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { fmt } from "../legacy/constants";
 import { collectGroupAccountIds, flattenVisibleTree } from "./shared/trialBalanceTree";
 import { getAccountDisplayName } from "./shared/accountDisplayName";
+import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 
 /**
  * ميزان مراجعة هرمي (Tree View) — بنفس شكل شجرة الحسابات: كل حساب أب (مستوى 1-3) صف إجمالي
@@ -17,6 +18,7 @@ export default function TrialBalanceView({
   expandedIds, setExpandedIds,
   onPrint, onExportExcel,
   branches,
+  companyId,
 }) {
   const { t, i18n } = useTranslation();
   const { draft, setField, apply } = filters;
@@ -71,6 +73,7 @@ export default function TrialBalanceView({
         </label>
         <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("reports.trial.showResults")}</button>
       </form>
+      <DraftEntriesNotice companyId={companyId} branchId={filters.applied.branchId || undefined} dateFrom={filters.applied.dateFrom || undefined} dateTo={filters.applied.dateTo || undefined} />
 
       <div className="form-btn-group" style={{ marginBottom: 10 }}>
         <button className="btn-ghost" onClick={expandAll}>{t("reports.trial.expandAll")}</button>

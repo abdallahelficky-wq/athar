@@ -1747,6 +1747,7 @@
   },
   "settings": {
     "eyebrow": "System administration",
+    "balancesPostedOnly": {"title": "Balances count posted entries only", "note": "When on, saved (unposted) entries are left out of the trial balance, ledger, financial statements and dashboard, and are shown beneath them as a separate line. Companies that already had saved entries start with this switch off until those entries are reviewed — review them, post what is final, then turn the switch on.", "company": "Company", "state": "State", "savedEntries": "Saved entries now", "on": "On — posted only", "off": "Off — saved entries counted", "savedSummary": "{{count}} entries (debit {{debit}})", "enable": "Turn on", "disable": "Turn off", "confirmEnable": "Count posted entries only for {{company}}? {{count}} saved entries will leave all of its balances and statements.", "confirmDisable": "Turn the switch off for {{company}}? Saved entries will return to its balances and statements."},
     "unlockPin": {"title": "Un-posting PIN", "changeBtn": "Change PIN", "note": "Required to un-post any document. New accounts start with 1234 — change it. Five wrong attempts in a row lock un-posting for that user for 15 minutes, and every wrong attempt is logged under their name.", "current": "Current PIN", "new": "New PIN (4 to 8 digits)", "confirm": "Confirm new PIN", "errFormat": "The PIN must be 4 to 8 digits", "errMismatch": "The confirmation doesn't match the new PIN", "done": "The un-posting PIN has been changed."},
     "tenantName": {
       "title": "Company name (shown at the top of the screen and in the sidebar)",
@@ -2142,7 +2143,7 @@
       "committing": "Importing...",
       "confirmImportBtn": "Confirm import of {{count}} entries",
       "resolveAllNote": "Link all the accounts above (choose an existing account or create a new one) before continuing.",
-      "doneNote": "Import completed successfully. The entries are saved with \"Saved\" status (not posted) — review them from the journal screen and post them manually.",
+      "doneNote": "Import completed successfully. The entries are saved (not posted) and are not counted in balances — review them from the journal screen and post them.", "doneNotePosted": "Import completed successfully. The entries are posted and counted in balances.", "statusLegend": "Status of the imported entries", "statusSaved": "Saved for review (not counted in balances until posted)", "statusPosted": "Posted immediately — for migrating final data from another system",
       "doneTable": {
         "importedEntries": "Entries imported",
         "importedLines": "Lines imported",
@@ -2660,5 +2661,6 @@
       "doc": { "SalesInvoice": "Sales invoice", "SalesDebitNote": "Debit note", "SalesReturn": "Sales return", "PurchaseInvoice": "Purchase invoice", "PurchaseReturn": "Purchase return" },
       "source": { "manual": "Manual entry", "bulk_import": "Entry import", "ai_document": "AI document", "station_shift": "Station shift", "sales_invoice": "Sales invoice", "sales_return": "Sales return", "sales_debit_note": "Debit note", "purchase_invoice": "Purchase invoice", "purchase_return": "Purchase return", "receipt": "Receipt", "payroll": "Payroll run", "depreciation": "Depreciation", "asset_disposal": "Asset disposal", "leave_settlement": "Leave settlement", "stock_movement": "Stock movement", "periodic_inventory_settlement": "Periodic inventory settlement" }
     }
-  }
+  },
+  "draftEntries": {"monthlyLabel": "Saved, unposted entries up to the end of {{month}}", "uncounted": "Saved, unposted entries in this range that are not in the figures above: {{count}} entries — debit {{debit}} / credit {{credit}}.", "counted": "This company has not yet switched to counting posted entries only, so the figures above include {{count}} saved, unposted entries — debit {{debit}} / credit {{credit}}.", "view": "View the entries"}
 }
