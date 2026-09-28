@@ -138,8 +138,14 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   // الرواتب المستحقة تقع في مكانين: حساب «رواتب مستحقة» (الترحيل بالإجماليات، ومن أي قيد يدوي)، والحسابات الفرعية
   // للموظفين (الترحيل القديم: صافي كل موظف على حسابه، وتسويات الإجازة). غير المدفوع = رصيد الأول + الأرصدة الدائنة
   // للحسابات الفرعية في نهاية الشهر (رصيد مدين لموظف ذمة عليه لا يُنقِص ما هو مستحق لغيره) — فتصحّ الأشهر القديمة أيضاً.
-  // المصروف = المدين خلال الشهر على الحسابات نفسها (السداد)، بلا قيود الرواتب نفسها، مطروحاً منه ما عُكِس من سداد.
-  const employeeAccountIds = new Set(employeeAccounts.map((e) => e.accountId as string));
+  // المصروف = ما سُدِّد خلال الشهر من هذه الحسابات نقداً أو بنكياً (راجع paysCash أدناه)، مطروحاً منه ما عُكِس من سداد.
+  // الحسابات الفرعية للموظفين من شجرة الحسابات لا من صفوف الموظفين الحالية: حذف موظف يُبقي حسابه وقيوده، فلا يجوز
+  // أن يختفي رصيده من أشهر مضت. المجموعات: «ذمم الموظفين» باسمها، وأي مجموعة تضم حساب موظف حالي.
+  const employeeGroupIds = new Set([
+    ...accounts.filter((a) => !a.isPosting && a.name === "ذمم الموظفين").map((a) => a.id),
+    ...accounts.filter((a) => employeeAccounts.some((e) => e.accountId === a.id) && a.parentId).map((a) => a.parentId as string),
+  ]);
+  const employeeAccountIds = new Set(accounts.filter((a) => a.isPosting && a.parentId && employeeGroupIds.has(a.parentId)).map((a) => a.id));
   const payableIds = new Set(accounts.filter((a) => a.isPosting && /رواتب مستحقة/.test(a.name)).map((a) => a.id));
   const employeeOwed = [...employeeAccountIds].reduce((s, id) => {
     const b = closingRaw.get(id);
@@ -148,14 +154,17 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const payableOwed = salaryAccounts.filter((r) => payableIds.has(r.account.id)).reduce((s, r) => s + natural(r), 0);
   const payrollAccountIds = [...payableIds, ...employeeAccountIds];
   const monthEntries = { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { gte: from, lte: to } };
+  // السداد قيدٌ يُنقِص هذه الحسابات ويُخرِج نقداً أو من بنك في القيد نفسه — إعادة تصنيف بين حساب موظف و«رواتب مستحقة»
+  // (أو أي تسوية بلا نقد) ليست صرفاً. عكس السداد (يُعيد النقد) يُطرَح بالقاعدة نفسها.
+  const paysCash = { lines: { some: { credit: { gt: 0 }, account: { isBankOrCash: true } } } };
+  const receivesCash = { lines: { some: { debit: { gt: 0 }, account: { isBankOrCash: true } } } };
   const [payments, reversedPayments] = await Promise.all([
     prisma.journalEntryLine.aggregate({
-      where: { accountId: { in: payrollAccountIds }, debit: { gt: 0 }, journalEntry: { ...monthEntries, reversalOfEntryId: null, sourceModule: { not: "payroll" } } },
+      where: { accountId: { in: payrollAccountIds }, debit: { gt: 0 }, journalEntry: { ...monthEntries, ...paysCash, reversalOfEntryId: null, sourceModule: { not: "payroll" } } },
       _sum: { debit: true },
     }),
-    // دائن قيد عكس على هذه الحسابات لا يأتي إلا من عكس مدين — أي من عكس صرف — فيُطرَح
     prisma.journalEntryLine.aggregate({
-      where: { accountId: { in: payrollAccountIds }, credit: { gt: 0 }, journalEntry: { ...monthEntries, reversalOfEntryId: { not: null } } },
+      where: { accountId: { in: payrollAccountIds }, credit: { gt: 0 }, journalEntry: { ...monthEntries, ...receivesCash, reversalOfEntryId: { not: null } } },
       _sum: { credit: true },
     }),
   ]);

@@ -431,6 +431,24 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
     expect(october.body.payroll.paid).toBe(4700);
     expect(october.body.payroll.unpaid).toBe(17400 - 4700);
 
+    // إعادة تصنيف بلا نقد (من حساب الموظف إلى «رواتب مستحقة») ليست صرفاً ولا تغيّر غير المدفوع
+    const reclass = await call("POST", "/journal-entries", ownerToken, {
+      companyId, date: "2026-10-07T09:00:00.000Z", memo: "إعادة تصنيف", post: true,
+      lines: [{ accountId: emp.b.accountId, debit: 1000, credit: 0 }, { accountId: payableId, debit: 0, credit: 1000 }],
+    });
+    expect(reclass.status, reclass.text).toBe(201);
+    const afterReclass = await call("GET", `/reports/comprehensive-monthly?companyId=${companyId}&month=2026-10`, ownerToken);
+    expect(afterReclass.body.payroll.paid).toBe(4700);
+    expect(afterReclass.body.payroll.unpaid).toBe(17400 - 4700);
+
+    // حذف موظف لا يُخفي رصيده المستحق من الأشهر الماضية (حسابه وقيوده باقية)
+    const juneBefore = (await call("GET", `/reports/comprehensive-monthly?companyId=${companyId}&month=2026-06`, ownerToken)).body.payroll.unpaid;
+    await prisma.employeeAdvanceDeduction.deleteMany({ where: { employeeAdvance: { employeeId: emp.b.id } } });
+    await prisma.employeeAdvance.deleteMany({ where: { employeeId: emp.b.id } });
+    await prisma.leaveSettlement.deleteMany({ where: { employeeId: emp.b.id } });
+    await prisma.employee.delete({ where: { id: emp.b.id } });
+    expect((await call("GET", `/reports/comprehensive-monthly?companyId=${companyId}&month=2026-06`, ownerToken)).body.payroll.unpaid).toBe(juneBefore);
+
     // صرف معكوس لم يُصرَف: يعود المستحق ويخرج من المصروف
     expect((await call("POST", `/journal-entries/${payment.body.id}/reverse`, ownerToken, { date: "2026-10-06T09:00:00.000Z" })).status).toBe(201);
     const reversed = await call("GET", `/reports/comprehensive-monthly?companyId=${companyId}&month=2026-10`, ownerToken);
