@@ -1,3 +1,5 @@
+import PurchaseFilters from "./PurchaseFilters";
+import {filterPurchases} from "./purchaseFilterUtils";
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -21,6 +23,8 @@ import { useUnsavedChangesGuard } from "../shared/UnsavedChangesContext";
 export default function PurchaseInvoicesTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
   const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
+  const [filters,setFilters]=useState({search:"",supplier:"",status:"",from:"",to:""});
+  useEffect(()=>{setFilters({search:"",supplier:"",status:"",from:"",to:""});},[companyId]);
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const formRef = useRef(null);
@@ -151,6 +155,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
     reload();
   };
 
+  const visibleInvoices=filterPurchases(invoices,filters);
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
@@ -183,6 +188,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
         </div>
       </div></div>, document.body)}
 
+      <PurchaseFilters value={filters} onChange={setFilters} count={visibleInvoices.length} total={invoices.length} fields={[{key:"search"},{key:"supplier",options:suppliers.map(s=>({value:s.id,label:s.name}))},{key:"status",options:["posted","draft"].map(v=>({value:v,label:t(`purchases.invoices.${v}`)}))},{key:"from",type:"date"},{key:"to",type:"date"}]} />
       {loading ? <p className="empty">{t("purchases.invoices.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
@@ -194,7 +200,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => (
+              {visibleInvoices.map((inv) => (
                 <React.Fragment key={inv.id}>
                   <tr>
                     <td>{inv.invoiceNumber}</td><td>{inv.supplier?.name}</td><td>{inv.date.slice(0, 10)}</td>
@@ -226,7 +232,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
                   )}
                 </React.Fragment>
               ))}
-              {invoices.length === 0 && <tr><td className="empty" colSpan={6}>{t("purchases.invoices.empty")}</td></tr>}
+              {visibleInvoices.length === 0 && <tr><td className="empty" colSpan={6}>{t(invoices.length ? "purchaseFilters.noResults" : "purchases.invoices.empty")}</td></tr>}
             </tbody>
           </table>
         </div>
