@@ -209,3 +209,26 @@ export async function createDefaultWarehouse(tx: Prisma.TransactionClient, tenan
     data: { tenantId, companyId, name: "المستودع الرئيسي", code: "MAIN", isDefault: true },
   });
 }
+
+/**
+ * شركات "محطات وقود" تُربَط بحسابي عجز/زيادة نقد الورديات المخصَّصين في قالبها (622005/431003)
+ * تلقائياً، حتى يعمل ترحيل ورديات المحطات فور إنشاء الشركة بلا إعداد يدوي. مسار واحد مشترك بين
+ * إنشاء الشركة من الإعدادات (companies.controller.ts) وتسجيل مستأجر جديد (auth.service.ts) — كان
+ * التسجيل يتخطّاه، فتبقى شركة المحطات الأولى بلا الحسابين ويفشل ترحيل أي وردية. الحقلان يبقيان
+ * قابلين لإعادة التوجيه لاحقاً لأي حساب آخر من إعدادات الشركة.
+ */
+export async function linkStationCashAccounts(
+  tx: Prisma.TransactionClient,
+  companyId: string,
+  activity: string | null | undefined,
+  idByCode: Map<string, string>,
+) {
+  if (activity !== "fuel_stations") return;
+  const shortage = idByCode.get("622005");
+  const surplus = idByCode.get("431003");
+  if (!shortage && !surplus) return;
+  await tx.company.update({
+    where: { id: companyId },
+    data: { stationCashShortageAccountId: shortage, stationCashSurplusAccountId: surplus },
+  });
+}

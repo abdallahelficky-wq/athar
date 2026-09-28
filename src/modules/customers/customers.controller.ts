@@ -6,6 +6,7 @@ import { ensurePartyAccount, resolvePartyAccountId } from "../../lib/partyAccoun
 import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claudeVision";
 import { createAttachment } from "../attachments/attachments.service";
 import { translateMessage } from "../../lib/i18n/translate";
+import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -32,7 +33,7 @@ export const getCustomerBalance: RequestHandler = async (req, res) => {
     where: {
       customerId: customer.id,
       accountId,
-      journalEntry: { tenantId: req.auth!.tenantId },
+      journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId: req.auth!.tenantId },
     },
     select: { debit: true, credit: true },
   });

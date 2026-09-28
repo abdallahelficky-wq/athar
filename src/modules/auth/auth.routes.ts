@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { validateBody } from "../../middleware/validate";
-import { authenticate, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
+import { authenticate, requireRole, blockMutationsWhenReadOnly, requireTenantOwner } from "../../middleware/auth";
 import {
   registerSchema,
   loginSchema,
   completeLoginChoiceSchema,
+  switchAccountSchema,
   refreshSchema,
   inviteSchema,
   setUserActiveSchema,
@@ -19,6 +20,7 @@ import {
   registerHandler,
   loginHandler,
   completeLoginChoiceHandler,
+  switchAccountHandler,
   refreshHandler,
   logoutHandler,
   inviteHandler,
@@ -41,6 +43,9 @@ export const authRoutes = Router();
 authRoutes.post("/register", validateBody(registerSchema), registerHandler);
 authRoutes.post("/login", validateBody(loginSchema), loginHandler);
 authRoutes.post("/login/complete", validateBody(completeLoginChoiceSchema), completeLoginChoiceHandler);
+// تبديل مقصود إلى عضوية أخرى لنفس الهوية من داخل جلسة قائمة — بلا blockMutationsWhenReadOnly عمداً:
+// التبديل لا يعدّل بيانات أي مستأجر، ويجب أن يبقى متاحاً حتى لمن مستأجره الحالي بوضع "عرض فقط".
+authRoutes.post("/switch", authenticate, validateBody(switchAccountSchema), switchAccountHandler);
 authRoutes.post("/refresh", validateBody(refreshSchema), refreshHandler);
 authRoutes.post("/logout", validateBody(refreshSchema), logoutHandler);
 authRoutes.post(
@@ -76,7 +81,8 @@ authRoutes.patch(
   "/unlock-pin",
   authenticate,
   blockMutationsWhenReadOnly,
-  requireRole("admin", "finance_manager"),
+  // ضبط الرقم السري لفك الترحيل للمالك وحده — كان متاحاً للمدير والمدير المالي
+  requireTenantOwner,
   validateBody(changeUnlockPinSchema),
   changeUnlockPinHandler,
 );

@@ -6,8 +6,18 @@ import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 import { useModuleTab } from "../shared/useModuleTab";
 import { fmt } from "../../legacy/constants";
+import StationWorkersTab from "./StationWorkersTab";
+import StationSetupTab from "./StationSetupTab";
+import FuelPricesTab from "./FuelPricesTab";
 
-export const STATION_SHIFTS_TABS = [{ id: "pending", labelKey: "stationShiftsReview.tabTitle" }];
+export const STATION_SHIFTS_TABS = [
+  { id: "pending", labelKey: "stationShiftsReview.tabTitle" },
+  { id: "setup", labelKey: "stationSetup.tabTitle" },
+  { id: "prices", labelKey: "fuelPrices.tabTitle" },
+  { id: "workers", labelKey: "stationWorkers.tabTitle" },
+];
+
+const EXTRA_TABS = { setup: StationSetupTab, prices: FuelPricesTab, workers: StationWorkersTab };
 
 /**
  * شاشة المحاسب لمراجعة/اعتماد/ترحيل ورديات المحطات — محور العامل منفصل تماماً في بوابة الموظف
@@ -65,13 +75,29 @@ export default function StationShiftsReviewModule({ companyId }) {
     catch (e) { setError(e.message); }
   };
 
-  return (
-    <div>
+  const header = (
+    <>
       <div className="section-title">
         <Breadcrumb parts={[t("stationShiftsReview.breadcrumb")]} />
         <h2>{t("stationShiftsReview.title")}</h2>
       </div>
       <SubTabs tabs={STATION_SHIFTS_TABS.map((x) => ({ ...x, label: t(x.labelKey) }))} active={tab} basePath="/stationShifts" />
+    </>
+  );
+
+  const ExtraTab = EXTRA_TABS[tab];
+  if (ExtraTab) {
+    return (
+      <div>
+        {header}
+        <ExtraTab companyId={companyId} />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {header}
 
       {error && <p className="balance-bad">{error}</p>}
       {message && <p className="note">{message}</p>}
@@ -118,6 +144,7 @@ export default function StationShiftsReviewModule({ companyId }) {
               <tr>
                 <th>{t("stationShiftsReview.table.nozzle")}</th>
                 <th>{t("stationShiftsReview.table.product")}</th>
+                <th>{t("stationShiftsReview.table.openingReading")}</th>
                 <th>{t("stationShiftsReview.table.confirmedReading")}</th>
                 <th>{t("stationShiftsReview.correctionLabel")}</th>
                 <th></th>
@@ -128,13 +155,14 @@ export default function StationShiftsReviewModule({ companyId }) {
                 <React.Fragment key={r.id}>
                   <tr>
                     <td>{r.nozzle?.pumpNumber}-{r.nozzle?.nozzleNumber}</td>
-                    <td>{r.nozzle?.product}</td>
+                    <td>{r.nozzle?.product ? t(`stationSetup.products.${r.nozzle.product}`) : ""}</td>
+                    <td><span className="num">{r.openingReading}</span>{r.nozzle?.meterDigits ? <span className="station-digits-hint">{t("stationShiftsReview.digitsSuffix", { n: r.nozzle.meterDigits })}</span> : null}</td>
                     <td className="num">{r.accountantConfirmedValue ?? t("stationShiftsReview.notReviewedYet")}</td>
                     <td><input type="number" value={corrections[r.id] || ""} onChange={(e) => setCorrections({ ...corrections, [r.id]: e.target.value })} style={{ width: 100 }} /></td>
                     <td><button className="btn-ghost" onClick={() => doCorrect(r.id)}>{t("stationShiftsReview.correctBtn")}</button></td>
                   </tr>
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <AttachmentsPanel entityType="station_shift_reading" entityId={r.id} title={t("stationShiftsReview.meterPhotoTitle", { nozzle: `${r.nozzle?.pumpNumber}-${r.nozzle?.nozzleNumber}` })} />
                     </td>
                   </tr>

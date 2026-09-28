@@ -1,4 +1,5 @@
 import "express-async-errors";
+import { env } from "./config/env";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -33,6 +34,7 @@ import { supplierRoutes } from "./modules/suppliers/suppliers.routes";
 import { purchaseInvoiceRoutes } from "./modules/purchaseInvoices/purchaseInvoices.routes";
 import { purchaseReturnRoutes } from "./modules/purchaseReturns/purchaseReturns.routes";
 import { purchaseReportRoutes } from "./modules/purchaseReports/purchaseReports.routes";
+import { vatReconciliationRoutes } from "./modules/vatReconciliation/vatReconciliation.routes";
 import { itemRoutes } from "./modules/items/items.routes";
 import { warehouseRoutes } from "./modules/warehouses/warehouses.routes";
 import { stockMovementRoutes } from "./modules/stockMovements/stockMovements.routes";
@@ -60,6 +62,7 @@ import { leaseContractRoutes } from "./modules/leaseContracts/leaseContracts.rou
 import { companyDocumentRoutes } from "./modules/companyDocuments/companyDocuments.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 import { employeePortalRoutes } from "./modules/employeePortal/employeePortal.routes";
+import { stationSetupRoutes } from "./modules/stationSetup/stationSetup.routes";
 import { attendanceRoutes } from "./modules/attendance/attendance.routes";
 import { posRoutes } from "./modules/pos/pos.routes";
 import { stableRoutes } from "./modules/stables/stables.routes";
@@ -67,6 +70,9 @@ import { aiRoutes } from "./modules/ai/ai.routes";
 
 export function createApp() {
   const app = express();
+  // req.ip = عنوان العميل الفعلي من X-Forwarded-For بعد عدد الوكلاء الموثوقين فقط (لا أول قيمة يرسلها
+  // العميل نفسه) — يعتمد عليه حدّ محاولات دخول بوابة الموظف لكل IP.
+  app.set("trust proxy", env.trustProxyHops);
 
   app.use(helmet());
   app.use(cors());
@@ -103,6 +109,7 @@ export function createApp() {
   app.use("/api/purchase-invoices", purchaseInvoiceRoutes);
   app.use("/api/purchase-returns", purchaseReturnRoutes);
   app.use("/api/purchase-reports", purchaseReportRoutes);
+  app.use("/api/vat-reconciliation", vatReconciliationRoutes);
   app.use("/api/items", itemRoutes);
   app.use("/api/warehouses", warehouseRoutes);
   app.use("/api/stock-movements", stockMovementRoutes);
@@ -126,6 +133,7 @@ export function createApp() {
   app.use("/api/lease-contracts", leaseContractRoutes);
   app.use("/api/company-documents", companyDocumentRoutes);
   app.use("/api/dashboard", dashboardRoutes);
+  app.use("/api/station-setup", stationSetupRoutes);
   app.use("/api/employee-portal", employeePortalRoutes);
   app.use("/api/attendance", attendanceRoutes);
   app.use("/api/employee-portal/leave-requests", leaveRequestPortalRoutes);

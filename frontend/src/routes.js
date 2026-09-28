@@ -21,6 +21,15 @@ export const routes = {
   /** فتح قيد يومية محدَّد من داخل شاشة "القيود اليومية" الحقيقية بكامل مكوّنات النظام (لا صفحة
    * عرض منفصلة) — يُستخدَم من رابط كشف حساب الأستاذ. JournalModule يقرأ entryId ويفتح نافذة
    * التعديل/العرض المناسبة تلقائياً فور التحميل (راجع التعليق هناك). */
+  /** القيود المحفوظة (غير المرحّلة) في شاشة القيود — من سطر "قيود محفوظة" في شاشات الأرصدة. */
+  draftEntries: ({ accountId, branchId, dateFrom, dateTo } = {}) => {
+    const params = new URLSearchParams({ status: "saved" });
+    if (accountId) params.set("accountId", accountId);
+    if (branchId) params.set("branchId", branchId);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    return `/accounts/journal?${params}`;
+  },
   journalEntry: (entryId) => (entryId ? `/accounts/journal?entryId=${encodeURIComponent(entryId)}` : "/accounts/journal"),
   /** كشف حساب عميل لشركة مُحدَّدة (شركة الفاتورة/المردود التي فُتح الرابط منها، لا بالضرورة الشركة
    * النشطة حالياً في مُبدّل الشركات) — يفتح تبويب العملاء ويعرض النافذة تلقائياً (راجع CustomersTab.jsx).

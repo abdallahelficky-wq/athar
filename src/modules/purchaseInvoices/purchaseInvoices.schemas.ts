@@ -14,6 +14,10 @@ const lineSchema = z.object({
   unitPrice: z.coerce.number().min(0),
   discountPct: z.coerce.number().min(0).max(100).default(0),
   priceIncludesVat: z.boolean().default(false),
+  taxCategoryCode: z.enum(["S", "Z", "E", "O"]).optional(),
+  vatApplicable: z.boolean().optional(),
+  taxExemptionReasonCode: z.string().nullable().optional(),
+  taxExemptionReason: z.string().nullable().optional(),
 });
 
 export const createPurchaseInvoiceSchema = z.object({

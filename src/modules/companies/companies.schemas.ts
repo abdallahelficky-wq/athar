@@ -65,6 +65,12 @@ export const createCompanySchema = z.object({
 
 export const updateCompanySchema = createCompanySchema.partial();
 
+// «شركة مستقلة» (مستأجر جديد كلياً): نفس حقول نموذج الإضافة، لكن النشاط إلزامي كما في التسجيل تماماً —
+// لأن الشجرة والبيانات الابتدائية تُزرَع بنفس دالة التسجيل (createOwnedTenant) التي تشترط النشاط.
+export const createIndependentCompanySchema = createCompanySchema
+  .pick({ name: true, shortName: true, country: true, currency: true })
+  .extend({ businessActivity: z.enum(BUSINESS_ACTIVITIES) });
+
 export const reopenFiscalClosingSchema = z.object({
   fiscalYearClosingDate: z.coerce.date().nullable(),
 });
@@ -72,3 +78,6 @@ export const reopenFiscalClosingSchema = z.object({
 export const extractDocumentSchema = z.object({
   docType: z.enum(["cr", "national_address", "vat_certificate"]),
 });
+
+export const balancesPostedOnlySchema = z.object({ enabled: z.boolean() });
+export const payrollTotalsFromMonthSchema = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "الشهر بصيغة YYYY-MM").nullable() });

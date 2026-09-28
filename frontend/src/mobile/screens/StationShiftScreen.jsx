@@ -73,6 +73,9 @@ export default function StationShiftScreen() {
     try {
       const shift = await api.openShift(shiftType);
       persistShiftId(shift.id);
+      // الخادم لا يفتح وردية إلا على محطة لها مضخات — لكن قائمة الفوهات هنا حُمِّلت عند فتح الشاشة، وقد
+      // تكون أُضيفت المضخات بعدها (شاشة مفتوحة منذ الصباح)؛ إعادة الجلب تمنع وردية تظهر بلا فوهات.
+      await loadStation();
     } catch (e) { setError(e.message); }
   };
 
@@ -180,7 +183,7 @@ export default function StationShiftScreen() {
             const entry = readings[n.id] || {};
             return (
               <div key={n.id} className="m-list-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
-                <strong>{t("mobile.stationShifts.nozzleLabel", { nozzle: n.nozzleNumber, product: n.product })}</strong>
+                <strong>{t("mobile.stationShifts.nozzleLabel", { nozzle: n.nozzleNumber, product: t(`stationSetup.products.${n.product}`) })}</strong>
                 {entry.saved ? (
                   <span style={{ color: "#2F5D5A" }}>✓ {t("mobile.stationShifts.readingSaved")}</span>
                 ) : (

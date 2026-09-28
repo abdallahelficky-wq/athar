@@ -10,6 +10,7 @@ import { labelForListValue } from "../../legacy/listLabels";
 import { routes } from "../../routes";
 import { listCostCenters } from "../../api/costCenters";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
+import EmployeePortalAccessPanel from "./EmployeePortalAccessPanel";
 
 const emptyForm = () => ({
   name: "", employeeNumber: "", idNumber: "", gender: "", maritalStatus: "",
@@ -314,6 +315,14 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
         </div>
         <button className="btn-ghost" onClick={addDoc}>{t("hr.directory.addDoc")}</button>
         {editingId && <AttachmentsPanel entityType="employee" entityId={editingId} title={t("hr.directory.attachmentsTitle")} />}
+        {editingId && (
+          <EmployeePortalAccessPanel
+            key={editingId}
+            employeeId={editingId}
+            defaultPhone={form.phone}
+            employeeStatus={employees.find((e) => e.id === editingId)?.status}
+          />
+        )}
 
         {editingId && payrollComponents.length > 0 && (
           <>

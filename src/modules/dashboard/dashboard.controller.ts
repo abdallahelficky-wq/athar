@@ -1,5 +1,6 @@
 import { Request, RequestHandler } from "express";
 import * as service from "./dashboard.service";
+import { canReadHrData } from "../../middleware/auth";
 
 function parseCompanyId(req: Request) {
   const { companyId } = req.query;
@@ -41,7 +42,7 @@ export const cashFlowMonthlyHandler: RequestHandler = async (req, res) => {
 export const topCashTransactionsHandler: RequestHandler = async (req, res) => {
   const { limit } = req.query;
   res.json(
-    await service.getTopCashTransactions(req.auth!.tenantId, parseCompanyId(req), typeof limit === "string" ? Number(limit) : 10),
+    await service.getTopCashTransactions(req.auth!.tenantId, parseCompanyId(req), typeof limit === "string" ? Number(limit) : 10, canReadHrData(req.auth!)),
   );
 };
 

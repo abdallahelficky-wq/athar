@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createSalesInvoiceSchema, updateSalesInvoiceSchema, unpostSchema, sendEmailSchema } from "./salesInvoices.schemas";
 import {
@@ -26,6 +26,9 @@ export const salesInvoiceRoutes = Router();
 salesInvoiceRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
+// فك ترحيل/إزالة مستند مرحّل (يحذف قيده) يتطلب صلاحية "فك الترحيل" على منصب المستخدم نفسها التي
+// يتطلبها فك ترحيل قيد يومية مباشرة — لا الدور وحده. المالك وsuper_admin معفيان كما في كل صلاحية.
+const canUnpost = requirePermission("accounts", "unpost");
 
 salesInvoiceRoutes.get("/", listHandler);
 // قائمة قابلة للبحث/الفلترة/الترقيم من جانب الخادم — منفصلة عن "/" أعلاه عمداً (راجع تعليق
@@ -45,7 +48,7 @@ salesInvoiceRoutes.post("/", canWrite, validateBody(createSalesInvoiceSchema), c
 salesInvoiceRoutes.patch("/:id", canWrite, validateBody(updateSalesInvoiceSchema), updateHandler);
 salesInvoiceRoutes.delete("/:id", canWrite, deleteHandler);
 salesInvoiceRoutes.post("/:id/post", canWrite, postHandler);
-salesInvoiceRoutes.post("/:id/unpost", canWrite, validateBody(unpostSchema), unpostHandler);
+salesInvoiceRoutes.post("/:id/unpost", canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
 salesInvoiceRoutes.post("/:id/send-email", canWrite, validateBody(sendEmailSchema), sendEmailHandler);
 salesInvoiceRoutes.post("/:id/resend-email", canWrite, validateBody(sendEmailSchema), resendEmailHandler);
 salesInvoiceRoutes.post("/:id/resend-zatca", canWrite, resendZatcaHandler);

@@ -10,14 +10,17 @@ export function summarizeInvoiceCredits(invoice: { grandTotal: unknown; receiptA
     outstandingAmount: Math.max(0, balance), customerCreditAmount: Math.max(0, -balance),
     returnStatus: returnedAmount === 0 ? "none" : returnedAmount >= Number(invoice.grandTotal) - 0.01 ? "full" : "partial" };
 }
-export async function getInvoiceCreditNotes(tenantId: string, invoiceIds: string[]) {
+// client اختياري: داخل معاملة تفاعلية يُمرَّر عميل المعاملة نفسه حتى تجري كل الاستعلامات على الاتصال
+// المحجوز أصلاً، لا على اتصال ثانٍ من المجمّع قد لا يتوفر فتتعلّق المعاملة حتى تنتهي مهلتها.
+type CreditNotesClient = Pick<typeof prisma, "salesReturn">;
+export async function getInvoiceCreditNotes(tenantId: string, invoiceIds: string[], client: CreditNotesClient = prisma) {
   if (!invoiceIds.length) return [];
-  return prisma.salesReturn.findMany({ where: { tenantId, relatedInvoiceId: { in: invoiceIds } },
+  return client.salesReturn.findMany({ where: { tenantId, relatedInvoiceId: { in: invoiceIds } },
     select: { id: true, relatedInvoiceId: true, returnNumber: true, status: true, grandTotal: true, refundMethod: true, reason: true, date: true,
       lines: { select: { originalInvoiceLineId: true, quantity: true } } }, orderBy: { createdAt: "desc" } });
 }
-export async function withInvoiceCredits<T extends { id: string; grandTotal: unknown; receiptAllocations: { amount: unknown }[] }>(tenantId: string, invoices: T[]) {
-  const notes = await getInvoiceCreditNotes(tenantId, invoices.map((invoice) => invoice.id));
+export async function withInvoiceCredits<T extends { id: string; grandTotal: unknown; receiptAllocations: { amount: unknown }[] }>(tenantId: string, invoices: T[], client: CreditNotesClient = prisma) {
+  const notes = await getInvoiceCreditNotes(tenantId, invoices.map((invoice) => invoice.id), client);
   return invoices.map((invoice) => {
     const creditNotes = notes.filter((note) => note.relatedInvoiceId === invoice.id);
     const summary = summarizeInvoiceCredits(invoice, creditNotes);

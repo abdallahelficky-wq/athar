@@ -1,7 +1,8 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound, conflict } from "../../lib/httpError";
-import { assertCompanyAccess } from "../../middleware/auth";
+import { assertCompanyAccess, canReadHrData } from "../../middleware/auth";
+import { EMPLOYEE_SUMMARY_SELECT } from "../../lib/employeeSummary";
 import { calcEOS, serviceDuration, TerminationReason } from "../../lib/hrCalculations";
 import { hashPassword } from "../../lib/password";
 import { ensurePartyAccount } from "../../lib/partyAccounts";
@@ -24,8 +25,22 @@ async function assertStationBelongsToCompany(tenantId: string, costCenterId: str
   if (!costCenter) throw badRequest("المحطة المحددة ليست مركز تكلفة ضمن شركة هذا الموظف");
 }
 
+/**
+ * الأدوار خارج الموارد البشرية (محاسب، مشاهدة فقط) تحتاج قائمة الموظفين كمنتقٍ فقط: موظف سطر سلفة في
+ * نموذج القيد، أمين عهدة أصل ثابت، عامل محطة — فتُعاد لها حقول التعريف وحدها بلا راتب ولا بدلات ولا
+ * هوية ولا حساب بنكي ولا أرصدة إجازة/نهاية خدمة (EMPLOYEE_SUMMARY_SELECT). القائمة الكاملة لأدوار
+ * الموارد البشرية فقط.
+ */
 export const listEmployees: RequestHandler = async (req, res) => {
   const { companyId } = req.query;
+  if (!canReadHrData(req.auth!)) {
+    res.json(await prisma.employee.findMany({
+      where: { tenantId: req.auth!.tenantId, companyId: typeof companyId === "string" ? companyId : undefined },
+      select: EMPLOYEE_SUMMARY_SELECT,
+      orderBy: { createdAt: "asc" },
+    }));
+    return;
+  }
   const employees = await prisma.employee.findMany({
     where: { tenantId: req.auth!.tenantId, companyId: typeof companyId === "string" ? companyId : undefined },
     include: { documents: true },
@@ -180,30 +195,60 @@ export const calculateEos: RequestHandler = async (req, res) => {
 /**
  * تفعيل/تحديث دخول الموظف لبوابة الجوال (رقم جوال + رمز PIN منفصل تماماً عن حسابات User
  * الإدارية) — الموارد البشرية فقط من يضبطه، ويُخزَّن الـ PIN مجزّأً (bcrypt) كما كلمات مرور User.
+ * أي ضبط هنا يُصفّر كل عدّادات القفل: الموارد البشرية هي طريق فك قفل حساب موظف.
  */
 export const setEmployeePortalAccess: RequestHandler = async (req, res) => {
-  const existing = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
+  const existing = await prisma.employee.findFirst({
+    where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    omit: { pinHash: false },
+  });
   if (!existing) throw notFound("الموظف غير موجود");
   assertCompanyAccess(req.auth!, existing.companyId);
+
+  if (!req.body.pin && !existing.pinHash) throw badRequest("الرمز السري (6 أرقام) مطلوب لتفعيل الدخول أول مرة");
 
   const other = await prisma.employee.findFirst({
     where: { tenantId: req.auth!.tenantId, phone: req.body.phone, id: { not: existing.id } },
   });
   if (other) throw conflict("رقم الجوال هذا مستخدم بالفعل من موظف آخر في مستأجرك");
 
-  const pinHash = await hashPassword(req.body.pin);
   const employee = await prisma.employee.update({
     where: { id: existing.id },
     data: {
       phone: req.body.phone,
-      pinHash,
+      ...(req.body.pin ? { pinHash: await hashPassword(req.body.pin) } : {}),
       portalActive: req.body.portalActive,
       failedPortalLoginAttempts: 0,
       portalLockedUntil: null,
+      portalLockoutCount: 0,
     },
   });
-  res.json({ id: employee.id, phone: employee.phone, portalActive: employee.portalActive });
+  res.json(await portalAccessStatus(employee.id));
 };
+
+/** حالة دخول الموظف للبوابة كما تعرضها شاشة الموظف — "مضبوط أم لا" فقط، لا التجزئة نفسها أبداً */
+export const getEmployeePortalAccess: RequestHandler = async (req, res) => {
+  const existing = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
+  if (!existing) throw notFound("الموظف غير موجود");
+  assertCompanyAccess(req.auth!, existing.companyId);
+  res.json(await portalAccessStatus(existing.id));
+};
+
+async function portalAccessStatus(employeeId: string) {
+  const e = await prisma.employee.findUniqueOrThrow({
+    where: { id: employeeId },
+    select: { id: true, phone: true, portalActive: true, pinHash: true, portalLockedUntil: true, status: true },
+  });
+  const locked = !!e.portalLockedUntil && e.portalLockedUntil > new Date();
+  return {
+    id: e.id,
+    phone: e.phone,
+    portalActive: e.portalActive,
+    pinSet: !!e.pinHash,
+    lockedUntil: locked ? e.portalLockedUntil : null,
+    employeeActive: e.status === "active",
+  };
+}
 
 export const deleteEmployee: RequestHandler = async (req, res) => {
   const existing = await prisma.employee.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });

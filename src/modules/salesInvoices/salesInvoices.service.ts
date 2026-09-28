@@ -19,6 +19,7 @@ import { newQueryCounter, counted, logPostingPhaseTiming } from "../../lib/zatca
 import { resubmitZatcaDocument } from "../../lib/zatca/resubmit";
 import { sendInvoiceByEmail, SendInvoiceEmailResult } from "./salesInvoiceEmail.service";
 import { accrueTrainerCommissionsTx, reverseTrainerCommissionsTx } from "../stables/stablesBilling.service";
+import { unpostVatSnapshot } from "../../lib/vatAccounts";
 
 type Tx = Prisma.TransactionClient;
 
@@ -1175,7 +1176,7 @@ export async function unpostSalesInvoice(tenantId: string, userId: string, id: s
     throw badRequest("لا يمكن فك ترحيل فاتورة مرتبطة بسلسلة تجزئة زاتكا (ICV/PIH) — هذا يكسر السلسلة بشكل غير قابل للإصلاح");
   }
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM sales_invoices WHERE id = ${id} AND "tenantId" = ${tenantId} FOR UPDATE`;
@@ -1190,7 +1191,7 @@ export async function unpostSalesInvoice(tenantId: string, userId: string, id: s
       data: { status: "draft", journalEntryId: null },
       include: invoiceInclude,
     });
-    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "SalesInvoice", entityId: id });
+    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "SalesInvoice", entityId: id, ...unpostVatSnapshot(invoice, invoice.invoiceNumber) });
     return withPaymentStatus(updated);
   });
 }

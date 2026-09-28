@@ -20,8 +20,8 @@ export const postJournalEntry = (id) => api.post(`/journal-entries/${id}/post`);
 export const unpostJournalEntry = (id, pin) => api.post(`/journal-entries/${id}/unpost`, { pin });
 export const previewBulkImportJournalEntries = (companyId, rows) =>
   api.post("/journal-entries/bulk-import/preview", { companyId, rows });
-export const commitBulkImportJournalEntries = (companyId, rows, accountMapping) =>
-  api.post("/journal-entries/bulk-import/commit", { companyId, rows, accountMapping });
+export const commitBulkImportJournalEntries = (companyId, rows, accountMapping, status = "saved") =>
+  api.post("/journal-entries/bulk-import/commit", { companyId, rows, accountMapping, status });
 export const getMirrorSuggestion = (id, targetCompanyId) =>
   api.post(`/journal-entries/${id}/mirror-suggestion`, { targetCompanyId });
 export const createMirrorJournalEntry = (id, payload) => api.post(`/journal-entries/${id}/mirror`, payload);

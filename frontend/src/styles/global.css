@@ -39,7 +39,7 @@
 .row-actions button { display: inline-flex; align-items: center; gap: 5px; }
 .row-actions .danger { color: #b42318; }
 .commission-report tfoot th { border-top: 2px solid currentColor; }
-@media print { .no-print, .sidebar, .app-header, .subtabs-bar { display: none !important; } .commission-report { border: 0; box-shadow: none; } }
+@media print { .no-print, .draft-entries-notice:not(.draft-entries-print), .sidebar, .app-header, .subtabs-bar { display: none !important; } .commission-report { border: 0; box-shadow: none; } }
 @media (max-width: 760px) { .stable-service-choice, .boarding-service-row { grid-template-columns: 1fr; } }
 
         * { box-sizing: border-box; }
@@ -629,6 +629,14 @@
         .balance-status { font-size: 12.5px; font-family: 'JetBrains Mono', monospace; }
         .balance-ok { color: #2F5D5A; font-weight: 600; }
         .balance-bad { color: #A8432B; font-weight: 600; }
+        .vat-note { font-size: 12.5px; color: #8A7C5E; font-weight: 400; line-height: 1.6; }
+        .vat-item-row td { font-weight: 600; background: rgba(185,139,78,0.06); }
+        .vat-detail-row td:first-child { padding-inline-start: 28px; }
+        .draft-entries-notice { margin: 8px 0 14px; padding: 8px 12px; border-inline-start: 3px solid #B98B4E; background: rgba(185,139,78,0.08); font-size: 13px; line-height: 1.7; }
+        .draft-entries-notice p { margin: 2px 0; }
+        .draft-entries-counted { color: #A8432B; }
+        .bulk-import-status { border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; padding: 8px 12px; margin: 10px 0; display: grid; gap: 6px; }
+        .bulk-import-status label { display: flex; gap: 8px; align-items: center; }
         .balance-hint { color: #8A7C5E; }
 
         .entries-feed { display: flex; flex-direction: column; }
@@ -1269,6 +1277,50 @@
         .landing-logo { display: block; width: 160px; max-width: 45vw; height: auto; }
         .landing-nav-actions { display: flex; gap: 10px; align-items: center; }
 
+        .tenant-portal-code { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(16,32,46,0.08); }
+        .tenant-portal-code-label { font-size: 12.5px; font-weight: 700; color: #445565; margin-bottom: 6px; }
+        .tenant-portal-code .note { margin-top: 10px; }
+        .tenant-portal-code-value { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; letter-spacing: 2px; color: #10202E; background: #F3EEE0; border-radius: 8px; padding: 6px 14px; }
+
+        /* تبويبا "إعداد المحطات" و"أسعار الوقود" (StationSetupTab.jsx / FuelPricesTab.jsx) */
+        .station-card .lines-table-wrap { margin: 12px 0; }
+        .station-pumps-table td { vertical-align: middle; }
+        .station-pump-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+        .station-pump-meta { font-size: 12px; color: #445565; }
+        .station-digits-hint { display: block; font-size: 11.5px; color: #8A7C5E; }
+        .btn-small { padding: 4px 10px !important; font-size: 12px !important; }
+        .status-warn { background: #FCE8E6 !important; color: #A1261B !important; }
+        .station-pump-form { margin-top: 14px; padding: 14px 16px; background: #F3EEE0; border-radius: 12px; }
+        .station-nozzle-row { align-items: end; }
+        .station-nozzle-label { align-self: center; font-size: 13.5px; }
+        .fuel-price-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+        .fuel-price-card { margin: 0 !important; }
+        .fuel-price-product { font-weight: 700; font-size: 14px; color: #445565; margin-bottom: 6px; }
+        .fuel-price-value { font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; color: #10202E; }
+        .fuel-price-value span { font-size: 12px; font-weight: 500; color: #445565; }
+        .fuel-price-none { font-family: inherit; font-size: 14px; color: #A1261B; }
+        .fuel-price-missing { border: 1px solid rgba(161,38,27,0.35) !important; }
+        .fuel-price-next { color: #2F5D5A; font-weight: 700; }
+        .fuel-price-row-current td { font-weight: 700; }
+        .fuel-price-status-current { background: #E3F1E8 !important; color: #1F6B3A !important; }
+        .fuel-price-status-upcoming { background: #E7EEF7 !important; color: #1F4F8A !important; }
+        @media (max-width: 760px) { .fuel-price-cards { grid-template-columns: 1fr; } }
+
+        /* تبويب "عمال المحطات" داخل موديول المحطات (StationWorkersTab.jsx) */
+        .station-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .station-worker-mode { display: flex; gap: 18px; margin: 4px 0 12px; font-size: 13px; }
+        .station-worker-mode label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+        .station-worker-portal { margin-top: 18px; }
+
+        /* قسم الدخول لبوابة الموظف داخل ملف الموظف (EmployeePortalAccessPanel.jsx) */
+        .portal-access-panel { margin-top: 22px; padding-top: 18px; border-top: 1px solid rgba(16,32,46,0.10); }
+        .portal-access-state { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+        .portal-access-toggle { flex-direction: row !important; align-items: center; gap: 8px !important; align-self: end; padding-bottom: 10px; }
+        .portal-access-issued { margin-top: 14px; background: #F3EEE0; border: 1px solid rgba(16,32,46,0.10); border-radius: 12px; padding: 14px 16px; }
+        .portal-access-issued-title { font-weight: 700; font-size: 13.5px; margin-bottom: 8px; color: #10202E; }
+        .portal-access-issued dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 8px; }
+        .portal-access-issued dt { font-size: 12.5px; color: #445565; }
+        .portal-access-issued dd { margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: #141414; text-align: start; }
         /* تطبيقا أندرويد أعلى الصفحة مباشرة تحت شريط التنقّل: بطاقات بأيقونة التطبيق لا أزرار ممتلئة،
            حتى لا تنافس الدعوة الأساسية (التجربة المجانية) بصرياً — جمهورها موظفو العملاء (كاشير، عامل
            محطة) لا الزائر المحتمل، وكل بطاقة تنزيل مباشر للـAPK. */
@@ -1374,9 +1426,50 @@
           .download-card { padding: 30px 22px; }
         }
 
+        .unlock-pin-done { color: #1F7A4D; font-size: 13px; margin: 0 0 8px; }
+
+        /* إضافة شركة: الاختيار بين «ضمن نفس المجموعة» و«شركة مستقلة» (مستأجر جديد) — راجع NewCompanyForm */
+        .company-mode-choice { border: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .company-mode-choice legend { font-weight: 700; font-size: 13px; margin-bottom: 8px; padding: 0; }
+        .company-mode-option { display: flex; gap: 10px; align-items: flex-start; border: 1px solid rgba(16,32,46,0.12); border-radius: 10px; padding: 12px 14px; cursor: pointer; background: #fff; }
+        .company-mode-option.selected { border-color: #C8102E; box-shadow: 0 0 0 1px #C8102E inset; }
+        .company-mode-option input { margin-top: 3px; }
+        .company-mode-option span { display: flex; flex-direction: column; gap: 4px; }
+        .company-mode-option small { color: #445565; font-size: 12px; line-height: 1.6; }
+        .independent-warning { grid-column: 1 / -1; background: #FFF6E5; border: 1px solid #F0D9A8; border-radius: 10px; padding: 12px 16px; font-size: 12.5px; color: #5A4520; line-height: 1.7; }
+        .independent-warning ul { margin: 6px 0 0; padding-inline-start: 20px; }
+        .independent-result { margin-top: 14px; background: #EEF6F1; border: 1px solid #BFDCCB; border-radius: 10px; padding: 14px 16px; font-size: 13px; }
+        .independent-result-title { font-weight: 700; margin-bottom: 6px; }
+        .independent-result p { margin: 0 0 6px; }
+        .independent-code { font-family: 'JetBrains Mono', monospace; font-size: 15px; }
+        @media (max-width: 640px) { .company-mode-choice { grid-template-columns: 1fr; } }
+
+        /* صفحة وثيقة "حماية بيانات العملاء" العامة (src/pages/DataProtectionPage.jsx) — نفس خلفية ورأس
+           صفحة الهبوط، والنص في بطاقة قراءة بعرض سطر مريح */
+        .legal-root { padding-bottom: 60px; }
+        .legal-card { max-width: 820px; margin: 10px auto 0; background: #FBF9F3; border-radius: 18px; padding: 44px 48px; box-shadow: 0 10px 40px rgba(16,32,46,0.08); color: #10202E; line-height: 2; font-size: 15px; }
+        .legal-card h1 { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 30px; font-weight: 700; color: #141414; margin: 0 0 6px; line-height: 1.4; }
+        .legal-subtitle { color: #445565; margin: 0 0 14px; }
+        .legal-meta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; background: #F3EEE0; border-radius: 999px; padding: 6px 16px; font-size: 12.5px; color: #445565; margin-bottom: 18px; }
+        .legal-meta strong { color: #10202E; }
+        .legal-meta time { font-family: 'JetBrains Mono', monospace; color: #10202E; font-weight: 600; }
+        .legal-meta-sep { color: #B7BFC6; }
+        .legal-card h2 { font-family: 'IBM Plex Sans Arabic', sans-serif; font-size: 20px; font-weight: 700; color: #141414; margin: 34px 0 10px; padding-top: 22px; border-top: 1px solid rgba(16,32,46,0.08); }
+        .legal-card p { margin: 0 0 14px; color: #2A3A48; }
+        .legal-card ul { margin: 0 0 14px; padding-inline-start: 22px; color: #2A3A48; }
+        .legal-card li { margin-bottom: 6px; }
+        .legal-card strong { color: #141414; }
+        .legal-card hr { border: none; border-top: 2px solid rgba(16,32,46,0.12); margin: 30px 0 18px; }
+        .legal-table-wrap { overflow-x: auto; margin: 0 0 16px; }
+        .legal-table { width: 100%; border-collapse: collapse; font-size: 13.5px; line-height: 1.7; }
+        .legal-table th { background: #F3EEE0; font-weight: 700; text-align: start; padding: 10px 12px; color: #10202E; }
+        .legal-table td { padding: 10px 12px; border-bottom: 1px solid rgba(16,32,46,0.08); vertical-align: top; }
+
         @media (max-width: 640px) {
           .landing-hero h1 { font-size: 32px; }
           .landing-nav { padding: 16px 20px; flex-direction: column; gap: 12px; }
+          .legal-card { padding: 28px 18px; border-radius: 12px; margin: 0 12px; font-size: 14.5px; }
+          .legal-card h1 { font-size: 24px; }
           .landing-apps { padding: 0 16px; }
           .landing-apps-grid { grid-template-columns: 1fr; gap: 10px; }
           .landing-hero { padding-top: 40px; }

@@ -13,6 +13,7 @@ import { getAccountDisplayName } from "./shared/accountDisplayName";
 import Breadcrumb from "./shared/Breadcrumb";
 import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
+import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 import { defaultDateRangeForCompany } from "./shared/fiscalClosing";
 
 const emptyFilters = { accountId: "", subAccountId: "", costCenterId: "", departmentId: "", branchId: "", dateFrom: "", dateTo: "" };
@@ -212,6 +213,15 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
                 </>
               )}
             </form>
+            {(alf.applied.subAccountId || alf.applied.accountId) && (
+              <DraftEntriesNotice
+                companyId={companyId}
+                accountId={alf.applied.subAccountId || alf.applied.accountId}
+                branchId={alf.applied.branchId || undefined}
+                dateFrom={alf.applied.dateFrom || undefined}
+                dateTo={alf.applied.dateTo || undefined}
+              />
+            )}
           </div>
 
           {!alf.applied.accountId && <p className="empty">{t("accountLedger.selectPrompt")}</p>}

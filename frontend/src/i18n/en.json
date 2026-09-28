@@ -1,4 +1,5 @@
 {
+  "purchaseFilters": {"search": "Search", "city": "City", "terms": "Payment terms", "supplier": "Supplier", "status": "Status", "from": "From date", "to": "To date", "all": "All", "reset": "Clear filters", "count": "Results: {{count}} of {{total}}", "noResults": "No matching results", "addSupplier": "Add supplier", "editSupplier": "Edit supplier", "discard": "Discard changes and close?"},
   "creditNote": {"complete": "Complete credit note posting", "noItems": "No matching items", "title": "Linked credit notes", "returnInvoice": "Return invoice", "returned": "Returned total", "net": "Net after returns", "due": "Outstanding balance", "customerCredit": "Customer credit balance", "pending": "Pending — balance not reduced yet", "full": "Fully returned", "partial": "Partially returned", "search": "Search for an item to add to the return", "unavailable": "Invoice is not available for return in this company", "reasonRequired": "Select the invoice and enter a return reason", "saved": "Credit note {{number}} posted and invoice balance updated", "savedPending": "Credit note {{number}} saved and pending; invoice balance has not been reduced yet", "editHint": "Adjust quantities or remove lines that are not being returned. Prices, discounts and tax come from the original invoice."},
   "common": {
     "languageName": "English",
@@ -70,13 +71,16 @@
     "billing": "Create boarding invoice",
     "commissions": "Trainer commissions"
   },
+  "stationSetup": {"tabTitle": "Station setup", "title": "Stations and pumps", "note": "Every pump has two nozzles: a petrol pump (91 and 95) or a diesel pump (two diesel nozzles). No shift can be opened on a station without pumps.", "noPumpsBadge": "No pumps — shifts cannot be opened", "pumpCount": "{{count}} pumps", "pump": "Pump", "nozzle": "Nozzle", "product": "Fuel", "meterDigits": "Meter digits", "initialReading": "Reading at setup", "pumpN": "Pump {{n}}", "nozzleN": "Nozzle {{n}}", "retire": "Retire pump", "retireConfirm": "Retire pump {{n}}? Workers will not see it in new shifts.", "edit": "Edit", "editDigitsPrompt": "Meter digits before the decimal point:", "hasShifts": "has shifts", "addPump": "+ Add pump", "newPumpTitle": "New pump", "pumpTypeLabel": "Pump type", "meterTypeLabel": "Meter type", "currentReading": "Current meter reading", "meterDigitsPlaceholder": "e.g. 6", "digitsHelp": "Meter digits = the number of digits before the decimal point on the cumulative litre meter (e.g. 999999.99 = 6 digits). When the meter passes its last value it wraps to zero; the system uses this number to compute litres at that rollover, so a wrong value gives a wrong sales figure. The current reading becomes the opening reading of the first shift.", "savePump": "Save pump", "pumpAdded": "Pump added.", "saved": "Saved.", "errNozzleFields": "Enter the meter digits and current reading for both nozzles", "pumpType": {"petrol": "Petrol (91 + 95)", "diesel": "Diesel"}, "meterType": {"mechanical": "Mechanical meter", "electronic": "Electronic meter"}, "products": {"gasoline_91": "Petrol 91", "gasoline_95": "Petrol 95", "diesel": "Diesel"}},
+  "fuelPrices": {"tabTitle": "Fuel prices", "currency": "SAR/L", "inForceSince": "In force since {{date}}", "notSet": "No price in force — shifts cannot be opened for this fuel", "nextChange": "Changes to {{price}} on {{date}}", "addTitle": "Add a new price", "note": "The price includes VAT and applies to all of the company's stations from its effective date. Prices cannot be edited once added, because posted shifts were valued at them — when the price changes, add a new dated price.", "product": "Fuel", "price": "Price incl. VAT", "effectiveFrom": "Effective from", "status": "Status", "addBtn": "Add price", "added": "Price added.", "errPrice": "Enter a price greater than zero", "historyTitle": "Price history", "noPrices": "No prices yet.", "deleteUpcoming": "Delete (not in force yet)", "deleteConfirm": "Delete this scheduled price?", "statuses": {"current": "In force", "upcoming": "Scheduled", "past": "Previous"}},
+  "stationWorkers": {"tabTitle": "Station workers", "stationsTitle": "Stations", "stationsNote": "Each station is a cost center of this company; a worker assigned to it opens their shift there from the Athar Station app.", "noStations": "No stations yet — add the first one below.", "newStationPlaceholder": "Station name, e.g. Madinah Road station", "addStation": "Add station", "assignTitle": "Set up a station worker", "modeExisting": "Existing employee", "modeNew": "New employee", "employee": "Employee", "pickEmployee": "— choose an employee —", "name": "Worker name", "basicSalary": "Basic salary", "hireDate": "Start date", "station": "Station", "pickStation": "— choose a station —", "assignBtn": "Save and assign to station", "saving": "Saving...", "assignedNote": "{{name}} is assigned to {{station}}. Now set their mobile number and PIN for the Athar Station app:", "listTitle": "Workers assigned to stations", "noWorkers": "No worker is assigned to a station yet.", "phone": "Mobile", "setUpBtn": "Portal access", "defaultJobTitle": "Station worker", "errStationName": "Station name is too short", "errStation": "Choose the station", "errName": "Worker name is too short", "errSalary": "Enter the basic salary", "errPick": "Choose the employee"},
   "stationShiftsReview": {
     "tabTitle": "Pending Review",
     "breadcrumb": "Station Shifts",
     "title": "Station Shifts Review",
     "pendingTitle": "Shifts Pending Review",
     "refreshBtn": "Refresh",
-    "table": {
+    "table": { "openingReading": "Opening reading",
       "employee": "Worker",
       "station": "Station",
       "shiftType": "Shift Type",
@@ -101,7 +105,7 @@
     "noPending": "No shifts pending review right now",
     "detailTitle": "{{employee}}'s shift — {{status}}",
     "readingsTitle": "Nozzle Readings",
-    "notReviewedYet": "Not reviewed yet",
+    "notReviewedYet": "Not reviewed yet", "digitsSuffix": "{{n}} digits",
     "correctionLabel": "Accountant's Reading",
     "correctBtn": "Save",
     "meterPhotoTitle": "Meter photo — nozzle {{nozzle}}",
@@ -143,7 +147,7 @@
     }
   },
   "landing": {
-    "nav": { "login": "Log in", "startTrial": "Start your free trial" },
+    "nav": { "login": "Log in", "startTrial": "Start your free trial", "dataProtection": "Data protection" },
     "eyebrow": "Cloud accounting for Arab businesses",
     "title": "Athar Accounting",
     "heroSub": "A complete cloud accounting system for managing your whole business group — from journal entries and ZATCA-compliant tax invoices, to inventory, fixed assets, HR and payroll — all in one place, in an interface designed from the ground up for your market.",
@@ -290,7 +294,7 @@
       "leaveSettlement": "Leave Settlements", "leaveReturn": "Return from Leave", "hrActions": "Employee Actions",
       "payroll": "Payroll", "payrollSettings": "Payroll Settings", "eos": "End of Service",
       "hrReports": "Reports", "trial": "Trial Balance", "income": "Income Statement", "balance": "Balance Sheet",
-      "monthly": "Comprehensive Monthly Report", "automation": "Send Automation",
+      "vatReconciliation": "VAT Reconciliation", "monthly": "Comprehensive Monthly Report", "automation": "Send Automation",
       "companies": "Company Info", "profile": "Profile", "users": "Users & Permissions",
       "jobTitles": "Job Titles", "locations": "Locations", "companyDocs": "Official Documents",
       "positions": "Positions"
@@ -762,8 +766,8 @@
       "tabs": { "byCustomer": "By customer", "monthly": "Monthly trend", "aging": "Receivables aging", "vat": "VAT summary" },
       "byCustomer": { "customer": "Customer", "invoiceCount": "Invoice count", "totalInvoices": "Total sales", "totalReturns": "Total returns", "netSales": "Net sales", "outstanding": "Outstanding balance" },
       "monthly": { "month": "Month", "total": "Total sales" },
-      "aging": { "customer": "Customer", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding receivables." },
-      "vat": { "salesBase": "Total sales before tax", "outputVat": "Output VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netOutputVat": "Net output VAT due" },
+      "aging": { "asOf": "As at date (empty = today)", "unallocated": "Unallocated", "unallocatedHint": "Difference between the customer's ledger balance and its open invoices: receipts not allocated to an invoice, opening balances or manual entries. Total = ledger balance.", "customer": "Customer", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding receivables." },
+      "vat": { "salesBase": "Total sales before tax", "outputVat": "Output VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netOutputVat": "Net output VAT due", "debitNotesBase": "Total debit notes before tax", "debitNotesVat": "Debit notes VAT", "stationShiftVat": "Station shift output VAT", "stationShiftNote": "Posted to the output VAT account with no tax invoice, and may overlap POS fuel invoices for the same day, so it is shown separately and not included in the document net.", "totalWithStations": "Total output VAT including station shifts" },
       "empty": "No data yet."
     },
     "newCustomerModal": {
@@ -780,6 +784,7 @@
       "cancel": "Cancel", "saving": "Saving...", "save": "Save item"
     },
     "linkPaymentModal": {
+      "unappliedOf": "{{unapplied}} unapplied of {{total}} {{currency}}", "existingNote": "Linking an existing receipt applies part of its unapplied amount only; the receipt's amount and its entry don't change. Record any extra cash received as a new receipt.", "noUnappliedReceipts": "This customer has no receipt with an unapplied amount. Record the cash received as a new receipt.",
       "title": "Link invoice {{number}} to a receipt", "close": "Close",
       "summary": "Total {{total}} {{currency}} — Paid {{paid}} {{currency}} — Remaining {{due}} {{currency}}",
       "linkedTitle": "Currently linked receipts",
@@ -793,7 +798,7 @@
       "amount": "Amount",
       "saving": "Saving...", "linkExisting": "Link to selected receipt", "createAndLink": "Create receipt and link",
       "close2": "Close",
-      "confirmUnlink": "Unlink the invoice from receipt {{receiptNumber}}?",
+      "confirmUnlink": "Unlink the invoice from receipt {{receiptNumber}}? The allocated amount goes back to the receipt's unapplied balance; the receipt's amount and its entry don't change.",
       "linkedMsg": "Invoice {{number}} was linked to the receipt successfully.",
       "createdAndLinkedMsg": "A new receipt was created and linked to invoice {{number}} successfully.",
       "unlinkedMsg": "Invoice {{number}} was unlinked from receipt {{receiptNumber}}. Payment status is now: {{status}}.",
@@ -841,6 +846,9 @@
       "deleted": "Supplier \"{{name}}\" deleted."
     },
     "invoices": {
+      "add": "Add purchase invoice",
+      "vatLabel": "Value added tax",
+      "discard": "Discard changes and close the invoice?",
       "supplier": "Supplier", "invoiceDate": "Invoice date",
       "addSupplierFirst": "Add a supplier first from the \"Suppliers\" tab.",
       "saveAndPost": "Save and post invoice",
@@ -886,8 +894,8 @@
       "tabs": { "bySupplier": "By supplier", "monthly": "Monthly trend", "aging": "Payables aging", "vat": "VAT summary" },
       "bySupplier": { "supplier": "Supplier", "invoiceCount": "Invoice count", "totalInvoices": "Total purchases", "totalReturns": "Total returns", "netPurchases": "Net purchases" },
       "monthly": { "month": "Month", "total": "Total purchases" },
-      "aging": { "supplier": "Supplier", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding payables." },
-      "agingNote": "Note: there is no \"payment voucher\" module yet to record settling supplier invoices, so every posted invoice is treated as fully outstanding.",
+      "aging": { "asOf": "As at date (empty = today)", "unallocated": "Unallocated", "unallocatedHint": "The supplier's ledger balance is matched to its invoices newest first; anything beyond them (opening balance or manual entry) shows here. Total = ledger balance.", "supplier": "Supplier", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding payables." },
+      "agingNote": "There is no payment voucher yet that allocates a payment to a specific invoice — payments are journal entries on the supplier's account. So the total is the supplier's ledger balance as at the chosen date, matched to its invoices newest first (the oldest are treated as paid first).",
       "vat": { "purchasesBase": "Total purchases before tax", "inputVat": "Input VAT", "returnsBase": "Total returns before tax", "returnsVat": "Returns VAT", "netInputVat": "Net deductible input VAT" },
       "empty": "No data yet."
     }
@@ -1121,6 +1129,7 @@
     }
   },
   "journalEntries": {
+    "hrCollapsed": "Payroll / leave settlement entry shown as one line per account — per-employee detail is for HR roles only.", "openPayrollRun": "Open the linked payroll run",
     "breadcrumb": "Journal",
     "statusSaved": "Saved",
     "statusPosted": "Posted",
@@ -1236,11 +1245,11 @@
     "archived": "Account archived.",
     "deleted": "Account deleted.",
     "confirmDelete": "Delete account \"{{name}}\"?",
-    "installScopeGroup": "the group template tree and all the tenant's demo transactions",
-    "installScopeCompany": "the company's tree and its transactions",
-    "confirmInstall": "This will delete {{scope}} and then install the standard chart. This action cannot be undone. Continue?",
+    "installScopeGroup": "the group template tree (accounts not attached to any company)",
+    "installScopeCompany": "the company's chart of accounts",
+    "confirmInstall": "This will replace {{scope}} with the standard chart. It is only available for a company with no entries or documents at all, and is refused otherwise; no books are deleted. Continue?",
     "installPrompt": "To confirm, type the word: تثبيت",
-    "installSuccess": "Installed {{installed}} standard accounts and deleted {{deleted}} old accounts.",
+    "installSuccess": "Installed {{installed}} standard accounts in place of {{deleted}} previous accounts.",
     "installing": "Installing the chart...",
     "installStandard": "Install standard chart",
     "scopeLabel": "Tree scope",
@@ -1261,7 +1270,7 @@
         "posting": "Posting account"
       }
     },
-    "form": {
+    "form": {"personalGroup": "Group of personal accounts (one balance for non-HR roles)", "personalGroupHint": "This group's sub-accounts are named after individuals — for non-HR roles it shows as one balance, with no per-person breakdown, in the trial balance, chart of accounts and ledger.", 
       "nameAr": "Account name (Arabic)",
       "nameEn": "Account name (English) (optional)",
       "code": "Account code",
@@ -1300,7 +1309,7 @@
       "noteLevelPosting": "Level {{level}} of 4 — automatically a posting account.",
       "noteLevelGroup": "Level {{level}} of 4 — a group account."
     },
-    "table": {
+    "table": {"personalGroup": "collapsed balance", "personalGroupHint": "Personal accounts — per-person detail is for HR roles only", 
       "code": "Code",
       "account": "Account",
       "level": "Level",
@@ -1426,6 +1435,7 @@
       "eosFootnote": "* The end-of-service accrual is an estimate assuming a normal termination by the employer today for all active employees (without deducting the resignation ratio), not an actual settlement."
     },
     "directory": {
+      "portal": {"title": "Employee portal access (mobile)", "note": "The employee signs in from the Athar Station app or the portal page on their phone with the company code, their mobile number and a 6-digit PIN — for attendance, leave and station shifts.", "stateNotSet": "Not enabled — no PIN set yet", "stateActive": "Enabled", "stateDisabled": "Disabled", "stateLocked": "Temporarily locked after failed attempts until {{until}} — saving here unlocks it", "inactiveEmployee": "This employee's status is not “active”, so they cannot sign in until it is.", "phone": "Mobile number", "pinNew": "New PIN (6 digits)", "pinChange": "New PIN (leave empty to keep the current one)", "pin": "PIN", "enabled": "Allow sign-in", "save": "Save portal access", "saving": "Saving...", "errPhone": "Mobile number is too short", "errPin": "The PIN must be 6 digits", "issuedTitle": "Sign-in details to give the employee", "companyCode": "Company code", "pinUnchanged": "unchanged", "issuedNote": "The PIN will not be shown again after you leave this screen."},
       "editingBanner": "Editing employee file — {{name}}",
       "personalSection": "Personal and contact information",
       "employmentSection": "Employment and financial information",
@@ -1742,11 +1752,14 @@
   },
   "settings": {
     "eyebrow": "System administration",
+    "payrollTotals": {"title": "Payroll posted in totals", "note": "From the chosen month, a payroll run posts one line per pay component and a single net line to «رواتب مستحقة للصرف» (salaries payable), instead of a line per employee and net pay on each employee's sub-account. Runs posted before it are not changed, and existing balances on employee sub-accounts stay there to be paid from. After the switch, salary payments debit salaries payable.", "company": "Company", "current": "Current", "fromMonth": "From month", "since": "Totals from {{month}}", "legacy": "Line per employee (legacy posting)", "save": "Save", "clear": "Cancel switch", "confirm": "Post {{company}}'s payroll in totals from {{month}}? Runs already posted are not changed."},
+    "balancesPostedOnly": {"title": "Balances count posted entries only", "note": "When on, saved (unposted) entries are left out of the trial balance, ledger, financial statements and dashboard, and are shown beneath them as a separate line. Companies that already had saved entries start with this switch off until those entries are reviewed — review them, post what is final, then turn the switch on.", "company": "Company", "state": "State", "savedEntries": "Saved entries now", "on": "On — posted only", "off": "Off — saved entries counted", "savedSummary": "{{count}} entries (debit {{debit}})", "enable": "Turn on", "disable": "Turn off", "confirmEnable": "Count posted entries only for {{company}}? {{count}} saved entries will leave all of its balances and statements.", "confirmDisable": "Turn the switch off for {{company}}? Saved entries will return to its balances and statements."},
+    "unlockPin": {"title": "Un-posting PIN", "changeBtn": "Change PIN", "note": "Required to un-post any document. New accounts start with 1234 — change it. Five wrong attempts in a row lock un-posting for that user for 15 minutes, and every wrong attempt is logged under their name.", "current": "Current PIN", "new": "New PIN (4 to 8 digits)", "confirm": "Confirm new PIN", "errFormat": "The PIN must be 4 to 8 digits", "errMismatch": "The confirmation doesn't match the new PIN", "done": "The un-posting PIN has been changed."},
     "tenantName": {
       "title": "Company name (shown at the top of the screen and in the sidebar)",
       "label": "Company name",
       "editBtn": "Edit name",
-      "errRequired": "Company name is required"
+      "errRequired": "Company name is required", "portalCodeLabel": "Company code for the employee portal", "portalCodeCopy": "Copy", "portalCodeCopied": "Copied", "portalCodeNote": "Your employees enter it in the Athar Station app and the mobile portal together with their mobile number and PIN. This number is an identifier, not a secret; each employee's PIN is what protects the account."
     },
     "newCompany": {
       "title": "Companies (real)",
@@ -1770,7 +1783,10 @@
       "createBtn": "Create company",
       "creating": "Saving...",
       "errNameRequired": "Company name is required",
-      "errGeneric": "Failed to create the company"
+      "errGeneric": "Failed to create the company",
+      "modeLabel": "Where should the new company go?",
+      "group": {"title": "Within the same group", "desc": "Joins the current group as usual: same users and subscription, and it can be shown with the group's other companies in reports and the dashboard."},
+      "independent": {"title": "Independent company", "desc": "A completely separate organisation with its own subscription, owned by you under the same email.", "warningTitle": "An independent company shares nothing with the current group:", "warnNoUsers": "No shared users — this group's users won't see it, and anyone who needs it is invited to it alone.", "warnNoReports": "No shared reports — it won't appear in this group's reports or dashboard, and it can't see any of this group's data.", "warnNoTransfers": "No stock transfers or intercompany entries with this group's companies.", "warnOwnCode": "Its own organisation code for the employee mobile portal, different from this group's code.", "warnOwnSubscription": "Its own subscription, starting with a 30-day free trial, managed and billed separately.", "warnAccess": "You open it by choice: with the switch button after it's created, or from the account picker when you sign in with the same email and password.", "selectActivity": "Choose the business activity", "errActivityRequired": "A business activity is required for an independent company, to set up its chart of accounts", "createBtn": "Create independent company", "createdTitle": "Independent company “{{name}}” created", "createdCode": "Organisation code for the employee portal:", "createdNote": "You're still in the current group. Switch to it now, or later from the account picker when you sign in.", "switchNow": "Switch to it now", "switching": "Switching...", "stayHere": "Stay here", "errSwitch": "Couldn't switch to the independent company"}
     },
     "companiesList": {
       "table": { "name": "Name", "shortName": "Trade name", "vatNumber": "VAT number", "crNumber": "CR number" },
@@ -2133,7 +2149,7 @@
       "committing": "Importing...",
       "confirmImportBtn": "Confirm import of {{count}} entries",
       "resolveAllNote": "Link all the accounts above (choose an existing account or create a new one) before continuing.",
-      "doneNote": "Import completed successfully. The entries are saved with \"Saved\" status (not posted) — review them from the journal screen and post them manually.",
+      "doneNote": "Import completed successfully. The entries are saved (not posted) and are not counted in balances — review them from the journal screen and post them.", "doneNotePosted": "Import completed successfully. The entries are posted and counted in balances.", "statusLegend": "Status of the imported entries", "statusSaved": "Saved for review (not counted in balances until posted)", "statusPosted": "Posted immediately — for migrating final data from another system",
       "doneTable": {
         "importedEntries": "Entries imported",
         "importedLines": "Lines imported",
@@ -2302,7 +2318,7 @@
       "noComparison": "No comparison available",
       "vsLastMonth": "{{pct}}% vs last month",
       "sectionC": "C. Payroll, wages, and dues",
-      "payrollPaid": "Payroll paid",
+      "payrollPaidNote": "\"Payroll paid\" counts payments made straight from cash or bank in the same entry. Payments routed through a clearing account (WPS or Mudad) in a separate entry don't appear here.", "payrollPaid": "Payroll paid",
       "payrollUnpaid": "Unpaid payroll dues",
       "eosAccrual": "End-of-service accrual",
       "sectionD": "D. Operating and administrative expenses",
@@ -2528,7 +2544,7 @@
     "login": {
       "intro": "Log in to check in/out and track your leave requests from your phone.",
       "tenantIdLabel": "Company code",
-      "tenantIdPlaceholder": "Sent to you by HR",
+      "tenantIdPlaceholder": "7-digit number from HR, e.g. 1000001",
       "phoneLabel": "Mobile number",
       "pinLabel": "PIN"
     },
@@ -2627,5 +2643,30 @@
       "VATEX-SA-HEA": "Healthcare for citizens",
       "VATEX-SA-MLTRY": "Qualifying military goods"
     }
-  }
+  },
+  "vat": {
+    "period": { "title": "period {{from}} to {{to}}", "from": "From", "to": "To", "show": "Show", "frequency": { "monthly": "monthly return", "quarterly": "quarterly return" }},
+    "recon": {
+      "output": { "title": "Output VAT (sales)" },
+      "input": { "title": "Input VAT (purchases)" },
+      "account": "Account",
+      "noAccount": "This company's chart has no VAT account that posting uses, so posting itself will be refused.",
+      "documentVat": "Document VAT",
+      "documentVatTotal": "VAT on posted documents in the period",
+      "ledgerMovement": "VAT account movement in the period (posted entries)",
+      "difference": "Difference (account movement − document VAT)",
+      "entry": "Entry",
+      "items": { "otherSources": "Manual, imported or other-source entries touching the account", "stationShifts": "Station shift VAT (no tax document)", "documentEntryOutsidePeriod": "Documents in the period whose entry is not in the period movement", "entryForDocumentOutsidePeriod": "Entries in the period for documents outside it", "amountMismatch": "Documents whose entry amount differs from their VAT" },
+      "reason": { "no_entry": "Posted with no entry", "entry_outside_period": "Entry dated outside the period", "entry_without_vat_line": "Entry in the period but does not touch this account" },
+      "residual": "Residual after itemising",
+      "residualWarning": "The residual is not zero: a difference remains that no item above explains. Do not sign the return before checking it.",
+      "netPerDocuments": "Net VAT per documents (output − input)",
+      "netPerLedger": "Net VAT per accounts (output − input)",
+      "outside": { "title": "Missing from both sides (not in the difference)", "note": "Neither the documents nor the account count these now, but a previous return may have included them, or they were already sent to ZATCA.", "unposted": "Documents dated in the period that were un-posted", "unpostedAt": "Un-posted {{at}} by {{by}}", "currentState": "Now: {{status}}, dated {{date}}, VAT {{vat}}", "deletedSince": "Deleted after un-posting", "notFullyPosted": "Documents sent to or awaiting ZATCA whose accounting write is incomplete", "saved": "Saved, unposted entries touching the account (counted by the trial balance)" },
+      "otherAccounts": { "title": "Other VAT accounts with movement in the period", "note": "These accounts are named «ضريبة القيمة المضافة» but are not the account posting uses now, so their movement is outside the reconciliation above. Their presence means VAT is split across more than one account.", "debit": "Debit", "credit": "Credit" },
+      "doc": { "SalesInvoice": "Sales invoice", "SalesDebitNote": "Debit note", "SalesReturn": "Sales return", "PurchaseInvoice": "Purchase invoice", "PurchaseReturn": "Purchase return" },
+      "source": { "manual": "Manual entry", "bulk_import": "Entry import", "ai_document": "AI document", "station_shift": "Station shift", "sales_invoice": "Sales invoice", "sales_return": "Sales return", "sales_debit_note": "Debit note", "purchase_invoice": "Purchase invoice", "purchase_return": "Purchase return", "receipt": "Receipt", "payroll": "Payroll run", "depreciation": "Depreciation", "asset_disposal": "Asset disposal", "leave_settlement": "Leave settlement", "stock_movement": "Stock movement", "periodic_inventory_settlement": "Periodic inventory settlement" }
+    }
+  },
+  "draftEntries": {"monthlyLabel": "Saved, unposted entries up to the end of {{month}}", "uncounted": "Saved, unposted entries in this range that are not in the figures above: {{count}} entries — debit {{debit}} / credit {{credit}}.", "counted": "This company has not yet switched to counting posted entries only, so the figures above include {{count}} saved, unposted entries — debit {{debit}} / credit {{credit}}.", "view": "View the entries"}
 }

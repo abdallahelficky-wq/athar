@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { getSalesByCustomer, getSalesMonthly, getSalesVatSummary, getReceivablesAging } from "../../api/salesReports";
 import { fmt } from "../../legacy/constants";
 import SubTabs from "../shared/SubTabs";
+import VatPeriodBar from "../shared/VatPeriodBar";
+import { useVatFetch, useVatPeriod } from "../shared/vatPeriod";
 
 const TABS = [
   { id: "byCustomer", labelKey: "sales.reports.tabs.byCustomer" },
@@ -11,21 +13,28 @@ const TABS = [
   { id: "vat", labelKey: "sales.reports.tabs.vat" },
 ];
 
-export default function SalesReportsTab({ companyId }) {
+export default function SalesReportsTab({ companyId, companies }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState("byCustomer");
   const [byCustomer, setByCustomer] = useState([]);
   const [monthly, setMonthly] = useState([]);
   const [aging, setAging] = useState([]);
-  const [vat, setVat] = useState(null);
+  // المركز كما في تاريخ — فارغ = اليوم
+  const [agingAsOf, setAgingAsOf] = useState("");
+  const vatPeriod = useVatPeriod(companies?.find((c) => c.id === companyId));
+  const { data: vat, error: vatError } = useVatFetch(getSalesVatSummary, companyId, vatPeriod.applied);
 
   useEffect(() => {
     if (!companyId) return;
     getSalesByCustomer(companyId).then(setByCustomer);
     getSalesMonthly(companyId).then(setMonthly);
-    getReceivablesAging(companyId).then(setAging);
-    getSalesVatSummary(companyId).then(setVat);
   }, [companyId]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    getReceivablesAging(companyId, agingAsOf).then(setAging);
+  }, [companyId, agingAsOf]);
+
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
@@ -71,38 +80,47 @@ export default function SalesReportsTab({ companyId }) {
 
       {tab === "aging" && (
         <div className="panel">
+          <label className="aging-asof">{t("sales.reports.aging.asOf")} <input type="date" value={agingAsOf} onChange={(e) => setAgingAsOf(e.target.value)} /></label>
           <table className="ledger-table">
             <thead>
               <tr>
                 <th>{t("sales.reports.aging.customer")}</th><th>{t("sales.reports.aging.current")}</th>
                 <th>{t("sales.reports.aging.d30")}</th><th>{t("sales.reports.aging.d60")}</th>
-                <th>{t("sales.reports.aging.d90")}</th><th>{t("sales.reports.aging.total")}</th>
+                <th>{t("sales.reports.aging.d90")}</th><th title={t("sales.reports.aging.unallocatedHint")}>{t("sales.reports.aging.unallocated")}</th><th>{t("sales.reports.aging.total")}</th>
               </tr>
             </thead>
             <tbody>
               {aging.map((r) => (
                 <tr key={r.customerId}>
                   <td>{r.customerName}</td><td className="num">{fmt(r.current)}</td><td className="num">{fmt(r.d30)}</td>
-                  <td className="num">{fmt(r.d60)}</td><td className="num">{fmt(r.d90)}</td><td className="num strong">{fmt(r.total)}</td>
+                  <td className="num">{fmt(r.d60)}</td><td className="num">{fmt(r.d90)}</td><td className="num">{fmt(r.unallocated)}</td><td className="num strong">{fmt(r.total)}</td>
                 </tr>
               ))}
-              {aging.length === 0 && <tr><td className="empty" colSpan={6}>{t("sales.reports.aging.empty")}</td></tr>}
+              {aging.length === 0 && <tr><td className="empty" colSpan={7}>{t("sales.reports.aging.empty")}</td></tr>}
             </tbody>
           </table>
         </div>
       )}
 
-      {tab === "vat" && vat && (
+      {tab === "vat" && (
         <div className="panel">
-          <table className="ledger-table">
-            <tbody>
-              <tr><td>{t("sales.reports.vat.salesBase")}</td><td className="num">{fmt(vat.salesBase)}</td></tr>
-              <tr><td>{t("sales.reports.vat.outputVat")}</td><td className="num">{fmt(vat.outputVat)}</td></tr>
-              <tr><td>{t("sales.reports.vat.returnsBase")}</td><td className="num">{fmt(vat.returnsBase)}</td></tr>
-              <tr><td>{t("sales.reports.vat.returnsVat")}</td><td className="num">{fmt(vat.returnsVat)}</td></tr>
-              <tr className="net-row"><td className="strong">{t("sales.reports.vat.netOutputVat")}</td><td className="num strong">{fmt(vat.netOutputVat)}</td></tr>
-            </tbody>
-          </table>
+          <VatPeriodBar title={t("sales.reports.tabs.vat")} period={vatPeriod} />
+          {vatError && <p className="balance-bad">{vatError}</p>}
+          {vat && (
+            <table className="ledger-table">
+              <tbody>
+                <tr><td>{t("sales.reports.vat.salesBase")} ({vat.invoiceCount})</td><td className="num">{fmt(vat.salesBase)}</td></tr>
+                <tr><td>{t("sales.reports.vat.outputVat")}</td><td className="num">{fmt(vat.outputVat)}</td></tr>
+                <tr><td>{t("sales.reports.vat.debitNotesBase")} ({vat.debitNoteCount})</td><td className="num">{fmt(vat.debitNotesBase)}</td></tr>
+                <tr><td>{t("sales.reports.vat.debitNotesVat")}</td><td className="num">{fmt(vat.debitNotesVat)}</td></tr>
+                <tr><td>{t("sales.reports.vat.returnsBase")} ({vat.returnCount})</td><td className="num">{fmt(vat.returnsBase)}</td></tr>
+                <tr><td>{t("sales.reports.vat.returnsVat")}</td><td className="num">{fmt(vat.returnsVat)}</td></tr>
+                <tr className="net-row"><td className="strong">{t("sales.reports.vat.netOutputVat")}</td><td className="num strong">{fmt(vat.netOutputVat)}</td></tr>
+                <tr><td>{t("sales.reports.vat.stationShiftVat")} ({vat.stationShiftCount})<div className="vat-note">{t("sales.reports.vat.stationShiftNote")}</div></td><td className="num">{fmt(vat.stationShiftVat)}</td></tr>
+                <tr className="net-row"><td className="strong">{t("sales.reports.vat.totalWithStations")}</td><td className="num strong">{fmt(vat.totalOutputVatWithStations)}</td></tr>
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>

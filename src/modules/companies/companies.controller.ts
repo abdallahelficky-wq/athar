@@ -1,15 +1,17 @@
+import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 import { RequestHandler } from "express";
 import multer from "multer";
 import { prisma } from "../../lib/prisma";
-import { badRequest, notFound } from "../../lib/httpError";
+import { badRequest, methodNotAllowed, notFound } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claudeVision";
 import { createAttachment } from "../attachments/attachments.service";
 import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
-import { createStarterItems, createCashParties, createDefaultWarehouse } from "../../lib/starterData";
+import { createStarterItems, createCashParties, createDefaultWarehouse, linkStationCashAccounts } from "../../lib/starterData";
 import { translateMessage } from "../../lib/i18n/translate";
+import { createIndependentTenant } from "../auth/auth.service";
 
 const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB يكفي لأي شعار
 const ALLOWED_LOGO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
@@ -35,6 +37,15 @@ export const listCompanies: RequestHandler = async (req, res) => {
   res.json(await Promise.all(companies.map(withLogoUrl)));
 };
 
+/**
+ * «شركة مستقلة»: تُنشئ مستأجراً جديداً كلياً مالكه نفس هوية المستخدم الحالي (راجع createIndependentTenant)
+ * — لا شيء منه يُضاف لمستأجر الجلسة الحالية، ولا تُصدَر أي رموز دخول؛ يُعاد فقط ما يلزم لعرض النتيجة
+ * وللانتقال المقصود إليه لاحقاً (userId لعضوية المالك في المستأجر الجديد، يُمرَّر لـ POST /auth/switch).
+ */
+export const createIndependentCompany: RequestHandler = async (req, res) => {
+  res.status(201).json(await createIndependentTenant(req.auth!.sub, req.body));
+};
+
 export const createCompany: RequestHandler = async (req, res) => {
   const company = await prisma.$transaction(
     async (tx) => {
@@ -52,18 +63,8 @@ export const createCompany: RequestHandler = async (req, res) => {
       // مستودع افتراضي — شرط أساسي لبيع أي صنف مخزوني، بدونه لا تكتمل "بدون أي إعداد يدوي"
       await createDefaultWarehouse(tx, req.auth!.tenantId, created.id);
 
-      // شركات "محطات وقود" تُزرَع بحسابي عجز/زيادة نقد الورديات المخصَّصين (622005/431003) تلقائياً
-      // من نفس القالب، حتى تعمل ميزة إقفال ورديات المحطات فور إنشاء الشركة بلا إعداد يدوي إضافي —
-      // الحقلان يبقيان قابلين لإعادة التوجيه لاحقاً لأي حساب آخر من إعدادات الشركة.
-      if (activity === "fuel_stations" && (idByCode.get("622005") || idByCode.get("431003"))) {
-        await tx.company.update({
-          where: { id: created.id },
-          data: {
-            stationCashShortageAccountId: idByCode.get("622005"),
-            stationCashSurplusAccountId: idByCode.get("431003"),
-          },
-        });
-      }
+      // شركات "محطات وقود": ربط حسابي عجز/زيادة نقد الورديات تلقائياً (راجع linkStationCashAccounts)
+      await linkStationCashAccounts(tx, created.id, activity, idByCode);
 
       return created;
     },
@@ -130,15 +131,14 @@ export const reopenFiscalClosing: RequestHandler = async (req, res) => {
   res.json(await withLogoUrl(company));
 };
 
-export const deleteCompany: RequestHandler = async (req, res) => {
-  const existing = await prisma.company.findFirst({
-    where: { id: req.params.id, tenantId: req.auth!.tenantId },
-  });
-  if (!existing) throw notFound("الشركة غير موجودة");
-  assertCompanyAccess(req.auth!, existing.id);
-
-  await prisma.company.delete({ where: { id: existing.id } });
-  res.status(204).send();
+/**
+ * حذف الشركة غير متاح من التطبيق إطلاقاً — كان يحذف فعلياً (onDelete: Cascade) كل دفاتر الشركة بضغطة
+ * زر واحدة: القيود المرحّلة، الفواتير المُعتمَدة من زاتكا، الرواتب، وسجل تدقيق ورديات المحطات. الشركة
+ * بلا مستندات مرحّلة اليوم ستحملها غداً، فلا شرط "آمن" يبقي الحذف متاحاً. لو لزم حذف شركة فعلاً، فذلك
+ * عملية مقصودة مباشرة على قاعدة البيانات لا زر في الواجهة. المسار يبقى قائماً ليُعيد 405 صريحاً بدل 404.
+ */
+export const deleteCompany: RequestHandler = async () => {
+  throw methodNotAllowed("حذف الشركة غير متاح من التطبيق");
 };
 
 export const uploadLogoHandler: RequestHandler = async (req, res) => {
@@ -192,4 +192,63 @@ export const extractDocumentHandler: RequestHandler = async (req, res) => {
       attachment,
     });
   }
+};
+
+/**
+ * مفتاح "الأرصدة تحتسب المرحَّل فقط" لشركة واحدة — للمالك وحده (requireTenantOwner)، وكل تغيير يكتب صف
+ * تدقيق بالقيمتين قبل وبعد وعدد القيود المحفوظة لحظتها (وهي بالضبط ما سيخرج من الأرصدة أو يعود إليها).
+ */
+export const setBalancesPostedOnly: RequestHandler = async (req, res) => {
+  const tenantId = req.auth!.tenantId;
+  const enabled = req.body.enabled === true;
+  const company = await prisma.company.findFirst({ where: { id: req.params.id, tenantId } });
+  if (!company) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, company.id);
+  const updated = await prisma.$transaction(async (tx) => {
+    const savedEntries = await tx.journalEntry.count({ where: { tenantId, companyId: company.id, status: "saved" } });
+    const result = await tx.company.update({ where: { id: company.id }, data: { balancesPostedOnly: enabled } });
+    await tx.auditLog.create({
+      data: {
+        tenantId, companyId: company.id, userId: req.auth!.sub, action: "company.balances_posted_only_changed",
+        entityType: "Company", entityId: company.id,
+        metadata: { before: company.balancesPostedOnly, after: enabled, savedEntries },
+      },
+    });
+    return result;
+  });
+  res.json({ id: updated.id, balancesPostedOnly: updated.balancesPostedOnly });
+};
+
+/**
+ * أول شهر يُرحَّل فيه كشف الرواتب إجماليات لكل بند وصافٍ واحد على «رواتب مستحقة للصرف» (بدل سطر لكل موظف
+ * وصافٍ على حسابه الفرعي) — للمالك وحده، ومسجَّل في التدقيق بالقيمتين وبرصيد الحسابات الفرعية للموظفين لحظتها
+ * (وهو ما يبقى هناك ويُصرَف منها بعد التحويل). الكشوف المرحَّلة سابقاً لا يُعاد كتابتها؛ الشهر يحكم الترحيل
+ * القادم فقط (بما فيه إعادة ترحيل كشف فُكَّ ترحيله).
+ */
+export const setPayrollTotalsFromMonth: RequestHandler = async (req, res) => {
+  const tenantId = req.auth!.tenantId;
+  const month: string | null = req.body.month ?? null;
+  const company = await prisma.company.findFirst({ where: { id: req.params.id, tenantId } });
+  if (!company) throw notFound("الشركة غير موجودة");
+  assertCompanyAccess(req.auth!, company.id);
+  const updated = await prisma.$transaction(async (tx) => {
+    const employeeAccounts = await tx.employee.findMany({ where: { tenantId, companyId: company.id, accountId: { not: null } }, select: { accountId: true } });
+    const balance = await tx.journalEntryLine.aggregate({
+      where: { accountId: { in: employeeAccounts.map((e) => e.accountId!) }, journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: company.id } },
+      _sum: { debit: true, credit: true },
+    });
+    const result = await tx.company.update({ where: { id: company.id }, data: { payrollTotalsFromMonth: month } });
+    await tx.auditLog.create({
+      data: {
+        tenantId, companyId: company.id, userId: req.auth!.sub, action: "company.payroll_totals_from_month_changed",
+        entityType: "Company", entityId: company.id,
+        metadata: {
+          before: company.payrollTotalsFromMonth, after: month,
+          employeeSubAccountsNet: Number(balance._sum.debit || 0) - Number(balance._sum.credit || 0),
+        },
+      },
+    });
+    return result;
+  });
+  res.json({ id: updated.id, payrollTotalsFromMonth: updated.payrollTotalsFromMonth });
 };

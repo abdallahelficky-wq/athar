@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { notFound } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import * as service from "./leaveRequests.service";
+import { EMPLOYEE_SUMMARY_SELECT } from "../../lib/employeeSummary";
 
 /** طلب الإجازة نفسه بلا companyId مباشر (اقرأه عبر علاقة الموظف) — نسخة مخصّصة من
  * assertRecordCompanyScope العامة (middleware/auth.ts) لهذا الشكل غير المباشر تحديداً. */
@@ -21,7 +22,7 @@ export const listLeaveRequests: RequestHandler = async (req, res) => {
       employeeId: typeof employeeId === "string" ? employeeId : undefined,
       employee: { tenantId: req.auth!.tenantId, companyId: typeof companyId === "string" ? companyId : undefined },
     },
-    include: { employee: true },
+    include: { employee: { select: EMPLOYEE_SUMMARY_SELECT } },
     orderBy: { createdAt: "desc" },
   });
   res.json(requests);

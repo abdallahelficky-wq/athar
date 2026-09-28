@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { ensurePartyAccount, resolvePartyAccountId } from "../../lib/partyAccounts";
 import { assertCompanyAccess } from "../../middleware/auth";
+import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -28,7 +29,7 @@ export const getSupplierBalance: RequestHandler = async (req, res) => {
     where: {
       supplierId: supplier.id,
       accountId,
-      journalEntry: { tenantId: req.auth!.tenantId },
+      journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId: req.auth!.tenantId },
     },
     select: { debit: true, credit: true },
   });

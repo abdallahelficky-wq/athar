@@ -13,6 +13,7 @@ import { reserveDocumentNumber } from "../../lib/docNumbering";
 import { reserveZatcaChain, rebuildZatcaDocumentXml, subtypeForCustomer, ZatcaCompanyLike, ZatcaCustomerLike, ZatcaPersistedLineLike } from "../../lib/zatca/chain";
 import { submitZatcaChainDocument } from "../../lib/zatca/postingGate";
 import { newQueryCounter, counted, logPostingPhaseTiming } from "../../lib/zatca/postingInstrumentation";
+import { unpostVatSnapshot } from "../../lib/vatAccounts";
 
 /**
  * إشعار دائن (SalesReturn) مرتبط بزاتكا يتطلب رقم الفاتورة الأصلية (BillingReference) — لا نُصدر
@@ -618,7 +619,7 @@ export async function unpostSalesReturn(tenantId: string, userId: string, id: st
     throw badRequest("لا يمكن فك ترحيل مردود مرتبط بسلسلة تجزئة زاتكا (ICV/PIH) — هذا يكسر السلسلة بشكل غير قابل للإصلاح");
   }
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   return prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, salesReturn.journalEntryId);
@@ -627,7 +628,7 @@ export async function unpostSalesReturn(tenantId: string, userId: string, id: st
       data: { status: "draft", journalEntryId: null },
       include: returnInclude,
     });
-    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "SalesReturn", entityId: id });
+    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "SalesReturn", entityId: id, ...unpostVatSnapshot(salesReturn, salesReturn.returnNumber) });
     return updated;
   });
 }

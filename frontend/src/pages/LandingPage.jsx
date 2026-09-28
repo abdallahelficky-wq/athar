@@ -14,7 +14,7 @@ const APPS = [
   { key: "station", i18n: "download.station", apkPath: "/app/athar-station.apk", apkFileName: "athar-station.apk", iconPath: "/app/athar-station-icon.png" },
 ];
 
-export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload }) {
+export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload, onGoDataProtection }) {
   const { t } = useTranslation();
   const whyItems = t("landing.why.items", { returnObjects: true });
   const plans = t("landing.pricing.plans", { returnObjects: true });
@@ -25,6 +25,7 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload }) {
         <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="landing-logo" />
         <div className="landing-nav-actions">
           <LanguageSwitcher />
+          <button className="btn-ghost" onClick={onGoDataProtection}>{t("landing.nav.dataProtection")}</button>
           <button className="btn-ghost" onClick={onGoLogin}>{t("landing.nav.login")}</button>
           <button className="btn-primary" onClick={onGoRegister}>{t("landing.nav.startTrial")}</button>
         </div>
@@ -117,6 +118,7 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload }) {
       <footer className="landing-footer">
         <div>{t("landing.footer.copyright")}</div>
         <div className="landing-footer-actions">
+          <button className="btn-ghost" onClick={onGoDataProtection}>{t("landing.nav.dataProtection")}</button>
           <button className="btn-ghost" onClick={onGoLogin}>{t("landing.nav.login")}</button>
         </div>
       </footer>

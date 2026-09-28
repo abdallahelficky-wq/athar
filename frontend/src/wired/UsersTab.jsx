@@ -139,9 +139,13 @@ export default function UsersTab({ realCompanies }) {
                     <button className="btn-ghost" onClick={() => doToggleActive(u)} disabled={disableActions}>
                       {u.active ? t("settings.users.disableBtn") : t("settings.users.enableBtn")}
                     </button>
-                    <button className="btn-ghost" onClick={() => doDelete(u)} disabled={disableActions}>
-                      {t("settings.users.deleteBtn")}
-                    </button>
+                    {/* المستخدمون يُعطَّلون ولا يُحذَفون — الحذف لدعوة لم تُقبَل بعد فقط (أُنشئت بالخطأ)، والخادم
+                        يرفضه على أي حال لأي حساب له أثر في النظام */}
+                    {u.inviteStatus === "pending" && (
+                      <button className="btn-ghost" onClick={() => doDelete(u)} disabled={disableActions}>
+                        {t("settings.users.deleteBtn")}
+                      </button>
+                    )}
                   </td>
                 </tr>
                 );

@@ -5,6 +5,7 @@ import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
+import { unpostVatSnapshot } from "../../lib/vatAccounts";
 
 interface LineInput {
   accountId: string;
@@ -142,12 +143,12 @@ export async function unpostPurchaseReturn(tenantId: string, userId: string, id:
   if (!purchaseReturn) throw notFound("المردود غير موجود");
   if (purchaseReturn.status !== "posted") throw badRequest("المردود ليس مرحّلاً أصلاً");
 
-  await assertValidUnlockPin(tenantId, pin);
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   return prisma.$transaction(async (tx) => {
     await deleteJournalEntryTx(tx, purchaseReturn.journalEntryId);
     const updated = await tx.purchaseReturn.update({ where: { id }, data: { status: "draft", journalEntryId: null }, include: returnInclude });
-    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "PurchaseReturn", entityId: id });
+    await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "PurchaseReturn", entityId: id, ...unpostVatSnapshot(purchaseReturn, purchaseReturn.returnNumber) });
     return updated;
   });
 }

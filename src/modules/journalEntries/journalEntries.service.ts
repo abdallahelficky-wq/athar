@@ -5,11 +5,13 @@ import { badRequest, forbidden, notFound } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import { extractJournalEntryFromDocument } from "../../lib/claudeVision";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
-import { reserveEntryNumber } from "../../lib/journalPosting";
+import { reserveEntryNumber, assertValidUnlockPin } from "../../lib/journalPosting";
 import { assertPeriodNotClosed, lockCompanyClosingDate } from "../../lib/fiscalClosing";
 import { registerFixedAssetTx } from "../fixedAssets/fixedAssets.service";
 import { registerEmployeeAdvanceTx } from "../employeeAdvances/employeeAdvances.service";
 import { currencyLabel } from "../../lib/countries";
+import { collapseHrLines, hrEntryKinds, redactHrMemo } from "../../lib/hrRedaction";
+import { loadPersonalFold } from "../../lib/personalAccounts";
 
 const BALANCE_EPSILON = 0.01;
 
@@ -233,6 +235,28 @@ export interface JournalEntryFilters {
   amountMin?: number;
   amountMax?: number;
   status?: "saved" | "posted";
+  branchId?: string;
+  /** false لغير أدوار الموارد البشرية: قيود الرواتب والتسويات تُعرَض مطويّة — راجع redactHrEntries */
+  hrView?: boolean;
+}
+
+/**
+ * قيود الرواتب وتسويات الإجازة (وعكسها) لغير أدوار الموارد البشرية: أسطر مطويّة لكل حساب بلا اسم موظف ولا
+ * حساب موظف بعينه، والاسم محذوف من البيان — راجع lib/hrRedaction.ts. القيود الأخرى كما هي: السلفة تبقى
+ * باسم صاحبها حيث رُحِّلت.
+ */
+async function redactHrEntries<E extends { id: string; sourceModule: string; reversalOfEntryId: string | null; memo: string | null; lines: any[] }>(
+  tenantId: string,
+  entries: E[],
+): Promise<(E & { hrCollapsed?: boolean })[]> {
+  const kinds = await hrEntryKinds(tenantId, entries);
+  if (!kinds.size) return entries;
+  const fold = await loadPersonalFold(tenantId);
+  return entries.map((e) => {
+    const kind = kinds.get(e.id);
+    if (!kind) return e;
+    return { ...e, memo: redactHrMemo(kind, e.memo), lines: collapseHrLines(e.lines, fold), hrCollapsed: true };
+  });
 }
 
 /**
@@ -242,6 +266,21 @@ export interface JournalEntryFilters {
  * التطبيق لكل شركة معقول لهذا النهج، ويتفادى استعلام SQL مجمَّع أعقد لفائدة هامشية).
  */
 export async function listJournalEntries(tenantId: string, filters: JournalEntryFilters) {
+  // حساب تجميعي يشمل كل حساباته الفرعية — نفس نطاق الأرصدة وسطر "قيود محفوظة" الذي قد يفتح هذه الشاشة
+  let accountIds: string[] | undefined;
+  if (filters.accountId) {
+    accountIds = [filters.accountId];
+    let frontier = [filters.accountId];
+    while (frontier.length) {
+      const children = await prisma.account.findMany({ where: { tenantId, parentId: { in: frontier } }, select: { id: true } });
+      frontier = children.map((c) => c.id);
+      accountIds.push(...frontier);
+    }
+  }
+  const lineFilter = {
+    ...(accountIds ? { accountId: { in: accountIds } } : {}),
+    ...(filters.branchId ? { branchId: filters.branchId } : {}),
+  };
   const entries = await prisma.journalEntry.findMany({
     where: {
       tenantId,
@@ -254,7 +293,9 @@ export async function listJournalEntries(tenantId: string, filters: JournalEntry
       // AND صريح بمصفوفة (بدل تكرار مفتاح OR على مستوى الكائن نفسه، وهو ما كان سيُسبِّب تجاوز أحد
       // شرطي OR للآخر لو طُبِّقا معاً) — كل عنصر هنا شرط OR مستقل يُضاف فقط لو طُلب معياره فعلياً.
       AND: [
-        ...(filters.search
+        // لغير أدوار الموارد البشرية يُطابَق البحث على البيان بعد حذف الاسم (أدناه) — وإلا صار البحث باسم
+        // الموظف طريقاً لإيجاد قيود تسويته ومبالغها
+        ...(filters.search && filters.hrView !== false
           ? [{ OR: [{ memo: { contains: filters.search, mode: "insensitive" as const } }, { id: filters.search }] }]
           : []),
         ...(filters.entryNumber
@@ -268,17 +309,23 @@ export async function listJournalEntries(tenantId: string, filters: JournalEntry
             ]
           : []),
       ],
-      ...(filters.accountId ? { lines: { some: { accountId: filters.accountId } } } : {}),
+      ...(Object.keys(lineFilter).length ? { lines: { some: lineFilter } } : {}),
     },
     include: entryInclude,
     // الأحدث إنشاءً يظهر أولاً دائماً؛ id كفاصل حاسم يجعل الترتيب ثابتاً حتى لو تشابه وقت الإنشاء.
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 
+  let visible = filters.hrView === false ? await redactHrEntries(tenantId, entries) : entries;
+  if (filters.search && filters.hrView === false) {
+    const needle = filters.search.toLocaleLowerCase("ar");
+    visible = visible.filter((e) => e.id === filters.search || Boolean(e.memo?.toLocaleLowerCase("ar").includes(needle)));
+  }
+
   const filtered =
     filters.amount == null && filters.amountMin == null && filters.amountMax == null
-      ? entries
-      : entries.filter((e) => {
+      ? visible
+      : visible.filter((e) => {
           const total = e.lines.reduce((s, l) => s + Number(l.debit), 0);
           if (filters.amount != null && Math.abs(total - filters.amount) > BALANCE_EPSILON) return false;
           if (filters.amountMin != null && total < filters.amountMin - BALANCE_EPSILON) return false;
@@ -298,18 +345,36 @@ export async function listJournalEntries(tenantId: string, filters: JournalEntry
   return filtered.map((e) => ({ ...e, reversedByEntryId: reversedByMap.get(e.id) || null }));
 }
 
-export async function getJournalEntry(tenantId: string, id: string, companyScope: string) {
-  const entry = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
-  if (!entry) throw notFound("القيد غير موجود");
-  assertCompanyAccess({ companyScope }, entry.companyId);
+/** ردّ أي مسار يُرجِع قيداً (ترحيل، فك ترحيل، عكس، مرآة، إنشاء، تعديل) يمرّ بنفس الطيّ الذي تمرّ به القراءة */
+export async function redactEntryForViewer<E extends { id: string; sourceModule: string; reversalOfEntryId: string | null; memo: string | null; lines: any[] }>(
+  tenantId: string,
+  entry: E,
+  hrView: boolean,
+) {
+  if (hrView) return entry;
+  const [redacted] = await redactHrEntries(tenantId, [entry]);
+  return redacted;
+}
+
+export async function getJournalEntry(tenantId: string, id: string, companyScope: string, hrView = true) {
+  const raw = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
+  if (!raw) throw notFound("القيد غير موجود");
+  assertCompanyAccess({ companyScope }, raw.companyId);
+  const [entry] = hrView ? [raw] : await redactHrEntries(tenantId, [raw]);
 
   const [mirrorEntry, reversalOfEntry, reversedByEntry] = await Promise.all([
     resolveLinkedEntry(tenantId, entry.mirrorEntryId),
     resolveLinkedEntry(tenantId, entry.reversalOfEntryId),
     resolveLinkedEntryBy(tenantId, "reversalOfEntryId", entry.id),
   ]);
+  // الأصل وعكسه ومرآته تحمل البيان نفسه: إن كان هذا القيد حساساً فبيان كل مرتبط به يُحذَف منه الاسم أيضاً
+  const hrKind = hrView ? undefined : (await hrEntryKinds(tenantId, [raw])).get(raw.id);
+  const redactLinked = <L extends { memo: string | null } | null>(linked: L): L => (linked && hrKind ? { ...linked, memo: redactHrMemo(hrKind, linked.memo) } : linked);
 
-  return { ...entry, mirrorEntry, reversalOfEntry, reversedByEntry };
+  // قيد الرواتب مرتبط بكشفه (sourceId) — رابط التفاصيل لأدوار الموارد البشرية فقط
+  const payrollRunId = hrView && raw.sourceModule === "payroll" ? raw.sourceId : null;
+
+  return { ...entry, mirrorEntry: redactLinked(mirrorEntry), reversalOfEntry: redactLinked(reversalOfEntry), reversedByEntry: redactLinked(reversedByEntry), payrollRunId };
 }
 
 /** يحل مرجعاً حراً (id) يدوياً (بلا include صريح، بنفس أسلوب sourceId/sourceModule) لعرض ملخص القيد المرتبط، أياً كان نوع الربط (مرآة بين شركات أو عكس قيد) */
@@ -403,10 +468,12 @@ export async function ensureIntercompanyAccount(tenantId: string, ownerCompanyId
  * سطر مرتبط صراحة بحساب الشركة الهدف (وهو المتوقع أول مرة يُنشأ فيها قيد مرآة بين شركتين، قبل أن
  * توجد الحسابات المُعلَّمة)، تُستخدَم القيمة الإجمالية للقيد كبديل مع الإشارة لذلك عبر detected:false.
  */
-export async function getMirrorSuggestion(tenantId: string, entryId: string, targetCompanyId: string, companyScope: string) {
+export async function getMirrorSuggestion(tenantId: string, entryId: string, targetCompanyId: string, companyScope: string, hrView = true) {
   const entry = await prisma.journalEntry.findFirst({ where: { id: entryId, tenantId }, include: entryInclude });
   if (!entry) throw notFound("القيد غير موجود");
   assertCompanyAccess({ companyScope }, entry.companyId);
+  // الاقتراح يُنشئ حساب "ذمم بين الشركات" داخل شجرة الشركة المستهدفة — كتابة في تلك الشركة، فتُشترط صلاحيتها
+  assertCompanyAccess({ companyScope }, targetCompanyId);
   if (entry.status !== "posted") throw badRequest("لا يمكن إنشاء قيد مرآة إلا لقيد مرحّل");
   if (entry.companyId === targetCompanyId) throw badRequest("اختر شركة مختلفة عن شركة القيد الأصلي");
 
@@ -445,19 +512,21 @@ export async function getMirrorSuggestion(tenantId: string, entryId: string, tar
     locked: false,
   };
 
+  const hrKind = hrView ? undefined : (await hrEntryKinds(tenantId, [entry])).get(entry.id);
   return {
     targetCompanyId,
     date: entry.date,
-    memo: entry.memo,
+    memo: redactHrMemo(hrKind, entry.memo),
     lines: [autoLine, manualLine],
     detected: !!linkedLine,
   };
 }
 
 /**
- * تُنشئ قيد المرآة فعلياً في الشركة المستهدفة كقيد "محفوظ" (غير مرحّل تلقائياً أبداً، ليراجعه
- * المستخدم قبل الترحيل) وتربطه بالقيد الأصلي تبادلياً عبر mirrorEntryId على القيدين معاً، وتحجز
- * له رقماً تسلسلياً ضمن شركة الهدف، كل ذلك ضمن معاملة واحدة.
+ * تُنشئ قيد المرآة فعلياً في الشركة المستهدفة بنفس حالة القيد الأصلي (مرحَّلاً إن كان الأصل مرحَّلاً)
+ * وتربطه بالقيد الأصلي تبادلياً عبر mirrorEntryId على القيدين معاً، وتحجز له رقماً تسلسلياً ضمن
+ * شركة الهدف، كل ذلك ضمن معاملة واحدة. نصفا معاملة واحدة بين شركتين لا يكونان أبداً في حالتين
+ * مختلفتين: ترحيل أو فك ترحيل أيٍّ منهما يُطبَّق على الآخر معه (postJournalEntry/unpostJournalEntry).
  */
 export async function createMirrorJournalEntry(
   tenantId: string,
@@ -489,7 +558,7 @@ export async function createMirrorJournalEntry(
         companyId: input.targetCompanyId,
         date: input.date,
         memo: input.memo,
-        status: "saved",
+        status: source.status,
         entryNumber,
         sourceModule: "manual",
         createdBy: userId,
@@ -530,13 +599,18 @@ export async function createJournalEntry(
   });
 }
 
-export async function updateJournalEntry(tenantId: string, id: string, input: JournalEntryInput, companyScope: string) {
+export async function updateJournalEntry(tenantId: string, id: string, input: JournalEntryInput, companyScope: string, hrView = true) {
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId } });
   if (!existing) throw notFound("القيد غير موجود");
   assertCompanyAccess({ companyScope }, existing.companyId);
   assertCompanyAccess({ companyScope }, input.companyId);
   if (existing.status === "posted") {
     throw badRequest("لا يمكن تعديل قيد مرحّل مباشرة — استخدم عكس القيد لتصحيحه");
+  }
+  // غير أدوار الموارد البشرية يرون قيد الرواتب/التسوية مطويّاً؛ حفظه من تلك الشاشة كان سيستبدل الأسطر
+  // الحقيقية لكل موظف بالإجماليات
+  if (!hrView && (await hrEntryKinds(tenantId, [existing])).size) {
+    throw forbidden("تعديل قيود الرواتب وتسويات الإجازة لأدوار الموارد البشرية فقط");
   }
 
   assertBalanced(input.lines);
@@ -569,11 +643,51 @@ export async function deleteJournalEntry(tenantId: string, id: string, companySc
   if (existing.status === "posted") {
     throw badRequest("لا يمكن حذف قيد مرحّل مباشرة — استخدم عكس القيد لتصحيحه");
   }
+  // حذف نصف معاملة بين شركتين يمسّ النصف الآخر (يفكّ ارتباطه ويتركه بلا مقابل) — يُشترط وصول لشركته أيضاً
+  const mirror = existing.mirrorEntryId
+    ? await prisma.journalEntry.findFirst({ where: { id: existing.mirrorEntryId, tenantId }, select: { id: true, companyId: true } })
+    : null;
+  if (mirror) assertCompanyAccess({ companyScope }, mirror.companyId);
   await prisma.$transaction(async (tx) => {
     const closingDate = await lockCompanyClosingDate(tx, existing.companyId);
     assertPeriodNotClosed(closingDate, existing.date, "حذف قيد");
+    if (mirror) await tx.journalEntry.updateMany({ where: { id: mirror.id, mirrorEntryId: id }, data: { mirrorEntryId: null } });
     await tx.journalEntry.delete({ where: { id } });
   });
+}
+
+/**
+ * يطبّق نفس الحالة على قيد المرآة (نصف المعاملة في الشركة الأخرى): يُرفَض ما لم يكن للمستخدم وصول
+ * لشركة المرآة أيضاً (نصف في شركة لا يصلها لا يُمسّ من خلال نصفها الآخر)، ويُفحَص إقفال شركتها هي،
+ * ويُكتب صف تدقيق لقيد المرآة نفسه عند فك ترحيله.
+ */
+async function syncMirrorStatusTx(
+  tx: Prisma.TransactionClient,
+  mirrorEntryId: string | null,
+  status: "posted" | "saved",
+  action: string,
+  actor: { tenantId: string; userId?: string; companyScope: string; sourceEntryId: string },
+) {
+  if (!mirrorEntryId) return;
+  const mirror = await tx.journalEntry.findUnique({ where: { id: mirrorEntryId }, select: { id: true, companyId: true, date: true, status: true } });
+  if (!mirror || mirror.status === status) return;
+  assertCompanyAccess({ companyScope: actor.companyScope }, mirror.companyId);
+  const closingDate = await lockCompanyClosingDate(tx, mirror.companyId);
+  assertPeriodNotClosed(closingDate, mirror.date, action);
+  if (status === "posted") {
+    const lines = await tx.journalEntryLine.findMany({ where: { journalEntryId: mirror.id }, select: { accountId: true, debit: true, credit: true } });
+    assertBalanced(lines.map((l) => ({ accountId: l.accountId, debit: Number(l.debit), credit: Number(l.credit) })));
+  }
+  await tx.journalEntry.update({ where: { id: mirror.id }, data: { status } });
+  if (status === "saved") {
+    await tx.auditLog.create({
+      data: {
+        tenantId: actor.tenantId, companyId: mirror.companyId, userId: actor.userId, action: "journal_entry.unpost",
+        entityType: "JournalEntry", entityId: mirror.id,
+        metadata: { previousStatus: "posted", viaMirrorOf: actor.sourceEntryId },
+      },
+    });
+  }
 }
 
 export async function postJournalEntry(tenantId: string, id: string, companyScope: string) {
@@ -591,6 +705,7 @@ export async function postJournalEntry(tenantId: string, id: string, companyScop
   return prisma.$transaction(async (tx) => {
     const closingDate = await lockCompanyClosingDate(tx, existing.companyId);
     assertPeriodNotClosed(closingDate, existing.date, "ترحيل قيد");
+    await syncMirrorStatusTx(tx, existing.mirrorEntryId, "posted", "ترحيل قيد", { tenantId, companyScope, sourceEntryId: id });
     return tx.journalEntry.update({ where: { id }, data: { status: "posted" }, include: entryInclude });
   });
 }
@@ -635,7 +750,9 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
         companyId: existing.companyId,
         date,
         memo: existing.memo,
-        status: "saved",
+        // قيد العكس يُرحَّل فور إنشائه: لا يحمل أي اجتهاد مستقل — هو مرآة قيد مرحَّل. تركه محفوظاً كان
+        // سيُعيد الخطأ المعكوس إلى الأرصدة (الأرصدة تحتسب المرحَّل فقط). إقفال الفترة يُفحَص عند حجز الرقم.
+        status: "posted",
         entryNumber,
         sourceModule: "manual",
         createdBy: userId,
@@ -659,9 +776,7 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
   assertCompanyAccess({ companyScope }, entry.companyId);
   if (entry.status !== "posted") throw badRequest("القيد ليس مرحّلاً أصلاً");
 
-  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId } });
-  const validPin = await verifyPassword(pin, tenant.unlockPin);
-  if (!validPin) throw forbidden("الرقم السري غير صحيح");
+  await assertValidUnlockPin(tenantId, pin, userId);
 
   // فك الترحيل يُعامَل كنقطة تحقق مستقلة تماماً، لا يُفترض أنه "مجرد تغيير حالة" بلا أثر على الإقفال:
   // فور فك الترحيل يعود القيد قابلاً للتعديل/الحذف عبر updateJournalEntry/deleteJournalEntry — فهو
@@ -670,10 +785,12 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
     const closingDate = await lockCompanyClosingDate(tx, entry.companyId);
     assertPeriodNotClosed(closingDate, entry.date, "فك ترحيل قيد");
 
+    await syncMirrorStatusTx(tx, entry.mirrorEntryId, "saved", "فك ترحيل قيد", { tenantId, userId, companyScope, sourceEntryId: id });
     const updated = await tx.journalEntry.update({ where: { id }, data: { status: "saved" }, include: entryInclude });
     await tx.auditLog.create({
       data: {
         tenantId,
+        companyId: updated.companyId,
         userId,
         action: "journal_entry.unpost",
         entityType: "JournalEntry",

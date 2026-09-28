@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getCustomerStatement, getSupplierStatement } from "../api/reports";
 import { PrintShell } from "../legacy/shared";
 import { fmt } from "../legacy/constants";
+import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 
 /**
  * كشف حساب عميل أو مورد — يجلب البيانات من نقطة النهاية الجديدة (سجل حركة + رصيد متحرك
@@ -57,6 +58,8 @@ export default function StatementOfAccountModal({ kind, party, companyId, compan
           </strong>
         </div>
       </div>
+      {/* داخلي فقط — لا يُطبع على الكشف المرسَل للعميل/المورد */}
+      <DraftEntriesNotice companyId={companyId} accountId={statement.accountId} dateFrom={from || undefined} dateTo={to || undefined} />
       <table className="ledger-table voucher-table">
         <thead>
           <tr>

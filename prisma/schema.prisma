@@ -12,7 +12,10 @@
 // ============================================================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // omitApi: يسمح بإخفاء Employee.pinHash عالمياً من كل استعلام وكل include متداخل (راجع
+  // src/lib/prisma.ts) — لا يمسّ قاعدة البيانات، فقط الكود المُولَّد للعميل.
+  previewFeatures = ["omitApi"]
 }
 
 datasource db {
@@ -63,6 +66,10 @@ model Tenant {
   // دائماً كل الصلاحيات على شركته (راجع requirePermission في middleware/auth.ts) بلا حاجة لإعداد
   // منصب له صراحةً.
   ownerId            String?
+  // رمز المنشأة الرقمي الذي يكتبه الموظف في بوابة الجوال بدل id (cuid طويل) — فريد على مستوى المنصة
+  // كلها، يبدأ من 1000001 ويُخصَّص من تسلسل Postgres (nextval ذرّي: لا تصادم بين تسجيلين متزامنين).
+  // حقل إضافي بجوار id لا بديل عنه: كل علاقة وكل JWT يبقى على id. مُعرِّف ظاهر للموظفين، ليس سراً.
+  code               Int                @unique @default(autoincrement())
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -79,7 +86,6 @@ model Tenant {
   companyDocuments          CompanyDocument[]
   leaseContracts            LeaseContract[]
   journalEntries            JournalEntry[]
-  auditLogs                 AuditLog[]
 
   customers        Customer[]
   quotations       Quotation[]
@@ -100,7 +106,6 @@ model Tenant {
   stationShiftCollections StationShiftCollection[]
   tankDeliveries          TankDelivery[]
   tankDips                TankDip[]
-  stationShiftAuditLogs   StationShiftAuditLog[]
 
   suppliers        Supplier[]
   purchaseInvoices PurchaseInvoice[]
@@ -155,7 +160,7 @@ model PlatformNotice {
 }
 
 enum UserRole {
-  super_admin // مدير عام — الحساب الرئيسي المالك فقط، غير قابل للمنح عبر الدعوة العادية
+  super_admin // دور داخل المستأجر لبريد واحد محدد (OWNER_EMAIL في auth.service.ts) — ليس صلاحية منصّة ولا يعني مالك المستأجر؛ يتجاوز كل فحوص المستأجر الذي هو عضو فيه، ولا يُمنَح عبر الدعوة
   admin // مدير النظام
   finance_manager // مدير مالي
   accountant // محاسب
@@ -207,6 +212,10 @@ model User {
   inviteToken     String?      @unique
   inviteExpiresAt DateTime?
   lastLoginAt     DateTime?
+  // قفل فك الترحيل لهذا المستخدم بعد 5 محاولات خاطئة متتالية للرقم السري (15 دقيقة) — راجع
+  // assertValidUnlockPin في lib/journalPosting.ts. كل محاولة خاطئة تُكتَب أيضاً في audit_logs باسمه.
+  unlockPinFailedAttempts Int       @default(0)
+  unlockPinLockedUntil    DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
@@ -216,12 +225,10 @@ model User {
   position   Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
   refreshTokens             RefreshToken[]
-  auditLogs                 AuditLog[]
   actionPermissionOverrides UserActionPermissionOverride[]
   // عامل ورديات المحطة (assignedCostCenterId) انتقل بالكامل إلى Employee — بوابة الموظف (الجوال)
   // هي واجهة العامل الوحيدة الآن، لا حساب User إطلاقاً؛ راجع Employee.assignedCostCenterId.
   stationShiftsAsReviewer   StationShift[]                 @relation("StationShiftReviewer")
-  stationShiftAuditLogs     StationShiftAuditLog[]
 
   // نفس الهوية لا تنضم لنفس المستأجر مرتين (لا حاجة لعضويتين منفصلتين لنفس الشخص في نفس المستأجر —
   // نطاق companyScope واحد يكفي، ولو احتاج صلاحيات مختلفة لشركتين من نفس المستأجر فذلك عبر
@@ -350,12 +357,20 @@ model PasswordResetToken {
 }
 
 // سجل تدقيق فك الترحيل وأي أحداث حساسة أخرى — غير موجود في البروتوتايب، مطلوب في القسم 4.9
+//
+// لا مفاتيح أجنبية إطلاقاً (tenantId/companyId/userId أعمدة نصية عادية) عمداً: كان حذف المستأجر يحذف
+// سجله كاملاً (Cascade) وحذف المستخدم يمسح منفّذ كل صف (SetNull)، فيُمحى السجل بصمت كأثر جانبي لحذف
+// شيء آخر. الآن لا يصل أي حذف لأي جدول إلى هذا الجدول. actorName/actorEmail نسختان مخزّنتان من اسم
+// المنفّذ وبريده لحظة الحدث، يملؤهما trigger في قاعدة البيانات (audit_logs_fill_actor) من users
+// وidentities عند الإدراج — فتبقى النسبة قائمة حتى لو تغيّر اسم المستخدم أو بريده لاحقاً، وبلا اعتماد
+// على تذكّر كل مسار كتابة أن يمرّرهما.
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String?
   userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorName  String?
+  actorEmail String?
   action     String // مثال: "journal_entry.unpost"
   entityType String // مثال: "JournalEntry"
   entityId   String
@@ -363,6 +378,7 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([tenantId, entityType, entityId])
+  @@index([userId])
   @@map("audit_logs")
 }
 
@@ -465,6 +481,14 @@ model Company {
   // نقطة البيع لهذه الشركة معاً. القيمة الافتراضية false تُبقي كل الشركات على السلوك الحالي بلا
   // أي تغيير حتى تُفعِّله الشركة صراحةً — راجع frontend/src/pos/PosApp.jsx لمنطق الاختيار.
   posQuickSaleEnabled          Boolean               @default(false)
+  // الأرصدة (ميزان المراجعة، الأستاذ، القوائم المالية، الداشبورد، كشوف الأطراف) تحتسب القيود المرحَّلة فقط
+  // متى كان true. الشركات التي فيها قيود محفوظة عند إضافة هذا العمود تبدأ false (سلوكها السابق: المحفوظ
+  // يُحتسَب) إلى أن يُراجِع المالك قيودها ويُفعِّله — راجع migration 20260927150000.
+  balancesPostedOnly           Boolean               @default(true)
+  // أول شهر (YYYY-MM) يُرحَّل فيه كشف الرواتب إجماليات لكل بند وصافٍ واحد على «رواتب مستحقة للصرف» بدل
+  // سطر لكل موظف وصافٍ على حسابه الفرعي. فارغ = الترحيل القديم لكل الأشهر. يحدّده المالك بعد مراجعة
+  // أرصدة الحسابات الفرعية للموظفين؛ الكشوف المرحَّلة قبله لا يُعاد كتابتها.
+  payrollTotalsFromMonth       String?
   // حساب عجز/زيادة النقد عند إقفال ورديات المحطات — مُعرَّف صراحةً هنا بدل الاعتماد على اسم قياسي
   // ثابت في شجرة الحسابات: إظهار "عجز محطة كذا هذا الشهر" هو الغرض الأساسي من هذه الوحدة، فدفنه في
   // حساب مصروفات عام يجعل هذا السؤال بلا إجابة. تُزرَع الشركة الجديدة بنشاط "محطات وقود" بحسابين
@@ -505,7 +529,6 @@ model Company {
   stationShiftCollections   StationShiftCollection[]
   tankDeliveries            TankDelivery[]
   tankDips                  TankDip[]
-  stationShiftAuditLogs     StationShiftAuditLog[]
   suppliers                 Supplier[]
   purchaseInvoices          PurchaseInvoice[]
   purchaseReturns           PurchaseReturn[]
@@ -779,6 +802,10 @@ model Account {
   // يُحدَّد يدوياً (بلا نظام فئات مقابل — كل سلفة تختار حسابها مباشرة عند الإنشاء) — يُستخدَم
   // لتفعيل نافذة "سلفة جديدة/سلفة موجودة" عند اختيار هذا الحساب في سطر قيد يومية (Phase F).
   isEmployeeAdvanceAccount Boolean     @default(false)
+  // مجموعة أبناؤها حسابات أشخاص (ذمم الموظفين، سلف كل موظف باسمه): لغير أدوار الموارد البشرية تُعرَض
+  // رصيداً واحداً بلا تفصيل لكل شخص في ميزان المراجعة وشجرة الحسابات والأستاذ والقوائم. تغييرها لأدوار
+  // الموارد البشرية وحدها — راجع src/lib/personalAccounts.ts.
+  isPersonalGroup          Boolean     @default(false)
   // يُملأ تلقائياً فقط عند إنشاء "حساب ربط بيني" يمثّل شركة شقيقة أخرى ضمن نفس المستأجر (ميزة
   // قيد المرآة بين الشركات) — يُحدِّد الحساب الذي يُسجَّل عليه أي مبلغ مستحق من/إلى تلك الشركة
   // تحديداً، بدل الاعتماد على مطابقة اسم الحساب نصياً (هش عند إعادة تسمية الشركة لاحقاً).
@@ -1425,6 +1452,10 @@ model ReceiptAllocation {
   invoiceId String
   invoice   SalesInvoice @relation(fields: [invoiceId], references: [id])
   amount    Decimal      @db.Decimal(18, 2)
+  // متى ومن أضاف هذا التخصيص — فارغان للتخصيصات السابقة لهذا العمود (لا يُعرف وقتها)، ومسجَّلان لكل
+  // تخصيص جديد. بلا علاقة مفتاح أجنبي للمستخدم، بنفس مبدأ سجلات التدقيق: الأثر لا يُمحى مع المستخدم.
+  createdAt       DateTime? @default(now())
+  createdByUserId String?
 
   @@map("receipt_allocations")
 }
@@ -1525,6 +1556,10 @@ model PurchaseInvoiceLine {
   unitPrice        Decimal         @db.Decimal(18, 4)
   discountPct      Decimal         @default(0) @db.Decimal(5, 2)
   priceIncludesVat Boolean         @default(false)
+  taxCategoryCode TaxCategoryCode @default(S)
+  vatApplicable Boolean @default(true)
+  taxExemptionReasonCode String?
+  taxExemptionReason String?
   subtotal         Decimal         @db.Decimal(18, 2)
   vat              Decimal         @db.Decimal(18, 2)
   total            Decimal         @db.Decimal(18, 2)
@@ -1952,8 +1987,9 @@ model Employee {
   phone                     String? // رقم جوال الموظف — قناة الدخول لبوابة الموظف (فريد ضمن المستأجر)
   pinHash                   String? // تجزئة bcrypt لرمز PIN (مطابق لأسلوب hashPassword)، لا يُخزَّن نصاً أبداً
   portalActive              Boolean        @default(false) // تفعّله الموارد البشرية صراحةً بعد تعيين الهاتف/PIN
-  failedPortalLoginAttempts Int            @default(0)
+  failedPortalLoginAttempts Int            @default(0) // لا يُصفَّر عند انتهاء القفل — فقط عند دخول ناجح أو ضبط PIN جديد
   portalLockedUntil         DateTime?
+  portalLockoutCount        Int            @default(0) // عدد مرات القفل المتتالية: كل قفل جديد أطول من سابقه
   managerId                 String?
   manager                   Employee?      @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: SetNull)
   // المحطة (مركز التكلفة) التي يعمل بها هذا الموظف كعامل محطة عبر بوابة الموظف — تحدّد نطاقه
@@ -2518,7 +2554,7 @@ model BoardingContract {
   horseId           String
   horse             Horse                  @relation(fields: [horseId], references: [id])
   stallId           String?
-  stall             StableStall?           @relation(fields: [stallId], references: [id])
+  stall             StableStall?           @relation(fields: [stallId], references: [id], onDelete: Restrict)
   startDate         DateTime
   endDate           DateTime?
   monthlyFee        Decimal                @db.Decimal(18, 2)
@@ -2777,7 +2813,7 @@ model TrainerCommission {
   updatedAt             DateTime                @updatedAt
 
   @@unique([trainerId, salesInvoiceId, horseId])
-  @@index([tenantId, companyId, periodStart, periodEnd])
+  @@index([tenantId, companyId, periodStart, periodEnd], map: "trainer_commissions_tenantId_companyId_periodStart_periodEnd_id")
   @@map("trainer_commissions")
 }
 
@@ -2828,9 +2864,14 @@ model StationNozzle {
   product       StationFuelProduct
   pumpNumber    Int
   nozzleNumber  Int
+  // عدد خانات العداد قبل الفاصلة العشرية — يحدد نقطة "اللفّة" (10^meterDigits) في computeNozzleLiters.
+  // إعداد صريح لكل فوهة، لا افتراض ثابت: عدد خاطئ يحوّل لفّة حقيقية لكمية سالبة أو خيالية.
   meterDigits   Int
   meterType     StationMeterType
   hasMoneyMeter Boolean            @default(false)
+  // قراءة العداد لحظة تعريف الفوهة — قراءة الافتتاح لأول وردية عليها (كانت صفراً دائماً، فتُحسَب
+  // كل القراءة التراكمية للعداد كلترات مبيعة في أول وردية).
+  initialReading Decimal           @default(0) @db.Decimal(18, 3)
   isActive      Boolean            @default(true)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
@@ -2903,7 +2944,6 @@ model StationShift {
   creditSales StationShiftCreditSale[]
   expenses    StationShiftExpense[]
   collection  StationShiftCollection?
-  auditLogs   StationShiftAuditLog[]
 
   @@unique([costCenterId, shiftDate, shiftType])
   @@index([tenantId, companyId, costCenterId, shiftDate])
@@ -3041,21 +3081,33 @@ model TankDip {
 // سجل تدقيق حقلي مخصّص لتعديلات الورديات (بخلاف AuditLog العام متعدد الأشكال) — صف واحد لكل
 // تعديل حقل واحد، يحتفظ بالقيمة القديمة والجديدة كنص خام لعرضها في تاريخ الوردية.
 model StationShiftAuditLog {
-  id        String       @id @default(cuid())
-  tenantId  String
-  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId String
-  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  shiftId   String
-  shift     StationShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  userId    String?
-  user      User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action    String
-  fieldName String?
-  oldValue  String?
-  newValue  String?
-  createdAt DateTime     @default(now())
+  // نفس مبدأ AuditLog: أعمدة عادية بلا مفاتيح أجنبية (لا Cascade من المستأجر/الشركة/الوردية ولا SetNull
+  // من المستخدم)، ونسختا اسم المنفّذ وبريده يملؤهما trigger (station_shift_audit_logs_fill_actor).
+  id         String   @id @default(cuid())
+  tenantId   String
+  companyId  String
+  shiftId    String
+  userId     String?
+  actorName  String?
+  actorEmail String?
+  action     String
+  fieldName  String?
+  oldValue   String?
+  newValue   String?
+  createdAt  DateTime @default(now())
 
   @@index([tenantId, companyId, shiftId])
+  @@index([userId])
   @@map("station_shift_audit_logs")
+}
+
+/// عدّاد محاولات الدخول الفاشلة لبوابة الموظف لكل عنوان IP (نافذة زمنية ثابتة) — في قاعدة البيانات لا
+/// في ذاكرة العملية، حتى يبقى الحدّ صحيحاً مع أكثر من نسخة خادم واحدة.
+model PortalLoginThrottle {
+  key         String   @id
+  windowStart DateTime
+  failures    Int      @default(0)
+
+  @@index([windowStart])
+  @@map("portal_login_throttle")
 }

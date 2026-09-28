@@ -153,4 +153,5 @@ export const DYNAMIC_MESSAGE_PATTERNS: MessagePattern[] = [
   { match: /^قراءة العداد غير صحيحة للفوهة \((.+?)\): الكمية المحسوبة سالبة حتى بعد افتراض دورة كاملة للعداد$/, translate: (g) => `Invalid meter reading for nozzle (${g[0]}): the calculated volume is negative even after assuming a full meter rollover` },
   { match: /^لا يوجد سعر بيع سارٍ لمنتج "(.+?)" بتاريخ الوردية$/, translate: (g) => `No effective fuel price exists for product "${g[0]}" on the shift date` },
   { match: /^لا يوجد حساب إيراد مُحدَّد لمنتج "(.+?)"$/, translate: (g) => `No revenue account is set for product "${g[0]}"` },
+  { match: /^لا يمكن تثبيت الشجرة القياسية: شركة "(.+)" تحتوي على قيود أو مستندات مالية\. تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر\.$/, translate: (g) => `The standard chart can't be installed: company "${g[0]}" holds journal entries or financial documents. Installing the chart is only available for an empty company, and it never deletes any books.` },
 ];

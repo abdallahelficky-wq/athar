@@ -28,7 +28,7 @@ export default function PurchasesWiredModule({ companies, companyId }) {
       {tab === "suppliers" && <SuppliersTab companyId={companyId} companies={companies} />}
       {tab === "invoices" && <PurchaseInvoicesTab companyId={companyId} companies={companies} />}
       {tab === "returns" && <PurchaseReturnsTab companyId={companyId} companies={companies} />}
-      {tab === "reports" && <PurchaseReportsTab companyId={companyId} />}
+      {tab === "reports" && <PurchaseReportsTab companyId={companyId} companies={companies} />}
     </div>
   );
 }

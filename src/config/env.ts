@@ -22,6 +22,9 @@ export const env = {
   jwtEmployeePortalSecret: required("JWT_EMPLOYEE_PORTAL_SECRET", `${required("JWT_ACCESS_SECRET")}::employee-portal`),
   jwtEmployeePortalExpiresIn: process.env.JWT_EMPLOYEE_PORTAL_EXPIRES_IN ?? "7d",
   defaultUnlockPin: process.env.DEFAULT_UNLOCK_PIN ?? "1234",
+  // عدد الوكلاء العكسيين (reverse proxies) أمام الخادم — Railway يضع وكيلاً واحداً. بدونه يرى
+  // req.ip عنوان الوكيل نفسه لكل الطلبات، فيتشارك كل المستخدمين عدّاد حدّ محاولات الدخول نفسه.
+  trustProxyHops: Number(process.env.TRUST_PROXY_HOPS ?? 1),
 
   // اختيارية: تُقرأ عند الاستخدام الفعلي فقط (رفع مرفق / إنشاء قيد من مستند)، وليس عند بدء
   // تشغيل الخادم، حتى يعمل باقي النظام بشكل طبيعي في بيئة تطوير لم تُضبط فيها بعد.

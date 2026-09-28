@@ -5,13 +5,14 @@ import { listAccounts, getNextAccountCode, createAccount, updateAccount, deleteA
 import { fmt } from "../legacy/constants";
 import { Icon } from "../legacy/shared";
 import { useAuth } from "../context/AuthContext";
+import { canReadHrData } from "../shared/hrAccess";
 import AccountImportPanel from "./AccountImportPanel";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
 import { getAccountDisplayName } from "./shared/accountDisplayName";
 
 const LEVEL_CODE_LENGTH = { 1: 1, 2: 2, 3: 3, 4: 6 };
-const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false, isEmployeeAdvanceAccount: false };
+const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false, isEmployeeAdvanceAccount: false, isPersonalGroup: false };
 const emptyChartFilters = { search: "", level: 4, type: "", status: "active" };
 const SHOW_PARTY_ACCOUNTS_KEY = "chartOfAccounts.showPartyAccounts";
 
@@ -147,6 +148,8 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
       name: form.name.trim(), nameEn: form.nameEn.trim() || null, code: form.code.trim(), parentId: form.parentId || null,
       companyId: scope === "group" ? null : scope, level,
     };
+    // علامة مجموعة الأشخاص يغيّرها أدوار الموارد البشرية وحدها — لا تُرسَل من غيرهم أصلاً
+    if (!canReadHrData(user) || level === 4) delete payload.isPersonalGroup;
     try {
       setSaving(true);
       if (editingId) {
@@ -164,7 +167,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   };
-  const edit = (a) => { setAddModalOpen(false); setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isPosting: a.isPosting, isBankOrCash: a.isBankOrCash, isEmployeeAdvanceAccount: a.isEmployeeAdvanceAccount }); };
+  const edit = (a) => { setAddModalOpen(false); setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isPosting: a.isPosting, isBankOrCash: a.isBankOrCash, isEmployeeAdvanceAccount: a.isEmployeeAdvanceAccount, isPersonalGroup: a.isPersonalGroup }); };
   const addChild = async (a) => {
     setEditingId(null); setError(""); setSuccess("");
     try {
@@ -255,6 +258,12 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         <label className="checkbox-label">
           <input type="checkbox" checked={form.isEmployeeAdvanceAccount} onChange={(e) => setForm({ ...form, isEmployeeAdvanceAccount: e.target.checked })} />
           {t("chartOfAccounts.form.employeeAdvanceAccount")}
+        </label>
+      )}
+      {level < 4 && canReadHrData(user) && (
+        <label className="checkbox-label" title={t("chartOfAccounts.form.personalGroupHint")}>
+          <input type="checkbox" checked={Boolean(form.isPersonalGroup)} onChange={(e) => setForm({ ...form, isPersonalGroup: e.target.checked })} />
+          {t("chartOfAccounts.form.personalGroup")}
         </label>
       )}
     </div>
@@ -348,7 +357,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
               <td style={{ paddingRight: `${12 + (a.level - 1) * 24}px` }}><button className="icon-btn" disabled={!hasChildren} onClick={() => toggle(a.id)}>{hasChildren ? (expanded.has(a.id) ? "−" : "+") : "•"}</button> {i18n.language === "en" && a.nameEn
                 ? <>{a.nameEn}<small style={{ display: "block", color: "#6b7280" }}>{a.name}</small></>
                 : <>{a.name}{a.nameEn && <small style={{ display: "block", direction: "ltr", color: "#6b7280" }}>{a.nameEn}</small>}</>}</td>
-              <td>{a.level}</td><td>{a.isPosting ? t("chartOfAccounts.table.postingAccount") : t("chartOfAccounts.table.groupAccount")}</td><td className="num">{fmt(a.balance || 0)}</td>
+              <td>{a.level}</td><td>{a.isPosting ? t("chartOfAccounts.table.postingAccount") : t("chartOfAccounts.table.groupAccount")}{a.isPersonalGroup && <span className="note" title={t("chartOfAccounts.table.personalGroupHint")}> · {t("chartOfAccounts.table.personalGroup")}</span>}</td><td className="num">{fmt(a.balance || 0)}</td>
               <td className="row-actions">
                 {!a.isPosting && a.level < 4 && <button type="button" className="icon-btn" title={t("chartOfAccounts.table.addChildTitle")} onClick={() => addChild(a)}>＋</button>}
                 <button className="icon-btn" title={t("chartOfAccounts.table.editTitle")} onClick={() => edit(a)}><Icon.Edit /></button>

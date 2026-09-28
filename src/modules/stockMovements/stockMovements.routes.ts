@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
 import { createInOutSchema, createIssueSchema, createTransferSchema, removeSchema } from "./stockMovements.schemas";
 import {
@@ -16,6 +16,9 @@ export const stockMovementRoutes = Router();
 stockMovementRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
+// فك ترحيل/إزالة مستند مرحّل (يحذف قيده) يتطلب صلاحية "فك الترحيل" على منصب المستخدم نفسها التي
+// يتطلبها فك ترحيل قيد يومية مباشرة — لا الدور وحده. المالك وsuper_admin معفيان كما في كل صلاحية.
+const canUnpost = requirePermission("accounts", "unpost");
 
 stockMovementRoutes.get("/", listHandler);
 stockMovementRoutes.get("/balance", balanceHandler);
@@ -25,4 +28,4 @@ stockMovementRoutes.get("/item-card/:itemId", itemCardHandler);
 stockMovementRoutes.post("/in-out", canWrite, validateBody(createInOutSchema), createInOutHandler);
 stockMovementRoutes.post("/issue", canWrite, validateBody(createIssueSchema), createIssueHandler);
 stockMovementRoutes.post("/transfer", canWrite, validateBody(createTransferSchema), createTransferHandler);
-stockMovementRoutes.delete("/:id", canWrite, validateBody(removeSchema), removeHandler);
+stockMovementRoutes.delete("/:id", canWrite, canUnpost, validateBody(removeSchema), removeHandler);

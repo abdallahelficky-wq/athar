@@ -27,6 +27,11 @@ export const completeLoginChoiceHandler: RequestHandler = async (req, res) => {
   res.json(result);
 };
 
+export const switchAccountHandler: RequestHandler = async (req, res) => {
+  const result = await authService.switchAccount(req.auth!.sub, req.body.userId);
+  res.json(result);
+};
+
 export const inviteHandler: RequestHandler = async (req, res) => {
   const result = await authService.invite(req.auth!.tenantId, req.body, req.lang);
   res.status(201).json(result);
@@ -63,7 +68,7 @@ export const acceptInviteHandler: RequestHandler = async (req, res) => {
 };
 
 export const changeUnlockPinHandler: RequestHandler = async (req, res) => {
-  await authService.changeUnlockPin(req.auth!.tenantId, req.body.currentPin, req.body.newPin);
+  await authService.changeUnlockPin(req.auth!.tenantId, req.auth!.sub, req.body.currentPin, req.body.newPin);
   res.status(204).send();
 };
 

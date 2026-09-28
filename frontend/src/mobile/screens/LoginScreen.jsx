@@ -39,7 +39,7 @@ export default function LoginScreen() {
           </p>
           <div className="m-field">
             <label>{t("mobile.login.tenantIdLabel")}</label>
-            <input value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder={t("mobile.login.tenantIdPlaceholder")} required />
+            <input value={tenantId} onChange={(e) => setTenantId(e.target.value)} placeholder={t("mobile.login.tenantIdPlaceholder")} inputMode="numeric" autoComplete="off" dir="ltr" required />
           </div>
           <div className="m-field">
             <label>{t("mobile.login.phoneLabel")}</label>

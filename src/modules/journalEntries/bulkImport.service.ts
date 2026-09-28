@@ -169,6 +169,7 @@ export async function commitBulkImport(
   companyId: string,
   rows: BulkImportRow[],
   accountMapping: Record<string, string>,
+  status: "saved" | "posted" = "saved",
 ) {
   const company = await assertCompany(tenantId, companyId);
 
@@ -259,7 +260,7 @@ export async function commitBulkImport(
           companyId,
           date: parseGroupDate(group.date)!,
           memo: group.memo || null,
-          status: "saved",
+          status,
           entryNumber,
           sourceModule: "bulk_import",
           createdBy: userId,

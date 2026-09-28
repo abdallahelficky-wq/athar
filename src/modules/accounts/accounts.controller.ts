@@ -1,10 +1,13 @@
 import { RequestHandler } from "express";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import { badRequest, notFound } from "../../lib/httpError";
-import { assertCompanyAccess } from "../../middleware/auth";
+import { badRequest, conflict, forbidden, notFound } from "../../lib/httpError";
+import { assertCompanyAccess, canReadHrData } from "../../middleware/auth";
+import { personalFoldFromAccounts } from "../../lib/personalAccounts";
 import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 import { LEVEL_CODE_LENGTH, generateNextCode } from "../../lib/accountCodes";
+import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 
 const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ? value : null);
 
@@ -37,6 +40,7 @@ async function validateHierarchy(tenantId: string, input: any, currentId?: strin
     // وقد لا يبدأ بكود الأب الجديد — لذا يُشترط تطابق البادئة عند الإنشاء فقط وليس عند التعديل/النقل.
     if (!currentId && !input.code.startsWith(parent.code)) throw badRequest("كود الحساب يجب أن يبدأ بكود الحساب الأب");
   }
+  if (input.isPersonalGroup && input.isPosting) throw badRequest("مجموعة حسابات الأشخاص تكون حساباً تجميعياً لا حساب ترحيل");
   if (input.isPosting && currentId) {
     const children = await prisma.account.count({ where: { parentId: currentId } });
     if (children) throw badRequest("لا يمكن تحويل حساب له حسابات فرعية إلى حساب ترحيل");
@@ -62,7 +66,7 @@ export const listAccounts: RequestHandler = async (req, res) => {
 
   const lines = await prisma.journalEntryLine.groupBy({
     by: ["accountId"],
-    where: { journalEntry: { tenantId: req.auth!.tenantId, companyId: companyId || undefined } },
+    where: { journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId: req.auth!.tenantId, companyId: companyId || undefined } },
     _sum: { debit: true, credit: true },
   });
   const direct = new Map(lines.map((line) => [line.accountId, Number(line._sum.debit || 0) - Number(line._sum.credit || 0)]));
@@ -70,7 +74,14 @@ export const listAccounts: RequestHandler = async (req, res) => {
   accounts.forEach((account) => byParent.set(account.parentId, [...(byParent.get(account.parentId) || []), account]));
   const balance = (account: (typeof accounts)[number]): number =>
     (direct.get(account.id) || 0) + (byParent.get(account.id) || []).reduce((sum, child) => sum + balance(child), 0);
-  const result = accounts.map((account) => ({ ...account, balance: balance(account) }));
+  let result = accounts.map((account) => ({ ...account, balance: balance(account) }));
+
+  // غير أدوار الموارد البشرية: مجموعة حسابات الأشخاص تظهر رصيداً واحداً بلا أبنائها (راجع personalAccounts.ts).
+  // رصيد المجموعة محسوب أعلاه من أبنائها قبل الحذف، فيبقى كل أب فوقها صحيحاً.
+  if (!canReadHrData(req.auth!)) {
+    const fold = personalFoldFromAccounts(accounts);
+    result = result.filter((account) => !fold.has(account.id));
+  }
 
   // شاشة شجرة الحسابات فقط تطلب هذا الإخفاء (عبر includePartyAccounts=false) — الحسابات التفصيلية
   // التلقائية لكل عميل/مورد/موظف (Phase G) تبقى ضمن الاستعلام أعلاه دائماً حتى يظل رصيد حساب الأصل
@@ -106,7 +117,13 @@ export const listAccounts: RequestHandler = async (req, res) => {
   res.json(result);
 };
 
+/** إلغاء طيّ مجموعة أشخاص يكشف رصيد كل شخص — تغيير العلامة لأدوار الموارد البشرية وحدها */
+function assertCanChangePersonalGroup(auth: { role: string }, requested: unknown) {
+  if (requested !== undefined && !canReadHrData(auth)) throw forbidden("تغيير مجموعة حسابات الأشخاص لأدوار الموارد البشرية فقط");
+}
+
 export const createAccount: RequestHandler = async (req, res) => {
+  assertCanChangePersonalGroup(req.auth!, req.body.isPersonalGroup);
   const companyId = req.body.companyId ?? null;
   const parent = req.body.parentId
     ? await prisma.account.findFirst({ where: { id: req.body.parentId, tenantId: req.auth!.tenantId, companyId } })
@@ -126,6 +143,7 @@ export const updateAccount: RequestHandler = async (req, res) => {
   const existing = await prisma.account.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("الحساب غير موجود");
   if (existing.companyId) assertCompanyAccess(req.auth!, existing.companyId);
+  assertCanChangePersonalGroup(req.auth!, req.body.isPersonalGroup);
   const { confirmMoveWithTransactions, code: _ignoredCode, level: _ignoredLevel, companyId: _ignoredCompany, ...requestedData } = req.body;
   const moving = requestedData.parentId !== undefined && (requestedData.parentId || null) !== (existing.parentId || null);
   if (moving) {
@@ -247,6 +265,34 @@ export const importAccounts: RequestHandler = async (req, res) => {
   res.status(201).json({ imported: created.length });
 };
 
+/** عدد صفوف كل جدول دفاتر في النطاق — أي صف (مرحّل أو مسودة) يعني أن الشركة ليست فارغة. */
+async function countBooks(client: Prisma.TransactionClient, scope: { tenantId: string; companyId?: string }) {
+  const [journalEntries, salesInvoices, salesReturns, salesDebitNotes, purchaseInvoices, purchaseReturns, receipts, quotations,
+    stockMovements, fixedAssets, depreciationRuns, payrollRuns, employeeAdvances, stationShifts] = await Promise.all([
+    client.journalEntry.count({ where: scope }),
+    client.salesInvoice.count({ where: scope }),
+    client.salesReturn.count({ where: scope }),
+    client.salesDebitNote.count({ where: scope }),
+    client.purchaseInvoice.count({ where: scope }),
+    client.purchaseReturn.count({ where: scope }),
+    client.receipt.count({ where: scope }),
+    client.quotation.count({ where: scope }),
+    client.stockMovement.count({ where: scope }),
+    client.fixedAsset.count({ where: scope }),
+    client.depreciationRun.count({ where: scope }),
+    client.payrollRun.count({ where: scope }),
+    client.employeeAdvance.count({ where: scope }),
+    client.stationShift.count({ where: scope }),
+  ]);
+  const leaveSettlements = await client.leaveSettlement.count({
+    where: scope.companyId ? { tenantId: scope.tenantId, employee: { companyId: scope.companyId } } : { tenantId: scope.tenantId },
+  });
+  return {
+    journalEntries, salesInvoices, salesReturns, salesDebitNotes, purchaseInvoices, purchaseReturns, receipts, quotations,
+    stockMovements, fixedAssets, depreciationRuns, payrollRuns, employeeAdvances, stationShifts, leaveSettlements,
+  };
+}
+
 export const installStandardChart: RequestHandler = async (req, res) => {
   const tenantId = req.auth!.tenantId;
   const userId = req.auth!.sub;
@@ -258,44 +304,29 @@ export const installStandardChart: RequestHandler = async (req, res) => {
     if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
   }
 
-  // هذا الإجراء يمسح كل القيود/الفواتير/الحركات المالية نهائياً (بلا فحص تاريخ لكل صف على حدة —
-  // هو أصلاً محو كامل غير مقيَّد بفترة)، فلا معنى لتطبيق فحص إقفال لكل قيد على حدة هنا؛ بدلاً من
-  // ذلك، يُرفَض الإجراء بالكامل صراحةً لو كانت أي شركة ضمن نطاقه (شركة واحدة، أو كل شركات المستأجر
-  // لو لم يُحدَّد companyId) لديها تاريخ إقفال مضبوط أصلاً — نفس مبدأ "لا يمكن تعديل/حذف ما قبل
-  // الإقفال"، لكن كقرار حظر كامل بدل فحص جزئي لا معنى له لعملية بهذا الحجم.
-  const scopedCompanies = await prisma.company.findMany({
-    where: companyId ? { id: companyId, tenantId } : { tenantId },
-    select: { name: true, fiscalYearClosingDate: true },
-  });
-  const closedCompany = scopedCompanies.find((c) => c.fiscalYearClosingDate);
-  if (closedCompany) {
-    throw badRequest(
-      `لا يمكن تنفيذ هذا الإجراء (يمسح كل القيود والفواتير نهائياً) لأن شركة "${closedCompany.name}" لديها تاريخ إقفال سنة مالية مضبوط — أزل تاريخ الإقفال أولاً من إعدادات الشركة إن كنت متأكداً من رغبتك في المتابعة رغم ذلك.`,
-    );
-  }
-
+  // تثبيت الشجرة القياسية إجراء إعداد لشركة فارغة فقط: يُرفَض رفضاً قاطعاً — لا صلاحية ولا تأكيد
+  // يتجاوزه — متى وُجد في نطاقه (الشركة، أو كل شركات المستأجر بلا companyId) أي قيد أو مستند مالي،
+  // مرحَّلاً كان أو مسودة. لا يوجد إطلاقاً "أعد تثبيت الشجرة واحذف دفاتري": هذا المسار كان يحذف كل
+  // القيود والفواتير (بما فيها المُبلَّغة لزاتكا) — حُذف ذلك الحذف كلياً، فلا يبقى إلا استبدال شجرة
+  // شركة لم يُسجَّل فيها شيء بعد.
   const result = await prisma.$transaction(
     async (tx) => {
-      const financialScope = companyId ? { tenantId, companyId } : { tenantId };
-      const employeeIds = companyId
-        ? (await tx.employee.findMany({ where: { tenantId, companyId }, select: { id: true } })).map((employee) => employee.id)
-        : [];
-
-      const deleted = {
-        receipts: (await tx.receipt.deleteMany({ where: financialScope })).count,
-        salesReturns: (await tx.salesReturn.deleteMany({ where: financialScope })).count,
-        salesInvoices: (await tx.salesInvoice.deleteMany({ where: financialScope })).count,
-        purchaseReturns: (await tx.purchaseReturn.deleteMany({ where: financialScope })).count,
-        purchaseInvoices: (await tx.purchaseInvoice.deleteMany({ where: financialScope })).count,
-        stockMovements: (await tx.stockMovement.deleteMany({ where: financialScope })).count,
-        depreciationRuns: (await tx.depreciationRun.deleteMany({ where: financialScope })).count,
-        fixedAssets: (await tx.fixedAsset.deleteMany({ where: financialScope })).count,
-        payrollRuns: (await tx.payrollRun.deleteMany({ where: financialScope })).count,
-        leaveSettlements: (await tx.leaveSettlement.deleteMany({
-          where: companyId ? { tenantId, employeeId: { in: employeeIds } } : { tenantId },
-        })).count,
-        journalEntries: (await tx.journalEntry.deleteMany({ where: financialScope })).count,
-      };
+      // الفحص داخل نفس المعاملة وبعد قفل صفوف الشركات في النطاق (FOR UPDATE): كل قيد يُنشأ في النظام
+      // يحدّث صف شركته أولاً (حجز رقم القيد في journalPosting.ts)، فلا يمكن أن يُرحَّل شيء بين الفحص
+      // والاستبدال. وأي سطر مستند أو قيد يشير لحساب قديم يمنع حذفه بقيد المفتاح الأجنبي.
+      if (companyId) {
+        await tx.$queryRaw`SELECT id FROM "companies" WHERE "tenantId" = ${tenantId} AND id = ${companyId} FOR UPDATE`;
+      } else {
+        await tx.$queryRaw`SELECT id FROM "companies" WHERE "tenantId" = ${tenantId} ORDER BY id FOR UPDATE`;
+      }
+      const bookCounts = await countBooks(tx, companyId ? { tenantId, companyId } : { tenantId });
+      if (Object.values(bookCounts).some((n) => n > 0)) {
+        throw conflict(
+          companyId
+            ? `لا يمكن تثبيت الشجرة القياسية: شركة "${company!.name}" تحتوي على قيود أو مستندات مالية. تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر.`
+            : "لا يمكن تثبيت الشجرة القياسية: شركات المستأجر تحتوي على قيود أو مستندات مالية. تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر.",
+        );
+      }
 
       const accountScope = { tenantId, companyId };
       let deletedAccounts = 0;
@@ -315,7 +346,7 @@ export const installStandardChart: RequestHandler = async (req, res) => {
       await createChartFromTemplate(tx, tenantId, companyId, template);
 
       // سجل تدقيق إلزامي على كل عملية تثبيت شجرة قياسية — من نفّذها، متى بالضبط، ولأي نطاق
-      // (شركة محددة أو المستأجر بالكامل)، بما في ذلك كل ما تم حذفه قبل إعادة التثبيت.
+      // (شركة محددة أو المستأجر بالكامل)، وعدد الحسابات القديمة التي استُبدلت.
       await tx.auditLog.create({
         data: {
           tenantId,
@@ -323,14 +354,14 @@ export const installStandardChart: RequestHandler = async (req, res) => {
           action: "accounts.install_standard_chart",
           entityType: companyId ? "Company" : "Tenant",
           entityId: companyId || tenantId,
-          metadata: { companyId, companyName: company?.name ?? null, deleted, deletedAccounts },
+          metadata: { companyId, companyName: company?.name ?? null, deletedAccounts },
         },
       });
 
-      return { deleted, deletedAccounts, installedAccounts: template.length };
+      return { deletedAccounts, installedAccounts: template.length };
     },
-    // مهلة أطول من الافتراضي (5 ثوانٍ): هذه المعاملة تحذف عدة جداول ثم تُعيد زرع الشجرة القياسية،
-    // وقد تستغرق أطول من المعتاد على شبكة الإنتاج، خصوصاً لشركات كبيرة الحجم.
+    // مهلة أطول من الافتراضي (5 ثوانٍ): إعادة زرع الشجرة القياسية كاملة قد تستغرق أطول من المعتاد
+    // على شبكة الإنتاج.
     { timeout: 20_000, maxWait: 10_000 },
   );
 

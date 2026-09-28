@@ -21,6 +21,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AcceptInvitePage from "./pages/AcceptInvitePage";
 import DownloadPage from "./pages/DownloadPage";
+import DataProtectionPage from "./pages/DataProtectionPage";
 import JournalEntryStandalonePage from "./pages/JournalEntryStandalonePage";
 import Dashboard from "./wired/Dashboard";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
@@ -73,7 +74,11 @@ function AppShell() {
   // صلاحيات مدير المنصة تحدد الموديولات المتاحة للمستأجر، ثم نشاط الشركة النشطة يحدد الموديولات
   // القطاعية التي تخصها. مديول الإسطبلات لا يظهر ولا يُفتح إلا لنشاط الإسطبلات والإعاشة.
   const visibleNavGroups = NAV_GROUPS.filter((group) => {
-    const platformAllows = !tenant?.enabledModules?.length || tenant.enabledModules.includes(group.id);
+    // ورديات المحطات تظهر تلقائياً لكل شركة نشاطها "محطات وقود" بلا أي تفعيل يدوي — نشاط الشركة وحده
+    // يحكمها، لا قائمة موديولات المنصة: هذه القائمة (PLATFORM_MODULE_IDS) لم تتضمّن هذا الموديول قط،
+    // فأي مستأجر قُيِّدت موديولاته مرة واحدة من لوحة مدير المنصة كان يفقده نهائياً بلا طريقة لإعادته.
+    const platformAllows =
+      group.id === "stationShifts" || !tenant?.enabledModules?.length || tenant.enabledModules.includes(group.id);
     const activityAllows =
       (group.id !== "stables" || activeCompany?.businessActivity === "horse_stables") &&
       (group.id !== "stationShifts" || activeCompany?.businessActivity === "fuel_stations");
@@ -142,6 +147,7 @@ function AppShell() {
   const outletContext = {
     companies: real.companies,
     companyId: real.companyId,
+    companiesLoading: real.loading,
     currentUser, setCurrentUser,
     jobTitles, setJobTitles,
     companyDocuments, setCompanyDocuments,
@@ -273,15 +279,20 @@ function InventoryRoute() {
   const { companies, companyId } = useOutletContext();
   return <InventoryWiredModule companies={companies} companyId={companyId} />;
 }
+// أثناء تحميل قائمة الشركات لا يُعرَف نشاط الشركة النشطة بعد — التحويل للوحة القيادة في تلك اللحظة
+// كان يطرد كل من يفتح رابطاً مباشراً أو يحدّث الصفحة على موديول قطاعي، حتى لو كانت شركته من نفس
+// النشاط تماماً. الانتظار حتى يكتمل التحميل ثم الحكم.
 function StablesRoute() {
-  const { companies, companyId } = useOutletContext();
+  const { companies, companyId, companiesLoading } = useOutletContext();
   const company = companies.find((item) => item.id === companyId);
+  if (!company && companiesLoading) return null;
   if (company?.businessActivity !== "horse_stables") return <Navigate to={routes.dashboard()} replace />;
   return <StablesModule companyId={companyId} />;
 }
 function StationShiftsReviewRoute() {
-  const { companies, companyId } = useOutletContext();
+  const { companies, companyId, companiesLoading } = useOutletContext();
   const company = companies.find((item) => item.id === companyId);
+  if (!company && companiesLoading) return null;
   if (company?.businessActivity !== "fuel_stations") return <Navigate to={routes.dashboard()} replace />;
   return <StationShiftsReviewModule companyId={companyId} />;
 }
@@ -364,6 +375,7 @@ function RootRoute() {
       onGoLogin={() => navigate("/login")}
       onGoRegister={() => navigate("/register")}
       onGoDownload={() => navigate("/download")}
+      onGoDataProtection={() => navigate("/data-protection")}
     />
   );
 }
@@ -388,6 +400,13 @@ function RegisterRoute() {
   if (initializing) return null;
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
   return <RegisterPage onGoLanding={() => navigate("/")} onGoLogin={() => navigate("/login")} />;
+}
+
+// صفحة عامة للقراءة فقط — بلا تحقّق دخول ولا تحويل بحسب isAuthenticated (مثل /download)، حتى يصلها
+// أي زائر أو مشترك حالي قبل التسجيل وبعده.
+function DataProtectionRoute() {
+  const navigate = useNavigate();
+  return <DataProtectionPage onGoLanding={() => navigate("/")} />;
 }
 
 function ForgotPasswordRoute() {
@@ -418,6 +437,7 @@ const router = createBrowserRouter([
   // من رابط أُرسِل واتساب لجهاز نقطة بيع جديد لم يُسجَّل دخوله بعد على أي شيء إطلاقاً)، ولا سبب
   // لإخفائها عمّن هو مسجَّل دخوله بالفعل (قد يريد مشاركة الرابط أو تنزيله على جهاز آخر).
   { path: "/download", element: <DownloadPage /> },
+  { path: "/data-protection", element: <DataProtectionRoute /> },
   { path: "/journal-entries/:id/view", element: <JournalEntryStandalonePage /> },
   {
     element: <ProtectedLayout />,

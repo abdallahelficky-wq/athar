@@ -33,7 +33,11 @@ export default function LinkPaymentModal({ invoice: initialInvoice, companyId, o
 
   const linkedReceiptIds = new Set(invoice.receiptAllocations.map((a) => a.receiptId));
   const receiptById = new Map(receipts.map((r) => [r.id, r]));
-  const candidateReceipts = receipts.filter((r) => !linkedReceiptIds.has(r.id));
+  // سند قائم يُخصَّص منه فقط ما لم يُخصَّص بعد من مبلغه — مبلغ السند وقيده لا يتغيّران أبداً بالربط؛
+  // استلام نقد إضافي يعني "سند جديد".
+  const candidateReceipts = receipts.filter((r) => !linkedReceiptIds.has(r.id) && Number(r.unappliedAmount) > 0.005);
+  const selectedReceipt = receiptById.get(selectedReceiptId);
+  const maxForSelected = selectedReceipt ? Math.min(due, Number(selectedReceipt.unappliedAmount)) : due;
 
   const refresh = async () => {
     const fresh = await getSalesInvoice(invoice.id);
@@ -147,16 +151,26 @@ export default function LinkPaymentModal({ invoice: initialInvoice, companyId, o
             {mode === "existing" ? (
               <div className="form-grid">
                 <label>{t("sales.linkPaymentModal.receipt")}
-                  <select value={selectedReceiptId} onChange={(e) => setSelectedReceiptId(e.target.value)}>
+                  <select
+                    value={selectedReceiptId}
+                    onChange={(e) => {
+                      setSelectedReceiptId(e.target.value);
+                      const r = receiptById.get(e.target.value);
+                      if (r) setAmount(Math.min(due, Number(r.unappliedAmount)).toFixed(2));
+                    }}
+                  >
                     <option value="">{t("sales.linkPaymentModal.choose")}</option>
                     {candidateReceipts.map((r) => (
                       <option key={r.id} value={r.id}>
-                        {r.receiptNumber} ({fmt(Number(r.totalAmount))} {currency} — {r.status === "posted" ? t("sales.linkPaymentModal.posted") : t("sales.linkPaymentModal.draft")})
+                        {r.receiptNumber} ({t("sales.linkPaymentModal.unappliedOf", { unapplied: fmt(Number(r.unappliedAmount)), total: fmt(Number(r.totalAmount)), currency })} — {r.status === "posted" ? t("sales.linkPaymentModal.posted") : t("sales.linkPaymentModal.draft")})
                       </option>
                     ))}
                   </select>
                 </label>
-                <label>{t("sales.linkPaymentModal.allocatedAmount")}<input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+                <label>{t("sales.linkPaymentModal.allocatedAmount")}<input type="number" min="0" max={maxForSelected.toFixed(2)} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+                <p className="note" style={{ gridColumn: "1 / -1", margin: 0 }}>
+                  {candidateReceipts.length ? t("sales.linkPaymentModal.existingNote") : t("sales.linkPaymentModal.noUnappliedReceipts")}
+                </p>
               </div>
             ) : (
               <div className="form-grid">

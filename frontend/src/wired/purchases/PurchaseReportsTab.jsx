@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { getPurchasesBySupplier, getPurchasesMonthly, getPurchasesVatSummary, getPayablesAging } from "../../api/purchaseReports";
 import { fmt } from "../../legacy/constants";
 import SubTabs from "../shared/SubTabs";
+import VatPeriodBar from "../shared/VatPeriodBar";
+import { useVatFetch, useVatPeriod } from "../shared/vatPeriod";
 
 const TABS = [
   { id: "bySupplier", labelKey: "purchases.reports.tabs.bySupplier" },
@@ -11,21 +13,28 @@ const TABS = [
   { id: "vat", labelKey: "purchases.reports.tabs.vat" },
 ];
 
-export default function PurchaseReportsTab({ companyId }) {
+export default function PurchaseReportsTab({ companyId, companies }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState("bySupplier");
   const [bySupplier, setBySupplier] = useState([]);
   const [monthly, setMonthly] = useState([]);
   const [aging, setAging] = useState([]);
-  const [vat, setVat] = useState(null);
+  // المركز كما في تاريخ — فارغ = اليوم
+  const [agingAsOf, setAgingAsOf] = useState("");
+  const vatPeriod = useVatPeriod(companies?.find((c) => c.id === companyId));
+  const { data: vat, error: vatError } = useVatFetch(getPurchasesVatSummary, companyId, vatPeriod.applied);
 
   useEffect(() => {
     if (!companyId) return;
     getPurchasesBySupplier(companyId).then(setBySupplier);
     getPurchasesMonthly(companyId).then(setMonthly);
-    getPayablesAging(companyId).then(setAging);
-    getPurchasesVatSummary(companyId).then(setVat);
   }, [companyId]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    getPayablesAging(companyId, agingAsOf).then(setAging);
+  }, [companyId, agingAsOf]);
+
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
@@ -71,39 +80,44 @@ export default function PurchaseReportsTab({ companyId }) {
 
       {tab === "aging" && (
         <div className="panel">
+          <label className="aging-asof">{t("purchases.reports.aging.asOf")} <input type="date" value={agingAsOf} onChange={(e) => setAgingAsOf(e.target.value)} /></label>
           <table className="ledger-table">
             <thead>
               <tr>
                 <th>{t("purchases.reports.aging.supplier")}</th><th>{t("purchases.reports.aging.current")}</th>
                 <th>{t("purchases.reports.aging.d30")}</th><th>{t("purchases.reports.aging.d60")}</th>
-                <th>{t("purchases.reports.aging.d90")}</th><th>{t("purchases.reports.aging.total")}</th>
+                <th>{t("purchases.reports.aging.d90")}</th><th title={t("purchases.reports.aging.unallocatedHint")}>{t("purchases.reports.aging.unallocated")}</th><th>{t("purchases.reports.aging.total")}</th>
               </tr>
             </thead>
             <tbody>
               {aging.map((r) => (
                 <tr key={r.supplierId}>
                   <td>{r.supplierName}</td><td className="num">{fmt(r.current)}</td><td className="num">{fmt(r.d30)}</td>
-                  <td className="num">{fmt(r.d60)}</td><td className="num">{fmt(r.d90)}</td><td className="num strong">{fmt(r.total)}</td>
+                  <td className="num">{fmt(r.d60)}</td><td className="num">{fmt(r.d90)}</td><td className="num">{fmt(r.unallocated)}</td><td className="num strong">{fmt(r.total)}</td>
                 </tr>
               ))}
-              {aging.length === 0 && <tr><td className="empty" colSpan={6}>{t("purchases.reports.aging.empty")}</td></tr>}
+              {aging.length === 0 && <tr><td className="empty" colSpan={7}>{t("purchases.reports.aging.empty")}</td></tr>}
             </tbody>
           </table>
           <p className="note">{t("purchases.reports.agingNote")}</p>
         </div>
       )}
 
-      {tab === "vat" && vat && (
+      {tab === "vat" && (
         <div className="panel">
-          <table className="ledger-table">
-            <tbody>
-              <tr><td>{t("purchases.reports.vat.purchasesBase")}</td><td className="num">{fmt(vat.purchasesBase)}</td></tr>
-              <tr><td>{t("purchases.reports.vat.inputVat")}</td><td className="num">{fmt(vat.inputVat)}</td></tr>
-              <tr><td>{t("purchases.reports.vat.returnsBase")}</td><td className="num">{fmt(vat.returnsBase)}</td></tr>
-              <tr><td>{t("purchases.reports.vat.returnsVat")}</td><td className="num">{fmt(vat.returnsVat)}</td></tr>
-              <tr className="net-row"><td className="strong">{t("purchases.reports.vat.netInputVat")}</td><td className="num strong">{fmt(vat.netInputVat)}</td></tr>
-            </tbody>
-          </table>
+          <VatPeriodBar title={t("purchases.reports.tabs.vat")} period={vatPeriod} />
+          {vatError && <p className="balance-bad">{vatError}</p>}
+          {vat && (
+            <table className="ledger-table">
+              <tbody>
+                <tr><td>{t("purchases.reports.vat.purchasesBase")} ({vat.invoiceCount})</td><td className="num">{fmt(vat.purchasesBase)}</td></tr>
+                <tr><td>{t("purchases.reports.vat.inputVat")}</td><td className="num">{fmt(vat.inputVat)}</td></tr>
+                <tr><td>{t("purchases.reports.vat.returnsBase")} ({vat.returnCount})</td><td className="num">{fmt(vat.returnsBase)}</td></tr>
+                <tr><td>{t("purchases.reports.vat.returnsVat")}</td><td className="num">{fmt(vat.returnsVat)}</td></tr>
+                <tr className="net-row"><td className="strong">{t("purchases.reports.vat.netInputVat")}</td><td className="num strong">{fmt(vat.netInputVat)}</td></tr>
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>

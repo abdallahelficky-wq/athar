@@ -2,8 +2,12 @@ import { api } from "./http";
 
 export const listCompanies = () => api.get("/companies");
 export const createCompany = (payload) => api.post("/companies", payload);
+// «شركة مستقلة»: مستأجر جديد كلياً لنفس هوية المستخدم — لا يُعيد رموز دخول ولا يغيّر الجلسة الحالية
+export const createIndependentCompany = (payload) => api.post("/companies/independent", payload);
 export const updateCompany = (id, payload) => api.patch(`/companies/${id}`, payload);
-export const deleteCompany = (id) => api.delete(`/companies/${id}`);
+// مفتاح "الأرصدة تحتسب المرحَّل فقط" — للمالك وحده
+export const setBalancesPostedOnly = (id, enabled) => api.patch(`/companies/${id}/balances-posted-only`, { enabled });
+export const setPayrollTotalsFromMonth = (id, month) => api.patch(`/companies/${id}/payroll-totals-from-month`, { month });
 // "فتح الإقفال" — تقديم تاريخ إقفال السنة المالية للخلف أو مسحه بالكامل، admin فقط (راجع الرفض
 // المقابل لهذه الحالة في updateCompany العادي على الخادم).
 export const reopenFiscalClosing = (id, fiscalYearClosingDate) =>

@@ -1,4 +1,4 @@
-import { itemDescription, itemMatches } from "../shared/itemDefaults";
+import { itemDescription, itemMatches, itemTaxDefaults } from "../shared/itemDefaults";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { computeInvoiceLine } from "../shared/invoiceLine";
@@ -38,6 +38,9 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
 
   const pickItem = (idx, item) => {
     updateLine(idx, {
+      ...itemTaxDefaults(item),
+      // Catalog price basis describes the sale price, not the supplier purchase price.
+      priceIncludesVat: lines[idx].priceIncludesVat,
       itemId: item.id,
       description: itemDescription(item),
       warehouseId: (item.type === "fixed_asset" || item.type === "non_stock") ? "" : (warehouses.find((w) => w.isDefault)?.id || warehouses[0]?.id || ""),
@@ -48,7 +51,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
     setOpenDropdownIdx(null);
   };
 
-  const clearItem = (idx, text) => updateLine(idx, { itemId: "", description: text, warehouseId: "", usefulLifeYears: "", salvageValue: "" });
+  const clearItem = (idx, text) => updateLine(idx, { taxCategoryCode: "S", vatApplicable: true, taxExemptionReasonCode: null, taxExemptionReason: null, itemId: "", description: text, warehouseId: "", usefulLifeYears: "", salvageValue: "" });
 
   const filtered = (text) => purchasableItems.filter((it) => !text || itemMatches(it, text));
 
@@ -60,7 +63,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
             <tr>
               <th>{t("purchases.invoices.lines.itemDescription")}</th><th>{t("purchases.invoices.lines.account")}</th>
               <th>{t("purchases.invoices.lines.itemDetails")}</th><th>{t("purchases.invoices.lines.quantity")}</th>
-              <th>{t("purchases.invoices.lines.unitPrice")}</th>
+              <th>{t("purchases.invoices.lines.unitPrice")}</th><th>{t("itemTax.category")}</th>
               <th>{t("purchases.invoices.lines.priceIncludesVat")}</th><th>{t("purchases.invoices.lines.discount")}</th>
               <th>{t("purchases.invoices.lines.totalWithVat")}</th><th></th>
             </tr>
@@ -114,6 +117,10 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
                   </td>
                   <td><input type="number" className="amount-input" value={l.quantity} onChange={(e) => updateLine(idx, { quantity: e.target.value })} /></td>
                   <td><input type="number" className="amount-input" value={l.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: e.target.value })} placeholder="0.00" /></td>
+                  <td><select aria-label={t("itemTax.category")} value={l.taxCategoryCode || (l.vatApplicable === false ? "O" : "S")}
+                    onChange={(e) => updateLine(idx, { taxCategoryCode: e.target.value, vatApplicable: e.target.value === "S", taxExemptionReasonCode: null, taxExemptionReason: null })}>
+                    {["E", "Z", "S", ...(l.taxCategoryCode === "O" || (!l.taxCategoryCode && l.vatApplicable === false) ? ["O"] : [])].map((code) => <option key={code} value={code}>{t(`itemTax.${code}`)}</option>)}
+                  </select></td>
                   <td style={{ textAlign: "center" }}>
                     <input type="checkbox" checked={l.priceIncludesVat} onChange={(e) => updateLine(idx, { priceIncludesVat: e.target.checked })} />
                   </td>
@@ -126,7 +133,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
           </tbody>
           <tfoot>
             <tr>
-              <td className="foot-label" colSpan={7}>{t("purchases.invoices.lines.total")}</td>
+              <td className="foot-label" colSpan={8}>{t("purchases.invoices.lines.total")}</td>
               <td className="num">{fmt2(grandTotal)}</td>
               <td></td>
             </tr>
@@ -137,7 +144,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
 
       <div className="preview-box">
         <div className="preview-row"><span>{t("purchases.invoices.lines.subtotal")}</span><strong>{fmt2(subtotal)} {currency}</strong></div>
-        <div className="preview-row"><span>{t("purchases.invoices.lines.vat")}</span><strong>{fmt2(vatTotal)} {currency}</strong></div>
+        <div className="preview-row"><span>{t("purchases.invoices.vatLabel")}</span><strong>{fmt2(vatTotal)} {currency}</strong></div>
         <div className="preview-row net-row"><span>{t("purchases.invoices.lines.grandTotal")}</span><strong>{fmt2(grandTotal)} {currency}</strong></div>
       </div>
     </div>

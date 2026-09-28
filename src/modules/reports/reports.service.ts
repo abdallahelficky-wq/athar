@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import type { Account } from "@prisma/client";
+import type { Account, Prisma } from "@prisma/client";
 import { notFound } from "../../lib/httpError";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { Lang } from "../../lib/i18n/translate";
@@ -12,6 +12,10 @@ import {
   findTreeNode,
   TreeNode,
 } from "../../lib/reportRollup";
+import { foldAccountList, foldValueMap, personalFoldFromAccounts, loadPersonalFold, assertNotPersonalAccount } from "../../lib/personalAccounts";
+import { collapseHrLines, hrEntryKinds, redactHrMemo } from "../../lib/hrRedaction";
+import { monthlyAgingShape, payablesAgingAsOf, receivablesAgingAsOf } from "../../lib/aging";
+import { COUNTED_ENTRY_WHERE, UNCOUNTED_DRAFT_WHERE } from "../../lib/countedEntries";
 
 export interface DateRange {
   companyId?: string;
@@ -30,13 +34,11 @@ export interface AccountBalance {
 }
 
 /**
- * تجميع أرصدة الحسابات من أسطر كل القيود — "محفوظة" (saved) أو "مرحّلة" (posted) معاً، بلا فلتر
- * status هنا عمداً: قرار صريح من المستخدم أن يؤثر القيد "المحفوظ" على كل التقارير المالية فور
- * حفظه (لا يقتصر التأثير على "مرحّل" فقط كما كان سابقاً)، طالما لا يوجد إطلاقاً في هذا النظام أي
- * حالة ثالثة "لا تؤثر" (مثل "مسودة" القديمة) — أي قيد موجود في الجدول يُحتسَب. مطابق أصلاً لمنطق
- * aggregateAccounts في AtharAlMuhasabi.jsx، مع إضافة تصفية بالتاريخ والشركة كما تتطلبها توقيعات
- * endpoints في القسم 5 من المستند. كل التقارير تُحسب من هذه الدالة فقط ولا تُخزَّن أرقامها في
- * مكان منفصل (مبدأ القسم 3).
+ * تجميع أرصدة الحسابات من أسطر القيود المحتسبة فقط (COUNTED_ENTRY_WHERE): المرحَّلة، والمحفوظة فقط في
+ * شركة لم يُفعَّل فيها بعدُ مفتاح balancesPostedOnly. قرار المالك (2026-09-27) عكس القرار السابق الذي
+ * كان يحتسب "المحفوظ" فور حفظه: فك ترحيل قيد يدوي لم يكن يغيّر أي رقم، فكانت صلاحية فك الترحيل ورقمها
+ * السري بلا أثر. ما يبقى محفوظاً يُعرَض في كل شاشة أرصدة كسطر مستقل "قيود محفوظة غير محتسبة" (راجع
+ * getDraftEntriesSummary). كل التقارير تُحسب من هذه الدالة ولا تُخزَّن أرقامها في مكان منفصل.
  */
 export async function aggregateAccountBalances(tenantId: string, range: DateRange): Promise<Map<string, AccountBalance>> {
   const accounts = await prisma.account.findMany({
@@ -50,6 +52,7 @@ export async function aggregateAccountBalances(tenantId: string, range: DateRang
     where: {
       branchId: range.branchId || undefined,
       journalEntry: {
+        AND: [COUNTED_ENTRY_WHERE],
         tenantId,
         companyId: range.companyId || undefined,
         date: {
@@ -103,14 +106,15 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const en = lang === "en";
   const { from, to, previousFrom, previousTo } = monthRange(month);
   const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
-  const [currentRaw, previousRaw, closingRaw, companies, receivableAging, payableAging, payrollRuns] = await Promise.all([
+  const [currentRaw, previousRaw, closingRaw, companies, receivableAging, payableAging, employeeAccounts] = await Promise.all([
     aggregateAccountBalances(tenantId, { companyId, dateFrom: from, dateTo: to }),
     aggregateAccountBalances(tenantId, { companyId, dateFrom: previousFrom, dateTo: previousTo }),
     aggregateAccountBalances(tenantId, { companyId, dateTo: to }),
     prisma.company.findMany({ where: { tenantId, id: companyId || undefined } }),
-    prisma.salesInvoice.findMany({ where: { tenantId, companyId: companyId || undefined, status: "posted", date: { lte: to } }, include: { receiptAllocations: true } }),
-    prisma.purchaseInvoice.findMany({ where: { tenantId, companyId: companyId || undefined, status: "posted", date: { lte: to } } }),
-    prisma.payrollRun.findMany({ where: { tenantId, companyId: companyId || undefined, month } }),
+    // الأعمار كما في نهاية الشهر: ما خُصِّص أو سُدِّد بعده لا يُنقِص ذمة ذلك الشهر (راجع lib/aging.ts)
+    receivablesAgingAsOf(tenantId, companyId, to),
+    payablesAgingAsOf(tenantId, companyId, to),
+    prisma.employee.findMany({ where: { tenantId, companyId: companyId || undefined, accountId: { not: null } }, select: { accountId: true } }),
   ]);
   const values = (raw: Map<string, AccountBalance>) => new Map([...raw].map(([id, b]) => [id, { debit: b.debit, credit: b.credit }]));
   const rolled = (raw: Map<string, AccountBalance>) => rollupAccountValues(accounts, values(raw), ZERO_DC, { level: 4 });
@@ -127,13 +131,46 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const cashIds = new Set(accounts.filter(a => a.isBankOrCash).map(a => a.id));
   const cashFlow = (rows: typeof cur) => rows.filter(r => cashIds.has(r.account.id)).reduce((a,r) => ({ receipts: a.receipts+r.value.debit, payments: a.payments+r.value.credit }), { receipts: 0, payments: 0 });
   const cf = cashFlow(cur), pcf = cashFlow(prev);
-  const aging = (docs: Array<{ date: Date; due: number }>) => docs.reduce((a,d) => { const days=Math.floor((to.getTime()-d.date.getTime())/86400000); const k=days<=30?"under30":days<=60?"d30to60":days<=90?"d60to90":"over90"; a[k]+=Math.max(d.due,0); return a; }, { under30:0,d30to60:0,d60to90:0,over90:0 });
-  const arDocs = receivableAging.map(i => ({ date:i.date, due:Number(i.grandTotal)-i.receiptAllocations.reduce((s,a)=>s+Number(a.amount),0) }));
-  const apDocs = payableAging.map(i => ({ date:i.date, due:Number(i.grandTotal) }));
-  const receivables = money(arDocs.reduce((s,x)=>s+Math.max(x.due,0),0)), payables = money(apDocs.reduce((s,x)=>s+x.due,0));
+  const receivables = money(receivableAging.totals.total), payables = money(payableAging.totals.total);
   const liabilityRows = closing.filter(r => r.account.type === "liability" && /(قرض|قسط|ضريبة|قيمة مضافة|زكاة|مستحق)/.test(r.account.name)).map(r => ({ name:r.account.name, amount:money(natural(r)), dueDate:null }));
   const salaryAccounts = closing.filter(r => /(رواتب مستحقة|نهاية خدمة)/.test(r.account.name));
-  const payroll = { paid: money(payrollRuns.filter(r=>r.status === "posted").reduce((s,r)=>s + Number((r.overrides as any)?.netTotal || 0),0)), unpaid: money(salaryAccounts.filter(r=>/رواتب/.test(r.account.name)).reduce((s,r)=>s+natural(r),0)), endOfService: money(salaryAccounts.filter(r=>/نهاية خدمة/.test(r.account.name)).reduce((s,r)=>s+natural(r),0)) };
+  // الرواتب المستحقة تقع في مكانين: حساب «رواتب مستحقة» (الترحيل بالإجماليات، ومن أي قيد يدوي)، والحسابات الفرعية
+  // للموظفين (الترحيل القديم: صافي كل موظف على حسابه، وتسويات الإجازة). غير المدفوع = رصيد الأول + الأرصدة الدائنة
+  // للحسابات الفرعية في نهاية الشهر (رصيد مدين لموظف ذمة عليه لا يُنقِص ما هو مستحق لغيره) — فتصحّ الأشهر القديمة أيضاً.
+  // المصروف = ما سُدِّد خلال الشهر من هذه الحسابات نقداً أو بنكياً (راجع paysCash أدناه)، مطروحاً منه ما عُكِس من سداد.
+  // الحسابات الفرعية للموظفين من شجرة الحسابات لا من صفوف الموظفين الحالية: حذف موظف يُبقي حسابه وقيوده، فلا يجوز
+  // أن يختفي رصيده من أشهر مضت. المجموعات: «ذمم الموظفين» باسمها، وأي مجموعة تضم حساب موظف حالي.
+  const employeeGroupIds = new Set([
+    ...accounts.filter((a) => !a.isPosting && a.name === "ذمم الموظفين").map((a) => a.id),
+    ...accounts.filter((a) => employeeAccounts.some((e) => e.accountId === a.id) && a.parentId).map((a) => a.parentId as string),
+  ]);
+  const employeeAccountIds = new Set(accounts.filter((a) => a.isPosting && a.parentId && employeeGroupIds.has(a.parentId)).map((a) => a.id));
+  const payableIds = new Set(accounts.filter((a) => a.isPosting && /رواتب مستحقة/.test(a.name)).map((a) => a.id));
+  const employeeOwed = [...employeeAccountIds].reduce((s, id) => {
+    const b = closingRaw.get(id);
+    return s + (b ? Math.max(b.credit - b.debit, 0) : 0);
+  }, 0);
+  const payableOwed = salaryAccounts.filter((r) => payableIds.has(r.account.id)).reduce((s, r) => s + natural(r), 0);
+  const payrollAccountIds = [...payableIds, ...employeeAccountIds];
+  const monthEntries = { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { gte: from, lte: to } };
+  // السداد قيدٌ يُنقِص هذه الحسابات ويُخرِج نقداً أو من بنك في القيد نفسه — إعادة تصنيف بين حساب موظف و«رواتب مستحقة»
+  // (أو أي تسوية بلا نقد) ليست صرفاً. عكس السداد (يُعيد النقد) يُطرَح بالقاعدة نفسها.
+  // ⚠ حدّ معروف (docs/reports/comprehensive-monthly.md): صرف يمرّ بحساب وسيط في قيد منفصل — حماية الأجور (WPS) أو
+  // «مدد»: «رواتب مستحقة» ← حساب وسيط، ثم الوسيط ← البنك — لا يُحتسَب مصروفاً، فيَنقص الرقم بلا أي إشارة. يصحّ اليوم
+  // لأن الرواتب تُصرَف من البنك مباشرة. عند إضافة حساب وسيط للرواتب يجب توسيع paysCash ليعدّه (علامة على الحساب مثلاً).
+  const paysCash = { lines: { some: { credit: { gt: 0 }, account: { isBankOrCash: true } } } };
+  const receivesCash = { lines: { some: { debit: { gt: 0 }, account: { isBankOrCash: true } } } };
+  const [payments, reversedPayments] = await Promise.all([
+    prisma.journalEntryLine.aggregate({
+      where: { accountId: { in: payrollAccountIds }, debit: { gt: 0 }, journalEntry: { ...monthEntries, ...paysCash, reversalOfEntryId: null, sourceModule: { not: "payroll" } } },
+      _sum: { debit: true },
+    }),
+    prisma.journalEntryLine.aggregate({
+      where: { accountId: { in: payrollAccountIds }, credit: { gt: 0 }, journalEntry: { ...monthEntries, ...receivesCash, reversalOfEntryId: { not: null } } },
+      _sum: { credit: true },
+    }),
+  ]);
+  const payroll = { paid: money(Number(payments._sum.debit || 0) - Number(reversedPayments._sum.credit || 0)), unpaid: money(payableOwed + employeeOwed), endOfService: money(salaryAccounts.filter(r=>/نهاية خدمة/.test(r.account.name)).reduce((s,r)=>s+natural(r),0)) };
   const pct = (now:number, old:number) => old === 0 ? null : money(((now-old)/Math.abs(old))*100);
   const comparisonLabels = en
     ? ["Revenue","Expenses","Net profit","Receipts","Payments","Net cash flow"]
@@ -145,7 +182,7 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const notes:string[]=[]; expenseDetails.forEach(e => { const old=prev.find(r=>r.account.id===e.accountId); const change=pct(e.value,old?natural(old):0); if(change!=null && change>=settings.expenseIncreasePct) notes.push(en ? `Expense ${e.name} increased by ${change}% from the previous month.` : `مصروف ${e.name} زاد بنسبة ${change}% عن الشهر السابق.`); });
   if (pct(revenue-expense, previousRevenue-previousExpense)! < 0 && revenue>previousRevenue) notes.push(en ? "Net profit declined despite increased revenue — expenses are worth reviewing." : "صافي الربح انخفض رغم زيادة الإيرادات — يستحق مراجعة المصروفات.");
   const totalCash=money(cashRows.reduce((s,x)=>s+x.balance,0)); if(settings.maximumReceivables>0&&receivables>settings.maximumReceivables) notes.push(en ? `Receivables exceeded the set limit (${settings.maximumReceivables}).` : `الذمم المدينة تجاوزت الحد المحدد (${settings.maximumReceivables}).`); if(totalCash<settings.minimumCash) notes.push(en ? `Cash balance is below the set minimum (${settings.minimumCash}).` : `رصيد النقدية أقل من الحد الأدنى المحدد (${settings.minimumCash}).`);
-  return { month, scope:companyId?"company":"group", revenue, expense, netProfit:money(revenue-expense), netProfitChangePct:pct(revenue-expense,previousRevenue-previousExpense), expenseSummary, expenseDetails:expenseDetails.slice(0,10), cashFlow:{ receipts:money(cf.receipts),payments:money(cf.payments),net:money(cf.receipts-cf.payments) }, cashAccounts:cashRows, totalCash, payroll, receivables:{ total:receivables,aging:aging(arDocs) }, payables:{ total:payables,aging:aging(apDocs) }, liabilities:liabilityRows, comparison, settings, generatedNotes:notes };
+  return { month, scope:companyId?"company":"group", revenue, expense, netProfit:money(revenue-expense), netProfitChangePct:pct(revenue-expense,previousRevenue-previousExpense), expenseSummary, expenseDetails:expenseDetails.slice(0,10), cashFlow:{ receipts:money(cf.receipts),payments:money(cf.payments),net:money(cf.receipts-cf.payments) }, cashAccounts:cashRows, totalCash, payroll, receivables:{ total:receivables,aging:monthlyAgingShape(receivableAging) }, payables:{ total:payables,aging:monthlyAgingShape(payableAging) }, liabilities:liabilityRows, comparison, settings, generatedNotes:notes };
 }
 
 export async function updateMonthlyReportSettings(tenantId:string, companyId:string, input:any) {
@@ -174,8 +211,9 @@ export async function getTrialBalanceReport(
   dateTo: Date | undefined,
   rollup: ReportRollupParams,
   branchId?: string,
+  hrView = true,
 ) {
-  const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
+  const allAccounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
   const openingDateTo = dateFrom ? new Date(dateFrom.getTime() - 1) : undefined;
 
   const [openingBalances, periodBalances] = await Promise.all([
@@ -183,8 +221,9 @@ export async function getTrialBalanceReport(
     aggregateAccountBalances(tenantId, { companyId, branchId, dateFrom, dateTo }),
   ]);
 
-  const opening = new Map<string, Zeroed>();
-  const period = new Map<string, Zeroed>();
+  let opening = new Map<string, Zeroed>();
+  let period = new Map<string, Zeroed>();
+  const accounts = allAccounts;
   for (const account of accounts) {
     if (!account.isPosting) continue;
     const o = openingBalances?.get(account.id);
@@ -193,9 +232,15 @@ export async function getTrialBalanceReport(
     period.set(account.id, { debit: p?.debit || 0, credit: p?.credit || 0 });
   }
 
+  // غير أدوار الموارد البشرية: مجموعات حسابات الأشخاص رصيد واحد (راجع personalAccounts.ts)
+  const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);
+  const reportAccounts = foldAccountList(accounts, fold);
+  opening = foldValueMap(opening, fold);
+  period = foldValueMap(period, fold);
+
   const rollupOptions: RollupOptions = { level: rollup.level, accountId: rollup.accountId, includeDetails: rollup.includeDetails };
-  const openingRolled = rollupAccountValues(accounts, opening, ZERO_DC, rollupOptions);
-  const periodRolled = rollupAccountValues(accounts, period, ZERO_DC, rollupOptions);
+  const openingRolled = rollupAccountValues(reportAccounts, opening, ZERO_DC, rollupOptions);
+  const periodRolled = rollupAccountValues(reportAccounts, period, ZERO_DC, rollupOptions);
   const periodByAccountId = new Map(periodRolled.map((r) => [r.account.id, r.value]));
 
   const netSplit = (net: number) => ({ debit: Math.max(net, 0), credit: Math.max(-net, 0) });
@@ -310,9 +355,13 @@ export async function getTrialBalanceTree(
   dateTo: Date | undefined,
   options: { level?: number; hideZeroActivity?: boolean; search?: string },
   branchId?: string,
+  hrView = true,
 ) {
   const level = options.level && options.level >= 1 && options.level <= 4 ? options.level : 4;
-  const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
+  const allAccounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
+  // غير أدوار الموارد البشرية: مجموعات حسابات الأشخاص رصيد واحد (راجع personalAccounts.ts)
+  const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);
+  const accounts = foldAccountList(allAccounts, fold);
   const openingDateTo = dateFrom ? new Date(dateFrom.getTime() - 1) : undefined;
 
   const [openingBalances, periodBalances] = await Promise.all([
@@ -326,20 +375,21 @@ export async function getTrialBalanceTree(
   // الأرصدة المدينة الصافية مقابل مجموع الأرصدة الدائنة الصافية لكل حساب — رقمان مختلفان يتساويان
   // فقط لأن النظام متوازن ككل، لا لأنهما نفس الجمع الخام. تبقى الإجماليات ثابتة بصرف النظر عن
   // التشذيب/الطي المعروض حالياً (بحث أو إخفاء المعدوم)، تماماً كما في getTrialBalanceReport.
-  const postingValues = new Map<string, RawFlow>();
-  const totals = { openingDebit: 0, openingCredit: 0, periodDebit: 0, periodCredit: 0, closingDebit: 0, closingCredit: 0 };
-  for (const account of accounts) {
+  const rawValues = new Map<string, RawFlow>();
+  for (const account of allAccounts) {
     if (!account.isPosting) continue;
     const o = openingBalances?.get(account.id);
     const p = periodBalances.get(account.id);
-    const flow: RawFlow = {
+    rawValues.set(account.id, {
       openingDebit: o?.debit || 0,
       openingCredit: o?.credit || 0,
       periodDebit: p?.debit || 0,
       periodCredit: p?.credit || 0,
-    };
-    postingValues.set(account.id, flow);
-
+    });
+  }
+  const postingValues = foldValueMap(rawValues, fold);
+  const totals = { openingDebit: 0, openingCredit: 0, periodDebit: 0, periodCredit: 0, closingDebit: 0, closingCredit: 0 };
+  for (const flow of postingValues.values()) {
     const openingNet = flow.openingDebit - flow.openingCredit;
     const closingNet = openingNet + flow.periodDebit - flow.periodCredit;
     totals.openingDebit += Math.max(openingNet, 0);
@@ -450,11 +500,14 @@ export async function getIncomeStatement(
   dateTo?: Date,
   rollup: ReportRollupParams = {},
   branchId?: string,
+  hrView = true,
 ) {
-  const [balances, accounts] = await Promise.all([
+  const [balances, allAccounts] = await Promise.all([
     aggregateAccountBalances(tenantId, { companyId, branchId, dateFrom, dateTo }),
     prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } }),
   ]);
+  const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);
+  const accounts = foldAccountList(allAccounts, fold);
 
   // الإجماليات تُحسب مباشرة من كل الأرصدة دائماً (لا من الشجرة المعروضة) — تبقى صحيحة بصرف النظر
   // عن المستوى/الفرع/البحث المختار للعرض، تماماً كإجمالي ميزان المراجعة العام.
@@ -477,8 +530,8 @@ export async function getIncomeStatement(
   }
   const netIncome = totalRevenue - totalExpense;
 
-  const revenueRoots = buildFilteredSectionTree(accounts, revenueValues, ["revenue"], rollup);
-  const expenseRoots = buildFilteredSectionTree(accounts, expenseValues, ["expense"], rollup);
+  const revenueRoots = buildFilteredSectionTree(accounts, foldValueMap(revenueValues, fold), ["revenue"], rollup);
+  const expenseRoots = buildFilteredSectionTree(accounts, foldValueMap(expenseValues, fold), ["expense"], rollup);
 
   return { revenueRoots, expenseRoots, totalRevenue, totalExpense, netIncome };
 }
@@ -489,11 +542,15 @@ export async function getBalanceSheet(
   asOfDate?: Date,
   rollup: ReportRollupParams = {},
   branchId?: string,
+  hrView = true,
 ) {
-  const [balances, accounts] = await Promise.all([
+  const [balances, allAccounts] = await Promise.all([
     aggregateAccountBalances(tenantId, { companyId, branchId, dateTo: asOfDate }),
     prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } }),
   ]);
+  // غير أدوار الموارد البشرية: مجموعات حسابات الأشخاص رصيد واحد (راجع personalAccounts.ts)
+  const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);
+  const accounts = foldAccountList(allAccounts, fold);
 
   // صافي الربح التراكمي حتى تاريخ التقرير يُضاف لحقوق الملكية (أرباح مرحّلة) — رقم إجمالي على
   // مستوى الشركة كاملة دائماً، بصرف النظر عن أي فلتر عرض على صفوف الأصول/الالتزامات/حقوق الملكية،
@@ -527,9 +584,9 @@ export async function getBalanceSheet(
   }
   const totalEquity = totalEquityBase + netIncome;
 
-  const assetRoots = buildFilteredSectionTree(accounts, assetValues, ["asset"], rollup);
-  const liabilityRoots = buildFilteredSectionTree(accounts, liabilityValues, ["liability"], rollup);
-  const equityRoots = buildFilteredSectionTree(accounts, equityValues, ["equity"], rollup);
+  const assetRoots = buildFilteredSectionTree(accounts, foldValueMap(assetValues, fold), ["asset"], rollup);
+  const liabilityRoots = buildFilteredSectionTree(accounts, foldValueMap(liabilityValues, fold), ["liability"], rollup);
+  const equityRoots = buildFilteredSectionTree(accounts, foldValueMap(equityValues, fold), ["equity"], rollup);
 
   return {
     assetRoots,
@@ -568,7 +625,7 @@ async function buildPartyStatement(
   if (dateFrom) {
     const openingDateTo = new Date(dateFrom.getTime() - 1);
     const opening = await prisma.journalEntryLine.aggregate({
-      where: { accountId, journalEntry: { tenantId, companyId: companyId || undefined, date: { lte: openingDateTo } } },
+      where: { accountId, journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { lte: openingDateTo } } },
       _sum: { debit: true, credit: true },
     });
     const od = Number(opening._sum.debit || 0);
@@ -580,6 +637,7 @@ async function buildPartyStatement(
     where: {
       accountId,
       journalEntry: {
+        AND: [COUNTED_ENTRY_WHERE],
         tenantId,
         companyId: companyId || undefined,
         date: { gte: dateFrom, lte: dateTo },
@@ -619,7 +677,8 @@ export async function getCustomerStatement(
   if (!customer) throw notFound("العميل غير موجود");
   const accountId = await resolvePartyAccountId(tenantId, customer.companyId, customer, "ذمم مدينة");
   const statement = await buildPartyStatement(tenantId, accountId, companyId, dateFrom, dateTo, 1);
-  return { customer, ...statement };
+  // accountId: الحساب الذي بُني منه الكشف — تحتاجه الشاشة لسطر "قيود محفوظة" على نفس الحساب
+  return { customer, accountId, ...statement };
 }
 
 function collectPostingDescendants(accounts: Account[], rootId: string): string[] {
@@ -659,11 +718,14 @@ export async function getAccountLedger(
   dateFrom?: Date,
   dateTo?: Date,
   filters?: { costCenterId?: string; departmentId?: string; branchId?: string },
+  hrView = true,
 ) {
   const account = await prisma.account.findFirst({
     where: { id: accountId, tenantId, companyId: companyId || undefined },
   });
   if (!account) throw notFound("الحساب غير موجود");
+  // غير أدوار الموارد البشرية: لا كشف لحساب شخص بعينه — كشف المجموعة فقط (راجع personalAccounts.ts)
+  await assertNotPersonalAccount(hrView, tenantId, account.id);
 
   const normalSide: "debit" | "credit" = account.type === "asset" || account.type === "expense" ? "debit" : "credit";
 
@@ -688,7 +750,7 @@ export async function getAccountLedger(
         costCenterId: filters?.costCenterId || undefined,
         departmentId: filters?.departmentId || undefined,
         branchId: filters?.branchId || undefined,
-        journalEntry: { tenantId, companyId: companyId || undefined, date: { lte: openingDateTo } },
+        journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { lte: openingDateTo } },
       },
       _sum: { debit: true, credit: true },
     });
@@ -704,6 +766,7 @@ export async function getAccountLedger(
       departmentId: filters?.departmentId || undefined,
       branchId: filters?.branchId || undefined,
       journalEntry: {
+        AND: [COUNTED_ENTRY_WHERE],
         tenantId,
         companyId: companyId || undefined,
         date: { gte: dateFrom, lte: dateTo },
@@ -713,16 +776,37 @@ export async function getAccountLedger(
     orderBy: { journalEntry: { date: "asc" } },
   });
 
+  let visibleLines = lines.map((l) => ({ ...l, debit: Number(l.debit), credit: Number(l.credit) }));
+  const memoOf = new Map(lines.map((l) => [l.journalEntryId, l.journalEntry.memo]));
+  if (!hrView) {
+    // غير أدوار الموارد البشرية: حسابات الأشخاص تُنسَب لمجموعتها، وقيود الرواتب والتسويات (وعكسها) تُطوى
+    // لسطر لكل حساب في القيد بلا وصف ولا اسم — راجع hrRedaction.ts. الرصيد المتحرك يُحسَب بعد الطيّ.
+    const [fold, kinds] = await Promise.all([
+      loadPersonalFold(tenantId, companyId),
+      hrEntryKinds(tenantId, [...new Map(lines.map((l) => [l.journalEntryId, l.journalEntry])).values()]),
+    ]);
+    const byEntry = new Map<string, typeof visibleLines>();
+    for (const l of visibleLines) byEntry.set(l.journalEntryId, [...(byEntry.get(l.journalEntryId) || []), l]);
+    visibleLines = [...byEntry.entries()].flatMap(([entryId, entryLines]) => {
+      const kind = kinds.get(entryId);
+      if (kind) memoOf.set(entryId, redactHrMemo(kind, memoOf.get(entryId) ?? null));
+      const folded = kind ? collapseHrLines(entryLines, fold) : entryLines;
+      return folded.map((l) => {
+        const group = fold.get(l.accountId);
+        return group ? { ...l, accountId: group.id, account: group } : l;
+      });
+    });
+  }
+
   let balance = openingBalance;
-  const rows = lines.map((l) => {
-    const debit = Number(l.debit);
-    const credit = Number(l.credit);
+  const rows = visibleLines.map((l) => {
+    const { debit, credit } = l;
     balance += normalSide === "debit" ? debit - credit : credit - debit;
     return {
       date: l.journalEntry.date,
       journalEntryId: l.journalEntryId,
       entryNumber: l.journalEntry.entryNumber,
-      entryMemo: l.journalEntry.memo,
+      entryMemo: memoOf.get(l.journalEntryId) ?? null,
       lineDescription: l.description,
       costCenterName: l.costCenter?.name || null,
       departmentName: l.departmentRef?.name || l.department || null,
@@ -751,5 +835,50 @@ export async function getSupplierStatement(
   if (!supplier) throw notFound("المورد غير موجود");
   const accountId = await resolvePartyAccountId(tenantId, supplier.companyId, supplier, "ذمم دائنة - موردين");
   const statement = await buildPartyStatement(tenantId, accountId, companyId, dateFrom, dateTo, -1);
-  return { supplier, ...statement };
+  return { supplier, accountId, ...statement };
+}
+
+/**
+ * سطر "قيود محفوظة" في شاشات الأرصدة: القيود المحفوظة (غير المرحّلة) في نفس نطاق الشاشة (الشركة، الفترة،
+ * الفرع، والحساب لشاشة الأستاذ) مقسومة قسمين:
+ * - uncounted: في شركات تحتسب أرصدتها المرحَّل فقط — لا تدخل الأرقام المعروضة؛
+ * - counted: في شركات لم يُفعَّل فيها المفتاح بعد — تدخل الأرقام المعروضة رغم أنها غير مرحّلة.
+ */
+export async function getDraftEntriesSummary(
+  tenantId: string,
+  filters: { companyId?: string; branchId?: string; accountId?: string; dateFrom?: Date; dateTo?: Date },
+) {
+  // حساب تجميعي (شاشة الأستاذ تقبله): نفس نطاقه في الأرصدة — هو وكل حساباته الفرعية
+  let accountIds: string[] | undefined;
+  if (filters.accountId) {
+    accountIds = [filters.accountId];
+    let frontier = [filters.accountId];
+    while (frontier.length) {
+      const children = await prisma.account.findMany({ where: { tenantId, parentId: { in: frontier } }, select: { id: true } });
+      frontier = children.map((c) => c.id);
+      accountIds.push(...frontier);
+    }
+  }
+  const lineWhere = (entryScope: Prisma.JournalEntryWhereInput): Prisma.JournalEntryLineWhereInput => ({
+    accountId: accountIds ? { in: accountIds } : undefined,
+    branchId: filters.branchId || undefined,
+    journalEntry: {
+      AND: [entryScope],
+      tenantId,
+      companyId: filters.companyId || undefined,
+      date: { gte: filters.dateFrom, lte: filters.dateTo },
+    },
+  });
+  const summarize = async (entryScope: Prisma.JournalEntryWhereInput) => {
+    const [agg, entries] = await Promise.all([
+      prisma.journalEntryLine.aggregate({ where: lineWhere(entryScope), _sum: { debit: true, credit: true } }),
+      prisma.journalEntryLine.findMany({ where: lineWhere(entryScope), distinct: ["journalEntryId"], select: { journalEntryId: true } }),
+    ]);
+    return { entryCount: entries.length, debit: money(Number(agg._sum.debit ?? 0)), credit: money(Number(agg._sum.credit ?? 0)) };
+  };
+  const [uncounted, counted] = await Promise.all([
+    summarize(UNCOUNTED_DRAFT_WHERE),
+    summarize({ status: "saved", company: { balancesPostedOnly: false } }),
+  ]);
+  return { uncounted, counted };
 }
