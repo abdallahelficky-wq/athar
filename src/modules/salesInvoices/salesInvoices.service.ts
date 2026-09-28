@@ -1,3 +1,4 @@
+import { saveZatcaResponseWithArchive } from "../../lib/zatca/archive";
 import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/itemTax";
 import { withInvoiceCredits } from "../../lib/invoiceCredits";
 import { randomUUID } from "crypto";
@@ -610,7 +611,8 @@ async function finishInvoiceZatcaSubmission(
   // المرحلة 3أ — تحديث سطر واحد فقط، فوراً، لا عمل آخر معه — يحفظ ردّ زاتكا الكامل بصرف النظر عن
   // نتيجته، قبل أي محاولة كتابة محاسبية محلية قد تفشل لسبب لا علاقة له بزاتكا إطلاقاً (هذا بالضبط
   // ما فقد ردّ زاتكا فعلياً في الحادثة التي دفعت لهذا التصميم).
-  const afterResponse = await prisma.salesInvoice.update({
+  // أصل المستند المقبول يُحفَظ في zatca_document_archive في نفس المعاملة — لا "مقبول" بلا أصل محفوظ
+  const afterResponseArgs = {
     where: { id: invoice.id },
     data: {
       zatcaStatus: decision.zatcaFields.zatcaStatus,
@@ -619,6 +621,16 @@ async function finishInvoiceZatcaSubmission(
       status: decision.proceedWithPosting ? "zatca_accepted_posting_incomplete" : "pending_submission",
     },
     include: invoiceInclude,
+  } satisfies Prisma.SalesInvoiceUpdateArgs;
+  const afterResponse = await saveZatcaResponseWithArchive({
+    payload: decision.archive,
+    doc: {
+        tenantId: tenantId, companyId: invoice.companyId, documentType: "sales_invoice", documentId: invoice.id,
+        documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid,
+    },
+    source: "submission",
+    inTx: (tx) => tx.salesInvoice.update(afterResponseArgs),
+    plain: () => prisma.salesInvoice.update(afterResponseArgs),
   });
 
   if (!decision.proceedWithPosting) {
@@ -952,7 +964,7 @@ async function performZatcaResubmission(invoice: InvoiceWithZatcaChain) {
   });
 
   const succeeded = result.zatcaStatus === "cleared" || result.zatcaStatus === "reported";
-  const updated = await prisma.salesInvoice.update({
+  const updatedArgs = {
     where: { id: invoice.id },
     data: {
       zatcaStatus: result.zatcaStatus,
@@ -962,6 +974,16 @@ async function performZatcaResubmission(invoice: InvoiceWithZatcaChain) {
       zatcaRetryCount: succeeded ? 0 : { increment: 1 },
     },
     include: invoiceInclude,
+  } satisfies Prisma.SalesInvoiceUpdateArgs;
+  const updated = await saveZatcaResponseWithArchive({
+    payload: result.archive,
+    doc: {
+        tenantId: invoice.tenantId, companyId: invoice.companyId, documentType: "sales_invoice", documentId: invoice.id,
+        documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid,
+    },
+    source: "resubmission",
+    inTx: (tx) => tx.salesInvoice.update(updatedArgs),
+    plain: () => prisma.salesInvoice.update(updatedArgs),
   });
   return { updated, rejectionReason: result.rejectionReason };
 }

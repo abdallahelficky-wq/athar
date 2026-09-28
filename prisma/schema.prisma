@@ -3111,3 +3111,37 @@ model PortalLoginThrottle {
   @@index([windowStart])
   @@map("portal_login_throttle")
 }
+
+// أرشيف مستندات زاتكا: النسخة الأصلية لكل مستند قُبِل تخليصه أو إبلاغه على مسار الإنتاج — ملف XML الموقَّع الذي
+// أرسلناه، وملف XML المُخلَّص الذي أعادته زاتكا للفواتير القياسية. لا يمكن إعادة إنتاج أيٍّ منهما لاحقاً (التوقيع
+// عشوائي، ووقت التوقيع والشهادة يتغيّران، وبوابة فاتورة لا تتيح استرجاع أي مستند)، فالأرشيف هو السجل الوحيد.
+// يُكتَب في نفس معاملة حفظ ردّ زاتكا الناجح. بلا مفاتيح أجنبية (كجداول التدقيق — لا يُحذَف بحذف أي سجل آخر)،
+// وبلا أي مسار تعديل أو حذف: مُشغِّل في قاعدة البيانات يرفض UPDATE وDELETE وTRUNCATE. الملفات مضغوطة gzip
+// (compression = "gzip")؛ صفوف الاستكمال الرجعي من ردود زاتكا المحفوظة سابقاً غير مضغوطة (compression = "none").
+// راجع src/lib/zatca/archive.ts وdocs/zatca-archive.md.
+model ZatcaDocumentArchive {
+  id               String   @id @default(cuid())
+  tenantId         String
+  companyId        String
+  documentType     String // sales_invoice | sales_return | sales_debit_note
+  documentId       String
+  documentNumber   String // IRN — رقم المستند كما في <cbc:ID>
+  documentUuid     String
+  icv              Int
+  invoiceHash      String
+  subtype          String // standard | simplified
+  submissionKind   String // clearance | reporting
+  issuedAt         DateTime // تاريخ ووقت الإصدار كما في المستند (IssueDate/IssueTime، UTC)
+  sellerVatNumber  String?
+  compression      String // gzip | none
+  signedXml        Bytes? // ما أرسلناه — غير متاح لصفوف الاستكمال الرجعي
+  signedXmlSha256  String?
+  clearedXml       Bytes? // ما أعادته زاتكا (القياسية فقط)
+  clearedXmlSha256 String?
+  source           String // submission | resubmission | backfill
+  archivedAt       DateTime @default(now())
+
+  @@index([tenantId, companyId, issuedAt])
+  @@index([documentType, documentId])
+  @@map("zatca_document_archive")
+}

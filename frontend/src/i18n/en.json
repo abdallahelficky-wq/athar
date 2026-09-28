@@ -2646,7 +2646,7 @@
   },
   "vat": {
     "period": { "title": "period {{from}} to {{to}}", "from": "From", "to": "To", "show": "Show", "frequency": { "monthly": "monthly return", "quarterly": "quarterly return" }},
-    "recon": {
+    "archive": {"title": "ZATCA document archive (Annex 1)", "note": "XML files for the documents ZATCA accepted in the period — the ZATCA-cleared copy for standard invoices, our signed copy for simplified — named {VAT}_{date}T{time}_{number}.xml, with a manifest.csv listing every accepted document, including those sent before archiving began that have no stored original.", "export": "Export the archive for {{from}} — {{to}}", "result": "Exported {{archived}} archived documents. Accepted documents with no stored original: {{missing}} (listed in manifest.csv)."}, "recon": {
       "output": { "title": "Output VAT (sales)" },
       "input": { "title": "Input VAT (purchases)" },
       "account": "Account",

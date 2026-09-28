@@ -585,4 +585,6 @@ export const AR_TO_EN: Record<string, string> = {
   "تعديل قيود الرواتب وتسويات الإجازة لأدوار الموارد البشرية فقط": "Only HR roles can edit payroll and leave settlement entries",
   "هذا حساب شخص ضمن مجموعة تُعرَض رصيداً واحداً — التفصيل لكل شخص لأدوار الموارد البشرية فقط": "This is one person's account inside a group shown as a single balance — per-person detail is for HR roles only",
   "مرفقات الموظفين والرواتب وتسويات الإجازة لأدوار الموارد البشرية فقط": "Employee, payroll and leave settlement attachments are for HR roles only",
+  "حدد الفترة (من، إلى) بصيغة YYYY-MM-DD": "Specify the period (from, to) as YYYY-MM-DD",
+  "حدد الشركة": "Select the company",
 };

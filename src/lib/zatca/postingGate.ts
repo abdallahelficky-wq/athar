@@ -1,3 +1,4 @@
+import type { ZatcaArchivePayload } from "./archive";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { env } from "../../config/env";
@@ -45,6 +46,8 @@ export interface ZatcaPostingDecision {
   proceedWithPosting: boolean;
   zatcaFields: ZatcaPostingFields;
   rejectionReason?: string;
+  /** قبول على مسار الإنتاج فقط: الأصل الذي يُحفَظ في zatca_document_archive مع حفظ الرد نفسه (archive.ts) */
+  archive?: ZatcaArchivePayload;
 }
 
 export interface EvaluateZatcaPostingGateParams {
@@ -144,6 +147,12 @@ export async function submitZatcaChainDocument(params: {
     const isProductionSubmission = company.zatcaOnboardingStatus === "production";
     return {
       proceedWithPosting: true,
+      archive: isProductionSubmission
+        ? {
+            signedXml: outcome.signedXml, clearedInvoiceBase64: outcome.response?.clearedInvoice ?? undefined,
+            subtype: chain.subtype, icv: chain.icv, invoiceHash: chain.invoiceHash, issuedAt: chain.issuedAt,
+          }
+        : undefined,
       zatcaFields: {
         icv: chain.icv,
         previousInvoiceHash: chain.previousInvoiceHash,
