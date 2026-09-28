@@ -1,8 +1,9 @@
 import { RequestHandler } from "express";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import { badRequest, conflict, notFound } from "../../lib/httpError";
-import { assertCompanyAccess } from "../../middleware/auth";
+import { badRequest, conflict, forbidden, notFound } from "../../lib/httpError";
+import { assertCompanyAccess, canReadHrData } from "../../middleware/auth";
+import { personalFoldFromAccounts } from "../../lib/personalAccounts";
 import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 import { LEVEL_CODE_LENGTH, generateNextCode } from "../../lib/accountCodes";
@@ -39,6 +40,7 @@ async function validateHierarchy(tenantId: string, input: any, currentId?: strin
     // وقد لا يبدأ بكود الأب الجديد — لذا يُشترط تطابق البادئة عند الإنشاء فقط وليس عند التعديل/النقل.
     if (!currentId && !input.code.startsWith(parent.code)) throw badRequest("كود الحساب يجب أن يبدأ بكود الحساب الأب");
   }
+  if (input.isPersonalGroup && input.isPosting) throw badRequest("مجموعة حسابات الأشخاص تكون حساباً تجميعياً لا حساب ترحيل");
   if (input.isPosting && currentId) {
     const children = await prisma.account.count({ where: { parentId: currentId } });
     if (children) throw badRequest("لا يمكن تحويل حساب له حسابات فرعية إلى حساب ترحيل");
@@ -72,7 +74,14 @@ export const listAccounts: RequestHandler = async (req, res) => {
   accounts.forEach((account) => byParent.set(account.parentId, [...(byParent.get(account.parentId) || []), account]));
   const balance = (account: (typeof accounts)[number]): number =>
     (direct.get(account.id) || 0) + (byParent.get(account.id) || []).reduce((sum, child) => sum + balance(child), 0);
-  const result = accounts.map((account) => ({ ...account, balance: balance(account) }));
+  let result = accounts.map((account) => ({ ...account, balance: balance(account) }));
+
+  // غير أدوار الموارد البشرية: مجموعة حسابات الأشخاص تظهر رصيداً واحداً بلا أبنائها (راجع personalAccounts.ts).
+  // رصيد المجموعة محسوب أعلاه من أبنائها قبل الحذف، فيبقى كل أب فوقها صحيحاً.
+  if (!canReadHrData(req.auth!)) {
+    const fold = personalFoldFromAccounts(accounts);
+    result = result.filter((account) => !fold.has(account.id));
+  }
 
   // شاشة شجرة الحسابات فقط تطلب هذا الإخفاء (عبر includePartyAccounts=false) — الحسابات التفصيلية
   // التلقائية لكل عميل/مورد/موظف (Phase G) تبقى ضمن الاستعلام أعلاه دائماً حتى يظل رصيد حساب الأصل
@@ -108,7 +117,13 @@ export const listAccounts: RequestHandler = async (req, res) => {
   res.json(result);
 };
 
+/** إلغاء طيّ مجموعة أشخاص يكشف رصيد كل شخص — تغيير العلامة لأدوار الموارد البشرية وحدها */
+function assertCanChangePersonalGroup(auth: { role: string }, requested: unknown) {
+  if (requested !== undefined && !canReadHrData(auth)) throw forbidden("تغيير مجموعة حسابات الأشخاص لأدوار الموارد البشرية فقط");
+}
+
 export const createAccount: RequestHandler = async (req, res) => {
+  assertCanChangePersonalGroup(req.auth!, req.body.isPersonalGroup);
   const companyId = req.body.companyId ?? null;
   const parent = req.body.parentId
     ? await prisma.account.findFirst({ where: { id: req.body.parentId, tenantId: req.auth!.tenantId, companyId } })
@@ -128,6 +143,7 @@ export const updateAccount: RequestHandler = async (req, res) => {
   const existing = await prisma.account.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId } });
   if (!existing) throw notFound("الحساب غير موجود");
   if (existing.companyId) assertCompanyAccess(req.auth!, existing.companyId);
+  assertCanChangePersonalGroup(req.auth!, req.body.isPersonalGroup);
   const { confirmMoveWithTransactions, code: _ignoredCode, level: _ignoredLevel, companyId: _ignoredCompany, ...requestedData } = req.body;
   const moving = requestedData.parentId !== undefined && (requestedData.parentId || null) !== (existing.parentId || null);
   if (moving) {

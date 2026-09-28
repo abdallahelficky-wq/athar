@@ -579,4 +579,10 @@ export const AR_TO_EN: Record<string, string> = {
   "تاريخ الفترة غير صالح (الصيغة المطلوبة YYYY-MM-DD)": "The period date is not valid (expected format YYYY-MM-DD)",
   "بداية الفترة بعد نهايتها": "The period starts after it ends",
   "لا يمكن تثبيت الشجرة القياسية: شركات المستأجر تحتوي على قيود أو مستندات مالية. تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر.": "The standard chart can't be installed: the tenant's companies hold journal entries or financial documents. Installing the chart is only available for an empty company, and it never deletes any books.",
+  "مجموعة حسابات الأشخاص تكون حساباً تجميعياً لا حساب ترحيل": "A group of personal accounts must be a group account, not a posting account",
+  "تغيير مجموعة حسابات الأشخاص لأدوار الموارد البشرية فقط": "Only HR roles can change a group of personal accounts",
+  "الشهر بصيغة YYYY-MM": "The month must be in YYYY-MM format",
+  "تعديل قيود الرواتب وتسويات الإجازة لأدوار الموارد البشرية فقط": "Only HR roles can edit payroll and leave settlement entries",
+  "هذا حساب شخص ضمن مجموعة تُعرَض رصيداً واحداً — التفصيل لكل شخص لأدوار الموارد البشرية فقط": "This is one person's account inside a group shown as a single balance — per-person detail is for HR roles only",
+  "مرفقات الموظفين والرواتب وتسويات الإجازة لأدوار الموارد البشرية فقط": "Employee, payroll and leave settlement attachments are for HR roles only",
 };

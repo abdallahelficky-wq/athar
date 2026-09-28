@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { PrintShell, downloadBlob } from "../legacy/shared";
 import { fmt, DEPARTMENT_KEYS } from "../legacy/constants";
 import { labelForListValue } from "../legacy/listLabels";
@@ -7,6 +8,9 @@ import { currencyLabel } from "../shared/countries";
 import { getJournalEntryPdf } from "../api/journalEntries";
 import { getAccountDisplayName } from "./shared/accountDisplayName";
 import { useToast, ToastHost } from "./shared/Toast";
+import { useAuth } from "../context/AuthContext";
+import { canReadHrData } from "../shared/hrAccess";
+import { routes } from "../routes";
 
 /** عرض/طباعة سند قيد محاسبي — يُستخدَم من شاشة القيود اليومية وصفحة عرض القيد المستقلة، يفيد من
  * هيدر/فوتر PrintShell المشترك تلقائياً. زر "تحميل PDF" يُنزّل ملفاً حقيقياً من الخادم (نفس آلية
@@ -15,6 +19,11 @@ export default function JournalVoucherViewModal({ entry, companies, onClose }) {
   const { t, i18n } = useTranslation();
   const entryNumber = entry.entryNumber || entry.id.slice(-8);
   const { toast, notify, dismiss } = useToast();
+  const { user } = useAuth();
+  // قيد الرواتب مرتبط بكشفه — التفاصيل لكل موظف في الكشف نفسه، لأدوار الموارد البشرية فقط
+  const payrollLink = canReadHrData(user) && entry.sourceModule === "payroll" && entry.sourceId
+    ? `${routes.hr("payroll")}?month=${entry.date.slice(0, 7)}`
+    : null;
 
   const handleDownload = async () => {
     try {
@@ -64,6 +73,8 @@ export default function JournalVoucherViewModal({ entry, companies, onClose }) {
         <div><span>{t("journalEntries.table.memo")}</span><strong>{entry.memo || t("journalEntries.table.noMemo")}</strong></div>
         <div><span>{t("journalEntries.table.status")}</span><strong>{entry.status === "posted" ? t("journalEntries.statusPosted") : t("journalEntries.statusSaved")}</strong></div>
       </div>
+      {entry.hrCollapsed && <p className="note" data-testid="hr-collapsed-note">{t("journalEntries.hrCollapsed")}</p>}
+      {payrollLink && <p className="no-print"><Link to={payrollLink} data-testid="payroll-run-link">{t("journalEntries.openPayrollRun")}</Link></p>}
       <table className="ledger-table voucher-table">
         <thead>
           <tr>

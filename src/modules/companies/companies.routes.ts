@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate, requireRole, requireTenantOwner, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createCompanySchema, createIndependentCompanySchema, updateCompanySchema, reopenFiscalClosingSchema, extractDocumentSchema, balancesPostedOnlySchema } from "./companies.schemas";
+import { createCompanySchema, createIndependentCompanySchema, updateCompanySchema, reopenFiscalClosingSchema, extractDocumentSchema, balancesPostedOnlySchema, payrollTotalsFromMonthSchema } from "./companies.schemas";
 import {
   listCompanies,
   createCompany,
@@ -13,6 +13,7 @@ import {
   uploadLogoHandler,
   extractDocumentHandler,
   setBalancesPostedOnly,
+  setPayrollTotalsFromMonth,
 } from "./companies.controller";
 import { uploadSingleFile } from "../attachments/attachments.controller";
 
@@ -43,6 +44,8 @@ companyRoutes.patch(
 companyRoutes.delete("/:id", deleteCompany);
 // مفتاح "الأرصدة تحتسب المرحَّل فقط" — يغيّر كل رقم معروض للشركة، فهو للمالك وحده
 companyRoutes.patch("/:id/balances-posted-only", requireTenantOwner, validateBody(balancesPostedOnlySchema), setBalancesPostedOnly);
+// أول شهر يُرحَّل فيه كشف الرواتب إجماليات — يغيّر أين يقع صافي الرواتب في الدفاتر، فهو للمالك وحده
+companyRoutes.patch("/:id/payroll-totals-from-month", requireTenantOwner, validateBody(payrollTotalsFromMonthSchema), setPayrollTotalsFromMonth);
 companyRoutes.post(
   "/:id/fiscal-closing/reopen",
   requireRole("admin"),

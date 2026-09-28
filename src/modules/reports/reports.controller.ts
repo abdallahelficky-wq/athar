@@ -1,7 +1,8 @@
 import { RequestHandler } from "express";
 import * as service from "./reports.service";
 import { prisma } from "../../lib/prisma";
-import { assertRecordCompanyScope } from "../../middleware/auth";
+import { assertRecordCompanyScope, canReadHrData } from "../../middleware/auth";
+import { assertNotPersonalAccount } from "../../lib/personalAccounts";
 
 const parseDate = (v: unknown) => (typeof v === "string" && v ? new Date(v) : undefined);
 const parseCompanyId = (v: unknown) => (typeof v === "string" && v ? v : undefined);
@@ -31,6 +32,7 @@ export const trialBalanceHandler: RequestHandler = async (req, res) => {
     parseDate(req.query.to),
     rollupParams(req.query),
     parseBranchId(req.query.branchId),
+    canReadHrData(req.auth!),
   );
   res.json(result);
 };
@@ -43,6 +45,7 @@ export const trialBalanceTreeHandler: RequestHandler = async (req, res) => {
     parseDate(req.query.to),
     { level: parseLevel(req.query.level), hideZeroActivity: parseBool(req.query.hideZeroActivity), search: parseSearch(req.query.search) },
     parseBranchId(req.query.branchId),
+    canReadHrData(req.auth!),
   );
   res.json(result);
 };
@@ -55,6 +58,7 @@ export const incomeStatementHandler: RequestHandler = async (req, res) => {
     parseDate(req.query.to),
     rollupParams(req.query),
     parseBranchId(req.query.branchId),
+    canReadHrData(req.auth!),
   );
   res.json(result);
 };
@@ -66,6 +70,7 @@ export const balanceSheetHandler: RequestHandler = async (req, res) => {
     parseDate(req.query.date),
     rollupParams(req.query),
     parseBranchId(req.query.branchId),
+    canReadHrData(req.auth!),
   );
   res.json(result);
 };
@@ -102,6 +107,7 @@ export const accountLedgerHandler: RequestHandler = async (req, res) => {
     parseDate(req.query.from),
     parseDate(req.query.to),
     { costCenterId: parseCostCenterId(req.query.costCenterId), departmentId: parseDepartmentId(req.query.departmentId), branchId: parseBranchId(req.query.branchId) },
+    canReadHrData(req.auth!),
   );
   res.json(result);
 };
@@ -119,6 +125,8 @@ export const supplierStatementHandler: RequestHandler = async (req, res) => {
 };
 
 export const draftEntriesSummaryHandler: RequestHandler = async (req, res) => {
+  const accountId = typeof req.query.accountId === "string" ? req.query.accountId : undefined;
+  await assertNotPersonalAccount(canReadHrData(req.auth!), req.auth!.tenantId, accountId);
   res.json(
     await service.getDraftEntriesSummary(req.auth!.tenantId, {
       companyId: typeof req.query.companyId === "string" ? req.query.companyId : undefined,

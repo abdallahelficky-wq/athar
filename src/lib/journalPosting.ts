@@ -50,6 +50,9 @@ export interface PostingLine {
   accountId: string;
   costCenterId?: string | null;
   department?: string | null;
+  // وصف السطر — باسم مستقل عمداً: أسطر مستندات كثيرة تحمل حقل description لأغراضها، وتمريره تلقائياً كان
+  // سيبدأ بتخزين نصوص لم تُقصَد في أسطر القيود. يمرّره من يطلبه صراحةً فقط (الرواتب بالإجماليات).
+  lineDescription?: string | null;
   debit: number;
   credit: number;
   customerId?: string | null;
@@ -115,6 +118,7 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
           accountId: l.accountId,
           costCenterId: l.costCenterId || null,
           department: l.department || null,
+          description: l.lineDescription || null,
           branchId: input.branchId || null,
           debit: new Prisma.Decimal(l.debit || 0),
           credit: new Prisma.Decimal(l.credit || 0),

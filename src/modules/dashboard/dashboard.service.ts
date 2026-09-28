@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma";
+import { hrEntryKinds, redactHrMemo } from "../../lib/hrRedaction";
 import { aggregateAccountBalances, getBalanceSheet, getIncomeStatement } from "../reports/reports.service";
 import { getSalesMonthlyTrend, getSalesByCustomer, getReceivablesAging, invoicesWithPaid } from "../salesReports/salesReports.service";
 import { getPayablesAging } from "../purchaseReports/purchaseReports.service";
@@ -125,7 +126,7 @@ export async function getCashFlowMonthly(tenantId: string, companyId?: string, m
   return monthsList.map((month) => ({ month, ...byMonth.get(month)! }));
 }
 
-export async function getTopCashTransactions(tenantId: string, companyId?: string, limit = 10) {
+export async function getTopCashTransactions(tenantId: string, companyId?: string, limit = 10, hrView = true) {
   const since = new Date(Date.now() - 180 * 86_400_000);
   const lines = await prisma.journalEntryLine.findMany({
     where: {
@@ -134,11 +135,13 @@ export async function getTopCashTransactions(tenantId: string, companyId?: strin
     },
     include: { account: true, journalEntry: true },
   });
+  // غير أدوار الموارد البشرية: بيان صرف تسوية الإجازة يحمل اسم الموظف ومبلغه — يُحذَف الاسم (راجع hrRedaction.ts)
+  const kinds = hrView ? new Map() : await hrEntryKinds(tenantId, [...new Map(lines.map((l) => [l.journalEntryId, l.journalEntry])).values()]);
 
   return lines
     .map((l) => ({
       date: l.journalEntry.date,
-      memo: l.journalEntry.memo,
+      memo: redactHrMemo(kinds.get(l.journalEntryId), l.journalEntry.memo),
       accountName: l.account.name,
       amount: Number(l.debit) - Number(l.credit),
       direction: (Number(l.debit) > Number(l.credit) ? "in" : "out") as "in" | "out",

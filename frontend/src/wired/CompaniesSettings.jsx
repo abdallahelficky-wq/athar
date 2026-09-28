@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { createCompany, createIndependentCompany, setBalancesPostedOnly } from "../api/companies";
+import { createCompany, createIndependentCompany, setBalancesPostedOnly, setPayrollTotalsFromMonth } from "../api/companies";
 import { getDraftEntriesSummary } from "../api/reports";
 import { fmt } from "../legacy/constants";
 import { useAuth } from "../context/AuthContext";
@@ -423,6 +423,61 @@ function BalancesPostedOnlySettings({ companies, reload }) {
   );
 }
 
+/**
+ * أول شهر يُرحَّل فيه كشف الرواتب إجماليات لكل بند وصافٍ واحد على «رواتب مستحقة للصرف» — للمالك وحده، لكل
+ * شركة. فارغ = الترحيل القديم (سطر لكل موظف وصافٍ على حسابه الفرعي). الكشوف المرحَّلة قبله لا يُعاد كتابتها،
+ * وأرصدة الحسابات الفرعية القائمة تُصرَف منها كما هي. كل تغيير مسجَّل في سجل التدقيق.
+ */
+function PayrollTotalsSettings({ companies, reload }) {
+  const { t } = useTranslation();
+  const [months, setMonths] = useState({});
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState("");
+
+  const save = async (company, month) => {
+    if (month && !window.confirm(t("settings.payrollTotals.confirm", { company: company.name, month }))) return;
+    setBusyId(company.id); setError("");
+    try {
+      await setPayrollTotalsFromMonth(company.id, month || null);
+      await reload();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  return (
+    <div className="panel form-panel" data-testid="payroll-totals-settings">
+      <h3>{t("settings.payrollTotals.title")}</h3>
+      <p className="note">{t("settings.payrollTotals.note")}</p>
+      {error && <p className="balance-bad">{error}</p>}
+      <table className="ledger-table">
+        <thead>
+          <tr><th>{t("settings.payrollTotals.company")}</th><th>{t("settings.payrollTotals.current")}</th><th>{t("settings.payrollTotals.fromMonth")}</th><th></th></tr>
+        </thead>
+        <tbody>
+          {companies.map((c) => {
+            const draft = months[c.id] ?? c.payrollTotalsFromMonth ?? "";
+            return (
+              <tr key={c.id}>
+                <td>{c.name}</td>
+                <td>{c.payrollTotalsFromMonth ? t("settings.payrollTotals.since", { month: c.payrollTotalsFromMonth }) : t("settings.payrollTotals.legacy")}</td>
+                <td><input type="month" value={draft} onChange={(e) => setMonths({ ...months, [c.id]: e.target.value })} /></td>
+                <td>
+                  <button className="btn-primary" disabled={busyId === c.id || draft === (c.payrollTotalsFromMonth ?? "")} onClick={() => save(c, draft)}>
+                    {!draft && c.payrollTotalsFromMonth ? t("settings.payrollTotals.clear") : t("settings.payrollTotals.save")}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /** إدارة كاملة (إنشاء/تعديل/حذف) للشركات الحقيقية — يُستخدم داخل تبويب "بيانات الشركات" بالإعدادات،
  * وهو المكان الوحيد في النظام لإنشاء شركة جديدة بعد إزالة هذا الخيار من كل شاشات المعاملات */
 export default function CompaniesSettings({ companies, reload, onCompanyCreated }) {
@@ -443,6 +498,7 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
       <TenantNameSettings />
       {isOwner && <UnlockPinSettings />}
       {isOwner && companies.length > 0 && <BalancesPostedOnlySettings companies={companies} reload={reload} />}
+      {isOwner && companies.length > 0 && <PayrollTotalsSettings companies={companies} reload={reload} />}
       <NewCompanyForm onCompanyCreated={handleCreated} />
       <div className="panel form-panel">
         {error && <p className="balance-bad">{error}</p>}
