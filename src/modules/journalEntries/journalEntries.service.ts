@@ -12,6 +12,7 @@ import { registerEmployeeAdvanceTx } from "../employeeAdvances/employeeAdvances.
 import { currencyLabel } from "../../lib/countries";
 import { collapseHrLines, hrEntryKinds, redactHrMemo } from "../../lib/hrRedaction";
 import { loadPersonalFold } from "../../lib/personalAccounts";
+import { getRecordCreator } from "../../lib/recordHistory";
 
 const BALANCE_EPSILON = 0.01;
 
@@ -374,7 +375,10 @@ export async function getJournalEntry(tenantId: string, id: string, companyScope
   // قيد الرواتب مرتبط بكشفه (sourceId) — رابط التفاصيل لأدوار الموارد البشرية فقط
   const payrollRunId = hrView && raw.sourceModule === "payroll" ? raw.sourceId : null;
 
-  return { ...entry, mirrorEntry: redactLinked(mirrorEntry), reversalOfEntry: redactLinked(reversalOfEntry), reversedByEntry: redactLinked(reversedByEntry), payrollRunId };
+  // من أنشأ القيد ومتى (سجل التاريخ، recordHistory.ts) — «أعدّه» في السند
+  const creator = await getRecordCreator(tenantId, "JournalEntry", raw.id);
+
+  return { ...entry, mirrorEntry: redactLinked(mirrorEntry), reversalOfEntry: redactLinked(reversalOfEntry), reversedByEntry: redactLinked(reversedByEntry), payrollRunId, creator };
 }
 
 /** يحل مرجعاً حراً (id) يدوياً (بلا include صريح، بنفس أسلوب sourceId/sourceModule) لعرض ملخص القيد المرتبط، أياً كان نوع الربط (مرآة بين شركات أو عكس قيد) */
