@@ -14,11 +14,12 @@ import {
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
+import { KSA_DATE_OPTIONS } from "../../lib/displayDates";
 
 function monthLabel(month: string) {
   const [y, m] = month.split("-").map(Number);
   // التقويم مُثبَّت: الافتراضي لـ"ar-SA" يتبع نسخة ICU (هجري في بعضها)، وهذا النص يُحفَظ في بيان القيد نفسه
-  return new Date(y, m - 1, 1).toLocaleDateString("ar-SA", { calendar: "gregory", year: "numeric", month: "long" });
+  return new Date(y, m - 1, 1).toLocaleDateString("ar-SA", { ...KSA_DATE_OPTIONS, year: "numeric", month: "long" });
 }
 
 export async function listPayrollRuns(tenantId: string, filters: { companyId?: string; month?: string }) {

@@ -1,4 +1,5 @@
 import { renderHtmlToPdf } from "./zatca/pdf/renderPdf";
+import { KSA_DATE_OPTIONS } from "./displayDates";
 
 function escapeHtml(value: string | number | null | undefined): string {
   return String(value ?? "")
@@ -124,7 +125,7 @@ function buildJournalVoucherHtml(data: JournalVoucherPdfInput): string {
     <div class="sig-box">الختم<div class="sig-line"></div></div>
   </div>
 
-  <div class="footer-note">تاريخ إصدار الملف: ${escapeHtml(new Date().toLocaleString("ar-SA", { calendar: "gregory", numberingSystem: "latn" }))}</div>
+  <div class="footer-note">تاريخ إصدار الملف: ${escapeHtml(new Date().toLocaleString("ar-SA", { ...KSA_DATE_OPTIONS, numberingSystem: "latn" }))}</div>
 </body>
 </html>`;
 }

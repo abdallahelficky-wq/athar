@@ -7,11 +7,12 @@ import { describe, expect, it } from "vitest";
  * الحالي)، واستدعاء بلا لغة يأخذ لغة المتصفح — فأي تنسيق تاريخ لا يُثبِّت التقويم قد يطبع هجرياً. أُصلِح هذا في إيصال
  * نقطة البيع ثم وُجدت له أخوات في تذييل الطباعة المشترك وفاتورة Classic Pro وغيرها؛ هذا الفحص يمنع أختاً جديدة.
  *
- * المسموح: الدوال المشتركة في frontend/src/i18n/dateFormat.js (تُثبِّت التقويم بنفسها)، أو استدعاء يمرّر calendar صراحة.
+ * المسموح في الواجهة: الدوال المشتركة في frontend/src/i18n/dateFormat.js، أو استدعاء يمرّر calendar صراحة (المنطقة الزمنية
+ * هناك منطقة جهاز المستخدم). في الخادم: KSA_DATE_OPTIONS من src/lib/displayDates.ts (التقويم ومنطقة الرياض معاً).
  */
 const ROOT = path.resolve(__dirname, "../..");
 const DIRS = ["src", "frontend/src"];
-const ALLOWED = new Set(["frontend/src/i18n/dateFormat.js"]);
+const ALLOWED = new Set(["frontend/src/i18n/dateFormat.js", "src/lib/displayDates.ts"]);
 const DATE_CALL = /\.toLocale(?:Date|Time)String\(|new Date\([^()]*(?:\([^()]*\))?[^()]*\)\.toLocaleString\(|Intl\.DateTimeFormat\(/g;
 
 function files(dir: string): string[] {
@@ -42,7 +43,10 @@ describe("every date formatted for display, print or export is Gregorian", () =>
         const src = readFileSync(file, "utf8");
         for (const m of src.matchAll(DATE_CALL)) {
           const call = callText(src, m.index!, m.index! + m[0].length - 1);
-          if (/calendar\s*:\s*["']gregory["']/.test(call) || /Intl\.DateTimeFormat\(\s*["']en-(GB|US)["']/.test(call)) continue;
+          // الخادم: التقويم والمنطقة الزمنية معاً (KSA_DATE_OPTIONS) — منطقته الافتراضية منطقة الخادم (UTC)، لا الرياض
+          const server = rel.startsWith("src/");
+          const pinned = server ? /KSA_DATE_OPTIONS/.test(call) : /calendar\s*:\s*["']gregory["']/.test(call);
+          if (pinned || /Intl\.DateTimeFormat\(\s*["']en-(GB|US)["']/.test(call)) continue;
           const line = src.slice(0, m.index).split("\n").length;
           offenders.push(`${rel}:${line}  ${call.slice(0, 90)}`);
         }
