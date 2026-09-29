@@ -510,3 +510,27 @@ export async function getHrAlerts(tenantId: string, companyId: string | undefine
   alerts.sort((a, b) => (a.days ?? 999_999) - (b.days ?? 999_999));
   return alerts;
 }
+
+/** Monthly income-statement activity, including reversals, under the report counting policy. */
+export async function getIncomeExpenseTrend(tenantId: string, companyId?: string) {
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
+  const rows = Array.from({ length: 12 }, (_, i) => ({
+    month: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i, 1)).toISOString().slice(0, 7),
+    revenue: 0, expense: 0,
+  }));
+  const lines = await prisma.journalEntryLine.findMany({
+    where: {
+      account: { tenantId, companyId: companyId || { not: null }, type: { in: ["revenue", "expense"] } },
+      journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { gte: start, lte: now } },
+    },
+    select: { debit: true, credit: true, account: { select: { type: true } }, journalEntry: { select: { date: true } } },
+  });
+  for (const line of lines) {
+    const row = rows.find(r => r.month === line.journalEntry.date.toISOString().slice(0, 7));
+    if (!row) continue;
+    if (line.account.type === "revenue") row.revenue += Number(line.credit) - Number(line.debit);
+    else row.expense += Number(line.debit) - Number(line.credit);
+  }
+  return rows.map(row => ({ ...row, revenue: Math.round(row.revenue * 100) / 100, expense: Math.round(row.expense * 100) / 100 }));
+}

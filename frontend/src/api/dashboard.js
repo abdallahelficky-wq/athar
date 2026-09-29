@@ -22,3 +22,5 @@ export const getHrPayrollTrend = (companyId, months = 12) => api.get(`/dashboard
 export const getHrHeadcount = (companyId) => api.get(`/dashboard/hr-headcount${qs({ companyId })}`);
 export const getHrNationality = (companyId) => api.get(`/dashboard/hr-nationality${qs({ companyId })}`);
 export const getHrAlerts = (companyId, withinDays = 60) => api.get(`/dashboard/hr-alerts${qs({ companyId, withinDays })}`);
+
+export const getIncomeExpenseTrend = (companyId) => api.get(`/dashboard/income-expense-trend${qs({ companyId })}`);

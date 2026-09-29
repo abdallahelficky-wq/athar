@@ -79,3 +79,10 @@
  @media(max-width:900px) {.interior-identity .app-content-inner{padding:24px 18px;}.interior-identity .topbar{gap:10px;}}
  @media(max-width:768px) {.interior-identity .sidebar{padding-top:calc(20px + var(--safe-top,0px));max-width:85vw;}.interior-identity .app-content-inner{padding:20px 12px;}.interior-identity .kpi-value{font-size:24px;}.interior-identity .chart-panel{padding:16px;}}
 }
+@media screen {
+ .interior-identity .income-expense-chart {margin-bottom:24px;}
+ .income-expense-totals {display:flex;flex-wrap:wrap;gap:24px;margin:16px 0;}
+ .income-expense-totals > div {display:flex;flex-direction:column;gap:6px;min-width:180px;}
+ .income-expense-totals strong {font-size:24px;color:#2F5D5A;}
+ .income-expense-totals > div:nth-child(2) strong {color:#A8432B;}
+}

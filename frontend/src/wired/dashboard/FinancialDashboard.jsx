@@ -10,6 +10,7 @@ import {
 } from "../../api/dashboard";
 import { fmt } from "../../legacy/constants";
 import { getComprehensiveMonthly } from "../../api/reports";
+import IncomeExpenseChart from "./IncomeExpenseChart";
 import PeriodFilter from "./PeriodFilter";
 import KpiCard from "./KpiCard";
 import AlertsPanel from "./AlertsPanel";
@@ -95,6 +96,7 @@ export default function FinancialDashboard({ companyId, companies }) {
 
   return (
     <div>
+      <IncomeExpenseChart companyId={companyId} currency={currency} />
       <PeriodFilter onChange={setRange} />
 
       {loading || !kpis ? (
