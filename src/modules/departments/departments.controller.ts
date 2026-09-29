@@ -48,6 +48,11 @@ export const deleteDepartment: RequestHandler = async (req, res) => {
   if (!existing) throw notFound("القسم غير موجود");
   if (existing.companyId) assertCompanyAccess(req.auth!, existing.companyId);
 
+  // حذف قسم مستخدَم كان يمسحه بصمت من قيود مرحَّلة (SET NULL) فيتغيّر تاريخ الدفاتر. الآن مرفوض — والمفتاح الأجنبي
+  // RESTRICT يرفضه في قاعدة البيانات أيضاً أياً كان المسار.
+  const lines = await prisma.journalEntryLine.count({ where: { departmentId: existing.id } });
+  if (lines) throw badRequest("لا يمكن حذف قسم مستخدَم في قيود — القيود المرحَّلة تحمله. أعد تسميته بدل حذفه.", { journalLines: lines });
+
   await prisma.department.delete({ where: { id: existing.id } });
   res.status(204).send();
 };

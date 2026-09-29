@@ -1022,7 +1022,7 @@ model JournalEntryLine {
   // أدناه هما الحقل المُهيكَل الجديد (فئة أقسام حقيقية قابلة للفلترة)، تُملأ من نافذة القيد اليدوي.
   department        String?
   departmentId      String?
-  departmentRef     Department?      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  departmentRef     Department?      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   // وصف خاص بهذا السطر تحديداً (مختلف عن JournalEntry.memo العام) — يظهر في كشف حساب الأستاذ
   // بجانب البيان العام، لتوضيح تفاصيل كل حركة على حساب معيّن دون الرجوع للقيد الكامل.
   description       String?
