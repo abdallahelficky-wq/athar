@@ -4,6 +4,7 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { ensurePartyAccount, resolvePartyAccountId } from "../../lib/partyAccounts";
 import { assertCompanyAccess } from "../../middleware/auth";
 import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
+import { setAuditActor } from "../../lib/auditActor";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -58,6 +59,7 @@ export const updateSupplier: RequestHandler = async (req, res) => {
   const supplier = await prisma.$transaction(async (tx) => {
     const updated = await tx.supplier.update({ where: { id: existing.id }, data: req.body });
     if (updated.accountId && req.body.name && req.body.name !== existing.name) {
+      await setAuditActor(tx, req.auth!.sub);
       await tx.account.update({ where: { id: updated.accountId }, data: { name: req.body.name } });
     }
     return updated;
