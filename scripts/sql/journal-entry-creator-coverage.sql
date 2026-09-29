@@ -3,7 +3,7 @@
 --   known       — createdBy يشير إلى مستخدم موجود: يُستكمَل باسمه الحالي (مُعلَّماً backfilled)
 --   no_creator  — createdBy فارغ (قيود النظام، استيراد قديم، أو ما قبل حفظ المنشئ)
 --   ghost       — createdBy يشير إلى مستخدم غير موجود
-SELECT c.name AS company,
+SELECT t.name AS tenant, c.name AS company, c.id AS company_id,
        COUNT(*)                                                        AS entries,
        COUNT(*) FILTER (WHERE u.id IS NOT NULL)                        AS known,
        COUNT(*) FILTER (WHERE e."createdBy" IS NULL)                   AS no_creator,
@@ -12,9 +12,11 @@ SELECT c.name AS company,
        MAX(e."createdAt") FILTER (WHERE e."createdBy" IS NULL)         AS latest_no_creator
 FROM journal_entries e
 JOIN companies c ON c.id = e."companyId"
+JOIN tenants t ON t.id = c."tenantId"
 LEFT JOIN users u ON u.id = e."createdBy"
-GROUP BY c.name
-ORDER BY c.name;
+-- التجميع بمعرّف الشركة لا باسمها: الاسم فريد داخل المستأجر فقط، وشركتان بنفس الاسم في مستأجرين مختلفين تُدمَجان خطأً
+GROUP BY t.name, c.id, c.name
+ORDER BY t.name, c.name;
 
 -- مصدر القيود بلا منشئ (أي الوحدات تكتب قيوداً بلا createdBy):
 -- SELECT "sourceModule", COUNT(*) FROM journal_entries WHERE "createdBy" IS NULL GROUP BY 1 ORDER BY 2 DESC;
