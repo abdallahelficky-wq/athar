@@ -6,7 +6,8 @@ import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, write
 
 function monthLabel(month: string) {
   const [y, m] = month.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("ar-SA", { year: "numeric", month: "long" });
+  // التقويم مُثبَّت: الافتراضي لـ"ar-SA" يتبع نسخة ICU (هجري في بعضها)، وهذا النص يُحفَظ في بيان القيد نفسه
+  return new Date(y, m - 1, 1).toLocaleDateString("ar-SA", { calendar: "gregory", year: "numeric", month: "long" });
 }
 
 export async function listDepreciationRuns(tenantId: string, filters: { companyId?: string }) {

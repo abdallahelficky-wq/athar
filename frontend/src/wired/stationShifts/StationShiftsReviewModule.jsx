@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { formatDate } from "../../i18n/dateFormat";
 import * as api from "../../api/stationShifts";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import Breadcrumb from "../shared/Breadcrumb";
@@ -30,7 +31,7 @@ const EXTRA_TABS = { setup: StationSetupTab, prices: FuelPricesTab, workers: Sta
  * stationShifts.service.ts.
  */
 export default function StationShiftsReviewModule({ companyId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [tab] = useModuleTab("/stationShifts", STATION_SHIFTS_TABS);
   const [pending, setPending] = useState([]);
   const [error, setError] = useState("");
@@ -124,7 +125,7 @@ export default function StationShiftsReviewModule({ companyId }) {
                 <td>{s.employee?.name}</td>
                 <td>{s.costCenter?.name}</td>
                 <td>{t(`stationShiftsReview.shiftType.${s.shiftType}`)}</td>
-                <td>{new Date(s.shiftDate).toLocaleDateString()}</td>
+                <td>{formatDate(s.shiftDate, i18n.language)}</td>
                 <td>{t(`stationShiftsReview.status.${s.status}`)}</td>
                 <td><button className="btn-ghost" onClick={() => loadDetail(s.id)}>{t("stationShiftsReview.openBtn")}</button></td>
               </tr>

@@ -124,7 +124,7 @@ function buildJournalVoucherHtml(data: JournalVoucherPdfInput): string {
     <div class="sig-box">الختم<div class="sig-line"></div></div>
   </div>
 
-  <div class="footer-note">تاريخ إصدار الملف: ${escapeHtml(new Date().toLocaleString("ar-SA"))}</div>
+  <div class="footer-note">تاريخ إصدار الملف: ${escapeHtml(new Date().toLocaleString("ar-SA", { calendar: "gregory", numberingSystem: "latn" }))}</div>
 </body>
 </html>`;
 }

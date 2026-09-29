@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { formatDateTime } from "../../i18n/dateFormat";
 import { useAuth } from "../../context/AuthContext";
 import { getEmployeePortalAccess, setEmployeePortalAccess } from "../../api/employees";
 
@@ -9,7 +10,7 @@ import { getEmployeePortalAccess, setEmployeePortalAccess } from "../../api/empl
  * أم لا")؛ بعد الحفظ تظهر بيانات الدخول الثلاث التي يُسلِّمها المسؤول للموظف: رمز المنشأة، الجوال، الـ PIN.
  */
 export default function EmployeePortalAccessPanel({ employeeId, defaultPhone, employeeStatus, onSaved }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { tenant } = useAuth();
   const [status, setStatus] = useState(null);
   const [hidden, setHidden] = useState(false);
@@ -61,7 +62,7 @@ export default function EmployeePortalAccessPanel({ employeeId, defaultPhone, em
     : !status.pinSet
       ? t("hr.directory.portal.stateNotSet")
       : status.lockedUntil
-        ? t("hr.directory.portal.stateLocked", { until: new Date(status.lockedUntil).toLocaleString() })
+        ? t("hr.directory.portal.stateLocked", { until: formatDateTime(status.lockedUntil, i18n.language) })
         : status.portalActive
           ? t("hr.directory.portal.stateActive")
           : t("hr.directory.portal.stateDisabled");

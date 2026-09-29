@@ -172,11 +172,11 @@ export async function buildReportDigestEmail(tenantId: string, companyId: string
   return {
     companyName: company.name,
     subject: en
-      ? `Periodic Financial Report — ${company.name} — ${now.toLocaleDateString(locale)}`
-      : `التقرير المالي الدوري — ${company.name} — ${now.toLocaleDateString(locale)}`,
+      ? `Periodic Financial Report — ${company.name} — ${now.toLocaleDateString(locale, { calendar: "gregory" })}`
+      : `التقرير المالي الدوري — ${company.name} — ${now.toLocaleDateString(locale, { calendar: "gregory" })}`,
     bodyHtml: `
       <h2 style="color:#10202E; margin-bottom:4px;">${en ? "Periodic Financial Report" : "التقرير المالي الدوري"}</h2>
-      <p style="color:#5c6b78; font-size:13px; margin-top:0;">${company.name} — ${now.toLocaleDateString(locale)}</p>
+      <p style="color:#5c6b78; font-size:13px; margin-top:0;">${company.name} — ${now.toLocaleDateString(locale, { calendar: "gregory" })}</p>
       ${sections.join("")}
     `,
   };

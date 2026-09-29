@@ -8,6 +8,7 @@ import { QrImage, formatCompanyAddress, printWithOrientation } from "../../../le
 import { fmt2 } from "../../../legacy/constants";
 import { listCompanyBankAccounts } from "../../../api/companyBankAccounts";
 import { getAccountDisplayName } from "../../shared/accountDisplayName";
+import { formatDate, formatDateTime } from "../../../i18n/dateFormat";
 
 /** يستنتج متصفح/نظام تشغيل/نوع جهاز المستخدم من navigator.userAgent — لمعلومات تدقيق (Audit
  * trail) بسيطة في تذييل الطباعة، بلا أي استدعاء خارجي أو تتبع لعنوان IP (غير متاح بأمان من
@@ -172,12 +173,12 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
           )}
 
           <div className="cpi-footer-bar" style={{ background: accent }}>
-            <span>{(printedAt || new Date()).toLocaleDateString(i18n.language === "en" ? "en-US" : "ar-SA")}</span>
+            <span>{formatDate(printedAt || new Date(), i18n.language)}</span>
             <span>{company?.name}</span>
             <span>{t("salesInvoices.view.invoiceNumber")}: {invoice.invoiceNumber}</span>
           </div>
           <div className="cpi-audit-line">
-            {t("salesInvoices.classicPro.printedBy", { name: user?.name || "—" })} | {(printedAt || new Date()).toLocaleString(i18n.language === "en" ? "en-US" : "ar-SA")} | {clientInfo.os} / {clientInfo.browser} / {clientInfo.deviceType}
+            {t("salesInvoices.classicPro.printedBy", { name: user?.name || "—" })} | {formatDateTime(printedAt || new Date(), i18n.language)} | {clientInfo.os} / {clientInfo.browser} / {clientInfo.deviceType}
           </div>
         </div>
 
