@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18next from "i18next";
+import { formatDate } from "../../i18n/dateFormat";
 import { stableApi } from "../../api/stables";
 import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
@@ -28,7 +30,7 @@ const empty = {
   services:{code:"",category:"veterinary",nameAr:"",nameEn:"",price:"",priceIncludesVat:true,unit:"service",isActive:true},
 };
 const clean = (obj) => Object.fromEntries(Object.entries(obj).map(([k,v]) => [k, v === "" ? null : v]));
-const fmtDate = (v) => v ? new Date(v).toLocaleDateString() : "—";
+const fmtDate = (v) => v ? formatDate(v, i18next.language) : "—";
 
 function Editor({ kind, value, setValue, L, stables, stalls, horses, trainers, lessonTypes, services }) {
   const f = (key,label,type="text",required=false) => <label>{label}{required?" *":""}<input type={type} value={value[key] ?? ""} onChange={e=>setValue({...value,[key]:e.target.value})}/></label>;
