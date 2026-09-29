@@ -1,7 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Server } from "http";
 import type { AddressInfo } from "net";
-import { readFileSync } from "fs";
+import { mkdtempSync, readFileSync, rmSync } from "fs";
+import { execFileSync } from "child_process";
+import { tmpdir } from "os";
+import path from "path";
 import { inflateRawSync, gunzipSync } from "zlib";
 import { createHash } from "crypto";
 import { prisma } from "../../lib/prisma";
@@ -9,6 +12,9 @@ import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integration
 import { signAccessToken } from "../../lib/jwt";
 import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
+import { buildDocumentXml } from "../../lib/zatca/xmlBuilder";
+import { signDocument } from "../../lib/zatca/signing";
+import { ZATCA_FIRST_INVOICE_PIH, ZatcaDocumentInput } from "../../lib/zatca/types";
 import { writeZatcaArchiveTx, annex1FileName, ARCHIVE_MIGRATION, ARCHIVE_ROLLOUT_GRACE_MS } from "../../lib/zatca/archive";
 
 /**
@@ -32,9 +38,25 @@ let otherCompanyId = "";
 let revenueId = "";
 let customerId = "";
 
+/**
+ * المستند كما ينتجه النظام فعلاً (buildDocumentXml + signDocument)، لا XML مصنوع يدوياً: المستند الحقيقي يبدأ بـ
+ * <ext:UBLExtensions> وفيها cbc:ID للتوقيع قبل رقم المستند — XML يدوي بلا توقيع أخفى أن كل اسم ملف مُصدَّر كان خاطئاً.
+ */
+const keyDir = mkdtempSync(path.join(tmpdir(), "zatca-archive-it-"));
+execFileSync("openssl", ["ecparam", "-name", "secp256k1", "-genkey", "-noout", "-out", path.join(keyDir, "key.pem")]);
+execFileSync("openssl", ["req", "-x509", "-key", path.join(keyDir, "key.pem"), "-sha256", "-days", "1", "-subj", "/CN=zatca-test", "-out", path.join(keyDir, "cert.pem")]);
+const privateKeyPem = readFileSync(path.join(keyDir, "key.pem"), "utf8");
+const certificatePem = readFileSync(path.join(keyDir, "cert.pem"), "utf8");
+rmSync(keyDir, { recursive: true, force: true });
+
 function docXml(number: string, date: string, time: string) {
-  return `<?xml version="1.0" encoding="UTF-8"?><Invoice><cbc:ID>${number}</cbc:ID><cbc:IssueDate>${date}</cbc:IssueDate><cbc:IssueTime>${time}</cbc:IssueTime>` +
-    `<cac:AccountingSupplierParty><cac:Party><cac:PartyTaxScheme><cbc:CompanyID>${VAT}</cbc:CompanyID></cac:PartyTaxScheme></cac:Party></cac:AccountingSupplierParty></Invoice>`;
+  const xml = buildDocumentXml({
+    kind: "invoice", subtype: "simplified", id: number, uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45", issueDate: date, issueTime: time,
+    icv: 1, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH,
+    seller: { vatNumber: VAT, crNumber: "1010101010", registrationName: "شركة الأرشيف", street: "طريق", buildingNumber: "1234", citySubdivision: "حي", city: "الرياض", postalZone: "12345" },
+    lines: [{ id: "1", name: "خدمة", quantity: 1, unitPrice: 100, lineSubtotal: 100, lineVat: 15, taxCategoryCode: "S", taxPercent: 15 }],
+  } as ZatcaDocumentInput);
+  return signDocument({ xml, certificatePem, privateKeyPem }).signedXml;
 }
 
 async function call(method: string, path: string, as = token) {
@@ -168,7 +190,7 @@ describe("ZATCA document archive (integration)", () => {
     const reportedNoOriginal = await invoice("2026-09-16T11:00:00.000Z");
     const outside = await invoice("2026-10-02T08:00:00.000Z");
     const signed = docXml(cleared.invoiceNumber, "2026-09-15", "10:15:00");
-    const clearedByZatca = docXml(cleared.invoiceNumber, "2026-09-15", "10:15:00").replace("<Invoice>", "<Invoice><!-- stamped by ZATCA -->");
+    const clearedByZatca = docXml(cleared.invoiceNumber, "2026-09-15", "10:15:00") + "<!-- stamped by ZATCA -->"; // ما تعيده زاتكا (مدخل خارجي): المستند نفسه بختمها
     await prisma.salesInvoice.update({ where: { id: cleared.id }, data: { zatcaStatus: "cleared", zatcaSubmittedAt: new Date("2026-09-15T10:15:00Z") } });
     await prisma.salesInvoice.update({ where: { id: reportedNoOriginal.id }, data: { zatcaStatus: "reported", icv: 21, zatcaSubmittedAt: new Date("2026-09-16T11:00:00Z") } });
     for (const [inv, at, xml, cl] of [[cleared, "2026-09-15T10:15:00Z", signed, clearedByZatca], [outside, "2026-10-02T08:00:00Z", docXml(outside.invoiceNumber, "2026-10-02", "08:00:00"), undefined]] as const) {
