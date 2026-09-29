@@ -14,17 +14,18 @@ windowed AS (
   FROM docs d
   WHERE d.at >= date_trunc('month', now() AT TIME ZONE 'UTC') - INTERVAL '12 months'
 )
-SELECT c.name AS company, to_char(w.month, 'YYYY-MM') AS month,
+SELECT t.name AS tenant, c.name AS company, c.id AS company_id, to_char(w.month, 'YYYY-MM') AS month,
        COUNT(*)                                        AS documents_in_export,
        COUNT(*) FILTER (WHERE w.subtype = 'simplified') AS simplified,
        COUNT(*) FILTER (WHERE w.subtype = 'standard')   AS standard,
        COUNT(*) FILTER (WHERE w.archived)               AS archived,
        ROUND(100.0 * COUNT(*) / 65534, 2)               AS pct_of_zip_cap,
-       SUM(COUNT(*)) OVER (PARTITION BY c.name)         AS company_12m_total,
+       SUM(COUNT(*)) OVER (PARTITION BY c.id)         AS company_12m_total,
        CASE WHEN COUNT(*) > 50000 THEN 'TRIGGER: monthly > 50,000'
-            WHEN SUM(COUNT(*)) OVER (PARTITION BY c.name) > 65534 THEN 'yearly export exceeds cap'
+            WHEN SUM(COUNT(*)) OVER (PARTITION BY c.id) > 65534 THEN 'yearly export exceeds cap'
             ELSE '' END AS flag
-FROM windowed w JOIN companies c ON c.id = w."companyId"
-GROUP BY c.name, w.month
-ORDER BY c.name, w.month;
+FROM windowed w JOIN companies c ON c.id = w."companyId" JOIN tenants t ON t.id = c."tenantId"
+-- بمعرّف الشركة لا باسمها: الاسم فريد داخل المستأجر فقط
+GROUP BY t.name, c.id, c.name, w.month
+ORDER BY t.name, c.name, w.month;
 
