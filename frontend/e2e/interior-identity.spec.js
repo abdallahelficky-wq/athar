@@ -35,3 +35,36 @@ test('mobile menu opens and closes',async({page})=>{
 });
 
 
+
+test('income chart displays totals above existing dashboard cards',async({page})=>{
+ await page.route('**/api/dashboard/income-expense-trend**',r=>r.fulfill({json:[{month:'2026-08',revenue:1000,expense:400},{month:'2026-09',revenue:850,expense:350}]}));
+ await page.goto('/dashboard');
+ await expect(page.getByTestId('revenue-total')).toContainText('1,850');
+ await expect(page.getByTestId('expense-total')).toContainText('750');
+ await expect(page.locator('.income-expense-chart .recharts-bar')).toHaveCount(2);
+ await page.screenshot({path:'test-results/income-expense.png',fullPage:true});
+});
+
+test('bulk posting confirms, skips posted entries and retains failures',async({page})=>{
+ const entries=[{id:'a',status:'saved'},{id:'b',status:'saved'},{id:'c',status:'posted'}].map(e=>({...e,entryNumber:e.id,date:'2026-09-29',memo:e.id,lines:[]}));
+ const calls=[];
+ await page.route('**/api/journal-entries**',async route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname.endsWith('/post')) {
+   calls.push(url.pathname);
+   if(url.pathname.includes('/a/')) {entries[0].status='posted';await route.fulfill({json:entries[0]});}
+   else await route.fulfill({status:400,json:{message:'القيد غير متوازن'}});
+  } else await route.fulfill({json:entries});
+ });
+ await page.goto('/accounts/journal');
+ await page.locator('thead input[type=checkbox]').check();
+ const button=page.getByRole('button',{name:'ترحيل القيود المحددة (2)'});
+ await expect(button).toBeEnabled();
+ page.once('dialog',dialog=>dialog.dismiss());await button.click();expect(calls).toEqual([]);
+ page.once('dialog',dialog=>dialog.accept());await button.click();
+ await expect(page.getByRole('button',{name:'ترحيل القيود المحددة (1)'})).toBeEnabled();
+ expect(calls).toEqual(['/api/journal-entries/a/post','/api/journal-entries/b/post']);
+ await expect(page.locator('[data-entry-row=b] input[type=checkbox]')).toBeChecked();
+ await expect(page.locator('[data-entry-row=a] input[type=checkbox]')).not.toBeChecked();
+ await expect(page.getByRole('alert')).toContainText('b');
+});

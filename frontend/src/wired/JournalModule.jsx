@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -71,6 +71,34 @@ export default function JournalModule({ companies, companyId }) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [sort, setSort] = useState({ key: null, dir: "asc" });
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const bulkRun = useRef(null);
+  useEffect(() => { setBulkProgress(null); return () => { bulkRun.current = null; }; }, [companyId]);
+  const [bulkProgress, setBulkProgress] = useState(null);
+  const [bulkFailures, setBulkFailures] = useState([]);
+  useEffect(() => { setSelectedIds(new Set()); setBulkFailures([]); }, [companyId, jf.applied]);
+  const selectedSaved = entries.filter(e => selectedIds.has(e.id) && e.status === "saved");
+  const postSelected = async () => {
+    if (bulkRun.current || !selectedSaved.length || !window.confirm(t("bulkPosting.confirm", {count:selectedSaved.length}))) return;
+    const run = {}; bulkRun.current = run;
+    const targets = [...selectedSaved];
+    const failed = [];
+    let success = 0;
+    setError(""); setNotice(""); setBulkFailures([]);
+    setBulkProgress({done:0,total:targets.length});
+    for (const entry of targets) {
+      if (bulkRun.current !== run) return;
+      try { await postJournalEntry(entry.id); success++; }
+      catch (err) { failed.push({id:entry.id,number:entryNumberLabel(entry),message:err.message}); }
+      if (bulkRun.current !== run) return;
+      setBulkProgress({done:success+failed.length,total:targets.length});
+    }
+    setSelectedIds(new Set(failed.map(e=>e.id)));
+    setBulkFailures(failed);
+    setNotice(t("bulkPosting.result",{success,failed:failed.length}));
+    bulkRun.current = null;
+    setBulkProgress(null);
+    reloadEntries();
+  };
 
   const [formModal, setFormModal] = useState(null); // { mode: "create" | "edit", entry? }
   const [attachmentsFor, setAttachmentsFor] = useState(null);
@@ -181,7 +209,7 @@ export default function JournalModule({ companies, companyId }) {
 
   // تحديد متعدد للصفوف — تجهيز واجهة أساسية لإجراءات جماعية مستقبلية (طباعة/تصدير مجموعة قيود)،
   // الأزرار الفعلية معطَّلة حالياً وموسومة "قريباً" حتى يُنفَّذ منطقها الكامل.
-  useEffect(() => { setSelectedIds(new Set()); }, [entries]);
+  useEffect(() => { setSelectedIds(prev => new Set([...prev].filter(id => entries.some(e => e.id === id)))); }, [entries]);
 
   // تمرير تلقائي + تظليل بصري للقيد المفتوح تلقائياً عبر entryId — إن ظهر ضمن القائمة الحالية
   // (بلا فلاتر تستبعده)، تجربة إضافية فوق فتح النافذة نفسها، وليست شرطاً لعملها.
@@ -358,12 +386,14 @@ export default function JournalModule({ companies, companyId }) {
             </form>
           </div>
 
+          {bulkFailures.length > 0 && <ul role="alert">{bulkFailures.map(f=><li key={f.id}>{f.number}: {f.message}</li>)}</ul>}
           {selectedIds.size > 0 && (
             <div className="journal-bulk-toolbar">
+              <button className="btn-primary" disabled={loading || !!bulkProgress || !selectedSaved.length} onClick={postSelected}>{bulkProgress ? t("bulkPosting.progress",bulkProgress) : t("bulkPosting.post",{count:selectedSaved.length})}</button>
               <strong>{selectedIds.size}</strong> {t("journalEntries.bulkToolbar.selected")}
               <button className="btn-ghost" disabled title={t("journalEntries.bulkToolbar.comingSoon")}>{t("journalEntries.bulkToolbar.printSelected")}</button>
               <button className="btn-ghost" disabled title={t("journalEntries.bulkToolbar.comingSoon")}>{t("journalEntries.bulkToolbar.exportSelected")}</button>
-              <button className="btn-ghost" onClick={() => setSelectedIds(new Set())}>{t("journalEntries.bulkToolbar.clearSelection")}</button>
+              <button className="btn-ghost" disabled={!!bulkProgress} onClick={() => setSelectedIds(new Set())}>{t("journalEntries.bulkToolbar.clearSelection")}</button>
             </div>
           )}
 
@@ -372,7 +402,7 @@ export default function JournalModule({ companies, companyId }) {
               <table className="ledger-table responsive-table journal-table">
                 <thead>
                   <tr>
-                    <th className="checkbox-col"><input type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label={t("journalEntries.table.selectAll")} /></th>
+                    <th className="checkbox-col"><input type="checkbox" disabled={!!bulkProgress} checked={allSelected} onChange={toggleSelectAll} aria-label={t("journalEntries.table.selectAll")} /></th>
                     <SortHeader label={t("journalEntries.table.entryNumber")} sortKey={SORT_COLUMNS.entryNumber} />
                     <SortHeader label={t("journalEntries.table.date")} sortKey={SORT_COLUMNS.date} />
                     <th>{t("journalEntries.table.memo")}</th>
@@ -402,7 +432,7 @@ export default function JournalModule({ companies, companyId }) {
                     return (
                       <React.Fragment key={e.id}>
                         <tr data-entry-row={e.id} className={e.id === highlightedEntryId ? "row-highlighted" : undefined}>
-                          <td data-label=""><input type="checkbox" checked={selectedIds.has(e.id)} onChange={() => toggleSelected(e.id)} aria-label={t("journalEntries.table.selectEntry")} /></td>
+                          <td data-label=""><input type="checkbox" disabled={!!bulkProgress} checked={selectedIds.has(e.id)} onChange={() => toggleSelected(e.id)} aria-label={t("journalEntries.table.selectEntry")} /></td>
                           <td data-label={t("journalEntries.table.entryNumber")}>{entryNumberLabel(e)}</td>
                           <td data-label={t("journalEntries.table.date")}>{fmtDate(e.date)}</td>
                           <td data-label={t("journalEntries.table.memo")}>{e.memo || t("journalEntries.table.noMemo")}</td>

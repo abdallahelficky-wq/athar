@@ -1,4 +1,6 @@
 {
+  "incomeExpense": {"title": "Total revenue and expenses", "period": "Monthly comparison — last 12 months through today", "revenue": "Revenue", "expense": "Expenses", "error": "Could not load the chart.", "retry": "Retry", "empty": "No revenue or expenses in this period."},
+  "bulkPosting": {"post": "Post selected entries ({{count}})", "confirm": "Post {{count}} selected saved entries?", "progress": "Posting {{done}} / {{total}}", "result": "Posted {{success}} entries. Failed to post {{failed}} entries."},
   "interiorNav": {"navigation": "Main navigation", "home": "Home", "operations": "Operations", "finance": "Finance", "people": "Human resources", "system": "System"},
   "publicApps": {"title": "Athar apps", "home": "Home", "subtitle": "Choose the app for your work and download it directly to your Android device."},
   "purchaseFilters": {"search": "Search", "city": "City", "terms": "Payment terms", "supplier": "Supplier", "status": "Status", "from": "From date", "to": "To date", "all": "All", "reset": "Clear filters", "count": "Results: {{count}} of {{total}}", "noResults": "No matching results", "addSupplier": "Add supplier", "editSupplier": "Edit supplier", "discard": "Discard changes and close?"},

@@ -89,3 +89,7 @@ export const hrNationalityHandler: RequestHandler = async (req, res) => {
 export const hrAlertsHandler: RequestHandler = async (req, res) => {
   res.json(await service.getHrAlerts(req.auth!.tenantId, parseCompanyId(req), parseWithinDays(req), req.lang));
 };
+
+export const incomeExpenseTrendHandler: RequestHandler = async (req, res) => {
+  res.json(await service.getIncomeExpenseTrend(req.auth!.tenantId, parseCompanyId(req)));
+};

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authenticate, enforceCompanyScope, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import {
   financialKpisHandler,
+  incomeExpenseTrendHandler,
   cashBreakdownHandler,
   cashFlowMonthlyHandler,
   topCashTransactionsHandler,
@@ -20,6 +21,7 @@ export const dashboardRoutes = Router();
 dashboardRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 dashboardRoutes.get("/financial-kpis", financialKpisHandler);
+dashboardRoutes.get("/income-expense-trend", incomeExpenseTrendHandler);
 dashboardRoutes.get("/cash-breakdown", cashBreakdownHandler);
 dashboardRoutes.get("/cash-flow-monthly", cashFlowMonthlyHandler);
 dashboardRoutes.get("/top-cash-transactions", topCashTransactionsHandler);
