@@ -1,0 +1,81 @@
+/* Screen-only internal identity; printed invoices/reports retain their own design. */
+@media screen {
+ body.athar-interior {
+  --athar-bg:#fafafa; --athar-sidebar:#fff; --athar-card:#fff; --athar-border:#e9ecef;
+  --athar-text-primary:#212529; --athar-text-secondary:#495057; --athar-text-muted:#747c84;
+  --athar-brand:#b8860b; --athar-brand-gold:#d4af37; --athar-green:#2b8a3e;
+  --athar-shadow-sm:0 1px 2px #0000000a; --athar-shadow-md:0 2px 8px #0000000f;
+  font-family:'Tajawal',sans-serif;
+ }
+ .interior-identity.app-root {background:#fafafa;color:#212529;font-family:'Tajawal',sans-serif;}
+ .interior-identity .sidebar {width:260px;background:#fff;color:#495057;border-inline-end:1px solid #e9ecef;padding:24px 16px;gap:18px;}
+ .interior-identity .sidebar::before {display:none;}
+ .interior-identity .brand {padding:0 8px 18px;border-bottom:1px solid #e9ecef;}
+ .interior-identity .brand-name {color:#212529;font-size:18px;font-family:inherit;}
+ .interior-identity .brand-sub {color:#747c84;font-size:12px;font-weight:400;font-family:inherit;}
+ .interior-identity .brand-logo-icon {width:38px;height:38px;object-fit:contain;border-radius:6px;}
+ .interior-identity .sidebar-company-trigger {background:#f1f3f5;border:1px solid #e9ecef;border-radius:6px;padding:12px;}
+ .interior-identity .sidebar-company-trigger:hover {background:#e9ecef;}
+ .interior-identity .sidebar-company-name {color:#212529;}
+ .interior-identity .sidebar-company-meta {color:#747c84;font-size:11px;}
+ .interior-identity .sidebar-nav-scroll {gap:12px;}
+ .interior-identity .sidebar-nav-scroll::-webkit-scrollbar-thumb {background:#dee2e6;}
+ .interior-identity .nav-section-heading {padding:18px 12px 8px;color:#747c84;font-size:11px;font-weight:500;letter-spacing:.3px;}
+ .interior-identity .nav-list {margin:0;gap:3px;}
+ .interior-identity :is(.nav-btn,.nav-group-toggle,.nav-subitem) {font-family:inherit;color:#495057;font-size:14px;font-weight:500;text-align:start;border:0;border-inline-start:2px solid transparent;border-radius:6px;padding:10px 12px;}
+ .interior-identity :is(.nav-btn,.nav-group-toggle,.nav-subitem):hover {background:#f1f3f5;color:#212529;}
+ .interior-identity :is(.nav-btn,.nav-group-toggle,.nav-subitem).active {background:#d4af3714;color:#876400;border-inline-start-color:#d4af37;}
+ .interior-identity .nav-subitems {border-color:#e9ecef;margin-inline-start:16px;padding-inline-start:6px;}
+ .interior-identity .nav-subitem {font-size:13px;}
+ .interior-identity .nav-badge-danger {background:#c8102e12;color:#c8102e;}
+ .interior-identity .nav-badge-warning {background:#e6770014;color:#9c5100;}
+ .interior-identity .topbar {background:#fff;border-bottom:1px solid #e9ecef;box-shadow:none;gap:16px;}
+ .interior-identity .topbar-company {font-family:inherit;color:#495057;font-size:14px;}
+ .interior-identity .topbar-date {color:#747c84;}
+ .interior-identity .quick-search-input {background:#f1f3f5;border:1px solid transparent;border-radius:6px;font-family:inherit;}
+ .interior-identity .quick-search-input:focus {border-color:#d4af37;background:#fff;}
+ .interior-identity .user-menu-avatar {background:#d4af37;color:#212529;}
+ .interior-identity .app-content-inner {max-width:1440px;padding:28px 32px;}
+ .interior-identity :is(h1,h2,h3,.section-title,.section-title h2,.kpi-label,.brand-name,.tab,.subtab) {font-family:'Tajawal',sans-serif;}
+ .interior-identity .section-title h2 {color:#212529;font-size:26px;}
+ .interior-identity .breadcrumb {color:#747c84;}
+ .interior-identity .dashboard-welcome {background:transparent;border:0;padding:0;margin-bottom:18px;box-shadow:none;}
+ .interior-identity .dashboard-welcome-greeting {color:#212529;font-family:inherit;font-size:26px;font-weight:700;}
+ .interior-identity .dashboard-welcome-quote {color:#747c84;font-size:14px;}
+ .interior-identity .panel {background:#fff;border:1px solid #e9ecef;border-radius:10px;box-shadow:0 1px 2px #00000006;}
+ .interior-identity .panel h3 {color:#212529;font-family:inherit;}
+ .interior-identity .kpi-row {gap:16px;}
+ .interior-identity .kpi-card {border:1px solid #e9ecef;border-radius:10px;background:#fff;padding:22px;box-shadow:none;}
+ .interior-identity .kpi-card::before {display:none;}
+ .interior-identity .kpi-card-revenue {border-color:#d4af374d;background:#d4af3708;}
+ .interior-identity .kpi-card-profit,.interior-identity .kpi-card-payable {border-color:#c8102e30;}
+ .interior-identity .kpi-label {color:#747c84;font-size:13px;}
+ .interior-identity .kpi-value {color:#212529;font-size:27px;font-family:'Tajawal',sans-serif;}
+ .interior-identity .kpi-icon-circle {border-radius:6px;width:34px;height:34px;}
+ .interior-identity .kpi-icon-circle-revenue {color:#a77b00;background:#d4af3714;}
+ .interior-identity .kpi-icon-circle-cash {color:#2b8a3e;background:#2b8a3e10;}
+ .interior-identity :is(.kpi-icon-circle-profit,.kpi-icon-circle-payable) {color:#c8102e;background:#c8102e10;}
+ .interior-identity :is(.kpi-icon-circle-receivable) {color:#495057;background:#f1f3f5;}
+ .interior-identity .alerts-panel {background:#fff;border:1px solid #e9ecef;border-radius:10px;}
+ .interior-identity .alerts-head {color:#495057;}
+ .interior-identity .charts-grid {gap:20px;}
+ .interior-identity .chart-panel {padding:24px;}
+ .interior-identity :is(.ledger-table,.items-table,.lines-table) th {color:#747c84;background:#fafafa;border-color:#e9ecef;font-family:inherit;font-weight:500;}
+ .interior-identity :is(.ledger-table,.items-table,.lines-table) td {border-color:#e9ecef;color:#212529;}
+ .interior-identity .ledger-table tbody tr:hover {background:#fafafa;}
+ .interior-identity :is(.subtabs-bar,.tabs-bar) {background:#fff;border:1px solid #e9ecef;border-radius:8px;box-shadow:none;}
+ .interior-identity :is(.subtab,.tab).active {background:#d4af3714;color:#876400;border-color:#d4af37;box-shadow:none;}
+ body.athar-interior :is(.btn-primary) {background:#d4af37;color:#212529;border:1px solid #c8a32b;border-radius:6px;box-shadow:none;font-family:'Tajawal',sans-serif;}
+ body.athar-interior :is(.btn-primary):hover:not(:disabled) {background:#e2bc43;}
+ body.athar-interior :is(.btn-ghost) {background:#fff;border:1px solid #dee2e6;border-radius:6px;color:#495057;font-family:'Tajawal',sans-serif;}
+ body.athar-interior :is(.btn-ghost):hover {background:#f8f9fa;border-color:#b8bec4;}
+ body.athar-interior :is(.form-grid,.header-grid,.auth-form) :is(input,select,textarea) {background:#fff;color:#212529;border:1px solid #dee2e6;border-radius:6px;font-family:'Tajawal',sans-serif;}
+ body.athar-interior :is(.form-grid,.header-grid) label {color:#495057;}
+ body.athar-interior :is(.invoice-modal-box,.unpost-confirm-box,.company-modal,.items-form-panel) {background:#fff;border:1px solid #e9ecef;border-radius:14px;}
+ body.athar-interior :is(button,a,input,select,textarea):focus-visible {outline:2px solid #b8860b;outline-offset:3px;}
+ .interior-identity .preview-box {background:#fafafa;border-color:#dee2e6;}
+ .interior-identity .preview-row.net-row {color:#876400;}
+ .interior-identity .sidebar-close-btn {color:#495057;border-color:#dee2e6;background:#fff;}
+ @media(max-width:900px) {.interior-identity .app-content-inner{padding:24px 18px;}.interior-identity .topbar{gap:10px;}}
+ @media(max-width:768px) {.interior-identity .sidebar{padding-top:calc(20px + var(--safe-top,0px));max-width:85vw;}.interior-identity .app-content-inner{padding:20px 12px;}.interior-identity .kpi-value{font-size:24px;}.interior-identity .chart-panel{padding:16px;}}
+}

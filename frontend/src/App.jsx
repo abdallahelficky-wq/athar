@@ -1,3 +1,4 @@
+import "./styles/interior-identity.css";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -39,6 +40,8 @@ import StationShiftsReviewModule, { STATION_SHIFTS_TABS } from "./wired/stationS
 import UserMenu from "./wired/shared/UserMenu";
 import { UnsavedChangesProvider } from "./wired/shared/UnsavedChangesContext";
 import UnsavedChangesBlocker from "./wired/shared/UnsavedChangesBlocker";
+
+const NAV_SECTIONS = {sales:"operations",purchases:"operations",inventory:"operations",stables:"operations",stationShifts:"operations",fixedAssets:"finance",accounts:"finance",hr:"people",reports:"system",settings:"system"};
 
 const NAV_GROUPS = [
   { id: "sales", labelKey: "nav.groups.sales", tabs: SALES_TABS, to: routes.sales },
@@ -142,6 +145,11 @@ function AppShell() {
     }
   };
 
+  useEffect(() => {
+    document.body.classList.add("athar-interior");
+    return () => document.body.classList.remove("athar-interior");
+  }, []);
+
   const navBadges = { sales: overdueInvoicesCount, hr: pendingLeaveCount };
 
   const outletContext = {
@@ -157,7 +165,7 @@ function AppShell() {
   };
 
   return (
-    <div className="app-root" dir={i18n.dir()}>
+    <div className="app-root interior-identity" dir={i18n.dir()}>
       <UnsavedChangesBlocker />
       {isMobileSidebarOpen && <div className="sidebar-backdrop" onClick={() => setIsMobileSidebarOpen(false)} />}
       <div className={"sidebar" + (isMobileSidebarOpen ? " sidebar-open" : "")}>
@@ -176,8 +184,9 @@ function AppShell() {
 
         <CompanySwitcher companies={real.companies} companyId={real.companyId} setCompanyId={real.setCompanyId} />
 
-        <div className="sidebar-nav-scroll">
+        <nav className="sidebar-nav-scroll" aria-label={t("interiorNav.navigation")}>
           <div className="nav-list">
+            <div className="nav-section-heading">{t("interiorNav.home")}</div>
             <Link className={"nav-btn nav-home" + (location.pathname.startsWith("/dashboard") ? " active" : "")} to={routes.dashboard()}>
               <span className="nav-icon"><NavIcon name="dashboard" /></span>
               <span>{t("nav.dashboard")}</span>
@@ -185,14 +194,17 @@ function AppShell() {
           </div>
 
           <div className="nav-list">
-            {visibleNavGroups.map((g) => {
+            {visibleNavGroups.map((g, index) => {
               const isActiveModule = activeGroupId === g.id;
               const isOpen = openGroupId === g.id;
               const badgeCount = navBadges[g.id] || 0;
               return (
-                <div className="nav-group" key={g.id}>
+                <React.Fragment key={g.id}>
+                {(index === 0 || NAV_SECTIONS[g.id] !== NAV_SECTIONS[visibleNavGroups[index-1].id]) && <div className="nav-section-heading">{t(`interiorNav.${NAV_SECTIONS[g.id]}`)}</div>}
+                <div className="nav-group">
                   <Link
                     className={"nav-group-toggle" + (isActiveModule ? " active" : "")}
+                    aria-expanded={isOpen}
                     to={g.to()}
                     onClick={(e) => handleGroupClick(e, g.id)}
                   >
@@ -220,10 +232,11 @@ function AppShell() {
                     </div>
                   </div>
                 </div>
+                </React.Fragment>
               );
             })}
           </div>
-        </div>
+        </nav>
       </div>
 
       <div className="main">

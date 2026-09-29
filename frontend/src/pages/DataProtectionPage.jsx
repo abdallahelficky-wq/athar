@@ -7,6 +7,7 @@ import source from "../legal/dataProtection.md?raw";
 // ستشير إلى إصدار بعينه. الصفحة عربية دائماً بصرف النظر عن لغة الواجهة المختارة.
 
 function parseFrontMatter(raw) {
+  raw = raw.replace(/\r\n?/g, "\n");
   const match = raw.match(/^---\n([\s\S]*?)\n---\n/);
   if (!match) throw new Error("dataProtection.md: رأس الملف (version/lastUpdated) مفقود");
   const meta = Object.fromEntries(
