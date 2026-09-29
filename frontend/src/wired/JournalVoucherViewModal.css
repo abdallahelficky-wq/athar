@@ -1,0 +1,144 @@
+/* سند القيد المحاسبي — مظهر خاص بهذه الشاشة وحدها (كل القواعد تحت .jv-card). الخطوط من التطبيق نفسه
+   (Tajawal / IBM Plex Sans Arabic المحمَّلة في global.css)، والأيقونات SVG داخلية — بلا أي CDN خارجي. */
+
+.jv-card {
+  --jv-bg: #F1F5F9;
+  --jv-surface: #FFFFFF;
+  --jv-text: #0F172A;
+  --jv-muted: #64748B;
+  --jv-primary: #3B82F6;
+  --jv-primary-light: #EFF6FF;
+  --jv-accent: #8B5CF6;
+  --jv-border: #E2E8F0;
+  --jv-stripe: #F8FAFC;
+  --jv-posted: #047857;
+  --jv-posted-bg: #ECFDF5;
+  --jv-posted-border: #A7F3D0;
+  --jv-saved: #B45309;
+  --jv-saved-bg: #FFFBEB;
+  --jv-saved-border: #FDE68A;
+  --jv-radius-lg: 20px;
+  --jv-radius-md: 12px;
+
+  position: relative;
+  overflow: hidden;
+  background: var(--jv-surface);
+  color: var(--jv-text);
+  border-radius: var(--jv-radius-lg);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+  border: 1px solid var(--jv-border);
+  padding: 32px;
+  margin-top: 4px;
+  font-family: 'Tajawal', 'IBM Plex Sans Arabic', sans-serif;
+}
+
+/* الشريط العلوي الملوّن */
+.jv-card::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; left: 0;
+  height: 6px;
+  background: linear-gradient(90deg, var(--jv-primary), var(--jv-accent));
+}
+
+.jv-label { font-size: 13px; color: var(--jv-muted); font-weight: 600; }
+
+/* رأس البطاقة: البيان + شارة الحالة */
+.jv-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+  padding-bottom: 20px; margin-bottom: 24px; border-bottom: 1px solid var(--jv-border);
+}
+.jv-head-title { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.jv-memo { font-size: 20px; font-weight: 700; line-height: 1.5; overflow-wrap: anywhere; }
+
+.jv-badge {
+  display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
+  padding: 7px 16px; border-radius: 50px; font-size: 14px; font-weight: 700;
+  border: 1px solid transparent; white-space: nowrap;
+}
+/* مرحّل يدخل الأرصدة؛ محفوظ لا يدخلها — التمييز هو المعنى كله */
+.jv-badge-posted { background: var(--jv-posted-bg); color: var(--jv-posted); border-color: var(--jv-posted-border); }
+.jv-badge-saved { background: var(--jv-saved-bg); color: var(--jv-saved); border-color: var(--jv-saved-border); }
+
+/* شريط البيانات */
+.jv-meta {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 20px;
+  background: var(--jv-bg); padding: 18px 20px; border-radius: var(--jv-radius-md); margin-bottom: 20px;
+}
+.jv-meta-item { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.jv-meta-item strong { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+
+/* روابط المرآة والعكس — تُطبع أيضاً */
+.jv-links {
+  display: flex; flex-direction: column; gap: 4px; font-size: 13px; line-height: 1.7;
+  border: 1px solid var(--jv-border); border-inline-start: 3px solid var(--jv-accent);
+  border-radius: var(--jv-radius-md); padding: 12px 16px; margin-bottom: 20px;
+}
+
+.jv-note {
+  font-size: 13px; color: var(--jv-muted); background: var(--jv-stripe);
+  border: 1px dashed var(--jv-border); border-radius: var(--jv-radius-md); padding: 10px 14px; margin: 0 0 16px;
+}
+.jv-payroll-link { margin: 0 0 16px; font-size: 13px; }
+.jv-payroll-link a { color: var(--jv-primary); font-weight: 600; }
+
+/* الجدول */
+.jv-table-wrap { overflow-x: auto; margin-bottom: 28px; border-radius: var(--jv-radius-md); border: 1px solid var(--jv-border); }
+.jv-table { width: 100%; border-collapse: collapse; text-align: start; }
+.jv-table th {
+  background: var(--jv-bg); color: var(--jv-muted); font-size: 13px; font-weight: 700;
+  padding: 12px 14px; border-bottom: 2px solid var(--jv-border); white-space: nowrap; text-align: start;
+}
+.jv-table td {
+  padding: 13px 14px; font-size: 14px; font-weight: 600; color: var(--jv-text);
+  border-bottom: 1px solid var(--jv-border); vertical-align: top;
+}
+.jv-table tbody tr:nth-child(even) td { background: var(--jv-stripe); }
+.jv-table .num { text-align: end; direction: ltr; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 700; }
+.jv-equivalent { font-size: 0.78em; opacity: 0.75; font-weight: 500; }
+
+/* صف الإجمالي المميّز */
+.jv-table .jv-total td {
+  background: var(--jv-primary-light); color: var(--jv-primary); font-weight: 700; font-size: 16px;
+  border-bottom: 0; border-top: 2px solid var(--jv-primary);
+}
+
+/* التوقيعات */
+.jv-signatures {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+  padding-top: 22px; border-top: 1px dashed var(--jv-border);
+}
+.jv-sig {
+  text-align: center; padding: 16px; border: 1px dashed var(--jv-border);
+  border-radius: var(--jv-radius-md); background: #FAFAFA;
+}
+.jv-sig-label { font-size: 13px; color: var(--jv-muted); font-weight: 600; margin-bottom: 30px; }
+.jv-sig-line { border-bottom: 1px solid var(--jv-muted); width: 80%; margin: 0 auto 8px; }
+.jv-sig-line-dashed { border-bottom-style: dashed; }
+.jv-sig-name { font-size: 12px; color: var(--jv-muted); min-height: 1.5em; }
+
+@media (max-width: 768px) {
+  .jv-card { padding: 20px 16px; border-radius: 16px; }
+  .jv-head { flex-direction: column; gap: 12px; }
+  .jv-memo { font-size: 17px; }
+  .jv-meta { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 12px; padding: 14px; }
+  .jv-signatures { grid-template-columns: 1fr; }
+  .jv-table th, .jv-table td { padding: 10px; font-size: 13px; }
+}
+
+/* الطباعة: لا ظل ولا خلفية صفحة، ألوان الشارة والشريط وصف الإجمالي تُطبع كما هي، ولا شيء يُقسَم عبر صفحتين
+   بلا داعٍ. أزرار PrintShell تُخفى أصلاً في global.css. */
+@media print {
+  /* خلفية الصفحة الكريمية من PrintShell لا تُطبع — لهذه الشاشة وحدها (:has)، بلا تعديل المكوّن المشترك */
+  .voucher-shell:has(.jv-card) { background: none !important; }
+  .jv-card {
+    box-shadow: none !important; border: 1px solid var(--jv-border); padding: 18px 20px; margin: 0;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .jv-card * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .jv-table-wrap { overflow: visible !important; }
+  .jv-table thead { display: table-header-group; }
+  .jv-table tr, .jv-sig, .jv-links, .jv-head, .jv-meta { break-inside: avoid; page-break-inside: avoid; }
+  .jv-signatures { grid-template-columns: repeat(3, 1fr) !important; break-inside: avoid; }
+  .jv-payroll-link { display: none !important; }
+}
