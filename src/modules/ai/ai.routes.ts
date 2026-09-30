@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { authenticate } from "../../middleware/auth";
+import { requirePositionAction } from "../../middleware/requirePositionAction";
 import { askAiHandler } from "./ai.controller";
 import { HttpError } from "../../lib/httpError";
 import { prisma } from "../../lib/prisma";
@@ -89,4 +90,4 @@ const validateAskRequest = async (req: Request, res: Response, next: NextFunctio
   next();
 };
 
-aiRoutes.post("/ask", validateAskRequest, askAiHandler);
+aiRoutes.post("/ask", validateAskRequest, requirePositionAction, askAiHandler);
