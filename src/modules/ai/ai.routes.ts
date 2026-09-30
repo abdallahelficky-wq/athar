@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { authenticate } from "../../middleware/auth";
-import { requirePositionAction } from "../../middleware/requirePositionAction";
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { askAiHandler } from "./ai.controller";
 import { HttpError } from "../../lib/httpError";
 import { prisma } from "../../lib/prisma";
