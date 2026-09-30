@@ -90,4 +90,4 @@ const validateAskRequest = async (req: Request, res: Response, next: NextFunctio
   next();
 };
 
-aiRoutes.post("/ask", validateAskRequest, requirePositionAction, askAiHandler);
+aiRoutes.post("/ask", validateAskRequest, requirePositionAction("ai", "read"), askAiHandler);
