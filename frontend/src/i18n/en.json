@@ -2045,7 +2045,21 @@
     "jobTitles": {
       "newTitleLabel": "New job title",
       "placeholder": "e.g. Sales supervisor",
-      "empty": "No job titles registered yet."
+      "empty": "No job titles registered yet.",
+      "note": "Job titles are the basis of positions: under Settings → Positions, each job title becomes a position and gets its permissions. The employee file suggests its job title from this list.",
+      "table": { "name": "Job title", "permissions": "Position and permissions", "actions": "Actions" },
+      "hasPosition": "Has a position",
+      "noPosition": "No position yet",
+      "managePermissions": "Manage permissions",
+      "editBtn": "Edit",
+      "saveBtn": "Save",
+      "cancelBtn": "Cancel",
+      "deleteBtn": "Delete",
+      "deleteBlocked": "A job title that has a position cannot be deleted — delete the position first under Settings → Positions.",
+      "confirmDelete": "Delete job title \"{{name}}\"? Existing employee files are not affected.",
+      "notifyAdded": "Job title added.",
+      "notifyRenamed": "Job title renamed.",
+      "notifyDeleted": "Job title deleted."
     },
     "positions": {
       "nameLabel": "Position name",

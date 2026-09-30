@@ -28,7 +28,7 @@ import Dashboard from "./wired/Dashboard";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
 import ReportsModule, { REPORT_TABS } from "./wired/ReportsModule";
 
-import { seedUsers, seedJobTitles, seedCompanyDocuments, seedEntries, seedSales } from "./legacy/constants";
+import { seedUsers, seedCompanyDocuments, seedEntries, seedSales } from "./legacy/constants";
 import { SettingsModule, SETTINGS_TABS } from "./legacy/settings";
 import SalesWiredModule, { SALES_TABS } from "./wired/sales/SalesWiredModule";
 import PurchasesWiredModule, { PURCHASE_TABS } from "./wired/purchases/PurchasesWiredModule";
@@ -127,7 +127,6 @@ function AppShell() {
     name: user?.name || seedUsers[0].name,
     email: user?.email || seedUsers[0].email,
   }));
-  const [jobTitles, setJobTitles] = useState(seedJobTitles);
   const [companyDocuments, setCompanyDocuments] = useState(seedCompanyDocuments);
   const [settingsVersion, setSettingsVersion] = useState(0);
   const bumpSettings = () => setSettingsVersion((v) => v + 1);
@@ -157,7 +156,6 @@ function AppShell() {
     companyId: real.companyId,
     companiesLoading: real.loading,
     currentUser, setCurrentUser,
-    jobTitles, setJobTitles,
     companyDocuments, setCompanyDocuments,
     onDataChange: bumpSettings,
     realCompanies: real.companies, reloadRealCompanies: real.reload, onRealCompanyCreated: real.onCompanyCreated,
@@ -335,7 +333,6 @@ function SettingsRoute() {
   return (
     <SettingsModule
       currentUser={ctx.currentUser} setCurrentUser={ctx.setCurrentUser}
-      jobTitles={ctx.jobTitles} setJobTitles={ctx.setJobTitles}
       companyDocuments={ctx.companyDocuments} setCompanyDocuments={ctx.setCompanyDocuments}
       onDataChange={ctx.onDataChange}
       realCompanies={ctx.realCompanies} reloadRealCompanies={ctx.reloadRealCompanies} onRealCompanyCreated={ctx.onRealCompanyCreated}
@@ -475,6 +472,8 @@ const router = createBrowserRouter([
       { path: "reports", element: <Navigate to={routes.reports()} replace /> },
       { path: "reports/:tab", element: <ReportsRoute /> },
       { path: "settings", element: <Navigate to={routes.settings()} replace /> },
+      // الوظائف انتقلت من الإعدادات إلى شؤون الموظفين — الرابط القديم يوصل للجديد
+      { path: "settings/jobTitles", element: <Navigate to={routes.hr("jobTitles")} replace /> },
       { path: "settings/:tab", element: <SettingsRoute /> },
     ],
   },

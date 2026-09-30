@@ -9,6 +9,7 @@ import { NATIONALITIES, NATIONALITY_KEYS, EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_
 import { labelForListValue } from "../../legacy/listLabels";
 import { routes } from "../../routes";
 import { listCostCenters } from "../../api/costCenters";
+import { listJobTitles } from "../../api/jobTitles";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import EmployeePortalAccessPanel from "./EmployeePortalAccessPanel";
 
@@ -61,6 +62,9 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
     listEmployees(companyId).then(setEmployees).catch((e) => setError(e.message)).finally(() => setLoading(false));
   };
   useEffect(reload, [companyId]);
+  // اقتراحات المسمّى الوظيفي من شؤون الموظفين ← الوظائف (يبقى الحقل نصاً حراً)
+  const [jobTitleOptions, setJobTitleOptions] = useState([]);
+  useEffect(() => { listJobTitles().then(setJobTitleOptions).catch(() => setJobTitleOptions([])); }, []);
 
   const save = async () => {
     if (!form.name || !form.basicSalary) return;
@@ -243,7 +247,8 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
           <label>{t("hr.directory.idNumber")}<input type="text" value={form.idNumber} onChange={(e) => setForm({ ...form, idNumber: e.target.value })} /></label>
           <label>{t("hr.directory.gender")}<select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}><option value="">—</option><option value="male">{t("hr.directory.genderMale")}</option><option value="female">{t("hr.directory.genderFemale")}</option></select></label>
           <label>{t("hr.directory.maritalStatus")}<select value={form.maritalStatus} onChange={(e) => setForm({ ...form, maritalStatus: e.target.value })}><option value="">—</option><option value="single">{t("hr.directory.single")}</option><option value="married">{t("hr.directory.married")}</option></select></label>
-          <label>{t("hr.directory.jobTitle")}<input type="text" value={form.jobTitle} onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} /></label>
+          <label>{t("hr.directory.jobTitle")}<input type="text" list="employee-job-titles" value={form.jobTitle} onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} /></label>
+          <datalist id="employee-job-titles">{jobTitleOptions.map((j) => <option key={j.id} value={j.name} />)}</datalist>
           <label>{t("hr.directory.department")}<select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>{DEPARTMENTS.map((d) => <option key={d} value={d}>{labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", d)}</option>)}</select></label>
           <label>{t("hr.directory.workLocation")}<input type="text" value={form.workLocation} onChange={(e) => setForm({ ...form, workLocation: e.target.value })} /></label>
           {isFuelStations && (

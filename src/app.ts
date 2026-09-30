@@ -17,6 +17,7 @@ import { companyDocumentNumberingSettingsRoutes } from "./modules/documentNumber
 import { platformAdminRoutes } from "./modules/platformAdmin/platformAdmin.routes";
 import { journalEntryRoutes } from "./modules/journalEntries/journalEntries.routes";
 import { positionRoutes } from "./modules/positions/positions.routes";
+import { jobTitleRoutes } from "./modules/jobTitles/jobTitles.routes";
 import { reportRoutes } from "./modules/reports/reports.routes";
 import { reportScheduleRoutes } from "./modules/reportSchedules/reportSchedules.routes";
 import { customerRoutes } from "./modules/customers/customers.routes";
@@ -92,6 +93,7 @@ export function createApp() {
   app.use("/api/company-bank-accounts", companyBankAccountRoutes);
   app.use("/api/journal-entries", journalEntryRoutes);
   app.use("/api/positions", positionRoutes);
+  app.use("/api/job-titles", jobTitleRoutes);
   app.use("/api/reports", reportRoutes);
   app.use("/api/companies/:companyId", reportScheduleRoutes);
   app.use("/api/companies/:companyId", companyDocumentNumberingSettingsRoutes);

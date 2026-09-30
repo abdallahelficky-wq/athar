@@ -1,0 +1,9 @@
+/* شؤون الموظفين ← الوظائف */
+.job-titles-add { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.job-titles-add .memo-field { flex: 1; min-width: 220px; }
+.job-titles-add .note { flex-basis: 100%; margin: 0; }
+.job-titles td input[type="text"] { width: 100%; min-width: 160px; }
+.job-titles .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.job-titles .job-has-position { background: #ecfdf3; color: #067647; }
+.job-titles .job-permissions-link { margin-inline-start: 10px; font-size: 13px; }
+.job-titles .job-delete-btn:not(:disabled) { color: #b42318; border-color: #fecdca; }

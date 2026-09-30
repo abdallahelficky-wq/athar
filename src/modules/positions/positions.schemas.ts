@@ -28,12 +28,19 @@ export const upsertUserOverrideSchema = z
   })
   .refine(actionExistsInModule, { message: "الإجراء غير موجود ضمن هذه الوحدة", path: ["actionId"] });
 
-export const createPositionSchema = z.object({
-  name: z.string().trim().min(1, "اسم المنصب مطلوب").max(100),
-  allowUnpost: z.boolean().optional().default(false),
-  allowPosDeferredSale: z.boolean().optional().default(false),
-  allowPosPriceOverride: z.boolean().optional().default(false),
-});
+// المنصب يُبنى من وظيفة: قائمة (jobTitleId) أو جديدة باسمها (jobTitleName) — واحدة منهما بالضبط.
+export const createPositionSchema = z
+  .object({
+    jobTitleId: z.string().min(1).optional(),
+    jobTitleName: z.string().trim().min(1, "اسم الوظيفة مطلوب").max(100, "اسم الوظيفة طويل جداً").optional(),
+    allowUnpost: z.boolean().optional().default(false),
+    allowPosDeferredSale: z.boolean().optional().default(false),
+    allowPosPriceOverride: z.boolean().optional().default(false),
+  })
+  .refine((v) => (v.jobTitleId === undefined) !== (v.jobTitleName === undefined), {
+    message: "اختر وظيفة قائمة أو أدخل اسم وظيفة جديدة",
+    path: ["jobTitleId"],
+  });
 
 export const updatePositionSchema = z.object({
   allowUnpost: z.boolean().optional(),

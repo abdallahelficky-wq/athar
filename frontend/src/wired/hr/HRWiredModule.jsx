@@ -2,6 +2,7 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import HRDashboardTab from "./HRDashboardTab";
 import EmployeeDirectoryTab from "./EmployeeDirectoryTab";
+import JobTitlesTab from "./JobTitlesTab";
 import LeavesTab from "./LeavesTab";
 import LeaveSettlementTab from "./LeaveSettlementTab";
 import LeaveReturnTab from "./LeaveReturnTab";
@@ -17,6 +18,7 @@ import { useModuleTab } from "../shared/useModuleTab";
 export const HR_TABS = [
   { id: "dashboard", labelKey: "nav.tabs.hrDashboard" },
   { id: "directory", labelKey: "nav.tabs.directory" },
+  { id: "jobTitles", labelKey: "nav.tabs.jobTitles" },
   { id: "leaves", labelKey: "nav.tabs.leaves" },
   { id: "leaveSettlement", labelKey: "nav.tabs.leaveSettlement" },
   { id: "leaveReturn", labelKey: "nav.tabs.leaveReturn" },
@@ -44,6 +46,7 @@ export default function HRWiredModule({ companies, companyId }) {
           isFuelStations={companies?.find((c) => c.id === companyId)?.businessActivity === "fuel_stations"}
         />
       )}
+      {tab === "jobTitles" && <JobTitlesTab />}
       {tab === "leaves" && <LeavesTab companyId={companyId} />}
       {tab === "leaveSettlement" && <LeaveSettlementTab companyId={companyId} companies={companies} />}
       {tab === "leaveReturn" && <LeaveReturnTab companyId={companyId} companies={companies} />}

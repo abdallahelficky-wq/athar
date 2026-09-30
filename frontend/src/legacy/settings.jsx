@@ -25,31 +25,6 @@ export function MyProfileSettings({ currentUser, setCurrentUser }) {
   );
 }
 
-export function JobTitlesSettings({ jobTitles, setJobTitles }) {
-  const { t } = useTranslation();
-  const [title, setTitle] = useState("");
-  const add = () => { if (!title.trim()) return; setJobTitles((prev) => [...prev, title.trim()]); setTitle(""); };
-  const remove = (t2) => setJobTitles((prev) => prev.filter((x) => x !== t2));
-  return (
-    <div>
-      <div className="panel form-panel">
-        <div className="form-grid">
-          <label className="memo-field">{t("settings.jobTitles.newTitleLabel")}<input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("settings.jobTitles.placeholder")} /></label>
-        </div>
-        <button className="btn-primary" onClick={add}>{t("common.add")}</button>
-      </div>
-      <div className="panel">
-        <div className="tag-cloud">
-          {jobTitles.map((t2) => (
-            <span key={t2} className="tag-chip">{t2}<button onClick={() => remove(t2)}>✕</button></span>
-          ))}
-        </div>
-        {jobTitles.length === 0 && <p className="empty">{t("settings.jobTitles.empty")}</p>}
-      </div>
-    </div>
-  );
-}
-
 export function LocationsSettings({ onDataChange }) {
   const { t } = useTranslation();
   const [form, setForm] = useState({ name: "", company: "tesm" });
@@ -156,12 +131,11 @@ export const SETTINGS_TABS = [
   { id: "companies", labelKey: "nav.tabs.companies" },
   { id: "profile", labelKey: "nav.tabs.profile" },
   { id: "users", labelKey: "nav.tabs.users" },
-  { id: "jobTitles", labelKey: "nav.tabs.jobTitles" },
   { id: "locations", labelKey: "nav.tabs.locations" },
   { id: "companyDocs", labelKey: "nav.tabs.companyDocs" },
 ];
 
-export function SettingsModule({ currentUser, setCurrentUser, jobTitles, setJobTitles, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {
+export function SettingsModule({ currentUser, setCurrentUser, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {
   const { t } = useTranslation();
   const { user, tenant } = useAuth();
   // مالك الشركة (Tenant.ownerId) أو super_admin فقط يرون تبويب "المناصب" — الخادم يرفض أي طلب من
@@ -182,7 +156,6 @@ export function SettingsModule({ currentUser, setCurrentUser, jobTitles, setJobT
         </div>
       )}
       {tab === "users" && <UsersTab realCompanies={realCompanies} />}
-      {tab === "jobTitles" && <JobTitlesSettings jobTitles={jobTitles} setJobTitles={setJobTitles} />}
       {tab === "locations" && <LocationsSettings onDataChange={onDataChange} />}
       {tab === "companyDocs" && <CompanyDocumentsSettings companyDocuments={companyDocuments} setCompanyDocuments={setCompanyDocuments} />}
       {tab === "positions" && isOwner && <PositionsTab />}
