@@ -1,3 +1,4 @@
+import TrialBalanceSummary from "./TrialBalanceSummary";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { PrintShell } from "../legacy/shared";
@@ -11,7 +12,7 @@ import { getAccountDisplayName } from "./shared/accountDisplayName";
  * الشركة + اسم المستخدم وتاريخ الطباعة). الجدول عنصر <table> عادي بـ <thead> حقيقي فيتكرر رأس
  * الأعمدة تلقائياً في كل صفحة عبر آلية الطباعة الأصلية للمتصفح دون أي كود إضافي.
  */
-export default function TrialBalanceTreePrintModal({ visibleRows, totals, balanced, dateFrom, dateTo, company, onClose }) {
+export default function TrialBalanceTreePrintModal({ summary, visibleRows, totals, balanced, dateFrom, dateTo, company, onClose }) {
   const { t, i18n } = useTranslation();
   const periodLabel = dateFrom || dateTo
     ? t("reports.trialPrint.periodWithDates", { from: dateFrom || t("reports.trialPrint.periodDefaultFrom"), to: dateTo || t("reports.trialPrint.periodDefaultTo") })
@@ -25,6 +26,7 @@ export default function TrialBalanceTreePrintModal({ visibleRows, totals, balanc
       refNode={<div>{periodLabel}</div>}
       onClose={onClose}
     >
+      <div className="trial-print-summary"><TrialBalanceSummary summary={summary} company={company} compact /></div>
       <table className="ledger-table voucher-table tb-print-table">
         <thead>
           <tr>
@@ -64,6 +66,7 @@ export default function TrialBalanceTreePrintModal({ visibleRows, totals, balanc
           </tr>
         </tfoot>
       </table>
+      <p style={{fontSize:10,color:"#64748b"}}>{t("trialDesign.totalScope")}</p>
     </PrintShell>
   );
 }

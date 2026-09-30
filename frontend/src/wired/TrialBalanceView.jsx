@@ -1,3 +1,5 @@
+import "../styles/trial-balance.css";
+import TrialBalanceSummary from "./TrialBalanceSummary";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fmt } from "../legacy/constants";
@@ -13,7 +15,7 @@ import DraftEntriesNotice from "./shared/DraftEntriesNotice";
  * (ReportsModule) حتى تُستخدَم نفسها بالضبط عند الطباعة والتصدير (نفس الصفوف الظاهرة تماماً).
  */
 export default function TrialBalanceView({
-  data,
+  data, company, category, setCategory,
   filters,
   expandedIds, setExpandedIds,
   onPrint, onExportExcel,
@@ -36,7 +38,7 @@ export default function TrialBalanceView({
   const collapseAll = () => setExpandedIds(new Set());
 
   return (
-    <div className="panel">
+    <div className="trial-report">
       <div className="form-btn-group" style={{ justifyContent: "space-between", marginBottom: 14 }}>
         <h3 style={{ margin: 0 }}>{t("nav.tabs.trial")}</h3>
         <div className="form-btn-group">
@@ -45,7 +47,9 @@ export default function TrialBalanceView({
         </div>
       </div>
 
-      <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); apply(); }}>
+      <p className="trial-meta">{company?.name} · {filters.applied.dateFrom || t("reports.trialPrint.periodDefaultFrom")} — {filters.applied.dateTo || t("reports.trialPrint.periodDefaultTo")}</p>
+      <TrialBalanceSummary summary={data.summary} company={company} />
+      <form className="filter-bar trial-filters" onSubmit={(e) => { e.preventDefault(); apply(); }}>
         <label>{t("reports.trial.fromDate")}<input type="date" value={draft.dateFrom} onChange={(e) => setField("dateFrom", e.target.value)} /></label>
         <label>{t("reports.trial.toDate")}<input type="date" value={draft.dateTo} onChange={(e) => setField("dateTo", e.target.value)} /></label>
         {branches && branches.length > 0 && (
@@ -75,13 +79,16 @@ export default function TrialBalanceView({
       </form>
       <DraftEntriesNotice companyId={companyId} branchId={filters.applied.branchId || undefined} dateFrom={filters.applied.dateFrom || undefined} dateTo={filters.applied.dateTo || undefined} />
 
+      <div className="trial-category-tabs" role="group" aria-label={t("trialDesign.categories")}>
+        {["all", "asset", "liability", "equity", "income"].map(key => <button key={key} className={"btn-ghost" + (category === key ? " selected" : "")} aria-pressed={category === key} onClick={() => setCategory(key)}>{t(`trialDesign.${key}`)}</button>)}
+      </div>
       <div className="form-btn-group" style={{ marginBottom: 10 }}>
         <button className="btn-ghost" onClick={expandAll}>{t("reports.trial.expandAll")}</button>
         <button className="btn-ghost" onClick={collapseAll}>{t("reports.trial.collapseAll")}</button>
       </div>
 
-      <div className="lines-table-wrap">
-        <table className="ledger-table responsive-table">
+      <div className="lines-table-wrap trial-table-wrap">
+        <table className="ledger-table trial-table">
           <thead>
             <tr>
               <th rowSpan={2}>{t("reports.trial.table.account")}</th>
@@ -100,16 +107,18 @@ export default function TrialBalanceView({
               const isGroup = !node.isPosting;
               const isExpanded = expandedIds.has(node.accountId);
               return (
-                <tr key={node.accountId} className={"tb-tree-row" + (isGroup ? " tb-group" : "")}>
+                <tr key={node.accountId} className={"tb-tree-row tb-type-" + node.type + (isGroup ? " tb-group" : "")}>
                   <td data-label={t("reports.trial.table.account")}>
-                    <div className="tb-tree-name-cell" style={{ paddingRight: depth * 22 }}>
+                    <div className="tb-tree-name-cell" style={{ paddingInlineStart: depth * 22 }}>
                       <button
                         type="button"
                         className={"tb-tree-toggle" + (!isExpanded ? " tb-collapsed" : "")}
+                        aria-label={getAccountDisplayName(node, i18n.language)}
+                        aria-expanded={node.children.length ? isExpanded : undefined}
                         disabled={node.children.length === 0}
                         onClick={() => toggle(node.accountId)}
                       >▾</button>
-                      {node.code} — {getAccountDisplayName(node, i18n.language)}
+                      <span className="trial-account-code">{node.code}</span><span>{getAccountDisplayName(node, i18n.language)}</span>
                     </div>
                   </td>
                   <td className="num" data-label={t("statementOfAccount.table.debit")}>{node.opening.debit ? fmt(node.opening.debit) : "—"}</td>
@@ -138,6 +147,7 @@ export default function TrialBalanceView({
           </tfoot>
         </table>
       </div>
+      <footer className="trial-footer"><span>{t("trialDesign.totalScope")}</span><strong className={data.balanced ? "balance-ok" : "balance-bad"}>{data.balanced ? t("trialDesign.balanced") : t("reports.trial.unbalanced")}</strong></footer>
     </div>
   );
 }
