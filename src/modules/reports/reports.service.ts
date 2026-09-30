@@ -308,6 +308,7 @@ interface RawFlow extends Record<string, number> {
 const ZERO_FLOW: RawFlow = { openingDebit: 0, openingCredit: 0, periodDebit: 0, periodCredit: 0 };
 
 export interface TrialBalanceTreeNode {
+  type: string;
   accountId: string;
   code: string;
   name: string;
@@ -326,6 +327,7 @@ function finalizeTreeNode(node: TreeNode<RawFlow>): TrialBalanceTreeNode {
   const split = (net: number) => ({ debit: Math.max(net, 0), credit: Math.max(-net, 0) });
   return {
     accountId: node.account.id,
+    type: node.account.type,
     code: node.account.code,
     name: node.account.name,
     nameEn: node.account.nameEn,
@@ -400,6 +402,20 @@ export async function getTrialBalanceTree(
     totals.closingCredit += Math.max(-closingNet, 0);
   }
 
+  const summary = { assets: 0, liabilities: 0, equity: 0, revenue: 0, expense: 0, netIncome: 0 };
+  for (const account of allAccounts) {
+    if (!account.isPosting) continue;
+    const flow = rawValues.get(account.id)!;
+    const movement = flow.periodDebit - flow.periodCredit;
+    const closing = flow.openingDebit - flow.openingCredit + movement;
+    if (account.type === "asset") summary.assets += closing;
+    if (account.type === "liability") summary.liabilities -= closing;
+    if (account.type === "equity") summary.equity -= closing;
+    if (account.type === "revenue") summary.revenue -= movement;
+    if (account.type === "expense") summary.expense += movement;
+  }
+  summary.netIncome = summary.revenue - summary.expense;
+
   const rawTree = buildAccountValueTree(accounts, postingValues, ZERO_FLOW);
   // القص أولاً ثم التشذيب: بعد القص عند "level" تصبح أي عقدة عند هذا المستوى "ورقة" ظاهرياً
   // (بلا أبناء)، فيتعامل معها التشذيب (بحث/إخفاء المعدوم) على أساس قيمتها الإجمالية الخاصة —
@@ -414,6 +430,7 @@ export async function getTrialBalanceTree(
 
   return {
     roots,
+    summary,
     totals,
     balanced: Math.abs(totals.closingDebit - totals.closingCredit) < 0.01,
   };

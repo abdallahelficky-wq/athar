@@ -68,3 +68,27 @@ test('bulk posting confirms, skips posted entries and retains failures',async({p
  await expect(page.locator('[data-entry-row=a] input[type=checkbox]')).not.toBeChecked();
  await expect(page.getByRole('alert')).toContainText('b');
 });
+
+test('trial balance summary, category filter and printing share visible rows',async({page})=>{
+ const node=(id,type,value)=>({accountId:id,code:id,name:id==='1'?'الأصول':'الالتزامات',type,level:1,isPosting:false,opening:{debit:0,credit:0},period:{debit:type==='asset'?value:0,credit:type==='liability'?value:0},closing:{debit:type==='asset'?value:0,credit:type==='liability'?value:0},children:[]});
+ await page.route('**/api/reports/**',r=>r.fulfill({json:r.request().url().includes('trial-balance-tree')?{roots:[node('1','asset',1000),node('2','liability',1000)],summary:{assets:1000,liabilities:1000,equity:0,revenue:500,expense:650,netIncome:-150},totals:{openingDebit:0,openingCredit:0,periodDebit:1000,periodCredit:1000,closingDebit:1000,closingCredit:1000},balanced:true}:null}));
+ await page.setViewportSize({width:1440,height:1000});await page.goto('/reports/trial');
+ await expect(page.getByTestId('trial-assets')).toContainText('1,000');
+ await expect(page.locator('.trial-table tbody tr')).toHaveCount(2);
+ await page.screenshot({path:'test-results/trial-balance.png',fullPage:true});
+ await page.locator('.trial-table').scrollIntoViewIfNeeded();
+ await page.screenshot({path:'test-results/trial-table.png'});
+ await page.addStyleTag({content:'.sidebar {transition:none!important;}'});
+ await page.setViewportSize({width:390,height:844});
+ await page.locator('.trial-summary-grid').scrollIntoViewIfNeeded();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:'test-results/trial-mobile.png'});
+ await page.setViewportSize({width:1440,height:1000});
+ await page.getByRole('button',{name:'الأصول',exact:true}).click();
+ await expect(page.locator('.trial-table tbody tr')).toHaveCount(1);
+ await expect(page.getByTestId('trial-liabilities')).toContainText('1,000');
+ await page.getByRole('button',{name:'طباعة',exact:true}).click();
+ await expect(page.locator('.tb-print-table tbody tr')).toHaveCount(1);
+ await expect(page.locator('.trial-print-summary')).toContainText('1,000');
+ await page.screenshot({path:'test-results/trial-print.png',fullPage:true});
+});

@@ -143,6 +143,7 @@ export default function ReportsModule({ companies, companyId }) {
 
   // حالة ميزان المراجعة الهرمي (Tree View) — مستقلة تماماً عن فلاتر التقريرين الآخرين، ومؤجَّلة
   // بنفس الطريقة.
+  const [tbCategory, setTbCategory] = useState("all");
   const [tbData, setTbData] = useState(null);
   const tb = useDeferredFilters({ dateFrom: "", dateTo: "", level: 4, hideZeroActivity: true, search: "", branchId: "" });
   const [tbExpandedIds, setTbExpandedIds] = useState(new Set());
@@ -209,7 +210,8 @@ export default function ReportsModule({ companies, companyId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, rollupFilters.applied]);
 
-  const tbVisibleRows = tbData ? flattenVisibleTree(tbData.roots, tbExpandedIds) : [];
+  const displayedTbData = tbData ? {...tbData, roots: tbData.roots.filter(node => tbCategory === "all" || (tbCategory === "income" ? ["revenue", "expense"].includes(node.type) : node.type === tbCategory))} : null;
+  const tbVisibleRows = displayedTbData ? flattenVisibleTree(displayedTbData.roots, tbExpandedIds) : [];
 
   return (
     <div>
@@ -237,7 +239,9 @@ export default function ReportsModule({ companies, companyId }) {
           {tab === "trial" && (
             <TrialBalanceView
               companyId={companyId}
-              data={tbData}
+              data={displayedTbData}
+              company={activeCompany}
+              category={tbCategory} setCategory={setTbCategory}
               filters={tb}
               branches={branches}
               expandedIds={tbExpandedIds} setExpandedIds={setTbExpandedIds}
@@ -265,6 +269,7 @@ export default function ReportsModule({ companies, companyId }) {
 
       {printing && tab === "trial" && tbData && (
         <TrialBalanceTreePrintModal
+          summary={tbData.summary}
           visibleRows={tbVisibleRows}
           totals={tbData.totals}
           balanced={tbData.balanced}
