@@ -1,3 +1,4 @@
+import { POSITION_RESOURCES, MATRIX_ACTIONS } from "../../lib/positionMatrix";
 import { z } from "zod";
 import { ACTION_LEVELS, PLATFORM_ACTIONS } from "../../lib/platformActions";
 
@@ -43,3 +44,19 @@ export const updatePositionSchema = z.object({
 export const assignMemberSchema = z.object({
   userId: z.string().min(1, "المستخدم مطلوب"),
 });
+
+export const saveMatrixSchema = z.object({
+  rows: z.array(z.object({ resourceId: z.string(), read: z.boolean(), create: z.boolean(),
+    edit: z.boolean(), delete: z.boolean(), approve: z.boolean() }).strict())
+    .max(POSITION_RESOURCES.length)
+    .superRefine((rows, ctx) => {
+      const seen = new Set<string>();
+      for (const row of rows) {
+        const resource = POSITION_RESOURCES.find((r) => r.id === row.resourceId);
+        if (!resource || seen.has(row.resourceId) || MATRIX_ACTIONS.some((a) => row[a] && !resource.actions.includes(a))) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "صلاحيات غير صالحة أو خدمة مكررة" });
+        }
+        seen.add(row.resourceId);
+      }
+    }),
+}).strict();

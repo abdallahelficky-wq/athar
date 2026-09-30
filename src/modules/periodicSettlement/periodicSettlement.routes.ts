@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -9,5 +10,5 @@ periodicSettlementRoutes.use(authenticate, enforceCompanyScope, blockMutationsWh
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 
-periodicSettlementRoutes.get("/candidates", listCandidates);
-periodicSettlementRoutes.post("/", canWrite, validateBody(createSettlementSchema), createSettlement);
+periodicSettlementRoutes.get("/candidates", requirePositionAction("periodicSettlement", "read"), listCandidates);
+periodicSettlementRoutes.post("/", requirePositionAction("periodicSettlement", "create"), requirePositionAction("periodicSettlement", "approve"), canWrite, validateBody(createSettlementSchema), createSettlement);

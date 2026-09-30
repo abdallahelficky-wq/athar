@@ -1,3 +1,4 @@
+import PositionMatrix from "./PositionMatrix";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -185,7 +186,7 @@ export default function PositionsTab() {
   if (loading) return <p className="empty">{t("common.loading")}</p>;
 
   return (
-    <div>
+    <div className="positions-management">
       <ToastHost toast={toast} onDismiss={dismiss} />
 
       <div className="panel form-panel">
@@ -257,7 +258,8 @@ export default function PositionsTab() {
             {t("settings.positions.allowPosPriceOverrideLabel")}
           </label>
 
-          <p className="note">{t("settings.positions.permissionsTitle")}</p>
+          <PositionMatrix position={position} onSaved={(updated) => setPositions((items) => items.map((item) => item.id === updated.id ? updated : item))} />
+          <p className="note">{i18n.language === "en" ? "Special permissions: leave requests and station shifts" : "صلاحيات خاصة: طلبات الإجازة وورديات المحطات"}</p>
           <div className="form-grid">
             <select
               value={selectedModuleFor(position)}
@@ -304,6 +306,7 @@ export default function PositionsTab() {
 
           <div className="form-grid">
             <select
+              aria-label={i18n.language === "en" ? "Assign user to position" : "تعيين مستخدم للمنصب"}
               value={memberSelections[position.id] || ""}
               onChange={(e) => setMemberSelections((prev) => ({ ...prev, [position.id]: e.target.value }))}
             >
@@ -314,7 +317,7 @@ export default function PositionsTab() {
                 </option>
               ))}
             </select>
-            <button className="btn-ghost" onClick={() => addMember(position)} disabled={!memberSelections[position.id]}>
+            <button aria-label={i18n.language === "en" ? "Assign selected user" : "تعيين المستخدم المحدد"} className="btn-ghost" onClick={() => addMember(position)} disabled={!memberSelections[position.id]}>
               {t("settings.positions.addMember")}
             </button>
           </div>

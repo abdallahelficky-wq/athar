@@ -1,3 +1,6 @@
+import { POSITION_RESOURCES } from "../../lib/positionMatrix";
+import { saveMatrixSchema } from "./positions.schemas";
+import { savePositionMatrix } from "./positions.service";
 import { Router } from "express";
 import { authenticate, requireTenantOwner, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -19,6 +22,11 @@ import * as controller from "./positions.controller";
  */
 export const positionRoutes = Router();
 positionRoutes.use(authenticate, requireTenantOwner, blockMutationsWhenReadOnly);
+
+positionRoutes.get("/matrix-resources", (_req, res) => { res.json(POSITION_RESOURCES); });
+positionRoutes.put("/:id/matrix", validateBody(saveMatrixSchema), async (req, res) => {
+  res.json(await savePositionMatrix(req.auth!.tenantId, req.params.id, req.body.rows));
+});
 
 positionRoutes.get("/", controller.listHandler);
 positionRoutes.get("/assignable-users", controller.listAssignableUsersHandler);

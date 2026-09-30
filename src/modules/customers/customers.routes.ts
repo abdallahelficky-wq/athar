@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -17,13 +18,13 @@ customerRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 
-customerRoutes.get("/", listCustomers);
-customerRoutes.get("/:id/balance", getCustomerBalance);
-customerRoutes.post("/", canWrite, validateBody(createCustomerSchema), createCustomer);
-customerRoutes.patch("/:id", canWrite, validateBody(updateCustomerSchema), updateCustomer);
-customerRoutes.delete("/:id", canWrite, deleteCustomer);
+customerRoutes.get("/", requirePositionAction("customers", "read"), listCustomers);
+customerRoutes.get("/:id/balance", requirePositionAction("customers", "read"), getCustomerBalance);
+customerRoutes.post("/", requirePositionAction("customers", "create"), canWrite, validateBody(createCustomerSchema), createCustomer);
+customerRoutes.patch("/:id", requirePositionAction("customers", "edit"), canWrite, validateBody(updateCustomerSchema), updateCustomer);
+customerRoutes.delete("/:id", requirePositionAction("customers", "delete"), canWrite, deleteCustomer);
 customerRoutes.post(
-  "/:id/extract-document",
+  "/:id/extract-document", requirePositionAction("customers", "create"),
   canWrite,
   uploadSingleFile,
   validateBody(extractCustomerDocumentSchema),

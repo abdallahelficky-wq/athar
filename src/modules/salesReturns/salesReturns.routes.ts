@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -25,17 +26,17 @@ const canWrite = requireRole("admin", "finance_manager", "accountant");
 // يتطلبها فك ترحيل قيد يومية مباشرة — لا الدور وحده. المالك وsuper_admin معفيان كما في كل صلاحية.
 const canUnpost = requirePermission("accounts", "unpost");
 
-salesReturnRoutes.get("/", listHandler);
+salesReturnRoutes.get("/", requirePositionAction("salesReturns", "read"), listHandler);
 // يجب أن تُسجَّل قبل GET "/:id" وإلا التقطها Express كمعرّف مردود حرفي "search" — نفس تبرير
 // ترتيب /sales-invoices/search بالضبط.
-salesReturnRoutes.get("/search", searchHandler);
-salesReturnRoutes.get("/:id", getHandler);
-salesReturnRoutes.get("/:id/pdf", downloadPdfHandler);
-salesReturnRoutes.post("/", canWrite, validateBody(createSalesReturnSchema), createHandler);
-salesReturnRoutes.patch("/:id", canWrite, validateBody(updateSalesReturnSchema), updateHandler);
-salesReturnRoutes.delete("/:id", canWrite, deleteHandler);
-salesReturnRoutes.post("/:id/send-email", canWrite, validateBody(sendEmailSchema), sendEmailHandler);
-salesReturnRoutes.post("/:id/post", canWrite, postHandler);
-salesReturnRoutes.post("/:id/unpost", canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
-salesReturnRoutes.post("/:id/retry-zatca-submission", canWrite, retryZatcaSubmissionHandler);
-salesReturnRoutes.post("/:id/complete-zatca-posting", canWrite, completeZatcaPostingHandler);
+salesReturnRoutes.get("/search", requirePositionAction("salesReturns", "read"), searchHandler);
+salesReturnRoutes.get("/:id", requirePositionAction("salesReturns", "read"), getHandler);
+salesReturnRoutes.get("/:id/pdf", requirePositionAction("salesReturns", "read"), downloadPdfHandler);
+salesReturnRoutes.post("/", requirePositionAction("salesReturns", "create"), requirePositionAction("salesReturns", "approve"), canWrite, validateBody(createSalesReturnSchema), createHandler);
+salesReturnRoutes.patch("/:id", requirePositionAction("salesReturns", "edit"), canWrite, validateBody(updateSalesReturnSchema), updateHandler);
+salesReturnRoutes.delete("/:id", requirePositionAction("salesReturns", "delete"), canWrite, deleteHandler);
+salesReturnRoutes.post("/:id/send-email", requirePositionAction("salesReturns", "edit"), canWrite, validateBody(sendEmailSchema), sendEmailHandler);
+salesReturnRoutes.post("/:id/post", requirePositionAction("salesReturns", "approve"), canWrite, postHandler);
+salesReturnRoutes.post("/:id/unpost", requirePositionAction("salesReturns", "approve"), canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
+salesReturnRoutes.post("/:id/retry-zatca-submission", requirePositionAction("salesReturns", "approve"), canWrite, retryZatcaSubmissionHandler);
+salesReturnRoutes.post("/:id/complete-zatca-posting", requirePositionAction("salesReturns", "approve"), canWrite, completeZatcaPostingHandler);

@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, blockMutationsWhenReadOnly, requireActionPermission } from "../../middleware/auth";
 import { salesVolumeHandler, cashSummaryHandler, expensesHandler, netCashHandler, seedDataExceptionsHandler } from "./stationShiftsReports.controller";
@@ -20,8 +21,8 @@ stationShiftsReportRoutes.use(authenticate, enforceCompanyScope, blockMutationsW
 
 const netCashAccess = requireActionPermission("stationShifts", "review", "approve");
 
-stationShiftsReportRoutes.get("/sales-volume", salesVolumeHandler);
-stationShiftsReportRoutes.get("/cash-summary", cashSummaryHandler);
-stationShiftsReportRoutes.get("/expenses", expensesHandler);
-stationShiftsReportRoutes.get("/net-cash", netCashAccess, netCashHandler);
-stationShiftsReportRoutes.get("/seed-data-exceptions", netCashAccess, seedDataExceptionsHandler);
+stationShiftsReportRoutes.get("/sales-volume", requirePositionAction("stationShiftsReports", "read"), salesVolumeHandler);
+stationShiftsReportRoutes.get("/cash-summary", requirePositionAction("stationShiftsReports", "read"), cashSummaryHandler);
+stationShiftsReportRoutes.get("/expenses", requirePositionAction("stationShiftsReports", "read"), expensesHandler);
+stationShiftsReportRoutes.get("/net-cash", requirePositionAction("stationShiftsReports", "read"), netCashAccess, netCashHandler);
+stationShiftsReportRoutes.get("/seed-data-exceptions", requirePositionAction("stationShiftsReports", "read"), netCashAccess, seedDataExceptionsHandler);

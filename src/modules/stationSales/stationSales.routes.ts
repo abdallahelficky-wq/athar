@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -9,6 +10,6 @@ stationSaleRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadO
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 
-stationSaleRoutes.get("/", listHandler);
-stationSaleRoutes.post("/", canWrite, validateBody(createStationSaleSchema), createHandler);
-stationSaleRoutes.delete("/:id", canWrite, deleteHandler);
+stationSaleRoutes.get("/", requirePositionAction("stationSales", "read"), listHandler);
+stationSaleRoutes.post("/", requirePositionAction("stationSales", "create"), canWrite, validateBody(createStationSaleSchema), createHandler);
+stationSaleRoutes.delete("/:id", requirePositionAction("stationSales", "delete"), canWrite, deleteHandler);

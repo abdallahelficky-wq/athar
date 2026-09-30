@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -12,8 +13,8 @@ const canWrite = requireRole("admin", "finance_manager", "accountant");
 // يتطلبها فك ترحيل قيد يومية مباشرة — لا الدور وحده. المالك وsuper_admin معفيان كما في كل صلاحية.
 const canUnpost = requirePermission("accounts", "unpost");
 
-purchaseReturnRoutes.get("/", listHandler);
-purchaseReturnRoutes.post("/", canWrite, validateBody(createPurchaseReturnSchema), createHandler);
-purchaseReturnRoutes.delete("/:id", canWrite, deleteHandler);
-purchaseReturnRoutes.post("/:id/post", canWrite, postHandler);
-purchaseReturnRoutes.post("/:id/unpost", canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
+purchaseReturnRoutes.get("/", requirePositionAction("purchaseReturns", "read"), listHandler);
+purchaseReturnRoutes.post("/", requirePositionAction("purchaseReturns", "create"), requirePositionAction("purchaseReturns", "approve"), canWrite, validateBody(createPurchaseReturnSchema), createHandler);
+purchaseReturnRoutes.delete("/:id", requirePositionAction("purchaseReturns", "delete"), canWrite, deleteHandler);
+purchaseReturnRoutes.post("/:id/post", requirePositionAction("purchaseReturns", "approve"), canWrite, postHandler);
+purchaseReturnRoutes.post("/:id/unpost", requirePositionAction("purchaseReturns", "approve"), canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);

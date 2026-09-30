@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -11,7 +12,7 @@ companyBankAccountRoutes.use(authenticate, enforceCompanyScope, blockMutationsWh
 
 const canWrite = requireRole("admin", "finance_manager");
 
-companyBankAccountRoutes.get("/", listCompanyBankAccounts);
-companyBankAccountRoutes.post("/", canWrite, validateBody(createCompanyBankAccountSchema), createCompanyBankAccount);
-companyBankAccountRoutes.patch("/:id", canWrite, validateBody(updateCompanyBankAccountSchema), updateCompanyBankAccount);
-companyBankAccountRoutes.delete("/:id", canWrite, deleteCompanyBankAccount);
+companyBankAccountRoutes.get("/", requirePositionAction("companyBankAccounts", "read"), listCompanyBankAccounts);
+companyBankAccountRoutes.post("/", requirePositionAction("companyBankAccounts", "create"), canWrite, validateBody(createCompanyBankAccountSchema), createCompanyBankAccount);
+companyBankAccountRoutes.patch("/:id", requirePositionAction("companyBankAccounts", "edit"), canWrite, validateBody(updateCompanyBankAccountSchema), updateCompanyBankAccount);
+companyBankAccountRoutes.delete("/:id", requirePositionAction("companyBankAccounts", "delete"), canWrite, deleteCompanyBankAccount);

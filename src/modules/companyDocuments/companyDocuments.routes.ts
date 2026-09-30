@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -12,17 +13,17 @@ import {
 export const companyDocumentRoutes = Router();
 companyDocumentRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
-companyDocumentRoutes.get("/", listCompanyDocuments);
+companyDocumentRoutes.get("/", requirePositionAction("companyDocuments", "read"), listCompanyDocuments);
 companyDocumentRoutes.post(
-  "/",
+  "/", requirePositionAction("companyDocuments", "create"),
   requireRole("admin", "finance_manager"),
   validateBody(createCompanyDocumentSchema),
   createCompanyDocument,
 );
 companyDocumentRoutes.patch(
-  "/:id",
+  "/:id", requirePositionAction("companyDocuments", "edit"),
   requireRole("admin", "finance_manager"),
   validateBody(updateCompanyDocumentSchema),
   updateCompanyDocument,
 );
-companyDocumentRoutes.delete("/:id", requireRole("admin", "finance_manager"), deleteCompanyDocument);
+companyDocumentRoutes.delete("/:id", requirePositionAction("companyDocuments", "delete"), requireRole("admin", "finance_manager"), deleteCompanyDocument);

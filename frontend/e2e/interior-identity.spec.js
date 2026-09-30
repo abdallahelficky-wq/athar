@@ -92,3 +92,47 @@ test('trial balance summary, category filter and printing share visible rows',as
  await expect(page.locator('.trial-print-summary')).toContainText('1,000');
  await page.screenshot({path:'test-results/trial-print.png',fullPage:true});
 });
+
+
+test('position permission matrix saves independent grants and assigns a user', async ({ page }) => {
+ const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+ const position={id:'p',name:'محاسب',matrixEnabled:true,matrix:{suppliers:{read:true}},actionLevels:{},members:[]};
+ const resources=[{id:'suppliers',label:{ar:'الموردون',en:'Suppliers'},actions:['read','create','edit','delete']},{id:'salesInvoices',label:{ar:'فواتير المبيعات',en:'Sales invoices'},actions:['read','create','edit','delete','approve']}];
+ let saved, assigned;
+ await page.route('http://localhost:4000/api/**',async route=>{
+  const path=new URL(route.request().url()).pathname;
+  if(path.endsWith('/auth/me')) return route.fulfill({json:{user:{id:'u',name:'المالك',role:'admin'},tenant:{id:'t',ownerId:'u',name:'شركة المعاينة'}}});
+  if(!path.includes('/positions')) return route.fallback();
+  let data=[];
+  if(path.endsWith('/matrix-resources')) data=resources;
+  else if(path.endsWith('/assignable-users')) data=[{id:'employee',name:'المستخدم التجريبي',email:'fixture@example.test',positionId:null}];
+  else if(path.endsWith('/actions')) data={};
+  else if(path.endsWith('/matrix')) { saved=route.request().postDataJSON().rows; data={...position,matrix:Object.fromEntries(saved.map(({resourceId,...grants})=>[resourceId,grants]))}; }
+  else if(path.endsWith('/members')) { assigned=route.request().postDataJSON(); data=position; }
+  else if(path.endsWith('/positions')) data=[position];
+  await route.fulfill({json:data});
+ });
+ await page.setViewportSize({width:1440,height:1000});
+ await page.goto('/settings/positions');
+ const matrix=page.getByRole('region',{name:'مصفوفة الصلاحيات'});
+ await expect(matrix).toBeVisible();
+ await matrix.getByRole('checkbox',{name:'فواتير المبيعات — الإنشاء',exact:true}).check();
+ await expect(matrix.getByRole('checkbox',{name:'فواتير المبيعات — الاعتماد / الترحيل',exact:true})).not.toBeChecked();
+ await matrix.getByRole('searchbox').fill('فواتير');
+ await matrix.getByRole('button',{name:'حفظ الصلاحيات',exact:true}).click();
+ await expect(matrix.getByRole('status')).toHaveText('تم حفظ الصلاحيات.');
+ expect(saved.find(r=>r.resourceId==='salesInvoices')).toMatchObject({create:true,approve:false,delete:false});
+ expect(saved.find(r=>r.resourceId==='suppliers').read).toBe(true);
+ await matrix.getByRole('searchbox').fill('');
+ await page.screenshot({path:'test-results/position-matrix-desktop.png',fullPage:true});
+ await page.getByRole('combobox',{name:'تعيين مستخدم للمنصب'}).selectOption('employee');
+ await page.getByRole('button',{name:'تعيين المستخدم المحدد'}).click();
+ await expect.poll(()=>assigned?.userId).toBe('employee');
+ await page.addStyleTag({content:'.sidebar {transition:none!important}'});
+ await page.setViewportSize({width:390,height:844});
+ await expect(matrix).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await matrix.scrollIntoViewIfNeeded();
+ await page.screenshot({path:'test-results/position-matrix-mobile.png',fullPage:true});
+ expect(errors).toEqual([]);
+});

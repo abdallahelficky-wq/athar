@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -20,12 +21,12 @@ const canWrite = requireRole("admin", "finance_manager", "accountant");
 // يتطلبها فك ترحيل قيد يومية مباشرة — لا الدور وحده. المالك وsuper_admin معفيان كما في كل صلاحية.
 const canUnpost = requirePermission("accounts", "unpost");
 
-stockMovementRoutes.get("/", listHandler);
-stockMovementRoutes.get("/balance", balanceHandler);
+stockMovementRoutes.get("/", requirePositionAction("stockMovements", "read"), listHandler);
+stockMovementRoutes.get("/balance", requirePositionAction("stockMovements", "read"), balanceHandler);
 // يجب أن يُسجَّل قبل أي مسار عام لاحق بنمط "/:شيء" وإلا التقطه Express كمعرّف حرفي — لا تعارض حالياً
 // (لا يوجد GET "/:id" عام في هذه الوحدة أصلاً)، لكن يبقى الترتيب الآمن المتّبع في كل موديول آخر.
-stockMovementRoutes.get("/item-card/:itemId", itemCardHandler);
-stockMovementRoutes.post("/in-out", canWrite, validateBody(createInOutSchema), createInOutHandler);
-stockMovementRoutes.post("/issue", canWrite, validateBody(createIssueSchema), createIssueHandler);
-stockMovementRoutes.post("/transfer", canWrite, validateBody(createTransferSchema), createTransferHandler);
-stockMovementRoutes.delete("/:id", canWrite, canUnpost, validateBody(removeSchema), removeHandler);
+stockMovementRoutes.get("/item-card/:itemId", requirePositionAction("stockMovements", "read"), itemCardHandler);
+stockMovementRoutes.post("/in-out", requirePositionAction("stockMovements", "create"), requirePositionAction("stockMovements", "approve"), canWrite, validateBody(createInOutSchema), createInOutHandler);
+stockMovementRoutes.post("/issue", requirePositionAction("stockMovements", "create"), requirePositionAction("stockMovements", "approve"), canWrite, validateBody(createIssueSchema), createIssueHandler);
+stockMovementRoutes.post("/transfer", requirePositionAction("stockMovements", "create"), requirePositionAction("stockMovements", "approve"), canWrite, validateBody(createTransferSchema), createTransferHandler);
+stockMovementRoutes.delete("/:id", requirePositionAction("stockMovements", "delete"), canWrite, canUnpost, validateBody(removeSchema), removeHandler);

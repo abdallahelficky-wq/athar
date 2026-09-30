@@ -1,3 +1,4 @@
+import { MATRIX_MARKER, POSITION_RESOURCES } from "../../lib/positionMatrix";
 import { prisma } from "../../lib/prisma";
 import { conflict, notFound } from "../../lib/httpError";
 import type { Prisma, PermissionLevel } from "@prisma/client";
@@ -11,7 +12,7 @@ const UNPOST_MODULE_ID = "accounts";
 const POS_MODULE_ID = "sales";
 
 const positionInclude = {
-  permissions: { where: { moduleId: { in: [UNPOST_MODULE_ID, POS_MODULE_ID] } } },
+  permissions: true,
   // كل الوحدات المُهاجَرة للنظام الترتيبي معاً (لا وحدة واحدة مُسمّاة) — القائمة تتسع تلقائياً مع
   // أي وحدة جديدة تُضاف إلى PLATFORM_ACTIONS بلا أي تعديل هنا.
   actionPermissions: true,
@@ -53,6 +54,13 @@ function publicPosition(position: PositionRaw) {
     allowUnpost,
     allowPosDeferredSale,
     allowPosPriceOverride,
+    matrixEnabled: position.permissions.some((p) => p.moduleId === MATRIX_MARKER),
+    matrix: Object.fromEntries(POSITION_RESOURCES.map((resource) => {
+      const row = position.permissions.find((p) => p.moduleId === `matrix:${resource.id}`);
+      return [resource.id, { read: !!row?.canRead, create: !!row?.canCreate,
+        edit: (row?.extra as Record<string, unknown> | null)?.edit === true,
+        delete: !!row?.canDelete, approve: !!row?.canApprove }];
+    })),
     actionLevels: buildActionLevels(position.actionPermissions),
     members: position.users.map((u) => ({ id: u.id, name: u.name, email: u.identity.email })),
   };
@@ -77,7 +85,7 @@ export async function createPosition(
   const existing = await prisma.position.findUnique({ where: { tenantId_name: { tenantId, name } } });
   if (existing) throw conflict("يوجد بالفعل منصب بهذا الاسم");
 
-  const permissionsToCreate: Prisma.PositionPermissionCreateWithoutPositionInput[] = [];
+  const permissionsToCreate: Prisma.PositionPermissionCreateWithoutPositionInput[] = [{ moduleId: MATRIX_MARKER }];
   if (allowUnpost) permissionsToCreate.push({ moduleId: UNPOST_MODULE_ID, extra: { unpost: true } });
   if (allowPosDeferredSale || allowPosPriceOverride) {
     permissionsToCreate.push({
@@ -213,6 +221,7 @@ export async function deleteUserOverride(tenantId: string, overrideId: string) {
 export async function deletePosition(tenantId: string, positionId: string) {
   const position = await prisma.position.findFirst({ where: { id: positionId, tenantId } });
   if (!position) throw notFound("المنصب غير موجود");
+  if (await prisma.user.count({ where: { tenantId, positionId } })) throw conflict("انقل المستخدمين إلى منصب آخر قبل حذف هذا المنصب");
   await prisma.position.delete({ where: { id: positionId } });
 }
 
@@ -283,4 +292,21 @@ export async function listAssignableUsers(tenantId: string) {
     orderBy: { name: "asc" },
   });
   return users.map(({ identity, ...rest }) => ({ ...rest, email: identity.email }));
+}
+
+export async function savePositionMatrix(tenantId: string, positionId: string,
+  rows: { resourceId: string; read: boolean; create: boolean; edit: boolean; delete: boolean; approve: boolean }[]) {
+  return prisma.$transaction(async (tx) => {
+    const position = await tx.position.findFirst({ where: { id: positionId, tenantId } });
+    if (!position) throw notFound("المنصب غير موجود");
+    // Atomic replacement; special permissions and existing action-level grants are untouched.
+    await tx.positionPermission.deleteMany({ where: { positionId,
+      OR: [{ moduleId: { startsWith: "matrix:" } }, { moduleId: MATRIX_MARKER }] } });
+    await tx.positionPermission.createMany({ data: [
+      { positionId, moduleId: MATRIX_MARKER, canRead: false, canCreate: false, canDelete: false, canApprove: false, extra: {} },
+      ...rows.map((row) => ({ positionId, moduleId: `matrix:${row.resourceId}`, canRead: row.read,
+        canCreate: row.create, canDelete: row.delete, canApprove: row.approve, extra: { edit: row.edit } })),
+    ] });
+    return publicPosition(await tx.position.findUniqueOrThrow({ where: { id: positionId }, include: positionInclude }));
+  });
 }

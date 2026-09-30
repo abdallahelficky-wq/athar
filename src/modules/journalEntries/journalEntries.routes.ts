@@ -1,3 +1,4 @@
+import { requirePositionAction, requirePositionPosting } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, requirePermission, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -42,30 +43,30 @@ const canWrite = requireRole("admin", "finance_manager", "accountant");
 // middleware/auth.ts وشاشة إدارة المناصب في الإعدادات.
 const canUnpost = requirePermission("accounts", "unpost");
 
-journalEntryRoutes.get("/", listHandler);
+journalEntryRoutes.get("/", requirePositionAction("journalEntries", "read"), listHandler);
 // يجب أن يسبق "/:id" كي لا يُعامَل "next-number" كمعرّف قيد
-journalEntryRoutes.get("/next-number", nextNumberHandler);
-journalEntryRoutes.get("/:id", getHandler);
-journalEntryRoutes.get("/:id/pdf", getPdfHandler);
-journalEntryRoutes.post("/", canWrite, validateBody(createJournalEntrySchema), createHandler);
-journalEntryRoutes.post("/bulk-import/preview", canWrite, validateBody(previewBulkImportSchema), bulkImportPreviewHandler);
-journalEntryRoutes.post("/bulk-import/commit", canWrite, validateBody(commitBulkImportSchema), bulkImportCommitHandler);
+journalEntryRoutes.get("/next-number", requirePositionAction("journalEntries", "read"), nextNumberHandler);
+journalEntryRoutes.get("/:id", requirePositionAction("journalEntries", "read"), getHandler);
+journalEntryRoutes.get("/:id/pdf", requirePositionAction("journalEntries", "read"), getPdfHandler);
+journalEntryRoutes.post("/", requirePositionAction("journalEntries", "create"), requirePositionPosting("journalEntries", false), canWrite, validateBody(createJournalEntrySchema), createHandler);
+journalEntryRoutes.post("/bulk-import/preview", requirePositionAction("journalEntries", "read"), canWrite, validateBody(previewBulkImportSchema), bulkImportPreviewHandler);
+journalEntryRoutes.post("/bulk-import/commit", requirePositionAction("journalEntries", "create"), requirePositionPosting("journalEntries", false), canWrite, validateBody(commitBulkImportSchema), bulkImportCommitHandler);
 journalEntryRoutes.post(
-  "/from-document",
+  "/from-document", requirePositionAction("journalEntries", "create"), requirePositionPosting("journalEntries", false),
   canWrite,
   uploadSingleFile,
   validateBody(createFromDocumentSchema),
   createFromDocumentHandler,
 );
-journalEntryRoutes.patch("/:id", canWrite, validateBody(updateJournalEntrySchema), updateHandler);
-journalEntryRoutes.delete("/:id", canWrite, deleteHandler);
-journalEntryRoutes.post("/:id/post", canWrite, postHandler);
-journalEntryRoutes.post("/:id/unpost", canUnpost, validateBody(unpostSchema), unpostHandler);
+journalEntryRoutes.patch("/:id", requirePositionAction("journalEntries", "edit"), canWrite, validateBody(updateJournalEntrySchema), updateHandler);
+journalEntryRoutes.delete("/:id", requirePositionAction("journalEntries", "delete"), canWrite, deleteHandler);
+journalEntryRoutes.post("/:id/post", requirePositionAction("journalEntries", "approve"), canWrite, postHandler);
+journalEntryRoutes.post("/:id/unpost", requirePositionAction("journalEntries", "approve"), canUnpost, validateBody(unpostSchema), unpostHandler);
 journalEntryRoutes.post(
-  "/:id/mirror-suggestion",
+  "/:id/mirror-suggestion", requirePositionAction("journalEntries", "read"),
   canWrite,
   validateBody(mirrorSuggestionSchema),
   mirrorSuggestionHandler,
 );
-journalEntryRoutes.post("/:id/mirror", canWrite, validateBody(createMirrorSchema), createMirrorHandler);
-journalEntryRoutes.post("/:id/reverse", canWrite, validateBody(reverseJournalEntrySchema), reverseHandler);
+journalEntryRoutes.post("/:id/mirror", requirePositionAction("journalEntries", "create"), requirePositionAction("journalEntries", "approve"), canWrite, validateBody(createMirrorSchema), createMirrorHandler);
+journalEntryRoutes.post("/:id/reverse", requirePositionAction("journalEntries", "approve"), canWrite, validateBody(reverseJournalEntrySchema), reverseHandler);
