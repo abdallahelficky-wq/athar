@@ -10,6 +10,7 @@ import {
   refreshSchema,
   inviteSchema,
   setUserActiveSchema,
+  updateUserSchema,
   acceptInviteSchema,
   changeUnlockPinSchema,
   updateTenantSchema,
@@ -28,6 +29,7 @@ import {
   listUsersHandler,
   resendInviteHandler,
   setUserActiveHandler,
+  updateUserHandler,
   deleteUserHandler,
   getInviteInfoHandler,
   acceptInviteHandler,
@@ -73,8 +75,16 @@ authRoutes.patch(
   validateBody(setUserActiveSchema),
   setUserActiveHandler,
 );
-// حذف نهائي أخطر من التعطيل (لا رجعة فيه) — يقتصر على admin فقط، بخلاف الدعوة/التعطيل المتاحين
-// أيضاً لـfinance_manager، بنفس منطق تقييد حذف الشركة نفسها في companies.routes.ts.
+authRoutes.patch(
+  "/users/:id",
+  authenticate, requirePositionAction("userAdministration", "edit"),
+  blockMutationsWhenReadOnly,
+  requireRole("admin", "finance_manager"),
+  validateBody(updateUserSchema),
+  updateUserHandler,
+);
+// حذف المستخدم من الشركة أخطر من التعطيل (يخرجه من القوائم ويفصله عن منصبه) — يقتصر على admin فقط، بخلاف
+// الدعوة/التعطيل المتاحين أيضاً لـfinance_manager. أثره في القيود والتدقيق يبقى (راجع deleteUser).
 authRoutes.delete("/users/:id", authenticate, requirePositionAction("userAdministration", "delete"), blockMutationsWhenReadOnly, requireRole("admin"), deleteUserHandler);
 authRoutes.get("/invite-info", getInviteInfoHandler);
 authRoutes.post("/accept-invite", validateBody(acceptInviteSchema), acceptInviteHandler);

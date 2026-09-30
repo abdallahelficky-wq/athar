@@ -104,24 +104,34 @@ describe("erasure and exposure fixes (integration)", () => {
     expect(await prisma.company.count({ where: { id: companyId } })).toBe(1);
   });
 
-  it("2) a user with any footprint cannot be deleted; deactivation blocks sign-in and revokes sessions", async () => {
-    // حساب لم يُستخدَم قط (دعوة معلّقة): يُحذَف
+  it("2) a user with any footprint keeps their row when deleted; deactivation blocks sign-in and revokes sessions", async () => {
+    // حساب لم يُستخدَم قط (دعوة معلّقة): يُحذَف صفّه فعلاً
     const pendingIdentity = await prisma.identity.create({ data: { email: `erasure-pending-${stamp}@example.com` } });
     emails.push(pendingIdentity.email);
     const pending = await prisma.user.create({
       data: { tenantId, identityId: pendingIdentity.id, name: "دعوة بالخطأ", role: "viewer", inviteStatus: "pending" },
     });
-    expect((await call("DELETE", `/auth/users/${pending.id}`, ownerToken)).status).toBe(204);
+    const removed = await call("DELETE", `/auth/users/${pending.id}`, ownerToken);
+    expect(removed.status).toBe(200);
+    expect(removed.body).toEqual({ archived: false });
+    expect(await prisma.user.count({ where: { id: pending.id } })).toBe(0);
 
-    // مستخدم ظهر في صف تدقيق واحد فقط (بلا دخول ولا قيود): يُرفَض حذفه
-    await prisma.auditLog.create({ data: { tenantId, userId: userIds.viewer, action: "probe", entityType: "User", entityId: userIds.viewer } });
-    const refused = await call("DELETE", `/auth/users/${userIds.viewer}`, ownerToken);
-    expect(refused.status).toBe(400);
-    expect(await prisma.user.count({ where: { id: userIds.viewer } })).toBe(1);
-
-    // مستخدم سبق له الدخول: يُرفَض حذفه
-    await prisma.user.update({ where: { id: userIds.hr_manager }, data: { lastLoginAt: new Date() } });
-    expect((await call("DELETE", `/auth/users/${userIds.hr_manager}`, ownerToken)).status).toBe(400);
+    // مستخدم ظهر في صف تدقيق واحد فقط، وآخر سبق له الدخول: يُحذَفان من الشركة لكن صفّاهما يبقيان
+    for (const [label, footprint] of [
+      ["audit", async (id: string) => { await prisma.auditLog.create({ data: { tenantId, userId: id, action: "probe", entityType: "User", entityId: id } }); }],
+      ["login", async (id: string) => { await prisma.user.update({ where: { id }, data: { lastLoginAt: new Date() } }); }],
+    ] as const) {
+      const identity = await prisma.identity.create({ data: { email: `erasure-footprint-${label}-${stamp}@example.com` } });
+      emails.push(identity.email);
+      const user = await prisma.user.create({ data: { tenantId, identityId: identity.id, name: `أثر ${label}`, role: "viewer" } });
+      await footprint(user.id);
+      const archived = await call("DELETE", `/auth/users/${user.id}`, ownerToken);
+      expect(archived.status).toBe(200);
+      expect(archived.body).toEqual({ archived: true });
+      const kept = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+      expect(kept.deletedAt).not.toBeNull();
+      expect(kept.active).toBe(false);
+    }
 
     // التعطيل يُبطل رموز التحديث القائمة
     const token = await prisma.refreshToken.create({

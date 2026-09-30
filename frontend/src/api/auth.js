@@ -18,6 +18,7 @@ export const inviteUser = (payload) => api.post("/auth/invite", payload);
 export const listUsers = () => api.get("/auth/users");
 export const resendInvite = (userId) => api.post(`/auth/users/${userId}/resend-invite`);
 export const setUserActive = (userId, active) => api.patch(`/auth/users/${userId}/active`, { active });
+export const updateUser = (userId, payload) => api.patch(`/auth/users/${userId}`, payload);
 export const deleteUser = (userId) => api.delete(`/auth/users/${userId}`);
 export const getInviteInfo = (token) => api.get(`/auth/invite-info?token=${encodeURIComponent(token)}`);
 export const acceptInvite = (payload) => api.post("/auth/accept-invite", payload);

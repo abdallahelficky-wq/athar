@@ -212,6 +212,9 @@ model User {
   inviteToken     String?      @unique
   inviteExpiresAt DateTime?
   lastLoginAt     DateTime?
+  // حذف المستخدم من الشركة (موظف ترك العمل): الصف يبقى حتى يبقى كل قيد وصف تدقيق منسوباً إليه، لكنه
+  // يختفي من القوائم ولا يستطيع الدخول. NULL = مستخدم قائم. راجع deleteUser في auth.service.ts.
+  deletedAt       DateTime?
   // قفل فك الترحيل لهذا المستخدم بعد 5 محاولات خاطئة متتالية للرقم السري (15 دقيقة) — راجع
   // assertValidUnlockPin في lib/journalPosting.ts. كل محاولة خاطئة تُكتَب أيضاً في audit_logs باسمه.
   unlockPinFailedAttempts Int       @default(0)

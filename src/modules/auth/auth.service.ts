@@ -15,7 +15,7 @@ import { createChartFromTemplate } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 import { createStarterItems, createCashParties, createDefaultWarehouse, linkStationCashAccounts } from "../../lib/starterData";
 import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../../lib/mailer";
-import { badRequest, conflict, notFound, unauthorized } from "../../lib/httpError";
+import { badRequest, conflict, forbidden, notFound, unauthorized } from "../../lib/httpError";
 import type { Lang } from "../../lib/i18n/translate";
 import type { Prisma, Tenant, User, Identity } from "@prisma/client";
 import { canUnpostJournalEntries, canDeferPosSale, canOverridePosPrice } from "../positions/positions.service";
@@ -258,7 +258,7 @@ export async function login(input: { email: string; password: string }) {
   if (!valid) throw unauthorized("البريد الإلكتروني أو كلمة المرور غير صحيحة");
 
   const memberships = await prisma.user.findMany({
-    where: { identityId: identity.id, inviteStatus: "accepted" },
+    where: { identityId: identity.id, inviteStatus: "accepted", deletedAt: null },
     include: { identity: true },
   });
   if (memberships.length === 0) throw unauthorized("البريد الإلكتروني أو كلمة المرور غير صحيحة");
@@ -304,7 +304,7 @@ export async function completeLoginChoice(identityToken: string, userId: string)
   }
 
   const user = await prisma.user.findFirst({
-    where: { id: userId, identityId: payload.identityId, inviteStatus: "accepted" },
+    where: { id: userId, identityId: payload.identityId, inviteStatus: "accepted", deletedAt: null },
     include: { identity: true },
   });
   if (!user) throw notFound("الحساب غير موجود");
@@ -347,7 +347,7 @@ export async function switchAccount(currentUserId: string, targetUserId: string)
   if (!current || !current.active) throw unauthorized("الحساب غير موجود أو معطّل");
 
   const target = await prisma.user.findFirst({
-    where: { id: targetUserId, identityId: current.identityId, inviteStatus: "accepted" },
+    where: { id: targetUserId, identityId: current.identityId, inviteStatus: "accepted", deletedAt: null },
     include: { identity: true },
   });
   if (!target) throw notFound("الحساب غير موجود");
@@ -371,7 +371,7 @@ export async function refresh(refreshToken: string) {
   }
 
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-  if (!user || !user.active) throw unauthorized("الحساب غير موجود أو معطّل");
+  if (!user || !user.active || user.deletedAt) throw unauthorized("الحساب غير موجود أو معطّل");
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
   assertTenantActive(tenant);
@@ -393,46 +393,127 @@ export async function logout(refreshToken: string) {
   });
 }
 
+/** نطاق الوصول إما "all" أو شركة من شركات هذا المستأجر نفسه — لا معرّف شركة من مستأجر آخر. */
+async function assertCompanyScopeInTenant(tenantId: string, companyScope: string) {
+  if (companyScope === "all") return;
+  const company = await prisma.company.findFirst({ where: { id: companyScope, tenantId }, select: { id: true } });
+  if (!company) throw badRequest("الشركة المحددة لنطاق الوصول غير موجودة");
+}
+
+/**
+ * إسناد المنصب من شاشة المستخدمين يتبع قاعدة شاشة المناصب نفسها (requireTenantOwner): المالك وحده
+ * يحدّد صلاحيات أحد عبر المنصب، فمدير أو مدير مالي يدعو/يعدّل مستخدماً لا يستطيع إسناد منصب له.
+ * undefined = لا تغيير على المنصب؛ null = بلا منصب.
+ */
+async function assertPositionAssignable(actor: UserActor, tenantId: string, positionId: string | null | undefined) {
+  if (positionId === undefined) return;
+  if (!actor.isOwner) throw forbidden("إسناد المنصب متاح لمالك الشركة فقط");
+  if (positionId === null) return;
+  const position = await prisma.position.findFirst({ where: { id: positionId, tenantId }, select: { id: true } });
+  if (!position) throw notFound("المنصب غير موجود");
+}
+
+/** من ينفّذ إدارة المستخدمين: دوره، وهل هو مالك الشركة (يُحسَب في الـcontroller من قاعدة البيانات). */
+export type UserActor = { id: string; role: string; isOwner: boolean };
+
+/** دور "مدير" يمنحه ويسحبه المدير أو المالك فقط — لا مدير مالي يرفع أحداً فوقه أو يعدّل مديراً. */
+function assertCanManageRole(actor: UserActor, targetRole: string, newRole?: string) {
+  const privileged = actor.isOwner || actor.role === "admin" || actor.role === "super_admin";
+  if (!privileged && (targetRole === "admin" || newRole === "admin")) {
+    throw forbidden("منح دور المدير أو تعديل مستخدم مدير متاح للمدير أو مالك الشركة فقط");
+  }
+}
+
 export async function invite(
   tenantId: string,
-  input: { name: string; email: string; role: string; companyScope: string },
+  input: { name: string; email: string; role: string; companyScope: string; positionId?: string | null },
   lang: Lang = "ar",
+  actor?: UserActor,
 ) {
-  const existingIdentity = await prisma.identity.findUnique({ where: { email: input.email } });
-  if (existingIdentity) {
-    const existingMembership = await prisma.user.findUnique({
-      where: { identityId_tenantId: { identityId: existingIdentity.id, tenantId } },
-    });
-    if (existingMembership) throw conflict("هذا البريد الإلكتروني مسجّل بالفعل في هذه الشركة");
+  if (actor) assertCanManageRole(actor, input.role, input.role);
+  await assertCompanyScopeInTenant(tenantId, input.companyScope);
+  if (input.positionId !== undefined) {
+    if (!actor) throw forbidden("إسناد المنصب متاح لمالك الشركة فقط");
+    await assertPositionAssignable(actor, tenantId, input.positionId);
   }
+
+  const existingIdentity = await prisma.identity.findUnique({ where: { email: input.email } });
+  const existingMembership = existingIdentity
+    ? await prisma.user.findUnique({ where: { identityId_tenantId: { identityId: existingIdentity.id, tenantId } } })
+    : null;
+  if (existingMembership && !existingMembership.deletedAt) throw conflict("هذا البريد الإلكتروني مسجّل بالفعل في هذه الشركة");
 
   const inviteToken = generateInviteToken();
   const inviteExpiresAt = new Date(Date.now() + INVITE_EXPIRES_DAYS * 86_400_000);
+  const details = {
+    name: input.name,
+    role: input.role as User["role"],
+    companyScope: input.companyScope,
+    positionId: input.positionId ?? null,
+    active: true,
+    inviteStatus: "pending" as const,
+    inviteToken,
+    inviteExpiresAt,
+  };
 
-  const identity = existingIdentity ?? (await prisma.identity.create({ data: { email: input.email } }));
-
-  const user = await prisma.user.create({
-    data: {
-      tenantId,
-      identityId: identity.id,
-      name: input.name,
-      role: input.role as User["role"],
-      companyScope: input.companyScope,
-      active: true,
-      inviteStatus: "pending",
-      inviteToken,
-      inviteExpiresAt,
-    },
-    include: { identity: true },
-  });
+  // نفس البريد عاد بعد حذفه من الشركة: تُستعاد عضويته نفسها بدعوة جديدة (لا عضوية ثانية لنفس الشخص،
+  // والقيد الفريد identityId+tenantId يمنعها أصلاً)، فيبقى ما أدخله سابقاً منسوباً للحساب نفسه.
+  const user = existingMembership
+    ? await prisma.user.update({ where: { id: existingMembership.id }, data: { ...details, deletedAt: null }, include: { identity: true } })
+    : await prisma.user.create({
+        data: {
+          tenantId,
+          identityId: (existingIdentity ?? (await prisma.identity.create({ data: { email: input.email } }))).id,
+          ...details,
+        },
+        include: { identity: true },
+      });
 
   const emailSent = await trySendInviteEmail(input.email, inviteToken, lang);
   return { ...publicUser(user), emailSent };
 }
 
+/**
+ * تعديل مستخدم قائم: الاسم، الدور، نطاق الوصول، والمنصب (للمالك فقط). البريد لا يُعدَّل هنا — هو هوية
+ * الدخول المشتركة بين كل شركات الشخص. لا يعدّل أحد دوره أو نطاقه بنفسه، ولا دور المالك ونطاقه.
+ */
+export async function updateUser(
+  tenantId: string,
+  actor: UserActor,
+  userId: string,
+  input: { name?: string; role?: string; companyScope?: string; positionId?: string | null },
+) {
+  const user = await prisma.user.findFirst({ where: { id: userId, tenantId, deletedAt: null } });
+  if (!user) throw notFound("المستخدم غير موجود");
+  const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { ownerId: true } });
+  const changesAccess = (input.role !== undefined && input.role !== user.role)
+    || (input.companyScope !== undefined && input.companyScope !== user.companyScope);
+  if (changesAccess && userId === actor.id) throw badRequest("لا يمكنك تغيير دورك أو نطاق وصولك بنفسك");
+  if (changesAccess && tenant.ownerId === userId) throw badRequest("لا يمكن تغيير دور مالك الشركة أو نطاق وصوله");
+  assertCanManageRole(actor, user.role, input.role);
+  if (input.companyScope !== undefined) await assertCompanyScopeInTenant(tenantId, input.companyScope);
+  if (input.positionId !== undefined && input.positionId !== user.positionId) {
+    await assertPositionAssignable(actor, tenantId, input.positionId);
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.role !== undefined ? { role: input.role as User["role"] } : {}),
+      ...(input.companyScope !== undefined ? { companyScope: input.companyScope } : {}),
+      ...(input.positionId !== undefined ? { positionId: input.positionId } : {}),
+    },
+    include: { identity: true },
+  });
+  // الدور والنطاق محمولان داخل رمز الدخول: إبطال جلساته يجعل التغيير يسري خلال مدة رمز الدخول الحالي.
+  if (changesAccess) await prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+  return publicUser(updated);
+}
+
 /** يُعيد إنشاء رابط دعوة جديد لمستخدم "معلّق" لم يفعّل حسابه بعد (رابطه القديم منتهٍ أو ضائع). */
 export async function resendInvite(tenantId: string, userId: string, lang: Lang = "ar") {
-  const user = await prisma.user.findFirst({ where: { id: userId, tenantId }, include: { identity: true } });
+  const user = await prisma.user.findFirst({ where: { id: userId, tenantId, deletedAt: null }, include: { identity: true } });
   if (!user) throw notFound("المستخدم غير موجود");
   if (user.inviteStatus !== "pending") throw badRequest("هذا المستخدم مفعَّل حسابه بالفعل");
 
@@ -462,15 +543,19 @@ async function trySendInviteEmail(email: string, inviteToken: string, lang: Lang
 }
 
 export async function listUsers(tenantId: string) {
-  const users = await prisma.user.findMany({ where: { tenantId }, orderBy: { createdAt: "asc" }, include: { identity: true } });
-  return users.map(publicUser);
+  const users = await prisma.user.findMany({
+    where: { tenantId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    include: { identity: true, position: { select: { name: true } } },
+  });
+  return users.map(({ position, ...user }) => ({ ...publicUser(user), positionName: position?.name ?? null }));
 }
 
 /** يمنع المستخدم من تسجيل الدخول فوراً (auth.service.ts's login/refresh يتحققان من active بالفعل)
  * بلا حذف أي شيء — سجله وكل ما أنشأه (قيود، مرفقات...) يبقى كما هو تماماً. */
 export async function setUserActive(tenantId: string, actingUserId: string, userId: string, active: boolean) {
   if (userId === actingUserId) throw badRequest("لا يمكنك تعطيل حسابك أنت شخصياً");
-  const user = await prisma.user.findFirst({ where: { id: userId, tenantId } });
+  const user = await prisma.user.findFirst({ where: { id: userId, tenantId, deletedAt: null } });
   if (!user) throw notFound("المستخدم غير موجود");
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { ownerId: true } });
   if (tenant.ownerId === userId) throw badRequest("لا يمكن تعطيل مالك الشركة");
@@ -483,26 +568,16 @@ export async function setUserActive(tenantId: string, actingUserId: string, user
 }
 
 /**
- * حذف نهائي — يُرفَض لو كان المستخدم قد أنشأ أي قيد يومية أو رفع أي مرفق (createdBy/uploadedBy
- * مرجعان حرّان بلا FK صارم في المخطط أصلاً، فحذف المستخدم لن يفشل على مستوى قاعدة البيانات، لكنه
- * سيترك تلك السجلات بمرجع "من أنشأها" معلَّقاً بلا أي طريقة لاحقاً لمعرفة صاحبه — غير مقبول في
- * نظام محاسبي). التعطيل (setUserActive) هو البديل الدائم الصحيح في هذه الحالة: يمنع الدخول
- * فعلياً مع الحفاظ الكامل على أثر "من أنشأ ماذا". الجداول الأخرى المرتبطة بالمستخدم مباشرة عبر FK
- * حقيقي (RefreshToken/UserActionPermissionOverride) تُحذَف تلقائياً معه (onDelete: Cascade)،
- * وAuditLog يبقى بصفّه لكن userId يُصفَّر (onDelete: SetNull) — سلوك موجود أصلاً في المخطط، لا
- * تغيير مطلوب هنا. Identity المرتبطة (البريد/كلمة المرور) لا تُحذَف أبداً هنا حتى لو كانت هذه
- * آخر عضوية لها — قد يُدعى نفس البريد لاحقاً لشركة أخرى، فتبقى هويته قائمة بصرف النظر عن مصير
- * عضوياته الفردية.
+ * حذف مستخدم من الشركة (موظف ترك العمل). حساب أُنشئ بالخطأ ولم يُستخدَم قط يُحذَف صفّه فعلاً. أي حساب له
+ * أثر — دخول سابق، صف تدقيق (عام أو ورديات)، قيد، مرفق، أو مراجعة وردية — لا يُحذَف صفّه أبداً: القيود
+ * (createdBy) والمرفقات (uploadedBy) تشير لمعرّفه بلا مفتاح أجنبي، فحذف الصف يترك "من أنشأ هذا" بلا صاحب.
+ * بدلاً من ذلك يُختَم deletedAt: يختفي من كل القوائم، ولا يستطيع الدخول (login/refresh/switch تستبعده)،
+ * وتُبطَل جلساته، ويُفصَل عن منصبه واستثناءاته الفردية — ويبقى اسمه ظاهراً على كل ما أدخله.
+ * دعوة نفس البريد لاحقاً تستعيد العضوية نفسها (راجع invite).
  */
-/**
- * المستخدمون لا يُحذَفون — يُعطَّلون (setUserActive): لا يستطيع الدخول، ويحتفظ بمعرّفه، وتبقى كل صفوف
- * سجل التدقيق منسوبة إليه. الحذف الفعلي باقٍ فقط لحساب أُنشئ بالخطأ ولم يُستخدَم قط، ويُرفَض متى ظهر
- * المستخدم في أي أثر على الإطلاق: دخول سابق، أي صف تدقيق (عام أو ورديات محطات)، قيد، مرفق، أو
- * مراجعة وردية. المستندات نفسها لا تحمل منشئها، فالقيود (createdBy) وسجل التدقيق هما أثرها الوحيد.
- */
-export async function deleteUser(tenantId: string, actingUserId: string, userId: string) {
+export async function deleteUser(tenantId: string, actingUserId: string, userId: string): Promise<{ archived: boolean }> {
   if (userId === actingUserId) throw badRequest("لا يمكنك حذف حسابك أنت شخصياً");
-  const user = await prisma.user.findFirst({ where: { id: userId, tenantId } });
+  const user = await prisma.user.findFirst({ where: { id: userId, tenantId, deletedAt: null } });
   if (!user) throw notFound("المستخدم غير موجود");
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { ownerId: true } });
   if (tenant.ownerId === userId) throw badRequest("لا يمكن حذف مالك الشركة");
@@ -516,11 +591,24 @@ export async function deleteUser(tenantId: string, actingUserId: string, userId:
     prisma.stationShift.count({ where: { reviewedByUserId: userId } }),
   ]);
   const everUsed = user.lastLoginAt !== null || refreshTokens > 0;
-  if (everUsed || auditRows || shiftAuditRows || journalEntries || attachments || reviewedShifts) {
-    throw badRequest("لا يمكن حذف مستخدم استُخدم حسابه أو ارتبط اسمه بأي عملية في النظام — عطّله بدلاً من ذلك، فيُمنَع من الدخول ويبقى سجله منسوباً إليه.");
+  if (!everUsed && !auditRows && !shiftAuditRows && !journalEntries && !attachments && !reviewedShifts) {
+    await prisma.user.delete({ where: { id: userId } });
+    return { archived: false };
   }
 
-  await prisma.user.delete({ where: { id: userId } });
+  const now = new Date();
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { deletedAt: now, active: false, positionId: null, inviteToken: null, inviteExpiresAt: null },
+    }),
+    prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: now } }),
+    prisma.userActionPermissionOverride.deleteMany({ where: { userId } }),
+    prisma.auditLog.create({
+      data: { tenantId, userId: actingUserId, action: "user.deleted", entityType: "User", entityId: userId },
+    }),
+  ]);
+  return { archived: true };
 }
 
 /**
@@ -613,6 +701,8 @@ export async function updateTenantName(tenantId: string, name: string) {
  */
 export async function getMe(userId: string) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId }, include: { identity: true } });
+  // حساب معطَّل أو محذوف يُطرَد عند أول فتح للتطبيق، لا بعد انتهاء رمز دخوله الحالي فقط.
+  if (!user.active || user.deletedAt) throw unauthorized("الحساب غير موجود أو معطّل");
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
   // تُستدعى هذه الدالة عند كل فتح تطبيق (انظر AuthContext) — إعادة فحص حالة الاشتراك هنا أيضاً
   // (وليس فقط عند login/refresh) تعني أن تعليق شركة يُطرد مستخدميها المسجَّلين بالفعل فور أول

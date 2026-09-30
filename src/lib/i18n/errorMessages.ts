@@ -10,6 +10,11 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "الشركة المحددة لنطاق الوصول غير موجودة": "The company selected for the access scope was not found",
+  "إسناد المنصب متاح لمالك الشركة فقط": "Only the company owner can assign a position",
+  "منح دور المدير أو تعديل مستخدم مدير متاح للمدير أو مالك الشركة فقط": "Only an admin or the company owner can grant the admin role or edit an admin user",
+  "لا يمكنك تغيير دورك أو نطاق وصولك بنفسك": "You cannot change your own role or access scope",
+  "لا يمكن تغيير دور مالك الشركة أو نطاق وصوله": "The company owner's role and access scope cannot be changed",
   "صلاحيات غير صالحة أو خدمة مكررة": "Invalid permissions or duplicate service",
   "انقل المستخدمين إلى منصب آخر قبل حذف هذا المنصب": "Move the users to another position before deleting this position",
   "المنصب المسند لحسابك لا يسمح بهذا الإجراء": "The position assigned to your account does not allow this action",

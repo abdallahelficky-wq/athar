@@ -31,6 +31,15 @@ export const inviteSchema = z.object({
   email: z.string().email("بريد إلكتروني غير صالح"),
   role: z.enum(["admin", "finance_manager", "accountant", "hr_manager", "viewer"]),
   companyScope: z.string().min(1).default("all"),
+  // اختياري: المالك وحده يُسند المنصب (يُتحقَّق في الخدمة). null = بلا منصب.
+  positionId: z.string().min(1).nullable().optional(),
+});
+
+export const updateUserSchema = z.object({
+  name: z.string().min(2, "الاسم قصير جداً").optional(),
+  role: z.enum(["admin", "finance_manager", "accountant", "hr_manager", "viewer"]).optional(),
+  companyScope: z.string().min(1).optional(),
+  positionId: z.string().min(1).nullable().optional(),
 });
 
 export const acceptInviteSchema = z.object({
