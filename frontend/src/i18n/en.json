@@ -1743,6 +1743,9 @@
     }
   },
   "attachments": {
+    "allowedFormats": "Supported attachments: images, PDF, Word (.doc, .docx), and Excel (.xls, .xlsx). Maximum 15 MB per file.",
+    "tooLarge": "The file exceeds the 15 MB size limit.",
+
     "title": "Attachments",
     "addBtn": "+ Attach document",
     "uploading": "Uploading...",

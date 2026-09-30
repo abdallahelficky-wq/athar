@@ -38,6 +38,7 @@ export default function AttachmentsPanel({ entityType, entityId, title }) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || !entityId) return;
+    if (file.size > 15 * 1024 * 1024) { setError(t("attachments.tooLarge")); return; }
     setUploading(true);
     setError("");
     try {
@@ -65,7 +66,7 @@ export default function AttachmentsPanel({ entityType, entityId, title }) {
       <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
         <h3 style={{ margin: 0 }}>{title || t("attachments.title")}</h3>
         <div>
-          <input ref={fileInputRef} type="file" accept="image/*,application/pdf" hidden onChange={onFilePicked} />
+          <input ref={fileInputRef} type="file" accept="image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={onFilePicked} />
           <button
             className="btn-ghost"
             onClick={() => fileInputRef.current?.click()}
@@ -77,6 +78,7 @@ export default function AttachmentsPanel({ entityType, entityId, title }) {
         </div>
       </div>
 
+      <p className="note">{t("attachments.allowedFormats")}</p>
       {error && <p className="balance-bad">{error}</p>}
       {!entityId && <p className="note">{t("attachments.saveFirstNote")}</p>}
 
