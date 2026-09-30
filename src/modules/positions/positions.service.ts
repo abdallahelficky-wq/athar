@@ -198,7 +198,7 @@ export async function upsertUserOverride(
   tenantId: string,
   input: { userId: string; moduleId: string; actionId: string; level: PermissionLevel },
 ) {
-  const user = await prisma.user.findFirst({ where: { id: input.userId, tenantId } });
+  const user = await prisma.user.findFirst({ where: { id: input.userId, tenantId, deletedAt: null } });
   if (!user) throw notFound("المستخدم غير موجود في هذه الشركة");
 
   const override = await prisma.userActionPermissionOverride.upsert({
@@ -229,7 +229,7 @@ export async function assignMember(tenantId: string, positionId: string, userId:
   const position = await prisma.position.findFirst({ where: { id: positionId, tenantId } });
   if (!position) throw notFound("المنصب غير موجود");
 
-  const user = await prisma.user.findFirst({ where: { id: userId, tenantId } });
+  const user = await prisma.user.findFirst({ where: { id: userId, tenantId, deletedAt: null } });
   if (!user) throw notFound("المستخدم غير موجود في هذه الشركة");
 
   await prisma.user.update({ where: { id: userId }, data: { positionId } });
@@ -287,7 +287,7 @@ export async function canOverridePosPrice(tenantId: string, userId: string, role
 /** كل مستخدمي هذه الشركة — لعرضهم في قائمة "إضافة عضو لهذا المنصب" بالواجهة. */
 export async function listAssignableUsers(tenantId: string) {
   const users = await prisma.user.findMany({
-    where: { tenantId },
+    where: { tenantId, deletedAt: null },
     select: { id: true, name: true, role: true, positionId: true, identity: { select: { email: true } } },
     orderBy: { name: "asc" },
   });

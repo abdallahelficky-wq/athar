@@ -1,4 +1,5 @@
-import { RequestHandler } from "express";
+import { Request, RequestHandler } from "express";
+import { isTenantOwner } from "../../middleware/auth";
 import * as authService from "./auth.service";
 import { translateMessage } from "../../lib/i18n/translate";
 
@@ -32,9 +33,18 @@ export const switchAccountHandler: RequestHandler = async (req, res) => {
   res.json(result);
 };
 
+async function userActor(auth: NonNullable<Request["auth"]>): Promise<authService.UserActor> {
+  return { id: auth.sub, role: auth.role, isOwner: auth.role === "super_admin" || await isTenantOwner(auth) };
+}
+
 export const inviteHandler: RequestHandler = async (req, res) => {
-  const result = await authService.invite(req.auth!.tenantId, req.body, req.lang);
+  const result = await authService.invite(req.auth!.tenantId, req.body, req.lang, await userActor(req.auth!));
   res.status(201).json(result);
+};
+
+export const updateUserHandler: RequestHandler = async (req, res) => {
+  const result = await authService.updateUser(req.auth!.tenantId, await userActor(req.auth!), req.params.id, req.body);
+  res.json(result);
 };
 
 export const listUsersHandler: RequestHandler = async (req, res) => {
@@ -53,8 +63,7 @@ export const setUserActiveHandler: RequestHandler = async (req, res) => {
 };
 
 export const deleteUserHandler: RequestHandler = async (req, res) => {
-  await authService.deleteUser(req.auth!.tenantId, req.auth!.sub, req.params.id);
-  res.status(204).send();
+  res.json(await authService.deleteUser(req.auth!.tenantId, req.auth!.sub, req.params.id));
 };
 
 export const getInviteInfoHandler: RequestHandler = async (req, res) => {

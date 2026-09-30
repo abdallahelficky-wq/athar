@@ -1,0 +1,17 @@
+/* شاشة المستخدمين: زر الإضافة أعلى الجدول، والإضافة/التعديل في نافذة منبثقة */
+.users-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.users-toolbar .note { margin: 0; flex: 1; min-width: 220px; }
+.users-table-wrap { overflow-x: auto; }
+.users-tab .row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.users-tab .users-delete-btn:not(:disabled) { color: #b42318; border-color: #fecdca; }
+.unpost-confirm-box.users-modal { max-width: 520px; }
+.users-modal-fields { display: grid; gap: 14px; margin: 16px 0 20px; }
+.users-modal-fields label { display: grid; gap: 6px; font-size: 14px; }
+.users-modal-fields input, .users-modal-fields select { width: 100%; margin: 0; padding: 9px 10px; border-radius: 8px; border: 1px solid rgba(16,32,46,0.2); font: inherit; background: #fff; }
+.users-modal-fields input:disabled, .users-modal-fields select:disabled { background: #f2f4f7; color: #667085; }
+.users-modal-fields .note { font-size: 12px; margin: 0; }
+.users-modal-actions { justify-content: flex-end; }
+@media (max-width: 600px) {
+  .unpost-confirm-box.users-modal { padding: 18px 16px; }
+  .users-toolbar .btn-primary { width: 100%; }
+}
