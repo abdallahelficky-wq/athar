@@ -3,6 +3,8 @@ import { authenticate } from "../../middleware/auth";
 import { askAiHandler } from "./ai.controller";
 import { HttpError } from "../../lib/httpError";
 import { prisma } from "../../lib/prisma";
+import jwt from "jsonwebtoken";
+import { env } from "../../config/env";
 
 export const aiRoutes = Router();
 
@@ -51,14 +53,26 @@ const validateAskRequest = async (req: Request, res: Response, next: NextFunctio
     }
   }
 
-  // 5. Check scope claims (401)
-  const user = (req as any).user;
+  // 5. Decode token to get scope claims
+  const authHeader = req.headers.authorization;
+  let user: any = null;
+  
+  if (authHeader?.startsWith("Bearer ")) {
+    try {
+      const token = authHeader.slice(7);
+      user = jwt.verify(token, env.jwtAccessSecret);
+    } catch (e) {
+      // Token invalid or expired
+    }
+  }
+
+  // 6. Check scope claims (401)
   if (!user?.companyScope || !user?.tenantId ||
       user.companyScope.trim() === "" || user.tenantId.trim() === "") {
     return next(new HttpError(401, "Missing scope claims"));
   }
 
-  // 6. Handle companyId (403/404)
+  // 7. Handle companyId (403/404)
   if (companyId !== undefined) {
     if (user.companyScope !== "all") {
       return next(new HttpError(403, "Cannot select company"));
