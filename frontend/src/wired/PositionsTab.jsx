@@ -16,8 +16,10 @@ import {
   deleteUserOverride,
 } from "../api/positions";
 import { useToast, ToastHost } from "./shared/Toast";
+import { listJobTitles } from "../api/jobTitles";
 
 const ACTION_LEVELS = ["none", "read", "edit", "approve", "full"];
+const NEW_JOB = "__new_job_title__";
 
 // أسماء الوحدات المعروضة بدل معرّفاتها الداخلية (leaveRequests…) — وحدة جديدة بلا اسم هنا تظهر بمعرّفها.
 const MODULE_LABELS = {
@@ -39,7 +41,10 @@ export default function PositionsTab() {
   const [platformActions, setPlatformActions] = useState({});
   const [loading, setLoading] = useState(true);
   const { toast, notify, dismiss } = useToast();
-  const [name, setName] = useState("");
+  // المنصب يُبنى من وظيفة (شؤون الموظفين ← الوظائف): اختيار وظيفة قائمة بلا منصب، أو NEW_JOB لإضافة وظيفة جديدة.
+  const [jobTitles, setJobTitles] = useState([]);
+  const [jobChoice, setJobChoice] = useState("");
+  const [newJobName, setNewJobName] = useState("");
   const [saving, setSaving] = useState(false);
   const [memberSelections, setMemberSelections] = useState({});
   const [openId, setOpenId] = useState(null);
@@ -57,8 +62,9 @@ export default function PositionsTab() {
 
   const reload = () => {
     setLoading(true);
-    Promise.all([listPositions(), listAssignableUsers(), listUserOverrides(), listPlatformActions()])
-      .then(([p, u, o, actions]) => {
+    Promise.all([listPositions(), listAssignableUsers(), listUserOverrides(), listPlatformActions(), listJobTitles()])
+      .then(([p, u, o, actions, titles]) => {
+        setJobTitles(titles);
         setPositions(p);
         setUsers(u);
         setOverrides(o);
@@ -69,12 +75,16 @@ export default function PositionsTab() {
   };
   useEffect(reload, []);
 
+  const availableJobTitles = jobTitles.filter((j) => !j.positionId);
+  const canCreate = jobChoice === NEW_JOB ? !!newJobName.trim() : !!jobChoice;
+
   const create = async () => {
-    if (!name.trim()) return;
+    if (!canCreate || saving) return;
     setSaving(true);
     try {
-      const created = await createPosition({ name: name.trim() });
-      setName("");
+      const created = await createPosition(jobChoice === NEW_JOB ? { jobTitleName: newJobName.trim() } : { jobTitleId: jobChoice });
+      setJobChoice("");
+      setNewJobName("");
       if (created?.id) setOpenId(created.id);
       reload();
       notify(t("settings.positions.notifyCreated"), "success");
@@ -181,18 +191,34 @@ export default function PositionsTab() {
 
       <div className="panel positions-create">
         <label className="memo-field">
-          {en ? "New position" : "منصب جديد"}
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") create(); }}
-            placeholder={t("settings.positions.namePlaceholder")}
-          />
+          {en ? "New position — choose the job title" : "منصب جديد — اختر الوظيفة"}
+          <select value={jobChoice} onChange={(e) => setJobChoice(e.target.value)}>
+            <option value="">{en ? "— Choose a job title —" : "— اختر وظيفة —"}</option>
+            {availableJobTitles.map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
+            <option value={NEW_JOB}>{en ? "+ New job title…" : "+ وظيفة جديدة…"}</option>
+          </select>
         </label>
-        <button className="btn-primary" onClick={create} disabled={saving || !name.trim()}>
+        {jobChoice === NEW_JOB && (
+          <label className="memo-field">
+            {en ? "New job title" : "اسم الوظيفة الجديدة"}
+            <input
+              type="text"
+              autoFocus
+              value={newJobName}
+              onChange={(e) => setNewJobName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") create(); }}
+              placeholder={t("settings.positions.namePlaceholder")}
+            />
+          </label>
+        )}
+        <button className="btn-primary" onClick={create} disabled={saving || !canCreate}>
           {t("common.add")}
         </button>
+        <p className="note">
+          {en
+            ? "Each job title from HR → Job titles becomes one position; then grant its permissions from the matrix in its card. A new job title added here also appears in HR."
+            : "كل وظيفة من شؤون الموظفين ← الوظائف تصبح منصباً واحداً، ثم امنحه صلاحياته من المصفوفة في بطاقته. الوظيفة الجديدة المضافة هنا تظهر أيضاً في شؤون الموظفين."}
+        </p>
       </div>
 
       {positions.length === 0 && <p className="empty">{t("settings.positions.empty")}</p>}

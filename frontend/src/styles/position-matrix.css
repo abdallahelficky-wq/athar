@@ -48,3 +48,5 @@
   .position-section { padding: 12px; }
   .position-levels td:last-child { width: auto; }
 }
+.positions-create select { width: 100%; }
+.positions-create > .note { flex-basis: 100%; margin: 0; }

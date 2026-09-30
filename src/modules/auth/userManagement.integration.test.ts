@@ -96,7 +96,7 @@ describe("user management (integration)", () => {
       lines: [{ accountId: cash.id, debit: 75, credit: 0 }, { accountId: revenue.id, debit: 0, credit: 75 }],
     });
     expect(entry.status).toBe(201);
-    const position = await call("POST", "/positions", a.ownerToken, { name: `منصب ${stamp}` });
+    const position = await call("POST", "/positions", a.ownerToken, { jobTitleName: `منصب ${stamp}` });
     expect((await call("POST", `/positions/${position.body.id}/members`, a.ownerToken, { userId: leaver.id })).status).toBe(200);
     await prisma.userActionPermissionOverride.create({ data: { userId: leaver.id, moduleId: "leaveRequests", actionId: "approve", level: "approve" } });
 
@@ -153,7 +153,7 @@ describe("user management (integration)", () => {
     expect(edited.body).toMatchObject({ name: "اسم معدّل", role: "accountant", companyScope: a.companyId });
 
     // المنصب: المالك وحده
-    const position = await call("POST", "/positions", a.ownerToken, { name: `منصب التعديل ${stamp}` });
+    const position = await call("POST", "/positions", a.ownerToken, { jobTitleName: `منصب التعديل ${stamp}` });
     expect((await call("PATCH", `/auth/users/${target.id}`, fm.token, { positionId: position.body.id })).status).toBe(403);
     expect((await call("PATCH", `/auth/users/${target.id}`, admin.token, { positionId: position.body.id })).status).toBe(403);
     const assigned = await call("PATCH", `/auth/users/${target.id}`, a.ownerToken, { positionId: position.body.id });
@@ -187,7 +187,7 @@ describe("user management (integration)", () => {
 
   it("4) two tenants with same-named companies cannot reach each other's users, companies or positions", async () => {
     const aUser = await addMember(a, "isolated", "viewer");
-    const bPosition = await call("POST", "/positions", b.ownerToken, { name: `منصب ب ${stamp}` });
+    const bPosition = await call("POST", "/positions", b.ownerToken, { jobTitleName: `منصب ب ${stamp}` });
 
     expect((await call("PATCH", `/auth/users/${aUser.id}`, b.ownerToken, { name: "اختراق" })).status).toBe(404);
     expect((await call("DELETE", `/auth/users/${aUser.id}`, b.ownerToken)).status).toBe(404);

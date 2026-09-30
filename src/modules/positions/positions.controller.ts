@@ -19,7 +19,7 @@ export const createHandler: RequestHandler = async (req, res) => {
     .json(
       await service.createPosition(
         req.auth!.tenantId,
-        req.body.name,
+        { jobTitleId: req.body.jobTitleId, jobTitleName: req.body.jobTitleName },
         req.body.allowUnpost,
         req.body.allowPosDeferredSale,
         req.body.allowPosPriceOverride,

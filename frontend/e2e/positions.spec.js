@@ -19,6 +19,7 @@ test.beforeEach(async ({ page }) => {
     else if (path.endsWith("/positions/actions")) data = PLATFORM_ACTIONS;
     else if (path.endsWith("/positions/matrix-resources")) data = POSITION_RESOURCES;
     else if (path.endsWith("/positions/user-overrides")) data = [];
+    else if (path.endsWith("/job-titles")) data = [{ id: "jt-acc", name: "محاسب", positionId: "pos-test" }, { id: "jt-sup", name: "مشرف محطة", positionId: null }];
     else data = {};
     await route.fulfill({ json: data });
   });
@@ -49,4 +50,21 @@ test("every module's levels are editable without picking a module first", async 
   expect(calls[0]).toEqual({ method: "PATCH", path: "/api/positions/pos-test/action-permissions",
     body: { moduleId: "stationShifts", actionId: "post", level: "approve" } });
   expect(calls[1]).toEqual({ method: "PATCH", path: "/api/positions/pos-test", body: { allowUnpost: true } });
+});
+
+test("a new position is built from a job title: an existing one without a position, or a new one", async ({ page }) => {
+  const choice = page.getByLabel("منصب جديد — اختر الوظيفة");
+  // الوظيفة التي لها منصب لا تُعرَض، والتي بلا منصب تُعرَض
+  await expect(choice.locator("option", { hasText: "مشرف محطة" })).toHaveCount(1);
+  await expect(choice.locator("option", { hasText: /^محاسب$/ })).toHaveCount(0);
+  await choice.selectOption({ label: "مشرف محطة" });
+  await page.getByRole("button", { name: "إضافة", exact: true }).first().click();
+  await expect.poll(() => calls.length).toBe(1);
+  expect(calls[0]).toEqual({ method: "POST", path: "/api/positions", body: { jobTitleId: "jt-sup" } });
+
+  await choice.selectOption({ label: "+ وظيفة جديدة…" });
+  await page.getByLabel("اسم الوظيفة الجديدة").fill("فني صيانة");
+  await page.getByRole("button", { name: "إضافة", exact: true }).first().click();
+  await expect.poll(() => calls.length).toBe(2);
+  expect(calls[1]).toEqual({ method: "POST", path: "/api/positions", body: { jobTitleName: "فني صيانة" } });
 });

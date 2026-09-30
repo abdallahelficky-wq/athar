@@ -76,6 +76,7 @@ model Tenant {
   platformNotices           PlatformNotice[]
   users                     User[]
   positions                 Position[]
+  jobTitles                 JobTitle[]
   companies                 Company[]
   costCenters               CostCenter[]
   departments               Department[]
@@ -253,12 +254,32 @@ model Position {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // الوظيفة التي يمنحها هذا المنصب صلاحياتها — منصب واحد لكل وظيفة، واسم المنصب يتبع اسمها. حذف وظيفة
+  // لها منصب مرفوض (NoAction: يُفحَص آخر العبارة فلا يعيق حذف المستأجر المتتالي) حتى لا يبقى منصب يمنح صلاحيات بلا وظيفة يُعرَف بها.
+  jobTitleId String?   @unique
+  jobTitle   JobTitle? @relation(fields: [jobTitleId], references: [id], onDelete: NoAction)
+
   permissions       PositionPermission[]
   actionPermissions PositionActionPermission[]
   users             User[]
 
   @@unique([tenantId, name])
   @@map("positions")
+}
+
+// المسمّيات الوظيفية للمستأجر (شؤون الموظفين ← الوظائف). المنصب يُبنى من وظيفة منها ويحمل صلاحياتها،
+// وملف الموظف يقترح منها مسمّاه (يبقى نصاً حراً في Employee.jobTitle).
+model JobTitle {
+  id        String    @id @default(cuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  position  Position?
+
+  @@unique([tenantId, name])
+  @@map("job_titles")
 }
 
 // صف صلاحيات منصب واحد لوحدة (moduleId) واحدة — معرّفات moduleId تطابق PLATFORM_MODULE_IDS

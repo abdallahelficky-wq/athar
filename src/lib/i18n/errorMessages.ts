@@ -10,6 +10,14 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "اسم الوظيفة مطلوب": "Job title name is required",
+  "اسم الوظيفة طويل جداً": "Job title name is too long",
+  "هذه الوظيفة موجودة بالفعل": "This job title already exists",
+  "الوظيفة غير موجودة": "Job title not found",
+  "يوجد وظيفة أو منصب بهذا الاسم بالفعل": "A job title or position with this name already exists",
+  "لا يمكن حذف وظيفة لها منصب — احذف المنصب أولاً من شاشة المناصب": "A job title that has a position cannot be deleted — delete the position first from the Positions screen",
+  "اختر وظيفة قائمة أو أدخل اسم وظيفة جديدة": "Choose an existing job title or enter a new job title name",
+  "هذه الوظيفة لها منصب بالفعل — عدّل صلاحياته من بطاقته": "This job title already has a position — edit its permissions from its card",
   "الشركة المحددة لنطاق الوصول غير موجودة": "The company selected for the access scope was not found",
   "إسناد المنصب متاح لمالك الشركة فقط": "Only the company owner can assign a position",
   "منح دور المدير أو تعديل مستخدم مدير متاح للمدير أو مالك الشركة فقط": "Only an admin or the company owner can grant the admin role or edit an admin user",

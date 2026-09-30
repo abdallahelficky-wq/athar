@@ -50,6 +50,7 @@ function publicPosition(position: PositionRaw) {
   return {
     id: position.id,
     name: position.name,
+    jobTitleId: position.jobTitleId,
     createdAt: position.createdAt,
     allowUnpost,
     allowPosDeferredSale,
@@ -75,13 +76,23 @@ export async function listPositions(tenantId: string) {
   return positions.map(publicPosition);
 }
 
+/**
+ * المنصب يُبنى من وظيفة (شؤون الموظفين ← الوظائف): إما وظيفة قائمة (jobTitleId) أو وظيفة جديدة تُنشأ هنا باسمها
+ * (jobTitleName) — ولو وُجدت وظيفة بالاسم نفسه تُستخدَم هي. منصب واحد لكل وظيفة، واسمه اسمها.
+ */
 export async function createPosition(
   tenantId: string,
-  name: string,
+  jobTitle: { jobTitleId?: string; jobTitleName?: string },
   allowUnpost: boolean,
   allowPosDeferredSale: boolean,
   allowPosPriceOverride: boolean = false,
 ) {
+  const title = jobTitle.jobTitleId
+    ? await prisma.jobTitle.findFirst({ where: { id: jobTitle.jobTitleId, tenantId }, include: { position: true } })
+    : await prisma.jobTitle.findUnique({ where: { tenantId_name: { tenantId, name: jobTitle.jobTitleName! } }, include: { position: true } });
+  if (jobTitle.jobTitleId && !title) throw notFound("الوظيفة غير موجودة");
+  if (title?.position) throw conflict("هذه الوظيفة لها منصب بالفعل — عدّل صلاحياته من بطاقته");
+  const name = title?.name ?? jobTitle.jobTitleName!;
   const existing = await prisma.position.findUnique({ where: { tenantId_name: { tenantId, name } } });
   if (existing) throw conflict("يوجد بالفعل منصب بهذا الاسم");
 
@@ -94,13 +105,17 @@ export async function createPosition(
     });
   }
 
-  const position = await prisma.position.create({
-    data: {
-      tenantId,
-      name,
-      permissions: permissionsToCreate.length ? { create: permissionsToCreate } : undefined,
-    },
-    include: positionInclude,
+  const position = await prisma.$transaction(async (tx) => {
+    const jobTitleId = title?.id ?? (await tx.jobTitle.create({ data: { tenantId, name } })).id;
+    return tx.position.create({
+      data: {
+        tenantId,
+        name,
+        jobTitleId,
+        permissions: permissionsToCreate.length ? { create: permissionsToCreate } : undefined,
+      },
+      include: positionInclude,
+    });
   });
   return publicPosition(position);
 }
