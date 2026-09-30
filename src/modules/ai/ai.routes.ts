@@ -26,7 +26,7 @@ const validateAskRequest = (req: Request, res: Response, next: NextFunction) => 
     }
   }
 
-  const user = req.user as any;
+  const user = (req as any).user;
   if (!user?.companyScope || !user?.tenantId) {
     return next(new HttpError(401, "Missing scope claims"));
   }
