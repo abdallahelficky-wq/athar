@@ -11,6 +11,9 @@ vi.mock("../dashboard/dashboard.service", () => ({
   getCashFlowMonthly: vi.fn(), getSalesTrend: vi.fn(), getTopCustomers: vi.fn(), getFinancialAlerts: vi.fn(),
 }));
 vi.mock("./ai.service", () => ({ askAtharAi: vi.fn() }));
+vi.mock("../../middleware/positionMatrix", () => ({
+  requirePositionAction: () => (_req: any, _res: any, next: any) => next()
+}));
 import { aiRoutes } from "./ai.routes";
 import { signAccessToken } from "../../lib/jwt";
 import { prisma } from "../../lib/prisma";
