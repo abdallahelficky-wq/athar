@@ -19,6 +19,12 @@ import { useToast, ToastHost } from "./shared/Toast";
 
 const ACTION_LEVELS = ["none", "read", "edit", "approve", "full"];
 
+// أسماء الوحدات المعروضة بدل معرّفاتها الداخلية (leaveRequests…) — وحدة جديدة بلا اسم هنا تظهر بمعرّفها.
+const MODULE_LABELS = {
+  leaveRequests: { ar: "طلبات الإجازة", en: "Leave requests" },
+  stationShifts: { ar: "ورديات المحطات", en: "Station shifts" },
+};
+
 /**
  * شاشة إدارة المناصب وصلاحياتها — مقصورة على مالك الشركة فقط (الخادم يرفض أي طلب من غيره عبر
  * requireTenantOwner، بصرف النظر عمّا تعرضه هذه الواجهة). قائمة الوحدات/الإجراءات (platformActions
@@ -34,12 +40,9 @@ export default function PositionsTab() {
   const [loading, setLoading] = useState(true);
   const { toast, notify, dismiss } = useToast();
   const [name, setName] = useState("");
-  const [allowUnpost, setAllowUnpost] = useState(false);
-  const [allowPosDeferredSale, setAllowPosDeferredSale] = useState(false);
-  const [allowPosPriceOverride, setAllowPosPriceOverride] = useState(false);
   const [saving, setSaving] = useState(false);
   const [memberSelections, setMemberSelections] = useState({});
-  const [moduleSelections, setModuleSelections] = useState({});
+  const [openId, setOpenId] = useState(null);
   const [overrides, setOverrides] = useState([]);
   const [overrideUserId, setOverrideUserId] = useState("");
   const [overrideModuleId, setOverrideModuleId] = useState("");
@@ -48,8 +51,9 @@ export default function PositionsTab() {
 
   const moduleIds = Object.keys(platformActions);
   const actionLabel = (action) => (i18n.language === "en" ? action.label.en : action.label.ar);
+  const en = i18n.language === "en";
+  const moduleLabel = (moduleId) => MODULE_LABELS[moduleId]?.[en ? "en" : "ar"] || moduleId;
   const moduleActions = (moduleId) => platformActions[moduleId] || [];
-  const selectedModuleFor = (position) => moduleSelections[position.id] || moduleIds[0] || "";
 
   const reload = () => {
     setLoading(true);
@@ -69,11 +73,9 @@ export default function PositionsTab() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await createPosition({ name: name.trim(), allowUnpost, allowPosDeferredSale, allowPosPriceOverride });
+      const created = await createPosition({ name: name.trim() });
       setName("");
-      setAllowUnpost(false);
-      setAllowPosDeferredSale(false);
-      setAllowPosPriceOverride(false);
+      if (created?.id) setOpenId(created.id);
       reload();
       notify(t("settings.positions.notifyCreated"), "success");
     } catch (err) {
@@ -83,27 +85,9 @@ export default function PositionsTab() {
     }
   };
 
-  const toggleUnpost = async (position) => {
+  const toggleFlag = async (position, flag) => {
     try {
-      await updatePosition(position.id, { allowUnpost: !position.allowUnpost });
-      reload();
-    } catch (err) {
-      notify(err.message, "error");
-    }
-  };
-
-  const togglePosDeferredSale = async (position) => {
-    try {
-      await updatePosition(position.id, { allowPosDeferredSale: !position.allowPosDeferredSale });
-      reload();
-    } catch (err) {
-      notify(err.message, "error");
-    }
-  };
-
-  const togglePosPriceOverride = async (position) => {
-    try {
-      await updatePosition(position.id, { allowPosPriceOverride: !position.allowPosPriceOverride });
+      await updatePosition(position.id, { [flag]: !position[flag] });
       reload();
     } catch (err) {
       notify(err.message, "error");
@@ -185,42 +169,27 @@ export default function PositionsTab() {
 
   if (loading) return <p className="empty">{t("common.loading")}</p>;
 
+  const flags = [
+    ["allowUnpost", t("settings.positions.allowUnpostLabel")],
+    ["allowPosDeferredSale", t("settings.positions.allowPosDeferredSaleLabel")],
+    ["allowPosPriceOverride", t("settings.positions.allowPosPriceOverrideLabel")],
+  ];
+
   return (
     <div className="positions-management">
       <ToastHost toast={toast} onDismiss={dismiss} />
 
-      <div className="panel form-panel">
-        <div className="form-grid">
-          <label className="memo-field">
-            {t("settings.positions.nameLabel")}
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("settings.positions.namePlaceholder")}
-            />
-          </label>
-          <label className="checkbox-label">
-            <input type="checkbox" checked={allowUnpost} onChange={(e) => setAllowUnpost(e.target.checked)} />
-            {t("settings.positions.allowUnpostLabel")}
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={allowPosDeferredSale}
-              onChange={(e) => setAllowPosDeferredSale(e.target.checked)}
-            />
-            {t("settings.positions.allowPosDeferredSaleLabel")}
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={allowPosPriceOverride}
-              onChange={(e) => setAllowPosPriceOverride(e.target.checked)}
-            />
-            {t("settings.positions.allowPosPriceOverrideLabel")}
-          </label>
-        </div>
+      <div className="panel positions-create">
+        <label className="memo-field">
+          {en ? "New position" : "منصب جديد"}
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") create(); }}
+            placeholder={t("settings.positions.namePlaceholder")}
+          />
+        </label>
         <button className="btn-primary" onClick={create} disabled={saving || !name.trim()}>
           {t("common.add")}
         </button>
@@ -228,107 +197,112 @@ export default function PositionsTab() {
 
       {positions.length === 0 && <p className="empty">{t("settings.positions.empty")}</p>}
 
-      {positions.map((position) => (
-        <div key={position.id} className="panel">
-          <div className="form-grid">
-            <h3>{position.name}</h3>
-            <button className="btn-ghost" onClick={() => remove(position)}>
-              {t("common.delete")}
-            </button>
-          </div>
+      {positions.map((position) => {
+        const open = openId === position.id;
+        return (
+        <div key={position.id} className={`panel position-card${open ? " is-open" : ""}`}>
+          <button type="button" className="position-head" aria-expanded={open}
+            onClick={() => setOpenId(open ? null : position.id)}>
+            <span className="position-chevron" aria-hidden="true">{open ? "▾" : (en ? "▸" : "◂")}</span>
+            <strong>{position.name}</strong>
+            <span className="position-badge">
+              {en ? "Members" : "الأعضاء"}: {position.members.length}
+            </span>
+            <span className={`position-badge${position.matrixEnabled ? " is-active" : ""}`}>
+              {position.matrixEnabled ? (en ? "Matrix active" : "المصفوفة مفعّلة") : (en ? "Previous policy" : "صلاحيات سابقة")}
+            </span>
+          </button>
 
-          <label className="checkbox-label">
-            <input type="checkbox" checked={position.allowUnpost} onChange={() => toggleUnpost(position)} />
-            {t("settings.positions.allowUnpostLabel")}
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={position.allowPosDeferredSale}
-              onChange={() => togglePosDeferredSale(position)}
-            />
-            {t("settings.positions.allowPosDeferredSaleLabel")}
-          </label>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={position.allowPosPriceOverride}
-              onChange={() => togglePosPriceOverride(position)}
-            />
-            {t("settings.positions.allowPosPriceOverrideLabel")}
-          </label>
+          {open && <div className="position-body">
+            <section className="position-section">
+              <h4>{en ? "Members" : "الأعضاء"}</h4>
+              {position.members.length === 0 ? <p className="note">{t("settings.positions.noMembers")}</p> : (
+                <div className="tag-cloud">
+                  {position.members.map((m) => (
+                    <span key={m.id} className="tag-chip">
+                      {m.name} ({m.email})
+                      <button aria-label={en ? `Remove ${m.name}` : `إزالة ${m.name}`} onClick={() => removeMemberFrom(position, m.id)}>✕</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="position-inline">
+                <select
+                  aria-label={en ? "Assign user to position" : "تعيين مستخدم للمنصب"}
+                  value={memberSelections[position.id] || ""}
+                  onChange={(e) => setMemberSelections((prev) => ({ ...prev, [position.id]: e.target.value }))}
+                >
+                  <option value="">{t("settings.positions.chooseUser")}</option>
+                  {unassignedUsers(position).map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.email})
+                    </option>
+                  ))}
+                </select>
+                <button aria-label={en ? "Assign selected user" : "تعيين المستخدم المحدد"} className="btn-ghost" onClick={() => addMember(position)} disabled={!memberSelections[position.id]}>
+                  {t("settings.positions.addMember")}
+                </button>
+              </div>
+            </section>
 
-          <PositionMatrix position={position} onSaved={(updated) => setPositions((items) => items.map((item) => item.id === updated.id ? updated : item))} />
-          <p className="note">{i18n.language === "en" ? "Special permissions: leave requests and station shifts" : "صلاحيات خاصة: طلبات الإجازة وورديات المحطات"}</p>
-          <div className="form-grid">
-            <select
-              value={selectedModuleFor(position)}
-              onChange={(e) => setModuleSelections((prev) => ({ ...prev, [position.id]: e.target.value }))}
-            >
+            <PositionMatrix position={position} onSaved={(updated) => setPositions((items) => items.map((item) => item.id === updated.id ? updated : item))} />
+
+            <section className="position-section">
+              <h4>{en ? "Posting and point of sale" : "القيود ونقطة البيع"}</h4>
+              {flags.map(([flag, text]) => (
+                <label key={flag} className="checkbox-label">
+                  <input type="checkbox" checked={!!position[flag]} onChange={() => toggleFlag(position, flag)} />
+                  {text}
+                </label>
+              ))}
+            </section>
+
+            <section className="position-section">
+              <h4>{en ? "Leave requests and station shifts" : "طلبات الإجازة وورديات المحطات"}</h4>
+              <p className="note">{en ? "Each change is saved immediately." : "يُحفظ كل تغيير فور اختياره."}</p>
               {moduleIds.map((moduleId) => (
-                <option key={moduleId} value={moduleId}>
-                  {moduleId}
-                </option>
+                <table key={moduleId} className="ledger-table position-levels">
+                  <thead><tr><th colSpan={2}>{moduleLabel(moduleId)}</th></tr></thead>
+                  <tbody>
+                    {moduleActions(moduleId).map((action) => (
+                      <tr key={action.id}>
+                        <td>{actionLabel(action)}</td>
+                        <td>
+                          <select
+                            aria-label={`${moduleLabel(moduleId)} — ${actionLabel(action)}`}
+                            value={position.actionLevels?.[moduleId]?.[action.id] || "none"}
+                            onChange={(e) => changeLevel(position, moduleId, action.id, e.target.value)}
+                          >
+                            {ACTION_LEVELS.map((level) => (
+                              <option key={level} value={level}>
+                                {t(`settings.positions.levels.${level}`)}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               ))}
-            </select>
-          </div>
-          <table className="ledger-table">
-            <tbody>
-              {moduleActions(selectedModuleFor(position)).map((action) => (
-                <tr key={action.id}>
-                  <td>{actionLabel(action)}</td>
-                  <td>
-                    <select
-                      value={position.actionLevels?.[selectedModuleFor(position)]?.[action.id] || "none"}
-                      onChange={(e) => changeLevel(position, selectedModuleFor(position), action.id, e.target.value)}
-                    >
-                      {ACTION_LEVELS.map((level) => (
-                        <option key={level} value={level}>
-                          {t(`settings.positions.levels.${level}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            </section>
 
-          <div className="tag-cloud">
-            {position.members.map((m) => (
-              <span key={m.id} className="tag-chip">
-                {m.name} ({m.email})
-                <button onClick={() => removeMemberFrom(position, m.id)}>✕</button>
-              </span>
-            ))}
-          </div>
-          {position.members.length === 0 && <p className="note">{t("settings.positions.noMembers")}</p>}
-
-          <div className="form-grid">
-            <select
-              aria-label={i18n.language === "en" ? "Assign user to position" : "تعيين مستخدم للمنصب"}
-              value={memberSelections[position.id] || ""}
-              onChange={(e) => setMemberSelections((prev) => ({ ...prev, [position.id]: e.target.value }))}
-            >
-              <option value="">{t("settings.positions.chooseUser")}</option>
-              {unassignedUsers(position).map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.email})
-                </option>
-              ))}
-            </select>
-            <button aria-label={i18n.language === "en" ? "Assign selected user" : "تعيين المستخدم المحدد"} className="btn-ghost" onClick={() => addMember(position)} disabled={!memberSelections[position.id]}>
-              {t("settings.positions.addMember")}
-            </button>
-          </div>
+            <div className="position-danger">
+              <button className="btn-ghost" onClick={() => remove(position)}>
+                {en ? "Delete position" : "حذف المنصب"}
+              </button>
+            </div>
+          </div>}
         </div>
-      ))}
+        );
+      })}
 
       <div className="panel">
         <h3>{t("settings.positions.overridesTitle")}</h3>
+        <p className="note">{en ? "Raises or lowers one user's level for a single leave or station action, overriding their position." : "ترفع أو تخفض مستوى مستخدم واحد في إجراء محدد من الإجازات أو المحطات، بدل ما يمنحه منصبه."}</p>
 
         <div className="form-grid">
-          <select value={overrideUserId} onChange={(e) => setOverrideUserId(e.target.value)}>
+          <select aria-label={en ? "User" : "المستخدم"} value={overrideUserId} onChange={(e) => setOverrideUserId(e.target.value)}>
             <option value="">{t("settings.positions.chooseUser")}</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
@@ -346,7 +320,7 @@ export default function PositionsTab() {
             <option value="">{t("settings.positions.chooseModule")}</option>
             {moduleIds.map((moduleId) => (
               <option key={moduleId} value={moduleId}>
-                {moduleId}
+                {moduleLabel(moduleId)}
               </option>
             ))}
           </select>
@@ -384,7 +358,7 @@ export default function PositionsTab() {
                 return (
                   <tr key={o.id}>
                     <td>{o.user.name} ({o.user.email})</td>
-                    <td>{o.moduleId}</td>
+                    <td>{moduleLabel(o.moduleId)}</td>
                     <td>{action ? actionLabel(action) : o.actionId}</td>
                     <td>{t(`settings.positions.levels.${o.level}`)}</td>
                     <td>

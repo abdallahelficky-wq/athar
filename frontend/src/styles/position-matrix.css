@@ -18,3 +18,33 @@
   .positions-management .form-grid > * { grid-column: 1 / -1; min-width: 0; }
   .positions-management .checkbox-label { display: flex; align-items: center; gap: 8px; }
 }
+
+/* بطاقات المناصب: رأس قابل للطيّ، ومحتوى مقسَّم إلى أقسام بعناوين */
+.positions-create { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.positions-create .memo-field { flex: 1; min-width: 220px; }
+.position-card { padding: 0; overflow: hidden; }
+.position-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 18px 20px; background: none; border: 0; cursor: pointer; text-align: start; font: inherit; color: inherit; }
+.position-head strong { font-size: 1.1rem; flex: 1; }
+.position-head:hover { background: #faf7ed; }
+.position-chevron { color: #8a6d12; width: 14px; }
+.position-badge { font-size: .8rem; padding: 3px 10px; border-radius: 999px; background: #f2f4f7; color: #475467; white-space: nowrap; }
+.position-badge.is-active { background: #ecfdf3; color: #067647; }
+.position-body { padding: 0 20px 20px; border-top: 1px solid #eceef1; }
+.position-body .position-matrix { margin: 16px 0; }
+.position-section { margin: 16px 0; padding: 16px 20px; border: 1px solid #e5e7eb; border-radius: 12px; }
+.position-section h4 { margin: 0 0 12px; }
+.position-section > .checkbox-label { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.position-inline { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.position-inline select { flex: 1; min-width: 200px; }
+.position-levels { width: 100%; margin: 8px 0 16px; }
+.position-levels thead th { text-align: start; background: #faf7ed; }
+.position-levels td:last-child { width: 200px; }
+.position-levels select { width: 100%; min-width: 160px; }
+.position-danger { display: flex; justify-content: flex-end; margin-top: 8px; }
+.position-danger .btn-ghost { color: #b42318; border-color: #fecdca; }
+@media (max-width: 600px) {
+  .position-head { flex-wrap: wrap; padding: 14px; }
+  .position-body { padding: 0 12px 12px; }
+  .position-section { padding: 12px; }
+  .position-levels td:last-child { width: auto; }
+}
