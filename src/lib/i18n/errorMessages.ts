@@ -10,6 +10,10 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "لا تملك صلاحية عرض البيانات الشخصية والرواتب": "You do not have permission to view personal and payroll data.",
+  "المنصب المسند لحسابك لا يسمح بهذا الإجراء": "The position assigned to your account does not allow this action.",
+  "صلاحيات غير صالحة أو خدمة مكررة": "Invalid permissions or a duplicate service.",
+  "انقل المستخدمين إلى منصب آخر قبل حذف هذا المنصب": "Move assigned users to another position before deleting this position.",
   "استخدم مستنداً منفصلاً للأصناف ذات أسباب إعفاء أو نسبة صفر مختلفة ضمن الفئة نفسها": "Use a separate document for different exemption or zero-rating reasons within the same category.",
   "اختر سبب الإعفاء أو نسبة الصفر المناسب للصنف": "Choose the applicable exemption or zero-rating reason for the item.",
   "قيمة المرتجع تتجاوز المتبقي القابل للإرجاع من الفاتورة": "Return amount exceeds the remaining returnable invoice value.",

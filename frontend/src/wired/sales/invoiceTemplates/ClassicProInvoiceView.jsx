@@ -1,3 +1,4 @@
+import AttachmentsPanel from "../../shared/AttachmentsPanel";
 import InvoiceCreditNotes from "../InvoiceCreditNotes";
 import InvoiceZatcaDetails from "../InvoiceZatcaDetails";
 import React, { useEffect, useState } from "react";
@@ -182,6 +183,7 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
         </div>
 
       <InvoiceCreditNotes invoice={invoice} onClose={onClose} />
+      <div className="no-print"><AttachmentsPanel entityType="sales_invoice" entityId={invoice.id} /></div>
         <div className="cpi-actions">
           <button className="btn-primary" onClick={handlePrint}>{t("salesInvoices.form.print")}</button>
         </div>

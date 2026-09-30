@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../config/env", () => ({ env: { jwtAccessSecret: "test-only-access-secret", jwtAccessExpiresIn: "15m" } }));
-vi.mock("../../lib/prisma", () => ({ prisma: { company: { findFirst: vi.fn() } } }));
+vi.mock("../../lib/prisma", () => ({ prisma: { tenant: { findUnique: vi.fn() }, user: { findFirst: vi.fn() }, company: { findFirst: vi.fn() } } }));
 vi.mock("../dashboard/dashboard.service", () => ({
   getFinancialKpis: vi.fn(), getFinancialPosition: vi.fn(), getCashBreakdown: vi.fn(),
   getCashFlowMonthly: vi.fn(), getSalesTrend: vi.fn(), getTopCustomers: vi.fn(), getFinancialAlerts: vi.fn(),
@@ -31,6 +31,9 @@ beforeAll(async () => {
 afterAll(() => new Promise<void>((resolve, reject) => server.close((err) => err ? reject(err) : resolve())));
 beforeEach(() => {
   vi.resetAllMocks();
+  // Existing users without an activated matrix retain the legacy policy.
+  vi.mocked(prisma.tenant.findUnique).mockResolvedValue({ ownerId: "another-owner" } as never);
+  vi.mocked(prisma.user.findFirst).mockResolvedValue({ position: null } as never);
   vi.mocked(prisma.company.findFirst).mockResolvedValue({ id: "company-a" } as never);
   for (const fn of Object.values(dashboard)) vi.mocked(fn).mockResolvedValue([] as never);
   vi.mocked(dashboard.getFinancialKpis).mockResolvedValue({ salesCurrent: 123 } as never);

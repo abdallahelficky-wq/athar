@@ -8,7 +8,7 @@ vi.mock("../../config/env", () => ({ env: { jwtAccessSecret: "test-only-access-s
 vi.mock("../../lib/prisma", () => ({
   prisma: {
     tenant: { findUnique: vi.fn() },
-    user: { findUnique: vi.fn() },
+    user: { findUnique: vi.fn(), findFirst: vi.fn() },
     positionActionPermission: { findUnique: vi.fn() },
     userActionPermissionOverride: { findUnique: vi.fn() },
     company: { findUnique: vi.fn() },
@@ -69,6 +69,9 @@ function grantReviewPermission() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // Existing users without an activated matrix retain the legacy policy.
+  vi.mocked(prisma.tenant.findUnique).mockResolvedValue({ ownerId: "another-owner" } as never);
+  vi.mocked(prisma.user.findFirst).mockResolvedValue({ position: null } as never);
   notTenantOwner();
   vi.mocked(prisma.costCenter.findMany).mockResolvedValue([{ id: "station-1", name: "محطة 1" }] as never);
   vi.mocked(prisma.stationShiftReading.findMany).mockResolvedValue([] as never);

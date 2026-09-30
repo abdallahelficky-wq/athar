@@ -7,6 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 vi.mock("../../config/env", () => ({ env: { jwtAccessSecret: "test-only-access-secret", jwtAccessExpiresIn: "15m" } }));
 vi.mock("../../lib/prisma", () => ({
   prisma: {
+    tenant: { findUnique: vi.fn() }, user: { findFirst: vi.fn() },
     company: { findFirst: vi.fn() },
     employee: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     costCenter: { findFirst: vi.fn() },
@@ -54,6 +55,9 @@ const existingEmployee = { id: "emp-1", tenantId: TENANT, companyId: COMPANY, na
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // Existing users without an activated matrix retain the legacy policy.
+  vi.mocked(prisma.tenant.findUnique).mockResolvedValue({ ownerId: "another-owner" } as never);
+  vi.mocked(prisma.user.findFirst).mockResolvedValue({ position: null } as never);
   vi.mocked(prisma.$transaction).mockImplementation(((cb: (tx: unknown) => unknown) => cb(prisma)) as typeof prisma.$transaction);
   vi.mocked(prisma.company.findFirst).mockResolvedValue({ id: COMPANY } as never);
   vi.mocked(prisma.employee.findFirst).mockResolvedValue(existingEmployee as never);
