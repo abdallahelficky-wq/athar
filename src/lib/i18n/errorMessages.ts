@@ -10,9 +10,12 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
-  "غير صالح أو خدمة مكررة": "Invalid or duplicate service",
-  "المنصب المميزين إلى منصب آخر قبل حفظ هذا المنصب": "Move privileged users to another position before saving this position",
-  "استخدم مستنداً منفصلاً للأصناف ذات أسباب إعفاء أو نسبة صفر مختلفة ضمن الفئة نفسها": "Use a separate document for different exemption or zero-rating reasons within the same category.",
+  "صلاحيات غير صالحة أو خدمة مكررة": "Invalid permissions or duplicate service",
+  "انقل المستخدمين إلى منصب آخر قبل حذف هذا المنصب": "Move the users to another position before deleting this position",
+  "المنصب المسند لحسابك لا يسمح بهذا الإجراء": "The position assigned to your account does not allow this action",
+  "لا تملك صلاحية عرض البيانات الشخصية والرواتب": "You do not have permission to view personal and payroll data",
+  "لا يمكن تغيير نوع حساب عليه قيود أو على حساب تحته — النوع يحدّد موضعه في القوائم المالية. أنشئ حساباً جديداً بالنوع المطلوب وانقل إليه بقيد.": "Cannot change the type of an account that has journal entries (on it or on an account under it) — the type determines its place in the financial statements. Create a new account with the required type and transfer the balance to it with a journal entry.",
+  "لا يمكن حذف قسم مستخدَم في قيود — القيود المرحَّلة تحمله. أعد تسميته بدل حذفه.": "Cannot delete a department used in journal entries — posted entries carry it. Rename it instead of deleting it.",
   "استخدم مستنداً منفصلاً للأصناف ذات أسباب إعفاء أو نسبة صفر مختلفة ضمن الفئة نفسها": "Use a separate document for different exemption or zero-rating reasons within the same category.",
   "اختر سبب الإعفاء أو نسبة الصفر المناسب للصنف": "Choose the applicable exemption or zero-rating reason for the item.",
   "قيمة المرتجع تتجاوز المتبقي القابل للإرجاع من الفاتورة": "Return amount exceeds the remaining returnable invoice value.",
