@@ -136,3 +136,39 @@ test('position permission matrix saves independent grants and assigns a user', a
  await page.screenshot({path:'test-results/position-matrix-mobile.png',fullPage:true});
  expect(errors).toEqual([]);
 });
+
+
+for (const kind of ['journal_entry','purchase_invoice']) {
+ test(`Office attachments upload and appear on ${kind}`, async ({page})=>{
+  const files=[]; const payloads=[];
+  await page.route('http://localhost:4000/api/attachments**',async route=>{
+   if(route.request().method()==='POST') {
+    const body=route.request().postDataBuffer().toString();payloads.push(body);
+    const filename=/filename="([^"]+)"/.exec(body)?.[1];
+    files.push({id:String(files.length),fileName:filename,fileSize:12,uploadedAt:'2026-09-30',fileUrl:'https://example.test/download/'+filename});
+    return route.fulfill({json:files.at(-1)});
+   }
+   await route.fulfill({json:files});
+  });
+  if(kind==='journal_entry') {
+   await page.route('http://localhost:4000/api/journal-entries**',r=>r.fulfill({json:[{id:'doc1',entryNumber:'J-1',date:'2026-09-30',status:'saved',memo:'test',lines:[]}]}));
+   await page.goto('/accounts/journal');
+   await page.locator('[data-entry-row="doc1"] button[aria-haspopup="menu"]').click();
+   await page.getByRole('menuitem',{name:'المرفقات',exact:true}).click();
+  } else {
+   await page.route('http://localhost:4000/api/purchase-invoices**',r=>r.fulfill({json:[{id:'doc1',invoiceNumber:'P-1',date:'2026-09-30',status:'draft',grandTotal:100,supplier:{name:'Supplier'}}]}));
+   await page.goto('/purchases/invoices');
+   await page.getByTitle('المرفقات',{exact:true}).click();
+  }
+  const panel=page.locator('.attachments-panel');
+  await expect(panel).toBeVisible();
+  const input=panel.locator('input[type=file]');
+  for(const [ext,mimeType] of [['doc','application/msword'],['docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document'],['xls','application/vnd.ms-excel'],['xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']]) {
+   expect(await input.getAttribute('accept')).toContain('.'+ext);
+   await input.setInputFiles({name:'attachment.'+ext,mimeType,buffer:Buffer.from('office-upload-fixture')});
+   await expect(panel.getByRole('link',{name:'attachment.'+ext,exact:true})).toBeVisible();
+   expect(payloads.at(-1)).toContain(kind); expect(payloads.at(-1)).toContain('doc1'); expect(payloads.at(-1)).toContain(mimeType);
+  }
+  expect(payloads).toHaveLength(4);
+ });
+}

@@ -1,3 +1,4 @@
+import AttachmentsPanel from "../shared/AttachmentsPanel";
 import InvoiceCreditNotes from "./InvoiceCreditNotes";
 import InvoiceZatcaDetails from "./InvoiceZatcaDetails";
 import InvoiceFormModal from "./InvoiceFormModal";
@@ -210,6 +211,7 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
         </details>
       </div>
       <InvoiceCreditNotes invoice={current} onClose={onClose} />
+      <div className="no-print"><AttachmentsPanel entityType="sales_invoice" entityId={current.id} /></div>
     </PrintShell>
 
       {editing && (
