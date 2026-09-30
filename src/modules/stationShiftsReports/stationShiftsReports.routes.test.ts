@@ -5,6 +5,9 @@ import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../config/env", () => ({ env: { jwtAccessSecret: "test-only-access-secret", jwtAccessExpiresIn: "15m" } }));
+vi.mock("../../middleware/positionMatrix", () => ({
+  requirePositionAction: () => (_req: any, _res: any, next: any) => next()
+}));
 vi.mock("../../lib/prisma", () => ({
   prisma: {
     tenant: { findUnique: vi.fn() },
