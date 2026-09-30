@@ -10,8 +10,9 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
-  "لا يمكن تغيير نوع حساب عليه قيود أو على حساب تحته — النوع يحدّد موضعه في القوائم المالية. أنشئ حساباً جديداً بالنوع المطلوب وانقل إليه بقيد.": "An account's type cannot change once it or an account under it has journal entries — the type decides where it sits in the financial statements. Create a new account of the required type and transfer to it with an entry.",
-  "لا يمكن حذف قسم مستخدَم في قيود — القيود المرحَّلة تحمله. أعد تسميته بدل حذفه.": "A department used in journal entries cannot be deleted — posted entries carry it. Rename it instead.",
+  "غير صالح أو خدمة مكررة": "Invalid or duplicate service",
+  "المنصب المميزين إلى منصب آخر قبل حفظ هذا المنصب": "Move privileged users to another position before saving this position",
+  "استخدم مستنداً منفصلاً للأصناف ذات أسباب إعفاء أو نسبة صفر مختلفة ضمن الفئة نفسها": "Use a separate document for different exemption or zero-rating reasons within the same category.",
   "استخدم مستنداً منفصلاً للأصناف ذات أسباب إعفاء أو نسبة صفر مختلفة ضمن الفئة نفسها": "Use a separate document for different exemption or zero-rating reasons within the same category.",
   "اختر سبب الإعفاء أو نسبة الصفر المناسب للصنف": "Choose the applicable exemption or zero-rating reason for the item.",
   "قيمة المرتجع تتجاوز المتبقي القابل للإرجاع من الفاتورة": "Return amount exceeds the remaining returnable invoice value.",

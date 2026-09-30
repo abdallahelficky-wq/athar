@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -7,7 +8,7 @@ import { listBranches, createBranch, updateBranch, deleteBranch } from "./branch
 export const branchRoutes = Router();
 branchRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
-branchRoutes.get("/", listBranches);
-branchRoutes.post("/", requireRole("admin", "finance_manager"), validateBody(createBranchSchema), createBranch);
-branchRoutes.patch("/:id", requireRole("admin", "finance_manager"), validateBody(updateBranchSchema), updateBranch);
-branchRoutes.delete("/:id", requireRole("admin", "finance_manager"), deleteBranch);
+branchRoutes.get("/", requirePositionAction("branches", "read"), listBranches);
+branchRoutes.post("/", requirePositionAction("branches", "create"), requireRole("admin", "finance_manager"), validateBody(createBranchSchema), createBranch);
+branchRoutes.patch("/:id", requirePositionAction("branches", "edit"), requireRole("admin", "finance_manager"), validateBody(updateBranchSchema), updateBranch);
+branchRoutes.delete("/:id", requirePositionAction("branches", "delete"), requireRole("admin", "finance_manager"), deleteBranch);

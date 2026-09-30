@@ -1,0 +1,20 @@
+.position-matrix { margin: 24px 0; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; background: #fff; }
+.matrix-toolbar, .matrix-footer { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
+.matrix-toolbar input[type="search"] { flex: 1; min-width: 160px; }
+.matrix-scroll { max-height: 580px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+.matrix-scroll table { width: 100%; min-width: 690px; margin: 0; }
+.matrix-scroll thead th { position: sticky; top: 0; background: #faf7ed; z-index: 1; }
+.matrix-scroll th, .matrix-scroll td { padding: 13px 16px; border-bottom: 1px solid #eceef1; }
+.matrix-scroll td { text-align: center; }
+.matrix-scroll label { display: flex; align-items: center; gap: 9px; cursor: pointer; white-space: nowrap; }
+.matrix-scroll input[type="checkbox"] { width: 17px; height: 17px; accent-color: #b48a18; }
+.matrix-legacy { background: #fff9e8; padding: 12px; border-radius: 8px; }
+.matrix-footer [role="alert"] { color: #b42318; }
+@media (max-width: 600px) { .position-matrix { padding: 12px; } }
+
+.positions-management .panel > .checkbox-label { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+@media (max-width: 600px) {
+  .positions-management .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .positions-management .form-grid > * { grid-column: 1 / -1; min-width: 0; }
+  .positions-management .checkbox-label { display: flex; align-items: center; gap: 8px; }
+}

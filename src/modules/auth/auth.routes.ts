@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { validateBody } from "../../middleware/validate";
 import { authenticate, requireRole, blockMutationsWhenReadOnly, requireTenantOwner } from "../../middleware/auth";
@@ -50,23 +51,23 @@ authRoutes.post("/refresh", validateBody(refreshSchema), refreshHandler);
 authRoutes.post("/logout", validateBody(refreshSchema), logoutHandler);
 authRoutes.post(
   "/invite",
-  authenticate,
+  authenticate, requirePositionAction("userAdministration", "create"),
   blockMutationsWhenReadOnly,
   requireRole("admin", "finance_manager"),
   validateBody(inviteSchema),
   inviteHandler,
 );
-authRoutes.get("/users", authenticate, requireRole("admin", "finance_manager"), listUsersHandler);
+authRoutes.get("/users", authenticate, requirePositionAction("userAdministration", "read"), requireRole("admin", "finance_manager"), listUsersHandler);
 authRoutes.post(
   "/users/:id/resend-invite",
-  authenticate,
+  authenticate, requirePositionAction("userAdministration", "edit"),
   blockMutationsWhenReadOnly,
   requireRole("admin", "finance_manager"),
   resendInviteHandler,
 );
 authRoutes.patch(
   "/users/:id/active",
-  authenticate,
+  authenticate, requirePositionAction("userAdministration", "edit"),
   blockMutationsWhenReadOnly,
   requireRole("admin", "finance_manager"),
   validateBody(setUserActiveSchema),
@@ -74,7 +75,7 @@ authRoutes.patch(
 );
 // حذف نهائي أخطر من التعطيل (لا رجعة فيه) — يقتصر على admin فقط، بخلاف الدعوة/التعطيل المتاحين
 // أيضاً لـfinance_manager، بنفس منطق تقييد حذف الشركة نفسها في companies.routes.ts.
-authRoutes.delete("/users/:id", authenticate, blockMutationsWhenReadOnly, requireRole("admin"), deleteUserHandler);
+authRoutes.delete("/users/:id", authenticate, requirePositionAction("userAdministration", "delete"), blockMutationsWhenReadOnly, requireRole("admin"), deleteUserHandler);
 authRoutes.get("/invite-info", getInviteInfoHandler);
 authRoutes.post("/accept-invite", validateBody(acceptInviteSchema), acceptInviteHandler);
 authRoutes.patch(
@@ -88,7 +89,7 @@ authRoutes.patch(
 );
 authRoutes.patch(
   "/tenant",
-  authenticate,
+  authenticate, requirePositionAction("userAdministration", "edit"),
   blockMutationsWhenReadOnly,
   requireRole("admin", "finance_manager"),
   validateBody(updateTenantSchema),

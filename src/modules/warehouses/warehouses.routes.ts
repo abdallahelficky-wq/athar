@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -7,7 +8,7 @@ import { listWarehouses, createWarehouse, updateWarehouse, deleteWarehouse } fro
 export const warehouseRoutes = Router();
 warehouseRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
-warehouseRoutes.get("/", listWarehouses);
-warehouseRoutes.post("/", requireRole("admin", "finance_manager"), validateBody(createWarehouseSchema), createWarehouse);
-warehouseRoutes.patch("/:id", requireRole("admin", "finance_manager"), validateBody(updateWarehouseSchema), updateWarehouse);
-warehouseRoutes.delete("/:id", requireRole("admin", "finance_manager"), deleteWarehouse);
+warehouseRoutes.get("/", requirePositionAction("warehouses", "read"), listWarehouses);
+warehouseRoutes.post("/", requirePositionAction("warehouses", "create"), requireRole("admin", "finance_manager"), validateBody(createWarehouseSchema), createWarehouse);
+warehouseRoutes.patch("/:id", requirePositionAction("warehouses", "edit"), requireRole("admin", "finance_manager"), validateBody(updateWarehouseSchema), updateWarehouse);
+warehouseRoutes.delete("/:id", requirePositionAction("warehouses", "delete"), requireRole("admin", "finance_manager"), deleteWarehouse);

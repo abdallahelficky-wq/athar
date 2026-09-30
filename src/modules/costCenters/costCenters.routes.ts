@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -12,17 +13,17 @@ import {
 export const costCenterRoutes = Router();
 costCenterRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
-costCenterRoutes.get("/", listCostCenters);
+costCenterRoutes.get("/", requirePositionAction("costCenters", "read"), listCostCenters);
 costCenterRoutes.post(
-  "/",
+  "/", requirePositionAction("costCenters", "create"),
   requireRole("admin", "finance_manager"),
   validateBody(createCostCenterSchema),
   createCostCenter,
 );
 costCenterRoutes.patch(
-  "/:id",
+  "/:id", requirePositionAction("costCenters", "edit"),
   requireRole("admin", "finance_manager"),
   validateBody(updateCostCenterSchema),
   updateCostCenter,
 );
-costCenterRoutes.delete("/:id", requireRole("admin", "finance_manager"), deleteCostCenter);
+costCenterRoutes.delete("/:id", requirePositionAction("costCenters", "delete"), requireRole("admin", "finance_manager"), deleteCostCenter);

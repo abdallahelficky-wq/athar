@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -12,7 +13,7 @@ const canWrite = requireRole("admin", "finance_manager", "accountant");
 // يتطلبها فك ترحيل قيد يومية مباشرة — لا الدور وحده. المالك وsuper_admin معفيان كما في كل صلاحية.
 const canUnpost = requirePermission("accounts", "unpost");
 
-depreciationRunRoutes.get("/", listHandler);
-depreciationRunRoutes.get("/preview", previewHandler);
-depreciationRunRoutes.post("/", canWrite, validateBody(createDepreciationRunSchema), createHandler);
-depreciationRunRoutes.delete("/:id", canWrite, canUnpost, validateBody(removeSchema), removeHandler);
+depreciationRunRoutes.get("/", requirePositionAction("depreciation", "read"), listHandler);
+depreciationRunRoutes.get("/preview", requirePositionAction("depreciation", "read"), previewHandler);
+depreciationRunRoutes.post("/", requirePositionAction("depreciation", "create"), requirePositionAction("depreciation", "approve"), canWrite, validateBody(createDepreciationRunSchema), createHandler);
+depreciationRunRoutes.delete("/:id", requirePositionAction("depreciation", "delete"), canWrite, canUnpost, validateBody(removeSchema), removeHandler);

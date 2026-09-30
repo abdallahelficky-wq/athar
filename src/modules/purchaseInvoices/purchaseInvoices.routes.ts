@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -12,10 +13,10 @@ const canWrite = requireRole("admin", "finance_manager", "accountant");
 // يتطلبها فك ترحيل قيد يومية مباشرة — لا الدور وحده. المالك وsuper_admin معفيان كما في كل صلاحية.
 const canUnpost = requirePermission("accounts", "unpost");
 
-purchaseInvoiceRoutes.get("/", listHandler);
-purchaseInvoiceRoutes.get("/:id", getHandler);
-purchaseInvoiceRoutes.post("/", canWrite, validateBody(createPurchaseInvoiceSchema), createHandler);
-purchaseInvoiceRoutes.patch("/:id", canWrite, validateBody(updatePurchaseInvoiceSchema), updateHandler);
-purchaseInvoiceRoutes.delete("/:id", canWrite, deleteHandler);
-purchaseInvoiceRoutes.post("/:id/post", canWrite, postHandler);
-purchaseInvoiceRoutes.post("/:id/unpost", canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
+purchaseInvoiceRoutes.get("/", requirePositionAction("purchaseInvoices", "read"), listHandler);
+purchaseInvoiceRoutes.get("/:id", requirePositionAction("purchaseInvoices", "read"), getHandler);
+purchaseInvoiceRoutes.post("/", requirePositionAction("purchaseInvoices", "create"), requirePositionAction("purchaseInvoices", "approve"), canWrite, validateBody(createPurchaseInvoiceSchema), createHandler);
+purchaseInvoiceRoutes.patch("/:id", requirePositionAction("purchaseInvoices", "edit"), canWrite, validateBody(updatePurchaseInvoiceSchema), updateHandler);
+purchaseInvoiceRoutes.delete("/:id", requirePositionAction("purchaseInvoices", "delete"), canWrite, deleteHandler);
+purchaseInvoiceRoutes.post("/:id/post", requirePositionAction("purchaseInvoices", "approve"), canWrite, postHandler);
+purchaseInvoiceRoutes.post("/:id/unpost", requirePositionAction("purchaseInvoices", "approve"), canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);

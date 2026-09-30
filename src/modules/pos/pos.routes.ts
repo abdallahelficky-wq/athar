@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -9,5 +10,5 @@ posRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 const canSell = requireRole("admin", "finance_manager", "accountant");
 
-posRoutes.get("/quick-items", quickAccessItemsHandler);
-posRoutes.post("/sales", canSell, validateBody(createPosSaleSchema), createPosSaleHandler);
+posRoutes.get("/quick-items", requirePositionAction("pos", "read"), quickAccessItemsHandler);
+posRoutes.post("/sales", requirePositionAction("pos", "create"), requirePositionAction("pos", "approve"), canSell, validateBody(createPosSaleSchema), createPosSaleHandler);

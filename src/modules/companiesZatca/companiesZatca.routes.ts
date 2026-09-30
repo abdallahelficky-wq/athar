@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router, RequestHandler } from "express";
 import { authenticate, requireRole, assertCompanyAccess, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -26,17 +27,17 @@ companyZatcaRoutes.use(authenticate, enforceZatcaCompanyScope, blockMutationsWhe
 
 const adminOnly = requireRole("admin");
 
-companyZatcaRoutes.get("/", getStatusHandler);
-companyZatcaRoutes.post("/csr", adminOnly, validateBody(generateCsrSchema), generateCsrHandler);
-companyZatcaRoutes.post("/compliance", adminOnly, validateBody(complianceOtpSchema), requestComplianceHandler);
-companyZatcaRoutes.post("/production", adminOnly, requestProductionHandler);
-companyZatcaRoutes.patch("/environment", adminOnly, validateBody(setEnvironmentSchema), setEnvironmentHandler);
-companyZatcaRoutes.delete("/", adminOnly, resetLinkageHandler);
+companyZatcaRoutes.get("/", requirePositionAction("companiesZatca", "read"), getStatusHandler);
+companyZatcaRoutes.post("/csr", requirePositionAction("companiesZatca", "edit"), adminOnly, validateBody(generateCsrSchema), generateCsrHandler);
+companyZatcaRoutes.post("/compliance", requirePositionAction("companiesZatca", "edit"), adminOnly, validateBody(complianceOtpSchema), requestComplianceHandler);
+companyZatcaRoutes.post("/production", requirePositionAction("companiesZatca", "edit"), adminOnly, requestProductionHandler);
+companyZatcaRoutes.patch("/environment", requirePositionAction("companiesZatca", "edit"), adminOnly, validateBody(setEnvironmentSchema), setEnvironmentHandler);
+companyZatcaRoutes.delete("/", requirePositionAction("companiesZatca", "delete"), adminOnly, resetLinkageHandler);
 
 // راجع src/lib/zatca/complianceAutomation.ts — تشغيل/متابعة مستندات فحص الامتثال الاصطناعية الستة.
 // :stepKey أحد مفاتيح ZATCA_COMPLIANCE_STEPS (مثل standard-credit-note-compliant) — يُتحقَّق منه
 // ومن enabled=false داخل runZatcaComplianceStep نفسها. التشغيل الفعلي (يحجز رقم ICV حقيقياً بصرف
 // النظر عن النتيجة) مقصور على admin فقط، مثل بقية مسارات زاتكا الحسّاسة أعلاه؛ القراءة المجرَّدة
 // للتقدّم متاحة لأي مستخدم له صلاحية الوصول لهذه الشركة.
-companyZatcaRoutes.get("/compliance-steps", getComplianceProgressHandler);
-companyZatcaRoutes.post("/compliance-steps/:stepKey/test", adminOnly, runComplianceStepTestHandler);
+companyZatcaRoutes.get("/compliance-steps", requirePositionAction("companiesZatca", "read"), getComplianceProgressHandler);
+companyZatcaRoutes.post("/compliance-steps/:stepKey/test", requirePositionAction("companiesZatca", "edit"), adminOnly, runComplianceStepTestHandler);

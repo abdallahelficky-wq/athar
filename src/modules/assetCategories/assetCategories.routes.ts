@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -9,7 +10,7 @@ assetCategoryRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenRea
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 
-assetCategoryRoutes.get("/", listHandler);
-assetCategoryRoutes.post("/", canWrite, validateBody(createAssetCategorySchema), createHandler);
-assetCategoryRoutes.patch("/:id", canWrite, validateBody(updateAssetCategorySchema), updateHandler);
-assetCategoryRoutes.delete("/:id", canWrite, removeHandler);
+assetCategoryRoutes.get("/", requirePositionAction("assetCategories", "read"), listHandler);
+assetCategoryRoutes.post("/", requirePositionAction("assetCategories", "create"), canWrite, validateBody(createAssetCategorySchema), createHandler);
+assetCategoryRoutes.patch("/:id", requirePositionAction("assetCategories", "edit"), canWrite, validateBody(updateAssetCategorySchema), updateHandler);
+assetCategoryRoutes.delete("/:id", requirePositionAction("assetCategories", "delete"), canWrite, removeHandler);

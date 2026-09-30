@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, authenticateEmployeePortal, enforceCompanyScope, requireRole } from "../../middleware/auth";
 import { checkInHandler, checkOutHandler, myAttendance, dailyAttendance, absentTodayHandler } from "./attendance.controller";
@@ -11,5 +12,5 @@ attendanceRoutes.get("/me", authenticateEmployeePortal, myAttendance);
 
 // الواجهة الإدارية (سطح المكتب) — نفس نظام صلاحيات User الحالي
 const canView = requireRole("admin", "finance_manager", "hr_manager");
-attendanceRoutes.get("/daily", authenticate, enforceCompanyScope, canView, dailyAttendance);
-attendanceRoutes.get("/absent-today", authenticate, enforceCompanyScope, canView, absentTodayHandler);
+attendanceRoutes.get("/daily", authenticate, requirePositionAction("attendance", "read"), enforceCompanyScope, canView, dailyAttendance);
+attendanceRoutes.get("/absent-today", authenticate, requirePositionAction("attendance", "read"), enforceCompanyScope, canView, absentTodayHandler);

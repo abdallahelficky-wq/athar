@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -20,10 +21,10 @@ const canWrite = requireRole("admin", "finance_manager", "accountant");
 // يتطلبها فك ترحيل قيد يومية مباشرة — لا الدور وحده. المالك وsuper_admin معفيان كما في كل صلاحية.
 const canUnpost = requirePermission("accounts", "unpost");
 
-salesDebitNoteRoutes.get("/", listHandler);
-salesDebitNoteRoutes.post("/", canWrite, validateBody(createSalesDebitNoteSchema), createHandler);
-salesDebitNoteRoutes.delete("/:id", canWrite, deleteHandler);
-salesDebitNoteRoutes.post("/:id/post", canWrite, postHandler);
-salesDebitNoteRoutes.post("/:id/unpost", canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
-salesDebitNoteRoutes.post("/:id/retry-zatca-submission", canWrite, retryZatcaSubmissionHandler);
-salesDebitNoteRoutes.post("/:id/complete-zatca-posting", canWrite, completeZatcaPostingHandler);
+salesDebitNoteRoutes.get("/", requirePositionAction("salesDebitNotes", "read"), listHandler);
+salesDebitNoteRoutes.post("/", requirePositionAction("salesDebitNotes", "create"), requirePositionAction("salesDebitNotes", "approve"), canWrite, validateBody(createSalesDebitNoteSchema), createHandler);
+salesDebitNoteRoutes.delete("/:id", requirePositionAction("salesDebitNotes", "delete"), canWrite, deleteHandler);
+salesDebitNoteRoutes.post("/:id/post", requirePositionAction("salesDebitNotes", "approve"), canWrite, postHandler);
+salesDebitNoteRoutes.post("/:id/unpost", requirePositionAction("salesDebitNotes", "approve"), canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
+salesDebitNoteRoutes.post("/:id/retry-zatca-submission", requirePositionAction("salesDebitNotes", "approve"), canWrite, retryZatcaSubmissionHandler);
+salesDebitNoteRoutes.post("/:id/complete-zatca-posting", requirePositionAction("salesDebitNotes", "approve"), canWrite, completeZatcaPostingHandler);

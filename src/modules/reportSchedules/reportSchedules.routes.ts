@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -9,6 +10,6 @@ const canWrite = requireRole("admin", "finance_manager");
 // تُركَّب على /api/companies/:companyId/report-schedule
 export const reportScheduleRoutes = Router({ mergeParams: true });
 reportScheduleRoutes.use(authenticate, blockMutationsWhenReadOnly);
-reportScheduleRoutes.get("/report-schedule", controller.getReportScheduleHandler);
-reportScheduleRoutes.put("/report-schedule", canWrite, validateBody(upsertReportScheduleSchema), controller.upsertReportScheduleHandler);
-reportScheduleRoutes.post("/report-schedule/send-now", canWrite, controller.sendReportScheduleNowHandler);
+reportScheduleRoutes.get("/report-schedule", requirePositionAction("reportSchedules", "read"), controller.getReportScheduleHandler);
+reportScheduleRoutes.put("/report-schedule", requirePositionAction("reportSchedules", "edit"), canWrite, validateBody(upsertReportScheduleSchema), controller.upsertReportScheduleHandler);
+reportScheduleRoutes.post("/report-schedule/send-now", requirePositionAction("reportSchedules", "edit"), canWrite, controller.sendReportScheduleNowHandler);

@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -9,6 +10,6 @@ attachmentRoutes.use(authenticate, blockMutationsWhenReadOnly);
 
 const canWrite = requireRole("admin", "finance_manager", "accountant", "hr_manager");
 
-attachmentRoutes.get("/", listHandler);
-attachmentRoutes.post("/", canWrite, uploadSingleFile, validateBody(createAttachmentBodySchema), createHandler);
-attachmentRoutes.delete("/:id", canWrite, deleteHandler);
+attachmentRoutes.get("/", requirePositionAction("attachments", "read"), listHandler);
+attachmentRoutes.post("/", requirePositionAction("attachments", "create"), canWrite, uploadSingleFile, validateBody(createAttachmentBodySchema), createHandler);
+attachmentRoutes.delete("/:id", requirePositionAction("attachments", "delete"), canWrite, deleteHandler);

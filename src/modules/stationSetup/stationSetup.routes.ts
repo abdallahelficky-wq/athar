@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -13,11 +14,11 @@ stationSetupRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenRead
 
 const canManage = requireRole("admin", "finance_manager");
 
-stationSetupRoutes.get("/stations", listStations);
-stationSetupRoutes.post("/pumps", canManage, validateBody(createPumpSchema), createPump);
-stationSetupRoutes.post("/pumps/retire", canManage, validateBody(retirePumpSchema), retirePump);
-stationSetupRoutes.patch("/nozzles/:id", canManage, validateBody(updateNozzleSchema), updateNozzle);
+stationSetupRoutes.get("/stations", requirePositionAction("stationSetup", "read"), listStations);
+stationSetupRoutes.post("/pumps", requirePositionAction("stationSetup", "create"), canManage, validateBody(createPumpSchema), createPump);
+stationSetupRoutes.post("/pumps/retire", requirePositionAction("stationSetup", "edit"), canManage, validateBody(retirePumpSchema), retirePump);
+stationSetupRoutes.patch("/nozzles/:id", requirePositionAction("stationSetup", "edit"), canManage, validateBody(updateNozzleSchema), updateNozzle);
 
-stationSetupRoutes.get("/fuel-prices", listFuelPrices);
-stationSetupRoutes.post("/fuel-prices", canManage, validateBody(createFuelPriceSchema), createFuelPrice);
-stationSetupRoutes.delete("/fuel-prices/:id", canManage, deleteFuelPrice);
+stationSetupRoutes.get("/fuel-prices", requirePositionAction("stationSetup", "read"), listFuelPrices);
+stationSetupRoutes.post("/fuel-prices", requirePositionAction("stationSetup", "create"), canManage, validateBody(createFuelPriceSchema), createFuelPrice);
+stationSetupRoutes.delete("/fuel-prices/:id", requirePositionAction("stationSetup", "delete"), canManage, deleteFuelPrice);

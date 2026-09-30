@@ -1,3 +1,4 @@
+import { matrixAuthorizedRequests, matrixHrAccess } from "../lib/matrixAuthorization";
 import { RequestHandler } from "express";
 import { verifyAccessToken, verifyEmployeePortalToken } from "../lib/jwt";
 import { unauthorized, forbidden } from "../lib/httpError";
@@ -79,7 +80,7 @@ export const authenticatePlatformService: RequestHandler = (req, _res, next) => 
 export function requireRole(...roles: string[]): RequestHandler {
   return (req, _res, next) => {
     if (!req.auth) throw unauthorized();
-    if (req.auth.role === "super_admin") return next();
+    if (req.auth.role === "super_admin" || matrixAuthorizedRequests.has(req)) return next();
     if (!roles.includes(req.auth.role)) {
       throw forbidden("دورك الوظيفي لا يسمح بتنفيذ هذا الإجراء");
     }
@@ -94,8 +95,14 @@ export function requireRole(...roles: string[]): RequestHandler {
  * مستخدم مسجَّل (بما فيه "مشاهدة فقط"). super_admin يمرّ دائماً عبر requireRole كالمعتاد.
  */
 export const HR_READ_ROLES = ["admin", "finance_manager", "hr_manager"] as const;
-export const requireHrRead = requireRole(...HR_READ_ROLES);
+export const requireHrRead: RequestHandler = (req, res, next) => {
+  if (req.auth && matrixHrAccess.has(req.auth) && !matrixHrAccess.get(req.auth)) {
+    throw forbidden("لا تملك صلاحية عرض البيانات الشخصية والرواتب");
+  }
+  return requireRole(...HR_READ_ROLES)(req, res, next);
+};
 export function canReadHrData(auth: { role: string }): boolean {
+  if (matrixHrAccess.has(auth)) return matrixHrAccess.get(auth)!;
   return auth.role === "super_admin" || (HR_READ_ROLES as readonly string[]).includes(auth.role);
 }
 
@@ -193,7 +200,7 @@ export const blockMutationsWhenReadOnly: RequestHandler = (req, _res, next) => {
  * بلا حاجة لإعداد منصب له صراحةً. super_admin ليس دور منصّة بل دور داخل هذا المستأجر مربوط
  * ببريد واحد (راجع OWNER_EMAIL في auth.service.ts)، ويمرّ دائماً من requirePermission أدناه عبر
  * استثنائه المنفصل، بنفس أسلوب requireRole تماماً. */
-async function isTenantOwner(auth: { sub: string; tenantId: string }): Promise<boolean> {
+export async function isTenantOwner(auth: { sub: string; tenantId: string }): Promise<boolean> {
   const tenant = await prisma.tenant.findUnique({ where: { id: auth.tenantId }, select: { ownerId: true } });
   return tenant?.ownerId === auth.sub;
 }

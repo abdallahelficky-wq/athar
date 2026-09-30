@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
@@ -9,8 +10,8 @@ quotationRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnl
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 
-quotationRoutes.get("/", listHandler);
-quotationRoutes.post("/", canWrite, validateBody(createQuotationSchema), createHandler);
-quotationRoutes.patch("/:id", canWrite, validateBody(updateQuotationSchema), updateHandler);
-quotationRoutes.delete("/:id", canWrite, deleteHandler);
-quotationRoutes.post("/:id/convert-to-invoice", canWrite, convertHandler);
+quotationRoutes.get("/", requirePositionAction("quotations", "read"), listHandler);
+quotationRoutes.post("/", requirePositionAction("quotations", "create"), canWrite, validateBody(createQuotationSchema), createHandler);
+quotationRoutes.patch("/:id", requirePositionAction("quotations", "edit"), canWrite, validateBody(updateQuotationSchema), updateHandler);
+quotationRoutes.delete("/:id", requirePositionAction("quotations", "delete"), canWrite, deleteHandler);
+quotationRoutes.post("/:id/convert-to-invoice", requirePositionAction("quotations", "create"), requirePositionAction("salesInvoices", "create"), requirePositionAction("salesInvoices", "approve"), canWrite, convertHandler);

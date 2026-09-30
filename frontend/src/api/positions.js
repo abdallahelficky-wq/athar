@@ -12,3 +12,6 @@ export const updatePositionActionPermission = (positionId, payload) => api.patch
 export const listUserOverrides = () => api.get("/positions/user-overrides");
 export const upsertUserOverride = (payload) => api.put("/positions/user-overrides", payload);
 export const deleteUserOverride = (id) => api.delete(`/positions/user-overrides/${id}`);
+
+export const listMatrixResources = () => api.get("/positions/matrix-resources");
+export const savePositionMatrix = (id, rows) => api.put(`/positions/${id}/matrix`, { rows });
