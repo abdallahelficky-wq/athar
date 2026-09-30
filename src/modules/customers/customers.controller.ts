@@ -7,6 +7,7 @@ import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claude
 import { createAttachment } from "../attachments/attachments.service";
 import { translateMessage } from "../../lib/i18n/translate";
 import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
+import { setAuditActor } from "../../lib/auditActor";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -63,6 +64,7 @@ export const updateCustomer: RequestHandler = async (req, res) => {
     const updated = await tx.customer.update({ where: { id: existing.id }, data: req.body });
     // مزامنة اسم الحساب المستقل تلقائياً مع اسم العميل عند إعادة التسمية
     if (updated.accountId && req.body.name && req.body.name !== existing.name) {
+      await setAuditActor(tx, req.auth!.sub);
       await tx.account.update({ where: { id: updated.accountId }, data: { name: req.body.name } });
     }
     return updated;

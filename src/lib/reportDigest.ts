@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import { notFound } from "./httpError";
 import * as reportsService from "../modules/reports/reports.service";
 import { Lang } from "./i18n/translate";
+import { KSA_DATE_OPTIONS } from "./displayDates";
 
 export interface ReportDigestOptions {
   includeComprehensiveMonthly: boolean;
@@ -172,11 +173,11 @@ export async function buildReportDigestEmail(tenantId: string, companyId: string
   return {
     companyName: company.name,
     subject: en
-      ? `Periodic Financial Report — ${company.name} — ${now.toLocaleDateString(locale)}`
-      : `التقرير المالي الدوري — ${company.name} — ${now.toLocaleDateString(locale)}`,
+      ? `Periodic Financial Report — ${company.name} — ${now.toLocaleDateString(locale, KSA_DATE_OPTIONS)}`
+      : `التقرير المالي الدوري — ${company.name} — ${now.toLocaleDateString(locale, KSA_DATE_OPTIONS)}`,
     bodyHtml: `
       <h2 style="color:#10202E; margin-bottom:4px;">${en ? "Periodic Financial Report" : "التقرير المالي الدوري"}</h2>
-      <p style="color:#5c6b78; font-size:13px; margin-top:0;">${company.name} — ${now.toLocaleDateString(locale)}</p>
+      <p style="color:#5c6b78; font-size:13px; margin-top:0;">${company.name} — ${now.toLocaleDateString(locale, KSA_DATE_OPTIONS)}</p>
       ${sections.join("")}
     `,
   };

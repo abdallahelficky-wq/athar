@@ -5,6 +5,7 @@ import { resolveZatcaSubmissionKind, signAndSubmitDocument } from "./submission"
 import { ZatcaApiEnvironment } from "./apiClient";
 import { ZatcaDocumentStatus } from "@prisma/client";
 import { env } from "../../config/env";
+import type { ZatcaArchivePayload } from "./archive";
 
 export interface ResubmitZatcaDocumentParams {
   company: ZatcaCompanyLike;
@@ -29,6 +30,8 @@ export interface ResubmitZatcaDocumentResult {
   zatcaResponseRaw?: unknown;
   zatcaClearedOrReportedAt?: Date;
   rejectionReason?: string;
+  /** قبول على مسار الإنتاج: الأصل المُعاد توقيعه — يُحفَظ في zatca_document_archive مع حفظ الرد (archive.ts) */
+  archive?: ZatcaArchivePayload;
 }
 
 /**
@@ -100,6 +103,10 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
       zatcaStatus: rebuilt.subtype === "standard" ? "cleared" : "reported",
       zatcaResponseRaw: outcome.response ?? undefined,
       zatcaClearedOrReportedAt: new Date(),
+      archive: {
+        signedXml: outcome.signedXml, clearedInvoiceBase64: outcome.response?.clearedInvoice ?? undefined,
+        subtype: rebuilt.subtype, icv: params.icv, invoiceHash: params.invoiceHash, issuedAt: params.issuedAt,
+      },
     };
   }
   if (!outcome.certificateError && !outcome.networkError && !outcome.httpError && !outcome.malformedResponse) {

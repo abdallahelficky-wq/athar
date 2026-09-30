@@ -2,22 +2,27 @@
 // الحالية — ar-SA كما كانت الشاشات المُترجَمة تستخدمها دائماً، en-GB لنفس ترتيب الحقول بالإنجليزية.
 const LOCALE_BY_LANGUAGE = { ar: "ar-SA", en: "en-GB" };
 
+// التقويم الميلادي والأرقام اللاتينية إلزاماً في كل تاريخ يُعرَض أو يُطبَع أو يُصدَّر: التقويم الافتراضي
+// لـ"ar-SA" يختلف باختلاف نسخة ICU — هجري (أم القرى) في Chromium، وميلادي في Node الحالي — فلا يُترَك
+// للمحرّك. القيود والدفاتر والإقرارات الضريبية كلها ميلادية، ومستند مطبوع بتاريخ هجري لا يطابق محتواه.
+const GREGORIAN = { calendar: "gregory", numberingSystem: "latn" };
+
 export function formatDate(date, lang, opts) {
   if (!date) return "";
   const locale = LOCALE_BY_LANGUAGE[lang] || LOCALE_BY_LANGUAGE.ar;
-  return new Date(date).toLocaleDateString(locale, opts);
+  return new Date(date).toLocaleDateString(locale, { ...GREGORIAN, ...opts });
 }
 
 export function formatDateTime(date, lang, opts) {
   if (!date) return "";
   const locale = LOCALE_BY_LANGUAGE[lang] || LOCALE_BY_LANGUAGE.ar;
-  return new Date(date).toLocaleString(locale, opts);
+  return new Date(date).toLocaleString(locale, { ...GREGORIAN, ...opts });
 }
 
 export function formatTime(date, lang, opts) {
   if (!date) return "";
   const locale = LOCALE_BY_LANGUAGE[lang] || LOCALE_BY_LANGUAGE.ar;
-  return new Date(date).toLocaleTimeString(locale, opts);
+  return new Date(date).toLocaleTimeString(locale, { ...GREGORIAN, ...opts });
 }
 
 /**
@@ -32,5 +37,5 @@ export function formatTime(date, lang, opts) {
 export function formatGregorianDateTime(date, lang, opts) {
   if (!date) return "";
   const locale = LOCALE_BY_LANGUAGE[lang] || LOCALE_BY_LANGUAGE.ar;
-  return new Date(date).toLocaleString(locale, { calendar: "gregory", numberingSystem: "latn", ...opts });
+  return new Date(date).toLocaleString(locale, { ...GREGORIAN, ...opts });
 }

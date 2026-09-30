@@ -1,3 +1,4 @@
+import { saveZatcaResponseWithArchive } from "../../lib/zatca/archive";
 import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/itemTax";
 import { assertReturnLimits } from "./returnLimits";
 import { randomUUID } from "crypto";
@@ -403,7 +404,8 @@ async function finishCreditNoteZatcaSubmission(
     grandTotal, vatTotal,
   });
 
-  const afterResponse = await prisma.salesReturn.update({
+  // أصل المستند المقبول يُحفَظ في zatca_document_archive في نفس المعاملة — لا "مقبول" بلا أصل محفوظ
+  const afterResponseArgs = {
     where: { id: salesReturn.id },
     data: {
       zatcaStatus: decision.zatcaFields.zatcaStatus,
@@ -412,6 +414,16 @@ async function finishCreditNoteZatcaSubmission(
       status: decision.proceedWithPosting ? "zatca_accepted_posting_incomplete" : "pending_submission",
     },
     include: returnInclude,
+  } satisfies Prisma.SalesReturnUpdateArgs;
+  const afterResponse = await saveZatcaResponseWithArchive({
+    payload: decision.archive,
+    doc: {
+        tenantId: tenantId, companyId: salesReturn.companyId, documentType: "sales_return", documentId: salesReturn.id,
+        documentNumber: salesReturn.returnNumber, documentUuid: salesReturn.zatcaUuid,
+    },
+    source: "submission",
+    inTx: (tx) => tx.salesReturn.update(afterResponseArgs),
+    plain: () => prisma.salesReturn.update(afterResponseArgs),
   });
 
   if (!decision.proceedWithPosting) {

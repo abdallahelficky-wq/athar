@@ -8,6 +8,7 @@ import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/de
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 import { LEVEL_CODE_LENGTH, generateNextCode } from "../../lib/accountCodes";
 import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
+import { setAuditActor, withAuditActor } from "../../lib/auditActor";
 
 const scopeCompanyId = (value: unknown) => (typeof value === "string" && value ? value : null);
 
@@ -163,20 +164,35 @@ export const updateAccount: RequestHandler = async (req, res) => {
       throw badRequest("الحساب مرتبط بقيود سابقة. سيؤثر نقله على تصنيف التقارير التاريخية. أكّد النقل للمتابعة.", { requiresMoveConfirmation: true, journalLines: lines });
     }
   }
+  // نوع الحساب يحدّد موضعه في القوائم المالية: بعد وجود قيود عليه (أو على حساب تحته، محفوظة أو مرحَّلة) تغييره يعيد
+  // تصنيف أرصدة فترات مُقفَلة بصمت. المُشغِّل account_type_locked يرفضه في قاعدة البيانات أياً كان المسار؛ هنا رسالة واضحة.
+  if (requestedData.type !== undefined && requestedData.type !== existing.type) {
+    const tree = [existing.id];
+    for (let level = [existing.id]; level.length; ) {
+      level = (await prisma.account.findMany({ where: { tenantId: req.auth!.tenantId, parentId: { in: level } }, select: { id: true } })).map((c) => c.id);
+      tree.push(...level);
+    }
+    const lines = await prisma.journalEntryLine.count({ where: { accountId: { in: tree } } });
+    if (lines) throw badRequest("لا يمكن تغيير نوع حساب عليه قيود أو على حساب تحته — النوع يحدّد موضعه في القوائم المالية. أنشئ حساباً جديداً بالنوع المطلوب وانقل إليه بقيد.", { journalLines: lines });
+  }
   // يبقى الكود ثابتاً عند النقل حتى يظل معرّف الحساب مستقراً في المراجعات والتقارير التاريخية.
   const data = { ...existing, ...requestedData, code: existing.code, level: existing.level, companyId: existing.companyId };
   await validateHierarchy(req.auth!.tenantId, data, existing.id);
-  const account = await prisma.account.update({ where: { id: existing.id }, data: requestedData });
-  if (typeof requestedData.isArchived === "boolean") {
-    const descendants: string[] = [];
-    let parentIds = [existing.id];
-    while (parentIds.length) {
-      const children = await prisma.account.findMany({ where: { tenantId: req.auth!.tenantId, parentId: { in: parentIds } }, select: { id: true } });
-      parentIds = children.map((child) => child.id);
-      descendants.push(...parentIds);
+  // كل تعديل (ومنه النقل والأرشفة المتسلسلة) يُسجَّل بمُشغِّل account_record_change: الحقول قبل/بعد ومن نفّذه
+  const account = await withAuditActor(req.auth!.sub, async (tx) => {
+    const updated = await tx.account.update({ where: { id: existing.id }, data: requestedData });
+    if (typeof requestedData.isArchived === "boolean") {
+      const descendants: string[] = [];
+      let parentIds = [existing.id];
+      while (parentIds.length) {
+        const children = await tx.account.findMany({ where: { tenantId: req.auth!.tenantId, parentId: { in: parentIds } }, select: { id: true } });
+        parentIds = children.map((child) => child.id);
+        descendants.push(...parentIds);
+      }
+      if (descendants.length) await tx.account.updateMany({ where: { id: { in: descendants } }, data: { isArchived: requestedData.isArchived } });
     }
-    if (descendants.length) await prisma.account.updateMany({ where: { id: { in: descendants } }, data: { isArchived: requestedData.isArchived } });
-  }
+    return updated;
+  });
   res.json(account);
 };
 
@@ -311,6 +327,7 @@ export const installStandardChart: RequestHandler = async (req, res) => {
   // شركة لم يُسجَّل فيها شيء بعد.
   const result = await prisma.$transaction(
     async (tx) => {
+      await setAuditActor(tx, req.auth!.sub); // حذف الشجرة القديمة يُسجَّل حساباً حساباً (account_record_change)
       // الفحص داخل نفس المعاملة وبعد قفل صفوف الشركات في النطاق (FOR UPDATE): كل قيد يُنشأ في النظام
       // يحدّث صف شركته أولاً (حجز رقم القيد في journalPosting.ts)، فلا يمكن أن يُرحَّل شيء بين الفحص
       // والاستبدال. وأي سطر مستند أو قيد يشير لحساب قديم يمنع حذفه بقيد المفتاح الأجنبي.
@@ -380,6 +397,6 @@ export const deleteAccount: RequestHandler = async (req, res) => {
     const reasons = [children ? `${children} حسابات فرعية` : "", lines ? `${lines} حركات أو قيود مرتبطة` : ""].filter(Boolean).join(" و");
     throw badRequest(`لا يمكن حذف الحساب لوجود ${reasons}. استخدم الأرشفة بدلاً من الحذف.`, { children, journalLines: lines });
   }
-  await prisma.account.delete({ where: { id: existing.id } });
+  await withAuditActor(req.auth!.sub, (tx) => tx.account.delete({ where: { id: existing.id } }));
   res.status(204).send();
 };

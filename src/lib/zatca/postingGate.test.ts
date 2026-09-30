@@ -201,7 +201,8 @@ describe("evaluateZatcaPostingGate", () => {
 
     expect(decision.proceedWithPosting).toBe(true);
     expect(decision.zatcaFields.zatcaStatus).toBe("cleared");
-    expect(decision.zatcaFields.zatcaClearedOrReportedAt).toBeInstanceOf(Date);
+    expect(decision.zatcaFields.zatcaClearedOrReportedAt).toBeInstanceOf(Date);    // قبول إنتاج = إصدار قانوني → يُعاد أصل المستند الموقَّع ليُحفَظ في الأرشيف
+    expect((decision as { archive?: { signedXml: string } }).archive?.signedXml).toContain("<Invoice");
   });
 
   it("blocks posting entirely for a rejected STANDARD (clearance) invoice, even though the ICV/hash were reserved", async () => {
@@ -623,7 +624,9 @@ describe("evaluateZatcaPostingGate", () => {
     });
     expect(simplifiedDecision.proceedWithPosting).toBe(true);
     expect(simplifiedDecision.zatcaFields.zatcaStatus).toBe("compliance_checked");
-    expect(simplifiedDecision.zatcaFields.zatcaClearedOrReportedAt).toBeUndefined();
+    expect(simplifiedDecision.zatcaFields.zatcaClearedOrReportedAt).toBeUndefined();    // فحص الامتثال ليس إصداراً قانونياً — لا شيء يُؤرشَف (قرار المالك)
+    expect((standardDecision as { archive?: unknown }).archive).toBeUndefined();
+    expect((simplifiedDecision as { archive?: unknown }).archive).toBeUndefined();
   });
 
   // البند 4: فاتورة قياسية تبقى ممنوعة من الترحيل عند رفض فعلي، بصرف النظر عن كون المسار امتثالاً

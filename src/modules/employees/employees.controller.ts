@@ -6,6 +6,7 @@ import { EMPLOYEE_SUMMARY_SELECT } from "../../lib/employeeSummary";
 import { calcEOS, serviceDuration, TerminationReason } from "../../lib/hrCalculations";
 import { hashPassword } from "../../lib/password";
 import { ensurePartyAccount } from "../../lib/partyAccounts";
+import { setAuditActor } from "../../lib/auditActor";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -82,6 +83,7 @@ export const createEmployee: RequestHandler = async (req, res) => {
   if (data.managerId) await assertManagerBelongsToTenant(req.auth!.tenantId, data.managerId);
   if (data.assignedCostCenterId) await assertStationBelongsToCompany(req.auth!.tenantId, data.assignedCostCenterId, data.companyId);
   const employee = await prisma.$transaction(async (tx) => {
+    await setAuditActor(tx, req.auth!.sub); // قد يعلّم مجموعة «ذمم الموظفين» حساب أشخاص — تعديل حساب يُسجَّل
     const { accountId } = await ensurePartyAccount(tx, {
       tenantId: req.auth!.tenantId, companyId: data.companyId, kind: "employee", partyName: data.name,
     });
@@ -121,6 +123,7 @@ export const importEmployees: RequestHandler = async (req, res) => {
     const result = [];
     for (const row of rows) {
       const { documents = [], ...data } = row;
+      await setAuditActor(tx, req.auth!.sub);
       const { accountId } = await ensurePartyAccount(tx, {
         tenantId: req.auth!.tenantId, companyId, kind: "employee", partyName: data.name,
       });
@@ -161,6 +164,7 @@ export const updateEmployee: RequestHandler = async (req, res) => {
       include: { documents: true },
     });
     if (updated.accountId && data.name && data.name !== existing.name) {
+      await setAuditActor(tx, req.auth!.sub);
       await tx.account.update({ where: { id: updated.accountId }, data: { name: data.name } });
     }
     return updated;

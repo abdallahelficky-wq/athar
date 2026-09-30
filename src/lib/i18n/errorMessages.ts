@@ -13,6 +13,7 @@ export const AR_TO_EN: Record<string, string> = {
   "غير صالح أو خدمة مكررة": "Invalid or duplicate service",
   "المنصب المميزين إلى منصب آخر قبل حفظ هذا المنصب": "Move privileged users to another position before saving this position",
   "استخدم مستنداً منفصلاً للأصناف ذات أسباب إعفاء أو نسبة صفر مختلفة ضمن الفئة نفسها": "Use a separate document for different exemption or zero-rating reasons within the same category.",
+  "استخدم مستنداً منفصلاً للأصناف ذات أسباب إعفاء أو نسبة صفر مختلفة ضمن الفئة نفسها": "Use a separate document for different exemption or zero-rating reasons within the same category.",
   "اختر سبب الإعفاء أو نسبة الصفر المناسب للصنف": "Choose the applicable exemption or zero-rating reason for the item.",
   "قيمة المرتجع تتجاوز المتبقي القابل للإرجاع من الفاتورة": "Return amount exceeds the remaining returnable invoice value.",
   "أحد أصناف المرتجع لا ينتمي إلى الفاتورة الأصلية": "A return line does not belong to the original invoice.",
@@ -587,4 +588,6 @@ export const AR_TO_EN: Record<string, string> = {
   "تعديل قيود الرواتب وتسويات الإجازة لأدوار الموارد البشرية فقط": "Only HR roles can edit payroll and leave settlement entries",
   "هذا حساب شخص ضمن مجموعة تُعرَض رصيداً واحداً — التفصيل لكل شخص لأدوار الموارد البشرية فقط": "This is one person's account inside a group shown as a single balance — per-person detail is for HR roles only",
   "مرفقات الموظفين والرواتب وتسويات الإجازة لأدوار الموارد البشرية فقط": "Employee, payroll and leave settlement attachments are for HR roles only",
+  "حدد الفترة (من، إلى) بصيغة YYYY-MM-DD": "Specify the period (from, to) as YYYY-MM-DD",
+  "حدد الشركة": "Select the company",
 };

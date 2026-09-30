@@ -157,7 +157,6 @@
     "title": "Athar Accounting",
     "heroSub": "A complete cloud accounting system for managing your whole business group — from journal entries and ZATCA-compliant tax invoices, to inventory, fixed assets, HR and payroll — all in one place, in an interface designed from the ground up for your market.",
     "heroCtaTrial": "Try free for a full month",
-    "heroCtaLogin": "I already have an account",
     "about": {
       "eyebrow": "About us",
       "title": "About Athar Accounting",
@@ -198,7 +197,8 @@
         }
       ]
     },
-    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved", "downloadApp": "Download the POS app" }
+    "footer": { "copyright": "© 2026 Athar Accounting — All rights reserved" },
+    "apps": { "title": "Android apps for your team", "installSteps": "Install steps" }
   },
   "auth": {
     "login": {
@@ -1865,7 +1865,7 @@
     },
     "zatca": {
       "modalTitle": "ZATCA linkage — {{name}}",
-      "statusNotOnboarded": "Not enabled",
+      "unarchivedOk": "ZATCA archive: every document accepted since {{since}} has its original stored (0 missing).", "unarchivedBad": "⚠ ZATCA archive: {{count}} documents accepted since archiving began have no stored original — archive writes are failing. Latest: {{numbers}}", "statusNotOnboarded": "Not enabled",
       "statusCompliance": "Test environment (Compliance)",
       "statusProduction": "Production (enabled)",
       "envSandbox": "Public developer environment (Sandbox)",
@@ -2651,7 +2651,7 @@
   },
   "vat": {
     "period": { "title": "period {{from}} to {{to}}", "from": "From", "to": "To", "show": "Show", "frequency": { "monthly": "monthly return", "quarterly": "quarterly return" }},
-    "recon": {
+    "archive": {"title": "ZATCA document archive (Annex 1)", "note": "XML files for the documents ZATCA accepted in the period — the ZATCA-cleared copy for standard invoices, our signed copy for simplified — named {VAT}_{date}T{time}_{number}.xml, with a manifest.csv listing every accepted document, including those sent before archiving began that have no stored original.", "export": "Export the archive for {{from}} — {{to}}", "result": "Exported {{archived}} archived documents. Accepted documents with no stored original: {{missing}} (listed in manifest.csv)."}, "recon": {
       "output": { "title": "Output VAT (sales)" },
       "input": { "title": "Input VAT (purchases)" },
       "account": "Account",

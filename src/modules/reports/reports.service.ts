@@ -1,3 +1,4 @@
+import { unarchivedSinceArchiving } from "../../lib/zatca/archive";
 import { prisma } from "../../lib/prisma";
 import type { Account, Prisma } from "@prisma/client";
 import { notFound } from "../../lib/httpError";
@@ -181,8 +182,11 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const settings = { expenseIncreasePct:Number(companies[0]?.expenseIncreaseThreshold ?? 15), minimumCash:Number(companies[0]?.lowCashThreshold ?? 0), maximumReceivables:Number(companies[0]?.receivablesThreshold ?? 0) };
   const notes:string[]=[]; expenseDetails.forEach(e => { const old=prev.find(r=>r.account.id===e.accountId); const change=pct(e.value,old?natural(old):0); if(change!=null && change>=settings.expenseIncreasePct) notes.push(en ? `Expense ${e.name} increased by ${change}% from the previous month.` : `مصروف ${e.name} زاد بنسبة ${change}% عن الشهر السابق.`); });
   if (pct(revenue-expense, previousRevenue-previousExpense)! < 0 && revenue>previousRevenue) notes.push(en ? "Net profit declined despite increased revenue — expenses are worth reviewing." : "صافي الربح انخفض رغم زيادة الإيرادات — يستحق مراجعة المصروفات.");
+  // مستندات قبلتها زاتكا منذ بدء الأرشفة بلا أصل محفوظ — يجب أن يكون صفراً (راجع unarchivedSinceArchiving)
+  const zatcaUnarchived = (await unarchivedSinceArchiving(tenantId, companyId)).count;
+  if (zatcaUnarchived > 0) notes.push(en ? `${zatcaUnarchived} documents accepted by ZATCA since archiving began have no stored original — archive writes are failing; check the server log for [zatca-archive] FAILED.` : `${zatcaUnarchived} مستند قبلته زاتكا منذ بدء الأرشفة بلا أصل محفوظ — كتابة الأرشيف تفشل؛ راجع سجل الخادم ([zatca-archive] FAILED).`);
   const totalCash=money(cashRows.reduce((s,x)=>s+x.balance,0)); if(settings.maximumReceivables>0&&receivables>settings.maximumReceivables) notes.push(en ? `Receivables exceeded the set limit (${settings.maximumReceivables}).` : `الذمم المدينة تجاوزت الحد المحدد (${settings.maximumReceivables}).`); if(totalCash<settings.minimumCash) notes.push(en ? `Cash balance is below the set minimum (${settings.minimumCash}).` : `رصيد النقدية أقل من الحد الأدنى المحدد (${settings.minimumCash}).`);
-  return { month, scope:companyId?"company":"group", revenue, expense, netProfit:money(revenue-expense), netProfitChangePct:pct(revenue-expense,previousRevenue-previousExpense), expenseSummary, expenseDetails:expenseDetails.slice(0,10), cashFlow:{ receipts:money(cf.receipts),payments:money(cf.payments),net:money(cf.receipts-cf.payments) }, cashAccounts:cashRows, totalCash, payroll, receivables:{ total:receivables,aging:monthlyAgingShape(receivableAging) }, payables:{ total:payables,aging:monthlyAgingShape(payableAging) }, liabilities:liabilityRows, comparison, settings, generatedNotes:notes };
+  return { month, scope:companyId?"company":"group", revenue, expense, netProfit:money(revenue-expense), netProfitChangePct:pct(revenue-expense,previousRevenue-previousExpense), expenseSummary, expenseDetails:expenseDetails.slice(0,10), cashFlow:{ receipts:money(cf.receipts),payments:money(cf.payments),net:money(cf.receipts-cf.payments) }, cashAccounts:cashRows, totalCash, payroll, receivables:{ total:receivables,aging:monthlyAgingShape(receivableAging) }, payables:{ total:payables,aging:monthlyAgingShape(payableAging) }, liabilities:liabilityRows, comparison, settings, zatcaUnarchived, generatedNotes:notes };
 }
 
 export async function updateMonthlyReportSettings(tenantId:string, companyId:string, input:any) {
