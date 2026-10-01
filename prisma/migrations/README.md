@@ -37,4 +37,4 @@
 متتاليين بفارق 6 دقائق). لذلك سكربت `start` يشغّل الترحيل على `DIRECT_URL` إن وُجد (رابط Neon نفسه بلا `-pooler`)، ويبقى
 الخادم نفسه على `DATABASE_URL` المُجمَّع. بلا `DIRECT_URL` يبقى السلوك كما كان.
 
-للتشخيص: `scripts/sql/migration-lock-status.sql` (للقراءة فقط). لتحرير قفل عالق على Neon: إعادة تشغيل الـcompute من لوحة Neon.
+للتشخيص (للقراءة فقط، مُختبَران في `src/lib/opsQueries.integration.test.ts`): `scripts/ops/migration-status.sql` و`scripts/ops/migration-lock-holders.sql`. لتحرير قفل عالق على Neon: إعادة تشغيل الـcompute من لوحة Neon.
