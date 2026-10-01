@@ -90,6 +90,7 @@ export default function PosInvoicesScreen({ companyId, onBack }) {
             <div className="pos-invoices-row-main">
               <span className="pos-invoices-row-number">{row.invoiceNumber}</span>
               <span className="pos-invoices-row-time">{formatDateTime(row.date, i18n.language)}</span>
+              {row.customerName && <span className="pos-invoices-row-customer">{row.customerName}</span>}
             </div>
             <div className="pos-invoices-row-side">
               <span className="pos-invoices-row-total">{fmt2(Number(row.grandTotal))}</span>
