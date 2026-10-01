@@ -39,3 +39,13 @@ Neon نفسه بلا `-pooler`)، ويبقى الخادم نفسه على `DATAB
 يبقى السلوك كما كان. Start Command مخصَّص في Railway يجب أن يكون `npm start`، لا `prisma migrate deploy` مباشرة.
 
 للتشخيص (للقراءة فقط، مُختبَران في `src/lib/opsQueries.integration.test.ts`): `scripts/ops/migration-status.sql` و`scripts/ops/migration-lock-holders.sql`. لتحرير قفل عالق على Neon: إعادة تشغيل الـcompute من لوحة Neon.
+
+### تحديث 2026-10-01: قفل يتيم حتى عبر الاتصال المباشر
+بعد نشر `DIRECT_URL` تعطّل الإقلاع مرة أخرى بالخطأ نفسه: جلسة ماتت صاحبتها (حاوية أعاد Railway تشغيلها) بقيت ممسكة بالقفل.
+لذلك `scripts/migrate-deploy.cjs` الآن:
+1. يشغّل `prisma migrate status` أولاً، وهو لا يأخذ القفل. إن لم يكن هناك ترحيل معلّق لا يطلب القفل إطلاقاً، فإعادة التشغيل والنشر
+   بلا ترحيل جديد لا يتعطّلان بقفل عالق.
+2. عند وجود ترحيل معلّق: يُنهي فقط الجلسات الممسكة بقفل Prisma (72707369) الخاملة منذ أكثر من `MIGRATION_LOCK_STALE_SECONDS`
+   (افتراضياً 120 ثانية)؛ ترحيل يعمل فعلاً حالته `active` فلا يُمَسّ. ثم يعيد المحاولة عند P1002 (`MIGRATION_LOCK_ATTEMPTS`،
+   افتراضياً 3، بفاصل 15 ثانية).
+اختبار الانحدار: `src/lib/migrateDeployScript.integration.test.ts`.
