@@ -424,7 +424,8 @@ migrate status` أكّد أن قاعدة البيانات "up to date" تمام�
 Railway يستخدم فعلياً سكربت `start` من `package.json` (السلوك الافتراضي لـ Nixpacks مع
 مشروع Node قياسي). إن كان هناك Start Command مخصَّص مضبوط يدوياً في إعدادات Railway
 (Settings → Deploy → Custom Start Command) فسيتجاوز هذا التعديل تماماً — تأكّد من عدم وجود
-أمر مخصَّص هناك، أو حدِّثه ليطابق `prisma migrate deploy && node dist/server.js` إن وُجد، حتى
+أمر مخصَّص هناك، أو اجعله `npm start` إن وُجد (لا تكتب `prisma migrate deploy` مباشرة: سكربت `start` يشغّل الترحيل عبر
+`scripts/migrate-deploy.cjs` على `DIRECT_URL` بدل مُجمِّع الاتصالات — راجع `prisma/migrations/README.md`)، حتى
 يعمل الإصلاح فعلياً على النشرة القادمة. لم يكن بإمكاني تعديل إعدادات Railway نفسها من هذه
 الجلسة (لا صلاحية وصول لوحة تحكم Railway أو بيانات اعتماد قاعدة الإنتاج)؛ التعديل هنا محصور
 بملفات المستودع فقط.

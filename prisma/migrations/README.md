@@ -11,7 +11,7 @@
 `ALTER TABLE "SalesInvoice"` بدل `ALTER TABLE "sales_invoices"`. الملف نجح في الجلوس على
 القرص بلا أي خطأ ظاهر (لا شيء يُشغِّل SQL وقت الكتابة)، لكنه كان سيفشل حتماً عند أول
 `prisma migrate deploy` حقيقي — وبما أن `package.json` يشغِّل
-`"start": "prisma migrate deploy && node dist/server.js"`، فشل الـmigration هنا لا يعني
+`"start": "node scripts/migrate-deploy.cjs && node dist/server.js"` (الترحيل أولاً ثم الخادم)، فشل الـmigration هنا لا يعني
 ميزة معطوبة، بل **خادم لا يُقلِع إطلاقاً**، لكل شركة على المنصّة.
 
 ## القاعدة
@@ -34,7 +34,8 @@
 `prisma migrate deploy` يمسك قفلاً استشارياً على مستوى الجلسة (`pg_advisory_lock(72707369)`). عبر مُجمِّع اتصالات Neon
 (المضيف الذي فيه `-pooler`) قد يبقى القفل ممسوكاً على اتصال الخادم بعد انتهاء النشر الذي أخذه، فيتعطّل كل نشر لاحق
 بـ`P1002 ... Timed out trying to acquire a postgres advisory lock` ويتوقّف الخادم عن الإقلاع (حدث في 2026-09-30 بعد نشرين
-متتاليين بفارق 6 دقائق). لذلك سكربت `start` يشغّل الترحيل على `DIRECT_URL` إن وُجد (رابط Neon نفسه بلا `-pooler`)، ويبقى
-الخادم نفسه على `DATABASE_URL` المُجمَّع. بلا `DIRECT_URL` يبقى السلوك كما كان.
+متتاليين بفارق 6 دقائق). لذلك سكربت `start` يشغّل الترحيل عبر `scripts/migrate-deploy.cjs` على `DIRECT_URL` إن وُجد (رابط
+Neon نفسه بلا `-pooler`)، ويبقى الخادم نفسه على `DATABASE_URL` المُجمَّع. السكربت يحمّل `.env` قبل الاختيار، وبلا `DIRECT_URL`
+يبقى السلوك كما كان. Start Command مخصَّص في Railway يجب أن يكون `npm start`، لا `prisma migrate deploy` مباشرة.
 
 للتشخيص (للقراءة فقط، مُختبَران في `src/lib/opsQueries.integration.test.ts`): `scripts/ops/migration-status.sql` و`scripts/ops/migration-lock-holders.sql`. لتحرير قفل عالق على Neon: إعادة تشغيل الـcompute من لوحة Neon.
