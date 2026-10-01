@@ -8,7 +8,9 @@
  *  2) "migrate status" أولاً — لا يأخذ القفل. لا ترحيلات معلّقة = لا طلب للقفل أصلاً، فإعادة التشغيل والنشر بلا ترحيل
  *     جديد (أغلب الحالات) لا يتعطّلان بقفل عالق أبداً.
  *  3) عند وجود ترحيل معلّق: تُنهى الجلسات اليتيمة الممسكة بقفل Prisma تحديداً — خاملة (لا تنفّذ شيئاً) منذ أكثر من
- *     MIGRATION_LOCK_STALE_SECONDS (افتراضياً 120). ترحيل يعمل فعلاً حالته "active" فلا يُمَسّ. ثم يُعاد المحاولة عند P1002.
+ *     MIGRATION_LOCK_STALE_SECONDS (افتراضياً 120). ترحيل يعمل فعلاً حالته "active" فلا يُمَسّ. ثم تُعاد المحاولة عند P1002
+ *     حتى مهلة MIGRATION_LOCK_WAIT_SECONDS (افتراضياً حدّ الخمول + 60) — أطول من حدّ الخمول عمداً، فقفلٌ تيتّم للتوّ
+ *     (حاوية ماتت قبل ثوانٍ) يصل حدّ الخمول وتجري بعده محاولة تنظيف واحدة على الأقل.
  *
  * يُحمَّل .env أولاً (dotenv لا يستبدل متغيّراً موجوداً) ثم يُختار الرابط. رمز الخروج يُمرَّر: ترحيل فاشل = لا خادم.
  */
@@ -17,9 +19,19 @@ const { spawnSync } = require("child_process");
 
 const PRISMA_CLI = require.resolve("prisma/build/index.js");
 const LOCK_KEY = 72707369;
-const STALE_SECONDS = Number(process.env.MIGRATION_LOCK_STALE_SECONDS || 120);
-const ATTEMPTS = Number(process.env.MIGRATION_LOCK_ATTEMPTS || 3);
-const RETRY_WAIT_MS = Number(process.env.MIGRATION_LOCK_RETRY_WAIT_MS || 15000);
+// إعداد غير صالح يوقف الإقلاع (لا خادم بلا ترحيل) بدل أن يتخطّى الترحيل بصمت
+function setting(name, fallback, min) {
+  const raw = process.env[name];
+  const value = raw === undefined || raw === "" ? fallback : Number(raw);
+  if (!Number.isInteger(value) || value < min) {
+    console.error(`[migrate] ${name} must be an integer >= ${min} (got "${raw}").`);
+    process.exit(1);
+  }
+  return value;
+}
+const STALE_SECONDS = setting("MIGRATION_LOCK_STALE_SECONDS", 120, 1);
+const WAIT_SECONDS = setting("MIGRATION_LOCK_WAIT_SECONDS", STALE_SECONDS + 60, 0);
+const RETRY_WAIT_MS = setting("MIGRATION_LOCK_RETRY_WAIT_MS", 15000, 0);
 
 const env = { ...process.env };
 if (env.DIRECT_URL) env.DATABASE_URL = env.DIRECT_URL;
@@ -52,13 +64,14 @@ WHERE l.locktype = 'advisory' AND l.classid = 0 AND l.objid = ${LOCK_KEY} AND l.
   AND a.state_change < now() - interval '${STALE_SECONDS} seconds';
 `;
 
-for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+const deadline = Date.now() + WAIT_SECONDS * 1000;
+for (let attempt = 1; ; attempt++) {
   // (3) فشل هذه الخطوة لا يوقف شيئاً: deploy بعدها يحاول كما كان
   prisma(["db", "execute", "--stdin", "--schema", "prisma/schema.prisma"], { input: RELEASE_STALE_LOCK, echo: false });
   const deploy = prisma(["migrate", "deploy"]);
   if (deploy.status === 0) process.exit(0);
   const lockBusy = deploy.output.includes("P1002") && deploy.output.includes("advisory lock");
-  if (!lockBusy || attempt === ATTEMPTS) process.exit(deploy.status);
-  console.error(`[migrate] Advisory lock busy (attempt ${attempt}/${ATTEMPTS}); retrying in ${RETRY_WAIT_MS / 1000}s.`);
+  if (!lockBusy || Date.now() >= deadline) process.exit(deploy.status || 1);
+  console.error(`[migrate] Advisory lock busy (attempt ${attempt}); retrying in ${RETRY_WAIT_MS / 1000}s until ${WAIT_SECONDS}s have passed.`);
   sleep(RETRY_WAIT_MS);
 }
