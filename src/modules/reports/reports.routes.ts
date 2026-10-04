@@ -29,3 +29,5 @@ reportRoutes.patch("/comprehensive-monthly/settings", requirePositionAction("rep
 reportRoutes.get("/customer-statement/:customerId", requirePositionAction("reports", "read"), customerStatementHandler);
 reportRoutes.get("/supplier-statement/:supplierId", requirePositionAction("reports", "read"), supplierStatementHandler);
 reportRoutes.get("/account-ledger/:accountId", requirePositionAction("reports", "read"), accountLedgerHandler);
+
+reportRoutes.get("/account-ledger/:accountId/pdf", requirePositionAction("reports", "read"), accountLedgerHandler);

@@ -172,3 +172,37 @@ for (const kind of ['journal_entry','purchase_invoice']) {
   expect(payloads).toHaveLength(4);
  });
 }
+
+
+test('ledger design in reports has footer exports and correct credit balance',async({page})=>{
+ const account={id:'ledger1',code:'211001',name:'حساب المورد',nameEn:'Supplier account',isPosting:true,type:'liability'};
+ const ledger={account,normalSide:'credit',openingBalance:100,closingBalance:350,rows:[{date:'2026-10-01T00:00:00Z',journalEntryId:'entry1',entryNumber:'J00001',entryMemo:'فاتورة مشتريات',lineDescription:'تفاصيل الحركة',debit:50,credit:300,balance:350,accountCode:account.code,accountName:account.name}]};
+ await page.route('http://localhost:4000/api/accounts**',r=>r.fulfill({json:[account]}));
+ await page.route('http://localhost:4000/api/reports/trial-balance-tree**',r=>r.fulfill({json:{roots:[],totals:{},balanced:true}}));
+ await page.route('http://localhost:4000/api/reports/account-ledger/**',r=>r.fulfill({json:ledger}));
+ await page.goto('/reports/ledger');
+ await page.locator('.item-combo-cell input').fill('211001');
+ await page.locator('.item-combo-option').filter({hasText:'211001'}).click();
+ await page.getByRole('button',{name:'إظهار النتائج',exact:true}).click();
+ const doc=page.locator('.account-ledger-document');
+ await expect(doc).toBeVisible();
+ await expect(doc.locator('.al-closing')).toContainText('دائن');
+ await expect(doc.locator('.al-closing')).toContainText('350.00');
+ await expect(doc.locator('.al-debit')).toContainText('50.00');
+ const actions=page.locator('.account-ledger-actions');
+ expect((await actions.boundingBox()).y).toBeGreaterThan((await doc.boundingBox()).y);
+ const download=page.waitForEvent('download');
+ await actions.getByRole('button',{name:'تحميل Excel'}).click();
+ const file=await download; expect(file.suggestedFilename()).toMatch(/\.xlsx$/);
+ await file.saveAs('test-results/account-ledger.xlsx');
+ await doc.screenshot({path:'test-results/account-ledger-desktop.png'});
+ await actions.getByRole('button',{name:'طباعة',exact:true}).click();
+ await expect(page.locator('.voucher-print .account-ledger-document')).toBeVisible();
+ await page.screenshot({path:'test-results/account-ledger-print.png',fullPage:true});
+ await page.locator('.voucher-close-x').click();
+ await page.setViewportSize({width:390,height:844});
+ await page.addStyleTag({content:'.sidebar{transition:none!important}'});
+ await expect(page.locator('.sidebar')).not.toHaveClass(/sidebar-open/);
+ await doc.screenshot({path:'test-results/account-ledger-mobile.png'});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

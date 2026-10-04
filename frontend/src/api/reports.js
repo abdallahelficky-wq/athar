@@ -28,3 +28,5 @@ export const getSupplierStatement = (supplierId, params) =>
 
 export const getAccountLedger = (accountId, params) =>
   api.get(`/reports/account-ledger/${accountId}${toQuery(params)}`);
+
+export const getAccountLedgerPdf = (accountId, params) => api.getBlob(`/reports/account-ledger/${accountId}/pdf${toQuery(params)}`);
