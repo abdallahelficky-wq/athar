@@ -272,7 +272,7 @@ export function PrintShell({
   // بقية شاشات الطباعة التي لم تمرّره.
   companyNameOverride,
   // شعار أكبر من الحجم الافتراضي المشترك — لطرف مستدعٍ محدَّد فقط (راجع نفس الملاحظة أعلاه).
-  largeLogo = false,
+  largeLogo = false, hideHeader = false,
 }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -310,7 +310,7 @@ export function PrintShell({
               الشعار في المنتصف تماماً، ثم بيانات الشركة — عبر شبكة ثلاثية الأعمدة (لا flex
               بمسافة متساوية) حتى يبقى الشعار في المنتصف الهندسي الدقيق بصرف النظر عن اختلاف
               عرض النص على الجانبين */}
-          <div className="voucher-head" style={{ borderBottomColor: accent }}>
+          {!hideHeader && <div className="voucher-head" style={{ borderBottomColor: accent }}>
             <div className="voucher-ref">{refNode}</div>
             <div className="voucher-logo-wrap">
               {company?.logoUrl ? (
@@ -327,7 +327,7 @@ export function PrintShell({
               {company?.vatNumber && <div className="voucher-brand-meta">الرقم الضريبي: {company.vatNumber}</div>}
               {address && <div className="voucher-brand-meta">{address}</div>}
             </div>
-          </div>
+          </div>}
 
           {children}
 

@@ -5,11 +5,10 @@ import { listCostCenters } from "../api/costCenters";
 import { listDepartments } from "../api/departments";
 import { listBranches } from "../api/branches";
 import { getAccountLedger } from "../api/reports";
-import { fmt } from "../legacy/constants";
-import { downloadCsv } from "../legacy/shared";
-import { routes } from "../routes";
+import AccountLedgerDocument from "./AccountLedgerDocument";
+import { exportAccountLedgerExcel, saveLedgerBlob } from "./shared/exportAccountLedgerExcel";
+import { getAccountLedgerPdf } from "../api/reports";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
-import { getAccountDisplayName } from "./shared/accountDisplayName";
 import Breadcrumb from "./shared/Breadcrumb";
 import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
@@ -17,13 +16,6 @@ import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 import { defaultDateRangeForCompany } from "./shared/fiscalClosing";
 
 const emptyFilters = { accountId: "", subAccountId: "", costCenterId: "", departmentId: "", branchId: "", dateFrom: "", dateTo: "" };
-
-/** يدمج بيان القيد العام مع وصف السطر التفصيلي (إن وُجد) في نص واحد لعمود "البيان" — عرض فقط،
- * الحقلان يبقيان منفصلين تماماً في التخزين والاستجابة. */
-function combineMemo(memo, description) {
-  const parts = [memo, description].filter(Boolean);
-  return parts.length ? parts.join(" - ") : "—";
-}
 
 /** كل حسابات الترحيل (isPosting) تحت حساب مجموعة معيّن، بحث بالعمق عبر parentId — مطابق تماماً
  * لمنطق collectPostingDescendants في reports.service.ts (الخادم)، لكن على القائمة المحمَّلة محلياً. */
@@ -57,6 +49,8 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [printOpen, setPrintOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const company = companies?.find(c => c.id === companyId);
 
   // تاريخ إقفال الشركة النشطة تحديداً (لا مصفوفة companies بأكملها) كتبعية للتأثير أدناه — يُعاد
   // حساب الفترة الافتراضية بمجرد توفّر بيانات الشركات فعلياً (قد تُحمَّل بعد companyId بلحظات عند
@@ -119,7 +113,9 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
   useEffect(() => {
     const f = alf.applied;
     const effectiveAccountId = f.subAccountId || f.accountId;
-    if (!effectiveAccountId || !companyId) { setLedger(null); return; }
+    if (!effectiveAccountId || !companyId) { setLedger(null); setLoading(false); return; }
+    let cancelled = false;
+    setLedger(null);
     setLoading(true);
     setError("");
     getAccountLedger(effectiveAccountId, {
@@ -127,11 +123,28 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
       costCenterId: f.costCenterId || undefined, departmentId: f.departmentId || undefined,
       branchId: f.branchId || undefined,
     })
-      .then(setLedger)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+      .then(data => { if (!cancelled) setLedger(data); })
+      .catch((err) => { if (!cancelled) setError(err.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [alf.applied, companyId]);
+
+  async function exportReport(kind) {
+    setExporting(true); setError("");
+    try {
+      if (kind === "excel") await exportAccountLedgerExcel({ ledger, company, periodLabel, t, lang: i18n.language });
+      else {
+        const f = alf.applied;
+        const blob = await getAccountLedgerPdf(f.subAccountId || f.accountId, {
+          companyId, from: f.dateFrom, to: f.dateTo, costCenterId: f.costCenterId,
+          departmentId: f.departmentId, branchId: f.branchId, lang: i18n.language,
+        });
+        saveLedgerBlob(blob, `Account-Ledger-${ledger.account.code}.pdf`);
+      }
+    } catch (err) { setError(err.message); }
+    finally { setExporting(false); }
+  }
 
   return (
     <div>
@@ -189,29 +202,6 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
               <label>{t("accountLedger.dateFrom")}<input type="date" value={alf.draft.dateFrom} onChange={(e) => alf.setField("dateFrom", e.target.value)} /></label>
               <label>{t("accountLedger.dateTo")}<input type="date" value={alf.draft.dateTo} onChange={(e) => alf.setField("dateTo", e.target.value)} /></label>
               <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("accountLedger.showResults")}</button>
-              {ledger && (
-                <>
-                  <button type="button" className="btn-ghost" style={{ alignSelf: "end" }} onClick={() => setPrintOpen(true)}>{t("accountLedger.printBtn")}</button>
-                  <button
-                    type="button" className="btn-ghost" style={{ alignSelf: "end" }}
-                    onClick={() => downloadCsv(t("accountLedger.csvFileName"), [
-                      [
-                        t("accountLedger.csvHeaders.date"), t("accountLedger.csvHeaders.entryNumber"),
-                        t("accountLedger.csvHeaders.memo"), t("accountLedger.csvHeaders.description"),
-                        ...(!ledger.account.isPosting ? [t("accountLedger.csvHeaders.postingAccount")] : []),
-                        t("accountLedger.csvHeaders.debit"), t("accountLedger.csvHeaders.credit"), t("accountLedger.csvHeaders.balance"),
-                      ],
-                      ...ledger.rows.map((r) => [
-                        r.date.slice(0, 10), r.entryNumber || r.journalEntryId.slice(-8), r.entryMemo || "", r.lineDescription || "",
-                        ...(!ledger.account.isPosting ? [`${r.accountCode} — ${r.accountName}`] : []),
-                        r.debit || "", r.credit || "", r.balance,
-                      ]),
-                    ])}
-                  >
-                    {t("common.exportCsv")}
-                  </button>
-                </>
-              )}
             </form>
             {(alf.applied.subAccountId || alf.applied.accountId) && (
               <DraftEntriesNotice
@@ -228,74 +218,21 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
           {loading && <p className="empty">{t("common.loading")}</p>}
 
           {ledger && !loading && (
-            <div className="panel">
-              <div className="voucher-meta">
-                <div><span>{t("accountLedger.accountLabel")}</span><strong>{getAccountDisplayName(ledger.account, i18n.language)}</strong></div>
-                <div>{periodLabel}</div>
-                <div>
-                  <span>{t("statementOfAccount.closingBalance")}</span>
-                  <strong>{fmt(Math.abs(ledger.closingBalance))} {ledger.closingBalance >= 0 ? t("statementOfAccount.table.debit") : t("statementOfAccount.table.credit")}</strong>
-                </div>
+            <>
+              <AccountLedgerDocument ledger={ledger} company={company} periodLabel={periodLabel} />
+              <div className="account-ledger-actions no-print">
+                <button className="btn-ghost" disabled={exporting} onClick={() => exportReport("excel")}>{t("accountLedger.design.excel")}</button>
+                <button className="btn-ghost" onClick={() => setPrintOpen(true)}>{t("common.print")}</button>
+                <button className="btn-primary" disabled={exporting} onClick={() => exportReport("pdf")}>{exporting ? t("common.loading") : t("common.printShell.downloadPdf")}</button>
               </div>
-              <table className="ledger-table">
-                <thead>
-                  <tr>
-                    <th>{t("statementOfAccount.table.date")}</th><th>{t("accountLedger.table.entryNumber")}</th><th>{t("statementOfAccount.table.memo")}</th>
-                    {!ledger.account.isPosting && <th>{t("accountLedger.table.postingAccount")}</th>}
-                    <th>{t("statementOfAccount.table.debit")}</th><th>{t("statementOfAccount.table.credit")}</th><th>{t("statementOfAccount.table.balance")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {alf.applied.dateFrom && (
-                    <tr className="ledger-row-opening">
-                      <td colSpan={ledger.account.isPosting ? 5 : 6} className="foot-label">{t("statementOfAccount.openingBalance")}</td>
-                      <td className="num strong">{fmt(ledger.openingBalance)}</td>
-                    </tr>
-                  )}
-                  {ledger.rows.map((r, i) => {
-                    // يفتح النظام الكامل (بالشريط العلوي وتسجيل الدخول) على شاشة "القيود اليومية"
-                    // الحقيقية مع فتح نافذة القيد تلقائياً — لا صفحة عرض منفصلة معزولة عن التطبيق
-                    // (انظر معالجة entryId في JournalModule.jsx).
-                    const entryHref = routes.journalEntry(r.journalEntryId);
-                    return (
-                    <tr
-                      key={r.journalEntryId + i}
-                      className="ledger-row-clickable"
-                      onClick={(e) => { if (e.target.closest("a")) return; window.open(entryHref, "_blank", "noopener,noreferrer"); }}
-                    >
-                      <td>{r.date.slice(0, 10)}</td>
-                      <td>
-                        <a
-                          className="ledger-entry-link"
-                          href={entryHref}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={t("accountLedger.openEntryTitle")}
-                        >
-                          {r.entryNumber || r.journalEntryId.slice(-8)}
-                        </a>
-                      </td>
-                      <td>{combineMemo(r.entryMemo, r.lineDescription)}</td>
-                      {!ledger.account.isPosting && <td>{r.accountCode} — {r.accountName}</td>}
-                      <td className="num">{r.debit ? fmt(r.debit) : "—"}</td>
-                      <td className="num">{r.credit ? fmt(r.credit) : "—"}</td>
-                      <td className="num strong">{fmt(r.balance)}</td>
-                    </tr>
-                    );
-                  })}
-                  {ledger.rows.length === 0 && <tr><td className="empty" colSpan={ledger.account.isPosting ? 6 : 7}>{t("statementOfAccount.empty")}</td></tr>}
-                </tbody>
-                <tfoot>
-                  <tr><td className="foot-label" colSpan={ledger.account.isPosting ? 5 : 6}>{t("statementOfAccount.closingBalance")}</td><td className="num strong">{fmt(ledger.closingBalance)}</td></tr>
-                </tfoot>
-              </table>
-            </div>
+            </>
           )}
         </>
       )}
 
       {printOpen && ledger && (
         <AccountLedgerPrintModal
+          onDownload={() => exportReport("pdf")}
           ledger={ledger}
           companyId={companyId}
           companies={companies}

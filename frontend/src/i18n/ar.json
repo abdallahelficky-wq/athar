@@ -1354,6 +1354,7 @@
     }
   },
   "accountLedger": {
+    "design": {"title": "كشف حساب تفصيلي", "code": "رقم الحساب", "vat": "الرقم الضريبي", "period": "الفترة الزمنية", "debitTotal": "إجمالي مدين", "creditTotal": "إجمالي دائن", "excel": "تحميل Excel"},
     "accountLabel": "الحساب",
     "accountPlaceholder": "اختر حساباً لعرض حركته",
     "subAccountLabel": "الحساب الفرعي (اختياري — لتضييق الكشف على حساب واحد بعينه)",

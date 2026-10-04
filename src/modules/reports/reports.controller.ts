@@ -1,3 +1,4 @@
+import { buildAccountLedgerPdf } from "../../lib/accountLedgerPdf";
 import { RequestHandler } from "express";
 import * as service from "./reports.service";
 import { prisma } from "../../lib/prisma";
@@ -109,7 +110,13 @@ export const accountLedgerHandler: RequestHandler = async (req, res) => {
     { costCenterId: parseCostCenterId(req.query.costCenterId), departmentId: parseDepartmentId(req.query.departmentId), branchId: parseBranchId(req.query.branchId) },
     canReadHrData(req.auth!),
   );
-  res.json(result);
+  if (req.path.endsWith("/pdf")) {
+    const company = result.account.companyId ? await prisma.company.findFirst({where:{id:result.account.companyId,tenantId:req.auth!.tenantId},select:{name:true,vatNumber:true}}) : null;
+    const pdf = await buildAccountLedgerPdf(result, company, {from: parseCompanyId(req.query.from), to: parseCompanyId(req.query.to), lang: req.query.lang === "en" ? "en" : "ar"});
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="Account-Ledger.pdf"');
+    res.send(pdf);
+  } else res.json(result);
 };
 
 export const supplierStatementHandler: RequestHandler = async (req, res) => {

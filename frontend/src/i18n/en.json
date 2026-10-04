@@ -1354,6 +1354,7 @@
     }
   },
   "accountLedger": {
+    "design": {"title": "Detailed Account Ledger", "code": "Account code", "vat": "VAT number", "period": "Period", "debitTotal": "Total debit", "creditTotal": "Total credit", "excel": "Download Excel"},
     "accountLabel": "Account",
     "accountPlaceholder": "Choose an account to view its activity",
     "subAccountLabel": "Sub-account (optional — to narrow the statement to a single account)",

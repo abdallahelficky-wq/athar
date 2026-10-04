@@ -1,0 +1,31 @@
+import {beforeEach,expect,it,vi} from "vitest";
+vi.mock("../../lib/prisma",()=>({prisma:{account:{},company:{findFirst:vi.fn()}}}));
+vi.mock("../../middleware/auth",()=>({assertRecordCompanyScope:vi.fn(),canReadHrData:vi.fn(()=>false)}));
+vi.mock("./reports.service",()=>({getAccountLedger:vi.fn()}));
+vi.mock("../../lib/personalAccounts",()=>({assertNotPersonalAccount:vi.fn()}));
+vi.mock("../../lib/accountLedgerPdf",()=>({buildAccountLedgerPdf:vi.fn()}));
+import {accountLedgerHandler} from "./reports.controller";
+import {assertRecordCompanyScope} from "../../middleware/auth";
+import {getAccountLedger} from "./reports.service";
+import {prisma} from "../../lib/prisma";
+import {buildAccountLedgerPdf} from "../../lib/accountLedgerPdf";
+beforeEach(()=>vi.clearAllMocks());
+const request=()=>({path:"/account-ledger/a/pdf",params:{accountId:"a"},query:{companyId:"c",from:"2026-01-01",to:"2026-10-01",branchId:"b",costCenterId:"cc",departmentId:"d",lang:"en"},auth:{tenantId:"t"}});
+it("checks record scope and renders only the service result with all applied filters and HR redaction",async()=>{
+ const result={account:{companyId:"c"},rows:[]};
+ vi.mocked(getAccountLedger).mockResolvedValue(result as never);
+ vi.mocked(prisma.company.findFirst).mockResolvedValue({name:"Company",vatNumber:null} as never);
+ vi.mocked(buildAccountLedgerPdf).mockResolvedValue(Buffer.from("pdf"));
+ const res={setHeader:vi.fn(),send:vi.fn()};
+ await accountLedgerHandler(request() as never,res as never,vi.fn());
+ expect(assertRecordCompanyScope).toHaveBeenCalledWith({tenantId:"t"},prisma.account,"a");
+ expect(getAccountLedger).toHaveBeenCalledWith("t","a","c",new Date("2026-01-01"),new Date("2026-10-01"),{branchId:"b",costCenterId:"cc",departmentId:"d"},false);
+ expect(prisma.company.findFirst).toHaveBeenCalledWith(expect.objectContaining({where:{id:"c",tenantId:"t"}}));
+ expect(buildAccountLedgerPdf).toHaveBeenCalledWith(result,{name:"Company",vatNumber:null},{from:"2026-01-01",to:"2026-10-01",lang:"en"});
+ expect(res.setHeader).toHaveBeenCalledWith("Content-Type","application/pdf");
+});
+it("does not query or render after a company scope rejection",async()=>{
+ vi.mocked(assertRecordCompanyScope).mockRejectedValueOnce(new Error("scope denied"));
+ await expect(accountLedgerHandler(request() as never,{} as never,vi.fn())).rejects.toThrow("scope denied");
+ expect(getAccountLedger).not.toHaveBeenCalled();expect(buildAccountLedgerPdf).not.toHaveBeenCalled();
+});

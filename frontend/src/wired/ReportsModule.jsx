@@ -22,8 +22,11 @@ import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 import ReportScheduleAutomation from "./ReportScheduleAutomation";
 import VatReconciliation from "./vat/VatReconciliation";
 
+import AccountLedgerModule from "./AccountLedgerModule";
+
 export const REPORT_TABS = [
   { id: "trial", labelKey: "nav.tabs.trial" },
+  { id: "ledger", labelKey: "nav.tabs.ledger" },
   { id: "income", labelKey: "nav.tabs.income" },
   { id: "balance", labelKey: "nav.tabs.balance" },
   { id: "vat", labelKey: "nav.tabs.vatReconciliation" },
@@ -223,7 +226,7 @@ export default function ReportsModule({ companies, companyId }) {
       {error && <p className="balance-bad">{error}</p>}
       {!companyId && tab !== "monthly" && tab !== "automation" ? (
         <p className="empty">{t("reports.noCompany")}</p>
-      ) : loading ? (
+      ) : loading && tab !== "ledger" ? (
         <p className="empty">{t("common.loading")}</p>
       ) : (
         <>
@@ -231,8 +234,9 @@ export default function ReportsModule({ companies, companyId }) {
             tabs={REPORT_TABS}
             active={tab}
             basePath="/reports"
-            trailing={<button className="icon-btn" title={t("reports.printCurrent")} onClick={() => (tab === "vat" ? window.print() : setPrinting(true))}><Icon.Printer /></button>}
+            trailing={tab !== "ledger" && <button className="icon-btn" title={t("reports.printCurrent")} onClick={() => (tab === "vat" ? window.print() : setPrinting(true))}><Icon.Printer /></button>}
           />
+          {tab === "ledger" && <AccountLedgerModule companyId={companyId} companies={companies} />}
           {tab === "monthly" && <ComprehensiveMonthlyReport companyId={companyId} companies={companies} />}
           {tab === "automation" && <ReportScheduleAutomation companyId={companyId} />}
           {tab === "vat" && <VatReconciliation companyId={companyId} companies={companies} />}
