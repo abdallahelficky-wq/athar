@@ -199,7 +199,9 @@
   padding: 12px 14px; background: #fff; border: none; border-radius: 12px; font-family: inherit; cursor: pointer;
 }
 .pos-invoices-row-main, .pos-invoices-row-side { display: flex; flex-direction: column; gap: 3px; }
-.pos-invoices-row-side { align-items: flex-start; }
+.pos-invoices-row-main { flex: 1; min-width: 0; }
+.pos-invoices-row-side { align-items: flex-start; flex-shrink: 0; margin-inline-start: 12px; }
+.pos-invoices-row-customer { font-size: 13px; font-weight: 600; color: #45525c; overflow-wrap: anywhere; }
 .pos-invoices-row-number { font-weight: 800; font-size: 14.5px; color: #10202E; }
 .pos-invoices-row-time { font-size: 12px; color: #8A7C5E; }
 .pos-invoices-row-total { font-weight: 800; font-size: 14.5px; color: #10202E; }
