@@ -10,6 +10,7 @@ function toQuery(params) {
 }
 
 export const listJournalEntries = (filters) => api.get(`/journal-entries${toQuery(filters)}`);
+export const exportJournalEntries = (filters) => api.getBlob(`/journal-entries/export${toQuery(filters)}`);
 export const getNextEntryNumber = (companyId) => api.get(`/journal-entries/next-number${toQuery({ companyId })}`);
 export const getJournalEntry = (id) => api.get(`/journal-entries/${id}`);
 export const getJournalEntryPdf = (id) => api.getBlob(`/journal-entries/${id}/pdf`);

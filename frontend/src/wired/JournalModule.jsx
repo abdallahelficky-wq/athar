@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -8,6 +8,7 @@ import { listDepartments } from "../api/departments";
 import { listBranches } from "../api/branches";
 import {
   listJournalEntries,
+  exportJournalEntries,
   getJournalEntry,
   getJournalEntryPdf,
   deleteJournalEntry,
@@ -15,7 +16,7 @@ import {
   unpostJournalEntry,
 } from "../api/journalEntries";
 import { fmt } from "../legacy/constants";
-import { downloadCsv, downloadBlob, Icon } from "../legacy/shared";
+import { downloadBlob, Icon } from "../legacy/shared";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CreateFromDocumentModal from "./shared/CreateFromDocumentModal";
 import BulkImportJournalEntriesModal from "./shared/BulkImportJournalEntriesModal";
@@ -42,7 +43,12 @@ function initialFiltersFromUrl() {
   return out;
 }
 
-const SORT_COLUMNS = { entryNumber: "entryNumber", date: "date", amount: "amount" };
+// قيم sortBy بالضبط كما يتوقَّعها الخادم (listJournalEntries) — عمود "رقم القيد" يُرتَّب فعلياً عبر
+// entrySeq (الرقم التسلسلي الخام) لا entryNumber النصي، لأن الأخير غير موثوق كمفتاح ترتيب (بادئة
+// الشركة قابلة للتغيير، والحشو الثابت 5 خانات ينكسر رقمياً بعد تجاوز 99999). القيم القديمة غير
+// القابلة للتفسير (entrySeq=NULL) تظهر دائماً آخر الترتيب بصرف النظر عن الاتجاه.
+const SORT_COLUMNS = { entryNumber: "entrySeq", date: "date", amount: "amount" };
+const PAGE_SIZE = 25;
 
 export default function JournalModule({ companies, companyId }) {
   const { t, i18n } = useTranslation();
@@ -59,6 +65,16 @@ export default function JournalModule({ companies, companyId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [openingEntryId, setOpeningEntryId] = useState(null);
+
+  // ترقيم صفحات بمؤشر (cursor) — cursorHistory[i] هو المؤشر المُستخدَم لجلب الصفحة i (الصفحة
+  // الأولى دائماً cursorHistory[0] = undefined). "رجوع" يُعيد استخدام مؤشر مُخزَّن مسبقاً (لا يحتاج
+  // تتبّعاً عكسياً)؛ "تالي" يُضيف nextCursor الذي أرجعه الخادم للصفحة الحالية.
+  const [cursorHistory, setCursorHistory] = useState([undefined]);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [hasMore, setHasMore] = useState(false);
 
   // لا يوجد "مسودة" في دورة حياة القيد الجديدة — "محفوظ" (قابل للتعديل، يؤثر على التقارير فوراً) أو "مرحّل" (مقفل نهائياً)
   const statusLabel = (s) => (s === "posted" ? t("journalEntries.statusPosted") : t("journalEntries.statusSaved"));
@@ -69,35 +85,37 @@ export default function JournalModule({ companies, companyId }) {
   // الأرصدة) — تُقرأ مرة واحدة عند الفتح فقط.
   const jf = useDeferredFilters(initialFiltersFromUrl());
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [sort, setSort] = useState({ key: null, dir: "asc" });
+  // الترتيب الافتراضي من الخادم: تاريخ تنازلي، ثم entrySeq تنازلياً (nulls آخراً)، ثم id — راجع
+  // تعليق SORT_COLUMNS وlistJournalEntries في journalEntries.service.ts.
+  const [sort, setSort] = useState({ key: SORT_COLUMNS.date, dir: "desc" });
   const [selectedIds, setSelectedIds] = useState(new Set());
   const bulkRun = useRef(null);
   useEffect(() => { setBulkProgress(null); return () => { bulkRun.current = null; }; }, [companyId]);
   const [bulkProgress, setBulkProgress] = useState(null);
   const [bulkFailures, setBulkFailures] = useState([]);
   useEffect(() => { setSelectedIds(new Set()); setBulkFailures([]); }, [companyId, jf.applied]);
-  const selectedSaved = entries.filter(e => selectedIds.has(e.id) && e.status === "saved");
+  const selectedSaved = entries.filter((e) => selectedIds.has(e.id) && e.status === "saved");
   const postSelected = async () => {
-    if (bulkRun.current || !selectedSaved.length || !window.confirm(t("bulkPosting.confirm", {count:selectedSaved.length}))) return;
+    if (bulkRun.current || !selectedSaved.length || !window.confirm(t("bulkPosting.confirm", { count: selectedSaved.length }))) return;
     const run = {}; bulkRun.current = run;
     const targets = [...selectedSaved];
     const failed = [];
     let success = 0;
     setError(""); setNotice(""); setBulkFailures([]);
-    setBulkProgress({done:0,total:targets.length});
+    setBulkProgress({ done: 0, total: targets.length });
     for (const entry of targets) {
       if (bulkRun.current !== run) return;
       try { await postJournalEntry(entry.id); success++; }
-      catch (err) { failed.push({id:entry.id,number:entryNumberLabel(entry),message:err.message}); }
+      catch (err) { failed.push({ id: entry.id, number: entryNumberLabel(entry), message: err.message }); }
       if (bulkRun.current !== run) return;
-      setBulkProgress({done:success+failed.length,total:targets.length});
+      setBulkProgress({ done: success + failed.length, total: targets.length });
     }
-    setSelectedIds(new Set(failed.map(e=>e.id)));
+    setSelectedIds(new Set(failed.map((e) => e.id)));
     setBulkFailures(failed);
-    setNotice(t("bulkPosting.result",{success,failed:failed.length}));
+    setNotice(t("bulkPosting.result", { success, failed: failed.length }));
     bulkRun.current = null;
     setBulkProgress(null);
-    reloadEntries();
+    reloadCurrentPage();
   };
 
   const [formModal, setFormModal] = useState(null); // { mode: "create" | "edit", entry? }
@@ -153,8 +171,8 @@ export default function JournalModule({ companies, companyId }) {
     listBranches(companyId).then(setBranches).catch((err) => setError(err.message));
   }, [companyId]);
 
-  const reloadEntries = () => {
-    if (!companyId) { setEntries([]); setLoading(false); return; }
+  const reloadEntries = (cursor) => {
+    if (!companyId) { setEntries([]); setLoading(false); setHasMore(false); setNextCursor(null); return; }
     setLoading(true);
     const f = jf.applied;
     listJournalEntries({
@@ -168,48 +186,93 @@ export default function JournalModule({ companies, companyId }) {
       accountId: f.accountId || undefined,
       status: f.status || undefined,
       branchId: f.branchId || undefined,
+      sortBy: sort.key,
+      sortDir: sort.dir,
+      cursor: cursor || undefined,
+      take: PAGE_SIZE,
     })
-      .then(setEntries)
+      .then((result) => {
+        setEntries(result.items);
+        setHasMore(result.hasMore);
+        setNextCursor(result.nextCursor);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   };
 
+  /** يُعيد تحميل الصفحة الحالية نفسها (بعد حذف/إضافة/تعديل قيد) بلا إعادة التعيين للصفحة الأولى. */
+  const reloadCurrentPage = () => reloadEntries(cursorHistory[pageIndex]);
+
   // الفلترة لا تُطبَّق إلا عند الضغط على "إظهار النتائج" أو Enter (راجع useDeferredFilters) — لا
-  // حاجة لأي تأجيل زمني (debounce) بعد الآن لأن التطبيق نفسه صريح، مش لحظي مع كل كتابة.
+  // حاجة لأي تأجيل زمني (debounce) بعد الآن لأن التطبيق نفسه صريح، مش لحظي مع كل كتابة. أي تغيير في
+  // الفلاتر/الترتيب/الشركة يُعيد الترقيم للصفحة الأولى دائماً (مؤشرات الصفحات السابقة غير صالحة بعد
+  // تغيير معايير البحث).
   useEffect(() => {
-    reloadEntries();
+    setCursorHistory([undefined]);
+    setPageIndex(0);
+    reloadEntries(undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [companyId, jf.applied]);
+  }, [companyId, jf.applied, sort.key, sort.dir]);
 
   const clearFilters = () => jf.reset(emptyFilters);
   const hasActiveFilters = Object.values(jf.draft).some((v) => v !== "");
 
-  const entryTotal = (e) => e.lines.reduce((s, l) => s + Number(l.debit || 0), 0);
+  const entryAmount = (e) => Number(e.totalDebit);
 
-  // ترتيب من جهة العميل فقط (لا يغيّر منطق جلب البيانات) — بالضغط على رأس أي عمود من الثلاثة
-  // المطلوبة (رقم القيد/التاريخ/المبلغ)، والضغط مرة ثانية على نفس العمود يعكس الاتجاه.
+  // الترتيب أصبح من جهة الخادم بالكامل (sortBy/sortDir في كل طلب) — الضغط على رأس أي عمود من
+  // الثلاثة المطلوبة (رقم القيد/التاريخ/المبلغ) يُغيّر معيار الطلب نفسه، والضغط مرة ثانية على نفس
+  // العمود يعكس الاتجاه؛ useEffect أعلاه يتولى إعادة الجلب من الصفحة الأولى تلقائياً عند أي تغيير.
   const toggleSort = (key) => setSort((prev) => (
-    prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }
+    prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }
   ));
-  const sortedEntries = useMemo(() => {
-    if (!sort.key) return entries;
-    const factor = sort.dir === "asc" ? 1 : -1;
-    const valueOf = (e) => (
-      sort.key === SORT_COLUMNS.entryNumber ? entryNumberLabel(e)
-        : sort.key === SORT_COLUMNS.date ? e.date
-          : entryTotal(e)
-    );
-    return [...entries].sort((a, b) => {
-      const va = valueOf(a); const vb = valueOf(b);
-      if (va < vb) return -1 * factor;
-      if (va > vb) return 1 * factor;
-      return 0;
-    });
-  }, [entries, sort]);
 
-  // تحديد متعدد للصفوف — تجهيز واجهة أساسية لإجراءات جماعية مستقبلية (طباعة/تصدير مجموعة قيود)،
-  // الأزرار الفعلية معطَّلة حالياً وموسومة "قريباً" حتى يُنفَّذ منطقها الكامل.
-  useEffect(() => { setSelectedIds(prev => new Set([...prev].filter(id => entries.some(e => e.id === id)))); }, [entries]);
+  const goNextPage = () => {
+    if (!hasMore || nextCursor == null) return;
+    setCursorHistory((prev) => [...prev.slice(0, pageIndex + 1), nextCursor]);
+    setPageIndex((i) => i + 1);
+    reloadEntries(nextCursor);
+  };
+  const goPrevPage = () => {
+    if (pageIndex === 0) return;
+    const prevIndex = pageIndex - 1;
+    setPageIndex(prevIndex);
+    reloadEntries(cursorHistory[prevIndex]);
+  };
+
+  // تصدير كل القيود المطابقة للفلاتر الحالية (بلا أي حدّ صفحة) — طلب خادم مستقل، لا يعتمد على
+  // entries المحمَّلة حالياً (التي تحمل صفحة واحدة فقط بعد الآن). لو تجاوز عدد النتائج الحدّ الأقصى
+  // للتصدير يرفضه الخادم برسالة واضحة تطلب تضييق الفلاتر (راجع exportHandler)، تظهر هنا كخطأ عادي.
+  const exportEntries = async () => {
+    setExporting(true);
+    setError("");
+    try {
+      const f = jf.applied;
+      const { blob, filename } = await exportJournalEntries({
+        companyId,
+        search: f.search || undefined,
+        dateFrom: f.dateFrom || undefined,
+        dateTo: f.dateTo || undefined,
+        amountMin: f.amountMin || undefined,
+        amountMax: f.amountMax || undefined,
+        entryNumber: f.entryNumber || undefined,
+        accountId: f.accountId || undefined,
+        status: f.status || undefined,
+        branchId: f.branchId || undefined,
+        sortBy: sort.key,
+        sortDir: sort.dir,
+      });
+      downloadBlob(blob, filename || t("journalEntries.csvFileName"));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // تحديد متعدد للصفوف (طباعة/تصدير مجموعة قيود لا يزالان "قريباً"، أما الترحيل الجماعي فمُفعَّل) —
+  // يُقلَّص التحديد لمن تبقّى منه ظاهراً فقط بعد أي إعادة جلب (بدل مسحه بالكامل)، حتى يبقى تحديد
+  // محاولات الترحيل الفاشلة ظاهراً بعد postSelected أعلاه.
+  useEffect(() => { setSelectedIds((prev) => new Set([...prev].filter((id) => entries.some((e) => e.id === id)))); }, [entries]);
 
   // تمرير تلقائي + تظليل بصري للقيد المفتوح تلقائياً عبر entryId — إن ظهر ضمن القائمة الحالية
   // (بلا فلاتر تستبعده)، تجربة إضافية فوق فتح النافذة نفسها، وليست شرطاً لعملها.
@@ -223,12 +286,12 @@ export default function JournalModule({ companies, companyId }) {
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
-  const allSelected = sortedEntries.length > 0 && sortedEntries.every((e) => selectedIds.has(e.id));
-  const toggleSelectAll = () => setSelectedIds(allSelected ? new Set() : new Set(sortedEntries.map((e) => e.id)));
+  const allSelected = entries.length > 0 && entries.every((e) => selectedIds.has(e.id));
+  const toggleSelectAll = () => setSelectedIds(allSelected ? new Set() : new Set(entries.map((e) => e.id)));
 
   const onSaved = (message) => {
     setFormModal(null);
-    reloadEntries();
+    reloadCurrentPage();
     setNotice(message);
   };
 
@@ -236,7 +299,7 @@ export default function JournalModule({ companies, companyId }) {
     if (!window.confirm(t("journalEntries.confirmDelete"))) return;
     try {
       await deleteJournalEntry(entry.id);
-      reloadEntries();
+      reloadCurrentPage();
     } catch (err) {
       setError(err.message);
     }
@@ -245,7 +308,7 @@ export default function JournalModule({ companies, companyId }) {
   const doPost = async (entry) => {
     try {
       await postJournalEntry(entry.id);
-      reloadEntries();
+      reloadCurrentPage();
     } catch (err) {
       setError(err.message);
     }
@@ -263,14 +326,48 @@ export default function JournalModule({ companies, companyId }) {
     }
   };
 
-  // فك الترحيل إجراء استثنائي مقيَّد بدور super_admin على الواجهة وعلى الخادم معاً (راجع
-  // journalEntries.routes.ts)، ومحمي برقم سري يتحقق منه الخادم فعلياً (UnpostModal)، ويُسجَّل
-  // في سجل التدقيق تلقائياً من داخل unpostJournalEntry نفسها — لا شيء إضافي مطلوب هنا لذلك.
+  // القائمة لا تحمل بعد الآن lines/علاقاتها الكاملة (حسابات/مراكز تكلفة/أصول.. انظر listEntrySelect
+  // في الخادم) — نافذتا العرض والتعديل/النسخ تحتاجانها فعلياً، فتُجلَب القيد الكامل عبر
+  // getJournalEntry أولاً قبل فتح أي منهما، بدل تمرير صف القائمة (الناقص الآن) مباشرة.
+  const openView = async (entry) => {
+    setOpeningEntryId(entry.id);
+    try {
+      setViewEntry(await getJournalEntry(entry.id));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setOpeningEntryId(null);
+    }
+  };
+  const openEdit = async (entry) => {
+    setOpeningEntryId(entry.id);
+    try {
+      setFormModal({ mode: "edit", entry: await getJournalEntry(entry.id) });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setOpeningEntryId(null);
+    }
+  };
+  const openDuplicate = async (entry) => {
+    setOpeningEntryId(entry.id);
+    try {
+      setFormModal({ mode: "duplicate", entry: await getJournalEntry(entry.id) });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setOpeningEntryId(null);
+    }
+  };
+
+  // فك الترحيل إجراء استثنائي محمي بطبقتين (راجع journalEntries.routes.ts/service.ts): صلاحية
+  // الوصول للمسار (canUnpost أعلاه)، ثم الرقم السري للشركة (UnpostModal) الذي يتحقق منه الخادم
+  // فعلياً، ويُسجَّل تلقائياً في سجل التدقيق من داخل unpostJournalEntry نفسها.
   const doUnpost = async (pin) => {
     const num = entryNumberLabel(unpostTarget);
     await unpostJournalEntry(unpostTarget.id, pin);
     setUnpostTarget(null);
-    reloadEntries();
+    reloadCurrentPage();
     setNotice(t("journalEntries.notify.unposted", { number: num }));
   };
 
@@ -322,17 +419,10 @@ export default function JournalModule({ companies, companyId }) {
           <div className="journal-secondary-actions">
             <button className="btn-ghost" onClick={() => setShowFromDocument(true)}>{t("journalEntries.createFromDocument")}</button>
             <button className="btn-ghost" onClick={() => setShowBulkImport(true)}>{t("journalEntries.bulkImport")}</button>
-            <button
-              className="btn-ghost"
-              onClick={() => downloadCsv(t("journalEntries.csvFileName"), [
-                [
-                  t("journalEntries.csvHeaders.entryNumber"), t("journalEntries.csvHeaders.date"),
-                  t("journalEntries.csvHeaders.memo"), t("journalEntries.csvHeaders.status"), t("journalEntries.csvHeaders.total"),
-                ],
-                ...entries.map((e) => [entryNumberLabel(e), fmtDate(e.date), e.memo, statusLabel(e.status), entryTotal(e)]),
-              ])}
-            >
-              {t("journalEntries.exportCsv")}
+            {/* تصدير من الخادم مباشرة (كل القيود المطابقة للفلاتر، بلا حدّ صفحة) بدل تصدير entries
+                المحمَّلة محلياً فقط (التي تحمل صفحة واحدة بعد الآن) — راجع exportEntries. */}
+            <button className="btn-ghost" onClick={exportEntries} disabled={exporting}>
+              {exporting ? t("journalEntries.exporting") : t("journalEntries.exportCsv")}
             </button>
           </div>
 
@@ -386,10 +476,10 @@ export default function JournalModule({ companies, companyId }) {
             </form>
           </div>
 
-          {bulkFailures.length > 0 && <ul role="alert">{bulkFailures.map(f=><li key={f.id}>{f.number}: {f.message}</li>)}</ul>}
+          {bulkFailures.length > 0 && <ul role="alert">{bulkFailures.map((f) => <li key={f.id}>{f.number}: {f.message}</li>)}</ul>}
           {selectedIds.size > 0 && (
             <div className="journal-bulk-toolbar">
-              <button className="btn-primary" disabled={loading || !!bulkProgress || !selectedSaved.length} onClick={postSelected}>{bulkProgress ? t("bulkPosting.progress",bulkProgress) : t("bulkPosting.post",{count:selectedSaved.length})}</button>
+              <button className="btn-primary" disabled={loading || !!bulkProgress || !selectedSaved.length} onClick={postSelected}>{bulkProgress ? t("bulkPosting.progress", bulkProgress) : t("bulkPosting.post", { count: selectedSaved.length })}</button>
               <strong>{selectedIds.size}</strong> {t("journalEntries.bulkToolbar.selected")}
               <button className="btn-ghost" disabled title={t("journalEntries.bulkToolbar.comingSoon")}>{t("journalEntries.bulkToolbar.printSelected")}</button>
               <button className="btn-ghost" disabled title={t("journalEntries.bulkToolbar.comingSoon")}>{t("journalEntries.bulkToolbar.exportSelected")}</button>
@@ -425,10 +515,11 @@ export default function JournalModule({ companies, companyId }) {
                       <td><span className="skeleton-block" style={{ width: 110 }} /></td>
                     </tr>
                   ))}
-                  {!loading && sortedEntries.map((e) => {
+                  {!loading && entries.map((e) => {
                     const posted = e.status === "posted";
                     const saved = e.status === "saved";
                     const hasLinks = e.mirrorEntryId || e.reversalOfEntryId || e.reversedByEntryId;
+                    const opening = openingEntryId === e.id;
                     return (
                       <React.Fragment key={e.id}>
                         <tr data-entry-row={e.id} className={e.id === highlightedEntryId ? "row-highlighted" : undefined}>
@@ -436,15 +527,15 @@ export default function JournalModule({ companies, companyId }) {
                           <td data-label={t("journalEntries.table.entryNumber")}>{entryNumberLabel(e)}</td>
                           <td data-label={t("journalEntries.table.date")}>{fmtDate(e.date)}</td>
                           <td data-label={t("journalEntries.table.memo")}>{e.memo || t("journalEntries.table.noMemo")}</td>
-                          <td className="num" data-label={t("journalEntries.table.lineCount")}>{e.lines.length}</td>
-                          <td className="num" data-label={t("journalEntries.table.amount")}>{fmt(entryTotal(e))}</td>
+                          <td className="num" data-label={t("journalEntries.table.lineCount")}>{e.lineCount}</td>
+                          <td className="num" data-label={t("journalEntries.table.amount")}>{fmt(entryAmount(e))}</td>
                           <td data-label={t("journalEntries.table.status")}><span className={"status-badge " + (posted ? "status-posted" : "status-saved")}>{statusLabel(e.status)}</span></td>
                           <td className="row-actions">
-                            <button className="icon-btn" title={t("journalEntries.rowActions.view")} onClick={() => setViewEntry(e)}><Icon.Eye /></button>
+                            <button className="icon-btn" disabled={opening} title={t("journalEntries.rowActions.view")} onClick={() => openView(e)}><Icon.Eye /></button>
                             <button
                               className="icon-btn" title={saved ? t("journalEntries.rowActions.edit") : t("journalEntries.rowActions.editDisabled")}
-                              disabled={!saved}
-                              onClick={() => saved && setFormModal({ mode: "edit", entry: e })}
+                              disabled={!saved || opening}
+                              onClick={() => saved && openEdit(e)}
                             ><Icon.Edit /></button>
                             <button className="icon-btn" title={t("journalEntries.rowActions.downloadPdf")} onClick={() => downloadPdf(e)}><Icon.Download /></button>
                             {saved && (
@@ -462,7 +553,7 @@ export default function JournalModule({ companies, companyId }) {
                             <ActionsMenu
                               items={[
                                 { label: t("journalEntries.rowActions.downloadPdf"), icon: Icon.Download, onClick: () => downloadPdf(e) },
-                                { label: t("journalEntries.rowActions.duplicate"), icon: Icon.Copy, onClick: () => setFormModal({ mode: "duplicate", entry: e }) },
+                                { label: t("journalEntries.rowActions.duplicate"), icon: Icon.Copy, onClick: () => openDuplicate(e) },
                                 { label: t("journalEntries.rowActions.mirror"), icon: Icon.Link, onClick: () => setMirrorSource(e), hidden: !posted || Boolean(e.mirrorEntryId) },
                                 { label: t("journalEntries.rowActions.links"), icon: Icon.BookOpen, onClick: () => toggleLinkInfo(e), hidden: !hasLinks },
                                 {
@@ -500,7 +591,7 @@ export default function JournalModule({ companies, companyId }) {
                       </React.Fragment>
                     );
                   })}
-                  {!loading && sortedEntries.length === 0 && (
+                  {!loading && entries.length === 0 && (
                     <tr><td colSpan={8}>
                       <div className="journal-empty-state">
                         <span className="journal-empty-icon">📄</span>
@@ -512,6 +603,15 @@ export default function JournalModule({ companies, companyId }) {
                 </tbody>
               </table>
             </div>
+            <div className="journal-pagination">
+              <button className="btn-ghost" onClick={goPrevPage} disabled={pageIndex === 0 || loading}>
+                {t("journalEntries.pagination.prev")}
+              </button>
+              <span className="journal-pagination-page">{t("journalEntries.pagination.page", { page: pageIndex + 1 })}</span>
+              <button className="btn-ghost" onClick={goNextPage} disabled={!hasMore || loading}>
+                {t("journalEntries.pagination.next")}
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -520,7 +620,14 @@ export default function JournalModule({ companies, companyId }) {
         <BulkImportJournalEntriesModal
           companyId={companyId}
           onClose={() => setShowBulkImport(false)}
-          onImported={reloadEntries}
+          onImported={() => {
+            // استيراد جماعي قد يُضيف قيوداً كثيرة بتواريخ قديمة — رجوع للصفحة الأولى (بدل تحديث
+            // الصفحة الحالية فقط) ليتأكد المستخدم من نجاح العملية بصرف النظر عن مكان القيود الجديدة
+            // ضمن الترتيب الحالي.
+            setCursorHistory([undefined]);
+            setPageIndex(0);
+            reloadEntries(undefined);
+          }}
         />
       )}
 
@@ -551,7 +658,7 @@ export default function JournalModule({ companies, companyId }) {
           companies={companies}
           accounts={accounts}
           onClose={() => setShowFromDocument(false)}
-          onCreated={() => { setShowFromDocument(false); reloadEntries(); }}
+          onCreated={() => { setShowFromDocument(false); reloadCurrentPage(); }}
         />
       )}
       {mirrorSource && (
@@ -563,7 +670,7 @@ export default function JournalModule({ companies, companyId }) {
           onCreated={(mirror, targetCompany) => {
             setMirrorSource(null);
             setNotice(t("journalEntries.notify.mirrorCreated", { company: targetCompany?.shortName || targetCompany?.name }));
-            reloadEntries();
+            reloadCurrentPage();
           }}
         />
       )}
@@ -574,7 +681,7 @@ export default function JournalModule({ companies, companyId }) {
           onCreated={() => {
             setReverseSource(null);
             setNotice(t("journalEntries.notify.reverseCreated"));
-            reloadEntries();
+            reloadCurrentPage();
           }}
         />
       )}
