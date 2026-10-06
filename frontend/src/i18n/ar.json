@@ -943,8 +943,10 @@
     "createFromDocument": "إنشاء قيد من مستند (ذكاء اصطناعي)",
     "bulkImport": "استيراد قيود بالجملة",
     "exportCsv": "تصدير Excel/CSV",
+    "exporting": "جارٍ التصدير...",
     "csvFileName": "القيود_اليومية.csv",
     "csvHeaders": { "entryNumber": "رقم القيد", "date": "التاريخ", "memo": "البيان", "status": "الحالة", "total": "الإجمالي" },
+    "pagination": { "prev": "السابق", "next": "التالي", "page": "صفحة {{page}}" },
     "filters": {
       "searchByMemo": "بحث بالبيان", "entryNumber": "رقم القيد", "entryNumberPlaceholder": "بحث برقم القيد",
       "dateFrom": "من تاريخ", "dateTo": "إلى تاريخ", "showResults": "إظهار النتائج", "clearFilters": "مسح الفلاتر",

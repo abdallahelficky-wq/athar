@@ -14,6 +14,7 @@ import {
 import { previewBulkImportSchema, commitBulkImportSchema } from "./bulkImport.schemas";
 import {
   listHandler,
+  exportHandler,
   getHandler,
   getPdfHandler,
   createHandler,
@@ -40,8 +41,9 @@ const canWrite = requireRole("admin", "finance_manager", "accountant");
 const superAdminOnly = requireRole("super_admin");
 
 journalEntryRoutes.get("/", listHandler);
-// يجب أن يسبق "/:id" كي لا يُعامَل "next-number" كمعرّف قيد
+// يجب أن يسبقا "/:id" كي لا يُعامَل "next-number"/"export" كمعرّف قيد
 journalEntryRoutes.get("/next-number", nextNumberHandler);
+journalEntryRoutes.get("/export", exportHandler);
 journalEntryRoutes.get("/:id", getHandler);
 journalEntryRoutes.get("/:id/pdf", getPdfHandler);
 journalEntryRoutes.post("/", canWrite, validateBody(createJournalEntrySchema), createHandler);

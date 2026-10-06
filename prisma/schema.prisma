@@ -649,8 +649,18 @@ model JournalEntry {
   date              DateTime
   memo              String?
   status            JournalEntryStatus @default(posted)
-  // رقم القيد التسلسلي بصيغة [بادئة الشركة][5 خانات] (مثال J00001).
+  // رقم القيد التسلسلي بصيغة [بادئة الشركة][5 خانات] (مثال J00001) — نصّ للعرض فقط، لا يُستخدَم
+  // كمفتاح ترتيب/فهرسة (انظر entrySeq أدناه: نفس البادئة قابلة للتعديل من بيانات الشركة بعد إنشاء
+  // قيود بالفعل، والحشو الثابت 5 خانات ينكسر رقمياً بعد تجاوز 99999 — فالترتيب النصي على entryNumber
+  // غير موثوق).
   entryNumber       String
+  // الرقم التسلسلي الخام (قبل بادئة الشركة وحشو الأصفار) — مصدره الوحيد reserveEntryNumber في
+  // journalPosting.ts (أو نفس منطقها الحسابي محلياً في bulkImport.service.ts لأسباب أداء، انظر
+  // تعليقها). يُستخدَم كمفتاح ترتيب/فهرسة حقيقي (رقم صحيح، غير معرَّض لتغيّر البادئة أو تجاوز طول
+  // الحشو) بدل entryNumber النصي. قابل لل null حصراً للقيود القديمة المستوردة بصيغة غير قابلة
+  // للتفسير (مثال: أرقام من نظام سابق كـQoyod) — تُعامَل هذه كـ"آخر الترتيب" (nulls last) دائماً
+  // بصرف النظر عن اتجاه الفرز، ولا تُخمَّن قيمتها أبداً (انظر scripts/backfillJournalEntrySeq.ts).
+  entrySeq          Int?
   sourceModule      SourceModule       @default(manual)
   sourceId          String?
   // مرجع منطقي حر (بلا علاقة FK صارمة) لقيد "المرآة" المقابل في شركة أخرى ضمن نفس المستأجر —
@@ -664,11 +674,25 @@ model JournalEntry {
   createdBy         String?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  // مجموع المدين لكل أسطر هذا القيد (= مجموع الدائن دائماً لقيد متوازن) — محسوبة دائماً من
+  // قاعدة البيانات عبر recomputeEntryTotal في journalPosting.ts، لا تُحسَب أو تُحدَّث يدوياً في أي
+  // مسار آخر (بما فيها الزيادة التراكمية increment) — مصدر الحقيقة الوحيد لتفادي انحراف القيمة
+  // عن واقع الأسطر الفعلي. تُستخدَم لعرض/فلترة/ترتيب شاشة القيود بلا تحميل كل الأسطر لكل قيد.
+  totalDebit        Decimal            @default(0) @db.Decimal(18, 2)
 
   lines JournalEntryLine[]
 
   @@unique([companyId, entryNumber])
+  // يُستبدَل بـ[tenantId, companyId, date, entrySeq, id] أدناه (يُغطّي نفس الحقول زائد ترتيب شاشة
+  // القيود المرقّمة صفحات فعلياً) — يبقى هذا الفهرس الأضيق مفيداً لاستعلامات لا تحتاج entrySeq/id
+  // (مثال: تقارير الفترة الزمنية)، فلا داعي لحذفه.
   @@index([tenantId, companyId, date])
+  // مفتاح ترتيب/فهرسة شاشة القيود الافتراضي (تاريخ تنازلي، ثم الرقم التسلسلي الخام تنازلياً مع
+  // nulls آخر الترتيب للقيود القديمة غير القابلة للتفسير، ثم id كفاصل حاسم نهائي) — انظر
+  // buildKeysetWhere في src/lib/keysetPagination.ts وlistJournalEntries.
+  @@index([tenantId, companyId, date, entrySeq, id])
+  // مفتاح ترتيب/فهرسة نمط "الفرز بالمبلغ" في شاشة القيود.
+  @@index([tenantId, companyId, totalDebit, id])
   @@index([tenantId, sourceModule, sourceId])
   @@index([tenantId, mirrorEntryId])
   @@index([tenantId, reversalOfEntryId])

@@ -7,11 +7,16 @@ import { buildJournalVoucherPdf } from "../../lib/journalVoucherPdf";
 
 const asString = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const asNumber = (v: unknown) => (typeof v === "string" && v !== "" ? Number(v) : undefined);
-const asStatus = (v: unknown) => (v === "saved" || v === "posted" ? v : undefined);
+const asStatus = (v: unknown): "saved" | "posted" | undefined => (v === "saved" || v === "posted" ? v : undefined);
+const asSortBy = (v: unknown): "date" | "entrySeq" | "amount" | undefined =>
+  v === "date" || v === "entrySeq" || v === "amount" ? v : undefined;
+const asSortDir = (v: unknown): "asc" | "desc" | undefined => (v === "asc" || v === "desc" ? v : undefined);
 
-export const listHandler: RequestHandler = async (req, res) => {
-  const { companyId, dateFrom, dateTo, search, entryNumber, accountId, amount, amountMin, amountMax, status } = req.query;
-  const entries = await service.listJournalEntries(req.auth!.tenantId, {
+// فلاتر شاشة القيود/التصدير مشتركة بين listHandler وexportHandler — نفس القيم بالضبط تُقرأ من
+// querystring في كليهما، فلا يمكن للتصدير أن يرى فلترة مختلفة عن الشاشة.
+function readFilters(query: Record<string, unknown>) {
+  const { companyId, dateFrom, dateTo, search, entryNumber, accountId, amount, amountMin, amountMax, status, sortBy, sortDir } = query;
+  return {
     companyId: asString(companyId),
     dateFrom: asString(dateFrom),
     dateTo: asString(dateTo),
@@ -22,8 +27,28 @@ export const listHandler: RequestHandler = async (req, res) => {
     amountMin: asNumber(amountMin),
     amountMax: asNumber(amountMax),
     status: asStatus(status),
+    sortBy: asSortBy(sortBy),
+    sortDir: asSortDir(sortDir),
+  };
+}
+
+export const listHandler: RequestHandler = async (req, res) => {
+  const result = await service.listJournalEntries(req.auth!.tenantId, {
+    ...readFilters(req.query as Record<string, unknown>),
+    cursor: asString(req.query.cursor),
+    take: asNumber(req.query.take),
   });
-  res.json(entries);
+  res.json(result);
+};
+
+// تصدير CSV كامل لكل القيود المطابقة للفلاتر الحالية (بلا أي حدّ صفحة) — نفس filters المستخدَمة في
+// listHandler بالضبط، عبر readFilters المشتركة. يرمي الخادم خطأ 400 واضحاً (يُترجَم عبر errorHandler
+// العادي) لو تجاوز عدد النتائج الحدّ الأقصى، بدل قطع الملف بصمت.
+export const exportHandler: RequestHandler = async (req, res) => {
+  const csv = await service.exportJournalEntriesCsv(req.auth!.tenantId, readFilters(req.query as Record<string, unknown>));
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="journal-entries.csv"`);
+  res.send(csv);
 };
 
 export const nextNumberHandler: RequestHandler = async (req, res) => {

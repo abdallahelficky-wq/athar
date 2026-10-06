@@ -325,6 +325,7 @@ export const AR_TO_EN: Record<string, string> = {
     "The CHROMIUM_EXECUTABLE_PATH environment variable is not set — a runnable Chromium path is required to generate PDFs",
   "متغير البيئة ZATCA_ENCRYPTION_KEY غير مضبوط — مطلوب لتشفير/فك تشفير أسرار ربط زاتكا":
     "The ZATCA_ENCRYPTION_KEY environment variable is not set — required to encrypt/decrypt ZATCA onboarding secrets",
+  "مؤشر الصفحة غير صالح": "The page cursor is invalid",
   "مركز التكلفة غير موجود": "The cost center does not exist",
   "مستودع الوجهة غير موجود ضمن الشركة المستقبلة": "The destination warehouse does not exist in the receiving company",
   "معرّف المعاملة مطلوب": "The transaction identifier is required",
