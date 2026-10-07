@@ -273,8 +273,26 @@ describe("searchSalesReturns (integration)", () => {
     expect(totals).toEqual([...totals].sort((a, b) => a - b));
   });
 
-  it("default sort is date descending then returnNumber descending", async () => {
+  it("default sort is last entered first: createdAt descending then id descending", async () => {
     const result = await searchSalesReturns(tenantId, parseQuery({ customerId: customerStandardId, pageSize: "200" }));
+    const rows = await prisma.$queryRawUnsafe<{ id: string; createdAt: Date }[]>(
+      `SELECT "id", "createdAt" FROM "sales_returns" WHERE "id" = ANY($1)`,
+      result.items.map((r) => r.id),
+    );
+    const createdAt = new Map(rows.map((r) => [r.id, r.createdAt.getTime()]));
+    expect(result.items.length).toBeGreaterThan(1);
+    for (let i = 1; i < result.items.length; i++) {
+      const prev = result.items[i - 1];
+      const curr = result.items[i];
+      const prevTime = createdAt.get(prev.id)!;
+      const currTime = createdAt.get(curr.id)!;
+      expect(prevTime >= currTime).toBe(true);
+      if (prevTime === currTime) expect(prev.id > curr.id).toBe(true);
+    }
+  });
+
+  it("sortBy=date is date descending then returnNumber descending", async () => {
+    const result = await searchSalesReturns(tenantId, parseQuery({ customerId: customerStandardId, sortBy: "date", pageSize: "200" }));
     for (let i = 1; i < result.items.length; i++) {
       const prev = result.items[i - 1];
       const curr = result.items[i];

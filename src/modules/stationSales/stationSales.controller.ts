@@ -8,7 +8,8 @@ export const listHandler: RequestHandler = async (req, res) => {
   const sales = await prisma.stationSale.findMany({
     where: { tenantId: req.auth!.tenantId, companyId: typeof companyId === "string" ? companyId : undefined },
     include: { costCenter: true },
-    orderBy: { date: "desc" },
+    // آخر ما أُدخل أولاً لا بالتاريخ
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
   res.json(sales);
 };
