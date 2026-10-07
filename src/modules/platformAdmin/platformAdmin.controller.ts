@@ -10,6 +10,10 @@ export const getTenantHandler: RequestHandler = async (req, res) => {
   res.json(await service.getTenantForPlatform(req.params.id));
 };
 
+export const getTenantDirectoryHandler: RequestHandler = async (req, res) => {
+  res.json(await service.getTenantDirectory(req.params.id));
+};
+
 export const updateSubscriptionHandler: RequestHandler = async (req, res) => {
   res.json(await service.updateTenantSubscription(req.params.id, req.body));
 };
