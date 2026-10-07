@@ -85,9 +85,9 @@ export default function JournalModule({ companies, companyId }) {
   // الأرصدة) — تُقرأ مرة واحدة عند الفتح فقط.
   const jf = useDeferredFilters(initialFiltersFromUrl());
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  // الترتيب الافتراضي من الخادم: تاريخ تنازلي، ثم entrySeq تنازلياً (nulls آخراً)، ثم id — راجع
-  // تعليق SORT_COLUMNS وlistJournalEntries في journalEntries.service.ts.
-  const [sort, setSort] = useState({ key: SORT_COLUMNS.date, dir: "desc" });
+  // الترتيب الافتراضي: آخر ما أُدخل أولاً — رقم القيد (entrySeq) تنازلياً ثم وقت الإدخال، لا التاريخ: قيد بتاريخ قديم
+  // أُدخل اليوم يبقى أعلى القائمة. الترتيب بالتاريخ أو المبلغ بالنقر على رأس العمود — راجع SORT_LEVEL_DEFS في الخادم.
+  const [sort, setSort] = useState({ key: SORT_COLUMNS.entryNumber, dir: "desc" });
   const [selectedIds, setSelectedIds] = useState(new Set());
   const bulkRun = useRef(null);
   useEffect(() => { setBulkProgress(null); return () => { bulkRun.current = null; }; }, [companyId]);

@@ -1044,6 +1044,9 @@ model JournalEntry {
   // nulls آخر الترتيب للقيود القديمة غير القابلة للتفسير، ثم id كفاصل حاسم نهائي) — انظر
   // buildKeysetWhere في src/lib/keysetPagination.ts وlistJournalEntries.
   @@index([tenantId, companyId, date, entrySeq, id])
+  // الترتيب الافتراضي لقوائم القيود (آخر ما أُدخل أولاً): entrySeq DESC NULLS LAST, createdAt DESC, id DESC — الترحيل يضيف
+  // NULLS LAST يدوياً لأن Prisma لا يعبّر عنه، وبدونه لا يخدم الفهرس هذا الترتيب (DESC في Postgres يعني NULLS FIRST).
+  @@index([tenantId, companyId, entrySeq(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
   // مفتاح ترتيب/فهرسة نمط "الفرز بالمبلغ" في شاشة القيود.
   @@index([tenantId, companyId, totalDebit, id])
   @@index([tenantId, sourceModule, sourceId])
