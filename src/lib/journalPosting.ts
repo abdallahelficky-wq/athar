@@ -3,8 +3,14 @@ import { prisma } from "./prisma";
 import { verifyPassword } from "./password";
 import { badRequest, forbidden, notFound } from "./httpError";
 import { assertPeriodNotClosed, lockCompanyClosingDate } from "./fiscalClosing";
+import { recomputeEntryTotal } from "./journalEntryTotals";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
+
+// مُعاد تصديرها من journalEntryTotals.ts (ملف خالٍ عمداً من أي استيراد لـprisma.ts/config/env.ts)
+// حتى تبقى قابلة للاستيراد من سكريبتات مستقلة بعميل Prisma خاص بها — راجع تعليقها هناك. كل مستدعٍ
+// حالي في هذا الملف يستوردها من هنا كسابقاً، بلا أي تغيير مطلوب في موقع الاستيراد.
+export { recomputeEntryTotal };
 
 export interface ReservedEntryNumber {
   entryNumber: string;
@@ -51,49 +57,6 @@ export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: st
   return { entryNumber: `${row.numberingPrefix}${String(row.nextJournalEntrySeq).padStart(5, "0")}`, entrySeq: row.nextJournalEntrySeq };
 }
 
-/**
- * مصدر الحقيقة الوحيد لقيمة JournalEntry.totalDebit — تُعيد حسابها دائماً من واقع الأسطر
- * المخزَّنة فعلياً (SUM(debit) عبر aggregate)، ولا تُشتَق أبداً من قيمة محسوبة مسبقاً في الذاكرة أو
- * بزيادة تراكمية (increment). يجب استدعاؤها في نهاية أي معاملة تُنشئ أو تُعدّل أو تحذف سطراً واحداً
- * أو أكثر من أسطر قيد معيّن (بعد اكتمال كل التعديلات على الأسطر ضمن نفس tx)، قبل أي return — هذا
- * يضمن بقاء العمود مطابقاً تماماً للأسطر الفعلية بصرف النظر عن مسار الكتابة (قيد يدوي، قيد تلقائي
- * من موديول مصدر، قيد مرآة/عكس، أو استيراد جماعي)، ويجعل أي مسار جديد مستقبلاً يحتاج استدعاءً واحداً
- * فقط بدل إعادة تنفيذ منطق الجمع بنفسه.
- *
- * تقبل معرّف قيد واحد، أو مصفوفة معرّفات لإعادة الحساب دفعة واحدة بعملية SQL واحدة (بدل استدعاء
- * منفصل لكل قيد) — ضروري لمسار الاستيراد الجماعي الذي قد يُنشئ آلاف القيود ضمن معاملة واحدة محدودة
- * بمهلة زمنية، حيث تتحول آلاف الرحلات المتتابعة (aggregate + update لكل قيد) لعنق زجاجة حقيقي.
- * الحسابان (المفرد والجماعي) يستخدمان نفس التعريف بالضبط: SUM(debit) من journal_entry_lines.
- */
-export async function recomputeEntryTotal(tx: Tx, entryIdOrIds: string | string[]): Promise<void> {
-  if (Array.isArray(entryIdOrIds)) {
-    if (entryIdOrIds.length === 0) return;
-    // LEFT JOIN عبر unnest بدل الربط المباشر بـ sub (الذي لا يحتوي أصلاً أي صف لقيد بلا أسطر) —
-    // حتى يُصفَّر totalDebit بشكل صريح أيضاً لو حُذفت كل أسطر أحد القيود ضمن هذه المجموعة، لا أن
-    // يُترَك بقيمته القديمة.
-    await tx.$executeRaw`
-      UPDATE "journal_entries" je
-      SET "totalDebit" = COALESCE(sub.total, 0)
-      FROM unnest(${entryIdOrIds}::text[]) AS ids(id)
-      LEFT JOIN (
-        SELECT "journalEntryId", SUM(debit) AS total
-        FROM "journal_entry_lines"
-        GROUP BY "journalEntryId"
-      ) sub ON sub."journalEntryId" = ids.id
-      WHERE je.id = ids.id
-    `;
-    return;
-  }
-
-  const { _sum } = await tx.journalEntryLine.aggregate({
-    where: { journalEntryId: entryIdOrIds },
-    _sum: { debit: true },
-  });
-  await tx.journalEntry.update({
-    where: { id: entryIdOrIds },
-    data: { totalDebit: _sum.debit ?? new Prisma.Decimal(0) },
-  });
-}
 
 /** معاينة الرقم التالي المتوقع بلا أي حجز أو تعديل على العدّاد — للعرض في نافذة إضافة قيد قبل الحفظ فقط */
 export async function previewNextEntryNumber(tenantId: string, companyId: string) {

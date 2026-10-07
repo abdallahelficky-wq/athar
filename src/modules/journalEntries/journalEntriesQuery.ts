@@ -16,7 +16,8 @@ export const EXPORT_SAFETY_CAP = 20_000;
 
 // سطور القيد (بكل علاقاتها) لا تُحمَّل في شاشة القائمة — تُستخدَم فقط عند فتح قيد محدَّد عبر
 // getJournalEntry (أو مباشرة قبل فتح نافذة العرض/التعديل/النسخ في الواجهة). _count.lines/totalDebit
-// يكفيان لعرض عدد الأسطر والإجمالي في صف القائمة بلا أي JOIN على جدول الأسطر نفسه.
+// يكفيان لعرض عدد الأسطر والإجمالي في صف القائمة بلا أي JOIN على جدول الأسطر نفسه — لمن يملك صلاحية
+// رؤية بيانات الموارد البشرية كما هي (hrView !== false).
 export const listEntrySelect = {
   id: true,
   entryNumber: true,
@@ -30,6 +31,37 @@ export const listEntrySelect = {
   _count: { select: { lines: true } },
 } satisfies Prisma.JournalEntrySelect;
 
+// لمن لا يملك صلاحية رؤية بيانات الموارد البشرية (hrView === false): يجب طيّ أسطر قيود الرواتب/
+// التسويات (collapseHrLines في hrRedaction.ts) قبل حساب عدد الأسطر الظاهر وإخراج البيان المحذوف منه
+// الاسم — فتُجلَب حقول الأسطر النطيّة (scalar فقط، بلا أي علاقة متداخلة) بدل _count، ويُحسَب العدد
+// الظاهر من lines.length بعد الطيّ، لا من _count الخام.
+export const listEntrySelectWithThinLines = {
+  id: true,
+  entryNumber: true,
+  entrySeq: true,
+  date: true,
+  memo: true,
+  status: true,
+  totalDebit: true,
+  mirrorEntryId: true,
+  reversalOfEntryId: true,
+  sourceModule: true,
+  lines: {
+    select: {
+      id: true,
+      accountId: true,
+      debit: true,
+      credit: true,
+      employeeId: true,
+      employeeAdvanceId: true,
+      costCenterId: true,
+      departmentId: true,
+      department: true,
+      branchId: true,
+    },
+  },
+} satisfies Prisma.JournalEntrySelect;
+
 export interface JournalEntryFilters {
   companyId?: string;
   dateFrom?: string;
@@ -37,10 +69,13 @@ export interface JournalEntryFilters {
   search?: string;
   entryNumber?: string;
   accountId?: string;
+  branchId?: string;
   amount?: number;
   amountMin?: number;
   amountMax?: number;
   status?: "saved" | "posted";
+  /** false لغير أدوار الموارد البشرية: قيود الرواتب والتسويات تُعرَض مطويّة — راجع redactHrEntries */
+  hrView?: boolean;
 }
 
 export type JournalEntrySortBy = "date" | "entrySeq" | "amount";
@@ -56,8 +91,23 @@ export interface JournalEntryListOptions extends JournalEntryFilters {
 /**
  * نفس شرط WHERE بالضبط يُستخدَم لشاشة القائمة المرقّمة صفحات وللتصدير الكامل (CSV) معاً — فلا
  * يُمكن لأي منهما أن يرى فلترة مختلفة عن الآخر على نفس المعايير.
+ *
+ * resolvedAccountIds: قائمة مُحضَّرة مسبقاً (الحساب المطلوب + كل حساباته الفرعية تكرارياً — توسعة
+ * غير نقية تحتاج استعلامات DB متتالية، فتُنجَز في الطبقة التي تستورد prisma ثم تُمرَّر هنا جاهزة)؛
+ * تُستبدَل بـfilters.accountId الخام لو غابت. branchId يُطابَق على *نفس* السطر الذي يطابق الحساب (لا
+ * سطرين مستقلّين) — lines.some واحد يحمل كل شروط السطر معاً، تماماً كما تتوقّعه شاشة القيود (قيد له
+ * سطر على الحساب المطلوب وسطر آخر على الفرع المطلوب لا يُعامَل كمطابقة لكليهما).
  */
-export function buildJournalEntryWhere(tenantId: string, filters: JournalEntryFilters): Prisma.JournalEntryWhereInput {
+export function buildJournalEntryWhere(
+  tenantId: string,
+  filters: JournalEntryFilters,
+  resolvedAccountIds?: string[],
+): Prisma.JournalEntryWhereInput {
+  const lineFilter: Record<string, unknown> = {
+    ...(resolvedAccountIds ? { accountId: { in: resolvedAccountIds } } : filters.accountId ? { accountId: filters.accountId } : {}),
+    ...(filters.branchId ? { branchId: filters.branchId } : {}),
+  };
+
   return {
     tenantId,
     companyId: filters.companyId || undefined,
@@ -70,8 +120,11 @@ export function buildJournalEntryWhere(tenantId: string, filters: JournalEntryFi
     // شرطي OR للآخر لو طُبِّقا معاً) — كل عنصر هنا شرط OR مستقل يُضاف فقط لو طُلب معياره فعلياً.
     // فلتر المبلغ أصبح شرط WHERE حقيقي على totalDebit (عمود مخزَّن فعلياً) بدل فلترة في الذاكرة
     // بعد الجلب — وهو ما كان يمنع الترقيم الصحيح للصفحات (صفحة من N صف قد تُصبح أقل من N بعد
-    // الفلترة اللاحقة، بينما توجد نتائج مطابقة أخرى بعدها لم تُجلَب أصلاً).
+    // الفلترة اللاحقة، بينما توجد نتائج مطابقة أخرى بعدها لم تُجلَب أصلاً). هذا لا يتأثر بطيّ قيود
+    // الموارد البشرية (collapseHrLines يحافظ على إجمالي المدين كما هو، يُجمِّع الأسطر فقط).
     AND: [
+      // المستدعي (listJournalEntries) يُمرِّر search=undefined هنا أصلاً لو hrView===false، فلا داعي
+      // لتكرار ذلك الشرط هنا — راجع التعليق هناك لسبب عدم دفع هذا البحث تحديداً لـSQL في تلك الحالة.
       ...(filters.search
         ? [{ OR: [{ memo: { contains: filters.search, mode: "insensitive" as const } }, { id: filters.search }] }]
         : []),
@@ -98,7 +151,7 @@ export function buildJournalEntryWhere(tenantId: string, filters: JournalEntryFi
       ...(filters.amountMin != null ? [{ totalDebit: { gte: new Prisma.Decimal(filters.amountMin - BALANCE_EPSILON) } }] : []),
       ...(filters.amountMax != null ? [{ totalDebit: { lte: new Prisma.Decimal(filters.amountMax + BALANCE_EPSILON) } }] : []),
     ],
-    ...(filters.accountId ? { lines: { some: { accountId: filters.accountId } } } : {}),
+    ...(Object.keys(lineFilter).length ? { lines: { some: lineFilter } } : {}),
   };
 }
 
