@@ -4,6 +4,8 @@
  *
  *   القاعدة 1 (منع):  ملفات .env / .env.* بأي أداة، وطباعة متغيّرات البيئة (env، printenv، set، export -p،
  *                     echo $DATABASE_URL، /proc/<pid>/environ، process.env كاملاً).
+ *                     استثناء (قرار المالك، #146): .env.example قالب مُودَع بلا أسرار — قراءته مسموحة، أما الكتابة
+ *                     إليه فممنوعة (ملف مُودَع في المستودع: سرّ يُكتب فيه يُنشَر).
  *   القاعدة 2 (منع):  أي أمر فيه neon.tech، أو رابط postgres:// / postgresql:// لمضيف غير localhost / 127.0.0.1 / ::1.
  *   القاعدة 3 (سؤال): git push إلى production، git push --force إلى أي فرع، والدمج في production
  *                     (git merge على production، gh pr merge، نقطة REST للدمج عبر gh api أو curl، أداة MCP للدمج).
@@ -36,18 +38,32 @@ const MSG = {
     "⚠️ حارس الإنتاج — القاعدة 3: هذا دفع قسري (git push --force) يعيد كتابة تاريخ فرع. يحتاج تأكيدك.",
   merge: (how) => `⚠️ حارس الإنتاج — القاعدة 3: هذا دمج قد يصل إلى production (${how}). يحتاج تأكيدك.`,
   autoMode: (reason) =>
-    `⛔ ${reason.replace(/^⚠️\s*/, "")} الجلسة في الوضع التلقائي، فلا يصل هذا السؤال إليك — مُنِع. نفّذ الأمر بنفسك، أو بدّل الجلسة إلى الوضع العادي ثم اطلبه مرة أخرى.`,
+    `⛔ ${reason.replace(/^⚠️\s*/, "")} الجلسة في الوضع التلقائي، فلا يصل هذا السؤال إليك — مُنِع. ادمج أو ادفع بنفسك من GitHub، أو بدّل الجلسة إلى الوضع العادي ثم اطلبه مرة أخرى.`,
+  envExampleWrite: (what) =>
+    `⛔ حارس الإنتاج — القاعدة 1 (ملفات البيئة): ${what} مسموح قراءته فقط. الكتابة إليه ممنوعة لأنه مُودَع في المستودع، وأي سرّ يُكتب فيه يُنشَر.`,
 };
 
 // ---------- القاعدة 1: ملفات البيئة ----------
 const ENV_BASENAME = /^\.env(\..+)?$/;
 // .env كاسم ملف داخل أمر: قبله فاصل أو / (لا حرف — process.env ليس ملفاً)، وبعده نهاية أو فاصل
-const ENV_IN_COMMAND = /(^|[\s/'"=:<>(`;|&])\.env(\.[\w.-]+)?(?=$|[\s'"/;|&)<>`])/;
+const ENV_IN_COMMAND = /(^|[\s/'"=:<>(`;|&])\.env(\.[\w.-]+)?(?=$|[\s'"/;|&)<>`])/g;
+const ENV_EXAMPLE = ".env.example";
 
-function envFilePath(p) {
+/** مسار يمسّ ملف بيئة. .env.example وحده (اسماً أخيراً، بلا مكوّن .env آخر في المسار) مستثنى للقراءة. */
+function envFilePath(p, { allowExample = false } = {}) {
   if (typeof p !== "string" || !p) return false;
-  const base = p.split(/[\\/]/).pop();
-  return ENV_BASENAME.test(base) || /(^|[\\/])\.env(\.[^\\/]+)?([\\/]|$)/.test(p);
+  const parts = p.split(/[\\/]/);
+  const base = parts.pop();
+  if (parts.some((d) => ENV_BASENAME.test(d))) return true;
+  if (allowExample && base === ENV_EXAMPLE) return false;
+  return ENV_BASENAME.test(base);
+}
+
+/** نمط Grep/Glob يطابق ملفات بيئة: .env*، **\/.env، {.env,...}. ".env.example" الصريح وحده مستثنى. */
+function envPattern(p) {
+  if (typeof p !== "string" || !p) return false;
+  if (p.split(/[\\/]/).pop() === ENV_EXAMPLE && !/[*?[{]/.test(p)) return false;
+  return envFilePath(p) || /(^|[\\/*{,])\.env(\b|\*|\.)/.test(p);
 }
 
 const SENSITIVE_VAR = /\$\{?#?([A-Za-z_][A-Za-z0-9_]*)/g;
@@ -111,9 +127,18 @@ function checkEnvPrinting(command) {
 }
 
 function checkEnvFileInCommand(command) {
-  const m = command.match(ENV_IN_COMMAND);
-  if (!m) return null;
-  return MSG.envFile(`.env${m[2] ?? ""}`);
+  for (const m of command.matchAll(ENV_IN_COMMAND)) {
+    if (m[2] !== ".example") return MSG.envFile(`.env${m[2] ?? ""}`);
+  }
+  // .env.example للقراءة فقط: تحويل مخرجات إليه، tee، sed -i، cp/mv إليه ⇒ منع
+  if (
+    /(>>?|\btee\b(\s+-\S+)*)\s*['"]?[^\s'"|;&]*\.env\.example\b/.test(command) ||
+    /\bsed\b[^|;&]*\s-[a-zA-Z]*i[^|;&]*\.env\.example\b/.test(command) ||
+    /\b(cp|mv|install|ln|truncate|rm)\b[^|;&]*\.env\.example['"]?\s*($|[|;&])/.test(command)
+  ) {
+    return MSG.envExampleWrite(ENV_EXAMPLE);
+  }
+  return null;
 }
 
 // ---------- القاعدة 2: قاعدة الإنتاج ----------
@@ -203,12 +228,16 @@ function decideRule(input) {
   }
   if (["Read", "Edit", "Write", "MultiEdit", "NotebookEdit"].includes(tool)) {
     const p = ti.file_path || ti.notebook_path || ti.path;
-    if (envFilePath(p)) return { decision: "deny", reason: MSG.envFile(p) };
+    const reading = tool === "Read";
+    if (envFilePath(p, { allowExample: reading })) {
+      const isExample = typeof p === "string" && p.split(/[\\/]/).pop() === ENV_EXAMPLE && envFilePath(p, { allowExample: true }) === false;
+      return { decision: "deny", reason: isExample ? MSG.envExampleWrite(p) : MSG.envFile(p) };
+    }
     return null;
   }
   if (tool === "Grep" || tool === "Glob") {
     for (const p of [ti.path, ti.glob, ti.pattern && tool === "Glob" ? ti.pattern : null]) {
-      if (typeof p === "string" && (envFilePath(p) || /(^|[\\/*{,])\.env(\b|\*|\.)/.test(p))) return { decision: "deny", reason: MSG.envFile(p) };
+      if (envPattern(p)) return { decision: "deny", reason: MSG.envFile(p) };
     }
     return null;
   }
