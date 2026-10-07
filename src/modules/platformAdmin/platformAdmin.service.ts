@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 
 const tenantSummarySelect = {
   id: true,
+  code: true,
   name: true,
   subscriptionPlan: true,
   subscriptionStatus: true,
@@ -37,6 +38,20 @@ export async function getTenantForPlatform(tenantId: string) {
   const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: tenantSummarySelect });
   if (!tenant) throw notFound("الشركة (Tenant) غير موجودة");
   return mapTenantSummary(tenant);
+}
+
+/** Administrative directory only: never return accounting, employee, credential or permission payloads. */
+export async function getTenantDirectory(tenantId: string) {
+  await getTenantForPlatform(tenantId);
+  const [users, companies] = await Promise.all([
+    prisma.user.findMany({ where: { tenantId, deletedAt: null }, select: {
+      id: true, name: true, role: true, active: true, inviteStatus: true,
+      companyScope: true, createdAt: true, lastLoginAt: true,
+      identity: { select: { email: true } },
+    }, orderBy: { createdAt: "asc" } }),
+    prisma.company.findMany({ where: { tenantId }, select: { id: true, name: true, createdAt: true }, orderBy: { createdAt: "asc" } }),
+  ]);
+  return { users: users.map(({ identity, ...user }) => ({ ...user, email: identity.email })), companies };
 }
 
 export async function updateTenantSubscription(

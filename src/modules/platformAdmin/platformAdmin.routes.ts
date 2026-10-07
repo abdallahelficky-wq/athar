@@ -20,6 +20,7 @@ platformAdminRoutes.use(authenticatePlatformService);
 
 platformAdminRoutes.get("/tenants", controller.listTenantsHandler);
 platformAdminRoutes.get("/tenants/:id", controller.getTenantHandler);
+platformAdminRoutes.get("/tenants/:id/directory", controller.getTenantDirectoryHandler);
 platformAdminRoutes.patch("/tenants/:id/subscription", validateBody(updateSubscriptionSchema), controller.updateSubscriptionHandler);
 platformAdminRoutes.patch("/tenants/:id/modules", validateBody(updateModulesSchema), controller.updateModulesHandler);
 platformAdminRoutes.patch("/tenants/:id/admin-email", validateBody(updateAdminEmailSchema), controller.updateAdminEmailHandler);
