@@ -7,6 +7,8 @@
  *   القاعدة 2 (منع):  أي أمر فيه neon.tech، أو رابط postgres:// / postgresql:// لمضيف غير localhost / 127.0.0.1 / ::1.
  *   القاعدة 3 (سؤال): git push إلى production، git push --force إلى أي فرع، والدمج في production
  *                     (git merge على production، gh pr merge، نقطة REST للدمج عبر gh api أو curl، أداة MCP للدمج).
+ *                     في الوضع التلقائي (permission_mode = "auto") يُجيب مُصنِّف الوضع التلقائي عن «السؤال» لا المالك،
+ *                     فيصير السؤال منعاً هناك (قرار المالك، #146)؛ في بقية الأوضاع يبقى سؤالاً يصل إليه.
  *
  * يُكتب القرار على stdout بصيغة hookSpecificOutput (deny / ask) ويخرج بـ0؛ لا قرار = يمرّ الأمر كالمعتاد.
  * التعطيل: احذف مدخل PreToolUse من .claude/settings.json، أو "disableAllHooks": true في .claude/settings.local.json.
@@ -33,6 +35,8 @@ const MSG = {
   pushForce: () =>
     "⚠️ حارس الإنتاج — القاعدة 3: هذا دفع قسري (git push --force) يعيد كتابة تاريخ فرع. يحتاج تأكيدك.",
   merge: (how) => `⚠️ حارس الإنتاج — القاعدة 3: هذا دمج قد يصل إلى production (${how}). يحتاج تأكيدك.`,
+  autoMode: (reason) =>
+    `⛔ ${reason.replace(/^⚠️\s*/, "")} الجلسة في الوضع التلقائي، فلا يصل هذا السؤال إليك — مُنِع. نفّذ الأمر بنفسك، أو بدّل الجلسة إلى الوضع العادي ثم اطلبه مرة أخرى.`,
 };
 
 // ---------- القاعدة 1: ملفات البيئة ----------
@@ -177,6 +181,13 @@ function checkGit(command, cwd) {
 
 // ---------- التوجيه حسب الأداة ----------
 export function decide(input) {
+  const result = decideRule(input);
+  // القاعدة 3 في الوضع التلقائي: لا أحد يسأل المالك هناك، فالسؤال منع
+  if (result?.decision === "ask" && input.permission_mode === "auto") return { decision: "deny", reason: MSG.autoMode(result.reason) };
+  return result;
+}
+
+function decideRule(input) {
   const tool = input.tool_name || "";
   const ti = input.tool_input || {};
   const cwd = input.cwd || process.cwd();

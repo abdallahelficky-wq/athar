@@ -11,15 +11,15 @@ import path from "path";
  */
 const GUARD = path.resolve(__dirname, "../../.claude/hooks/production-guard.mjs");
 
-function run(tool_name: string, tool_input: Record<string, unknown>, cwd = process.cwd()) {
-  const res = spawnSync("node", [GUARD], { input: JSON.stringify({ tool_name, tool_input, cwd }), encoding: "utf8" });
+function run(tool_name: string, tool_input: Record<string, unknown>, cwd = process.cwd(), permission_mode?: string) {
+  const res = spawnSync("node", [GUARD], { input: JSON.stringify({ tool_name, tool_input, cwd, permission_mode }), encoding: "utf8" });
   expect(res.status, res.stderr).toBe(0);
   if (!res.stdout.trim()) return { decision: "pass" as const, reason: "" };
   const out = JSON.parse(res.stdout).hookSpecificOutput;
   expect(out.hookEventName).toBe("PreToolUse");
   return { decision: out.permissionDecision as "deny" | "ask", reason: out.permissionDecisionReason as string };
 }
-const bash = (command: string, cwd?: string) => run("Bash", { command }, cwd);
+const bash = (command: string, cwd?: string, mode?: string) => run("Bash", { command }, cwd, mode);
 
 let onProduction = "";
 let onFeature = "";
@@ -142,6 +142,40 @@ describe("rule 3 — pushing or merging into production, and force pushes, ask",
     const mcp = run("mcp__github__merge_pull_request", { owner: "o", repo: "r", pullNumber: 1 });
     expect(mcp.decision).toBe("ask");
     expect(mcp.reason).toContain("القاعدة 3");
+  });
+});
+
+describe("rule 3 in auto mode — nobody would ask the owner, so the question becomes a denial", () => {
+  const rule3 = [
+    "git push origin production",
+    "git push --force origin feat/x",
+    "gh pr merge 145 --merge",
+    "gh api repos/abdallahelficky-wq/athar/pulls/145/merge --method PUT",
+  ];
+
+  it.each(rule3)("auto mode denies: %s", (command) => {
+    const r = bash(command, onFeature, "auto");
+    expect(r.decision).toBe("deny");
+    expect(r.reason).toContain("القاعدة 3");
+    expect(r.reason).toContain("الوضع التلقائي");
+  });
+
+  it("auto mode also denies a bare push on production, git merge on production, and the MCP merge tool", () => {
+    expect(bash("git push", onProduction, "auto").decision).toBe("deny");
+    expect(bash("git merge feat/x", onProduction, "auto").decision).toBe("deny");
+    expect(run("mcp__github__merge_pull_request", { owner: "o", repo: "r", pullNumber: 1 }, undefined, "auto").decision).toBe("deny");
+  });
+
+  it.each(["default", "acceptEdits", "plan", "bypassPermissions", "dontAsk", undefined])("mode %s keeps asking", (mode) => {
+    for (const command of rule3) expect(bash(command, onFeature, mode).decision).toBe("ask");
+  });
+
+  it("auto mode changes nothing else: rules 1 and 2 still deny, normal work still passes", () => {
+    expect(bash("cat .env", onFeature, "auto").decision).toBe("deny");
+    expect(bash("psql postgresql://u:p@db.example.com/x", onFeature, "auto").decision).toBe("deny");
+    for (const command of ["git status", "git push -u origin feat/x", "npm test", "psql postgresql://test:test@localhost:5432/x"]) {
+      expect(bash(command, onFeature, "auto").decision).toBe("pass");
+    }
   });
 });
 
