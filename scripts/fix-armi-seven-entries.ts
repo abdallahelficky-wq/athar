@@ -26,6 +26,9 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { loadExcelLines, groupExcelEntries, type ExcelEntry } from "./investigate-armi-full-reconciliation";
+// نفس الدالة الحقيقية المستخدَمة في كل مسارات الكتابة في التطبيق — راجع تعليقها في
+// create-armi-missing-entries.ts لسبب الاستيراد من journalEntryTotals.ts تحديداً لا journalPosting.ts.
+import { recomputeEntryTotal } from "../src/lib/journalEntryTotals";
 
 const prisma = new PrismaClient();
 const DEFAULT_ARMI_COMPANY_ID = "cmsrciyjv000ge8f57p2azqdd";
@@ -288,6 +291,8 @@ export async function run(companyId: string, commit: boolean) {
               credit: new Prisma.Decimal(l.credit),
             })),
           });
+          // الأسطر أُعيدَت كتابتها بالكامل — totalDebit المخزَّن أصبح قديماً، يُعاد حسابه الآن.
+          await recomputeEntryTotal(tx, fix.dbEntryId);
         }
         await tx.journalEntry.update({
           where: { id: fix.dbEntryId },

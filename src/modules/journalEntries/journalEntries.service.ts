@@ -5,16 +5,42 @@ import { badRequest, forbidden, notFound } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import { extractJournalEntryFromDocument } from "../../lib/claudeVision";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
-import { reserveEntryNumber, assertValidUnlockPin } from "../../lib/journalPosting";
+import { reserveEntryNumber, assertValidUnlockPin, recomputeEntryTotal } from "../../lib/journalPosting";
 import { assertPeriodNotClosed, lockCompanyClosingDate } from "../../lib/fiscalClosing";
+import { buildKeysetWhere, KeysetLevel, SortDir } from "../../lib/keysetPagination";
 import { registerFixedAssetTx } from "../fixedAssets/fixedAssets.service";
 import { registerEmployeeAdvanceTx } from "../employeeAdvances/employeeAdvances.service";
 import { currencyLabel } from "../../lib/countries";
 import { collapseHrLines, hrEntryKinds, redactHrMemo } from "../../lib/hrRedaction";
 import { loadPersonalFold } from "../../lib/personalAccounts";
 import { getRecordCreator } from "../../lib/recordHistory";
+import {
+  BALANCE_EPSILON,
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  EXPORT_SAFETY_CAP,
+  listEntrySelect,
+  listEntrySelectWithThinLines,
+  JournalEntryFilters,
+  JournalEntrySortBy,
+  JournalEntryListOptions,
+  SORT_LEVEL_DEFS,
+  buildJournalEntryWhere,
+  buildOrderBy,
+  assertWithinExportCap,
+  buildJournalEntriesCsv,
+} from "./journalEntriesQuery";
 
-const BALANCE_EPSILON = 0.01;
+export {
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+  EXPORT_SAFETY_CAP,
+  JournalEntryFilters,
+  JournalEntrySortBy,
+  JournalEntryListOptions,
+  assertWithinExportCap,
+  buildJournalEntriesCsv,
+} from "./journalEntriesQuery";
 
 export interface NewFixedAssetOnLine {
   name: string;
@@ -218,28 +244,16 @@ async function createLinesWithSideEffectsTx(
       await tx.journalEntryLine.update({ where: { id: line.id }, data: { employeeAdvanceId: advance.id } });
     }
   }
+
+  // نقطة استدعاء واحدة تغطي كل من createJournalEntry (قيد جديد) وupdateJournalEntry (أعاد بناء كل
+  // الأسطر من الصفر) معاً — كلاهما لا يُضيف أي سطر إضافي بعد نهاية هذه الحلقة ضمن نفس tx.
+  await recomputeEntryTotal(tx, journalEntryId);
 }
 
 const entryInclude = {
   lines: { include: { account: true, costCenter: true, departmentRef: true, branch: true, fixedAsset: true, employeeAdvance: true } },
   company: true,
 } satisfies Prisma.JournalEntryInclude;
-
-export interface JournalEntryFilters {
-  companyId?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  search?: string;
-  entryNumber?: string;
-  accountId?: string;
-  amount?: number;
-  amountMin?: number;
-  amountMax?: number;
-  status?: "saved" | "posted";
-  branchId?: string;
-  /** false لغير أدوار الموارد البشرية: قيود الرواتب والتسويات تُعرَض مطويّة — راجع redactHrEntries */
-  hrView?: boolean;
-}
 
 /**
  * قيود الرواتب وتسويات الإجازة (وعكسها) لغير أدوار الموارد البشرية: أسطر مطويّة لكل حساب بلا اسم موظف ولا
@@ -260,13 +274,43 @@ async function redactHrEntries<E extends { id: string; sourceModule: string; rev
   });
 }
 
+/** حساب تجميعي يشمل كل حساباته الفرعية تكرارياً — نفس نطاق الأرصدة وسطر "قيود محفوظة" الذي قد يفتح هذه الشاشة. */
+async function resolveAccountIdsWithChildren(tenantId: string, accountId: string | undefined): Promise<string[] | undefined> {
+  if (!accountId) return undefined;
+  const accountIds = [accountId];
+  let frontier = [accountId];
+  while (frontier.length) {
+    const children = await prisma.account.findMany({ where: { tenantId, parentId: { in: frontier } }, select: { id: true } });
+    frontier = children.map((c) => c.id);
+    accountIds.push(...frontier);
+  }
+  return accountIds;
+}
+
+type ListRow = { id: string; memo: string | null; sourceModule: string; reversalOfEntryId: string | null; mirrorEntryId: string | null; lines?: any[]; _count?: { lines: number } };
+
+/** يحسب عدد الأسطر الظاهر لصفّ قائمة واحد — من lines.length بعد الطيّ لو حُمِّلت، أو من _count الخام وإلا. */
+function visibleLineCount(row: ListRow): number {
+  return row.lines ? row.lines.length : row._count?.lines ?? 0;
+}
+
+async function attachReversedBy<E extends { id: string }>(tenantId: string, entries: E[]): Promise<(E & { reversedByEntryId: string | null })[]> {
+  const reversals = entries.length
+    ? await prisma.journalEntry.findMany({
+        where: { tenantId, reversalOfEntryId: { in: entries.map((e) => e.id) } },
+        select: { id: true, reversalOfEntryId: true },
+      })
+    : [];
+  const reversedByMap = new Map(reversals.map((r) => [r.reversalOfEntryId as string, r.id]));
+  return entries.map((e) => ({ ...e, reversedByEntryId: reversedByMap.get(e.id) || null }));
+}
+
 /**
- * محرك بحث/فلترة شاشة القيود: كل المعايير (بيان، تاريخ، رقم قيد، حساب، حالة القيد) تُطبَّق كشرط
- * WHERE واحد (AND ضمني بين كل الحقول)، ما عدا المبلغ — لأن "إجمالي القيد" ليس عموداً مخزَّناً بل
- * مجموع أسطر مرتبطة، فيُحسَب بعد الجلب من قاعدة البيانات ويُفلتَر في الذاكرة (حجم بيانات هذا
- * التطبيق لكل شركة معقول لهذا النهج، ويتفادى استعلام SQL مجمَّع أعقد لفائدة هامشية).
+ * الشكل القديم لـGET /journal-entries بلا أي معامل ترقيم (مصفوفة كاملة، أحدث إنشاءً أولاً، كل الأسطر بعلاقاتها، فلتر
+ * المبلغ في الذاكرة) — منسوخ حرفياً من النسخة السابقة للترقيم. كل مستهلك لم يطلب الترقيم صراحةً (paginate/cursor/take)
+ * يأخذ هذا المسار بلا أي تغيير في السلوك؛ الشكل المرقّم { items, nextCursor, hasMore } لمن يطلبه فقط — راجع listHandler.
  */
-export async function listJournalEntries(tenantId: string, filters: JournalEntryFilters) {
+export async function listJournalEntriesLegacy(tenantId: string, filters: JournalEntryFilters) {
   // حساب تجميعي يشمل كل حساباته الفرعية — نفس نطاق الأرصدة وسطر "قيود محفوظة" الذي قد يفتح هذه الشاشة
   let accountIds: string[] | undefined;
   if (filters.accountId) {
@@ -344,6 +388,159 @@ export async function listJournalEntries(tenantId: string, filters: JournalEntry
   const reversedByMap = new Map(reversals.map((r) => [r.reversalOfEntryId as string, r.id]));
 
   return filtered.map((e) => ({ ...e, reversedByEntryId: reversedByMap.get(e.id) || null }));
+}
+
+/**
+ * محرك بحث/فلترة/ترتيب/ترقيم صفحات شاشة القيود. ترقيم الصفحات يدوي (buildKeysetWhere) بدل معامل
+ * cursor المدمج في Prisma، لأن الأخير يرفض العمل أساساً مع nulls:"last" على حقل قابل لل null
+ * (entrySeq هنا) — انظر توثيق Prisma وتعليق buildKeysetWhere في keysetPagination.ts.
+ *
+ * فلتر المبلغ (SQL على totalDebit) يبقى صحيحاً بصرف النظر عن hrView: طيّ قيود الموارد البشرية
+ * (collapseHrLines) يحافظ على إجمالي المدين كما هو تماماً، فلا تعارض بين الفلترة في SQL والطيّ.
+ *
+ * البحث النصي (search) حالة خاصة فقط لغير أدوار الموارد البشرية (hrView===false): البيان الظاهر لهم
+ * قد يختلف عن البيان الخام (الاسم محذوف منه) الذي تبحث عنه قاعدة البيانات، فلا يمكن دفع هذا الشرط
+ * تحديداً لـSQL — راجع listWithHrRedactedSearch أدناه.
+ */
+export async function listJournalEntries(tenantId: string, options: JournalEntryListOptions) {
+  const sortBy = options.sortBy ?? "date";
+  const sortDir = options.sortDir ?? "desc";
+  const take = Math.min(Math.max(Math.trunc(options.take ?? DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
+  const hrView = options.hrView !== false;
+
+  const accountIds = await resolveAccountIdsWithChildren(tenantId, options.accountId);
+
+  if (!hrView && options.search) {
+    return listWithHrRedactedSearch(tenantId, options, accountIds, sortBy, sortDir, take);
+  }
+
+  const levelDefs = SORT_LEVEL_DEFS[sortBy];
+  const where = buildJournalEntryWhere(tenantId, options, accountIds);
+
+  let cursorWhere: Prisma.JournalEntryWhereInput = {};
+  if (options.cursor) {
+    // صف المؤشر محدود بـtenantId هنا عمداً (لا companyId) لتفادي أي تسريب حتى بمعرفة الوجود عبر
+    // مؤشر من شركة أخرى ضمن نفس المستأجر — where الأساسي أعلاه سيستثنيه لاحقاً بأي حال.
+    const cursorRow = await prisma.journalEntry.findFirst({
+      where: { id: options.cursor, tenantId },
+      select: { date: true, entrySeq: true, totalDebit: true, id: true },
+    });
+    if (!cursorRow) throw badRequest("مؤشر الصفحة غير صالح");
+    const cursorValues = cursorRow as unknown as Record<string, unknown>;
+    const levels: KeysetLevel[] = levelDefs.map((level) => ({
+      field: level.field,
+      dir: sortDir,
+      value: cursorValues[level.field],
+      nullable: level.nullable,
+    }));
+    cursorWhere = buildKeysetWhere(levels) as Prisma.JournalEntryWhereInput;
+  }
+
+  // نجلب take+1 لمعرفة hasMore بلا استعلام count إضافي.
+  const rows = await prisma.journalEntry.findMany({
+    where: { AND: [where, cursorWhere] },
+    select: hrView ? listEntrySelect : listEntrySelectWithThinLines,
+    orderBy: buildOrderBy(sortBy, sortDir),
+    take: take + 1,
+  });
+
+  const hasMore = rows.length > take;
+  const page = rows.slice(0, take);
+  const visible = hrView ? page : await redactHrEntries(tenantId, page as any[]);
+  const items = (await attachReversedBy(tenantId, visible as (ListRow & { id: string })[])).map((e) => ({
+    ...e,
+    lineCount: visibleLineCount(e),
+  }));
+
+  return {
+    items,
+    nextCursor: hasMore ? page[page.length - 1]?.id ?? null : null,
+    hasMore,
+  };
+}
+
+/**
+ * مسار مُستقَل لغير أدوار الموارد البشرية حين يبحثون نصّياً: البحث لا يُدفَع لـSQL (البيان الخام قد
+ * يحمل اسماً يُفترض ألا يروه)، فيُجلَب كل ما يطابق بقية الفلاتر (محدوداً بـEXPORT_SAFETY_CAP كحدّ
+ * أمان بدل بلا حدّ إطلاقاً)، ثم يُطوى ويُفلتَر بالبحث على البيان *بعد* الطيّ في الذاكرة، ثم تُرقَّم
+ * صفحات النتيجة المُفلترة يدوياً (قطع مصفوفة عادي، لا استعلام إضافي). هذا نفس أسلوب النسخة السابقة
+ * من هذه الشاشة (جلب الكل ثم فلترة في الذاكرة) مع إضافتين فقط: حدّ أمان أعلى، وترقيم صفحات الناتج.
+ */
+async function listWithHrRedactedSearch(
+  tenantId: string,
+  options: JournalEntryListOptions,
+  accountIds: string[] | undefined,
+  sortBy: JournalEntrySortBy,
+  sortDir: SortDir,
+  take: number,
+) {
+  const where = buildJournalEntryWhere(tenantId, { ...options, search: undefined }, accountIds);
+  const matchCount = await prisma.journalEntry.count({ where });
+  assertWithinExportCap(matchCount, EXPORT_SAFETY_CAP);
+
+  const rows = await prisma.journalEntry.findMany({
+    where,
+    select: listEntrySelectWithThinLines,
+    orderBy: buildOrderBy(sortBy, sortDir),
+  });
+  const redacted = await redactHrEntries(tenantId, rows as any[]);
+
+  const needle = options.search!.toLocaleLowerCase("ar");
+  const matched = redacted.filter((e) => e.id === options.search || Boolean(e.memo?.toLocaleLowerCase("ar").includes(needle)));
+
+  const startIndex = options.cursor ? matched.findIndex((e) => e.id === options.cursor) + 1 : 0;
+  if (options.cursor && startIndex === 0) throw badRequest("مؤشر الصفحة غير صالح");
+  const page = matched.slice(startIndex, startIndex + take);
+  const hasMore = startIndex + take < matched.length;
+
+  const items = (await attachReversedBy(tenantId, page as (ListRow & { id: string })[])).map((e) => ({
+    ...e,
+    lineCount: visibleLineCount(e),
+  }));
+
+  return {
+    items,
+    nextCursor: hasMore ? page[page.length - 1]?.id ?? null : null,
+    hasMore,
+  };
+}
+
+/**
+ * تصدير كل القيود المطابقة للفلاتر الحالية (بلا أي حدّ صفحة) كملف CSV — نفس buildJournalEntryWhere
+ * وbuildOrderBy المستخدَمين في listJournalEntries بالضبط، فلا يمكن لنتيجة التصدير أن تختلف عمّا
+ * يراه المستخدم في الشاشة بنفس الفلاتر. لو تجاوز عدد النتائج EXPORT_SAFETY_CAP يُرفَض الطلب بخطأ
+ * واضح يطلب تضييق الفلاتر — لا يُقطَع الملف أبداً بصمت (قد يُضلِّل محاسباً بأن هذه كل القيود).
+ *
+ * بيان كل صف يُطوى (hrView===false) بنفس أسلوب الشاشة تماماً — بلا هذا، كان التصدير يُسرّب اسم
+ * الموظف من بيان قيد تسوية إجازة لمستخدم لا يُفترض أصلاً أن يراه في الشاشة نفسها.
+ */
+export async function exportJournalEntriesCsv(
+  tenantId: string,
+  filters: JournalEntryFilters & { sortBy?: JournalEntrySortBy; sortDir?: SortDir },
+): Promise<string> {
+  const hrView = filters.hrView !== false;
+  const accountIds = await resolveAccountIdsWithChildren(tenantId, filters.accountId);
+  // نفس قاعدة البحث في listJournalEntries بالضبط: لا يُدفَع البحث لـSQL لغير أدوار الموارد البشرية.
+  const sqlFilters = hrView ? filters : { ...filters, search: undefined };
+  const where = buildJournalEntryWhere(tenantId, sqlFilters, accountIds);
+  const matchCount = await prisma.journalEntry.count({ where });
+  assertWithinExportCap(matchCount);
+
+  const rows = await prisma.journalEntry.findMany({
+    where,
+    select: listEntrySelectWithThinLines,
+    orderBy: buildOrderBy(filters.sortBy ?? "date", filters.sortDir ?? "desc"),
+  });
+
+  const visible = hrView ? rows : await redactHrEntries(tenantId, rows as any[]);
+  const finalRows = !hrView && filters.search
+    ? visible.filter((e) => {
+        const needle = filters.search!.toLocaleLowerCase("ar");
+        return e.id === filters.search || Boolean(e.memo?.toLocaleLowerCase("ar").includes(needle));
+      })
+    : visible;
+
+  return buildJournalEntriesCsv(finalRows);
 }
 
 /** ردّ أي مسار يُرجِع قيداً (ترحيل، فك ترحيل، عكس، مرآة، إنشاء، تعديل) يمرّ بنفس الطيّ الذي تمرّ به القراءة */
@@ -555,7 +752,7 @@ export async function createMirrorJournalEntry(
   });
 
   return prisma.$transaction(async (tx) => {
-    const entryNumber = await reserveEntryNumber(tx, tenantId, input.targetCompanyId, input.date);
+    const { entryNumber, entrySeq } = await reserveEntryNumber(tx, tenantId, input.targetCompanyId, input.date);
     const mirror = await tx.journalEntry.create({
       data: {
         tenantId,
@@ -564,15 +761,16 @@ export async function createMirrorJournalEntry(
         memo: input.memo,
         status: source.status,
         entryNumber,
+        entrySeq,
         sourceModule: "manual",
         createdBy: userId,
         mirrorEntryId: sourceEntryId,
         lines: { create: toLineCreateData(input.lines) },
       },
-      include: entryInclude,
     });
     await tx.journalEntry.update({ where: { id: sourceEntryId }, data: { mirrorEntryId: mirror.id } });
-    return mirror;
+    await recomputeEntryTotal(tx, mirror.id);
+    return tx.journalEntry.findUniqueOrThrow({ where: { id: mirror.id }, include: entryInclude });
   });
 }
 
@@ -585,7 +783,7 @@ export async function createJournalEntry(
   await assertReferencesBelongToTenant(tenantId, input);
 
   return prisma.$transaction(async (tx) => {
-    const entryNumber = await reserveEntryNumber(tx, tenantId, input.companyId, input.date);
+    const { entryNumber, entrySeq } = await reserveEntryNumber(tx, tenantId, input.companyId, input.date);
     const entry = await tx.journalEntry.create({
       data: {
         tenantId,
@@ -594,6 +792,7 @@ export async function createJournalEntry(
         memo: input.memo,
         status: input.post ? "posted" : "saved",
         entryNumber,
+        entrySeq,
         sourceModule: "manual",
         createdBy: userId,
       },
@@ -747,8 +946,8 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
   }));
 
   return prisma.$transaction(async (tx) => {
-    const entryNumber = await reserveEntryNumber(tx, tenantId, existing.companyId, date);
-    return tx.journalEntry.create({
+    const { entryNumber, entrySeq } = await reserveEntryNumber(tx, tenantId, existing.companyId, date);
+    const reversal = await tx.journalEntry.create({
       data: {
         tenantId,
         companyId: existing.companyId,
@@ -758,13 +957,15 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
         // سيُعيد الخطأ المعكوس إلى الأرصدة (الأرصدة تحتسب المرحَّل فقط). إقفال الفترة يُفحَص عند حجز الرقم.
         status: "posted",
         entryNumber,
+        entrySeq,
         sourceModule: "manual",
         createdBy: userId,
         reversalOfEntryId: existing.id,
         lines: { create: toLineCreateData(reversedLines) },
       },
-      include: entryInclude,
     });
+    await recomputeEntryTotal(tx, reversal.id);
+    return tx.journalEntry.findUniqueOrThrow({ where: { id: reversal.id }, include: entryInclude });
   });
 }
 
@@ -860,8 +1061,8 @@ export async function createJournalEntryFromDocument(
   const date = extraction.date && !Number.isNaN(Date.parse(extraction.date)) ? new Date(extraction.date) : new Date();
 
   const entry = await prisma.$transaction(async (tx) => {
-    const entryNumber = await reserveEntryNumber(tx, tenantId, companyId, date);
-    return tx.journalEntry.create({
+    const { entryNumber, entrySeq } = await reserveEntryNumber(tx, tenantId, companyId, date);
+    const created = await tx.journalEntry.create({
       data: {
         tenantId,
         companyId,
@@ -869,12 +1070,14 @@ export async function createJournalEntryFromDocument(
         memo: memoParts.join(" "),
         status: "saved",
         entryNumber,
+        entrySeq,
         sourceModule: "ai_document",
         createdBy: userId,
         lines: { create: toLineCreateData(lines) },
       },
-      include: entryInclude,
     });
+    await recomputeEntryTotal(tx, created.id);
+    return tx.journalEntry.findUniqueOrThrow({ where: { id: created.id }, include: entryInclude });
   });
 
   const fileKey = buildObjectKey(tenantId, "journal_entry", entry.id, file.fileName);

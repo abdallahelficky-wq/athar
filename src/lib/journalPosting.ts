@@ -3,8 +3,23 @@ import { prisma } from "./prisma";
 import { verifyPassword } from "./password";
 import { badRequest, forbidden, notFound } from "./httpError";
 import { assertPeriodNotClosed, lockCompanyClosingDate } from "./fiscalClosing";
+import { recomputeEntryTotal } from "./journalEntryTotals";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
+
+// مُعاد تصديرها من journalEntryTotals.ts (ملف خالٍ عمداً من أي استيراد لـprisma.ts/config/env.ts)
+// حتى تبقى قابلة للاستيراد من سكريبتات مستقلة بعميل Prisma خاص بها — راجع تعليقها هناك. كل مستدعٍ
+// حالي في هذا الملف يستوردها من هنا كسابقاً، بلا أي تغيير مطلوب في موقع الاستيراد.
+export { recomputeEntryTotal };
+
+export interface ReservedEntryNumber {
+  entryNumber: string;
+  // الرقم التسلسلي الخام (قبل إضافة البادئة/الحشو) — مصدره الوحيد هذه الدالة بالضبط؛ كل مستدعٍ
+  // يحفظه في JournalEntry.entrySeq عند الإنشاء بدل إعادة استخراجه لاحقاً من النص entryNumber (الذي
+  // قد تتغيّر بادئته أو يتجاوز طوله 5 خانات، فيصبح استخراج الرقم من النص غير موثوق — انظر
+  // entrySeq في schema.prisma). يبقى entryNumber النصي هو المعروض للمستخدم دائماً، لا entrySeq.
+  entrySeq: number;
+}
 
 /**
  * تحجز الرقم التسلسلي التالي لقيد جديد ضمن شركة معيّنة، بصيغة [بادئة الشركة][5 خانات]
@@ -17,9 +32,15 @@ type Tx = Prisma.TransactionClient | PrismaClient;
  * الملف عبر createJournalEntryTx، بالإضافة لكل مسارات القيود اليدوية في journalEntries.service.ts)،
  * فهي المكان الطبيعي للتحقق من إقفال السنة المالية أيضاً — عبر تضمين fiscalYearClosingDate في نفس
  * عبارة UPDATE...RETURNING الذرّية (لا استعلام إضافي، ولا نافذة سباق: القيمة المُعادة هي بالضبط ما
- * قفله الصف وقت هذا التحديث، وأي محاولة إقفال متزامنة أخرى ستنتظر حتى تنتهي معاملتنا).
+ * قفله الصف وقت هذا التحديث، وأي محاولة إقفال متزامنة أخرى ستنتظر حتى تنتهي معاملتنا)، وهي أيضاً
+ * مصدر الحقيقة الوحيد لكلا القيمتين معاً (entryNumber المنسَّق وentrySeq الخام) — أي مسار إنشاء
+ * قيد منفرد جديد يستدعيها هنا فقط، لا يُعيد تنسيق/اشتقاق أي منهما بنفسه. المسار الوحيد المستثنى هو
+ * الاستيراد الجماعي (bulkImport.service.ts) الذي يحجز كتلة كاملة من الأرقام بعملية ذرّية واحدة
+ * بدل رقم منفرد لكل قيد (انظر تعليقه هناك) — فيبني entryNumber/entrySeq بنفس المنطق الحسابي بالضبط
+ * (بادئة + رقم تسلسلي خام) محلياً، بلا استدعاء هذه الدالة، لأسباب أداء فقط لا اختلافاً في التعريف،
+ * ويتحقق من إقفال السنة المالية بنفسه بنفس الأسلوب (انظر bulkImport.service.ts).
  */
-export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: string, date: Date): Promise<string> {
+export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: string, date: Date): Promise<ReservedEntryNumber> {
   // نُرجِع القيمة *قبل* الزيادة (وهي بالضبط ما تعرضه previewNextEntryNumber أدناه من نفس العمود)،
   // بينما العمود المخزَّن يصبح +1 جاهزاً للاستدعاء التالي — عملية ذرّية واحدة عبر تعبير حسابي في
   // RETURNING بدل قراءة ثم تحديث منفصلَين، فيبقى الرقم المحجوز مطابقاً تماماً لما عاينه المستخدم.
@@ -33,8 +54,9 @@ export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: st
   // يُتحقَّق هنا بعد التحديث فعلياً (لا قبله) — أي رفض يُرجع كل المعاملة بالكامل تلقائياً
   // (Prisma تتراجع عن كل شيء عند رمي أي خطأ داخل $transaction)، فلا يُستهلك رقم تسلسلي بلا قيد.
   assertPeriodNotClosed(row.fiscalYearClosingDate, date, "إنشاء قيد");
-  return `${row.numberingPrefix}${String(row.nextJournalEntrySeq).padStart(5, "0")}`;
+  return { entryNumber: `${row.numberingPrefix}${String(row.nextJournalEntrySeq).padStart(5, "0")}`, entrySeq: row.nextJournalEntrySeq };
 }
+
 
 /** معاينة الرقم التالي المتوقع بلا أي حجز أو تعديل على العدّاد — للعرض في نافذة إضافة قيد قبل الحفظ فقط */
 export async function previewNextEntryNumber(tenantId: string, companyId: string) {
@@ -101,8 +123,8 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
     throw badRequest("أحد حسابات القيد لا ينتمي إلى شجرة الشركة أو ليس حساب ترحيل نشطاً");
   }
 
-  const entryNumber = await reserveEntryNumber(tx, input.tenantId, input.companyId, input.date);
-  return tx.journalEntry.create({
+  const { entryNumber, entrySeq } = await reserveEntryNumber(tx, input.tenantId, input.companyId, input.date);
+  const entry = await tx.journalEntry.create({
     data: {
       tenantId: input.tenantId,
       companyId: input.companyId,
@@ -110,6 +132,7 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
       memo: input.memo,
       status: "posted",
       entryNumber,
+      entrySeq,
       sourceModule: input.sourceModule,
       sourceId: input.sourceId,
       createdBy: input.createdBy,
@@ -131,6 +154,11 @@ export async function createJournalEntryTx(tx: Tx, input: CreateEntryInput) {
       },
     },
   });
+  // بعض المستدعين (فواتير المشتريات) يُضيفون أسطراً إضافية لهذا القيد بعد هذه النقطة مباشرة ضمن
+  // نفس tx (انظر createInventorySideEffectsTx) — فيستدعون recomputeEntryTotal مرة ثانية بعدها هم
+  // أنفسهم؛ الاستدعاء هنا يضمن القيمة الصحيحة فوراً للمستدعين الذين لا يضيفون أسطراً إضافية (الأغلبية).
+  await recomputeEntryTotal(tx, entry.id);
+  return entry;
 }
 
 /**
