@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { listJournalEntries } from "../../api/journalEntries";
+import { listJournalEntriesPage } from "../../api/journalEntries";
 import { fmt } from "../../legacy/constants";
 import StatusPill from "../shared/StatusPill";
 
@@ -20,7 +20,7 @@ export default function RecentEntriesTable({ companyId, range }) {
   useEffect(() => {
     if (!range) return;
     setEntries(null);
-    listJournalEntries({ companyId, dateFrom: range.dateFrom, dateTo: range.dateTo, take: RECENT_COUNT })
+    listJournalEntriesPage({ companyId, dateFrom: range.dateFrom, dateTo: range.dateTo, take: RECENT_COUNT })
       .then((result) => setEntries(result.items))
       .catch(() => setEntries([]));
   }, [companyId, range]);

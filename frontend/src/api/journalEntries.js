@@ -10,6 +10,8 @@ function toQuery(params) {
 }
 
 export const listJournalEntries = (filters) => api.get(`/journal-entries${toQuery(filters)}`);
+// الشكل المرقّم { items, nextCursor, hasMore } بطلب صريح (paginate=1) — بدونه يعيد الخادم المصفوفة القديمة كما هي
+export const listJournalEntriesPage = (filters) => api.get(`/journal-entries${toQuery({ ...filters, paginate: 1 })}`);
 export const exportJournalEntries = (filters) => api.getBlob(`/journal-entries/export${toQuery(filters)}`);
 export const getNextEntryNumber = (companyId) => api.get(`/journal-entries/next-number${toQuery({ companyId })}`);
 export const getJournalEntry = (id) => api.get(`/journal-entries/${id}`);

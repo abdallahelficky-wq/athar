@@ -41,6 +41,15 @@ export const listHandler: RequestHandler = async (req, res) => {
   const filters = readFilters(req.query as Record<string, unknown>);
   // غير أدوار الموارد البشرية لا يفلترون بحساب شخص بعينه — المجموعة فقط (راجع personalAccounts.ts)
   await assertNotPersonalAccount(hrView, req.auth!.tenantId, filters.accountId);
+  // الترقيم بطلب صريح فقط (paginate=1 أو cursor أو take) — بدونه الشكل والسلوك القديمان حرفياً (مصفوفة كاملة)، لأن
+  // مستهلكين آخرين (اختبارات، سكريبتات تشغيل، تقارير) يعتمدون على المصفوفة. راجع listJournalEntriesLegacy.
+  const q = req.query;
+  const paginated = q.paginate === "1" || q.paginate === "true" || q.cursor !== undefined || q.take !== undefined;
+  if (!paginated) {
+    const { sortBy: _sortBy, sortDir: _sortDir, ...legacyFilters } = filters;
+    res.json(await service.listJournalEntriesLegacy(req.auth!.tenantId, { ...legacyFilters, hrView }));
+    return;
+  }
   const result = await service.listJournalEntries(req.auth!.tenantId, {
     ...filters,
     hrView,

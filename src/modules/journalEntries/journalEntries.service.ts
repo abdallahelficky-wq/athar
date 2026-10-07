@@ -306,6 +306,91 @@ async function attachReversedBy<E extends { id: string }>(tenantId: string, entr
 }
 
 /**
+ * الشكل القديم لـGET /journal-entries بلا أي معامل ترقيم (مصفوفة كاملة، أحدث إنشاءً أولاً، كل الأسطر بعلاقاتها، فلتر
+ * المبلغ في الذاكرة) — منسوخ حرفياً من النسخة السابقة للترقيم. كل مستهلك لم يطلب الترقيم صراحةً (paginate/cursor/take)
+ * يأخذ هذا المسار بلا أي تغيير في السلوك؛ الشكل المرقّم { items, nextCursor, hasMore } لمن يطلبه فقط — راجع listHandler.
+ */
+export async function listJournalEntriesLegacy(tenantId: string, filters: JournalEntryFilters) {
+  // حساب تجميعي يشمل كل حساباته الفرعية — نفس نطاق الأرصدة وسطر "قيود محفوظة" الذي قد يفتح هذه الشاشة
+  let accountIds: string[] | undefined;
+  if (filters.accountId) {
+    accountIds = [filters.accountId];
+    let frontier = [filters.accountId];
+    while (frontier.length) {
+      const children = await prisma.account.findMany({ where: { tenantId, parentId: { in: frontier } }, select: { id: true } });
+      frontier = children.map((c) => c.id);
+      accountIds.push(...frontier);
+    }
+  }
+  const lineFilter = {
+    ...(accountIds ? { accountId: { in: accountIds } } : {}),
+    ...(filters.branchId ? { branchId: filters.branchId } : {}),
+  };
+  const entries = await prisma.journalEntry.findMany({
+    where: {
+      tenantId,
+      companyId: filters.companyId || undefined,
+      status: filters.status || undefined,
+      date: {
+        gte: filters.dateFrom ? new Date(filters.dateFrom) : undefined,
+        lte: filters.dateTo ? new Date(filters.dateTo) : undefined,
+      },
+      // AND صريح بمصفوفة (بدل تكرار مفتاح OR على مستوى الكائن نفسه، وهو ما كان سيُسبِّب تجاوز أحد
+      // شرطي OR للآخر لو طُبِّقا معاً) — كل عنصر هنا شرط OR مستقل يُضاف فقط لو طُلب معياره فعلياً.
+      AND: [
+        // لغير أدوار الموارد البشرية يُطابَق البحث على البيان بعد حذف الاسم (أدناه) — وإلا صار البحث باسم
+        // الموظف طريقاً لإيجاد قيود تسويته ومبالغها
+        ...(filters.search && filters.hrView !== false
+          ? [{ OR: [{ memo: { contains: filters.search, mode: "insensitive" as const } }, { id: filters.search }] }]
+          : []),
+        ...(filters.entryNumber
+          ? [
+              {
+                OR: [
+                  { entryNumber: { contains: filters.entryNumber, mode: "insensitive" as const } },
+                  { id: { contains: filters.entryNumber, mode: "insensitive" as const } },
+                ],
+              },
+            ]
+          : []),
+      ],
+      ...(Object.keys(lineFilter).length ? { lines: { some: lineFilter } } : {}),
+    },
+    include: entryInclude,
+    // الأحدث إنشاءً يظهر أولاً دائماً؛ id كفاصل حاسم يجعل الترتيب ثابتاً حتى لو تشابه وقت الإنشاء.
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+  });
+
+  let visible = filters.hrView === false ? await redactHrEntries(tenantId, entries) : entries;
+  if (filters.search && filters.hrView === false) {
+    const needle = filters.search.toLocaleLowerCase("ar");
+    visible = visible.filter((e) => e.id === filters.search || Boolean(e.memo?.toLocaleLowerCase("ar").includes(needle)));
+  }
+
+  const filtered =
+    filters.amount == null && filters.amountMin == null && filters.amountMax == null
+      ? visible
+      : visible.filter((e) => {
+          const total = e.lines.reduce((s, l) => s + Number(l.debit), 0);
+          if (filters.amount != null && Math.abs(total - filters.amount) > BALANCE_EPSILON) return false;
+          if (filters.amountMin != null && total < filters.amountMin - BALANCE_EPSILON) return false;
+          if (filters.amountMax != null && total > filters.amountMax + BALANCE_EPSILON) return false;
+          return true;
+        });
+
+  // استعلام واحد إضافي (مُفهرَس عبر @@index([tenantId, reversalOfEntryId])) ليعرف كل سطر في
+  // القائمة مسبقاً هل تم عكسه لاحقاً بقيد آخر أم لا — بدل استعلام منفصل لكل قيد (N+1)، دون الحاجة
+  // لتحديث أي عمود على القيد الأصلي نفسه (انظر تعليق reversalOfEntryId في schema.prisma).
+  const reversals = await prisma.journalEntry.findMany({
+    where: { tenantId, reversalOfEntryId: { in: filtered.map((e) => e.id) } },
+    select: { id: true, reversalOfEntryId: true },
+  });
+  const reversedByMap = new Map(reversals.map((r) => [r.reversalOfEntryId as string, r.id]));
+
+  return filtered.map((e) => ({ ...e, reversedByEntryId: reversedByMap.get(e.id) || null }));
+}
+
+/**
  * محرك بحث/فلترة/ترتيب/ترقيم صفحات شاشة القيود. ترقيم الصفحات يدوي (buildKeysetWhere) بدل معامل
  * cursor المدمج في Prisma، لأن الأخير يرفض العمل أساساً مع nulls:"last" على حقل قابل لل null
  * (entrySeq هنا) — انظر توثيق Prisma وتعليق buildKeysetWhere في keysetPagination.ts.

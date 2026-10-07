@@ -7,7 +7,7 @@ import { listCostCenters } from "../api/costCenters";
 import { listDepartments } from "../api/departments";
 import { listBranches } from "../api/branches";
 import {
-  listJournalEntries,
+  listJournalEntriesPage,
   exportJournalEntries,
   getJournalEntry,
   getJournalEntryPdf,
@@ -175,7 +175,7 @@ export default function JournalModule({ companies, companyId }) {
     if (!companyId) { setEntries([]); setLoading(false); setHasMore(false); setNextCursor(null); return; }
     setLoading(true);
     const f = jf.applied;
-    listJournalEntries({
+    listJournalEntriesPage({
       companyId,
       search: f.search || undefined,
       dateFrom: f.dateFrom || undefined,
