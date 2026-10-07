@@ -48,7 +48,8 @@ export const searchSalesReturnsQuerySchema = searchQueryBaseSchema
     refundMethod: z.enum(["account", "cash", "bank"]).optional(),
     status: z.enum(["draft", "posted", "pending_submission", "zatca_accepted_posting_incomplete"]).optional(),
     zatcaStatus: z.enum(["sent", "sent_with_notes", "not_sent", "not_applicable"]).optional(),
-    sortBy: z.enum(["date", "returnNumber", "customerName", "grandTotal"]).default("date"),
+    // الافتراضي آخر ما أُدخل أولاً (createdAt) لا التاريخ — نفس تبرير searchSalesInvoicesQuerySchema.
+    sortBy: z.enum(["createdAt", "date", "returnNumber", "customerName", "grandTotal"]).default("createdAt"),
     sortDir: z.enum(["asc", "desc"]).default("desc"),
   })
   .refine((data) => !data.dateFrom || !data.dateTo || data.dateFrom <= data.dateTo, {

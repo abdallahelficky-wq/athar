@@ -80,6 +80,9 @@ export interface JournalEntryFilters {
 
 export type JournalEntrySortBy = "date" | "entrySeq" | "amount";
 
+/** ترتيب القوائم حين لا يختار المستخدم عموداً: آخر ما أُدخل أولاً (راجع SORT_LEVEL_DEFS.entrySeq). */
+export const DEFAULT_SORT_BY: JournalEntrySortBy = "entrySeq";
+
 export interface JournalEntryListOptions extends JournalEntryFilters {
   /** معرّف آخر قيد في الصفحة السابقة — غيابه يعني الصفحة الأولى. */
   cursor?: string;
@@ -171,8 +174,11 @@ export const SORT_LEVEL_DEFS: Record<JournalEntrySortBy, Array<{ field: string; 
     { field: "entrySeq", nullable: true },
     { field: "id", nullable: false },
   ],
+  // الترتيب الافتراضي لكل قوائم القيود: آخر ما أُدخل أولاً — رقم القيد التسلسلي، لا تاريخه (قيد بتاريخ قديم أُدخل
+  // اليوم يبقى أعلى القائمة فلا يُطبَع أو يُعدَّل غيره بالخطأ). createdAt ثم id حسم للتعادل وللقيود القديمة بلا entrySeq.
   entrySeq: [
     { field: "entrySeq", nullable: true },
+    { field: "createdAt", nullable: false },
     { field: "id", nullable: false },
   ],
   amount: [

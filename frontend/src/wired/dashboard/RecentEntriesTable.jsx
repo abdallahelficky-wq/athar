@@ -11,7 +11,7 @@ const RECENT_COUNT = 6;
  * هنا رقم القيد وحالته (محفوظ/مرحّل) لكل قيد بصرف النظر عن كونه نقدياً أصلاً، عبر نفس
  * /api/journal-entries المستخدَم في شاشة دفتر اليومية (بلا أي إضافة/تعديل على الخادم) — take
  * يطلب أول RECENT_COUNT قيد من الخادم مباشرة بعد الترقيم (بدل جلب كل القيود بالفترة ثم slice
- * محلياً كما كان سابقاً)، والقائمة تصل مُرتَّبة الأحدث أولاً أصلاً (sortBy الافتراضي date).
+ * محلياً كما كان سابقاً)، مرتَّبة آخر ما أُدخل أولاً (entrySeq تنازلياً) لا بالتاريخ.
  */
 export default function RecentEntriesTable({ companyId, range }) {
   const { t } = useTranslation();
@@ -20,7 +20,7 @@ export default function RecentEntriesTable({ companyId, range }) {
   useEffect(() => {
     if (!range) return;
     setEntries(null);
-    listJournalEntriesPage({ companyId, dateFrom: range.dateFrom, dateTo: range.dateTo, take: RECENT_COUNT })
+    listJournalEntriesPage({ companyId, dateFrom: range.dateFrom, dateTo: range.dateTo, take: RECENT_COUNT, sortBy: "entrySeq", sortDir: "desc" })
       .then((result) => setEntries(result.items))
       .catch(() => setEntries([]));
   }, [companyId, range]);

@@ -30,7 +30,8 @@ const ZATCA_STATUS_OPTIONS = ["sent", "sent_with_notes", "not_sent", "not_applic
 const FILTER_DEFAULTS = {
   q: "", dateFrom: "", dateTo: "", amountMin: "", amountMax: "", customerId: "", originalInvoiceId: "",
   subtype: "", refundMethod: "", status: "", zatcaStatus: "",
-  sortBy: "date", sortDir: "desc", page: 1, pageSize: 25,
+  // الافتراضي آخر ما أُدخل أولاً (createdAt)؛ التاريخ والرقم والعميل والمبلغ من رؤوس الأعمدة
+  sortBy: "createdAt", sortDir: "desc", page: 1, pageSize: 25,
 };
 const DRAFT_KEYS = ["dateFrom", "dateTo", "amountMin", "amountMax", "customerId", "originalInvoiceId", "subtype", "refundMethod", "status", "zatcaStatus"];
 const EMPTY_SUMMARY = { count: 0, netTotal: "0", vatTotal: "0", grandTotal: "0" };

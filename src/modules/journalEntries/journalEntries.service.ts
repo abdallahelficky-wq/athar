@@ -30,6 +30,7 @@ import {
   assertWithinExportCap,
   buildJournalEntriesCsv,
   entryNumberCondition,
+  DEFAULT_SORT_BY,
 } from "./journalEntriesQuery";
 
 export {
@@ -307,7 +308,7 @@ async function attachReversedBy<E extends { id: string }>(tenantId: string, entr
 }
 
 /**
- * الشكل القديم لـGET /journal-entries بلا أي معامل ترقيم (مصفوفة كاملة، أحدث إنشاءً أولاً، كل الأسطر بعلاقاتها، فلتر
+ * الشكل القديم لـGET /journal-entries بلا أي معامل ترقيم (مصفوفة كاملة، آخر ما أُدخل أولاً برقم القيد، كل الأسطر بعلاقاتها، فلتر
  * المبلغ في الذاكرة) — منسوخ حرفياً من النسخة السابقة للترقيم. كل مستهلك لم يطلب الترقيم صراحةً (paginate/cursor/take)
  * يأخذ هذا المسار بلا أي تغيير في السلوك؛ الشكل المرقّم { items, nextCursor, hasMore } لمن يطلبه فقط — راجع listHandler.
  */
@@ -349,8 +350,8 @@ export async function listJournalEntriesLegacy(tenantId: string, filters: Journa
       ...(Object.keys(lineFilter).length ? { lines: { some: lineFilter } } : {}),
     },
     include: entryInclude,
-    // الأحدث إنشاءً يظهر أولاً دائماً؛ id كفاصل حاسم يجعل الترتيب ثابتاً حتى لو تشابه وقت الإنشاء.
-    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    // نفس الترتيب الافتراضي للمسار المرقّم: رقم القيد التسلسلي تنازلياً، ثم createdAt ثم id.
+    orderBy: buildOrderBy(DEFAULT_SORT_BY, "desc"),
   });
 
   let visible = filters.hrView === false ? await redactHrEntries(tenantId, entries) : entries;
@@ -395,7 +396,7 @@ export async function listJournalEntriesLegacy(tenantId: string, filters: Journa
  * تحديداً لـSQL — راجع listWithHrRedactedSearch أدناه.
  */
 export async function listJournalEntries(tenantId: string, options: JournalEntryListOptions) {
-  const sortBy = options.sortBy ?? "date";
+  const sortBy = options.sortBy ?? DEFAULT_SORT_BY;
   const sortDir = options.sortDir ?? "desc";
   const take = Math.min(Math.max(Math.trunc(options.take ?? DEFAULT_PAGE_SIZE) || DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
   const hrView = options.hrView !== false;
@@ -415,7 +416,7 @@ export async function listJournalEntries(tenantId: string, options: JournalEntry
     // مؤشر من شركة أخرى ضمن نفس المستأجر — where الأساسي أعلاه سيستثنيه لاحقاً بأي حال.
     const cursorRow = await prisma.journalEntry.findFirst({
       where: { id: options.cursor, tenantId },
-      select: { date: true, entrySeq: true, totalDebit: true, id: true },
+      select: { date: true, entrySeq: true, createdAt: true, totalDebit: true, id: true },
     });
     if (!cursorRow) throw badRequest("مؤشر الصفحة غير صالح");
     const cursorValues = cursorRow as unknown as Record<string, unknown>;
@@ -521,7 +522,7 @@ export async function exportJournalEntriesCsv(
   const rows = await prisma.journalEntry.findMany({
     where,
     select: listEntrySelectWithThinLines,
-    orderBy: buildOrderBy(filters.sortBy ?? "date", filters.sortDir ?? "desc"),
+    orderBy: buildOrderBy(filters.sortBy ?? DEFAULT_SORT_BY, filters.sortDir ?? "desc"),
   });
 
   const visible = hrView ? rows : await redactHrEntries(tenantId, rows as any[]);

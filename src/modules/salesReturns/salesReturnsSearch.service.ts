@@ -62,6 +62,7 @@ const FROM_JOINS = Prisma.sql`
 `;
 
 const SORT_COLUMN: Record<SearchSalesReturnsQuery["sortBy"], Prisma.Sql> = {
+  createdAt: Prisma.sql`sr."createdAt"`,
   date: Prisma.sql`sr."date"`,
   returnNumber: Prisma.sql`sr."returnNumber"`,
   customerName: Prisma.sql`c."name"`,
@@ -103,7 +104,10 @@ export async function searchSalesReturns(tenantId: string, params: SearchSalesRe
   const dirSql = params.sortDir === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
   // "returnNumber DESC" مُذيَّل دائماً كفارز ثانوي حاسم — نفس تبرير invoiceNumber DESC في
   // salesInvoicesSearch.service.ts بالضبط.
-  const orderBySql = Prisma.sql`ORDER BY ${SORT_COLUMN[params.sortBy]} ${dirSql}, sr."returnNumber" DESC`;
+  const orderBySql =
+    params.sortBy === "createdAt"
+      ? Prisma.sql`ORDER BY sr."createdAt" ${dirSql}, sr."id" ${dirSql}`
+      : Prisma.sql`ORDER BY ${SORT_COLUMN[params.sortBy]} ${dirSql}, sr."returnNumber" DESC`;
   const offset = (params.page - 1) * params.pageSize;
 
   const [items, countRows, summaryRows] = await Promise.all([

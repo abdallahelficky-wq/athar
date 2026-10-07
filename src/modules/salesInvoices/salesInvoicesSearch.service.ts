@@ -77,6 +77,7 @@ const FROM_JOINS = Prisma.sql`
 `;
 
 const SORT_COLUMN: Record<SearchSalesInvoicesQuery["sortBy"], Prisma.Sql> = {
+  createdAt: Prisma.sql`si."createdAt"`,
   date: Prisma.sql`si."date"`,
   invoiceNumber: Prisma.sql`si."invoiceNumber"`,
   customerName: Prisma.sql`c."name"`,
@@ -121,7 +122,11 @@ export async function searchSalesInvoices(tenantId: string, params: SearchSalesI
   // "invoiceNumber DESC" مُذيَّل دائماً كفارز ثانوي حاسم — الافتراضي المطلوب صراحةً (date تنازلياً
   // ثم رقم الفاتورة تنازلياً)، ويبقى مفيداً حتى مع فرز آخر: يضمن ترتيباً ثابتاً للصفحات (لا تكرار
   // ولا تخطّي صف عند تساوي عدة فواتير في عمود الفرز الأساسي، وهو وارد جداً لعمود مثل التاريخ).
-  const orderBySql = Prisma.sql`ORDER BY ${SORT_COLUMN[params.sortBy]} ${dirSql}, si."invoiceNumber" DESC`;
+  // الافتراضي (createdAt) يحسم التعادل بـid بنفس الاتجاه: آخر ما أُدخل أولاً بترتيب ثابت للصفحات.
+  const orderBySql =
+    params.sortBy === "createdAt"
+      ? Prisma.sql`ORDER BY si."createdAt" ${dirSql}, si."id" ${dirSql}`
+      : Prisma.sql`ORDER BY ${SORT_COLUMN[params.sortBy]} ${dirSql}, si."invoiceNumber" DESC`;
   const offset = (params.page - 1) * params.pageSize;
 
   const [items, countRows, summaryRows] = await Promise.all([
