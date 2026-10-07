@@ -29,6 +29,7 @@ import {
   buildOrderBy,
   assertWithinExportCap,
   buildJournalEntriesCsv,
+  entryNumberCondition,
 } from "./journalEntriesQuery";
 
 export {
@@ -343,16 +344,7 @@ export async function listJournalEntriesLegacy(tenantId: string, filters: Journa
         ...(filters.search && filters.hrView !== false
           ? [{ OR: [{ memo: { contains: filters.search, mode: "insensitive" as const } }, { id: filters.search }] }]
           : []),
-        ...(filters.entryNumber
-          ? [
-              {
-                OR: [
-                  { entryNumber: { contains: filters.entryNumber, mode: "insensitive" as const } },
-                  { id: { contains: filters.entryNumber, mode: "insensitive" as const } },
-                ],
-              },
-            ]
-          : []),
+        ...(filters.entryNumber ? [entryNumberCondition(filters.entryNumber)] : []),
       ],
       ...(Object.keys(lineFilter).length ? { lines: { some: lineFilter } } : {}),
     },

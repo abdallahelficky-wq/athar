@@ -89,6 +89,19 @@ export interface JournalEntryListOptions extends JournalEntryFilters {
 }
 
 /**
+ * فلتر «رقم القيد»: الرقم الظاهر يُطابَق جزئياً (contains)، والمعرّف الداخلي يُطابَق **حرفياً فقط** — معرّف عشوائي
+ * يحتوي "914" لا يجعل القيد J00149 نتيجةً لبحث "914". مصدر واحد للمسار المرقّم والمسار القديم والتصدير معاً.
+ */
+export function entryNumberCondition(entryNumber: string): Prisma.JournalEntryWhereInput {
+  return {
+    OR: [
+      { entryNumber: { contains: entryNumber, mode: "insensitive" } },
+      { id: entryNumber },
+    ],
+  };
+}
+
+/**
  * نفس شرط WHERE بالضبط يُستخدَم لشاشة القائمة المرقّمة صفحات وللتصدير الكامل (CSV) معاً — فلا
  * يُمكن لأي منهما أن يرى فلترة مختلفة عن الآخر على نفس المعايير.
  *
@@ -128,16 +141,7 @@ export function buildJournalEntryWhere(
       ...(filters.search
         ? [{ OR: [{ memo: { contains: filters.search, mode: "insensitive" as const } }, { id: filters.search }] }]
         : []),
-      ...(filters.entryNumber
-        ? [
-            {
-              OR: [
-                { entryNumber: { contains: filters.entryNumber, mode: "insensitive" as const } },
-                { id: { contains: filters.entryNumber, mode: "insensitive" as const } },
-              ],
-            },
-          ]
-        : []),
+      ...(filters.entryNumber ? [entryNumberCondition(filters.entryNumber)] : []),
       ...(filters.amount != null
         ? [
             {
