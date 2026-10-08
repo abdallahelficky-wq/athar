@@ -1,6 +1,7 @@
 import SalesReturnFormModal from "./SalesReturnFormModal";
 import SendCreditNoteEmailModal from "./SendCreditNoteEmailModal";
 import InvoiceZatcaDetails from "./InvoiceZatcaDetails";
+import ZatcaHistoryPanel from "./ZatcaHistoryPanel";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -104,6 +105,21 @@ export default function SalesReturnViewModal({ salesReturn, companies, autoPrint
         </div>
 
         <InvoiceZatcaDetails invoice={current} />
+      <ZatcaHistoryPanel
+        basePath="/sales-returns"
+        document={current}
+        canReissue={current.status === "pending_submission" && current.zatcaStatus === "rejected" && subtypeForCustomer(current.customer) === "standard"}
+        notify={notify}
+        onReissued={async (updated) => {
+          await refreshReturn();
+          const ok = updated.zatcaStatus === "cleared";
+          const message = ok
+            ? t("salesInvoices.notify.zatcaResentOk", { number: current.returnNumber, status: t("salesInvoices.zatcaSummary.sent") })
+            : t("salesInvoices.notify.zatcaRejectedAgain", { number: current.returnNumber, reason: updated.rejectionReason ? `: ${updated.rejectionReason}` : "." });
+          onChanged?.(message);
+          notify(message, ok ? "success" : "error");
+        }}
+      />
 
         <div className="voucher-meta">
           <div><span>{t("salesInvoices.view.seller")}</span><strong>{company?.name}</strong></div>

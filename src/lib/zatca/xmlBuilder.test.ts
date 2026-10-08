@@ -217,3 +217,37 @@ it("writes distinct zero-rated and exempt categories and their reason codes", ()
  expect(xml).toContain("<cbc:TaxExemptionReasonCode>VATEX-SA-35</cbc:TaxExemptionReasonCode>");
  expect(xml).toContain("<cbc:TaxExemptionReasonCode>VATEX-SA-29</cbc:TaxExemptionReasonCode>");
 });
+
+describe("KSA-5 supply date (re-issue of a rejected standard document only)", () => {
+  const standard = (o: Partial<ZatcaDocumentInput> = {}) => base({ subtype: "standard", buyer: BUYER, ...o });
+  const children = (xml: string) => {
+    const root = parse(xml).documentElement!;
+    return Array.from({ length: root.childNodes.length }, (_, i) => root.childNodes[i]).filter((n) => n.nodeType === 1).map((n) => (n as unknown as Element).tagName);
+  };
+
+  it("absent → no cac:Delivery at all, and the bytes are exactly what they were", () => {
+    const without = buildDocumentXml(standard());
+    expect(without).not.toContain("cac:Delivery");
+    expect(buildDocumentXml(standard({ supplyDate: undefined }))).toBe(without);
+  });
+
+  it("present → cac:Delivery/cbc:ActualDeliveryDate right after AccountingCustomerParty and before PaymentMeans/TaxTotal", () => {
+    for (const kind of ["invoice", "credit_note", "debit_note"] as const) {
+      const xml = buildDocumentXml(standard({
+        kind, supplyDate: "2026-07-15", issueDate: "2026-10-08",
+        ...(kind === "invoice" ? {} : { billingReferenceId: "INV-00001", issuanceReason: "تصحيح سعر" }),
+      }));
+      const doc = parse(xml);
+      expect(doc.getElementsByTagName("cbc:ActualDeliveryDate")[0].textContent).toBe("2026-07-15");
+      expect(doc.getElementsByTagName("cbc:IssueDate")[0].textContent).toBe("2026-10-08");
+      const order = children(xml);
+      const at = order.indexOf("cac:Delivery");
+      expect(order[at - 1]).toBe("cac:AccountingCustomerParty");
+      expect(order[at + 1]).toBe(kind === "invoice" ? "cac:TaxTotal" : "cac:PaymentMeans");
+    }
+  });
+
+  it("refuses a malformed date instead of emitting it", () => {
+    expect(() => buildDocumentXml(standard({ supplyDate: "15/07/2026" }))).toThrow(/KSA-5/);
+  });
+});

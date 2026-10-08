@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../lib/prisma", () => ({ prisma: { salesInvoice: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() } } }));
+// سجلّا الإصدارات والمحاولات (issues.ts) لهما اختبار تكامل على Postgres فعلي (zatcaReissue.integration.test.ts) — هنا يكفي ألا يعترضا المسار
+vi.mock("../../lib/zatca/issues", () => ({ recordZatcaIssueTx: vi.fn(), issuedSupplyDate: vi.fn(), writeZatcaAttemptTx: vi.fn() }));
 vi.mock("../../lib/zatca/resubmit", () => ({ resubmitZatcaDocument: vi.fn() }));
 vi.mock("./salesInvoiceEmail.service", () => ({ sendInvoiceByEmail: vi.fn() }));
 import { prisma } from "../../lib/prisma";

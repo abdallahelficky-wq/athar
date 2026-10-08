@@ -13,6 +13,8 @@ vi.mock("../../lib/prisma", () => ({
     $transaction: vi.fn(),
   },
 }));
+// سجلّا الإصدارات والمحاولات (issues.ts) لهما اختبار تكامل على Postgres فعلي (zatcaReissue.integration.test.ts) — هنا يكفي ألا يعترضا المسار
+vi.mock("../../lib/zatca/issues", () => ({ recordZatcaIssueTx: vi.fn(), issuedSupplyDate: vi.fn(), writeZatcaAttemptTx: vi.fn() }));
 // subtypeForCustomer الحقيقية تبقى غير مُموَّهة عمداً — تُستخدَم الآن أيضاً داخل validateLinkedReturn
 // (تحقّق تطابق نوع إشعار الدائن مع نوع الفاتورة الأصلية)، فتمويهها هنا كان سيُخفي أي انحراف فعلي
 // بين CUSTOMER_ROW وinvoiceType الفواتير الوهمية أدناه بدل كشفه.

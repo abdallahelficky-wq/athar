@@ -1,4 +1,6 @@
 import { saveZatcaResponseWithArchive } from "../../lib/zatca/archive";
+import { issuedSupplyDate, recordZatcaIssueTx } from "../../lib/zatca/issues";
+import { assertReissuable, REISSUE_CONFLICT_MESSAGE, reserveReissueChainTx } from "../../lib/zatca/reissue";
 import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/itemTax";
 import { assertReturnLimits } from "./returnLimits";
 import { randomUUID } from "crypto";
@@ -257,6 +259,7 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
         },
         include: returnInclude,
       }));
+      await recordZatcaIssueTx(tx, zatcaDocRef(salesReturn), chain, { userId });
       return { kind: "pending" as const, salesReturn, xml: chain.xml, subtype: chain.subtype };
     }, { timeout: 8000 });
     phase1Outcome = "committed";
@@ -423,6 +426,8 @@ async function finishCreditNoteZatcaSubmission(
         documentNumber: salesReturn.returnNumber, documentUuid: salesReturn.zatcaUuid,
     },
     source: "submission",
+    attempt: decision.attempt,
+    userId,
     inTx: (tx) => tx.salesReturn.update(afterResponseArgs),
     plain: () => prisma.salesReturn.update(afterResponseArgs),
   });
@@ -555,6 +560,7 @@ export async function postSalesReturn(tenantId: string, userId: string, id: stri
         },
         include: returnInclude,
       }));
+      await recordZatcaIssueTx(tx, zatcaDocRef(updated), chain, { userId });
       return { kind: "pending" as const, salesReturn: updated, xml: chain.xml, subtype: chain.subtype };
     }, { timeout: 8000 });
     phase1Outcome = "committed";
@@ -592,6 +598,7 @@ export async function retryPendingZatcaSubmission(tenantId: string, userId: stri
     company, customer: salesReturn.customer, kind: "credit_note", documentNumber: salesReturn.returnNumber,
     documentUuid: salesReturn.zatcaUuid, lines: toZatcaReturnLines(salesReturn.lines),
     icv: salesReturn.icv, previousInvoiceHash: salesReturn.previousInvoiceHash, issuedAt: salesReturn.zatcaSubmittedAt, expectedInvoiceHash: salesReturn.invoiceHash,
+    supplyDate: await issuedSupplyDate(salesReturn.companyId, salesReturn.zatcaUuid),
     billingReferenceId, issuanceReason: salesReturn.reason?.trim() || undefined,
   });
   if (rebuilt.invoiceHash !== salesReturn.invoiceHash) {
@@ -605,6 +612,57 @@ export async function retryPendingZatcaSubmission(tenantId: string, userId: stri
 
   return finishCreditNoteZatcaSubmission(tenantId, userId, {
     salesReturn, xml: rebuilt.xml, subtype: rebuilt.subtype, company,
+    grandTotal: Number(salesReturn.grandTotal), vatTotal: Number(salesReturn.vatTotal), journalLines,
+  });
+}
+
+/** مرجع المستند في سجلَّي الإصدارات والمحاولات (issues.ts) */
+function zatcaDocRef(doc: { id: string; tenantId: string; companyId: string; returnNumber: string; zatcaUuid: string }) {
+  return {
+    tenantId: doc.tenantId, companyId: doc.companyId, documentType: "sales_return" as const, documentId: doc.id,
+    documentNumber: doc.returnNumber, documentUuid: doc.zatcaUuid,
+  };
+}
+
+/** إعادة إصدار إشعار دائن قياسي رفضته زاتكا — نفس تصميم reissueRejectedSalesInvoice (salesInvoices.service.ts) وقواعد reissue.ts:
+ * نفس الرقم، UUID/ICV/تجزئة جديدة، وقت إصدار جديد، KSA-5 = تاريخ المستند، والقيد بتاريخ المستند الأصلي. */
+export async function reissueRejected(tenantId: string, userId: string, id: string) {
+  const salesReturn = await prisma.salesReturn.findFirst({ where: { id, tenantId }, include: returnInclude });
+  if (!salesReturn) throw notFound("المردود غير موجود");
+  assertReissuable(salesReturn, salesReturn.customer);
+  const company = await prisma.company.findFirstOrThrow({ where: { id: salesReturn.companyId, tenantId } });
+  const billingReferenceId = await resolveBillingReferenceNumber(tenantId, salesReturn.relatedInvoiceId);
+  if (!billingReferenceId) {
+    throw badRequest("تعذّرت إعادة الإصدار: الفاتورة الأصلية المرتبطة بهذا الإشعار لم تعد موجودة — راجع الدعم الفني");
+  }
+  const oldUuid = salesReturn.zatcaUuid;
+
+  const { reissued, xml, subtype } = await prisma.$transaction(async (tx) => {
+    const { chain, documentUuid, supplyDate } = await reserveReissueChainTx(tx, {
+      company, customer: salesReturn.customer, kind: "credit_note", documentNumber: salesReturn.returnNumber, documentDate: salesReturn.date,
+      billingReferenceId, issuanceReason: salesReturn.reason?.trim() || undefined, lines: toZatcaReturnLines(salesReturn.lines),
+      actionLabel: "إعادة إصدار إشعار دائن",
+    });
+    const claimed = await tx.salesReturn.updateMany({
+      where: { id, tenantId, status: "pending_submission", zatcaStatus: "rejected", zatcaUuid: oldUuid },
+      data: {
+        zatcaUuid: documentUuid, icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
+        zatcaStatus: "not_submitted", zatcaSubmittedAt: chain.issuedAt, zatcaResponseRaw: Prisma.JsonNull, zatcaClearedOrReportedAt: null,
+      },
+    });
+    if (claimed.count !== 1) throw badRequest(REISSUE_CONFLICT_MESSAGE);
+    const previous = await tx.zatcaDocumentIssue.findUnique({ where: { documentUuid: oldUuid }, select: { id: true } });
+    const reissued = await tx.salesReturn.findUniqueOrThrow({ where: { id }, include: returnInclude });
+    await recordZatcaIssueTx(tx, zatcaDocRef(reissued), chain, { userId, supplyDate, reissue: { ofIssueId: previous?.id ?? null } });
+    return { reissued, xml: chain.xml, subtype: chain.subtype };
+  }, { timeout: 8000 });
+
+  const computed = toComputedReturnLines(salesReturn.lines);
+  const vatOutputId = await getAccountIdByName(tenantId, salesReturn.companyId, "ضريبة القيمة المضافة - مخرجات");
+  const accountId = await resolveCreditAccountId(tenantId, salesReturn.companyId, salesReturn.customer, salesReturn.refundMethod || "account");
+  const journalLines = buildReturnJournalLines(computed, salesReturn.customerId, vatOutputId, Number(salesReturn.vatTotal), accountId, Number(salesReturn.grandTotal));
+  return finishCreditNoteZatcaSubmission(tenantId, userId, {
+    salesReturn: reissued, xml, subtype, company,
     grandTotal: Number(salesReturn.grandTotal), vatTotal: Number(salesReturn.vatTotal), journalLines,
   });
 }

@@ -12,6 +12,8 @@ vi.mock("../../lib/prisma", () => ({
     $transaction: vi.fn(),
   },
 }));
+// سجلّا الإصدارات والمحاولات (issues.ts) لهما اختبار تكامل على Postgres فعلي (zatcaReissue.integration.test.ts) — هنا يكفي ألا يعترضا المسار
+vi.mock("../../lib/zatca/issues", () => ({ recordZatcaIssueTx: vi.fn(), issuedSupplyDate: vi.fn(), writeZatcaAttemptTx: vi.fn() }));
 vi.mock("../../lib/zatca/chain", () => ({ reserveZatcaChain: vi.fn(), rebuildZatcaDocumentXml: vi.fn() }));
 vi.mock("../../lib/zatca/postingGate", () => ({ submitZatcaChainDocument: vi.fn() }));
 vi.mock("../../lib/docNumbering", () => ({ reserveDocumentNumber: vi.fn() }));
