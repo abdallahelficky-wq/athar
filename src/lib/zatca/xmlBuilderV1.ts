@@ -300,3 +300,39 @@ export function mapPersistedLineToZatcaLineV1(
     taxExemptionReasonCode: line.taxExemptionReasonCode,
   };
 }
+
+/**
+ * computeInvoiceLine كما كانت قبل إصلاح التقريب (5145cb5)، حرفياً — مسار «إنشاء وترحيل مباشر» كان يمرّر لزاتكا الأسطر
+ * المحسوبة في الذاكرة بهذه الدالة (salesInvoices.service.ts: zatcaLines = computed)، لا القيم المخزّنة بخانتين. فلإعادة
+ * بناء تلك المستندات بايتاً بايتاً يلزم إعادة حساب المبالغ الخام من مدخلات السطر المخزّنة (الكمية، السعر، الخصم، شمول
+ * الضريبة، الفئة) بهذه الدالة نفسها.
+ */
+function legacyRoundMoney(n: number): number {
+  return (Math.sign(n) * Math.round(Math.abs(n) * 100)) / 100;
+}
+const LEGACY_VAT_RATE = 0.15;
+export function computeInvoiceLineV1(l: { quantity: unknown; unitPrice: unknown; discountPct?: unknown; priceIncludesVat?: boolean | null; vatApplicable?: boolean | null; taxCategoryCode?: string | null }) {
+  const qty = Number(l.quantity || 0);
+  const price = Number(l.unitPrice || 0);
+  const disc = Number(l.discountPct || 0);
+  const grossLine = qty * price * (1 - disc / 100);
+
+  if (l.taxCategoryCode ? l.taxCategoryCode !== "S" : l.vatApplicable === false) {
+    return { subtotal: grossLine, vat: 0, total: grossLine };
+  }
+
+  if (l.priceIncludesVat) {
+    const vat = legacyRoundMoney(grossLine - grossLine / (1 + LEGACY_VAT_RATE));
+    const subtotal = grossLine - vat;
+    return { subtotal, vat, total: grossLine };
+  }
+  const subtotal = grossLine;
+  const vat = legacyRoundMoney(subtotal * LEGACY_VAT_RATE);
+  return { subtotal, vat, total: subtotal + vat };
+}
+
+/** السطر بالمبالغ الخام التي كانت في الذاكرة لحظة الحجز — يُعاد حسابها من المدخلات المخزّنة بـcomputeInvoiceLineV1 */
+export function rawLegacyLine<L extends { quantity: unknown; unitPrice: unknown; discountPct?: unknown; priceIncludesVat?: boolean | null; taxCategoryCode: string; subtotal: unknown; vat: unknown }>(line: L): L {
+  const raw = computeInvoiceLineV1(line);
+  return { ...line, subtotal: raw.subtotal, vat: raw.vat };
+}
