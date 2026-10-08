@@ -82,12 +82,21 @@ describe("buildDocumentXml", () => {
   // يضع دائماً schemeID="CRN" حتى حين لا يوجد رقم سجل تجاري للمشتري، فتصل زاتكا وسماً "CRN" بقيمة
   // فارغة بدل استخدام الرقم الضريبي (TIN) الفعلي المتوفر، رغم أن BR-KSA-14 يشترط استخدام أيّ معرِّف
   // متوفر فعلياً بترتيب أولوية زاتكا (TIN قبل CRN).
-  it("identifies the buyer by TIN (vatNumber) per BR-KSA-14 priority, even when a crNumber also exists", () => {
+  // BR-KSA-F-07 (رفض فاتورة 00156): الرقم الضريبي للمشتري مكانه BT-48 (PartyTaxScheme/CompanyID) وحده، لا BT-46 بـschemeID="TIN".
+  // BT-46 لمعرّف آخر بمخطط صالح — هنا السجل التجاري (CRN) إن وُجد.
+  it("puts the buyer VAT number only in BT-48, and the CRN (when present) in BT-46 — never TIN in BT-46", () => {
     const xml = buildDocumentXml(base({ subtype: "standard", buyer: BUYER }));
-    expect(xml).toContain(`<cbc:ID schemeID="TIN">${BUYER.vatNumber}</cbc:ID>`);
-    // البائع يستمر على CRN كالمعتاد (BR-KSA-08) — الفحص هنا يستهدف كتلة المشتري تحديداً.
-    const buyerBlock = xml.slice(xml.indexOf("<cac:AccountingCustomerParty"));
-    expect(buyerBlock).not.toContain('schemeID="CRN"');
+    const buyerBlock = xml.slice(xml.indexOf("<cac:AccountingCustomerParty"), xml.indexOf("</cac:AccountingCustomerParty>"));
+    expect(buyerBlock).not.toContain('schemeID="TIN"');
+    expect(buyerBlock).toContain(`<cbc:ID schemeID="CRN">${BUYER.crNumber}</cbc:ID>`);
+    expect(buyerBlock).toMatch(new RegExp(`<cac:PartyTaxScheme>\\s*<cbc:CompanyID>${BUYER.vatNumber}</cbc:CompanyID>`));
+  });
+
+  it("omits BT-46 entirely for a buyer with a VAT number but no CRN", () => {
+    const xml = buildDocumentXml(base({ subtype: "standard", buyer: { ...BUYER, crNumber: null } }));
+    const buyerBlock = xml.slice(xml.indexOf("<cac:AccountingCustomerParty"), xml.indexOf("</cac:AccountingCustomerParty>"));
+    expect(buyerBlock).not.toContain("<cac:PartyIdentification>");
+    expect(buyerBlock).toContain(`<cbc:CompanyID>${BUYER.vatNumber}</cbc:CompanyID>`);
   });
 
   it("falls back to CRN when the buyer has no VAT number", () => {

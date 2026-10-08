@@ -8,6 +8,7 @@ import { createAttachment } from "../attachments/attachments.service";
 import { translateMessage } from "../../lib/i18n/translate";
 import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 import { setAuditActor } from "../../lib/auditActor";
+import { assertCustomerAddressForVat } from "../../lib/zatca/chain";
 
 async function assertCompanyBelongsToTenant(tenantId: string, companyId: string) {
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId } });
@@ -45,6 +46,8 @@ export const getCustomerBalance: RequestHandler = async (req, res) => {
 /** إنشاء عميل جديد مع حساب تفصيلي مستقل تلقائي تحت "الذمم المدينة التجارية" (partyAccounts.ts) */
 export const createCustomer: RequestHandler = async (req, res) => {
   await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
+  // عميل له رقم ضريبي يلزمه العنوان الوطني الكامل (BR-KSA-63) — بلا رقم ضريبي لا فحص
+  assertCustomerAddressForVat(req.body);
   const customer = await prisma.$transaction(async (tx) => {
     const { accountId } = await ensurePartyAccount(tx, {
       tenantId: req.auth!.tenantId, companyId: req.body.companyId, kind: "customer", partyName: req.body.name,
@@ -59,6 +62,8 @@ export const updateCustomer: RequestHandler = async (req, res) => {
   if (!existing) throw notFound("العميل غير موجود");
   assertCompanyAccess(req.auth!, existing.companyId);
   if (req.body.companyId) await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
+  // يُفحَص العميل كما سيُحفَظ: القيم الحالية + المُرسَلة
+  assertCustomerAddressForVat({ ...existing, ...req.body });
 
   const customer = await prisma.$transaction(async (tx) => {
     const updated = await tx.customer.update({ where: { id: existing.id }, data: req.body });

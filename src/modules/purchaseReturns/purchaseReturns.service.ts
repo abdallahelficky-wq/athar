@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
+import { sumMoney } from "../../lib/money";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
@@ -64,9 +65,9 @@ export async function createPurchaseReturn(tenantId: string, userId: string, inp
   if (accounts.length !== accountIds.length) throw badRequest("أحد الحسابات المختارة غير موجود ضمن شجرة حساباتك");
 
   const computed = input.lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
-  const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
-  const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
-  const grandTotal = subtotal + vatTotal;
+  const subtotal = sumMoney(computed.map((l) => l.subtotal));
+  const vatTotal = sumMoney(computed.map((l) => l.vat));
+  const grandTotal = sumMoney([subtotal, vatTotal]);
   if (grandTotal <= 0) throw badRequest("إجمالي المردود يجب أن يكون أكبر من صفر");
 
   const journalLines = await buildJournalLines(supplier, computed, vatTotal, grandTotal, tenantId, input.companyId);

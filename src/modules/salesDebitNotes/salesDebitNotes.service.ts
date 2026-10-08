@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
+import { sumMoney } from "../../lib/money";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
@@ -110,9 +111,9 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
   if (accounts.length !== accountIds.length) throw badRequest("أحد حسابات الإيراد المختارة غير صالح");
 
   const computed = input.lines.map((l) => ({ ...l, ...computeInvoiceLine(l), taxCategoryCode: "S" as const, taxExemptionReason: null as string | null }));
-  const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
-  const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
-  const grandTotal = subtotal + vatTotal;
+  const subtotal = sumMoney(computed.map((l) => l.subtotal));
+  const vatTotal = sumMoney(computed.map((l) => l.vat));
+  const grandTotal = sumMoney([subtotal, vatTotal]);
   if (grandTotal <= 0) throw badRequest("إجمالي الإشعار المدين يجب أن يكون أكبر من صفر");
 
   const zatcaUuid = randomUUID();
@@ -395,7 +396,7 @@ export async function retryPendingZatcaSubmission(tenantId: string, userId: stri
   const rebuilt = rebuildZatcaDocumentXml({
     company, customer: debitNote.customer, kind: "debit_note", documentNumber: debitNote.debitNoteNumber,
     documentUuid: debitNote.zatcaUuid, lines: toZatcaDebitNoteLines(debitNote.lines),
-    icv: debitNote.icv, previousInvoiceHash: debitNote.previousInvoiceHash, issuedAt: debitNote.zatcaSubmittedAt,
+    icv: debitNote.icv, previousInvoiceHash: debitNote.previousInvoiceHash, issuedAt: debitNote.zatcaSubmittedAt, expectedInvoiceHash: debitNote.invoiceHash,
     billingReferenceId, issuanceReason: debitNote.reason?.trim() || undefined,
   });
   if (rebuilt.invoiceHash !== debitNote.invoiceHash) {

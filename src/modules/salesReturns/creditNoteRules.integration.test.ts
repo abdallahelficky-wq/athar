@@ -48,11 +48,11 @@ describe("credit note linkage rules — enforced on update AND post (integration
     });
 
     const customerA = await prisma.customer.create({
-      data: { tenantId, companyId, name: "شركة الاختبار أ", customerType: "business", vatNumber: "300000000000003", accountId: creditAccount.id },
+      data: { tenantId, companyId, name: "شركة الاختبار أ", customerType: "business", vatNumber: "300000000000003", accountId: creditAccount.id, street: "شارع التحلية", buildingNo: "2345", district: "السليمانية", city: "الرياض", postalCode: "12245" },
     });
     customerAId = customerA.id;
     const customerB = await prisma.customer.create({
-      data: { tenantId, companyId, name: "شركة الاختبار ب", customerType: "business", vatNumber: "300000000000004", accountId: creditAccount.id },
+      data: { tenantId, companyId, name: "شركة الاختبار ب", customerType: "business", vatNumber: "300000000000004", accountId: creditAccount.id, street: "شارع التحلية", buildingNo: "2345", district: "السليمانية", city: "الرياض", postalCode: "12245" },
     });
     customerBId = customerB.id;
   }, 30000);

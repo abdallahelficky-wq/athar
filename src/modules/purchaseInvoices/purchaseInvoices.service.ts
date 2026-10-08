@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
+import { sumMoney } from "../../lib/money";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx, recomputeEntryTotal, PostingLine } from "../../lib/journalPosting";
@@ -43,9 +44,9 @@ const invoiceInclude = { lines: { include: { account: true, item: true, warehous
 
 function computeLines(lines: LineInput[]) {
   const computed = lines.map((l) => ({ ...l, ...normalizePurchaseTax(l), ...computeInvoiceLine(l) }));
-  const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
-  const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
-  const grandTotal = subtotal + vatTotal;
+  const subtotal = sumMoney(computed.map((l) => l.subtotal));
+  const vatTotal = sumMoney(computed.map((l) => l.vat));
+  const grandTotal = sumMoney([subtotal, vatTotal]);
   return { computed, subtotal, vatTotal, grandTotal };
 }
 

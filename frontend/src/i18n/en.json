@@ -585,6 +585,7 @@
       "addressTitle": "Full national address",
       "addressBuilding": "Building", "addressStreet": "Street", "addressDistrict": "District",
       "addressPostalCode": "Postal code", "addressAdditionalNo": "Additional number",
+      "addressRequiredForVat": "Customer with a VAT number: building (4 digits), street, district, city and postal code (5 digits) are required for standard ZATCA invoices.",
       "aiExtractTitle": "AI auto-fill from an official document",
       "aiExtractNote": "Upload any of the following documents separately for the system to automatically extract the related fields, shown as a preview in the form above for you to review and edit before clicking \"Save\" — nothing is saved automatically.",
       "docTypeCr": "Upload commercial registration",

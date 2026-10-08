@@ -51,6 +51,7 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
     icv: params.icv,
     previousInvoiceHash: params.previousInvoiceHash,
     issuedAt: params.issuedAt,
+    expectedInvoiceHash: params.invoiceHash,
   });
 
   if (rebuilt.invoiceHash !== params.invoiceHash) {
