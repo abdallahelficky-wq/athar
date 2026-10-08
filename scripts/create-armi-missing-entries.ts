@@ -32,6 +32,10 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { loadExcelLines, groupExcelEntries, type ExcelEntry } from "./investigate-armi-full-reconciliation";
+// نفس الدالة الحقيقية المستخدَمة في كل مسارات الكتابة في التطبيق (journalPosting.ts تُعيد تصديرها
+// من هنا) — مصدرها journalEntryTotals.ts الخالي عمداً من أي استيراد لـprisma.ts/config/env.ts، فلا
+// يفرض استيرادها هنا أي متغيّر بيئة إضافي غير DATABASE_URL (الذي يحتاجه هذا السكريبت أصلاً).
+import { recomputeEntryTotal } from "../src/lib/journalEntryTotals";
 
 const prisma = new PrismaClient();
 const DEFAULT_ARMI_COMPANY_ID = "cmsrciyjv000ge8f57p2azqdd";
@@ -237,7 +241,12 @@ export async function run(companyId: string, commit: boolean) {
 
       toCreate.forEach((p, index) => {
         const entryId = randomUUID();
-        const entryNumber = `${prefix}${String(startSeq + index).padStart(5, "0")}`;
+        // نفس منطق reserveEntryNumber/bulkImport.service.ts بالضبط — entrySeq هو الرقم الخام،
+        // entryNumber نصّه المنسَّق فقط. مصدر الحقيقة الوحيد لـtotalDebit يبقى recomputeEntryTotal
+        // (مُضمَّن هنا يدوياً بعد createMany أدناه بدل استيراده من src/lib/journalPosting.ts، لأن
+        // هذا السكريبت مستقل عمداً عن src/config/env.ts — راجع التعليق أعلى الملف).
+        const entrySeq = startSeq + index;
+        const entryNumber = `${prefix}${String(entrySeq).padStart(5, "0")}`;
         entryRows.push({
           id: entryId,
           tenantId: company.tenantId,
@@ -246,6 +255,7 @@ export async function run(companyId: string, commit: boolean) {
           memo: p.memo,
           status: "saved",
           entryNumber,
+          entrySeq,
           sourceModule: "bulk_import",
         });
         for (const l of p.lines) {
@@ -262,6 +272,7 @@ export async function run(companyId: string, commit: boolean) {
 
       await tx.journalEntry.createMany({ data: entryRows });
       await tx.journalEntryLine.createMany({ data: lineRows });
+      await recomputeEntryTotal(tx, entryRows.map((e) => e.id as string));
       return { createdEntries: entryRows.length, createdLines: lineRows.length };
     },
     { timeout: 30_000, maxWait: 10_000 },

@@ -7,7 +7,7 @@ describe("searchSalesReturnsQuerySchema", () => {
     const parsed = searchSalesReturnsQuerySchema.parse({ companyId: "co_1" });
     expect(parsed.page).toBe(1);
     expect(parsed.pageSize).toBe(25);
-    expect(parsed.sortBy).toBe("date");
+    expect(parsed.sortBy).toBe("createdAt");
     expect(parsed.sortDir).toBe("desc");
     expect(parsed.q).toBeUndefined();
   });

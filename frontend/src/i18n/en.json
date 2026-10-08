@@ -1146,8 +1146,10 @@
     "createFromDocument": "Create entry from document (AI)",
     "bulkImport": "Bulk import entries",
     "exportCsv": "Export Excel/CSV",
+    "exporting": "Exporting...",
     "csvFileName": "journal_entries.csv",
     "csvHeaders": { "entryNumber": "Entry #", "date": "Date", "memo": "Memo", "status": "Status", "total": "Total" },
+    "pagination": { "prev": "Previous", "next": "Next", "page": "Page {{page}}" },
     "filters": {
       "searchByMemo": "Search by memo", "entryNumber": "Entry #", "entryNumberPlaceholder": "Search by entry number",
       "dateFrom": "From date", "dateTo": "To date", "showResults": "Show results", "clearFilters": "Clear filters",

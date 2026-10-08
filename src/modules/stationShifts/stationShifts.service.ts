@@ -826,7 +826,8 @@ export async function listPendingShifts(tenantId: string, companyId?: string) {
   return prisma.stationShift.findMany({
     where: { tenantId, companyId, status: { in: [...PENDING_STATUSES] } },
     include: { costCenter: true, employee: { select: { id: true, name: true } } },
-    orderBy: { shiftDate: "asc" },
+    // آخر ما أُدخل أولاً (قرار المالك) — كانت الأقدم تاريخاً أولاً
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 }
 

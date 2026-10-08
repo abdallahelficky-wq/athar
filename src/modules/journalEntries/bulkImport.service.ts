@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { fmtDateOnly } from "../../lib/fiscalClosing";
+import { recomputeEntryTotal } from "../../lib/journalPosting";
 
 const BALANCE_EPSILON = 0.01;
 
@@ -248,10 +249,20 @@ export async function commitBulkImport(
 
       const entryRows: Prisma.JournalEntryCreateManyInput[] = [];
       const lineRows: Prisma.JournalEntryLineCreateManyInput[] = [];
+      // مُجمَّعة مباشرة هنا (بدل entryRows.map((e) => e.id) بعد ذلك) لأن id في
+      // Prisma.JournalEntryCreateManyInput مُعرَّف اختيارياً (string | undefined) في نوع المدخل
+      // المُولَّد، رغم أننا نملؤه دائماً — تفادياً لأي تحويل نوع لاحق غير ضروري.
+      const entryIds: string[] = [];
 
       groups.forEach((group, index) => {
         const entryId = randomUUID();
-        const entryNumber = `${prefix}${String(startSeq + index).padStart(5, "0")}`;
+        entryIds.push(entryId);
+        // نفس منطق الحساب بالضبط الموجود في reserveEntryNumber (بادئة + رقم تسلسلي خام)، لكن محلياً
+        // بلا استدعائها — لأن هذا المسار يحجز كتلة كاملة من الأرقام بعملية ذرّية واحدة (انظر التعليق
+        // أعلى هذه الدالة)، لا رقماً منفرداً لكل قيد. entrySeq هنا هو نفس الرقم الخام startSeq+index،
+        // بلا أي اشتقاق لاحق من النص entryNumber.
+        const entrySeq = startSeq + index;
+        const entryNumber = `${prefix}${String(entrySeq).padStart(5, "0")}`;
         // آمن دائماً هنا: تحقّقنا مسبقاً أعلاه (findInvalidDateGroups) أن كل تاريخ في groups صالح —
         // parseGroupDate لا يمكن أن تُعيد null لأي عنصر وصل لهذه النقطة.
         entryRows.push({
@@ -262,6 +273,7 @@ export async function commitBulkImport(
           memo: group.memo || null,
           status,
           entryNumber,
+          entrySeq,
           sourceModule: "bulk_import",
           createdBy: userId,
         });
@@ -280,6 +292,9 @@ export async function commitBulkImport(
 
       await tx.journalEntry.createMany({ data: entryRows });
       await tx.journalEntryLine.createMany({ data: lineRows });
+      // الشكل الجماعي من recomputeEntryTotal (مصفوفة معرّفات) بدل استدعاء منفصل لكل قيد من آلاف
+      // القيود المحتملة هنا — نفس تعريف الحساب بالضبط، بعملية SQL واحدة فقط.
+      await recomputeEntryTotal(tx, entryIds);
 
       return { importedEntries: entryRows.length, importedLines: lineRows.length };
     },

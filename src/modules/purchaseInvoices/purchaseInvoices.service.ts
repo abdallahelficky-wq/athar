@@ -6,7 +6,7 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
-import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx, PostingLine } from "../../lib/journalPosting";
+import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx, recomputeEntryTotal, PostingLine } from "../../lib/journalPosting";
 import { formatDocNumber } from "../../lib/docNumber";
 import { applyPurchaseToAverageCostTx, recomputeAverageCostFromScratchTx } from "../../lib/costingEngine";
 import { registerFixedAssetTx, resolveAssetAccount } from "../fixedAssets/fixedAssets.service";
@@ -306,6 +306,11 @@ export async function createPurchaseInvoice(tenantId: string, userId: string, in
 
     await tx.journalEntry.update({ where: { id: entry.id }, data: { sourceId: invoice.id } });
     await createInventorySideEffectsTx(tx, tenantId, input.companyId, input.date, invoice.lines, entry.id, assetLines, input.branchId);
+    // createInventorySideEffectsTx قد يُضيف سطر قيد مستقل لكل سطر أصل ثابت (أسطر assetLines، غير
+    // مُجمَّعة أصلاً ضمن groupedLines — انظر تعليق buildJournalLines) — فيُعاد حساب الإجمالي هنا
+    // من جديد ليشمل هذه الأسطر الإضافية، بدل الزيادة اليدوية (increment) التي كانت تفترض معرفتها
+    // مسبقاً بما أُضيف.
+    await recomputeEntryTotal(tx, entry.id);
     return invoice;
   });
 }
@@ -360,6 +365,8 @@ export async function postPurchaseInvoice(tenantId: string, userId: string, id: 
     });
     const updated = await tx.purchaseInvoice.update({ where: { id }, data: { status: "posted", journalEntryId: entry.id }, include: invoiceInclude });
     await createInventorySideEffectsTx(tx, tenantId, invoice.companyId, invoice.date, invoice.lines, entry.id, assetLines, invoice.branchId);
+    // انظر التعليق المطابق في createPurchaseInvoice أعلاه — نفس السبب بالضبط.
+    await recomputeEntryTotal(tx, entry.id);
     return updated;
   });
 }

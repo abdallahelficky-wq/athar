@@ -13,7 +13,8 @@ export async function listStockMovements(tenantId: string, filters: { companyId?
   return prisma.stockMovement.findMany({
     where: { tenantId, companyId: filters.companyId || undefined, itemId: filters.itemId || undefined },
     include: { item: true, warehouse: true },
-    orderBy: { date: "desc" },
+    // آخر ما أُدخل أولاً لا بالتاريخ: حركة بتاريخ قديم أُدخلت اليوم تبقى أعلى القائمة
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
 }
 

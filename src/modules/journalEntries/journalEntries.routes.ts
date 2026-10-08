@@ -15,6 +15,7 @@ import {
 import { previewBulkImportSchema, commitBulkImportSchema } from "./bulkImport.schemas";
 import {
   listHandler,
+  exportHandler,
   getHandler,
   getPdfHandler,
   createHandler,
@@ -44,8 +45,9 @@ const canWrite = requireRole("admin", "finance_manager", "accountant");
 const canUnpost = requirePermission("accounts", "unpost");
 
 journalEntryRoutes.get("/", requirePositionAction("journalEntries", "read"), listHandler);
-// يجب أن يسبق "/:id" كي لا يُعامَل "next-number" كمعرّف قيد
+// يجب أن تسبق "/:id" كي لا يُعامَل "next-number"/"export" كمعرّف قيد
 journalEntryRoutes.get("/next-number", requirePositionAction("journalEntries", "read"), nextNumberHandler);
+journalEntryRoutes.get("/export", requirePositionAction("journalEntries", "read"), exportHandler);
 journalEntryRoutes.get("/:id", requirePositionAction("journalEntries", "read"), getHandler);
 journalEntryRoutes.get("/:id/pdf", requirePositionAction("journalEntries", "read"), getPdfHandler);
 journalEntryRoutes.post("/", requirePositionAction("journalEntries", "create"), requirePositionPosting("journalEntries", false), canWrite, validateBody(createJournalEntrySchema), createHandler);

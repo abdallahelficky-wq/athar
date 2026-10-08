@@ -9,28 +9,68 @@ import { assertNotPersonalAccount } from "../../lib/personalAccounts";
 
 const asString = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const asNumber = (v: unknown) => (typeof v === "string" && v !== "" ? Number(v) : undefined);
-const asStatus = (v: unknown) => (v === "saved" || v === "posted" ? v : undefined);
+const asStatus = (v: unknown): "saved" | "posted" | undefined => (v === "saved" || v === "posted" ? v : undefined);
+const asSortBy = (v: unknown): "date" | "entrySeq" | "amount" | undefined =>
+  v === "date" || v === "entrySeq" || v === "amount" ? v : undefined;
+const asSortDir = (v: unknown): "asc" | "desc" | undefined => (v === "asc" || v === "desc" ? v : undefined);
 
-export const listHandler: RequestHandler = async (req, res) => {
-  const { companyId, dateFrom, dateTo, search, entryNumber, accountId, amount, amountMin, amountMax, status, branchId } = req.query;
-  const hrView = canReadHrData(req.auth!);
-  // غير أدوار الموارد البشرية لا يفلترون بحساب شخص بعينه — المجموعة فقط (راجع personalAccounts.ts)
-  await assertNotPersonalAccount(hrView, req.auth!.tenantId, asString(accountId));
-  const entries = await service.listJournalEntries(req.auth!.tenantId, {
+// فلاتر شاشة القيود/التصدير مشتركة بين listHandler وexportHandler — نفس القيم بالضبط تُقرأ من
+// querystring في كليهما، فلا يمكن للتصدير أن يرى فلترة مختلفة عن الشاشة. hrView ليس هنا عمداً (يعتمد
+// على req.auth لا querystring، ويُحسَب في كل معالِج على حدة).
+function readFilters(query: Record<string, unknown>) {
+  const { companyId, dateFrom, dateTo, search, entryNumber, accountId, branchId, amount, amountMin, amountMax, status, sortBy, sortDir } = query;
+  return {
     companyId: asString(companyId),
     dateFrom: asString(dateFrom),
     dateTo: asString(dateTo),
     search: asString(search),
     entryNumber: asString(entryNumber),
     accountId: asString(accountId),
+    branchId: asString(branchId),
     amount: asNumber(amount),
     amountMin: asNumber(amountMin),
     amountMax: asNumber(amountMax),
     status: asStatus(status),
-    branchId: asString(branchId),
+    sortBy: asSortBy(sortBy),
+    sortDir: asSortDir(sortDir),
+  };
+}
+
+export const listHandler: RequestHandler = async (req, res) => {
+  const hrView = canReadHrData(req.auth!);
+  const filters = readFilters(req.query as Record<string, unknown>);
+  // غير أدوار الموارد البشرية لا يفلترون بحساب شخص بعينه — المجموعة فقط (راجع personalAccounts.ts)
+  await assertNotPersonalAccount(hrView, req.auth!.tenantId, filters.accountId);
+  // الترقيم بطلب صريح فقط (paginate=1 أو cursor أو take) — بدونه الشكل والسلوك القديمان حرفياً (مصفوفة كاملة)، لأن
+  // مستهلكين آخرين (اختبارات، سكريبتات تشغيل، تقارير) يعتمدون على المصفوفة. راجع listJournalEntriesLegacy.
+  const q = req.query;
+  const paginated = q.paginate === "1" || q.paginate === "true" || q.cursor !== undefined || q.take !== undefined;
+  if (!paginated) {
+    const { sortBy: _sortBy, sortDir: _sortDir, ...legacyFilters } = filters;
+    res.json(await service.listJournalEntriesLegacy(req.auth!.tenantId, { ...legacyFilters, hrView }));
+    return;
+  }
+  const result = await service.listJournalEntries(req.auth!.tenantId, {
+    ...filters,
     hrView,
+    cursor: asString(req.query.cursor),
+    take: asNumber(req.query.take),
   });
-  res.json(entries);
+  res.json(result);
+};
+
+// تصدير CSV كامل لكل القيود المطابقة للفلاتر الحالية (بلا أي حدّ صفحة) — نفس filters المستخدَمة في
+// listHandler بالضبط، عبر readFilters المشتركة. يرمي الخادم خطأ 400 واضحاً (يُترجَم عبر errorHandler
+// العادي) لو تجاوز عدد النتائج الحدّ الأقصى، بدل قطع الملف بصمت.
+export const exportHandler: RequestHandler = async (req, res) => {
+  const hrView = canReadHrData(req.auth!);
+  const filters = readFilters(req.query as Record<string, unknown>);
+  // نفس تحقّق listHandler بالضبط — لا يُفلتَر التصدير بحساب شخص بعينه لغير أدوار الموارد البشرية.
+  await assertNotPersonalAccount(hrView, req.auth!.tenantId, filters.accountId);
+  const csv = await service.exportJournalEntriesCsv(req.auth!.tenantId, { ...filters, hrView });
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="journal-entries.csv"`);
+  res.send(csv);
 };
 
 export const nextNumberHandler: RequestHandler = async (req, res) => {

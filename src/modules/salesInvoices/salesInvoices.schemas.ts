@@ -60,7 +60,9 @@ export const searchSalesInvoicesQuerySchema = searchQueryBaseSchema
     // لا قيم enum زاتكا الخام (تسع قيم مربكة كفلتر) — sent/sent_with_notes مبنيّتان من zatcaStatus
     // وتحذيرات zatcaResponseRaw معاً، بنفس منطق الواجهة الحالي تماماً (راجع الخدمة).
     zatcaStatus: z.enum(["sent", "sent_with_notes", "not_sent", "not_applicable"]).optional(),
-    sortBy: z.enum(["date", "invoiceNumber", "customerName", "grandTotal"]).default("date"),
+    // الافتراضي آخر ما أُدخل أولاً (createdAt) لا التاريخ: فاتورة بتاريخ قديم أُدخلت اليوم تبقى أعلى القائمة. رقم الفاتورة
+    // نصّي ببادئة قابلة للتخصيص وإعادة ترقيم سنوية، فلا يصلح ترتيباً افتراضياً.
+    sortBy: z.enum(["createdAt", "date", "invoiceNumber", "customerName", "grandTotal"]).default("createdAt"),
     sortDir: z.enum(["asc", "desc"]).default("desc"),
   })
   .refine((data) => !data.dateFrom || !data.dateTo || data.dateFrom <= data.dateTo, {
