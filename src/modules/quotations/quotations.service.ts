@@ -2,6 +2,7 @@ import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/i
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine, invoiceTypeForCustomer } from "../../lib/invoiceLine";
+import { sumMoney } from "../../lib/money";
 import { buildZatcaQrPayload } from "../../lib/zatcaQr";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx } from "../../lib/journalPosting";
@@ -33,9 +34,9 @@ interface QuotationInput {
 function computeLines(lines: LineInput[]) {
   const computed = lines.map((l) => ({ ...l, ...computeInvoiceLine(l), ...normalizeTax(l) }));
   assertCompatibleTaxReasons(computed);
-  const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
-  const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
-  const grandTotal = subtotal + vatTotal;
+  const subtotal = sumMoney(computed.map((l) => l.subtotal));
+  const vatTotal = sumMoney(computed.map((l) => l.vat));
+  const grandTotal = sumMoney([subtotal, vatTotal]);
   return { computed, subtotal, vatTotal, grandTotal };
 }
 
