@@ -79,6 +79,72 @@ describe("rule 1 — .env files and printing the environment are denied", () => 
   });
 });
 
+describe("rule 1 exemption — .env.example (committed template, no secrets) may be read, never written", () => {
+  it.each([
+    ["Read", { file_path: "/home/user/athar/.env.example" }],
+    ["Read", { file_path: ".env.example" }],
+    ["Grep", { pattern: "DATABASE_URL", path: ".env.example" }],
+    ["Glob", { pattern: ".env.example" }],
+  ])("reading %s %j passes", (tool, input) => {
+    expect(run(tool, input).decision).toBe("pass");
+  });
+
+  it.each([
+    "cat .env.example",
+    "grep -n DATABASE_URL .env.example",
+    "head -20 /home/user/athar/.env.example",
+    "cp .env.example /tmp/template-copy",
+    "diff .env.example /tmp/other",
+  ])("Bash read passes: %s", (command) => {
+    expect(bash(command).decision).toBe("pass");
+  });
+
+  it.each([
+    ["Edit", { file_path: "/home/user/athar/.env.example", old_string: "a", new_string: "b" }],
+    ["Write", { file_path: ".env.example", content: "DATABASE_URL=x" }],
+  ])("writing %s %j is denied", (tool, input) => {
+    const r = run(tool, input);
+    expect(r.decision).toBe("deny");
+    expect(r.reason).toContain("القاعدة 1");
+    expect(r.reason).toContain("قراءته فقط");
+  });
+
+  it.each([
+    "echo 'X=1' >> .env.example",
+    "printf 'X=1' > .env.example",
+    "echo X | tee -a .env.example",
+    "sed -i 's/a/b/' .env.example",
+    "cp /tmp/real .env.example",
+    "rm .env.example",
+  ])("Bash write is denied: %s", (command) => {
+    const r = bash(command);
+    expect(r.decision).toBe("deny");
+    expect(r.reason).toContain("القاعدة 1");
+  });
+
+  it.each([
+    ["Read", { file_path: "/home/user/athar/.env.local" }],
+    ["Read", { file_path: "/home/user/athar/.env" }],
+    ["Read", { file_path: "/home/user/athar/.env.example.bak" }],
+    ["Read", { file_path: "/home/user/athar/.env/.env.example" }],
+    ["Grep", { pattern: "x", glob: ".env*" }],
+    ["Glob", { pattern: "**/.env.*" }],
+  ])("other env files stay denied: %s %j", (tool, input) => {
+    expect(run(tool, input).decision).toBe("deny");
+  });
+
+  it.each([
+    "cat .env.local",
+    "cat .env.example .env",
+    "cp .env.example .env",
+    "diff .env.example .env.production",
+  ])("Bash touching another env file stays denied: %s", (command) => {
+    const r = bash(command);
+    expect(r.decision).toBe("deny");
+    expect(r.reason).toContain("القاعدة 1");
+  });
+});
+
 describe("rule 2 — Neon and remote Postgres are denied, local Postgres passes", () => {
   it.each([
     "psql 'postgresql://u:p@ep-cool-name-123.eu-central-1.aws.neon.tech/athar?sslmode=require'",
@@ -158,6 +224,7 @@ describe("rule 3 in auto mode — nobody would ask the owner, so the question be
     expect(r.decision).toBe("deny");
     expect(r.reason).toContain("القاعدة 3");
     expect(r.reason).toContain("الوضع التلقائي");
+    expect(r.reason).toContain("من GitHub");
   });
 
   it("auto mode also denies a bare push on production, git merge on production, and the MCP merge tool", () => {
