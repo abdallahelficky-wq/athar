@@ -1,3 +1,5 @@
+// Membership freshness is exercised separately in currentMembership.test.ts; these fixtures cover route authorization.
+vi.mock("../../lib/currentMembership", () => ({ assertCurrentMembership: async () => {} }));
 import "express-async-errors";
 import express from "express";
 import type { Server } from "node:http";
