@@ -300,6 +300,8 @@ function toZatcaDebitNoteLines(lines: SalesDebitNoteWithZatcaChain["lines"]): Za
     vat: Number(l.vat),
     taxCategoryCode: l.taxCategoryCode,
     taxExemptionReason: l.taxExemptionReason,
+    discountPct: Number(l.discountPct),
+    priceIncludesVat: l.priceIncludesVat,
   }));
 }
 
