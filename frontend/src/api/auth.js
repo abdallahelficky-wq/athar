@@ -13,6 +13,7 @@ export const logout = (refreshToken) => apiFetch("/auth/logout", { method: "POST
 export const changeUnlockPin = (payload) => api.patch("/auth/unlock-pin", payload);
 export const updateTenantName = (name) => api.patch("/auth/tenant", { name });
 export const getMe = () => api.get("/auth/me");
+export const listOwnAccounts = () => api.get("/auth/accounts");
 export const updateMyName = (name) => api.patch("/auth/me", { name });
 export const inviteUser = (payload) => api.post("/auth/invite", payload);
 export const listUsers = () => api.get("/auth/users");

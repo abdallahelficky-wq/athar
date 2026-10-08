@@ -1,4 +1,5 @@
 import { requirePositionAction } from "../../middleware/positionMatrix";
+import { listOwnAccounts } from "./accountDirectory";
 import { Router } from "express";
 import { validateBody } from "../../middleware/validate";
 import { authenticate, requireRole, blockMutationsWhenReadOnly, requireTenantOwner } from "../../middleware/auth";
@@ -42,6 +43,10 @@ import {
 } from "./auth.controller";
 
 export const authRoutes = Router();
+
+authRoutes.get("/accounts", authenticate, async (req, res) => {
+  res.json(await listOwnAccounts(req.auth!.sub));
+});
 
 authRoutes.post("/register", validateBody(registerSchema), registerHandler);
 authRoutes.post("/login", validateBody(loginSchema), loginHandler);
