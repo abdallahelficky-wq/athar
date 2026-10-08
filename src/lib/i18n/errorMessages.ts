@@ -539,6 +539,17 @@ export const AR_TO_EN: Record<string, string> = {
   "تعذّرت إعادة المحاولة: بيانات الإشعار المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى": "Retry failed: the note's stored data no longer matches what the chain was originally reserved for — contact support before trying again",
   "إكمال الترحيل متاح فقط لإشعار مدين استلم ردّاً من زاتكا لكن لم يكتمل ترحيله المحلي بعد": "Completing posting is only available for a debit note that received a ZATCA response but whose local posting is not yet complete",
   "إعادة المحاولة متاحة فقط لفاتورة في انتظار الإرسال لزاتكا": "Retry is only available for an invoice awaiting submission to ZATCA",
+  // إعادة إصدار مستند قياسي مرفوض وسجل زاتكا (src/lib/zatca/reissue.ts، issues.ts)
+  "إعادة الإصدار متاحة فقط لمستند قياسي رفضته زاتكا ولم يُرحَّل بعد — لتعذّر الإرسال استخدم إعادة المحاولة":
+    "Re-issue is only available for a standard document that ZATCA rejected and that isn't posted yet — if it couldn't be sent, use retry",
+  "إعادة الإصدار متاحة فقط لمستند قياسي (عميل أعمال برقم ضريبي) — عميل هذا المستند لم يعد كذلك":
+    "Re-issue is only available for a standard document (business customer with a VAT number) — this document's customer no longer is one",
+  "تعذّرت إعادة الإصدار: حالة المستند تغيّرت (أُعيد إصداره أو إرساله للتو) — حدّث الصفحة وتحقّق من حالته":
+    "Couldn't re-issue: the document's status changed (it was just re-issued or sent) — refresh the page and check its status",
+  "تعذّرت إعادة الإصدار: الفاتورة الأصلية المرتبطة بهذا الإشعار لم تعد موجودة — راجع الدعم الفني":
+    "Couldn't re-issue: the original invoice linked to this note no longer exists — contact support",
+  "الشركة غير مرتبطة بزاتكا — لا معنى لإعادة الإصدار": "The company isn't connected to ZATCA — re-issue doesn't apply",
+  "لا يوجد ملف XML موقَّع محفوظ لهذه المحاولة": "No signed XML is saved for this attempt",
   "بيانات سلسلة زاتكا لهذه الفاتورة غير مكتملة — تعذّرت إعادة المحاولة، راجع الدعم الفني": "This invoice's ZATCA chain data is incomplete — retry failed, contact support",
   "جارٍ إعادة محاولة إرسال هذه الفاتورة بالفعل الآن — انتظر قليلاً ثم تحقّق من حالتها قبل إعادة المحاولة": "This invoice is already being retried right now — wait a moment then check its status before retrying again",
   "تعذّرت إعادة المحاولة: بيانات الفاتورة المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى": "Retry failed: the invoice's stored data no longer matches what the chain was originally reserved for — contact support before trying again",

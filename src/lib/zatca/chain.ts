@@ -70,6 +70,8 @@ interface ReserveZatcaChainParams {
   /** BR-KSA-17 (KSA-10) — إلزامي لإشعار دائن/مدين، راجع buildPaymentMeansXml في xmlBuilder.ts */
   issuanceReason?: string;
   lines: ZatcaPersistedLineLike[];
+  /** KSA-5 — فقط عند إعادة إصدار مستند قياسي مرفوض: تاريخ المستند الأصلي (YYYY-MM-DD). راجع reissue.ts */
+  supplyDate?: string;
 }
 
 function mapCompanyToSeller(company: ZatcaCompanyLike): ZatcaPartyInput {
@@ -201,6 +203,7 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,
     issuanceReason: params.issuanceReason,
+    supplyDate: params.supplyDate,
     seller: mapCompanyToSeller(params.company),
     buyer: subtype === "standard" ? mapCustomerToBuyer(params.customer) : undefined,
     lines: params.lines.map(mapPersistedLineToZatcaLine),
@@ -279,6 +282,8 @@ export interface RebuildZatcaDocumentXmlParams {
   issuedAt: Date;
   /** التجزئة المخزَّنة وقت الحجز — يُعاد بناء المستند بالمُنشئ الذي يطابقها (الحالي، أو المُجمَّد لما حُجز قبل الإصلاح) */
   expectedInvoiceHash?: string;
+  /** KSA-5 كما حُجز به المستند — مُعرَّف فقط لمستند أُعيد إصداره (من سجل zatca_document_issues، راجع issues.ts) */
+  supplyDate?: string;
 }
 
 export interface RebuiltZatcaDocument {
@@ -310,6 +315,7 @@ export function rebuildZatcaDocumentXml(params: RebuildZatcaDocumentXmlParams): 
     previousInvoiceHash: params.previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,
     issuanceReason: params.issuanceReason,
+    supplyDate: params.supplyDate,
     seller: mapCompanyToSeller(params.company),
     buyer: subtype === "standard" ? mapCustomerToBuyer(params.customer) : undefined,
     lines: params.lines.map(mapPersistedLineToZatcaLine),

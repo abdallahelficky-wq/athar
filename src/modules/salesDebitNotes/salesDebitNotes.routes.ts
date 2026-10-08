@@ -10,6 +10,9 @@ import {
   postHandler,
   unpostHandler,
   retryZatcaSubmissionHandler,
+  reissueZatcaHandler,
+  zatcaHistoryHandler,
+  zatcaAttemptXmlHandler,
   completeZatcaPostingHandler,
 } from "./salesDebitNotes.controller";
 
@@ -27,4 +30,7 @@ salesDebitNoteRoutes.delete("/:id", requirePositionAction("salesDebitNotes", "de
 salesDebitNoteRoutes.post("/:id/post", requirePositionAction("salesDebitNotes", "approve"), canWrite, postHandler);
 salesDebitNoteRoutes.post("/:id/unpost", requirePositionAction("salesDebitNotes", "approve"), canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
 salesDebitNoteRoutes.post("/:id/retry-zatca-submission", requirePositionAction("salesDebitNotes", "approve"), canWrite, retryZatcaSubmissionHandler);
+salesDebitNoteRoutes.post("/:id/reissue-zatca", requirePositionAction("salesDebitNotes", "approve"), canWrite, reissueZatcaHandler);
+salesDebitNoteRoutes.get("/:id/zatca-history", requirePositionAction("salesDebitNotes", "read"), zatcaHistoryHandler);
+salesDebitNoteRoutes.get("/:id/zatca-attempts/:attemptId/xml", requirePositionAction("salesDebitNotes", "read"), zatcaAttemptXmlHandler);
 salesDebitNoteRoutes.post("/:id/complete-zatca-posting", requirePositionAction("salesDebitNotes", "approve"), canWrite, completeZatcaPostingHandler);

@@ -52,6 +52,10 @@ export interface ZatcaDocumentInput {
   /** سبب إصدار إشعار الدائن/المدين (KSA-10) — إلزامي لإشعار دائن/مدين (BR-KSA-17)، بلا معنى
    * للفاتورة العادية. راجع buildPaymentMeansXml في xmlBuilder.ts لموضعه في XML. */
   issuanceReason?: string;
+  /** تاريخ التوريد (KSA-5، cac:Delivery/cbc:ActualDeliveryDate) بصيغة YYYY-MM-DD — يُرسَل فقط عند إعادة إصدار
+   * مستند قياسي رفضته زاتكا (reissue.ts): تاريخ الإصدار (BT-2) يصبح لحظة إعادة الإصدار، وتاريخ التوريد يبقى
+   * تاريخ المستند الأصلي. غيابه = لا عنصر cac:Delivery إطلاقاً (السلوك السابق كما هو بالضبط). */
+  supplyDate?: string;
   seller: ZatcaPartyInput;
   /** إلزامي للفاتورة القياسية (standard)، يُترك فارغاً للمبسّطة (simplified) */
   buyer?: ZatcaPartyInput;

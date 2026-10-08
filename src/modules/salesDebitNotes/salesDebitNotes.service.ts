@@ -1,4 +1,6 @@
 import { saveZatcaResponseWithArchive } from "../../lib/zatca/archive";
+import { issuedSupplyDate, recordZatcaIssueTx } from "../../lib/zatca/issues";
+import { assertReissuable, REISSUE_CONFLICT_MESSAGE, reserveReissueChainTx } from "../../lib/zatca/reissue";
 import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
@@ -173,6 +175,7 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
         },
         include: debitNoteInclude,
       }));
+      await recordZatcaIssueTx(tx, zatcaDocRef(debitNote), chain, { userId });
       return { kind: "pending" as const, debitNote, xml: chain.xml, subtype: chain.subtype };
     }, { timeout: 8000 });
     phase1Outcome = "committed";
@@ -233,6 +236,8 @@ async function finishDebitNoteZatcaSubmission(
         documentNumber: debitNote.debitNoteNumber, documentUuid: debitNote.zatcaUuid,
     },
     source: "submission",
+    attempt: decision.attempt,
+    userId,
     inTx: (tx) => tx.salesDebitNote.update(afterResponseArgs),
     plain: () => prisma.salesDebitNote.update(afterResponseArgs),
   });
@@ -360,6 +365,7 @@ export async function postSalesDebitNote(tenantId: string, userId: string, id: s
         },
         include: debitNoteInclude,
       }));
+      await recordZatcaIssueTx(tx, zatcaDocRef(updated), chain, { userId });
       return { kind: "pending" as const, debitNote: updated, xml: chain.xml, subtype: chain.subtype };
     }, { timeout: 8000 });
     phase1Outcome = "committed";
@@ -397,6 +403,7 @@ export async function retryPendingZatcaSubmission(tenantId: string, userId: stri
     company, customer: debitNote.customer, kind: "debit_note", documentNumber: debitNote.debitNoteNumber,
     documentUuid: debitNote.zatcaUuid, lines: toZatcaDebitNoteLines(debitNote.lines),
     icv: debitNote.icv, previousInvoiceHash: debitNote.previousInvoiceHash, issuedAt: debitNote.zatcaSubmittedAt, expectedInvoiceHash: debitNote.invoiceHash,
+    supplyDate: await issuedSupplyDate(debitNote.companyId, debitNote.zatcaUuid),
     billingReferenceId, issuanceReason: debitNote.reason?.trim() || undefined,
   });
   if (rebuilt.invoiceHash !== debitNote.invoiceHash) {
@@ -410,6 +417,57 @@ export async function retryPendingZatcaSubmission(tenantId: string, userId: stri
 
   return finishDebitNoteZatcaSubmission(tenantId, userId, {
     debitNote, xml: rebuilt.xml, subtype: rebuilt.subtype, company,
+    grandTotal: Number(debitNote.grandTotal), vatTotal: Number(debitNote.vatTotal), journalLines,
+  });
+}
+
+/** مرجع المستند في سجلَّي الإصدارات والمحاولات (issues.ts) */
+function zatcaDocRef(doc: { id: string; tenantId: string; companyId: string; debitNoteNumber: string; zatcaUuid: string }) {
+  return {
+    tenantId: doc.tenantId, companyId: doc.companyId, documentType: "sales_debit_note" as const, documentId: doc.id,
+    documentNumber: doc.debitNoteNumber, documentUuid: doc.zatcaUuid,
+  };
+}
+
+/** إعادة إصدار إشعار مدين قياسي رفضته زاتكا — نفس تصميم reissueRejectedSalesInvoice (salesInvoices.service.ts) وقواعد reissue.ts:
+ * نفس الرقم، UUID/ICV/تجزئة جديدة، وقت إصدار جديد، KSA-5 = تاريخ المستند، والقيد بتاريخ المستند الأصلي. */
+export async function reissueRejected(tenantId: string, userId: string, id: string) {
+  const debitNote = await prisma.salesDebitNote.findFirst({ where: { id, tenantId }, include: debitNoteInclude });
+  if (!debitNote) throw notFound("الإشعار المدين غير موجود");
+  assertReissuable(debitNote, debitNote.customer);
+  const company = await prisma.company.findFirstOrThrow({ where: { id: debitNote.companyId, tenantId } });
+  const billingReferenceId = await resolveBillingReferenceNumber(tenantId, debitNote.relatedInvoiceId);
+  if (!billingReferenceId) {
+    throw badRequest("تعذّرت إعادة الإصدار: الفاتورة الأصلية المرتبطة بهذا الإشعار لم تعد موجودة — راجع الدعم الفني");
+  }
+  const oldUuid = debitNote.zatcaUuid;
+
+  const { reissued, xml, subtype } = await prisma.$transaction(async (tx) => {
+    const { chain, documentUuid, supplyDate } = await reserveReissueChainTx(tx, {
+      company, customer: debitNote.customer, kind: "debit_note", documentNumber: debitNote.debitNoteNumber, documentDate: debitNote.date,
+      billingReferenceId, issuanceReason: debitNote.reason?.trim() || undefined, lines: toZatcaDebitNoteLines(debitNote.lines),
+      actionLabel: "إعادة إصدار إشعار مدين",
+    });
+    const claimed = await tx.salesDebitNote.updateMany({
+      where: { id, tenantId, status: "pending_submission", zatcaStatus: "rejected", zatcaUuid: oldUuid },
+      data: {
+        zatcaUuid: documentUuid, icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
+        zatcaStatus: "not_submitted", zatcaSubmittedAt: chain.issuedAt, zatcaResponseRaw: Prisma.JsonNull, zatcaClearedOrReportedAt: null,
+      },
+    });
+    if (claimed.count !== 1) throw badRequest(REISSUE_CONFLICT_MESSAGE);
+    const previous = await tx.zatcaDocumentIssue.findUnique({ where: { documentUuid: oldUuid }, select: { id: true } });
+    const reissued = await tx.salesDebitNote.findUniqueOrThrow({ where: { id }, include: debitNoteInclude });
+    await recordZatcaIssueTx(tx, zatcaDocRef(reissued), chain, { userId, supplyDate, reissue: { ofIssueId: previous?.id ?? null } });
+    return { reissued, xml: chain.xml, subtype: chain.subtype };
+  }, { timeout: 8000 });
+
+  const computed = toComputedDebitNoteLines(debitNote.lines);
+  const vatOutputId = await getAccountIdByName(tenantId, debitNote.companyId, "ضريبة القيمة المضافة - مخرجات");
+  const accountId = await resolveChargeAccountId(tenantId, debitNote.companyId, debitNote.customer, debitNote.chargeMethod || "account");
+  const journalLines = buildDebitNoteJournalLines(computed, debitNote.customerId, vatOutputId, Number(debitNote.vatTotal), accountId, Number(debitNote.grandTotal));
+  return finishDebitNoteZatcaSubmission(tenantId, userId, {
+    debitNote: reissued, xml, subtype, company,
     grandTotal: Number(debitNote.grandTotal), vatTotal: Number(debitNote.vatTotal), journalLines,
   });
 }

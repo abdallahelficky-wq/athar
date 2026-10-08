@@ -1,6 +1,7 @@
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import InvoiceCreditNotes from "./InvoiceCreditNotes";
 import InvoiceZatcaDetails from "./InvoiceZatcaDetails";
+import ZatcaHistoryPanel from "./ZatcaHistoryPanel";
 import InvoiceFormModal from "./InvoiceFormModal";
 import LinkPaymentModal from "./LinkPaymentModal";
 import SendInvoiceEmailModal from "./SendInvoiceEmailModal";
@@ -128,6 +129,21 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
         )}
       </div>
       <InvoiceZatcaDetails invoice={current} />
+      <ZatcaHistoryPanel
+        basePath="/sales-invoices"
+        document={current}
+        canReissue={current.status === "pending_submission" && current.zatcaStatus === "rejected" && current.invoiceType === "standard"}
+        notify={notify}
+        onReissued={async (updated) => {
+          await refreshInvoice();
+          const ok = updated.zatcaStatus === "cleared";
+          const message = ok
+            ? t("salesInvoices.notify.zatcaResentOk", { number: current.invoiceNumber, status: t("salesInvoices.zatcaSummary.sent") })
+            : t("salesInvoices.notify.zatcaRejectedAgain", { number: current.invoiceNumber, reason: updated.rejectionReason ? `: ${updated.rejectionReason}` : "." });
+          onChanged?.(message);
+          notify(message, ok ? "success" : "error");
+        }}
+      />
       <div className="voucher-meta">
         <div><span>{t("salesInvoices.view.seller")}</span><strong>{company?.name}</strong></div>
         <div><span>{t("salesInvoices.view.sellerVat")}</span><strong>{company?.vatNumber || t("salesInvoices.view.vatNotEntered")}</strong></div>

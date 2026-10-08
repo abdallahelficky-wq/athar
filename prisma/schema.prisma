@@ -3196,3 +3196,64 @@ model ZatcaDocumentArchive {
   @@index([documentType, documentId])
   @@map("zatca_document_archive")
 }
+
+// سجل إصدارات زاتكا: صف واحد لكل مستند وُلِّد في سلسلة الشركة (حجز ICV/PIH عبر reserveZatcaChain) — لا يُعدَّل ولا يُحذَف
+// (مُشغِّل في قاعدة البيانات). صف المستند نفسه (sales_invoices…) يحمل الإصدار الحالي فقط؛ عند إعادة إصدار مستند قياسي رفضته
+// زاتكا يتغيّر عليه UUID وICV والتجزئة، ويبقى الإصدار المرفوض هنا بقيمه كما وُلِّد (الدليل الفني لزاتكا، القسم 7: لا يُعاد
+// استخدام UUID ولا ICV، ولا تتغيّر تجزئة المستند المرفوض ولا عدّاده). القيدان الفريدان يفرضان ذلك في القاعدة نفسها.
+// unsignedXml: المستند قبل التوقيع كما حُسبت عليه التجزئة (gzip) — null لصفوف الاستكمال الرجعي. راجع src/lib/zatca/issues.ts.
+model ZatcaDocumentIssue {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  companyId           String
+  documentType        String // sales_invoice | sales_return | sales_debit_note
+  documentId          String
+  documentNumber      String // BT-1 — يبقى نفسه عند إعادة الإصدار (قرار المالك)
+  documentUuid        String    @unique
+  icv                 Int
+  previousInvoiceHash String
+  invoiceHash         String
+  subtype             String // standard | simplified
+  issuedAt            DateTime // BT-2/BT-3 (UTC)
+  supplyDate          String? // KSA-5 (YYYY-MM-DD) — إعادة الإصدار فقط
+  reissueOfIssueId    String? // الإصدار المرفوض الذي حلّ هذا محلّه
+  compression         String // gzip | none
+  unsignedXml         Bytes?
+  unsignedXmlSha256   String?
+  source              String // issue | reissue | backfill
+  createdById         String?
+  createdAt           DateTime  @default(now())
+
+  @@unique([companyId, icv])
+  @@index([tenantId, documentType, documentId])
+  @@map("zatca_document_issues")
+}
+
+// كل إرسال فعلي لزاتكا (أول مرة، إعادة محاولة، إعادة إرسال، بعد إعادة إصدار) — صف لكل محاولة، لا يُعدَّل ولا يُحذَف. يحفظ
+// ملف XML الموقَّع كما أُرسِل (gzip + SHA-256) والرد الكامل والنتيجة — للمقبول والمرفوض معاً (الأرشيف يحفظ المقبول وحده).
+model ZatcaSubmissionAttempt {
+  id              String   @id @default(cuid())
+  tenantId        String
+  companyId       String
+  documentType    String
+  documentId      String
+  documentNumber  String
+  documentUuid    String
+  icv             Int
+  invoiceHash     String
+  submissionKind  String // clearance | reporting | compliance
+  outcome         String // cleared | reported | compliance_checked | rejected | submission_failed | certificate_error
+  httpStatus      Int?
+  compression     String // gzip
+  signedXml       Bytes? // null عند فشل التوقيع محلياً (certificate_error)
+  signedXmlSha256 String?
+  response        Json?
+  reason          String?
+  source          String // submission | resubmission
+  userId          String?
+  attemptedAt     DateTime @default(now())
+
+  @@index([tenantId, documentType, documentId, attemptedAt])
+  @@index([companyId, documentUuid])
+  @@map("zatca_submission_attempts")
+}
