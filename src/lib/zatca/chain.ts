@@ -247,6 +247,23 @@ export function assertStandardBuyerAddress(customer: ZatcaCustomerLike): void {
   }
 }
 
+/**
+ * عند إدخال العميل أو تعديله: عميل له رقم ضريبي (B2B — فواتيره قياسية تُخلَّص عبر زاتكا) يلزمه العنوان الوطني الكامل
+ * نفسه (BR-KSA-63) — نفس standardBuyerAddressProblems التي تفحص عند الإرسال، فلا يختلف الفحصان أبداً. عميل بلا رقم ضريبي
+ * (فرد / نقدي / فاتورة مبسّطة) لا يُفحَص ولا يُمنَع. يُفحَص العميل كما سيُحفَظ (القيم القديمة + المُرسَلة)، فتعديل أي
+ * حقل لعميل ضريبي ناقص العنوان يطلب استكماله.
+ */
+export function assertCustomerAddressForVat(customer: { name?: string | null; vatNumber?: string | null; street?: string | null; buildingNo?: string | null; postalCode?: string | null; city?: string | null; district?: string | null }): void {
+  if (!customer.vatNumber || !customer.vatNumber.trim()) return;
+  const problems = standardBuyerAddressProblems({
+    street: customer.street ?? null, buildingNo: customer.buildingNo ?? null, postalCode: customer.postalCode ?? null,
+    city: customer.city ?? null, district: customer.district ?? null,
+  });
+  if (problems.length) {
+    throw badRequest(`العميل الذي له رقم ضريبي يلزمه العنوان الوطني كاملاً لإصدار فواتير قياسية لزاتكا — ناقص: ${problems.join("، ")}`);
+  }
+}
+
 export interface RebuildZatcaDocumentXmlParams {
   company: ZatcaCompanyLike;
   customer: ZatcaCustomerLike;

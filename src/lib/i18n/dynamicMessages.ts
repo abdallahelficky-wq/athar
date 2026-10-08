@@ -35,6 +35,17 @@ function translateArabicMonthYear(text: string): string {
   return out;
 }
 
+/** حقول العنوان الوطني كما تسمّيها standardBuyerAddressProblems في src/lib/zatca/chain.ts (الأطول أولاً) */
+const ADDRESS_FIELD_LABELS: [string, string][] = [
+  ["رقم المبنى (يجب أن يكون 4 أرقام)", "building number (must be 4 digits)"],
+  ["الرمز البريدي (يجب أن يكون 5 أرقام)", "postal code (must be 5 digits)"],
+  ["اسم الشارع", "street name"],
+  ["رقم المبنى", "building number"],
+  ["الرمز البريدي", "postal code"],
+  ["المدينة", "city"],
+  ["الحي", "district"],
+];
+
 const CUSTOMER_REASON_LABELS: [string, string][] = [
   ["فاتورة مبيعات", "sales invoice(s)"],
   ["عرض سعر", "quotation(s)"],
@@ -70,6 +81,14 @@ interface MessagePattern {
 }
 
 export const DYNAMIC_MESSAGE_PATTERNS: MessagePattern[] = [
+  {
+    match: /^لا يمكن إرسال الفاتورة القياسية لزاتكا: عنوان العميل "(.+?)" ناقص — (.+)\. أكمل العنوان الوطني في بطاقة العميل ثم أعد المحاولة\.$/,
+    translate: (g) => `Can't send the standard invoice to ZATCA: customer "${g[0]}" has an incomplete address — ${translateReasonsList(g[1], ADDRESS_FIELD_LABELS)}. Complete the national address on the customer card, then try again.`,
+  },
+  {
+    match: /^العميل الذي له رقم ضريبي يلزمه العنوان الوطني كاملاً لإصدار فواتير قياسية لزاتكا — ناقص: (.+)$/,
+    translate: (g) => `A customer with a VAT number needs a complete national address to receive standard (ZATCA) invoices — missing: ${translateReasonsList(g[0], ADDRESS_FIELD_LABELS)}`,
+  },
   { match: /^متغير البيئة المطلوب غير موجود: (.+)$/, translate: (g) => `Required environment variable not found: ${g[0]}` },
   { match: /^فشل استدعاء نموذج الذكاء الاصطناعي \((.+?)\): ([\s\S]*)$/, translate: (g) => `AI model call failed (${g[0]}): ${g[1]}` },
   { match: /^الحساب الأب (.+) غير موجود عند إنشاء شجرة الحسابات$/, translate: (g) => `Parent account ${g[0]} does not exist when creating the chart of accounts` },
