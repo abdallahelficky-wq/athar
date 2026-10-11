@@ -221,6 +221,10 @@ Exceeding the limit returns 403 with the limit and how to add users.
 - **Effect:** reads always pass, as today; mutations get 403. `blockMutationsWhenReadOnly` stays the router-level hook, now fed by the company's subscription instead of the token.
 - **Other companies are unaffected:** the same `all`-scope user keeps full access to the tenant's other companies that are active.
 - **Coverage:** #157's coverage test (every user-authenticated router mounts the guard) keeps protecting this.
+- **Mirror and reversal (CLAUDE.md rule 1):** P4's PR must cover these cases:
+  - a mirror entry written **into** another company is checked against **the target company's** subscription, not only the source's;
+  - reversing an entry, or reversing a mirror entry, is a mutation in the company that holds the entry, so it is refused when that company is read-only;
+  - each case gets its own test.
 
 ## 6. Lifecycle
 
