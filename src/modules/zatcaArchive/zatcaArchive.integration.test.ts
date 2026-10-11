@@ -238,6 +238,14 @@ describe("ZATCA document archive (integration)", () => {
     expect((await call("GET", `/zatca-archive/export?companyId=${companyId}`)).status).toBe(400);
   });
 
+  it("a read-only membership (expired subscription) can still export and read the archive", async () => {
+    // الحارس مركَّب على هذا الراوتر ليشمل أي تعديل يُضاف لاحقاً؛ المساران الحاليان قراءة (GET) ويبقيان متاحين
+    const owner = await prisma.user.findFirstOrThrow({ where: { tenantId }, orderBy: { createdAt: "asc" } });
+    const readOnlyToken = signAccessToken({ sub: owner.id, tenantId, role: owner.role, companyScope: "all", readOnly: true });
+    expect((await call("GET", `/zatca-archive/export?companyId=${companyId}&from=2026-09-01&to=2026-09-30`, readOnlyToken)).status).toBe(200);
+    expect((await call("GET", `/zatca-archive/unarchived?companyId=${companyId}`, readOnlyToken)).status).toBe(200);
+  });
+
   it("counts documents accepted since archiving began that have no stored original — the number that must stay zero", async () => {
     const q = () => call("GET", `/zatca-archive/unarchived?companyId=${otherCompanyId}`).then((r) => r.json());
     expect((await q()).count).toBe(0);

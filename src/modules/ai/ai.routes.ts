@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { authenticate } from "../../middleware/auth";
+import { authenticate, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { requirePositionAction } from "../../middleware/positionMatrix";
 import { askAiHandler } from "./ai.controller";
 import { HttpError } from "../../lib/httpError";
@@ -9,7 +9,9 @@ import { env } from "../../config/env";
 
 export const aiRoutes = Router();
 
-aiRoutes.use(authenticate);
+// وضع "عرض فقط" (اشتراك/تجربة منتهية) يرفض كل طلب غير قراءة هنا أيضاً، قبل أي قراءة بيانات أو استدعاء نموذج مدفوع —
+// POST /ask كان يمرّ لعضوية "عرض فقط" لأن هذا الراوتر وحده بين رواتر المستخدمين لم يركّب الحارس.
+aiRoutes.use(authenticate, blockMutationsWhenReadOnly);
 
 const validateAskRequest = async (req: Request, res: Response, next: NextFunction) => {
   const { question, context, dateFrom, dateTo, companyId, tenantId, companyScope } = req.body;
