@@ -152,6 +152,34 @@ function extractTransmittedXmlFromBody(body: unknown): string | null {
   }
 }
 
+/**
+ * نص ردّ زاتكا بترميزه المُعلَن. response.text() في fetch تفكّ الجسم UTF-8 دائماً وتتجاهل charset في Content-Type (معيار
+ * Fetch) — فلو أعلن الرد ترميزاً عربياً قديماً (windows-1256 / ISO-8859-6) صار كل حرف عربي U+FFFD، ويظهر في الواجهة «???»
+ * (رسائل الرفض تُخزَّن وتُعرض كما هي بعد هذه النقطة، وكل المسار بعدها UTF-8). هنا: نقرأ البايتات ونفكّها بالترميز المُعلَن؛
+ * بلا إعلان ⇒ UTF-8. وإن بقيت رموز بديلة (U+FFFD) بعد الفكّ نسجّل سطراً تشخيصياً بالترميز المُعلَن وأول البايتات، دليلاً
+ * لا تخميناً، بلا أي محتوى حسّاس (رد التحقق لا يحمل أسراراً).
+ */
+export async function decodeResponseBody(response: Pick<Response, "headers"> & { arrayBuffer?: () => Promise<ArrayBuffer>; text: () => Promise<string> }): Promise<string> {
+  if (typeof response.arrayBuffer !== "function") return response.text();
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const contentType = typeof response.headers?.get === "function" ? response.headers.get("content-type") || "" : "";
+  const declared = /charset\s*=\s*"?([\w.:-]+)"?/i.exec(contentType)?.[1]?.toLowerCase();
+  let text: string;
+  try {
+    text = new TextDecoder(declared || "utf-8").decode(bytes);
+  } catch {
+    // ترميز مُعلَن لا يعرفه Node — UTF-8 أفضل من لا شيء، والسطر التشخيصي أدناه يُثبت ما وصل
+    text = new TextDecoder("utf-8").decode(bytes);
+  }
+  if (text.includes("�")) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[zatcaRequest] ردّ زاتكا يحوي رموزاً تعذّر فكّها — Content-Type="${contentType}"، أول البايتات (hex): ${Buffer.from(bytes.slice(0, 160)).toString("hex")}`,
+    );
+  }
+  return text;
+}
+
 async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiResponse<T>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -203,7 +231,7 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
   // غير JSON (شائع لردود مصادقة/توجيه 401/403/404 من بوابات API) يجعل response.json() ترمي، فكان
   // الجسم المُحلَّل يُصبح null بلا أي وسيلة لمعرفة السبب الفعلي لاحقاً — لا حتى كود الحالة نفسه، لأن
   // شيئاً لم يكن يُسجِّل الصورة الكاملة (status/statusText/الترويسات/الجسم الخام) على الإطلاق.
-  const rawText = await response.text().catch(() => "");
+  const rawText = await decodeResponseBody(response).catch(() => "");
   let rawData: unknown = null;
   try {
     rawData = rawText ? JSON.parse(rawText) : null;

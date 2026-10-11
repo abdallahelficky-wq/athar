@@ -258,6 +258,8 @@ export default function CustomersTab({ companyId, companies }) {
             {/* العنوان الوطني الكامل — نفس الحقول والترتيب والتسمية المستخدَمة أصلاً لعنوان الشركة
                 نفسها في الإعدادات (CompanyEditModal.jsx)، إلزامية لصحة الفاتورة الإلكترونية (ZATCA). */}
             <h4 className="sub-head">{t("sales.customers.addressTitle")}</h4>
+            {/* إلزامي فقط لعميل له رقم ضريبي (فواتيره قياسية تُخلَّص عبر زاتكا، BR-KSA-63) — الخادم يفحص نفس الحقول عند الحفظ */}
+            {form.vatNumber && <p className="note">{t("sales.customers.addressRequiredForVat")}</p>}
             <div className="form-grid">
               <label>{t("sales.customers.addressBuilding")}<input type="text" value={form.buildingNo} onChange={(e) => setForm({ ...form, buildingNo: e.target.value })} /></label>
               <label>{t("sales.customers.addressStreet")}<input type="text" value={form.street} onChange={(e) => setForm({ ...form, street: e.target.value })} /></label>

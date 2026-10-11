@@ -1,4 +1,5 @@
-import invoiceTemplate, { buyerPartyTemplate, billingReferenceTemplate, paymentMeansTemplate } from "./templates/invoiceTemplate";
+import invoiceTemplate, { billingReferenceTemplate, paymentMeansTemplate } from "./templates/invoiceTemplate";
+import { formatMoney, fromHalalas, toHalalas } from "../money";
 import { ZatcaDocumentInput, ZatcaLineInput, ZatcaPartyInput } from "./types";
 
 // بناء XML بصيغة UBL 2.1 لمستند فوترة إلكترونية (فاتورة/إشعار دائن/إشعار مدين) وفق زاتكا، من
@@ -14,27 +15,62 @@ function escapeXml(value: string | number | null | undefined): string {
 }
 
 /**
- * تقريب لأقرب هللة (half-away-from-zero) — يُستخدَم فقط قبل truncateDecimals على قيم هي مجموع
- * أرقام مُقرَّبة أصلاً لخانتين عشريتين (إجماليات الرأس، ومجموع صافي+ضريبة كل سطر)، لا على القيم
- * الذرّية نفسها. جمع عدة أرقام "نظيفة" بخانتين عشريتين في IEEE754 قد ينتج مثل 135.29999999999998
- * بدل 135.3 بسبب تمثيل الفاصلة العائمة الثنائية — truncateDecimals كان سيبتر هذا لـ"135.29"
- * فيُسقِط هللة كاملة من إجمالي الفاتورة رغم أن كل سطر بمفرده مُقرَّب بشكل صحيح تماماً.
+ * المبالغ: قاعدة تقريب واحدة (src/lib/money.ts) — خانتان، نصف للأعلى، وكل جمع بالهللات (أعداد صحيحة). لا قصّ إطلاقاً.
+ * كان السطر يُقصّ (truncateDecimals) بينما يُقرَّب مجموعه (KSA-12) ويُقرَّب إجمالي الرأس من مجاميع غير مقرَّبة — فإن وصل
+ * صافٍ بثلاث خانات (191.105) صار BT-109 = 191.11 وBT-112 = 219.77 (لأن 219.775 ثنائياً 219.77499…) ⇒ BR-CO-15 رفض،
+ * ومعه BR-KSA-51 على السطر. الآن، بالبناء:
+ *   KSA-12 = BT-131 + KSA-11 لكل سطر (BR-KSA-51)
+ *   BT-109 = Σ BT-131 = Σ BT-116، BT-110 = Σ BT-117، BT-112 = BT-109 + BT-110 (BR-CO-15)
+ *   BT-131 = BT-129 × BT-146 / BT-149 (BR-KSA-EN16931-11) — راجع linePrice أدناه.
  */
-function roundMoney(n: number): number {
-  return (Math.sign(n) * Math.round(Math.abs(n) * 100)) / 100;
+interface MoneyLine {
+  line: ZatcaLineInput;
+  netH: number;
+  vatH: number;
 }
 
-/** يقصّ الرقم لعدد منازل عشري محدد دون تقريب (مطابق toFixedNoRounding في المرجع) — زاتكا يرفض
- * فواتير تحتوي مبالغ مُقرَّبة تختلف عن المجموع الفعلي لبنودها بأكثر من هامش صغير جداً. */
-function truncateDecimals(num: number, digits = 2): string {
-  const re = new RegExp("^-?\\d+(?:\\.\\d{0," + digits + "})?");
-  const match = num.toString().match(re);
-  if (!match || !match.length) return (0).toFixed(digits);
-  const matched = match[0];
-  const dotIndex = matched.indexOf(".");
-  if (dotIndex === -1) return `${matched}.${"0".repeat(digits)}`;
-  const missing = digits - (matched.length - dotIndex) + 1;
-  return missing > 0 ? matched + "0".repeat(missing) : matched;
+function quantityTenThousandths(q: number): number {
+  // الكمية مخزّنة Decimal(18, 4) — أربع خانات بالضبط
+  return Math.round(q * 10000);
+}
+
+/**
+ * BT-146 (سعر الوحدة الصافي) وBT-149 (أساس الكمية) بحيث BT-129 × BT-146 / BT-149 = BT-131 بالضبط (حساب عشري، كما تفحصه
+ * زاتكا). السعر المُدخَل في الفاتورة قد يكون شاملاً للضريبة أو قبل الخصم — لا يصلح BT-146 (كان يُرسَل كما هو، فيفشل
+ * BR-KSA-EN16931-11 لكل سطر بسعر شامل أو بخصم). نشتقّه من صافي السطر نفسه:
+ * - إن وُجد سعر وحدة بأربع خانات يحقق الكمية × السعر = الصافي بالضبط ⇒ ذلك السعر، وأساس الكمية 1 (الحالة الشائعة).
+ * - وإلا (191.30 لثلاث وحدات = 63.7666…) ⇒ السعر = الصافي كاملاً وأساس الكمية = الكمية نفسها: «سعر 3 وحدات 191.30».
+ */
+function linePrice(qty: number, netH: number): { price: string; baseQuantity: string | null } {
+  const qT = quantityTenThousandths(qty);
+  if (qT <= 0) return { price: formatMoney(fromHalalas(netH)), baseQuantity: null };
+  // الصافي بوحدات 1e-8 (كمية 1e-4 × سعر 1e-4) = netH × 1e6
+  const target = BigInt(netH) * 1000000n;
+  if (target % BigInt(qT) === 0n) {
+    const priceT = Number(target / BigInt(qT)); // سعر الوحدة بأجزاء العشرة آلاف
+    return { price: formatTenThousandths(priceT), baseQuantity: null };
+  }
+  return { price: formatMoney(fromHalalas(netH)), baseQuantity: formatQuantity(qty) };
+}
+
+/** سعر بأجزاء العشرة آلاف ⇒ نص بخانتين على الأقل وحتى أربع عند الحاجة: 637700 ⇒ "63.77"، 637681 ⇒ "63.7681" */
+function formatTenThousandths(v: number): string {
+  const sign = v < 0 ? "-" : "";
+  const abs = Math.abs(v);
+  const frac = String(abs % 10000).padStart(4, "0");
+  const shown = frac.slice(0, 2) + frac.slice(2).replace(/0+$/, "");
+  return `${sign}${Math.floor(abs / 10000)}.${shown}`;
+}
+
+function formatQuantity(q: number): string {
+  const t = quantityTenThousandths(q);
+  const whole = Math.floor(t / 10000);
+  const frac = String(t % 10000).padStart(4, "0").replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : String(whole);
+}
+
+function formatPercent(p: number): string {
+  return (Math.round(p * 100) / 100).toFixed(2);
 }
 
 function invoiceTypeCodeText(kind: ZatcaDocumentInput["kind"]): string {
@@ -49,13 +85,7 @@ function invoiceTypeNameAttr(subtype: ZatcaDocumentInput["subtype"]): string {
   return subtype === "standard" ? "0100000" : "0200000";
 }
 
-// عطل إنتاج فعلي ثالث لنفس الحقل — "clearance:1.0" ثم "standard:1.0" ثم بعدها بدون بادئة "1.0"،
-// كل واحدة استُنتِجت من رسالة رفض زاتكا العربية، التي وصلت مشوَّهة نحوياً (علامة اقتباس قبل
-// النقطتين بدل بعدها، تُسقِط الكلمة الفعلية وتُبقي "1.0" فقط ظاهرياً). التحوّل المؤقت لطلب الرسالة
-// بالإنجليزية (Accept-Language: en، راجع apiClient.ts/submission.ts) حسم الأمر أخيراً بنص واضح:
-// "Business process (BT-23) must be \"reporting:1.0\"" — القيمة الصحيحة هي "reporting:1.0"،
-// للفاتورتين معاً بلا فرق بحسب subtype (القاعدة تفحص BT-23 مباشرة بلا أي شرط ظاهر على النوع). القيمة
-// المبسّطة الأصلية كانت صحيحة طوال الوقت؛ الخطأ كان التفريق بينها وبين القياسية أصلاً.
+// "reporting:1.0" للنوعين — راجع تعليق profileId في xmlBuilderV1.ts لتاريخ هذا الحقل.
 function profileId(): string {
   return "reporting:1.0";
 }
@@ -75,36 +105,47 @@ function buildSupplierPlaceholders(seller: ZatcaPartyInput): Record<string, stri
 }
 
 /**
- * BR-KSA-14: هوية المشتري (PartyIdentification) يجب أن تحمل schemeID مطابقاً لأيّ معرِّف
- * فعلياً متوفّر، بترتيب أولوية زاتكا الموثَّق (TIN, CRN, MOM, MLS, 700, SAG, NAT, GCC, IQA, PAS,
- * OTH) — لا "CRN" ثابتاً بصرف النظر عن البيانات المتوفرة فعلياً. عطل إنتاج فعلي مؤكَّد (BR-KSA-F-08
- * "Please recheck the CRN value"): كان الكود يضع دائماً schemeID="CRN" حتى حين لا يوجد رقم سجل
- * تجاري للمشتري (crNumber فارغ) — فتصل زاتكا وسماً "CRN" بقيمة فارغة، بدل استخدام رقم الهوية
- * الضريبي (vatNumber) الفعلي المتوفر بالضرورة لكل فاتورة قياسية (subtypeForCustomer في chain.ts
- * تشترط وجود vatNumber أصلاً لتصنيف العميل "standard"). ندعم فقط TIN وCRN حالياً (الحقلان
- * المتوفران في نموذج بياناتنا)؛ الأنواع الأخرى (MOM/MLS/700/SAG/NAT/GCC/IQA/PAS) تحتاج حقولاً
- * إضافية غير مُخزَّنة بعد.
+ * المشتري. الرقم الضريبي مكانه BT-48 (PartyTaxScheme/CompanyID) وحده. BT-46 (PartyIdentification) لمعرّف آخر بمخطط صالح —
+ * كان يُرسَل فيه الرقم الضريبي نفسه بـschemeID="TIN" فتحذّر زاتكا BR-KSA-F-07. الآن: BT-46 = رقم السجل التجاري (CRN) إن وُجد،
+ * ولا يُرسَل أصلاً إن لم يوجد. مشترٍ بلا رقم ضريبي ولا سجل تجاري لا يُبنى له مستند قياسي.
  */
-function resolveBuyerIdentification(buyer: ZatcaPartyInput): { schemeID: string; value: string } {
-  if (buyer.vatNumber) return { schemeID: "TIN", value: buyer.vatNumber };
-  if (buyer.crNumber) return { schemeID: "CRN", value: buyer.crNumber };
-  throw new Error("لا يمكن تحديد هوية المشتري لزاتكا — لا يوجد رقم ضريبي (VAT) ولا رقم سجل تجاري (CRN) مسجَّل لهذا العميل");
-}
-
 function buildBuyerBlock(buyer: ZatcaPartyInput | undefined): string {
   if (!buyer) return "<cac:AccountingCustomerParty></cac:AccountingCustomerParty>";
-  const identification = resolveBuyerIdentification(buyer);
-  return buyerPartyTemplate
-    .replace("SET_BUYER_ID_SCHEME", identification.schemeID)
-    .replace("SET_BUYER_ID_VALUE", escapeXml(identification.value))
-    .replace("SET_BUYER_STREET_NAME", escapeXml(buyer.street))
-    .replace("SET_BUYER_BUILDING_NUMBER", escapeXml(buyer.buildingNumber))
-    .replace("SET_BUYER_CITY_SUBDIVISION", escapeXml(buyer.citySubdivision))
-    .replace("SET_BUYER_CITY", escapeXml(buyer.city))
-    .replace("SET_BUYER_POSTAL_NUMBER", escapeXml(buyer.postalZone))
-    .replace("SET_BUYER_COUNTRY", escapeXml(buyer.countryCode || "SA"))
-    .replace("SET_BUYER_VAT_NUMBER", escapeXml(buyer.vatNumber))
-    .replace("SET_BUYER_NAME", escapeXml(buyer.registrationName));
+  if (!buyer.vatNumber && !buyer.crNumber) {
+    throw new Error("لا يمكن تحديد هوية المشتري لزاتكا — لا يوجد رقم ضريبي (VAT) ولا رقم سجل تجاري (CRN) مسجَّل لهذا العميل");
+  }
+  const identification = buyer.crNumber
+    ? `
+      <cac:PartyIdentification>
+        <cbc:ID schemeID="CRN">${escapeXml(buyer.crNumber)}</cbc:ID>
+      </cac:PartyIdentification>`
+    : "";
+  const taxScheme = buyer.vatNumber
+    ? `
+      <cac:PartyTaxScheme>
+        <cbc:CompanyID>${escapeXml(buyer.vatNumber)}</cbc:CompanyID>
+        <cac:TaxScheme>
+          <cbc:ID>VAT</cbc:ID>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>`
+    : "";
+  return `<cac:AccountingCustomerParty>
+    <cac:Party>${identification}
+      <cac:PostalAddress>
+        <cbc:StreetName>${escapeXml(buyer.street)}</cbc:StreetName>
+        <cbc:BuildingNumber>${escapeXml(buyer.buildingNumber)}</cbc:BuildingNumber>
+        <cbc:CitySubdivisionName>${escapeXml(buyer.citySubdivision)}</cbc:CitySubdivisionName>
+        <cbc:CityName>${escapeXml(buyer.city)}</cbc:CityName>
+        <cbc:PostalZone>${escapeXml(buyer.postalZone)}</cbc:PostalZone>
+        <cac:Country>
+          <cbc:IdentificationCode>${escapeXml(buyer.countryCode || "SA")}</cbc:IdentificationCode>
+        </cac:Country>
+      </cac:PostalAddress>${taxScheme}
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>${escapeXml(buyer.registrationName)}</cbc:RegistrationName>
+      </cac:PartyLegalEntity>
+    </cac:Party>
+  </cac:AccountingCustomerParty>`;
 }
 
 function buildBillingReference(billingReferenceId: string | undefined): string {
@@ -114,25 +155,25 @@ function buildBillingReference(billingReferenceId: string | undefined): string {
 
 /**
  * BR-KSA-17: سبب إصدار إشعار الدائن/المدين (KSA-10) إلزامي لهذين النوعين تحديداً (388/الفاتورة
- * العادية لا تحتاجه إطلاقاً). عطل إنتاج فعلي رابع لنفس مسار الإشعارات — لم يُكتشَف إلا بعد أن قبلت
- * زاتكا المرجع الذاتي الاصطناعي دون اعتراض (راجع تقرير الاختبار)، أي أن هذا هو الحقل الوحيد
- * المتبقي، لا مشكلة إضافية في بنية المرجع نفسه.
+ * العادية لا تحتاجه إطلاقاً).
  */
 function buildPaymentMeansXml(kind: ZatcaDocumentInput["kind"], issuanceReason: string | undefined): string {
   if (kind === "invoice" || !issuanceReason) return "";
   return paymentMeansTemplate.replace("SET_INSTRUCTION_NOTE", escapeXml(issuanceReason));
 }
 
-function buildInvoiceLineXml(line: ZatcaLineInput): string {
+function buildInvoiceLineXml({ line, netH, vatH }: MoneyLine): string {
   const isStandardRated = line.taxCategoryCode === "S";
-  const percentXml = isStandardRated ? `\n          <cbc:Percent>${truncateDecimals(line.taxPercent)}</cbc:Percent>` : "";
+  const percentXml = isStandardRated ? `\n          <cbc:Percent>${formatPercent(line.taxPercent)}</cbc:Percent>` : "";
+  const { price, baseQuantity } = linePrice(line.quantity, netH);
+  const baseQuantityXml = baseQuantity ? `\n        <cbc:BaseQuantity unitCode="PCE">${baseQuantity}</cbc:BaseQuantity>` : "";
   return `    <cac:InvoiceLine>
       <cbc:ID>${escapeXml(line.id)}</cbc:ID>
-      <cbc:InvoicedQuantity unitCode="PCE">${line.quantity}</cbc:InvoicedQuantity>
-      <cbc:LineExtensionAmount currencyID="SAR">${truncateDecimals(line.lineSubtotal)}</cbc:LineExtensionAmount>
+      <cbc:InvoicedQuantity unitCode="PCE">${formatQuantity(line.quantity)}</cbc:InvoicedQuantity>
+      <cbc:LineExtensionAmount currencyID="SAR">${formatMoney(fromHalalas(netH))}</cbc:LineExtensionAmount>
       <cac:TaxTotal>
-        <cbc:TaxAmount currencyID="SAR">${truncateDecimals(line.lineVat)}</cbc:TaxAmount>
-        <cbc:RoundingAmount currencyID="SAR">${truncateDecimals(roundMoney(line.lineSubtotal + line.lineVat))}</cbc:RoundingAmount>
+        <cbc:TaxAmount currencyID="SAR">${formatMoney(fromHalalas(vatH))}</cbc:TaxAmount>
+        <cbc:RoundingAmount currencyID="SAR">${formatMoney(fromHalalas(netH + vatH))}</cbc:RoundingAmount>
       </cac:TaxTotal>
       <cac:Item>
         <cbc:Name>${escapeXml(line.name)}</cbc:Name>
@@ -144,7 +185,7 @@ function buildInvoiceLineXml(line: ZatcaLineInput): string {
         </cac:ClassifiedTaxCategory>
       </cac:Item>
       <cac:Price>
-        <cbc:PriceAmount currencyID="SAR">${truncateDecimals(line.unitPrice, 4)}</cbc:PriceAmount>
+        <cbc:PriceAmount currencyID="SAR">${price}</cbc:PriceAmount>${baseQuantityXml}
       </cac:Price>
     </cac:InvoiceLine>`;
 }
@@ -154,34 +195,33 @@ interface TaxGroup {
   taxPercent: number;
   taxExemptionReason?: string | null;
   taxExemptionReasonCode?: string | null;
-  taxableAmount: number;
-  taxAmount: number;
+  taxableH: number;
+  taxH: number;
 }
 
-function groupLinesByTaxCategory(lines: ZatcaLineInput[]): TaxGroup[] {
+function groupLinesByTaxCategory(lines: MoneyLine[]): TaxGroup[] {
   const groups = new Map<string, TaxGroup>();
-  for (const line of lines) {
-    const key = `${line.taxCategoryCode}:${line.taxPercent}`;
+  for (const { line, netH, vatH } of lines) {
+    const key = `${line.taxCategoryCode}:${formatPercent(line.taxPercent)}`;
     const existing = groups.get(key);
     if (existing) {
-      existing.taxableAmount += line.lineSubtotal;
-      existing.taxAmount += line.lineVat;
+      existing.taxableH += netH;
+      existing.taxH += vatH;
     } else {
       groups.set(key, {
         taxCategoryCode: line.taxCategoryCode,
         taxPercent: line.taxPercent,
         taxExemptionReason: line.taxExemptionReason,
         taxExemptionReasonCode: line.taxExemptionReasonCode,
-        taxableAmount: line.lineSubtotal,
-        taxAmount: line.lineVat,
+        taxableH: netH,
+        taxH: vatH,
       });
     }
   }
   return [...groups.values()];
 }
 
-function buildTaxTotalXml(lines: ZatcaLineInput[], totalVat: number): string {
-  const groups = groupLinesByTaxCategory(lines);
+function buildTaxTotalXml(groups: TaxGroup[], totalVatH: number): string {
   const subtotalsXml = groups
     .map((g) => {
       const exemptionXml =
@@ -189,11 +229,11 @@ function buildTaxTotalXml(lines: ZatcaLineInput[], totalVat: number): string {
           ? `\n        <cbc:TaxExemptionReason>${escapeXml(g.taxExemptionReason)}</cbc:TaxExemptionReason>`
           : "";
       return `      <cac:TaxSubtotal>
-        <cbc:TaxableAmount currencyID="SAR">${truncateDecimals(roundMoney(g.taxableAmount))}</cbc:TaxableAmount>
-        <cbc:TaxAmount currencyID="SAR">${truncateDecimals(roundMoney(g.taxAmount))}</cbc:TaxAmount>
+        <cbc:TaxableAmount currencyID="SAR">${formatMoney(fromHalalas(g.taxableH))}</cbc:TaxableAmount>
+        <cbc:TaxAmount currencyID="SAR">${formatMoney(fromHalalas(g.taxH))}</cbc:TaxAmount>
         <cac:TaxCategory>
           <cbc:ID schemeAgencyID="6" schemeID="UN/ECE 5305">${g.taxCategoryCode}</cbc:ID>
-          <cbc:Percent>${truncateDecimals(g.taxPercent)}</cbc:Percent>${g.taxCategoryCode !== "S" && g.taxExemptionReasonCode ? `<cbc:TaxExemptionReasonCode>${escapeXml(g.taxExemptionReasonCode)}</cbc:TaxExemptionReasonCode>` : ""}${exemptionXml}
+          <cbc:Percent>${formatPercent(g.taxPercent)}</cbc:Percent>${g.taxCategoryCode !== "S" && g.taxExemptionReasonCode ? `<cbc:TaxExemptionReasonCode>${escapeXml(g.taxExemptionReasonCode)}</cbc:TaxExemptionReasonCode>` : ""}${exemptionXml}
           <cac:TaxScheme>
             <cbc:ID schemeAgencyID="6" schemeID="UN/ECE 5153">VAT</cbc:ID>
           </cac:TaxScheme>
@@ -204,26 +244,26 @@ function buildTaxTotalXml(lines: ZatcaLineInput[], totalVat: number): string {
 
   // عنصرا cac:TaxTotal مكرَّران عمداً على مستوى المستند — الأول يحمل تفصيل TaxSubtotal لكل فئة
   // ضريبية، والثاني ملخّص بلا تفصيل (قاعدة خاصة بملف زاتكا KSA، مُقتبَسة من التطبيق المرجعي).
-  const roundedTotalVat = roundMoney(totalVat);
+  const totalVat = formatMoney(fromHalalas(totalVatH));
   return `  <cac:TaxTotal>
-    <cbc:TaxAmount currencyID="SAR">${truncateDecimals(roundedTotalVat)}</cbc:TaxAmount>
+    <cbc:TaxAmount currencyID="SAR">${totalVat}</cbc:TaxAmount>
 ${subtotalsXml}
   </cac:TaxTotal>
   <cac:TaxTotal>
-    <cbc:TaxAmount currencyID="SAR">${truncateDecimals(roundedTotalVat)}</cbc:TaxAmount>
+    <cbc:TaxAmount currencyID="SAR">${totalVat}</cbc:TaxAmount>
   </cac:TaxTotal>`;
 }
 
-function buildLegalMonetaryTotalXml(subtotal: number, totalVat: number): string {
-  const roundedSubtotal = roundMoney(subtotal);
-  const grandTotal = roundMoney(subtotal + totalVat);
+function buildLegalMonetaryTotalXml(netH: number, vatH: number): string {
+  const net = formatMoney(fromHalalas(netH));
+  const gross = formatMoney(fromHalalas(netH + vatH));
   return `  <cac:LegalMonetaryTotal>
-    <cbc:LineExtensionAmount currencyID="SAR">${truncateDecimals(roundedSubtotal)}</cbc:LineExtensionAmount>
-    <cbc:TaxExclusiveAmount currencyID="SAR">${truncateDecimals(roundedSubtotal)}</cbc:TaxExclusiveAmount>
-    <cbc:TaxInclusiveAmount currencyID="SAR">${truncateDecimals(grandTotal)}</cbc:TaxInclusiveAmount>
+    <cbc:LineExtensionAmount currencyID="SAR">${net}</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="SAR">${net}</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="SAR">${gross}</cbc:TaxInclusiveAmount>
     <cbc:AllowanceTotalAmount currencyID="SAR">0.00</cbc:AllowanceTotalAmount>
     <cbc:PrepaidAmount currencyID="SAR">0.00</cbc:PrepaidAmount>
-    <cbc:PayableAmount currencyID="SAR">${truncateDecimals(grandTotal)}</cbc:PayableAmount>
+    <cbc:PayableAmount currencyID="SAR">${gross}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>`;
 }
 
@@ -239,8 +279,11 @@ export function buildDocumentXml(input: ZatcaDocumentInput): string {
     throw new Error("إشعار الدائن/المدين يتطلب سبب الإصدار (issuanceReason) — BR-KSA-17");
   }
 
-  const totalVat = input.lines.reduce((sum, l) => sum + l.lineVat, 0);
-  const subtotal = input.lines.reduce((sum, l) => sum + l.lineSubtotal, 0);
+  // كل مبلغ سطر يُقرَّب مرة واحدة هنا (لا يُفترض أن المستدعي قرّبه)، والباقي جمع بالهللات
+  const moneyLines: MoneyLine[] = input.lines.map((line) => ({ line, netH: toHalalas(line.lineSubtotal), vatH: toHalalas(line.lineVat) }));
+  const groups = groupLinesByTaxCategory(moneyLines);
+  const netH = groups.reduce((s, g) => s + g.taxableH, 0);
+  const vatH = groups.reduce((s, g) => s + g.taxH, 0);
 
   let xml = invoiceTemplate;
   xml = xml.replace("SET_UBL_EXTENSIONS_STRING", "");
@@ -263,9 +306,9 @@ export function buildDocumentXml(input: ZatcaDocumentInput): string {
 
   xml = xml.replace("SET_ACCOUNTING_CUSTOMER_PARTY", buildBuyerBlock(input.buyer));
   xml = xml.replace("SET_PAYMENT_MEANS", buildPaymentMeansXml(input.kind, input.issuanceReason));
-  xml = xml.replace("SET_TAX_TOTAL", buildTaxTotalXml(input.lines, totalVat));
-  xml = xml.replace("SET_LEGAL_MONETARY_TOTAL", buildLegalMonetaryTotalXml(subtotal, totalVat));
-  xml = xml.replace("SET_INVOICE_LINES", input.lines.map(buildInvoiceLineXml).join("\n"));
+  xml = xml.replace("SET_TAX_TOTAL", buildTaxTotalXml(groups, vatH));
+  xml = xml.replace("SET_LEGAL_MONETARY_TOTAL", buildLegalMonetaryTotalXml(netH, vatH));
+  xml = xml.replace("SET_INVOICE_LINES", moneyLines.map(buildInvoiceLineXml).join("\n"));
 
   // القالب يبدأ بسطر فارغ قبل إعلان <?xml...?> (لأسباب تنسيقية موروثة من التطبيق المرجعي) —
   // يجب أن يكون هذا الإعلان أول حرف في المستند فعلياً وإلا رفضته محلّلات XML الصارمة.

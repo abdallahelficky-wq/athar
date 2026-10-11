@@ -1,5 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { buildDocumentXml } from "./xmlBuilder";
+import { buildDocumentXmlV1, mapPersistedLineToZatcaLineV1 } from "./xmlBuilderV1";
+import { badRequest } from "../httpError";
+import { VAT_RATE } from "../invoiceLine";
 import { computeDocumentHash } from "./hash";
 import { ZATCA_FIRST_INVOICE_PIH, ZatcaDocumentInput, ZatcaDocumentKind, ZatcaInvoiceSubtype, ZatcaLineInput, ZatcaPartyInput } from "./types";
 
@@ -142,9 +145,9 @@ export function mapPersistedLineToZatcaLine(line: ZatcaPersistedLineLike, index:
   const subtotal = Number(line.subtotal);
   const vat = Number(line.vat);
   const isStandardRated = line.taxCategoryCode === "S";
-  // نسبة الضريبة تُشتق من المبلغ الفعلي المُخزَّن (لا من ثابت) حتى تبقى متّسقة مع ما حُسِب فعلاً
-  // على هذا السطر تحديداً وقت الإنشاء (computeInvoiceLine)، لا افتراض نسبة موحّدة لكل الأصناف.
-  const taxPercent = isStandardRated && subtotal > 0 ? Math.round((vat / subtotal) * 10000) / 100 : isStandardRated ? 15 : 0;
+  // النسبة المُطبَّقة فعلاً (computeInvoiceLine تحسب كل سطر "S" بـVAT_RATE)، لا نسبة مشتقة من vat/net: الضريبة مقرَّبة
+  // لهللة، فسطر صافيه 0.13 وضريبته 0.02 كان يُعلَن بنسبة 15.38%.
+  const taxPercent = isStandardRated ? VAT_RATE * 100 : 0;
   return {
     id: String(index + 1),
     name: line.description || `سطر ${index + 1}`,
@@ -169,6 +172,9 @@ export function mapPersistedLineToZatcaLine(line: ZatcaPersistedLineLike, index:
  */
 export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams): Promise<ZatcaChainResult | null> {
   if (params.company.zatcaOnboardingStatus === "not_onboarded") return null;
+  // قبل حجز أي ICV: مستند قياسي لمشترٍ ناقص العنوان سترفضه زاتكا (BR-KSA-63) — يُمنع هنا برسالة واضحة، فلا يُستهلَك
+  // رقم في السلسلة ولا يُنشأ مستند معلَّق بلا داعٍ.
+  if (subtypeForCustomer(params.customer) === "standard") assertStandardBuyerAddress(params.customer);
 
   const rows = await tx.$queryRaw<{ zatcaNextIcv: number }[]>`
     UPDATE "companies" SET "zatcaNextIcv" = "zatcaNextIcv" + 1
@@ -216,6 +222,48 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
   };
 }
 
+/**
+ * BR-KSA-63: مشترٍ سعودي في فاتورة قياسية يلزمه عنوان وطني كامل — الشارع، رقم المبنى (4 أرقام)، الرمز البريدي (5 أرقام)،
+ * المدينة، الحي. لا تعبئة تلقائية: يُرفض الإرسال برسالة تسمّي كل حقل ناقص أو غير صالح، ليصحّحه المستخدم في بطاقة العميل.
+ * (لا حقل دولة للعميل في نموذجنا — كل العملاء يُرسَلون بدولة SA، فالقاعدة تنطبق على كل مشترٍ قياسي.)
+ */
+export function standardBuyerAddressProblems(customer: Pick<ZatcaCustomerLike, "street" | "buildingNo" | "postalCode" | "city" | "district">): string[] {
+  const problems: string[] = [];
+  const blank = (v: string | null) => !v || !v.trim();
+  if (blank(customer.street)) problems.push("اسم الشارع");
+  if (blank(customer.buildingNo)) problems.push("رقم المبنى");
+  else if (!/^\d{4}$/.test(customer.buildingNo!.trim())) problems.push("رقم المبنى (يجب أن يكون 4 أرقام)");
+  if (blank(customer.postalCode)) problems.push("الرمز البريدي");
+  else if (!/^\d{5}$/.test(customer.postalCode!.trim())) problems.push("الرمز البريدي (يجب أن يكون 5 أرقام)");
+  if (blank(customer.city)) problems.push("المدينة");
+  if (blank(customer.district)) problems.push("الحي");
+  return problems;
+}
+
+export function assertStandardBuyerAddress(customer: ZatcaCustomerLike): void {
+  const problems = standardBuyerAddressProblems(customer);
+  if (problems.length) {
+    throw badRequest(`لا يمكن إرسال الفاتورة القياسية لزاتكا: عنوان العميل "${customer.name}" ناقص — ${problems.join("، ")}. أكمل العنوان الوطني في بطاقة العميل ثم أعد المحاولة.`);
+  }
+}
+
+/**
+ * عند إدخال العميل أو تعديله: عميل له رقم ضريبي (B2B — فواتيره قياسية تُخلَّص عبر زاتكا) يلزمه العنوان الوطني الكامل
+ * نفسه (BR-KSA-63) — نفس standardBuyerAddressProblems التي تفحص عند الإرسال، فلا يختلف الفحصان أبداً. عميل بلا رقم ضريبي
+ * (فرد / نقدي / فاتورة مبسّطة) لا يُفحَص ولا يُمنَع. يُفحَص العميل كما سيُحفَظ (القيم القديمة + المُرسَلة)، فتعديل أي
+ * حقل لعميل ضريبي ناقص العنوان يطلب استكماله.
+ */
+export function assertCustomerAddressForVat(customer: { name?: string | null; vatNumber?: string | null; street?: string | null; buildingNo?: string | null; postalCode?: string | null; city?: string | null; district?: string | null }): void {
+  if (!customer.vatNumber || !customer.vatNumber.trim()) return;
+  const problems = standardBuyerAddressProblems({
+    street: customer.street ?? null, buildingNo: customer.buildingNo ?? null, postalCode: customer.postalCode ?? null,
+    city: customer.city ?? null, district: customer.district ?? null,
+  });
+  if (problems.length) {
+    throw badRequest(`العميل الذي له رقم ضريبي يلزمه العنوان الوطني كاملاً لإصدار فواتير قياسية لزاتكا — ناقص: ${problems.join("، ")}`);
+  }
+}
+
 export interface RebuildZatcaDocumentXmlParams {
   company: ZatcaCompanyLike;
   customer: ZatcaCustomerLike;
@@ -229,12 +277,16 @@ export interface RebuildZatcaDocumentXmlParams {
   icv: number;
   previousInvoiceHash: string;
   issuedAt: Date;
+  /** التجزئة المخزَّنة وقت الحجز — يُعاد بناء المستند بالمُنشئ الذي يطابقها (الحالي، أو المُجمَّد لما حُجز قبل الإصلاح) */
+  expectedInvoiceHash?: string;
 }
 
 export interface RebuiltZatcaDocument {
   xml: string;
   invoiceHash: string;
   subtype: ZatcaInvoiceSubtype;
+  /** v2 = المُنشئ الحالي، v1 = المُجمَّد (xmlBuilderV1.ts) لمستند حُجز مكانه في السلسلة قبل إصلاح التقريب/المشتري */
+  builder: "v2" | "v1";
 }
 
 /**
@@ -265,5 +317,12 @@ export function rebuildZatcaDocumentXml(params: RebuildZatcaDocumentXmlParams): 
 
   const xml = buildDocumentXml(documentInput);
   const invoiceHash = computeDocumentHash(xml);
-  return { xml, invoiceHash, subtype };
+  if (!params.expectedInvoiceHash || invoiceHash === params.expectedInvoiceHash) return { xml, invoiceHash, subtype, builder: "v2" };
+
+  // تجزئة المستند جزء من السلسلة (PIH للمستند التالي) — لا يجوز أن يتغيّر محتواه بعد حجزه. مستند حُجز قبل الإصلاح يُعاد
+  // بناؤه بالمُنشئ نفسه الذي حُسبت عليه تجزئته، بايتاً بايتاً.
+  const legacyXml = buildDocumentXmlV1({ ...documentInput, lines: params.lines.map(mapPersistedLineToZatcaLineV1) });
+  const legacyHash = computeDocumentHash(legacyXml);
+  if (legacyHash === params.expectedInvoiceHash) return { xml: legacyXml, invoiceHash: legacyHash, subtype, builder: "v1" };
+  return { xml, invoiceHash, subtype, builder: "v2" };
 }

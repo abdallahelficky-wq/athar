@@ -90,7 +90,11 @@ const SIMPLIFIED_CUSTOMER = {
   postalCode: null,
 };
 
-const STANDARD_CUSTOMER = { ...SIMPLIFIED_CUSTOMER, customerType: "business", vatNumber: "300000000000010", name: "شركة العميل" };
+// عميل قياسي بعنوان وطني كامل — إرسال فاتورة قياسية بلا عنوان يُرفض قبل حجز السلسلة (BR-KSA-63، assertStandardBuyerAddress)
+const STANDARD_CUSTOMER = {
+  ...SIMPLIFIED_CUSTOMER, customerType: "business", vatNumber: "300000000000010", name: "شركة العميل",
+  street: "شارع التحلية", buildingNo: "2345", district: "السليمانية", city: "الرياض", postalCode: "12245",
+};
 
 const LINES = [
   { description: "خدمة", quantity: 1, unitPrice: 100, subtotal: 100, vat: 15, taxCategoryCode: "S", taxExemptionReason: null },

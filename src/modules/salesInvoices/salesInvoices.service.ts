@@ -7,6 +7,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { getPresignedGetUrl } from "../../lib/storage";
 import { computeInvoiceLine, invoiceTypeForCustomer } from "../../lib/invoiceLine";
+import { sumMoney } from "../../lib/money";
 import { buildZatcaQrPayload } from "../../lib/zatcaQr";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
@@ -126,9 +127,9 @@ function computeLines(lines: LineInput[]) {
     ...normalizeTax(l),
   }));
   assertCompatibleTaxReasons(computed);
-  const subtotal = computed.reduce((s, l) => s + l.subtotal, 0);
-  const vatTotal = computed.reduce((s, l) => s + l.vat, 0);
-  const grandTotal = subtotal + vatTotal;
+  const subtotal = sumMoney(computed.map((l) => l.subtotal));
+  const vatTotal = sumMoney(computed.map((l) => l.vat));
+  const grandTotal = sumMoney([subtotal, vatTotal]);
   return { computed, subtotal, vatTotal, grandTotal };
 }
 
@@ -772,6 +773,7 @@ export async function retryPendingZatcaSubmission(tenantId: string, userId: stri
     icv: invoice.icv,
     previousInvoiceHash: invoice.previousInvoiceHash,
     issuedAt: invoice.zatcaSubmittedAt,
+    expectedInvoiceHash: invoice.invoiceHash,
   });
   if (rebuilt.invoiceHash !== invoice.invoiceHash) {
     throw badRequest("تعذّرت إعادة المحاولة: بيانات الفاتورة المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى");

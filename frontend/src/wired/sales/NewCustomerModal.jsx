@@ -9,6 +9,10 @@ export default function NewCustomerModal({ companyId, initialName, onClose, onCr
   const [vatNumber, setVatNumber] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  // العنوان الوطني — يظهر ويُرسَل فقط لعميل له رقم ضريبي (B2B، فواتير قياسية لزاتكا): الخادم يرفض حفظه بدونه (BR-KSA-63)،
+  // وبلا هذه الحقول كانت إضافة عميل ضريبي من هنا طريقاً مسدوداً. عميل بلا رقم ضريبي لا يُطلَب منه شيء.
+  const [address, setAddress] = useState({ buildingNo: "", street: "", district: "", city: "", postalCode: "" });
+  const setAddressField = (key) => (e) => setAddress((prev) => ({ ...prev, [key]: e.target.value }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -20,6 +24,7 @@ export default function NewCustomerModal({ companyId, initialName, onClose, onCr
       const customer = await createCustomer({
         companyId, name: name.trim(), customerType: vatNumber ? "business" : "individual",
         vatNumber: vatNumber || undefined, phone: phone || undefined, email: email || undefined,
+        ...(vatNumber ? Object.fromEntries(Object.entries(address).map(([k, v]) => [k, v.trim() || undefined])) : {}),
       });
       onCreated(customer);
     } catch (err) {
@@ -42,6 +47,18 @@ export default function NewCustomerModal({ companyId, initialName, onClose, onCr
           <label>{t("sales.newCustomerModal.phone")}<input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
           <label>{t("sales.newCustomerModal.email")}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
         </div>
+        {vatNumber && (
+          <>
+            <p className="note">{t("sales.customers.addressRequiredForVat")}</p>
+            <div className="form-grid">
+              <label>{t("sales.customers.addressBuilding")}<input type="text" inputMode="numeric" maxLength={4} value={address.buildingNo} onChange={setAddressField("buildingNo")} /></label>
+              <label>{t("sales.customers.addressStreet")}<input type="text" value={address.street} onChange={setAddressField("street")} /></label>
+              <label>{t("sales.customers.addressDistrict")}<input type="text" value={address.district} onChange={setAddressField("district")} /></label>
+              <label>{t("sales.customers.city")}<input type="text" value={address.city} onChange={setAddressField("city")} /></label>
+              <label>{t("sales.customers.addressPostalCode")}<input type="text" inputMode="numeric" maxLength={5} value={address.postalCode} onChange={setAddressField("postalCode")} /></label>
+            </div>
+          </>
+        )}
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
           <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("sales.newCustomerModal.cancel")}</button>
