@@ -89,11 +89,25 @@ BEGIN
  IF EXISTS(SELECT 1 FROM separation_ownership GROUP BY table_name,row_id HAVING count(*)>1) THEN
    RAISE EXCEPTION 'Cross-company relationship found; no changes applied';
  END IF;
+ -- Unused tenant chart templates stay unchanged. Any reference outside the template
+ -- hierarchy blocks separation; no transactional account may be left behind.
+ FOR rec IN SELECT child.relname AS child_table,ca.attname AS child_column
+   FROM pg_constraint fk JOIN pg_class child ON child.oid=fk.conrelid
+   JOIN pg_namespace ns ON ns.oid=child.relnamespace
+   JOIN pg_class parent ON parent.oid=fk.confrelid
+   JOIN pg_attribute ca ON ca.attrelid=child.oid AND ca.attnum=fk.conkey[1]
+   WHERE fk.contype='f' AND ns.nspname='public' AND parent.relname='accounts' AND cardinality(fk.conkey)=1 LOOP
+   EXECUTE format('SELECT EXISTS(SELECT 1 FROM public.%I c JOIN accounts a ON a.id=c.%I WHERE a."tenantId"=$1 AND a."companyId" IS NULL %s)',
+     rec.child_table,rec.child_column,
+     CASE WHEN rec.child_table='accounts' AND rec.child_column='parentId' THEN 'AND (c."companyId" IS NOT NULL OR c."tenantId"<>a."tenantId")' ELSE '' END)
+     INTO invalid USING source_id;
+   IF invalid THEN RAISE EXCEPTION 'Shared chart has references in %.%',rec.child_table,rec.child_column; END IF;
+ END LOOP;
  -- No orphan tenant-owned rows may be silently left behind (except explicit administrative history).
  FOR rec IN SELECT table_name FROM information_schema.columns WHERE table_schema='public' AND column_name='tenantId' LOOP
    IF rec.table_name = ANY(ignored) THEN CONTINUE; END IF;
    EXECUTE format('SELECT EXISTS(SELECT 1 FROM public.%I r LEFT JOIN separation_ownership o ON o.table_name=%L AND o.row_id=r.id WHERE (r."tenantId"=$1 AND o.row_id IS NULL %s) OR (o.row_id IS NOT NULL AND r."tenantId"<>$1))',rec.table_name,rec.table_name,
-     CASE WHEN rec.table_name='audit_logs' THEN 'AND r."companyId" IS NOT NULL'
+     CASE WHEN rec.table_name IN ('audit_logs','accounts') THEN 'AND r."companyId" IS NOT NULL'
        -- Preserve these two verified orphan records unchanged; never infer a company
        -- from an uploader. The deployed attachment guard denies missing-parent access.
        -- Any other orphan, changed identity/type/uploader, or foreign parent still aborts.
@@ -137,7 +151,14 @@ BEGIN
    END LOOP;
  END LOOP;
  UPDATE users SET "companyScope"=retained_company,"updatedAt"=now() WHERE id=owner_id;
- UPDATE tenants SET name=(SELECT name FROM companies WHERE id=retained_company),"updatedAt"=now() WHERE id=source_id;
+ UPDATE tenants SET name=(SELECT name FROM companies WHERE id=retained_company),"ownerId"=owner_id,"updatedAt"=now() WHERE id=source_id;
+ INSERT INTO audit_logs(id,"tenantId","companyId","userId",action,"entityType","entityId",metadata)
+ SELECT 'split_audit_'||md5(company_id),tenant_id,company_id,admin_id,'company.separated','Company',company_id,
+   jsonb_build_object('sourceTenantId',source_id,'targetTenantId',tenant_id,'preservedCompanyId',company_id)
+ FROM separation_targets;
+ INSERT INTO audit_logs(id,"tenantId","companyId","userId",action,"entityType","entityId",metadata)
+ VALUES ('split_audit_'||md5(retained_company),source_id,retained_company,owner_id,'company.separation_completed','Company',retained_company,
+   jsonb_build_object('retainedCompanyId',retained_company,'movedCompanyIds',(SELECT jsonb_agg(company_id) FROM separation_targets)));
  UPDATE refresh_tokens SET "revokedAt"=now() WHERE "userId" IN (SELECT id FROM users WHERE "tenantId"=source_id OR "tenantId" IN (SELECT tenant_id FROM separation_targets));
  IF EXISTS(SELECT 1 FROM tenants t WHERE (t.id=source_id OR t.id IN (SELECT tenant_id FROM separation_targets)) AND (SELECT count(*) FROM companies c WHERE c."tenantId"=t.id)<>1) THEN
    RAISE EXCEPTION 'Postcondition failed: each tenant must have exactly one company';

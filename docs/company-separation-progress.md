@@ -60,3 +60,5 @@ Still pending: live ownership preflight, CI/deployment, final operational verifi
 - Targeted metadata queries moved into scripts/sql/company-separation/ with dedicated CI coverage; these are not generic financial reports. CI also runs the actual cutover in isolated PGlite databases.
 - Added a real signed-document integration test for archive export after company relocation; CI validation remains pending.
 - Production separation is NOT complete. Deploy all access guards and obtain passing live preflight before running the cutover transaction.
+- Final live read-only preflight passed after validating that tenant-level chart templates have no external FK references. Unused templates are preserved in place; any transactional or cross-tenant reference blocks the move. All 27 owned table groups validated without reading business contents.
+- CI at 146d64d passed backend, archive integration, isolated cutover tests and migration replay. Final template guard and audit additions require a fresh CI run before merging.

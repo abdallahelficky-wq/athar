@@ -36,6 +36,10 @@ async function fixture() {
 (async()=>{
  const db=await fixture();
  const queryDir=require('path').resolve(__dirname,'../../sql/company-separation');
+ await db.exec(`INSERT INTO accounts(id,"tenantId",code,level,name,type,"updatedAt") VALUES ('unassigned','${source}','U',1,'same','asset',now()),('other-unassigned','other','U',1,'same','asset',now());`);
+ const unassigned=(await db.query(fs.readFileSync(require('path').join(queryDir,'company-separation-unassigned-accounts.sql'),'utf8'))).rows;
+ assert.deepEqual(unassigned.map(r=>r.id),['unassigned']);
+ const templateBefore=(await db.query("SELECT * FROM accounts WHERE id IN ('unassigned','other-unassigned') ORDER BY id")).rows;
  const inventory=(await db.query(fs.readFileSync(require('path').join(queryDir,'company-separation-preflight.sql'),'utf8'))).rows;
  assert.equal(inventory.length,3); assert(inventory.every(r=>r.tenantId===source));
  const memberships=(await db.query(fs.readFileSync(require('path').join(queryDir,'company-separation-memberships.sql'),'utf8'))).rows;
@@ -51,6 +55,7 @@ async function fixture() {
  assert.equal((await db.query('SELECT count(*)::int AS n FROM users WHERE "identityId"=\'identity\'')).rows[0].n,3);
  assert.deepEqual((await db.query('SELECT id,debit,credit FROM journal_entry_lines ORDER BY id')).rows,valuesBefore);
  assert.deepEqual((await db.query('SELECT * FROM zatca_document_archive')).rows,archiveBefore);
+ assert.deepEqual((await db.query("SELECT * FROM accounts WHERE id IN ('unassigned','other-unassigned') ORDER BY id")).rows,templateBefore);
  await assert.rejects(db.exec(`UPDATE zatca_document_archive SET "tenantId"='other'`),/append-only/);
  assert.deepEqual((await db.query("SELECT * FROM attachments WHERE id='cmt1xk2990009130d2atjkmcn'")).rows,orphanBefore);
  const attachment=(await db.query("SELECT * FROM attachments WHERE id='attachment'")).rows[0];
@@ -68,6 +73,7 @@ async function fixture() {
   ['changed orphan identity',`UPDATE attachments SET id='cmt1xk2990009130d2atjkmcn',"entityId"='cmt1xk0an0004130d8whwq453',"uploadedBy"='different'`],
   ['cross-company account',`UPDATE journal_entry_lines SET "accountId"='account0' WHERE id='line1'`],
   ['foreign parent',`UPDATE journal_entry_lines SET "accountId"='account3' WHERE id='line1'`],
+  ['referenced shared template',`UPDATE accounts SET "companyId"=NULL WHERE id='account1'`],
   ['mirror',`UPDATE journal_entries SET "mirrorEntryId"='entry0' WHERE id='entry1'`],
   ['cross-company reversal',`UPDATE journal_entries SET "reversalOfEntryId"='entry0' WHERE id='entry1'`],
   ['reversed mirror',`UPDATE journal_entries SET "mirrorEntryId"='entry0',"reversalOfEntryId"='entry2' WHERE id='entry1'`]

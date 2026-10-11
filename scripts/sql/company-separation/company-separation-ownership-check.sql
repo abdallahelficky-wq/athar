@@ -85,11 +85,25 @@ BEGIN
  IF EXISTS(SELECT 1 FROM separation_ownership GROUP BY table_name,row_id HAVING count(*)>1) THEN
    RAISE EXCEPTION 'Cross-company relationship found; no changes applied';
  END IF;
+ -- Unused tenant chart templates stay unchanged. Any reference outside the template
+ -- hierarchy blocks separation; no transactional account may be left behind.
+ FOR rec IN SELECT child.relname AS child_table,ca.attname AS child_column
+   FROM pg_constraint fk JOIN pg_class child ON child.oid=fk.conrelid
+   JOIN pg_namespace ns ON ns.oid=child.relnamespace
+   JOIN pg_class parent ON parent.oid=fk.confrelid
+   JOIN pg_attribute ca ON ca.attrelid=child.oid AND ca.attnum=fk.conkey[1]
+   WHERE fk.contype='f' AND ns.nspname='public' AND parent.relname='accounts' AND cardinality(fk.conkey)=1 LOOP
+   EXECUTE format('SELECT EXISTS(SELECT 1 FROM public.%I c JOIN accounts a ON a.id=c.%I WHERE a."tenantId"=$1 AND a."companyId" IS NULL %s)',
+     rec.child_table,rec.child_column,
+     CASE WHEN rec.child_table='accounts' AND rec.child_column='parentId' THEN 'AND (c."companyId" IS NOT NULL OR c."tenantId"<>a."tenantId")' ELSE '' END)
+     INTO invalid USING source_id;
+   IF invalid THEN RAISE EXCEPTION 'Shared chart has references in %.%',rec.child_table,rec.child_column; END IF;
+ END LOOP;
  -- No orphan tenant-owned rows may be silently left behind (except explicit administrative history).
  FOR rec IN SELECT table_name FROM information_schema.columns WHERE table_schema='public' AND column_name='tenantId' LOOP
    IF rec.table_name = ANY(ignored) THEN CONTINUE; END IF;
    EXECUTE format('SELECT EXISTS(SELECT 1 FROM public.%I r LEFT JOIN separation_ownership o ON o.table_name=%L AND o.row_id=r.id WHERE (r."tenantId"=$1 AND o.row_id IS NULL %s) OR (o.row_id IS NOT NULL AND r."tenantId"<>$1))',rec.table_name,rec.table_name,
-     CASE WHEN rec.table_name='audit_logs' THEN 'AND r."companyId" IS NOT NULL'
+     CASE WHEN rec.table_name IN ('audit_logs','accounts') THEN 'AND r."companyId" IS NOT NULL'
        -- Preserve these two verified orphan records unchanged; never infer a company
        -- from an uploader. The deployed attachment guard denies missing-parent access.
        -- Any other orphan, changed identity/type/uploader, or foreign parent still aborts.
