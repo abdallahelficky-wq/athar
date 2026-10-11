@@ -181,15 +181,19 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
   // رقم في السلسلة ولا يُنشأ مستند معلَّق بلا داعٍ.
   if (subtypeForCustomer(params.customer) === "standard") assertStandardBuyerAddress(params.customer);
 
-  const rows = await tx.$queryRaw<{ zatcaNextIcv: number }[]>`
-    UPDATE "companies" SET "zatcaNextIcv" = "zatcaNextIcv" + 1
-    WHERE "id" = ${params.company.id}
-    RETURNING "zatcaNextIcv" - 1 AS "zatcaNextIcv"
+  // سلسلة ICV/PIH تُقرأ وتُحجَز من صف الشركة المقفول نفسه (SELECT … FOR UPDATE)، لا من params.company المقروءة قبل المعاملة.
+  // عطل مؤكَّد قبل هذا: PIH كانت params.company.zatcaLastInvoiceHash — قيمة قُرئت قبل بدء المعاملة؛ ترحيلان متزامنان في نفس
+  // الشركة ينتظر ثانيهما قفل UPDATE ثم يأخذ ICV التالي بـPIH قديمة (نفس PIH الأول) فتنكسر السلسلة (الدليل الفني لزاتكا،
+  // القسم 4.3: PIH = تجزئة آخر مستند وُلِّد). القفل يبقى حتى نهاية معاملة المستدعي، فلا يقرأ أحد العدّاد أو التجزئة قبل
+  // كتابة الصف وتحديثهما معاً أدناه. كل مسارات الحجز تمرّ من هنا (فواتير بما فيها نقاط البيع، إشعارات دائن ومدين،
+  // مستندات فحص الامتثال) — راجع chainConcurrency.integration.test.ts.
+  const locked = await tx.$queryRaw<{ zatcaNextIcv: number; zatcaLastInvoiceHash: string | null }[]>`
+    SELECT "zatcaNextIcv", "zatcaLastInvoiceHash" FROM "companies" WHERE "id" = ${params.company.id} FOR UPDATE
   `;
-  const icv = rows[0]?.zatcaNextIcv;
-  if (icv == null) throw new Error("تعذّر حجز رقم ICV — الشركة غير موجودة");
+  if (!locked[0]) throw new Error("تعذّر حجز رقم ICV — الشركة غير موجودة");
+  const icv = locked[0].zatcaNextIcv;
+  const previousInvoiceHash = locked[0].zatcaLastInvoiceHash || ZATCA_FIRST_INVOICE_PIH;
 
-  const previousInvoiceHash = params.company.zatcaLastInvoiceHash || ZATCA_FIRST_INVOICE_PIH;
   const issuedAt = new Date();
   const subtype = subtypeForCustomer(params.customer);
 
@@ -215,7 +219,7 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
   const xml = buildDocumentXml(documentInput);
   const invoiceHash = computeDocumentHash(xml);
 
-  await tx.company.update({ where: { id: params.company.id }, data: { zatcaLastInvoiceHash: invoiceHash } });
+  await tx.company.update({ where: { id: params.company.id }, data: { zatcaNextIcv: icv + 1, zatcaLastInvoiceHash: invoiceHash } });
 
   return {
     icv,
