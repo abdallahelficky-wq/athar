@@ -498,7 +498,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
       const invoiceNumber = await counted(counter1, reserveDocumentNumber(tx, tenantId, input.companyId, "sales_invoice"));
       const chain = await counted(
         counter1,
-        reserveZatcaChain(tx, { company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: zatcaUuid, lines: zatcaLines }),
+        reserveZatcaChain(tx, { company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: zatcaUuid, lines: zatcaLines, documentDate: input.date }),
       );
       const baseData = {
         tenantId,
@@ -939,7 +939,7 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
     phase1 = await prisma.$transaction(async (tx) => {
       const chain = await counted(
         counter1,
-        reserveZatcaChain(tx, { company, customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: zatcaUuid, lines: toZatcaLines(invoice.lines) }),
+        reserveZatcaChain(tx, { company, customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: zatcaUuid, lines: toZatcaLines(invoice.lines), documentDate: invoice.date }),
       );
       if (!chain) {
         const entry = await counted(counter1, createJournalEntryTx(tx, {

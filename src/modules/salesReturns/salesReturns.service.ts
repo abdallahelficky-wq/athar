@@ -231,7 +231,7 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
             counter1,
             reserveZatcaChain(tx, {
               company, customer, kind: "credit_note", documentNumber: returnNumber, documentUuid: zatcaUuid,
-              billingReferenceId, issuanceReason, lines: zatcaLines,
+              billingReferenceId, issuanceReason, lines: zatcaLines, documentDate: input.date,
             }),
           )
         : null;
@@ -538,7 +538,7 @@ export async function postSalesReturn(tenantId: string, userId: string, id: stri
             counter1,
             reserveZatcaChain(tx, {
               company, customer, kind: "credit_note", documentNumber: salesReturn.returnNumber, documentUuid: zatcaUuid,
-              billingReferenceId, issuanceReason: salesReturn.reason?.trim() || undefined, lines: toZatcaReturnLines(salesReturn.lines),
+              billingReferenceId, issuanceReason: salesReturn.reason?.trim() || undefined, lines: toZatcaReturnLines(salesReturn.lines), documentDate: salesReturn.date,
             }),
           )
         : null;

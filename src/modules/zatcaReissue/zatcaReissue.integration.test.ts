@@ -184,13 +184,16 @@ describe("ZATCA re-issue of rejected standard documents (integration)", () => {
   it("re-issues a rejected invoice: same number, new UUID/ICV/hash, PIH = last generated hash, supply date kept, chain continues", async () => {
     const rejected = await rejectedInvoice();
     const [issue1] = await prisma.zatcaDocumentIssue.findMany({ where: { documentId: rejected.id } });
-    expect(issue1).toMatchObject({ documentUuid: rejected.zatcaUuid, icv: rejected.icv, invoiceHash: rejected.invoiceHash, source: "issue", supplyDate: null });
+    expect(issue1).toMatchObject({ documentUuid: rejected.zatcaUuid, icv: rejected.icv, invoiceHash: rejected.invoiceHash, source: "issue", supplyDate: "2026-09-15" });
     // XML غير الموقَّع المحفوظ هو ما حُسبت عليه التجزئة فعلاً
     expect(computeDocumentHash(gunzipSync(Buffer.from(issue1.unsignedXml!)).toString("utf8"))).toBe(rejected.invoiceHash);
     const [attempt1] = await prisma.zatcaSubmissionAttempt.findMany({ where: { documentId: rejected.id } });
     expect(attempt1).toMatchObject({ outcome: "rejected", submissionKind: "clearance", documentUuid: rejected.zatcaUuid, source: "submission" });
     expect(attempt1.signedXmlSha256).toBe(sha256(zatca.calls[0].xml));
     expect(attempt1.reason).toContain("BR-KSA-15");
+    // BR-KSA-15: كل فاتورة قياسية جديدة تحمل KSA-5 = تاريخ الفاتورة، لا إعادة الإصدار وحدها
+    expect(zatca.calls[0].xml).toMatch(/<cbc:InvoiceTypeCode name="0100000">388<\/cbc:InvoiceTypeCode>/);
+    expect(tag(zatca.calls[0].xml, "cbc:ActualDeliveryDate")).toBe("2026-09-15");
     const nextIcvBefore = (await company()).zatcaNextIcv;
     const lastHashBefore = (await company()).zatcaLastInvoiceHash;
     expect(lastHashBefore).toBe(rejected.invoiceHash);
@@ -235,6 +238,7 @@ describe("ZATCA re-issue of rejected standard documents (integration)", () => {
 
     // المستند التالي في الشركة يتسلسل بعد المُعاد إصداره
     const next = await postInvoice(simplifiedCustomerId);
+    expect(zatca.calls.at(-1)!.xml).not.toContain("cac:Delivery"); // المبسّطة بلا KSA-5
     expect(next.icv).toBe(reissued.icv! + 1);
     expect(next.previousInvoiceHash).toBe(reissued.invoiceHash);
   });

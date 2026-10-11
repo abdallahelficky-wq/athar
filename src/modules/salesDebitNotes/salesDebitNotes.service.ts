@@ -147,7 +147,7 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
             counter1,
             reserveZatcaChain(tx, {
               company, customer, kind: "debit_note", documentNumber: debitNoteNumber, documentUuid: zatcaUuid,
-              billingReferenceId, issuanceReason, lines: zatcaLines,
+              billingReferenceId, issuanceReason, lines: zatcaLines, documentDate: input.date,
             }),
           )
         : null;
@@ -343,7 +343,7 @@ export async function postSalesDebitNote(tenantId: string, userId: string, id: s
             counter1,
             reserveZatcaChain(tx, {
               company, customer, kind: "debit_note", documentNumber: debitNote.debitNoteNumber, documentUuid: zatcaUuid,
-              billingReferenceId, issuanceReason: debitNote.reason?.trim() || undefined, lines: toZatcaDebitNoteLines(debitNote.lines),
+              billingReferenceId, issuanceReason: debitNote.reason?.trim() || undefined, lines: toZatcaDebitNoteLines(debitNote.lines), documentDate: debitNote.date,
             }),
           )
         : null;

@@ -32,7 +32,7 @@ export interface ZatcaDocumentRef {
 export async function recordZatcaIssueTx(
   tx: Tx,
   doc: ZatcaDocumentRef,
-  chain: Pick<ZatcaChainResult, "icv" | "previousInvoiceHash" | "invoiceHash" | "issuedAt" | "xml" | "subtype">,
+  chain: Pick<ZatcaChainResult, "icv" | "previousInvoiceHash" | "invoiceHash" | "issuedAt" | "xml" | "subtype" | "supplyDate">,
   opts: { userId?: string | null; supplyDate?: string; reissue?: { ofIssueId: string | null } } = {},
 ) {
   const unsigned = Buffer.from(chain.xml, "utf8");
@@ -44,7 +44,7 @@ export async function recordZatcaIssueTx(
       invoiceHash: chain.invoiceHash,
       subtype: chain.subtype,
       issuedAt: chain.issuedAt,
-      supplyDate: opts.supplyDate ?? null,
+      supplyDate: opts.supplyDate ?? chain.supplyDate ?? null,
       reissueOfIssueId: opts.reissue?.ofIssueId ?? null,
       compression: "gzip",
       unsignedXml: gzipSync(unsigned),

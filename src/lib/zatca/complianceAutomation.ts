@@ -170,6 +170,8 @@ export async function runZatcaComplianceStep(tenantId: string, companyId: string
     billingReferenceId: step.kind !== "invoice" ? SYNTHETIC_BILLING_REFERENCE_ID : undefined,
     issuanceReason: step.kind !== "invoice" ? SYNTHETIC_ISSUANCE_REASON : undefined,
     lines: syntheticLines(),
+    // مستند اصطناعي يُصدَر الآن — تاريخه اليوم، ومنه KSA-5 لخطوة الفاتورة القياسية (BR-KSA-15)
+    documentDate: new Date(),
     grandTotal: 1.15,
     vatTotal: 0.15,
   });
