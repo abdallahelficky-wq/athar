@@ -10,6 +10,7 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "أضف الشركة الجديدة كحساب مستقل من إعدادات الشركات": "Add the new company as an independent account from company settings.",
   "اسم الوظيفة مطلوب": "Job title name is required",
   "اسم الوظيفة طويل جداً": "Job title name is too long",
   "هذه الوظيفة موجودة بالفعل": "This job title already exists",

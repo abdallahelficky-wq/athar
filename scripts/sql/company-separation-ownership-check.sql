@@ -1,12 +1,13 @@
--- Read-only technical ownership check. Only IDs and relationship counts; no financial/document contents.
+BEGIN;
+CREATE TEMP TABLE separation_targets(company_id text PRIMARY KEY, tenant_id text UNIQUE, admin_id text UNIQUE);
+CREATE TEMP TABLE separation_ownership(table_name text, row_id text, company_id text, PRIMARY KEY(table_name,row_id,company_id));
+COMMIT;
 BEGIN READ ONLY;
-SET LOCAL lock_timeout = '5s';
-SET LOCAL statement_timeout = '90s';
-CREATE TEMP TABLE separation_targets(company_id text PRIMARY KEY, tenant_id text UNIQUE, admin_id text UNIQUE) ON COMMIT DROP;
+-- Read-only technical ownership check. Only IDs and relationship counts; no financial/document contents.
+
 INSERT INTO separation_targets VALUES
  ('cmuhc8l5t00f4qjb6uoe4vxx8','split_'||md5('cmuhc8l5t00f4qjb6uoe4vxx8'),'split_'||md5('admin:cmuhc8l5t00f4qjb6uoe4vxx8')),
  ('cmuttoi4d000cd4o74anj3ibr','split_'||md5('cmuttoi4d000cd4o74anj3ibr'),'split_'||md5('admin:cmuttoi4d000cd4o74anj3ibr'));
-CREATE TEMP TABLE separation_ownership(table_name text, row_id text, company_id text, PRIMARY KEY(table_name,row_id,company_id)) ON COMMIT DROP;
 DO $separate$
 DECLARE
  source_id constant text := 'cmsrchwg90009e8f5fmj3v59l';
@@ -98,3 +99,5 @@ BEGIN
 END $separate$;
 SELECT table_name,count(*) AS relationship_count FROM separation_ownership GROUP BY table_name ORDER BY table_name;
 ROLLBACK;
+
+DROP TABLE separation_targets,separation_ownership;

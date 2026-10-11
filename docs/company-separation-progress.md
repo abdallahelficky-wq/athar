@@ -38,3 +38,15 @@ No final cutover script exists yet. Before cutover:
 6. Verify one-company creation policy, all-company reports and account-switch isolation across tabs and requests, then deploy and perform a controlled cutover with rollback and metadata-only postchecks.
 
 The picker is a prerequisite, not evidence of completed company isolation.
+
+## Update 2026-10-08 — implementation and local verification
+
+- Added live membership checks to normal and employee portal authentication. Old claims fail after a tenant/scope move. Signed-token middleware tests cover both paths.
+- Added cross-tab session reload and independent-company default; company-scoped users cannot add another company into their current tenant.
+- Added `scripts/ops/separate-armi-companies.sql`, an explicit, atomic, user-authorized relocation (not an automatically executed Prisma migration). It preserves IDs/object keys, derives ownership from actual FK metadata, clones positions/admin membership, and revokes refresh tokens. Any unknown or conflicting ownership aborts.
+- Added a read-only ownership preflight using temporary session tables, with public tables accessed inside a read-only transaction.
+- Actual SQL tested against the complete generated Prisma schema including unrelated tenants with identical company names and different synthetic amounts. Success preserves amounts, permissions and attachments. Unknown attachments, cross-company/foreign account parents, mirrors, cross-company reversals and reversed mirrors all abort with no persistent move.
+- 72 focused authentication/route tests passed; TypeScript and frontend build passed. Broad local suite has environment/dependency failures (including missing OpenSSL); CI remains required.
+- Merged current production into this branch. Re-tested SQL after the schema update.
+
+Still pending: live ownership preflight, CI/deployment, final operational verification and production cutover. Production separation has NOT happened. The earlier 'no cutover script exists' statement is superseded by this update.

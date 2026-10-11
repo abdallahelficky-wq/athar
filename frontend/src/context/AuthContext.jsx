@@ -19,6 +19,18 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(stored?.user ?? null);
   const [tenant, setTenant] = useState(stored?.tenant ?? null);
   const [initializing, setInitializing] = useState(true);
+  useEffect(() => {
+    const onSessionChange = (event) => {
+      if (event.key !== SESSION_KEY) return;
+      let next = null;
+      try { next = event.newValue ? JSON.parse(event.newValue) : null; } catch { /* invalid session: reload */ }
+      if (next?.user?.id !== user?.id || next?.tenant?.id !== tenant?.id) {
+        window.location.replace("/dashboard");
+      }
+    };
+    window.addEventListener("storage", onSessionChange);
+    return () => window.removeEventListener("storage", onSessionChange);
+  }, [user?.id, tenant?.id]);
   // مؤشّر تشخيصي فقط (من /auth/me، بلا تخزين محلي — يُعاد جلبه كل فتح تطبيق) لعرض تنبيه لوحة
   // الإدارة لو خدمة الإيميل غير مضبوطة على الخادم؛ انظر التحذير المطابق في server.ts.
   const [emailServiceConfigured, setEmailServiceConfigured] = useState(true);

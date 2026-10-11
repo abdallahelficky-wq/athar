@@ -29,6 +29,7 @@ async function fixture() {
 }
 (async()=>{
  const db=await fixture();
+ if (process.argv[4]) await db.exec(fs.readFileSync(process.argv[4], "utf8"));
  const valuesBefore=(await db.query('SELECT id,debit,credit FROM journal_entry_lines ORDER BY id')).rows;
  await db.exec(cutover);
  const rows=(await db.query('SELECT "tenantId",count(*)::int AS n FROM companies GROUP BY "tenantId"')).rows;
