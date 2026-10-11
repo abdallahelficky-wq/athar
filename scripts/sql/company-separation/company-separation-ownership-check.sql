@@ -89,7 +89,17 @@ BEGIN
  FOR rec IN SELECT table_name FROM information_schema.columns WHERE table_schema='public' AND column_name='tenantId' LOOP
    IF rec.table_name = ANY(ignored) THEN CONTINUE; END IF;
    EXECUTE format('SELECT EXISTS(SELECT 1 FROM public.%I r LEFT JOIN separation_ownership o ON o.table_name=%L AND o.row_id=r.id WHERE (r."tenantId"=$1 AND o.row_id IS NULL %s) OR (o.row_id IS NOT NULL AND r."tenantId"<>$1))',rec.table_name,rec.table_name,
-     CASE WHEN rec.table_name='audit_logs' THEN 'AND r."companyId" IS NOT NULL' ELSE '' END) INTO invalid USING source_id;
+     CASE WHEN rec.table_name='audit_logs' THEN 'AND r."companyId" IS NOT NULL'
+       -- Preserve these two verified orphan records unchanged; never infer a company
+       -- from an uploader. The deployed attachment guard denies missing-parent access.
+       -- Any other orphan, changed identity/type/uploader, or foreign parent still aborts.
+       WHEN rec.table_name='attachments' THEN $filter$
+         AND NOT (r."entityType"='journal_entry' AND
+           (r.id,r."entityId",r."uploadedBy") IN (
+             ('cmt1xk2990009130d2atjkmcn','cmt1xk0an0004130d8whwq453','cmsrchxbb000be8f5jibbjmzn'),
+             ('cmtpk5scy0012kclo18agknox','cmtpk5pv2000xkclokyccfhjw','cmtik0ioo000nmxf8mex7qkt9'))
+           AND NOT EXISTS (SELECT 1 FROM journal_entries j WHERE j.id=r."entityId"))
+       $filter$ ELSE '' END) INTO invalid USING source_id;
    IF invalid THEN RAISE EXCEPTION 'Unresolved or foreign ownership in table %',rec.table_name; END IF;
  END LOOP;
  IF EXISTS(SELECT 1 FROM journal_entries j JOIN journal_entries r ON r.id=j."reversalOfEntryId" WHERE j."tenantId"=source_id AND (j."companyId"<>r."companyId" OR j."tenantId"<>r."tenantId")) THEN

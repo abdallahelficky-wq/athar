@@ -9,6 +9,10 @@ const schema=fs.readFileSync(process.argv[2],'utf8');
 const cutover=fs.readFileSync(process.argv[3],'utf8');
 async function fixture() {
  const db=new PGlite(); await db.exec(schema);
+ // Install the actual append-only trigger, not a hand-written imitation.
+ const archiveMigration=fs.readFileSync(require('path').resolve(__dirname,'../../../prisma/migrations/20260928140000_zatca_document_archive/migration.sql'),'utf8');
+ const triggerEnd='FOR EACH STATEMENT EXECUTE FUNCTION zatca_document_archive_immutable();';
+ await db.exec(archiveMigration.slice(archiveMigration.indexOf('CREATE FUNCTION zatca_document_archive_immutable()'),archiveMigration.indexOf(triggerEnd)+triggerEnd.length));
  await db.exec(`INSERT INTO tenants(id,name,"unlockPin","updatedAt") VALUES ('${source}','group','test',now()),('other','group','test',now());
  INSERT INTO identities(id,email,"updatedAt") VALUES ('identity','asf@tismpro.sa',now()),('accountant-identity','test@example.invalid',now());
  INSERT INTO users(id,"identityId","tenantId",name,role,"updatedAt") VALUES ('admin','identity','${source}','admin','admin',now());
@@ -25,18 +29,31 @@ async function fixture() {
   await db.query('INSERT INTO journal_entry_lines(id,"journalEntryId","accountId",debit) VALUES ($1,$2,$3,$4)',['line'+i,'entry'+i,'account'+i,(i+1)*17]);
  }
  await db.exec(`INSERT INTO attachments(id,"tenantId","entityType","entityId","fileName","fileKey","fileSize","mimeType","uploadedBy") VALUES ('attachment','${source}','journal_entry','entry1','synthetic.xlsx','unchanged-object-key',42,'application/octet-stream','admin');`);
+ // Legacy archive metadata; actual signed-document export is tested through its producer in the integration suite.
+ await db.query(`INSERT INTO zatca_document_archive(id,"tenantId","companyId","documentType","documentId","documentNumber","documentUuid",icv,"invoiceHash",subtype,"submissionKind","issuedAt",compression,source) VALUES ('archive',$1,$2,'sales_invoice','legacy','LEGACY','uuid',1,'hash','simplified','reporting',now(),'none','backfill')`,[source,companies[1]]);
  return db;
 }
 (async()=>{
  const db=await fixture();
+ const queryDir=require('path').resolve(__dirname,'../../sql/company-separation');
+ const inventory=(await db.query(fs.readFileSync(require('path').join(queryDir,'company-separation-preflight.sql'),'utf8'))).rows;
+ assert.equal(inventory.length,3); assert(inventory.every(r=>r.tenantId===source));
+ const memberships=(await db.query(fs.readFileSync(require('path').join(queryDir,'company-separation-memberships.sql'),'utf8'))).rows;
+ assert.equal(memberships.filter(r=>r.kind==='membership').length,2);
  if (process.argv[4]) await db.exec(fs.readFileSync(process.argv[4], "utf8"));
  const valuesBefore=(await db.query('SELECT id,debit,credit FROM journal_entry_lines ORDER BY id')).rows;
+ await db.exec(`INSERT INTO attachments(id,"tenantId","entityType","entityId","fileName","fileKey","fileSize","mimeType","uploadedBy") VALUES ('cmt1xk2990009130d2atjkmcn','${source}','journal_entry','cmt1xk0an0004130d8whwq453','orphan.xlsx','preserved-orphan',42,'application/octet-stream','cmsrchxbb000be8f5jibbjmzn');`);
+ const orphanBefore=(await db.query("SELECT * FROM attachments WHERE id='cmt1xk2990009130d2atjkmcn'")).rows;
+ const archiveBefore=(await db.query('SELECT * FROM zatca_document_archive')).rows;
  await db.exec(cutover);
  const rows=(await db.query('SELECT "tenantId",count(*)::int AS n FROM companies GROUP BY "tenantId"')).rows;
  assert.equal(rows.length,4); assert(rows.every(x=>x.n===1));
  assert.equal((await db.query('SELECT count(*)::int AS n FROM users WHERE "identityId"=\'identity\'')).rows[0].n,3);
  assert.deepEqual((await db.query('SELECT id,debit,credit FROM journal_entry_lines ORDER BY id')).rows,valuesBefore);
- const attachment=(await db.query('SELECT * FROM attachments')).rows[0];
+ assert.deepEqual((await db.query('SELECT * FROM zatca_document_archive')).rows,archiveBefore);
+ await assert.rejects(db.exec(`UPDATE zatca_document_archive SET "tenantId"='other'`),/append-only/);
+ assert.deepEqual((await db.query("SELECT * FROM attachments WHERE id='cmt1xk2990009130d2atjkmcn'")).rows,orphanBefore);
+ const attachment=(await db.query("SELECT * FROM attachments WHERE id='attachment'")).rows[0];
  const accountant=(await db.query('SELECT * FROM users WHERE id=\'accountant\'')).rows[0];
  assert.equal(attachment.tenantId,accountant.tenantId); assert.equal(attachment.fileKey,'unchanged-object-key'); assert.notEqual(attachment.uploadedBy,'admin');
  assert.notEqual(accountant.positionId,'position');
@@ -47,6 +64,8 @@ async function fixture() {
  console.log('PASS: actual cutover preserves records, amounts, object keys, permissions, unrelated tenant, and revokes old refresh sessions.');
  const failures=[
   ['unknown attachment',`UPDATE attachments SET "entityType"='unknown'`],
+  ['unrecognized orphan',`UPDATE attachments SET "entityId"='missing'`],
+  ['changed orphan identity',`UPDATE attachments SET id='cmt1xk2990009130d2atjkmcn',"entityId"='cmt1xk0an0004130d8whwq453',"uploadedBy"='different'`],
   ['cross-company account',`UPDATE journal_entry_lines SET "accountId"='account0' WHERE id='line1'`],
   ['foreign parent',`UPDATE journal_entry_lines SET "accountId"='account3' WHERE id='line1'`],
   ['mirror',`UPDATE journal_entries SET "mirrorEntryId"='entry0' WHERE id='entry1'`],

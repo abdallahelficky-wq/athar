@@ -205,7 +205,7 @@ function NewCompanyForm({ onCompanyCreated }) {
       });
       resetFields();
       setShowForm(false);
-      setMode("group");
+      setMode("independent");
       setIndependentResult(result);
     } catch (err) {
       setError(err.message || t("settings.newCompany.errGeneric"));

@@ -50,3 +50,13 @@ The picker is a prerequisite, not evidence of completed company isolation.
 - Merged current production into this branch. Re-tested SQL after the schema update.
 
 Still pending: live ownership preflight, CI/deployment, final operational verification and production cutover. Production separation has NOT happened. The earlier 'no cutover script exists' statement is superseded by this update.
+
+## Update 2026-10-11 — preflight blockers resolved in code, deployment pending
+
+- Production ownership preflight stopped on two orphan journal attachments. No production public-table writes occurred. A metadata-only audit lookup found no ownership evidence.
+- Retain exactly those verified orphan records unchanged in their existing tenant; do not guess an owner or delete files. Any unrecognized orphan still aborts. Attachment access now requires an existing parent in the current tenant, including all-scope administrators, before listing/signing/uploading/deleting.
+- Immutable ZATCA archive rows are excluded from tenantId updates, retaining historical provenance. Export joins current company ownership in the same SQL query so former tenants cannot access relocated company archives. Archive triggers remain enabled.
+- Eight attachment handler tests passed. Local cutover tests pass with the actual archive immutability trigger installed, unchanged archive/orphan rows, unrelated-tenant isolation, permission preservation, and rollback for eight invalid relationship cases.
+- Targeted metadata queries moved into scripts/sql/company-separation/ with dedicated CI coverage; these are not generic financial reports. CI also runs the actual cutover in isolated PGlite databases.
+- Added a real signed-document integration test for archive export after company relocation; CI validation remains pending.
+- Production separation is NOT complete. Deploy all access guards and obtain passing live preflight before running the cutover transaction.
