@@ -3,22 +3,32 @@ import { useTranslation } from "react-i18next";
 import { downloadBlob } from "../../legacy/shared";
 import { formatDateTime } from "../../i18n/dateFormat";
 import { getZatcaHistory, getZatcaAttemptXmlBlob, reissueRejectedZatcaDocument } from "../../api/zatcaHistory";
+import { zatcaHistoryView } from "./zatcaHistoryState";
 
 /**
  * سجل زاتكا لمستند واحد: كل إصدار (UUID/ICV — لا يُعاد استخدام أيٍّ منهما) وكل محاولة إرسال بنتيجتها وملف XML الموقَّع كما أُرسِل.
  * وزر "إعادة إصدار المستند المصحَّح" لمستند قياسي رفضته زاتكا فقط: نفس الرقم، UUID/ICV جديدان، تاريخ إصدار جديد، وتاريخ
  * التوريد يبقى تاريخ المستند الأصلي (راجع src/lib/zatca/reissue.ts). الخادم يتحقّق من كل الشروط والصلاحية من جديد.
  */
-export default function ZatcaHistoryPanel({ basePath, document, canReissue, onReissued, notify }) {
+export default function ZatcaHistoryPanel({ basePath, document, onReissued, notify }) {
   const { t, i18n } = useTranslation();
   const [history, setHistory] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  const load = () => getZatcaHistory(basePath, document.id).then(setHistory).catch(() => setHistory({ issues: [], attempts: [] }));
+  // الخطأ لا يُبتلَع: كان catch يضع قائمتين فارغتين فتختفي اللوحة أو تبدو فارغة بلا أي تفسير
+  const load = () => {
+    setLoading(true);
+    return getZatcaHistory(basePath, document.id)
+      .then((h) => { setHistory(h); setError(null); })
+      .catch((err) => setError({ status: err?.status, message: err?.message }))
+      .finally(() => setLoading(false));
+  };
   useEffect(() => { load(); }, [basePath, document.id, document.zatcaUuid, document.zatcaStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!history || (history.issues.length === 0 && history.attempts.length === 0 && !canReissue)) return null;
+  const view = zatcaHistoryView({ loading, error, history, zatcaStatus: document.zatcaStatus });
 
   const download = async (attempt) => {
     try {
@@ -47,7 +57,17 @@ export default function ZatcaHistoryPanel({ basePath, document, canReissue, onRe
   return (
     <section className="no-print" style={{ padding: 16, marginBottom: 16, border: "1px solid #ddd", borderRadius: 8 }}>
       <h4 style={{ marginTop: 0 }}>{t("zatcaHistory.title")}</h4>
-      {canReissue && (
+      {view.kind === "loading" && <p role="status">{t("zatcaHistory.loading")}</p>}
+      {view.kind === "error" && (
+        <p role="alert" style={{ color: "#b42318" }}>
+          {view.status ? t("zatcaHistory.loadErrorWithStatus", { status: view.status }) : t("zatcaHistory.loadErrorNetwork")}
+          {view.message ? <>: <span dir="auto">{view.message}</span></> : null}{" "}
+          <button type="button" className="btn-link" onClick={load}>{t("zatcaHistory.retryLoad")}</button>
+        </p>
+      )}
+      {view.kind === "empty" && <p>{t("zatcaHistory.empty")}</p>}
+      {view.reissueBlockedReason && <p style={{ color: "#8a6100" }}><span dir="auto">{view.reissueBlockedReason}</span></p>}
+      {view.showReissue && (
         <div style={{ marginBottom: 12 }}>
           {!confirming ? (
             <button type="button" className="btn-primary" onClick={() => setConfirming(true)}>{t("zatcaHistory.reissue")}</button>
@@ -62,12 +82,12 @@ export default function ZatcaHistoryPanel({ basePath, document, canReissue, onRe
           )}
         </div>
       )}
-      {history.issues.length > 0 && (
+      {view.kind === "data" && view.issues.length > 0 && (
         <div className="table-responsive">
           <table className="table">
             <thead><tr><th>ICV</th><th>UUID</th><th>{t("zatcaHistory.issuedAt")}</th><th>{t("zatcaHistory.supplyDate")}</th><th>{t("zatcaHistory.source")}</th></tr></thead>
             <tbody>
-              {history.issues.map((i) => (
+              {view.issues.map((i) => (
                 <tr key={i.id} style={i.documentUuid === document.zatcaUuid ? { fontWeight: 600 } : undefined}>
                   <td data-label="ICV">{i.icv}</td>
                   <td data-label="UUID"><bdi style={{ overflowWrap: "anywhere" }}>{i.documentUuid}</bdi></td>
@@ -80,12 +100,12 @@ export default function ZatcaHistoryPanel({ basePath, document, canReissue, onRe
           </table>
         </div>
       )}
-      {history.attempts.length > 0 && (
+      {view.kind === "data" && view.attempts.length > 0 && (
         <div className="table-responsive">
           <table className="table">
             <thead><tr><th>{t("zatcaHistory.attemptedAt")}</th><th>ICV</th><th>{t("zatcaHistory.outcome")}</th><th>HTTP</th><th>{t("zatcaHistory.reason")}</th><th>XML</th></tr></thead>
             <tbody>
-              {history.attempts.map((a) => (
+              {view.attempts.map((a) => (
                 <tr key={a.id}>
                   <td data-label={t("zatcaHistory.attemptedAt")}>{fmtTime(a.attemptedAt)}</td>
                   <td data-label="ICV">{a.icv}</td>
