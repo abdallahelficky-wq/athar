@@ -66,7 +66,7 @@ export async function reserveReissueChainTx(
   const company = await tx.company.findUniqueOrThrow({ where: { id: params.company.id } });
   const chain = await reserveZatcaChain(tx, {
     company, customer: params.customer, kind: params.kind, documentNumber: params.documentNumber, documentUuid,
-    billingReferenceId: params.billingReferenceId, issuanceReason: params.issuanceReason, lines: params.lines, supplyDate,
+    billingReferenceId: params.billingReferenceId, issuanceReason: params.issuanceReason, lines: params.lines, documentDate: params.documentDate, supplyDate,
   });
   if (!chain) throw badRequest("الشركة غير مرتبطة بزاتكا — لا معنى لإعادة الإصدار");
   return { chain, documentUuid, supplyDate };

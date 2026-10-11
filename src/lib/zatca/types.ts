@@ -56,6 +56,9 @@ export interface ZatcaDocumentInput {
    * مستند قياسي رفضته زاتكا (reissue.ts): تاريخ الإصدار (BT-2) يصبح لحظة إعادة الإصدار، وتاريخ التوريد يبقى
    * تاريخ المستند الأصلي. غيابه = لا عنصر cac:Delivery إطلاقاً (السلوك السابق كما هو بالضبط). */
   supplyDate?: string;
+  /** إعادة إنتاج تجزئة فاتورة قياسية حُجزت بهذا المُنشئ قبل أن يصبح KSA-5 إلزامياً فيه — يضبطه rebuildZatcaDocumentXml
+   * وحده (chain.ts). بدونه يرفض buildDocumentXml أي فاتورة قياسية (388) بلا supplyDate (BR-KSA-15). */
+  reproduceWithoutSupplyDate?: boolean;
   seller: ZatcaPartyInput;
   /** إلزامي للفاتورة القياسية (standard)، يُترك فارغاً للمبسّطة (simplified) */
   buyer?: ZatcaPartyInput;

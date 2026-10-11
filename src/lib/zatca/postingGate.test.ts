@@ -128,6 +128,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -151,6 +152,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -178,6 +180,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -199,6 +202,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -220,6 +224,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -246,6 +251,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -274,6 +280,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -294,6 +301,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 175,
       vatTotal: 22.83,
     });
@@ -318,6 +326,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -345,6 +354,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 175,
       vatTotal: 22.83,
     });
@@ -365,6 +375,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -393,6 +404,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 175,
       vatTotal: 22.83,
     });
@@ -413,6 +425,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -440,6 +453,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 175,
       vatTotal: 22.83,
     });
@@ -461,6 +475,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -484,6 +499,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -533,6 +549,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -557,6 +574,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -578,6 +596,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -603,6 +622,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -623,6 +643,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00002",
       documentUuid: "4df6eecf-2492-45a0-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -648,6 +669,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -677,6 +699,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
@@ -701,6 +724,7 @@ describe("evaluateZatcaPostingGate", () => {
       documentNumber: "INV-00001",
       documentUuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
       lines: LINES as never,
+      documentDate: new Date("2026-10-01"),
       grandTotal: 115,
       vatTotal: 15,
     });
