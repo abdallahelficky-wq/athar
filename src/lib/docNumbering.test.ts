@@ -12,29 +12,27 @@ import { reserveDocumentNumber } from "./docNumbering";
 // nextSeq مُهيَّأ مسبقاً (كما تكتبه الهجرة)، لا تُعيد البدء من 1 مهما كان الصف موجوداً بالفعل.
 describe("reserveDocumentNumber — debit note numbering continuity after the count-based → atomic-counter migration", () => {
   it("continues from a pre-seeded nextSeq (as the migration backfill sets for a company with 47 pre-existing debit notes) instead of restarting at 1", async () => {
-    const upsert = vi.fn().mockResolvedValue({});
+    const createMany = vi.fn().mockResolvedValue({ count: 0 });
     // يُحاكي بالضبط ما تكتبه migration.sql لشركة لديها DBN-00001..DBN-00047 موجودة فعلاً قبل
     // التحوّل: الصف مُهيَّأ مسبقاً بـnextSeq=48 (لا 1 الافتراضي) — أي الرقم التالي المتاح للحجز هو
     // 48. tx.$queryRaw هنا وهمية تُمثِّل نتيجة UPDATE...RETURNING الحقيقية (raw SQL لا يمكن تنفيذه
     // بلا Postgres فعلية)، فتُعيد "seq: 48" مباشرة كما يجب أن يُعيده الاستعلام الحقيقي في هذه الحالة.
     const queryRaw = vi.fn().mockResolvedValue([{ seq: 48, prefix: "DBN-", digits: 5 }]);
-    const tx = { documentNumberingSettings: { upsert }, $queryRaw: queryRaw } as any;
+    const tx = { documentNumberingSettings: { createMany }, $queryRaw: queryRaw } as any;
 
     const result = await reserveDocumentNumber(tx, "tenant-1", "company-with-history", "sales_debit_note");
 
     expect(result).toBe("DBN-00048");
     // ملاحظة أساسية: القيمة 48 هنا أتت من tx.$queryRaw (تُحاكي عمود nextSeq المُهيَّأ من الهجرة) —
-    // لا من upsert's create (الذي يعتمد على القيمة الافتراضية 1 فقط عند عدم وجود صف مُهيَّأ مسبقاً
-    // أصلاً)؛ upsert's update: {} صراحة لا تكتب فوق nextSeq الموجود.
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ update: {} }),
-    );
+    // لا من إدراج الصف الافتراضي (القيمة 1 فقط عند عدم وجود صف أصلاً)؛ skipDuplicates (ON CONFLICT DO NOTHING) لا يكتب
+    // فوق صف موجود ولا فوق nextSeq الموجود.
+    expect(createMany).toHaveBeenCalledWith(expect.objectContaining({ skipDuplicates: true }));
   });
 
   it("still starts at 1 for a brand-new company/docType pair with no pre-existing documents at all", async () => {
-    const upsert = vi.fn().mockResolvedValue({});
+    const createMany = vi.fn().mockResolvedValue({ count: 0 });
     const queryRaw = vi.fn().mockResolvedValue([{ seq: 1, prefix: "DBN-", digits: 5 }]);
-    const tx = { documentNumberingSettings: { upsert }, $queryRaw: queryRaw } as any;
+    const tx = { documentNumberingSettings: { createMany }, $queryRaw: queryRaw } as any;
 
     const result = await reserveDocumentNumber(tx, "tenant-1", "brand-new-company", "sales_debit_note");
 
@@ -45,7 +43,7 @@ describe("reserveDocumentNumber — debit note numbering continuity after the co
     // شركة A بتاريخ حتى DBN-00047 → 48 التالي. شركة B بتاريخ حتى DBN-00003 فقط → 4 التالي. لكل
     // شركة صفّها الخاص في document_numbering_settings (نطاق العدّاد لكل شركة، لا للمستأجر بالكامل).
     const makeTx = (seededSeq: number) => ({
-      documentNumberingSettings: { upsert: vi.fn().mockResolvedValue({}) },
+      documentNumberingSettings: { createMany: vi.fn().mockResolvedValue({ count: 0 }) },
       $queryRaw: vi.fn().mockResolvedValue([{ seq: seededSeq, prefix: "DBN-", digits: 5 }]),
     });
 
