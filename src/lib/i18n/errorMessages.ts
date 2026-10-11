@@ -550,6 +550,8 @@ export const AR_TO_EN: Record<string, string> = {
     "Couldn't re-issue: the original invoice linked to this note no longer exists — contact support",
   "الشركة غير مرتبطة بزاتكا — لا معنى لإعادة الإصدار": "The company isn't connected to ZATCA — re-issue doesn't apply",
   "لا يوجد ملف XML موقَّع محفوظ لهذه المحاولة": "No signed XML is saved for this attempt",
+  "BR-KSA-15: الفاتورة الضريبية القياسية (388) يلزمها تاريخ التوريد (KSA-5) — supplyDate غير مُمرَّر":
+    "BR-KSA-15: a standard tax invoice (388) requires the supply date (KSA-5) — supplyDate was not passed",
   "بيانات سلسلة زاتكا لهذه الفاتورة غير مكتملة — تعذّرت إعادة المحاولة، راجع الدعم الفني": "This invoice's ZATCA chain data is incomplete — retry failed, contact support",
   "جارٍ إعادة محاولة إرسال هذه الفاتورة بالفعل الآن — انتظر قليلاً ثم تحقّق من حالتها قبل إعادة المحاولة": "This invoice is already being retried right now — wait a moment then check its status before retrying again",
   "تعذّرت إعادة المحاولة: بيانات الفاتورة المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى": "Retry failed: the invoice's stored data no longer matches what the chain was originally reserved for — contact support before trying again",

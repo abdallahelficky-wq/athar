@@ -63,6 +63,8 @@ export interface EvaluateZatcaPostingGateParams {
   /** BR-KSA-17 (KSA-10) — إلزامي لإشعار دائن/مدين، راجع buildPaymentMeansXml في xmlBuilder.ts */
   issuanceReason?: string;
   lines: ZatcaPersistedLineLike[];
+  /** تاريخ المستند — منه KSA-5 للفاتورة القياسية (supplyDateFor في chain.ts) */
+  documentDate: Date;
   grandTotal: number;
   vatTotal: number;
 }
@@ -230,6 +232,7 @@ export async function reserveZatcaChainForPosting(params: {
   billingReferenceId?: string;
   issuanceReason?: string;
   lines: ZatcaPersistedLineLike[];
+  documentDate: Date;
 }) {
   return prisma.$transaction((tx) => reserveZatcaChain(tx, params));
 }
@@ -252,6 +255,7 @@ export async function evaluateZatcaPostingGate(params: EvaluateZatcaPostingGateP
     billingReferenceId: params.billingReferenceId,
     issuanceReason: params.issuanceReason,
     lines: params.lines,
+    documentDate: params.documentDate,
   });
   if (!chain) {
     return { proceedWithPosting: true, zatcaFields: { zatcaStatus: "not_applicable" } };

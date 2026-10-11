@@ -61,6 +61,20 @@ export interface ZatcaChainResult {
    * بنائه، حتى تبقى التجزئة والمحتوى المُرسَل مضمونَي التطابق دائماً. */
   xml: string;
   subtype: ZatcaInvoiceSubtype;
+  /** KSA-5 كما دخل المستند (YYYY-MM-DD) — مُعرَّف لكل فاتورة ضريبية قياسية (388)، ولإشعار أُعيد إصداره. يُسجَّل في
+   * zatca_document_issues لتعيد إعادةُ المحاولة بناءَ المستند نفسه بالتجزئة نفسها. */
+  supplyDate?: string;
+}
+
+/**
+ * BR-KSA-15 (نص التحذير كما ظهر على الفاتورة 00156): «يجب أن تحتوي الفاتورة الضريبية ((BT-3 = 388) و(KSA-2 يبدأ بـ'01'))
+ * على تاريخ التوريد (KSA-5)». فكل فاتورة قياسية جديدة تحمل KSA-5 = تاريخ الفاتورة؛ وإعادة الإصدار تمرّر تاريخ المستند الأصلي
+ * نفسه (supplyDate صريحاً، لإشعارَي الدائن والمدين أيضاً). المبسّطة والإشعارات العادية بلا KSA-5 كما كانت.
+ * المُنشئ المُجمَّد (xmlBuilderV1) لا يُمسّ: يُستخدَم فقط لإعادة إنتاج تجزئة مستندات حُجزت قبله.
+ */
+export function supplyDateFor(kind: ZatcaDocumentKind, subtype: ZatcaInvoiceSubtype, documentDate: Date, explicit?: string): string | undefined {
+  if (explicit) return explicit;
+  return kind === "invoice" && subtype === "standard" ? documentDate.toISOString().slice(0, 10) : undefined;
 }
 
 interface ReserveZatcaChainParams {
@@ -73,7 +87,9 @@ interface ReserveZatcaChainParams {
   /** BR-KSA-17 (KSA-10) — إلزامي لإشعار دائن/مدين، راجع buildPaymentMeansXml في xmlBuilder.ts */
   issuanceReason?: string;
   lines: ZatcaPersistedLineLike[];
-  /** KSA-5 — فقط عند إعادة إصدار مستند قياسي مرفوض: تاريخ المستند الأصلي (YYYY-MM-DD). راجع reissue.ts */
+  /** تاريخ المستند (لا تاريخ الإصدار) — منه KSA-5 لكل فاتورة قياسية (supplyDateFor) */
+  documentDate: Date;
+  /** KSA-5 صريحاً — إعادة إصدار مستند قياسي مرفوض: تاريخ المستند الأصلي (YYYY-MM-DD). راجع reissue.ts */
   supplyDate?: string;
 }
 
@@ -192,6 +208,7 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
   const previousInvoiceHash = params.company.zatcaLastInvoiceHash || ZATCA_FIRST_INVOICE_PIH;
   const issuedAt = new Date();
   const subtype = subtypeForCustomer(params.customer);
+  const supplyDate = supplyDateFor(params.kind, subtype, params.documentDate, params.supplyDate);
 
   const documentInput: ZatcaDocumentInput = {
     kind: params.kind,
@@ -206,7 +223,7 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     previousInvoiceHash,
     billingReferenceId: params.billingReferenceId,
     issuanceReason: params.issuanceReason,
-    supplyDate: params.supplyDate,
+    supplyDate,
     seller: mapCompanyToSeller(params.company),
     buyer: subtype === "standard" ? mapCustomerToBuyer(params.customer) : undefined,
     lines: params.lines.map(mapPersistedLineToZatcaLine),
@@ -225,6 +242,7 @@ export async function reserveZatcaChain(tx: Tx, params: ReserveZatcaChainParams)
     zatcaStatus: "not_submitted",
     xml,
     subtype,
+    supplyDate,
   };
 }
 
@@ -319,6 +337,8 @@ export function rebuildZatcaDocumentXml(params: RebuildZatcaDocumentXmlParams): 
     billingReferenceId: params.billingReferenceId,
     issuanceReason: params.issuanceReason,
     supplyDate: params.supplyDate,
+    // فاتورة قياسية حُجزت قبل فرض KSA-5 (سجل الإصدارات بلا supplyDate) تُعاد بايتاتها كما هي — راجع supplyDateFor
+    reproduceWithoutSupplyDate: !params.supplyDate,
     seller: mapCompanyToSeller(params.company),
     buyer: subtype === "standard" ? mapCustomerToBuyer(params.customer) : undefined,
     lines: params.lines.map(mapPersistedLineToZatcaLine),
@@ -336,8 +356,9 @@ export function rebuildZatcaDocumentXml(params: RebuildZatcaDocumentXmlParams): 
   //     المخزّنة بالدالة القديمة نفسها (rawLegacyLine)، فالمبالغ المخزّنة المقرَّبة لا تعيد إنتاج تلك التجزئة.
   const candidates = [params.lines];
   if (params.lines.every((l) => l.priceIncludesVat != null)) candidates.push(params.lines.map(rawLegacyLine));
+  // المُنشئ المُجمَّد لا يعرف KSA-5 (سابق له) — لا يُمرَّر إليه، فيبقى ما يُعاد إنتاجه بايتاته الأصلية
   for (const lines of candidates) {
-    const legacyXml = buildDocumentXmlV1({ ...documentInput, lines: lines.map(mapPersistedLineToZatcaLineV1) });
+    const legacyXml = buildDocumentXmlV1({ ...documentInput, supplyDate: undefined, lines: lines.map(mapPersistedLineToZatcaLineV1) });
     const legacyHash = computeDocumentHash(legacyXml);
     if (legacyHash === params.expectedInvoiceHash) return { xml: legacyXml, invoiceHash: legacyHash, subtype, builder: "v1" };
   }

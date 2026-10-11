@@ -154,8 +154,9 @@ function buildBillingReference(billingReferenceId: string | undefined): string {
 }
 
 /**
- * KSA-5 (تاريخ التوريد، BT-72 ActualDeliveryDate) — يُكتَب فقط عند إعادة إصدار مستند قياسي مرفوض (supplyDate مُعرَّف)،
- * بموضعه في UBL بين AccountingCustomerParty وPaymentMeans. غيابه لا يُنتِج أي شيء، فكل مستند آخر يبقى بايتاته كما كانت.
+ * KSA-5 (تاريخ التوريد، BT-72 ActualDeliveryDate) بموضعه في UBL بين AccountingCustomerParty وPaymentMeans. BR-KSA-15 (نص
+ * التحذير على الفاتورة 00156): «يجب أن تحتوي الفاتورة الضريبية ((BT-3 = 388) و(KSA-2 يبدأ بـ'01')) على تاريخ التوريد (KSA-5)» —
+ * فيُفرَض لكل فاتورة قياسية في buildDocumentXml أدناه. للإشعارين يُكتَب عند إعادة الإصدار فقط؛ غيابه لا يُنتِج شيئاً.
  */
 function buildDeliveryXml(supplyDate: string | undefined): string {
   if (!supplyDate) return "";
@@ -281,6 +282,9 @@ function buildLegalMonetaryTotalXml(netH: number, vatH: number): string {
 }
 
 export function buildDocumentXml(input: ZatcaDocumentInput): string {
+  if (input.kind === "invoice" && input.subtype === "standard" && !input.supplyDate && !input.reproduceWithoutSupplyDate) {
+    throw new Error("BR-KSA-15: الفاتورة الضريبية القياسية (388) يلزمها تاريخ التوريد (KSA-5) — supplyDate غير مُمرَّر");
+  }
   if (input.subtype === "standard" && !input.buyer) {
     throw new Error("الفاتورة القياسية تتطلب بيانات المشتري (buyer)");
   }
