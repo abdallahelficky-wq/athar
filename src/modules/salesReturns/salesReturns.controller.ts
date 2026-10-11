@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import { zatcaHistoryHandlers } from "../../lib/zatca/historyHandlers";
+import { reissueEligibility } from "../../lib/zatca/reissue";
 import * as service from "./salesReturns.service";
 import { getSalesReturnPdf, sendSalesReturnByEmail } from "./salesReturnEmail.service";
 import { searchSalesReturns } from "./salesReturnsSearch.service";
@@ -93,4 +94,7 @@ export const reissueZatcaHandler: RequestHandler = async (req, res) => {
   res.json(await service.reissueRejected(req.auth!.tenantId, req.auth!.sub, req.params.id));
 };
 
-export const { history: zatcaHistoryHandler, attemptXml: zatcaAttemptXmlHandler } = zatcaHistoryHandlers("sales_return", prisma.salesReturn);
+export const { history: zatcaHistoryHandler, attemptXml: zatcaAttemptXmlHandler } = zatcaHistoryHandlers("sales_return", prisma.salesReturn, async (tenantId, id) => {
+  const doc = await prisma.salesReturn.findFirstOrThrow({ where: { id, tenantId }, include: { customer: true } });
+  return reissueEligibility(doc, doc.customer, { postedAllowed: false });
+});

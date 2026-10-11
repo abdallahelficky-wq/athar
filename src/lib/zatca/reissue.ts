@@ -23,16 +23,49 @@ type Tx = Prisma.TransactionClient;
  *
  * لا تعديل سطور في هذه المرحلة: المحتوى نفسه يُعاد بناؤه من الصف المخزَّن (التصحيح يكون في بطاقة العميل/الشركة).
  */
+export type ReissueEligibility = { eligible: true; reason?: undefined } | { eligible: false; reason: string };
+
+/**
+ * شرط إعادة الإصدار — مصدر واحد للخادم (assertReissuable) وللواجهة (يُعاد مع سجل زاتكا، historyHandlers.ts):
+ * - zatcaStatus = rejected (رفض فعلي من زاتكا؛ تعذّر الإرسال مساره إعادة المحاولة بنفس المعرّفات)؛
+ * - الحالة pending_submission، أو posted للفاتورة وحدها: فاتورة قياسية رُحِّلت قبل تخليصها (not_submitted بلا شهادة ربط
+ *   فعّالة — postingGate.ts، أو compliance_checked أثناء مرحلة الاختبار) ثم رُفضت عند إعادة إرسالها (resendInvoiceToZatca).
+ *   تُعاد لها السلسلة ثم تُرسَل بلا قيد جديد (قيدها موجود). للإشعارين لا مسار إعادة إرسال بعد الترحيل، فلا تصل لتلك الحالة؛
+ * - بيانات السلسلة مكتملة، والعميل الحالي قياسي (عميل أعمال برقم ضريبي).
+ */
+export function reissueEligibility(
+  doc: { status: string; zatcaStatus: string; icv: number | null; invoiceHash: string | null },
+  customer: ZatcaCustomerLike,
+  opts: { postedAllowed: boolean },
+): ReissueEligibility {
+  if (doc.zatcaStatus !== "rejected") {
+    return { eligible: false, reason: "إعادة الإصدار متاحة فقط لمستند رفضته زاتكا — لمستند تعذّر إرساله أو لم يُرسَل بعد استخدم إعادة الإرسال" };
+  }
+  const statusOk = doc.status === "pending_submission" || (opts.postedAllowed && doc.status === "posted");
+  if (!statusOk) {
+    return {
+      eligible: false,
+      reason: opts.postedAllowed
+        ? "إعادة الإصدار متاحة فقط لفاتورة مرحّلة أو بانتظار الإرسال لزاتكا"
+        : "إعادة الإصدار متاحة فقط لمستند قياسي رفضته زاتكا ولم يُرحَّل بعد — لتعذّر الإرسال استخدم إعادة المحاولة",
+    };
+  }
+  if (doc.icv == null || !doc.invoiceHash) {
+    return { eligible: false, reason: "بيانات سلسلة زاتكا لهذا المستند غير مكتملة — تعذّرت إعادة الإصدار، راجع الدعم الفني" };
+  }
+  if (subtypeForCustomer(customer) !== "standard") {
+    return { eligible: false, reason: "إعادة الإصدار متاحة فقط لمستند قياسي (عميل أعمال برقم ضريبي) — عميل هذا المستند لم يعد كذلك" };
+  }
+  return { eligible: true };
+}
+
 export function assertReissuable(
   doc: { status: string; zatcaStatus: string; icv: number | null; invoiceHash: string | null },
   customer: ZatcaCustomerLike,
+  opts: { postedAllowed: boolean } = { postedAllowed: false },
 ): void {
-  if (doc.status !== "pending_submission" || doc.zatcaStatus !== "rejected" || doc.icv == null || !doc.invoiceHash) {
-    throw badRequest("إعادة الإصدار متاحة فقط لمستند قياسي رفضته زاتكا ولم يُرحَّل بعد — لتعذّر الإرسال استخدم إعادة المحاولة");
-  }
-  if (subtypeForCustomer(customer) !== "standard") {
-    throw badRequest("إعادة الإصدار متاحة فقط لمستند قياسي (عميل أعمال برقم ضريبي) — عميل هذا المستند لم يعد كذلك");
-  }
+  const e = reissueEligibility(doc, customer, opts);
+  if (!e.eligible) throw badRequest(e.reason);
 }
 
 export function supplyDateOf(documentDate: Date): string {

@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import { zatcaHistoryHandlers } from "../../lib/zatca/historyHandlers";
+import { reissueEligibility } from "../../lib/zatca/reissue";
 import * as service from "./salesInvoices.service";
 import { sendInvoiceByEmail, listInvoicesWithoutSuccessfulEmail, resendInvoiceEmail, getSalesInvoicePdf } from "./salesInvoiceEmail.service";
 import { searchSalesInvoices } from "./salesInvoicesSearch.service";
@@ -134,4 +135,7 @@ export const reissueZatcaHandler: RequestHandler = async (req, res) => {
   res.json(await service.reissueRejectedSalesInvoice(req.auth!.tenantId, req.auth!.sub, req.params.id));
 };
 
-export const { history: zatcaHistoryHandler, attemptXml: zatcaAttemptXmlHandler } = zatcaHistoryHandlers("sales_invoice", prisma.salesInvoice);
+export const { history: zatcaHistoryHandler, attemptXml: zatcaAttemptXmlHandler } = zatcaHistoryHandlers("sales_invoice", prisma.salesInvoice, async (tenantId, id) => {
+  const doc = await prisma.salesInvoice.findFirstOrThrow({ where: { id, tenantId }, include: { customer: true } });
+  return reissueEligibility(doc, doc.customer, { postedAllowed: true });
+});

@@ -548,6 +548,11 @@ export const AR_TO_EN: Record<string, string> = {
     "Couldn't re-issue: the document's status changed (it was just re-issued or sent) — refresh the page and check its status",
   "تعذّرت إعادة الإصدار: الفاتورة الأصلية المرتبطة بهذا الإشعار لم تعد موجودة — راجع الدعم الفني":
     "Couldn't re-issue: the original invoice linked to this note no longer exists — contact support",
+  "إعادة الإصدار متاحة فقط لمستند رفضته زاتكا — لمستند تعذّر إرساله أو لم يُرسَل بعد استخدم إعادة الإرسال":
+    "Re-issue is only available for a document ZATCA rejected — for a document that couldn't be sent or wasn't sent yet, use resend",
+  "إعادة الإصدار متاحة فقط لفاتورة مرحّلة أو بانتظار الإرسال لزاتكا": "Re-issue is only available for an invoice that is posted or awaiting submission to ZATCA",
+  "بيانات سلسلة زاتكا لهذا المستند غير مكتملة — تعذّرت إعادة الإصدار، راجع الدعم الفني":
+    "This document's ZATCA chain data is incomplete — couldn't re-issue, contact support",
   "الشركة غير مرتبطة بزاتكا — لا معنى لإعادة الإصدار": "The company isn't connected to ZATCA — re-issue doesn't apply",
   "لا يوجد ملف XML موقَّع محفوظ لهذه المحاولة": "No signed XML is saved for this attempt",
   "BR-KSA-15: الفاتورة الضريبية القياسية (388) يلزمها تاريخ التوريد (KSA-5) — supplyDate غير مُمرَّر":
