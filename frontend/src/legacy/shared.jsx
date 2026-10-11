@@ -273,6 +273,8 @@ export function PrintShell({
   companyNameOverride,
   // شعار أكبر من الحجم الافتراضي المشترك — لطرف مستدعٍ محدَّد فقط (راجع نفس الملاحظة أعلاه).
   largeLogo = false, hideHeader = false,
+  // محتوى للشاشة فقط فوق منطقة الطباعة وخارجها (.voucher-print) — لا يُطبَع ولا يدخل PDF (قسم زاتكا مثلاً)
+  outsidePrint,
 }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -305,6 +307,7 @@ export function PrintShell({
     <div className="voucher-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className="voucher-shell">
         {onClose && <button type="button" className="voucher-close-x" onClick={onClose} aria-label={t("common.close")}>×</button>}
+        {outsidePrint && <div className="no-print voucher-outside-print">{outsidePrint}</div>}
         <div className="voucher-print">
           {/* ترتيب الرأس مطلوب صراحة بهذا الشكل الثابت (يمين→يسار): رقم المستند وتاريخه، ثم
               الشعار في المنتصف تماماً، ثم بيانات الشركة — عبر شبكة ثلاثية الأعمدة (لا flex
@@ -344,6 +347,7 @@ export function PrintShell({
             <span>{formatDateTime(printedAt || new Date(), i18n.language)}</span>
           </div>
         </div>
+
 
         <div className="voucher-actions">
           {onEdit && <button className="btn-ghost" onClick={onEdit}>تعديل</button>}
