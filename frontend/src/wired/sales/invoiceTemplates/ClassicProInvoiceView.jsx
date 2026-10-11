@@ -30,7 +30,7 @@ function detectClientInfo() {
  * مستقل تماماً عن PrintShell (لا يعدّله ولا يستبدله) — يُستخدَم فقط لما Company.invoiceTemplate
  * === "classicPro"، فيبقى القالب الحالي كما هو تماماً لبقية الشركات.
  */
-export default function ClassicProInvoiceView({ invoice, companies, autoPrint, bankAccounts: bankAccountsProp, onClose }) {
+export default function ClassicProInvoiceView({ invoice, companies, autoPrint, bankAccounts: bankAccountsProp, onClose, zatcaSection }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [printedAt, setPrintedAt] = useState(null);
@@ -70,7 +70,9 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
     <div className="cpi-overlay" onClick={(e) => e.target === e.currentTarget && onClose?.()}>
       <div className="cpi-shell">
         {onClose && <button type="button" className="cpi-close-x" onClick={onClose} aria-label={t("common.close")}>×</button>}
-      <InvoiceZatcaDetails invoice={invoice} />
+        {/* قسم زاتكا للشاشة فقط — فوق .cpi-print (منطقة الطباعة) وخارجها، بصنف no-print. يمرّره InvoiceViewModal
+            (DocumentZatcaSection: الحالة + السجل + إعادة الإصدار)؛ بدونه (معاينة الإعدادات) الحالة وحدها كما كانت */}
+        {zatcaSection ? <div className="no-print cpi-outside-print">{zatcaSection}</div> : <InvoiceZatcaDetails invoice={invoice} />}
         <div className="cpi-print">
           <div className="cpi-head">
             <div className="cpi-head-title" style={{ color: accent }}>
