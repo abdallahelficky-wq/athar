@@ -14,6 +14,9 @@ import {
   sendEmailHandler,
   resendZatcaHandler,
   retryZatcaSubmissionHandler,
+  reissueZatcaHandler,
+  zatcaHistoryHandler,
+  zatcaAttemptXmlHandler,
   completeZatcaPostingHandler,
   zatcaBacklogHandler,
   zatcaChainGapsHandler,
@@ -54,4 +57,7 @@ salesInvoiceRoutes.post("/:id/send-email", requirePositionAction("salesInvoices"
 salesInvoiceRoutes.post("/:id/resend-email", requirePositionAction("salesInvoices", "edit"), canWrite, validateBody(sendEmailSchema), resendEmailHandler);
 salesInvoiceRoutes.post("/:id/resend-zatca", requirePositionAction("salesInvoices", "approve"), canWrite, resendZatcaHandler);
 salesInvoiceRoutes.post("/:id/retry-zatca-submission", requirePositionAction("salesInvoices", "approve"), canWrite, retryZatcaSubmissionHandler);
+salesInvoiceRoutes.post("/:id/reissue-zatca", requirePositionAction("salesInvoices", "approve"), canWrite, reissueZatcaHandler);
+salesInvoiceRoutes.get("/:id/zatca-history", requirePositionAction("salesInvoices", "read"), zatcaHistoryHandler);
+salesInvoiceRoutes.get("/:id/zatca-attempts/:attemptId/xml", requirePositionAction("salesInvoices", "read"), zatcaAttemptXmlHandler);
 salesInvoiceRoutes.post("/:id/complete-zatca-posting", requirePositionAction("salesInvoices", "approve"), canWrite, completeZatcaPostingHandler);

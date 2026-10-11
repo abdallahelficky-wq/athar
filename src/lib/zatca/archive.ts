@@ -2,6 +2,7 @@ import { createHash } from "crypto";
 import { deflateRawSync, gunzipSync, gzipSync } from "zlib";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
+import { writeZatcaAttemptTx, type ZatcaAttemptPayload } from "./issues";
 
 /**
  * أرشيف مستندات زاتكا (zatca_document_archive) — راجع docs/zatca-archive.md.
@@ -102,17 +103,27 @@ export async function saveZatcaResponseWithArchive<T>(opts: {
   source: "submission" | "resubmission";
   inTx: (tx: Prisma.TransactionClient) => Promise<T>;
   plain: () => Promise<T>;
+  /** كل إرسال فعلي لزاتكا (مقبول أو مرفوض) — يُكتَب في zatca_submission_attempts في نفس المعاملة (issues.ts) */
+  attempt?: ZatcaAttemptPayload;
+  userId?: string | null;
 }): Promise<T> {
-  if (!opts.payload) return opts.plain();
+  if (!opts.payload && !opts.attempt) return opts.plain();
   const payload = opts.payload;
+  const attempt = opts.attempt;
   const label = `${opts.doc.documentType} ${opts.doc.documentNumber} (uuid=${opts.doc.documentUuid})`;
-  let stage: "begin" | "response" | "archive" | "commit" = "begin";
+  let stage: "begin" | "response" | "archive" | "attempt" | "commit" = "begin";
   try {
     return await prisma.$transaction(async (tx) => {
       stage = "response";
       const saved = await opts.inTx(tx);
-      stage = "archive";
-      await writeZatcaArchiveTx(tx, opts.doc, payload, opts.source);
+      if (payload) {
+        stage = "archive";
+        await writeZatcaArchiveTx(tx, opts.doc, payload, opts.source);
+      }
+      if (attempt) {
+        stage = "attempt";
+        await writeZatcaAttemptTx(tx, opts.doc, attempt, opts.source, opts.userId);
+      }
       stage = "commit";
       return saved;
     }, ARCHIVE_TX_OPTIONS);
@@ -122,13 +133,24 @@ export async function saveZatcaResponseWithArchive<T>(opts: {
   }
   // الرد أولاً — لو فشل هنا أيضاً فالخطأ يصعد كما كان قبل الأرشيف (لا يُبتلَع)
   const saved = await opts.plain();
-  try {
-    await writeZatcaArchiveTx(prisma as unknown as Prisma.TransactionClient, opts.doc, payload, opts.source);
-    // eslint-disable-next-line no-console
-    console.error(`[zatca-archive] RECOVERED — أُرشِف ${label} في المحاولة المستقلة بعد فشل المعاملة`);
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(`[zatca-archive] FAILED — لم يُحفَظ أصل ${label} نهائياً؛ سيظهر في عدّاد "مقبول بلا أصل" و"missing" في التصدير:`, err);
+  const standalone = prisma as unknown as Prisma.TransactionClient;
+  if (payload) {
+    try {
+      await writeZatcaArchiveTx(standalone, opts.doc, payload, opts.source);
+      // eslint-disable-next-line no-console
+      console.error(`[zatca-archive] RECOVERED — أُرشِف ${label} في المحاولة المستقلة بعد فشل المعاملة`);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`[zatca-archive] FAILED — لم يُحفَظ أصل ${label} نهائياً؛ سيظهر في عدّاد "مقبول بلا أصل" و"missing" في التصدير:`, err);
+    }
+  }
+  if (attempt) {
+    try {
+      await writeZatcaAttemptTx(standalone, opts.doc, attempt, opts.source, opts.userId);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`[zatca-attempts] FAILED — لم تُسجَّل محاولة إرسال ${label} (النتيجة ${attempt.outcome}):`, err);
+    }
   }
   return saved;
 }

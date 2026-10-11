@@ -1,4 +1,5 @@
 import { RequestHandler } from "express";
+import { zatcaHistoryHandlers } from "../../lib/zatca/historyHandlers";
 import * as service from "./salesReturns.service";
 import { getSalesReturnPdf, sendSalesReturnByEmail } from "./salesReturnEmail.service";
 import { searchSalesReturns } from "./salesReturnsSearch.service";
@@ -85,3 +86,11 @@ export const completeZatcaPostingHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.salesReturn, req.params.id);
   res.json(await service.completeZatcaAcceptedPosting(req.auth!.tenantId, req.auth!.sub, req.params.id));
 };
+
+// إعادة إصدار مستند قياسي رفضته زاتكا (UUID/ICV/تجزئة جديدة، نفس الرقم) — راجع src/lib/zatca/reissue.ts
+export const reissueZatcaHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesReturn, req.params.id);
+  res.json(await service.reissueRejected(req.auth!.tenantId, req.auth!.sub, req.params.id));
+};
+
+export const { history: zatcaHistoryHandler, attemptXml: zatcaAttemptXmlHandler } = zatcaHistoryHandlers("sales_return", prisma.salesReturn);

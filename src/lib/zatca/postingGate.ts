@@ -1,4 +1,5 @@
 import type { ZatcaArchivePayload } from "./archive";
+import { attemptFromOutcome, type ZatcaAttemptPayload } from "./issues";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
 import { env } from "../../config/env";
@@ -48,6 +49,8 @@ export interface ZatcaPostingDecision {
   rejectionReason?: string;
   /** قبول على مسار الإنتاج فقط: الأصل الذي يُحفَظ في zatca_document_archive مع حفظ الرد نفسه (archive.ts) */
   archive?: ZatcaArchivePayload;
+  /** محاولة إرسال فعلية (وُقِّع المستند أو حاول) — تُسجَّل في zatca_submission_attempts مع حفظ الرد (archive.ts) */
+  attempt?: ZatcaAttemptPayload;
 }
 
 export interface EvaluateZatcaPostingGateParams {
@@ -145,8 +148,10 @@ export async function submitZatcaChainDocument(params: {
     // امتثال (شهادة اختبار) لا يُعتبَر تخليصاً أو إبلاغاً حقيقياً إطلاقاً (المستند لم يُبلَّغ لزاتكا
     // قانونياً بعد)، فيُصنَّف compliance_checked بدلاً من ذلك حتى لو "قُبِل" الفحص نفسه.
     const isProductionSubmission = company.zatcaOnboardingStatus === "production";
+    const acceptedStatus = isProductionSubmission ? (chain.subtype === "standard" ? "cleared" : "reported") : "compliance_checked";
     return {
       proceedWithPosting: true,
+      attempt: attemptFromOutcome(outcome, submissionKind, acceptedStatus, chain),
       archive: isProductionSubmission
         ? {
             signedXml: outcome.signedXml, clearedInvoiceBase64: outcome.response?.clearedInvoice ?? undefined,
@@ -157,7 +162,7 @@ export async function submitZatcaChainDocument(params: {
         icv: chain.icv,
         previousInvoiceHash: chain.previousInvoiceHash,
         invoiceHash: chain.invoiceHash,
-        zatcaStatus: isProductionSubmission ? (chain.subtype === "standard" ? "cleared" : "reported") : "compliance_checked",
+        zatcaStatus: acceptedStatus,
         zatcaSubmittedAt: chain.issuedAt,
         // تبقى غير مُعرَّفة لفحص امتثال ناجح — الاسم نفسه (Cleared Or Reported) يعني تخليصاً/إبلاغاً
         // قانونياً فعلياً لم يحدث بعد، فلا نملأها بتاريخ زائف يُوهِم لاحقاً بأن المستند بُلِّغ فعلاً.
@@ -181,7 +186,13 @@ export async function submitZatcaChainDocument(params: {
     );
   }
 
+  const failedStatus = outcome.certificateError
+    ? "certificate_error"
+    : outcome.networkError || outcome.httpError || outcome.malformedResponse
+      ? "submission_failed"
+      : "rejected";
   return {
+    attempt: attemptFromOutcome(outcome, submissionKind, failedStatus, chain),
     // فاتورة قياسية تبقى ممنوعة من الترحيل سواء رفضتها زاتكا صراحةً أو تعذّر الوصول إليها أصلاً أو
     // تعذّر توقيعها محلياً بشهادة غير صالحة أو فشل النقل/المصادقة — التخليص (Clearance) شرط قانوني
     // مسبق في كل هذه الحالات، لا فرق بينها من ناحية قرار الترحيل نفسه (الفرق فقط في تصنيف
@@ -197,11 +208,7 @@ export async function submitZatcaChainDocument(params: {
       // أن زاتكا لم ترفض شيئاً، لأنها لم تُقيَّم فيه الفاتورة على الإطلاق) — تحتاج مراجعة إعداد الربط
       // (شهادة/صلاحيات/مسار) أو تحديث المخطط المتوقَّع، لا تصحيح بيانات المستند، فتُصنَّف
       // submission_failed بنفس معاملة عطل الشبكة تماماً (راجع httpError/malformedResponse في submission.ts/apiClient.ts).
-      zatcaStatus: outcome.certificateError
-        ? "certificate_error"
-        : outcome.networkError || outcome.httpError || outcome.malformedResponse
-          ? "submission_failed"
-          : "rejected",
+      zatcaStatus: failedStatus,
       zatcaSubmittedAt: chain.issuedAt,
       zatcaResponseRaw: (outcome.response ?? undefined) as Prisma.InputJsonValue | undefined,
     },

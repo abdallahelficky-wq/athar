@@ -154,6 +154,19 @@ function buildBillingReference(billingReferenceId: string | undefined): string {
 }
 
 /**
+ * KSA-5 (تاريخ التوريد، BT-72 ActualDeliveryDate) — يُكتَب فقط عند إعادة إصدار مستند قياسي مرفوض (supplyDate مُعرَّف)،
+ * بموضعه في UBL بين AccountingCustomerParty وPaymentMeans. غيابه لا يُنتِج أي شيء، فكل مستند آخر يبقى بايتاته كما كانت.
+ */
+function buildDeliveryXml(supplyDate: string | undefined): string {
+  if (!supplyDate) return "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(supplyDate)) throw new Error(`تاريخ التوريد (KSA-5) بصيغة غير صالحة: ${supplyDate}`);
+  return `<cac:Delivery>
+    <cbc:ActualDeliveryDate>${supplyDate}</cbc:ActualDeliveryDate>
+  </cac:Delivery>
+  `;
+}
+
+/**
  * BR-KSA-17: سبب إصدار إشعار الدائن/المدين (KSA-10) إلزامي لهذين النوعين تحديداً (388/الفاتورة
  * العادية لا تحتاجه إطلاقاً).
  */
@@ -305,7 +318,7 @@ export function buildDocumentXml(input: ZatcaDocumentInput): string {
   }
 
   xml = xml.replace("SET_ACCOUNTING_CUSTOMER_PARTY", buildBuyerBlock(input.buyer));
-  xml = xml.replace("SET_PAYMENT_MEANS", buildPaymentMeansXml(input.kind, input.issuanceReason));
+  xml = xml.replace("SET_PAYMENT_MEANS", buildDeliveryXml(input.supplyDate) + buildPaymentMeansXml(input.kind, input.issuanceReason));
   xml = xml.replace("SET_TAX_TOTAL", buildTaxTotalXml(groups, vatH));
   xml = xml.replace("SET_LEGAL_MONETARY_TOTAL", buildLegalMonetaryTotalXml(netH, vatH));
   xml = xml.replace("SET_INVOICE_LINES", moneyLines.map(buildInvoiceLineXml).join("\n"));
