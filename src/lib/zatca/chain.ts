@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { buildDocumentXml } from "./xmlBuilder";
-import { buildDocumentXmlV1, mapPersistedLineToZatcaLineV1 } from "./xmlBuilderV1";
+import { buildDocumentXmlV1, mapPersistedLineToZatcaLineV1, rawLegacyLine } from "./xmlBuilderV1";
 import { badRequest } from "../httpError";
 import { VAT_RATE } from "../invoiceLine";
 import { computeDocumentHash } from "./hash";
@@ -44,6 +44,9 @@ export interface ZatcaPersistedLineLike {
   taxCategoryCode: string;
   taxExemptionReasonCode?: string | null;
   taxExemptionReason: string | null;
+  /** مدخلات السطر — تلزم فقط لإعادة بناء مستند حُجز قبل إصلاح التقريب من مبالغه الخام (rawLegacyLine في xmlBuilderV1.ts) */
+  discountPct?: Prisma.Decimal | number | null;
+  priceIncludesVat?: boolean | null;
 }
 
 export interface ZatcaChainResult {
@@ -321,8 +324,16 @@ export function rebuildZatcaDocumentXml(params: RebuildZatcaDocumentXmlParams): 
 
   // تجزئة المستند جزء من السلسلة (PIH للمستند التالي) — لا يجوز أن يتغيّر محتواه بعد حجزه. مستند حُجز قبل الإصلاح يُعاد
   // بناؤه بالمُنشئ نفسه الذي حُسبت عليه تجزئته، بايتاً بايتاً.
-  const legacyXml = buildDocumentXmlV1({ ...documentInput, lines: params.lines.map(mapPersistedLineToZatcaLineV1) });
-  const legacyHash = computeDocumentHash(legacyXml);
-  if (legacyHash === params.expectedInvoiceHash) return { xml: legacyXml, invoiceHash: legacyHash, subtype, builder: "v1" };
+  // قبل الإصلاح كان المستند يُبنى من أحد مصدرين للمبالغ، بحسب مسار الترحيل:
+  //   - ترحيل مسودة / إعادة إرسال: الأسطر المخزّنة بخانتين (toZatcaLines) ⇒ القيم المخزّنة كما هي؛
+  //   - إنشاء وترحيل مباشر: الأسطر المحسوبة في الذاكرة بلا تقريب (zatcaLines = computed) ⇒ تُعاد حسابها من المدخلات
+  //     المخزّنة بالدالة القديمة نفسها (rawLegacyLine)، فالمبالغ المخزّنة المقرَّبة لا تعيد إنتاج تلك التجزئة.
+  const candidates = [params.lines];
+  if (params.lines.every((l) => l.priceIncludesVat != null)) candidates.push(params.lines.map(rawLegacyLine));
+  for (const lines of candidates) {
+    const legacyXml = buildDocumentXmlV1({ ...documentInput, lines: lines.map(mapPersistedLineToZatcaLineV1) });
+    const legacyHash = computeDocumentHash(legacyXml);
+    if (legacyHash === params.expectedInvoiceHash) return { xml: legacyXml, invoiceHash: legacyHash, subtype, builder: "v1" };
+  }
   return { xml, invoiceHash, subtype, builder: "v2" };
 }

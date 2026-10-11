@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { DOMParser } from "@xmldom/xmldom";
 import { computeInvoiceLine } from "../invoiceLine";
-import { sumMoney } from "../money";
+import { roundMoney, sumMoney } from "../money";
 import { buildDocumentXml } from "./xmlBuilder";
-import { buildDocumentXmlV1, mapPersistedLineToZatcaLineV1 } from "./xmlBuilderV1";
+import { buildDocumentXmlV1, computeInvoiceLineV1, mapPersistedLineToZatcaLineV1 } from "./xmlBuilderV1";
 import { mapPersistedLineToZatcaLine, rebuildZatcaDocumentXml, reserveZatcaChain, standardBuyerAddressProblems, ZatcaCompanyLike, ZatcaCustomerLike } from "./chain";
 import { computeDocumentHash } from "./hash";
 import { decodeResponseBody } from "./apiClient";
@@ -378,5 +378,87 @@ describe("ZATCA response text is decoded with its declared charset (Arabic messa
     const res = () => new Response(bytes, { headers: { "content-type": "application/json; charset=windows-1256" } });
     expect(await res().text()).toContain("�"); // السلوك السابق
     expect(JSON.parse(await decodeResponseBody(res())).validationResults.errorMessages[0].message).toBe(message);
+  });
+});
+
+describe("Codex P1 on #148 — rebuilding a document posted directly before the fix (hashed from raw in-memory amounts)", () => {
+  const company: ZatcaCompanyLike = {
+    id: "co", zatcaOnboardingStatus: "production", zatcaEnvironment: "production", zatcaLastInvoiceHash: null, name: "مؤسسة المزارع الحديثة",
+    vatNumber: "310000000000003", crNumber: "1010000000", addressStreet: "s", addressBuilding: "1234", addressDistrict: "d", addressCity: "c", addressPostalCode: "12211",
+  };
+  const customer: ZatcaCustomerLike = { customerType: "business", vatNumber: "302043689600003", crNumber: null, name: "المشتري", street: "s", buildingNo: "2345", district: "d", city: "c", postalCode: "12245" };
+  const issuedAt = new Date("2026-09-24T10:00:00Z");
+
+  // ما أدخله المستخدم (3 × 73.3333 شاملة) — ثم ما فعله الكود القديم حرفياً: computeInvoiceLineV1 في الذاكرة ⇒ buildDocumentXmlV1
+  const entered = { description: "صنف 1", quantity: 3, unitPrice: 73.3333, discountPct: 0, priceIncludesVat: true, taxCategoryCode: "S", taxExemptionReason: null };
+  const raw = computeInvoiceLineV1(entered);
+  const originalXml = buildDocumentXmlV1({
+    kind: "invoice", subtype: "standard", id: "00156", uuid: "u", issueDate: "2026-09-24", issueTime: "10:00:00Z", icv: 156, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH,
+    seller: { vatNumber: company.vatNumber, crNumber: company.crNumber, registrationName: company.name, street: "s", buildingNumber: "1234", citySubdivision: "d", city: "c", postalZone: "12211" },
+    buyer: { vatNumber: customer.vatNumber, crNumber: null, registrationName: customer.name, street: "s", buildingNumber: "2345", citySubdivision: "d", city: "c", postalZone: "12245" },
+    lines: [mapPersistedLineToZatcaLineV1({ ...entered, subtotal: raw.subtotal, vat: raw.vat }, 0)],
+  });
+  const storedHash = computeDocumentHash(originalXml);
+  // ما خزّنه Postgres في Decimal(18, 2) من تلك القيم الخام
+  const storedLine = { ...entered, subtotal: roundMoney(raw.subtotal), vat: roundMoney(raw.vat) };
+  const common = { company, customer, kind: "invoice" as const, documentNumber: "00156", documentUuid: "u", icv: 156, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH, issuedAt, expectedInvoiceHash: storedHash };
+
+  it("the stored (rounded) amounts alone cannot reproduce the hash — the case Codex found", () => {
+    expect(raw.subtotal).not.toBe(storedLine.subtotal);
+    const { discountPct: _d, priceIncludesVat: _p, ...withoutInputs } = storedLine;
+    const rebuilt = rebuildZatcaDocumentXml({ ...common, lines: [withoutInputs] });
+    expect(rebuilt.invoiceHash).not.toBe(storedHash);
+  });
+
+  it("recomputing the raw amounts from the stored line inputs rebuilds it byte-for-byte", () => {
+    const rebuilt = rebuildZatcaDocumentXml({ ...common, lines: [storedLine] });
+    expect(rebuilt.builder).toBe("v1");
+    expect(rebuilt.invoiceHash).toBe(storedHash);
+    expect(rebuilt.xml).toBe(originalXml);
+  });
+
+  it("a draft-then-post document (hashed from the stored 2-decimal amounts) still rebuilds from the stored values", () => {
+    const draftXml = buildDocumentXmlV1({
+      kind: "invoice", subtype: "standard", id: "00157", uuid: "u2", issueDate: "2026-09-24", issueTime: "10:00:00Z", icv: 157, previousInvoiceHash: storedHash,
+      seller: { vatNumber: company.vatNumber, crNumber: company.crNumber, registrationName: company.name, street: "s", buildingNumber: "1234", citySubdivision: "d", city: "c", postalZone: "12211" },
+      buyer: { vatNumber: customer.vatNumber, crNumber: null, registrationName: customer.name, street: "s", buildingNumber: "2345", citySubdivision: "d", city: "c", postalZone: "12245" },
+      lines: [mapPersistedLineToZatcaLineV1(storedLine, 0)],
+    });
+    const rebuilt = rebuildZatcaDocumentXml({ ...common, documentNumber: "00157", documentUuid: "u2", icv: 157, previousInvoiceHash: storedHash, expectedInvoiceHash: computeDocumentHash(draftXml), lines: [storedLine] });
+    expect(rebuilt.builder).toBe("v1");
+    expect(rebuilt.xml).toBe(draftXml);
+  });
+});
+
+describe("Codex P1 on #148 — the decoding diagnostic never logs raw bytes of a certificate response", () => {
+  // جسم برموز لا تُفكّ UTF-8 (0xFF) ويحمل حقلي الشهادة — رد خارجي، مسموح صنعه يدوياً (CLAUDE.md القاعدة 2)
+  const secretBody = Uint8Array.from([...new TextEncoder().encode('{"binarySecurityToken":"TOKEN-SECRET","secret":"S3CRET","x":"'), 0xff, ...new TextEncoder().encode('"}')]);
+  const hex = (s: string) => Buffer.from(s, "utf8").toString("hex");
+
+  it.each(["/compliance", "/production/csids", undefined])("path %s: logs charset/length/count, no bytes", async (path) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      await decodeResponseBody(new Response(secretBody, { headers: { "content-type": "application/json" } }), { path });
+      expect(warn).toHaveBeenCalledTimes(1);
+      const line = String(warn.mock.calls[0][0]);
+      expect(line).toContain("رموز بديلة=1");
+      expect(line).not.toContain("hex");
+      expect(line).not.toContain(hex("TOKEN-SECRET"));
+      expect(line).not.toContain(hex("S3CRET"));
+      expect(line).not.toContain("TOKEN-SECRET");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("an invoice submission path still logs the leading bytes as evidence", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const body = Uint8Array.from([...new TextEncoder().encode('{"validationResults":{"x":"'), 0xff, ...new TextEncoder().encode('"}}')]);
+      await decodeResponseBody(new Response(body, { headers: { "content-type": "application/json" } }), { path: "/invoices/clearance/single" });
+      expect(String(warn.mock.calls[0][0])).toContain("أول البايتات (hex)");
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

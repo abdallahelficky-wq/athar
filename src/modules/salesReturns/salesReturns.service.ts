@@ -491,6 +491,8 @@ function toZatcaReturnLines(lines: SalesReturnWithZatcaChain["lines"]): ZatcaPer
     taxCategoryCode: l.taxCategoryCode,
     taxExemptionReason: l.taxExemptionReason,
     taxExemptionReasonCode: l.taxExemptionReasonCode,
+    discountPct: Number(l.discountPct),
+    priceIncludesVat: l.priceIncludesVat,
   }));
 }
 

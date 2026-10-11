@@ -707,6 +707,8 @@ interface StoredInvoiceLineLike {
   taxCategoryCode: string;
   taxExemptionReason: string | null;
   taxExemptionReasonCode?: string | null;
+  discountPct: Prisma.Decimal | number;
+  priceIncludesVat: boolean;
 }
 
 /** الشكل المطلوب لـcomputeCogsJournalLines/buildJournalLines فقط (LineInput) — بلا description
@@ -736,6 +738,8 @@ function toZatcaLines(lines: StoredInvoiceLineLike[]): ZatcaPersistedLineLike[] 
     taxCategoryCode: l.taxCategoryCode,
     taxExemptionReason: l.taxExemptionReason,
     taxExemptionReasonCode: l.taxExemptionReasonCode,
+    discountPct: Number(l.discountPct),
+    priceIncludesVat: l.priceIncludesVat,
   }));
 }
 
