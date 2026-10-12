@@ -143,10 +143,11 @@ BEGIN
    FOR rec IN SELECT table_name FROM information_schema.columns WHERE table_schema='public' AND column_name='tenantId' LOOP
      -- Immutable legal archive retains its original tenant provenance. Exports resolve
      -- current company ownership; never disable its UPDATE/DELETE protection.
-     IF rec.table_name=ANY(ignored) OR rec.table_name='zatca_document_archive' THEN CONTINUE; END IF;
+     IF rec.table_name=ANY(ignored) OR rec.table_name IN ('zatca_document_archive','zatca_document_issues','zatca_submission_attempts') THEN CONTINUE; END IF;
      EXECUTE format('UPDATE public.%I r SET "tenantId"=$1 FROM separation_ownership o WHERE o.table_name=%L AND o.row_id=r.id AND o.company_id=$2 AND r."tenantId"=$3',rec.table_name,rec.table_name) USING target.tenant_id,target.company_id,source_id;
    END LOOP;
    FOR rec IN SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND column_name IN ('createdBy','uploadedBy','reviewedByUserId','userId') AND table_name<>ALL(ignored) LOOP
+     IF rec.table_name IN ('zatca_document_archive','zatca_document_issues','zatca_submission_attempts') THEN CONTINUE; END IF;
      EXECUTE format('UPDATE public.%I r SET %I=$1 FROM separation_ownership o WHERE o.table_name=%L AND o.row_id=r.id AND o.company_id=$2 AND r.%I=$3',rec.table_name,rec.column_name,rec.table_name,rec.column_name) USING target.admin_id,target.company_id,owner_id;
    END LOOP;
  END LOOP;

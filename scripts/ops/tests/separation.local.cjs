@@ -13,6 +13,9 @@ async function fixture() {
  const archiveMigration=fs.readFileSync(require('path').resolve(__dirname,'../../../prisma/migrations/20260928140000_zatca_document_archive/migration.sql'),'utf8');
  const triggerEnd='FOR EACH STATEMENT EXECUTE FUNCTION zatca_document_archive_immutable();';
  await db.exec(archiveMigration.slice(archiveMigration.indexOf('CREATE FUNCTION zatca_document_archive_immutable()'),archiveMigration.indexOf(triggerEnd)+triggerEnd.length));
+ const historyMigration=fs.readFileSync(require('path').resolve(__dirname,'../../../prisma/migrations/20261008092218_zatca_document_issues_and_attempts/migration.sql'),'utf8');
+ const historyEnd='FOR EACH STATEMENT EXECUTE FUNCTION zatca_append_only();';
+ await db.exec(historyMigration.slice(historyMigration.indexOf('CREATE FUNCTION zatca_append_only()'),historyMigration.lastIndexOf(historyEnd)+historyEnd.length));
  await db.exec(`INSERT INTO tenants(id,name,"unlockPin","updatedAt") VALUES ('${source}','group','test',now()),('other','group','test',now());
  INSERT INTO identities(id,email,"updatedAt") VALUES ('identity','asf@tismpro.sa',now()),('accountant-identity','test@example.invalid',now());
  INSERT INTO users(id,"identityId","tenantId",name,role,"updatedAt") VALUES ('admin','identity','${source}','admin','admin',now());
@@ -31,6 +34,8 @@ async function fixture() {
  await db.exec(`INSERT INTO attachments(id,"tenantId","entityType","entityId","fileName","fileKey","fileSize","mimeType","uploadedBy") VALUES ('attachment','${source}','journal_entry','entry1','synthetic.xlsx','unchanged-object-key',42,'application/octet-stream','admin');`);
  // Legacy archive metadata; actual signed-document export is tested through its producer in the integration suite.
  await db.query(`INSERT INTO zatca_document_archive(id,"tenantId","companyId","documentType","documentId","documentNumber","documentUuid",icv,"invoiceHash",subtype,"submissionKind","issuedAt",compression,source) VALUES ('archive',$1,$2,'sales_invoice','legacy','LEGACY','uuid',1,'hash','simplified','reporting',now(),'none','backfill')`,[source,companies[1]]);
+ await db.query(`INSERT INTO zatca_document_issues(id,"tenantId","companyId","documentType","documentId","documentNumber","documentUuid",icv,"previousInvoiceHash","invoiceHash",subtype,"issuedAt",compression,source,"createdById") VALUES ('issue',$1,$2,'sales_invoice','legacy','LEGACY','uuid',1,'previous','hash','simplified',now(),'none','backfill','admin')`,[source,companies[1]]);
+ await db.query(`INSERT INTO zatca_submission_attempts(id,"tenantId","companyId","documentType","documentId","documentNumber","documentUuid",icv,"invoiceHash","submissionKind",outcome,compression,source,"userId") VALUES ('attempt',$1,$2,'sales_invoice','legacy','LEGACY','uuid',1,'hash','reporting','reported','none','backfill','admin')`,[source,companies[1]]);
  return db;
 }
 (async()=>{
@@ -49,6 +54,8 @@ async function fixture() {
  await db.exec(`INSERT INTO attachments(id,"tenantId","entityType","entityId","fileName","fileKey","fileSize","mimeType","uploadedBy") VALUES ('cmt1xk2990009130d2atjkmcn','${source}','journal_entry','cmt1xk0an0004130d8whwq453','orphan.xlsx','preserved-orphan',42,'application/octet-stream','cmsrchxbb000be8f5jibbjmzn');`);
  const orphanBefore=(await db.query("SELECT * FROM attachments WHERE id='cmt1xk2990009130d2atjkmcn'")).rows;
  const archiveBefore=(await db.query('SELECT * FROM zatca_document_archive')).rows;
+ const issuesBefore=(await db.query('SELECT * FROM zatca_document_issues')).rows;
+ const attemptsBefore=(await db.query('SELECT * FROM zatca_submission_attempts')).rows;
  await db.exec(cutover);
  const postcheck=(await db.query(fs.readFileSync(require('path').join(queryDir,'company-separation-postcheck.sql'),'utf8'))).rows;
  assert.equal(postcheck.length,3);
@@ -59,6 +66,8 @@ async function fixture() {
  assert.equal((await db.query('SELECT count(*)::int AS n FROM users WHERE "identityId"=\'identity\'')).rows[0].n,3);
  assert.deepEqual((await db.query('SELECT id,debit,credit FROM journal_entry_lines ORDER BY id')).rows,valuesBefore);
  assert.deepEqual((await db.query('SELECT * FROM zatca_document_archive')).rows,archiveBefore);
+ assert.deepEqual((await db.query('SELECT * FROM zatca_document_issues')).rows,issuesBefore);
+ assert.deepEqual((await db.query('SELECT * FROM zatca_submission_attempts')).rows,attemptsBefore);
  assert.deepEqual((await db.query("SELECT * FROM accounts WHERE id IN ('unassigned','other-unassigned') ORDER BY id")).rows,templateBefore);
  await assert.rejects(db.exec(`UPDATE zatca_document_archive SET "tenantId"='other'`),/append-only/);
  assert.deepEqual((await db.query("SELECT * FROM attachments WHERE id='cmt1xk2990009130d2atjkmcn'")).rows,orphanBefore);
