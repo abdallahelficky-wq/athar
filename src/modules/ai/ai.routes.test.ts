@@ -44,8 +44,8 @@ beforeEach(() => {
   vi.mocked(dashboard.getFinancialKpis).mockResolvedValue({ salesCurrent: 123 } as never);
   vi.mocked(askAtharAi).mockResolvedValue({ answer: "تحليل", model: "anthropic/claude-sonnet-5" });
 });
-function post(body: unknown, scope: string | null = "company-a", tenantId = "tenant-a") {
-  const token = scope === null ? "" : signAccessToken({ sub: "user-a", tenantId, role: "admin", companyScope: scope, readOnly: false });
+function post(body: unknown, scope: string | null = "company-a", tenantId = "tenant-a", readOnly = false) {
+  const token = scope === null ? "" : signAccessToken({ sub: "user-a", tenantId, role: "admin", companyScope: scope, readOnly });
   return fetch(base, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
 }
 function noDataRead() {
@@ -60,6 +60,12 @@ describe("POST /api/ai/ask", () => {
   });
   it.each([["", "tenant-a"], ["company-a", ""]])("fails closed on empty scope claims", async (scope, tenant) => {
     expect((await post({ question: "Explain" }, scope, tenant)).status).toBe(401); noDataRead();
+  });
+  it("refuses a read-only membership (expired subscription or trial) before reading any data or calling the model", async () => {
+    const response = await post({ question: "Explain" }, "company-a", "tenant-a", true);
+    expect(response.status).toBe(403);
+    expect((await response.json()).error).toContain("عرض فقط");
+    noDataRead();
   });
   it("rejects attempts to select another company", async () => {
     expect((await post({ question: "Explain", companyId: "company-b" })).status).toBe(403); noDataRead();
