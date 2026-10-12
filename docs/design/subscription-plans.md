@@ -2,6 +2,15 @@
 
 Status: **design only, nothing implemented.** Built from the investigation of 2026-10-11 (code at `production` `b206545`) and the owner's decisions recorded on 2026-10-11 and 2026-10-12 (§11 answers folded in as D16–D30). Every implementation step below is a separate PR. No open questions remain (§11).
 
+**Re-checked against merged #151 (`4e37371`) on 2026-10-12: no conflict.**
+- **Schema:** #151 adds no migration and changes no model. Companies, tenants, users and identities are modelled as this design assumed.
+- **Membership check:** its live membership check (`assertCurrentMembership`, `src/lib/currentMembership.ts`, called from `authenticate`) is the hook P4 extends.
+- **Separation script** (`scripts/ops/separate-armi-companies.sql`):
+  - It sets each new tenant's `ownerId` to the designated administrator (D25).
+  - It rewrites `tenantId` on tables that carry one. The P1 tables carry none, so they are unaffected.
+  - It rewrites `userId` columns that point at the source owner, which includes `company_pos_users`. It does this only after the company and the administrator's new membership are both in the new tenant, so P1's same-tenant trigger accepts the rewrite.
+  - The P1 tables are empty until P11, which still runs after the cutover.
+
 ## 1. Decisions this design implements
 
 | # | Decision |
@@ -56,7 +65,7 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 | Item catalog + automatic stock movements on the default warehouse + simple stock balance (D11) | ✓ | ✓ | ✓ | `inventory` (items tab) | `items` |
 | Multiple warehouses, manual in/out, issue vouchers, transfers, periodic settlement, inventory reports (D11) | — | ✓ | ✓ | `inventory` | `stockMovements`, `warehouses`, `periodicSettlement`, `inventoryReports` |
 | Fixed assets | — | ✓ | ✓ | `fixedAssets` | `fixedAssets`, `depreciation`, `assetCategories` |
-| HR and payroll | — | — | ✓ | `hr` | `employees`, `payrollRuns`, `payrollSettings`, `leaveSettlements`, `leaveReturns`, `hrActions`, `employeeAdvances`, `hrReports`, `attendance` |
+| HR and payroll | — | — | ✓ | `hr` | `employees`, `payrollRuns`, `payrollSettings`, `leaveSettlements`, `leaveReturns`, `hrActions`, `employeeAdvances`, `hrReports`, `attendance`, and `hrSensitiveData` (not a route: it decides whether personal and payroll data shows in reports and attachments, data that exists only with HR) |
 | Athar AI — **not user-visible yet** (D15) | — | — | ✓ | none | `ai` |
 | Branches — descriptive, **not enforced** (D4) | 1 | 3 | unlimited | `settings` | (`branches` stays ungated) |
 | Invoice count | unlimited | unlimited | unlimited | — | — |
@@ -71,6 +80,8 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 | POS (D14, D19, D27) | Enabling: free, **1 POS user included**. Each additional POS user: 600 SAR/year | `pos` (allowed only when `posEnabled`) | A POS user is a member **explicitly assigned** as POS user of the company (`company_pos_users`, §3.2). Assignments are capped at `1 + posUsers`, where `posUsers` is the number of **additional paid** seats. Opening POS sales requires the assignment **for everyone, owners and `super_admin` included**, so an unassigned owner is neither counted nor able to sell at POS; a non-owner also still needs a position granting `pos.create`. POS reads (reports) need no seat. |
 | Stations (D13, D20, D30) | Free for now, unpriced | `stationSetup`, `stationShiftsReports`, `stationSales`, station-worker portal routes, and **`employees` limited to station workers** | Auto-enabled for `businessActivity = fuel_stations`, keeping today's auto-visibility (`frontend/src/App.jsx:81-84`). **Station workers** are `Employee` rows with `assignedCostCenterId` set (the station they work at, `schema.prisma` `Employee.assignedCostCenterId`). On a plan without HR, the add-on allows the `employees` actions **only on such rows**: create a worker (the station is then required), edit, set phone/PIN and `portalActive`. Lists return only station workers. Payroll, leave, HR actions, advances and HR reports stay enterprise. |
 | Stables (D13, D30) | Free for now, unpriced | `stables` | Auto-enabled for `businessActivity = horse_stables`. |
+
+**When an activity add-on is on:** the company's activity matches (automatic, D13), **or** the admin granted it explicitly (`free` / `paid`) for a company with another activity. P2's coverage test fails if any id registered in `POSITION_RESOURCES` is missing from the map, or is classified twice.
 
 **Basic and stock (D11).** Basic invoices keep calling `createStockOutSideEffectsTx` (`salesInvoices.service.ts:181,240`); those are side effects of the invoice, not calls into the `stockMovements` router, so gating that router does not break basic. A basic company keeps exactly its default warehouse, because the `warehouses` create route is gated. The "simple stock balance" is the quantity on hand shown in the item catalog (`items`).
 
@@ -141,6 +152,8 @@ line VAT          = round2( lineNet × 0.15 )                          (per line
 
 **The rules:**
 - **Rank** is the position of the company among the owner identity's **live** companies (status `trialing`, `awaiting_payment`, `active`, `grace`, or `expired` for at most 30 days since it became read-only, D21), ordered by `companies.createdAt`, then id. The oldest company gets rank 1 and **full price, whatever its plan**.
+  - **When read-only began:** taken from the latest `expired` event. Without one, it is `currentPeriodEnd`.
+  - **Before P11:** a company with **no subscription row yet** counts as live, because it exists and is in use today.
 - **Locking:** rank and price are locked for the current term and recomputed **at renewal** (D3). If the oldest company is canceled, the others move up at their next renewal, not mid-term.
 - **Grandfathering:** if `grandfatheredNetPrice` is set (D10), it replaces `periodNet` until the current end date.
 - **Add-ons** (extra users, additional POS users, activity add-ons) are **not discounted** (D17). The first POS user is free (D27); stations and stables are free for now (D30). Their monthly price follows the same `/12 × 1.10` rule.
@@ -451,11 +464,11 @@ None. Every question raised so far is answered (D16–D30). The stations and sta
 |---|---|---|
 | P0 | This design and the read-only sizing SQL with its tests | — |
 | P1 | Data model: `company_subscriptions` (with its CHECKs), `subscription_events` (append-only trigger), `plan_prices` seeded with the approved prices (trigger: in-effect rows immutable), `company_pos_users` (same-tenant trigger), identity `emailVerifiedAt` / `trialConsumedAt`. **Tables created empty**, no `tenantId` copies (§3.1), nothing reads them yet: no behaviour change. `platform_settings` and `subscription_invoices` move to P7; the signup tables to P5. | — |
-| P2 | `subscriptionPlans.ts` (plan → permission-id map, add-ons) and `previewSubscriptionPrice` with tests for every worked example above | — |
+| P2 | `subscriptionPlans.ts` (plan → permission-id map, add-ons) and `previewSubscriptionPrice` with tests for every worked example above. Nothing calls them yet. | P1 |
 | P3 | Lifecycle: real end dates, `subscriptionScheduler` (expire, reminders), admin-activate restores by-date status. Fixes "active never expires". | P1 |
-| P4 | **Server enforcement:** module gate in `requirePositionAction`, per-company read-only, user and POS limits, behind `enforcement` | P1, P2, **#151** (hooks after `assertCurrentMembership`; uses the live per-request read) |
-| P5 | Signup with plan, email verification, rate limiting, trial once per identity | P1, P2. Touches `auth.routes.ts`, which **#151** also edits, so merge after it. |
-| P6 | Add-company flow with server price preview | P2, **#151** (`CompaniesSettings.jsx`, `createCompany`) |
+| P4 | **Server enforcement:** module gate in `requirePositionAction`, per-company read-only, user and POS limits, behind `enforcement` | P1, P2. ~~#151~~ merged, no longer blocking (hooks after `assertCurrentMembership`) |
+| P5 | Signup with plan, email verification, rate limiting, trial once per identity | P1, P2. ~~#151~~ merged, no longer blocking |
+| P6 | Add-company flow with server price preview | P2. ~~#151~~ merged, no longer blocking (builds on its `CompaniesSettings.jsx` and `createCompany`) |
 | P7 | Billing via the أثر company: billing-company setting, `issueSubscriptionInvoice`, `subscription_invoices`, receipt → extend hook | P1, P3 |
 | P8 | Internal API for the admin panel (§9) | P1, P3, P7 |
 | P9 | Admin panel (separate repo): companies screen, plan/end date, invoices, receipts, statements, legal entity, price catalog, migration screen | P8 |

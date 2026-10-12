@@ -11,6 +11,10 @@
  */
 export const AR_TO_EN: Record<string, string> = {
   "أضف الشركة الجديدة كحساب مستقل من إعدادات الشركات": "Add the new company as an independent account from company settings.",
+  "فترة اشتراك غير صالحة": "Invalid subscription period",
+  "تاريخ التغيير خارج الفترة الحالية": "The change date is outside the current subscription period",
+  "ليست ترقية: التخفيض يُطبَّق عند التجديد التالي": "Not an upgrade: a downgrade takes effect at the next renewal",
+  "مقاعد نقطة البيع الإضافية تتطلب تفعيل نقطة البيع": "Additional POS users require POS to be enabled",
   "اسم الوظيفة مطلوب": "Job title name is required",
   "اسم الوظيفة طويل جداً": "Job title name is too long",
   "هذه الوظيفة موجودة بالفعل": "This job title already exists",
