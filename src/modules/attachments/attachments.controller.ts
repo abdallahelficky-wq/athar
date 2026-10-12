@@ -16,7 +16,7 @@ const HR_ATTACHMENT_TYPES: readonly string[] = ["employee", "payroll_run", "leav
 
 /** نظام مرفقات متعدد الأشكال (entityType/entityId حرّان) — كل نوع كيان يُحلَّل هنا لاستخراج
  * companyId الفعلي للتحقق من enforceCompanyScope (الذي لا يغطي هذا النمط لأنه غير مرتبط مباشرة
- * بـcompanyId في الطلب). سجلّ غير موجود يُترَك بصمت لطبقة service لترمي notFound كالمعتاد. */
+ * بـcompanyId في الطلب). يجب وجود الأصل حتى للمسؤول، قبل إصدار روابط الملفات أو تعديلها. */
 async function assertEntityCompanyAccess(auth: { tenantId: string; companyScope: string; role: string }, entityType: string, entityId: string) {
   // ملفات الموظف وكشف الرواتب وتسوية الإجازة (عقود، هويات، مسيّرات رواتب) — وأسماؤها وحدها تكشف — لأدوار
   // الموارد البشرية فقط: عرضاً وتحميلاً (الرابط المؤقت لا يُسلَّم إلا مع القائمة) ورفعاً وحذفاً. هذه المرفقات
@@ -24,7 +24,6 @@ async function assertEntityCompanyAccess(auth: { tenantId: string; companyScope:
   if (HR_ATTACHMENT_TYPES.includes(entityType) && !canReadHrData(auth)) {
     throw forbidden("مرفقات الموظفين والرواتب وتسويات الإجازة لأدوار الموارد البشرية فقط");
   }
-  if (auth.companyScope === "all") return;
   const record = await (
     {
       company: () => prisma.company.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { id: true } }).then((r) => r && { companyId: r.id }),
@@ -45,7 +44,8 @@ async function assertEntityCompanyAccess(auth: { tenantId: string; companyScope:
     } as Record<string, () => Promise<{ companyId: string } | null | undefined>>
   )[entityType]?.();
   const resolved = await record;
-  if (resolved?.companyId) assertCompanyAccess(auth, resolved.companyId);
+  if (!resolved?.companyId) throw notFound("المرفق غير موجود");
+  assertCompanyAccess(auth, resolved.companyId);
 }
 
 export const listHandler: RequestHandler = async (req, res) => {

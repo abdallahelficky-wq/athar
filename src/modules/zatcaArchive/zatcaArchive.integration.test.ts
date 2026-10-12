@@ -15,7 +15,8 @@ import { register } from "../auth/auth.service";
 import { buildDocumentXml } from "../../lib/zatca/xmlBuilder";
 import { signDocument } from "../../lib/zatca/signing";
 import { ZATCA_FIRST_INVOICE_PIH, ZatcaDocumentInput } from "../../lib/zatca/types";
-import { writeZatcaArchiveTx, annex1FileName, ARCHIVE_MIGRATION, ARCHIVE_ROLLOUT_GRACE_MS } from "../../lib/zatca/archive";
+import { writeZatcaArchiveTx, exportZatcaArchive, annex1FileName, ARCHIVE_MIGRATION, ARCHIVE_ROLLOUT_GRACE_MS } from "../../lib/zatca/archive";
+import { recordZatcaIssueTx, writeZatcaAttemptTx, getZatcaDocumentHistory, getZatcaAttemptSignedXml } from "../../lib/zatca/issues";
 
 /**
  * أرشيف مستندات زاتكا على Postgres فعلي:
@@ -100,6 +101,38 @@ async function invoice(date: string) {
 }
 
 describe("ZATCA document archive (integration)", () => {
+  it("follows current company ownership after separation without rewriting the immutable archive", async () => {
+    const oldTenant = await prisma.tenant.create({ data: { name: `archive-old-${stamp}`, unlockPin: "test" } });
+    const newTenant = await prisma.tenant.create({ data: { name: `archive-new-${stamp}`, unlockPin: "test" } });
+    const moved = await prisma.company.create({ data: { tenantId: oldTenant.id, name: `same-${stamp}` } });
+    await prisma.company.create({ data: { tenantId: newTenant.id, name: `same-${stamp}` } });
+    const signedXml = docXml("MOVE-1", "2026-09-01", "09:00:00");
+    await prisma.$transaction(tx => writeZatcaArchiveTx(tx, {
+      tenantId: oldTenant.id, companyId: moved.id, documentType: "sales_invoice", documentId: `move-${stamp}`, documentNumber: "MOVE-1", documentUuid: `uuid-${stamp}`,
+    }, { signedXml, subtype: "simplified", icv: 1, invoiceHash: "move", issuedAt: new Date("2026-09-01T09:00:00Z") }, "submission"));
+    const before = await prisma.zatcaDocumentArchive.findFirstOrThrow({ where: { companyId: moved.id } });
+    const doc = { tenantId: oldTenant.id, companyId: moved.id, documentType: "sales_invoice" as const, documentId: `move-${stamp}`, documentNumber: "MOVE-1", documentUuid: `uuid-${stamp}` };
+    await prisma.$transaction(async tx => {
+      await recordZatcaIssueTx(tx, doc, { icv: 1, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH, invoiceHash: "move", issuedAt: new Date("2026-09-01T09:00:00Z"), xml: signedXml, subtype: "simplified" });
+      await writeZatcaAttemptTx(tx, doc, { signedXml, submissionKind: "reporting", outcome: "reported", icv: 1, invoiceHash: "move", httpStatus: 200, response: { reportingStatus: "REPORTED" }, reason: null }, "submission", null);
+    });
+    await prisma.company.update({ where: { id: moved.id }, data: { tenantId: newTenant.id, name: `moved-${stamp}` } });
+    const from = new Date("2026-09-01"), to = new Date("2026-10-01");
+    const own = await exportZatcaArchive(newTenant.id, moved.id, from, to);
+    expect(own.archivedCount).toBe(1);
+    expect([...readZip(own.zip).values()].some(value => value.toString() === signedXml)).toBe(true);
+    expect((await exportZatcaArchive(oldTenant.id, moved.id, from, to)).archivedCount).toBe(0);
+    expect((await exportZatcaArchive(tenantId, moved.id, from, to)).archivedCount).toBe(0);
+    const history = await getZatcaDocumentHistory(newTenant.id, "sales_invoice", doc.documentId);
+    expect(history.issues).toHaveLength(1);
+    expect(history.attempts).toHaveLength(1);
+    expect((await getZatcaAttemptSignedXml(newTenant.id, "sales_invoice", doc.documentId, history.attempts[0].id)).xml.toString()).toBe(signedXml);
+    expect(await getZatcaDocumentHistory(oldTenant.id, "sales_invoice", doc.documentId)).toEqual({ issues: [], attempts: [] });
+    await expect(getZatcaAttemptSignedXml(oldTenant.id, "sales_invoice", doc.documentId, history.attempts[0].id)).rejects.toMatchObject({ status: 404 });
+    await expect(prisma.zatcaSubmissionAttempt.update({ where: { id: history.attempts[0].id }, data: { tenantId: newTenant.id } })).rejects.toThrow(/append-only/);
+    expect(await prisma.zatcaDocumentArchive.findUnique({ where: { id: before.id } })).toEqual(before);
+    await expect(prisma.zatcaDocumentArchive.update({ where: { id: before.id }, data: { tenantId: newTenant.id } })).rejects.toThrow(/append-only/);
+  });
   beforeAll(async () => {
     server = createApp().listen(0);
     await new Promise<void>((resolve) => server.once("listening", () => resolve()));

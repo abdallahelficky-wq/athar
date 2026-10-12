@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import IndependentAccountPicker from "./IndependentAccountPicker";
 
 /** قائمة منسدلة صغيرة عند اسم المستخدم بالهيدر العلوي: الملف الشخصي + تسجيل الخروج. */
 export default function UserMenu({ name, email, onOpenProfile, onLogout }) {
@@ -35,6 +36,7 @@ export default function UserMenu({ name, email, onOpenProfile, onLogout }) {
               الملف الشخصي
             </button>
           )}
+          <IndependentAccountPicker />
           <button type="button" className="user-menu-item user-menu-item-danger" role="menuitem" onClick={() => { setOpen(false); onLogout(); }}>
             تسجيل الخروج
           </button>

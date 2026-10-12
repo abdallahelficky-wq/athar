@@ -48,6 +48,11 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npm run lint
       - run: npm run build
+      - name: Verify guarded company separation in an isolated database
+        run: |
+          npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > /tmp/separation-schema.sql
+          node scripts/ops/tests/separation.local.cjs /tmp/separation-schema.sql scripts/ops/separate-armi-companies.sql scripts/sql/company-separation/company-separation-ownership-check.sql
+          node scripts/ops/tests/orphan-lookup.local.cjs scripts/sql/company-separation/company-separation-orphan-attachments.sql
       - name: Run tests with an ephemeral encryption key
         run: |
           export ZATCA_ENCRYPTION_KEY="$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('base64'))")"

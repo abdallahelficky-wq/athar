@@ -9,7 +9,7 @@ vi.mock("../../config/env", () => ({
 }));
 vi.mock("../../lib/prisma", () => ({
   prisma: {
-    employee: { findFirst: vi.fn() },
+    employee: { findFirst: vi.fn(), findUnique: vi.fn() },
     // authenticateEmployeePortal يتحقق الآن من أن المنشأة غير معلَّقة إدارياً قبل كل طلب بوابة
     tenant: { findUnique: vi.fn() },
     costCenter: { findUnique: vi.fn() },
@@ -59,6 +59,7 @@ function call(method: string, path: string, employeeId: string, body?: unknown) 
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(prisma.employee.findUnique).mockResolvedValue({ tenantId: TENANT, portalActive: true } as any);
   vi.mocked(prisma.tenant.findUnique).mockResolvedValue({ subscriptionStatus: "active", suspensionReason: null } as any);
 });
 

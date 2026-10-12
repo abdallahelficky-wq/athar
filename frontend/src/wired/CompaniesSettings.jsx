@@ -163,10 +163,10 @@ function NewCompanyForm({ onCompanyCreated }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   // "group" = ضمن نفس المجموعة (المستأجر الحالي، كما كان دائماً)، "independent" = مستأجر جديد كلياً
-  const [mode, setMode] = useState("group");
+  const [mode, setMode] = useState("independent");
   const [independentResult, setIndependentResult] = useState(null);
   const [switching, setSwitching] = useState(false);
-  const { switchAccount } = useAuth();
+  const { switchAccount, user } = useAuth();
   const isIndependent = mode === "independent";
   // المستقلة تُزرَع بدالة التسجيل نفسها، والتي تشترط النشاط — فلا خيار "بدون تحديد" لها
   const activityOptions = isIndependent ? BUSINESS_ACTIVITY_OPTIONS.filter((opt) => opt.value) : BUSINESS_ACTIVITY_OPTIONS;
@@ -205,7 +205,7 @@ function NewCompanyForm({ onCompanyCreated }) {
       });
       resetFields();
       setShowForm(false);
-      setMode("group");
+      setMode("independent");
       setIndependentResult(result);
     } catch (err) {
       setError(err.message || t("settings.newCompany.errGeneric"));
@@ -281,13 +281,13 @@ function NewCompanyForm({ onCompanyCreated }) {
       {showForm && (
         <fieldset className="company-mode-choice" style={{ marginTop: 14 }}>
           <legend>{t("settings.newCompany.modeLabel")}</legend>
-          <label className={"company-mode-option" + (mode === "group" ? " selected" : "")}>
+          {user?.companyScope === "all" && <label className={"company-mode-option" + (mode === "group" ? " selected" : "")}>
             <input type="radio" name="company-mode" value="group" checked={mode === "group"} onChange={() => chooseMode("group")} />
             <span>
               <strong>{t("settings.newCompany.group.title")}</strong>
               <small>{t("settings.newCompany.group.desc")}</small>
             </span>
-          </label>
+          </label>}
           <label className={"company-mode-option" + (isIndependent ? " selected" : "")}>
             <input type="radio" name="company-mode" value="independent" checked={isIndependent} onChange={() => chooseMode("independent")} />
             <span>

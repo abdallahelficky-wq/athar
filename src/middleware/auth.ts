@@ -6,9 +6,10 @@ import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
 import type { ActionLevel } from "../lib/platformActions";
 import { tenantSuspendedMessage } from "../modules/employeePortal/employeePortal.service";
+import { assertCurrentMembership } from "../lib/currentMembership";
 
 /** يتحقق من رمز JWT (access token) ويحمّل هوية المستخدم + المستأجر في req.auth */
-export const authenticate: RequestHandler = (req, _res, next) => {
+export const authenticate: RequestHandler = async (req, _res, next) => {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     throw unauthorized("رمز الدخول مفقود");
@@ -16,10 +17,11 @@ export const authenticate: RequestHandler = (req, _res, next) => {
   const token = header.slice("Bearer ".length);
   try {
     req.auth = verifyAccessToken(token);
-    next();
   } catch {
     throw unauthorized("رمز الدخول غير صالح أو منتهي الصلاحية");
   }
+  await assertCurrentMembership(req.auth!);
+  next();
 };
 
 /**
@@ -40,6 +42,13 @@ export const authenticateEmployeePortal: RequestHandler = async (req, _res, next
   }
   // تعليق المنشأة إدارياً يسري فوراً على بوابة الموظف أيضاً، لا عند انتهاء رمز الدخول (7 أيام) فقط —
   // بنفس قاعدة assertTenantActive لحسابات User في auth.service.ts.
+  const employee = await prisma.employee.findUnique({
+    where: { id: payload.employeeId },
+    select: { tenantId: true, portalActive: true },
+  });
+  if (!employee || employee.tenantId !== payload.tenantId || !employee.portalActive) {
+    throw unauthorized("رمز الدخول غير صالح أو منتهي الصلاحية");
+  }
   const tenant = await prisma.tenant.findUnique({
     where: { id: payload.tenantId },
     select: { subscriptionStatus: true, suspensionReason: true },

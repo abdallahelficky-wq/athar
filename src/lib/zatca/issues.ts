@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { gunzipSync, gzipSync } from "zlib";
-import { Prisma } from "@prisma/client";
+import { Prisma, ZatcaDocumentIssue, ZatcaSubmissionAttempt } from "@prisma/client";
 import { prisma } from "../prisma";
 import { notFound } from "../httpError";
 import type { ZatcaArchiveDocumentType } from "./archive";
@@ -122,22 +122,21 @@ export async function writeZatcaAttemptTx(
 /** سجل الإصدارات والمحاولات لمستند واحد — للعرض (بلا ملفات XML؛ تُنزَّل منفصلة عبر getZatcaAttemptSignedXml) */
 export async function getZatcaDocumentHistory(tenantId: string, documentType: ZatcaArchiveDocumentType, documentId: string) {
   const [issues, attempts] = await Promise.all([
-    prisma.zatcaDocumentIssue.findMany({
-      where: { tenantId, documentType, documentId },
-      orderBy: { icv: "asc" },
-      select: {
-        id: true, documentNumber: true, documentUuid: true, icv: true, previousInvoiceHash: true, invoiceHash: true, subtype: true,
-        issuedAt: true, supplyDate: true, reissueOfIssueId: true, source: true, createdById: true, createdAt: true,
-      },
-    }),
-    prisma.zatcaSubmissionAttempt.findMany({
-      where: { tenantId, documentType, documentId },
-      orderBy: { attemptedAt: "asc" },
-      select: {
-        id: true, documentUuid: true, icv: true, invoiceHash: true, submissionKind: true, outcome: true, httpStatus: true,
-        signedXmlSha256: true, response: true, reason: true, source: true, userId: true, attemptedAt: true,
-      },
-    }),
+    // Historical tenant IDs are immutable; current company ownership authorizes reads.
+    prisma.$queryRaw<Pick<ZatcaDocumentIssue, "id" | "documentNumber" | "documentUuid" | "icv" | "previousInvoiceHash" | "invoiceHash" | "subtype" | "issuedAt" | "supplyDate" | "reissueOfIssueId" | "source" | "createdById" | "createdAt">[]>(Prisma.sql`
+      SELECT a.id,a."documentNumber",a."documentUuid",a.icv,a."previousInvoiceHash",a."invoiceHash",a.subtype,
+        a."issuedAt",a."supplyDate",a."reissueOfIssueId",a.source,a."createdById",a."createdAt"
+      FROM zatca_document_issues a JOIN companies c ON c.id=a."companyId"
+      WHERE c."tenantId"=${tenantId} AND a."documentType"=${documentType} AND a."documentId"=${documentId}
+      ORDER BY a.icv ASC
+    `),
+    prisma.$queryRaw<Pick<ZatcaSubmissionAttempt, "id" | "documentUuid" | "icv" | "invoiceHash" | "submissionKind" | "outcome" | "httpStatus" | "signedXmlSha256" | "response" | "reason" | "source" | "userId" | "attemptedAt">[]>(Prisma.sql`
+      SELECT a.id,a."documentUuid",a.icv,a."invoiceHash",a."submissionKind",a.outcome,a."httpStatus",
+        a."signedXmlSha256",a.response,a.reason,a.source,a."userId",a."attemptedAt"
+      FROM zatca_submission_attempts a JOIN companies c ON c.id=a."companyId"
+      WHERE c."tenantId"=${tenantId} AND a."documentType"=${documentType} AND a."documentId"=${documentId}
+      ORDER BY a."attemptedAt" ASC
+    `),
   ]);
   return {
     issues,
@@ -147,10 +146,13 @@ export async function getZatcaDocumentHistory(tenantId: string, documentType: Za
 
 /** ملف XML الموقَّع كما أُرسِل في محاولة واحدة — مقيَّد بالمستأجر والمستند معاً */
 export async function getZatcaAttemptSignedXml(tenantId: string, documentType: ZatcaArchiveDocumentType, documentId: string, attemptId: string) {
-  const attempt = await prisma.zatcaSubmissionAttempt.findFirst({
-    where: { id: attemptId, tenantId, documentType, documentId },
-    select: { signedXml: true, compression: true, documentNumber: true, icv: true, documentUuid: true },
-  });
+  const [attempt] = await prisma.$queryRaw<Pick<ZatcaSubmissionAttempt, "signedXml" | "compression" | "documentNumber" | "icv" | "documentUuid">[]>(Prisma.sql`
+    SELECT a."signedXml",a.compression,a."documentNumber",a.icv,a."documentUuid"
+    FROM zatca_submission_attempts a JOIN companies c ON c.id=a."companyId"
+    WHERE c."tenantId"=${tenantId} AND a.id=${attemptId}
+      AND a."documentType"=${documentType} AND a."documentId"=${documentId}
+    LIMIT 1
+  `);
   if (!attempt?.signedXml) throw notFound("لا يوجد ملف XML موقَّع محفوظ لهذه المحاولة");
   const buf = Buffer.from(attempt.signedXml);
   const xml = attempt.compression === "gzip" ? gunzipSync(buf) : buf;

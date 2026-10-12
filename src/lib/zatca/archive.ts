@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { deflateRawSync, gunzipSync, gzipSync } from "zlib";
-import { Prisma } from "@prisma/client";
+import { Prisma, ZatcaDocumentArchive } from "@prisma/client";
 import { prisma } from "../prisma";
 import { writeZatcaAttemptTx, type ZatcaAttemptPayload } from "./issues";
 
@@ -284,10 +284,15 @@ export const csvCell = (v: unknown) => {
  * الفترة، ومنها ما لا أصل له في الأرشيف (أُرسِل قبل بدء الأرشفة)، حتى يكون حجم الفجوة رقماً لا تقديراً.
  */
 export async function exportZatcaArchive(tenantId: string, companyId: string, from: Date, toExclusive: Date) {
-  const rows = await prisma.zatcaDocumentArchive.findMany({
-    where: { tenantId, companyId, issuedAt: { gte: from, lt: toExclusive } },
-    orderBy: [{ issuedAt: "asc" }, { archivedAt: "asc" }],
-  });
+  // Archive tenantId is immutable historical provenance. Resolve CURRENT ownership in
+  // the same query: a separated company's archive must never remain visible to its old tenant.
+  const rows = await prisma.$queryRaw<ZatcaDocumentArchive[]>(Prisma.sql`
+    SELECT a.* FROM zatca_document_archive a
+    JOIN companies c ON c.id = a."companyId"
+    WHERE c.id = ${companyId} AND c."tenantId" = ${tenantId}
+      AND a."issuedAt" >= ${from} AND a."issuedAt" < ${toExclusive}
+    ORDER BY a."issuedAt" ASC, a."archivedAt" ASC
+  `);
   // حد ZIP الكلاسيكي (بلا ZIP64): رفض واضح قبل تحميل المحتوى، لا خطأ 500 ولا ملف تالف
   const perDocument = new Set(rows.map((r) => `${r.documentType}:${r.documentId}`)).size;
   if (perDocument + 1 > ZIP_MAX_ENTRIES) {

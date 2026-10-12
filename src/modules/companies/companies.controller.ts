@@ -47,6 +47,9 @@ export const createIndependentCompany: RequestHandler = async (req, res) => {
 };
 
 export const createCompany: RequestHandler = async (req, res) => {
+  if (req.auth!.companyScope !== "all") {
+    throw badRequest("أضف الشركة الجديدة كحساب مستقل من إعدادات الشركات");
+  }
   const company = await prisma.$transaction(
     async (tx) => {
       const created = await tx.company.create({ data: { ...req.body, tenantId: req.auth!.tenantId } });
