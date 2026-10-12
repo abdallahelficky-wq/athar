@@ -630,4 +630,10 @@ export const AR_TO_EN: Record<string, string> = {
   "مرفقات الموظفين والرواتب وتسويات الإجازة لأدوار الموارد البشرية فقط": "Employee, payroll and leave settlement attachments are for HR roles only",
   "حدد الفترة (من، إلى) بصيغة YYYY-MM-DD": "Specify the period (from, to) as YYYY-MM-DD",
   "حدد الشركة": "Select the company",
+  // دورة حياة الاشتراك (P3)
+  "لا يوجد اشتراك لهذه الشركة": "This company has no subscription",
+  "الاشتراك معلّق بالفعل": "The subscription is already suspended",
+  "الاشتراك ليس معلّقاً": "The subscription is not suspended",
+  "تغيّرت حالة الاشتراك أثناء الطلب — أعد المحاولة": "The subscription status changed during the request — try again",
+  "حالة ما قبل التعليق غير صالحة": "Invalid status before suspension",
 };
