@@ -187,8 +187,13 @@ model Identity {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // اشتراك لكل شركة (docs/design/subscription-plans.md): تحقق البريد عند التسجيل، واستهلاك التجربة المجانية مرة واحدة لكل هوية
+  emailVerifiedAt DateTime?
+  trialConsumedAt DateTime?
+
   memberships         User[]
   passwordResetTokens PasswordResetToken[]
+  ownedSubscriptions  CompanySubscription[]
 
   @@map("identities")
 }
@@ -238,6 +243,8 @@ model User {
   // نطاق companyScope واحد يكفي، ولو احتاج صلاحيات مختلفة لشركتين من نفس المستأجر فذلك عبر
   // companyScope="all" أو منصب مخصَّص، لا عضوية إضافية).
   @@unique([identityId, tenantId])
+  posAssignments CompanyPosUser[]
+
   @@map("users")
 }
 
@@ -577,6 +584,9 @@ model Company {
   zatcaComplianceStepAttempts ZatcaComplianceStepAttempt[]
 
   @@unique([tenantId, name])
+  subscription CompanySubscription?
+  posUsers     CompanyPosUser[]
+
   @@map("companies")
 }
 
@@ -3256,4 +3266,146 @@ model ZatcaSubmissionAttempt {
   @@index([tenantId, documentType, documentId, attemptedAt])
   @@index([companyId, documentUuid])
   @@map("zatca_submission_attempts")
+}
+
+// ---------------------------------------------------------------------------
+// اشتراك لكل شركة — المرحلة P1 من docs/design/subscription-plans.md: الجداول فقط، تُنشأ فارغة ولا يقرؤها
+// أي كود بعد (لا تغيير في السلوك). لا عمود tenantId منسوخ: المستأجر يُقرأ عبر companies.tenantId، لأن سكربت فصل
+// الشركات (#151) يعيد كتابة tenantId في كل جدول يحمله. القيود (CHECK) والمشغّلات في migration.sql نفسه.
+// ---------------------------------------------------------------------------
+
+enum BillingPeriod {
+  yearly
+  monthly
+}
+
+enum CompanySubscriptionStatus {
+  trialing
+  awaiting_payment
+  active
+  // الأيام السبعة بعد نهاية فترة مدفوعة: الكتابة مسموحة مع شريط تنبيه، ثم عرض فقط
+  grace
+  expired
+  suspended
+  canceled
+}
+
+enum ActivityAddonState {
+  off
+  // مجانية للشركات القائمة حتى يُحدَّد سعر الإضافة
+  free
+  paid
+}
+
+enum SubscriptionEventType {
+  created
+  plan_changed
+  period_changed
+  renewed
+  extended
+  grace_started
+  expired
+  suspended
+  activated
+  canceled
+  receipt_applied
+  receipt_unallocated_flagged
+  rank_recomputed
+  pos_users_changed
+  migrated
+}
+
+enum PlanPriceItem {
+  plan_basic
+  plan_professional
+  plan_enterprise
+  addon_user
+  // مستخدم نقطة بيع إضافي — الأول مشمول مجاناً في كل شركة فعّلت نقطة البيع
+  addon_pos_extra_user
+  addon_stations
+  addon_stables
+}
+
+model CompanySubscription {
+  id                     String                    @id @default(cuid())
+  companyId              String                    @unique
+  company                Company                   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  // نطاق خصم الحجم: لقطة من هوية مالك المستأجر، تُحدَّث عند التجديد. فارغة لمستأجر بلا مالك (قرار يدوي)
+  ownerIdentityId        String?
+  ownerIdentity          Identity?                 @relation(fields: [ownerIdentityId], references: [id], onDelete: Restrict)
+  plan                   SubscriptionPlan
+  billingPeriod          BillingPeriod
+  status                 CompanySubscriptionStatus
+  currentPeriodStart     DateTime?
+  // تاريخ نهاية حقيقي إلزامي (CHECK) إلا لصف مُرحَّل بلا نهاية معروفة (legacyOpenEnded)، وذاك لا يُفعَّل عليه الإنفاذ
+  currentPeriodEnd       DateTime?
+  legacyOpenEnded        Boolean                   @default(false)
+  discountRank           Int                       @default(1)
+  discountPct            Decimal                   @default(0) @db.Decimal(5, 2)
+  netPrice               Decimal                   @default(0) @db.Decimal(12, 2)
+  grandfatheredNetPrice  Decimal?                  @db.Decimal(12, 2)
+  // تخفيض باقة أو تغيير فترة ينتظر التجديد التالي
+  scheduledPlan          SubscriptionPlan?
+  scheduledBillingPeriod BillingPeriod?
+  extraUsers             Int                       @default(0)
+  // نقطة البيع مفعّلة للشركة: تشمل مستخدم نقطة بيع واحداً مجاناً. posUsers = المقاعد الإضافية المدفوعة فقط (الحد = 1 + posUsers)
+  posEnabled             Boolean                   @default(false)
+  posUsers               Int                       @default(0)
+  stationsAddon          ActivityAddonState        @default(off)
+  stablesAddon           ActivityAddonState        @default(off)
+  suspensionReason       String?
+  // مفتاح الطرح التدريجي لكل شركة — يبقى false حتى يكتمل ترحيل بياناتها
+  enforced               Boolean                   @default(false)
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+
+  events SubscriptionEvent[]
+
+  @@index([ownerIdentityId])
+  @@index([status, currentPeriodEnd])
+  @@map("company_subscriptions")
+}
+
+// سجل إضافي فقط (append-only بمشغّل في القاعدة) لكل تغيير سعر أو تاريخ أو حالة
+model SubscriptionEvent {
+  id                    String                @id @default(cuid())
+  companySubscriptionId String
+  companySubscription   CompanySubscription   @relation(fields: [companySubscriptionId], references: [id], onDelete: Restrict)
+  type                  SubscriptionEventType
+  before                Json?
+  after                 Json?
+  // system_job | platform_admin:<adminUserId> | owner:<userId> — نص لا مفتاح أجنبي، كبقية جداول التدقيق
+  actor                 String
+  at                    DateTime              @default(now())
+
+  @@index([companySubscriptionId, at])
+  @@map("subscription_events")
+}
+
+// السعر السنوي قبل الضريبة لكل بند بتاريخ سريان؛ الشهري دائماً بالمعادلة (السنوي ÷ 12 × 1.10). null = لم يُحدَّد بعد/مجاني.
+// الصف الساري لا يُعدَّل ولا يُحذف (مشغّل) — تغيير السعر = صف جديد بتاريخ سريان لاحق.
+model PlanPrice {
+  id             String        @id @default(cuid())
+  item           PlanPriceItem
+  yearlyNetPrice Decimal?      @db.Decimal(12, 2)
+  effectiveFrom  DateTime      @db.Date
+  createdAt      DateTime      @default(now())
+
+  @@unique([item, effectiveFrom])
+  @@map("plan_prices")
+}
+
+// مستخدم نقطة البيع المدفوع: تعيين صريح لكل شركة، لا كل من يملك منصبه pos.create. مشغّل يرفض عضواً من مستأجر آخر.
+model CompanyPosUser {
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedAt       DateTime @default(now())
+  assignedByUserId String?
+
+  @@unique([companyId, userId])
+  @@index([userId])
+  @@map("company_pos_users")
 }
