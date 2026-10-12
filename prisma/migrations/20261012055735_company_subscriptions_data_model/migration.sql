@@ -11,7 +11,7 @@ CREATE TYPE "ActivityAddonState" AS ENUM ('off', 'free', 'paid');
 CREATE TYPE "SubscriptionEventType" AS ENUM ('created', 'plan_changed', 'period_changed', 'renewed', 'extended', 'grace_started', 'expired', 'suspended', 'activated', 'canceled', 'receipt_applied', 'receipt_unallocated_flagged', 'rank_recomputed', 'pos_users_changed', 'migrated');
 
 -- CreateEnum
-CREATE TYPE "PlanPriceItem" AS ENUM ('plan_basic', 'plan_professional', 'plan_enterprise', 'addon_user', 'addon_pos', 'addon_stations', 'addon_stables');
+CREATE TYPE "PlanPriceItem" AS ENUM ('plan_basic', 'plan_professional', 'plan_enterprise', 'addon_user', 'addon_pos_extra_user', 'addon_stations', 'addon_stables');
 
 -- AlterTable
 ALTER TABLE "identities" ADD COLUMN     "emailVerifiedAt" TIMESTAMP(3),
@@ -35,6 +35,7 @@ CREATE TABLE "company_subscriptions" (
     "scheduledPlan" "SubscriptionPlan",
     "scheduledBillingPeriod" "BillingPeriod",
     "extraUsers" INTEGER NOT NULL DEFAULT 0,
+    "posEnabled" BOOLEAN NOT NULL DEFAULT false,
     "posUsers" INTEGER NOT NULL DEFAULT 0,
     "stationsAddon" "ActivityAddonState" NOT NULL DEFAULT 'off',
     "stablesAddon" "ActivityAddonState" NOT NULL DEFAULT 'off',
@@ -133,7 +134,10 @@ ALTER TABLE "company_subscriptions"
     CHECK ("discountRank" >= 1 AND "discountPct" >= 0 AND "discountPct" <= 50),
   ADD CONSTRAINT "company_subscriptions_amounts_nonnegative"
     CHECK ("netPrice" >= 0 AND ("grandfatheredNetPrice" IS NULL OR "grandfatheredNetPrice" >= 0)
-           AND "extraUsers" >= 0 AND "posUsers" >= 0);
+           AND "extraUsers" >= 0 AND "posUsers" >= 0),
+  -- مقاعد نقطة البيع الإضافية لا معنى لها بلا نقطة بيع مفعّلة (المقعد الأول مجاني ضمن التفعيل)
+  ADD CONSTRAINT "company_subscriptions_pos_requires_enabled"
+    CHECK ("posEnabled" OR "posUsers" = 0);
 
 ALTER TABLE "plan_prices"
   ADD CONSTRAINT "plan_prices_nonnegative" CHECK ("yearlyNetPrice" IS NULL OR "yearlyNetPrice" >= 0);
@@ -198,12 +202,13 @@ CREATE TRIGGER company_pos_users_same_tenant
   BEFORE INSERT OR UPDATE ON "company_pos_users"
   FOR EACH ROW EXECUTE FUNCTION company_pos_users_same_tenant();
 
--- الأسعار المعتمدة من المالك (سنوية، قبل ضريبة 15%). المحطات والإسطبلات: لم يُحدَّد السعر بعد (null = مجانية للقائمة).
+-- الأسعار المعتمدة من المالك (سنوية، قبل ضريبة 15%). نقطة البيع: المستخدم الأول مجاني ضمن التفعيل، والسعر هنا للمستخدم الإضافي.
+-- المحطات والإسطبلات: مجانية بلا سعر حالياً (null)، تُفعَّل بالنشاط.
 INSERT INTO "plan_prices" ("id", "item", "yearlyNetPrice", "effectiveFrom") VALUES
   ('plan_price_seed_basic',        'plan_basic',        500.00,  DATE '2026-10-12'),
   ('plan_price_seed_professional', 'plan_professional', 1000.00, DATE '2026-10-12'),
   ('plan_price_seed_enterprise',   'plan_enterprise',   1500.00, DATE '2026-10-12'),
   ('plan_price_seed_addon_user',   'addon_user',        120.00,  DATE '2026-10-12'),
-  ('plan_price_seed_addon_pos',    'addon_pos',         600.00,  DATE '2026-10-12'),
+  ('plan_price_seed_addon_pos_extra_user', 'addon_pos_extra_user', 600.00, DATE '2026-10-12'),
   ('plan_price_seed_addon_station','addon_stations',    NULL,    DATE '2026-10-12'),
   ('plan_price_seed_addon_stables','addon_stables',     NULL,    DATE '2026-10-12');

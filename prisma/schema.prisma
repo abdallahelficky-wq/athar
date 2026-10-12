@@ -3320,7 +3320,8 @@ enum PlanPriceItem {
   plan_professional
   plan_enterprise
   addon_user
-  addon_pos
+  // مستخدم نقطة بيع إضافي — الأول مشمول مجاناً في كل شركة فعّلت نقطة البيع
+  addon_pos_extra_user
   addon_stations
   addon_stables
 }
@@ -3347,6 +3348,8 @@ model CompanySubscription {
   scheduledPlan          SubscriptionPlan?
   scheduledBillingPeriod BillingPeriod?
   extraUsers             Int                       @default(0)
+  // نقطة البيع مفعّلة للشركة: تشمل مستخدم نقطة بيع واحداً مجاناً. posUsers = المقاعد الإضافية المدفوعة فقط (الحد = 1 + posUsers)
+  posEnabled             Boolean                   @default(false)
   posUsers               Int                       @default(0)
   stationsAddon          ActivityAddonState        @default(off)
   stablesAddon           ActivityAddonState        @default(off)

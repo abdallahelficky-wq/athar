@@ -38,7 +38,7 @@ describe("company subscriptions data model (P1)", () => {
     b = await setup("b");
   }, 120_000);
 
-  it("seeds the owner-approved yearly prices; stations and stables stay unpriced", async () => {
+  it("seeds the owner-approved yearly prices (POS price = each additional POS user); stations and stables stay unpriced", async () => {
     const rows = await prisma.planPrice.findMany({ where: { id: { startsWith: "plan_price_seed_" } } });
     const byItem = Object.fromEntries(rows.map((r) => [r.item, r.yearlyNetPrice == null ? null : r.yearlyNetPrice.toFixed(2)]));
     expect(byItem).toEqual({
@@ -46,7 +46,7 @@ describe("company subscriptions data model (P1)", () => {
       plan_professional: "1000.00",
       plan_enterprise: "1500.00",
       addon_user: "120.00",
-      addon_pos: "600.00",
+      addon_pos_extra_user: "600.00",
       addon_stations: null,
       addon_stables: null,
     });
@@ -67,7 +67,9 @@ describe("company subscriptions data model (P1)", () => {
       prisma.companySubscription.create({ data: { ...validRow(b.companyId, null), currentPeriodEnd: new Date(Date.now() - DAY) } }),
     ).rejects.toThrow(/company_subscriptions_period_order/);
     await expect(prisma.companySubscription.create({ data: { ...validRow(b.companyId, null), discountPct: 60 } })).rejects.toThrow(/company_subscriptions_discount_range/);
-    await expect(prisma.companySubscription.create({ data: { ...validRow(b.companyId, null), posUsers: -1 } })).rejects.toThrow(/company_subscriptions_amounts_nonnegative/);
+    await expect(prisma.companySubscription.create({ data: { ...validRow(b.companyId, null), posEnabled: true, posUsers: -1 } })).rejects.toThrow(/company_subscriptions_amounts_nonnegative/);
+    // مقاعد نقطة بيع إضافية مدفوعة بلا تفعيل نقطة البيع — مرفوضة (المقعد الأول مجاني ضمن التفعيل)
+    await expect(prisma.companySubscription.create({ data: { ...validRow(b.companyId, null), posUsers: 1 } })).rejects.toThrow(/company_subscriptions_pos_requires_enabled/);
 
     const legacy = await prisma.companySubscription.create({ data: { ...noEnd, legacyOpenEnded: true } });
     expect(legacy.enforced).toBe(false);
@@ -75,7 +77,9 @@ describe("company subscriptions data model (P1)", () => {
   });
 
   it("keeps one subscription per company and an append-only event log", async () => {
-    const sub = await prisma.companySubscription.create({ data: { ...validRow(a.companyId, a.identityId), discountRank: 2, discountPct: 20, netPrice: 400 } });
+    // نقطة بيع مفعّلة بمستخدم إضافي واحد مدفوع (الحد 1 + 1)؛ وتعطيلها مع بقاء مقعد مدفوع مرفوض
+    const sub = await prisma.companySubscription.create({ data: { ...validRow(a.companyId, a.identityId), discountRank: 2, discountPct: 20, netPrice: 400, posEnabled: true, posUsers: 1 } });
+    await expect(prisma.companySubscription.update({ where: { id: sub.id }, data: { posEnabled: false } })).rejects.toThrow(/company_subscriptions_pos_requires_enabled/);
     await expect(prisma.companySubscription.create({ data: validRow(a.companyId, a.identityId) })).rejects.toThrow(/Unique constraint/);
 
     const event = await prisma.subscriptionEvent.create({ data: { companySubscriptionId: sub.id, type: "created", after: { plan: "basic" }, actor: "system_job" } });
@@ -97,7 +101,7 @@ describe("company subscriptions data model (P1)", () => {
     expect(edited.yearlyNetPrice?.toFixed(2)).toBe("560.00");
     await expect(prisma.planPrice.update({ where: { id: scheduled.id }, data: { effectiveFrom: new Date() } })).rejects.toThrow(/cannot be moved/);
     await prisma.planPrice.delete({ where: { id: scheduled.id } });
-    await expect(prisma.planPrice.create({ data: { item: "addon_pos", yearlyNetPrice: -1, effectiveFrom: future } })).rejects.toThrow(/plan_prices_nonnegative/);
+    await expect(prisma.planPrice.create({ data: { item: "addon_pos_extra_user", yearlyNetPrice: -1, effectiveFrom: future } })).rejects.toThrow(/plan_prices_nonnegative/);
   });
 
   it("assigns POS users only within the company's own tenant", async () => {
