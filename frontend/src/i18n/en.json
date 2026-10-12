@@ -189,12 +189,12 @@
           "features": ["One company", "Core journal entries and financial reports", "ZATCA-compliant sales and purchase invoices", "Up to 5 users", "Email support"]
         },
         {
-          "name": "Professional", "tagline": "For multi-company groups and accounting teams",
-          "features": ["Up to 4 companies in one group", "Everything in the Basic plan", "Inventory and fixed assets", "Full HR and payroll", "Priority support"]
+          "name": "Professional", "tagline": "For growing companies and accounting teams",
+          "features": ["One company with an independent account", "Everything in the Basic plan", "Inventory and fixed assets", "Full HR and payroll", "Priority support"]
         },
         {
-          "name": "Enterprise", "tagline": "For large groups with advanced needs",
-          "features": ["Unlimited companies", "Everything in the Professional plan", "Advanced user permissions", "Unlimited Excel import/export", "Dedicated account manager"]
+          "name": "Enterprise", "tagline": "For companies with advanced needs",
+          "features": ["One company with an independent account", "Everything in the Professional plan", "Advanced user permissions", "Unlimited Excel import/export", "Dedicated account manager"]
         }
       ]
     },
@@ -220,6 +220,8 @@
       "chooseAccountErr": "Couldn't complete login for this company, please try again."
     },
     "register": {
+      "plan": "Selected plan",
+      "planTrialNote": "An independent subscription for one company. A 30-day free trial with no charge at registration.",
       "title": "Start your one-month free trial",
       "companyName": "Company / business name",
       "businessActivity": "Company activity",

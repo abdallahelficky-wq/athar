@@ -17,7 +17,7 @@ import { createStarterItems, createCashParties, createDefaultWarehouse, linkStat
 import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../../lib/mailer";
 import { badRequest, conflict, forbidden, notFound, unauthorized } from "../../lib/httpError";
 import type { Lang } from "../../lib/i18n/translate";
-import type { Prisma, Tenant, User, Identity } from "@prisma/client";
+import type { Prisma, Tenant, User, Identity, SubscriptionPlan } from "@prisma/client";
 import { canUnpostJournalEntries, canDeferPosSale, canOverridePosPrice } from "../positions/positions.service";
 import { assertValidUnlockPin } from "../../lib/journalPosting";
 
@@ -135,13 +135,14 @@ type OwnedTenantCompanyInput = {
  */
 async function createOwnedTenant(
   tx: Prisma.TransactionClient,
-  input: { identity: Identity; ownerName: string; unlockPinHash: string; company: OwnedTenantCompanyInput },
+  input: { identity: Identity; ownerName: string; unlockPinHash: string; subscriptionPlan?: SubscriptionPlan; company: OwnedTenantCompanyInput },
 ) {
   const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000);
   const tenant = await tx.tenant.create({
     data: {
       name: input.company.name,
       subscriptionStatus: "trialing",
+      subscriptionPlan: input.subscriptionPlan ?? "basic",
       trialEndsAt,
       unlockPin: input.unlockPinHash,
     },
@@ -177,7 +178,7 @@ async function createOwnedTenant(
 }
 
 export async function register(
-  input: { tenantName: string; businessActivity: BusinessActivity; name: string; email: string; password: string },
+  input: { tenantName: string; businessActivity: BusinessActivity; name: string; email: string; password: string; subscriptionPlan?: SubscriptionPlan },
   lang: Lang = "ar",
 ) {
   const existingIdentity = await prisma.identity.findUnique({ where: { email: input.email } });
@@ -204,6 +205,7 @@ export async function register(
       return createOwnedTenant(tx, {
         identity,
         ownerName: input.name,
+        subscriptionPlan: input.subscriptionPlan,
         unlockPinHash,
         company: { name: input.tenantName, businessActivity: input.businessActivity },
       });
