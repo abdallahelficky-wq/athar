@@ -1,6 +1,6 @@
 import SalesReturnFormModal from "./SalesReturnFormModal";
 import SendCreditNoteEmailModal from "./SendCreditNoteEmailModal";
-import InvoiceZatcaDetails from "./InvoiceZatcaDetails";
+import DocumentZatcaSection from "./DocumentZatcaSection";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -73,6 +73,24 @@ export default function SalesReturnViewModal({ salesReturn, companies, autoPrint
     setEmailModalOpen(true);
   };
 
+  // قسم زاتكا للشاشة فقط، خارج منطقة الطباعة (PrintShell.outsidePrint) — راجع DocumentZatcaSection
+  const zatcaSection = (
+    <DocumentZatcaSection
+      basePath="/sales-returns"
+      document={current}
+      notify={notify}
+      onReissued={async (updated) => {
+        await refreshReturn();
+        const ok = updated.zatcaStatus === "cleared";
+        const message = ok
+          ? t("salesInvoices.notify.zatcaResentOk", { number: current.returnNumber, status: t("salesInvoices.zatcaSummary.sent") })
+          : t("salesInvoices.notify.zatcaRejectedAgain", { number: current.returnNumber, reason: updated.rejectionReason ? `: ${updated.rejectionReason}` : "." });
+        onChanged?.(message);
+        notify(message, ok ? "success" : "error");
+      }}
+    />
+  );
+
   const customer = current.customer;
   const posted = current.status === "posted";
   const isDraft = current.status === "draft";
@@ -94,6 +112,7 @@ export default function SalesReturnViewModal({ salesReturn, companies, autoPrint
         onClose={onClose}
         onEdit={isDraft ? () => setEditing(true) : undefined}
         onDownload={posted ? handleDownload : undefined}
+        outsidePrint={zatcaSection}
       >
         <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
           <button type="button" className="btn-secondary" disabled={sendingEmail} onClick={handleSendEmail}>
@@ -103,7 +122,6 @@ export default function SalesReturnViewModal({ salesReturn, companies, autoPrint
           </button>
         </div>
 
-        <InvoiceZatcaDetails invoice={current} />
 
         <div className="voucher-meta">
           <div><span>{t("salesInvoices.view.seller")}</span><strong>{company?.name}</strong></div>

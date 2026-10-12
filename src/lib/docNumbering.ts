@@ -35,10 +35,13 @@ function resolvePrefix(prefix: string, year: number): string {
  * لأي شركة قديمة لم تلمس هذه الميزة الجديدة إطلاقاً.
  */
 export async function reserveDocumentNumber(tx: Tx, tenantId: string, companyId: string, docType: DocNumberingType): Promise<string> {
-  await tx.documentNumberingSettings.upsert({
-    where: { companyId_docType: { companyId, docType } },
-    update: {},
-    create: { tenantId, companyId, docType, prefix: `${DEFAULT_PREFIX[docType]}-`, digits: 5, resetMode: "continuous" },
+  // صف الإعدادات الافتراضي عند أول استخدام — INSERT … ON CONFLICT DO NOTHING (createMany + skipDuplicates) لا upsert:
+  // upsert في Prisma ليس ذرّياً (قراءة ثم إدراج)، فأول مستندين متزامنين من نوع واحد في شركة كان كلاهما لا يجد الصف ويحاول
+  // إدراجه، فيسقط أحدهما بخطأ قيد فريد (500) وتتراجع معاملته كلها. ON CONFLICT يُبقي صفاً واحداً بلا خطأ، ولا يكتب فوق
+  // صف موجود (إعدادات الشركة وnextSeq تبقى كما هي). راجع docNumbering.integration.test.ts.
+  await tx.documentNumberingSettings.createMany({
+    data: [{ tenantId, companyId, docType, prefix: `${DEFAULT_PREFIX[docType]}-`, digits: 5, resetMode: "continuous" }],
+    skipDuplicates: true,
   });
 
   const currentYear = new Date().getFullYear();

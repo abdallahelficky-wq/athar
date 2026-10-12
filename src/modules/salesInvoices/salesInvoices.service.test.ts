@@ -12,6 +12,8 @@ vi.mock("../../lib/prisma", () => ({
     $transaction: vi.fn(),
   },
 }));
+// سجلّا الإصدارات والمحاولات (issues.ts) لهما اختبار تكامل على Postgres فعلي (zatcaReissue.integration.test.ts) — هنا يكفي ألا يعترضا المسار
+vi.mock("../../lib/zatca/issues", () => ({ recordZatcaIssueTx: vi.fn(), issuedSupplyDate: vi.fn(), writeZatcaAttemptTx: vi.fn() }));
 // المسار المُعاد هيكلته (ثلاث مراحل) لا يستدعي evaluateZatcaPostingGate القديمة إطلاقاً من
 // createSalesInvoice — المرحلة 1 تحجز السلسلة عبر reserveZatcaChain مباشرة (بلا اتصال شبكي)،
 // والمرحلة 2 (submitZatcaChainDocument) هي من يتصل فعلياً بزاتكا بعد إغلاق المعاملة.

@@ -6,6 +6,7 @@ import { ZatcaApiEnvironment } from "./apiClient";
 import { ZatcaDocumentStatus } from "@prisma/client";
 import { env } from "../../config/env";
 import type { ZatcaArchivePayload } from "./archive";
+import { attemptFromOutcome, type ZatcaAttemptPayload } from "./issues";
 
 export interface ResubmitZatcaDocumentParams {
   company: ZatcaCompanyLike;
@@ -20,6 +21,8 @@ export interface ResubmitZatcaDocumentParams {
   /** invoiceHash المخزَّن من محاولة الترحيل الأصلية — يُتحقَّق من مطابقته قبل إعادة الإرسال */
   invoiceHash: string;
   issuedAt: Date;
+  /** KSA-5 لمستند أُعيد إصداره (issuedSupplyDate في issues.ts) — جزء من المحتوى المُجزَّأ */
+  supplyDate?: string;
 }
 
 export interface ResubmitZatcaDocumentResult {
@@ -32,6 +35,8 @@ export interface ResubmitZatcaDocumentResult {
   rejectionReason?: string;
   /** قبول على مسار الإنتاج: الأصل المُعاد توقيعه — يُحفَظ في zatca_document_archive مع حفظ الرد (archive.ts) */
   archive?: ZatcaArchivePayload;
+  /** كل إرسال فعلي — يُسجَّل في zatca_submission_attempts */
+  attempt?: ZatcaAttemptPayload;
 }
 
 /**
@@ -52,6 +57,7 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
     previousInvoiceHash: params.previousInvoiceHash,
     issuedAt: params.issuedAt,
     expectedInvoiceHash: params.invoiceHash,
+    supplyDate: params.supplyDate,
   });
 
   if (rebuilt.invoiceHash !== params.invoiceHash) {
@@ -97,11 +103,17 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
     // راجع نفس التمييز في postingGate.ts: نجاح فحص امتثال (شهادة اختبار) لا يُعتبَر تخليصاً/إبلاغاً
     // فعلياً — يُصنَّف compliance_checked بلا zatcaClearedOrReportedAt (لم يحدث تخليص/إبلاغ قانوني).
     const isProductionSubmission = params.company.zatcaOnboardingStatus === "production";
+    const chainRef = { icv: params.icv, invoiceHash: params.invoiceHash };
     if (!isProductionSubmission) {
-      return { zatcaStatus: "compliance_checked", zatcaResponseRaw: outcome.response ?? undefined };
+      return {
+        zatcaStatus: "compliance_checked", zatcaResponseRaw: outcome.response ?? undefined,
+        attempt: attemptFromOutcome(outcome, submissionKind, "compliance_checked", chainRef),
+      };
     }
+    const acceptedStatus = rebuilt.subtype === "standard" ? "cleared" : "reported";
     return {
-      zatcaStatus: rebuilt.subtype === "standard" ? "cleared" : "reported",
+      zatcaStatus: acceptedStatus,
+      attempt: attemptFromOutcome(outcome, submissionKind, acceptedStatus, chainRef),
       zatcaResponseRaw: outcome.response ?? undefined,
       zatcaClearedOrReportedAt: new Date(),
       archive: {
@@ -120,15 +132,17 @@ export async function resubmitZatcaDocument(params: ResubmitZatcaDocumentParams)
         `documentUuid=${params.documentUuid}، السبب المعروض للمستخدم=${outcome.reason} — الاستجابة الخام الكاملة من زاتكا: ${JSON.stringify(outcome.response)}`,
     );
   }
+  const failedStatus = outcome.certificateError
+    ? "certificate_error"
+    : outcome.networkError || outcome.httpError || outcome.malformedResponse
+      ? "submission_failed"
+      : "rejected";
   return {
+    attempt: attemptFromOutcome(outcome, submissionKind, failedStatus, { icv: params.icv, invoiceHash: params.invoiceHash }),
     // راجع نفس التمييز في postingGate.ts: httpError أو malformedResponse (فشل نقل/مصادقة، أو رد
     // 2xx ناجح فعلياً لم يطابق الشكل المتوقَّع — لا تقييم فعلي للمستند في أي منهما) تُصنَّف
     // submission_failed بنفس معاملة عطل الشبكة، لا rejected.
-    zatcaStatus: outcome.certificateError
-      ? "certificate_error"
-      : outcome.networkError || outcome.httpError || outcome.malformedResponse
-        ? "submission_failed"
-        : "rejected",
+    zatcaStatus: failedStatus,
     zatcaResponseRaw: outcome.response ?? undefined,
     rejectionReason: outcome.reason,
   };

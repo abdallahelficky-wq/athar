@@ -1,4 +1,6 @@
 import { RequestHandler } from "express";
+import { zatcaHistoryHandlers } from "../../lib/zatca/historyHandlers";
+import { reissueEligibility } from "../../lib/zatca/reissue";
 import * as service from "./salesInvoices.service";
 import { sendInvoiceByEmail, listInvoicesWithoutSuccessfulEmail, resendInvoiceEmail, getSalesInvoicePdf } from "./salesInvoiceEmail.service";
 import { searchSalesInvoices } from "./salesInvoicesSearch.service";
@@ -110,7 +112,7 @@ export const resendEmailHandler: RequestHandler = async (req, res) => {
 
 export const resendZatcaHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
-  res.json(await service.resendInvoiceToZatca(req.auth!.tenantId, req.params.id));
+  res.json(await service.resendInvoiceToZatca(req.auth!.tenantId, req.params.id, req.auth!.sub));
 };
 
 // إعادة محاولة فاتورة عالقة بحالة pending_submission (لم يصلها ردّ نهائي من زاتكا بعد) — بنفس
@@ -126,3 +128,14 @@ export const completeZatcaPostingHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
   res.json(await service.completeZatcaAcceptedPosting(req.auth!.tenantId, req.auth!.sub, req.params.id));
 };
+
+// إعادة إصدار مستند قياسي رفضته زاتكا (UUID/ICV/تجزئة جديدة، نفس الرقم) — راجع src/lib/zatca/reissue.ts
+export const reissueZatcaHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesInvoice, req.params.id);
+  res.json(await service.reissueRejectedSalesInvoice(req.auth!.tenantId, req.auth!.sub, req.params.id));
+};
+
+export const { history: zatcaHistoryHandler, attemptXml: zatcaAttemptXmlHandler } = zatcaHistoryHandlers("sales_invoice", prisma.salesInvoice, async (tenantId, id) => {
+  const doc = await prisma.salesInvoice.findFirstOrThrow({ where: { id, tenantId }, include: { customer: true } });
+  return reissueEligibility(doc, doc.customer, { postedAllowed: true });
+});

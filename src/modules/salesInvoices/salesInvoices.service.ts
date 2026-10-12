@@ -1,4 +1,6 @@
 import { saveZatcaResponseWithArchive } from "../../lib/zatca/archive";
+import { issuedSupplyDate, recordZatcaIssueTx } from "../../lib/zatca/issues";
+import { assertReissuable, REISSUE_CONFLICT_MESSAGE, reserveReissueChainTx } from "../../lib/zatca/reissue";
 import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/itemTax";
 import { withInvoiceCredits } from "../../lib/invoiceCredits";
 import { randomUUID } from "crypto";
@@ -496,7 +498,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
       const invoiceNumber = await counted(counter1, reserveDocumentNumber(tx, tenantId, input.companyId, "sales_invoice"));
       const chain = await counted(
         counter1,
-        reserveZatcaChain(tx, { company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: zatcaUuid, lines: zatcaLines }),
+        reserveZatcaChain(tx, { company, customer, kind: "invoice", documentNumber: invoiceNumber, documentUuid: zatcaUuid, lines: zatcaLines, documentDate: input.date }),
       );
       const baseData = {
         tenantId,
@@ -547,6 +549,7 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
         },
         include: invoiceInclude,
       }));
+      await recordZatcaIssueTx(tx, zatcaDocRef(invoice), chain, { userId });
       await writePriceOverrideAuditLogsTx(tx, tenantId, userId, invoice.id, input.priceOverridesToAudit);
       return { kind: "pending" as const, invoice, xml: chain.xml, subtype: chain.subtype };
     }, { timeout: 8000 });
@@ -630,6 +633,8 @@ async function finishInvoiceZatcaSubmission(
         documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid,
     },
     source: "submission",
+    attempt: decision.attempt,
+    userId,
     inTx: (tx) => tx.salesInvoice.update(afterResponseArgs),
     plain: () => prisma.salesInvoice.update(afterResponseArgs),
   });
@@ -707,6 +712,8 @@ interface StoredInvoiceLineLike {
   taxCategoryCode: string;
   taxExemptionReason: string | null;
   taxExemptionReasonCode?: string | null;
+  discountPct: Prisma.Decimal | number;
+  priceIncludesVat: boolean;
 }
 
 /** الشكل المطلوب لـcomputeCogsJournalLines/buildJournalLines فقط (LineInput) — بلا description
@@ -724,6 +731,14 @@ function toComputedLines(lines: StoredInvoiceLineLike[]) {
   }));
 }
 
+/** مرجع الفاتورة في سجلَّي الإصدارات والمحاولات (issues.ts) */
+function zatcaDocRef(invoice: { id: string; tenantId: string; companyId: string; invoiceNumber: string; zatcaUuid: string }) {
+  return {
+    tenantId: invoice.tenantId, companyId: invoice.companyId, documentType: "sales_invoice" as const, documentId: invoice.id,
+    documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid,
+  };
+}
+
 /** الشكل المطلوب لـreserveZatcaChain/rebuildZatcaDocumentXml (ZatcaPersistedLineLike) — من نفس
  * صفوف SalesInvoiceLine المخزَّنة مباشرة، لا من toComputedLines أعلاه (شكل مختلف الغرض). */
 function toZatcaLines(lines: StoredInvoiceLineLike[]): ZatcaPersistedLineLike[] {
@@ -736,6 +751,8 @@ function toZatcaLines(lines: StoredInvoiceLineLike[]): ZatcaPersistedLineLike[] 
     taxCategoryCode: l.taxCategoryCode,
     taxExemptionReason: l.taxExemptionReason,
     taxExemptionReasonCode: l.taxExemptionReasonCode,
+    discountPct: Number(l.discountPct),
+    priceIncludesVat: l.priceIncludesVat,
   }));
 }
 
@@ -774,6 +791,7 @@ export async function retryPendingZatcaSubmission(tenantId: string, userId: stri
     previousInvoiceHash: invoice.previousInvoiceHash,
     issuedAt: invoice.zatcaSubmittedAt,
     expectedInvoiceHash: invoice.invoiceHash,
+    supplyDate: await issuedSupplyDate(invoice.companyId, invoice.zatcaUuid),
   });
   if (rebuilt.invoiceHash !== invoice.invoiceHash) {
     throw badRequest("تعذّرت إعادة المحاولة: بيانات الفاتورة المخزَّنة لا تطابق ما حُجزت له السلسلة أصلاً — راجع الدعم الفني قبل أي محاولة أخرى");
@@ -784,6 +802,57 @@ export async function retryPendingZatcaSubmission(tenantId: string, userId: stri
 
   return finishInvoiceZatcaSubmission(tenantId, userId, {
     invoice, xml: rebuilt.xml, subtype: rebuilt.subtype, company,
+    grandTotal: Number(invoice.grandTotal), vatTotal: Number(invoice.vatTotal), journalLines, itemById, warehouseId: undefined, sendEmail: true,
+  });
+}
+
+/**
+ * إعادة إصدار فاتورة قياسية رفضتها زاتكا — راجع reissue.ts للقواعد (الدليل الفني لزاتكا، القسمان 4.3 و7). نفس رقم الفاتورة
+ * (BT-1)، UUID وICV وتجزئة جديدة، PIH = آخر تجزئة في الشركة، وقت إصدار جديد، وتاريخ التوريد (KSA-5) = تاريخ الفاتورة.
+ * الإصدار المرفوض يبقى في zatca_document_issues ومحاولاته في zatca_submission_attempts كما هي. ثم الإرسال والترحيل كالمعتاد
+ * (finishInvoiceZatcaSubmission) — القيد بتاريخ الفاتورة الأصلي. فاتورة مرحّلة أصلاً (رُحِّلت قبل تخليصها ثم رُفضت عند إعادة
+ * إرسالها — راجع reissueEligibility) تُرسَل بمسار الفاتورة المرحّلة (performZatcaResubmission): حقول زاتكا فقط، بلا قيد ثانٍ.
+ */
+export async function reissueRejectedSalesInvoice(tenantId: string, userId: string, id: string): Promise<InvoicePostingOutcome> {
+  const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
+  if (!invoice) throw notFound("الفاتورة غير موجودة");
+  assertReissuable(invoice, invoice.customer, { postedAllowed: true });
+  const oldUuid = invoice.zatcaUuid;
+  const wasPosted = invoice.status === "posted";
+  const lines = toZatcaLines(invoice.lines);
+
+  const { reissued, xml, subtype } = await prisma.$transaction(async (tx) => {
+    const { chain, documentUuid, supplyDate } = await reserveReissueChainTx(tx, {
+      company: invoice.company, customer: invoice.customer, kind: "invoice", documentNumber: invoice.invoiceNumber,
+      documentDate: invoice.date, lines, actionLabel: "إعادة إصدار فاتورة",
+    });
+    // الشرط على الحالة وUUID القديم معاً — نقرة ثانية أو إعادة محاولة متزامنة تطابق صفراً، فتُلغى المعاملة كلها ومعها حجز ICV
+    const claimed = await tx.salesInvoice.updateMany({
+      where: { id, tenantId, status: invoice.status, zatcaStatus: "rejected", zatcaUuid: oldUuid },
+      data: {
+        zatcaUuid: documentUuid, icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, invoiceHash: chain.invoiceHash,
+        zatcaStatus: "not_submitted", zatcaSubmittedAt: chain.issuedAt, zatcaResponseRaw: Prisma.JsonNull,
+        zatcaClearedOrReportedAt: null, zatcaRetryCount: 0, zatcaLastAttemptAt: null,
+      },
+    });
+    if (claimed.count !== 1) throw badRequest(REISSUE_CONFLICT_MESSAGE);
+    const previous = await tx.zatcaDocumentIssue.findUnique({ where: { documentUuid: oldUuid }, select: { id: true } });
+    const reissued = await tx.salesInvoice.findUniqueOrThrow({ where: { id }, include: invoiceInclude });
+    await recordZatcaIssueTx(tx, zatcaDocRef(reissued), chain, { userId, supplyDate, reissue: { ofIssueId: previous?.id ?? null } });
+    return { reissued, xml: chain.xml, subtype: chain.subtype };
+  }, { timeout: 8000 });
+
+  if (wasPosted) {
+    // القيد والمخزون موجودان منذ الترحيل — لا ترحيل ثانٍ؛ إرسال المستند الجديد وحفظ ردّ زاتكا (وأرشيفه ومحاولته) فقط
+    const { updated, rejectionReason } = await performZatcaResubmission(reissued, userId);
+    return { ...withPaymentStatus(updated), rejectionReason };
+  }
+
+  const computed = toComputedLines(invoice.lines);
+  const { cogsLines, itemById } = await computeCogsJournalLines(tenantId, invoice.companyId, computed);
+  const journalLines = await buildJournalLines(tenantId, invoice.companyId, invoice.customer, computed, Number(invoice.vatTotal), Number(invoice.grandTotal), cogsLines);
+  return finishInvoiceZatcaSubmission(tenantId, userId, {
+    invoice: reissued, xml, subtype, company: reissued.company,
     grandTotal: Number(invoice.grandTotal), vatTotal: Number(invoice.vatTotal), journalLines, itemById, warehouseId: undefined, sendEmail: true,
   });
 }
@@ -882,7 +951,7 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
     phase1 = await prisma.$transaction(async (tx) => {
       const chain = await counted(
         counter1,
-        reserveZatcaChain(tx, { company, customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: zatcaUuid, lines: toZatcaLines(invoice.lines) }),
+        reserveZatcaChain(tx, { company, customer, kind: "invoice", documentNumber: invoice.invoiceNumber, documentUuid: zatcaUuid, lines: toZatcaLines(invoice.lines), documentDate: invoice.date }),
       );
       if (!chain) {
         const entry = await counted(counter1, createJournalEntryTx(tx, {
@@ -909,6 +978,7 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
         },
         include: invoiceInclude,
       }));
+      await recordZatcaIssueTx(tx, zatcaDocRef(updated), chain, { userId });
       return { kind: "pending" as const, invoice: updated, xml: chain.xml, subtype: chain.subtype };
     }, { timeout: 8000 });
     phase1Outcome = "committed";
@@ -934,7 +1004,7 @@ export async function postSalesInvoice(tenantId: string, userId: string, id: str
  * ولا حالة الترحيل) بصرف النظر عن النتيجة، ويُصفِّر عدّاد المحاولات عند النجاح أو يزيده عند الفشل
  * (يُستخدَم فقط لحساب فترة الانتظار قبل المحاولة التلقائية التالية، راجع isDueForZatcaAutoRetry).
  */
-async function performZatcaResubmission(invoice: InvoiceWithZatcaChain) {
+async function performZatcaResubmission(invoice: InvoiceWithZatcaChain, userId: string | null = null) {
   if (invoice.icv == null || !invoice.previousInvoiceHash || !invoice.invoiceHash || !invoice.zatcaSubmittedAt) {
     throw badRequest("بيانات سلسلة زاتكا الأصلية لهذه الفاتورة غير مكتملة — تعذّرت إعادة الإرسال، راجع الدعم الفني");
   }
@@ -963,6 +1033,7 @@ async function performZatcaResubmission(invoice: InvoiceWithZatcaChain) {
     previousInvoiceHash: invoice.previousInvoiceHash,
     invoiceHash: invoice.invoiceHash,
     issuedAt: invoice.zatcaSubmittedAt,
+    supplyDate: await issuedSupplyDate(invoice.companyId, invoice.zatcaUuid),
   });
 
   const succeeded = result.zatcaStatus === "cleared" || result.zatcaStatus === "reported";
@@ -984,6 +1055,8 @@ async function performZatcaResubmission(invoice: InvoiceWithZatcaChain) {
         documentNumber: invoice.invoiceNumber, documentUuid: invoice.zatcaUuid,
     },
     source: "resubmission",
+    attempt: result.attempt,
+    userId,
     inTx: (tx) => tx.salesInvoice.update(updatedArgs),
     plain: () => prisma.salesInvoice.update(updatedArgs),
   });
@@ -1017,7 +1090,7 @@ async function claimInvoiceForZatcaAttempt(
  * لأول مرة، راجع resolveZatcaSubmissionKind في submission.ts)، أو not_submitted بعد إصلاح الربط —
  * أي حالة زاتكا أخرى تُرفَض صراحةً.
  */
-export async function resendInvoiceToZatca(tenantId: string, id: string) {
+export async function resendInvoiceToZatca(tenantId: string, id: string, userId: string | null = null) {
   const invoice = await prisma.salesInvoice.findFirst({ where: { id, tenantId }, include: invoiceInclude });
   if (!invoice) throw notFound("الفاتورة غير موجودة");
   if (invoice.status !== "posted") throw badRequest("لا يمكن إعادة الإرسال إلا لفاتورة مُرحَّلة");
@@ -1036,7 +1109,7 @@ export async function resendInvoiceToZatca(tenantId: string, id: string) {
     throw badRequest("جارٍ إعادة إرسال هذه الفاتورة بالفعل الآن (نقرة أخرى أو محاولة تلقائية متزامنة) — انتظر قليلاً ثم تحقّق من حالتها قبل إعادة المحاولة");
   }
 
-  const { updated, rejectionReason } = await performZatcaResubmission(invoice);
+  const { updated, rejectionReason } = await performZatcaResubmission(invoice, userId);
   return { ...withPaymentStatus(updated), rejectionReason };
 }
 

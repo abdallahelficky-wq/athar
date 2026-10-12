@@ -15,6 +15,9 @@ import {
   sendEmailHandler,
   downloadPdfHandler,
   retryZatcaSubmissionHandler,
+  reissueZatcaHandler,
+  zatcaHistoryHandler,
+  zatcaAttemptXmlHandler,
   completeZatcaPostingHandler,
 } from "./salesReturns.controller";
 
@@ -39,4 +42,7 @@ salesReturnRoutes.post("/:id/send-email", requirePositionAction("salesReturns", 
 salesReturnRoutes.post("/:id/post", requirePositionAction("salesReturns", "approve"), canWrite, postHandler);
 salesReturnRoutes.post("/:id/unpost", requirePositionAction("salesReturns", "approve"), canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
 salesReturnRoutes.post("/:id/retry-zatca-submission", requirePositionAction("salesReturns", "approve"), canWrite, retryZatcaSubmissionHandler);
+salesReturnRoutes.post("/:id/reissue-zatca", requirePositionAction("salesReturns", "approve"), canWrite, reissueZatcaHandler);
+salesReturnRoutes.get("/:id/zatca-history", requirePositionAction("salesReturns", "read"), zatcaHistoryHandler);
+salesReturnRoutes.get("/:id/zatca-attempts/:attemptId/xml", requirePositionAction("salesReturns", "read"), zatcaAttemptXmlHandler);
 salesReturnRoutes.post("/:id/complete-zatca-posting", requirePositionAction("salesReturns", "approve"), canWrite, completeZatcaPostingHandler);

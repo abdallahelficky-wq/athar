@@ -1,6 +1,6 @@
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import InvoiceCreditNotes from "./InvoiceCreditNotes";
-import InvoiceZatcaDetails from "./InvoiceZatcaDetails";
+import DocumentZatcaSection from "./DocumentZatcaSection";
 import InvoiceFormModal from "./InvoiceFormModal";
 import LinkPaymentModal from "./LinkPaymentModal";
 import SendInvoiceEmailModal from "./SendInvoiceEmailModal";
@@ -43,15 +43,39 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
     return () => clearTimeout(timer);
   }, [autoPrint, current.id, companyForTemplate?.invoiceTemplate]);
 
-  if (companyForTemplate?.invoiceTemplate === "classicPro") {
-    return <ClassicProInvoiceView invoice={current} companies={companies} autoPrint={autoPrint} onClose={onClose} />;
-  }
-
   const refreshInvoice = async () => {
     const fresh = await getSalesInvoice(current.id);
     setCurrent(fresh);
     return fresh;
   };
+
+  // قسم زاتكا (حالة + سجل + إعادة إصدار) لكل قالب — خارج منطقة الطباعة دائماً. كان قالب classicPro يُسلَّم العرض كله بلا
+  // هذا القسم، فلا سجل ولا زر إعادة إصدار لشركات ذلك القالب (INV-00202).
+  const zatcaSection = (
+    <DocumentZatcaSection
+      basePath="/sales-invoices"
+      document={current}
+      notify={notify}
+      onReissued={async (updated) => {
+        await refreshInvoice();
+        const ok = updated.zatcaStatus === "cleared";
+        const message = ok
+          ? t("salesInvoices.notify.zatcaResentOk", { number: current.invoiceNumber, status: t("salesInvoices.zatcaSummary.sent") })
+          : t("salesInvoices.notify.zatcaRejectedAgain", { number: current.invoiceNumber, reason: updated.rejectionReason ? `: ${updated.rejectionReason}` : "." });
+        onChanged?.(message);
+        notify(message, ok ? "success" : "error");
+      }}
+    />
+  );
+
+  if (companyForTemplate?.invoiceTemplate === "classicPro") {
+    return (
+      <>
+        <ToastHost toast={toast} onDismiss={dismiss} />
+        <ClassicProInvoiceView invoice={current} companies={companies} autoPrint={autoPrint} onClose={onClose} zatcaSection={zatcaSection} />
+      </>
+    );
+  }
 
   const handleDownload = async () => {
     try {
@@ -114,6 +138,7 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
         onClose={onClose}
         onEdit={isDraft ? () => setEditing(true) : undefined}
         onDownload={posted ? handleDownload : undefined}
+        outsidePrint={zatcaSection}
       >
       <div className="no-print" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
         <button type="button" className="btn-secondary" disabled={sendingEmail} onClick={handleSendEmail}>
@@ -127,7 +152,6 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
           </button>
         )}
       </div>
-      <InvoiceZatcaDetails invoice={current} />
       <div className="voucher-meta">
         <div><span>{t("salesInvoices.view.seller")}</span><strong>{company?.name}</strong></div>
         <div><span>{t("salesInvoices.view.sellerVat")}</span><strong>{company?.vatNumber || t("salesInvoices.view.vatNotEntered")}</strong></div>

@@ -154,6 +154,20 @@ function buildBillingReference(billingReferenceId: string | undefined): string {
 }
 
 /**
+ * KSA-5 (تاريخ التوريد، BT-72 ActualDeliveryDate) بموضعه في UBL بين AccountingCustomerParty وPaymentMeans. BR-KSA-15 (نص
+ * التحذير على الفاتورة 00156): «يجب أن تحتوي الفاتورة الضريبية ((BT-3 = 388) و(KSA-2 يبدأ بـ'01')) على تاريخ التوريد (KSA-5)» —
+ * فيُفرَض لكل فاتورة قياسية في buildDocumentXml أدناه. للإشعارين يُكتَب عند إعادة الإصدار فقط؛ غيابه لا يُنتِج شيئاً.
+ */
+function buildDeliveryXml(supplyDate: string | undefined): string {
+  if (!supplyDate) return "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(supplyDate)) throw new Error(`تاريخ التوريد (KSA-5) بصيغة غير صالحة: ${supplyDate}`);
+  return `<cac:Delivery>
+    <cbc:ActualDeliveryDate>${supplyDate}</cbc:ActualDeliveryDate>
+  </cac:Delivery>
+  `;
+}
+
+/**
  * BR-KSA-17: سبب إصدار إشعار الدائن/المدين (KSA-10) إلزامي لهذين النوعين تحديداً (388/الفاتورة
  * العادية لا تحتاجه إطلاقاً).
  */
@@ -268,6 +282,9 @@ function buildLegalMonetaryTotalXml(netH: number, vatH: number): string {
 }
 
 export function buildDocumentXml(input: ZatcaDocumentInput): string {
+  if (input.kind === "invoice" && input.subtype === "standard" && !input.supplyDate && !input.reproduceWithoutSupplyDate) {
+    throw new Error("BR-KSA-15: الفاتورة الضريبية القياسية (388) يلزمها تاريخ التوريد (KSA-5) — supplyDate غير مُمرَّر");
+  }
   if (input.subtype === "standard" && !input.buyer) {
     throw new Error("الفاتورة القياسية تتطلب بيانات المشتري (buyer)");
   }
@@ -305,7 +322,7 @@ export function buildDocumentXml(input: ZatcaDocumentInput): string {
   }
 
   xml = xml.replace("SET_ACCOUNTING_CUSTOMER_PARTY", buildBuyerBlock(input.buyer));
-  xml = xml.replace("SET_PAYMENT_MEANS", buildPaymentMeansXml(input.kind, input.issuanceReason));
+  xml = xml.replace("SET_PAYMENT_MEANS", buildDeliveryXml(input.supplyDate) + buildPaymentMeansXml(input.kind, input.issuanceReason));
   xml = xml.replace("SET_TAX_TOTAL", buildTaxTotalXml(groups, vatH));
   xml = xml.replace("SET_LEGAL_MONETARY_TOTAL", buildLegalMonetaryTotalXml(netH, vatH));
   xml = xml.replace("SET_INVOICE_LINES", moneyLines.map(buildInvoiceLineXml).join("\n"));

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { DOMParser } from "@xmldom/xmldom";
 import { computeInvoiceLine } from "../invoiceLine";
-import { sumMoney } from "../money";
+import { roundMoney, sumMoney } from "../money";
 import { buildDocumentXml } from "./xmlBuilder";
-import { buildDocumentXmlV1, mapPersistedLineToZatcaLineV1 } from "./xmlBuilderV1";
+import { buildDocumentXmlV1, computeInvoiceLineV1, mapPersistedLineToZatcaLineV1 } from "./xmlBuilderV1";
 import { mapPersistedLineToZatcaLine, rebuildZatcaDocumentXml, reserveZatcaChain, standardBuyerAddressProblems, ZatcaCompanyLike, ZatcaCustomerLike } from "./chain";
 import { computeDocumentHash } from "./hash";
 import { decodeResponseBody } from "./apiClient";
@@ -65,6 +65,8 @@ const text = (el: El) => (el.textContent ?? "").trim();
 
 interface Facts {
   ksa2: string;
+  typeCode: string;
+  supplyDates: string[];
   bt109: Dec; bt110: Dec; bt112: Dec; bt106: Dec; payable: Dec;
   lines: { qty: Dec; net: Dec; vat: Dec; ksa12: Dec; price: Dec; baseQty: Dec; pct: string | null }[];
   groups: { taxable: Dec; tax: Dec; pct: string }[];
@@ -112,6 +114,8 @@ function readFacts(xml: string): Facts {
   }
   return {
     ksa2: child(root, CBC, "InvoiceTypeCode").getAttribute("name") ?? "",
+    typeCode: text(child(root, CBC, "InvoiceTypeCode")),
+    supplyDates: children(root, CAC, "Delivery").flatMap((d) => children(d, CBC, "ActualDeliveryDate").map(text)),
     bt106: dec(text(child(lmt, CBC, "LineExtensionAmount"))),
     bt109: dec(text(child(lmt, CBC, "TaxExclusiveAmount"))),
     bt110: dec(text(child(taxTotals[0], CBC, "TaxAmount"))),
@@ -128,6 +132,10 @@ function readFacts(xml: string): Facts {
 /** كل قاعدة تُرجِع قائمة مخالفات (فارغة = تحقّقت) */
 function violations(f: Facts): string[] {
   const v: string[] = [];
+  // BR-KSA-15 (نص التحذير على 00156): الفاتورة الضريبية (388 وKSA-2 يبدأ بـ01) يجب أن تحتوي تاريخ التوريد KSA-5
+  if (f.typeCode === "388" && f.ksa2.startsWith("01") && !(f.supplyDates.length === 1 && /^\d{4}-\d{2}-\d{2}$/.test(f.supplyDates[0]))) {
+    v.push(`BR-KSA-15: tax invoice without a single KSA-5 supply date (${JSON.stringify(f.supplyDates)})`);
+  }
   if (!eq(add(f.bt109, f.bt110), f.bt112)) v.push(`BR-CO-15: ${show(f.bt109)} + ${show(f.bt110)} ≠ ${show(f.bt112)}`);
   if (!eq(f.bt112, f.payable)) v.push("BT-115 ≠ BT-112 (no prepaid/rounding)");
   const sumNet = f.lines.reduce((s, l) => add(s, l.net), dec("0"));
@@ -164,7 +172,7 @@ function standardInvoiceXml(entered: Entered[], buyer: ZatcaPartyInput = BUYER) 
   const rows = persisted(entered);
   const xml = buildDocumentXml({
     kind: "invoice", subtype: "standard", id: "00156", uuid: "3cf5ddbe-1391-449f-b8a3-0ee7b1a92b45",
-    issueDate: "2026-09-24", issueTime: "10:00:00Z", icv: 156, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH,
+    issueDate: "2026-09-24", issueTime: "10:00:00Z", icv: 156, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH, supplyDate: "2026-09-24",
     seller: SELLER, buyer, lines: rows.map(mapPersistedLineToZatcaLine),
   });
   return { xml, rows };
@@ -219,6 +227,8 @@ describe("invoice 00156 (220.00 SAR, 15% VAT) — the rules ZATCA reported hold 
     const v1 = violations(readFacts(preFixXml([{ quantity: 3, unitPrice: 73.3333, subtotal: g - vat, vat }])));
     expect(v1.some((x) => x.startsWith("BR-KSA-51"))).toBe(true);
     expect(v1.some((x) => x.startsWith("BR-KSA-EN16931-11"))).toBe(true);
+    // والمستند القديم بلا KSA-5 — التحذير BR-KSA-15 الذي ظهر فعلاً على 00156
+    expect(v1.some((x) => x.startsWith("BR-KSA-15"))).toBe(true);
     // صافٍ بنصف هللة (191.105): BT-109 = 191.11 وBT-112 = 219.77 (219.775 ثنائياً 219.77499…) ⇒ BR-CO-15
     const v2 = violations(readFacts(preFixXml([{ quantity: 1, unitPrice: 191.105, subtotal: 191.105, vat: 28.67 }])));
     expect(v2.some((x) => x.startsWith("BR-CO-15"))).toBe(true);
@@ -313,7 +323,7 @@ describe("BR-KSA-63 — a standard invoice is not sent while the buyer's nationa
   it("refuses before reserving an ICV (no chain number consumed), with a message naming the fields", async () => {
     const tx = { $queryRaw: vi.fn(), company: { update: vi.fn() } };
     await expect(
-      reserveZatcaChain(tx as never, { company, customer: customer({ buildingNo: "12", district: null }), kind: "invoice", documentNumber: "00156", documentUuid: "u", lines: persisted([{ quantity: 1, unitPrice: 100 }]) }),
+      reserveZatcaChain(tx as never, { company, customer: customer({ buildingNo: "12", district: null }), kind: "invoice", documentNumber: "00156", documentUuid: "u", lines: persisted([{ quantity: 1, unitPrice: 100 }]), documentDate: new Date("2026-10-01") }),
     ).rejects.toThrow(/عنوان العميل "المشتري" ناقص — رقم المبنى \(يجب أن يكون 4 أرقام\)، الحي/);
     expect(tx.$queryRaw).not.toHaveBeenCalled();
     expect(tx.company.update).not.toHaveBeenCalled();
@@ -321,7 +331,7 @@ describe("BR-KSA-63 — a standard invoice is not sent while the buyer's nationa
 
   it("does not apply to a simplified invoice (no buyer block)", async () => {
     const tx = { $queryRaw: vi.fn().mockResolvedValue([{ zatcaNextIcv: 7 }]), company: { update: vi.fn() } };
-    const r = await reserveZatcaChain(tx as never, { company, customer: customer({ customerType: "individual", street: null }), kind: "invoice", documentNumber: "1", documentUuid: "u", lines: persisted([{ quantity: 1, unitPrice: 10 }]) });
+    const r = await reserveZatcaChain(tx as never, { company, customer: customer({ customerType: "individual", street: null }), kind: "invoice", documentNumber: "1", documentUuid: "u", lines: persisted([{ quantity: 1, unitPrice: 10 }]), documentDate: new Date("2026-10-01") });
     expect(r?.icv).toBe(7);
   });
 });
@@ -378,5 +388,173 @@ describe("ZATCA response text is decoded with its declared charset (Arabic messa
     const res = () => new Response(bytes, { headers: { "content-type": "application/json; charset=windows-1256" } });
     expect(await res().text()).toContain("�"); // السلوك السابق
     expect(JSON.parse(await decodeResponseBody(res())).validationResults.errorMessages[0].message).toBe(message);
+  });
+});
+
+describe("Codex P1 on #148 — rebuilding a document posted directly before the fix (hashed from raw in-memory amounts)", () => {
+  const company: ZatcaCompanyLike = {
+    id: "co", zatcaOnboardingStatus: "production", zatcaEnvironment: "production", zatcaLastInvoiceHash: null, name: "مؤسسة المزارع الحديثة",
+    vatNumber: "310000000000003", crNumber: "1010000000", addressStreet: "s", addressBuilding: "1234", addressDistrict: "d", addressCity: "c", addressPostalCode: "12211",
+  };
+  const customer: ZatcaCustomerLike = { customerType: "business", vatNumber: "302043689600003", crNumber: null, name: "المشتري", street: "s", buildingNo: "2345", district: "d", city: "c", postalCode: "12245" };
+  const issuedAt = new Date("2026-09-24T10:00:00Z");
+
+  // ما أدخله المستخدم (3 × 73.3333 شاملة) — ثم ما فعله الكود القديم حرفياً: computeInvoiceLineV1 في الذاكرة ⇒ buildDocumentXmlV1
+  const entered = { description: "صنف 1", quantity: 3, unitPrice: 73.3333, discountPct: 0, priceIncludesVat: true, taxCategoryCode: "S", taxExemptionReason: null };
+  const raw = computeInvoiceLineV1(entered);
+  const originalXml = buildDocumentXmlV1({
+    kind: "invoice", subtype: "standard", id: "00156", uuid: "u", issueDate: "2026-09-24", issueTime: "10:00:00Z", icv: 156, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH,
+    seller: { vatNumber: company.vatNumber, crNumber: company.crNumber, registrationName: company.name, street: "s", buildingNumber: "1234", citySubdivision: "d", city: "c", postalZone: "12211" },
+    buyer: { vatNumber: customer.vatNumber, crNumber: null, registrationName: customer.name, street: "s", buildingNumber: "2345", citySubdivision: "d", city: "c", postalZone: "12245" },
+    lines: [mapPersistedLineToZatcaLineV1({ ...entered, subtotal: raw.subtotal, vat: raw.vat }, 0)],
+  });
+  const storedHash = computeDocumentHash(originalXml);
+  // ما خزّنه Postgres في Decimal(18, 2) من تلك القيم الخام
+  const storedLine = { ...entered, subtotal: roundMoney(raw.subtotal), vat: roundMoney(raw.vat) };
+  const common = { company, customer, kind: "invoice" as const, documentNumber: "00156", documentUuid: "u", icv: 156, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH, issuedAt, expectedInvoiceHash: storedHash };
+
+  it("the stored (rounded) amounts alone cannot reproduce the hash — the case Codex found", () => {
+    expect(raw.subtotal).not.toBe(storedLine.subtotal);
+    const { discountPct: _d, priceIncludesVat: _p, ...withoutInputs } = storedLine;
+    const rebuilt = rebuildZatcaDocumentXml({ ...common, lines: [withoutInputs] });
+    expect(rebuilt.invoiceHash).not.toBe(storedHash);
+  });
+
+  it("recomputing the raw amounts from the stored line inputs rebuilds it byte-for-byte", () => {
+    const rebuilt = rebuildZatcaDocumentXml({ ...common, lines: [storedLine] });
+    expect(rebuilt.builder).toBe("v1");
+    expect(rebuilt.invoiceHash).toBe(storedHash);
+    expect(rebuilt.xml).toBe(originalXml);
+  });
+
+  it("a draft-then-post document (hashed from the stored 2-decimal amounts) still rebuilds from the stored values", () => {
+    const draftXml = buildDocumentXmlV1({
+      kind: "invoice", subtype: "standard", id: "00157", uuid: "u2", issueDate: "2026-09-24", issueTime: "10:00:00Z", icv: 157, previousInvoiceHash: storedHash,
+      seller: { vatNumber: company.vatNumber, crNumber: company.crNumber, registrationName: company.name, street: "s", buildingNumber: "1234", citySubdivision: "d", city: "c", postalZone: "12211" },
+      buyer: { vatNumber: customer.vatNumber, crNumber: null, registrationName: customer.name, street: "s", buildingNumber: "2345", citySubdivision: "d", city: "c", postalZone: "12245" },
+      lines: [mapPersistedLineToZatcaLineV1(storedLine, 0)],
+    });
+    const rebuilt = rebuildZatcaDocumentXml({ ...common, documentNumber: "00157", documentUuid: "u2", icv: 157, previousInvoiceHash: storedHash, expectedInvoiceHash: computeDocumentHash(draftXml), lines: [storedLine] });
+    expect(rebuilt.builder).toBe("v1");
+    expect(rebuilt.xml).toBe(draftXml);
+  });
+});
+
+describe("Codex P1 on #148 — the decoding diagnostic never logs raw bytes of a certificate response", () => {
+  // جسم برموز لا تُفكّ UTF-8 (0xFF) ويحمل حقلي الشهادة — رد خارجي، مسموح صنعه يدوياً (CLAUDE.md القاعدة 2)
+  const secretBody = Uint8Array.from([...new TextEncoder().encode('{"binarySecurityToken":"TOKEN-SECRET","secret":"S3CRET","x":"'), 0xff, ...new TextEncoder().encode('"}')]);
+  const hex = (s: string) => Buffer.from(s, "utf8").toString("hex");
+
+  it.each(["/compliance", "/production/csids", undefined])("path %s: logs charset/length/count, no bytes", async (path) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      await decodeResponseBody(new Response(secretBody, { headers: { "content-type": "application/json" } }), { path });
+      expect(warn).toHaveBeenCalledTimes(1);
+      const line = String(warn.mock.calls[0][0]);
+      expect(line).toContain("رموز بديلة=1");
+      expect(line).not.toContain("hex");
+      expect(line).not.toContain(hex("TOKEN-SECRET"));
+      expect(line).not.toContain(hex("S3CRET"));
+      expect(line).not.toContain("TOKEN-SECRET");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("an invoice submission path still logs the leading bytes as evidence", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const body = Uint8Array.from([...new TextEncoder().encode('{"validationResults":{"x":"'), 0xff, ...new TextEncoder().encode('"}}')]);
+      await decodeResponseBody(new Response(body, { headers: { "content-type": "application/json" } }), { path: "/invoices/clearance/single" });
+      expect(String(warn.mock.calls[0][0])).toContain("أول البايتات (hex)");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
+
+describe("BR-KSA-15 — every standard tax invoice (388) from the new builder carries KSA-5; V1 rebuilds never do", () => {
+  const company: ZatcaCompanyLike = {
+    id: "co", zatcaOnboardingStatus: "production", zatcaEnvironment: "production", zatcaLastInvoiceHash: null, name: "مؤسسة المزارع الحديثة",
+    vatNumber: "310000000000003", crNumber: "1010000000", addressStreet: "s", addressBuilding: "1234", addressDistrict: "d", addressCity: "c", addressPostalCode: "12211",
+  };
+  const standardCustomer: ZatcaCustomerLike = { customerType: "business", vatNumber: "302043689600003", crNumber: null, name: "المشتري", street: "s", buildingNo: "2345", district: "d", city: "c", postalCode: "12245" };
+  const simplifiedCustomer: ZatcaCustomerLike = { ...standardCustomer, customerType: "individual", vatNumber: null };
+  const reserve = async (customer: ZatcaCustomerLike, entered: Entered[], documentDate: Date, kind: "invoice" | "credit_note" = "invoice") => {
+    const tx = { $queryRaw: vi.fn().mockResolvedValue([{ zatcaNextIcv: 157 }]), company: { update: vi.fn() } };
+    const extra = kind === "invoice" ? {} : { billingReferenceId: "00156", issuanceReason: "تصحيح سعر" };
+    const chain = await reserveZatcaChain(tx as never, { company, customer, kind, documentNumber: "00157", documentUuid: "u-157", lines: persisted(entered), documentDate, ...extra });
+    return chain!;
+  };
+  const rng = (seed: number) => { let s = seed; return () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648); };
+  const cases: { name: string; lines: Entered[]; date: string }[] = [
+    { name: "00156 itself", lines: [{ quantity: 1, unitPrice: 220, priceIncludesVat: true }], date: "2026-09-24" },
+    { name: "3 × 73.3333 VAT-inclusive", lines: [{ quantity: 3, unitPrice: 73.3333, priceIncludesVat: true }], date: "2026-01-01" },
+    { name: "zero-rated + exempt + standard", lines: [{ quantity: 1, unitPrice: 50, taxCategoryCode: "Z" }, { quantity: 2, unitPrice: 10, taxCategoryCode: "E" }, { quantity: 1, unitPrice: 100 }], date: "2026-12-31" },
+    ...[1, 2, 3].map((seed) => {
+      const r = rng(seed);
+      return {
+        name: `seed ${seed}: 12 mixed lines`, date: "2026-06-15",
+        lines: Array.from({ length: 12 }, () => ({ quantity: Math.round(r() * 1000) / 100 + 0.01, unitPrice: Math.round(r() * 1e6) / 1e4, discountPct: Math.round(r() * 20), priceIncludesVat: r() > 0.5 })),
+      };
+    }),
+  ];
+
+  for (const c of cases) {
+    it(`${c.name}: KSA-5 = the invoice date, and every rule (BR-KSA-15 included) holds`, async () => {
+      const chain = await reserve(standardCustomer, c.lines, new Date(`${c.date}T00:00:00.000Z`));
+      const facts = readFacts(chain.xml);
+      expect(facts.typeCode).toBe("388");
+      expect(facts.supplyDates).toEqual([c.date]);
+      expect(chain.supplyDate).toBe(c.date);
+      expect(violations(facts)).toEqual([]);
+    });
+  }
+
+  it("simplified invoices and ordinary credit notes carry none", async () => {
+    expect((await reserve(simplifiedCustomer, [{ quantity: 1, unitPrice: 100 }], new Date("2026-09-24"))).xml).not.toContain("cac:Delivery");
+    const note = await reserve(standardCustomer, [{ quantity: 1, unitPrice: 100 }], new Date("2026-09-24"), "credit_note");
+    expect(note.xml).not.toContain("cac:Delivery");
+    expect(note.supplyDate).toBeUndefined();
+  });
+
+  it("a retry rebuilds a KSA-5 invoice byte for byte from its recorded supply date", async () => {
+    const chain = await reserve(standardCustomer, [{ quantity: 3, unitPrice: 73.3333, priceIncludesVat: true }], new Date("2026-09-24T00:00:00.000Z"));
+    const rebuilt = rebuildZatcaDocumentXml({
+      company, customer: standardCustomer, kind: "invoice", documentNumber: "00157", documentUuid: "u-157", lines: persisted([{ quantity: 3, unitPrice: 73.3333, priceIncludesVat: true }]),
+      icv: chain.icv, previousInvoiceHash: chain.previousInvoiceHash, issuedAt: chain.issuedAt, expectedInvoiceHash: chain.invoiceHash, supplyDate: chain.supplyDate,
+    });
+    expect(rebuilt.builder).toBe("v2");
+    expect(rebuilt.xml).toBe(chain.xml);
+  });
+
+  it("V1 rebuilds (documents hashed by the frozen builder) never contain KSA-5 — even if a supply date is passed", () => {
+    const lines = persisted([{ quantity: 1, unitPrice: 220, priceIncludesVat: true }]);
+    const issuedAt = new Date("2026-09-24T10:00:00Z");
+    const legacyXml = buildDocumentXmlV1({
+      kind: "invoice", subtype: "standard", id: "00156", uuid: "u", issueDate: "2026-09-24", issueTime: "10:00:00Z", icv: 156, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH,
+      seller: { vatNumber: company.vatNumber, crNumber: company.crNumber, registrationName: company.name, street: "s", buildingNumber: "1234", citySubdivision: "d", city: "c", postalZone: "12211" },
+      buyer: { vatNumber: standardCustomer.vatNumber, crNumber: null, registrationName: standardCustomer.name, street: "s", buildingNumber: "2345", citySubdivision: "d", city: "c", postalZone: "12245" },
+      lines: lines.map(mapPersistedLineToZatcaLineV1),
+    });
+    const common = { company, customer: standardCustomer, kind: "invoice" as const, documentNumber: "00156", documentUuid: "u", lines, icv: 156, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH, issuedAt, expectedInvoiceHash: computeDocumentHash(legacyXml) };
+    for (const supplyDate of [undefined, "2026-09-24"]) {
+      const rebuilt = rebuildZatcaDocumentXml({ ...common, supplyDate });
+      expect(rebuilt.builder).toBe("v1");
+      expect(rebuilt.xml).toBe(legacyXml);
+      expect(rebuilt.xml).not.toContain("cac:Delivery");
+    }
+  });
+
+  it("a v2 invoice reserved before KSA-5 was enforced (no supply date on record) still rebuilds to its stored hash", () => {
+    const lines = persisted([{ quantity: 1, unitPrice: 220, priceIncludesVat: true }]);
+    const issuedAt = new Date("2026-09-30T10:00:00Z");
+    const common = { company, customer: standardCustomer, kind: "invoice" as const, documentNumber: "00160", documentUuid: "u160", lines, icv: 160, previousInvoiceHash: ZATCA_FIRST_INVOICE_PIH, issuedAt };
+    // ما كان يُنتجه هذا المُنشئ قبل فرض KSA-5 — نفس المُدخل بلا supplyDate
+    const before = rebuildZatcaDocumentXml(common);
+    expect(before.xml).not.toContain("cac:Delivery");
+    const again = rebuildZatcaDocumentXml({ ...common, expectedInvoiceHash: before.invoiceHash });
+    expect(again.builder).toBe("v2");
+    expect(again.xml).toBe(before.xml);
   });
 });

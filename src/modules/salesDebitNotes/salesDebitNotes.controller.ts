@@ -1,4 +1,6 @@
 import { RequestHandler } from "express";
+import { zatcaHistoryHandlers } from "../../lib/zatca/historyHandlers";
+import { reissueEligibility } from "../../lib/zatca/reissue";
 import * as service from "./salesDebitNotes.service";
 import { prisma } from "../../lib/prisma";
 import { assertRecordCompanyScope } from "../../middleware/auth";
@@ -43,3 +45,14 @@ export const completeZatcaPostingHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.salesDebitNote, req.params.id);
   res.json(await service.completeZatcaAcceptedPosting(req.auth!.tenantId, req.auth!.sub, req.params.id));
 };
+
+// إعادة إصدار مستند قياسي رفضته زاتكا (UUID/ICV/تجزئة جديدة، نفس الرقم) — راجع src/lib/zatca/reissue.ts
+export const reissueZatcaHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.salesDebitNote, req.params.id);
+  res.json(await service.reissueRejected(req.auth!.tenantId, req.auth!.sub, req.params.id));
+};
+
+export const { history: zatcaHistoryHandler, attemptXml: zatcaAttemptXmlHandler } = zatcaHistoryHandlers("sales_debit_note", prisma.salesDebitNote, async (tenantId, id) => {
+  const doc = await prisma.salesDebitNote.findFirstOrThrow({ where: { id, tenantId }, include: { customer: true } });
+  return reissueEligibility(doc, doc.customer, { postedAllowed: false });
+});

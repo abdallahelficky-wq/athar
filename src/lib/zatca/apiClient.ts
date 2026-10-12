@@ -156,10 +156,18 @@ function extractTransmittedXmlFromBody(body: unknown): string | null {
  * نص ردّ زاتكا بترميزه المُعلَن. response.text() في fetch تفكّ الجسم UTF-8 دائماً وتتجاهل charset في Content-Type (معيار
  * Fetch) — فلو أعلن الرد ترميزاً عربياً قديماً (windows-1256 / ISO-8859-6) صار كل حرف عربي U+FFFD، ويظهر في الواجهة «???»
  * (رسائل الرفض تُخزَّن وتُعرض كما هي بعد هذه النقطة، وكل المسار بعدها UTF-8). هنا: نقرأ البايتات ونفكّها بالترميز المُعلَن؛
- * بلا إعلان ⇒ UTF-8. وإن بقيت رموز بديلة (U+FFFD) بعد الفكّ نسجّل سطراً تشخيصياً بالترميز المُعلَن وأول البايتات، دليلاً
- * لا تخميناً، بلا أي محتوى حسّاس (رد التحقق لا يحمل أسراراً).
+ * بلا إعلان ⇒ UTF-8. وإن بقيت رموز بديلة (U+FFFD) بعد الفكّ نسجّل سطراً تشخيصياً بالترميز المُعلَن، دليلاً لا تخميناً.
+ * البايتات الخام تُسجَّل فقط لمسارات إرسال المستندات (ردّها نتائج تحقق ومستندنا نفسه)، أبداً لمسارات الشهادات
+ * (/compliance، /production/csids): ردّها يحمل binarySecurityToken وsecret، والبايتات الخام تتجاوز إخفاءها (مراجعة Codex على #148).
  */
-export async function decodeResponseBody(response: Pick<Response, "headers"> & { arrayBuffer?: () => Promise<ArrayBuffer>; text: () => Promise<string> }): Promise<string> {
+export function isDocumentSubmissionPath(path: string | undefined): boolean {
+  return path === "/compliance/invoices" || (typeof path === "string" && path.startsWith("/invoices/"));
+}
+
+export async function decodeResponseBody(
+  response: Pick<Response, "headers"> & { arrayBuffer?: () => Promise<ArrayBuffer>; text: () => Promise<string> },
+  options: { path?: string } = {},
+): Promise<string> {
   if (typeof response.arrayBuffer !== "function") return response.text();
   const bytes = new Uint8Array(await response.arrayBuffer());
   const contentType = typeof response.headers?.get === "function" ? response.headers.get("content-type") || "" : "";
@@ -172,9 +180,11 @@ export async function decodeResponseBody(response: Pick<Response, "headers"> & {
     text = new TextDecoder("utf-8").decode(bytes);
   }
   if (text.includes("�")) {
+    const replaced = text.split("�").length - 1;
+    const bytesHex = isDocumentSubmissionPath(options.path) ? `، أول البايتات (hex): ${Buffer.from(bytes.slice(0, 160)).toString("hex")}` : "";
     // eslint-disable-next-line no-console
     console.warn(
-      `[zatcaRequest] ردّ زاتكا يحوي رموزاً تعذّر فكّها — Content-Type="${contentType}"، أول البايتات (hex): ${Buffer.from(bytes.slice(0, 160)).toString("hex")}`,
+      `[zatcaRequest] ردّ زاتكا يحوي رموزاً تعذّر فكّها — المسار=${options.path ?? "?"}، Content-Type="${contentType}"، الطول=${bytes.length} بايت، رموز بديلة=${replaced}${bytesHex}`,
     );
   }
   return text;
@@ -231,7 +241,7 @@ async function zatcaRequest<T>(params: RequestParams<T>): Promise<ZatcaApiRespon
   // غير JSON (شائع لردود مصادقة/توجيه 401/403/404 من بوابات API) يجعل response.json() ترمي، فكان
   // الجسم المُحلَّل يُصبح null بلا أي وسيلة لمعرفة السبب الفعلي لاحقاً — لا حتى كود الحالة نفسه، لأن
   // شيئاً لم يكن يُسجِّل الصورة الكاملة (status/statusText/الترويسات/الجسم الخام) على الإطلاق.
-  const rawText = await decodeResponseBody(response).catch(() => "");
+  const rawText = await decodeResponseBody(response, { path: params.path }).catch(() => "");
   let rawData: unknown = null;
   try {
     rawData = rawText ? JSON.parse(rawText) : null;

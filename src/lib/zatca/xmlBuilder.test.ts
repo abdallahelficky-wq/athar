@@ -39,6 +39,8 @@ function base(overrides: Partial<ZatcaDocumentInput> = {}): ZatcaDocumentInput {
     lines: [
       { id: "1", name: "خدمة استشارية", quantity: 1, unitPrice: 100, lineSubtotal: 100, lineVat: 15, taxCategoryCode: "S", taxPercent: 15 },
     ],
+    // BR-KSA-15: كل فاتورة قياسية (388) تحمل KSA-5 — يفرضه buildDocumentXml نفسه
+    ...((overrides.kind ?? "invoice") === "invoice" && overrides.subtype === "standard" ? { supplyDate: "2026-08-01" } : {}),
     ...overrides,
   };
 }
@@ -216,4 +218,50 @@ it("writes distinct zero-rated and exempt categories and their reason codes", ()
  ] }));
  expect(xml).toContain("<cbc:TaxExemptionReasonCode>VATEX-SA-35</cbc:TaxExemptionReasonCode>");
  expect(xml).toContain("<cbc:TaxExemptionReasonCode>VATEX-SA-29</cbc:TaxExemptionReasonCode>");
+});
+
+describe("KSA-5 supply date — every standard tax invoice (BR-KSA-15), and re-issued notes", () => {
+  const standard = (o: Partial<ZatcaDocumentInput> = {}) => base({ subtype: "standard", buyer: BUYER, ...o });
+  const children = (xml: string) => {
+    const root = parse(xml).documentElement!;
+    return Array.from({ length: root.childNodes.length }, (_, i) => root.childNodes[i]).filter((n) => n.nodeType === 1).map((n) => (n as unknown as Element).tagName);
+  };
+
+  it("refuses to build a standard 388 without KSA-5 — the builder itself enforces BR-KSA-15", () => {
+    expect(() => buildDocumentXml(standard({ supplyDate: undefined }))).toThrow(/BR-KSA-15/);
+  });
+
+  it("only a rebuild of a document already in the chain may omit it (reproduceWithoutSupplyDate), and then the bytes are unchanged", () => {
+    const legacy = buildDocumentXml(standard({ supplyDate: undefined, reproduceWithoutSupplyDate: true }));
+    expect(legacy).not.toContain("cac:Delivery");
+    const withIt = buildDocumentXml(standard());
+    expect(withIt.replace(/<cac:Delivery>[\s\S]*?<\/cac:Delivery>\n  /, "")).toBe(legacy);
+  });
+
+  it("simplified invoices and ordinary credit/debit notes carry no KSA-5 (BR-KSA-15 is for 388 with KSA-2 = 01…)", () => {
+    expect(buildDocumentXml(base())).not.toContain("cac:Delivery");
+    for (const kind of ["credit_note", "debit_note"] as const) {
+      expect(buildDocumentXml(standard({ kind, billingReferenceId: "INV-00001", issuanceReason: "تصحيح سعر" }))).not.toContain("cac:Delivery");
+    }
+  });
+
+  it("present → cac:Delivery/cbc:ActualDeliveryDate right after AccountingCustomerParty and before PaymentMeans/TaxTotal", () => {
+    for (const kind of ["invoice", "credit_note", "debit_note"] as const) {
+      const xml = buildDocumentXml(standard({
+        kind, supplyDate: "2026-07-15", issueDate: "2026-10-08",
+        ...(kind === "invoice" ? {} : { billingReferenceId: "INV-00001", issuanceReason: "تصحيح سعر" }),
+      }));
+      const doc = parse(xml);
+      expect(doc.getElementsByTagName("cbc:ActualDeliveryDate")[0].textContent).toBe("2026-07-15");
+      expect(doc.getElementsByTagName("cbc:IssueDate")[0].textContent).toBe("2026-10-08");
+      const order = children(xml);
+      const at = order.indexOf("cac:Delivery");
+      expect(order[at - 1]).toBe("cac:AccountingCustomerParty");
+      expect(order[at + 1]).toBe(kind === "invoice" ? "cac:TaxTotal" : "cac:PaymentMeans");
+    }
+  });
+
+  it("refuses a malformed date instead of emitting it", () => {
+    expect(() => buildDocumentXml(standard({ supplyDate: "15/07/2026" }))).toThrow(/KSA-5/);
+  });
 });
