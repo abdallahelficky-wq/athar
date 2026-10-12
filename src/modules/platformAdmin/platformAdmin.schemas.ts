@@ -20,3 +20,24 @@ export const createNoticeSchema = z.object({
 export const updateAdminEmailSchema = z.object({
   adminEmail: z.string().trim().toLowerCase().email("صيغة البريد الإلكتروني غير صحيحة"),
 });
+
+// الإنفاذ (P4): المفتاح الشامل، وصف اشتراك شركة بتاريخ نهاية حقيقي، ومستخدمو نقطة البيع
+export const enforcementSwitchSchema = z.object({ enabled: z.boolean() });
+
+export const companySubscriptionSchema = z
+  .object({
+    plan: z.enum(["basic", "professional", "enterprise"]),
+    billingPeriod: z.enum(["yearly", "monthly"]),
+    status: z.enum(["trialing", "awaiting_payment", "active", "grace", "expired", "suspended", "canceled"]),
+    currentPeriodStart: z.coerce.date(),
+    currentPeriodEnd: z.coerce.date(),
+    enforced: z.boolean(),
+    posEnabled: z.boolean().optional(),
+    posUsers: z.number().int().min(0).optional(),
+    extraUsers: z.number().int().min(0).optional(),
+    stationsAddon: z.enum(["off", "free", "paid"]).optional(),
+    stablesAddon: z.enum(["off", "free", "paid"]).optional(),
+  })
+  .refine((v) => v.currentPeriodEnd > v.currentPeriodStart, { message: "تاريخ نهاية الاشتراك يجب أن يكون بعد بدايته", path: ["currentPeriodEnd"] });
+
+export const companyPosUsersSchema = z.object({ userIds: z.array(z.string().min(1)).max(500) });

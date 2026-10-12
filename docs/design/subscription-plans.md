@@ -45,10 +45,13 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 | D28 | **No grace after a trial ends:** the company becomes read-only at the trial end. |
 | D29 | **Monthly ↔ yearly switches take effect at the next renewal.** |
 | D30 | **Stations and stables add-ons are free and unpriced for now**, enabled by activity. A price is set later, when an external customer needs them. |
+| D31 | **A module outside the plan blocks writes only.** Create, edit, delete, post and approve are refused. Reads, reports, prints and exports of existing data stay allowed. The 403 says the feature isn't in the plan and invites an upgrade. |
+| D32 | **Companies without an enforced subscription row keep today's tenant-level read-only exactly**: the `readOnly` claim and `blockMutationsWhenReadOnly`, unchanged. |
+| D33 | **Global kill switch:** a platform setting stored in the database (`platform_settings.subscription_enforcement`), not an environment variable. **Default OFF** = enforcement disabled everywhere. A company's `enforced` flag applies only when the switch is ON. |
 
 ## 2. Plan / module table, mapped to permission ids
 
-**Where enforcement hangs.** The server enforces plans on the **permission (module) ids** passed to `requirePositionAction(moduleId, action)`, not on the nav groups. Nav groups mix things the plans separate: `inventory` holds both items and stock, `settings` holds cost centers, `accounts` holds departments.
+**Where enforcement hangs.** The server enforces plans on the **permission (module) ids** passed to `requirePositionAction(moduleId, action)`, not on the nav groups. A module outside the plan refuses **write actions only** (`create`, `edit`, `delete`, `approve`/post). `read` always passes, so the company keeps viewing, reporting on, printing and exporting what it already has (D31). Nav groups mix things the plans separate: `inventory` holds both items and stock, `settings` holds cost centers, `accounts` holds departments.
 
 **The canonical map.** It will live in `src/lib/subscriptionPlans.ts`. `src/lib/platformModules.ts` (nav groups) gets `pos` and `stationShifts` added, and is derived from the map for the UI.
 
@@ -121,7 +124,7 @@ New tables. Prisma generates the migrations (`prisma/migrations/README.md`).
 - **`plan_prices`**: `item` (`plan_basic`, `plan_professional`, `plan_enterprise`, `addon_user`, `addon_pos_extra_user`, `addon_stations`, `addon_stables`), `yearlyNetPrice` (null = unpriced, free), `effectiveFrom`, unique (`item`, `effectiveFrom`). Only the **yearly** price is stored; the monthly price is always the §4 formula, so the two cannot disagree. The owner changes prices from the admin panel by adding a row with a later `effectiveFrom`, without a deploy. A trigger refuses UPDATE/DELETE of a row already in effect, so the price that applied on any past date stays readable. Issued invoices keep their own line prices.
 - **`company_pos_users`** (D19): `companyId`, `userId`, `assignedAt`, `assignedByUserId`, unique (`companyId`, `userId`). A trigger refuses an assignment whose user and company are in different tenants (rule 4). P4 caps the count at `1 + posUsers` when `posEnabled`, and at 0 otherwise (D27).
 - **`subscription_invoices`**: links a sales invoice **in the أثر company** to a subscriber's subscription. Columns: `salesInvoiceId` (unique), `companySubscriptionId`, `kind` (`new`, `renewal`, `upgrade`, `addon`), `periodStart`, `periodEnd`, `appliedAt` (null until the receipt extends the subscription).
-- **`platform_settings`** (key/value): `billingCompanyId`, the أثر company inside Athar (§8).
+- **`platform_settings`** (key/value, created in P4): `subscription_enforcement` (boolean, seeded `false`, D33) and, from P7, `billingCompanyId`, the أثر company inside Athar (§8).
 - **`identities`** gains:
   - `emailVerifiedAt timestamptz null`;
   - `trialConsumedAt timestamptz null` (D6). It is set when the identity's first trial starts. A trial is granted only when it is null **and** the identity owns no tenant, which covers every existing owner without a backfill (tenants are never deleted).
@@ -260,15 +263,22 @@ lockedNet     = grandfatheredNetPrice if set, else netPrice
 
 ### 5.1 Where it runs
 
-**Ordering.** It runs right **after PR #151's live membership check** (`assertCurrentMembership` inside `authenticate`), which already reads the membership from the database on every request. Enforcement adds the company's subscription to that read path.
+**When anything is enforced (D33).** Nothing is enforced unless the global switch `platform_settings.subscription_enforcement` is ON **and** the company's row has `enforced = true`. Otherwise the request takes exactly today's path. That covers the switch being off (the default), no row (every company until P11), and a row that isn't enforced.
 
-**Which company a request is for:**
-- **Scoped user:** `req.auth.companyScope` when it is a specific company.
-- **Explicit company:** for `all`-scope users, the explicit `companyId` (query/body; the same source `enforceCompanyScope` uses).
-- **Record id only:** for requests that carry just a record id (`POST /sales-invoices/:id/post`), the record's `companyId`. This is the same lookup `assertRecordCompanyScope` already does, centralized as `resolveRequestCompanyId(req, recordModel)`.
-- **No company at all:** tenant-wide reads such as company lists are not gated.
+**Three layers.**
+1. **Request context:** `authenticate` (after #151's live `assertCurrentMembership`) opens an `AsyncLocalStorage` context with the tenant, user, HTTP method, and the modules the request writes to (`src/lib/requestContext.ts`).
+2. **Route pre-check:** `requirePositionAction` runs `enforceRouteSubscription` (`src/middleware/subscriptionEnforcement.ts`) **before** the owner/position check, because a plan is not a permission. It runs only for a write action on a non-GET request, and refuses before the handler does any work, including calls that can't be undone (ZATCA, email). It resolves the request's companies from:
+   - an explicit `companyId` (params, query or body), or the mirror's `targetCompanyId`;
+   - the scoped user's `companyScope`;
+   - for the main document routes, the company of the `:id` record (sales invoices, returns, debit notes, quotations, journal entries, receipts, purchase invoices and returns, payroll runs, boarding contracts).
+3. **Data-layer backstop:** a Prisma middleware (`src/lib/subscriptionWriteGuard.ts`) checks every write to a table with `companyId`, made during a user's non-GET request, against the company the row actually belongs to. It catches:
+   - routes that address a record by id;
+   - mirror entries written into another company;
+   - un-posting a pair whose other half lives elsewhere.
 
-**Loading the subscription.** It is read once per request and cached in memory for 30 s by `companyId`, with the cache invalidated in-process on every subscription write. One row by unique key adds no measurable load.
+   A refusal inside the transaction rolls it back. Subscription bookkeeping tables and `audit_logs` are exempt.
+
+**Cost.** Both checks return at once when the switch is off, or when the request's tenant has no enforced company. The switch, the per-tenant flag and each company's row are cached for 30 s per process. Writes through the admin service clear the cache in that process at once.
 
 ### 5.2 Module gate
 
@@ -281,22 +291,23 @@ not allowed           → 403 "هذه الميزة غير مشمولة في با
 ```
 
 - **Who it applies to:** everyone, including the owner and `super_admin`. A plan is not a permission, and owners bypass only positions.
-- **Interim mechanism:** `sub.enforcement = off` skips the check for the rollout (§10).
-- **The UI:** it reads the allowed modules from `/auth/me` (per company) and replaces today's `tenant.enabledModules` filter (`App.jsx:84`). Hiding something in the UI is a convenience; the server rule is what counts.
+- **Writes only (D31):** the check runs for `create`, `edit`, `delete` and `approve`. `read` never reaches it, including POST routes guarded by `read` (bulk-import preview, mirror suggestion).
+- **The message:** 403 `هذه الميزة غير مشمولة في باقة الشركة الحالية — يمكنك الاطلاع على بياناتها الحالية وتصديرها، وللإضافة أو التعديل يمكنك ترقية الباقة.`, with `details: { code: "plan_module_not_included", moduleId, plan }` so the UI can link to the upgrade.
+- **Rollout:** the global switch plus the per-company `enforced` flag (D33, §10).
+- **The UI (P10):** it will read the allowed modules from `/auth/me` (per company) and replace today's `tenant.enabledModules` filter (`App.jsx:84`). Hiding something in the UI is a convenience; the server rule is what counts.
 
 ### 5.3 User limit
 
 `limit(company) = includedUsers(plan) + extraUsers`
 
-**What counts:** active, accepted, non-deleted memberships whose scope is the company or `all`. An `all`-scope member counts in **every** company of its tenant. The sizing SQL counts it the same way.
+**What counts:** active, non-deleted memberships whose scope is the company or `all`, **including pending invites**, which reserve their seat. An `all`-scope member counts in **every** company of its tenant. The sizing SQL counts accepted members only, so its figure can be lower.
 
-**Checked at:**
+**Checked at** (new seats only):
 - invite (`POST /auth/invite`);
 - re-activation (`PATCH /auth/users/:id/active`);
-- scope change to a company (`PATCH /auth/users/:id`);
-- accepting an invite.
+- moving a scope into a company, or to `all` (`PATCH /auth/users/:id`).
 
-Exceeding the limit returns 403 with the limit and how to add users.
+Accepting an invite that was already issued is **not** checked: its seat was counted when it was sent. Exceeding the limit returns 403 with `details: { code: "user_limit_reached", limit }`.
 
 **POS (D19, D27):** assigning a member as POS user of a company (`company_pos_users`) is refused when POS is not enabled, or when the company already has `1 + posUsers` assignments. Opening POS sales checks the assignment for the request's company. The owner and `super_admin` are no exception: they are not counted unless assigned, and not able to sell at POS unless assigned. Positions keep deciding what a non-owner may do; the assignment decides the paid seat.
 
@@ -304,19 +315,22 @@ Exceeding the limit returns 403 with the limit and how to add users.
 
 ### 5.4 Per-company read-only
 
-- **What it replaces:** the tenant-wide `readOnly` JWT claim (`isTenantReadOnly`, `auth.service.ts:113-118`) becomes a per-request, per-company decision. A company is read-only when:
+- **Companies without an enforced row (D32):** the tenant-wide `readOnly` claim (`isTenantReadOnly`) and `blockMutationsWhenReadOnly` apply **exactly as today**. P4 does not change that guard at all.
+- **Enforced companies:** an enforced company is read-only by its own subscription, checked by the route pre-check and the data-layer backstop. Until P11 retires the tenant flags, the tenant claim still applies on top. A write needs both the company's subscription and the tenant to allow it, the stricter of the two. A company is read-only when:
   - its status is `expired`, `awaiting_payment` or `canceled`;
   - it is `trialing` and `now ≥ currentPeriodEnd` (no grace on a trial, D28);
   - it is `active` or `grace` and `now ≥ currentPeriodEnd + 7 days` (D23).
-- **Grace banner:** for a paid term with `currentPeriodEnd ≤ now < currentPeriodEnd + 7 days`, `/auth/me` returns the company's grace end date. The UI shows a banner on every page of that company ("انتهى الاشتراك في … — تتحول الشركة إلى عرض فقط في … ما لم يُسدَّد التجديد"). Writes still pass.
+- **Suspended (enforced):** writes are refused with the suspended message; reads pass. The login block for a suspended company comes with the admin panel (P8).
+- **Grace banner (P10):** for a paid term with `currentPeriodEnd ≤ now < currentPeriodEnd + 7 days`, `/auth/me` will return the company's grace end date. The UI shows a banner on every page of that company ("انتهى الاشتراك في … — تتحول الشركة إلى عرض فقط في … ما لم يُسدَّد التجديد"). Writes still pass.
 - **Correctness:** the check compares the dates with `now()` itself, so it does **not** depend on the scheduled job having run.
-- **Effect:** reads always pass, as today; mutations get 403. `blockMutationsWhenReadOnly` stays the router-level hook, now fed by the company's subscription instead of the token.
+- **Effect:** reads always pass, as today; mutations get 403 with `details.code = "subscription_read_only"` (or `subscription_suspended`).
 - **Other companies are unaffected:** the same `all`-scope user keeps full access to the tenant's other companies that are active.
 - **Coverage:** #157's coverage test (every user-authenticated router mounts the guard) keeps protecting this.
-- **Mirror and reversal (CLAUDE.md rule 1):** P4's PR must cover these cases:
-  - a mirror entry written **into** another company is checked against **the target company's** subscription, not only the source's;
-  - reversing an entry, or reversing a mirror entry, is a mutation in the company that holds the entry, so it is refused when that company is read-only;
-  - each case gets its own test.
+- **Mirror and reversal (CLAUDE.md rule 1):** implemented in P4, each case with its own HTTP test:
+  - a mirror entry written **into** a read-only company is refused, and neither company changes;
+  - reversing an entry, or reversing the mirror half, that lives in the read-only company is refused;
+  - reversing the healthy company's half still works, because it writes only there;
+  - un-posting a pair from the healthy company is refused when it would change the half in the read-only company. The backstop catches this even though the request names no company.
 
 ## 6. Lifecycle
 
@@ -467,7 +481,7 @@ None. Every question raised so far is answered (D16–D30). The stations and sta
 | P1 | Data model: `company_subscriptions` (with its CHECKs), `subscription_events` (append-only trigger), `plan_prices` seeded with the approved prices (trigger: in-effect rows immutable), `company_pos_users` (same-tenant trigger), identity `emailVerifiedAt` / `trialConsumedAt`. **Tables created empty**, no `tenantId` copies (§3.1), nothing reads them yet: no behaviour change. `platform_settings` and `subscription_invoices` move to P7; the signup tables to P5. | — |
 | P2 | `subscriptionPlans.ts` (plan → permission-id map, add-ons) and `previewSubscriptionPrice` with tests for every worked example above. Nothing calls them yet. | P1 |
 | P3 | Lifecycle: real end dates, `subscriptionScheduler` (expire, reminders), admin-activate restores by-date status. Fixes "active never expires". | P1 |
-| P4 | **Server enforcement:** module gate in `requirePositionAction`, per-company read-only, user and POS limits, behind `enforcement` | P1, P2. ~~#151~~ merged, no longer blocking (hooks after `assertCurrentMembership`) |
+| P4 | **Server enforcement:** global switch (D33), route pre-check and data-layer backstop, module gate on writes only (D31), per-company read-only with the tenant flag kept (D32), user and POS limits. Also the minimal admin endpoints a pilot needs, pulled forward from P8: switch, company subscription, POS users. | P1, P2, P3 |
 | P5 | Signup with plan, email verification, rate limiting, trial once per identity | P1, P2. ~~#151~~ merged, no longer blocking |
 | P6 | Add-company flow with server price preview | P2. ~~#151~~ merged, no longer blocking (builds on its `CompaniesSettings.jsx` and `createCompany`) |
 | P7 | Billing via the أثر company: billing-company setting, `issueSubscriptionInvoice`, `subscription_invoices`, receipt → extend hook | P1, P3 |

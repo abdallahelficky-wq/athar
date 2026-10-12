@@ -7,6 +7,7 @@ import { prisma } from "../lib/prisma";
 import type { ActionLevel } from "../lib/platformActions";
 import { tenantSuspendedMessage } from "../modules/employeePortal/employeePortal.service";
 import { assertCurrentMembership } from "../lib/currentMembership";
+import { runWithRequestContext } from "../lib/requestContext";
 
 /** يتحقق من رمز JWT (access token) ويحمّل هوية المستخدم + المستأجر في req.auth */
 export const authenticate: RequestHandler = async (req, _res, next) => {
@@ -21,7 +22,8 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
     throw unauthorized("رمز الدخول غير صالح أو منتهي الصلاحية");
   }
   await assertCurrentMembership(req.auth!);
-  next();
+  // سياق الطلب يرافق كل استعلام بعدها — حارس الكتابة للاشتراكات يقرؤه (P4)
+  runWithRequestContext({ tenantId: req.auth!.tenantId, userId: req.auth!.sub, method: req.method, writeResources: new Set() }, () => next());
 };
 
 /**

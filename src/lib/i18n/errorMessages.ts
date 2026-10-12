@@ -636,4 +636,13 @@ export const AR_TO_EN: Record<string, string> = {
   "الاشتراك ليس معلّقاً": "The subscription is not suspended",
   "تغيّرت حالة الاشتراك أثناء الطلب — أعد المحاولة": "The subscription status changed during the request — try again",
   "حالة ما قبل التعليق غير صالحة": "Invalid status before suspension",
+  // إنفاذ الاشتراكات (P4) — رسائل subscriptionEnforcement.MESSAGES تُترجَم بالنص نفسه
+  "هذه الشركة في وضع (عرض فقط) لانتهاء اشتراكها — يمكنك الاطلاع على بياناتها وتصديرها، وللإضافة أو التعديل أو الحذف جدّد الاشتراك.": "This company is read-only because its subscription has ended — you can still view and export its data; renew the subscription to add, edit or delete.",
+  "اشتراك هذه الشركة معلّق — يمكنك الاطلاع على بياناتها، وللإضافة أو التعديل تواصل مع الدعم الفني.": "This company's subscription is suspended — you can still view its data; contact support to add or edit.",
+  "هذه الميزة غير مشمولة في باقة الشركة الحالية — يمكنك الاطلاع على بياناتها الحالية وتصديرها، وللإضافة أو التعديل يمكنك ترقية الباقة.": "This feature is not included in the company's current plan — you can still view and export its existing data; upgrade the plan to add or edit.",
+  "لست معيَّناً مستخدماً لنقطة البيع في هذه الشركة — اطلب من مالك الشركة تعيينك قبل فتح مبيعات نقطة البيع.": "You are not assigned as a POS user in this company — ask the company owner to assign you before opening POS sales.",
+  "بلغت الشركة حد المستخدمين في باقتها — أضف مستخدمين إضافيين أو رقِّ الباقة قبل دعوة مستخدم جديد أو تفعيله.": "The company has reached its plan's user limit — add extra users or upgrade the plan before inviting or activating a user.",
+  "لا توجد مقاعد نقطة بيع متاحة لهذه الشركة — أضف مقاعد إضافية قبل تعيين مستخدم جديد.": "No POS seats are available for this company — add seats before assigning another user.",
+  "نقطة البيع غير مفعّلة لهذه الشركة.": "POS is not enabled for this company.",
+  "تاريخ نهاية الاشتراك يجب أن يكون بعد بدايته": "The subscription end date must be after its start date",
 };

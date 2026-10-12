@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma";
+import { assertUserSeatAvailable } from "../../lib/subscriptionEnforcement";
 import { hashPassword, verifyPassword } from "../../lib/password";
 import {
   signAccessToken,
@@ -444,6 +445,8 @@ export async function invite(
     ? await prisma.user.findUnique({ where: { identityId_tenantId: { identityId: existingIdentity.id, tenantId } } })
     : null;
   if (existingMembership && !existingMembership.deletedAt) throw conflict("هذا البريد الإلكتروني مسجّل بالفعل في هذه الشركة");
+  // حد المستخدمين للشركة المُنفَّذة (P4، §5.3) — الدعوة الجديدة تشغل مقعداً
+  await assertUserSeatAvailable(tenantId, input.companyScope);
 
   const inviteToken = generateInviteToken();
   const inviteExpiresAt = new Date(Date.now() + INVITE_EXPIRES_DAYS * 86_400_000);
@@ -494,6 +497,10 @@ export async function updateUser(
   if (changesAccess && tenant.ownerId === userId) throw badRequest("لا يمكن تغيير دور مالك الشركة أو نطاق وصوله");
   assertCanManageRole(actor, user.role, input.role);
   if (input.companyScope !== undefined) await assertCompanyScopeInTenant(tenantId, input.companyScope);
+  // نقل نطاق عضو فعّال إلى شركة (أو إلى "all") يشغل مقعداً فيها (P4، §5.3)
+  if (input.companyScope !== undefined && input.companyScope !== user.companyScope && user.active) {
+    await assertUserSeatAvailable(tenantId, input.companyScope, userId);
+  }
   if (input.positionId !== undefined && input.positionId !== user.positionId) {
     await assertPositionAssignable(actor, tenantId, input.positionId);
   }
@@ -561,6 +568,8 @@ export async function setUserActive(tenantId: string, actingUserId: string, user
   if (!user) throw notFound("المستخدم غير موجود");
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { ownerId: true } });
   if (tenant.ownerId === userId) throw badRequest("لا يمكن تعطيل مالك الشركة");
+  // إعادة تفعيل عضو معطَّل تشغل مقعداً (P4، §5.3) — التعطيل لا يُفحَص أبداً
+  if (active && !user.active) await assertUserSeatAvailable(tenantId, user.companyScope, userId);
 
   const updated = await prisma.user.update({ where: { id: userId }, data: { active }, include: { identity: true } });
   // التعطيل يسري فوراً: إبطال رموز التحديث القائمة يمنع تجديد أي جلسة مفتوحة (رمز الدخول الحالي

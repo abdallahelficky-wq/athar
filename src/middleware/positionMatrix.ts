@@ -4,6 +4,8 @@ import { forbidden, unauthorized } from "../lib/httpError";
 import { MATRIX_MARKER, POSITION_RESOURCES, type MatrixAction } from "../lib/positionMatrix";
 import { matrixAuthorizedRequests, matrixHrAccess } from "../lib/matrixAuthorization";
 import { isTenantOwner } from "./auth";
+import { currentRequestContext } from "../lib/requestContext";
+import { enforceRouteSubscription } from "./subscriptionEnforcement";
 
 /** Explicit route-level checks: never infer accounting approval from an HTTP verb. */
 export function requirePositionAction(resourceId: string, action: MatrixAction): RequestHandler {
@@ -14,6 +16,9 @@ export function requirePositionAction(resourceId: string, action: MatrixAction):
     matrixAuthorizedRequests.delete(req);
     const auth = req.auth;
     if (!auth) throw unauthorized();
+    // الباقة ليست صلاحية: تسري على المالك وsuper_admin أيضاً، وقبل فحص المنصب (P4). القراءة لا تُرفَض بسببها (D31).
+    if (action !== "read") currentRequestContext()?.writeResources.add(resourceId);
+    await enforceRouteSubscription(req, resourceId, action);
     if (auth.role === "super_admin" || await isTenantOwner(auth)) {
       matrixAuthorizedRequests.add(req);
       return next();
