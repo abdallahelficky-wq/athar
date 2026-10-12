@@ -50,6 +50,10 @@ async function fixture() {
  const orphanBefore=(await db.query("SELECT * FROM attachments WHERE id='cmt1xk2990009130d2atjkmcn'")).rows;
  const archiveBefore=(await db.query('SELECT * FROM zatca_document_archive')).rows;
  await db.exec(cutover);
+ const postcheck=(await db.query(fs.readFileSync(require('path').join(queryDir,'company-separation-postcheck.sql'),'utf8'))).rows;
+ assert.equal(postcheck.length,3);
+ assert(postcheck.every(r=>Number(r.companies_in_account)===1 && Number(r.designated_admin_count)===1 && Number(r.separation_audit_count)===1 && r.owner_id));
+ assert.equal(new Set(postcheck.map(r=>r.account_code)).size,3);
  const rows=(await db.query('SELECT "tenantId",count(*)::int AS n FROM companies GROUP BY "tenantId"')).rows;
  assert.equal(rows.length,4); assert(rows.every(x=>x.n===1));
  assert.equal((await db.query('SELECT count(*)::int AS n FROM users WHERE "identityId"=\'identity\'')).rows[0].n,3);
