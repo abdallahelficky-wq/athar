@@ -1,6 +1,6 @@
 # Subscription plans and per-company subscriptions — design
 
-Status: **design only, nothing implemented.** Built from the investigation of 2026-10-11 (code at `production` `b206545`) and the owner's decisions recorded in the same session. Every implementation step below is a separate PR. Items marked **[proposed]** still need the owner's approval.
+Status: **design only, nothing implemented.** Built from the investigation of 2026-10-11 (code at `production` `b206545`) and the owner's decisions recorded on 2026-10-11 and 2026-10-12 (§11 answers folded in as D16–D26). Every implementation step below is a separate PR. Items marked **[proposed]** still need the owner's approval; they are listed in §11.
 
 ## 1. Decisions this design implements
 
@@ -19,8 +19,19 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 | D11 | **Items:** the catalog (service and stock items) is in all plans. Basic keeps automatic stock movements from invoices on the single default warehouse, plus a simple stock balance. Professional and above add multiple warehouses, transfers, issue vouchers, periodic settlement and inventory reports. |
 | D12 | **Cost centers and departments** are in all plans. |
 | D13 | **Stables and stations are activity add-ons.** They are auto-enabled by business activity, at a price to be decided. Existing companies keep them free until a price is set. Current auto-visibility by activity is preserved. |
-| D14 | **POS** is priced **per POS user**: 600 SAR/year per user with POS access. |
+| D14 | **POS** is priced **per POS user**: 600 SAR/year per user **explicitly assigned as a POS user** of a company (D19). |
 | D15 | **Athar AI** is in enterprise, but it is **not user-visible yet** (it has no web UI). |
+| D16 | **Discount cap 50%**, reached at the 5th company. |
+| D17 | **Add-ons get no volume discount.** |
+| D18 | **Extra user: 120 SAR/year.** |
+| D19 | **POS user = a member explicitly assigned as POS user of a company** (an assignment per company), not anyone whose position can create POS sales. Owners and admins with full permissions are not counted unless assigned. |
+| D20 | **The stations add-on grants station-worker employee records** (no payroll/HR module) on every plan, so stations work on basic and professional. |
+| D21 | **Expired companies keep their discount rank for 30 days.** |
+| D22 | **Upgrades take effect immediately with proration** for the remaining period; **downgrades take effect at the next renewal**. |
+| D23 | **Renewal invoice 14 days before the end date**, then a **7-day grace period** after the end date with a visible banner, then read-only. |
+| D24 | **Signup rate limits** 5/hour per IP and 3/day per email. |
+| D25 | **#151's separated companies** are owned by the designated administrator and their discount is grouped under that identity (they are the owner's own group companies). |
+| D26 | **A receipt un-allocated after it extended a subscription** is flagged for owner review; no automatic reversal. |
 
 ## 2. Plan / module table, mapped to permission ids
 
@@ -52,9 +63,9 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 
 | Add-on | Price (excl. VAT) | Gated ids | Notes |
 |---|---|---|---|
-| Extra user **[proposed]** | 120 SAR/year per user | raises the company's user limit | — |
-| POS (D14) | 600 SAR/year **per POS user** | `pos` | A POS user is an active member whose position grants `pos.create`. The owner and `super_admin` bypass positions today, so they count as POS users only if they actually sell. The rule needs owner confirmation (§11). |
-| Stations (D13) | TBD; free for existing companies until set | `stationSetup`, `stationShiftsReports`, `stationSales`, station-worker portal routes | Auto-enabled for `businessActivity = fuel_stations`, keeping today's auto-visibility (`frontend/src/App.jsx:81-84`). |
+| Extra user (D18) | 120 SAR/year per user | raises the company's user limit | — |
+| POS (D14, D19) | 600 SAR/year **per POS user** | `pos` | A POS user is a member **explicitly assigned** as POS user of the company (`company_pos_users`, §3.2). Assignments are capped by the purchased `posUsers`. Opening POS sales requires the assignment **for everyone, owners and `super_admin` included**, so an unassigned owner is neither counted nor able to sell at POS; a non-owner also still needs a position granting `pos.create`. POS reads (reports) need no seat. |
+| Stations (D13, D20) | TBD; free for existing companies until set | `stationSetup`, `stationShiftsReports`, `stationSales`, station-worker portal routes, and **`employees` limited to station workers** | Auto-enabled for `businessActivity = fuel_stations`, keeping today's auto-visibility (`frontend/src/App.jsx:81-84`). **Station workers** are `Employee` rows with `assignedCostCenterId` set (the station they work at, `schema.prisma` `Employee.assignedCostCenterId`). On a plan without HR, the add-on allows the `employees` actions **only on such rows**: create a worker (the station is then required), edit, set phone/PIN and `portalActive`. Lists return only station workers. Payroll, leave, HR actions, advances and HR reports stay enterprise. |
 | Stables (D13) | TBD; free for existing companies until set | `stables` | Auto-enabled for `businessActivity = horse_stables`. |
 
 **Basic and stock (D11).** Basic invoices keep calling `createStockOutSideEffectsTx` (`salesInvoices.service.ts:181,240`); those are side effects of the invoice, not calls into the `stockMovements` router, so gating that router does not break basic. A basic company keeps exactly its default warehouse, because the `warehouses` create route is gated. The "simple stock balance" is the quantity on hand shown in the item catalog (`items`).
@@ -69,30 +80,34 @@ New tables. Prisma generates the migrations (`prisma/migrations/README.md`).
 |---|---|---|
 | `id` | cuid | — |
 | `companyId` | unique FK → companies | **the subscription unit (D1)** |
-| `tenantId` | — | for tenant-scoped reads |
 | `ownerIdentityId` | — | discount scope (D3). Snapshot of `tenants.ownerId → users.identityId`, refreshed at renewal. |
 | `plan` | enum `basic \| professional \| enterprise` | — |
 | `billingPeriod` | enum `yearly \| monthly` | — |
-| `status` | enum `trialing \| awaiting_payment \| active \| expired \| suspended \| canceled` | §6 |
-| `currentPeriodStart`, `currentPeriodEnd` | timestamptz | **Real end date. `NOT NULL` for every status except `suspended` and `canceled`** (no more open-ended "active"). |
-| `discountRank`, `discountPct` | int, decimal(5,2) | rank and discount locked for the current term |
+| `status` | enum `trialing \| awaiting_payment \| active \| grace \| expired \| suspended \| canceled` | §6 (`grace` = the 7 days after the end of a paid term, D23) |
+| `currentPeriodStart`, `currentPeriodEnd` | timestamptz | **Real end date, `NOT NULL`** (database CHECK) unless `legacyOpenEnded` (§10). No more open-ended "active". |
+| `legacyOpenEnded` | boolean | only for migrated rows with no known end date; CHECK: such a row cannot be `enforced` |
+| `discountRank`, `discountPct` | int, decimal(5,2) | rank and discount locked for the current term; CHECK 0 ≤ pct ≤ 50 (D16) |
 | `netPrice` | decimal(12,2) | the plan price locked for the current term, after discount, excl. VAT |
-| `grandfatheredNetPrice` | decimal(12,2), nullable | D10: the external customer's existing price, honoured until `currentPeriodEnd`, then cleared |
+| `grandfatheredNetPrice` | decimal(12,2), nullable | D10: the external customer's existing price, honoured until `currentPeriodEnd` or an upgrade (§4.1), then cleared |
+| `scheduledPlan`, `scheduledBillingPeriod` | nullable | a downgrade or period change waiting for the next renewal (D22) |
 | `extraUsers`, `posUsers` | int | purchased add-on quantities |
 | `stationsAddon`, `stablesAddon` | enum `off \| free \| paid` | D13: `free` for existing companies until a price is set |
 | `suspensionReason` | text, nullable | — |
-| `enforcement` | enum `off \| on` | per-company rollout switch (§10). Stays `off` until migration fills real values. |
+| `enforced` | boolean, default false | per-company rollout switch (§10). Stays false until migration fills real values. |
 | `createdAt`, `updatedAt` | — | — |
+
+**No `tenantId` column.** The tenant is read through `companies.tenantId`. PR #151's separation script rewrites `tenantId` on every table that has one and refuses to run when a source-tenant row has no recorded owner. A denormalized copy here could go stale or block that script. P1 therefore also creates the tables **empty**: rows are created by the migration step after the #151 cutover (§10).
 
 ### 3.2 Other tables and fields
 
 - **`subscription_events`** (append-only; UPDATE/DELETE blocked by trigger, like `zatca_document_archive`): `companySubscriptionId`, `type` (`created`, `plan_changed`, `period_changed`, `renewed`, `extended`, `expired`, `suspended`, `activated`, `canceled`, `receipt_applied`, `rank_recomputed`, `migrated`), before/after JSON, `actor` (`system_job`, `platform_admin:<adminUserId>`, `owner:<userId>`), `at`. This is the audit trail for every price and date change.
-- **`plan_prices`**: `plan`, `period`, `netPrice`, `effectiveFrom`, unique (`plan`, `period`, `effectiveFrom`). It also holds add-on prices (`addon_user`, `addon_pos`, `addon_stations`, `addon_stables`, with `null` meaning TBD/free). The owner changes prices from the admin panel without a deploy; issued invoices keep their own line prices.
+- **`plan_prices`**: `item` (`plan_basic`, `plan_professional`, `plan_enterprise`, `addon_user`, `addon_pos`, `addon_stations`, `addon_stables`), `yearlyNetPrice` (null = TBD/free), `effectiveFrom`, unique (`item`, `effectiveFrom`). Only the **yearly** price is stored; the monthly price is always the §4 formula, so the two cannot disagree. The owner changes prices from the admin panel by adding a row with a later `effectiveFrom`, without a deploy. A trigger refuses UPDATE/DELETE of a row already in effect, so the price that applied on any past date stays readable. Issued invoices keep their own line prices.
+- **`company_pos_users`** (D19): `companyId`, `userId`, `assignedAt`, `assignedByUserId`, unique (`companyId`, `userId`). A trigger refuses an assignment whose user and company are in different tenants (rule 4). P4 caps the count at `posUsers`.
 - **`subscription_invoices`**: links a sales invoice **in the أثر company** to a subscriber's subscription. Columns: `salesInvoiceId` (unique), `companySubscriptionId`, `kind` (`new`, `renewal`, `upgrade`, `addon`), `periodStart`, `periodEnd`, `appliedAt` (null until the receipt extends the subscription).
 - **`platform_settings`** (key/value): `billingCompanyId`, the أثر company inside Athar (§8).
 - **`identities`** gains:
   - `emailVerifiedAt timestamptz null`;
-  - `trialConsumedAt timestamptz null` (D6). It is set when the identity's first trial starts, and backfilled for every existing owner identity.
+  - `trialConsumedAt timestamptz null` (D6). It is set when the identity's first trial starts. A trial is granted only when it is null **and** the identity owns no tenant, which covers every existing owner without a backfill (tenants are never deleted).
 - **`signup_requests`**: pending signups (hashed token, email, chosen plan and period, company name and activity, `expiresAt`, `consumedAt`). The tenant is created only after verification (§7.1).
 - **`signup_throttle`**: same shape as the existing `portal_login_throttle`, keyed by IP and by email.
 
@@ -119,10 +134,10 @@ line VAT          = round2( lineNet × 0.15 )                          (per line
 ```
 
 **The rules:**
-- **Rank** is the position of the company among the owner identity's **live** companies (status `trialing`, `awaiting_payment`, `active` or `expired` within the last 30 days **[proposed]**), ordered by `companies.createdAt`, then id. The oldest company gets rank 1 and **full price, whatever its plan**.
+- **Rank** is the position of the company among the owner identity's **live** companies (status `trialing`, `awaiting_payment`, `active`, `grace`, or `expired` for at most 30 days since it became read-only, D21), ordered by `companies.createdAt`, then id. The oldest company gets rank 1 and **full price, whatever its plan**.
 - **Locking:** rank and price are locked for the current term and recomputed **at renewal** (D3). If the oldest company is canceled, the others move up at their next renewal, not mid-term.
 - **Grandfathering:** if `grandfatheredNetPrice` is set (D10), it replaces `periodNet` until the current end date.
-- **Add-ons** (extra users, POS users, activity add-ons) are **not discounted [proposed]**. Their monthly price follows the same `/12 × 1.10` rule.
+- **Add-ons** (extra users, POS users, activity add-ons) are **not discounted** (D17). Their monthly price follows the same `/12 × 1.10` rule.
 
 ### Worked examples (yearly unless stated; VAT 15%)
 
@@ -164,7 +179,51 @@ line VAT          = round2( lineNet × 0.15 )                          (per line
 | 2 basic: together | 82.50 | 12.37 | 94.87 | 1,138.44 | 1,035.00 | |
 | 1 enterprise | 1500 × 1.1 / 12 = 137.50 | 20.63 | 158.13 | 1,897.56 | 1,725.00 | |
 
-**Add-ons on a basic company:** 3 extra users and 2 POS users, yearly: 3 × 120 + 2 × 600 = 1,560.00 + VAT 234.00. **[extra-user price proposed]**
+**Add-ons on a basic company:** 3 extra users and 2 POS users, yearly: 3 × 120 + 2 × 600 = 1,560.00 + VAT 234.00 (D17, D18).
+
+**Effect of D22 and D23 on the examples above:** none of the 1/2/4/6-company or monthly-vs-yearly figures change. They are full-term prices, and grace (D23) adds no days and no charge. A payment in grace extends from the old end date (§6), so the next term costs the same. D22 adds the proration cases in §4.1, and D23 the timeline in §6.1.
+
+### 4.1 Mid-term changes (D22)
+
+```
+remainingDays = KSA calendar days from the change date to currentPeriodEnd
+termDays      = KSA calendar days from currentPeriodStart to currentPeriodEnd
+upgradeNet    = round2( (periodNet(newPlan, period, lockedRank) − lockedNet) × remainingDays / termDays )
+lockedNet     = grandfatheredNetPrice if set, else netPrice
+```
+
+**What an upgrade does:**
+- **When:** it takes effect **on payment** of the upgrade invoice (`subscription_invoices.kind = upgrade`).
+- **Price:** `netPrice` becomes the new plan's price at the locked rank; any grandfathered price ends there.
+- **Term:** the end date does not move.
+- **Add-ons:** raising add-on quantities is an upgrade too, prorated the same way and undiscounted.
+
+**What a downgrade does:** a downgrade (or lowering add-on quantities) sets `scheduledPlan`. The renewal invoice (14 days before the end, D23) is built from it. If the owner downgrades **after** that invoice was issued, the difference is corrected with a ZATCA credit note on the renewal invoice. No refund or credit is given for the rest of the current term.
+
+**Billing period changes** (monthly ↔ yearly) take effect at the next renewal **[proposed]**.
+
+**Upgrade, yearly:** rank 2 (20%), basic, locked at 400.00. The term runs 2027-01-01 → 2028-01-01 (365 days), and the company upgrades to professional on 2027-07-01 (184 days left).
+
+| | |
+|---|---|
+| New price at rank 2 | 1,000 × 0.80 = 800.00 |
+| Difference | 800.00 − 400.00 = 400.00 |
+| Prorated | 400.00 × 184 / 365 = **201.64** |
+| VAT | 30.25 |
+| Due now | **231.89** |
+| Renewal on 2028-01-01 | professional at the rank recomputed then |
+
+**Upgrade, monthly:** rank 1, basic monthly at 45.83. The term runs 2027-07-01 → 2027-08-01 (31 days), and the company upgrades to professional on 2027-07-11 (21 days left).
+
+| | |
+|---|---|
+| Professional monthly | 1,000 × 1.1 / 12 = 91.67 |
+| Difference | 91.67 − 45.83 = 45.84 |
+| Prorated | 45.84 × 21 / 31 = **31.05** |
+| VAT | 4.66 |
+| Due now | **35.71** |
+
+**Downgrade:** enterprise → basic on the same yearly term. Nothing is charged or credited now. The renewal invoice issued on 2027-12-18 is basic at the rank recomputed then.
 
 **The price preview** (§7) shows these exact lines before any company is created, computed by one server function, `previewSubscriptionPrice(ownerIdentityId, plan, period, addOns)`. The UI never recomputes prices.
 
@@ -210,14 +269,18 @@ not allowed           → 403 "هذه الميزة غير مشمولة في با
 
 Exceeding the limit returns 403 with the limit and how to add users.
 
-**POS:** assigning or changing a position so that a member gains `pos.create` checks `posUsers` the same way.
+**POS (D19):** assigning a member as POS user of a company (`company_pos_users`) is refused when the company already has `posUsers` assignments. Opening POS sales checks the assignment for the request's company. The owner and `super_admin` are no exception: they are not counted unless assigned, and not able to sell at POS unless assigned. Positions keep deciding what a non-owner may do; the assignment decides the paid seat.
 
 **Downgrades and lowered limits never lock anyone out.** Existing members keep working; new invites are blocked and the admin panel flags the company as over the limit.
 
 ### 5.4 Per-company read-only
 
-- **What it replaces:** the tenant-wide `readOnly` JWT claim (`isTenantReadOnly`, `auth.service.ts:113-118`) becomes a per-request, per-company decision. A company is read-only when its status is `expired`, `awaiting_payment` or `canceled`, or `trialing` past `currentPeriodEnd`.
-- **Correctness:** the check compares `currentPeriodEnd` with `now()` itself, so it does **not** depend on the scheduled job having run.
+- **What it replaces:** the tenant-wide `readOnly` JWT claim (`isTenantReadOnly`, `auth.service.ts:113-118`) becomes a per-request, per-company decision. A company is read-only when:
+  - its status is `expired`, `awaiting_payment` or `canceled`;
+  - it is `trialing` and `now ≥ currentPeriodEnd` (no grace on a trial **[proposed]**, §11);
+  - it is `active` or `grace` and `now ≥ currentPeriodEnd + 7 days` (D23).
+- **Grace banner:** for a paid term with `currentPeriodEnd ≤ now < currentPeriodEnd + 7 days`, `/auth/me` returns the company's grace end date. The UI shows a banner on every page of that company ("انتهى الاشتراك في … — تتحول الشركة إلى عرض فقط في … ما لم يُسدَّد التجديد"). Writes still pass.
+- **Correctness:** the check compares the dates with `now()` itself, so it does **not** depend on the scheduled job having run.
 - **Effect:** reads always pass, as today; mutations get 403. `blockMutationsWhenReadOnly` stays the router-level hook, now fed by the company's subscription instead of the token.
 - **Other companies are unaffected:** the same `all`-scope user keeps full access to the tenant's other companies that are active.
 - **Coverage:** #157's coverage test (every user-authenticated router mounts the guard) keeps protecting this.
@@ -232,25 +295,45 @@ Exceeding the limit returns 403 with the limit and how to add users.
 |---|---|---|
 | — | signup, first company of an identity (D6) | `trialing`, end = +30 days, `trialConsumedAt` set |
 | — | any other new company (add-company, second signup) | `awaiting_payment`, end = creation date, invoice issued immediately |
-| `trialing` / `awaiting_payment` / `expired` | receipt fully pays a `subscription_invoice` (D9) | `active`, start = max(now, old end), end = start + 1 year or 1 month |
-| `active` | receipt pays a renewal invoice | `active`, end += term (from the old end, so paying early loses nothing) |
-| `trialing` / `active` | `now ≥ currentPeriodEnd` | `expired` (read-only) |
+| `trialing` / `awaiting_payment` / `expired` | receipt fully pays a `subscription_invoice` (D9) | `active`, start = payment date, end = start + 1 year or 1 month |
+| `active` / `grace` | receipt fully pays the renewal invoice | `active`, start = old end, end = old end + term. Paying early loses nothing; paying in grace gains nothing. |
+| `active` / `grace` | receipt fully pays an upgrade invoice (§4.1) | same status, new plan from now, end unchanged |
+| `active` | `now ≥ currentPeriodEnd` | `grace` (writes allowed, banner, D23) |
+| `grace` | `now ≥ currentPeriodEnd + 7 days` | `expired` (read-only) |
+| `trialing` | `now ≥ currentPeriodEnd` | `expired` (read-only; no grace **[proposed]**) |
 | any | admin suspend | `suspended` (login blocked for scoped members of that company; `all`-scope members lose only that company) |
-| `suspended` | admin activate | the status it would have **by date** (`active` if before end, else `expired`). This is the fix for today's "activate = unlimited active". |
+| `suspended` | admin activate | the status it would have **by date** (`active` before the end, `grace` within 7 days after it, else `expired`). This is the fix for today's "activate = unlimited active". |
 | any | admin cancel / owner cancel at term end | `canceled` (read-only; data kept) |
 
 **The scheduled job** (`src/lib/subscriptionScheduler.ts`): hourly, in-process, the same pattern as `reportScheduler.ts` and `zatca/retryScheduler.ts`. Each run is idempotent, and each step is claimed with a conditional update so two server instances cannot double-act.
-1. **Expire:** set `expired` on rows past their end date and write an event. Enforcement does not wait for this (§5.4); the job keeps the column and reports truthful.
-2. **Renewal invoices:** issue a renewal invoice **14 days [proposed]** before the end date for active companies. Rank is recomputed here (D3).
-3. **Reminders:** email the owner and admins 14, 7 and 1 days before the end date, and on expiry.
+1. **Transitions:** `active` → `grace` at the end date; `grace` → `expired` 7 days later; `trialing` → `expired` at the end date. Each writes an event. Enforcement does not wait for this (§5.4); the job keeps the column and reports truthful.
+2. **Renewal invoices:** issue a renewal invoice **14 days** before the end date for `active` companies (D23). Rank is recomputed here (D3), and `scheduledPlan` / `scheduledBillingPeriod` are applied to the invoice (D22).
+3. **Reminders:** email the owner and admins at 14, 7 and 1 days before the end date, on the end date (grace starts), and when read-only starts.
 4. **Grandfathering:** clear `grandfatheredNetPrice` when its term ends.
+
+### 6.1 Timeline example (D23)
+
+Yearly term ending **2027-11-01**:
+
+| Date | What happens |
+|---|---|
+| 2027-10-18 | Renewal invoice issued (rank recomputed); reminder email |
+| 2027-10-25, 2027-10-31 | Reminders |
+| 2027-11-01 | Status `grace`; banner shows "read-only from 2027-11-08"; writes still allowed |
+| 2027-11-08 | Status `expired`; read-only |
+
+What the payment date changes:
+- **Paid on 2027-10-20 (early):** new term 2027-11-01 → 2028-11-01.
+- **Paid on 2027-11-05 (in grace):** new term **2027-11-01** → 2028-11-01. Grace days are part of the paid term, not free.
+- **Paid on 2027-11-20 (after read-only):** new term 2027-11-20 → 2028-11-20. The read-only days are neither charged nor recovered.
+- **Not paid:** the company keeps its rank for its owner's other companies until **2027-12-08** (30 days after read-only, D21).
 
 ## 7. Signup and add-company flows
 
 ### 7.1 Signup (D6, D7)
 1. **Plan choice.** The landing page has a plan card per plan and period. The cards are built from `plan_prices`, replacing the hard-coded `PRICES` (`LandingPage.jsx:7`) and the marketing feature lists in `ar.json:186-199`. Clicking a card opens `/register?plan=…&period=…`.
 2. **Register.** The form adds the plan and period to today's fields and shows the **price preview** for rank 1: full price, VAT, and "30-day free trial, nothing due today". `POST /auth/register`:
-   - is rate-limited per IP (5/hour **[proposed]**) and per email (3/day **[proposed]**);
+   - is rate-limited per IP (5/hour) and per email (3/day) (D24);
    - validates the input;
    - stores a `signup_requests` row and emails a verification link (24-hour token);
    - **creates no tenant yet**;
@@ -286,7 +369,7 @@ It goes through the existing posting and ZATCA pipeline (the reserve-chain, re-i
 1. A receipt is recorded in the أثر company, from the admin panel or Athar itself, and allocated to the invoice through the existing receipt allocation.
 2. When the allocation makes the invoice fully paid, a hook in the allocation service applies the `subscription_invoices` row once (`appliedAt` is set in the same transaction). It extends the company per §6 and writes a `receipt_applied` event.
 3. Partial payments do not extend.
-4. Un-allocating a receipt after it was applied does **not** silently shorten the term. It flags the subscription for admin review **[proposed]**.
+4. Un-allocating a receipt after it was applied does **not** silently shorten the term. It flags the subscription for owner review; there is no automatic reversal (D26).
 
 **Statements:** the customer statement for a subscriber is the أثر company's ordinary customer statement for that customer, so the admin panel shows it through the internal API.
 
@@ -299,7 +382,9 @@ Everything goes through new internal endpoints under `/api/platform-admin/*` (sa
 | Screen / action | Internal API (athar) |
 |---|---|
 | Companies list: owner, plan, period, status, end date, rank, net price, users / limit, add-ons, over-limit flag | `GET /platform-admin/companies` |
-| Change plan or period (effective now with proration **[proposed: next renewal]**) | `PATCH /platform-admin/companies/:id/subscription` |
+| Upgrade (now, prorated invoice) or downgrade (scheduled for renewal), D22 | `PATCH /platform-admin/companies/:id/subscription` |
+| POS user assignments (D19) | `GET/PUT …/:id/pos-users` |
+| Review queue: receipts un-allocated after an extension (D26) | `GET /platform-admin/subscription-reviews` |
 | Set end date (real date; replaces today's "extend" that wrote `trialEndsAt`) | same |
 | Suspend / activate (activate restores the by-date status) | `PATCH …/:id/status` |
 | Add-on quantities, activity add-on state | `PATCH …/:id/addons` |
@@ -317,18 +402,18 @@ The admin panel keeps writing its own `AuditLog`, and every athar-side change al
 **Sizing first.** `scripts/sql/subscription-migration-sizing.sql` is read-only and **has not been run on production**. The owner runs it. It returns, per company:
 - owner identity and email, rank among the owner's companies, and the owner's company count;
 - current tenant status, plan, trial end and `enabledModules`;
-- active users (scoped plus `all`) and POS users;
+- active users (scoped plus `all`), and `pos_capable_users`: members whose position grants `pos.create`. This is only a list of candidates for the owner's POS assignments (D19). Nobody is a POS user until assigned, and owners and `super_admin` are not in this count;
 - usage signals: warehouses, transfers, issue vouchers, fixed assets, employees.
 
 It is tested on a multi-tenant database (two owners with same-named companies, one owner across two tenants): automatically by `productionQueries.integration.test.ts`, and specifically by `subscriptionSizingQuery.integration.test.ts`.
 
 **Steps:**
-1. **Create rows** for every company with `enforcement = off`, mirroring today's tenant state:
+1. **Create rows** for every company with `enforced = false`, mirroring today's tenant state (run after the #151 cutover, below):
    - `trialing` keeps `trialEndsAt`;
    - `suspended` → `suspended`;
    - `past_due` / `canceled` → `expired`, ending at the migration date;
-   - **`active` → `active` with `currentPeriodEnd = NULL` marked legacy.** That is the only time a null end date is allowed, and enforcement stays off for such rows.
-2. **Backfill `trialConsumedAt`** for every identity that owns a tenant (D6).
+   - **`active` → `active` with `currentPeriodEnd = NULL` and `legacyOpenEnded = true`.** That is the only time a null end date is allowed, and the database CHECK keeps such rows unenforced.
+2. **POS assignments:** the owner assigns POS users per company from the candidates list (D19), within the purchased `posUsers`.
 3. **Owner input** (admin panel migration screen, D10):
    - **group companies:** plan and real end date set by the owner;
    - **external customers:** plan, end date and `grandfatheredNetPrice` from their current agreement or last admin-panel invoice. Those invoices are in the admin database, matched by `tenant_id`.
@@ -339,28 +424,22 @@ It is tested on a multi-tenant database (two owners with same-named companies, o
 
 **#151 interaction.**
 - **Order:** run step 1 **after** the #151 cutover. Its separation script copies the source tenant row into each new tenant (subscription fields included), and per-company rows read the post-separation state.
-- **Owner changes:** #151 sets each new tenant's `ownerId` to the designated administrator's membership, so those companies' **owner identity, and therefore discount scope, becomes that administrator's identity**. The owner must confirm that this is intended, or set the owner identity explicitly during migration (§11).
+- **Owner changes:** #151 sets each new tenant's `ownerId` to the designated administrator's membership, so those companies' **owner identity, and therefore discount scope, is that administrator's identity**. This is approved (D25): they are the owner's own group companies.
 
 ## 11. Open questions for the owner
 
-1. **Discount cap:** this design caps it at **50% from the 5th company**. Confirm, or set a different cap.
-2. **Discounts on add-ons:** add-ons undiscounted? (Proposed: yes, undiscounted.)
-3. **Extra-user price:** 120 SAR/year still needs approval.
-4. **POS user definition:** members whose position grants `pos.create`. Should the owner / `super_admin` count only if they actually use POS?
-5. **Stations add-on and employees:** station workers are `employees` records (HR, enterprise). Does the stations add-on imply limited employee access for workers on basic and professional?
-6. **Expired companies in the rank:** do expired companies keep their rank for 30 days (proposed), or drop out immediately?
-7. **Timing of mid-term changes:** do plan upgrades and downgrades take effect at once with proration, or at the next renewal (proposed)?
-8. **Renewal timing:** invoice 14 days before the end date (proposed)? Is there a grace period after the end date before read-only? (Proposed: none.)
-9. **Signup rate limits:** 5/hour per IP and 3/day per email (proposed).
-10. **#151 ownership:** the separated companies' owner identity becomes the designated administrator's. Is that the intended discount scope?
-11. **A receipt later un-allocated after it extended a company:** flag for review (proposed), or reverse the extension automatically?
+All eleven earlier questions are answered (D16–D26). New questions raised by those answers:
+
+1. **Grace on a trial:** D23 gives paid terms 7 days of grace. This design gives a trial **no** grace; it becomes read-only at the trial end. Confirm.
+2. **Billing-period changes** (monthly ↔ yearly): this design applies them at the next renewal. Confirm.
+3. **Stations and stables prices:** both add-on prices are still TBD (D13).
 
 ## 12. Phased PRs
 
 | # | PR | Depends on |
 |---|---|---|
 | P0 | This design and the read-only sizing SQL with its tests | — |
-| P1 | Data model: `company_subscriptions`, `subscription_events` (append-only trigger), `plan_prices`, identity fields, `platform_settings`; backfill mirroring today's state with `enforcement = off`. No behaviour change. | — |
+| P1 | Data model: `company_subscriptions` (with its CHECKs), `subscription_events` (append-only trigger), `plan_prices` seeded with the approved prices (trigger: in-effect rows immutable), `company_pos_users` (same-tenant trigger), identity `emailVerifiedAt` / `trialConsumedAt`. **Tables created empty**, no `tenantId` copies (§3.1), nothing reads them yet: no behaviour change. `platform_settings` and `subscription_invoices` move to P7; the signup tables to P5. | — |
 | P2 | `subscriptionPlans.ts` (plan → permission-id map, add-ons) and `previewSubscriptionPrice` with tests for every worked example above | — |
 | P3 | Lifecycle: real end dates, `subscriptionScheduler` (expire, reminders), admin-activate restores by-date status. Fixes "active never expires". | P1 |
 | P4 | **Server enforcement:** module gate in `requirePositionAction`, per-company read-only, user and POS limits, behind `enforcement` | P1, P2, **#151** (hooks after `assertCurrentMembership`; uses the live per-request read) |
@@ -370,6 +449,6 @@ It is tested on a multi-tenant database (two owners with same-named companies, o
 | P8 | Internal API for the admin panel (§9) | P1, P3, P7 |
 | P9 | Admin panel (separate repo): companies screen, plan/end date, invoices, receipts, statements, legal entity, price catalog, migration screen | P8 |
 | P10 | UI: nav from per-company allowed modules; landing and signup plan cards from `plan_prices` | P2, P4 |
-| P11 | Migration execution (owner fills plans and end dates), enforcement on per company, then drop the deprecated `Tenant` fields | all of the above, after the **#151** cutover |
+| P11 | Migration execution: create the rows (§10 step 1), owner fills plans, end dates and POS assignments, enforcement on per company, then drop the deprecated `Tenant` fields | all of the above, after the **#151** cutover |
 
 **Already done separately:** #157 refuses `POST /api/ai/ask` in read-only mode and adds the read-only guard coverage test. The per-company read-only in P4 builds on it.
