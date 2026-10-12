@@ -116,6 +116,7 @@ New tables. Prisma generates the migrations (`prisma/migrations/README.md`).
   - `trialConsumedAt timestamptz null` (D6). It is set when the identity's first trial starts. A trial is granted only when it is null **and** the identity owns no tenant, which covers every existing owner without a backfill (tenants are never deleted).
 - **`signup_requests`**: pending signups (hashed token, email, chosen plan and period, company name and activity, `expiresAt`, `consumedAt`). The tenant is created only after verification (§7.1).
 - **`signup_throttle`**: same shape as the existing `portal_login_throttle`, keyed by IP and by email.
+- **`subscription_reminders`** (P3): `companySubscriptionId`, `kind` (`before_14`, `before_7`, `before_1`, `grace_started`, `read_only`), `periodEnd`, `sentAt`, unique (`companySubscriptionId`, `kind`, `periodEnd`). A row is claimed before a reminder is sent and released if the send fails, so each reminder goes out once per term even with two server instances.
 
 ### 3.3 Deprecated fields
 
