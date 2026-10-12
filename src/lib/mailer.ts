@@ -305,3 +305,15 @@ export async function sendReportDigestEmail(to: string[], subject: string, bodyH
     html: renderEmailShell(bodyHtml, lang, 640),
   });
 }
+
+/** تذكير انتهاء الاشتراك (subscriptionScheduler) — المحتوى مبني مسبقاً عبر buildSubscriptionReminderEmail، طلب واحد لكل المستلمين */
+export async function sendSubscriptionReminderEmail(to: string[], subject: string, bodyHtml: string, lang: Lang = "ar") {
+  if (!to.length) return;
+  await sendEmail({
+    to,
+    subject,
+    logLabel: lang === "en" ? "Subscription reminder" : "تذكير الاشتراك",
+    logBody: subject,
+    html: renderEmailShell(bodyHtml, lang),
+  });
+}

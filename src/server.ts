@@ -2,6 +2,7 @@ import { createApp } from "./app";
 import { env } from "./config/env";
 import { startReportScheduler } from "./lib/reportScheduler";
 import { startZatcaRetryScheduler } from "./lib/zatca/retryScheduler";
+import { startSubscriptionScheduler } from "./lib/subscriptionScheduler";
 import { renderHtmlToPdf } from "./lib/zatca/pdf/renderPdf";
 import { hasArabicCapableFont } from "./lib/zatca/pdf/arabicFontCheck";
 
@@ -86,3 +87,4 @@ app.listen(env.port, () => {
 
 startReportScheduler();
 startZatcaRetryScheduler();
+startSubscriptionScheduler();

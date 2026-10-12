@@ -1,5 +1,5 @@
 import { Router, RequestHandler } from "express";
-import { authenticate, enforceCompanyScope, requireRole, assertCompanyAccess } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, requireRole, assertCompanyAccess, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { exportZatcaArchive, unarchivedSinceArchiving, ZipLimitError } from "../../lib/zatca/archive";
@@ -47,6 +47,7 @@ const unarchivedHandler: RequestHandler = async (req, res) => {
 };
 
 export const zatcaArchiveRoutes = Router();
-zatcaArchiveRoutes.use(authenticate, enforceCompanyScope);
+// المساران الحاليان قراءة فقط (GET)، فلا أثر للحارس عليهما اليوم — يُركَّب ليشمل أي مسار تعديل يُضاف هنا لاحقاً
+zatcaArchiveRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 zatcaArchiveRoutes.get("/export", requireRole("admin", "finance_manager", "accountant"), exportHandler);
 zatcaArchiveRoutes.get("/unarchived", unarchivedHandler);
