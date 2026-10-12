@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const registerSchema = z.object({
+  subscriptionPlan: z.enum(["basic", "professional", "enterprise"]).default("basic"),
   tenantName: z.string().min(2, "اسم المستأجر قصير جداً"),
   businessActivity: z.enum(["contracting", "manufacturing", "retail", "general_trade", "fuel_stations", "horse_stables"]),
   name: z.string().min(2, "الاسم قصير جداً"),

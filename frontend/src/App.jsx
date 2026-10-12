@@ -383,7 +383,7 @@ function RootRoute() {
   return (
     <LandingPage
       onGoLogin={() => navigate("/login")}
-      onGoRegister={() => navigate("/register")}
+      onGoRegister={(plan) => navigate(typeof plan === "string" ? "/register?plan=" + encodeURIComponent(plan) : "/register")}
       onGoDownload={() => navigate("/download")}
       onGoDataProtection={() => navigate("/data-protection")}
     />
