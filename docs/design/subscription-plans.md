@@ -1,6 +1,6 @@
 # Subscription plans and per-company subscriptions — design
 
-Status: **design only, nothing implemented.** Built from the investigation of 2026-10-11 (code at `production` `b206545`) and the owner's decisions recorded on 2026-10-11 and 2026-10-12 (§11 answers folded in as D16–D26). Every implementation step below is a separate PR. Items marked **[proposed]** still need the owner's approval; they are listed in §11.
+Status: **design only, nothing implemented.** Built from the investigation of 2026-10-11 (code at `production` `b206545`) and the owner's decisions recorded on 2026-10-11 and 2026-10-12 (§11 answers folded in as D16–D30). Every implementation step below is a separate PR. No open questions remain (§11).
 
 ## 1. Decisions this design implements
 
@@ -18,8 +18,8 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 | D10 | Existing group companies get an **owner-set plan and end date**. Existing external customers **keep their current price until renewal**. |
 | D11 | **Items:** the catalog (service and stock items) is in all plans. Basic keeps automatic stock movements from invoices on the single default warehouse, plus a simple stock balance. Professional and above add multiple warehouses, transfers, issue vouchers, periodic settlement and inventory reports. |
 | D12 | **Cost centers and departments** are in all plans. |
-| D13 | **Stables and stations are activity add-ons.** They are auto-enabled by business activity, at a price to be decided. Existing companies keep them free until a price is set. Current auto-visibility by activity is preserved. |
-| D14 | **POS** is priced **per POS user**: 600 SAR/year per user **explicitly assigned as a POS user** of a company (D19). |
+| D13 | **Stables and stations are activity add-ons.** They are auto-enabled by business activity and **free for now, for every company** (D30). Current auto-visibility by activity is preserved. |
+| D14 | **POS:** each company with POS enabled **includes one POS user free**; every **additional** POS user is 600 SAR/year (D27). POS users are explicit assignments (D19). |
 | D15 | **Athar AI** is in enterprise, but it is **not user-visible yet** (it has no web UI). |
 | D16 | **Discount cap 50%**, reached at the 5th company. |
 | D17 | **Add-ons get no volume discount.** |
@@ -32,6 +32,10 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 | D24 | **Signup rate limits** 5/hour per IP and 3/day per email. |
 | D25 | **#151's separated companies** are owned by the designated administrator and their discount is grouped under that identity (they are the owner's own group companies). |
 | D26 | **A receipt un-allocated after it extended a subscription** is flagged for owner review; no automatic reversal. |
+| D27 | **One POS user is included free** in every company with POS enabled; additional POS users are 600 SAR/year each. Enabling POS itself costs nothing. |
+| D28 | **No grace after a trial ends:** the company becomes read-only at the trial end. |
+| D29 | **Monthly ↔ yearly switches take effect at the next renewal.** |
+| D30 | **Stations and stables add-ons are free and unpriced for now**, enabled by activity. A price is set later, when an external customer needs them. |
 
 ## 2. Plan / module table, mapped to permission ids
 
@@ -64,9 +68,9 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 | Add-on | Price (excl. VAT) | Gated ids | Notes |
 |---|---|---|---|
 | Extra user (D18) | 120 SAR/year per user | raises the company's user limit | — |
-| POS (D14, D19) | 600 SAR/year **per POS user** | `pos` | A POS user is a member **explicitly assigned** as POS user of the company (`company_pos_users`, §3.2). Assignments are capped by the purchased `posUsers`. Opening POS sales requires the assignment **for everyone, owners and `super_admin` included**, so an unassigned owner is neither counted nor able to sell at POS; a non-owner also still needs a position granting `pos.create`. POS reads (reports) need no seat. |
-| Stations (D13, D20) | TBD; free for existing companies until set | `stationSetup`, `stationShiftsReports`, `stationSales`, station-worker portal routes, and **`employees` limited to station workers** | Auto-enabled for `businessActivity = fuel_stations`, keeping today's auto-visibility (`frontend/src/App.jsx:81-84`). **Station workers** are `Employee` rows with `assignedCostCenterId` set (the station they work at, `schema.prisma` `Employee.assignedCostCenterId`). On a plan without HR, the add-on allows the `employees` actions **only on such rows**: create a worker (the station is then required), edit, set phone/PIN and `portalActive`. Lists return only station workers. Payroll, leave, HR actions, advances and HR reports stay enterprise. |
-| Stables (D13) | TBD; free for existing companies until set | `stables` | Auto-enabled for `businessActivity = horse_stables`. |
+| POS (D14, D19, D27) | Enabling: free, **1 POS user included**. Each additional POS user: 600 SAR/year | `pos` (allowed only when `posEnabled`) | A POS user is a member **explicitly assigned** as POS user of the company (`company_pos_users`, §3.2). Assignments are capped at `1 + posUsers`, where `posUsers` is the number of **additional paid** seats. Opening POS sales requires the assignment **for everyone, owners and `super_admin` included**, so an unassigned owner is neither counted nor able to sell at POS; a non-owner also still needs a position granting `pos.create`. POS reads (reports) need no seat. |
+| Stations (D13, D20, D30) | Free for now, unpriced | `stationSetup`, `stationShiftsReports`, `stationSales`, station-worker portal routes, and **`employees` limited to station workers** | Auto-enabled for `businessActivity = fuel_stations`, keeping today's auto-visibility (`frontend/src/App.jsx:81-84`). **Station workers** are `Employee` rows with `assignedCostCenterId` set (the station they work at, `schema.prisma` `Employee.assignedCostCenterId`). On a plan without HR, the add-on allows the `employees` actions **only on such rows**: create a worker (the station is then required), edit, set phone/PIN and `portalActive`. Lists return only station workers. Payroll, leave, HR actions, advances and HR reports stay enterprise. |
+| Stables (D13, D30) | Free for now, unpriced | `stables` | Auto-enabled for `businessActivity = horse_stables`. |
 
 **Basic and stock (D11).** Basic invoices keep calling `createStockOutSideEffectsTx` (`salesInvoices.service.ts:181,240`); those are side effects of the invoice, not calls into the `stockMovements` router, so gating that router does not break basic. A basic company keeps exactly its default warehouse, because the `warehouses` create route is gated. The "simple stock balance" is the quantity on hand shown in the item catalog (`items`).
 
@@ -90,8 +94,10 @@ New tables. Prisma generates the migrations (`prisma/migrations/README.md`).
 | `netPrice` | decimal(12,2) | the plan price locked for the current term, after discount, excl. VAT |
 | `grandfatheredNetPrice` | decimal(12,2), nullable | D10: the external customer's existing price, honoured until `currentPeriodEnd` or an upgrade (§4.1), then cleared |
 | `scheduledPlan`, `scheduledBillingPeriod` | nullable | a downgrade or period change waiting for the next renewal (D22) |
-| `extraUsers`, `posUsers` | int | purchased add-on quantities |
-| `stationsAddon`, `stablesAddon` | enum `off \| free \| paid` | D13: `free` for existing companies until a price is set |
+| `extraUsers` | int | purchased extra users (D18) |
+| `posEnabled` | boolean | POS enabled for the company, which includes one free POS user (D27) |
+| `posUsers` | int | **additional paid** POS users beyond the free one; CHECK: 0 unless `posEnabled` |
+| `stationsAddon`, `stablesAddon` | enum `off \| free \| paid` | D13, D30: set to `free` by activity; `paid` exists for when a price is set later |
 | `suspensionReason` | text, nullable | — |
 | `enforced` | boolean, default false | per-company rollout switch (§10). Stays false until migration fills real values. |
 | `createdAt`, `updatedAt` | — | — |
@@ -101,8 +107,8 @@ New tables. Prisma generates the migrations (`prisma/migrations/README.md`).
 ### 3.2 Other tables and fields
 
 - **`subscription_events`** (append-only; UPDATE/DELETE blocked by trigger, like `zatca_document_archive`): `companySubscriptionId`, `type` (`created`, `plan_changed`, `period_changed`, `renewed`, `extended`, `expired`, `suspended`, `activated`, `canceled`, `receipt_applied`, `rank_recomputed`, `migrated`), before/after JSON, `actor` (`system_job`, `platform_admin:<adminUserId>`, `owner:<userId>`), `at`. This is the audit trail for every price and date change.
-- **`plan_prices`**: `item` (`plan_basic`, `plan_professional`, `plan_enterprise`, `addon_user`, `addon_pos`, `addon_stations`, `addon_stables`), `yearlyNetPrice` (null = TBD/free), `effectiveFrom`, unique (`item`, `effectiveFrom`). Only the **yearly** price is stored; the monthly price is always the §4 formula, so the two cannot disagree. The owner changes prices from the admin panel by adding a row with a later `effectiveFrom`, without a deploy. A trigger refuses UPDATE/DELETE of a row already in effect, so the price that applied on any past date stays readable. Issued invoices keep their own line prices.
-- **`company_pos_users`** (D19): `companyId`, `userId`, `assignedAt`, `assignedByUserId`, unique (`companyId`, `userId`). A trigger refuses an assignment whose user and company are in different tenants (rule 4). P4 caps the count at `posUsers`.
+- **`plan_prices`**: `item` (`plan_basic`, `plan_professional`, `plan_enterprise`, `addon_user`, `addon_pos_extra_user`, `addon_stations`, `addon_stables`), `yearlyNetPrice` (null = unpriced, free), `effectiveFrom`, unique (`item`, `effectiveFrom`). Only the **yearly** price is stored; the monthly price is always the §4 formula, so the two cannot disagree. The owner changes prices from the admin panel by adding a row with a later `effectiveFrom`, without a deploy. A trigger refuses UPDATE/DELETE of a row already in effect, so the price that applied on any past date stays readable. Issued invoices keep their own line prices.
+- **`company_pos_users`** (D19): `companyId`, `userId`, `assignedAt`, `assignedByUserId`, unique (`companyId`, `userId`). A trigger refuses an assignment whose user and company are in different tenants (rule 4). P4 caps the count at `1 + posUsers` when `posEnabled`, and at 0 otherwise (D27).
 - **`subscription_invoices`**: links a sales invoice **in the أثر company** to a subscriber's subscription. Columns: `salesInvoiceId` (unique), `companySubscriptionId`, `kind` (`new`, `renewal`, `upgrade`, `addon`), `periodStart`, `periodEnd`, `appliedAt` (null until the receipt extends the subscription).
 - **`platform_settings`** (key/value): `billingCompanyId`, the أثر company inside Athar (§8).
 - **`identities`** gains:
@@ -137,7 +143,7 @@ line VAT          = round2( lineNet × 0.15 )                          (per line
 - **Rank** is the position of the company among the owner identity's **live** companies (status `trialing`, `awaiting_payment`, `active`, `grace`, or `expired` for at most 30 days since it became read-only, D21), ordered by `companies.createdAt`, then id. The oldest company gets rank 1 and **full price, whatever its plan**.
 - **Locking:** rank and price are locked for the current term and recomputed **at renewal** (D3). If the oldest company is canceled, the others move up at their next renewal, not mid-term.
 - **Grandfathering:** if `grandfatheredNetPrice` is set (D10), it replaces `periodNet` until the current end date.
-- **Add-ons** (extra users, POS users, activity add-ons) are **not discounted** (D17). Their monthly price follows the same `/12 × 1.10` rule.
+- **Add-ons** (extra users, additional POS users, activity add-ons) are **not discounted** (D17). The first POS user is free (D27); stations and stables are free for now (D30). Their monthly price follows the same `/12 × 1.10` rule.
 
 ### Worked examples (yearly unless stated; VAT 15%)
 
@@ -179,7 +185,16 @@ line VAT          = round2( lineNet × 0.15 )                          (per line
 | 2 basic: together | 82.50 | 12.37 | 94.87 | 1,138.44 | 1,035.00 | |
 | 1 enterprise | 1500 × 1.1 / 12 = 137.50 | 20.63 | 158.13 | 1,897.56 | 1,725.00 | |
 
-**Add-ons on a basic company:** 3 extra users and 2 POS users, yearly: 3 × 120 + 2 × 600 = 1,560.00 + VAT 234.00 (D17, D18).
+**Add-ons on a basic company** (D17, D18, D27): 3 extra users, and POS enabled with 2 POS users (1 free + 1 additional), yearly:
+
+| Line | Net | VAT |
+|---|---|---|
+| Extra users 3 × 120 | 360.00 | 54.00 |
+| POS user 1 (included) | 0.00 | — |
+| Additional POS user 1 × 600 | 600.00 | 90.00 |
+| | **960.00** | **144.00** → total **1,104.00** |
+
+Monthly, an additional POS user is 600 × 1.1 / 12 = **55.00** net (VAT 8.25). A company with POS enabled and a single POS user pays nothing for POS.
 
 **Effect of D22 and D23 on the examples above:** none of the 1/2/4/6-company or monthly-vs-yearly figures change. They are full-term prices, and grace (D23) adds no days and no charge. A payment in grace extends from the old end date (§6), so the next term costs the same. D22 adds the proration cases in §4.1, and D23 the timeline in §6.1.
 
@@ -200,7 +215,7 @@ lockedNet     = grandfatheredNetPrice if set, else netPrice
 
 **What a downgrade does:** a downgrade (or lowering add-on quantities) sets `scheduledPlan`. The renewal invoice (14 days before the end, D23) is built from it. If the owner downgrades **after** that invoice was issued, the difference is corrected with a ZATCA credit note on the renewal invoice. No refund or credit is given for the rest of the current term.
 
-**Billing period changes** (monthly ↔ yearly) take effect at the next renewal **[proposed]**.
+**Billing period changes** (monthly ↔ yearly) take effect at the next renewal (D29).
 
 **Upgrade, yearly:** rank 2 (20%), basic, locked at 400.00. The term runs 2027-01-01 → 2028-01-01 (365 days), and the company upgrades to professional on 2027-07-01 (184 days left).
 
@@ -269,7 +284,7 @@ not allowed           → 403 "هذه الميزة غير مشمولة في با
 
 Exceeding the limit returns 403 with the limit and how to add users.
 
-**POS (D19):** assigning a member as POS user of a company (`company_pos_users`) is refused when the company already has `posUsers` assignments. Opening POS sales checks the assignment for the request's company. The owner and `super_admin` are no exception: they are not counted unless assigned, and not able to sell at POS unless assigned. Positions keep deciding what a non-owner may do; the assignment decides the paid seat.
+**POS (D19, D27):** assigning a member as POS user of a company (`company_pos_users`) is refused when POS is not enabled, or when the company already has `1 + posUsers` assignments. Opening POS sales checks the assignment for the request's company. The owner and `super_admin` are no exception: they are not counted unless assigned, and not able to sell at POS unless assigned. Positions keep deciding what a non-owner may do; the assignment decides the paid seat.
 
 **Downgrades and lowered limits never lock anyone out.** Existing members keep working; new invites are blocked and the admin panel flags the company as over the limit.
 
@@ -277,7 +292,7 @@ Exceeding the limit returns 403 with the limit and how to add users.
 
 - **What it replaces:** the tenant-wide `readOnly` JWT claim (`isTenantReadOnly`, `auth.service.ts:113-118`) becomes a per-request, per-company decision. A company is read-only when:
   - its status is `expired`, `awaiting_payment` or `canceled`;
-  - it is `trialing` and `now ≥ currentPeriodEnd` (no grace on a trial **[proposed]**, §11);
+  - it is `trialing` and `now ≥ currentPeriodEnd` (no grace on a trial, D28);
   - it is `active` or `grace` and `now ≥ currentPeriodEnd + 7 days` (D23).
 - **Grace banner:** for a paid term with `currentPeriodEnd ≤ now < currentPeriodEnd + 7 days`, `/auth/me` returns the company's grace end date. The UI shows a banner on every page of that company ("انتهى الاشتراك في … — تتحول الشركة إلى عرض فقط في … ما لم يُسدَّد التجديد"). Writes still pass.
 - **Correctness:** the check compares the dates with `now()` itself, so it does **not** depend on the scheduled job having run.
@@ -300,7 +315,7 @@ Exceeding the limit returns 403 with the limit and how to add users.
 | `active` / `grace` | receipt fully pays an upgrade invoice (§4.1) | same status, new plan from now, end unchanged |
 | `active` | `now ≥ currentPeriodEnd` | `grace` (writes allowed, banner, D23) |
 | `grace` | `now ≥ currentPeriodEnd + 7 days` | `expired` (read-only) |
-| `trialing` | `now ≥ currentPeriodEnd` | `expired` (read-only; no grace **[proposed]**) |
+| `trialing` | `now ≥ currentPeriodEnd` | `expired` (read-only; no grace, D28) |
 | any | admin suspend | `suspended` (login blocked for scoped members of that company; `all`-scope members lose only that company) |
 | `suspended` | admin activate | the status it would have **by date** (`active` before the end, `grace` within 7 days after it, else `expired`). This is the fix for today's "activate = unlimited active". |
 | any | admin cancel / owner cancel at term end | `canceled` (read-only; data kept) |
@@ -413,12 +428,12 @@ It is tested on a multi-tenant database (two owners with same-named companies, o
    - `suspended` → `suspended`;
    - `past_due` / `canceled` → `expired`, ending at the migration date;
    - **`active` → `active` with `currentPeriodEnd = NULL` and `legacyOpenEnded = true`.** That is the only time a null end date is allowed, and the database CHECK keeps such rows unenforced.
-2. **POS assignments:** the owner assigns POS users per company from the candidates list (D19), within the purchased `posUsers`.
+2. **POS assignments:** the owner assigns POS users per company from the candidates list (D19), within `1 + posUsers` (one free seat per POS-enabled company, D27).
 3. **Owner input** (admin panel migration screen, D10):
    - **group companies:** plan and real end date set by the owner;
    - **external customers:** plan, end date and `grandfatheredNetPrice` from their current agreement or last admin-panel invoice. Those invoices are in the admin database, matched by `tenant_id`.
 4. **Module restrictions:** tenants with a non-empty `enabledModules` are listed for owner review. Plans replace per-tenant module lists; any intentional restriction must be re-expressed as a plan choice.
-5. **Activity add-ons:** set to `free` for existing stations and stables companies (D13).
+5. **Activity add-ons:** set to `free` for every stations and stables company by activity (D13, D30).
 6. **Turn on enforcement** company by company, only once every required field is filled. A company with a null end date cannot be switched on.
 7. **Clean up:** after all companies are on, drop the deprecated `Tenant` fields and `isTenantReadOnly`.
 
@@ -428,11 +443,7 @@ It is tested on a multi-tenant database (two owners with same-named companies, o
 
 ## 11. Open questions for the owner
 
-All eleven earlier questions are answered (D16–D26). New questions raised by those answers:
-
-1. **Grace on a trial:** D23 gives paid terms 7 days of grace. This design gives a trial **no** grace; it becomes read-only at the trial end. Confirm.
-2. **Billing-period changes** (monthly ↔ yearly): this design applies them at the next renewal. Confirm.
-3. **Stations and stables prices:** both add-on prices are still TBD (D13).
+None. Every question raised so far is answered (D16–D30). The stations and stables prices are deliberately left unset (D30) until an external customer needs them.
 
 ## 12. Phased PRs
 
