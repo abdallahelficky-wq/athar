@@ -11,6 +11,11 @@
  */
 export const AR_TO_EN: Record<string, string> = {
   "أضف الشركة الجديدة كحساب مستقل من إعدادات الشركات": "Add the new company as an independent account from company settings.",
+  "لا يوجد اشتراك لهذه الشركة": "This company has no subscription",
+  "الاشتراك معلّق بالفعل": "The subscription is already suspended",
+  "الاشتراك ليس معلّقاً": "The subscription is not suspended",
+  "تغيّرت حالة الاشتراك أثناء الطلب — أعد المحاولة": "The subscription status changed during the request — try again",
+  "حالة ما قبل التعليق غير صالحة": "Invalid status before suspension",
   "اسم الوظيفة مطلوب": "Job title name is required",
   "اسم الوظيفة طويل جداً": "Job title name is too long",
   "هذه الوظيفة موجودة بالفعل": "This job title already exists",

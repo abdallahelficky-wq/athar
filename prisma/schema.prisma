@@ -3359,7 +3359,8 @@ model CompanySubscription {
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
 
-  events SubscriptionEvent[]
+  events    SubscriptionEvent[]
+  reminders SubscriptionReminder[]
 
   @@index([ownerIdentityId])
   @@index([status, currentPeriodEnd])
@@ -3408,4 +3409,26 @@ model CompanyPosUser {
   @@unique([companyId, userId])
   @@index([userId])
   @@map("company_pos_users")
+}
+
+enum SubscriptionReminderKind {
+  before_14
+  before_7
+  before_1
+  grace_started
+  read_only
+}
+
+// تذكيرات انتهاء الاشتراك المُرسَلة (المرحلة P3) — صف واحد لكل نوع تذكير لكل نهاية فترة: القيد الفريد يمنع الإرسال المزدوج
+// بين نسختين من الخادم أو نبضتين. الصف يُحجَز قبل الإرسال ويُحذف إن فشل الإرسال، فيُعاد في النبضة التالية.
+model SubscriptionReminder {
+  id                    String                   @id @default(cuid())
+  companySubscriptionId String
+  companySubscription   CompanySubscription      @relation(fields: [companySubscriptionId], references: [id], onDelete: Restrict)
+  kind                  SubscriptionReminderKind
+  periodEnd             DateTime
+  sentAt                DateTime                 @default(now())
+
+  @@unique([companySubscriptionId, kind, periodEnd])
+  @@map("subscription_reminders")
 }
