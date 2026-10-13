@@ -12,7 +12,7 @@ export function requirePositionAction(resourceId: string, action: MatrixAction):
   if (!POSITION_RESOURCES.some((r) => r.id === resourceId && r.actions.includes(action))) {
     throw new Error(`Unregistered position permission: ${resourceId}/${action}`);
   }
-  return async (req, _res, next) => {
+  const middleware: RequestHandler = async (req, _res, next) => {
     matrixAuthorizedRequests.delete(req);
     const auth = req.auth;
     if (!auth) throw unauthorized();
@@ -46,6 +46,8 @@ export function requirePositionAction(resourceId: string, action: MatrixAction):
     matrixAuthorizedRequests.add(req);
     next();
   };
+  // وسم وصفي يقرؤه اختبار تغطية مسارات النداءات الخارجية (لا أثر له وقت التشغيل)
+  return Object.assign(middleware, { positionAction: { resourceId, action } });
 }
 
 export function requirePositionPosting(resourceId: string, defaultPost = false): RequestHandler {

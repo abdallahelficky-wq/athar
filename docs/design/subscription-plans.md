@@ -81,7 +81,12 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 |---|---|---|---|
 | Extra user (D18) | 120 SAR/year per user | raises the company's user limit | — |
 | POS (D14, D19, D27) | Enabling: free, **1 POS user included**. Each additional POS user: 600 SAR/year | `pos` (allowed only when `posEnabled`) | A POS user is a member **explicitly assigned** as POS user of the company (`company_pos_users`, §3.2). Assignments are capped at `1 + posUsers`, where `posUsers` is the number of **additional paid** seats. Opening POS sales requires the assignment **for everyone, owners and `super_admin` included**, so an unassigned owner is neither counted nor able to sell at POS; a non-owner also still needs a position granting `pos.create`. POS reads (reports) need no seat. |
-| Stations (D13, D20, D30) | Free for now, unpriced | `stationSetup`, `stationShiftsReports`, `stationSales`, station-worker portal routes, and **`employees` limited to station workers** | Auto-enabled for `businessActivity = fuel_stations`, keeping today's auto-visibility (`frontend/src/App.jsx:81-84`). **Station workers** are `Employee` rows with `assignedCostCenterId` set (the station they work at, `schema.prisma` `Employee.assignedCostCenterId`). On a plan without HR, the add-on allows the `employees` actions **only on such rows**: create a worker (the station is then required), edit, set phone/PIN and `portalActive`. Lists return only station workers. Payroll, leave, HR actions, advances and HR reports stay enterprise. |
+| Stations (D13, D20, D30) | Free for now, unpriced | `stationSetup`, `stationShiftsReports`, `stationSales`, station-worker portal routes, and **`employees` limited to station workers** | Auto-enabled for `businessActivity = fuel_stations`, keeping today's auto-visibility (`frontend/src/App.jsx:81-84`). **Station workers** are `Employee` rows with `assignedCostCenterId` set (the station they work at, `schema.prisma` `Employee.assignedCostCenterId`). On a plan without HR, the add-on allows `employees` **writes only on such rows** (P4, enforced by the data-layer backstop on every write to the employees table):
+  - create a worker, with the station required (bulk import has no station field, so it is refused);
+  - edit a worker, set phone/PIN and `portalActive`;
+  - refused: editing or deleting a non-station employee, and removing a worker's station.
+
+  Lists and other reads are not filtered (D31). Payroll, leave, HR actions, advances and HR reports stay enterprise. |
 | Stables (D13, D30) | Free for now, unpriced | `stables` | Auto-enabled for `businessActivity = horse_stables`. |
 
 **When an activity add-on is on:** the company's activity matches (automatic, D13), **or** the admin granted it explicitly (`free` / `paid`) for a company with another activity. P2's coverage test fails if any id registered in `POSITION_RESOURCES` is missing from the map, or is classified twice.
@@ -270,7 +275,13 @@ lockedNet     = grandfatheredNetPrice if set, else netPrice
 2. **Route pre-check:** `requirePositionAction` runs `enforceRouteSubscription` (`src/middleware/subscriptionEnforcement.ts`) **before** the owner/position check, because a plan is not a permission. It runs only for a write action on a non-GET request, and refuses before the handler does any work, including calls that can't be undone (ZATCA, email). It resolves the request's companies from:
    - an explicit `companyId` (params, query or body), or the mirror's `targetCompanyId`;
    - the scoped user's `companyScope`;
-   - for the main document routes, the company of the `:id` record (sales invoices, returns, debit notes, quotations, journal entries, receipts, purchase invoices and returns, payroll runs, boarding contracts).
+   - for the main document routes, the company of the `:id` record (sales invoices, returns, debit notes, quotations, journal entries, receipts, purchase invoices and returns, payroll runs, boarding contracts, riding lessons, customers);
+   - where `:id` **is** the company: `/api/companies/:id/…` and `/api/companies/:id/zatca/…` (CSID requests, compliance tests, document extraction);
+   - for upload routes (multipart), the form's `companyId`. multer parses the body after `requirePositionAction`, so the check is repeated in `validateBody` before the handler runs.
+
+   **Athar AI is a feature, not a read of existing data.** It calls a paid model, so it is gated by plan and read-only even though its permission is `read`. A tenant-wide question (no `companyId`) is checked against every company in the tenant.
+
+   **External-call audit:** every route that calls ZATCA, sends email or calls Claude is listed in `src/middleware/subscriptionExternalRoutes.coverage.test.ts`, which fails if a listed route loses its write guard or its way of resolving the company. HTTP tests prove with stubbed clients that ZATCA, Claude and the email sender are never called for a refused company.
 3. **Data-layer backstop:** a Prisma middleware (`src/lib/subscriptionWriteGuard.ts`) checks every write to a table with `companyId`, made during a user's non-GET request, against the company the row actually belongs to. It catches:
    - routes that address a record by id;
    - mirror entries written into another company;
@@ -308,6 +319,8 @@ not allowed           → 403 "هذه الميزة غير مشمولة في با
 - moving a scope into a company, or to `all` (`PATCH /auth/users/:id`).
 
 Accepting an invite that was already issued is **not** checked: its seat was counted when it was sent. Exceeding the limit returns 403 with `details: { code: "user_limit_reached", limit }`.
+
+**Atomic:** the count and the write happen together (`withUserSeat`). One transaction takes a per-company advisory lock (`pg_advisory_xact_lock`, companies in id order so two requests can't deadlock), counts, then inserts or updates. Of several concurrent requests for the last seat, exactly one succeeds. A tenant with no enforced company takes today's path, with no transaction.
 
 **POS (D19, D27):** assigning a member as POS user of a company (`company_pos_users`) is refused when POS is not enabled, or when the company already has `1 + posUsers` assignments. Opening POS sales checks the assignment for the request's company. The owner and `super_admin` are no exception: they are not counted unless assigned, and not able to sell at POS unless assigned. Positions keep deciding what a non-owner may do; the assignment decides the paid seat.
 

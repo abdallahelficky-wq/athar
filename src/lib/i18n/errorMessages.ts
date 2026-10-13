@@ -645,4 +645,5 @@ export const AR_TO_EN: Record<string, string> = {
   "لا توجد مقاعد نقطة بيع متاحة لهذه الشركة — أضف مقاعد إضافية قبل تعيين مستخدم جديد.": "No POS seats are available for this company — add seats before assigning another user.",
   "نقطة البيع غير مفعّلة لهذه الشركة.": "POS is not enabled for this company.",
   "تاريخ نهاية الاشتراك يجب أن يكون بعد بدايته": "The subscription end date must be after its start date",
+  "باقة الشركة الحالية تشمل سجلات عمّال المحطات فقط — حدّد محطة الموظف، أو رقِّ الباقة لإدارة كل الموظفين.": "The company's current plan covers station-worker records only — set the employee's station, or upgrade the plan to manage all employees.",
 };

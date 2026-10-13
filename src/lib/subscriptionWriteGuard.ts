@@ -1,6 +1,6 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { currentRequestContext, SAFE_METHODS } from "./requestContext";
-import { assertRequestMayWrite, tenantHasEnforcedCompany } from "./subscriptionEnforcement";
+import { assertRequestMayWrite, enforcedCompany, stationWorkersOnlyError, tenantHasEnforcedCompany } from "./subscriptionEnforcement";
 
 /**
  * حارس الكتابة في طبقة البيانات (P4، §5.4) — شبكة الأمان خلف الفحص المسبق على المسار. أي كتابة (create/update/delete…) في جدول
@@ -68,6 +68,52 @@ async function affectedCompanyIds(client: PrismaClient, model: string, action: s
   return [...ids];
 }
 
+type EmployeeLookup = {
+  findUnique(a: unknown): Promise<{ companyId: string; assignedCostCenterId: string | null } | null>;
+  findMany(a: unknown): Promise<{ companyId: string; assignedCostCenterId: string | null }[]>;
+};
+
+/** هل تعيّن data محطة؟ (حقل مباشر أو ربط علاقة) — undefined = لا يمسّ المحطة */
+function stationInData(data: unknown): "set" | "cleared" | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const d = data as Record<string, unknown>;
+  // Prisma يتجاهل الحقل الذي قيمته undefined — لا يُعدّ نزعاً للمحطة
+  if (d.assignedCostCenterId !== undefined) return typeof d.assignedCostCenterId === "string" && d.assignedCostCenterId ? "set" : "cleared";
+  const rel = d.assignedCostCenter as Record<string, unknown> | undefined;
+  if (rel?.disconnect) return "cleared";
+  if (rel?.connect) return "set";
+  return undefined;
+}
+
+/**
+ * D20: على باقة بلا موارد بشرية، إضافة المحطات تفتح سجلات عمّال المحطات وحدها (employeesScope = stationWorkers). كل كتابة في جدول
+ * الموظفين لتلك الشركة يجب أن تبقى على عامل محطة: الإنشاء بمحطة، وتعديل/حذف عامل محطة فقط، وبلا نزع المحطة. القراءة لا تمرّ من هنا.
+ */
+async function assertStationWorkerWrites(client: PrismaClient, action: string, args: Args, companyIds: string[]) {
+  const scoped = new Set<string>();
+  for (const id of companyIds) if ((await enforcedCompany(id))?.entitlements.employeesScope === "stationWorkers") scoped.add(id);
+  if (scoped.size === 0) return;
+  const first = [...scoped][0];
+  const employees = (client as unknown as { employee: EmployeeLookup }).employee;
+
+  if (action === "create" || action === "createMany") {
+    for (const row of ([] as unknown[]).concat(action === "create" ? args?.data : args?.data ?? [])) {
+      if (scoped.has(companyFromData(row) ?? "") && stationInData(row) !== "set") throw stationWorkersOnlyError(companyFromData(row)!);
+    }
+    return;
+  }
+  if (action === "upsert" && scoped.has(companyFromData(args?.create) ?? "") && stationInData(args?.create) !== "set") throw stationWorkersOnlyError(first);
+  const existing =
+    action === "update" || action === "upsert" || action === "delete"
+      ? [await employees.findUnique({ where: args?.where, select: { companyId: true, assignedCostCenterId: true } })].filter(Boolean)
+      : await employees.findMany({ where: args?.where, select: { companyId: true, assignedCostCenterId: true } });
+  for (const row of existing as { companyId: string; assignedCostCenterId: string | null }[]) {
+    if (scoped.has(row.companyId) && !row.assignedCostCenterId) throw stationWorkersOnlyError(row.companyId);
+  }
+  const data = action === "upsert" ? args?.update : args?.data;
+  if ((action === "update" || action === "updateMany" || action === "upsert") && stationInData(data) === "cleared") throw stationWorkersOnlyError(first);
+}
+
 let installed = false;
 
 export function installSubscriptionWriteGuard(client: PrismaClient) {
@@ -78,9 +124,9 @@ export function installSubscriptionWriteGuard(client: PrismaClient) {
     const ctx = currentRequestContext();
     if (!ctx || SAFE_METHODS.has(ctx.method)) return next(params);
     if (!(await tenantHasEnforcedCompany(ctx.tenantId))) return next(params);
-    for (const companyId of await affectedCompanyIds(client, params.model, params.action, params.args as Args)) {
-      await assertRequestMayWrite(companyId, ctx.writeResources);
-    }
+    const companyIds = await affectedCompanyIds(client, params.model, params.action, params.args as Args);
+    for (const companyId of companyIds) await assertRequestMayWrite(companyId, ctx.writeResources);
+    if (params.model === "Employee") await assertStationWorkerWrites(client, params.action, params.args as Args, companyIds);
     return next(params);
   });
 }

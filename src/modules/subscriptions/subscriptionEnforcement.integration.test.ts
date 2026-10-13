@@ -1,4 +1,40 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+// الخدمات الخارجية مستبدلة بجواسيس — لا نداء حقيقي لزاتكا أو البريد أو Claude. الاختبارات تثبت أنها لا تُستدعى إطلاقاً لشركة
+// مُنفَّذة ممنوعة (مراجعة #163: الرفض يجب أن يسبق النداء الخارجي، لا أن يأتي بعده من حارس الكتابة).
+vi.mock("../../lib/zatca/apiClient", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  requestComplianceCsid: vi.fn(async () => ({ status: 500, data: null })),
+  requestProductionCsid: vi.fn(async () => ({ status: 500, data: null })),
+  checkInvoiceCompliance: vi.fn(async () => ({ status: 500, data: null })),
+  reportInvoice: vi.fn(async () => ({ status: 500, data: null })),
+  clearInvoice: vi.fn(async () => ({ status: 500, data: null })),
+}));
+vi.mock("../../lib/mailer", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  sendReportDigestEmail: vi.fn(async () => undefined),
+  sendInviteEmail: vi.fn(async () => undefined),
+  sendInvoiceEmail: vi.fn(async () => undefined),
+  sendCreditNoteEmail: vi.fn(async () => undefined),
+  sendLiveryContractEmail: vi.fn(async () => undefined),
+}));
+vi.mock("../../lib/claudeVision", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  extractJournalEntryFromDocument: vi.fn(async () => {
+    throw new Error("stub");
+  }),
+  extractCompanyDataFromDocument: vi.fn(async () => {
+    throw new Error("stub");
+  }),
+}));
+vi.mock("../ai/ai.service", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  askAtharAi: vi.fn(async () => ({ answer: "stub" })),
+}));
+import * as zatcaClient from "../../lib/zatca/apiClient";
+import * as mailer from "../../lib/mailer";
+import * as vision from "../../lib/claudeVision";
+import * as aiService from "../ai/ai.service";
 import type { Server } from "http";
 import type { AddressInfo } from "net";
 import { prisma } from "../../lib/prisma";
@@ -69,6 +105,20 @@ const journal = (companyId: string, key: "A" | "B") =>
     companyId, date: "2026-10-12T09:00:00.000Z", memo: "قيد اختبار الإنفاذ", post: false,
     lines: [{ accountId: acc[`cash${key}`], debit: 10, credit: 0 }, { accountId: acc[`rev${key}`], debit: 0, credit: 10 }],
   });
+async function callForm(path: string, token: string, fields: Record<string, string>) {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  form.append("file", new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: "image/png" }), "doc.png");
+  const res = await fetch(`${baseUrl}/api${path}`, { method: "POST", headers: { authorization: `Bearer ${token}` }, body: form });
+  const text = await res.text();
+  let parsed: any = null;
+  try {
+    parsed = text ? JSON.parse(text) : null;
+  } catch {
+    parsed = text;
+  }
+  return { status: res.status, body: parsed, text, code: parsed?.details?.code as string | undefined };
+}
 const warehouse = (companyId: string) => call("POST", "/warehouses", ownerToken, { companyId, name: `مستودع ${Math.random().toString(36).slice(2, 8)}` });
 
 describe("subscription enforcement (P4)", () => {
@@ -89,6 +139,10 @@ describe("subscription enforcement (P4)", () => {
       acc[`rev${key}`] = (await prisma.account.findFirstOrThrow({ where: { companyId, type: "revenue", isPosting: true } })).id;
     }
   }, 120_000);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   afterAll(async () => {
     await globalSwitch(false);
@@ -288,6 +342,119 @@ describe("subscription enforcement (P4)", () => {
     const token = signAccessToken({ sub: scoped.id, tenantId, role: "admin", companyScope: companyA, readOnly: false });
     const res = await call("POST", "/customers", token, { companyId: companyA, name: "عميل المقيَّد" });
     expect([res.status, res.code]).toEqual([403, "subscription_read_only"]);
+  });
+
+  // ── مراجعة #163 (1): المسارات التي تستدعي خدمة خارجية تُرفَض قبل النداء ──────────────────────────────────────
+  it("refuses ZATCA onboarding for an enforced read-only company before any ZATCA call (routes where :id is the company)", async () => {
+    await globalSwitch(true);
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    const vat = await call("PATCH", `/companies/${companyA}`, ownerToken, { vatNumber: "310123456700003", crNumber: "1010123456" });
+    expect(vat.status, vat.text).toBe(200);
+    const csr = await call("POST", `/companies/${companyA}/zatca/csr`, ownerToken, {});
+    expect(csr.status, csr.text).toBeLessThan(300); // CSR محلي بلا شبكة — حتى يصل طلب الشهادة فعلاً إلى عميل زاتكا لولا الفحص
+    await subscribeA({ plan: "enterprise", endDays: -8 });
+    for (const [path, body] of [["/compliance", { otp: "123456" }], ["/production", {}], ["/compliance-steps/standard_invoice/test", {}]] as const) {
+      const res = await call("POST", `/companies/${companyA}/zatca${path}`, ownerToken, body);
+      expect([path, res.status, res.code]).toEqual([path, 403, "subscription_read_only"]);
+    }
+    expect(zatcaClient.requestComplianceCsid).not.toHaveBeenCalled();
+    expect(zatcaClient.requestProductionCsid).not.toHaveBeenCalled();
+    expect(zatcaClient.checkInvoiceCompliance).not.toHaveBeenCalled();
+  });
+
+  it("refuses Claude extraction and report email for an enforced read-only company before the external call — multipart bodies included", async () => {
+    await globalSwitch(true);
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    const customer = await call("POST", "/customers", ownerToken, { companyId: companyA, name: "عميل للاستخراج" });
+    expect(customer.status).toBe(201);
+    await subscribeA({ plan: "enterprise", endDays: -8 });
+
+    const company = await callForm(`/companies/${companyA}/extract-document`, ownerToken, { docType: "cr" });
+    expect([company.status, company.code]).toEqual([403, "subscription_read_only"]);
+    const cust = await callForm(`/customers/${customer.body.id}/extract-document`, ownerToken, { docType: "cr" });
+    expect([cust.status, cust.code]).toEqual([403, "subscription_read_only"]);
+    const journal = await callForm("/journal-entries/from-document", ownerToken, { companyId: companyA });
+    expect([journal.status, journal.code]).toEqual([403, "subscription_read_only"]);
+    const digest = await call("POST", `/companies/${companyA}/report-schedule/send-now`, ownerToken, {});
+    expect([digest.status, digest.code]).toEqual([403, "subscription_read_only"]);
+    expect(vision.extractCompanyDataFromDocument).not.toHaveBeenCalled();
+    expect(vision.extractJournalEntryFromDocument).not.toHaveBeenCalled();
+    expect(mailer.sendReportDigestEmail).not.toHaveBeenCalled();
+
+    // B غير مُنفَّذة: المسار نفسه يصل إلى الاستخراج (الجاسوس يُستدعى) — الفحص لا يحجب غيرها
+    await callForm("/journal-entries/from-document", ownerToken, { companyId: companyB });
+    expect(vision.extractJournalEntryFromDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it("gates Athar AI as a feature by plan and read-only — even a tenant-wide question without companyId", async () => {
+    await globalSwitch(true);
+    const ask = (body: Record<string, unknown>) => call("POST", "/ai/ask", ownerToken, { question: "ما صافي الربح؟", ...body });
+    await subscribeA({ plan: "basic", endDays: 30 });
+    expect((await ask({ companyId: companyA })).code).toBe("plan_module_not_included");
+    expect((await ask({})).code).toBe("plan_module_not_included");
+    await subscribeA({ plan: "enterprise", endDays: -8 });
+    expect((await ask({ companyId: companyA })).code).toBe("subscription_read_only");
+    expect(aiService.askAtharAi).not.toHaveBeenCalled();
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    const ok = await ask({ companyId: companyA });
+    expect(ok.code, ok.text).toBeUndefined();
+    expect(aiService.askAtharAi).toHaveBeenCalledTimes(1);
+  });
+
+  // ── مراجعة #163 (2): إضافة المحطات على باقة بلا موارد بشرية = عمّال المحطات فقط (D20) ─────────────────────────────
+  it("limits employee writes to station workers on a plan without HR, while reads stay open", async () => {
+    await globalSwitch(true);
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    const station = await call("POST", "/cost-centers", ownerToken, { companyId: companyA, name: `محطة ${stamp}` });
+    expect(station.status, station.text).toBe(201);
+    const employee = (extra: Record<string, unknown>) =>
+      call("POST", "/employees", ownerToken, { companyId: companyA, name: `موظف ${Math.random().toString(36).slice(2, 7)}`, hireDate: "2026-01-01", basicSalary: 3000, ...extra });
+    const office = await employee({}); // موظف مكتب أُنشئ على المؤسسية
+    expect(office.status, office.text).toBe(201);
+    const worker = await employee({ assignedCostCenterId: station.body.id });
+    expect(worker.status, worker.text).toBe(201);
+
+    await subscribeA({ plan: "basic", endDays: 30, stationsAddon: "free" });
+    const refused = await employee({});
+    expect([refused.status, refused.code]).toEqual([403, "station_workers_only"]);
+    expect(refused.body.error).toContain("عمّال المحطات");
+    expect((await call("POST", "/employees/import", ownerToken, { companyId: companyA, rows: [{ name: "مستورد", hireDate: "2026-01-01", basicSalary: 2000 }] })).code).toBe("station_workers_only");
+    expect((await call("PATCH", `/employees/${office.body.id}`, ownerToken, { name: "تعديل موظف مكتب" })).code).toBe("station_workers_only");
+    expect((await call("DELETE", `/employees/${office.body.id}`, ownerToken)).code).toBe("station_workers_only");
+    expect((await call("PATCH", `/employees/${worker.body.id}`, ownerToken, { assignedCostCenterId: null })).code).toBe("station_workers_only");
+
+    expect((await employee({ assignedCostCenterId: station.body.id })).status).toBe(201);
+    expect((await call("PATCH", `/employees/${worker.body.id}`, ownerToken, { name: "عامل محطة معدَّل" })).status).toBe(200);
+    const list = await call("GET", `/employees?companyId=${companyA}`, ownerToken);
+    expect(list.status).toBe(200);
+    expect(JSON.stringify(list.body)).toContain(office.body.id); // القراءة غير مقيَّدة (D31)
+    expect(await prisma.employee.count({ where: { id: office.body.id } })).toBe(1); // الحذف المرفوض لم يمسّه
+
+    // بلا إضافة المحطات: لا موظفين إطلاقاً على الأساسية
+    await subscribeA({ plan: "basic", endDays: 30, stationsAddon: "off" });
+    expect((await employee({ assignedCostCenterId: station.body.id })).code).toBe("plan_module_not_included");
+  });
+
+  // ── مراجعة #163 (3): آخر مقعد لا يُمنح مرتين ─────────────────────────────────────────────────────────────────
+  it("gives the last user seat to exactly one of several concurrent requests (invite, re-activation)", async () => {
+    await globalSwitch(true);
+    const occupied = await prisma.user.count({ where: { tenantId, active: true, deletedAt: null, companyScope: { in: ["all", companyA] } } });
+    await subscribeA({ plan: "basic", endDays: 30, extraUsers: occupied + 1 - 2 }); // مقعد واحد متبقٍّ
+    const invites = await Promise.all(
+      [1, 2, 3, 4].map((i) => call("POST", "/auth/invite", ownerToken, { name: `سباق ${i}`, email: `enf-race${i}-${stamp}@example.com`, role: "accountant", companyScope: companyA })),
+    );
+    expect(invites.filter((r) => r.status === 201)).toHaveLength(1);
+    expect(invites.filter((r) => r.code === "user_limit_reached")).toHaveLength(3);
+    expect(await prisma.user.count({ where: { tenantId, active: true, deletedAt: null, companyScope: { in: ["all", companyA] } } })).toBe(occupied + 1);
+
+    // إعادة تفعيل متزامنة لعضوين معطَّلين على مقعد واحد
+    const winner = invites.find((r) => r.status === 201)!;
+    const second = await prisma.user.findFirstOrThrow({ where: { tenantId, companyScope: companyA, active: true, id: { not: winner.body.id }, deletedAt: null, NOT: { id: ownerId } } });
+    for (const id of [winner.body.id, second.id]) expect((await call("PATCH", `/auth/users/${id}/active`, ownerToken, { active: false })).status).toBe(200);
+    const occupiedNow = await prisma.user.count({ where: { tenantId, active: true, deletedAt: null, companyScope: { in: ["all", companyA] } } });
+    await subscribeA({ plan: "basic", endDays: 30, extraUsers: occupiedNow + 1 - 2 });
+    const reactivations = await Promise.all([winner.body.id, second.id].map((id) => call("PATCH", `/auth/users/${id}/active`, ownerToken, { active: true })));
+    expect(reactivations.map((r) => r.status).sort()).toEqual([200, 403]);
   });
 
   it("turning the global switch OFF again restores today's behaviour for the enforced company", async () => {

@@ -1,4 +1,4 @@
-import type { ActivityAddonState, BusinessActivity, BillingPeriod, CompanySubscriptionStatus, SubscriptionPlan } from "@prisma/client";
+import type { ActivityAddonState, BusinessActivity, BillingPeriod, CompanySubscriptionStatus, Prisma, SubscriptionPlan } from "@prisma/client";
 import { prisma } from "./prisma";
 import { HttpError } from "./httpError";
 import { readOnlyAt } from "./subscriptionLifecycle";
@@ -24,6 +24,7 @@ export const MESSAGES = {
   userLimit: "بلغت الشركة حد المستخدمين في باقتها — أضف مستخدمين إضافيين أو رقِّ الباقة قبل دعوة مستخدم جديد أو تفعيله.",
   posSeatsFull: "لا توجد مقاعد نقطة بيع متاحة لهذه الشركة — أضف مقاعد إضافية قبل تعيين مستخدم جديد.",
   posDisabled: "نقطة البيع غير مفعّلة لهذه الشركة.",
+  stationWorkersOnly: "باقة الشركة الحالية تشمل سجلات عمّال المحطات فقط — حدّد محطة الموظف، أو رقِّ الباقة لإدارة كل الموظفين.",
 } as const;
 
 export type EnforcedCompany = {
@@ -142,8 +143,8 @@ export async function assertRequestMayWrite(companyId: string, writeResources: I
 }
 
 /** المقاعد المشغولة: عضويات فعّالة غير محذوفة (مقبولة أو دعوة معلّقة) نطاقها "all" أو هذه الشركة — عضوية "all" تُعدّ في كل شركة */
-export async function occupiedUserSeats(tenantId: string, companyId: string, excludeUserId?: string): Promise<number> {
-  return prisma.user.count({
+export async function occupiedUserSeats(tenantId: string, companyId: string, excludeUserId?: string, db: Prisma.TransactionClient = prisma): Promise<number> {
+  return db.user.count({
     where: {
       tenantId,
       active: true,
@@ -155,23 +156,42 @@ export async function occupiedUserSeats(tenantId: string, companyId: string, exc
 }
 
 /**
- * حد المستخدمين (§5.3): يُفحَص عند دعوة عضو، أو إعادة تفعيله، أو نقل نطاقه إلى شركة. لا يُخرج أحداً قائماً ولا يمنع قبول دعوة
- * صدرت سابقاً — يمنع الإضافة الجديدة فقط. نطاق "all" يشغل مقعداً في كل شركات المستأجر، فيُفحَص على كل شركة مُنفَّذة منها.
+ * حد المستخدمين (§5.3) مع الكتابة نفسها، ذرّياً: يُفحَص عند دعوة عضو، أو إعادة تفعيله، أو نقل نطاقه إلى شركة. لا يُخرج أحداً قائماً
+ * ولا يمنع قبول دعوة صدرت سابقاً — يمنع الإضافة الجديدة فقط. نطاق "all" يشغل مقعداً في كل شركات المستأجر، فيُفحَص على كل شركة
+ * مُنفَّذة منها.
+ *
+ * العدّ والكتابة في معاملة واحدة تحت قفل استشاري لكل شركة (pg_advisory_xact_lock، بترتيب المعرّفات فلا جمود بين طلبين): طلبان
+ * متزامنان على آخر مقعد يتسلسلان، والثاني يعدّ بعد أن يُثبَّت الأول فيُرفَض. مستأجر بلا شركة مُنفَّذة: الكتابة كما هي اليوم بلا معاملة.
  */
-export async function assertUserSeatAvailable(tenantId: string, scope: string, excludeUserId?: string) {
-  if (!(await tenantHasEnforcedCompany(tenantId))) return;
+export async function withUserSeat<T>(
+  tenantId: string,
+  scope: string,
+  excludeUserId: string | undefined,
+  write: (db: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  if (!(await tenantHasEnforcedCompany(tenantId))) return write(prisma);
   const companyIds = scope === "all" ? (await prisma.company.findMany({ where: { tenantId }, select: { id: true } })).map((c) => c.id) : [scope];
-  for (const companyId of companyIds) {
-    const company = await enforcedCompany(companyId);
-    if (!company) continue;
-    const limit = userLimit(company.plan, company.extraUsers);
-    if ((await occupiedUserSeats(tenantId, companyId, excludeUserId)) + 1 > limit) {
-      throw refuse(MESSAGES.userLimit, "user_limit_reached", { companyId, limit });
+  const enforced = (await Promise.all(companyIds.map((id) => enforcedCompany(id)))).filter((c): c is EnforcedCompany => !!c && c.tenantId === tenantId);
+  if (enforced.length === 0) return write(prisma);
+  enforced.sort((a, b) => (a.companyId < b.companyId ? -1 : 1));
+  return prisma.$transaction(async (tx) => {
+    for (const company of enforced) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`user_seats:${company.companyId}`}))`;
+    for (const company of enforced) {
+      const limit = userLimit(company.plan, company.extraUsers);
+      if ((await occupiedUserSeats(tenantId, company.companyId, excludeUserId, tx)) + 1 > limit) {
+        throw refuse(MESSAGES.userLimit, "user_limit_reached", { companyId: company.companyId, limit });
+      }
     }
-  }
+    return write(tx);
+  });
 }
 
 /** حد مقاعد نقطة البيع (D27): 1 مجاني + المقاعد الإضافية، وصفر بلا تفعيل — للتعيين، لا لفتح البيع */
 export function posSeatCapacity(company: { posEnabled: boolean; posUsers: number }): number {
   return posUserLimit(company.posEnabled, company.posUsers);
+}
+
+/** خطأ قاعدة عمّال المحطات (D20) — يرميه حارس الكتابة */
+export function stationWorkersOnlyError(companyId: string) {
+  return refuse(MESSAGES.stationWorkersOnly, "station_workers_only", { companyId });
 }

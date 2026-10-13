@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import { assertUserSeatAvailable } from "../../lib/subscriptionEnforcement";
+import { withUserSeat } from "../../lib/subscriptionEnforcement";
 import { hashPassword, verifyPassword } from "../../lib/password";
 import {
   signAccessToken,
@@ -445,8 +445,6 @@ export async function invite(
     ? await prisma.user.findUnique({ where: { identityId_tenantId: { identityId: existingIdentity.id, tenantId } } })
     : null;
   if (existingMembership && !existingMembership.deletedAt) throw conflict("هذا البريد الإلكتروني مسجّل بالفعل في هذه الشركة");
-  // حد المستخدمين للشركة المُنفَّذة (P4، §5.3) — الدعوة الجديدة تشغل مقعداً
-  await assertUserSeatAvailable(tenantId, input.companyScope);
 
   const inviteToken = generateInviteToken();
   const inviteExpiresAt = new Date(Date.now() + INVITE_EXPIRES_DAYS * 86_400_000);
@@ -463,16 +461,19 @@ export async function invite(
 
   // نفس البريد عاد بعد حذفه من الشركة: تُستعاد عضويته نفسها بدعوة جديدة (لا عضوية ثانية لنفس الشخص،
   // والقيد الفريد identityId+tenantId يمنعها أصلاً)، فيبقى ما أدخله سابقاً منسوباً للحساب نفسه.
-  const user = existingMembership
-    ? await prisma.user.update({ where: { id: existingMembership.id }, data: { ...details, deletedAt: null }, include: { identity: true } })
-    : await prisma.user.create({
-        data: {
-          tenantId,
-          identityId: (existingIdentity ?? (await prisma.identity.create({ data: { email: input.email } }))).id,
-          ...details,
-        },
-        include: { identity: true },
-      });
+  // الدعوة الجديدة تشغل مقعداً في الشركة المُنفَّذة (P4، §5.3): العدّ والإنشاء معاً تحت قفل الشركة.
+  const user = await withUserSeat(tenantId, input.companyScope, undefined, async (db) =>
+    existingMembership
+      ? db.user.update({ where: { id: existingMembership.id }, data: { ...details, deletedAt: null }, include: { identity: true } })
+      : db.user.create({
+          data: {
+            tenantId,
+            identityId: (existingIdentity ?? (await db.identity.create({ data: { email: input.email } }))).id,
+            ...details,
+          },
+          include: { identity: true },
+        }),
+  );
 
   const emailSent = await trySendInviteEmail(input.email, inviteToken, lang);
   return { ...publicUser(user), emailSent };
@@ -497,24 +498,24 @@ export async function updateUser(
   if (changesAccess && tenant.ownerId === userId) throw badRequest("لا يمكن تغيير دور مالك الشركة أو نطاق وصوله");
   assertCanManageRole(actor, user.role, input.role);
   if (input.companyScope !== undefined) await assertCompanyScopeInTenant(tenantId, input.companyScope);
-  // نقل نطاق عضو فعّال إلى شركة (أو إلى "all") يشغل مقعداً فيها (P4، §5.3)
-  if (input.companyScope !== undefined && input.companyScope !== user.companyScope && user.active) {
-    await assertUserSeatAvailable(tenantId, input.companyScope, userId);
-  }
   if (input.positionId !== undefined && input.positionId !== user.positionId) {
     await assertPositionAssignable(actor, tenantId, input.positionId);
   }
 
-  const updated = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.role !== undefined ? { role: input.role as User["role"] } : {}),
-      ...(input.companyScope !== undefined ? { companyScope: input.companyScope } : {}),
-      ...(input.positionId !== undefined ? { positionId: input.positionId } : {}),
-    },
-    include: { identity: true },
-  });
+  const writeUser = (db: Prisma.TransactionClient) =>
+    db.user.update({
+      where: { id: userId },
+      data: {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.role !== undefined ? { role: input.role as User["role"] } : {}),
+        ...(input.companyScope !== undefined ? { companyScope: input.companyScope } : {}),
+        ...(input.positionId !== undefined ? { positionId: input.positionId } : {}),
+      },
+      include: { identity: true },
+    });
+  // نقل نطاق عضو فعّال إلى شركة (أو إلى "all") يشغل مقعداً فيها (P4، §5.3): العدّ والنقل معاً تحت قفل الشركة
+  const movesSeat = input.companyScope !== undefined && input.companyScope !== user.companyScope && user.active;
+  const updated = movesSeat ? await withUserSeat(tenantId, input.companyScope!, userId, writeUser) : await writeUser(prisma);
   // الدور والنطاق محمولان داخل رمز الدخول: إبطال جلساته يجعل التغيير يسري خلال مدة رمز الدخول الحالي.
   if (changesAccess) await prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
   return publicUser(updated);
@@ -568,10 +569,9 @@ export async function setUserActive(tenantId: string, actingUserId: string, user
   if (!user) throw notFound("المستخدم غير موجود");
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { ownerId: true } });
   if (tenant.ownerId === userId) throw badRequest("لا يمكن تعطيل مالك الشركة");
-  // إعادة تفعيل عضو معطَّل تشغل مقعداً (P4، §5.3) — التعطيل لا يُفحَص أبداً
-  if (active && !user.active) await assertUserSeatAvailable(tenantId, user.companyScope, userId);
-
-  const updated = await prisma.user.update({ where: { id: userId }, data: { active }, include: { identity: true } });
+  // إعادة تفعيل عضو معطَّل تشغل مقعداً (P4، §5.3): العدّ والتفعيل معاً تحت قفل الشركة — التعطيل لا يُفحَص أبداً
+  const writeActive = (db: Prisma.TransactionClient) => db.user.update({ where: { id: userId }, data: { active }, include: { identity: true } });
+  const updated = active && !user.active ? await withUserSeat(tenantId, user.companyScope, userId, writeActive) : await writeActive(prisma);
   // التعطيل يسري فوراً: إبطال رموز التحديث القائمة يمنع تجديد أي جلسة مفتوحة (رمز الدخول الحالي
   // ينتهي خلال 15 دقيقة كحد أقصى، وrefresh يرفض المستخدم المعطَّل أصلاً).
   if (!active) await prisma.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
