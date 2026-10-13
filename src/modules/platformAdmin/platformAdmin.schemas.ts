@@ -41,3 +41,31 @@ export const companySubscriptionSchema = z
   .refine((v) => v.currentPeriodEnd > v.currentPeriodStart, { message: "تاريخ نهاية الاشتراك يجب أن يكون بعد بدايته", path: ["currentPeriodEnd"] });
 
 export const companyPosUsersSchema = z.object({ userIds: z.array(z.string().min(1)).max(500) });
+
+// P8: بقية واجهة لوحة مدير المنصة للاشتراكات (عدا الفوترة P7)
+export const companySubscriptionStatusSchema = z
+  .object({ action: z.enum(["suspend", "activate"]), reason: z.string().trim().max(500).optional() })
+  .refine((v) => v.action !== "suspend" || (v.reason && v.reason.length > 0), { message: "سبب التعليق مطلوب", path: ["reason"] });
+
+export const companySubscriptionAddonsSchema = z
+  .object({
+    extraUsers: z.number().int().min(0).max(1000).optional(),
+    posEnabled: z.boolean().optional(),
+    posUsers: z.number().int().min(0).max(1000).optional(),
+    stationsAddon: z.enum(["off", "free", "paid"]).optional(),
+    stablesAddon: z.enum(["off", "free", "paid"]).optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "لا يوجد تغيير في الطلب" });
+
+export const companySubscriptionsQuerySchema = z.object({
+  tenantId: z.string().min(1).optional(),
+  status: z.enum(["trialing", "awaiting_payment", "active", "grace", "expired", "suspended", "canceled", "none"]).optional(),
+  q: z.string().trim().max(200).optional(),
+});
+
+export const schedulePlanPriceSchema = z.object({
+  item: z.enum(["plan_basic", "plan_professional", "plan_enterprise", "addon_user", "addon_pos_extra_user", "addon_stations", "addon_stables"]),
+  // null = بلا سعر (مجانية)، كإضافتَي المحطات والإسطبلات اليوم (D30)
+  yearlyNetPrice: z.number().min(0).max(1_000_000).multipleOf(0.01).nullable(),
+  effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ بصيغة YYYY-MM-DD"),
+});

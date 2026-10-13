@@ -131,5 +131,10 @@ export function installSubscriptionWriteGuard(client: PrismaClient) {
   });
 }
 
+/** هل رُكِّب الحارس في هذه العملية؟ (createApp يركّبه) — اختبار وجوده يفشل لو سقط التركيب، ومنه عند نقله من $use إلى $extends */
+export function isSubscriptionWriteGuardInstalled(): boolean {
+  return installed;
+}
+
 /** للاختبار: الجداول التي يحرسها الحارس */
 export const guardedModels = () => [...COMPANY_MODELS].filter((m) => !EXEMPT_MODELS.has(m));

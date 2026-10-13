@@ -3312,6 +3312,8 @@ enum SubscriptionEventType {
   receipt_unallocated_flagged
   rank_recomputed
   pos_users_changed
+  // تغيير كميات الإضافات أو حالتها من لوحة مدير المنصة (P8)
+  addons_changed
   migrated
 }
 

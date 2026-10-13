@@ -289,6 +289,12 @@ lockedNet     = grandfatheredNetPrice if set, else netPrice
 
    A refusal inside the transaction rolls it back. Subscription bookkeeping tables and `audit_logs` are exempt.
 
+**Prisma 6 (must do before any upgrade).** The data-layer backstop uses `prisma.$use`, which is deprecated in Prisma 5 and removed in Prisma 6. Before any Prisma 6 upgrade it must be ported to a `$extends` query extension, applied to the **same exported client** every module imports. `src/lib/subscriptionWriteGuard.installed.integration.test.ts` fails in two cases:
+- `createApp()` does not install the guard (`isSubscriptionWriteGuardInstalled()`);
+- a write into an enforced read-only company, through the shared client during a user request, is no longer refused.
+
+The port must keep both tests green. Note that a Prisma query runs when it is awaited, so the request context must be active at the `await`, as it is in every route handler.
+
 **Cost.** Both checks return at once when the switch is off, or when the request's tenant has no enforced company. The switch, the per-tenant flag and each company's row are cached for 30 s per process. Writes through the admin service clear the cache in that process at once.
 
 ### 5.2 Module gate
@@ -435,21 +441,22 @@ It goes through the existing posting and ZATCA pipeline (the reserve-chain, re-i
 
 Everything goes through new internal endpoints under `/api/platform-admin/*` (same shared key). The admin panel's own `Invoice` table stops being the source of truth. It is kept read-only as history, mapped to companies during migration.
 
-| Screen / action | Internal API (athar) |
-|---|---|
-| Companies list: owner, plan, period, status, end date, rank, net price, users / limit, add-ons, over-limit flag | `GET /platform-admin/companies` |
-| Upgrade (now, prorated invoice) or downgrade (scheduled for renewal), D22 | `PATCH /platform-admin/companies/:id/subscription` |
-| POS user assignments (D19) | `GET/PUT …/:id/pos-users` |
-| Review queue: receipts un-allocated after an extension (D26) | `GET /platform-admin/subscription-reviews` |
-| Set end date (real date; replaces today's "extend" that wrote `trialEndsAt`) | same |
-| Suspend / activate (activate restores the by-date status) | `PATCH …/:id/status` |
-| Add-on quantities, activity add-on state | `PATCH …/:id/addons` |
-| Issue invoice (new, renewal, upgrade, add-on) | `POST …/:id/invoices` → أثر company sales invoice |
-| Record receipt and allocate (D9 auto-extends) | `POST …/:id/receipts` |
-| Customer statement | `GET …/:id/statement` |
-| Legal entity and billing company | `GET/PUT /platform-admin/billing-company` |
-| Price catalog with effective dates | `GET/POST /platform-admin/plan-prices` |
-| Migration screen: set plan and end date for each legacy company, set grandfathered price | `PATCH …/:id/subscription` (+ `migrated` event) |
+| Screen / action | Internal API (athar) | Status |
+|---|---|---|
+| Global enforcement switch (D33) | `GET/PUT /platform-admin/subscription-enforcement` | **P4** |
+| Companies list: owner, plan, period, status, end date, read-only date, live rank, net price, users / limit, over-limit flag, POS assigned / capacity, add-ons, legacy tenant state. Filters: tenant, status (`none` = no row), text | `GET /platform-admin/companies` | **P8** |
+| Company detail: subscription, modules of its plan, members eligible for POS, last 50 events | `GET /platform-admin/companies/:companyId/subscription` | **P8** |
+| Set or replace the subscription with a real end date (also the migration screen, and setting `enforced`) | `PUT /platform-admin/companies/:companyId/subscription` (`created` / `migrated` event) | **P4** |
+| POS user assignments (D19), within 1 free + paid seats | `PUT /platform-admin/companies/:companyId/pos-users` | **P4** (the detail endpoint lists eligible members) |
+| Suspend (reason required) / activate (restores the by-date status) | `PATCH /platform-admin/companies/:companyId/subscription/status` | **P8** |
+| Add-on quantities and activity add-on state (never below the POS users already assigned) | `PATCH /platform-admin/companies/:companyId/subscription/addons` (`addons_changed` event) | **P8** |
+| Price catalog: rows in effect and scheduled, today's price per item; schedule a future price; delete a scheduled price | `GET/POST /platform-admin/plan-prices`, `DELETE /platform-admin/plan-prices/:id` | **P8** |
+| Upgrade (now, prorated invoice) or downgrade (scheduled for renewal), D22 | needs invoices | P7 |
+| Issue invoice (new, renewal, upgrade, add-on) | `POST …/:id/invoices` → أثر company sales invoice | P7 |
+| Record receipt and allocate (D9 auto-extends) | `POST …/:id/receipts` | P7 |
+| Customer statement | `GET …/:id/statement` | P7 |
+| Legal entity and billing company | `GET/PUT /platform-admin/billing-company` | P7 |
+| Review queue: receipts un-allocated after an extension (D26) | `GET /platform-admin/subscription-reviews` | P7 |
 
 The admin panel keeps writing its own `AuditLog`, and every athar-side change also writes a `subscription_events` row.
 
@@ -495,10 +502,10 @@ None. Every question raised so far is answered (D16–D30). The stations and sta
 | P2 | `subscriptionPlans.ts` (plan → permission-id map, add-ons) and `previewSubscriptionPrice` with tests for every worked example above. Nothing calls them yet. | P1 |
 | P3 | Lifecycle: real end dates, `subscriptionScheduler` (expire, reminders), admin-activate restores by-date status. Fixes "active never expires". | P1 |
 | P4 | **Server enforcement:** global switch (D33), route pre-check and data-layer backstop, module gate on writes only (D31), per-company read-only with the tenant flag kept (D32), user and POS limits. Also the minimal admin endpoints a pilot needs, pulled forward from P8: switch, company subscription, POS users. | P1, P2, P3 |
-| P5 | Signup with plan, email verification, rate limiting, trial once per identity | P1, P2. ~~#151~~ merged, no longer blocking |
+| P5 | Signup with plan, email verification, rate limiting, trial once per identity. **Partly covered by #162:** the plan is chosen at signup but stored on the **tenant** (`Tenant.subscriptionPlan`). Remaining:<br>• no email verification;<br>• no rate limit;<br>• a new 30-day trial on every signup and every independent company, not once per identity;<br>• no billing period;<br>• prices hard-coded in the frontend instead of the server preview;<br>• no per-company subscription row. | P1, P2 |
 | P6 | Add-company flow with server price preview | P2. ~~#151~~ merged, no longer blocking (builds on its `CompaniesSettings.jsx` and `createCompany`) |
 | P7 | Billing via the أثر company: billing-company setting, `issueSubscriptionInvoice`, `subscription_invoices`, receipt → extend hook | P1, P3 |
-| P8 | Internal API for the admin panel (§9) | P1, P3, P7 |
+| P8 | Internal API for the admin panel (§9). The switch, subscription upsert and POS users shipped in P4. The rest (companies list, detail, suspend/activate, add-ons, price catalog) is in P8. Invoice-dependent endpoints wait for P7. | P1, P3, P4; the invoice parts need P7 |
 | P9 | Admin panel (separate repo): companies screen, plan/end date, invoices, receipts, statements, legal entity, price catalog, migration screen | P8 |
 | P10 | UI: nav from per-company allowed modules; landing and signup plan cards from `plan_prices` | P2, P4 |
 | P11 | Migration execution: create the rows (§10 step 1), owner fills plans, end dates and POS assignments, enforcement on per company, then drop the deprecated `Tenant` fields | all of the above, after the **#151** cutover |

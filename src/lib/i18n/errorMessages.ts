@@ -645,5 +645,13 @@ export const AR_TO_EN: Record<string, string> = {
   "لا توجد مقاعد نقطة بيع متاحة لهذه الشركة — أضف مقاعد إضافية قبل تعيين مستخدم جديد.": "No POS seats are available for this company — add seats before assigning another user.",
   "نقطة البيع غير مفعّلة لهذه الشركة.": "POS is not enabled for this company.",
   "تاريخ نهاية الاشتراك يجب أن يكون بعد بدايته": "The subscription end date must be after its start date",
+  // لوحة مدير المنصة للاشتراكات (P8)
+  "عدد مستخدمي نقطة البيع المعيَّنين أكبر من السعة الجديدة — أزل بعض التعيينات أولاً": "More POS users are assigned than the new capacity allows — remove some assignments first",
+  "تاريخ سريان السعر الجديد يجب أن يكون بعد اليوم — الأسعار السارية لا تُعدَّل": "A new price must take effect after today — prices already in effect cannot be changed",
+  "يوجد سعر مجدول لهذا البند في التاريخ نفسه": "A price for this item is already scheduled on that date",
+  "لا يمكن حذف سعر سارٍ — جدول سعراً جديداً بتاريخ لاحق بدلاً من ذلك": "A price in effect cannot be deleted — schedule a new price with a later date instead",
+  "سبب التعليق مطلوب": "A suspension reason is required",
+  "لا يوجد تغيير في الطلب": "The request contains no change",
+  "التاريخ بصيغة YYYY-MM-DD": "Date must be in YYYY-MM-DD format",
   "باقة الشركة الحالية تشمل سجلات عمّال المحطات فقط — حدّد محطة الموظف، أو رقِّ الباقة لإدارة كل الموظفين.": "The company's current plan covers station-worker records only — set the employee's station, or upgrade the plan to manage all employees.",
 };
