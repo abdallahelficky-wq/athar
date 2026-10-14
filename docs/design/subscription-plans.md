@@ -366,7 +366,11 @@ Accepting an invite that was already issued is **not** checked: its seat was cou
     - a known `:id` record (route pre-check);
     - any single-record read of a row of that company, or a query filtering on its `companyId` (data-layer read guard in `subscriptionWriteGuard.ts`).
 
-    Their other companies are unaffected. A tenant-wide list or total with no `companyId` is not filtered by the read guard.
+    Their other companies are unaffected. A tenant-wide list or total with no `companyId` is not filtered by the read guard (known follow-up below).
+  - **Known follow-up (not implemented):** for an `all`-scope member, a tenant-wide report or total that names no company still includes the suspended company's figures. Examples are the dashboard and consolidated reports with `companyId` absent, and any raw-SQL aggregate across the tenant.
+    - Neither layer refuses these requests. The route pre-check only refuses requests that name the company. The read guard only refuses single-record reads and queries that filter on its `companyId`.
+    - The member still cannot open, list or select that company, or any record of it.
+    - Closing this means excluding suspended companies from every tenant-wide aggregate, Prisma and raw SQL alike. It needs its own inventory and its own coverage test, like the write routes.
   - **Timing:** the set of suspended companies per tenant is cached for 30 s like the rest of the state. Suspending through the admin service clears the cache in that process at once; other instances follow within 30 s. `activate` restores access the same way.
 - **Grace banner (P10):** for a paid term with `currentPeriodEnd ≤ now < currentPeriodEnd + 7 days`, `/auth/me` will return the company's grace end date. The UI shows a banner on every page of that company ("انتهى الاشتراك في … — تتحول الشركة إلى عرض فقط في … ما لم يُسدَّد التجديد"). Writes still pass.
 - **Correctness:** the check compares the dates with `now()` itself, so it does **not** depend on the scheduled job having run.
