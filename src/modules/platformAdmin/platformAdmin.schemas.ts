@@ -88,9 +88,18 @@ export const companySubscriptionsQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(200).optional(),
 });
 
-export const schedulePlanPriceSchema = z.object({
-  item: z.enum(["plan_basic", "plan_professional", "plan_enterprise", "addon_user", "addon_pos_extra_user", "addon_stations", "addon_stables"]),
-  // null = بلا سعر (مجانية)، كإضافتَي المحطات والإسطبلات اليوم (D30)
-  yearlyNetPrice: z.number().min(0).max(1_000_000).multipleOf(0.01).nullable(),
-  effectiveFrom: calendarDay,
-});
+/** البنود التي يجوز أن تكون بلا سعر (null): إضافتا النشاط فقط (D30) — مراجعة #164 */
+export const NULLABLE_PRICE_ITEMS: ReadonlySet<string> = new Set(["addon_stations", "addon_stables"]);
+export const PRICE_REQUIRED_MESSAGE = "هذا البند يحتاج سعراً — (بلا سعر) مسموح لإضافتَي المحطات والإسطبلات فقط";
+
+export const schedulePlanPriceSchema = z
+  .object({
+    item: z.enum(["plan_basic", "plan_professional", "plan_enterprise", "addon_user", "addon_pos_extra_user", "addon_stations", "addon_stables"]),
+    // null = بلا سعر (مجانية) — لإضافتَي النشاط وحدهما (المحطات والإسطبلات، D30)؛ الباقات والمستخدم الإضافي ومقعد نقطة البيع لها سعر دائماً
+    yearlyNetPrice: z.number().min(0).max(1_000_000).multipleOf(0.01).nullable(),
+    effectiveFrom: calendarDay,
+  })
+  .refine((v) => v.yearlyNetPrice !== null || NULLABLE_PRICE_ITEMS.has(v.item), {
+    path: ["yearlyNetPrice"],
+    message: PRICE_REQUIRED_MESSAGE,
+  });

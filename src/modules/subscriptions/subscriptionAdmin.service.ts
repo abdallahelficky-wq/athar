@@ -13,6 +13,7 @@ import {
 import { companyEntitlements, userLimit } from "../../lib/subscriptionPlans";
 import { readOnlyAt, graceEndsAt } from "../../lib/subscriptionLifecycle";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
+import { NULLABLE_PRICE_ITEMS, PRICE_REQUIRED_MESSAGE } from "../platformAdmin/platformAdmin.schemas";
 import { planPricesAt, rankCompaniesByOwnerIdentities } from "./subscriptionPreview.service";
 import { activateCompanySubscription, suspendCompanySubscription } from "./subscriptionLifecycle.service";
 
@@ -368,6 +369,8 @@ export async function listPlanPrices(now: Date = new Date()) {
 /** يجدول سعراً جديداً بتاريخ سريان بعد اليوم (بتوقيت الرياض) — الصف الساري لا يُعدَّل (مشغّل القاعدة يحميه أيضاً) */
 export async function schedulePlanPrice(input: { item: PlanPriceItem; yearlyNetPrice: number | null; effectiveFrom: string }, now: Date = new Date()) {
   if (input.effectiveFrom <= riyadhCalendarDay(now)) throw badRequest("تاريخ سريان السعر الجديد يجب أن يكون بعد اليوم — الأسعار السارية لا تُعدَّل");
+  // الشرط نفسه في الخدمة، لا في مخطط الطلب وحده: لا سعر null لبند مدفوع من أي مستدعٍ (مراجعة #164)
+  if (input.yearlyNetPrice === null && !NULLABLE_PRICE_ITEMS.has(input.item)) throw badRequest(PRICE_REQUIRED_MESSAGE);
   const exists = await prisma.planPrice.findUnique({ where: { item_effectiveFrom: { item: input.item, effectiveFrom: new Date(`${input.effectiveFrom}T00:00:00.000Z`) } } });
   if (exists) throw badRequest("يوجد سعر مجدول لهذا البند في التاريخ نفسه");
   return prisma.planPrice.create({ data: { item: input.item, yearlyNetPrice: input.yearlyNetPrice, effectiveFrom: new Date(`${input.effectiveFrom}T00:00:00.000Z`) } });

@@ -151,6 +151,27 @@ describe("platform-admin subscriptions API (P8)", () => {
     expect(await deleteScheduledPlanPrice(created.id)).toEqual({ deleted: created.id });
   });
 
+  it("allows a null (no) price only for the activity add-ons — never for plans, extra users or POS seats", async () => {
+    // مراجعة #164: بند مدفوع بلا سعر يكسر عرض السعر (quoteCompany) لكل من يختاره
+    const future = `${3100 + (stamp % 400)}-02-01`;
+    for (const item of ["plan_basic", "plan_professional", "plan_enterprise", "addon_user", "addon_pos_extra_user"] as const) {
+      const parsed = schedulePlanPriceSchema.safeParse({ item, yearlyNetPrice: null, effectiveFrom: future });
+      expect([item, parsed.success]).toEqual([item, false]);
+      expect(parsed.error!.flatten().fieldErrors.yearlyNetPrice).toEqual(["هذا البند يحتاج سعراً — (بلا سعر) مسموح لإضافتَي المحطات والإسطبلات فقط"]);
+      // والخدمة نفسها ترفض، لمستدعٍ لا يمرّ بالمخطط
+      await expect(schedulePlanPrice({ item, yearlyNetPrice: null, effectiveFrom: future }), item).rejects.toThrow("هذا البند يحتاج سعراً");
+      expect(await prisma.planPrice.count({ where: { item, effectiveFrom: new Date(`${future}T00:00:00.000Z`) } })).toBe(0);
+    }
+    for (const item of ["addon_stations", "addon_stables"] as const) {
+      expect(schedulePlanPriceSchema.safeParse({ item, yearlyNetPrice: null, effectiveFrom: future }).success).toBe(true);
+      const created = await schedulePlanPrice({ item, yearlyNetPrice: null, effectiveFrom: future });
+      expect(created.yearlyNetPrice).toBeNull();
+      await deleteScheduledPlanPrice(created.id);
+    }
+    // سعر صفر لبند مدفوع مسموح (قرار تسعير صريح)، وليس "بلا سعر"
+    expect(schedulePlanPriceSchema.safeParse({ item: "addon_user", yearlyNetPrice: 0, effectiveFrom: future }).success).toBe(true);
+  });
+
   // مراجعة #164 (3): PUT الاشتراك بلا حقول الإضافات لا يُطفئ نقطة البيع ولا يصفّر المقاعد المدفوعة ولا يترك تعيينات فوق السعة
   it("keeps add-ons and POS assignments on a subscription PUT that omits them; defaults apply only when creating", async () => {
     await updateCompanySubscriptionAddons(companyA1, { posEnabled: true, posUsers: 1, extraUsers: 2 });
