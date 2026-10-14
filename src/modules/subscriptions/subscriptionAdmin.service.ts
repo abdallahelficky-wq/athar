@@ -1,6 +1,6 @@
 import type { ActivityAddonState, BillingPeriod, CompanySubscriptionStatus, PlanPriceItem, Prisma, SubscriptionPlan } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import { badRequest, notFound } from "../../lib/httpError";
+import { badRequest, HttpError, notFound } from "../../lib/httpError";
 import {
   assertPosCapacityHolds,
   clearSubscriptionEnforcementCache,
@@ -51,6 +51,8 @@ export type CompanySubscriptionInput = {
   extraUsers?: number;
   stationsAddon?: ActivityAddonState;
   stablesAddon?: ActivityAddonState;
+  /** نسخة الصف التي حمّلها المدير (P9) — null عند الإنشاء (لا صف بعد). غيابها (نداء داخلي) = بلا فحص */
+  expectedVersion?: number | null;
 };
 
 const snapshot = (row: Record<string, unknown>) => JSON.parse(JSON.stringify(row)) as Prisma.InputJsonObject;
@@ -61,6 +63,19 @@ const snapshot = (row: Record<string, unknown>) => JSON.parse(JSON.stringify(row
  * الحقل الغائب على قيمته الحالية (مراجعة #164) — فتغيير الباقة أو التواريخ لا يُطفئ نقطة البيع ولا يصفّر مقاعد مدفوعة. وبنفس قواعد مسار
  * الإضافات: لا مقاعد نقطة بيع بلا تفعيلها، ولا سعة أقل من المعيَّنين فعلاً.
  */
+/**
+ * التزامن المتفائل (P9): المدير يرسل نسخة الصف التي حمّلها (version، يزيدها مشغّل القاعدة عند كل تحديث من أي كاتب). نسخة لا تطابق
+ * الصف الحالي = تعديل آخر سبقه (مدير في تبويب آخر، المُجدوِل، تعليق) — 409 مع الصف الحالي فيعرضه ويقرر، بدل أن يمحو ما لم يره.
+ */
+export const VERSION_CONFLICT_MESSAGE = "تغيّر اشتراك هذه الشركة منذ فتحته — راجع القيم الحالية ثم أعد الحفظ.";
+function versionConflict(current: NonNullable<SubscriptionRow> | null, now: Date = new Date()) {
+  return new HttpError(409, VERSION_CONFLICT_MESSAGE, { code: "subscription_version_conflict", current: current ? subscriptionView(current, now) : null });
+}
+function assertExpectedVersion(current: NonNullable<SubscriptionRow> | null, expected: number | null | undefined) {
+  if (expected === undefined) return;
+  if ((current?.version ?? null) !== expected) throw versionConflict(current);
+}
+
 export async function upsertCompanySubscription(companyId: string, input: CompanySubscriptionInput) {
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true, tenant: { select: { ownerId: true } } } });
   if (!company) throw notFound("الشركة غير موجودة");
@@ -90,9 +105,19 @@ export async function upsertCompanySubscription(companyId: string, input: Compan
       posUsers: input.posUsers ?? (input.posEnabled === false ? 0 : existing?.posUsers ?? 0),
     });
     const before = await tx.companySubscription.findUnique({ where: { companyId } });
-    const after = before
-      ? await tx.companySubscription.update({ where: { companyId }, data: { ...data, ...(input.posEnabled === false ? { posUsers: 0 } : {}) } })
-      : await tx.companySubscription.create({ data: { companyId, posEnabled: false, posUsers: 0, extraUsers: 0, ...data } });
+    assertExpectedVersion(before, input.expectedVersion);
+    let after;
+    if (before) {
+      // مشروطة بالنسخة المقروءة: كاتب لا يأخذ قفل المقاعد (التعليق، المُجدوِل) بين القراءة والكتابة يُكتشَف هنا أيضاً
+      const claim = await tx.companySubscription.updateMany({
+        where: { companyId, version: before.version },
+        data: { ...data, ...(input.posEnabled === false ? { posUsers: 0 } : {}) },
+      });
+      if (claim.count === 0) throw versionConflict(await tx.companySubscription.findUnique({ where: { companyId } }));
+      after = await tx.companySubscription.findUniqueOrThrow({ where: { companyId } });
+    } else {
+      after = await tx.companySubscription.create({ data: { companyId, posEnabled: false, posUsers: 0, extraUsers: 0, ...data } });
+    }
     await tx.subscriptionEvent.create({
       data: { companySubscriptionId: after.id, type: before ? "migrated" : "created", before: before ? snapshot(before) : undefined, after: snapshot(after), actor: ACTOR },
     });
@@ -172,6 +197,8 @@ function subscriptionView(sub: NonNullable<SubscriptionRow>, now: Date) {
     plan: sub.plan,
     billingPeriod: sub.billingPeriod,
     status: sub.status,
+    /** نسخة الصف — يرسلها المدير مع أي تعديل (expectedVersion)، ونسخة قديمة تُرفض بـ409 (P9) */
+    version: sub.version,
     currentPeriodStart: sub.currentPeriodStart,
     currentPeriodEnd: end,
     legacyOpenEnded: sub.legacyOpenEnded,
@@ -301,7 +328,14 @@ export async function getCompanySubscriptionDetail(companyId: string, now: Date 
 }
 
 /** تعليق/إعادة تفعيل (P3): إعادة التفعيل تعود إلى الحالة التي يستحقها الاشتراك بالتاريخ، لا "نشط بلا نهاية" */
-export async function setCompanySubscriptionStatus(companyId: string, action: "suspend" | "activate", reason?: string) {
+export async function setCompanySubscriptionStatus(companyId: string, action: "suspend" | "activate", reason?: string, expectedVersion?: number) {
+  // انتقال لا استبدال: محروس بحالته (claim على status في خدمة الدورة). النسخة اختيارية هنا — لوحة المدير ترسلها فلا يُعلَّق صفٌّ تغيّر
+  // منذ فتحه دون أن يراه المدير
+  if (expectedVersion !== undefined) {
+    const current = await prisma.companySubscription.findUnique({ where: { companyId } });
+    if (!current) throw notFound("لا يوجد اشتراك لهذه الشركة");
+    assertExpectedVersion(current, expectedVersion);
+  }
   const result = action === "suspend" ? await suspendCompanySubscription(companyId, reason ?? "", ACTOR) : await activateCompanySubscription(companyId, ACTOR);
   clearSubscriptionEnforcementCache();
   return result;
@@ -313,6 +347,8 @@ export type AddonsPatch = {
   posUsers?: number;
   stationsAddon?: ActivityAddonState;
   stablesAddon?: ActivityAddonState;
+  /** نسخة الصف التي حمّلها المدير (P9) — غيابها (نداء داخلي) = بلا فحص */
+  expectedVersion?: number;
 };
 
 /**
@@ -325,6 +361,7 @@ export async function updateCompanySubscriptionAddons(companyId: string, patch: 
     await lockCompanyPosSeats(tx, companyId);
     const sub = await tx.companySubscription.findUnique({ where: { companyId } });
     if (!sub) throw notFound("لا يوجد اشتراك لهذه الشركة");
+    assertExpectedVersion(sub, patch.expectedVersion);
     const next = {
       extraUsers: patch.extraUsers ?? sub.extraUsers,
       posEnabled: patch.posEnabled ?? sub.posEnabled,
@@ -333,7 +370,9 @@ export async function updateCompanySubscriptionAddons(companyId: string, patch: 
       stablesAddon: patch.stablesAddon ?? sub.stablesAddon,
     };
     await assertPosCapacityHolds(tx, companyId, next);
-    const updated = await tx.companySubscription.update({ where: { companyId }, data: next });
+    const claim = await tx.companySubscription.updateMany({ where: { companyId, version: sub.version }, data: next });
+    if (claim.count === 0) throw versionConflict(await tx.companySubscription.findUnique({ where: { companyId } }));
+    const updated = await tx.companySubscription.findUniqueOrThrow({ where: { companyId } });
     await tx.subscriptionEvent.create({
       data: {
         companySubscriptionId: sub.id,

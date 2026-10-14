@@ -180,7 +180,7 @@ export function assertEnforcedModuleWritable(company: EnforcedCompany, resourceI
   }
 }
 
-/** فتح مبيعات نقطة البيع: تعيين صريح للعضو في هذه الشركة، المالك نفسه ضمناً (D19) */
+/** فتح مبيعات نقطة البيع: تعيين صريح لكل عضو في هذه الشركة — المالك وsuper_admin أيضاً، بلا استثناء (D19): مالك غير معيَّن لا يبيع */
 export async function assertPosSeat(company: EnforcedCompany, userId: string) {
   if (!company.posEnabled) throw refuse(MESSAGES.posDisabled, "pos_not_enabled", { companyId: company.companyId });
   const seat = await prisma.companyPosUser.findUnique({ where: { companyId_userId: { companyId: company.companyId, userId } } });

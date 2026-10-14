@@ -3337,6 +3337,8 @@ model CompanySubscription {
   ownerIdentity          Identity?                 @relation(fields: [ownerIdentityId], references: [id], onDelete: Restrict)
   plan                   SubscriptionPlan
   billingPeriod          BillingPeriod
+  // يزيدها مشغّل القاعدة عند كل تحديث (company_subscriptions_bump_version) — للتزامن المتفائل في لوحة المدير (P9)
+  version                Int                       @default(0)
   status                 CompanySubscriptionStatus
   currentPeriodStart     DateTime?
   // تاريخ نهاية حقيقي إلزامي (CHECK) إلا لصف مُرحَّل بلا نهاية معروفة (legacyOpenEnded)، وذاك لا يُفعَّل عليه الإنفاذ
