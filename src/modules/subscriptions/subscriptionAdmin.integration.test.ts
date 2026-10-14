@@ -182,6 +182,33 @@ describe("platform-admin subscriptions API (P8)", () => {
     await upsertCompanySubscription(companyA1, { ...planOnly, plan: "basic", ...term(30) });
   });
 
+  it("assigns POS seats only to members the detail lists as eligible (active, accepted, scope all or this company, same tenant)", async () => {
+    // مراجعة #164: كان التعيين يقبل أي معرّف مستخدم. الأهلية = الشرط نفسه الذي يعرض به التفصيل "الأعضاء المؤهَّلين"
+    await upsertCompanySubscription(companyA1, { plan: "basic", billingPeriod: "yearly", status: "active", ...term(30), enforced: false, posEnabled: true, posUsers: 5 });
+    const member = async (tag: string, data: { tenantId?: string; active?: boolean; inviteStatus?: "pending" | "accepted"; companyScope?: string; deletedAt?: Date }) => {
+      const identity = await prisma.identity.create({ data: { email: `p8-pos-${tag}-${stamp}@example.com` } });
+      return (await prisma.user.create({
+        data: { tenantId: data.tenantId ?? tenantA, identityId: identity.id, name: tag, role: "accountant", inviteStatus: data.inviteStatus ?? "accepted", companyScope: data.companyScope ?? companyA1, active: data.active ?? true, deletedAt: data.deletedAt },
+      })).id;
+    };
+    const ineligible = {
+      otherTenant: await member("other-tenant", { tenantId: tenantB, companyScope: "all" }),
+      otherCompany: await member("other-company", { companyScope: companyA2 }),
+      inactive: await member("inactive", { active: false }),
+      pending: await member("pending", { inviteStatus: "pending" }),
+      deleted: await member("deleted", { deletedAt: new Date() }),
+    };
+    const eligibleIds = (await getCompanySubscriptionDetail(companyA1)).members.map((m) => m.id);
+    for (const [label, id] of Object.entries(ineligible)) {
+      expect(eligibleIds, label).not.toContain(id);
+      await expect(setCompanyPosUsers(companyA1, [ownerA, id]), label).rejects.toThrow("لا يمكن تعيين مستخدم لنقطة البيع");
+    }
+    expect((await getCompanySubscriptionDetail(companyA1)).pos.assignedUserIds).toEqual([]); // المرفوض لا يكتب شيئاً
+    const ok = await setCompanyPosUsers(companyA1, eligibleIds.slice(0, 2));
+    expect(ok.userIds).toEqual([...eligibleIds.slice(0, 2)].sort());
+    await setCompanyPosUsers(companyA1, []);
+  });
+
   it("derives readOnlyFrom from the status: immediate when unpaid/canceled/suspended/expired, trial end, paid end + 7 days", async () => {
     // مراجعة #164: كان readOnlyFrom = النهاية + 7 لكل حالة غير التجربة، فشركة بانتظار الدفع أو ملغاة أو معلّقة (عرض فقط الآن) تُعرض
     // كأنها تكتب أسبوعاً بعد نهاية فترتها. الصف يكتبه upsertCompanySubscription والقيمة من getCompanySubscriptionDetail نفسها.

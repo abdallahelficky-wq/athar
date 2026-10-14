@@ -1,6 +1,14 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
 import { currentRequestContext, SAFE_METHODS } from "./requestContext";
-import { assertRequestMayWrite, enforcedCompany, stationWorkersOnlyError, tenantHasEnforcedCompany } from "./subscriptionEnforcement";
+import {
+  assertRequestMayWrite,
+  companySuspendedError,
+  enforcedCompany,
+  invalidateCompanyEnforcement,
+  stationWorkersOnlyError,
+  suspendedCompanyIds,
+  tenantHasEnforcedCompany,
+} from "./subscriptionEnforcement";
 
 /**
  * حارس الكتابة في طبقة البيانات (P4، §5.4) — شبكة الأمان خلف الفحص المسبق على المسار. أي كتابة (create/update/delete…) في بيانات
@@ -300,6 +308,52 @@ async function assertStationWorkerWrites(client: PrismaClient, action: string, a
   }
 }
 
+/**
+ * نشاط الشركة (businessActivity) يفعّل إضافة نشاط تلقائياً (D13)، وهو في صف الشركة لا في صف الاشتراك — فلا تفرغه كتابات خدمة الإدارة.
+ * بعد كتابة ناجحة تغيّره (من أي مسار، بطلب أو بلا طلب) تُسقَط صلاحيات تلك الشركة المخزَّنة فوراً في هذه العملية (مراجعة #163):
+ * الدخول في نشاط "محطات وقود" يفتح إضافة المحطات في الطلب التالي، والخروج منه يغلقها فيه، لا بعد 30 ثانية.
+ */
+function invalidateAfterCompanyWrite<T>(model: string, action: string, args: Args, result: T): T {
+  if (model !== "Company") return result;
+  const data = (action === "upsert" ? { ...(args?.create as object), ...(args?.update as object) } : args?.data) as Record<string, unknown> | undefined;
+  if (action === "delete" || (data && typeof data === "object" && "businessActivity" in data)) {
+    const where = args?.where as Record<string, unknown> | undefined;
+    invalidateCompanyEnforcement(action !== "updateMany" && typeof where?.id === "string" ? where.id : undefined);
+  }
+  return result;
+}
+
+/**
+ * حارس القراءة للشركات المعلّقة (P8، §6): عضو نطاقه "all" يفقد الشركة المعلّقة وحدها — قراءة سجل منها بمعرّفه (أي جدول بعمود
+ * companyId، أو الشركة نفسها) أثناء طلب مستخدم تُرفَض، وكذلك استعلام يحدّد companyId تلك الشركة صراحةً. شبكة أمان خلف الفحص
+ * المسبق على المسار (explicit companyId و:id المعروفة)، لمسارات قراءة بمعرّف لا يعرف الفحص المسبق جدولها. قوائم المستأجر الشاملة
+ * بلا companyId لا تُرشَّح هنا؛ قائمة الشركات تستبعدها صراحةً. بلا كلفة حين لا شركة معلّقة مُنفَّذة في المستأجر.
+ */
+const READ_ACTIONS = new Set(["findUnique", "findUniqueOrThrow", "findFirst", "findFirstOrThrow", "findMany", "count", "aggregate", "groupBy"]);
+const SINGLE_READ_ACTIONS = new Set(["findUnique", "findUniqueOrThrow", "findFirst", "findFirstOrThrow"]);
+const READ_EXEMPT_MODELS = new Set(["CompanySubscription", "SubscriptionEvent", "SubscriptionReminder", "CompanyPosUser", "PlatformSetting"]);
+
+async function guardSuspendedRead<T>(client: PrismaClient, model: string, action: string, args: Args, run: () => Promise<T>): Promise<T> {
+  const ctx = currentRequestContext();
+  if (!ctx) return run();
+  const suspended = await suspendedCompanyIds(ctx.tenantId);
+  if (suspended.size === 0) return run();
+  const key = model === "Company" ? "id" : "companyId";
+  const explicit = (args?.where as Record<string, unknown> | undefined)?.[key];
+  if (typeof explicit === "string" && suspended.has(explicit)) throw companySuspendedError(explicit);
+  const result = await run();
+  if (!SINGLE_READ_ACTIONS.has(action) || !result || typeof result !== "object") return result;
+  const row = result as Record<string, unknown>;
+  let companyId = row[key];
+  // select لا يشمل الشركة: تُقرأ شركة السجل نفسه بشرط الاستعلام ذاته
+  if (companyId === undefined) {
+    const found = await delegateOf(client, model).findMany({ where: args?.where, select: { [key]: true }, take: 1 });
+    companyId = found[0]?.[key];
+  }
+  if (typeof companyId === "string" && suspended.has(companyId)) throw companySuspendedError(companyId);
+  return result;
+}
+
 const isGuardedModel = (model: string) => COMPANY_MODELS.has(model) || model in PARENT_MODELS || model === "Attachment";
 
 let installed = false;
@@ -308,14 +362,17 @@ export function installSubscriptionWriteGuard(client: PrismaClient) {
   if (installed) return;
   installed = true;
   client.$use(async (params, next) => {
+    if (params.model && READ_ACTIONS.has(params.action) && COMPANY_MODELS.has(params.model) && !READ_EXEMPT_MODELS.has(params.model)) {
+      return guardSuspendedRead(client, params.model, params.action, params.args as Args, () => next(params));
+    }
     if (!params.model || !WRITE_ACTIONS.has(params.action) || EXEMPT_MODELS.has(params.model) || !isGuardedModel(params.model)) return next(params);
     const ctx = currentRequestContext();
-    if (!ctx || SAFE_METHODS.has(ctx.method)) return next(params);
-    if (!(await tenantHasEnforcedCompany(ctx.tenantId))) return next(params);
+    if (!ctx || SAFE_METHODS.has(ctx.method)) return invalidateAfterCompanyWrite(params.model, params.action, params.args as Args, await next(params));
+    if (!(await tenantHasEnforcedCompany(ctx.tenantId))) return invalidateAfterCompanyWrite(params.model, params.action, params.args as Args, await next(params));
     const companyIds = await affectedCompanyIds(client, params.model, params.action, params.args as Args);
     for (const companyId of companyIds) await assertRequestMayWrite(companyId, ctx.writeResources);
     if (params.model === "Employee") await assertStationWorkerWrites(client, params.action, params.args as Args, companyIds);
-    return next(params);
+    return invalidateAfterCompanyWrite(params.model, params.action, params.args as Args, await next(params));
   });
 }
 

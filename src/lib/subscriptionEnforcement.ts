@@ -18,12 +18,14 @@ export const ENFORCEMENT_SETTING_KEY = "subscription_enforcement";
 
 export const MESSAGES = {
   readOnly: "هذه الشركة في وضع (عرض فقط) لانتهاء اشتراكها — يمكنك الاطلاع على بياناتها وتصديرها، وللإضافة أو التعديل أو الحذف جدّد الاشتراك.",
-  suspended: "اشتراك هذه الشركة معلّق — يمكنك الاطلاع على بياناتها، وللإضافة أو التعديل تواصل مع الدعم الفني.",
+  suspended: "اشتراك هذه الشركة معلّق من إدارة المنصة — لا يمكن الاطلاع على بياناتها أو تعديلها حتى يُعاد تفعيلها، تواصل مع الدعم الفني.",
+  suspendedMembership: "اشتراك شركتك معلّق من إدارة المنصة — لا يمكن الدخول إليها حتى يُعاد تفعيلها، تواصل مع الدعم الفني.",
   planModule: "هذه الميزة غير مشمولة في باقة الشركة الحالية — يمكنك الاطلاع على بياناتها الحالية وتصديرها، وللإضافة أو التعديل يمكنك ترقية الباقة.",
   posSeat: "لست معيَّناً مستخدماً لنقطة البيع في هذه الشركة — اطلب من مالك الشركة تعيينك قبل فتح مبيعات نقطة البيع.",
   userLimit: "بلغت الشركة حد المستخدمين في باقتها — أضف مستخدمين إضافيين أو رقِّ الباقة قبل دعوة مستخدم جديد أو تفعيله.",
   posSeatsFull: "لا توجد مقاعد نقطة بيع متاحة لهذه الشركة — أضف مقاعد إضافية قبل تعيين مستخدم جديد.",
   posDisabled: "نقطة البيع غير مفعّلة لهذه الشركة.",
+  posAssigneeNotEligible: "لا يمكن تعيين مستخدم لنقطة البيع إلا إذا كان عضواً فعّالاً قَبِل دعوته ونطاقه كل الشركات أو هذه الشركة.",
   posAssignedWhenDisabling: "عدد مستخدمي نقطة البيع المعيَّنين أكبر من السعة الجديدة — أزل بعض التعيينات أولاً",
   stationWorkersOnly: "باقة الشركة الحالية تشمل سجلات عمّال المحطات فقط — حدّد محطة الموظف، أو رقِّ الباقة لإدارة كل الموظفين.",
 } as const;
@@ -47,11 +49,23 @@ export type EnforcedCompany = {
 let globalCache: { value: boolean; at: number } | null = null;
 const companyCache = new Map<string, { value: EnforcedCompany | null; at: number }>();
 const tenantCache = new Map<string, { value: boolean; at: number }>();
+const suspendedCache = new Map<string, { value: Set<string>; at: number }>();
 
 export function clearSubscriptionEnforcementCache() {
   globalCache = null;
   companyCache.clear();
   tenantCache.clear();
+  suspendedCache.clear();
+}
+
+/**
+ * كتابة ناجحة غيّرت ما تُشتقّ منه صلاحيات الشركة خارج صف الاشتراك — نشاطها (businessActivity يفعّل إضافة المحطات أو الإسطبلات
+ * تلقائياً، D13) — تُسقط المخزَّن لتلك الشركة فوراً في هذه العملية، لا بعد 30 ثانية (مراجعة #163). يستدعيها حارس الكتابة بعد
+ * الكتابة. companyId غائب (updateMany) = إسقاط كل الشركات.
+ */
+export function invalidateCompanyEnforcement(companyId?: string) {
+  if (companyId) companyCache.delete(companyId);
+  else companyCache.clear();
 }
 
 const fresh = (entry: { at: number } | null | undefined) => !!entry && Date.now() - entry.at < TTL_MS;
@@ -114,6 +128,44 @@ export async function enforcedCompany(companyId: string): Promise<EnforcedCompan
 }
 
 const refuse = (message: string, code: string, extra: Record<string, unknown> = {}) => new HttpError(403, message, { code, ...extra });
+
+/**
+ * الشركات المعلّقة المُنفَّذة في مستأجر (§6: "login blocked for scoped members of that company; all-scope members lose only that
+ * company") — مخزَّنة 30 ثانية كبقية الحالة، فتعليق من لوحة المدير يسري على الجلسات القائمة خلال النافذة نفسها (وفوراً في العملية
+ * التي علّقت). المفتاح معطّل أو لا شركة مُنفَّذة = مجموعة فارغة = سلوك اليوم.
+ */
+export async function suspendedCompanyIds(tenantId: string): Promise<Set<string>> {
+  if (!(await tenantHasEnforcedCompany(tenantId))) return new Set();
+  const cached = suspendedCache.get(tenantId);
+  if (fresh(cached)) return cached!.value;
+  const rows = await prisma.companySubscription.findMany({
+    where: { enforced: true, status: "suspended", company: { tenantId } },
+    select: { companyId: true },
+  });
+  const value = new Set(rows.map((r) => r.companyId));
+  suspendedCache.set(tenantId, { value, at: Date.now() });
+  return value;
+}
+
+/** رفض الوصول (قراءة أو كتابة) إلى شركة معلّقة — لعضو نطاقه "all" تبقى بقية شركاته متاحة */
+export function companySuspendedError(companyId: string) {
+  return refuse(MESSAGES.suspended, "subscription_suspended", { companyId });
+}
+
+export async function assertCompanyNotSuspended(tenantId: string, companyId: string) {
+  if ((await suspendedCompanyIds(tenantId)).has(companyId)) throw companySuspendedError(companyId);
+}
+
+/**
+ * عضوية نطاقها شركة واحدة معلّقة (أو موظف بوابة في شركة معلّقة): لا دخول ولا تجديد جلسة ولا أي طلب — 401 فتنتهي الجلسة القائمة.
+ * عضوية "all" لا تُرفَض هنا؛ تفقد الشركة المعلّقة وحدها (assertCompanyNotSuspended وحارس القراءة).
+ */
+export async function assertMembershipNotSuspended(membership: { tenantId: string; companyScope: string }) {
+  if (membership.companyScope === "all") return;
+  if ((await suspendedCompanyIds(membership.tenantId)).has(membership.companyScope)) {
+    throw new HttpError(401, MESSAGES.suspendedMembership, { code: "company_suspended", companyId: membership.companyScope });
+  }
+}
 
 /** الكتابة في شركة مُنفَّذة: ممنوعة إن كانت معلّقة أو "عرض فقط" بالتاريخ (§5.4) — المقارنة بالتاريخ نفسه، لا بانتظار المُجدوِل */
 export function assertEnforcedCompanyWritable(company: EnforcedCompany, now: Date = new Date()) {

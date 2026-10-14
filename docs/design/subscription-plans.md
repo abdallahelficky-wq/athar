@@ -305,7 +305,8 @@ lockedNet     = grandfatheredNetPrice if set, else netPrice
      - `awaiting_payment`, `canceled`, `suspended`, `expired`: read-only now, so the value is the moment of the request;
      - `trialing`: the trial end (D28);
      - paid `active` / `grace`: period end + 7 days (D23).
-5. **Employee portal (review of #164):** portal requests have no `requirePositionAction`. `authenticateEmployeePortal` checks the employee's company before any handler runs: on an enforced company that is read-only or suspended, a non-GET request is refused, and reads pass. It then opens the same request context, so the backstop also sees every portal write. Plan modules for portal writes are covered in item 4.
+   - **POS assignees:** `setCompanyPosUsers` accepts only members matching the detail endpoint's eligibility rule (`posEligibleMemberWhere`): same tenant, active, not deleted, invitation accepted, scope `all` or this company. Anything else is refused and nothing is written.
+5. **Employee portal (review of #164):** portal requests have no `requirePositionAction`. `authenticateEmployeePortal` checks the employee's company before any handler runs: on an enforced company that is read-only, a non-GET request is refused and reads pass; on a suspended one every portal request is refused (401), as for a scoped member (§5.4). It then opens the same request context, so the backstop also sees every portal write. Plan modules for portal writes are covered in item 4.
 
 **Prisma 6 (must do before any upgrade).** The data-layer backstop uses `prisma.$use`, which is deprecated in Prisma 5 and removed in Prisma 6. Before any Prisma 6 upgrade it must be ported to a `$extends` query extension, applied to the **same exported client** every module imports. `src/lib/subscriptionWriteGuard.installed.integration.test.ts` fails in two cases:
 - `createApp()` does not install the guard (`isSubscriptionWriteGuardInstalled()`);
@@ -313,7 +314,7 @@ lockedNet     = grandfatheredNetPrice if set, else netPrice
 
 The port must keep both tests green. Note that a Prisma query runs when it is awaited, so the request context must be active at the `await`, as it is in every route handler.
 
-**Cost.** Both checks return at once when the switch is off, or when the request's tenant has no enforced company. The switch, the per-tenant flag and each company's row are cached for 30 s per process. Writes through the admin service clear the cache in that process at once.
+**Cost.** Both checks return at once when the switch is off, or when the request's tenant has no enforced company. The switch, the per-tenant flag and each company's row are cached for 30 s per process. Writes through the admin service clear the cache in that process at once. A successful write that changes a company's `businessActivity` (which turns an activity add-on on or off, D13) drops that company's cached entitlements at once, through the data-layer guard, whatever route made it (review of #163).
 
 ### 5.2 Module gate
 
@@ -357,10 +358,19 @@ Accepting an invite that was already issued is **not** checked: its seat was cou
   - its status is `expired`, `awaiting_payment` or `canceled`;
   - it is `trialing` and `now ≥ currentPeriodEnd` (no grace on a trial, D28);
   - it is `active` or `grace` and `now ≥ currentPeriodEnd + 7 days` (D23).
-- **Suspended (enforced):** writes are refused with the suspended message; reads pass. The login block for a suspended company comes with the admin panel (P8).
+- **Suspended (enforced, P8):** the company is closed for reads and writes (§6: "login blocked for scoped members of that company; `all`-scope members lose only that company"):
+  - **Members scoped to that company:** login (`completeLoginForUser`, which also serves the multi-account choice, account switch and invite acceptance), `/auth/refresh` and `/auth/me` return 401 with `details.code = "company_suspended"`. So does every request on an open session (`authenticate`). The employee portal treats an employee of that company the same way: login and every portal request get 401.
+  - **`all`-scope members:** they still sign in. The company is left out of `GET /companies`, and every request that targets it, reads included, gets 403 `subscription_suspended`. "Targets it" means any of these:
+    - an explicit `companyId` / `targetCompanyId` / `:companyId`;
+    - a `/companies/:id` route;
+    - a known `:id` record (route pre-check);
+    - any single-record read of a row of that company, or a query filtering on its `companyId` (data-layer read guard in `subscriptionWriteGuard.ts`).
+
+    Their other companies are unaffected. A tenant-wide list or total with no `companyId` is not filtered by the read guard.
+  - **Timing:** the set of suspended companies per tenant is cached for 30 s like the rest of the state. Suspending through the admin service clears the cache in that process at once; other instances follow within 30 s. `activate` restores access the same way.
 - **Grace banner (P10):** for a paid term with `currentPeriodEnd ≤ now < currentPeriodEnd + 7 days`, `/auth/me` will return the company's grace end date. The UI shows a banner on every page of that company ("انتهى الاشتراك في … — تتحول الشركة إلى عرض فقط في … ما لم يُسدَّد التجديد"). Writes still pass.
 - **Correctness:** the check compares the dates with `now()` itself, so it does **not** depend on the scheduled job having run.
-- **Effect:** reads always pass, as today; mutations get 403 with `details.code = "subscription_read_only"` (or `subscription_suspended`).
+- **Effect:** for read-only, reads always pass, as today, and mutations get 403 with `details.code = "subscription_read_only"`. Suspended is stricter (above).
 - **Other companies are unaffected:** the same `all`-scope user keeps full access to the tenant's other companies that are active.
 - **Coverage:** #157's coverage test (every user-authenticated router mounts the guard) keeps protecting this.
 - **Mirror and reversal (CLAUDE.md rule 1):** implemented in P4, each case with its own HTTP test:
@@ -368,6 +378,11 @@ Accepting an invite that was already issued is **not** checked: its seat was cou
   - reversing an entry, or reversing the mirror half, that lives in the read-only company is refused;
   - reversing the healthy company's half still works, because it writes only there;
   - un-posting a pair from the healthy company is refused when it would change the half in the read-only company. The backstop catches this even though the request names no company.
+  - **suspended company (P8):**
+    - a mirror into it is refused;
+    - reversing its own entries or the mirror halves that live there is refused;
+    - reading those entries is refused;
+    - reversing the healthy company's half still works.
 
 ## 6. Lifecycle
 

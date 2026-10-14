@@ -3,10 +3,12 @@ import { prisma } from "../lib/prisma";
 import { currentRequestContext, SAFE_METHODS } from "../lib/requestContext";
 import { attachmentEntityCompanyId } from "../lib/subscriptionWriteGuard";
 import {
+  companySuspendedError,
   assertEnforcedCompanyWritable,
   assertEnforcedModuleWritable,
   assertPosSeat,
   enforcedCompany,
+  suspendedCompanyIds,
   tenantHasEnforcedCompany,
 } from "../lib/subscriptionEnforcement";
 
@@ -105,12 +107,17 @@ export async function recordCompanyId(req: Request, resourceId: string): Promise
  */
 export async function enforceRouteSubscription(req: Request, resourceId: string, action: string) {
   if (!req.auth || !(await tenantHasEnforcedCompany(req.auth.tenantId))) return;
-  // مسار بصلاحية قراءة فقط ولو بفعل POST (معاينة استيراد، اقتراح مرآة) قراءةٌ: لا فحص مسبق، وأي كتابة فعلية فيه يلتقطها حارس الكتابة
-  if (!FEATURE_MODULES.has(resourceId) && (action === "read" || SAFE_METHODS.has(req.method))) return;
+  // مسار بصلاحية قراءة فقط ولو بفعل POST (معاينة استيراد، اقتراح مرآة) قراءةٌ: لا فحص اشتراك مسبق، وأي كتابة فعلية فيه يلتقطها حارس
+  // الكتابة — إلا التعليق: شركة معلّقة لا تُقرأ أيضاً (§6)
+  const isRead = !FEATURE_MODULES.has(resourceId) && (action === "read" || SAFE_METHODS.has(req.method));
+  const suspended = await suspendedCompanyIds(req.auth.tenantId);
+  if (isRead && suspended.size === 0) return;
 
   const ids = new Set(explicitRequestCompanyIds(req));
   const fromRecord = await recordCompanyId(req, resourceId);
   if (fromRecord) ids.add(fromRecord);
+  for (const companyId of ids) if (suspended.has(companyId)) throw companySuspendedError(companyId);
+  if (isRead) return;
   // سؤال AI على مستوى المستأجر (بلا شركة): يُفحَص على كل شركاته، فلا تُتجاوز شركة مُنفَّذة بترك companyId فارغاً
   if (ids.size === 0 && FEATURE_MODULES.has(resourceId)) {
     for (const c of await prisma.company.findMany({ where: { tenantId: req.auth.tenantId }, select: { id: true } })) ids.add(c.id);
@@ -151,7 +158,7 @@ export const PORTAL_PLAN_MODULES = {
 export async function enforceActionPermissionPlan(req: Request, moduleId: string) {
   const planModule = ACTION_PERMISSION_PLAN_MODULES[moduleId];
   if (!planModule) throw new Error(`No plan module for action permission module: ${moduleId}`);
-  if (SAFE_METHODS.has(req.method)) return;
+  if (SAFE_METHODS.has(req.method)) return enforceRouteSubscription(req, planModule, "read");
   currentRequestContext()?.writeResources.add(planModule);
   await enforceRouteSubscription(req, planModule, "write");
 }

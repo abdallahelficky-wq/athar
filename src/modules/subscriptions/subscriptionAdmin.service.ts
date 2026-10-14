@@ -102,6 +102,14 @@ export async function upsertCompanySubscription(companyId: string, input: Compan
 }
 
 /** يستبدل مستخدمي نقطة البيع المعيَّنين للشركة (D19) ضمن السعة: 1 مجاني + المقاعد الإضافية (D27). مشغّل القاعدة يرفض عضواً من مستأجر آخر */
+/**
+ * من يصلح لمقعد نقطة بيع في شركة: عضوية فعّالة غير محذوفة، دعوتها مقبولة، نطاقها "all" أو هذه الشركة، من مستأجر الشركة نفسه. شرط
+ * واحد يعرض به التفصيل "الأعضاء المؤهَّلين" ويُفحَص به التعيين (مراجعة #164) — لا مقعد لعضو من مستأجر آخر أو شركة أخرى أو معطَّل.
+ */
+export function posEligibleMemberWhere(tenantId: string, companyId: string): Prisma.UserWhereInput {
+  return { tenantId, active: true, deletedAt: null, inviteStatus: "accepted", companyScope: { in: ["all", companyId] } };
+}
+
 export async function setCompanyPosUsers(companyId: string, userIds: string[]) {
   const unique = [...new Set(userIds)];
   // الفحص والاستبدال تحت قفل مقاعد الشركة، على صف الاشتراك كما هو بعد القفل (مراجعة #163) — لا قراءة للسعة خارج المعاملة
@@ -111,6 +119,11 @@ export async function setCompanyPosUsers(companyId: string, userIds: string[]) {
     if (!sub) throw notFound("لا يوجد اشتراك لهذه الشركة");
     if (unique.length > 0 && !sub.posEnabled) throw badRequest(MESSAGES.posDisabled);
     if (unique.length > posSeatCapacity(sub)) throw badRequest(MESSAGES.posSeatsFull);
+    if (unique.length) {
+      const company = await tx.company.findUniqueOrThrow({ where: { id: companyId }, select: { tenantId: true } });
+      const eligible = await tx.user.count({ where: { ...posEligibleMemberWhere(company.tenantId, companyId), id: { in: unique } } });
+      if (eligible !== unique.length) throw badRequest(MESSAGES.posAssigneeNotEligible);
+    }
     const before = (await tx.companyPosUser.findMany({ where: { companyId }, select: { userId: true } })).map((r) => r.userId);
     await tx.companyPosUser.deleteMany({ where: { companyId, userId: { notIn: unique } } });
     if (unique.length) await tx.companyPosUser.createMany({ data: unique.map((userId) => ({ companyId, userId })), skipDuplicates: true });
@@ -245,7 +258,7 @@ export async function getCompanySubscriptionDetail(companyId: string, now: Date 
     sub ? prisma.subscriptionEvent.findMany({ where: { companySubscriptionId: sub.id }, orderBy: { at: "desc" }, take: 50 }) : [],
     prisma.companyPosUser.findMany({ where: { companyId }, select: { userId: true, assignedAt: true }, orderBy: { assignedAt: "asc" } }),
     prisma.user.findMany({
-      where: { tenantId: company.tenantId, active: true, deletedAt: null, inviteStatus: "accepted", companyScope: { in: ["all", companyId] } },
+      where: posEligibleMemberWhere(company.tenantId, companyId),
       select: { id: true, name: true, role: true, companyScope: true, identity: { select: { email: true } } },
       orderBy: { createdAt: "asc" },
     }),
