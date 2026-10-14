@@ -105,6 +105,17 @@ export async function enforceRouteSubscription(req: Request, resourceId: string,
 }
 
 /**
+ * بوابة الموظف (مراجعة #164): لا requirePositionAction فيها، فيُفحَص الطلب هنا عند المصادقة على شركة الموظف نفسه — قبل أي معالج
+ * (ورفع صور القراءات والمصروفات). شركة مُنفَّذة "عرض فقط" أو معلّقة: الكتابة (فعل غير GET) مرفوضة، والقراءة تمرّ. حارس الكتابة
+ * خلفها يلتقط أي كتابة تصل إلى شركة أخرى. شركة بلا صف مُنفَّذ أو المفتاح معطّل: لا أثر.
+ */
+export async function enforcePortalSubscription(tenantId: string, companyId: string, method: string) {
+  if (SAFE_METHODS.has(method) || !(await tenantHasEnforcedCompany(tenantId))) return;
+  const company = await enforcedCompany(companyId);
+  if (company && company.tenantId === tenantId) assertEnforcedCompanyWritable(company);
+}
+
+/**
  * مسارات رفع الملفات (multipart) يحلّل multer جسمها بعد requirePositionAction، فلا يرى الفحص المسبق companyId الذي في النموذج. يُعاد
  * الفحص هنا من validateBody بعد التحليل وقبل المعالج (استخراج القيود والعملاء وبيانات الشركة يستدعي نموذج Claude الخارجي).
  */

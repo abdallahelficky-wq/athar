@@ -8,6 +8,7 @@ import type { ActionLevel } from "../lib/platformActions";
 import { tenantSuspendedMessage } from "../modules/employeePortal/employeePortal.service";
 import { assertCurrentMembership } from "../lib/currentMembership";
 import { runWithRequestContext } from "../lib/requestContext";
+import { enforcePortalSubscription } from "./subscriptionEnforcement";
 
 /** يتحقق من رمز JWT (access token) ويحمّل هوية المستخدم + المستأجر في req.auth */
 export const authenticate: RequestHandler = async (req, _res, next) => {
@@ -46,7 +47,7 @@ export const authenticateEmployeePortal: RequestHandler = async (req, _res, next
   // بنفس قاعدة assertTenantActive لحسابات User في auth.service.ts.
   const employee = await prisma.employee.findUnique({
     where: { id: payload.employeeId },
-    select: { tenantId: true, portalActive: true },
+    select: { tenantId: true, companyId: true, portalActive: true },
   });
   if (!employee || employee.tenantId !== payload.tenantId || !employee.portalActive) {
     throw unauthorized("رمز الدخول غير صالح أو منتهي الصلاحية");
@@ -58,7 +59,12 @@ export const authenticateEmployeePortal: RequestHandler = async (req, _res, next
   if (!tenant) throw unauthorized("الحساب غير موجود");
   if (tenant.subscriptionStatus === "suspended") throw unauthorized(tenantSuspendedMessage(tenant.suspensionReason));
   req.employeeAuth = payload;
-  next();
+  // اشتراك شركة الموظف (P4، مراجعة #164): الفحص المسبق هنا، ثم سياق الطلب ليرى حارس الكتابة كتابات البوابة
+  if (employee.companyId) await enforcePortalSubscription(payload.tenantId, employee.companyId, req.method);
+  runWithRequestContext(
+    { tenantId: payload.tenantId, userId: null, employeeId: payload.employeeId, method: req.method, writeResources: new Set() },
+    () => next(),
+  );
 };
 
 /**
