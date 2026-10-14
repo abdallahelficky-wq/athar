@@ -39,7 +39,8 @@ import type { Server } from "http";
 import type { AddressInfo } from "net";
 import { prisma } from "../../lib/prisma";
 import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integrationTestGuard";
-import { signAccessToken } from "../../lib/jwt";
+import { signAccessToken, signEmployeePortalToken } from "../../lib/jwt";
+import { runWithRequestContext } from "../../lib/requestContext";
 import { hashPassword } from "../../lib/password";
 import { clearSubscriptionEnforcementCache } from "../../lib/subscriptionEnforcement";
 import { createApp } from "../../app";
@@ -455,6 +456,115 @@ describe("subscription enforcement (P4)", () => {
     await subscribeA({ plan: "basic", endDays: 30, extraUsers: occupiedNow + 1 - 2 });
     const reactivations = await Promise.all([winner.body.id, second.id].map((id) => call("PATCH", `/auth/users/${id}/active`, ownerToken, { active: true })));
     expect(reactivations.map((r) => r.status).sort()).toEqual([200, 403]);
+  });
+
+  // ── مراجعة #164 (1): بوابة الموظف تخضع لاشتراك شركة الموظف ─────────────────────────────────────────────────────────
+  it("refuses employee-portal writes for an enforced read-only or suspended company; portal reads still work; other companies unchanged", async () => {
+    await globalSwitch(false);
+    const portalEmployee = async (companyId: string, label: string) => {
+      const e = await prisma.employee.create({
+        data: { tenantId, companyId, name: `موظف البوابة ${label}`, hireDate: new Date("2026-01-01"), basicSalary: 1000, portalActive: true },
+      });
+      return { id: e.id, token: signEmployeePortalToken({ employeeId: e.id, tenantId }) };
+    };
+    const eA = await portalEmployee(companyA, "أ");
+    const eB = await portalEmployee(companyB, "ب");
+    const leave = (token: string) =>
+      call("POST", "/employee-portal/leave-requests", token, { type: "annual", startDate: "2026-11-01", endDate: "2026-11-03" });
+
+    await globalSwitch(true);
+    await subscribeA({ plan: "enterprise", endDays: -30 }); // منتهية: "عرض فقط"
+    const checkIn = await call("POST", "/attendance/check-in", eA.token);
+    expect([checkIn.status, checkIn.code]).toEqual([403, "subscription_read_only"]);
+    expect((await leave(eA.token)).code).toBe("subscription_read_only");
+    expect(await prisma.attendanceRecord.count({ where: { employeeId: eA.id } })).toBe(0);
+    expect(await prisma.leaveRequest.count({ where: { employeeId: eA.id } })).toBe(0);
+    // القراءة تمرّ
+    expect((await call("GET", "/employee-portal/me", eA.token)).status).toBe(200);
+    expect((await call("GET", "/attendance/me", eA.token)).status).toBe(200);
+    expect((await call("GET", "/employee-portal/leave-requests", eA.token)).status).toBe(200);
+    // شركة بلا صف مُنفَّذ في المستأجر نفسه: كما اليوم
+    expect((await call("POST", "/attendance/check-in", eB.token)).status).toBe(201);
+    expect((await leave(eB.token)).status).toBe(201);
+
+    await subscribeA({ plan: "enterprise", status: "suspended", endDays: 30 });
+    expect((await call("POST", "/attendance/check-in", eA.token)).code).toBe("subscription_suspended");
+
+    await subscribeA({ plan: "enterprise", endDays: 30 }); // مُنفَّذة وسارية: تكتب
+    expect((await call("POST", "/attendance/check-in", eA.token)).status).toBe(201);
+
+    // المفتاح معطّل: شركة "عرض فقط" مُنفَّذة تعود كما اليوم
+    await subscribeA({ plan: "enterprise", endDays: -30 });
+    await globalSwitch(false);
+    expect((await leave(eA.token)).status).toBe(201);
+  });
+
+  // ── مراجعة #164 (2): جداول بلا companyId تُحلّ شركتها عبر أصلها ─────────────────────────────────────────────────────
+  it("guards employee payroll components through the employee's company: read-only and a plan without payroll settings", async () => {
+    await globalSwitch(false);
+    const employee = await prisma.employee.create({
+      data: { tenantId, companyId: companyA, name: "موظف الرواتب", hireDate: new Date("2026-01-01"), basicSalary: 3000 },
+    });
+    const expense = await prisma.account.findFirstOrThrow({ where: { companyId: companyA, type: "expense", isPosting: true } });
+    const created = await call("POST", `/companies/${companyA}/payroll-components`, ownerToken, {
+      name: "بدل اختبار", kind: "addition", accountId: expense.id, calcMethod: "fixed", appliesByDefault: false,
+    });
+    expect(created.status, created.text).toBe(201);
+    const component = created.body;
+    const put = () => call("PUT", `/employees/${employee.id}/payroll-components`, ownerToken, [{ componentId: component.id, isActive: true, fixedValue: 250 }]);
+
+    await globalSwitch(true);
+    await subscribeA({ plan: "enterprise", endDays: -30 });
+    const readOnly = await put();
+    expect([readOnly.status, readOnly.code], readOnly.text).toEqual([403, "subscription_read_only"]);
+
+    for (const plan of ["basic", "professional"] as const) {
+      await subscribeA({ plan, endDays: 30 });
+      const refused = await put();
+      expect([refused.status, refused.code], `${plan}: ${refused.text}`).toEqual([403, "plan_module_not_included"]);
+      expect(refused.body.details).toMatchObject({ moduleId: "payrollSettings" });
+    }
+    expect(await prisma.employeePayrollComponent.count({ where: { employeeId: employee.id } })).toBe(0);
+
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    const allowed = await put();
+    expect(allowed.status, allowed.text).toBe(200);
+    expect(await prisma.employeePayrollComponent.count({ where: { employeeId: employee.id } })).toBe(1);
+  });
+
+  it("guards line items and attachments written on their own through their parent record (backstop)", async () => {
+    await globalSwitch(false);
+    const entryA = await journal(companyA, "A");
+    const entryB = await journal(companyB, "B");
+    expect([entryA.status, entryB.status]).toEqual([201, 201]);
+    // استعلام Prisma كسول: يُنفَّذ عند await — فيجب أن يكون await داخل سياق الطلب، كما في معالج حقيقي
+    const asOwner = <T>(fn: () => PromiseLike<T>) =>
+      runWithRequestContext({ tenantId, userId: ownerId, method: "POST", writeResources: new Set<string>() }, async () => await fn());
+    const line = (entryId: string, accountId: string) =>
+      asOwner(() => prisma.journalEntryLine.create({ data: { journalEntryId: entryId, accountId, debit: 1, credit: 0 } }));
+    const attach = (entryId: string) =>
+      asOwner(() =>
+        prisma.attachment.create({
+          data: { tenantId, entityType: "journal_entry", entityId: entryId, fileName: "f.pdf", fileKey: `k-${entryId}`, fileSize: 1, mimeType: "application/pdf" },
+        }),
+      );
+
+    await globalSwitch(true);
+    await subscribeA({ plan: "basic", endDays: -30 });
+    const linesBefore = await prisma.journalEntryLine.count({ where: { journalEntryId: entryA.body.id } });
+    await expect(line(entryA.body.id, acc.cashA)).rejects.toMatchObject({ status: 403, details: { code: "subscription_read_only" } });
+    await expect(asOwner(() => prisma.journalEntryLine.deleteMany({ where: { journalEntryId: entryA.body.id } }))).rejects.toMatchObject({
+      details: { code: "subscription_read_only" },
+    });
+    await expect(attach(entryA.body.id)).rejects.toMatchObject({ details: { code: "subscription_read_only" } });
+    expect(await prisma.journalEntryLine.count({ where: { journalEntryId: entryA.body.id } })).toBe(linesBefore);
+    expect(await prisma.attachment.count({ where: { entityId: entryA.body.id } })).toBe(0);
+
+    // الشركة الأخرى بلا صف مُنفَّذ: الكتابة نفسها تمرّ
+    const okLine = await line(entryB.body.id, acc.cashB);
+    const okAttachment = await attach(entryB.body.id);
+    await prisma.journalEntryLine.delete({ where: { id: okLine.id } });
+    await prisma.attachment.delete({ where: { id: okAttachment.id } });
   });
 
   it("turning the global switch OFF again restores today's behaviour for the enforced company", async () => {

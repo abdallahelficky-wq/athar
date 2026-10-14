@@ -282,12 +282,21 @@ lockedNet     = grandfatheredNetPrice if set, else netPrice
    **Athar AI is a feature, not a read of existing data.** It calls a paid model, so it is gated by plan and read-only even though its permission is `read`. A tenant-wide question (no `companyId`) is checked against every company in the tenant.
 
    **External-call audit:** every route that calls ZATCA, sends email or calls Claude is listed in `src/middleware/subscriptionExternalRoutes.coverage.test.ts`, which fails if a listed route loses its write guard or its way of resolving the company. HTTP tests prove with stubbed clients that ZATCA, Claude and the email sender are never called for a refused company.
-3. **Data-layer backstop:** a Prisma middleware (`src/lib/subscriptionWriteGuard.ts`) checks every write to a table with `companyId`, made during a user's non-GET request, against the company the row actually belongs to. It catches:
+3. **Data-layer backstop:** a Prisma middleware (`src/lib/subscriptionWriteGuard.ts`) checks every write to a company's data, made during a user's or portal employee's non-GET request, against the company the row actually belongs to. It catches:
    - routes that address a record by id;
    - mirror entries written into another company;
    - un-posting a pair whose other half lives elsewhere.
 
+   **Which tables (review of #164).** Every Prisma model is classified, and `subscriptionWriteGuard.test.ts` fails on any model that is not:
+   - **company-owned:** a scalar `companyId`, or the `companies` row itself;
+   - **resolved through a parent:** 16 tables without `companyId` (invoice, return, debit-note and journal lines, receipt allocations, item components, the employee's documents, leave requests and settlements, payroll components, HR actions, advance deductions, boarding-invoice lines, the invoice email log). The backstop reads the parent from the row or from `data`, then the parent's company, recursively;
+   - **attachments:** the record they point to by `entityType` / `entityId`, using the same map as the attachments API;
+   - **tenant or platform level, exempt with a stated reason:** the tenant, identities and sessions, memberships (seats are enforced in `withUserSeat`), positions and job titles, platform settings and prices, subscription bookkeeping.
+
+   A parent created earlier in the same request inside an open transaction is not visible to the lookup, so that write is not checked again: the parent itself was written in this request and passed the backstop. Nested writes (`lines: { create: [...] }`) are checked as part of their parent's write.
+
    A refusal inside the transaction rolls it back. Subscription bookkeeping tables and `audit_logs` are exempt.
+4. **Employee portal (review of #164):** portal requests have no `requirePositionAction`. `authenticateEmployeePortal` checks the employee's company before any handler runs: on an enforced company that is read-only or suspended, a non-GET request is refused, and reads pass. It then opens the same request context, so the backstop also sees every portal write. The portal is not module-gated by plan.
 
 **Cost.** Both checks return at once when the switch is off, or when the request's tenant has no enforced company. The switch, the per-tenant flag and each company's row are cached for 30 s per process. Writes through the admin service clear the cache in that process at once.
 
