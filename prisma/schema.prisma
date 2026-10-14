@@ -3432,3 +3432,13 @@ model SubscriptionReminder {
   @@unique([companySubscriptionId, kind, periodEnd])
   @@map("subscription_reminders")
 }
+
+// إعدادات المنصة العامة (مفتاح ← قيمة) — المرحلة P4: subscription_enforcement مفتاح إيقاف شامل للإنفاذ، مخزَّن في القاعدة لا في
+// متغيرات البيئة، وقيمته الافتراضية false = الإنفاذ معطّل في كل مكان. لا tenantId: إعداد على مستوى المنصة كلها.
+model PlatformSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_settings")
+}

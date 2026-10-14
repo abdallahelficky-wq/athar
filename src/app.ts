@@ -69,8 +69,12 @@ import { attendanceRoutes } from "./modules/attendance/attendance.routes";
 import { posRoutes } from "./modules/pos/pos.routes";
 import { stableRoutes } from "./modules/stables/stables.routes";
 import { aiRoutes } from "./modules/ai/ai.routes";
+import { prisma } from "./lib/prisma";
+import { installSubscriptionWriteGuard } from "./lib/subscriptionWriteGuard";
 
 export function createApp() {
+  // حارس الكتابة للاشتراكات (P4) — مرة واحدة لكل عملية؛ لا أثر له ما دام المفتاح الشامل معطّلاً
+  installSubscriptionWriteGuard(prisma);
   const app = express();
   // req.ip = عنوان العميل الفعلي من X-Forwarded-For بعد عدد الوكلاء الموثوقين فقط (لا أول قيمة يرسلها
   // العميل نفسه) — يعتمد عليه حدّ محاولات دخول بوابة الموظف لكل IP.
