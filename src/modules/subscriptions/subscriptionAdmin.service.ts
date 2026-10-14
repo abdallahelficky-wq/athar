@@ -13,7 +13,7 @@ import {
 import { companyEntitlements, userLimit } from "../../lib/subscriptionPlans";
 import { readOnlyAt, graceEndsAt } from "../../lib/subscriptionLifecycle";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
-import { planPricesAt, rankOwnerCompanies } from "./subscriptionPreview.service";
+import { planPricesAt, rankCompaniesByOwnerIdentities } from "./subscriptionPreview.service";
 import { activateCompanySubscription, suspendCompanySubscription } from "./subscriptionLifecycle.service";
 
 /**
@@ -197,41 +197,64 @@ function subscriptionView(sub: NonNullable<SubscriptionRow>, now: Date) {
  * نظرة عامة لكل الشركات (§9): المستأجر، المالك، الاشتراك إن وُجد (وإلا null = سلوك اليوم)، المقاعد المشغولة مقابل الحد، مقاعد نقطة
  * البيع المعيَّنة مقابل السعة، الترتيب الحي بين شركات هوية المالك، وعلَم تجاوز الحد. تصفية اختيارية بالمستأجر أو حالة الاشتراك أو نص.
  */
-export async function listCompanySubscriptions(filter: { tenantId?: string; status?: CompanySubscriptionStatus | "none"; q?: string } = {}, now: Date = new Date()) {
-  const companies = await prisma.company.findMany({
-    where: {
-      ...(filter.tenantId ? { tenantId: filter.tenantId } : {}),
-      ...(filter.q ? { OR: [{ name: { contains: filter.q, mode: "insensitive" } }, { tenant: { name: { contains: filter.q, mode: "insensitive" } } }] } : {}),
-      ...(filter.status === "none" ? { subscription: null } : filter.status ? { subscription: { status: filter.status } } : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      businessActivity: true,
-      createdAt: true,
-      tenant: { select: { id: true, code: true, name: true, ownerId: true, subscriptionStatus: true, subscriptionPlan: true, trialEndsAt: true } },
-      subscription: true,
-      _count: { select: { posUsers: true } },
-    },
-    orderBy: [{ tenant: { name: "asc" } }, { createdAt: "asc" }],
-  });
+export const COMPANY_LIST_DEFAULT_PAGE_SIZE = 50;
+export const COMPANY_LIST_MAX_PAGE_SIZE = 200;
 
+/**
+ * نظرة الشركات (§9) صفحةً صفحة (مراجعة #164): عدد الاستعلامات ثابت مهما كثرت الشركات في الصفحة أو المالكون — عدّ الصفحة، والصفحة
+ * نفسها، ثم المقاعد المشغولة لكل الصفحة باستعلام مجمَّع واحد (بالمستأجر ونطاق العضوية)، والترتيب الحي لكل مالكي الصفحة بثلاثة
+ * استعلامات (rankCompaniesByOwnerIdentities). القيم مطابقة لـ occupiedUserSeats وrankOwnerCompanies لكل شركة — الاختبار يقارنهما.
+ * الترتيب ثابت (اسم المستأجر، تاريخ الإنشاء، المعرّف) فلا تتكرر شركة بين صفحتين ولا تسقط.
+ */
+export async function listCompanySubscriptions(
+  filter: { tenantId?: string; status?: CompanySubscriptionStatus | "none"; q?: string; page?: number; pageSize?: number } = {},
+  now: Date = new Date(),
+) {
+  const page = Math.max(1, Math.floor(filter.page ?? 1));
+  const pageSize = Math.min(COMPANY_LIST_MAX_PAGE_SIZE, Math.max(1, Math.floor(filter.pageSize ?? COMPANY_LIST_DEFAULT_PAGE_SIZE)));
+  const where: Prisma.CompanyWhereInput = {
+    ...(filter.tenantId ? { tenantId: filter.tenantId } : {}),
+    ...(filter.q ? { OR: [{ name: { contains: filter.q, mode: "insensitive" } }, { tenant: { name: { contains: filter.q, mode: "insensitive" } } }] } : {}),
+    ...(filter.status === "none" ? { subscription: null } : filter.status ? { subscription: { status: filter.status } } : {}),
+  };
+  const [total, companies] = await Promise.all([
+    prisma.company.count({ where }),
+    prisma.company.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        businessActivity: true,
+        createdAt: true,
+        tenant: { select: { id: true, code: true, name: true, ownerId: true, subscriptionStatus: true, subscriptionPlan: true, trialEndsAt: true } },
+        subscription: true,
+        _count: { select: { posUsers: true } },
+      },
+      orderBy: [{ tenant: { name: "asc" } }, { createdAt: "asc" }, { id: "asc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  const tenantIds = [...new Set(companies.map((c) => c.tenant.id))];
   const ownerIds = [...new Set(companies.map((c) => c.tenant.ownerId).filter((id): id is string => !!id))];
-  const owners = await prisma.user.findMany({ where: { id: { in: ownerIds } }, select: { id: true, identityId: true, identity: { select: { email: true } } } });
+  const [seatGroups, owners] = await Promise.all([
+    // نفس شرط occupiedUserSeats: عضويات فعّالة غير محذوفة، نطاقها "all" (تُعدّ في كل شركات المستأجر) أو الشركة نفسها
+    tenantIds.length
+      ? prisma.user.groupBy({ by: ["tenantId", "companyScope"], where: { tenantId: { in: tenantIds }, active: true, deletedAt: null }, _count: { _all: true } })
+      : [],
+    ownerIds.length ? prisma.user.findMany({ where: { id: { in: ownerIds } }, select: { id: true, identityId: true, identity: { select: { email: true } } } }) : [],
+  ]);
+  const seats = new Map(seatGroups.map((g) => [`${g.tenantId}:${g.companyScope}`, g._count._all]));
   const ownerById = new Map(owners.map((o) => [o.id, o]));
-  const rankByCompany = new Map<string, number>();
-  for (const identityId of new Set(owners.map((o) => o.identityId))) {
-    for (const r of await rankOwnerCompanies(identityId, now)) rankByCompany.set(r.companyId, r.rank);
-  }
+  const rankByCompany = await rankCompaniesByOwnerIdentities([...new Set(owners.map((o) => o.identityId))], now);
 
-  const rows = [];
-  for (const c of companies) {
+  const items = companies.map((c) => {
     const owner = c.tenant.ownerId ? ownerById.get(c.tenant.ownerId) : undefined;
-    const occupied = await occupiedUserSeats(c.tenant.id, c.id);
+    const occupied = (seats.get(`${c.tenant.id}:all`) ?? 0) + (seats.get(`${c.tenant.id}:${c.id}`) ?? 0);
     const sub = c.subscription;
     const limit = sub ? userLimit(sub.plan, sub.extraUsers) : null;
-    const posCapacity = sub ? posSeatCapacity(sub) : null;
-    rows.push({
+    return {
       companyId: c.id,
       companyName: c.name,
       businessActivity: c.businessActivity,
@@ -240,10 +263,10 @@ export async function listCompanySubscriptions(filter: { tenantId?: string; stat
       liveRank: rankByCompany.get(c.id) ?? null,
       subscription: sub ? subscriptionView(sub, now) : null,
       users: { occupied, limit, overLimit: limit !== null && occupied > limit },
-      pos: { assigned: c._count.posUsers, capacity: posCapacity },
-    });
-  }
-  return rows;
+      pos: { assigned: c._count.posUsers, capacity: sub ? posSeatCapacity(sub) : null },
+    };
+  });
+  return { items, page, pageSize, total };
 }
 
 /** تفاصيل اشتراك شركة لشاشة الشركة: الاشتراك، آخر 50 حدثاً، مستخدمو نقطة البيع المعيَّنون، والأعضاء المؤهَّلون للتعيين */

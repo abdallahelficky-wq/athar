@@ -68,7 +68,7 @@ describe("platform-admin subscriptions API (P8)", () => {
   }, 120_000);
 
   it("lists companies with their subscription, seats against the limit, POS capacity, live rank and the legacy tenant state", async () => {
-    const rows = await listCompanySubscriptions({ tenantId: tenantA });
+    const rows = (await listCompanySubscriptions({ tenantId: tenantA })).items;
     const byId = new Map(rows.map((r) => [r.companyId, r]));
     expect(rows.map((r) => r.companyId).sort()).toEqual([companyA1, companyA2].sort()); // التصفية بالمستأجر لا تُظهر المستقلة ولا مستأجر ب
     const a1 = byId.get(companyA1)!;
@@ -79,12 +79,12 @@ describe("platform-admin subscriptions API (P8)", () => {
     expect(a1.ownerEmail).toBe(`p8-a-${stamp}@example.com`);
     expect(byId.get(companyA2)!.subscription).toBeNull(); // بلا صف = سلوك اليوم
     // الترتيب الحي عبر مستأجرَي المالك نفسه: A1 ثم الفرع ثم المستقلة
-    const all = await listCompanySubscriptions({ q: `${stamp}` });
+    const all = (await listCompanySubscriptions({ q: `${stamp}` })).items;
     expect([companyA1, companyA2, companyInd].map((id) => all.find((r) => r.companyId === id)!.liveRank)).toEqual([1, 2, 3]);
     expect(all.find((r) => r.companyId === companyB)!.liveRank).toBe(1);
     // تصفية بالحالة
-    expect((await listCompanySubscriptions({ tenantId: tenantA, status: "none" })).map((r) => r.companyId)).toEqual([companyA2]);
-    expect((await listCompanySubscriptions({ tenantId: tenantA, status: "active" })).map((r) => r.companyId)).toEqual([companyA1]);
+    expect((await listCompanySubscriptions({ tenantId: tenantA, status: "none" })).items.map((r) => r.companyId)).toEqual([companyA2]);
+    expect((await listCompanySubscriptions({ tenantId: tenantA, status: "active" })).items.map((r) => r.companyId)).toEqual([companyA1]);
   });
 
   it("returns a company's detail: modules of its plan, members eligible for POS, and the event history", async () => {
@@ -102,7 +102,7 @@ describe("platform-admin subscriptions API (P8)", () => {
     expect(companySubscriptionStatusSchema.safeParse({ action: "suspend", reason: "مراجعة" }).success).toBe(true);
     const suspended = await setCompanySubscriptionStatus(companyA1, "suspend", "مراجعة إدارية");
     expect([suspended.status, suspended.suspensionReason]).toEqual(["suspended", "مراجعة إدارية"]);
-    expect((await listCompanySubscriptions({ tenantId: tenantA, status: "suspended" }))[0].subscription!.readOnlyNow).toBe(true);
+    expect((await listCompanySubscriptions({ tenantId: tenantA, status: "suspended" })).items[0].subscription!.readOnlyNow).toBe(true);
     const activated = await setCompanySubscriptionStatus(companyA1, "activate");
     expect(activated.status).toBe("active");
     await expect(setCompanySubscriptionStatus(companyA1, "activate")).rejects.toThrow("الاشتراك ليس معلّقاً");
@@ -127,7 +127,7 @@ describe("platform-admin subscriptions API (P8)", () => {
     const event = (await getCompanySubscriptionDetail(companyA1)).events.find((e) => e.type === "addons_changed")!;
     expect(event).toMatchObject({ actor: "platform_admin", before: { posEnabled: true, posUsers: 1 }, after: { posEnabled: false, posUsers: 0 } });
     // المستخدمون الإضافيون يرفعون الحد ويُزيلون علَم التجاوز
-    const a1 = (await listCompanySubscriptions({ tenantId: tenantA })).find((r) => r.companyId === companyA1)!;
+    const a1 = (await listCompanySubscriptions({ tenantId: tenantA })).items.find((r) => r.companyId === companyA1)!;
     expect(a1.users).toEqual({ occupied: 3, limit: 3, overLimit: false });
     await expect(updateCompanySubscriptionAddons(companyA2, { extraUsers: 1 })).rejects.toThrow("لا يوجد اشتراك لهذه الشركة");
   });

@@ -84,6 +84,8 @@ export const companySubscriptionsQuerySchema = z.object({
   tenantId: z.string().min(1).optional(),
   status: z.enum(["trialing", "awaiting_payment", "active", "grace", "expired", "suspended", "canceled", "none"]).optional(),
   q: z.string().trim().max(200).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  pageSize: z.coerce.number().int().min(1).max(200).optional(),
 });
 
 export const schedulePlanPriceSchema = z.object({

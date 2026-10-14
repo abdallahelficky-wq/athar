@@ -477,7 +477,7 @@ Everything goes through new internal endpoints under `/api/platform-admin/*` (sa
 | Screen / action | Internal API (athar) | Status |
 |---|---|---|
 | Global enforcement switch (D33) | `GET/PUT /platform-admin/subscription-enforcement` | **P4** |
-| Companies list: owner, plan, period, status, end date, read-only date, live rank, net price, users / limit, over-limit flag, POS assigned / capacity, add-ons, legacy tenant state. Filters: tenant, status (`none` = no row), text | `GET /platform-admin/companies` | **P8** |
+| Companies list: owner, plan, period, status, end date, read-only date, live rank, net price, users / limit, over-limit flag, POS assigned / capacity, add-ons, legacy tenant state. Filters: tenant, status (`none` = no row), text. Paginated: `page` (from 1), `pageSize` (default 50, max 200). The response is `{ items, page, pageSize, total }`, in a stable order: tenant name, creation date, id. The query count is fixed whatever the number of companies or owners on the page: seats come from one grouped count, and live ranks for all the page's owners from three queries (review of #164) | `GET /platform-admin/companies` | **P8** |
 | Company detail: subscription, modules of its plan, members eligible for POS, last 50 events | `GET /platform-admin/companies/:companyId/subscription` | **P8** |
 | Set or replace the subscription with a real end date (also the migration screen, and setting `enforced`) | `PUT /platform-admin/companies/:companyId/subscription` (`created` / `migrated` event) | **P4** |
 | POS user assignments (D19), within 1 free + paid seats | `PUT /platform-admin/companies/:companyId/pos-users` | **P4** (the detail endpoint lists eligible members) |
