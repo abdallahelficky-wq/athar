@@ -132,6 +132,26 @@ export async function setCompanyPosUsers(companyId: string, userIds: string[]) {
 
 type SubscriptionRow = Awaited<ReturnType<typeof prisma.companySubscription.findUnique>>;
 
+/**
+ * متى تصبح الشركة "عرض فقط"، من الحالة (مراجعة #164): الحالات التي لا كتابة فيها أصلاً (بانتظار الدفع، ملغاة، معلّقة، منتهية) فوراً؛
+ * التجربة عند نهايتها بلا سماح (D28)؛ الفترة المدفوعة النشطة أو في السماح عند النهاية + 7 أيام (D23). صف قديم بلا نهاية = null.
+ */
+export function readOnlyFrom(sub: { status: CompanySubscriptionStatus; currentPeriodEnd: Date | null }, now: Date): Date | null {
+  const end = sub.currentPeriodEnd;
+  switch (sub.status) {
+    case "awaiting_payment":
+    case "canceled":
+    case "suspended":
+    case "expired":
+      return now;
+    case "trialing":
+      return end;
+    case "active":
+    case "grace":
+      return end ? graceEndsAt(end) : null;
+  }
+}
+
 function subscriptionView(sub: NonNullable<SubscriptionRow>, now: Date) {
   const end = sub.currentPeriodEnd;
   return {
@@ -141,8 +161,7 @@ function subscriptionView(sub: NonNullable<SubscriptionRow>, now: Date) {
     currentPeriodStart: sub.currentPeriodStart,
     currentPeriodEnd: end,
     legacyOpenEnded: sub.legacyOpenEnded,
-    /** للفترة المدفوعة: آخر يوم كتابة قبل "عرض فقط" (D23)؛ للتجربة: نهايتها (D28) */
-    readOnlyFrom: end ? (sub.status === "trialing" ? end : graceEndsAt(end)) : null,
+    readOnlyFrom: readOnlyFrom(sub, now),
     readOnlyNow: sub.status === "suspended" || readOnlyAt(sub, now),
     enforced: sub.enforced,
     discountRank: sub.discountRank,

@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import type { CompanySubscriptionStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integrationTestGuard";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
@@ -179,6 +180,34 @@ describe("platform-admin subscriptions API (P8)", () => {
     await setCompanyPosUsers(companyA1, []);
     await updateCompanySubscriptionAddons(companyA1, { posEnabled: false, extraUsers: 1 });
     await upsertCompanySubscription(companyA1, { ...planOnly, plan: "basic", ...term(30) });
+  });
+
+  it("derives readOnlyFrom from the status: immediate when unpaid/canceled/suspended/expired, trial end, paid end + 7 days", async () => {
+    // مراجعة #164: كان readOnlyFrom = النهاية + 7 لكل حالة غير التجربة، فشركة بانتظار الدفع أو ملغاة أو معلّقة (عرض فقط الآن) تُعرض
+    // كأنها تكتب أسبوعاً بعد نهاية فترتها. الصف يكتبه upsertCompanySubscription والقيمة من getCompanySubscriptionDetail نفسها.
+    const company = (await prisma.company.create({ data: { tenantId: tenantB, name: `حالات ${stamp}` } })).id;
+    const now = new Date("2026-10-14T09:00:00.000Z");
+    const end = new Date("2026-11-01T00:00:00.000Z");
+    const plusGrace = new Date("2026-11-08T00:00:00.000Z");
+    const expected: Record<CompanySubscriptionStatus, Date> = {
+      awaiting_payment: now,
+      canceled: now,
+      suspended: now,
+      expired: now,
+      trialing: end,
+      active: plusGrace,
+      grace: plusGrace,
+    };
+    for (const [status, from] of Object.entries(expected) as [CompanySubscriptionStatus, Date][]) {
+      await upsertCompanySubscription(company, {
+        plan: "basic", billingPeriod: "yearly", status,
+        currentPeriodStart: new Date("2025-11-01T00:00:00.000Z"), currentPeriodEnd: end, enforced: false,
+      });
+      const view = (await getCompanySubscriptionDetail(company, now)).subscription!;
+      expect({ status, readOnlyFrom: view.readOnlyFrom }).toEqual({ status, readOnlyFrom: from });
+      // الاتساق مع readOnlyNow: "فوراً" ⇔ عرض فقط الآن
+      expect({ status, readOnlyNow: view.readOnlyNow }).toEqual({ status, readOnlyNow: from.getTime() <= now.getTime() });
+    }
   });
 
   it("registers every route behind the platform service key", () => {

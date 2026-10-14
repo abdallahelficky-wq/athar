@@ -53,7 +53,7 @@ import { hashPassword } from "../../lib/password";
 import { clearSubscriptionEnforcementCache } from "../../lib/subscriptionEnforcement";
 import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
-import { setCompanyPosUsers, setEnforcementSwitch, upsertCompanySubscription } from "./subscriptionAdmin.service";
+import { setCompanyPosUsers, setEnforcementSwitch, updateCompanySubscriptionAddons, upsertCompanySubscription } from "./subscriptionAdmin.service";
 
 /**
  * الإنفاذ على الخادم (P4، docs/design/subscription-plans.md §5) عبر مسارات HTTP الحقيقية على Postgres فعلي. المستأجر بشركتين: A تُنفَّذ
@@ -734,6 +734,19 @@ describe("subscription enforcement (P4)", () => {
         subscribeA({ plan: "basic", endDays: 30, posEnabled: true, posUsers: 0 }),
       ]);
       expect(results.filter((r) => r.status === "fulfilled"), `round ${round}`).toHaveLength(1);
+      const sub = await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: companyA } });
+      expect(await prisma.companyPosUser.count({ where: { companyId: companyA } })).toBeLessThanOrEqual(1 + sub.posUsers);
+    }
+
+    // الشيء نفسه عبر مسار الإضافات في لوحة المدير (#164): خفض السعة من 2 إلى 1 بالتزامن مع تعيين مقعدين — واحد فقط ينجح
+    for (let round = 0; round < 5; round++) {
+      await setCompanyPosUsers(companyA, []);
+      await subscribeA({ plan: "basic", endDays: 30, posEnabled: true, posUsers: 1 });
+      const results = await Promise.allSettled([
+        setCompanyPosUsers(companyA, [a, b]),
+        updateCompanySubscriptionAddons(companyA, { posUsers: 0 }),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled"), `addons round ${round}`).toHaveLength(1);
       const sub = await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: companyA } });
       expect(await prisma.companyPosUser.count({ where: { companyId: companyA } })).toBeLessThanOrEqual(1 + sub.posUsers);
     }
