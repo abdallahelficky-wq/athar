@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authenticateEmployeePortal } from "../../middleware/auth";
+import { requirePortalPlanModule } from "../../middleware/subscriptionEnforcement";
 import { validateBody } from "../../middleware/validate";
 import { openShiftSchema, submitReadingSchema, updateCollectionsSchema, addCreditSaleSchema, addExpenseSchema } from "./stationShifts.schemas";
 import * as service from "./stationShifts.service";
@@ -16,7 +17,8 @@ import { badRequest } from "../../lib/httpError";
  * في stationShifts.routes.ts.
  */
 export const stationShiftPortalRoutes = Router();
-stationShiftPortalRoutes.use(authenticateEmployeePortal);
+// ورديات العامل من إضافة المحطات (stationShiftsReports) — مراجعة #164؛ القراءة تمرّ
+stationShiftPortalRoutes.use(authenticateEmployeePortal, requirePortalPlanModule("stationShiftsReports"));
 
 stationShiftPortalRoutes.get("/my-station", async (req, res) => {
   res.json(await service.getMyStation(req.employeeAuth!.tenantId, req.employeeAuth!.employeeId));
