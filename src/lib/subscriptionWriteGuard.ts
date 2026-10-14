@@ -161,6 +161,12 @@ async function parentCompanyIds(client: PrismaClient, model: string, action: str
   return [...ids];
 }
 
+/** شركة السجل الذي يشير إليه مرفق (entityType/entityId) — يستخدمه الحارس، والفحص المسبق لمسارات المرفقات قبل أي عملية تخزين */
+export async function attachmentEntityCompanyId(client: PrismaClient, entityType: unknown, entityId: unknown): Promise<string | null> {
+  const model = typeof entityType === "string" ? ATTACHMENT_ENTITY_MODELS[entityType] : undefined;
+  return model && typeof entityId === "string" && entityId ? companyOfRecord(client, model, entityId) : null;
+}
+
 /** شركات كتابة في المرفقات: السجل الذي يشير إليه entityType/entityId */
 async function attachmentCompanyIds(client: PrismaClient, action: string, args: Args): Promise<string[]> {
   const refs: { entityType?: unknown; entityId?: unknown }[] = [];
@@ -177,11 +183,8 @@ async function attachmentCompanyIds(client: PrismaClient, action: string, args: 
   }
   const ids = new Set<string>();
   for (const ref of refs) {
-    const model = typeof ref?.entityType === "string" ? ATTACHMENT_ENTITY_MODELS[ref.entityType] : undefined;
-    if (model && typeof ref.entityId === "string") {
-      const companyId = await companyOfRecord(client, model, ref.entityId);
-      if (companyId) ids.add(companyId);
-    }
+    const companyId = await attachmentEntityCompanyId(client, ref?.entityType, ref?.entityId);
+    if (companyId) ids.add(companyId);
   }
   return [...ids];
 }
@@ -219,6 +222,7 @@ async function affectedCompanyIds(client: PrismaClient, model: string, action: s
     // الصف كما هو قبل الكتابة — ونقله إلى شركة أخرى (data.companyId) يُفحَص أيضاً
     add((await delegate.findUnique({ where: args?.where, select: { companyId: true } }))?.companyId);
     if (action === "update") add(companyFromData(args?.data));
+    if (action === "upsert") add(companyFromData(args?.update));
   }
   if (action === "updateMany" || action === "deleteMany") {
     for (const row of await delegate.findMany({ where: args?.where, select: { companyId: true }, distinct: ["companyId"] })) add(row.companyId);
@@ -232,45 +236,68 @@ type EmployeeLookup = {
   findMany(a: unknown): Promise<{ companyId: string; assignedCostCenterId: string | null }[]>;
 };
 
-/** هل تعيّن data محطة؟ (حقل مباشر أو ربط علاقة) — undefined = لا يمسّ المحطة */
-function stationInData(data: unknown): "set" | "cleared" | undefined {
+/** المحطة في data: معرّف (تعيين)، null (نزع)، undefined (لا تمسّها) */
+function stationIdInData(data: unknown): string | null | undefined {
   if (!data || typeof data !== "object") return undefined;
   const d = data as Record<string, unknown>;
   // Prisma يتجاهل الحقل الذي قيمته undefined — لا يُعدّ نزعاً للمحطة
-  if (d.assignedCostCenterId !== undefined) return typeof d.assignedCostCenterId === "string" && d.assignedCostCenterId ? "set" : "cleared";
+  if (d.assignedCostCenterId !== undefined) return typeof d.assignedCostCenterId === "string" && d.assignedCostCenterId ? d.assignedCostCenterId : null;
   const rel = d.assignedCostCenter as Record<string, unknown> | undefined;
-  if (rel?.disconnect) return "cleared";
-  if (rel?.connect) return "set";
+  if (rel?.disconnect) return null;
+  const connect = rel?.connect as Record<string, unknown> | undefined;
+  if (typeof connect?.id === "string") return connect.id;
   return undefined;
 }
 
 /**
  * D20: على باقة بلا موارد بشرية، إضافة المحطات تفتح سجلات عمّال المحطات وحدها (employeesScope = stationWorkers). كل كتابة في جدول
  * الموظفين لتلك الشركة يجب أن تبقى على عامل محطة: الإنشاء بمحطة، وتعديل/حذف عامل محطة فقط، وبلا نزع المحطة. القراءة لا تمرّ من هنا.
+ *
+ * النتيجة لا المصدر وحده (مراجعة #163): نقل موظف إلى شركة كهذه (data.companyId) يُفحَص على الشركة الوجهة — يجب أن ينتهي الصف بمحطة،
+ * والمحطة مركز تكلفة في الشركة الوجهة نفسها (لا محطة الشركة التي جاء منها). صلاحية الوجهة نفسها (عرض فقط، الوحدة) يفحصها
+ * assertRequestMayWrite، لأن affectedCompanyIds يضيف companyId الجديد.
  */
 async function assertStationWorkerWrites(client: PrismaClient, action: string, args: Args, companyIds: string[]) {
   const scoped = new Set<string>();
   for (const id of companyIds) if ((await enforcedCompany(id))?.entitlements.employeesScope === "stationWorkers") scoped.add(id);
   if (scoped.size === 0) return;
-  const first = [...scoped][0];
   const employees = (client as unknown as { employee: EmployeeLookup }).employee;
+  const costCenters = (client as unknown as { costCenter: { findUnique(a: unknown): Promise<{ companyId: string | null } | null> } }).costCenter;
+  /** الصف كما سينتهي في شركة محصورة: له محطة، والمحطة من الشركة نفسها */
+  const assertStationIn = async (companyId: string, stationId: string | null | undefined) => {
+    if (!stationId) throw stationWorkersOnlyError(companyId);
+    if ((await costCenters.findUnique({ where: { id: stationId }, select: { companyId: true } }))?.companyId !== companyId) throw stationWorkersOnlyError(companyId);
+  };
 
   if (action === "create" || action === "createMany") {
     for (const row of ([] as unknown[]).concat(action === "create" ? args?.data : args?.data ?? [])) {
-      if (scoped.has(companyFromData(row) ?? "") && stationInData(row) !== "set") throw stationWorkersOnlyError(companyFromData(row)!);
+      const companyId = companyFromData(row);
+      if (companyId && scoped.has(companyId)) await assertStationIn(companyId, stationIdInData(row));
     }
     return;
   }
-  if (action === "upsert" && scoped.has(companyFromData(args?.create) ?? "") && stationInData(args?.create) !== "set") throw stationWorkersOnlyError(first);
   const existing =
     action === "update" || action === "upsert" || action === "delete"
       ? [await employees.findUnique({ where: args?.where, select: { companyId: true, assignedCostCenterId: true } })].filter(Boolean)
       : await employees.findMany({ where: args?.where, select: { companyId: true, assignedCostCenterId: true } });
-  for (const row of existing as { companyId: string; assignedCostCenterId: string | null }[]) {
-    if (scoped.has(row.companyId) && !row.assignedCostCenterId) throw stationWorkersOnlyError(row.companyId);
+  if (action === "upsert" && existing.length === 0) {
+    const companyId = companyFromData(args?.create);
+    if (companyId && scoped.has(companyId)) await assertStationIn(companyId, stationIdInData(args?.create));
+    return;
   }
   const data = action === "upsert" ? args?.update : args?.data;
-  if ((action === "update" || action === "updateMany" || action === "upsert") && stationInData(data) === "cleared") throw stationWorkersOnlyError(first);
+  for (const row of existing as { companyId: string; assignedCostCenterId: string | null }[]) {
+    // المصدر: في شركة محصورة لا يُمسّ إلا عامل محطة
+    if (scoped.has(row.companyId) && !row.assignedCostCenterId) throw stationWorkersOnlyError(row.companyId);
+    if (action === "delete" || action === "deleteMany") continue;
+    // الوجهة: الشركة والمحطة كما سينتهي عليهما الصف
+    const destination = companyFromData(data) ?? row.companyId;
+    if (!scoped.has(destination)) continue;
+    const station = stationIdInData(data);
+    if (station === null) throw stationWorkersOnlyError(destination);
+    const moved = destination !== row.companyId;
+    if (station !== undefined || moved) await assertStationIn(destination, station ?? row.assignedCostCenterId);
+  }
 }
 
 const isGuardedModel = (model: string) => COMPANY_MODELS.has(model) || model in PARENT_MODELS || model === "Attachment";

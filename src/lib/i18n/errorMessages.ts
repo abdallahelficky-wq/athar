@@ -10,6 +10,7 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "عدد مستخدمي نقطة البيع المعيَّنين أكبر من السعة الجديدة — أزل بعض التعيينات أولاً": "More POS users are assigned than the new capacity allows — remove some assignments first",
   "أضف الشركة الجديدة كحساب مستقل من إعدادات الشركات": "Add the new company as an independent account from company settings.",
   "فترة اشتراك غير صالحة": "Invalid subscription period",
   "تاريخ التغيير خارج الفترة الحالية": "The change date is outside the current subscription period",

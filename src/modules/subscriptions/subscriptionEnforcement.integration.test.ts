@@ -27,6 +27,13 @@ vi.mock("../../lib/claudeVision", async (importOriginal) => ({
     throw new Error("stub");
   }),
 }));
+// التخزين الخارجي (مراجعة #163): مسارات المرفقات المرفوضة لا تمسّه إطلاقاً
+vi.mock("../../lib/storage", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  uploadObject: vi.fn(async () => undefined),
+  deleteObject: vi.fn(async () => undefined),
+  getPresignedGetUrl: vi.fn(async () => "https://storage.invalid/test"),
+}));
 vi.mock("../ai/ai.service", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   askAtharAi: vi.fn(async () => ({ answer: "stub" })),
@@ -35,6 +42,7 @@ import * as zatcaClient from "../../lib/zatca/apiClient";
 import * as mailer from "../../lib/mailer";
 import * as vision from "../../lib/claudeVision";
 import * as aiService from "../ai/ai.service";
+import * as storage from "../../lib/storage";
 import type { Server } from "http";
 import type { AddressInfo } from "net";
 import { prisma } from "../../lib/prisma";
@@ -333,6 +341,8 @@ describe("subscription enforcement (P4)", () => {
     // المقعد الثاني يحتاج مقعداً إضافياً مدفوعاً
     const scoped = await prisma.user.findFirstOrThrow({ where: { tenantId, companyScope: companyA, active: true } });
     await expect(setCompanyPosUsers(companyA, [ownerId, scoped.id])).rejects.toThrow("لا توجد مقاعد نقطة بيع متاحة");
+    // تنظيف: الاختبارات التالية تعيد الاشتراك بلا نقطة بيع، وإيقافها لا يترك تعيينات فوق السعة (مراجعة #163)
+    await setCompanyPosUsers(companyA, []);
   });
 
   it("applies to a company-scoped user through their scope, without a companyId in the URL", async () => {
@@ -565,6 +575,169 @@ describe("subscription enforcement (P4)", () => {
     const okAttachment = await attach(entryB.body.id);
     await prisma.journalEntryLine.delete({ where: { id: okLine.id } });
     await prisma.attachment.delete({ where: { id: okAttachment.id } });
+  });
+
+  // ── مراجعة #163/#164 (1): المرفقات تُرفَض قبل أي عملية تخزين ─────────────────────────────────────────────────────
+  it("refuses attachment upload and delete for an enforced read-only company before touching object storage", async () => {
+    await globalSwitch(false);
+    const entryA = await journal(companyA, "A");
+    const entryB = await journal(companyB, "B");
+    const upload = (entryId: string) => callForm("/attachments", ownerToken, { entityType: "journal_entry", entityId: entryId });
+    const kept = await upload(entryA.body.id); // مرفق قائم قبل الإنفاذ
+    expect(kept.status, kept.text).toBe(201);
+    vi.mocked(storage.uploadObject).mockClear();
+
+    await globalSwitch(true);
+    await subscribeA({ plan: "basic", endDays: -30 });
+    const refusedUpload = await upload(entryA.body.id);
+    expect([refusedUpload.status, refusedUpload.code], refusedUpload.text).toEqual([403, "subscription_read_only"]);
+    const refusedDelete = await call("DELETE", `/attachments/${kept.body.id}`, ownerToken);
+    expect([refusedDelete.status, refusedDelete.code], refusedDelete.text).toEqual([403, "subscription_read_only"]);
+    expect(storage.uploadObject).not.toHaveBeenCalled(); // لا ملف يتيم
+    expect(storage.deleteObject).not.toHaveBeenCalled(); // لا ملف محذوف بلا رجعة
+    expect(await prisma.attachment.count({ where: { entityId: entryA.body.id } })).toBe(1);
+    expect(await prisma.attachment.count({ where: { id: kept.body.id } })).toBe(1);
+
+    // الشركة الأخرى بلا صف مُنفَّذ: الرفع والحذف كما اليوم
+    const okUpload = await upload(entryB.body.id);
+    expect(okUpload.status, okUpload.text).toBe(201);
+    expect(storage.uploadObject).toHaveBeenCalledTimes(1);
+    expect((await call("DELETE", `/attachments/${okUpload.body.id}`, ownerToken)).status).toBe(204);
+    expect(storage.deleteObject).toHaveBeenCalledTimes(1);
+  });
+
+  // ── مراجعة #163 (2): نقل موظف إلى شركة "عمّال محطات فقط" يُفحَص على الوجهة ──────────────────────────────────────────
+  it("checks an employee moved into a station-workers-only company against the destination: a station of that company is required", async () => {
+    await globalSwitch(false);
+    const stationA = await call("POST", "/cost-centers", ownerToken, { companyId: companyA, name: `محطة النقل ${stamp}` });
+    const stationB = await call("POST", "/cost-centers", ownerToken, { companyId: companyB, name: `محطة ب ${stamp}` });
+    expect([stationA.status, stationB.status]).toEqual([201, 201]);
+    const fromB = async (extra: Record<string, unknown> = {}) => {
+      const e = await call("POST", "/employees", ownerToken, { companyId: companyB, name: `موظف ب ${Math.random().toString(36).slice(2, 7)}`, hireDate: "2026-01-01", basicSalary: 2500, ...extra });
+      expect(e.status, e.text).toBe(201);
+      return e.body.id as string;
+    };
+    const office = await fromB();
+    const workerB = await fromB({ assignedCostCenterId: stationB.body.id });
+
+    await globalSwitch(true);
+    await subscribeA({ plan: "basic", endDays: 30, stationsAddon: "free" });
+    const move = (id: string, extra: Record<string, unknown> = {}) => call("PATCH", `/employees/${id}`, ownerToken, { companyId: companyA, ...extra });
+    // B → A بلا محطة: مرفوض
+    const noStation = await move(office);
+    expect([noStation.status, noStation.code], noStation.text).toEqual([403, "station_workers_only"]);
+    // B → A بمحطة من B: مرفوض — يرفضه تحقق مسار الموظفين نفسه (المحطة من شركة أخرى، 400) قبل حارس الكتابة الذي يرفضه أيضاً
+    for (const res of [await move(workerB), await move(office, { assignedCostCenterId: stationB.body.id })]) {
+      expect([400, 403], res.text).toContain(res.status);
+    }
+    expect((await prisma.employee.findUniqueOrThrow({ where: { id: workerB } })).companyId).toBe(companyB);
+    expect((await prisma.employee.findUniqueOrThrow({ where: { id: office } })).companyId).toBe(companyB);
+    // B → A بمحطة من A: مسموح
+    const moved = await move(office, { assignedCostCenterId: stationA.body.id });
+    expect(moved.status, moved.text).toBe(200);
+    expect(await prisma.employee.findUniqueOrThrow({ where: { id: office }, select: { companyId: true, assignedCostCenterId: true } })).toEqual({
+      companyId: companyA, assignedCostCenterId: stationA.body.id,
+    });
+  });
+
+  // ── مراجعة #164 (3): مسارات requireActionPermission تخضع لوحدة الباقة ───────────────────────────────────────────────
+  it("gates leave requests by plan (enterprise) on the HR screen, owner included; allowed when entitled", async () => {
+    await globalSwitch(false);
+    const employee = await prisma.employee.create({ data: { tenantId, companyId: companyA, name: "موظف الإجازات", hireDate: new Date("2026-01-01"), basicSalary: 2000 } });
+    const create = () => call("POST", "/leave-requests", ownerToken, { employeeId: employee.id, type: "annual", startDate: "2026-12-01", endDate: "2026-12-02" });
+    const existing = await create();
+    expect(existing.status, existing.text).toBe(201);
+
+    await globalSwitch(true);
+    for (const plan of ["basic", "professional"] as const) {
+      await subscribeA({ plan, endDays: 30, stationsAddon: "free" }); // إضافة المحطات لا تفتح الإجازات
+      const refused = await create();
+      expect([refused.status, refused.code], `${plan}: ${refused.text}`).toEqual([403, "plan_module_not_included"]);
+      expect(refused.body.details).toMatchObject({ moduleId: "leaveSettlements" });
+      expect((await call("POST", `/leave-requests/${existing.body.id}/approve`, ownerToken)).code).toBe("plan_module_not_included");
+    }
+    expect((await call("GET", "/leave-requests", ownerToken)).status).toBe(200); // القراءة تمرّ (D31)
+    expect((await prisma.leaveRequest.findUniqueOrThrow({ where: { id: existing.body.id } })).status).not.toBe("approved");
+
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    expect((await create()).status).toBe(201);
+    const approved = await call("POST", `/leave-requests/${existing.body.id}/approve`, ownerToken);
+    expect(approved.status, approved.text).toBe(200);
+  });
+
+  it("gates station shift review and posting by the stations add-on; allowed when entitled", async () => {
+    await globalSwitch(false);
+    const station = await call("POST", "/cost-centers", ownerToken, { companyId: companyA, name: `محطة الورديات ${stamp}` });
+    const worker = await prisma.employee.create({
+      data: { tenantId, companyId: companyA, name: "عامل الوردية", hireDate: new Date("2026-01-01"), basicSalary: 2000, assignedCostCenterId: station.body.id },
+    });
+    const shift = (status: "submitted" | "approved", day: number) =>
+      prisma.stationShift.create({ data: { tenantId, companyId: companyA, costCenterId: station.body.id, employeeId: worker.id, shiftDate: new Date(Date.UTC(2026, 8, day)), shiftType: "morning", status } });
+    const submitted = await shift("submitted", 1);
+    const approvedShift = await shift("approved", 2);
+    const reject = () => call("POST", `/station-shifts/${submitted.id}/reject`, ownerToken, { reasonCode: "other", note: "اختبار" });
+    const post = () => call("POST", `/station-shifts/${approvedShift.id}/post`, ownerToken);
+
+    await globalSwitch(true);
+    await subscribeA({ plan: "enterprise", endDays: 30, stationsAddon: "off" }); // أعلى باقة بلا إضافة المحطات
+    for (const res of [await reject(), await post()]) {
+      expect([res.status, res.code], res.text).toEqual([403, "plan_module_not_included"]);
+      expect(res.body.details).toMatchObject({ moduleId: "stationShiftsReports" });
+    }
+    expect((await prisma.stationShift.findUniqueOrThrow({ where: { id: submitted.id } })).status).toBe("submitted");
+    expect((await prisma.stationShift.findUniqueOrThrow({ where: { id: approvedShift.id } })).status).toBe("approved");
+    expect((await call("GET", "/station-shifts/pending", ownerToken)).status).toBe(200); // القراءة تمرّ
+
+    await subscribeA({ plan: "basic", endDays: 30, stationsAddon: "free" });
+    const allowed = await reject();
+    expect(allowed.status, allowed.text).toBe(200);
+    // الترحيل يتجاوز الباقة؛ ما بعدها تحقق الوردية نفسها (وردية اختبار بلا قراءات)
+    expect((await post()).code).not.toBe("plan_module_not_included");
+  });
+
+  it("gates employee-portal writes by the plan module of the employee's company; reads pass", async () => {
+    await globalSwitch(false);
+    const e = await prisma.employee.create({ data: { tenantId, companyId: companyA, name: "موظف بوابة الباقة", hireDate: new Date("2026-01-01"), basicSalary: 1000, portalActive: true } });
+    const token = signEmployeePortalToken({ employeeId: e.id, tenantId });
+    await globalSwitch(true);
+    await subscribeA({ plan: "basic", endDays: 30, stationsAddon: "free" });
+    const checkIn = await call("POST", "/attendance/check-in", token);
+    expect([checkIn.status, checkIn.code], checkIn.text).toEqual([403, "plan_module_not_included"]);
+    expect(checkIn.body.details).toMatchObject({ moduleId: "attendance" });
+    expect((await call("POST", "/employee-portal/leave-requests", token, { type: "annual", startDate: "2026-11-10", endDate: "2026-11-11" })).code).toBe("plan_module_not_included");
+    expect((await call("GET", "/employee-portal/leave-requests", token)).status).toBe(200);
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    expect((await call("POST", "/attendance/check-in", token)).status).toBe(201);
+  });
+
+  // ── مراجعة #163 (4): مقاعد نقطة البيع تحت قفل لكل شركة ────────────────────────────────────────────────────────────
+  it("serializes POS seat changes per company: concurrent replacements never exceed capacity; a concurrent capacity cut and assignment cannot both win", async () => {
+    await globalSwitch(false);
+    const members = await prisma.user.findMany({ where: { tenantId, active: true, deletedAt: null, companyScope: { in: ["all", companyA] } }, select: { id: true }, take: 2 });
+    expect(members.length).toBe(2);
+    const [a, b] = members.map((m) => m.id);
+
+    // السعة 1: استبدالان متزامنان بقائمتين مختلفتين — ينتهي الجدول بمقعد واحد (آخرهما)، لا بمقعدين
+    await subscribeA({ plan: "basic", endDays: 30, posEnabled: true, posUsers: 0 });
+    for (let round = 0; round < 5; round++) {
+      await setCompanyPosUsers(companyA, []);
+      await Promise.allSettled([setCompanyPosUsers(companyA, [a]), setCompanyPosUsers(companyA, [b])]);
+      expect(await prisma.companyPosUser.count({ where: { companyId: companyA } }), `round ${round}`).toBe(1);
+    }
+
+    // السعة 2 تُخفَّض إلى 1 بالتزامن مع تعيين مقعدين: واحد فقط ينجح، والنتيجة ضمن السعة
+    for (let round = 0; round < 5; round++) {
+      await setCompanyPosUsers(companyA, []);
+      await subscribeA({ plan: "basic", endDays: 30, posEnabled: true, posUsers: 1 });
+      const results = await Promise.allSettled([
+        setCompanyPosUsers(companyA, [a, b]),
+        subscribeA({ plan: "basic", endDays: 30, posEnabled: true, posUsers: 0 }),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled"), `round ${round}`).toHaveLength(1);
+      const sub = await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: companyA } });
+      expect(await prisma.companyPosUser.count({ where: { companyId: companyA } })).toBeLessThanOrEqual(1 + sub.posUsers);
+    }
+    await setCompanyPosUsers(companyA, []);
   });
 
   it("turning the global switch OFF again restores today's behaviour for the enforced company", async () => {

@@ -11,8 +11,9 @@ export type RequestContext = {
   tenantId: string;
   /** المستخدم صاحب الطلب — null لطلب بوابة الموظف */
   userId: string | null;
-  /** الموظف صاحب طلب بوابة الموظف */
+  /** الموظف صاحب طلب بوابة الموظف، وشركته */
   employeeId?: string;
+  employeeCompanyId?: string;
   method: string;
   /** وحدات طلب الطلبُ عليها إجراء كتابة (create/edit/delete/approve) عبر requirePositionAction */
   writeResources: Set<string>;

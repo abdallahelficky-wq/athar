@@ -8,7 +8,7 @@ import type { ActionLevel } from "../lib/platformActions";
 import { tenantSuspendedMessage } from "../modules/employeePortal/employeePortal.service";
 import { assertCurrentMembership } from "../lib/currentMembership";
 import { runWithRequestContext } from "../lib/requestContext";
-import { enforcePortalSubscription } from "./subscriptionEnforcement";
+import { enforceActionPermissionPlan, enforcePortalSubscription } from "./subscriptionEnforcement";
 
 /** يتحقق من رمز JWT (access token) ويحمّل هوية المستخدم + المستأجر في req.auth */
 export const authenticate: RequestHandler = async (req, _res, next) => {
@@ -62,7 +62,14 @@ export const authenticateEmployeePortal: RequestHandler = async (req, _res, next
   // اشتراك شركة الموظف (P4، مراجعة #164): الفحص المسبق هنا، ثم سياق الطلب ليرى حارس الكتابة كتابات البوابة
   if (employee.companyId) await enforcePortalSubscription(payload.tenantId, employee.companyId, req.method);
   runWithRequestContext(
-    { tenantId: payload.tenantId, userId: null, employeeId: payload.employeeId, method: req.method, writeResources: new Set() },
+    {
+      tenantId: payload.tenantId,
+      userId: null,
+      employeeId: payload.employeeId,
+      employeeCompanyId: employee.companyId ?? undefined,
+      method: req.method,
+      writeResources: new Set(),
+    },
     () => next(),
   );
 };
@@ -285,8 +292,10 @@ const LEVEL_RANK: Record<ActionLevel, number> = { none: 0, read: 1, edit: 2, app
  * يُسمَح فقط إن كانت رتبة المستوى المُحلَّل >= رتبة minLevel المطلوبة لهذا الـroute تحديداً.
  */
 export function requireActionPermission(moduleId: string, actionId: string, minLevel: ActionLevel): RequestHandler {
-  return async (req, _res, next) => {
+  const middleware: RequestHandler = async (req, _res, next) => {
     if (!req.auth) throw unauthorized();
+    // وحدة الباقة (P4، مراجعة #164): قبل المالك وsuper_admin، كما في requirePositionAction — الباقة ليست صلاحية
+    await enforceActionPermissionPlan(req, moduleId);
     if (req.auth.role === "super_admin") return next();
     if (await isTenantOwner(req.auth)) return next();
 
@@ -312,6 +321,8 @@ export function requireActionPermission(moduleId: string, actionId: string, minL
     }
     next();
   };
+  // وسم وصفي يقرؤه اختبار تغطية مسارات الكتابة (لا أثر له وقت التشغيل)
+  return Object.assign(middleware, { actionPermission: { moduleId, actionId, minLevel } });
 }
 
 /** يقصر الوصول على مالك الشركة (Tenant.ownerId) وsuper_admin فقط — لإدارة المناصب وصلاحياتها نفسها،

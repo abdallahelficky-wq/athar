@@ -24,6 +24,7 @@ export const MESSAGES = {
   userLimit: "بلغت الشركة حد المستخدمين في باقتها — أضف مستخدمين إضافيين أو رقِّ الباقة قبل دعوة مستخدم جديد أو تفعيله.",
   posSeatsFull: "لا توجد مقاعد نقطة بيع متاحة لهذه الشركة — أضف مقاعد إضافية قبل تعيين مستخدم جديد.",
   posDisabled: "نقطة البيع غير مفعّلة لهذه الشركة.",
+  posAssignedWhenDisabling: "عدد مستخدمي نقطة البيع المعيَّنين أكبر من السعة الجديدة — أزل بعض التعيينات أولاً",
   stationWorkersOnly: "باقة الشركة الحالية تشمل سجلات عمّال المحطات فقط — حدّد محطة الموظف، أو رقِّ الباقة لإدارة كل الموظفين.",
 } as const;
 
@@ -189,6 +190,22 @@ export async function withUserSeat<T>(
 /** حد مقاعد نقطة البيع (D27): 1 مجاني + المقاعد الإضافية، وصفر بلا تفعيل — للتعيين، لا لفتح البيع */
 export function posSeatCapacity(company: { posEnabled: boolean; posUsers: number }): number {
   return posUserLimit(company.posEnabled, company.posUsers);
+}
+
+/**
+ * مقاعد نقطة البيع لشركة (مراجعة #163/#164): كل ما يغيّر التعيينات أو سعتها — استبدال المستخدمين المعيَّنين، وتغيير الاشتراك أو
+ * الإضافات — يأخذ هذا القفل لكل شركة داخل معاملته ثم يعيد فحص السعة بعده. طلبان متزامنان يتسلسلان فيرى الثاني ما ثبّته الأول؛ بلا
+ * القفل كان طلبا استبدال بقائمتين مختلفتين يحذفان صفر صفوف ويضيف كلٌّ صفّه، فتنتهي الشركة بمقعدين على سعة واحد.
+ */
+export async function lockCompanyPosSeats(tx: Prisma.TransactionClient, companyId: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`pos_seats:${companyId}`}))`;
+}
+
+/** السعة الناتجة تتسع للمعيَّنين فعلاً (يُستدعى تحت القفل) — لا مقاعد مدفوعة بلا تفعيل نقطة البيع (D27) */
+export async function assertPosCapacityHolds(tx: Prisma.TransactionClient, companyId: string, pos: { posEnabled: boolean; posUsers: number }, assigned?: number) {
+  if (pos.posUsers > 0 && !pos.posEnabled) throw new HttpError(400, MESSAGES.posDisabled);
+  const count = assigned ?? (await tx.companyPosUser.count({ where: { companyId } }));
+  if (count > posSeatCapacity(pos)) throw new HttpError(400, count > 0 && !pos.posEnabled ? MESSAGES.posAssignedWhenDisabling : MESSAGES.posSeatsFull);
 }
 
 /** خطأ قاعدة عمّال المحطات (D20) — يرميه حارس الكتابة */

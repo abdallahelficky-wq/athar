@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { authenticateEmployeePortal } from "../../middleware/auth";
+import { requirePortalPlanModule } from "../../middleware/subscriptionEnforcement";
 import { validateBody } from "../../middleware/validate";
 import { createLeaveRequestSchema } from "./leaveRequests.schemas";
 import * as service from "./leaveRequests.service";
 
 export const leaveRequestPortalRoutes = Router();
-leaveRequestPortalRoutes.use(authenticateEmployeePortal);
+// الإجازات في الباقة المؤسسية (leaveSettlements) — مراجعة #164؛ القراءة تمرّ
+leaveRequestPortalRoutes.use(authenticateEmployeePortal, requirePortalPlanModule("leaveSettlements"));
 
 leaveRequestPortalRoutes.get("/", async (req, res) => {
   res.json(await service.listOwnLeaveRequests(req.employeeAuth!.tenantId, req.employeeAuth!.employeeId));

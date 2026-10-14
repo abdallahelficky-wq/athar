@@ -1,7 +1,14 @@
 import type { ActivityAddonState, BillingPeriod, CompanySubscriptionStatus, Prisma, SubscriptionPlan } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
-import { clearSubscriptionEnforcementCache, ENFORCEMENT_SETTING_KEY, MESSAGES, posSeatCapacity } from "../../lib/subscriptionEnforcement";
+import {
+  assertPosCapacityHolds,
+  clearSubscriptionEnforcementCache,
+  ENFORCEMENT_SETTING_KEY,
+  lockCompanyPosSeats,
+  MESSAGES,
+  posSeatCapacity,
+} from "../../lib/subscriptionEnforcement";
 
 /**
  * إدارة الإنفاذ من لوحة مدير المنصة (P4 — جزء من P8 قُدِّم لأن تجربة الإنفاذ على شركة واحدة بعد النشر تحتاجه): المفتاح الشامل،
@@ -62,6 +69,9 @@ export async function upsertCompanySubscription(companyId: string, input: Compan
     ownerIdentityId: owner?.identityId ?? null,
   };
   const result = await prisma.$transaction(async (tx) => {
+    // سعة نقطة البيع الناتجة تحت قفل مقاعد الشركة نفسه الذي يأخذه تعيين المستخدمين (مراجعة #163)
+    await lockCompanyPosSeats(tx, companyId);
+    await assertPosCapacityHolds(tx, companyId, { posEnabled: data.posEnabled, posUsers: data.posUsers });
     const before = await tx.companySubscription.findUnique({ where: { companyId } });
     const after = before
       ? await tx.companySubscription.update({ where: { companyId }, data })
@@ -77,19 +87,23 @@ export async function upsertCompanySubscription(companyId: string, input: Compan
 
 /** يستبدل مستخدمي نقطة البيع المعيَّنين للشركة (D19) ضمن السعة: 1 مجاني + المقاعد الإضافية (D27). مشغّل القاعدة يرفض عضواً من مستأجر آخر */
 export async function setCompanyPosUsers(companyId: string, userIds: string[]) {
-  const sub = await prisma.companySubscription.findUnique({ where: { companyId } });
-  if (!sub) throw notFound("لا يوجد اشتراك لهذه الشركة");
   const unique = [...new Set(userIds)];
-  if (unique.length > 0 && !sub.posEnabled) throw badRequest(MESSAGES.posDisabled);
-  if (unique.length > posSeatCapacity(sub)) throw badRequest(MESSAGES.posSeatsFull);
-  const result = await prisma.$transaction(async (tx) => {
+  // الفحص والاستبدال تحت قفل مقاعد الشركة، على صف الاشتراك كما هو بعد القفل (مراجعة #163) — لا قراءة للسعة خارج المعاملة
+  const { sub, result } = await prisma.$transaction(async (tx) => {
+    await lockCompanyPosSeats(tx, companyId);
+    const sub = await tx.companySubscription.findUnique({ where: { companyId } });
+    if (!sub) throw notFound("لا يوجد اشتراك لهذه الشركة");
+    if (unique.length > 0 && !sub.posEnabled) throw badRequest(MESSAGES.posDisabled);
+    if (unique.length > posSeatCapacity(sub)) throw badRequest(MESSAGES.posSeatsFull);
     const before = (await tx.companyPosUser.findMany({ where: { companyId }, select: { userId: true } })).map((r) => r.userId);
     await tx.companyPosUser.deleteMany({ where: { companyId, userId: { notIn: unique } } });
     if (unique.length) await tx.companyPosUser.createMany({ data: unique.map((userId) => ({ companyId, userId })), skipDuplicates: true });
     await tx.subscriptionEvent.create({
       data: { companySubscriptionId: sub.id, type: "pos_users_changed", before: { userIds: before.sort() }, after: { userIds: [...unique].sort() }, actor: ACTOR },
     });
-    return (await tx.companyPosUser.findMany({ where: { companyId }, select: { userId: true } })).map((r) => r.userId).sort();
+    const after = (await tx.companyPosUser.findMany({ where: { companyId }, select: { userId: true } })).map((r) => r.userId).sort();
+    await assertPosCapacityHolds(tx, companyId, sub, after.length);
+    return { sub, result: after };
   });
   clearSubscriptionEnforcementCache();
   return { companyId, userIds: result, capacity: posSeatCapacity(sub) };
