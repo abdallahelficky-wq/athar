@@ -48,6 +48,10 @@ const EXEMPT: Record<string, string> = {
   "PUT /api/platform-admin/subscription-enforcement": "لوحة مدير المنصة",
   "PUT /api/platform-admin/companies/:companyId/subscription": "لوحة مدير المنصة",
   "PUT /api/platform-admin/companies/:companyId/pos-users": "لوحة مدير المنصة",
+  "PATCH /api/platform-admin/companies/:companyId/subscription/status": "لوحة مدير المنصة",
+  "PATCH /api/platform-admin/companies/:companyId/subscription/addons": "لوحة مدير المنصة",
+  "POST /api/platform-admin/plan-prices": "لوحة مدير المنصة",
+  "DELETE /api/platform-admin/plan-prices/:id": "لوحة مدير المنصة",
 };
 
 type Handle = {

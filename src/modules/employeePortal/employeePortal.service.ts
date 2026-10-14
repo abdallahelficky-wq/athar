@@ -3,6 +3,7 @@ import { unauthorized, tooManyRequests } from "../../lib/httpError";
 import { hashPassword, verifyPassword } from "../../lib/password";
 import { signEmployeePortalToken } from "../../lib/jwt";
 import { isIpThrottled, recordIpFailure } from "./loginThrottle";
+import { assertMembershipNotSuspended } from "../../lib/subscriptionEnforcement";
 
 export const MAX_FAILED_ATTEMPTS = 5;
 /** مدة أول قفل؛ كل قفل تالٍ ضعف سابقه حتى الحدّ الأقصى أدناه */
@@ -96,6 +97,8 @@ export async function employeePortalLogin(tenantIdentifier: string, phone: strin
   if (tenant.subscriptionStatus === "suspended") {
     throw unauthorized(tenantSuspendedMessage(tenant.suspensionReason));
   }
+  // شركة الموظف معلّقة (اشتراك الشركة، P8): كعضو نطاقه تلك الشركة — لا دخول
+  if (employee.companyId) await assertMembershipNotSuspended({ tenantId: tenant.id, companyScope: employee.companyId });
 
   await prisma.employee.update({
     where: { id: employee.id },

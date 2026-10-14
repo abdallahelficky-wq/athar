@@ -7,6 +7,7 @@ import { prisma } from "../lib/prisma";
 import type { ActionLevel } from "../lib/platformActions";
 import { tenantSuspendedMessage } from "../modules/employeePortal/employeePortal.service";
 import { assertCurrentMembership } from "../lib/currentMembership";
+import { assertMembershipNotSuspended } from "../lib/subscriptionEnforcement";
 import { runWithRequestContext } from "../lib/requestContext";
 import { enforceActionPermissionPlan, enforcePortalSubscription } from "./subscriptionEnforcement";
 
@@ -23,6 +24,8 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
     throw unauthorized("رمز الدخول غير صالح أو منتهي الصلاحية");
   }
   await assertCurrentMembership(req.auth!);
+  // عضوية نطاقها شركة معلّقة: الجلسة القائمة تتوقف (401) خلال نافذة التخزين نفسها — لا تنتظر انتهاء رمز الدخول
+  await assertMembershipNotSuspended(req.auth!);
   // سياق الطلب يرافق كل استعلام بعدها — حارس الكتابة للاشتراكات يقرؤه (P4)
   runWithRequestContext({ tenantId: req.auth!.tenantId, userId: req.auth!.sub, method: req.method, writeResources: new Set() }, () => next());
 };
@@ -60,7 +63,11 @@ export const authenticateEmployeePortal: RequestHandler = async (req, _res, next
   if (tenant.subscriptionStatus === "suspended") throw unauthorized(tenantSuspendedMessage(tenant.suspensionReason));
   req.employeeAuth = payload;
   // اشتراك شركة الموظف (P4، مراجعة #164): الفحص المسبق هنا، ثم سياق الطلب ليرى حارس الكتابة كتابات البوابة
-  if (employee.companyId) await enforcePortalSubscription(payload.tenantId, employee.companyId, req.method);
+  if (employee.companyId) {
+    // موظف شركة معلّقة كعضو نطاقه تلك الشركة: لا بوابة إطلاقاً، ولا قراءة
+    await assertMembershipNotSuspended({ tenantId: payload.tenantId, companyScope: employee.companyId });
+    await enforcePortalSubscription(payload.tenantId, employee.companyId, req.method);
+  }
   runWithRequestContext(
     {
       tenantId: payload.tenantId,

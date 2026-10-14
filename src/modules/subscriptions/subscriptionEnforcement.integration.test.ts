@@ -53,7 +53,13 @@ import { hashPassword } from "../../lib/password";
 import { clearSubscriptionEnforcementCache } from "../../lib/subscriptionEnforcement";
 import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
-import { setCompanyPosUsers, setEnforcementSwitch, upsertCompanySubscription } from "./subscriptionAdmin.service";
+import {
+  setCompanyPosUsers,
+  setCompanySubscriptionStatus,
+  setEnforcementSwitch,
+  updateCompanySubscriptionAddons,
+  upsertCompanySubscription,
+} from "./subscriptionAdmin.service";
 
 /**
  * الإنفاذ على الخادم (P4، docs/design/subscription-plans.md §5) عبر مسارات HTTP الحقيقية على Postgres فعلي. المستأجر بشركتين: A تُنفَّذ
@@ -469,7 +475,7 @@ describe("subscription enforcement (P4)", () => {
   });
 
   // ── مراجعة #164 (1): بوابة الموظف تخضع لاشتراك شركة الموظف ─────────────────────────────────────────────────────────
-  it("refuses employee-portal writes for an enforced read-only or suspended company; portal reads still work; other companies unchanged", async () => {
+  it("refuses employee-portal writes for an enforced read-only company (reads work) and the whole portal for a suspended one; other companies unchanged", async () => {
     await globalSwitch(false);
     const portalEmployee = async (companyId: string, label: string) => {
       const e = await prisma.employee.create({
@@ -497,8 +503,12 @@ describe("subscription enforcement (P4)", () => {
     expect((await call("POST", "/attendance/check-in", eB.token)).status).toBe(201);
     expect((await leave(eB.token)).status).toBe(201);
 
+    // معلّقة (P8، §6): موظفها كعضو نطاقه تلك الشركة — لا كتابة ولا قراءة، والجلسة القائمة تنتهي (401)
     await subscribeA({ plan: "enterprise", status: "suspended", endDays: 30 });
-    expect((await call("POST", "/attendance/check-in", eA.token)).code).toBe("subscription_suspended");
+    const suspendedCheckIn = await call("POST", "/attendance/check-in", eA.token);
+    expect([suspendedCheckIn.status, suspendedCheckIn.code]).toEqual([401, "company_suspended"]);
+    expect((await call("GET", "/employee-portal/me", eA.token)).status).toBe(401);
+    expect((await call("GET", "/employee-portal/me", eB.token)).status).toBe(200); // موظف شركة أخرى: كما هو
 
     await subscribeA({ plan: "enterprise", endDays: 30 }); // مُنفَّذة وسارية: تكتب
     expect((await call("POST", "/attendance/check-in", eA.token)).status).toBe(201);
@@ -737,10 +747,154 @@ describe("subscription enforcement (P4)", () => {
       const sub = await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: companyA } });
       expect(await prisma.companyPosUser.count({ where: { companyId: companyA } })).toBeLessThanOrEqual(1 + sub.posUsers);
     }
+
+    // الشيء نفسه عبر مسار الإضافات في لوحة المدير (#164): خفض السعة من 2 إلى 1 بالتزامن مع تعيين مقعدين — واحد فقط ينجح
+    for (let round = 0; round < 5; round++) {
+      await setCompanyPosUsers(companyA, []);
+      await subscribeA({ plan: "basic", endDays: 30, posEnabled: true, posUsers: 1 });
+      const results = await Promise.allSettled([
+        setCompanyPosUsers(companyA, [a, b]),
+        updateCompanySubscriptionAddons(companyA, { posUsers: 0 }),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled"), `addons round ${round}`).toHaveLength(1);
+      const sub = await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: companyA } });
+      expect(await prisma.companyPosUser.count({ where: { companyId: companyA } })).toBeLessThanOrEqual(1 + sub.posUsers);
+    }
     await setCompanyPosUsers(companyA, []);
   });
 
+  // ── P8: تعليق شركة من لوحة المدير (§6: "login blocked for scoped members of that company; all-scope members lose only that company")
+  it("suspension blocks members scoped to the company (login, refresh, /auth/me, open sessions) and removes only that company for all-scope members; activate restores", async () => {
+    await globalSwitch(true);
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    const scopedEmail = `enf-scoped-${stamp}@example.com`;
+    const identity = await prisma.identity.create({ data: { email: scopedEmail, passwordHash: await hashPassword("Str0ng-Pass!") } });
+    await prisma.user.create({ data: { tenantId, identityId: identity.id, name: "عضو الشركة أ", role: "accountant", inviteStatus: "accepted", companyScope: companyA } });
+    const login = () => call("POST", "/auth/login", "", { email: scopedEmail, password: "Str0ng-Pass!" });
+    const session = await login();
+    expect(session.status, session.text).toBe(200);
+    const { accessToken, refreshToken } = session.body;
+    const entryA = await journal(companyA, "A");
+    expect(entryA.status, entryA.text).toBe(201);
+    const itemA = await prisma.item.findFirstOrThrow({ where: { companyId: companyA } });
+    expect((await call("GET", `/items/${itemA.id}`, ownerToken)).status).toBe(200);
+
+    await setCompanySubscriptionStatus(companyA, "suspend", "اختبار");
+
+    // عضو نطاقه A: الجلسة القائمة تتوقف، ولا تجديد ولا دخول — برسالة واضحة بالعربية والإنجليزية
+    const me = await call("GET", "/auth/me", accessToken);
+    expect([me.status, me.code]).toEqual([401, "company_suspended"]);
+    expect(me.body.error).toContain("اشتراك شركتك معلّق");
+    expect((await call("GET", `/journal-entries?companyId=${companyA}`, accessToken)).status).toBe(401);
+    const refreshed = await call("POST", "/auth/refresh", "", { refreshToken });
+    expect([refreshed.status, refreshed.code]).toEqual([401, "company_suspended"]);
+    const relogin = await login();
+    expect([relogin.status, relogin.code]).toEqual([401, "company_suspended"]);
+    const reloginEn = await fetch(`${baseUrl}/api/auth/login`, {
+      method: "POST", headers: { "content-type": "application/json", "accept-language": "en" }, body: JSON.stringify({ email: scopedEmail, password: "Str0ng-Pass!" }),
+    });
+    expect((await reloginEn.json()).error).toContain("Your company's subscription has been suspended");
+
+    // عضو "all" (المالك): يدخل، A غائبة عن قائمته، وكل طلب إليها مرفوض — قراءةً وكتابةً؛ B كما هي
+    expect((await call("GET", "/auth/me", ownerToken)).status).toBe(200);
+    const companies = await call("GET", "/companies", ownerToken);
+    expect(companies.body.map((c: { id: string }) => c.id)).toEqual([companyB]);
+    for (const [method, path] of [
+      ["GET", `/journal-entries?companyId=${companyA}`],
+      ["GET", `/journal-entries/${entryA.body.id}`],
+      // جدول لا يعرفه الفحص المسبق على المسار: يلتقطه حارس القراءة في طبقة البيانات
+      ["GET", `/items/${itemA.id}`],
+      // بحث بـSQL خام (لا يمرّ بحارس طبقة البيانات): يرفضه الفحص المسبق على المسار وحده
+      ["GET", `/sales-invoices/search?companyId=${companyA}`],
+    ] as const) {
+      const r = await call(method, path, ownerToken);
+      expect([path, r.status, r.code]).toEqual([path, 403, "subscription_suspended"]);
+    }
+    const writeA = await journal(companyA, "A");
+    expect([writeA.status, writeA.code]).toEqual([403, "subscription_suspended"]);
+    expect((await call("GET", `/journal-entries?companyId=${companyB}`, ownerToken)).status).toBe(200);
+    expect((await journal(companyB, "B")).status).toBe(201);
+
+    // إعادة التفعيل تعيد الوصول كاملاً
+    await setCompanySubscriptionStatus(companyA, "activate");
+    expect((await login()).status).toBe(200);
+    expect((await call("GET", "/companies", ownerToken)).body.map((c: { id: string }) => c.id).sort()).toEqual([companyA, companyB].sort());
+    expect((await call("GET", `/items/${itemA.id}`, ownerToken)).status).toBe(200);
+    expect((await journal(companyA, "A")).status).toBe(201);
+  });
+
+  it("mirror and reversal with a suspended company: no mirror into it, its own entries and mirror halves are closed; the healthy half stays reversible", async () => {
+    // CLAUDE.md القاعدة 1: الضابط الجديد (تعليق الشركة يغلق القراءة أيضاً) عبر المرآة والعكس وعكس قيد المرآة
+    await globalSwitch(true);
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    const posted = (companyId: string, key: "A" | "B", memo: string) =>
+      call("POST", "/journal-entries", ownerToken, {
+        companyId, date: "2026-10-12T09:00:00.000Z", memo, post: true,
+        lines: [{ accountId: acc[`cash${key}`], debit: 5, credit: 0 }, { accountId: acc[`rev${key}`], debit: 0, credit: 5 }],
+      });
+    const own = await posted(companyA, "A", "قيد A قبل التعليق");
+    const source = await posted(companyB, "B", "مصدر مرآة قبل التعليق");
+    const mirrorInto = (id: string) => call("POST", `/journal-entries/${id}/mirror`, ownerToken, {
+      targetCompanyId: companyA, date: "2026-10-12T09:00:00.000Z",
+      lines: [{ accountId: acc.cashA, debit: 5, credit: 0 }, { accountId: acc.revA, debit: 0, credit: 5 }],
+    });
+    const mirror = await mirrorInto(source.body.id);
+    expect(mirror.status, mirror.text).toBe(201);
+    const source2 = await posted(companyB, "B", "مصدر مرآة بعد التعليق");
+
+    await setCompanySubscriptionStatus(companyA, "suspend", "اختبار المرآة");
+    const countA = await prisma.journalEntry.count({ where: { companyId: companyA } });
+    const into = await mirrorInto(source2.body.id);
+    expect([into.status, into.code]).toEqual([403, "subscription_suspended"]);
+    expect((await prisma.journalEntry.findUniqueOrThrow({ where: { id: source2.body.id } })).mirrorEntryId).toBeNull();
+    for (const id of [own.body.id, mirror.body.id]) {
+      const r = await call("POST", `/journal-entries/${id}/reverse`, ownerToken, { date: "2026-10-13T09:00:00.000Z" });
+      expect([r.status, r.code]).toEqual([403, "subscription_suspended"]);
+      expect((await call("GET", `/journal-entries/${id}`, ownerToken)).code).toBe("subscription_suspended");
+    }
+    expect(await prisma.journalEntry.count({ where: { companyId: companyA } })).toBe(countA);
+    // نصف B يُعكَس في B وحدها
+    const reverseB = await call("POST", `/journal-entries/${source.body.id}/reverse`, ownerToken, { date: "2026-10-13T09:00:00.000Z" });
+    expect(reverseB.status, reverseB.text).toBe(201);
+    await setCompanySubscriptionStatus(companyA, "activate");
+  });
+
+  it("a suspension written by another server instance reaches open sessions within the 30-second cache window", async () => {
+    await globalSwitch(true);
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    // التخزين دافئ في هذه العملية؛ التعليق يُكتب في القاعدة مباشرة كما تكتبه نسخة خادم أخرى — بلا تفريغ هنا عمداً
+    expect((await call("GET", `/journal-entries?companyId=${companyA}`, ownerToken)).status).toBe(200);
+    await prisma.companySubscription.update({ where: { companyId: companyA }, data: { status: "suspended" } });
+    try {
+      vi.useFakeTimers({ toFake: ["Date"], now: Date.now() + 31_000 });
+      const r = await call("GET", `/journal-entries?companyId=${companyA}`, ownerToken);
+      expect([r.status, r.code]).toEqual([403, "subscription_suspended"]);
+    } finally {
+      vi.useRealTimers();
+    }
+    await subscribeA({ plan: "enterprise", endDays: 30 });
+    expect((await call("GET", `/journal-entries?companyId=${companyA}`, ownerToken)).status).toBe(200);
+  });
+
+  // مراجعة #163: نشاط الشركة يفعّل إضافة المحطات تلقائياً (D13) — تغييره يسري في الطلب التالي، لا بعد 30 ثانية
+  it("invalidates the company's cached entitlements as soon as its businessActivity changes (into and out of fuel_stations)", async () => {
+    await globalSwitch(true);
+    await subscribeA({ plan: "basic", endDays: 30, stationsAddon: "off" }); // الإضافة لا تُمنَح صراحةً — النشاط وحده يفعّلها
+    // وحدة stationSales من إضافة المحطات: مغلقة على basic بلا نشاط محطات
+    const moduleProbe = () => call("POST", "/station-sales", ownerToken, { companyId: companyA });
+    const before = await moduleProbe();
+    expect(before.code).toBe("plan_module_not_included");
+    const into = await call("PATCH", `/companies/${companyA}`, ownerToken, { businessActivity: "fuel_stations" });
+    expect(into.status, into.text).toBe(200);
+    expect((await moduleProbe()).code).not.toBe("plan_module_not_included");
+    const out = await call("PATCH", `/companies/${companyA}`, ownerToken, { businessActivity: "retail" });
+    expect(out.status, out.text).toBe(200);
+    expect((await moduleProbe()).code).toBe("plan_module_not_included");
+  });
+
   it("turning the global switch OFF again restores today's behaviour for the enforced company", async () => {
+    // إيقاف نقطة البيع لا يترك تعيينات فوق السعة (مراجعة #164) — تُزال التعيينات أولاً، كما يشترط مسار الإضافات
+    await setCompanyPosUsers(companyA, []);
     await subscribeA({ plan: "basic", endDays: -30, posEnabled: false });
     await globalSwitch(false);
     expect((await journal(companyA, "A")).status).toBe(201);

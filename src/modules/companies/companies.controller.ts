@@ -12,6 +12,7 @@ import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTem
 import { createStarterItems, createCashParties, createDefaultWarehouse, linkStationCashAccounts } from "../../lib/starterData";
 import { translateMessage } from "../../lib/i18n/translate";
 import { createIndependentTenant } from "../auth/auth.service";
+import { suspendedCompanyIds } from "../../lib/subscriptionEnforcement";
 
 const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB يكفي لأي شعار
 const ALLOWED_LOGO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
@@ -34,7 +35,9 @@ export const listCompanies: RequestHandler = async (req, res) => {
     where: { tenantId: req.auth!.tenantId, id: companyScope !== "all" ? companyScope : undefined },
     orderBy: { createdAt: "asc" },
   });
-  res.json(await Promise.all(companies.map(withLogoUrl)));
+  // شركة معلّقة (اشتراك الشركة، P8): عضو "all" يفقدها وحدها — لا تظهر في قائمته، وكل طلب إليها مرفوض (§6)
+  const suspended = await suspendedCompanyIds(req.auth!.tenantId);
+  res.json(await Promise.all(companies.filter((c) => !suspended.has(c.id)).map(withLogoUrl)));
 };
 
 /**

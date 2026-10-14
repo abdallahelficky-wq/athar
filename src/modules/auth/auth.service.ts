@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import { withUserSeat } from "../../lib/subscriptionEnforcement";
+import { assertMembershipNotSuspended, withUserSeat } from "../../lib/subscriptionEnforcement";
 import { hashPassword, verifyPassword } from "../../lib/password";
 import {
   signAccessToken,
@@ -235,6 +235,8 @@ export async function register(
 async function completeLoginForUser(user: UserWithIdentity) {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
   assertTenantActive(tenant);
+  // شركة العضوية معلّقة (اشتراك الشركة، P8): لا دخول لعضو نطاقه تلك الشركة وحدها — عضو "all" يدخل ويفقدها وحدها
+  await assertMembershipNotSuspended(user);
   const readOnly = isTenantReadOnly(tenant);
 
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
@@ -378,6 +380,7 @@ export async function refresh(refreshToken: string) {
 
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
   assertTenantActive(tenant);
+  await assertMembershipNotSuspended(user);
 
   // تدوير: إبطال الرمز القديم فور استخدامه لمنع إعادة استخدامه (refresh token rotation)
   await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
@@ -720,6 +723,7 @@ export async function getMe(userId: string) {
   // إعادة تحميل للصفحة، لا فقط عند انتهاء صلاحية رمزهم الحالي. لم تعد تُستخدَم لطرد شركة انتهت
   // فترتها التجريبية فقط (تصبح "عرض فقط" بدلاً من ذلك) — فقط للتعليق الإداري الفعلي.
   assertTenantActive(tenant);
+  await assertMembershipNotSuspended(user);
   const readOnly = isTenantReadOnly(tenant);
   const platformNotices = await prisma.platformNotice.findMany({ where: { tenantId: tenant.id }, orderBy: { createdAt: "desc" } });
   // مؤشّر تشخيصي للوحة الإدارة فقط (مجرد boolean، بلا كشف أي سرّ) — انظر التحذير المطابق عند

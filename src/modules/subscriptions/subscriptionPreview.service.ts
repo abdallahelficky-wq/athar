@@ -56,14 +56,57 @@ export async function rankOwnerCompanies(ownerIdentityId: string, at: Date = new
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
-  const live = companies.filter(({ subscription: sub }) => {
-    if (!sub) return true;
-    if (sub.status === "suspended" || sub.status === "canceled") return false;
-    if (sub.status !== "expired") return true;
-    const readOnlySince = sub.events[0]?.at ?? sub.currentPeriodEnd;
-    return !readOnlySince || at.getTime() - readOnlySince.getTime() <= RANK_KEEP_DAYS * DAY_MS;
-  });
+  const live = companies.filter(({ subscription }) => isLiveForRank(subscription, at));
   return live.map((c, i) => ({ companyId: c.id, tenantId: c.tenantId, createdAt: c.createdAt, rank: i + 1 }));
+}
+
+/** شرط "الحيّة" للترتيب (D21) — مشترك بين rankOwnerCompanies وترتيب قائمة لوحة المدير المجمَّع */
+export function isLiveForRank(
+  sub: { status: string; currentPeriodEnd: Date | null; events: { at: Date }[] } | null,
+  at: Date,
+): boolean {
+  if (!sub) return true;
+  if (sub.status === "suspended" || sub.status === "canceled") return false;
+  if (sub.status !== "expired") return true;
+  const readOnlySince = sub.events[0]?.at ?? sub.currentPeriodEnd;
+  return !readOnlySince || at.getTime() - readOnlySince.getTime() <= RANK_KEEP_DAYS * DAY_MS;
+}
+
+/**
+ * الترتيب الحي لعدة هويات مالكين معاً (قائمة لوحة المدير، مراجعة #164) — بعدد ثابت من الاستعلامات مهما كثرت الشركات والمالكون: عضويات
+ * الهويات، ثم كل شركات مستأجراتها بالترتيب نفسه (تاريخ الإنشاء ثم المعرّف) مع حدث expired الأخير. النتيجة لكل هوية مطابقة لـ
+ * rankOwnerCompanies(identity) — الاختبار يقارنهما.
+ */
+export async function rankCompaniesByOwnerIdentities(identityIds: string[], at: Date = new Date()): Promise<Map<string, number>> {
+  const rankByCompany = new Map<string, number>();
+  if (identityIds.length === 0) return rankByCompany;
+  const memberships = await prisma.user.findMany({ where: { identityId: { in: identityIds } }, select: { id: true, identityId: true } });
+  if (memberships.length === 0) return rankByCompany;
+  const identityByMembership = new Map(memberships.map((m) => [m.id, m.identityId]));
+  const companies = await prisma.company.findMany({
+    where: { tenant: { ownerId: { in: memberships.map((m) => m.id) } } },
+    select: {
+      id: true,
+      tenant: { select: { ownerId: true } },
+      subscription: {
+        select: {
+          status: true,
+          currentPeriodEnd: true,
+          events: { where: { type: "expired" }, orderBy: { at: "desc" }, take: 1, select: { at: true } },
+        },
+      },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  const nextRank = new Map<string, number>();
+  for (const c of companies) {
+    const identityId = identityByMembership.get(c.tenant.ownerId!);
+    if (!identityId || !isLiveForRank(c.subscription, at)) continue;
+    const rank = (nextRank.get(identityId) ?? 0) + 1;
+    nextRank.set(identityId, rank);
+    rankByCompany.set(c.id, rank);
+  }
+  return rankByCompany;
 }
 
 /**

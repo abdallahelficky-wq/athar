@@ -301,9 +301,20 @@ lockedNet     = grandfatheredNetPrice if set, else netPrice
    - **Employee transfer:** a write that changes an employee's `companyId` is checked against the destination: its read-only state and module, and, on a station-workers-only company, a station that is a cost center of that destination company.
    - **Routes guarded by `requireActionPermission`, and the employee portal:** they carry a plan module too. Leave requests (HR screen and portal) map to `leaveSettlements`, so leave stays enterprise and the stations add-on does not open it. Station-shift review and posting, and the worker's shift in the portal, map to `stationShiftsReports` (stations add-on). Portal check-in/out maps to `attendance`. Reads are never gated. `src/middleware/subscriptionWriteRoutes.coverage.test.ts` walks every write route in the app and fails on any route with no plan module that is not in its exemption list (sessions, tenant-level positions, platform admin, the always-405 company delete).
    - **POS seats:** assigning POS users and every subscription change that sets POS capacity take one per-company advisory lock and re-check capacity inside the locked transaction, so concurrent requests cannot end above capacity.
-5. **Employee portal (review of #164):** portal requests have no `requirePositionAction`. `authenticateEmployeePortal` checks the employee's company before any handler runs: on an enforced company that is read-only or suspended, a non-GET request is refused, and reads pass. It then opens the same request context, so the backstop also sees every portal write. The portal is not module-gated by plan.
+   - **Admin view `readOnlyFrom`** (`subscriptionAdmin.service.ts`), derived from the status:
+     - `awaiting_payment`, `canceled`, `suspended`, `expired`: read-only now, so the value is the moment of the request;
+     - `trialing`: the trial end (D28);
+     - paid `active` / `grace`: period end + 7 days (D23).
+   - **POS assignees:** `setCompanyPosUsers` accepts only members matching the detail endpoint's eligibility rule (`posEligibleMemberWhere`): same tenant, active, not deleted, invitation accepted, scope `all` or this company. Anything else is refused and nothing is written.
+5. **Employee portal (review of #164):** portal requests have no `requirePositionAction`. `authenticateEmployeePortal` checks the employee's company before any handler runs: on an enforced company that is read-only, a non-GET request is refused and reads pass; on a suspended one every portal request is refused (401), as for a scoped member (§5.4). It then opens the same request context, so the backstop also sees every portal write. Plan modules for portal writes are covered in item 4.
 
-**Cost.** Both checks return at once when the switch is off, or when the request's tenant has no enforced company. The switch, the per-tenant flag and each company's row are cached for 30 s per process. Writes through the admin service clear the cache in that process at once.
+**Prisma 6 (must do before any upgrade).** The data-layer backstop uses `prisma.$use`, which is deprecated in Prisma 5 and removed in Prisma 6. Before any Prisma 6 upgrade it must be ported to a `$extends` query extension, applied to the **same exported client** every module imports. `src/lib/subscriptionWriteGuard.installed.integration.test.ts` fails in two cases:
+- `createApp()` does not install the guard (`isSubscriptionWriteGuardInstalled()`);
+- a write into an enforced read-only company, through the shared client during a user request, is no longer refused.
+
+The port must keep both tests green. Note that a Prisma query runs when it is awaited, so the request context must be active at the `await`, as it is in every route handler.
+
+**Cost.** Both checks return at once when the switch is off, or when the request's tenant has no enforced company. The switch, the per-tenant flag and each company's row are cached for 30 s per process. Writes through the admin service clear the cache in that process at once. A successful write that changes a company's `businessActivity` (which turns an activity add-on on or off, D13) drops that company's cached entitlements at once, through the data-layer guard, whatever route made it (review of #163).
 
 ### 5.2 Module gate
 
@@ -347,10 +358,19 @@ Accepting an invite that was already issued is **not** checked: its seat was cou
   - its status is `expired`, `awaiting_payment` or `canceled`;
   - it is `trialing` and `now ≥ currentPeriodEnd` (no grace on a trial, D28);
   - it is `active` or `grace` and `now ≥ currentPeriodEnd + 7 days` (D23).
-- **Suspended (enforced):** writes are refused with the suspended message; reads pass. The login block for a suspended company comes with the admin panel (P8).
+- **Suspended (enforced, P8):** the company is closed for reads and writes (§6: "login blocked for scoped members of that company; `all`-scope members lose only that company"):
+  - **Members scoped to that company:** login (`completeLoginForUser`, which also serves the multi-account choice, account switch and invite acceptance), `/auth/refresh` and `/auth/me` return 401 with `details.code = "company_suspended"`. So does every request on an open session (`authenticate`). The employee portal treats an employee of that company the same way: login and every portal request get 401.
+  - **`all`-scope members:** they still sign in. The company is left out of `GET /companies`, and every request that targets it, reads included, gets 403 `subscription_suspended`. "Targets it" means any of these:
+    - an explicit `companyId` / `targetCompanyId` / `:companyId`;
+    - a `/companies/:id` route;
+    - a known `:id` record (route pre-check);
+    - any single-record read of a row of that company, or a query filtering on its `companyId` (data-layer read guard in `subscriptionWriteGuard.ts`).
+
+    Their other companies are unaffected. A tenant-wide list or total with no `companyId` is not filtered by the read guard.
+  - **Timing:** the set of suspended companies per tenant is cached for 30 s like the rest of the state. Suspending through the admin service clears the cache in that process at once; other instances follow within 30 s. `activate` restores access the same way.
 - **Grace banner (P10):** for a paid term with `currentPeriodEnd ≤ now < currentPeriodEnd + 7 days`, `/auth/me` will return the company's grace end date. The UI shows a banner on every page of that company ("انتهى الاشتراك في … — تتحول الشركة إلى عرض فقط في … ما لم يُسدَّد التجديد"). Writes still pass.
 - **Correctness:** the check compares the dates with `now()` itself, so it does **not** depend on the scheduled job having run.
-- **Effect:** reads always pass, as today; mutations get 403 with `details.code = "subscription_read_only"` (or `subscription_suspended`).
+- **Effect:** for read-only, reads always pass, as today, and mutations get 403 with `details.code = "subscription_read_only"`. Suspended is stricter (above).
 - **Other companies are unaffected:** the same `all`-scope user keeps full access to the tenant's other companies that are active.
 - **Coverage:** #157's coverage test (every user-authenticated router mounts the guard) keeps protecting this.
 - **Mirror and reversal (CLAUDE.md rule 1):** implemented in P4, each case with its own HTTP test:
@@ -358,6 +378,11 @@ Accepting an invite that was already issued is **not** checked: its seat was cou
   - reversing an entry, or reversing the mirror half, that lives in the read-only company is refused;
   - reversing the healthy company's half still works, because it writes only there;
   - un-posting a pair from the healthy company is refused when it would change the half in the read-only company. The backstop catches this even though the request names no company.
+  - **suspended company (P8):**
+    - a mirror into it is refused;
+    - reversing its own entries or the mirror halves that live there is refused;
+    - reading those entries is refused;
+    - reversing the healthy company's half still works.
 
 ## 6. Lifecycle
 
@@ -449,23 +474,28 @@ It goes through the existing posting and ZATCA pipeline (the reserve-chain, re-i
 
 Everything goes through new internal endpoints under `/api/platform-admin/*` (same shared key). The admin panel's own `Invoice` table stops being the source of truth. It is kept read-only as history, mapped to companies during migration.
 
-| Screen / action | Internal API (athar) |
-|---|---|
-| Companies list: owner, plan, period, status, end date, rank, net price, users / limit, add-ons, over-limit flag | `GET /platform-admin/companies` |
-| Upgrade (now, prorated invoice) or downgrade (scheduled for renewal), D22 | `PATCH /platform-admin/companies/:id/subscription` |
-| POS user assignments (D19) | `GET/PUT …/:id/pos-users` |
-| Review queue: receipts un-allocated after an extension (D26) | `GET /platform-admin/subscription-reviews` |
-| Set end date (real date; replaces today's "extend" that wrote `trialEndsAt`) | same |
-| Suspend / activate (activate restores the by-date status) | `PATCH …/:id/status` |
-| Add-on quantities, activity add-on state | `PATCH …/:id/addons` |
-| Issue invoice (new, renewal, upgrade, add-on) | `POST …/:id/invoices` → أثر company sales invoice |
-| Record receipt and allocate (D9 auto-extends) | `POST …/:id/receipts` |
-| Customer statement | `GET …/:id/statement` |
-| Legal entity and billing company | `GET/PUT /platform-admin/billing-company` |
-| Price catalog with effective dates | `GET/POST /platform-admin/plan-prices` |
-| Migration screen: set plan and end date for each legacy company, set grandfathered price | `PATCH …/:id/subscription` (+ `migrated` event) |
+| Screen / action | Internal API (athar) | Status |
+|---|---|---|
+| Global enforcement switch (D33) | `GET/PUT /platform-admin/subscription-enforcement` | **P4** |
+| Companies list: owner, plan, period, status, end date, read-only date, live rank, net price, users / limit, over-limit flag, POS assigned / capacity, add-ons, legacy tenant state. Filters: tenant, status (`none` = no row), text. Paginated: `page` (from 1), `pageSize` (default 50, max 200). The response is `{ items, page, pageSize, total }`, in a stable order: tenant name, creation date, id. The query count is fixed whatever the number of companies or owners on the page: seats come from one grouped count, and live ranks for all the page's owners from three queries (review of #164) | `GET /platform-admin/companies` | **P8** |
+| Company detail: subscription, modules of its plan, members eligible for POS, last 50 events | `GET /platform-admin/companies/:companyId/subscription` | **P8** |
+| Set or replace the subscription with a real end date (also the migration screen, and setting `enforced`) | `PUT /platform-admin/companies/:companyId/subscription` (`created` / `migrated` event) | **P4** |
+| POS user assignments (D19), within 1 free + paid seats | `PUT /platform-admin/companies/:companyId/pos-users` | **P4** (the detail endpoint lists eligible members) |
+| Suspend (reason required) / activate (restores the by-date status) | `PATCH /platform-admin/companies/:companyId/subscription/status` | **P8** |
+| Add-on quantities and activity add-on state (never below the POS users already assigned) | `PATCH /platform-admin/companies/:companyId/subscription/addons` (`addons_changed` event) | **P8** |
+| Price catalog: rows in effect and scheduled, today's price per item; schedule a future price; delete a scheduled price | `GET/POST /platform-admin/plan-prices`, `DELETE /platform-admin/plan-prices/:id` | **P8** |
+| Upgrade (now, prorated invoice) or downgrade (scheduled for renewal), D22 | needs invoices | P7 |
+| Issue invoice (new, renewal, upgrade, add-on) | `POST …/:id/invoices` → أثر company sales invoice | P7 |
+| Record receipt and allocate (D9 auto-extends) | `POST …/:id/receipts` | P7 |
+| Customer statement | `GET …/:id/statement` | P7 |
+| Legal entity and billing company | `GET/PUT /platform-admin/billing-company` | P7 |
+| Review queue: receipts un-allocated after an extension (D26) | `GET /platform-admin/subscription-reviews` | P7 |
 
 The admin panel keeps writing its own `AuditLog`, and every athar-side change also writes a `subscription_events` row.
+
+**Rules on these endpoints (review of #164):**
+- **Omitted add-ons:** on `PUT …/subscription`, the add-on fields (`posEnabled`, `posUsers`, `extraUsers`, activity add-ons) are optional. Defaults (off, zero) apply only when the row is created. On an update an omitted field keeps its current value, so changing the plan, dates, status or `enforced` never switches POS off or resets paid seats. An explicit change follows the add-ons endpoint's rules: no paid POS seats without POS, and never below the POS users already assigned.
+- **Real calendar days:** every date in these requests (`effectiveFrom`, `currentPeriodStart`, `currentPeriodEnd`, the tenant's `trialEndsAt`) must exist on the calendar. JavaScript silently turns `2027-02-30` into 2 March, so an impossible day such as 30 February, 29 February in a non-leap year, month 13 or day 00 is refused with a 400 rather than stored as a different day.
 
 ## 10. Migration
 
@@ -509,10 +539,10 @@ None. Every question raised so far is answered (D16–D30). The stations and sta
 | P2 | `subscriptionPlans.ts` (plan → permission-id map, add-ons) and `previewSubscriptionPrice` with tests for every worked example above. Nothing calls them yet. | P1 |
 | P3 | Lifecycle: real end dates, `subscriptionScheduler` (expire, reminders), admin-activate restores by-date status. Fixes "active never expires". | P1 |
 | P4 | **Server enforcement:** global switch (D33), route pre-check and data-layer backstop, module gate on writes only (D31), per-company read-only with the tenant flag kept (D32), user and POS limits. Also the minimal admin endpoints a pilot needs, pulled forward from P8: switch, company subscription, POS users. | P1, P2, P3 |
-| P5 | Signup with plan, email verification, rate limiting, trial once per identity | P1, P2. ~~#151~~ merged, no longer blocking |
+| P5 | Signup with plan, email verification, rate limiting, trial once per identity. **Partly covered by #162:** the plan is chosen at signup but stored on the **tenant** (`Tenant.subscriptionPlan`). Remaining:<br>• no email verification;<br>• no rate limit;<br>• a new 30-day trial on every signup and every independent company, not once per identity;<br>• no billing period;<br>• prices hard-coded in the frontend instead of the server preview;<br>• no per-company subscription row. | P1, P2 |
 | P6 | Add-company flow with server price preview | P2. ~~#151~~ merged, no longer blocking (builds on its `CompaniesSettings.jsx` and `createCompany`) |
 | P7 | Billing via the أثر company: billing-company setting, `issueSubscriptionInvoice`, `subscription_invoices`, receipt → extend hook | P1, P3 |
-| P8 | Internal API for the admin panel (§9) | P1, P3, P7 |
+| P8 | Internal API for the admin panel (§9). The switch, subscription upsert and POS users shipped in P4. The rest (companies list, detail, suspend/activate, add-ons, price catalog) is in P8. Invoice-dependent endpoints wait for P7. | P1, P3, P4; the invoice parts need P7 |
 | P9 | Admin panel (separate repo): companies screen, plan/end date, invoices, receipts, statements, legal entity, price catalog, migration screen | P8 |
 | P10 | UI: nav from per-company allowed modules; landing and signup plan cards from `plan_prices` | P2, P4 |
 | P11 | Migration execution: create the rows (§10 step 1), owner fills plans, end dates and POS assignments, enforcement on per company, then drop the deprecated `Tenant` fields | all of the above, after the **#151** cutover |

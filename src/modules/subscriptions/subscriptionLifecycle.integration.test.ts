@@ -168,7 +168,8 @@ describe("subscription lifecycle (P3)", () => {
       await sub(await company(name), status, endDays);
       const suspended = await suspendCompanySubscription(companies[name], "مراجعة إدارية", "platform_admin:test", now);
       expect([suspended.status, suspended.suspensionReason]).toEqual(["suspended", "مراجعة إدارية"]);
-      const activated = await activateCompanySubscription(companies[name], "platform_admin:test", now);
+      // بعد التعليق بجزء من الثانية: حدثان بالطابع الزمني نفسه لا ترتيب مضموناً بينهما عند القراءة بـat
+      const activated = await activateCompanySubscription(companies[name], "platform_admin:test", new Date(now.getTime() + 1));
       expect([name, activated.status, activated.suspensionReason]).toEqual([name, expected, null]);
       expect((await eventsOf(name)).map((e) => e.type)).toEqual(["suspended", "activated"]);
     }

@@ -10,7 +10,7 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
-  "عدد مستخدمي نقطة البيع المعيَّنين أكبر من السعة الجديدة — أزل بعض التعيينات أولاً": "More POS users are assigned than the new capacity allows — remove some assignments first",
+  "التاريخ غير موجود في التقويم": "This date does not exist on the calendar",
   "أضف الشركة الجديدة كحساب مستقل من إعدادات الشركات": "Add the new company as an independent account from company settings.",
   "فترة اشتراك غير صالحة": "Invalid subscription period",
   "تاريخ التغيير خارج الفترة الحالية": "The change date is outside the current subscription period",
@@ -639,12 +639,22 @@ export const AR_TO_EN: Record<string, string> = {
   "حالة ما قبل التعليق غير صالحة": "Invalid status before suspension",
   // إنفاذ الاشتراكات (P4) — رسائل subscriptionEnforcement.MESSAGES تُترجَم بالنص نفسه
   "هذه الشركة في وضع (عرض فقط) لانتهاء اشتراكها — يمكنك الاطلاع على بياناتها وتصديرها، وللإضافة أو التعديل أو الحذف جدّد الاشتراك.": "This company is read-only because its subscription has ended — you can still view and export its data; renew the subscription to add, edit or delete.",
-  "اشتراك هذه الشركة معلّق — يمكنك الاطلاع على بياناتها، وللإضافة أو التعديل تواصل مع الدعم الفني.": "This company's subscription is suspended — you can still view its data; contact support to add or edit.",
+  "اشتراك هذه الشركة معلّق من إدارة المنصة — لا يمكن الاطلاع على بياناتها أو تعديلها حتى يُعاد تفعيلها، تواصل مع الدعم الفني.": "This company's subscription has been suspended by the platform administration — its data cannot be viewed or edited until it is reactivated. Please contact support.",
+  "لا يمكن تعيين مستخدم لنقطة البيع إلا إذا كان عضواً فعّالاً قَبِل دعوته ونطاقه كل الشركات أو هذه الشركة.": "A POS user can only be an active member who has accepted their invitation and whose scope is all companies or this company.",
+  "اشتراك شركتك معلّق من إدارة المنصة — لا يمكن الدخول إليها حتى يُعاد تفعيلها، تواصل مع الدعم الفني.": "Your company's subscription has been suspended by the platform administration — you cannot sign in to it until it is reactivated. Please contact support.",
   "هذه الميزة غير مشمولة في باقة الشركة الحالية — يمكنك الاطلاع على بياناتها الحالية وتصديرها، وللإضافة أو التعديل يمكنك ترقية الباقة.": "This feature is not included in the company's current plan — you can still view and export its existing data; upgrade the plan to add or edit.",
   "لست معيَّناً مستخدماً لنقطة البيع في هذه الشركة — اطلب من مالك الشركة تعيينك قبل فتح مبيعات نقطة البيع.": "You are not assigned as a POS user in this company — ask the company owner to assign you before opening POS sales.",
   "بلغت الشركة حد المستخدمين في باقتها — أضف مستخدمين إضافيين أو رقِّ الباقة قبل دعوة مستخدم جديد أو تفعيله.": "The company has reached its plan's user limit — add extra users or upgrade the plan before inviting or activating a user.",
   "لا توجد مقاعد نقطة بيع متاحة لهذه الشركة — أضف مقاعد إضافية قبل تعيين مستخدم جديد.": "No POS seats are available for this company — add seats before assigning another user.",
   "نقطة البيع غير مفعّلة لهذه الشركة.": "POS is not enabled for this company.",
   "تاريخ نهاية الاشتراك يجب أن يكون بعد بدايته": "The subscription end date must be after its start date",
+  // لوحة مدير المنصة للاشتراكات (P8)
+  "عدد مستخدمي نقطة البيع المعيَّنين أكبر من السعة الجديدة — أزل بعض التعيينات أولاً": "More POS users are assigned than the new capacity allows — remove some assignments first",
+  "تاريخ سريان السعر الجديد يجب أن يكون بعد اليوم — الأسعار السارية لا تُعدَّل": "A new price must take effect after today — prices already in effect cannot be changed",
+  "يوجد سعر مجدول لهذا البند في التاريخ نفسه": "A price for this item is already scheduled on that date",
+  "لا يمكن حذف سعر سارٍ — جدول سعراً جديداً بتاريخ لاحق بدلاً من ذلك": "A price in effect cannot be deleted — schedule a new price with a later date instead",
+  "سبب التعليق مطلوب": "A suspension reason is required",
+  "لا يوجد تغيير في الطلب": "The request contains no change",
+  "التاريخ بصيغة YYYY-MM-DD": "Date must be in YYYY-MM-DD format",
   "باقة الشركة الحالية تشمل سجلات عمّال المحطات فقط — حدّد محطة الموظف، أو رقِّ الباقة لإدارة كل الموظفين.": "The company's current plan covers station-worker records only — set the employee's station, or upgrade the plan to manage all employees.",
 };
