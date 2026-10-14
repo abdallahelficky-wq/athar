@@ -15,7 +15,7 @@ import { readOnlyAt, graceEndsAt } from "../../lib/subscriptionLifecycle";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
 import { NULLABLE_PRICE_ITEMS, PRICE_REQUIRED_MESSAGE } from "../platformAdmin/platformAdmin.schemas";
 import { planPricesAt, rankCompaniesByOwnerIdentities } from "./subscriptionPreview.service";
-import { activateCompanySubscription, suspendCompanySubscription } from "./subscriptionLifecycle.service";
+import { activateCompanySubscription, StaleSubscriptionVersionError, suspendCompanySubscription } from "./subscriptionLifecycle.service";
 
 /**
  * إدارة الإنفاذ من لوحة مدير المنصة (P4 — جزء من P8 قُدِّم لأن تجربة الإنفاذ على شركة واحدة بعد النشر تحتاجه): المفتاح الشامل،
@@ -67,6 +67,7 @@ const snapshot = (row: Record<string, unknown>) => JSON.parse(JSON.stringify(row
  * التزامن المتفائل (P9): المدير يرسل نسخة الصف التي حمّلها (version، يزيدها مشغّل القاعدة عند كل تحديث من أي كاتب). نسخة لا تطابق
  * الصف الحالي = تعديل آخر سبقه (مدير في تبويب آخر، المُجدوِل، تعليق) — 409 مع الصف الحالي فيعرضه ويقرر، بدل أن يمحو ما لم يره.
  */
+export const SUSPENSION_VIA_STATUS_MESSAGE = "تعليق الاشتراك وتفعيله من إجراء التعليق/التفعيل وحده (مع السبب) — لا من تعديل الاشتراك.";
 export const VERSION_CONFLICT_MESSAGE = "تغيّر اشتراك هذه الشركة منذ فتحته — راجع القيم الحالية ثم أعد الحفظ.";
 function versionConflict(current: NonNullable<SubscriptionRow> | null, now: Date = new Date()) {
   return new HttpError(409, VERSION_CONFLICT_MESSAGE, { code: "subscription_version_conflict", current: current ? subscriptionView(current, now) : null });
@@ -106,6 +107,9 @@ export async function upsertCompanySubscription(companyId: string, input: Compan
     });
     const before = await tx.companySubscription.findUnique({ where: { companyId } });
     assertExpectedVersion(before, input.expectedVersion);
+    // التعليق والتفعيل انتقالان لهما مسارهما (سبب إلزامي، حدث suspended/activated، وتفعيل يعيد الحالة بالتاريخ) — التعديل العام لا يُدخل
+    // صفاً في التعليق ولا يُخرجه منه ولا يغيّر حالة صف معلّق، ولا يُنشئ صفاً معلّقاً (مراجعة #166)
+    if ((before?.status === "suspended") !== (input.status === "suspended")) throw badRequest(SUSPENSION_VIA_STATUS_MESSAGE);
     let after;
     if (before) {
       // مشروطة بالنسخة المقروءة: كاتب لا يأخذ قفل المقاعد (التعليق، المُجدوِل) بين القراءة والكتابة يُكتشَف هنا أيضاً
@@ -329,14 +333,18 @@ export async function getCompanySubscriptionDetail(companyId: string, now: Date 
 
 /** تعليق/إعادة تفعيل (P3): إعادة التفعيل تعود إلى الحالة التي يستحقها الاشتراك بالتاريخ، لا "نشط بلا نهاية" */
 export async function setCompanySubscriptionStatus(companyId: string, action: "suspend" | "activate", reason?: string, expectedVersion?: number) {
-  // انتقال لا استبدال: محروس بحالته (claim على status في خدمة الدورة). النسخة اختيارية هنا — لوحة المدير ترسلها فلا يُعلَّق صفٌّ تغيّر
-  // منذ فتحه دون أن يراه المدير
-  if (expectedVersion !== undefined) {
-    const current = await prisma.companySubscription.findUnique({ where: { companyId } });
-    if (!current) throw notFound("لا يوجد اشتراك لهذه الشركة");
-    assertExpectedVersion(current, expectedVersion);
+  // انتقال لا استبدال: محروس بحالته، وبالنسخة حين تُرسَل (لوحة المدير ترسلها دائماً) — في شرط التحديث نفسه داخل المعاملة (مراجعة #166):
+  // تعديل آخر بين تحميل المدير وتعليقه يُرفض بـ409 ولا يُكتب شيء
+  let result;
+  try {
+    result =
+      action === "suspend"
+        ? await suspendCompanySubscription(companyId, reason ?? "", ACTOR, new Date(), expectedVersion)
+        : await activateCompanySubscription(companyId, ACTOR, new Date(), expectedVersion);
+  } catch (err) {
+    if (err instanceof StaleSubscriptionVersionError) throw versionConflict(await prisma.companySubscription.findUnique({ where: { companyId } }));
+    throw err;
   }
-  const result = action === "suspend" ? await suspendCompanySubscription(companyId, reason ?? "", ACTOR) : await activateCompanySubscription(companyId, ACTOR);
   clearSubscriptionEnforcementCache();
   return result;
 }

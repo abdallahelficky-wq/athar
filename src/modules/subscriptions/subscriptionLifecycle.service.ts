@@ -145,6 +145,16 @@ export async function runSubscriptionLifecycle(now: Date = new Date(), send?: Se
   return { ...transitions, ...reminders };
 }
 
+/**
+ * نسخة صف قديمة في انتقال التعليق/التفعيل (P9، مراجعة #166): المدير أرسل نسخة الصف التي حمّلها، والنسخة الآن غيرها — أو تغيّرت بين
+ * القراءة والكتابة (الفحص جزء من شرط التحديث نفسه، فلا نافذة بينهما). خدمة الإدارة تحوّله إلى 409 مع الصف الحالي.
+ */
+export class StaleSubscriptionVersionError extends Error {
+  constructor() {
+    super("stale subscription version");
+  }
+}
+
 async function loadSubscription(companyId: string) {
   const sub = await prisma.companySubscription.findUnique({ where: { companyId } });
   if (!sub) throw notFound("لا يوجد اشتراك لهذه الشركة");
@@ -152,12 +162,20 @@ async function loadSubscription(companyId: string) {
 }
 
 /** تعليق إداري (§6): يحفظ الحالة السابقة في الحدث لتعود إليها إعادة التفعيل بالتاريخ */
-export async function suspendCompanySubscription(companyId: string, reason: string, actor: string, now: Date = new Date()) {
+export async function suspendCompanySubscription(companyId: string, reason: string, actor: string, now: Date = new Date(), expectedVersion?: number) {
   const sub = await loadSubscription(companyId);
+  if (expectedVersion !== undefined && sub.version !== expectedVersion) throw new StaleSubscriptionVersionError();
   if (sub.status === "suspended") throw badRequest("الاشتراك معلّق بالفعل");
   return prisma.$transaction(async (tx) => {
-    const claim = await tx.companySubscription.updateMany({ where: { id: sub.id, status: sub.status }, data: { status: "suspended", suspensionReason: reason } });
-    if (claim.count !== 1) throw badRequest("تغيّرت حالة الاشتراك أثناء الطلب — أعد المحاولة");
+    // النسخة (حين تُرسَل) في شرط التحديث نفسه مع الحالة: كاتب آخر بين القراءة والكتابة يُفشل المطالبة، لا يمرّ التعليق فوقه
+    const claim = await tx.companySubscription.updateMany({
+      where: { id: sub.id, status: sub.status, ...(expectedVersion !== undefined ? { version: expectedVersion } : {}) },
+      data: { status: "suspended", suspensionReason: reason },
+    });
+    if (claim.count !== 1) {
+      if (expectedVersion !== undefined) throw new StaleSubscriptionVersionError();
+      throw badRequest("تغيّرت حالة الاشتراك أثناء الطلب — أعد المحاولة");
+    }
     await tx.subscriptionEvent.create({
       data: { companySubscriptionId: sub.id, type: "suspended", before: { status: sub.status }, after: { status: "suspended", suspensionReason: reason }, actor, at: now },
     });
@@ -169,8 +187,9 @@ export async function suspendCompanySubscription(companyId: string, reason: stri
  * إعادة التفعيل (§6): الحالة التي يستحقها الاشتراك بالتاريخ انطلاقاً من حالته قبل التعليق — نشط قبل النهاية، سماح خلال 7 أيام
  * بعدها، منتهٍ بعدها؛ والتجربة تعود تجربة أو منتهية. لا "نشط بلا نهاية" كما يفعل تفعيل المستأجر اليوم.
  */
-export async function activateCompanySubscription(companyId: string, actor: string, now: Date = new Date()) {
+export async function activateCompanySubscription(companyId: string, actor: string, now: Date = new Date(), expectedVersion?: number) {
   const sub = await loadSubscription(companyId);
+  if (expectedVersion !== undefined && sub.version !== expectedVersion) throw new StaleSubscriptionVersionError();
   if (sub.status !== "suspended") throw badRequest("الاشتراك ليس معلّقاً");
   const lastSuspension = await prisma.subscriptionEvent.findFirst({
     where: { companySubscriptionId: sub.id, type: "suspended" },
@@ -181,8 +200,14 @@ export async function activateCompanySubscription(companyId: string, actor: stri
   // اشتراك مُرحَّل معلَّقاً بلا حدث تعليق: يُعامَل كفترة مدفوعة، فتحكمه نهايته
   const target = statusAfterReactivation(before ?? "active", sub.currentPeriodEnd, now);
   return prisma.$transaction(async (tx) => {
-    const claim = await tx.companySubscription.updateMany({ where: { id: sub.id, status: "suspended" }, data: { status: target, suspensionReason: null } });
-    if (claim.count !== 1) throw badRequest("تغيّرت حالة الاشتراك أثناء الطلب — أعد المحاولة");
+    const claim = await tx.companySubscription.updateMany({
+      where: { id: sub.id, status: "suspended", ...(expectedVersion !== undefined ? { version: expectedVersion } : {}) },
+      data: { status: target, suspensionReason: null },
+    });
+    if (claim.count !== 1) {
+      if (expectedVersion !== undefined) throw new StaleSubscriptionVersionError();
+      throw badRequest("تغيّرت حالة الاشتراك أثناء الطلب — أعد المحاولة");
+    }
     await tx.subscriptionEvent.create({
       data: { companySubscriptionId: sub.id, type: "activated", before: { status: "suspended" }, after: { status: target }, actor, at: now },
     });

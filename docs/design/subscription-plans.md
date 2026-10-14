@@ -493,6 +493,14 @@ Everything goes through new internal endpoints under `/api/platform-admin/*` (sa
 - **Optional:** `PATCH …/status` accepts it. That route is a guarded transition, not a replacement.
 - **Stale version:** the request gets 409 with `details.code = "subscription_version_conflict"` and `details.current` (the row as it is now). Nothing is written.
 - **Where the check runs:** inside the transaction that holds the POS-seat lock. The write itself is also conditional on the version, so a writer that doesn't take the lock cannot slip in between the read and the write.
+- **Suspend/activate:** when the version is sent, it is part of the transition's own `UPDATE … WHERE status = … AND version = …`. A write that lands between the admin's load and the transition gets 409, and nothing is written: no status change and no event (review of #166).
+- **Suspension goes only through `PATCH …/status`:** that route requires a reason, writes the `suspended`/`activated` event, and on activation restores the by-date status. The general `PUT …/subscription` refuses:
+  - moving a row into `suspended`;
+  - moving a row out of `suspended`;
+  - changing the status of a suspended row;
+  - creating a row as `suspended`.
+
+  A suspended row's plan and dates can still be edited.
 | Price catalog: rows in effect and scheduled, today's price per item; schedule a future price; delete a scheduled price | `GET/POST /platform-admin/plan-prices`, `DELETE /platform-admin/plan-prices/:id` | **P8** |
 | Upgrade (now, prorated invoice) or downgrade (scheduled for renewal), D22 | needs invoices | P7 |
 | Issue invoice (new, renewal, upgrade, add-on) | `POST …/:id/invoices` → أثر company sales invoice | P7 |

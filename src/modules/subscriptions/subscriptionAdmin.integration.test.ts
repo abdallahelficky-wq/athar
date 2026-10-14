@@ -251,10 +251,13 @@ describe("platform-admin subscriptions API (P8)", () => {
       grace: plusGrace,
     };
     for (const [status, from] of Object.entries(expected) as [CompanySubscriptionStatus, Date][]) {
+      // التعليق والتفعيل بمسارهما وحده (مراجعة #166)
+      if ((await prisma.companySubscription.findUnique({ where: { companyId: company } }))?.status === "suspended") await setCompanySubscriptionStatus(company, "activate");
       await upsertCompanySubscription(company, {
-        plan: "basic", billingPeriod: "yearly", status,
+        plan: "basic", billingPeriod: "yearly", status: status === "suspended" ? "active" : status,
         currentPeriodStart: new Date("2025-11-01T00:00:00.000Z"), currentPeriodEnd: end, enforced: false,
       });
+      if (status === "suspended") await setCompanySubscriptionStatus(company, "suspend", "اختبار الحالة");
       const view = (await getCompanySubscriptionDetail(company, now)).subscription!;
       expect({ status, readOnlyFrom: view.readOnlyFrom }).toEqual({ status, readOnlyFrom: from });
       // الاتساق مع readOnlyNow: "فوراً" ⇔ عرض فقط الآن
@@ -316,6 +319,78 @@ describe("platform-admin subscriptions API (P8)", () => {
     expect(await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: company } })).toEqual(before);
     // بالنسخة الحالية: يمر
     expect((await edit({ plan: "basic", expectedVersion: before.version })).version).toBe(before.version + 1);
+  });
+
+  it("suspend/activate check the loaded version inside the update itself: a write between the read and the update gets 409 and nothing is written", async () => {
+    // مراجعة #166: كان فحص النسخة قبل المعاملة وحده، فكاتب بين القراءة والتحديث يمرّ تحته التعليق. هنا يُحقَن ذلك الكاتب حتمياً: لحظة
+    // وصول تحديث الانتقال، يُثبَّت تعديل آخر على الصف من اتصال آخر (كما يفعله مدير في تبويب آخر أو المُجدوِل)، ثم يُكمَل التحديث
+    const company = (await prisma.company.create({ data: { tenantId: tenantB, name: `ذرّي ${stamp}` } })).id;
+    await upsertCompanySubscription(company, { plan: "basic", billingPeriod: "yearly", status: "active", ...term(30), enforced: false, expectedVersion: null });
+    let interleave: null | ((target: string) => boolean) = null;
+    prisma.$use(async (params, next) => {
+      const data = (params.args as { data?: { status?: string } } | undefined)?.data;
+      if (interleave && params.model === "CompanySubscription" && params.action === "updateMany" && data?.status && interleave(data.status)) {
+        interleave = null;
+        await prisma.$executeRaw`UPDATE "company_subscriptions" SET "extraUsers" = "extraUsers" + 1 WHERE "companyId" = ${company}`;
+      }
+      return next(params);
+    });
+    const events = (type: string) => prisma.subscriptionEvent.count({ where: { companySubscription: { companyId: company }, type: type as never } });
+
+    for (const [action, target] of [["suspend", "suspended"], ["activate", "active"]] as const) {
+      if (action === "activate") await setCompanySubscriptionStatus(company, "suspend", "تجهيز");
+      const loaded = await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: company } });
+      const eventsBefore = await events(target === "suspended" ? "suspended" : "activated");
+      interleave = (status) => (action === "suspend" ? status === "suspended" : status !== "suspended");
+      const err = await setCompanySubscriptionStatus(company, action, "قديم", loaded.version).then(() => null, (e) => e);
+      expect([action, err?.status, err?.details?.code]).toEqual([action, 409, "subscription_version_conflict"]);
+      const after = await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: company } });
+      // الكاتب الآخر وحده كُتب (مستخدم إضافي، نسخة +1)؛ الانتقال لم يُكتب ولا حدثه
+      expect([after.status, after.extraUsers, after.version]).toEqual([loaded.status, loaded.extraUsers + 1, loaded.version + 1]);
+      expect(err.details.current.version).toBe(after.version);
+      expect(await events(target === "suspended" ? "suspended" : "activated")).toBe(eventsBefore);
+    }
+    await setCompanySubscriptionStatus(company, "activate");
+
+    // والسباق الحقيقي: تغيير إضافات وتعليق متزامنان من النسخة نفسها — لا يمرّان معاً أبداً
+    for (let round = 0; round < 5; round++) {
+      const v = (await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: company } })).version;
+      const suspendsBefore = await events("suspended");
+      const results = await Promise.allSettled([
+        updateCompanySubscriptionAddons(company, { extraUsers: round + 10, expectedVersion: v }),
+        setCompanySubscriptionStatus(company, "suspend", "سباق", v),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled"), `round ${round}`).toHaveLength(1);
+      const suspended = results[1].status === "fulfilled";
+      const row = await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: company } });
+      expect([row.status === "suspended", await events("suspended")]).toEqual([suspended, suspendsBefore + (suspended ? 1 : 0)]);
+      if (suspended) await setCompanySubscriptionStatus(company, "activate");
+    }
+  });
+
+  it("the general subscription PUT never moves a row into or out of suspended, never changes a suspended row's status, and never creates one suspended", async () => {
+    const company = (await prisma.company.create({ data: { tenantId: tenantB, name: `انتقال ${stamp}` } })).id;
+    const put = (over: Partial<Parameters<typeof upsertCompanySubscription>[1]>) =>
+      upsertCompanySubscription(company, { plan: "basic", billingPeriod: "yearly", status: "active", ...term(30), enforced: false, ...over });
+    const refused = "تعليق الاشتراك وتفعيله من إجراء التعليق/التفعيل وحده";
+    await expect(put({ status: "suspended", expectedVersion: null })).rejects.toThrow(refused);
+    expect(await prisma.companySubscription.findUnique({ where: { companyId: company } })).toBeNull();
+
+    await put({ expectedVersion: null });
+    await expect(put({ status: "suspended", expectedVersion: 0 })).rejects.toThrow(refused);
+    expect((await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: company } })).version).toBe(0);
+
+    await setCompanySubscriptionStatus(company, "suspend", "مراجعة");
+    const suspended = await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: company } });
+    for (const status of ["active", "grace", "expired", "trialing", "canceled", "awaiting_payment"] as const) {
+      await expect(put({ status, expectedVersion: suspended.version }), status).rejects.toThrow(refused);
+    }
+    expect(await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: company } })).toEqual(suspended);
+    // صف معلّق يبقى معلّقاً: تعديل باقته أو تواريخه مسموح، وحالته وسببه كما هما
+    const edited = await put({ status: "suspended", plan: "professional", expectedVersion: suspended.version });
+    expect([edited.status, edited.plan, edited.suspensionReason]).toEqual(["suspended", "professional", "مراجعة"]);
+    // والمسار المخصَّص يبقى الطريق الوحيد للخروج
+    expect((await setCompanySubscriptionStatus(company, "activate", undefined, edited.version)).status).toBe("active");
   });
 
   it("passes the loaded version from each platform route to the service (PUT, add-ons, status)", async () => {
