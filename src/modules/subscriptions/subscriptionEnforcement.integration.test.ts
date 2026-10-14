@@ -568,6 +568,8 @@ describe("subscription enforcement (P4)", () => {
   });
 
   it("turning the global switch OFF again restores today's behaviour for the enforced company", async () => {
+    // إيقاف نقطة البيع لا يترك تعيينات فوق السعة (مراجعة #164) — تُزال التعيينات أولاً، كما يشترط مسار الإضافات
+    await setCompanyPosUsers(companyA, []);
     await subscribeA({ plan: "basic", endDays: -30, posEnabled: false });
     await globalSwitch(false);
     expect((await journal(companyA, "A")).status).toBe(201);

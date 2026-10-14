@@ -10,6 +10,7 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "التاريخ غير موجود في التقويم": "This date does not exist on the calendar",
   "أضف الشركة الجديدة كحساب مستقل من إعدادات الشركات": "Add the new company as an independent account from company settings.",
   "فترة اشتراك غير صالحة": "Invalid subscription period",
   "تاريخ التغيير خارج الفترة الحالية": "The change date is outside the current subscription period",

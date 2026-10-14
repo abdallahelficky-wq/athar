@@ -46,7 +46,12 @@ export type CompanySubscriptionInput = {
 
 const snapshot = (row: Record<string, unknown>) => JSON.parse(JSON.stringify(row)) as Prisma.InputJsonObject;
 
-/** ينشئ صف اشتراك الشركة أو يحدّثه بتاريخ نهاية حقيقي (لا صف "قديم بلا نهاية" من هنا)، مع حدث بالقيم قبل وبعد */
+/**
+ * ينشئ صف اشتراك الشركة أو يحدّثه بتاريخ نهاية حقيقي (لا صف "قديم بلا نهاية" من هنا)، مع حدث بالقيم قبل وبعد.
+ * الإضافات (نقطة البيع ومقاعدها، المستخدمون الإضافيون) اختيارية في الطلب: الافتراضي (معطّلة، صفر) عند الإنشاء فقط؛ عند التحديث يبقى
+ * الحقل الغائب على قيمته الحالية (مراجعة #164) — فتغيير الباقة أو التواريخ لا يُطفئ نقطة البيع ولا يصفّر مقاعد مدفوعة. وبنفس قواعد مسار
+ * الإضافات: لا مقاعد نقطة بيع بلا تفعيلها، ولا سعة أقل من المعيَّنين فعلاً.
+ */
 export async function upsertCompanySubscription(companyId: string, input: CompanySubscriptionInput) {
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true, tenant: { select: { ownerId: true } } } });
   if (!company) throw notFound("الشركة غير موجودة");
@@ -59,18 +64,27 @@ export async function upsertCompanySubscription(companyId: string, input: Compan
     currentPeriodEnd: input.currentPeriodEnd,
     legacyOpenEnded: false,
     enforced: input.enforced,
-    posEnabled: input.posEnabled ?? false,
-    posUsers: input.posUsers ?? 0,
-    extraUsers: input.extraUsers ?? 0,
+    ...(input.posEnabled !== undefined ? { posEnabled: input.posEnabled } : {}),
+    ...(input.posUsers !== undefined ? { posUsers: input.posUsers } : {}),
+    ...(input.extraUsers !== undefined ? { extraUsers: input.extraUsers } : {}),
     ...(input.stationsAddon ? { stationsAddon: input.stationsAddon } : {}),
     ...(input.stablesAddon ? { stablesAddon: input.stablesAddon } : {}),
     ownerIdentityId: owner?.identityId ?? null,
   };
+  const existing = await prisma.companySubscription.findUnique({ where: { companyId }, select: { posEnabled: true, posUsers: true } });
+  const pos = {
+    posEnabled: input.posEnabled ?? existing?.posEnabled ?? false,
+    posUsers: input.posUsers ?? (input.posEnabled === false ? 0 : existing?.posUsers ?? 0),
+  };
+  if (pos.posUsers > 0 && !pos.posEnabled) throw badRequest(MESSAGES.posDisabled);
+  if ((await prisma.companyPosUser.count({ where: { companyId } })) > posSeatCapacity(pos)) {
+    throw badRequest("عدد مستخدمي نقطة البيع المعيَّنين أكبر من السعة الجديدة — أزل بعض التعيينات أولاً");
+  }
   const result = await prisma.$transaction(async (tx) => {
     const before = await tx.companySubscription.findUnique({ where: { companyId } });
     const after = before
-      ? await tx.companySubscription.update({ where: { companyId }, data })
-      : await tx.companySubscription.create({ data: { companyId, ...data } });
+      ? await tx.companySubscription.update({ where: { companyId }, data: { ...data, ...(input.posEnabled === false ? { posUsers: 0 } : {}) } })
+      : await tx.companySubscription.create({ data: { companyId, posEnabled: false, posUsers: 0, extraUsers: 0, ...data } });
     await tx.subscriptionEvent.create({
       data: { companySubscriptionId: after.id, type: before ? "migrated" : "created", before: before ? snapshot(before) : undefined, after: snapshot(after), actor: ACTOR },
     });

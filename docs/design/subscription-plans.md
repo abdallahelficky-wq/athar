@@ -469,6 +469,10 @@ Everything goes through new internal endpoints under `/api/platform-admin/*` (sa
 
 The admin panel keeps writing its own `AuditLog`, and every athar-side change also writes a `subscription_events` row.
 
+**Rules on these endpoints (review of #164):**
+- **Omitted add-ons:** on `PUT …/subscription`, the add-on fields (`posEnabled`, `posUsers`, `extraUsers`, activity add-ons) are optional. Defaults (off, zero) apply only when the row is created. On an update an omitted field keeps its current value, so changing the plan, dates, status or `enforced` never switches POS off or resets paid seats. An explicit change follows the add-ons endpoint's rules: no paid POS seats without POS, and never below the POS users already assigned.
+- **Real calendar days:** every date in these requests (`effectiveFrom`, `currentPeriodStart`, `currentPeriodEnd`, the tenant's `trialEndsAt`) must exist on the calendar. JavaScript silently turns `2027-02-30` into 2 March, so an impossible day such as 30 February, 29 February in a non-leap year, month 13 or day 00 is refused with a 400 rather than stored as a different day.
+
 ## 10. Migration
 
 **Sizing first.** `scripts/sql/subscription-migration-sizing.sql` is read-only and **has not been run on production**. The owner runs it. It returns, per company:

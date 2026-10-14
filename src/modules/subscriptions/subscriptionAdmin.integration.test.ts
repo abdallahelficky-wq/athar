@@ -7,6 +7,7 @@ import { createIndependentTenant, register } from "../auth/auth.service";
 import { platformAdminRoutes } from "../platformAdmin/platformAdmin.routes";
 import {
   companySubscriptionAddonsSchema,
+  companySubscriptionSchema,
   companySubscriptionStatusSchema,
   schedulePlanPriceSchema,
 } from "../platformAdmin/platformAdmin.schemas";
@@ -147,6 +148,37 @@ describe("platform-admin subscriptions API (P8)", () => {
     expect((await listPlanPrices()).current.addon_stations).toBeNull(); // لم يسرِ بعد: المحطات مجانية اليوم (D30)
     await expect(deleteScheduledPlanPrice("plan_price_seed_basic")).rejects.toThrow("لا يمكن حذف سعر سارٍ");
     expect(await deleteScheduledPlanPrice(created.id)).toEqual({ deleted: created.id });
+  });
+
+  // مراجعة #164 (3): PUT الاشتراك بلا حقول الإضافات لا يُطفئ نقطة البيع ولا يصفّر المقاعد المدفوعة ولا يترك تعيينات فوق السعة
+  it("keeps add-ons and POS assignments on a subscription PUT that omits them; defaults apply only when creating", async () => {
+    await updateCompanySubscriptionAddons(companyA1, { posEnabled: true, posUsers: 1, extraUsers: 2 });
+    const members = (await getCompanySubscriptionDetail(companyA1)).members.map((m) => m.id);
+    await setCompanyPosUsers(companyA1, members.slice(0, 2)); // السعة 1 مجاني + 1 مدفوع
+
+    // طلب المدير كما يصل إلى المسار: تغيير الباقة والتواريخ والحالة فقط
+    const end = new Date(Date.now() + 200 * DAY);
+    const planOnly = companySubscriptionSchema.parse({
+      plan: "professional", billingPeriod: "yearly", status: "active", enforced: false,
+      currentPeriodStart: new Date(end.getTime() - 365 * DAY).toISOString(), currentPeriodEnd: end.toISOString(),
+    });
+    const updated = await upsertCompanySubscription(companyA1, planOnly);
+    expect([updated.plan, updated.posEnabled, updated.posUsers, updated.extraUsers]).toEqual(["professional", true, 1, 2]);
+    expect(await prisma.companyPosUser.count({ where: { companyId: companyA1 } })).toBe(2);
+
+    // تغيير صريح يُنقص السعة تحت المعيَّنين مرفوض، كمسار الإضافات؛ والصف لا يتغير
+    await expect(upsertCompanySubscription(companyA1, { ...planOnly, posUsers: 0 })).rejects.toThrow("أكبر من السعة الجديدة");
+    await expect(upsertCompanySubscription(companyA1, { ...planOnly, posEnabled: false })).rejects.toThrow("أكبر من السعة الجديدة");
+    expect((await prisma.companySubscription.findUniqueOrThrow({ where: { companyId: companyA1 } })).posUsers).toBe(1);
+
+    // الإنشاء بلا حقول الإضافات: الافتراضي (معطّلة، صفر)
+    const created = await upsertCompanySubscription(companyA2, planOnly);
+    expect([created.posEnabled, created.posUsers, created.extraUsers]).toEqual([false, 0, 0]);
+
+    // تنظيف: إعادة A1 كما تركها الاختبار السابق
+    await setCompanyPosUsers(companyA1, []);
+    await updateCompanySubscriptionAddons(companyA1, { posEnabled: false, extraUsers: 1 });
+    await upsertCompanySubscription(companyA1, { ...planOnly, plan: "basic", ...term(30) });
   });
 
   it("registers every route behind the platform service key", () => {
