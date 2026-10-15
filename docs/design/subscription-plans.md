@@ -489,6 +489,20 @@ Everything goes through new internal endpoints under `/api/platform-admin/*` (sa
 | POS user assignments (D19), within 1 free + paid seats | `PUT /platform-admin/companies/:companyId/pos-users` | **P4** (the detail endpoint lists eligible members) |
 | Suspend (reason required) / activate (restores the by-date status) | `PATCH /platform-admin/companies/:companyId/subscription/status` | **P8** |
 | Add-on quantities and activity add-on state (never below the POS users already assigned) | `PATCH /platform-admin/companies/:companyId/subscription/addons` (`addons_changed` event) | **P8** |
+
+**Optimistic concurrency (P9).** `company_subscriptions.version` starts at 0. A database trigger raises it on every `UPDATE` from any writer: the admin panel, the scheduler, suspend/activate, or a direct query. The detail and list endpoints return it as `subscription.version`.
+- **Required:** `PUT …/subscription` must send `expectedVersion` (`null` to create a row that doesn't exist yet), and so must `PATCH …/addons`.
+- **Optional:** `PATCH …/status` accepts it. That route is a guarded transition, not a replacement.
+- **Stale version:** the request gets 409 with `details.code = "subscription_version_conflict"` and `details.current` (the row as it is now). Nothing is written.
+- **Where the check runs:** inside the transaction that holds the POS-seat lock. The write itself is also conditional on the version, so a writer that doesn't take the lock cannot slip in between the read and the write.
+- **Suspend/activate:** when the version is sent, it is part of the transition's own `UPDATE … WHERE status = … AND version = …`. A write that lands between the admin's load and the transition gets 409, and nothing is written: no status change and no event (review of #166).
+- **Suspension goes only through `PATCH …/status`:** that route requires a reason, writes the `suspended`/`activated` event, and on activation restores the by-date status. The general `PUT …/subscription` refuses:
+  - moving a row into `suspended`;
+  - moving a row out of `suspended`;
+  - changing the status of a suspended row;
+  - creating a row as `suspended`.
+
+  A suspended row's plan and dates can still be edited.
 | Price catalog: rows in effect and scheduled, today's price per item; schedule a future price; delete a scheduled price | `GET/POST /platform-admin/plan-prices`, `DELETE /platform-admin/plan-prices/:id` | **P8** |
 | Upgrade (now, prorated invoice) or downgrade (scheduled for renewal), D22 | needs invoices | P7 |
 | Issue invoice (new, renewal, upgrade, add-on) | `POST …/:id/invoices` → أثر company sales invoice | P7 |

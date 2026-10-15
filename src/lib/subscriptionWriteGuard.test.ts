@@ -48,7 +48,7 @@ describe("subscription write guard coverage", () => {
   });
 
   it("accepts only a real subscription term from the admin API: end after start", () => {
-    const base = { plan: "basic", billingPeriod: "yearly", status: "active", enforced: true };
+    const base = { plan: "basic", billingPeriod: "yearly", status: "active", enforced: true, expectedVersion: null };
     expect(companySubscriptionSchema.safeParse({ ...base, currentPeriodStart: "2026-01-01", currentPeriodEnd: "2027-01-01" }).success).toBe(true);
     expect(companySubscriptionSchema.safeParse({ ...base, currentPeriodStart: "2027-01-01", currentPeriodEnd: "2026-01-01" }).success).toBe(false);
     expect(companySubscriptionSchema.safeParse({ ...base, currentPeriodStart: "2026-01-01", currentPeriodEnd: "2027-01-01", posUsers: -1 }).success).toBe(false);
