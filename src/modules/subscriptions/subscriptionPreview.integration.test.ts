@@ -96,7 +96,8 @@ describe("previewSubscriptionPrice", () => {
   });
 
   it("charges full price to a new signup and to an identity that owns no tenant", async () => {
-    expect(await previewSubscriptionPrice(null, "professional", "monthly", {}, now)).toMatchObject({ rank: 1, net: 91.67 });
+    // 1,000 × 120 / 1200 = 100.00 (D34)، الضريبة 15.00
+    expect(await previewSubscriptionPrice(null, "professional", "monthly", {}, now)).toMatchObject({ rank: 1, net: 100, vat: 15, total: 115 });
     expect(await previewSubscriptionPrice(scopedIdentity, "basic", "yearly", {}, now)).toMatchObject({ rank: 1, total: 575 });
   });
 

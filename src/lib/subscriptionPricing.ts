@@ -8,9 +8,12 @@ import { riyadhCalendarDay } from "./riyadhDate";
  */
 
 export const SUBSCRIPTION_VAT_PERCENT = 15;
-/** القسط الشهري = السنوي ÷ 12 × 1.10 */
-const MONTHLY_NUMERATOR = 110;
-const MONTHLY_DENOMINATOR = 1200;
+/**
+ * القسط الشهري = السنوي ÷ 12 × 1.20 (D34): الأساسية 50، الاحترافية 100، المؤسسية 150 شهرياً — والسنوي "ادفع 10 أشهر واحصل على 12".
+ * الواجهة (صفحة الهبوط) تعرض السعر الشهري من frontend/src/lib/subscriptionPlans.js، واختبار يفرض تطابق المعاملين.
+ */
+export const MONTHLY_NUMERATOR = 120;
+export const MONTHLY_DENOMINATOR = 1200;
 /** سقف الخصم 50% من الشركة الخامسة (D16) */
 export const MAX_DISCOUNT_PCT = 50;
 
@@ -22,7 +25,7 @@ export function discountPct(rank: number): number {
 
 /**
  * سعر الباقة للفترة بعد الخصم، بالهللات: round2(base × (100 − pct) / 100)، والأساس الشهري غير مقرَّب قبل الخصم
- * (45.833… × 0.8 = 36.67) — تقريب واحد للسطر.
+ * (مثال الترتيب 2 الشهري: 50 × 0.8 = 40.00) — تقريب واحد للسطر.
  */
 export function periodNetHalalas(yearlyNetHalalas: number, period: BillingPeriod, pct: number): number {
   const keep = 100 - pct;
