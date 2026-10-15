@@ -1,3 +1,4 @@
+import { qoyodRoutes } from "./modules/qoyod/qoyod.routes";
 import "express-async-errors";
 import { env } from "./config/env";
 import express from "express";
@@ -89,6 +90,7 @@ export function createApp() {
 
   app.use("/api/auth", authRoutes);
   app.use("/api/companies", companyRoutes);
+  app.use("/api/companies/:id/qoyod", qoyodRoutes);
   app.use("/api/companies/:id/zatca", companyZatcaRoutes);
   app.use("/api/accounts", accountRoutes);
   app.use("/api/cost-centers", costCenterRoutes);
