@@ -50,20 +50,25 @@ describe("subscription pricing formulas", () => {
     expect(total(q)).toEqual({ net: 2050, vat: 307.5, total: 2357.5 });
   });
 
-  it("monthly vs yearly: yearly ÷ 12 × 1.10, one rounding per line", () => {
+  it("monthly vs yearly: yearly ÷ 12 × 1.20 (D34), one rounding per line — yearly is 'pay 10 months, get 12'", () => {
+    // 500 × 120 / 1200 = 50.00؛ الضريبة 7.50؛ 57.50 × 12 = 690.00 مقابل 575.00 سنوياً (+20%)
     const one = quoteCompany(PRICES, "basic", "monthly", 1);
-    expect(one).toMatchObject({ net: 45.83, vat: 6.87, total: 52.7 });
-    expect(Math.round(one.total * 12 * 100) / 100).toBe(632.4);
+    expect(one).toMatchObject({ net: 50, vat: 7.5, total: 57.5 });
+    expect(Math.round(one.total * 12 * 100) / 100).toBe(690);
+    expect(Math.round(one.net * 10 * 100) / 100).toBe(quoteCompany(PRICES, "basic", "yearly", 1).net); // 10 أشهر = سنة
 
+    // الترتيب 2 (20%): 50 × 0.8 = 40.00، الضريبة 6.00؛ معاً 90.00 + 13.50 = 103.50، × 12 = 1,242.00 مقابل 1,035.00
     const two = [1, 2].map((r) => quoteCompany(PRICES, "basic", "monthly", r));
-    expect(two.map((x) => [x.net, x.vat])).toEqual([[45.83, 6.87], [36.67, 5.5]]);
-    expect(total(two)).toEqual({ net: 82.5, vat: 12.37, total: 94.87 });
-    expect(Math.round(total(two).total * 12 * 100) / 100).toBe(1138.44);
+    expect(two.map((x) => [x.net, x.vat])).toEqual([[50, 7.5], [40, 6]]);
+    expect(total(two)).toEqual({ net: 90, vat: 13.5, total: 103.5 });
+    expect(Math.round(total(two).total * 12 * 100) / 100).toBe(1242);
 
+    // 1500 × 120 / 1200 = 150.00، الضريبة 22.50؛ 172.50 × 12 = 2,070.00 مقابل 1,725.00
     const ent = quoteCompany(PRICES, "enterprise", "monthly", 1);
-    expect(ent).toMatchObject({ net: 137.5, vat: 20.63, total: 158.13 });
-    expect(Math.round(ent.total * 12 * 100) / 100).toBe(1897.56);
+    expect(ent).toMatchObject({ net: 150, vat: 22.5, total: 172.5 });
+    expect(Math.round(ent.total * 12 * 100) / 100).toBe(2070);
     expect(quoteCompany(PRICES, "enterprise", "yearly", 1).total).toBe(1725);
+    expect(quoteCompany(PRICES, "professional", "monthly", 1).net).toBe(100);
   });
 
   it("add-ons on a basic company: 3 extra users + POS with 1 additional user = 960.00 + 144.00, undiscounted (D17, D18, D27)", () => {
@@ -84,9 +89,11 @@ describe("subscription pricing formulas", () => {
     expect(rank4.lines.find((l) => l.kind === "plan")!.net).toBe(300);
   });
 
-  it("an additional POS user is 55.00 a month; one POS user alone costs nothing (D27)", () => {
-    const monthly = quoteCompany(PRICES, "basic", "monthly", 1, { posEnabled: true, additionalPosUsers: 1 });
-    expect(monthly.lines.find((l) => l.kind === "pos_extra_users")).toMatchObject({ net: 55, vat: 8.25 });
+  it("an additional POS user is 60.00 a month and an extra user 12.00; one POS user alone costs nothing (D27, D34)", () => {
+    // 600 × 120 / 1200 = 60.00، الضريبة 9.00؛ 120 × 120 / 1200 = 12.00، الضريبة 1.80
+    const monthly = quoteCompany(PRICES, "basic", "monthly", 1, { posEnabled: true, additionalPosUsers: 1, extraUsers: 1 });
+    expect(monthly.lines.find((l) => l.kind === "pos_extra_users")).toMatchObject({ net: 60, vat: 9 });
+    expect(monthly.lines.find((l) => l.kind === "extra_users")).toMatchObject({ net: 12, vat: 1.8 });
     const single = quoteCompany(PRICES, "basic", "yearly", 1, { posEnabled: true });
     expect(single.total).toBe(575);
     expect(() => quoteCompany(PRICES, "basic", "yearly", 1, { additionalPosUsers: 1 })).toThrow(/تفعيل نقطة البيع/);
@@ -114,20 +121,21 @@ describe("subscription pricing formulas", () => {
     expect([vat, fromHalalas(toHalalas(r.net) + toHalalas(vat))]).toEqual([30.25, 231.89]);
   });
 
-  it("prorates a monthly upgrade: basic 45.83 → professional 91.67, 21 of 31 days = 31.05 + 4.66 = 35.71 (§4.1)", () => {
+  it("prorates a monthly upgrade: basic 50.00 → professional 100.00, 21 of 31 days = 33.87 + 5.08 = 38.95 (§4.1)", () => {
+    // الفرق 50.00 × 21 / 31 = 33.870967… → 33.87؛ الضريبة 33.87 × 0.15 = 5.0805 → 5.08؛ المستحق 38.95
     const newNet = quoteCompany(PRICES, "professional", "monthly", 1).net;
-    expect(newNet).toBe(91.67);
+    expect(newNet).toBe(100);
     const r = upgradeProrationNet({
       newPeriodNet: newNet,
-      lockedNet: 45.83,
+      lockedNet: quoteCompany(PRICES, "basic", "monthly", 1).net,
       periodStart: riyadhDayStartUtc("2027-07-01"),
       periodEnd: riyadhDayStartUtc("2027-08-01"),
       // آخر اليوم السعودي 11 يوليو (23:30 بتوقيت الرياض) — يبقى اليوم نفسه، لا اليوم التالي بتوقيت UTC
       changeAt: new Date(riyadhDayStartUtc("2027-07-11").getTime() + 23.5 * 3_600_000),
     });
-    expect(r).toEqual({ net: 31.05, remainingDays: 21, termDays: 31 });
+    expect(r).toEqual({ net: 33.87, remainingDays: 21, termDays: 31 });
     const vat = fromHalalas(vatOnNetHalalas(toHalalas(r.net), SUBSCRIPTION_VAT_PERCENT));
-    expect([vat, fromHalalas(toHalalas(r.net) + toHalalas(vat))]).toEqual([4.66, 35.71]);
+    expect([vat, fromHalalas(toHalalas(r.net) + toHalalas(vat))]).toEqual([5.08, 38.95]);
   });
 
   it("refuses to prorate a downgrade or a change outside the current term (downgrades wait for renewal, D22)", () => {

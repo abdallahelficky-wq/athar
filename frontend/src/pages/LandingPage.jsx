@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { fmt } from "../legacy/constants";
 import LanguageSwitcher from "../wired/shared/LanguageSwitcher";
 
-import { SUBSCRIPTION_PLANS } from "../lib/subscriptionPlans";
+import { SUBSCRIPTION_PLANS, monthlyPriceFromYearly } from "../lib/subscriptionPlans";
 
 // تطبيقا أندرويد في أعلى الصفحة — نفس ملفات APK والأيقونات التي تخدمها صفحة /download (public/app/)،
 // وبنفس نصوص الاسم والجمهور من مفاتيح download.*، فلا يوجد مصدر ثانٍ لأي منها. كل بطاقة تنزيل مباشر
@@ -120,7 +120,7 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload, onG
               <div className="pricing-plan-name">{p.name}</div>
               <div className="pricing-plan-tagline">{p.tagline}</div>
               <div className="pricing-price"><span className="pricing-amount">{fmt(SUBSCRIPTION_PLANS[i].annualPrice)}</span> {t("landing.pricing.perYear")}</div>
-              <div className="pricing-monthly-option">{t("landing.pricing.monthlyOption", { amount: fmt((SUBSCRIPTION_PLANS[i].annualPrice / 12) * 1.10) })}</div>
+              <div className="pricing-monthly-option">{t("landing.pricing.monthlyOption", { amount: fmt(monthlyPriceFromYearly(SUBSCRIPTION_PLANS[i].annualPrice)) })}</div>
               <ul className="pricing-features">
                 {p.features.map((f) => <li key={f}>✓ {f}</li>)}
               </ul>

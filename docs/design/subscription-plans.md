@@ -16,7 +16,7 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 | # | Decision |
 |---|---|
 | D1 | The **company** is the subscription unit. Each company has its own plan, period, end date and billing relationship. |
-| D2 | **Prices per company** (excl. 15% VAT): basic **500**, professional **1000**, enterprise **1500** SAR/year. Monthly = yearly / 12 × 1.10. |
+| D2 | **Prices per company** (excl. 15% VAT): basic **500**, professional **1000**, enterprise **1500** SAR/year. Monthly = yearly / 12 × 1.20 (D34; was × 1.10): basic **50**, professional **100**, enterprise **150** SAR/month. |
 | D3 | **Volume discount** within one **owner identity** (all companies owned by the same person, across all their tenants). The oldest company pays full price. Additional companies get 20%, 30%, 40%, … off. Ranks are recomputed at renewal. |
 | D4 | **Enforcement = modules + users per company, on the server.** Branches are descriptive only and **not enforced**. There are no invoice-count limits. ZATCA phase 2 is in every plan. |
 | D5 | Subscription state and **expiry are per company**, with real end dates. |
@@ -48,6 +48,7 @@ Status: **design only, nothing implemented.** Built from the investigation of 20
 | D31 | **A module outside the plan blocks writes only.** Create, edit, delete, post and approve are refused. Reads, reports, prints and exports of existing data stay allowed. The 403 says the feature isn't in the plan and invites an upgrade. |
 | D32 | **Companies without an enforced subscription row keep today's tenant-level read-only exactly**: the `readOnly` claim and `blockMutationsWhenReadOnly`, unchanged. |
 | D33 | **Global kill switch:** a platform setting stored in the database (`platform_settings.subscription_enforcement`), not an environment variable. **Default OFF** = enforcement disabled everywhere. A company's `enforced` flag applies only when the switch is ON. |
+| D34 | **Monthly price = yearly / 12 × 1.20** (owner decision, 2026-10-15; replaces × 1.10 in D2).<br>• **Plans:** basic **50**, professional **100**, enterprise **150** SAR/month net.<br>• **Add-ons:** extra user **12**, additional POS user **60** SAR/month.<br>• **Yearly:** "pay 10 months, get 12" (12 × 50 = 600 against 500).<br>• **One source:** the factor lives in `src/lib/subscriptionPricing.ts` (`MONTHLY_NUMERATOR` / `MONTHLY_DENOMINATOR` = 120/1200). The landing page reads `frontend/src/lib/subscriptionPlans.js` (`MONTHLY_PRICE_FACTOR`, `monthlyPriceFromYearly`). `subscriptionPricing.frontendParity.test.ts` fails if the two factors or the displayed prices differ from billing. |
 
 ## 2. Plan / module table, mapped to permission ids
 
@@ -154,7 +155,7 @@ Every amount is in halalas through `src/lib/money.ts`; rounding is half-up to 0.
 discountPct(rank) = 0                     if rank = 1
                   = min(10 × rank, 50)    if rank ≥ 2      → 20, 30, 40, 50, 50, …   (cap 50% from the 5th company on)
 yearlyNet(plan)   = 500 | 1000 | 1500
-monthlyNet(plan)  = yearlyNet(plan) × 1.10 / 12
+monthlyNet(plan)  = yearlyNet(plan) × 1.20 / 12          (D34: 50 / 100 / 150)
 periodNet(plan, period, rank) = round2( base(plan, period) × (100 − discountPct(rank)) / 100 )
 line VAT          = round2( lineNet × 0.15 )                          (per line, like every Athar invoice)
 ```
@@ -165,7 +166,7 @@ line VAT          = round2( lineNet × 0.15 )                          (per line
   - **Before P11:** a company with **no subscription row yet** counts as live, because it exists and is in use today.
 - **Locking:** rank and price are locked for the current term and recomputed **at renewal** (D3). If the oldest company is canceled, the others move up at their next renewal, not mid-term.
 - **Grandfathering:** if `grandfatheredNetPrice` is set (D10), it replaces `periodNet` until the current end date.
-- **Add-ons** (extra users, additional POS users, activity add-ons) are **not discounted** (D17). The first POS user is free (D27); stations and stables are free for now (D30). Their monthly price follows the same `/12 × 1.10` rule.
+- **Add-ons** (extra users, additional POS users, activity add-ons) are **not discounted** (D17). The first POS user is free (D27); stations and stables are free for now (D30). Their monthly price follows the same `/12 × 1.20` rule: an extra user is 120 → **12.00**, an additional POS user 600 → **60.00** a month.
 
 ### Worked examples (yearly unless stated; VAT 15%)
 
@@ -201,11 +202,12 @@ line VAT          = round2( lineNet × 0.15 )                          (per line
 
 | Case | Monthly net | Monthly VAT | Monthly total | × 12 | Yearly total | Monthly premium |
 |---|---|---|---|---|---|---|
-| 1 basic | 500 × 1.1 / 12 = 45.83 | 6.87 | 52.70 | 632.40 | 575.00 | +10% (rounding gives +57.40) |
-| 2 basic: rank 1 | 45.83 | 6.87 | | | | |
-| 2 basic: rank 2 (20%) | 45.833… × 0.8 = 36.67 | 5.50 | | | | |
-| 2 basic: together | 82.50 | 12.37 | 94.87 | 1,138.44 | 1,035.00 | |
-| 1 enterprise | 1500 × 1.1 / 12 = 137.50 | 20.63 | 158.13 | 1,897.56 | 1,725.00 | |
+| 1 basic | 500 × 1.2 / 12 = 50.00 | 7.50 | 57.50 | 690.00 | 575.00 | +20% (+115.00): yearly = 10 months |
+| 2 basic: rank 1 | 50.00 | 7.50 | | | | |
+| 2 basic: rank 2 (20%) | 50.00 × 0.8 = 40.00 | 6.00 | | | | |
+| 2 basic: together | 90.00 | 13.50 | 103.50 | 1,242.00 | 1,035.00 | +20% |
+| 1 professional | 1000 × 1.2 / 12 = 100.00 | 15.00 | 115.00 | 1,380.00 | 1,150.00 | +20% |
+| 1 enterprise | 1500 × 1.2 / 12 = 150.00 | 22.50 | 172.50 | 2,070.00 | 1,725.00 | +20% |
 
 **Add-ons on a basic company** (D17, D18, D27): 3 extra users, and POS enabled with 2 POS users (1 free + 1 additional), yearly:
 
@@ -216,7 +218,7 @@ line VAT          = round2( lineNet × 0.15 )                          (per line
 | Additional POS user 1 × 600 | 600.00 | 90.00 |
 | | **960.00** | **144.00** → total **1,104.00** |
 
-Monthly, an additional POS user is 600 × 1.1 / 12 = **55.00** net (VAT 8.25). A company with POS enabled and a single POS user pays nothing for POS.
+Monthly, an additional POS user is 600 × 1.2 / 12 = **60.00** net (VAT 9.00), and an extra user 120 × 1.2 / 12 = **12.00** (VAT 1.80). A company with POS enabled and a single POS user pays nothing for POS.
 
 **Effect of D22 and D23 on the examples above:** none of the 1/2/4/6-company or monthly-vs-yearly figures change. They are full-term prices, and grace (D23) adds no days and no charge. A payment in grace extends from the old end date (§6), so the next term costs the same. D22 adds the proration cases in §4.1, and D23 the timeline in §6.1.
 
@@ -250,15 +252,15 @@ lockedNet     = grandfatheredNetPrice if set, else netPrice
 | Due now | **231.89** |
 | Renewal on 2028-01-01 | professional at the rank recomputed then |
 
-**Upgrade, monthly:** rank 1, basic monthly at 45.83. The term runs 2027-07-01 → 2027-08-01 (31 days), and the company upgrades to professional on 2027-07-11 (21 days left).
+**Upgrade, monthly:** rank 1, basic monthly at 50.00. The term runs 2027-07-01 → 2027-08-01 (31 days), and the company upgrades to professional on 2027-07-11 (21 days left).
 
 | | |
 |---|---|
-| Professional monthly | 1,000 × 1.1 / 12 = 91.67 |
-| Difference | 91.67 − 45.83 = 45.84 |
-| Prorated | 45.84 × 21 / 31 = **31.05** |
-| VAT | 4.66 |
-| Due now | **35.71** |
+| Professional monthly | 1,000 × 1.2 / 12 = 100.00 |
+| Difference | 100.00 − 50.00 = 50.00 |
+| Prorated | 50.00 × 21 / 31 = 33.870… → **33.87** |
+| VAT | 33.87 × 0.15 = 5.0805 → 5.08 |
+| Due now | **38.95** |
 
 **Downgrade:** enterprise → basic on the same yearly term. Nothing is charged or credited now. The renewal invoice issued on 2027-12-18 is basic at the rank recomputed then.
 
