@@ -1,3 +1,4 @@
+import { startQoyodScheduler } from "./modules/qoyod/worker";
 import { createApp } from "./app";
 import { env } from "./config/env";
 import { startReportScheduler } from "./lib/reportScheduler";
@@ -9,6 +10,7 @@ import { hasArabicCapableFont } from "./lib/zatca/pdf/arabicFontCheck";
 const app = createApp();
 
 app.listen(env.port, () => {
+  startQoyodScheduler();
   // eslint-disable-next-line no-console
   console.log(`✅ Athar backend يعمل على المنفذ ${env.port} (${env.nodeEnv})`);
   // بدون RESEND_API_KEY، src/lib/mailer.ts يكتفي بطباعة كل إيميل في الـ logs بدل إرساله فعلياً،

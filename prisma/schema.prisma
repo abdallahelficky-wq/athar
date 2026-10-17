@@ -418,6 +418,7 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
+  qoyodConnection QoyodConnection?
   id                           String                @id @default(cuid())
   tenantId                     String
   tenant                       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -1003,6 +1004,7 @@ model CompanyBankAccount {
 }
 
 model JournalEntry {
+  qoyodExport QoyodJournalExport?
   id                String             @id @default(cuid())
   tenantId          String
   tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -3445,4 +3447,30 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt
 
   @@map("platform_settings")
+}
+
+model QoyodConnection {
+ companyId String @id
+ company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+ apiKeyEnc String
+ enabled Boolean @default(false)
+ mapping Json @default("{\"accounts\":{},\"contacts\":{}}")
+ updatedAt DateTime @default(now())
+ exports QoyodJournalExport[]
+ @@map("qoyod_connections")
+}
+model QoyodJournalExport {
+ entryId String @id
+ entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+ companyId String
+ connection QoyodConnection @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+ status String @default("queued")
+ remoteId Int?
+ error String?
+ payload Json?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @default(now())
+ @@unique([companyId, remoteId], map: "qoyod_export_remote")
+ @@index([status, createdAt], map: "qoyod_export_queue")
+ @@map("qoyod_journal_exports")
 }
