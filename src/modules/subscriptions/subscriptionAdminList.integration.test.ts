@@ -4,7 +4,7 @@ import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integration
 import { occupiedUserSeats } from "../../lib/subscriptionEnforcement";
 import { createIndependentTenant, register } from "../auth/auth.service";
 import { companySubscriptionsQuerySchema } from "../platformAdmin/platformAdmin.schemas";
-import { COMPANY_LIST_DEFAULT_PAGE_SIZE, listCompanySubscriptions, upsertCompanySubscription } from "./subscriptionAdmin.service";
+import { COMPANY_LIST_DEFAULT_PAGE_SIZE, listCompanySubscriptions, setCompanySubscriptionStatus, upsertCompanySubscription } from "./subscriptionAdmin.service";
 import { rankOwnerCompanies } from "./subscriptionPreview.service";
 
 /**
@@ -86,7 +86,8 @@ describe("platform-admin companies list: batched and paginated (review of #164)"
     // حالات تغيّر "الحيّة": منتهية منذ 60 يوماً (ليست حيّة)، معلّقة (ليست حيّة)، منتهية حديثاً (حيّة)
     await upsertCompanySubscription(x1, { plan: "basic", billingPeriod: "yearly", status: "active", ...term(30), enforced: false });
     await upsertCompanySubscription(x2, { plan: "professional", billingPeriod: "yearly", status: "expired", ...term(-60), enforced: false });
-    await upsertCompanySubscription(x3, { plan: "basic", billingPeriod: "monthly", status: "suspended", ...term(30), enforced: false, extraUsers: 1 });
+    await upsertCompanySubscription(x3, { plan: "basic", billingPeriod: "monthly", status: "active", ...term(30), enforced: false, extraUsers: 1 });
+    await setCompanySubscriptionStatus(x3, "suspend", "اختبار القائمة"); // التعليق بمساره وحده (مراجعة #166)
     await upsertCompanySubscription(xInd, { plan: "enterprise", billingPeriod: "yearly", status: "expired", ...term(-3), enforced: false });
     await upsertCompanySubscription(y.companyIds[1], { plan: "basic", billingPeriod: "yearly", status: "trialing", ...term(10), enforced: false });
     // عضويات بكل نطاق وحالة — occupiedUserSeats يعدّ الدعوة المعلّقة ولا يعدّ المعطَّل ولا المحذوف

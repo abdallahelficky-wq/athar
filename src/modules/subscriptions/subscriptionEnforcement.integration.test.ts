@@ -99,17 +99,21 @@ async function call(method: string, path: string, token: string, body?: unknown)
 
 /** يضبط اشتراك A بحسب الحالة المطلوبة ويفرغ الذاكرة المؤقتة (كما تفعل الخدمة نفسها) */
 async function subscribeA(over: Partial<Parameters<typeof upsertCompanySubscription>[1]> & { endDays?: number } = {}) {
-  const { endDays = 30, ...rest } = over;
+  const { endDays = 30, status = "active", ...rest } = over;
   const end = new Date(Date.now() + endDays * DAY);
+  // التعليق والتفعيل بمسارهما وحده (مراجعة #166) — التعديل العام لا يُدخل صفاً في التعليق ولا يُخرجه منه
+  const current = await prisma.companySubscription.findUnique({ where: { companyId: companyA } });
+  if (current?.status === "suspended") await setCompanySubscriptionStatus(companyA, "activate");
   await upsertCompanySubscription(companyA, {
     plan: "basic",
     billingPeriod: "yearly",
-    status: "active",
+    status: status === "suspended" ? "active" : status,
     currentPeriodStart: new Date(end.getTime() - 365 * DAY),
     currentPeriodEnd: end,
     enforced: true,
     ...rest,
   });
+  if (status === "suspended") await setCompanySubscriptionStatus(companyA, "suspend", "اختبار");
 }
 async function globalSwitch(enabled: boolean) {
   await setEnforcementSwitch(enabled);

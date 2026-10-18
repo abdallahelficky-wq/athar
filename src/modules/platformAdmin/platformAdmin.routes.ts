@@ -62,7 +62,7 @@ platformAdminRoutes.get("/companies/:companyId/subscription", async (req, res) =
   res.json(await subscriptionAdmin.getCompanySubscriptionDetail(req.params.companyId));
 });
 platformAdminRoutes.patch("/companies/:companyId/subscription/status", validateBody(companySubscriptionStatusSchema), async (req, res) => {
-  res.json(await subscriptionAdmin.setCompanySubscriptionStatus(req.params.companyId, req.body.action, req.body.reason));
+  res.json(await subscriptionAdmin.setCompanySubscriptionStatus(req.params.companyId, req.body.action, req.body.reason, req.body.expectedVersion));
 });
 platformAdminRoutes.patch("/companies/:companyId/subscription/addons", validateBody(companySubscriptionAddonsSchema), async (req, res) => {
   res.json(await subscriptionAdmin.updateCompanySubscriptionAddons(req.params.companyId, req.body));

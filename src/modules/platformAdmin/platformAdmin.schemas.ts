@@ -60,6 +60,8 @@ export const companySubscriptionSchema = z
     extraUsers: z.number().int().min(0).optional(),
     stationsAddon: z.enum(["off", "free", "paid"]).optional(),
     stablesAddon: z.enum(["off", "free", "paid"]).optional(),
+    // التزامن المتفائل (P9): نسخة الصف التي حمّلها المدير من التفصيل؛ null عند الإنشاء (لا اشتراك بعد). إلزامية — لا كتابة عمياء
+    expectedVersion: z.number().int().min(0).nullable(),
   })
   .refine((v) => v.currentPeriodEnd > v.currentPeriodStart, { message: "تاريخ نهاية الاشتراك يجب أن يكون بعد بدايته", path: ["currentPeriodEnd"] });
 
@@ -67,7 +69,7 @@ export const companyPosUsersSchema = z.object({ userIds: z.array(z.string().min(
 
 // P8: بقية واجهة لوحة مدير المنصة للاشتراكات (عدا الفوترة P7)
 export const companySubscriptionStatusSchema = z
-  .object({ action: z.enum(["suspend", "activate"]), reason: z.string().trim().max(500).optional() })
+  .object({ action: z.enum(["suspend", "activate"]), reason: z.string().trim().max(500).optional(), expectedVersion: z.number().int().min(0).optional() })
   .refine((v) => v.action !== "suspend" || (v.reason && v.reason.length > 0), { message: "سبب التعليق مطلوب", path: ["reason"] });
 
 export const companySubscriptionAddonsSchema = z
@@ -77,8 +79,10 @@ export const companySubscriptionAddonsSchema = z
     posUsers: z.number().int().min(0).max(1000).optional(),
     stationsAddon: z.enum(["off", "free", "paid"]).optional(),
     stablesAddon: z.enum(["off", "free", "paid"]).optional(),
+    // التزامن المتفائل (P9): إلزامية
+    expectedVersion: z.number().int().min(0),
   })
-  .refine((v) => Object.keys(v).length > 0, { message: "لا يوجد تغيير في الطلب" });
+  .refine((v) => Object.keys(v).some((k) => k !== "expectedVersion"), { message: "لا يوجد تغيير في الطلب" });
 
 export const companySubscriptionsQuerySchema = z.object({
   tenantId: z.string().min(1).optional(),

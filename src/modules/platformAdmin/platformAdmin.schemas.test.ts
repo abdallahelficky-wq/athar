@@ -24,7 +24,7 @@ describe("platform-admin schemas reject impossible calendar dates", () => {
 
   it("the start and end of a company subscription term", () => {
     const term = (start: string, end: string) =>
-      companySubscriptionSchema.safeParse({ plan: "basic", billingPeriod: "yearly", status: "active", enforced: true, currentPeriodStart: start, currentPeriodEnd: end });
+      companySubscriptionSchema.safeParse({ plan: "basic", billingPeriod: "yearly", status: "active", enforced: true, currentPeriodStart: start, currentPeriodEnd: end, expectedVersion: null });
     expect(term("2026-03-01", "2027-02-30").success).toBe(false);
     expect(term("2026-13-01", "2027-03-01").success).toBe(false);
     expect(term("2026-02-30T00:00:00.000Z", "2027-03-01").success).toBe(false);
