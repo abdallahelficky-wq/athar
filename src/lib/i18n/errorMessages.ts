@@ -10,6 +10,23 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "يلزم ربط جميع حسابات القيد بحسابات قيود": "Map all journal accounts to Qoyod accounts.",
+  "يلزم ربط طرف القيد بالعميل أو المورد الموجود في قيود": "Map the journal party to an existing Qoyod customer or vendor.",
+  "سطر قيد غير صالح للإرسال": "Invalid journal line for export.",
+  "القيد غير متوازن": "The journal entry is not balanced.",
+  "احفظ مفتاح الربط أولًا مع إبقاء الإرسال غير مفعّل": "Save the API key first with export disabled.",
+  "تعذر قراءة دليل قيود": "Unable to read the Qoyod directory.",
+  "أدخل مفتاح الربط الخاص بأرمي في قيود": "Enter the Qoyod API key for Armi.",
+  "تعذر التحقق من حسابات قيود": "Unable to verify Qoyod accounts.",
+  "مطابقة حساب غير صحيحة": "Invalid account mapping.",
+  "اربط الحسابات قبل تفعيل الإرسال": "Map accounts before enabling export.",
+  "تعذر التحقق من أطراف قيود": "Unable to verify Qoyod contacts.",
+  "مطابقة طرف غير صحيحة": "Invalid contact mapping.",
+  "نوع طرف غير صالح": "Invalid contact type.",
+  "لا يمكن تغيير مفتاح الوجهة بعد بدء الربط؛ احتفظ بالمفتاح الحالي": "The destination key cannot be changed after exports begin; keep the current key.",
+  "إعادة المحاولة متاحة للفشل المؤكد فقط؛ الحالات غير المؤكدة تحتاج مراجعة": "Retry is only available for confirmed failures; uncertain outcomes require review.",
+  "القيد ليس مرحلًا في الشركة المرتبطة": "The journal is not posted in the connected company.",
+  "الربط الحالي يدعم قيود الريال السعودي فقط": "This integration supports SAR journals only.",
   "التاريخ غير موجود في التقويم": "This date does not exist on the calendar",
   "أضف الشركة الجديدة كحساب مستقل من إعدادات الشركات": "Add the new company as an independent account from company settings.",
   "فترة اشتراك غير صالحة": "Invalid subscription period",

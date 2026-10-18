@@ -1,3 +1,4 @@
+import QoyodSettings from "./QoyodSettings";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createCompany, createIndependentCompany, setBalancesPostedOnly, setPayrollTotalsFromMonth } from "../api/companies";
@@ -496,6 +497,7 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
   return (
     <div>
       <TenantNameSettings />
+      {isOwner && companies.some(c => c.id === "cmsrciyjv000ge8f57p2azqdd") && <QoyodSettings companyId="cmsrciyjv000ge8f57p2azqdd" />}
       {isOwner && <UnlockPinSettings />}
       {isOwner && companies.length > 0 && <BalancesPostedOnlySettings companies={companies} reload={reload} />}
       {isOwner && companies.length > 0 && <PayrollTotalsSettings companies={companies} reload={reload} />}

@@ -38,7 +38,7 @@ export function explicitRequestCompanyIds(req: Request): string[] {
 }
 
 const COMPANY_ROUTER_BASE = "/api/companies";
-const ZATCA_ROUTER_BASE = /^\/api\/companies\/[^/]+\/zatca$/;
+const ZATCA_ROUTER_BASE = /^\/api\/companies\/[^/]+\/(?:zatca|qoyod)$/;
 function isCompanyIdRoute(req: Request): boolean {
   return req.baseUrl === COMPANY_ROUTER_BASE || ZATCA_ROUTER_BASE.test(req.baseUrl);
 }
