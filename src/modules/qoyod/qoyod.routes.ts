@@ -1,3 +1,4 @@
+import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma";
@@ -44,7 +45,7 @@ qoyodRoutes.get("/directory", async (req, res) => {
     supplier: vendors.vendors.map((a: { id: number; name: string }) => ({ id: a.id, name: a.name })) });
 });
 
-qoyodRoutes.put("/", validateBody(schema), async (req, res) => {
+qoyodRoutes.put("/", requirePositionAction("companySettings", "edit"), validateBody(schema), async (req, res) => {
   const companyId = (req.params as Record<string, string>).id, input = schema.parse(req.body);
   const existing = await prisma.qoyodConnection.findUnique({ where: { companyId } });
   if (!existing && !input.apiKey) throw badRequest("أدخل مفتاح الربط الخاص بأرمي في قيود");
@@ -77,7 +78,7 @@ qoyodRoutes.put("/", validateBody(schema), async (req, res) => {
   res.json({ saved: true });
 });
 
-qoyodRoutes.post("/retry/:entryId", async (req, res) => {
+qoyodRoutes.post("/retry/:entryId", requirePositionAction("journalEntries", "approve"), async (req, res) => {
   const result = await prisma.qoyodJournalExport.updateMany({ where: { entryId: req.params.entryId, companyId: (req.params as Record<string, string>).id, status: "blocked" }, data: { status: "queued", error: null, updatedAt: new Date() } });
   if (!result.count) throw conflict("إعادة المحاولة متاحة للفشل المؤكد فقط؛ الحالات غير المؤكدة تحتاج مراجعة");
   res.json({ queued: true });
