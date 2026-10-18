@@ -10,7 +10,7 @@ export async function dispatchQoyodJournal() {
   const dispatch = await prisma.$transaction(async tx => {
     // Lock the parent before reading lines; the line guard takes this same lock.
     await tx.$queryRaw`SELECT id FROM journal_entries WHERE id=${candidate.entryId} FOR UPDATE`;
-    await tx.$queryRaw`SELECT "companyId" FROM qoyod_connections WHERE "companyId"=${candidate.companyId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM qoyod_connections WHERE id=${candidate.companyId} FOR UPDATE`;
     const job = await tx.qoyodJournalExport.findUnique({ where: { entryId: candidate.entryId }, include: { connection: true, entry: { include: { lines: true, company: true } } } });
     if (!job || job.status !== "queued" || !job.connection.enabled) return null;
     try {

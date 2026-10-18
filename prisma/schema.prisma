@@ -3448,7 +3448,7 @@ model PlatformSetting {
 }
 
 model QoyodConnection {
- companyId String @id
+ companyId String @id @map("id")
  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
  apiKeyEnc String
  enabled Boolean @default(false)
@@ -3458,7 +3458,7 @@ model QoyodConnection {
  @@map("qoyod_connections")
 }
 model QoyodJournalExport {
- entryId String @id
+ entryId String @id @map("id")
  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
  companyId String
  connection QoyodConnection @relation(fields: [companyId], references: [companyId], onDelete: Restrict)

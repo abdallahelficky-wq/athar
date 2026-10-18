@@ -69,7 +69,7 @@ qoyodRoutes.put("/", validateBody(schema), async (req, res) => {
   if (Object.keys(input.mapping.contacts).some(id => !/^(customer|supplier):/.test(id))) throw badRequest("نوع طرف غير صالح");
   await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM companies WHERE id=${companyId} FOR UPDATE`;
-    await tx.$queryRaw`SELECT "companyId" FROM qoyod_connections WHERE "companyId"=${companyId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM qoyod_connections WHERE id=${companyId} FOR UPDATE`;
     if (input.apiKey && await tx.qoyodJournalExport.count({ where: { companyId } })) throw conflict("لا يمكن تغيير مفتاح الوجهة بعد بدء الربط؛ احتفظ بالمفتاح الحالي");
     await tx.qoyodConnection.upsert({ where: { companyId }, create: { companyId, apiKeyEnc: encryptSecret(key), enabled: input.enabled, mapping: input.mapping }, update: { ...(input.apiKey ? { apiKeyEnc: encryptSecret(key) } : {}), enabled: input.enabled, mapping: input.mapping, updatedAt: new Date() } });
     await tx.auditLog.create({ data: { tenantId: req.auth!.tenantId, companyId, userId: req.auth!.sub, action: "qoyod.settings_updated", entityType: "Company", entityId: companyId, metadata: { enabled: input.enabled, accountMappings: Object.keys(input.mapping.accounts).length } } });

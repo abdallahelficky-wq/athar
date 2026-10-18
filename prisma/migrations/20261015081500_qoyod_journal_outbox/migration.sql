@@ -1,13 +1,13 @@
 CREATE TABLE qoyod_connections (
- "companyId" TEXT PRIMARY KEY REFERENCES companies(id) ON DELETE RESTRICT,
+ id TEXT PRIMARY KEY REFERENCES companies(id) ON DELETE RESTRICT,
  "apiKeyEnc" TEXT NOT NULL,
  enabled BOOLEAN NOT NULL DEFAULT false,
  mapping JSONB NOT NULL DEFAULT '{"accounts":{},"contacts":{}}',
  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE qoyod_journal_exports (
- "entryId" TEXT PRIMARY KEY REFERENCES journal_entries(id) ON DELETE RESTRICT,
- "companyId" TEXT NOT NULL REFERENCES qoyod_connections("companyId") ON DELETE RESTRICT,
+ id TEXT PRIMARY KEY REFERENCES journal_entries(id) ON DELETE RESTRICT,
+ "companyId" TEXT NOT NULL REFERENCES qoyod_connections(id) ON DELETE RESTRICT,
  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','blocked','sending','sent','uncertain')),
  "remoteId" INTEGER,
  error TEXT,
@@ -23,8 +23,8 @@ CREATE UNIQUE INDEX qoyod_export_remote ON qoyod_journal_exports("companyId","re
 CREATE FUNCTION qoyod_enqueue_journal() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  IF NEW.status::text = 'posted' AND (TG_OP = 'INSERT' OR OLD.status::text <> 'posted') THEN
-  IF EXISTS (SELECT 1 FROM qoyod_connections WHERE "companyId"=NEW."companyId" AND enabled) THEN
-   INSERT INTO qoyod_journal_exports("entryId","companyId") VALUES(NEW.id,NEW."companyId") ON CONFLICT DO NOTHING;
+  IF EXISTS (SELECT 1 FROM qoyod_connections WHERE id=NEW."companyId" AND enabled) THEN
+   INSERT INTO qoyod_journal_exports(id,"companyId") VALUES(NEW.id,NEW."companyId") ON CONFLICT DO NOTHING;
   END IF;
  END IF;
  RETURN NEW;
@@ -39,14 +39,14 @@ BEGIN
  ELSE entry_id=CASE WHEN TG_OP='INSERT' THEN NEW."journalEntryId" ELSE OLD."journalEntryId" END;
  END IF;
  PERFORM id FROM journal_entries WHERE id=entry_id FOR UPDATE;
- IF EXISTS(SELECT 1 FROM qoyod_journal_exports WHERE "entryId"=entry_id AND status IN ('sending','sent','uncertain')) THEN
+ IF EXISTS(SELECT 1 FROM qoyod_journal_exports WHERE id=entry_id AND status IN ('sending','sent','uncertain')) THEN
   RAISE EXCEPTION 'القيد أرسل إلى قيود أو قيد التحقق؛ استخدم قيدًا عكسيًا للتصحيح';
  END IF;
  IF TG_TABLE_NAME='journal_entry_lines' THEN
   IF TG_OP='UPDATE' THEN
    IF NEW."journalEntryId"<>OLD."journalEntryId" THEN
     PERFORM id FROM journal_entries WHERE id=NEW."journalEntryId" FOR UPDATE;
-    IF EXISTS(SELECT 1 FROM qoyod_journal_exports WHERE "entryId"=NEW."journalEntryId" AND status IN ('sending','sent','uncertain')) THEN RAISE EXCEPTION 'Cannot modify exported Qoyod entry'; END IF;
+    IF EXISTS(SELECT 1 FROM qoyod_journal_exports WHERE id=NEW."journalEntryId" AND status IN ('sending','sent','uncertain')) THEN RAISE EXCEPTION 'Cannot modify exported Qoyod entry'; END IF;
    END IF;
   END IF;
  END IF;
