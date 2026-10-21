@@ -750,6 +750,16 @@
       }
     },
     "receipts": {
+      "actions": "Actions",
+      "view": "View receipt",
+      "post": "Post",
+      "delete": "Delete draft",
+      "confirmDelete": "Delete receipt {{number}}?",
+      "voucherTitle": "Receipt voucher",
+      "unapplied": "Unallocated amount",
+      "receivedFrom": "Received from",
+      "receivedAmount": "Amount received",
+      "draftNotice": "Draft — unposted receipt",
       "customer": "Customer", "date": "Receipt date", "method": "Collection method", "methodCash": "Cash", "methodBank": "Bank",
       "bankAccount": "Bank account", "noBankAccounts": "No bank accounts classified", "bankAccountPlaceholder": "Search for a bank account...",
       "outstandingTitle": "Outstanding invoices for this customer",

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
-import { listReceipts, getOutstandingInvoices, createReceipt, unpostReceipt } from "../../api/receipts";
+import { listReceipts, getOutstandingInvoices, createReceipt, unpostReceipt, postReceipt, deleteReceipt } from "../../api/receipts";
 import { listAccounts } from "../../api/accounts";
 import { fmt } from "../../legacy/constants";
+import ReceiptViewModal from "./ReceiptViewModal";
+import ActionsMenu from "../shared/ActionsMenu";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
@@ -26,6 +28,8 @@ export default function ReceiptsTab({ companyId, companies }) {
   const [allocations, setAllocations] = useState({});
   const [unpostTarget, setUnpostTarget] = useState(null);
   const [attachmentsFor, setAttachmentsFor] = useState(null);
+  const [viewTarget, setViewTarget] = useState(null);
+  const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -73,6 +77,19 @@ export default function ReceiptsTab({ companyId, companies }) {
     await unpostReceipt(unpostTarget.id, pin);
     setUnpostTarget(null);
     reload();
+  };
+
+  const changeReceipt = async (receipt, action) => {
+    if (busyId) return;
+    if (action === "delete" && !window.confirm(t("sales.receipts.confirmDelete", { number: receipt.receiptNumber }))) return;
+    setBusyId(receipt.id);
+    setError("");
+    try {
+      await (action === "delete" ? deleteReceipt(receipt.id) : postReceipt(receipt.id));
+      reload();
+      if (customerId) setOutstanding(await getOutstandingInvoices(customerId));
+    } catch (err) { setError(err.message); }
+    finally { setBusyId(null); }
   };
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
@@ -133,7 +150,7 @@ export default function ReceiptsTab({ companyId, companies }) {
               <tr>
                 <th>{t("sales.receipts.listTable.number")}</th><th>{t("sales.receipts.listTable.customer")}</th>
                 <th>{t("sales.receipts.listTable.date")}</th><th>{t("sales.receipts.listTable.method")}</th>
-                <th>{t("sales.receipts.listTable.total")}</th><th>{t("sales.receipts.listTable.status")}</th><th></th>
+                <th>{t("sales.receipts.listTable.total")}</th><th>{t("sales.receipts.listTable.status")}</th><th>{t("sales.receipts.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -145,10 +162,14 @@ export default function ReceiptsTab({ companyId, companies }) {
                     <td className="num">{fmt(r.totalAmount)}</td>
                     <td><span className="status-badge">{r.status === "posted" ? t("sales.receipts.posted") : t("sales.receipts.draft")}</span></td>
                     <td className="row-actions">
-                      {r.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostTarget(r)}>{t("sales.receipts.unpost")}</button>}
-                      <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === r.id ? null : r.id)}>
-                        {attachmentsFor === r.id ? t("sales.receipts.attachmentsHide") : t("sales.receipts.attachmentsShow")}
-                      </button>
+                      <button className="btn-ghost" onClick={() => setViewTarget({ receipt: r, autoPrint: false })}>{t("sales.receipts.view")}</button>
+                      <button className="btn-ghost" onClick={() => setViewTarget({ receipt: r, autoPrint: true })}>{t("common.print")}</button>
+                      <ActionsMenu title={t("sales.receipts.actions")} items={[
+                        { label: t("sales.receipts.post"), hidden: r.status === "posted", disabled: busyId === r.id, onClick: () => changeReceipt(r, "post") },
+                        { label: t("sales.receipts.unpost"), hidden: r.status !== "posted", onClick: () => setUnpostTarget(r) },
+                        { label: t("sales.receipts.delete"), hidden: r.status === "posted", danger: true, disabled: busyId === r.id, onClick: () => changeReceipt(r, "delete") },
+                        { label: attachmentsFor === r.id ? t("sales.receipts.attachmentsHide") : t("sales.receipts.attachmentsShow"), onClick: () => setAttachmentsFor(attachmentsFor === r.id ? null : r.id) },
+                      ]} />
                     </td>
                   </tr>
                   {attachmentsFor === r.id && (
@@ -162,6 +183,7 @@ export default function ReceiptsTab({ companyId, companies }) {
         </div>
       )}
 
+      {viewTarget && viewTarget.receipt.companyId === companyId && <ReceiptViewModal receipt={viewTarget.receipt} company={companies?.find(c => c.id === companyId)} autoPrint={viewTarget.autoPrint} onClose={() => setViewTarget(null)} />}
       {unpostTarget && <UnpostModal onCancel={() => setUnpostTarget(null)} onConfirm={doUnpost} />}
     </div>
   );
