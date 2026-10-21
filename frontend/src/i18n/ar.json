@@ -750,6 +750,16 @@
       }
     },
     "receipts": {
+      "actions": "الإجراءات",
+      "view": "عرض السند",
+      "post": "ترحيل",
+      "delete": "حذف المسودة",
+      "confirmDelete": "هل تريد حذف سند القبض {{number}}؟",
+      "voucherTitle": "سند قبض",
+      "unapplied": "المبلغ غير المخصص",
+      "receivedFrom": "استلمنا من",
+      "receivedAmount": "المبلغ المستلم",
+      "draftNotice": "مسودة — سند غير مرحّل",
       "customer": "العميل", "date": "تاريخ السند", "method": "طريقة التحصيل", "methodCash": "كاش", "methodBank": "بنك",
       "bankAccount": "الحساب البنكي", "noBankAccounts": "لا توجد حسابات بنكية مُصنَّفة", "bankAccountPlaceholder": "ابحث عن حساب بنكي...",
       "outstandingTitle": "الفواتير المستحقة على هذا العميل",
