@@ -38,6 +38,8 @@ export const stockReportHandler: RequestHandler = async (req, res) => {
       return {
         itemId: r.itemId,
         itemName: item?.name || "—",
+        // الاسم الإنجليزي للعرض في الواجهة الإنجليزية (getItemDisplayName في الواجهة) — لا ترجمة آلية
+        itemNameEn: item?.nameEn || null,
         itemCode: item?.code || "",
         unit: item?.unit || "",
         warehouseId: r.warehouseId,

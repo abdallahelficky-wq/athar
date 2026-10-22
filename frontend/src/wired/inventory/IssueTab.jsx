@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getItemDisplayName } from "../shared/itemDisplayName";
 import { listItems } from "../../api/items";
 import { listWarehouses } from "../../api/warehouses";
 import { listStockMovements, getStockBalance, createIssueMovement, removeStockMovement } from "../../api/stockMovements";
@@ -9,7 +10,7 @@ import UnpostModal from "../shared/UnpostModal";
 import StockMovementsTable from "./StockMovementsTable";
 
 export default function IssueTab({ companyId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [movements, setMovements] = useState([]);
@@ -67,7 +68,7 @@ export default function IssueTab({ companyId }) {
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>{t("inventory.issue.item")}<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
+          <label>{t("inventory.issue.item")}<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{getItemDisplayName(i, i18n.language)}</option>)}</select></label>
           <label>{t("inventory.issue.warehouse")}<select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           <label>{t("inventory.issue.department")}<select value={department} onChange={(e) => setDepartment(e.target.value)}>{DEPARTMENTS.map((d) => <option key={d} value={d}>{labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", d)}</option>)}</select></label>
           <label>{t("inventory.issue.quantity")}<input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></label>

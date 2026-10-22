@@ -1,9 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { getItemDisplayName } from "../shared/itemDisplayName";
 import { fmt2 } from "../../legacy/constants";
 
 export default function StockMovementsTable({ movements, filterTypes, onRemove }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const TYPE_LABEL = t("inventory.movementsTable.types", { returnObjects: true });
   const filtered = movements.filter((m) => filterTypes.includes(m.type));
   return (
@@ -20,7 +21,7 @@ export default function StockMovementsTable({ movements, filterTypes, onRemove }
         <tbody>
           {filtered.map((m) => (
             <tr key={m.id}>
-              <td>{m.date.slice(0, 10)}</td><td>{m.item?.name}</td><td>{m.warehouse?.name}</td>
+              <td>{m.date.slice(0, 10)}</td><td>{getItemDisplayName(m.item, i18n.language)}</td><td>{m.warehouse?.name}</td>
               <td>{TYPE_LABEL[m.type]}</td><td className="num">{fmt2(m.quantity)}</td><td>{m.note || "—"}</td>
               {onRemove && <td><button className="btn-ghost" onClick={() => onRemove(m)}>{t("inventory.movementsTable.delete")}</button></td>}
             </tr>

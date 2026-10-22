@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getItemDisplayName } from "../shared/itemDisplayName";
 import { listItems } from "../../api/items";
 import { listWarehouses } from "../../api/warehouses";
 import { listStockMovements, getStockBalance, createInOutMovement, removeStockMovement } from "../../api/stockMovements";
@@ -8,7 +9,7 @@ import UnpostModal from "../shared/UnpostModal";
 import StockMovementsTable from "./StockMovementsTable";
 
 export default function StockInOutTab({ companyId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [movements, setMovements] = useState([]);
@@ -72,7 +73,7 @@ export default function StockInOutTab({ companyId }) {
       <div className="panel form-panel">
         <div className="form-grid">
           <label>{t("inventory.stockInOut.movementType")}<select value={type} onChange={(e) => setType(e.target.value)}><option value="in">{t("inventory.stockInOut.movementIn")}</option><option value="out">{t("inventory.stockInOut.movementOut")}</option></select></label>
-          <label>{t("inventory.stockInOut.item")}<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
+          <label>{t("inventory.stockInOut.item")}<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{getItemDisplayName(i, i18n.language)}</option>)}</select></label>
           <label>{t("inventory.stockInOut.warehouse")}<select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
           <label>{t("inventory.stockInOut.quantity")}<input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} /></label>
           {type === "in" && <label>{t("inventory.stockInOut.unitCost")}<input type="number" step="0.01" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="0.00" /></label>}

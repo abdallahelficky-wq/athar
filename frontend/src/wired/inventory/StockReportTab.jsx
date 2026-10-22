@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getStockReport } from "../../api/stockMovements";
 import { fmt, fmt2 } from "../../legacy/constants";
+import { getItemDisplayName, getUnitDisplayLabel } from "../shared/itemDisplayName";
 
 export default function StockReportTab({ companyId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [rows, setRows] = useState([]);
 
   useEffect(() => {
@@ -27,8 +28,8 @@ export default function StockReportTab({ companyId }) {
         <tbody>
           {rows.map((r) => (
             <tr key={`${r.itemId}-${r.warehouseId}`}>
-              <td>{r.itemName}</td><td>{r.itemCode}</td><td>{r.warehouseName}</td>
-              <td className="num">{fmt2(r.quantity)} {r.unit}</td>
+              <td>{getItemDisplayName(r, i18n.language)}</td><td>{r.itemCode}</td><td>{r.warehouseName}</td>
+              <td className="num">{fmt2(r.quantity)} {getUnitDisplayLabel(r.unit, i18n.language)}</td>
               <td className="num">{r.valueTracked ? fmt2(r.costPrice) : <span className="note">{t("inventory.stockReport.notValueTracked")}</span>}</td>
               <td className="num strong">{r.valueTracked ? fmt(r.value) : <span className="note">{t("inventory.stockReport.notValueTracked")}</span>}</td>
             </tr>

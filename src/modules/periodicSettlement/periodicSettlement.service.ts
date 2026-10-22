@@ -58,6 +58,7 @@ export async function listSettlementCandidates(tenantId: string, companyId: stri
         id: item.id,
         code: item.code,
         name: item.name,
+        nameEn: item.nameEn,
         unit: item.unit,
         trackedQuantity,
         currentStockValue: Number(item.periodicStockValue),
@@ -76,6 +77,7 @@ interface SettlementLineInput {
 export interface SettlementResultLine {
   itemId: string;
   itemName: string;
+  itemNameEn: string | null;
   netAdjustment: number;
   quantityVariance: number;
   closingValue: number;
@@ -169,7 +171,7 @@ export async function createSettlement(
 
       await tx.item.update({ where: { id: item.id }, data: { periodicStockValue: adj.closingValue } });
 
-      results.push({ itemId: item.id, itemName: item.name, netAdjustment: adj.netAdjustment, quantityVariance: adj.quantityVariance, closingValue: adj.closingValue });
+      results.push({ itemId: item.id, itemName: item.name, itemNameEn: item.nameEn, netAdjustment: adj.netAdjustment, quantityVariance: adj.quantityVariance, closingValue: adj.closingValue });
     }
 
     return results;

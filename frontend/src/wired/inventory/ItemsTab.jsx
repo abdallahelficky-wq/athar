@@ -1,5 +1,7 @@
 import TaxCategoryFields from "../shared/TaxCategoryFields";
 import { itemTaxDefaults, itemMatches, taxCategory } from "../shared/itemDefaults";
+import { getItemDisplayName, getUnitDisplayLabel, itemOptionLabel } from "../shared/itemDisplayName";
+import ItemName from "../shared/ItemName";
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -81,7 +83,8 @@ function ActionButton({ icon, label, disabled = false, onClick, danger = false, 
 }
 
 export default function ItemsTab({ companyId, onNavigateTransfer }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const TYPE_LABEL = t("inventory.typeMeta", { returnObjects: true });
   const ACCOUNT_LABELS = t("inventory.accountLabels", { returnObjects: true });
   const EXTRA_COLUMN_LABELS = t("inventory.items.extraColumns", { returnObjects: true });
@@ -259,7 +262,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   };
 
   const remove = async (item) => {
-    if (!window.confirm(t("inventory.items.confirmDelete", { name: item.name }))) return;
+    if (!window.confirm(t("inventory.items.confirmDelete", { name: getItemDisplayName(item, lang) }))) return;
     try { await deleteItem(item.id); reload(); } catch (err) { setError(err.message); }
   };
 
@@ -378,7 +381,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
                 <td>
                   <select value={c.componentItemId} onChange={(e) => updateComponent(idx, "componentItemId", e.target.value)}>
                     <option value="">{t("inventory.items.form.bom.chooseItem")}</option>
-                    {componentOptions.map((it) => <option key={it.id} value={it.id}>{it.name} ({it.code})</option>)}
+                    {componentOptions.map((it) => <option key={it.id} value={it.id}>{itemOptionLabel(it, lang)}</option>)}
                   </select>
                 </td>
                 <td><input type="number" min="0" step="0.01" value={c.quantityPerUnit} onChange={(e) => updateComponent(idx, "quantityPerUnit", e.target.value)} /></td>
@@ -432,9 +435,9 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
               <tbody>
                 {filteredItems.map((item) => <tr key={item.id}>
                   <td data-label={t("inventory.items.table.code")}><span className="item-code">{item.code}</span></td>
-                  <td data-label={t("inventory.items.table.name")}><div className="item-name-cell"><span className="item-avatar">◇</span><span><strong>{item.name}</strong>{item.nameEn && <small dir="ltr">{item.nameEn}</small>}<small>{item.category || t("inventory.items.notCategorized")}</small></span></div></td>
+                  <td data-label={t("inventory.items.table.name")}><div className="item-name-cell"><span className="item-avatar">◇</span><span><ItemName item={item} language={lang} extra={<small>{item.category || t("inventory.items.notCategorized")}</small>} /></span></div></td>
                   <td data-label={t("inventory.items.table.type")}><span className={`item-type-badge ${TYPE_CSS[item.type] || "type-unknown"}`}><i>{TYPE_ICON[item.type] || "◇"}</i> {TYPE_LABEL[item.type] || t("inventory.items.unspecifiedType")}</span></td>
-                  <td data-label={t("inventory.items.table.unit")}>{item.unit || "—"}</td>
+                  <td data-label={t("inventory.items.table.unit")}>{getUnitDisplayLabel(item.unit, lang) || "—"}</td>
                   {showQuantityColumn && <td data-label={t("inventory.items.table.quantity")} className="num">{item.quantity ?? "—"}</td>}
                   {extraColumns.lastPurchasePrice && <td data-label={t("inventory.items.table.lastPurchasePrice")} className="num">{item.lastPurchasePrice != null ? fmt2(item.lastPurchasePrice) : "—"}</td>}
                   <td data-label={t("inventory.items.table.salePrice")} className="num">{item.salePrice != null ? fmt2(item.salePrice) : "—"}</td>
@@ -460,12 +463,12 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
 
       {viewItem && <div className="voucher-overlay item-view-overlay" onMouseDown={() => setViewItem(null)}><div className="voucher-shell item-view-card" onMouseDown={(e) => e.stopPropagation()}>
         <button type="button" className="voucher-close-x" onClick={() => setViewItem(null)} aria-label={t("inventory.items.view.close")}>×</button>
-        <div className="item-view-head"><span className="item-avatar large">{TYPE_ICON[viewItem.type] || "◇"}</span><div><small>{t("inventory.items.view.cardLabel", { type: TYPE_LABEL[viewItem.type] || t("inventory.items.unspecifiedType") })}</small><h3>{viewItem.name}</h3><p dir="ltr">{viewItem.nameEn}</p><span className="item-code">{viewItem.code}</span></div></div>
+        <div className="item-view-head"><span className="item-avatar large">{TYPE_ICON[viewItem.type] || "◇"}</span><div><small>{t("inventory.items.view.cardLabel", { type: TYPE_LABEL[viewItem.type] || t("inventory.items.unspecifiedType") })}</small><ItemName item={viewItem} language={lang} as="h3" secondaryAs="p" /><span className="item-code">{viewItem.code}</span></div></div>
         <dl>
           <div><dt>{t("itemTax.category")}</dt><dd>{t(`itemTax.${taxCategory(viewItem)}`)}</dd></div>
           <div><dt>{t("itemTax.priceBasis")}</dt><dd>{t(viewItem.priceIncludesVat === false ? "itemTax.exclusive" : "itemTax.inclusive")}</dd></div>
           <div><dt>{t("inventory.items.view.category")}</dt><dd>{viewItem.category || "—"}</dd></div>
-          <div><dt>{t("inventory.items.view.unit")}</dt><dd>{viewItem.unit || "—"}</dd></div>
+          <div><dt>{t("inventory.items.view.unit")}</dt><dd>{getUnitDisplayLabel(viewItem.unit, lang) || "—"}</dd></div>
           <div><dt>{t("inventory.items.view.averageCost")}</dt><dd>{fmt2(viewItem.averageCost || 0)}</dd></div>
           <div><dt>{t("inventory.items.view.salePrice")}</dt><dd>{viewItem.salePrice != null ? fmt2(viewItem.salePrice) : "—"}</dd></div>
           <div><dt>{t("inventory.items.view.reorderLevel")}</dt><dd>{viewItem.reorderLevel || "—"}</dd></div>

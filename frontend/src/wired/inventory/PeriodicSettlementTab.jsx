@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getItemDisplayName, getUnitDisplayLabel } from "../shared/itemDisplayName";
 import { listSettlementCandidates, createSettlement } from "../../api/periodicSettlement";
 import { fmt2 } from "../../legacy/constants";
 
@@ -8,7 +9,7 @@ import { fmt2 } from "../../legacy/constants";
 const DEVIATION_WARNING_THRESHOLD = 0.2;
 
 export default function PeriodicSettlementTab({ companyId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [candidates, setCandidates] = useState([]);
   const [inputs, setInputs] = useState({});
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -101,8 +102,8 @@ export default function PeriodicSettlementTab({ companyId }) {
               <tbody>
                 {candidates.map((c) => (
                   <tr key={c.id}>
-                    <td>{c.name} <span className="item-code">({c.code})</span></td>
-                    <td className="num">{fmt2(c.trackedQuantity)} {c.unit}</td>
+                    <td>{getItemDisplayName(c, i18n.language)} <span className="item-code">({c.code})</span></td>
+                    <td className="num">{fmt2(c.trackedQuantity)} {getUnitDisplayLabel(c.unit, i18n.language)}</td>
                     <td className="num">{fmt2(c.currentStockValue)}</td>
                     <td>
                       <input
@@ -149,7 +150,7 @@ export default function PeriodicSettlementTab({ companyId }) {
             <tbody>
               {results.map((r) => (
                 <tr key={r.itemId}>
-                  <td>{r.itemName}</td>
+                  <td>{getItemDisplayName(r, i18n.language)}</td>
                   <td className={`num ${r.netAdjustment < 0 ? "balance-bad" : ""}`}>{fmt2(r.netAdjustment)}</td>
                   <td className="num">{fmt2(r.quantityVariance)}</td>
                   <td className="num">{fmt2(r.closingValue)}</td>

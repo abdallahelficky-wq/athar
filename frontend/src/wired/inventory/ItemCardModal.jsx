@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { getItemDisplayName, getUnitDisplayLabel } from "../shared/itemDisplayName";
 import { PrintShell } from "../../legacy/shared";
 import { fmt2 } from "../../legacy/constants";
 import { getItemCard } from "../../api/stockMovements";
@@ -59,7 +60,7 @@ export default function ItemCardModal({ itemId, companyId, onClose }) {
   return (
     <PrintShell
       subtitle={t("inventory.itemCard.subtitle")}
-      refNode={card ? <div>{card.item.code} — <strong>{card.item.name}</strong></div> : null}
+      refNode={card ? <div>{card.item.code} — <strong>{getItemDisplayName(card.item, i18n.language)}</strong></div> : null}
       onClose={onClose}
     >
       <div className="no-print filter-bar" style={{ marginBottom: 14 }}>
@@ -71,7 +72,7 @@ export default function ItemCardModal({ itemId, companyId, onClose }) {
         <>
           <div className="voucher-meta">
             <div><span>{t("inventory.itemCard.type")}</span><strong>{TYPE_META[card.item.type] || card.item.type}</strong></div>
-            <div><span>{t("inventory.items.view.unit")}</span><strong>{card.item.unit || "—"}</strong></div>
+            <div><span>{t("inventory.items.view.unit")}</span><strong>{getUnitDisplayLabel(card.item.unit, i18n.language) || "—"}</strong></div>
             <div><span>{t("inventory.itemCard.closingBalance")}</span><strong>{fmt2(card.closingBalance)}</strong></div>
           </div>
           <table className="ledger-table voucher-table">
