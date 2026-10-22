@@ -95,3 +95,14 @@ describe("screens render item names only through the helper", () => {
     for (const pattern of forbidden) expect(source, `${file}: ${pattern}`).not.toMatch(pattern);
   });
 });
+
+describe("frontend modules loaded by backend tests stay dependency-free", () => {
+  // اختبارات الخادم تعمل في CI بعد `npm ci` في الجذر وحده (athar-ai-check.yml) — لا frontend/node_modules. وحدة واجهة يستوردها اختبار
+  // خادم وتستورد بدورها حزمة (react، i18next…) تنجح محلياً حيث ثُبّتت الواجهة وتفشل في CI، كما حدث في #171. الاستيراد النسبي فقط.
+  it.each(["wired/shared/itemDisplayName.js", "wired/shared/itemDefaults.js", "wired/shared/accountDisplayName.js"])("%s", async (file) => {
+    const { readFileSync } = await import("node:fs");
+    const source = readFileSync(path.resolve("frontend/src", file), "utf8");
+    const specifiers = [...source.matchAll(/(?:^|\n)\s*import\s[^;]*?from\s+["']([^"']+)["']/g)].map((m) => m[1]);
+    expect(specifiers.filter((s) => !s.startsWith(".")), file).toEqual([]);
+  });
+});

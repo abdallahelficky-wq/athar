@@ -31,6 +31,15 @@ export function getItemSecondaryName(item, language) {
 /** اتجاه السطر الثانوي: عربي في الواجهة الإنجليزية، إنجليزي في العربية */
 export const itemSecondaryDir = (language) => (language === "en" ? "rtl" : "ltr");
 
+/**
+ * ما يعرضه ItemName (القائمة وبطاقة الصنف): الاسم الأساسي، والسطر الثانوي واتجاهه (null = لا سطر). دالة صافية بلا React، فيختبرها
+ * الخادم مباشرة — اختبارات الخادم تعمل بلا frontend/node_modules (CI لا يثبّتها)، فلا تستورد من هنا ما يحتاج حزمة من الواجهة.
+ */
+export function itemNameParts(item, language) {
+  const secondary = getItemSecondaryName(item, language);
+  return { primary: getItemDisplayName(item, language), secondary: secondary ? { text: secondary, dir: itemSecondaryDir(language) } : null };
+}
+
 /** تسمية خيار في منتقٍ: الاسم المعروض مع الرمز */
 export const itemOptionLabel = (item, language) => (item?.code ? `${getItemDisplayName(item, language)} (${item.code})` : getItemDisplayName(item, language));
 

@@ -1,16 +1,16 @@
 import React from "react";
-import { getItemDisplayName, getItemSecondaryName, itemSecondaryDir } from "./itemDisplayName";
+import { itemNameParts } from "./itemDisplayName";
 
 /**
  * اسم صنف في القوائم وبطاقة الصنف: الاسم المعروض بلغة الواجهة (getItemDisplayName) والآخر سطراً ثانوياً صغيراً — في الإنجليزية
  * الاسم العربي، وفي العربية nameEn كما اليوم. extra: سطر إضافي اختياري (التصنيف في قائمة الأصناف).
  */
 export default function ItemName({ item, language, as: Primary = "strong", secondaryAs: Secondary = "small", extra = null }) {
-  const secondary = getItemSecondaryName(item, language);
+  const { primary, secondary } = itemNameParts(item, language);
   return (
     <>
-      <Primary>{getItemDisplayName(item, language)}</Primary>
-      {secondary && <Secondary dir={itemSecondaryDir(language)}>{secondary}</Secondary>}
+      <Primary>{primary}</Primary>
+      {secondary && <Secondary dir={secondary.dir}>{secondary.text}</Secondary>}
       {extra}
     </>
   );

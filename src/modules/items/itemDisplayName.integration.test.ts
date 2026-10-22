@@ -65,17 +65,16 @@ describe("item names follow the UI language on every screen type (English UI →
   afterAll(() => server?.close());
 
   it("items list and item view: primary name and the secondary line swap with the language", async () => {
-    const React = (await front("node_modules/react/index.js")).default;
-    const { renderToStaticMarkup } = await front("node_modules/react-dom/server.node.js");
-    const ItemName = (await front("src/wired/shared/ItemName.jsx")).default;
+    // itemNameParts هو ما يرسمه ItemName.jsx حرفياً (الأساسي، ثم السطر الثانوي باتجاهه). يُختبر بلا React: اختبارات الخادم تعمل في CI
+    // بلا frontend/node_modules (راجع .github/workflows/athar-ai-check.yml)
+    const { itemNameParts } = await front("src/wired/shared/itemDisplayName.js");
     const listed = (await call("GET", `/items?companyId=${companyId}`)).body as Item[];
     const byId = (id: string) => listed.find((i) => i.id === id)!;
-    const html = (item: Item, language: string) => renderToStaticMarkup(React.createElement(ItemName, { item, language }));
-    expect(html(byId(withEn.id), "en")).toBe('<strong>Cement</strong><small dir="rtl">إسمنت</small>');
-    expect(html(byId(withEn.id), "ar")).toBe('<strong>إسمنت</strong><small dir="ltr">Cement</small>');
+    expect(itemNameParts(byId(withEn.id), "en")).toEqual({ primary: "Cement", secondary: { text: "إسمنت", dir: "rtl" } });
+    expect(itemNameParts(byId(withEn.id), "ar")).toEqual({ primary: "إسمنت", secondary: { text: "Cement", dir: "ltr" } });
     // nameEn فارغ (مسافات): الاسم العربي وحده، بلا سطر ثانوي مكرَّر
-    expect(html(byId(arabicOnly.id), "en")).toBe("<strong>بلاط</strong>");
-    expect(html(byId(arabicOnly.id), "ar")).toBe("<strong>بلاط</strong>");
+    expect(itemNameParts(byId(arabicOnly.id), "en")).toEqual({ primary: "بلاط", secondary: null });
+    expect(itemNameParts(byId(arabicOnly.id), "ar")).toEqual({ primary: "بلاط", secondary: null });
   });
 
   it("item pickers (sales/purchase lines, returns, stock in/out, issue, transfer, POS tiles): label by language, search by either name", async () => {
