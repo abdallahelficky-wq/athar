@@ -1,4 +1,5 @@
-import { itemTaxDefaults, itemDescription } from "../shared/itemDefaults";
+import { itemTaxDefaults, itemDescription, itemMatches } from "../shared/itemDefaults";
+import { getItemDisplayName } from "../shared/itemDisplayName";
 import TaxCategoryFields from "../shared/TaxCategoryFields";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,11 +8,19 @@ import { fmt2 } from "../../legacy/constants";
 import { returnInvoiceLines } from "./returnInvoiceLines";
 import { isSellableItem, emptySalesLine } from "./SalesInvoiceLinesEditor";
 export default function ReturnLinesEditor({ lines, setLines, invoice, items, accounts, currency }) {
- const { t } = useTranslation();
+ const { t, i18n } = useTranslation();
  const [query, setQuery] = useState("");
- const choices = invoice ? returnInvoiceLines(invoice) : items.filter(isSellableItem).map((item) => ({ accountId: item.revenueAccountId || "", description: itemDescription(item), quantity: 1, unitPrice: Number(item.salePrice || 0), discountPct: 0, ...itemTaxDefaults(item) }));
- const matches = choices.filter((item) => item.description.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
- const add = (choice) => {
+ // أسطر الفاتورة الأصلية تُعرض بنصها المخزَّن (مستند صادر)؛ أصناف الكتالوج تُعرض باسمها بلغة الواجهة ويُبحث فيها بالاسمين، والسطر
+ // المضاف يبقى بوصف itemDescription كما يُحفظ في المستند
+ const choices = invoice
+  ? returnInvoiceLines(invoice).map((line) => ({ line, label: line.description, matches: (q) => line.description.toLocaleLowerCase().includes(q.toLocaleLowerCase()) }))
+  : items.filter(isSellableItem).map((item) => ({
+   line: { accountId: item.revenueAccountId || "", description: itemDescription(item), quantity: 1, unitPrice: Number(item.salePrice || 0), discountPct: 0, ...itemTaxDefaults(item) },
+   label: getItemDisplayName(item, i18n.language),
+   matches: (q) => itemMatches(item, q),
+  }));
+ const matches = choices.filter((choice) => choice.matches(query));
+ const add = ({ line: choice }) => {
   if (choice.originalInvoiceLineId && lines.some((line) => line.originalInvoiceLineId === choice.originalInvoiceLineId)) return;
   setLines((old) => [...old.filter((line) => line.accountId || line.description), { ...choice }]); setQuery("");
  };
@@ -19,7 +28,7 @@ export default function ReturnLinesEditor({ lines, setLines, invoice, items, acc
  const totals = lines.map(computeInvoiceLine).reduce((sum, line) => ({ subtotal: sum.subtotal + line.subtotal, vat: sum.vat + line.vat, total: sum.total + line.total }), { subtotal: 0, vat: 0, total: 0 });
  return <div>
   <label>{t("creditNote.search")}<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("creditNote.search")} /></label>
-  {query && <div className="panel">{matches.length === 0 && <p>{t("creditNote.noItems")}</p>}{matches.map((item, i) => <button type="button" className="btn-ghost" key={i} onClick={() => add(item)}>{item.description} — {fmt2(item.unitPrice)}</button>)}</div>}
+  {query && <div className="panel">{matches.length === 0 && <p>{t("creditNote.noItems")}</p>}{matches.map((choice, i) => <button type="button" className="btn-ghost" key={i} onClick={() => add(choice)}>{choice.label} — {fmt2(choice.line.unitPrice)}</button>)}</div>}
   <div className="lines-table-wrap"><table className="lines-table"><thead><tr>
    {["itemDescription", "account", "quantity", "unitPrice", "discount", "priceIncludesVat", "vatApplicable", "totalWithVat"].map((key) => <th key={key}>{t(`salesInvoices.form.lines.${key}`)}</th>)}<th />
   </tr></thead><tbody>{lines.map((line, index) => <tr key={line.originalInvoiceLineId || index}>

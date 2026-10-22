@@ -1,4 +1,5 @@
 import { itemDescription, itemMatches, itemTaxDefaults } from "../shared/itemDefaults";
+import { getItemDisplayName } from "../shared/itemDisplayName";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { computeInvoiceLine } from "../shared/invoiceLine";
@@ -20,7 +21,7 @@ const NOT_PURCHASABLE_TYPES = ["service", "bundle"];
  * الحرة بلا صنف مختار (مصاريف متفرقة).
  */
 export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, items, warehouses, currency: currencyProp }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [openDropdownIdx, setOpenDropdownIdx] = useState(null);
   const [searchText, setSearchText] = useState("");
 
@@ -86,7 +87,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
                       <div className="item-combo-dropdown">
                         {filtered(searchText).map((it) => (
                           <div key={it.id} className="item-combo-option" onMouseDown={() => pickItem(idx, it)}>
-                            {itemDescription(it)} <span className="note" style={{ margin: 0 }}>({it.code})</span>
+                            {getItemDisplayName(it, i18n.language)} <span className="note" style={{ margin: 0 }}>({it.code})</span>
                           </div>
                         ))}
                         {filtered(searchText).length === 0 && <div className="item-combo-option" style={{ cursor: "default" }}>{t("purchases.invoices.lines.noMatchingItems")}</div>}

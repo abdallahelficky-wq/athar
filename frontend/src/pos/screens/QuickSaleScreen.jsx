@@ -1,5 +1,6 @@
 import { computeInvoiceLine } from "../../wired/shared/invoiceLine";
 import { itemTaxDefaults, itemDescription } from "../../wired/shared/itemDefaults";
+import { getItemDisplayName } from "../../wired/shared/itemDisplayName";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listItems } from "../../api/items";
@@ -28,7 +29,7 @@ function lineFromSelection(item, quantity) {
  * هذا المكوّن تماماً.
  */
 export default function QuickSaleScreen({ companyId, setCart, customer, setCustomer, onProceedToPayment }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [step, setStep] = useState("items"); // items | quantities | customer
 
   const [quickItems, setQuickItems] = useState([]);
@@ -140,7 +141,7 @@ export default function QuickSaleScreen({ companyId, setCart, customer, setCusto
                 onClick={() => toggleItem(item)}
               >
                 {isSelected && <span className="pos-item-tile-check">✓</span>}
-                <span className="pos-item-tile-name">{item.name}</span>
+                <span className="pos-item-tile-name">{getItemDisplayName(item, i18n.language)}</span>
                 <span className="pos-item-tile-price">{item.salePrice != null ? fmt2(Number(item.salePrice)) : "—"}</span>
               </button>
             );
@@ -167,7 +168,7 @@ export default function QuickSaleScreen({ companyId, setCart, customer, setCusto
           {selectedList.map(({ item, quantity }) => (
             <div className="pos-cart-line" key={item.id}>
               <div className="pos-cart-line-info">
-                <span className="pos-cart-line-name">{item.name}</span>
+                <span className="pos-cart-line-name">{getItemDisplayName(item, i18n.language)}</span>
                 <span className="pos-cart-line-price">
                   {fmt2(Number(item.salePrice || 0))} × {quantity} = {fmt2(computeInvoiceLine(lineFromSelection(item, quantity)).total)}
                 </span>

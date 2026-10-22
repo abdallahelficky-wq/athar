@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getItemDisplayName } from "../shared/itemDisplayName";
 import { listItems } from "../../api/items";
 import { listWarehouses } from "../../api/warehouses";
 import { listStockMovements, getStockBalance, createTransferMovement, removeStockMovement } from "../../api/stockMovements";
@@ -8,7 +9,7 @@ import UnpostModal from "../shared/UnpostModal";
 import StockMovementsTable from "./StockMovementsTable";
 
 export default function TransferTab({ companyId, companies }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [fromWarehouses, setFromWarehouses] = useState([]);
   const [toWarehouses, setToWarehouses] = useState([]);
@@ -78,7 +79,7 @@ export default function TransferTab({ companyId, companies }) {
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>{t("inventory.transfer.item")}<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</select></label>
+          <label>{t("inventory.transfer.item")}<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{getItemDisplayName(i, i18n.language)}</option>)}</select></label>
           <label>{t("inventory.transfer.fromWarehouse")}<select value={fromWarehouseId} onChange={(e) => setFromWarehouseId(e.target.value)}>{fromWarehouses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <label>{t("inventory.transfer.toCompany")}<select value={toCompanyId} onChange={(e) => setToCompanyId(e.target.value)}>{companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <label>{t("inventory.transfer.toWarehouse")}<select value={toWarehouseId} onChange={(e) => setToWarehouseId(e.target.value)}>{toWarehouses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>

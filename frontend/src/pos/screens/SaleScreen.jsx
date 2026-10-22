@@ -1,5 +1,6 @@
 import { computeInvoiceLine } from "../../wired/shared/invoiceLine";
 import { itemTaxDefaults, itemDescription } from "../../wired/shared/itemDefaults";
+import { getItemDisplayName } from "../../wired/shared/itemDisplayName";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listItems, getItemByBarcode } from "../../api/items";
@@ -29,7 +30,7 @@ function lineFromItem(item) {
 }
 
 export default function SaleScreen({ companyId, cart, setCart, customer, setCustomer, onProceedToPayment }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canOverridePrice = Boolean(user?.canOverridePosPrice);
   const [quickItems, setQuickItems] = useState([]);
@@ -126,7 +127,7 @@ export default function SaleScreen({ companyId, cart, setCart, customer, setCust
         <div className="pos-item-grid">
           {displayItems.map((item) => (
             <button key={item.id} className="pos-item-tile" onClick={() => addItemToCart(item)}>
-              <span className="pos-item-tile-name">{item.name}</span>
+              <span className="pos-item-tile-name">{getItemDisplayName(item, i18n.language)}</span>
               <span className="pos-item-tile-price">{item.salePrice != null ? fmt2(Number(item.salePrice)) : "—"}</span>
             </button>
           ))}

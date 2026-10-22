@@ -1,4 +1,5 @@
 import { itemTaxDefaults, itemDescription, itemMatches } from "../shared/itemDefaults";
+import { getItemDisplayName } from "../shared/itemDisplayName";
 import TaxCategoryFields from "../shared/TaxCategoryFields";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,7 +26,7 @@ export function isSellableItem(item) {
  * المشترك نفسه حتى لا يتأثر منطق المشتريات (خارج نطاق هذا الطلب).
  */
 export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, items, currency: currencyProp, onRequestNewItem }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const sellableItems = items.filter(isSellableItem);
   const [openDropdownIdx, setOpenDropdownIdx] = useState(null);
   const [searchText, setSearchText] = useState("");
@@ -81,7 +82,7 @@ export default function SalesInvoiceLinesEditor({ lines, setLines, accounts, ite
                     <div className="item-combo-dropdown">
                       {filtered(searchText).map((it) => (
                         <div key={it.id} className="item-combo-option" onMouseDown={() => pickItem(idx, it)}>
-                          {itemDescription(it)} <span className="note" style={{ margin: 0 }}>({fmt2(Number(it.salePrice || 0))} {currency})</span>
+                          {getItemDisplayName(it, i18n.language)} <span className="note" style={{ margin: 0 }}>({fmt2(Number(it.salePrice || 0))} {currency})</span>
                         </div>
                       ))}
                       <div
