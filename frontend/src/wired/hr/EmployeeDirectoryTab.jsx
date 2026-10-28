@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { listEmployees, createEmployee, importEmployees, updateEmployee, deleteEmployee } from "../../api/employees";
-import { getEmployeePayrollComponents, setEmployeePayrollComponents } from "../../api/payrollSettings";
+import { getPayrollSettings, getEmployeePayrollComponents, setEmployeePayrollComponents } from "../../api/payrollSettings";
 import { DEPARTMENTS, DEPARTMENT_KEYS, fmt } from "../../legacy/constants";
 import { NATIONALITIES, NATIONALITY_KEYS, EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_KEYS } from "../../legacy/hr";
 import { labelForListValue } from "../../legacy/listLabels";
@@ -17,7 +17,7 @@ const emptyForm = () => ({
   name: "", employeeNumber: "", idNumber: "", gender: "", maritalStatus: "",
   jobTitle: "", department: DEPARTMENTS[0], workLocation: "", hireDate: new Date().toISOString().slice(0, 10),
   contractType: "unlimited", contractEnd: "", basicSalary: "", housingAllowance: "", transportAllowance: "",
-  gosiApplicable: true, nationality: NATIONALITIES[0], dateOfBirth: "", phone: "", alternatePhone: "",
+  gosiApplicable: false, gosiEmployeeRate: "", payrollPaymentMethod: "", nationality: "", dateOfBirth: "", phone: "", alternatePhone: "",
   personalEmail: "", workEmail: "", address: "", emergencyContactName: "", emergencyContactPhone: "",
   emergencyContactRelation: "", bankName: "", bankAccount: "", medicalInsuranceProvider: "",
   medicalInsuranceNumber: "", annualLeaveDays: 21, notes: "",
@@ -25,7 +25,10 @@ const emptyForm = () => ({
 });
 
 export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const ar = i18n.language.startsWith("ar");
+  const [suggestedGosiRate, setSuggestedGosiRate] = useState("");
+  useEffect(() => { if (companyId) getPayrollSettings(companyId).then(s => setSuggestedGosiRate(s.defaultGosiEmployeeRate ?? "")).catch(() => {}); }, [companyId]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -69,14 +72,17 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
   const save = async () => {
     if (!form.name || !form.basicSalary) return;
     try {
+      if (form.gosiApplicable && !form.gosiEmployeeRate) throw new Error(ar ? "اختر نسبة خصم تأمينات الموظف" : "Choose the employee GOSI rate");
       const payload = {
         ...form, companyId,
-        employeeNumber: form.employeeNumber.trim() || undefined,
-        idNumber: form.idNumber.trim() || undefined,
-        phone: form.phone.trim() || undefined,
-        alternatePhone: form.alternatePhone.trim() || undefined,
-        personalEmail: form.personalEmail.trim() || undefined,
-        workEmail: form.workEmail.trim() || undefined,
+        payrollPaymentMethod: form.payrollPaymentMethod || null,
+        gosiEmployeeRate: form.gosiEmployeeRate ? Number(form.gosiEmployeeRate) : null,
+        employeeNumber: String(form.employeeNumber ?? "").trim() || undefined,
+        idNumber: String(form.idNumber ?? "").trim() || undefined,
+        phone: String(form.phone ?? "").trim() || undefined,
+        alternatePhone: String(form.alternatePhone ?? "").trim() || undefined,
+        personalEmail: String(form.personalEmail ?? "").trim() || undefined,
+        workEmail: String(form.workEmail ?? "").trim() || undefined,
         basicSalary: Number(form.basicSalary), housingAllowance: Number(form.housingAllowance || 0),
         transportAllowance: Number(form.transportAllowance || 0), annualLeaveDays: Number(form.annualLeaveDays || 0),
         contractEnd: form.contractEnd || undefined,
@@ -100,8 +106,9 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
   const startEdit = (e) => {
     setEditingId(e.id);
     setForm({
-      ...emptyForm(), ...e,
-      hireDate: e.hireDate.slice(0, 10), contractEnd: e.contractEnd?.slice(0, 10) || "",
+      ...emptyForm(), ...Object.fromEntries(Object.entries(e).map(([k,v]) => [k, v ?? emptyForm()[k] ?? null])),
+      gosiEmployeeRate: e.gosiEmployeeRate ?? (e.gosiApplicable ? 9.75 : ""),
+      hireDate: e.hireDate?.slice(0, 10), contractEnd: e.contractEnd?.slice(0, 10) || "",
       dateOfBirth: e.dateOfBirth?.slice(0, 10) || "",
       probationEndDate: e.probationEndDate?.slice(0, 10) || "",
       assignedCostCenterId: e.assignedCostCenterId || "",
@@ -168,7 +175,7 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
     ["address", t("hr.directory.address")], ["emergencyContactName", t("hr.directory.emergencyContactName")],
     ["emergencyContactPhone", t("hr.directory.emergencyContactPhone")], ["emergencyContactRelation", t("hr.directory.emergencyContactRelation")],
     ["medicalInsuranceProvider", t("hr.directory.medicalInsuranceProvider")], ["medicalInsuranceNumber", t("hr.directory.medicalInsuranceNumber")],
-    ["gosiApplicable", t("hr.directory.gosiApplicable")], ["notes", t("hr.directory.notes")],
+    ["gosiEmployeeRate", ar ? "نسبة خصم تأمينات الموظف" : "Employee GOSI rate"], ["gosiApplicable", t("hr.directory.gosiApplicable")], ["notes", t("hr.directory.notes")],
   ];
 
   const downloadImportTemplate = () => {
@@ -176,7 +183,7 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
     const example = Object.fromEntries(columns.map(([key, label]) => [label,
       ({ name: t("hr.directory.templateExampleName"), hireDate: "2026-01-01", basicSalary: 5000, housingAllowance: 0,
         transportAllowance: 0, otherAllowance: 0, annualLeaveDays: 21, contractType: t("hr.directory.contractUnlimited"),
-        gosiApplicable: t("hr.directory.yes") }[key] ?? "")]));
+        gosiApplicable: "" }[key] ?? "")]));
     const sheet = XLSX.utils.json_to_sheet([example]);
     sheet["!cols"] = columns.map(([, label]) => ({ wch: Math.max(18, label.length + 4) }));
     const instructions = XLSX.utils.aoa_to_sheet([
@@ -225,7 +232,7 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
           dateOfBirth: excelDate(value("dateOfBirth")), personalEmail: text("personalEmail"), alternatePhone: text("alternatePhone"), address: text("address"),
           emergencyContactName: text("emergencyContactName"), emergencyContactPhone: text("emergencyContactPhone"), emergencyContactRelation: text("emergencyContactRelation"),
           medicalInsuranceProvider: text("medicalInsuranceProvider"), medicalInsuranceNumber: text("medicalInsuranceNumber"),
-          gosiApplicable: !["لا", "no", "false", "0"].includes(gosiValue), notes: text("notes"), documents: [] };
+          gosiApplicable: ["نعم", "yes", "true", "1"].includes(gosiValue.trim()), gosiEmployeeRate: text("gosiEmployeeRate") ? numeric("gosiEmployeeRate") : null, notes: text("notes"), documents: [] };
       });
       if (!rows.length) throw new Error(t("hr.directory.importEmpty"));
       const result = await importEmployees({ companyId, rows });
@@ -259,7 +266,7 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
               </select>
             </label>
           )}
-          <label>{t("hr.directory.nationality")}<select value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })}>{NATIONALITIES.map((n) => <option key={n} value={n}>{labelForListValue(t, NATIONALITY_KEYS, "hr.nationalityLabels", n)}</option>)}</select></label>
+          <label>{t("hr.directory.nationality")}<select value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })}><option value="">{ar ? "غير محدد" : "Not specified"}</option>{NATIONALITIES.map((n) => <option key={n} value={n}>{labelForListValue(t, NATIONALITY_KEYS, "hr.nationalityLabels", n)}</option>)}</select></label>
           <label>{t("hr.directory.dateOfBirth")}<input type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
           <label>{t("hr.directory.phone")}<input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
           <label>{t("hr.directory.alternatePhone")}<input type="tel" value={form.alternatePhone} onChange={(e) => setForm({ ...form, alternatePhone: e.target.value })} /></label>
@@ -296,9 +303,11 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
           <label>{t("hr.directory.medicalInsuranceProvider")}<input type="text" value={form.medicalInsuranceProvider} onChange={(e) => setForm({ ...form, medicalInsuranceProvider: e.target.value })} /></label>
           <label>{t("hr.directory.medicalInsuranceNumber")}<input type="text" value={form.medicalInsuranceNumber} onChange={(e) => setForm({ ...form, medicalInsuranceNumber: e.target.value })} /></label>
           <label className="checkbox-field">
-            <input type="checkbox" checked={form.gosiApplicable} onChange={(e) => setForm({ ...form, gosiApplicable: e.target.checked })} />
+            <input type="checkbox" checked={form.gosiApplicable} onChange={(e) => setForm({ ...form, gosiApplicable: e.target.checked, gosiEmployeeRate: form.gosiEmployeeRate || suggestedGosiRate })} />
             {t("hr.directory.gosiApplicable")}
           </label>
+          {form.gosiApplicable && <label>{ar ? "نسبة خصم الموظف (الأساسي + السكن)" : "Employee rate (basic + housing)"}<select value={form.gosiEmployeeRate} onChange={e => setForm({ ...form, gosiEmployeeRate: e.target.value, gosiAmount: null })}><option value="">{ar ? "اختر النسبة" : "Choose rate"}</option><option value="9.75">9.75%</option><option value="10.75">10.75%</option></select></label>}
+          <label>{ar ? "وسيلة صرف الراتب" : "Payroll payment method"}<select value={form.payrollPaymentMethod || ""} onChange={e => setForm({ ...form, payrollPaymentMethod: e.target.value })}><option value="">{ar ? "غير محدد" : "Not specified"}</option><option value="bank">{ar ? "تحويل بنكي" : "Bank transfer"}</option><option value="mudad">{ar ? "مدد" : "Mudad"}</option><option value="cash">{ar ? "نقدي" : "Cash"}</option></select></label>
         </div>
         <label>{t("hr.directory.notes")}<textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3} /></label>
 

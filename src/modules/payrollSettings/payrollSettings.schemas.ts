@@ -48,6 +48,7 @@ export const updateComponentSchema = z.object({
 });
 
 export const updateSettingsSchema = z.object({
+  defaultGosiEmployeeRate: z.coerce.number().refine(n => n === 9.75 || n === 10.75).nullable().optional(),
   standardHoursPerMonth: z.coerce.number().positive().optional(),
   standardDaysPerMonth: z.coerce.number().positive().optional(),
   leaveDaysBeforeFive: z.coerce.number().positive().optional(),

@@ -119,12 +119,13 @@ export async function getPayrollSettings(tenantId: string, companyId: string) {
   await assertCompanyBelongsToTenant(tenantId, companyId);
   const existing = await prisma.payrollSettings.findUnique({ where: { companyId } });
   if (existing) return existing;
-  return { id: null, tenantId, companyId, standardHoursPerMonth: 240, standardDaysPerMonth: 30,
+  return { defaultGosiEmployeeRate: null, id: null, tenantId, companyId, standardHoursPerMonth: 240, standardDaysPerMonth: 30,
     leaveDaysBeforeFive: 21, leaveDaysAfterFive: 30, leaveDailyRateDivisor: 30,
     leaveSalaryBasis: "total", eosSalaryBasis: "basic_housing", payslipColumns: [] as unknown[] };
 }
 
 interface SettingsInput {
+  defaultGosiEmployeeRate?: number | null;
   standardHoursPerMonth?: number;
   standardDaysPerMonth?: number;
   leaveDaysBeforeFive?: number;
@@ -141,6 +142,7 @@ export async function updatePayrollSettings(tenantId: string, companyId: string,
     where: { companyId },
     create: {
       tenantId, companyId,
+      defaultGosiEmployeeRate: input.defaultGosiEmployeeRate ?? null,
       standardHoursPerMonth: input.standardHoursPerMonth ?? 240,
       standardDaysPerMonth: input.standardDaysPerMonth ?? 30,
       leaveDaysBeforeFive: input.leaveDaysBeforeFive ?? 21,
@@ -151,6 +153,7 @@ export async function updatePayrollSettings(tenantId: string, companyId: string,
       payslipColumns: (input.payslipColumns ?? []) as unknown as Prisma.InputJsonValue,
     } as any,
     update: {
+      ...(input.defaultGosiEmployeeRate !== undefined && { defaultGosiEmployeeRate: input.defaultGosiEmployeeRate }),
       ...(input.standardHoursPerMonth != null && { standardHoursPerMonth: input.standardHoursPerMonth }),
       ...(input.standardDaysPerMonth != null && { standardDaysPerMonth: input.standardDaysPerMonth }),
       ...(input.leaveDaysBeforeFive != null && { leaveDaysBeforeFive: input.leaveDaysBeforeFive }),

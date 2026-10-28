@@ -1,3 +1,4 @@
+import { applyEmployeeGosi, isEmployeeGosi } from "../../lib/employeeGosi";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
@@ -85,6 +86,12 @@ export interface RunComponent extends PayrollComponentLike {
 interface RunRow {
   employeeId: string;
   employeeName: string;
+  jobTitle?: string;
+  employeeNumber?: string;
+  monthlyBasic?: number;
+  workedDays?: number;
+  standardDays?: number;
+  paymentMethod?: string | null;
   componentValues: Record<string, number>;
   totalAdditions: number;
   totalDeductions: number;
@@ -119,7 +126,7 @@ export async function resolveEffectiveComponents(tenantId: string, companyId: st
       continue; // حساب هذا البند غير موجود في شجرة هذه الشركة تحديداً — يُتجاوَز بأمان
     }
     components.push({
-      id: idByKey.get(spec.key)!, name: spec.name, kind: spec.kind, accountId, calcMethod: spec.calcMethod,
+      systemKey: spec.key, id: idByKey.get(spec.key)!, name: spec.name, kind: spec.kind, accountId, calcMethod: spec.calcMethod,
       formula: buildLegacyFormula(spec, idByKey), adjustmentUnitBasis: buildLegacyAdjustmentUnitBasis(spec, idByKey),
       sourceEmployeeField: spec.sourceEmployeeField || null, prorateOnPartialMonth: spec.prorateOnPartialMonth,
       allowsMonthlyAdjustments: spec.allowsMonthlyAdjustments,
@@ -128,7 +135,7 @@ export async function resolveEffectiveComponents(tenantId: string, companyId: st
   return { components, persisted: false };
 }
 
-async function computeRun(tenantId: string, run: { companyId: string; month: string; employeeIds: string[]; overrides: unknown }): Promise<{ components: RunComponent[]; rows: RunRow[] }> {
+async function computeRun(tenantId: string, run: { companyId: string; month: string; employeeIds: string[]; overrides: unknown; status?: string }): Promise<{ components: RunComponent[]; rows: RunRow[] }> {
   const { components, persisted } = await resolveEffectiveComponents(tenantId, run.companyId);
   const employees = await prisma.employee.findMany({ where: { id: { in: run.employeeIds }, tenantId } });
   const settlements = await prisma.leaveSettlement.findMany({ where: { employeeId: { in: run.employeeIds } } });
@@ -201,6 +208,8 @@ async function computeRun(tenantId: string, run: { companyId: string; month: str
         });
     }
 
+    if (run.status !== "posted") employeeComponents = applyEmployeeGosi(emp, employeeComponents, fixedValues, monthlyAdjustments);
+
     const result = computeEmployeePayroll({
       employee: {
         basicSalary: Number(emp.basicSalary), housingAllowance: Number(emp.housingAllowance),
@@ -217,14 +226,18 @@ async function computeRun(tenantId: string, run: { companyId: string; month: str
     const override = overridesMap[employeeId];
     if (override) {
       values = new Map(values);
-      for (const [componentId, value] of Object.entries(override)) values.set(componentId, value);
+      for (const [componentId, value] of Object.entries(override)) {
+        if (run.status !== "posted" && !emp.gosiApplicable && components.some(c => c.id === componentId && isEmployeeGosi(c))) continue;
+        values.set(componentId, value);
+      }
       totalAdditions = employeeComponents.filter((c) => c.kind === "addition").reduce((s, c) => s + (values.get(c.id) || 0), 0);
       totalDeductions = employeeComponents.filter((c) => c.kind === "deduction").reduce((s, c) => s + (values.get(c.id) || 0), 0);
       overridden = true;
     }
 
     return {
-      employeeId, employeeName: emp.name, componentValues: Object.fromEntries(values),
+      employeeId, employeeName: emp.name, jobTitle: emp.jobTitle || "", employeeNumber: emp.employeeNumber || "",
+      monthlyBasic: Number(emp.basicSalary), standardDays: settings.standardDaysPerMonth, workedDays: onLeaveThisMonth ? 0 : Math.round(settings.standardDaysPerMonth * (prorationFactor ?? 1)), paymentMethod: emp.payrollPaymentMethod, componentValues: Object.fromEntries(values),
       totalAdditions, totalDeductions, net: totalAdditions - totalDeductions, note: result.note, overridden,
     };
   });
@@ -236,7 +249,9 @@ export async function getPayrollRunRows(tenantId: string, id: string) {
   const run = await prisma.payrollRun.findFirst({ where: { id, tenantId } });
   if (!run) throw notFound("كشف الرواتب غير موجود");
 
-  const { components, rows } = await computeRun(tenantId, run);
+  const { components, rows } = run.status === "posted" && run.postedSnapshot
+    ? run.postedSnapshot as unknown as { components: RunComponent[]; rows: RunRow[] }
+    : await computeRun(tenantId, run);
 
   const byComponent: Record<string, number> = {};
   components.forEach((c) => { byComponent[c.id] = 0; });
@@ -249,7 +264,7 @@ export async function getPayrollRunRows(tenantId: string, id: string) {
     net: rows.reduce((s, r) => s + r.net, 0),
   };
 
-  return { run, rows, totals, columns: components.map((c) => ({ id: c.id, name: c.name, kind: c.kind })) };
+  return { run, rows, totals, columns: components.map((c) => ({ id: c.id, name: c.name, kind: c.kind, systemKey: c.systemKey, sourceEmployeeField: c.sourceEmployeeField })) };
 }
 
 type PayrollJournalLine = { accountId: string; department: string; debit: number; credit: number; lineDescription?: string; employeeId?: string; employeeAdvanceId?: string };
@@ -412,7 +427,7 @@ export async function postPayrollRun(tenantId: string, userId: string, id: strin
       }
     }
 
-    return tx.payrollRun.update({ where: { id }, data: { status: "posted", journalEntryId: entry.id } });
+    return tx.payrollRun.update({ where: { id }, data: { status: "posted", postedSnapshot: JSON.parse(JSON.stringify({ components, rows })), journalEntryId: entry.id } });
   });
 }
 
@@ -440,7 +455,7 @@ export async function unpostPayrollRun(tenantId: string, userId: string, id: str
     await tx.employeeAdvanceDeduction.deleteMany({ where: { payrollRunId: id } });
 
     await deleteJournalEntryTx(tx, run.journalEntryId);
-    const updated = await tx.payrollRun.update({ where: { id }, data: { status: "draft", journalEntryId: null } });
+    const updated = await tx.payrollRun.update({ where: { id }, data: { status: "draft", postedSnapshot: Prisma.DbNull, journalEntryId: null } });
     await writeUnpostAuditLogTx(tx, { tenantId, userId, entityType: "PayrollRun", entityId: id });
     return updated;
   });

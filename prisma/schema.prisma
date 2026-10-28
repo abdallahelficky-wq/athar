@@ -2022,7 +2022,9 @@ model Employee {
   housingAllowance          Decimal        @default(0) @db.Decimal(18, 2)
   transportAllowance        Decimal        @default(0) @db.Decimal(18, 2)
   otherAllowance            Decimal        @default(0) @db.Decimal(18, 2)
-  gosiApplicable            Boolean        @default(true)
+  gosiApplicable            Boolean        @default(false)
+  gosiEmployeeRate          Decimal?       @db.Decimal(5, 2)
+  payrollPaymentMethod      String?
   gosiAmount                Decimal?       @db.Decimal(18, 2)
   advances                  Decimal        @default(0) @db.Decimal(18, 2)
   otherDeductions           Decimal        @default(0) @db.Decimal(18, 2)
@@ -2317,6 +2319,7 @@ model EmployeeAdvanceDeduction {
 // إعدادات رواتب عامة لكل شركة — الساعات/الأيام القياسية للشهر (أساس حساب سعر الوحدة في
 // الصيغ المركّبة)، وترتيب/تسمية أعمدة كشف الرواتب المطبوع والمعروض.
 model PayrollSettings {
+  defaultGosiEmployeeRate Decimal? @db.Decimal(5, 2)
   id                    String   @id @default(cuid())
   tenantId              String
   tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -2435,6 +2438,7 @@ model HrAction {
 }
 
 model PayrollRun {
+  postedSnapshot Json?
   id             String        @id @default(cuid())
   tenantId       String
   tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)

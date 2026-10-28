@@ -4,7 +4,7 @@ import { AdjustmentUnitBasis, PayrollComponentLike, PayrollFormula, SourceEmploy
 /** يحوّل صف PayrollComponent من قاعدة البيانات إلى الشكل الذي يفهمه محرّك الحساب (payrollEngine.ts) */
 export function toComponentLike(c: PayrollComponent): PayrollComponentLike {
   return {
-    id: c.id,
+    id: c.id, systemKey: c.systemKey,
     kind: c.kind as "addition" | "deduction",
     calcMethod: c.calcMethod as "fixed" | "formula",
     formula: c.formula as unknown as PayrollFormula | null,
