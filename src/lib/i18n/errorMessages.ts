@@ -10,6 +10,8 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "اختر نسبة خصم تأمينات الموظف: 9.75% أو 10.75%": "Select the employee GOSI deduction rate: 9.75% or 10.75%.",
+  "اختر نسبة خصم تأمينات الموظف": "Select the employee GOSI deduction rate.",
   "يلزم ربط جميع حسابات القيد بحسابات قيود": "Map all journal accounts to Qoyod accounts.",
   "يلزم ربط طرف القيد بالعميل أو المورد الموجود في قيود": "Map the journal party to an existing Qoyod customer or vendor.",
   "سطر قيد غير صالح للإرسال": "Invalid journal line for export.",
