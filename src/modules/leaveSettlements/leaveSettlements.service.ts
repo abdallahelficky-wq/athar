@@ -1,3 +1,4 @@
+import { applyEmployeeGosi } from "../../lib/employeeGosi";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { dailyRate, daysInMonth } from "../../lib/hrCalculations";
@@ -54,7 +55,7 @@ async function calculatePreview(tenantId: string, emp: any, leaveStartDate: Date
     prisma.hrAction.findMany({ where: { employeeId: emp.id, month: payrollMonth }, orderBy: { createdAt: "asc" } }),
   ]);
   const assignedIds = new Set(assignments.map((a) => a.componentId));
-  const employeeComponents = persisted ? components.filter((c) => assignedIds.has(c.id)) : components;
+  let employeeComponents = persisted ? components.filter((c) => assignedIds.has(c.id)) : components;
   const fixedValues = new Map<string, number>();
   if (persisted) assignments.forEach((a) => { if (a.fixedValue != null) fixedValues.set(a.componentId, Number(a.fixedValue)); });
   else {
@@ -67,6 +68,7 @@ async function calculatePreview(tenantId: string, emp: any, leaveStartDate: Date
     const id = action.componentId || (LEGACY_ACTION_TYPE_TO_KEY[action.actionType] ? `legacy:${LEGACY_ACTION_TYPE_TO_KEY[action.actionType]}` : null);
     if (id) monthlyAdjustments.set(id, (monthlyAdjustments.get(id) || 0) + Number(action.value));
   });
+  employeeComponents = applyEmployeeGosi(emp, employeeComponents, fixedValues, monthlyAdjustments);
   const payroll = computeEmployeePayroll({ employee: pay, components: employeeComponents, fixedValues, monthlyAdjustments,
     settings: payrollSettings, fullyOnLeave: false, prorationFactor: Math.min(daysWorked / payrollSettings.standardDaysPerMonth, 1) });
   const componentLines = employeeComponents.map((component) => ({ id: component.id, name: component.name, kind: component.kind,

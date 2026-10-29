@@ -1,3 +1,4 @@
+import { employeeGosiAmount } from "./employeeGosi";
 /**
  * دوال الحساب الخاصة بشئون الموظفين — منقولة حرفياً من AtharAlMuhasabi.jsx
  * (serviceDuration, calcEOS, dailyRate, daysInMonth, accruedLeaveDays, computeWidePayrollRow)
@@ -158,6 +159,7 @@ export interface WidePayrollEmployee {
   otherAllowance: number;
   gosiAmount: number | null;
   gosiApplicable: boolean;
+  gosiEmployeeRate?: number | null;
   advances: number;
   otherDeductions: number;
 }
@@ -198,9 +200,7 @@ export function computeWidePayrollRow(
   const totalAdditions = housing + transport + otherAllow + otherAdd + overtime;
   const grossTotal = basic + totalAdditions;
 
-  const gosi = emp.gosiAmount != null && emp.gosiAmount > 0
-    ? emp.gosiAmount
-    : (emp.gosiApplicable ? Math.round((emp.basicSalary + emp.housingAllowance) * 0.0975) : 0);
+  const gosi = employeeGosiAmount(emp);
   const absence = a.absenceDays * dailyRate(emp);
   const advance = (emp.advances || 0) + a.advance;
   const violation = a.violation;

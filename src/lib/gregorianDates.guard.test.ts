@@ -38,7 +38,7 @@ describe("every date formatted for display, print or export is Gregorian", () =>
     const offenders: string[] = [];
     for (const dir of DIRS) {
       for (const file of files(path.join(ROOT, dir))) {
-        const rel = path.relative(ROOT, file);
+        const rel = path.relative(ROOT, file).split(path.sep).join("/");
         if (ALLOWED.has(rel)) continue;
         const src = readFileSync(file, "utf8");
         for (const m of src.matchAll(DATE_CALL)) {

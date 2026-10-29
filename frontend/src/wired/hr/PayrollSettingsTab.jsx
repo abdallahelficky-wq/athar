@@ -51,7 +51,7 @@ export default function PayrollSettingsTab({ companyId }) {
     if (!companyId) return;
     getPayrollSettings(companyId).then((s) => {
       setSettings(s);
-      setSettingsDraft({ standardHoursPerMonth: String(s.standardHoursPerMonth), standardDaysPerMonth: String(s.standardDaysPerMonth), leaveDaysBeforeFive: String(s.leaveDaysBeforeFive ?? 21), leaveDaysAfterFive: String(s.leaveDaysAfterFive ?? 30), leaveDailyRateDivisor: String(s.leaveDailyRateDivisor ?? 30), leaveSalaryBasis: s.leaveSalaryBasis ?? "total", eosSalaryBasis: s.eosSalaryBasis ?? "basic_housing" });
+      setSettingsDraft({ defaultGosiEmployeeRate: s.defaultGosiEmployeeRate ?? "", standardHoursPerMonth: String(s.standardHoursPerMonth), standardDaysPerMonth: String(s.standardDaysPerMonth), leaveDaysBeforeFive: String(s.leaveDaysBeforeFive ?? 21), leaveDaysAfterFive: String(s.leaveDaysAfterFive ?? 30), leaveDailyRateDivisor: String(s.leaveDailyRateDivisor ?? 30), leaveSalaryBasis: s.leaveSalaryBasis ?? "total", eosSalaryBasis: s.eosSalaryBasis ?? "basic_housing" });
       setPayslipColumns(s.payslipColumns?.length ? s.payslipColumns : []);
     }).catch((e) => setError(e.message));
   }, [companyId]);
@@ -128,6 +128,7 @@ export default function PayrollSettingsTab({ companyId }) {
   const saveSettings = async () => {
     try {
       await updatePayrollSettings(companyId, {
+        defaultGosiEmployeeRate: settingsDraft.defaultGosiEmployeeRate ? Number(settingsDraft.defaultGosiEmployeeRate) : null,
         standardHoursPerMonth: Number(settingsDraft.standardHoursPerMonth), standardDaysPerMonth: Number(settingsDraft.standardDaysPerMonth),
         leaveDaysBeforeFive: Number(settingsDraft.leaveDaysBeforeFive), leaveDaysAfterFive: Number(settingsDraft.leaveDaysAfterFive),
         leaveDailyRateDivisor: Number(settingsDraft.leaveDailyRateDivisor), leaveSalaryBasis: settingsDraft.leaveSalaryBasis, eosSalaryBasis: settingsDraft.eosSalaryBasis,
@@ -164,6 +165,7 @@ export default function PayrollSettingsTab({ companyId }) {
         <h3 className="sub-head">{t("hr.payrollSettings.standardTitle")}</h3>
         <p className="note">{t("hr.payrollSettings.standardNote")}</p>
         <div className="form-grid">
+          <label>{i18n.language.startsWith("ar") ? "نسبة خصم الموظف المقترحة للموظفين الجدد" : "Suggested employee GOSI rate for new employees"}<select value={settingsDraft.defaultGosiEmployeeRate ?? ""} onChange={e => setSettingsDraft({ ...settingsDraft, defaultGosiEmployeeRate: e.target.value })}><option value="">{i18n.language.startsWith("ar") ? "اختيار لكل موظف" : "Select per employee"}</option><option value="9.75">9.75%</option><option value="10.75">10.75%</option></select><small>{i18n.language.startsWith("ar") ? "تُعتمد في بطاقة الموظف عند تفعيل الخصم. لا تغيّر الموظفين الحاليين ولا تشمل حصة صاحب العمل." : "Confirm in the employee profile when enabling withholding. Existing employees and employer contributions are unchanged."}</small></label>
           <label>{t("hr.payrollSettings.standardHours")}<input type="number" value={settingsDraft.standardHoursPerMonth} onChange={(e) => setSettingsDraft({ ...settingsDraft, standardHoursPerMonth: e.target.value })} /></label>
           <label>{t("hr.payrollSettings.standardDays")}<input type="number" value={settingsDraft.standardDaysPerMonth} onChange={(e) => setSettingsDraft({ ...settingsDraft, standardDaysPerMonth: e.target.value })} /></label>
         </div>

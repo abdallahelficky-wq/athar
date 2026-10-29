@@ -23,7 +23,10 @@ function buildDisplayColumns(columns, payslipColumns) {
 }
 
 export default function PayrollTab({ companyId, companies }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const ar = i18n.language.startsWith("ar");
+  const [scopeEditing, setScopeEditing] = useState(false);
+  const [scopeSaving, setScopeSaving] = useState(false);
   const [employees, setEmployees] = useState([]);
   // ?month= يأتي من رابط قيد الرواتب في شاشة القيود (الانتقال من القيد إلى كشفه)
   const [searchParams] = useSearchParams();
@@ -47,6 +50,8 @@ export default function PayrollTab({ companyId, companies }) {
     listEmployees(companyId).then(setEmployees);
     getPayrollSettings(companyId).then((s) => setPayslipColumns(s.payslipColumns || []));
   }, [companyId]);
+
+  useEffect(() => { setScopeEditing(false); setSelectedIds([]); setEditingRowId(null); setEditForm(null); setPrinting(false); }, [companyId, mf.applied.month]);
 
   const displayColumns = buildDisplayColumns(columns, payslipColumns);
 
@@ -81,6 +86,11 @@ export default function PayrollTab({ companyId, companies }) {
     }
   };
 
+  const saveScope = async () => {
+    setScopeSaving(true); setError("");
+    try { await updatePayrollRunEmployees(run.id, selectedIds); setScopeEditing(false); await reload(); }
+    catch (err) { setError(err.message); } finally { setScopeSaving(false); }
+  };
   const startEditRow = (row) => { setEditingRowId(row.employeeId); setEditForm({ ...row.componentValues }); };
   const saveRowEdit = async () => {
     try {
@@ -145,6 +155,7 @@ export default function PayrollTab({ companyId, companies }) {
 
         {run && (
           <div className="form-btn-group">
+            {run.status === "draft" && <button className="btn-ghost" onClick={() => { setSelectedIds([...run.employeeIds]); setScopeEditing(true); }}>{ar ? "تعديل موظفي المسودة" : "Edit draft employees"}</button>}
             {run.status === "draft" && (
               <button className="btn-primary" onClick={doPost} disabled={rows.length === 0}>{t("hr.payroll.postRun")}</button>
             )}
@@ -153,6 +164,13 @@ export default function PayrollTab({ companyId, companies }) {
             <span className="status-badge">{run.status === "posted" ? t("hr.payroll.statusPosted") : t("hr.payroll.statusDraft")}</span>
           </div>
         )}
+        {scopeEditing && run?.status === "draft" && <div className="panel">
+          <p>{ar ? "تُحفظ تعديلات الرواتب الحالية. اختر الموظفين المطلوبين ثم احفظ المسودة." : "Existing payroll overrides are preserved. Select employees and save the draft."}</p>
+          <button className="btn-ghost" onClick={() => setSelectedIds([...new Set([...selectedIds, ...employees.filter(e => e.status !== "terminated").map(e => e.id)])])}>{ar ? "إضافة جميع الموظفين النشطين" : "Add all active employees"}</button>
+          <div className="employee-checklist">{employees.map(e => <label key={e.id}><input type="checkbox" checked={selectedIds.includes(e.id)} onChange={() => toggleSelected(e.id)} disabled={scopeSaving} />{e.name}</label>)}</div>
+          <button className="btn-primary" disabled={scopeSaving || !selectedIds.length} onClick={saveScope}>{t("common.save")}</button>
+          <button className="btn-ghost" disabled={scopeSaving} onClick={() => setScopeEditing(false)}>{t("common.cancel")}</button>
+        </div>}
         {error && <p className="balance-bad">{error}</p>}
       </div>
 
@@ -223,7 +241,7 @@ export default function PayrollTab({ companyId, companies }) {
           run={run}
           rows={rows}
           totals={totals}
-          columns={displayColumns}
+          columns={columns}
           month={mf.applied.month}
           company={companies?.find((c) => c.id === companyId)}
           autoPrint

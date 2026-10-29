@@ -31,6 +31,7 @@ export interface AdjustmentUnitBasis {
 export type SourceEmployeeField = "basicSalary" | "housingAllowance" | "transportAllowance" | "otherAllowance";
 
 export interface PayrollComponentLike {
+  systemKey?: string | null;
   id: string;
   kind: "addition" | "deduction";
   calcMethod: "fixed" | "formula";

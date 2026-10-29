@@ -148,6 +148,8 @@ export const updateEmployee: RequestHandler = async (req, res) => {
   if (req.body.managerId) await assertManagerBelongsToTenant(req.auth!.tenantId, req.body.managerId, existing.id);
   // يُتحقَّق من المحطة الفعلية بعد التعديل (الجديدة أو القائمة) مقابل الشركة الفعلية بعد التعديل — يغطي
   // أيضاً نقل موظف مُسنَد لمحطة إلى شركة أخرى دون تغيير محطته.
+  if (req.body.gosiApplicable === true && !existing.gosiApplicable && req.body.gosiEmployeeRate == null) throw badRequest("اختر نسبة خصم تأمينات الموظف");
+  if ((req.body.gosiApplicable ?? existing.gosiApplicable) && req.body.gosiEmployeeRate === null) throw badRequest("اختر نسبة خصم تأمينات الموظف");
   const effectiveStationId = req.body.assignedCostCenterId !== undefined ? req.body.assignedCostCenterId : existing.assignedCostCenterId;
   if (effectiveStationId && (req.body.assignedCostCenterId !== undefined || req.body.companyId)) {
     await assertStationBelongsToCompany(req.auth!.tenantId, effectiveStationId, req.body.companyId ?? existing.companyId);
