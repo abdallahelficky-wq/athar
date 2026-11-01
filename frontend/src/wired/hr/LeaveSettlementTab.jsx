@@ -1,3 +1,4 @@
+import HRDialog from "./HRDialog";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
@@ -14,6 +15,8 @@ export default function LeaveSettlementTab({ companyId, companies }) {
   const [employees, setEmployees] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [error, setError] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  useEffect(() => { setFormOpen(false); setError(""); }, [companyId]);
 
   const [employeeId, setEmployeeId] = useState("");
   const [leaveStartDate, setLeaveStartDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -64,7 +67,7 @@ export default function LeaveSettlementTab({ companyId, companies }) {
         cashLeaveDays: Number(cashLeaveDays || 0), bonuses: bon, deductions: ded, ticketAmount: tic, visaAmount: vis,
       });
       setBonuses(""); setDeductions(""); setTicketAmount(""); setVisaAmount("");
-      setError("");
+      setError(""); setFormOpen(false);
       const es = await listEmployees(companyId);
       setEmployees(es);
       reload();
@@ -87,6 +90,9 @@ export default function LeaveSettlementTab({ companyId, companies }) {
 
   return (
     <div>
+      {error && !formOpen && <p role="alert" className="balance-bad">{error}</p>}
+      <div className="hr-list-toolbar"><button className="btn-primary" onClick={()=>{setError("");setFormOpen(true);}}>{t("common.add")}</button></div>
+      {formOpen && <HRDialog title={t("nav.tabs.leaveSettlement")} onClose={() => setFormOpen(false)}>
       <div className="panel form-panel">
         <h3 className="sub-head">{t("hr.leaveSettlement.requestSection")}</h3>
         <div className="form-grid">
@@ -144,6 +150,7 @@ export default function LeaveSettlementTab({ companyId, companies }) {
         </button>
         {availableEmployees.length === 0 && <p className="empty">{t("hr.leaveSettlement.allOnLeave")}</p>}
       </div>
+      </HRDialog>}
 
       <div className="panel">
         <table className="ledger-table">
@@ -157,34 +164,23 @@ export default function LeaveSettlementTab({ companyId, companies }) {
                   <td className="num">{fmt(s.netAmount)}</td>
                   <td><span className="status-badge">{s.status === "disbursed" ? t("hr.leaveSettlement.statusDisbursed") : t("hr.leaveSettlement.statusCalculated")}</span></td>
                   <td className="row-actions">
-                    {s.status === "calculated" && (
-                      disbursingId === s.id ? (
-                        <span className="inline-disb">
-                          <select value={disbMethod} onChange={(e2) => setDisbMethod(e2.target.value)}>
-                            <option value="cash">{t("hr.leaveSettlement.methodCash")}</option>
-                            <option value="bank">{t("hr.leaveSettlement.methodBank")}</option>
-                          </select>
-                          <input type="date" value={disbDate} onChange={(e2) => setDisbDate(e2.target.value)} />
-                          <button className="btn-primary" onClick={() => confirmDisbursement(s)}>{t("hr.leaveSettlement.confirmDisbursement")}</button>
-                        </span>
-                      ) : (
-                        <button className="btn-ghost" onClick={() => { setDisbursingId(s.id); setDisbDate(s.leaveStartDate.slice(0, 10)); }}>{t("hr.leaveSettlement.disburseAction")}</button>
-                      )
-                    )}
-                    <button className="btn-ghost" onClick={() => setAttachmentsFor(attachmentsFor === s.id ? null : s.id)}>
-                      {attachmentsFor === s.id ? t("hr.leaveSettlement.attachmentsHide") : t("hr.leaveSettlement.attachmentsShow")}
-                    </button>
+                    {/* كل فتح لتسوية يبدأ من تاريخها هي ونقداً — لا يُرحَّل تاريخ صرف اخترته لتسوية سابقة إلى هذه، وإلا يُقيَّد قيد الصرف في فترة محاسبية خاطئة */}
+                    <button className="btn-ghost" onClick={()=>{setAttachmentsFor(s.id);setDisbursingId(null);setDisbDate(s.leaveStartDate.slice(0, 10));setDisbMethod("cash");setError("");}}>{t("hr.leaveSettlement.openActions")}</button>
                   </td>
                 </tr>
-                {attachmentsFor === s.id && (
-                  <tr><td colSpan={5}><AttachmentsPanel entityType="leave_settlement" entityId={s.id} /></td></tr>
-                )}
               </React.Fragment>
             ))}
             {settlements.length === 0 && <tr><td className="empty" colSpan={5}>{t("hr.leaveSettlement.empty")}</td></tr>}
           </tbody>
         </table>
       </div>
+      {attachmentsFor && <HRDialog title={t("nav.tabs.leaveSettlement")} onClose={()=>setAttachmentsFor(null)}>
+        {settlements.filter(s=>s.id===attachmentsFor).map(s=><div key={s.id}><h3>{s.employee?.name}</h3><p>{s.leaveStartDate.slice(0,10)} · {fmt(s.netAmount)} {currency}</p>
+        <span className="status-badge">{s.status==="disbursed"?t("hr.leaveSettlement.statusDisbursed"):t("hr.leaveSettlement.statusCalculated")}</span>
+        {s.status==="calculated" && <div className="form-grid"><label>{t("hr.leaveSettlement.disbursementMethod")}<select value={disbMethod} onChange={e=>setDisbMethod(e.target.value)}><option value="cash">{t("hr.leaveSettlement.methodCash")}</option><option value="bank">{t("hr.leaveSettlement.methodBank")}</option></select></label><label>{t("hr.leaveSettlement.disbursementDate")}<input type="date" value={disbDate} onChange={e=>setDisbDate(e.target.value)}/></label><button className="btn-primary" onClick={()=>confirmDisbursement(s)}>{t("hr.leaveSettlement.confirmDisbursement")}</button></div>}
+        <AttachmentsPanel entityType="leave_settlement" entityId={s.id}/></div>)}
+        {error&&<p role="alert" className="balance-bad">{error}</p>}
+      </HRDialog>}
     </div>
   );
 }

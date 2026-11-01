@@ -10,6 +10,9 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "لا يمكن حذف مسير مرحّل": "A posted payroll cannot be deleted.",
+  "أزل مرفقات المسودة قبل حذفها": "Remove the draft attachments before deleting it.",
+  "تعذر حذف المسودة؛ حدّث الصفحة وتحقق من حالتها": "Unable to delete the draft. Refresh and check its status.",
   "اختر نسبة خصم تأمينات الموظف: 9.75% أو 10.75%": "Select the employee GOSI deduction rate: 9.75% or 10.75%.",
   "اختر نسبة خصم تأمينات الموظف": "Select the employee GOSI deduction rate.",
   "يلزم ربط جميع حسابات القيد بحسابات قيود": "Map all journal accounts to Qoyod accounts.",

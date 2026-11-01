@@ -8,3 +8,5 @@ export const setPayrollRowOverride = (id, employeeId, override) => api.put(`/pay
 export const clearPayrollRowOverride = (id, employeeId) => api.delete(`/payroll-runs/${id}/overrides/${employeeId}`);
 export const postPayrollRun = (id) => api.post(`/payroll-runs/${id}/post`);
 export const unpostPayrollRun = (id, pin) => api.post(`/payroll-runs/${id}/unpost`, { pin });
+
+export const deletePayrollRun = id => api.delete(`/payroll-runs/${id}`);

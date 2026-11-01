@@ -460,3 +460,18 @@ export async function unpostPayrollRun(tenantId: string, userId: string, id: str
     return updated;
   });
 }
+
+
+/** Only an unposted draft without supporting records may be removed. */
+export async function deletePayrollRun(tenantId: string, id: string) {
+  return prisma.$transaction(async tx => {
+    const run = await tx.payrollRun.findFirst({ where: { id, tenantId } });
+    if (!run) throw notFound("كشف الرواتب غير موجود");
+    if (run.status !== "draft" || run.journalEntryId) throw badRequest("لا يمكن حذف مسير مرحّل");
+    const attachments = await tx.attachment.count({ where: { tenantId, entityType: "payroll_run", entityId: id } });
+    if (attachments) throw badRequest("أزل مرفقات المسودة قبل حذفها");
+    const deleted = await tx.payrollRun.deleteMany({ where: { id, tenantId, status: "draft", journalEntryId: null, advanceDeductions: { none: {} } } });
+    if (!deleted.count) throw badRequest("تعذر حذف المسودة؛ حدّث الصفحة وتحقق من حالتها");
+    return { deleted: true };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}

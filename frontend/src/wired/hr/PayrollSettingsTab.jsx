@@ -1,3 +1,4 @@
+import HRDialog from "./HRDialog";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listAccounts } from "../../api/accounts";
@@ -37,6 +38,8 @@ export default function PayrollSettingsTab({ companyId }) {
   const [settingsDraft, setSettingsDraft] = useState({ standardHoursPerMonth: "240", standardDaysPerMonth: "30", leaveDaysBeforeFive: "21", leaveDaysAfterFive: "30", leaveDailyRateDivisor: "30", leaveSalaryBasis: "total", eosSalaryBasis: "basic_housing" });
   const [payslipColumns, setPayslipColumns] = useState([]);
   const [form, setForm] = useState(emptyForm());
+  const [settingsDialog,setSettingsDialog] = useState(null);
+  useEffect(()=>{setSettingsDialog(null);setFormOpen(false);},[companyId]);
   const [editingId, setEditingId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [error, setError] = useState("");
@@ -161,6 +164,8 @@ export default function PayrollSettingsTab({ companyId }) {
     <div>
       {error && <p className="balance-bad">{error}</p>}
 
+      <div className="hr-list-toolbar"><button className="btn-ghost" onClick={()=>setSettingsDialog("policy")}>{t("hr.payrollSettings.standardTitle")} / {t("hr.payrollSettings.leavePolicyTitle")}</button><button className="btn-ghost" onClick={()=>setSettingsDialog("columns")}>{t("hr.payrollSettings.payslipColumnsTitle")}</button></div>
+      {settingsDialog === "policy" && <HRDialog title={t("nav.tabs.payrollSettings")} onClose={()=>setSettingsDialog(null)}>{error && <p role="alert" className="balance-bad">{error}</p>}
       <div className="panel form-panel">
         <h3 className="sub-head">{t("hr.payrollSettings.standardTitle")}</h3>
         <p className="note">{t("hr.payrollSettings.standardNote")}</p>
@@ -185,6 +190,7 @@ export default function PayrollSettingsTab({ companyId }) {
         <button className="btn-primary" onClick={saveSettings}>{t("common.save")}</button>
       </div>
 
+      </HRDialog>}
       <div className="panel">
         <div className="items-form-heading"><strong>{t("hr.payrollSettings.componentsTitle")}</strong><button className="btn-primary" onClick={openNew}>{t("hr.payrollSettings.newComponent")}</button></div>
         {components.length === 0 && (
@@ -218,7 +224,7 @@ export default function PayrollSettingsTab({ companyId }) {
       </div>
 
       {formOpen && (
-        <div className="panel form-panel">
+        <HRDialog title={t("hr.payrollSettings.componentsTitle")} onClose={()=>setFormOpen(false)}>{error && <p role="alert" className="balance-bad">{error}</p>}<div className="panel form-panel">
           <div className="items-form-heading"><strong>{editingId ? t("hr.payrollSettings.formTitleEdit", { name: form.name }) : t("hr.payrollSettings.formTitleNew")}</strong><button className="item-close" onClick={() => setFormOpen(false)}>×</button></div>
           <div className="form-grid">
             <label>{t("hr.payrollSettings.fieldName")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
@@ -296,10 +302,10 @@ export default function PayrollSettingsTab({ companyId }) {
           </div>
 
           <div className="form-btn-group"><button className="btn-ghost" onClick={() => setFormOpen(false)}>{t("common.cancel")}</button><button className="btn-primary" onClick={save}>{editingId ? t("hr.payrollSettings.saveChanges") : t("hr.payrollSettings.saveNew")}</button></div>
-        </div>
+        </div></HRDialog>
       )}
 
-      <div className="panel">
+      {settingsDialog === "columns" && <HRDialog title={t("hr.payrollSettings.payslipColumnsTitle")} onClose={()=>setSettingsDialog(null)}>{error && <p role="alert" className="balance-bad">{error}</p>}<div className="panel">
         <h3 className="sub-head">{t("hr.payrollSettings.payslipColumnsTitle")}</h3>
         <p className="note">{t("hr.payrollSettings.payslipColumnsNote")}</p>
         <div className="lines-table-wrap">
@@ -329,7 +335,7 @@ export default function PayrollSettingsTab({ companyId }) {
           <button className="btn-ghost" onClick={addPayslipColumn} disabled={activeComponents.every((c) => payslipColumns.some((p) => p.componentId === c.id))}>{t("hr.payrollSettings.addColumn")}</button>
           <button className="btn-primary" onClick={savePayslipColumns}>{t("hr.payrollSettings.saveColumnsOrder")}</button>
         </div>
-      </div>
+      </div></HRDialog>}
     </div>
   );
 }

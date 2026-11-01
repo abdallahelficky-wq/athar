@@ -44,3 +44,8 @@ export const unpostHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.payrollRun, req.params.id);
   res.json(await service.unpostPayrollRun(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.pin));
 };
+
+export const deleteHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.payrollRun, req.params.id);
+  res.json(await service.deletePayrollRun(req.auth!.tenantId, req.params.id));
+};

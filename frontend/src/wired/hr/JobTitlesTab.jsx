@@ -1,3 +1,4 @@
+import HRDialog from "./HRDialog";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -19,6 +20,7 @@ export default function JobTitlesTab() {
   const { toast, notify, dismiss } = useToast();
   const [titles, setTitles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [formOpen,setFormOpen] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -35,7 +37,7 @@ export default function JobTitlesTab() {
     setSaving(true);
     try {
       await createJobTitle(name.trim());
-      setName("");
+      setName(""); setFormOpen(false);
       reload();
       notify(t("settings.jobTitles.notifyAdded"), "success");
     } catch (err) {
@@ -70,14 +72,15 @@ export default function JobTitlesTab() {
 
   return (
     <div className="job-titles">
-      <div className="panel job-titles-add">
+      <div className="hr-list-toolbar"><button className="btn-primary" onClick={()=>setFormOpen(true)}>{t("settings.jobTitles.newTitleLabel")}</button></div>
+      {formOpen && <HRDialog title={t("settings.jobTitles.newTitleLabel")} onClose={()=>setFormOpen(false)}><div className="panel job-titles-add">
         <label className="memo-field">{t("settings.jobTitles.newTitleLabel")}
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder={t("settings.jobTitles.placeholder")} />
         </label>
         <button className="btn-primary" onClick={add} disabled={saving || !name.trim()}>{t("common.add")}</button>
         <p className="note">{t("settings.jobTitles.note")}</p>
-      </div>
+      </div></HRDialog>}
 
       {loading ? <p className="empty">{t("common.loading")}</p> : (
         <div className="panel">
@@ -92,11 +95,7 @@ export default function JobTitlesTab() {
                 {titles.map((title) => (
                   <tr key={title.id}>
                     <td>
-                      {editingId === title.id ? (
-                        <input type="text" autoFocus value={editName} aria-label={t("settings.jobTitles.table.name")}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") saveRename(title); if (e.key === "Escape") setEditingId(null); }} />
-                      ) : title.name}
+                      {title.name}
                     </td>
                     <td>
                       <span className={`status-badge${title.positionId ? " job-has-position" : ""}`}>
@@ -105,20 +104,8 @@ export default function JobTitlesTab() {
                       {isOwner && <Link className="job-permissions-link" to={routes.settings("positions")}>{t("settings.jobTitles.managePermissions")}</Link>}
                     </td>
                     <td className="row-actions">
-                      {editingId === title.id ? (
-                        <>
-                          <button className="btn-primary" onClick={() => saveRename(title)} disabled={!editName.trim()}>{t("settings.jobTitles.saveBtn")}</button>
-                          <button className="btn-ghost" onClick={() => setEditingId(null)}>{t("settings.jobTitles.cancelBtn")}</button>
-                        </>
-                      ) : (
-                        <>
-                          <button className="btn-ghost" aria-label={`${t("settings.jobTitles.editBtn")} ${title.name}`}
-                            onClick={() => { setEditingId(title.id); setEditName(title.name); }}>{t("settings.jobTitles.editBtn")}</button>
-                          <button className="btn-ghost job-delete-btn" aria-label={`${t("settings.jobTitles.deleteBtn")} ${title.name}`}
-                            onClick={() => remove(title)} disabled={!!title.positionId}
-                            title={title.positionId ? t("settings.jobTitles.deleteBlocked") : undefined}>{t("settings.jobTitles.deleteBtn")}</button>
-                        </>
-                      )}
+                      <button className="btn-ghost" aria-label={t("settings.jobTitles.editBtn")+" "+title.name} onClick={()=>{setEditingId(title.id);setEditName(title.name);}}>{t("settings.jobTitles.editBtn")}</button>
+                      <button className="btn-ghost" aria-label={t("settings.jobTitles.deleteBtn")+" "+title.name} onClick={()=>remove(title)} disabled={!!title.positionId}>{t("settings.jobTitles.deleteBtn")}</button>
                     </td>
                   </tr>
                 ))}
@@ -127,6 +114,10 @@ export default function JobTitlesTab() {
           )}
         </div>
       )}
+      {editingId && <HRDialog title={t("settings.jobTitles.editBtn")} onClose={()=>setEditingId(null)}>
+        <label>{t("settings.jobTitles.table.name")}<input value={editName} onChange={e=>setEditName(e.target.value)}/></label>
+        <button className="btn-primary" disabled={!editName.trim()} onClick={()=>saveRename({id:editingId})}>{t("settings.jobTitles.saveBtn")}</button>
+      </HRDialog>}
       <ToastHost toast={toast} onDismiss={dismiss} />
     </div>
   );
