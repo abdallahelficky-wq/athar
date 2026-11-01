@@ -9,6 +9,7 @@ import LeaveReturnTab from "./LeaveReturnTab";
 import ActionsTab from "./ActionsTab";
 import PayrollTab from "./PayrollTab";
 import PayrollSettingsTab from "./PayrollSettingsTab";
+import EmployeeAdvancesTab from "./EmployeeAdvancesTab";
 import EndOfServiceTab from "./EndOfServiceTab";
 import HRReportsTab from "./HRReportsTab";
 import Breadcrumb from "../shared/Breadcrumb";
@@ -25,6 +26,7 @@ export const HR_TABS = [
   { id: "actions", labelKey: "nav.tabs.hrActions" },
   { id: "payroll", labelKey: "nav.tabs.payroll" },
   { id: "payrollSettings", labelKey: "nav.tabs.payrollSettings" },
+  { id: "employeeAdvances", labelKey: "nav.tabs.employeeAdvances" },
   { id: "eos", labelKey: "nav.tabs.eos" },
   { id: "reports", labelKey: "nav.tabs.reports" },
 ];
@@ -53,6 +55,7 @@ export default function HRWiredModule({ companies, companyId }) {
       {tab === "actions" && <ActionsTab companyId={companyId} companies={companies} />}
       {tab === "payroll" && <PayrollTab companyId={companyId} companies={companies} />}
       {tab === "payrollSettings" && <PayrollSettingsTab companyId={companyId} />}
+      {tab === "employeeAdvances" && <EmployeeAdvancesTab companyId={companyId} />}
       {tab === "eos" && <EndOfServiceTab companyId={companyId} />}
       {tab === "reports" && <HRReportsTab companyId={companyId} />}
     </div>

@@ -15,3 +15,8 @@ export const updateEmployeesSchema = z.object({
 export const setOverrideSchema = z.record(z.string().min(1), z.coerce.number());
 
 export const unpostSchema = z.object({ pin: z.string().min(1) });
+
+export const postponeAdvanceSchema = z.object({
+  employeeAdvanceId: z.string().min(1),
+  reason: z.string().trim().min(3, "سبب تأجيل القسط مطلوب"),
+});

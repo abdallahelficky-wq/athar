@@ -5,6 +5,7 @@ import { listEmployees } from "../../api/employees";
 import {
   listPayrollRuns, createPayrollRun, getPayrollRunRows, updatePayrollRunEmployees,
   setPayrollRowOverride, clearPayrollRowOverride, postPayrollRun, unpostPayrollRun,
+  postponeAdvanceInstallment, undoAdvancePostponement,
 } from "../../api/payrollRuns";
 import { getPayrollSettings } from "../../api/payrollSettings";
 import { fmt } from "../../legacy/constants";
@@ -99,7 +100,7 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
   const saveRowEdit = async () => {
     try {
       const override = {};
-      columns.forEach((col) => { override[col.id] = Number(editForm[col.id] || 0); });
+      columns.filter((col) => col.id !== "advances").forEach((col) => { override[col.id] = Number(editForm[col.id] || 0); });
       await setPayrollRowOverride(run.id, editingRowId, override);
       setEditingRowId(null);
       await reload(); onChanged?.();
@@ -115,6 +116,19 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
       setError(err.message);
     }
   };
+
+  // «تأجيل القسط هذا الشهر»: صفر لهذه السلفة في هذا الكشف وحده، بسبب إلزامي — الرصيد لا يتغيّر والشهر التالي يعيده
+  const postpone = async (advanceId) => {
+    const reason = window.prompt(t("hr.payroll.advPostponeReason"));
+    if (!reason || !reason.trim()) return;
+    try { await postponeAdvanceInstallment(run.id, advanceId, reason.trim()); await reload(); onChanged?.(); }
+    catch (err) { setError(err.message); }
+  };
+  const undoPostpone = async (advanceId) => {
+    try { await undoAdvancePostponement(run.id, advanceId); await reload(); onChanged?.(); }
+    catch (err) { setError(err.message); }
+  };
+  const advanceRows = rows.flatMap((r) => (r.advanceInstallments || []).map((i) => ({ ...i, employeeId: r.employeeId, employeeName: r.employeeName })));
 
   const doPost = async () => {
     if (busy || !window.confirm(ar ? "ترحيل المسير وإنشاء القيد المحاسبي؟" : "Post payroll and create the journal entry?")) return;
@@ -182,6 +196,18 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
           <button className="btn-ghost" disabled={scopeSaving} onClick={() => setScopeEditing(false)}>{t("common.cancel")}</button>
         </div>}
         {error && <p className="balance-bad">{error}</p>}
+        {run?.status === "draft" && warnings?.needsInstallment?.length > 0 && (
+          <div className="note balance-bad" role="alert" data-testid="payroll-needs-installment-warning">
+            <strong>{t("hr.payroll.advNeedsInstallmentTitle")}</strong>
+            <ul>{warnings.needsInstallment.map((w) => <li key={w.advanceId}>{w.name} — {fmt(w.remainingBalance)}</li>)}</ul>
+          </div>
+        )}
+        {run?.status === "draft" && warnings?.installmentOverMax?.length > 0 && (
+          <div className="note" role="status" data-testid="payroll-installment-over-max-warning">
+            <strong>{t("hr.payroll.advOverMaxTitle")}</strong>
+            <ul>{warnings.installmentOverMax.map((w) => <li key={w.employeeId}>{t("hr.payroll.advOverMaxItem", { name: w.name, installments: fmt(w.installments), gross: fmt(w.gross), maxPercent: w.maxPercent })}</li>)}</ul>
+          </div>
+        )}
         {run?.status === "draft" && warnings?.unallocatedEmployees?.length > 0 && (
           <div className="note balance-bad" role="alert" data-testid="payroll-unallocated-warning">
             <strong>{t("hr.payroll.unallocatedTitle", { count: warnings.unallocatedEmployees.length })}</strong>
@@ -212,7 +238,7 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
                     <td>{r.employeeName}{r.overridden && " *"}</td>
                     {displayColumns.map((col) => (
                       <td key={col.id} className="num">
-                        {editingRowId === r.employeeId
+                        {editingRowId === r.employeeId && col.id !== "advances" /* الأقساط تُحسَب من السلف وتُؤجَّل أدناه، لا تُعدَّل يدوياً */
                           ? <input type="number" className="amount-input" value={editForm[col.id] ?? 0} onChange={(e) => setEditForm({ ...editForm, [col.id]: e.target.value })} />
                           : fmt(r.componentValues[col.id] || 0)}
                       </td>
@@ -247,6 +273,35 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
                   </tr>
                 </tfoot>
               )}
+            </table>
+          </div>
+        </div>
+      )}
+
+      {run && advanceRows.length > 0 && (
+        <div className="panel" data-testid="payroll-advance-installments">
+          <h3 className="sub-head">{t("hr.payroll.advTitle")}</h3>
+          <div className="lines-table-wrap">
+            <table className="lines-table">
+              <thead><tr><th>{t("hr.payroll.advEmployee")}</th><th>{t("hr.payroll.advRemaining")}</th><th>{t("hr.payroll.advInstallment")}</th><th>{t("hr.payroll.advThisRun")}</th><th>{t("hr.payroll.advStatus")}</th>{run.status === "draft" && <th></th>}</tr></thead>
+              <tbody>
+                {advanceRows.map((a) => (
+                  <tr key={a.advanceId}>
+                    <td>{a.employeeName}</td>
+                    <td className="num">{fmt(a.remainingBalance)}</td>
+                    <td className="num">{a.monthlyInstallment == null ? "—" : fmt(a.monthlyInstallment)}</td>
+                    <td className="num strong">{fmt(a.amount)}</td>
+                    <td>{a.postponed ? t("hr.payroll.advPostponedBy", { reason: a.postponed.reason }) : a.needsInstallment ? t("hr.payroll.advNeedsInstallment") : ""}</td>
+                    {run.status === "draft" && (
+                      <td className="row-actions">
+                        {a.postponed
+                          ? <button className="btn-ghost" onClick={() => undoPostpone(a.advanceId)}>{t("hr.payroll.advUndoPostpone")}</button>
+                          : !a.needsInstallment && <button className="btn-ghost" data-testid={`postpone-${a.advanceId}`} onClick={() => postpone(a.advanceId)}>{t("hr.payroll.advPostpone")}</button>}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </div>

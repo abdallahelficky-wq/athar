@@ -36,6 +36,10 @@ export const updateSettingsHandler: RequestHandler = async (req, res) => {
   if (req.body.employerContributionsEnabled !== undefined && !["admin", "finance_manager"].includes(req.auth!.role)) {
     throw forbidden("تشغيل مساهمات صاحب العمل في قيد الرواتب للمدير أو المدير المالي فقط");
   }
+  // مجموعة حسابات ذمم الموظفين تحدّد أين تُنشأ حسابات في شجرة الحسابات — للمالية
+  if ((req.body.advancesParentAccountId !== undefined || req.body.maxInstallmentPercentOfGross !== undefined) && !["admin", "finance_manager"].includes(req.auth!.role)) {
+    throw forbidden("إعدادات حسابات سلف الموظفين للمدير أو المدير المالي فقط");
+  }
   res.json(await service.updatePayrollSettings(req.auth!.tenantId, req.params.companyId, req.body, req.auth!.sub));
 };
 

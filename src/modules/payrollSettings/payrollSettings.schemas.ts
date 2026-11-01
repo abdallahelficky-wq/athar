@@ -61,6 +61,8 @@ export const updateSettingsSchema = z.object({
   eosSalaryBasis: z.enum(["basic", "basic_housing", "total"]).optional(),
   payslipColumns: z.array(z.object({ componentId: z.string().nullable(), label: z.string().min(1) })).optional(),
   employerContributionsEnabled: z.boolean().optional(),
+  advancesParentAccountId: z.string().min(1).nullable().optional(),
+  maxInstallmentPercentOfGross: z.coerce.number().gt(0).max(100).nullable().optional(),
 });
 
 export const setEmployeeComponentsSchema = z.array(

@@ -37,6 +37,7 @@ export default function PayrollSettingsTab({ companyId }) {
   const [components, setComponents] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [advancesDraft, setAdvancesDraft] = useState({ parentId: "", maxPercent: "" });
   const [settingsDraft, setSettingsDraft] = useState({ standardHoursPerMonth: "240", standardDaysPerMonth: "30", leaveDaysBeforeFive: "21", leaveDaysAfterFive: "30", leaveDailyRateDivisor: "30", leaveSalaryBasis: "total", eosSalaryBasis: "basic_housing" });
   const [payslipColumns, setPayslipColumns] = useState([]);
   const [form, setForm] = useState(emptyForm());
@@ -56,12 +57,15 @@ export default function PayrollSettingsTab({ companyId }) {
     if (!companyId) return;
     getPayrollSettings(companyId).then((s) => {
       setSettings(s);
+      setAdvancesDraft({ parentId: s.advancesParentAccountId || "", maxPercent: s.maxInstallmentPercentOfGross == null ? "" : String(s.maxInstallmentPercentOfGross) });
       setSettingsDraft({ defaultGosiEmployeeRate: s.defaultGosiEmployeeRate ?? "", standardHoursPerMonth: String(s.standardHoursPerMonth), standardDaysPerMonth: String(s.standardDaysPerMonth), leaveDaysBeforeFive: String(s.leaveDaysBeforeFive ?? 21), leaveDaysAfterFive: String(s.leaveDaysAfterFive ?? 30), leaveDailyRateDivisor: String(s.leaveDailyRateDivisor ?? 30), leaveSalaryBasis: s.leaveSalaryBasis ?? "total", eosSalaryBasis: s.eosSalaryBasis ?? "basic_housing" });
       setPayslipColumns(s.payslipColumns?.length ? s.payslipColumns : []);
     }).catch((e) => setError(e.message));
   }, [companyId]);
 
   const postingAccounts = useMemo(() => accounts.filter((a) => a.isPosting && !a.isArchived), [accounts]);
+  // مجموعة ذمم الموظفين: حساب تجميع أصول نشط في مستوى يقبل حسابات ترحيل تحته — نفس تحقق الخادم
+  const advancesGroups = useMemo(() => accounts.filter((a) => !a.isPosting && !a.isArchived && a.type === "asset" && a.level < 4), [accounts]);
   const activeComponents = useMemo(() => components.filter((c) => c.isActive), [components]);
   // مرجع الصيغة يمكن أن يكون "الإجمالي" أو أي بند آخر (باستثناء البند نفسه أثناء التعديل، لمنع مرجع ذاتي مباشر)
   const referenceOptions = useMemo(() => components.filter((c) => c.id !== editingId), [components, editingId]);
@@ -143,6 +147,16 @@ export default function PayrollSettingsTab({ companyId }) {
     } catch (err) { setError(err.message); }
   };
 
+  const saveAdvancesSettings = async () => {
+    try {
+      const updated = await updatePayrollSettings(companyId, {
+        advancesParentAccountId: advancesDraft.parentId || null,
+        maxInstallmentPercentOfGross: advancesDraft.maxPercent === "" ? null : Number(advancesDraft.maxPercent),
+      });
+      setSettings(updated); setError("");
+    } catch (err) { setError(err.message); }
+  };
+
   const toggleEmployerContributions = async (enabled) => {
     if (enabled && !window.confirm(t("hr.payrollSettings.employerConfirmOn"))) return;
     try {
@@ -208,6 +222,23 @@ export default function PayrollSettingsTab({ companyId }) {
           {t("hr.payrollSettings.employerContributionsEnabled")}
         </label>
         <p className="note">{t("hr.payrollSettings.employerContributionsNote")}</p>
+      </div>
+
+      <div className="panel form-panel" data-testid="payroll-advances-settings">
+        <h3 className="sub-head">{t("hr.payrollSettings.advancesTitle")}</h3>
+        <div className="form-grid">
+          <label>{t("hr.payrollSettings.advancesParent")}
+            <select data-testid="advances-parent-select" value={advancesDraft.parentId} onChange={(e) => setAdvancesDraft({ ...advancesDraft, parentId: e.target.value })}>
+              <option value="">{t("hr.payrollSettings.advancesParentNone")}</option>
+              {advancesGroups.map((a) => <option key={a.id} value={a.id}>{a.code} — {getAccountDisplayName(a, i18n.language)}</option>)}
+            </select>
+          </label>
+          <label>{t("hr.payrollSettings.maxInstallmentPercent")}
+            <input type="number" min="0" max="100" step="0.01" data-testid="max-installment-percent" value={advancesDraft.maxPercent} onChange={(e) => setAdvancesDraft({ ...advancesDraft, maxPercent: e.target.value })} />
+          </label>
+        </div>
+        <p className="note">{t("hr.payrollSettings.advancesParentNote")}</p>
+        <button className="btn-primary" onClick={saveAdvancesSettings}>{t("common.save")}</button>
       </div>
 
       </HRDialog>}

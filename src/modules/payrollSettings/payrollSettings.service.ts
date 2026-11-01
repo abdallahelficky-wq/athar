@@ -4,6 +4,7 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { findCircularReference, PayrollComponentLike, AdjustmentUnitBasis, PayrollFormula } from "../../lib/payrollEngine";
 import { toComponentLike } from "../../lib/payrollComponentMapper";
 import { resolveEffectiveComponents } from "../payrollRuns/payrollRuns.service";
+import { assertValidAdvancesParent } from "../../lib/employeeReceivableAccount";
 
 /**
  * قائمة البنود القابلة لتسوية شهرية (HrAction) لهذه الشركة — تشمل البنود النظامية المؤقتة
@@ -138,7 +139,8 @@ export async function getPayrollSettings(tenantId: string, companyId: string) {
   if (existing) return existing;
   return { defaultGosiEmployeeRate: null, id: null, tenantId, companyId, standardHoursPerMonth: 240, standardDaysPerMonth: 30,
     leaveDaysBeforeFive: 21, leaveDaysAfterFive: 30, leaveDailyRateDivisor: 30,
-    leaveSalaryBasis: "total", eosSalaryBasis: "basic_housing", payslipColumns: [] as unknown[], employerContributionsEnabled: false };
+    leaveSalaryBasis: "total", eosSalaryBasis: "basic_housing", payslipColumns: [] as unknown[], employerContributionsEnabled: false,
+    advancesParentAccountId: null, maxInstallmentPercentOfGross: null };
 }
 
 interface SettingsInput {
@@ -152,11 +154,22 @@ interface SettingsInput {
   eosSalaryBasis?: "basic" | "basic_housing" | "total";
   payslipColumns?: { componentId: string | null; label: string }[];
   employerContributionsEnabled?: boolean;
+  advancesParentAccountId?: string | null;
+  maxInstallmentPercentOfGross?: number | null;
 }
 
 export async function updatePayrollSettings(tenantId: string, companyId: string, input: SettingsInput, userId?: string) {
   await assertCompanyBelongsToTenant(tenantId, companyId);
-  const before = await prisma.payrollSettings.findUnique({ where: { companyId }, select: { employerContributionsEnabled: true } });
+  const before = await prisma.payrollSettings.findUnique({ where: { companyId }, select: { employerContributionsEnabled: true, advancesParentAccountId: true } });
+  if (input.advancesParentAccountId) await assertValidAdvancesParent(prisma as unknown as Prisma.TransactionClient, tenantId, companyId, input.advancesParentAccountId);
+  if (input.advancesParentAccountId !== undefined && input.advancesParentAccountId !== (before?.advancesParentAccountId ?? null)) {
+    await prisma.auditLog.create({
+      data: {
+        tenantId, companyId, userId: userId ?? null, action: "payroll_settings.advances_parent_changed",
+        entityType: "PayrollSettings", entityId: companyId, metadata: { before: before?.advancesParentAccountId ?? null, after: input.advancesParentAccountId },
+      },
+    });
+  }
   const beforeEnabled = before?.employerContributionsEnabled ?? false;
   if (input.employerContributionsEnabled != null && input.employerContributionsEnabled !== beforeEnabled) {
     await prisma.auditLog.create({
@@ -180,6 +193,8 @@ export async function updatePayrollSettings(tenantId: string, companyId: string,
       eosSalaryBasis: input.eosSalaryBasis ?? "basic_housing",
       payslipColumns: (input.payslipColumns ?? []) as unknown as Prisma.InputJsonValue,
       employerContributionsEnabled: input.employerContributionsEnabled ?? false,
+      advancesParentAccountId: input.advancesParentAccountId ?? null,
+      maxInstallmentPercentOfGross: input.maxInstallmentPercentOfGross ?? null,
     } as any,
     update: {
       ...(input.defaultGosiEmployeeRate !== undefined && { defaultGosiEmployeeRate: input.defaultGosiEmployeeRate }),
@@ -192,6 +207,8 @@ export async function updatePayrollSettings(tenantId: string, companyId: string,
       ...(input.eosSalaryBasis != null && { eosSalaryBasis: input.eosSalaryBasis }),
       ...(input.payslipColumns != null && { payslipColumns: input.payslipColumns as unknown as Prisma.InputJsonValue }),
       ...(input.employerContributionsEnabled != null && { employerContributionsEnabled: input.employerContributionsEnabled }),
+      ...(input.advancesParentAccountId !== undefined && { advancesParentAccountId: input.advancesParentAccountId }),
+      ...(input.maxInstallmentPercentOfGross !== undefined && { maxInstallmentPercentOfGross: input.maxInstallmentPercentOfGross }),
     } as any,
   });
 }
