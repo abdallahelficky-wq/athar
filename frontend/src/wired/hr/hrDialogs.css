@@ -1,0 +1,8 @@
+.hr-dialog-overlay{position:fixed;inset:0;z-index:45;background:rgba(15,23,42,.5);display:flex;align-items:center;justify-content:center;padding:24px}
+.hr-dialog{width:min(1440px,100%);max-height:94vh;display:flex;flex-direction:column;background:var(--bg,#f8fafc);border:1px solid #e2e8f0;border-radius:18px;box-shadow:0 24px 80px #0003;outline:none}
+.hr-dialog-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #e2e8f0;background:var(--panel,#fff);border-radius:18px 18px 0 0}
+.hr-dialog-header h2{font-size:20px;margin:0}.hr-dialog-body{padding:24px;overflow:auto;min-height:0}.hr-dialog-body .panel{margin-bottom:16px}
+.hr-list-toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:20px 0}.hr-list-toolbar label{display:grid;gap:7px;min-width:160px}.hr-list-toolbar input,.hr-list-toolbar select{padding:10px;border:1px solid #d5dce5;border-radius:9px;background:#fff}
+.hr-list-toolbar .btn-primary{margin-inline-start:auto}.hr-actions{display:flex;gap:8px;flex-wrap:wrap}.hr-dialog .form-btn-group{display:flex;gap:10px;flex-wrap:wrap}.hr-dialog .employee-checklist{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:16px}
+@media(max-width:640px){.hr-dialog-overlay{padding:8px}.hr-dialog{max-height:98dvh}.hr-dialog-body{padding:12px}.hr-dialog-header{padding:12px}.hr-list-toolbar label{flex:1}}
+@media print{.hr-dialog-overlay{display:none!important}}

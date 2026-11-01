@@ -25,7 +25,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("job titles are saved to the server and show whether each has a position", async ({ page }) => {
-  await page.getByLabel("مسمّى وظيفي جديد").fill("مشرف مبيعات");
+  await page.getByRole("button", { name: "مسمّى وظيفي جديد", exact: true }).click();
+  await page.getByRole("textbox", { name: "مسمّى وظيفي جديد" }).fill("مشرف مبيعات");
   await page.getByRole("button", { name: "إضافة", exact: true }).click();
   await expect.poll(() => calls.length).toBe(1);
   expect(calls[0]).toEqual({ method: "POST", path: "/api/job-titles", body: { name: "مشرف مبيعات" } });
@@ -34,7 +35,7 @@ test("job titles are saved to the server and show whether each has a position", 
   await expect(page.getByRole("link", { name: "إدارة الصلاحيات" }).first()).toHaveAttribute("href", "/settings/positions");
 });
 
-test("rename in place; a job title with a position cannot be deleted", async ({ page }) => {
+test("rename in a dialog; a job title with a position cannot be deleted", async ({ page }) => {
   await expect(page.getByRole("button", { name: "حذف محاسب" })).toBeDisabled();
   await page.getByRole("button", { name: "تعديل فني" }).click();
   await page.getByRole("textbox", { name: "الوظيفة" }).fill("فني صيانة");

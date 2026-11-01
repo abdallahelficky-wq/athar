@@ -1,3 +1,4 @@
+import HRDialog from "./HRDialog";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
@@ -18,9 +19,11 @@ export default function ActionsTab({ companyId, companies }) {
   const [actions, setActions] = useState([]);
   const [components, setComponents] = useState([]);
   const [error, setError] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  useEffect(() => { setFormOpen(false); setError(""); }, [companyId]);
 
   const [componentId, setComponentId] = useState("");
-  const mf = useDeferredFilters({ month: "2026-07" });
+  const mf = useDeferredFilters({ month: new Date().toISOString().slice(0, 7) });
   const [scope, setScope] = useState("single");
   const [employeeId, setEmployeeId] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
@@ -50,7 +53,7 @@ export default function ActionsTab({ companyId, companies }) {
     try {
       await createHrActionBatch({ employeeIds: targetIds, month: mf.applied.month, componentId, value: Number(value || 0), note });
       setValue(""); setNote("");
-      reload();
+      setFormOpen(false); reload();
     } catch (err) {
       setError(err.message);
     }
@@ -69,13 +72,13 @@ export default function ActionsTab({ companyId, companies }) {
 
   return (
     <div>
+      {error && !formOpen && <p role="alert" className="balance-bad">{error}</p>}
+      <div className="hr-list-toolbar"><label>{t("hr.actions.month")}<input type="month" value={mf.draft.month} onChange={e=>mf.setField("month",e.target.value)}/></label><button className="btn-ghost" onClick={mf.apply}>{t("hr.actions.showResults")}</button><button className="btn-primary" onClick={()=>{setError("");setFormOpen(true);}}>{t("common.add")}</button></div>
+      {formOpen && <HRDialog title={t("nav.tabs.hrActions")} onClose={() => setFormOpen(false)}>
       <div className="panel form-panel">
         <div className="form-grid">
           <label>{t("hr.actions.actionType")}<select value={componentId} onChange={(e) => setComponentId(e.target.value)}>{components.map((c) => <option key={c.componentId} value={c.componentId}>{c.name}</option>)}</select></label>
-          <form style={{ display: "contents" }} onSubmit={(e) => { e.preventDefault(); mf.apply(); }}>
-            <label>{t("hr.actions.month")}<input type="month" value={mf.draft.month} onChange={(e) => mf.setField("month", e.target.value)} /></label>
-            <button type="submit" className="btn-ghost" style={{ alignSelf: "end" }}>{t("hr.actions.showResults")}</button>
-          </form>
+          <label>{t("hr.actions.month")}<input type="month" value={mf.applied.month} readOnly /></label>
           <label>{isDaysComponent(componentDef?.name) ? t("hr.actions.valueDays") : t("hr.actions.valueAmount", { currency })}<input type="number" value={value} onChange={(e) => setValue(e.target.value)} /></label>
           <label className="memo-field">{t("hr.actions.note")}<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
         </div>
@@ -101,6 +104,7 @@ export default function ActionsTab({ companyId, companies }) {
         {error && <p className="balance-bad">{error}</p>}
         <button className="btn-primary" onClick={save} disabled={targetIds.length === 0 || !componentId}>{t("hr.actions.saveBtn", { count: targetIds.length })}</button>
       </div>
+      </HRDialog>}
 
       <div className="panel">
         <table className="ledger-table">

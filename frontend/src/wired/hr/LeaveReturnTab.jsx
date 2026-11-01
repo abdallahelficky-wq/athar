@@ -1,3 +1,4 @@
+import HRDialog from "./HRDialog";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
@@ -13,6 +14,8 @@ export default function LeaveReturnTab({ companyId, companies }) {
   const [openSettlement, setOpenSettlement] = useState(null);
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  useEffect(() => { setFormOpen(false); setError(""); }, [companyId]);
 
   const onLeaveEmployees = employees.filter((e) => e.leaveStatus === "onLeave");
 
@@ -49,6 +52,8 @@ export default function LeaveReturnTab({ companyId, companies }) {
 
   return (
     <div>
+      <div className="panel"><h3>{t("nav.tabs.leaveReturn")}</h3>{onLeaveEmployees.length === 0 && <p>{t("hr.leaveReturn.noneOnLeave")}</p>}{onLeaveEmployees.map(e=><div className="hr-list-toolbar" key={e.id}><strong>{e.name}</strong><button className="btn-ghost" onClick={()=>{setEmployeeId(e.id);setPreview(null);setError("");setFormOpen(true);}}>{t("hr.leaveReturn.registerBtn")}</button></div>)}</div>
+      {formOpen && <HRDialog title={t("nav.tabs.leaveReturn")} onClose={()=>setFormOpen(false)}>
       <div className="panel form-panel">
         <div className="form-grid">
           <label>{t("hr.leaveReturn.employee")}
@@ -80,6 +85,7 @@ export default function LeaveReturnTab({ companyId, companies }) {
           </div>
         )}
       </div>
+      </HRDialog>}
     </div>
   );
 }

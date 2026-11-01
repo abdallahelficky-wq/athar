@@ -33,7 +33,7 @@ export default function HRWiredModule({ companies, companyId }) {
   const { t } = useTranslation();
   const [tab] = useModuleTab("/hr", HR_TABS);
   return (
-    <div>
+    <div key={companyId}>
       <div className="section-title">
         <Breadcrumb parts={[t("nav.groups.hr"), t("dashboard.breadcrumb.realData")]} />
         <h2>{t("nav.groups.hr")}</h2>

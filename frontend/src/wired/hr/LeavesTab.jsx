@@ -1,3 +1,4 @@
+import HRDialog from "./HRDialog";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
@@ -12,6 +13,8 @@ export default function LeavesTab({ companyId }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  useEffect(() => { setFormOpen(false); setError(""); }, [companyId]);
 
   const [employeeId, setEmployeeId] = useState("");
   const [type, setType] = useState(LEAVE_TYPES[0]);
@@ -19,6 +22,7 @@ export default function LeavesTab({ companyId }) {
   const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
   const [editingId, setEditingId] = useState(null);
+  const readOnly = Boolean(editingId && requests.find(r=>r.id===editingId)?.status !== "pending");
 
   useEffect(() => {
     if (!companyId) return;
@@ -41,6 +45,7 @@ export default function LeavesTab({ companyId }) {
   };
 
   const startEdit = (r) => {
+    setFormOpen(true);
     setEditingId(r.id);
     setEmployeeId(r.employeeId);
     setType(r.type);
@@ -59,7 +64,7 @@ export default function LeavesTab({ companyId }) {
         await createLeaveRequest({ employeeId, type, startDate, endDate, note });
         setNote("");
       }
-      reload();
+      setFormOpen(false); reload();
     } catch (err) {
       setError(err.message);
     }
@@ -69,6 +74,7 @@ export default function LeavesTab({ companyId }) {
     if (!window.confirm(t("hr.leaves.confirmDelete"))) return;
     try {
       await deleteLeaveRequest(r.id);
+      if (editingId === r.id) { resetForm(); setFormOpen(false); }
       reload();
     } catch (err) {
       setError(err.message);
@@ -86,20 +92,25 @@ export default function LeavesTab({ companyId }) {
 
   return (
     <div>
+      <div className="hr-list-toolbar"><button className="btn-primary" onClick={() => { resetForm(); setError(""); setFormOpen(true); }}>{t("hr.leaves.newRequest", { defaultValue: "طلب إجازة جديد" })}</button></div>
+      {error && !formOpen && <p role="alert" className="balance-bad">{error}</p>}
+      {formOpen && <HRDialog title={t("nav.tabs.leaves")} onClose={() => setFormOpen(false)}>
       <div className="panel form-panel">
-        <div className="form-grid">
+        <fieldset disabled={readOnly} className="form-grid" style={{border:0,padding:0}}>
           <label>{t("hr.leaves.employee")}<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} disabled={Boolean(editingId)}>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
           <label>{t("hr.leaves.type")}<select value={type} onChange={(e) => setType(e.target.value)}>{LEAVE_TYPES.map((v) => <option key={v} value={v}>{labelForListValue(t, LEAVE_TYPE_KEYS, "hr.leaveTypeLabels", v)}</option>)}</select></label>
           <label>{t("hr.leaves.fromDate")}<input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
           <label>{t("hr.leaves.toDate")}<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label>
           <label className="memo-field">{t("hr.leaves.notes")}<input type="text" value={note} onChange={(e) => setNote(e.target.value)} /></label>
-        </div>
+        </fieldset>
         {error && <p className="balance-bad">{error}</p>}
-        <button className="btn-primary" onClick={save} disabled={!editingId && !employeeId}>
+        <button className="btn-primary" onClick={save} disabled={readOnly || (!editingId && !employeeId)}>
           {editingId ? t("hr.leaves.updateBtn") : t("hr.leaves.saveBtn")}
         </button>
-        {editingId && <button className="btn-ghost" onClick={resetForm}>{t("hr.leaves.cancelEdit")}</button>}
+        {editingId && <div className="hr-actions">{requests.filter(r=>r.id===editingId).map(r=><React.Fragment key={r.id}>{r.status==="pending"&&<><button className="btn-ghost" onClick={()=>approve(r)}>{t("hr.leaves.approve")}</button><button className="btn-ghost" onClick={()=>reject(r)}>{t("hr.leaves.reject")}</button></>}<button className="btn-ghost" onClick={()=>remove(r)}>{t("common.delete")}</button></React.Fragment>)}</div>}
+        {editingId && <button className="btn-ghost" onClick={() => { resetForm(); setFormOpen(false); }}>{t("hr.leaves.cancelEdit")}</button>}
       </div>
+      </HRDialog>}
 
       {loading ? <p className="empty">{t("common.loading")}</p> : (
         <div className="panel">
@@ -123,6 +134,7 @@ export default function LeavesTab({ companyId }) {
                     )}
                   </td>
                   <td className="row-actions">
+                    <button className="btn-ghost" onClick={()=>startEdit(r)}>{t("common.view", {defaultValue:"فتح"})}</button>
                     {r.status === "pending" && (
                       <>
                         <button className="btn-ghost" onClick={() => startEdit(r)}>{t("hr.leaves.editBtn")}</button>

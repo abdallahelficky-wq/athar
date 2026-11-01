@@ -1,3 +1,4 @@
+import HRDialog from "./HRDialog";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployees, getEmployeeEos } from "../../api/employees";
@@ -16,6 +17,8 @@ export default function EndOfServiceTab({ companyId }) {
   const [reason, setReason] = useState("resign");
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  useEffect(() => { setFormOpen(false); setError(""); }, [companyId]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -38,11 +41,13 @@ export default function EndOfServiceTab({ companyId }) {
 
   return (
     <div>
+      <div className="panel lines-table-wrap"><table className="ledger-table"><thead><tr><th>{t("hr.eos.employee")}</th><th>{t("nav.tabs.eos")}</th></tr></thead><tbody>{employees.map(e=><tr key={e.id}><td>{e.name}</td><td><button className="btn-ghost" onClick={()=>{setEmployeeId(e.id);setResult(null);setError("");setFormOpen(true);}}>{t("hr.eos.calculateBtn")}</button></td></tr>)}</tbody></table></div>
+      {formOpen && <HRDialog title={t("nav.tabs.eos")} onClose={()=>setFormOpen(false)}>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>{t("hr.eos.employee")}<select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
-          <label>{t("hr.eos.endDate")}<input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label>
-          <label>{t("hr.eos.reason")}<select value={reason} onChange={(e) => setReason(e.target.value)}>{REASONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></label>
+          <label>{t("hr.eos.employee")}<select value={employeeId} onChange={(e) => {setEmployeeId(e.target.value);setResult(null);}}>{employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
+          <label>{t("hr.eos.endDate")}<input type="date" value={endDate} onChange={(e) => {setEndDate(e.target.value);setResult(null);}} /></label>
+          <label>{t("hr.eos.reason")}<select value={reason} onChange={(e) => {setReason(e.target.value);setResult(null);}}>{REASONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></label>
         </div>
         {error && <p className="balance-bad">{error}</p>}
         <button className="btn-primary" onClick={calculate} disabled={!employeeId}>{t("hr.eos.calculateBtn")}</button>
@@ -63,6 +68,7 @@ export default function EndOfServiceTab({ companyId }) {
           <p className="note">{t("hr.eos.disclaimer")}</p>
         </div>
       )}
+      </HRDialog>}
     </div>
   );
 }

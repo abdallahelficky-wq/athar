@@ -1,3 +1,4 @@
+import HRDialog from "./HRDialog";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -32,6 +33,8 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  useEffect(() => { setFormOpen(false); setError(""); }, [companyId]);
   const [form, setForm] = useState(emptyForm());
   const [editingId, setEditingId] = useState(null);
   const [payrollComponents, setPayrollComponents] = useState([]);
@@ -95,7 +98,7 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
       if (editingId) await updateEmployee(editingId, payload);
       else await createEmployee(payload);
       setForm(emptyForm());
-      setEditingId(null);
+      setEditingId(null); setFormOpen(false);
       setPayrollComponents([]);
       reload();
     } catch (err) {
@@ -104,6 +107,7 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
   };
 
   const startEdit = (e) => {
+    setFormOpen(true);
     setEditingId(e.id);
     setForm({
       ...emptyForm(), ...Object.fromEntries(Object.entries(e).map(([k,v]) => [k, v ?? emptyForm()[k] ?? null])),
@@ -245,6 +249,9 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
 
   return (
     <div>
+      {error && !formOpen && <p role="alert" className="balance-bad">{error}</p>}
+      <div className="hr-list-toolbar"><button className="btn-primary" onClick={() => { setEditingId(null); setFormOpen(false); setForm(emptyForm()); setPayrollComponents([]); setError(""); setFormOpen(true); }}>{t("hr.directory.addEmployee", { defaultValue: "إضافة موظف" })}</button></div>
+      {formOpen && <HRDialog title={t("nav.tabs.directory")} onClose={() => setFormOpen(false)}>
       <div className="panel form-panel">
         {editingId && <div className="edit-banner">{t("hr.directory.editingBanner", { name: form.name })}</div>}
         <h3 className="sub-head">{t("hr.directory.personalSection")}</h3>
@@ -371,6 +378,7 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
           <button className="btn-primary" onClick={save}>{editingId ? t("hr.directory.saveChanges") : t("hr.directory.saveNew")}</button>
         </div>
       </div>
+      </HRDialog>}
 
       {loading ? <p className="empty">{t("common.loading")}</p> : (
         <div className="panel">

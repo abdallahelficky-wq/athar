@@ -5,6 +5,7 @@ import { validateBody } from "../../middleware/validate";
 import { createPayrollRunSchema, updateEmployeesSchema, setOverrideSchema, unpostSchema } from "./payrollRuns.schemas";
 import {
   listHandler,
+  deleteHandler,
   createHandler,
   rowsHandler,
   updateEmployeesHandler,
@@ -30,3 +31,5 @@ payrollRunRoutes.put("/:id/overrides/:employeeId", requirePositionAction("payrol
 payrollRunRoutes.delete("/:id/overrides/:employeeId", requirePositionAction("payrollRuns", "delete"), canWrite, clearOverrideHandler);
 payrollRunRoutes.post("/:id/post", requirePositionAction("payrollRuns", "approve"), canWrite, postHandler);
 payrollRunRoutes.post("/:id/unpost", requirePositionAction("payrollRuns", "approve"), canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
+
+payrollRunRoutes.delete("/:id", requirePositionAction("payrollRuns", "delete"), canWrite, deleteHandler);
