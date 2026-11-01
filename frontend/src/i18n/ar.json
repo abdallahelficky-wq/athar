@@ -1607,6 +1607,9 @@
       "methodBank": "بنك",
       "confirmDisbursement": "تأكيد الصرف",
       "disburseAction": "صرف الدفعة",
+      "openActions": "فتح / إجراءات",
+      "disbursementMethod": "طريقة الصرف",
+      "disbursementDate": "تاريخ الصرف",
       "attachmentsShow": "المرفقات",
       "attachmentsHide": "إخفاء المرفقات",
       "empty": "لا توجد تسويات إجازات مسجّلة بعد."

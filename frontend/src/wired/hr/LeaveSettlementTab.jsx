@@ -164,7 +164,8 @@ export default function LeaveSettlementTab({ companyId, companies }) {
                   <td className="num">{fmt(s.netAmount)}</td>
                   <td><span className="status-badge">{s.status === "disbursed" ? t("hr.leaveSettlement.statusDisbursed") : t("hr.leaveSettlement.statusCalculated")}</span></td>
                   <td className="row-actions">
-                    <button className="btn-ghost" onClick={()=>{setAttachmentsFor(s.id);setDisbursingId(null);setError("");}}>{i18n.language.startsWith("ar")?"فتح / إجراءات":"Open / Actions"}</button>
+                    {/* كل فتح لتسوية يبدأ من تاريخها هي ونقداً — لا يُرحَّل تاريخ صرف اخترته لتسوية سابقة إلى هذه، وإلا يُقيَّد قيد الصرف في فترة محاسبية خاطئة */}
+                    <button className="btn-ghost" onClick={()=>{setAttachmentsFor(s.id);setDisbursingId(null);setDisbDate(s.leaveStartDate.slice(0, 10));setDisbMethod("cash");setError("");}}>{t("hr.leaveSettlement.openActions")}</button>
                   </td>
                 </tr>
               </React.Fragment>
@@ -176,7 +177,7 @@ export default function LeaveSettlementTab({ companyId, companies }) {
       {attachmentsFor && <HRDialog title={t("nav.tabs.leaveSettlement")} onClose={()=>setAttachmentsFor(null)}>
         {settlements.filter(s=>s.id===attachmentsFor).map(s=><div key={s.id}><h3>{s.employee?.name}</h3><p>{s.leaveStartDate.slice(0,10)} · {fmt(s.netAmount)} {currency}</p>
         <span className="status-badge">{s.status==="disbursed"?t("hr.leaveSettlement.statusDisbursed"):t("hr.leaveSettlement.statusCalculated")}</span>
-        {s.status==="calculated" && <div className="form-grid"><label>{t("hr.leaveSettlement.methodBank")} / {t("hr.leaveSettlement.methodCash")}<select value={disbMethod} onChange={e=>setDisbMethod(e.target.value)}><option value="cash">{t("hr.leaveSettlement.methodCash")}</option><option value="bank">{t("hr.leaveSettlement.methodBank")}</option></select></label><input aria-label={t("hr.leaveReturn.returnDate")} type="date" value={disbDate} onChange={e=>setDisbDate(e.target.value)}/><button className="btn-primary" onClick={()=>confirmDisbursement(s)}>{t("hr.leaveSettlement.confirmDisbursement")}</button></div>}
+        {s.status==="calculated" && <div className="form-grid"><label>{t("hr.leaveSettlement.disbursementMethod")}<select value={disbMethod} onChange={e=>setDisbMethod(e.target.value)}><option value="cash">{t("hr.leaveSettlement.methodCash")}</option><option value="bank">{t("hr.leaveSettlement.methodBank")}</option></select></label><label>{t("hr.leaveSettlement.disbursementDate")}<input type="date" value={disbDate} onChange={e=>setDisbDate(e.target.value)}/></label><button className="btn-primary" onClick={()=>confirmDisbursement(s)}>{t("hr.leaveSettlement.confirmDisbursement")}</button></div>}
         <AttachmentsPanel entityType="leave_settlement" entityId={s.id}/></div>)}
         {error&&<p role="alert" className="balance-bad">{error}</p>}
       </HRDialog>}

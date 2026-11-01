@@ -1607,6 +1607,9 @@
       "methodBank": "Bank",
       "confirmDisbursement": "Confirm disbursement",
       "disburseAction": "Disburse payment",
+      "openActions": "Open / Actions",
+      "disbursementMethod": "Disbursement method",
+      "disbursementDate": "Disbursement date",
       "attachmentsShow": "Attachments",
       "attachmentsHide": "Hide attachments",
       "empty": "No leave settlements registered yet."
