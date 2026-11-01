@@ -21,6 +21,8 @@ import { register } from "../auth/auth.service";
 guardAgainstUnsafeIntegrationTestDatabase();
 
 // سند القيد PDF: يُلتقَط ما يُمرَّر لمولّد الـPDF (وهو ما يُطبَع) بدل تشغيل متصفح في بيئة الاختبار
+// Keep settlement payouts/reversals inside the fixture period, independent of the CI clock.
+const settlementActionDate = "2026-08-02T09:00:00.000Z";
 const pdfInputs: unknown[] = [];
 vi.mock("../../lib/journalVoucherPdf", () => ({
   buildJournalVoucherPdf: async (input: unknown) => {
@@ -295,7 +297,7 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
     });
     expect(created.status, created.text).toBe(201);
     settlementEntryId = created.body.journalEntryId;
-    const disbursed = await call("POST", `/leave-settlements/${created.body.id}/disburse`, ownerToken, { method: "cash", date: new Date().toISOString() });
+    const disbursed = await call("POST", `/leave-settlements/${created.body.id}/disburse`, ownerToken, { method: "cash", date: settlementActionDate });
     expect(disbursed.status, disbursed.text).toBe(200);
     const payoutEntryId = disbursed.body.disbursementJournalEntryId;
     payoutId = payoutEntryId;
@@ -327,13 +329,13 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
     expect(JSON.stringify(ledger.body)).not.toContain(emp.b.name);
 
     // قيد العكس ينسخ بيان الأصل وأسطره — فيُطوى مثله
-    const reversal = await call("POST", `/journal-entries/${payoutEntryId}/reverse`, ownerToken, { date: new Date().toISOString() });
+    const reversal = await call("POST", `/journal-entries/${payoutEntryId}/reverse`, ownerToken, { date: settlementActionDate });
     expect(reversal.status, reversal.text).toBe(201);
     const reversalAcct = await call("GET", `/journal-entries/${reversal.body.id}`, accountantToken);
     expect(JSON.stringify(reversalAcct.body)).not.toContain(emp.b.name);
     const original = await call("GET", `/journal-entries/${payoutEntryId}`, accountantToken);
     expect(JSON.stringify(original.body.reversedByEntry)).not.toContain(emp.b.name);
-    const reverseAsAcct = await call("POST", `/journal-entries/${settlementEntryId}/reverse`, accountantToken, { date: new Date().toISOString() });
+    const reverseAsAcct = await call("POST", `/journal-entries/${settlementEntryId}/reverse`, accountantToken, { date: settlementActionDate });
     expect(reverseAsAcct.status, reverseAsAcct.text).toBe(201);
     expect(JSON.stringify(reverseAsAcct.body)).not.toContain(emp.b.name);
   });
@@ -359,7 +361,7 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
     const sourceAcct = await call("GET", `/journal-entries/${payoutId}`, accountantToken);
     expect(JSON.stringify(sourceAcct.body.mirrorEntry)).not.toContain(emp.b.name);
 
-    const reversal = await call("POST", `/journal-entries/${mirror.body.id}/reverse`, ownerToken, { date: new Date().toISOString() });
+    const reversal = await call("POST", `/journal-entries/${mirror.body.id}/reverse`, ownerToken, { date: settlementActionDate });
     expect(reversal.status, reversal.text).toBe(201);
     expect(JSON.stringify((await call("GET", `/journal-entries/${reversal.body.id}`, accountantToken)).body)).not.toContain(emp.b.name);
     expect((await call("GET", `/journal-entries/${reversal.body.id}`, ownerToken)).body.memo).toContain(emp.b.name);
