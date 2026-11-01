@@ -26,6 +26,17 @@ async function assertStationBelongsToCompany(tenantId: string, costCenterId: str
   if (!costCenter) throw badRequest("المحطة المحددة ليست مركز تكلفة ضمن شركة هذا الموظف");
 }
 
+/** قسم ومركز تكلفة الموظف (تحميل الراتب): من المستأجر نفسه، ومن شركة الموظف أو بلا شركة (مشترك على مستوى المستأجر) */
+async function assertAllocationBelongsToCompany(tenantId: string, companyId: string, departmentId?: string | null, costCenterId?: string | null) {
+  const scope = { tenantId, OR: [{ companyId }, { companyId: null }] };
+  if (departmentId && !(await prisma.department.findFirst({ where: { id: departmentId, ...scope } }))) {
+    throw badRequest("القسم المحدد ليس ضمن شركة هذا الموظف");
+  }
+  if (costCenterId && !(await prisma.costCenter.findFirst({ where: { id: costCenterId, ...scope } }))) {
+    throw badRequest("مركز التكلفة المحدد ليس ضمن شركة هذا الموظف");
+  }
+}
+
 /**
  * الأدوار خارج الموارد البشرية (محاسب، مشاهدة فقط) تحتاج قائمة الموظفين كمنتقٍ فقط: موظف سطر سلفة في
  * نموذج القيد، أمين عهدة أصل ثابت، عامل محطة — فتُعاد لها حقول التعريف وحدها بلا راتب ولا بدلات ولا
@@ -82,6 +93,7 @@ export const createEmployee: RequestHandler = async (req, res) => {
   await assertCompanyBelongsToTenant(req.auth!.tenantId, data.companyId);
   if (data.managerId) await assertManagerBelongsToTenant(req.auth!.tenantId, data.managerId);
   if (data.assignedCostCenterId) await assertStationBelongsToCompany(req.auth!.tenantId, data.assignedCostCenterId, data.companyId);
+  await assertAllocationBelongsToCompany(req.auth!.tenantId, data.companyId, data.departmentId, data.costCenterId);
   const employee = await prisma.$transaction(async (tx) => {
     await setAuditActor(tx, req.auth!.sub); // قد يعلّم مجموعة «ذمم الموظفين» حساب أشخاص — تعديل حساب يُسجَّل
     const { accountId } = await ensurePartyAccount(tx, {
@@ -153,6 +165,14 @@ export const updateEmployee: RequestHandler = async (req, res) => {
   const effectiveStationId = req.body.assignedCostCenterId !== undefined ? req.body.assignedCostCenterId : existing.assignedCostCenterId;
   if (effectiveStationId && (req.body.assignedCostCenterId !== undefined || req.body.companyId)) {
     await assertStationBelongsToCompany(req.auth!.tenantId, effectiveStationId, req.body.companyId ?? existing.companyId);
+  }
+  // القسم/المركز الفعليان بعد التعديل مقابل الشركة الفعلية بعده — يغطي نقل الموظف لشركة أخرى دون تغييرهما
+  if (req.body.departmentId !== undefined || req.body.costCenterId !== undefined || req.body.companyId) {
+    await assertAllocationBelongsToCompany(
+      req.auth!.tenantId, req.body.companyId ?? existing.companyId,
+      req.body.departmentId !== undefined ? req.body.departmentId : existing.departmentId,
+      req.body.costCenterId !== undefined ? req.body.costCenterId : existing.costCenterId,
+    );
   }
 
   const { documents, ...data } = req.body;

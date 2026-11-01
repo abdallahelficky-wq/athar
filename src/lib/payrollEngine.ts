@@ -33,7 +33,8 @@ export type SourceEmployeeField = "basicSalary" | "housingAllowance" | "transpor
 export interface PayrollComponentLike {
   systemKey?: string | null;
   id: string;
-  kind: "addition" | "deduction";
+  // employer = مساهمة صاحب العمل (تأمينات حصة المنشأة): تُحسَب وتُرحَّل مدين مصروف/دائن التزام، ولا تدخل الإضافات ولا الخصومات ولا الصافي
+  kind: "addition" | "deduction" | "employer";
   calcMethod: "fixed" | "formula";
   formula: PayrollFormula | null;
   adjustmentUnitBasis: AdjustmentUnitBasis | null;

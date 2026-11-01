@@ -20,7 +20,7 @@ const QUERIES = [
 ];
 const stamp = Date.now();
 const SHARED_NAME = `تيسم برو ${stamp}`;
-const fixture: { tenantId: string; companyId: string }[] = [];
+const fixture: { tenantId: string; companyId: string; departmentId: string; employees: number }[] = [];
 
 describe("production queries are correct on a multi-tenant database", () => {
   beforeAll(async () => {
@@ -53,12 +53,28 @@ describe("production queries are correct on a multi-tenant database", () => {
         data: { tenantId, companyId: company.id, customerId: customer.id, invoiceNumber: `PQ-INV-${k}-${stamp}`, date: new Date("2026-07-10"), invoiceType: "simplified",
           status: "posted", subtotal: amount, vatTotal: 0, grandTotal: amount, zatcaStatus: "reported", zatcaSubmittedAt: new Date("2026-07-10") } as never,
       });
-      fixture.push({ tenantId, companyId: company.id });
+      // موظفون بقسم نصّي قديم «المبيعات» بأعداد مختلفة (3 مقابل 1) — لمعاينة ربط الأقسام
+      const employees = k === "a" ? 3 : 1;
+      for (let i = 0; i < employees; i++) {
+        await prisma.employee.create({ data: { tenantId, companyId: company.id, name: `موظف ${i}`, hireDate: new Date("2024-01-01"), basicSalary: 1000, department: " المبيعات" } as never });
+      }
+      fixture.push({ tenantId, companyId: company.id, departmentId: dept.id, employees });
     }
   }, 120_000);
 
   afterAll(async () => {
     for (const f of fixture) await prisma.auditLog.deleteMany({ where: { tenantId: f.tenantId } });
+  });
+
+  it("employee-department-mapping-preview.sql counts each company's employees and suggests only its own department", async () => {
+    const sql = readFileSync(path.join(ROOT, "scripts/sql/employee-department-mapping-preview.sql"), "utf8");
+    const all: { company_id: string; department_text: string | null; employees: bigint | number; suggested_department_id: string | null; candidate_count: bigint | number }[] = await prisma.$queryRawUnsafe(sql);
+    for (const f of fixture) {
+      const row = all.find((r) => r.company_id === f.companyId && r.department_text === "المبيعات")!;
+      expect(Number(row.employees)).toBe(f.employees);
+      expect(Number(row.candidate_count)).toBe(1);
+      expect(row.suggested_department_id).toBe(f.departmentId);
+    }
   });
 
   it.each(QUERIES)("%s exposes company_id and keeps two same-named companies apart", async (file) => {

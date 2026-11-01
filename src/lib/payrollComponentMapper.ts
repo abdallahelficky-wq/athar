@@ -5,7 +5,7 @@ import { AdjustmentUnitBasis, PayrollComponentLike, PayrollFormula, SourceEmploy
 export function toComponentLike(c: PayrollComponent): PayrollComponentLike {
   return {
     id: c.id, systemKey: c.systemKey,
-    kind: c.kind as "addition" | "deduction",
+    kind: c.kind as "addition" | "deduction" | "employer",
     calcMethod: c.calcMethod as "fixed" | "formula",
     formula: c.formula as unknown as PayrollFormula | null,
     adjustmentUnitBasis: c.adjustmentUnitBasis as unknown as AdjustmentUnitBasis | null,

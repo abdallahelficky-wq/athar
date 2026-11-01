@@ -38,6 +38,7 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
   const [rows, setRows] = useState([]);
   const [totals, setTotals] = useState(null);
   const [columns, setColumns] = useState([]);
+  const [warnings, setWarnings] = useState(null);
   const [payslipColumns, setPayslipColumns] = useState([]);
   const [error, setError] = useState("");
   const [unpostOpen, setUnpostOpen] = useState(false);
@@ -68,8 +69,9 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
       setRows(data.rows);
       setTotals(data.totals);
       setColumns(data.columns);
+      setWarnings(data.warnings || null);
     } else {
-      setRows([]); setTotals(null); setColumns([]);
+      setRows([]); setTotals(null); setColumns([]); setWarnings(null);
     }
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,6 +182,16 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
           <button className="btn-ghost" disabled={scopeSaving} onClick={() => setScopeEditing(false)}>{t("common.cancel")}</button>
         </div>}
         {error && <p className="balance-bad">{error}</p>}
+        {run?.status === "draft" && warnings?.unallocatedEmployees?.length > 0 && (
+          <div className="note balance-bad" role="alert" data-testid="payroll-unallocated-warning">
+            <strong>{t("hr.payroll.unallocatedTitle", { count: warnings.unallocatedEmployees.length })}</strong>
+            <ul>
+              {warnings.unallocatedEmployees.map((w) => (
+                <li key={w.employeeId}>{w.name} — {[w.missingDepartment && t("hr.payroll.missingDepartment"), w.missingCostCenter && t("hr.payroll.missingCostCenter")].filter(Boolean).join("، ")}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {run && (

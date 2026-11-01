@@ -13,10 +13,12 @@ const GROSS_TOTAL_REF = "system:GROSS_TOTAL";
 const encodeRef = (ref) => (ref.kind === "system" ? GROSS_TOTAL_REF : `component:${ref.componentId}`);
 const decodeRef = (value) => (value === GROSS_TOTAL_REF ? { kind: "system", key: "GROSS_TOTAL" } : { kind: "component", componentId: value.slice("component:".length) });
 
+const POSTING_RULE_KEYS = ["absence", "otherDed", "penalty", "violation"];
+
 const emptyTerm = () => ({ quantity: "1", unitType: "", referenceValue: GROSS_TOTAL_REF });
 
 const emptyForm = () => ({
-  name: "", kind: "addition", accountId: "", calcMethod: "fixed",
+  name: "", kind: "addition", accountId: "", contraAccountId: "", calcMethod: "fixed",
   terms: [emptyTerm()],
   adjustmentEnabled: false, adjustmentUnitType: "day", adjustmentRefIds: [],
   allowsMonthlyAdjustments: true, prorateOnPartialMonth: false, appliesByDefault: true,
@@ -68,7 +70,7 @@ export default function PayrollSettingsTab({ companyId }) {
   const startEdit = (c) => {
     setEditingId(c.id);
     setForm({
-      name: c.name, kind: c.kind, accountId: c.accountId, calcMethod: c.calcMethod,
+      name: c.name, kind: c.kind, accountId: c.accountId, contraAccountId: c.contraAccountId || "", calcMethod: c.calcMethod,
       terms: c.formula?.terms?.length ? c.formula.terms.map((t) => ({ quantity: String(t.quantity), unitType: t.unitType || "", referenceValue: encodeRef(t.reference) })) : [emptyTerm()],
       adjustmentEnabled: !!c.adjustmentUnitBasis, adjustmentUnitType: c.adjustmentUnitBasis?.unitType || "day",
       adjustmentRefIds: c.adjustmentUnitBasis?.referenceComponentIds || [],
@@ -89,6 +91,7 @@ export default function PayrollSettingsTab({ companyId }) {
     if (!form.name.trim() || !form.accountId) { setError(t("hr.payrollSettings.errNameAccountRequired")); return; }
     const payload = {
       name: form.name.trim(), kind: form.kind, accountId: form.accountId, calcMethod: form.calcMethod,
+      ...(form.kind === "employer" ? { contraAccountId: form.contraAccountId || null } : {}),
       formula: form.calcMethod === "formula"
         ? { terms: form.terms.filter((t) => t.quantity !== "" && t.referenceValue).map((t) => ({ quantity: Number(t.quantity), unitType: t.unitType || null, reference: decodeRef(t.referenceValue) })) }
         : null,
@@ -137,6 +140,14 @@ export default function PayrollSettingsTab({ companyId }) {
         leaveDailyRateDivisor: Number(settingsDraft.leaveDailyRateDivisor), leaveSalaryBasis: settingsDraft.leaveSalaryBasis, eosSalaryBasis: settingsDraft.eosSalaryBasis,
       });
       setError("");
+    } catch (err) { setError(err.message); }
+  };
+
+  const toggleEmployerContributions = async (enabled) => {
+    if (enabled && !window.confirm(t("hr.payrollSettings.employerConfirmOn"))) return;
+    try {
+      const updated = await updatePayrollSettings(companyId, { employerContributionsEnabled: enabled });
+      setSettings(updated); setError("");
     } catch (err) { setError(err.message); }
   };
 
@@ -190,6 +201,15 @@ export default function PayrollSettingsTab({ companyId }) {
         <button className="btn-primary" onClick={saveSettings}>{t("common.save")}</button>
       </div>
 
+      <div className="panel form-panel" data-testid="payroll-journal-settings">
+        <h3 className="sub-head">{t("hr.payrollSettings.journalTitle")}</h3>
+        <label className="checkbox-field">
+          <input type="checkbox" data-testid="employer-contributions-toggle" checked={!!settings?.employerContributionsEnabled} onChange={(e) => toggleEmployerContributions(e.target.checked)} />
+          {t("hr.payrollSettings.employerContributionsEnabled")}
+        </label>
+        <p className="note">{t("hr.payrollSettings.employerContributionsNote")}</p>
+      </div>
+
       </HRDialog>}
       <div className="panel">
         <div className="items-form-heading"><strong>{t("hr.payrollSettings.componentsTitle")}</strong><button className="btn-primary" onClick={openNew}>{t("hr.payrollSettings.newComponent")}</button></div>
@@ -204,7 +224,12 @@ export default function PayrollSettingsTab({ companyId }) {
                 <tr key={c.id}>
                   <td>{c.name}{c.isSystem && <small>{t("hr.payrollSettings.systemTag")}</small>}</td>
                   <td>{KIND_LABELS[c.kind]}</td>
-                  <td>{c.account?.code} — {getAccountDisplayName(c.account, i18n.language)}</td>
+                  <td>
+                    {c.account?.code} — {getAccountDisplayName(c.account, i18n.language)}
+                    {c.kind === "employer" && c.contraAccount && <> ← {c.contraAccount.code} — {getAccountDisplayName(c.contraAccount, i18n.language)}</>}
+                    {/* خصومات نظامية يوجّهها الترحيل بقاعدة ثابتة مهما كان الحساب المحفوظ على البند */}
+                    {c.isSystem && POSTING_RULE_KEYS.includes(c.systemKey) && <small className="note"> {t("hr.payrollSettings.postedAt")}: {t(`hr.payrollSettings.postingRule.${c.systemKey}`)}</small>}
+                  </td>
                   <td>{c.calcMethod === "formula" ? t("hr.payrollSettings.calcMethodFormula") : t("hr.payrollSettings.calcMethodFixed")}</td>
                   <td>{c.allowsMonthlyAdjustments ? t("hr.payrollSettings.yes") : "—"}</td>
                   <td><span className="status-badge">{c.isActive ? t("hr.payrollSettings.statusActive") : t("hr.payrollSettings.statusStopped")}</span></td>
@@ -231,9 +256,13 @@ export default function PayrollSettingsTab({ companyId }) {
             <label>{t("hr.payrollSettings.fieldKind")}
               <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
                 <option value="addition">{t("hr.payrollSettings.kindLabels.addition")}</option><option value="deduction">{t("hr.payrollSettings.kindLabels.deduction")}</option>
+                <option value="employer">{t("hr.payrollSettings.kindLabels.employer")}</option>
               </select>
             </label>
             <label>{t("hr.payrollSettings.fieldAccount")}<AccountSearchSelect accounts={postingAccounts} value={form.accountId} onChange={(id) => setForm({ ...form, accountId: id })} /></label>
+            {form.kind === "employer" && (
+              <label>{t("hr.payrollSettings.fieldContraAccount")}<AccountSearchSelect accounts={postingAccounts.filter((a) => a.type === "liability")} value={form.contraAccountId} onChange={(id) => setForm({ ...form, contraAccountId: id })} /></label>
+            )}
             <label>{t("hr.payrollSettings.fieldCalcMethod")}
               <select value={form.calcMethod} onChange={(e) => setForm({ ...form, calcMethod: e.target.value })}>
                 <option value="fixed">{t("hr.payrollSettings.calcMethodFixedOption")}</option>
@@ -241,6 +270,7 @@ export default function PayrollSettingsTab({ companyId }) {
               </select>
             </label>
           </div>
+          {form.kind === "employer" && <p className="note">{t("hr.payrollSettings.employerKindNote")}</p>}
 
           {form.calcMethod === "formula" && (
             <>

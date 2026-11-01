@@ -1,3 +1,4 @@
+import { forbidden } from "../../lib/httpError";
 import { RequestHandler } from "express";
 import * as service from "./payrollSettings.service";
 import { prisma } from "../../lib/prisma";
@@ -31,7 +32,11 @@ export const getSettingsHandler: RequestHandler = async (req, res) => {
 };
 
 export const updateSettingsHandler: RequestHandler = async (req, res) => {
-  res.json(await service.updatePayrollSettings(req.auth!.tenantId, req.params.companyId, req.body));
+  // مفتاح مساهمات صاحب العمل يغيّر قيد الرواتب نفسه (مصروف والتزام جديدان) — للمالية لا للموارد البشرية
+  if (req.body.employerContributionsEnabled !== undefined && !["admin", "finance_manager"].includes(req.auth!.role)) {
+    throw forbidden("تشغيل مساهمات صاحب العمل في قيد الرواتب للمدير أو المدير المالي فقط");
+  }
+  res.json(await service.updatePayrollSettings(req.auth!.tenantId, req.params.companyId, req.body, req.auth!.sub));
 };
 
 export const getEmployeeComponentsHandler: RequestHandler = async (req, res) => {
