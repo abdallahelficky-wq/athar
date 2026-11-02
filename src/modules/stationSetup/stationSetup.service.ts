@@ -55,6 +55,7 @@ export async function listStationsWithPumps(tenantId: string, companyId: string)
           meterDigits: n.meterDigits,
           initialReading: n.initialReading,
           hasReadings: n._count.readings > 0,
+          tankId: n.tankId,
         })),
       })),
     };
