@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireActionPermission, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { correctReadingSchema, rejectShiftSchema, reverseShiftSchema } from "./stationShifts.schemas";
+import { correctReadingSchema, rejectShiftSchema, reverseShiftSchema, correctedShiftSchema } from "./stationShifts.schemas";
 import {
   listPendingShiftsHandler,
   listPostedShiftsHandler,
@@ -11,6 +11,7 @@ import {
   postShiftHandler,
   rejectShiftHandler,
   reverseShiftHandler,
+  createCorrectedShiftHandler,
 } from "./stationShifts.controller";
 
 /**
@@ -43,3 +44,5 @@ stationShiftRoutes.post("/:id/reject", reviewAccess, validateBody(rejectShiftSch
 stationShiftRoutes.post("/:id/post", postAccess, postShiftHandler);
 // عكس وردية مرحَّلة (قيد عكسي + إلغاء صرف الوقود + حالة reversed) — بنفس صلاحية الترحيل
 stationShiftRoutes.post("/:id/reverse", postAccess, validateBody(reverseShiftSchema), reverseShiftHandler);
+// وردية مصحَّحة بتاريخ سابق بدل وردية معكوسة/مرفوضة — بنفس صلاحية الترحيل
+stationShiftRoutes.post("/:id/corrected-shift", postAccess, validateBody(correctedShiftSchema), createCorrectedShiftHandler);

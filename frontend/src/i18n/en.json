@@ -96,7 +96,10 @@
       "product": "Product",
       "confirmedReading": "Confirmed Reading",
       "description": "Description",
-      "amount": "Amount"
+      "amount": "Amount",
+      "account": "Account",
+      "debit": "Debit",
+      "credit": "Credit"
     },
     "shiftType": { "morning": "Morning", "night": "Night" },
     "status": {
@@ -135,13 +138,22 @@
     "postedMsg": "Shift posted — journal entry created.",
     "rejectedMsg": "Shift rejected.",
     "viewPending": "Pending review",
-    "viewPosted": "Posted",
-    "postedTitle": "Posted and reversed shifts",
-    "noPosted": "No posted shifts",
+    "viewPosted": "Closed",
+    "postedTitle": "Closed shifts: posted, reversed and rejected",
+    "noPosted": "No closed shifts",
     "reverseBtn": "Reverse shift",
     "reversePrompt": "Reason for reversing the shift (required) — a reversal entry will be created and the fuel issue cancelled; this shift can't be posted again afterwards:",
     "reversedMsg": "Shift reversed — a reversal entry was created and the fuel quantities returned to the station warehouse.",
-    "reversedNote": "This shift is reversed and can't be posted again. The reason and user are in the shift history."
+    "reversedNote": "This shift is reversed and can't be posted again. The reason and user are in the shift history.",
+    "journalPreviewTitle": "Expected journal entry (includes cost of fuel sold)",
+    "journalPostedTitle": "Posted journal entry",
+    "cogsErrorPrefix": "The cost of fuel sold can't be calculated yet — approval and posting will be refused:",
+    "correctedTitle": "Enter a corrected shift in its place",
+    "correctedNote": "A new shift is created for the same station, date and shift type, opening from this shift's opening readings, with its credit sales, expenses and collections copied. Enter the correct closing reading for each nozzle; if a later shift exists it must match that shift's opening reading. The new shift then goes through the usual review, approval and posting.",
+    "correctedClosingLabel": "Correct closing reading",
+    "correctedCreateBtn": "Create corrected shift",
+    "correctedCreatedMsg": "The corrected shift was created and is now under review.",
+    "correctedMissingReading": "Enter a closing reading for every nozzle"
   },
   "download": {
     "appName": "Athar POS",

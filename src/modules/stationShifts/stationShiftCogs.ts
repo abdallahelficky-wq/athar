@@ -1,8 +1,8 @@
-import { Prisma, StationFuelProduct } from "@prisma/client";
+import { Prisma, PrismaClient, StationFuelProduct } from "@prisma/client";
 import { badRequest } from "../../lib/httpError";
 import type { PostingLine } from "../../lib/journalPosting";
 
-type Tx = Prisma.TransactionClient;
+type Tx = Prisma.TransactionClient | PrismaClient;
 
 export const FUEL_PRODUCT_LABEL_AR: Record<StationFuelProduct, string> = {
   gasoline_91: "بنزين 91",
@@ -58,10 +58,15 @@ async function warehouseBalanceTx(tx: Tx, tenantId: string, companyId: string, i
  * ترفض (قبل أي كتابة غير حجز الوردية، فتُلغى المعاملة كلها): منتج بلا صنف مربوط، صنف غير صالح (ليس مخزوناً دائماً من
  * نفس الشركة، أو مؤرشف، أو بلا حسابي مخزون/تكلفة)، محطة بلا مستودع، متوسط تكلفة صفر، أو رصيد غير كافٍ حين تمنع
  * الشركة الرصيد السالب (allowNegativeFuelStock = false).
+ *
+ * نفس الدالة بلا قفل (lock: false، خارج أي معاملة) هي الفحص المسبق عند اعتماد الوردية والمعاينة في شاشة المحاسب —
+ * فتُرفَض الوردية لأسباب الإعداد لحظة الاعتماد بنفس الرسائل، وتُعرض أسطر التكلفة بنفس حساب الترحيل. الترحيل يعيد الفحص
+ * كاملاً تحت القفل (قد يتغيّر الربط أو المتوسط أو الرصيد بين الاعتماد والترحيل).
  */
 export async function computeShiftCogsTx(
   tx: Tx,
   input: { tenantId: string; companyId: string; costCenterId: string; sales: { product: StationFuelProduct; liters: Prisma.Decimal }[] },
+  options: { lock: boolean } = { lock: true },
 ): Promise<{ lines: PostingLine[]; issues: FuelIssue[] }> {
   const { tenantId, companyId, costCenterId } = input;
   const sold = input.sales.filter((s) => new Prisma.Decimal(s.liters).greaterThan(0));
@@ -86,7 +91,9 @@ export async function computeShiftCogsTx(
   if (!warehouse) throw badRequest(STATION_WAREHOUSE_MISSING);
 
   const itemIds = [...new Set(itemIdByProduct.values())];
-  await tx.$queryRaw`SELECT id FROM items WHERE id IN (${Prisma.join(itemIds)}) AND "tenantId" = ${tenantId} AND "companyId" = ${companyId} FOR UPDATE`;
+  if (options.lock) {
+    await tx.$queryRaw`SELECT id FROM items WHERE id IN (${Prisma.join(itemIds)}) AND "tenantId" = ${tenantId} AND "companyId" = ${companyId} FOR UPDATE`;
+  }
   const items = await tx.item.findMany({ where: { id: { in: itemIds }, tenantId, companyId } });
   const itemById = new Map(items.map((i) => [i.id, i]));
 

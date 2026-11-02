@@ -53,6 +53,9 @@ export const createCompany: RequestHandler = async (req, res) => {
   if (req.auth!.companyScope !== "all") {
     throw badRequest("أضف الشركة الجديدة كحساب مستقل من إعدادات الشركات");
   }
+  if (STATION_CASH_ACCOUNT_FIELDS.some((f) => req.body[f])) {
+    throw badRequest("حسابا عجز/زيادة نقد الورديات يُضبطان بعد إنشاء الشركة من بيانات الشركة");
+  }
   const company = await prisma.$transaction(
     async (tx) => {
       const created = await tx.company.create({ data: { ...req.body, tenantId: req.auth!.tenantId } });
@@ -99,6 +102,24 @@ async function assertStationFuelItems(tenantId: string, companyId: string, body:
   }
 }
 
+const STATION_CASH_ACCOUNT_FIELDS = ["stationCashShortageAccountId", "stationCashSurplusAccountId"] as const;
+
+/**
+ * حسابا عجز/زيادة نقد ورديات المحطات يُرحَّل عليهما قيد الوردية مباشرة — يجب أن يكونا من نفس المستأجر ونفس الشركة،
+ * حسابَي ترحيل نشطين غير مؤرشفين (createJournalEntryTx يرفض غير ذلك عند الترحيل، فرفضه هنا يمنع إعداداً يُفشل كل ترحيل).
+ * لا يُقبَلان عند إنشاء الشركة: شجرتها تُنشأ معها، فلا حساب منها يمكن اختياره بعد (يُربطان تلقائياً — linkStationCashAccounts).
+ */
+async function assertStationCashAccounts(tenantId: string, companyId: string, body: Record<string, unknown>) {
+  const ids = STATION_CASH_ACCOUNT_FIELDS.map((f) => body[f]).filter((v): v is string => typeof v === "string" && v.length > 0);
+  if (!ids.length) return;
+  const found = await prisma.account.findMany({
+    where: { id: { in: ids }, tenantId, companyId, isPosting: true, isActive: true, isArchived: false },
+    select: { id: true },
+  });
+  const ok = new Set(found.map((a) => a.id));
+  if (ids.some((id) => !ok.has(id))) throw badRequest("حساب عجز/زيادة نقد الورديات يجب أن يكون حساب ترحيل نشطاً غير مؤرشف من نفس الشركة");
+}
+
 export const updateCompany: RequestHandler = async (req, res) => {
   const existing = await prisma.company.findFirst({
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
@@ -122,6 +143,7 @@ export const updateCompany: RequestHandler = async (req, res) => {
   }
 
   await assertStationFuelItems(req.auth!.tenantId, existing.id, req.body);
+  await assertStationCashAccounts(req.auth!.tenantId, existing.id, req.body);
 
   const company = await prisma.company.update({ where: { id: existing.id }, data: req.body });
   res.json(await withLogoUrl(company));

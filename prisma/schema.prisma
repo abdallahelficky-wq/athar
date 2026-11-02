@@ -3031,6 +3031,9 @@ model StationShift {
   // المحاسبي — وردية بذرة تبقى "posted" بلا قيد فعلي (راجع تعليق السكريبت)، وهذا الحقل تحديداً
   // هو من يمنعها من تلويث أرقام التقارير رغم ذلك.
   isSeedData          Boolean            @default(false)
+  // وردية مصحَّحة يُدخلها المحاسب بدل وردية معكوسة أو مرفوضة لنفس المحطة/التاريخ/النوع (createCorrectedShift) — مرجع
+  // حر إلى الوردية المستبدَلة. قراءات افتتاحها مأخوذة من افتتاح تلك الوردية، وصور عداداتها هي إثبات قراءات هذه.
+  correctsShiftId     String?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
@@ -3039,9 +3042,13 @@ model StationShift {
   expenses    StationShiftExpense[]
   collection  StationShiftCollection?
 
-  @@unique([costCenterId, shiftDate, shiftType])
+  // التفرّد على (المحطة، التاريخ، النوع) فهرس جزئي في قاعدة البيانات يستثني الورديات المرفوضة والمعكوسة
+  // ("station_shifts_active_slot_key" — راجع ترحيل 20261102120000_station_corrected_shifts)، فتُستعاد خانتها لوردية
+  // جديدة أو مصحَّحة. Prisma 5 لا يعبّر عن فهرس جزئي، فلا يُعلَن هنا: لا تُنشئ ترحيلاً يحذفه.
+  @@index([costCenterId, shiftDate, shiftType])
   @@index([tenantId, companyId, costCenterId, shiftDate])
   @@index([tenantId, companyId, status])
+  @@index([tenantId, correctsShiftId])
   @@map("station_shifts")
 }
 

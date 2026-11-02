@@ -65,3 +65,28 @@ export const reverseShiftSchema = z
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ بصيغة YYYY-MM-DD").optional(),
   })
   .strict();
+
+// وردية مصحَّحة بدل وردية معكوسة/مرفوضة — قراءات الإغلاق فقط (الافتتاح يُشتَق من الوردية المستبدَلة في الخادم).
+export const correctedShiftSchema = z
+  .object({
+    readings: z
+      .array(
+        z
+          .object({
+            nozzleId: z.string().min(1),
+            closingReading: z.coerce.number().nonnegative("قراءة العداد لا تكون سالبة"),
+            testLiters: z.coerce.number().nonnegative("لترات الاختبار لا تكون سالبة").optional(),
+          })
+          .strict(),
+      )
+      .min(1, "أدخل قراءة إغلاق مصحَّحة لكل فوهة"),
+    collection: z
+      .object({
+        networkAmount: z.coerce.number().nonnegative(),
+        fuelCardAmount: z.coerce.number().nonnegative(),
+        cashDelivered: z.coerce.number().nonnegative(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();

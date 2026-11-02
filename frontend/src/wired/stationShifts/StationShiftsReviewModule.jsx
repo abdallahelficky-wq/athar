@@ -83,6 +83,21 @@ export default function StationShiftsReviewModule({ companyId }) {
     catch (e) { setError(e.message); }
   };
 
+  // وردية مصحَّحة بدل وردية معكوسة/مرفوضة: قراءة إغلاق لكل فوهة (الافتتاح من الوردية المستبدَلة في الخادم)
+  const [correctedClosings, setCorrectedClosings] = useState({});
+  const doCreateCorrected = async () => {
+    setError(""); setMessage("");
+    const readings = (detail.readings || []).map((r) => ({ nozzleId: r.nozzleId, closingReading: Number(correctedClosings[r.id] ?? r.accountantConfirmedValue ?? r.closingReading ?? "") }));
+    if (readings.some((r) => !Number.isFinite(r.closingReading))) { setError(t("stationShiftsReview.correctedMissingReading")); return; }
+    try {
+      const created = await api.createCorrectedShift(selectedId, { readings });
+      setMessage(t("stationShiftsReview.correctedCreatedMsg"));
+      setCorrectedClosings({});
+      setView("pending");
+      loadDetail(created.id);
+    } catch (e) { setError(e.message); }
+  };
+
   const doReject = async () => {
     const reasonCode = window.prompt(t("stationShiftsReview.rejectPrompt"));
     if (!reasonCode) return;
@@ -231,10 +246,60 @@ export default function StationShiftsReviewModule({ companyId }) {
             <p className="note">{t("stationShiftsReview.pendingConfirmation")}</p>
           )}
 
-          {detail.status === "posted" || detail.status === "reversed" ? (
+          {detail.summary && (
+            <>
+              <h4>{t(detail.summary.linesSource === "posted" ? "stationShiftsReview.journalPostedTitle" : "stationShiftsReview.journalPreviewTitle")}</h4>
+              {detail.summary.cogsError && <p className="balance-bad">{t("stationShiftsReview.cogsErrorPrefix")} {detail.summary.cogsError}</p>}
+              <table className="ledger-table">
+                <thead><tr><th>{t("stationShiftsReview.table.account")}</th><th>{t("stationShiftsReview.table.debit")}</th><th>{t("stationShiftsReview.table.credit")}</th></tr></thead>
+                <tbody>
+                  {detail.summary.lines.map((l, i) => {
+                    const acc = (detail.summary.accounts || []).find((a) => a.id === l.accountId);
+                    const name = acc ? `${acc.code} — ${i18n.language === "en" && acc.nameEn ? acc.nameEn : acc.name}` : l.accountId;
+                    return (
+                      <tr key={i}>
+                        <td>{name}{l.lineDescription ? <span className="note"> ({l.lineDescription})</span> : null}</td>
+                        <td className="num">{l.debit ? fmt(l.debit) : ""}</td>
+                        <td className="num">{l.credit ? fmt(l.credit) : ""}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {detail.status === "rejected" || detail.status === "reversed" ? (
+            <div>
+              <h4>{t("stationShiftsReview.correctedTitle")}</h4>
+              <p className="note">{t("stationShiftsReview.correctedNote")}</p>
+              <table className="ledger-table">
+                <thead><tr><th>{t("stationShiftsReview.table.nozzle")}</th><th>{t("stationShiftsReview.table.openingReading")}</th><th>{t("stationShiftsReview.correctedClosingLabel")}</th></tr></thead>
+                <tbody>
+                  {(detail.readings || []).map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.nozzle?.pumpNumber}-{r.nozzle?.nozzleNumber}</td>
+                      <td className="num">{r.openingReading}</td>
+                      <td>
+                        <input
+                          type="number"
+                          value={correctedClosings[r.id] ?? r.accountantConfirmedValue ?? r.closingReading ?? ""}
+                          onChange={(e) => setCorrectedClosings({ ...correctedClosings, [r.id]: e.target.value })}
+                          style={{ width: 140 }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="form-btn-group">
+                <button className="btn-primary" onClick={doCreateCorrected}>{t("stationShiftsReview.correctedCreateBtn")}</button>
+                {detail.status === "reversed" && <p className="note">{t("stationShiftsReview.reversedNote")}</p>}
+              </div>
+            </div>
+          ) : detail.status === "posted" ? (
             <div className="form-btn-group">
-              {detail.status === "posted" && <button className="btn-ghost" onClick={doReverse}>{t("stationShiftsReview.reverseBtn")}</button>}
-              {detail.status === "reversed" && <p className="note">{t("stationShiftsReview.reversedNote")}</p>}
+              <button className="btn-ghost" onClick={doReverse}>{t("stationShiftsReview.reverseBtn")}</button>
             </div>
           ) : (
             <div className="form-btn-group">

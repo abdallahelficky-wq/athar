@@ -11,3 +11,4 @@ export const postShift = (shiftId) => api.post(`/station-shifts/${shiftId}/post`
 export const rejectShift = (shiftId, reasonCode, note) => api.post(`/station-shifts/${shiftId}/reject`, { reasonCode, note });
 export const listPostedShifts = (companyId) => api.get(`/station-shifts/posted${companyId ? `?companyId=${companyId}` : ""}`);
 export const reverseShift = (shiftId, reason, date) => api.post(`/station-shifts/${shiftId}/reverse`, { reason, ...(date ? { date } : {}) });
+export const createCorrectedShift = (shiftId, payload) => api.post(`/station-shifts/${shiftId}/corrected-shift`, payload);

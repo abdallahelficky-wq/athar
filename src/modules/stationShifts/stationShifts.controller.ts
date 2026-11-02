@@ -61,3 +61,8 @@ export const reverseShiftHandler: RequestHandler = async (req, res) => {
   await assertShiftCompanyAccess(req.auth!, req.params.id);
   res.json(await service.reverseShift(req.auth!.tenantId, req.auth!.sub, req.params.id, { reason: req.body.reason, date: req.body.date }));
 };
+
+export const createCorrectedShiftHandler: RequestHandler = async (req, res) => {
+  await assertShiftCompanyAccess(req.auth!, req.params.id);
+  res.status(201).json(await service.createCorrectedShift(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body));
+};
