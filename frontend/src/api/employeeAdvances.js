@@ -7,3 +7,5 @@ export const listEmployeeAdvances = (companyId, employeeId) => {
 };
 export const createEmployeeAdvance = (payload) => api.post("/employee-advances", payload);
 export const removeEmployeeAdvance = (id, pin) => api.delete(`/employee-advances/${id}`, { pin });
+export const setAdvanceInstallment = (id, monthlyInstallment) => api.patch(`/employee-advances/${id}/installment`, { monthlyInstallment });
+export const getAdvancesReclassPreview = (companyId) => api.get(`/employee-advances/reclass-preview?companyId=${companyId}`);

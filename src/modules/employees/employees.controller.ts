@@ -189,6 +189,11 @@ export const updateEmployee: RequestHandler = async (req, res) => {
       await setAuditActor(tx, req.auth!.sub);
       await tx.account.update({ where: { id: updated.accountId }, data: { name: data.name } });
     }
+    // حساب ذمة الموظف الفرعي (سلف ومخالفات) يحمل اسمه أيضاً
+    if (updated.receivableAccountId && data.name && data.name !== existing.name) {
+      await setAuditActor(tx, req.auth!.sub);
+      await tx.account.update({ where: { id: updated.receivableAccountId }, data: { name: data.name } });
+    }
     return updated;
   });
   res.json(employee);

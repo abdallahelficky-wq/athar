@@ -9,7 +9,8 @@
  * - المخالفات (violation): دائن حساب ذمة الموظف الفرعي — يحتاج resolveViolationAccount؛ بدونه يفشل الترحيل.
  * - تأمينات الموظف وأي خصم آخر: دائن حساب البند.
  * - مساهمة صاحب العمل (kind=employer): مدين حساب البند (مصروف، موسوم) / دائن contraAccountId — لا تمسّ الصافي.
- * - أقساط السلف: سطر لكل موظف وسلفة في الوضعين.
+ * - أقساط السلف: سطر لكل موظف وسلفة في الوضعين، دائن حساب السلفة نفسها (EmployeeAdvance.accountId — حساب ذمة الموظف
+ *   للسلف الجديدة، والحساب المشترك القديم لسلف ما قبل إعادة التصنيف حيث رصيدها فعلاً).
  * - الصافي: في وضع الإجماليات سطر واحد دائن على «رواتب مستحقة»؛ في الوضع القديم على حساب كل موظف.
  * - لا سطر غير الصافي يقع على حساب الصافي — يُرفَض الترحيل برسالة تسمّي البند (ضابط J02074).
  * - التخصيص (القسم/المركز) يُوسَم على أسطر حسابات المصروفات فقط؛ موظف بلا قسم ولا مركز يقع في مجموعة «غير مخصص»
@@ -42,7 +43,9 @@ export interface EmployeeAllocation {
   netAccountId?: string;
 }
 
-export interface JournalAdvance { id: string; remainingBalance: number }
+/** قسط سلفة محسوب في صف الكشف — يُرحَّل دائناً على حساب السلفة نفسها (حساب ذمة الموظف للسلف الجديدة) */
+export interface JournalInstallment { advanceId: string; accountId: string; amount: number }
+export const ADVANCES_COLUMN_ID = "advances";
 
 export interface PayrollJournalLine {
   accountId: string;
@@ -58,12 +61,11 @@ export interface PayrollJournalLine {
 
 export interface BuildPayrollJournalInput {
   mode: "totals" | "perEmployee";
-  rows: { employeeId: string; componentValues: Record<string, number> }[];
+  rows: { employeeId: string; employeeName?: string; componentValues: Record<string, number>; advanceInstallments?: JournalInstallment[] }[];
   components: Map<string, JournalComponent>;
   employees: Map<string, EmployeeAllocation>;
   accountTypeById: Map<string, string>;
   netPayableAccountId: string;
-  advanceByComponentId: Map<string, JournalAdvance>;
   resolveViolationAccount?: (employeeId: string) => string;
 }
 
@@ -72,7 +74,7 @@ const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 interface RawLine extends PayrollJournalLine { componentName: string; perEmployeeOnly?: boolean }
 
 export function buildPayrollJournal(input: BuildPayrollJournalInput): { lines: PayrollJournalLine[]; advanceDeductions: { advanceId: string; amount: number }[] } {
-  const { components, employees, accountTypeById, netPayableAccountId, advanceByComponentId } = input;
+  const { components, employees, accountTypeById, netPayableAccountId } = input;
   const basic = [...components.values()].find((c) => c.systemKey === BASIC_KEY);
   const raw: RawLine[] = [];
   const advanceDeductions: { advanceId: string; amount: number }[] = [];
@@ -95,14 +97,12 @@ export function buildPayrollJournal(input: BuildPayrollJournalInput): { lines: P
     };
 
     for (const [componentId, rawValue] of Object.entries(row.componentValues)) {
-      if (!rawValue) continue;
+      if (!rawValue || componentId === ADVANCES_COLUMN_ID) continue; // عمود الأقساط يُفصَّل لكل سلفة أدناه
       const component = components.get(componentId);
       if (!component) continue;
-      const advance = advanceByComponentId.get(componentId);
-      // قسط السلفة لا يتجاوز رصيدها المتبقي أبداً (حتى لو عُدِّل يدوياً عبر override)
       // كل قيمة تُقرَّب للهللة لكل موظف قبل التجميع (كما في قسيمته)، فمجموع أي مجموعة دقيق بالهللات، ومساهمة صاحب
       // العمل يتساوى مدينها ودائنها بعد التجميع فلا تمسّ الصافي ولو بهللة
-      const value = round2(advance ? Math.min(rawValue, advance.remainingBalance) : rawValue);
+      const value = round2(rawValue);
       if (!value) continue;
 
       if (component.kind === "employer") {
@@ -111,9 +111,6 @@ export function buildPayrollJournal(input: BuildPayrollJournalInput): { lines: P
         push(component, component.contraAccountId, "credit", value);
       } else if (component.kind === "addition") {
         push(component, component.accountId, "debit", value);
-      } else if (advance) {
-        push(component, component.accountId, "credit", value, { employeeAdvanceId: advance.id, perEmployeeOnly: true });
-        advanceDeductions.push({ advanceId: advance.id, amount: round2(value) });
       } else if (component.systemKey && EXPENSE_REDUCTION_KEYS.has(component.systemKey)) {
         if (!basic) throw badRequest(`لا يمكن ترحيل «${component.name}»: يُخصم من مصروف الراتب الأساسي ولا يوجد بند «الراتب الأساسي» فعّال في هذه الشركة`);
         push(component, basic.accountId, "credit", value);
@@ -125,6 +122,15 @@ export function buildPayrollJournal(input: BuildPayrollJournalInput): { lines: P
       } else {
         push(component, component.accountId, "credit", value);
       }
+    }
+
+    // أقساط السلف: سطر لكل موظف وسلفة في الوضعين، دائن حساب السلفة نفسها
+    for (const installment of row.advanceInstallments || []) {
+      const amount = round2(installment.amount);
+      if (!amount) continue;
+      const pseudo: JournalComponent = { id: installment.advanceId, name: `قسط سلفة — ${row.employeeName ?? ""}`.trim(), kind: "deduction", accountId: installment.accountId };
+      push(pseudo, installment.accountId, "credit", amount, { employeeAdvanceId: installment.advanceId, perEmployeeOnly: true });
+      advanceDeductions.push({ advanceId: installment.advanceId, amount });
     }
   }
 

@@ -2,7 +2,7 @@ import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission, requireHrRead } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createPayrollRunSchema, updateEmployeesSchema, setOverrideSchema, unpostSchema } from "./payrollRuns.schemas";
+import { createPayrollRunSchema, updateEmployeesSchema, setOverrideSchema, unpostSchema, postponeAdvanceSchema } from "./payrollRuns.schemas";
 import {
   listHandler,
   deleteHandler,
@@ -13,6 +13,8 @@ import {
   clearOverrideHandler,
   postHandler,
   unpostHandler,
+  postponeAdvanceHandler,
+  undoPostponementHandler,
 } from "./payrollRuns.controller";
 
 export const payrollRunRoutes = Router();
@@ -29,6 +31,8 @@ payrollRunRoutes.get("/:id/rows", requirePositionAction("payrollRuns", "read"), 
 payrollRunRoutes.patch("/:id/employees", requirePositionAction("payrollRuns", "edit"), canWrite, validateBody(updateEmployeesSchema), updateEmployeesHandler);
 payrollRunRoutes.put("/:id/overrides/:employeeId", requirePositionAction("payrollRuns", "edit"), canWrite, validateBody(setOverrideSchema), setOverrideHandler);
 payrollRunRoutes.delete("/:id/overrides/:employeeId", requirePositionAction("payrollRuns", "delete"), canWrite, clearOverrideHandler);
+payrollRunRoutes.post("/:id/advance-postponements", requirePositionAction("payrollRuns", "edit"), canWrite, validateBody(postponeAdvanceSchema), postponeAdvanceHandler);
+payrollRunRoutes.delete("/:id/advance-postponements/:advanceId", requirePositionAction("payrollRuns", "edit"), canWrite, undoPostponementHandler);
 payrollRunRoutes.post("/:id/post", requirePositionAction("payrollRuns", "approve"), canWrite, postHandler);
 payrollRunRoutes.post("/:id/unpost", requirePositionAction("payrollRuns", "approve"), canWrite, canUnpost, validateBody(unpostSchema), unpostHandler);
 

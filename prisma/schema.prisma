@@ -868,6 +868,8 @@ model Account {
   employeeLinks                Employee[]
   payrollComponentLinks        PayrollComponent[]
   payrollComponentContraLinks  PayrollComponent[]    @relation("PayrollComponentContraAccount")
+  employeeReceivableLinks      Employee[]            @relation("EmployeeReceivableAccount")
+  payrollAdvancesParentOf      PayrollSettings[]     @relation("PayrollAdvancesParentAccount")
   fixedAssetLinks              FixedAsset[]
   employeeAdvanceLinks         EmployeeAdvance[]
   assetCategoryAssetLinks      AssetCategory[]       @relation("AssetCategoryAssetAccount")
@@ -2074,6 +2076,11 @@ model Employee {
   departmentRef             Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   costCenterId              String?
   costCenter                CostCenter?    @relation("EmployeeCostCenter", fields: [costCenterId], references: [id], onDelete: SetNull)
+  // حساب ذمة الموظف الفرعي (قرار المالك 2026-11-01): حساب واحد لسلفه ومخالفاته معاً تحت المجموعة المختارة في إعدادات
+  // الرواتب (PayrollSettings.advancesParentAccountId). يُنشأ تلقائياً أول حاجة باسم الموظف ويُعاد استخدامه بعدها.
+  // منفصل عن accountId (صافي الراتب تحت «ذمم الموظفين»).
+  receivableAccountId       String?        @unique
+  receivableAccount         Account?       @relation("EmployeeReceivableAccount", fields: [receivableAccountId], references: [id], onDelete: Restrict)
   // حساب تفصيلي مستقل (مستوى رابع) تحت مجموعة "ذمم الموظفين" (أصول متداولة) — يمثّل صافي الراتب
   // المستحق لهذا الموظف تحديداً (بدل الحساب المشترك "رواتب مستحقة للصرف"/"ذمم الموظفين -
   // مستحقات وإجازات" السابق). نفس مبدأ Customer.accountId/Supplier.accountId.
@@ -2308,6 +2315,7 @@ model EmployeeAdvance {
 
   journalEntryLines JournalEntryLine[]
   deductions        EmployeeAdvanceDeduction[]
+  postponements     PayrollAdvancePostponement[]
 
   @@map("employee_advances")
 }
@@ -2348,6 +2356,11 @@ model PayrollSettings {
   // يُدخل بنود "مساهمة صاحب العمل" (kind=employer) في الكشف وقيده. مطفأ افتراضياً: قد تُقيَّد حصة المنشأة يدوياً
   // اليوم، وتشغيله مع استمرار القيد اليدوي يُكرِّرها — قرار المالك 2026-11-01.
   employerContributionsEnabled Boolean  @default(false)
+  // مجموعة أصول غير ترحيلية (من شجرة الشركة نفسها) تُنشأ تحتها حسابات ذمم الموظفين الفرعية (سلف ومخالفات)
+  advancesParentAccountId      String?
+  advancesParentAccount        Account? @relation("PayrollAdvancesParentAccount", fields: [advancesParentAccountId], references: [id], onDelete: Restrict)
+  // نسبة قصوى لمجموع أقساط السلف من إجمالي إضافات الموظف — تحذير فقط في المسودة، لا تمنع ولا تُخفِّض القسط
+  maxInstallmentPercentOfGross Decimal? @db.Decimal(5, 2)
   createdAt                    DateTime @default(now())
   updatedAt                    DateTime @updatedAt
 
@@ -2467,7 +2480,8 @@ model PayrollRun {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  advanceDeductions EmployeeAdvanceDeduction[]
+  advanceDeductions    EmployeeAdvanceDeduction[]
+  advancePostponements PayrollAdvancePostponement[]
 
   @@unique([tenantId, companyId, month])
   @@map("payroll_runs")
@@ -3495,4 +3509,25 @@ model QoyodJournalExport {
   @@unique([companyId, remoteId], map: "qoyod_export_remote")
   @@index([status, createdAt], map: "qoyod_export_queue")
   @@map("qoyod_journal_exports")
+}
+
+/// تأجيل قسط سلفة في كشف رواتب واحد (قرار المالك 2026-11-01): يجعل قسط هذه السلفة صفراً في هذا الكشف وحده، ولا يغيّر
+/// رصيدها؛ كشف الشهر التالي (سجلّ مختلف) يعيده تلقائياً. يُنشأ ويُحذَف والكشف مسودة فقط، ومسجَّل في التدقيق. يبقى مع
+/// الكشف عند فك ترحيله (يعود مسودة بتأجيلاته)، ويُحذَف مع حذف المسودة.
+model PayrollAdvancePostponement {
+  id                String          @id @default(cuid())
+  tenantId          String
+  companyId         String
+  payrollRunId      String
+  payrollRun        PayrollRun      @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employeeAdvanceId String
+  employeeAdvance   EmployeeAdvance @relation(fields: [employeeAdvanceId], references: [id], onDelete: Cascade)
+  employeeId        String
+  reason            String
+  createdBy         String
+  createdAt         DateTime        @default(now())
+
+  @@unique([payrollRunId, employeeAdvanceId])
+  @@index([tenantId, companyId])
+  @@map("payroll_advance_postponements")
 }

@@ -49,3 +49,13 @@ export const deleteHandler: RequestHandler = async (req, res) => {
   await assertRecordCompanyScope(req.auth!, prisma.payrollRun, req.params.id);
   res.json(await service.deletePayrollRun(req.auth!.tenantId, req.params.id));
 };
+
+export const postponeAdvanceHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.payrollRun, req.params.id);
+  res.status(201).json(await service.postponeAdvanceInstallment(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.employeeAdvanceId, req.body.reason));
+};
+
+export const undoPostponementHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompanyScope(req.auth!, prisma.payrollRun, req.params.id);
+  res.json(await service.undoAdvancePostponement(req.auth!.tenantId, req.auth!.sub, req.params.id, req.params.advanceId));
+};

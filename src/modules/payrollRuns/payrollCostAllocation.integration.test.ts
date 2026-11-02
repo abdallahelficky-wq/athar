@@ -83,7 +83,7 @@ function expectedTotalsGroups(rows: { employeeId: string; componentValues: Recor
   };
   for (const row of rows) {
     for (const [componentId, value] of Object.entries(row.componentValues)) {
-      if (!value || advanceComponentIds.has(componentId)) continue;
+      if (!value || advanceComponentIds.has(componentId) || componentId === "advances") continue; // الأقساط سطر لكل سلفة
       const col = columns.find((c) => c.id === componentId)!;
       if (col.kind === "addition") add(`${accountOf.get(componentId)}|D|${allocOf(row.employeeId)}`, value);
       else if (["absence", "otherDed", "penalty"].includes(col.systemKey || "")) add(`${accountOf.get(comp.basic)}|C|${allocOf(row.employeeId)}`, value);
@@ -279,13 +279,13 @@ describe("payroll totals posting with cost allocation (integration)", () => {
     expect((await call("DELETE", `/payroll-runs/${runId}`)).status).toBe(200);
   });
 
-  it("violations cannot post until employee receivable accounts exist — never to «رواتب مستحقة»", async () => {
+  it("violations cannot post until the employee receivable group is chosen — never to «رواتب مستحقة»", async () => {
     const action = await call("POST", "/hr-actions", { employeeIds: [emps[0].id], month: "2027-01", componentId: comp.violation, value: 75 });
     expect(action.status, action.text).toBeLessThan(300);
     const runId = await createRun("2027-01");
     const res = await call("POST", `/payroll-runs/${runId}/post`);
     expect(res.status).toBe(400);
-    expect(res.text).toContain("خصم مخالفات");
+    expect(res.text).toContain("مجموعة حسابات ذمم الموظفين");
     await prisma.hrAction.deleteMany({ where: { employeeId: emps[0].id, month: "2027-01" } });
     expect((await call("DELETE", `/payroll-runs/${runId}`)).status).toBe(200);
   });
