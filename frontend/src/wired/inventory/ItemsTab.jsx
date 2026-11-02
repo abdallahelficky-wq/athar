@@ -13,6 +13,9 @@ import AccountSearchSelect from "../shared/AccountSearchSelect";
 import ItemCardModal from "./ItemCardModal";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
 
+// نافذة إضافة/تعديل الصنف: عريضة، وتتمرّر داخلها إن طال النموذج
+const ITEM_DIALOG_STYLE = { maxWidth: 1100, width: "95vw", maxHeight: "90vh", overflowY: "auto", margin: 0 };
+
 const emptyItemFilters = { query: "", category: "", typeFilter: "", lowStock: false };
 
 const ITEM_TYPES = ["inventory", "expense", "service", "fixed_asset", "raw_material", "bundle", "periodic_inventory", "non_stock"];
@@ -98,6 +101,12 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   const [components, setComponents] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
+  useEffect(() => {
+    if (!formOpen) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setFormOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [formOpen]);
   const itemFilters = useDeferredFilters(emptyItemFilters);
   const [status, setStatus] = useState("active");
   const [viewItem, setViewItem] = useState(null);
@@ -311,7 +320,9 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
         </div>
       </div>
 
-      {formOpen && <div className="panel form-panel items-form-panel">
+      {/* إضافة/تعديل الصنف في نافذة منبثقة فوق قائمة الأصناف — تُغلَق بزر × أو الإلغاء أو Esc أو النقر خارجها */}
+      {formOpen && <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && setFormOpen(false)}>
+      <div className="panel form-panel items-form-panel" role="dialog" aria-modal="true" style={ITEM_DIALOG_STYLE}>
         <div className="items-form-heading"><strong>{editingId ? t("inventory.items.form.titleEdit", { name: form.name }) : t("inventory.items.form.titleCreate")}</strong><button className="item-close" onClick={() => setFormOpen(false)}>×</button></div>
 
         <div className="form-grid">
@@ -394,6 +405,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
 
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={() => setFormOpen(false)}>{t("inventory.items.form.cancel")}</button><button className="btn-primary" onClick={save}>{editingId ? t("inventory.items.form.saveChanges") : t("inventory.items.form.saveItem")}</button></div>
+      </div>
       </div>}
 
       <section className="panel items-directory-panel">
