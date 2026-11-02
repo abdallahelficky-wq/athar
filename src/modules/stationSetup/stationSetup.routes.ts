@@ -2,8 +2,8 @@ import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createPumpSchema, updateNozzleSchema, retirePumpSchema, createFuelPriceSchema } from "./stationSetup.schemas";
-import { listStations, createPump, updateNozzle, retirePump, listFuelPrices, createFuelPrice, deleteFuelPrice } from "./stationSetup.controller";
+import { createPumpSchema, updateNozzleSchema, retirePumpSchema, createFuelPriceSchema, setStationWarehouseSchema } from "./stationSetup.schemas";
+import { listStations, createPump, updateNozzle, retirePump, listFuelPrices, createFuelPrice, deleteFuelPrice, setStationWarehouse } from "./stationSetup.controller";
 
 /**
  * إعداد المحطات (المضخات والفوهات) وأسعار الوقود — نفس نمط مراكز التكلفة: القراءة لأي مستخدم ضمن
@@ -17,6 +17,7 @@ const canManage = requireRole("admin", "finance_manager");
 stationSetupRoutes.get("/stations", requirePositionAction("stationSetup", "read"), listStations);
 stationSetupRoutes.post("/pumps", requirePositionAction("stationSetup", "create"), canManage, validateBody(createPumpSchema), createPump);
 stationSetupRoutes.post("/pumps/retire", requirePositionAction("stationSetup", "edit"), canManage, validateBody(retirePumpSchema), retirePump);
+stationSetupRoutes.put("/stations/:costCenterId/warehouse", requirePositionAction("stationSetup", "edit"), canManage, validateBody(setStationWarehouseSchema), setStationWarehouse);
 stationSetupRoutes.patch("/nozzles/:id", requirePositionAction("stationSetup", "edit"), canManage, validateBody(updateNozzleSchema), updateNozzle);
 
 stationSetupRoutes.get("/fuel-prices", requirePositionAction("stationSetup", "read"), listFuelPrices);

@@ -39,9 +39,15 @@ export default function StationShiftsReviewModule({ companyId }) {
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState(null);
   const [corrections, setCorrections] = useState({});
+  // "pending" = قيد المراجعة، "posted" = المرحَّلة والمعكوسة (حيث زر عكس الوردية — صلاحية الترحيل)
+  const [view, setView] = useState("pending");
+  const [posted, setPosted] = useState([]);
 
   const loadPending = () => api.listPendingShifts(companyId).then(setPending).catch((e) => setError(e.message));
-  useEffect(() => { loadPending(); }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const loadPosted = () => api.listPostedShifts(companyId).then(setPosted).catch((e) => setError(e.message));
+  const reloadList = () => (view === "posted" ? loadPosted() : loadPending());
+  useEffect(() => { reloadList(); }, [companyId, view]); // eslint-disable-line react-hooks/exhaustive-deps
+  const list = view === "posted" ? posted : pending;
 
   const loadDetail = (id) => {
     setError(""); setSelectedId(id);
@@ -65,6 +71,15 @@ export default function StationShiftsReviewModule({ companyId }) {
   const doPost = async () => {
     setError(""); setMessage("");
     try { await api.postShift(selectedId); setMessage(t("stationShiftsReview.postedMsg")); loadDetail(selectedId); loadPending(); }
+    catch (e) { setError(e.message); }
+  };
+
+  // عكس وردية مرحَّلة: قيد عكسي + إلغاء صرف الوقود + حالة "معكوسة" — السبب إلزامي، ولا يُعاد ترحيلها بعدها
+  const doReverse = async () => {
+    const reason = window.prompt(t("stationShiftsReview.reversePrompt"));
+    if (!reason || !reason.trim()) return;
+    setError(""); setMessage("");
+    try { await api.reverseShift(selectedId, reason.trim()); setMessage(t("stationShiftsReview.reversedMsg")); loadDetail(selectedId); reloadList(); }
     catch (e) { setError(e.message); }
   };
 
@@ -105,8 +120,12 @@ export default function StationShiftsReviewModule({ companyId }) {
 
       <div className="panel">
         <div className="form-btn-group" style={{ justifyContent: "space-between" }}>
-          <h3 style={{ margin: 0 }}>{t("stationShiftsReview.pendingTitle")}</h3>
-          <button className="btn-ghost" onClick={loadPending}>{t("stationShiftsReview.refreshBtn")}</button>
+          <h3 style={{ margin: 0 }}>{t(view === "posted" ? "stationShiftsReview.postedTitle" : "stationShiftsReview.pendingTitle")}</h3>
+          <div className="form-btn-group">
+            <button className={view === "pending" ? "btn-primary" : "btn-ghost"} onClick={() => setView("pending")}>{t("stationShiftsReview.viewPending")}</button>
+            <button className={view === "posted" ? "btn-primary" : "btn-ghost"} onClick={() => setView("posted")}>{t("stationShiftsReview.viewPosted")}</button>
+            <button className="btn-ghost" onClick={reloadList}>{t("stationShiftsReview.refreshBtn")}</button>
+          </div>
         </div>
         <table className="ledger-table">
           <thead>
@@ -120,7 +139,7 @@ export default function StationShiftsReviewModule({ companyId }) {
             </tr>
           </thead>
           <tbody>
-            {pending.map((s) => (
+            {list.map((s) => (
               <tr key={s.id} style={{ background: s.id === selectedId ? "#f0f4ff" : undefined }}>
                 <td>{s.employee?.name}</td>
                 <td>{s.costCenter?.name}</td>
@@ -130,7 +149,7 @@ export default function StationShiftsReviewModule({ companyId }) {
                 <td><button className="btn-ghost" onClick={() => loadDetail(s.id)}>{t("stationShiftsReview.openBtn")}</button></td>
               </tr>
             ))}
-            {pending.length === 0 && <tr><td className="empty" colSpan={6}>{t("stationShiftsReview.noPending")}</td></tr>}
+            {list.length === 0 && <tr><td className="empty" colSpan={6}>{t(view === "posted" ? "stationShiftsReview.noPosted" : "stationShiftsReview.noPending")}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -212,11 +231,18 @@ export default function StationShiftsReviewModule({ companyId }) {
             <p className="note">{t("stationShiftsReview.pendingConfirmation")}</p>
           )}
 
-          <div className="form-btn-group">
-            <button className="btn-primary" disabled={!detail.summary} onClick={doApprove}>{t("stationShiftsReview.approveBtn")}</button>
-            <button className="btn-primary" onClick={doPost}>{t("stationShiftsReview.postBtn")}</button>
-            <button className="btn-ghost" onClick={doReject}>{t("stationShiftsReview.rejectBtn")}</button>
-          </div>
+          {detail.status === "posted" || detail.status === "reversed" ? (
+            <div className="form-btn-group">
+              {detail.status === "posted" && <button className="btn-ghost" onClick={doReverse}>{t("stationShiftsReview.reverseBtn")}</button>}
+              {detail.status === "reversed" && <p className="note">{t("stationShiftsReview.reversedNote")}</p>}
+            </div>
+          ) : (
+            <div className="form-btn-group">
+              <button className="btn-primary" disabled={!detail.summary} onClick={doApprove}>{t("stationShiftsReview.approveBtn")}</button>
+              <button className="btn-primary" onClick={doPost}>{t("stationShiftsReview.postBtn")}</button>
+              <button className="btn-ghost" onClick={doReject}>{t("stationShiftsReview.rejectBtn")}</button>
+            </div>
+          )}
         </div>
       )}
     </div>

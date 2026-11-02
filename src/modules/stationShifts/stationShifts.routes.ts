@@ -1,14 +1,16 @@
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireActionPermission, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { correctReadingSchema, rejectShiftSchema } from "./stationShifts.schemas";
+import { correctReadingSchema, rejectShiftSchema, reverseShiftSchema } from "./stationShifts.schemas";
 import {
   listPendingShiftsHandler,
+  listPostedShiftsHandler,
   getShiftByIdHandler,
   correctReadingHandler,
   approveShiftHandler,
   postShiftHandler,
   rejectShiftHandler,
+  reverseShiftHandler,
 } from "./stationShifts.controller";
 
 /**
@@ -30,6 +32,8 @@ const reviewAccess = requireActionPermission("stationShifts", "review", "approve
 const postAccess = requireActionPermission("stationShifts", "post", "approve");
 
 stationShiftRoutes.get("/pending", reviewAccess, listPendingShiftsHandler);
+// الورديات المرحَّلة/المعكوسة — قبل "/:id" حتى لا يُقرأ "posted" معرّفَ وردية
+stationShiftRoutes.get("/posted", postAccess, listPostedShiftsHandler);
 stationShiftRoutes.get("/:id", reviewAccess, getShiftByIdHandler);
 stationShiftRoutes.put("/:id/readings/:readingId", reviewAccess, validateBody(correctReadingSchema), correctReadingHandler);
 stationShiftRoutes.post("/:id/approve", reviewAccess, approveShiftHandler);
@@ -37,3 +41,5 @@ stationShiftRoutes.post("/:id/reject", reviewAccess, validateBody(rejectShiftSch
 
 // صلاحية مستقلة عن الاعتماد، راجع التعليق أعلاه
 stationShiftRoutes.post("/:id/post", postAccess, postShiftHandler);
+// عكس وردية مرحَّلة (قيد عكسي + إلغاء صرف الوقود + حالة reversed) — بنفس صلاحية الترحيل
+stationShiftRoutes.post("/:id/reverse", postAccess, validateBody(reverseShiftSchema), reverseShiftHandler);

@@ -57,3 +57,11 @@ export const rejectShiftSchema = z
     note: z.string().optional(),
   })
   .strict();
+
+// عكس وردية مرحَّلة — السبب إلزامي (يُكتب في سجل تدقيق الوردية ومذكرة قيد العكس)؛ التاريخ اختياري (افتراضياً اليوم).
+export const reverseShiftSchema = z
+  .object({
+    reason: z.string().trim().min(1, "سبب عكس الوردية مطلوب").max(500, "سبب عكس الوردية طويل جداً"),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "التاريخ بصيغة YYYY-MM-DD").optional(),
+  })
+  .strict();

@@ -63,7 +63,14 @@ export const createCompanySchema = z.object({
   stationCashSurplusAccountId: z.string().nullable().optional(),
 });
 
-export const updateCompanySchema = createCompanySchema.partial();
+// إعدادات تكلفة الوقود في ورديات المحطات — في التعديل فقط (الأصناف لا توجد قبل إنشاء الشركة). راجع التعليق فوق
+// الحقول المطابقة في schema.prisma، والتحقق من الأصناف في companies.controller.ts (assertStationFuelItems).
+export const updateCompanySchema = createCompanySchema.partial().extend({
+  stationDieselItemId: z.string().min(1).nullable().optional(),
+  stationGasoline91ItemId: z.string().min(1).nullable().optional(),
+  stationGasoline95ItemId: z.string().min(1).nullable().optional(),
+  allowNegativeFuelStock: z.boolean().optional(),
+});
 
 // «شركة مستقلة» (مستأجر جديد كلياً): نفس حقول نموذج الإضافة، لكن النشاط إلزامي كما في التسجيل تماماً —
 // لأن الشجرة والبيانات الابتدائية تُزرَع بنفس دالة التسجيل (createOwnedTenant) التي تشترط النشاط.

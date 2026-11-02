@@ -1,8 +1,12 @@
 import { Prisma, StationFuelProduct, StationShiftType } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound, forbidden, HttpError } from "../../lib/httpError";
-import { createJournalEntryTx, type PostingLine } from "../../lib/journalPosting";
+import { createJournalEntryTx, recomputeEntryTotal, reserveEntryNumber, type PostingLine } from "../../lib/journalPosting";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { riyadhCalendarDay } from "../../lib/riyadhDate";
+import { computeShiftCogsTx, createShiftFuelIssuesTx, FUEL_PRODUCT_LABEL_AR } from "./stationShiftCogs";
+
+export { FUEL_PRODUCT_LABEL_AR };
 
 /** أي قيمة يقبلها مُنشئ Prisma.Decimal — نص أو رقم أو Decimal جاهز. */
 type DecimalInput = Prisma.Decimal.Value;
@@ -606,12 +610,6 @@ export async function assertStationReadyForShift(tenantId: string, companyId: st
   }
 }
 
-export const FUEL_PRODUCT_LABEL_AR: Record<StationFuelProduct, string> = {
-  gasoline_91: "بنزين 91",
-  gasoline_95: "بنزين 95",
-  diesel: "ديزل",
-};
-
 export interface OpenShiftInput {
   shiftType: StationShiftType;
 }
@@ -984,6 +982,15 @@ export async function postShift(tenantId: string, userId: string, shiftId: strin
       throw badRequest("لا يمكن ترحيل وردية لم تُعتمَد بعد، أو رُحِّلت بالفعل");
     }
 
+    // تكلفة البضاعة المباعة بالمتوسط المرجّح من مستودع المحطة — في نفس القيد ونفس المعاملة: أي رفض هنا (ربط ناقص،
+    // متوسط صفر، رصيد غير كافٍ) يُلغي حجز الوردية أعلاه أيضاً، فتبقى "approved" بلا قيد.
+    const cogs = await computeShiftCogsTx(tx, {
+      tenantId,
+      companyId: shift.companyId,
+      costCenterId: shift.costCenterId,
+      sales: summary.salesByProduct.map((p) => ({ product: p.product, liters: p.liters })),
+    });
+
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: shift.companyId,
@@ -992,7 +999,15 @@ export async function postShift(tenantId: string, userId: string, shiftId: strin
       sourceModule: "station_shift",
       sourceId: shift.id,
       createdBy: userId,
-      lines: summary.lines,
+      lines: [...summary.lines, ...cogs.lines],
+    });
+    await createShiftFuelIssuesTx(tx, {
+      tenantId,
+      companyId: shift.companyId,
+      shiftId: shift.id,
+      date: shift.shiftDate,
+      journalEntryId: entry.id,
+      issues: cogs.issues,
     });
     await tx.stationShiftAuditLog.create({
       data: { tenantId, companyId: shift.companyId, shiftId, userId, action: "post", fieldName: "status", oldValue: shift.status, newValue: "posted" },
@@ -1026,5 +1041,104 @@ export async function rejectShift(tenantId: string, userId: string, shiftId: str
       data: { tenantId, companyId: shift.companyId, shiftId, userId, action: "reject", fieldName: "status", oldValue: shift.status, newValue: "rejected" },
     });
     return updated;
+  });
+}
+
+/** الورديات المرحَّلة والمعكوسة لشركة واحدة (الأحدث أولاً) — مصدر شاشة "الورديات المرحَّلة" حيث زر عكس الوردية. */
+export async function listPostedShifts(tenantId: string, companyId?: string) {
+  return prisma.stationShift.findMany({
+    where: { tenantId, companyId, status: { in: ["posted", "reversed"] }, isSeedData: false },
+    include: { costCenter: true, employee: { select: { id: true, name: true } } },
+    orderBy: [{ shiftDate: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    take: 200,
+  });
+}
+
+export interface ReverseShiftInput {
+  reason: string;
+  /** تاريخ قيد العكس (يوم بتوقيت الرياض YYYY-MM-DD) — افتراضياً اليوم. فحص إقفال الفترة يجري عند حجز رقم القيد. */
+  date?: string;
+}
+
+/**
+ * عكس وردية مرحَّلة — المسار الوحيد لتصحيح وردية بعد ترحيلها (العكس العام وفك الترحيل والمرآة مرفوضة لقيود
+ * station_shift، راجع assertNotStationShiftEntry في journalEntries.service.ts). في معاملة واحدة: حجز الوردية
+ * (posted → reversed، مشروطاً، فطلبان متزامنان لا يعكسانها مرتين)، قيد عكسي بنفس أسطر قيد الوردية بالاتجاه المعاكس
+ * مربوط بـreversalOfEntryId (مصدره station_shift أيضاً حتى يبقى محمياً ويظهر في مطابقة ضريبة الورديات)، حذف حركات صرف
+ * الوقود التي أنشأها ترحيلها (حركات صادرة — حذفها لا يغيّر متوسط التكلفة، فلا يلزم إعادة احتسابه)، وصفّا تدقيق
+ * (الحالة، والسبب) باسم المستخدم. الوردية المعكوسة لا تُرحَّل ثانيةً أبداً (postShift يشترط approved) — تُدخَل وردية مصحَّحة.
+ *
+ * المرآة: يُرفَض عكس وردية لقيدها قيد مرآة (أُنشئ قبل منع المرآة لقيود الورديات) — عكسها هنا كان سيترك نصف المعاملة في
+ * الشركة الأخرى قائماً. قيد عُكِس سابقاً من شاشة القيود العامة يُرفَض كذلك (لا قيد عكسي ثانٍ لنفس القيد).
+ */
+export async function reverseShift(tenantId: string, userId: string, shiftId: string, input: ReverseShiftInput) {
+  const reason = input.reason.trim();
+  if (!reason) throw badRequest("سبب عكس الوردية مطلوب");
+  const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
+  if (!shift) throw notFound("الوردية غير موجودة");
+  if (shift.status !== "posted") throw badRequest("لا يمكن عكس إلا وردية مرحَّلة");
+  if (!shift.journalEntryId) throw badRequest("لا قيد محاسبي مرتبط بهذه الوردية — لا يوجد ما يُعكَس");
+
+  const entry = await prisma.journalEntry.findFirst({
+    where: { id: shift.journalEntryId, tenantId, companyId: shift.companyId },
+    include: { lines: true },
+  });
+  if (!entry) throw notFound("قيد الوردية غير موجود");
+  if (entry.status !== "posted") throw badRequest("قيد الوردية ليس مرحّلاً — لا يمكن عكسها");
+  if (entry.mirrorEntryId) throw badRequest("لقيد هذه الوردية قيد مرآة في شركة أخرى — لا يمكن عكسها قبل معالجة قيد المرآة");
+  const alreadyReversed = await prisma.journalEntry.findFirst({ where: { tenantId, companyId: shift.companyId, reversalOfEntryId: entry.id } });
+  if (alreadyReversed) throw badRequest("قيد هذه الوردية معكوس بالفعل بقيد آخر");
+
+  // منتصف ليل UTC لليوم التقويمي — نفس اصطلاح تاريخ قيد الوردية (shiftDate) وتاريخ العكس العام (z.coerce.date لـYYYY-MM-DD).
+  const date = new Date(`${input.date ?? riyadhCalendarDay(new Date())}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) throw badRequest("تاريخ قيد العكس غير صالح");
+
+  return prisma.$transaction(async (tx) => {
+    const claimed = await tx.stationShift.updateMany({ where: { id: shift.id, tenantId, status: "posted" }, data: { status: "reversed" } });
+    if (claimed.count !== 1) throw badRequest("لا يمكن عكس إلا وردية مرحَّلة");
+
+    const { entryNumber, entrySeq } = await reserveEntryNumber(tx, tenantId, shift.companyId, date);
+    const reversal = await tx.journalEntry.create({
+      data: {
+        tenantId,
+        companyId: shift.companyId,
+        date,
+        memo: `عكس ${entry.memo ?? "قيد وردية محطة"} — ${reason}`,
+        status: "posted",
+        entryNumber,
+        entrySeq,
+        sourceModule: "station_shift",
+        sourceId: shift.id,
+        createdBy: userId,
+        reversalOfEntryId: entry.id,
+        lines: {
+          create: entry.lines.map((l) => ({
+            accountId: l.accountId,
+            costCenterId: l.costCenterId,
+            department: l.department,
+            departmentId: l.departmentId,
+            branchId: l.branchId,
+            description: l.description,
+            debit: l.credit,
+            credit: l.debit,
+            customerId: l.customerId,
+            supplierId: l.supplierId,
+            employeeId: l.employeeId,
+          })),
+        },
+      },
+    });
+    await recomputeEntryTotal(tx, reversal.id);
+
+    await tx.stockMovement.deleteMany({ where: { tenantId, companyId: shift.companyId, sourceStationShiftId: shift.id } });
+
+    await tx.stationShiftAuditLog.createMany({
+      data: [
+        { tenantId, companyId: shift.companyId, shiftId, userId, action: "reverse", fieldName: "status", oldValue: "posted", newValue: "reversed" },
+        { tenantId, companyId: shift.companyId, shiftId, userId, action: "reverse", fieldName: "reversalReason", oldValue: null, newValue: reason },
+        { tenantId, companyId: shift.companyId, shiftId, userId, action: "reverse", fieldName: "reversalEntryId", oldValue: entry.id, newValue: reversal.id },
+      ],
+    });
+    return tx.stationShift.findUniqueOrThrow({ where: { id: shift.id } });
   });
 }

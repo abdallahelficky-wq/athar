@@ -79,6 +79,26 @@ export const createCompany: RequestHandler = async (req, res) => {
   res.status(201).json(await withLogoUrl(company));
 };
 
+const STATION_FUEL_ITEM_FIELDS = ["stationDieselItemId", "stationGasoline91ItemId", "stationGasoline95ItemId"] as const;
+
+/**
+ * صنف الوقود المربوط بمنتج محطة يُصرَف منه عند ترحيل الوردية (stationShiftCogs.ts) — يجب أن يكون من نفس المستأجر ونفس
+ * الشركة (لا يُربَط صنف شركة أخرى)، مخزوناً دائماً (inventory: متوسط مرجّح وحسابا مخزون/تكلفة)، غير مؤرشف. الترحيل يعيد
+ * نفس الفحص لحظة الترحيل (قد يُؤرشَف الصنف أو تُزال حساباته بعد ربطه).
+ */
+async function assertStationFuelItems(tenantId: string, companyId: string, body: Record<string, unknown>) {
+  const ids = STATION_FUEL_ITEM_FIELDS.map((f) => body[f]).filter((v): v is string => typeof v === "string");
+  if (!ids.length) return;
+  const items = await prisma.item.findMany({ where: { id: { in: ids }, tenantId, companyId } });
+  const byId = new Map(items.map((i) => [i.id, i]));
+  for (const id of ids) {
+    const item = byId.get(id);
+    if (!item) throw badRequest("صنف الوقود المختار غير موجود ضمن هذه الشركة");
+    if (item.type !== "inventory" || item.isArchived) throw badRequest("صنف الوقود يجب أن يكون صنف مخزون دائم غير مؤرشف");
+    if (!item.stockAccountId || !item.cogsAccountId) throw badRequest("صنف الوقود المختار بلا حساب مخزون أو حساب تكلفة — أكمل بياناته من شاشة الأصناف أولاً");
+  }
+}
+
 export const updateCompany: RequestHandler = async (req, res) => {
   const existing = await prisma.company.findFirst({
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
@@ -100,6 +120,8 @@ export const updateCompany: RequestHandler = async (req, res) => {
       );
     }
   }
+
+  await assertStationFuelItems(req.auth!.tenantId, existing.id, req.body);
 
   const company = await prisma.company.update({ where: { id: existing.id }, data: req.body });
   res.json(await withLogoUrl(company));

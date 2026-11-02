@@ -36,3 +36,8 @@ export const createFuelPriceSchema = z
     effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "تاريخ السريان مطلوب (YYYY-MM-DD)"),
   })
   .strict();
+
+// ربط مستودع بمحطة (أو فكّه بـ null) — يُصرَف منه وقود الورديات عند الترحيل.
+export const setStationWarehouseSchema = z
+  .object({ companyId: z.string().min(1), warehouseId: z.string().min(1).nullable() })
+  .strict();
