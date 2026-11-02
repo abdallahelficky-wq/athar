@@ -671,8 +671,12 @@ export async function ensureIntercompanyAccount(tenantId: string, ownerCompanyId
  */
 export const STATION_SHIFT_ENTRY_LOCKED = "قيد وردية المحطة لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «عكس الوردية» من شاشة ورديات المحطات";
 
+/** قيد ترحيل فرق خزان (station_tank_variance) مرتبط بحركة تسوية مخزون وبسجل الترحيل — نفس سبب قفل قيد الوردية أعلاه. */
+export const TANK_VARIANCE_ENTRY_LOCKED = "قيد فرق الخزان لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «عكس الترحيل» من شاشة الخزانات";
+
 function assertNotStationShiftEntry(entry: { sourceModule: string }) {
   if (entry.sourceModule === "station_shift") throw badRequest(STATION_SHIFT_ENTRY_LOCKED);
+  if (entry.sourceModule === "station_tank_variance") throw badRequest(TANK_VARIANCE_ENTRY_LOCKED);
 }
 
 export async function getMirrorSuggestion(tenantId: string, entryId: string, targetCompanyId: string, companyScope: string, hrView = true) {

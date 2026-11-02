@@ -33,7 +33,7 @@ const OUTBOUND = new Set(["out", "issue", "transfer_out"]);
 const INBOUND = new Set(["in", "transfer_in"]);
 
 /** رصيد صنف في مستودع واحد داخل المعاملة — نفس منطق الإشارة في costingEngine.getItemTotalOnHand، مقصوراً على المستودع. */
-async function warehouseBalanceTx(tx: Tx, tenantId: string, companyId: string, itemId: string, warehouseId: string) {
+export async function warehouseBalanceTx(tx: Tx, tenantId: string, companyId: string, itemId: string, warehouseId: string) {
   const sums = await tx.stockMovement.groupBy({
     by: ["type"],
     where: { tenantId, companyId, itemId, warehouseId },

@@ -29,6 +29,17 @@ async function loadTank(tenantId: string, tankId: string) {
   return tank;
 }
 
+/** ترحيل فرق قائم لخزان من الخزانات يحتوي اللحظة at — (الافتتاح، الإقفال] بنفس حدود المطابقة (tankVariancePosting.service.ts). */
+async function postedVarianceWindowAt(tenantId: string, tankIds: string[], at: Date) {
+  if (!tankIds.length) return null;
+  return prisma.tankVariancePosting.findFirst({
+    where: { tenantId, tankId: { in: tankIds }, status: "posted", openingAt: { lt: at }, closingAt: { gte: at } },
+    select: { id: true },
+  });
+}
+
+export const DELIVERY_IN_POSTED_WINDOW = "تاريخ التوريد يقع داخل فترة فرق خزان مرحَّل — اعكس ترحيل الفرق أولاً";
+
 // ===== الخزانات =====
 
 export async function listTanks(tenantId: string, companyId: string) {
@@ -138,6 +149,11 @@ export async function voidReading(tenantId: string, userId: string, readingId: s
   const reading = await prisma.tankReading.findFirst({ where: { id: readingId, tenantId } });
   if (!reading) throw notFound("القراءة غير موجودة");
   if (reading.voidedAt) throw badRequest("القراءة ملغاة بالفعل");
+  const usedByPosting = await prisma.tankVariancePosting.findFirst({
+    where: { tenantId, tankId: reading.tankId, status: "posted", OR: [{ openingReadingId: reading.id }, { closingReadingId: reading.id }] },
+    select: { id: true },
+  });
+  if (usedByPosting) throw badRequest("القراءة مستخدمة في فرق خزان مرحَّل — اعكس ترحيل الفرق أولاً");
   return prisma.tankReading.update({ where: { id: reading.id }, data: { voidedAt: new Date(), voidReason: why, voidedByUserId: userId } });
 }
 
@@ -168,6 +184,7 @@ export async function createDelivery(tenantId: string, userId: string, input: De
   if (tankIds.length !== input.lines.length) throw badRequest("كرّرت نفس الخزان في التوريد — اجمع كميته في سطر واحد");
   const tanks = await prisma.stationTank.findMany({ where: { id: { in: tankIds }, tenantId, companyId: input.companyId, costCenterId: input.costCenterId } });
   if (tanks.length !== tankIds.length) throw badRequest("أحد الخزانات ليس في محطة التوريد");
+  if (await postedVarianceWindowAt(tenantId, tankIds, input.deliveredAt)) throw badRequest(DELIVERY_IN_POSTED_WINDOW);
   const noteNumber = input.deliveryNoteNumber.trim();
   const dup = await prisma.fuelDelivery.findFirst({
     where: { tenantId, companyId: input.companyId, deliveryNoteNumber: noteNumber, status: "confirmed", supplierId: input.supplierId ?? null },
@@ -202,9 +219,10 @@ export async function listDeliveries(tenantId: string, companyId: string, filter
 export async function voidDelivery(tenantId: string, userId: string, deliveryId: string, reason: string) {
   const why = reason.trim();
   if (!why) throw badRequest("سبب إلغاء التوريد مطلوب");
-  const delivery = await prisma.fuelDelivery.findFirst({ where: { id: deliveryId, tenantId } });
+  const delivery = await prisma.fuelDelivery.findFirst({ where: { id: deliveryId, tenantId }, include: { lines: { select: { tankId: true } } } });
   if (!delivery) throw notFound("التوريد غير موجود");
   if (delivery.status === "void") throw badRequest("التوريد ملغى بالفعل");
+  if (await postedVarianceWindowAt(tenantId, delivery.lines.map((l) => l.tankId), delivery.deliveredAt)) throw badRequest(DELIVERY_IN_POSTED_WINDOW);
   return prisma.fuelDelivery.update({ where: { id: delivery.id }, data: { status: "void", voidedAt: new Date(), voidReason: why, voidedByUserId: userId } });
 }
 

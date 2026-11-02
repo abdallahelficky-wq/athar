@@ -100,6 +100,7 @@ model Tenant {
 
   stationNozzles          StationNozzle[]
   stationTanks            StationTank[]
+  tankVariancePostings    TankVariancePosting[]
   forecourtControllers    ForecourtController[]
   tankReadings            TankReading[]
   fuelDeliveries          FuelDelivery[]
@@ -551,6 +552,10 @@ model Company {
   // أيهما أكبر؛ تجاوزه "تنبيه"، وتجاوز ضعفه "مخالفة". قيم افتراضية مبدئية تُضبط بعد أشهر من بيانات فعلية.
   tankVariancePctTolerance     Decimal               @default(0.5) @db.Decimal(6, 3)
   tankVarianceLitersTolerance  Decimal               @default(50) @db.Decimal(18, 3)
+  // حساب فروقات قياس الخزانات — يُرحَّل عليه فرق المطابقة عند "ترحيل الفرق": العجز مدين والزيادة دائن (صافيه = صافي
+  // فروقات الفترة). يُربَط تلقائياً بـ«فاقد وعجز قياس الخزانات» (511004) في قالب محطات الوقود، وقابل لإعادة التوجيه.
+  tankVarianceAccountId        String?
+  tankVarianceAccount          Account?              @relation("TankVarianceAccount", fields: [tankVarianceAccountId], references: [id], onDelete: SetNull)
   createdAt                    DateTime              @default(now())
   updatedAt                    DateTime              @updatedAt
 
@@ -574,6 +579,7 @@ model Company {
   stationSales                StationSale[]
   stationNozzles              StationNozzle[]
   stationTanks                StationTank[]
+  tankVariancePostings        TankVariancePosting[]
   forecourtControllers        ForecourtController[]
   tankReadings                TankReading[]
   fuelDeliveries              FuelDelivery[]
@@ -907,6 +913,7 @@ model Account {
   assetCategoryDepExpenseLinks AssetCategory[]       @relation("AssetCategoryDepreciationExpenseAccount")
   stationCashShortageCompanies Company[]             @relation("StationCashShortageAccount")
   stationCashSurplusCompanies  Company[]             @relation("StationCashSurplusAccount")
+  tankVarianceCompanies        Company[]             @relation("TankVarianceAccount")
   horseCareServiceRevenueLinks HorseCareService[]
 
   @@unique([tenantId, companyId, code])
@@ -987,6 +994,7 @@ enum SourceModule {
   bulk_import
   periodic_inventory_settlement
   station_shift
+  station_tank_variance
 }
 
 // فرع تابع لشركة واحدة — طبقة تصنيف وعرض إضافية فقط (بنفس مبدأ CostCenter/Department)، بدولة
@@ -3276,6 +3284,7 @@ model StationTank {
   nozzles       StationNozzle[]
   readings      TankReading[]
   deliveryLines FuelDeliveryLine[]
+  variancePostings TankVariancePosting[]
 
   @@unique([costCenterId, code])
   @@index([tenantId, companyId, costCenterId])
@@ -3362,6 +3371,57 @@ model FuelDeliveryLine {
 
   @@index([tankId])
   @@map("fuel_delivery_lines")
+}
+
+// ترحيل فرق مطابقة خزان لفترة: لقطة كاملة لأرقام المطابقة لحظة الترحيل + القيد (فرق × متوسط تكلفة صنف الوقود) + حركة
+// تسوية مخزون بنفس اللترات في مستودع المحطة. السلسلة لكل خزان متتابعة: افتتاح ترحيل جديد لا يسبق إقفال آخر ترحيل قائم،
+// والعكس يكون للأحدث أولاً. قراءتا الافتتاح والإقفال المستخدمتان لا تُلغيان، ولا يُسجَّل/يُلغى توريد داخل فترة مرحَّلة.
+// فهرس جزئي فريد (الخزان + قراءة الإقفال) للحالة posted يمنع ترحيلين متزامنين لنفس الفترة — في الترحيل (migration).
+enum TankVariancePostingStatus {
+  posted
+  reversed
+}
+
+model TankVariancePosting {
+  id               String                    @id @default(cuid())
+  tenantId         String
+  tenant           Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId        String
+  company          Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tankId           String
+  tank             StationTank               @relation(fields: [tankId], references: [id], onDelete: Cascade)
+  costCenterId     String
+  periodFrom       String
+  periodTo         String
+  openingReadingId String
+  closingReadingId String
+  openingAt        DateTime
+  closingAt        DateTime
+  openingLiters    Decimal                   @db.Decimal(18, 3)
+  closingLiters    Decimal                   @db.Decimal(18, 3)
+  receivedLiters   Decimal                   @db.Decimal(18, 3)
+  soldLiters       Decimal                   @db.Decimal(18, 3)
+  expectedLiters   Decimal                   @db.Decimal(18, 3)
+  // موجب = زيادة، سالب = عجز (نفس إشارة المطابقة)
+  varianceLiters   Decimal                   @db.Decimal(18, 3)
+  itemId           String
+  warehouseId      String
+  unitCost         Decimal                   @db.Decimal(18, 4)
+  amount           Decimal                   @db.Decimal(18, 2)
+  entryDate        DateTime
+  journalEntryId   String?
+  stockMovementId  String?
+  status           TankVariancePostingStatus @default(posted)
+  note             String?
+  postedByUserId   String?
+  postedAt         DateTime                  @default(now())
+  reversedAt       DateTime?
+  reversedByUserId String?
+  reverseReason    String?
+  reversalEntryId  String?
+
+  @@index([tenantId, companyId, tankId, closingAt])
+  @@map("tank_variance_postings")
 }
 
 // ===== متحكمات المحطات (PTS-2) =====

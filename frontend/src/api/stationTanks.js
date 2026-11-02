@@ -17,3 +17,7 @@ export const createDelivery = (payload) => api.post("/station-tanks/deliveries",
 export const voidDelivery = (id, reason) => api.post(`/station-tanks/deliveries/${id}/void`, { reason });
 
 export const reconcile = (companyId, from, to, costCenterId) => api.get(`/station-tanks/reconciliation?${qs({ companyId, from, to, costCenterId })}`);
+
+export const listVariancePostings = (companyId, filter = {}) => api.get(`/station-tanks/variance-postings?${qs({ companyId, ...filter })}`);
+export const postVariance = (payload) => api.post("/station-tanks/variance-postings", payload);
+export const reverseVariance = (id, reason) => api.post(`/station-tanks/variance-postings/${id}/reverse`, { reason });
