@@ -674,9 +674,13 @@ export const STATION_SHIFT_ENTRY_LOCKED = "قيد وردية المحطة لا �
 /** قيد ترحيل فرق خزان (station_tank_variance) مرتبط بحركة تسوية مخزون وبسجل الترحيل — نفس سبب قفل قيد الوردية أعلاه. */
 export const TANK_VARIANCE_ENTRY_LOCKED = "قيد فرق الخزان لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «عكس الترحيل» من شاشة الخزانات";
 
+/** قيد تسوية الشبكة/بطاقات الوقود (card_settlement) مرتبط بسجل التسوية الذي يحدّد أي أيام سُوّيت — عكسه من هنا يترك أيامها "مسوّاة". */
+export const CARD_SETTLEMENT_ENTRY_LOCKED = "قيد تسوية البطاقات لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «عكس التسوية» من شاشة تسويات الشبكة";
+
 function assertNotStationShiftEntry(entry: { sourceModule: string }) {
   if (entry.sourceModule === "station_shift") throw badRequest(STATION_SHIFT_ENTRY_LOCKED);
   if (entry.sourceModule === "station_tank_variance") throw badRequest(TANK_VARIANCE_ENTRY_LOCKED);
+  if (entry.sourceModule === "card_settlement") throw badRequest(CARD_SETTLEMENT_ENTRY_LOCKED);
 }
 
 export async function getMirrorSuggestion(tenantId: string, entryId: string, targetCompanyId: string, companyScope: string, hrView = true) {
