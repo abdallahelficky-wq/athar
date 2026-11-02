@@ -18,6 +18,7 @@ export const STATION_SHIFTS_TABS = [
   { id: "workers", labelKey: "stationWorkers.tabTitle" },
 ];
 
+const SHIFT_DIALOG_STYLE = { maxWidth: 1100, width: "95vw", maxHeight: "90vh", overflowY: "auto" };
 const DANGER_STYLE = { background: "#A8432B", borderColor: "#A8432B" };
 
 const EXTRA_TABS = { setup: StationSetupTab, prices: FuelPricesTab, workers: StationWorkersTab };
@@ -55,6 +56,15 @@ export default function StationShiftsReviewModule({ companyId }) {
     setError(""); setSelectedId(id);
     api.getShiftById(id).then(setDetail).catch((e) => setError(e.message));
   };
+
+  // الوردية تُعرَض في نافذة منبثقة فوق القائمة — تُغلَق بزر ×، أو بالنقر خارجها، أو بمفتاح Esc
+  const closeDetail = () => { setDetail(null); setSelectedId(""); setReasonAction(""); setReasonText(""); setCorrectedClosings({}); setError(""); };
+  useEffect(() => {
+    if (!detail) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") closeDetail(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [detail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const doCorrect = async (readingId) => {
     setError(""); setMessage("");
@@ -210,8 +220,15 @@ export default function StationShiftsReviewModule({ companyId }) {
       </div>
 
       {detail && (
-        <div className="panel">
-          <h3>{t("stationShiftsReview.detailTitle", { employee: detail.employee?.name, status: t(`stationShiftsReview.status.${detail.status}`) })}</h3>
+        <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && closeDetail()}>
+        <div className="unpost-confirm-box" role="dialog" aria-modal="true" style={SHIFT_DIALOG_STYLE}>
+          <div className="modal-title-row">
+            <h3>{t("stationShiftsReview.detailTitle", { employee: detail.employee?.name, status: t(`stationShiftsReview.status.${detail.status}`) })}</h3>
+            <button type="button" className="modal-close-btn" onClick={closeDetail} aria-label={t("common.close")}>×</button>
+          </div>
+          <p className="note" style={{ marginTop: 0 }}>{list.find((x) => x.id === detail.id)?.costCenter?.name ?? ""} · {t(`stationShiftsReview.shiftType.${detail.shiftType}`)} · {formatDate(detail.shiftDate, i18n.language)}</p>
+          {error && <p className="balance-bad">{error}</p>}
+          {message && <p className="note">{message}</p>}
 
           <h4>{t("stationShiftsReview.readingsTitle")}</h4>
           <table className="ledger-table">
@@ -355,6 +372,7 @@ export default function StationShiftsReviewModule({ companyId }) {
               </div>
             )
           )}
+        </div>
         </div>
       )}
     </div>
