@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import * as api from "../../api/stationTanks";
 import { listStations } from "../../api/stationSetup";
 import { listSuppliers } from "../../api/suppliers";
-import { formatDate } from "../../i18n/dateFormat";
+import { formatDate, formatDateTime } from "../../i18n/dateFormat";
 import { fmt2 } from "../../legacy/constants";
 import FormDialog from "../shared/FormDialog";
 
@@ -201,7 +201,7 @@ export default function StationTanksTab({ companyId }) {
             <tbody>
               {readings.map((r) => (
                 <tr key={r.id} style={{ opacity: r.voidedAt ? 0.5 : 1 }}>
-                  <td>{new Date(r.readAt).toLocaleString(i18n.language)}</td><td>{stationName(r.tank?.costCenterId)}</td>
+                  <td>{formatDateTime(r.readAt, i18n.language)}</td><td>{stationName(r.tank?.costCenterId)}</td>
                   <td>{r.tank?.code} — {productLabel(r.tank?.product)}</td><td>{t(`stationTanks.purposes.${r.purpose}`)}</td>
                   <td className="num">{fmt2(r.liters)}</td><td>{t(`stationTanks.sources.${r.source}`)}</td>
                   <td>{r.voidedAt ? `${t("stationTanks.voidedLabel")} — ${r.voidReason}` : t("stationTanks.active")}</td>
@@ -226,7 +226,7 @@ export default function StationTanksTab({ companyId }) {
             <tbody>
               {deliveries.flatMap((dv) => dv.lines.map((l, i) => (
                 <tr key={l.id} style={{ opacity: dv.status === "void" ? 0.5 : 1 }}>
-                  <td>{i === 0 ? new Date(dv.deliveredAt).toLocaleString(i18n.language) : ""}</td><td>{i === 0 ? dv.costCenter?.name : ""}</td><td>{i === 0 ? dv.deliveryNoteNumber : ""}</td>
+                  <td>{i === 0 ? formatDateTime(dv.deliveredAt, i18n.language) : ""}</td><td>{i === 0 ? dv.costCenter?.name : ""}</td><td>{i === 0 ? dv.deliveryNoteNumber : ""}</td>
                   <td>{l.tank?.code} — {productLabel(l.tank?.product)}</td><td className="num">{fmt2(l.noteLiters)}</td><td className="num">{fmt2(l.receivedLiters)}</td>
                   <td className="num">{fmt2(Number(l.receivedLiters) - Number(l.noteLiters))}</td>
                   <td>{i === 0 ? (dv.status === "void" ? `${t("stationTanks.voidedLabel")} — ${dv.voidReason}` : t("stationTanks.confirmed")) : ""}</td>
