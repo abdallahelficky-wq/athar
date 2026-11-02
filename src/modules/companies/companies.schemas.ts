@@ -70,6 +70,8 @@ export const updateCompanySchema = createCompanySchema.partial().extend({
   stationGasoline91ItemId: z.string().min(1).nullable().optional(),
   stationGasoline95ItemId: z.string().min(1).nullable().optional(),
   allowNegativeFuelStock: z.boolean().optional(),
+  // حساب فروقات قياس الخزانات — في التعديل فقط (حساب من شجرة الشركة نفسها، لا توجد قبل إنشائها). راجع schema.prisma.
+  tankVarianceAccountId: z.string().min(1).nullable().optional(),
 });
 
 // «شركة مستقلة» (مستأجر جديد كلياً): نفس حقول نموذج الإضافة، لكن النشاط إلزامي كما في التسجيل تماماً —

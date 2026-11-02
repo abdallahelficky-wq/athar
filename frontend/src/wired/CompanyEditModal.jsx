@@ -41,6 +41,7 @@ const emptyForm = (c) => ({
   fiscalYearClosingDate: c.fiscalYearClosingDate ? c.fiscalYearClosingDate.slice(0, 10) : "",
   stationCashShortageAccountId: c.stationCashShortageAccountId || "",
   stationCashSurplusAccountId: c.stationCashSurplusAccountId || "",
+  tankVarianceAccountId: c.tankVarianceAccountId || "",
   stationDieselItemId: c.stationDieselItemId || "",
   stationGasoline91ItemId: c.stationGasoline91ItemId || "",
   stationGasoline95ItemId: c.stationGasoline95ItemId || "",
@@ -119,8 +120,9 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
               stationGasoline91ItemId: form.stationGasoline91ItemId || null,
               stationGasoline95ItemId: form.stationGasoline95ItemId || null,
               allowNegativeFuelStock: Boolean(form.allowNegativeFuelStock),
+              tankVarianceAccountId: form.tankVarianceAccountId || null,
             }
-          : { stationDieselItemId: undefined, stationGasoline91ItemId: undefined, stationGasoline95ItemId: undefined, allowNegativeFuelStock: undefined }),
+          : { stationDieselItemId: undefined, stationGasoline91ItemId: undefined, stationGasoline95ItemId: undefined, allowNegativeFuelStock: undefined, tankVarianceAccountId: undefined }),
       });
       onSaved();
     } catch (err) {
@@ -292,6 +294,14 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                   accounts={stationRevenueAccounts}
                   value={form.stationCashSurplusAccountId}
                   onChange={(id) => set("stationCashSurplusAccountId", id)}
+                  allowClear
+                />
+              </label>
+              <label>{t("settings.companyEdit.tankVarianceAccountLabel")}
+                <AccountSearchSelect
+                  accounts={stationExpenseAccounts}
+                  value={form.tankVarianceAccountId}
+                  onChange={(id) => set("tankVarianceAccountId", id)}
                   allowClear
                 />
               </label>

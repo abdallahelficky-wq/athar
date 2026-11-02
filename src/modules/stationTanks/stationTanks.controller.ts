@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import * as service from "./stationTanks.service";
+import * as variance from "./tankVariancePosting.service";
 
 const dateOnly = /^\d{4}-\d{2}-\d{2}$/;
 const q = (v: unknown) => (typeof v === "string" && v.length > 0 ? v : undefined);
@@ -15,7 +16,7 @@ function requireCompany(req: Parameters<RequestHandler>[0]) {
 }
 
 /** السجلات المحمَّلة بالمعرّف: يُتحقَّق من شركة السجل نفسه قبل أي إجراء (لا من طلب العميل). */
-async function assertRecordCompany(req: Parameters<RequestHandler>[0], model: "stationTank" | "stationNozzle" | "tankReading" | "fuelDelivery", id: string) {
+async function assertRecordCompany(req: Parameters<RequestHandler>[0], model: "stationTank" | "stationNozzle" | "tankReading" | "fuelDelivery" | "tankVariancePosting", id: string) {
   const tenantId = req.auth!.tenantId;
   const row = await (prisma[model] as unknown as { findFirst: (a: unknown) => Promise<{ companyId: string } | null> }).findFirst({ where: { id, tenantId }, select: { companyId: true } });
   if (row) assertCompanyAccess(req.auth!, row.companyId);
@@ -80,4 +81,19 @@ export const reconcileHandler: RequestHandler = async (req, res) => {
   const { from, to } = range(req);
   if (!from || !to) throw badRequest("حدّد فترة المطابقة (من، إلى)");
   res.json(await service.reconcile(req.auth!.tenantId, companyId, { from, to, costCenterId: q(req.query.costCenterId) }));
+};
+
+export const listVariancePostingsHandler: RequestHandler = async (req, res) => {
+  res.json(await variance.listTankVariancePostings(req.auth!.tenantId, requireCompany(req), range(req)));
+};
+
+export const postVarianceHandler: RequestHandler = async (req, res) => {
+  requireCompany(req);
+  if (req.body.from > req.body.to) throw badRequest("تاريخ البداية بعد تاريخ النهاية");
+  res.status(201).json(await variance.postTankVariance(req.auth!.tenantId, req.auth!.sub, req.body));
+};
+
+export const reverseVarianceHandler: RequestHandler = async (req, res) => {
+  await assertRecordCompany(req, "tankVariancePosting", req.params.id);
+  res.json(await variance.reverseTankVariance(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body));
 };

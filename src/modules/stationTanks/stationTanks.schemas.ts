@@ -57,3 +57,11 @@ export const createDeliverySchema = z
       .min(1, "أضف خزاناً واحداً على الأقل للتوريد"),
   })
   .strict();
+
+const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "صيغة التاريخ يجب أن تكون YYYY-MM-DD");
+
+export const postVarianceSchema = z
+  .object({ companyId: z.string().min(1), tankId: z.string().min(1), from: day, to: day, note: z.string().optional() })
+  .strict();
+
+export const reverseVarianceSchema = z.object({ reason: z.string().trim().min(1, "السبب مطلوب"), date: day.optional() }).strict();

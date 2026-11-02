@@ -28,14 +28,16 @@ export default function StationTanksTab({ companyId }) {
   const [readings, setReadings] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [recon, setRecon] = useState(null);
+  const [postings, setPostings] = useState([]);
   const [range, setRange] = useState({ from: monthStart(), to: today() });
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [dialog, setDialog] = useState(""); // "" | tank | reading | delivery | void
+  const [dialog, setDialog] = useState(""); // "" | tank | reading | delivery | void | post
   const [form, setForm] = useState({});
   const [voidTarget, setVoidTarget] = useState(null);
 
   const productLabel = (p) => t(`stationSetup.products.${p}`);
+  const arrow = i18n.dir?.() === "rtl" || i18n.language?.startsWith("ar") ? "←" : "→";
   const tankLabel = (tk) => `${tk.code} — ${productLabel(tk.product)}`;
   const stationName = (id) => stations.find((s) => s.id === id)?.name ?? "";
   const activeTanks = useMemo(() => tanks.filter((tk) => tk.isActive), [tanks]);
@@ -45,8 +47,12 @@ export default function StationTanksTab({ companyId }) {
     .catch((e) => setError(e.message));
   const loadReadings = () => api.listReadings(companyId, range).then(setReadings).catch((e) => setError(e.message));
   const loadDeliveries = () => api.listDeliveries(companyId, range).then(setDeliveries).catch((e) => setError(e.message));
-  const loadRecon = () => api.reconcile(companyId, range.from, range.to).then(setRecon).catch((e) => setError(e.message));
-  const reloadSection = () => ({ readings: loadReadings, deliveries: loadDeliveries, reconciliation: loadRecon }[section] || (() => {}))();
+  // المطابقة تُحمَّل مع الترحيلات القائمة لتعليم الصفوف المرحَّلة (نفس قراءة الإقفال)
+  const loadRecon = () => Promise.all([api.reconcile(companyId, range.from, range.to), api.listVariancePostings(companyId)])
+    .then(([rc, ps]) => { setRecon(rc); setPostings(ps); }).catch((e) => setError(e.message));
+  const loadPostings = () => api.listVariancePostings(companyId, range).then(setPostings).catch((e) => setError(e.message));
+  const reloadSection = () => ({ readings: loadReadings, deliveries: loadDeliveries, reconciliation: loadRecon, postings: loadPostings }[section] || (() => {}))();
+  const postedFor = (row) => postings.find((p) => p.status === "posted" && p.tankId === row.tankId && p.closingReadingId === row.closingReadingId);
 
   useEffect(() => { if (companyId) loadBase(); }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (companyId) reloadSection(); }, [companyId, section, range.from, range.to]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -84,8 +90,11 @@ export default function StationTanksTab({ companyId }) {
 
   const saveVoid = () => {
     if (!form.reason?.trim()) { setError(t("stationShiftsReview.reasonRequired")); return; }
+    if (voidTarget.kind === "posting") return run(() => api.reverseVariance(voidTarget.id, form.reason.trim()), "stationTanks.reversedOk");
     return run(() => (voidTarget.kind === "reading" ? api.voidReading(voidTarget.id, form.reason.trim()) : api.voidDelivery(voidTarget.id, form.reason.trim())), "stationTanks.voided");
   };
+
+  const savePost = () => run(() => api.postVariance({ companyId, tankId: form.row.tankId, from: range.from, to: range.to, note: form.note || undefined }), "stationTanks.postedOk");
 
   const setNozzle = (nozzleId, tankId) => run(() => api.setNozzleTank(nozzleId, tankId || null), "stationTanks.saved");
 
@@ -131,7 +140,7 @@ export default function StationTanksTab({ companyId }) {
   return (
     <div>
       <div className="form-btn-group" style={{ marginBottom: 12, flexWrap: "wrap" }}>
-        {["reconciliation", "tanks", "readings", "deliveries"].map((s) => (
+        {["reconciliation", "postings", "tanks", "readings", "deliveries"].map((s) => (
           <button key={s} className={section === s ? "btn-primary" : "btn-ghost"} onClick={() => setSection(s)}>{t(`stationTanks.sections.${s}`)}</button>
         ))}
       </div>
@@ -154,7 +163,7 @@ export default function StationTanksTab({ companyId }) {
               <thead><tr>
                 <th>{t("stationTanks.station")}</th><th>{t("stationTanks.tank")}</th><th>{t("stationTanks.opening")}</th><th>{t("stationTanks.received")}</th>
                 <th>{t("stationTanks.sold")}</th><th>{t("stationTanks.expected")}</th><th>{t("stationTanks.closing")}</th><th>{t("stationTanks.variance")}</th>
-                <th>{t("stationTanks.variancePct")}</th><th>{t("stationTanks.status")}</th>
+                <th>{t("stationTanks.variancePct")}</th><th>{t("stationTanks.status")}</th><th></th>
               </tr></thead>
               <tbody>
                 {(recon?.rows || []).map((r) => (
@@ -168,9 +177,53 @@ export default function StationTanksTab({ companyId }) {
                     <td className="num" style={{ color: r.varianceLiters < 0 ? "#A8432B" : undefined }}>{r.varianceLiters == null ? "—" : fmt2(r.varianceLiters)}</td>
                     <td className="num">{r.variancePct == null ? "—" : `${fmt2(r.variancePct)}%`}</td>
                     <td><strong style={{ color: STATUS_COLOR[r.status] }}>{t(`stationTanks.statuses.${r.status}`)}</strong></td>
+                    <td className="row-actions">
+                      {postedFor(r)
+                        ? <span className="note" style={{ whiteSpace: "nowrap" }}>✓ {t("stationTanks.postedBadge")} · {postedFor(r).entryNumber}</span>
+                        : r.status !== "insufficient_readings" && r.varianceLiters !== 0 && (
+                          <button className="btn-ghost" style={{ whiteSpace: "nowrap" }} onClick={() => open("post", { row: r, note: "" })}>{t("stationTanks.postVariance")}</button>
+                        )}
+                    </td>
                   </tr>
                 ))}
-                {recon && recon.rows.length === 0 && <tr><td className="empty" colSpan={10}>{t("stationTanks.noTanks")}</td></tr>}
+                {recon && recon.rows.length === 0 && <tr><td className="empty" colSpan={11}>{t("stationTanks.noTanks")}</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {section === "postings" && (
+        <div className="panel">
+          <h3 style={{ marginTop: 0 }}>{t("stationTanks.postingsTitle")}</h3>
+          <p className="note">{t("stationTanks.postingsNote")}</p>
+          {rangeBar}
+          <div className="lines-table-wrap">
+            <table className="ledger-table">
+              <thead><tr>
+                <th>{t("stationTanks.tank")}</th><th>{t("stationTanks.period")}</th><th>{t("stationTanks.variance")}</th><th>{t("stationTanks.unitCost")}</th>
+                <th>{t("stationTanks.amount")}</th><th>{t("stationTanks.entryNumber")}</th><th>{t("stationTanks.status")}</th><th></th>
+              </tr></thead>
+              <tbody>
+                {postings.map((p) => (
+                  <tr key={p.id} style={p.status === "reversed" ? { opacity: 0.6 } : undefined}>
+                    <td>{stationName(p.costCenterId)} — {p.tank?.code} ({productLabel(p.tank?.product)})</td>
+                    <td>{formatDate(p.openingAt, i18n.language)} {arrow} {formatDate(p.closingAt, i18n.language)}</td>
+                    <td className="num" style={{ color: Number(p.varianceLiters) < 0 ? "#A8432B" : "#2F5D5A" }}>
+                      {fmt2(p.varianceLiters)}<div className="note">{Number(p.varianceLiters) < 0 ? t("stationTanks.shortage") : t("stationTanks.surplus")}</div>
+                    </td>
+                    <td className="num">{fmt2(p.unitCost)}</td>
+                    <td className="num">{fmt2(p.amount)}</td>
+                    <td>{p.entryNumber || "—"}{p.reversalEntryNumber && <div className="note">↺ {p.reversalEntryNumber}</div>}</td>
+                    <td>{t(`stationTanks.postingStatuses.${p.status}`)}{p.reverseReason && <div className="note">{p.reverseReason}</div>}</td>
+                    <td className="row-actions">
+                      {p.status === "posted" && (
+                        <button className="btn-ghost" onClick={() => { setVoidTarget({ kind: "posting", id: p.id }); open("void", { reason: "" }); }}>{t("stationTanks.reverse")}</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {postings.length === 0 && <tr><td className="empty" colSpan={8}>{t("stationTanks.noPostings")}</td></tr>}
               </tbody>
             </table>
           </div>
@@ -326,8 +379,25 @@ export default function StationTanksTab({ companyId }) {
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("stationShiftsReview.cancelBtn")}</button><button className="btn-primary" disabled={!form.deliveryNoteNumber || !form.costCenterId} onClick={saveDelivery}>{t("stationTanks.save")}</button></div>
       </FormDialog>
 
-      <FormDialog open={dialog === "void"} title={t("stationTanks.void")} onClose={close} style={{ maxWidth: 520 }}>
-        <label>{t("stationTanks.voidReason")}<textarea rows={2} style={{ width: "100%" }} value={form.reason || ""} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></label>
+      <FormDialog open={dialog === "post"} title={t("stationTanks.postVarianceTitle")} onClose={close} style={{ maxWidth: 560 }}>
+        {form.row && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div><div className="note">{t("stationTanks.tank")}</div><strong>{form.row.stationName} — {form.row.code} ({productLabel(form.row.product)})</strong></div>
+            <div><div className="note">{t("stationTanks.period")}</div><strong>{formatDate(form.row.openingAt, i18n.language)} {arrow} {formatDate(form.row.closingAt, i18n.language)}</strong></div>
+            <div><div className="note">{t("stationTanks.variance")}</div>
+              <strong style={{ color: form.row.varianceLiters < 0 ? "#A8432B" : "#2F5D5A" }}>{fmt2(form.row.varianceLiters)} — {form.row.varianceLiters < 0 ? t("stationTanks.shortage") : t("stationTanks.surplus")}</strong>
+            </div>
+            <div><div className="note">{t("stationTanks.status")}</div><strong style={{ color: STATUS_COLOR[form.row.status] }}>{t(`stationTanks.statuses.${form.row.status}`)}</strong></div>
+          </div>
+        )}
+        <p className="note">{t("stationTanks.postVarianceNote")}</p>
+        <label>{t("stationTanks.note")}<input value={form.note || ""} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
+        {error && <p className="balance-bad">{error}</p>}
+        <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("stationShiftsReview.cancelBtn")}</button><button className="btn-primary" onClick={savePost}>{t("stationTanks.postVariance")}</button></div>
+      </FormDialog>
+
+      <FormDialog open={dialog === "void"} title={voidTarget?.kind === "posting" ? t("stationTanks.reverseTitle") : t("stationTanks.void")} onClose={close} style={{ maxWidth: 520 }}>
+        <label>{voidTarget?.kind === "posting" ? t("stationTanks.reverseReason") : t("stationTanks.voidReason")}<textarea rows={2} style={{ width: "100%" }} value={form.reason || ""} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></label>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("stationShiftsReview.cancelBtn")}</button><button className="btn-primary" onClick={saveVoid}>{t("stationShiftsReview.confirmBtn")}</button></div>
       </FormDialog>

@@ -226,9 +226,11 @@ export async function linkStationCashAccounts(
   if (activity !== "fuel_stations") return;
   const shortage = idByCode.get("622005");
   const surplus = idByCode.get("431003");
-  if (!shortage && !surplus) return;
+  // «فاقد وعجز قياس الخزانات» — حساب فروقات مطابقة الخزانات (tankVariancePosting.service.ts)
+  const tankVariance = idByCode.get("511004");
+  if (!shortage && !surplus && !tankVariance) return;
   await tx.company.update({
     where: { id: companyId },
-    data: { stationCashShortageAccountId: shortage, stationCashSurplusAccountId: surplus },
+    data: { stationCashShortageAccountId: shortage, stationCashSurplusAccountId: surplus, tankVarianceAccountId: tankVariance },
   });
 }
