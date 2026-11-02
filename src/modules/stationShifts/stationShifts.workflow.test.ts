@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../lib/prisma", () => ({
   prisma: {
     employee: { findFirst: vi.fn() },
-    company: { findUnique: vi.fn() },
+    company: { findUnique: vi.fn(), findFirst: vi.fn() },
+    account: { findMany: vi.fn() },
     costCenter: { findUnique: vi.fn() },
     stationNozzle: { findMany: vi.fn(), findFirst: vi.fn() },
     fuelPrice: { findMany: vi.fn() },
@@ -482,6 +483,9 @@ describe("getShiftById exposes the financial summary only once every reading is 
     const result = await service.getShiftById(TENANT, SHIFT_ID);
     expect(result.summary).not.toBeNull();
     expect(result.summary?.litersByNozzle).toHaveLength(1);
+    // بلا إعداد تكلفة (الشركة لا تُرجع ربطاً في هذا الاختبار المموَّه) تبقى المعاينة قائمة وتذكر السبب بدل إسقاط الشاشة
+    expect(result.summary?.cogsError).toBeTruthy();
+    expect(result.summary?.cogsLines).toEqual([]);
   });
 });
 

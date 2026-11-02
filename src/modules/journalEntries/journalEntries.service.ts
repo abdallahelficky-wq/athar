@@ -662,12 +662,26 @@ export async function ensureIntercompanyAccount(tenantId: string, ownerCompanyId
  * سطر مرتبط صراحة بحساب الشركة الهدف (وهو المتوقع أول مرة يُنشأ فيها قيد مرآة بين شركتين، قبل أن
  * توجد الحسابات المُعلَّمة)، تُستخدَم القيمة الإجمالية للقيد كبديل مع الإشارة لذلك عبر detected:false.
  */
+/**
+ * قيد وردية محطة (sourceModule = station_shift) مرتبط بوردية وبحركات صرف وقود من مستودع المحطة — عكسه أو فك
+ * ترحيله أو إنشاء قيد مرآة له من شاشة القيود العامة كان يترك الوردية "مرحَّلة" وحركات المخزون قائمة بينما أثر القيد
+ * زال أو تبدّل. التصحيح الوحيد المسموح: "عكس الوردية" من شاشة ورديات المحطات (reverseShift في
+ * stationShifts.service.ts)، الذي يعكس القيد ويلغي حركات المخزون ويضبط حالة الوردية في معاملة واحدة. ينطبق أيضاً على
+ * قيد العكس نفسه (مصدره station_shift كذلك) — عكس العكس لا يعيد الوردية ولا مخزونها.
+ */
+export const STATION_SHIFT_ENTRY_LOCKED = "قيد وردية المحطة لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «عكس الوردية» من شاشة ورديات المحطات";
+
+function assertNotStationShiftEntry(entry: { sourceModule: string }) {
+  if (entry.sourceModule === "station_shift") throw badRequest(STATION_SHIFT_ENTRY_LOCKED);
+}
+
 export async function getMirrorSuggestion(tenantId: string, entryId: string, targetCompanyId: string, companyScope: string, hrView = true) {
   const entry = await prisma.journalEntry.findFirst({ where: { id: entryId, tenantId }, include: entryInclude });
   if (!entry) throw notFound("القيد غير موجود");
   assertCompanyAccess({ companyScope }, entry.companyId);
   // الاقتراح يُنشئ حساب "ذمم بين الشركات" داخل شجرة الشركة المستهدفة — كتابة في تلك الشركة، فتُشترط صلاحيتها
   assertCompanyAccess({ companyScope }, targetCompanyId);
+  assertNotStationShiftEntry(entry);
   if (entry.status !== "posted") throw badRequest("لا يمكن إنشاء قيد مرآة إلا لقيد مرحّل");
   if (entry.companyId === targetCompanyId) throw badRequest("اختر شركة مختلفة عن شركة القيد الأصلي");
 
@@ -733,6 +747,7 @@ export async function createMirrorJournalEntry(
   if (!source) throw notFound("القيد الأصلي غير موجود");
   assertCompanyAccess({ companyScope }, source.companyId);
   assertCompanyAccess({ companyScope }, input.targetCompanyId);
+  assertNotStationShiftEntry(source);
   if (source.mirrorEntryId) throw badRequest("لهذا القيد بالفعل قيد مرآة مرتبط به");
   if (source.companyId === input.targetCompanyId) throw badRequest("اختر شركة مختلفة عن شركة القيد الأصلي");
 
@@ -800,6 +815,7 @@ export async function updateJournalEntry(tenantId: string, id: string, input: Jo
   if (!existing) throw notFound("القيد غير موجود");
   assertCompanyAccess({ companyScope }, existing.companyId);
   assertCompanyAccess({ companyScope }, input.companyId);
+  assertNotStationShiftEntry(existing);
   if (existing.status === "posted") {
     throw badRequest("لا يمكن تعديل قيد مرحّل مباشرة — استخدم عكس القيد لتصحيحه");
   }
@@ -836,6 +852,7 @@ export async function deleteJournalEntry(tenantId: string, id: string, companySc
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId } });
   if (!existing) throw notFound("القيد غير موجود");
   assertCompanyAccess({ companyScope }, existing.companyId);
+  assertNotStationShiftEntry(existing);
   if (existing.status === "posted") {
     throw badRequest("لا يمكن حذف قيد مرحّل مباشرة — استخدم عكس القيد لتصحيحه");
   }
@@ -919,6 +936,7 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
   const existing = await prisma.journalEntry.findFirst({ where: { id, tenantId }, include: entryInclude });
   if (!existing) throw notFound("القيد غير موجود");
   assertCompanyAccess({ companyScope }, existing.companyId);
+  assertNotStationShiftEntry(existing);
   if (existing.status !== "posted") throw badRequest("لا يمكن عكس إلا قيداً مرحّلاً");
 
   const alreadyReversed = await prisma.journalEntry.findFirst({ where: { tenantId, reversalOfEntryId: id } });
@@ -986,6 +1004,7 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
   const entry = await prisma.journalEntry.findFirst({ where: { id, tenantId } });
   if (!entry) throw notFound("القيد غير موجود");
   assertCompanyAccess({ companyScope }, entry.companyId);
+  assertNotStationShiftEntry(entry);
   if (entry.status !== "posted") throw badRequest("القيد ليس مرحّلاً أصلاً");
 
   await assertValidUnlockPin(tenantId, pin, userId);

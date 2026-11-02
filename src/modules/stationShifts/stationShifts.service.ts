@@ -1,8 +1,12 @@
 import { Prisma, StationFuelProduct, StationShiftType } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound, forbidden, HttpError } from "../../lib/httpError";
-import { createJournalEntryTx, type PostingLine } from "../../lib/journalPosting";
+import { createJournalEntryTx, recomputeEntryTotal, reserveEntryNumber, type PostingLine } from "../../lib/journalPosting";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
+import { riyadhCalendarDay } from "../../lib/riyadhDate";
+import { computeShiftCogsTx, createShiftFuelIssuesTx, FUEL_PRODUCT_LABEL_AR } from "./stationShiftCogs";
+
+export { FUEL_PRODUCT_LABEL_AR };
 
 /** أي قيمة يقبلها مُنشئ Prisma.Decimal — نص أو رقم أو Decimal جاهز. */
 type DecimalInput = Prisma.Decimal.Value;
@@ -10,6 +14,9 @@ type DecimalInput = Prisma.Decimal.Value;
 // ضريبة القيمة المضافة 15% — السعر عند المضخة يشملها دائماً (priceInclVat)، وفق القسم 4 من هذه
 // المواصفة صراحة؛ ليست إعداداً قابلاً للتخصيص هنا.
 export const VAT_DIVISOR = new Prisma.Decimal("1.15");
+
+/** حالات لا تحجز خانة (المحطة، التاريخ، النوع): خانتها تُستعاد لوردية جديدة أو مصحَّحة — نفس شرط الفهرس الجزئي في القاعدة. */
+export const SLOT_FREEING_STATUSES = ["rejected", "reversed"] as const;
 
 export interface NozzleReadingInput {
   nozzleId: string;
@@ -606,12 +613,6 @@ export async function assertStationReadyForShift(tenantId: string, companyId: st
   }
 }
 
-export const FUEL_PRODUCT_LABEL_AR: Record<StationFuelProduct, string> = {
-  gasoline_91: "بنزين 91",
-  gasoline_95: "بنزين 95",
-  diesel: "ديزل",
-};
-
 export interface OpenShiftInput {
   shiftType: StationShiftType;
 }
@@ -641,8 +642,9 @@ export async function openShift(tenantId: string, employeeId: string, input: Ope
   shiftDate.setUTCHours(0, 0, 0, 0);
   await assertStationReadyForShift(tenantId, companyId, costCenterId, shiftDate);
 
-  const existing = await prisma.stationShift.findUnique({
-    where: { costCenterId_shiftDate_shiftType: { costCenterId, shiftDate, shiftType: input.shiftType } },
+  // الخانة فريدة للورديات القائمة فقط (فهرس جزئي station_shifts_active_slot_key): المرفوضة والمعكوسة لا تحجزها
+  const existing = await prisma.stationShift.findFirst({
+    where: { tenantId, costCenterId, shiftDate, shiftType: input.shiftType, status: { notIn: [...SLOT_FREEING_STATUSES] } },
   });
   if (existing) throw badRequest("توجد وردية بالفعل لهذه المحطة بنفس التاريخ ونوع الوردية");
 
@@ -843,8 +845,45 @@ export async function getShiftById(tenantId: string, shiftId: string) {
   // المحاسب — عرض رقم جزئي هنا (متجاهلاً فوهة لم تُراجَع بعد) أخطر من عدم عرض شيء إطلاقاً، فقد
   // يُقرأ خطأً كرقم نهائي صحيح. الشاشة تعرض null هنا كـ"لم تكتمل المراجعة بعد" وتترك تفاصيل كل
   // قراءة (readings أدناه) لتوضيح أيها لا يزال ناقصاً.
-  const summary = hasUnconfirmedReading ? null : computeShiftClosing(input);
+  const closing = hasUnconfirmedReading ? null : computeShiftClosing(input);
+  const summary = closing ? { ...closing, ...(await shiftJournalPreview(tenantId, shift, closing)) } : null;
   return { ...shift, summary, auditLogs };
+}
+
+/**
+ * القيد كما يظهر للمحاسب: لوردية لها قيد (مرحَّلة/معكوسة) أسطر قيدها الفعلي كما رُحِّل؛ وإلا القيد المرتقب = أسطر الإقفال
+ * (computeShiftClosing) + أسطر تكلفة البضاعة المباعة بنفس حساب الترحيل (computeShiftCogsTx بلا قفل). نقص إعداد التكلفة لا
+ * يُسقط الشاشة: يظهر سببه في cogsError (وهو نفسه ما سيرفض به الاعتماد والترحيل). أسماء الحسابات ورموزها للعرض فقط.
+ */
+async function shiftJournalPreview(tenantId: string, shift: { companyId: string; costCenterId: string; journalEntryId: string | null }, closing: ShiftClosingResult) {
+  let lines: PostingLine[];
+  let cogsLines: PostingLine[] = [];
+  let cogsError: string | null = null;
+  let linesSource: "posted" | "preview" = "preview";
+  if (shift.journalEntryId) {
+    linesSource = "posted";
+    const posted = await prisma.journalEntryLine.findMany({
+      where: { journalEntryId: shift.journalEntryId, journalEntry: { tenantId, companyId: shift.companyId } },
+      orderBy: { id: "asc" },
+    });
+    lines = posted.map((l) => ({ accountId: l.accountId, costCenterId: l.costCenterId, customerId: l.customerId, lineDescription: l.description, debit: Number(l.debit), credit: Number(l.credit) }));
+  } else {
+    try {
+      cogsLines = (await computeShiftCogsTx(prisma, {
+        tenantId, companyId: shift.companyId, costCenterId: shift.costCenterId,
+        sales: closing.salesByProduct.map((p) => ({ product: p.product, liters: p.liters })),
+      }, { lock: false })).lines;
+    } catch (err) {
+      if (!(err instanceof HttpError)) throw err;
+      cogsError = err.message;
+    }
+    lines = [...closing.lines, ...cogsLines];
+  }
+  const accounts = await prisma.account.findMany({
+    where: { tenantId, companyId: shift.companyId, id: { in: [...new Set(lines.map((l) => l.accountId))] } },
+    select: { id: true, code: true, name: true, nameEn: true },
+  });
+  return { lines, cogsLines, cogsError, linesSource, accounts };
 }
 
 /** إدخال/تصحيح المحاسب لقيمة قراءة عداد واحدة أثناء المراجعة — منذ إزالة الإدخال اليدوي من شاشة
@@ -923,16 +962,31 @@ export async function approveShift(tenantId: string, userId: string, shiftId: st
     if (!readingByNozzle.has(nozzle.id)) throw badRequest("لا يمكن اعتماد الوردية: إحدى الفوهات بلا قراءة مسجَّلة بعد");
   }
 
-  const readingIds = readings.map((r) => r.id);
-  const attachedReadingIds = readingIds.length
+  // صورة العداد إثبات القراءة: على القراءة نفسها، أو — لوردية مصحَّحة — على قراءة نفس الفوهة في الوردية التي استبدلتها
+  // (وما قبلها إن كانت هي نفسها مصحَّحة): القراءة المصحَّحة تخصّ نفس العداد في نفس اللحظة.
+  const evidenceIdsByNozzle = new Map(readings.map((r) => [r.nozzleId, [r.id]]));
+  let replacedId = shift.correctsShiftId;
+  for (let depth = 0; replacedId && depth < 20; depth++) {
+    const replaced = await prisma.stationShift.findFirst({
+      where: { id: replacedId, tenantId, companyId: shift.companyId, costCenterId: shift.costCenterId },
+      select: { correctsShiftId: true, readings: { select: { id: true, nozzleId: true } } },
+    });
+    if (!replaced) break;
+    for (const r of replaced.readings) evidenceIdsByNozzle.get(r.nozzleId)?.push(r.id);
+    replacedId = replaced.correctsShiftId;
+  }
+  const evidenceIds = [...evidenceIdsByNozzle.values()].flat();
+  const attachedReadingIds = evidenceIds.length
     ? await prisma.attachment.findMany({
-        where: { tenantId, entityType: "station_shift_reading", entityId: { in: readingIds } },
+        where: { tenantId, entityType: "station_shift_reading", entityId: { in: evidenceIds } },
         select: { entityId: true },
       })
     : [];
   const withPhoto = new Set(attachedReadingIds.map((a) => a.entityId));
   for (const reading of readings) {
-    if (!withPhoto.has(reading.id)) throw badRequest("لا يمكن اعتماد الوردية: إحدى القراءات بلا صورة عداد مرفقة بعد");
+    if (!evidenceIdsByNozzle.get(reading.nozzleId)!.some((id) => withPhoto.has(id))) {
+      throw badRequest("لا يمكن اعتماد الوردية: إحدى القراءات بلا صورة عداد مرفقة بعد");
+    }
   }
 
   // يحسب الإقفال الآن أيضاً (لا فقط لاحقاً عند الترحيل) عمداً: لو حساب مفقود من إعدادات الشركة
@@ -944,7 +998,13 @@ export async function approveShift(tenantId: string, userId: string, shiftId: st
   if (hasUnconfirmedReading) {
     throw badRequest("لا يمكن اعتماد الوردية: إحدى القراءات لم يراجعها المحاسب بعد");
   }
-  computeShiftClosing(input);
+  const closing = computeShiftClosing(input);
+  // فحص مسبق لشروط تكلفة البضاعة المباعة (ربط الصنف، مستودع المحطة، متوسط غير صفري، كفاية الرصيد إن مُنع السالب) بنفس
+  // رسائل الترحيل — حتى لا تُعتمَد وردية ثم يفشل ترحيلها لسبب إعداد. الترحيل يعيد الفحص تحت القفل.
+  await computeShiftCogsTx(prisma, {
+    tenantId, companyId: shift.companyId, costCenterId: shift.costCenterId,
+    sales: closing.salesByProduct.map((p) => ({ product: p.product, liters: p.liters })),
+  }, { lock: false });
 
   return prisma.$transaction(async (tx) => {
     await tx.stationShiftAuditLog.create({
@@ -984,6 +1044,15 @@ export async function postShift(tenantId: string, userId: string, shiftId: strin
       throw badRequest("لا يمكن ترحيل وردية لم تُعتمَد بعد، أو رُحِّلت بالفعل");
     }
 
+    // تكلفة البضاعة المباعة بالمتوسط المرجّح من مستودع المحطة — في نفس القيد ونفس المعاملة: أي رفض هنا (ربط ناقص،
+    // متوسط صفر، رصيد غير كافٍ) يُلغي حجز الوردية أعلاه أيضاً، فتبقى "approved" بلا قيد.
+    const cogs = await computeShiftCogsTx(tx, {
+      tenantId,
+      companyId: shift.companyId,
+      costCenterId: shift.costCenterId,
+      sales: summary.salesByProduct.map((p) => ({ product: p.product, liters: p.liters })),
+    });
+
     const entry = await createJournalEntryTx(tx, {
       tenantId,
       companyId: shift.companyId,
@@ -992,7 +1061,15 @@ export async function postShift(tenantId: string, userId: string, shiftId: strin
       sourceModule: "station_shift",
       sourceId: shift.id,
       createdBy: userId,
-      lines: summary.lines,
+      lines: [...summary.lines, ...cogs.lines],
+    });
+    await createShiftFuelIssuesTx(tx, {
+      tenantId,
+      companyId: shift.companyId,
+      shiftId: shift.id,
+      date: shift.shiftDate,
+      journalEntryId: entry.id,
+      issues: cogs.issues,
     });
     await tx.stationShiftAuditLog.create({
       data: { tenantId, companyId: shift.companyId, shiftId, userId, action: "post", fieldName: "status", oldValue: shift.status, newValue: "posted" },
@@ -1026,5 +1103,227 @@ export async function rejectShift(tenantId: string, userId: string, shiftId: str
       data: { tenantId, companyId: shift.companyId, shiftId, userId, action: "reject", fieldName: "status", oldValue: shift.status, newValue: "rejected" },
     });
     return updated;
+  });
+}
+
+/** الورديات المُغلَقة لشركة واحدة (الأحدث أولاً): المرحَّلة (زر عكس الوردية) والمعكوسة والمرفوضة (زر الوردية المصحَّحة). */
+export async function listPostedShifts(tenantId: string, companyId?: string) {
+  return prisma.stationShift.findMany({
+    where: { tenantId, companyId, status: { in: ["posted", "reversed", "rejected"] }, isSeedData: false },
+    include: { costCenter: true, employee: { select: { id: true, name: true } } },
+    orderBy: [{ shiftDate: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    take: 200,
+  });
+}
+
+export interface ReverseShiftInput {
+  reason: string;
+  /** تاريخ قيد العكس (يوم بتوقيت الرياض YYYY-MM-DD) — افتراضياً اليوم. فحص إقفال الفترة يجري عند حجز رقم القيد. */
+  date?: string;
+}
+
+/**
+ * عكس وردية مرحَّلة — المسار الوحيد لتصحيح وردية بعد ترحيلها (العكس العام وفك الترحيل والمرآة مرفوضة لقيود
+ * station_shift، راجع assertNotStationShiftEntry في journalEntries.service.ts). في معاملة واحدة: حجز الوردية
+ * (posted → reversed، مشروطاً، فطلبان متزامنان لا يعكسانها مرتين)، قيد عكسي بنفس أسطر قيد الوردية بالاتجاه المعاكس
+ * مربوط بـreversalOfEntryId (مصدره station_shift أيضاً حتى يبقى محمياً ويظهر في مطابقة ضريبة الورديات)، حذف حركات صرف
+ * الوقود التي أنشأها ترحيلها (حركات صادرة — حذفها لا يغيّر متوسط التكلفة، فلا يلزم إعادة احتسابه)، وصفّا تدقيق
+ * (الحالة، والسبب) باسم المستخدم. الوردية المعكوسة لا تُرحَّل ثانيةً أبداً (postShift يشترط approved) — تُدخَل وردية مصحَّحة.
+ *
+ * المرآة: يُرفَض عكس وردية لقيدها قيد مرآة (أُنشئ قبل منع المرآة لقيود الورديات) — عكسها هنا كان سيترك نصف المعاملة في
+ * الشركة الأخرى قائماً. قيد عُكِس سابقاً من شاشة القيود العامة يُرفَض كذلك (لا قيد عكسي ثانٍ لنفس القيد).
+ */
+export async function reverseShift(tenantId: string, userId: string, shiftId: string, input: ReverseShiftInput) {
+  const reason = input.reason.trim();
+  if (!reason) throw badRequest("سبب عكس الوردية مطلوب");
+  const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
+  if (!shift) throw notFound("الوردية غير موجودة");
+  if (shift.status !== "posted") throw badRequest("لا يمكن عكس إلا وردية مرحَّلة");
+  if (!shift.journalEntryId) throw badRequest("لا قيد محاسبي مرتبط بهذه الوردية — لا يوجد ما يُعكَس");
+
+  const entry = await prisma.journalEntry.findFirst({
+    where: { id: shift.journalEntryId, tenantId, companyId: shift.companyId },
+    include: { lines: true },
+  });
+  if (!entry) throw notFound("قيد الوردية غير موجود");
+  if (entry.status !== "posted") throw badRequest("قيد الوردية ليس مرحّلاً — لا يمكن عكسها");
+  if (entry.mirrorEntryId) throw badRequest("لقيد هذه الوردية قيد مرآة في شركة أخرى — لا يمكن عكسها قبل معالجة قيد المرآة");
+  const alreadyReversed = await prisma.journalEntry.findFirst({ where: { tenantId, companyId: shift.companyId, reversalOfEntryId: entry.id } });
+  if (alreadyReversed) throw badRequest("قيد هذه الوردية معكوس بالفعل بقيد آخر");
+
+  // منتصف ليل UTC لليوم التقويمي — نفس اصطلاح تاريخ قيد الوردية (shiftDate) وتاريخ العكس العام (z.coerce.date لـYYYY-MM-DD).
+  const date = new Date(`${input.date ?? riyadhCalendarDay(new Date())}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) throw badRequest("تاريخ قيد العكس غير صالح");
+
+  return prisma.$transaction(async (tx) => {
+    const claimed = await tx.stationShift.updateMany({ where: { id: shift.id, tenantId, status: "posted" }, data: { status: "reversed" } });
+    if (claimed.count !== 1) throw badRequest("لا يمكن عكس إلا وردية مرحَّلة");
+
+    const { entryNumber, entrySeq } = await reserveEntryNumber(tx, tenantId, shift.companyId, date);
+    const reversal = await tx.journalEntry.create({
+      data: {
+        tenantId,
+        companyId: shift.companyId,
+        date,
+        memo: `عكس ${entry.memo ?? "قيد وردية محطة"} — ${reason}`,
+        status: "posted",
+        entryNumber,
+        entrySeq,
+        sourceModule: "station_shift",
+        sourceId: shift.id,
+        createdBy: userId,
+        reversalOfEntryId: entry.id,
+        lines: {
+          create: entry.lines.map((l) => ({
+            accountId: l.accountId,
+            costCenterId: l.costCenterId,
+            department: l.department,
+            departmentId: l.departmentId,
+            branchId: l.branchId,
+            description: l.description,
+            debit: l.credit,
+            credit: l.debit,
+            customerId: l.customerId,
+            supplierId: l.supplierId,
+            employeeId: l.employeeId,
+          })),
+        },
+      },
+    });
+    await recomputeEntryTotal(tx, reversal.id);
+
+    await tx.stockMovement.deleteMany({ where: { tenantId, companyId: shift.companyId, sourceStationShiftId: shift.id } });
+
+    await tx.stationShiftAuditLog.createMany({
+      data: [
+        { tenantId, companyId: shift.companyId, shiftId, userId, action: "reverse", fieldName: "status", oldValue: "posted", newValue: "reversed" },
+        { tenantId, companyId: shift.companyId, shiftId, userId, action: "reverse", fieldName: "reversalReason", oldValue: null, newValue: reason },
+        { tenantId, companyId: shift.companyId, shiftId, userId, action: "reverse", fieldName: "reversalEntryId", oldValue: entry.id, newValue: reversal.id },
+      ],
+    });
+    return tx.stationShift.findUniqueOrThrow({ where: { id: shift.id } });
+  });
+}
+
+export interface CorrectedShiftInput {
+  /** قراءة الإغلاق المصحَّحة لكل فوهة قُرئت في الوردية المستبدَلة — افتتاحها يُؤخذ من افتتاح تلك الوردية، لا من الطلب. */
+  readings: { nozzleId: string; closingReading: number; testLiters?: number }[];
+  /** التحصيل المصحَّح؛ إن غاب يُنسخ تحصيل الوردية المستبدَلة كما هو. */
+  collection?: { networkAmount: number; fuelCardAmount: number; cashDelivered: number };
+}
+
+export const CORRECTED_SHIFT_CHAIN_MISMATCH =
+  "قراءة إغلاق الوردية المصحَّحة لا تطابق قراءة افتتاح الوردية التالية لنفس المحطة — اعكس الورديات اللاحقة وصحّحها بالترتيب أولاً";
+
+/**
+ * وردية مصحَّحة يُدخلها المحاسب (بصلاحية الترحيل) بدل وردية معكوسة أو مرفوضة، بنفس المحطة والتاريخ ونوع الوردية — المسار
+ * الوحيد لإدخال وردية بتاريخ سابق (فتح العامل يأخذ تاريخ اليوم دائماً). الخانة تكون حرّة لأن الفهرس الجزئي يستثني
+ * المرفوضة والمعكوسة؛ وردية قائمة في نفس الخانة تُرفَض (والفهرس يرفض السباق).
+ *
+ * قراءات الافتتاح = افتتاح الوردية المستبدَلة لكل فوهة (هو إغلاق ما قبلها في سلسلة العداد)، لا إغلاقها. سلامة السلسلة: إن
+ * وُجدت وردية لاحقة قائمة لنفس المحطة (غير مرفوضة ولا معكوسة)، فقراءة إغلاق كل فوهة هنا يجب أن تساوي افتتاح تلك الفوهة
+ * في الوردية اللاحقة — وإلا يُرفَض الطلب: الورديات اللاحقة تُعكَس وتُصحَّح بالترتيب أولاً.
+ *
+ * تُنسَخ المبيعات الآجلة والمصروفات من الوردية المستبدَلة، والتحصيل كذلك ما لم يُرسَل تصحيحه. تبدأ الوردية "قيد
+ * المراجعة" وقيم المحاسب مُدخَلة، ثم تمرّ بالمسار المعتاد: مراجعة → اعتماد → ترحيل. صور العدادات: صور الوردية المستبدَلة
+ * لنفس الفوهة تُقبَل إثباتاً عند الاعتماد (approveShift)، أو تُرفَع صورة جديدة على القراءة المصحَّحة.
+ */
+export async function createCorrectedShift(tenantId: string, userId: string, replacedShiftId: string, input: CorrectedShiftInput) {
+  const replaced = await prisma.stationShift.findFirst({
+    where: { id: replacedShiftId, tenantId },
+    include: { readings: { include: { nozzle: true } }, collection: true, creditSales: true, expenses: true },
+  });
+  if (!replaced) throw notFound("الوردية غير موجودة");
+  if (!(SLOT_FREEING_STATUSES as readonly string[]).includes(replaced.status)) {
+    throw badRequest("الوردية المصحَّحة تُدخَل فقط بدل وردية معكوسة أو مرفوضة");
+  }
+  if (!replaced.readings.length) throw badRequest("الوردية المستبدَلة بلا قراءات عدادات — لا يمكن إدخال وردية مصحَّحة بدلاً منها");
+
+  const occupied = await prisma.stationShift.findFirst({
+    where: { tenantId, costCenterId: replaced.costCenterId, shiftDate: replaced.shiftDate, shiftType: replaced.shiftType, status: { notIn: [...SLOT_FREEING_STATUSES] } },
+  });
+  if (occupied) throw badRequest("توجد وردية بالفعل لهذه المحطة بنفس التاريخ ونوع الوردية");
+
+  const closingByNozzle = new Map(input.readings.map((r) => [r.nozzleId, r]));
+  if (closingByNozzle.size !== input.readings.length) throw badRequest("قراءة مكررة لنفس الفوهة في الوردية المصحَّحة");
+  const replacedNozzles = new Set(replaced.readings.map((r) => r.nozzleId));
+  if (input.readings.some((r) => !replacedNozzles.has(r.nozzleId)) || replaced.readings.some((r) => !closingByNozzle.has(r.nozzleId))) {
+    throw badRequest("أدخل قراءة إغلاق مصحَّحة لكل فوهة قُرئت في الوردية المستبدَلة، ولا غيرها");
+  }
+
+  const corrected = replaced.readings.map((r) => {
+    const given = closingByNozzle.get(r.nozzleId)!;
+    const closing = new Prisma.Decimal(given.closingReading);
+    const testLiters = new Prisma.Decimal(given.testLiters ?? r.testLiters);
+    // نفس فحص اللفّة والمعقولية المطبَّق على تصحيح المحاسب العادي (correctReading)
+    computeNozzleLiters({
+      nozzleId: r.nozzleId, label: `${r.nozzle.pumpNumber}-${r.nozzle.nozzleNumber}`, product: r.nozzle.product,
+      meterDigits: r.nozzle.meterDigits, openingReading: r.openingReading, closingReading: closing, testLiters,
+    });
+    return { reading: r, closing, testLiters };
+  });
+
+  // الوردية القائمة التالية مباشرة لنفس المحطة (تاريخ لاحق، أو نفس اليوم ونوع لاحق: صباحية ثم مسائية)
+  const later = await prisma.stationShift.findFirst({
+    where: {
+      tenantId, costCenterId: replaced.costCenterId, status: { notIn: [...SLOT_FREEING_STATUSES] },
+      OR: [{ shiftDate: { gt: replaced.shiftDate } }, ...(replaced.shiftType === "morning" ? [{ shiftDate: replaced.shiftDate, shiftType: "night" as const }] : [])],
+    },
+    orderBy: [{ shiftDate: "asc" }, { shiftType: "asc" }, { createdAt: "asc" }],
+    include: { readings: true },
+  });
+  if (later) {
+    const laterOpening = new Map(later.readings.map((r) => [r.nozzleId, new Prisma.Decimal(r.openingReading)]));
+    const mismatches = corrected
+      .filter((c) => laterOpening.has(c.reading.nozzleId) && !laterOpening.get(c.reading.nozzleId)!.equals(c.closing))
+      .map((c) => ({
+        nozzle: `${c.reading.nozzle.pumpNumber}-${c.reading.nozzle.nozzleNumber}`,
+        closingReading: c.closing.toString(),
+        laterShiftOpeningReading: laterOpening.get(c.reading.nozzleId)!.toString(),
+      }));
+    if (mismatches.length) throw badRequest(CORRECTED_SHIFT_CHAIN_MISMATCH, { laterShiftId: later.id, mismatches });
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const shift = await tx.stationShift.create({
+      data: {
+        tenantId, companyId: replaced.companyId, costCenterId: replaced.costCenterId, employeeId: replaced.employeeId,
+        shiftDate: replaced.shiftDate, shiftType: replaced.shiftType, openedAt: replaced.openedAt, closedAt: replaced.closedAt ?? new Date(),
+        status: "under_review", isSeedData: false, correctsShiftId: replaced.id,
+      },
+    });
+    await tx.stationShiftReading.createMany({
+      data: corrected.map((c) => ({
+        tenantId, companyId: replaced.companyId, shiftId: shift.id, nozzleId: c.reading.nozzleId,
+        openingReading: c.reading.openingReading, testLiters: c.testLiters, accountantConfirmedValue: c.closing,
+        capturedAt: c.reading.capturedAt, latitude: c.reading.latitude, longitude: c.reading.longitude,
+      })),
+    });
+    const collection = input.collection ?? replaced.collection;
+    if (collection) {
+      await tx.stationShiftCollection.create({
+        data: {
+          tenantId, companyId: replaced.companyId, shiftId: shift.id,
+          networkAmount: collection.networkAmount, fuelCardAmount: collection.fuelCardAmount, cashDelivered: collection.cashDelivered,
+        },
+      });
+    }
+    if (replaced.creditSales.length) {
+      await tx.stationShiftCreditSale.createMany({
+        data: replaced.creditSales.map((c) => ({ tenantId, companyId: replaced.companyId, shiftId: shift.id, customerId: c.customerId, amount: c.amount, voucherNumber: c.voucherNumber })),
+      });
+    }
+    if (replaced.expenses.length) {
+      await tx.stationShiftExpense.createMany({
+        data: replaced.expenses.map((e) => ({ tenantId, companyId: replaced.companyId, shiftId: shift.id, amount: e.amount, category: e.category, description: e.description })),
+      });
+    }
+    await tx.stationShiftAuditLog.createMany({
+      data: [
+        { tenantId, companyId: replaced.companyId, shiftId: shift.id, userId, action: "create_corrected", fieldName: "correctsShiftId", oldValue: null, newValue: replaced.id },
+        { tenantId, companyId: replaced.companyId, shiftId: replaced.id, userId, action: "corrected_by", fieldName: "correctedShiftId", oldValue: null, newValue: shift.id },
+      ],
+    });
+    return tx.stationShift.findUniqueOrThrow({ where: { id: shift.id }, include: { readings: true } });
   });
 }

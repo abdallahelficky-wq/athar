@@ -40,3 +40,7 @@ export const deleteFuelPrice: RequestHandler = async (req, res) => {
   await service.deleteUpcomingFuelPrice(req.auth!.tenantId, (companyId) => assertCompanyAccess(req.auth!, companyId), req.params.id);
   res.status(204).end();
 };
+
+export const setStationWarehouse: RequestHandler = async (req, res) => {
+  res.json(await service.setStationWarehouse(req.auth!.tenantId, { companyId: req.body.companyId, costCenterId: req.params.costCenterId, warehouseId: req.body.warehouseId }));
+};

@@ -25,21 +25,25 @@ async function assertStation(tenantId: string, companyId: string, costCenterId: 
 }
 
 export async function listStationsWithPumps(tenantId: string, companyId: string) {
-  const [stations, nozzles] = await Promise.all([
+  const [stations, nozzles, stationWarehouses] = await Promise.all([
     prisma.costCenter.findMany({ where: { tenantId, companyId }, orderBy: { createdAt: "asc" }, select: { id: true, name: true } }),
     prisma.stationNozzle.findMany({
       where: { tenantId, companyId, isActive: true },
       orderBy: [{ pumpNumber: "asc" }, { nozzleNumber: "asc" }],
       include: { _count: { select: { readings: true } } },
     }),
+    prisma.warehouse.findMany({ where: { tenantId, companyId, costCenterId: { not: null } }, select: { id: true, name: true, costCenterId: true, isArchived: true } }),
   ]);
+  const warehouseByStation = new Map(stationWarehouses.map((w) => [w.costCenterId, w]));
   return stations.map((station) => {
     const pumps = new Map<number, typeof nozzles>();
     for (const n of nozzles.filter((x) => x.costCenterId === station.id)) {
       pumps.set(n.pumpNumber, [...(pumps.get(n.pumpNumber) ?? []), n]);
     }
+    const warehouse = warehouseByStation.get(station.id);
     return {
       ...station,
+      warehouse: warehouse ? { id: warehouse.id, name: warehouse.name, isArchived: warehouse.isArchived } : null,
       pumps: [...pumps].map(([pumpNumber, list]) => ({
         pumpNumber,
         pumpType: (list.some((n) => n.product === "diesel") ? "diesel" : "petrol") as PumpType,
@@ -216,4 +220,27 @@ export async function deleteUpcomingFuelPrice(tenantId: string, companyScope: (c
     throw badRequest("لا يُحذف سعر سرى بالفعل — الورديات قُيِّمت به؛ أضف سعراً جديداً بتاريخ لاحق بدلاً من ذلك");
   }
   await prisma.fuelPrice.delete({ where: { id } });
+}
+
+/**
+ * مستودع المحطة — يُصرَف منه وقود ورديات المحطة عند ترحيلها (stationShiftCogs.ts). مستودع واحد لكل محطة وبالعكس
+ * (Warehouse.costCenterId فريد). المحطة والمستودع كلاهما من نفس المستأجر ونفس الشركة. warehouseId = null يفكّ الربط.
+ * تغيير المستودع لا يمسّ حركات الورديات المرحَّلة سابقاً (تبقى على المستودع الذي صُرفت منه).
+ */
+export async function setStationWarehouse(tenantId: string, input: { companyId: string; costCenterId: string; warehouseId: string | null }) {
+  await assertStation(tenantId, input.companyId, input.costCenterId);
+  if (input.warehouseId) {
+    const warehouse = await prisma.warehouse.findFirst({ where: { id: input.warehouseId, tenantId, companyId: input.companyId } });
+    if (!warehouse) throw badRequest("المستودع غير موجود ضمن هذه الشركة");
+    if (warehouse.isArchived) throw badRequest("لا يمكن ربط مستودع مؤرشف بمحطة");
+    if (warehouse.costCenterId && warehouse.costCenterId !== input.costCenterId) throw conflict("هذا المستودع مربوط بمحطة أخرى بالفعل");
+  }
+  return prisma.$transaction(async (tx) => {
+    await tx.warehouse.updateMany({
+      where: { tenantId, companyId: input.companyId, costCenterId: input.costCenterId, id: input.warehouseId ? { not: input.warehouseId } : undefined },
+      data: { costCenterId: null },
+    });
+    if (!input.warehouseId) return null;
+    return tx.warehouse.update({ where: { id: input.warehouseId }, data: { costCenterId: input.costCenterId }, select: { id: true, name: true, costCenterId: true } });
+  });
 }

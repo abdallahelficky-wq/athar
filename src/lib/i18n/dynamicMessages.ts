@@ -23,6 +23,12 @@ function translateReasonsList(text: string, labels: [string, string][]): string 
   return translateLabels(text, labels).split("، ").join(", ").split(" و").join(" and ");
 }
 
+const FUEL_PRODUCT_LABELS: [string, string][] = [
+  ["بنزين 91", "Gasoline 91"],
+  ["بنزين 95", "Gasoline 95"],
+  ["ديزل", "Diesel"],
+];
+
 const AR_MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
 const EN_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const AR_DIGITS = "٠١٢٣٤٥٦٧٨٩";
@@ -172,5 +178,10 @@ export const DYNAMIC_MESSAGE_PATTERNS: MessagePattern[] = [
   { match: /^قراءة العداد غير صحيحة للفوهة \((.+?)\): الكمية المحسوبة سالبة حتى بعد افتراض دورة كاملة للعداد$/, translate: (g) => `Invalid meter reading for nozzle (${g[0]}): the calculated volume is negative even after assuming a full meter rollover` },
   { match: /^لا يوجد سعر بيع سارٍ لمنتج "(.+?)" بتاريخ الوردية$/, translate: (g) => `No effective fuel price exists for product "${g[0]}" on the shift date` },
   { match: /^لا يوجد حساب إيراد مُحدَّد لمنتج "(.+?)"$/, translate: (g) => `No revenue account is set for product "${g[0]}"` },
+  // تكلفة الوقود عند ترحيل وردية محطة (stationShiftCogs.ts) — اسم المنتج من FUEL_PRODUCT_LABEL_AR
+  { match: /^لم يُربَط صنف مخزون بمنتج «(.+?)» في بيانات الشركة — اربطه من إعدادات الشركة قبل ترحيل الوردية$/, translate: (g) => `No inventory item is linked to the product "${translateLabels(g[0], FUEL_PRODUCT_LABELS)}" in the company data — link it in the company settings before posting the shift` },
+  { match: /^صنف الوقود المربوط بمنتج «(.+?)» في بيانات الشركة غير صالح: يجب أن يكون صنف مخزون دائم غير مؤرشف من نفس الشركة وله حسابا مخزون وتكلفة$/, translate: (g) => `The fuel item linked to the product "${translateLabels(g[0], FUEL_PRODUCT_LABELS)}" in the company data is invalid: it must be a non-archived perpetual inventory item of the same company with both a stock account and a cost account` },
+  { match: /^متوسط تكلفة صنف «(.+?)» صفر — أدخل فاتورة شراء له قبل ترحيل الوردية حتى تُحسَب تكلفة المبيعات$/, translate: (g) => `The average cost of "${translateLabels(g[0], FUEL_PRODUCT_LABELS)}" is zero — enter a purchase invoice for it before posting the shift so the cost of sales can be calculated` },
+  { match: /^الكمية المباعة من «(.+?)» في هذه الوردية أكبر من رصيد مستودع المحطة، والرصيد السالب للوقود غير مسموح في إعدادات الشركة$/, translate: (g) => `The quantity of "${translateLabels(g[0], FUEL_PRODUCT_LABELS)}" sold in this shift exceeds the station warehouse balance, and negative fuel stock is not allowed in the company settings` },
   { match: /^لا يمكن تثبيت الشجرة القياسية: شركة "(.+)" تحتوي على قيود أو مستندات مالية\. تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر\.$/, translate: (g) => `The standard chart can't be installed: company "${g[0]}" holds journal entries or financial documents. Installing the chart is only available for an empty company, and it never deletes any books.` },
 ];

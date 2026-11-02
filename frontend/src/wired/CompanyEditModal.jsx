@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { updateCompany, uploadCompanyLogo, extractCompanyDocument, reopenFiscalClosing } from "../api/companies";
 import { listAccounts } from "../api/accounts";
+import { listItems } from "../api/items";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CompanyDocumentsPanel from "./CompanyDocumentsPanel";
 import LeaseContractsPanel from "./LeaseContractsPanel";
@@ -40,7 +41,18 @@ const emptyForm = (c) => ({
   fiscalYearClosingDate: c.fiscalYearClosingDate ? c.fiscalYearClosingDate.slice(0, 10) : "",
   stationCashShortageAccountId: c.stationCashShortageAccountId || "",
   stationCashSurplusAccountId: c.stationCashSurplusAccountId || "",
+  stationDieselItemId: c.stationDieselItemId || "",
+  stationGasoline91ItemId: c.stationGasoline91ItemId || "",
+  stationGasoline95ItemId: c.stationGasoline95ItemId || "",
+  allowNegativeFuelStock: c.allowNegativeFuelStock ?? true,
 });
+
+// صنف المخزون لكل منتج وقود — يُصرَف منه بالمتوسط المرجّح عند ترحيل وردية المحطة (راجع stationShiftCogs.ts)
+const STATION_FUEL_ITEM_FIELDS = [
+  ["stationDieselItemId", "stationDieselItemLabel"],
+  ["stationGasoline91ItemId", "stationGasoline91ItemLabel"],
+  ["stationGasoline95ItemId", "stationGasoline95ItemLabel"],
+];
 
 /** نافذة تعديل بيانات الشركة الرسمية الكاملة — شعار، عنوان وطني، تواريخ السجل التجاري،
  * بيانات التواصل، بالإضافة إلى استخراج تلقائي بالذكاء الاصطناعي من المستندات الرسمية. */
@@ -66,11 +78,19 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
   const [reopening, setReopening] = useState(false);
   const [reopenNotice, setReopenNotice] = useState("");
   const [accounts, setAccounts] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
 
   const logoInputRef = useRef(null);
   const docInputRefs = useRef({});
 
   useEffect(() => { listAccounts({ companyId: company.id }).then(setAccounts).catch(() => {}); }, [company.id]);
+  const isFuelCompany = company.businessActivity === "fuel_stations";
+  useEffect(() => {
+    if (!isFuelCompany) return;
+    listItems(company.id, { type: "inventory" })
+      .then((rows) => setInventoryItems(rows.filter((i) => !i.isArchived)))
+      .catch(() => {});
+  }, [company.id, isFuelCompany]);
   const postingAccounts = useMemo(() => accounts.filter((a) => a.isPosting && a.isActive && !a.isArchived), [accounts]);
   const stationExpenseAccounts = useMemo(() => postingAccounts.filter((a) => a.type === "expense"), [postingAccounts]);
   const stationRevenueAccounts = useMemo(() => postingAccounts.filter((a) => a.type === "revenue"), [postingAccounts]);
@@ -93,6 +113,14 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         fiscalYearClosingDate: form.fiscalYearClosingDate || null,
         stationCashShortageAccountId: form.stationCashShortageAccountId || null,
         stationCashSurplusAccountId: form.stationCashSurplusAccountId || null,
+        ...(isFuelCompany
+          ? {
+              stationDieselItemId: form.stationDieselItemId || null,
+              stationGasoline91ItemId: form.stationGasoline91ItemId || null,
+              stationGasoline95ItemId: form.stationGasoline95ItemId || null,
+              allowNegativeFuelStock: Boolean(form.allowNegativeFuelStock),
+            }
+          : { stationDieselItemId: undefined, stationGasoline91ItemId: undefined, stationGasoline95ItemId: undefined, allowNegativeFuelStock: undefined }),
       });
       onSaved();
     } catch (err) {
@@ -266,6 +294,23 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                   onChange={(id) => set("stationCashSurplusAccountId", id)}
                   allowClear
                 />
+              </label>
+            </div>
+            <p className="note">{t("settings.companyEdit.stationFuelCostNote")}</p>
+            <div className="form-grid">
+              {STATION_FUEL_ITEM_FIELDS.map(([field, labelKey]) => (
+                <label key={field}>{t(`settings.companyEdit.${labelKey}`)}
+                  <select value={form[field]} onChange={(e) => set(field, e.target.value)}>
+                    <option value="">{t("settings.companyEdit.stationFuelItemNone")}</option>
+                    {inventoryItems.map((item) => (
+                      <option key={item.id} value={item.id}>{item.code} — {item.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+              <label className="checkbox-label">
+                <input type="checkbox" checked={Boolean(form.allowNegativeFuelStock)} onChange={(e) => set("allowNegativeFuelStock", e.target.checked)} />
+                {t("settings.companyEdit.allowNegativeFuelStockLabel")}
               </label>
             </div>
           </>

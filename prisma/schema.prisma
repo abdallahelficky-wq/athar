@@ -530,6 +530,19 @@ model Company {
   stationCashShortageAccount   Account?              @relation("StationCashShortageAccount", fields: [stationCashShortageAccountId], references: [id], onDelete: SetNull)
   stationCashSurplusAccountId  String?
   stationCashSurplusAccount    Account?              @relation("StationCashSurplusAccount", fields: [stationCashSurplusAccountId], references: [id], onDelete: SetNull)
+  // صنف المخزون الذي يُصرَف منه كل منتج وقود عند ترحيل وردية (تكلفة البضاعة المباعة بالمتوسط المرجّح) — ربط صريح
+  // لكل شركة، لا بحث بالاسم. null = لم يُضبَط بعد: يُرفَض ترحيل وردية باعت هذا المنتج حتى يُضبَط. الصنف من نفس
+  // الشركة، مخزون دائم (inventory)، وله حسابا مخزون وتكلفة (يُتحقَّق في companies.controller.ts).
+  stationDieselItemId          String?
+  stationDieselItem            Item?                 @relation("StationDieselItem", fields: [stationDieselItemId], references: [id], onDelete: SetNull)
+  stationGasoline91ItemId      String?
+  stationGasoline91Item        Item?                 @relation("StationGasoline91Item", fields: [stationGasoline91ItemId], references: [id], onDelete: SetNull)
+  stationGasoline95ItemId      String?
+  stationGasoline95Item        Item?                 @relation("StationGasoline95Item", fields: [stationGasoline95ItemId], references: [id], onDelete: SetNull)
+  // السماح بأن يصير رصيد الوقود في مستودع المحطة سالباً عند ترحيل وردية (الافتراضي نعم): البيع حدث فعلاً ونقده
+  // مُستلَم، فرفض ترحيله لأن فاتورة الشراء لم تُدخَل بعد يعطّل تسجيل الإيراد والنقد. false = يُرفَض الترحيل إن
+  // تجاوزت اللترات المباعة رصيد مستودع المحطة.
+  allowNegativeFuelStock       Boolean               @default(true)
   createdAt                    DateTime              @default(now())
   updatedAt                    DateTime              @updatedAt
 
@@ -709,6 +722,7 @@ model CostCenter {
   assignedEmployees  Employee[]      @relation("EmployeeAssignedCostCenter")
   // موظفون تُحمَّل تكلفة رواتبهم على هذا المركز (Employee.costCenterId) — منفصل تماماً عن عمّال المحطات أعلاه
   allocatedEmployees Employee[]      @relation("EmployeeCostCenter")
+  stationWarehouse   Warehouse?
 
   @@map("cost_centers")
 }
@@ -1772,6 +1786,9 @@ model Item {
   salesInvoiceLines    SalesInvoiceLine[]
   purchaseInvoiceLines PurchaseInvoiceLine[]
   bomLines             ItemComponent[]       @relation("BundleParent")
+  stationDieselFor     Company[]             @relation("StationDieselItem")
+  stationGasoline91For Company[]             @relation("StationGasoline91Item")
+  stationGasoline95For Company[]             @relation("StationGasoline95Item")
   usedInBundles        ItemComponent[]       @relation("ComponentItem")
 
   @@unique([tenantId, companyId, code])
@@ -1813,6 +1830,10 @@ model Warehouse {
   // يُفرَض هذا في warehouses.service عند الإنشاء/التعديل (مش قيد DB صريح).
   isDefault  Boolean  @default(false)
   isArchived Boolean  @default(false)
+  // المحطة (مركز التكلفة) التي يمثّل هذا المستودعُ خزاناتها — يُصرَف منه وقود ورديات المحطة عند ترحيلها. مستودع
+  // واحد لكل محطة (فريد)، من نفس المستأجر والشركة (يُتحقَّق في stationSetup.service.ts). null = مستودع عادي.
+  costCenterId String?     @unique
+  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -1855,8 +1876,12 @@ model StockMovement {
   // تتبّع مصدر الحركة عند إنشائها تلقائياً من فاتورة (لحذفها معاً عند فك ترحيل الفاتورة)
   sourcePurchaseInvoiceLineId String?           @unique
   sourceSalesInvoiceLineId    String?           @unique
+  // وردية المحطة التي صرفت هذه الكمية عند ترحيلها (حركة out لكل منتج) — تُحذَف معها عند عكس الوردية
+  // (reverseShift). مرجع حر بلا FK، بنفس أسلوب sourcePurchaseInvoiceLineId أعلاه.
+  sourceStationShiftId        String?
   createdAt                   DateTime          @default(now())
 
+  @@index([tenantId, sourceStationShiftId])
   @@map("stock_movements")
 }
 
@@ -2946,6 +2971,8 @@ enum StationShiftStatus {
   approved
   posted
   rejected
+  // رُحِّلت ثم عُكِست بقيد عكسي (reverseShift): أُلغي أثر قيدها وحركات صرف وقودها، ولا يُعاد ترحيلها أبداً.
+  reversed
 }
 
 // فوهة وقود واحدة على مضخة داخل محطة (CostCenter) واحدة.
@@ -3033,6 +3060,9 @@ model StationShift {
   // المحاسبي — وردية بذرة تبقى "posted" بلا قيد فعلي (راجع تعليق السكريبت)، وهذا الحقل تحديداً
   // هو من يمنعها من تلويث أرقام التقارير رغم ذلك.
   isSeedData          Boolean            @default(false)
+  // وردية مصحَّحة يُدخلها المحاسب بدل وردية معكوسة أو مرفوضة لنفس المحطة/التاريخ/النوع (createCorrectedShift) — مرجع
+  // حر إلى الوردية المستبدَلة. قراءات افتتاحها مأخوذة من افتتاح تلك الوردية، وصور عداداتها هي إثبات قراءات هذه.
+  correctsShiftId     String?
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
@@ -3041,9 +3071,13 @@ model StationShift {
   expenses    StationShiftExpense[]
   collection  StationShiftCollection?
 
-  @@unique([costCenterId, shiftDate, shiftType])
+  // التفرّد على (المحطة، التاريخ، النوع) فهرس جزئي في قاعدة البيانات يستثني الورديات المرفوضة والمعكوسة
+  // ("station_shifts_active_slot_key" — راجع ترحيل 20261102120000_station_corrected_shifts)، فتُستعاد خانتها لوردية
+  // جديدة أو مصحَّحة. Prisma 5 لا يعبّر عن فهرس جزئي، فلا يُعلَن هنا: لا تُنشئ ترحيلاً يحذفه.
+  @@index([costCenterId, shiftDate, shiftType])
   @@index([tenantId, companyId, costCenterId, shiftDate])
   @@index([tenantId, companyId, status])
+  @@index([tenantId, correctsShiftId])
   @@map("station_shifts")
 }
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createCostCenter } from "../../api/costCenters";
 import * as api from "../../api/stationSetup";
+import { listWarehouses } from "../../api/warehouses";
 
 /**
  * إعداد المحطات: المحطات، ومضخات كل محطة، وفوهتا كل مضخة. المضخة فوهتان بالضبط — بنزين (91 + 95) أو
@@ -22,11 +23,14 @@ export default function StationSetupTab({ companyId }) {
   const [openFormFor, setOpenFormFor] = useState(null);
   const [pumpForm, setPumpForm] = useState(emptyPump());
   const [saving, setSaving] = useState(false);
+  const [warehouses, setWarehouses] = useState([]);
 
   const load = async () => {
     setError("");
     try {
-      setStations(await api.listStations(companyId));
+      const [stationRows, warehouseRows] = await Promise.all([api.listStations(companyId), listWarehouses(companyId)]);
+      setStations(stationRows);
+      setWarehouses(warehouseRows.filter((w) => !w.isArchived));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -115,6 +119,23 @@ export default function StationSetupTab({ companyId }) {
               {station.pumps.length === 0 ? t("stationSetup.noPumpsBadge") : t("stationSetup.pumpCount", { count: station.pumps.length })}
             </span>
           </div>
+
+          {/* مستودع المحطة: يُصرَف منه وقود الورديات بالمتوسط المرجّح عند الترحيل — مستودع واحد لكل محطة */}
+          <div className="form-grid">
+            <label>{t("stationSetup.warehouseLabel")}
+              <select
+                value={station.warehouse?.id || ""}
+                disabled={saving}
+                onChange={(e) => run(() => api.setStationWarehouse(station.id, { companyId, warehouseId: e.target.value || null }), t("stationSetup.warehouseSaved"))}
+              >
+                <option value="">{t("stationSetup.warehouseNone")}</option>
+                {warehouses
+                  .filter((w) => !w.costCenterId || w.costCenterId === station.id)
+                  .map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </label>
+          </div>
+          {!station.warehouse && <p className="note">{t("stationSetup.warehouseMissingNote")}</p>}
 
           {station.pumps.length > 0 && (
             <div className="lines-table-wrap">
