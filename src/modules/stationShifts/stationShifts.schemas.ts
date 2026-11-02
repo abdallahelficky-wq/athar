@@ -90,3 +90,9 @@ export const correctedShiftSchema = z
       .optional(),
   })
   .strict();
+
+export const deleteShiftSchema = z
+  .object({
+    reason: z.string().trim().min(1, "سبب حذف الوردية مطلوب"),
+  })
+  .strict();
