@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import FormDialog from "../shared/FormDialog";
 import { getItemDisplayName, getUnitDisplayLabel } from "../shared/itemDisplayName";
 import { listSettlementCandidates, createSettlement } from "../../api/periodicSettlement";
 import { fmt2 } from "../../legacy/constants";
@@ -10,6 +11,8 @@ const DEVIATION_WARNING_THRESHOLD = 0.2;
 
 export default function PeriodicSettlementTab({ companyId }) {
   const { t, i18n } = useTranslation();
+  // نموذج الحركة في نافذة منبثقة فوق سجل الحركات
+  const [formOpen, setFormOpen] = useState(false);
   const [candidates, setCandidates] = useState([]);
   const [inputs, setInputs] = useState({});
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -64,7 +67,7 @@ export default function PeriodicSettlementTab({ companyId }) {
     setResults(null);
     try {
       const res = await createSettlement({ companyId, date, lines: readyLines });
-      setResults(res);
+      setResults(res); setFormOpen(false);
       reload();
     } catch (err) {
       setError(err.message);
@@ -77,7 +80,12 @@ export default function PeriodicSettlementTab({ companyId }) {
 
   return (
     <div>
-      <div className="panel form-panel">
+      <div className="form-btn-group" style={{ marginBottom: 12 }}>
+        <button className="btn-primary" onClick={() => { setError(""); setFormOpen(true); }}>+ {t("inventory.periodicSettlement.newSettlement")}</button>
+      </div>
+      {error && !formOpen && <p className="balance-bad">{error}</p>}
+      <FormDialog open={formOpen} title={t("inventory.periodicSettlement.newSettlement")} onClose={() => setFormOpen(false)}>
+      <div>
         <p className="note">{t("inventory.periodicSettlement.intro")}</p>
         <div className="form-grid">
           <label>{t("inventory.periodicSettlement.date")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
@@ -134,6 +142,7 @@ export default function PeriodicSettlementTab({ companyId }) {
           {saving ? t("inventory.periodicSettlement.saving") : t("inventory.periodicSettlement.saveBtn")}
         </button>
       </div>
+      </FormDialog>
 
       {results && (
         <div className="panel">

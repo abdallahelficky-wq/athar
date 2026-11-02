@@ -6,6 +6,8 @@ export const createWarehouseSchema = z.object({
   code: z.string().optional(),
   location: z.string().optional(),
   isDefault: z.boolean().optional(),
+  // حساب مخزون المستودع (اختياري في الواجهة البرمجية: null = حساب الصنف؛ شاشة المستودعات تطلبه عند الإضافة)
+  stockAccountId: z.string().min(1).nullable().optional(),
 });
 
 export const updateWarehouseSchema = createWarehouseSchema.partial().omit({ companyId: true }).extend({

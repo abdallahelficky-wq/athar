@@ -1022,17 +1022,23 @@
       }
     },
     "warehouses": {
+      "addTitle": "Add warehouse",
+      "editTitle": "Edit warehouse",
+      "stockAccount": "Inventory account",
+      "stockAccountNote": "Every movement on this warehouse (purchase, sale, in/out, issue, transfer) posts to its inventory account. It can't be changed once the warehouse has movements.",
+      "itemAccountFallback": "Item account",
       "name": "Warehouse name", "code": "Warehouse code", "location": "Location",
       "isDefault": "Default warehouse for sales issuance",
       "cancel": "Cancel", "saveChanges": "Save changes", "addWarehouse": "Add warehouse",
       "loading": "Loading...",
-      "table": { "name": "Warehouse name", "code": "Code", "location": "Location", "isDefault": "Default", "status": "Status" },
+      "table": { "stockAccount": "Inventory account", "name": "Warehouse name", "code": "Code", "location": "Location", "isDefault": "Default", "status": "Status" },
       "active": "Active", "archived": "Archived",
       "edit": "Edit", "unarchive": "Unarchive", "archive": "Archive", "delete": "Delete",
       "empty": "No warehouses yet.",
       "confirmDelete": "Delete warehouse \"{{name}}\"?"
     },
     "stockInOut": {
+      "newMovement": "New stock in / out",
       "movementType": "Movement", "movementIn": "Add stock", "movementOut": "Remove / write off stock",
       "item": "Item", "warehouse": "Warehouse", "quantity": "Quantity", "unitCost": "Unit cost",
       "date": "Date", "note": "Note",
@@ -1041,6 +1047,7 @@
       "removeMovementTitle": "Delete stock movement"
     },
     "issue": {
+      "newIssue": "New stock issue",
       "item": "Item", "warehouse": "Warehouse", "department": "Receiving department",
       "quantity": "Quantity", "date": "Date", "note": "Note",
       "availableBalance": "Available balance:", "exceedsBalance": "— Requested quantity exceeds available balance",
@@ -1048,6 +1055,7 @@
       "removeMovementTitle": "Delete issue movement"
     },
     "transfer": {
+      "newTransfer": "New transfer",
       "item": "Item", "fromWarehouse": "From location (source)", "toCompany": "Receiving company",
       "toWarehouse": "To location (destination)", "quantity": "Quantity", "date": "Date",
       "availableBalance": "Available balance at source:",
@@ -1071,6 +1079,7 @@
       "notValueTracked": "Not value-tracked"
     },
     "periodicSettlement": {
+      "newSettlement": "New count settlement",
       "intro": "One batch settlement for all \"periodic inventory\" items — enter the actual counted quantity and unit cost for each item you want to settle, and leave the rest blank to skip them in this batch.",
       "date": "Count date", "loading": "Loading...",
       "empty": "No \"periodic inventory\" items yet.",

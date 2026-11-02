@@ -1,4 +1,5 @@
 import { TaxFields } from "../../lib/itemTax";
+import { stockAccountFor } from "../../lib/stockAccount";
 import { normalizePurchaseTax } from "./purchaseTax";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
@@ -67,7 +68,8 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
   const warehouseIds = [...new Set(lines.map((l) => l.warehouseId).filter((x): x is string => Boolean(x)))];
   const warehouses = warehouseIds.length ? await prisma.warehouse.findMany({ where: { id: { in: warehouseIds }, tenantId, companyId } }) : [];
   if (warehouses.length !== warehouseIds.length) throw badRequest("أحد المستودعات المختارة غير موجود ضمن هذه الشركة");
-  const warehouseIdSet = new Set(warehouses.map((w) => w.id));
+  const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
+  const warehouseIdSet = new Set(warehouseById.keys());
 
   const resolved: LineInput[] = [];
   for (const line of lines) {
@@ -103,7 +105,7 @@ async function resolveLineAccounts(tenantId: string, companyId: string, lines: L
     const primaryAccountId =
       item.type === "expense" ? item.expenseAccountId
       : item.type === "periodic_inventory" ? item.purchasesAccountId
-      : item.stockAccountId;
+      : stockAccountFor(item, warehouseById.get(line.warehouseId));
     if (!primaryAccountId) throw badRequest(`لم يُحدَّد الحساب المحاسبي المرتبط بالصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
     resolved.push({ ...line, ...tax, accountId: primaryAccountId });
   }

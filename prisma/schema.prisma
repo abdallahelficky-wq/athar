@@ -873,6 +873,7 @@ model Account {
   purchaseReturnLines          PurchaseReturnLine[]
   receiptsAsBank               Receipt[]             @relation("ReceiptBankAccount")
   itemStockLinks               Item[]                @relation("ItemStockAccount")
+  warehouseStockLinks          Warehouse[]           @relation("WarehouseStockAccount")
   itemCogsLinks                Item[]                @relation("ItemCogsAccount")
   itemRevenueLinks             Item[]                @relation("ItemRevenueAccount")
   itemExpenseLinks             Item[]                @relation("ItemExpenseAccount")
@@ -1834,6 +1835,10 @@ model Warehouse {
   // واحد لكل محطة (فريد)، من نفس المستأجر والشركة (يُتحقَّق في stationSetup.service.ts). null = مستودع عادي.
   costCenterId String?     @unique
   costCenter   CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  // حساب مخزون المستودع — كل حركة تمسّ قيمة مخزونه تُرحَّل عليه بدل حساب مخزون الصنف (src/lib/stockAccount.ts). من نفس
+  // الشركة، حساب أصول ترحيل نشط. null = المستودعات القديمة: يبقى حساب الصنف. لا يُغيَّر بعد أن تُسجَّل للمستودع حركات.
+  stockAccountId String?
+  stockAccount   Account? @relation("WarehouseStockAccount", fields: [stockAccountId], references: [id], onDelete: Restrict)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -1841,6 +1846,7 @@ model Warehouse {
   purchaseInvoiceLines PurchaseInvoiceLine[]
 
   @@unique([tenantId, companyId, name])
+  @@index([stockAccountId])
   @@map("warehouses")
 }
 

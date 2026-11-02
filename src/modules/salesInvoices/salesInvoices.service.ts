@@ -1,4 +1,5 @@
 import { saveZatcaResponseWithArchive } from "../../lib/zatca/archive";
+import { stockAccountFor } from "../../lib/stockAccount";
 import { issuedSupplyDate, recordZatcaIssueTx } from "../../lib/zatca/issues";
 import { assertReissuable, REISSUE_CONFLICT_MESSAGE, reserveReissueChainTx } from "../../lib/zatca/reissue";
 import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/itemTax";
@@ -215,12 +216,13 @@ export async function computeCogsJournalLines(tenantId: string, companyId: strin
 
   for (const line of stockLines) {
     const item = itemById.get(line.itemId!)!;
-    if (!item.cogsAccountId || !item.stockAccountId) {
+    const stockAccountId = stockAccountFor(item, warehouse);
+    if (!item.cogsAccountId || !stockAccountId) {
       throw badRequest(`لم تُحدَّد حسابات المخزون/التكلفة للصنف "${item.name}" بعد؛ أكمل بياناته من شاشة الأصناف أولاً`);
     }
     const amount = line.quantity * Number(item.averageCost);
     add(item.cogsAccountId, amount, 0);
-    add(item.stockAccountId, 0, amount);
+    add(stockAccountId, 0, amount);
   }
 
   const cogsLines = [...byAccount.entries()].map(([accountId, { debit, credit }]) => ({ accountId, department: "المبيعات والتسويق", debit, credit }));

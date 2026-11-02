@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import FormDialog from "../shared/FormDialog";
 import { getItemDisplayName } from "../shared/itemDisplayName";
 import { listItems } from "../../api/items";
 import { listWarehouses } from "../../api/warehouses";
@@ -10,6 +11,8 @@ import StockMovementsTable from "./StockMovementsTable";
 
 export default function StockInOutTab({ companyId }) {
   const { t, i18n } = useTranslation();
+  // نموذج الحركة في نافذة منبثقة فوق سجل الحركات
+  const [formOpen, setFormOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [movements, setMovements] = useState([]);
@@ -53,7 +56,7 @@ export default function StockInOutTab({ companyId }) {
         type, itemId, warehouseId, quantity: Number(quantity),
         unitCost: type === "in" ? Number(unitCost) : undefined, date, note,
       });
-      setQuantity(""); setUnitCost(""); setNote("");
+      setQuantity(""); setUnitCost(""); setNote(""); setFormOpen(false);
       reload();
     } catch (err) {
       setError(err.message);
@@ -70,7 +73,12 @@ export default function StockInOutTab({ companyId }) {
 
   return (
     <div>
-      <div className="panel form-panel">
+      <div className="form-btn-group" style={{ marginBottom: 12 }}>
+        <button className="btn-primary" onClick={() => { setError(""); setFormOpen(true); }}>+ {t("inventory.stockInOut.newMovement")}</button>
+      </div>
+      {error && !formOpen && <p className="balance-bad">{error}</p>}
+      <FormDialog open={formOpen} title={t("inventory.stockInOut.newMovement")} onClose={() => setFormOpen(false)}>
+      <div>
         <div className="form-grid">
           <label>{t("inventory.stockInOut.movementType")}<select value={type} onChange={(e) => setType(e.target.value)}><option value="in">{t("inventory.stockInOut.movementIn")}</option><option value="out">{t("inventory.stockInOut.movementOut")}</option></select></label>
           <label>{t("inventory.stockInOut.item")}<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{getItemDisplayName(i, i18n.language)}</option>)}</select></label>
@@ -84,6 +92,7 @@ export default function StockInOutTab({ companyId }) {
         {error && <p className="balance-bad">{error}</p>}
         <button className="btn-primary" onClick={save} disabled={!itemId || !warehouseId || !Number(quantity) || (type === "in" && !unitCost)}>{t("inventory.stockInOut.save")}</button>
       </div>
+      </FormDialog>
 
       <StockMovementsTable movements={movements} filterTypes={["in", "out"]} onRemove={setRemoveTarget} />
       {removeTarget && <UnpostModal title={t("inventory.stockInOut.removeMovementTitle")} onCancel={() => setRemoveTarget(null)} onConfirm={doRemove} />}

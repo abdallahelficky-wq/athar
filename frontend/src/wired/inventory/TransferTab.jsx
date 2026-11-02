@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import FormDialog from "../shared/FormDialog";
 import { getItemDisplayName } from "../shared/itemDisplayName";
 import { listItems } from "../../api/items";
 import { listWarehouses } from "../../api/warehouses";
@@ -10,6 +11,8 @@ import StockMovementsTable from "./StockMovementsTable";
 
 export default function TransferTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
+  // نموذج الحركة في نافذة منبثقة فوق سجل الحركات
+  const [formOpen, setFormOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [fromWarehouses, setFromWarehouses] = useState([]);
   const [toWarehouses, setToWarehouses] = useState([]);
@@ -60,7 +63,7 @@ export default function TransferTab({ companyId, companies }) {
     if (!itemId || !fromWarehouseId || !toWarehouseId || !toCompanyId || !Number(quantity)) return;
     try {
       await createTransferMovement({ itemId, fromWarehouseId, toWarehouseId, toCompanyId, quantity: Number(quantity), date });
-      setQuantity("");
+      setQuantity(""); setFormOpen(false);
       reload();
     } catch (err) {
       setError(err.message);
@@ -77,7 +80,12 @@ export default function TransferTab({ companyId, companies }) {
 
   return (
     <div>
-      <div className="panel form-panel">
+      <div className="form-btn-group" style={{ marginBottom: 12 }}>
+        <button className="btn-primary" onClick={() => { setError(""); setFormOpen(true); }}>+ {t("inventory.transfer.newTransfer")}</button>
+      </div>
+      {error && !formOpen && <p className="balance-bad">{error}</p>}
+      <FormDialog open={formOpen} title={t("inventory.transfer.newTransfer")} onClose={() => setFormOpen(false)}>
+      <div>
         <div className="form-grid">
           <label>{t("inventory.transfer.item")}<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{getItemDisplayName(i, i18n.language)}</option>)}</select></label>
           <label>{t("inventory.transfer.fromWarehouse")}<select value={fromWarehouseId} onChange={(e) => setFromWarehouseId(e.target.value)}>{fromWarehouses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -95,6 +103,7 @@ export default function TransferTab({ companyId, companies }) {
         {error && <p className="balance-bad">{error}</p>}
         <button className="btn-primary" onClick={save} disabled={!itemId || !fromWarehouseId || !toWarehouseId || !Number(quantity) || Number(quantity) > balance}>{t("inventory.transfer.execute")}</button>
       </div>
+      </FormDialog>
 
       <StockMovementsTable movements={movements} filterTypes={["transfer_out", "transfer_in"]} onRemove={setRemoveTarget} />
       {removeTarget && <UnpostModal title={t("inventory.transfer.removeMovementTitle")} onCancel={() => setRemoveTarget(null)} onConfirm={doRemove} />}

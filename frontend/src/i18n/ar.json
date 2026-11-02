@@ -1022,17 +1022,23 @@
       }
     },
     "warehouses": {
+      "addTitle": "إضافة مستودع",
+      "editTitle": "تعديل المستودع",
+      "stockAccount": "حساب المخزون",
+      "stockAccountNote": "كل حركة على هذا المستودع (شراء، بيع، إدخال/إخراج، صرف، تحويل) تُرحَّل على حساب مخزونه. لا يمكن تغييره بعد تسجيل حركات على المستودع.",
+      "itemAccountFallback": "حساب الصنف",
       "name": "اسم المستودع", "code": "كود المستودع", "location": "الموقع",
       "isDefault": "المستودع الافتراضي لصرف المبيعات",
       "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "addWarehouse": "إضافة مستودع",
       "loading": "جارٍ التحميل...",
-      "table": { "name": "اسم المستودع", "code": "الكود", "location": "الموقع", "isDefault": "الافتراضي", "status": "الحالة" },
+      "table": { "stockAccount": "حساب المخزون", "name": "اسم المستودع", "code": "الكود", "location": "الموقع", "isDefault": "الافتراضي", "status": "الحالة" },
       "active": "نشط", "archived": "مؤرشف",
       "edit": "تعديل", "unarchive": "إلغاء الأرشفة", "archive": "أرشفة", "delete": "حذف",
       "empty": "لا توجد مستودعات بعد.",
       "confirmDelete": "حذف المستودع \"{{name}}\"؟"
     },
     "stockInOut": {
+      "newMovement": "حركة إدخال / إخراج جديدة",
       "movementType": "الحركة", "movementIn": "إضافة مخزون", "movementOut": "حذف / إتلاف مخزون",
       "item": "الصنف", "warehouse": "المستودع", "quantity": "الكمية", "unitCost": "تكلفة الوحدة",
       "date": "التاريخ", "note": "ملاحظة",
@@ -1041,6 +1047,7 @@
       "removeMovementTitle": "حذف الحركة المخزنية"
     },
     "issue": {
+      "newIssue": "صرف مخزني جديد",
       "item": "الصنف", "warehouse": "المستودع", "department": "القسم المستفيد",
       "quantity": "الكمية", "date": "التاريخ", "note": "ملاحظة",
       "availableBalance": "الرصيد المتاح:", "exceedsBalance": "— الكمية المطلوبة أكبر من الرصيد المتاح",
@@ -1048,6 +1055,7 @@
       "removeMovementTitle": "حذف حركة الصرف"
     },
     "transfer": {
+      "newTransfer": "تحويل جديد",
       "item": "الصنف", "fromWarehouse": "من موقع (المصدر)", "toCompany": "الشركة المستقبلة",
       "toWarehouse": "إلى موقع (الوجهة)", "quantity": "الكمية", "date": "التاريخ",
       "availableBalance": "الرصيد المتاح بالمصدر:",
@@ -1071,6 +1079,7 @@
       "notValueTracked": "غير مُقيَّم محاسبياً"
     },
     "periodicSettlement": {
+      "newSettlement": "تسوية جرد جديدة",
       "intro": "تسوية دفعة واحدة لكل أصناف \"بضاعة بجرد دوري\" — أدخل الكمية المعدودة فعلياً وتكلفة الوحدة لكل صنف تريد تسويته، واترك الباقي فارغاً لتخطّيه في هذه الدفعة.",
       "date": "تاريخ الجرد", "loading": "جارٍ التحميل...",
       "empty": "لا توجد أصناف من نوع \"بضاعة بجرد دوري\" بعد.",
