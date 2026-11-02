@@ -4,6 +4,7 @@ import { badRequest, notFound, forbidden, HttpError } from "../../lib/httpError"
 import { createJournalEntryTx, recomputeEntryTotal, reserveEntryNumber, type PostingLine } from "../../lib/journalPosting";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
+import { deleteObject } from "../../lib/storage";
 import { computeShiftCogsTx, createShiftFuelIssuesTx, FUEL_PRODUCT_LABEL_AR } from "./stationShiftCogs";
 
 export { FUEL_PRODUCT_LABEL_AR };
@@ -1104,6 +1105,85 @@ export async function rejectShift(tenantId: string, userId: string, shiftId: str
     });
     return updated;
   });
+}
+
+/** حالات يجوز فيها حذف الوردية نهائياً: لم تُرحَّل قط (لا قيد ولا صرف وقود). المرحَّلة والمعكوسة لا تُحذَف أبداً — أثرها في الدفاتر يبقى. */
+const DELETABLE_STATUSES = ["open", "submitted", "under_review", "approved", "rejected"] as const;
+/** حالات لا تحجز خانة الوردية ولا تدخل في سلسلة العدادات — نفس استثناء الفهرس الجزئي station_shifts_active_slot_key. */
+const INACTIVE_SLOT_STATUSES = ["rejected", "reversed"] as const;
+
+/**
+ * حذف وردية لم تُرحَّل (تجريبية أو مُدخَلة بالخطأ) نهائياً مع قراءاتها وتحصيلها ومصروفاتها ومرفقاتها.
+ *
+ * الشروط: حالة ضمن DELETABLE_STATUSES، بلا قيد محاسبي، بلا حركات مخزون منسوبة إليها، لا وردية مصحَّحة تستبدلها، ولا
+ * وردية لاحقة نشطة لنفس المحطة (قراءات افتتاح الوردية اللاحقة أُخذت من إغلاق هذه — حذفها يكسر سلسلة العدادات؛ تُحذَف
+ * الورديات بالترتيب من الأحدث). السبب إلزامي، ويبقى صف تدقيق باسم المستخدم بعد الحذف (StationShiftAuditLog بلا مفتاح
+ * أجنبي على الوردية عمداً).
+ *
+ * المرآة والعكس: لا ينطبقان — الوردية القابلة للحذف لا قيد لها أصلاً، فلا قيد مرآة ولا قيد عكسي يمكن أن يتعلّق بها.
+ */
+export async function deleteShift(tenantId: string, userId: string, shiftId: string, reasonInput: string) {
+  const reason = reasonInput.trim();
+  if (!reason) throw badRequest("سبب حذف الوردية مطلوب");
+  const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
+  if (!shift) throw notFound("الوردية غير موجودة");
+  if (!(DELETABLE_STATUSES as readonly string[]).includes(shift.status) || shift.journalEntryId) {
+    throw badRequest("لا يمكن حذف وردية مرحَّلة أو معكوسة — استخدم عكس الوردية");
+  }
+
+  const fileKeys = await prisma.$transaction(async (tx) => {
+    const movements = await tx.stockMovement.count({ where: { tenantId, companyId: shift.companyId, sourceStationShiftId: shift.id } });
+    if (movements > 0) throw badRequest("لا يمكن حذف وردية لها حركات مخزون — استخدم عكس الوردية");
+
+    const replacement = await tx.stationShift.findFirst({ where: { tenantId, correctsShiftId: shift.id }, select: { id: true } });
+    if (replacement) throw badRequest("لهذه الوردية وردية مصحَّحة تستبدلها — احذف الوردية المصحَّحة أولاً");
+
+    // وردية لاحقة نشطة لنفس المحطة: تاريخ أحدث، أو نفس التاريخ والوردية الحالية صباحية واللاحقة ليلية
+    if (!(INACTIVE_SLOT_STATUSES as readonly string[]).includes(shift.status)) {
+      const later = await tx.stationShift.findFirst({
+        where: {
+          tenantId,
+          companyId: shift.companyId,
+          costCenterId: shift.costCenterId,
+          id: { not: shift.id },
+          status: { notIn: [...INACTIVE_SLOT_STATUSES] },
+          OR: [
+            { shiftDate: { gt: shift.shiftDate } },
+            ...(shift.shiftType === "morning" ? [{ shiftDate: shift.shiftDate, shiftType: "night" as StationShiftType }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+      if (later) throw badRequest("توجد وردية لاحقة لنفس المحطة تعتمد على قراءات هذه الوردية — احذف الورديات الأحدث أولاً");
+    }
+
+    const readingIds = (await tx.stationShiftReading.findMany({ where: { shiftId: shift.id }, select: { id: true } })).map((r) => r.id);
+    const expenseIds = (await tx.stationShiftExpense.findMany({ where: { shiftId: shift.id }, select: { id: true } })).map((e) => e.id);
+    const attachmentWhere = {
+      tenantId,
+      OR: [
+        { entityType: "station_shift_reading", entityId: { in: readingIds } },
+        { entityType: "station_shift_expense", entityId: { in: expenseIds } },
+      ],
+    };
+    const attachments = await tx.attachment.findMany({ where: attachmentWhere, select: { fileKey: true } });
+    await tx.attachment.deleteMany({ where: attachmentWhere });
+
+    // مشروط بنفس الحالة المقروءة: ترحيل متزامن بين القراءة والحذف يُفشل الحذف بدل حذف وردية مرحَّلة
+    const deleted = await tx.stationShift.deleteMany({ where: { id: shift.id, tenantId, status: shift.status, journalEntryId: null } });
+    if (deleted.count !== 1) throw badRequest("تغيّرت حالة الوردية أثناء الحذف — حدّث الصفحة وأعد المحاولة");
+
+    await tx.stationShiftAuditLog.create({
+      data: { tenantId, companyId: shift.companyId, shiftId: shift.id, userId, action: "delete", fieldName: "reason", oldValue: shift.status, newValue: reason },
+    });
+    return attachments.map((a) => a.fileKey);
+  });
+
+  // حذف ملفات المرفقات من التخزين بعد نجاح المعاملة — بأفضل جهد: فشلها لا يعيد الوردية، يترك ملفاً يتيماً فقط
+  if (fileKeys.length > 0) {
+    await Promise.allSettled(fileKeys.map((key) => deleteObject(key)));
+  }
+  return { id: shift.id, deleted: true };
 }
 
 /** الورديات المُغلَقة لشركة واحدة (الأحدث أولاً): المرحَّلة (زر عكس الوردية) والمعكوسة والمرفوضة (زر الوردية المصحَّحة). */

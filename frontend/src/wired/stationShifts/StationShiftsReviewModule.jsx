@@ -18,6 +18,9 @@ export const STATION_SHIFTS_TABS = [
   { id: "workers", labelKey: "stationWorkers.tabTitle" },
 ];
 
+const SHIFT_DIALOG_STYLE = { maxWidth: 1100, width: "95vw", maxHeight: "90vh", overflowY: "auto" };
+const DANGER_STYLE = { background: "#A8432B", borderColor: "#A8432B" };
+
 const EXTRA_TABS = { setup: StationSetupTab, prices: FuelPricesTab, workers: StationWorkersTab };
 
 /**
@@ -54,6 +57,15 @@ export default function StationShiftsReviewModule({ companyId }) {
     api.getShiftById(id).then(setDetail).catch((e) => setError(e.message));
   };
 
+  // الوردية تُعرَض في نافذة منبثقة فوق القائمة — تُغلَق بزر ×، أو بالنقر خارجها، أو بمفتاح Esc
+  const closeDetail = () => { setDetail(null); setSelectedId(""); setReasonAction(""); setReasonText(""); setCorrectedClosings({}); setError(""); };
+  useEffect(() => {
+    if (!detail) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") closeDetail(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [detail]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const doCorrect = async (readingId) => {
     setError(""); setMessage("");
     try {
@@ -75,12 +87,28 @@ export default function StationShiftsReviewModule({ companyId }) {
   };
 
   // عكس وردية مرحَّلة: قيد عكسي + إلغاء صرف الوقود + حالة "معكوسة" — السبب إلزامي، ولا يُعاد ترحيلها بعدها
-  const doReverse = async () => {
-    const reason = window.prompt(t("stationShiftsReview.reversePrompt"));
-    if (!reason || !reason.trim()) return;
+  // السبب يُكتَب في حقل داخل الصفحة لا window.prompt — النوافذ المنبثقة غير مدعومة في المتصفحات المدمجة وتطبيق أندرويد المغلِّف
+  const [reasonAction, setReasonAction] = useState(""); // "" | "reject" | "reverse" | "delete"
+  const [reasonText, setReasonText] = useState("");
+  const askReason = (action) => { setError(""); setMessage(""); setReasonText(""); setReasonAction(action); };
+  const cancelReason = () => { setReasonAction(""); setReasonText(""); };
+
+  const doReverse = async (reason) => {
     setError(""); setMessage("");
-    try { await api.reverseShift(selectedId, reason.trim()); setMessage(t("stationShiftsReview.reversedMsg")); loadDetail(selectedId); reloadList(); }
+    try { await api.reverseShift(selectedId, reason); setMessage(t("stationShiftsReview.reversedMsg")); cancelReason(); loadDetail(selectedId); reloadList(); }
     catch (e) { setError(e.message); }
+  };
+
+  // حذف نهائي لوردية لم تُرحَّل (تجريبية/بالخطأ) — المرحَّلة تُعكَس ولا تُحذَف
+  const doDelete = async (reason) => {
+    setError(""); setMessage("");
+    try {
+      await api.deleteShift(selectedId, reason);
+      cancelReason();
+      setSelectedId(""); setDetail(null);
+      setMessage(t("stationShiftsReview.deletedMsg"));
+      reloadList();
+    } catch (e) { setError(e.message); }
   };
 
   // وردية مصحَّحة بدل وردية معكوسة/مرفوضة: قراءة إغلاق لكل فوهة (الافتتاح من الوردية المستبدَلة في الخادم)
@@ -98,13 +126,35 @@ export default function StationShiftsReviewModule({ companyId }) {
     } catch (e) { setError(e.message); }
   };
 
-  const doReject = async () => {
-    const reasonCode = window.prompt(t("stationShiftsReview.rejectPrompt"));
-    if (!reasonCode) return;
+  const doReject = async (reason) => {
     setError(""); setMessage("");
-    try { await api.rejectShift(selectedId, reasonCode); setMessage(t("stationShiftsReview.rejectedMsg")); loadDetail(selectedId); loadPending(); }
+    try { await api.rejectShift(selectedId, reason); setMessage(t("stationShiftsReview.rejectedMsg")); cancelReason(); loadDetail(selectedId); loadPending(); }
     catch (e) { setError(e.message); }
   };
+
+  const submitReason = () => {
+    const reason = reasonText.trim();
+    if (!reason) { setError(t("stationShiftsReview.reasonRequired")); return; }
+    if (reasonAction === "reject") doReject(reason);
+    else if (reasonAction === "reverse") doReverse(reason);
+    else if (reasonAction === "delete") doDelete(reason);
+  };
+
+  const canDelete = detail && !detail.journalEntryId && !["posted", "reversed"].includes(detail.status);
+  const reasonLabelKey = { reject: "rejectPrompt", reverse: "reversePrompt", delete: "deletePrompt" }[reasonAction];
+  const reasonPanel = reasonAction ? (
+    <div className="form-btn-group" style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}>
+      <label>
+        {t(`stationShiftsReview.${reasonLabelKey}`)}
+        {reasonAction === "delete" && <p className="note">{t("stationShiftsReview.deleteWarning")}</p>}
+        <textarea value={reasonText} onChange={(e) => setReasonText(e.target.value)} rows={2} autoFocus style={{ width: "100%" }} />
+      </label>
+      <div className="form-btn-group">
+        <button className="btn-primary" style={reasonAction === "delete" ? DANGER_STYLE : undefined} onClick={submitReason}>{t("stationShiftsReview.confirmBtn")}</button>
+        <button className="btn-ghost" onClick={cancelReason}>{t("stationShiftsReview.cancelBtn")}</button>
+      </div>
+    </div>
+  ) : null;
 
   const header = (
     <>
@@ -170,8 +220,15 @@ export default function StationShiftsReviewModule({ companyId }) {
       </div>
 
       {detail && (
-        <div className="panel">
-          <h3>{t("stationShiftsReview.detailTitle", { employee: detail.employee?.name, status: t(`stationShiftsReview.status.${detail.status}`) })}</h3>
+        <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && closeDetail()}>
+        <div className="unpost-confirm-box" role="dialog" aria-modal="true" style={SHIFT_DIALOG_STYLE}>
+          <div className="modal-title-row">
+            <h3>{t("stationShiftsReview.detailTitle", { employee: detail.employee?.name, status: t(`stationShiftsReview.status.${detail.status}`) })}</h3>
+            <button type="button" className="modal-close-btn" onClick={closeDetail} aria-label={t("common.close")}>×</button>
+          </div>
+          <p className="note" style={{ marginTop: 0 }}>{list.find((x) => x.id === detail.id)?.costCenter?.name ?? ""} · {t(`stationShiftsReview.shiftType.${detail.shiftType}`)} · {formatDate(detail.shiftDate, i18n.language)}</p>
+          {error && <p className="balance-bad">{error}</p>}
+          {message && <p className="note">{message}</p>}
 
           <h4>{t("stationShiftsReview.readingsTitle")}</h4>
           <table className="ledger-table">
@@ -295,19 +352,27 @@ export default function StationShiftsReviewModule({ companyId }) {
               <div className="form-btn-group">
                 <button className="btn-primary" onClick={doCreateCorrected}>{t("stationShiftsReview.correctedCreateBtn")}</button>
                 {detail.status === "reversed" && <p className="note">{t("stationShiftsReview.reversedNote")}</p>}
+                {canDelete && !reasonAction && <button className="btn-ghost" style={{ color: "#A8432B" }} onClick={() => askReason("delete")}>{t("stationShiftsReview.deleteBtn")}</button>}
               </div>
+              {detail.status === "rejected" && reasonPanel}
             </div>
           ) : detail.status === "posted" ? (
-            <div className="form-btn-group">
-              <button className="btn-ghost" onClick={doReverse}>{t("stationShiftsReview.reverseBtn")}</button>
-            </div>
+            reasonPanel || (
+              <div className="form-btn-group">
+                <button className="btn-ghost" onClick={() => askReason("reverse")}>{t("stationShiftsReview.reverseBtn")}</button>
+              </div>
+            )
           ) : (
-            <div className="form-btn-group">
-              <button className="btn-primary" disabled={!detail.summary} onClick={doApprove}>{t("stationShiftsReview.approveBtn")}</button>
-              <button className="btn-primary" onClick={doPost}>{t("stationShiftsReview.postBtn")}</button>
-              <button className="btn-ghost" onClick={doReject}>{t("stationShiftsReview.rejectBtn")}</button>
-            </div>
+            reasonPanel || (
+              <div className="form-btn-group">
+                <button className="btn-primary" disabled={!detail.summary} onClick={doApprove}>{t("stationShiftsReview.approveBtn")}</button>
+                <button className="btn-primary" onClick={doPost}>{t("stationShiftsReview.postBtn")}</button>
+                <button className="btn-ghost" onClick={() => askReason("reject")}>{t("stationShiftsReview.rejectBtn")}</button>
+                {canDelete && <button className="btn-ghost" style={{ color: "#A8432B" }} onClick={() => askReason("delete")}>{t("stationShiftsReview.deleteBtn")}</button>}
+              </div>
+            )
           )}
+        </div>
         </div>
       )}
     </div>

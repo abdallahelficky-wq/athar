@@ -66,3 +66,8 @@ export const createCorrectedShiftHandler: RequestHandler = async (req, res) => {
   await assertShiftCompanyAccess(req.auth!, req.params.id);
   res.status(201).json(await service.createCorrectedShift(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body));
 };
+
+export const deleteShiftHandler: RequestHandler = async (req, res) => {
+  await assertShiftCompanyAccess(req.auth!, req.params.id);
+  res.json(await service.deleteShift(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.reason));
+};

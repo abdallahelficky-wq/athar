@@ -544,6 +544,12 @@ export const AR_TO_EN: Record<string, string> = {
     "This company's station-shift cash shortage/surplus accounts have not been set yet — configure them from company settings first",
   "لا يمكن ترحيل وردية لم تُعتمَد بعد، أو رُحِّلت بالفعل": "A shift that hasn't been approved yet, or has already been posted, can't be posted",
   "لا يمكن رفض وردية ليست قيد المراجعة أو الاعتماد": "A shift that isn't under review or approved can't be rejected",
+  "سبب حذف الوردية مطلوب": "A reason is required to delete the shift",
+  "لا يمكن حذف وردية مرحَّلة أو معكوسة — استخدم عكس الوردية": "A posted or reversed shift can't be deleted. Use Reverse shift instead",
+  "لا يمكن حذف وردية لها حركات مخزون — استخدم عكس الوردية": "A shift with stock movements can't be deleted. Use Reverse shift instead",
+  "لهذه الوردية وردية مصحَّحة تستبدلها — احذف الوردية المصحَّحة أولاً": "A corrected shift replaces this shift. Delete the corrected shift first",
+  "توجد وردية لاحقة لنفس المحطة تعتمد على قراءات هذه الوردية — احذف الورديات الأحدث أولاً": "A later shift at this station relies on this shift's readings. Delete the newer shifts first",
+  "تغيّرت حالة الوردية أثناء الحذف — حدّث الصفحة وأعد المحاولة": "The shift's status changed during deletion. Refresh and try again",
 
   // stationShiftsReports.service.ts / stationShiftsReports.controller.ts
   "companyId مطلوب لتقارير ورديات المحطات": "companyId is required for station-shift reports",
