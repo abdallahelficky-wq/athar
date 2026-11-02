@@ -100,6 +100,7 @@ model Tenant {
 
   stationNozzles          StationNozzle[]
   stationTanks            StationTank[]
+  forecourtControllers    ForecourtController[]
   tankReadings            TankReading[]
   fuelDeliveries          FuelDelivery[]
   fuelPrices              FuelPrice[]
@@ -573,6 +574,7 @@ model Company {
   stationSales                StationSale[]
   stationNozzles              StationNozzle[]
   stationTanks                StationTank[]
+  forecourtControllers        ForecourtController[]
   tankReadings                TankReading[]
   fuelDeliveries              FuelDelivery[]
   fuelPrices                  FuelPrice[]
@@ -730,6 +732,7 @@ model CostCenter {
   tankDeliveries     TankDelivery[]
   tankDips           TankDip[]
   stationTanks       StationTank[]
+  forecourtController ForecourtController?
   fuelDeliveries     FuelDelivery[]
   assignedEmployees  Employee[]      @relation("EmployeeAssignedCostCenter")
   // موظفون تُحمَّل تكلفة رواتبهم على هذا المركز (Employee.costCenterId) — منفصل تماماً عن عمّال المحطات أعلاه
@@ -3017,6 +3020,7 @@ model StationNozzle {
   // رصيده في مطابقة الخزانات. null = لم تُربَط بعد (تظهر في المطابقة كمبيعات غير موزَّعة على خزان).
   tankId         String?
   tank           StationTank?       @relation(fields: [tankId], references: [id], onDelete: SetNull)
+  forecourtMap   ForecourtNozzleMap?
   isActive       Boolean            @default(true)
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
@@ -3358,6 +3362,86 @@ model FuelDeliveryLine {
 
   @@index([tankId])
   @@map("fuel_delivery_lines")
+}
+
+// ===== متحكمات المحطات (PTS-2) =====
+// متحكم واحد لكل محطة. ما يعتمد على بروتوكول jsonPTS (المصادقة، التوقيع، صيغة الرسائل، نقطة الاستقبال) غير مبني بعد —
+// docs/design/pts2-integration.md. هذا الجزء: التسجيل، ربط أرقام المضخات/الفوهات، وتخزين ما يُستقبَل بعد التحليل.
+
+enum ForecourtVendor {
+  technotrade_pts2
+}
+
+model ForecourtController {
+  id                 String          @id @default(cuid())
+  tenantId           String
+  tenant             Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId          String
+  company            Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenterId       String          @unique
+  costCenter         CostCenter      @relation(fields: [costCenterId], references: [id])
+  vendor             ForecourtVendor @default(technotrade_pts2)
+  // المعرّف الفريد للوحة المتحكم (24 خانة ست عشرية في PTS-2) — به يُعرَف الجهاز عند الاستقبال
+  deviceSerial       String          @unique
+  name               String?
+  firmwareVersion    String?
+  isActive           Boolean         @default(true)
+  // آخر رسالة وصلت من الجهاز — منه يُحسَب "صامت" (لا رسائل منذ silentAfterMinutes)
+  lastSeenAt         DateTime?
+  lastStatus         Json?
+  silentAfterMinutes Int             @default(10)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  nozzleMaps   ForecourtNozzleMap[]
+  transactions ForecourtPumpTransaction[]
+
+  @@index([tenantId, companyId])
+  @@map("forecourt_controllers")
+}
+
+// رقم المضخة/الفوهة في المتحكم ↔ فوهة أثر (نفس المحطة) — مفتاح تحويل كل عملية بيع وعدادها إلى فوهة أثر
+model ForecourtNozzleMap {
+  id           String              @id @default(cuid())
+  controllerId String
+  controller   ForecourtController @relation(fields: [controllerId], references: [id], onDelete: Cascade)
+  ptsPump      Int
+  ptsNozzle    Int
+  nozzleId     String              @unique
+  nozzle       StationNozzle       @relation(fields: [nozzleId], references: [id], onDelete: Cascade)
+
+  @@unique([controllerId, ptsPump, ptsNozzle])
+  @@map("forecourt_nozzle_maps")
+}
+
+// عملية بيع كما سجّلها المتحكم (بعد تحليل رسالته) — للمطابقة والمقارنة فقط، لا تُرحِّل أي قيد
+model ForecourtPumpTransaction {
+  id                String              @id @default(cuid())
+  tenantId          String
+  companyId         String
+  controllerId      String
+  controller        ForecourtController @relation(fields: [controllerId], references: [id], onDelete: Cascade)
+  ptsPump           Int
+  ptsNozzle         Int
+  // فوهة أثر وقت الاستقبال (null = رقم غير مربوط بعد — تُحفَظ ولا تُرمى، وتُربَط عند إضافة الربط)
+  nozzleId          String?
+  transactionNumber Int
+  startedAt         DateTime?
+  endedAt           DateTime
+  volume            Decimal             @db.Decimal(18, 3)
+  tcVolume          Decimal?            @db.Decimal(18, 3)
+  amount            Decimal?            @db.Decimal(18, 2)
+  price             Decimal?            @db.Decimal(18, 4)
+  // عداد اللترات التراكمي غير القابل للتصفير لحظة نهاية العملية — مصدر قراءة الوردية الآلية
+  totalVolume       Decimal?            @db.Decimal(18, 3)
+  totalAmount       Decimal?            @db.Decimal(18, 2)
+  tag               String?
+  rawPayload        Json?
+  createdAt         DateTime            @default(now())
+
+  @@unique([controllerId, ptsPump, transactionNumber, endedAt], map: "forecourt_pump_tx_dedup_key")
+  @@index([tenantId, companyId, nozzleId, endedAt], map: "forecourt_pump_tx_nozzle_idx")
+  @@map("forecourt_pump_transactions")
 }
 
 // سجل تدقيق حقلي مخصّص لتعديلات الورديات (بخلاف AuditLog العام متعدد الأشكال) — صف واحد لكل

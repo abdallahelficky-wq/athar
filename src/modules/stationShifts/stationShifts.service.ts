@@ -5,6 +5,7 @@ import { createJournalEntryTx, recomputeEntryTotal, reserveEntryNumber, type Pos
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
 import { deleteObject } from "../../lib/storage";
+import { controllerValuesForShift } from "../forecourt/forecourt.service";
 import { computeShiftCogsTx, createShiftFuelIssuesTx, FUEL_PRODUCT_LABEL_AR } from "./stationShiftCogs";
 
 export { FUEL_PRODUCT_LABEL_AR };
@@ -848,7 +849,9 @@ export async function getShiftById(tenantId: string, shiftId: string) {
   // قراءة (readings أدناه) لتوضيح أيها لا يزال ناقصاً.
   const closing = hasUnconfirmedReading ? null : computeShiftClosing(input);
   const summary = closing ? { ...closing, ...(await shiftJournalPreview(tenantId, shift, closing)) } : null;
-  return { ...shift, summary, auditLogs };
+  // قراءة المتحكم (PTS-2) لكل فوهة مربوطة — للمقارنة بقراءة الصورة فقط؛ لا تُعتمَد إلا إن قبلها المحاسب
+  const controllerValues = await controllerValuesForShift(tenantId, shift);
+  return { ...shift, summary, auditLogs, controllerValues };
 }
 
 /**
