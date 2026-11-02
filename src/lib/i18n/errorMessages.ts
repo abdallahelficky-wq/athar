@@ -10,6 +10,12 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "المتحكم غير موجود": "The controller doesn't exist",
+  "معرّف لوحة المتحكم يجب أن يكون 24 خانة ست عشرية (من صفحة معلومات الجهاز)": "The controller board ID must be 24 hexadecimal characters (from the device information page)",
+  "لهذه المحطة متحكم مسجَّل بالفعل": "This station already has a registered controller",
+  "هذا المتحكم مسجَّل بالفعل": "This controller is already registered",
+  "الفوهة ليست في محطة هذا المتحكم": "The nozzle isn't at this controller's station",
+  "معرّف لوحة المتحكم مطلوب": "The controller board ID is required",
   "الخزان غير موجود": "The tank doesn't exist",
   "يوجد خزان بنفس الرقم في هذه المحطة": "A tank with this number already exists at this station",
   "الخزان ليس في نفس محطة الفوهة": "The tank isn't at the nozzle's station",

@@ -11,11 +11,13 @@ import StationWorkersTab from "./StationWorkersTab";
 import StationSetupTab from "./StationSetupTab";
 import FuelPricesTab from "./FuelPricesTab";
 import StationTanksTab from "./StationTanksTab";
+import StationControllersTab from "./StationControllersTab";
 
 export const STATION_SHIFTS_TABS = [
   { id: "pending", labelKey: "stationShiftsReview.tabTitle" },
   { id: "setup", labelKey: "stationSetup.tabTitle" },
   { id: "tanks", labelKey: "stationTanks.tabTitle" },
+  { id: "controllers", labelKey: "stationControllers.tabTitle" },
   { id: "prices", labelKey: "fuelPrices.tabTitle" },
   { id: "workers", labelKey: "stationWorkers.tabTitle" },
 ];
@@ -23,7 +25,7 @@ export const STATION_SHIFTS_TABS = [
 const SHIFT_DIALOG_STYLE = { maxWidth: 1100, width: "95vw", maxHeight: "90vh", overflowY: "auto" };
 const DANGER_STYLE = { background: "#A8432B", borderColor: "#A8432B" };
 
-const EXTRA_TABS = { setup: StationSetupTab, tanks: StationTanksTab, prices: FuelPricesTab, workers: StationWorkersTab };
+const EXTRA_TABS = { setup: StationSetupTab, tanks: StationTanksTab, controllers: StationControllersTab, prices: FuelPricesTab, workers: StationWorkersTab };
 
 /**
  * شاشة المحاسب لمراجعة/اعتماد/ترحيل ورديات المحطات — محور العامل منفصل تماماً في بوابة الموظف
@@ -240,6 +242,7 @@ export default function StationShiftsReviewModule({ companyId }) {
                 <th>{t("stationShiftsReview.table.product")}</th>
                 <th>{t("stationShiftsReview.table.openingReading")}</th>
                 <th>{t("stationShiftsReview.table.confirmedReading")}</th>
+                <th>{t("stationShiftsReview.table.controllerReading")}</th>
                 <th>{t("stationShiftsReview.correctionLabel")}</th>
                 <th></th>
               </tr>
@@ -252,11 +255,24 @@ export default function StationShiftsReviewModule({ companyId }) {
                     <td>{r.nozzle?.product ? t(`stationSetup.products.${r.nozzle.product}`) : ""}</td>
                     <td><span className="num">{r.openingReading}</span>{r.nozzle?.meterDigits ? <span className="station-digits-hint">{t("stationShiftsReview.digitsSuffix", { n: r.nozzle.meterDigits })}</span> : null}</td>
                     <td className="num">{r.accountantConfirmedValue ?? t("stationShiftsReview.notReviewedYet")}</td>
+                    <td className="num">{(() => {
+                      // قراءة المتحكم للمقارنة فقط — "اعتماد" يكتبها في حقل التصحيح، والمحاسب هو من يحفظها
+                      const cv = (detail.controllerValues || []).find((x) => x.readingId === r.id)?.controllerValue;
+                      if (cv == null) return "—";
+                      const diff = r.accountantConfirmedValue != null ? Number(r.accountantConfirmedValue) - cv : null;
+                      return (
+                        <>
+                          {cv}
+                          {diff != null && diff !== 0 && <div className="balance-bad">{t("stationShiftsReview.controllerDiff", { diff: diff.toFixed(3) })}</div>}
+                          {!["posted", "reversed", "approved"].includes(detail.status) && <button className="btn-ghost" onClick={() => setCorrections({ ...corrections, [r.id]: String(cv) })}>{t("stationShiftsReview.useControllerValue")}</button>}
+                        </>
+                      );
+                    })()}</td>
                     <td><input type="number" value={corrections[r.id] || ""} onChange={(e) => setCorrections({ ...corrections, [r.id]: e.target.value })} style={{ width: 100 }} /></td>
                     <td><button className="btn-ghost" onClick={() => doCorrect(r.id)}>{t("stationShiftsReview.correctBtn")}</button></td>
                   </tr>
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <AttachmentsPanel entityType="station_shift_reading" entityId={r.id} title={t("stationShiftsReview.meterPhotoTitle", { nozzle: `${r.nozzle?.pumpNumber}-${r.nozzle?.nozzleNumber}` })} />
                     </td>
                   </tr>
