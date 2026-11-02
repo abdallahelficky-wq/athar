@@ -16,6 +16,9 @@ vi.mock("../../lib/prisma", () => ({
     stationShiftAuditLog: { create: vi.fn(), findMany: vi.fn() },
     customer: { findFirst: vi.fn(), findUnique: vi.fn() },
     attachment: { findMany: vi.fn() },
+    // قراءة المتحكم في getShiftById: لا فوهات مربوطة بمتحكم في هذه الاختبارات
+    forecourtNozzleMap: { findMany: vi.fn(() => Promise.resolve([])) },
+    forecourtPumpTransaction: { findFirst: vi.fn(() => Promise.resolve(null)) },
     $transaction: vi.fn(),
   },
 }));
@@ -50,6 +53,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.$transaction).mockImplementation(((cb: (tx: unknown) => unknown) => cb(prisma)) as typeof prisma.$transaction);
   vi.mocked(getAccountIdByName).mockResolvedValue("acc-generic");
+  vi.mocked(prisma.forecourtNozzleMap.findMany).mockResolvedValue([] as never);
   vi.mocked(createJournalEntryTx).mockResolvedValue({ id: "je-1" } as never);
   vi.mocked(prisma.company.findUnique).mockResolvedValue({
     stationCashShortageAccountId: "acc-shortage",
