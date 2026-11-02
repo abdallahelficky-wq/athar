@@ -12,7 +12,9 @@ import FormDialog from "../shared/FormDialog";
  * (افتتاح + مستلَم − مبيع مقابل القراءة الفعلية). كل إدخال في نافذة منبثقة؛ الإلغاء بسبب ولا حذف.
  */
 const PRODUCTS = ["diesel", "gasoline_91", "gasoline_95"];
-const today = () => new Date().toISOString().slice(0, 10);
+// تاريخ اليوم بتوقيت المستخدم (لا UTC — بعد منتصف الليل محلياً وقبل الثالثة كان يعطي أمس)
+const localDay = (d = new Date()) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10); };
+const today = () => localDay();
 const nowLocal = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 const monthStart = () => `${today().slice(0, 8)}01`;
 const STATUS_COLOR = { ok: "#2F5D5A", warning: "#B7791F", breach: "#A8432B", insufficient_readings: "#6B7280" };
@@ -47,7 +49,7 @@ export default function StationTanksTab({ companyId }) {
   const reloadSection = () => ({ readings: loadReadings, deliveries: loadDeliveries, reconciliation: loadRecon }[section] || (() => {}))();
 
   useEffect(() => { if (companyId) loadBase(); }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (companyId) reloadSection(); }, [companyId, section]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (companyId) reloadSection(); }, [companyId, section, range.from, range.to]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const open = (kind, initial) => { setError(""); setMessage(""); setForm(initial); setDialog(kind); };
   const close = () => { setDialog(""); setVoidTarget(null); };
@@ -91,11 +93,36 @@ export default function StationTanksTab({ companyId }) {
     <label>{label}<input {...props} value={form[key] ?? ""} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>
   );
 
+  // فترات جاهزة + حقلا التاريخ بنفس شريط الفلاتر الموحّد في النظام (filter-bar)؛ التغيير يُحدِّث القائمة مباشرة
+  const presets = (() => {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const prevFirst = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevLast = new Date(now.getFullYear(), now.getMonth(), 0);
+    const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 6);
+    return [
+      { key: "today", from: localDay(now), to: localDay(now) },
+      { key: "last7", from: localDay(weekAgo), to: localDay(now) },
+      { key: "thisMonth", from: localDay(first), to: localDay(now) },
+      { key: "lastMonth", from: localDay(prevFirst), to: localDay(prevLast) },
+    ];
+  })();
   const rangeBar = (
-    <div className="form-btn-group" style={{ alignItems: "flex-end" }}>
-      <label>{t("stationTanks.from")}<input type="date" value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} /></label>
-      <label>{t("stationTanks.to")}<input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} /></label>
-      <button className="btn-ghost" onClick={reloadSection}>{t("stationTanks.show")}</button>
+    <div style={{ marginBottom: 14 }}>
+      <div className="form-btn-group" style={{ gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        {presets.map((p) => {
+          const active = range.from === p.from && range.to === p.to;
+          return (
+            <button key={p.key} type="button" className={active ? "btn-primary" : "btn-ghost"} style={{ padding: "5px 12px", fontSize: 12.5 }} onClick={() => setRange({ from: p.from, to: p.to })}>
+              {t(`stationTanks.presets.${p.key}`)}
+            </button>
+          );
+        })}
+      </div>
+      <div className="filter-bar" style={{ maxWidth: 420, marginBottom: 0 }}>
+        <label>{t("stationTanks.from")}<input type="date" value={range.from} max={range.to} onChange={(e) => e.target.value && setRange({ ...range, from: e.target.value })} /></label>
+        <label>{t("stationTanks.to")}<input type="date" value={range.to} min={range.from} onChange={(e) => e.target.value && setRange({ ...range, to: e.target.value })} /></label>
+      </div>
     </div>
   );
 
@@ -116,7 +143,12 @@ export default function StationTanksTab({ companyId }) {
           <h3 style={{ marginTop: 0 }}>{t("stationTanks.reconTitle")}</h3>
           <p className="note">{t("stationTanks.reconNote")}</p>
           {rangeBar}
-          {recon?.unassignedNozzles > 0 && <p className="balance-bad">{t("stationTanks.unassignedNozzles", { count: recon.unassignedNozzles })}</p>}
+          {recon?.unassignedNozzles > 0 && (
+            <div role="status" style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", background: "rgba(183,121,31,0.08)", border: "1px solid rgba(183,121,31,0.28)", borderRadius: 10, padding: "10px 14px", margin: "0 0 14px", fontSize: 13, color: "#7A5212" }}>
+              <span>⚠ {t("stationTanks.unassignedNozzles", { count: recon.unassignedNozzles })}</span>
+              <button type="button" className="btn-ghost" style={{ padding: "4px 12px", fontSize: 12.5 }} onClick={() => setSection("tanks")}>{t("stationTanks.goLink")}</button>
+            </div>
+          )}
           <div className="lines-table-wrap">
             <table className="ledger-table">
               <thead><tr>
