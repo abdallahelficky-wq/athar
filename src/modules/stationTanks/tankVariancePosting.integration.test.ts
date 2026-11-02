@@ -69,7 +69,7 @@ async function setupTenant(key: "a" | "b", unitPrice: number): Promise<Ctx> {
 
   const pump = await call("POST", "/station-setup/pumps", token, {
     companyId: company.id, costCenterId: station, pumpType: "diesel", meterType: "electronic", hasMoneyMeter: false,
-    nozzles: [{ meterDigits: 7, initialReading: 1000 }],
+    nozzles: [{ meterDigits: 7, initialReading: 1000 }, { meterDigits: 7, initialReading: 2000 }],
   });
   expect(pump.status, pump.text).toBe(201);
   expect((await call("POST", "/station-setup/fuel-prices", token, { companyId: company.id, product: "diesel", priceInclVat: 2.3, effectiveFrom: "2026-01-01" })).status).toBe(201);
@@ -94,22 +94,22 @@ async function setupTenant(key: "a" | "b", unitPrice: number): Promise<Ctx> {
   return { email, token, userId: r.user.id, tenantId, companyId: company.id, station, employeeId, nozzles, diesel, warehouseId, tankId: tank.body.id, postingId: "" };
 }
 
-/** وردية ديزل معتمَدة عبر مسارات الخدمة وHTTP الحقيقية. */
+/** وردية ديزل معتمَدة عبر مسارات الخدمة وHTTP الحقيقية — كل اللترات على أول فوهة. */
 async function approvedDieselShift(c: Ctx, liters: number) {
   const shift = await prisma.stationShift.create({
     data: { tenantId: c.tenantId, companyId: c.companyId, costCenterId: c.station, employeeId: c.employeeId, shiftDate: new Date(`${riyadhCalendarDay(new Date())}T00:00:00.000Z`), shiftType: "morning", openedAt: new Date(), status: "open" },
   });
-  const readingIds: string[] = [];
+  const readingIds: { id: string; nozzleId: string }[] = [];
   for (const nozzleId of c.nozzles) {
     const reading = await shifts.submitReading(c.tenantId, c.employeeId, shift.id, { nozzleId, capturedAt: new Date() });
     await prisma.attachment.create({ data: { tenantId: c.tenantId, entityType: "station_shift_reading", entityId: reading.id, fileName: "meter.jpg", fileKey: `k-${reading.id}`, fileSize: 1, mimeType: "image/jpeg" } });
-    readingIds.push(reading.id);
+    readingIds.push({ id: reading.id, nozzleId });
   }
   await shifts.updateCollections(c.tenantId, c.employeeId, shift.id, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 0 });
   await shifts.submitShift(c.tenantId, c.employeeId, shift.id);
-  for (const id of readingIds) {
-    const row = await prisma.stationShiftReading.findUniqueOrThrow({ where: { id } });
-    await shifts.correctReading(c.tenantId, c.userId, shift.id, id, Number(row.openingReading) + liters);
+  for (const r of readingIds) {
+    const row = await prisma.stationShiftReading.findUniqueOrThrow({ where: { id: r.id } });
+    await shifts.correctReading(c.tenantId, c.userId, shift.id, r.id, Number(row.openingReading) + (r.nozzleId === c.nozzles[0] ? liters : 0));
   }
   const approved = await call("POST", `/station-shifts/${shift.id}/approve`, c.token);
   expect(approved.status, approved.text).toBe(200);
