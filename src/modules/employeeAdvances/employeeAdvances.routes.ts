@@ -2,8 +2,8 @@ import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createEmployeeAdvanceSchema, removeSchema } from "./employeeAdvances.schemas";
-import { listHandler, createHandler, removeHandler } from "./employeeAdvances.controller";
+import { createEmployeeAdvanceSchema, removeSchema, setInstallmentSchema } from "./employeeAdvances.schemas";
+import { listHandler, createHandler, removeHandler, setInstallmentHandler, reclassPreviewHandler } from "./employeeAdvances.controller";
 
 export const employeeAdvanceRoutes = Router();
 employeeAdvanceRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
@@ -17,5 +17,8 @@ const canUnpost = requirePermission("accounts", "unpost");
 // بسطور القيود في نموذج القيد) — تُغلق القراءة عن "مشاهدة فقط"، دون حرمان المحاسب من مبالغ يراها
 // أصلاً في القيود التي يرحّلها بنفسه.
 employeeAdvanceRoutes.get("/", requirePositionAction("employeeAdvances", "read"), canWrite, listHandler);
+// معاينة فقط (قراءة) لإعادة تصنيف أرصدة السلف القائمة إلى حسابات الموظفين الفرعية — للمالية لا للموارد البشرية
+employeeAdvanceRoutes.get("/reclass-preview", requirePositionAction("employeeAdvances", "read"), requireRole("admin", "finance_manager", "accountant"), reclassPreviewHandler);
+employeeAdvanceRoutes.patch("/:id/installment", requirePositionAction("employeeAdvances", "approve"), canWrite, validateBody(setInstallmentSchema), setInstallmentHandler);
 employeeAdvanceRoutes.post("/", requirePositionAction("employeeAdvances", "create"), requirePositionAction("employeeAdvances", "approve"), canWrite, validateBody(createEmployeeAdvanceSchema), createHandler);
 employeeAdvanceRoutes.delete("/:id", requirePositionAction("employeeAdvances", "delete"), canWrite, canUnpost, validateBody(removeSchema), removeHandler);

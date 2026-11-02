@@ -4,6 +4,7 @@ import { badRequest, notFound } from "../../lib/httpError";
 import { findCircularReference, PayrollComponentLike, AdjustmentUnitBasis, PayrollFormula } from "../../lib/payrollEngine";
 import { toComponentLike } from "../../lib/payrollComponentMapper";
 import { resolveEffectiveComponents } from "../payrollRuns/payrollRuns.service";
+import { assertValidAdvancesParent } from "../../lib/employeeReceivableAccount";
 
 /**
  * قائمة البنود القابلة لتسوية شهرية (HrAction) لهذه الشركة — تشمل البنود النظامية المؤقتة
@@ -27,17 +28,28 @@ async function assertCompanyBelongsToTenant(tenantId: string, companyId: string)
 async function assertValidAccount(tenantId: string, companyId: string, accountId: string) {
   const account = await prisma.account.findFirst({ where: { id: accountId, tenantId, companyId, isPosting: true, isActive: true, isArchived: false } });
   if (!account) throw badRequest("الحساب المحدد غير صالح للترحيل ضمن شجرة هذه الشركة");
+  return account;
+}
+
+/** بند مساهمة صاحب العمل: المدين مصروف والدائن التزام، كلاهما من شجرة الشركة نفسها */
+async function assertEmployerAccounts(tenantId: string, companyId: string, accountId: string, contraAccountId: string | null | undefined) {
+  const expense = await assertValidAccount(tenantId, companyId, accountId);
+  if (expense.type !== "expense") throw badRequest("حساب بند مساهمة صاحب العمل يجب أن يكون حساب مصروف");
+  if (!contraAccountId) throw badRequest("بند مساهمة صاحب العمل يحتاج حساب الالتزام الدائن");
+  const liability = await assertValidAccount(tenantId, companyId, contraAccountId);
+  if (liability.type !== "liability") throw badRequest("الحساب الدائن لبند مساهمة صاحب العمل يجب أن يكون حساب التزام");
 }
 
 export async function listPayrollComponents(tenantId: string, companyId: string) {
   await assertCompanyBelongsToTenant(tenantId, companyId);
-  return prisma.payrollComponent.findMany({ where: { tenantId, companyId }, include: { account: true }, orderBy: { sortOrder: "asc" } });
+  return prisma.payrollComponent.findMany({ where: { tenantId, companyId }, include: { account: true, contraAccount: true }, orderBy: { sortOrder: "asc" } });
 }
 
 interface ComponentInput {
   name: string;
-  kind: "addition" | "deduction";
+  kind: "addition" | "deduction" | "employer";
   accountId: string;
+  contraAccountId?: string | null;
   calcMethod: "fixed" | "formula";
   formula?: PayrollFormula | null;
   adjustmentUnitBasis?: AdjustmentUnitBasis | null;
@@ -49,7 +61,8 @@ interface ComponentInput {
 
 export async function createPayrollComponent(tenantId: string, companyId: string, input: ComponentInput) {
   await assertCompanyBelongsToTenant(tenantId, companyId);
-  await assertValidAccount(tenantId, companyId, input.accountId);
+  if (input.kind === "employer") await assertEmployerAccounts(tenantId, companyId, input.accountId, input.contraAccountId);
+  else await assertValidAccount(tenantId, companyId, input.accountId);
 
   const existing = await prisma.payrollComponent.findMany({ where: { tenantId, companyId } });
   const candidate: PayrollComponentLike = {
@@ -62,7 +75,8 @@ export async function createPayrollComponent(tenantId: string, companyId: string
 
   return prisma.payrollComponent.create({
     data: {
-      tenantId, companyId, name: input.name, kind: input.kind, accountId: input.accountId, calcMethod: input.calcMethod,
+      tenantId, companyId, name: input.name, kind: input.kind, accountId: input.accountId,
+      contraAccountId: input.kind === "employer" ? input.contraAccountId : null, calcMethod: input.calcMethod,
       formula: (input.formula ?? null) as unknown as Prisma.InputJsonValue, adjustmentUnitBasis: (input.adjustmentUnitBasis ?? null) as unknown as Prisma.InputJsonValue,
       allowsMonthlyAdjustments: input.allowsMonthlyAdjustments, prorateOnPartialMonth: input.prorateOnPartialMonth,
       appliesByDefault: input.appliesByDefault, sortOrder: input.sortOrder, isSystem: false,
@@ -73,11 +87,15 @@ export async function createPayrollComponent(tenantId: string, companyId: string
 export async function updatePayrollComponent(tenantId: string, id: string, input: Partial<ComponentInput> & { isActive?: boolean }) {
   const existing = await prisma.payrollComponent.findFirst({ where: { id, tenantId } });
   if (!existing) throw notFound("بند الرواتب غير موجود");
-  if (input.accountId) await assertValidAccount(tenantId, existing.companyId, input.accountId);
+  const kind = input.kind ?? (existing.kind as ComponentInput["kind"]);
+  if (existing.isSystem && input.kind && input.kind !== existing.kind) throw badRequest("لا يمكن تغيير نوع بند نظامي");
+  const contraAccountId = kind === "employer" ? (input.contraAccountId !== undefined ? input.contraAccountId : existing.contraAccountId) : null;
+  if (kind === "employer") await assertEmployerAccounts(tenantId, existing.companyId, input.accountId ?? existing.accountId, contraAccountId);
+  else if (input.accountId) await assertValidAccount(tenantId, existing.companyId, input.accountId);
 
   const merged: PayrollComponentLike = {
     id: existing.id,
-    kind: input.kind ?? (existing.kind as "addition" | "deduction"),
+    kind,
     calcMethod: input.calcMethod ?? (existing.calcMethod as "fixed" | "formula"),
     formula: input.formula !== undefined ? input.formula : (existing.formula as unknown as PayrollFormula | null),
     adjustmentUnitBasis: input.adjustmentUnitBasis !== undefined ? input.adjustmentUnitBasis : (existing.adjustmentUnitBasis as unknown as AdjustmentUnitBasis | null),
@@ -91,7 +109,7 @@ export async function updatePayrollComponent(tenantId: string, id: string, input
   return prisma.payrollComponent.update({
     where: { id },
     data: {
-      name: input.name, accountId: input.accountId, kind: input.kind, calcMethod: input.calcMethod,
+      name: input.name, accountId: input.accountId, kind: input.kind, contraAccountId, calcMethod: input.calcMethod,
       formula: input.formula !== undefined ? (input.formula as unknown as Prisma.InputJsonValue) : undefined,
       adjustmentUnitBasis: input.adjustmentUnitBasis !== undefined ? (input.adjustmentUnitBasis as unknown as Prisma.InputJsonValue) : undefined,
       allowsMonthlyAdjustments: input.allowsMonthlyAdjustments, prorateOnPartialMonth: input.prorateOnPartialMonth,
@@ -121,7 +139,8 @@ export async function getPayrollSettings(tenantId: string, companyId: string) {
   if (existing) return existing;
   return { defaultGosiEmployeeRate: null, id: null, tenantId, companyId, standardHoursPerMonth: 240, standardDaysPerMonth: 30,
     leaveDaysBeforeFive: 21, leaveDaysAfterFive: 30, leaveDailyRateDivisor: 30,
-    leaveSalaryBasis: "total", eosSalaryBasis: "basic_housing", payslipColumns: [] as unknown[] };
+    leaveSalaryBasis: "total", eosSalaryBasis: "basic_housing", payslipColumns: [] as unknown[], employerContributionsEnabled: false,
+    advancesParentAccountId: null, maxInstallmentPercentOfGross: null };
 }
 
 interface SettingsInput {
@@ -134,10 +153,32 @@ interface SettingsInput {
   leaveSalaryBasis?: "basic" | "basic_housing" | "total";
   eosSalaryBasis?: "basic" | "basic_housing" | "total";
   payslipColumns?: { componentId: string | null; label: string }[];
+  employerContributionsEnabled?: boolean;
+  advancesParentAccountId?: string | null;
+  maxInstallmentPercentOfGross?: number | null;
 }
 
-export async function updatePayrollSettings(tenantId: string, companyId: string, input: SettingsInput) {
+export async function updatePayrollSettings(tenantId: string, companyId: string, input: SettingsInput, userId?: string) {
   await assertCompanyBelongsToTenant(tenantId, companyId);
+  const before = await prisma.payrollSettings.findUnique({ where: { companyId }, select: { employerContributionsEnabled: true, advancesParentAccountId: true } });
+  if (input.advancesParentAccountId) await assertValidAdvancesParent(prisma as unknown as Prisma.TransactionClient, tenantId, companyId, input.advancesParentAccountId);
+  if (input.advancesParentAccountId !== undefined && input.advancesParentAccountId !== (before?.advancesParentAccountId ?? null)) {
+    await prisma.auditLog.create({
+      data: {
+        tenantId, companyId, userId: userId ?? null, action: "payroll_settings.advances_parent_changed",
+        entityType: "PayrollSettings", entityId: companyId, metadata: { before: before?.advancesParentAccountId ?? null, after: input.advancesParentAccountId },
+      },
+    });
+  }
+  const beforeEnabled = before?.employerContributionsEnabled ?? false;
+  if (input.employerContributionsEnabled != null && input.employerContributionsEnabled !== beforeEnabled) {
+    await prisma.auditLog.create({
+      data: {
+        tenantId, companyId, userId: userId ?? null, action: "payroll_settings.employer_contributions_changed",
+        entityType: "PayrollSettings", entityId: companyId, metadata: { before: beforeEnabled, after: input.employerContributionsEnabled },
+      },
+    });
+  }
   return prisma.payrollSettings.upsert({
     where: { companyId },
     create: {
@@ -151,6 +192,9 @@ export async function updatePayrollSettings(tenantId: string, companyId: string,
       leaveSalaryBasis: input.leaveSalaryBasis ?? "total",
       eosSalaryBasis: input.eosSalaryBasis ?? "basic_housing",
       payslipColumns: (input.payslipColumns ?? []) as unknown as Prisma.InputJsonValue,
+      employerContributionsEnabled: input.employerContributionsEnabled ?? false,
+      advancesParentAccountId: input.advancesParentAccountId ?? null,
+      maxInstallmentPercentOfGross: input.maxInstallmentPercentOfGross ?? null,
     } as any,
     update: {
       ...(input.defaultGosiEmployeeRate !== undefined && { defaultGosiEmployeeRate: input.defaultGosiEmployeeRate }),
@@ -162,6 +206,9 @@ export async function updatePayrollSettings(tenantId: string, companyId: string,
       ...(input.leaveSalaryBasis != null && { leaveSalaryBasis: input.leaveSalaryBasis }),
       ...(input.eosSalaryBasis != null && { eosSalaryBasis: input.eosSalaryBasis }),
       ...(input.payslipColumns != null && { payslipColumns: input.payslipColumns as unknown as Prisma.InputJsonValue }),
+      ...(input.employerContributionsEnabled != null && { employerContributionsEnabled: input.employerContributionsEnabled }),
+      ...(input.advancesParentAccountId !== undefined && { advancesParentAccountId: input.advancesParentAccountId }),
+      ...(input.maxInstallmentPercentOfGross !== undefined && { maxInstallmentPercentOfGross: input.maxInstallmentPercentOfGross }),
     } as any,
   });
 }

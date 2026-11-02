@@ -13,7 +13,8 @@ import {
   buildLegacyAdjustmentUnitBasis,
 } from "../../lib/legacyPayrollComponents";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
-import { resolvePartyAccountId } from "../../lib/partyAccounts";
+import { ensureEmployeeReceivableAccount } from "../../lib/employeeReceivableAccount";
+import { ADVANCES_COLUMN_ID, buildPayrollJournal, JournalComponent, EmployeeAllocation, NET_PAYABLE_ACCOUNT_NAME } from "./payrollJournal";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { KSA_DATE_OPTIONS } from "../../lib/displayDates";
 
@@ -80,6 +81,7 @@ export async function clearRowOverride(tenantId: string, id: string, employeeId:
 export interface RunComponent extends PayrollComponentLike {
   name: string;
   accountId: string;
+  contraAccountId?: string | null;
   allowsMonthlyAdjustments: boolean;
 }
 
@@ -98,7 +100,22 @@ interface RunRow {
   net: number;
   note: string;
   overridden: boolean;
+  /** أقساط سلف الموظف في هذا الكشف (PR B): لكل سلفة نشطة قسطها الفعلي، أو 0 إن أُجِّل أو لم يحدَّد لها قسط */
+  advanceInstallments?: AdvanceInstallment[];
 }
+
+export interface AdvanceInstallment {
+  advanceId: string;
+  accountId: string;
+  monthlyInstallment: number | null;
+  remainingBalance: number;
+  amount: number;
+  postponed: { reason: string; createdBy: string; createdAt: string } | null;
+  needsInstallment: boolean;
+}
+
+// عمود افتراضي في الكشف يجمع أقساط السلف (ADVANCES_COLUMN_ID) — ليس بند رواتب حقيقياً، الترحيل يفصّله سطراً لكل سلفة
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 /**
  * تُرجع بنود الرواتب الفعّالة لهذه الشركة: البنود الحقيقية المحفوظة إن كانت موجودة (بعد تشغيل
@@ -111,7 +128,7 @@ export async function resolveEffectiveComponents(tenantId: string, companyId: st
   if (dbComponents.length) {
     return {
       persisted: true,
-      components: dbComponents.map((c) => ({ ...toComponentLike(c), name: c.name, accountId: c.accountId, allowsMonthlyAdjustments: c.allowsMonthlyAdjustments })),
+      components: dbComponents.map((c) => ({ ...toComponentLike(c), name: c.name, accountId: c.accountId, contraAccountId: c.contraAccountId, allowsMonthlyAdjustments: c.allowsMonthlyAdjustments })),
     };
   }
 
@@ -135,11 +152,14 @@ export async function resolveEffectiveComponents(tenantId: string, companyId: st
   return { components, persisted: false };
 }
 
-async function computeRun(tenantId: string, run: { companyId: string; month: string; employeeIds: string[]; overrides: unknown; status?: string }): Promise<{ components: RunComponent[]; rows: RunRow[] }> {
-  const { components, persisted } = await resolveEffectiveComponents(tenantId, run.companyId);
+async function computeRun(tenantId: string, run: { id?: string; companyId: string; month: string; employeeIds: string[]; overrides: unknown; status?: string }): Promise<{ components: RunComponent[]; rows: RunRow[] }> {
+  const effective = await resolveEffectiveComponents(tenantId, run.companyId);
+  const { persisted } = effective;
   const employees = await prisma.employee.findMany({ where: { id: { in: run.employeeIds }, tenantId } });
   const settlements = await prisma.leaveSettlement.findMany({ where: { employeeId: { in: run.employeeIds } } });
   const settingsRow = await prisma.payrollSettings.findUnique({ where: { companyId: run.companyId } });
+  // مساهمات صاحب العمل لا تدخل الكشف إلا بتشغيلها صراحة في إعدادات الرواتب (مطفأة افتراضياً — منعاً للتكرار مع قيد يدوي)
+  const components = settingsRow?.employerContributionsEnabled ? effective.components : effective.components.filter((c) => c.kind !== "employer");
   const settings: PayrollSettingsLike = {
     standardHoursPerMonth: settingsRow ? Number(settingsRow.standardHoursPerMonth) : 240,
     standardDaysPerMonth: settingsRow ? Number(settingsRow.standardDaysPerMonth) : 30,
@@ -153,15 +173,20 @@ async function computeRun(tenantId: string, run: { companyId: string; month: str
     ? await prisma.hrAction.findMany({ where: { employeeId: { in: run.employeeIds }, month: run.month, componentId: { not: null } } })
     : await prisma.hrAction.findMany({ where: { employeeId: { in: run.employeeIds }, month: run.month } });
 
-  // سلف الموظفين النشطة المرتبطة ببند مخصَّص (Phase E) — قيمة الخصم الفعلية هذا الشهر هي الأقل بين
-  // القسط الشهري المحفوظ (EmployeePayrollComponent.fixedValue) والرصيد المتبقي فعلياً، حتى لا يتجاوز
-  // القسط الأخير المبلغ المتبقي. المفتاح هو EmployeePayrollComponent.id (وليس componentId).
-  const activeAdvances = persisted
-    ? await prisma.employeeAdvance.findMany({
-        where: { tenantId, companyId: run.companyId, employeeId: { in: run.employeeIds }, status: "active", employeePayrollComponentId: { not: null } },
-      })
-    : [];
-  const advanceByEmployeePayrollComponentId = new Map(activeAdvances.map((a) => [a.employeePayrollComponentId!, a]));
+  // أقساط السلف (قرار المالك 2026-11-01): كل سلفة نشطة لموظفي الكشف تدخله تلقائياً بقسطها من EmployeeAdvance نفسها،
+  // لا عبر بند رواتب لكل سلفة كما كان (Phase E). بنود "قسط سلفة — …" القديمة المرتبطة بسلف تُستبعَد من الحساب حتى لا
+  // يُخصَم القسط مرتين؛ بقيت في القاعدة لأن كشوفاً مرحَّلة سابقة تشير إليها في لقطاتها.
+  const advances = await prisma.employeeAdvance.findMany({
+    where: { tenantId, companyId: run.companyId, employeeId: { in: run.employeeIds }, status: "active", remainingBalance: { gt: 0 } },
+    orderBy: [{ startDate: "asc" }, { createdAt: "asc" }],
+  });
+  const linkedAdvanceComponentRows = await prisma.employeeAdvance.findMany({
+    where: { tenantId, companyId: run.companyId, employeePayrollComponentId: { not: null } },
+    select: { employeePayrollComponent: { select: { componentId: true } } },
+  });
+  const advanceComponentIds = new Set(linkedAdvanceComponentRows.map((a) => a.employeePayrollComponent?.componentId).filter(Boolean) as string[]);
+  const postponements = run.id ? await prisma.payrollAdvancePostponement.findMany({ where: { payrollRunId: run.id } }) : [];
+  const postponementByAdvance = new Map(postponements.map((p) => [p.employeeAdvanceId, p]));
 
   const rows = run.employeeIds.map((employeeId): RunRow => {
     const emp = employees.find((e) => e.id === employeeId)!;
@@ -181,15 +206,10 @@ async function computeRun(tenantId: string, run: { companyId: string; month: str
 
     if (persisted) {
       const assignedIds = new Set(empComponentRows.filter((ec) => ec.employeeId === employeeId).map((ec) => ec.componentId));
-      employeeComponents = components.filter((c) => assignedIds.has(c.id));
+      employeeComponents = components.filter((c) => assignedIds.has(c.id) && !advanceComponentIds.has(c.id));
       empComponentRows
         .filter((ec) => ec.employeeId === employeeId && ec.fixedValue != null)
-        .forEach((ec) => {
-          let value = Number(ec.fixedValue);
-          const advance = advanceByEmployeePayrollComponentId.get(ec.id);
-          if (advance) value = Math.min(value, Number(advance.remainingBalance));
-          fixedValues.set(ec.componentId, value);
-        });
+        .forEach((ec) => fixedValues.set(ec.componentId, Number(ec.fixedValue)));
       actionsRaw
         .filter((a) => a.employeeId === employeeId && a.componentId)
         .forEach((a) => monthlyAdjustments.set(a.componentId!, (monthlyAdjustments.get(a.componentId!) || 0) + Number(a.value)));
@@ -227,6 +247,7 @@ async function computeRun(tenantId: string, run: { companyId: string; month: str
     if (override) {
       values = new Map(values);
       for (const [componentId, value] of Object.entries(override)) {
+        if (componentId === ADVANCES_COLUMN_ID || advanceComponentIds.has(componentId)) continue; // الأقساط تُحسَب أدناه، لا تُعدَّل يدوياً
         if (run.status !== "posted" && !emp.gosiApplicable && components.some(c => c.id === componentId && isEmployeeGosi(c))) continue;
         values.set(componentId, value);
       }
@@ -235,14 +256,42 @@ async function computeRun(tenantId: string, run: { companyId: string; month: str
       overridden = true;
     }
 
+    // القسط = الأقل بين (القسط الشهري، الرصيد المتبقي، صافي الموظف قبل القسط) — بترتيب أقدم سلفة أولاً. المؤجَّلة في هذا
+    // الكشف صفر. بلا قسط شهري: لا تُخصَم كاملة أبداً، بل تُدرَج «تحتاج قسطاً» لتحدّده المالية.
+    let netLeft = Math.max(round2(totalAdditions - totalDeductions), 0);
+    const advanceInstallments: AdvanceInstallment[] = advances.filter((a) => a.employeeId === employeeId).map((a) => {
+      const remaining = Number(a.remainingBalance);
+      const installment = a.monthlyInstallment == null ? null : Number(a.monthlyInstallment);
+      const p = postponementByAdvance.get(a.id);
+      const amount = p || installment == null || onLeaveThisMonth ? 0 : round2(Math.min(installment, remaining, netLeft));
+      netLeft = round2(netLeft - amount);
+      return {
+        advanceId: a.id, accountId: a.accountId, monthlyInstallment: installment, remainingBalance: remaining, amount,
+        postponed: p ? { reason: p.reason, createdBy: p.createdBy, createdAt: p.createdAt.toISOString() } : null,
+        needsInstallment: installment == null,
+      };
+    });
+    const installmentsTotal = round2(advanceInstallments.reduce((s, i) => s + i.amount, 0));
+    const componentValues = Object.fromEntries(values);
+    if (advanceInstallments.length) componentValues[ADVANCES_COLUMN_ID] = installmentsTotal;
+    totalDeductions += installmentsTotal;
+
     return {
       employeeId, employeeName: emp.name, jobTitle: emp.jobTitle || "", employeeNumber: emp.employeeNumber || "",
-      monthlyBasic: Number(emp.basicSalary), standardDays: settings.standardDaysPerMonth, workedDays: onLeaveThisMonth ? 0 : Math.round(settings.standardDaysPerMonth * (prorationFactor ?? 1)), paymentMethod: emp.payrollPaymentMethod, componentValues: Object.fromEntries(values),
+      monthlyBasic: Number(emp.basicSalary), standardDays: settings.standardDaysPerMonth, workedDays: onLeaveThisMonth ? 0 : Math.round(settings.standardDaysPerMonth * (prorationFactor ?? 1)), paymentMethod: emp.payrollPaymentMethod, componentValues,
       totalAdditions, totalDeductions, net: totalAdditions - totalDeductions, note: result.note, overridden,
+      advanceInstallments,
     };
   });
 
-  return { components, rows };
+  const visible = components.filter((c) => !advanceComponentIds.has(c.id));
+  if (advances.length) {
+    visible.push({
+      id: ADVANCES_COLUMN_ID, systemKey: "advanceInstallments", name: "أقساط السلف", kind: "deduction", accountId: "", calcMethod: "fixed",
+      formula: null, adjustmentUnitBasis: null, sourceEmployeeField: null, prorateOnPartialMonth: false, allowsMonthlyAdjustments: false,
+    });
+  }
+  return { components: visible, rows };
 }
 
 export async function getPayrollRunRows(tenantId: string, id: string) {
@@ -264,112 +313,72 @@ export async function getPayrollRunRows(tenantId: string, id: string) {
     net: rows.reduce((s, r) => s + r.net, 0),
   };
 
-  return { run, rows, totals, columns: components.map((c) => ({ id: c.id, name: c.name, kind: c.kind, systemKey: c.systemKey, sourceEmployeeField: c.sourceEmployeeField })) };
-}
+  // تحذير التخصيص: موظفون بلا قسم أو مركز تكلفة تُرحَّل أسطر مصروفاتهم في مجموعة «غير مخصص» (لا قسم افتراضي)
+  const unallocated = run.status === "posted" ? [] : await prisma.employee.findMany({
+    where: { id: { in: run.employeeIds }, tenantId, companyId: run.companyId, OR: [{ departmentId: null }, { costCenterId: null }] },
+    select: { id: true, name: true, departmentId: true, costCenterId: true },
+  });
+  const settingsRow = run.status === "posted" ? null : await prisma.payrollSettings.findUnique({ where: { companyId: run.companyId }, select: { maxInstallmentPercentOfGross: true } });
+  const maxPercent = settingsRow?.maxInstallmentPercentOfGross == null ? null : Number(settingsRow.maxInstallmentPercentOfGross);
+  const warnings = {
+    unallocatedEmployees: unallocated.map((e) => ({ employeeId: e.id, name: e.name, missingDepartment: !e.departmentId, missingCostCenter: !e.costCenterId })),
+    // سلف بلا قسط شهري: لا تُخصَم، وتنتظر قسطاً تحدّده المالية من شاشة السلف
+    needsInstallment: run.status === "posted" ? [] : rows.flatMap((r) => (r.advanceInstallments || []).filter((i) => i.needsInstallment).map((i) => ({ employeeId: r.employeeId, name: r.employeeName, advanceId: i.advanceId, remainingBalance: i.remainingBalance }))),
+    // تحذير فقط: مجموع الأقساط فوق النسبة القصوى من إجمالي الإضافات — لا يمنع ولا يُخفِّض
+    installmentOverMax: maxPercent == null ? [] : rows
+      .map((r) => ({ r, installments: round2((r.advanceInstallments || []).reduce((s, i) => s + i.amount, 0)) }))
+      .filter(({ r, installments }) => installments > 0 && installments > round2(r.totalAdditions * maxPercent / 100))
+      .map(({ r, installments }) => ({ employeeId: r.employeeId, name: r.employeeName, installments, gross: r.totalAdditions, maxPercent })),
+  };
 
-type PayrollJournalLine = { accountId: string; department: string; debit: number; credit: number; lineDescription?: string; employeeId?: string; employeeAdvanceId?: string };
-type ActiveAdvance = { id: string; remainingBalance: Prisma.Decimal };
-
-/** قيمة البند المُرحَّلة: قسط السلفة لا يتجاوز رصيدها المتبقي أبداً (حتى لو عُدِّل يدوياً عبر override) */
-function postedValue(rawValue: number, advance: ActiveAdvance | undefined) {
-  return advance ? Math.min(rawValue, Number(advance.remainingBalance)) : rawValue;
+  return { run, rows, totals, warnings, columns: components.map((c) => ({ id: c.id, name: c.name, kind: c.kind, systemKey: c.systemKey, sourceEmployeeField: c.sourceEmployeeField })) };
 }
 
 /**
- * الترحيل القديم (قبل شهر التحويل أو بلا شهر): سطر لكل موظف لكل بند غير صفري (موسوم بـ employeeId)، ثم
- * صافي كل موظف على حسابه المستقل (Phase G).
+ * يحلّ كل ما يحتاجه buildPayrollJournal من القاعدة: حساب الصافي «رواتب مستحقة» (بالاسم، بلا بدائل — فلا ارتداد
+ * صامت لحساب آخر)، أنواع الحسابات (للتخصيص على أسطر المصروفات فقط)، وقسم/مركز كل موظف من سجله.
  */
-async function buildPerEmployeeLines(
+async function resolveJournalContext(
   tenantId: string,
   companyId: string,
   employeeIds: string[],
   rows: RunRow[],
-  componentById: Map<string, RunComponent>,
-  advanceByComponentId: Map<string, ActiveAdvance>,
-  advanceDeductions: { advanceId: string; amount: number }[],
-): Promise<PayrollJournalLine[]> {
-  const employees = await prisma.employee.findMany({ where: { id: { in: employeeIds }, tenantId }, select: { id: true, accountId: true } });
-  const employeeById = new Map(employees.map((e) => [e.id, e]));
-  const lines: PayrollJournalLine[] = [];
-  for (const row of rows) {
-    for (const [componentId, rawValue] of Object.entries(row.componentValues)) {
-      if (!rawValue) continue;
-      const component = componentById.get(componentId);
-      if (!component) continue;
-      const advance = advanceByComponentId.get(componentId);
-      const value = postedValue(rawValue, advance);
-      if (!value) continue;
-      const isDebit = component.kind === "addition";
-      lines.push({
-        accountId: component.accountId, department: "المالية والحسابات", debit: isDebit ? value : 0, credit: isDebit ? 0 : value,
-        employeeId: row.employeeId, employeeAdvanceId: advance?.id,
-      });
-      if (advance) advanceDeductions.push({ advanceId: advance.id, amount: value });
-    }
-    if (!row.net) continue;
-    const employee = employeeById.get(row.employeeId)!;
-    const netAccountId = await resolvePartyAccountId(tenantId, companyId, employee, "رواتب مستحقة للصرف");
-    lines.push({ accountId: netAccountId, department: "المالية والحسابات", debit: 0, credit: row.net, employeeId: row.employeeId });
-  }
-  return lines;
-}
+  components: RunComponent[],
+  violationAccountByEmployee: Map<string, string>,
+  mode: "totals" | "perEmployee",
+) {
+  const netPayable = await prisma.account.findFirst({
+    where: { tenantId, companyId, name: NET_PAYABLE_ACCOUNT_NAME, isPosting: true, isActive: true, isArchived: false },
+    select: { id: true },
+  });
+  if (!netPayable) throw badRequest("حساب «رواتب مستحقة» (التزام، حساب ترحيل) غير موجود في شجرة هذه الشركة — مطلوب لصافي الرواتب");
 
-/**
- * الترحيل بالإجماليات (من شهر Company.payrollTotalsFromMonth، قرار المالك 2026-09-28): سطر واحد لكل بند
- * بمجموعه لكل الموظفين بلا وسم موظف، وصافٍ واحد على «رواتب مستحقة للصرف». الاستثناء أقساط السلف: سطر لكل
- * موظف موسوم بالموظف والسلفة، لأنه يسدّد سلفة ذلك الموظف تحديداً — والسلفة وأقساطها تبقى باسم صاحبها للجميع.
- * التفصيل لكل موظف يبقى في كشف الرواتب نفسه (القيد مرتبط به عبر sourceId) لأدوار الموارد البشرية.
- */
-async function buildTotalsLines(
-  tenantId: string,
-  companyId: string,
-  rows: RunRow[],
-  componentById: Map<string, RunComponent>,
-  advanceByComponentId: Map<string, ActiveAdvance>,
-  advanceDeductions: { advanceId: string; amount: number }[],
-): Promise<PayrollJournalLine[]> {
-  const totals = new Map<string, number>();
-  const advanceLines: PayrollJournalLine[] = [];
-  for (const row of rows) {
-    for (const [componentId, rawValue] of Object.entries(row.componentValues)) {
-      if (!rawValue) continue;
-      const component = componentById.get(componentId);
-      if (!component) continue;
-      const advance = advanceByComponentId.get(componentId);
-      const value = postedValue(rawValue, advance);
-      if (!value) continue;
-      if (advance) {
-        const isDebit = component.kind === "addition";
-        advanceLines.push({
-          accountId: component.accountId, department: "المالية والحسابات", debit: isDebit ? value : 0, credit: isDebit ? 0 : value,
-          lineDescription: component.name, employeeId: row.employeeId, employeeAdvanceId: advance.id,
-        });
-        advanceDeductions.push({ advanceId: advance.id, amount: value });
-        continue;
-      }
-      totals.set(componentId, (totals.get(componentId) || 0) + value);
-    }
-  }
+  const employees = await prisma.employee.findMany({
+    where: { id: { in: employeeIds }, tenantId, companyId },
+    select: { id: true, accountId: true, departmentId: true, costCenterId: true, departmentRef: { select: { name: true } } },
+  });
+  const allocation = new Map<string, EmployeeAllocation>(employees.map((e) => [e.id, {
+    departmentId: e.departmentId, departmentName: e.departmentRef?.name ?? null, costCenterId: e.costCenterId,
+    netAccountId: mode === "perEmployee" ? e.accountId ?? netPayable.id : undefined,
+  }]));
 
-  const lines: PayrollJournalLine[] = [];
-  for (const [componentId, total] of totals) {
-    const component = componentById.get(componentId)!;
-    const amount = Math.round(total * 100) / 100;
-    if (!amount) continue;
-    const isDebit = component.kind === "addition";
-    lines.push({ accountId: component.accountId, department: "المالية والحسابات", debit: isDebit ? amount : 0, credit: isDebit ? 0 : amount, lineDescription: component.name });
-  }
-  lines.push(...advanceLines);
-  // الصافي من الأسطر نفسها بعد تقريبها — فيتوازن القيد دائماً ولا يبقى فرق هللة بين مجموع البنود والصافي
-  const netAmount = Math.round(lines.reduce((s, l) => s + l.debit - l.credit, 0) * 100) / 100;
-  if (netAmount) {
-    const netAccountId = await getAccountIdByName(tenantId, companyId, "رواتب مستحقة للصرف");
-    lines.push({
-      accountId: netAccountId, department: "المالية والحسابات", lineDescription: "صافي الرواتب المستحقة",
-      debit: netAmount < 0 ? -netAmount : 0, credit: netAmount > 0 ? netAmount : 0,
-    });
-  }
-  return lines;
+  const accountIds = [...new Set([...components.flatMap((c) => [c.accountId, c.contraAccountId]), ...violationAccountByEmployee.values()].filter(Boolean))] as string[];
+  const accounts = await prisma.account.findMany({ where: { id: { in: accountIds }, tenantId, companyId }, select: { id: true, type: true } });
+  const accountTypeById = new Map(accounts.map((a) => [a.id, a.type as string]));
+
+  return {
+    mode,
+    rows,
+    components: new Map(components.map((c): [string, JournalComponent] => [c.id, { id: c.id, name: c.name, kind: c.kind, accountId: c.accountId, contraAccountId: c.contraAccountId, systemKey: c.systemKey }])),
+    employees: allocation,
+    accountTypeById,
+    netPayableAccountId: netPayable.id,
+    resolveViolationAccount: (employeeId: string) => {
+      const accountId = violationAccountByEmployee.get(employeeId);
+      if (!accountId) throw badRequest("حساب ذمة الموظف لخصم المخالفات غير مهيأ");
+      return accountId;
+    },
+  };
 }
 
 export async function postPayrollRun(tenantId: string, userId: string, id: string) {
@@ -379,27 +388,21 @@ export async function postPayrollRun(tenantId: string, userId: string, id: strin
 
   const { components, rows } = await computeRun(tenantId, run);
   if (rows.length === 0) throw badRequest("لا يوجد موظفون في هذا الكشف");
-  const componentById = new Map(components.map((c) => [c.id, c]));
-
-  // سلف نشطة مرتبطة ببند مخصَّص — تُستخدَم هنا لضمان أن القيمة الفعلية المُرحَّلة لا تتجاوز الرصيد
-  // المتبقي إطلاقاً (احترازاً حتى لو عدّلت الموارد البشرية القيمة يدوياً عبر override)، ولتسجيل خصم
-  // فعلي (EmployeeAdvanceDeduction) لكل سلفة بعد الترحيل مباشرة ضمن نفس المعاملة.
-  const activeAdvances = await prisma.employeeAdvance.findMany({
-    where: { tenantId, companyId: run.companyId, employeeId: { in: run.employeeIds }, status: "active", employeePayrollComponentId: { not: null } },
-    include: { employeePayrollComponent: true },
-  });
-  const advanceByComponentId = new Map(activeAdvances.filter((a) => a.employeePayrollComponent).map((a) => [a.employeePayrollComponent!.componentId, a]));
+  // المخالفات على حساب ذمة الموظف الفرعي: يُنشأ أول حاجة (قبل بناء القيد) لكل موظف عليه مخالفة في هذا الكشف
+  const violationComponentIds = new Set(components.filter((c) => c.systemKey === "violation").map((c) => c.id));
+  const violators = rows.filter((r) => Object.entries(r.componentValues).some(([id, v]) => v && violationComponentIds.has(id))).map((r) => r.employeeId);
+  const violationAccountByEmployee = new Map<string, string>();
+  if (violators.length) {
+    await prisma.$transaction(async (tx) => {
+      for (const employeeId of violators) violationAccountByEmployee.set(employeeId, await ensureEmployeeReceivableAccount(tx, tenantId, employeeId));
+    });
+  }
 
   const company = await prisma.company.findUniqueOrThrow({ where: { id: run.companyId }, select: { payrollTotalsFromMonth: true } });
   const postTotals = company.payrollTotalsFromMonth != null && run.month >= company.payrollTotalsFromMonth;
-
-  const journalLines: PayrollJournalLine[] = [];
-  const advanceDeductions: { advanceId: string; amount: number }[] = [];
-  if (postTotals) {
-    journalLines.push(...(await buildTotalsLines(tenantId, run.companyId, rows, componentById, advanceByComponentId, advanceDeductions)));
-  } else {
-    journalLines.push(...(await buildPerEmployeeLines(tenantId, run.companyId, run.employeeIds, rows, componentById, advanceByComponentId, advanceDeductions)));
-  }
+  const { lines: journalLines, advanceDeductions } = buildPayrollJournal(
+    await resolveJournalContext(tenantId, run.companyId, run.employeeIds, rows, components, violationAccountByEmployee, postTotals ? "totals" : "perEmployee"),
+  );
 
   const [y, m] = run.month.split("-").map(Number);
   const date = new Date(y, m - 1, 28);
@@ -435,6 +438,15 @@ export async function unpostPayrollRun(tenantId: string, userId: string, id: str
   const run = await prisma.payrollRun.findFirst({ where: { id, tenantId } });
   if (!run) throw notFound("كشف الرواتب غير موجود");
   if (run.status !== "posted") throw badRequest("كشف الرواتب ليس مرحّلاً أصلاً");
+
+  // فك الترحيل يحذف القيد؛ قيد مرآة في شركة أخرى أو قيد عكس قائم يبقيان بعده بلا أصل ويُحتسَب أثرهما مرتين عند إعادة
+  // الترحيل — فيُرفَض حتى يُعالَجا أولاً (قاعدة المرآة والعكس، CLAUDE.md 1).
+  if (run.journalEntryId) {
+    const entry = await prisma.journalEntry.findFirst({ where: { id: run.journalEntryId, tenantId }, select: { mirrorEntryId: true } });
+    const reversal = await prisma.journalEntry.findFirst({ where: { tenantId, reversalOfEntryId: run.journalEntryId }, select: { id: true } });
+    if (entry?.mirrorEntryId) throw badRequest("لقيد هذا الكشف قيد مرآة في شركة أخرى — احذف قيد المرآة أولاً ثم فك ترحيل الكشف");
+    if (reversal) throw badRequest("قيد هذا الكشف معكوس بقيد آخر — فك ترحيل الكشف بعده يكرّر الأثر؛ احذف قيد العكس أولاً");
+  }
 
   await assertValidUnlockPin(tenantId, pin, userId);
 
@@ -474,4 +486,52 @@ export async function deletePayrollRun(tenantId: string, id: string) {
     if (!deleted.count) throw badRequest("تعذر حذف المسودة؛ حدّث الصفحة وتحقق من حالتها");
     return { deleted: true };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+}
+
+/**
+ * «تأجيل القسط هذا الشهر» (قرار المالك 2026-11-01): قسط هذه السلفة صفر في هذا الكشف وحده — والكشف مسودة. الرصيد لا
+ * يتغيّر، وكشف الشهر التالي يعيد القسط تلقائياً (التأجيل مرتبط بالكشف لا بالسلفة). السبب إلزامي، والمستخدم والوقت
+ * محفوظان، والعملية في سجل التدقيق. التراجع مسموح ما دام الكشف مسودة.
+ */
+export async function postponeAdvanceInstallment(tenantId: string, userId: string, runId: string, employeeAdvanceId: string, reason: string) {
+  const run = await prisma.payrollRun.findFirst({ where: { id: runId, tenantId } });
+  if (!run) throw notFound("كشف الرواتب غير موجود");
+  if (run.status !== "draft") throw badRequest("لا يمكن تأجيل قسط في كشف مرحّل، يجب فك ترحيله أولاً");
+  const advance = await prisma.employeeAdvance.findFirst({ where: { id: employeeAdvanceId, tenantId, companyId: run.companyId } });
+  if (!advance) throw notFound("السلفة غير موجودة ضمن شركة هذا الكشف");
+  if (!run.employeeIds.includes(advance.employeeId)) throw badRequest("صاحب هذه السلفة ليس ضمن كشف الرواتب");
+  if (advance.status !== "active") throw badRequest("السلفة ليست نشطة");
+
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.payrollAdvancePostponement.findUnique({ where: { payrollRunId_employeeAdvanceId: { payrollRunId: runId, employeeAdvanceId } } });
+    if (existing) throw badRequest("قسط هذه السلفة مؤجَّل بالفعل في هذا الكشف");
+    const created = await tx.payrollAdvancePostponement.create({
+      data: { tenantId, companyId: run.companyId, payrollRunId: runId, employeeAdvanceId, employeeId: advance.employeeId, reason: reason.trim(), createdBy: userId },
+    });
+    await tx.auditLog.create({
+      data: {
+        tenantId, companyId: run.companyId, userId, action: "payroll_run.advance_installment_postponed", entityType: "PayrollRun", entityId: runId,
+        metadata: { employeeAdvanceId, employeeId: advance.employeeId, month: run.month, reason: created.reason, remainingBalance: Number(advance.remainingBalance) },
+      },
+    });
+    return created;
+  });
+}
+
+export async function undoAdvancePostponement(tenantId: string, userId: string, runId: string, employeeAdvanceId: string) {
+  const run = await prisma.payrollRun.findFirst({ where: { id: runId, tenantId } });
+  if (!run) throw notFound("كشف الرواتب غير موجود");
+  if (run.status !== "draft") throw badRequest("لا يمكن التراجع عن تأجيل في كشف مرحّل، يجب فك ترحيله أولاً");
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.payrollAdvancePostponement.findUnique({ where: { payrollRunId_employeeAdvanceId: { payrollRunId: runId, employeeAdvanceId } } });
+    if (!existing) throw notFound("لا يوجد تأجيل لهذه السلفة في هذا الكشف");
+    await tx.payrollAdvancePostponement.delete({ where: { id: existing.id } });
+    await tx.auditLog.create({
+      data: {
+        tenantId, companyId: run.companyId, userId, action: "payroll_run.advance_postponement_undone", entityType: "PayrollRun", entityId: runId,
+        metadata: { employeeAdvanceId, employeeId: existing.employeeId, month: run.month, reason: existing.reason, postponedBy: existing.createdBy },
+      },
+    });
+    return { undone: true };
+  });
 }

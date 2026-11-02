@@ -50,6 +50,9 @@ const employeeSchema = z.object({
   managerId: z.string().nullable().optional(),
   // محطة عامل ورديات المحطات (مركز تكلفة من نفس الشركة) — يُتحقَّق منها في employees.controller.ts
   assignedCostCenterId: z.string().min(1).nullable().optional(),
+  // تحميل تكلفة الراتب: قسم ومركز تكلفة من شركة الموظف (أو على مستوى المستأجر بلا شركة) — يُتحقَّق منهما في employees.controller.ts
+  departmentId: z.string().min(1).nullable().optional(),
+  costCenterId: z.string().min(1).nullable().optional(),
   documents: z.array(documentSchema).default([]),
 });
 
@@ -59,7 +62,7 @@ export const updateEmployeeSchema = employeeSchema.partial();
 export const importEmployeesSchema = z.object({
   companyId: z.string().min(1),
   // الاستيراد لا يُسنِد محطات: لا تحقق لكل صف من مركز التكلفة هنا، فيُستبعَد الحقل تماماً
-  rows: z.array(employeeSchema.omit({ companyId: true, assignedCostCenterId: true }).refine(e => !e.gosiApplicable || e.gosiEmployeeRate != null, { path: ["gosiEmployeeRate"], message: "اختر نسبة خصم تأمينات الموظف" })).min(1).max(1000),
+  rows: z.array(employeeSchema.omit({ companyId: true, assignedCostCenterId: true, departmentId: true, costCenterId: true }).refine(e => !e.gosiApplicable || e.gosiEmployeeRate != null, { path: ["gosiEmployeeRate"], message: "اختر نسبة خصم تأمينات الموظف" })).min(1).max(1000),
 });
 
 // أي PIN جديد 6 أرقام بالضبط (رموز 4 أو 5 أرقام ضُبطت سابقاً تبقى صالحة للدخول حتى تُغيَّر). الـ PIN

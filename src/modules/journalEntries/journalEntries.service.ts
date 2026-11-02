@@ -941,6 +941,20 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
 
   const alreadyReversed = await prisma.journalEntry.findFirst({ where: { tenantId, reversalOfEntryId: id } });
   if (alreadyReversed) throw badRequest("تم عكس هذا القيد مسبقاً بقيد آخر");
+  // قيد رواتب خصم أقساط سلف: عكسه يعيد الأرصدة في الدفتر ولا يعيد رصيد السلفة نفسها (EmployeeAdvance.remainingBalance)
+  // فيفترقان — التصحيح الصحيح فك ترحيل الكشف من شاشة الرواتب، وهو يعيد الاثنين معاً.
+  if (existing.sourceModule === "payroll" && existing.sourceId) {
+    const advanceDeductions = await prisma.employeeAdvanceDeduction.count({ where: { payrollRunId: existing.sourceId } });
+    if (advanceDeductions) throw badRequest("قيد الرواتب هذا خصم أقساط سلف — صحّحه بفك ترحيل الكشف من شاشة الرواتب (يعيد أرصدة السلف)، لا بعكس القيد");
+  }
+  // قيد صرف سلفة (مستقل أو سطر قيد أنشأها): عكسه يُلغي الصرف في الدفتر وتبقى السلفة نشطة فيستمر كشف الرواتب في خصم
+  // أقساطها — يُرفَض؛ التصحيح بحذف السلفة من مسارها (يحذف قيدها ويعيد كل شيء) قبل أي خصم منها.
+  const lineIds = existing.lines.map((l) => l.id);
+  const originatedAdvance = await prisma.employeeAdvance.findFirst({
+    where: { tenantId, OR: [{ journalEntryId: existing.id }, { sourceJournalEntryLineId: { in: lineIds } }] },
+    select: { id: true },
+  });
+  if (originatedAdvance) throw badRequest("هذا القيد صرف سلفة موظف — عكسه يترك السلفة قائمة فتُخصم أقساطها؛ احذف السلفة من شاشة السلف بدل عكس القيد");
 
   const reversedLines: JournalLineInput[] = existing.lines.map((l) => ({
     accountId: l.accountId,

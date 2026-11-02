@@ -13,10 +13,12 @@ const GROSS_TOTAL_REF = "system:GROSS_TOTAL";
 const encodeRef = (ref) => (ref.kind === "system" ? GROSS_TOTAL_REF : `component:${ref.componentId}`);
 const decodeRef = (value) => (value === GROSS_TOTAL_REF ? { kind: "system", key: "GROSS_TOTAL" } : { kind: "component", componentId: value.slice("component:".length) });
 
+const POSTING_RULE_KEYS = ["absence", "otherDed", "penalty", "violation"];
+
 const emptyTerm = () => ({ quantity: "1", unitType: "", referenceValue: GROSS_TOTAL_REF });
 
 const emptyForm = () => ({
-  name: "", kind: "addition", accountId: "", calcMethod: "fixed",
+  name: "", kind: "addition", accountId: "", contraAccountId: "", calcMethod: "fixed",
   terms: [emptyTerm()],
   adjustmentEnabled: false, adjustmentUnitType: "day", adjustmentRefIds: [],
   allowsMonthlyAdjustments: true, prorateOnPartialMonth: false, appliesByDefault: true,
@@ -35,6 +37,7 @@ export default function PayrollSettingsTab({ companyId }) {
   const [components, setComponents] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [settings, setSettings] = useState(null);
+  const [advancesDraft, setAdvancesDraft] = useState({ parentId: "", maxPercent: "" });
   const [settingsDraft, setSettingsDraft] = useState({ standardHoursPerMonth: "240", standardDaysPerMonth: "30", leaveDaysBeforeFive: "21", leaveDaysAfterFive: "30", leaveDailyRateDivisor: "30", leaveSalaryBasis: "total", eosSalaryBasis: "basic_housing" });
   const [payslipColumns, setPayslipColumns] = useState([]);
   const [form, setForm] = useState(emptyForm());
@@ -54,12 +57,15 @@ export default function PayrollSettingsTab({ companyId }) {
     if (!companyId) return;
     getPayrollSettings(companyId).then((s) => {
       setSettings(s);
+      setAdvancesDraft({ parentId: s.advancesParentAccountId || "", maxPercent: s.maxInstallmentPercentOfGross == null ? "" : String(s.maxInstallmentPercentOfGross) });
       setSettingsDraft({ defaultGosiEmployeeRate: s.defaultGosiEmployeeRate ?? "", standardHoursPerMonth: String(s.standardHoursPerMonth), standardDaysPerMonth: String(s.standardDaysPerMonth), leaveDaysBeforeFive: String(s.leaveDaysBeforeFive ?? 21), leaveDaysAfterFive: String(s.leaveDaysAfterFive ?? 30), leaveDailyRateDivisor: String(s.leaveDailyRateDivisor ?? 30), leaveSalaryBasis: s.leaveSalaryBasis ?? "total", eosSalaryBasis: s.eosSalaryBasis ?? "basic_housing" });
       setPayslipColumns(s.payslipColumns?.length ? s.payslipColumns : []);
     }).catch((e) => setError(e.message));
   }, [companyId]);
 
   const postingAccounts = useMemo(() => accounts.filter((a) => a.isPosting && !a.isArchived), [accounts]);
+  // مجموعة ذمم الموظفين: حساب تجميع أصول نشط في مستوى يقبل حسابات ترحيل تحته — نفس تحقق الخادم
+  const advancesGroups = useMemo(() => accounts.filter((a) => !a.isPosting && !a.isArchived && a.type === "asset" && a.level < 4), [accounts]);
   const activeComponents = useMemo(() => components.filter((c) => c.isActive), [components]);
   // مرجع الصيغة يمكن أن يكون "الإجمالي" أو أي بند آخر (باستثناء البند نفسه أثناء التعديل، لمنع مرجع ذاتي مباشر)
   const referenceOptions = useMemo(() => components.filter((c) => c.id !== editingId), [components, editingId]);
@@ -68,7 +74,7 @@ export default function PayrollSettingsTab({ companyId }) {
   const startEdit = (c) => {
     setEditingId(c.id);
     setForm({
-      name: c.name, kind: c.kind, accountId: c.accountId, calcMethod: c.calcMethod,
+      name: c.name, kind: c.kind, accountId: c.accountId, contraAccountId: c.contraAccountId || "", calcMethod: c.calcMethod,
       terms: c.formula?.terms?.length ? c.formula.terms.map((t) => ({ quantity: String(t.quantity), unitType: t.unitType || "", referenceValue: encodeRef(t.reference) })) : [emptyTerm()],
       adjustmentEnabled: !!c.adjustmentUnitBasis, adjustmentUnitType: c.adjustmentUnitBasis?.unitType || "day",
       adjustmentRefIds: c.adjustmentUnitBasis?.referenceComponentIds || [],
@@ -89,6 +95,7 @@ export default function PayrollSettingsTab({ companyId }) {
     if (!form.name.trim() || !form.accountId) { setError(t("hr.payrollSettings.errNameAccountRequired")); return; }
     const payload = {
       name: form.name.trim(), kind: form.kind, accountId: form.accountId, calcMethod: form.calcMethod,
+      ...(form.kind === "employer" ? { contraAccountId: form.contraAccountId || null } : {}),
       formula: form.calcMethod === "formula"
         ? { terms: form.terms.filter((t) => t.quantity !== "" && t.referenceValue).map((t) => ({ quantity: Number(t.quantity), unitType: t.unitType || null, reference: decodeRef(t.referenceValue) })) }
         : null,
@@ -137,6 +144,24 @@ export default function PayrollSettingsTab({ companyId }) {
         leaveDailyRateDivisor: Number(settingsDraft.leaveDailyRateDivisor), leaveSalaryBasis: settingsDraft.leaveSalaryBasis, eosSalaryBasis: settingsDraft.eosSalaryBasis,
       });
       setError("");
+    } catch (err) { setError(err.message); }
+  };
+
+  const saveAdvancesSettings = async () => {
+    try {
+      const updated = await updatePayrollSettings(companyId, {
+        advancesParentAccountId: advancesDraft.parentId || null,
+        maxInstallmentPercentOfGross: advancesDraft.maxPercent === "" ? null : Number(advancesDraft.maxPercent),
+      });
+      setSettings(updated); setError("");
+    } catch (err) { setError(err.message); }
+  };
+
+  const toggleEmployerContributions = async (enabled) => {
+    if (enabled && !window.confirm(t("hr.payrollSettings.employerConfirmOn"))) return;
+    try {
+      const updated = await updatePayrollSettings(companyId, { employerContributionsEnabled: enabled });
+      setSettings(updated); setError("");
     } catch (err) { setError(err.message); }
   };
 
@@ -190,6 +215,32 @@ export default function PayrollSettingsTab({ companyId }) {
         <button className="btn-primary" onClick={saveSettings}>{t("common.save")}</button>
       </div>
 
+      <div className="panel form-panel" data-testid="payroll-journal-settings">
+        <h3 className="sub-head">{t("hr.payrollSettings.journalTitle")}</h3>
+        <label className="checkbox-field">
+          <input type="checkbox" data-testid="employer-contributions-toggle" checked={!!settings?.employerContributionsEnabled} onChange={(e) => toggleEmployerContributions(e.target.checked)} />
+          {t("hr.payrollSettings.employerContributionsEnabled")}
+        </label>
+        <p className="note">{t("hr.payrollSettings.employerContributionsNote")}</p>
+      </div>
+
+      <div className="panel form-panel" data-testid="payroll-advances-settings">
+        <h3 className="sub-head">{t("hr.payrollSettings.advancesTitle")}</h3>
+        <div className="form-grid">
+          <label>{t("hr.payrollSettings.advancesParent")}
+            <select data-testid="advances-parent-select" value={advancesDraft.parentId} onChange={(e) => setAdvancesDraft({ ...advancesDraft, parentId: e.target.value })}>
+              <option value="">{t("hr.payrollSettings.advancesParentNone")}</option>
+              {advancesGroups.map((a) => <option key={a.id} value={a.id}>{a.code} — {getAccountDisplayName(a, i18n.language)}</option>)}
+            </select>
+          </label>
+          <label>{t("hr.payrollSettings.maxInstallmentPercent")}
+            <input type="number" min="0" max="100" step="0.01" data-testid="max-installment-percent" value={advancesDraft.maxPercent} onChange={(e) => setAdvancesDraft({ ...advancesDraft, maxPercent: e.target.value })} />
+          </label>
+        </div>
+        <p className="note">{t("hr.payrollSettings.advancesParentNote")}</p>
+        <button className="btn-primary" onClick={saveAdvancesSettings}>{t("common.save")}</button>
+      </div>
+
       </HRDialog>}
       <div className="panel">
         <div className="items-form-heading"><strong>{t("hr.payrollSettings.componentsTitle")}</strong><button className="btn-primary" onClick={openNew}>{t("hr.payrollSettings.newComponent")}</button></div>
@@ -204,7 +255,12 @@ export default function PayrollSettingsTab({ companyId }) {
                 <tr key={c.id}>
                   <td>{c.name}{c.isSystem && <small>{t("hr.payrollSettings.systemTag")}</small>}</td>
                   <td>{KIND_LABELS[c.kind]}</td>
-                  <td>{c.account?.code} — {getAccountDisplayName(c.account, i18n.language)}</td>
+                  <td>
+                    {c.account?.code} — {getAccountDisplayName(c.account, i18n.language)}
+                    {c.kind === "employer" && c.contraAccount && <> ← {c.contraAccount.code} — {getAccountDisplayName(c.contraAccount, i18n.language)}</>}
+                    {/* خصومات نظامية يوجّهها الترحيل بقاعدة ثابتة مهما كان الحساب المحفوظ على البند */}
+                    {c.isSystem && POSTING_RULE_KEYS.includes(c.systemKey) && <small className="note"> {t("hr.payrollSettings.postedAt")}: {t(`hr.payrollSettings.postingRule.${c.systemKey}`)}</small>}
+                  </td>
                   <td>{c.calcMethod === "formula" ? t("hr.payrollSettings.calcMethodFormula") : t("hr.payrollSettings.calcMethodFixed")}</td>
                   <td>{c.allowsMonthlyAdjustments ? t("hr.payrollSettings.yes") : "—"}</td>
                   <td><span className="status-badge">{c.isActive ? t("hr.payrollSettings.statusActive") : t("hr.payrollSettings.statusStopped")}</span></td>
@@ -231,9 +287,13 @@ export default function PayrollSettingsTab({ companyId }) {
             <label>{t("hr.payrollSettings.fieldKind")}
               <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
                 <option value="addition">{t("hr.payrollSettings.kindLabels.addition")}</option><option value="deduction">{t("hr.payrollSettings.kindLabels.deduction")}</option>
+                <option value="employer">{t("hr.payrollSettings.kindLabels.employer")}</option>
               </select>
             </label>
             <label>{t("hr.payrollSettings.fieldAccount")}<AccountSearchSelect accounts={postingAccounts} value={form.accountId} onChange={(id) => setForm({ ...form, accountId: id })} /></label>
+            {form.kind === "employer" && (
+              <label>{t("hr.payrollSettings.fieldContraAccount")}<AccountSearchSelect accounts={postingAccounts.filter((a) => a.type === "liability")} value={form.contraAccountId} onChange={(id) => setForm({ ...form, contraAccountId: id })} /></label>
+            )}
             <label>{t("hr.payrollSettings.fieldCalcMethod")}
               <select value={form.calcMethod} onChange={(e) => setForm({ ...form, calcMethod: e.target.value })}>
                 <option value="fixed">{t("hr.payrollSettings.calcMethodFixedOption")}</option>
@@ -241,6 +301,7 @@ export default function PayrollSettingsTab({ companyId }) {
               </select>
             </label>
           </div>
+          {form.kind === "employer" && <p className="note">{t("hr.payrollSettings.employerKindNote")}</p>}
 
           {form.calcMethod === "formula" && (
             <>

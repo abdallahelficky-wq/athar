@@ -10,6 +10,7 @@ import { NATIONALITIES, NATIONALITY_KEYS, EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_
 import { labelForListValue } from "../../legacy/listLabels";
 import { routes } from "../../routes";
 import { listCostCenters } from "../../api/costCenters";
+import { listDepartments } from "../../api/departments";
 import { listJobTitles } from "../../api/jobTitles";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import EmployeePortalAccessPanel from "./EmployeePortalAccessPanel";
@@ -22,7 +23,7 @@ const emptyForm = () => ({
   personalEmail: "", workEmail: "", address: "", emergencyContactName: "", emergencyContactPhone: "",
   emergencyContactRelation: "", bankName: "", bankAccount: "", medicalInsuranceProvider: "",
   medicalInsuranceNumber: "", annualLeaveDays: 21, notes: "",
-  probationEndDate: "", probationEvaluated: false, documents: [], assignedCostCenterId: "",
+  probationEndDate: "", probationEvaluated: false, documents: [], assignedCostCenterId: "", departmentId: "", costCenterId: "",
 });
 
 export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
@@ -47,6 +48,16 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
     if (!companyId || !isFuelStations) { setStations([]); return; }
     listCostCenters().then((ccs) => setStations(ccs.filter((c) => c.companyId === companyId))).catch((e) => setError(e.message));
   }, [companyId, isFuelStations]);
+
+  // تحميل تكلفة الراتب: أقسام ومراكز هذه الشركة أو العامة للمستأجر (بلا شركة) — نفس قاعدة الخادم
+  const [allocationOptions, setAllocationOptions] = useState({ departments: [], costCenters: [] });
+  useEffect(() => {
+    if (!companyId) return;
+    const mine = (x) => !x.companyId || x.companyId === companyId;
+    Promise.all([listDepartments(), listCostCenters()])
+      .then(([departments, costCenters]) => setAllocationOptions({ departments: departments.filter(mine), costCenters: costCenters.filter(mine) }))
+      .catch((e) => setError(e.message));
+  }, [companyId]);
 
   const reloadPayrollComponents = (id) => {
     if (!id) { setPayrollComponents([]); return; }
@@ -94,6 +105,8 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
         documents: form.documents.map((d) => ({ ...d, expiryDate: d.expiryDate || undefined })),
         // يُرسَل فقط لشركة محطات وقود؛ فارغ يعني إلغاء إسناد المحطة (يختفي تبويب الورديات من بوابة الموظف)
         assignedCostCenterId: isFuelStations ? form.assignedCostCenterId || null : undefined,
+        departmentId: form.departmentId || null,
+        costCenterId: form.costCenterId || null,
       };
       if (editingId) await updateEmployee(editingId, payload);
       else await createEmployee(payload);
@@ -116,6 +129,7 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
       dateOfBirth: e.dateOfBirth?.slice(0, 10) || "",
       probationEndDate: e.probationEndDate?.slice(0, 10) || "",
       assignedCostCenterId: e.assignedCostCenterId || "",
+      departmentId: e.departmentId || "", costCenterId: e.costCenterId || "",
       documents: (e.documents || []).map((d) => ({ ...d, expiryDate: d.expiryDate?.slice(0, 10) || "" })),
     });
     reloadPayrollComponents(e.id);
@@ -264,6 +278,18 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
           <label>{t("hr.directory.jobTitle")}<input type="text" list="employee-job-titles" value={form.jobTitle} onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} /></label>
           <datalist id="employee-job-titles">{jobTitleOptions.map((j) => <option key={j.id} value={j.name} />)}</datalist>
           <label>{t("hr.directory.department")}<select value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>{DEPARTMENTS.map((d) => <option key={d} value={d}>{labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", d)}</option>)}</select></label>
+          <label title={t("hr.directory.allocationHint")}>{t("hr.directory.costDepartment")}
+            <select data-testid="employee-cost-department" value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })}>
+              <option value="">{t("hr.directory.allocationNone")}</option>
+              {allocationOptions.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+          </label>
+          <label title={t("hr.directory.allocationHint")}>{t("hr.directory.costCenter")}
+            <select data-testid="employee-cost-center" value={form.costCenterId} onChange={(e) => setForm({ ...form, costCenterId: e.target.value })}>
+              <option value="">{t("hr.directory.allocationNone")}</option>
+              {allocationOptions.costCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </label>
           <label>{t("hr.directory.workLocation")}<input type="text" value={form.workLocation} onChange={(e) => setForm({ ...form, workLocation: e.target.value })} /></label>
           {isFuelStations && (
             <label>{t("hr.directory.station")}

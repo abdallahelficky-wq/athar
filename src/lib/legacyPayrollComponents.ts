@@ -27,6 +27,9 @@ export interface LegacyComponentSpec {
 // مطابقة حرفية لـ PAYROLL_JOURNAL_MAP القديم، بترتيب يضمن أن أي بند formula/adjustmentUnitBasis
 // يُنشأ بعد البنود التي يشير إليها. "absence" إضافة جديدة (لم يكن لها حساب في PAYROLL_JOURNAL_MAP
 // القديم رغم خصمها فعلياً من الصافي — كان هذا خللاً في توازن القيد القديم، انظر تعليق backfillPayrollComponents.ts).
+// حسابات الخصومات (قرار المالك 2026-11-01): الغياب والجزاءات والاستقطاعات الأخرى تُخفِّض مصروف رواتب الموظف نفسه،
+// والمخالفات على ذمة الموظف. الحساب المحفوظ هنا للعرض والتعبئة فقط — الترحيل يطبّق القاعدة في payrollPostingRules.ts
+// بالمفتاح النظامي مهما كان الحساب المحفوظ على البند (بنود مُعبَّأة سابقاً تحمل «رواتب مستحقة»).
 export const LEGACY_PAYROLL_COMPONENTS: LegacyComponentSpec[] = [
   { key: "basic", name: "الراتب الأساسي", kind: "addition", calcMethod: "fixed", accountName: "مصروف رواتب أساسية", sourceEmployeeField: "basicSalary", prorateOnPartialMonth: true, allowsMonthlyAdjustments: false },
   { key: "housing", name: "بدل السكن", kind: "addition", calcMethod: "fixed", accountName: "مصروف بدل سكن", sourceEmployeeField: "housingAllowance", prorateOnPartialMonth: true, allowsMonthlyAdjustments: false },
@@ -35,11 +38,11 @@ export const LEGACY_PAYROLL_COMPONENTS: LegacyComponentSpec[] = [
   { key: "otherAdd", name: "إضافات وحوافز أخرى", kind: "addition", calcMethod: "fixed", accountName: "مصروف إضافات وحوافز أخرى", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true },
   { key: "overtime", name: "أجر إضافي", kind: "addition", calcMethod: "fixed", accountName: "مصروف بدل إضافي (عمل إضافي)", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true },
   { key: "advance", name: "سلف الموظفين", kind: "deduction", calcMethod: "fixed", accountName: "سلف الموظفين", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true },
-  { key: "violation", name: "خصم مخالفات", kind: "deduction", calcMethod: "fixed", accountName: "صندوق العاملين - مخالفات وعقوبات", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true },
-  { key: "penalty", name: "خصم جزاءات", kind: "deduction", calcMethod: "fixed", accountName: "صندوق العاملين - مخالفات وعقوبات", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true },
-  { key: "otherDed", name: "استقطاعات أخرى", kind: "deduction", calcMethod: "fixed", accountName: "استقطاعات أخرى مستحقة", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true },
+  { key: "violation", name: "خصم مخالفات", kind: "deduction", calcMethod: "fixed", accountName: "سلف الموظفين", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true },
+  { key: "penalty", name: "خصم جزاءات", kind: "deduction", calcMethod: "fixed", accountName: "مصروف رواتب أساسية", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true },
+  { key: "otherDed", name: "استقطاعات أخرى", kind: "deduction", calcMethod: "fixed", accountName: "مصروف رواتب أساسية", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true },
   { key: "gosi", name: "التأمينات الاجتماعية", kind: "deduction", calcMethod: "formula", accountName: "التأمينات الاجتماعية - مستحقة", prorateOnPartialMonth: false, allowsMonthlyAdjustments: false, formulaTerms: [{ quantity: 0.0975, referenceKey: "basic" }, { quantity: 0.0975, referenceKey: "housing" }] },
-  { key: "absence", name: "خصم الغياب", kind: "deduction", calcMethod: "fixed", accountName: "استقطاعات أخرى مستحقة", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true, adjustmentUnitBasisKeys: { unitType: "day", referenceKeys: ["basic", "housing", "transport", "otherAllow"] } },
+  { key: "absence", name: "خصم الغياب", kind: "deduction", calcMethod: "fixed", accountName: "مصروف رواتب أساسية", prorateOnPartialMonth: false, allowsMonthlyAdjustments: true, adjustmentUnitBasisKeys: { unitType: "day", referenceKeys: ["basic", "housing", "transport", "otherAllow"] } },
 ];
 
 // actionType الحر القديم -> مفتاح البند الجديد؛ "warning" بلا أثر مالي فيبقى بلا بند (كما كان بالضبط)

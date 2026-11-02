@@ -7,7 +7,8 @@
  * ملاحظة مكتشَفة أثناء البناء: النظام القديم لم يكن له حساب مخصّص لخصم الغياب إطلاقاً (غائب من
  * PAYROLL_JOURNAL_MAP) رغم أنه يُخصَم فعلياً من صافي الراتب — ما يعني أن قيد الرواتب القديم كان
  * غير متوازن (مدين ≠ دائن) بمقدار إجمالي خصومات الغياب كلما وُجدت. هذه التعبئة تُصلح ذلك ضمنياً
- * بإسناد "خصم الغياب" لنفس حساب "استقطاعات أخرى مستحقة" المستخدَم للاستقطاعات الأخرى مسبقاً.
+ * بإسناد "خصم الغياب" لحساب. منذ 2026-11-01 تُحفَظ خصومات الغياب والجزاءات والاستقطاعات على مصروف الرواتب الأساسية
+ * والمخالفات على «سلف الموظفين»، والترحيل يطبّق القاعدة بالمفتاح النظامي — راجع src/modules/payrollRuns/payrollJournal.ts.
  *
  * الاستخدام:
  *   npx tsx scripts/backfillPayrollComponents.ts             # تقرير Dry-run فقط
@@ -15,6 +16,7 @@
  */
 import { PrismaClient, Prisma } from "@prisma/client";
 import { getAccountIdByName } from "../src/lib/wellKnownAccounts";
+import { backfillSystemPayrollComponents } from "../src/lib/payrollComponentsBackfill";
 import {
   LEGACY_PAYROLL_COMPONENTS as SYSTEM_COMPONENTS,
   LEGACY_ACTION_TYPE_TO_KEY as ACTION_TYPE_TO_KEY,
@@ -72,67 +74,9 @@ async function reportForCompany(tenantId: string, companyId: string, companyName
   };
 }
 
+// منطق الكتابة نفسه في src/lib/payrollComponentsBackfill.ts — يستخدمه هذا السكربت واختبارات التكامل معاً
 async function commitForCompany(tenantId: string, companyId: string) {
-  const componentIdByKey = new Map<LegacyComponentKey, string>();
-  const existing = await prisma.payrollComponent.findMany({ where: { companyId, isSystem: true } });
-  existing.forEach((c) => { if (c.systemKey) componentIdByKey.set(c.systemKey as LegacyComponentKey, c.id); });
-
-  await prisma.$transaction(async (tx) => {
-    const settings = await tx.payrollSettings.findUnique({ where: { companyId } });
-    if (!settings) {
-      await tx.payrollSettings.create({
-        data: { tenantId, companyId, standardHoursPerMonth: 240, standardDaysPerMonth: 30, payslipColumns: [] as Prisma.InputJsonValue },
-      });
-    }
-
-    for (const spec of SYSTEM_COMPONENTS) {
-      if (componentIdByKey.has(spec.key)) continue;
-      let accountId: string;
-      try {
-        accountId = await getAccountIdByName(tenantId, companyId, spec.accountName);
-      } catch {
-        continue; // حساب هذا البند غير موجود في شجرة هذه الشركة — يُتجاوَز بأمان (نفس منطق التقرير)
-      }
-      const formula = buildLegacyFormula(spec, componentIdByKey);
-      const adjustmentUnitBasis = buildLegacyAdjustmentUnitBasis(spec, componentIdByKey);
-
-      const created = await tx.payrollComponent.create({
-        data: {
-          tenantId, companyId, name: spec.name, kind: spec.kind, accountId, calcMethod: spec.calcMethod,
-          formula: formula as unknown as Prisma.InputJsonValue, adjustmentUnitBasis: adjustmentUnitBasis as unknown as Prisma.InputJsonValue,
-          allowsMonthlyAdjustments: spec.allowsMonthlyAdjustments, prorateOnPartialMonth: spec.prorateOnPartialMonth,
-          sourceEmployeeField: spec.sourceEmployeeField || null, isSystem: true, systemKey: spec.key,
-        },
-      });
-      componentIdByKey.set(spec.key, created.id);
-    }
-
-    const employees = await tx.employee.findMany({ where: { tenantId, companyId } });
-    for (const emp of employees) {
-      const alreadyAssigned = await tx.employeePayrollComponent.findMany({ where: { employeeId: emp.id }, select: { componentId: true } });
-      const assignedIds = new Set(alreadyAssigned.map((a) => a.componentId));
-      for (const [key, componentId] of componentIdByKey) {
-        if (assignedIds.has(componentId)) continue;
-        const fixedValue =
-          key === "advance" ? Number(emp.advances || 0)
-          : key === "otherDed" ? Number(emp.otherDeductions || 0)
-          : key === "gosi" && emp.gosiAmount != null ? Number(emp.gosiAmount)
-          : null;
-        await tx.employeePayrollComponent.create({
-          data: {
-            tenantId, employeeId: emp.id, componentId, fixedValue,
-            isActive: key === "gosi" ? emp.gosiApplicable : true,
-          },
-        });
-      }
-
-      for (const [actionType, key] of Object.entries(ACTION_TYPE_TO_KEY)) {
-        const componentId = componentIdByKey.get(key);
-        if (!componentId) continue;
-        await tx.hrAction.updateMany({ where: { employeeId: emp.id, actionType, componentId: null }, data: { componentId } });
-      }
-    }
-  });
+  await backfillSystemPayrollComponents(prisma, tenantId, companyId);
 }
 
 async function main() {

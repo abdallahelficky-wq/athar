@@ -10,3 +10,5 @@ export const postPayrollRun = (id) => api.post(`/payroll-runs/${id}/post`);
 export const unpostPayrollRun = (id, pin) => api.post(`/payroll-runs/${id}/unpost`, { pin });
 
 export const deletePayrollRun = id => api.delete(`/payroll-runs/${id}`);
+export const postponeAdvanceInstallment = (id, employeeAdvanceId, reason) => api.post(`/payroll-runs/${id}/advance-postponements`, { employeeAdvanceId, reason });
+export const undoAdvancePostponement = (id, advanceId) => api.delete(`/payroll-runs/${id}/advance-postponements/${advanceId}`);
