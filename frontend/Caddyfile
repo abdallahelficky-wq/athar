@@ -1,0 +1,38 @@
+{
+	admin off
+	persist_config off
+	auto_https off
+	servers {
+		trusted_proxies static private_ranges 100.0.0.0/8
+	}
+}
+
+:{$PORT:8080} {
+	root * /app/dist
+	encode gzip zstd
+	respond /health 200
+	header {
+		X-Content-Type-Options nosniff
+		-Server
+	}
+
+	# Stable entry points must reach the origin after a deployment. In particular,
+	# Cloudflare otherwise caches sw.js for four hours and pins clients to old UI.
+	@entrypoints path /sw.js /registerSW.js /*.html /*.webmanifest
+	header @entrypoints Cache-Control "no-store, max-age=0"
+
+	# Keep hashed build assets cacheable, but never serve index.html as missing JS.
+	handle /assets/* {
+		file_server
+	}
+	handle {
+		route {
+			try_files {path} {path}.html {path}/index.html /index.html
+			@html path *.html
+			header @html Cache-Control "no-store, max-age=0"
+			file_server {
+				hide .git .env*
+			}
+		}
+	}
+}
