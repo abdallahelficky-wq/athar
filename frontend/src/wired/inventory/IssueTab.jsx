@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import FormDialog from "../shared/FormDialog";
 import { getItemDisplayName } from "../shared/itemDisplayName";
 import { listItems } from "../../api/items";
 import { listWarehouses } from "../../api/warehouses";
@@ -11,6 +12,8 @@ import StockMovementsTable from "./StockMovementsTable";
 
 export default function IssueTab({ companyId }) {
   const { t, i18n } = useTranslation();
+  // نموذج الحركة في نافذة منبثقة فوق سجل الحركات
+  const [formOpen, setFormOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [movements, setMovements] = useState([]);
@@ -49,7 +52,7 @@ export default function IssueTab({ companyId }) {
     if (!itemId || !warehouseId || !Number(quantity)) return;
     try {
       await createIssueMovement({ itemId, warehouseId, department, quantity: Number(quantity), date, note });
-      setQuantity(""); setNote("");
+      setQuantity(""); setNote(""); setFormOpen(false);
       reload();
     } catch (err) {
       setError(err.message);
@@ -66,7 +69,12 @@ export default function IssueTab({ companyId }) {
 
   return (
     <div>
-      <div className="panel form-panel">
+      <div className="form-btn-group" style={{ marginBottom: 12 }}>
+        <button className="btn-primary" onClick={() => { setError(""); setFormOpen(true); }}>+ {t("inventory.issue.newIssue")}</button>
+      </div>
+      {error && !formOpen && <p className="balance-bad">{error}</p>}
+      <FormDialog open={formOpen} title={t("inventory.issue.newIssue")} onClose={() => setFormOpen(false)}>
+      <div>
         <div className="form-grid">
           <label>{t("inventory.issue.item")}<select value={itemId} onChange={(e) => setItemId(e.target.value)}>{items.map((i) => <option key={i.id} value={i.id}>{getItemDisplayName(i, i18n.language)}</option>)}</select></label>
           <label>{t("inventory.issue.warehouse")}<select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>{warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
@@ -84,6 +92,7 @@ export default function IssueTab({ companyId }) {
         {error && <p className="balance-bad">{error}</p>}
         <button className="btn-primary" onClick={save} disabled={!itemId || !warehouseId || !Number(quantity) || Number(quantity) > balance}>{t("inventory.issue.issueBtn")}</button>
       </div>
+      </FormDialog>
 
       <StockMovementsTable movements={movements} filterTypes={["issue"]} onRemove={setRemoveTarget} />
       {removeTarget && <UnpostModal title={t("inventory.issue.removeMovementTitle")} onCancel={() => setRemoveTarget(null)} onConfirm={doRemove} />}

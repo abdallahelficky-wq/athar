@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient, StationFuelProduct } from "@prisma/client";
+import { stockAccountFor } from "../../lib/stockAccount";
 import { badRequest } from "../../lib/httpError";
 import type { PostingLine } from "../../lib/journalPosting";
 
@@ -102,7 +103,8 @@ export async function computeShiftCogsTx(
   for (const s of sold) {
     const label = FUEL_PRODUCT_LABEL_AR[s.product];
     const item = itemById.get(itemIdByProduct.get(s.product)!);
-    if (!item || item.type !== "inventory" || item.isArchived || !item.stockAccountId || !item.cogsAccountId) {
+    const stockAccountId = item ? stockAccountFor(item, warehouse) : null;
+    if (!item || item.type !== "inventory" || item.isArchived || !stockAccountId || !item.cogsAccountId) {
       throw badRequest(`صنف الوقود المربوط بمنتج «${label}» في بيانات الشركة غير صالح: يجب أن يكون صنف مخزون دائم غير مؤرشف من نفس الشركة وله حسابا مخزون وتكلفة`);
     }
     const unitCost = new Prisma.Decimal(item.averageCost);
@@ -120,7 +122,7 @@ export async function computeShiftCogsTx(
     if (amount.greaterThan(0)) {
       const description = `تكلفة مبيعات ${label}`;
       lines.push({ accountId: item.cogsAccountId, costCenterId, lineDescription: description, debit: amount.toNumber(), credit: 0 });
-      lines.push({ accountId: item.stockAccountId, costCenterId, lineDescription: description, debit: 0, credit: amount.toNumber() });
+      lines.push({ accountId: stockAccountId, costCenterId, lineDescription: description, debit: 0, credit: amount.toNumber() });
     }
     issues.push({ product: s.product, itemId: item.id, warehouseId: warehouse.id, liters, unitCost, amount });
   }

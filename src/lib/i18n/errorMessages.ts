@@ -544,6 +544,8 @@ export const AR_TO_EN: Record<string, string> = {
     "This company's station-shift cash shortage/surplus accounts have not been set yet — configure them from company settings first",
   "لا يمكن ترحيل وردية لم تُعتمَد بعد، أو رُحِّلت بالفعل": "A shift that hasn't been approved yet, or has already been posted, can't be posted",
   "لا يمكن رفض وردية ليست قيد المراجعة أو الاعتماد": "A shift that isn't under review or approved can't be rejected",
+  "حساب مخزون المستودع يجب أن يكون حساب أصول ترحيل نشطاً غير مؤرشف من نفس الشركة": "The warehouse inventory account must be an active, non-archived posting asset account of the same company",
+  "لا يمكن تغيير حساب مخزون مستودع له حركات مخزون مسجّلة — رصيده القائم مرحَّل على الحساب الحالي": "The inventory account of a warehouse with recorded stock movements can't be changed. Its existing balance is posted to the current account",
   "سبب حذف الوردية مطلوب": "A reason is required to delete the shift",
   "لا يمكن حذف وردية مرحَّلة أو معكوسة — استخدم عكس الوردية": "A posted or reversed shift can't be deleted. Use Reverse shift instead",
   "لا يمكن حذف وردية لها حركات مخزون — استخدم عكس الوردية": "A shift with stock movements can't be deleted. Use Reverse shift instead",

@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma";
+import { stockAccountFor } from "../../lib/stockAccount";
 import { badRequest, notFound } from "../../lib/httpError";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
@@ -135,13 +136,13 @@ export async function createInOutMovement(
   userId: string,
   input: { type: "in" | "out"; itemId: string; warehouseId: string; quantity: number; unitCost?: number; date: Date; note?: string },
 ) {
-  const { item } = await assertItemAndWarehouse(tenantId, input.itemId, input.warehouseId);
+  const { item, warehouse } = await assertItemAndWarehouse(tenantId, input.itemId, input.warehouseId);
   // عند الإدخال: التكلفة المُدخَلة يدوياً لهذه الدفعة تحديداً. عند الإخراج: نستخدم متوسط
   // التكلفة الحالي للصنف كلقطة تاريخية على الحركة، من غير ما يغيّر المتوسط نفسه.
   const unitCost = input.type === "in" ? input.unitCost! : Number(item.averageCost);
   const amount = input.quantity * unitCost;
 
-  const primaryAccountId = item.type === "expense" ? item.expenseAccountId : item.stockAccountId;
+  const primaryAccountId = item.type === "expense" ? item.expenseAccountId : stockAccountFor(item, warehouse);
   if (!primaryAccountId) throw badRequest("لم يُحدَّد الحساب المحاسبي المرتبط بهذا الصنف بعد؛ أكمل بياناته من شاشة الأصناف أولاً");
   const contraAccountId = await getAccountIdByName(tenantId, item.companyId, "تسويات المخزون");
 
@@ -184,13 +185,13 @@ export async function createIssueMovement(
   userId: string,
   input: { itemId: string; warehouseId: string; department: string; quantity: number; date: Date; note?: string },
 ) {
-  const { item } = await assertItemAndWarehouse(tenantId, input.itemId, input.warehouseId);
+  const { item, warehouse } = await assertItemAndWarehouse(tenantId, input.itemId, input.warehouseId);
   const balance = await getStockBalance(tenantId, input.itemId, input.warehouseId);
   if (input.quantity > balance) throw badRequest(`الكمية المطلوبة (${input.quantity}) أكبر من الرصيد المتاح (${balance})`);
 
   const unitCost = Number(item.averageCost);
   const amount = input.quantity * unitCost;
-  const stockId = item.type === "expense" ? item.expenseAccountId : item.stockAccountId;
+  const stockId = item.type === "expense" ? item.expenseAccountId : stockAccountFor(item, warehouse);
   if (!stockId) throw badRequest("لم يُحدَّد الحساب المحاسبي المرتبط بهذا الصنف بعد؛ أكمل بياناته من شاشة الأصناف أولاً");
   const cogsId = item.cogsAccountId ?? (await getAccountIdByName(tenantId, item.companyId, "تكلفة البضاعة المباعة / الصرف المخزني"));
 
@@ -223,7 +224,7 @@ export async function createTransferMovement(
   userId: string,
   input: { itemId: string; fromWarehouseId: string; toWarehouseId: string; toCompanyId: string; quantity: number; date: Date },
 ) {
-  const { item } = await assertItemAndWarehouse(tenantId, input.itemId, input.fromWarehouseId);
+  const { item, warehouse: fromWarehouse } = await assertItemAndWarehouse(tenantId, input.itemId, input.fromWarehouseId);
   const toCompany = await prisma.company.findFirst({ where: { id: input.toCompanyId, tenantId } });
   if (!toCompany) throw badRequest("الشركة المستقبلة غير موجودة");
   const toWarehouse = await prisma.warehouse.findFirst({ where: { id: input.toWarehouseId, tenantId, companyId: input.toCompanyId } });
@@ -235,8 +236,9 @@ export async function createTransferMovement(
   const unitCost = Number(item.averageCost);
   const amount = input.quantity * unitCost;
   const crossCompany = input.toCompanyId !== item.companyId;
-  if (!item.stockAccountId) throw badRequest("لم يُحدَّد حساب المخزون المرتبط بهذا الصنف بعد؛ أكمل بياناته من شاشة الأصناف أولاً");
-  const sourceStockId = item.stockAccountId;
+  // حساب المصدر = حساب مستودع المصدر (أو الصنف)، والوجهة = حساب مستودع الوجهة (أو صنف الوجهة) — src/lib/stockAccount.ts
+  const sourceStockId = stockAccountFor(item, fromWarehouse);
+  if (!sourceStockId) throw badRequest("لم يُحدَّد حساب المخزون المرتبط بهذا الصنف بعد؛ أكمل بياناته من شاشة الأصناف أولاً");
   const transferGroupId = crypto.randomUUID();
 
   // عند التحويل بين شركتين، الصنف كيان مرتبط بشركة واحدة (companyId) — الحركة الواردة يجب أن
@@ -248,7 +250,8 @@ export async function createTransferMovement(
   if (crossCompany && !destinationItem) {
     throw badRequest(`لا يوجد صنف مطابق بنفس الكود (${item.code}) في شركة الوجهة؛ أنشئه أولاً هناك قبل التحويل`);
   }
-  if (crossCompany && destinationItem && !destinationItem.stockAccountId) {
+  const destinationStockId = destinationItem ? stockAccountFor(destinationItem, toWarehouse) : null;
+  if (crossCompany && destinationItem && !destinationStockId) {
     throw badRequest("لم يُحدَّد حساب المخزون المرتبط بهذا الصنف في شركة الوجهة بعد");
   }
 
@@ -262,7 +265,8 @@ export async function createTransferMovement(
         memo: `تحويل مخزني داخلي — ${item.name}`,
         sourceModule: "stock_movement", createdBy: userId,
         lines: [
-          { accountId: sourceStockId, department: "المشتريات", debit: amount, credit: 0 },
+          // نفس الحساب في الطرفين إن كان للمستودعين حساب واحد (قيد متقابل كما كان)، وإلا ينتقل الرصيد بين حسابيهما
+          { accountId: destinationStockId ?? sourceStockId, department: "المشتريات", debit: amount, credit: 0 },
           { accountId: sourceStockId, department: "المشتريات", debit: 0, credit: amount },
         ],
       });
@@ -272,7 +276,6 @@ export async function createTransferMovement(
         getAccountIdByName(tenantId, item.companyId, "حساب جاري - شركات المجموعة"),
         getAccountIdByName(tenantId, input.toCompanyId, "حساب جاري - شركات المجموعة"),
       ]);
-      const destinationStockId = destinationItem!.stockAccountId!;
       const entrySource = await createJournalEntryTx(tx, {
         tenantId, companyId: item.companyId, date: input.date,
         memo: `تحويل مخزون صادر لشركة أخرى — ${item.name}`,
@@ -287,7 +290,7 @@ export async function createTransferMovement(
         memo: `تحويل مخزون وارد من شركة أخرى — ${item.name}`,
         sourceModule: "stock_movement", createdBy: userId,
         lines: [
-          { accountId: destinationStockId, department: "المشتريات", debit: amount, credit: 0 },
+          { accountId: destinationStockId!, department: "المشتريات", debit: amount, credit: 0 },
           { accountId: destinationIntercompanyId, department: "المالية والحسابات", debit: 0, credit: amount },
         ],
       });
