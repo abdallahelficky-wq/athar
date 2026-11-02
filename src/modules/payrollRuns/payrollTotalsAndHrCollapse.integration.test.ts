@@ -104,7 +104,7 @@ describe("payroll totals posting and the non-HR collapse (integration)", () => {
     accountantToken = signAccessToken({ sub: accountant.id, tenantId, role: "accountant", companyScope: "all", readOnly: false });
 
     salaryExpenseId = await getAccountIdByName(tenantId, companyId, "مصروف رواتب");
-    payableId = await getAccountIdByName(tenantId, companyId, "رواتب مستحقة للصرف");
+    payableId = await getAccountIdByName(tenantId, companyId, "رواتب مستحقة");
     advanceAccountId = (await prisma.account.findFirstOrThrow({ where: { companyId, name: "سلف وقروض الموظفين", isPosting: true } })).id;
     const component = await call("POST", `/companies/${companyId}/payroll-components`, ownerToken, {
       name: "الراتب الأساسي", kind: "addition", accountId: salaryExpenseId, calcMethod: "fixed", appliesByDefault: false,

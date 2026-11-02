@@ -205,28 +205,28 @@ model Identity {
 // أخرى، لا تعديل حالة داخل نفس الجلسة، فيبقى companyScope/enforceCompanyScope وكل فحوصات العزل
 // الأخرى في النظام بلا أي تغيير مطلوب.
 model User {
-  id              String       @id @default(cuid())
-  identityId      String
-  identity        Identity     @relation(fields: [identityId], references: [id], onDelete: Cascade)
-  tenantId        String
-  tenant          Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  name            String
-  role            UserRole     @default(accountant)
-  companyScope    String       @default("all") // "all" أو معرّف شركة محددة ضمن المستأجر
-  active          Boolean      @default(true)
-  inviteStatus    InviteStatus @default(accepted)
-  inviteToken     String?      @unique
-  inviteExpiresAt DateTime?
-  lastLoginAt     DateTime?
+  id                      String       @id @default(cuid())
+  identityId              String
+  identity                Identity     @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  tenantId                String
+  tenant                  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name                    String
+  role                    UserRole     @default(accountant)
+  companyScope            String       @default("all") // "all" أو معرّف شركة محددة ضمن المستأجر
+  active                  Boolean      @default(true)
+  inviteStatus            InviteStatus @default(accepted)
+  inviteToken             String?      @unique
+  inviteExpiresAt         DateTime?
+  lastLoginAt             DateTime?
   // حذف المستخدم من الشركة (موظف ترك العمل): الصف يبقى حتى يبقى كل قيد وصف تدقيق منسوباً إليه، لكنه
   // يختفي من القوائم ولا يستطيع الدخول. NULL = مستخدم قائم. راجع deleteUser في auth.service.ts.
-  deletedAt       DateTime?
+  deletedAt               DateTime?
   // قفل فك الترحيل لهذا المستخدم بعد 5 محاولات خاطئة متتالية للرقم السري (15 دقيقة) — راجع
   // assertValidUnlockPin في lib/journalPosting.ts. كل محاولة خاطئة تُكتَب أيضاً في audit_logs باسمه.
-  unlockPinFailedAttempts Int       @default(0)
+  unlockPinFailedAttempts Int          @default(0)
   unlockPinLockedUntil    DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
 
   // المنصب المُسنَد لهذا المستخدم (اختياري) — يحدّد صلاحياته الدقيقة عبر PositionPermission، بجانب
   // (لا بدلاً من) دوره العام role أعلاه. حذف المنصب لا يحذف المستخدم (onDelete: SetNull).
@@ -238,13 +238,12 @@ model User {
   // عامل ورديات المحطة (assignedCostCenterId) انتقل بالكامل إلى Employee — بوابة الموظف (الجوال)
   // هي واجهة العامل الوحيدة الآن، لا حساب User إطلاقاً؛ راجع Employee.assignedCostCenterId.
   stationShiftsAsReviewer   StationShift[]                 @relation("StationShiftReviewer")
+  posAssignments            CompanyPosUser[]
 
   // نفس الهوية لا تنضم لنفس المستأجر مرتين (لا حاجة لعضويتين منفصلتين لنفس الشخص في نفس المستأجر —
   // نطاق companyScope واحد يكفي، ولو احتاج صلاحيات مختلفة لشركتين من نفس المستأجر فذلك عبر
   // companyScope="all" أو منصب مخصَّص، لا عضوية إضافية).
   @@unique([identityId, tenantId])
-  posAssignments CompanyPosUser[]
-
   @@map("users")
 }
 
@@ -418,7 +417,7 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
-  qoyodConnection QoyodConnection?
+  qoyodConnection              QoyodConnection?
   id                           String                @id @default(cuid())
   tenantId                     String
   tenant                       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -517,7 +516,7 @@ model Company {
   // متى كان true. الشركات التي فيها قيود محفوظة عند إضافة هذا العمود تبدأ false (سلوكها السابق: المحفوظ
   // يُحتسَب) إلى أن يُراجِع المالك قيودها ويُفعِّله — راجع migration 20260927150000.
   balancesPostedOnly           Boolean               @default(true)
-  // أول شهر (YYYY-MM) يُرحَّل فيه كشف الرواتب إجماليات لكل بند وصافٍ واحد على «رواتب مستحقة للصرف» بدل
+  // أول شهر (YYYY-MM) يُرحَّل فيه كشف الرواتب إجماليات لكل بند وصافٍ واحد على «رواتب مستحقة» بدل
   // سطر لكل موظف وصافٍ على حسابه الفرعي. فارغ = الترحيل القديم لكل الأشهر. يحدّده المالك بعد مراجعة
   // أرصدة الحسابات الفرعية للموظفين؛ الكشوف المرحَّلة قبله لا يُعاد كتابتها.
   payrollTotalsFromMonth       String?
@@ -534,60 +533,59 @@ model Company {
   createdAt                    DateTime              @default(now())
   updatedAt                    DateTime              @updatedAt
 
-  costCenters               CostCenter[]
-  departments               Department[]
-  branches                  Branch[]
-  bankAccounts              CompanyBankAccount[]
-  documentNumberingSettings DocumentNumberingSettings[]
-  companyDocuments          CompanyDocument[]
-  leaseContracts            LeaseContract[]
-  journalEntries            JournalEntry[]
-  accounts                  Account[]
-  intercompanyAccounts      Account[]                   @relation("AccountIntercompanyCompany")
-  customers                 Customer[]
-  quotations                Quotation[]
-  salesInvoices             SalesInvoice[]
-  salesReturns              SalesReturn[]
-  salesDebitNotes           SalesDebitNote[]
-  zatcaCredential           CompanyZatcaCredential?
-  receipts                  Receipt[]
-  stationSales              StationSale[]
-  stationNozzles            StationNozzle[]
-  fuelPrices                FuelPrice[]
-  stationShifts             StationShift[]
-  stationShiftReadings      StationShiftReading[]
-  stationShiftCreditSales   StationShiftCreditSale[]
-  stationShiftExpenses      StationShiftExpense[]
-  stationShiftCollections   StationShiftCollection[]
-  tankDeliveries            TankDelivery[]
-  tankDips                  TankDip[]
-  suppliers                 Supplier[]
-  purchaseInvoices          PurchaseInvoice[]
-  purchaseReturns           PurchaseReturn[]
-  items                     Item[]
-  warehouses                Warehouse[]
-  stockMovements            StockMovement[]
-  fixedAssets               FixedAsset[]
-  assetCategories           AssetCategory[]
-  depreciationRuns          DepreciationRun[]
-  employees                 Employee[]
-  payrollRuns               PayrollRun[]
-  stables                   Stable[]
-  stableStalls              StableStall[]
-  horses                    Horse[]
-  boardingContracts         BoardingContract[]
-  horseCareRecords          HorseCareRecord[]
-  attendanceRecords         AttendanceRecord[]
-  payrollComponents         PayrollComponent[]
-  payrollSettings           PayrollSettings?
-  reportSchedule            ReportSchedule?
-  employeeAdvances          EmployeeAdvance[]
+  costCenters                 CostCenter[]
+  departments                 Department[]
+  branches                    Branch[]
+  bankAccounts                CompanyBankAccount[]
+  documentNumberingSettings   DocumentNumberingSettings[]
+  companyDocuments            CompanyDocument[]
+  leaseContracts              LeaseContract[]
+  journalEntries              JournalEntry[]
+  accounts                    Account[]
+  intercompanyAccounts        Account[]                    @relation("AccountIntercompanyCompany")
+  customers                   Customer[]
+  quotations                  Quotation[]
+  salesInvoices               SalesInvoice[]
+  salesReturns                SalesReturn[]
+  salesDebitNotes             SalesDebitNote[]
+  zatcaCredential             CompanyZatcaCredential?
+  receipts                    Receipt[]
+  stationSales                StationSale[]
+  stationNozzles              StationNozzle[]
+  fuelPrices                  FuelPrice[]
+  stationShifts               StationShift[]
+  stationShiftReadings        StationShiftReading[]
+  stationShiftCreditSales     StationShiftCreditSale[]
+  stationShiftExpenses        StationShiftExpense[]
+  stationShiftCollections     StationShiftCollection[]
+  tankDeliveries              TankDelivery[]
+  tankDips                    TankDip[]
+  suppliers                   Supplier[]
+  purchaseInvoices            PurchaseInvoice[]
+  purchaseReturns             PurchaseReturn[]
+  items                       Item[]
+  warehouses                  Warehouse[]
+  stockMovements              StockMovement[]
+  fixedAssets                 FixedAsset[]
+  assetCategories             AssetCategory[]
+  depreciationRuns            DepreciationRun[]
+  employees                   Employee[]
+  payrollRuns                 PayrollRun[]
+  stables                     Stable[]
+  stableStalls                StableStall[]
+  horses                      Horse[]
+  boardingContracts           BoardingContract[]
+  horseCareRecords            HorseCareRecord[]
+  attendanceRecords           AttendanceRecord[]
+  payrollComponents           PayrollComponent[]
+  payrollSettings             PayrollSettings?
+  reportSchedule              ReportSchedule?
+  employeeAdvances            EmployeeAdvance[]
   zatcaComplianceStepAttempts ZatcaComplianceStepAttempt[]
+  subscription                CompanySubscription?
+  posUsers                    CompanyPosUser[]
 
   @@unique([tenantId, name])
-  subscription CompanySubscription?
-  posUsers     CompanyPosUser[]
-
   @@map("companies")
 }
 
@@ -595,16 +593,16 @@ model Company {
 // بـ Enc قيم مُشفّرة بالكامل (AES-256-GCM) عبر src/lib/zatca/secretBox.ts قبل الكتابة، ولا تُخزَّن
 // أبداً كنص خام. علاقة 1:1 صارمة مع Company (لا مشاركة بين الشركات — كل شركة CSID مستقل تماماً).
 model CompanyZatcaCredential {
-  id                  String   @id @default(cuid())
-  companyId           String   @unique
-  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  privateKeyEnc       String? // مفتاح secp256k1 الخاص (PEM)، مُشفَّر
-  csrPem              String? // آخر CSR تم توليده — نص عادي (لا يحتوي سراً، PKCS#10 عام)
+  id                           String               @id @default(cuid())
+  companyId                    String               @unique
+  company                      Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  privateKeyEnc                String? // مفتاح secp256k1 الخاص (PEM)، مُشفَّر
+  csrPem                       String? // آخر CSR تم توليده — نص عادي (لا يحتوي سراً، PKCS#10 عام)
   // نوع الفاتورة المُعلَن في CSR أعلاه (راجع تعريف ZatcaCsrInvoiceType) — يُسجَّل هنا وقت توليد CSR
   // فعلياً حتى يكون لدى منطق التلقيم الآلي المستقبلي (توليد مستندات الامتثال) مصدراً موثوقاً لمعرفة
   // كم مستنداً ومن أي نوع تتطلبه زاتكا، بدل افتراض الستة كاملة دائماً. null لصفوف قديمة سبقت هذا الحقل.
-  csrInvoiceType      ZatcaCsrInvoiceType?
-  complianceCertEnc   String? // شهادة الاختبار (Compliance CSID) — الشكل القانوني (canonical) الناجح تحليله كـX.509،
+  csrInvoiceType               ZatcaCsrInvoiceType?
+  complianceCertEnc            String? // شهادة الاختبار (Compliance CSID) — الشكل القانوني (canonical) الناجح تحليله كـX.509،
   // يُستخدَم فقط لتوقيع المستندات (signDocument) — راجع complianceCertRawEnc للشكل المُستخدَم في المصادقة.
   // الشكل الخام تماماً كما أعادته زاتكا في binarySecurityToken (بلا أي فك ترميز إضافي)، يُستخدَم *فقط*
   // لترويسة Basic Auth (buildBasicAuthHeader) — عطل إنتاج فعلي مؤكَّد: تطبيع الشهادة (فك ترميز base64
@@ -617,36 +615,36 @@ model CompanyZatcaCredential {
   // إعادة اشتقاق هي تخمين لا إعادة بناء فعلية. الشركة الوحيدة المؤكَّد تأثّرها (راجع تقرير
   // scripts/check-zatca-certificate.ts) تُعاد استخراج شهادتها من الصفر بدلاً من ذلك — أرخص وأضمن من
   // تخمين قد يفشل بصمت لاحقاً في الإنتاج.
-  complianceCertRawEnc String?
-  complianceSecretEnc String? // سر API المرافق لشهادة الاختبار، مُشفَّر
-  complianceRequestId String? // request_id المُستخدَم لاحقاً لاستبداله بشهادة الإنتاج
+  complianceCertRawEnc         String?
+  complianceSecretEnc          String? // سر API المرافق لشهادة الاختبار، مُشفَّر
+  complianceRequestId          String? // request_id المُستخدَم لاحقاً لاستبداله بشهادة الإنتاج
   // بيئة زاتكا (sandbox/simulation/production) التي كانت مضبوطة على الشركة *وقت إصدار* شهادة
   // الاختبار فعلياً — تُسجَّل مرة واحدة عند الإصدار وتبقى ثابتة بعدها، بصرف النظر عمّا يصبح عليه
   // Company.zatcaEnvironment لاحقاً. راجع credentials.ts: شهادة صادرة لبيئة تختلف عن البيئة
   // المطلوبة الآن تُرفَض صراحةً قبل أي محاولة إرسال — عطل إنتاج فعلي مؤكَّد: شهادة اختبار صادرة
   // بـOTP حقيقي من بوابة فاتورة بينما بيئة الشركة كانت مضبوطة على sandbox (بوابة مطورين عامة
   // ببيانات وهمية منفصلة تماماً لا تعرف هذه الشهادة إطلاقاً) — 401 مضمون بلا أي علاقة بصحة التوقيع.
-  complianceCsidEnvironment ZatcaEnvironment?
-  productionCertEnc   String? // شهادة الإنتاج (Production CSID) — الشكل القانوني، للتوقيع فقط. راجع
+  complianceCsidEnvironment    ZatcaEnvironment?
+  productionCertEnc            String? // شهادة الإنتاج (Production CSID) — الشكل القانوني، للتوقيع فقط. راجع
   // complianceCertRawEnc أعلاه لشرح الفرق؛ نفس المنطق هنا بالضبط لشهادة الإنتاج.
-  productionCertRawEnc String?
-  productionSecretEnc String? // سر API المرافق لشهادة الإنتاج، مُشفَّر
+  productionCertRawEnc         String?
+  productionSecretEnc          String? // سر API المرافق لشهادة الإنتاج، مُشفَّر
   // request_id الذي أعادته زاتكا فعلياً عند إصدار شهادة الإنتاج نفسها — لم يكن يُحفَظ سابقاً (خلافاً
   // لـcomplianceRequestId أعلاه)، رغم أنه يُعاد فعلياً في نفس استجابة /production/csids الناجحة إلى
   // جانب binarySecurityToken/secret. يُكتَب فوراً بمجرد وصول استجابة ناجحة من زاتكا، قبل أي محاولة
   // تحليل الشهادة كـX.509 (راجع requestCompanyProductionCsid) — حتى لو فشل ذلك التحليل لاحقاً، يبقى
   // دليل الإصدار الفعلي محفوظاً هنا بدل أن يضيع بصمت.
-  productionRequestId String?
+  productionRequestId          String?
   // نفس فكرة complianceCsidEnvironment أعلاه، لشهادة الإنتاج.
-  productionCsidEnvironment ZatcaEnvironment?
+  productionCsidEnvironment    ZatcaEnvironment?
   // آخر قائمة "خطوات امتثال متبقية" فعلية سمَّتها زاتكا صراحةً في رفض طلب شهادة الإنتاج بكود
   // Missing-ComplianceSteps (راجع src/lib/zatca/complianceAutomation.ts) — تسوية اختيارية فقط،
   // لا مصدر تتبّع أساسي (ذلك ZatcaComplianceStepAttempt): تُحدَّث فقط حين نُصادف هذا الرفض تحديداً
   // فعلياً (لا نستدعي شهادة الإنتاج خصيصاً لمعرفة التقدّم)، فتبقى فارغة/قديمة بين محاولة وأخرى.
-  lastMissingComplianceSteps   String[]  @default([])
+  lastMissingComplianceSteps   String[]             @default([])
   lastComplianceStepsCheckedAt DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
 
   @@map("company_zatca_credentials")
 }
@@ -682,7 +680,7 @@ model ZatcaComplianceStepAttempt {
   passed              Boolean
   rejectionReason     String?
   zatcaResponseRaw    Json?
-  attemptedAt         DateTime               @default(now())
+  attemptedAt         DateTime @default(now())
 
   @@unique([companyId, complianceRequestId, stepKey])
   @@map("zatca_compliance_step_attempts")
@@ -708,7 +706,9 @@ model CostCenter {
   stationShifts      StationShift[]
   tankDeliveries     TankDelivery[]
   tankDips           TankDip[]
-  assignedEmployees  Employee[]
+  assignedEmployees  Employee[]      @relation("EmployeeAssignedCostCenter")
+  // موظفون تُحمَّل تكلفة رواتبهم على هذا المركز (Employee.costCenterId) — منفصل تماماً عن عمّال المحطات أعلاه
+  allocatedEmployees Employee[]      @relation("EmployeeCostCenter")
 
   @@map("cost_centers")
 }
@@ -726,6 +726,7 @@ model Department {
   updatedAt DateTime @updatedAt
 
   journalEntryLines JournalEntryLine[]
+  employees         Employee[]
 
   @@map("departments")
 }
@@ -866,6 +867,7 @@ model Account {
   supplierLinks                Supplier[]
   employeeLinks                Employee[]
   payrollComponentLinks        PayrollComponent[]
+  payrollComponentContraLinks  PayrollComponent[]    @relation("PayrollComponentContraAccount")
   fixedAssetLinks              FixedAsset[]
   employeeAdvanceLinks         EmployeeAdvance[]
   assetCategoryAssetLinks      AssetCategory[]       @relation("AssetCategoryAssetAccount")
@@ -1004,15 +1006,15 @@ model CompanyBankAccount {
 }
 
 model JournalEntry {
-  qoyodExport QoyodJournalExport?
-  id                String             @id @default(cuid())
+  qoyodExport       QoyodJournalExport?
+  id                String              @id @default(cuid())
   tenantId          String
-  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   companyId         String
-  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company           Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   date              DateTime
   memo              String?
-  status            JournalEntryStatus @default(posted)
+  status            JournalEntryStatus  @default(posted)
   // رقم القيد التسلسلي بصيغة [بادئة الشركة][5 خانات] (مثال J00001) — نصّ للعرض فقط، لا يُستخدَم
   // كمفتاح ترتيب/فهرسة (انظر entrySeq أدناه: نفس البادئة قابلة للتعديل من بيانات الشركة بعد إنشاء
   // قيود بالفعل، والحشو الثابت 5 خانات ينكسر رقمياً بعد تجاوز 99999 — فالترتيب النصي على entryNumber
@@ -1025,7 +1027,7 @@ model JournalEntry {
   // للتفسير (مثال: أرقام من نظام سابق كـQoyod) — تُعامَل هذه كـ"آخر الترتيب" (nulls last) دائماً
   // بصرف النظر عن اتجاه الفرز، ولا تُخمَّن قيمتها أبداً (انظر scripts/backfillJournalEntrySeq.ts).
   entrySeq          Int?
-  sourceModule      SourceModule       @default(manual)
+  sourceModule      SourceModule        @default(manual)
   sourceId          String?
   // مرجع منطقي حر (بلا علاقة FK صارمة) لقيد "المرآة" المقابل في شركة أخرى ضمن نفس المستأجر —
   // يُملأ تبادلياً على القيدين معاً عند إنشاء قيد مرآة (كل قيد يشير لمعرّف الآخر)، بنفس أسلوب
@@ -1036,13 +1038,13 @@ model JournalEntry {
   // تم عكسه لاحقاً، يُبحث عن قيد آخر بنفس tenantId حيث reversalOfEntryId يساوي معرّف هذا القيد.
   reversalOfEntryId String?
   createdBy         String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
   // مجموع المدين لكل أسطر هذا القيد (= مجموع الدائن دائماً لقيد متوازن) — محسوبة دائماً من
   // قاعدة البيانات عبر recomputeEntryTotal في journalPosting.ts، لا تُحسَب أو تُحدَّث يدوياً في أي
   // مسار آخر (بما فيها الزيادة التراكمية increment) — مصدر الحقيقة الوحيد لتفادي انحراف القيمة
   // عن واقع الأسطر الفعلي. تُستخدَم لعرض/فلترة/ترتيب شاشة القيود بلا تحميل كل الأسطر لكل قيد.
-  totalDebit        Decimal            @default(0) @db.Decimal(18, 2)
+  totalDebit        Decimal             @default(0) @db.Decimal(18, 2)
 
   lines        JournalEntryLine[]
   stationShift StationShift?
@@ -1316,27 +1318,27 @@ model InvoiceEmailLog {
 }
 
 model SalesInvoiceLine {
-  id                 String          @id @default(cuid())
-  invoiceId          String
-  invoice            SalesInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  accountId          String
-  account            Account         @relation(fields: [accountId], references: [id])
-  itemId             String?
-  item               Item?           @relation(fields: [itemId], references: [id])
-  description        String?
-  quantity           Decimal         @db.Decimal(18, 4)
-  unitPrice          Decimal         @db.Decimal(18, 4)
-  discountPct        Decimal         @default(0) @db.Decimal(5, 2)
-  priceIncludesVat   Boolean         @default(false)
-  vatApplicable      Boolean         @default(true)
+  id                     String          @id @default(cuid())
+  invoiceId              String
+  invoice                SalesInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  accountId              String
+  account                Account         @relation(fields: [accountId], references: [id])
+  itemId                 String?
+  item                   Item?           @relation(fields: [itemId], references: [id])
+  description            String?
+  quantity               Decimal         @db.Decimal(18, 4)
+  unitPrice              Decimal         @db.Decimal(18, 4)
+  discountPct            Decimal         @default(0) @db.Decimal(5, 2)
+  priceIncludesVat       Boolean         @default(false)
+  vatApplicable          Boolean         @default(true)
   // تصنيف الضريبة القياسي لزاتكا (UBL cac:ClassifiedTaxCategory) — يُشتق افتراضياً من
   // vatApplicable أعلاه (true => S، false => O) عند عدم تحديده صراحةً.
-  taxCategoryCode    TaxCategoryCode @default(S)
-  taxExemptionReason String?
+  taxCategoryCode        TaxCategoryCode @default(S)
+  taxExemptionReason     String?
   taxExemptionReasonCode String?
-  subtotal           Decimal         @db.Decimal(18, 2)
-  vat                Decimal         @db.Decimal(18, 2)
-  total              Decimal         @db.Decimal(18, 2)
+  subtotal               Decimal         @db.Decimal(18, 2)
+  vat                    Decimal         @db.Decimal(18, 2)
+  total                  Decimal         @db.Decimal(18, 2)
 
   @@map("sales_invoice_lines")
 }
@@ -1385,23 +1387,23 @@ model SalesReturn {
 }
 
 model SalesReturnLine {
-  id                 String          @id @default(cuid())
-  returnId           String
-  salesReturn        SalesReturn     @relation(fields: [returnId], references: [id], onDelete: Cascade)
-  originalInvoiceLineId String?
-  accountId          String
-  account            Account         @relation(fields: [accountId], references: [id])
-  description        String?
-  quantity           Decimal         @db.Decimal(18, 4)
-  unitPrice          Decimal         @db.Decimal(18, 4)
-  discountPct        Decimal         @default(0) @db.Decimal(5, 2)
-  priceIncludesVat   Boolean         @default(false)
-  taxCategoryCode    TaxCategoryCode @default(S)
-  taxExemptionReason String?
+  id                     String          @id @default(cuid())
+  returnId               String
+  salesReturn            SalesReturn     @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  originalInvoiceLineId  String?
+  accountId              String
+  account                Account         @relation(fields: [accountId], references: [id])
+  description            String?
+  quantity               Decimal         @db.Decimal(18, 4)
+  unitPrice              Decimal         @db.Decimal(18, 4)
+  discountPct            Decimal         @default(0) @db.Decimal(5, 2)
+  priceIncludesVat       Boolean         @default(false)
+  taxCategoryCode        TaxCategoryCode @default(S)
+  taxExemptionReason     String?
   taxExemptionReasonCode String?
-  subtotal           Decimal         @db.Decimal(18, 2)
-  vat                Decimal         @db.Decimal(18, 2)
-  total              Decimal         @db.Decimal(18, 2)
+  subtotal               Decimal         @db.Decimal(18, 2)
+  vat                    Decimal         @db.Decimal(18, 2)
+  total                  Decimal         @db.Decimal(18, 2)
 
   @@map("sales_return_lines")
 }
@@ -1509,15 +1511,15 @@ model Receipt {
 }
 
 model ReceiptAllocation {
-  id        String       @id @default(cuid())
-  receiptId String
-  receipt   Receipt      @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-  invoiceId String
-  invoice   SalesInvoice @relation(fields: [invoiceId], references: [id])
-  amount    Decimal      @db.Decimal(18, 2)
+  id              String       @id @default(cuid())
+  receiptId       String
+  receipt         Receipt      @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  invoiceId       String
+  invoice         SalesInvoice @relation(fields: [invoiceId], references: [id])
+  amount          Decimal      @db.Decimal(18, 2)
   // متى ومن أضاف هذا التخصيص — فارغان للتخصيصات السابقة لهذا العمود (لا يُعرف وقتها)، ومسجَّلان لكل
   // تخصيص جديد. بلا علاقة مفتاح أجنبي للمستخدم، بنفس مبدأ سجلات التدقيق: الأثر لا يُمحى مع المستخدم.
-  createdAt       DateTime? @default(now())
+  createdAt       DateTime?    @default(now())
   createdByUserId String?
 
   @@map("receipt_allocations")
@@ -1600,32 +1602,32 @@ model PurchaseInvoice {
 }
 
 model PurchaseInvoiceLine {
-  id               String          @id @default(cuid())
-  invoiceId        String
-  invoice          PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  id                     String          @id @default(cuid())
+  invoiceId              String
+  invoice                PurchaseInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   // حساب يدوي — يبقى إلزامياً دايماً كـ fallback؛ لو السطر مرتبط بصنف (itemId) يُشتق الحساب
   // تلقائياً من نوع الصنف عند الترحيل (مش من هذا الحقل)، وأي قيمة يرسلها العميل هنا تُتجاهل.
-  accountId        String
-  account          Account         @relation(fields: [accountId], references: [id])
-  itemId           String?
-  item             Item?           @relation(fields: [itemId], references: [id])
-  warehouseId      String?
-  warehouse        Warehouse?      @relation(fields: [warehouseId], references: [id])
+  accountId              String
+  account                Account         @relation(fields: [accountId], references: [id])
+  itemId                 String?
+  item                   Item?           @relation(fields: [itemId], references: [id])
+  warehouseId            String?
+  warehouse              Warehouse?      @relation(fields: [warehouseId], references: [id])
   // فقط لو item.type == fixed_asset — تُستخدَم لإنشاء سجل الأصل الثابت المرتبط بهذا السطر
-  usefulLifeYears  Int?
-  salvageValue     Decimal?        @db.Decimal(18, 2)
-  description      String?
-  quantity         Decimal         @db.Decimal(18, 4)
-  unitPrice        Decimal         @db.Decimal(18, 4)
-  discountPct      Decimal         @default(0) @db.Decimal(5, 2)
-  priceIncludesVat Boolean         @default(false)
-  taxCategoryCode TaxCategoryCode @default(S)
-  vatApplicable Boolean @default(true)
+  usefulLifeYears        Int?
+  salvageValue           Decimal?        @db.Decimal(18, 2)
+  description            String?
+  quantity               Decimal         @db.Decimal(18, 4)
+  unitPrice              Decimal         @db.Decimal(18, 4)
+  discountPct            Decimal         @default(0) @db.Decimal(5, 2)
+  priceIncludesVat       Boolean         @default(false)
+  taxCategoryCode        TaxCategoryCode @default(S)
+  vatApplicable          Boolean         @default(true)
   taxExemptionReasonCode String?
-  taxExemptionReason String?
-  subtotal         Decimal         @db.Decimal(18, 2)
-  vat              Decimal         @db.Decimal(18, 2)
-  total            Decimal         @db.Decimal(18, 2)
+  taxExemptionReason     String?
+  subtotal               Decimal         @db.Decimal(18, 2)
+  vat                    Decimal         @db.Decimal(18, 2)
+  total                  Decimal         @db.Decimal(18, 2)
 
   @@map("purchase_invoice_lines")
 }
@@ -1702,25 +1704,25 @@ enum ItemType {
 // كتالوج الأصناف الموحّد — يحل محل Item (مخزون) و SellableItem (مبيعات) القديمين معاً.
 // الربط المحاسبي يُحدَّد هنا فقط، لا يظهر اختيار حساب يدوي داخل سطر الفاتورة لأي صنف.
 model Item {
-  id         String   @id @default(cuid())
-  tenantId   String
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId  String
-  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  code       String
-  name       String
-  nameEn     String?
-  taxCategoryCode TaxCategoryCode?
+  id                     String           @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId              String
+  company                Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code                   String
+  name                   String
+  nameEn                 String?
+  taxCategoryCode        TaxCategoryCode?
   taxExemptionReasonCode String?
-  taxExemptionReason String?
-  priceIncludesVat Boolean @default(true)
+  taxExemptionReason     String?
+  priceIncludesVat       Boolean          @default(true)
   // باركود اختياري لمسحه ضوئياً في نقطة البيع (POS) — فريد لكل شركة لو محدَّد، بلا قيد على الشركات
   // الأخرى (نفس الباركود قد يتكرر بين شركات مختلفة لنفس المنتج التجاري).
-  barcode    String?
-  type       ItemType @default(inventory)
-  unit       String?
-  category   String?
-  isArchived Boolean  @default(false)
+  barcode                String?
+  type                   ItemType         @default(inventory)
+  unit                   String?
+  category               String?
+  isArchived             Boolean          @default(false)
 
   // التسعير/التكلفة
   costPrice         Decimal  @default(0) @db.Decimal(18, 4) // القيمة اليدوية القديمة قبل هذا التحديث — أثر تاريخي فقط، لا يُستخدَم في أي منطق جديد
@@ -2064,7 +2066,14 @@ model Employee {
   // Position/PositionActionPermission أصلاً، فوجود هذا التخصيص نفسه هو "الصلاحية" الوحيدة
   // المطلوبة لفتح وردية — تماماً كمبدأ managerId أعلاه في صلاحيات وحدة الإجازات).
   assignedCostCenterId      String?
-  assignedCostCenter        CostCenter?    @relation(fields: [assignedCostCenterId], references: [id], onDelete: SetNull)
+  assignedCostCenter        CostCenter?    @relation("EmployeeAssignedCostCenter", fields: [assignedCostCenterId], references: [id], onDelete: SetNull)
+  // تحميل تكلفة الراتب (قرار المالك 2026-11-01): قسم ومركز تكلفة الموظف تُوسَم بهما أسطر مصروف رواتبه في القيد.
+  // costCenterId للتحميل فقط — لا علاقة له بنطاق عامل المحطة (assignedCostCenterId). كلاهما اختياري: موظف بلا
+  // قسم/مركز تُرحَّل أسطره في مجموعة «غير مخصَّص» صريحة، ويُظهر الكشف تحذيراً بأسمائهم.
+  departmentId              String?
+  departmentRef             Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  costCenterId              String?
+  costCenter                CostCenter?    @relation("EmployeeCostCenter", fields: [costCenterId], references: [id], onDelete: SetNull)
   // حساب تفصيلي مستقل (مستوى رابع) تحت مجموعة "ذمم الموظفين" (أصول متداولة) — يمثّل صافي الراتب
   // المستحق لهذا الموظف تحديداً (بدل الحساب المشترك "رواتب مستحقة للصرف"/"ذمم الموظفين -
   // مستحقات وإجازات" السابق). نفس مبدأ Customer.accountId/Supplier.accountId.
@@ -2200,9 +2209,12 @@ model PayrollComponent {
   companyId                String
   company                  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name                     String
-  kind                     String // "addition" | "deduction"
+  kind                     String // "addition" | "deduction" | "employer" (مساهمة صاحب العمل: لا تمسّ الصافي)
   accountId                String
   account                  Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  // للبند "employer" فقط: الحساب الدائن (الالتزام) مقابل المصروف في accountId — مثل «تأمينات اجتماعية مستحقة»
+  contraAccountId          String?
+  contraAccount            Account? @relation("PayrollComponentContraAccount", fields: [contraAccountId], references: [id], onDelete: Restrict)
   calcMethod               String // "fixed" | "formula" — انظر PayrollFormula في payrollEngine.ts
   formula                  Json? // PayrollFormula — فقط عند calcMethod = "formula"
   // { unitType: "hour"|"day", referenceComponentIds: string[] } | null — يفعّل إدخال "تسوية شهرية"
@@ -2319,22 +2331,25 @@ model EmployeeAdvanceDeduction {
 // إعدادات رواتب عامة لكل شركة — الساعات/الأيام القياسية للشهر (أساس حساب سعر الوحدة في
 // الصيغ المركّبة)، وترتيب/تسمية أعمدة كشف الرواتب المطبوع والمعروض.
 model PayrollSettings {
-  defaultGosiEmployeeRate Decimal? @db.Decimal(5, 2)
-  id                    String   @id @default(cuid())
-  tenantId              String
-  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId             String   @unique
-  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  standardHoursPerMonth Decimal  @default(240) @db.Decimal(6, 2)
-  standardDaysPerMonth  Decimal  @default(30) @db.Decimal(6, 2)
-  leaveDaysBeforeFive   Decimal  @default(21) @db.Decimal(6, 2)
-  leaveDaysAfterFive    Decimal  @default(30) @db.Decimal(6, 2)
-  leaveDailyRateDivisor Decimal  @default(30) @db.Decimal(6, 2)
-  leaveSalaryBasis      String   @default("total")
-  eosSalaryBasis        String   @default("basic_housing")
-  payslipColumns        Json // [{ componentId: string | null (null = "net"/"gross" محسوب), label: string }]
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  defaultGosiEmployeeRate      Decimal? @db.Decimal(5, 2)
+  id                           String   @id @default(cuid())
+  tenantId                     String
+  tenant                       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId                    String   @unique
+  company                      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  standardHoursPerMonth        Decimal  @default(240) @db.Decimal(6, 2)
+  standardDaysPerMonth         Decimal  @default(30) @db.Decimal(6, 2)
+  leaveDaysBeforeFive          Decimal  @default(21) @db.Decimal(6, 2)
+  leaveDaysAfterFive           Decimal  @default(30) @db.Decimal(6, 2)
+  leaveDailyRateDivisor        Decimal  @default(30) @db.Decimal(6, 2)
+  leaveSalaryBasis             String   @default("total")
+  eosSalaryBasis               String   @default("basic_housing")
+  payslipColumns               Json // [{ componentId: string | null (null = "net"/"gross" محسوب), label: string }]
+  // يُدخل بنود "مساهمة صاحب العمل" (kind=employer) في الكشف وقيده. مطفأ افتراضياً: قد تُقيَّد حصة المنشأة يدوياً
+  // اليوم، وتشغيله مع استمرار القيد اليدوي يُكرِّرها — قرار المالك 2026-11-01.
+  employerContributionsEnabled Boolean  @default(false)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
 
   @@map("payroll_settings")
 }
@@ -2921,27 +2936,27 @@ enum StationShiftStatus {
 
 // فوهة وقود واحدة على مضخة داخل محطة (CostCenter) واحدة.
 model StationNozzle {
-  id            String             @id @default(cuid())
-  tenantId      String
-  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId     String
-  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  costCenterId  String
-  costCenter    CostCenter         @relation(fields: [costCenterId], references: [id])
-  product       StationFuelProduct
-  pumpNumber    Int
-  nozzleNumber  Int
+  id             String             @id @default(cuid())
+  tenantId       String
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenterId   String
+  costCenter     CostCenter         @relation(fields: [costCenterId], references: [id])
+  product        StationFuelProduct
+  pumpNumber     Int
+  nozzleNumber   Int
   // عدد خانات العداد قبل الفاصلة العشرية — يحدد نقطة "اللفّة" (10^meterDigits) في computeNozzleLiters.
   // إعداد صريح لكل فوهة، لا افتراض ثابت: عدد خاطئ يحوّل لفّة حقيقية لكمية سالبة أو خيالية.
-  meterDigits   Int
-  meterType     StationMeterType
-  hasMoneyMeter Boolean            @default(false)
+  meterDigits    Int
+  meterType      StationMeterType
+  hasMoneyMeter  Boolean            @default(false)
   // قراءة العداد لحظة تعريف الفوهة — قراءة الافتتاح لأول وردية عليها (كانت صفراً دائماً، فتُحسَب
   // كل القراءة التراكمية للعداد كلترات مبيعة في أول وردية).
-  initialReading Decimal           @default(0) @db.Decimal(18, 3)
-  isActive      Boolean            @default(true)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  initialReading Decimal            @default(0) @db.Decimal(18, 3)
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   readings StationShiftReading[]
 
@@ -3219,13 +3234,13 @@ model ZatcaDocumentArchive {
 // استخدام UUID ولا ICV، ولا تتغيّر تجزئة المستند المرفوض ولا عدّاده). القيدان الفريدان يفرضان ذلك في القاعدة نفسها.
 // unsignedXml: المستند قبل التوقيع كما حُسبت عليه التجزئة (gzip) — null لصفوف الاستكمال الرجعي. راجع src/lib/zatca/issues.ts.
 model ZatcaDocumentIssue {
-  id                  String    @id @default(cuid())
+  id                  String   @id @default(cuid())
   tenantId            String
   companyId           String
   documentType        String // sales_invoice | sales_return | sales_debit_note
   documentId          String
   documentNumber      String // BT-1 — يبقى نفسه عند إعادة الإصدار (قرار المالك)
-  documentUuid        String    @unique
+  documentUuid        String   @unique
   icv                 Int
   previousInvoiceHash String
   invoiceHash         String
@@ -3238,7 +3253,7 @@ model ZatcaDocumentIssue {
   unsignedXmlSha256   String?
   source              String // issue | reissue | backfill
   createdById         String?
-  createdAt           DateTime  @default(now())
+  createdAt           DateTime @default(now())
 
   @@unique([companyId, icv])
   @@index([tenantId, documentType, documentId])
@@ -3454,27 +3469,30 @@ model PlatformSetting {
 }
 
 model QoyodConnection {
- companyId String @id @map("id")
- company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
- apiKeyEnc String
- enabled Boolean @default(false)
- mapping Json @default("{\"accounts\":{},\"contacts\":{}}")
- updatedAt DateTime @default(now())
- exports QoyodJournalExport[]
- @@map("qoyod_connections")
+  companyId String               @id @map("id")
+  company   Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  apiKeyEnc String
+  enabled   Boolean              @default(false)
+  mapping   Json                 @default("{\"accounts\":{},\"contacts\":{}}")
+  updatedAt DateTime             @default(now())
+  exports   QoyodJournalExport[]
+
+  @@map("qoyod_connections")
 }
+
 model QoyodJournalExport {
- entryId String @id @map("id")
- entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
- companyId String
- connection QoyodConnection @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
- status String @default("queued")
- remoteId Int?
- error String?
- payload Json?
- createdAt DateTime @default(now())
- updatedAt DateTime @default(now())
- @@unique([companyId, remoteId], map: "qoyod_export_remote")
- @@index([status, createdAt], map: "qoyod_export_queue")
- @@map("qoyod_journal_exports")
+  entryId    String          @id @map("id")
+  entry      JournalEntry    @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  companyId  String
+  connection QoyodConnection @relation(fields: [companyId], references: [companyId], onDelete: Restrict)
+  status     String          @default("queued")
+  remoteId   Int?
+  error      String?
+  payload    Json?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @default(now())
+
+  @@unique([companyId, remoteId], map: "qoyod_export_remote")
+  @@index([status, createdAt], map: "qoyod_export_queue")
+  @@map("qoyod_journal_exports")
 }

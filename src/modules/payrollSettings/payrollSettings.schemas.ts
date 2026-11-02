@@ -21,8 +21,9 @@ const adjustmentUnitBasisSchema = z.object({
 export const createComponentSchema = z
   .object({
     name: z.string().min(1, "اسم البند مطلوب"),
-    kind: z.enum(["addition", "deduction"]),
+    kind: z.enum(["addition", "deduction", "employer"]),
     accountId: z.string().min(1, "اختر الحساب المرتبط"),
+    contraAccountId: z.string().min(1).nullable().optional(),
     calcMethod: z.enum(["fixed", "formula"]),
     formula: formulaSchema.nullable().optional(),
     adjustmentUnitBasis: adjustmentUnitBasisSchema.nullable().optional(),
@@ -31,12 +32,14 @@ export const createComponentSchema = z
     appliesByDefault: z.coerce.boolean().default(true),
     sortOrder: z.coerce.number().default(0),
   })
-  .refine((data) => data.calcMethod !== "formula" || data.formula, { message: "الصيغة المركّبة مطلوبة عند اختيار 'صيغة'", path: ["formula"] });
+  .refine((data) => data.calcMethod !== "formula" || data.formula, { message: "الصيغة المركّبة مطلوبة عند اختيار 'صيغة'", path: ["formula"] })
+  .refine((data) => data.kind !== "employer" || data.contraAccountId, { message: "بند مساهمة صاحب العمل يحتاج حساب الالتزام الدائن", path: ["contraAccountId"] });
 
 export const updateComponentSchema = z.object({
   name: z.string().min(1).optional(),
-  kind: z.enum(["addition", "deduction"]).optional(),
+  kind: z.enum(["addition", "deduction", "employer"]).optional(),
   accountId: z.string().min(1).optional(),
+  contraAccountId: z.string().min(1).nullable().optional(),
   calcMethod: z.enum(["fixed", "formula"]).optional(),
   formula: formulaSchema.nullable().optional(),
   adjustmentUnitBasis: adjustmentUnitBasisSchema.nullable().optional(),
@@ -57,6 +60,7 @@ export const updateSettingsSchema = z.object({
   leaveSalaryBasis: z.enum(["basic", "basic_housing", "total"]).optional(),
   eosSalaryBasis: z.enum(["basic", "basic_housing", "total"]).optional(),
   payslipColumns: z.array(z.object({ componentId: z.string().nullable(), label: z.string().min(1) })).optional(),
+  employerContributionsEnabled: z.boolean().optional(),
 });
 
 export const setEmployeeComponentsSchema = z.array(

@@ -923,6 +923,12 @@ export async function reverseJournalEntry(tenantId: string, userId: string, id: 
 
   const alreadyReversed = await prisma.journalEntry.findFirst({ where: { tenantId, reversalOfEntryId: id } });
   if (alreadyReversed) throw badRequest("تم عكس هذا القيد مسبقاً بقيد آخر");
+  // قيد رواتب خصم أقساط سلف: عكسه يعيد الأرصدة في الدفتر ولا يعيد رصيد السلفة نفسها (EmployeeAdvance.remainingBalance)
+  // فيفترقان — التصحيح الصحيح فك ترحيل الكشف من شاشة الرواتب، وهو يعيد الاثنين معاً.
+  if (existing.sourceModule === "payroll" && existing.sourceId) {
+    const advanceDeductions = await prisma.employeeAdvanceDeduction.count({ where: { payrollRunId: existing.sourceId } });
+    if (advanceDeductions) throw badRequest("قيد الرواتب هذا خصم أقساط سلف — صحّحه بفك ترحيل الكشف من شاشة الرواتب (يعيد أرصدة السلف)، لا بعكس القيد");
+  }
 
   const reversedLines: JournalLineInput[] = existing.lines.map((l) => ({
     accountId: l.accountId,
