@@ -1,8 +1,40 @@
 # Technotrade PTS-2 forecourt controller integration — design
 
-Status: **design only, nothing implemented.** Written against `production` `360a580` (2026-11-02). Depends on the station-shift
-COGS / reversal / corrected-shift work in PR #177 (`feature/station-cogs`, **not merged yet**) and on the Tanks & Deliveries module
-(not built yet). The owner's decisions of 2026-11-02 are recorded as D-PTS1–D-PTS12 (§10) and folded into the design.
+Status: **partly implemented — the parts that do not depend on the jsonPTS spec are live; device ingestion over HTTP is BLOCKED.**
+First written against `production` `360a580` (2026-11-02); status updated after PRs #177, #182 and #183 were merged the same day.
+The owner's decisions of 2026-11-02 are recorded as D-PTS1–D-PTS12 (§10) and folded into the design.
+
+## 0. Implementation status (updated 2026-11-02)
+
+| Item | State | Where |
+|---|---|---|
+| P0: station-shift COGS, shift reversal, corrected shift, meter-chain rules | ✅ merged | PR #177 |
+| P0: Tanks & Deliveries module (`StationTank`, `TankReading` with the ATG columns, `FuelDelivery` + lines, live reconciliation) | ✅ merged (phase 1, manual dips) | PR #182 — `src/modules/stationTanks` |
+| `ForecourtController` (one per station, platform-unique 24-hex board ID, `lastSeenAt`, `lastStatus`, `silentAfterMinutes`) | ✅ merged | PR #183 — `src/modules/forecourt` |
+| `ForecourtNozzleMap` (controller pump+nozzle → `StationNozzle`, same station only) | ✅ merged | PR #183 |
+| `ForecourtPumpTransaction` (idempotent on controller, pump, transaction number, end time; unmapped numbers kept and back-filled when linked) | ✅ merged | PR #183 |
+| Ingestion of **parsed** records: `ingestPumpTransactions`, `ingestTankMeasurements` (→ `TankReading` `source=atg` on the station tank whose `atgTankNumber` matches), `touchController` | ✅ merged — service level only | `forecourt.service.ts` |
+| Device health `online` / `silent` / `never_seen` / `inactive` | ✅ merged — computed when listed | `controllerHealth()` |
+| Controller value on the shift review screen + "use it" (fills the correction field; accountant saves) | ✅ merged | `controllerValuesForShift()`, `GET /station-shifts/:id` → `controllerValues` |
+| UI: "Station controllers" tab (register, health, nozzle links, latest sales); module renamed "Fuel Station Management" | ✅ merged | PRs #183, #184 |
+| HTTP ingestion endpoint, device authentication, signature verification, jsonPTS parser | ❌ **BLOCKED** (§9) | — |
+| `ForecourtCredential`, `ForecourtInboundMessage` (raw store), `ForecourtTotalsSnapshot`, `ForecourtTankDelivery`, `ForecourtConfigSnapshot`, `ForecourtCommand` | ❌ built with the ingestion endpoint (P1) | — |
+| `StationAlert` table, scheduler-driven device-silent / low-stock / high-water alerts | ❌ not built (health is computed on read today) | — |
+| Transition-shift cutover to the electronic totalizer (§4.1), price-variance exceptions (§4.5), late-data discrepancy alerts (§4.4) | ❌ P2 | — |
+
+**Where the build differs from the design below (the design text is kept as the target):**
+- **Tank mapping:** no `ForecourtTankMap` table — the gauge number lives on the tank itself (`StationTank.atgTankNumber`), resolved
+  only within the controller's own station.
+- **Grade mapping:** no `ForecourtGradeMap` yet — sales are mapped per nozzle, and every Athar nozzle already carries its product.
+- **Controller value on readings:** not stored on `StationShiftReading` (§4.2) — computed when the shift is opened, from the last
+  `ForecourtPumpTransaction.totalVolume` that ended at or before the shift's `closedAt`. Nothing is written to the shift until the
+  accountant saves the value through the existing correction path.
+- **Tank measurement idempotency:** `externalId = <board ID>:<tank number>:<measurement time ISO>` until the spec defines a record ID.
+- **Index names** on `forecourt_pump_transactions` are explicit (`forecourt_pump_tx_dedup_key`, `forecourt_pump_tx_nozzle_idx`) to stay
+  under PostgreSQL's 63-character limit.
+
+**Next step when the jsonPTS spec arrives:** P1 = the HTTP endpoint (§3 order of checks), credentials, raw store, the parser feeding
+the existing `ingest*` functions, then a pilot controller pointed at Athar.
 
 Source of protocol facts: *PTS-2 forecourt controller technical guide*, Technotrade LLC, revision R12 (17 April 2026, 233 pages).
 Every protocol claim below cites the guide's page number ("page N from 233"). The guide is kept locally under `docs/vendor/pts2/`
@@ -262,7 +294,7 @@ Contact: support@technotrade.ua (p. 7). Spec requested (D-PTS8).
 - **D-PTS12 Scope.** One controller per station; pilot at a single station.
 
 ## 11. Phases (each a separate PR)
-- **P0 — prerequisites:** PR #177 merged; Tanks & Deliveries module built; jsonPTS spec received; SDK or pilot controller available.
+- **P0 — prerequisites:** ✅ PR #177 merged; ✅ Tanks & Deliveries built (PR #182); ✅ registration/mapping/parsed ingestion (PR #183); ⏳ jsonPTS spec requested from Technotrade (2026-11-02); ⏳ SDK or pilot controller.
 - **P1 — registration and ingestion:** controller, credentials, mappings, raw store, pump transactions, totals snapshots, tank
   readings, alerts, status and device-silent alert. Parser built from the spec, tested with payloads captured from a real
   controller (`SERVER.LOG`, p. 116) — captured payloads are external inputs under CLAUDE.md rule 2.
