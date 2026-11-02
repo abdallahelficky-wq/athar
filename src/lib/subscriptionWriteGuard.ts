@@ -53,6 +53,7 @@ export const PARENT_MODELS: Record<string, { fk: string; relation: string; paren
   SalesDebitNoteLine: { fk: "debitNoteId", relation: "salesDebitNote", parent: "SalesDebitNote" },
   ReceiptAllocation: { fk: "receiptId", relation: "receipt", parent: "Receipt" },
   PurchaseInvoiceLine: { fk: "invoiceId", relation: "invoice", parent: "PurchaseInvoice" },
+  FuelDeliveryLine: { fk: "deliveryId", relation: "delivery", parent: "FuelDelivery" },
   PurchaseReturnLine: { fk: "returnId", relation: "purchaseReturn", parent: "PurchaseReturn" },
   ItemComponent: { fk: "parentItemId", relation: "parentItem", parent: "Item" },
   EmployeeDocument: { fk: "employeeId", relation: "employee", parent: "Employee" },

@@ -99,6 +99,9 @@ model Tenant {
   stationSales     StationSale[]
 
   stationNozzles          StationNozzle[]
+  stationTanks            StationTank[]
+  tankReadings            TankReading[]
+  fuelDeliveries          FuelDelivery[]
   fuelPrices              FuelPrice[]
   stationShifts           StationShift[]
   stationShiftReadings    StationShiftReading[]
@@ -543,6 +546,10 @@ model Company {
   // مُستلَم، فرفض ترحيله لأن فاتورة الشراء لم تُدخَل بعد يعطّل تسجيل الإيراد والنقد. false = يُرفَض الترحيل إن
   // تجاوزت اللترات المباعة رصيد مستودع المحطة.
   allowNegativeFuelStock       Boolean               @default(true)
+  // سماحية فروقات الخزانات (موديول الخزانات والتوريد): الفرق مقبول إن لم يتجاوز النسبة من المبيعات أو عدد اللترات —
+  // أيهما أكبر؛ تجاوزه "تنبيه"، وتجاوز ضعفه "مخالفة". قيم افتراضية مبدئية تُضبط بعد أشهر من بيانات فعلية.
+  tankVariancePctTolerance     Decimal               @default(0.5) @db.Decimal(6, 3)
+  tankVarianceLitersTolerance  Decimal               @default(50) @db.Decimal(18, 3)
   createdAt                    DateTime              @default(now())
   updatedAt                    DateTime              @updatedAt
 
@@ -565,6 +572,9 @@ model Company {
   receipts                    Receipt[]
   stationSales                StationSale[]
   stationNozzles              StationNozzle[]
+  stationTanks                StationTank[]
+  tankReadings                TankReading[]
+  fuelDeliveries              FuelDelivery[]
   fuelPrices                  FuelPrice[]
   stationShifts               StationShift[]
   stationShiftReadings        StationShiftReading[]
@@ -719,6 +729,8 @@ model CostCenter {
   stationShifts      StationShift[]
   tankDeliveries     TankDelivery[]
   tankDips           TankDip[]
+  stationTanks       StationTank[]
+  fuelDeliveries     FuelDelivery[]
   assignedEmployees  Employee[]      @relation("EmployeeAssignedCostCenter")
   // موظفون تُحمَّل تكلفة رواتبهم على هذا المركز (Employee.costCenterId) — منفصل تماماً عن عمّال المحطات أعلاه
   allocatedEmployees Employee[]      @relation("EmployeeCostCenter")
@@ -3001,6 +3013,10 @@ model StationNozzle {
   // قراءة العداد لحظة تعريف الفوهة — قراءة الافتتاح لأول وردية عليها (كانت صفراً دائماً، فتُحسَب
   // كل القراءة التراكمية للعداد كلترات مبيعة في أول وردية).
   initialReading Decimal            @default(0) @db.Decimal(18, 3)
+  // الخزان الذي تسحب منه الفوهة — من نفس المحطة ونفس المنتج (يُتحقَّق في stationTanks.service). مبيعات الفوهة تُطرَح من
+  // رصيده في مطابقة الخزانات. null = لم تُربَط بعد (تظهر في المطابقة كمبيعات غير موزَّعة على خزان).
+  tankId         String?
+  tank           StationTank?       @relation(fields: [tankId], references: [id], onDelete: SetNull)
   isActive       Boolean            @default(true)
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
@@ -3212,6 +3228,136 @@ model TankDip {
 
   @@index([tenantId, companyId, costCenterId, measuredAt])
   @@map("tank_dips")
+}
+
+// ===== موديول الخزانات والتوريد =====
+// الخزانات تُدار باللتر هنا؛ القيمة تبقى في المستودع (StockMovement). المطابقة: رصيد افتتاح + المستلَم − المبيع = المتوقع،
+// مقابل القراءة الفعلية. المصادر: قياس يدوي اليوم، وجهاز قياس آلي (ATG/PTS-2) لاحقاً بنفس الجدول (source=atg).
+
+enum TankReadingSource {
+  manual_dip
+  atg
+}
+
+enum TankReadingPurpose {
+  opening
+  closing
+  pre_delivery
+  post_delivery
+  spot
+}
+
+enum FuelDeliveryStatus {
+  confirmed
+  void
+}
+
+model StationTank {
+  id             String             @id @default(cuid())
+  tenantId       String
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenterId   String
+  costCenter     CostCenter         @relation(fields: [costCenterId], references: [id])
+  code           String
+  product        StationFuelProduct
+  capacityLiters Decimal            @db.Decimal(18, 3)
+  // رقم الخزان في جهاز القياس الآلي/المتحكم — لربط قراءات الجهاز لاحقاً (tank N = probe N في PTS-2)
+  atgTankNumber  Int?
+  isActive       Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  nozzles       StationNozzle[]
+  readings      TankReading[]
+  deliveryLines FuelDeliveryLine[]
+
+  @@unique([costCenterId, code])
+  @@index([tenantId, companyId, costCenterId])
+  @@map("station_tanks")
+}
+
+// قراءة خزان — إلحاقية فقط: الخطأ يُلغى (voidedAt) ولا يُحذَف. الأعمدة الاختيارية لقراءات الجهاز الآلي.
+model TankReading {
+  id               String             @id @default(cuid())
+  tenantId         String
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId        String
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tankId           String
+  tank             StationTank        @relation(fields: [tankId], references: [id], onDelete: Cascade)
+  source           TankReadingSource
+  purpose          TankReadingPurpose
+  readAt           DateTime
+  liters           Decimal            @db.Decimal(18, 3)
+  heightMm         Decimal?           @db.Decimal(12, 2)
+  waterHeightMm    Decimal?           @db.Decimal(12, 2)
+  waterLiters      Decimal?           @db.Decimal(18, 3)
+  temperatureC     Decimal?           @db.Decimal(6, 2)
+  tcLiters         Decimal?           @db.Decimal(18, 3)
+  ullageLiters     Decimal?           @db.Decimal(18, 3)
+  density          Decimal?           @db.Decimal(10, 4)
+  massKg           Decimal?           @db.Decimal(18, 3)
+  alarms           Json?
+  deviceId         String?
+  externalId       String?
+  rawPayload       Json?
+  note             String?
+  enteredByUserId  String?
+  voidedAt         DateTime?
+  voidReason       String?
+  voidedByUserId   String?
+  createdAt        DateTime           @default(now())
+
+  @@unique([tankId, source, externalId])
+  @@index([tenantId, companyId, tankId, readAt])
+  @@map("tank_readings")
+}
+
+model FuelDelivery {
+  id                 String             @id @default(cuid())
+  tenantId           String
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId          String
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenterId       String
+  costCenter         CostCenter         @relation(fields: [costCenterId], references: [id])
+  // المورد (بائع الوقود) والناقل — اختياريان، من موردي نفس الشركة (يُتحقَّق في الخدمة). لا ربط بسجلات شركة الناقل نفسها.
+  supplierId         String?
+  carrierSupplierId  String?
+  deliveryNoteNumber String
+  tankerPlate        String?
+  driverName         String?
+  deliveredAt        DateTime
+  status             FuelDeliveryStatus @default(confirmed)
+  note               String?
+  createdByUserId    String?
+  voidedAt           DateTime?
+  voidReason         String?
+  voidedByUserId     String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  lines FuelDeliveryLine[]
+
+  @@index([tenantId, companyId, costCenterId, deliveredAt])
+  @@index([tenantId, companyId, deliveryNoteNumber])
+  @@map("fuel_deliveries")
+}
+
+model FuelDeliveryLine {
+  id             String       @id @default(cuid())
+  deliveryId     String
+  delivery       FuelDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  tankId         String
+  tank           StationTank  @relation(fields: [tankId], references: [id])
+  // الكمية في سند التسليم، والكمية المستلَمة فعلاً بالقياس — الفرق بينهما فاقد/زيادة النقل
+  noteLiters     Decimal      @db.Decimal(18, 3)
+  receivedLiters Decimal      @db.Decimal(18, 3)
+
+  @@index([tankId])
+  @@map("fuel_delivery_lines")
 }
 
 // سجل تدقيق حقلي مخصّص لتعديلات الورديات (بخلاف AuditLog العام متعدد الأشكال) — صف واحد لكل
