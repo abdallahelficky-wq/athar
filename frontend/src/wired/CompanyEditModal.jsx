@@ -42,6 +42,7 @@ const emptyForm = (c) => ({
   stationCashShortageAccountId: c.stationCashShortageAccountId || "",
   stationCashSurplusAccountId: c.stationCashSurplusAccountId || "",
   tankVarianceAccountId: c.tankVarianceAccountId || "",
+  cardFeeExpenseAccountId: c.cardFeeExpenseAccountId || "",
   stationDieselItemId: c.stationDieselItemId || "",
   stationGasoline91ItemId: c.stationGasoline91ItemId || "",
   stationGasoline95ItemId: c.stationGasoline95ItemId || "",
@@ -121,8 +122,9 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
               stationGasoline95ItemId: form.stationGasoline95ItemId || null,
               allowNegativeFuelStock: Boolean(form.allowNegativeFuelStock),
               tankVarianceAccountId: form.tankVarianceAccountId || null,
+              cardFeeExpenseAccountId: form.cardFeeExpenseAccountId || null,
             }
-          : { stationDieselItemId: undefined, stationGasoline91ItemId: undefined, stationGasoline95ItemId: undefined, allowNegativeFuelStock: undefined, tankVarianceAccountId: undefined }),
+          : { stationDieselItemId: undefined, stationGasoline91ItemId: undefined, stationGasoline95ItemId: undefined, allowNegativeFuelStock: undefined, tankVarianceAccountId: undefined, cardFeeExpenseAccountId: undefined }),
       });
       onSaved();
     } catch (err) {
@@ -302,6 +304,14 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                   accounts={stationExpenseAccounts}
                   value={form.tankVarianceAccountId}
                   onChange={(id) => set("tankVarianceAccountId", id)}
+                  allowClear
+                />
+              </label>
+              <label>{t("settings.companyEdit.cardFeeExpenseAccountLabel")}
+                <AccountSearchSelect
+                  accounts={stationExpenseAccounts}
+                  value={form.cardFeeExpenseAccountId}
+                  onChange={(id) => set("cardFeeExpenseAccountId", id)}
                   allowClear
                 />
               </label>

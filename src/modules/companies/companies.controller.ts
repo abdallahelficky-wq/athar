@@ -128,6 +128,14 @@ async function assertTankVarianceAccount(tenantId: string, companyId: string, bo
   if (!found) throw badRequest("حساب فروقات قياس الخزانات يجب أن يكون حساب ترحيل نشطاً غير مؤرشف من نفس الشركة");
 }
 
+/** حساب عمولات البنك على تسويات البطاقات — نفس الشروط: حساب ترحيل نشط غير مؤرشف من نفس الشركة. */
+async function assertCardFeeAccount(tenantId: string, companyId: string, body: Record<string, unknown>) {
+  const id = body.cardFeeExpenseAccountId;
+  if (typeof id !== "string" || !id) return;
+  const found = await prisma.account.findFirst({ where: { id, tenantId, companyId, isPosting: true, isActive: true, isArchived: false }, select: { id: true } });
+  if (!found) throw badRequest("حساب عمولات البنك يجب أن يكون حساب ترحيل نشطاً غير مؤرشف من نفس الشركة");
+}
+
 export const updateCompany: RequestHandler = async (req, res) => {
   const existing = await prisma.company.findFirst({
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
@@ -153,6 +161,7 @@ export const updateCompany: RequestHandler = async (req, res) => {
   await assertStationFuelItems(req.auth!.tenantId, existing.id, req.body);
   await assertStationCashAccounts(req.auth!.tenantId, existing.id, req.body);
   await assertTankVarianceAccount(req.auth!.tenantId, existing.id, req.body);
+  await assertCardFeeAccount(req.auth!.tenantId, existing.id, req.body);
 
   const company = await prisma.company.update({ where: { id: existing.id }, data: req.body });
   res.json(await withLogoUrl(company));

@@ -435,6 +435,10 @@ async function tryResolveAccountIdByName(tenantId: string, companyId: string, na
  * مرّة واحدة فقط لكل طلب تقرير (لا مرّة لكل وردية داخل حلقة)، تماماً كما هنا لكل استدعاء إقفال
  * وردية واحدة؛ لا مسار تسعير/حسابات ثانٍ مختلف يُبنى في وحدة التقارير إطلاقاً.
  */
+/** حسابا ذمم قناتَي البطاقات اللذان يُقيَّد عليهما تحصيل الوردية — نفس الاسمين تُقفلهما تسويات البنك (cardSettlements). */
+export const NETWORK_RECEIVABLE_ACCOUNT_NAME = "ذمم شبكة نقاط البيع (مدى)";
+export const FUEL_CARD_RECEIVABLE_ACCOUNT_NAME = "ذمم شركات بطاقات الوقود/الأسطول";
+
 export async function resolveShiftClosingAccounts(tenantId: string, companyId: string) {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
@@ -459,8 +463,8 @@ export async function resolveShiftClosingAccounts(tenantId: string, companyId: s
     tryResolveAccountIdByName(tenantId, companyId, "إيراد مبيعات بنزين 91"),
     tryResolveAccountIdByName(tenantId, companyId, "إيراد مبيعات بنزين 95"),
     getAccountIdByName(tenantId, companyId, "ضريبة القيمة المضافة - مخرجات"),
-    getAccountIdByName(tenantId, companyId, "ذمم شركات بطاقات الوقود/الأسطول"),
-    getAccountIdByName(tenantId, companyId, "ذمم شبكة نقاط البيع (مدى)"),
+    getAccountIdByName(tenantId, companyId, FUEL_CARD_RECEIVABLE_ACCOUNT_NAME),
+    getAccountIdByName(tenantId, companyId, NETWORK_RECEIVABLE_ACCOUNT_NAME),
     getAccountIdByName(tenantId, companyId, "مصروفات إدارية متنوعة أخرى"),
   ]);
 

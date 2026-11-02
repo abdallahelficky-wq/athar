@@ -101,6 +101,7 @@ model Tenant {
   stationNozzles          StationNozzle[]
   stationTanks            StationTank[]
   tankVariancePostings    TankVariancePosting[]
+  cardSettlements         CardSettlement[]
   forecourtControllers    ForecourtController[]
   tankReadings            TankReading[]
   fuelDeliveries          FuelDelivery[]
@@ -556,6 +557,9 @@ model Company {
   // فروقات الفترة). يُربَط تلقائياً بـ«فاقد وعجز قياس الخزانات» (511004) في قالب محطات الوقود، وقابل لإعادة التوجيه.
   tankVarianceAccountId        String?
   tankVarianceAccount          Account?              @relation("TankVarianceAccount", fields: [tankVarianceAccountId], references: [id], onDelete: SetNull)
+  // حساب عمولات البنك على تسويات الشبكة/بطاقات الوقود (مصروف) — يُشترط فقط حين تحمل التسوية عمولة. null = لم يُضبَط.
+  cardFeeExpenseAccountId      String?
+  cardFeeExpenseAccount        Account?              @relation("CardFeeExpenseAccount", fields: [cardFeeExpenseAccountId], references: [id], onDelete: SetNull)
   createdAt                    DateTime              @default(now())
   updatedAt                    DateTime              @updatedAt
 
@@ -580,6 +584,7 @@ model Company {
   stationNozzles              StationNozzle[]
   stationTanks                StationTank[]
   tankVariancePostings        TankVariancePosting[]
+  cardSettlements             CardSettlement[]
   forecourtControllers        ForecourtController[]
   tankReadings                TankReading[]
   fuelDeliveries              FuelDelivery[]
@@ -914,6 +919,8 @@ model Account {
   stationCashShortageCompanies Company[]             @relation("StationCashShortageAccount")
   stationCashSurplusCompanies  Company[]             @relation("StationCashSurplusAccount")
   tankVarianceCompanies        Company[]             @relation("TankVarianceAccount")
+  cardFeeExpenseCompanies      Company[]             @relation("CardFeeExpenseAccount")
+  cardSettlementsAsBank        CardSettlement[]      @relation("CardSettlementBankAccount")
   horseCareServiceRevenueLinks HorseCareService[]
 
   @@unique([tenantId, companyId, code])
@@ -995,6 +1002,7 @@ enum SourceModule {
   periodic_inventory_settlement
   station_shift
   station_tank_variance
+  card_settlement
 }
 
 // فرع تابع لشركة واحدة — طبقة تصنيف وعرض إضافية فقط (بنفس مبدأ CostCenter/Department)، بدولة
@@ -3422,6 +3430,55 @@ model TankVariancePosting {
 
   @@index([tenantId, companyId, tankId, closingAt])
   @@map("tank_variance_postings")
+}
+
+// تسوية مبيعات الشبكة (مدى) أو بطاقات الوقود لمحطة عن أيام ورديات [salesFrom, salesTo]: ما أودعه البنك (الصافي) + العمولة
+// وضريبتها = الإجمالي المُقفَل من ذمم القناة. القيد: مدين البنك بالصافي، ومدين العمولة وضريبة المدخلات، ودائن الذمم بالإجمالي
+// (موسوم بمركز تكلفة المحطة). expectedAmount لقطة مجموع تحصيل القناة في ورديات الفترة المرحَّلة وقت التسوية؛ الفرق بينه وبين
+// الإجمالي يبقى في حساب الذمم ظاهراً. فترات التسويات القائمة لنفس المحطة والقناة لا تتداخل (يُفحَص تحت قفل صف المحطة).
+enum CardSettlementChannel {
+  network
+  fuel_card
+}
+
+enum CardSettlementStatus {
+  posted
+  reversed
+}
+
+model CardSettlement {
+  id               String                @id @default(cuid())
+  tenantId         String
+  tenant           Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId        String
+  company          Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenterId     String
+  channel          CardSettlementChannel
+  // أيام الورديات المغطّاة (YYYY-MM-DD — نفس تاريخ الوردية shiftDate)، وتاريخ إيداع البنك (تاريخ القيد)
+  salesFrom        String
+  salesTo          String
+  settledOn        DateTime
+  bankAccountId    String
+  bankAccount      Account               @relation("CardSettlementBankAccount", fields: [bankAccountId], references: [id])
+  expectedAmount   Decimal               @db.Decimal(18, 2)
+  grossAmount      Decimal               @db.Decimal(18, 2)
+  feeAmount        Decimal               @default(0) @db.Decimal(18, 2)
+  feeVatAmount     Decimal               @default(0) @db.Decimal(18, 2)
+  netAmount        Decimal               @db.Decimal(18, 2)
+  shiftCount       Int                   @default(0)
+  reference        String?
+  note             String?
+  journalEntryId   String?
+  status           CardSettlementStatus  @default(posted)
+  createdByUserId  String?
+  createdAt        DateTime              @default(now())
+  reversedAt       DateTime?
+  reversedByUserId String?
+  reverseReason    String?
+  reversalEntryId  String?
+
+  @@index([tenantId, companyId, costCenterId, channel, salesFrom])
+  @@map("card_settlements")
 }
 
 // ===== متحكمات المحطات (PTS-2) =====

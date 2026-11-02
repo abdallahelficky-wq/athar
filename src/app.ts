@@ -68,6 +68,7 @@ import { employeePortalRoutes } from "./modules/employeePortal/employeePortal.ro
 import { stationSetupRoutes } from "./modules/stationSetup/stationSetup.routes";
 import { stationTankRoutes } from "./modules/stationTanks/stationTanks.routes";
 import { forecourtRoutes } from "./modules/forecourt/forecourt.routes";
+import { cardSettlementRoutes } from "./modules/cardSettlements/cardSettlements.routes";
 import { attendanceRoutes } from "./modules/attendance/attendance.routes";
 import { posRoutes } from "./modules/pos/pos.routes";
 import { stableRoutes } from "./modules/stables/stables.routes";
@@ -148,6 +149,7 @@ export function createApp() {
   app.use("/api/station-setup", stationSetupRoutes);
   app.use("/api/station-tanks", stationTankRoutes);
   app.use("/api/forecourt", forecourtRoutes);
+  app.use("/api/card-settlements", cardSettlementRoutes);
   app.use("/api/employee-portal", employeePortalRoutes);
   app.use("/api/attendance", attendanceRoutes);
   app.use("/api/employee-portal/leave-requests", leaveRequestPortalRoutes);

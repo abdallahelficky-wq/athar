@@ -12,11 +12,13 @@ import StationSetupTab from "./StationSetupTab";
 import FuelPricesTab from "./FuelPricesTab";
 import StationTanksTab from "./StationTanksTab";
 import StationControllersTab from "./StationControllersTab";
+import CardSettlementsTab from "./CardSettlementsTab";
 
 export const STATION_SHIFTS_TABS = [
   { id: "pending", labelKey: "stationShiftsReview.tabTitle" },
   { id: "setup", labelKey: "stationSetup.tabTitle" },
   { id: "tanks", labelKey: "stationTanks.tabTitle" },
+  { id: "settlements", labelKey: "cardSettlements.tabTitle" },
   { id: "controllers", labelKey: "stationControllers.tabTitle" },
   { id: "prices", labelKey: "fuelPrices.tabTitle" },
   { id: "workers", labelKey: "stationWorkers.tabTitle" },
@@ -25,7 +27,7 @@ export const STATION_SHIFTS_TABS = [
 const SHIFT_DIALOG_STYLE = { maxWidth: 1100, width: "95vw", maxHeight: "90vh", overflowY: "auto" };
 const DANGER_STYLE = { background: "#A8432B", borderColor: "#A8432B" };
 
-const EXTRA_TABS = { setup: StationSetupTab, tanks: StationTanksTab, controllers: StationControllersTab, prices: FuelPricesTab, workers: StationWorkersTab };
+const EXTRA_TABS = { setup: StationSetupTab, tanks: StationTanksTab, settlements: CardSettlementsTab, controllers: StationControllersTab, prices: FuelPricesTab, workers: StationWorkersTab };
 
 /**
  * شاشة المحاسب لمراجعة/اعتماد/ترحيل ورديات المحطات — محور العامل منفصل تماماً في بوابة الموظف
