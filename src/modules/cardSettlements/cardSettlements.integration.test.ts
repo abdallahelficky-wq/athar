@@ -172,7 +172,7 @@ describe("network card settlements (integration)", () => {
     expect(noFeeAccount.body.error).toBe(CARD_FEE_ACCOUNT_MISSING);
 
     const open = await prisma.stationShift.create({
-      data: { tenantId: a.tenantId, companyId: a.companyId, costCenterId: a.station, employeeId: a.employeeId, shiftDate: new Date(`${TODAY}T00:00:00.000Z`), shiftType: "evening", openedAt: new Date(), status: "open" },
+      data: { tenantId: a.tenantId, companyId: a.companyId, costCenterId: a.station, employeeId: a.employeeId, shiftDate: new Date(`${TODAY}T00:00:00.000Z`), shiftType: "night", openedAt: new Date(), status: "open" },
     });
     expect((await recon(a)).body.summary[0].pendingShifts).toBe(1);
     const pending = await settle(a, { netAmount: 150 });
