@@ -83,9 +83,9 @@
   "fuelPrices": {"tabTitle": "Fuel prices", "currency": "SAR/L", "inForceSince": "In force since {{date}}", "notSet": "No price in force — shifts cannot be opened for this fuel", "nextChange": "Changes to {{price}} on {{date}}", "addTitle": "Add a new price", "note": "The price includes VAT and applies to all of the company's stations from its effective date. Prices cannot be edited once added, because posted shifts were valued at them — when the price changes, add a new dated price.", "product": "Fuel", "price": "Price incl. VAT", "effectiveFrom": "Effective from", "status": "Status", "addBtn": "Add price", "added": "Price added.", "errPrice": "Enter a price greater than zero", "historyTitle": "Price history", "noPrices": "No prices yet.", "deleteUpcoming": "Delete (not in force yet)", "deleteConfirm": "Delete this scheduled price?", "statuses": {"current": "In force", "upcoming": "Scheduled", "past": "Previous"}},
   "stationWorkers": {"tabTitle": "Station workers", "stationsTitle": "Stations", "stationsNote": "Each station is a cost center of this company; a worker assigned to it opens their shift there from the Athar Station app.", "noStations": "No stations yet — add the first one below.", "newStationPlaceholder": "Station name, e.g. Madinah Road station", "addStation": "Add station", "assignTitle": "Set up a station worker", "modeExisting": "Existing employee", "modeNew": "New employee", "employee": "Employee", "pickEmployee": "— choose an employee —", "name": "Worker name", "basicSalary": "Basic salary", "hireDate": "Start date", "station": "Station", "pickStation": "— choose a station —", "assignBtn": "Save and assign to station", "saving": "Saving...", "assignedNote": "{{name}} is assigned to {{station}}. Now set their mobile number and PIN for the Athar Station app:", "listTitle": "Workers assigned to stations", "noWorkers": "No worker is assigned to a station yet.", "phone": "Mobile", "setUpBtn": "Portal access", "defaultJobTitle": "Station worker", "errStationName": "Station name is too short", "errStation": "Choose the station", "errName": "Worker name is too short", "errSalary": "Enter the basic salary", "errPick": "Choose the employee"},
   "stationShiftsReview": {
-    "tabTitle": "Pending Review",
-    "breadcrumb": "Station Shifts",
-    "title": "Station Shifts Review",
+    "tabTitle": "Shift Review",
+    "breadcrumb": "Fuel Stations",
+    "title": "Fuel Station Management",
     "pendingTitle": "Shifts Pending Review",
     "refreshBtn": "Refresh",
     "table": { "openingReading": "Opening reading",

@@ -83,9 +83,9 @@
   "fuelPrices": {"tabTitle": "أسعار الوقود", "currency": "ر.س/لتر", "inForceSince": "ساري منذ {{date}}", "notSet": "لا يوجد سعر ساري — لا تُفتح ورديات لهذا الوقود", "nextChange": "يتغير إلى {{price}} في {{date}}", "addTitle": "إضافة سعر جديد", "note": "السعر شامل الضريبة ويسري على كل محطات الشركة من تاريخ السريان. الأسعار لا تُعدَّل بعد إضافتها لأن الورديات المُرحَّلة قُيِّمت بها — عند تغيّر السعر أضف سعراً جديداً بتاريخه.", "product": "الوقود", "price": "السعر شامل الضريبة", "effectiveFrom": "تاريخ السريان", "status": "الحالة", "addBtn": "إضافة السعر", "added": "أُضيف السعر.", "errPrice": "أدخل سعراً أكبر من صفر", "historyTitle": "سجل الأسعار", "noPrices": "لا توجد أسعار بعد.", "deleteUpcoming": "حذف (لم يسرِ بعد)", "deleteConfirm": "حذف هذا السعر المجدول؟", "statuses": {"current": "ساري الآن", "upcoming": "مجدول", "past": "سابق"}},
   "stationWorkers": {"tabTitle": "عمال المحطات", "stationsTitle": "المحطات", "stationsNote": "كل محطة مركز تكلفة لهذه الشركة؛ يُسنَد إليها العامل فيفتح ورديته عليها من تطبيق محطة أثر.", "noStations": "لا توجد محطات بعد — أضف أول محطة بالأسفل.", "newStationPlaceholder": "اسم المحطة، مثال: محطة طريق المدينة", "addStation": "إضافة محطة", "assignTitle": "إعداد عامل محطة", "modeExisting": "موظف موجود", "modeNew": "موظف جديد", "employee": "الموظف", "pickEmployee": "— اختر موظفاً —", "name": "اسم العامل", "basicSalary": "الراتب الأساسي", "hireDate": "تاريخ المباشرة", "station": "المحطة", "pickStation": "— اختر المحطة —", "assignBtn": "حفظ وإسناد للمحطة", "saving": "جارٍ الحفظ...", "assignedNote": "تم إسناد {{name}} إلى {{station}}. اضبط الآن رقم جواله ورمزه السري للدخول من تطبيق محطة أثر:", "listTitle": "العمال المُسنَدون للمحطات", "noWorkers": "لم يُسنَد أي عامل لمحطة بعد.", "phone": "الجوال", "setUpBtn": "الدخول للبوابة", "defaultJobTitle": "عامل محطة", "errStationName": "اسم المحطة قصير جداً", "errStation": "اختر المحطة", "errName": "اسم العامل قصير جداً", "errSalary": "أدخل الراتب الأساسي", "errPick": "اختر الموظف"},
   "stationShiftsReview": {
-    "tabTitle": "قيد المراجعة",
-    "breadcrumb": "ورديات المحطات",
-    "title": "مراجعة ورديات المحطات",
+    "tabTitle": "مراجعة الورديات",
+    "breadcrumb": "محطات الوقود",
+    "title": "إدارة محطات الوقود",
     "pendingTitle": "الورديات قيد المراجعة",
     "refreshBtn": "تحديث",
     "table": { "openingReading": "قراءة الافتتاح",
