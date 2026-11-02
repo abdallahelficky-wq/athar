@@ -52,7 +52,7 @@ export default function PayrollSettingsTab({ companyId }) {
     listPayrollComponents(companyId).then(setComponents).catch((e) => setError(e.message));
   };
   useEffect(reload, [companyId]);
-  useEffect(() => { if (companyId) listAccounts({ companyId }).then(setAccounts); }, [companyId]);
+  useEffect(() => { if (companyId) listAccounts({ companyId, tree: true }).then(setAccounts); }, [companyId]);
   useEffect(() => {
     if (!companyId) return;
     getPayrollSettings(companyId).then((s) => {
@@ -65,7 +65,7 @@ export default function PayrollSettingsTab({ companyId }) {
 
   const postingAccounts = useMemo(() => accounts.filter((a) => a.isPosting && !a.isArchived), [accounts]);
   // مجموعة ذمم الموظفين: حساب تجميع أصول نشط في مستوى يقبل حسابات ترحيل تحته — نفس تحقق الخادم
-  const advancesGroups = useMemo(() => accounts.filter((a) => !a.isPosting && !a.isArchived && a.type === "asset" && a.level < 4), [accounts]);
+  const advancesGroups = useMemo(() => accounts.filter((a) => !a.isPosting && !a.isArchived && a.isActive !== false && a.type === "asset" && a.level < 4), [accounts]);
   const activeComponents = useMemo(() => components.filter((c) => c.isActive), [components]);
   // مرجع الصيغة يمكن أن يكون "الإجمالي" أو أي بند آخر (باستثناء البند نفسه أثناء التعديل، لمنع مرجع ذاتي مباشر)
   const referenceOptions = useMemo(() => components.filter((c) => c.id !== editingId), [components, editingId]);
