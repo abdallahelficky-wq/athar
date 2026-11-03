@@ -7,3 +7,6 @@ export const previewLeaveSettlement = (employeeId, leaveStartDate, leaveEndDate,
 export const createLeaveSettlement = (payload) => api.post("/leave-settlements", payload);
 export const disburseLeaveSettlement = (id, payload) => api.post(`/leave-settlements/${id}/disburse`, payload);
 export const registerLeaveReturn = (payload) => api.post("/leave-returns", payload);
+export const previewAnnualLeave = payload => api.post("/leave-settlements/annual-preview", payload);
+export const saveAnnualLeaveDraft = payload => api.post("/leave-settlements/annual-drafts", payload);
+export const listAnnualLeaveDrafts = companyId => api.get(`/leave-settlements/annual-drafts?companyId=${encodeURIComponent(companyId)}`);
