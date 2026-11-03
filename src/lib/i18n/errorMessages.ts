@@ -10,6 +10,8 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "المحطة غير موجودة": "The station doesn't exist",
+  "فترة لوحة المحطات أطول من الحد المسموح (92 يوماً) — اختر فترة أقصر": "The station dashboard period exceeds the allowed limit (92 days). Choose a shorter period",
   "حدّد قناة التحصيل (الشبكة أو بطاقات الوقود)": "Choose the collection channel (network or fuel cards)",
   "مبالغ التسوية لا تكون سالبة": "Settlement amounts can't be negative",
   "تاريخ الإيداع يسبق أول يوم مبيعات في التسوية": "The deposit date is before the first sales day in the settlement",
