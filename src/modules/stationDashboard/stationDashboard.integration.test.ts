@@ -6,6 +6,7 @@ import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integration
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
 import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
+import { createPurchaseInvoice } from "../purchaseInvoices/purchaseInvoices.service";
 import * as shifts from "../stationShifts/stationShifts.service";
 import { ptsSignature } from "../forecourt/ptsReceiver.service";
 
@@ -67,6 +68,16 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
   const employeeId = (await prisma.employee.create({
     data: { tenantId, companyId: company.id, name: "عامل المحطة", hireDate: new Date("2026-01-01"), basicSalary: 3000, assignedCostCenterId: station },
   })).id;
+  // الاعتماد يفحص تكلفة الوقود مسبقاً: صنف الديزل مربوط، ومستودع للمحطة، ومتوسط تكلفة من فاتورة شراء حقيقية
+  const diesel = (await prisma.item.findFirstOrThrow({ where: { tenantId, companyId: company.id, code: "0003" } })).id;
+  expect((await call("PATCH", `/companies/${company.id}`, token, { stationDieselItemId: diesel })).status).toBe(200);
+  const warehouseId = (await prisma.warehouse.findFirstOrThrow({ where: { tenantId, companyId: company.id, isDefault: true } })).id;
+  expect((await call("PUT", `/station-setup/stations/${station}/warehouse`, token, { companyId: company.id, warehouseId })).status).toBe(200);
+  const supplier = await prisma.supplier.findFirstOrThrow({ where: { tenantId, companyId: company.id } });
+  await createPurchaseInvoice(tenantId, r.user.id, {
+    companyId: company.id, supplierId: supplier.id, date: new Date("2026-10-01"),
+    lines: [{ accountId: "derived-from-item", itemId: diesel, warehouseId, quantity: 5000, unitPrice: 1.5 }],
+  } as never);
   const nozzles = (await prisma.stationNozzle.findMany({ where: { tenantId, costCenterId: station }, orderBy: { nozzleNumber: "asc" } })).map((n) => n.id);
   const tank = await call("POST", "/station-tanks/tanks", token, { companyId: company.id, costCenterId: station, code: "T1", product: "diesel", capacityLiters: 20000, atgTankNumber: 1 });
   expect(tank.status, tank.text).toBe(201);
@@ -120,6 +131,7 @@ describe("stations dashboard (integration)", () => {
       if (!c?.tenantId) continue;
       await prisma.forecourtPumpTransaction.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.forecourtController.deleteMany({ where: { tenantId: c.tenantId } });
+      await prisma.stockMovement.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.stationShift.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.tankReading.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.stationNozzle.updateMany({ where: { tenantId: c.tenantId }, data: { tankId: null } });
