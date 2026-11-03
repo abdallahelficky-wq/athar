@@ -36,7 +36,19 @@ export async function listControllers(tenantId: string, companyId: string) {
     orderBy: { createdAt: "asc" },
   });
   const now = new Date();
-  return rows.map((c) => ({ ...c, health: controllerHealth(c, now) }));
+  // المفتاح المشفَّر لا يغادر الخادم أبداً — يُعرَض فقط هل ضُبط ومتى (المفتاح نفسه يظهر مرة واحدة عند توليده)
+  return rows.map(({ secretKeyEnc, lastConfiguration, ...c }) => ({
+    ...c, hasSecret: Boolean(secretKeyEnc), hasConfiguration: lastConfiguration != null, health: controllerHealth(c, now),
+  }));
+}
+
+/** آخر تنبيهات المتحكمات (UploadAlertRecord) لشركة — للعرض. */
+export async function listAlerts(tenantId: string, companyId: string, controllerId?: string) {
+  return prisma.forecourtAlertRecord.findMany({
+    where: { tenantId, companyId, ...(controllerId ? { controllerId } : {}) },
+    orderBy: { occurredAt: "desc" },
+    take: 200,
+  });
 }
 
 export interface ControllerInput {
@@ -56,17 +68,19 @@ export async function createController(tenantId: string, input: ControllerInput)
   if (await prisma.forecourtController.findFirst({ where: { costCenterId: station.id } })) throw badRequest("لهذه المحطة متحكم مسجَّل بالفعل");
   // المعرّف فريد على مستوى المنصة كلها: الجهاز الواحد لا يُسجَّل لشركتين — رسالة عامة لا تكشف أين سُجِّل
   if (await prisma.forecourtController.findFirst({ where: { deviceSerial: serial } })) throw badRequest("هذا المتحكم مسجَّل بالفعل");
-  return prisma.forecourtController.create({
+  const { secretKeyEnc, lastConfiguration, ...created } = await prisma.forecourtController.create({
     data: {
       tenantId, companyId: input.companyId, costCenterId: station.id, deviceSerial: serial, name: input.name, firmwareVersion: input.firmwareVersion,
       ...(input.silentAfterMinutes ? { silentAfterMinutes: input.silentAfterMinutes } : {}),
     },
   });
+  return { ...created, hasSecret: Boolean(secretKeyEnc), hasConfiguration: lastConfiguration != null };
 }
 
 export async function updateController(tenantId: string, id: string, input: { name?: string; firmwareVersion?: string; silentAfterMinutes?: number; isActive?: boolean }) {
   const c = await loadController(tenantId, id);
-  return prisma.forecourtController.update({ where: { id: c.id }, data: input });
+  const { secretKeyEnc, lastConfiguration, ...updated } = await prisma.forecourtController.update({ where: { id: c.id }, data: input });
+  return { ...updated, hasSecret: Boolean(secretKeyEnc), hasConfiguration: lastConfiguration != null };
 }
 
 /** ربط رقم مضخة/فوهة في المتحكم بفوهة أثر (أو فكّه بـnozzleId=null). الفوهة من نفس محطة المتحكم. */

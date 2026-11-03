@@ -6,8 +6,8 @@ import { createControllerSchema, updateControllerSchema, setNozzleMapSchema } fr
 import * as c from "./forecourt.controller";
 
 /**
- * متحكمات المحطات — إدارة المستخدمين فقط (بصلاحيات إعداد المحطات). نقطة استقبال رسائل الجهاز نفسها غير موجودة بعد:
- * تُبنى بمصادقة الجهاز والتحقق من التوقيع بعد وصول مواصفة jsonPTS (docs/design/pts2-integration.md).
+ * متحكمات المحطات — إدارة المستخدمين (بصلاحيات إعداد المحطات). نقطة استقبال رسائل الجهاز نفسها في ptsDevice.routes.ts
+ * (/api/pts، بلا جلسة، بتوقيع HMAC لكل متحكم).
  */
 export const forecourtRoutes = Router();
 forecourtRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
@@ -19,3 +19,6 @@ forecourtRoutes.post("/controllers", requirePositionAction("stationSetup", "crea
 forecourtRoutes.patch("/controllers/:id", requirePositionAction("stationSetup", "edit"), canManage, validateBody(updateControllerSchema), c.updateControllerHandler);
 forecourtRoutes.put("/controllers/:id/nozzle-map", requirePositionAction("stationSetup", "edit"), canManage, validateBody(setNozzleMapSchema), c.setNozzleMapHandler);
 forecourtRoutes.get("/transactions", requirePositionAction("stationSetup", "read"), c.listTransactionsHandler);
+forecourtRoutes.get("/alerts", requirePositionAction("stationSetup", "read"), c.listAlertsHandler);
+forecourtRoutes.get("/connection-settings", requirePositionAction("stationSetup", "read"), c.connectionSettingsHandler);
+forecourtRoutes.post("/controllers/:id/secret", requirePositionAction("stationSetup", "edit"), canManage, c.rotateSecretHandler);
