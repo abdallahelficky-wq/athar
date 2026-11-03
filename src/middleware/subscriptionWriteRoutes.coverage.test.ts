@@ -51,6 +51,8 @@ const EXEMPT: Record<string, string> = {
   "PATCH /api/platform-admin/companies/:companyId/subscription/status": "لوحة مدير المنصة",
   "PATCH /api/platform-admin/companies/:companyId/subscription/addons": "لوحة مدير المنصة",
   "POST /api/platform-admin/plan-prices": "لوحة مدير المنصة",
+  // رفع بيانات أجهزة PTS-2: لا جلسة مستخدم — مصادقة بتوقيع HMAC لكل متحكم، والكتابة مقيَّدة بشركة المتحكم المسجَّل ومحطته
+  "POST /api/pts/upload": "جهاز المحطة (PTS-2) يرفع بياناته بتوقيع المتحكم",
   "DELETE /api/platform-admin/plan-prices/:id": "لوحة مدير المنصة",
 };
 

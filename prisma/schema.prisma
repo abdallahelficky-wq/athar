@@ -3507,11 +3507,23 @@ model ForecourtController {
   lastSeenAt         DateTime?
   lastStatus         Json?
   silentAfterMinutes Int             @default(10)
+  // مفتاح توقيع الرسائل (SecretKey في إعداد السيرفر البعيد بالجهاز، حتى 20 حرفاً) — مشفَّر (secretBox)، يُعرَض مرة واحدة عند توليده.
+  // كل رسالة رفع يجب أن تحمل X-Data-Signature = HMAC-SHA256(المفتاح، جسم الطلب الخام) بترميز Base64، والرد يُوقَّع بنفس المفتاح.
+  secretKeyEnc       String?
+  secretKeySetAt     DateTime?
+  // فرق توقيت ساعة الجهاز عن UTC بالدقائق — أوقات الرسائل محلية بلا منطقة. يُحدَّث من UploadStatus (UTCOffset)، والافتراضي الرياض
+  utcOffsetMinutes   Int             @default(180)
+  protocolRevision   String?
+  // آخر إعداد كامل رفعه الجهاز (UploadConfiguration) — للعرض والمقارنة فقط، لا يُطبَّق منه شيء تلقائياً
+  configurationId    String?
+  lastConfiguration  Json?
+  lastConfigurationAt DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
   nozzleMaps   ForecourtNozzleMap[]
   transactions ForecourtPumpTransaction[]
+  alerts       ForecourtAlertRecord[]
 
   @@index([tenantId, companyId])
   @@map("forecourt_controllers")
@@ -3559,6 +3571,28 @@ model ForecourtPumpTransaction {
   @@unique([controllerId, ptsPump, transactionNumber, endedAt], map: "forecourt_pump_tx_dedup_key")
   @@index([tenantId, companyId, nozzleId, endedAt], map: "forecourt_pump_tx_nozzle_idx")
   @@map("forecourt_pump_transactions")
+}
+
+// تنبيهات المتحكم (UploadAlertRecord): انقطاع كهرباء، بطارية، أعطال مضخة/حساس، تسرّب خزان… — إلحاقية، بلا تكرار عند إعادة الإرسال
+model ForecourtAlertRecord {
+  id           String              @id @default(cuid())
+  tenantId     String
+  companyId    String
+  controllerId String
+  controller   ForecourtController @relation(fields: [controllerId], references: [id], onDelete: Cascade)
+  occurredAt   DateTime
+  deviceType   String
+  deviceNumber Int
+  state        String
+  code         Int
+  name         String
+  sensor       Int?
+  rawPayload   Json?
+  createdAt    DateTime            @default(now())
+
+  @@unique([controllerId, occurredAt, deviceType, deviceNumber, code, state], map: "forecourt_alert_dedup_key")
+  @@index([tenantId, companyId, occurredAt])
+  @@map("forecourt_alert_records")
 }
 
 // سجل تدقيق حقلي مخصّص لتعديلات الورديات (بخلاف AuditLog العام متعدد الأشكال) — صف واحد لكل

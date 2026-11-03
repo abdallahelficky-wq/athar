@@ -4,7 +4,7 @@ Status: **partly implemented — the parts that do not depend on the jsonPTS spe
 First written against `production` `360a580` (2026-11-02); status updated after PRs #177, #182 and #183 were merged the same day.
 The owner's decisions of 2026-11-02 are recorded as D-PTS1–D-PTS12 (§10) and folded into the design.
 
-## 0. Implementation status (updated 2026-11-02)
+## 0. Implementation status (updated 2026-11-03)
 
 | Item | State | Where |
 |---|---|---|
@@ -17,7 +17,9 @@ The owner's decisions of 2026-11-02 are recorded as D-PTS1–D-PTS12 (§10) and 
 | Device health `online` / `silent` / `never_seen` / `inactive` | ✅ merged — computed when listed | `controllerHealth()` |
 | Controller value on the shift review screen + "use it" (fills the correction field; accountant saves) | ✅ merged | `controllerValuesForShift()`, `GET /station-shifts/:id` → `controllerValues` |
 | UI: "Station controllers" tab (register, health, nozzle links, latest sales); module renamed "Fuel Station Management" | ✅ merged | PRs #183, #184 |
-| HTTP ingestion endpoint, device authentication, signature verification, jsonPTS parser | ❌ **BLOCKED** (§9) | — |
+| HTTP ingestion endpoint `POST /api/pts/upload`, per-controller HMAC key, signed replies, jsonPTS parser | ✅ built from **jsonPTS R140** (16 Aug 2026) | `ptsReceiver.service.ts`, `ptsDevice.routes.ts` |
+| Upload types handled: `UploadPumpTransaction`, `UploadTankMeasurement`, `UploadInTankDelivery` (→ `pre_delivery`/`post_delivery` ATG readings), `UploadAlertRecord` (→ `ForecourtAlertRecord`), `UploadStatus` (health + `UTCOffset`), `UploadConfiguration` (stored for display only) | ✅ | same |
+| Not handled (answered with a packet error; leave disabled on the device): GPS, payments, shifts, tag requests, WebSocket mode | — by design | — |
 | `ForecourtCredential`, `ForecourtInboundMessage` (raw store), `ForecourtTotalsSnapshot`, `ForecourtTankDelivery`, `ForecourtConfigSnapshot`, `ForecourtCommand` | ❌ built with the ingestion endpoint (P1) | — |
 | `StationAlert` table, scheduler-driven device-silent / low-stock / high-water alerts | ❌ not built (health is computed on read today) | — |
 | Transition-shift cutover to the electronic totalizer (§4.1), price-variance exceptions (§4.5), late-data discrepancy alerts (§4.4) | ❌ P2 | — |
@@ -33,8 +35,22 @@ The owner's decisions of 2026-11-02 are recorded as D-PTS1–D-PTS12 (§10) and 
 - **Index names** on `forecourt_pump_transactions` are explicit (`forecourt_pump_tx_dedup_key`, `forecourt_pump_tx_nozzle_idx`) to stay
   under PostgreSQL's 63-character limit.
 
-**Next step when the jsonPTS spec arrives:** P1 = the HTTP endpoint (§3 order of checks), credentials, raw store, the parser feeding
-the existing `ingest*` functions, then a pilot controller pointed at Athar.
+**jsonPTS facts the receiver relies on (R140):**
+- The device is an HTTP client: `POST /<Upload…Uri>` with `{"Protocol":"jsonPTS","PtsId":…,"Packets":[{Id,Type,Data}]}`, one record per
+  packet, and resends each record until the server answers a confirmation packet with the same `Id` (p.305, p.308–309).
+- `SecretKey` (≤ 20 chars) → header `X-Data-Signature` = Base64(HMAC-SHA256(key, raw body bytes)). The body includes its trailing CRLF —
+  verified against the spec's own example (Content-Length 573 = 571 + 2; signature matches only with CRLF). The server's reply must carry the
+  signature of its exact body, or the device rejects it (p.310–311). Both example vectors are asserted in the integration test.
+- `UploadConfiguration` is always sent **unsigned** (p.329 note 3): accepted unsigned only when every packet in the message is that type.
+- Times are device-local `YYYY-MM-DDThh:mm:ss`; converted with the controller's `utcOffsetMinutes` (default +180, updated from
+  `UploadStatus.UTCOffset`, p.331).
+- `DomainName` on the device is limited to **30 characters** (p.72) and each URI to 40. The Railway host
+  (`athar-production-7645.up.railway.app`, 36) does not fit, so devices need a short custom domain (`PTS_DEVICE_HOST`, e.g. `pts.atharerp.com`).
+- One remote server per controller: pointing a controller at Athar replaces whatever server it uploads to today.
+- DIP-1 OFF = the device's own web server uses TLS; DIP-2 selects digest/basic for the device's web UI (p.23–24). The receiver does not use
+  the device's `Authorization` header (it carries the device user's password); authentication is the per-controller HMAC key.
+
+**Next step:** a pilot controller (Makkah station, s/n 3972) pointed at Athar once its admin access is recovered and the device domain is set.
 
 Source of protocol facts: *PTS-2 forecourt controller technical guide*, Technotrade LLC, revision R12 (17 April 2026, 233 pages).
 Every protocol claim below cites the guide's page number ("page N from 233"). The guide is kept locally under `docs/vendor/pts2/`

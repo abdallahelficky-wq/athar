@@ -8,8 +8,8 @@ import FormDialog from "../shared/FormDialog";
 
 /**
  * متحكمات المحطات (PTS-2): تسجيل متحكم لكل محطة بمعرّف لوحته، حالته (متصل/صامت)، وربط أرقام المضخات والفوهات فيه بفوهات
- * أثر. أرقام الخزانات تُضبط في "الخزانات والتوريد" (رقمه في جهاز القياس الآلي). استقبال البيانات نفسه يُفعَّل بعد وصول
- * مواصفة بروتوكول المتحكم من المصنّع.
+ * أثر. أرقام الخزانات تُضبط في "الخزانات والتوريد" (رقمه في جهاز القياس الآلي). مفتاح الربط يُولَّد هنا ويظهر مرة واحدة مع
+ * الإعدادات التي تُكتب في صفحة "Remote server" بالجهاز، فيبدأ الجهاز برفع المبيعات والقياسات والتنبيهات إلى /api/pts/upload.
  */
 const HEALTH_COLOR = { online: "#2F5D5A", silent: "#A8432B", never_seen: "#6B7280", inactive: "#6B7280" };
 
@@ -18,14 +18,17 @@ export default function StationControllersTab({ companyId }) {
   const [controllers, setControllers] = useState([]);
   const [stations, setStations] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [secretView, setSecretView] = useState(null); // { controller, secretKey, settings }
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [dialog, setDialog] = useState(false);
   const [form, setForm] = useState({});
   const [mapDraft, setMapDraft] = useState({});
 
-  const load = () => Promise.all([api.listControllers(companyId), listStations(companyId), api.listTransactions(companyId)])
-    .then(([c, s, tx]) => { setControllers(c); setStations(s); setTransactions(tx); })
+  const load = () => Promise.all([api.listControllers(companyId), listStations(companyId), api.listTransactions(companyId), api.listAlerts(companyId).catch(() => []), api.connectionSettings().catch(() => null)])
+    .then(([c, s, tx, al, st]) => { setControllers(c); setStations(s); setTransactions(tx); setAlerts(al); setSettings(st); })
     .catch((e) => setError(e.message));
   useEffect(() => { if (companyId) load(); }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -53,6 +56,15 @@ export default function StationControllersTab({ companyId }) {
       await api.setNozzleMap(c.id, { ptsPump, ptsNozzle, nozzleId: n.id });
     });
   };
+  /** مفتاح جديد يُبطل السابق فوراً — الجهاز يتوقف عن الرفع حتى يُكتب الجديد فيه، فيُطلَب تأكيد حين يوجد مفتاح. */
+  const rotate = async (c) => {
+    if (c.hasSecret && !window.confirm(t("stationControllers.rotateConfirm"))) return;
+    setError(""); setMessage("");
+    try { const res = await api.rotateSecret(c.id); setSecretView({ controller: c, ...res }); await load(); }
+    catch (e) { setError(e.message); }
+  };
+  const copy = (text) => { try { navigator.clipboard?.writeText(text); setMessage(t("stationControllers.copied")); } catch { /* المتصفح يمنع النسخ — يُنسخ يدوياً */ } };
+
   const clearMap = (c, n) => { const m = mapFor(c, n.id); if (m) run(() => api.setNozzleMap(c.id, { ptsPump: m.ptsPump, ptsNozzle: m.ptsNozzle, nozzleId: null })); };
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
@@ -69,20 +81,22 @@ export default function StationControllersTab({ companyId }) {
           <button className="btn-primary" disabled={!freeStations.length} onClick={() => { setError(""); setForm({ costCenterId: freeStations[0]?.id || "", deviceSerial: "", name: "", firmwareVersion: "", silentAfterMinutes: 10 }); setDialog(true); }}>+ {t("stationControllers.add")}</button>
         </div>
         <table className="ledger-table">
-          <thead><tr><th>{t("stationTanks.station")}</th><th>{t("stationControllers.serial")}</th><th>{t("stationControllers.name")}</th><th>{t("stationControllers.health")}</th><th>{t("stationControllers.lastSeen")}</th><th></th></tr></thead>
+          <thead><tr><th>{t("stationTanks.station")}</th><th>{t("stationControllers.serial")}</th><th>{t("stationControllers.name")}</th><th>{t("stationControllers.health")}</th><th>{t("stationControllers.lastSeen")}</th><th>{t("stationControllers.secret")}</th><th></th></tr></thead>
           <tbody>
             {controllers.map((c) => (
               <tr key={c.id}>
                 <td>{c.costCenter?.name}</td><td style={{ fontFamily: "monospace" }}>{c.deviceSerial}</td><td>{c.name || "—"}</td>
                 <td><strong style={{ color: HEALTH_COLOR[c.health] }}>{t(`stationControllers.healths.${c.health}`, { minutes: c.silentAfterMinutes })}</strong></td>
-                <td>{c.lastSeenAt ? formatDateTime(c.lastSeenAt, i18n.language) : "—"}</td>
+                <td>{c.lastSeenAt ? formatDateTime(c.lastSeenAt, i18n.language) : "—"}{c.firmwareVersion && <div className="note">{t("stationControllers.firmware")}: {c.firmwareVersion}</div>}</td>
+                <td>{c.hasSecret ? <span>✓ {c.secretKeySetAt ? formatDateTime(c.secretKeySetAt, i18n.language) : ""}</span> : <span className="note">{t("stationControllers.noSecret")}</span>}</td>
                 <td className="row-actions">
+                  <button className="btn-ghost" onClick={() => rotate(c)}>{c.hasSecret ? t("stationControllers.rotateSecret") : t("stationControllers.createSecret")}</button>
                   <button className="btn-ghost" onClick={() => { setError(""); setForm({ id: c.id, costCenterId: c.costCenterId, deviceSerial: c.deviceSerial, name: c.name || "", firmwareVersion: c.firmwareVersion || "", silentAfterMinutes: c.silentAfterMinutes }); setDialog(true); }}>{t("stationTanks.edit")}</button>
                   <button className="btn-ghost" onClick={() => run(() => api.updateController(c.id, { isActive: !c.isActive }))}>{c.isActive ? t("stationTanks.deactivate") : t("stationTanks.activate")}</button>
                 </td>
               </tr>
             ))}
-            {controllers.length === 0 && <tr><td className="empty" colSpan={6}>{t("stationControllers.empty")}</td></tr>}
+            {controllers.length === 0 && <tr><td className="empty" colSpan={7}>{t("stationControllers.empty")}</td></tr>}
           </tbody>
         </table>
       </div>
@@ -134,6 +148,57 @@ export default function StationControllersTab({ companyId }) {
           </tbody>
         </table>
       </div>
+
+      {alerts.length > 0 && (
+        <div className="panel">
+          <h3 style={{ marginTop: 0 }}>{t("stationControllers.alertsTitle")}</h3>
+          <table className="ledger-table">
+            <thead><tr><th>{t("stationControllers.endedAt")}</th><th>{t("stationControllers.alertDevice")}</th><th>{t("stationControllers.alertName")}</th><th>{t("stationControllers.alertState")}</th></tr></thead>
+            <tbody>
+              {alerts.slice(0, 50).map((a) => (
+                <tr key={a.id}>
+                  <td>{formatDateTime(a.occurredAt, i18n.language)}</td><td>{a.deviceType}{a.deviceNumber ? ` ${a.deviceNumber}` : ""}</td>
+                  <td>{a.name} <span className="note">({a.code})</span></td><td>{a.state}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <FormDialog open={!!secretView} title={t("stationControllers.secretTitle", { station: secretView?.controller?.costCenter?.name || "" })} onClose={() => setSecretView(null)} style={{ maxWidth: 640 }}>
+        {secretView && (() => {
+          const st = secretView.settings || settings || {};
+          const rows = [
+            ["DomainName", st.domainName || t("stationControllers.domainMissing")],
+            ["Protocol", st.protocolType],
+            ["Port", String(st.port)],
+            ["SecretKey", secretView.secretKey],
+            ...(st.uploads || []).map((u) => [`${u} → URI`, st.uri]),
+            ["UploadStatusRequestsPeriodSeconds", String(st.statusPeriodSeconds)],
+          ];
+          return (
+            <>
+              <div role="status" style={{ background: "rgba(183,121,31,0.08)", border: "1px solid rgba(183,121,31,0.28)", borderRadius: 10, padding: "10px 14px", marginBottom: 12, fontSize: 13, color: "#7A5212" }}>
+                {t("stationControllers.secretOnce")}
+              </div>
+              <table className="ledger-table">
+                <tbody>
+                  {rows.map(([k, v]) => (
+                    <tr key={k}>
+                      <td style={{ fontFamily: "monospace", direction: "ltr", textAlign: "left" }}>{k}</td>
+                      <td style={{ fontFamily: "monospace", direction: "ltr", textAlign: "left", fontWeight: k === "SecretKey" ? 700 : 400 }}>{v}</td>
+                      <td className="row-actions"><button className="btn-ghost" onClick={() => copy(v)}>{t("stationControllers.copy")}</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="note">{t("stationControllers.secretNote")}</p>
+              <div className="form-btn-group"><button className="btn-primary" onClick={() => setSecretView(null)}>{t("stationControllers.secretDone")}</button></div>
+            </>
+          );
+        })()}
+      </FormDialog>
 
       <FormDialog open={dialog} title={form.id ? t("stationControllers.edit") : t("stationControllers.add")} onClose={() => setDialog(false)}>
         <div className="form-grid">

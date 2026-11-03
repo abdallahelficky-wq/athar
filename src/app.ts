@@ -68,6 +68,7 @@ import { employeePortalRoutes } from "./modules/employeePortal/employeePortal.ro
 import { stationSetupRoutes } from "./modules/stationSetup/stationSetup.routes";
 import { stationTankRoutes } from "./modules/stationTanks/stationTanks.routes";
 import { forecourtRoutes } from "./modules/forecourt/forecourt.routes";
+import { ptsDeviceRoutes } from "./modules/forecourt/ptsDevice.routes";
 import { cardSettlementRoutes } from "./modules/cardSettlements/cardSettlements.routes";
 import { attendanceRoutes } from "./modules/attendance/attendance.routes";
 import { posRoutes } from "./modules/pos/pos.routes";
@@ -86,6 +87,8 @@ export function createApp() {
 
   app.use(helmet());
   app.use(cors());
+  // أجهزة PTS-2 قبل express.json: توقيعها على الجسم الخام بالبايت (ptsDevice.routes.ts)
+  app.use("/api/pts", ptsDeviceRoutes);
   app.use(express.json({ limit: "5mb" }));
   app.use(resolveLanguage);
 

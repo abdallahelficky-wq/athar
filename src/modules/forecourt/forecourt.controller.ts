@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma";
 import { badRequest } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import * as service from "./forecourt.service";
+import { connectionSettings, rotateControllerSecret } from "./ptsReceiver.service";
 
 const q = (v: unknown) => (typeof v === "string" && v.length > 0 ? v : undefined);
 
@@ -39,4 +40,18 @@ export const setNozzleMapHandler: RequestHandler = async (req, res) => {
 
 export const listTransactionsHandler: RequestHandler = async (req, res) => {
   res.json(await service.listTransactions(req.auth!.tenantId, requireCompany(req), q(req.query.controllerId)));
+};
+
+/** يولّد مفتاح توقيع جديداً للمتحكم (يُبطل السابق فوراً) ويعيده مرة واحدة مع إعدادات الربط التي تُدخَل في الجهاز. */
+export const rotateSecretHandler: RequestHandler = async (req, res) => {
+  await assertControllerCompany(req, req.params.id);
+  res.json(await rotateControllerSecret(req.auth!.tenantId, req.params.id));
+};
+
+export const connectionSettingsHandler: RequestHandler = async (_req, res) => {
+  res.json(connectionSettings());
+};
+
+export const listAlertsHandler: RequestHandler = async (req, res) => {
+  res.json(await service.listAlerts(req.auth!.tenantId, requireCompany(req), q(req.query.controllerId)));
 };

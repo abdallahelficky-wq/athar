@@ -65,4 +65,6 @@ export const env = {
   // أساس الروابط الموجودة داخل الإيميلات (رابط إعادة تعيين كلمة المرور، رابط قبول الدعوة)؛
   // يجب أن يشير لأصل الواجهة الأمامية المنشورة فعلياً، لا الخادم الخلفي.
   frontendBaseUrl: process.env.FRONTEND_BASE_URL ?? "https://athar-accounting.up.railway.app",
+  // اسم النطاق الذي تُرسل إليه متحكمات PTS-2 بياناتها (حقل DomainName في الجهاز حتى 30 حرفاً) — يُعرَض في شاشة إعداد المتحكم فقط.
+  ptsDeviceHost: process.env.PTS_DEVICE_HOST ?? "",
 };
