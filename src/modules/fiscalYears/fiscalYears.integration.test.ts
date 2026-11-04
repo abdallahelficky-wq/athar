@@ -171,6 +171,37 @@ describe("fiscal year closing (integration)", () => {
 
     const tb = await call("GET", `/reports/trial-balance?companyId=${companyId}&to=2026-11-01`);
     expect(tb.body.balanced).toBe(true);
+
+    // كشف حساب الإيراد والمصروف كما يقرؤه المستخدم:
+    const ledger = async (accountId: string, from: string) => {
+      const res = await call("GET", `/reports/account-ledger/${accountId}?companyId=${companyId}&from=${from}&to=2026-11-01`);
+      expect(res.status, res.text).toBe(200);
+      return res.body;
+    };
+    const balanceAfterClosing = (l: any) => {
+      const closingRows = l.rows.filter((r: any) => r.journalEntryId === closingEntryId);
+      expect(closingRows.length).toBeGreaterThan(0);
+      return closingRows.at(-1).balance;
+    };
+    // 1) من بداية السنة الجديدة: الرصيد الافتتاحي صفر، والرصيد تراكمي من تاريخ الإقفال
+    const revenueNewYear = await ledger(acc.revenue, "2026-01-01");
+    expect(revenueNewYear.openingBalance).toBe(0);
+    expect(revenueNewYear.closingBalance).toBe(500);
+    const expenseNewYear = await ledger(acc.expense, "2026-01-01");
+    expect(expenseNewYear.openingBalance).toBe(0);
+    expect(expenseNewYear.rows).toEqual([]);
+    // 2) من تاريخ بعد الإقفال داخل السنة الجديدة: الافتتاحي تراكمي من تاريخ الإقفال فقط
+    expect((await ledger(acc.revenue, "2026-03-01")).openingBalance).toBe(500);
+    // 3) من تاريخ قبل الإقفال: قيد الإقفال يظهر بتاريخه والرصيد بعده صفر
+    const revenueSpanning = await ledger(acc.revenue, "2025-06-01");
+    expect(revenueSpanning.openingBalance).toBe(1000);
+    expect(revenueSpanning.rows.filter((r: any) => r.journalEntryId === closingEntryId).every((r: any) => String(r.date).startsWith("2025-12-31"))).toBe(true);
+    expect(balanceAfterClosing(revenueSpanning)).toBe(0);
+    expect(revenueSpanning.closingBalance).toBe(500);
+    const expenseSpanning = await ledger(acc.expense, "2025-01-01");
+    expect(expenseSpanning.openingBalance).toBe(0);
+    expect(balanceAfterClosing(expenseSpanning)).toBe(0);
+    expect(expenseSpanning.closingBalance).toBe(0);
   });
 
   it("locks the closing entry and the closed period", async () => {
