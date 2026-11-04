@@ -10,6 +10,19 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "عملية ربط مع هيئة الزكاة جارية لهذه الشركة بالفعل — انتظر حتى تنتهي": "A ZATCA linking process is already running for this company — wait for it to finish",
+  "هذه الشركة مربوطة بالفعل مع هيئة الزكاة": "This company is already linked with ZATCA",
+  "بيانات الشركة غير مكتملة للربط مع هيئة الزكاة — أكمل الحقول الناقصة في بيانات الشركة ثم أعد المحاولة": "Company data is incomplete for ZATCA linking — complete the missing fields in the company data, then try again",
+  "يوجد ربط غير مكتمل على بيئة أخرى — أعد ضبط الربط من الخيارات المتقدمة أولاً ثم أعد المحاولة": "An unfinished link exists on another environment — reset the link from Advanced options first, then try again",
+  "تعذّر تغيير بيئة الربط — أعد ضبط الربط من الخيارات المتقدمة أولاً ثم أعد المحاولة": "Couldn't change the linking environment — reset the link from Advanced options first, then try again",
+  "أدخل رمز OTP المكوَّن من 6 أرقام كما يظهر في منصة فاتورة": "Enter the 6-digit OTP as shown on the Fatoora portal",
+  "تعذّر تجهيز شهادة الربط من بيانات الشركة — راجع بيانات الشركة ثم أعد المحاولة": "Couldn't prepare the linking certificate from the company data — review the company data, then try again",
+  "رمز OTP غير صحيح أو انتهت صلاحيته — اطلب رمزاً جديداً من منصة فاتورة وأعد المحاولة": "The OTP is incorrect or has expired — request a new one from the Fatoora portal and try again",
+  "تعذّر الحصول على الشهادة من هيئة الزكاة — تأكد من رمز OTP والبيئة المختارة ثم أعد المحاولة": "Couldn't obtain the certificate from ZATCA — check the OTP and the selected environment, then try again",
+  "اكتملت اختبارات الامتثال لكن تفعيل الربط النهائي يحتاج مراجعة فنية قبل إعادة المحاولة — تواصل مع الدعم الفني": "Compliance checks are complete, but final activation needs a technical review before retrying — contact technical support",
+  "تعذّر إكمال اختبارات الامتثال مع هيئة الزكاة — أعد المحاولة لاحقاً (لا حاجة لرمز OTP جديد)": "Couldn't complete the ZATCA compliance checks — try again later (no new OTP needed)",
+  "لم يجتز أحد اختبارات الامتثال لدى هيئة الزكاة — يحتاج مراجعة فنية (لا حاجة لرمز OTP جديد عند إعادة المحاولة)": "One of the ZATCA compliance checks failed — it needs a technical review (no new OTP needed when retrying)",
+  "اكتملت اختبارات الامتثال لكن تعذّر تفعيل الربط النهائي — لا تُعِد المحاولة، وتواصل مع الدعم الفني لمراجعة حالة الطلب": "Compliance checks are complete, but final activation failed — don't retry; contact technical support to review the request status",
   "رقم الجوال غير صالح — أدخل رقماً سعودياً مثل 05XXXXXXXX": "Invalid mobile number — enter a Saudi number like 05XXXXXXXX",
   "سبب الإضافات الأخرى مطلوب": "A reason for other additions is required",
   "حدد تاريخ احتساب الرصيد": "Choose the balance cutoff date",
