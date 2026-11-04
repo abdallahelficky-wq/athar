@@ -9,6 +9,7 @@ import CompanyDocumentsPanel from "./CompanyDocumentsPanel";
 import LeaseContractsPanel from "./LeaseContractsPanel";
 import BranchesPanel from "./BranchesPanel";
 import CompanyBankAccountsPanel from "./CompanyBankAccountsPanel";
+import FiscalYearPanel from "./FiscalYearPanel";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry } from "../shared/countries";
 
@@ -335,6 +336,8 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
             </div>
           </>
         )}
+
+        <FiscalYearPanel companyId={company.id} onClosingDateChange={(date) => set("fiscalYearClosingDate", date)} />
 
         <h4 className="sub-head">{t("settings.companyEdit.fiscalClosingTitle")}</h4>
         <p className="note">{t("settings.companyEdit.fiscalClosingNote")}</p>

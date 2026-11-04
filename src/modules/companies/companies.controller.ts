@@ -13,6 +13,8 @@ import { createStarterItems, createCashParties, createDefaultWarehouse, linkStat
 import { translateMessage } from "../../lib/i18n/translate";
 import { createIndependentTenant } from "../auth/auth.service";
 import { suspendedCompanyIds } from "../../lib/subscriptionEnforcement";
+import { lastClosedYearEnd } from "../fiscalYears/fiscalYears.service";
+import { fmtDateOnly } from "../../lib/fiscalClosing";
 
 const MAX_LOGO_SIZE = 5 * 1024 * 1024; // 5MB يكفي لأي شعار
 const ALLOWED_LOGO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
@@ -173,6 +175,8 @@ export const updateCompany: RequestHandler = async (req, res) => {
  * ويُسجَّل دائماً في AuditLog (من فتحه، متى، والتاريخ القديم/الجديد) — بنفس نمط باقي الإجراءات
  * الاستثنائية في النظام (مثال: journal_entry.unpost في journalEntries.service.ts).
  */
+export const FISCAL_REOPEN_USE_YEAR_REOPEN = "هذه الفترة ضمن سنة مالية مقفلة بقيد إقفال — استخدم «إعادة فتح آخر سنة مقفلة» من إعدادات السنة المالية";
+
 export const reopenFiscalClosing: RequestHandler = async (req, res) => {
   const existing = await prisma.company.findFirst({
     where: { id: req.params.id, tenantId: req.auth!.tenantId },
@@ -182,6 +186,11 @@ export const reopenFiscalClosing: RequestHandler = async (req, res) => {
 
   const newValue = req.body.fiscalYearClosingDate as Date | null;
   const oldValue = existing.fiscalYearClosingDate;
+  // سنة مالية مقفلة بقيد إقفال لا تُفتح بتحريك تاريخ القفل وحده — قيدها كان سيبقى ويُضاف بعده ما يُفسده.
+  const closedYearEnd = await lastClosedYearEnd(existing.id);
+  if (closedYearEnd && (!newValue || fmtDateOnly(newValue) < fmtDateOnly(closedYearEnd))) {
+    throw badRequest(FISCAL_REOPEN_USE_YEAR_REOPEN);
+  }
 
   const [company] = await prisma.$transaction([
     prisma.company.update({ where: { id: existing.id }, data: { fiscalYearClosingDate: newValue } }),

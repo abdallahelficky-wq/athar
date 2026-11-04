@@ -677,7 +677,11 @@ export const TANK_VARIANCE_ENTRY_LOCKED = "قيد فرق الخزان لا يُ�
 /** قيد تسوية الشبكة/بطاقات الوقود (card_settlement) مرتبط بسجل التسوية الذي يحدّد أي أيام سُوّيت — عكسه من هنا يترك أيامها "مسوّاة". */
 export const CARD_SETTLEMENT_ENTRY_LOCKED = "قيد تسوية البطاقات لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «عكس التسوية» من شاشة تسويات الشبكة";
 
+/** قيد إقفال السنة المالية (fiscal_year_closing) مرتبط بسجل الإقفال وتاريخ قفل الفترات — يُصحَّح بإعادة فتح السنة وحدها. */
+export const FISCAL_CLOSING_ENTRY_LOCKED = "قيد إقفال السنة المالية لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُحذف ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «إعادة فتح السنة» من إعدادات السنة المالية";
+
 function assertNotStationShiftEntry(entry: { sourceModule: string }) {
+  if (entry.sourceModule === "fiscal_year_closing") throw badRequest(FISCAL_CLOSING_ENTRY_LOCKED);
   if (entry.sourceModule === "station_shift") throw badRequest(STATION_SHIFT_ENTRY_LOCKED);
   if (entry.sourceModule === "station_tank_variance") throw badRequest(TANK_VARIANCE_ENTRY_LOCKED);
   if (entry.sourceModule === "card_settlement") throw badRequest(CARD_SETTLEMENT_ENTRY_LOCKED);

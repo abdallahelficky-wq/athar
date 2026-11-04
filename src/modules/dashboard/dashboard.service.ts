@@ -522,7 +522,8 @@ export async function getIncomeExpenseTrend(tenantId: string, companyId?: string
   const lines = await prisma.journalEntryLine.findMany({
     where: {
       account: { tenantId, companyId: companyId || { not: null }, type: { in: ["revenue", "expense"] } },
-      journalEntry: { AND: [COUNTED_ENTRY_WHERE], tenantId, companyId: companyId || undefined, date: { gte: start, lte: now } },
+      // قيد إقفال السنة يصفّر الإيرادات والمصروفات — ليس حركة شهر نهاية السنة (راجع NOT_FISCAL_CLOSING_WHERE)
+      journalEntry: { AND: [COUNTED_ENTRY_WHERE, { sourceModule: { not: "fiscal_year_closing" } }], tenantId, companyId: companyId || undefined, date: { gte: start, lte: now } },
     },
     select: { debit: true, credit: true, account: { select: { type: true } }, journalEntry: { select: { date: true } } },
   });

@@ -40,7 +40,9 @@ export interface ReservedEntryNumber {
  * (بادئة + رقم تسلسلي خام) محلياً، بلا استدعاء هذه الدالة، لأسباب أداء فقط لا اختلافاً في التعريف،
  * ويتحقق من إقفال السنة المالية بنفسه بنفس الأسلوب (انظر bulkImport.service.ts).
  */
-export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: string, date: Date): Promise<ReservedEntryNumber> {
+// allowClosedPeriod: لقيد إقفال السنة المالية وحده (fiscalYears.service.ts) — قيد نظامي بتاريخ نهاية سنة قد تكون
+// مقفلة يدوياً من قبل؛ لا يُمرَّر من أي مسار يُدخله المستخدم.
+export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: string, date: Date, options: { allowClosedPeriod?: boolean } = {}): Promise<ReservedEntryNumber> {
   // نُرجِع القيمة *قبل* الزيادة (وهي بالضبط ما تعرضه previewNextEntryNumber أدناه من نفس العمود)،
   // بينما العمود المخزَّن يصبح +1 جاهزاً للاستدعاء التالي — عملية ذرّية واحدة عبر تعبير حسابي في
   // RETURNING بدل قراءة ثم تحديث منفصلَين، فيبقى الرقم المحجوز مطابقاً تماماً لما عاينه المستخدم.
@@ -53,7 +55,7 @@ export async function reserveEntryNumber(tx: Tx, tenantId: string, companyId: st
   if (!row) throw notFound("الشركة غير موجودة");
   // يُتحقَّق هنا بعد التحديث فعلياً (لا قبله) — أي رفض يُرجع كل المعاملة بالكامل تلقائياً
   // (Prisma تتراجع عن كل شيء عند رمي أي خطأ داخل $transaction)، فلا يُستهلك رقم تسلسلي بلا قيد.
-  assertPeriodNotClosed(row.fiscalYearClosingDate, date, "إنشاء قيد");
+  if (!options.allowClosedPeriod) assertPeriodNotClosed(row.fiscalYearClosingDate, date, "إنشاء قيد");
   return { entryNumber: `${row.numberingPrefix}${String(row.nextJournalEntrySeq).padStart(5, "0")}`, entrySeq: row.nextJournalEntrySeq };
 }
 
