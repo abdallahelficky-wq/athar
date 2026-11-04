@@ -188,6 +188,8 @@
   },
   "whatsapp": {
     "label": "WhatsApp",
+    "facebook": "Facebook",
+    "linkedin": "LinkedIn",
     "floatingLabel": "Chat with us on WhatsApp",
     "contactTitle": "Contact us",
     "contactText": "For any question about Athar, help with subscribing, or technical support, message us directly on WhatsApp.",
