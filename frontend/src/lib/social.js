@@ -4,3 +4,4 @@
  */
 export const FACEBOOK_URL = import.meta.env?.VITE_FACEBOOK_URL || "https://www.facebook.com/profile.php?id=61590901760441";
 export const LINKEDIN_URL = import.meta.env?.VITE_LINKEDIN_URL || "https://www.linkedin.com/in/abdallah-elficky-380427b3";
+export const X_URL = import.meta.env?.VITE_X_URL || "https://x.com/dedoelficky";
