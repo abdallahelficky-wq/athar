@@ -10,6 +10,17 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "سبب الإضافات الأخرى مطلوب": "A reason for other additions is required",
+  "حدد تاريخ احتساب الرصيد": "Choose the balance cutoff date",
+  "حدد تاريخ الرصيد الافتتاحي": "Choose the opening balance date",
+  "مبلغ الرصيد الافتتاحي يتطلب أياماً": "An opening amount requires opening days",
+  "نهاية الإجازة تسبق بدايتها": "Leave end precedes its start",
+  "تاريخ الإجازة يسبق المباشرة": "Leave date precedes the hire date",
+  "توجد تسوية في هذا التاريخ أو بعده؛ راجعها قبل إعداد تسوية أقدم": "A settlement exists on or after this date; review it before preparing an earlier settlement",
+  "الرصيد المرحل يُستخرج من التسوية السابقة ولا يقبل رصيداً افتتاحياً إضافياً": "Carry-forward comes from the previous settlement; an additional opening balance is not allowed",
+  "تاريخ الرصيد الافتتاحي خارج مدة الخدمة حتى الإجازة": "Opening balance date is outside the employment period through leave start",
+  "تاريخ احتساب الرصيد يجب أن يقع بين بداية الرصيد وتاريخ الإجازة": "Balance cutoff must fall between the balance start and leave date",
+  "شهر الراتب لا يجوز أن يلي تاريخ الإجازة": "Salary month cannot be after the leave date",
   "المحطة غير موجودة": "The station doesn't exist",
   "فترة لوحة المحطات أطول من الحد المسموح (92 يوماً) — اختر فترة أقصر": "The station dashboard period exceeds the allowed limit (92 days). Choose a shorter period",
   "حدّد قناة التحصيل (الشبكة أو بطاقات الوقود)": "Choose the collection channel (network or fuel cards)",

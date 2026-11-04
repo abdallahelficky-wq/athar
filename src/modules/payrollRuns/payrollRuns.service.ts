@@ -152,7 +152,7 @@ export async function resolveEffectiveComponents(tenantId: string, companyId: st
   return { components, persisted: false };
 }
 
-async function computeRun(tenantId: string, run: { id?: string; companyId: string; month: string; employeeIds: string[]; overrides: unknown; status?: string }): Promise<{ components: RunComponent[]; rows: RunRow[] }> {
+export async function computeRun(tenantId: string, run: { id?: string; companyId: string; month: string; employeeIds: string[]; overrides: unknown; status?: string; leavePreviewProration?: number }): Promise<{ components: RunComponent[]; rows: RunRow[] }> {
   const effective = await resolveEffectiveComponents(tenantId, run.companyId);
   const { persisted } = effective;
   const employees = await prisma.employee.findMany({ where: { id: { in: run.employeeIds }, tenantId } });
@@ -191,7 +191,7 @@ async function computeRun(tenantId: string, run: { id?: string; companyId: strin
   const rows = run.employeeIds.map((employeeId): RunRow => {
     const emp = employees.find((e) => e.id === employeeId)!;
     const empSettlements = settlements.filter((s) => s.employeeId === employeeId);
-    const onLeaveThisMonth = empSettlements.some((s) => s.leaveStartDate.toISOString().slice(0, 7) === run.month && !s.returnDate);
+    const onLeaveThisMonth = run.leavePreviewProration == null && empSettlements.some((s) => s.leaveStartDate.toISOString().slice(0, 7) === run.month && !s.returnDate);
     const returning = empSettlements.find((s) => s.returnDate && s.returnDate.toISOString().slice(0, 7) === run.month);
     let prorationFactor: number | null = null;
     if (returning) {
@@ -200,6 +200,7 @@ async function computeRun(tenantId: string, run: { id?: string; companyId: strin
       prorationFactor = workedDays / dim;
     }
 
+    if (run.leavePreviewProration != null) prorationFactor = run.leavePreviewProration;
     let employeeComponents: RunComponent[];
     const fixedValues = new Map<string, number>();
     const monthlyAdjustments = new Map<string, number>();
@@ -249,7 +250,7 @@ async function computeRun(tenantId: string, run: { id?: string; companyId: strin
       for (const [componentId, value] of Object.entries(override)) {
         if (componentId === ADVANCES_COLUMN_ID || advanceComponentIds.has(componentId)) continue; // الأقساط تُحسَب أدناه، لا تُعدَّل يدوياً
         if (run.status !== "posted" && !emp.gosiApplicable && components.some(c => c.id === componentId && isEmployeeGosi(c))) continue;
-        values.set(componentId, value);
+        values.set(componentId, run.leavePreviewProration != null && components.some(c => c.id === componentId && c.prorateOnPartialMonth) ? value * run.leavePreviewProration : value);
       }
       totalAdditions = employeeComponents.filter((c) => c.kind === "addition").reduce((s, c) => s + (values.get(c.id) || 0), 0);
       totalDeductions = employeeComponents.filter((c) => c.kind === "deduction").reduce((s, c) => s + (values.get(c.id) || 0), 0);

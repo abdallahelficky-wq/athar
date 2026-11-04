@@ -1,4 +1,5 @@
 import HRDialog from "./HRDialog";
+import AnnualLeaveDraft from "./AnnualLeaveDraft";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listEmployees } from "../../api/employees";
@@ -90,6 +91,7 @@ export default function LeaveSettlementTab({ companyId, companies }) {
 
   return (
     <div>
+      <AnnualLeaveDraft key={companyId} companyId={companyId} company={companies?.find(c=>c.id===companyId)}/>
       {error && !formOpen && <p role="alert" className="balance-bad">{error}</p>}
       <div className="hr-list-toolbar"><button className="btn-primary" onClick={()=>{setError("");setFormOpen(true);}}>{t("common.add")}</button></div>
       {formOpen && <HRDialog title={t("nav.tabs.leaveSettlement")} onClose={() => setFormOpen(false)}>

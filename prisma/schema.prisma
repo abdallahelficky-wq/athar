@@ -45,6 +45,7 @@ enum SubscriptionStatus {
 }
 
 model Tenant {
+  annualLeaveDrafts AnnualLeaveDraft[]
   id                 String             @id @default(cuid())
   name               String
   subscriptionPlan   SubscriptionPlan   @default(basic)
@@ -423,6 +424,7 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
+  annualLeaveDrafts AnnualLeaveDraft[]
   qoyodConnection              QoyodConnection?
   id                           String                @id @default(cuid())
   tenantId                     String
@@ -2068,6 +2070,7 @@ enum EmployeeStatus {
 }
 
 model Employee {
+  annualLeaveDrafts AnnualLeaveDraft[]
   id                        String         @id @default(cuid())
   tenantId                  String
   tenant                    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -3951,4 +3954,21 @@ model PayrollAdvancePostponement {
   @@unique([payrollRunId, employeeAdvanceId])
   @@index([tenantId, companyId])
   @@map("payroll_advance_postponements")
+}
+
+// Review-only snapshots; drafts do not reserve balances or post entries.
+model AnnualLeaveDraft {
+ id String @id @default(cuid())
+ tenantId String
+ tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+ companyId String
+ company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+ employeeId String
+ employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+ createdBy String
+ request Json
+ snapshot Json
+ createdAt DateTime @default(now())
+ @@index([tenantId, companyId])
+ @@map("annual_leave_drafts")
 }
