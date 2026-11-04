@@ -88,7 +88,7 @@ export default function IncomeStatementModule({ companyId, company, accounts, br
     {loading && <p role="status">{t('common.loading')}</p>}
     {result && <>
       <p>{text('تُخفى الحسابات الصفرية في جميع الفترات؛ تُحفظ مجموعات الحسابات التي تحتوي على أرصدة.', 'Accounts with zero balances in every period are hidden; groups containing balances are retained.')}</p>
-      <DraftEntriesNotice companyId={companyId} branchId={applied.branchId || undefined} dateFrom={result.periods[0].from} dateTo={result.periods.at(-1).to} />
+      <DraftEntriesNotice companyId={companyId} branchId={applied.branchId || undefined} dateFrom={result.periods[0].from} dateTo={result.periods.at(-1).to} includeFinalDay />
       <div style={{ overflowX: 'auto' }}><IncomeComparisonTable result={result} /></div>
       {printing && <PrintShell company={company} subtitle={t('nav.tabs.income')} landscape={result.periods.length > 1} refNode={<span dir="ltr">{result.periods[0].from} — {result.periods.at(-1).to}</span>} onClose={onClosePrint}><IncomeComparisonTable result={result} /></PrintShell>}
     </>}

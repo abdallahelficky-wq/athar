@@ -13,18 +13,19 @@ import { routes } from "../../routes";
  */
 // printable: يُطبع مع التقرير (التقرير الشهري الشامل تقرير إدارة يُطبع ويُوزَّع)؛ وإلا يُخفى في الطباعة
 // (كشف الحساب المطبوع يُرسَل للعميل/المورد، والسطر معلومة داخلية).
-export default function DraftEntriesNotice({ companyId, branchId, accountId, dateFrom, dateTo, printable = false, label }) {
+export default function DraftEntriesNotice({ companyId, branchId, accountId, dateFrom, dateTo, printable = false, label, includeFinalDay = false }) {
   const { t } = useTranslation();
   const [data, setData] = useState(null);
 
   useEffect(() => {
     let live = true;
     setData(null);
-    getDraftEntriesSummary({ companyId, branchId, accountId, from: dateFrom, to: dateTo })
+    const end = includeFinalDay && /^\d{4}-\d{2}-\d{2}$/.test(dateTo || '') ? `${dateTo}T23:59:59.999Z` : dateTo;
+    getDraftEntriesSummary({ companyId, branchId, accountId, from: dateFrom, to: end })
       .then((d) => { if (live) setData(d); })
       .catch(() => {});
     return () => { live = false; };
-  }, [companyId, branchId, accountId, dateFrom, dateTo]);
+  }, [companyId, branchId, accountId, dateFrom, dateTo, includeFinalDay]);
 
   if (!data || (data.uncounted.entryCount === 0 && data.counted.entryCount === 0)) return null;
   // الرابط يفتح شاشة القيود للشركة النشطة بنفس نطاق الملخص (الحساب وفروعه، الفرع، الفترة) — وبلا شركة
