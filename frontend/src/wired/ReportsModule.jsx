@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getTrialBalanceTree, getIncomeStatement, getBalanceSheet } from "../api/reports";
+import { getTrialBalanceTree, getBalanceSheet } from "../api/reports";
 import { listAccounts } from "../api/accounts";
 import { listBranches } from "../api/branches";
 import { fmt } from "../legacy/constants";
@@ -21,6 +21,8 @@ import ComprehensiveMonthlyReport from "./ComprehensiveMonthlyReport";
 import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 import ReportScheduleAutomation from "./ReportScheduleAutomation";
 import VatReconciliation from "./vat/VatReconciliation";
+
+import IncomeStatementModule from "./IncomeStatementModule";
 
 import AccountLedgerModule from "./AccountLedgerModule";
 
@@ -50,37 +52,6 @@ function AmountTreeRows({ nodes, depth = 0 }) {
       {node.children.length > 0 && <AmountTreeRows nodes={node.children} depth={depth + 1} />}
     </React.Fragment>
   ));
-}
-
-function IncomeStatementView({ data, accounts, filters, branches, companyId }) {
-  const { t } = useTranslation();
-  if (!data) return null;
-  const { draft, setField, apply } = filters;
-  return (
-    <div className="panel">
-      <h3>{t("nav.tabs.income")}</h3>
-      <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); apply(); }}>
-        <label>{t("reports.income.fromDate")}<input type="date" value={draft.dateFrom} onChange={(e) => setField("dateFrom", e.target.value)} /></label>
-        <label>{t("reports.income.toDate")}<input type="date" value={draft.dateTo} onChange={(e) => setField("dateTo", e.target.value)} /></label>
-        <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} branches={branches} />
-        <button type="submit" className="btn-primary" style={{ alignSelf: "end" }}>{t("reports.income.showResults")}</button>
-      </form>
-      <DraftEntriesNotice companyId={companyId} branchId={filters.applied.branchId || undefined} dateFrom={filters.applied.dateFrom || undefined} dateTo={filters.applied.dateTo || undefined} />
-      <table className="ledger-table">
-        <tbody>
-          <tr><td className="strong section-row" colSpan={2}>{t("reports.income.revenue")}</td></tr>
-          <AmountTreeRows nodes={data.revenueRoots} />
-          <tr><td className="strong">{t("reports.income.totalRevenue")}</td><td className="num strong">{fmt(data.totalRevenue)}</td></tr>
-
-          <tr><td className="strong section-row" colSpan={2}>{t("reports.income.expenses")}</td></tr>
-          <AmountTreeRows nodes={data.expenseRoots} />
-          <tr><td className="strong">{t("reports.income.totalExpenses")}</td><td className="num strong">{fmt(data.totalExpense)}</td></tr>
-
-          <tr className="net-row"><td className="strong">{t("reports.income.netIncome")}</td><td className="num strong">{fmt(data.netIncome)}</td></tr>
-        </tbody>
-      </table>
-    </div>
-  );
 }
 
 function BalanceSheetView({ data, accounts, filters, branches, companyId }) {
@@ -128,7 +99,6 @@ export default function ReportsModule({ companies, companyId }) {
   const [tab] = useModuleTab("/reports", REPORT_TABS);
   const [accounts, setAccounts] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [incomeStatement, setIncomeStatement] = useState(null);
   const [balanceSheet, setBalanceSheet] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -200,14 +170,8 @@ export default function ReportsModule({ companies, companyId }) {
     setError("");
     const f = rollupFilters.applied;
     const rollup = { level: f.level, accountId: f.accountId || undefined, includeDetails: f.includeDetails || undefined, search: f.search || undefined, branchId: f.branchId || undefined };
-    Promise.all([
-      getIncomeStatement({ companyId, from: f.dateFrom || undefined, to: f.dateTo || undefined, ...rollup }),
-      getBalanceSheet({ companyId, date: f.asOfDate || undefined, ...rollup }),
-    ])
-      .then(([is, bs]) => {
-        setIncomeStatement(is);
-        setBalanceSheet(bs);
-      })
+    getBalanceSheet({ companyId, date: f.asOfDate || undefined, ...rollup })
+      .then(setBalanceSheet)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -226,7 +190,7 @@ export default function ReportsModule({ companies, companyId }) {
       {error && <p className="balance-bad">{error}</p>}
       {!companyId && tab !== "monthly" && tab !== "automation" ? (
         <p className="empty">{t("reports.noCompany")}</p>
-      ) : loading && tab !== "ledger" ? (
+      ) : loading && tab !== "ledger" && tab !== "income" ? (
         <p className="empty">{t("common.loading")}</p>
       ) : (
         <>
@@ -263,7 +227,7 @@ export default function ReportsModule({ companies, companyId }) {
             />
           )}
           {tab === "income" && (
-            <IncomeStatementView data={incomeStatement} accounts={accounts} filters={rollupFilters} branches={branches} companyId={companyId} />
+            <IncomeStatementModule key={companyId} company={activeCompany} accounts={accounts} branches={branches} companyId={companyId} printing={printing} onClosePrint={() => setPrinting(false)} />
           )}
           {tab === "balance" && (
             <BalanceSheetView data={balanceSheet} accounts={accounts} filters={rollupFilters} branches={branches} companyId={companyId} />
@@ -283,10 +247,10 @@ export default function ReportsModule({ companies, companyId }) {
           onClose={() => setPrinting(false)}
         />
       )}
-      {printing && tab !== "trial" && (
+      {printing && tab === "balance" && (
         <FinancialStatementPrintModal
           kind={tab}
-          data={tab === "income" ? incomeStatement : balanceSheet}
+          data={balanceSheet}
           company={activeCompany}
           asOfDate={tab === "balance" ? rollupFilters.applied.asOfDate : rollupFilters.applied.dateTo}
           autoPrint={false}

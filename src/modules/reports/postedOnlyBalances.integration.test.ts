@@ -8,6 +8,8 @@ import { signAccessToken } from "../../lib/jwt";
 import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
 import { buildReportDigestEmail } from "../../lib/reportDigest";
+// @ts-expect-error Frontend ESM helper is intentionally shared with the real HTTP integration test.
+import { incomeComparisonTree } from "../../../frontend/src/wired/shared/incomePeriods.mjs";
 
 /**
  * الأرصدة تحتسب القيود المرحَّلة فقط، عبر مسارات HTTP الحقيقية على Postgres فعلي:
@@ -265,5 +267,32 @@ describe("balances count posted entries only (integration)", () => {
     expect(byGroup.body.map((e: { id: string }) => e.id)).toContain(saved);
     const summary = await call("GET", `/reports/draft-entries-summary?companyId=${companyId}&accountId=${cashAccount.parentId}`);
     expect(summary.body.uncounted.entryCount).toBe(byGroup.body.length);
+  });
+
+  it("income comparison hides zero balances but retains separately displayed original and reversal amounts", async () => {
+    const original = await call("POST", "/journal-entries", {
+      companyId, date: "2026-09-01T09:00:00.000Z", memo: "income comparison", post: true,
+      lines: [{ accountId: acc.cash, debit: 90, credit: 0 }, { accountId: acc.revenue, debit: 0, credit: 90 }],
+    });
+    expect(original.status, original.text).toBe(201);
+    const reversed = await call("POST", `/journal-entries/${original.body.id}/reverse`, { date: "2026-09-02T09:00:00.000Z" });
+    expect(reversed.status, reversed.text).toBeLessThan(300);
+    const report = async (from: string, to: string) => {
+      const response = await call("GET", `/reports/income-statement?companyId=${companyId}&from=${from}&to=${to}&level=4`);
+      expect(response.status, response.text).toBe(200);
+      return response.body;
+    };
+    // Use real service-produced trees, never hand-authored API output fixtures.
+    const first = await report("2026-09-01", "2026-09-01");
+    const second = await report("2026-09-02", "2026-09-02");
+    const combined = await report("2026-09-01", "2026-09-02");
+    const flatten = (nodes: any[]): any[] => nodes.flatMap(n => [n, ...flatten(n.children)]);
+    const rows = flatten(incomeComparisonTree([first, second], "revenueRoots"));
+    expect(rows.find(n => n.accountId === acc.revenue)?.amounts).toEqual([90, -90]);
+    expect(rows.filter(n => n.isPosting)).toHaveLength(1);
+    expect(incomeComparisonTree([combined], "revenueRoots")).toEqual([]);
+    expect(first.totalRevenue).toBe(90);
+    expect(second.totalRevenue).toBe(-90);
+    expect(combined.totalRevenue).toBe(0);
   });
 });
