@@ -2016,6 +2016,42 @@
     },
     "zatca": {
       "modalTitle": "ZATCA linkage — {{name}}",
+      "oneStep": {
+        "intro": "Link the company with ZATCA in one step — enter the OTP from the Fatoora portal and the system handles the rest automatically.",
+        "howTo1": "Sign in to the Fatoora portal with the establishment's account:",
+        "howTo2": "From the option to onboard a new solution unit/device, generate an OTP (valid for a limited time only).",
+        "howTo3": "Copy the 6-digit code, paste it here, then click \"Link\".",
+        "otpPlaceholder": "OTP",
+        "connectBtn": "Link with ZATCA",
+        "resumeBtn": "Complete linking",
+        "resumeNote": "Linking started earlier but isn't finished — click \"Complete linking\" to continue where it stopped, no new OTP needed.",
+        "connecting": "Linking…",
+        "busyNote": "Linking with ZATCA… this can take up to two minutes, don't close the window.",
+        "linkedTitle": "Linked with ZATCA",
+        "linkedNote": "Linking is active — invoices are sent to ZATCA automatically when posted.",
+        "envLabel": "Linking environment:",
+        "errOtpFormat": "Enter the 6-digit OTP",
+        "showTechnical": "Show technical details",
+        "hideTechnical": "Hide technical details",
+        "showAdvanced": "Advanced options",
+        "hideAdvanced": "Hide advanced options",
+        "stages": {
+          "validate": "Checking company data",
+          "certificate": "Issuing the certificate",
+          "complianceChecks": "Compliance checks",
+          "activation": "Activating the link"
+        },
+        "fields": {
+          "vatNumber": "VAT number (15 digits, starts and ends with 3)",
+          "crNumber": "Commercial registration number",
+          "name": "Company name",
+          "addressStreet": "Street",
+          "addressBuilding": "Building number (4 digits)",
+          "addressDistrict": "District",
+          "addressCity": "City",
+          "addressPostalCode": "Postal code (5 digits)"
+        }
+      },
       "unarchivedOk": "ZATCA archive: every document accepted since {{since}} has its original stored (0 missing).", "unarchivedBad": "⚠ ZATCA archive: {{count}} documents accepted since archiving began have no stored original — archive writes are failing. Latest: {{numbers}}", "statusNotOnboarded": "Not enabled",
       "statusCompliance": "Test environment (Compliance)",
       "statusProduction": "Production (enabled)",

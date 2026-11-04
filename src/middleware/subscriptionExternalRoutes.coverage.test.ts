@@ -58,6 +58,7 @@ export const EXTERNAL_CALL_ROUTES: Entry[] = [
   R(companyZatcaRoutes, "companies/:id/zatca", "post", "/compliance", "zatca", "company"),
   R(companyZatcaRoutes, "companies/:id/zatca", "post", "/production", "zatca", "company"),
   R(companyZatcaRoutes, "companies/:id/zatca", "post", "/compliance-steps/:stepKey/test", "zatca", "company"),
+  R(companyZatcaRoutes, "companies/:id/zatca", "post", "/onboard", "zatca", "company"),
   R(companyRoutes, "companies", "post", "/:id/extract-document", "claude", "company"),
   R(customerRoutes, "customers", "post", "/:id/extract-document", "claude", "record"),
   R(journalEntryRoutes, "journal-entries", "post", "/from-document", "claude", "multipart"),

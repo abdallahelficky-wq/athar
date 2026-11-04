@@ -34,6 +34,8 @@ export const extractCompanyDocument = (id, docType, file) => {
 
 // ربط فاتورة (ZATCA) — انظر src/modules/companiesZatca على الخادم
 export const getCompanyZatcaStatus = (id) => api.get(`/companies/${id}/zatca`);
+// الربط بخطوة واحدة — انظر src/modules/companiesZatca/zatcaOneStepOnboarding.ts على الخادم
+export const onboardCompanyZatca = (id, payload) => api.post(`/companies/${id}/zatca/onboard`, payload);
 export const generateCompanyZatcaCsr = (id, payload) => api.post(`/companies/${id}/zatca/csr`, payload);
 export const requestCompanyZatcaCompliance = (id, otp) => api.post(`/companies/${id}/zatca/compliance`, { otp });
 export const requestCompanyZatcaProduction = (id) => api.post(`/companies/${id}/zatca/production`, {});

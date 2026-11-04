@@ -2,7 +2,7 @@ import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router, RequestHandler } from "express";
 import { authenticate, requireRole, assertCompanyAccess, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { generateCsrSchema, complianceOtpSchema, setEnvironmentSchema } from "./companiesZatca.schemas";
+import { generateCsrSchema, complianceOtpSchema, setEnvironmentSchema, oneStepOnboardingSchema } from "./companiesZatca.schemas";
 import {
   getStatusHandler,
   generateCsrHandler,
@@ -12,6 +12,7 @@ import {
   resetLinkageHandler,
   runComplianceStepTestHandler,
   getComplianceProgressHandler,
+  oneStepOnboardingHandler,
 } from "./companiesZatca.controller";
 
 // كل هذه المسارات إدارية بحتة (ربط CSID) — مقيَّدة لمدير النظام فقط، بخلاف بيانات الشركة العادية
@@ -31,6 +32,9 @@ companyZatcaRoutes.get("/", requirePositionAction("companiesZatca", "read"), get
 companyZatcaRoutes.post("/csr", requirePositionAction("companiesZatca", "edit"), adminOnly, validateBody(generateCsrSchema), generateCsrHandler);
 companyZatcaRoutes.post("/compliance", requirePositionAction("companiesZatca", "edit"), adminOnly, validateBody(complianceOtpSchema), requestComplianceHandler);
 companyZatcaRoutes.post("/production", requirePositionAction("companiesZatca", "edit"), adminOnly, requestProductionHandler);
+// الربط بخطوة واحدة (OTP ← CSR ← شهادة اختبار ← اختبارات الامتثال ← شهادة إنتاج) — نفس الحراسة
+// الإدارية لبقية مسارات الربط أعلاه، فلا يوسّع من يستطيع ربط الشركة.
+companyZatcaRoutes.post("/onboard", requirePositionAction("companiesZatca", "edit"), adminOnly, validateBody(oneStepOnboardingSchema), oneStepOnboardingHandler);
 companyZatcaRoutes.patch("/environment", requirePositionAction("companiesZatca", "edit"), adminOnly, validateBody(setEnvironmentSchema), setEnvironmentHandler);
 companyZatcaRoutes.delete("/", requirePositionAction("companiesZatca", "delete"), adminOnly, resetLinkageHandler);
 

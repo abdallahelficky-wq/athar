@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import * as service from "./companiesZatca.service";
 import { runZatcaComplianceStep, getZatcaComplianceProgress } from "../../lib/zatca/complianceAutomation";
+import { onboardCompanyZatcaOneStep } from "./zatcaOneStepOnboarding";
 
 export const getStatusHandler: RequestHandler = async (req, res) => {
   res.json(await service.getZatcaStatus(req.auth!.tenantId, req.params.id));
@@ -36,4 +37,8 @@ export const runComplianceStepTestHandler: RequestHandler = async (req, res) => 
 
 export const getComplianceProgressHandler: RequestHandler = async (req, res) => {
   res.json(await getZatcaComplianceProgress(req.auth!.tenantId, req.params.id));
+};
+
+export const oneStepOnboardingHandler: RequestHandler = async (req, res) => {
+  res.json(await onboardCompanyZatcaOneStep(req.auth!.tenantId, req.params.id, req.body));
 };
