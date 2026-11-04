@@ -16,6 +16,7 @@ import { createChartFromTemplate } from "../../lib/defaultChartOfAccounts";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 import { createStarterItems, createCashParties, createDefaultWarehouse, linkStationCashAccounts } from "../../lib/starterData";
 import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../../lib/mailer";
+import { sendWelcomeWhatsApp } from "../../lib/whatsapp";
 import { badRequest, conflict, forbidden, notFound, unauthorized } from "../../lib/httpError";
 import type { Lang } from "../../lib/i18n/translate";
 import type { Prisma, Tenant, User, Identity, SubscriptionPlan } from "@prisma/client";
@@ -82,7 +83,8 @@ async function publicUserWithPermissions(user: UserWithIdentity, readOnly: boole
 }
 
 function publicTenant(tenant: Tenant) {
-  const { unlockPin, ...rest } = tenant;
+  // ownerMobile/whatsappOptInAt: بيانات تواصل صاحب الاشتراك مع أثر — لا تُعرَض لباقي أعضاء الشركة.
+  const { unlockPin, ownerMobile, whatsappOptInAt, ...rest } = tenant;
   return rest;
 }
 
@@ -136,7 +138,7 @@ type OwnedTenantCompanyInput = {
  */
 async function createOwnedTenant(
   tx: Prisma.TransactionClient,
-  input: { identity: Identity; ownerName: string; unlockPinHash: string; subscriptionPlan?: SubscriptionPlan; company: OwnedTenantCompanyInput },
+  input: { identity: Identity; ownerName: string; unlockPinHash: string; subscriptionPlan?: SubscriptionPlan; company: OwnedTenantCompanyInput; ownerMobile?: string; whatsappOptIn?: boolean },
 ) {
   const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000);
   const tenant = await tx.tenant.create({
@@ -146,6 +148,8 @@ async function createOwnedTenant(
       subscriptionPlan: input.subscriptionPlan ?? "basic",
       trialEndsAt,
       unlockPin: input.unlockPinHash,
+      ownerMobile: input.ownerMobile ?? null,
+      whatsappOptInAt: input.ownerMobile && input.whatsappOptIn ? new Date() : null,
     },
   });
 
@@ -179,7 +183,7 @@ async function createOwnedTenant(
 }
 
 export async function register(
-  input: { tenantName: string; businessActivity: BusinessActivity; name: string; email: string; password: string; subscriptionPlan?: SubscriptionPlan },
+  input: { tenantName: string; businessActivity: BusinessActivity; name: string; email: string; password: string; subscriptionPlan?: SubscriptionPlan; mobile?: string; whatsappOptIn?: boolean },
   lang: Lang = "ar",
 ) {
   const existingIdentity = await prisma.identity.findUnique({ where: { email: input.email } });
@@ -209,6 +213,8 @@ export async function register(
         subscriptionPlan: input.subscriptionPlan,
         unlockPinHash,
         company: { name: input.tenantName, businessActivity: input.businessActivity },
+        ownerMobile: input.mobile,
+        whatsappOptIn: input.whatsappOptIn,
       });
     },
     // مهلة أطول من الافتراضي (5 ثوانٍ) كإجراء احتياطي إضافي — لم يعد زرع الشجرة القياسية
@@ -228,6 +234,20 @@ export async function register(
     // eslint-disable-next-line no-console
     console.error("فشل إرسال إيميل الترحيب:", err);
   }
+
+  // رسالة الترحيب على واتساب — بلا انتظار عمداً (لا تؤخّر رد التسجيل ولا تُفشله)، ومطفأة تماماً ما لم
+  // يُضبط WHATSAPP_ENABLED وبيانات Meta. لا تُرسَل إلا مرة واحدة لكل مستأجر (راجع src/lib/whatsapp.ts).
+  void sendWelcomeWhatsApp({
+    tenantId: tenant.id,
+    phone: tenant.ownerMobile,
+    optedIn: Boolean(tenant.whatsappOptInAt),
+    ownerName: user.name,
+    companyName: tenant.name,
+    plan: tenant.subscriptionPlan,
+  }).catch((err: unknown) => {
+    // eslint-disable-next-line no-console
+    console.error("فشل إرسال رسالة واتساب الترحيبية:", err);
+  });
 
   return { tenant: publicTenant(tenant), user: await publicUserWithPermissions(user, false), readOnly: false, ...tokens, emailServiceConfigured: Boolean(env.resendApiKey), platformNotices: [] as never[] };
 }

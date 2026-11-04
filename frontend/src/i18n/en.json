@@ -186,6 +186,22 @@
       "disclaimer": "Pilot build — photo capture was tested on an Android emulator, not yet on a real worker's phone."
     }
   },
+  "whatsapp": {
+    "label": "WhatsApp",
+    "floatingLabel": "Chat with us on WhatsApp",
+    "contactTitle": "Contact us",
+    "contactText": "For any question about Athar, help with subscribing, or technical support, message us directly on WhatsApp.",
+    "contactCta": "Message us on WhatsApp",
+    "salesCta": "Talk to sales on WhatsApp",
+    "supportMenu": "Technical support on WhatsApp",
+    "msgGeneral": "Hello, I'd like to ask about Athar Accounting",
+    "msgSales": "Hello, I'd like details about Athar's plans and subscribing",
+    "msgSupport": "Hello, I need technical support with Athar",
+    "msgSupportCompany": "Company: {{company}}",
+    "msgSupportCode": "Account code: {{code}}",
+    "msgRegisterHelp": "Hello, I need help signing up for Athar",
+    "registerHelp": "Need help signing up? Message us on WhatsApp"
+  },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial", "dataProtection": "Data protection" },
     "eyebrow": "Cloud accounting for Arab businesses",
@@ -265,6 +281,10 @@
       "email": "Email address",
       "password": "Password",
       "confirmPassword": "Confirm password",
+      "mobile": "Mobile number (WhatsApp)",
+      "mobilePlaceholder": "05XXXXXXXX",
+      "whatsappOptIn": "I agree to receive Athar messages (welcome and subscription notices) on WhatsApp",
+      "errMobile": "Invalid mobile number — enter a Saudi number like 05XXXXXXXX",
       "submit": "Create account and start trial",
       "submitting": "Creating...",
       "haveAccount": "Already have an account? Log in",

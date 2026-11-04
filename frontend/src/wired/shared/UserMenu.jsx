@@ -1,8 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import IndependentAccountPicker from "./IndependentAccountPicker";
+import { buildWhatsAppLink } from "../../lib/whatsapp";
+import "../../styles/whatsapp.css";
 
 /** قائمة منسدلة صغيرة عند اسم المستخدم بالهيدر العلوي: الملف الشخصي + تسجيل الخروج. */
-export default function UserMenu({ name, email, onOpenProfile, onLogout }) {
+export default function UserMenu({ name, email, companyName, tenantCode, onOpenProfile, onLogout }) {
+  const { t } = useTranslation();
+  const supportMessage = [
+    t("whatsapp.msgSupport"),
+    companyName ? t("whatsapp.msgSupportCompany", { company: companyName }) : null,
+    tenantCode ? t("whatsapp.msgSupportCode", { code: tenantCode }) : null,
+  ].filter(Boolean).join(" — ");
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
@@ -37,6 +46,9 @@ export default function UserMenu({ name, email, onOpenProfile, onLogout }) {
             </button>
           )}
           <IndependentAccountPicker />
+          <a className="user-menu-item user-menu-item-link" role="menuitem" href={buildWhatsAppLink(supportMessage)} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
+            {t("whatsapp.supportMenu")}
+          </a>
           <button type="button" className="user-menu-item user-menu-item-danger" role="menuitem" onClick={() => { setOpen(false); onLogout(); }}>
             تسجيل الخروج
           </button>

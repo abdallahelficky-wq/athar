@@ -3,6 +3,8 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../api/http";
+import "../styles/whatsapp.css";
+import { buildWhatsAppLink } from "../lib/whatsapp";
 
 export default function LoginPage({ onGoLanding, onGoRegister, onGoForgotPassword }) {
   const { t } = useTranslation();
@@ -99,6 +101,7 @@ export default function LoginPage({ onGoLanding, onGoRegister, onGoForgotPasswor
           <button className="link-btn" onClick={onGoRegister}>{t("auth.login.noAccount")}</button>
           <button className="link-btn" onClick={onGoLanding}>{t("auth.login.backToLanding")}</button>
         </div>
+        <a className="link-btn auth-whatsapp-help whatsapp-link" href={buildWhatsAppLink(t("whatsapp.msgSupport"))} target="_blank" rel="noopener noreferrer">{t("whatsapp.supportMenu")}</a>
         <p className="note auth-note">{t("auth.login.note")}</p>
       </div>
     </div>

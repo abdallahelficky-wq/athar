@@ -53,6 +53,7 @@ const EXEMPT: Record<string, string> = {
   "POST /api/platform-admin/plan-prices": "لوحة مدير المنصة",
   // رفع بيانات أجهزة PTS-2: لا جلسة مستخدم — مصادقة بتوقيع HMAC لكل متحكم، والكتابة مقيَّدة بشركة المتحكم المسجَّل ومحطته
   "POST /api/pts/upload": "جهاز المحطة (PTS-2) يرفع بياناته بتوقيع المتحكم",
+  "POST /api/webhooks/whatsapp": "Meta ترسل حالات رسائل واتساب بتوقيع سرّ التطبيق — لا شركة ولا جلسة",
   "DELETE /api/platform-admin/plan-prices/:id": "لوحة مدير المنصة",
 };
 

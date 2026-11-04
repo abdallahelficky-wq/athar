@@ -1,0 +1,37 @@
+/* زر واتساب العائم وروابطه — يعمل على الصفحات العامة وداخل النظام. */
+.whatsapp-fab {
+  position: fixed;
+  inset-inline-end: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index: 900;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #1fa855;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px #0006;
+  text-decoration: none;
+  transition: transform .15s ease, background .15s ease;
+}
+.whatsapp-fab:hover { background: #178a45; transform: translateY(-2px); }
+.whatsapp-fab:focus-visible { outline: 3px solid #d4af37; outline-offset: 3px; }
+@media (max-width: 640px) {
+  .whatsapp-fab { width: 52px; height: 52px; inset-inline-end: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+}
+.whatsapp-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+.whatsapp-number { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+.public-brand .landing-contact { text-align: center; }
+.public-brand .landing-contact-text { color: #d8d8d8; font-size: 17px; line-height: 1.8; max-width: 640px; margin: 0 auto 18px; }
+.public-brand .landing-contact-number { color: #d4af37; font-size: 22px; font-weight: 700; margin-bottom: 18px; }
+.public-brand .pricing-sales-cta { margin-top: 22px; text-align: center; }
+.public-brand .landing-footer-whatsapp { color: #d4af37; }
+.auth-whatsapp-help { display: block; margin-top: 12px; text-align: center; color: #d4af37; }
+.auth-optin { display: flex !important; flex-direction: row !important; align-items: flex-start; gap: 10px; font-size: 14px !important; line-height: 1.6; }
+.auth-optin input { width: auto !important; margin-top: 4px; flex: none; }
+.user-menu-item.user-menu-item-link { display: block; text-decoration: none; color: inherit; }
+/* لا يغطي الزر العائم أزرار التذييل (في زاوية التذييل نفسها) */
+.public-brand .landing-footer { padding-inline-end: calc(5% + 72px); }
+@media (max-width: 640px) { .public-brand .landing-footer { padding-inline-end: 5%; padding-bottom: 88px; } }

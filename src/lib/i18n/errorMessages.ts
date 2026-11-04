@@ -10,6 +10,7 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "رقم الجوال غير صالح — أدخل رقماً سعودياً مثل 05XXXXXXXX": "Invalid mobile number — enter a Saudi number like 05XXXXXXXX",
   "سبب الإضافات الأخرى مطلوب": "A reason for other additions is required",
   "حدد تاريخ احتساب الرصيد": "Choose the balance cutoff date",
   "حدد تاريخ الرصيد الافتتاحي": "Choose the opening balance date",
