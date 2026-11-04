@@ -41,7 +41,8 @@ export default function IncomeStatementModule({ companyId, company, accounts, br
   const { t, i18n } = useTranslation();
   const ar = i18n.language.startsWith('ar');
   const text = (arabic, english) => ar ? arabic : english;
-  const filters = useDeferredFilters(incomeDefaults());
+  const startMonth = company?.fiscalYearStartMonth || 1;
+  const filters = useDeferredFilters(incomeDefaults(new Date(), startMonth));
   const { draft, applied, setField, apply } = filters;
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -53,7 +54,7 @@ export default function IncomeStatementModule({ companyId, company, accounts, br
     setLoading(false);
     if (!companyId) return;
     let periods;
-    try { periods = incomePeriods(applied); } catch { setError('INVALID_PERIOD'); return; }
+    try { periods = incomePeriods(applied, new Date(), startMonth); } catch { setError('INVALID_PERIOD'); return; }
     setLoading(true);
     const query = { companyId, level: applied.level, accountId: applied.accountId || undefined, includeDetails: applied.includeDetails || undefined, search: applied.search || undefined, branchId: applied.branchId || undefined };
     // Bound concurrency for a twelve-period comparison without changing report accounting rules.
@@ -66,7 +67,7 @@ export default function IncomeStatementModule({ companyId, company, accounts, br
       if (!cancelled) setResult({ periods, statements });
     })().catch(err => { if (!cancelled) setError(err.message); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [companyId, applied]);
+  }, [companyId, applied, startMonth]);
   return <div className="panel">
     <h3>{t('nav.tabs.income')}</h3>
     <form className="filter-bar" onSubmit={e => { e.preventDefault(); onClosePrint(); apply(); }}>
@@ -79,7 +80,7 @@ export default function IncomeStatementModule({ companyId, company, accounts, br
         <label>{t('reports.income.toDate')}<input required type="date" value={draft.dateTo} min={draft.dateFrom} onChange={e => setField('dateTo', e.target.value)} /></label>
       </>}
       {draft.mode === 'months' && <label>{text('حتى شهر', 'Ending month')}<input required type="month" value={draft.endMonth} onChange={e => setField('endMonth', e.target.value)} /></label>}
-      {draft.mode === 'years' && <label>{text('حتى سنة', 'Ending year')}<input required type="number" min="1911" max="9999" value={draft.endYear} onChange={e => setField('endYear', e.target.value)} /></label>}
+      {draft.mode === 'years' && <label>{startMonth === 1 ? text('حتى سنة', 'Ending year') : text('حتى السنة المالية التي تبدأ في', 'Ending fiscal year starting in')}<input required type="number" min="1911" max="9999" value={draft.endYear} onChange={e => setField('endYear', e.target.value)} /></label>}
       {['months', 'years'].includes(draft.mode) && <label>{draft.mode === 'months' ? text('عدد الأشهر', 'Number of months') : text('عدد السنوات', 'Number of years')}<select value={draft.count} onChange={e => setField('count', Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}</select></label>}
       <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} branches={branches} />
       <button type="submit" className="btn-primary" style={{ alignSelf: 'end' }}>{t('reports.income.showResults')}</button>

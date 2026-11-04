@@ -34,3 +34,17 @@ test('reject reversed dates, invalid months, and unsupported comparison counts',
   assert.throws(() => incomePeriods({ mode: 'months', count: 2, endMonth: '2026-13' }));
   for (const count of [0, 13, 1.5, 'bad']) assert.throws(() => incomePeriods({ mode: 'years', count, endYear: 2026 }));
 });
+
+test('fiscal year starting in April: default period, and year comparison columns', async () => {
+  const { incomeDefaults: defaults, incomePeriods: periods } = await import('./incomePeriods.mjs');
+  const before = defaults(new Date('2026-02-10T10:00:00Z'), 4);
+  assert.equal(before.dateFrom, '2025-04-01');
+  assert.equal(before.endYear, 2025);
+  const after = defaults(new Date('2026-04-01T10:00:00Z'), 4);
+  assert.equal(after.dateFrom, '2026-04-01');
+  assert.deepEqual(periods({ mode: 'years', count: 2, endYear: 2025 }, new Date(), 4), [
+    { from: '2024-04-01', to: '2025-03-31', label: '2024/2025' },
+    { from: '2025-04-01', to: '2026-03-31', label: '2025/2026' },
+  ]);
+  assert.deepEqual(periods({ mode: 'years', count: 1, endYear: 2023 }, new Date(), 3), [{ from: '2023-03-01', to: '2024-02-29', label: '2023/2024' }]);
+});

@@ -46,6 +46,7 @@ enum SubscriptionStatus {
 
 model Tenant {
   annualLeaveDrafts AnnualLeaveDraft[]
+  fiscalYearClosings FiscalYearClosing[]
   id                 String             @id @default(cuid())
   name               String
   subscriptionPlan   SubscriptionPlan   @default(basic)
@@ -473,6 +474,11 @@ model Company {
   // أو مسحه) محصور بصلاحية admin فقط عبر مسار مخصّص مُسجَّل بالكامل في AuditLog — راجع
   // companies.controller.ts::reopenFiscalClosing.
   fiscalYearClosingDate        DateTime?
+  // شهر بداية السنة المالية (1 = يناير). تنتهي السنة في آخر يوم من الشهر السابق له — راجع src/lib/fiscalYear.ts.
+  fiscalYearStartMonth         Int                   @default(1)
+  // حساب حقوق ملكية تُقفَل فيه الإيرادات والمصروفات عند إقفال السنة (يُقترَح «صافي ربح / خسارة العام الحالي»).
+  fiscalCloseAccountId         String?
+  fiscalCloseAccount           Account?              @relation("FiscalCloseAccount", fields: [fiscalCloseAccountId], references: [id], onDelete: SetNull)
   // إعدادات تنبيهات الداشبورد المالية — قابلة للتعديل لكل شركة من الإعدادات
   vatFilingFrequency           VatFilingFrequency    @default(quarterly)
   zakatDeclarationDueDate      DateTime?
@@ -629,6 +635,7 @@ model Company {
   zatcaComplianceStepAttempts ZatcaComplianceStepAttempt[]
   subscription                CompanySubscription?
   posUsers                    CompanyPosUser[]
+  fiscalYearClosings          FiscalYearClosing[]
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -929,6 +936,8 @@ model Account {
   stationCashSurplusCompanies  Company[]             @relation("StationCashSurplusAccount")
   tankVarianceCompanies        Company[]             @relation("TankVarianceAccount")
   cardFeeExpenseCompanies      Company[]             @relation("CardFeeExpenseAccount")
+  fiscalCloseCompanies         Company[]             @relation("FiscalCloseAccount")
+  fiscalYearClosings           FiscalYearClosing[]
   cardSettlementsAsBank        CardSettlement[]      @relation("CardSettlementBankAccount")
   horseCareServiceRevenueLinks HorseCareService[]
 
@@ -1012,6 +1021,7 @@ enum SourceModule {
   station_shift
   station_tank_variance
   card_settlement
+  fiscal_year_closing
 }
 
 // فرع تابع لشركة واحدة — طبقة تصنيف وعرض إضافية فقط (بنفس مبدأ CostCenter/Department)، بدولة
@@ -3998,4 +4008,32 @@ model AnnualLeaveDraft {
  createdAt DateTime @default(now())
  @@index([tenantId, companyId])
  @@map("annual_leave_drafts")
+}
+
+/// سجل إقفال سنة مالية لشركة: قيد الإقفال (sourceModule = fiscal_year_closing) ينقل صافي الإيرادات والمصروفات
+/// إلى حساب الإقفال بتاريخ نهاية السنة، ويُقدَّم تاريخ قفل الفترات إلى نهاية السنة. الإقفال تسلسلي (سنة بعد سنة)،
+/// ولا يُعاد فتح إلا آخر سنة مقفلة — راجع src/modules/fiscalYears/fiscalYears.service.ts.
+model FiscalYearClosing {
+  id                    String    @id @default(cuid())
+  tenantId              String
+  tenant                Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId             String
+  company               Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  yearStart             DateTime
+  yearEnd               DateTime
+  // null عندما لا توجد أرصدة إيرادات أو مصروفات في السنة (إقفال بلا قيد)
+  journalEntryId        String?   @unique
+  closeAccountId        String
+  closeAccount          Account   @relation(fields: [closeAccountId], references: [id], onDelete: Restrict)
+  totalRevenue          Decimal   @db.Decimal(18, 2)
+  totalExpense          Decimal   @db.Decimal(18, 2)
+  netIncome             Decimal   @db.Decimal(18, 2)
+  // تاريخ قفل الفترات قبل الإقفال — يُستعاد عند إعادة فتح هذه السنة
+  previousClosingDate   DateTime?
+  closedBy              String?
+  createdAt             DateTime  @default(now())
+
+  @@unique([companyId, yearEnd])
+  @@index([tenantId, companyId])
+  @@map("fiscal_year_closings")
 }

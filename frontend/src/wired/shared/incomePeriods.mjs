@@ -1,11 +1,24 @@
-export function incomeDefaults(now = new Date()) {
+const pad = (n) => String(n).padStart(2, '0');
+const validMonth = (m) => (Number.isInteger(m) && m >= 1 && m <= 12 ? m : 1);
+
+/** السنة المالية التي تبدأ في سنة startYear بشهر startMonth (1 = يناير) — نفس تعريف src/lib/fiscalYear.ts. */
+export function fiscalYearRange(startYear, startMonth = 1) {
+  const m = validMonth(startMonth);
+  const end = new Date(Date.UTC(startYear + 1, m - 1, 0)).toISOString().slice(0, 10);
+  return { from: `${startYear}-${pad(m)}-01`, to: end, label: m === 1 ? String(startYear) : `${startYear}/${startYear + 1}` };
+}
+
+export function incomeDefaults(now = new Date(), startMonth = 1) {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
   const part = (type) => parts.find(p => p.type === type).value;
   const today = `${part('year')}-${part('month')}-${part('day')}`;
-  return { mode: 'period', dateFrom: `${part('year')}-01-01`, dateTo: today, endMonth: today.slice(0, 7), endYear: Number(part('year')), count: 3, level: 4, accountId: '', includeDetails: false, search: '', branchId: '' };
+  const m = validMonth(startMonth);
+  // بداية السنة المالية الحالية: هذه السنة إن كان شهر اليوم ≥ شهر البداية، وإلا السنة السابقة
+  const fiscalStartYear = Number(part('month')) >= m ? Number(part('year')) : Number(part('year')) - 1;
+  return { mode: 'period', dateFrom: fiscalYearRange(fiscalStartYear, m).from, dateTo: today, endMonth: today.slice(0, 7), endYear: fiscalStartYear, count: 3, level: 4, accountId: '', includeDetails: false, search: '', branchId: '' };
 }
 
-export function incomePeriods(filters, now = new Date()) {
+export function incomePeriods(filters, now = new Date(), startMonth = 1) {
   const today = incomeDefaults(now).dateTo;
   if (filters.mode === 'period') {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(filters.dateFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(filters.dateTo) || filters.dateFrom > filters.dateTo) throw new Error('INVALID_PERIOD');
@@ -26,10 +39,8 @@ export function incomePeriods(filters, now = new Date()) {
   }
   const year = Number(filters.endYear);
   if (filters.mode !== 'years' || !Number.isInteger(year) || year < 1900 + count - 1 || year > 9999) throw new Error('INVALID_PERIOD');
-  return Array.from({ length: count }, (_, i) => {
-    const y = year - count + 1 + i;
-    return { from: `${y}-01-01`, to: `${y}-12-31`, label: String(y) };
-  });
+  // كل عمود سنة مالية كاملة (تبدأ بشهر بداية السنة المالية للشركة)، آخرها التي تبدأ في endYear
+  return Array.from({ length: count }, (_, i) => fiscalYearRange(year - count + 1 + i, startMonth));
 }
 
 // Merge by immutable account ID, keeping a row when ANY displayed period has a balance.
