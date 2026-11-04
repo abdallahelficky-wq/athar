@@ -4,6 +4,8 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { SUBSCRIPTION_PLANS } from "../lib/subscriptionPlans";
 import { ApiError } from "../api/http";
+import "../styles/whatsapp.css";
+import { buildWhatsAppLink, normalizeSaudiMobile } from "../lib/whatsapp";
 
 export default function RegisterPage({ onGoLanding, onGoLogin }) {
   const { t } = useTranslation();
@@ -16,19 +18,22 @@ export default function RegisterPage({ onGoLanding, onGoLogin }) {
   const [businessActivity, setBusinessActivity] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
+  const [whatsappOptIn, setWhatsappOptIn] = useState(true);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async () => {
-    if (!companyName || !businessActivity || !name || !email || !password) { setError(t("auth.register.errFillAll")); return; }
+    if (!companyName || !businessActivity || !name || !email || !mobile || !password) { setError(t("auth.register.errFillAll")); return; }
+    if (!normalizeSaudiMobile(mobile)) { setError(t("auth.register.errMobile")); return; }
     if (password !== confirmPassword) { setError(t("auth.register.errPasswordMismatch")); return; }
     if (password.length < 8) { setError(t("auth.register.errPasswordLength")); return; }
     setSubmitting(true);
     setError("");
     try {
-      await register({ tenantName: companyName, businessActivity, name, email, password, subscriptionPlan });
+      await register({ tenantName: companyName, businessActivity, name, email, mobile, whatsappOptIn, password, subscriptionPlan });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("auth.register.errGeneric"));
     } finally {
@@ -51,6 +56,8 @@ export default function RegisterPage({ onGoLanding, onGoLogin }) {
           <label>{t("auth.register.businessActivity")}<select value={businessActivity} onChange={(e) => setBusinessActivity(e.target.value)}><option value="">{t("auth.register.selectActivity")}</option><option value="contracting">{t("auth.register.activities.contracting")}</option><option value="manufacturing">{t("auth.register.activities.manufacturing")}</option><option value="retail">{t("auth.register.activities.retail")}</option><option value="general_trade">{t("auth.register.activities.generalTrade")}</option><option value="fuel_stations">{t("auth.register.activities.fuelStations")}</option><option value="horse_stables">{t("auth.register.activities.horseStables")}</option></select></label>
           <label>{t("auth.register.fullName")}<input type="text" value={name} onChange={(e) => setName(e.target.value)} /></label>
           <label>{t("auth.register.email")}<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          <label>{t("auth.register.mobile")}<input type="tel" inputMode="tel" autoComplete="tel" dir="ltr" placeholder={t("auth.register.mobilePlaceholder")} value={mobile} onChange={(e) => setMobile(e.target.value)} /></label>
+          <label className="auth-optin"><input type="checkbox" checked={whatsappOptIn} onChange={(e) => setWhatsappOptIn(e.target.checked)} /><span>{t("auth.register.whatsappOptIn")}</span></label>
           <label>{t("auth.register.password")}<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
           <label>{t("auth.register.confirmPassword")}<input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} /></label>
           {error && <p className="balance-bad">{error}</p>}
@@ -62,6 +69,7 @@ export default function RegisterPage({ onGoLanding, onGoLogin }) {
           <button className="link-btn" onClick={onGoLogin}>{t("auth.register.haveAccount")}</button>
           <button className="link-btn" onClick={onGoLanding}>{t("auth.register.backToLanding")}</button>
         </div>
+        <a className="link-btn auth-whatsapp-help whatsapp-link" href={buildWhatsAppLink(t("whatsapp.msgRegisterHelp"))} target="_blank" rel="noopener noreferrer">{t("whatsapp.registerHelp")}</a>
         <p className="note auth-note">{t("auth.register.note")}</p>
       </div>
     </div>

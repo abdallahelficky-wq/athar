@@ -71,6 +71,12 @@ model Tenant {
   // كلها، يبدأ من 1000001 ويُخصَّص من تسلسل Postgres (nextval ذرّي: لا تصادم بين تسجيلين متزامنين).
   // حقل إضافي بجوار id لا بديل عنه: كل علاقة وكل JWT يبقى على id. مُعرِّف ظاهر للموظفين، ليس سراً.
   code               Int                @unique @default(autoincrement())
+  // جوال صاحب الاشتراك بصيغة دولية موحّدة (9665XXXXXXXX، راجع normalizeSaudiMobile في src/lib/phone.ts)
+  // — يُكتَب عند التسجيل، وتُرسَل إليه رسالة الترحيب عبر واتساب. لا يُعاد ضمن بيانات المستأجر العامة.
+  ownerMobile        String?
+  // لحظة موافقة صاحب الاشتراك على استلام رسائل أثر على واتساب (شرط Meta للرسائل التي يبادر بها النظام).
+  // null = لم يوافق، فلا تُرسَل له أي رسالة آلية.
+  whatsappOptInAt    DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -93,6 +99,7 @@ model Tenant {
   quotations       Quotation[]
   salesInvoices    SalesInvoice[]
   invoiceEmailLogs InvoiceEmailLog[]
+  whatsappMessageLogs WhatsAppMessageLog[]
   reportSchedules  ReportSchedule[]
   salesReturns     SalesReturn[]
   salesDebitNotes  SalesDebitNote[]
@@ -1352,6 +1359,26 @@ model SalesInvoice {
 
 // سجل كل محاولة إرسال فاتورة بالإيميل (تلقائية عند الترحيل، أو يدوية من زر "إرسال بالإيميل")
 // — يُبنى منه عرض "آخر إرسال: [تاريخ ووقت]" في شاشة الفاتورة، ويحتفظ بسبب الفشل إن وُجد.
+/// سجل رسائل واتساب الآلية (رسالة الترحيب حالياً) — محاولة واحدة لكل (مستأجر، نوع) بفضل القيد الفريد،
+/// فلا تُرسَل رسالة الترحيب مرتين أبداً حتى مع إعادة المحاولة أو تزامن طلبين. phone مُخزَّن كاملاً
+/// (لازم لإعادة الإرسال يدوياً) لكنه لا يُطبَع في سجلّات الخادم إلا مُخفى (maskPhone).
+model WhatsAppMessageLog {
+  id                String   @id @default(cuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kind              String // "welcome"
+  phone             String
+  template          String
+  status            String // "pending" | "sent" | "failed" | "skipped" | ثم من webhook: "delivered" | "read"
+  providerMessageId String?  @unique
+  error             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([tenantId, kind])
+  @@map("whatsapp_message_logs")
+}
+
 model InvoiceEmailLog {
   id        String       @id @default(cuid())
   tenantId  String

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeSaudiMobile } from "../../lib/phone";
 
 export const registerSchema = z.object({
   subscriptionPlan: z.enum(["basic", "professional", "enterprise"]).default("basic"),
@@ -7,6 +8,21 @@ export const registerSchema = z.object({
   name: z.string().min(2, "الاسم قصير جداً"),
   email: z.string().email("بريد إلكتروني غير صالح"),
   password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
+  // جوال صاحب الاشتراك (واتساب) — اختياري على مستوى الـAPI (عملاء قدامى)، إلزامي في نموذج التسجيل.
+  // يُوحَّد هنا إلى 9665XXXXXXXX فلا يصل للخدمة إلا رقم صالح بصيغة واحدة.
+  mobile: z
+    .string()
+    .optional()
+    .transform((v, ctx) => {
+      if (v === undefined || v.trim() === "") return undefined;
+      const normalized = normalizeSaudiMobile(v);
+      if (!normalized) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "رقم الجوال غير صالح — أدخل رقماً سعودياً مثل 05XXXXXXXX" });
+        return z.NEVER;
+      }
+      return normalized;
+    }),
+  whatsappOptIn: z.boolean().optional().default(false),
 });
 
 export const loginSchema = z.object({

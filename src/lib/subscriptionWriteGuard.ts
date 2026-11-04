@@ -91,6 +91,7 @@ export const ATTACHMENT_ENTITY_MODELS: Record<string, string> = {
 export const TENANT_LEVEL_MODELS: Record<string, string> = {
   Tenant: "المستأجر نفسه — فوق الشركات؛ \"عرض فقط\" على مستواه يبقى كما هو (D32)",
   PlatformNotice: "إشعار من لوحة مدير المنصة للمستأجر — لا يكتبه طلب مستخدم",
+  WhatsAppMessageLog: "سجل رسائل واتساب الآلية من أثر لصاحب الاشتراك (الترحيب) — يكتبه النظام وwebhook Meta، لا يخص شركة بعينها",
   Identity: "هوية الدخول (البريد/كلمة المرور) مشتركة بين كل مستأجرات الشخص",
   PasswordResetToken: "رمز استعادة كلمة المرور على الهوية — تسجيل الدخول لا يُمنَع بسبب الباقة",
   RefreshToken: "جلسة دخول — تجديد الجلسة قراءة في جوهره ولا يُمنَع بسبب الباقة",

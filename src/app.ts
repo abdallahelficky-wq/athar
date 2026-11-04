@@ -69,6 +69,7 @@ import { stationSetupRoutes } from "./modules/stationSetup/stationSetup.routes";
 import { stationTankRoutes } from "./modules/stationTanks/stationTanks.routes";
 import { forecourtRoutes } from "./modules/forecourt/forecourt.routes";
 import { ptsDeviceRoutes } from "./modules/forecourt/ptsDevice.routes";
+import { whatsappWebhookRoutes } from "./modules/auth/whatsappWebhook.routes";
 import { cardSettlementRoutes } from "./modules/cardSettlements/cardSettlements.routes";
 import { stationDashboardRoutes } from "./modules/stationDashboard/stationDashboard.routes";
 import { attendanceRoutes } from "./modules/attendance/attendance.routes";
@@ -90,6 +91,8 @@ export function createApp() {
   app.use(cors());
   // أجهزة PTS-2 قبل express.json: توقيعها على الجسم الخام بالبايت (ptsDevice.routes.ts)
   app.use("/api/pts", ptsDeviceRoutes);
+  // Webhook حالات واتساب من Meta قبل express.json: التوقيع على الجسم الخام (whatsappWebhook.routes.ts)
+  app.use("/api/webhooks/whatsapp", whatsappWebhookRoutes);
   app.use(express.json({ limit: "5mb" }));
   app.use(resolveLanguage);
 

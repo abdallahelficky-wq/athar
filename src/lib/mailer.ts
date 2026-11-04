@@ -160,6 +160,9 @@ export async function sendPasswordResetEmail(to: string, rawToken: string, lang:
 export async function sendWelcomeEmail(to: string, userName: string, companyName: string, lang: Lang = "ar") {
   const link = `${env.frontendBaseUrl}/`;
   const en = lang === "en";
+  const wa = env.supportWhatsappNumber;
+  const waDisplay = wa.startsWith("966") ? `0${wa.slice(3)}` : `+${wa}`;
+  const waLink = `https://wa.me/${wa}`;
   await sendEmail({
     to,
     subject: en ? "Welcome to Athar Accounting" : "أهلاً بك في أثر المحاسبي",
@@ -175,6 +178,7 @@ export async function sendWelcomeEmail(to: string, userName: string, companyName
         <li>Review the chart of accounts created automatically for your activity.</li>
         <li>Start by recording your first journal entry or sales invoice.</li>
       </ol>
+      <p style="color:#445565; font-size: 13px;">Questions or technical support: WhatsApp <a href="${waLink}" style="color:#10202E;" dir="ltr">${waDisplay}</a></p>
     ` : `
       <h2 style="color:#10202E;">أهلاً بك، ${userName}! 👋</h2>
       <p>تم إنشاء حساب "${companyName}" بنجاح في أثر المحاسبي. يمكنك الآن تسجيل الدخول والبدء في إدارة حساباتك المالية بكل سهولة.</p>
@@ -185,6 +189,7 @@ export async function sendWelcomeEmail(to: string, userName: string, companyName
         <li>راجع شجرة الحسابات المُنشأة تلقائياً لنشاطك.</li>
         <li>ابدأ بتسجيل أول قيد أو فاتورة مبيعات.</li>
       </ol>
+      <p style="color:#445565; font-size: 13px;">للاستفسارات والدعم الفني على واتساب: <a href="${waLink}" style="color:#10202E;" dir="ltr">${waDisplay}</a></p>
     `, lang),
   });
 }
