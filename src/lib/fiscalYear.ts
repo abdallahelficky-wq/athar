@@ -1,3 +1,5 @@
+import { KSA_DATE_OPTIONS } from "./displayDates";
+
 /**
  * حدود السنة المالية لشركة من شهر بدايتها (Company.fiscalYearStartMonth، 1 = يناير). التواريخ كلها
  * منتصف ليل UTC لليوم التقويمي، بنفس اصطلاح تواريخ القيود في النظام. تنتهي السنة في آخر يوم من الشهر
@@ -35,7 +37,7 @@ export function fiscalYearContaining(date: Date, startMonth: number): FiscalYear
 
 /** اليوم الحالي بتوقيت السعودية كتاريخ منتصف ليل UTC. */
 export function todayRiyadh(now = new Date()): Date {
-  const parts = new Intl.DateTimeFormat("en-CA", { calendar: "gregory", timeZone: "Asia/Riyadh", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const parts = new Intl.DateTimeFormat("en-CA", { ...KSA_DATE_OPTIONS, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
   const part = (type: string) => Number(parts.find((p) => p.type === type)!.value);
   return new Date(Date.UTC(part("year"), part("month") - 1, part("day")));
 }
