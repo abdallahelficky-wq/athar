@@ -21,7 +21,8 @@ export function fmtDateOnly(date: Date): string {
  */
 export function assertPeriodNotClosed(closingDate: Date | null | undefined, date: Date, action: string): void {
   if (!closingDate) return;
-  if (date.getTime() <= closingDate.getTime()) {
+  // مقارنة باليوم التقويمي: قيد بتوقيت داخل يوم الإقفال نفسه (مثلاً 09:00) يقع في الفترة المقفلة أيضاً.
+  if (fmtDateOnly(date) <= fmtDateOnly(closingDate)) {
     throw badRequest(
       `لا يمكن ${action} بتاريخ ${fmtDateOnly(date)} لأن هذا التاريخ يقع في فترة مُقفلة (تاريخ إقفال السنة المالية لهذه الشركة: ${fmtDateOnly(closingDate)}). لتعديل هذه الفترة استثناءً، يجب على مدير النظام فتح الإقفال أولاً من إعدادات الشركة.`,
     );

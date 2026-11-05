@@ -3,9 +3,10 @@ import { useTranslation } from "react-i18next";
 import { listCostCenters } from "../../api/costCenters";
 import { listStationSales, createStationSale, deleteStationSale } from "../../api/stationSales";
 import { fmt, fmt2 } from "../../legacy/constants";
+import { getOrgDisplayName } from "../shared/accountDisplayName";
 
 export default function StationsTab({ companyId }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [costCenters, setCostCenters] = useState([]);
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +61,7 @@ export default function StationsTab({ companyId }) {
     <div>
       <div className="panel form-panel">
         <div className="form-grid">
-          <label>{t("sales.stations.station")}<select value={costCenterId} onChange={(e) => setCostCenterId(e.target.value)}>{costCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label>{t("sales.stations.station")}<select value={costCenterId} onChange={(e) => setCostCenterId(e.target.value)}>{costCenters.map((c) => <option key={c.id} value={c.id}>{getOrgDisplayName(c, i18n.language)}</option>)}</select></label>
           <label>{t("sales.stations.date")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
           <label>{t("sales.stations.liters")}<input type="number" value={liters} onChange={(e) => setLiters(e.target.value)} /></label>
           <label>{t("sales.stations.pricePerLiter")}<input type="number" step="0.01" value={pricePerLiter} onChange={(e) => setPricePerLiter(e.target.value)} /></label>
@@ -83,7 +84,7 @@ export default function StationsTab({ companyId }) {
             <tbody>
               {sales.map((s) => (
                 <tr key={s.id}>
-                  <td>{s.date.slice(0, 10)}</td><td>{s.costCenter?.name}</td>
+                  <td>{s.date.slice(0, 10)}</td><td>{getOrgDisplayName(s.costCenter, i18n.language)}</td>
                   <td className="num">{fmt2(s.liters)}</td><td className="num">{fmt2(s.pricePerLiter)}</td>
                   <td className="num">{fmt(s.liters * s.pricePerLiter)}</td>
                   <td><button className="btn-ghost" onClick={() => remove(s)}>{t("sales.stations.delete")}</button></td>

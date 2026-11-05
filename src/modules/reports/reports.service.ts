@@ -26,7 +26,12 @@ export interface DateRange {
   branchId?: string;
   dateFrom?: Date;
   dateTo?: Date;
+  // قيود إقفال السنة المالية تُصفّر الإيرادات والمصروفات في حساب الإقفال: تُستبعَد من قراءات "ربح الفترة"
+  // (قائمة الدخل، إيرادات/مصروفات التقرير الشهري) وتبقى في الأرصدة (ميزان المراجعة، الأستاذ، المركز المالي).
+  excludeFiscalClosing?: boolean;
 }
+
+export const NOT_FISCAL_CLOSING_WHERE: Prisma.JournalEntryWhereInput = { sourceModule: { not: "fiscal_year_closing" } };
 
 export interface AccountBalance {
   account: Account;
@@ -53,7 +58,7 @@ export async function aggregateAccountBalances(tenantId: string, range: DateRang
     where: {
       branchId: range.branchId || undefined,
       journalEntry: {
-        AND: [COUNTED_ENTRY_WHERE],
+        AND: range.excludeFiscalClosing ? [COUNTED_ENTRY_WHERE, NOT_FISCAL_CLOSING_WHERE] : [COUNTED_ENTRY_WHERE],
         tenantId,
         companyId: range.companyId || undefined,
         date: {
@@ -108,8 +113,8 @@ export async function getComprehensiveMonthlyReport(tenantId: string, companyId:
   const { from, to, previousFrom, previousTo } = monthRange(month);
   const accounts = await prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } });
   const [currentRaw, previousRaw, closingRaw, companies, receivableAging, payableAging, employeeAccounts] = await Promise.all([
-    aggregateAccountBalances(tenantId, { companyId, dateFrom: from, dateTo: to }),
-    aggregateAccountBalances(tenantId, { companyId, dateFrom: previousFrom, dateTo: previousTo }),
+    aggregateAccountBalances(tenantId, { companyId, dateFrom: from, dateTo: to, excludeFiscalClosing: true }),
+    aggregateAccountBalances(tenantId, { companyId, dateFrom: previousFrom, dateTo: previousTo, excludeFiscalClosing: true }),
     aggregateAccountBalances(tenantId, { companyId, dateTo: to }),
     prisma.company.findMany({ where: { tenantId, id: companyId || undefined } }),
     // الأعمار كما في نهاية الشهر: ما خُصِّص أو سُدِّد بعده لا يُنقِص ذمة ذلك الشهر (راجع lib/aging.ts)
@@ -524,7 +529,7 @@ export async function getIncomeStatement(
   hrView = true,
 ) {
   const [balances, allAccounts] = await Promise.all([
-    aggregateAccountBalances(tenantId, { companyId, branchId, dateFrom, dateTo }),
+    aggregateAccountBalances(tenantId, { companyId, branchId, dateFrom, dateTo, excludeFiscalClosing: true }),
     prisma.account.findMany({ where: { tenantId, companyId: companyId || { not: null } } }),
   ]);
   const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);

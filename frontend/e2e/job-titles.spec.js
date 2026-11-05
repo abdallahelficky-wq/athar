@@ -29,7 +29,7 @@ test("job titles are saved to the server and show whether each has a position", 
   await page.getByRole("textbox", { name: "مسمّى وظيفي جديد" }).fill("مشرف مبيعات");
   await page.getByRole("button", { name: "إضافة", exact: true }).click();
   await expect.poll(() => calls.length).toBe(1);
-  expect(calls[0]).toEqual({ method: "POST", path: "/api/job-titles", body: { name: "مشرف مبيعات" } });
+  expect(calls[0]).toEqual({ method: "POST", path: "/api/job-titles", body: { name: "مشرف مبيعات", nameEn: null } });
   await expect(page.getByRole("row", { name: /محاسب/ })).toContainText("لها منصب");
   await expect(page.getByRole("row", { name: /فني/ })).toContainText("بلا منصب بعد");
   await expect(page.getByRole("link", { name: "إدارة الصلاحيات" }).first()).toHaveAttribute("href", "/settings/positions");
@@ -41,7 +41,7 @@ test("rename in a dialog; a job title with a position cannot be deleted", async 
   await page.getByRole("textbox", { name: "الوظيفة" }).fill("فني صيانة");
   await page.getByRole("button", { name: "حفظ" }).click();
   await expect.poll(() => calls.length).toBe(1);
-  expect(calls[0]).toEqual({ method: "PATCH", path: "/api/job-titles/jt-tech", body: { name: "فني صيانة" } });
+  expect(calls[0]).toEqual({ method: "PATCH", path: "/api/job-titles/jt-tech", body: { name: "فني صيانة", nameEn: null } });
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "حذف فني" }).click();
   await expect.poll(() => calls.length).toBe(2);

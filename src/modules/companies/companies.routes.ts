@@ -17,6 +17,7 @@ import {
   setPayrollTotalsFromMonth,
 } from "./companies.controller";
 import { uploadSingleFile } from "../attachments/attachments.controller";
+import { getFiscalYears, updateFiscalYearSettings, closeFiscalYear, reopenLastFiscalYear, fiscalYearSettingsSchema, closeFiscalYearSchema } from "../fiscalYears/fiscalYears.controller";
 
 export const companyRoutes = Router();
 companyRoutes.use(authenticate, blockMutationsWhenReadOnly);
@@ -47,6 +48,11 @@ companyRoutes.delete("/:id", deleteCompany);
 companyRoutes.patch("/:id/balances-posted-only", requirePositionAction("companySettings", "edit"), requireTenantOwner, validateBody(balancesPostedOnlySchema), setBalancesPostedOnly);
 // أول شهر يُرحَّل فيه كشف الرواتب إجماليات — يغيّر أين يقع صافي الرواتب في الدفاتر، فهو للمالك وحده
 companyRoutes.patch("/:id/payroll-totals-from-month", requirePositionAction("companySettings", "edit"), requireTenantOwner, validateBody(payrollTotalsFromMonthSchema), setPayrollTotalsFromMonth);
+// السنة المالية: الإعداد (شهر البداية وحساب الإقفال)، الإقفال، وإعادة فتح آخر سنة مقفلة (مدير النظام فقط)
+companyRoutes.get("/:id/fiscal-years", getFiscalYears);
+companyRoutes.patch("/:id/fiscal-years/settings", requirePositionAction("companySettings", "edit"), requireRole("admin", "finance_manager"), validateBody(fiscalYearSettingsSchema), updateFiscalYearSettings);
+companyRoutes.post("/:id/fiscal-years/close", requirePositionAction("companySettings", "approve"), requireRole("admin", "finance_manager"), validateBody(closeFiscalYearSchema), closeFiscalYear);
+companyRoutes.post("/:id/fiscal-years/reopen-last", requirePositionAction("companySettings", "approve"), requireRole("admin"), reopenLastFiscalYear);
 companyRoutes.post(
   "/:id/fiscal-closing/reopen", requirePositionAction("companySettings", "approve"),
   requireRole("admin"),

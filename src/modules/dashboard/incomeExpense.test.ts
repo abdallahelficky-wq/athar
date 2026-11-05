@@ -11,5 +11,5 @@ it('nets reversals, fills empty months, and scopes counted activity to the tenan
  const rows=await getIncomeExpenseTrend('t','c');
  expect(rows).toHaveLength(12);expect(rows[0]).toEqual({month:'2025-10',revenue:0,expense:0});
  expect(rows[11]).toEqual({month:'2026-09',revenue:850,expense:350});
- expect(prisma.journalEntryLine.findMany).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({account:{tenantId:'t',companyId:'c',type:{in:['revenue','expense']}},journalEntry:expect.objectContaining({tenantId:'t',companyId:'c',AND:[COUNTED_ENTRY_WHERE],date:{gte:new Date('2025-10-01'),lte:new Date('2026-09-29T10:00:00Z')}})})}));
+ expect(prisma.journalEntryLine.findMany).toHaveBeenCalledWith(expect.objectContaining({where:expect.objectContaining({account:{tenantId:'t',companyId:'c',type:{in:['revenue','expense']}},journalEntry:expect.objectContaining({tenantId:'t',companyId:'c',AND:[COUNTED_ENTRY_WHERE,{sourceModule:{not:'fiscal_year_closing'}}],date:{gte:new Date('2025-10-01'),lte:new Date('2026-09-29T10:00:00Z')}})})}));
 });

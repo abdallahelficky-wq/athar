@@ -13,6 +13,12 @@ export const setPayrollTotalsFromMonth = (id, month) => api.patch(`/companies/${
 export const reopenFiscalClosing = (id, fiscalYearClosingDate) =>
   api.post(`/companies/${id}/fiscal-closing/reopen`, { fiscalYearClosingDate });
 
+// السنة المالية: الإعداد والإقفال وإعادة فتح آخر سنة مقفلة — راجع src/modules/fiscalYears على الخادم
+export const getFiscalYears = (id) => api.get(`/companies/${id}/fiscal-years`);
+export const updateFiscalYearSettings = (id, payload) => api.patch(`/companies/${id}/fiscal-years/settings`, payload);
+export const closeFiscalYear = (id, payload) => api.post(`/companies/${id}/fiscal-years/close`, payload);
+export const reopenLastFiscalYear = (id) => api.post(`/companies/${id}/fiscal-years/reopen-last`, {});
+
 export const uploadCompanyLogo = (id, file) => {
   const form = new FormData();
   form.append("file", file);
@@ -28,6 +34,8 @@ export const extractCompanyDocument = (id, docType, file) => {
 
 // ربط فاتورة (ZATCA) — انظر src/modules/companiesZatca على الخادم
 export const getCompanyZatcaStatus = (id) => api.get(`/companies/${id}/zatca`);
+// الربط بخطوة واحدة — انظر src/modules/companiesZatca/zatcaOneStepOnboarding.ts على الخادم
+export const onboardCompanyZatca = (id, payload) => api.post(`/companies/${id}/zatca/onboard`, payload);
 export const generateCompanyZatcaCsr = (id, payload) => api.post(`/companies/${id}/zatca/csr`, payload);
 export const requestCompanyZatcaCompliance = (id, otp) => api.post(`/companies/${id}/zatca/compliance`, { otp });
 export const requestCompanyZatcaProduction = (id) => api.post(`/companies/${id}/zatca/production`, {});

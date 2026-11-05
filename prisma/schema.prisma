@@ -46,6 +46,7 @@ enum SubscriptionStatus {
 
 model Tenant {
   annualLeaveDrafts AnnualLeaveDraft[]
+  fiscalYearClosings FiscalYearClosing[]
   id                 String             @id @default(cuid())
   name               String
   subscriptionPlan   SubscriptionPlan   @default(basic)
@@ -71,6 +72,12 @@ model Tenant {
   // كلها، يبدأ من 1000001 ويُخصَّص من تسلسل Postgres (nextval ذرّي: لا تصادم بين تسجيلين متزامنين).
   // حقل إضافي بجوار id لا بديل عنه: كل علاقة وكل JWT يبقى على id. مُعرِّف ظاهر للموظفين، ليس سراً.
   code               Int                @unique @default(autoincrement())
+  // جوال صاحب الاشتراك بصيغة دولية موحّدة (9665XXXXXXXX، راجع normalizeSaudiMobile في src/lib/phone.ts)
+  // — يُكتَب عند التسجيل، وتُرسَل إليه رسالة الترحيب عبر واتساب. لا يُعاد ضمن بيانات المستأجر العامة.
+  ownerMobile        String?
+  // لحظة موافقة صاحب الاشتراك على استلام رسائل أثر على واتساب (شرط Meta للرسائل التي يبادر بها النظام).
+  // null = لم يوافق، فلا تُرسَل له أي رسالة آلية.
+  whatsappOptInAt    DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -93,6 +100,7 @@ model Tenant {
   quotations       Quotation[]
   salesInvoices    SalesInvoice[]
   invoiceEmailLogs InvoiceEmailLog[]
+  whatsappMessageLogs WhatsAppMessageLog[]
   reportSchedules  ReportSchedule[]
   salesReturns     SalesReturn[]
   salesDebitNotes  SalesDebitNote[]
@@ -287,6 +295,7 @@ model JobTitle {
   tenantId  String
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name      String
+  nameEn    String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   position  Position?
@@ -466,6 +475,11 @@ model Company {
   // أو مسحه) محصور بصلاحية admin فقط عبر مسار مخصّص مُسجَّل بالكامل في AuditLog — راجع
   // companies.controller.ts::reopenFiscalClosing.
   fiscalYearClosingDate        DateTime?
+  // شهر بداية السنة المالية (1 = يناير). تنتهي السنة في آخر يوم من الشهر السابق له — راجع src/lib/fiscalYear.ts.
+  fiscalYearStartMonth         Int                   @default(1)
+  // حساب حقوق ملكية تُقفَل فيه الإيرادات والمصروفات عند إقفال السنة (يُقترَح «صافي ربح / خسارة العام الحالي»).
+  fiscalCloseAccountId         String?
+  fiscalCloseAccount           Account?              @relation("FiscalCloseAccount", fields: [fiscalCloseAccountId], references: [id], onDelete: SetNull)
   // إعدادات تنبيهات الداشبورد المالية — قابلة للتعديل لكل شركة من الإعدادات
   vatFilingFrequency           VatFilingFrequency    @default(quarterly)
   zakatDeclarationDueDate      DateTime?
@@ -622,6 +636,7 @@ model Company {
   zatcaComplianceStepAttempts ZatcaComplianceStepAttempt[]
   subscription                CompanySubscription?
   posUsers                    CompanyPosUser[]
+  fiscalYearClosings          FiscalYearClosing[]
 
   @@unique([tenantId, name])
   @@map("companies")
@@ -732,6 +747,7 @@ model CostCenter {
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
+  nameEn    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -764,6 +780,11 @@ model Department {
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
+  // الاسم الإنجليزي — يظهر حين تكون الواجهة إنجليزية، والارتداد للعربي إن كان فارغاً
+  nameEn    String?
+  // حساب مصروف الرواتب لموظفي هذا القسم (قسم تحميل الراتب): يحلّ محل حساب بند «الراتب الأساسي» في قيد الرواتب
+  salaryExpenseAccountId String?
+  salaryExpenseAccount   Account? @relation("DepartmentSalaryExpenseAccount", fields: [salaryExpenseAccountId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -852,6 +873,7 @@ enum TaxCategoryCode {
 
 // شجرة الحسابات
 model Account {
+  salaryDepartments Department[] @relation("DepartmentSalaryExpenseAccount")
   id                       String      @id @default(cuid())
   tenantId                 String
   tenant                   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -922,6 +944,8 @@ model Account {
   stationCashSurplusCompanies  Company[]             @relation("StationCashSurplusAccount")
   tankVarianceCompanies        Company[]             @relation("TankVarianceAccount")
   cardFeeExpenseCompanies      Company[]             @relation("CardFeeExpenseAccount")
+  fiscalCloseCompanies         Company[]             @relation("FiscalCloseAccount")
+  fiscalYearClosings           FiscalYearClosing[]
   cardSettlementsAsBank        CardSettlement[]      @relation("CardSettlementBankAccount")
   horseCareServiceRevenueLinks HorseCareService[]
 
@@ -1005,6 +1029,7 @@ enum SourceModule {
   station_shift
   station_tank_variance
   card_settlement
+  fiscal_year_closing
 }
 
 // فرع تابع لشركة واحدة — طبقة تصنيف وعرض إضافية فقط (بنفس مبدأ CostCenter/Department)، بدولة
@@ -1352,6 +1377,26 @@ model SalesInvoice {
 
 // سجل كل محاولة إرسال فاتورة بالإيميل (تلقائية عند الترحيل، أو يدوية من زر "إرسال بالإيميل")
 // — يُبنى منه عرض "آخر إرسال: [تاريخ ووقت]" في شاشة الفاتورة، ويحتفظ بسبب الفشل إن وُجد.
+/// سجل رسائل واتساب الآلية (رسالة الترحيب حالياً) — محاولة واحدة لكل (مستأجر، نوع) بفضل القيد الفريد،
+/// فلا تُرسَل رسالة الترحيب مرتين أبداً حتى مع إعادة المحاولة أو تزامن طلبين. phone مُخزَّن كاملاً
+/// (لازم لإعادة الإرسال يدوياً) لكنه لا يُطبَع في سجلّات الخادم إلا مُخفى (maskPhone).
+model WhatsAppMessageLog {
+  id                String   @id @default(cuid())
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kind              String // "welcome"
+  phone             String
+  template          String
+  status            String // "pending" | "sent" | "failed" | "skipped" | ثم من webhook: "delivered" | "read"
+  providerMessageId String?  @unique
+  error             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([tenantId, kind])
+  @@map("whatsapp_message_logs")
+}
+
 model InvoiceEmailLog {
   id        String       @id @default(cuid())
   tenantId  String
@@ -4019,4 +4064,32 @@ model AnnualLeaveDraft {
  createdAt DateTime @default(now())
  @@index([tenantId, companyId])
  @@map("annual_leave_drafts")
+}
+
+/// سجل إقفال سنة مالية لشركة: قيد الإقفال (sourceModule = fiscal_year_closing) ينقل صافي الإيرادات والمصروفات
+/// إلى حساب الإقفال بتاريخ نهاية السنة، ويُقدَّم تاريخ قفل الفترات إلى نهاية السنة. الإقفال تسلسلي (سنة بعد سنة)،
+/// ولا يُعاد فتح إلا آخر سنة مقفلة — راجع src/modules/fiscalYears/fiscalYears.service.ts.
+model FiscalYearClosing {
+  id                    String    @id @default(cuid())
+  tenantId              String
+  tenant                Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId             String
+  company               Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  yearStart             DateTime
+  yearEnd               DateTime
+  // null عندما لا توجد أرصدة إيرادات أو مصروفات في السنة (إقفال بلا قيد)
+  journalEntryId        String?   @unique
+  closeAccountId        String
+  closeAccount          Account   @relation(fields: [closeAccountId], references: [id], onDelete: Restrict)
+  totalRevenue          Decimal   @db.Decimal(18, 2)
+  totalExpense          Decimal   @db.Decimal(18, 2)
+  netIncome             Decimal   @db.Decimal(18, 2)
+  // تاريخ قفل الفترات قبل الإقفال — يُستعاد عند إعادة فتح هذه السنة
+  previousClosingDate   DateTime?
+  closedBy              String?
+  createdAt             DateTime  @default(now())
+
+  @@unique([companyId, yearEnd])
+  @@index([tenantId, companyId])
+  @@map("fiscal_year_closings")
 }

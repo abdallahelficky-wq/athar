@@ -6,11 +6,11 @@ export const listJobTitlesHandler: RequestHandler = async (req, res) => {
 };
 
 export const createJobTitleHandler: RequestHandler = async (req, res) => {
-  res.status(201).json(await service.createJobTitle(req.auth!.tenantId, req.body.name));
+  res.status(201).json(await service.createJobTitle(req.auth!.tenantId, req.body.name, req.body.nameEn));
 };
 
 export const renameJobTitleHandler: RequestHandler = async (req, res) => {
-  res.json(await service.renameJobTitle(req.auth!.tenantId, req.params.id, req.body.name));
+  res.json(await service.renameJobTitle(req.auth!.tenantId, req.params.id, req.body.name, req.body.nameEn));
 };
 
 export const deleteJobTitleHandler: RequestHandler = async (req, res) => {

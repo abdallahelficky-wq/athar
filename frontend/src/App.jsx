@@ -248,6 +248,8 @@ function AppShell() {
           <UserMenu
             name={user?.name}
             email={user?.email}
+            companyName={activeCompany?.name || tenant?.name}
+            tenantCode={tenant?.code}
             onOpenProfile={() => navigate(routes.settings("profile"))}
             onLogout={async () => { await logout(); navigate("/login"); }}
           />

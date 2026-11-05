@@ -184,4 +184,12 @@ export const DYNAMIC_MESSAGE_PATTERNS: MessagePattern[] = [
   { match: /^متوسط تكلفة صنف «(.+?)» صفر — أدخل فاتورة شراء له قبل ترحيل الوردية حتى تُحسَب تكلفة المبيعات$/, translate: (g) => `The average cost of "${translateLabels(g[0], FUEL_PRODUCT_LABELS)}" is zero — enter a purchase invoice for it before posting the shift so the cost of sales can be calculated` },
   { match: /^الكمية المباعة من «(.+?)» في هذه الوردية أكبر من رصيد مستودع المحطة، والرصيد السالب للوقود غير مسموح في إعدادات الشركة$/, translate: (g) => `The quantity of "${translateLabels(g[0], FUEL_PRODUCT_LABELS)}" sold in this shift exceeds the station warehouse balance, and negative fuel stock is not allowed in the company settings` },
   { match: /^لا يمكن تثبيت الشجرة القياسية: شركة "(.+)" تحتوي على قيود أو مستندات مالية\. تثبيت الشجرة متاح لشركة فارغة فقط، ولا يحذف أي دفاتر\.$/, translate: (g) => `The standard chart can't be installed: company "${g[0]}" holds journal entries or financial documents. Installing the chart is only available for an empty company, and it never deletes any books.` },
+  {
+    match: /^لا يمكن ترحيل «(.+?)»: خصم السلفة يُرحَّل على حساب ذمة الموظف الفرعي، وحسابات ذمم الموظفين غير مهيأة بعد في إعدادات الرواتب$/,
+    translate: (g) => `Can't post "${g[0]}": the advance deduction is posted to the employee's own receivable account, and employee receivable accounts aren't set up yet in payroll settings`,
+  },
+  {
+    match: /^الموظف «(.*?)» عليه قسط سلفة من شاشة السلف وخصم سلفة مُدخَل يدوياً في الكشف معاً — احذف أحدهما حتى لا تُخصَم السلفة مرتين$/,
+    translate: (g) => `Employee "${g[0]}" has both an installment from the advances screen and a manual advance deduction on the payroll sheet — remove one so the advance isn't deducted twice`,
+  },
 ];

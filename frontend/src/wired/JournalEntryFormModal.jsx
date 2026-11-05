@@ -11,6 +11,7 @@ import FixedAssetLineModal from "./shared/FixedAssetLineModal";
 import EmployeeAdvanceLineModal from "./shared/EmployeeAdvanceLineModal";
 import { currencyLabel } from "../shared/countries";
 import { useUnsavedChangesGuard } from "./shared/UnsavedChangesContext";
+import { getOrgDisplayName } from "./shared/accountDisplayName";
 
 const emptyLine = () => ({
   accountId: "", costCenterId: "", departmentId: "", branchId: "", description: "", debit: "", credit: "",
@@ -327,13 +328,13 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
                     <td>
                       <select value={l.costCenterId} onChange={(e) => updateLine(idx, "costCenterId", e.target.value)}>
                         <option value="">{t("common.clearOption")}</option>
-                        {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{getOrgDisplayName(c, i18n.language)}</option>)}
                       </select>
                     </td>
                     <td>
                       <select value={l.departmentId} onChange={(e) => updateLine(idx, "departmentId", e.target.value)}>
                         <option value="">{t("common.clearOption")}</option>
-                        {departmentOptions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        {departmentOptions.map((d) => <option key={d.id} value={d.id}>{getOrgDisplayName(d, i18n.language)}</option>)}
                       </select>
                     </td>
                     {companyBranches.length > 0 && (

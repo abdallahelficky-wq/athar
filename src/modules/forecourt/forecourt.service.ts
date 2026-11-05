@@ -33,7 +33,7 @@ export function controllerHealth(c: { isActive: boolean; lastSeenAt: Date | null
 export async function listControllers(tenantId: string, companyId: string) {
   const rows = await prisma.forecourtController.findMany({
     where: { tenantId, companyId },
-    include: { costCenter: { select: { id: true, name: true } }, nozzleMaps: true },
+    include: { costCenter: { select: { id: true, name: true, nameEn: true } }, nozzleMaps: true },
     orderBy: { createdAt: "asc" },
   });
   const now = new Date();

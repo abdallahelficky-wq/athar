@@ -5,6 +5,7 @@ import { listStations } from "../../api/stationSetup";
 import { formatDateTime } from "../../i18n/dateFormat";
 import { fmt2 } from "../../legacy/constants";
 import FormDialog from "../shared/FormDialog";
+import { getOrgDisplayName } from "../shared/accountDisplayName";
 
 /**
  * متحكمات المحطات (PTS-2): تسجيل متحكم لكل محطة بمعرّف لوحته، حالته (متصل/صامت)، وربط أرقام المضخات والفوهات فيه بفوهات
@@ -109,7 +110,7 @@ export default function StationControllersTab({ companyId }) {
           <tbody>
             {controllers.map((c) => (
               <tr key={c.id}>
-                <td>{c.costCenter?.name}</td><td style={{ fontFamily: "monospace" }}>{c.deviceSerial}</td><td>{c.name || "—"}</td>
+                <td>{getOrgDisplayName(c.costCenter, i18n.language)}</td><td style={{ fontFamily: "monospace" }}>{c.deviceSerial}</td><td>{c.name || "—"}</td>
                 <td>
                   <strong style={{ color: HEALTH_COLOR[c.health] }}>{t(`stationControllers.healths.${c.health}`, { minutes: c.silentAfterMinutes })}</strong>
                   <div className="note" style={{ color: c.online ? "#2F5D5A" : undefined }}>{c.online ? `● ${t("stationControllers.wsOnline")}` : t("stationControllers.wsOffline")}</div>
@@ -134,7 +135,7 @@ export default function StationControllersTab({ companyId }) {
         const nozzles = (station?.pumps || []).flatMap((p) => p.nozzles.map((n) => ({ ...n, pumpNumber: p.pumpNumber })));
         return (
           <div className="panel" key={`map-${c.id}`}>
-            <h3 style={{ marginTop: 0 }}>{t("stationControllers.mapTitle", { station: c.costCenter?.name })}</h3>
+            <h3 style={{ marginTop: 0 }}>{t("stationControllers.mapTitle", { station: getOrgDisplayName(c.costCenter, i18n.language) })}</h3>
             <p className="note">{t("stationControllers.mapNote")}</p>
             <table className="ledger-table">
               <thead><tr><th>{t("stationSetup.pump")}</th><th>{t("stationSetup.nozzle")}</th><th>{t("stationTanks.product")}</th><th>{t("stationControllers.ptsPump")}</th><th>{t("stationControllers.ptsNozzle")}</th><th></th></tr></thead>
@@ -202,7 +203,7 @@ export default function StationControllersTab({ companyId }) {
             {commands.slice(0, 50).map((x) => (
               <tr key={x.id}>
                 <td>{formatDateTime(x.createdAt, i18n.language)}</td>
-                <td>{controllers.find((c) => c.id === x.controllerId)?.costCenter?.name || "—"}</td>
+                <td>{getOrgDisplayName(controllers.find((c) => c.id === x.controllerId)?.costCenter, i18n.language) || "—"}</td>
                 <td>{t(`stationControllers.commandTypes.${x.type}`)}</td>
                 <td className="num">{x.ptsPump === 0 ? t("stationControllers.allPumps") : x.ptsPump}</td><td className="num">{x.ptsNozzle ?? "—"}</td>
                 <td>{limitText(x)}</td>
@@ -214,7 +215,7 @@ export default function StationControllersTab({ companyId }) {
         </table>
       </div>
 
-      <FormDialog open={!!pumpDialog} title={t("stationControllers.controlTitle", { station: pumpDialog?.controller?.costCenter?.name || "" })} onClose={() => setPumpDialog(null)} style={{ maxWidth: 560 }}>
+      <FormDialog open={!!pumpDialog} title={t("stationControllers.controlTitle", { station: getOrgDisplayName(pumpDialog?.controller?.costCenter, i18n.language) || "" })} onClose={() => setPumpDialog(null)} style={{ maxWidth: 560 }}>
         {pumpDialog && (() => {
           const d = pumpDialog;
           const live = controllers.find((c) => c.id === d.controller.id) || d.controller;
@@ -244,7 +245,7 @@ export default function StationControllersTab({ companyId }) {
         })()}
       </FormDialog>
 
-      <FormDialog open={!!secretView} title={t("stationControllers.secretTitle", { station: secretView?.controller?.costCenter?.name || "" })} onClose={() => setSecretView(null)} style={{ maxWidth: 640 }}>
+      <FormDialog open={!!secretView} title={t("stationControllers.secretTitle", { station: getOrgDisplayName(secretView?.controller?.costCenter, i18n.language) || "" })} onClose={() => setSecretView(null)} style={{ maxWidth: 640 }}>
         {secretView && (() => {
           const st = secretView.settings || settings || {};
           const rows = [

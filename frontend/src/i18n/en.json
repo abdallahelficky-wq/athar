@@ -186,6 +186,25 @@
       "disclaimer": "Pilot build — photo capture was tested on an Android emulator, not yet on a real worker's phone."
     }
   },
+  "whatsapp": {
+    "label": "WhatsApp",
+    "facebook": "Facebook",
+    "linkedin": "LinkedIn",
+    "x": "X",
+    "floatingLabel": "Chat with us on WhatsApp",
+    "contactTitle": "Contact us",
+    "contactText": "For any question about Athar, help with subscribing, or technical support, message us directly on WhatsApp.",
+    "contactCta": "Message us on WhatsApp",
+    "salesCta": "Talk to sales on WhatsApp",
+    "supportMenu": "Technical support on WhatsApp",
+    "msgGeneral": "Hello, I'd like to ask about Athar Accounting",
+    "msgSales": "Hello, I'd like details about Athar's plans and subscribing",
+    "msgSupport": "Hello, I need technical support with Athar",
+    "msgSupportCompany": "Company: {{company}}",
+    "msgSupportCode": "Account code: {{code}}",
+    "msgRegisterHelp": "Hello, I need help signing up for Athar",
+    "registerHelp": "Need help signing up? Message us on WhatsApp"
+  },
   "landing": {
     "nav": { "login": "Log in", "startTrial": "Start your free trial", "dataProtection": "Data protection" },
     "eyebrow": "Cloud accounting for Arab businesses",
@@ -265,6 +284,10 @@
       "email": "Email address",
       "password": "Password",
       "confirmPassword": "Confirm password",
+      "mobile": "Mobile number (WhatsApp)",
+      "mobilePlaceholder": "05XXXXXXXX",
+      "whatsappOptIn": "I agree to receive Athar messages (welcome and subscription notices) on WhatsApp",
+      "errMobile": "Invalid mobile number for the selected country, e.g. {{example}}",
       "submit": "Create account and start trial",
       "submitting": "Creating...",
       "haveAccount": "Already have an account? Log in",
@@ -331,7 +354,7 @@
       "register": "Asset Register", "depreciation": "Monthly Depreciation",
       "disposal": "Disposal / Sale", "fixedAssetsReports": "Reports", "categories": "Fixed Asset Settings",
       "journal": "Journal Entries", "chartOfAccounts": "Chart of Accounts", "ledger": "Account Ledger",
-      "departments": "Departments", "zakat": "Zakat & Tax (estimated, sample data)",
+      "departments": "Departments", "costCenters": "Cost centers", "zakat": "Zakat & Tax (estimated, sample data)",
       "hrDashboard": "Dashboard", "directory": "Employee Directory", "leaves": "Leave Requests",
       "leaveSettlement": "Leave Settlements", "leaveReturn": "Return from Leave", "hrActions": "Employee Actions",
       "payroll": "Payroll", "payrollSettings": "Payroll Settings", "employeeAdvances": "Employee Advances", "eos": "End of Service",
@@ -1446,7 +1469,20 @@
     "saveChanges": "Save changes",
     "addDepartment": "Add department",
     "confirmDelete": "Delete department \"{{name}}\"?",
-    "empty": "No departments yet."
+    "empty": "No departments yet.",
+    "nameEn": "English name",
+    "salaryExpenseAccount": "Salary expense account",
+    "salaryExpenseAccountHint": "This department's employees have their basic salary posted to this account in the payroll entry. Empty = the basic salary component's account.",
+    "salaryExpenseAccountNone": "— Basic salary component account —"
+  },
+  "costCenters": {
+    "name": "Cost center name",
+    "nameEn": "English name",
+    "saveChanges": "Save changes",
+    "addCostCenter": "Add cost center",
+    "confirmDelete": "Delete cost center \"{{name}}\"?",
+    "empty": "No cost centers yet.",
+    "note": "Cost centers tag journal entry lines and payroll expense lines, and appear as a filter in the account ledger."
   },
   "zakat": {
     "eyebrow": "Tax compliance",
@@ -1979,9 +2015,9 @@
       "stationGasoline95ItemLabel": "Gasoline 95 inventory item",
       "stationFuelItemNone": "— Not linked —",
       "allowNegativeFuelStockLabel": "Allow the station warehouse fuel balance to go negative when posting a shift",
-      "fiscalClosingTitle": "Fiscal year closing",
+      "fiscalClosingTitle": "Period lock (manual)",
       "fiscalClosingNote": "Once set, no journal entry (including invoices, payroll, and anything that posts a financial transaction) can be created, edited, deleted, or unposted with a date on or before this date. You can move it forward at any time from here; moving it back or clearing it requires admin permission via \"Reopen closing\" below.",
-      "fiscalClosingDateLabel": "Fiscal year closing date (optional)",
+      "fiscalClosingDateLabel": "Period lock date (optional)",
       "fiscalClosingNoneOption": "No closing set",
       "reopenTitle": "Reopen closing (admin only)",
       "reopenNote": "Every use of this action is logged in the audit trail (who reopened it, when, and the old/new date).",
@@ -1993,6 +2029,42 @@
     },
     "zatca": {
       "modalTitle": "ZATCA linkage — {{name}}",
+      "oneStep": {
+        "intro": "Link the company with ZATCA in one step — enter the OTP from the Fatoora portal and the system handles the rest automatically.",
+        "howTo1": "Sign in to the Fatoora portal with the establishment's account:",
+        "howTo2": "From the option to onboard a new solution unit/device, generate an OTP (valid for a limited time only).",
+        "howTo3": "Copy the 6-digit code, paste it here, then click \"Link\".",
+        "otpPlaceholder": "OTP",
+        "connectBtn": "Link with ZATCA",
+        "resumeBtn": "Complete linking",
+        "resumeNote": "Linking started earlier but isn't finished — click \"Complete linking\" to continue where it stopped, no new OTP needed.",
+        "connecting": "Linking…",
+        "busyNote": "Linking with ZATCA… this can take up to two minutes, don't close the window.",
+        "linkedTitle": "Linked with ZATCA",
+        "linkedNote": "Linking is active — invoices are sent to ZATCA automatically when posted.",
+        "envLabel": "Linking environment:",
+        "errOtpFormat": "Enter the 6-digit OTP",
+        "showTechnical": "Show technical details",
+        "hideTechnical": "Hide technical details",
+        "showAdvanced": "Advanced options",
+        "hideAdvanced": "Hide advanced options",
+        "stages": {
+          "validate": "Checking company data",
+          "certificate": "Issuing the certificate",
+          "complianceChecks": "Compliance checks",
+          "activation": "Activating the link"
+        },
+        "fields": {
+          "vatNumber": "VAT number (15 digits, starts and ends with 3)",
+          "crNumber": "Commercial registration number",
+          "name": "Company name",
+          "addressStreet": "Street",
+          "addressBuilding": "Building number (4 digits)",
+          "addressDistrict": "District",
+          "addressCity": "City",
+          "addressPostalCode": "Postal code (5 digits)"
+        }
+      },
       "unarchivedOk": "ZATCA archive: every document accepted since {{since}} has its original stored (0 missing).", "unarchivedBad": "⚠ ZATCA archive: {{count}} documents accepted since archiving began have no stored original — archive writes are failing. Latest: {{numbers}}", "statusNotOnboarded": "Not enabled",
       "statusCompliance": "Test environment (Compliance)",
       "statusProduction": "Production (enabled)",
@@ -2171,6 +2243,8 @@
       "saveBtn": "Save profile"
     },
     "jobTitles": {
+      "nameEnLabel": "English name",
+      "nameEnPlaceholder": "e.g. Sales Supervisor",
       "newTitleLabel": "New job title",
       "placeholder": "e.g. Sales supervisor",
       "empty": "No job titles registered yet.",

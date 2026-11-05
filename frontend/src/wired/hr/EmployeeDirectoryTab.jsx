@@ -14,6 +14,7 @@ import { listDepartments } from "../../api/departments";
 import { listJobTitles } from "../../api/jobTitles";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import EmployeePortalAccessPanel from "./EmployeePortalAccessPanel";
+import { getOrgDisplayName } from "../shared/accountDisplayName";
 
 const emptyForm = () => ({
   name: "", employeeNumber: "", idNumber: "", gender: "", maritalStatus: "",
@@ -281,13 +282,13 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
           <label title={t("hr.directory.allocationHint")}>{t("hr.directory.costDepartment")}
             <select data-testid="employee-cost-department" value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })}>
               <option value="">{t("hr.directory.allocationNone")}</option>
-              {allocationOptions.departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              {allocationOptions.departments.map((d) => <option key={d.id} value={d.id}>{getOrgDisplayName(d, i18n.language)}</option>)}
             </select>
           </label>
           <label title={t("hr.directory.allocationHint")}>{t("hr.directory.costCenter")}
             <select data-testid="employee-cost-center" value={form.costCenterId} onChange={(e) => setForm({ ...form, costCenterId: e.target.value })}>
               <option value="">{t("hr.directory.allocationNone")}</option>
-              {allocationOptions.costCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {allocationOptions.costCenters.map((c) => <option key={c.id} value={c.id}>{getOrgDisplayName(c, i18n.language)}</option>)}
             </select>
           </label>
           <label>{t("hr.directory.workLocation")}<input type="text" value={form.workLocation} onChange={(e) => setForm({ ...form, workLocation: e.target.value })} /></label>

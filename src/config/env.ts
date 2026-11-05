@@ -60,6 +60,19 @@ export const env = {
   // بدونه، مسارات /api/platform-admin/* ترفض كل الطلبات (fail closed، لا fallback مطلقاً).
   platformAdminApiKey: process.env.PLATFORM_ADMIN_API_KEY,
 
+  // واتساب (Meta WhatsApp Cloud API) — رسالة الترحيب الآلية للمشترك الجديد. مطفأة افتراضياً: لا يُرسَل
+  // شيء إلا مع WHATSAPP_ENABLED=true ورقم الهاتف والرمز معاً (راجع src/lib/whatsapp.ts). غيابها لا يؤثر
+  // على التسجيل إطلاقاً. supportWhatsappNumber هو رقم أثر الظاهر للمشتركين (يُذكر في إيميل الترحيب).
+  whatsappEnabled: process.env.WHATSAPP_ENABLED === "true",
+  whatsappPhoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+  whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+  whatsappApiVersion: process.env.WHATSAPP_API_VERSION ?? "v23.0",
+  whatsappWelcomeTemplate: process.env.WHATSAPP_WELCOME_TEMPLATE ?? "athar_welcome",
+  whatsappTemplateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "ar",
+  whatsappWebhookVerifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+  whatsappAppSecret: process.env.WHATSAPP_APP_SECRET,
+  supportWhatsappNumber: (process.env.SUPPORT_WHATSAPP_NUMBER ?? "966573076236").replace(/\D/g, ""),
+
   resendApiKey: process.env.RESEND_API_KEY,
   emailFromAddress: process.env.EMAIL_FROM_ADDRESS ?? "أثر المحاسبي <onboarding@resend.dev>",
   // أساس الروابط الموجودة داخل الإيميلات (رابط إعادة تعيين كلمة المرور، رابط قبول الدعوة)؛

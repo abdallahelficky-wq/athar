@@ -347,6 +347,7 @@ async function resolveJournalContext(
   components: RunComponent[],
   violationAccountByEmployee: Map<string, string>,
   mode: "totals" | "perEmployee",
+  advanceAccountByEmployee: Map<string, string> = new Map(),
 ) {
   const netPayable = await prisma.account.findFirst({
     where: { tenantId, companyId, name: NET_PAYABLE_ACCOUNT_NAME, isPosting: true, isActive: true, isArchived: false },
@@ -356,14 +357,16 @@ async function resolveJournalContext(
 
   const employees = await prisma.employee.findMany({
     where: { id: { in: employeeIds }, tenantId, companyId },
-    select: { id: true, accountId: true, departmentId: true, costCenterId: true, departmentRef: { select: { name: true } } },
+    select: { id: true, accountId: true, departmentId: true, costCenterId: true, departmentRef: { select: { name: true, salaryExpenseAccountId: true } } },
   });
   const allocation = new Map<string, EmployeeAllocation>(employees.map((e) => [e.id, {
     departmentId: e.departmentId, departmentName: e.departmentRef?.name ?? null, costCenterId: e.costCenterId,
+    salaryExpenseAccountId: e.departmentRef?.salaryExpenseAccountId ?? null,
     netAccountId: mode === "perEmployee" ? e.accountId ?? netPayable.id : undefined,
   }]));
 
-  const accountIds = [...new Set([...components.flatMap((c) => [c.accountId, c.contraAccountId]), ...violationAccountByEmployee.values()].filter(Boolean))] as string[];
+  const deptSalaryAccountIds = employees.map((e) => e.departmentRef?.salaryExpenseAccountId).filter(Boolean) as string[];
+  const accountIds = [...new Set([...components.flatMap((c) => [c.accountId, c.contraAccountId]), ...violationAccountByEmployee.values(), ...advanceAccountByEmployee.values(), ...deptSalaryAccountIds].filter(Boolean))] as string[];
   const accounts = await prisma.account.findMany({ where: { id: { in: accountIds }, tenantId, companyId }, select: { id: true, type: true } });
   const accountTypeById = new Map(accounts.map((a) => [a.id, a.type as string]));
 
@@ -377,6 +380,11 @@ async function resolveJournalContext(
     resolveViolationAccount: (employeeId: string) => {
       const accountId = violationAccountByEmployee.get(employeeId);
       if (!accountId) throw badRequest("حساب ذمة الموظف لخصم المخالفات غير مهيأ");
+      return accountId;
+    },
+    resolveAdvanceAccount: (employeeId: string) => {
+      const accountId = advanceAccountByEmployee.get(employeeId);
+      if (!accountId) throw badRequest("حساب ذمة الموظف لخصم السلفة غير مهيأ");
       return accountId;
     },
   };
@@ -393,16 +401,21 @@ export async function postPayrollRun(tenantId: string, userId: string, id: strin
   const violationComponentIds = new Set(components.filter((c) => c.systemKey === "violation").map((c) => c.id));
   const violators = rows.filter((r) => Object.entries(r.componentValues).some(([id, v]) => v && violationComponentIds.has(id))).map((r) => r.employeeId);
   const violationAccountByEmployee = new Map<string, string>();
-  if (violators.length) {
+  // خصم السلفة المُدخَل في الكشف (بند advance) على حساب ذمة الموظف نفسه — لا الحساب المشترك (حادثة J02106)
+  const advanceComponentIdsForPosting = new Set(components.filter((c) => c.systemKey === "advance").map((c) => c.id));
+  const advanceTakers = rows.filter((r) => Object.entries(r.componentValues).some(([id, v]) => v && advanceComponentIdsForPosting.has(id))).map((r) => r.employeeId);
+  const advanceAccountByEmployee = new Map<string, string>();
+  if (violators.length || advanceTakers.length) {
     await prisma.$transaction(async (tx) => {
       for (const employeeId of violators) violationAccountByEmployee.set(employeeId, await ensureEmployeeReceivableAccount(tx, tenantId, employeeId));
+      for (const employeeId of advanceTakers) advanceAccountByEmployee.set(employeeId, await ensureEmployeeReceivableAccount(tx, tenantId, employeeId));
     });
   }
 
   const company = await prisma.company.findUniqueOrThrow({ where: { id: run.companyId }, select: { payrollTotalsFromMonth: true } });
   const postTotals = company.payrollTotalsFromMonth != null && run.month >= company.payrollTotalsFromMonth;
   const { lines: journalLines, advanceDeductions } = buildPayrollJournal(
-    await resolveJournalContext(tenantId, run.companyId, run.employeeIds, rows, components, violationAccountByEmployee, postTotals ? "totals" : "perEmployee"),
+    await resolveJournalContext(tenantId, run.companyId, run.employeeIds, rows, components, violationAccountByEmployee, postTotals ? "totals" : "perEmployee", advanceAccountByEmployee),
   );
 
   const [y, m] = run.month.split("-").map(Number);

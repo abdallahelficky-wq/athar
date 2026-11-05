@@ -52,11 +52,17 @@ export const trialBalanceTreeHandler: RequestHandler = async (req, res) => {
 };
 
 export const incomeStatementHandler: RequestHandler = async (req, res) => {
+  // A calendar date selected in the report includes that entire final day.
+  // Preserve explicit timestamps used by existing API clients.
+  const dateTo = parseDate(req.query.to);
+  if (dateTo && typeof req.query.to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.to)) {
+    dateTo.setUTCHours(23, 59, 59, 999);
+  }
   const result = await service.getIncomeStatement(
     req.auth!.tenantId,
     parseCompanyId(req.query.companyId),
     parseDate(req.query.from),
-    parseDate(req.query.to),
+    dateTo,
     rollupParams(req.query),
     parseBranchId(req.query.branchId),
     canReadHrData(req.auth!),

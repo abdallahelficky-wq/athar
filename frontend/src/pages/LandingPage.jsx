@@ -3,6 +3,10 @@ import React, { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { fmt } from "../legacy/constants";
 import LanguageSwitcher from "../wired/shared/LanguageSwitcher";
+import "../styles/whatsapp.css";
+import WhatsAppFloatingButton, { WhatsAppLink } from "../wired/shared/WhatsAppButton";
+import { SUPPORT_WHATSAPP_DISPLAY, buildWhatsAppLink } from "../lib/whatsapp";
+import { FACEBOOK_URL, LINKEDIN_URL, X_URL } from "../lib/social";
 
 import { SUBSCRIPTION_PLANS, monthlyPriceFromYearly } from "../lib/subscriptionPlans";
 
@@ -128,15 +132,35 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload, onG
             </div>
           ))}
         </div>
+        <div className="pricing-sales-cta">
+          <WhatsAppLink message={t("whatsapp.msgSales")} className="btn-ghost">{t("whatsapp.salesCta")}</WhatsAppLink>
+        </div>
+      </section>
+
+      <section className="landing-section landing-contact" id="contact" aria-labelledby="contact-title">
+        <div className="section-title landing-section-title">
+          <span className="eyebrow">{t("whatsapp.label")}</span>
+          <h2 id="contact-title">{t("whatsapp.contactTitle")}</h2>
+        </div>
+        <p className="landing-contact-text">{t("whatsapp.contactText")}</p>
+        <div className="landing-contact-number whatsapp-number">{SUPPORT_WHATSAPP_DISPLAY}</div>
+        <WhatsAppLink message={t("whatsapp.msgGeneral")}>{t("whatsapp.contactCta")}</WhatsAppLink>
       </section>
 
       <footer className="landing-footer">
         <div>{t("landing.footer.copyright")}</div>
         <div className="landing-footer-actions">
+          <a className="btn-ghost whatsapp-link landing-footer-whatsapp" href={buildWhatsAppLink(t("whatsapp.msgGeneral"))} target="_blank" rel="noopener noreferrer">
+            {t("whatsapp.label")}: <span className="whatsapp-number">{SUPPORT_WHATSAPP_DISPLAY}</span>
+          </a>
+          <a className="btn-ghost" href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">{t("whatsapp.facebook")}</a>
+          <a className="btn-ghost" href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer">{t("whatsapp.linkedin")}</a>
+          <a className="btn-ghost" href={X_URL} target="_blank" rel="noopener noreferrer">{t("whatsapp.x")}</a>
           <button className="btn-ghost" onClick={onGoDataProtection}>{t("landing.nav.dataProtection")}</button>
           <button className="btn-ghost" onClick={onGoLogin}>{t("landing.nav.login")}</button>
         </div>
       </footer>
+      <WhatsAppFloatingButton message={t("whatsapp.msgGeneral")} />
     </div>
   );
 }
