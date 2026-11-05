@@ -186,6 +186,8 @@ export const AR_TO_EN: Record<string, string> = {
   "لا يمكنك حذف حسابك أنت شخصياً": "You cannot delete your own account",
   "لا يمكن حذف مالك الشركة": "The company owner cannot be deleted",
   "فتح الإقفال": "Reopen closed period",
+  "رقم الجوال غير صالح للدولة المختارة": "Invalid mobile number for the selected country",
+  "الدولة غير مدعومة": "Unsupported country",
   "لا يمكن إقفال سنة مالية لم تنتهِ بعد": "A fiscal year can't be closed before it ends",
   "توجد قيود محفوظة غير مرحّلة داخل السنة — رحّلها أو احذفها قبل الإقفال": "There are saved, unposted entries in this year. Post or delete them before closing",
   "اختر حساب الإقفال (حساب حقوق ملكية) قبل إقفال السنة": "Choose the closing account (an equity account) before closing the year",

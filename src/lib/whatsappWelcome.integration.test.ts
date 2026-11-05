@@ -48,6 +48,25 @@ describe("WhatsApp welcome on registration", () => {
     expect(await prisma.whatsAppMessageLog.count({ where: { tenantId: t.id } })).toBe(0);
   });
 
+  it("an Egyptian subscriber registers with an Egyptian mobile; the company gets Egypt and EGP", async () => {
+    const res = await registerWith({ country: "EG", mobile: "01018889364", whatsappOptIn: true }, "egypt");
+    const t = await prisma.tenant.findUniqueOrThrow({ where: { id: res.tenant.id } });
+    expect(t.ownerMobile).toBe("201018889364");
+    const company = await prisma.company.findFirstOrThrow({ where: { tenantId: t.id } });
+    expect({ country: company.country, currency: company.currency }).toEqual({ country: "EG", currency: "EGP" });
+    // بلا دولة: السعودية والريال كما كان
+    const legacy = await registerWith({ mobile: "0573076236" }, "legacy");
+    const legacyCompany = await prisma.company.findFirstOrThrow({ where: { tenantId: legacy.tenant.id } });
+    expect({ country: legacyCompany.country, currency: legacyCompany.currency }).toEqual({ country: "SA", currency: "SAR" });
+  });
+
+  it("rejects a mobile that doesn't belong to the selected country, and unknown countries", () => {
+    const base = { tenantName: "xx", businessActivity: "retail", name: "مالك", email: "a@example.com", password: "Str0ng-Pass!" };
+    expect(registerSchema.safeParse({ ...base, country: "SA", mobile: "01018889364" }).success).toBe(false);
+    expect(registerSchema.safeParse({ ...base, country: "EG", mobile: "0573076236" }).success).toBe(false);
+    expect(registerSchema.safeParse({ ...base, country: "XX", mobile: "0573076236" }).success).toBe(false);
+  });
+
   it("rejects an invalid mobile at the schema", () => {
     expect(registerSchema.safeParse({ tenantName: "xx", businessActivity: "retail", name: "مالك", email: "a@example.com", password: "Str0ng-Pass!", mobile: "12345" }).success).toBe(false);
   });
