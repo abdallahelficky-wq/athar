@@ -1,3 +1,4 @@
+import { resolveCompanyVatRate } from "../../lib/companyVat";
 import { defaultCurrencyForCountry } from "../../lib/countries";
 import { prisma } from "../../lib/prisma";
 import { assertMembershipNotSuspended, withUserSeat } from "../../lib/subscriptionEnforcement";
@@ -155,7 +156,7 @@ async function createOwnedTenant(
   });
 
   const { businessActivity } = input.company;
-  const company = await tx.company.create({ data: { ...input.company, tenantId: tenant.id } });
+  const company = await tx.company.create({ data: { ...input.company, vatRate: resolveCompanyVatRate(input.company.country, undefined), tenantId: tenant.id } });
   const idByCode = await createChartFromTemplate(tx, tenant.id, company.id, CHART_TEMPLATE_BY_ACTIVITY[businessActivity]);
   await createStarterItems(tx, tenant.id, company.id, businessActivity, idByCode);
   await createCashParties(tx, tenant.id, company.id);

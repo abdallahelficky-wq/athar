@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { listCompanies } from "../api/companies";
 import { useAuth } from "../context/AuthContext";
+import { setActiveCompanyVatRate } from "./shared/invoiceLine";
 
 const storageKeyFor = (tenantId) => (tenantId ? `athar.activeCompanyId.${tenantId}` : null);
 
@@ -49,6 +50,10 @@ export function useCompanies() {
   useEffect(() => {
     reload();
   }, [reload]);
+
+  // نسبة ضريبة الشركة النشطة لكل حسابات الأسطر في الواجهة (راجع setActiveCompanyVatRate)
+  const activeCompany = companies.find((c) => c.id === companyId);
+  setActiveCompanyVatRate(activeCompany);
 
   const onCompanyCreated = (company) => {
     setCompanies((prev) => [...prev, company]);

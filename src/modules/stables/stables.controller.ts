@@ -1,3 +1,4 @@
+import { companyVatRatePercent } from "../../lib/companyVat";
 import { RequestHandler } from "express";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
@@ -216,6 +217,7 @@ export const createBoardingInvoice: RequestHandler = async (req, res) => {
   const accountCodes = [...new Set(assignments.map(({ assignment }) => ["training", "competition"].includes(assignment.service.category) ? "411002" : "411001"))];
   const accounts = await prisma.account.findMany({ where: { tenantId: req.auth!.tenantId, companyId, code: { in: accountCodes }, isPosting: true, isActive: true, isArchived: false } });
   const accountByCode = new Map(accounts.map((account) => [account.code, account.id]));
+  const stableVatRate = await companyVatRatePercent(req.auth!.tenantId, companyId);
   if (accounts.length !== accountCodes.length) throw badRequest("شجرة الحسابات لا تحتوي حسابات إيرادات الإعاشة والتدريب المطلوبة (411001 و411002)");
   const invoiceLines = assignments.map(({ horse, assignment }) => ({
     accountId: assignment.service.revenueAccountId || accountByCode.get(["training", "competition"].includes(assignment.service.category) ? "411002" : "411001")!,
@@ -230,7 +232,7 @@ export const createBoardingInvoice: RequestHandler = async (req, res) => {
       data: { tenantId: req.auth!.tenantId, companyId, customerId, billingMonth: period, salesInvoiceId: invoice.id,
         lines: { create: assignments.map(({ horse, assignment }) => {
           const price = Number(assignment.unitPrice ?? assignment.service.price ?? 0); const quantity = Number(assignment.quantity);
-          const amounts = computeInvoiceLine({ quantity, unitPrice: price, priceIncludesVat: assignment.service.priceIncludesVat, vatApplicable: true });
+          const amounts = computeInvoiceLine({ quantity, unitPrice: price, priceIncludesVat: assignment.service.priceIncludesVat, vatApplicable: true, vatRatePercent: stableVatRate });
           return { horseId: horse.id, serviceId: assignment.serviceId, trainerId: trainerSelections[assignment.id] || assignment.trainerId || null, quantity, unitPrice: price, netAmount: amounts.subtotal, vatAmount: amounts.vat, totalAmount: amounts.total };
         }) },
       }, include: { salesInvoice: true, lines: { include: { horse: true, service: true } } },

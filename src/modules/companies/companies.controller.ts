@@ -1,3 +1,4 @@
+import { resolveCompanyVatRate } from "../../lib/companyVat";
 import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 import { RequestHandler } from "express";
 import multer from "multer";
@@ -60,7 +61,7 @@ export const createCompany: RequestHandler = async (req, res) => {
   }
   const company = await prisma.$transaction(
     async (tx) => {
-      const created = await tx.company.create({ data: { ...req.body, tenantId: req.auth!.tenantId } });
+      const created = await tx.company.create({ data: { ...req.body, vatRate: resolveCompanyVatRate(req.body.country, req.body.vatRate), tenantId: req.auth!.tenantId } });
 
       const activity = created.businessActivity as BusinessActivity | null;
       // شجرة قطاعية مبنية من ملف CSV الخاص بالنشاط إن اختير، وإلا القالب العام الافتراضي — نقطة
@@ -165,6 +166,11 @@ export const updateCompany: RequestHandler = async (req, res) => {
   await assertTankVarianceAccount(req.auth!.tenantId, existing.id, req.body);
   await assertCardFeeAccount(req.auth!.tenantId, existing.id, req.body);
 
+  // تغيير الدولة بلا نسبة صريحة ⇒ نسبة الدولة الجديدة المقترحة؛ والسعودية 15 دائماً
+  if ("vatRate" in req.body || "country" in req.body) {
+    const country = req.body.country ?? existing.country;
+    req.body.vatRate = resolveCompanyVatRate(country, "vatRate" in req.body ? req.body.vatRate : req.body.country && req.body.country !== existing.country ? undefined : Number(existing.vatRate));
+  }
   const company = await prisma.company.update({ where: { id: existing.id }, data: req.body });
   res.json(await withLogoUrl(company));
 };

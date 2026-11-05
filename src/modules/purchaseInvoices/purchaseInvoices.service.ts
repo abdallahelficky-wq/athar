@@ -1,3 +1,4 @@
+import { companyVatRatePercent } from "../../lib/companyVat";
 import { TaxFields } from "../../lib/itemTax";
 import { stockAccountFor } from "../../lib/stockAccount";
 import { normalizePurchaseTax } from "./purchaseTax";
@@ -43,8 +44,8 @@ interface InvoiceInput {
 
 const invoiceInclude = { lines: { include: { account: true, item: true, warehouse: true } }, supplier: true, company: true, branch: true } as const;
 
-function computeLines(lines: LineInput[]) {
-  const computed = lines.map((l) => ({ ...l, ...normalizePurchaseTax(l), ...computeInvoiceLine(l) }));
+function computeLines(lines: LineInput[], vatRatePercent: number) {
+  const computed = lines.map((l) => ({ ...l, ...normalizePurchaseTax(l), ...computeInvoiceLine({ ...l, vatRatePercent }) }));
   const subtotal = sumMoney(computed.map((l) => l.subtotal));
   const vatTotal = sumMoney(computed.map((l) => l.vat));
   const grandTotal = sumMoney([subtotal, vatTotal]);
@@ -269,7 +270,7 @@ export async function getPurchaseInvoice(tenantId: string, id: string) {
 export async function createPurchaseInvoice(tenantId: string, userId: string, input: InvoiceInput) {
   const resolvedLines = await resolveLineAccounts(tenantId, input.companyId, input.lines);
   const supplier = await assertRefs(tenantId, input.companyId, input.supplierId, resolvedLines, input.branchId);
-  const { computed, subtotal, vatTotal, grandTotal } = computeLines(resolvedLines);
+  const { computed, subtotal, vatTotal, grandTotal } = computeLines(resolvedLines, await companyVatRatePercent(tenantId, input.companyId));
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
 
   const count = await prisma.purchaseInvoice.count({ where: { tenantId } });
@@ -325,7 +326,7 @@ export async function updatePurchaseInvoice(tenantId: string, id: string, input:
 
   const resolvedLines = await resolveLineAccounts(tenantId, input.companyId, input.lines);
   await assertRefs(tenantId, input.companyId, input.supplierId, resolvedLines, input.branchId);
-  const { computed, subtotal, vatTotal, grandTotal } = computeLines(resolvedLines);
+  const { computed, subtotal, vatTotal, grandTotal } = computeLines(resolvedLines, await companyVatRatePercent(tenantId, input.companyId));
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
   const persistableLines = computed.map(({ isFixedAssetLine, ...rest }) => rest);
 

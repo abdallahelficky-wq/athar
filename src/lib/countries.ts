@@ -9,26 +9,29 @@ export interface CountryInfo {
   dialCode: string; // مفتاح الدولة الدولي بلا "+" (مصر 20)
   mobilePattern: string; // الرقم الوطني للجوال بلا مفتاح الدولة وبلا الصفر البادئ (regex كامل المطابقة)
   mobileExample: string; // مثال بالصيغة المحلية يُعرَض في النموذج
+  // نسبة ضريبة القيمة المضافة/المبيعات القياسية بالمئة (0 = لا ضريبة عامة: الكويت، قطر، العراق، ليبيا) — راجعناها في
+  // نوفمبر 2026 من ملخصات PwC/vatupdate/cleartax. تُقترح للشركة عند إنشائها وتُعدَّل من بيانات الشركة (عدا السعودية).
+  defaultVatRate: number;
 }
 
 export const COUNTRIES: CountryInfo[] = [
-  { code: "SA", nameAr: "السعودية", nameEn: "Saudi Arabia", defaultCurrency: "SAR", dialCode: "966", mobilePattern: "5\\d{8}", mobileExample: "0512345678" },
-  { code: "AE", nameAr: "الإمارات", nameEn: "United Arab Emirates", defaultCurrency: "AED", dialCode: "971", mobilePattern: "5\\d{8}", mobileExample: "0501234567" },
-  { code: "EG", nameAr: "مصر", nameEn: "Egypt", defaultCurrency: "EGP", dialCode: "20", mobilePattern: "1[0125]\\d{8}", mobileExample: "01012345678" },
-  { code: "KW", nameAr: "الكويت", nameEn: "Kuwait", defaultCurrency: "KWD", dialCode: "965", mobilePattern: "[569]\\d{7}", mobileExample: "51234567" },
-  { code: "QA", nameAr: "قطر", nameEn: "Qatar", defaultCurrency: "QAR", dialCode: "974", mobilePattern: "[3567]\\d{7}", mobileExample: "33123456" },
-  { code: "BH", nameAr: "البحرين", nameEn: "Bahrain", defaultCurrency: "BHD", dialCode: "973", mobilePattern: "[36]\\d{7}", mobileExample: "36123456" },
-  { code: "OM", nameAr: "عُمان", nameEn: "Oman", defaultCurrency: "OMR", dialCode: "968", mobilePattern: "[79]\\d{7}", mobileExample: "92123456" },
-  { code: "JO", nameAr: "الأردن", nameEn: "Jordan", defaultCurrency: "JOD", dialCode: "962", mobilePattern: "7[789]\\d{7}", mobileExample: "0791234567" },
-  { code: "IQ", nameAr: "العراق", nameEn: "Iraq", defaultCurrency: "IQD", dialCode: "964", mobilePattern: "7\\d{9}", mobileExample: "07701234567" },
-  { code: "DZ", nameAr: "الجزائر", nameEn: "Algeria", defaultCurrency: "DZD", dialCode: "213", mobilePattern: "[567]\\d{8}", mobileExample: "0551234567" },
-  { code: "MA", nameAr: "المغرب", nameEn: "Morocco", defaultCurrency: "MAD", dialCode: "212", mobilePattern: "[67]\\d{8}", mobileExample: "0612345678" },
-  { code: "TN", nameAr: "تونس", nameEn: "Tunisia", defaultCurrency: "TND", dialCode: "216", mobilePattern: "[2459]\\d{7}", mobileExample: "20123456" },
-  { code: "LB", nameAr: "لبنان", nameEn: "Lebanon", defaultCurrency: "LBP", dialCode: "961", mobilePattern: "(?:3\\d{6}|(?:7\\d|81)\\d{6})", mobileExample: "03123456" },
-  { code: "LY", nameAr: "ليبيا", nameEn: "Libya", defaultCurrency: "LYD", dialCode: "218", mobilePattern: "9[1-6]\\d{7}", mobileExample: "0912345678" },
-  { code: "SD", nameAr: "السودان", nameEn: "Sudan", defaultCurrency: "SDG", dialCode: "249", mobilePattern: "[19]\\d{8}", mobileExample: "0912345678" },
-  { code: "YE", nameAr: "اليمن", nameEn: "Yemen", defaultCurrency: "YER", dialCode: "967", mobilePattern: "7\\d{8}", mobileExample: "712345678" },
-  { code: "PS", nameAr: "فلسطين", nameEn: "Palestine", defaultCurrency: "JOD", dialCode: "970", mobilePattern: "5[69]\\d{7}", mobileExample: "0591234567" },
+  { code: "SA", nameAr: "السعودية", nameEn: "Saudi Arabia", defaultCurrency: "SAR", dialCode: "966", mobilePattern: "5\\d{8}", mobileExample: "0512345678", defaultVatRate: 15 },
+  { code: "AE", nameAr: "الإمارات", nameEn: "United Arab Emirates", defaultCurrency: "AED", dialCode: "971", mobilePattern: "5\\d{8}", mobileExample: "0501234567", defaultVatRate: 5 },
+  { code: "EG", nameAr: "مصر", nameEn: "Egypt", defaultCurrency: "EGP", dialCode: "20", mobilePattern: "1[0125]\\d{8}", mobileExample: "01012345678", defaultVatRate: 14 },
+  { code: "KW", nameAr: "الكويت", nameEn: "Kuwait", defaultCurrency: "KWD", dialCode: "965", mobilePattern: "[569]\\d{7}", mobileExample: "51234567", defaultVatRate: 0 },
+  { code: "QA", nameAr: "قطر", nameEn: "Qatar", defaultCurrency: "QAR", dialCode: "974", mobilePattern: "[3567]\\d{7}", mobileExample: "33123456", defaultVatRate: 0 },
+  { code: "BH", nameAr: "البحرين", nameEn: "Bahrain", defaultCurrency: "BHD", dialCode: "973", mobilePattern: "[36]\\d{7}", mobileExample: "36123456", defaultVatRate: 10 },
+  { code: "OM", nameAr: "عُمان", nameEn: "Oman", defaultCurrency: "OMR", dialCode: "968", mobilePattern: "[79]\\d{7}", mobileExample: "92123456", defaultVatRate: 5 },
+  { code: "JO", nameAr: "الأردن", nameEn: "Jordan", defaultCurrency: "JOD", dialCode: "962", mobilePattern: "7[789]\\d{7}", mobileExample: "0791234567", defaultVatRate: 16 },
+  { code: "IQ", nameAr: "العراق", nameEn: "Iraq", defaultCurrency: "IQD", dialCode: "964", mobilePattern: "7\\d{9}", mobileExample: "07701234567", defaultVatRate: 0 },
+  { code: "DZ", nameAr: "الجزائر", nameEn: "Algeria", defaultCurrency: "DZD", dialCode: "213", mobilePattern: "[567]\\d{8}", mobileExample: "0551234567", defaultVatRate: 19 },
+  { code: "MA", nameAr: "المغرب", nameEn: "Morocco", defaultCurrency: "MAD", dialCode: "212", mobilePattern: "[67]\\d{8}", mobileExample: "0612345678", defaultVatRate: 20 },
+  { code: "TN", nameAr: "تونس", nameEn: "Tunisia", defaultCurrency: "TND", dialCode: "216", mobilePattern: "[2459]\\d{7}", mobileExample: "20123456", defaultVatRate: 19 },
+  { code: "LB", nameAr: "لبنان", nameEn: "Lebanon", defaultCurrency: "LBP", dialCode: "961", mobilePattern: "(?:3\\d{6}|(?:7\\d|81)\\d{6})", mobileExample: "03123456", defaultVatRate: 11 },
+  { code: "LY", nameAr: "ليبيا", nameEn: "Libya", defaultCurrency: "LYD", dialCode: "218", mobilePattern: "9[1-6]\\d{7}", mobileExample: "0912345678", defaultVatRate: 0 },
+  { code: "SD", nameAr: "السودان", nameEn: "Sudan", defaultCurrency: "SDG", dialCode: "249", mobilePattern: "[19]\\d{8}", mobileExample: "0912345678", defaultVatRate: 17 },
+  { code: "YE", nameAr: "اليمن", nameEn: "Yemen", defaultCurrency: "YER", dialCode: "967", mobilePattern: "7\\d{8}", mobileExample: "712345678", defaultVatRate: 5 },
+  { code: "PS", nameAr: "فلسطين", nameEn: "Palestine", defaultCurrency: "JOD", dialCode: "970", mobilePattern: "5[69]\\d{7}", mobileExample: "0591234567", defaultVatRate: 16 },
 ];
 
 export const COUNTRY_CODES = COUNTRIES.map((c) => c.code) as [string, ...string[]];
@@ -74,6 +77,10 @@ const COUNTRY_BY_CODE = new Map(COUNTRIES.map((c) => [c.code, c]));
 
 export function countryInfo(code: string | null | undefined): CountryInfo | undefined {
   return code ? COUNTRY_BY_CODE.get(code) : undefined;
+}
+
+export function defaultVatRateForCountry(code: string | null | undefined): number {
+  return countryInfo(code)?.defaultVatRate ?? 15;
 }
 
 export function defaultCurrencyForCountry(code: string | null | undefined): string {

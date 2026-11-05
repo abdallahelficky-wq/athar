@@ -9,6 +9,8 @@ export interface InvoiceLineInput {
   priceIncludesVat?: boolean;
   vatApplicable?: boolean;
   taxCategoryCode?: string | null;
+  /** نسبة ضريبة الشركة بالمئة (vatRatePercentOf) — الافتراضي 15% للمستدعين القدامى */
+  vatRatePercent?: number;
 }
 
 /**
@@ -27,7 +29,7 @@ export function computeInvoiceLine(l: InvoiceLineInput) {
   const price = Number(l.unitPrice || 0);
   const disc = Number(l.discountPct || 0);
   const grossLine = qty * price * (1 - disc / 100);
-  const ratePercent = VAT_RATE * 100;
+  const ratePercent = l.vatRatePercent ?? VAT_RATE * 100;
 
   if (l.taxCategoryCode ? l.taxCategoryCode !== "S" : l.vatApplicable === false) {
     const net = roundMoney(grossLine);

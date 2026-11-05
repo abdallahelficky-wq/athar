@@ -1,3 +1,4 @@
+import { vatRatePercentOf } from "../../lib/companyVat";
 import { Prisma, StationFuelProduct, StationShiftType } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound, forbidden, HttpError } from "../../lib/httpError";
@@ -79,6 +80,8 @@ export interface ShiftClosingInput {
   /** المحطة (مركز التكلفة) التي تخص هذه الوردية — تُنسَخ على كل سطر من سطور القيد الناتج. */
   costCenterId: string;
   shiftDate: Date;
+  /** نسبة ضريبة الشركة بالمئة (vatRatePercentOf) — أسعار الوقود شاملة الضريبة؛ الافتراضي 15% */
+  vatRatePercent?: number;
   readings: NozzleReadingInput[];
   /** أسعار الوقود المرشَّحة لهذه الوردية فقط (راجع تعليق FuelPriceInput.costCenterId أعلاه). */
   prices: FuelPriceInput[];
@@ -240,7 +243,8 @@ export function computeShiftClosing(input: ShiftClosingInput): ShiftClosingResul
     }
     const priceInclVat = resolveEffectivePrice(product, input.shiftDate, input.prices);
     const amount = liters.times(priceInclVat).toDecimalPlaces(2);
-    const netAmount = amount.dividedBy(VAT_DIVISOR).toDecimalPlaces(2);
+    const divisor = input.vatRatePercent === undefined ? VAT_DIVISOR : new Prisma.Decimal(1).plus(new Prisma.Decimal(input.vatRatePercent).dividedBy(100));
+    const netAmount = amount.dividedBy(divisor).toDecimalPlaces(2);
     grossSales = grossSales.plus(amount);
     revenueExclVat = revenueExclVat.plus(netAmount);
     salesByProduct.push({ product, liters, priceInclVat, amount, netAmount });
@@ -490,9 +494,10 @@ export async function resolveShiftClosingAccounts(tenantId: string, companyId: s
 async function loadShiftClosingInput(tenantId: string, shiftId: string) {
   const shift = await prisma.stationShift.findFirst({
     where: { id: shiftId, tenantId },
-    include: { readings: { include: { nozzle: true } }, creditSales: true, expenses: true, collection: true, employee: { select: { id: true, name: true } } },
+    include: { readings: { include: { nozzle: true } }, creditSales: true, expenses: true, collection: true, employee: { select: { id: true, name: true } }, company: { select: { country: true, vatRate: true } } },
   });
   if (!shift) throw notFound("الوردية غير موجودة");
+  const vatRatePercent = vatRatePercentOf(shift.company);
 
   const [priceRows, { accounts, expenseAccountId }] = await Promise.all([
     // مقيَّد بالمستأجر والشركة صراحةً — السعر العام (costCenterId فارغ) لا يخص محطة بعينها، فبدون هذا
@@ -540,6 +545,7 @@ async function loadShiftClosingInput(tenantId: string, shiftId: string) {
   const input: ShiftClosingInput = {
     costCenterId: shift.costCenterId,
     shiftDate: shift.shiftDate,
+    vatRatePercent,
     readings,
     prices: priceRows,
     networkAmount: shift.collection?.networkAmount ?? 0,

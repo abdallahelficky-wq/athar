@@ -2851,7 +2851,7 @@
     "nameAr": "Arabic item name",
     "nameEn": "English item name",
     "category": "VAT treatment",
-    "S": "Standard rated 15%",
+    "S": "Standard rated {{rate}}%",
     "Z": "Zero rated 0%",
     "E": "VAT exempt",
     "O": "Outside scope — previous setting",

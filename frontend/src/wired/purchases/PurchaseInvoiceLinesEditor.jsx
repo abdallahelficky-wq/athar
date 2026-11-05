@@ -2,7 +2,7 @@ import { itemDescription, itemMatches, itemTaxDefaults } from "../shared/itemDef
 import { getItemDisplayName } from "../shared/itemDisplayName";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { computeInvoiceLine } from "../shared/invoiceLine";
+import { computeInvoiceLine, activeCompanyVatRatePercent } from "../shared/invoiceLine";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
 
@@ -120,7 +120,7 @@ export default function PurchaseInvoiceLinesEditor({ lines, setLines, accounts, 
                   <td><input type="number" className="amount-input" value={l.unitPrice} onChange={(e) => updateLine(idx, { unitPrice: e.target.value })} placeholder="0.00" /></td>
                   <td><select aria-label={t("itemTax.category")} value={l.taxCategoryCode || (l.vatApplicable === false ? "O" : "S")}
                     onChange={(e) => updateLine(idx, { taxCategoryCode: e.target.value, vatApplicable: e.target.value === "S", taxExemptionReasonCode: null, taxExemptionReason: null })}>
-                    {["E", "Z", "S", ...(l.taxCategoryCode === "O" || (!l.taxCategoryCode && l.vatApplicable === false) ? ["O"] : [])].map((code) => <option key={code} value={code}>{t(`itemTax.${code}`)}</option>)}
+                    {["E", "Z", "S", ...(l.taxCategoryCode === "O" || (!l.taxCategoryCode && l.vatApplicable === false) ? ["O"] : [])].map((code) => <option key={code} value={code}>{t(`itemTax.${code}`, { rate: activeCompanyVatRatePercent() })}</option>)}
                   </select></td>
                   <td style={{ textAlign: "center" }}>
                     <input type="checkbox" checked={l.priceIncludesVat} onChange={(e) => updateLine(idx, { priceIncludesVat: e.target.checked })} />

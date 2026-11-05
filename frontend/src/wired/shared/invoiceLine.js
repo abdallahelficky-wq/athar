@@ -1,5 +1,20 @@
 export const VAT_RATE = 0.15;
 
+// نسبة ضريبة الشركة النشطة بالمئة — تُضبط من useCompanies عند اختيار الشركة، فتحسب كل الشاشات (الفواتير، المردودات،
+// نقطة البيع) بنسبة شركتها دون تمريرها لكل مكوّن. نفس قاعدة الخادم (src/lib/companyVat.ts): السعودية 15 دائماً.
+let activeVatRatePercent = 15;
+export function vatRatePercentOf(company) {
+  if (!company || (company.country || "SA") === "SA") return 15;
+  const rate = Number(company.vatRate);
+  return Number.isFinite(rate) && rate >= 0 && rate <= 100 ? rate : 15;
+}
+export function setActiveCompanyVatRate(company) {
+  activeVatRatePercent = vatRatePercentOf(company);
+}
+export function activeCompanyVatRatePercent() {
+  return activeVatRatePercent;
+}
+
 // نفس قاعدة التقريب في الخادم (src/lib/money.ts): خانتان، نصف للأعلى، على التمثيل العشري الأقصر للرقم، وحساب الضريبة بأعداد صحيحة
 // بالهللات — حتى تطابق معاينة الشاشة ما يُخزَّن ويُرسَل لزاتكا هللةً بهللة.
 function toHalalas(n) {
@@ -25,7 +40,7 @@ function mulDivHalfUp(h, num, den) {
 export function computeInvoiceLine(l) {
   const qty = Number(l.quantity || 0), price = Number(l.unitPrice || 0), disc = Number(l.discountPct || 0);
   const grossLine = qty * price * (1 - disc / 100);
-  const rate = Math.round(VAT_RATE * 10000);
+  const rate = Math.round((l.vatRatePercent ?? activeVatRatePercent) * 100);
   if (l.taxCategoryCode ? l.taxCategoryCode !== "S" : l.vatApplicable === false) {
     const net = toHalalas(grossLine) / 100;
     return { subtotal: net, vat: 0, total: net };

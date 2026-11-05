@@ -50,6 +50,8 @@ export const createCompanySchema = z.object({
   // المطابقين بـ schema.prisma. زر امتثال زاتكا يظهر فقط لما country = "SA" (الواجهة الأمامية).
   country: z.enum(COUNTRY_CODES).optional(),
   currency: z.enum(CURRENCY_CODES).optional(),
+  // نسبة ضريبة القيمة المضافة بالمئة — تُقترح من الدولة إن لم تُرسَل، ويُتجاهَل أي إدخال للشركة السعودية (15 دائماً، زاتكا)
+  vatRate: z.number().min(0, "نسبة الضريبة يجب أن تكون بين 0 و100").max(100, "نسبة الضريبة يجب أن تكون بين 0 و100").optional(),
   // بعده يُمنع إنشاء/تعديل/حذف/فك ترحيل أي قيد بتاريخ يقع فيه أو قبله — راجع src/lib/fiscalClosing.ts.
   // تقديمه للأمام (أو ضبطه لأول مرة) متاح هنا بصلاحية admin/finance_manager كبقية إعدادات الشركة؛
   // تقديمه للخلف أو مسحه ("فتح الإقفال") مرفوض من هذا المسار عمداً (companies.controller.ts) ويتطلب

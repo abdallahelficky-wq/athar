@@ -1,3 +1,4 @@
+import { companyVatRatePercent } from "../../lib/companyVat";
 import { saveZatcaResponseWithArchive } from "../../lib/zatca/archive";
 import { stockAccountFor } from "../../lib/stockAccount";
 import { issuedSupplyDate, recordZatcaIssueTx } from "../../lib/zatca/issues";
@@ -123,10 +124,10 @@ type InvoicePostingOutcome = ReturnType<typeof withPaymentStatus<InvoiceWithZatc
   postingIncomplete?: boolean;
 };
 
-function computeLines(lines: LineInput[]) {
+function computeLines(lines: LineInput[], vatRatePercent: number) {
   const computed = lines.map((l) => ({
     ...l,
-    ...computeInvoiceLine(l),
+    ...computeInvoiceLine({ ...l, vatRatePercent }),
     ...normalizeTax(l),
   }));
   assertCompatibleTaxReasons(computed);
@@ -437,7 +438,7 @@ export async function buildJournalLines(
 export async function createSalesInvoice(tenantId: string, userId: string, input: InvoiceInput): Promise<InvoicePostingOutcome> {
   input = { ...input, lines: await resolveLineAccounts(tenantId, input.companyId, input.lines) };
   const { customer, company } = await assertRefs(tenantId, input.companyId, input.customerId, input.lines, input.branchId);
-  const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
+  const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines, await companyVatRatePercent(tenantId, input.companyId));
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
 
   const invType = invoiceTypeForCustomer(customer);
@@ -887,7 +888,7 @@ export async function updateSalesInvoice(tenantId: string, id: string, input: In
 
   input = { ...input, lines: await resolveLineAccounts(tenantId, input.companyId, input.lines) };
   const { customer } = await assertRefs(tenantId, input.companyId, input.customerId, input.lines, input.branchId);
-  const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
+  const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines, await companyVatRatePercent(tenantId, input.companyId));
   if (grandTotal <= 0) throw badRequest("إجمالي الفاتورة يجب أن يكون أكبر من صفر");
   const invType = invoiceTypeForCustomer(customer);
 

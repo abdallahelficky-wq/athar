@@ -1,3 +1,4 @@
+import { vatRatePercentOf } from "../../lib/companyVat";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
@@ -64,7 +65,8 @@ export async function createPurchaseReturn(tenantId: string, userId: string, inp
   });
   if (accounts.length !== accountIds.length) throw badRequest("أحد الحسابات المختارة غير موجود ضمن شجرة حساباتك");
 
-  const computed = input.lines.map((l) => ({ ...l, ...computeInvoiceLine(l) }));
+  const vatRatePercent = vatRatePercentOf(company);
+  const computed = input.lines.map((l) => ({ ...l, ...computeInvoiceLine({ ...l, vatRatePercent }) }));
   const subtotal = sumMoney(computed.map((l) => l.subtotal));
   const vatTotal = sumMoney(computed.map((l) => l.vat));
   const grandTotal = sumMoney([subtotal, vatTotal]);
