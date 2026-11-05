@@ -14,6 +14,7 @@ export const getTrialBalanceTree = (params) => api.get(`/reports/trial-balance-t
 export const getIncomeStatement = (params) => api.get(`/reports/income-statement${toQuery(params)}`);
 export const getBalanceSheet = (params) => api.get(`/reports/balance-sheet${toQuery(params)}`);
 export const getFinancialAnalysis = (params) => api.get(`/reports/financial-analysis${toQuery(params)}`);
+export const getCashFlow = (params) => api.get(`/reports/cash-flow${toQuery(params)}`);
 export const getDraftEntriesSummary = (params) => api.get(`/reports/draft-entries-summary${toQuery(params)}`);
 export const getComprehensiveMonthly = (params) => api.get(`/reports/comprehensive-monthly${toQuery(params)}`);
 export const updateComprehensiveSettings = (companyId, values) => api.patch(`/reports/comprehensive-monthly/settings?companyId=${companyId}`, values);

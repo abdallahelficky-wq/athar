@@ -6,6 +6,7 @@ import { PrintShell } from '../legacy/shared';
 import { useDeferredFilters } from './shared/useDeferredFilters';
 import { getAccountDisplayName } from './shared/accountDisplayName';
 import { incomeDefaults, incomePeriods } from './shared/incomePeriods.mjs';
+import PeriodModeFields from './shared/PeriodModeFields';
 
 const GROUPS = ['liquidity', 'profitability', 'activity', 'leverage'];
 const FIGURES = [
@@ -87,9 +88,7 @@ function AnalysisTables({ result }) {
 }
 
 export default function FinancialAnalysisModule({ companyId, company, printing, onClosePrint }) {
-  const { t, i18n } = useTranslation();
-  const ar = i18n.language.startsWith('ar');
-  const text = (arabic, english) => (ar ? arabic : english);
+  const { t } = useTranslation();
   const startMonth = company?.fiscalYearStartMonth || 1;
   const { draft, applied, setField, apply } = useDeferredFilters(incomeDefaults(new Date(), startMonth));
   const [result, setResult] = useState(null);
@@ -119,24 +118,10 @@ export default function FinancialAnalysisModule({ companyId, company, printing, 
     <h3>{t('reports.analysis.title')}</h3>
     <p style={{ fontSize: 13 }}>{t('reports.analysis.intro')}</p>
     <form className="filter-bar" onSubmit={(e) => { e.preventDefault(); onClosePrint?.(); apply(); }}>
-      <label>{text('طريقة العرض', 'View')}<select value={draft.mode} onChange={(e) => setField('mode', e.target.value)}>
-        <option value="period">{text('فترة محددة', 'Date range')}</option>
-        <option value="yoy">{text('فترة محددة مقابل نفس الفترة من العام السابق', 'Date range vs. same period last year')}</option>
-        <option value="month">{text('هذا الشهر حتى اليوم', 'This month to date')}</option>
-        <option value="months">{text('مقارنة أشهر', 'Compare months')}</option>
-        <option value="quarters">{text('مقارنة أرباع', 'Compare quarters')}</option>
-        <option value="years">{text('مقارنة سنوات', 'Compare years')}</option>
-      </select></label>
-      {['period', 'yoy'].includes(draft.mode) && <>
-        <label>{t('reports.income.fromDate')}<input required type="date" value={draft.dateFrom} max={draft.dateTo} onChange={(e) => setField('dateFrom', e.target.value)} /></label>
-        <label>{t('reports.income.toDate')}<input required type="date" value={draft.dateTo} min={draft.dateFrom} onChange={(e) => setField('dateTo', e.target.value)} /></label>
-      </>}
-      {['months', 'quarters'].includes(draft.mode) && <label>{text('حتى شهر', 'Ending month')}<input required type="month" value={draft.endMonth} onChange={(e) => setField('endMonth', e.target.value)} /></label>}
-      {draft.mode === 'years' && <label>{startMonth === 1 ? text('حتى سنة', 'Ending year') : text('حتى السنة المالية التي تبدأ في', 'Ending fiscal year starting in')}<input required type="number" min="1911" max="9999" value={draft.endYear} onChange={(e) => setField('endYear', e.target.value)} /></label>}
-      {['months', 'quarters', 'years'].includes(draft.mode) && <label>{text('عدد الفترات', 'Number of periods')}<select value={draft.count} onChange={(e) => setField('count', Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}</select></label>}
+      <PeriodModeFields draft={draft} setField={setField} startMonth={startMonth} />
       <button type="submit" className="btn-primary" style={{ alignSelf: 'end' }}>{t('reports.income.showResults')}</button>
     </form>
-    {error && <p role="alert" className="balance-bad">{error === 'INVALID_PERIOD' ? text('راجع التواريخ وعدد الفترات.', 'Check the dates and number of periods.') : error}</p>}
+    {error && <p role="alert" className="balance-bad">{error === 'INVALID_PERIOD' ? t('reports.periods.invalid') : error}</p>}
     {loading && <p role="status">{t('common.loading')}</p>}
     {result && <>
       <AnalysisTables result={result} />

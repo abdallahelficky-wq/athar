@@ -7,6 +7,7 @@ import {
   incomeStatementHandler,
   balanceSheetHandler,
   financialAnalysisHandler,
+  cashFlowHandler,
   customerStatementHandler,
   supplierStatementHandler,
   accountLedgerHandler,
@@ -23,6 +24,7 @@ reportRoutes.get("/trial-balance-tree", requirePositionAction("reports", "read")
 reportRoutes.get("/income-statement", requirePositionAction("reports", "read"), incomeStatementHandler);
 reportRoutes.get("/balance-sheet", requirePositionAction("reports", "read"), balanceSheetHandler);
 reportRoutes.get("/financial-analysis", requirePositionAction("reports", "read"), financialAnalysisHandler);
+reportRoutes.get("/cash-flow", requirePositionAction("reports", "read"), cashFlowHandler);
 reportRoutes.get("/comprehensive-monthly", requirePositionAction("reports", "read"), comprehensiveMonthlyHandler);
 reportRoutes.get("/draft-entries-summary", requirePositionAction("reports", "read"), draftEntriesSummaryHandler);
 // حدود تنبيه التقرير الشهري الشامل إعداد على مستوى الشركة — بنفس صلاحية تعديل بيانات الشركة نفسها

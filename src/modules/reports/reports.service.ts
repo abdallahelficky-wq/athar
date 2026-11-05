@@ -19,6 +19,7 @@ import { monthlyAgingShape, payablesAgingAsOf, receivablesAgingAsOf } from "../.
 import { COUNTED_ENTRY_WHERE, UNCOUNTED_DRAFT_WHERE } from "../../lib/countedEntries";
 import { resolveEffectiveClassification } from "../../lib/accountClassification";
 import { analyze, unclassifiedBalances } from "../../lib/financialAnalysis";
+import { computeCashFlow } from "../../lib/cashFlowStatement";
 
 export interface DateRange {
   companyId?: string;
@@ -942,4 +943,36 @@ export async function getFinancialAnalysis(tenantId: string, companyId: string, 
     .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
 
   return { from: dateFrom, to: dateTo, days, ...result, unclassifiedAccounts };
+}
+
+/**
+ * قائمة التدفقات النقدية (غير مباشرة) لفترة واحدة لشركة واحدة — راجع src/lib/cashFlowStatement.ts.
+ * الحركة بلا قيود الإقفال (كقائمة الدخل)، والنقدية الافتتاحية/الختامية من نفس أرصدة ميزان المراجعة.
+ */
+export async function getCashFlowStatement(tenantId: string, companyId: string, dateFrom: Date, dateTo: Date, hrView = true) {
+  const [allAccounts, opening, closing, flow] = await Promise.all([
+    prisma.account.findMany({ where: { tenantId, companyId } }),
+    aggregateAccountBalances(tenantId, { companyId, dateTo: new Date(dateFrom.getTime() - 1) }),
+    aggregateAccountBalances(tenantId, { companyId, dateTo }),
+    aggregateAccountBalances(tenantId, { companyId, dateFrom, dateTo, excludeFiscalClosing: true }),
+  ]);
+  const effective = resolveEffectiveClassification(allAccounts);
+  const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);
+  const result = computeCashFlow({ accounts: allAccounts, effective, flow, opening, closing, fold });
+  const byId = new Map(allAccounts.map((a) => [a.id, a]));
+  const named = (rows: { groupId: string; amount: number; unclassified: boolean }[]) =>
+    rows
+      .map((r) => {
+        const a = byId.get(r.groupId);
+        return { ...r, code: a?.code || "", name: a?.name || "—", nameEn: a?.nameEn || null };
+      })
+      .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+  return {
+    from: dateFrom,
+    to: dateTo,
+    ...result,
+    operating: { ...result.operating, rows: named(result.operating.rows) },
+    investing: { ...result.investing, rows: named(result.investing.rows) },
+    financing: { ...result.financing, rows: named(result.financing.rows) },
+  };
 }

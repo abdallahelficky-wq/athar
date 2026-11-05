@@ -20,6 +20,7 @@ export const ANALYSIS_ROLE_VALUES = [
   "cost_of_sales",
   "depreciation",
   "finance_cost",
+  "borrowings",
 ] as const satisfies readonly AccountAnalysisRole[];
 
 /** الأنواع المسموح بها لكل دور — يُرفَض في الخادم أي دور على نوع لا يناسبه (مثل "مخزون" على حساب مصروف). */
@@ -30,6 +31,7 @@ export const ROLE_ACCOUNT_TYPES: Record<AccountAnalysisRole, AccountType[]> = {
   cost_of_sales: ["expense"],
   depreciation: ["expense"],
   finance_cost: ["expense", "revenue"],
+  borrowings: ["liability"],
 };
 
 export const LIQUIDITY_ACCOUNT_TYPES: AccountType[] = ["asset", "liability"];
@@ -95,6 +97,7 @@ export function inferRoleFromName(account: NamedAccount): AccountAnalysisRole | 
     if (account.type === "liability" && PAYABLE_GROUP_NAMES.has(name)) return "payables";
     if (account.type === "expense" && COST_OF_SALES_GROUP_NAMES.has(name)) return "cost_of_sales";
   }
+  if (account.type === "liability" && /(قرض|قروض|تسهيلات بنكية|تسهيلات ائتمانية|تمويل بنكي|مرابحة|تورق)/.test(account.name)) return "borrowings";
   if (account.type === "expense" && /(إهلاك|اهلاك|استهلاك الأصول)/.test(account.name)) return "depreciation";
   if ((account.type === "expense" || account.type === "revenue") && /(تمويل|فوائد)/.test(account.name) && !/(إيراد|ايراد)/.test(account.name)) {
     return "finance_cost";
