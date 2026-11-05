@@ -10,6 +10,9 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "اختر الشركة لعرض تقارير المخزون": "Choose a company to view inventory reports",
+  "المستودع لا يتبع هذه الشركة": "The warehouse does not belong to this company",
+  "صيغة التاريخ غير صحيحة — استخدم YYYY-MM-DD": "Invalid date format — use YYYY-MM-DD",
   "اختر الشركة لعرض التحليل المالي": "Choose a company to view the financial analysis",
   "حدد فترة صحيحة: من تاريخ وإلى تاريخ": "Choose a valid period: a from date and a to date",
   "تصنيف متداول/غير متداول للأصول والالتزامات فقط": "Current/non-current classification applies to assets and liabilities only",

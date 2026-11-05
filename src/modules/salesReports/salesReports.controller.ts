@@ -1,10 +1,17 @@
 import { RequestHandler } from "express";
 import * as service from "./salesReports.service";
 import { parseVatPeriod } from "../../lib/vatPeriod";
+import { parseReportFilters } from "../../lib/reportFilters";
 
-const filters = (req: Parameters<RequestHandler>[0]) => ({
-  companyId: typeof req.query.companyId === "string" ? req.query.companyId : undefined,
-});
+const filters = (req: Parameters<RequestHandler>[0]) => parseReportFilters(req.query);
+
+export const byItemHandler: RequestHandler = async (req, res) => {
+  res.json(await service.getSalesByItem(req.auth!.tenantId, filters(req)));
+};
+
+export const byBranchHandler: RequestHandler = async (req, res) => {
+  res.json(await service.getSalesByBranch(req.auth!.tenantId, filters(req)));
+};
 
 export const byCustomerHandler: RequestHandler = async (req, res) => {
   res.json(await service.getSalesByCustomer(req.auth!.tenantId, filters(req)));

@@ -350,7 +350,7 @@
       "reports": "Reports", "salesSettings": "Sales Settings", "suppliers": "Suppliers", "purchaseInvoices": "Purchase Invoices",
       "purchaseReturns": "Purchase Returns", "items": "Items", "warehouses": "Warehouses",
       "inout": "Stock In / Out", "issue": "Stock Issue", "transfer": "Branch Transfer",
-      "report": "Balances Report", "periodicSettlement": "Periodic Inventory Settlement",
+      "report": "Balances Report", "inventoryMovement": "Inventory Movement & Valuation", "periodicSettlement": "Periodic Inventory Settlement",
       "register": "Asset Register", "depreciation": "Monthly Depreciation",
       "disposal": "Disposal / Sale", "fixedAssetsReports": "Reports", "categories": "Fixed Asset Settings",
       "journal": "Journal Entries", "chartOfAccounts": "Chart of Accounts", "ledger": "Account Ledger",
@@ -839,7 +839,9 @@
       "empty": "No station sales recorded yet."
     },
     "reports": {
-      "tabs": { "byCustomer": "By customer", "monthly": "Monthly trend", "aging": "Receivables aging", "vat": "VAT summary" },
+      "tabs": { "byCustomer": "By customer", "byItem": "By item & gross profit", "byBranch": "By branch", "monthly": "Monthly trend", "aging": "Receivables aging", "vat": "VAT summary" },
+      "byItem": {"note": "Before VAT. Cost comes from the posted stock issues of the invoices. Returns reduce sales and do not reverse cost (they do not restock in the system). Station shift sales are in the shift reports.", "item": "Item", "quantity": "Quantity sold", "returnQuantity": "Returned quantity", "netSales": "Net sales", "cost": "Cost", "grossProfit": "Gross profit", "margin": "Margin", "noItem": "Lines without an item (services/free lines)", "total": "Total"},
+      "byBranch": {"branch": "Branch", "sales": "Sales", "returns": "Returns", "netSales": "Net", "vat": "VAT", "noBranch": "No branch"},
       "byCustomer": { "customer": "Customer", "invoiceCount": "Invoice count", "totalInvoices": "Total sales", "totalReturns": "Total returns", "netSales": "Net sales", "outstanding": "Outstanding balance" },
       "monthly": { "month": "Month", "total": "Total sales" },
       "aging": { "asOf": "As at date (empty = today)", "unallocated": "Unallocated", "unallocatedHint": "Difference between the customer's ledger balance and its open invoices: receipts not allocated to an invoice, opening balances or manual entries. Total = ledger balance.", "customer": "Customer", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding receivables." },
@@ -967,7 +969,8 @@
       "empty": "No purchase returns yet."
     },
     "reports": {
-      "tabs": { "bySupplier": "By supplier", "monthly": "Monthly trend", "aging": "Payables aging", "vat": "VAT summary" },
+      "tabs": { "bySupplier": "By supplier", "byItem": "By item", "monthly": "Monthly trend", "aging": "Payables aging", "vat": "VAT summary" },
+      "byItem": {"item": "Item / account", "invoiceCount": "Invoices", "quantity": "Quantity", "amount": "Amount before VAT", "averageCost": "Average purchase price", "expenseLine": "expense", "returns": "Purchase returns in the period ({{count}})"},
       "bySupplier": { "supplier": "Supplier", "invoiceCount": "Invoice count", "totalInvoices": "Total purchases", "totalReturns": "Total returns", "netPurchases": "Net purchases" },
       "monthly": { "month": "Month", "total": "Total purchases" },
       "aging": { "asOf": "As at date (empty = today)", "unallocated": "Unallocated", "unallocatedHint": "The supplier's ledger balance is matched to its invoices newest first; anything beyond them (opening balance or manual entry) shows here. Total = ledger balance.", "supplier": "Supplier", "current": "0-30 days", "d30": "31-60 days", "d60": "61-90 days", "d90": "Over 90 days", "total": "Total", "empty": "No outstanding payables." },
@@ -977,6 +980,7 @@
     }
   },
   "inventory": {
+    "movement": {"item": "Item", "opening": "Opening", "in": "In", "out": "Out", "closing": "Closing", "closingValue": "Closing value", "turnover": "Turnover", "coverageDays": "Coverage days", "daysSinceLastOut": "Days since last issue", "never": "Never issued", "slow": "Slow", "total": "Total", "empty": "No stock movement in this period", "warehouse": "Warehouse", "allWarehouses": "All warehouses", "slowThreshold": "Slow-moving threshold (days)", "onlySlow": "Slow-moving items only", "periodicHint": "Periodic-inventory item: no perpetual value", "hint": "Values come from the stock movements at their posted cost. Leave \"From\" empty to see the balance as of a date. Turnover = issued ÷ average balance."},
     "breadcrumb": "Warehouse Management",
     "typeMeta": {
       "inventory": "Inventory", "expense": "Expense", "service": "Service",
@@ -2464,6 +2468,7 @@
     }
   },
   "reports": {
+    "range": {"quick": "Quick range", "thisMonth": "This month", "lastMonth": "Last month", "thisQuarter": "This quarter", "thisYear": "This year", "all": "All time"},
     "periods": {"view": "View", "endMonth": "Ending month", "endYear": "Ending year", "endFiscalYear": "Ending fiscal year starting in", "count": "Number of periods", "invalid": "Check the dates and number of periods.", "modes": {"period": "Date range", "yoy": "Date range vs. same period last year", "month": "This month to date", "months": "Compare months", "quarters": "Compare quarters", "years": "Compare years"}},
     "cashFlow": {"title": "Cash flow statement", "sections": {"operating": "Cash flows from operating activities", "investing": "Cash flows from investing activities", "financing": "Cash flows from financing activities"}, "netIncome": "Net income", "addDepreciation": "Add: depreciation and amortization (non-cash)", "lessDepreciation": "Less: depreciation charged to assets (non-cash)", "totals": {"operating": "Net cash from operating activities", "investing": "Net cash from investing activities", "financing": "Net cash from financing activities"}, "netChange": "Net change in cash", "openingCash": "Cash at beginning of period", "closingCash": "Cash at end of period", "difference": "Unreconciled difference", "unclassifiedWarning": "Some assets are not classified as current/non-current (⚠) and were placed in operating activities. Classify their groups in the chart of accounts.", "note": "Indirect method. Cash = accounts flagged cash/bank. Loans (role: loans and borrowings) and equity are financing, non-current assets are investing, the rest is operating."},
     "balanceComparison": {"title": "Comparative balance sheet", "hint": "One column per period with balances on its last day. Level and branch come from the balance sheet filter above.", "assetsChange": "Change in total assets from the previous column"},
@@ -2890,6 +2895,7 @@
     }
   },
   "vat": {
+    "return": {"title": "VAT return draft", "note": "From the documents posted in the period, by the tax category on each line. Exports and reverse-charge imports are not distinguished: all zero-rated amounts are on one line. Review before filing on the authority's portal.", "sales": "Sales", "purchases": "Purchases", "category": "Category", "amount": "Amount", "adjustments": "Adjustments (returns)", "netAmount": "Net", "vat": "VAT", "categories": {"standard": "Standard-rated", "zero": "Zero-rated", "exempt": "Exempt", "outOfScope": "Out of scope"}, "stationShifts": "Station shift VAT ({{count}})", "totalOutput": "Total output VAT", "totalInput": "Total input VAT", "net": "Net VAT due (negative = refundable)"},
     "period": { "title": "period {{from}} to {{to}}", "from": "From", "to": "To", "show": "Show", "frequency": { "monthly": "monthly return", "quarterly": "quarterly return" }},
     "archive": {"title": "ZATCA document archive (Annex 1)", "note": "XML files for the documents ZATCA accepted in the period — the ZATCA-cleared copy for standard invoices, our signed copy for simplified — named {VAT}_{date}T{time}_{number}.xml, with a manifest.csv listing every accepted document, including those sent before archiving began that have no stored original.", "export": "Export the archive for {{from}} — {{to}}", "result": "Exported {{archived}} archived documents. Accepted documents with no stored original: {{missing}} (listed in manifest.csv)."}, "recon": {
       "output": { "title": "Output VAT (sales)" },

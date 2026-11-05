@@ -17,3 +17,7 @@ export const getItemCard = (itemId, { companyId, from, to } = {}) => {
   if (to) query.set("to", to);
   return api.get(`/stock-movements/item-card/${itemId}?${query.toString()}`);
 };
+
+// ملخص حركة المخزون لأي فترة/تاريخ من الحركات نفسها (inventoryReports/inventoryAnalysis.service.ts)
+export const getInventoryMovementSummary = ({ companyId, from, to, warehouseId }) =>
+  api.get(`/inventory-reports/movement-summary?${new URLSearchParams(Object.fromEntries(Object.entries({ companyId, from, to, warehouseId }).filter(([, v]) => v)))}`);

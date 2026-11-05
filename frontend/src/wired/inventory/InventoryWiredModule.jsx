@@ -5,6 +5,7 @@ import WarehousesTab from "./WarehousesTab";
 import StockInOutTab from "./StockInOutTab";
 import IssueTab from "./IssueTab";
 import TransferTab from "./TransferTab";
+import InventoryMovementTab from "./InventoryMovementTab";
 import StockReportTab from "./StockReportTab";
 import PeriodicSettlementTab from "./PeriodicSettlementTab";
 import Breadcrumb from "../shared/Breadcrumb";
@@ -18,6 +19,7 @@ export const INVENTORY_TABS = [
   { id: "issue", labelKey: "nav.tabs.issue" },
   { id: "transfer", labelKey: "nav.tabs.transfer" },
   { id: "report", labelKey: "nav.tabs.report" },
+  { id: "movement", labelKey: "nav.tabs.inventoryMovement" },
   { id: "periodicSettlement", labelKey: "nav.tabs.periodicSettlement" },
 ];
 
@@ -37,6 +39,7 @@ export default function InventoryWiredModule({ companies, companyId }) {
       {tab === "issue" && <IssueTab companyId={companyId} />}
       {tab === "transfer" && <TransferTab companyId={companyId} companies={companies} />}
       {tab === "report" && <StockReportTab companyId={companyId} />}
+      {tab === "movement" && <InventoryMovementTab companyId={companyId} company={companies?.find((c) => c.id === companyId)} />}
       {tab === "periodicSettlement" && <PeriodicSettlementTab companyId={companyId} />}
     </div>
   );

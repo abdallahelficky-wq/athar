@@ -2,14 +2,14 @@ import { payablesAgingAsOf } from "../../lib/aging";
 import { prisma } from "../../lib/prisma";
 import { round2, type VatPeriod } from "../../lib/vatPeriod";
 
-interface Filters {
-  companyId?: string;
-}
+import { dateWhere, type ReportFilters } from "../../lib/reportFilters";
+
+type Filters = ReportFilters;
 
 export async function getPurchasesBySupplier(tenantId: string, filters: Filters) {
   const [invoices, returns] = await Promise.all([
-    prisma.purchaseInvoice.findMany({ where: { tenantId, companyId: filters.companyId || undefined, status: "posted" }, include: { supplier: true } }),
-    prisma.purchaseReturn.findMany({ where: { tenantId, companyId: filters.companyId || undefined, status: "posted" }, include: { supplier: true } }),
+    prisma.purchaseInvoice.findMany({ where: { tenantId, companyId: filters.companyId || undefined, status: "posted", ...dateWhere(filters) }, include: { supplier: true } }),
+    prisma.purchaseReturn.findMany({ where: { tenantId, companyId: filters.companyId || undefined, status: "posted", ...dateWhere(filters) }, include: { supplier: true } }),
   ]);
 
   const bySupplier = new Map<string, { supplierId: string; supplierName: string; invoiceCount: number; totalInvoices: number; totalReturns: number; netPurchases: number }>();
@@ -31,7 +31,7 @@ export async function getPurchasesBySupplier(tenantId: string, filters: Filters)
 
 export async function getPurchasesMonthlyTrend(tenantId: string, filters: Filters) {
   const invoices = await prisma.purchaseInvoice.findMany({
-    where: { tenantId, companyId: filters.companyId || undefined, status: "posted" },
+    where: { tenantId, companyId: filters.companyId || undefined, status: "posted", ...dateWhere(filters) },
     select: { date: true, grandTotal: true },
   });
   const byMonth = new Map<string, number>();
@@ -70,4 +70,36 @@ export async function getPurchasesVatSummary(tenantId: string, period: VatPeriod
 export async function getPayablesAging(tenantId: string, filters: Filters & { asOf?: Date }) {
   const report = await payablesAgingAsOf(tenantId, filters.companyId, filters.asOf ?? new Date());
   return report.rows.map(({ partyId, partyName, ...b }) => ({ supplierId: partyId, supplierName: partyName, ...b }));
+}
+
+/**
+ * المشتريات حسب الصنف: سطور فواتير المشتريات المرحَّلة في الفترة (قبل الضريبة). سطور بلا صنف (مصروفات) تُجمَع حسب
+ * حسابها. مردود المشتريات بلا ربط بسطر الأصل في النظام فيظهر كإجمالي منفصل لا مخصوماً من صنف بعينه.
+ */
+export async function getPurchasesByItem(tenantId: string, filters: Filters) {
+  const where = { tenantId, companyId: filters.companyId || undefined, status: "posted" as const, branchId: filters.branchId || undefined, ...dateWhere(filters) };
+  const [lines, returns] = await Promise.all([
+    prisma.purchaseInvoiceLine.findMany({ where: { invoice: where }, include: { item: true, account: true } }),
+    prisma.purchaseReturn.aggregate({ where: { tenantId, companyId: filters.companyId || undefined, status: "posted", ...dateWhere(filters) }, _sum: { subtotal: true }, _count: { _all: true } }),
+  ]);
+  const rows = new Map<string, { key: string; itemId: string | null; code: string; name: string; nameEn: string | null; unit: string | null; isItem: boolean; quantity: number; amount: number; invoiceIds: Set<string> }>();
+  for (const l of lines) {
+    const key = l.itemId ? `i:${l.itemId}` : `a:${l.accountId}`;
+    if (!rows.has(key)) {
+      rows.set(key, l.item
+        ? { key, itemId: l.item.id, code: l.item.code, name: l.item.name, nameEn: l.item.nameEn, unit: l.item.unit, isItem: true, quantity: 0, amount: 0, invoiceIds: new Set() }
+        : { key, itemId: null, code: l.account.code, name: l.account.name, nameEn: l.account.nameEn, unit: null, isItem: false, quantity: 0, amount: 0, invoiceIds: new Set() });
+    }
+    const r = rows.get(key)!;
+    r.quantity += Number(l.quantity);
+    r.amount += Number(l.subtotal);
+    r.invoiceIds.add(l.invoiceId);
+  }
+  return {
+    rows: [...rows.values()]
+      .map(({ invoiceIds, ...r }) => ({ ...r, invoiceCount: invoiceIds.size, quantity: round2(r.quantity), amount: round2(r.amount), averageCost: r.isItem && r.quantity > 0 ? round2(r.amount / r.quantity) : null }))
+      .sort((a, b) => b.amount - a.amount),
+    returnsTotal: round2(Number(returns._sum.subtotal ?? 0)),
+    returnCount: returns._count._all,
+  };
 }
