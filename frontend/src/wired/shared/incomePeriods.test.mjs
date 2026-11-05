@@ -48,3 +48,26 @@ test('fiscal year starting in April: default period, and year comparison columns
   ]);
   assert.deepEqual(periods({ mode: 'years', count: 1, endYear: 2023 }, new Date(), 3), [{ from: '2023-03-01', to: '2024-02-29', label: '2023/2024' }]);
 });
+
+test('quarter comparison follows calendar quarters for a January fiscal year', () => {
+  assert.deepEqual(incomePeriods({ mode: 'quarters', count: 2, endMonth: '2026-11' }), [
+    { from: '2026-07-01', to: '2026-09-30', label: 'Q3 2026' },
+    { from: '2026-10-01', to: '2026-12-31', label: 'Q4 2026' },
+  ]);
+});
+test('quarter comparison follows fiscal quarters for an April fiscal year and crosses the year boundary', () => {
+  assert.deepEqual(incomePeriods({ mode: 'quarters', count: 3, endMonth: '2026-05' }, new Date(), 4), [
+    { from: '2025-10-01', to: '2025-12-31', label: 'Q3 2025/2026' },
+    { from: '2026-01-01', to: '2026-03-31', label: 'Q4 2025/2026' },
+    { from: '2026-04-01', to: '2026-06-30', label: 'Q1 2026/2027' },
+  ]);
+  // سنة مالية تبدأ في فبراير: الربع لا يطابق الربع الميلادي
+  assert.equal(incomePeriods({ mode: 'quarters', count: 1, endMonth: '2026-01' }, new Date(), 2)[0].from, '2025-11-01');
+});
+test('same period last year pairs the chosen range with its prior-year match', () => {
+  assert.deepEqual(incomePeriods({ mode: 'yoy', dateFrom: '2024-02-01', dateTo: '2024-02-29' }), [
+    { from: '2023-02-01', to: '2023-02-28', label: '2023-02-01 — 2023-02-28' },
+    { from: '2024-02-01', to: '2024-02-29', label: '2024-02-01 — 2024-02-29' },
+  ]);
+  assert.throws(() => incomePeriods({ mode: 'yoy', dateFrom: '2026-03-01', dateTo: '2026-02-01' }), /INVALID_PERIOD/);
+});

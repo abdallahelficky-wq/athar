@@ -23,6 +23,7 @@ import ReportScheduleAutomation from "./ReportScheduleAutomation";
 import VatReconciliation from "./vat/VatReconciliation";
 
 import IncomeStatementModule from "./IncomeStatementModule";
+import FinancialAnalysisModule from "./FinancialAnalysisModule";
 
 import AccountLedgerModule from "./AccountLedgerModule";
 
@@ -31,6 +32,7 @@ export const REPORT_TABS = [
   { id: "ledger", labelKey: "nav.tabs.ledger" },
   { id: "income", labelKey: "nav.tabs.income" },
   { id: "balance", labelKey: "nav.tabs.balance" },
+  { id: "analysis", labelKey: "nav.tabs.financialAnalysis" },
   { id: "vat", labelKey: "nav.tabs.vatReconciliation" },
   { id: "monthly", labelKey: "nav.tabs.monthly" },
   { id: "automation", labelKey: "nav.tabs.automation" },
@@ -190,7 +192,7 @@ export default function ReportsModule({ companies, companyId }) {
       {error && <p className="balance-bad">{error}</p>}
       {!companyId && tab !== "monthly" && tab !== "automation" ? (
         <p className="empty">{t("reports.noCompany")}</p>
-      ) : loading && tab !== "ledger" && tab !== "income" ? (
+      ) : loading && tab !== "ledger" && tab !== "income" && tab !== "analysis" ? (
         <p className="empty">{t("common.loading")}</p>
       ) : (
         <>
@@ -228,6 +230,9 @@ export default function ReportsModule({ companies, companyId }) {
           )}
           {tab === "income" && (
             <IncomeStatementModule key={companyId} company={activeCompany} accounts={accounts} branches={branches} companyId={companyId} printing={printing} onClosePrint={() => setPrinting(false)} />
+          )}
+          {tab === "analysis" && (
+            <FinancialAnalysisModule key={companyId} company={activeCompany} companyId={companyId} printing={printing} onClosePrint={() => setPrinting(false)} />
           )}
           {tab === "balance" && (
             <BalanceSheetView data={balanceSheet} accounts={accounts} filters={rollupFilters} branches={branches} companyId={companyId} />

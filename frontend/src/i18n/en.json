@@ -359,7 +359,7 @@
       "leaveSettlement": "Leave Settlements", "leaveReturn": "Return from Leave", "hrActions": "Employee Actions",
       "payroll": "Payroll", "payrollSettings": "Payroll Settings", "employeeAdvances": "Employee Advances", "eos": "End of Service",
       "hrReports": "Reports", "trial": "Trial Balance", "income": "Income Statement", "balance": "Balance Sheet",
-      "vatReconciliation": "VAT Reconciliation", "monthly": "Comprehensive Monthly Report", "automation": "Send Automation",
+      "vatReconciliation": "VAT Reconciliation", "financialAnalysis": "Financial Analysis & Ratios", "monthly": "Comprehensive Monthly Report", "automation": "Send Automation",
       "companies": "Company Info", "profile": "Profile", "users": "Users & Permissions",
       "jobTitles": "Job Titles", "locations": "Locations", "companyDocs": "Official Documents",
       "positions": "Positions"
@@ -1313,6 +1313,7 @@
     }
   },
   "chartOfAccounts": {
+    "roles": { "receivables": "Receivables (customers)", "payables": "Payables (suppliers)", "inventory": "Inventory", "cost_of_sales": "Cost of sales", "depreciation": "Depreciation and amortization", "finance_cost": "Finance costs and interest" },
     "typeLabel": {
       "asset": "Assets",
       "liability": "Liabilities",
@@ -1368,6 +1369,12 @@
       "type": "Type",
       "postingAccount": "Posting account",
       "bankOrCash": "Cash/bank",
+      "liquidity": "Classification (current/non-current)",
+      "liquidityCurrent": "Current",
+      "liquidityNonCurrent": "Non-current",
+      "analysisRole": "Role in financial analysis",
+      "inheritFromParent": "Inherit from parent account",
+      "classificationHint": "Used by the financial ratios. Classifying a group is enough; its accounts inherit it.",
       "employeeAdvanceAccount": "Employee advance/custody account (enables the advance window inside entries)"
     },
     "filters": {
@@ -2457,6 +2464,7 @@
     }
   },
   "reports": {
+    "analysis": {"title": "Financial analysis and ratios", "intro": "Ratios are computed from the counted entries of each period. Opening and closing balances are averaged for return and activity ratios.", "groups": {"liquidity": "Liquidity", "profitability": "Profitability", "activity": "Activity and turnover", "leverage": "Leverage and capital structure"}, "ratios": {"currentRatio": "Current ratio", "quickRatio": "Quick ratio", "cashRatio": "Cash ratio", "workingCapital": "Working capital", "grossMargin": "Gross margin", "ebitdaMargin": "EBITDA margin", "netMargin": "Net margin", "returnOnAssets": "Return on assets", "returnOnEquity": "Return on equity", "assetTurnover": "Asset turnover", "receivableDays": "Receivable days (DSO)", "inventoryDays": "Inventory days (DIO)", "payableDays": "Payable days (DPO)", "cashConversionCycle": "Cash conversion cycle", "debtToEquity": "Liabilities to equity", "debtRatio": "Debt ratio", "equityRatio": "Equity ratio", "interestCoverage": "Interest coverage"}, "formulas": {"currentRatio": "Current assets ÷ current liabilities", "quickRatio": "(Current assets − inventory) ÷ current liabilities", "cashRatio": "Cash and banks ÷ current liabilities", "workingCapital": "Current assets − current liabilities", "grossMargin": "(Revenue − cost of sales) ÷ revenue", "ebitdaMargin": "(Net income + interest + depreciation) ÷ revenue", "netMargin": "Net income ÷ revenue", "returnOnAssets": "Net income ÷ average assets", "returnOnEquity": "Net income ÷ average equity", "assetTurnover": "Revenue ÷ average assets", "receivableDays": "Average receivables × period days ÷ revenue", "inventoryDays": "Average inventory × period days ÷ cost of sales", "payableDays": "Average payables × period days ÷ cost of sales", "cashConversionCycle": "DSO + DIO − DPO", "debtToEquity": "Total liabilities ÷ equity", "debtRatio": "Total liabilities ÷ total assets", "equityRatio": "Equity ÷ total assets", "interestCoverage": "Earnings before interest ÷ finance costs"}, "figures": {"title": "Key figures", "revenue": "Revenue", "costOfSales": "Cost of sales", "grossProfit": "Gross profit", "ebitda": "EBITDA", "netIncome": "Net income", "cash": "Cash and banks", "receivables": "Receivables", "inventory": "Inventory", "currentAssets": "Current assets", "totalAssets": "Total assets", "currentLiabilities": "Current liabilities", "totalLiabilities": "Total liabilities", "equity": "Equity"}, "status": {"good": "Good", "watch": "Watch", "weak": "Weak"}, "column": {"indicator": "Indicator", "formula": "Formula", "change": "Change"}, "days": "days", "statusNote": "The rating is a general reference that ignores the nature of the business — always compare with the company's own periods and its sector average.", "warnings": {"unclassifiedLiquidity": "Some asset or liability balances are not classified as current/non-current, so the liquidity ratios are incomplete. Classify their groups in the chart of accounts.", "noCostOfSales": "There is revenue but no cost of sales in the period, so gross margin, inventory days and payable days are not meaningful. Mark the cost-of-sales group in the chart of accounts.", "noReceivables": "There is no receivables balance in the period, so receivable days are not computed. If you sell on credit, mark the customers group as receivables."}, "unclassified": {"title": "Unclassified accounts (latest period)", "hint": "Edit the account or its group in the chart of accounts and choose the classification; classifying the group is enough."}, "limits": "Revenue includes other income except finance costs. Payable days use cost of sales. Equity includes cumulative net income, as in the balance sheet."},
     "breadcrumb": "Financial Disclosure",
     "title": "Main Financial Reports",
     "noCompany": "Create a company first from the dashboard to view its financial reports.",

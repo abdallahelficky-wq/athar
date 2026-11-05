@@ -14,6 +14,9 @@ export const createAccountSchema = z.object({
   isBankOrCash: z.boolean().optional(),
   isEmployeeAdvanceAccount: z.boolean().optional(),
   isPersonalGroup: z.boolean().optional(),
+  // تصنيف التحليل المالي — null يعني الوراثة من الحساب الأب (src/lib/accountClassification.ts)
+  liquidity: z.enum(["current", "non_current"]).nullable().optional(),
+  analysisRole: z.enum(["receivables", "payables", "inventory", "cost_of_sales", "depreciation", "finance_cost"]).nullable().optional(),
 });
 
 export const updateAccountSchema = createAccountSchema.partial().extend({

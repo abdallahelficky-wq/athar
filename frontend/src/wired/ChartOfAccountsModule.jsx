@@ -12,7 +12,9 @@ import { useDeferredFilters } from "./shared/useDeferredFilters";
 import { getAccountDisplayName } from "./shared/accountDisplayName";
 
 const LEVEL_CODE_LENGTH = { 1: 1, 2: 2, 3: 3, 4: 6 };
-const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false, isEmployeeAdvanceAccount: false, isPersonalGroup: false };
+const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false, isEmployeeAdvanceAccount: false, isPersonalGroup: false, liquidity: "", analysisRole: "" };
+// تصنيف التحليل المالي (src/lib/accountClassification.ts) — فارغ = يرث من الأب
+const ROLE_TYPES = { receivables: ["asset"], payables: ["liability"], inventory: ["asset"], cost_of_sales: ["expense"], depreciation: ["expense"], finance_cost: ["expense", "revenue"] };
 const emptyChartFilters = { search: "", level: 4, type: "", status: "active" };
 const SHOW_PARTY_ACCOUNTS_KEY = "chartOfAccounts.showPartyAccounts";
 
@@ -143,8 +145,11 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     if (editingId && selectedParent && selectedParent.type !== form.type) {
       return setError(t("chartOfAccounts.errTypeMismatch", { fromType: TYPE_LABEL[form.type], toType: TYPE_LABEL[selectedParent.type] }));
     }
+    const effectiveType = selectedParent?.type || form.type;
     const payload = {
       ...form,
+      liquidity: ["asset", "liability"].includes(effectiveType) && form.liquidity ? form.liquidity : null,
+      analysisRole: form.analysisRole && ROLE_TYPES[form.analysisRole]?.includes(effectiveType) ? form.analysisRole : null,
       name: form.name.trim(), nameEn: form.nameEn.trim() || null, code: form.code.trim(), parentId: form.parentId || null,
       companyId: scope === "group" ? null : scope, level,
     };
@@ -167,7 +172,7 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
     } catch (err) { setError(err.message); }
     finally { setSaving(false); }
   };
-  const edit = (a) => { setAddModalOpen(false); setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isPosting: a.isPosting, isBankOrCash: a.isBankOrCash, isEmployeeAdvanceAccount: a.isEmployeeAdvanceAccount, isPersonalGroup: a.isPersonalGroup }); };
+  const edit = (a) => { setAddModalOpen(false); setEditingId(a.id); setForm({ name: a.name, nameEn: a.nameEn || "", code: a.code, type: a.type, parentId: a.parentId || "", isPosting: a.isPosting, isBankOrCash: a.isBankOrCash, isEmployeeAdvanceAccount: a.isEmployeeAdvanceAccount, isPersonalGroup: a.isPersonalGroup, liquidity: a.liquidity || "", analysisRole: a.analysisRole || "" }); };
   const addChild = async (a) => {
     setEditingId(null); setError(""); setSuccess("");
     try {
@@ -258,6 +263,23 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
         <label className="checkbox-label">
           <input type="checkbox" checked={form.isEmployeeAdvanceAccount} onChange={(e) => setForm({ ...form, isEmployeeAdvanceAccount: e.target.checked })} />
           {t("chartOfAccounts.form.employeeAdvanceAccount")}
+        </label>
+      )}
+      {["asset", "liability"].includes(selectedParent?.type || form.type) && (
+        <label title={t("chartOfAccounts.form.classificationHint")}>{t("chartOfAccounts.form.liquidity")}
+          <select value={form.liquidity} onChange={(e) => setForm({ ...form, liquidity: e.target.value })}>
+            <option value="">{t("chartOfAccounts.form.inheritFromParent")}</option>
+            <option value="current">{t("chartOfAccounts.form.liquidityCurrent")}</option>
+            <option value="non_current">{t("chartOfAccounts.form.liquidityNonCurrent")}</option>
+          </select>
+        </label>
+      )}
+      {Object.values(ROLE_TYPES).some((types) => types.includes(selectedParent?.type || form.type)) && (
+        <label title={t("chartOfAccounts.form.classificationHint")}>{t("chartOfAccounts.form.analysisRole")}
+          <select value={form.analysisRole} onChange={(e) => setForm({ ...form, analysisRole: e.target.value })}>
+            <option value="">{t("chartOfAccounts.form.inheritFromParent")}</option>
+            {Object.entries(ROLE_TYPES).filter(([, types]) => types.includes(selectedParent?.type || form.type)).map(([role]) => <option key={role} value={role}>{t(`chartOfAccounts.roles.${role}`)}</option>)}
+          </select>
         </label>
       )}
       {level < 4 && canReadHrData(user) && (
