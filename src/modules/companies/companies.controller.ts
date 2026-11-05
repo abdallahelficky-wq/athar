@@ -1,3 +1,4 @@
+import { normalizeVatNumber, isValidVatNumberForCountry } from "../../lib/vatNumber";
 import { resolveCompanyVatRate } from "../../lib/companyVat";
 import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 import { RequestHandler } from "express";
@@ -56,12 +57,15 @@ export const createCompany: RequestHandler = async (req, res) => {
   if (req.auth!.companyScope !== "all") {
     throw badRequest("أضف الشركة الجديدة كحساب مستقل من إعدادات الشركات");
   }
+  if (req.body.vatNumber && !isValidVatNumberForCountry(normalizeVatNumber(req.body.vatNumber), req.body.country || "SA")) {
+    throw badRequest(VAT_NUMBER_INVALID_FOR_COUNTRY);
+  }
   if (STATION_CASH_ACCOUNT_FIELDS.some((f) => req.body[f])) {
     throw badRequest("حسابا عجز/زيادة نقد الورديات يُضبطان بعد إنشاء الشركة من بيانات الشركة");
   }
   const company = await prisma.$transaction(
     async (tx) => {
-      const created = await tx.company.create({ data: { ...req.body, vatRate: resolveCompanyVatRate(req.body.country, req.body.vatRate), tenantId: req.auth!.tenantId } });
+      const created = await tx.company.create({ data: { ...req.body, vatNumber: req.body.vatNumber ? normalizeVatNumber(req.body.vatNumber) : req.body.vatNumber, vatRate: resolveCompanyVatRate(req.body.country, req.body.vatRate), tenantId: req.auth!.tenantId } });
 
       const activity = created.businessActivity as BusinessActivity | null;
       // شجرة قطاعية مبنية من ملف CSV الخاص بالنشاط إن اختير، وإلا القالب العام الافتراضي — نقطة
@@ -166,6 +170,15 @@ export const updateCompany: RequestHandler = async (req, res) => {
   await assertTankVarianceAccount(req.auth!.tenantId, existing.id, req.body);
   await assertCardFeeAccount(req.auth!.tenantId, existing.id, req.body);
 
+  // الرقم الضريبي بصيغة دولة الشركة — يُفحص فقط عند تغييره أو تغيير الدولة، فلا تُمنع حفظ بقية الإعدادات لشركة قديمة رقمها
+  // مخزَّن بصيغة أخرى قبل هذا الفحص.
+  if ("vatNumber" in req.body || "country" in req.body) {
+    const country = req.body.country ?? existing.country;
+    const vatNumber = "vatNumber" in req.body ? normalizeVatNumber(req.body.vatNumber) : existing.vatNumber || "";
+    if ("vatNumber" in req.body) req.body.vatNumber = vatNumber || null;
+    const changed = vatNumber !== (existing.vatNumber || "") || country !== existing.country;
+    if (vatNumber && changed && !isValidVatNumberForCountry(vatNumber, country)) throw badRequest(VAT_NUMBER_INVALID_FOR_COUNTRY);
+  }
   // تغيير الدولة بلا نسبة صريحة ⇒ نسبة الدولة الجديدة المقترحة؛ والسعودية 15 دائماً
   if ("vatRate" in req.body || "country" in req.body) {
     const country = req.body.country ?? existing.country;
@@ -181,6 +194,8 @@ export const updateCompany: RequestHandler = async (req, res) => {
  * ويُسجَّل دائماً في AuditLog (من فتحه، متى، والتاريخ القديم/الجديد) — بنفس نمط باقي الإجراءات
  * الاستثنائية في النظام (مثال: journal_entry.unpost في journalEntries.service.ts).
  */
+export const VAT_NUMBER_INVALID_FOR_COUNTRY = "الرقم الضريبي غير صالح لدولة الشركة — راجع المثال الظاهر تحت الخانة";
+
 export const FISCAL_REOPEN_USE_YEAR_REOPEN = "هذه الفترة ضمن سنة مالية مقفلة بقيد إقفال — استخدم «إعادة فتح آخر سنة مقفلة» من إعدادات السنة المالية";
 
 export const reopenFiscalClosing: RequestHandler = async (req, res) => {

@@ -28,3 +28,4 @@ export async function companyVatRatePercent(tenantId: string, companyId: string,
   const company = await db.company.findFirst({ where: { id: companyId, tenantId }, select: { country: true, vatRate: true } });
   return vatRatePercentOf(company);
 }
+

@@ -239,7 +239,7 @@ export default function CustomersTab({ companyId, companies }) {
                   <option value="individual">{t("sales.customers.typeIndividual")}</option>
                 </select>
               </label>
-              <label>{t("sales.customers.vatNumber")}<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => setForm({ ...form, vatNumber: e.target.value.replace(/\D/g, "") })} /></label>
+              <label>{t("sales.customers.vatNumber")}<input type="text" maxLength={24} dir="ltr" value={form.vatNumber} onChange={(e) => setForm({ ...form, vatNumber: e.target.value.toUpperCase() })} /></label>
               <label>{t("sales.customers.crNumber")}<input type="text" value={form.crNumber} onChange={(e) => setForm({ ...form, crNumber: e.target.value })} /></label>
               <label>{t("sales.customers.unifiedEntityNumber")}<input type="text" value={form.unifiedEntityNumber} onChange={(e) => setForm({ ...form, unifiedEntityNumber: e.target.value })} /></label>
               <label>{t("sales.customers.phone")}<input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
