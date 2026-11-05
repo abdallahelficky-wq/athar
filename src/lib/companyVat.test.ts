@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { invoiceVatRatePercent, resolveCompanyVatRate, vatRatePercentOf } from "./companyVat";
+import { resolveCompanyVatRate, vatRatePercentOf } from "./companyVat";
 import { isValidVatNumberForCountry, normalizeVatNumber } from "./vatNumber";
 import { computeInvoiceLine } from "./invoiceLine";
 import { COUNTRIES } from "./countries";
@@ -44,14 +44,3 @@ describe("tax number by country", () => {
   });
 });
 
-describe("rate of an existing invoice", () => {
-  const line = (subtotal: number, vat: number, taxCategoryCode = "S") => ({ subtotal, vat, taxCategoryCode });
-  it("derives the rate from taxable lines", () => {
-    expect(invoiceVatRatePercent({ lines: [line(1000, 140), line(50, 0, "E")] }, 10)).toBe(14);
-    expect(invoiceVatRatePercent({ lines: [line(100, 15)] }, 15)).toBe(15);
-  });
-  it("falls back when there's not enough taxable amount", () => {
-    expect(invoiceVatRatePercent({ lines: [line(0.13, 0.02)] }, 14)).toBe(14);
-    expect(invoiceVatRatePercent(null, 5)).toBe(5);
-  });
-});

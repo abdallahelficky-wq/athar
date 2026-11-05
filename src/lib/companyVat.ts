@@ -29,19 +29,3 @@ export async function companyVatRatePercent(tenantId: string, companyId: string,
   return vatRatePercentOf(company);
 }
 
-type InvoiceLineVatLike = { taxCategoryCode?: string | null; vatApplicable?: boolean | null; subtotal: Prisma.Decimal | number | string; vat: Prisma.Decimal | number | string };
-
-/**
- * النسبة التي صدرت بها فاتورة — لمرتجع مرتبط بها، حتى لا يُحسب بنسبة الشركة الحالية إن تغيّرت بعد الفاتورة. تُشتق من
- * أسطرها الخاضعة (مجموع الضريبة ÷ مجموع الصافي)، وتُطابَق مع نسبة الشركة الحالية إن كانت ضمن نصف نقطة (تقريب الهللات)،
- * وإلا تُقرَّب لأقرب نسبة صحيحة (كل النسب المدعومة صحيحة). فاتورة صافيها الخاضع أقل من 10 لا تكفي للاشتقاق ⇒ fallback.
- */
-export function invoiceVatRatePercent(invoice: { lines: InvoiceLineVatLike[] } | null | undefined, fallback: number): number {
-  if (!invoice) return fallback;
-  const taxable = invoice.lines.filter((l) => (l.taxCategoryCode ? l.taxCategoryCode === "S" : l.vatApplicable !== false));
-  const subtotal = taxable.reduce((n, l) => n + Number(l.subtotal), 0);
-  const vat = taxable.reduce((n, l) => n + Number(l.vat), 0);
-  if (subtotal < 10) return fallback;
-  const derived = (vat / subtotal) * 100;
-  return Math.abs(derived - fallback) < 0.5 ? fallback : Math.round(derived);
-}

@@ -1,4 +1,4 @@
-import { invoiceVatRatePercent, vatRatePercentOf } from "../../lib/companyVat";
+import { vatRatePercentOf } from "../../lib/companyVat";
 import { saveZatcaResponseWithArchive } from "../../lib/zatca/archive";
 import { issuedSupplyDate, recordZatcaIssueTx } from "../../lib/zatca/issues";
 import { assertReissuable, REISSUE_CONFLICT_MESSAGE, reserveReissueChainTx } from "../../lib/zatca/reissue";
@@ -195,7 +195,7 @@ export async function createSalesReturn(tenantId: string, userId: string, input:
     const taxable = source ? source.vatApplicable : vatApplicable;
     if (source) l = { ...l, accountId: source.accountId, description: source.description || undefined, unitPrice: Number(source.unitPrice), discountPct: Number(source.discountPct), priceIncludesVat: source.priceIncludesVat };
     const { vatApplicable: _taxable, ...tax } = normalizeTax(source || { ...l, vatApplicable: taxable });
-    return { ...l, ...computeInvoiceLine({ ...l, ...tax, vatApplicable: taxable, vatRatePercent: invoiceVatRatePercent(original, vatRatePercentOf(company)) }), ...tax };
+    return { ...l, ...computeInvoiceLine({ ...l, ...tax, vatApplicable: taxable, vatRatePercent: vatRatePercentOf(company) }), ...tax };
   });
   assertCompatibleTaxReasons(computed);
   const subtotal = sumMoney(computed.map((l) => l.subtotal));
@@ -352,7 +352,7 @@ export async function updateSalesReturn(tenantId: string, id: string, input: Ret
     const taxable = source ? source.vatApplicable : vatApplicable;
     if (source) l = { ...l, accountId: source.accountId, description: source.description || undefined, unitPrice: Number(source.unitPrice), discountPct: Number(source.discountPct), priceIncludesVat: source.priceIncludesVat };
     const { vatApplicable: _taxable, ...tax } = normalizeTax(source || { ...l, vatApplicable: taxable });
-    return { ...l, ...computeInvoiceLine({ ...l, ...tax, vatApplicable: taxable, vatRatePercent: invoiceVatRatePercent(original, vatRatePercentOf(company)) }), ...tax };
+    return { ...l, ...computeInvoiceLine({ ...l, ...tax, vatApplicable: taxable, vatRatePercent: vatRatePercentOf(company) }), ...tax };
   });
   assertCompatibleTaxReasons(computed);
   const subtotal = sumMoney(computed.map((l) => l.subtotal));
