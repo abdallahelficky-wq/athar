@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getJournalEntry } from "../../api/journalEntries";
 import { fmt, DEPARTMENT_KEYS } from "../../legacy/constants";
 import { labelForListValue } from "../../legacy/listLabels";
-import { getAccountDisplayName } from "../shared/accountDisplayName";
+import { getAccountDisplayName, getOrgDisplayName } from "../shared/accountDisplayName";
 
 /** يعرض القيد المحاسبي الذي أنشأته فاتورة مبيعات مرحّلة (للقراءة فقط) */
 export default function JournalEntryViewModal({ journalEntryId, onClose }) {
@@ -43,7 +43,7 @@ export default function JournalEntryViewModal({ journalEntryId, onClose }) {
                 {entry.lines.map((l) => (
                   <tr key={l.id}>
                     <td>{getAccountDisplayName(l.account, i18n.language)}</td>
-                    <td>{l.departmentRef?.name || (l.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", l.department) : "—")}</td>
+                    <td>{getOrgDisplayName(l.departmentRef, i18n.language) || (l.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", l.department) : "—")}</td>
                     <td className="num">{Number(l.debit) ? fmt(Number(l.debit)) : "—"}</td>
                     <td className="num">{Number(l.credit) ? fmt(Number(l.credit)) : "—"}</td>
                   </tr>

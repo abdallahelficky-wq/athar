@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const createCostCenterSchema = z.object({
   name: z.string().min(2, "اسم مركز التكلفة قصير جداً"),
+  nameEn: z.string().trim().max(150).nullable().optional(), // الاسم الإنجليزي — فارغ = ارتداد للعربي
   companyId: z.string().nullable().optional(), // فارغ/null = عام لكل الشركات ضمن المستأجر
 });
 

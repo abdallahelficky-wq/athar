@@ -4,6 +4,7 @@ import JournalModule from "./JournalModule";
 import ChartOfAccountsModule from "./ChartOfAccountsModule";
 import AccountLedgerModule from "./AccountLedgerModule";
 import DepartmentsTab from "./DepartmentsTab";
+import CostCentersTab from "./CostCentersTab";
 import { ZakatModule } from "../legacy/zakat";
 import SubTabs from "./shared/SubTabs";
 import { useModuleTab } from "./shared/useModuleTab";
@@ -13,6 +14,7 @@ export const ACCOUNTS_TABS = [
   { id: "chartOfAccounts", labelKey: "nav.tabs.chartOfAccounts" },
   { id: "ledger", labelKey: "nav.tabs.ledger" },
   { id: "departments", labelKey: "nav.tabs.departments" },
+  { id: "costCenters", labelKey: "nav.tabs.costCenters" },
   { id: "zakat", labelKey: "nav.tabs.zakat" },
 ];
 
@@ -40,6 +42,7 @@ export default function AccountsGroupModule({
         />
       )}
       {tab === "departments" && <DepartmentsTab companyId={realCompanyId} />}
+      {tab === "costCenters" && <CostCentersTab companyId={realCompanyId} />}
       {tab === "zakat" && <ZakatModule entries={legacyEntries} sales={legacySales} companyId={legacyCompanyId} />}
     </div>
   );

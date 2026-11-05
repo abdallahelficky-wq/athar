@@ -7,6 +7,11 @@
  * - الغياب والجزاءات والاستقطاعات الأخرى (absence/penalty/otherDed): دائن مصروف رواتب الموظف نفسه (حساب بند
  *   «الراتب الأساسي») بنفس قسمه ومركزه — تخفيض للمصروف، لا التزام. كان الارتداد بالأسماء يوجّهها إلى «رواتب مستحقة».
  * - المخالفات (violation): دائن حساب ذمة الموظف الفرعي — يحتاج resolveViolationAccount؛ بدونه يفشل الترحيل.
+ * - خصم السلفة المُدخَل في الكشف (advance، بند السلف القديم/التعديل اليدوي): دائن حساب ذمة الموظف الفرعي نفسه، سطر لكل
+ *   موظف — لا الحساب المشترك «سلف وقروض الموظفين» أبداً (حادثة J02106، قرار المالك 2026-11-05). بلا حساب ذمة يفشل الترحيل.
+ *   وإن كان للموظف أقساط سلف من شاشة السلف في الكشف نفسه يُرفَض الترحيل منعاً لخصم السلفة مرتين.
+ * - حساب مصروف الرواتب حسب القسم: كل بند يُرحَّل على حساب «الراتب الأساسي» (الأساسي والتخفيضات عليه) يُرحَّل بدلاً منه
+ *   على حساب مصروف رواتب قسم تحميل راتب الموظف (Department.salaryExpenseAccountId) إن كان محدداً.
  * - تأمينات الموظف وأي خصم آخر: دائن حساب البند.
  * - مساهمة صاحب العمل (kind=employer): مدين حساب البند (مصروف، موسوم) / دائن contraAccountId — لا تمسّ الصافي.
  * - أقساط السلف: سطر لكل موظف وسلفة في الوضعين، دائن حساب السلفة نفسها (EmployeeAdvance.accountId — حساب ذمة الموظف
@@ -25,6 +30,7 @@ export const UNASSIGNED_DEPARTMENT_LABEL = "غير مخصص";
 export const EXPENSE_REDUCTION_KEYS = new Set(["absence", "otherDed", "penalty"]);
 export const VIOLATION_KEY = "violation";
 export const BASIC_KEY = "basic";
+export const ADVANCE_KEY = "advance";
 
 export interface JournalComponent {
   id: string;
@@ -39,6 +45,8 @@ export interface EmployeeAllocation {
   departmentId: string | null;
   departmentName: string | null;
   costCenterId: string | null;
+  /** حساب مصروف رواتب قسم الموظف — يحلّ محل حساب بند «الراتب الأساسي» (null = حساب البند) */
+  salaryExpenseAccountId?: string | null;
   /** حساب صافي الموظف في الوضع القديم (حسابه الفرعي أو «رواتب مستحقة» احتياطاً) */
   netAccountId?: string;
 }
@@ -67,6 +75,8 @@ export interface BuildPayrollJournalInput {
   accountTypeById: Map<string, string>;
   netPayableAccountId: string;
   resolveViolationAccount?: (employeeId: string) => string;
+  /** حساب ذمة الموظف الفرعي لخصم السلفة المُدخَل في الكشف (بند advance) */
+  resolveAdvanceAccount?: (employeeId: string) => string;
 }
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -86,6 +96,9 @@ export function buildPayrollJournal(input: BuildPayrollJournalInput): { lines: P
       accountTypeById.get(accountId) === "expense"
         ? { department: employee.departmentName || UNASSIGNED_DEPARTMENT_LABEL, departmentId: employee.departmentId, costCenterId: employee.costCenterId }
         : { department: null, departmentId: null, costCenterId: null };
+    // حساب الرواتب حسب القسم: ما يقع على حساب «الراتب الأساسي» ينتقل لحساب مصروف رواتب قسم الموظف إن وُجد
+    const salaryAccount = (accountId: string) =>
+      basic && accountId === basic.accountId && employee.salaryExpenseAccountId ? employee.salaryExpenseAccountId : accountId;
     const push = (component: JournalComponent, accountId: string, side: "debit" | "credit", value: number, extra: Partial<RawLine> = {}) => {
       if (accountId === netPayableAccountId) {
         throw badRequest(`البند «${component.name}» مربوط بحساب «${NET_PAYABLE_ACCOUNT_NAME}» المخصص لصافي الرواتب وحده — غيّر حساب البند من إعدادات الرواتب`);
@@ -110,10 +123,19 @@ export function buildPayrollJournal(input: BuildPayrollJournalInput): { lines: P
         push(component, component.accountId, "debit", value);
         push(component, component.contraAccountId, "credit", value);
       } else if (component.kind === "addition") {
-        push(component, component.accountId, "debit", value);
+        push(component, salaryAccount(component.accountId), "debit", value);
       } else if (component.systemKey && EXPENSE_REDUCTION_KEYS.has(component.systemKey)) {
         if (!basic) throw badRequest(`لا يمكن ترحيل «${component.name}»: يُخصم من مصروف الراتب الأساسي ولا يوجد بند «الراتب الأساسي» فعّال في هذه الشركة`);
-        push(component, basic.accountId, "credit", value);
+        push(component, salaryAccount(basic.accountId), "credit", value);
+      } else if (component.systemKey === ADVANCE_KEY) {
+        if (!input.resolveAdvanceAccount) {
+          throw badRequest(`لا يمكن ترحيل «${component.name}»: خصم السلفة يُرحَّل على حساب ذمة الموظف الفرعي، وحسابات ذمم الموظفين غير مهيأة بعد في إعدادات الرواتب`);
+        }
+        if ((row.advanceInstallments || []).some((i) => round2(i.amount) > 0)) {
+          throw badRequest(`الموظف «${row.employeeName ?? ""}» عليه قسط سلفة من شاشة السلف وخصم سلفة مُدخَل يدوياً في الكشف معاً — احذف أحدهما حتى لا تُخصَم السلفة مرتين`);
+        }
+        const pseudo: JournalComponent = { ...component, name: `${component.name} — ${row.employeeName ?? ""}`.trim() };
+        push(pseudo, input.resolveAdvanceAccount(row.employeeId), "credit", value, { perEmployeeOnly: true });
       } else if (component.systemKey === VIOLATION_KEY) {
         if (!input.resolveViolationAccount) {
           throw badRequest(`لا يمكن ترحيل «${component.name}»: يُرحَّل على حساب ذمة الموظف الفرعي، وحسابات ذمم الموظفين غير مهيأة بعد في إعدادات الرواتب`);

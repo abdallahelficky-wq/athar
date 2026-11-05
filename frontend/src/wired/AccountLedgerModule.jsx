@@ -14,6 +14,7 @@ import AccountLedgerPrintModal from "./AccountLedgerPrintModal";
 import { useDeferredFilters } from "./shared/useDeferredFilters";
 import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 import { defaultDateRangeForCompany } from "./shared/fiscalClosing";
+import { getOrgDisplayName } from "./shared/accountDisplayName";
 
 const emptyFilters = { accountId: "", subAccountId: "", costCenterId: "", departmentId: "", branchId: "", dateFrom: "", dateTo: "" };
 
@@ -182,13 +183,13 @@ export default function AccountLedgerModule({ companyId, companies, initialAccou
               <label>{t("accountLedger.costCenterLabel")}
                 <select value={alf.draft.costCenterId} onChange={(e) => alf.setField("costCenterId", e.target.value)}>
                   <option value="">{t("accountLedger.allCostCenters")}</option>
-                  {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{getOrgDisplayName(c, i18n.language)}</option>)}
                 </select>
               </label>
               <label>{t("accountLedger.departmentLabel")}
                 <select value={alf.draft.departmentId} onChange={(e) => alf.setField("departmentId", e.target.value)}>
                   <option value="">{t("accountLedger.allDepartments")}</option>
-                  {departmentOptions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  {departmentOptions.map((d) => <option key={d.id} value={d.id}>{getOrgDisplayName(d, i18n.language)}</option>)}
                 </select>
               </label>
               {branchOptions.length > 0 && (

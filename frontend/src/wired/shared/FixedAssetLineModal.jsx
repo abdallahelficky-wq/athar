@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import EmployeeSearchSelect from "./EmployeeSearchSelect";
+import { getOrgDisplayName } from "./accountDisplayName";
 
 const emptyNewAsset = () => ({
   name: "", categoryId: "", serialNumber: "", chassisNumber: "", plateNumber: "",
@@ -22,7 +23,7 @@ const emptyNewAsset = () => ({
  * لا العكس، وإلا يتناقض حساب الأصل المسجَّل مع حساب سطر القيد الفعلي الذي رُحِّلت عليه التكلفة.
  */
 export default function FixedAssetLineModal({ existingAssets, assetCategories, lineAccountId, costCenters, employees, initial, onClose, onConfirm }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [mode, setMode] = useState(initial?.fixedAssetId ? "existing" : "new");
   const [existingId, setExistingId] = useState(initial?.fixedAssetId || "");
   const matchedCategories = useMemo(
@@ -102,7 +103,7 @@ export default function FixedAssetLineModal({ existingAssets, assetCategories, l
             <label>{t("journalModals.fixedAssetLine.locationLabel")}
               <select value={form.costCenterId} onChange={(e) => setForm({ ...form, costCenterId: e.target.value })}>
                 <option value="">{t("journalModals.fixedAssetLine.noneOption")}</option>
-                {costCenters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {costCenters.map((c) => <option key={c.id} value={c.id}>{getOrgDisplayName(c, i18n.language)}</option>)}
               </select>
             </label>
             <label>{t("journalModals.fixedAssetLine.custodianLabel")}

@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext";
 import { routes } from "../../routes";
 import { useToast, ToastHost } from "../shared/Toast";
 import "../../styles/job-titles.css";
+import { getOrgDisplayName } from "../shared/accountDisplayName";
 
 /**
  * شؤون الموظفين ← الوظائف: المسمّيات الوظيفية للمستأجر، محفوظة في الخادم (بعد أن كانت قائمة في ذاكرة المتصفح
@@ -14,7 +15,7 @@ import "../../styles/job-titles.css";
  * لا تُحذَف هنا، وإعادة تسميتها تعيد تسمية منصبها (الخادم يفعل ذلك في jobTitles.service.ts).
  */
 export default function JobTitlesTab() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user: me, tenant } = useAuth();
   const isOwner = me?.role === "super_admin" || (!!me?.id && me.id === tenant?.ownerId);
   const { toast, notify, dismiss } = useToast();
@@ -22,9 +23,11 @@ export default function JobTitlesTab() {
   const [loading, setLoading] = useState(true);
   const [formOpen,setFormOpen] = useState(false);
   const [name, setName] = useState("");
+  const [nameEn, setNameEn] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
+  const [editNameEn, setEditNameEn] = useState("");
 
   const reload = () => {
     setLoading(true);
@@ -36,8 +39,8 @@ export default function JobTitlesTab() {
     if (!name.trim() || saving) return;
     setSaving(true);
     try {
-      await createJobTitle(name.trim());
-      setName(""); setFormOpen(false);
+      await createJobTitle(name.trim(), nameEn.trim());
+      setName(""); setNameEn(""); setFormOpen(false);
       reload();
       notify(t("settings.jobTitles.notifyAdded"), "success");
     } catch (err) {
@@ -50,7 +53,7 @@ export default function JobTitlesTab() {
   const saveRename = async (title) => {
     if (!editName.trim()) return;
     try {
-      await renameJobTitle(title.id, editName.trim());
+      await renameJobTitle(title.id, editName.trim(), editNameEn.trim());
       setEditingId(null);
       reload();
       notify(t("settings.jobTitles.notifyRenamed"), "success");
@@ -78,6 +81,10 @@ export default function JobTitlesTab() {
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder={t("settings.jobTitles.placeholder")} />
         </label>
+        <label className="memo-field">{t("settings.jobTitles.nameEnLabel")}
+          <input type="text" dir="ltr" value={nameEn} onChange={(e) => setNameEn(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder={t("settings.jobTitles.nameEnPlaceholder")} />
+        </label>
         <button className="btn-primary" onClick={add} disabled={saving || !name.trim()}>{t("common.add")}</button>
         <p className="note">{t("settings.jobTitles.note")}</p>
       </div></HRDialog>}
@@ -95,7 +102,7 @@ export default function JobTitlesTab() {
                 {titles.map((title) => (
                   <tr key={title.id}>
                     <td>
-                      {title.name}
+                      {getOrgDisplayName(title, i18n.language)}
                     </td>
                     <td>
                       <span className={`status-badge${title.positionId ? " job-has-position" : ""}`}>
@@ -104,7 +111,7 @@ export default function JobTitlesTab() {
                       {isOwner && <Link className="job-permissions-link" to={routes.settings("positions")}>{t("settings.jobTitles.managePermissions")}</Link>}
                     </td>
                     <td className="row-actions">
-                      <button className="btn-ghost" aria-label={t("settings.jobTitles.editBtn")+" "+title.name} onClick={()=>{setEditingId(title.id);setEditName(title.name);}}>{t("settings.jobTitles.editBtn")}</button>
+                      <button className="btn-ghost" aria-label={t("settings.jobTitles.editBtn")+" "+title.name} onClick={()=>{setEditingId(title.id);setEditName(title.name);setEditNameEn(title.nameEn||"");}}>{t("settings.jobTitles.editBtn")}</button>
                       <button className="btn-ghost" aria-label={t("settings.jobTitles.deleteBtn")+" "+title.name} onClick={()=>remove(title)} disabled={!!title.positionId}>{t("settings.jobTitles.deleteBtn")}</button>
                     </td>
                   </tr>
@@ -116,6 +123,7 @@ export default function JobTitlesTab() {
       )}
       {editingId && <HRDialog title={t("settings.jobTitles.editBtn")} onClose={()=>setEditingId(null)}>
         <label>{t("settings.jobTitles.table.name")}<input value={editName} onChange={e=>setEditName(e.target.value)}/></label>
+        <label>{t("settings.jobTitles.nameEnLabel")}<input dir="ltr" value={editNameEn} onChange={e=>setEditNameEn(e.target.value)} placeholder={t("settings.jobTitles.nameEnPlaceholder")}/></label>
         <button className="btn-primary" disabled={!editName.trim()} onClick={()=>saveRename({id:editingId})}>{t("settings.jobTitles.saveBtn")}</button>
       </HRDialog>}
       <ToastHost toast={toast} onDismiss={dismiss} />
