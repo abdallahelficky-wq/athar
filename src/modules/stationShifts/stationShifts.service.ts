@@ -1,4 +1,4 @@
-import { companyVatRatePercent } from "../../lib/companyVat";
+import { vatRatePercentOf } from "../../lib/companyVat";
 import { Prisma, StationFuelProduct, StationShiftType } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound, forbidden, HttpError } from "../../lib/httpError";
@@ -494,18 +494,18 @@ export async function resolveShiftClosingAccounts(tenantId: string, companyId: s
 async function loadShiftClosingInput(tenantId: string, shiftId: string) {
   const shift = await prisma.stationShift.findFirst({
     where: { id: shiftId, tenantId },
-    include: { readings: { include: { nozzle: true } }, creditSales: true, expenses: true, collection: true, employee: { select: { id: true, name: true } } },
+    include: { readings: { include: { nozzle: true } }, creditSales: true, expenses: true, collection: true, employee: { select: { id: true, name: true } }, company: { select: { country: true, vatRate: true } } },
   });
   if (!shift) throw notFound("الوردية غير موجودة");
+  const vatRatePercent = vatRatePercentOf(shift.company);
 
-  const [priceRows, { accounts, expenseAccountId }, vatRatePercent] = await Promise.all([
+  const [priceRows, { accounts, expenseAccountId }] = await Promise.all([
     // مقيَّد بالمستأجر والشركة صراحةً — السعر العام (costCenterId فارغ) لا يخص محطة بعينها، فبدون هذا
     // القيد كانت أسعار أي شركة أخرى تدخل الحساب (نفس نطاق stationShiftsReports.service.ts)
     prisma.fuelPrice.findMany({
       where: { tenantId: shift.tenantId, companyId: shift.companyId, OR: [{ costCenterId: shift.costCenterId }, { costCenterId: null }] },
     }),
     resolveShiftClosingAccounts(shift.tenantId, shift.companyId),
-    companyVatRatePercent(shift.tenantId, shift.companyId),
   ]);
 
   const creditSales = await Promise.all(
