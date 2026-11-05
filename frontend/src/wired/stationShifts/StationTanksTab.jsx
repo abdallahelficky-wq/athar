@@ -6,6 +6,7 @@ import { listSuppliers } from "../../api/suppliers";
 import { formatDate, formatDateTime } from "../../i18n/dateFormat";
 import { fmt2 } from "../../legacy/constants";
 import FormDialog from "../shared/FormDialog";
+import { getOrgDisplayName } from "../shared/accountDisplayName";
 
 /**
  * الخزانات والتوريد: إعداد الخزانات وربط الفوهات بها، قياس الخزانات اليدوي، توريد الوقود، ومطابقة الخزانات
@@ -241,7 +242,7 @@ export default function StationTanksTab({ companyId }) {
             <tbody>
               {tanks.map((tk) => (
                 <tr key={tk.id}>
-                  <td>{tk.costCenter?.name}</td><td>{tk.code}</td><td>{productLabel(tk.product)}</td><td className="num">{fmt2(tk.capacityLiters)}</td>
+                  <td>{getOrgDisplayName(tk.costCenter, i18n.language)}</td><td>{tk.code}</td><td>{productLabel(tk.product)}</td><td className="num">{fmt2(tk.capacityLiters)}</td>
                   <td>{tk.atgTankNumber ?? "—"}</td><td>{tk.isActive ? t("stationTanks.active") : t("stationTanks.inactive")}</td>
                   <td className="row-actions">
                     <button className="btn-ghost" onClick={() => open("tank", { id: tk.id, costCenterId: tk.costCenterId, product: tk.product, code: tk.code, capacityLiters: tk.capacityLiters, atgTankNumber: tk.atgTankNumber ?? "" })}>{t("stationTanks.edit")}</button>
@@ -311,7 +312,7 @@ export default function StationTanksTab({ companyId }) {
             <tbody>
               {deliveries.flatMap((dv) => dv.lines.map((l, i) => (
                 <tr key={l.id} style={{ opacity: dv.status === "void" ? 0.5 : 1 }}>
-                  <td>{i === 0 ? formatDateTime(dv.deliveredAt, i18n.language) : ""}</td><td>{i === 0 ? dv.costCenter?.name : ""}</td><td>{i === 0 ? dv.deliveryNoteNumber : ""}</td>
+                  <td>{i === 0 ? formatDateTime(dv.deliveredAt, i18n.language) : ""}</td><td>{i === 0 ? getOrgDisplayName(dv.costCenter, i18n.language) : ""}</td><td>{i === 0 ? dv.deliveryNoteNumber : ""}</td>
                   <td>{l.tank?.code} — {productLabel(l.tank?.product)}</td><td className="num">{fmt2(l.noteLiters)}</td><td className="num">{fmt2(l.receivedLiters)}</td>
                   <td className="num">{fmt2(Number(l.receivedLiters) - Number(l.noteLiters))}</td>
                   <td>{i === 0 ? (dv.status === "void" ? `${t("stationTanks.voidedLabel")} — ${dv.voidReason}` : t("stationTanks.confirmed")) : ""}</td>
@@ -338,7 +339,7 @@ export default function StationTanksTab({ companyId }) {
 
       <FormDialog open={dialog === "reading"} title={t("stationTanks.addReading")} onClose={close}>
         <div className="form-grid">
-          <label>{t("stationTanks.tank")}<select value={form.tankId || ""} onChange={(e) => setForm({ ...form, tankId: e.target.value })}>{activeTanks.map((tk) => <option key={tk.id} value={tk.id}>{tk.costCenter?.name} — {tankLabel(tk)}</option>)}</select></label>
+          <label>{t("stationTanks.tank")}<select value={form.tankId || ""} onChange={(e) => setForm({ ...form, tankId: e.target.value })}>{activeTanks.map((tk) => <option key={tk.id} value={tk.id}>{getOrgDisplayName(tk.costCenter, i18n.language)} — {tankLabel(tk)}</option>)}</select></label>
           <label>{t("stationTanks.purpose")}<select value={form.purpose || "closing"} onChange={(e) => setForm({ ...form, purpose: e.target.value })}>{["opening", "closing", "pre_delivery", "post_delivery", "spot"].map((p) => <option key={p} value={p}>{t(`stationTanks.purposes.${p}`)}</option>)}</select></label>
           {field("readAt", t("stationTanks.readAt"), { type: "datetime-local" })}
           {field("liters", t("stationTanks.liters"), { type: "number", min: 0, step: "0.01" })}

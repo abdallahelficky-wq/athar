@@ -354,7 +354,7 @@
       "register": "سجل الأصول", "depreciation": "الإهلاك الشهري",
       "disposal": "الاستبعاد/البيع", "fixedAssetsReports": "التقارير", "categories": "إعدادات الأصول الثابتة",
       "journal": "القيود اليومية", "chartOfAccounts": "شجرة الحسابات", "ledger": "كشف حساب الأستاذ",
-      "departments": "الأقسام", "zakat": "الزكاة والضريبة (تقديرية، بيانات تجريبية)",
+      "departments": "الأقسام", "costCenters": "مراكز التكلفة", "zakat": "الزكاة والضريبة (تقديرية، بيانات تجريبية)",
       "hrDashboard": "لوحة القيادة", "directory": "ملفات الموظفين", "leaves": "طلبات الإجازات",
       "leaveSettlement": "مستحقات الإجازة", "leaveReturn": "المباشرة بعد الإجازة", "hrActions": "إجراءات الموظفين",
       "payroll": "كشف الرواتب", "payrollSettings": "إعدادات الرواتب", "employeeAdvances": "سلف الموظفين", "eos": "نهاية الخدمة",
@@ -1469,7 +1469,20 @@
     "saveChanges": "حفظ التعديلات",
     "addDepartment": "إضافة قسم",
     "confirmDelete": "حذف القسم \"{{name}}\"؟",
-    "empty": "لا توجد أقسام بعد."
+    "empty": "لا توجد أقسام بعد.",
+    "nameEn": "الاسم بالإنجليزية",
+    "salaryExpenseAccount": "حساب مصروف الرواتب",
+    "salaryExpenseAccountHint": "موظفو هذا القسم يُرحَّل راتبهم الأساسي على هذا الحساب في قيد الرواتب. فارغ = حساب بند «الراتب الأساسي».",
+    "salaryExpenseAccountNone": "— حساب بند الراتب الأساسي —"
+  },
+  "costCenters": {
+    "name": "اسم مركز التكلفة",
+    "nameEn": "الاسم بالإنجليزية",
+    "saveChanges": "حفظ التعديلات",
+    "addCostCenter": "إضافة مركز تكلفة",
+    "confirmDelete": "حذف مركز التكلفة \"{{name}}\"؟",
+    "empty": "لا توجد مراكز تكلفة بعد.",
+    "note": "مراكز التكلفة تُوسَم بها أسطر القيود وأسطر مصروف الرواتب، وتظهر في فلتر كشف الحساب."
   },
   "zakat": {
     "eyebrow": "الامتثال الضريبي",
@@ -2230,6 +2243,8 @@
       "saveBtn": "حفظ الملف الشخصي"
     },
     "jobTitles": {
+      "nameEnLabel": "الاسم بالإنجليزية",
+      "nameEnPlaceholder": "مثال: Sales Supervisor",
       "newTitleLabel": "مسمّى وظيفي جديد",
       "placeholder": "مثال: مشرف مبيعات",
       "empty": "لا توجد مسمّيات وظيفية مسجّلة بعد.",

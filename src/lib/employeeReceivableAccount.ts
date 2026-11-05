@@ -30,13 +30,27 @@ export async function getAdvancesParentId(client: Client, tenantId: string, comp
  * لا ارتداد لحساب مشترك. الحجز بـ updateMany على receivableAccountId = null يمنع إنشاء حسابين لموظف واحد عند التزامن.
  */
 export async function ensureEmployeeReceivableAccount(client: Client, tenantId: string, employeeId: string): Promise<string> {
-  const employee = await client.employee.findFirst({ where: { id: employeeId, tenantId }, select: { id: true, name: true, companyId: true, receivableAccountId: true } });
+  const employee = await client.employee.findFirst({ where: { id: employeeId, tenantId }, select: { id: true, name: true, companyId: true, receivableAccountId: true, accountId: true } });
   if (!employee) throw badRequest("الموظف غير موجود");
   if (employee.receivableAccountId) return employee.receivableAccountId;
 
   const parentId = await getAdvancesParentId(client, tenantId, employee.companyId);
   if (!parentId) throw badRequest("اختر مجموعة حسابات ذمم الموظفين (السلف والمخالفات) في إعدادات الرواتب أولاً");
   const parent = await assertValidAdvancesParent(client, tenantId, employee.companyId, parentId);
+
+  // للموظف حساب شخصي قائم تحت المجموعة المختارة نفسها (Employee.accountId — يُنشئه ملف الموظف تحت «ذمم الموظفين»):
+  // يُعتمَد هو حساب ذمته بدل إنشاء حساب ثانٍ باسمه في المجموعة ذاتها (حادثة أرمي 2026-11-05: 118001–118014 قائمة
+  // وصفرية، وكان الإنشاء سيكرّرها). يُشترط أن يكون أصولاً، ترحيلياً، نشطاً، ومن الشركة نفسها.
+  if (employee.accountId) {
+    const own = await client.account.findFirst({ where: { id: employee.accountId, tenantId, companyId: employee.companyId } });
+    if (own && own.parentId === parent.id && own.type === "asset" && own.isPosting && own.isActive && !own.isArchived) {
+      const adopted = await client.employee.updateMany({ where: { id: employee.id, receivableAccountId: null }, data: { receivableAccountId: own.id } });
+      if (!own.isEmployeeAdvanceAccount) await client.account.update({ where: { id: own.id }, data: { isEmployeeAdvanceAccount: true } });
+      if (adopted.count === 1) return own.id;
+      const winner = await client.employee.findUniqueOrThrow({ where: { id: employee.id }, select: { receivableAccountId: true } });
+      return winner.receivableAccountId!;
+    }
+  }
 
   const code = await generateNextCode(client, tenantId, employee.companyId, parent.id);
   const account = await client.account.create({

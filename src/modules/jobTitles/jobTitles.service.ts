@@ -10,7 +10,7 @@ import { conflict, notFound } from "../../lib/httpError";
 const include = { position: { select: { id: true } } } satisfies Prisma.JobTitleInclude;
 
 function publicJobTitle(row: Prisma.JobTitleGetPayload<{ include: typeof include }>) {
-  return { id: row.id, name: row.name, positionId: row.position?.id ?? null };
+  return { id: row.id, name: row.name, nameEn: row.nameEn ?? null, positionId: row.position?.id ?? null };
 }
 
 function isUniqueViolation(err: unknown) {
@@ -22,21 +22,21 @@ export async function listJobTitles(tenantId: string) {
   return rows.map(publicJobTitle);
 }
 
-export async function createJobTitle(tenantId: string, name: string) {
+export async function createJobTitle(tenantId: string, name: string, nameEn?: string | null) {
   try {
-    return publicJobTitle(await prisma.jobTitle.create({ data: { tenantId, name }, include }));
+    return publicJobTitle(await prisma.jobTitle.create({ data: { tenantId, name, nameEn: nameEn || null }, include }));
   } catch (err) {
     if (isUniqueViolation(err)) throw conflict("هذه الوظيفة موجودة بالفعل");
     throw err;
   }
 }
 
-export async function renameJobTitle(tenantId: string, id: string, name: string) {
+export async function renameJobTitle(tenantId: string, id: string, name: string, nameEn?: string | null) {
   const existing = await prisma.jobTitle.findFirst({ where: { id, tenantId }, include });
   if (!existing) throw notFound("الوظيفة غير موجودة");
   try {
     const updated = await prisma.$transaction(async (tx) => {
-      const row = await tx.jobTitle.update({ where: { id }, data: { name }, include });
+      const row = await tx.jobTitle.update({ where: { id }, data: { name, ...(nameEn !== undefined ? { nameEn: nameEn || null } : {}) }, include });
       // المنصب المبني من هذه الوظيفة يحمل اسمها
       if (row.position) await tx.position.update({ where: { id: row.position.id }, data: { name } });
       return row;

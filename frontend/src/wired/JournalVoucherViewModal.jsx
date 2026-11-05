@@ -7,7 +7,7 @@ import { labelForListValue } from "../legacy/listLabels";
 import { currencyLabel } from "../shared/countries";
 import { getJournalEntry, getJournalEntryPdf } from "../api/journalEntries";
 import { formatGregorianDateTime } from "../i18n/dateFormat";
-import { getAccountDisplayName } from "./shared/accountDisplayName";
+import { getAccountDisplayName, getOrgDisplayName } from "./shared/accountDisplayName";
 import { useToast, ToastHost } from "./shared/Toast";
 import { useAuth } from "../context/AuthContext";
 import { canReadHrData } from "../shared/hrAccess";
@@ -174,8 +174,8 @@ export default function JournalVoucherViewModal({ entry, companies, onClose }) {
               {entry.lines.map((l) => (
                 <tr key={l.id}>
                   <td>{getAccountDisplayName(l.account, i18n.language)}</td>
-                  {hasCostCenter && <td>{l.costCenter?.name || "—"}</td>}
-                  {hasDepartment && <td>{l.departmentRef?.name || (l.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", l.department) : "—")}</td>}
+                  {hasCostCenter && <td>{getOrgDisplayName(l.costCenter, i18n.language) || "—"}</td>}
+                  {hasDepartment && <td>{getOrgDisplayName(l.departmentRef, i18n.language) || (l.department ? labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", l.department) : "—")}</td>}
                   {hasBranchedLines && <td>{l.branch?.nameAr || "—"}</td>}
                   {hasDescription && <td>{l.description || "—"}</td>}
                   <td className="num">{Number(l.debit) ? fmt(Number(l.debit)) : "—"}{lineEquivalent(l, Number(l.debit))}</td>

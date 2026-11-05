@@ -354,7 +354,7 @@
       "register": "Asset Register", "depreciation": "Monthly Depreciation",
       "disposal": "Disposal / Sale", "fixedAssetsReports": "Reports", "categories": "Fixed Asset Settings",
       "journal": "Journal Entries", "chartOfAccounts": "Chart of Accounts", "ledger": "Account Ledger",
-      "departments": "Departments", "zakat": "Zakat & Tax (estimated, sample data)",
+      "departments": "Departments", "costCenters": "Cost centers", "zakat": "Zakat & Tax (estimated, sample data)",
       "hrDashboard": "Dashboard", "directory": "Employee Directory", "leaves": "Leave Requests",
       "leaveSettlement": "Leave Settlements", "leaveReturn": "Return from Leave", "hrActions": "Employee Actions",
       "payroll": "Payroll", "payrollSettings": "Payroll Settings", "employeeAdvances": "Employee Advances", "eos": "End of Service",
@@ -1469,7 +1469,20 @@
     "saveChanges": "Save changes",
     "addDepartment": "Add department",
     "confirmDelete": "Delete department \"{{name}}\"?",
-    "empty": "No departments yet."
+    "empty": "No departments yet.",
+    "nameEn": "English name",
+    "salaryExpenseAccount": "Salary expense account",
+    "salaryExpenseAccountHint": "This department's employees have their basic salary posted to this account in the payroll entry. Empty = the basic salary component's account.",
+    "salaryExpenseAccountNone": "— Basic salary component account —"
+  },
+  "costCenters": {
+    "name": "Cost center name",
+    "nameEn": "English name",
+    "saveChanges": "Save changes",
+    "addCostCenter": "Add cost center",
+    "confirmDelete": "Delete cost center \"{{name}}\"?",
+    "empty": "No cost centers yet.",
+    "note": "Cost centers tag journal entry lines and payroll expense lines, and appear as a filter in the account ledger."
   },
   "zakat": {
     "eyebrow": "Tax compliance",
@@ -2230,6 +2243,8 @@
       "saveBtn": "Save profile"
     },
     "jobTitles": {
+      "nameEnLabel": "English name",
+      "nameEnPlaceholder": "e.g. Sales Supervisor",
       "newTitleLabel": "New job title",
       "placeholder": "e.g. Sales supervisor",
       "empty": "No job titles registered yet.",

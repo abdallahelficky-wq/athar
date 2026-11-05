@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { PrintShell, printWithOrientation } from "../../legacy/shared";
 import { fmt, ASSET_CATEGORY_KEYS } from "../../legacy/constants";
 import { labelForListValue } from "../../legacy/listLabels";
+import { getOrgDisplayName } from "../shared/accountDisplayName";
 
 /**
  * بطاقة أصل ثابت قابلة للطباعة — تُفتَح من زر "طباعة البطاقة" في سجل الأصول. تعرض كل بيانات
@@ -10,7 +11,7 @@ import { labelForListValue } from "../../legacy/listLabels";
  * أو تُحفظ في ملفه. رقم الهيكل/اللوحة والعهدة والموقع تظهر فقط لو موجودة فعلاً على هذا الأصل.
  */
 export default function AssetCardPrintModal({ asset, companies, employees, costCenters, autoPrint, onClose }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useEffect(() => {
     if (!autoPrint) return;
     const timer = setTimeout(() => printWithOrientation(false), 200);
@@ -49,7 +50,7 @@ export default function AssetCardPrintModal({ asset, companies, employees, costC
         {asset.serialNumber && <div><span>{t("fixedAssets.printCard.serialNumber")}</span><strong>{asset.serialNumber}</strong></div>}
         {asset.chassisNumber && <div><span>{t("fixedAssets.printCard.chassisNumber")}</span><strong>{asset.chassisNumber}</strong></div>}
         {asset.plateNumber && <div><span>{t("fixedAssets.printCard.plateNumber")}</span><strong>{asset.plateNumber}</strong></div>}
-        {costCenter && <div><span>{t("fixedAssets.printCard.location")}</span><strong>{costCenter.name}</strong></div>}
+        {costCenter && <div><span>{t("fixedAssets.printCard.location")}</span><strong>{getOrgDisplayName(costCenter, i18n.language)}</strong></div>}
         {employee && <div><span>{t("fixedAssets.printCard.custodian")}</span><strong>{employee.name}</strong></div>}
       </div>
     </PrintShell>

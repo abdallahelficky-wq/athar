@@ -14,6 +14,7 @@ import StationTanksTab from "./StationTanksTab";
 import StationControllersTab from "./StationControllersTab";
 import CardSettlementsTab from "./CardSettlementsTab";
 import StationsDashboardTab from "./StationsDashboardTab";
+import { getOrgDisplayName } from "../shared/accountDisplayName";
 
 export const STATION_SHIFTS_TABS = [
   { id: "dashboard", labelKey: "stationsDashboard.tabTitle" },
@@ -215,7 +216,7 @@ export default function StationShiftsReviewModule({ companyId }) {
             {list.map((s) => (
               <tr key={s.id} style={{ background: s.id === selectedId ? "#f0f4ff" : undefined }}>
                 <td>{s.employee?.name}</td>
-                <td>{s.costCenter?.name}</td>
+                <td>{getOrgDisplayName(s.costCenter, i18n.language)}</td>
                 <td>{t(`stationShiftsReview.shiftType.${s.shiftType}`)}</td>
                 <td>{formatDate(s.shiftDate, i18n.language)}</td>
                 <td>{t(`stationShiftsReview.status.${s.status}`)}</td>
@@ -234,7 +235,7 @@ export default function StationShiftsReviewModule({ companyId }) {
             <h3>{t("stationShiftsReview.detailTitle", { employee: detail.employee?.name, status: t(`stationShiftsReview.status.${detail.status}`) })}</h3>
             <button type="button" className="modal-close-btn" onClick={closeDetail} aria-label={t("common.close")}>×</button>
           </div>
-          <p className="note" style={{ marginTop: 0 }}>{list.find((x) => x.id === detail.id)?.costCenter?.name ?? ""} · {t(`stationShiftsReview.shiftType.${detail.shiftType}`)} · {formatDate(detail.shiftDate, i18n.language)}</p>
+          <p className="note" style={{ marginTop: 0 }}>{list.find((x) => x.id === detail.id)?.costCenter ? getOrgDisplayName(list.find((x) => x.id === detail.id).costCenter, i18n.language) : ""} · {t(`stationShiftsReview.shiftType.${detail.shiftType}`)} · {formatDate(detail.shiftDate, i18n.language)}</p>
           {error && <p className="balance-bad">{error}</p>}
           {message && <p className="note">{message}</p>}
 

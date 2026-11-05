@@ -9,6 +9,16 @@ async function assertCompanyBelongsToTenant(tenantId: string, companyId?: string
   if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
 }
 
+/** حساب مصروف رواتب القسم: من شركة القسم نفسها، مصروفات، حساب ترحيل نشط — وقسم عام (بلا شركة) لا يقبل حساباً */
+async function assertValidSalaryExpenseAccount(tenantId: string, companyId: string | null | undefined, accountId?: string | null) {
+  if (!accountId) return;
+  if (!companyId) throw badRequest("حساب مصروف الرواتب يُحدَّد لقسم خاص بشركة، لا لقسم عام لكل الشركات");
+  const account = await prisma.account.findFirst({ where: { id: accountId, tenantId, companyId } });
+  if (!account) throw badRequest("حساب مصروف الرواتب ليس من شجرة حسابات هذه الشركة");
+  if (account.type !== "expense") throw badRequest("حساب مصروف الرواتب يجب أن يكون من المصروفات");
+  if (!account.isPosting || !account.isActive || account.isArchived) throw badRequest("حساب مصروف الرواتب يجب أن يكون حساب ترحيل نشطاً");
+}
+
 export const listDepartments: RequestHandler = async (req, res) => {
   const { companyScope } = req.auth!;
   const departments = await prisma.department.findMany({
@@ -23,6 +33,7 @@ export const listDepartments: RequestHandler = async (req, res) => {
 
 export const createDepartment: RequestHandler = async (req, res) => {
   await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
+  await assertValidSalaryExpenseAccount(req.auth!.tenantId, req.body.companyId, req.body.salaryExpenseAccountId);
   const department = await prisma.department.create({
     data: { ...req.body, tenantId: req.auth!.tenantId },
   });
@@ -36,6 +47,11 @@ export const updateDepartment: RequestHandler = async (req, res) => {
   if (!existing) throw notFound("القسم غير موجود");
   if (existing.companyId) assertCompanyAccess(req.auth!, existing.companyId);
   await assertCompanyBelongsToTenant(req.auth!.tenantId, req.body.companyId);
+  await assertValidSalaryExpenseAccount(
+    req.auth!.tenantId,
+    req.body.companyId !== undefined ? req.body.companyId : existing.companyId,
+    req.body.salaryExpenseAccountId !== undefined ? req.body.salaryExpenseAccountId : existing.salaryExpenseAccountId,
+  );
 
   const department = await prisma.department.update({ where: { id: existing.id }, data: req.body });
   res.json(department);

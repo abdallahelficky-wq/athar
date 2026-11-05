@@ -295,6 +295,7 @@ model JobTitle {
   tenantId  String
   tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name      String
+  nameEn    String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   position  Position?
@@ -746,6 +747,7 @@ model CostCenter {
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
+  nameEn    String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -778,6 +780,11 @@ model Department {
   companyId String?
   company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
+  // الاسم الإنجليزي — يظهر حين تكون الواجهة إنجليزية، والارتداد للعربي إن كان فارغاً
+  nameEn    String?
+  // حساب مصروف الرواتب لموظفي هذا القسم (قسم تحميل الراتب): يحلّ محل حساب بند «الراتب الأساسي» في قيد الرواتب
+  salaryExpenseAccountId String?
+  salaryExpenseAccount   Account? @relation("DepartmentSalaryExpenseAccount", fields: [salaryExpenseAccountId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -866,6 +873,7 @@ enum TaxCategoryCode {
 
 // شجرة الحسابات
 model Account {
+  salaryDepartments Department[] @relation("DepartmentSalaryExpenseAccount")
   id                       String      @id @default(cuid())
   tenantId                 String
   tenant                   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
