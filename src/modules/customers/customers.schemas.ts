@@ -1,10 +1,12 @@
+import { normalizeVatNumber } from "../../lib/vatNumber";
 import { z } from "zod";
 
 export const createCustomerSchema = z.object({
   companyId: z.string().min(1),
   name: z.string().min(2, "اسم العميل قصير جداً"),
   customerType: z.enum(["business", "individual"]).default("business"),
-  vatNumber: z.string().optional(),
+  // يُوحَّد (بلا مسافات/شرطات، حروف كبيرة) ولا يُقيَّد بدولة الشركة: العميل أو المورد قد يكون من دولة أخرى
+  vatNumber: z.string().optional().transform((v) => (v === undefined ? undefined : normalizeVatNumber(v))),
   crNumber: z.string().optional(),
   nationalId: z.string().optional(),
   phone: z.string().optional(),

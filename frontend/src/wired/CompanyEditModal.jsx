@@ -11,7 +11,7 @@ import BranchesPanel from "./BranchesPanel";
 import CompanyBankAccountsPanel from "./CompanyBankAccountsPanel";
 import FiscalYearPanel from "./FiscalYearPanel";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
-import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry, defaultVatRateForCountry } from "../shared/countries";
+import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry, defaultVatRateForCountry, isValidVatNumberForCountry, vatNumberExampleForCountry } from "../shared/countries";
 
 const emptyForm = (c) => ({
   name: c.name || "",
@@ -233,7 +233,11 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
               ? (i18n.language.startsWith("ar") ? "ثابتة 15% للسعودية (زاتكا)." : "Fixed at 15% for Saudi Arabia (ZATCA).")
               : (i18n.language.startsWith("ar") ? `المقترح لهذه الدولة ${defaultVatRateForCountry(form.country)}%${defaultVatRateForCountry(form.country) === 0 ? " (لا توجد ضريبة عامة)" : ""}. تُطبَّق على المستندات الجديدة فقط.` : `Suggested for this country: ${defaultVatRateForCountry(form.country)}%. Applies to new documents only.`)}</small>
           </label>
-          <label>{t("settings.companyEdit.vatNumberLabel")}<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, ""))} /></label>
+          <label>{t("settings.companyEdit.vatNumberLabel")}<input type="text" maxLength={24} dir="ltr" placeholder={vatNumberExampleForCountry(form.country)} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.toUpperCase())} />
+            {form.vatNumber && !isValidVatNumberForCountry(form.vatNumber, form.country)
+              ? <small className="balance-bad">{i18n.language.startsWith("ar") ? `صيغة غير صحيحة لـ${countryName(form.country, "ar")}${vatNumberExampleForCountry(form.country) ? ` — مثال: ${vatNumberExampleForCountry(form.country)}` : ""}` : `Invalid format for ${countryName(form.country, "en")}${vatNumberExampleForCountry(form.country) ? `, e.g. ${vatNumberExampleForCountry(form.country)}` : ""}`}</small>
+              : <small className="note">{vatNumberExampleForCountry(form.country) ? (i18n.language.startsWith("ar") ? `مثال: ${vatNumberExampleForCountry(form.country)}` : `e.g. ${vatNumberExampleForCountry(form.country)}`) : ""}</small>}
+          </label>
           <label>
             {t("settings.companyEdit.numberingPrefixLabel")}
             <input
