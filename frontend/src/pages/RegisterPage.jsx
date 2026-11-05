@@ -11,7 +11,7 @@ import { COUNTRIES, CURRENCIES, defaultCurrencyForCountry } from "../shared/coun
 // اقتراح الدولة من المنطقة الزمنية للمتصفح (مصر لمن في القاهرة…) — مجرد افتراض أولي يغيّره المشترك.
 const TIMEZONE_COUNTRY = { "Asia/Riyadh": "SA", "Asia/Dubai": "AE", "Africa/Cairo": "EG", "Asia/Kuwait": "KW", "Asia/Qatar": "QA", "Asia/Bahrain": "BH", "Asia/Muscat": "OM", "Asia/Amman": "JO", "Asia/Baghdad": "IQ", "Africa/Algiers": "DZ", "Africa/Casablanca": "MA", "Africa/Tunis": "TN", "Asia/Beirut": "LB", "Africa/Tripoli": "LY", "Africa/Khartoum": "SD", "Asia/Aden": "YE", "Asia/Gaza": "PS", "Asia/Hebron": "PS" };
 function guessCountry() {
-  try { return TIMEZONE_COUNTRY[Intl.DateTimeFormat().resolvedOptions().timeZone] || "SA"; } catch { return "SA"; }
+  try { return TIMEZONE_COUNTRY[Intl.DateTimeFormat(undefined, { calendar: "gregory" }).resolvedOptions().timeZone] || "SA"; } catch { return "SA"; }
 }
 
 export default function RegisterPage({ onGoLanding, onGoLogin }) {
