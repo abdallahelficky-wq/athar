@@ -1,3 +1,4 @@
+import { defaultCurrencyForCountry } from "../../lib/countries";
 import { prisma } from "../../lib/prisma";
 import { assertMembershipNotSuspended, withUserSeat } from "../../lib/subscriptionEnforcement";
 import { hashPassword, verifyPassword } from "../../lib/password";
@@ -183,7 +184,7 @@ async function createOwnedTenant(
 }
 
 export async function register(
-  input: { tenantName: string; businessActivity: BusinessActivity; name: string; email: string; password: string; subscriptionPlan?: SubscriptionPlan; mobile?: string; whatsappOptIn?: boolean },
+  input: { tenantName: string; businessActivity: BusinessActivity; name: string; email: string; password: string; subscriptionPlan?: SubscriptionPlan; country?: string; mobile?: string; whatsappOptIn?: boolean },
   lang: Lang = "ar",
 ) {
   const existingIdentity = await prisma.identity.findUnique({ where: { email: input.email } });
@@ -212,7 +213,8 @@ export async function register(
         ownerName: input.name,
         subscriptionPlan: input.subscriptionPlan,
         unlockPinHash,
-        company: { name: input.tenantName, businessActivity: input.businessActivity },
+        // دولة الشركة الأولى وعملتها الافتراضية من اختيار المشترك (تُعدَّل لاحقاً من بيانات الشركة)
+        company: { name: input.tenantName, businessActivity: input.businessActivity, country: input.country || "SA", currency: defaultCurrencyForCountry(input.country || "SA") },
         ownerMobile: input.mobile,
         whatsappOptIn: input.whatsappOptIn,
       });

@@ -287,7 +287,7 @@
       "mobile": "Mobile number (WhatsApp)",
       "mobilePlaceholder": "05XXXXXXXX",
       "whatsappOptIn": "I agree to receive Athar messages (welcome and subscription notices) on WhatsApp",
-      "errMobile": "Invalid mobile number — enter a Saudi number like 05XXXXXXXX",
+      "errMobile": "Invalid mobile number for the selected country, e.g. {{example}}",
       "submit": "Create account and start trial",
       "submitting": "Creating...",
       "haveAccount": "Already have an account? Log in",
