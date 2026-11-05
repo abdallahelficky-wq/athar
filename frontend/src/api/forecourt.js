@@ -9,3 +9,7 @@ export const listTransactions = (companyId, controllerId) => api.get(`/forecourt
 export const rotateSecret = (id) => api.post(`/forecourt/controllers/${id}/secret`, {});
 export const connectionSettings = () => api.get("/forecourt/connection-settings");
 export const listAlerts = (companyId, controllerId) => api.get(`/forecourt/alerts?companyId=${companyId}${controllerId ? `&controllerId=${controllerId}` : ""}`);
+// التحكم بالمضخات عن بُعد عبر الاتصال الدائم (PumpAuthorize / PumpStop / PumpEmergencyStop)
+export const authorizePump = (id, payload) => api.post(`/forecourt/controllers/${id}/pump-authorize`, payload);
+export const stopPump = (id, payload) => api.post(`/forecourt/controllers/${id}/pump-stop`, payload);
+export const listCommands = (companyId, controllerId) => api.get(`/forecourt/commands?companyId=${companyId}${controllerId ? `&controllerId=${controllerId}` : ""}`);

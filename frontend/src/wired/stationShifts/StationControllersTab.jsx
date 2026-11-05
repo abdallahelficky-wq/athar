@@ -26,9 +26,11 @@ export default function StationControllersTab({ companyId }) {
   const [dialog, setDialog] = useState(false);
   const [form, setForm] = useState({});
   const [mapDraft, setMapDraft] = useState({});
+  const [commands, setCommands] = useState([]);
+  const [pumpDialog, setPumpDialog] = useState(null); // { controller, ptsPump, ptsNozzle, presetType, dose, price, result, busy }
 
-  const load = () => Promise.all([api.listControllers(companyId), listStations(companyId), api.listTransactions(companyId), api.listAlerts(companyId).catch(() => []), api.connectionSettings().catch(() => null)])
-    .then(([c, s, tx, al, st]) => { setControllers(c); setStations(s); setTransactions(tx); setAlerts(al); setSettings(st); })
+  const load = () => Promise.all([api.listControllers(companyId), listStations(companyId), api.listTransactions(companyId), api.listAlerts(companyId).catch(() => []), api.connectionSettings().catch(() => null), api.listCommands(companyId).catch(() => [])])
+    .then(([c, s, tx, al, st, cmd]) => { setControllers(c); setStations(s); setTransactions(tx); setAlerts(al); setSettings(st); setCommands(cmd); })
     .catch((e) => setError(e.message));
   useEffect(() => { if (companyId) load(); }, [companyId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -65,6 +67,28 @@ export default function StationControllersTab({ companyId }) {
   };
   const copy = (text) => { try { navigator.clipboard?.writeText(text); setMessage(t("stationControllers.copied")); } catch { /* المتصفح يمنع النسخ — يُنسخ يدوياً */ } };
 
+  /** يرسل أمر المضخة وينتظر رد الجهاز — النتيجة (نُفّذ/رُفض/لا رد/غير متصل) تظهر في النافذة نفسها وفي سجل الأوامر. */
+  const sendCommand = async (kind) => {
+    const d = pumpDialog;
+    if (kind === "emergency" && !window.confirm(t("stationControllers.emergencyConfirm"))) return;
+    setPumpDialog({ ...d, busy: true, result: null, error: "" });
+    try {
+      const res = kind === "authorize"
+        ? await api.authorizePump(d.controller.id, {
+          companyId, ptsPump: Number(d.ptsPump), ptsNozzle: d.ptsNozzle ? Number(d.ptsNozzle) : null, presetType: d.presetType,
+          dose: d.presetType === "FullTank" ? null : Number(d.dose) || null, price: d.price ? Number(d.price) : null,
+        })
+        : await api.stopPump(d.controller.id, { companyId, ptsPump: kind === "emergency" ? 0 : Number(d.ptsPump), emergency: kind === "emergency" });
+      setPumpDialog((cur) => cur && { ...cur, busy: false, result: res });
+      load();
+    } catch (e) {
+      setPumpDialog((cur) => cur && { ...cur, busy: false, error: e.message });
+    }
+  };
+  const resultText = (r) => t(`stationControllers.commandResult.${r.status}`, { reason: r.errorMessage || r.errorCode || "" });
+  const RESULT_COLOR = { confirmed: "#2F5D5A", rejected: "#A8432B", timeout: "#A8432B", offline: "#A8432B", pending: "#6B7280" };
+  const limitText = (x) => (x.type !== "pump_authorize" ? "—" : x.presetType === "FullTank" ? t("stationControllers.presets.FullTank") : `${fmt2(x.dose)} ${x.presetType === "Amount" ? t("stationControllers.presets.Amount") : t("stationControllers.presets.Volume")}`);
+
   const clearMap = (c, n) => { const m = mapFor(c, n.id); if (m) run(() => api.setNozzleMap(c.id, { ptsPump: m.ptsPump, ptsNozzle: m.ptsNozzle, nozzleId: null })); };
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
@@ -86,10 +110,14 @@ export default function StationControllersTab({ companyId }) {
             {controllers.map((c) => (
               <tr key={c.id}>
                 <td>{c.costCenter?.name}</td><td style={{ fontFamily: "monospace" }}>{c.deviceSerial}</td><td>{c.name || "—"}</td>
-                <td><strong style={{ color: HEALTH_COLOR[c.health] }}>{t(`stationControllers.healths.${c.health}`, { minutes: c.silentAfterMinutes })}</strong></td>
+                <td>
+                  <strong style={{ color: HEALTH_COLOR[c.health] }}>{t(`stationControllers.healths.${c.health}`, { minutes: c.silentAfterMinutes })}</strong>
+                  <div className="note" style={{ color: c.online ? "#2F5D5A" : undefined }}>{c.online ? `● ${t("stationControllers.wsOnline")}` : t("stationControllers.wsOffline")}</div>
+                </td>
                 <td>{c.lastSeenAt ? formatDateTime(c.lastSeenAt, i18n.language) : "—"}{c.firmwareVersion && <div className="note">{t("stationControllers.firmware")}: {c.firmwareVersion}</div>}</td>
                 <td>{c.hasSecret ? <span>✓ {c.secretKeySetAt ? formatDateTime(c.secretKeySetAt, i18n.language) : ""}</span> : <span className="note">{t("stationControllers.noSecret")}</span>}</td>
                 <td className="row-actions">
+                  <button className="btn-ghost" disabled={!c.isActive} onClick={() => setPumpDialog({ controller: c, ptsPump: c.nozzleMaps[0]?.ptsPump || 1, ptsNozzle: "", presetType: "Amount", dose: "", price: "", result: null, error: "", busy: false })}>{t("stationControllers.control")}</button>
                   <button className="btn-ghost" onClick={() => rotate(c)}>{c.hasSecret ? t("stationControllers.rotateSecret") : t("stationControllers.createSecret")}</button>
                   <button className="btn-ghost" onClick={() => { setError(""); setForm({ id: c.id, costCenterId: c.costCenterId, deviceSerial: c.deviceSerial, name: c.name || "", firmwareVersion: c.firmwareVersion || "", silentAfterMinutes: c.silentAfterMinutes }); setDialog(true); }}>{t("stationTanks.edit")}</button>
                   <button className="btn-ghost" onClick={() => run(() => api.updateController(c.id, { isActive: !c.isActive }))}>{c.isActive ? t("stationTanks.deactivate") : t("stationTanks.activate")}</button>
@@ -166,6 +194,56 @@ export default function StationControllersTab({ companyId }) {
         </div>
       )}
 
+      <div className="panel">
+        <h3 style={{ marginTop: 0 }}>{t("stationControllers.commandsTitle")}</h3>
+        <table className="ledger-table">
+          <thead><tr><th>{t("stationControllers.endedAt")}</th><th>{t("stationTanks.station")}</th><th>{t("stationControllers.commandType")}</th><th>{t("stationControllers.ptsPump")}</th><th>{t("stationControllers.ptsNozzle")}</th><th>{t("stationControllers.commandLimit")}</th><th>{t("stationControllers.commandStatus")}</th></tr></thead>
+          <tbody>
+            {commands.slice(0, 50).map((x) => (
+              <tr key={x.id}>
+                <td>{formatDateTime(x.createdAt, i18n.language)}</td>
+                <td>{controllers.find((c) => c.id === x.controllerId)?.costCenter?.name || "—"}</td>
+                <td>{t(`stationControllers.commandTypes.${x.type}`)}</td>
+                <td className="num">{x.ptsPump === 0 ? t("stationControllers.allPumps") : x.ptsPump}</td><td className="num">{x.ptsNozzle ?? "—"}</td>
+                <td>{limitText(x)}</td>
+                <td><span style={{ color: RESULT_COLOR[x.status] }}>{resultText(x)}</span>{x.transactionNumber != null && <div className="note">{t("stationControllers.txFromCommand", { n: x.transactionNumber })}</div>}</td>
+              </tr>
+            ))}
+            {commands.length === 0 && <tr><td className="empty" colSpan={7}>{t("stationControllers.noCommands")}</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <FormDialog open={!!pumpDialog} title={t("stationControllers.controlTitle", { station: pumpDialog?.controller?.costCenter?.name || "" })} onClose={() => setPumpDialog(null)} style={{ maxWidth: 560 }}>
+        {pumpDialog && (() => {
+          const d = pumpDialog;
+          const live = controllers.find((c) => c.id === d.controller.id) || d.controller;
+          const mapped = [...new Set(live.nozzleMaps.map((m) => `${m.ptsPump}/${m.ptsNozzle}`))].join("، ");
+          const set = (patch) => setPumpDialog({ ...d, ...patch });
+          return (
+            <>
+              <p className="note">{t("stationControllers.controlNote")}</p>
+              {!live.online && <p className="balance-bad">{t("stationControllers.controlOffline")}</p>}
+              {mapped && <p className="note">{t("stationControllers.mappedPumps", { list: mapped })}</p>}
+              <div className="form-grid">
+                <label>{t("stationControllers.ptsPump")}<input type="number" min="1" max="100" value={d.ptsPump} onChange={(e) => set({ ptsPump: e.target.value })} /></label>
+                <label>{t("stationControllers.nozzleOptional")}<input type="number" min="1" max="6" value={d.ptsNozzle} onChange={(e) => set({ ptsNozzle: e.target.value })} /></label>
+                <label>{t("stationControllers.presetType")}<select value={d.presetType} onChange={(e) => set({ presetType: e.target.value })}>{["Amount", "Volume", "FullTank"].map((p) => <option key={p} value={p}>{t(`stationControllers.presets.${p}`)}</option>)}</select></label>
+                {d.presetType !== "FullTank" && <label>{t("stationControllers.dose")}<input type="number" min="0" step="0.01" value={d.dose} onChange={(e) => set({ dose: e.target.value })} /></label>}
+                <label>{t("stationControllers.priceOptional")}<input type="number" min="0" step="0.01" value={d.price} onChange={(e) => set({ price: e.target.value })} /></label>
+              </div>
+              {d.result && <p style={{ color: RESULT_COLOR[d.result.status], fontWeight: 600 }}>{resultText(d.result)}{d.result.transactionNumber != null ? ` — ${t("stationControllers.txFromCommand", { n: d.result.transactionNumber })}` : ""}</p>}
+              {d.error && <p className="balance-bad">{d.error}</p>}
+              <div className="form-btn-group">
+                <button className="btn-primary" disabled={d.busy || !d.ptsPump || (d.presetType !== "FullTank" && !(Number(d.dose) > 0))} onClick={() => sendCommand("authorize")}>{d.busy ? t("stationControllers.commandResult.pending") : t("stationControllers.authorize")}</button>
+                <button className="btn-ghost" disabled={d.busy || !d.ptsPump} onClick={() => sendCommand("stop")}>{t("stationControllers.stopPump")}</button>
+                <button className="btn-ghost" style={{ color: "#A8432B" }} disabled={d.busy} onClick={() => sendCommand("emergency")}>{t("stationControllers.emergencyStop")}</button>
+              </div>
+            </>
+          );
+        })()}
+      </FormDialog>
+
       <FormDialog open={!!secretView} title={t("stationControllers.secretTitle", { station: secretView?.controller?.costCenter?.name || "" })} onClose={() => setSecretView(null)} style={{ maxWidth: 640 }}>
         {secretView && (() => {
           const st = secretView.settings || settings || {};
@@ -176,6 +254,12 @@ export default function StationControllersTab({ companyId }) {
             ["SecretKey", secretView.secretKey],
             ...(st.uploads || []).map((u) => [`${u} → URI`, st.uri]),
             ["UploadStatusRequestsPeriodSeconds", String(st.statusPeriodSeconds)],
+            ...(st.websockets ? [
+              ["UseWebsocketsCommunication", "true"],
+              ["WebsocketsUri", st.websockets.uri],
+              ["WebsocketsPort", String(st.websockets.port)],
+              ["WebsocketsPingRequestsPeriodSeconds", String(st.websockets.pingPeriodSeconds)],
+            ] : []),
           ];
           return (
             <>
@@ -194,6 +278,7 @@ export default function StationControllersTab({ companyId }) {
                 </tbody>
               </table>
               <p className="note">{t("stationControllers.secretNote")}</p>
+              {st.websockets && <p className="note">{t("stationControllers.wsNote")}</p>}
               <div className="form-btn-group"><button className="btn-primary" onClick={() => setSecretView(null)}>{t("stationControllers.secretDone")}</button></div>
             </>
           );

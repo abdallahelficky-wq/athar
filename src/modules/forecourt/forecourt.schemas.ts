@@ -27,3 +27,24 @@ export const setNozzleMapSchema = z
     nozzleId: z.string().min(1).nullable(),
   })
   .strict();
+
+export const authorizePumpSchema = z
+  .object({
+    companyId: z.string().min(1),
+    ptsPump: z.coerce.number().int().min(1).max(100),
+    ptsNozzle: z.coerce.number().int().min(1).max(6).nullable().optional(),
+    presetType: z.enum(["Amount", "Volume", "FullTank"]),
+    // حدود معقولة لأمر يدوي: 10,000 ريال أو 2,000 لتر للعملية الواحدة
+    dose: z.coerce.number().positive().max(10000).nullable().optional(),
+    price: z.coerce.number().positive().max(1000).nullable().optional(),
+  })
+  .strict();
+
+export const stopPumpSchema = z
+  .object({
+    companyId: z.string().min(1),
+    // 0 مع الإيقاف الطارئ = كل المضخات (PumpEmergencyStop)
+    ptsPump: z.coerce.number().int().min(0).max(100),
+    emergency: z.boolean().optional(),
+  })
+  .strict();

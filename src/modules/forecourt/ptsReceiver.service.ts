@@ -1,4 +1,5 @@
-import { createHmac, randomBytes, timingSafeEqual } from "crypto";
+import { randomBytes } from "crypto";
+import { ptsSignature, signaturesMatch } from "./ptsHandshake";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { notFound } from "../../lib/httpError";
@@ -31,6 +32,8 @@ const SECRET_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz234567
 export const PTS_SECRET_LENGTH = 20;
 /** المسار الذي يُكتب في حقول Upload…Uri بالجهاز (حتى 40 حرفاً) — يُطلَب به "/" + هذا المسار */
 export const PTS_UPLOAD_URI = "api/pts/upload";
+/** مسار الاتصال الدائم (WebsocketsUri بالجهاز) — منه يستقبل الجهاز أوامر أثر (تشغيل/إيقاف مضخة) */
+export const PTS_WEBSOCKET_URI = "api/pts/ws";
 
 export interface PtsHttpResult {
   status: number;
@@ -38,15 +41,8 @@ export interface PtsHttpResult {
   signature?: string;
 }
 
-/** توقيع jsonPTS: Base64(HMAC-SHA256(المفتاح، البايتات كما هي)) — مُصدَّر للاختبار بمتجهات الوثيقة نفسها. */
-export const ptsSignature = (secret: string, payload: Buffer) => createHmac("sha256", secret).update(payload).digest("base64");
+export { ptsSignature, signaturesMatch } from "./ptsHandshake";
 const sign = ptsSignature;
-
-function signaturesMatch(expected: string, received: string) {
-  const a = Buffer.from(expected);
-  const b = Buffer.from(received.trim());
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 /** وقت الجهاز المحلي → UTC بفرق توقيته. null إن لم يكن بالصيغة الموثقة. */
 export function ptsLocalToUtc(value: unknown, utcOffsetMinutes: number): Date | null {
@@ -66,8 +62,8 @@ function json(body: unknown) {
   return Buffer.from(JSON.stringify(body), "utf8");
 }
 
-type Packet = { Id?: unknown; Type?: unknown; Data?: unknown; ConfigurationId?: unknown; Configuration?: unknown };
-type OutPacket = { Id: number; Type: string; Message?: string; Error?: boolean; Code?: number };
+export type Packet = { Id?: unknown; Type?: unknown; Data?: unknown; ConfigurationId?: unknown; Configuration?: unknown };
+export type OutPacket = { Id: number; Type: string; Message?: string; Error?: boolean; Code?: number };
 
 const ok = (id: number, type: string): OutPacket => ({ Id: id, Type: type, Message: "OK" });
 const fail = (id: number, type: string, code: number, message: string): OutPacket => ({ Id: id, Type: type, Error: true, Code: code, Message: message });
@@ -91,6 +87,9 @@ export function connectionSettings() {
     uri: PTS_UPLOAD_URI,
     uploads: ["UploadPumpTransactions", "UploadTankMeasurements", "UploadInTankDeliveries", "UploadAlertRecords", "UploadStatus", "UploadConfiguration"],
     statusPeriodSeconds: 60,
+    // الأوامر من أثر للجهاز: يفعَّل UseWebsocketsCommunication ويبقى الرفع بطلبات HTTP أعلاه (خيارات Websockets Upload… مغلقة).
+    // المستخدم المختار للسيرفر البعيد في الجهاز (UserId) يحتاج صلاحية Control حتى يقبل أوامر المضخات.
+    websockets: { enabled: true, uri: PTS_WEBSOCKET_URI, port: 443, pingPeriodSeconds: 30 },
   };
 }
 
@@ -159,6 +158,31 @@ export async function handlePtsUpload(rawBody: Buffer, headers: Record<string, s
     return unauthorized();
   }
 
+  const { out } = await processDevicePackets(controller, packets);
+  await recordDeviceHeaders(controller.id, header);
+
+  const body = json({ Protocol: "jsonPTS", Packets: out });
+  return { status: 200, body, signature: sign(secret, body) };
+}
+
+type DeviceController = { id: string; tenantId: string; companyId: string; costCenterId: string; deviceSerial: string; utcOffsetMinutes: number };
+
+/** تحديث نسخة البرنامج ورقم مراجعة البروتوكول من ترويسات الجهاز (رفع HTTP أو مصافحة WebSocket). */
+export async function recordDeviceHeaders(controllerId: string, header: (name: string) => string | undefined) {
+  const firmware = header("x-pts-firmware-version-datetime");
+  const revision = header("x-pts-protocol-revision-number");
+  if (!firmware && !revision) return;
+  await prisma.forecourtController.update({
+    where: { id: controllerId },
+    data: { ...(firmware ? { firmwareVersion: firmware } : {}), ...(revision ? { protocolRevision: revision } : {}) },
+  });
+}
+
+/**
+ * يعالج حزم الرفع (Upload…) من متحكم تحقّقت هويته — نفس المعالجة سواء وصلت بطلب HTTP موقَّع أو عبر اتصال WebSocket الذي تحقّق
+ * توقيع مصافحته. يُرجع حزمة تأكيد أو خطأ لكل حزمة بنفس رقمها، ولا يرمي.
+ */
+export async function processDevicePackets(controller: DeviceController, packets: Packet[]): Promise<{ out: OutPacket[] }> {
   let offset = controller.utcOffsetMinutes;
   let status: unknown;
   const out: OutPacket[] = [];
@@ -263,16 +287,5 @@ export async function handlePtsUpload(rawBody: Buffer, headers: Record<string, s
   }
 
   await touchController(controller.id, status);
-  if (header("x-pts-firmware-version-datetime") || header("x-pts-protocol-revision-number")) {
-    await prisma.forecourtController.update({
-      where: { id: controller.id },
-      data: {
-        ...(header("x-pts-firmware-version-datetime") ? { firmwareVersion: header("x-pts-firmware-version-datetime") } : {}),
-        ...(header("x-pts-protocol-revision-number") ? { protocolRevision: header("x-pts-protocol-revision-number") } : {}),
-      },
-    });
-  }
-
-  const body = json({ Protocol: "jsonPTS", Packets: out });
-  return { status: 200, body, signature: sign(secret, body) };
+  return { out };
 }

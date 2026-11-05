@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
+import { isControllerConnected } from "./ptsWebsocket";
 
 /**
  * متحكمات المحطات (Technotrade PTS-2) — الجزء غير المعتمد على بروتوكول jsonPTS:
@@ -39,6 +40,8 @@ export async function listControllers(tenantId: string, companyId: string) {
   // المفتاح المشفَّر لا يغادر الخادم أبداً — يُعرَض فقط هل ضُبط ومتى (المفتاح نفسه يظهر مرة واحدة عند توليده)
   return rows.map(({ secretKeyEnc, lastConfiguration, ...c }) => ({
     ...c, hasSecret: Boolean(secretKeyEnc), hasConfiguration: lastConfiguration != null, health: controllerHealth(c, now),
+    // متصل الآن بالاتصال الدائم (يقبل أوامر المضخات) — من ذاكرة الخادم
+    online: isControllerConnected(c.id),
   }));
 }
 
