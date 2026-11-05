@@ -186,6 +186,7 @@ export const AR_TO_EN: Record<string, string> = {
   "لا يمكنك حذف حسابك أنت شخصياً": "You cannot delete your own account",
   "لا يمكن حذف مالك الشركة": "The company owner cannot be deleted",
   "فتح الإقفال": "Reopen closed period",
+  "نسبة الضريبة يجب أن تكون بين 0 و100": "The tax rate must be between 0 and 100",
   "رقم الجوال غير صالح للدولة المختارة": "Invalid mobile number for the selected country",
   "الدولة غير مدعومة": "Unsupported country",
   "لا يمكن إقفال سنة مالية لم تنتهِ بعد": "A fiscal year can't be closed before it ends",

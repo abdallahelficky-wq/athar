@@ -1,3 +1,4 @@
+import { companyVatRatePercent } from "../../lib/companyVat";
 import { normalizeTax, TaxFields, assertCompatibleTaxReasons } from "../../lib/itemTax";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
@@ -31,8 +32,8 @@ interface QuotationInput {
   lines: LineInput[];
 }
 
-function computeLines(lines: LineInput[]) {
-  const computed = lines.map((l) => ({ ...l, ...computeInvoiceLine(l), ...normalizeTax(l) }));
+function computeLines(lines: LineInput[], vatRatePercent: number) {
+  const computed = lines.map((l) => ({ ...l, ...computeInvoiceLine({ ...l, vatRatePercent }), ...normalizeTax(l) }));
   assertCompatibleTaxReasons(computed);
   const subtotal = sumMoney(computed.map((l) => l.subtotal));
   const vatTotal = sumMoney(computed.map((l) => l.vat));
@@ -70,7 +71,7 @@ export async function listQuotations(tenantId: string, companyId?: string) {
 
 export async function createQuotation(tenantId: string, input: QuotationInput) {
   await assertRefs(tenantId, input.companyId, input.customerId, input.lines);
-  const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
+  const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines, await companyVatRatePercent(tenantId, input.companyId));
 
   return prisma.$transaction(async (tx) => {
     const quoteNumber = await reserveDocumentNumber(tx, tenantId, input.companyId, "quotation");
@@ -98,7 +99,7 @@ export async function updateQuotation(tenantId: string, id: string, input: Quota
   if (existing.status === "converted") throw badRequest("لا يمكن تعديل عرض سعر تم تحويله لفاتورة");
 
   await assertRefs(tenantId, input.companyId, input.customerId, input.lines);
-  const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines);
+  const { computed, subtotal, vatTotal, grandTotal } = computeLines(input.lines, await companyVatRatePercent(tenantId, input.companyId));
 
   return prisma.quotation.update({
     where: { id },

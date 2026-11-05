@@ -11,7 +11,7 @@ import BranchesPanel from "./BranchesPanel";
 import CompanyBankAccountsPanel from "./CompanyBankAccountsPanel";
 import FiscalYearPanel from "./FiscalYearPanel";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
-import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry } from "../shared/countries";
+import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry, defaultVatRateForCountry } from "../shared/countries";
 
 const emptyForm = (c) => ({
   name: c.name || "",
@@ -21,6 +21,7 @@ const emptyForm = (c) => ({
   unifiedEntityNumber: c.unifiedEntityNumber || "",
   country: c.country || "SA",
   currency: c.currency || "SAR",
+  vatRate: c.vatRate == null ? defaultVatRateForCountry(c.country || "SA") : Number(c.vatRate),
   vatNumber: c.vatNumber || "",
   numberingPrefix: c.numberingPrefix || "",
   crNumber: c.crNumber || "",
@@ -113,6 +114,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         lowCashThreshold: form.lowCashThreshold === "" ? null : Number(form.lowCashThreshold),
         overdueInvoiceDays: Number(form.overdueInvoiceDays),
         staleDraftDays: Number(form.staleDraftDays),
+        vatRate: form.vatRate === "" ? undefined : Number(form.vatRate),
         fiscalYearClosingDate: form.fiscalYearClosingDate || null,
         stationCashShortageAccountId: form.stationCashShortageAccountId || null,
         stationCashSurplusAccountId: form.stationCashSurplusAccountId || null,
@@ -211,7 +213,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
           <label>{t("settings.companyEdit.nameEnLabel")}<input type="text" dir="ltr" value={form.nameEn} onChange={(e) => set("nameEn", e.target.value)} /></label>
           <label>
             {t("settings.newCompany.countryLabel")}
-            <select value={form.country} onChange={(e) => { set("country", e.target.value); set("currency", defaultCurrencyForCountry(e.target.value)); }}>
+            <select value={form.country} onChange={(e) => { set("country", e.target.value); set("currency", defaultCurrencyForCountry(e.target.value)); set("vatRate", defaultVatRateForCountry(e.target.value)); }}>
               {COUNTRIES.map((c) => (
                 <option key={c.code} value={c.code}>{countryName(c.code, i18n.language)}</option>
               ))}
@@ -224,6 +226,12 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                 <option key={c.code} value={c.code}>{c.code} — {c.symbolAr}</option>
               ))}
             </select>
+          </label>
+          <label>{i18n.language.startsWith("ar") ? "نسبة ضريبة القيمة المضافة %" : "VAT rate %"}
+            <input type="number" min="0" max="100" step="0.01" dir="ltr" disabled={form.country === "SA"} value={form.country === "SA" ? 15 : form.vatRate} onChange={(e) => set("vatRate", e.target.value === "" ? "" : Number(e.target.value))} />
+            <small className="note">{form.country === "SA"
+              ? (i18n.language.startsWith("ar") ? "ثابتة 15% للسعودية (زاتكا)." : "Fixed at 15% for Saudi Arabia (ZATCA).")
+              : (i18n.language.startsWith("ar") ? `المقترح لهذه الدولة ${defaultVatRateForCountry(form.country)}%${defaultVatRateForCountry(form.country) === 0 ? " (لا توجد ضريبة عامة)" : ""}. تُطبَّق على المستندات الجديدة فقط.` : `Suggested for this country: ${defaultVatRateForCountry(form.country)}%. Applies to new documents only.`)}</small>
           </label>
           <label>{t("settings.companyEdit.vatNumberLabel")}<input type="text" maxLength={15} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.replace(/\D/g, ""))} /></label>
           <label>

@@ -1,3 +1,4 @@
+import { companyVatRatePercent } from "../../lib/companyVat";
 import { Prisma, StationFuelProduct, StationShiftStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest } from "../../lib/httpError";
@@ -457,6 +458,7 @@ export async function getNetCashReport(tenantId: string, companyId: string, rang
   if (ids.length === 0) return { daily: [], byStation: [], totals: mapStatusSplit(emptyTotals, toNetCashMetrics) };
 
   const { accounts, expenseAccountId } = await resolveShiftClosingAccounts(tenantId, companyId);
+  const vatRatePercent = await companyVatRatePercent(tenantId, companyId);
 
   const [shifts, priceRows] = await Promise.all([
     prisma.stationShift.findMany({
@@ -493,6 +495,7 @@ export async function getNetCashReport(tenantId: string, companyId: string, rang
     const input: ShiftClosingInput = {
       costCenterId: shift.costCenterId,
       shiftDate: shift.shiftDate,
+      vatRatePercent,
       readings: readingsInput,
       prices: pricesFor(shift.costCenterId),
       networkAmount: shift.collection?.networkAmount ?? 0,

@@ -1,3 +1,4 @@
+import { vatRatePercentOf } from "../../lib/companyVat";
 import { saveZatcaResponseWithArchive } from "../../lib/zatca/archive";
 import { issuedSupplyDate, recordZatcaIssueTx } from "../../lib/zatca/issues";
 import { assertReissuable, REISSUE_CONFLICT_MESSAGE, reserveReissueChainTx } from "../../lib/zatca/reissue";
@@ -112,7 +113,8 @@ export async function createSalesDebitNote(tenantId: string, userId: string, inp
   });
   if (accounts.length !== accountIds.length) throw badRequest("أحد حسابات الإيراد المختارة غير صالح");
 
-  const computed = input.lines.map((l) => ({ ...l, ...computeInvoiceLine(l), taxCategoryCode: "S" as const, taxExemptionReason: null as string | null }));
+  const vatRatePercent = vatRatePercentOf(company);
+  const computed = input.lines.map((l) => ({ ...l, ...computeInvoiceLine({ ...l, vatRatePercent }), taxCategoryCode: "S" as const, taxExemptionReason: null as string | null }));
   const subtotal = sumMoney(computed.map((l) => l.subtotal));
   const vatTotal = sumMoney(computed.map((l) => l.vat));
   const grandTotal = sumMoney([subtotal, vatTotal]);
