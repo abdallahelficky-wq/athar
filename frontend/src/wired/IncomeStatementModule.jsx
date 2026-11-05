@@ -4,6 +4,7 @@ import { getIncomeStatement } from '../api/reports';
 import { fmt } from '../legacy/constants';
 import { PrintShell } from '../legacy/shared';
 import ReportRollupFilter from './shared/ReportRollupFilter';
+import IncomeStatementSummary from './IncomeStatementSummary';
 import DraftEntriesNotice from './shared/DraftEntriesNotice';
 import { useDeferredFilters } from './shared/useDeferredFilters';
 import { getAccountDisplayName } from './shared/accountDisplayName';
@@ -90,8 +91,9 @@ export default function IncomeStatementModule({ companyId, company, accounts, br
     {result && <>
       <p>{text('تُخفى الحسابات الصفرية في جميع الفترات؛ تُحفظ مجموعات الحسابات التي تحتوي على أرصدة.', 'Accounts with zero balances in every period are hidden; groups containing balances are retained.')}</p>
       <DraftEntriesNotice companyId={companyId} branchId={applied.branchId || undefined} dateFrom={result.periods[0].from} dateTo={result.periods.at(-1).to} includeFinalDay />
+      <IncomeStatementSummary result={result} company={company} />
       <div style={{ overflowX: 'auto' }}><IncomeComparisonTable result={result} /></div>
-      {printing && <PrintShell company={company} subtitle={t('nav.tabs.income')} landscape={result.periods.length > 1} refNode={<span dir="ltr">{result.periods[0].from} — {result.periods.at(-1).to}</span>} onClose={onClosePrint}><IncomeComparisonTable result={result} /></PrintShell>}
+      {printing && <PrintShell company={company} subtitle={t('nav.tabs.income')} landscape={result.periods.length > 1} refNode={<span dir="ltr">{result.periods[0].from} — {result.periods.at(-1).to}</span>} onClose={onClosePrint}><IncomeStatementSummary result={result} company={company} print /><IncomeComparisonTable result={result} /></PrintShell>}
     </>}
   </div>;
 }
