@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requirePositionAction } from "../../middleware/positionMatrix";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { validateBody } from "../../middleware/validate";
-import { createControllerSchema, updateControllerSchema, setNozzleMapSchema } from "./forecourt.schemas";
+import { createControllerSchema, updateControllerSchema, setNozzleMapSchema, authorizePumpSchema, stopPumpSchema } from "./forecourt.schemas";
 import * as c from "./forecourt.controller";
 
 /**
@@ -22,3 +22,7 @@ forecourtRoutes.get("/transactions", requirePositionAction("stationSetup", "read
 forecourtRoutes.get("/alerts", requirePositionAction("stationSetup", "read"), c.listAlertsHandler);
 forecourtRoutes.get("/connection-settings", requirePositionAction("stationSetup", "read"), c.connectionSettingsHandler);
 forecourtRoutes.post("/controllers/:id/secret", requirePositionAction("stationSetup", "edit"), canManage, c.rotateSecretHandler);
+// التحكم بالمضخات عن بُعد عبر الاتصال الدائم مع الجهاز — نفس صلاحية تعديل إعداد المحطة ودور المدير
+forecourtRoutes.post("/controllers/:id/pump-authorize", requirePositionAction("stationSetup", "edit"), canManage, validateBody(authorizePumpSchema), c.authorizePumpHandler);
+forecourtRoutes.post("/controllers/:id/pump-stop", requirePositionAction("stationSetup", "edit"), canManage, validateBody(stopPumpSchema), c.stopPumpHandler);
+forecourtRoutes.get("/commands", requirePositionAction("stationSetup", "read"), c.listCommandsHandler);

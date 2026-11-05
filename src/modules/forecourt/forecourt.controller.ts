@@ -4,6 +4,7 @@ import { badRequest } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import * as service from "./forecourt.service";
 import { connectionSettings, rotateControllerSecret } from "./ptsReceiver.service";
+import * as commands from "./forecourtCommands.service";
 
 const q = (v: unknown) => (typeof v === "string" && v.length > 0 ? v : undefined);
 
@@ -54,4 +55,20 @@ export const connectionSettingsHandler: RequestHandler = async (_req, res) => {
 
 export const listAlertsHandler: RequestHandler = async (req, res) => {
   res.json(await service.listAlerts(req.auth!.tenantId, requireCompany(req), q(req.query.controllerId)));
+};
+
+/** تشغيل مضخة عن بُعد (PumpAuthorize) — يعيد صف الأمر بحالته بعد رد الجهاز (confirmed/rejected/timeout/offline). */
+export const authorizePumpHandler: RequestHandler = async (req, res) => {
+  await assertControllerCompany(req, req.params.id);
+  const { companyId: _c, ...input } = req.body;
+  res.json(await commands.authorizePump(req.auth!.tenantId, req.params.id, input, req.auth!.sub ?? null));
+};
+
+export const stopPumpHandler: RequestHandler = async (req, res) => {
+  await assertControllerCompany(req, req.params.id);
+  res.json(await commands.stopPump(req.auth!.tenantId, req.params.id, req.body.ptsPump, Boolean(req.body.emergency), req.auth!.sub ?? null));
+};
+
+export const listCommandsHandler: RequestHandler = async (req, res) => {
+  res.json(await commands.listCommands(req.auth!.tenantId, requireCompany(req), q(req.query.controllerId)));
 };

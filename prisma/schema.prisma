@@ -3566,12 +3566,16 @@ model ForecourtController {
   configurationId    String?
   lastConfiguration  Json?
   lastConfigurationAt DateTime?
+  // الاتصال الدائم (WebSocket) الذي يفتحه الجهاز لاستقبال الأوامر — حالة "متصل الآن" في ذاكرة الخادم، وهذان للعرض فقط
+  wsConnectedAt      DateTime?
+  wsDisconnectedAt   DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
   nozzleMaps   ForecourtNozzleMap[]
   transactions ForecourtPumpTransaction[]
   alerts       ForecourtAlertRecord[]
+  commands     ForecourtCommand[]
 
   @@index([tenantId, companyId])
   @@map("forecourt_controllers")
@@ -3641,6 +3645,50 @@ model ForecourtAlertRecord {
   @@unique([controllerId, occurredAt, deviceType, deviceNumber, code, state], map: "forecourt_alert_dedup_key")
   @@index([tenantId, companyId, occurredAt])
   @@map("forecourt_alert_records")
+}
+
+enum ForecourtCommandType {
+  pump_authorize
+  pump_stop
+  pump_emergency_stop
+}
+
+enum ForecourtCommandStatus {
+  pending
+  confirmed
+  rejected
+  timeout
+  offline
+}
+
+// أمر أرسله أثر إلى المتحكم عبر WebSocket (PumpAuthorize / PumpStop / PumpEmergencyStop) — سجل تدقيق إلحاقي: ماذا أُرسل، ومن
+// أرسله، وبماذا رد الجهاز. requestedById عمود عادي بلا مفتاح أجنبي (الأوامر الآلية لاحقاً — بعد الدفع — بلا مستخدم).
+model ForecourtCommand {
+  id                String                 @id @default(cuid())
+  tenantId          String
+  companyId         String
+  controllerId      String
+  controller        ForecourtController    @relation(fields: [controllerId], references: [id], onDelete: Cascade)
+  type              ForecourtCommandType
+  ptsPump           Int
+  ptsNozzle         Int?
+  presetType        String?
+  dose              Decimal?               @db.Decimal(14, 3)
+  price             Decimal?               @db.Decimal(14, 3)
+  status            ForecourtCommandStatus @default(pending)
+  // رقم العملية الذي أعاده الجهاز في PumpAuthorizeConfirmation — به تُربط عملية البيع المرفوعة لاحقاً بهذا الأمر
+  transactionNumber Int?
+  errorCode         Int?
+  errorMessage      String?
+  requestPayload    Json
+  responsePayload   Json?
+  requestedById     String?
+  createdAt         DateTime               @default(now())
+  respondedAt       DateTime?
+
+  @@index([tenantId, companyId, createdAt])
+  @@index([controllerId, createdAt])
+  @@map("forecourt_commands")
 }
 
 // سجل تدقيق حقلي مخصّص لتعديلات الورديات (بخلاف AuditLog العام متعدد الأشكال) — صف واحد لكل

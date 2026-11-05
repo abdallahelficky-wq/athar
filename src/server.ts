@@ -1,5 +1,6 @@
 import { startQoyodScheduler } from "./modules/qoyod/worker";
 import { createApp } from "./app";
+import { attachPtsWebsocket } from "./modules/forecourt/ptsWebsocket";
 import { env } from "./config/env";
 import { startReportScheduler } from "./lib/reportScheduler";
 import { startZatcaRetryScheduler } from "./lib/zatca/retryScheduler";
@@ -9,7 +10,7 @@ import { hasArabicCapableFont } from "./lib/zatca/pdf/arabicFontCheck";
 
 const app = createApp();
 
-app.listen(env.port, () => {
+const server = app.listen(env.port, () => {
   startQoyodScheduler();
   // eslint-disable-next-line no-console
   console.log(`✅ Athar backend يعمل على المنفذ ${env.port} (${env.nodeEnv})`);
@@ -86,6 +87,9 @@ app.listen(env.port, () => {
       });
   }
 });
+
+// الاتصال الدائم مع أجهزة PTS-2 (/api/pts/ws) لإرسال أوامر المضخات — على نفس منفذ الخادم
+attachPtsWebsocket(server);
 
 startReportScheduler();
 startZatcaRetryScheduler();

@@ -4,7 +4,7 @@ Status: **partly implemented — the parts that do not depend on the jsonPTS spe
 First written against `production` `360a580` (2026-11-02); status updated after PRs #177, #182 and #183 were merged the same day.
 The owner's decisions of 2026-11-02 are recorded as D-PTS1–D-PTS12 (§10) and folded into the design.
 
-## 0. Implementation status (updated 2026-11-03)
+## 0. Implementation status (updated 2026-11-05)
 
 | Item | State | Where |
 |---|---|---|
@@ -19,8 +19,10 @@ The owner's decisions of 2026-11-02 are recorded as D-PTS1–D-PTS12 (§10) and 
 | UI: "Station controllers" tab (register, health, nozzle links, latest sales); module renamed "Fuel Station Management" | ✅ merged | PRs #183, #184 |
 | HTTP ingestion endpoint `POST /api/pts/upload`, per-controller HMAC key, signed replies, jsonPTS parser | ✅ built from **jsonPTS R140** (16 Aug 2026) | `ptsReceiver.service.ts`, `ptsDevice.routes.ts` |
 | Upload types handled: `UploadPumpTransaction`, `UploadTankMeasurement`, `UploadInTankDelivery` (→ `pre_delivery`/`post_delivery` ATG readings), `UploadAlertRecord` (→ `ForecourtAlertRecord`), `UploadStatus` (health + `UTCOffset`), `UploadConfiguration` (stored for display only) | ✅ | same |
-| Not handled (answered with a packet error; leave disabled on the device): GPS, payments, shifts, tag requests, WebSocket mode | — by design | — |
-| `ForecourtCredential`, `ForecourtInboundMessage` (raw store), `ForecourtTotalsSnapshot`, `ForecourtTankDelivery`, `ForecourtConfigSnapshot`, `ForecourtCommand` | ❌ built with the ingestion endpoint (P1) | — |
+| Not handled (answered with a packet error; leave disabled on the device): GPS, payments, shifts, tag requests | — by design | — |
+| WebSocket live connection `wss://<host>/api/pts/ws` (device is the client; handshake HMAC-verified; uploads sent over it are processed like HTTP ones) | ✅ built from **jsonPTS R140** p.302–306 | `ptsWebsocket.ts`, `ptsHandshake.ts` |
+| Remote pump control: `PumpAuthorize` (Amount / Volume / FullTank, optional nozzle and price, `CustomData = athar:<commandId>`), `PumpStop`, `PumpEmergencyStop` (pump 0 = all); every command logged in `ForecourtCommand` with who sent it and the device's reply | ✅ phase 1 of self-service | `forecourtCommands.service.ts`, `POST /forecourt/controllers/:id/pump-authorize`, `…/pump-stop`, `GET /forecourt/commands` |
+| `ForecourtCredential`, `ForecourtInboundMessage` (raw store), `ForecourtTotalsSnapshot`, `ForecourtTankDelivery`, `ForecourtConfigSnapshot` | ❌ built with the ingestion endpoint (P1) | — |
 | `StationAlert` table, scheduler-driven device-silent / low-stock / high-water alerts | ❌ not built (health is computed on read today) | — |
 | Transition-shift cutover to the electronic totalizer (§4.1), price-variance exceptions (§4.5), late-data discrepancy alerts (§4.4) | ❌ P2 | — |
 
@@ -49,6 +51,18 @@ The owner's decisions of 2026-11-02 are recorded as D-PTS1–D-PTS12 (§10) and 
 - One remote server per controller: pointing a controller at Athar replaces whatever server it uploads to today.
 - DIP-1 OFF = the device's own web server uses TLS; DIP-2 selects digest/basic for the device's web UI (p.23–24). The receiver does not use
   the device's `Authorization` header (it carries the device user's password); authentication is the per-controller HMAC key.
+
+**WebSocket facts (R140 p.302–306):**
+- With `UseWebsocketsCommunication` on, the device opens and keeps a WebSocket to `WebsocketsUri`/`WebsocketsPort` and answers any jsonPTS
+  request the server sends, with the same packet `Id`. It pings every `WebsocketsPingRequestsPeriodSeconds`; no pong → it reconnects.
+- With a `SecretKey`, the handshake carries `X-DateTime` then `X-Data-Signature` = Base64(HMAC-SHA256(key, request line + every header before
+  the signature, each line ending CRLF)) — verified against the spec's example (secret "PTS-2"). Wrong/missing signature → `401`.
+  Athar also rejects an `X-DateTime` more than 15 minutes from now (device-local time, converted with `utcOffsetMinutes`).
+- Cloudflare/Railway may add headers or lower-case names before the request reaches Node, so the verifier also tries the device's
+  documented headers only, in received order, with documented casing. The signature stays mandatory.
+- Pump commands need the **Control** permission for the device user selected as the remote server's `UserId`.
+- "Connected" is held in memory by the server process the device is connected to. Athar runs one instance; more instances would need
+  commands routed to the connected one.
 
 **Next step:** a pilot controller (Makkah station, s/n 3972) pointed at Athar once its admin access is recovered and the device domain is set.
 
