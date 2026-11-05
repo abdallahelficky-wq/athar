@@ -74,15 +74,16 @@ export default function IncomeStatementModule({ companyId, company, accounts, br
     <form className="filter-bar" onSubmit={e => { e.preventDefault(); onClosePrint(); apply(); }}>
       <label>{text('طريقة العرض', 'View')}<select value={draft.mode} onChange={e => setField('mode', e.target.value)}>
         <option value="period">{text('فترة محددة', 'Date range')}</option><option value="month">{text('هذا الشهر حتى اليوم', 'This month to date')}</option>
-        <option value="months">{text('مقارنة أشهر', 'Compare months')}</option><option value="years">{text('مقارنة سنوات', 'Compare years')}</option>
+        <option value="yoy">{text('فترة محددة مقابل نفس الفترة من العام السابق', 'Date range vs. same period last year')}</option>
+        <option value="months">{text('مقارنة أشهر', 'Compare months')}</option><option value="quarters">{text('مقارنة أرباع', 'Compare quarters')}</option><option value="years">{text('مقارنة سنوات', 'Compare years')}</option>
       </select></label>
-      {draft.mode === 'period' && <>
+      {['period', 'yoy'].includes(draft.mode) && <>
         <label>{t('reports.income.fromDate')}<input required type="date" value={draft.dateFrom} max={draft.dateTo} onChange={e => setField('dateFrom', e.target.value)} /></label>
         <label>{t('reports.income.toDate')}<input required type="date" value={draft.dateTo} min={draft.dateFrom} onChange={e => setField('dateTo', e.target.value)} /></label>
       </>}
-      {draft.mode === 'months' && <label>{text('حتى شهر', 'Ending month')}<input required type="month" value={draft.endMonth} onChange={e => setField('endMonth', e.target.value)} /></label>}
+      {['months', 'quarters'].includes(draft.mode) && <label>{text('حتى شهر', 'Ending month')}<input required type="month" value={draft.endMonth} onChange={e => setField('endMonth', e.target.value)} /></label>}
       {draft.mode === 'years' && <label>{startMonth === 1 ? text('حتى سنة', 'Ending year') : text('حتى السنة المالية التي تبدأ في', 'Ending fiscal year starting in')}<input required type="number" min="1911" max="9999" value={draft.endYear} onChange={e => setField('endYear', e.target.value)} /></label>}
-      {['months', 'years'].includes(draft.mode) && <label>{draft.mode === 'months' ? text('عدد الأشهر', 'Number of months') : text('عدد السنوات', 'Number of years')}<select value={draft.count} onChange={e => setField('count', Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}</select></label>}
+      {['months', 'quarters', 'years'].includes(draft.mode) && <label>{draft.mode === 'months' ? text('عدد الأشهر', 'Number of months') : draft.mode === 'quarters' ? text('عدد الأرباع', 'Number of quarters') : text('عدد السنوات', 'Number of years')}<select value={draft.count} onChange={e => setField('count', Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}</select></label>}
       <ReportRollupFilter accounts={accounts} values={draft} onChange={setField} branches={branches} />
       <button type="submit" className="btn-primary" style={{ alignSelf: 'end' }}>{t('reports.income.showResults')}</button>
     </form>

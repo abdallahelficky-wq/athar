@@ -25,6 +25,17 @@ export function incomePeriods(filters, now = new Date(), startMonth = 1) {
     return [{ from: filters.dateFrom, to: filters.dateTo, label: `${filters.dateFrom} — ${filters.dateTo}` }];
   }
   if (filters.mode === 'month') return [{ from: `${today.slice(0, 7)}-01`, to: today, label: today.slice(0, 7) }];
+  if (filters.mode === 'yoy') {
+    // الفترة المختارة ومقابلها من السنة السابقة (29 فبراير يصبح 28 فبراير)
+    const [current] = incomePeriods({ ...filters, mode: 'period' }, now, startMonth);
+    const shift = (d) => {
+      const [y, m, day] = d.split('-').map(Number);
+      const last = new Date(Date.UTC(y - 1, m, 0)).getUTCDate();
+      return `${y - 1}-${pad(m)}-${pad(Math.min(day, last))}`;
+    };
+    const previous = { from: shift(current.from), to: shift(current.to) };
+    return [{ ...previous, label: `${previous.from} — ${previous.to}` }, current];
+  }
   const count = Number(filters.count);
   if (!Number.isInteger(count) || count < 1 || count > 12) throw new Error('INVALID_PERIOD');
   if (filters.mode === 'months') {
@@ -35,6 +46,23 @@ export function incomePeriods(filters, now = new Date(), startMonth = 1) {
       const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0));
       const from = start.toISOString().slice(0, 10);
       return { from, to: end.toISOString().slice(0, 10), label: from.slice(0, 7) };
+    });
+  }
+  if (filters.mode === 'quarters') {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(filters.endMonth)) throw new Error('INVALID_PERIOD');
+    // أرباع السنة المالية: تبدأ بشهر بداية السنة المالية للشركة كل ثلاثة أشهر؛ آخرها الربع الذي يقع فيه endMonth
+    const m0 = validMonth(startMonth);
+    const [year, month] = filters.endMonth.split('-').map(Number);
+    const offset = (month - m0 + 12) % 12;
+    const lastStart = Date.UTC(year, month - 1 - (offset % 3), 1);
+    return Array.from({ length: count }, (_, i) => {
+      const start = new Date(lastStart);
+      start.setUTCMonth(start.getUTCMonth() - 3 * (count - 1 - i));
+      const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 3, 0));
+      const sm = start.getUTCMonth() + 1;
+      const q = Math.floor(((sm - m0 + 12) % 12) / 3) + 1;
+      const fyStart = sm >= m0 ? start.getUTCFullYear() : start.getUTCFullYear() - 1;
+      return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10), label: `Q${q} ${fiscalYearRange(fyStart, m0).label}` };
     });
   }
   const year = Number(filters.endYear);

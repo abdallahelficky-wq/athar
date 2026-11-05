@@ -10,6 +10,10 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "اختر الشركة لعرض التحليل المالي": "Choose a company to view the financial analysis",
+  "حدد فترة صحيحة: من تاريخ وإلى تاريخ": "Choose a valid period: a from date and a to date",
+  "تصنيف متداول/غير متداول للأصول والالتزامات فقط": "Current/non-current classification applies to assets and liabilities only",
+  "دور الحساب في التحليل المالي لا يناسب نوع الحساب": "The account's financial-analysis role does not fit the account type",
   "عملية ربط مع هيئة الزكاة جارية لهذه الشركة بالفعل — انتظر حتى تنتهي": "A ZATCA linking process is already running for this company — wait for it to finish",
   "هذه الشركة مربوطة بالفعل مع هيئة الزكاة": "This company is already linked with ZATCA",
   "بيانات الشركة غير مكتملة للربط مع هيئة الزكاة — أكمل الحقول الناقصة في بيانات الشركة ثم أعد المحاولة": "Company data is incomplete for ZATCA linking — complete the missing fields in the company data, then try again",

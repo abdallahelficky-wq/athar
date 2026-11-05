@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { AccountType, Prisma } from "@prisma/client";
+import { inferClassificationFromName } from "./accountClassification";
 
 export interface DefaultChartAccount {
   code: string;
@@ -1796,6 +1797,8 @@ export async function createChartFromTemplate(
       nameEn: account.nameEn,
       type: account.type,
       isBankOrCash: account.isBankOrCash || false,
+      // نفس قواعد الاسم في ترحيل التعبئة — الشركة الجديدة تبدأ بشجرة مصنَّفة كالشركات القائمة
+      ...inferClassificationFromName(account),
     };
   });
 

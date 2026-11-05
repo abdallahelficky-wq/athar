@@ -2,7 +2,8 @@ import { buildAccountLedgerPdf } from "../../lib/accountLedgerPdf";
 import { RequestHandler } from "express";
 import * as service from "./reports.service";
 import { prisma } from "../../lib/prisma";
-import { assertRecordCompanyScope, canReadHrData } from "../../middleware/auth";
+import { assertCompanyAccess, assertRecordCompanyScope, canReadHrData } from "../../middleware/auth";
+import { badRequest, notFound } from "../../lib/httpError";
 import { assertNotPersonalAccount } from "../../lib/personalAccounts";
 
 const parseDate = (v: unknown) => (typeof v === "string" && v ? new Date(v) : undefined);
@@ -149,4 +150,21 @@ export const draftEntriesSummaryHandler: RequestHandler = async (req, res) => {
       dateTo: parseDate(req.query.to),
     }),
   );
+};
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+export const financialAnalysisHandler: RequestHandler = async (req, res) => {
+  const companyId = parseCompanyId(req.query.companyId);
+  const { from, to } = req.query;
+  if (!companyId) throw badRequest("اختر الشركة لعرض التحليل المالي");
+  if (typeof from !== "string" || typeof to !== "string" || !DAY_RE.test(from) || !DAY_RE.test(to) || from > to) {
+    throw badRequest("حدد فترة صحيحة: من تاريخ وإلى تاريخ");
+  }
+  assertCompanyAccess(req.auth!, companyId);
+  // شركة من مستأجر آخر: 404 صريح بدل تقرير أصفار يوحي بأن الشركة موجودة وفارغة
+  const company = await prisma.company.findFirst({ where: { id: companyId, tenantId: req.auth!.tenantId }, select: { id: true } });
+  if (!company) throw notFound("الشركة غير موجودة");
+  const dateFrom = new Date(`${from}T00:00:00.000Z`);
+  const dateTo = new Date(`${to}T23:59:59.999Z`);
+  res.json(await service.getFinancialAnalysis(req.auth!.tenantId, companyId, dateFrom, dateTo, canReadHrData(req.auth!)));
 };

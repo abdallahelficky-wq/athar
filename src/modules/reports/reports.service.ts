@@ -17,6 +17,8 @@ import { foldAccountList, foldValueMap, personalFoldFromAccounts, loadPersonalFo
 import { collapseHrLines, hrEntryKinds, redactHrMemo } from "../../lib/hrRedaction";
 import { monthlyAgingShape, payablesAgingAsOf, receivablesAgingAsOf } from "../../lib/aging";
 import { COUNTED_ENTRY_WHERE, UNCOUNTED_DRAFT_WHERE } from "../../lib/countedEntries";
+import { resolveEffectiveClassification } from "../../lib/accountClassification";
+import { analyze, unclassifiedBalances } from "../../lib/financialAnalysis";
 
 export interface DateRange {
   companyId?: string;
@@ -907,4 +909,37 @@ export async function getDraftEntriesSummary(
     summarize({ status: "saved", company: { balancesPostedOnly: false } }),
   ]);
   return { uncounted, counted };
+}
+
+/**
+ * التحليل المالي والنسب لفترة واحدة لشركة واحدة. الأرقام من aggregateAccountBalances نفسها (المحتسَب فقط)،
+ * والتصنيف من accountClassification (بالوراثة). الواجهة تطلب الفترات واحدة واحدة للمقارنة الشهرية/الربعية/السنوية.
+ * غير أدوار الموارد البشرية: قائمة الحسابات غير المصنَّفة تُطوى على مجموعة الأشخاص كبقية التقارير.
+ */
+export async function getFinancialAnalysis(tenantId: string, companyId: string, dateFrom: Date, dateTo: Date, hrView = true) {
+  const openingTo = new Date(dateFrom.getTime() - 1);
+  const [allAccounts, opening, closing, flow] = await Promise.all([
+    prisma.account.findMany({ where: { tenantId, companyId } }),
+    aggregateAccountBalances(tenantId, { companyId, dateTo: openingTo }),
+    aggregateAccountBalances(tenantId, { companyId, dateTo }),
+    aggregateAccountBalances(tenantId, { companyId, dateFrom, dateTo, excludeFiscalClosing: true }),
+  ]);
+  const effective = resolveEffectiveClassification(allAccounts);
+  const days = Math.max(1, Math.round((dateTo.getTime() - dateFrom.getTime()) / 86_400_000));
+  const result = analyze({ accounts: allAccounts, effective, opening, closing, flow, days });
+
+  const fold = hrView ? new Map() : personalFoldFromAccounts(allAccounts);
+  const byId = new Map(allAccounts.map((a) => [a.id, a]));
+  const unclassified = foldValueMap(
+    new Map(unclassifiedBalances({ accounts: allAccounts, effective, closing }).map((r) => [r.accountId, { amount: r.amount }])),
+    fold,
+  );
+  const unclassifiedAccounts = [...unclassified.entries()]
+    .map(([id, v]) => {
+      const a = byId.get(id);
+      return { accountId: id, code: a?.code || "", name: a?.name || "—", nameEn: a?.nameEn || null, type: a?.type, amount: money(v.amount) };
+    })
+    .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+
+  return { from: dateFrom, to: dateTo, days, ...result, unclassifiedAccounts };
 }

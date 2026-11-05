@@ -5,6 +5,7 @@ import { badRequest, conflict, forbidden, notFound } from "../../lib/httpError";
 import { assertCompanyAccess, canReadHrData } from "../../middleware/auth";
 import { personalFoldFromAccounts } from "../../lib/personalAccounts";
 import { createChartFromTemplate, DEFAULT_CHART_OF_ACCOUNTS } from "../../lib/defaultChartOfAccounts";
+import { assertClassificationFitsType, inferClassificationFromName } from "../../lib/accountClassification";
 import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTemplates";
 import { LEVEL_CODE_LENGTH, generateNextCode } from "../../lib/accountCodes";
 import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
@@ -133,6 +134,7 @@ export const createAccount: RequestHandler = async (req, res) => {
   const code = req.body.code || (parent ? await generateNextCode(prisma, req.auth!.tenantId, companyId, parent.id) : null);
   if (!code) throw badRequest("أدخل كود حساب المستوى الأول");
   const data = { ...req.body, companyId, level, code, isPosting: level === 4 };
+  assertClassificationFitsType(data);
   await validateHierarchy(req.auth!.tenantId, data);
   const duplicate = await prisma.account.findFirst({ where: { tenantId: req.auth!.tenantId, companyId, code } });
   if (duplicate) throw badRequest(`كود الحساب ${code} مستخدم بالفعل في هذه الشجرة`);
@@ -177,6 +179,7 @@ export const updateAccount: RequestHandler = async (req, res) => {
   }
   // يبقى الكود ثابتاً عند النقل حتى يظل معرّف الحساب مستقراً في المراجعات والتقارير التاريخية.
   const data = { ...existing, ...requestedData, code: existing.code, level: existing.level, companyId: existing.companyId };
+  assertClassificationFitsType(data);
   await validateHierarchy(req.auth!.tenantId, data, existing.id);
   // كل تعديل (ومنه النقل والأرشفة المتسلسلة) يُسجَّل بمُشغِّل account_record_change: الحقول قبل/بعد ومن نفّذه
   const account = await withAuditActor(req.auth!.sub, async (tx) => {
@@ -270,6 +273,7 @@ export const importAccounts: RequestHandler = async (req, res) => {
           level: row.level,
           isPosting: row.isPosting,
           isBankOrCash: Boolean(row.isBankOrCash && row.type === "asset" && row.isPosting),
+          ...inferClassificationFromName({ name: row.name.trim(), nameEn: row.nameEn.trim(), type: row.type, isPosting: row.isPosting }),
         },
       });
       accountsByCode.set(account.code, account);

@@ -797,6 +797,20 @@ model Department {
   @@map("departments")
 }
 
+enum AccountLiquidity {
+  current
+  non_current
+}
+
+enum AccountAnalysisRole {
+  receivables
+  payables
+  inventory
+  cost_of_sales
+  depreciation
+  finance_cost
+}
+
 enum AccountType {
   asset
   liability
@@ -897,6 +911,11 @@ model Account {
   // نقدية فعلية (صندوق/بنوك) لعرضها في رسم توزيع الكاش بالداشبورد ولاختيار الحساب
   // البنكي عند تحصيل سند قبض بنكي، بدل التخمين من اسم الحساب
   isBankOrCash             Boolean     @default(false)
+  // تصنيف التحليل المالي (#reports-foundation): متداول/غير متداول للأصول والالتزامات، ودور الحساب في النسب
+  // (ذمم مدينة، مخزون، تكلفة مبيعات…). يُورَّث من أقرب أب مصنَّف إن لم يُحدَّد على الحساب نفسه — راجع
+  // src/lib/accountClassification.ts. فارغ = غير مصنَّف، ويظهر كتحذير في تقرير النسب لا كتخمين.
+  liquidity                AccountLiquidity?
+  analysisRole             AccountAnalysisRole?
   // يُحدَّد يدوياً — يُستخدَم لتفعيل نافذة "أصل جديد/أصل موجود" عند اختيار هذا الحساب في سطر أي
   // قيد يومية أو فاتورة مشتريات (بدل الاعتماد على موقعه في الشجرة، هش أمام إعادة الترتيب/القوالب
   // المختلفة). يُفعَّل فقط على حسابات اقتناء الأصول (مثل "أراضٍ"، "آلات ومعدات")، وليس على حساب
