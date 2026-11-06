@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getVatReconciliation, exportZatcaArchive } from "../../api/vatReconciliation";
+import { getVatReturn, getVatReconciliation, exportZatcaArchive } from "../../api/vatReconciliation";
 import { downloadBlob } from "../../legacy/shared";
 import { fmt } from "../../legacy/constants";
 import VatPeriodBar from "../shared/VatPeriodBar";
@@ -166,6 +166,38 @@ function OutsideBothSides({ data }) {
   );
 }
 
+/** مسودة الإقرار حسب فئة الضريبة على السطر — للمراجعة قبل التقديم في منصة الهيئة (vatReturn.service.ts) */
+function VatReturnDraft({ companyId, period }) {
+  const { t } = useTranslation();
+  const { data, error } = useVatFetch(getVatReturn, companyId, period);
+  if (error) return <div className="panel"><p className="balance-bad">{error}</p></div>;
+  if (!data) return null;
+  const rows = [["S", "standard"], ["Z", "zero"], ["E", "exempt"], ["O", "outOfScope"]];
+  const side = (key, block) => <>
+    <tr><td className="strong section-row" colSpan={5}>{t(`vat.return.${key}`)}</td></tr>
+    {rows.map(([c, label]) => <tr key={c}>
+      <td>{t(`vat.return.categories.${label}`)}</td>
+      <td className="num">{fmt(block[c].base)}</td><td className="num">{fmt(block[c].adjustmentBase)}</td>
+      <td className="num strong">{fmt(block[c].netBase)}</td><td className="num strong">{fmt(block[c].netVat)}</td>
+    </tr>)}
+  </>;
+  return <div className="panel" data-testid="vat-return-draft">
+    <h3>{t("vat.return.title")}</h3>
+    <p style={{ fontSize: 12 }}>{t("vat.return.note")}</p>
+    <table className="ledger-table">
+      <thead><tr><th>{t("vat.return.category")}</th><th>{t("vat.return.amount")}</th><th>{t("vat.return.adjustments")}</th><th>{t("vat.return.netAmount")}</th><th>{t("vat.return.vat")}</th></tr></thead>
+      <tbody>
+        {side("sales", data.sales)}
+        {data.stationShiftCount > 0 && <tr><td>{t("vat.return.stationShifts", { count: data.stationShiftCount })}</td><td /><td /><td /><td className="num strong">{fmt(data.stationShiftVat)}</td></tr>}
+        <tr><td className="strong">{t("vat.return.totalOutput")}</td><td /><td /><td className="num strong">{fmt(data.totalSalesBase)}</td><td className="num strong">{fmt(data.totalOutputVat)}</td></tr>
+        {side("purchases", data.purchases)}
+        <tr><td className="strong">{t("vat.return.totalInput")}</td><td /><td /><td className="num strong">{fmt(data.totalPurchasesBase)}</td><td className="num strong">{fmt(data.totalInputVat)}</td></tr>
+        <tr className="net-row"><td className="strong">{t("vat.return.net")}</td><td /><td /><td /><td className={"num strong " + (data.netVat < 0 ? "balance-ok" : "")}>{fmt(data.netVat)}</td></tr>
+      </tbody>
+    </table>
+  </div>;
+}
+
 /**
  * مطابقة الضريبة لشركة واحدة وفترة إقرار واحدة: ضريبة المستندات مقابل حركة حسابَي الضريبة، والفرق
  * مفصَّلاً. هذه الأرقام هي ما يُوقَّع عليه الإقرار، فلا يُعرَض شيء بلا شركة وفترة صريحتين.
@@ -209,6 +241,7 @@ export default function VatReconciliation({ companyId, companies }) {
           )}
         </>
       )}
+      {companyId && <VatReturnDraft companyId={companyId} period={period.applied} />}
       <ZatcaArchiveExport companyId={companyId} period={period.applied} />
     </div>
   );

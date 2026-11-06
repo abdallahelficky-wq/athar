@@ -47,7 +47,7 @@ async function post(t: (typeof tenants)[number], date: string, debit: string, cr
   expect(res.status, res.text).toBe(201);
 }
 
-const CODES = { cash: "111001", ar: "112001", inv: "114001", ap: "211001", loan: "221001", capital: "311001", sales: "411001", cogs: "511001", dep: "651001", interest: "721001" };
+const CODES = { cash: "111001", ar: "112001", inv: "114001", ap: "211001", loan: "221001", capital: "311001", sales: "411001", cogs: "511001", dep: "651001", interest: "721001", equipment: "121003", accDep: "121008" };
 
 async function analysis(t: (typeof tenants)[number], from: string, to: string) {
   const res = await call(t.token, "GET", `/reports/financial-analysis?companyId=${t.companyId}&from=${from}&to=${to}`);
@@ -168,6 +168,39 @@ describe("financial analysis and ratios (integration)", () => {
 
     const log = await prisma.auditLog.findFirstOrThrow({ where: { tenantId: a.id, entityType: "Account", entityId: g2.body.id, action: "account.updated" } });
     expect((log.metadata as any).changes.liquidity).toEqual({ from: null, to: "non_current" });
+  });
+
+  it("builds the March cash flow statement that reconciles to the cash balances", async () => {
+    // مارس: (من الاختبار السابق) 2,000 لحساب اختبار صار غير متداول، + شراء معدات 12,000 نقداً، إهلاك 300 على مجمع
+    // الإهلاك، زيادة رأس مال 5,000. صافي الربح −300 والإهلاك 300 → التشغيلية صفر؛ الاستثمارية −2,000 −12,000 +300 −300.
+    const [a] = tenants;
+    await post(a, "2026-03-10", "equipment", "cash", 12_000);
+    await post(a, "2026-03-28", "dep", "accDep", 300);
+    await post(a, "2026-03-29", "cash", "capital", 5_000);
+    const res = await call(a.token, "GET", `/reports/cash-flow?companyId=${a.companyId}&from=2026-03-01&to=2026-03-31`);
+    expect(res.status, res.text).toBe(200);
+    const cf = res.body;
+    expect(cf).toMatchObject({ netIncome: -300, depreciation: 300, openingCash: 118_500, closingCash: 109_500, netChange: -9_000, difference: 0 });
+    expect(cf.operating.total).toBe(0);
+    expect(cf.investing.total).toBe(-14_000);
+    expect(cf.financing.total).toBe(5_000);
+    const rows = (section: any) => Object.fromEntries(section.rows.map((r: any) => [r.code, r.amount]));
+    // الصفوف على مجموعة المستوى الثالث: 121 (معدات + مجمع إهلاك معاً) ومجموعة الاختبار
+    expect(rows(cf.investing)).toMatchObject({ "121": -11_700 });
+    expect(Object.values(rows(cf.investing)).reduce((x: number, y: any) => x + y, 0)).toBe(-13_700);
+    expect(rows(cf.financing)).toEqual({ "311": 5_000 });
+  });
+
+  it("puts February's long-term loan in financing and working capital in operating", async () => {
+    const [a] = tenants;
+    const cf = (await call(a.token, "GET", `/reports/cash-flow?companyId=${a.companyId}&from=2026-02-01&to=2026-02-28`)).body;
+    const rows = (section: any) => Object.fromEntries(section.rows.map((r: any) => [r.code, r.amount]));
+    expect(rows(cf.financing)).toEqual({ "221": 20_000 });
+    // كود مجموعة العرض من الشجرة الفعلية (حساب العميل قد يقع تحت مجموعة كودها لا يبدأ بكوده)
+    const groupCode = async (id: string) => (await prisma.account.findUniqueOrThrow({ where: { id: (await prisma.account.findUniqueOrThrow({ where: { id } })).parentId! } })).code;
+    expect(rows(cf.operating)).toEqual({ [await groupCode(a.acc.ar)]: -50_000, [await groupCode(a.acc.inv)]: -10_000, [await groupCode(a.acc.ap)]: 40_000 });
+    expect(cf.netChange).toBe(18_500);
+    expect(cf.difference).toBe(0);
   });
 
   it("rejects a classification that does not fit the account type", async () => {

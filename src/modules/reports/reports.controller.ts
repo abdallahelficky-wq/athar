@@ -72,10 +72,13 @@ export const incomeStatementHandler: RequestHandler = async (req, res) => {
 };
 
 export const balanceSheetHandler: RequestHandler = async (req, res) => {
+  // تاريخ يوم مختار يشمل اليوم كاملاً (كقائمة الدخل) — بدونه يُستبعد قيد مؤرَّخ بعد منتصف ليل آخر يوم بتوقيت UTC
+  const asOf = parseDate(req.query.date);
+  if (asOf && typeof req.query.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)) asOf.setUTCHours(23, 59, 59, 999);
   const result = await service.getBalanceSheet(
     req.auth!.tenantId,
     parseCompanyId(req.query.companyId),
-    parseDate(req.query.date),
+    asOf,
     rollupParams(req.query),
     parseBranchId(req.query.branchId),
     canReadHrData(req.auth!),
@@ -153,7 +156,8 @@ export const draftEntriesSummaryHandler: RequestHandler = async (req, res) => {
 };
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-export const financialAnalysisHandler: RequestHandler = async (req, res) => {
+/** شركة واحدة من مستأجر المستخدم + فترة أيام كاملة — مشترك بين التحليل المالي والتدفقات النقدية */
+async function companyPeriod(req: Parameters<RequestHandler>[0]) {
   const companyId = parseCompanyId(req.query.companyId);
   const { from, to } = req.query;
   if (!companyId) throw badRequest("اختر الشركة لعرض التحليل المالي");
@@ -164,7 +168,15 @@ export const financialAnalysisHandler: RequestHandler = async (req, res) => {
   // شركة من مستأجر آخر: 404 صريح بدل تقرير أصفار يوحي بأن الشركة موجودة وفارغة
   const company = await prisma.company.findFirst({ where: { id: companyId, tenantId: req.auth!.tenantId }, select: { id: true } });
   if (!company) throw notFound("الشركة غير موجودة");
-  const dateFrom = new Date(`${from}T00:00:00.000Z`);
-  const dateTo = new Date(`${to}T23:59:59.999Z`);
+  return { companyId, dateFrom: new Date(`${from}T00:00:00.000Z`), dateTo: new Date(`${to}T23:59:59.999Z`) };
+}
+
+export const financialAnalysisHandler: RequestHandler = async (req, res) => {
+  const { companyId, dateFrom, dateTo } = await companyPeriod(req);
   res.json(await service.getFinancialAnalysis(req.auth!.tenantId, companyId, dateFrom, dateTo, canReadHrData(req.auth!)));
+};
+
+export const cashFlowHandler: RequestHandler = async (req, res) => {
+  const { companyId, dateFrom, dateTo } = await companyPeriod(req);
+  res.json(await service.getCashFlowStatement(req.auth!.tenantId, companyId, dateFrom, dateTo, canReadHrData(req.auth!)));
 };

@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getPurchasesBySupplier, getPurchasesMonthly, getPurchasesVatSummary, getPayablesAging } from "../../api/purchaseReports";
+import { getPurchasesBySupplier, getPurchasesMonthly, getPurchasesVatSummary, getPayablesAging, getPurchasesByItem } from "../../api/purchaseReports";
+import DateRangeBar, { quickRange } from "../shared/DateRangeBar";
+import { getItemDisplayName } from "../shared/itemDisplayName";
+import { getAccountDisplayName } from "../shared/accountDisplayName";
 import { fmt } from "../../legacy/constants";
 import SubTabs from "../shared/SubTabs";
 import VatPeriodBar from "../shared/VatPeriodBar";
@@ -8,13 +11,16 @@ import { useVatFetch, useVatPeriod } from "../shared/vatPeriod";
 
 const TABS = [
   { id: "bySupplier", labelKey: "purchases.reports.tabs.bySupplier" },
+  { id: "byItem", labelKey: "purchases.reports.tabs.byItem" },
   { id: "monthly", labelKey: "purchases.reports.tabs.monthly" },
   { id: "aging", labelKey: "purchases.reports.tabs.aging" },
   { id: "vat", labelKey: "purchases.reports.tabs.vat" },
 ];
 
 export default function PurchaseReportsTab({ companyId, companies }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [range, setRange] = useState(() => quickRange("thisYear"));
+  const [byItem, setByItem] = useState(null);
   const [tab, setTab] = useState("bySupplier");
   const [bySupplier, setBySupplier] = useState([]);
   const [monthly, setMonthly] = useState([]);
@@ -26,9 +32,10 @@ export default function PurchaseReportsTab({ companyId, companies }) {
 
   useEffect(() => {
     if (!companyId) return;
-    getPurchasesBySupplier(companyId).then(setBySupplier);
-    getPurchasesMonthly(companyId).then(setMonthly);
-  }, [companyId]);
+    getPurchasesBySupplier(companyId, range).then(setBySupplier);
+    getPurchasesMonthly(companyId, range).then(setMonthly);
+    getPurchasesByItem(companyId, range).then(setByItem);
+  }, [companyId, range]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -41,6 +48,26 @@ export default function PurchaseReportsTab({ companyId, companies }) {
   return (
     <div>
       <SubTabs tabs={TABS} active={tab} onChange={setTab} />
+      {["bySupplier", "byItem", "monthly"].includes(tab) && <div className="panel"><DateRangeBar value={range} onApply={setRange} /></div>}
+
+      {tab === "byItem" && byItem && (
+        <div className="panel">
+          <table className="ledger-table">
+            <thead><tr><th>{t("purchases.reports.byItem.item")}</th><th>{t("purchases.reports.byItem.invoiceCount")}</th><th>{t("purchases.reports.byItem.quantity")}</th><th>{t("purchases.reports.byItem.amount")}</th><th>{t("purchases.reports.byItem.averageCost")}</th></tr></thead>
+            <tbody>
+              {byItem.rows.map((r) => (
+                <tr key={r.key}>
+                  <td>{r.code} — {r.isItem ? getItemDisplayName(r, i18n.language) : getAccountDisplayName(r, i18n.language)}{!r.isItem && <small> ({t("purchases.reports.byItem.expenseLine")})</small>}</td>
+                  <td className="num">{r.invoiceCount}</td><td className="num">{r.isItem ? `${fmt(r.quantity)} ${r.unit || ""}` : "—"}</td>
+                  <td className="num strong">{fmt(r.amount)}</td><td className="num">{r.averageCost === null ? "—" : fmt(r.averageCost)}</td>
+                </tr>
+              ))}
+              {byItem.rows.length === 0 && <tr><td className="empty" colSpan={5}>{t("sales.reports.empty")}</td></tr>}
+              {byItem.returnCount > 0 && <tr><td colSpan={3}>{t("purchases.reports.byItem.returns", { count: byItem.returnCount })}</td><td className="num">−{fmt(byItem.returnsTotal)}</td><td /></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {tab === "bySupplier" && (
         <div className="panel">

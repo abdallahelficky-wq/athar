@@ -1,5 +1,9 @@
 import { RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
+import { badRequest } from "../../lib/httpError";
+import { parseReportFilters } from "../../lib/reportFilters";
+import { riyadhCalendarDay, riyadhDayEndExclusiveUtc } from "../../lib/riyadhDate";
+import { getInventoryMovementSummary } from "./inventoryAnalysis.service";
 
 const INBOUND = new Set(["in", "transfer_in"]);
 const OUTBOUND = new Set(["out", "issue", "transfer_out"]);
@@ -56,4 +60,19 @@ export const stockReportHandler: RequestHandler = async (req, res) => {
     });
 
   res.json(rows);
+};
+
+/** شركة إلزامية + فترة (بلا "إلى" = حتى نهاية اليوم بتوقيت الرياض) + مستودع اختياري من نفس الشركة */
+async function inventoryRange(req: Parameters<RequestHandler>[0]) {
+  const f = parseReportFilters(req.query);
+  if (!f.companyId) throw badRequest("اختر الشركة لعرض تقارير المخزون");
+  const warehouseId = typeof req.query.warehouseId === "string" && req.query.warehouseId ? req.query.warehouseId : undefined;
+  if (warehouseId && !(await prisma.warehouse.findFirst({ where: { id: warehouseId, tenantId: req.auth!.tenantId, companyId: f.companyId }, select: { id: true } }))) {
+    throw badRequest("المستودع لا يتبع هذه الشركة");
+  }
+  return { companyId: f.companyId, warehouseId, start: f.start, endExclusive: f.endExclusive ?? riyadhDayEndExclusiveUtc(riyadhCalendarDay(new Date())) };
+}
+
+export const movementSummaryHandler: RequestHandler = async (req, res) => {
+  res.json(await getInventoryMovementSummary(req.auth!.tenantId, await inventoryRange(req)));
 };
