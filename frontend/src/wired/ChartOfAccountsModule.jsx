@@ -14,7 +14,7 @@ import { getAccountDisplayName } from "./shared/accountDisplayName";
 const LEVEL_CODE_LENGTH = { 1: 1, 2: 2, 3: 3, 4: 6 };
 const emptyForm = { name: "", nameEn: "", code: "", type: "asset", parentId: "", isPosting: false, isBankOrCash: false, isEmployeeAdvanceAccount: false, isPersonalGroup: false, liquidity: "", analysisRole: "" };
 // تصنيف التحليل المالي (src/lib/accountClassification.ts) — فارغ = يرث من الأب
-const ROLE_TYPES = { receivables: ["asset"], payables: ["liability"], inventory: ["asset"], cost_of_sales: ["expense"], depreciation: ["expense"], finance_cost: ["expense", "revenue"], borrowings: ["liability"] };
+const ROLE_TYPES = { receivables: ["asset"], payables: ["liability"], inventory: ["asset"], cost_of_sales: ["expense"], depreciation: ["expense"], finance_cost: ["expense", "revenue"], borrowings: ["liability"], other_income: ["revenue"] };
 const emptyChartFilters = { search: "", level: 4, type: "", status: "active" };
 const SHOW_PARTY_ACCOUNTS_KEY = "chartOfAccounts.showPartyAccounts";
 

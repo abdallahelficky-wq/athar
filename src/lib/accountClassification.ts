@@ -21,6 +21,7 @@ export const ANALYSIS_ROLE_VALUES = [
   "depreciation",
   "finance_cost",
   "borrowings",
+  "other_income",
 ] as const satisfies readonly AccountAnalysisRole[];
 
 /** الأنواع المسموح بها لكل دور — يُرفَض في الخادم أي دور على نوع لا يناسبه (مثل "مخزون" على حساب مصروف). */
@@ -32,6 +33,8 @@ export const ROLE_ACCOUNT_TYPES: Record<AccountAnalysisRole, AccountType[]> = {
   depreciation: ["expense"],
   finance_cost: ["expense", "revenue"],
   borrowings: ["liability"],
+  // إيرادات/مكاسب وخسائر غير تشغيلية: تظهر في قائمة الدخل بعد مجمل الربح والربح التشغيلي، لا ضمن الإيرادات
+  other_income: ["revenue"],
 };
 
 export const LIQUIDITY_ACCOUNT_TYPES: AccountType[] = ["asset", "liability"];
@@ -65,6 +68,9 @@ const COST_OF_SALES_GROUP_NAMES = new Set([
   "تكلفة البضاعة المباعة",
   "تكاليف المبيعات",
 ]);
+
+/** نفس تعبير ترحيل 20261108090100_account_role_other_income_backfill */
+const OTHER_INCOME_NAME = /(إيرادات أخرى|ايرادات أخرى|إيرادات اخرى|ايرادات اخرى|ومصروفات أخرى|ومصروفات اخرى|غير تشغيلي|غير التشغيلي|فروق(ات)? (ال)?عمل|فروق(ات)? (ال)?صرف|أرباح ?\/ ?خسائر|أرباح وخسائر|استبعاد|(إيراد|ايراد)(ات)? (ال)?فوائد)/;
 
 export interface NamedAccount {
   name: string;
@@ -102,6 +108,7 @@ export function inferRoleFromName(account: NamedAccount): AccountAnalysisRole | 
   if ((account.type === "expense" || account.type === "revenue") && /(تمويل|فوائد)/.test(account.name) && !/(إيراد|ايراد)/.test(account.name)) {
     return "finance_cost";
   }
+  if (account.type === "revenue" && OTHER_INCOME_NAME.test(account.name)) return "other_income";
   return null;
 }
 

@@ -559,10 +559,81 @@ export async function getIncomeStatement(
   }
   const netIncome = totalRevenue - totalExpense;
 
-  const revenueRoots = buildFilteredSectionTree(accounts, foldValueMap(revenueValues, fold), ["revenue"], rollup);
-  const expenseRoots = buildFilteredSectionTree(accounts, foldValueMap(expenseValues, fold), ["expense"], rollup);
+  const foldedRevenue = foldValueMap(revenueValues, fold);
+  const foldedExpense = foldValueMap(expenseValues, fold);
+  const revenueRoots = buildFilteredSectionTree(accounts, foldedRevenue, ["revenue"], rollup);
+  const expenseRoots = buildFilteredSectionTree(accounts, foldedExpense, ["expense"], rollup);
 
-  return { revenueRoots, expenseRoots, totalRevenue, totalExpense, netIncome };
+  // القائمة متعددة المراحل (مجمل الربح والربح التشغيلي) من تصنيف الحسابات بالوراثة (accountClassification.ts):
+  //   الإيرادات            = حسابات الإيراد عدا "إيرادات أخرى غير تشغيلية" و"تكاليف تمويل"
+  //   تكلفة المبيعات       = حسابات المصروف بدور تكلفة المبيعات
+  //   المصروفات التشغيلية  = بقية المصروفات عدا تكاليف التمويل
+  //   أخرى وتمويل          = إيرادات أخرى + تكاليف تمويل (إيراداً أو مصروفاً)، بإشارة أثرها على الربح
+  // صافي الربح = مجمل الربح − التشغيلية + الأخرى = نفس netIncome أعلاه (نفس الأرصدة مقسَّمة بلا تكرار ولا إسقاط).
+  const effective = resolveEffectiveClassification(allAccounts);
+  const roleOf = (id: string) => effective.get(id)?.analysisRole ?? null;
+  const operatingRevenue = new Map<string, AmountValue>();
+  const costOfSales = new Map<string, AmountValue>();
+  const operatingExpenses = new Map<string, AmountValue>();
+  const otherItems = new Map<string, AmountValue>();
+  for (const [id, v] of revenueValues) {
+    const role = roleOf(id);
+    (role === "other_income" || role === "finance_cost" ? otherItems : operatingRevenue).set(id, v);
+  }
+  for (const [id, v] of expenseValues) {
+    const role = roleOf(id);
+    if (role === "cost_of_sales") costOfSales.set(id, v);
+    else if (role === "finance_cost") otherItems.set(id, { amount: -v.amount });
+    else operatingExpenses.set(id, v);
+  }
+  const sum = (m: Map<string, AmountValue>) => [...m.values()].reduce((n, v) => n + v.amount, 0);
+  const sectionRoots = (values: Map<string, AmountValue>, types: Account["type"][]) => {
+    const folded = foldValueMap(values, fold);
+    return buildFilteredSectionTree(sectionAccounts(accounts, folded), folded, types, rollup);
+  };
+  const salesRevenue = sum(operatingRevenue);
+  const totalCostOfSales = sum(costOfSales);
+  const grossProfit = salesRevenue - totalCostOfSales;
+  const totalOperatingExpenses = sum(operatingExpenses);
+  const operatingProfit = grossProfit - totalOperatingExpenses;
+  const otherNet = sum(otherItems);
+
+  return {
+    revenueRoots,
+    expenseRoots,
+    totalRevenue,
+    totalExpense,
+    netIncome,
+    operatingRevenueRoots: sectionRoots(operatingRevenue, ["revenue"]),
+    costOfSalesRoots: sectionRoots(costOfSales, ["expense"]),
+    operatingExpenseRoots: sectionRoots(operatingExpenses, ["expense"]),
+    otherRoots: sectionRoots(otherItems, ["revenue", "expense"]),
+    salesRevenue,
+    totalCostOfSales,
+    grossProfit,
+    grossMargin: Math.abs(salesRevenue) < 0.005 ? null : grossProfit / salesRevenue,
+    totalOperatingExpenses,
+    operatingProfit,
+    otherNet,
+    netMargin: Math.abs(salesRevenue) < 0.005 ? null : netIncome / salesRevenue,
+  };
+}
+
+/**
+ * حسابات قسم واحد من قائمة الدخل: الحسابات التي لها قيمة في القسم + كل آبائها، حتى تُبنى شجرة القسم بمجموعاتها
+ * الأصلية دون أن تظهر فيها حسابات أقسام أخرى (مثل "إيرادات أخرى" تحت مجموعة الإيرادات الرئيسية).
+ */
+function sectionAccounts(accounts: Account[], values: Map<string, AmountValue>) {
+  const byId = new Map(accounts.map((a) => [a.id, a]));
+  const keep = new Set<string>();
+  for (const id of values.keys()) {
+    let current = byId.get(id);
+    for (let depth = 0; current && depth < 16 && !keep.has(current.id); depth++) {
+      keep.add(current.id);
+      current = current.parentId ? byId.get(current.parentId) : undefined;
+    }
+  }
+  return accounts.filter((a) => keep.has(a.id));
 }
 
 export async function getBalanceSheet(

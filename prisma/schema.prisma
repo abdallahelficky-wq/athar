@@ -810,6 +810,7 @@ enum AccountAnalysisRole {
   depreciation
   finance_cost
   borrowings
+  other_income
 }
 
 enum AccountType {

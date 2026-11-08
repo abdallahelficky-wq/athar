@@ -29,6 +29,15 @@ describe("inferClassificationFromName on the shipped default chart", () => {
     expect(infer("71").analysisRole).toBeNull();
     // "ذمم مدينة أخرى" ليست ذمم عملاء ولا تدخل أيام التحصيل
     expect(infer("113").analysisRole).toBeNull();
+    // الإيرادات الأخرى غير التشغيلية: تحت مجمل الربح في قائمة الدخل، لا ضمن الإيرادات
+    expect(infer("43").analysisRole).toBe("other_income");
+    expect(infer("7").analysisRole).toBe("other_income");
+    expect(infer("73").analysisRole).toBe("other_income");
+    expect(infer("74").analysisRole).toBe("other_income");
+    expect(infer("41").analysisRole).toBeNull();
+    expect(infer("411001").analysisRole).toBeNull();
+    expect(inferClassificationFromName({ name: "إيرادات فوائد ودائع", type: "revenue", isPosting: true }).analysisRole).toBe("other_income");
+    expect(inferClassificationFromName({ name: "مبيعات الديزل", type: "revenue", isPosting: true }).analysisRole).toBeNull();
   });
 
   it("never gives liquidity to equity, revenue or expense accounts", () => {
