@@ -9,7 +9,8 @@ import type { EffectiveClassification } from "./accountClassification";
  * (افتتاحي + ختامي) ÷ 2. أي نسبة مقامها صفر تعود null (تُعرَض "—") لا صفراً ولا ما لا نهاية.
  *
  * حدود معلنة (تظهر في التقرير):
- * - "الإيرادات" = حسابات الإيراد عدا ما دوره تكلفة تمويل (يشمل الإيرادات الأخرى).
+ * - "الإيرادات" = إيرادات النشاط: حسابات الإيراد عدا الإيرادات الأخرى غير التشغيلية وتكاليف التمويل —
+ *   نفس "الإيرادات" في قائمة الدخل متعددة المراحل، فيتطابق مجمل الربح بين التقريرين.
  * - أيام السداد على تكلفة المبيعات لا المشتريات (المشتريات ليست حساباً في الشجرة).
  * - حقوق الملكية تشمل صافي الربح التراكمي حتى التاريخ، تماماً كقائمة المركز المالي.
  */
@@ -131,7 +132,7 @@ export function flowTotals(input: Pick<AnalysisInput, "accounts" | "effective" |
     if (account.type === "revenue") {
       totalRevenueAll -= n;
       if (role === "finance_cost") financeCost += n;
-      else revenue -= n;
+      else if (role !== "other_income") revenue -= n;
     } else if (account.type === "expense") {
       totalExpenses += n;
       if (role === "cost_of_sales") costOfSales += n;

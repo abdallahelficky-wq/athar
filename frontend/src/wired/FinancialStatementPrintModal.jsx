@@ -66,16 +66,32 @@ function PrintAmountTreeRows({ nodes, depth = 0 }) {
 }
 
 function IncomeStatementTable({ data, t }) {
+  // نفس القائمة متعددة المراحل في تبويب قائمة الدخل (IncomeComparisonTable)
+  const total = (label, value, className = "") => <tr className={className}><td className="strong">{t(label)}</td><td className="num strong">{fmt(value)}</td></tr>;
+  const section = (label) => <tr><td className="strong section-row" colSpan={2}>{t(label)}</td></tr>;
+  const pct = (v) => (v === null || v === undefined ? "—" : `${(v * 100).toFixed(1)}%`);
   return (
     <table className="ledger-table voucher-table">
       <tbody>
-        <tr><td className="strong section-row" colSpan={2}>{t("reports.income.revenue")}</td></tr>
-        <PrintAmountTreeRows nodes={data.revenueRoots} />
-        <tr><td className="strong">{t("reports.income.totalRevenue")}</td><td className="num strong">{fmt(data.totalRevenue)}</td></tr>
-        <tr><td className="strong section-row" colSpan={2}>{t("reports.income.expenses")}</td></tr>
-        <PrintAmountTreeRows nodes={data.expenseRoots} />
-        <tr><td className="strong">{t("reports.income.totalExpenses")}</td><td className="num strong">{fmt(data.totalExpense)}</td></tr>
-        <tr className="net-row"><td className="strong">{t("reports.income.netIncome")}</td><td className="num strong">{fmt(data.netIncome)}</td></tr>
+        {section("reports.income.revenue")}
+        <PrintAmountTreeRows nodes={data.operatingRevenueRoots} />
+        {total("reports.income.totalRevenue", data.salesRevenue)}
+        {section("reports.income.costOfSales")}
+        <PrintAmountTreeRows nodes={data.costOfSalesRoots} />
+        {total("reports.income.totalCostOfSales", data.totalCostOfSales)}
+        {total("reports.income.grossProfit", data.grossProfit, "net-row")}
+        <tr><td className="indent">{t("reports.income.grossMargin")}</td><td className="num"><span dir="ltr">{pct(data.grossMargin)}</span></td></tr>
+        {section("reports.income.operatingExpenses")}
+        <PrintAmountTreeRows nodes={data.operatingExpenseRoots} />
+        {total("reports.income.totalOperatingExpenses", data.totalOperatingExpenses)}
+        {total("reports.income.operatingProfit", data.operatingProfit, "net-row")}
+        {Math.abs(data.otherNet) >= 0.005 && <>
+          {section("reports.income.otherItems")}
+          <PrintAmountTreeRows nodes={data.otherRoots} />
+          {total("reports.income.totalOtherItems", data.otherNet)}
+        </>}
+        {total("reports.income.netIncomeLoss", data.netIncome, "net-row")}
+        <tr><td className="indent">{t("reports.income.netMargin")}</td><td className="num"><span dir="ltr">{pct(data.netMargin)}</span></td></tr>
       </tbody>
     </table>
   );

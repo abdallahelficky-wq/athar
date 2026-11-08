@@ -20,22 +20,46 @@ function Rows({ nodes, lang, depth = 0 }) {
   </React.Fragment>);
 }
 
+/**
+ * قائمة الدخل متعددة المراحل: الإيرادات − تكلفة المبيعات = مجمل الربح − المصروفات التشغيلية = الربح التشغيلي
+ * ± إيرادات ومصروفات أخرى وتكاليف التمويل = صافي الربح. الأقسام من تصنيف الحسابات (دورها في التحليل المالي).
+ */
 export function IncomeComparisonTable({ result }) {
   const { t, i18n } = useTranslation();
   const { periods, statements } = result;
+  const cols = periods.length + 1;
   const total = (label, key, className = '') => <tr className={className}><td className="strong">{t(label)}</td>{statements.map((s, i) => <td className="num strong" key={i}>{fmt(s[key])}</td>)}</tr>;
-  return <table className="ledger-table voucher-table" style={{ fontSize: periods.length > 6 ? 10 : undefined }}>
-    <thead><tr><th>{t('reports.trial.table.account')}</th>{periods.map(p => <th key={p.from} style={{ minWidth: 65 }}><span dir="ltr">{p.label}</span></th>)}</tr></thead>
-    <tbody>
-      <tr><td className="strong section-row" colSpan={periods.length + 1}>{t('reports.income.revenue')}</td></tr>
-      <Rows nodes={incomeComparisonTree(statements, 'revenueRoots')} lang={i18n.language} />
-      {total('reports.income.totalRevenue', 'totalRevenue')}
-      <tr><td className="strong section-row" colSpan={periods.length + 1}>{t('reports.income.expenses')}</td></tr>
-      <Rows nodes={incomeComparisonTree(statements, 'expenseRoots')} lang={i18n.language} />
-      {total('reports.income.totalExpenses', 'totalExpense')}
-      {total('reports.income.netIncome', 'netIncome', 'net-row')}
-    </tbody>
-  </table>;
+  const margin = (label, key) => <tr><td className="indent" style={{ fontSize: 12 }}>{t(label)}</td>{statements.map((s, i) => <td className="num" style={{ fontSize: 12 }} key={i}><span dir="ltr">{s[key] === null || s[key] === undefined ? '—' : `${(s[key] * 100).toFixed(1)}%`}</span></td>)}</tr>;
+  const section = (label) => <tr><td className="strong section-row" colSpan={cols}>{t(label)}</td></tr>;
+  const hasOther = statements.some((s) => (s.otherRoots || []).length && Math.abs(s.otherNet) >= 0.005);
+  const missingCogs = statements.some((s) => Math.abs(s.salesRevenue) >= 0.005 && Math.abs(s.totalCostOfSales) < 0.005);
+  return <>
+    {missingCogs && <p role="note" className="balance-bad" style={{ fontSize: 12 }}>{t('reports.income.noCostOfSalesHint')}</p>}
+    <table className="ledger-table voucher-table" style={{ fontSize: periods.length > 6 ? 10 : undefined }}>
+      <thead><tr><th>{t('reports.trial.table.account')}</th>{periods.map(p => <th key={p.from} style={{ minWidth: 65 }}><span dir="ltr">{p.label}</span></th>)}</tr></thead>
+      <tbody>
+        {section('reports.income.revenue')}
+        <Rows nodes={incomeComparisonTree(statements, 'operatingRevenueRoots')} lang={i18n.language} />
+        {total('reports.income.totalRevenue', 'salesRevenue')}
+        {section('reports.income.costOfSales')}
+        <Rows nodes={incomeComparisonTree(statements, 'costOfSalesRoots')} lang={i18n.language} />
+        {total('reports.income.totalCostOfSales', 'totalCostOfSales')}
+        {total('reports.income.grossProfit', 'grossProfit', 'net-row')}
+        {margin('reports.income.grossMargin', 'grossMargin')}
+        {section('reports.income.operatingExpenses')}
+        <Rows nodes={incomeComparisonTree(statements, 'operatingExpenseRoots')} lang={i18n.language} />
+        {total('reports.income.totalOperatingExpenses', 'totalOperatingExpenses')}
+        {total('reports.income.operatingProfit', 'operatingProfit', 'net-row')}
+        {hasOther && <>
+          {section('reports.income.otherItems')}
+          <Rows nodes={incomeComparisonTree(statements, 'otherRoots')} lang={i18n.language} />
+          {total('reports.income.totalOtherItems', 'otherNet')}
+        </>}
+        {total('reports.income.netIncomeLoss', 'netIncome', 'net-row')}
+        {margin('reports.income.netMargin', 'netMargin')}
+      </tbody>
+    </table>
+  </>;
 }
 
 export default function IncomeStatementModule({ companyId, company, accounts, branches, printing, onClosePrint }) {

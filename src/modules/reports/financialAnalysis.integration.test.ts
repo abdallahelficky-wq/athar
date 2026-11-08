@@ -47,7 +47,7 @@ async function post(t: (typeof tenants)[number], date: string, debit: string, cr
   expect(res.status, res.text).toBe(201);
 }
 
-const CODES = { cash: "111001", ar: "112001", inv: "114001", ap: "211001", loan: "221001", capital: "311001", sales: "411001", cogs: "511001", dep: "651001", interest: "721001", equipment: "121003", accDep: "121008" };
+const CODES = { cash: "111001", ar: "112001", inv: "114001", ap: "211001", loan: "221001", capital: "311001", sales: "411001", cogs: "511001", dep: "651001", interest: "721001", equipment: "121003", accDep: "121008", otherIncome: "431001", fx: "741001" };
 
 async function analysis(t: (typeof tenants)[number], from: string, to: string) {
   const res = await call(t.token, "GET", `/reports/financial-analysis?companyId=${t.companyId}&from=${from}&to=${to}`);
@@ -101,6 +101,8 @@ describe("financial analysis and ratios (integration)", () => {
       "112": [null, "receivables"], "114": [null, "inventory"], "211": [null, "payables"], "5": [null, "cost_of_sales"],
       "651": [null, "depreciation"], "72": [null, "finance_cost"],
     });
+    const other = await prisma.account.findMany({ where: { companyId: a.companyId, code: { in: ["43", "7", "73", "74"] } } });
+    expect(other.map((g) => g.analysisRole)).toEqual(["other_income", "other_income", "other_income", "other_income"]);
   });
 
   it("computes positions, flows and ratios for February from the posted entries", async () => {
@@ -201,6 +203,39 @@ describe("financial analysis and ratios (integration)", () => {
     expect(rows(cf.operating)).toEqual({ [await groupCode(a.acc.ar)]: -50_000, [await groupCode(a.acc.inv)]: -10_000, [await groupCode(a.acc.ap)]: 40_000 });
     expect(cf.netChange).toBe(18_500);
     expect(cf.difference).toBe(0);
+  });
+
+  it("builds the multi-step income statement: gross profit, operating profit, other items, net", async () => {
+    // أبريل: مبيعات 10,000، تكلفتها 6,000، إهلاك 400، إيراد بيع خردة 2,000، خسارة فروق عملة 300، فوائد 200.
+    // الإيرادات 10,000 − تكلفة 6,000 = مجمل 4,000؛ − تشغيلية 400 = تشغيلي 3,600؛ + أخرى (2,000 − 300 − 200) = صافي 5,100.
+    const [a] = tenants;
+    await post(a, "2026-04-03", "cash", "sales", 10_000);
+    await post(a, "2026-04-03", "cogs", "inv", 6_000);
+    await post(a, "2026-04-10", "dep", "accDep", 400);
+    await post(a, "2026-04-12", "cash", "otherIncome", 2_000);
+    await post(a, "2026-04-15", "fx", "cash", 300);
+    await post(a, "2026-04-20", "interest", "cash", 200);
+    const res = await call(a.token, "GET", `/reports/income-statement?companyId=${a.companyId}&from=2026-04-01&to=2026-04-30`);
+    expect(res.status, res.text).toBe(200);
+    const is = res.body;
+    expect(is).toMatchObject({
+      salesRevenue: 10_000, totalCostOfSales: 6_000, grossProfit: 4_000, totalOperatingExpenses: 400, operatingProfit: 3_600, otherNet: 1_500, netIncome: 5_100,
+      // الحقول القديمة كما هي: كل الإيرادات وكل المصروفات
+      totalRevenue: 11_700, totalExpense: 6_600,
+    });
+    expect(is.grossMargin).toBe(0.4);
+    expect(is.netMargin).toBe(0.51);
+    const codes = (roots: any[]): string[] => roots.flatMap((n) => [n.code, ...codes(n.children)]);
+    // "إيرادات أخرى" (43) لا تظهر تحت الإيرادات بل في الأخرى، ومجموعة الإيرادات (4) تظهر في القسمين بما يخص كلاً منهما
+    expect(codes(is.operatingRevenueRoots)).toContain("411001");
+    expect(codes(is.operatingRevenueRoots)).not.toContain("431001");
+    expect(codes(is.otherRoots)).toEqual(expect.arrayContaining(["431001", "741001", "721001"]));
+    expect(codes(is.costOfSalesRoots)).toContain("511001");
+    expect(codes(is.operatingExpenseRoots)).toContain("651001");
+    expect(codes(is.operatingExpenseRoots)).not.toContain("511001");
+    // التحليل المالي يستخدم نفس الإيرادات ومجمل الربح
+    const fa = await analysis(a, "2026-04-01", "2026-04-30");
+    expect(fa.flow).toMatchObject({ revenue: 10_000, grossProfit: 4_000, netIncome: 5_100 });
   });
 
   it("rejects a classification that does not fit the account type", async () => {
