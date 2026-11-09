@@ -530,7 +530,7 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
         <CompanyEditModal
           company={editingCompany}
           onClose={() => setEditingCompany(null)}
-          onSaved={() => { setEditingCompany(null); reload(); }}
+          onChanged={reload}
         />
       )}
 

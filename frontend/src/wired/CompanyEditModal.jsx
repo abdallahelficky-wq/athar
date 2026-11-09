@@ -58,9 +58,39 @@ const STATION_FUEL_ITEM_FIELDS = [
   ["stationGasoline95ItemId", "stationGasoline95ItemLabel"],
 ];
 
+// حقول كل قسم يُحفَظ بزر خاص — PATCH /companies/:id يقبل حمولة جزئية (updateCompanySchema = partial)
+// ويفحص كل قيد عند وجود حقله فقط ("vatNumber" in body، "fiscalYearClosingDate" in body…)، فحفظ قسم لا يمسّ غيره.
+const SECTION_FIELDS = {
+  basic: ["name", "shortName", "nameEn", "country", "currency", "officialEmail", "phone"],
+  registration: ["crNumber", "crIssueDate", "crExpiryDate", "unifiedEntityNumber", "licenseNumber"],
+  tax: ["vatNumber", "vatRate", "vatFilingFrequency", "zakatDeclarationDueDate"],
+  address: ["addressBuilding", "addressStreet", "addressDistrict", "addressCity", "addressPostalCode", "addressAdditionalNo"],
+  numbering: ["numberingPrefix"],
+  alerts: ["lowCashThreshold", "overdueInvoiceDays", "staleDraftDays"],
+  stations: ["stationCashShortageAccountId", "stationCashSurplusAccountId", "tankVarianceAccountId", "cardFeeExpenseAccountId", "stationDieselItemId", "stationGasoline91ItemId", "stationGasoline95ItemId", "allowNegativeFuelStock"],
+  fiscal: ["fiscalYearClosingDate"],
+};
+const FIELD_SECTION = Object.fromEntries(Object.entries(SECTION_FIELDS).flatMap(([sec, keys]) => keys.map((k) => [k, sec])));
+
+// نفس تحويلات الحفظ الكامل السابق حقلاً حقلاً (undefined يُسقَط من JSON فلا يُرسَل)
+const toPayloadValue = (key, v) => {
+  switch (key) {
+    case "crIssueDate": case "crExpiryDate": case "zakatDeclarationDueDate": return v || undefined;
+    case "lowCashThreshold": return v === "" ? null : Number(v);
+    case "overdueInvoiceDays": case "staleDraftDays": return Number(v);
+    case "vatRate": return v === "" ? undefined : Number(v);
+    case "fiscalYearClosingDate": return v || null;
+    case "allowNegativeFuelStock": return Boolean(v);
+    case "stationCashShortageAccountId": case "stationCashSurplusAccountId": case "tankVarianceAccountId": case "cardFeeExpenseAccountId":
+    case "stationDieselItemId": case "stationGasoline91ItemId": case "stationGasoline95ItemId": return v || null;
+    default: return v;
+  }
+};
+const sameValue = (a, b) => String(a ?? "") === String(b ?? "");
+
 /** نافذة تعديل بيانات الشركة الرسمية الكاملة — شعار، عنوان وطني، تواريخ السجل التجاري،
  * بيانات التواصل، بالإضافة إلى استخراج تلقائي بالذكاء الاصطناعي من المستندات الرسمية. */
-export default function CompanyEditModal({ company, onClose, onSaved }) {
+export default function CompanyEditModal({ company, onClose, onChanged }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canReopen = user?.role === "admin" || user?.role === "super_admin";
@@ -71,8 +101,12 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
   ];
 
   const [form, setForm] = useState(() => emptyForm(company));
+  // آخر قيم محفوظة على الخادم — للمقارنة وإظهار الأقسام التي فيها تعديلات لم تُحفَظ
+  const [baseline, setBaseline] = useState(() => emptyForm(company));
+  const [sectionSaving, setSectionSaving] = useState(null);
+  const [sectionStatus, setSectionStatus] = useState({}); // { [section]: { ok, text } }
+  const [extractedKeys, setExtractedKeys] = useState([]);
   const [logoUrl, setLogoUrl] = useState(company.logoUrl || null);
-  const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [extracting, setExtracting] = useState(null); // docType الجاري استخراجه
   const [extractionNote, setExtractionNote] = useState(null); // { confidence, text }
@@ -120,40 +154,60 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
 
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  const save = async () => {
-    if (!form.name.trim()) { setError(t("settings.companyEdit.errNameRequired")); return; }
-    setSaving(true);
-    setError("");
-    try {
-      await updateCompany(company.id, {
-        ...form,
-        crIssueDate: form.crIssueDate || undefined,
-        crExpiryDate: form.crExpiryDate || undefined,
-        zakatDeclarationDueDate: form.zakatDeclarationDueDate || undefined,
-        lowCashThreshold: form.lowCashThreshold === "" ? null : Number(form.lowCashThreshold),
-        overdueInvoiceDays: Number(form.overdueInvoiceDays),
-        staleDraftDays: Number(form.staleDraftDays),
-        vatRate: form.vatRate === "" ? undefined : Number(form.vatRate),
-        fiscalYearClosingDate: form.fiscalYearClosingDate || null,
-        stationCashShortageAccountId: form.stationCashShortageAccountId || null,
-        stationCashSurplusAccountId: form.stationCashSurplusAccountId || null,
-        ...(isFuelCompany
-          ? {
-              stationDieselItemId: form.stationDieselItemId || null,
-              stationGasoline91ItemId: form.stationGasoline91ItemId || null,
-              stationGasoline95ItemId: form.stationGasoline95ItemId || null,
-              allowNegativeFuelStock: Boolean(form.allowNegativeFuelStock),
-              tankVarianceAccountId: form.tankVarianceAccountId || null,
-              cardFeeExpenseAccountId: form.cardFeeExpenseAccountId || null,
-            }
-          : { stationDieselItemId: undefined, stationGasoline91ItemId: undefined, stationGasoline95ItemId: undefined, allowNegativeFuelStock: undefined, tankVarianceAccountId: undefined, cardFeeExpenseAccountId: undefined }),
-      });
-      onSaved();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
+  const isDirty = (keys) => keys.some((k) => !sameValue(form[k], baseline[k]));
+  const dirtySections = new Set(Object.keys(SECTION_FIELDS).filter((sec) => isDirty(SECTION_FIELDS[sec])));
+  const saving = sectionSaving !== null;
+
+  // حفظ مجموعة حقول فقط (قسم واحد، أو حقول المستند المستخرج) — لا تُغلَق النافذة بعد الحفظ
+  const saveFields = async (statusKey, keys) => {
+    if (keys.includes("name") && !form.name.trim()) {
+      setSectionStatus((p) => ({ ...p, [statusKey]: { ok: false, text: t("settings.companyEdit.errNameRequired") } }));
+      return;
     }
+    setSectionSaving(statusKey);
+    setSectionStatus((p) => ({ ...p, [statusKey]: null }));
+    try {
+      const payload = Object.fromEntries(keys.map((k) => [k, toPayloadValue(k, form[k])]));
+      const updated = await updateCompany(company.id, payload);
+      const fresh = emptyForm(updated);
+      const pick = (src) => Object.fromEntries(keys.map((k) => [k, src[k]]));
+      setBaseline((prev) => ({ ...prev, ...pick(fresh) }));
+      setForm((prev) => ({ ...prev, ...pick(fresh) }));
+      setSectionStatus((p) => ({ ...p, [statusKey]: { ok: true, text: t("settings.companyEdit.tabs.sectionSaved") } }));
+      onChanged?.();
+      return true;
+    } catch (err) {
+      setSectionStatus((p) => ({ ...p, [statusKey]: { ok: false, text: err.message } }));
+      return false;
+    } finally {
+      setSectionSaving(null);
+    }
+  };
+
+  const saveExtracted = async () => {
+    const ok = await saveFields("documents", extractedKeys);
+    if (ok) setExtractedKeys([]);
+  };
+
+  const requestClose = () => {
+    if (saving) return;
+    if (dirtySections.size > 0 && !window.confirm(t("settings.companyEdit.tabs.unsavedConfirm"))) return;
+    onClose();
+  };
+
+  // زر حفظ القسم وحالته
+  const SectionSave = ({ section, keys = SECTION_FIELDS[section] }) => {
+    const status = sectionStatus[section];
+    const dirty = isDirty(keys);
+    return (
+      <div className="company-settings-section-save">
+        {status && <span className={status.ok ? "note" : "balance-bad"}>{status.text}</span>}
+        {!status && dirty && <span className="note">{t("settings.companyEdit.tabs.unsavedHint")}</span>}
+        <button type="button" className="btn-primary" onClick={() => saveFields(section, keys)} disabled={saving}>
+          {sectionSaving === section ? t("settings.myAccount.saving") : t("settings.companyEdit.tabs.saveSection")}
+        </button>
+      </div>
+    );
   };
 
   const reopen = async () => {
@@ -163,7 +217,10 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
     setReopenNotice("");
     try {
       const updated = await reopenFiscalClosing(company.id, reopenDate || null);
-      setForm((prev) => ({ ...prev, fiscalYearClosingDate: updated.fiscalYearClosingDate ? updated.fiscalYearClosingDate.slice(0, 10) : "" }));
+      const closing = updated.fiscalYearClosingDate ? updated.fiscalYearClosingDate.slice(0, 10) : "";
+      setForm((prev) => ({ ...prev, fiscalYearClosingDate: closing }));
+      setBaseline((prev) => ({ ...prev, fiscalYearClosingDate: closing }));
+      onChanged?.();
       setReopenDate("");
       setReopenNotice(t("settings.companyEdit.reopenSuccess"));
     } catch (err) {
@@ -206,6 +263,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         });
       } else {
         setForm((prev) => ({ ...prev, ...result.fields }));
+        setExtractedKeys((prev) => [...new Set([...prev, ...Object.keys(result.fields).filter((k) => FIELD_SECTION[k])])]);
         setExtractionNote({
           confidence: "high",
           text: t("settings.companyEdit.extractionHighConfidence", { note: result.confidenceNote || "" }),
@@ -219,11 +277,11 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
   };
 
   return (
-    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
+    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && requestClose()}>
       <div className="invoice-modal-box company-settings-modal">
         <div className="modal-title-row">
           <h3>{t("settings.companyEdit.modalTitle", { name: company.name })}</h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label={t("common.close")}>×</button>
+          <button type="button" className="modal-close-btn" onClick={requestClose} disabled={saving} aria-label={t("common.close")}>×</button>
         </div>
 
         <div className="company-settings-layout">
@@ -231,6 +289,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
             {sections.map((s) => (
               <button key={s.key} type="button" className={`company-settings-nav-item${activeSection === s.key ? " active" : ""}`} onClick={() => setActiveSection(s.key)} aria-current={activeSection === s.key ? "page" : undefined}>
                 <span aria-hidden="true">{s.icon}</span>{t(`settings.companyEdit.tabs.${s.key}`)}
+                {dirtySections.has(s.key) && <i className="company-settings-dirty-dot" title={t("settings.companyEdit.tabs.unsavedHint")} />}
               </button>
             ))}
           </nav>
@@ -260,6 +319,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                 <label>{t("settings.companyEdit.officialEmailLabel")}<input type="email" value={form.officialEmail} onChange={(e) => set("officialEmail", e.target.value)} /></label>
                 <label>{t("settings.companyEdit.phoneLabel")}<input type="text" value={form.phone} onChange={(e) => set("phone", e.target.value)} /></label>
               </div>
+              <SectionSave section="basic" />
             </section>
             <section hidden={activeSection !== "registration"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.registration")}</h4>
@@ -270,6 +330,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                 <label>{t("settings.companyEdit.unifiedEntityNumberLabel")}<input type="text" value={form.unifiedEntityNumber} onChange={(e) => set("unifiedEntityNumber", e.target.value)} /></label>
                 <label>{t("settings.companyEdit.licenseNumberLabel")}<input type="text" value={form.licenseNumber} onChange={(e) => set("licenseNumber", e.target.value)} /></label>
               </div>
+              <SectionSave section="registration" />
             </section>
             <section hidden={activeSection !== "tax"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.tax")}</h4>
@@ -295,6 +356,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                   <input type="date" value={form.zakatDeclarationDueDate} onChange={(e) => set("zakatDeclarationDueDate", e.target.value)} />
                 </label>
               </div>
+              <SectionSave section="tax" />
             </section>
             <section hidden={activeSection !== "address"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.address")}</h4>
@@ -306,6 +368,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                 <label>{t("settings.companyEdit.addressPostalCode")}<input type="text" value={form.addressPostalCode} onChange={(e) => set("addressPostalCode", e.target.value)} /></label>
                 <label>{t("settings.companyEdit.addressAdditionalNo")}<input type="text" value={form.addressAdditionalNo} onChange={(e) => set("addressAdditionalNo", e.target.value)} /></label>
               </div>
+              <SectionSave section="address" />
             </section>
             <section hidden={activeSection !== "numbering"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.numbering")}</h4>
@@ -321,6 +384,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                 </label>
               </div>
               <p className="note">{t("settings.companyEdit.numberingPrefixNote")}</p>
+              <SectionSave section="numbering" />
             </section>
             <section hidden={activeSection !== "alerts"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.alerts")}</h4>
@@ -335,6 +399,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                   <input type="number" value={form.staleDraftDays} onChange={(e) => set("staleDraftDays", e.target.value)} />
                 </label>
               </div>
+              <SectionSave section="alerts" />
             </section>
             {isFuelCompany && (
               <section hidden={activeSection !== "stations"} className="company-settings-section">
@@ -391,10 +456,11 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                     {t("settings.companyEdit.allowNegativeFuelStockLabel")}
                   </label>
                 </div>
+                <SectionSave section="stations" />
               </section>
             )}
             <section hidden={activeSection !== "fiscal"} className="company-settings-section">
-              <FiscalYearPanel companyId={company.id} onClosingDateChange={(date) => set("fiscalYearClosingDate", date)} />
+              <FiscalYearPanel companyId={company.id} onClosingDateChange={(date) => { const d = date ? String(date).slice(0, 10) : ""; set("fiscalYearClosingDate", d); setBaseline((prev) => ({ ...prev, fiscalYearClosingDate: d })); }} />
 
               <h4 className="sub-head">{t("settings.companyEdit.fiscalClosingTitle")}</h4>
               <p className="note">{t("settings.companyEdit.fiscalClosingNote")}</p>
@@ -403,6 +469,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
                   <input type="date" value={form.fiscalYearClosingDate} onChange={(e) => set("fiscalYearClosingDate", e.target.value)} />
                 </label>
               </div>
+              <SectionSave section="fiscal" />
               {canReopen && (
                 <>
                   <h5>{t("settings.companyEdit.reopenTitle")}</h5>
@@ -449,6 +516,15 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
               {extractionNote && (
                 <p className={extractionNote.confidence === "low" ? "balance-bad" : "note"}>{extractionNote.text}</p>
               )}
+              {extractedKeys.length > 0 && (
+                <div className="company-settings-section-save">
+                  <span className="note">{t("settings.companyEdit.tabs.extractedPending", { sections: [...new Set(extractedKeys.map((k) => FIELD_SECTION[k]))].map((sec) => t(`settings.companyEdit.tabs.${sec}`)).join("، ") })}</span>
+                  <button type="button" className="btn-primary" onClick={saveExtracted} disabled={saving}>
+                    {sectionSaving === "documents" ? t("settings.myAccount.saving") : t("settings.companyEdit.tabs.saveExtracted")}
+                  </button>
+                </div>
+              )}
+              {sectionStatus.documents && <p className={sectionStatus.documents.ok ? "note" : "balance-bad"}>{sectionStatus.documents.text}</p>}
 
               <AttachmentsPanel key={attachmentsKey} entityType="company" entityId={company.id} title={t("settings.companyEdit.uploadedDocsTitle")} />
             </section>
@@ -468,8 +544,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group company-settings-footer">
           <small className="note">{t("settings.companyEdit.tabs.saveNote")}</small>
-          <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("common.cancel")}</button>
-          <button className="btn-primary" onClick={save} disabled={saving}>{saving ? t("settings.myAccount.saving") : t("common.save")}</button>
+          <button className="btn-ghost" onClick={requestClose} disabled={saving}>{t("common.close")}</button>
         </div>
       </div>
     </div>

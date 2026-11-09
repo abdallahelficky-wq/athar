@@ -1968,7 +1968,7 @@
     },
     "companyEdit": {
       "modalTitle": "Official company data — {{name}}",
-      "tabs": {"navLabel": "Company data sections", "basic": "Basic info", "registration": "Registration and license", "tax": "Tax and zakat", "address": "National address", "numbering": "Entry numbering", "alerts": "Dashboard alerts", "stations": "Station shifts", "fiscal": "Fiscal year and closing", "branches": "Branches", "bankAccounts": "Bank accounts", "leases": "Lease contracts", "documents": "Documents and smart fill", "logo": "Logo", "saveNote": "Save stores the company fields from all sections. Branches, bank accounts, contracts and the fiscal year are saved from their own buttons inside their sections."},
+      "tabs": {"navLabel": "Company data sections", "basic": "Basic info", "registration": "Registration and license", "tax": "Tax and zakat", "address": "National address", "numbering": "Entry numbering", "alerts": "Dashboard alerts", "stations": "Station shifts", "fiscal": "Fiscal year and closing", "branches": "Branches", "bankAccounts": "Bank accounts", "leases": "Lease contracts", "documents": "Documents and smart fill", "logo": "Logo", "saveNote": "Each section has its own save button that saves only its data. A dot next to a section name means unsaved changes.", "saveSection": "Save section", "sectionSaved": "Section saved.", "unsavedHint": "Unsaved changes", "unsavedConfirm": "Some sections have unsaved changes. Closing will discard them. Continue?", "extractedPending": "Extracted data was filled into: {{sections}} — not saved yet.", "saveExtracted": "Save extracted data"},
       "nameLabel": "Name in commercial registration",
       "shortNameLabel": "Trade name (optional)",
       "nameEnLabel": "Official English name (optional)",
