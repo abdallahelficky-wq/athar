@@ -1020,6 +1020,26 @@
         .company-settings-section-save { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px; border-top: 1px dashed rgba(0,0,0,0.08); }
         .company-settings-section-save > span { margin: 0; margin-inline-end: auto; }
         .company-settings-dirty-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--athar-amber); margin-inline-start: auto; flex-shrink: 0; }
+        /* نفس الأقسام معروضة مباشرة في صفحة «بيانات الشركات» */
+        .company-settings-page .company-settings-layout { min-height: 560px; }
+        @media (max-width: 760px) { .company-settings-page .company-settings-layout { min-height: 0; } }
+        .company-settings-page .company-settings-nav { position: sticky; top: 12px; align-self: flex-start; max-height: calc(100vh - 120px); }
+        .company-settings-page .company-settings-content { overflow: visible; }
+        .company-settings-mobile-header { display: none; }
+        .company-settings-nav-header { padding: 4px 4px 12px; margin-bottom: 6px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+        .company-settings-company-picker { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--athar-text-secondary); }
+        .company-settings-company-picker select { width: 100%; height: 38px; padding: 0 10px; border: 1px solid rgba(0,0,0,0.12); border-radius: 10px; background: #fff; font: inherit; font-size: 13px; color: var(--athar-text-primary); }
+        .company-settings-company-name { font-weight: 600; font-size: 14px; color: var(--athar-text-primary); }
+        .company-settings-nav-group { font-size: 11px; color: var(--athar-text-muted); padding: 12px 12px 4px; }
+        .company-settings-extra > .panel { box-shadow: none; border: none; background: transparent; padding: 0; margin: 0 0 18px; }
+        .company-settings-extra > .panel h3 { margin-top: 0; }
+        @media (max-width: 760px) {
+          .company-settings-page .company-settings-nav { position: static; max-height: none; align-self: stretch; }
+          .company-settings-nav { min-width: 0; max-width: 100%; }
+          .company-settings-layout > * { min-width: 0; }
+          .company-settings-nav-header, .company-settings-nav-group { display: none; }
+          .company-settings-mobile-header { display: block; margin-bottom: 10px; }
+        }
         .company-settings-section > .company-settings-section-title:first-child { margin-top: 0; }
         .company-settings-footer { border-top: 1px solid rgba(0,0,0,0.08); padding-top: 14px; margin-top: 14px; align-items: center; }
         .company-settings-footer .note { flex: 1; margin: 0; }

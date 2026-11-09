@@ -90,7 +90,10 @@ const sameValue = (a, b) => String(a ?? "") === String(b ?? "");
 
 /** نافذة تعديل بيانات الشركة الرسمية الكاملة — شعار، عنوان وطني، تواريخ السجل التجاري،
  * بيانات التواصل، بالإضافة إلى استخراج تلقائي بالذكاء الاصطناعي من المستندات الرسمية. */
-export default function CompanyEditModal({ company, onClose, onChanged }) {
+/** بيانات الشركة مقسّمة أقساماً بقائمة جانبية، تُعرَض مباشرة داخل صفحة «بيانات الشركات» (لا نافذة منبثقة).
+ * extraSections: أقسام إضافية من الصفحة نفسها ({ key, icon, label, group: "company"|"account", render }) تظهر في
+ * القائمة نفسها. header: محتوى أعلى القائمة (مُحدِّد الشركة). onDirtyChange: يُبلَّغ بوجود تعديلات غير محفوظة. */
+export default function CompanyDataPanel({ company, onChanged, extraSections = [], header = null, initialSection, onDirtyChange }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canReopen = user?.role === "admin" || user?.role === "super_admin";
@@ -150,7 +153,30 @@ export default function CompanyEditModal({ company, onClose, onChanged }) {
     { key: "documents", icon: "📎" },
     { key: "logo", icon: "🖼" },
   ];
-  const [activeSection, setActiveSection] = useState("basic");
+  const extraCompany = extraSections.filter((x) => x.group === "company");
+  const extraAccount = extraSections.filter((x) => x.group !== "company");
+  const allKeys = [...sections.map((x) => x.key), ...extraSections.map((x) => x.key)];
+  const [activeSection, setActiveSectionState] = useState(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("section");
+    return [initialSection, fromUrl].find((k) => k && allKeys.includes(k)) || "basic";
+  });
+  // القسم المفتوح يُحفَظ في الرابط (?section=) ليبقى بعد إعادة التحميل ويمكن مشاركته
+  const setActiveSection = setActiveSectionState;
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("section") === activeSection) return;
+      url.searchParams.set("section", activeSection);
+      window.history.replaceState(window.history.state, "", url);
+    } catch { /* بيئة بلا history — القسم يعمل بدون الرابط */ }
+  }, [activeSection]);
+  // على الجوال القائمة شريط أفقي: يُمرَّر لإظهار القسم المفتوح
+  const navRef = useRef(null);
+  useEffect(() => {
+    if (!window.matchMedia?.("(max-width: 760px)").matches) return;
+    const el = navRef.current?.querySelector(".company-settings-nav-item.active");
+    if (el && navRef.current) navRef.current.scrollLeft += el.getBoundingClientRect().left - navRef.current.getBoundingClientRect().left - 12;
+  }, [activeSection]);
 
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -189,11 +215,15 @@ export default function CompanyEditModal({ company, onClose, onChanged }) {
     if (ok) setExtractedKeys([]);
   };
 
-  const requestClose = () => {
-    if (saving) return;
-    if (dirtySections.size > 0 && !window.confirm(t("settings.companyEdit.tabs.unsavedConfirm"))) return;
-    onClose();
-  };
+  const hasDirty = dirtySections.size > 0;
+  useEffect(() => { onDirtyChange?.(hasDirty); }, [hasDirty, onDirtyChange]);
+  // تحذير المتصفح عند مغادرة الصفحة وفيها تعديلات لم تُحفَظ
+  useEffect(() => {
+    if (!hasDirty) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasDirty]);
 
   // زر حفظ القسم وحالته
   const SectionSave = ({ section, keys = SECTION_FIELDS[section] }) => {
@@ -276,22 +306,24 @@ export default function CompanyEditModal({ company, onClose, onChanged }) {
     }
   };
 
-  return (
-    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && requestClose()}>
-      <div className="invoice-modal-box company-settings-modal">
-        <div className="modal-title-row">
-          <h3>{t("settings.companyEdit.modalTitle", { name: company.name })}</h3>
-          <button type="button" className="modal-close-btn" onClick={requestClose} disabled={saving} aria-label={t("common.close")}>×</button>
-        </div>
+  const navButton = (key, icon, label) => (
+    <button key={key} type="button" className={`company-settings-nav-item${activeSection === key ? " active" : ""}`} onClick={() => setActiveSection(key)} aria-current={activeSection === key ? "page" : undefined}>
+      <span aria-hidden="true">{icon}</span>{label}
+      {dirtySections.has(key) && <i className="company-settings-dirty-dot" title={t("settings.companyEdit.tabs.unsavedHint")} />}
+    </button>
+  );
 
+  return (
+    <div className="panel form-panel company-settings-page">
+        {header && <div className="company-settings-mobile-header">{header}</div>}
         <div className="company-settings-layout">
-          <nav className="company-settings-nav" aria-label={t("settings.companyEdit.tabs.navLabel")}>
-            {sections.map((s) => (
-              <button key={s.key} type="button" className={`company-settings-nav-item${activeSection === s.key ? " active" : ""}`} onClick={() => setActiveSection(s.key)} aria-current={activeSection === s.key ? "page" : undefined}>
-                <span aria-hidden="true">{s.icon}</span>{t(`settings.companyEdit.tabs.${s.key}`)}
-                {dirtySections.has(s.key) && <i className="company-settings-dirty-dot" title={t("settings.companyEdit.tabs.unsavedHint")} />}
-              </button>
-            ))}
+          <nav ref={navRef} className="company-settings-nav" aria-label={t("settings.companyEdit.tabs.navLabel")}>
+            {header && <div className="company-settings-nav-header">{header}</div>}
+            <div className="company-settings-nav-group">{t("settings.companyEdit.tabs.groupCompany")}</div>
+            {sections.map((x) => navButton(x.key, x.icon, t(`settings.companyEdit.tabs.${x.key}`)))}
+            {extraCompany.map((x) => navButton(x.key, x.icon, x.label))}
+            {extraAccount.length > 0 && <div className="company-settings-nav-group">{t("settings.companyEdit.tabs.groupAccount")}</div>}
+            {extraAccount.map((x) => navButton(x.key, x.icon, x.label))}
           </nav>
           <div className="company-settings-content">
             <section hidden={activeSection !== "basic"} className="company-settings-section">
@@ -538,15 +570,16 @@ export default function CompanyEditModal({ company, onClose, onChanged }) {
                 </button>
               </div>
             </section>
+            {extraSections.map((x) => (
+              <section key={x.key} hidden={activeSection !== x.key} className="company-settings-section company-settings-extra">
+                {x.render({ goTo: setActiveSection })}
+              </section>
+            ))}
           </div>
         </div>
 
         {error && <p className="balance-bad">{error}</p>}
-        <div className="form-btn-group company-settings-footer">
-          <small className="note">{t("settings.companyEdit.tabs.saveNote")}</small>
-          <button className="btn-ghost" onClick={requestClose} disabled={saving}>{t("common.close")}</button>
-        </div>
-      </div>
+        <p className="note company-settings-footer">{t("settings.companyEdit.tabs.saveNote")}</p>
     </div>
   );
 }
