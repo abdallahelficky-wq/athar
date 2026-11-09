@@ -118,6 +118,7 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
   const [reopenDate, setReopenDate] = useState("");
   const [reopening, setReopening] = useState(false);
   const [reopenNotice, setReopenNotice] = useState("");
+  const [reopenError, setReopenError] = useState("");
   const [accounts, setAccounts] = useState([]);
   const [inventoryItems, setInventoryItems] = useState([]);
 
@@ -178,7 +179,12 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
     if (el && navRef.current) navRef.current.scrollLeft += el.getBoundingClientRect().left - navRef.current.getBoundingClientRect().left - 12;
   }, [activeSection]);
 
-  const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+  // أي تعديل في حقل يُسقط رسالة آخر حفظ لقسمه — لا تبقى رسالة رفض قديمة ظاهرة فوق قيمة جديدة لم تُرسَل بعد
+  const set = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    const sec = FIELD_SECTION[field];
+    if (sec) setSectionStatus((p) => (p[sec] ? { ...p, [sec]: null } : p));
+  };
 
   const isDirty = (keys) => keys.some((k) => !sameValue(form[k], baseline[k]));
   const dirtySections = new Set(Object.keys(SECTION_FIELDS).filter((sec) => isDirty(SECTION_FIELDS[sec])));
@@ -243,8 +249,9 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
   const reopen = async () => {
     if (!window.confirm(t("settings.companyEdit.reopenConfirm"))) return;
     setReopening(true);
-    setError("");
+    setReopenError("");
     setReopenNotice("");
+    setSectionStatus((p) => ({ ...p, fiscal: null }));
     try {
       const updated = await reopenFiscalClosing(company.id, reopenDate || null);
       const closing = updated.fiscalYearClosingDate ? updated.fiscalYearClosingDate.slice(0, 10) : "";
@@ -254,7 +261,7 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
       setReopenDate("");
       setReopenNotice(t("settings.companyEdit.reopenSuccess"));
     } catch (err) {
-      setError(err.message);
+      setReopenError(err.message);
     } finally {
       setReopening(false);
     }
@@ -515,6 +522,7 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                     </button>
                   </div>
                   {reopenNotice && <p className="note">{reopenNotice}</p>}
+                  {reopenError && <p className="balance-bad">{reopenError}</p>}
                 </>
               )}
             </section>
@@ -569,6 +577,7 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                   {uploadingLogo ? t("settings.companyEdit.uploadingLogo") : logoUrl ? t("settings.companyEdit.changeLogo") : t("settings.companyEdit.uploadLogo")}
                 </button>
               </div>
+              {error && <p className="balance-bad">{error}</p>}
             </section>
             {extraSections.map((x) => (
               <section key={x.key} hidden={activeSection !== x.key} className="company-settings-section company-settings-extra">
@@ -578,7 +587,6 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
           </div>
         </div>
 
-        {error && <p className="balance-bad">{error}</p>}
         <p className="note company-settings-footer">{t("settings.companyEdit.tabs.saveNote")}</p>
     </div>
   );
