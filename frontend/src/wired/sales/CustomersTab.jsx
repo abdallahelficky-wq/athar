@@ -113,7 +113,7 @@ export default function CustomersTab({ companyId, companies }) {
     setExtractionNote(null);
   };
 
-  // نفس آلية استخراج بيانات الشركة من مستند بالضبط (CompanyEditModal.jsx's pickDocument) — يُتاح
+  // نفس آلية استخراج بيانات الشركة من مستند بالضبط (CompanyDataPanel.jsx's pickDocument) — يُتاح
   // فقط أثناء تعديل عميل محفوظ فعلاً (editingId)، بنفس نمط "شركة" غير المتاح عند الإضافة الأولى.
   const pickDocument = async (docType, e) => {
     const file = e.target.files?.[0];
@@ -256,7 +256,7 @@ export default function CustomersTab({ companyId, companies }) {
             </div>
 
             {/* العنوان الوطني الكامل — نفس الحقول والترتيب والتسمية المستخدَمة أصلاً لعنوان الشركة
-                نفسها في الإعدادات (CompanyEditModal.jsx)، إلزامية لصحة الفاتورة الإلكترونية (ZATCA). */}
+                نفسها في الإعدادات (CompanyDataPanel.jsx)، إلزامية لصحة الفاتورة الإلكترونية (ZATCA). */}
             <h4 className="sub-head">{t("sales.customers.addressTitle")}</h4>
             {/* إلزامي فقط لعميل له رقم ضريبي (فواتيره قياسية تُخلَّص عبر زاتكا، BR-KSA-63) — الخادم يفحص نفس الحقول عند الحفظ */}
             {form.vatNumber && <p className="note">{t("sales.customers.addressRequiredForVat")}</p>}
@@ -270,7 +270,7 @@ export default function CustomersTab({ companyId, companies }) {
             </div>
 
             {/* إرفاق المستندات الرسمية + استخراج تلقائي بالذكاء الاصطناعي — نفس النمط والآلية
-                المستخدَمة بالفعل لبيانات الشركة (CompanyEditModal.jsx)، متاح فقط أثناء تعديل عميل
+                المستخدَمة بالفعل لبيانات الشركة (CompanyDataPanel.jsx)، متاح فقط أثناء تعديل عميل
                 محفوظ فعلاً (وليس عند الإضافة الأولى)، والبيانات المستخرَجة تُعرَض في حقول النموذج
                 القابلة للتعديل أعلاه للمراجعة قبل الحفظ — لا حفظ تلقائي مباشر. */}
             {editingId && (

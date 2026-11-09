@@ -1,12 +1,12 @@
 import QoyodSettings from "./QoyodSettings";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createCompany, createIndependentCompany, setBalancesPostedOnly, setPayrollTotalsFromMonth } from "../api/companies";
 import { getDraftEntriesSummary } from "../api/reports";
 import { fmt } from "../legacy/constants";
 import { useAuth } from "../context/AuthContext";
 import { changeUnlockPin } from "../api/auth";
-import CompanyEditModal from "./CompanyEditModal";
+import CompanyDataPanel from "./CompanyDataPanel";
 import CompanyZatcaModal from "./CompanyZatcaModal";
 import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry } from "../shared/countries";
 
@@ -479,60 +479,118 @@ function PayrollTotalsSettings({ companies, reload }) {
   );
 }
 
-/** إدارة كاملة (إنشاء/تعديل/حذف) للشركات الحقيقية — يُستخدم داخل تبويب "بيانات الشركات" بالإعدادات،
- * وهو المكان الوحيد في النظام لإنشاء شركة جديدة بعد إزالة هذا الخيار من كل شاشات المعاملات */
+/** الربط مع فاتورة (زاتكا) للشركة المختارة — الإجراء نفسه في نافذته الخاصة كما كان */
+function ZatcaSection({ company, onOpen }) {
+  const { t } = useTranslation();
+  return (
+    <div className="panel form-panel">
+      <h3>{t("settings.companyEdit.tabs.zatca")}</h3>
+      <p className="note">{t("settings.companyEdit.tabs.zatcaNote")}</p>
+      <button className="btn-primary" onClick={() => onOpen(company)}>{t("settings.companiesList.zatcaLink")}</button>
+    </div>
+  );
+}
+
+/** صفحة «بيانات الشركات»: قائمة جانبية واحدة تجمع أقسام الشركة المختارة (بيانات رسمية، ضريبة، عنوان…)
+ * وإعدادات المنشأة (الاسم ورمز البوابة، الرقم السري، الأرصدة المرحَّلة…) — كل قسم يظهر وحده وله حفظه.
+ * هذا هو المكان الوحيد في النظام لإنشاء شركة جديدة بعد إزالة هذا الخيار من كل شاشات المعاملات */
 export default function CompaniesSettings({ companies, reload, onCompanyCreated }) {
   const { t } = useTranslation();
-  const [editingCompany, setEditingCompany] = useState(null);
   const [zatcaCompany, setZatcaCompany] = useState(null);
-  const [error, setError] = useState("");
   const { user, tenant } = useAuth();
   const isOwner = user?.role === "super_admin" || (tenant?.ownerId && tenant.ownerId === user?.id);
+
+  // الشركة المعروضة: تبدأ بالشركة النشطة في النظام (نفس مفتاح useCompanies)، ويمكن تبديلها هنا دون تغيير الشركة النشطة
+  const [selectedId, setSelectedId] = useState(() => {
+    try { return tenant?.id ? localStorage.getItem(`athar.activeCompanyId.${tenant.id}`) : null; } catch { return null; }
+  });
+  const [panelKey, setPanelKey] = useState(0);
+  const [initialSection, setInitialSection] = useState(undefined);
+  const dirtyRef = useRef(false);
+  const onDirtyChange = useCallback((d) => { dirtyRef.current = d; }, []);
+  const selected = companies.find((c) => c.id === selectedId) || companies[0] || null;
+
+  const openCompany = (id, section) => {
+    if (id !== selected?.id && dirtyRef.current && !window.confirm(t("settings.companyEdit.tabs.unsavedConfirm"))) return false;
+    dirtyRef.current = false;
+    setSelectedId(id);
+    setInitialSection(section);
+    setPanelKey((k) => k + 1);
+    return true;
+  };
 
   const handleCreated = (company) => {
     onCompanyCreated?.(company);
     reload();
   };
 
+  const extraSections = [
+    ...(selected && selected.country === "SA"
+      ? [{ key: "zatca", icon: "🔗", group: "company", label: t("settings.companyEdit.tabs.zatca"), render: () => <ZatcaSection company={selected} onOpen={setZatcaCompany} /> }]
+      : []),
+    { key: "tenant", icon: "🏷", label: t("settings.companyEdit.tabs.tenant"), render: () => <TenantNameSettings /> },
+    { key: "companies", icon: "🗂", label: t("settings.companyEdit.tabs.companies"), render: () => (
+      <>
+        <NewCompanyForm onCompanyCreated={handleCreated} />
+        <div className="panel form-panel">
+          <table className="ledger-table">
+            <thead><tr><th>{t("settings.companiesList.table.name")}</th><th>{t("settings.companiesList.table.shortName")}</th><th>{t("settings.companiesList.table.vatNumber")}</th><th>{t("settings.companiesList.table.crNumber")}</th><th></th></tr></thead>
+            <tbody>
+              {companies.map((c) => (
+                <tr key={c.id}>
+                  <td>{c.name}</td>
+                  <td>{c.shortName || "—"}</td>
+                  <td>{c.vatNumber || "—"}</td>
+                  <td>{c.crNumber || "—"}</td>
+                  <td className="row-actions">
+                    <button className="btn-ghost" onClick={() => openCompany(c.id, "basic")}>{t("settings.companyEdit.tabs.openCompany")}</button>
+                  </td>
+                </tr>
+              ))}
+              {companies.length === 0 && <tr><td className="empty" colSpan={5}>{t("settings.companiesList.empty")}</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </>
+    ) },
+    ...(isOwner ? [{ key: "unlockPin", icon: "🔒", label: t("settings.companyEdit.tabs.unlockPin"), render: () => <UnlockPinSettings /> }] : []),
+    ...(isOwner && companies.length > 0 ? [{ key: "balancesPostedOnly", icon: "⚖", label: t("settings.companyEdit.tabs.balancesPostedOnly"), render: () => <BalancesPostedOnlySettings companies={companies} reload={reload} /> }] : []),
+    ...(isOwner && companies.length > 0 ? [{ key: "payrollTotals", icon: "💰", label: t("settings.companyEdit.tabs.payrollTotals"), render: () => <PayrollTotalsSettings companies={companies} reload={reload} /> }] : []),
+    ...(isOwner && companies.some((c) => c.id === "cmsrciyjv000ge8f57p2azqdd") ? [{ key: "qoyod", icon: "⇄", label: t("settings.companyEdit.tabs.qoyod"), render: () => <QoyodSettings companyId="cmsrciyjv000ge8f57p2azqdd" /> }] : []),
+  ];
+
+  // لا شركات بعد: تظهر إعدادات المنشأة وإنشاء الشركة فقط
+  if (!selected) {
+    return (
+      <div>
+        <TenantNameSettings />
+        <NewCompanyForm onCompanyCreated={handleCreated} />
+      </div>
+    );
+  }
+
+  const header = companies.length > 1 ? (
+    <label className="company-settings-company-picker">
+      {t("settings.companyEdit.tabs.selectCompany")}
+      <select value={selected.id} onChange={(e) => openCompany(e.target.value)}>
+        {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
+    </label>
+  ) : (
+    <div className="company-settings-company-name">{selected.name}</div>
+  );
+
   return (
     <div>
-      <TenantNameSettings />
-      {isOwner && companies.some(c => c.id === "cmsrciyjv000ge8f57p2azqdd") && <QoyodSettings companyId="cmsrciyjv000ge8f57p2azqdd" />}
-      {isOwner && <UnlockPinSettings />}
-      {isOwner && companies.length > 0 && <BalancesPostedOnlySettings companies={companies} reload={reload} />}
-      {isOwner && companies.length > 0 && <PayrollTotalsSettings companies={companies} reload={reload} />}
-      <NewCompanyForm onCompanyCreated={handleCreated} />
-      <div className="panel form-panel">
-        {error && <p className="balance-bad">{error}</p>}
-      <table className="ledger-table">
-        <thead><tr><th>{t("settings.companiesList.table.name")}</th><th>{t("settings.companiesList.table.shortName")}</th><th>{t("settings.companiesList.table.vatNumber")}</th><th>{t("settings.companiesList.table.crNumber")}</th><th></th></tr></thead>
-        <tbody>
-          {companies.map((c) => (
-            <tr key={c.id}>
-              <td>{c.name}</td>
-              <td>{c.shortName || "—"}</td>
-              <td>{c.vatNumber || "—"}</td>
-              <td>{c.crNumber || "—"}</td>
-              <td className="row-actions">
-                <button className="btn-ghost" onClick={() => setEditingCompany(c)}>{t("common.edit")}</button>
-                {c.country === "SA" && (
-                  <button className="btn-ghost" onClick={() => setZatcaCompany(c)}>{t("settings.companiesList.zatcaLink")}</button>
-                )}
-              </td>
-            </tr>
-          ))}
-          {companies.length === 0 && <tr><td className="empty" colSpan={5}>{t("settings.companiesList.empty")}</td></tr>}
-        </tbody>
-      </table>
-      </div>
-
-      {editingCompany && (
-        <CompanyEditModal
-          company={editingCompany}
-          onClose={() => setEditingCompany(null)}
-          onChanged={reload}
-        />
-      )}
+      <CompanyDataPanel
+        key={`${selected.id}:${panelKey}`}
+        company={selected}
+        onChanged={reload}
+        extraSections={extraSections}
+        header={header}
+        initialSection={initialSection}
+        onDirtyChange={onDirtyChange}
+      />
 
       {zatcaCompany && (
         <CompanyZatcaModal
