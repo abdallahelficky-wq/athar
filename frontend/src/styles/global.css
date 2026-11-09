@@ -1007,6 +1007,30 @@
         .invoice-modal-box .modal-title-row { margin: 0 0 16px; }
         .invoice-modal-box .modal-title-row h3 { margin: 0; }
 
+        /* نافذة بيانات الشركة مقسّمة أقساماً: قائمة جانبية + محتوى القسم المختار فقط */
+        .invoice-modal-box.company-settings-modal { max-width: 1120px; display: flex; flex-direction: column; max-height: calc(100vh - 60px); }
+        .company-settings-layout { display: flex; gap: 20px; flex: 1; min-height: min(560px, calc(100vh - 240px)); }
+        .company-settings-nav { width: 220px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; padding-inline-end: 14px; border-inline-end: 1px solid rgba(0,0,0,0.08); overflow-y: auto; }
+        .company-settings-nav-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: start; background: transparent; border: none; border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 14px; color: var(--athar-text-secondary); cursor: pointer; }
+        .company-settings-nav-item span { width: 20px; text-align: center; }
+        .company-settings-nav-item:hover { background: rgba(185,139,78,0.08); color: var(--athar-text-primary); }
+        .company-settings-nav-item.active { background: rgba(185,139,78,0.16); color: #7a5a2e; font-weight: 600; }
+        .company-settings-content { flex: 1; min-width: 0; overflow-y: auto; padding-inline-end: 4px; }
+        .company-settings-section[hidden] { display: none !important; }
+        .company-settings-section-save { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px; border-top: 1px dashed rgba(0,0,0,0.08); }
+        .company-settings-section-save > span { margin: 0; margin-inline-end: auto; }
+        .company-settings-dirty-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--athar-amber); margin-inline-start: auto; flex-shrink: 0; }
+        .company-settings-section > .company-settings-section-title:first-child { margin-top: 0; }
+        .company-settings-footer { border-top: 1px solid rgba(0,0,0,0.08); padding-top: 14px; margin-top: 14px; align-items: center; }
+        .company-settings-footer .note { flex: 1; margin: 0; }
+        @media (max-width: 760px) {
+          .invoice-modal-box.company-settings-modal { max-height: none; padding: 18px 16px; }
+          .company-settings-layout { flex-direction: column; gap: 12px; min-height: 0; }
+          .company-settings-nav { width: auto; flex-direction: row; overflow-x: auto; padding: 0 0 8px; border-inline-end: none; border-bottom: 1px solid rgba(0,0,0,0.08); }
+          .company-settings-nav-item { width: auto; white-space: nowrap; }
+          .company-settings-footer { flex-wrap: wrap; }
+        }
+
         /* زرّ إغلاق (X) موحّد لكل النوافذ المنبثقة في النظام — يظهر بجانب عنوان النافذة عبر
            .modal-title-row (h3 + هذا الزرّ)، بنفس نمط .item-close المستخدَم أصلاً في لوحة "إضافة
            صنف" غير المنبثقة. */

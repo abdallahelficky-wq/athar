@@ -58,9 +58,39 @@ const STATION_FUEL_ITEM_FIELDS = [
   ["stationGasoline95ItemId", "stationGasoline95ItemLabel"],
 ];
 
+// حقول كل قسم يُحفَظ بزر خاص — PATCH /companies/:id يقبل حمولة جزئية (updateCompanySchema = partial)
+// ويفحص كل قيد عند وجود حقله فقط ("vatNumber" in body، "fiscalYearClosingDate" in body…)، فحفظ قسم لا يمسّ غيره.
+const SECTION_FIELDS = {
+  basic: ["name", "shortName", "nameEn", "country", "currency", "officialEmail", "phone"],
+  registration: ["crNumber", "crIssueDate", "crExpiryDate", "unifiedEntityNumber", "licenseNumber"],
+  tax: ["vatNumber", "vatRate", "vatFilingFrequency", "zakatDeclarationDueDate"],
+  address: ["addressBuilding", "addressStreet", "addressDistrict", "addressCity", "addressPostalCode", "addressAdditionalNo"],
+  numbering: ["numberingPrefix"],
+  alerts: ["lowCashThreshold", "overdueInvoiceDays", "staleDraftDays"],
+  stations: ["stationCashShortageAccountId", "stationCashSurplusAccountId", "tankVarianceAccountId", "cardFeeExpenseAccountId", "stationDieselItemId", "stationGasoline91ItemId", "stationGasoline95ItemId", "allowNegativeFuelStock"],
+  fiscal: ["fiscalYearClosingDate"],
+};
+const FIELD_SECTION = Object.fromEntries(Object.entries(SECTION_FIELDS).flatMap(([sec, keys]) => keys.map((k) => [k, sec])));
+
+// نفس تحويلات الحفظ الكامل السابق حقلاً حقلاً (undefined يُسقَط من JSON فلا يُرسَل)
+const toPayloadValue = (key, v) => {
+  switch (key) {
+    case "crIssueDate": case "crExpiryDate": case "zakatDeclarationDueDate": return v || undefined;
+    case "lowCashThreshold": return v === "" ? null : Number(v);
+    case "overdueInvoiceDays": case "staleDraftDays": return Number(v);
+    case "vatRate": return v === "" ? undefined : Number(v);
+    case "fiscalYearClosingDate": return v || null;
+    case "allowNegativeFuelStock": return Boolean(v);
+    case "stationCashShortageAccountId": case "stationCashSurplusAccountId": case "tankVarianceAccountId": case "cardFeeExpenseAccountId":
+    case "stationDieselItemId": case "stationGasoline91ItemId": case "stationGasoline95ItemId": return v || null;
+    default: return v;
+  }
+};
+const sameValue = (a, b) => String(a ?? "") === String(b ?? "");
+
 /** نافذة تعديل بيانات الشركة الرسمية الكاملة — شعار، عنوان وطني، تواريخ السجل التجاري،
  * بيانات التواصل، بالإضافة إلى استخراج تلقائي بالذكاء الاصطناعي من المستندات الرسمية. */
-export default function CompanyEditModal({ company, onClose, onSaved }) {
+export default function CompanyEditModal({ company, onClose, onChanged }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canReopen = user?.role === "admin" || user?.role === "super_admin";
@@ -71,8 +101,12 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
   ];
 
   const [form, setForm] = useState(() => emptyForm(company));
+  // آخر قيم محفوظة على الخادم — للمقارنة وإظهار الأقسام التي فيها تعديلات لم تُحفَظ
+  const [baseline, setBaseline] = useState(() => emptyForm(company));
+  const [sectionSaving, setSectionSaving] = useState(null);
+  const [sectionStatus, setSectionStatus] = useState({}); // { [section]: { ok, text } }
+  const [extractedKeys, setExtractedKeys] = useState([]);
   const [logoUrl, setLogoUrl] = useState(company.logoUrl || null);
-  const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [extracting, setExtracting] = useState(null); // docType الجاري استخراجه
   const [extractionNote, setExtractionNote] = useState(null); // { confidence, text }
@@ -99,42 +133,81 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
   const stationExpenseAccounts = useMemo(() => postingAccounts.filter((a) => a.type === "expense"), [postingAccounts]);
   const stationRevenueAccounts = useMemo(() => postingAccounts.filter((a) => a.type === "revenue"), [postingAccounts]);
 
+  // أقسام النافذة — كل الأقسام تبقى مُركَّبة (مخفية فقط) حتى لا تضيع بيانات لوحة لم تُحفَظ عند التنقل،
+  // وزر الحفظ أسفل النافذة يحفظ حقول بيانات الشركة كلها كما كان (نفس updateCompany ونفس الحمولة).
+  const sections = [
+    { key: "basic", icon: "🏢" },
+    { key: "registration", icon: "📄" },
+    { key: "tax", icon: "🧾" },
+    { key: "address", icon: "📍" },
+    { key: "numbering", icon: "#" },
+    { key: "alerts", icon: "🔔" },
+    ...(isFuelCompany ? [{ key: "stations", icon: "⛽" }] : []),
+    { key: "fiscal", icon: "📅" },
+    { key: "branches", icon: "🏬" },
+    { key: "bankAccounts", icon: "🏦" },
+    { key: "leases", icon: "📝" },
+    { key: "documents", icon: "📎" },
+    { key: "logo", icon: "🖼" },
+  ];
+  const [activeSection, setActiveSection] = useState("basic");
+
   const set = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  const save = async () => {
-    if (!form.name.trim()) { setError(t("settings.companyEdit.errNameRequired")); return; }
-    setSaving(true);
-    setError("");
-    try {
-      await updateCompany(company.id, {
-        ...form,
-        crIssueDate: form.crIssueDate || undefined,
-        crExpiryDate: form.crExpiryDate || undefined,
-        zakatDeclarationDueDate: form.zakatDeclarationDueDate || undefined,
-        lowCashThreshold: form.lowCashThreshold === "" ? null : Number(form.lowCashThreshold),
-        overdueInvoiceDays: Number(form.overdueInvoiceDays),
-        staleDraftDays: Number(form.staleDraftDays),
-        vatRate: form.vatRate === "" ? undefined : Number(form.vatRate),
-        fiscalYearClosingDate: form.fiscalYearClosingDate || null,
-        stationCashShortageAccountId: form.stationCashShortageAccountId || null,
-        stationCashSurplusAccountId: form.stationCashSurplusAccountId || null,
-        ...(isFuelCompany
-          ? {
-              stationDieselItemId: form.stationDieselItemId || null,
-              stationGasoline91ItemId: form.stationGasoline91ItemId || null,
-              stationGasoline95ItemId: form.stationGasoline95ItemId || null,
-              allowNegativeFuelStock: Boolean(form.allowNegativeFuelStock),
-              tankVarianceAccountId: form.tankVarianceAccountId || null,
-              cardFeeExpenseAccountId: form.cardFeeExpenseAccountId || null,
-            }
-          : { stationDieselItemId: undefined, stationGasoline91ItemId: undefined, stationGasoline95ItemId: undefined, allowNegativeFuelStock: undefined, tankVarianceAccountId: undefined, cardFeeExpenseAccountId: undefined }),
-      });
-      onSaved();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
+  const isDirty = (keys) => keys.some((k) => !sameValue(form[k], baseline[k]));
+  const dirtySections = new Set(Object.keys(SECTION_FIELDS).filter((sec) => isDirty(SECTION_FIELDS[sec])));
+  const saving = sectionSaving !== null;
+
+  // حفظ مجموعة حقول فقط (قسم واحد، أو حقول المستند المستخرج) — لا تُغلَق النافذة بعد الحفظ
+  const saveFields = async (statusKey, keys) => {
+    if (keys.includes("name") && !form.name.trim()) {
+      setSectionStatus((p) => ({ ...p, [statusKey]: { ok: false, text: t("settings.companyEdit.errNameRequired") } }));
+      return;
     }
+    setSectionSaving(statusKey);
+    setSectionStatus((p) => ({ ...p, [statusKey]: null }));
+    try {
+      const payload = Object.fromEntries(keys.map((k) => [k, toPayloadValue(k, form[k])]));
+      const updated = await updateCompany(company.id, payload);
+      const fresh = emptyForm(updated);
+      const pick = (src) => Object.fromEntries(keys.map((k) => [k, src[k]]));
+      setBaseline((prev) => ({ ...prev, ...pick(fresh) }));
+      setForm((prev) => ({ ...prev, ...pick(fresh) }));
+      setSectionStatus((p) => ({ ...p, [statusKey]: { ok: true, text: t("settings.companyEdit.tabs.sectionSaved") } }));
+      onChanged?.();
+      return true;
+    } catch (err) {
+      setSectionStatus((p) => ({ ...p, [statusKey]: { ok: false, text: err.message } }));
+      return false;
+    } finally {
+      setSectionSaving(null);
+    }
+  };
+
+  const saveExtracted = async () => {
+    const ok = await saveFields("documents", extractedKeys);
+    if (ok) setExtractedKeys([]);
+  };
+
+  const requestClose = () => {
+    if (saving) return;
+    if (dirtySections.size > 0 && !window.confirm(t("settings.companyEdit.tabs.unsavedConfirm"))) return;
+    onClose();
+  };
+
+  // زر حفظ القسم وحالته
+  const SectionSave = ({ section, keys = SECTION_FIELDS[section] }) => {
+    const status = sectionStatus[section];
+    const dirty = isDirty(keys);
+    return (
+      <div className="company-settings-section-save">
+        {status && <span className={status.ok ? "note" : "balance-bad"}>{status.text}</span>}
+        {!status && dirty && <span className="note">{t("settings.companyEdit.tabs.unsavedHint")}</span>}
+        <button type="button" className="btn-primary" onClick={() => saveFields(section, keys)} disabled={saving}>
+          {sectionSaving === section ? t("settings.myAccount.saving") : t("settings.companyEdit.tabs.saveSection")}
+        </button>
+      </div>
+    );
   };
 
   const reopen = async () => {
@@ -144,7 +217,10 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
     setReopenNotice("");
     try {
       const updated = await reopenFiscalClosing(company.id, reopenDate || null);
-      setForm((prev) => ({ ...prev, fiscalYearClosingDate: updated.fiscalYearClosingDate ? updated.fiscalYearClosingDate.slice(0, 10) : "" }));
+      const closing = updated.fiscalYearClosingDate ? updated.fiscalYearClosingDate.slice(0, 10) : "";
+      setForm((prev) => ({ ...prev, fiscalYearClosingDate: closing }));
+      setBaseline((prev) => ({ ...prev, fiscalYearClosingDate: closing }));
+      onChanged?.();
       setReopenDate("");
       setReopenNotice(t("settings.companyEdit.reopenSuccess"));
     } catch (err) {
@@ -187,6 +263,7 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
         });
       } else {
         setForm((prev) => ({ ...prev, ...result.fields }));
+        setExtractedKeys((prev) => [...new Set([...prev, ...Object.keys(result.fields).filter((k) => FIELD_SECTION[k])])]);
         setExtractionNote({
           confidence: "high",
           text: t("settings.companyEdit.extractionHighConfidence", { note: result.confidenceNote || "" }),
@@ -200,220 +277,274 @@ export default function CompanyEditModal({ company, onClose, onSaved }) {
   };
 
   return (
-    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && !saving && onClose()}>
-      <div className="invoice-modal-box">
+    <div className="invoice-modal-overlay" onClick={(e) => e.target === e.currentTarget && requestClose()}>
+      <div className="invoice-modal-box company-settings-modal">
         <div className="modal-title-row">
           <h3>{t("settings.companyEdit.modalTitle", { name: company.name })}</h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} disabled={saving} aria-label={t("common.close")}>×</button>
+          <button type="button" className="modal-close-btn" onClick={requestClose} disabled={saving} aria-label={t("common.close")}>×</button>
         </div>
 
-        <div className="form-grid">
-          <label>{t("settings.companyEdit.nameLabel")}<input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.shortNameLabel")}<input type="text" value={form.shortName} onChange={(e) => set("shortName", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.nameEnLabel")}<input type="text" dir="ltr" value={form.nameEn} onChange={(e) => set("nameEn", e.target.value)} /></label>
-          <label>
-            {t("settings.newCompany.countryLabel")}
-            <select value={form.country} onChange={(e) => { set("country", e.target.value); set("currency", defaultCurrencyForCountry(e.target.value)); set("vatRate", defaultVatRateForCountry(e.target.value)); }}>
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>{countryName(c.code, i18n.language)}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            {t("settings.newCompany.currencyLabel")}
-            <select value={form.currency} onChange={(e) => set("currency", e.target.value)}>
-              {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>{c.code} — {c.symbolAr}</option>
-              ))}
-            </select>
-          </label>
-          <label>{i18n.language.startsWith("ar") ? "نسبة ضريبة القيمة المضافة %" : "VAT rate %"}
-            <input type="number" min="0" max="100" step="0.01" dir="ltr" disabled={form.country === "SA"} value={form.country === "SA" ? 15 : form.vatRate} onChange={(e) => set("vatRate", e.target.value === "" ? "" : Number(e.target.value))} />
-            <small className="note">{form.country === "SA"
-              ? (i18n.language.startsWith("ar") ? "ثابتة 15% للسعودية (زاتكا)." : "Fixed at 15% for Saudi Arabia (ZATCA).")
-              : (i18n.language.startsWith("ar") ? `المقترح لهذه الدولة ${defaultVatRateForCountry(form.country)}%${defaultVatRateForCountry(form.country) === 0 ? " (لا توجد ضريبة عامة)" : ""}. تُطبَّق على المستندات الجديدة فقط.` : `Suggested for this country: ${defaultVatRateForCountry(form.country)}%. Applies to new documents only.`)}</small>
-          </label>
-          <label>{t("settings.companyEdit.vatNumberLabel")}<input type="text" maxLength={24} dir="ltr" placeholder={vatNumberExampleForCountry(form.country)} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.toUpperCase())} />
-            {form.vatNumber && !isValidVatNumberForCountry(form.vatNumber, form.country)
-              ? <small className="balance-bad">{i18n.language.startsWith("ar") ? `صيغة غير صحيحة لـ${countryName(form.country, "ar")}${vatNumberExampleForCountry(form.country) ? ` — مثال: ${vatNumberExampleForCountry(form.country)}` : ""}` : `Invalid format for ${countryName(form.country, "en")}${vatNumberExampleForCountry(form.country) ? `, e.g. ${vatNumberExampleForCountry(form.country)}` : ""}`}</small>
-              : <small className="note">{vatNumberExampleForCountry(form.country) ? (i18n.language.startsWith("ar") ? `مثال: ${vatNumberExampleForCountry(form.country)}` : `e.g. ${vatNumberExampleForCountry(form.country)}`) : ""}</small>}
-          </label>
-          <label>
-            {t("settings.companyEdit.numberingPrefixLabel")}
-            <input
-              type="text" maxLength={2}
-              value={form.numberingPrefix}
-              onChange={(e) => set("numberingPrefix", e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
-              placeholder="J"
-            />
-          </label>
-
-          <label>{t("settings.companyEdit.crNumberLabel")}<input type="text" value={form.crNumber} onChange={(e) => set("crNumber", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.crIssueDateLabel")}<input type="date" value={form.crIssueDate} onChange={(e) => set("crIssueDate", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.crExpiryDateLabel")}<input type="date" value={form.crExpiryDate} onChange={(e) => set("crExpiryDate", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.unifiedEntityNumberLabel")}<input type="text" value={form.unifiedEntityNumber} onChange={(e) => set("unifiedEntityNumber", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.licenseNumberLabel")}<input type="text" value={form.licenseNumber} onChange={(e) => set("licenseNumber", e.target.value)} /></label>
-
-          <label>{t("settings.companyEdit.officialEmailLabel")}<input type="email" value={form.officialEmail} onChange={(e) => set("officialEmail", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.phoneLabel")}<input type="text" value={form.phone} onChange={(e) => set("phone", e.target.value)} /></label>
-        </div>
-        <p className="note">{t("settings.companyEdit.numberingPrefixNote")}</p>
-
-        <h4 className="sub-head">{t("settings.companyEdit.addressTitle")}</h4>
-        <div className="form-grid">
-          <label>{t("settings.companyEdit.addressBuilding")}<input type="text" value={form.addressBuilding} onChange={(e) => set("addressBuilding", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.addressStreet")}<input type="text" value={form.addressStreet} onChange={(e) => set("addressStreet", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.addressDistrict")}<input type="text" value={form.addressDistrict} onChange={(e) => set("addressDistrict", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.addressCity")}<input type="text" value={form.addressCity} onChange={(e) => set("addressCity", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.addressPostalCode")}<input type="text" value={form.addressPostalCode} onChange={(e) => set("addressPostalCode", e.target.value)} /></label>
-          <label>{t("settings.companyEdit.addressAdditionalNo")}<input type="text" value={form.addressAdditionalNo} onChange={(e) => set("addressAdditionalNo", e.target.value)} /></label>
-        </div>
-
-        <h4 className="sub-head">{t("settings.companyEdit.alertsTitle")}</h4>
-        <div className="form-grid">
-          <label>{t("settings.companyEdit.vatFilingFrequencyLabel")}
-            <select value={form.vatFilingFrequency} onChange={(e) => set("vatFilingFrequency", e.target.value)}>
-              <option value="monthly">{t("settings.companyEdit.vatFilingMonthly")}</option>
-              <option value="quarterly">{t("settings.companyEdit.vatFilingQuarterly")}</option>
-            </select>
-          </label>
-          <label>{t("settings.companyEdit.zakatDueDateLabel")}
-            <input type="date" value={form.zakatDeclarationDueDate} onChange={(e) => set("zakatDeclarationDueDate", e.target.value)} />
-          </label>
-          <label>{t("settings.companyEdit.lowCashThresholdLabel")}
-            <input type="number" value={form.lowCashThreshold} onChange={(e) => set("lowCashThreshold", e.target.value)} placeholder={t("settings.companyEdit.lowCashPlaceholder")} />
-          </label>
-          <label>{t("settings.companyEdit.overdueInvoiceDaysLabel")}
-            <input type="number" value={form.overdueInvoiceDays} onChange={(e) => set("overdueInvoiceDays", e.target.value)} />
-          </label>
-          <label>{t("settings.companyEdit.staleDraftDaysLabel")}
-            <input type="number" value={form.staleDraftDays} onChange={(e) => set("staleDraftDays", e.target.value)} />
-          </label>
-        </div>
-
-        {company.businessActivity === "fuel_stations" && (
-          <>
-            <h4 className="sub-head">{t("settings.companyEdit.stationShiftsTitle")}</h4>
-            <p className="note">{t("settings.companyEdit.stationShiftsNote")}</p>
-            <div className="form-grid">
-              <label>{t("settings.companyEdit.stationCashShortageAccountLabel")}
-                <AccountSearchSelect
-                  accounts={stationExpenseAccounts}
-                  value={form.stationCashShortageAccountId}
-                  onChange={(id) => set("stationCashShortageAccountId", id)}
-                  allowClear
-                />
-              </label>
-              <label>{t("settings.companyEdit.stationCashSurplusAccountLabel")}
-                <AccountSearchSelect
-                  accounts={stationRevenueAccounts}
-                  value={form.stationCashSurplusAccountId}
-                  onChange={(id) => set("stationCashSurplusAccountId", id)}
-                  allowClear
-                />
-              </label>
-              <label>{t("settings.companyEdit.tankVarianceAccountLabel")}
-                <AccountSearchSelect
-                  accounts={stationExpenseAccounts}
-                  value={form.tankVarianceAccountId}
-                  onChange={(id) => set("tankVarianceAccountId", id)}
-                  allowClear
-                />
-              </label>
-              <label>{t("settings.companyEdit.cardFeeExpenseAccountLabel")}
-                <AccountSearchSelect
-                  accounts={stationExpenseAccounts}
-                  value={form.cardFeeExpenseAccountId}
-                  onChange={(id) => set("cardFeeExpenseAccountId", id)}
-                  allowClear
-                />
-              </label>
-            </div>
-            <p className="note">{t("settings.companyEdit.stationFuelCostNote")}</p>
-            <div className="form-grid">
-              {STATION_FUEL_ITEM_FIELDS.map(([field, labelKey]) => (
-                <label key={field}>{t(`settings.companyEdit.${labelKey}`)}
-                  <select value={form[field]} onChange={(e) => set(field, e.target.value)}>
-                    <option value="">{t("settings.companyEdit.stationFuelItemNone")}</option>
-                    {inventoryItems.map((item) => (
-                      <option key={item.id} value={item.id}>{item.code} — {item.name}</option>
+        <div className="company-settings-layout">
+          <nav className="company-settings-nav" aria-label={t("settings.companyEdit.tabs.navLabel")}>
+            {sections.map((s) => (
+              <button key={s.key} type="button" className={`company-settings-nav-item${activeSection === s.key ? " active" : ""}`} onClick={() => setActiveSection(s.key)} aria-current={activeSection === s.key ? "page" : undefined}>
+                <span aria-hidden="true">{s.icon}</span>{t(`settings.companyEdit.tabs.${s.key}`)}
+                {dirtySections.has(s.key) && <i className="company-settings-dirty-dot" title={t("settings.companyEdit.tabs.unsavedHint")} />}
+              </button>
+            ))}
+          </nav>
+          <div className="company-settings-content">
+            <section hidden={activeSection !== "basic"} className="company-settings-section">
+              <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.basic")}</h4>
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.nameLabel")}<input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.shortNameLabel")}<input type="text" value={form.shortName} onChange={(e) => set("shortName", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.nameEnLabel")}<input type="text" dir="ltr" value={form.nameEn} onChange={(e) => set("nameEn", e.target.value)} /></label>
+                <label>
+                  {t("settings.newCompany.countryLabel")}
+                  <select value={form.country} onChange={(e) => { set("country", e.target.value); set("currency", defaultCurrencyForCountry(e.target.value)); set("vatRate", defaultVatRateForCountry(e.target.value)); }}>
+                    {COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>{countryName(c.code, i18n.language)}</option>
                     ))}
                   </select>
                 </label>
-              ))}
-              <label className="checkbox-label">
-                <input type="checkbox" checked={Boolean(form.allowNegativeFuelStock)} onChange={(e) => set("allowNegativeFuelStock", e.target.checked)} />
-                {t("settings.companyEdit.allowNegativeFuelStockLabel")}
-              </label>
-            </div>
-          </>
-        )}
+                <label>
+                  {t("settings.newCompany.currencyLabel")}
+                  <select value={form.currency} onChange={(e) => set("currency", e.target.value)}>
+                    {CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>{c.code} — {c.symbolAr}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>{t("settings.companyEdit.officialEmailLabel")}<input type="email" value={form.officialEmail} onChange={(e) => set("officialEmail", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.phoneLabel")}<input type="text" value={form.phone} onChange={(e) => set("phone", e.target.value)} /></label>
+              </div>
+              <SectionSave section="basic" />
+            </section>
+            <section hidden={activeSection !== "registration"} className="company-settings-section">
+              <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.registration")}</h4>
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.crNumberLabel")}<input type="text" value={form.crNumber} onChange={(e) => set("crNumber", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.crIssueDateLabel")}<input type="date" value={form.crIssueDate} onChange={(e) => set("crIssueDate", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.crExpiryDateLabel")}<input type="date" value={form.crExpiryDate} onChange={(e) => set("crExpiryDate", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.unifiedEntityNumberLabel")}<input type="text" value={form.unifiedEntityNumber} onChange={(e) => set("unifiedEntityNumber", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.licenseNumberLabel")}<input type="text" value={form.licenseNumber} onChange={(e) => set("licenseNumber", e.target.value)} /></label>
+              </div>
+              <SectionSave section="registration" />
+            </section>
+            <section hidden={activeSection !== "tax"} className="company-settings-section">
+              <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.tax")}</h4>
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.vatNumberLabel")}<input type="text" maxLength={24} dir="ltr" placeholder={vatNumberExampleForCountry(form.country)} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.toUpperCase())} />
+                  {form.vatNumber && !isValidVatNumberForCountry(form.vatNumber, form.country)
+                    ? <small className="balance-bad">{i18n.language.startsWith("ar") ? `صيغة غير صحيحة لـ${countryName(form.country, "ar")}${vatNumberExampleForCountry(form.country) ? ` — مثال: ${vatNumberExampleForCountry(form.country)}` : ""}` : `Invalid format for ${countryName(form.country, "en")}${vatNumberExampleForCountry(form.country) ? `, e.g. ${vatNumberExampleForCountry(form.country)}` : ""}`}</small>
+                    : <small className="note">{vatNumberExampleForCountry(form.country) ? (i18n.language.startsWith("ar") ? `مثال: ${vatNumberExampleForCountry(form.country)}` : `e.g. ${vatNumberExampleForCountry(form.country)}`) : ""}</small>}
+                </label>
+                <label>{i18n.language.startsWith("ar") ? "نسبة ضريبة القيمة المضافة %" : "VAT rate %"}
+                  <input type="number" min="0" max="100" step="0.01" dir="ltr" disabled={form.country === "SA"} value={form.country === "SA" ? 15 : form.vatRate} onChange={(e) => set("vatRate", e.target.value === "" ? "" : Number(e.target.value))} />
+                  <small className="note">{form.country === "SA"
+                    ? (i18n.language.startsWith("ar") ? "ثابتة 15% للسعودية (زاتكا)." : "Fixed at 15% for Saudi Arabia (ZATCA).")
+                    : (i18n.language.startsWith("ar") ? `المقترح لهذه الدولة ${defaultVatRateForCountry(form.country)}%${defaultVatRateForCountry(form.country) === 0 ? " (لا توجد ضريبة عامة)" : ""}. تُطبَّق على المستندات الجديدة فقط.` : `Suggested for this country: ${defaultVatRateForCountry(form.country)}%. Applies to new documents only.`)}</small>
+                </label>
+                <label>{t("settings.companyEdit.vatFilingFrequencyLabel")}
+                  <select value={form.vatFilingFrequency} onChange={(e) => set("vatFilingFrequency", e.target.value)}>
+                    <option value="monthly">{t("settings.companyEdit.vatFilingMonthly")}</option>
+                    <option value="quarterly">{t("settings.companyEdit.vatFilingQuarterly")}</option>
+                  </select>
+                </label>
+                <label>{t("settings.companyEdit.zakatDueDateLabel")}
+                  <input type="date" value={form.zakatDeclarationDueDate} onChange={(e) => set("zakatDeclarationDueDate", e.target.value)} />
+                </label>
+              </div>
+              <SectionSave section="tax" />
+            </section>
+            <section hidden={activeSection !== "address"} className="company-settings-section">
+              <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.address")}</h4>
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.addressBuilding")}<input type="text" value={form.addressBuilding} onChange={(e) => set("addressBuilding", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.addressStreet")}<input type="text" value={form.addressStreet} onChange={(e) => set("addressStreet", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.addressDistrict")}<input type="text" value={form.addressDistrict} onChange={(e) => set("addressDistrict", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.addressCity")}<input type="text" value={form.addressCity} onChange={(e) => set("addressCity", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.addressPostalCode")}<input type="text" value={form.addressPostalCode} onChange={(e) => set("addressPostalCode", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.addressAdditionalNo")}<input type="text" value={form.addressAdditionalNo} onChange={(e) => set("addressAdditionalNo", e.target.value)} /></label>
+              </div>
+              <SectionSave section="address" />
+            </section>
+            <section hidden={activeSection !== "numbering"} className="company-settings-section">
+              <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.numbering")}</h4>
+              <div className="form-grid">
+                <label>
+                  {t("settings.companyEdit.numberingPrefixLabel")}
+                  <input
+                    type="text" maxLength={2}
+                    value={form.numberingPrefix}
+                    onChange={(e) => set("numberingPrefix", e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
+                    placeholder="J"
+                  />
+                </label>
+              </div>
+              <p className="note">{t("settings.companyEdit.numberingPrefixNote")}</p>
+              <SectionSave section="numbering" />
+            </section>
+            <section hidden={activeSection !== "alerts"} className="company-settings-section">
+              <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.alerts")}</h4>
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.lowCashThresholdLabel")}
+                  <input type="number" value={form.lowCashThreshold} onChange={(e) => set("lowCashThreshold", e.target.value)} placeholder={t("settings.companyEdit.lowCashPlaceholder")} />
+                </label>
+                <label>{t("settings.companyEdit.overdueInvoiceDaysLabel")}
+                  <input type="number" value={form.overdueInvoiceDays} onChange={(e) => set("overdueInvoiceDays", e.target.value)} />
+                </label>
+                <label>{t("settings.companyEdit.staleDraftDaysLabel")}
+                  <input type="number" value={form.staleDraftDays} onChange={(e) => set("staleDraftDays", e.target.value)} />
+                </label>
+              </div>
+              <SectionSave section="alerts" />
+            </section>
+            {isFuelCompany && (
+              <section hidden={activeSection !== "stations"} className="company-settings-section">
+                <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.stations")}</h4>
+                <p className="note">{t("settings.companyEdit.stationShiftsNote")}</p>
+                <div className="form-grid">
+                  <label>{t("settings.companyEdit.stationCashShortageAccountLabel")}
+                    <AccountSearchSelect
+                      accounts={stationExpenseAccounts}
+                      value={form.stationCashShortageAccountId}
+                      onChange={(id) => set("stationCashShortageAccountId", id)}
+                      allowClear
+                    />
+                  </label>
+                  <label>{t("settings.companyEdit.stationCashSurplusAccountLabel")}
+                    <AccountSearchSelect
+                      accounts={stationRevenueAccounts}
+                      value={form.stationCashSurplusAccountId}
+                      onChange={(id) => set("stationCashSurplusAccountId", id)}
+                      allowClear
+                    />
+                  </label>
+                  <label>{t("settings.companyEdit.tankVarianceAccountLabel")}
+                    <AccountSearchSelect
+                      accounts={stationExpenseAccounts}
+                      value={form.tankVarianceAccountId}
+                      onChange={(id) => set("tankVarianceAccountId", id)}
+                      allowClear
+                    />
+                  </label>
+                  <label>{t("settings.companyEdit.cardFeeExpenseAccountLabel")}
+                    <AccountSearchSelect
+                      accounts={stationExpenseAccounts}
+                      value={form.cardFeeExpenseAccountId}
+                      onChange={(id) => set("cardFeeExpenseAccountId", id)}
+                      allowClear
+                    />
+                  </label>
+                </div>
+                <p className="note">{t("settings.companyEdit.stationFuelCostNote")}</p>
+                <div className="form-grid">
+                  {STATION_FUEL_ITEM_FIELDS.map(([field, labelKey]) => (
+                    <label key={field}>{t(`settings.companyEdit.${labelKey}`)}
+                      <select value={form[field]} onChange={(e) => set(field, e.target.value)}>
+                        <option value="">{t("settings.companyEdit.stationFuelItemNone")}</option>
+                        {inventoryItems.map((item) => (
+                          <option key={item.id} value={item.id}>{item.code} — {item.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                  <label className="checkbox-label">
+                    <input type="checkbox" checked={Boolean(form.allowNegativeFuelStock)} onChange={(e) => set("allowNegativeFuelStock", e.target.checked)} />
+                    {t("settings.companyEdit.allowNegativeFuelStockLabel")}
+                  </label>
+                </div>
+                <SectionSave section="stations" />
+              </section>
+            )}
+            <section hidden={activeSection !== "fiscal"} className="company-settings-section">
+              <FiscalYearPanel companyId={company.id} onClosingDateChange={(date) => { const d = date ? String(date).slice(0, 10) : ""; set("fiscalYearClosingDate", d); setBaseline((prev) => ({ ...prev, fiscalYearClosingDate: d })); }} />
 
-        <FiscalYearPanel companyId={company.id} onClosingDateChange={(date) => set("fiscalYearClosingDate", date)} />
+              <h4 className="sub-head">{t("settings.companyEdit.fiscalClosingTitle")}</h4>
+              <p className="note">{t("settings.companyEdit.fiscalClosingNote")}</p>
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.fiscalClosingDateLabel")}
+                  <input type="date" value={form.fiscalYearClosingDate} onChange={(e) => set("fiscalYearClosingDate", e.target.value)} />
+                </label>
+              </div>
+              <SectionSave section="fiscal" />
+              {canReopen && (
+                <>
+                  <h5>{t("settings.companyEdit.reopenTitle")}</h5>
+                  <p className="note">{t("settings.companyEdit.reopenNote")}</p>
+                  <div className="form-btn-group" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+                    <label>{t("settings.companyEdit.reopenNewDateLabel")}
+                      <input type="date" value={reopenDate} onChange={(e) => setReopenDate(e.target.value)} />
+                    </label>
+                    <button className="btn-ghost" onClick={reopen} disabled={reopening}>
+                      {reopening ? t("settings.companyEdit.reopening") : t("settings.companyEdit.reopenBtn")}
+                    </button>
+                  </div>
+                  {reopenNotice && <p className="note">{reopenNotice}</p>}
+                </>
+              )}
+            </section>
+            <section hidden={activeSection !== "branches"} className="company-settings-section">
+              <BranchesPanel companyId={company.id} companyCurrency={form.currency} />
+            </section>
+            <section hidden={activeSection !== "bankAccounts"} className="company-settings-section">
+              <CompanyBankAccountsPanel companyId={company.id} />
+            </section>
+            <section hidden={activeSection !== "leases"} className="company-settings-section">
+              <LeaseContractsPanel companyId={company.id} />
+            </section>
+            <section hidden={activeSection !== "documents"} className="company-settings-section">
+              <CompanyDocumentsPanel companyId={company.id} />
+              <h4 className="sub-head">{t("settings.companyEdit.aiExtractTitle")}</h4>
+              <p className="note">{t("settings.companyEdit.aiExtractNote")}</p>
+              <div className="form-btn-group" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+                {DOC_TYPES.map((d) => (
+                  <React.Fragment key={d.key}>
+                    <input
+                      ref={(el) => (docInputRefs.current[d.key] = el)}
+                      type="file" accept="image/*,application/pdf" hidden
+                      onChange={(e) => pickDocument(d.key, e)}
+                    />
+                    <button className="btn-ghost" onClick={() => docInputRefs.current[d.key]?.click()} disabled={extracting !== null}>
+                      {extracting === d.key ? t("settings.companyEdit.analyzing") : d.label}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
+              {extractionNote && (
+                <p className={extractionNote.confidence === "low" ? "balance-bad" : "note"}>{extractionNote.text}</p>
+              )}
+              {extractedKeys.length > 0 && (
+                <div className="company-settings-section-save">
+                  <span className="note">{t("settings.companyEdit.tabs.extractedPending", { sections: [...new Set(extractedKeys.map((k) => FIELD_SECTION[k]))].map((sec) => t(`settings.companyEdit.tabs.${sec}`)).join("، ") })}</span>
+                  <button type="button" className="btn-primary" onClick={saveExtracted} disabled={saving}>
+                    {sectionSaving === "documents" ? t("settings.myAccount.saving") : t("settings.companyEdit.tabs.saveExtracted")}
+                  </button>
+                </div>
+              )}
+              {sectionStatus.documents && <p className={sectionStatus.documents.ok ? "note" : "balance-bad"}>{sectionStatus.documents.text}</p>}
 
-        <h4 className="sub-head">{t("settings.companyEdit.fiscalClosingTitle")}</h4>
-        <p className="note">{t("settings.companyEdit.fiscalClosingNote")}</p>
-        <div className="form-grid">
-          <label>{t("settings.companyEdit.fiscalClosingDateLabel")}
-            <input type="date" value={form.fiscalYearClosingDate} onChange={(e) => set("fiscalYearClosingDate", e.target.value)} />
-          </label>
+              <AttachmentsPanel key={attachmentsKey} entityType="company" entityId={company.id} title={t("settings.companyEdit.uploadedDocsTitle")} />
+            </section>
+            <section hidden={activeSection !== "logo"} className="company-settings-section">
+              <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.logo")}</h4>
+              <div className="form-btn-group" style={{ justifyContent: "flex-start" }}>
+                {logoUrl && <img src={logoUrl} alt={t("settings.companyEdit.logoAlt")} style={{ height: 44, borderRadius: 6 }} />}
+                <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden onChange={pickLogo} />
+                <button className="btn-ghost" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
+                  {uploadingLogo ? t("settings.companyEdit.uploadingLogo") : logoUrl ? t("settings.companyEdit.changeLogo") : t("settings.companyEdit.uploadLogo")}
+                </button>
+              </div>
+            </section>
+          </div>
         </div>
-        {canReopen && (
-          <>
-            <h5>{t("settings.companyEdit.reopenTitle")}</h5>
-            <p className="note">{t("settings.companyEdit.reopenNote")}</p>
-            <div className="form-btn-group" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
-              <label>{t("settings.companyEdit.reopenNewDateLabel")}
-                <input type="date" value={reopenDate} onChange={(e) => setReopenDate(e.target.value)} />
-              </label>
-              <button className="btn-ghost" onClick={reopen} disabled={reopening}>
-                {reopening ? t("settings.companyEdit.reopening") : t("settings.companyEdit.reopenBtn")}
-              </button>
-            </div>
-            {reopenNotice && <p className="note">{reopenNotice}</p>}
-          </>
-        )}
-
-        <BranchesPanel companyId={company.id} companyCurrency={form.currency} />
-        <CompanyBankAccountsPanel companyId={company.id} />
-        <LeaseContractsPanel companyId={company.id} />
-        <CompanyDocumentsPanel companyId={company.id} />
-
-        <h4 className="sub-head">{t("settings.companyEdit.logoTitle")}</h4>
-        <div className="form-btn-group" style={{ justifyContent: "flex-start" }}>
-          {logoUrl && <img src={logoUrl} alt={t("settings.companyEdit.logoAlt")} style={{ height: 44, borderRadius: 6 }} />}
-          <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden onChange={pickLogo} />
-          <button className="btn-ghost" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}>
-            {uploadingLogo ? t("settings.companyEdit.uploadingLogo") : logoUrl ? t("settings.companyEdit.changeLogo") : t("settings.companyEdit.uploadLogo")}
-          </button>
-        </div>
-
-        <h4 className="sub-head">{t("settings.companyEdit.aiExtractTitle")}</h4>
-        <p className="note">{t("settings.companyEdit.aiExtractNote")}</p>
-        <div className="form-btn-group" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
-          {DOC_TYPES.map((d) => (
-            <React.Fragment key={d.key}>
-              <input
-                ref={(el) => (docInputRefs.current[d.key] = el)}
-                type="file" accept="image/*,application/pdf" hidden
-                onChange={(e) => pickDocument(d.key, e)}
-              />
-              <button className="btn-ghost" onClick={() => docInputRefs.current[d.key]?.click()} disabled={extracting !== null}>
-                {extracting === d.key ? t("settings.companyEdit.analyzing") : d.label}
-              </button>
-            </React.Fragment>
-          ))}
-        </div>
-        {extractionNote && (
-          <p className={extractionNote.confidence === "low" ? "balance-bad" : "note"}>{extractionNote.text}</p>
-        )}
-
-        <AttachmentsPanel key={attachmentsKey} entityType="company" entityId={company.id} title={t("settings.companyEdit.uploadedDocsTitle")} />
 
         {error && <p className="balance-bad">{error}</p>}
-        <div className="form-btn-group">
-          <button className="btn-ghost" onClick={onClose} disabled={saving}>{t("common.cancel")}</button>
-          <button className="btn-primary" onClick={save} disabled={saving}>{saving ? t("settings.myAccount.saving") : t("common.save")}</button>
+        <div className="form-btn-group company-settings-footer">
+          <small className="note">{t("settings.companyEdit.tabs.saveNote")}</small>
+          <button className="btn-ghost" onClick={requestClose} disabled={saving}>{t("common.close")}</button>
         </div>
       </div>
     </div>
