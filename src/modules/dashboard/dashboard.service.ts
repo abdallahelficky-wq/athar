@@ -207,6 +207,10 @@ export interface FinancialAlert {
   title: string;
   detail: string;
   days: number | null;
+  /** للفواتير المتأخرة فقط: العميل، عدد فواتيره المتأخرة، وإجمالي المتبقي عليه */
+  customerId?: string;
+  count?: number;
+  amount?: number;
 }
 
 /**
@@ -223,23 +227,38 @@ export async function getFinancialAlerts(tenantId: string, companyId: string | u
   const en = lang === "en";
 
   for (const company of companies) {
+    // الفواتير المتأخرة مجمَّعة بالعميل — تنبيه واحد لكل عميل (عدد فواتيره المتأخرة، أقدمها، وإجمالي المتبقي)
+    // بدل بطاقة لكل فاتورة تُغرق لوحة التنبيهات. count = عدد الفواتير (تُجمَع منه شارة «المبيعات» في الواجهة).
     const invoices = await invoicesWithPaid(tenantId, company.id);
+    const overdueByCustomer = new Map<string, { name: string; count: number; due: number; maxDays: number }>();
     invoices
       .filter((inv) => inv.due > 0.5)
       .forEach((inv) => {
         const days = daysBetween(inv.date, today);
-        if (days > company.overdueInvoiceDays) {
-          alerts.push({
-            type: "overdue_invoice",
-            companyId: company.id,
-            companyName: company.name,
-            title: en ? `Overdue invoice — ${inv.invoiceNumber}` : `فاتورة متأخرة السداد — ${inv.invoiceNumber}`,
-            detail: en
-              ? `${days} days overdue, ${inv.due.toFixed(2)} ${currencyLabel(company.currency, "en")} remaining`
-              : `متأخرة ${days} يوماً، المتبقي ${inv.due.toFixed(2)} ${currencyLabel(company.currency)}`,
-            days: -days,
-          });
-        }
+        if (days <= company.overdueInvoiceDays) return;
+        const row = overdueByCustomer.get(inv.customerId) || { name: inv.customer?.name || "—", count: 0, due: 0, maxDays: 0 };
+        row.count += 1;
+        row.due += inv.due;
+        row.maxDays = Math.max(row.maxDays, days);
+        overdueByCustomer.set(inv.customerId, row);
+      });
+    // الترتيب النهائي بالأقدم تأخراً (فرز التنبيهات العام أسفل الدالة بـ days)
+    [...overdueByCustomer.entries()]
+      .forEach(([customerId, c]) => {
+        const cur = currencyLabel(company.currency, en ? "en" : undefined);
+        alerts.push({
+          type: "overdue_invoice",
+          companyId: company.id,
+          companyName: company.name,
+          customerId,
+          count: c.count,
+          amount: Math.round(c.due * 100) / 100,
+          title: en ? `Overdue customer — ${c.name}` : `عميل متأخر السداد — ${c.name}`,
+          detail: en
+            ? `${c.count} overdue invoice${c.count === 1 ? "" : "s"}, oldest ${c.maxDays} days, ${c.due.toFixed(2)} ${cur} remaining`
+            : `${c.count} فاتورة متأخرة، أقدمها ${c.maxDays} يوماً، المتبقي ${c.due.toFixed(2)} ${cur}`,
+          days: -c.maxDays,
+        });
       });
 
     const leases = await prisma.leaseContract.findMany({ where: { tenantId, companyId: company.id, endDate: { lte: cutoff } } });
