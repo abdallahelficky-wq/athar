@@ -4,7 +4,6 @@ import HRDialog from "./HRDialog";
 import { PrintShell } from "../../legacy/shared";
 import { listEmployees } from "../../api/employees";
 import { previewAnnualLeave, saveAnnualLeaveDraft, listAnnualLeaveDrafts, updateAnnualLeaveDraft, deleteAnnualLeaveDraft } from "../../api/leaveSettlements";
-import { useAuth } from "../../context/AuthContext";
 import { DEPARTMENT_KEYS } from "../../legacy/constants";
 import { NATIONALITY_KEYS } from "../../legacy/hr";
 import { labelForListValue } from "../../legacy/listLabels";
@@ -72,7 +71,6 @@ const EMPTY_FORM = { leaveStartDate:"", employeeId:"", balanceMode:"all", salary
 
 export default function AnnualLeaveDraft({ companyId, company }) {
   const { t, i18n } = useTranslation(), ar = i18n.language.startsWith("ar"), L = (a,e)=> ar ? a:e;
-  const { user } = useAuth();
   const [editingId,setEditingId]=useState(null), [confirmDeleteId,setConfirmDeleteId]=useState(null);
   const [open,setOpen]=useState(false), [employees,setEmployees]=useState([]), [drafts,setDrafts]=useState([]);
   const [form,setForm]=useState(EMPTY_FORM);
@@ -118,12 +116,12 @@ export default function AnnualLeaveDraft({ companyId, company }) {
     <button className="btn-primary" onClick={()=>{setForm(EMPTY_FORM);setEditingId(null);setSaved(false);setOpen(true);}}>{L("إعداد مسودة إجازة", "New leave draft")}</button>
     {error&&!open&&<p role="alert">{error}</p>}
     {drafts.length>0&&<table className="ledger-table"><thead><tr><th>{L("الموظف","Employee")}</th><th>{L("تاريخ الإجازة","Leave date")}</th><th>{L("الصافي","Net")}</th><th/></tr></thead><tbody>{drafts.map(d=><tr key={d.id}><td>{d.snapshot.employee.name}</td><td>{d.snapshot.request.leaveStartDate}</td><td>{money(d.snapshot.net)}</td><td className="row-actions"><button className="btn-ghost" onClick={()=>setPrinting(d.snapshot)}>{L("عرض / طباعة المسودة","View / print draft")}</button>
-      {d.createdBy===user?.id&&<>
+      
         <button className="btn-ghost" disabled={busy} onClick={()=>startEdit(d)}>{L("تعديل","Edit")}</button>
         {confirmDeleteId===d.id
           ? <><button className="btn-ghost text-danger" disabled={busy} onClick={()=>remove(d)}>{L("تأكيد الحذف","Confirm delete")}</button><button className="btn-ghost" onClick={()=>setConfirmDeleteId(null)}>{L("تراجع","Cancel")}</button></>
           : <button className="btn-ghost" disabled={busy} onClick={()=>setConfirmDeleteId(d.id)}>{L("حذف","Delete")}</button>}
-      </>}</td></tr>)}</tbody></table>}
+      </td></tr>)}</tbody></table>}
     {open&&<HRDialog title={editingId?L("تعديل مسودة الإجازة السنوية", "Edit annual leave draft"):L("إعداد الإجازة السنوية — مسودة", "Annual leave — draft")} onClose={()=>setOpen(false)}>
       <div className="form-grid">
         {field(L("1. تاريخ بداية الإجازة", "1. Leave start date"),"leaveStartDate")}

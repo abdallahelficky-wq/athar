@@ -500,7 +500,6 @@ export const AR_TO_EN: Record<string, string> = {
   "سند القبض غير موجود": "The receipt voucher does not exist",
   "صافي المبلغ المستحق يجب أن يكون أكبر من صفر": "The net amount due must be greater than zero",
   "مسودة الإجازة غير موجودة": "The leave draft does not exist",
-  "تعديل مسودة الإجازة أو حذفها متاح لمعدّها فقط": "Only the person who prepared the leave draft can edit or delete it",
   "لا يمكن نقل مسودة الإجازة إلى شركة أخرى": "A leave draft cannot be moved to another company",
   "اكتب سبب الإضافات قبل اعتماد المستحقات": "Enter the reason for the additions before approving the settlement",
   "صيغة الشهر غير صحيحة": "Invalid month format",

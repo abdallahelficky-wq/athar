@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import { badRequest, forbidden, notFound } from "../../lib/httpError";
+import { badRequest, notFound } from "../../lib/httpError";
 import { computeRun } from "../payrollRuns/payrollRuns.service";
 import { annualLeaveBalance, latestContractAnniversary, roundMoney } from "./annualLeaveCalculation";
 import type { AnnualLeaveDraftInput } from "./annualLeaveDraft.schemas";
@@ -75,24 +75,24 @@ export async function saveAnnualLeaveDraft(tenantId: string, userId: string, inp
     createdBy: userId, request: input as Prisma.InputJsonValue, snapshot: snapshot as unknown as Prisma.InputJsonValue } });
 }
 
-/** المسودة لا تُرحّل ولا تحجز رصيداً، فتعديلها أو حذفها لا يمسّ أي قيد أو رصيد. يملكهما معدّها وحده. */
-async function ownDraft(tenantId: string, userId: string, id: string) {
+/** المسودة لا تُرحّل ولا تحجز رصيداً، فتعديلها أو حذفها لا يمسّ أي قيد أو رصيد. قرار المالك (2026-11-10): يعدّلها
+ * أو يحذفها أي مستخدم له صلاحية على شركتها (فحص الشركة وصلاحيات المنصب في المسار)، لا معدّها وحده. */
+async function findDraft(tenantId: string, id: string) {
   const draft = await prisma.annualLeaveDraft.findFirst({ where: { id, tenantId } });
   if (!draft) throw notFound("مسودة الإجازة غير موجودة");
-  if (draft.createdBy !== userId) throw forbidden("تعديل مسودة الإجازة أو حذفها متاح لمعدّها فقط");
   return draft;
 }
 
-export async function updateAnnualLeaveDraft(tenantId: string, userId: string, id: string, input: AnnualLeaveDraftInput) {
-  const draft = await ownDraft(tenantId, userId, id);
+export async function updateAnnualLeaveDraft(tenantId: string, id: string, input: AnnualLeaveDraftInput) {
+  const draft = await findDraft(tenantId, id);
   if (input.companyId !== draft.companyId) throw badRequest("لا يمكن نقل مسودة الإجازة إلى شركة أخرى");
   const snapshot = await previewAnnualLeave(tenantId, input);
   return prisma.annualLeaveDraft.update({ where: { id: draft.id }, data: { employeeId: input.employeeId,
     request: input as Prisma.InputJsonValue, snapshot: snapshot as unknown as Prisma.InputJsonValue } });
 }
 
-export async function deleteAnnualLeaveDraft(tenantId: string, userId: string, id: string) {
-  const draft = await ownDraft(tenantId, userId, id);
+export async function deleteAnnualLeaveDraft(tenantId: string, id: string) {
+  const draft = await findDraft(tenantId, id);
   await prisma.annualLeaveDraft.delete({ where: { id: draft.id } });
   return { id: draft.id };
 }

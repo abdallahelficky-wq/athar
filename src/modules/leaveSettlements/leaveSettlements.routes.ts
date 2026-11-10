@@ -28,12 +28,12 @@ leaveSettlementRoutes.post("/annual-drafts", requirePositionAction("leaveSettlem
 leaveSettlementRoutes.put("/annual-drafts/:id", requirePositionAction("leaveSettlements", "edit"), canWrite,
   validateBody(annualLeaveDraftSchema), async (req, res) => {
     assertCompanyAccess(req.auth!, req.body.companyId);
-    res.json(await updateAnnualLeaveDraft(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body));
+    res.json(await updateAnnualLeaveDraft(req.auth!.tenantId, req.params.id, req.body));
   });
 leaveSettlementRoutes.delete("/annual-drafts/:id", requirePositionAction("leaveSettlements", "delete"), canWrite, async (req, res) => {
   const draft = await prisma.annualLeaveDraft.findFirst({ where: { id: req.params.id, tenantId: req.auth!.tenantId }, select: { companyId: true } });
   if (draft) assertCompanyAccess(req.auth!, draft.companyId);
-  res.json(await deleteAnnualLeaveDraft(req.auth!.tenantId, req.auth!.sub, req.params.id));
+  res.json(await deleteAnnualLeaveDraft(req.auth!.tenantId, req.params.id));
 });
 leaveSettlementRoutes.get("/annual-drafts", requirePositionAction("leaveSettlements", "read"), requireHrRead, async (req, res) => {
   if (typeof req.query.companyId !== "string") throw badRequest("companyId is required");
