@@ -110,7 +110,8 @@ function AppShell() {
   useEffect(() => {
     if (!real.companyId) { setOverdueInvoicesCount(0); setPendingLeaveCount(0); return; }
     getFinancialAlerts(real.companyId).then((alerts) => {
-      setOverdueInvoicesCount(alerts.filter((a) => a.type === "overdue_invoice").length);
+      // تنبيه الفواتير المتأخرة صار واحداً لكل عميل، وعدد فواتيره في count — الشارة تبقى بعدد الفواتير
+      setOverdueInvoicesCount(alerts.filter((a) => a.type === "overdue_invoice").reduce((n, a) => n + (a.count ?? 1), 0));
     }).catch(() => {});
     getHrAlerts(real.companyId).then((alerts) => {
       setPendingLeaveCount(alerts.filter((a) => a.type === "unassigned_leave_request").length);
