@@ -6,6 +6,12 @@ import { annualLeaveBalance, latestContractAnniversary, roundMoney } from "./ann
 import type { AnnualLeaveDraftInput } from "./annualLeaveDraft.schemas";
 
 export async function previewAnnualLeave(tenantId: string, input: AnnualLeaveDraftInput) {
+  return (await computeAnnualLeave(tenantId, input)).snapshot;
+}
+
+/** الحساب الكامل للمسودة — اللقطة المعروضة/المحفوظة، ومعها صف كشف الرواتب وبنوده التي بُنيت منها، حتى يُبنى قيد الترحيل
+ * من نفس الحساب الذي أنتج اللقطة لا من نسخة ثانية منه. */
+export async function computeAnnualLeave(tenantId: string, input: AnnualLeaveDraftInput) {
   const emp = await prisma.employee.findFirst({ where: { id: input.employeeId, tenantId, companyId: input.companyId } });
   if (!emp) throw notFound("الموظف غير موجود");
   const date = new Date(input.leaveStartDate);
@@ -55,7 +61,7 @@ export async function previewAnnualLeave(tenantId: string, input: AnnualLeaveDra
     amount: includeSalary ? roundMoney(row.componentValues[c.id] || 0) : 0 })).filter(c => c.amount !== 0);
   const salaryNet = includeSalary ? roundMoney(row.net) : 0;
   if (salaryNet < 0) warnings.push("negative_salary");
-  return { version: 2, draftOnly: true, request: input,
+  const snapshot = { version: 2, draftOnly: true, request: input,
     employee: { id: emp.id, name: emp.name, employeeNumber: emp.employeeNumber, jobTitle: emp.jobTitle,
       jobTitleEn: jobTitleRef?.nameEn || null, department: emp.department, departmentEn: departmentRef?.nameEn || null, nationality: emp.nationality, hireDate: emp.hireDate.toISOString().slice(0, 10),
       contractEnd: emp.contractEnd?.toISOString().slice(0, 10) || null,
@@ -66,6 +72,7 @@ export async function previewAnnualLeave(tenantId: string, input: AnnualLeaveDra
     salary: { month, days, lines, sourceRunId: payrollRun?.id || null, net: salaryNet,
       additions: includeSalary ? roundMoney(row.totalAdditions) : 0, deductions: includeSalary ? roundMoney(row.totalDeductions) : 0 },
     warnings, net: roundMoney(balance.payAmount + salaryNet + input.ticketAmount + input.otherAdditions) };
+  return { snapshot, emp, components: computed.components, row, includeSalary };
 }
 
 export async function saveAnnualLeaveDraft(tenantId: string, userId: string, input: AnnualLeaveDraftInput) {
@@ -77,7 +84,7 @@ export async function saveAnnualLeaveDraft(tenantId: string, userId: string, inp
 
 /** المسودة لا تُرحّل ولا تحجز رصيداً، فتعديلها أو حذفها لا يمسّ أي قيد أو رصيد. قرار المالك (2026-11-10): يعدّلها
  * أو يحذفها أي مستخدم له صلاحية على شركتها (فحص الشركة وصلاحيات المنصب في المسار)، لا معدّها وحده. */
-async function findDraft(tenantId: string, id: string) {
+export async function findDraft(tenantId: string, id: string) {
   const draft = await prisma.annualLeaveDraft.findFirst({ where: { id, tenantId } });
   if (!draft) throw notFound("مسودة الإجازة غير موجودة");
   return draft;
@@ -85,6 +92,7 @@ async function findDraft(tenantId: string, id: string) {
 
 export async function updateAnnualLeaveDraft(tenantId: string, id: string, input: AnnualLeaveDraftInput) {
   const draft = await findDraft(tenantId, id);
+  if (draft.status === "posted") throw badRequest("مسودة الإجازة مرحّلة ولا يمكن تعديلها");
   if (input.companyId !== draft.companyId) throw badRequest("لا يمكن نقل مسودة الإجازة إلى شركة أخرى");
   const snapshot = await previewAnnualLeave(tenantId, input);
   return prisma.annualLeaveDraft.update({ where: { id: draft.id }, data: { employeeId: input.employeeId,
@@ -93,6 +101,7 @@ export async function updateAnnualLeaveDraft(tenantId: string, id: string, input
 
 export async function deleteAnnualLeaveDraft(tenantId: string, id: string) {
   const draft = await findDraft(tenantId, id);
+  if (draft.status === "posted") throw badRequest("مسودة الإجازة مرحّلة ولا يمكن حذفها");
   await prisma.annualLeaveDraft.delete({ where: { id: draft.id } });
   return { id: draft.id };
 }

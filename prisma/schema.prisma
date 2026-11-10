@@ -2495,6 +2495,10 @@ model PayrollSettings {
   advancesParentAccount        Account? @relation("PayrollAdvancesParentAccount", fields: [advancesParentAccountId], references: [id], onDelete: Restrict)
   // نسبة قصوى لمجموع أقساط السلف من إجمالي إضافات الموظف — تحذير فقط في المسودة، لا تمنع ولا تُخفِّض القسط
   maxInstallmentPercentOfGross Decimal? @db.Decimal(5, 2)
+  // حسابات ترحيل مسودة الإجازة السنوية — آخر اختيار في نافذة الترحيل يُحفظ افتراضياً لما بعده (معرّفات حسابات في شجرة الشركة)
+  leaveExpenseAccountId        String?
+  leaveAdditionsAccountId      String?
+  leaveTicketAccountId         String?
   createdAt                    DateTime @default(now())
   updatedAt                    DateTime @updatedAt
 
@@ -4086,6 +4090,12 @@ model AnnualLeaveDraft {
  request Json
  snapshot Json
  createdAt DateTime @default(now())
+ /// "draft" أو "posted". الترحيل ينشئ قيداً وتسوية إجازة (LeaveSettlement) من نفس الحساب، فتُغلق المسودة للتعديل والحذف.
+ status String @default("draft")
+ journalEntryId String?
+ leaveSettlementId String?
+ postedBy String?
+ postedAt DateTime?
  @@index([tenantId, companyId])
  @@map("annual_leave_drafts")
 }
