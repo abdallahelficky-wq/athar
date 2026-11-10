@@ -10,3 +10,5 @@ export const registerLeaveReturn = (payload) => api.post("/leave-returns", paylo
 export const previewAnnualLeave = payload => api.post("/leave-settlements/annual-preview", payload);
 export const saveAnnualLeaveDraft = payload => api.post("/leave-settlements/annual-drafts", payload);
 export const listAnnualLeaveDrafts = companyId => api.get(`/leave-settlements/annual-drafts?companyId=${encodeURIComponent(companyId)}`);
+export const updateAnnualLeaveDraft = (id, payload) => api.put(`/leave-settlements/annual-drafts/${encodeURIComponent(id)}`, payload);
+export const deleteAnnualLeaveDraft = id => api.delete(`/leave-settlements/annual-drafts/${encodeURIComponent(id)}`);

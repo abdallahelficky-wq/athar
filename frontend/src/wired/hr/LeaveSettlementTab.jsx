@@ -25,6 +25,7 @@ export default function LeaveSettlementTab({ companyId, companies }) {
   const [settlementType, setSettlementType] = useState("actual_leave");
   const [cashLeaveDays, setCashLeaveDays] = useState("");
   const [bonuses, setBonuses] = useState("");
+  const [bonusesReason, setBonusesReason] = useState("");
   const [deductions, setDeductions] = useState("");
   const [ticketAmount, setTicketAmount] = useState("");
   const [visaAmount, setVisaAmount] = useState("");
@@ -52,22 +53,30 @@ export default function LeaveSettlementTab({ companyId, companies }) {
   };
   useEffect(reload, [companyId]);
 
+  // كل تغيير في الموظف/التاريخ يطلق معاينة جديدة بينما قد تكون السابقة لم تعد بعد؛ نتجاهل أي رد
+  // لمعاينة لم تعد هي الأحدث، وإلا قد يصل رد قديم (بتاريخ اليوم الافتراضي مثلاً) بعد الجديد ويغطيه،
+  // فتعرض الشاشة راتباً ورصيداً محسوبين على تاريخ غير الظاهر في الحقل.
   useEffect(() => {
     if (!employeeId || !leaveStartDate) { setPreview(null); return; }
-    previewLeaveSettlement(employeeId, leaveStartDate, leaveEndDate, settlementType, cashLeaveDays).then(setPreview).catch(() => setPreview(null));
+    let stale = false;
+    setPreview(null);
+    previewLeaveSettlement(employeeId, leaveStartDate, leaveEndDate, settlementType, cashLeaveDays)
+      .then((p) => { if (!stale) setPreview(p); })
+      .catch(() => { if (!stale) setPreview(null); });
+    return () => { stale = true; };
   }, [employeeId, leaveStartDate, leaveEndDate, settlementType, cashLeaveDays]);
 
   const bon = Number(bonuses || 0), ded = Number(deductions || 0), tic = Number(ticketAmount || 0), vis = Number(visaAmount || 0);
   const net = preview ? preview.monthAmount + preview.leavePayAmount + bon - ded + tic + vis : 0;
 
   const save = async () => {
-    if (!employeeId || !preview || net <= 0) return;
+    if (!employeeId || !preview || net <= 0 || (bon > 0 && !bonusesReason.trim())) return;
     try {
       await createLeaveSettlement({
         employeeId, leaveStartDate, leaveEndDate: leaveEndDate || null, settlementType,
-        cashLeaveDays: Number(cashLeaveDays || 0), bonuses: bon, deductions: ded, ticketAmount: tic, visaAmount: vis,
+        cashLeaveDays: Number(cashLeaveDays || 0), bonuses: bon, bonusesReason: bonusesReason.trim() || undefined, deductions: ded, ticketAmount: tic, visaAmount: vis,
       });
-      setBonuses(""); setDeductions(""); setTicketAmount(""); setVisaAmount("");
+      setBonuses(""); setBonusesReason(""); setDeductions(""); setTicketAmount(""); setVisaAmount("");
       setError(""); setFormOpen(false);
       const es = await listEmployees(companyId);
       setEmployees(es);
@@ -129,6 +138,7 @@ export default function LeaveSettlementTab({ companyId, companies }) {
         <h3 className="sub-head">{t("hr.leaveSettlement.adjustmentsSection")}</h3>
         <div className="form-grid">
           <label>{t("hr.leaveSettlement.bonuses")}<input type="number" value={bonuses} onChange={(e) => setBonuses(e.target.value)} placeholder="0" /></label>
+          {bon > 0 && <label>{t("hr.leaveSettlement.bonusesReason")}<input type="text" maxLength={200} value={bonusesReason} onChange={(e) => setBonusesReason(e.target.value)} /></label>}
           <label>{t("hr.leaveSettlement.deductions")}<input type="number" value={deductions} onChange={(e) => setDeductions(e.target.value)} placeholder="0" /></label>
           <label>{t("hr.leaveSettlement.ticketAmount")}<input type="number" value={ticketAmount} onChange={(e) => setTicketAmount(e.target.value)} placeholder="0" /></label>
           <label>{t("hr.leaveSettlement.visaAmount")}<input type="number" value={visaAmount} onChange={(e) => setVisaAmount(e.target.value)} placeholder="0" /></label>
@@ -147,7 +157,7 @@ export default function LeaveSettlementTab({ companyId, companies }) {
         )}
 
         {error && <p className="balance-bad">{error}</p>}
-        <button className="btn-primary" onClick={save} disabled={!employeeId || !preview || net <= 0}>
+        <button className="btn-primary" onClick={save} disabled={!employeeId || !preview || net <= 0 || (bon > 0 && !bonusesReason.trim())}>
           {t("hr.leaveSettlement.saveBtn")}
         </button>
         {availableEmployees.length === 0 && <p className="empty">{t("hr.leaveSettlement.allOnLeave")}</p>}

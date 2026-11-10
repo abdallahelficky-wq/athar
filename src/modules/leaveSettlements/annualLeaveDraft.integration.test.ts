@@ -53,6 +53,37 @@ describe("annual leave review drafts through the actual HTTP handlers and payrol
     const list=await call("GET",`/leave-settlements/annual-drafts?companyId=${companyId}`);
     expect(list.status).toBe(200);expect(list.body[0].snapshot).toEqual(preview.body);
   });
+  it("prints English job title, department and payroll line names from the records' English names",async()=>{
+    expect((await call("POST","/job-titles",{name:"فني تشغيل",nameEn:"Operations technician"})).status).toBe(201);
+    expect((await call("POST","/departments",{name:"التشغيل",nameEn:"Operations dept",companyId})).status).toBe(201);
+    const emp=await call("POST","/employees",{companyId,name:"English print employee",hireDate:"2025-09-28",basicSalary:2300,gosiApplicable:false,jobTitle:"فني تشغيل",department:"التشغيل"});
+    expect(emp.status).toBe(201);
+    const r=await call("POST","/leave-settlements/annual-preview",{...input(),employeeId:emp.body.id,leaveStartDate:"2026-11-13"});
+    expect(r.status).toBe(200);
+    expect(r.body.employee).toMatchObject({jobTitle:"فني تشغيل",jobTitleEn:"Operations technician",department:"التشغيل",departmentEn:"Operations dept"});
+    expect(r.body.salary.lines.find((l:{systemKey:string|null})=>l.systemKey==="basic")).toMatchObject({amount:920});
+    expect(r.body.balance).toMatchObject({throughDate:"2026-11-13",payDays:r.body.balance.availableDays,remainingDays:0});
+    const year=await call("POST","/leave-settlements/annual-preview",{...input(),employeeId:emp.body.id,leaveStartDate:"2026-11-13",balanceMode:"contract_year"});
+    expect(year.body.balance).toMatchObject({throughDate:"2026-09-28",payDays:21});
+  });
+  it("lets any user of the draft's company edit (recomputed server-side) or delete it, never another tenant, without journals",async()=>{
+    const before=await prisma.journalEntry.count({where:{tenantId}});
+    const created=await call("POST","/leave-settlements/annual-drafts",{...input(),balanceMode:"contract_year"});
+    expect(created.status).toBe(201);
+    const edited=await call("PUT",`/leave-settlements/annual-drafts/${created.body.id}`,{...input(),balanceMode:"all",snapshot:{net:1}});
+    expect(edited.status).toBe(200);
+    const fresh=await call("POST","/leave-settlements/annual-preview",{...input(),balanceMode:"all"});
+    expect(edited.body.snapshot).toEqual(fresh.body);
+    expect((await call("PUT",`/leave-settlements/annual-drafts/${created.body.id}`,{...input(),companyId:otherCompany},otherToken)).status).toBeGreaterThanOrEqual(400);
+    expect((await call("DELETE",`/leave-settlements/annual-drafts/${created.body.id}`,undefined,otherToken)).status).toBeGreaterThanOrEqual(400);
+    // مسودة أعدّها مستخدم آخر في الشركة نفسها: لا ينتجها مسار التسجيل بسهولة هنا، فننقل معدّها عمداً إلى معرّف آخر —
+    // يبقى تعديلها وحذفها متاحين لمستخدم الشركة الحالي (قرار المالك 2026-11-10).
+    await prisma.annualLeaveDraft.update({where:{id:created.body.id},data:{createdBy:"another-preparer"}});
+    expect((await call("PUT",`/leave-settlements/annual-drafts/${created.body.id}`,input())).status).toBe(200);
+    expect((await call("DELETE",`/leave-settlements/annual-drafts/${created.body.id}`)).status).toBe(200);
+    expect(await prisma.annualLeaveDraft.findUnique({where:{id:created.body.id}})).toBeNull();
+    expect(await prisma.journalEntry.count({where:{tenantId}})).toBe(before);
+  });
   it("never includes another tenant or company employee",async()=>{
     expect((await call("POST","/leave-settlements/annual-preview",{...input(),companyId:otherCompany})).status).toBeGreaterThanOrEqual(400);
     const r=await call("GET",`/leave-settlements/annual-drafts?companyId=${companyId}`,undefined,otherToken);

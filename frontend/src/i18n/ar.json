@@ -1682,6 +1682,7 @@
       "employee": "الموظف",
       "leaveStartDate": "تاريخ بداية الإجازة",
       "bonuses": "إضافات / مكافآت",
+      "bonusesReason": "سبب الإضافات (يظهر في بيان القيد)",
       "deductions": "خصومات",
       "ticketAmount": "تذكرة السفر",
       "visaAmount": "تأشيرة خروج وعودة",

@@ -3,11 +3,24 @@ import { useTranslation } from "react-i18next";
 import HRDialog from "./HRDialog";
 import { PrintShell } from "../../legacy/shared";
 import { listEmployees } from "../../api/employees";
-import { previewAnnualLeave, saveAnnualLeaveDraft, listAnnualLeaveDrafts } from "../../api/leaveSettlements";
+import { previewAnnualLeave, saveAnnualLeaveDraft, listAnnualLeaveDrafts, updateAnnualLeaveDraft, deleteAnnualLeaveDraft } from "../../api/leaveSettlements";
+import { DEPARTMENT_KEYS } from "../../legacy/constants";
+import { NATIONALITY_KEYS } from "../../legacy/hr";
+import { labelForListValue } from "../../legacy/listLabels";
 import "./annualLeave.css";
 
+// أسماء البنود النظامية بالإنجليزية (نفس مفاتيح legacyPayrollComponents) — أي بند يضيفه المستخدم يُعرض باسمه كما هو.
+const COMPONENT_EN = { basic: "Basic salary", housing: "Housing allowance", transport: "Transport allowance", otherAllow: "Other allowances",
+  otherAdd: "Other additions & incentives", overtime: "Overtime", advance: "Employee advances", advanceInstallments: "Advance installments",
+  violation: "Violations deduction", penalty: "Penalties deduction", otherDed: "Other deductions", gosi: "GOSI", absence: "Absence deduction" };
+const FIELD_KEY = { basicSalary: "basic", housingAllowance: "housing", transportAllowance: "transport", otherAllowance: "otherAllow" };
+const componentLabel = (line, ar) => {
+  if (ar) return line.name;
+  const key = line.systemKey || FIELD_KEY[line.sourceEmployeeField] || (String(line.id).startsWith("legacy:") ? String(line.id).slice(7) : "");
+  return COMPONENT_EN[key] || line.name;
+};
 const money = n => Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-function Summary({ data, L }) {
+function Summary({ data, L, t, ar }) {
   const e = data.employee, b = data.balance, s = data.salary, r = data.request;
   const row = (label, value) => <div className="annual-leave-row" key={label}><span>{label}</span><strong>{value ?? "—"}</strong></div>;
   const warnings = {
@@ -22,8 +35,9 @@ function Summary({ data, L }) {
     <h3>{L("بيانات الموظف", "Employee details")}</h3>
     <div className="annual-leave-grid">{[
       [L("الموظف", "Employee"), e.name], [L("الرقم الوظيفي", "Employee number"), e.employeeNumber],
-      [L("الوظيفة", "Job title"), e.jobTitle], [L("القسم", "Department"), e.department],
-      [L("الجنسية", "Nationality"), e.nationality], [L("تاريخ المباشرة", "Hire date"), e.hireDate],
+      [L("الوظيفة", "Job title"), ar ? e.jobTitle : (e.jobTitleEn || e.jobTitle)],
+      [L("القسم", "Department"), ar ? e.department : (e.departmentEn || (e.department && labelForListValue(t, DEPARTMENT_KEYS, "hr.departmentLabels", e.department)))],
+      [L("الجنسية", "Nationality"), e.nationality && labelForListValue(t, NATIONALITY_KEYS, "hr.nationalityLabels", e.nationality)], [L("تاريخ المباشرة", "Hire date"), e.hireDate],
       [L("آخر إجازة", "Last leave"), e.lastLeaveDate], [L("آخر مباشرة بعد إجازة", "Last return"), e.lastReturnDate],
       [L("تاريخ الإجازة", "Leave date"), r.leaveStartDate], [L("نهاية الإجازة", "Leave end"), r.leaveEndDate],
       [L("نهاية العقد", "Contract end"), e.contractEnd],
@@ -41,7 +55,7 @@ function Summary({ data, L }) {
       [L("المتبقي للإجازة التالية — أيام", "Remaining for next leave — days"),money(b.remainingDays)], [L("المتبقي للإجازة التالية — مبلغ", "Remaining for next leave — amount"),money(b.remainingAmount)],
     ].map(([l,v])=>row(l,v))}</div>
     <h3>{L("راتب الشهر", "Monthly payroll")} · {s.month} · {s.days} {L("يوم", "days")}</h3>
-    {s.lines.map(line=>row(line.name, `${line.kind === "deduction" ? "−" : "+"}${money(line.amount)}`))}
+    {s.lines.map(line=>row(componentLabel(line, ar), `${line.kind === "deduction" ? "−" : "+"}${money(line.amount)}`))}
     {row(L("إجمالي الراتب المستحق", "Salary earnings"),money(s.additions))}
     {row(L("السلف والخصومات", "Advances and deductions"),money(s.deductions))}
     {row(L("صافي الراتب", "Net salary"),money(s.net))}
@@ -53,10 +67,13 @@ function Summary({ data, L }) {
   </section>;
 }
 
+const EMPTY_FORM = { leaveStartDate:"", employeeId:"", balanceMode:"all", salaryMode:"until_leave", ticketAmount:0, otherAdditions:0, additionsReason:"", openingDays:0, openingAmount:0 };
+
 export default function AnnualLeaveDraft({ companyId, company }) {
-  const { i18n } = useTranslation(), ar = i18n.language.startsWith("ar"), L = (a,e)=> ar ? a:e;
+  const { t, i18n } = useTranslation(), ar = i18n.language.startsWith("ar"), L = (a,e)=> ar ? a:e;
+  const [editingId,setEditingId]=useState(null), [confirmDeleteId,setConfirmDeleteId]=useState(null);
   const [open,setOpen]=useState(false), [employees,setEmployees]=useState([]), [drafts,setDrafts]=useState([]);
-  const [form,setForm]=useState({ leaveStartDate:"", employeeId:"", balanceMode:"all", salaryMode:"until_leave", ticketAmount:0, otherAdditions:0, additionsReason:"", openingDays:0, openingAmount:0 });
+  const [form,setForm]=useState(EMPTY_FORM);
   const [preview,setPreview]=useState(null), [printing,setPrinting]=useState(null), [error,setError]=useState(""), [busy,setBusy]=useState(false);
   const [saved,setSaved]=useState(false);
   useEffect(()=>{
@@ -79,17 +96,33 @@ export default function AnnualLeaveDraft({ companyId, company }) {
   },[form,companyId,open]);
   const save=async()=>{
     if(!preview || busy)return;setBusy(true);setError("");
-    try{const d=await saveAnnualLeaveDraft(preview.request);setDrafts(ds=>[d,...ds]);setPreview(d.snapshot);setSaved(true);}
+    try{
+      if(editingId){const d=await updateAnnualLeaveDraft(editingId,preview.request);setDrafts(ds=>ds.map(x=>x.id===d.id?d:x));setPreview(d.snapshot);}
+      else{const d=await saveAnnualLeaveDraft(preview.request);setDrafts(ds=>[d,...ds]);setEditingId(d.id);setPreview(d.snapshot);}
+      setSaved(true);
+    }
+    catch(e){setError(e.message);}finally{setBusy(false);}
+  };
+  const startEdit=d=>{setForm({...EMPTY_FORM,...d.request});setEditingId(d.id);setSaved(false);setConfirmDeleteId(null);setError("");setOpen(true);};
+  const remove=async d=>{
+    setBusy(true);setError("");
+    try{await deleteAnnualLeaveDraft(d.id);setDrafts(ds=>ds.filter(x=>x.id!==d.id));setConfirmDeleteId(null);}
     catch(e){setError(e.message);}finally{setBusy(false);}
   };
   const field=(label,key,type="date",extra={})=><label>{label}<input type={type} value={form[key] ?? ""} onChange={e=>change(key,e.target.value)} {...extra}/></label>;
   return <div className="panel annual-leave-workflow" dir={ar?"rtl":"ltr"}>
     <h3>{L("إعداد الإجازة السنوية", "Prepare annual leave")}</h3>
     <p>{L("حدد تاريخ الإجازة ثم الموظف. راجع الرصيد والراتب والإضافات، واحفظ مسودة أو اطبعها قبل الاعتماد.", "Choose the leave date, then the employee. Review balances, salary and additions, then save or print a draft.")}</p>
-    <button className="btn-primary" onClick={()=>{setForm({leaveStartDate:"",employeeId:"",balanceMode:"all",salaryMode:"until_leave",ticketAmount:0,otherAdditions:0,additionsReason:"",openingDays:0,openingAmount:0});setSaved(false);setOpen(true);}}>{L("إعداد مسودة إجازة", "New leave draft")}</button>
+    <button className="btn-primary" onClick={()=>{setForm(EMPTY_FORM);setEditingId(null);setSaved(false);setOpen(true);}}>{L("إعداد مسودة إجازة", "New leave draft")}</button>
     {error&&!open&&<p role="alert">{error}</p>}
-    {drafts.length>0&&<table className="ledger-table"><thead><tr><th>{L("الموظف","Employee")}</th><th>{L("تاريخ الإجازة","Leave date")}</th><th>{L("الصافي","Net")}</th><th/></tr></thead><tbody>{drafts.map(d=><tr key={d.id}><td>{d.snapshot.employee.name}</td><td>{d.snapshot.request.leaveStartDate}</td><td>{money(d.snapshot.net)}</td><td><button className="btn-ghost" onClick={()=>setPrinting(d.snapshot)}>{L("عرض / طباعة المسودة","View / print draft")}</button></td></tr>)}</tbody></table>}
-    {open&&<HRDialog title={L("إعداد الإجازة السنوية — مسودة", "Annual leave — draft")} onClose={()=>setOpen(false)}>
+    {drafts.length>0&&<table className="ledger-table"><thead><tr><th>{L("الموظف","Employee")}</th><th>{L("تاريخ الإجازة","Leave date")}</th><th>{L("الصافي","Net")}</th><th/></tr></thead><tbody>{drafts.map(d=><tr key={d.id}><td>{d.snapshot.employee.name}</td><td>{d.snapshot.request.leaveStartDate}</td><td>{money(d.snapshot.net)}</td><td className="row-actions"><button className="btn-ghost" onClick={()=>setPrinting(d.snapshot)}>{L("عرض / طباعة المسودة","View / print draft")}</button>
+      
+        <button className="btn-ghost" disabled={busy} onClick={()=>startEdit(d)}>{L("تعديل","Edit")}</button>
+        {confirmDeleteId===d.id
+          ? <><button className="btn-ghost text-danger" disabled={busy} onClick={()=>remove(d)}>{L("تأكيد الحذف","Confirm delete")}</button><button className="btn-ghost" onClick={()=>setConfirmDeleteId(null)}>{L("تراجع","Cancel")}</button></>
+          : <button className="btn-ghost" disabled={busy} onClick={()=>setConfirmDeleteId(d.id)}>{L("حذف","Delete")}</button>}
+      </td></tr>)}</tbody></table>}
+    {open&&<HRDialog title={editingId?L("تعديل مسودة الإجازة السنوية", "Edit annual leave draft"):L("إعداد الإجازة السنوية — مسودة", "Annual leave — draft")} onClose={()=>setOpen(false)}>
       <div className="form-grid">
         {field(L("1. تاريخ بداية الإجازة", "1. Leave start date"),"leaveStartDate")}
         <label>{L("2. الموظف", "2. Employee")}<select disabled={!form.leaveStartDate} value={form.employeeId} onChange={e=>{setForm(f=>({...f,employeeId:e.target.value,openingDate:"",openingDays:0,openingAmount:0}));setSaved(false);}}><option value="">{L("اختر الموظف", "Choose employee")}</option>{employees.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
@@ -106,7 +139,7 @@ export default function AnnualLeaveDraft({ companyId, company }) {
         </div>
       </div>)}
       <h3>{L("3. الرصيد المطلوب صرفه", "3. Leave balance to settle")}</h3>
-      <div className="form-grid"><label>{L("نطاق التسوية", "Settlement scope")}<select value={form.balanceMode} onChange={e=>change("balanceMode",e.target.value)}><option value="all">{L("كامل الرصيد حتى بدء الإجازة", "Full balance at leave start")}</option><option value="through_date">{L("حتى تاريخ محدد", "Through a specific date")}</option><option value="contract_year">{L("حتى آخر ذكرى سنوية للمباشرة", "Through last employment anniversary")}</option></select></label>
+      <div className="form-grid"><label>{L("نطاق التسوية", "Settlement scope")}<select value={form.balanceMode} onChange={e=>change("balanceMode",e.target.value)}><option value="all">{L("كامل الرصيد حتى بدء الإجازة", "Full balance at leave start")}</option><option value="through_date">{L("حتى تاريخ محدد", "Through a specific date")}</option><option value="contract_year">{L("حتى نهاية العام التعاقدي المكتمل (آخر ذكرى سنوية للمباشرة) — والباقي يُرحّل", "Through end of the completed contract year (last employment anniversary) — rest carried forward")}</option></select></label>
       {form.balanceMode==="through_date"&&field(L("تاريخ احتساب الرصيد", "Balance cutoff date"),"balanceThroughDate","date",{max:form.leaveStartDate})}</div>
       {!preview?.balance.hasPrevious&&<details><summary>{L("رصيد افتتاحي لمن ليست له تسوية سابقة", "Opening balance when no previous settlement exists")}</summary><p>{L("يحل محل رصيد الفترة السابقة لتاريخه، ولا يُضاف مرة ثانية إلى رصيد الخدمة الكامل. يُحفظ في هذه المسودة فقط حتى الاعتماد.", "Replaces accrual before its date; it is not added to lifetime accrual. Saved in this draft only pending approval.")}</p><div className="form-grid">{field(L("تاريخ الرصيد", "Balance date"),"openingDate")}{field(L("الأيام", "Days"),"openingDays","number",{min:0,step:"0.01"})}{field(L("المبلغ", "Amount"),"openingAmount","number",{min:0,step:"0.01"})}</div></details>}
       <h3>{L("4. راتب الشهر", "4. Salary month")}</h3><div className="form-grid">{field(L("الشهر (افتراضيًا شهر الإجازة)", "Month (defaults to leave month)"),"salaryMonth","month",{max:form.leaveStartDate.slice(0,7)})}<label>{L("فترة الراتب", "Salary period")}<select value={form.salaryMode} onChange={e=>change("salaryMode",e.target.value)}><option value="until_leave">{L("حتى اليوم السابق للإجازة", "Until the day before leave")}</option><option value="full_month">{L("الشهر كاملًا", "Full month")}</option><option value="none">{L("دون راتب", "Exclude salary")}</option></select></label></div>
@@ -114,9 +147,9 @@ export default function AnnualLeaveDraft({ companyId, company }) {
       </>}
       {busy&&<p role="status">{L("جارٍ احتساب المستحقات…", "Calculating…")}</p>}
       {error&&<p role="alert" className="balance-bad">{error}</p>}
-      {preview&&<Summary data={preview} L={L}/>}
-      <div className="hr-list-toolbar"><button className="btn-primary" disabled={!preview||busy||saved} onClick={save}>{saved?L("تم حفظ المسودة", "Draft saved"):L("حفظ مسودة دون ترحيل", "Save draft without posting")}</button><button className="btn-ghost" disabled={!preview||busy} onClick={()=>setPrinting(preview)}>{L("معاينة الطباعة", "Print preview")}</button></div>
+      {preview&&<Summary data={preview} L={L} t={t} ar={ar}/>}
+      <div className="hr-list-toolbar"><button className="btn-primary" disabled={!preview||busy||saved} onClick={save}>{saved?L("تم حفظ المسودة", "Draft saved"):editingId?L("حفظ التعديل دون ترحيل", "Save changes without posting"):L("حفظ مسودة دون ترحيل", "Save draft without posting")}</button><button className="btn-ghost" disabled={!preview||busy} onClick={()=>setPrinting(preview)}>{L("معاينة الطباعة", "Print preview")}</button></div>
     </HRDialog>}
-    {printing&&<PrintShell company={company} subtitle={L("تسوية إجازة سنوية — مسودة", "Annual leave settlement — draft")} onClose={()=>setPrinting(null)}><div dir={ar?"rtl":"ltr"}><Summary data={printing} L={L}/></div></PrintShell>}
+    {printing&&<PrintShell company={company} subtitle={L("تسوية إجازة سنوية — مسودة", "Annual leave settlement — draft")} onClose={()=>setPrinting(null)}><div dir={ar?"rtl":"ltr"}><Summary data={printing} L={L} t={t} ar={ar}/></div></PrintShell>}
   </div>;
 }

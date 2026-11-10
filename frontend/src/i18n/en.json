@@ -1682,6 +1682,7 @@
       "employee": "Employee",
       "leaveStartDate": "Leave start date",
       "bonuses": "Additions / bonuses",
+      "bonusesReason": "Reason for additions (shown in the entry memo)",
       "deductions": "Deductions",
       "ticketAmount": "Travel ticket",
       "visaAmount": "Exit/re-entry visa",

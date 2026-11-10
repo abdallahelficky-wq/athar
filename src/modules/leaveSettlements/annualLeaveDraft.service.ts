@@ -10,10 +10,16 @@ export async function previewAnnualLeave(tenantId: string, input: AnnualLeaveDra
   if (!emp) throw notFound("الموظف غير موجود");
   const date = new Date(input.leaveStartDate);
   if (date < emp.hireDate) throw badRequest("تاريخ الإجازة يسبق المباشرة");
-  const [settings, previous, future] = await Promise.all([
+  const [settings, previous, future, jobTitleRef, departmentRef] = await Promise.all([
     prisma.payrollSettings.findUnique({ where: { companyId: emp.companyId } }),
     prisma.leaveSettlement.findFirst({ where: { tenantId, employeeId: emp.id, leaveStartDate: { lt: date } }, orderBy: [{ leaveStartDate: "desc" }, { createdAt: "desc" }] }),
     prisma.leaveSettlement.findFirst({ where: { tenantId, employeeId: emp.id, leaveStartDate: { gte: date } }, select: { id: true } }),
+    // المسمّى والقسم نصّان حرّان في ملف الموظف؛ نبحث عن اسمهما الإنجليزي داخل نفس المستأجر/الشركة فقط
+    // حتى تُطبع المسودة بالإنجليزية كاملة حين تكون الواجهة إنجليزية.
+    emp.jobTitle ? prisma.jobTitle.findFirst({ where: { tenantId, name: emp.jobTitle }, select: { nameEn: true } }) : null,
+    emp.departmentId
+      ? prisma.department.findFirst({ where: { id: emp.departmentId, tenantId }, select: { nameEn: true } })
+      : emp.department ? prisma.department.findFirst({ where: { tenantId, name: emp.department, OR: [{ companyId: emp.companyId }, { companyId: null }] }, select: { nameEn: true } }) : null,
   ]);
   if (future) throw badRequest("توجد تسوية في هذا التاريخ أو بعده؛ راجعها قبل إعداد تسوية أقدم");
   if (previous && (input.openingDate || input.openingDays || input.openingAmount)) throw badRequest("الرصيد المرحل يُستخرج من التسوية السابقة ولا يقبل رصيداً افتتاحياً إضافياً");
@@ -45,12 +51,13 @@ export async function previewAnnualLeave(tenantId: string, input: AnnualLeaveDra
   if (row.advanceInstallments?.some(a => a.needsInstallment)) warnings.push("missing_installment");
   const includeSalary = input.salaryMode !== "none" && days > 0 && !warnings.includes("salary_already_posted");
   const lines = computed.components.filter(c => c.kind !== "employer").map(c => ({ id: c.id, name: c.name, kind: c.kind,
+    systemKey: c.systemKey || null, sourceEmployeeField: c.sourceEmployeeField || null,
     amount: includeSalary ? roundMoney(row.componentValues[c.id] || 0) : 0 })).filter(c => c.amount !== 0);
   const salaryNet = includeSalary ? roundMoney(row.net) : 0;
   if (salaryNet < 0) warnings.push("negative_salary");
-  return { version: 1, draftOnly: true, request: input,
+  return { version: 2, draftOnly: true, request: input,
     employee: { id: emp.id, name: emp.name, employeeNumber: emp.employeeNumber, jobTitle: emp.jobTitle,
-      department: emp.department, nationality: emp.nationality, hireDate: emp.hireDate.toISOString().slice(0, 10),
+      jobTitleEn: jobTitleRef?.nameEn || null, department: emp.department, departmentEn: departmentRef?.nameEn || null, nationality: emp.nationality, hireDate: emp.hireDate.toISOString().slice(0, 10),
       contractEnd: emp.contractEnd?.toISOString().slice(0, 10) || null,
       lastLeaveDate: previous?.leaveStartDate.toISOString().slice(0, 10) || null,
       lastReturnDate: emp.lastLeaveReturnDate?.toISOString().slice(0, 10) || null, pay: { ...pay, total } },
@@ -66,4 +73,26 @@ export async function saveAnnualLeaveDraft(tenantId: string, userId: string, inp
   const snapshot = await previewAnnualLeave(tenantId, input);
   return prisma.annualLeaveDraft.create({ data: { tenantId, companyId: input.companyId, employeeId: input.employeeId,
     createdBy: userId, request: input as Prisma.InputJsonValue, snapshot: snapshot as unknown as Prisma.InputJsonValue } });
+}
+
+/** المسودة لا تُرحّل ولا تحجز رصيداً، فتعديلها أو حذفها لا يمسّ أي قيد أو رصيد. قرار المالك (2026-11-10): يعدّلها
+ * أو يحذفها أي مستخدم له صلاحية على شركتها (فحص الشركة وصلاحيات المنصب في المسار)، لا معدّها وحده. */
+async function findDraft(tenantId: string, id: string) {
+  const draft = await prisma.annualLeaveDraft.findFirst({ where: { id, tenantId } });
+  if (!draft) throw notFound("مسودة الإجازة غير موجودة");
+  return draft;
+}
+
+export async function updateAnnualLeaveDraft(tenantId: string, id: string, input: AnnualLeaveDraftInput) {
+  const draft = await findDraft(tenantId, id);
+  if (input.companyId !== draft.companyId) throw badRequest("لا يمكن نقل مسودة الإجازة إلى شركة أخرى");
+  const snapshot = await previewAnnualLeave(tenantId, input);
+  return prisma.annualLeaveDraft.update({ where: { id: draft.id }, data: { employeeId: input.employeeId,
+    request: input as Prisma.InputJsonValue, snapshot: snapshot as unknown as Prisma.InputJsonValue } });
+}
+
+export async function deleteAnnualLeaveDraft(tenantId: string, id: string) {
+  const draft = await findDraft(tenantId, id);
+  await prisma.annualLeaveDraft.delete({ where: { id: draft.id } });
+  return { id: draft.id };
 }

@@ -16,6 +16,7 @@ interface CreateInput {
   settlementType: "actual_leave" | "cash_in_service";
   cashLeaveDays?: number;
   bonuses: number;
+  bonusesReason?: string;
   deductions: number;
   ticketAmount: number;
   visaAmount: number;
@@ -118,6 +119,7 @@ export async function createLeaveSettlement(tenantId: string, userId: string, in
   const { daysWorked, monthAmount } = preview;
   const net = monthAmount + preview.leavePayAmount + input.bonuses - input.deductions + input.ticketAmount + input.visaAmount;
   if (net <= 0) throw badRequest("صافي المبلغ المستحق يجب أن يكون أكبر من صفر");
+  if (input.bonuses > 0 && !input.bonusesReason?.trim()) throw badRequest("اكتب سبب الإضافات قبل اعتماد المستحقات");
 
   const salaryPortion = monthAmount + preview.leavePayAmount + input.bonuses - input.deductions;
   const ticketVisaPortion = input.ticketAmount + input.visaAmount;
@@ -139,7 +141,9 @@ export async function createLeaveSettlement(tenantId: string, userId: string, in
       tenantId,
       companyId: emp.companyId,
       date: input.leaveStartDate,
-      memo: `مستحقات إجازة — ${emp.name}`,
+      memo: input.bonuses > 0 && input.bonusesReason
+        ? `مستحقات إجازة — ${emp.name} — إضافات ${input.bonuses.toFixed(2)}: ${input.bonusesReason.trim()}`
+        : `مستحقات إجازة — ${emp.name}`,
       sourceModule: "leave_settlement",
       createdBy: userId,
       lines,
