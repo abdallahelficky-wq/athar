@@ -7,6 +7,7 @@ export const createLeaveSettlementSchema = z.object({
   settlementType: z.enum(["actual_leave", "cash_in_service"]).default("actual_leave"),
   cashLeaveDays: z.coerce.number().positive().optional(),
   bonuses: z.coerce.number().min(0).default(0),
+  bonusesReason: z.string().trim().max(200).optional(),
   deductions: z.coerce.number().min(0).default(0),
   ticketAmount: z.coerce.number().min(0).default(0),
   visaAmount: z.coerce.number().min(0).default(0),

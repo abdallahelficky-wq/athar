@@ -499,6 +499,7 @@ export const AR_TO_EN: Record<string, string> = {
   "سعر تكلفة": "Unit cost",
   "سند القبض غير موجود": "The receipt voucher does not exist",
   "صافي المبلغ المستحق يجب أن يكون أكبر من صفر": "The net amount due must be greater than zero",
+  "اكتب سبب الإضافات قبل اعتماد المستحقات": "Enter the reason for the additions before approving the settlement",
   "صيغة الشهر غير صحيحة": "Invalid month format",
   "صيغة الشهر يجب أن تكون YYYY-MM": "The month format must be YYYY-MM",
   "صيغة المغلّف المُشفَّر غير صالحة": "Invalid encrypted envelope format",
