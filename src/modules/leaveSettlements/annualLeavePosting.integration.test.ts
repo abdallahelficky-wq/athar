@@ -42,7 +42,12 @@ describe("posting an annual leave draft through the actual HTTP handlers", () =>
     draftId = draft.body.id;
   }, 60000);
   afterAll(async () => {
-    if (tenantId) await prisma.tenant.delete({ where: { id: tenantId } });
+    // القيود المرحّلة تمسك حسابات الشجرة، فتُحذف قبل المستأجر (كما في اختبارات الرواتب)
+    if (tenantId) {
+      await prisma.leaveSettlement.deleteMany({ where: { tenantId } });
+      await prisma.journalEntry.deleteMany({ where: { tenantId } });
+      await prisma.tenant.delete({ where: { id: tenantId } });
+    }
     if (otherTenant) await prisma.tenant.delete({ where: { id: otherTenant } });
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   });
