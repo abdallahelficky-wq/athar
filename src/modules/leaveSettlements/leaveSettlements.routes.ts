@@ -7,8 +7,9 @@ import { listHandler, previewHandler, createHandler, disburseHandler } from "./l
 import { assertCompanyAccess } from "../../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { badRequest } from "../../lib/httpError";
-import { annualLeaveDraftSchema } from "./annualLeaveDraft.schemas";
+import { annualLeaveDraftSchema, annualLeavePostingSchema } from "./annualLeaveDraft.schemas";
 import { previewAnnualLeave, saveAnnualLeaveDraft, updateAnnualLeaveDraft, deleteAnnualLeaveDraft } from "./annualLeaveDraft.service";
+import { previewAnnualLeaveJournal, postAnnualLeaveDraft } from "./annualLeavePosting.service";
 
 export const leaveSettlementRoutes = Router();
 leaveSettlementRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
@@ -37,6 +38,21 @@ leaveSettlementRoutes.delete("/annual-drafts/:id", requirePositionAction("leaveS
   if (draft) assertCompanyAccess(req.auth!, draft.companyId);
   res.json(await deleteAnnualLeaveDraft(req.auth!.tenantId, req.params.id));
 });
+// معاينة قيد ترحيل المسودة (لا يكتب شيئاً) ثم الترحيل نفسه — كلاهما من buildAnnualLeaveJournal
+const draftCompany = async (tenantId: string, id: string) =>
+  (await prisma.annualLeaveDraft.findFirst({ where: { id, tenantId }, select: { companyId: true } }))?.companyId;
+leaveSettlementRoutes.post("/annual-drafts/:id/journal-preview", requirePositionAction("leaveSettlements", "read"),
+  validateBody(annualLeavePostingSchema), async (req, res) => {
+    const companyId = await draftCompany(req.auth!.tenantId, req.params.id);
+    if (companyId) assertCompanyAccess(req.auth!, companyId);
+    res.json(await previewAnnualLeaveJournal(req.auth!.tenantId, req.params.id, req.body));
+  });
+leaveSettlementRoutes.post("/annual-drafts/:id/post", requirePositionAction("leaveSettlements", "approve"), canWrite,
+  validateBody(annualLeavePostingSchema), async (req, res) => {
+    const companyId = await draftCompany(req.auth!.tenantId, req.params.id);
+    if (companyId) assertCompanyAccess(req.auth!, companyId);
+    res.json(await postAnnualLeaveDraft(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body));
+  });
 leaveSettlementRoutes.get("/annual-drafts", requirePositionAction("leaveSettlements", "read"), requireHrRead, async (req, res) => {
   if (typeof req.query.companyId !== "string") throw badRequest("companyId is required");
   assertCompanyAccess(req.auth!, req.query.companyId);

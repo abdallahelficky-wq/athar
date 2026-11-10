@@ -17,3 +17,6 @@ export const annualLeaveDraftSchema = z.object({
   if (v.leaveEndDate && v.leaveEndDate < v.leaveStartDate) issue("leaveEndDate", "نهاية الإجازة تسبق بدايتها");
 });
 export type AnnualLeaveDraftInput = z.infer<typeof annualLeaveDraftSchema>;
+export const annualLeavePostingSchema = z.object({
+  leaveAccountId: z.string().min(1).nullish(), additionsAccountId: z.string().min(1).nullish(), ticketAccountId: z.string().min(1).nullish(),
+});

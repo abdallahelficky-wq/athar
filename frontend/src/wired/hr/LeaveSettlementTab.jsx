@@ -100,7 +100,7 @@ export default function LeaveSettlementTab({ companyId, companies }) {
 
   return (
     <div>
-      <AnnualLeaveDraft key={companyId} companyId={companyId} company={companies?.find(c=>c.id===companyId)}/>
+      <AnnualLeaveDraft key={companyId} companyId={companyId} company={companies?.find(c=>c.id===companyId)} onPosted={reload}/>
       {error && !formOpen && <p role="alert" className="balance-bad">{error}</p>}
       <div className="hr-list-toolbar"><button className="btn-primary" onClick={()=>{setError("");setFormOpen(true);}}>{t("common.add")}</button></div>
       {formOpen && <HRDialog title={t("nav.tabs.leaveSettlement")} onClose={() => setFormOpen(false)}>

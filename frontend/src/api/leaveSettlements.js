@@ -12,3 +12,5 @@ export const saveAnnualLeaveDraft = payload => api.post("/leave-settlements/annu
 export const listAnnualLeaveDrafts = companyId => api.get(`/leave-settlements/annual-drafts?companyId=${encodeURIComponent(companyId)}`);
 export const updateAnnualLeaveDraft = (id, payload) => api.put(`/leave-settlements/annual-drafts/${encodeURIComponent(id)}`, payload);
 export const deleteAnnualLeaveDraft = id => api.delete(`/leave-settlements/annual-drafts/${encodeURIComponent(id)}`);
+export const previewAnnualLeaveJournal = (id, accounts) => api.post(`/leave-settlements/annual-drafts/${encodeURIComponent(id)}/journal-preview`, accounts);
+export const postAnnualLeaveDraft = (id, accounts) => api.post(`/leave-settlements/annual-drafts/${encodeURIComponent(id)}/post`, accounts);

@@ -7,6 +7,8 @@ import { previewAnnualLeave, saveAnnualLeaveDraft, listAnnualLeaveDrafts, update
 import { DEPARTMENT_KEYS } from "../../legacy/constants";
 import { NATIONALITY_KEYS } from "../../legacy/hr";
 import { labelForListValue } from "../../legacy/listLabels";
+import AnnualLeavePostModal from "./AnnualLeavePostModal";
+import JournalEntryViewModal from "../sales/JournalEntryViewModal";
 import "./annualLeave.css";
 
 // أسماء البنود النظامية بالإنجليزية (نفس مفاتيح legacyPayrollComponents) — أي بند يضيفه المستخدم يُعرض باسمه كما هو.
@@ -69,9 +71,10 @@ function Summary({ data, L, t, ar }) {
 
 const EMPTY_FORM = { leaveStartDate:"", employeeId:"", balanceMode:"all", salaryMode:"until_leave", ticketAmount:0, otherAdditions:0, additionsReason:"", openingDays:0, openingAmount:0 };
 
-export default function AnnualLeaveDraft({ companyId, company }) {
+export default function AnnualLeaveDraft({ companyId, company, onPosted }) {
   const { t, i18n } = useTranslation(), ar = i18n.language.startsWith("ar"), L = (a,e)=> ar ? a:e;
   const [editingId,setEditingId]=useState(null), [confirmDeleteId,setConfirmDeleteId]=useState(null);
+  const [posting,setPosting]=useState(null), [viewEntryId,setViewEntryId]=useState(null);
   const [open,setOpen]=useState(false), [employees,setEmployees]=useState([]), [drafts,setDrafts]=useState([]);
   const [form,setForm]=useState(EMPTY_FORM);
   const [preview,setPreview]=useState(null), [printing,setPrinting]=useState(null), [error,setError]=useState(""), [busy,setBusy]=useState(false);
@@ -115,12 +118,17 @@ export default function AnnualLeaveDraft({ companyId, company }) {
     <p>{L("حدد تاريخ الإجازة ثم الموظف. راجع الرصيد والراتب والإضافات، واحفظ مسودة أو اطبعها قبل الاعتماد.", "Choose the leave date, then the employee. Review balances, salary and additions, then save or print a draft.")}</p>
     <button className="btn-primary" onClick={()=>{setForm(EMPTY_FORM);setEditingId(null);setSaved(false);setOpen(true);}}>{L("إعداد مسودة إجازة", "New leave draft")}</button>
     {error&&!open&&<p role="alert">{error}</p>}
-    {drafts.length>0&&<table className="ledger-table"><thead><tr><th>{L("الموظف","Employee")}</th><th>{L("تاريخ الإجازة","Leave date")}</th><th>{L("الصافي","Net")}</th><th/></tr></thead><tbody>{drafts.map(d=><tr key={d.id}><td>{d.snapshot.employee.name}</td><td>{d.snapshot.request.leaveStartDate}</td><td>{money(d.snapshot.net)}</td><td className="row-actions"><button className="btn-ghost" onClick={()=>setPrinting(d.snapshot)}>{L("عرض / طباعة المسودة","View / print draft")}</button>
-      
+    {drafts.length>0&&<table className="ledger-table"><thead><tr><th>{L("الموظف","Employee")}</th><th>{L("تاريخ الإجازة","Leave date")}</th><th>{L("الصافي","Net")}</th><th>{L("الحالة","Status")}</th><th/></tr></thead><tbody>{drafts.map(d=><tr key={d.id}><td>{d.snapshot.employee.name}</td><td>{d.snapshot.request.leaveStartDate}</td><td>{money(d.snapshot.net)}</td><td><span className="status-badge">{d.status==="posted"?L("مرحّلة","Posted"):L("مسودة","Draft")}</span></td><td className="row-actions"><button className="btn-ghost" onClick={()=>setPrinting(d.snapshot)}>{L("عرض / طباعة المسودة","View / print draft")}</button>
+
+      {d.status==="posted"
+        ? d.journalEntryId&&<button className="btn-ghost" onClick={()=>setViewEntryId(d.journalEntryId)}>{L("عرض القيد","View entry")}</button>
+        : <>
+        <button className="btn-primary" disabled={busy} onClick={()=>setPosting(d)}>{L("ترحيل","Post")}</button>
         <button className="btn-ghost" disabled={busy} onClick={()=>startEdit(d)}>{L("تعديل","Edit")}</button>
         {confirmDeleteId===d.id
           ? <><button className="btn-ghost text-danger" disabled={busy} onClick={()=>remove(d)}>{L("تأكيد الحذف","Confirm delete")}</button><button className="btn-ghost" onClick={()=>setConfirmDeleteId(null)}>{L("تراجع","Cancel")}</button></>
           : <button className="btn-ghost" disabled={busy} onClick={()=>setConfirmDeleteId(d.id)}>{L("حذف","Delete")}</button>}
+        </>}
       </td></tr>)}</tbody></table>}
     {open&&<HRDialog title={editingId?L("تعديل مسودة الإجازة السنوية", "Edit annual leave draft"):L("إعداد الإجازة السنوية — مسودة", "Annual leave — draft")} onClose={()=>setOpen(false)}>
       <div className="form-grid">
@@ -150,6 +158,8 @@ export default function AnnualLeaveDraft({ companyId, company }) {
       {preview&&<Summary data={preview} L={L} t={t} ar={ar}/>}
       <div className="hr-list-toolbar"><button className="btn-primary" disabled={!preview||busy||saved} onClick={save}>{saved?L("تم حفظ المسودة", "Draft saved"):editingId?L("حفظ التعديل دون ترحيل", "Save changes without posting"):L("حفظ مسودة دون ترحيل", "Save draft without posting")}</button><button className="btn-ghost" disabled={!preview||busy} onClick={()=>setPrinting(preview)}>{L("معاينة الطباعة", "Print preview")}</button></div>
     </HRDialog>}
+    {posting&&<AnnualLeavePostModal draft={posting} onClose={()=>setPosting(null)} onPosted={d=>{setDrafts(ds=>ds.map(x=>x.id===d.id?d:x));setPosting(null);setViewEntryId(d.journalEntryId);onPosted?.();}}/>}
+    {viewEntryId&&<JournalEntryViewModal journalEntryId={viewEntryId} onClose={()=>setViewEntryId(null)}/>}
     {printing&&<PrintShell company={company} subtitle={L("تسوية إجازة سنوية — مسودة", "Annual leave settlement — draft")} onClose={()=>setPrinting(null)}><div dir={ar?"rtl":"ltr"}><Summary data={printing} L={L} t={t} ar={ar}/></div></PrintShell>}
   </div>;
 }
