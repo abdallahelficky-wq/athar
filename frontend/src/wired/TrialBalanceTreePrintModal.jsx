@@ -1,5 +1,7 @@
 import TrialBalanceSummary from "./TrialBalanceSummary";
-import React from "react";
+import React, { useState } from "react";
+import "../styles/trial-balance.css";
+import { flattenAllTree } from "./shared/trialBalanceTree";
 import { useTranslation } from "react-i18next";
 import { PrintShell } from "../legacy/shared";
 import { fmt } from "../legacy/constants";
@@ -12,8 +14,11 @@ import { getAccountDisplayName } from "./shared/accountDisplayName";
  * الشركة + اسم المستخدم وتاريخ الطباعة). الجدول عنصر <table> عادي بـ <thead> حقيقي فيتكرر رأس
  * الأعمدة تلقائياً في كل صفحة عبر آلية الطباعة الأصلية للمتصفح دون أي كود إضافي.
  */
-export default function TrialBalanceTreePrintModal({ summary, visibleRows, totals, balanced, dateFrom, dateTo, company, onClose }) {
+export default function TrialBalanceTreePrintModal({ summary, roots, visibleRows, totals, balanced, dateFrom, dateTo, company, onClose }) {
   const { t, i18n } = useTranslation();
+  // الافتراضي: كل الحسابات موسّعة (لا يضيع حساب لأن فرعه مطويّ في الشاشة)، مع خيار الطباعة كما يظهر على الشاشة
+  const [scope, setScope] = useState("all");
+  const rows = scope === "all" && roots ? flattenAllTree(roots) : visibleRows;
   const periodLabel = dateFrom || dateTo
     ? t("reports.trialPrint.periodWithDates", { from: dateFrom || t("reports.trialPrint.periodDefaultFrom"), to: dateTo || t("reports.trialPrint.periodDefaultTo") })
     : t("reports.trialPrint.periodAllTime");
@@ -23,6 +28,13 @@ export default function TrialBalanceTreePrintModal({ summary, visibleRows, total
       subtitle={t("nav.tabs.trial")}
       company={company}
       showSignatures={false}
+      landscape
+      outsidePrint={roots ? (
+        <div className="form-btn-group" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+          <label className="checkbox-label"><input type="radio" name="tb-print-scope" checked={scope === "all"} onChange={() => setScope("all")} /> {t("reports.trialPrint.scopeAll")}</label>
+          <label className="checkbox-label"><input type="radio" name="tb-print-scope" checked={scope === "visible"} onChange={() => setScope("visible")} /> {t("reports.trialPrint.scopeVisible")}</label>
+        </div>
+      ) : null}
       refNode={<div>{periodLabel}</div>}
       onClose={onClose}
     >
@@ -42,7 +54,7 @@ export default function TrialBalanceTreePrintModal({ summary, visibleRows, total
           </tr>
         </thead>
         <tbody>
-          {visibleRows.map(({ node, depth }) => (
+          {rows.map(({ node, depth }) => (
             <tr key={node.accountId} className={!node.isPosting ? "strong" : ""}>
               <td style={{ paddingRight: 8 + depth * 18 }}>{node.code} — {getAccountDisplayName(node, i18n.language)}</td>
               <td className="num">{node.opening.debit ? fmt(node.opening.debit) : "—"}</td>

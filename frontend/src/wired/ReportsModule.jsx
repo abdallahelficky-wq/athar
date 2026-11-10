@@ -252,6 +252,7 @@ export default function ReportsModule({ companies, companyId }) {
       {printing && tab === "trial" && tbData && (
         <TrialBalanceTreePrintModal
           summary={tbData.summary}
+          roots={displayedTbData.roots}
           visibleRows={tbVisibleRows}
           totals={tbData.totals}
           balanced={tbData.balanced}

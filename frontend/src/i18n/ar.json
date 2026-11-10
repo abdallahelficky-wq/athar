@@ -2539,7 +2539,9 @@
       "periodWithDates": "الفترة: من {{from}} إلى {{to}}",
       "periodDefaultFrom": "بداية النشاط",
       "periodDefaultTo": "اليوم",
-      "periodAllTime": "الفترة: منذ بداية النشاط حتى اليوم"
+      "periodAllTime": "الفترة: منذ بداية النشاط حتى اليوم",
+      "scopeAll": "طباعة كل الحسابات (موسّعة بالكامل)",
+      "scopeVisible": "طباعة كما يظهر على الشاشة"
     },
     "statementPrint": {
       "asOfDateLabel": "حتى تاريخ:",

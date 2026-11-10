@@ -2539,7 +2539,9 @@
       "periodWithDates": "Period: from {{from}} to {{to}}",
       "periodDefaultFrom": "start of activity",
       "periodDefaultTo": "today",
-      "periodAllTime": "Period: from the start of activity to today"
+      "periodAllTime": "Period: from the start of activity to today",
+      "scopeAll": "Print all accounts (fully expanded)",
+      "scopeVisible": "Print as shown on screen"
     },
     "statementPrint": {
       "asOfDateLabel": "As of date:",
