@@ -246,18 +246,19 @@ export function printWithOrientation(landscape) {
 }
 
 /** يبني سطر عنوان وطني مختصر من الحقول المنفصلة، متجاهلاً أي حقل فارغ */
-export function formatCompanyAddress(company, { full = false } = {}) {
+export function formatCompanyAddress(company, { full = false, lang = "ar" } = {}) {
   if (!company) return "";
+  const en = lang === "en";
   const parts = [];
   if (company.addressStreet) parts.push(company.addressStreet);
-  if (company.addressDistrict) parts.push(`حي ${company.addressDistrict}`);
+  if (company.addressDistrict) parts.push(en ? `${company.addressDistrict} District` : `حي ${company.addressDistrict}`);
   if (company.addressCity) parts.push(company.addressCity);
   if (full) {
-    if (company.addressBuilding) parts.unshift(`مبنى ${company.addressBuilding}`);
+    if (company.addressBuilding) parts.unshift(en ? `Building ${company.addressBuilding}` : `مبنى ${company.addressBuilding}`);
     if (company.addressPostalCode) parts.push(company.addressPostalCode);
-    if (company.addressAdditionalNo) parts.push(`إضافي ${company.addressAdditionalNo}`);
+    if (company.addressAdditionalNo) parts.push(en ? `Additional No. ${company.addressAdditionalNo}` : `إضافي ${company.addressAdditionalNo}`);
   }
-  return parts.join("، ");
+  return parts.join(en ? ", " : "، ");
 }
 
 /**
@@ -281,8 +282,10 @@ export function PrintShell({
   const [printedAt, setPrintedAt] = useState(null);
   const [downloading, setDownloading] = useState(false);
   const accent = company?.brandColor || "#10202E";
-  const displayName = companyNameOverride || (company && company.id !== "all" ? (company.shortName || company.name) : "أثر المحاسبي");
-  const address = formatCompanyAddress(company);
+  const en = i18n.language === "en";
+  // الواجهة الإنجليزية تطبع الاسم الإنجليزي الرسمي للشركة إن وُجد، والعنوان وتسمية الرقم الضريبي بالإنجليزية.
+  const displayName = companyNameOverride || (company && company.id !== "all" ? ((en && company.nameEn) || company.shortName || company.name) : (en ? "Athar ERP" : "أثر المحاسبي"));
+  const address = formatCompanyAddress(company, { lang: en ? "en" : "ar" });
 
   const handlePrint = () => {
     setPrintedAt(new Date());
@@ -327,7 +330,7 @@ export function PrintShell({
             <div className="voucher-company-info">
               <div className="voucher-brand-name">{displayName}</div>
               <div className="voucher-brand-sub">{subtitle}</div>
-              {company?.vatNumber && <div className="voucher-brand-meta">الرقم الضريبي: {company.vatNumber}</div>}
+              {company?.vatNumber && <div className="voucher-brand-meta">{en ? "VAT No." : "الرقم الضريبي"}: {company.vatNumber}</div>}
               {address && <div className="voucher-brand-meta">{address}</div>}
             </div>
           </div>}
@@ -350,9 +353,9 @@ export function PrintShell({
 
 
         <div className="voucher-actions">
-          {onEdit && <button className="btn-ghost" onClick={onEdit}>تعديل</button>}
+          {onEdit && <button className="btn-ghost" onClick={onEdit}>{en ? "Edit" : "تعديل"}</button>}
           <button className="btn-ghost" onClick={handlePrint}>{t("common.print")}</button>
-          <button className="btn-primary" onClick={handleDownloadClick} disabled={downloading}>{downloading ? "جارٍ التحميل..." : t("common.printShell.downloadPdf")}</button>
+          <button className="btn-primary" onClick={handleDownloadClick} disabled={downloading}>{downloading ? (en ? "Downloading..." : "جارٍ التحميل...") : t("common.printShell.downloadPdf")}</button>
           <button className="btn-ghost" onClick={onClose}>{t("common.close")}</button>
         </div>
       </div>
