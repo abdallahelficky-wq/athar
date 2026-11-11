@@ -5,7 +5,7 @@ import type { ForecourtController } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { decryptSecret } from "../../lib/zatca/secretBox";
 import { PTS_WEBSOCKET_URI, processDevicePackets, ptsLocalToUtc, recordDeviceHeaders, type OutPacket, type Packet } from "./ptsReceiver.service";
-import { verifyPtsHandshakeSignature } from "./ptsHandshake";
+import { matchPtsHandshakeSignature, ptsHandshakeHeadersForLog } from "./ptsHandshake";
 
 export { ptsHandshakeSignedTexts, verifyPtsHandshakeSignature } from "./ptsHandshake";
 import { touchController } from "./forecourt.service";
@@ -86,7 +86,9 @@ function reject401(socket: Duplex) {
   socket.end("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
 }
 
-type AuthResult = { controller: ForecourtController } | { controller?: undefined; error: string; ptsId?: string };
+type AuthResult =
+  | { controller: ForecourtController; variant: string }
+  | { controller?: undefined; error: string; ptsId?: string; detail?: { requestLine: string; headers: string[] } };
 
 async function authenticate(req: IncomingMessage): Promise<AuthResult> {
   const ptsId = String(req.headers["x-pts-id"] ?? "").trim().toUpperCase();
@@ -94,10 +96,12 @@ async function authenticate(req: IncomingMessage): Promise<AuthResult> {
   const controller = await prisma.forecourtController.findFirst({ where: { deviceSerial: ptsId } });
   if (!controller || !controller.isActive || !controller.secretKeyEnc) return { error: "unknown_controller", ptsId };
   const requestLine = `${req.method} ${req.url} HTTP/${req.httpVersion}`;
-  if (!verifyPtsHandshakeSignature(decryptSecret(controller.secretKeyEnc), requestLine, req.rawHeaders)) return { error: "bad_signature", ptsId };
+  const variant = matchPtsHandshakeSignature(decryptSecret(controller.secretKeyEnc), requestLine, req.rawHeaders);
+  // عند رفض التوقيع يُسجَّل ما وصل فعلاً (بلا قيمة Authorization) لمعرفة ما غيّرته الطبقات الوسيطة في النص الموقَّع
+  if (!variant) return { error: "bad_signature", ptsId, detail: { requestLine, headers: ptsHandshakeHeadersForLog(req.rawHeaders) } };
   const at = ptsLocalToUtc(String(req.headers["x-datetime"] ?? ""), controller.utcOffsetMinutes);
   if (!at || Math.abs(Date.now() - at.getTime()) > HANDSHAKE_MAX_SKEW_MS) return { error: "stale_datetime", ptsId };
-  return { controller };
+  return { controller, variant };
 }
 
 async function onMessage(conn: Connection, controller: ForecourtController, raw: RawData) {
@@ -175,10 +179,15 @@ export function attachPtsWebsocket(server: Server) {
       .then((result) => {
         const controller = result.controller;
         if (!controller) {
-          console.warn("[pts-ws] رُفضت مصافحة", { reason: "error" in result ? result.error : undefined, ptsId: "ptsId" in result ? result.ptsId : undefined });
+          console.warn("[pts-ws] رُفضت مصافحة", {
+            reason: "error" in result ? result.error : undefined,
+            ptsId: "ptsId" in result ? result.ptsId : undefined,
+            ...("detail" in result && result.detail ? result.detail : {}),
+          });
           reject401(socket);
           return;
         }
+        console.info("[pts-ws] قُبلت مصافحة", { controllerId: controller.id, variant: "variant" in result ? result.variant : undefined });
         wss.handleUpgrade(req, socket, head, (ws) => register(controller, ws, req));
       })
       .catch((err) => {

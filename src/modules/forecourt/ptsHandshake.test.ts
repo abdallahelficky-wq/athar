@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ptsHandshakeSignedTexts, verifyPtsHandshakeSignature } from "./ptsHandshake";
+import { matchPtsHandshakeSignature, ptsHandshakeHeadersForLog, ptsHandshakeSignedTexts, ptsSignature, verifyPtsHandshakeSignature } from "./ptsHandshake";
 
 /**
  * توقيع مصافحة WebSocket من PTS-2 — بمثال الوثيقة نفسها (R140 ص305، المفتاح "PTS-2"): المصافحة مُدخَل خارجي يرسله الجهاز
@@ -50,5 +50,26 @@ describe("PTS-2 WebSocket handshake signature", () => {
     expect(verifyPtsHandshakeSignature("PTS-2", REQUEST_LINE, tampered)).toBe(false);
     expect(verifyPtsHandshakeSignature("PTS-2", "GET /other HTTP/1.1", DOC_HEADERS)).toBe(false);
     expect(verifyPtsHandshakeSignature("PTS-2", REQUEST_LINE, DOC_HEADERS.slice(0, -2))).toBe(false);
+  });
+
+  it("verifies when Cloudflare drops the default port from Host (deliberate edit of the documented handshake)", () => {
+    // الجهاز يوقّع Host بمنفذه كما في مثال الوثيقة؛ نوقّع المصافحة الموثقة بعد جعل Host = "pts.atharerp.com:443" بنفس الخوارزمية
+    // التي تحقّقنا منها بمتجه الوثيقة أعلاه، ثم نسلّمها كما يمرّرها Cloudflare (Host بلا منفذ). لا يوجد متجه من الجهاز لهذه الحالة.
+    const signedHeaders = DOC_HEADERS.slice(0, -2);
+    signedHeaders[1] = "pts.atharerp.com:443";
+    const signedText = `${REQUEST_LINE}\r\n${Array.from({ length: signedHeaders.length / 2 }, (_, i) => `${signedHeaders[2 * i]}: ${signedHeaders[2 * i + 1]}\r\n`).join("")}`;
+    const signature = ptsSignature("PTS-2", Buffer.from(signedText, "utf8"));
+    const delivered = [...signedHeaders, "X-Data-Signature", signature];
+    delivered[1] = "pts.atharerp.com";
+    expect(matchPtsHandshakeSignature("PTS-2", REQUEST_LINE, delivered)).toBe("as_received_host_port");
+    expect(matchPtsHandshakeSignature("other-key", REQUEST_LINE, delivered)).toBeNull();
+    expect(matchPtsHandshakeSignature("PTS-2", REQUEST_LINE, DOC_HEADERS)).toBe("as_received");
+  });
+
+  it("redacts the Authorization value when headers are logged", () => {
+    const logged = ptsHandshakeHeadersForLog(DOC_HEADERS);
+    expect(logged).toContain("Authorization: [redacted]");
+    expect(logged.join("\n")).not.toContain("YWRtaW46YWRtaW4=");
+    expect(logged).toContain("X-Pts-Id: 801800043137511835363934");
   });
 });
