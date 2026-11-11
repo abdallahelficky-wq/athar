@@ -45,11 +45,26 @@ function TankBar({ tank, t, compact }) {
     <div style={{ marginBottom: compact ? 6 : 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
         <span><strong>{tank.code}</strong> · {t(`stationSetup.products.${tank.product}`)}</span>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{tank.fillPct == null ? t("stationsDashboard.noReading") : `${fmt0(tank.liters)} L · ${tank.fillPct}%`}</span>
+        <bdi style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          {tank.liters != null
+            ? `${fmt0(tank.liters)} L · ${tank.fillPct}%`
+            : tank.probe?.online && tank.probe.productHeightMm != null
+              ? `${fmt0(tank.probe.productHeightMm)} mm${tank.fillPct != null ? ` · ${tank.fillPct}%` : ""}`
+              : t("stationsDashboard.noReading")}
+        </bdi>
       </div>
       <div style={{ height: compact ? 6 : 10, background: "rgba(16,32,46,0.08)", borderRadius: 999, overflow: "hidden" }}>
         <div style={{ width: `${Math.min(100, Math.max(0, pct))}%`, height: "100%", background: color, borderRadius: 999, transition: "width .3s" }} />
       </div>
+      {tank.probe?.online && (
+        <div className="note" style={{ fontSize: 11.5, marginTop: 3, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {tank.liters != null && tank.probe.productHeightMm != null && <span>{t("stationsDashboard.probeHeight")} <bdi>{fmt0(tank.probe.productHeightMm)} mm</bdi></span>}
+          {tank.probe.waterHeightMm != null && <span style={{ color: tank.probe.waterHeightMm > 0 ? "#A8432B" : undefined }}>{t("stationsDashboard.probeWater")} <bdi>{tank.probe.waterHeightMm} mm</bdi></span>}
+          {tank.probe.temperatureC != null && <span><bdi>{tank.probe.temperatureC} °C</bdi></span>}
+          {tank.liters == null && <span>{t("stationsDashboard.probeNoVolume")}</span>}
+          {tank.probe.alarms?.length > 0 && <span style={{ color: "#A8432B", fontWeight: 700 }}>{tank.probe.alarms.map((a) => t(`stationLive.alarms.${a}`)).join(" · ")}</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -136,8 +151,8 @@ export default function StationsDashboardTab({ companyId }) {
         {sameStation && (
           <>
             <div className="kpi-row" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
-              <Kpi tone="revenue" label={t("stationsDashboard.kpi.liters")} value={fmt0(s.liters)} sub={t("stationsDashboard.kpi.shiftsSub", { count: s.shifts })} />
-              <Kpi tone="profit" label={t("stationsDashboard.kpi.value")} value={fmt2(s.value)} />
+              <Kpi tone="revenue" label={t("stationsDashboard.kpi.liters")} value={fmt0(s.liters)} sub={t("stationsDashboard.kpi.actualSub", { tx: s.controllerTransactions, count: s.shifts })} />
+              <Kpi tone="profit" label={t("stationsDashboard.kpi.value")} value={fmt2(s.value)} sub={t("stationsDashboard.kpi.approvedSub", { liters: fmt0(s.approved.liters), value: fmt2(s.approved.value) })} />
               <Kpi tone="cash" label={t("stationsDashboard.kpi.cash")} value={fmt2(s.collections.cash)} sub={`${t("stationsDashboard.kpi.network")} ${fmt2(s.collections.network)}`} />
               <Kpi tone="receivable" label={t("stationsDashboard.kpi.today")} value={s.today ? fmt0(s.today.liters) : "—"} sub={s.today ? t("stationsDashboard.kpi.todaySub", { count: s.today.count, amount: fmt2(s.today.amount) }) : t("stationsDashboard.kpi.noController")} />
               <Kpi tone="payable" label={t("stationsDashboard.kpi.pending")} value={s.awaitingReview + s.awaitingPost} sub={t("stationsDashboard.kpi.pendingSub", { review: s.awaitingReview, post: s.awaitingPost })} />
@@ -188,6 +203,14 @@ export default function StationsDashboardTab({ companyId }) {
                           <div><span className="note">{t("stationsDashboard.cover")}</span><div style={{ color: tank.daysOfCover != null && tank.daysOfCover < 2 ? "#A8432B" : undefined }}>{tank.daysOfCover == null ? "—" : t("stationsDashboard.days", { count: tank.daysOfCover })}</div></div>
                           <div><span className="note">{t("stationsDashboard.avgDaily")}</span><div>{fmt0(tank.avgDailySold)} L</div></div>
                           <div><span className="note">{t("stationsDashboard.lastReading")}</span><div>{tank.readAt ? formatDateTime(tank.readAt, i18n.language) : "—"}{tank.source && <span className="note"> · {t(`stationTanks.sources.${tank.source}`)}</span>}</div></div>
+                          {tank.probe?.online && (
+                            <>
+                              <div><span className="note">{t("stationsDashboard.probeHeight")}</span><div><bdi>{tank.probe.productHeightMm ?? "—"} mm</bdi></div></div>
+                              <div><span className="note">{t("stationsDashboard.probeWater")}</span><div style={{ color: tank.probe.waterHeightMm > 0 ? "#A8432B" : undefined }}><bdi>{tank.probe.waterHeightMm ?? "—"} mm</bdi></div></div>
+                              <div><span className="note">{t("stationLive.temperature")}</span><div><bdi>{tank.probe.temperatureC ?? "—"} °C</bdi></div></div>
+                              <div><span className="note">{t("stationsDashboard.probeVolume")}</span><div>{tank.probe.productLiters != null ? <bdi>{fmt0(tank.probe.productLiters)} L</bdi> : t("stationLive.needsCalibration")}</div></div>
+                            </>
+                          )}
                         </div>
                         {series.points.length > 1 && (
                           <ResponsiveContainer width="100%" height={120}>
@@ -270,8 +293,8 @@ export default function StationsDashboardTab({ companyId }) {
       {o && (
         <>
           <div className="kpi-row" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
-            <Kpi tone="revenue" label={t("stationsDashboard.kpi.liters")} value={fmt0(tot.liters)} sub={t("stationsDashboard.kpi.shiftsSub", { count: tot.shifts })} />
-            <Kpi tone="profit" label={t("stationsDashboard.kpi.value")} value={fmt2(tot.value)} />
+            <Kpi tone="revenue" label={t("stationsDashboard.kpi.liters")} value={fmt0(tot.liters)} sub={t("stationsDashboard.kpi.actualSub", { tx: tot.controllerTransactions, count: tot.shifts })} />
+            <Kpi tone="profit" label={t("stationsDashboard.kpi.value")} value={fmt2(tot.value)} sub={t("stationsDashboard.kpi.approvedSub", { liters: fmt0(tot.approvedLiters), value: fmt2(tot.approvedValue) })} />
             <Kpi tone="cash" label={t("stationsDashboard.kpi.cash")} value={fmt2(tot.cash)} sub={`${t("stationsDashboard.kpi.network")} ${fmt2(tot.network)} · ${t("stationsDashboard.kpi.fuelCard")} ${fmt2(tot.fuelCard)}`} />
             <Kpi tone="receivable" label={t("stationsDashboard.kpi.today")} value={o.stations.some((x) => x.controller) ? fmt0(tot.todayLiters) : "—"} sub={o.stations.some((x) => x.controller) ? fmt2(tot.todayAmount) : t("stationsDashboard.kpi.noController")} />
             <Kpi tone="payable" label={t("stationsDashboard.kpi.attention")} value={tot.awaitingReview + tot.awaitingPost + tot.lowTanks} sub={t("stationsDashboard.kpi.attentionSub", { review: tot.awaitingReview, post: tot.awaitingPost, low: tot.lowTanks })} />
@@ -340,6 +363,7 @@ export default function StationsDashboardTab({ companyId }) {
                   <div><div className="kpi-label">{t("stationsDashboard.kpi.liters")}</div><div className="kpi-value" style={{ fontSize: 19 }}>{fmt0(st.liters)}</div></div>
                   <div><div className="kpi-label">{t("stationsDashboard.kpi.value")}</div><div className="kpi-value" style={{ fontSize: 19 }}>{fmt2(st.value)}</div></div>
                 </div>
+                {st.source !== "none" && <div className="note" style={{ marginTop: -6, marginBottom: 8, fontSize: 11.5 }}>{t(`stationsDashboard.source.${st.source}`)}</div>}
                 {st.liters > 0 && (
                   <div style={{ display: "flex", height: 6, borderRadius: 999, overflow: "hidden", marginBottom: 10, background: "rgba(16,32,46,0.06)" }}>
                     {PRODUCTS.map((p) => st.products[p].liters > 0 && <div key={p} title={productLabel(p)} style={{ width: `${(st.products[p].liters / st.liters) * 100}%`, background: PRODUCT_COLOR[p] }} />)}

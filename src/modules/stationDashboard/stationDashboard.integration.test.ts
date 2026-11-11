@@ -151,7 +151,7 @@ describe("stations dashboard (integration)", () => {
     expect(a.body.totals).toMatchObject({ liters: 100, value: 230, shifts: 1, cash: 180, network: 50, awaitingReview: 1, awaitingPost: 1, lowTanks: 0 });
     expect(a.body.totals.products.diesel).toEqual({ liters: 100, value: 230 });
     expect(a.body.stations).toHaveLength(1);
-    expect(a.body.stations[0]).toMatchObject({ costCenterId: ctx.a.station, liters: 100, value: 230, controller: null, today: null });
+    expect(a.body.stations[0]).toMatchObject({ costCenterId: ctx.a.station, liters: 100, value: 230, source: "shifts", approved: { liters: 100, value: 230, shifts: 1 }, controller: null, today: null });
     expect(a.body.stations[0].tanks[0]).toMatchObject({ tankId: ctx.a.tankId, liters: 15000, fillPct: 75, low: false, avgDailySold: 14.3, daysOfCover: 1049 });
     expect(a.body.daily).toEqual([{ day: TODAY, liters: 100, value: 230, [ctx.a.station]: 100 }]);
 
@@ -187,10 +187,17 @@ describe("stations dashboard (integration)", () => {
 
     const detail = await call("GET", `/station-dashboard/stations/${a.station}?companyId=${a.companyId}&from=${TODAY}&to=${TODAY}`, a.token);
     expect(detail.status, detail.text).toBe(200);
-    expect(detail.body.station).toMatchObject({ costCenterId: a.station, liters: 100, controller: { health: "online" } });
+    // يوم فيه عمليات من المتحكم: المبيعات الفعلية = ما رفعه الجهاز، وما اعتُمد من الورديات يبقى للمقارنة
+    expect(detail.body.station).toMatchObject({
+      costCenterId: a.station, liters: 25.5, value: 58.65, source: "controller", controllerTransactions: 1,
+      approved: { liters: 100, value: 230, shifts: 1 }, controller: { health: "online" },
+    });
+    expect(detail.body.station.products.diesel).toEqual({ liters: 25.5, value: 58.65 });
+    // متوسط مبيع الخزان من عمليات المتحكم عبر فوهته المربوطة: 25.5 ÷ 7
+    expect(detail.body.station.tanks[0]).toMatchObject({ tankId: a.tankId, liters: 15000, avgDailySold: 3.6, probe: null });
     expect(detail.body.station.today).toMatchObject({ liters: 25.5, amount: 58.65, count: 1 });
     expect(detail.body.station.today.hourly[10]).toEqual({ hour: 10, liters: 25.5, amount: 58.65 });
-    expect(detail.body.daily).toEqual([{ day: TODAY, gasoline_91: 0, gasoline_95: 0, diesel: 100, value: 230 }]);
+    expect(detail.body.daily).toEqual([{ day: TODAY, gasoline_91: 0, gasoline_95: 0, diesel: 25.5, value: 58.65 }]);
     expect(detail.body.tankSeries[0]).toMatchObject({ tankId: a.tankId, code: "T1" });
     expect(detail.body.tankSeries[0].points.map((p: any) => p.liters)).toEqual([15000]);
     expect(detail.body.shifts.map((s: any) => s.status).sort()).toEqual(["approved", "open"]);
@@ -198,6 +205,7 @@ describe("stations dashboard (integration)", () => {
     // B لم يتأثر ببيع متحكم A
     const b = await call("GET", `/station-dashboard?companyId=${ctx.b.companyId}&from=${TODAY}&to=${TODAY}`, ctx.b.token);
     expect(b.body.totals.todayLiters).toBe(0);
+    expect(b.body.stations[0]).toMatchObject({ source: "shifts", liters: 40, controllerTransactions: 0 });
   });
 
   it("shows the live station screen from the controller's last status, scoped to the tenant", async () => {
@@ -238,6 +246,10 @@ describe("stations dashboard (integration)", () => {
     // بيع اليوم (25.5 لتر من الاختبار السابق) منسوب للديزل عبر ربط الفوهة
     expect(live.body.today).toMatchObject({ count: 1, liters: 25.5, amount: 58.65, byProduct: { diesel: { liters: 25.5, amount: 58.65, count: 1 } } });
     expect(live.body.recent[0]).toMatchObject({ ptsPump: 2, volume: 25.5, pumpNumber: 1, product: "diesel" });
+    // لوحة المحطات تعرض قياس المسبار الآن مع الخزان
+    const overview = await call("GET", `/station-dashboard?companyId=${a.companyId}&from=${TODAY}&to=${TODAY}`, a.token);
+    expect(overview.body.stations[0].tanks[0]).toMatchObject({ liters: 15000, fillPct: 75, waterHeightMm: 12.1, temperatureC: 31.5, source: "atg" });
+    expect(overview.body.stations[0].tanks[0].probe).toMatchObject({ online: true, productHeightMm: 1500.4, productLiters: 15000 });
 
     // B: محطته بلا متحكم تُعرَض فارغة، ومحطة A لا تُفتح له ولا بشركته
     const own = await call("GET", `/station-dashboard/stations/${ctx.b.station}/live?companyId=${ctx.b.companyId}`, ctx.b.token);
