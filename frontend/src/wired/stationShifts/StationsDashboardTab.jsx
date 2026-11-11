@@ -5,6 +5,7 @@ import * as api from "../../api/stationDashboard";
 import { formatDate, formatDateTime } from "../../i18n/dateFormat";
 import { fmt2 } from "../../legacy/constants";
 import { CHART_GRID, CHART_AXIS, CHART_FONT, chartTooltipStyle, colorAt } from "../dashboard/chartTheme";
+import StationLiveView from "./StationLiveView";
 
 /**
  * لوحة إدارة محطات الوقود: كل المحطات في شاشة واحدة (إجماليات، اتجاه يومي، بطاقة لكل محطة)، والضغط على المحطة يفتح صفحتها
@@ -57,6 +58,18 @@ export default function StationsDashboardTab({ companyId }) {
   const { t, i18n } = useTranslation();
   const [range, setRange] = useState({ from: localDay(), to: localDay() });
   const [selected, setSelected] = useState(null);
+  // الشاشة الحيّة لمحطة — قابلة للفتح برابط مباشر (?live=<المحطة>) لعرضها على شاشة في المحطة أو المكتب
+  const [live, setLiveState] = useState(() => {
+    try { return new URLSearchParams(window.location.search).get("live"); } catch { return null; }
+  });
+  const setLive = (id) => {
+    setLiveState(id);
+    try {
+      const url = new URL(window.location.href);
+      if (id) url.searchParams.set("live", id); else url.searchParams.delete("live");
+      window.history.replaceState(window.history.state, "", url);
+    } catch { /* الرابط للراحة فقط */ }
+  };
   const [overview, setOverview] = useState(null);
   const [detail, setDetail] = useState(null);
   const [error, setError] = useState("");
@@ -84,6 +97,7 @@ export default function StationsDashboardTab({ companyId }) {
   }, [companyId, selected, range.from, range.to]);
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
+  if (live) return <StationLiveView companyId={companyId} costCenterId={live} onBack={() => setLive(null)} />;
 
   const filter = (
     <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap", marginBottom: 16 }}>
@@ -115,6 +129,7 @@ export default function StationsDashboardTab({ companyId }) {
           {sameStation && (s.controller
             ? <Pill color={HEALTH_COLOR[s.controller.health]}>{t(`stationsDashboard.health.${s.controller.health}`)}</Pill>
             : <Pill color="#6B7280">{t("stationsDashboard.manualOnly")}</Pill>)}
+          {sameStation && s.controller && <button type="button" className="btn-primary" style={{ padding: "5px 14px" }} onClick={() => setLive(selected)}>{t("stationLive.open")}</button>}
         </div>
         {filter}
         {error && <p className="balance-bad">{error}</p>}
@@ -292,18 +307,34 @@ export default function StationsDashboardTab({ companyId }) {
           {o.stations.length === 0 && <p className="empty">{t("stationsDashboard.noStations")}</p>}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: 16 }}>
             {o.stations.map((st) => (
-              <button
+              <div
                 key={st.costCenterId}
-                type="button"
+                role="button"
+                tabIndex={0}
                 className="panel kpi-card"
                 onClick={() => setSelected(st.costCenterId)}
-                style={{ textAlign: "start", cursor: "pointer", marginBottom: 0, font: "inherit", color: "inherit", display: "block", width: "100%" }}
+                onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setSelected(st.costCenterId); } }}
+                style={{ textAlign: "start", cursor: "pointer", marginBottom: 0, display: "block", width: "100%" }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 10 }}>
                   <strong style={{ fontSize: 15.5 }}>{st.name}</strong>
-                  {st.controller
-                    ? <Pill color={HEALTH_COLOR[st.controller.health]}>{t(`stationsDashboard.health.${st.controller.health}`)}</Pill>
-                    : <Pill color="#6B7280">{t("stationsDashboard.manualOnly")}</Pill>}
+                  <span style={{ display: "inline-flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    {st.controller && (
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        title={t("stationLive.open")}
+                        aria-label={t("stationLive.open")}
+                        onClick={(e) => { e.stopPropagation(); setLive(st.costCenterId); }}
+                        style={{ padding: "2px 10px", fontSize: 12, fontWeight: 700, color: "#1971c2", border: "1px solid rgba(25,113,194,0.35)", borderRadius: 999 }}
+                      >
+                        ◉ {t("stationLive.liveShort")}
+                      </button>
+                    )}
+                    {st.controller
+                      ? <Pill color={HEALTH_COLOR[st.controller.health]}>{t(`stationsDashboard.health.${st.controller.health}`)}</Pill>
+                      : <Pill color="#6B7280">{t("stationsDashboard.manualOnly")}</Pill>}
+                  </span>
                 </div>
                 <div style={{ display: "flex", gap: 18, marginBottom: 10 }}>
                   <div><div className="kpi-label">{t("stationsDashboard.kpi.liters")}</div><div className="kpi-value" style={{ fontSize: 19 }}>{fmt0(st.liters)}</div></div>
@@ -323,7 +354,7 @@ export default function StationsDashboardTab({ companyId }) {
                   {st.lowTanks > 0 && <Pill color="#A8432B">{t("stationsDashboard.lowPill", { count: st.lowTanks })}</Pill>}
                   {st.alerts7d > 0 && <Pill color="#A8432B">{t("stationsDashboard.alertsPill", { count: st.alerts7d })}</Pill>}
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </>

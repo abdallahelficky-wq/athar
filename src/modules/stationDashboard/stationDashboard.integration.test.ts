@@ -38,6 +38,8 @@ interface Ctx {
   tankId: string;
 }
 const ctx: Record<"a" | "b", Ctx> = {} as never;
+/** متحكم A المسجَّل في اختبار مبيعات اليوم — يستعمله اختبار الشاشة الحيّة بعده */
+const device = { serial: "", secret: "" };
 
 async function call(method: string, path: string, token: string, body?: unknown) {
   const res = await fetch(`${baseUrl}/api${path}`, {
@@ -171,6 +173,8 @@ describe("stations dashboard (integration)", () => {
     expect(controller.status, controller.text).toBe(201);
     expect((await call("PUT", `/forecourt/controllers/${controller.body.id}/nozzle-map`, a.token, { ptsPump: 2, ptsNozzle: 1, nozzleId: a.nozzles[0] })).status).toBe(200);
     const secret = (await call("POST", `/forecourt/controllers/${controller.body.id}/secret`, a.token)).body.secretKey;
+    device.serial = serial;
+    device.secret = secret;
 
     // عملية بيع اليوم الساعة 10:15 بتوقيت الرياض، بحقول مثال المواصفة (ص313)
     const message = {
@@ -194,6 +198,53 @@ describe("stations dashboard (integration)", () => {
     // B لم يتأثر ببيع متحكم A
     const b = await call("GET", `/station-dashboard?companyId=${ctx.b.companyId}&from=${TODAY}&to=${TODAY}`, ctx.b.token);
     expect(b.body.totals.todayLiters).toBe(0);
+  });
+
+  it("shows the live station screen from the controller's last status, scoped to the tenant", async () => {
+    const a = ctx.a;
+    expect(device.serial, "يعتمد على متحكم الاختبار السابق").not.toBe("");
+    // رسالة حالة كما يرسلها الجهاز (UploadStatus، مواصفة jsonPTS ص331): المضخة 2 تعبّئ الآن، والمضخة 3 غير متصلة، والمسبار 1 متصل
+    const message = {
+      Protocol: "jsonPTS", PtsId: device.serial,
+      Packets: [{
+        Id: 9, Type: "UploadStatus",
+        Data: {
+          ConfigurationId: "f522cc01", DateTime: `${TODAY}T10:20:00`, UTCOffset: 180, BatteryVoltage: 3050, CpuTemperature: 40,
+          Pumps: {
+            IdleStatus: { Ids: [], NozzlesUp: [], LastNozzles: [], LastTransactions: [], LastVolumes: [], LastAmounts: [], LastPrices: [] },
+            FillingStatus: { Ids: [2], Nozzles: [1], Transactions: [8], Volumes: [4.5], Amounts: [10.35], Prices: [2.3], FlowRates: [35] },
+            EndOfTransactionStatus: { Ids: [] },
+            OfflineStatus: { Ids: [3] },
+            Users: ["", "", ""],
+          },
+          Probes: { OnlineStatus: { Ids: [1], Errors: [0], HighWaterAlarms: [0], Measurements: [[1, 1500.4, 12.1, 31.5, 15000, 40, 5000, null, null, null, 75]] }, OfflineStatus: { Ids: [] } },
+        },
+      }],
+    };
+    const body = Buffer.from(`${JSON.stringify(message)}\r\n`);
+    const res = await fetch(`${baseUrl}/api/pts/upload`, { method: "POST", headers: { "content-type": "application/json", "x-pts-id": device.serial, "x-data-signature": ptsSignature(device.secret, body) }, body });
+    expect(res.status).toBe(200);
+
+    const live = await call("GET", `/station-dashboard/stations/${a.station}/live?companyId=${a.companyId}`, a.token);
+    expect(live.status, live.text).toBe(200);
+    expect(live.body.controller).toMatchObject({ health: "online", commandsOnline: false, batteryVoltageMv: 3050 });
+    expect(new Date(live.body.controller.statusAt).toISOString()).toBe(new Date(`${TODAY}T07:20:00.000Z`).toISOString());
+    const filling = live.body.pumps.find((p: any) => p.ptsPump === 2);
+    expect(filling).toMatchObject({ state: "filling", nozzle: 1, volume: 4.5, amount: 10.35, flowRate: 35, product: "diesel" });
+    expect(filling.nozzles).toEqual([expect.objectContaining({ ptsNozzle: 1, nozzleId: a.nozzles[0], pumpNumber: 1, product: "diesel" })]);
+    expect(live.body.pumps.find((p: any) => p.ptsPump === 3)).toMatchObject({ state: "offline", product: null });
+    expect(live.body.tanks).toEqual([expect.objectContaining({ tankId: a.tankId, atgTankNumber: 1, capacityLiters: 20000 })]);
+    expect(live.body.tanks[0].probe).toMatchObject({ online: true, productHeightMm: 1500.4, waterHeightMm: 12.1, productLiters: 15000, fillPct: 75 });
+    // بيع اليوم (25.5 لتر من الاختبار السابق) منسوب للديزل عبر ربط الفوهة
+    expect(live.body.today).toMatchObject({ count: 1, liters: 25.5, amount: 58.65, byProduct: { diesel: { liters: 25.5, amount: 58.65, count: 1 } } });
+    expect(live.body.recent[0]).toMatchObject({ ptsPump: 2, volume: 25.5, pumpNumber: 1, product: "diesel" });
+
+    // B: محطته بلا متحكم تُعرَض فارغة، ومحطة A لا تُفتح له ولا بشركته
+    const own = await call("GET", `/station-dashboard/stations/${ctx.b.station}/live?companyId=${ctx.b.companyId}`, ctx.b.token);
+    expect(own.status, own.text).toBe(200);
+    expect(own.body).toMatchObject({ controller: null, pumps: [], today: null });
+    expect((await call("GET", `/station-dashboard/stations/${a.station}/live?companyId=${ctx.b.companyId}`, ctx.b.token)).status).toBe(404);
+    expect([400, 403, 404]).toContain((await call("GET", `/station-dashboard/stations/${a.station}/live?companyId=${a.companyId}`, ctx.b.token)).status);
   });
 
   it("refuses an over-long period", async () => {

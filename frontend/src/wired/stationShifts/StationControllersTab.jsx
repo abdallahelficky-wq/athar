@@ -260,6 +260,10 @@ export default function StationControllersTab({ companyId }) {
               ["WebsocketsUri", st.websockets.uri],
               ["WebsocketsPort", String(st.websockets.port)],
               ["WebsocketsPingRequestsPeriodSeconds", String(st.websockets.pingPeriodSeconds)],
+              ...(st.websockets.uploadStatus ? [
+                ["WebsocketsUploadStatus", "true"],
+                ["WebsocketsUploadStatusRequestsPeriodSeconds", String(st.websockets.statusPeriodSeconds)],
+              ] : []),
             ] : []),
           ];
           return (
