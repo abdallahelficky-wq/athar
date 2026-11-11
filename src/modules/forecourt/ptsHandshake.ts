@@ -22,31 +22,45 @@ const DEVICE_HEADER_NAMES = [
 const DEVICE_HEADER_CASE = new Map(DEVICE_HEADER_NAMES.map((n) => [n.toLowerCase(), n]));
 
 /**
- * النصوص المرشّحة التي وقّعها الجهاز: (1) سطر الطلب والترويسات كما وصلت حتى ترويسة التوقيع، (2) ترويسات الجهاز الموثقة فقط بنفس
- * ترتيب وصولها وبأسمائها الموثقة (إن أضافت طبقة وسيطة ترويسات أو صغّرت الأسماء)، (3) نفس ما سبق بـHost يحمل المنفذ ":443": مثال
- * الوثيقة يرسل Host بمنفذه (ص305)، وCloudflare يحذف المنفذ الافتراضي من Host قبل تمرير الطلب، فيتغيّر النص الموقَّع.
- * null إن لم تكن في الطلب ترويسة توقيع.
+ * النصوص المرشّحة التي وقّعها الجهاز. الجهاز يوقّع سطر الطلب وترويساته بترتيبه هو حتى ترويسة التوقيع، لكن ما يصل للخادم قد تغيّره
+ * الطبقات الوسيطة (Cloudflare ثم حافة Railway): رأينا في الإنتاج (جهاز مكة، firmware 2026-11-08) الترويسات مرتّبة أبجدياً، وأسماءها
+ * بحالة أحرف مختلفة (X-Datetime، Sec-Websocket-Key)، وترويسات مضافة (Cf-*، X-Forwarded-*)، وHost بلا المنفذ الافتراضي.
+ * لذلك يُجرَّب: (1) النص كما وصل حتى التوقيع، (2) ترويسات الجهاز الموثقة فقط بترتيب الوصول، (3) ترويسات الجهاز الموثقة مُعادٌ
+ * ترتيبها بترتيب الوثيقة (ص305) وبأسمائها الموثقة — ولكلٍّ منها نسخة بـHost يحمل ":443" ونسخة بلا Authorization. كلها تتطلب HMAC
+ * بمفتاح المتحكم نفسه، فتعدد المرشّحين لا يُضعف التحقق. null إن لم تكن في الطلب ترويسة توقيع.
  */
 export function ptsHandshakeSignedTexts(requestLine: string, rawHeaders: string[]): { signature: string; texts: string[]; labels: string[] } | null {
-  const pairs: [string, string][] = [];
+  const before: [string, string][] = [];
+  const all: [string, string][] = [];
   let signature: string | null = null;
   for (let i = 0; i + 1 < rawHeaders.length; i += 2) {
     if (rawHeaders[i].toLowerCase() === "x-data-signature") {
-      signature = rawHeaders[i + 1];
-      break;
+      if (signature === null) signature = rawHeaders[i + 1];
+      continue;
     }
-    pairs.push([rawHeaders[i], rawHeaders[i + 1]]);
+    if (signature === null) before.push([rawHeaders[i], rawHeaders[i + 1]]);
+    all.push([rawHeaders[i], rawHeaders[i + 1]]);
   }
   if (!signature) return null;
   const text = (list: [string, string][]) => `${requestLine}\r\n${list.map(([n, v]) => `${n}: ${v}\r\n`).join("")}`;
-  const deviceOnly = pairs.filter(([n]) => DEVICE_HEADER_CASE.has(n.toLowerCase())).map(([n, v]): [string, string] => [DEVICE_HEADER_CASE.get(n.toLowerCase())!, v]);
+  const canonicalName = ([n, v]: [string, string]): [string, string] => [DEVICE_HEADER_CASE.get(n.toLowerCase())!, v];
+  const deviceInArrival = before.filter(([n]) => DEVICE_HEADER_CASE.has(n.toLowerCase())).map(canonicalName);
+  const deviceInDocOrder = all
+    .filter(([n]) => DEVICE_HEADER_CASE.has(n.toLowerCase()))
+    .map(canonicalName)
+    .sort((a, b) => DEVICE_HEADER_NAMES.indexOf(a[0]) - DEVICE_HEADER_NAMES.indexOf(b[0]));
   const withHostPort = (list: [string, string][]) =>
     list.map(([n, v]): [string, string] => (n.toLowerCase() === "host" && !v.includes(":") ? [n, `${v}:443`] : [n, v]));
+  const withoutAuth = (list: [string, string][]) => list.filter(([n]) => n.toLowerCase() !== "authorization");
   const candidates: [string, [string, string][]][] = [
-    ["as_received", pairs],
-    ["device_headers", deviceOnly],
-    ["as_received_host_port", withHostPort(pairs)],
-    ["device_headers_host_port", withHostPort(deviceOnly)],
+    ["as_received", before],
+    ["device_headers", deviceInArrival],
+    ["as_received_host_port", withHostPort(before)],
+    ["device_headers_host_port", withHostPort(deviceInArrival)],
+    ["doc_order", deviceInDocOrder],
+    ["doc_order_host_port", withHostPort(deviceInDocOrder)],
+    ["doc_order_no_auth", withoutAuth(deviceInDocOrder)],
+    ["doc_order_host_port_no_auth", withoutAuth(withHostPort(deviceInDocOrder))],
   ];
   const texts: string[] = [];
   const labels: string[] = [];
