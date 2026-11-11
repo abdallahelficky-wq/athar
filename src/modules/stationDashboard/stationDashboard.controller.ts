@@ -3,6 +3,7 @@ import { badRequest } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
 import * as service from "./stationDashboard.service";
+import { getStationLive } from "./stationLive.service";
 
 const dateOnly = /^\d{4}-\d{2}-\d{2}$/;
 const q = (v: unknown) => (typeof v === "string" && v.length > 0 ? v : undefined);
@@ -29,4 +30,9 @@ export const overviewHandler: RequestHandler = async (req, res) => {
 
 export const stationHandler: RequestHandler = async (req, res) => {
   res.json(await service.getStationDetail(req.auth!.tenantId, requireCompany(req), req.params.costCenterId, range(req)));
+};
+
+export const stationLiveHandler: RequestHandler = async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(await getStationLive(req.auth!.tenantId, requireCompany(req), req.params.costCenterId));
 };

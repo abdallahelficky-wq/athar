@@ -89,7 +89,8 @@ export function connectionSettings() {
     statusPeriodSeconds: 60,
     // الأوامر من أثر للجهاز: يفعَّل UseWebsocketsCommunication ويبقى الرفع بطلبات HTTP أعلاه (خيارات Websockets Upload… مغلقة).
     // المستخدم المختار للسيرفر البعيد في الجهاز (UserId) يحتاج صلاحية Control حتى يقبل أوامر المضخات.
-    websockets: { enabled: true, uri: PTS_WEBSOCKET_URI, port: 443, pingPeriodSeconds: 30 },
+    // الحالة اللحظية (للشاشة الحيّة) عبر الاتصال الدائم كل بضع ثوانٍ — لا تُفتح لها اتصالات HTTP جديدة؛ رفع الحالة بـHTTP كل دقيقة يبقى احتياطاً
+    websockets: { enabled: true, uri: PTS_WEBSOCKET_URI, port: 443, pingPeriodSeconds: 30, uploadStatus: true, statusPeriodSeconds: 3 },
   };
 }
 

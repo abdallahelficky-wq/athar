@@ -138,7 +138,7 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
   expect(controller.status, controller.text).toBe(201);
   const secret = await call("POST", `/forecourt/controllers/${controller.body.id}/secret`, token);
   expect(secret.status, secret.text).toBe(200);
-  expect(secret.body.settings.websockets).toEqual({ enabled: true, uri: "api/pts/ws", port: 443, pingPeriodSeconds: 30 });
+  expect(secret.body.settings.websockets).toEqual({ enabled: true, uri: "api/pts/ws", port: 443, pingPeriodSeconds: 30, uploadStatus: true, statusPeriodSeconds: 3 });
   const user = await prisma.user.findFirstOrThrow({ where: { tenantId } });
   return { email, token, tenantId, companyId: company.id, controllerId: controller.body.id, serial, secret: secret.body.secretKey, userId: user.id };
 }
