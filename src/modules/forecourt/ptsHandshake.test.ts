@@ -72,4 +72,22 @@ describe("PTS-2 WebSocket handshake signature", () => {
     expect(logged.join("\n")).not.toContain("YWRtaW46YWRtaW4=");
     expect(logged).toContain("X-Pts-Id: 801800043137511835363934");
   });
+
+  it("verifies when the edge sorts headers alphabetically, re-cases names and adds its own (deliberate edit of the documented handshake)", () => {
+    // ما رأيناه في الإنتاج: الترويسات تصل مرتّبة أبجدياً بعد Cloudflare/Railway، مع X-Datetime وSec-Websocket-Key وترويسات Cf-*
+    // وX-Forwarded-*، والتوقيع في وسطها. نأخذ مصافحة الوثيقة الموقَّعة كما هي ونعيد ترتيبها وتسميتها بهذا الشكل.
+    const pairs: [string, string][] = [];
+    for (let i = 0; i < DOC_HEADERS.length; i += 2) pairs.push([DOC_HEADERS[i], DOC_HEADERS[i + 1]]);
+    pairs.push(["Cf-Ray", "a58e30a03ec7333a-MXP"], ["X-Forwarded-Proto", "https"], ["Accept-Encoding", "gzip, br"]);
+    const viaEdge = pairs
+      .map(([n, v]): [string, string] => [n.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join("-"), v])
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .flat();
+    expect(viaEdge.indexOf("X-Datetime")).toBeGreaterThan(viaEdge.indexOf("X-Data-Signature"));
+    expect(matchPtsHandshakeSignature("PTS-2", REQUEST_LINE, viaEdge)).toBe("doc_order");
+    expect(matchPtsHandshakeSignature("other-key", REQUEST_LINE, viaEdge)).toBeNull();
+    const tampered = [...viaEdge];
+    tampered[tampered.indexOf("X-Datetime") + 1] = "2026-08-15T17:16:45";
+    expect(matchPtsHandshakeSignature("PTS-2", REQUEST_LINE, tampered)).toBeNull();
+  });
 });
