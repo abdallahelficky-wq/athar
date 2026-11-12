@@ -26,7 +26,6 @@ export default function StationControllersTab({ companyId }) {
   const [message, setMessage] = useState("");
   const [dialog, setDialog] = useState(false);
   const [form, setForm] = useState({});
-  const [mapDraft, setMapDraft] = useState({});
   const [commands, setCommands] = useState([]);
   const [pumpDialog, setPumpDialog] = useState(null); // { controller, ptsPump, ptsNozzle, presetType, dose, price, result, busy }
 
@@ -37,8 +36,8 @@ export default function StationControllersTab({ companyId }) {
 
   const run = async (fn) => {
     setError(""); setMessage("");
-    try { await fn(); setDialog(false); setMessage(t("stationControllers.saved")); await load(); }
-    catch (e) { setError(e.message); }
+    try { await fn(); setDialog(false); setMessage(t("stationControllers.saved")); await load(); return true; }
+    catch (e) { setError(e.message); return false; }
   };
 
   const freeStations = stations.filter((s) => !controllers.some((c) => c.costCenterId === s.id));
@@ -46,19 +45,6 @@ export default function StationControllersTab({ companyId }) {
     ? api.updateController(form.id, { name: form.name || undefined, firmwareVersion: form.firmwareVersion || undefined, silentAfterMinutes: Number(form.silentAfterMinutes) || undefined })
     : api.createController({ companyId, costCenterId: form.costCenterId, deviceSerial: form.deviceSerial, name: form.name || undefined, firmwareVersion: form.firmwareVersion || undefined, silentAfterMinutes: Number(form.silentAfterMinutes) || undefined })));
 
-  const mapFor = (c, nozzleId) => c.nozzleMaps.find((m) => m.nozzleId === nozzleId);
-  const draftKey = (c, n) => `${c.id}:${n.id}`;
-  const saveMap = (c, n) => {
-    const draft = mapDraft[draftKey(c, n)] || {};
-    const current = mapFor(c, n.id);
-    const ptsPump = Number(draft.ptsPump ?? current?.ptsPump);
-    const ptsNozzle = Number(draft.ptsNozzle ?? current?.ptsNozzle);
-    if (!ptsPump || !ptsNozzle) { setError(t("stationControllers.mapMissing")); return; }
-    return run(async () => {
-      if (current && (current.ptsPump !== ptsPump || current.ptsNozzle !== ptsNozzle)) await api.setNozzleMap(c.id, { ptsPump: current.ptsPump, ptsNozzle: current.ptsNozzle, nozzleId: null });
-      await api.setNozzleMap(c.id, { ptsPump, ptsNozzle, nozzleId: n.id });
-    });
-  };
   /** مفتاح جديد يُبطل السابق فوراً — الجهاز يتوقف عن الرفع حتى يُكتب الجديد فيه، فيُطلَب تأكيد حين يوجد مفتاح. */
   const rotate = async (c) => {
     if (c.hasSecret && !window.confirm(t("stationControllers.rotateConfirm"))) return;
@@ -89,8 +75,6 @@ export default function StationControllersTab({ companyId }) {
   const resultText = (r) => t(`stationControllers.commandResult.${r.status}`, { reason: r.errorMessage || r.errorCode || "" });
   const RESULT_COLOR = { confirmed: "#2F5D5A", rejected: "#A8432B", timeout: "#A8432B", offline: "#A8432B", pending: "#6B7280" };
   const limitText = (x) => (x.type !== "pump_authorize" ? "—" : x.presetType === "FullTank" ? t("stationControllers.presets.FullTank") : `${fmt2(x.dose)} ${x.presetType === "Amount" ? t("stationControllers.presets.Amount") : t("stationControllers.presets.Volume")}`);
-
-  const clearMap = (c, n) => { const m = mapFor(c, n.id); if (m) run(() => api.setNozzleMap(c.id, { ptsPump: m.ptsPump, ptsNozzle: m.ptsNozzle, nozzleId: null })); };
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
@@ -130,37 +114,7 @@ export default function StationControllersTab({ companyId }) {
         </table>
       </div>
 
-      {controllers.map((c) => {
-        const station = stations.find((s) => s.id === c.costCenterId);
-        const nozzles = (station?.pumps || []).flatMap((p) => p.nozzles.map((n) => ({ ...n, pumpNumber: p.pumpNumber })));
-        return (
-          <div className="panel" key={`map-${c.id}`}>
-            <h3 style={{ marginTop: 0 }}>{t("stationControllers.mapTitle", { station: getOrgDisplayName(c.costCenter, i18n.language) })}</h3>
-            <p className="note">{t("stationControllers.mapNote")}</p>
-            <table className="ledger-table">
-              <thead><tr><th>{t("stationSetup.pump")}</th><th>{t("stationSetup.nozzle")}</th><th>{t("stationTanks.product")}</th><th>{t("stationControllers.ptsPump")}</th><th>{t("stationControllers.ptsNozzle")}</th><th></th></tr></thead>
-              <tbody>
-                {nozzles.map((n) => {
-                  const m = mapFor(c, n.id);
-                  const draft = mapDraft[draftKey(c, n)] || {};
-                  const setDraft = (k, v) => setMapDraft({ ...mapDraft, [draftKey(c, n)]: { ...draft, [k]: v } });
-                  return (
-                    <tr key={n.id}>
-                      <td>{t("stationSetup.pumpN", { n: n.pumpNumber })}</td><td>{n.nozzleNumber}</td><td>{t(`stationSetup.products.${n.product}`)}</td>
-                      <td><input type="number" min="1" style={{ width: 80 }} value={draft.ptsPump ?? m?.ptsPump ?? ""} onChange={(e) => setDraft("ptsPump", e.target.value)} /></td>
-                      <td><input type="number" min="1" style={{ width: 80 }} value={draft.ptsNozzle ?? m?.ptsNozzle ?? ""} onChange={(e) => setDraft("ptsNozzle", e.target.value)} /></td>
-                      <td className="row-actions">
-                        <button className="btn-ghost" onClick={() => saveMap(c, n)}>{t("stationTanks.save")}</button>
-                        {m && <button className="btn-ghost" onClick={() => clearMap(c, n)}>{t("stationControllers.unlink")}</button>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        );
-      })}
+      {controllers.map((c) => <NozzleMapPanel key={`map-${c.id}`} c={c} station={stations.find((s) => s.id === c.costCenterId)} run={run} setError={setError} />)}
 
       <div className="panel">
         <h3 style={{ marginTop: 0 }}>{t("stationControllers.txTitle")}</h3>
@@ -302,6 +256,106 @@ export default function StationControllersTab({ companyId }) {
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={() => setDialog(false)}>{t("stationShiftsReview.cancelBtn")}</button><button className="btn-primary" disabled={!form.costCenterId || !form.deviceSerial} onClick={save}>{t("stationTanks.save")}</button></div>
       </FormDialog>
+    </div>
+  );
+}
+
+const PRODUCT_COLOR = { gasoline_91: "#2b8a3e", gasoline_95: "#A8432B", diesel: "#B7791F" };
+
+/**
+ * ربط فوهات أثر بأرقام المضخات/الفوهات في المتحكم — بطاقة لكل طرمبة بفوهاتها، وحفظ كل التعديلات دفعة واحدة. يُطوى حين تكون كل
+ * الفوهات مربوطة (الحالة المعتادة)، ويُفتح وحده إن بقيت فوهة بلا ربط. رقمان مكرَّران لفوهتين يُعلَّمان قبل الحفظ.
+ */
+function NozzleMapPanel({ c, station, run, setError }) {
+  const { t, i18n } = useTranslation();
+  const pumps = station?.pumps || [];
+  const nozzles = pumps.flatMap((p) => p.nozzles.map((n) => ({ ...n, pumpNumber: p.pumpNumber })));
+  const mapOf = (nozzleId) => c.nozzleMaps.find((m) => m.nozzleId === nozzleId);
+  const linked = nozzles.filter((n) => mapOf(n.id)).length;
+  const [open, setOpen] = useState(linked < nozzles.length);
+  const [draft, setDraft] = useState({});
+  const [busy, setBusy] = useState(false);
+
+  const valueOf = (n, k) => draft[n.id]?.[k] ?? mapOf(n.id)?.[k] ?? "";
+  const isDirty = (n) => {
+    const d = draft[n.id];
+    if (!d) return false;
+    const m = mapOf(n.id);
+    return String(d.ptsPump ?? m?.ptsPump ?? "") !== String(m?.ptsPump ?? "") || String(d.ptsNozzle ?? m?.ptsNozzle ?? "") !== String(m?.ptsNozzle ?? "");
+  };
+  const dirty = nozzles.filter(isDirty);
+  const slotKey = (n) => `${valueOf(n, "ptsPump")}/${valueOf(n, "ptsNozzle")}`;
+  const slotCount = {};
+  for (const n of nozzles) if (valueOf(n, "ptsPump") && valueOf(n, "ptsNozzle")) slotCount[slotKey(n)] = (slotCount[slotKey(n)] || 0) + 1;
+  const duplicate = (n) => slotCount[slotKey(n)] > 1;
+  const set = (n, k, v) => setDraft((cur) => ({ ...cur, [n.id]: { ...cur[n.id], [k]: v } }));
+
+  const saveAll = async () => {
+    if (dirty.some((n) => !Number(valueOf(n, "ptsPump")) || !Number(valueOf(n, "ptsNozzle")))) { setError(t("stationControllers.mapMissing")); return; }
+    if (nozzles.some(duplicate)) { setError(t("stationControllers.mapDuplicate")); return; }
+    setBusy(true);
+    const ok = await run(async () => {
+      // أولاً تُحرَّر الأرقام القديمة للفوهات المعدَّلة، ثم تُربط الجديدة — حتى يصح تبادل رقمين بين فوهتين
+      for (const n of dirty) { const m = mapOf(n.id); if (m) await api.setNozzleMap(c.id, { ptsPump: m.ptsPump, ptsNozzle: m.ptsNozzle, nozzleId: null }); }
+      for (const n of dirty) await api.setNozzleMap(c.id, { ptsPump: Number(valueOf(n, "ptsPump")), ptsNozzle: Number(valueOf(n, "ptsNozzle")), nozzleId: n.id });
+    });
+    if (ok) setDraft({});
+    setBusy(false);
+  };
+  const unlink = (n) => { const m = mapOf(n.id); if (m) run(() => api.setNozzleMap(c.id, { ptsPump: m.ptsPump, ptsNozzle: m.ptsNozzle, nozzleId: null })); };
+
+  const numInput = (n, k) => (
+    <input
+      type="number" min="1" inputMode="numeric" value={valueOf(n, k)} onChange={(e) => set(n, k, e.target.value)}
+      aria-label={t(k === "ptsPump" ? "stationControllers.ptsPump" : "stationControllers.ptsNozzle")}
+      style={{ width: 52, minWidth: 0, flex: "0 0 52px", boxSizing: "border-box", padding: "4px 6px", textAlign: "center", fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, direction: "ltr", borderColor: duplicate(n) ? "#A8432B" : undefined }}
+    />
+  );
+
+  return (
+    <div className="panel">
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <h3 style={{ margin: 0 }}>{t("stationControllers.mapTitle", { station: getOrgDisplayName(c.costCenter, i18n.language) })}</h3>
+        <span style={{ fontSize: 12.5, fontWeight: 700, padding: "3px 10px", borderRadius: 999, color: linked === nozzles.length ? "#2F5D5A" : "#B7791F", background: linked === nozzles.length ? "rgba(47,93,90,0.10)" : "rgba(183,121,31,0.12)" }}>
+          {linked === nozzles.length ? "✓ " : ""}{t("stationControllers.mapSummary", { linked, total: nozzles.length })}
+        </span>
+        <span style={{ flex: 1 }} />
+        <button className="btn-ghost" onClick={() => setOpen(!open)}>{open ? t("stationControllers.mapHide") : t("stationControllers.mapEdit")}</button>
+      </div>
+      {open && (
+        <>
+          <p className="note" style={{ marginBottom: 12 }}>{t("stationControllers.mapNote")}</p>
+          {nozzles.length === 0 && <p className="empty">{t("stationControllers.mapNoNozzles")}</p>}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(330px, 1fr))", gap: 12 }}>
+            {pumps.map((p) => (
+              <div key={p.pumpNumber} style={{ border: "1px solid var(--athar-border)", borderRadius: 12, padding: "10px 12px", background: "var(--athar-card)" }}>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>{t("stationSetup.pumpN", { n: p.pumpNumber })}</div>
+                {p.nozzles.map((raw) => {
+                  const n = { ...raw, pumpNumber: p.pumpNumber };
+                  const m = mapOf(n.id);
+                  return (
+                    <div key={n.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", marginBottom: 6, borderRadius: 8, borderInlineStart: `4px solid ${PRODUCT_COLOR[n.product] || "#9CA3AF"}`, background: isDirty(n) ? "rgba(183,121,31,0.10)" : "rgba(16,32,46,0.03)" }}>
+                      <div style={{ minWidth: 72, lineHeight: 1.35 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>{t(`stationSetup.products.${n.product}`)}</div>
+                        <div style={{ fontSize: 11, color: "var(--athar-muted, #6B7280)", margin: "2px 0 0" }}>{t("stationSetup.nozzle")} {n.nozzleNumber}{!m && !isDirty(n) ? ` · ${t("stationControllers.notLinked")}` : ""}</div>
+                      </div>
+                      <span style={{ flex: 1 }} />
+                      <label className="note" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5 }}>{t("stationControllers.ptsPumpShort")}{numInput(n, "ptsPump")}</label>
+                      <label className="note" style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11.5 }}>{t("stationControllers.ptsNozzleShort")}{numInput(n, "ptsNozzle")}</label>
+                      {m && <button type="button" className="btn-ghost" title={t("stationControllers.unlink")} aria-label={t("stationControllers.unlink")} onClick={() => unlink(n)} style={{ padding: "2px 7px", color: "#A8432B" }}>×</button>}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+          {nozzles.some(duplicate) && <p className="balance-bad" style={{ marginTop: 10 }}>{t("stationControllers.mapDuplicate")}</p>}
+          <div className="form-btn-group" style={{ marginTop: 12 }}>
+            <button className="btn-primary" disabled={!dirty.length || busy} onClick={saveAll}>{t("stationControllers.mapSaveAll", { count: dirty.length })}</button>
+            {dirty.length > 0 && <button className="btn-ghost" disabled={busy} onClick={() => setDraft({})}>{t("stationControllers.mapDiscard")}</button>}
+          </div>
+        </>
+      )}
     </div>
   );
 }
