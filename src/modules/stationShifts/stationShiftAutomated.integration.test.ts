@@ -85,7 +85,7 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
   expect(pump.status, pump.text).toBe(201);
   expect((await call("POST", "/station-setup/fuel-prices", token, { companyId: company.id, product: "diesel", priceInclVat: 2.3, effectiveFrom: "2026-01-01" })).status).toBe(201);
   const employeeId = (await prisma.employee.create({
-    data: { tenantId, companyId: company.id, name: "عامل المحطة", hireDate: new Date("2026-01-01"), basicSalary: 3000, assignedCostCenterId: station },
+    data: { tenantId, companyId: company.id, name: "عامل المحطة", hireDate: new Date("2026-01-01"), basicSalary: 3000, assignedCostCenterId: station, portalActive: true },
   })).id;
   // الاعتماد يفحص تكلفة الوقود مسبقاً: صنف الديزل مربوط، ومستودع للمحطة، ومتوسط تكلفة من فاتورة شراء حقيقية
   const diesel = (await prisma.item.findFirstOrThrow({ where: { tenantId, companyId: company.id, code: "0003" } })).id;
