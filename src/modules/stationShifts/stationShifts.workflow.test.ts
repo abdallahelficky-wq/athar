@@ -19,6 +19,8 @@ vi.mock("../../lib/prisma", () => ({
     // قراءة المتحكم في getShiftById: لا فوهات مربوطة بمتحكم في هذه الاختبارات
     forecourtNozzleMap: { findMany: vi.fn(() => Promise.resolve([])) },
     forecourtPumpTransaction: { findFirst: vi.fn(() => Promise.resolve(null)) },
+    // المحطة الآلية تُعرَف بمتحكم مفعَّل — لا متحكم في هذه الاختبارات (محطة يدوية)
+    forecourtController: { findFirst: vi.fn(() => Promise.resolve(null)) },
     $transaction: vi.fn(),
   },
 }));

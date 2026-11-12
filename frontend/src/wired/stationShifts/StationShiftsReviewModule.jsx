@@ -259,7 +259,10 @@ export default function StationShiftsReviewModule({ companyId }) {
                     <td>{r.nozzle?.pumpNumber}-{r.nozzle?.nozzleNumber}</td>
                     <td>{r.nozzle?.product ? t(`stationSetup.products.${r.nozzle.product}`) : ""}</td>
                     <td><span className="num">{r.openingReading}</span>{r.nozzle?.meterDigits ? <span className="station-digits-hint">{t("stationShiftsReview.digitsSuffix", { n: r.nozzle.meterDigits })}</span> : null}</td>
-                    <td className="num">{r.accountantConfirmedValue ?? t("stationShiftsReview.notReviewedYet")}</td>
+                    {/* وردية آلية: الإقفال من عداد المتحكم عند إقفال العامل، والمحاسب يصحّحه فقط عند الحاجة */}
+                    <td className="num">{r.accountantConfirmedValue ?? (detail.readingsSource === "controller" && r.closingReading != null
+                      ? <>{r.closingReading}<div className="station-digits-hint">{t("stationShiftsReview.fromController")}</div></>
+                      : t("stationShiftsReview.notReviewedYet"))}</td>
                     <td className="num">{(() => {
                       // قراءة المتحكم للمقارنة فقط — "اعتماد" يكتبها في حقل التصحيح، والمحاسب هو من يحفظها
                       const cv = (detail.controllerValues || []).find((x) => x.readingId === r.id)?.controllerValue;
@@ -276,11 +279,11 @@ export default function StationShiftsReviewModule({ companyId }) {
                     <td><input type="number" value={corrections[r.id] || ""} onChange={(e) => setCorrections({ ...corrections, [r.id]: e.target.value })} style={{ width: 100 }} /></td>
                     <td><button className="btn-ghost" onClick={() => doCorrect(r.id)}>{t("stationShiftsReview.correctBtn")}</button></td>
                   </tr>
-                  <tr>
+                  {detail.readingsSource !== "controller" && <tr>
                     <td colSpan={7}>
                       <AttachmentsPanel entityType="station_shift_reading" entityId={r.id} title={t("stationShiftsReview.meterPhotoTitle", { nozzle: `${r.nozzle?.pumpNumber}-${r.nozzle?.nozzleNumber}` })} />
                     </td>
-                  </tr>
+                  </tr>}
                 </React.Fragment>
               ))}
               {(!detail.readings || detail.readings.length === 0) && <tr><td className="empty" colSpan={5}>{t("stationShiftsReview.noReadings")}</td></tr>}

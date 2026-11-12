@@ -10,6 +10,10 @@ const OPEN_SHIFT_STORAGE_KEY = "athar.mobile.stationShifts.openShiftId";
  * التطبيق الرئيسي)، إلى أن تُفعَّل قراءة العداد آلياً من الصورة (OCR) كمرحلة لاحقة منفصلة تماماً.
  * الفوهات تُعرض مجمَّعة حسب المضخة (pumpNumber) — كل مضخة بعدد فوهاتها الفعلي، لا عدداً ثابتاً.
  *
+ * المحطة الآلية (station.automated — متحكم PTS-2 وكل الفوهات مربوطة): لا تصوير إطلاقاً. القراءات تُنشأ عند الفتح وتُقفَل
+ * من عدادات الجهاز عند الإقفال؛ الشاشة تعرض لترات الوردية حتى اللحظة (تتحدّث كل 15 ثانية) — لترات فقط، بلا مبلغ ولا نقد
+ * مستحق، فعدّ النقد يبقى أعمى كما في المحطة اليدوية.
+ *
  * shiftId يُحفَظ في localStorage (لا نقطة نهاية لاسترجاع "ورديتي المفتوحة" في هذه المرحلة) حتى لا
  * يُفقَد التقدّم عند إغلاق المتصفح/تحديث الصفحة أثناء وردية حقيقية في محطة وقود.
  */
@@ -21,6 +25,29 @@ function groupNozzlesByPump(nozzles) {
   }
   return [...byPump.entries()];
 }
+const fmt = (v) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** لترات الوردية الآلية حتى اللحظة: الإجمالي ثم كل فوهة باعت (العداد الحالي − الافتتاح). */
+function AutomatedSales({ station, sales, t }) {
+  const byId = new Map((station.nozzles || []).map((n) => [n.id, n]));
+  return (
+    <div className="m-card">
+      <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.liveSalesTitle")}</h4>
+      <div className="m-list-row"><span>{t("mobile.stationShifts.liters")}</span><strong><bdi>{fmt(sales?.liters)}</bdi></strong></div>
+      {(sales?.nozzles || []).filter((z) => z.liters > 0).map((z) => {
+        const n = byId.get(z.nozzleId);
+        return (
+          <div key={z.nozzleId} className="m-list-row" style={{ fontSize: 13 }}>
+            <span>{n ? t("mobile.stationShifts.pumpNozzle", { pump: n.pumpNumber, product: t(`stationSetup.products.${n.product}`) }) : "—"}</span>
+            <span><bdi>{fmt(z.liters)}</bdi> L</span>
+          </div>
+        );
+      })}
+      <p className="m-empty" style={{ fontSize: 12 }}>{t("mobile.stationShifts.liveSalesHint")}</p>
+    </div>
+  );
+}
+
 export default function StationShiftScreen() {
   const { t } = useTranslation();
   const [station, setStation] = useState(null);
@@ -35,6 +62,8 @@ export default function StationShiftScreen() {
   const [expenses, setExpenses] = useState([]); // { id, amount, description, photoName }
   const [newExpense, setNewExpense] = useState({ amount: "", description: "", file: null });
   const [busy, setBusy] = useState(false);
+  const [sales, setSales] = useState(null); // وردية آلية: { liters, nozzles[] } من الخادم
+  const [confirmClose, setConfirmClose] = useState(false);
   const expenseFileRef = useRef(null);
 
   const loadStation = () => api.getMyStation().then(setStation).catch((e) => setError(e.message));
@@ -47,6 +76,8 @@ export default function StationShiftScreen() {
   useEffect(() => {
     if (!shiftId) return;
     api.getShiftSummary(shiftId).then((summary) => {
+      if (summary.status && summary.status !== "open") { persistShiftId(""); return; }
+      setSales(summary.sales || null);
       const restored = {};
       for (const r of summary.readings || []) {
         restored[r.nozzleId] = { readingId: r.id, saved: true, photoName: null };
@@ -61,6 +92,15 @@ export default function StationShiftScreen() {
     }).catch((e) => setError(e.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shiftId]);
+
+  const automated = Boolean(station?.automated);
+  // وردية آلية: لتراتها حتى اللحظة من عدادات المتحكم
+  useEffect(() => {
+    if (!shiftId || !automated) return undefined;
+    const tick = () => api.getShiftSummary(shiftId).then((s) => setSales(s.sales || null)).catch(() => {});
+    const timer = setInterval(tick, 15000);
+    return () => clearInterval(timer);
+  }, [shiftId, automated]);
 
   const persistShiftId = (id) => {
     setShiftId(id);
@@ -136,15 +176,17 @@ export default function StationShiftScreen() {
 
   const doSubmitShift = async () => {
     setError(""); setMessage("");
-    const missing = (station?.nozzles || []).filter((n) => !readings[n.id]?.saved);
+    const missing = automated ? [] : (station?.nozzles || []).filter((n) => !readings[n.id]?.saved);
     if (missing.length > 0) return setError(t("mobile.stationShifts.incompleteNozzles"));
     if (!collectionsSaved) return setError(t("mobile.stationShifts.collectionsRequired"));
+    // إقفال الوردية الآلية نهائي (يُثبِّت عدادات اللحظة) — ضغطة تأكيد ثانية
+    if (automated && !confirmClose) return setConfirmClose(true);
     setBusy(true);
     try {
       await api.submitShift(shiftId);
       persistShiftId("");
-      setReadings({}); setNetwork(""); setCashDelivered(""); setCollectionsSaved(false); setExpenses([]);
-      setMessage(t("mobile.stationShifts.shiftSubmitted"));
+      setReadings({}); setNetwork(""); setCashDelivered(""); setCollectionsSaved(false); setExpenses([]); setSales(null); setConfirmClose(false);
+      setMessage(t(automated ? "mobile.stationShifts.shiftClosed" : "mobile.stationShifts.shiftSubmitted"));
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   };
@@ -157,6 +199,7 @@ export default function StationShiftScreen() {
         {error && <p className="m-error">{error}</p>}
         <div className="m-card">
           <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.openShiftTitle")}</h4>
+          {automated && <p className="m-empty" style={{ textAlign: "start" }}>{t("mobile.stationShifts.automatedHint")}</p>}
           <div className="m-field">
             <label>{t("mobile.stationShifts.shiftTypeLabel")}</label>
             <select value={shiftType} onChange={(e) => setShiftType(e.target.value)}>
@@ -175,8 +218,8 @@ export default function StationShiftScreen() {
       {error && <p className="m-error">{error}</p>}
       {message && <p className="m-empty" style={{ color: "#2F5D5A" }}>{message}</p>}
 
-      <h4>{t("mobile.stationShifts.nozzlesTitle")}</h4>
-      {groupNozzlesByPump(station.nozzles).map(([pumpNumber, nozzles]) => (
+      {automated ? <AutomatedSales station={station} sales={sales} t={t} /> : <h4>{t("mobile.stationShifts.nozzlesTitle")}</h4>}
+      {!automated && groupNozzlesByPump(station.nozzles).map(([pumpNumber, nozzles]) => (
         <div key={pumpNumber} className="m-card">
           <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.pumpLabel", { pump: pumpNumber })}</h4>
           {nozzles.map((n) => {
@@ -249,7 +292,10 @@ export default function StationShiftScreen() {
       </div>
 
       <div className="m-card">
-        <button className="m-big-btn" disabled={busy} onClick={doSubmitShift}>{t("mobile.stationShifts.submitShiftBtn")}</button>
+        {confirmClose && <p className="m-error">{t("mobile.stationShifts.closeConfirm")}</p>}
+        <button className="m-big-btn" disabled={busy} onClick={doSubmitShift}>
+          {t(automated ? (confirmClose ? "mobile.stationShifts.closeShiftConfirmBtn" : "mobile.stationShifts.closeShiftBtn") : "mobile.stationShifts.submitShiftBtn")}
+        </button>
       </div>
     </div>
   );
