@@ -20,6 +20,8 @@ vi.mock("../../lib/prisma", () => ({
     stationShiftCollection: { findUnique: vi.fn() },
     stationShiftCreditSale: { findMany: vi.fn() },
     stationShiftExpense: { findMany: vi.fn() },
+    // المحطة الآلية تُعرَف بمتحكم مفعَّل — لا متحكم في هذه الاختبارات (محطة يدوية)
+    forecourtController: { findFirst: vi.fn(() => Promise.resolve(null)) },
   },
 }));
 

@@ -3147,6 +3147,11 @@ model FuelPrice {
 // وردية محطة واحدة — دورة حياتها الكاملة من فتحها حتى ترحيل قيدها المحاسبي (journalEntryId يُملأ
 // فقط عند status=posted). فريدة على (costCenterId, shiftDate, shiftType): لا يمكن فتح ورديتين
 // بنفس النوع لنفس المحطة في نفس اليوم.
+enum StationShiftReadingsSource {
+  photo
+  controller
+}
+
 model StationShift {
   id                  String             @id @default(cuid())
   tenantId            String
@@ -3181,6 +3186,9 @@ model StationShift {
   // وردية مصحَّحة يُدخلها المحاسب بدل وردية معكوسة أو مرفوضة لنفس المحطة/التاريخ/النوع (createCorrectedShift) — مرجع
   // حر إلى الوردية المستبدَلة. قراءات افتتاحها مأخوذة من افتتاح تلك الوردية، وصور عداداتها هي إثبات قراءات هذه.
   correctsShiftId     String?
+  // مصدر قراءات العدادات: photo = يصوّرها العامل ويكتبها المحاسب، controller = تُؤخذ آلياً من متحكم المحطة عند
+  // فتح الوردية وإقفالها (محطة كل فوهاتها مربوطة بمتحكم مفعَّل) — راجع stationShifts.service.ts (openShift/submitShift)
+  readingsSource      StationShiftReadingsSource @default(photo)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 

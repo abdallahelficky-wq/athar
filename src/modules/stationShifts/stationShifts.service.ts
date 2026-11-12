@@ -571,6 +571,43 @@ async function getWorkerCostCenter(tenantId: string, employeeId: string) {
   return { costCenterId: costCenter.id, companyId: costCenter.companyId };
 }
 
+/**
+ * المحطة الآلية: لها متحكم PTS-2 مفعَّل وكل فوهاتها المفعَّلة مربوطة به. ورديتها لا تُصوَّر عداداتها — قراءة الافتتاح من سلسلة
+ * الإقفال كالمعتاد، وقراءة الإقفال = العداد التراكمي للفوهة في آخر عملية بيع رفعها المتحكم حتى لحظة الإقفال. فوهة واحدة بلا
+ * ربط تُبقي المحطة يدوية كلها (لا وردية نصفها آلي ونصفها مصوَّر).
+ */
+export async function stationAutomation(tenantId: string, companyId: string, costCenterId: string) {
+  const [controller, nozzles] = await Promise.all([
+    prisma.forecourtController.findFirst({ where: { tenantId, companyId, costCenterId, isActive: true }, select: { id: true, nozzleMaps: { select: { nozzleId: true } } } }),
+    prisma.stationNozzle.findMany({ where: { tenantId, companyId, costCenterId, isActive: true }, select: { id: true } }),
+  ]);
+  if (!controller || nozzles.length === 0) return null;
+  const mapped = new Set(controller.nozzleMaps.map((m) => m.nozzleId));
+  return nozzles.every((n) => mapped.has(n.id)) ? { controllerId: controller.id } : null;
+}
+
+/** العداد التراكمي لكل فوهة من آخر عملية بيع رفعها المتحكم حتى لحظة `at` — غائب للفوهة بلا عملية بعداد. */
+async function controllerTotalizers(tenantId: string, companyId: string, nozzleIds: string[], at: Date) {
+  const rows = await Promise.all(
+    nozzleIds.map((nozzleId) =>
+      prisma.forecourtPumpTransaction.findFirst({
+        where: { tenantId, companyId, nozzleId, endedAt: { lte: at }, totalVolume: { not: null } },
+        orderBy: { endedAt: "desc" },
+        select: { nozzleId: true, totalVolume: true },
+      }),
+    ),
+  );
+  const out = new Map<string, Prisma.Decimal>();
+  for (const r of rows) if (r?.nozzleId && r.totalVolume != null) out.set(r.nozzleId, new Prisma.Decimal(r.totalVolume));
+  return out;
+}
+
+/** قراءة إقفال آلية: عداد المتحكم إن لم يكن أقل من الافتتاح (عمليات أقدم من آخر إقفال)، وإلا الافتتاح نفسه (لا بيع). */
+function controllerClosing(opening: Prisma.Decimal.Value, totalizer: Prisma.Decimal | undefined) {
+  const open = new Prisma.Decimal(opening);
+  return totalizer && totalizer.greaterThanOrEqualTo(open) ? totalizer : open;
+}
+
 /** بيانات نقطة "محطتي" — نوافذ العامل قبل فتح وردية جديدة: قائمة الفوهات، الأسعار السارية اليوم
  * (فارغة/null لمنتج بلا سعر مضبوط بعد بدل رفض الشاشة بالكامل — عرض فقط، لا التزام مالي)، وقراءات
  * إغلاق آخر وردية سابقة لكل فوهة (نفس ما سيُشتَق منه openingReading تلقائياً عند فتح وردية جديدة).
@@ -599,7 +636,8 @@ export async function getMyStation(tenantId: string, employeeId: string) {
     nozzles.map((n) => [n.id, (closingByNozzle.get(n.id) ?? new Prisma.Decimal(n.initialReading)).toNumber()]),
   );
 
-  return { costCenterId, nozzles, effectivePrices, previousShiftId: previousShift?.id ?? null, previousClosingReadings };
+  const automated = (await stationAutomation(tenantId, companyId, costCenterId)) != null;
+  return { costCenterId, nozzles, effectivePrices, previousShiftId: previousShift?.id ?? null, previousClosingReadings, automated };
 }
 
 /**
@@ -641,6 +679,7 @@ const WORKER_SHIFT_SELECT = {
   openedAt: true,
   closedAt: true,
   status: true,
+  readingsSource: true,
 } as const;
 
 /** فتح وردية جديدة — costCenterId يُشتَق دائماً من تعيين المستخدم نفسه (لا من الطلب إطلاقاً)،
@@ -659,6 +698,35 @@ export async function openShift(tenantId: string, employeeId: string, input: Ope
     where: { tenantId, costCenterId, shiftDate, shiftType: input.shiftType, status: { notIn: [...SLOT_FREEING_STATUSES] } },
   });
   if (existing) throw badRequest("توجد وردية بالفعل لهذه المحطة بنفس التاريخ ونوع الوردية");
+
+  const automation = await stationAutomation(tenantId, companyId, costCenterId);
+  if (automation) {
+    // محطة آلية: وردية واحدة مفتوحة في المرة — مبيعات الوردية فرق عدادات المتحكم بين إقفال السابقة وإقفالها، فورديتان
+    // مفتوحتان معاً تتقاسمان نفس العمليات
+    const stillOpen = await prisma.stationShift.findFirst({ where: { tenantId, costCenterId, status: "open" }, select: { id: true } });
+    if (stillOpen) throw badRequest("توجد وردية مفتوحة على هذه المحطة — يجب إقفالها أولاً قبل فتح وردية جديدة");
+    const openedAt = new Date();
+    const nozzles = await prisma.stationNozzle.findMany({ where: { tenantId, companyId, costCenterId, isActive: true } });
+    const [{ closingByNozzle }, totals] = await Promise.all([
+      getPreviousClosingReadings(tenantId, costCenterId),
+      controllerTotalizers(tenantId, companyId, nozzles.map((n) => n.id), openedAt),
+    ]);
+    return prisma.$transaction(async (tx) => {
+      const shift = await tx.stationShift.create({
+        data: { tenantId, companyId, costCenterId, employeeId, shiftDate, shiftType: input.shiftType, openedAt, status: "open", isSeedData: false, readingsSource: "controller" },
+        select: WORKER_SHIFT_SELECT,
+      });
+      // قراءات كل الفوهات تُنشأ عند الفتح، وإقفالها يُكتب من المتحكم عند الإقفال. الافتتاح من سلسلة الإقفال؛ وفوهة بلا وردية
+      // سابقة (أول وردية آلية للمحطة) تفتح من عداد المتحكم لحظة الفتح — ما بيع بين التعريف وبدء الورديات لا يُحمَّل على أول عامل
+      await tx.stationShiftReading.createMany({
+        data: nozzles.map((n) => ({
+          tenantId, companyId, shiftId: shift.id, nozzleId: n.id, capturedAt: openedAt,
+          openingReading: closingByNozzle.get(n.id) ?? controllerClosing(n.initialReading, totals.get(n.id)),
+        })),
+      });
+      return shift;
+    });
+  }
 
   return prisma.stationShift.create({
     // isSeedData: false صريحاً هنا (لا اعتماداً على @default(false) في المخطط فقط) — أي وردية
@@ -690,6 +758,7 @@ export interface SubmitReadingInput {
  */
 export async function submitReading(tenantId: string, employeeId: string, shiftId: string, input: SubmitReadingInput) {
   const shift = await getOwnedOpenShift(tenantId, employeeId, shiftId);
+  if (shift.readingsSource === "controller") throw badRequest("هذه وردية آلية — قراءات العدادات تُؤخذ من جهاز المحطة، لا حاجة لتصويرها");
 
   const nozzle = await prisma.stationNozzle.findFirst({
     where: { id: input.nozzleId, costCenterId: shift.costCenterId, tenantId, isActive: true },
@@ -789,6 +858,29 @@ export async function addExpense(tenantId: string, employeeId: string, shiftId: 
  * وردية عامل آخر (حتى بمحطة مختلفة تماماً) ويرى تفاصيلها. يعمل بصرف النظر عن حالة الوردية (حتى
  * بعد الإرسال/الاعتماد/الترحيل) لأنه يبقى "ملخص وردية العامل نفسه"، لا مقصوراً على وهي مفتوحة.
  */
+/**
+ * لترات وردية آلية حتى الآن (أو حتى إقفالها): لكل فوهة العداد الحالي من المتحكم (أو قراءة الإقفال المكتوبة بعد الإقفال) ناقص
+ * الافتتاح. لترات فقط بلا مبلغ ولا سعر: ملخص العامل لا يكشف قيمة المبيعات ولا النقد المستحق (عدّ النقد يبقى أعمى كما في المحطة
+ * اليدوية)، والقيد يُبنى من القراءات المعتمدة لا من هذا العرض.
+ */
+async function controllerShiftLiters(
+  tenantId: string,
+  shift: { companyId: string; status: string },
+  readings: { nozzleId: string; openingReading: Prisma.Decimal; closingReading: Prisma.Decimal | null }[],
+) {
+  const totals = shift.status === "open"
+    ? await controllerTotalizers(tenantId, shift.companyId, readings.map((r) => r.nozzleId), new Date())
+    : new Map<string, Prisma.Decimal>();
+  let liters = new Prisma.Decimal(0);
+  const nozzles = readings.map((r) => {
+    const current = r.closingReading != null ? new Prisma.Decimal(r.closingReading) : controllerClosing(r.openingReading, totals.get(r.nozzleId));
+    const sold = current.minus(r.openingReading);
+    liters = liters.plus(sold);
+    return { nozzleId: r.nozzleId, currentReading: current.toNumber(), liters: sold.toNumber() };
+  });
+  return { nozzles, liters: liters.toNumber() };
+}
+
 export async function getShiftSummary(tenantId: string, employeeId: string, shiftId: string) {
   const shift = await getOwnedShift(tenantId, employeeId, shiftId);
   const [readings, expenses, creditSales] = await Promise.all([
@@ -797,12 +889,17 @@ export async function getShiftSummary(tenantId: string, employeeId: string, shif
     prisma.stationShiftCreditSale.findMany({ where: { shiftId: shift.id } }),
   ]);
   const collection = await prisma.stationShiftCollection.findUnique({ where: { shiftId: shift.id } });
+  const live = shift.readingsSource === "controller" ? await controllerShiftLiters(tenantId, shift, readings) : null;
 
   return {
     id: shift.id,
     status: shift.status,
     shiftType: shift.shiftType,
     shiftDate: shift.shiftDate,
+    readingsSource: shift.readingsSource,
+    openedAt: shift.openedAt,
+    closedAt: shift.closedAt,
+    sales: live,
     readings: readings.map((r) => ({
       id: r.id,
       nozzleId: r.nozzleId,
@@ -823,10 +920,22 @@ export async function getShiftSummary(tenantId: string, employeeId: string, shif
 
 export async function submitShift(tenantId: string, employeeId: string, shiftId: string) {
   const shift = await getOwnedOpenShift(tenantId, employeeId, shiftId);
-  return prisma.stationShift.update({
-    where: { id: shift.id },
-    data: { status: "submitted", closedAt: new Date() },
-    select: WORKER_SHIFT_SELECT,
+  const closedAt = new Date();
+  if (shift.readingsSource !== "controller") {
+    return prisma.stationShift.update({
+      where: { id: shift.id },
+      data: { status: "submitted", closedAt },
+      select: WORKER_SHIFT_SELECT,
+    });
+  }
+  // وردية آلية: إقفال كل فوهة = عداد المتحكم في آخر عملية حتى لحظة الإقفال (تعبئة جارية لحظتها تُحسب للوردية التالية)
+  const readings = await prisma.stationShiftReading.findMany({ where: { tenantId, shiftId: shift.id } });
+  const totals = await controllerTotalizers(tenantId, shift.companyId, readings.map((r) => r.nozzleId), closedAt);
+  return prisma.$transaction(async (tx) => {
+    for (const r of readings) {
+      await tx.stationShiftReading.update({ where: { id: r.id }, data: { closingReading: controllerClosing(r.openingReading, totals.get(r.nozzleId)), capturedAt: closedAt } });
+    }
+    return tx.stationShift.update({ where: { id: shift.id }, data: { status: "submitted", closedAt }, select: WORKER_SHIFT_SELECT });
   });
 }
 
@@ -997,7 +1106,8 @@ export async function approveShift(tenantId: string, userId: string, shiftId: st
       })
     : [];
   const withPhoto = new Set(attachedReadingIds.map((a) => a.entityId));
-  for (const reading of readings) {
+  // وردية آلية (أو مصحَّحة بدل آلية): دليل القراءة عداد المتحكم لا صورة
+  for (const reading of shift.readingsSource === "controller" ? [] : readings) {
     if (!evidenceIdsByNozzle.get(reading.nozzleId)!.some((id) => withPhoto.has(id))) {
       throw badRequest("لا يمكن اعتماد الوردية: إحدى القراءات بلا صورة عداد مرفقة بعد");
     }
@@ -1382,7 +1492,7 @@ export async function createCorrectedShift(tenantId: string, userId: string, rep
       data: {
         tenantId, companyId: replaced.companyId, costCenterId: replaced.costCenterId, employeeId: replaced.employeeId,
         shiftDate: replaced.shiftDate, shiftType: replaced.shiftType, openedAt: replaced.openedAt, closedAt: replaced.closedAt ?? new Date(),
-        status: "under_review", isSeedData: false, correctsShiftId: replaced.id,
+        status: "under_review", isSeedData: false, correctsShiftId: replaced.id, readingsSource: replaced.readingsSource,
       },
     });
     await tx.stationShiftReading.createMany({
