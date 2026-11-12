@@ -706,20 +706,22 @@ export async function openShift(tenantId: string, employeeId: string, input: Ope
     const stillOpen = await prisma.stationShift.findFirst({ where: { tenantId, costCenterId, status: "open" }, select: { id: true } });
     if (stillOpen) throw badRequest("توجد وردية مفتوحة على هذه المحطة — يجب إقفالها أولاً قبل فتح وردية جديدة");
     const openedAt = new Date();
+    const nozzles = await prisma.stationNozzle.findMany({ where: { tenantId, companyId, costCenterId, isActive: true } });
+    const [{ closingByNozzle }, totals] = await Promise.all([
+      getPreviousClosingReadings(tenantId, costCenterId),
+      controllerTotalizers(tenantId, companyId, nozzles.map((n) => n.id), openedAt),
+    ]);
     return prisma.$transaction(async (tx) => {
       const shift = await tx.stationShift.create({
         data: { tenantId, companyId, costCenterId, employeeId, shiftDate, shiftType: input.shiftType, openedAt, status: "open", isSeedData: false, readingsSource: "controller" },
         select: WORKER_SHIFT_SELECT,
       });
-      const [nozzles, { closingByNozzle }] = await Promise.all([
-        tx.stationNozzle.findMany({ where: { tenantId, companyId, costCenterId, isActive: true } }),
-        getPreviousClosingReadings(tenantId, costCenterId, shift.id),
-      ]);
-      // قراءات كل الفوهات تُنشأ عند الفتح بافتتاحها (سلسلة الإقفال)، وإقفالها يُكتب من المتحكم عند الإقفال
+      // قراءات كل الفوهات تُنشأ عند الفتح، وإقفالها يُكتب من المتحكم عند الإقفال. الافتتاح من سلسلة الإقفال؛ وفوهة بلا وردية
+      // سابقة (أول وردية آلية للمحطة) تفتح من عداد المتحكم لحظة الفتح — ما بيع بين التعريف وبدء الورديات لا يُحمَّل على أول عامل
       await tx.stationShiftReading.createMany({
         data: nozzles.map((n) => ({
           tenantId, companyId, shiftId: shift.id, nozzleId: n.id, capturedAt: openedAt,
-          openingReading: closingByNozzle.get(n.id) ?? new Prisma.Decimal(n.initialReading),
+          openingReading: closingByNozzle.get(n.id) ?? controllerClosing(n.initialReading, totals.get(n.id)),
         })),
       });
       return shift;

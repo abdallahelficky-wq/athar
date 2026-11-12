@@ -152,6 +152,8 @@ describe("automated station shifts (integration)", () => {
 
   it("opens with readings from the chain, closes from the controller's totalizers, and chains into the next shift", async () => {
     const a = ctx.a;
+    // بيع قبل أول وردية (بين التعريف وبدء التشغيل): أول وردية تفتح من عداد الجهاز 1005 لا من قراءة التعريف 1000
+    await uploadSale(a, 1, 5, 1005, 300);
     const opened = await portal(a, "POST", "", { shiftType: "morning" });
     expect(opened.status, opened.text).toBe(201);
     expect(opened.body.readingsSource).toBe("controller");
@@ -159,7 +161,7 @@ describe("automated station shifts (integration)", () => {
 
     // قراءات كل الفوهات أُنشئت عند الفتح من قراءة التعريف، بلا إقفال بعد
     const atOpen = await portal(a, "GET", `/${shiftId}/summary`);
-    expect(atOpen.body.readings.map((r: any) => [r.nozzleId, Number(r.openingReading), r.closingReading])).toEqual([[a.nozzles[0], 1000, null], [a.nozzles[1], 2000, null]]);
+    expect(atOpen.body.readings.map((r: any) => [r.nozzleId, Number(r.openingReading), r.closingReading])).toEqual([[a.nozzles[0], 1005, null], [a.nozzles[1], 2000, null]]);
     expect(atOpen.body.sales).toMatchObject({ liters: 0 });
 
     // لا وردية ثانية وهذه مفتوحة، ولا تصوير عدادات في الوردية الآلية
@@ -173,11 +175,11 @@ describe("automated station shifts (integration)", () => {
     const bShift = await portal(ctx.b, "POST", "", { shiftType: "morning" });
     expect(bShift.status, bShift.text).toBe(201);
     await uploadSale(ctx.b, 1, 40, 1040, 120);
-    await uploadSale(a, 1, 30, 1030, 120);
+    await uploadSale(a, 2, 30, 1035, 120);
 
     // الملخص الحي للعامل: لترات فقط، بلا مبلغ ولا نقد مستحق (عدّ النقد أعمى)
     const live = await portal(a, "GET", `/${shiftId}/summary`);
-    expect(live.body.sales).toEqual({ liters: 30, nozzles: [{ nozzleId: a.nozzles[0], currentReading: 1030, liters: 30 }, { nozzleId: a.nozzles[1], currentReading: 2000, liters: 0 }] });
+    expect(live.body.sales).toEqual({ liters: 30, nozzles: [{ nozzleId: a.nozzles[0], currentReading: 1035, liters: 30 }, { nozzleId: a.nozzles[1], currentReading: 2000, liters: 0 }] });
     for (const leaked of ["amount", "cashDue", "expectedCash", "variance"]) expect(live.body.sales).not.toHaveProperty(leaked);
 
     expect((await portal(a, "PUT", `/${shiftId}/collections`, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 69 })).status).toBe(200);
@@ -185,7 +187,7 @@ describe("automated station shifts (integration)", () => {
     expect(closed.status, closed.text).toBe(200);
     expect(closed.body.status).toBe("submitted");
     const rows = await prisma.stationShiftReading.findMany({ where: { shiftId }, orderBy: { openingReading: "asc" } });
-    expect(rows.map((r) => [Number(r.openingReading), Number(r.closingReading)])).toEqual([[1000, 1030], [2000, 2000]]);
+    expect(rows.map((r) => [Number(r.openingReading), Number(r.closingReading)])).toEqual([[1005, 1035], [2000, 2000]]);
 
     // المحاسب يعتمد بلا صور ولا كتابة قيم: المبيعات 30 × 2.30 = 69 والنقد مطابق
     const review = await call("GET", `/station-shifts/${shiftId}`, a.token);
@@ -198,11 +200,11 @@ describe("automated station shifts (integration)", () => {
     // الوردية التالية تفتح من إقفال السابقة وتُقفَل من العملية التالية للجهاز
     const next = await portal(a, "POST", "", { shiftType: "night" });
     expect(next.status, next.text).toBe(201);
-    await uploadSale(a, 2, 15, 1045, 0);
+    await uploadSale(a, 3, 15, 1050, 0);
     expect((await portal(a, "PUT", `/${next.body.id}/collections`, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 34.5 })).status).toBe(200);
     expect((await portal(a, "POST", `/${next.body.id}/submit`)).status).toBe(200);
     const nextRows = await prisma.stationShiftReading.findMany({ where: { shiftId: next.body.id }, orderBy: { openingReading: "asc" } });
-    expect(nextRows.map((r) => [Number(r.openingReading), Number(r.closingReading)])).toEqual([[1030, 1045], [2000, 2000]]);
+    expect(nextRows.map((r) => [Number(r.openingReading), Number(r.closingReading)])).toEqual([[1035, 1050], [2000, 2000]]);
 
     // B: 40 لتراً من جهازه هو، وورديته وملخصه لا يُفتحان لعامل A ولا لمحاسبه
     expect((await portal(ctx.b, "GET", `/${bShift.body.id}/summary`)).body.sales.liters).toBe(40);
