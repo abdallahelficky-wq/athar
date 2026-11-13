@@ -11,8 +11,7 @@ const OPEN_SHIFT_STORAGE_KEY = "athar.mobile.stationShifts.openShiftId";
  * الفوهات تُعرض مجمَّعة حسب المضخة (pumpNumber) — كل مضخة بعدد فوهاتها الفعلي، لا عدداً ثابتاً.
  *
  * المحطة الآلية (station.automated — متحكم PTS-2 وكل الفوهات مربوطة): لا تصوير إطلاقاً. القراءات تُنشأ عند الفتح وتُقفَل
- * من عدادات الجهاز عند الإقفال؛ الشاشة تعرض لترات الوردية حتى اللحظة (تتحدّث كل 15 ثانية) — لترات فقط، بلا مبلغ ولا نقد
- * مستحق، فعدّ النقد يبقى أعمى كما في المحطة اليدوية. وشاشتها مختصرة لأربع خطوات فقط: فتح الوردية، الشبكة، الكاش، إقفال
+ * من عدادات الجهاز عند الإقفال؛ الشاشة تعرض مبيعات الوردية حتى اللحظة (تتحدّث كل 15 ثانية): لترات ومبلغ لكل منتج والإجمالي. وشاشتها مختصرة لأربع خطوات فقط: فتح الوردية، الشبكة، الكاش، إقفال
  * الوردية — بلا مصروفات ولا حفظ منفصل للتحصيل: زر الإقفال يحفظ الشبكة والكاش ثم يقفل (بضغطة تأكيد ثانية).
  *
  * shiftId يُحفَظ في localStorage (لا نقطة نهاية لاسترجاع "ورديتي المفتوحة" في هذه المرحلة) حتى لا
@@ -28,12 +27,19 @@ function groupNozzlesByPump(nozzles) {
 }
 const fmt = (v) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** وردية آلية مفتوحة: سطر واحد بلترات الوردية حتى اللحظة (لا تفصيل فوهات). */
+/** وردية آلية مفتوحة: لكل منتج اللترات والمبلغ، ثم الإجمالي (بسعر المحطة الساري). */
 function AutomatedSales({ sales, t }) {
+  const row = (label, liters, amount, strong) => (
+    <div className="m-list-row" style={strong ? { fontWeight: 700, borderTop: "1px solid #e5e7eb", paddingTop: 8 } : undefined}>
+      <span>{label}</span>
+      <span><bdi>{fmt(liters)}</bdi> L · <bdi>{amount == null ? "—" : fmt(amount)}</bdi> {t("mobile.stationShifts.sar")}</span>
+    </div>
+  );
   return (
     <div className="m-card">
       <h4 style={{ marginTop: 0, color: "#2F5D5A" }}>● {t("mobile.stationShifts.shiftOpenTitle")}</h4>
-      <div className="m-list-row"><span>{t("mobile.stationShifts.liveSalesTitle")}</span><strong><bdi>{fmt(sales?.liters)}</bdi> L</strong></div>
+      {(sales?.products || []).map((p) => <React.Fragment key={p.product}>{row(t(`stationSetup.products.${p.product}`), p.liters, p.amount)}</React.Fragment>)}
+      {row(t("mobile.stationShifts.totalSales"), sales?.liters, sales?.amount, true)}
     </div>
   );
 }

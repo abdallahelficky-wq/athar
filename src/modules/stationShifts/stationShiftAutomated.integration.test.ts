@@ -177,10 +177,14 @@ describe("automated station shifts (integration)", () => {
     await uploadSale(ctx.b, 1, 40, 1040, 120);
     await uploadSale(a, 2, 30, 1035, 120);
 
-    // الملخص الحي للعامل: لترات فقط، بلا مبلغ ولا نقد مستحق (عدّ النقد أعمى)
+    // الملخص الحي للعامل: لترات ومبلغ لكل منتج بسعر المحطة (30 × 2.30 = 69) والإجمالي — لا عجز ولا زيادة
     const live = await portal(a, "GET", `/${shiftId}/summary`);
-    expect(live.body.sales).toEqual({ liters: 30, nozzles: [{ nozzleId: a.nozzles[0], currentReading: 1035, liters: 30 }, { nozzleId: a.nozzles[1], currentReading: 2000, liters: 0 }] });
-    for (const leaked of ["amount", "cashDue", "expectedCash", "variance"]) expect(live.body.sales).not.toHaveProperty(leaked);
+    expect(live.body.sales).toEqual({
+      liters: 30, amount: 69,
+      products: [{ product: "diesel", liters: 30, price: 2.3, amount: 69 }],
+      nozzles: [{ nozzleId: a.nozzles[0], currentReading: 1035, liters: 30 }, { nozzleId: a.nozzles[1], currentReading: 2000, liters: 0 }],
+    });
+    for (const leaked of ["cashDue", "variance"]) expect(live.body.sales).not.toHaveProperty(leaked);
 
     expect((await portal(a, "PUT", `/${shiftId}/collections`, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 69 })).status).toBe(200);
     const closed = await portal(a, "POST", `/${shiftId}/submit`);

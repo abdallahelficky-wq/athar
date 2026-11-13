@@ -859,26 +859,44 @@ export async function addExpense(tenantId: string, employeeId: string, shiftId: 
  * بعد الإرسال/الاعتماد/الترحيل) لأنه يبقى "ملخص وردية العامل نفسه"، لا مقصوراً على وهي مفتوحة.
  */
 /**
- * لترات وردية آلية حتى الآن (أو حتى إقفالها): لكل فوهة العداد الحالي من المتحكم (أو قراءة الإقفال المكتوبة بعد الإقفال) ناقص
- * الافتتاح. لترات فقط بلا مبلغ ولا سعر: ملخص العامل لا يكشف قيمة المبيعات ولا النقد المستحق (عدّ النقد يبقى أعمى كما في المحطة
- * اليدوية)، والقيد يُبنى من القراءات المعتمدة لا من هذا العرض.
+ * مبيعات وردية آلية حتى الآن (أو حتى إقفالها): لكل فوهة العداد الحالي من المتحكم (أو قراءة الإقفال المكتوبة بعد الإقفال) ناقص
+ * الافتتاح، ثم لكل منتج اللترات والمبلغ بالسعر الساري للمحطة يوم الوردية (resolveEffectivePrice — نفس سعر القيد)، والإجمالي.
+ * قرار المالك (13 نوفمبر 2026): عامل المحطة الآلية يرى مبيعاته لتراً ومبلغاً لكل منتج — بدل العدّ الأعمى للنقد. العرض لا يمسّ
+ * القيد: القيد يُبنى من القراءات المعتمدة.
  */
-async function controllerShiftLiters(
+async function controllerShiftSales(
   tenantId: string,
-  shift: { companyId: string; status: string },
-  readings: { nozzleId: string; openingReading: Prisma.Decimal; closingReading: Prisma.Decimal | null }[],
+  shift: { companyId: string; costCenterId: string; shiftDate: Date; status: string },
+  readings: { nozzleId: string; openingReading: Prisma.Decimal; closingReading: Prisma.Decimal | null; nozzle: { product: StationFuelProduct } }[],
 ) {
-  const totals = shift.status === "open"
-    ? await controllerTotalizers(tenantId, shift.companyId, readings.map((r) => r.nozzleId), new Date())
-    : new Map<string, Prisma.Decimal>();
-  let liters = new Prisma.Decimal(0);
+  const [totals, priceRows] = await Promise.all([
+    shift.status === "open"
+      ? controllerTotalizers(tenantId, shift.companyId, readings.map((r) => r.nozzleId), new Date())
+      : Promise.resolve(new Map<string, Prisma.Decimal>()),
+    prisma.fuelPrice.findMany({ where: { tenantId, companyId: shift.companyId, OR: [{ costCenterId: shift.costCenterId }, { costCenterId: null }] } }),
+  ]);
+  const priceOf = (product: StationFuelProduct) => {
+    try { return resolveEffectivePrice(product, shift.shiftDate, priceRows); } catch { return null; }
+  };
+  const byProduct = new Map<StationFuelProduct, { liters: Prisma.Decimal; price: Prisma.Decimal | null }>();
   const nozzles = readings.map((r) => {
     const current = r.closingReading != null ? new Prisma.Decimal(r.closingReading) : controllerClosing(r.openingReading, totals.get(r.nozzleId));
     const sold = current.minus(r.openingReading);
-    liters = liters.plus(sold);
+    const slot = byProduct.get(r.nozzle.product) ?? { liters: new Prisma.Decimal(0), price: priceOf(r.nozzle.product) };
+    slot.liters = slot.liters.plus(sold);
+    byProduct.set(r.nozzle.product, slot);
     return { nozzleId: r.nozzleId, currentReading: current.toNumber(), liters: sold.toNumber() };
   });
-  return { nozzles, liters: liters.toNumber() };
+  let liters = new Prisma.Decimal(0);
+  let amount = new Prisma.Decimal(0);
+  const ORDER: StationFuelProduct[] = ["gasoline_91", "gasoline_95", "diesel"];
+  const products = [...byProduct].sort(([a], [b]) => ORDER.indexOf(a) - ORDER.indexOf(b)).map(([product, { liters: l, price }]) => {
+    const value = price ? l.times(price).toDecimalPlaces(2) : null;
+    liters = liters.plus(l);
+    if (value) amount = amount.plus(value);
+    return { product, liters: l.toNumber(), price: price?.toNumber() ?? null, amount: value?.toNumber() ?? null };
+  });
+  return { nozzles, products, liters: liters.toNumber(), amount: amount.toNumber() };
 }
 
 export async function getShiftSummary(tenantId: string, employeeId: string, shiftId: string) {
@@ -889,7 +907,7 @@ export async function getShiftSummary(tenantId: string, employeeId: string, shif
     prisma.stationShiftCreditSale.findMany({ where: { shiftId: shift.id } }),
   ]);
   const collection = await prisma.stationShiftCollection.findUnique({ where: { shiftId: shift.id } });
-  const live = shift.readingsSource === "controller" ? await controllerShiftLiters(tenantId, shift, readings) : null;
+  const live = shift.readingsSource === "controller" ? await controllerShiftSales(tenantId, shift, readings) : null;
 
   return {
     id: shift.id,
