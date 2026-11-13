@@ -20,6 +20,8 @@ function Shell() {
   if (employee?.assignedCostCenterId) TABS.push({ id: "stationShifts", label: t("mobile.tabs.stationShifts"), icon: "⛽" });
   const tabs = employee?.isManager ? [...TABS, { id: "inbox", label: t("mobile.tabs.inbox"), icon: "📥" }] : TABS;
   const [tab, setTab] = useState("attendance");
+  // عامل محطة (مُسنَد لمحطة وليس مديراً): التطبيق شاشة الوردية وحدها — لا حضور ولا إجازات ولا شريط تبويبات؛ هي الصفحة الرئيسية
+  const stationOnly = Boolean(employee?.assignedCostCenterId) && !employee?.isManager;
 
   return (
     <div className="m-app">
@@ -36,19 +38,20 @@ function Shell() {
         </div>
       </div>
       <div className="m-main">
-        {tab === "attendance" && <CheckInScreen />}
-        {tab === "leave" && <LeaveRequestsScreen />}
-        {tab === "stationShifts" && employee?.assignedCostCenterId && <StationShiftScreen />}
-        {tab === "inbox" && employee?.isManager && <ManagerInboxScreen />}
+        {stationOnly && <StationShiftScreen />}
+        {!stationOnly && tab === "attendance" && <CheckInScreen />}
+        {!stationOnly && tab === "leave" && <LeaveRequestsScreen />}
+        {!stationOnly && tab === "stationShifts" && employee?.assignedCostCenterId && <StationShiftScreen />}
+        {!stationOnly && tab === "inbox" && employee?.isManager && <ManagerInboxScreen />}
       </div>
-      <div className="m-tabbar">
+      {!stationOnly && <div className="m-tabbar">
         {tabs.map((tabItem) => (
           <button key={tabItem.id} className={"m-tab" + (tab === tabItem.id ? " active" : "")} onClick={() => setTab(tabItem.id)}>
             <span className="m-tab-icon">{tabItem.icon}</span>
             <span>{tabItem.label}</span>
           </button>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }
