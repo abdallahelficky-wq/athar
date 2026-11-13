@@ -160,44 +160,54 @@ function todayUtc() {
 }
 
 /**
- * سجل أسعار الشركة (السعر العام الذي يسري على كل محطاتها)، مع السعر الساري الآن لكل منتج والسعر
- * المجدول القادم إن وُجد. لا تعديل لأي سعر في مكانه إطلاقاً: الورديات المُرحَّلة قُيِّمت به.
+ * سجل أسعار الشركة: السعر العام (costCenterId فارغ) يسري على كل محطاتها، والسعر الخاص بمحطة يتغلّب عليه في تلك المحطة
+ * (resolveEffectivePrice: متى وُجد للمحطة سعر خاص سارٍ لمنتج، لا يُنظر للعام في ذلك المنتج). الحالة (ساري/مجدول/سابق) تُحسب
+ * لكل نطاق على حدة: لكل منتج سعر عام ساري، ولكل محطة ومنتج سعر خاص ساري. لا تعديل لأي سعر في مكانه: الورديات المُرحَّلة قُيِّمت به.
  */
 export async function listFuelPrices(tenantId: string, companyId: string) {
   const rows = await prisma.fuelPrice.findMany({
-    where: { tenantId, companyId, costCenterId: null },
+    where: { tenantId, companyId },
     orderBy: [{ effectiveFrom: "desc" }, { createdAt: "desc" }],
-    select: { id: true, product: true, priceInclVat: true, effectiveFrom: true, createdAt: true },
+    select: { id: true, product: true, priceInclVat: true, effectiveFrom: true, createdAt: true, costCenterId: true, costCenter: { select: { name: true } } },
   });
   const today = todayUtc();
-  const current: Partial<Record<StationFuelProduct, string>> = {};
-  for (const product of ["gasoline_91", "gasoline_95", "diesel"] as StationFuelProduct[]) {
-    const inForce = rows.find((r) => r.product === product && r.effectiveFrom <= today);
-    if (inForce) current[product] = inForce.id;
+  const current = new Set<string>();
+  const seen = new Set<string>();
+  for (const r of rows) {
+    const scope = `${r.costCenterId ?? ""}|${r.product}`;
+    if (r.effectiveFrom <= today && !seen.has(scope)) { seen.add(scope); current.add(r.id); }
   }
-  return rows.map((r) => ({
+  return rows.map(({ costCenter, ...r }) => ({
     ...r,
-    status: r.effectiveFrom > today ? "upcoming" : current[r.product] === r.id ? "current" : "past",
+    stationName: costCenter?.name ?? null,
+    status: r.effectiveFrom > today ? "upcoming" : current.has(r.id) ? "current" : "past",
   }));
 }
 
 export async function createFuelPrice(
   tenantId: string,
-  input: { companyId: string; product: StationFuelProduct; priceInclVat: number; effectiveFrom: string },
+  input: { companyId: string; product: StationFuelProduct; priceInclVat: number; effectiveFrom: string; costCenterId?: string | null },
 ) {
   const effectiveFrom = new Date(`${input.effectiveFrom}T00:00:00.000Z`);
   if (Number.isNaN(effectiveFrom.getTime())) throw badRequest("تاريخ السريان غير صالح");
+  const costCenterId = input.costCenterId || null;
+  if (costCenterId) {
+    // المحطة من نفس المستأجر ونفس الشركة — لا سعر على محطة شركة أخرى
+    const station = await prisma.costCenter.findFirst({ where: { id: costCenterId, tenantId, companyId: input.companyId }, select: { id: true } });
+    if (!station) throw notFound("المحطة غير موجودة");
+  }
 
   const duplicate = await prisma.fuelPrice.findFirst({
-    where: { tenantId, companyId: input.companyId, costCenterId: null, product: input.product, effectiveFrom },
+    where: { tenantId, companyId: input.companyId, costCenterId, product: input.product, effectiveFrom },
   });
   if (duplicate) {
     throw conflict(`يوجد سعر لـ ${FUEL_PRODUCT_LABEL_AR[input.product]} بهذا التاريخ بالفعل — الأسعار لا تُعدَّل، أضف سعراً بتاريخ جديد`);
   }
 
-  // سعر بتاريخ يسبق وردية مُرحَّلة (أو في يومها) كان سيغيّر تقييمها بأثر رجعي في التقارير — مرفوض.
+  // سعر بتاريخ يسبق وردية مُرحَّلة (أو في يومها) كان سيغيّر تقييمها بأثر رجعي في التقارير — مرفوض. السعر الخاص لا يمسّ إلا
+  // ورديات محطته، والعام قد يمسّ أي محطة فيُفحص على الشركة كلها
   const postedAfter = await prisma.stationShift.findFirst({
-    where: { tenantId, companyId: input.companyId, status: "posted", isSeedData: false, shiftDate: { gte: effectiveFrom } },
+    where: { tenantId, companyId: input.companyId, status: "posted", isSeedData: false, shiftDate: { gte: effectiveFrom }, ...(costCenterId ? { costCenterId } : {}) },
     orderBy: { shiftDate: "desc" },
     select: { shiftDate: true },
   });
@@ -208,7 +218,7 @@ export async function createFuelPrice(
   }
 
   return prisma.fuelPrice.create({
-    data: { tenantId, companyId: input.companyId, product: input.product, priceInclVat: input.priceInclVat, effectiveFrom, costCenterId: null },
+    data: { tenantId, companyId: input.companyId, product: input.product, priceInclVat: input.priceInclVat, effectiveFrom, costCenterId },
   });
 }
 

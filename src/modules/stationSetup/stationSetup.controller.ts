@@ -33,6 +33,7 @@ export const listFuelPrices: RequestHandler = async (req, res) => {
 };
 
 export const createFuelPrice: RequestHandler = async (req, res) => {
+  assertCompanyAccess(req.auth!, req.body.companyId);
   res.status(201).json(await service.createFuelPrice(req.auth!.tenantId, req.body));
 };
 
