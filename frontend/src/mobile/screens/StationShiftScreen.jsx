@@ -12,7 +12,8 @@ const OPEN_SHIFT_STORAGE_KEY = "athar.mobile.stationShifts.openShiftId";
  *
  * المحطة الآلية (station.automated — متحكم PTS-2 وكل الفوهات مربوطة): لا تصوير إطلاقاً. القراءات تُنشأ عند الفتح وتُقفَل
  * من عدادات الجهاز عند الإقفال؛ الشاشة تعرض لترات الوردية حتى اللحظة (تتحدّث كل 15 ثانية) — لترات فقط، بلا مبلغ ولا نقد
- * مستحق، فعدّ النقد يبقى أعمى كما في المحطة اليدوية.
+ * مستحق، فعدّ النقد يبقى أعمى كما في المحطة اليدوية. وشاشتها مختصرة لأربع خطوات فقط: فتح الوردية، الشبكة، الكاش، إقفال
+ * الوردية — بلا مصروفات ولا حفظ منفصل للتحصيل: زر الإقفال يحفظ الشبكة والكاش ثم يقفل (بضغطة تأكيد ثانية).
  *
  * shiftId يُحفَظ في localStorage (لا نقطة نهاية لاسترجاع "ورديتي المفتوحة" في هذه المرحلة) حتى لا
  * يُفقَد التقدّم عند إغلاق المتصفح/تحديث الصفحة أثناء وردية حقيقية في محطة وقود.
@@ -27,23 +28,12 @@ function groupNozzlesByPump(nozzles) {
 }
 const fmt = (v) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** لترات الوردية الآلية حتى اللحظة: الإجمالي ثم كل فوهة باعت (العداد الحالي − الافتتاح). */
-function AutomatedSales({ station, sales, t }) {
-  const byId = new Map((station.nozzles || []).map((n) => [n.id, n]));
+/** وردية آلية مفتوحة: سطر واحد بلترات الوردية حتى اللحظة (لا تفصيل فوهات). */
+function AutomatedSales({ sales, t }) {
   return (
     <div className="m-card">
-      <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.liveSalesTitle")}</h4>
-      <div className="m-list-row"><span>{t("mobile.stationShifts.liters")}</span><strong><bdi>{fmt(sales?.liters)}</bdi></strong></div>
-      {(sales?.nozzles || []).filter((z) => z.liters > 0).map((z) => {
-        const n = byId.get(z.nozzleId);
-        return (
-          <div key={z.nozzleId} className="m-list-row" style={{ fontSize: 13 }}>
-            <span>{n ? t("mobile.stationShifts.pumpNozzle", { pump: n.pumpNumber, product: t(`stationSetup.products.${n.product}`) }) : "—"}</span>
-            <span><bdi>{fmt(z.liters)}</bdi> L</span>
-          </div>
-        );
-      })}
-      <p className="m-empty" style={{ fontSize: 12 }}>{t("mobile.stationShifts.liveSalesHint")}</p>
+      <h4 style={{ marginTop: 0, color: "#2F5D5A" }}>● {t("mobile.stationShifts.shiftOpenTitle")}</h4>
+      <div className="m-list-row"><span>{t("mobile.stationShifts.liveSalesTitle")}</span><strong><bdi>{fmt(sales?.liters)}</bdi> L</strong></div>
     </div>
   );
 }
@@ -178,11 +168,14 @@ export default function StationShiftScreen() {
     setError(""); setMessage("");
     const missing = automated ? [] : (station?.nozzles || []).filter((n) => !readings[n.id]?.saved);
     if (missing.length > 0) return setError(t("mobile.stationShifts.incompleteNozzles"));
-    if (!collectionsSaved) return setError(t("mobile.stationShifts.collectionsRequired"));
+    if (automated && cashDelivered === "") return setError(t("mobile.stationShifts.cashRequired"));
+    if (!automated && !collectionsSaved) return setError(t("mobile.stationShifts.collectionsRequired"));
     // إقفال الوردية الآلية نهائي (يُثبِّت عدادات اللحظة) — ضغطة تأكيد ثانية
     if (automated && !confirmClose) return setConfirmClose(true);
     setBusy(true);
     try {
+      // الآلية: الشبكة والكاش يُحفظان مع الإقفال نفسه (لا زر حفظ منفصل)
+      if (automated) await api.updateCollections(shiftId, { networkAmount: Number(network || 0), fuelCardAmount: 0, cashDelivered: Number(cashDelivered) });
       await api.submitShift(shiftId);
       persistShiftId("");
       setReadings({}); setNetwork(""); setCashDelivered(""); setCollectionsSaved(false); setExpenses([]); setSales(null); setConfirmClose(false);
@@ -218,7 +211,7 @@ export default function StationShiftScreen() {
       {error && <p className="m-error">{error}</p>}
       {message && <p className="m-empty" style={{ color: "#2F5D5A" }}>{message}</p>}
 
-      {automated ? <AutomatedSales station={station} sales={sales} t={t} /> : <h4>{t("mobile.stationShifts.nozzlesTitle")}</h4>}
+      {automated ? <AutomatedSales sales={sales} t={t} /> : <h4>{t("mobile.stationShifts.nozzlesTitle")}</h4>}
       {!automated && groupNozzlesByPump(station.nozzles).map(([pumpNumber, nozzles]) => (
         <div key={pumpNumber} className="m-card">
           <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.pumpLabel", { pump: pumpNumber })}</h4>
@@ -247,7 +240,18 @@ export default function StationShiftScreen() {
 
       <div className="m-card">
         <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.collectionsTitle")}</h4>
-        {collectionsSaved ? (
+        {automated ? (
+          <>
+            <div className="m-field">
+              <label>{t("mobile.stationShifts.networkLabel")}</label>
+              <input type="number" inputMode="decimal" value={network} onChange={(e) => { setNetwork(e.target.value); setConfirmClose(false); }} />
+            </div>
+            <div className="m-field">
+              <label>{t("mobile.stationShifts.cashDeliveredLabel")}</label>
+              <input type="number" inputMode="decimal" value={cashDelivered} onChange={(e) => { setCashDelivered(e.target.value); setConfirmClose(false); }} />
+            </div>
+          </>
+        ) : collectionsSaved ? (
           <span style={{ color: "#2F5D5A" }}>✓ {t("mobile.stationShifts.collectionsSaved")}</span>
         ) : (
           <>
@@ -264,7 +268,7 @@ export default function StationShiftScreen() {
         )}
       </div>
 
-      <div className="m-card">
+      {!automated && <div className="m-card">
         <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.expensesTitle")}</h4>
         {expenses.map((exp) => (
           <div key={exp.id} className="m-list-row">
@@ -289,7 +293,7 @@ export default function StationShiftScreen() {
           </div>
           <button className="m-btn" disabled={busy} onClick={addExpense}>{t("mobile.stationShifts.addExpenseBtn")}</button>
         </div>
-      </div>
+      </div>}
 
       <div className="m-card">
         {confirmClose && <p className="m-error">{t("mobile.stationShifts.closeConfirm")}</p>}
