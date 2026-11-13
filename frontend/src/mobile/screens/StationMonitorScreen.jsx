@@ -12,7 +12,7 @@ const PRODUCT_COLOR = { gasoline_91: "#2b8a3e", gasoline_95: "#A8432B", diesel: 
 const HEALTH_COLOR = { online: "#2b8a3e", silent: "#B7791F", never_seen: "#6B7280", inactive: "#6B7280" };
 const STATE_COLOR = { filling: "#1971c2", end_of_transaction: "#B7791F", idle: "#2b8a3e", offline: "#6B7280", unknown: "#9CA3AF" };
 const fmt = (v, d = 2) => (v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }));
-const time = (v) => (v ? new Date(v).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "—");
+const time = (v) => (v ? new Date(v).toLocaleTimeString("en-GB", { calendar: "gregory", hour: "2-digit", minute: "2-digit" }) : "—");
 const N = ({ children }) => <bdi style={{ fontVariantNumeric: "tabular-nums" }}>{children}</bdi>;
 
 function usePoll(fn, ms) {
@@ -145,7 +145,7 @@ function StationDetail({ station, onBack, t }) {
               {data.alerts.map((a) => (
                 <div key={a.id} className="m-list-row" style={{ fontSize: 12.5 }}>
                   <span>{a.name}{a.deviceNumber != null ? ` · ${a.deviceType} ${a.deviceNumber}` : ""}</span>
-                  <span style={{ color: "#6b7280" }}>{new Date(a.occurredAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                  <span style={{ color: "#6b7280" }}>{new Date(a.occurredAt).toLocaleString("en-GB", { calendar: "gregory", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
                 </div>
               ))}
             </div>

@@ -62,7 +62,7 @@ function SupervisorMessages({ t }) {
       {shown.map((m) => (
         <div key={m.id} className="m-list-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 2, fontWeight: m.seenAt ? 400 : 700 }}>
           <span>{!m.seenAt && "● "}{m.body}</span>
-          <span style={{ fontSize: 11.5, color: "#6b7280", fontWeight: 400 }}>{m.from || ""} · {new Date(m.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+          <span style={{ fontSize: 11.5, color: "#6b7280", fontWeight: 400 }}>{m.from || ""} · {new Date(m.createdAt).toLocaleString("en-GB", { calendar: "gregory", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
         </div>
       ))}
       {list.length > 2 && <button className="m-logout-link" onClick={() => setShowAll(!showAll)}>{showAll ? t("mobile.stationShifts.messagesLess") : t("mobile.stationShifts.messagesMore")}</button>}
