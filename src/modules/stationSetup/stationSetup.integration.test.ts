@@ -130,7 +130,8 @@ describe("station setup (integration)", () => {
     await expect(createFuelPrice(tenantId, { companyId, costCenterId: stationA, product: "gasoline_95", priceInclVat: 2.34, effectiveFrom: isoDay(0) })).resolves.toBeTruthy();
     await expect(createFuelPrice(tenantId, { companyId, costCenterId: stationB, product: "gasoline_95", priceInclVat: 2.34, effectiveFrom: isoDay(0) })).rejects.toThrow(/وردية مُرحَّلة/);
 
-    const otherCompany = (await prisma.company.create({ data: { tenantId, name: "Fuel Co", businessActivity: "fuel_stations" } })).id;
+    // اسم الشركة فريد داخل المستأجر؛ اسم المحطة نفسه "محطة أ" في الشركتين
+    const otherCompany = (await prisma.company.create({ data: { tenantId, name: "Fuel Co 2", businessActivity: "fuel_stations" } })).id;
     const foreignStation = (await prisma.costCenter.create({ data: { tenantId, companyId: otherCompany, name: "محطة أ" } })).id;
     await expect(createFuelPrice(tenantId, { companyId, costCenterId: foreignStation, product: "diesel", priceInclVat: 1, effectiveFrom: isoDay(1) })).rejects.toThrow(/المحطة غير موجودة/);
     await expect(createFuelPrice(`${tenantId}-x`, { companyId, costCenterId: stationA, product: "diesel", priceInclVat: 1, effectiveFrom: isoDay(1) })).rejects.toThrow(/المحطة غير موجودة/);
