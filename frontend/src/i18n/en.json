@@ -2872,6 +2872,7 @@
       "shiftSubmitted": "Shift submitted for review",
       "shiftClosed": "Shift closed — sent to the accountant with the station controller readings",
       "shiftOpenTitle": "Your shift is open",
+      "totalSales": "Total sales", "sar": "SAR",
       "automatedHint": "Automated station: no meter photos needed — the station controller records readings at open and close.",
       "liveSalesTitle": "Your shift liters so far",
       "liveSalesHint": "From the station controller meters — refreshes every 15 seconds.",
