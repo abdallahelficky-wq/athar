@@ -6,8 +6,8 @@ const PRODUCTS = ["gasoline_91", "gasoline_95", "diesel"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 /**
- * أسعار الوقود: سعر واحد لكل منتج بتاريخ سريان يسري على كل محطات الشركة (أسعار موحّدة وطنياً، تتغير
- * شهرياً). السجل إضافي فقط: لا يُعدَّل سعر في مكانه أبداً — الورديات المُرحَّلة قُيِّمت به — بل يُضاف سعر
+ * أسعار الوقود: سعر عام لكل منتج بتاريخ سريان يسري على كل محطات الشركة، وسعر خاص بمحطة يتغلّب عليه فيها
+ * (محطات بأسعار مختلفة). البطاقات تعرض السعر الساري فعلاً للنطاق المختار: الخاص بالمحطة إن وُجد، وإلا العام. السجل إضافي فقط: لا يُعدَّل سعر في مكانه أبداً — الورديات المُرحَّلة قُيِّمت به — بل يُضاف سعر
  * جديد بتاريخ جديد. الحذف متاح فقط لسعر مجدول لم يسرِ بعد (تصحيح إدخال خاطئ).
  */
 export default function FuelPricesTab({ companyId }) {
@@ -16,12 +16,15 @@ export default function FuelPricesTab({ companyId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [form, setForm] = useState({ product: "gasoline_91", priceInclVat: "", effectiveFrom: todayIso() });
+  const [stations, setStations] = useState([]);
+  const [form, setForm] = useState({ costCenterId: "", product: "gasoline_91", priceInclVat: "", effectiveFrom: todayIso() });
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
     try {
-      setPrices(await api.listFuelPrices(companyId));
+      const [list, st] = await Promise.all([api.listFuelPrices(companyId), api.listStations(companyId)]);
+      setPrices(list);
+      setStations(st.map((x) => ({ id: x.id, name: x.name })));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -35,7 +38,7 @@ export default function FuelPricesTab({ companyId }) {
     if (!(Number(form.priceInclVat) > 0)) { setError(t("fuelPrices.errPrice")); return; }
     setSaving(true);
     try {
-      await api.createFuelPrice({ companyId, product: form.product, priceInclVat: Number(form.priceInclVat), effectiveFrom: form.effectiveFrom });
+      await api.createFuelPrice({ companyId, costCenterId: form.costCenterId || null, product: form.product, priceInclVat: Number(form.priceInclVat), effectiveFrom: form.effectiveFrom });
       setMessage(t("fuelPrices.added"));
       setForm((f) => ({ ...f, priceInclVat: "" }));
       await load();
@@ -67,10 +70,22 @@ export default function FuelPricesTab({ companyId }) {
       {error && <p className="balance-bad" role="alert">{error}</p>}
       {message && <p className="note">{message}</p>}
 
+      <div className="form-grid">
+        <label>{t("fuelPrices.station")}
+          <select value={form.costCenterId} onChange={(e) => setForm({ ...form, costCenterId: e.target.value })}>
+            <option value="">{t("fuelPrices.allStations")}</option>
+            {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </label>
+      </div>
       <div className="fuel-price-cards">
         {PRODUCTS.map((product) => {
-          const current = prices.find((p) => p.product === product && p.status === "current");
-          const next = [...prices].reverse().find((p) => p.product === product && p.status === "upcoming");
+          // السعر الساري للنطاق المختار: خاص بالمحطة إن وُجد، وإلا العام
+          const scoped = (cc) => prices.filter((p) => p.product === product && (p.costCenterId || "") === cc);
+          const own = form.costCenterId ? scoped(form.costCenterId) : [];
+          const pool = own.some((p) => p.status !== "upcoming") ? own : scoped("");
+          const current = pool.find((p) => p.status === "current");
+          const next = [...own, ...scoped("")].filter((p) => p.status === "upcoming").sort((a, b) => String(a.effectiveFrom).localeCompare(String(b.effectiveFrom)))[0];
           return (
             <div className={`panel fuel-price-card ${current ? "" : "fuel-price-missing"}`} key={product}>
               <div className="fuel-price-product">{t(`stationSetup.products.${product}`)}</div>
@@ -78,6 +93,7 @@ export default function FuelPricesTab({ companyId }) {
                 <>
                   <div className="fuel-price-value" dir="ltr">{money(current.priceInclVat)} <span>{t("fuelPrices.currency")}</span></div>
                   <div className="note">{t("fuelPrices.inForceSince", { date: day(current.effectiveFrom) })}</div>
+                  {form.costCenterId && <div className="note">{t(current.costCenterId ? "fuelPrices.stationPrice" : "fuelPrices.generalPrice")}</div>}
                 </>
               ) : (
                 <div className="fuel-price-value fuel-price-none">{t("fuelPrices.notSet")}</div>
@@ -115,11 +131,12 @@ export default function FuelPricesTab({ companyId }) {
           <div className="lines-table-wrap">
             <table className="lines-table">
               <thead>
-                <tr><th>{t("fuelPrices.product")}</th><th>{t("fuelPrices.price")}</th><th>{t("fuelPrices.effectiveFrom")}</th><th>{t("fuelPrices.status")}</th><th></th></tr>
+                <tr><th>{t("fuelPrices.station")}</th><th>{t("fuelPrices.product")}</th><th>{t("fuelPrices.price")}</th><th>{t("fuelPrices.effectiveFrom")}</th><th>{t("fuelPrices.status")}</th><th></th></tr>
               </thead>
               <tbody>
                 {prices.map((p) => (
                   <tr key={p.id} className={p.status === "current" ? "fuel-price-row-current" : ""}>
+                    <td>{p.stationName || t("fuelPrices.allStations")}</td>
                     <td>{t(`stationSetup.products.${p.product}`)}</td>
                     <td dir="ltr">{money(p.priceInclVat)}</td>
                     <td dir="ltr">{day(p.effectiveFrom)}</td>

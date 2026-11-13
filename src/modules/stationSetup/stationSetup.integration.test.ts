@@ -9,6 +9,7 @@ import {
   listFuelPrices,
   deleteUpcomingFuelPrice,
 } from "./stationSetup.service";
+import { getMyStation } from "../stationShifts/stationShifts.service";
 
 /** قواعد إعداد المحطات على Postgres حقيقي: المضخة فوهتان بنوعين محددين، ترقيم لكل محطة، القراءة تتسع
  * في عدد خانات العداد، والأسعار سجلّ إضافي فقط لا يُعدَّل ولا يغيّر تقييم وردية مُرحَّلة. */
@@ -96,6 +97,46 @@ describe("station setup (integration)", () => {
     });
     await expect(createFuelPrice(tenantId, { companyId, product: "diesel", priceInclVat: 1.66, effectiveFrom: isoDay(-3) })).rejects.toThrow(/وردية مُرحَّلة/);
     await expect(createFuelPrice(tenantId, { companyId, product: "diesel", priceInclVat: 1.66, effectiveFrom: isoDay(-2) })).resolves.toBeTruthy();
+    await prisma.stationShift.deleteMany({ where: { tenantId } });
+    await prisma.employee.delete({ where: { id: employee.id } });
+  });
+
+  it("lets a station have its own price that overrides the general one only at that station", async () => {
+    // قبل هذا: ديزل عام 1.66 ساري منذ يومين (الاختبار السابق)
+    const own = await createFuelPrice(tenantId, { companyId, costCenterId: stationA, product: "diesel", priceInclVat: 1.9, effectiveFrom: isoDay(-2) });
+    // نفس التاريخ مسموح في نطاق آخر (عام مقابل محطة)، ومكرَّر في نفس نطاق المحطة مرفوض
+    await expect(createFuelPrice(tenantId, { companyId, costCenterId: stationA, product: "diesel", priceInclVat: 2, effectiveFrom: isoDay(-2) })).rejects.toThrow(/لا تُعدَّل/);
+
+    const diesel = (await listFuelPrices(tenantId, companyId)).filter((p) => p.product === "diesel" && p.status === "current");
+    expect(diesel.map((p) => [p.stationName, Number(p.priceInclVat)]).sort()).toEqual([["محطة أ", 1.9], [null, 1.66]].sort());
+    expect(diesel.find((p) => p.id === own.id)?.costCenterId).toBe(stationA);
+
+    // ما يراه عامل كل محطة: أ بسعرها الخاص، ب بالعام
+    const workerAt = async (station: string) => {
+      const e = await prisma.employee.create({ data: { tenantId, companyId, name: "عامل", hireDate: new Date(), basicSalary: 3000, assignedCostCenterId: station } });
+      try { return (await getMyStation(tenantId, e.id)).effectivePrices.diesel; } finally { await prisma.employee.delete({ where: { id: e.id } }); }
+    };
+    expect(await workerAt(stationA)).toBe(1.9);
+    expect(await workerAt(stationB)).toBe(1.66);
+  });
+
+  it("checks a station price against that station's posted shifts only, and refuses a station of another company", async () => {
+    const employee = await prisma.employee.create({ data: { tenantId, companyId, name: "عامل", hireDate: new Date(), basicSalary: 3000 } });
+    await prisma.stationShift.create({
+      data: { tenantId, companyId, costCenterId: stationB, employeeId: employee.id, shiftDate: new Date(`${isoDay(0)}T00:00:00Z`), shiftType: "morning", status: "posted" },
+    });
+    // وردية مُرحَّلة اليوم في ب: سعر عام اليوم يعيد تقييمها فيُرفض، وسعر خاص بـ أ لا يمسّها فيُقبل
+    await expect(createFuelPrice(tenantId, { companyId, product: "gasoline_95", priceInclVat: 2.34, effectiveFrom: isoDay(0) })).rejects.toThrow(/وردية مُرحَّلة/);
+    await expect(createFuelPrice(tenantId, { companyId, costCenterId: stationA, product: "gasoline_95", priceInclVat: 2.34, effectiveFrom: isoDay(0) })).resolves.toBeTruthy();
+    await expect(createFuelPrice(tenantId, { companyId, costCenterId: stationB, product: "gasoline_95", priceInclVat: 2.34, effectiveFrom: isoDay(0) })).rejects.toThrow(/وردية مُرحَّلة/);
+
+    // اسم الشركة فريد داخل المستأجر؛ اسم المحطة نفسه "محطة أ" في الشركتين
+    const otherCompany = (await prisma.company.create({ data: { tenantId, name: "Fuel Co 2", businessActivity: "fuel_stations" } })).id;
+    const foreignStation = (await prisma.costCenter.create({ data: { tenantId, companyId: otherCompany, name: "محطة أ" } })).id;
+    await expect(createFuelPrice(tenantId, { companyId, costCenterId: foreignStation, product: "diesel", priceInclVat: 1, effectiveFrom: isoDay(1) })).rejects.toThrow(/المحطة غير موجودة/);
+    await expect(createFuelPrice(`${tenantId}-x`, { companyId, costCenterId: stationA, product: "diesel", priceInclVat: 1, effectiveFrom: isoDay(1) })).rejects.toThrow(/المحطة غير موجودة/);
+    expect((await listFuelPrices(tenantId, otherCompany))).toEqual([]);
+
     await prisma.stationShift.deleteMany({ where: { tenantId } });
     await prisma.employee.delete({ where: { id: employee.id } });
   });

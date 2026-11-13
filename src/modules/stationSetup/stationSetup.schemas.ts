@@ -34,6 +34,8 @@ export const createFuelPriceSchema = z
     product: z.enum(["gasoline_91", "gasoline_95", "diesel"]),
     priceInclVat: z.coerce.number().positive("السعر يجب أن يكون أكبر من صفر").max(100, "السعر غير معقول"),
     effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "تاريخ السريان مطلوب (YYYY-MM-DD)"),
+    // محطة بعينها (مركز تكلفة) لسعر خاص بها، أو غائب/null لسعر عام يسري على كل محطات الشركة بلا سعر خاص
+    costCenterId: z.string().min(1).nullish(),
   })
   .strict();
 
