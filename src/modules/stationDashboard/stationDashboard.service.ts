@@ -1,4 +1,5 @@
 import { Prisma, StationFuelProduct } from "@prisma/client";
+import { openShiftsWithSales } from "../stationShifts/stationShifts.service";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { riyadhCalendarDay, riyadhDayEndExclusiveUtc, riyadhDayStartUtc } from "../../lib/riyadhDate";
@@ -269,7 +270,7 @@ async function loadStations(tenantId: string, companyId: string, costCenterId?: 
 async function stationSummaries(tenantId: string, companyId: string, stations: { id: string; name: string }[], range: DashboardRange) {
   const ids = stations.map((s) => s.id);
   const today = riyadhCalendarDay(new Date());
-  const [{ byStation: approved, unpriced }, actualFromController, cash, tanks, live, controllers, pending, deliveries, alerts] = await Promise.all([
+  const [{ byStation: approved, unpriced }, actualFromController, cash, tanks, live, controllers, pending, deliveries, alerts, openShifts] = await Promise.all([
     shiftSales(tenantId, companyId, ids, range),
     controllerSales(tenantId, companyId, ids, range),
     collections(tenantId, companyId, ids, range),
@@ -290,6 +291,7 @@ async function stationSummaries(tenantId: string, companyId: string, stations: {
       include: { controller: { select: { costCenterId: true } } },
       orderBy: { occurredAt: "desc" },
     }),
+    openShiftsWithSales(tenantId, companyId, ids),
   ]);
   // المبيعات الفعلية لكل محطة ويوم: عمليات المتحكم إن وُجدت ذلك اليوم، وإلا الورديات المعتمدة
   const sales = new Map<string, { products: ProductTotals; unmapped: { liters: number; value: number }; byDay: Map<string, DaySales>; controllerDays: number; shiftDays: number }>();
@@ -347,6 +349,7 @@ async function stationSummaries(tenantId: string, companyId: string, stations: {
       lowTanks: ownTanks.filter((t) => t.low).length,
       deliveries: { count: ownDeliveries.length, liters: round(ownDeliveries.reduce((n, x) => n + x.lines.reduce((m, l) => m + Number(l.receivedLiters), 0), 0), 3) },
       alerts7d: alerts.filter((a) => a.controller.costCenterId === s.id).length,
+      openShifts: (openShifts.get(s.id) ?? []).map((x) => ({ id: x.id, employee: x.employee, openedAt: x.openedAt, liters: x.sales?.liters ?? null, amount: x.sales?.amount ?? null })),
     };
   });
   return { rows, sales, alerts, unpriced };

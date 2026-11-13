@@ -186,6 +186,20 @@ describe("automated station shifts (integration)", () => {
     });
     for (const leaked of ["cashDue", "variance"]) expect(live.body.sales).not.toHaveProperty(leaked);
 
+    // المشرف (مستخدم أثر بصلاحية لوحة المحطات): الشاشة الحيّة ولوحة المحطات تُظهران الوردية المفتوحة ومبيعاتها حتى اللحظة،
+    // ولا ورديات مستأجر B (40 لتراً) فيهما
+    const monitor = await call("GET", `/station-dashboard/stations/${a.station}/live?companyId=${a.companyId}`, a.token);
+    expect(monitor.status, monitor.text).toBe(200);
+    expect(monitor.body.openShifts).toEqual([expect.objectContaining({
+      id: shiftId, employee: "عامل المحطة", readingsSource: "controller",
+      sales: { liters: 30, amount: 69, products: [{ product: "diesel", liters: 30, price: 2.3, amount: 69 }] },
+    })]);
+    expect(Array.isArray(monitor.body.alerts)).toBe(true);
+    const day = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
+    const overview = await call("GET", `/station-dashboard?companyId=${a.companyId}&from=${day}&to=${day}`, a.token);
+    expect(overview.status, overview.text).toBe(200);
+    expect(overview.body.stations.flatMap((st: any) => st.openShifts)).toEqual([expect.objectContaining({ id: shiftId, liters: 30, amount: 69 })]);
+
     expect((await portal(a, "PUT", `/${shiftId}/collections`, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 69 })).status).toBe(200);
     const closed = await portal(a, "POST", `/${shiftId}/submit`);
     expect(closed.status, closed.text).toBe(200);

@@ -172,6 +172,35 @@ export default function StationLiveView({ companyId, costCenterId, onBack }) {
           </div>
 
           <div className="panel">
+            <h3 style={{ marginTop: 0 }}>{t("stationLive.openShifts")}</h3>
+            {(data.openShifts || []).length === 0 && <p className="empty">{t("stationLive.noOpenShift")}</p>}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+              {(data.openShifts || []).map((sh) => (
+                <div key={sh.id} style={{ border: "1.5px solid rgba(25,113,194,0.45)", borderRadius: 12, padding: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                    <strong>{sh.employee || "—"}</strong>
+                    <span className="note">{t(`stationsDashboard.shiftTypes.${sh.shiftType}`)} · {t("stationLive.openedAt", { at: formatDateTime(sh.openedAt, i18n.language) })}</span>
+                  </div>
+                  {!sh.sales ? <p className="note">{t("stationLive.photoShift")}</p> : (
+                    <>
+                      {sh.sales.products.map((p) => (
+                        <div key={p.product} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, padding: "3px 0", borderInlineStart: `3px solid ${PRODUCT_COLOR[p.product]}`, paddingInlineStart: 8 }}>
+                          <span>{t(`stationSetup.products.${p.product}`)}</span>
+                          <span><Num>{fmt(p.liters)} L</Num> · <Num>{p.amount == null ? "—" : fmt(p.amount)}</Num></span>
+                        </div>
+                      ))}
+                      <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, borderTop: "1px solid var(--athar-border)", marginTop: 6, paddingTop: 6 }}>
+                        <span>{t("stationLive.shiftTotal")}</span>
+                        <span><Num>{fmt(sh.sales.liters)} L</Num> · <Num>{fmt(sh.sales.amount)}</Num> <span className="note">{t("stationLive.sar")}</span></span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel">
             <h3 style={{ marginTop: 0 }}>{t("stationLive.pumps")}</h3>
             {groups.length === 0 && <p className="empty">{t("stationLive.noStatus")}</p>}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(330px, 1fr))", gap: 14 }}>
@@ -188,6 +217,27 @@ export default function StationLiveView({ companyId, costCenterId, onBack }) {
             <h3 style={{ marginTop: 0 }}>{t("stationsDashboard.tanks")}</h3>
             {data.tanks.length === 0 ? <p className="empty">{t("stationsDashboard.noTanks")}</p> : (
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>{data.tanks.map((tank) => <TankGauge key={tank.tankId} tank={tank} t={t} />)}</div>
+            )}
+          </div>
+
+          <div className="panel">
+            <h3 style={{ marginTop: 0 }}>{t("stationLive.alerts")}</h3>
+            {(data.alerts || []).length === 0 ? <p className="empty">{t("stationLive.noAlerts")}</p> : (
+              <div className="lines-table-wrap">
+                <table className="ledger-table">
+                  <thead><tr><th>{t("stationLive.time")}</th><th>{t("stationLive.alertDevice")}</th><th>{t("stationLive.alertName")}</th><th>{t("stationLive.alertState")}</th></tr></thead>
+                  <tbody>
+                    {data.alerts.map((a) => (
+                      <tr key={a.id}>
+                        <td>{formatDateTime(a.occurredAt, i18n.language)}</td>
+                        <td>{a.deviceType}{a.deviceNumber != null ? ` ${a.deviceNumber}` : ""}</td>
+                        <td>{a.name}{a.code != null ? ` (${a.code})` : ""}</td>
+                        <td>{a.state ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 

@@ -6,6 +6,7 @@ import { controllerHealth } from "../forecourt/forecourt.service";
 import { isControllerConnected } from "../forecourt/ptsWebsocket";
 import { ptsLocalToUtc } from "../forecourt/ptsReceiver.service";
 import { parseLiveStatus } from "./stationLive.parse";
+import { openShiftsWithSales } from "../stationShifts/stationShifts.service";
 
 /**
  * الشاشة الحيّة لمحطة واحدة — ما يعرضه متحكمها الآن: حالة كل نقطة تعبئة (خاملة/تعبّئ ومعها اللترات والمبلغ لحظياً/نهاية عملية/
@@ -72,7 +73,7 @@ export async function getStationLive(tenantId: string, companyId: string, costCe
   });
 
   const today = riyadhCalendarDay(new Date());
-  const [todayTx, recentTx] = await Promise.all([
+  const [todayTx, recentTx, openShifts, alerts] = await Promise.all([
     prisma.forecourtPumpTransaction.findMany({
       where: { tenantId, companyId, controllerId: controller.id, endedAt: { gte: riyadhDayStartUtc(today), lt: riyadhDayEndExclusiveUtc(today) } },
       select: { volume: true, amount: true, nozzleId: true },
@@ -82,6 +83,8 @@ export async function getStationLive(tenantId: string, companyId: string, costCe
       orderBy: { endedAt: "desc" },
       take: 15,
     }),
+    openShiftsWithSales(tenantId, companyId, [station.id]),
+    prisma.forecourtAlertRecord.findMany({ where: { tenantId, companyId, controllerId: controller.id }, orderBy: { occurredAt: "desc" }, take: 20 }),
   ]);
   const byProduct: Record<string, { liters: number; amount: number; count: number }> = {};
   let liters = 0;
@@ -107,6 +110,8 @@ export async function getStationLive(tenantId: string, companyId: string, costCe
     tanks: tanksOut,
     fuelGrades: live.fuelGrades,
     today: { day: today, count: todayTx.length, liters: round(liters, 3), amount: round(amount), byProduct },
+    openShifts: openShifts.get(station.id) ?? [],
+    alerts: alerts.map((a) => ({ id: a.id, occurredAt: a.occurredAt, deviceType: a.deviceType, deviceNumber: a.deviceNumber, name: a.name, code: a.code, state: a.state })),
     recent: recentTx.map((tx) => {
       const z = tx.nozzleId ? nozzleById.get(tx.nozzleId) : undefined;
       return {
