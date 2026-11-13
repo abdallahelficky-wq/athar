@@ -27,6 +27,9 @@ export default function StationWorkersTab({ companyId }) {
   const [stationId, setStationId] = useState("");
   const [saving, setSaving] = useState(false);
   const [worker, setWorker] = useState(null); // الموظف الذي أُسنِد للتو — يظهر تحته قسم الدخول للبوابة
+  // مشرف المحطات: موظف يرى في تطبيق المحطات كل محطات الشركة حيّة (قراءة فقط) ويراسل عمّالها
+  const [supervisorPick, setSupervisorPick] = useState("");
+  const [supervisor, setSupervisor] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -94,6 +97,17 @@ export default function StationWorkersTab({ companyId }) {
       setSaving(false);
     }
   };
+
+  const toggleSupervisor = async (employeeId, on) => {
+    setError("");
+    try {
+      const saved = await updateEmployee(employeeId, { stationSupervisor: on });
+      setSupervisorPick("");
+      setSupervisor(on ? saved : null);
+      await load();
+    } catch (e) { setError(e.message); }
+  };
+  const supervisors = employees.filter((e) => e.stationSupervisor);
 
   const setUp = (employee) => {
     setWorker(employee);
@@ -166,6 +180,44 @@ export default function StationWorkersTab({ companyId }) {
               employeeId={worker.id}
               defaultPhone={worker.phone}
               employeeStatus={worker.status}
+              onSaved={(access) => setEmployees((prev) => prev.map((e) => (e.id === access.id ? { ...e, phone: access.phone } : e)))}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="panel form-panel">
+        <h3>{t("stationWorkers.supervisorsTitle")}</h3>
+        <p className="note">{t("stationWorkers.supervisorsNote")}</p>
+        <div className="form-btn-group">
+          <select value={supervisorPick} onChange={(e) => setSupervisorPick(e.target.value)}>
+            <option value="">{t("stationWorkers.pickEmployee")}</option>
+            {employees.filter((e) => e.status === "active" && !e.stationSupervisor).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+          <button className="btn-primary" disabled={!supervisorPick} onClick={() => toggleSupervisor(supervisorPick, true)}>{t("stationWorkers.makeSupervisor")}</button>
+        </div>
+        {supervisors.length > 0 && (
+          <div className="lines-table-wrap"><table className="lines-table">
+            <thead><tr><th>{t("stationWorkers.employee")}</th><th>{t("stationWorkers.phone")}</th><th></th><th></th></tr></thead>
+            <tbody>
+              {supervisors.map((e) => (
+                <tr key={e.id}>
+                  <td>{e.name}</td>
+                  <td dir="ltr">{e.phone || "—"}</td>
+                  <td><button className="btn-ghost" onClick={() => setSupervisor(e)}>{t("stationWorkers.setUpBtn")}</button></td>
+                  <td><button className="btn-ghost" onClick={() => toggleSupervisor(e.id, false)}>{t("stationWorkers.removeSupervisor")}</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        )}
+        {supervisor && (
+          <div className="station-worker-portal">
+            <EmployeePortalAccessPanel
+              key={supervisor.id}
+              employeeId={supervisor.id}
+              defaultPhone={supervisor.phone}
+              employeeStatus={supervisor.status}
               onSaved={(access) => setEmployees((prev) => prev.map((e) => (e.id === access.id ? { ...e, phone: access.phone } : e)))}
             />
           </div>

@@ -372,6 +372,9 @@ export default function StationsDashboardTab({ companyId }) {
                 {st.tanks.map((tank) => <TankBar key={tank.tankId} tank={tank} t={t} compact />)}
                 {st.tanks.length === 0 && <div className="note" style={{ marginBottom: 6 }}>{t("stationsDashboard.noTanks")}</div>}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                  {(st.openShifts || []).map((sh) => (
+                    <Pill key={sh.id} color="#1971c2">{sh.amount == null ? t("stationsDashboard.openShiftPill", { name: sh.employee || "—" }) : t("stationsDashboard.openShiftSalesPill", { name: sh.employee || "—", amount: fmt2(sh.amount) })}</Pill>
+                  ))}
                   {st.today && <Pill color="#b8860b">{t("stationsDashboard.todayPill", { liters: fmt0(st.today.liters) })}</Pill>}
                   {st.awaitingReview > 0 && <Pill color="#B7791F">{t("stationsDashboard.reviewPill", { count: st.awaitingReview })}</Pill>}
                   {st.awaitingPost > 0 && <Pill color="#495057">{t("stationsDashboard.postPill", { count: st.awaitingPost })}</Pill>}

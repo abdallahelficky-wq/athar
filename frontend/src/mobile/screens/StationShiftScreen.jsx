@@ -44,6 +44,32 @@ function AutomatedSales({ sales, t }) {
   );
 }
 
+/** رسائل المشرف لمحطة العامل — تظهر أعلى الشاشة؛ الجديدة (لم تُرَ قبل هذا الجلب) مميَّزة. */
+function SupervisorMessages({ t }) {
+  const [list, setList] = useState([]);
+  useEffect(() => {
+    const load = () => api.getMessages().then(setList).catch(() => {});
+    load();
+    const timer = setInterval(() => { if (!document.hidden) load(); }, 30000);
+    return () => clearInterval(timer);
+  }, []);
+  const [showAll, setShowAll] = useState(false);
+  if (list.length === 0) return null;
+  const shown = showAll ? list : list.slice(0, 2);
+  return (
+    <div className="m-card" style={{ borderInlineStart: "4px solid #1971c2" }}>
+      <h4 style={{ marginTop: 0 }}>✉ {t("mobile.stationShifts.messagesTitle")}</h4>
+      {shown.map((m) => (
+        <div key={m.id} className="m-list-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 2, fontWeight: m.seenAt ? 400 : 700 }}>
+          <span>{!m.seenAt && "● "}{m.body}</span>
+          <span style={{ fontSize: 11.5, color: "#6b7280", fontWeight: 400 }}>{m.from || ""} · {new Date(m.createdAt).toLocaleString("en-GB", { calendar: "gregory", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+        </div>
+      ))}
+      {list.length > 2 && <button className="m-logout-link" onClick={() => setShowAll(!showAll)}>{showAll ? t("mobile.stationShifts.messagesLess") : t("mobile.stationShifts.messagesMore")}</button>}
+    </div>
+  );
+}
+
 export default function StationShiftScreen() {
   const { t } = useTranslation();
   const [station, setStation] = useState(null);
@@ -195,6 +221,7 @@ export default function StationShiftScreen() {
   if (!shiftId) {
     return (
       <div>
+        <SupervisorMessages t={t} />
         {error && <p className="m-error">{error}</p>}
         <div className="m-card">
           <h4 style={{ marginTop: 0 }}>{t("mobile.stationShifts.openShiftTitle")}</h4>
@@ -214,6 +241,7 @@ export default function StationShiftScreen() {
 
   return (
     <div>
+      <SupervisorMessages t={t} />
       {error && <p className="m-error">{error}</p>}
       {message && <p className="m-empty" style={{ color: "#2F5D5A" }}>{message}</p>}
 

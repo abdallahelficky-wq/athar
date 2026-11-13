@@ -7,6 +7,7 @@ import * as service from "./stationShifts.service";
 import { uploadSingleFile } from "../attachments/attachments.controller";
 import { createAttachment } from "../attachments/attachments.service";
 import { badRequest } from "../../lib/httpError";
+import { workerStationMessages } from "../stationDashboard/stationMessages.service";
 
 /**
  * محور العامل الوحيد لوحدة ورديات المحطات — بوابة الموظف (Employee، لا User)، بلا أي مفهوم
@@ -19,6 +20,11 @@ import { badRequest } from "../../lib/httpError";
 export const stationShiftPortalRoutes = Router();
 // ورديات العامل من إضافة المحطات (stationShiftsReports) — مراجعة #164؛ القراءة تمرّ
 stationShiftPortalRoutes.use(authenticateEmployeePortal, requirePortalPlanModule("stationShiftsReports"));
+
+// رسائل مشرف المحطات لمحطة هذا العامل
+stationShiftPortalRoutes.get("/messages", async (req, res) => {
+  res.json(await workerStationMessages(req.employeeAuth!.tenantId, req.employeeAuth!.employeeId));
+});
 
 stationShiftPortalRoutes.get("/my-station", async (req, res) => {
   res.json(await service.getMyStation(req.employeeAuth!.tenantId, req.employeeAuth!.employeeId));

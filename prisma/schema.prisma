@@ -45,6 +45,7 @@ enum SubscriptionStatus {
 }
 
 model Tenant {
+  stationMessages           StationMessage[]
   annualLeaveDrafts AnnualLeaveDraft[]
   fiscalYearClosings FiscalYearClosing[]
   id                 String             @id @default(cuid())
@@ -433,6 +434,7 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
+  stationMessages           StationMessage[]
   annualLeaveDrafts AnnualLeaveDraft[]
   qoyodConnection              QoyodConnection?
   id                           String                @id @default(cuid())
@@ -744,6 +746,7 @@ model ZatcaComplianceStepAttempt {
 
 // مركز تكلفة/موقع/فرع/مخزن — قد يكون عاماً (companyId فارغ) أو خاصاً بشركة معينة
 model CostCenter {
+  stationMessages           StationMessage[]
   id        String   @id @default(cuid())
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -2139,6 +2142,7 @@ enum EmployeeStatus {
 }
 
 model Employee {
+  stationMessagesSent       StationMessage[] @relation("StationMessageFrom")
   annualLeaveDrafts AnnualLeaveDraft[]
   id                        String         @id @default(cuid())
   tenantId                  String
@@ -2201,6 +2205,8 @@ model Employee {
   // User.assignedCostCenterId السابق (نُقِل هنا بالكامل: بوابة الموظف لا تملك مفهوم
   // Position/PositionActionPermission أصلاً، فوجود هذا التخصيص نفسه هو "الصلاحية" الوحيدة
   // المطلوبة لفتح وردية — تماماً كمبدأ managerId أعلاه في صلاحيات وحدة الإجازات).
+  // مشرف المحطات: يرى من بوابة الجوال كل محطات شركته حيّة (ورديات مفتوحة، مضخات، خزانات، تنبيهات) — قراءة فقط
+  stationSupervisor         Boolean        @default(false)
   assignedCostCenterId      String?
   assignedCostCenter        CostCenter?    @relation("EmployeeAssignedCostCenter", fields: [assignedCostCenterId], references: [id], onDelete: SetNull)
   // تحميل تكلفة الراتب (قرار المالك 2026-11-01): قسم ومركز تكلفة الموظف تُوسَم بهما أسطر مصروف رواتبه في القيد.
@@ -4134,4 +4140,24 @@ model FiscalYearClosing {
   @@unique([companyId, yearEnd])
   @@index([tenantId, companyId])
   @@map("fiscal_year_closings")
+}
+
+/// رسالة من مشرف المحطات لعمّال محطة (تطبيق المحطات): يراها كل عامل مُسنَد للمحطة، وseenAt أول مرة رآها عامل منهم
+model StationMessage {
+  id               String     @id @default(cuid())
+  tenantId         String
+  tenant           Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId        String
+  company          Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  costCenterId     String
+  costCenter       CostCenter @relation(fields: [costCenterId], references: [id], onDelete: Cascade)
+  fromEmployeeId   String
+  fromEmployee     Employee   @relation("StationMessageFrom", fields: [fromEmployeeId], references: [id], onDelete: Cascade)
+  body             String
+  createdAt        DateTime   @default(now())
+  seenAt           DateTime?
+  seenByEmployeeId String?
+
+  @@index([tenantId, costCenterId, createdAt])
+  @@map("station_messages")
 }

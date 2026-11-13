@@ -899,6 +899,31 @@ async function controllerShiftSales(
   return { nozzles, products, liters: liters.toNumber(), amount: amount.toNumber() };
 }
 
+/**
+ * الورديات المفتوحة الآن في محطات (لوحة المحطات والشاشة الحيّة للمشرف): العامل ووقت الفتح، ومبيعات الوردية الآلية حتى اللحظة
+ * لكل منتج والإجمالي (نفس حساب شاشة العامل). الوردية المصوَّرة لا تُعرف مبيعاتها قبل إقفالها فـ sales = null. مقيَّدة بالمستأجر
+ * والشركة ومحطات الطلب.
+ */
+export async function openShiftsWithSales(tenantId: string, companyId: string, costCenterIds: string[]) {
+  const shifts = await prisma.stationShift.findMany({
+    where: { tenantId, companyId, costCenterId: { in: costCenterIds }, status: "open", isSeedData: false },
+    include: { employee: { select: { name: true } }, readings: { include: { nozzle: true } } },
+    orderBy: { openedAt: "asc" },
+  });
+  const rows = await Promise.all(shifts.map(openShiftRow));
+  const out = new Map<string, typeof rows>();
+  for (const r of rows) out.set(r.costCenterId, [...(out.get(r.costCenterId) ?? []), r]);
+  return out;
+
+  async function openShiftRow(sh: (typeof shifts)[number]) {
+    const sales = sh.readingsSource === "controller" ? await controllerShiftSales(tenantId, sh, sh.readings) : null;
+    return {
+      id: sh.id, costCenterId: sh.costCenterId, employee: sh.employee?.name ?? null, shiftType: sh.shiftType, openedAt: sh.openedAt,
+      readingsSource: sh.readingsSource, sales: sales && { products: sales.products, liters: sales.liters, amount: sales.amount },
+    };
+  }
+}
+
 export async function getShiftSummary(tenantId: string, employeeId: string, shiftId: string) {
   const shift = await getOwnedShift(tenantId, employeeId, shiftId);
   const [readings, expenses, creditSales] = await Promise.all([

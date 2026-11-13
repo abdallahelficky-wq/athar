@@ -50,6 +50,8 @@ const employeeSchema = z.object({
   managerId: z.string().nullable().optional(),
   // محطة عامل ورديات المحطات (مركز تكلفة من نفس الشركة) — يُتحقَّق منها في employees.controller.ts
   assignedCostCenterId: z.string().min(1).nullable().optional(),
+  // مشرف المحطات في بوابة الجوال: يرى كل محطات شركة الموظف (قراءة فقط)
+  stationSupervisor: z.boolean().optional(),
   // تحميل تكلفة الراتب: قسم ومركز تكلفة من شركة الموظف (أو على مستوى المستأجر بلا شركة) — يُتحقَّق منهما في employees.controller.ts
   departmentId: z.string().min(1).nullable().optional(),
   costCenterId: z.string().min(1).nullable().optional(),
