@@ -65,6 +65,7 @@ import { leaseContractRoutes } from "./modules/leaseContracts/leaseContracts.rou
 import { companyDocumentRoutes } from "./modules/companyDocuments/companyDocuments.routes";
 import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 import { employeePortalRoutes } from "./modules/employeePortal/employeePortal.routes";
+import { stationMonitorPortalRoutes } from "./modules/stationDashboard/stationMonitor.portal.routes";
 import { stationSetupRoutes } from "./modules/stationSetup/stationSetup.routes";
 import { stationTankRoutes } from "./modules/stationTanks/stationTanks.routes";
 import { forecourtRoutes } from "./modules/forecourt/forecourt.routes";
@@ -162,6 +163,7 @@ export function createApp() {
   app.use("/api/attendance", attendanceRoutes);
   app.use("/api/employee-portal/leave-requests", leaveRequestPortalRoutes);
   app.use("/api/employee-portal/station-shifts", stationShiftPortalRoutes);
+  app.use("/api/employee-portal/station-monitor", stationMonitorPortalRoutes);
   app.use("/api/pos", posRoutes);
   app.use("/api/stables", stableRoutes);
   app.use("/api/ai", aiRoutes);

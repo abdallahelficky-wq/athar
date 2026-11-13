@@ -120,7 +120,7 @@ export function tenantSuspendedMessage(reason: string | null) {
 export async function employeePortalProfile(employeeId: string, tenantId: string) {
   const employee = await prisma.employee.findFirst({
     where: { id: employeeId, tenantId },
-    select: { id: true, name: true, jobTitle: true, department: true, companyId: true, assignedCostCenterId: true },
+    select: { id: true, name: true, jobTitle: true, department: true, companyId: true, assignedCostCenterId: true, stationSupervisor: true },
   });
   if (!employee) throw unauthorized("الحساب غير موجود");
   const directReportsCount = await prisma.employee.count({ where: { managerId: employeeId, tenantId } });

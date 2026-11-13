@@ -7,6 +7,7 @@ import CheckInScreen from "./screens/CheckInScreen";
 import LeaveRequestsScreen from "./screens/LeaveRequestsScreen";
 import ManagerInboxScreen from "./screens/ManagerInboxScreen";
 import StationShiftScreen from "./screens/StationShiftScreen";
+import StationMonitorScreen from "./screens/StationMonitorScreen";
 
 function Shell() {
   const { t } = useTranslation();
@@ -21,7 +22,10 @@ function Shell() {
   const tabs = employee?.isManager ? [...TABS, { id: "inbox", label: t("mobile.tabs.inbox"), icon: "📥" }] : TABS;
   const [tab, setTab] = useState("attendance");
   // عامل محطة (مُسنَد لمحطة وليس مديراً): التطبيق شاشة الوردية وحدها — لا حضور ولا إجازات ولا شريط تبويبات؛ هي الصفحة الرئيسية
-  const stationOnly = Boolean(employee?.assignedCostCenterId) && !employee?.isManager;
+  // مشرف المحطات: التطبيق شاشة متابعة المحطات وحدها (أيقونة لكل محطة)
+  const monitorOnly = Boolean(employee?.stationSupervisor);
+  const stationOnly = !monitorOnly && Boolean(employee?.assignedCostCenterId) && !employee?.isManager;
+  const single = monitorOnly || stationOnly;
 
   return (
     <div className="m-app">
@@ -38,13 +42,14 @@ function Shell() {
         </div>
       </div>
       <div className="m-main">
+        {monitorOnly && <StationMonitorScreen />}
         {stationOnly && <StationShiftScreen />}
-        {!stationOnly && tab === "attendance" && <CheckInScreen />}
-        {!stationOnly && tab === "leave" && <LeaveRequestsScreen />}
-        {!stationOnly && tab === "stationShifts" && employee?.assignedCostCenterId && <StationShiftScreen />}
-        {!stationOnly && tab === "inbox" && employee?.isManager && <ManagerInboxScreen />}
+        {!single && tab === "attendance" && <CheckInScreen />}
+        {!single && tab === "leave" && <LeaveRequestsScreen />}
+        {!single && tab === "stationShifts" && employee?.assignedCostCenterId && <StationShiftScreen />}
+        {!single && tab === "inbox" && employee?.isManager && <ManagerInboxScreen />}
       </div>
-      {!stationOnly && <div className="m-tabbar">
+      {!single && <div className="m-tabbar">
         {tabs.map((tabItem) => (
           <button key={tabItem.id} className={"m-tab" + (tab === tabItem.id ? " active" : "")} onClick={() => setTab(tabItem.id)}>
             <span className="m-tab-icon">{tabItem.icon}</span>

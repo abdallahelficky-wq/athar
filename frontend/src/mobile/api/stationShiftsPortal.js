@@ -19,3 +19,4 @@ export const uploadExpensePhoto = (shiftId, expenseId, file) => {
 };
 export const getShiftSummary = (shiftId) => employeePortalApi.get(`/employee-portal/station-shifts/${shiftId}/summary`);
 export const submitShift = (shiftId) => employeePortalApi.post(`/employee-portal/station-shifts/${shiftId}/submit`);
+export const getMessages = () => employeePortalApi.get("/employee-portal/station-shifts/messages");

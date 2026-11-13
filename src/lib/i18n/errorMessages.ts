@@ -662,6 +662,8 @@ export const AR_TO_EN: Record<string, string> = {
   "توجد وردية بالفعل لهذه المحطة بنفس التاريخ ونوع الوردية": "A shift already exists for this station on the same date and shift type",
   "لا يمكن للعامل تعديل وردية بعد إرسالها للمراجعة": "A worker can't modify a shift after it has been submitted for review",
   "هذه الوردية ليست لك": "This shift is not yours",
+  "هذه الشاشة لمشرف المحطات فقط": "This screen is for station supervisors only",
+  "نص الرسالة مطلوب": "Message text is required",
   "توجد وردية مفتوحة على هذه المحطة — يجب إقفالها أولاً قبل فتح وردية جديدة": "A shift is still open at this station — it must be closed before a new shift can be opened",
   "هذه وردية آلية — قراءات العدادات تُؤخذ من جهاز المحطة، لا حاجة لتصويرها": "This is an automated shift — meter readings are taken from the station controller, no photos needed",
   "الفوهة غير موجودة أو لا تتبع محطة هذه الوردية": "The nozzle does not exist or does not belong to this shift's station",

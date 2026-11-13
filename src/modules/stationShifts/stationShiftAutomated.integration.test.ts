@@ -200,6 +200,29 @@ describe("automated station shifts (integration)", () => {
     expect(overview.status, overview.text).toBe(200);
     expect(overview.body.stations.flatMap((st: any) => st.openShifts)).toEqual([expect.objectContaining({ id: shiftId, liters: 30, amount: 69 })]);
 
+    // مشرف المحطات في تطبيق المحطات: موظف يُعيَّن مشرفاً عبر /employees (لا محطة مُسنَدة له)، يرى محطات شركته حيّة ويراسل عمّالها
+    const supId = (await prisma.employee.create({ data: { tenantId: a.tenantId, companyId: a.companyId, name: "المشرف", hireDate: new Date("2026-01-01"), basicSalary: 5000, portalActive: true } })).id;
+    const sup = signEmployeePortalToken({ employeeId: supId, tenantId: a.tenantId });
+    const monitorCall = (method: string, path: string, body?: unknown) => call(method, `/employee-portal/station-monitor${path}`, sup, body);
+    expect((await monitorCall("GET", "")).status).toBe(403); // ليس مشرفاً بعد
+    expect((await call("GET", "/employee-portal/station-monitor", a.worker)).status).toBe(403); // العامل ليس مشرفاً
+    expect((await call("PATCH", `/employees/${supId}`, a.token, { stationSupervisor: true })).status).toBe(200);
+    const stationsView = await monitorCall("GET", "");
+    expect(stationsView.status, stationsView.text).toBe(200);
+    expect(stationsView.body.stations).toEqual([expect.objectContaining({ costCenterId: a.station, openShifts: [expect.objectContaining({ id: shiftId, amount: 69 })] })]);
+    const supLive = await monitorCall("GET", `/${a.station}/live`);
+    expect(supLive.body.openShifts[0].sales).toMatchObject({ liters: 30, amount: 69 });
+    expect((await monitorCall("GET", `/${ctx.b.station}/live`)).status).toBe(404); // محطة مستأجر آخر
+    expect((await monitorCall("POST", `/${ctx.b.station}/messages`, { body: "x" })).status).toBe(404);
+
+    const sent = await monitorCall("POST", `/${a.station}/messages`, { body: "  أغلق المضخة 2  " });
+    expect(sent.status, sent.text).toBe(201);
+    expect(sent.body).toMatchObject({ body: "أغلق المضخة 2", from: "المشرف", seenAt: null });
+    const inbox = await call("GET", "/employee-portal/station-shifts/messages", a.worker);
+    expect(inbox.body).toEqual([expect.objectContaining({ id: sent.body.id, body: "أغلق المضخة 2", seenAt: null })]);
+    expect((await monitorCall("GET", `/${a.station}/messages`)).body[0].seenAt).not.toBeNull(); // وصلت للعامل
+    expect((await call("GET", "/employee-portal/station-shifts/messages", ctx.b.worker)).body).toEqual([]); // عامل B لا يراها
+
     expect((await portal(a, "PUT", `/${shiftId}/collections`, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 69 })).status).toBe(200);
     const closed = await portal(a, "POST", `/${shiftId}/submit`);
     expect(closed.status, closed.text).toBe(200);
