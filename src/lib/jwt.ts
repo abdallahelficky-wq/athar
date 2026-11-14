@@ -59,7 +59,34 @@ export function signEmployeePortalToken(payload: EmployeePortalTokenPayload): st
 }
 
 export function verifyEmployeePortalToken(token: string): EmployeePortalTokenPayload {
-  return jwt.verify(token, env.jwtEmployeePortalSecret) as EmployeePortalTokenPayload;
+  const payload = jwt.verify(token, env.jwtEmployeePortalSecret) as EmployeePortalTokenPayload & { kind?: string };
+  // رمز مستخدم المحطات (بنفس السرّ) ليس رمز موظف — لا يفتح بوابة الموظف (حضور، إجازات...)
+  if (payload.kind === "station" || !payload.employeeId) throw new Error("not an employee portal token");
+  return payload;
+}
+
+/** رمز تطبيق المحطات لمستخدم محطات (StationUser) — نفس سرّ بوابة الموظف ومدتها، ويحمل kind يميّزه عن رمز الموظف */
+export interface StationUserTokenPayload {
+  stationUserId: string;
+  tenantId: string;
+  kind: "station";
+}
+
+export function signStationUserToken(payload: Omit<StationUserTokenPayload, "kind">): string {
+  const options: jwt.SignOptions = { expiresIn: env.jwtEmployeePortalExpiresIn as jwt.SignOptions["expiresIn"] };
+  return jwt.sign({ ...payload, kind: "station" }, env.jwtEmployeePortalSecret, options);
+}
+
+export function verifyStationUserToken(token: string): StationUserTokenPayload {
+  const payload = jwt.verify(token, env.jwtEmployeePortalSecret) as StationUserTokenPayload;
+  if (payload.kind !== "station" || !payload.stationUserId) throw new Error("not a station user token");
+  return payload;
+}
+
+/** نوع رمز الجوال دون التحقق من صلاحيته (للتوجيه فقط؛ التحقق في الوسيط المختص) */
+export function portalTokenKind(token: string): "station" | "employee" {
+  const decoded = jwt.decode(token) as { kind?: string } | null;
+  return decoded?.kind === "station" ? "station" : "employee";
 }
 
 export interface RefreshTokenPayload {

@@ -682,11 +682,11 @@ describe("subscription enforcement (P4)", () => {
   it("gates station shift review and posting by the stations add-on; allowed when entitled", async () => {
     await globalSwitch(false);
     const station = await call("POST", "/cost-centers", ownerToken, { companyId: companyA, name: `محطة الورديات ${stamp}` });
-    const worker = await prisma.employee.create({
-      data: { tenantId, companyId: companyA, name: "عامل الوردية", hireDate: new Date("2026-01-01"), basicSalary: 2000, assignedCostCenterId: station.body.id },
+    const worker = await prisma.stationUser.create({
+      data: { tenantId, companyId: companyA, name: "عامل الوردية", role: "worker", costCenterId: station.body.id, active: true },
     });
     const shift = (status: "submitted" | "approved", day: number) =>
-      prisma.stationShift.create({ data: { tenantId, companyId: companyA, costCenterId: station.body.id, employeeId: worker.id, shiftDate: new Date(Date.UTC(2026, 8, day)), shiftType: "morning", status } });
+      prisma.stationShift.create({ data: { tenantId, companyId: companyA, costCenterId: station.body.id, stationUserId: worker.id, shiftDate: new Date(Date.UTC(2026, 8, day)), shiftType: "morning", status } });
     const submitted = await shift("submitted", 1);
     const approvedShift = await shift("approved", 2);
     const reject = () => call("POST", `/station-shifts/${submitted.id}/reject`, ownerToken, { reasonCode: "other", note: "اختبار" });

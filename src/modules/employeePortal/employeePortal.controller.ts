@@ -9,3 +9,7 @@ export const login: RequestHandler = async (req, res) => {
 export const me: RequestHandler = async (req, res) => {
   res.json(await service.employeePortalProfile(req.employeeAuth!.employeeId, req.employeeAuth!.tenantId));
 };
+
+export const stationMe: RequestHandler = async (req, res) => {
+  res.json(await service.stationUserProfile(req.stationAuth!.stationUserId, req.stationAuth!.tenantId));
+};

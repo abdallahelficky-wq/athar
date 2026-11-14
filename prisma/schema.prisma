@@ -45,6 +45,7 @@ enum SubscriptionStatus {
 }
 
 model Tenant {
+  stationUsers              StationUser[]
   stationMessages           StationMessage[]
   annualLeaveDrafts AnnualLeaveDraft[]
   fiscalYearClosings FiscalYearClosing[]
@@ -434,6 +435,7 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
+  stationUsers              StationUser[]
   stationMessages           StationMessage[]
   annualLeaveDrafts AnnualLeaveDraft[]
   qoyodConnection              QoyodConnection?
@@ -746,6 +748,7 @@ model ZatcaComplianceStepAttempt {
 
 // مركز تكلفة/موقع/فرع/مخزن — قد يكون عاماً (companyId فارغ) أو خاصاً بشركة معينة
 model CostCenter {
+  stationUsers              StationUser[]
   stationMessages           StationMessage[]
   id        String   @id @default(cuid())
   tenantId  String
@@ -2142,7 +2145,6 @@ enum EmployeeStatus {
 }
 
 model Employee {
-  stationMessagesSent       StationMessage[] @relation("StationMessageFrom")
   annualLeaveDrafts AnnualLeaveDraft[]
   id                        String         @id @default(cuid())
   tenantId                  String
@@ -2205,8 +2207,6 @@ model Employee {
   // User.assignedCostCenterId السابق (نُقِل هنا بالكامل: بوابة الموظف لا تملك مفهوم
   // Position/PositionActionPermission أصلاً، فوجود هذا التخصيص نفسه هو "الصلاحية" الوحيدة
   // المطلوبة لفتح وردية — تماماً كمبدأ managerId أعلاه في صلاحيات وحدة الإجازات).
-  // مشرف المحطات: يرى من بوابة الجوال كل محطات شركته حيّة (ورديات مفتوحة، مضخات، خزانات، تنبيهات) — قراءة فقط
-  stationSupervisor         Boolean        @default(false)
   assignedCostCenterId      String?
   assignedCostCenter        CostCenter?    @relation("EmployeeAssignedCostCenter", fields: [assignedCostCenterId], references: [id], onDelete: SetNull)
   // تحميل تكلفة الراتب (قرار المالك 2026-11-01): قسم ومركز تكلفة الموظف تُوسَم بهما أسطر مصروف رواتبه في القيد.
@@ -3166,9 +3166,12 @@ model StationShift {
   company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   costCenterId        String
   costCenter          CostCenter         @relation(fields: [costCenterId], references: [id])
-  // موظف عبر بوابة الموظف (الجوال) حصراً — لا حساب User إطلاقاً؛ راجع Employee.assignedCostCenterId
-  employeeId          String
-  employee            Employee           @relation("StationShiftEmployee", fields: [employeeId], references: [id])
+  // عامل المحطة صاحب الوردية: مستخدم محطات (StationUser) مستقل عن شئون الموظفين. employeeId بقي للورديات القديمة فقط (قبل
+  // فصل مستخدمي المحطات، 14 نوفمبر 2026) ولا يُكتب بعده
+  stationUserId       String
+  stationUser         StationUser        @relation(fields: [stationUserId], references: [id], onDelete: NoAction)
+  employeeId          String?
+  employee            Employee?          @relation("StationShiftEmployee", fields: [employeeId], references: [id])
   shiftDate           DateTime
   shiftType           StationShiftType
   openedAt            DateTime?
@@ -3209,6 +3212,7 @@ model StationShift {
   @@index([costCenterId, shiftDate, shiftType])
   @@index([tenantId, companyId, costCenterId, shiftDate])
   @@index([tenantId, companyId, status])
+  @@index([stationUserId])
   @@index([tenantId, correctsShiftId])
   @@map("station_shifts")
 }
@@ -4151,13 +4155,51 @@ model StationMessage {
   company          Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   costCenterId     String
   costCenter       CostCenter @relation(fields: [costCenterId], references: [id], onDelete: Cascade)
-  fromEmployeeId   String
-  fromEmployee     Employee   @relation("StationMessageFrom", fields: [fromEmployeeId], references: [id], onDelete: Cascade)
-  body             String
-  createdAt        DateTime   @default(now())
-  seenAt           DateTime?
-  seenByEmployeeId String?
+  fromStationUserId   String
+  fromStationUser     StationUser @relation("StationMessageFrom", fields: [fromStationUserId], references: [id], onDelete: Cascade)
+  body                String
+  createdAt           DateTime    @default(now())
+  seenAt              DateTime?
+  seenByStationUserId String?
 
   @@index([tenantId, costCenterId, createdAt])
   @@map("station_messages")
+}
+
+enum StationUserRole {
+  worker
+  supervisor
+}
+
+/// مستخدم تطبيق المحطات — عامل محطة أو مشرف محطات — مستقل تماماً عن شئون الموظفين (لا راتب، لا رواتب، لا إجازات). الدخول
+/// برقم الجوال ورمز من 6 أرقام (نفس قواعد القفل في بوابة الموظف). الأرشفة توقف الدخول وتُبقي السجل لورديّاته ورسائله.
+model StationUser {
+  id                     String          @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId              String
+  company                Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // محطة العامل (يفتح ورديتها). المشرف يرى كل محطات شركته فلا يحتاجها
+  costCenterId           String?
+  costCenter             CostCenter?     @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  role                   StationUserRole @default(worker)
+  name                   String
+  phone                  String?
+  pinHash                String?
+  // الدخول مفعَّل (بعد ضبط الجوال والرمز)
+  active                 Boolean         @default(false)
+  archivedAt             DateTime?
+  failedLoginAttempts    Int             @default(0)
+  lockedUntil            DateTime?
+  lockoutCount           Int             @default(0)
+  // الموظف الذي حُوِّل منه عند فصل مستخدمي المحطات عن شئون الموظفين (للتتبّع فقط)
+  migratedFromEmployeeId String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  shifts                 StationShift[]
+  messagesSent           StationMessage[] @relation("StationMessageFrom")
+
+  @@unique([tenantId, phone])
+  @@index([tenantId, companyId])
+  @@map("station_users")
 }

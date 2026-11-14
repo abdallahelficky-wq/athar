@@ -67,8 +67,8 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
   });
   expect(pump.status, pump.text).toBe(201);
   expect((await call("POST", "/station-setup/fuel-prices", token, { companyId: company.id, product: "diesel", priceInclVat: 2.3, effectiveFrom: "2026-01-01" })).status).toBe(201);
-  const employeeId = (await prisma.employee.create({
-    data: { tenantId, companyId: company.id, name: "عامل المحطة", hireDate: new Date("2026-01-01"), basicSalary: 3000, assignedCostCenterId: station },
+  const employeeId = (await prisma.stationUser.create({
+    data: { tenantId, companyId: company.id, name: "عامل المحطة", role: "worker", costCenterId: station, active: true },
   })).id;
   // الاعتماد يفحص تكلفة الوقود مسبقاً: صنف الديزل مربوط، ومستودع للمحطة، ومتوسط تكلفة من فاتورة شراء حقيقية
   const diesel = (await prisma.item.findFirstOrThrow({ where: { tenantId, companyId: company.id, code: "0003" } })).id;
@@ -90,7 +90,7 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
 /** وردية مُعتمَدة عبر الخدمة وHTTP — كل اللترات على أول فوهة، والتحصيل: شبكة network والباقي نقداً. */
 async function approvedShift(c: Ctx, liters: number, network: number) {
   const shift = await prisma.stationShift.create({
-    data: { tenantId: c.tenantId, companyId: c.companyId, costCenterId: c.station, employeeId: c.employeeId, shiftDate: new Date(`${TODAY}T00:00:00.000Z`), shiftType: "morning", openedAt: new Date(), status: "open" },
+    data: { tenantId: c.tenantId, companyId: c.companyId, costCenterId: c.station, stationUserId: c.employeeId, shiftDate: new Date(`${TODAY}T00:00:00.000Z`), shiftType: "morning", openedAt: new Date(), status: "open" },
   });
   const readingIds: { id: string; nozzleId: string }[] = [];
   for (const nozzleId of c.nozzles) {
@@ -120,7 +120,7 @@ describe("stations dashboard (integration)", () => {
     await approvedShift(ctx.b, 40, 0);
     // وردية ثانية لـA تبقى مفتوحة — تُعَدّ "للمراجعة" ولا تدخل الأرقام
     await prisma.stationShift.create({
-      data: { tenantId: ctx.a.tenantId, companyId: ctx.a.companyId, costCenterId: ctx.a.station, employeeId: ctx.a.employeeId, shiftDate: new Date(`${TODAY}T00:00:00.000Z`), shiftType: "night", openedAt: new Date(), status: "open" },
+      data: { tenantId: ctx.a.tenantId, companyId: ctx.a.companyId, costCenterId: ctx.a.station, stationUserId: ctx.a.employeeId, shiftDate: new Date(`${TODAY}T00:00:00.000Z`), shiftType: "night", openedAt: new Date(), status: "open" },
     });
     // قراءة خزان لكل مستأجر: A ممتلئ 15000 من 20000، B منخفض 3000 (15%)
     expect((await call("POST", "/station-tanks/readings", ctx.a.token, { tankId: ctx.a.tankId, purpose: "spot", readAt: new Date().toISOString(), liters: 15000 })).status).toBe(201);

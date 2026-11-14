@@ -1,7 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { unauthorized, tooManyRequests } from "../../lib/httpError";
 import { hashPassword, verifyPassword } from "../../lib/password";
-import { signEmployeePortalToken } from "../../lib/jwt";
+import { signEmployeePortalToken, signStationUserToken } from "../../lib/jwt";
 import { isIpThrottled, recordIpFailure } from "./loginThrottle";
 import { assertMembershipNotSuspended } from "../../lib/subscriptionEnforcement";
 
@@ -53,6 +53,12 @@ export async function employeePortalLogin(tenantIdentifier: string, phone: strin
   };
 
   const tenant = await resolvePortalTenant(tenantIdentifier);
+  // مستخدم تطبيق المحطات (عامل/مشرف) يُبحث عنه أولاً بنفس الجوال — مستقل عن شئون الموظفين
+  const stationUser = tenant
+    ? await prisma.stationUser.findFirst({ where: { tenantId: tenant.id, phone: phone.trim(), active: true, archivedAt: null }, omit: { pinHash: false } })
+    : null;
+  if (tenant && stationUser) return stationUserLogin(tenant, stationUser, pin, fail);
+
   const employee = tenant
     ? await prisma.employee.findFirst({
         where: { tenantId: tenant.id, phone: phone.trim(), portalActive: true, status: "active" },
@@ -110,6 +116,44 @@ export async function employeePortalLogin(tenantIdentifier: string, phone: strin
   return { accessToken, employee: await employeePortalProfile(employee.id, tenant.id) };
 }
 
+/** نفس قواعد دخول الموظف (قفل متصاعد، رسالة موحّدة، تعليق المنشأة/الشركة) على مستخدم المحطات. */
+async function stationUserLogin(
+  tenant: { id: string; subscriptionStatus: string; suspensionReason: string | null },
+  user: { id: string; companyId: string; pinHash: string | null; lockedUntil: Date | null },
+  pin: string,
+  fail: () => Promise<Error>,
+) {
+  if (!user.pinHash || (user.lockedUntil && user.lockedUntil > new Date())) {
+    await burnComparisonTime(pin);
+    throw await fail();
+  }
+  if (!(await verifyPassword(pin, user.pinHash))) {
+    const updated = await prisma.stationUser.update({
+      where: { id: user.id }, data: { failedLoginAttempts: { increment: 1 } }, select: { failedLoginAttempts: true, lockoutCount: true },
+    });
+    if (updated.failedLoginAttempts >= MAX_FAILED_ATTEMPTS) {
+      const lockoutNumber = updated.lockoutCount + 1;
+      await prisma.stationUser.update({ where: { id: user.id }, data: { lockoutCount: lockoutNumber, lockedUntil: new Date(Date.now() + lockDurationMs(lockoutNumber)) } });
+    }
+    throw await fail();
+  }
+  if (tenant.subscriptionStatus === "suspended") throw unauthorized(tenantSuspendedMessage(tenant.suspensionReason));
+  await assertMembershipNotSuspended({ tenantId: tenant.id, companyScope: user.companyId });
+  await prisma.stationUser.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null, lockoutCount: 0 } });
+  const accessToken = signStationUserToken({ stationUserId: user.id, tenantId: tenant.id });
+  return { accessToken, employee: await stationUserProfile(user.id, tenant.id) };
+}
+
+/** ملف مستخدم المحطات لتطبيق الجوال — بنفس مفتاح employee في رد الدخول، مع kind=station ودوره ومحطته. */
+export async function stationUserProfile(stationUserId: string, tenantId: string) {
+  const user = await prisma.stationUser.findFirst({
+    where: { id: stationUserId, tenantId },
+    select: { id: true, name: true, companyId: true, costCenterId: true, role: true, costCenter: { select: { name: true } } },
+  });
+  if (!user) throw unauthorized("الحساب غير موجود");
+  return { kind: "station" as const, id: user.id, name: user.name, companyId: user.companyId, role: user.role, costCenterId: user.costCenterId, stationName: user.costCenter?.name ?? null };
+}
+
 export function tenantSuspendedMessage(reason: string | null) {
   return reason
     ? `تم تعليق هذا الحساب من إدارة المنصة: ${reason}`
@@ -120,7 +164,7 @@ export function tenantSuspendedMessage(reason: string | null) {
 export async function employeePortalProfile(employeeId: string, tenantId: string) {
   const employee = await prisma.employee.findFirst({
     where: { id: employeeId, tenantId },
-    select: { id: true, name: true, jobTitle: true, department: true, companyId: true, assignedCostCenterId: true, stationSupervisor: true },
+    select: { id: true, name: true, jobTitle: true, department: true, companyId: true, assignedCostCenterId: true },
   });
   if (!employee) throw unauthorized("الحساب غير موجود");
   const directReportsCount = await prisma.employee.count({ where: { managerId: employeeId, tenantId } });

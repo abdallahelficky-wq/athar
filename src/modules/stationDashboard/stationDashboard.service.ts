@@ -407,7 +407,7 @@ export async function getStationDetail(tenantId: string, companyId: string, cost
   const [shifts, deliveries, readings] = await Promise.all([
     prisma.stationShift.findMany({
       where: { tenantId, companyId, costCenterId: station.id, isSeedData: false, shiftDate: { gte: dayStart(range.from), lte: dayStart(range.to) } },
-      include: { employee: { select: { name: true } }, collection: true },
+      include: { stationUser: { select: { name: true } }, collection: true },
       orderBy: [{ shiftDate: "desc" }, { openedAt: "desc" }],
       take: 200,
     }),
@@ -433,7 +433,7 @@ export async function getStationDetail(tenantId: string, companyId: string, cost
       points: readings.filter((r) => r.tankId === t.tankId).map((r) => ({ at: r.readAt, liters: Number(r.liters), source: r.source, purpose: r.purpose })),
     })),
     shifts: shifts.map((s) => ({
-      id: s.id, shiftDate: shiftDay(s.shiftDate), shiftType: s.shiftType, status: s.status, employee: s.employee?.name ?? null,
+      id: s.id, shiftDate: shiftDay(s.shiftDate), shiftType: s.shiftType, status: s.status, employee: s.stationUser?.name ?? null,
       cash: s.collection ? Number(s.collection.cashDelivered) : null, network: s.collection ? Number(s.collection.networkAmount) : null,
     })),
     deliveries: deliveries.map((x) => ({

@@ -143,7 +143,7 @@ describe("document lists default to last entered first (integration)", () => {
     await createPump(tenantId, { companyId, costCenterId, pumpType: "diesel", meterType: "mechanical", hasMoneyMeter: false,
       nozzles: [{ meterDigits: 6, initialReading: 1000 }, { meterDigits: 6, initialReading: 2000 }] });
     await createFuelPrice(tenantId, { companyId, product: "diesel", priceInclVat: 1.66, effectiveFrom: "2020-01-01" });
-    const employee = await prisma.employee.create({ data: { tenantId, companyId, name: "عامل الترتيب", hireDate: new Date(), basicSalary: 3000, assignedCostCenterId: costCenterId } });
+    const employee = await prisma.stationUser.create({ data: { tenantId, companyId, name: "عامل الترتيب", role: "worker", costCenterId, active: true } });
 
     // بوابة العامل تفتح الوردية بتاريخ اليوم دائماً (لا يختاره العامل)، فلا ينتج النظام «وردية بتاريخ أقدم أُدخلت لاحقاً»
     // مباشرة: ورديات حقيقية من openShift/submitShift، ثم يُنقَل تاريخ كل واحدة عمداً بعد إرسالها (CLAUDE.md القاعدة 2).
