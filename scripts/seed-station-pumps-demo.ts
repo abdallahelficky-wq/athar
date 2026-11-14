@@ -119,11 +119,11 @@ async function main() {
   }
   console.log(`تم التأكد من وجود ${NEW_NOZZLES.length} فوهة عبر 5 مضخات جديدة (2-6).`);
 
-  // موظف تُنسَب له وردية البذرة — يُفضَّل موظف هذه المحطة تحديداً، وإلا أي موظف بنفس المستأجر.
-  // الوردية غير مقصودة لتمثيل عمل هذا الموظف فعلياً، فقط لتثبيت قراءة إغلاق سابقة للفوهات.
+  // مستخدم محطات تُنسَب له وردية البذرة (عامل هذه المحطة، وإلا عامل بذرة يُنشأ لها بلا دخول).
+  // الوردية غير مقصودة لتمثيل عمل أحد فعلياً، فقط لتثبيت قراءة إغلاق سابقة للفوهات.
   const seedEmployee =
-    (await prisma.employee.findFirst({ where: { tenantId, assignedCostCenterId: costCenterId } })) ??
-    (await prisma.employee.findFirst({ where: { tenantId } }));
+    (await prisma.stationUser.findFirst({ where: { tenantId, costCenterId } })) ??
+    (await prisma.stationUser.create({ data: { tenantId, companyId, costCenterId, name: "عامل بذرة", role: "worker", active: false } }));
   if (!seedEmployee) {
     console.warn(
       "تحذير: لا يوجد أي موظف (Employee) بهذا المستأجر بعد — تم إنشاء المضخات/الفوهات، لكن تعذّر إنشاء وردية البذرة " +
@@ -151,13 +151,13 @@ async function main() {
 
   const seedShift = await prisma.stationShift.upsert({
     where: { id: seedShiftId },
-    update: { shiftDate: seedShiftDate, shiftType: SEED_SHIFT_TYPE, employeeId: seedEmployee.id, isSeedData: true },
+    update: { shiftDate: seedShiftDate, shiftType: SEED_SHIFT_TYPE, stationUserId: seedEmployee.id, isSeedData: true },
     create: {
       id: seedShiftId,
       tenantId,
       companyId,
       costCenterId,
-      employeeId: seedEmployee.id,
+      stationUserId: seedEmployee.id,
       shiftDate: seedShiftDate,
       shiftType: SEED_SHIFT_TYPE,
       openedAt: seedShiftDate,

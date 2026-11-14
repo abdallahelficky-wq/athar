@@ -86,8 +86,8 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
     const res = await call("POST", "/station-setup/fuel-prices", token, { companyId: company.id, product, priceInclVat: price, effectiveFrom: "2026-01-01" });
     expect(res.status, res.text).toBe(201);
   }
-  const employeeId = (await prisma.employee.create({
-    data: { tenantId, companyId: company.id, name: "عامل المحطة", hireDate: new Date("2026-01-01"), basicSalary: 3000, assignedCostCenterId: station },
+  const employeeId = (await prisma.stationUser.create({
+    data: { tenantId, companyId: company.id, name: "عامل المحطة", role: "worker", costCenterId: station, active: true },
   })).id;
   // البيانات الابتدائية لنشاط المحطات: أصناف 0001/0002/0003 ومستودع افتراضي وحسابا العجز/الزيادة (src/lib/starterData.ts)
   const itemByCode = async (code: string) => (await prisma.item.findFirstOrThrow({ where: { tenantId, companyId: company.id, code } })).id;
@@ -112,7 +112,7 @@ async function buy(c: Ctx, itemId: string, quantity: number, unitPrice: number) 
 /** وردية حتى "قيد المراجعة" بقيم المحاسب عبر مسارات الخدمة الحقيقية: قراءات، صور، تحصيل، إرسال، تصحيح المحاسب. */
 async function reviewedShift(c: Ctx, date: string, litersByProduct: Partial<Record<Product, number>>) {
   const shift = await prisma.stationShift.create({
-    data: { tenantId: c.tenantId, companyId: c.companyId, costCenterId: c.station, employeeId: c.employeeId, shiftDate: day(date), shiftType: "morning", openedAt: new Date(), status: "open" },
+    data: { tenantId: c.tenantId, companyId: c.companyId, costCenterId: c.station, stationUserId: c.employeeId, shiftDate: day(date), shiftType: "morning", openedAt: new Date(), status: "open" },
   });
   const nozzles = await prisma.stationNozzle.findMany({ where: { tenantId: c.tenantId, costCenterId: c.station, isActive: true }, orderBy: [{ pumpNumber: "asc" }, { nozzleNumber: "asc" }] });
   const readings: { id: string; product: Product }[] = [];
@@ -465,7 +465,7 @@ describe("station shift cost of sales, reversal, corrected shifts and entry prot
     await expect(shifts.openShift(c.tenantId, c.employeeId, { shiftType: "night" })).rejects.toThrow("توجد وردية بالفعل لهذه المحطة بنفس التاريخ ونوع الوردية");
     // والفهرس الجزئي نفسه يرفض وردية قائمة ثانية في الخانة حتى خارج الخدمة
     await expect(prisma.stationShift.create({
-      data: { tenantId: c.tenantId, companyId: c.companyId, costCenterId: c.station, employeeId: c.employeeId, shiftDate: second.shiftDate, shiftType: "night", status: "open" },
+      data: { tenantId: c.tenantId, companyId: c.companyId, costCenterId: c.station, stationUserId: c.employeeId, shiftDate: second.shiftDate, shiftType: "night", status: "open" },
     })).rejects.toMatchObject({ code: "P2002" });
   });
 

@@ -65,8 +65,8 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
     nozzles: [{ meterDigits: 7, initialReading: 1000 }, { meterDigits: 7, initialReading: 2000 }],
   });
   expect(pump.status, pump.text).toBe(201);
-  const employeeId = (await prisma.employee.create({
-    data: { tenantId, companyId: company.id, name: "عامل المحطة", hireDate: new Date("2026-01-01"), basicSalary: 3000, assignedCostCenterId: station },
+  const employeeId = (await prisma.stationUser.create({
+    data: { tenantId, companyId: company.id, name: "عامل المحطة", role: "worker", costCenterId: station, active: true },
   })).id;
   const nozzles = await prisma.stationNozzle.findMany({ where: { tenantId, costCenterId: station }, orderBy: { nozzleNumber: "asc" }, select: { id: true, pumpNumber: true, nozzleNumber: true } });
   return { email, token, userId: r.user.id, tenantId, companyId: company.id, station, employeeId, nozzles, controllerId: "", serial: serialFor(key) };
@@ -152,7 +152,7 @@ describe("forecourt controllers: registration, nozzle links, parsed ingestion an
 
     // وردية حقيقية لـA تُغلَق الآن: قراءة المتحكم = العداد التراكمي في آخر عملية قبل الإغلاق (5100)
     const shift = await prisma.stationShift.create({
-      data: { tenantId: a.tenantId, companyId: a.companyId, costCenterId: a.station, employeeId: a.employeeId, shiftDate: new Date(`${riyadhCalendarDay(new Date())}T00:00:00.000Z`), shiftType: "morning", openedAt: new Date(), status: "open" },
+      data: { tenantId: a.tenantId, companyId: a.companyId, costCenterId: a.station, stationUserId: a.employeeId, shiftDate: new Date(`${riyadhCalendarDay(new Date())}T00:00:00.000Z`), shiftType: "morning", openedAt: new Date(), status: "open" },
     });
     for (const n of a.nozzles) await shifts.submitReading(a.tenantId, a.employeeId, shift.id, { nozzleId: n.id, capturedAt: new Date() });
     await shifts.updateCollections(a.tenantId, a.employeeId, shift.id, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 0 });

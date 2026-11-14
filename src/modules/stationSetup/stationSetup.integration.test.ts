@@ -91,14 +91,14 @@ describe("station setup (integration)", () => {
   });
 
   it("refuses a price dated on or before a posted shift, which would re-value it", async () => {
-    const employee = await prisma.employee.create({ data: { tenantId, companyId, name: "عامل", hireDate: new Date(), basicSalary: 3000 } });
+    const employee = await prisma.stationUser.create({ data: { tenantId, companyId, name: "عامل", role: "worker", costCenterId: stationB } });
     await prisma.stationShift.create({
-      data: { tenantId, companyId, costCenterId: stationA, employeeId: employee.id, shiftDate: new Date(`${isoDay(-3)}T00:00:00Z`), shiftType: "morning", status: "posted" },
+      data: { tenantId, companyId, costCenterId: stationA, stationUserId: employee.id, shiftDate: new Date(`${isoDay(-3)}T00:00:00Z`), shiftType: "morning", status: "posted" },
     });
     await expect(createFuelPrice(tenantId, { companyId, product: "diesel", priceInclVat: 1.66, effectiveFrom: isoDay(-3) })).rejects.toThrow(/وردية مُرحَّلة/);
     await expect(createFuelPrice(tenantId, { companyId, product: "diesel", priceInclVat: 1.66, effectiveFrom: isoDay(-2) })).resolves.toBeTruthy();
     await prisma.stationShift.deleteMany({ where: { tenantId } });
-    await prisma.employee.delete({ where: { id: employee.id } });
+    await prisma.stationUser.delete({ where: { id: employee.id } });
   });
 
   it("lets a station have its own price that overrides the general one only at that station", async () => {
@@ -113,17 +113,17 @@ describe("station setup (integration)", () => {
 
     // ما يراه عامل كل محطة: أ بسعرها الخاص، ب بالعام
     const workerAt = async (station: string) => {
-      const e = await prisma.employee.create({ data: { tenantId, companyId, name: "عامل", hireDate: new Date(), basicSalary: 3000, assignedCostCenterId: station } });
-      try { return (await getMyStation(tenantId, e.id)).effectivePrices.diesel; } finally { await prisma.employee.delete({ where: { id: e.id } }); }
+      const e = await prisma.stationUser.create({ data: { tenantId, companyId, name: "عامل", role: "worker", costCenterId: station, active: true } });
+      try { return (await getMyStation(tenantId, e.id)).effectivePrices.diesel; } finally { await prisma.stationUser.delete({ where: { id: e.id } }); }
     };
     expect(await workerAt(stationA)).toBe(1.9);
     expect(await workerAt(stationB)).toBe(1.66);
   });
 
   it("checks a station price against that station's posted shifts only, and refuses a station of another company", async () => {
-    const employee = await prisma.employee.create({ data: { tenantId, companyId, name: "عامل", hireDate: new Date(), basicSalary: 3000 } });
+    const employee = await prisma.stationUser.create({ data: { tenantId, companyId, name: "عامل", role: "worker", costCenterId: stationB } });
     await prisma.stationShift.create({
-      data: { tenantId, companyId, costCenterId: stationB, employeeId: employee.id, shiftDate: new Date(`${isoDay(0)}T00:00:00Z`), shiftType: "morning", status: "posted" },
+      data: { tenantId, companyId, costCenterId: stationB, stationUserId: employee.id, shiftDate: new Date(`${isoDay(0)}T00:00:00Z`), shiftType: "morning", status: "posted" },
     });
     // وردية مُرحَّلة اليوم في ب: سعر عام اليوم يعيد تقييمها فيُرفض، وسعر خاص بـ أ لا يمسّها فيُقبل
     await expect(createFuelPrice(tenantId, { companyId, product: "gasoline_95", priceInclVat: 2.34, effectiveFrom: isoDay(0) })).rejects.toThrow(/وردية مُرحَّلة/);
@@ -138,6 +138,6 @@ describe("station setup (integration)", () => {
     expect((await listFuelPrices(tenantId, otherCompany))).toEqual([]);
 
     await prisma.stationShift.deleteMany({ where: { tenantId } });
-    await prisma.employee.delete({ where: { id: employee.id } });
+    await prisma.stationUser.delete({ where: { id: employee.id } });
   });
 });

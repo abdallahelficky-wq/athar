@@ -16,16 +16,14 @@ function Shell() {
     { id: "attendance", label: t("mobile.tabs.attendance"), icon: "⏱" },
     { id: "leave", label: t("mobile.tabs.leave"), icon: "📅" },
   ];
-  // تبويب ورديات المحطة يظهر فقط لموظف مُسنَد لمحطة (Employee.assignedCostCenterId) — نفس مبدأ
-  // "inbox" أدناه (يظهر فقط لمدير له مرؤوسون)، بلا أي Position/صلاحية منفصلة.
-  if (employee?.assignedCostCenterId) TABS.push({ id: "stationShifts", label: t("mobile.tabs.stationShifts"), icon: "⛽" });
   const tabs = employee?.isManager ? [...TABS, { id: "inbox", label: t("mobile.tabs.inbox"), icon: "📥" }] : TABS;
   const [tab, setTab] = useState("attendance");
-  // عامل محطة (مُسنَد لمحطة وليس مديراً): التطبيق شاشة الوردية وحدها — لا حضور ولا إجازات ولا شريط تبويبات؛ هي الصفحة الرئيسية
-  // مشرف المحطات: التطبيق شاشة متابعة المحطات وحدها (أيقونة لكل محطة)
-  const monitorOnly = Boolean(employee?.stationSupervisor);
-  const stationOnly = !monitorOnly && Boolean(employee?.assignedCostCenterId) && !employee?.isManager;
-  const single = monitorOnly || stationOnly;
+  // مستخدم تطبيق المحطات (مستقل عن شئون الموظفين): المشرف ← متابعة المحطات، العامل ← شاشة الوردية. كلٌّ شاشة واحدة هي الرئيسية،
+  // بلا حضور ولا إجازات ولا شريط تبويبات. غيره موظف بوابة عادي.
+  const isStation = employee?.kind === "station";
+  const monitorOnly = isStation && employee.role === "supervisor";
+  const stationOnly = isStation && !monitorOnly;
+  const single = isStation;
 
   return (
     <div className="m-app">
@@ -33,7 +31,7 @@ function Shell() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div className="m-header-title">{employee?.name}</div>
-            <div className="m-header-sub">{employee?.jobTitle || t("mobile.portalSubtitle")}</div>
+            <div className="m-header-sub">{isStation ? (employee.stationName || t(monitorOnly ? "mobile.monitor.supervisorSub" : "mobile.portalSubtitle")) : (employee?.jobTitle || t("mobile.portalSubtitle"))}</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <LanguageSwitcher />
@@ -46,7 +44,6 @@ function Shell() {
         {stationOnly && <StationShiftScreen />}
         {!single && tab === "attendance" && <CheckInScreen />}
         {!single && tab === "leave" && <LeaveRequestsScreen />}
-        {!single && tab === "stationShifts" && employee?.assignedCostCenterId && <StationShiftScreen />}
         {!single && tab === "inbox" && employee?.isManager && <ManagerInboxScreen />}
       </div>
       {!single && <div className="m-tabbar">

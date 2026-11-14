@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../lib/prisma", () => ({
   prisma: {
     employee: { findFirst: vi.fn() },
+    stationUser: { findFirst: vi.fn() },
     company: { findUnique: vi.fn(), findFirst: vi.fn() },
     account: { findMany: vi.fn() },
-    costCenter: { findUnique: vi.fn() },
+    costCenter: { findUnique: vi.fn(), findFirst: vi.fn() },
     stationNozzle: { findMany: vi.fn(), findFirst: vi.fn() },
     fuelPrice: { findMany: vi.fn() },
     stationShift: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn() },
@@ -42,7 +43,7 @@ function baseShift(overrides: Partial<Record<string, unknown>> = {}) {
     tenantId: TENANT,
     companyId: "company-1",
     costCenterId: "station-1",
-    employeeId: EMPLOYEE,
+    stationUserId: EMPLOYEE,
     shiftDate: new Date("2026-07-01"),
     shiftType: "morning",
     status: "open",
@@ -74,15 +75,15 @@ describe("worker actions are blocked once a shift leaves 'open'", () => {
   });
 
   it("rejects a worker acting on a shift owned by someone else", async () => {
-    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ employeeId: "other-employee" }) as never);
+    vi.mocked(prisma.stationShift.findFirst).mockResolvedValue(baseShift({ stationUserId: "other-employee" }) as never);
     await expect(service.submitShift(TENANT, EMPLOYEE, SHIFT_ID)).rejects.toMatchObject({ status: 403 });
   });
 });
 
 describe("a shift opened through the employee portal is never seed data", () => {
   it("always creates the shift with isSeedData: false explicitly, regardless of the schema default", async () => {
-    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ assignedCostCenterId: "station-1" } as never);
-    vi.mocked(prisma.costCenter.findUnique).mockResolvedValue({ id: "station-1", companyId: "company-1" } as never);
+    vi.mocked(prisma.stationUser.findFirst).mockResolvedValue({ costCenterId: "station-1", companyId: "company-1" } as never);
+    vi.mocked(prisma.costCenter.findFirst).mockResolvedValue({ id: "station-1", companyId: "company-1" } as never);
     vi.mocked(prisma.stationShift.findUnique).mockResolvedValue(null as never); // لا وردية بنفس المحطة/التاريخ/النوع بعد
     vi.mocked(prisma.stationShift.create).mockResolvedValue({ id: SHIFT_ID } as never);
     vi.mocked(prisma.stationNozzle.findMany).mockResolvedValue([{ product: "diesel" }] as never);
@@ -98,8 +99,8 @@ describe("a shift opened through the employee portal is never seed data", () => 
 
 describe("a shift cannot be opened on a station that is not set up", () => {
   beforeEach(() => {
-    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ assignedCostCenterId: "station-1" } as never);
-    vi.mocked(prisma.costCenter.findUnique).mockResolvedValue({ id: "station-1", companyId: "company-1" } as never);
+    vi.mocked(prisma.stationUser.findFirst).mockResolvedValue({ costCenterId: "station-1", companyId: "company-1" } as never);
+    vi.mocked(prisma.costCenter.findFirst).mockResolvedValue({ id: "station-1", companyId: "company-1" } as never);
     vi.mocked(prisma.stationShift.findUnique).mockResolvedValue(null as never);
   });
 

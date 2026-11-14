@@ -67,6 +67,7 @@ import { dashboardRoutes } from "./modules/dashboard/dashboard.routes";
 import { employeePortalRoutes } from "./modules/employeePortal/employeePortal.routes";
 import { stationMonitorPortalRoutes } from "./modules/stationDashboard/stationMonitor.portal.routes";
 import { stationSetupRoutes } from "./modules/stationSetup/stationSetup.routes";
+import { stationUserRoutes } from "./modules/stationUsers/stationUsers.routes";
 import { stationTankRoutes } from "./modules/stationTanks/stationTanks.routes";
 import { forecourtRoutes } from "./modules/forecourt/forecourt.routes";
 import { ptsDeviceRoutes } from "./modules/forecourt/ptsDevice.routes";
@@ -155,6 +156,7 @@ export function createApp() {
   app.use("/api/company-documents", companyDocumentRoutes);
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/station-setup", stationSetupRoutes);
+  app.use("/api/station-users", stationUserRoutes);
   app.use("/api/station-tanks", stationTankRoutes);
   app.use("/api/forecourt", forecourtRoutes);
   app.use("/api/card-settlements", cardSettlementRoutes);

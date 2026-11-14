@@ -11,5 +11,5 @@ export const prisma = new PrismaClient({
   // في الإجازات/الإجراءات/المخالصات، وبعضها يُخدَم لبوابة الموظف نفسها). تجزئة bcrypt لرمز من 6 أرقام
   // تُكسَر دون اتصال في ساعات، فتسريبها يُلغي القفل وحدّ المحاولات تماماً. الموضعان اللذان يحتاجانها
   // فعلاً يطلبانها صراحةً بـ omit: { pinHash: false }.
-  omit: { employee: { pinHash: true } },
+  omit: { employee: { pinHash: true }, stationUser: { pinHash: true } },
 }) as unknown as PrismaClient;

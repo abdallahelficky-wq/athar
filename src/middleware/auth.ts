@@ -1,6 +1,6 @@
 import { matrixAuthorizedRequests, matrixHrAccess } from "../lib/matrixAuthorization";
 import { RequestHandler } from "express";
-import { verifyAccessToken, verifyEmployeePortalToken } from "../lib/jwt";
+import { verifyAccessToken, verifyEmployeePortalToken, verifyStationUserToken } from "../lib/jwt";
 import { unauthorized, forbidden } from "../lib/httpError";
 import { env } from "../config/env";
 import { prisma } from "../lib/prisma";
@@ -77,6 +77,41 @@ export const authenticateEmployeePortal: RequestHandler = async (req, _res, next
       method: req.method,
       writeResources: new Set(),
     },
+    () => next(),
+  );
+};
+
+/**
+ * مستخدم تطبيق المحطات (عامل أو مشرف، StationUser) — رمز kind=station بسرّ بوابة الموظف. يُرفض إن لم يعد المستخدم نشطاً أو
+ * أُرشِف أو انتقل لمستأجر آخر، وتعليق المنشأة أو شركته يسري فوراً كبوابة الموظف. سياق الطلب يحمل شركة المستخدم فيفحص حارس
+ * الكتابة كتابات التطبيق (فتح/إقفال وردية، رسالة) على اشتراكها.
+ */
+export const authenticateStationUser: RequestHandler = async (req, _res, next) => {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) throw unauthorized("رمز الدخول مفقود");
+  let payload: ReturnType<typeof verifyStationUserToken>;
+  try {
+    payload = verifyStationUserToken(header.slice("Bearer ".length));
+  } catch {
+    throw unauthorized("رمز الدخول غير صالح أو منتهي الصلاحية");
+  }
+  const user = await prisma.stationUser.findUnique({
+    where: { id: payload.stationUserId },
+    select: { tenantId: true, companyId: true, active: true, archivedAt: true },
+  });
+  if (!user || user.tenantId !== payload.tenantId || !user.active || user.archivedAt) {
+    throw unauthorized("رمز الدخول غير صالح أو منتهي الصلاحية");
+  }
+  const tenant = await prisma.tenant.findUnique({ where: { id: payload.tenantId }, select: { subscriptionStatus: true, suspensionReason: true } });
+  if (!tenant) throw unauthorized("الحساب غير موجود");
+  if (tenant.subscriptionStatus === "suspended") throw unauthorized(tenantSuspendedMessage(tenant.suspensionReason));
+  req.stationAuth = payload;
+  if (user.companyId) {
+    await assertMembershipNotSuspended({ tenantId: payload.tenantId, companyScope: user.companyId });
+    await enforcePortalSubscription(payload.tenantId, user.companyId, req.method);
+  }
+  runWithRequestContext(
+    { tenantId: payload.tenantId, userId: null, employeeCompanyId: user.companyId || undefined, method: req.method, writeResources: new Set() },
     () => next(),
   );
 };

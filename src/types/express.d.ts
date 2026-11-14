@@ -1,4 +1,4 @@
-import type { AccessTokenPayload, EmployeePortalTokenPayload } from "../lib/jwt";
+import type { AccessTokenPayload, EmployeePortalTokenPayload, StationUserTokenPayload } from "../lib/jwt";
 
 declare global {
   namespace Express {
@@ -6,6 +6,7 @@ declare global {
       auth?: AccessTokenPayload;
       /** هوية موظف عبر بوابة الجوال المنفصلة — لا علاقة لها بـ req.auth الإداري */
       employeeAuth?: EmployeePortalTokenPayload;
+      stationAuth?: StationUserTokenPayload;
       /** لغة الاستجابة، مُحدَّدة عبر middleware/language.ts من رأس Accept-Language — تُضبَط دائماً
        * (بافتراض "ar") قبل وصول أي راوت، فلا حاجة لتصريحها اختيارية */
       lang: "ar" | "en";

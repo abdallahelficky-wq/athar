@@ -347,7 +347,7 @@ function assertShiftOpenForWorker(shift: { status: string }) {
 async function getOwnedOpenShift(tenantId: string, employeeId: string, shiftId: string) {
   const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
   if (!shift) throw notFound("الوردية غير موجودة");
-  if (shift.employeeId !== employeeId) throw forbidden("هذه الوردية ليست لك");
+  if (shift.stationUserId !== employeeId) throw forbidden("هذه الوردية ليست لك");
   assertShiftOpenForWorker(shift);
   return shift;
 }
@@ -358,7 +358,7 @@ async function getOwnedOpenShift(tenantId: string, employeeId: string, shiftId: 
 async function getOwnedShift(tenantId: string, employeeId: string, shiftId: string) {
   const shift = await prisma.stationShift.findFirst({ where: { id: shiftId, tenantId } });
   if (!shift) throw notFound("الوردية غير موجودة");
-  if (shift.employeeId !== employeeId) throw forbidden("هذه الوردية ليست لك");
+  if (shift.stationUserId !== employeeId) throw forbidden("هذه الوردية ليست لك");
   return shift;
 }
 
@@ -368,7 +368,7 @@ async function getOwnedShift(tenantId: string, employeeId: string, shiftId: stri
 export async function assertOwnedReading(tenantId: string, employeeId: string, shiftId: string, readingId: string) {
   const reading = await prisma.stationShiftReading.findFirst({ where: { id: readingId, tenantId }, include: { shift: true } });
   if (!reading || reading.shiftId !== shiftId) throw notFound("القراءة غير موجودة");
-  if (reading.shift.employeeId !== employeeId) throw forbidden("هذه القراءة ليست لك");
+  if (reading.shift.stationUserId !== employeeId) throw forbidden("هذه القراءة ليست لك");
   return reading;
 }
 
@@ -376,7 +376,7 @@ export async function assertOwnedReading(tenantId: string, employeeId: string, s
 export async function assertOwnedExpense(tenantId: string, employeeId: string, shiftId: string, expenseId: string) {
   const expense = await prisma.stationShiftExpense.findFirst({ where: { id: expenseId, tenantId }, include: { shift: true } });
   if (!expense || expense.shiftId !== shiftId) throw notFound("المصروف غير موجود");
-  if (expense.shift.employeeId !== employeeId) throw forbidden("هذا المصروف ليس لك");
+  if (expense.shift.stationUserId !== employeeId) throw forbidden("هذا المصروف ليس لك");
   return expense;
 }
 
@@ -494,7 +494,7 @@ export async function resolveShiftClosingAccounts(tenantId: string, companyId: s
 async function loadShiftClosingInput(tenantId: string, shiftId: string) {
   const shift = await prisma.stationShift.findFirst({
     where: { id: shiftId, tenantId },
-    include: { readings: { include: { nozzle: true } }, creditSales: true, expenses: true, collection: true, employee: { select: { id: true, name: true } }, company: { select: { country: true, vatRate: true } } },
+    include: { readings: { include: { nozzle: true } }, creditSales: true, expenses: true, collection: true, stationUser: { select: { id: true, name: true } }, company: { select: { country: true, vatRate: true } } },
   });
   if (!shift) throw notFound("الوردية غير موجودة");
   const vatRatePercent = vatRatePercentOf(shift.company);
@@ -559,14 +559,18 @@ async function loadShiftClosingInput(tenantId: string, shiftId: string) {
 }
 
 /** المحطة (مركز التكلفة) المُسنَدة لموظف عامل عبر بوابة الموظف — تُشتَق من
- * Employee.assignedCostCenterId حصراً، لا من أي مدخل في الطلب، وفق القاعدة الصارمة: عامل لا
+ * StationUser.costCenterId حصراً، لا من أي مدخل في الطلب، وفق القاعدة الصارمة: عامل لا
  * يصل إلا لمحطته المُسنَدة. لا فحص صلاحية منفصل هنا عمداً (بخلاف Position/PositionActionPermission
  * في الجانب الإداري) — بوابة الموظف لا تملك هذا المفهوم أصلاً، ووجود التخصيص نفسه هو "الصلاحية"
  * الوحيدة المطلوبة، تماماً كمبدأ managerId في وحدة الإجازات. */
 async function getWorkerCostCenter(tenantId: string, employeeId: string) {
-  const employee = await prisma.employee.findFirst({ where: { id: employeeId, tenantId }, select: { assignedCostCenterId: true } });
-  if (!employee?.assignedCostCenterId) throw badRequest("لا توجد محطة مُسنَدة لهذا الموظف");
-  const costCenter = await prisma.costCenter.findUnique({ where: { id: employee.assignedCostCenterId }, select: { id: true, companyId: true } });
+  // عامل المحطة = مستخدم محطات (StationUser) نشط غير مؤرشف بدور عامل، ومحطته من نفس المستأجر وشركته
+  const worker = await prisma.stationUser.findFirst({
+    where: { id: employeeId, tenantId, role: "worker", active: true, archivedAt: null },
+    select: { costCenterId: true, companyId: true },
+  });
+  if (!worker?.costCenterId) throw badRequest("لا توجد محطة مُسنَدة لهذا الموظف");
+  const costCenter = await prisma.costCenter.findFirst({ where: { id: worker.costCenterId, tenantId, companyId: worker.companyId }, select: { id: true, companyId: true } });
   if (!costCenter?.companyId) throw badRequest("محطة بلا شركة محددة، لا يمكن فتح وردية عليها");
   return { costCenterId: costCenter.id, companyId: costCenter.companyId };
 }
@@ -713,7 +717,7 @@ export async function openShift(tenantId: string, employeeId: string, input: Ope
     ]);
     return prisma.$transaction(async (tx) => {
       const shift = await tx.stationShift.create({
-        data: { tenantId, companyId, costCenterId, employeeId, shiftDate, shiftType: input.shiftType, openedAt, status: "open", isSeedData: false, readingsSource: "controller" },
+        data: { tenantId, companyId, costCenterId, stationUserId: employeeId, shiftDate, shiftType: input.shiftType, openedAt, status: "open", isSeedData: false, readingsSource: "controller" },
         select: WORKER_SHIFT_SELECT,
       });
       // قراءات كل الفوهات تُنشأ عند الفتح، وإقفالها يُكتب من المتحكم عند الإقفال. الافتتاح من سلسلة الإقفال؛ وفوهة بلا وردية
@@ -733,7 +737,7 @@ export async function openShift(tenantId: string, employeeId: string, input: Ope
     // حقيقية يفتحها عامل عبر بوابة الموظف يجب أن تكون false بنيوياً بصرف النظر عن أي تغيير مستقبلي
     // للقيمة الافتراضية في المخطط؛ العلامة الوحيدة المسموح لها ضبطها true هي
     // scripts/seed-station-pumps-demo.ts، لا أي مسار آخر في كل النظام.
-    data: { tenantId, companyId, costCenterId, employeeId, shiftDate, shiftType: input.shiftType, openedAt: new Date(), status: "open", isSeedData: false },
+    data: { tenantId, companyId, costCenterId, stationUserId: employeeId, shiftDate, shiftType: input.shiftType, openedAt: new Date(), status: "open", isSeedData: false },
     select: WORKER_SHIFT_SELECT,
   });
 }
@@ -907,7 +911,7 @@ async function controllerShiftSales(
 export async function openShiftsWithSales(tenantId: string, companyId: string, costCenterIds: string[]) {
   const shifts = await prisma.stationShift.findMany({
     where: { tenantId, companyId, costCenterId: { in: costCenterIds }, status: "open", isSeedData: false },
-    include: { employee: { select: { name: true } }, readings: { include: { nozzle: true } } },
+    include: { stationUser: { select: { name: true } }, readings: { include: { nozzle: true } } },
     orderBy: { openedAt: "asc" },
   });
   const rows = await Promise.all(shifts.map(openShiftRow));
@@ -918,7 +922,7 @@ export async function openShiftsWithSales(tenantId: string, companyId: string, c
   async function openShiftRow(sh: (typeof shifts)[number]) {
     const sales = sh.readingsSource === "controller" ? await controllerShiftSales(tenantId, sh, sh.readings) : null;
     return {
-      id: sh.id, costCenterId: sh.costCenterId, employee: sh.employee?.name ?? null, shiftType: sh.shiftType, openedAt: sh.openedAt,
+      id: sh.id, costCenterId: sh.costCenterId, employee: sh.stationUser?.name ?? null, shiftType: sh.shiftType, openedAt: sh.openedAt,
       readingsSource: sh.readingsSource, sales: sales && { products: sales.products, liters: sales.liters, amount: sales.amount },
     };
   }
@@ -991,7 +995,7 @@ const REJECTABLE_STATUSES = [...PENDING_STATUSES, "approved"] as const;
 export async function listPendingShifts(tenantId: string, companyId?: string) {
   return prisma.stationShift.findMany({
     where: { tenantId, companyId, status: { in: [...PENDING_STATUSES] } },
-    include: { costCenter: true, employee: { select: { id: true, name: true } } },
+    include: { costCenter: true, stationUser: { select: { id: true, name: true } } },
     // آخر ما أُدخل أولاً (قرار المالك) — كانت الأقدم تاريخاً أولاً
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
   });
@@ -1356,7 +1360,7 @@ export async function deleteShift(tenantId: string, userId: string, shiftId: str
 export async function listPostedShifts(tenantId: string, companyId?: string) {
   return prisma.stationShift.findMany({
     where: { tenantId, companyId, status: { in: ["posted", "reversed", "rejected"] }, isSeedData: false },
-    include: { costCenter: true, employee: { select: { id: true, name: true } } },
+    include: { costCenter: true, stationUser: { select: { id: true, name: true } } },
     orderBy: [{ shiftDate: "desc" }, { createdAt: "desc" }, { id: "desc" }],
     take: 200,
   });
@@ -1533,7 +1537,7 @@ export async function createCorrectedShift(tenantId: string, userId: string, rep
   return prisma.$transaction(async (tx) => {
     const shift = await tx.stationShift.create({
       data: {
-        tenantId, companyId: replaced.companyId, costCenterId: replaced.costCenterId, employeeId: replaced.employeeId,
+        tenantId, companyId: replaced.companyId, costCenterId: replaced.costCenterId, stationUserId: replaced.stationUserId, employeeId: replaced.employeeId,
         shiftDate: replaced.shiftDate, shiftType: replaced.shiftType, openedAt: replaced.openedAt, closedAt: replaced.closedAt ?? new Date(),
         status: "under_review", isSeedData: false, correctsShiftId: replaced.id, readingsSource: replaced.readingsSource,
       },

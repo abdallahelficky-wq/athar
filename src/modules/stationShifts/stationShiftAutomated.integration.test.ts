@@ -3,7 +3,6 @@ import type { Server } from "http";
 import type { AddressInfo } from "net";
 import { prisma } from "../../lib/prisma";
 import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integrationTestGuard";
-import { signEmployeePortalToken } from "../../lib/jwt";
 import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
 import { createPurchaseInvoice } from "../purchaseInvoices/purchaseInvoices.service";
@@ -84,9 +83,13 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
   });
   expect(pump.status, pump.text).toBe(201);
   expect((await call("POST", "/station-setup/fuel-prices", token, { companyId: company.id, product: "diesel", priceInclVat: 2.3, effectiveFrom: "2026-01-01" })).status).toBe(201);
-  const employeeId = (await prisma.employee.create({
-    data: { tenantId, companyId: company.id, name: "عامل المحطة", hireDate: new Date("2026-01-01"), basicSalary: 3000, assignedCostCenterId: station, portalActive: true },
-  })).id;
+  // العامل مستخدم محطات مستقل عن شئون الموظفين: يُنشأ من شاشة المحطات ويدخل التطبيق بجواله ورمزه (نفس الرقم في المستأجرين)
+  const created = await call("POST", "/station-users", token, { companyId: company.id, name: "عامل المحطة", role: "worker", costCenterId: station, phone: "0570000001", pin: "123456" });
+  expect(created.status, created.text).toBe(201);
+  expect(created.body).toMatchObject({ role: "worker", costCenterId: station, active: true, hasPin: true });
+  expect(created.body).not.toHaveProperty("pinHash");
+  const employeeId = created.body.id;
+  const worker = await login(tenantId, "0570000001", "123456");
   // الاعتماد يفحص تكلفة الوقود مسبقاً: صنف الديزل مربوط، ومستودع للمحطة، ومتوسط تكلفة من فاتورة شراء حقيقية
   const diesel = (await prisma.item.findFirstOrThrow({ where: { tenantId, companyId: company.id, code: "0003" } })).id;
   expect((await call("PATCH", `/companies/${company.id}`, token, { stationDieselItemId: diesel })).status).toBe(200);
@@ -105,9 +108,18 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
   expect(controller.status, controller.text).toBe(201);
   const secret = (await call("POST", `/forecourt/controllers/${controller.body.id}/secret`, token)).body.secretKey;
   return {
-    email, token, worker: signEmployeePortalToken({ employeeId, tenantId }), tenantId, companyId: company.id, station, employeeId, nozzles,
+    email, token, worker, tenantId, companyId: company.id, station, employeeId, nozzles,
     controllerId: controller.body.id, serial, secret,
   };
+}
+
+/** دخول تطبيق المحطات الحقيقي (نفس نقطة دخول بوابة الجوال) — الرمز من الكود الذي ينتجه */
+async function login(tenantId: string, phone: string, pin: string) {
+  const res = await fetch(`${baseUrl}/api/employee-portal/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tenantId, phone, pin }) });
+  const body = await res.json();
+  expect(res.status, JSON.stringify(body)).toBe(200);
+  expect(body.employee).toMatchObject({ kind: "station" });
+  return body.accessToken as string;
 }
 
 const mapNozzle = (c: Ctx, ptsNozzle: number, nozzleId: string) =>
@@ -200,13 +212,19 @@ describe("automated station shifts (integration)", () => {
     expect(overview.status, overview.text).toBe(200);
     expect(overview.body.stations.flatMap((st: any) => st.openShifts)).toEqual([expect.objectContaining({ id: shiftId, liters: 30, amount: 69 })]);
 
-    // مشرف المحطات في تطبيق المحطات: موظف يُعيَّن مشرفاً عبر /employees (لا محطة مُسنَدة له)، يرى محطات شركته حيّة ويراسل عمّالها
-    const supId = (await prisma.employee.create({ data: { tenantId: a.tenantId, companyId: a.companyId, name: "المشرف", hireDate: new Date("2026-01-01"), basicSalary: 5000, portalActive: true } })).id;
-    const sup = signEmployeePortalToken({ employeeId: supId, tenantId: a.tenantId });
+    // مشرف المحطات: مستخدم محطات يُنشأ عاملاً ثم يُرقّى مشرفاً من شاشة المحطات، يرى محطات شركته حيّة ويراسل عمّالها
+    const supUser = await call("POST", "/station-users", a.token, { companyId: a.companyId, name: "المشرف", role: "worker", costCenterId: a.station, phone: "0570000009", pin: "654321" });
+    expect(supUser.status, supUser.text).toBe(201);
+    const sup = await login(a.tenantId, "0570000009", "654321");
     const monitorCall = (method: string, path: string, body?: unknown) => call(method, `/employee-portal/station-monitor${path}`, sup, body);
     expect((await monitorCall("GET", "")).status).toBe(403); // ليس مشرفاً بعد
     expect((await call("GET", "/employee-portal/station-monitor", a.worker)).status).toBe(403); // العامل ليس مشرفاً
-    expect((await call("PATCH", `/employees/${supId}`, a.token, { stationSupervisor: true })).status).toBe(200);
+    expect((await call("PATCH", `/station-users/${supUser.body.id}`, ctx.b.token, { role: "supervisor" })).status).toBe(404); // مدير مستأجر آخر
+    const promoted = await call("PATCH", `/station-users/${supUser.body.id}`, a.token, { role: "supervisor", costCenterId: null });
+    expect(promoted.status, promoted.text).toBe(200);
+    expect((await call("GET", "/employee-portal/me", sup)).body).toMatchObject({ kind: "station", role: "supervisor", name: "المشرف" });
+    // رمز مستخدم المحطات لا يفتح بوابة الموظف (الحضور والإجازات)
+    expect((await call("GET", "/employee-portal/leave-requests", sup)).status).toBe(401);
     const stationsView = await monitorCall("GET", "");
     expect(stationsView.status, stationsView.text).toBe(200);
     expect(stationsView.body.stations).toEqual([expect.objectContaining({ costCenterId: a.station, openShifts: [expect.objectContaining({ id: shiftId, amount: 69 })] })]);
@@ -222,6 +240,13 @@ describe("automated station shifts (integration)", () => {
     expect(inbox.body).toEqual([expect.objectContaining({ id: sent.body.id, body: "أغلق المضخة 2", seenAt: null })]);
     expect((await monitorCall("GET", `/${a.station}/messages`)).body[0].seenAt).not.toBeNull(); // وصلت للعامل
     expect((await call("GET", "/employee-portal/station-shifts/messages", ctx.b.worker)).body).toEqual([]); // عامل B لا يراها
+
+    // إدارة مستخدمي المحطات: لا أرشفة ولا نقل لعامل في وردية مفتوحة، ولا حذف لمن له ورديات
+    expect((await call("POST", `/station-users/${a.employeeId}/archive`, a.token)).status).toBe(400);
+    expect((await call("DELETE", `/station-users/${a.employeeId}`, a.token)).status).toBe(409);
+    const listed = await call("GET", `/station-users?companyId=${a.companyId}`, a.token);
+    expect(listed.body.map((u: any) => [u.name, u.role, u.hasOpenShift, u.shiftsCount]).sort()).toEqual([["المشرف", "supervisor", false, 0], ["عامل المحطة", "worker", true, 1]].sort());
+    expect((await call("GET", `/station-users?companyId=${a.companyId}`, ctx.b.token)).status).not.toBe(200); // شركة مستأجر آخر
 
     expect((await portal(a, "PUT", `/${shiftId}/collections`, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 69 })).status).toBe(200);
     const closed = await portal(a, "POST", `/${shiftId}/submit`);
@@ -265,5 +290,24 @@ describe("automated station shifts (integration)", () => {
     expect(manual.body.readingsSource).toBe("photo");
     const reading = await portal(b, "POST", `/${manual.body.id}/readings`, { nozzleId: b.nozzles[0], capturedAt: new Date().toISOString() });
     expect(reading.status, reading.text).toBe(201);
+  });
+
+  it("archives a station user (login and token stop, shifts stay), restores it, and deletes one without shifts", async () => {
+    const a = ctx.a;
+    const sup = (await call("GET", `/station-users?companyId=${a.companyId}`, a.token)).body.find((u: any) => u.role === "supervisor");
+    const supToken = await login(a.tenantId, "0570000009", "654321");
+    expect((await call("POST", `/station-users/${sup.id}/archive`, a.token)).status).toBe(200);
+    expect((await call("GET", "/employee-portal/station-monitor", supToken)).status).toBe(401);
+    const denied = await fetch(`${baseUrl}/api/employee-portal/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tenantId: a.tenantId, phone: "0570000009", pin: "654321" }) });
+    expect(denied.status).toBe(401);
+    expect((await call("POST", `/station-users/${sup.id}/restore`, a.token)).body).toMatchObject({ archivedAt: null, active: true });
+    // المشرف أرسل رسالة فلا يُحذف — يُؤرشف
+    expect((await call("DELETE", `/station-users/${sup.id}`, a.token)).status).toBe(409);
+    const temp = await call("POST", "/station-users", a.token, { companyId: a.companyId, name: "مؤقت", role: "worker", costCenterId: a.station, phone: "0570000077", pin: "111111" });
+    expect((await call("POST", "/station-users", a.token, { companyId: a.companyId, name: "مكرر", role: "worker", costCenterId: a.station, phone: "0570000077", pin: "111111" })).status).toBe(409);
+    expect((await call("DELETE", `/station-users/${temp.body.id}`, a.token)).status).toBe(200);
+    // عامل بلا محطة مرفوض، ومحطة مستأجر آخر "غير موجودة"
+    expect((await call("POST", "/station-users", a.token, { companyId: a.companyId, name: "بلا محطة", role: "worker", phone: "0570000078", pin: "111111" })).status).toBe(400);
+    expect((await call("POST", "/station-users", a.token, { companyId: a.companyId, name: "محطة غريبة", role: "worker", costCenterId: ctx.b.station, phone: "0570000079", pin: "111111" })).status).toBe(404);
   });
 });

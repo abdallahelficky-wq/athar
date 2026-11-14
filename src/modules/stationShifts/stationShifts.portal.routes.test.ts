@@ -9,10 +9,10 @@ vi.mock("../../config/env", () => ({
 }));
 vi.mock("../../lib/prisma", () => ({
   prisma: {
-    employee: { findFirst: vi.fn(), findUnique: vi.fn() },
+    stationUser: { findFirst: vi.fn(), findUnique: vi.fn() },
     // authenticateEmployeePortal يتحقق الآن من أن المنشأة غير معلَّقة إدارياً قبل كل طلب بوابة
     tenant: { findUnique: vi.fn() },
-    costCenter: { findUnique: vi.fn() },
+    costCenter: { findUnique: vi.fn(), findFirst: vi.fn() },
     stationNozzle: { findMany: vi.fn(), findFirst: vi.fn() },
     fuelPrice: { findMany: vi.fn() },
     stationShift: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
@@ -28,7 +28,7 @@ vi.mock("../../lib/prisma", () => ({
 // بلا Position/PositionActionPermission هنا إطلاقاً — بوابة الموظف لا تملك هذا المفهوم أصلاً؛
 // راجع stationShifts.routes.test.ts لشاشة المحاسب (User/Position).
 import { stationShiftPortalRoutes } from "./stationShifts.portal.routes";
-import { signEmployeePortalToken } from "../../lib/jwt";
+import { signStationUserToken } from "../../lib/jwt";
 import { prisma } from "../../lib/prisma";
 import { HttpError } from "../../lib/httpError";
 
@@ -48,8 +48,8 @@ const TENANT = "tenant-a";
 const WORKER = "employee-1";
 const SHIFT_ID = "shift-1";
 
-function token(employeeId: string) {
-  return signEmployeePortalToken({ employeeId, tenantId: TENANT });
+function token(stationUserId: string) {
+  return signStationUserToken({ stationUserId, tenantId: TENANT });
 }
 function call(method: string, path: string, employeeId: string, body?: unknown) {
   return fetch(`${base}${path}`, {
@@ -61,14 +61,14 @@ function call(method: string, path: string, employeeId: string, body?: unknown) 
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(prisma.employee.findUnique).mockResolvedValue({ tenantId: TENANT, portalActive: true } as any);
+  vi.mocked(prisma.stationUser.findUnique).mockResolvedValue({ tenantId: TENANT, active: true, archivedAt: null } as any);
   vi.mocked(prisma.tenant.findUnique).mockResolvedValue({ subscriptionStatus: "active", suspensionReason: null } as any);
 });
 
 describe("isSeedData can never be smuggled in through the employee portal", () => {
   it("rejects an attempt to set isSeedData via the open-shift request body, and never calls create", async () => {
-    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ assignedCostCenterId: "station-1" } as never);
-    vi.mocked(prisma.costCenter.findUnique).mockResolvedValue({ id: "station-1", companyId: "company-a" } as never);
+    vi.mocked(prisma.stationUser.findFirst).mockResolvedValue({ costCenterId: "station-1", companyId: "company-a" } as never);
+    vi.mocked(prisma.costCenter.findFirst).mockResolvedValue({ id: "station-1", companyId: "company-a" } as never);
     vi.mocked(prisma.stationShift.findUnique).mockResolvedValue(null as never);
 
     const response = await call("POST", "/", WORKER, { shiftType: "morning", isSeedData: true });
@@ -80,8 +80,8 @@ describe("isSeedData can never be smuggled in through the employee portal", () =
   });
 
   it("creates a real opened shift with isSeedData: false when the request is well-formed", async () => {
-    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ assignedCostCenterId: "station-1" } as never);
-    vi.mocked(prisma.costCenter.findUnique).mockResolvedValue({ id: "station-1", companyId: "company-a" } as never);
+    vi.mocked(prisma.stationUser.findFirst).mockResolvedValue({ costCenterId: "station-1", companyId: "company-a" } as never);
+    vi.mocked(prisma.costCenter.findFirst).mockResolvedValue({ id: "station-1", companyId: "company-a" } as never);
     vi.mocked(prisma.stationShift.findUnique).mockResolvedValue(null as never);
     vi.mocked(prisma.stationShift.create).mockResolvedValue({ id: "shift-new" } as never);
     vi.mocked(prisma.stationNozzle.findMany).mockResolvedValue([{ product: "diesel" }] as never);
@@ -100,7 +100,7 @@ describe("a worker (employee-portal token, no Position/PositionActionPermission 
   it("can submit a reading for their own open shift", async () => {
     // getOwnedOpenShift ثم getPreviousClosingReadings
     vi.mocked(prisma.stationShift.findFirst)
-      .mockResolvedValueOnce({ id: SHIFT_ID, tenantId: TENANT, companyId: "company-a", costCenterId: "station-1", employeeId: WORKER, status: "open" } as never)
+      .mockResolvedValueOnce({ id: SHIFT_ID, tenantId: TENANT, companyId: "company-a", costCenterId: "station-1", stationUserId: WORKER, status: "open" } as never)
       .mockResolvedValueOnce(null as never);
     vi.mocked(prisma.stationNozzle.findFirst).mockResolvedValue({ id: "nozzle-1", meterDigits: 6, product: "diesel", initialReading: 0 } as never);
     vi.mocked(prisma.stationShiftReading.upsert).mockResolvedValue({ id: "reading-1" } as never);
@@ -119,7 +119,7 @@ describe("a worker (employee-portal token, no Position/PositionActionPermission 
       tenantId: TENANT,
       companyId: "company-a",
       costCenterId: "station-2",
-      employeeId: "a-different-employee",
+      stationUserId: "a-different-employee",
       status: "open",
     } as never);
 
@@ -138,7 +138,7 @@ describe("a worker (employee-portal token, no Position/PositionActionPermission 
       tenantId: TENANT,
       companyId: "company-a",
       costCenterId: "station-1",
-      employeeId: WORKER,
+      stationUserId: WORKER,
       status: "submitted",
       shiftType: "morning",
       shiftDate: new Date("2026-07-01"),
@@ -168,7 +168,7 @@ describe("a worker (employee-portal token, no Position/PositionActionPermission 
       tenantId: TENANT,
       companyId: "company-a",
       costCenterId: "station-2",
-      employeeId: "a-different-employee",
+      stationUserId: "a-different-employee",
       status: "submitted",
     } as never);
 
@@ -178,10 +178,18 @@ describe("a worker (employee-portal token, no Position/PositionActionPermission 
   });
 
   it("is denied a clear error on GET /my-station when no station is assigned — the assignment itself is the only 'permission' this side has", async () => {
-    vi.mocked(prisma.employee.findFirst).mockResolvedValue({ assignedCostCenterId: null } as never);
+    vi.mocked(prisma.stationUser.findFirst).mockResolvedValue({ costCenterId: null, companyId: "company-a" } as never);
 
     const response = await call("GET", "/my-station", WORKER);
     expect(response.status).toBe(400);
-    expect(prisma.costCenter.findUnique).not.toHaveBeenCalled();
+    expect(prisma.costCenter.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("an employee-portal (HR) token cannot open the stations app", () => {
+  it("is rejected with 401 — station routes take only a station-user token", async () => {
+    const { signEmployeePortalToken } = await import("../../lib/jwt");
+    const response = await fetch(`${base}/my-station`, { headers: { Authorization: `Bearer ${signEmployeePortalToken({ employeeId: WORKER, tenantId: TENANT })}` } });
+    expect(response.status).toBe(401);
   });
 });

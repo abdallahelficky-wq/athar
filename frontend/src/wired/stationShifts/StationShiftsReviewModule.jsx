@@ -215,7 +215,7 @@ export default function StationShiftsReviewModule({ companyId }) {
           <tbody>
             {list.map((s) => (
               <tr key={s.id} style={{ background: s.id === selectedId ? "#f0f4ff" : undefined }}>
-                <td>{s.employee?.name}</td>
+                <td>{s.stationUser?.name}</td>
                 <td>{getOrgDisplayName(s.costCenter, i18n.language)}</td>
                 <td>{t(`stationShiftsReview.shiftType.${s.shiftType}`)}</td>
                 <td>{formatDate(s.shiftDate, i18n.language)}</td>
@@ -232,7 +232,7 @@ export default function StationShiftsReviewModule({ companyId }) {
         <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && closeDetail()}>
         <div className="unpost-confirm-box" role="dialog" aria-modal="true" style={SHIFT_DIALOG_STYLE}>
           <div className="modal-title-row">
-            <h3>{t("stationShiftsReview.detailTitle", { employee: detail.employee?.name, status: t(`stationShiftsReview.status.${detail.status}`) })}</h3>
+            <h3>{t("stationShiftsReview.detailTitle", { employee: detail.stationUser?.name, status: t(`stationShiftsReview.status.${detail.status}`) })}</h3>
             <button type="button" className="modal-close-btn" onClick={closeDetail} aria-label={t("common.close")}>×</button>
           </div>
           <p className="note" style={{ marginTop: 0 }}>{list.find((x) => x.id === detail.id)?.costCenter ? getOrgDisplayName(list.find((x) => x.id === detail.id).costCenter, i18n.language) : ""} · {t(`stationShiftsReview.shiftType.${detail.shiftType}`)} · {formatDate(detail.shiftDate, i18n.language)}</p>

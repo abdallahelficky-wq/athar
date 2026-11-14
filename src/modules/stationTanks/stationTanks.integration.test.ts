@@ -69,8 +69,8 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
   for (const [product, price] of [["diesel", 2.3], ["gasoline_91", 2.18], ["gasoline_95", 2.33]] as const) {
     expect((await call("POST", "/station-setup/fuel-prices", token, { companyId: company.id, product, priceInclVat: price, effectiveFrom: "2026-01-01" })).status).toBe(201);
   }
-  const employeeId = (await prisma.employee.create({
-    data: { tenantId, companyId: company.id, name: "عامل المحطة", hireDate: new Date("2026-01-01"), basicSalary: 3000, assignedCostCenterId: station },
+  const employeeId = (await prisma.stationUser.create({
+    data: { tenantId, companyId: company.id, name: "عامل المحطة", role: "worker", costCenterId: station, active: true },
   })).id;
   const item = async (code: string) => (await prisma.item.findFirstOrThrow({ where: { tenantId, companyId: company.id, code } })).id;
   const diesel = await item("0003");
@@ -89,7 +89,7 @@ async function setupTenant(key: "a" | "b"): Promise<Ctx> {
 /** وردية ديزل معتمَدة عبر مسارات الخدمة وHTTP الحقيقية — كل اللترات على أول فوهة ديزل. */
 async function approvedDieselShift(c: Ctx, liters: number) {
   const shift = await prisma.stationShift.create({
-    data: { tenantId: c.tenantId, companyId: c.companyId, costCenterId: c.station, employeeId: c.employeeId, shiftDate: new Date(`${riyadhCalendarDay(new Date())}T00:00:00.000Z`), shiftType: "morning", openedAt: new Date(), status: "open" },
+    data: { tenantId: c.tenantId, companyId: c.companyId, costCenterId: c.station, stationUserId: c.employeeId, shiftDate: new Date(`${riyadhCalendarDay(new Date())}T00:00:00.000Z`), shiftType: "morning", openedAt: new Date(), status: "open" },
   });
   const all = await prisma.stationNozzle.findMany({ where: { tenantId: c.tenantId, costCenterId: c.station, isActive: true } });
   const readingIds: { id: string; nozzleId: string }[] = [];
