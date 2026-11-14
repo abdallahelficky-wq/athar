@@ -44,6 +44,9 @@ async function assertPhoneFree(tenantId: string, phone: string, exceptId?: strin
 }
 
 export async function listStationUsers(tenantId: string, companyId: string) {
+  // شركة من مستأجر آخر (أو غير موجودة): 404 صريح بدل قائمة فارغة
+  const company = await prisma.company.findFirst({ where: { id: companyId, tenantId }, select: { id: true } });
+  if (!company) throw notFound("الشركة غير موجودة");
   const rows = await prisma.stationUser.findMany({ where: { tenantId, companyId }, select: { id: true }, orderBy: [{ archivedAt: { sort: "asc", nulls: "first" } }, { name: "asc" }] });
   return Promise.all(rows.map((r) => view(r.id)));
 }

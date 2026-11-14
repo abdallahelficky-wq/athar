@@ -246,7 +246,9 @@ describe("automated station shifts (integration)", () => {
     expect((await call("DELETE", `/station-users/${a.employeeId}`, a.token)).status).toBe(409);
     const listed = await call("GET", `/station-users?companyId=${a.companyId}`, a.token);
     expect(listed.body.map((u: any) => [u.name, u.role, u.hasOpenShift, u.shiftsCount]).sort()).toEqual([["المشرف", "supervisor", false, 0], ["عامل المحطة", "worker", true, 1]].sort());
-    expect((await call("GET", `/station-users?companyId=${a.companyId}`, ctx.b.token)).status).not.toBe(200); // شركة مستأجر آخر
+    const foreign = await call("GET", `/station-users?companyId=${a.companyId}`, ctx.b.token); // شركة مستأجر آخر
+    expect(foreign.status).toBe(404);
+    expect(foreign.text).not.toContain("عامل المحطة");
 
     expect((await portal(a, "PUT", `/${shiftId}/collections`, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 69 })).status).toBe(200);
     const closed = await portal(a, "POST", `/${shiftId}/submit`);
