@@ -13,6 +13,7 @@ import { Icon } from "../../legacy/shared";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import PayrollPrintModal from "./PayrollPrintModal";
+import PayslipPrintModal from "./PayslipPrintModal";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
 
 /** يبني أعمدة العرض الفعلية: تخصيص الشركة (PayrollSettings.payslipColumns — ترتيب وتسمية مختارة)
@@ -48,6 +49,7 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
   const [loading,setLoading] = useState(true);
   const [busy,setBusy] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [payslipIds, setPayslipIds] = useState(null); // null = مغلق، [] = كل الموظفين، [id] = موظف واحد
 
   useEffect(() => {
     if (!companyId) return;
@@ -55,7 +57,7 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
     getPayrollSettings(companyId).then((s) => setPayslipColumns(s.payslipColumns || [])).catch(e => setError(e.message));
   }, [companyId]);
 
-  useEffect(() => { setScopeEditing(false); setSelectedIds([]); setEditingRowId(null); setEditForm(null); setPrinting(false); }, [companyId, mf.applied.month]);
+  useEffect(() => { setScopeEditing(false); setSelectedIds([]); setEditingRowId(null); setEditForm(null); setPrinting(false); setPayslipIds(null); }, [companyId, mf.applied.month]);
 
   const displayColumns = buildDisplayColumns(columns, payslipColumns);
 
@@ -184,6 +186,7 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
             )}
             {run.status === "posted" && <button className="btn-ghost" onClick={() => setUnpostOpen(true)}>{t("hr.payroll.unpost")}</button>}
             <button className="icon-btn" title={t("hr.payroll.printTitle")} aria-label={t("hr.payroll.printTitle")} onClick={() => setPrinting(true)}><Icon.Printer /></button>
+            <button className="btn-ghost" onClick={() => setPayslipIds([])} disabled={rows.length === 0}>{ar ? "إشعارات الرواتب" : "Pay slips"}</button>
             {run.status === "draft" && onDelete && <button className="btn-ghost" onClick={() => onDelete(run)}>{ar ? "حذف المسودة" : "Delete draft"}</button>}
             <span className="status-badge">{run.status === "posted" ? t("hr.payroll.statusPosted") : t("hr.payroll.statusDraft")}</span>
           </div>
@@ -235,7 +238,7 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.employeeId}>
-                    <td>{r.employeeName}{r.overridden && " *"}</td>
+                    <td>{r.employeeName}{r.overridden && " *"} <button className="icon-btn" title={ar ? "إشعار راتب" : "Pay slip"} aria-label={ar ? "إشعار راتب" : "Pay slip"} onClick={() => setPayslipIds([r.employeeId])}><Icon.Printer /></button></td>
                     {displayColumns.map((col) => (
                       <td key={col.id} className="num">
                         {editingRowId === r.employeeId && col.id !== "advances" /* الأقساط تُحسَب من السلف وتُؤجَّل أدناه، لا تُعدَّل يدوياً */
@@ -310,6 +313,19 @@ export default function PayrollRunEditor({ companyId, companies, initialMonth, o
       {run && <AttachmentsPanel entityType="payroll_run" entityId={run.id} />}
 
       {unpostOpen && <UnpostModal title={t("hr.payroll.unpostTitle")} onCancel={() => setUnpostOpen(false)} onConfirm={doUnpost} />}
+
+      {payslipIds && run && (
+        <PayslipPrintModal
+          run={run}
+          rows={rows}
+          columns={displayColumns}
+          employees={employees}
+          employeeIds={payslipIds}
+          month={mf.applied.month}
+          company={companies?.find((c) => c.id === companyId)}
+          onClose={() => setPayslipIds(null)}
+        />
+      )}
 
       {printing && run && (
         <PayrollPrintModal
