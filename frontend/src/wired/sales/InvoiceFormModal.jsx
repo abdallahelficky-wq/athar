@@ -55,6 +55,10 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   const [poNumber, setPoNumber] = useState(seed?.poNumber || "");
   const [salesperson, setSalesperson] = useState(seed?.salesperson || "");
   const [otherId, setOtherId] = useState(seed?.otherId || "");
+  // ملاحظات والشروط والأحكام — تُطبَع أسفل الفاتورة. الشروط في الفاتورة الجديدة تُعبَّأ تلقائياً من الشروط الافتراضية
+  // للشركة (إعدادات المبيعات)، وفي التعديل/النسخ تُؤخَذ من الفاتورة نفسها.
+  const [notes, setNotes] = useState(seed?.notes || "");
+  const [termsAndConditions, setTermsAndConditions] = useState(() => (seed ? seed.termsAndConditions || "" : company?.defaultInvoiceTerms || ""));
   const [lines, setLines] = useState(() => (seed ? seed.lines.map(lineFromExisting) : [emptySalesLine()]));
 
   useEffect(() => {
@@ -77,7 +81,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
   useEffect(() => {
     if (!mountedRef.current) { mountedRef.current = true; return; }
     setDirty(true);
-  }, [customerId, date, branchId, dueDate, customerReference, poNumber, salesperson, otherId, lines]);
+  }, [customerId, date, branchId, dueDate, customerReference, poNumber, salesperson, otherId, notes, termsAndConditions, lines]);
   useUnsavedChangesGuard(dirty);
 
   // راجع نفس التعليق في JournalEntryFormModal.jsx: إغلاق النافذة نفسها (×/خارجها/إلغاء) لا يمرّ
@@ -129,6 +133,7 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
     companyId, customerId, branchId: branchId || null, date,
     dueDate: dueDate || null, customerReference: customerReference || undefined,
     poNumber: poNumber || undefined, salesperson: salesperson || undefined, otherId: otherId || undefined,
+    notes: notes.trim() || null, termsAndConditions: termsAndConditions.trim() || null,
     lines: cleanLines(),
   });
 
@@ -251,6 +256,16 @@ export default function InvoiceFormModal({ companyId, companies, editingInvoice,
           currency={currency}
           onRequestNewItem={(idx, searchText) => setNewItemModal({ idx, initialName: searchText })}
         />
+
+        <div className="invoice-notes-fields">
+          <label>{t("salesInvoices.form.notes")}
+            <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("salesInvoices.form.notesPlaceholder")} />
+          </label>
+          <label>{t("salesInvoices.form.termsAndConditions")}
+            <textarea rows={3} value={termsAndConditions} onChange={(e) => setTermsAndConditions(e.target.value)} placeholder={t("salesInvoices.form.termsPlaceholder")} />
+          </label>
+          <p className="note">{t("salesInvoices.form.bankAccountsAutoNote")}</p>
+        </div>
 
         {error && <p className="balance-bad">{error}</p>}
 

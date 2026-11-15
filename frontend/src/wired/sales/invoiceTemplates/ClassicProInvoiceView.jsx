@@ -8,6 +8,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { QrImage, formatCompanyAddress, printWithOrientation } from "../../../legacy/shared";
 import { fmt2 } from "../../../legacy/constants";
 import { listCompanyBankAccounts } from "../../../api/companyBankAccounts";
+import InvoiceNotesBlock from "../InvoiceNotesBlock";
 import { getAccountDisplayName } from "../../shared/accountDisplayName";
 import { formatDate, formatDateTime } from "../../../i18n/dateFormat";
 
@@ -174,6 +175,8 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
               </tbody>
             </table>
           )}
+
+          <InvoiceNotesBlock invoice={invoice} companyId={company?.id} showBanks={false} accent={accent} />
 
           <div className="cpi-footer-bar" style={{ background: accent }}>
             <span>{formatDate(printedAt || new Date(), i18n.language)}</span>

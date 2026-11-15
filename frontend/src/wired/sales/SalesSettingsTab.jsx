@@ -33,6 +33,8 @@ function buildMockInvoice(company, templateKey) {
     poNumber: "PO-2026-01",
     salesperson: "أحمد محمد",
     otherId: "OTH-01",
+    notes: "ملاحظة تجريبية تظهر أسفل الفاتورة.",
+    termsAndConditions: company.defaultInvoiceTerms || "مثال: السداد خلال 30 يوماً من تاريخ الفاتورة.",
     companyId: company.id,
     company: { ...company, invoiceTemplate: templateKey },
     branch: null,
@@ -126,6 +128,7 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
       invoiceShowSalesperson: company.invoiceShowSalesperson,
       invoiceShowCustomerReference: company.invoiceShowCustomerReference,
       invoiceShowOtherId: company.invoiceShowOtherId,
+      defaultInvoiceTerms: company.defaultInvoiceTerms || "",
     });
   }, [company?.id]);
 
@@ -298,6 +301,15 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
               </label>
             ))}
           </div>
+          <label className="invoice-terms-setting">
+            {t("sales.settings.defaultInvoiceTermsLabel")}
+            <textarea
+              rows={4}
+              value={otherDraft.defaultInvoiceTerms}
+              onChange={(e) => setOtherDraft({ ...otherDraft, defaultInvoiceTerms: e.target.value })}
+            />
+            <span className="note">{t("sales.settings.defaultInvoiceTermsHint")}</span>
+          </label>
           <button className="btn-primary" onClick={saveOtherSettings} disabled={saving}>{t("common.save")}</button>
         </div>
       )}

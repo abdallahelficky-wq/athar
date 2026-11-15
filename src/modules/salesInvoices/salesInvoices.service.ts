@@ -43,6 +43,14 @@ export interface LineInput {
   taxExemptionReason?: string | null;
 }
 
+// نص اختياري يُطبَع على الفاتورة (ملاحظات/شروط): المسافات الطرفية تُقصّ، والفارغ يُخزَّن null حتى لا يُطبَع
+// عنوان قسم بلا محتوى. undefined يبقى undefined (لا يلمس القيمة المخزنة عند مسار لا يرسل الحقل).
+function textOrNull(v: string | null | undefined): string | null | undefined {
+  if (v === undefined) return undefined;
+  const t = (v ?? "").trim();
+  return t ? t : null;
+}
+
 interface InvoiceInput {
   companyId: string;
   customerId: string;
@@ -54,6 +62,8 @@ interface InvoiceInput {
   poNumber?: string;
   salesperson?: string;
   otherId?: string;
+  notes?: string | null;
+  termsAndConditions?: string | null;
   lines: LineInput[];
   post?: boolean;
   // مستودع محدَّد صراحةً (مثلاً من إعدادات جهاز نقطة بيع) يتجاوز مستودع الشركة الافتراضي —
@@ -468,6 +478,8 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
           poNumber: input.poNumber,
           salesperson: input.salesperson,
           otherId: input.otherId,
+          notes: textOrNull(input.notes),
+          termsAndConditions: textOrNull(input.termsAndConditions),
           invoiceType: invType,
           status: "draft",
           qrPayload,
@@ -515,6 +527,8 @@ export async function createSalesInvoice(tenantId: string, userId: string, input
         poNumber: input.poNumber,
         salesperson: input.salesperson,
         otherId: input.otherId,
+        notes: textOrNull(input.notes),
+        termsAndConditions: textOrNull(input.termsAndConditions),
         invoiceType: invType,
         qrPayload,
         zatcaUuid,
@@ -906,6 +920,8 @@ export async function updateSalesInvoice(tenantId: string, id: string, input: In
         poNumber: input.poNumber,
         salesperson: input.salesperson,
         otherId: input.otherId,
+        notes: textOrNull(input.notes),
+        termsAndConditions: textOrNull(input.termsAndConditions),
         invoiceType: invType,
         subtotal,
         vatTotal,

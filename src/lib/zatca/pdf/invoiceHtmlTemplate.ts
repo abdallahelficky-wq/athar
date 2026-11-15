@@ -69,7 +69,44 @@ export interface InvoicePdfData {
   // salesReturns.service.ts) — غائب تماماً لفاتورة ضريبية عادية، أو لإشعار داخلي بلا فاتورة مرتبطة.
   billingReference?: { number: string; date: string } | null;
   issuanceReason?: string | null;
+  // ملاحظات والشروط والأحكام (فاتورة مبيعات فقط) وحسابات الشركة البنكية من الإعدادات — كلها اختيارية
+  // ولا يُطبَع قسمها إلا عند وجود محتوى.
+  notes?: string | null;
+  termsAndConditions?: string | null;
+  bankAccounts?: { bankName: string; accountNumber: string; iban: string }[];
 }
+
+/**
+ * أقسام أسفل الفاتورة المشتركة بين القالبين: الحسابات البنكية، الملاحظات، الشروط والأحكام. كل قسم يظهر فقط عند وجود
+ * محتوى، والنص يُهرَّب (escapeHtml) مع الحفاظ على فواصل الأسطر.
+ */
+export function buildInvoiceFooterNotesHtml(
+  input: { notes?: string | null; termsAndConditions?: string | null; bankAccounts?: { bankName: string; accountNumber: string; iban: string }[] },
+  opts: { includeBanks: boolean; accent: string },
+): string {
+  const block = (titleAr: string, titleEn: string, text: string | null | undefined) =>
+    text && text.trim()
+      ? `<div class="inv-note-block"><div class="inv-note-title" style="color:${opts.accent}">${escapeHtml(titleAr)} <span class="en">/ ${escapeHtml(titleEn)}</span></div><div class="inv-note-body">${escapeHtml(text.trim()).replace(/\n/g, "<br/>")}</div></div>`
+      : "";
+  const banks = opts.includeBanks && input.bankAccounts && input.bankAccounts.length
+    ? `<div class="inv-note-block"><div class="inv-note-title" style="color:${opts.accent}">الحسابات البنكية <span class="en">/ Bank Accounts</span></div>
+        <table class="inv-bank"><thead><tr><th>البنك / Bank</th><th>رقم الحساب / Account No.</th><th>الآيبان / IBAN</th></tr></thead><tbody>${input.bankAccounts
+          .map((b) => `<tr><td>${escapeHtml(b.bankName)}</td><td class="num">${escapeHtml(b.accountNumber)}</td><td class="num">${escapeHtml(b.iban)}</td></tr>`)
+          .join("")}</tbody></table></div>`
+    : "";
+  const body = banks + block("ملاحظات", "Notes", input.notes) + block("الشروط والأحكام", "Terms & Conditions", input.termsAndConditions);
+  return body ? `<div class="inv-notes">${body}</div>` : "";
+}
+
+export const INVOICE_FOOTER_NOTES_CSS = `
+  .inv-notes { margin-top: 14px; font-size: 11.5px; page-break-inside: avoid; }
+  .inv-note-block { border: 1px solid #d9dee4; border-radius: 4px; padding: 7px 10px; margin-bottom: 8px; }
+  .inv-note-title { font-weight: 700; margin-bottom: 4px; }
+  .inv-note-body { line-height: 1.7; white-space: normal; }
+  table.inv-bank { width: 100%; border-collapse: collapse; }
+  table.inv-bank th, table.inv-bank td { border: 1px solid #e1e5ea; padding: 4px 6px; text-align: right; }
+  table.inv-bank td.num { text-align: left; direction: ltr; unicode-bidi: isolate; }
+`;
 
 export function buildInvoiceHtml(data: InvoicePdfData): string {
   const accent = data.brandColor || "#10202E";
@@ -127,6 +164,7 @@ export function buildInvoiceHtml(data: InvoicePdfData): string {
   .sig-box { flex: 1; text-align: center; font-size: 12px; }
   .sig-line { border-top: 1px solid #999; margin-top: 30px; }
   .uuid { font-size: 10px; color: #667; margin-top: 8px; word-break: break-all; }
+  ${INVOICE_FOOTER_NOTES_CSS}
 </style>
 </head>
 <body>
@@ -169,6 +207,8 @@ export function buildInvoiceHtml(data: InvoicePdfData): string {
     <div><span>${bi("ضريبة القيمة المضافة", "VAT")}</span><span>${formatMoney(data.vatTotal)}</span></div>
     <div class="grand"><span>${bi("الإجمالي شامل الضريبة", "Grand Total (incl. VAT)")}</span><span>${formatMoney(data.grandTotal)}</span></div>
   </div>
+
+  ${buildInvoiceFooterNotesHtml(data, { includeBanks: true, accent })}
 
   <div class="footer">
     <div class="signatures" style="flex:1">
