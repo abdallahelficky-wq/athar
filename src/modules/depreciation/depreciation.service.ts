@@ -1,6 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
-import { monthlyDepreciation } from "../../lib/depreciation";
+import { existingAssetChargeForMonth, monthlyDepreciation } from "../../lib/depreciation";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { createJournalEntryTx, deleteJournalEntryTx, assertValidUnlockPin, writeUnpostAuditLogTx } from "../../lib/journalPosting";
 import { KSA_DATE_OPTIONS } from "../../lib/displayDates";
@@ -18,7 +18,7 @@ export async function listDepreciationRuns(tenantId: string, filters: { companyI
   });
 }
 
-async function activeAssetRows(tenantId: string, companyId: string) {
+async function activeAssetRows(tenantId: string, companyId: string, month: string) {
   // isDepreciable: true فقط هنا (بدل الفلترة داخل monthlyDepreciation) — أصول لا تُستهلك (مثل
   // الأراضي) لا تظهر أصلاً في معاينة/ترحيل الإهلاك، لا تُحسَب بصفر ضمن القائمة.
   const assets = await prisma.fixedAsset.findMany({
@@ -35,12 +35,27 @@ async function activeAssetRows(tenantId: string, companyId: string) {
     accDepAccountId: a.categoryRef?.accumulatedDepreciationAccountId ?? null,
     cost: Number(a.cost),
     usefulLifeYears: Number(a.usefulLifeYears),
-    monthly: monthlyDepreciation({ cost: Number(a.cost), salvageValue: Number(a.salvageValue), usefulLifeYears: Number(a.usefulLifeYears), isDepreciable: a.isDepreciable }),
+    // أصل قائم: لا إهلاك لأشهر مُرحَّلة أصلاً في الدفاتر (حتى شهر مجمعه الافتتاحي)، ولا يتجاوز القيمة القابلة للإهلاك.
+    // باقي الأصول بلا تغيير (القسط الشهري الكامل كما كان).
+    monthly:
+      a.isExisting && a.openingDepreciationAsOf
+        ? existingAssetChargeForMonth(
+            {
+              cost: Number(a.cost),
+              salvageValue: Number(a.salvageValue),
+              usefulLifeYears: Number(a.usefulLifeYears),
+              isDepreciable: a.isDepreciable,
+              openingAccumulatedDepreciation: Number(a.openingAccumulatedDepreciation),
+              openingDepreciationAsOf: a.openingDepreciationAsOf,
+            },
+            month,
+          )
+        : monthlyDepreciation({ cost: Number(a.cost), salvageValue: Number(a.salvageValue), usefulLifeYears: Number(a.usefulLifeYears), isDepreciable: a.isDepreciable }),
   }));
 }
 
 export async function previewDepreciation(tenantId: string, companyId: string, month: string) {
-  const rows = await activeAssetRows(tenantId, companyId);
+  const rows = await activeAssetRows(tenantId, companyId, month);
   const total = rows.reduce((s, r) => s + r.monthly, 0);
   const existingRun = await prisma.depreciationRun.findFirst({ where: { tenantId, companyId, month } });
   return { rows, total, alreadyPosted: Boolean(existingRun), existingRun };
@@ -53,7 +68,7 @@ export async function postDepreciationRun(tenantId: string, userId: string, comp
   const existingRun = await prisma.depreciationRun.findFirst({ where: { tenantId, companyId, month } });
   if (existingRun) throw badRequest(`تم ترحيل إهلاك شهر ${monthLabel(month)} مسبقاً لهذه الشركة`);
 
-  const rows = await activeAssetRows(tenantId, companyId);
+  const rows = await activeAssetRows(tenantId, companyId, month);
   const total = rows.reduce((s, r) => s + r.monthly, 0);
   if (total <= 0) throw badRequest("لا توجد أصول نشطة لحساب إهلاكها");
 

@@ -40,11 +40,25 @@ export const createFixedAssetSchema = z
     depreciationMethod: depreciationMethodSchema,
     isDepreciable: z.coerce.boolean().default(true),
     paymentMethod: z.enum(["cash", "bank", "credit"]).default("cash"),
+    // مصدر الأصل: purchase = شراء جديد (يُنشئ قيد شراء، السلوك الأصلي)، cip_transfer = تحويل من حساب مشروعات تحت
+    // التنفيذ (مدين الأصل / دائن حساب المشروعات)، existing = أصل قائم مسجَّل محاسبياً أصلاً (بلا أي قيد جديد).
+    source: z.enum(["purchase", "cip_transfer", "existing"]).default("purchase"),
+    cipAccountId: z.string().optional(),
+    openingAccumulatedDepreciation: z.coerce.number().min(0).default(0),
+    openingDepreciationAsOf: z.coerce.date().optional(),
   })
   .superRefine(rejectUnsupportedDepreciationMethod)
   .refine((data) => Boolean(data.categoryId || data.accountId), {
     message: "اختر فئة الأصل أو الحساب المحاسبي",
     path: ["categoryId"],
+  })
+  .refine((data) => data.source !== "cip_transfer" || Boolean(data.cipAccountId), {
+    message: "اختر حساب المشروعات تحت التنفيذ المحوَّل منه",
+    path: ["cipAccountId"],
+  })
+  .refine((data) => data.source !== "existing" || Boolean(data.openingDepreciationAsOf), {
+    message: "حدّد تاريخ آخر إهلاك مُرحَّل في الدفاتر للأصل القائم",
+    path: ["openingDepreciationAsOf"],
   });
 
 export const updateFixedAssetSchema = z
