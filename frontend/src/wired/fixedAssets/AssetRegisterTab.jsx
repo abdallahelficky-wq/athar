@@ -24,6 +24,7 @@ const emptyForm = () => ({
   purchaseDate: new Date().toISOString().slice(0, 10), depreciationStartDate: "",
   cost: "", usefulLifeYears: "5", salvageValue: "0", depreciationMethod: "straight_line",
   isDepreciable: true, paymentMethod: "cash",
+  source: "purchase", cipAccountId: "", openingAccumulatedDepreciation: "0", openingDepreciationAsOf: "",
 });
 
 export default function AssetRegisterTab({ companyId, companies }) {
@@ -68,6 +69,8 @@ export default function AssetRegisterTab({ companyId, companies }) {
   const save = async () => {
     if (!form.name || !Number(form.cost)) return;
     if (!form.categoryId && !(form.useRawAccount && form.accountId)) return;
+    if (!editingId && form.source === "cip_transfer" && !form.cipAccountId) return;
+    if (!editingId && form.source === "existing" && !form.openingDepreciationAsOf) return;
     const shared = {
       name: form.name, category: form.category,
       serialNumber: form.serialNumber || undefined, chassisNumber: form.chassisNumber || undefined,
@@ -86,6 +89,11 @@ export default function AssetRegisterTab({ companyId, companies }) {
         await createFixedAsset({
           companyId, purchaseDate: form.purchaseDate, cost: Number(form.cost), paymentMethod: form.paymentMethod,
           custodianEmployeeId: form.custodianEmployeeId || undefined, ...shared,
+          source: form.source,
+          ...(form.source === "cip_transfer" ? { cipAccountId: form.cipAccountId } : {}),
+          ...(form.source === "existing"
+            ? { openingAccumulatedDepreciation: Number(form.openingAccumulatedDepreciation) || 0, openingDepreciationAsOf: form.openingDepreciationAsOf }
+            : {}),
         });
       }
       setForm(emptyForm());
@@ -123,6 +131,26 @@ export default function AssetRegisterTab({ companyId, companies }) {
       <div className="panel form-panel">
         {editingId && <div className="edit-banner">{t("fixedAssets.register.editingBanner", { name: form.name })}</div>}
         <div className="form-grid">
+          {!editingId && (
+            <label>{t("fixedAssets.register.source")}
+              <select value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
+                <option value="purchase">{t("fixedAssets.register.sourcePurchase")}</option>
+                <option value="cip_transfer">{t("fixedAssets.register.sourceCip")}</option>
+                <option value="existing">{t("fixedAssets.register.sourceExisting")}</option>
+              </select>
+            </label>
+          )}
+          {!editingId && form.source === "cip_transfer" && (
+            <label>{t("fixedAssets.register.cipAccount")}
+              <AccountSearchSelect accounts={assetAccounts} value={form.cipAccountId} onChange={(cipAccountId) => setForm({ ...form, cipAccountId })} />
+            </label>
+          )}
+          {!editingId && form.source === "existing" && (
+            <>
+              <label>{t("fixedAssets.register.openingAccumulatedDepreciation")}<input type="number" min="0" value={form.openingAccumulatedDepreciation} onChange={(e) => setForm({ ...form, openingAccumulatedDepreciation: e.target.value })} /></label>
+              <label>{t("fixedAssets.register.openingDepreciationAsOf")}<input type="date" value={form.openingDepreciationAsOf} onChange={(e) => setForm({ ...form, openingDepreciationAsOf: e.target.value })} /></label>
+            </>
+          )}
           <label>{t("fixedAssets.register.name")}<input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <label>{t("fixedAssets.register.category")}<select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{ASSET_CATEGORIES.map((c) => <option key={c} value={c}>{labelForListValue(t, ASSET_CATEGORY_KEYS, "fixedAssets.categoryLabels", c)}</option>)}</select></label>
           {!form.useRawAccount ? (
@@ -174,7 +202,7 @@ export default function AssetRegisterTab({ companyId, companies }) {
           </label>
           <label>{t("fixedAssets.register.salvageValue")}<input type="number" value={form.salvageValue} onChange={(e) => setForm({ ...form, salvageValue: e.target.value })} /></label>
           <label className="checkbox-label"><input type="checkbox" checked={form.isDepreciable} onChange={(e) => setForm({ ...form, isDepreciable: e.target.checked })} />{t("fixedAssets.register.isDepreciable")}</label>
-          {!editingId && (
+          {!editingId && form.source === "purchase" && (
             <label>{t("fixedAssets.register.paymentMethod")}
               <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>
                 <option value="cash">{t("fixedAssets.register.paymentCash")}</option><option value="bank">{t("fixedAssets.register.paymentBank")}</option><option value="credit">{t("fixedAssets.register.paymentCredit")}</option>
@@ -182,10 +210,12 @@ export default function AssetRegisterTab({ companyId, companies }) {
             </label>
           )}
         </div>
+        {!editingId && form.source === "existing" && <p className="muted">{t("fixedAssets.register.existingHint")}</p>}
+        {!editingId && form.source === "cip_transfer" && <p className="muted">{t("fixedAssets.register.cipHint")}</p>}
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group">
           {editingId && <button className="btn-ghost" onClick={() => { setEditingId(null); setForm(emptyForm()); }}>{t("fixedAssets.register.cancel")}</button>}
-          <button className="btn-primary" onClick={save}>{editingId ? t("fixedAssets.register.saveChanges") : t("fixedAssets.register.saveAsset")}</button>
+          <button className="btn-primary" onClick={save}>{editingId ? t("fixedAssets.register.saveChanges") : form.source === "cip_transfer" ? t("fixedAssets.register.saveAssetCip") : form.source === "existing" ? t("fixedAssets.register.saveAssetExisting") : t("fixedAssets.register.saveAsset")}</button>
         </div>
       </div>
 

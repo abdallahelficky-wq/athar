@@ -1165,6 +1165,11 @@
       "isDepreciable": "Depreciable (turn off for land, for example)",
       "paymentMethod": "Payment method", "paymentCash": "Cash", "paymentBank": "Bank", "paymentCredit": "Credit (payables)",
       "cancel": "Cancel", "saveChanges": "Save changes", "saveAsset": "Save asset and post purchase",
+      "source": "Asset source", "sourcePurchase": "New purchase (posts a purchase entry)", "sourceCip": "Transfer from construction in progress (Dr asset / Cr CIP)", "sourceExisting": "Existing asset already booked in the ledger (no new entry)",
+      "cipAccount": "Construction-in-progress account to transfer from", "openingAccumulatedDepreciation": "Accumulated depreciation already posted up to the date below", "openingDepreciationAsOf": "Date of the last depreciation posted in the books",
+      "existingHint": "No journal entry is created: cost and accumulated depreciation are already posted in the ledger. The system rejects it if total registered cost exceeds the account's ledger balance. Monthly depreciation starts after the month of the date below.",
+      "cipHint": "An entry is created: Dr asset account / Cr construction-in-progress account on the purchase date above.",
+      "saveAssetCip": "Save asset and post transfer entry", "saveAssetExisting": "Save existing asset (no entry)",
       "loading": "Loading...",
       "table": {
         "assetNumber": "Asset #", "asset": "Asset", "category": "Category", "purchaseDate": "Purchase date",

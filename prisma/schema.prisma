@@ -2109,6 +2109,13 @@ model FixedAsset {
   sourcePurchaseInvoiceLineId String?                      @unique
   // نفس المبدأ، لأصل أُنشئ من نافذة اختيار حساب أصول ثابتة داخل قيد يومية عادي (Phase F).
   sourceJournalEntryLineId    String?                      @unique
+  // أصل قائم: مسجَّل محاسبياً أصلاً في دفتر الأستاذ (قيد افتتاحي/قيد قديم) قبل إدخاله هنا، فيُسجَّل في
+  // السجل بلا قيد شراء جديد (وإلا تضاعفت التكلفة). تكلفته جزء من رصيد حساب أصله القائم فعلاً.
+  isExisting                     Boolean  @default(false)
+  // مجمع الإهلاك المُرحَّل فعلاً في الدفاتر لهذا الأصل حتى openingDepreciationAsOf (لا يُعاد تحميله)،
+  // والإهلاك الشهري يبدأ بعد شهر هذا التاريخ. غير معنيَّين لأصل غير قائم (يبقيان 0/null).
+  openingAccumulatedDepreciation Decimal  @default(0) @db.Decimal(18, 2)
+  openingDepreciationAsOf        DateTime?
   createdAt                   DateTime                     @default(now())
   updatedAt                   DateTime                     @updatedAt
 
