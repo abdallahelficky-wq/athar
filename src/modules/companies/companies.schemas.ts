@@ -18,6 +18,8 @@ export const createCompanySchema = z.object({
   invoiceShowSalesperson: z.boolean().optional(),
   invoiceShowCustomerReference: z.boolean().optional(),
   invoiceShowOtherId: z.boolean().optional(),
+  // الشروط والأحكام الافتراضية لفواتير المبيعات — تُعبَّأ تلقائياً في كل فاتورة جديدة. "" يمسحها.
+  defaultInvoiceTerms: z.string().max(8000).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
   vatNumber: z.string().optional(),
   crNumber: z.string().optional(),
   crIssueDate: z.coerce.date().optional(),

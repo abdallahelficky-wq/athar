@@ -37,6 +37,8 @@ export interface PlainInvoicePdfInput {
   qrPayload?: string | null;
   zatcaUuid?: string | null;
   bankAccounts?: ClassicProBankAccount[];
+  notes?: string | null;
+  termsAndConditions?: string | null;
 }
 
 /**
@@ -91,6 +93,8 @@ export async function buildPlainInvoicePdf(input: PlainInvoicePdfInput): Promise
       paidAmount: input.paidAmount || 0,
       qrDataUrl,
       bankAccounts: input.bankAccounts || [],
+      notes: input.notes,
+      termsAndConditions: input.termsAndConditions,
     };
     return renderHtmlToPdf(buildInvoiceHtmlClassicPro(data));
   }
@@ -112,6 +116,9 @@ export async function buildPlainInvoicePdf(input: PlainInvoicePdfInput): Promise
     grandTotal: input.grandTotal,
     qrDataUrl,
     zatcaUuid: input.zatcaUuid || "",
+    notes: input.notes,
+    termsAndConditions: input.termsAndConditions,
+    bankAccounts: input.bankAccounts || [],
   };
 
   const html = buildInvoiceHtml(data);

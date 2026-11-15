@@ -29,6 +29,9 @@ export const createSalesInvoiceSchema = z.object({
   poNumber: z.string().optional(),
   salesperson: z.string().optional(),
   otherId: z.string().optional(),
+  // ملاحظات والشروط والأحكام — نص يُطبَع أسفل الفاتورة فقط. null/"" يمسح القيمة عند التعديل.
+  notes: z.string().max(4000).nullable().optional(),
+  termsAndConditions: z.string().max(8000).nullable().optional(),
   lines: z.array(salesInvoiceLineSchema).min(1),
   post: z.boolean().default(true),
 });

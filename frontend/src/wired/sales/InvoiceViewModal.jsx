@@ -1,5 +1,6 @@
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import InvoiceCreditNotes from "./InvoiceCreditNotes";
+import InvoiceNotesBlock from "./InvoiceNotesBlock";
 import DocumentZatcaSection from "./DocumentZatcaSection";
 import InvoiceFormModal from "./InvoiceFormModal";
 import LinkPaymentModal from "./LinkPaymentModal";
@@ -226,6 +227,7 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
           {t("journalEntries.form.branchEquivalent", { amount: fmt(Number(current.grandTotal) / branchRate), currency: currencyLabel(branch.currency, i18n.language) })}
         </p>
       )}
+      <InvoiceNotesBlock invoice={current} companyId={current.companyId} />
       <div className="qr-box">
         <div className="qr-box-label">{t("salesInvoices.view.qrLabel")}</div>
         <QrImage payload={current.qrPayload} />

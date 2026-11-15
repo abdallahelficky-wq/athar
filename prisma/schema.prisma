@@ -522,6 +522,9 @@ model Company {
   invoiceShowSalesperson       Boolean               @default(true)
   invoiceShowCustomerReference Boolean               @default(true)
   invoiceShowOtherId           Boolean               @default(true)
+  // الشروط والأحكام الافتراضية لفواتير مبيعات هذه الشركة — تُعبَّأ تلقائياً في كل فاتورة جديدة
+  // (قابلة للتعديل لكل فاتورة). null = لا شروط افتراضية (السلوك الحالي بلا تغيير).
+  defaultInvoiceTerms          String?
   // --- ربط فاتورة (ZATCA) — المرحلة الثانية (التكامل)، انظر src/lib/zatca/*  ---
   // جهاز إصدار فواتير إلكترونية (EGS) واحد لكل شركة (v1) — CSID واحد، عدّاد ICV واحد،
   // وسلسلة تجزئة (PIH) واحدة تغطي كل الفواتير/الإشعارات الدائنة/المدينة لهذه الشركة معاً.
@@ -1357,6 +1360,11 @@ model SalesInvoice {
   poNumber                 String?
   salesperson              String?
   otherId                  String?
+  // ملاحظات حرّة والشروط والأحكام — تُطبَع أسفل الفاتورة في كل القوالب عند تعبئتها فقط. نص عرض بحت:
+  // لا تأثير محاسبي/ضريبي، ولا تدخل XML زاتكا ولا التجزئة. الشروط تُقترَح عند الإنشاء من
+  // Company.defaultInvoiceTerms ويمكن تعديلها لكل فاتورة.
+  notes                    String?
+  termsAndConditions       String?
   invoiceType              InvoiceType
   status                   InvoiceStatus       @default(posted)
   journalEntryId           String?

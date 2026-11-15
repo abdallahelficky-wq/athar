@@ -919,6 +919,11 @@
 
         .invoice-extra-fields { margin: 4px 0 14px; }
         .invoice-extra-fields summary { cursor: pointer; font-size: 12.5px; color: #445565; margin-bottom: 8px; }
+        .invoice-notes-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 6px; }
+        .invoice-notes-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+        .invoice-notes-fields textarea { width: 100%; resize: vertical; font: inherit; padding: 6px 8px; }
+        .invoice-notes-fields .note { grid-column: 1 / -1; margin: 0; font-size: 11.5px; color: #667; }
+        @media (max-width: 720px) { .invoice-notes-fields { grid-template-columns: 1fr; } }
 
         /* شاشة "إعدادات المبيعات" — اختيار قالب الفاتورة (SalesSettingsTab.jsx) */
         .sales-settings-company-picker { display: flex; flex-direction: column; gap: 4px; max-width: 320px; margin: 10px 0 18px; font-size: 12.5px; color: #445565; }
@@ -1822,3 +1827,15 @@
         }
         .btn-secondary:hover:not(:disabled) { border-color: #141414; background: rgba(16,32,46,0.03); }
         .btn-secondary:disabled { color: #B7BFC6; border-color: rgba(16,32,46,0.12); cursor: not-allowed; }
+
+/* ملاحظات/شروط/حسابات بنكية أسفل الفاتورة المطبوعة — InvoiceNotesBlock.jsx (القالبان) */
+.invoice-notes-block { margin: 12px 0; font-size: 12px; break-inside: avoid; page-break-inside: avoid; }
+.invoice-notes-block .inb-section { border: 1px solid #d9dee4; border-radius: 4px; padding: 7px 10px; margin-bottom: 8px; }
+.invoice-notes-block .inb-title { font-weight: 700; margin-bottom: 4px; color: #10202E; }
+.invoice-notes-block .inb-body { white-space: pre-line; line-height: 1.7; }
+.invoice-notes-block .inb-bank { width: 100%; border-collapse: collapse; }
+.invoice-notes-block .inb-bank th, .invoice-notes-block .inb-bank td { border: 1px solid #e1e5ea; padding: 4px 6px; text-align: right; }
+.invoice-notes-block .inb-bank td.num { direction: ltr; unicode-bidi: isolate; text-align: left; }
+.invoice-terms-setting { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; font-size: 12.5px; }
+.invoice-terms-setting textarea { width: 100%; resize: vertical; font: inherit; padding: 6px 8px; }
+.invoice-terms-setting .note { font-size: 11.5px; color: #667; }

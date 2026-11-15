@@ -13,6 +13,7 @@
 // قانوني ثابت (المادة 53 أعلاه)، لا خياراً تصميمياً قابلاً للتوحيد مع بقية شاشات النظام.
 
 import { ATHAR_BRAND_LOGO_DATA_URL } from "./brandLogo";
+import { buildInvoiceFooterNotesHtml, INVOICE_FOOTER_NOTES_CSS } from "./invoiceHtmlTemplate";
 
 function escapeHtml(value: string | number | null | undefined): string {
   return String(value ?? "")
@@ -83,6 +84,8 @@ export interface ClassicProInvoicePdfData {
 
   qrDataUrl: string;
   bankAccounts: ClassicProBankAccount[];
+  notes?: string | null;
+  termsAndConditions?: string | null;
 }
 
 export function buildInvoiceHtmlClassicPro(data: ClassicProInvoicePdfData): string {
@@ -95,7 +98,7 @@ export function buildInvoiceHtmlClassicPro(data: ClassicProInvoicePdfData): stri
         <tr class="${i % 2 === 1 ? "alt" : ""}">
           <td class="num">${i + 1}</td>
           <td class="desc">${escapeHtml(l.description)}${l.itemCode ? `<div class="code">${escapeHtml(l.itemCode)}</div>` : ""}</td>
-          <td>${escapeHtml(l.unit || bi("وحدة", "Unit"))}</td>
+          <td>${l.unit ? escapeHtml(l.unit) : bi("وحدة", "Unit")}</td>
           <td class="num">${l.quantity.toFixed(2)}</td>
           <td class="num">${formatMoney(l.unitPrice)}</td>
           <td class="num">${l.discountPct.toFixed(2)}</td>
@@ -174,6 +177,7 @@ export function buildInvoiceHtmlClassicPro(data: ClassicProInvoicePdfData): stri
   table.bank td { border-bottom: 1px solid #e6e9ec; padding: 6px 8px; font-size: 11px; text-align: center; }
 
   .footer-bar { display: flex; justify-content: space-between; align-items: center; background: ${accent}; color: #fff; padding: 7px 14px; font-size: 10.5px; border-radius: 4px; margin-top: 10px; }
+  ${INVOICE_FOOTER_NOTES_CSS}
 </style>
 </head>
 <body>
@@ -250,6 +254,8 @@ export function buildInvoiceHtmlClassicPro(data: ClassicProInvoicePdfData): stri
         </table>`
       : ""
   }
+
+  ${buildInvoiceFooterNotesHtml(data, { includeBanks: false, accent })}
 
   <div class="footer-bar">
     <span>${escapeHtml(data.issueDate)}</span>

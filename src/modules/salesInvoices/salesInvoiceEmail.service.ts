@@ -41,6 +41,8 @@ async function buildInvoicePdfBuffer(tenantId: string, invoice: InvoiceForPdf): 
     poNumber: invoice.poNumber,
     salesperson: invoice.salesperson,
     otherId: invoice.otherId,
+    notes: invoice.notes,
+    termsAndConditions: invoice.termsAndConditions,
     paymentMethod: invoice.customer.paymentTerms,
     companyName: invoice.company.name,
     companyNameEn: invoice.company.nameEn,
