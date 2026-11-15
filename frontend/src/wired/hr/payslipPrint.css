@@ -1,0 +1,26 @@
+/* إشعار تسليم راتب — صفحة A4 طولية لكل موظف. اللون الرئيسي من هوية الشركة (--ps-accent). */
+.payslip{color:#222;background:#fff;font-family:Tajawal,"Segoe UI",Tahoma,sans-serif;font-size:12px;padding:4mm 2mm;break-after:page;page-break-after:always}
+.payslip:last-child{break-after:auto;page-break-after:auto}
+.ps-head{display:flex;align-items:stretch;border-radius:6px;overflow:hidden;margin-bottom:8px}
+.ps-co{flex:1;background:#555;color:#fff;padding:10px 16px}.ps-co h1{margin:0;font-size:19px}.ps-co p{margin:3px 0 0;font-size:10.5px;opacity:.85}
+.ps-logo{background:#fff;border:1px solid #cbd5da;border-inline-start:0;width:58mm;display:flex;align-items:center;justify-content:center}.ps-logo img{max-height:17mm;max-width:52mm;object-fit:contain}
+.ps-title{background:var(--ps-accent);color:#fff;border-radius:6px;display:flex;justify-content:space-between;align-items:center;padding:7px 16px;margin-bottom:6px}.ps-title b{font-size:17px}.ps-title span{font-size:12.5px;font-weight:600}
+.ps-sec{font-size:13px;font-weight:700;color:var(--ps-accent);border-bottom:2px solid var(--ps-accent);padding-bottom:3px;margin:10px 0 6px}
+.ps-grid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #cbd5da;border-radius:5px;overflow:hidden}
+.ps-cell{padding:4px 10px;border-bottom:1px solid #cbd5da;border-inline-end:1px solid #cbd5da}.ps-cell:nth-child(3n+1){border-inline-end:0}.ps-wide{grid-column:span 3;border-inline-end:0}
+.ps-cell small,.ps-meta small{display:block;color:#777;font-size:10px}.ps-cell div{font-weight:600;font-size:12.5px}
+.ps-num{direction:ltr;unicode-bidi:embed;display:inline-block;font-variant-numeric:tabular-nums}
+.ps-meta{display:flex;border:1px solid #cbd5da;border-radius:5px;overflow:hidden;margin-bottom:8px}.ps-meta>div{flex:1;padding:4px 10px;border-inline-end:1px solid #cbd5da}.ps-meta>div:last-child{border-inline-end:0}.ps-meta b{font-size:12.5px}
+.ps-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.payslip table{width:100%;border-collapse:collapse;border:1px solid #cbd5da}.payslip th{background:var(--ps-accent);color:#fff;padding:5px 10px;text-align:start;font-size:12px}
+.payslip td{padding:4px 10px;border-top:1px solid #cbd5da;font-size:12.5px}.ps-v{text-align:end;direction:ltr;width:34%;font-variant-numeric:tabular-nums}.ps-empty{text-align:center;color:#999}
+.ps-tot td{background:#e8f1f5;font-weight:700}
+.ps-net{margin-top:8px;border:2px solid var(--ps-accent);border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:7px 16px;background:#e8f1f5}
+.ps-net-l{font-weight:700;font-size:14px}.ps-net-w{font-size:11px;color:#444;margin-top:2px}.ps-net-amt{font-size:26px;font-weight:700;color:var(--ps-accent);direction:ltr}.ps-net-amt span{font-size:14px}
+.ps-ack{border:1px solid #cbd5da;border-radius:6px;padding:8px 14px;line-height:1.7;font-size:12.5px}
+.ps-sig{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:8px}.ps-sig>div{border-bottom:1px solid #555;height:14mm;position:relative}.ps-sig span{position:absolute;top:2px;inset-inline-start:2px;font-size:11px;color:#555}
+.ps-appr{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #cbd5da;border-radius:5px;overflow:hidden;margin-top:10px}.ps-appr>div{border-inline-end:1px solid #cbd5da;text-align:center;padding:0 0 4px}.ps-appr>div:last-child{border-inline-end:0}
+.ps-appr small{display:block;background:#555;color:#fff;font-size:10px;padding:4px}.ps-appr i{display:block;height:14mm}
+.payslip,.payslip *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.voucher-shell:has(.payslip){max-width:860px;width:96vw;background:#fff}
+@media print{.voucher-print:has(.payslip){padding:0!important;width:100%!important;max-width:none!important}.voucher-print:has(.payslip) .voucher-print-footer{display:none}.payslip{padding:0}}
