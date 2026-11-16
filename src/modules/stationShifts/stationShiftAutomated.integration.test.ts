@@ -7,6 +7,7 @@ import { createApp } from "../../app";
 import { register } from "../auth/auth.service";
 import { createPurchaseInvoice } from "../purchaseInvoices/purchaseInvoices.service";
 import { ptsSignature } from "../forecourt/ptsReceiver.service";
+import { buildShiftsReportHtml } from "../../lib/shiftsReportPdf";
 
 /**
  * الوردية الآلية — على Postgres حقيقي وعبر HTTP من أوله لآخره (CLAUDE.md القاعدة 2): المتحكم يُسجَّل ويُربط عبر /forecourt، وعمليات
@@ -388,6 +389,20 @@ describe("automated station shifts (integration)", () => {
     expect(cross.text).not.toContain(a.station);
     if (cross.status === 200) expect(cross.body.rows).toEqual([]);
     expect((await q(ctx.b, ctx.b.companyId, `&costCenterId=${a.station}`)).status).toBe(400);
+
+    // PDF: نفس رد التقرير أعلاه (مُخرَج HTTP الحقيقي) يُبنى منه HTML الـPDF — بأرقامه، وبالديزل وحده، وبتوقيت الرياض
+    const html = buildShiftsReportHtml(rep.body, { name: "Fuel <Co>" }, { stationName: null, lang: "ar" });
+    expect(html).toContain("126.50");
+    expect(html).toContain("92.00");
+    expect(html).toContain("34.50");
+    expect(html).toContain("ديزل");
+    expect(html).not.toContain("بنزين 91");
+    expect(html).toContain("مفتوحة");
+    expect(html).toContain("Fuel &lt;Co&gt;");
+    expect(html).not.toContain("بيانات الجهاز ناقصة");
+    expect((html.match(/<tr class="day">/g) ?? []).length).toBe(rep.body.rows.length + 1);
+    // ومسار الـPDF يرفض محطة مستأجر آخر قبل أي توليد
+    expect((await call("GET", `/station-shifts-reports/shifts-daily/pdf?companyId=${ctx.b.companyId}&dateFrom=${iso(-3)}&dateTo=${iso(2)}&costCenterId=${a.station}`, ctx.b.token)).status).toBe(400);
   });
 
   it("keeps the manual photo flow for a station whose controller is switched off", async () => {
