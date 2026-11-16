@@ -26,6 +26,15 @@ const APPS = [
     version: "1.1", // مطابق لـ versionName في android-station/app/build.gradle.kts
     sizeLabel: "٤.٦ ميجابايت", // 4,842,446 بايت (إصدار android-station-v1.1 الموقَّع) — راجع تعليق التحديث أدناه
   },
+  {
+    key: "store",
+    i18n: "download.store",
+    apkPath: "/app/athar-store.apk",
+    apkFileName: "athar-store.apk",
+    iconPath: "/app/athar-store-icon.png",
+    version: "1.0", // مطابق لـ versionName في android-store/app/build.gradle.kts
+    sizeLabel: "٤.٦ ميجابايت", // 4,810,494 بايت (إصدار android-store-v1.0 الموقَّع) — راجع تعليق التحديث أدناه
+  },
 ];
 
 function AppEntry({ app }) {
@@ -86,6 +95,10 @@ export default function DownloadPage() {
 //        android-station-v1.1) — لا يبدأ التوقيع إلا بعد نجاح اختبار التصوير على المحاكي وموافقتك على
 //        بيئة android-release.
 //     2. نزِّل APK الناتج من صفحة الإصدار واستبدل به frontend/public/app/athar-station.apk.
+//   أثر المتجر الإلكتروني (android-store/):
+//     1. شغِّل .github/workflows/android-store-build.yml يدوياً على production بوسم (مثال android-store-v1.0)،
+//        ثم وافق على بيئة android-release.
+//     2. نزِّل APK الناتج من صفحة الإصدار واستبدل به frontend/public/app/athar-store.apk.
 //   ثم لكليهما: تحقّق بـ `aapt2 dump badging` أن applicationId/versionName صحيحان، وبـ `apksigner verify
 //   --print-certs` أن بصمة الشهادة SHA-256 هي بصمة مفتاح الإصدار الدائم
 //   (35e7bb91e52eaeff6921e7042c5952c5cb88cf79d7ed1b497931d91944b9600d) — أي بصمة أخرى تعني أن التحديث لن

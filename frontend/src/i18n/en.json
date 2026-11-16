@@ -181,6 +181,12 @@
     "downloadBtnFor": "Download {{app}} (APK)",
     "stepUninstallOld": "If you already have an earlier version of this app installed, uninstall it first — once only; later versions install over it directly.",
     "stepOpenFile": "Open the downloaded {{fileName}} file, then tap \"Install\".",
+    "store": {
+      "appName": "Athar Online Store",
+      "audience": "For store customers — on any Android phone",
+      "description": "Shop from Athar stores: browse stores and products, add to cart and send your order straight from your phone.",
+      "disclaimer": "Pilot build — not yet tested on a real phone."
+    },
     "station": {
       "appName": "Athar Station",
       "audience": "For fuel-station workers — on any Android phone",

@@ -17,6 +17,7 @@ import { SUBSCRIPTION_PLANS, monthlyPriceFromYearly } from "../lib/subscriptionP
 const APPS = [
   { key: "pos", i18n: "download", apkPath: "/app/athar-pos.apk", apkFileName: "athar-pos.apk", iconPath: "/app/athar-pos-icon.png" },
   { key: "station", i18n: "download.station", apkPath: "/app/athar-station.apk", apkFileName: "athar-station.apk", iconPath: "/app/athar-station-icon.png" },
+  { key: "store", i18n: "download.store", apkPath: "/app/athar-store.apk", apkFileName: "athar-store.apk", iconPath: "/app/athar-store-icon.png" },
 ];
 
 export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload, onGoDataProtection }) {
