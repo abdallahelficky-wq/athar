@@ -50,6 +50,8 @@ const baseItemFields = {
   assetCategoryId: z.string().optional(),
   // المتجر الإلكتروني العام — راجع التعليق فوق الحقول المطابقة في schema.prisma. نص فارغ يُحفَظ null.
   publishedInStore: z.boolean().optional(),
+  storeCompareAtPrice: z.coerce.number().min(0).nullable().optional(),
+  storeFeatured: z.boolean().optional(),
   storeDescription: z.string().max(4000).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
   storeDescriptionEn: z.string().max(4000).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
   countryOfOrigin: z.string().max(80).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),

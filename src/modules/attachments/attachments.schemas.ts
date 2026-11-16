@@ -19,6 +19,8 @@ export const attachmentEntityTypeEnum = z.enum([
   "station_shift_expense",
   // صور المنتج في المتجر الإلكتروني العام — النوع الوحيد الذي يُعرَض للعموم (لصنف منشور فقط، راجع store.service.ts)
   "item_store_image",
+  // بانرات الصفحة الرئيسية للمتجر — entityId هو الشركة، وتُعرَض للعموم ما دام متجرها مفعَّلاً
+  "store_banner",
 ]);
 
 export const listAttachmentsQuerySchema = z.object({

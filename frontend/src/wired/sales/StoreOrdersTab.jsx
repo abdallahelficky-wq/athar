@@ -81,6 +81,10 @@ export default function StoreOrdersTab({ companyId }) {
                 {openId === o.id && (
                   <tr>
                     <td colSpan={8}>
+                      <p className="note">
+                        {t("sales.storeOrders.shipping")}: {t(`sales.storeOrders.shippingMethods.${o.shippingMethod === "pickup" ? "pickup" : "delivery"}`)}
+                        {" · "}{t("sales.storeOrders.payment")}: {t(`sales.storeOrders.paymentMethods.${["cod", "bank_transfer"].includes(o.paymentMethod) ? o.paymentMethod : "unspecified"}`)}
+                      </p>
                       {o.notes && <p className="note">{t("sales.storeOrders.notes")}: {o.notes}</p>}
                       <table className="ledger-table">
                         <thead><tr><th>{t("sales.storeOrders.itemCode")}</th><th>{t("sales.storeOrders.item")}</th><th>{t("sales.storeOrders.quantity")}</th><th>{t("sales.storeOrders.unitPrice")}</th><th>{t("sales.storeOrders.lineTotal")}</th></tr></thead>
@@ -88,6 +92,8 @@ export default function StoreOrdersTab({ companyId }) {
                           {o.lines.map((l) => <tr key={l.id}><td dir="ltr">{l.code}</td><td>{i18n.language === "en" && l.nameEn ? l.nameEn : l.name}</td><td className="num">{l.quantity}</td><td className="num">{fmt2(l.unitPrice)}</td><td className="num">{fmt2(l.lineTotal)}</td></tr>)}
                         </tbody>
                         <tfoot>
+                          {Number(o.discountAmount) > 0 && <tr><td colSpan={4}>{t("sales.storeOrders.discount")}{o.couponCode ? ` (${o.couponCode})` : ""}</td><td className="num">−{fmt2(o.discountAmount)}</td></tr>}
+                          {Number(o.shippingFee) > 0 && <tr><td colSpan={4}>{t("sales.storeOrders.shippingFee")}</td><td className="num">{fmt2(o.shippingFee)}</td></tr>}
                           <tr><td colSpan={4}>{t("sales.storeOrders.subtotal")}</td><td className="num">{fmt2(o.subtotal)}</td></tr>
                           <tr><td colSpan={4}>{t("sales.storeOrders.vat")}</td><td className="num">{fmt2(o.vat)}</td></tr>
                           <tr><td colSpan={4}><strong>{t("sales.storeOrders.total")}</strong></td><td className="num"><strong>{fmt2(o.total)}</strong></td></tr>

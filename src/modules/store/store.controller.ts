@@ -1,4 +1,5 @@
 import { RequestHandler } from "express";
+import { env } from "../../config/env";
 import * as service from "./store.service";
 import { STORE_SORTS, StoreSort } from "./store.service";
 import * as auth from "./storeAuth.service";
@@ -17,7 +18,7 @@ export const listStores: RequestHandler = async (_req, res) => {
 export const getStore: RequestHandler = async (req, res) => {
   const store = await service.resolveStore(req.params.slug);
   // loginEnabled: هل دخول العملاء برمز الجوال متاح الآن (قالب واتساب مضبوط) — الواجهة تخفي الدخول إن لم يكن
-  res.json({ ...store.info, loginEnabled: auth.otpDelivery.enabled(), categories: await service.listCategories(store) });
+  res.json({ ...store.info, ...(await service.getStorefrontConfig(store)), loginEnabled: auth.otpDelivery.enabled(), categories: await service.listCategories(store) });
 };
 
 export const listProducts: RequestHandler = async (req, res) => {
@@ -77,6 +78,28 @@ export const createOrder: RequestHandler = async (req, res) => {
   // الدخول اختياري: طلب الزائر بلا رمز يُسجَّل بلا حساب؛ رمز مُرسَل لكنه غير صالح يُرفَض (لا يُتجاهَل بصمت)
   const customer = await auth.customerFromAuthHeader(store, req.headers.authorization);
   res.status(201).json(await orders.createOrder(store, req.body ?? {}, customer?.id ?? null));
+};
+
+/** عرض سعر للسلة باختيارات العميل (مدينة/استلام، كوبون) — POST لأن الجسم يحمل السلة، لكنه لا يكتب شيئاً. */
+export const quoteOrder: RequestHandler = async (req, res) => {
+  const store = await service.resolveStore(req.params.slug);
+  res.json(await orders.quoteOrder(store, req.body ?? {}));
+};
+
+export const getProductFeed: RequestHandler = async (req, res) => {
+  const store = await service.resolveStore(req.params.slug);
+  const csv = await service.buildProductFeed(store, { site: env.storePublicBaseUrl, api: `${req.protocol}://${req.get("host")}/api` });
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=900");
+  res.send(csv);
+};
+
+export const getStoreLogo: RequestHandler = async (req, res) => {
+  const store = await service.resolveStore(req.params.slug);
+  const url = await service.getStoreLogoUrl(store);
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  res.setHeader("Cache-Control", "public, max-age=600");
+  res.redirect(302, url);
 };
 
 export const listMyOrders: RequestHandler = async (req, res) => {

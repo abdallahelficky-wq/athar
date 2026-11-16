@@ -195,3 +195,36 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .st-store-name { font-weight: 700; font-size: 1.05rem; }
 .st-store-go { color: var(--st-muted); font-size: .85rem; }
 .st-footer-link { text-decoration: underline; }
+
+/* ── إعدادات المتجر: الشعار، البانرات، السعر قبل الخصم، الشحن والدفع والكوبون، السياسات ── */
+.st-brand-logo { display: inline-flex; align-items: center; gap: 10px; border-inline-start: 0; padding-inline-start: 0; }
+.st-brand-logo img { height: 36px; width: auto; max-width: 120px; object-fit: contain; background: #fff; border-radius: 6px; padding: 2px; }
+.st-banners { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin-bottom: 12px; border-radius: var(--st-radius); }
+.st-banners img { flex: 0 0 100%; width: 100%; aspect-ratio: 8 / 3; object-fit: cover; scroll-snap-align: start; border-radius: var(--st-radius); }
+.st-ribbon { background: var(--st-accent); color: var(--st-accent-ink); font-weight: 700; text-align: center; padding: 8px 12px; border-radius: 8px; margin: 0 0 12px; font-size: .9rem; }
+.st-card { position: relative; }
+.st-card-badge, .st-off { background: var(--st-bad); color: #fff; font-size: .75rem; font-weight: 700; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+.st-card-badge { position: absolute; top: 8px; inset-inline-start: 8px; z-index: 1; }
+.st-price-sale { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.st-price-sale > span:first-child { color: var(--st-bad); }
+.st-price-was { color: var(--st-muted); font-weight: 400; font-size: .8em; }
+.st-card-price .st-off { display: none; }
+.st-price-row { margin: 4px 0 0; }
+.st-price .st-off { font-size: .8rem; align-self: center; }
+.st-discount dd { color: var(--st-ok); }
+.st-coupon { margin: 0 0 16px; display: grid; gap: 6px; }
+.st-coupon-row { display: flex; gap: 8px; }
+.st-coupon-row input { flex: 1; min-width: 0; border: 1px solid var(--st-line); border-radius: 8px; padding: 9px 12px; background: #fff; color: var(--st-ink); }
+.st-coupon-on { display: flex; justify-content: space-between; gap: 12px; margin: 0; font-size: .9rem; color: var(--st-ok); }
+.st-choice { border: 1px solid var(--st-line); border-radius: 8px; padding: 8px 12px; margin: 0; display: grid; gap: 6px; }
+.st-choice legend { font-size: .875rem; color: var(--st-muted); padding: 0 4px; }
+.st-checkout .st-choice label { display: flex; align-items: center; gap: 8px; color: var(--st-ink); font-size: .95rem; }
+.st-checkout .st-choice input { width: auto; }
+.st-checkout select { border: 1px solid var(--st-line); border-radius: 8px; padding: 10px 12px; background: #fff; color: var(--st-ink); width: 100%; }
+.st-bank { background: var(--st-surface); border: 1px solid var(--st-line); border-radius: var(--st-radius); padding: 12px 16px; margin: 12px auto; max-width: 420px; text-align: start; color: var(--st-ink); }
+.st-bank p { margin: 6px 0 0; white-space: pre-wrap; }
+.st-order-extra { display: flex; justify-content: space-between; gap: 12px; font-size: .875rem; color: var(--st-muted); padding-top: 4px; }
+.st-footer-about { flex-basis: 100%; text-align: center; max-width: 640px; margin: 0 auto 6px; white-space: pre-wrap; }
+.st-footer-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; }
+.st-policy { background: var(--st-surface); border: 1px solid var(--st-line); border-radius: var(--st-radius); padding: 20px; max-width: 760px; margin: 0 auto; }
+.st-policy p { white-space: pre-wrap; line-height: 1.9; margin: 12px 0 0; }

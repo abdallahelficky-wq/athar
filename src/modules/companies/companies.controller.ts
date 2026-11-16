@@ -2,6 +2,7 @@ import { normalizeVatNumber, isValidVatNumberForCountry } from "../../lib/vatNum
 import { resolveCompanyVatRate } from "../../lib/companyVat";
 import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 import { RequestHandler } from "express";
+import { Prisma } from "@prisma/client";
 import multer from "multer";
 import { prisma } from "../../lib/prisma";
 import { badRequest, conflict, methodNotAllowed, notFound } from "../../lib/httpError";
@@ -185,6 +186,8 @@ export const updateCompany: RequestHandler = async (req, res) => {
     req.body.vatRate = resolveCompanyVatRate(country, "vatRate" in req.body ? req.body.vatRate : req.body.country && req.body.country !== existing.country ? undefined : Number(existing.vatRate));
   }
   await assertStoreSettings(existing, req.body);
+  // عمود Json: مسح القيمة يحتاج DbNull صراحةً (null العادية يرفضها Prisma لهذا النوع)
+  if (req.body.storeSocial === null) req.body.storeSocial = Prisma.DbNull;
   const company = await prisma.company.update({ where: { id: existing.id }, data: req.body });
   res.json(await withLogoUrl(company));
 };

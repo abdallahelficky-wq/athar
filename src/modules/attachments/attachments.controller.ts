@@ -44,6 +44,7 @@ async function assertEntityCompanyAccess(auth: { tenantId: string; companyScope:
         prisma.leaveSettlement.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { employee: { select: { companyId: true } } } }).then((r) => r && { companyId: r.employee.companyId }),
       station_shift_reading: () => prisma.stationShiftReading.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { companyId: true } }),
       station_shift_expense: () => prisma.stationShiftExpense.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { companyId: true } }),
+      store_banner: () => prisma.company.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { id: true } }).then((r) => r && { companyId: r.id }),
       item_store_image: () => prisma.item.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { companyId: true } }),
     } as Record<string, () => Promise<{ companyId: string } | null | undefined>>
   )[entityType]?.();
@@ -66,7 +67,7 @@ export const createHandler: RequestHandler = async (req, res) => {
   if (!req.file) throw badRequest("الملف مطلوب");
   await assertEntityCompanyAccess(req.auth!, req.body.entityType, req.body.entityId);
   // صورة منتج المتجر تُعرَض للعموم: صور نقطية فقط (لا SVG — قد يحمل سكربتاً، ولا PDF) وبحجم معقول لصفحة ويب
-  if (req.body.entityType === "item_store_image") {
+  if (req.body.entityType === "item_store_image" || req.body.entityType === "store_banner") {
     if (!STORE_IMAGE_MIME_TYPES.includes(req.file.mimetype)) throw badRequest("صورة المنتج يجب أن تكون JPG أو PNG أو WebP");
     if (req.file.size > MAX_STORE_IMAGE_SIZE) throw badRequest("حجم صورة المنتج يجب ألا يتجاوز 5 ميجابايت");
   }

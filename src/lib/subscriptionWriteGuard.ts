@@ -86,6 +86,7 @@ export const ATTACHMENT_ENTITY_MODELS: Record<string, string> = {
   station_shift_reading: "StationShiftReading",
   station_shift_expense: "StationShiftExpense",
   item_store_image: "Item",
+  store_banner: "Company",
 };
 
 /** (ب) مستوى المستأجر أو المنصة — لا شركة يُفحَص اشتراكها */

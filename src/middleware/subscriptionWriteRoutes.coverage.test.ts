@@ -32,6 +32,7 @@ const EXEMPT: Record<string, string> = {
   "POST /api/store/:slug/auth/verify-otp": "جلسة عميل المتجر",
   "PATCH /api/store/:slug/me": "اسم عميل المتجر ومدينته",
   "POST /api/store/:slug/orders": "طلب من المتجر العام — تسجيل طلب بلا فاتورة ولا قيد",
+  "POST /api/store/:slug/quote": "عرض سعر لسلة المتجر — POST بجسم لكنه لا يكتب شيئاً",
   // حذف الشركة معطّل دائماً (405)
   "DELETE /api/companies/:id": "يرجع 405 دائماً — لا يكتب شيئاً",
   // المناصب والصلاحيات: إعداد صلاحيات المستأجر بيد المالك (requireTenantOwner)، لا بيانات شركة
