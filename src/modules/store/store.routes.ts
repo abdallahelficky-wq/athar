@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { publicRateLimit } from "../../lib/publicRateLimit";
-import { getStore, listProducts, getProduct, getProductImage, requestOtp, verifyOtp, getMe, updateMe, createOrder, listMyOrders } from "./store.controller";
+import { listStores, getStore, listProducts, getProduct, getProductImage, requestOtp, verifyOtp, getMe, updateMe, createOrder, listMyOrders } from "./store.controller";
 
 /**
  * مسارات المتجر الإلكتروني العامة — بلا مصادقة مستخدم أثر عمداً (زائر المتجر وعميله ليسا مستخدمَين في أثر).
@@ -17,6 +17,8 @@ storeRoutes.use(publicRateLimit({ windowMs: 60_000, max: 240 }));
 const authLimit = publicRateLimit({ windowMs: 10 * 60_000, max: 30 });
 const orderLimit = publicRateLimit({ windowMs: 10 * 60_000, max: 12 });
 
+// دليل المتاجر المُدرَجة — قبل "/:slug"
+storeRoutes.get("/", listStores);
 storeRoutes.get("/:slug", getStore);
 storeRoutes.get("/:slug/products", listProducts);
 storeRoutes.get("/:slug/products/:code", getProduct);

@@ -2018,6 +2018,7 @@
       "zakatDueDateLabel": "Next zakat return due date (optional)",
       "storeNote": "A public storefront showing only this company's published items, with no sign-in. An item appears once \"Published in the store\" is ticked in the item form and it has a sale price.",
       "storeEnabledLabel": "Enable the online store for this company",
+      "storeListedLabel": "List the store in the public store directory and the \"Athar Online Store\" app (the store name is visible to all visitors)",
       "storeSlugLabel": "Store link (lowercase English letters, digits and hyphens)",
       "storeNameLabel": "Store name (shown to customers)",
       "storeNameEnLabel": "Store name in English",

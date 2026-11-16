@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">أثر المتجر الإلكتروني</string>
+    <string name="offline_title">تعذّر الاتصال</string>
+    <string name="offline_message">تأكد من اتصالك بالإنترنت ثم أعد المحاولة.</string>
+    <string name="offline_retry">إعادة المحاولة</string>
+    <string name="no_app_for_link">لا يوجد تطبيق لفتح هذا الرابط</string>
+</resources>

@@ -10,6 +10,10 @@ const int = (v: unknown) => {
   return Number.isFinite(n) ? n : undefined;
 };
 
+export const listStores: RequestHandler = async (_req, res) => {
+  res.json(await service.listDirectory());
+};
+
 export const getStore: RequestHandler = async (req, res) => {
   const store = await service.resolveStore(req.params.slug);
   // loginEnabled: هل دخول العملاء برمز الجوال متاح الآن (قالب واتساب مضبوط) — الواجهة تخفي الدخول إن لم يكن

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- هوية واجهة المتجر على الويب (frontend/src/store/store.css): أسود وأصفر -->
+    <color name="store_ink">#111111</color>
+    <color name="store_accent">#F5B800</color>
+    <color name="store_bg">#F6F5F2</color>
+</resources>

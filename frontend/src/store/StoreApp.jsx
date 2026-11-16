@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { createOrder, fetchMe, fetchMyOrders, fetchProduct, fetchProducts, fetchStore, imageUrl, requestOtp, updateMe, verifyOtp } from "./api";
+import { createOrder, fetchDirectory, fetchMe, fetchMyOrders, fetchProduct, fetchProducts, fetchStore, imageUrl, requestOtp, updateMe, verifyOtp } from "./api";
 import { addToCart, cartTotals, loadCart, refreshRow, removeFromCart, saveCart, setQty, MAX_QTY } from "./cart";
 import { STRINGS, buildOrderMessage, formatMoney, localDescription, localName, whatsappOrderLink } from "./strings";
 
@@ -125,6 +125,7 @@ function StoreShell() {
           <strong>{localName(store, lang)}</strong>
           {store.vatNumber && <span>{t.vatNumber}: <bdi dir="ltr">{store.vatNumber}</bdi></span>}
           {store.crNumber && <span>{t.crNumber}: <bdi dir="ltr">{store.crNumber}</bdi></span>}
+          <Link to="/store" className="st-powered st-footer-link">{t.allStores}</Link>
           <span className="st-powered">{t.poweredBy}</span>
         </footer>
       </div>
@@ -600,10 +601,64 @@ function AccountPage() {
   );
 }
 
+/** دليل المتاجر (/store) — الصفحة الأولى لتطبيق «أثر المتجر الإلكتروني»: المتاجر التي وافقت على الإدراج. */
+function Directory() {
+  const [lang, setLang] = useState(readLang);
+  const [state, setState] = useState({ status: "loading", stores: [] });
+  const [q, setQ] = useState("");
+  const t = STRINGS[lang];
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = t.dir;
+    try { localStorage.setItem(LANG_KEY, lang); } catch { /* تفضيل غير محفوظ */ }
+    setMeta(t.appName, t.directoryTitle);
+  }, [lang, t]);
+
+  const load = useCallback(() => {
+    setState({ status: "loading", stores: [] });
+    fetchDirectory(lang).then((stores) => setState({ status: "ready", stores })).catch(() => setState({ status: "error", stores: [] }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(load, [load]);
+
+  const text = q.trim().toLocaleLowerCase();
+  const shown = state.stores.filter((s) => !text || `${s.name} ${s.nameEn || ""} ${s.slug}`.toLocaleLowerCase().includes(text));
+
+  return (
+    <div className="st-app">
+      <header className="st-header">
+        <div className="st-header-row">
+          <span className="st-brand">{t.appName}</span>
+          <div className="st-header-actions"><button type="button" className="st-lang" onClick={() => setLang(lang === "ar" ? "en" : "ar")}>{t.langToggle}</button></div>
+        </div>
+        <div className="st-search"><input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.directorySearch} aria-label={t.directorySearch} maxLength={80} /></div>
+      </header>
+      <main className="st-main">
+        <div className="st-list-head"><h1>{t.directoryTitle}</h1></div>
+        {state.status === "loading" && <p className="st-state">{t.loading}</p>}
+        {state.status === "error" && <div className="st-state"><p>{t.error}</p><button className="st-btn" onClick={load}>{t.retry}</button></div>}
+        {state.status === "ready" && shown.length === 0 && <p className="st-state">{t.directoryEmpty}</p>}
+        <div className="st-stores">
+          {shown.map((s) => (
+            <Link key={s.slug} to={base(s.slug)} className="st-store-card">
+              <span className="st-store-mark" aria-hidden="true">{localName(s, lang).trim().charAt(0)}</span>
+              <span className="st-store-name">{localName(s, lang)}</span>
+              <span className="st-store-go">{t.visitStore}</span>
+            </Link>
+          ))}
+        </div>
+      </main>
+      <footer className="st-footer"><span className="st-powered">{t.poweredBy}</span></footer>
+    </div>
+  );
+}
+
 export default function StoreApp() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/store" element={<Directory />} />
         <Route path="/store/:slug/*" element={<StoreShell />} />
         <Route path="*" element={<div className="st-state"><h1>{STRINGS[readLang()].storeNotFound}</h1><p>{STRINGS[readLang()].storeNotFoundHint}</p></div>} />
       </Routes>
