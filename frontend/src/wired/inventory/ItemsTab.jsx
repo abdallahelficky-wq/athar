@@ -11,6 +11,7 @@ import { listAssetCategories } from "../../api/assetCategories";
 import { fmt2 } from "../../legacy/constants";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
 import ItemCardModal from "./ItemCardModal";
+import AttachmentsPanel from "../shared/AttachmentsPanel";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
 
 // نافذة إضافة/تعديل الصنف: عريضة، وتتمرّر داخلها إن طال النموذج
@@ -50,6 +51,13 @@ const emptyForm = () => ({
   salePrice: "", vatApplicable: true, reorderLevel: "",
   stockAccountId: "", cogsAccountId: "", revenueAccountId: "", expenseAccountId: "", purchasesAccountId: "",
   allowDirectSale: false, assetCategoryId: "",
+  publishedInStore: false, storeDescription: "", storeDescriptionEn: "", countryOfOrigin: "",
+});
+
+// حقول عرض الصنف في المتجر الإلكتروني العام — تُقرأ من الصنف عند التعديل؛ النسخ (duplicate) يبدأ غير منشور
+const storeFieldsOf = (item) => ({
+  publishedInStore: item.publishedInStore === true, storeDescription: item.storeDescription || "",
+  storeDescriptionEn: item.storeDescriptionEn || "", countryOfOrigin: item.countryOfOrigin || "",
 });
 
 const Icons = {
@@ -215,6 +223,10 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       purchasesAccountId: form.purchasesAccountId || undefined,
       allowDirectSale: form.type === "raw_material" ? form.allowDirectSale : undefined,
       assetCategoryId: form.type === "fixed_asset" ? (form.assetCategoryId || undefined) : undefined,
+      publishedInStore: isSellableType ? form.publishedInStore : false,
+      storeDescription: form.storeDescription,
+      storeDescriptionEn: form.storeDescriptionEn,
+      countryOfOrigin: form.countryOfOrigin,
     };
     if (form.type === "bundle" && !editingId) payload.components = cleanedComponents;
     try {
@@ -250,6 +262,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
       purchasesAccountId: item.purchasesAccountId || "",
       allowDirectSale: item.allowDirectSale || false, assetCategoryId: item.assetCategoryId || "",
+      ...storeFieldsOf(item),
     });
     await loadComponentsFor(item);
     setFormOpen(true);
@@ -265,6 +278,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       revenueAccountId: item.revenueAccountId || "", expenseAccountId: item.expenseAccountId || "",
       purchasesAccountId: item.purchasesAccountId || "",
       allowDirectSale: item.allowDirectSale || false, assetCategoryId: item.assetCategoryId || "",
+      ...storeFieldsOf(item), publishedInStore: false,
     });
     await loadComponentsFor(item);
     setFormOpen(true);
@@ -401,6 +415,23 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
               {components.length === 0 && <tr><td className="empty" colSpan={3}>{t("inventory.items.form.bom.emptyHint")}</td></tr>}
             </tbody>
           </table>
+        </div>}
+
+        {isSellableType && <div className="items-store-section">
+          <h4 className="sub-head">{t("inventory.items.form.store.title")}</h4>
+          <label className="checkbox-label">
+            <input type="checkbox" checked={form.publishedInStore} onChange={(e) => setForm({ ...form, publishedInStore: e.target.checked })} />
+            {t("inventory.items.form.store.published")}
+          </label>
+          <p className="note">{t("inventory.items.form.store.note")}</p>
+          <div className="form-grid">
+            <label>{t("inventory.items.form.store.description")}<textarea rows={3} maxLength={4000} value={form.storeDescription} onChange={(e) => setForm({ ...form, storeDescription: e.target.value })} /></label>
+            <label>{t("inventory.items.form.store.descriptionEn")}<textarea rows={3} dir="ltr" maxLength={4000} value={form.storeDescriptionEn} onChange={(e) => setForm({ ...form, storeDescriptionEn: e.target.value })} /></label>
+            <label>{t("inventory.items.form.store.countryOfOrigin")}<input type="text" maxLength={80} value={form.countryOfOrigin} onChange={(e) => setForm({ ...form, countryOfOrigin: e.target.value })} /></label>
+          </div>
+          {editingId
+            ? <AttachmentsPanel entityType="item_store_image" entityId={editingId} title={t("inventory.items.form.store.images")} />
+            : <p className="note">{t("inventory.items.form.store.imagesAfterSave")}</p>}
         </div>}
 
         {error && <p className="balance-bad">{error}</p>}

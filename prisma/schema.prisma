@@ -525,6 +525,16 @@ model Company {
   // الشروط والأحكام الافتراضية لفواتير مبيعات هذه الشركة — تُعبَّأ تلقائياً في كل فاتورة جديدة
   // (قابلة للتعديل لكل فاتورة). null = لا شروط افتراضية (السلوك الحالي بلا تغيير).
   defaultInvoiceTerms          String?
+  // --- المتجر الإلكتروني العام (src/modules/store) ---
+  // واجهة بيع عامة بلا تسجيل دخول تعرض أصناف هذه الشركة المنشورة فقط (Item.publishedInStore). مطفأة افتراضياً
+  // لكل الشركات؛ لا يظهر متجر إلا لشركة فعّلته صراحةً وحدّدت له رابطاً (storeSlug) فريداً على مستوى المنصة.
+  // كل شركة بائع مستقل: المتجر يُحدَّد من الرابط إلى شركة واحدة، ولا يقرأ أي مسار عام من شركة أخرى.
+  storeEnabled                 Boolean               @default(false)
+  storeSlug                    String?               @unique
+  storeName                    String?
+  storeNameEn                  String?
+  // رقم واتساب استقبال طلبات المتجر (دولي بلا + مثل 9665XXXXXXXX) — يظهر للعملاء، فهو منفصل عن هاتف الشركة.
+  storeWhatsappNumber          String?
   // --- ربط فاتورة (ZATCA) — المرحلة الثانية (التكامل)، انظر src/lib/zatca/*  ---
   // جهاز إصدار فواتير إلكترونية (EGS) واحد لكل شركة (v1) — CSID واحد، عدّاد ICV واحد،
   // وسلسلة تجزئة (PIH) واحدة تغطي كل الفواتير/الإشعارات الدائنة/المدينة لهذه الشركة معاً.
@@ -1896,6 +1906,13 @@ model Item {
   assetCategoryId  String?
   assetCategoryRef AssetCategory? @relation("ItemAssetCategory", fields: [assetCategoryId], references: [id], onDelete: SetNull)
 
+  // المتجر الإلكتروني العام — الصنف لا يظهر للعموم إلا بـpublishedInStore صراحةً (وغير مؤرشف وله سعر بيع).
+  // الاسم المعروض هو name/nameEn نفسه؛ الوصف وبلد المنشأ للعرض فقط ولا أثر محاسبي لهما.
+  publishedInStore   Boolean @default(false)
+  storeDescription   String?
+  storeDescriptionEn String?
+  countryOfOrigin    String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1911,6 +1928,7 @@ model Item {
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, barcode])
   @@index([tenantId, companyId, type])
+  @@index([companyId, publishedInStore])
   @@map("items")
 }
 

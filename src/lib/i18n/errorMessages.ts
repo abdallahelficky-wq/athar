@@ -10,6 +10,17 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "المتجر غير موجود": "Store not found",
+  "المنتج غير موجود": "Product not found",
+  "طلبات كثيرة من هذا الجهاز، حاول مرة أخرى بعد قليل": "Too many requests from this device, try again shortly",
+  "رابط المتجر مستخدم — اختر رابطاً آخر": "This store link is taken — choose another",
+  "حدّد رابط المتجر قبل تفعيله": "Set the store link before enabling the store",
+  "صورة المنتج يجب أن تكون JPG أو PNG أو WebP": "The product image must be JPG, PNG or WebP",
+  "حجم صورة المنتج يجب ألا يتجاوز 5 ميجابايت": "The product image must not exceed 5 MB",
+  "رابط المتجر: حروف إنجليزية صغيرة وأرقام وشرطة فقط": "Store link: lowercase English letters, digits and hyphens only",
+  "رابط المتجر قصير جداً": "The store link is too short",
+  "رابط المتجر طويل جداً": "The store link is too long",
+  "رقم واتساب المتجر غير صالح — اكتبه بالصيغة الدولية مثل 9665XXXXXXXX": "Invalid store WhatsApp number — write it in international format, e.g. 9665XXXXXXXX",
   "اختر الشركة لعرض تقارير المخزون": "Choose a company to view inventory reports",
   "المستودع لا يتبع هذه الشركة": "The warehouse does not belong to this company",
   "صيغة التاريخ غير صحيحة — استخدم YYYY-MM-DD": "Invalid date format — use YYYY-MM-DD",

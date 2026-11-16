@@ -65,6 +65,27 @@ export const createCompanySchema = z.object({
   // حسابا عجز/زيادة نقد ورديات المحطات — راجع التعليق فوق الحقلين المطابقين في schema.prisma.
   stationCashShortageAccountId: z.string().nullable().optional(),
   stationCashSurplusAccountId: z.string().nullable().optional(),
+  // المتجر الإلكتروني العام — راجع التعليق فوق الحقول المطابقة في schema.prisma. الرابط يُحفَظ بحروف صغيرة،
+  // وفرادته على مستوى المنصة تُفحَص في companies.controller.ts (assertStoreSettings).
+  storeEnabled: z.boolean().optional(),
+  storeSlug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "رابط المتجر: حروف إنجليزية صغيرة وأرقام وشرطة فقط")
+    .min(3, "رابط المتجر قصير جداً")
+    .max(40, "رابط المتجر طويل جداً")
+    .nullable()
+    .optional(),
+  storeName: z.string().max(120).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
+  storeNameEn: z.string().max(120).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
+  storeWhatsappNumber: z
+    .string()
+    .transform((v) => v.replace(/\D/g, ""))
+    .refine((v) => v === "" || (v.length >= 9 && v.length <= 15), "رقم واتساب المتجر غير صالح — اكتبه بالصيغة الدولية مثل 9665XXXXXXXX")
+    .transform((v) => v || null)
+    .nullable()
+    .optional(),
 });
 
 // إعدادات تكلفة الوقود في ورديات المحطات — في التعديل فقط (الأصناف لا توجد قبل إنشاء الشركة). راجع التعليق فوق

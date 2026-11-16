@@ -12,6 +12,9 @@ export const uploadSingleFile = multer({ storage: multer.memoryStorage(), limits
   "file",
 );
 
+const STORE_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_STORE_IMAGE_SIZE = 5 * 1024 * 1024;
+
 const HR_ATTACHMENT_TYPES: readonly string[] = ["employee", "payroll_run", "leave_settlement"];
 
 /** نظام مرفقات متعدد الأشكال (entityType/entityId حرّان) — كل نوع كيان يُحلَّل هنا لاستخراج
@@ -41,6 +44,7 @@ async function assertEntityCompanyAccess(auth: { tenantId: string; companyScope:
         prisma.leaveSettlement.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { employee: { select: { companyId: true } } } }).then((r) => r && { companyId: r.employee.companyId }),
       station_shift_reading: () => prisma.stationShiftReading.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { companyId: true } }),
       station_shift_expense: () => prisma.stationShiftExpense.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { companyId: true } }),
+      item_store_image: () => prisma.item.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { companyId: true } }),
     } as Record<string, () => Promise<{ companyId: string } | null | undefined>>
   )[entityType]?.();
   const resolved = await record;
@@ -61,6 +65,11 @@ export const listHandler: RequestHandler = async (req, res) => {
 export const createHandler: RequestHandler = async (req, res) => {
   if (!req.file) throw badRequest("الملف مطلوب");
   await assertEntityCompanyAccess(req.auth!, req.body.entityType, req.body.entityId);
+  // صورة منتج المتجر تُعرَض للعموم: صور نقطية فقط (لا SVG — قد يحمل سكربتاً، ولا PDF) وبحجم معقول لصفحة ويب
+  if (req.body.entityType === "item_store_image") {
+    if (!STORE_IMAGE_MIME_TYPES.includes(req.file.mimetype)) throw badRequest("صورة المنتج يجب أن تكون JPG أو PNG أو WebP");
+    if (req.file.size > MAX_STORE_IMAGE_SIZE) throw badRequest("حجم صورة المنتج يجب ألا يتجاوز 5 ميجابايت");
+  }
 
   const attachment = await service.createAttachment(req.auth!.tenantId, req.auth!.sub, {
     entityType: req.body.entityType,

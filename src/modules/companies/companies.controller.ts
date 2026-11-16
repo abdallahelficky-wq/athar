@@ -4,7 +4,7 @@ import { COUNTED_ENTRY_WHERE } from "../../lib/countedEntries";
 import { RequestHandler } from "express";
 import multer from "multer";
 import { prisma } from "../../lib/prisma";
-import { badRequest, methodNotAllowed, notFound } from "../../lib/httpError";
+import { badRequest, conflict, methodNotAllowed, notFound } from "../../lib/httpError";
 import { assertCompanyAccess } from "../../middleware/auth";
 import { buildObjectKey, uploadObject, getPresignedGetUrl } from "../../lib/storage";
 import { extractCompanyDataFromDocument, CompanyDocType } from "../../lib/claudeVision";
@@ -184,9 +184,28 @@ export const updateCompany: RequestHandler = async (req, res) => {
     const country = req.body.country ?? existing.country;
     req.body.vatRate = resolveCompanyVatRate(country, "vatRate" in req.body ? req.body.vatRate : req.body.country && req.body.country !== existing.country ? undefined : Number(existing.vatRate));
   }
+  await assertStoreSettings(existing, req.body);
   const company = await prisma.company.update({ where: { id: existing.id }, data: req.body });
   res.json(await withLogoUrl(company));
 };
+
+export const STORE_SLUG_TAKEN = "رابط المتجر مستخدم — اختر رابطاً آخر";
+export const STORE_NEEDS_SLUG = "حدّد رابط المتجر قبل تفعيله";
+
+/**
+ * إعدادات المتجر الإلكتروني العام: لا يُفعَّل متجر بلا رابط، والرابط فريد على مستوى المنصة كلها. فحص الفرادة يعبر
+ * المستأجرين عمداً ولا يعيد شيئاً عن صاحب الرابط — فقط "مستخدم" (الرابط نفسه ظاهر للعموم أصلاً متى كان متجره مفعّلاً).
+ */
+async function assertStoreSettings(existing: { id: string; storeSlug: string | null; storeEnabled: boolean }, body: Record<string, unknown>) {
+  if (!("storeSlug" in body) && !("storeEnabled" in body)) return;
+  const slug = "storeSlug" in body ? (body.storeSlug as string | null) : existing.storeSlug;
+  const enabled = "storeEnabled" in body ? body.storeEnabled === true : existing.storeEnabled;
+  if (enabled && !slug) throw badRequest(STORE_NEEDS_SLUG);
+  if (slug && slug !== existing.storeSlug) {
+    const taken = await prisma.company.findFirst({ where: { storeSlug: slug, id: { not: existing.id } }, select: { id: true } });
+    if (taken) throw conflict(STORE_SLUG_TAKEN);
+  }
+}
 
 /**
  * "فتح الإقفال" — الإجراء الوحيد المسموح به لتقديم تاريخ إقفال السنة المالية للخلف أو مسحه بالكامل

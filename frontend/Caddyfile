@@ -25,6 +25,17 @@
 	handle /assets/* {
 		file_server
 	}
+	# المتجر الإلكتروني العام: تطبيق صفحة واحدة مستقل (store.html) بمسارات حقيقية تحت /store/* —
+	# بلا هذه القاعدة يسقط /store/<الرابط>/product/<الكود> على index.html (تطبيق أثر وشاشة الدخول).
+	@store path /store /store/*
+	handle @store {
+		route {
+			try_files {path} /store.html
+			@storehtml path *.html
+			header @storehtml Cache-Control "no-store, max-age=0"
+			file_server
+		}
+	}
 	handle {
 		route {
 			try_files {path} {path}.html {path}/index.html /index.html
