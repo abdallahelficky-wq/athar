@@ -55,6 +55,9 @@ function deviceLocal(secondsAgo: number) {
   return new Date(Date.now() + 3 * 3600_000 - secondsAgo * 1000).toISOString().slice(0, 19);
 }
 
+/** انتظار يتجاوز دقة ساعة الجهاز (ثانية): عملية "بعد الفتح" يجب أن يقع توقيتها المقرَّب للثانية بعد لحظة الفتح فعلاً. */
+const tick = (ms = 1100) => new Promise((r) => setTimeout(r, ms));
+
 /** نفس الصيغة للحظة بعينها (عملية متأخرة وقعت قبل إقفال وردية ورفعها الجهاز بعده). */
 function deviceLocalAt(at: Date) {
   return new Date(at.getTime() + 3 * 3600_000).toISOString().slice(0, 19);
@@ -205,8 +208,10 @@ describe("automated station shifts (integration)", () => {
     // B يبيع 40 لتراً على نفس رقم النقطة في جهازه — لا يمسّ وردية A
     const bShift = await portal(ctx.b, "POST", "", { shiftType: "morning" });
     expect(bShift.status, bShift.text).toBe(201);
-    await uploadSale(ctx.b, 1, 40, 1040, 120);
-    await uploadSale(a, 2, 30, 1035, 120);
+    // البيع يقع بعد الفتح بتوقيت الجهاز (عملية انتهت قبل لحظة الفتح تخص ما قبله — راجع syncControllerShiftReadings)
+    await tick(); // ساعة الجهاز بدقة الثانية
+    await uploadSale(ctx.b, 1, 40, 1040, 0);
+    await uploadSale(a, 2, 30, 1035, 0);
 
     // الملخص الحي للعامل: لترات ومبلغ لكل منتج بسعر المحطة (30 × 2.30 = 69) والإجمالي — لا عجز ولا زيادة
     const live = await portal(a, "GET", `/${shiftId}/summary`);
@@ -292,6 +297,7 @@ describe("automated station shifts (integration)", () => {
     // الوردية التالية تفتح من إقفال السابقة وتُقفَل من العملية التالية للجهاز
     const next = await portal(a, "POST", "", { shiftType: "night" });
     expect(next.status, next.text).toBe(201);
+    await tick();
     await uploadSale(a, 3, 15, 1050, 0);
     expect((await portal(a, "PUT", `/${next.body.id}/collections`, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 34.5 })).status).toBe(200);
     expect((await portal(a, "POST", `/${next.body.id}/submit`)).status).toBe(200);
@@ -313,7 +319,7 @@ describe("automated station shifts (integration)", () => {
     // الواقع في مكة: الجهاز احتجز عمليات ساعات ثم أرسلها بعد إقفال الوردية. وردية صباحية تُقفَل بلا بيع ظاهر…
     const s3 = await portal(a, "POST", "", { shiftType: "morning" });
     expect(s3.status, s3.text).toBe(201);
-    await new Promise((r) => setTimeout(r, 2100)); // ساعة الجهاز بدقة الثانية: العملية المتأخرة تقع داخل هذه الوردية لا قبلها
+    await tick(2100); // ساعة الجهاز بدقة الثانية: العملية المتأخرة تقع داخل هذه الوردية لا قبلها
     expect((await portal(a, "PUT", `/${s3.body.id}/collections`, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 23 })).status).toBe(200);
     expect((await portal(a, "POST", `/${s3.body.id}/submit`)).status).toBe(200);
     const s4 = await portal(a, "POST", "", { shiftType: "night" });
