@@ -1,7 +1,7 @@
 import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, blockMutationsWhenReadOnly, requireActionPermission } from "../../middleware/auth";
-import { salesVolumeHandler, cashSummaryHandler, expensesHandler, netCashHandler, seedDataExceptionsHandler } from "./stationShiftsReports.controller";
+import { salesVolumeHandler, cashSummaryHandler, expensesHandler, netCashHandler, seedDataExceptionsHandler, shiftsDailyHandler } from "./stationShiftsReports.controller";
 
 /**
  * تقارير ورديات المحطات — قراءة فقط، بنفس نمط بقية وحدات "-reports" في النظام تماماً
@@ -23,6 +23,8 @@ const netCashAccess = requireActionPermission("stationShifts", "review", "approv
 
 stationShiftsReportRoutes.get("/sales-volume", requirePositionAction("stationShiftsReports", "read"), salesVolumeHandler);
 stationShiftsReportRoutes.get("/cash-summary", requirePositionAction("stationShiftsReports", "read"), cashSummaryHandler);
+// تقرير الورديات اليومي يعرض الفرق (عجز/زيادة) لكل وردية — خلف صلاحية المراجعة نفسها كصافي النقدية
+stationShiftsReportRoutes.get("/shifts-daily", requirePositionAction("stationShiftsReports", "read"), netCashAccess, shiftsDailyHandler);
 stationShiftsReportRoutes.get("/expenses", requirePositionAction("stationShiftsReports", "read"), expensesHandler);
 stationShiftsReportRoutes.get("/net-cash", requirePositionAction("stationShiftsReports", "read"), netCashAccess, netCashHandler);
 stationShiftsReportRoutes.get("/seed-data-exceptions", requirePositionAction("stationShiftsReports", "read"), netCashAccess, seedDataExceptionsHandler);

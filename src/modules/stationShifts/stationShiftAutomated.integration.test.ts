@@ -55,18 +55,37 @@ function deviceLocal(secondsAgo: number) {
   return new Date(Date.now() + 3 * 3600_000 - secondsAgo * 1000).toISOString().slice(0, 19);
 }
 
-/** عملية بيع كما يرفعها الجهاز: نقطة 1 فوهة 1، والعداد التراكمي بعدها totalVolume. */
-async function uploadSale(c: Ctx, transaction: number, volume: number, totalVolume: number, secondsAgo: number) {
-  const message = {
-    Protocol: "jsonPTS", PtsId: c.serial,
-    Packets: [{ Id: transaction, Type: "UploadPumpTransaction", Data: {
-      DateTime: deviceLocal(secondsAgo), DateTimeStart: deviceLocal(secondsAgo + 30), Pump: 1, Nozzle: 1, Transaction: transaction,
-      Volume: volume, Amount: Number((volume * 2.3).toFixed(2)), Price: 2.3, TotalVolume: totalVolume, TotalAmount: Number((totalVolume * 2.3).toFixed(2)), ConfigurationId: "f522cc01",
-    } }],
-  };
-  const body = Buffer.from(`${JSON.stringify(message)}\r\n`);
+/** نفس الصيغة للحظة بعينها (عملية متأخرة وقعت قبل إقفال وردية ورفعها الجهاز بعده). */
+function deviceLocalAt(at: Date) {
+  return new Date(at.getTime() + 3 * 3600_000).toISOString().slice(0, 19);
+}
+
+async function sendPts(c: Ctx, packets: unknown[]) {
+  const body = Buffer.from(`${JSON.stringify({ Protocol: "jsonPTS", PtsId: c.serial, Packets: packets })}\r\n`);
   const res = await fetch(`${baseUrl}/api/pts/upload`, { method: "POST", headers: { "content-type": "application/json", "x-pts-id": c.serial, "x-data-signature": ptsSignature(c.secret, body) }, body });
   expect(res.status).toBe(200);
+}
+
+/** عملية بيع كما يرفعها الجهاز: نقطة 1 فوهة 1، والعداد التراكمي بعدها totalVolume. secondsAgo أو لحظة انتهاء بعينها. */
+async function uploadSale(c: Ctx, transaction: number, volume: number, totalVolume: number, when: number | Date) {
+  const end = typeof when === "number" ? deviceLocal(when) : deviceLocalAt(when);
+  const start = typeof when === "number" ? deviceLocal(when + 30) : deviceLocalAt(new Date(when.getTime() - 30_000));
+  await sendPts(c, [{ Id: transaction, Type: "UploadPumpTransaction", Data: {
+    DateTime: end, DateTimeStart: start, Pump: 1, Nozzle: 1, Transaction: transaction,
+    Volume: volume, Amount: Number((volume * 2.3).toFixed(2)), Price: 2.3, TotalVolume: totalVolume, TotalAmount: Number((totalVolume * 2.3).toFixed(2)), ConfigurationId: "f522cc01",
+  } }]);
+}
+
+/**
+ * حالة الجهاز كما يرفعها (UploadStatus، مواصفة jsonPTS): ساعته المحلية بعد الآن بثانيتين (ساعة الجهاز بدقة الثانية وقد تسبق
+ * الإقفال بكسر ثانية)، وعدّاد عمليات البيع المسجّلة/المرفوعة، ونقاط التعبئة التي يراها غير متصلة.
+ */
+async function uploadStatus(c: Ctx, total: number, uploaded: number, offlinePumps: number[] = []) {
+  await sendPts(c, [{ Id: 1, Type: "UploadStatus", Data: {
+    DateTime: deviceLocal(-2), UTCOffset: 180,
+    UploadedRecordsInformation: { PumpTransactionsTotal: total, PumpTransactionsUploaded: uploaded },
+    Pumps: { OfflineStatus: { Ids: offlinePumps } },
+  } }]);
 }
 
 async function setupTenant(key: "a" | "b"): Promise<Ctx> {
@@ -262,6 +281,11 @@ describe("automated station shifts (integration)", () => {
     expect(review.status, review.text).toBe(200);
     expect(Number(review.body.summary.grossSales)).toBe(69);
     expect(Number(review.body.summary.variance)).toBe(0);
+    // لا اعتماد قبل أن يرفع الجهاز حالته بعد الإقفال (قد يكون محتجزاً عمليات وقعت قبله)
+    const early = await call("POST", `/station-shifts/${shiftId}/approve`, a.token);
+    expect(early.status).toBe(400);
+    expect(early.text).toContain("بيانات جهاز المحطة لم تكتمل");
+    await uploadStatus(a, 2, 2);
     const approved = await call("POST", `/station-shifts/${shiftId}/approve`, a.token);
     expect(approved.status, approved.text).toBe(200);
 
@@ -278,6 +302,86 @@ describe("automated station shifts (integration)", () => {
     expect((await portal(ctx.b, "GET", `/${bShift.body.id}/summary`)).body.sales.liters).toBe(40);
     expect([403, 404]).toContain((await portal(a, "GET", `/${bShift.body.id}/summary`)).status);
     expect([403, 404]).toContain((await call("GET", `/station-shifts/${bShift.body.id}`, a.token)).status);
+  });
+
+  it("re-syncs a submitted shift and the next opening from late controller uploads, and blocks approval until the device has sent everything", async () => {
+    const a = ctx.a;
+    // خانة اليوم (صباحي/مسائي) لكل محطة مشغولة بورديتي الاختبار السابق: ننقلهما إلى أمس كما لو مرّ اليوم — تعديل متعمَّد
+    // لتاريخ وردية حقيقية أنتجها النظام (القاعدة 2)، لأن الاختبار لا ينتظر منتصف الليل
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    await prisma.stationShift.updateMany({ where: { tenantId: a.tenantId }, data: { shiftDate: new Date(today.getTime() - 86_400_000) } });
+    // الواقع في مكة: الجهاز احتجز عمليات ساعات ثم أرسلها بعد إقفال الوردية. وردية صباحية تُقفَل بلا بيع ظاهر…
+    const s3 = await portal(a, "POST", "", { shiftType: "morning" });
+    expect(s3.status, s3.text).toBe(201);
+    await new Promise((r) => setTimeout(r, 2100)); // ساعة الجهاز بدقة الثانية: العملية المتأخرة تقع داخل هذه الوردية لا قبلها
+    expect((await portal(a, "PUT", `/${s3.body.id}/collections`, { networkAmount: 0, fuelCardAmount: 0, cashDelivered: 23 })).status).toBe(200);
+    expect((await portal(a, "POST", `/${s3.body.id}/submit`)).status).toBe(200);
+    const s4 = await portal(a, "POST", "", { shiftType: "night" });
+    expect(s4.status, s4.text).toBe(201);
+    const closingOf = async (id: string) => (await prisma.stationShiftReading.findFirstOrThrow({ where: { shiftId: id, nozzleId: a.nozzles[0] } }));
+    expect(Number((await closingOf(s3.body.id)).closingReading)).toBe(1050);
+    expect(Number((await closingOf(s4.body.id)).openingReading)).toBe(1050);
+
+    // …والجهاز يبلّغ أن عنده عملية لم يرفعها، ونقطته 1 غير متصلة: لا اعتماد، والتحذير ظاهر للمحاسب
+    await uploadStatus(a, 4, 3, [1]);
+    const pending = await call("GET", `/station-shifts/${s3.body.id}`, a.token);
+    expect(pending.status, pending.text).toBe(200);
+    expect(pending.body.controllerData).toMatchObject({ complete: false, pendingTransactions: 1 });
+    expect(pending.body.controllerData.offlineNozzles.map((n: any) => n.nozzleNumber).sort()).toEqual([1, 2]);
+    const blocked = await call("POST", `/station-shifts/${s3.body.id}/approve`, a.token);
+    expect(blocked.status).toBe(400);
+    expect(blocked.text).toContain("بيانات جهاز المحطة لم تكتمل");
+
+    // تصل العملية المتأخرة: انتهت قبل الإقفال بنصف ثانية، 10 لترات، العداد 1060
+    const closedAt = (await prisma.stationShift.findUniqueOrThrow({ where: { id: s3.body.id } })).closedAt!;
+    await uploadSale(a, 4, 10, 1060, new Date(closedAt.getTime() - 500));
+    const synced = await call("GET", `/station-shifts/${s3.body.id}`, a.token);
+    expect(Number(synced.body.readings.find((r: any) => r.nozzleId === a.nozzles[0]).closingReading)).toBe(1060);
+    expect(Number(synced.body.summary.grossSales)).toBe(23);
+    expect(Number(synced.body.summary.variance)).toBe(0);
+    // الوردية التالية (مفتوحة) تفتح الآن من الإقفال المصحَّح لا من القديم
+    const nextLive = await portal(a, "GET", `/${s4.body.id}/summary`);
+    expect(Number(nextLive.body.readings.find((r: any) => r.nozzleId === a.nozzles[0]).openingReading)).toBe(1060);
+    expect(nextLive.body.sales.liters).toBe(0);
+    // وردية المساء السابقة (أُقفلت قبل العملية) لم تتغير، ولا ورديات المستأجر B
+    const night = await prisma.stationShift.findFirstOrThrow({ where: { tenantId: a.tenantId, shiftType: "night", status: "submitted" } });
+    expect(Number((await closingOf(night.id)).closingReading)).toBe(1050);
+    expect((await prisma.stationShiftReading.findMany({ where: { shift: { tenantId: ctx.b.tenantId } } })).map((r) => Number(r.openingReading)).sort()).toEqual([1000, 2000]);
+
+    // اكتمل الرفع: يُعتمد
+    await uploadStatus(a, 4, 4);
+    const ok = await call("POST", `/station-shifts/${s3.body.id}/approve`, a.token);
+    expect(ok.status, ok.text).toBe(200);
+  });
+
+  it("reports morning, night and day totals per station from the same shift data, scoped to the tenant", async () => {
+    const a = ctx.a;
+    const day = new Date(Date.now() + 3 * 3600_000);
+    const iso = (offsetDays: number) => new Date(day.getTime() + offsetDays * 86_400_000).toISOString().slice(0, 10);
+    const q = (c: Ctx, companyId: string, extra = "") => call("GET", `/station-shifts-reports/shifts-daily?companyId=${companyId}&dateFrom=${iso(-3)}&dateTo=${iso(2)}${extra}`, c.token);
+    const rep = await q(a, a.companyId);
+    expect(rep.status, rep.text).toBe(200);
+    // صباحي 30 (معتمدة) + 10 (المتأخرة، معتمدة)، مسائي 15 (مُسلَّمة) + المفتوحة الآن بلا بيع؛ النقد مطابق فلا فرق
+    expect(rep.body.byType.morning).toMatchObject({ shifts: 2, liters: 40, amount: 92, cash: 92, variance: 0 });
+    expect(rep.body.byType.night).toMatchObject({ shifts: 2, liters: 15, amount: 34.5, cash: 34.5, variance: 0 });
+    expect(rep.body.totals).toMatchObject({ shifts: 4, liters: 55, amount: 126.5, collected: 126.5, variance: 0, incompleteShifts: 0 });
+    expect(rep.body.totals.products.diesel).toEqual({ liters: 55, amount: 126.5 });
+    const cells = rep.body.rows.flatMap((r: any) => [...r.morning, ...r.night]);
+    expect(cells).toHaveLength(4);
+    expect(rep.body.rows).toHaveLength(2); // أمس واليوم، كلٌّ بصباحيه ومسائيه
+    expect(new Set(rep.body.rows.map((r: any) => r.costCenterId))).toEqual(new Set([a.station]));
+    const open = cells.find((c: any) => c.status === "open");
+    expect(open).toMatchObject({ shiftType: "night", liters: 0, variance: null, deviceDataComplete: null });
+    expect(cells.filter((c: any) => c.status !== "open").every((c: any) => c.deviceDataComplete === true)).toBe(true);
+    for (const r of rep.body.rows) expect(r.total.shifts).toBe(r.morning.length + r.night.length);
+
+    // B (نفس اسم الشركة ونفس أرقام النقاط): 40 لتراً فقط، ولا يصل إلى شركة A ولا محطتها
+    const repB = await q(ctx.b, ctx.b.companyId);
+    expect(repB.body.totals).toMatchObject({ shifts: 1, liters: 40, amount: 92 });
+    const cross = await q(ctx.b, a.companyId);
+    expect(cross.text).not.toContain(a.station);
+    if (cross.status === 200) expect(cross.body.rows).toEqual([]);
+    expect((await q(ctx.b, ctx.b.companyId, `&costCenterId=${a.station}`)).status).toBe(400);
   });
 
   it("keeps the manual photo flow for a station whose controller is switched off", async () => {

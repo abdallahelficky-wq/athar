@@ -14,11 +14,13 @@ import StationTanksTab from "./StationTanksTab";
 import StationControllersTab from "./StationControllersTab";
 import CardSettlementsTab from "./CardSettlementsTab";
 import StationsDashboardTab from "./StationsDashboardTab";
+import ShiftsReportTab from "./ShiftsReportTab";
 import { getOrgDisplayName } from "../shared/accountDisplayName";
 
 export const STATION_SHIFTS_TABS = [
   { id: "dashboard", labelKey: "stationsDashboard.tabTitle" },
   { id: "pending", labelKey: "stationShiftsReview.tabTitle" },
+  { id: "shiftsReport", labelKey: "shiftsReport.tabTitle" },
   { id: "setup", labelKey: "stationSetup.tabTitle" },
   { id: "tanks", labelKey: "stationTanks.tabTitle" },
   { id: "settlements", labelKey: "cardSettlements.tabTitle" },
@@ -30,7 +32,7 @@ export const STATION_SHIFTS_TABS = [
 const SHIFT_DIALOG_STYLE = { maxWidth: 1100, width: "95vw", maxHeight: "90vh", overflowY: "auto" };
 const DANGER_STYLE = { background: "#A8432B", borderColor: "#A8432B" };
 
-const EXTRA_TABS = { dashboard: StationsDashboardTab, setup: StationSetupTab, tanks: StationTanksTab, settlements: CardSettlementsTab, controllers: StationControllersTab, prices: FuelPricesTab, workers: StationWorkersTab };
+const EXTRA_TABS = { dashboard: StationsDashboardTab, shiftsReport: ShiftsReportTab, setup: StationSetupTab, tanks: StationTanksTab, settlements: CardSettlementsTab, controllers: StationControllersTab, prices: FuelPricesTab, workers: StationWorkersTab };
 
 /**
  * شاشة المحاسب لمراجعة/اعتماد/ترحيل ورديات المحطات — محور العامل منفصل تماماً في بوابة الموظف
@@ -238,6 +240,17 @@ export default function StationShiftsReviewModule({ companyId }) {
           <p className="note" style={{ marginTop: 0 }}>{list.find((x) => x.id === detail.id)?.costCenter ? getOrgDisplayName(list.find((x) => x.id === detail.id).costCenter, i18n.language) : ""} · {t(`stationShiftsReview.shiftType.${detail.shiftType}`)} · {formatDate(detail.shiftDate, i18n.language)}</p>
           {error && <p className="balance-bad">{error}</p>}
           {message && <p className="note">{message}</p>}
+          {detail.closedAt && detail.controllerData && !detail.controllerData.complete && (
+            <p className="balance-bad" role="alert">
+              {t("shiftsReport.dataIncomplete", { count: detail.controllerData.pendingTransactions ?? 0 })}
+              {detail.controllerData.statusAt ? ` ${t("shiftsReport.lastUpload", { at: new Date(detail.controllerData.statusAt).toLocaleString("en-GB", { calendar: "gregory", dateStyle: "short", timeStyle: "short" }) })}` : ""}
+            </p>
+          )}
+          {detail.controllerData?.offlineNozzles?.length > 0 && (
+            <p className="balance-bad" role="alert">
+              {t("shiftsReport.offlineNozzles", { list: detail.controllerData.offlineNozzles.map((n) => `${t("shiftsReport.pump")} ${n.pumpNumber}-${n.nozzleNumber}${n.product ? ` (${t(`stationSetup.products.${n.product}`)})` : ""}`).join("، ") })}
+            </p>
+          )}
 
           <h4>{t("stationShiftsReview.readingsTitle")}</h4>
           <table className="ledger-table">
