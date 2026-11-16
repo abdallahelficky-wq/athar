@@ -55,7 +55,7 @@ export const FEATURE_MODULES = new Set(["ai"]);
  * جدول لا يخصّ المسار لا تجد شيئاً بلا ضرر.
  */
 export const RECORD_TABLES: Record<string, string[]> = {
-  salesInvoices: ["salesInvoice", "quotation", "ridingLesson"],
+  salesInvoices: ["salesInvoice", "quotation", "ridingLesson", "storeOrder"],
   customers: ["customer"],
   salesReturns: ["salesReturn"],
   salesDebitNotes: ["salesDebitNote"],

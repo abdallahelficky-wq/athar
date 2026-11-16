@@ -10,6 +10,18 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "اختر الشركة لعرض طلبات المتجر": "Choose a company to view store orders",
+  "طلب المتجر غير موجود": "Store order not found",
+  "رقم الجوال غير صحيح": "Invalid mobile number",
+  "الدخول بالجوال غير مفعّل في هذا المتجر بعد": "Mobile sign-in is not enabled for this store yet",
+  "انتظر دقيقة قبل طلب رمز جديد": "Wait a minute before requesting a new code",
+  "طلبات رموز كثيرة، حاول مرة أخرى لاحقاً": "Too many code requests, try again later",
+  "تعذّر إرسال الرمز الآن، حاول مرة أخرى بعد قليل": "Couldn't send the code now, try again shortly",
+  "الرمز غير صحيح أو انتهت صلاحيته": "The code is incorrect or has expired",
+  "سجّل الدخول أولاً": "Sign in first",
+  "أضف صنفاً واحداً على الأقل إلى الطلب": "Add at least one item to the order",
+  "اكتب الاسم ورقم الجوال والمدينة": "Enter the name, mobile number and city",
+  "بعض أصناف الطلب لم تعد متوفرة — حدّث السلة وأعد المحاولة": "Some items in the order are no longer available — refresh the cart and try again",
   "المتجر غير موجود": "Store not found",
   "المنتج غير موجود": "Product not found",
   "طلبات كثيرة من هذا الجهاز، حاول مرة أخرى بعد قليل": "Too many requests from this device, try again shortly",

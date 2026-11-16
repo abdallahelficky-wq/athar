@@ -23,7 +23,9 @@ export function whatsappConfigured(): boolean {
 
 /** طلب HTTP واحد لإرسال قالب — منفصل حتى يُستبدل fetch في الاختبارات. */
 export async function sendTemplateMessage(
-  params: { to: string; template: string; lang: string; bodyParams: string[] },
+  // otpButtonCode: قوالب فئة Authentication تحمل زر "نسخ الرمز"/الملء التلقائي، وMeta تشترط تمرير الرمز نفسه مرة ثانية كمعامل
+  // لذلك الزر (مكوّن button من نوع url بالفهرس 0) — بدونه يُرفَض الإرسال.
+  params: { to: string; template: string; lang: string; bodyParams: string[]; otpButtonCode?: string },
   fetchImpl: typeof fetch = fetch,
 ): Promise<WhatsAppSendResult> {
   const url = `https://graph.facebook.com/${env.whatsappApiVersion}/${env.whatsappPhoneNumberId}/messages`;
@@ -38,9 +40,14 @@ export async function sendTemplateMessage(
         template: {
           name: params.template,
           language: { code: params.lang },
-          components: params.bodyParams.length
-            ? [{ type: "body", parameters: params.bodyParams.map((text) => ({ type: "text", text: text.slice(0, 200) })) }]
-            : [],
+          components: [
+            ...(params.bodyParams.length
+              ? [{ type: "body", parameters: params.bodyParams.map((text) => ({ type: "text", text: text.slice(0, 200) })) }]
+              : []),
+            ...(params.otpButtonCode
+              ? [{ type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: params.otpButtonCode }] }]
+              : []),
+          ],
         },
       }),
       signal: AbortSignal.timeout(15_000),
