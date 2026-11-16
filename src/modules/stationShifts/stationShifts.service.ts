@@ -7,6 +7,7 @@ import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
 import { deleteObject } from "../../lib/storage";
 import { controllerValuesForShift } from "../forecourt/forecourt.service";
+import { ptsLocalToUtc } from "../forecourt/ptsReceiver.service";
 import { computeShiftCogsTx, createShiftFuelIssuesTx, FUEL_PRODUCT_LABEL_AR } from "./stationShiftCogs";
 
 export { FUEL_PRODUCT_LABEL_AR };
@@ -612,6 +613,86 @@ function controllerClosing(opening: Prisma.Decimal.Value, totalizer: Prisma.Deci
   return totalizer && totalizer.greaterThanOrEqualTo(open) ? totalizer : open;
 }
 
+/**
+ * إعادة مزامنة قراءات وردية آلية مع ما وصل من المتحكم — للعمليات المتأخرة. الجهاز قد يحتجز عمليات ساعات ثم يرسلها دفعة واحدة
+ * (حدث في مكة 15 نوفمبر 2026: عمليات 2:30–10:18 وصلت 10:27 بعد إقفال الوردية 10:18)، فتُكتب قراءة الإقفال وقتها ناقصة
+ * وينتقل النقص للوردية التالية. هنا، ما دامت الوردية لم تُعتمد: الافتتاح = إقفال الوردية السابقة في نفس المحطة (بعد مزامنتها
+ * هي أولاً)، والإقفال = عداد آخر عملية انتهت قبل لحظة الإقفال (endedAt ≤ closedAt) أياً كان وقت وصولها. قيمة المحاسب
+ * المؤكَّدة (accountantConfirmedValue) لا تُمسّ — هي ما يدخل الحساب إن وُجدت. الوردية المعتمدة/المرحَّلة ثابتة ولا تُعاد.
+ */
+const SYNCABLE_STATUSES = ["open", "submitted", "under_review"] as const;
+
+export async function syncControllerShiftReadings(tenantId: string, shiftId: string, depth = 0): Promise<void> {
+  const shift = await prisma.stationShift.findFirst({
+    where: { id: shiftId, tenantId },
+    select: { id: true, companyId: true, costCenterId: true, status: true, readingsSource: true, openedAt: true, closedAt: true },
+  });
+  if (!shift || shift.readingsSource !== "controller" || !(SYNCABLE_STATUSES as readonly string[]).includes(shift.status)) return;
+
+  // الوردية السابقة في نفس المحطة (آخر وردية فُتحت قبلها، عدا المرفوضة والمعكوسة)
+  const previous = shift.openedAt
+    ? await prisma.stationShift.findFirst({
+        where: { tenantId, companyId: shift.companyId, costCenterId: shift.costCenterId, id: { not: shift.id }, openedAt: { lt: shift.openedAt }, status: { notIn: ["rejected", "reversed"] } },
+        orderBy: { openedAt: "desc" },
+        select: { id: true },
+      })
+    : null;
+  if (previous && depth < 5) await syncControllerShiftReadings(tenantId, previous.id, depth + 1);
+  const previousClosing = new Map<string, Prisma.Decimal>();
+  if (previous) {
+    const rows = await prisma.stationShiftReading.findMany({ where: { tenantId, shiftId: previous.id }, select: { nozzleId: true, closingReading: true, accountantConfirmedValue: true } });
+    for (const r of rows) {
+      const v = r.accountantConfirmedValue ?? r.closingReading;
+      if (v != null) previousClosing.set(r.nozzleId, new Prisma.Decimal(v));
+    }
+  }
+
+  const readings = await prisma.stationShiftReading.findMany({ where: { tenantId, shiftId: shift.id }, include: { nozzle: { select: { initialReading: true } } } });
+  const nozzleIds = readings.map((r) => r.nozzleId);
+  const [atOpen, atClose] = await Promise.all([
+    !previous && shift.openedAt ? controllerTotalizers(tenantId, shift.companyId, nozzleIds, shift.openedAt) : Promise.resolve(new Map<string, Prisma.Decimal>()),
+    shift.status !== "open" && shift.closedAt ? controllerTotalizers(tenantId, shift.companyId, nozzleIds, shift.closedAt) : Promise.resolve(new Map<string, Prisma.Decimal>()),
+  ]);
+  for (const r of readings) {
+    // أول وردية للمحطة: الافتتاح من عداد المتحكم لحظة الفتح (كما عند الفتح)، وإلا إقفال السابقة
+    const opening = previous
+      ? previousClosing.get(r.nozzleId) ?? new Prisma.Decimal(r.openingReading)
+      : controllerClosing(r.nozzle.initialReading, atOpen.get(r.nozzleId));
+    const closing = shift.status !== "open" && shift.closedAt ? controllerClosing(opening, atClose.get(r.nozzleId)) : null;
+    const openingChanged = !opening.equals(r.openingReading);
+    const closingChanged = closing != null && (r.closingReading == null || !closing.equals(r.closingReading));
+    if (openingChanged || closingChanged) {
+      await prisma.stationShiftReading.update({
+        where: { id: r.id },
+        data: { ...(openingChanged ? { openingReading: opening } : {}), ...(closingChanged ? { closingReading: closing } : {}) },
+      });
+    }
+  }
+}
+
+/**
+ * هل اكتملت بيانات المتحكم لوردية آلية مقفلة؟ الجهاز يرفع حالته (UploadStatus) ومعها عدّاد ما سجّله وما رفعه من العمليات
+ * (UploadedRecordsInformation). مكتملة = آخر حالة بتوقيت الجهاز بعد لحظة الإقفال، ولا عمليات مسجّلة لم تُرفع بعد. مع ذلك
+ * نقاط التعبئة المربوطة بفوهات المحطة والتي يراها الجهاز غير متصلة (مبيعاتها لا تصل) — تحذير للمحاسب، لا مانع.
+ */
+export async function controllerDataStatus(tenantId: string, shift: { companyId: string; costCenterId: string; closedAt: Date | null; readingsSource: string }) {
+  if (shift.readingsSource !== "controller") return null;
+  const controller = await prisma.forecourtController.findFirst({
+    where: { tenantId, companyId: shift.companyId, costCenterId: shift.costCenterId, isActive: true },
+    select: { lastStatus: true, utcOffsetMinutes: true, nozzleMaps: { select: { ptsPump: true, nozzle: { select: { pumpNumber: true, nozzleNumber: true, product: true } } } } },
+  });
+  if (!controller) return { complete: false, statusAt: null, pendingTransactions: null, offlineNozzles: [] };
+  const status = (controller.lastStatus ?? {}) as { DateTime?: unknown; UploadedRecordsInformation?: { PumpTransactionsTotal?: unknown; PumpTransactionsUploaded?: unknown }; Pumps?: { OfflineStatus?: { Ids?: unknown } } };
+  const statusAt = ptsLocalToUtc(status.DateTime, controller.utcOffsetMinutes);
+  const total = Number(status.UploadedRecordsInformation?.PumpTransactionsTotal);
+  const uploaded = Number(status.UploadedRecordsInformation?.PumpTransactionsUploaded);
+  const pendingTransactions = Number.isFinite(total) && Number.isFinite(uploaded) ? Math.max(0, total - uploaded) : null;
+  const offlineIds = new Set(Array.isArray(status.Pumps?.OfflineStatus?.Ids) ? (status.Pumps!.OfflineStatus!.Ids as unknown[]).map(Number) : []);
+  const offlineNozzles = controller.nozzleMaps.filter((m) => offlineIds.has(m.ptsPump)).map((m) => ({ ptsPump: m.ptsPump, pumpNumber: m.nozzle.pumpNumber, nozzleNumber: m.nozzle.nozzleNumber, product: m.nozzle.product }));
+  const complete = Boolean(shift.closedAt && statusAt && statusAt >= shift.closedAt && pendingTransactions === 0);
+  return { complete, statusAt, pendingTransactions, offlineNozzles };
+}
+
 /** بيانات نقطة "محطتي" — نوافذ العامل قبل فتح وردية جديدة: قائمة الفوهات، الأسعار السارية اليوم
  * (فارغة/null لمنتج بلا سعر مضبوط بعد بدل رفض الشاشة بالكامل — عرض فقط، لا التزام مالي)، وقراءات
  * إغلاق آخر وردية سابقة لكل فوهة (نفس ما سيُشتَق منه openingReading تلقائياً عند فتح وردية جديدة).
@@ -868,7 +949,7 @@ export async function addExpense(tenantId: string, employeeId: string, shiftId: 
  * قرار المالك (13 نوفمبر 2026): عامل المحطة الآلية يرى مبيعاته لتراً ومبلغاً لكل منتج — بدل العدّ الأعمى للنقد. العرض لا يمسّ
  * القيد: القيد يُبنى من القراءات المعتمدة.
  */
-async function controllerShiftSales(
+export async function controllerShiftSales(
   tenantId: string,
   shift: { companyId: string; costCenterId: string; shiftDate: Date; status: string },
   readings: { nozzleId: string; openingReading: Prisma.Decimal; closingReading: Prisma.Decimal | null; nozzle: { product: StationFuelProduct } }[],
@@ -920,6 +1001,10 @@ export async function openShiftsWithSales(tenantId: string, companyId: string, c
   return out;
 
   async function openShiftRow(sh: (typeof shifts)[number]) {
+    if (sh.readingsSource === "controller") {
+      await syncControllerShiftReadings(tenantId, sh.id);
+      sh = { ...sh, readings: await prisma.stationShiftReading.findMany({ where: { tenantId, shiftId: sh.id }, include: { nozzle: true } }) };
+    }
     const sales = sh.readingsSource === "controller" ? await controllerShiftSales(tenantId, sh, sh.readings) : null;
     return {
       id: sh.id, costCenterId: sh.costCenterId, employee: sh.stationUser?.name ?? null, shiftType: sh.shiftType, openedAt: sh.openedAt,
@@ -930,6 +1015,7 @@ export async function openShiftsWithSales(tenantId: string, companyId: string, c
 
 export async function getShiftSummary(tenantId: string, employeeId: string, shiftId: string) {
   const shift = await getOwnedShift(tenantId, employeeId, shiftId);
+  if (shift.readingsSource === "controller") await syncControllerShiftReadings(tenantId, shift.id);
   const [readings, expenses, creditSales] = await Promise.all([
     prisma.stationShiftReading.findMany({ where: { shiftId: shift.id }, include: { nozzle: true }, orderBy: { capturedAt: "asc" } }),
     prisma.stationShiftExpense.findMany({ where: { shiftId: shift.id } }),
@@ -1007,7 +1093,13 @@ export async function listPendingShifts(tenantId: string, companyId?: string) {
  * (راجع stationShifts.routes.ts)، ولا صلة لها إطلاقاً بـ getShiftSummary الخاصة بالعامل أدناه،
  * والتي لا تحسب أي شيء مالي مشتق عمداً منذ إصلاح تسريب عجز/زيادة الصندوق لصلاحية العامل. */
 export async function getShiftById(tenantId: string, shiftId: string) {
-  const { shift, input, hasUnconfirmedReading } = await loadShiftClosingInput(tenantId, shiftId);
+  let loaded = await loadShiftClosingInput(tenantId, shiftId);
+  // وردية آلية لم تُعتمد: تُزامَن أولاً مع ما وصل متأخراً من المتحكم ثم يُعاد تحميلها (الوردية اليدوية لا تُمسّ)
+  if (loaded.shift.readingsSource === "controller") {
+    await syncControllerShiftReadings(tenantId, shiftId);
+    loaded = await loadShiftClosingInput(tenantId, shiftId);
+  }
+  const { shift, input, hasUnconfirmedReading } = loaded;
   const auditLogs = await prisma.stationShiftAuditLog.findMany({ where: { shiftId }, orderBy: { createdAt: "desc" } });
   // لا يُحسَب أي شيء مالي (مبيعات/صافي نقدية/سطور قيد) طالما بقيت قراءة واحدة بلا قيمة مؤكَّدة من
   // المحاسب — عرض رقم جزئي هنا (متجاهلاً فوهة لم تُراجَع بعد) أخطر من عدم عرض شيء إطلاقاً، فقد
@@ -1017,7 +1109,8 @@ export async function getShiftById(tenantId: string, shiftId: string) {
   const summary = closing ? { ...closing, ...(await shiftJournalPreview(tenantId, shift, closing)) } : null;
   // قراءة المتحكم (PTS-2) لكل فوهة مربوطة — للمقارنة بقراءة الصورة فقط؛ لا تُعتمَد إلا إن قبلها المحاسب
   const controllerValues = await controllerValuesForShift(tenantId, shift);
-  return { ...shift, summary, auditLogs, controllerValues };
+  const controllerData = await controllerDataStatus(tenantId, shift);
+  return { ...shift, summary, auditLogs, controllerValues, controllerData };
 }
 
 /**
@@ -1158,6 +1251,13 @@ export async function approveShift(tenantId: string, userId: string, shiftId: st
     if (!evidenceIdsByNozzle.get(reading.nozzleId)!.some((id) => withPhoto.has(id))) {
       throw badRequest("لا يمكن اعتماد الوردية: إحدى القراءات بلا صورة عداد مرفقة بعد");
     }
+  }
+
+  // وردية آلية: القراءات تُزامَن مع ما وصل متأخراً، ولا اعتماد قبل أن يؤكد الجهاز رفع كل عملياته حتى لحظة الإقفال
+  if (shift.readingsSource === "controller") {
+    await syncControllerShiftReadings(tenantId, shiftId);
+    const data = await controllerDataStatus(tenantId, shift);
+    if (!data?.complete) throw badRequest("بيانات جهاز المحطة لم تكتمل بعد لهذه الوردية — انتظر حتى يرسل الجهاز كل عملياته حتى وقت إقفالها ثم أعد الاعتماد");
   }
 
   // يحسب الإقفال الآن أيضاً (لا فقط لاحقاً عند الترحيل) عمداً: لو حساب مفقود من إعدادات الشركة

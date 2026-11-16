@@ -66,3 +66,7 @@ export const seedDataExceptionsHandler: RequestHandler = async (req, res) => {
   const rows = await service.getSeedDataExceptionsReport(req.auth!.tenantId, parseCompanyId(req));
   res.json({ rows });
 };
+
+export const shiftsDailyHandler: RequestHandler = async (req, res) => {
+  res.json(await service.getShiftsDailyReport(req.auth!.tenantId, parseCompanyId(req), parseRange(req), parseCostCenterIds(req)));
+};

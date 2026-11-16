@@ -12,6 +12,9 @@ import {
   type CreditSaleInput,
   type ShiftClosingInput,
   type NozzleReadingInput,
+  syncControllerShiftReadings,
+  controllerShiftSales,
+  controllerDataStatus,
 } from "../stationShifts/stationShifts.service";
 
 /**
@@ -554,4 +557,174 @@ export async function getSeedDataExceptionsReport(tenantId: string, companyId: s
     orderBy: { shiftDate: "desc" },
   });
   return shifts.map((s) => ({ id: s.id, costCenterId: s.costCenter.id, costCenterName: s.costCenter.name, shiftDate: s.shiftDate, status: s.status }));
+}
+
+// ---------------------------------------------------------------------------
+// تقرير الورديات اليومي — لكل يوم ومحطة: الوردية الصباحية والمسائية وإجمالي اليوم
+// ---------------------------------------------------------------------------
+
+/**
+ * خلافاً لبقية تقارير هذا الملف (المعتمد/المرحَّل فقط)، هذا التقرير تشغيلي: يعرض كل وردية غير مرفوضة ولا معكوسة بحالتها
+ * (مفتوحة/مرسلة/قيد المراجعة/معتمدة/مرحَّلة) حتى يرى المدير بيع اليوم قبل المراجعة — والحالة ظاهرة مع كل وردية، فالرقم غير
+ * المعتمد واضح أنه غير نهائي. الوردية الآلية غير المعتمدة تُزامَن أولاً مع ما وصل متأخراً من المتحكم (syncControllerShiftReadings)
+ * والمفتوحة تُحسب حتى اللحظة من عدادات المتحكم. وردية مصوَّرة لم يراجع المحاسب كل قراءاتها: مبيعاتها null (complete=false).
+ * المبلغ = اللترات × السعر الساري للمحطة يوم الوردية (resolveEffectivePrice — نفس سعر القيد). الفرق = التحصيل (شبكة + بطاقات
+ * + نقد + آجل + مصروفات) − المبيعات: موجب زيادة، سالب عجز. كل شيء مقيَّد بالمستأجر والشركة ومحطاتها.
+ */
+const SHIFT_REPORT_STATUSES = ["open", "submitted", "under_review", "approved", "posted"] as const;
+const PRODUCTS: StationFuelProduct[] = ["gasoline_91", "gasoline_95", "diesel"];
+type Money = number;
+
+export interface ShiftReportCell {
+  id: string;
+  shiftType: "morning" | "night";
+  status: StationShiftStatus;
+  worker: string | null;
+  openedAt: Date | null;
+  closedAt: Date | null;
+  readingsSource: string;
+  complete: boolean;
+  /** وردية آلية مقفلة: هل رفع الجهاز كل عملياته حتى وقت إقفالها (controllerDataStatus)؛ null لغير الآلية أو المفتوحة. */
+  deviceDataComplete: boolean | null;
+  products: Partial<Record<StationFuelProduct, { liters: number; amount: Money | null }>>;
+  liters: number | null;
+  amount: Money | null;
+  network: Money;
+  fuelCard: Money;
+  cash: Money;
+  credit: Money;
+  expenses: Money;
+  collected: Money;
+  variance: Money | null;
+}
+
+export interface ShiftReportTotals {
+  products: Record<StationFuelProduct, { liters: number; amount: Money }>;
+  liters: number;
+  amount: Money;
+  network: Money;
+  fuelCard: Money;
+  cash: Money;
+  credit: Money;
+  expenses: Money;
+  collected: Money;
+  variance: Money;
+  shifts: number;
+  incompleteShifts: number;
+}
+
+export interface ShiftReportDayRow {
+  day: string;
+  costCenterId: string;
+  stationName: string;
+  /** عادةً وردية واحدة لكل نوع في اليوم، لكن لا قيد يمنع أكثر (وردية أُعيد فتحها بعد رفض/عكس) — فقائمة لا خانة. */
+  morning: ShiftReportCell[];
+  night: ShiftReportCell[];
+  total: ShiftReportTotals;
+}
+
+const r2 = (v: number) => Math.round(v * 100) / 100;
+const r3 = (v: number) => Math.round(v * 1000) / 1000;
+function emptyTotals(): ShiftReportTotals {
+  return {
+    products: { gasoline_91: { liters: 0, amount: 0 }, gasoline_95: { liters: 0, amount: 0 }, diesel: { liters: 0, amount: 0 } },
+    liters: 0, amount: 0, network: 0, fuelCard: 0, cash: 0, credit: 0, expenses: 0, collected: 0, variance: 0, shifts: 0, incompleteShifts: 0,
+  };
+}
+function addCell(t: ShiftReportTotals, c: ShiftReportCell) {
+  t.shifts += 1;
+  for (const k of ["network", "fuelCard", "cash", "credit", "expenses", "collected"] as const) t[k] = r2(t[k] + c[k]);
+  if (!c.complete) { t.incompleteShifts += 1; return; }
+  for (const p of PRODUCTS) {
+    const v = c.products[p];
+    if (!v) continue;
+    t.products[p].liters = r3(t.products[p].liters + v.liters);
+    t.products[p].amount = r2(t.products[p].amount + (v.amount ?? 0));
+  }
+  t.liters = r3(t.liters + (c.liters ?? 0));
+  t.amount = r2(t.amount + (c.amount ?? 0));
+  t.variance = r2(t.variance + (c.variance ?? 0));
+}
+
+export async function getShiftsDailyReport(tenantId: string, companyId: string, range: ReportRange, costCenterIds?: string[]) {
+  assertRangeWithinLimit(range);
+  const stations = await resolveCostCenters(tenantId, companyId, costCenterIds);
+  const stationName = new Map(stations.map((s) => [s.id, s.name]));
+  const where = {
+    tenantId, companyId, isSeedData: false, costCenterId: { in: stations.map((s) => s.id) },
+    shiftDate: { gte: range.dateFrom, lte: range.dateTo }, status: { in: [...SHIFT_REPORT_STATUSES] },
+  };
+  const pending = await prisma.stationShift.findMany({ where: { ...where, readingsSource: "controller", status: { in: ["open", "submitted", "under_review"] } }, select: { id: true }, orderBy: { openedAt: "asc" } });
+  for (const p of pending) await syncControllerShiftReadings(tenantId, p.id);
+
+  const [shifts, priceRows] = await Promise.all([
+    prisma.stationShift.findMany({
+      where,
+      include: { readings: { include: { nozzle: true } }, collection: true, creditSales: true, expenses: true, stationUser: { select: { name: true } } },
+      orderBy: [{ shiftDate: "asc" }, { openedAt: "asc" }],
+    }),
+    prisma.fuelPrice.findMany({ where: { tenantId, companyId } }),
+  ]);
+  const { pricesFor } = bucketPricesByCostCenter(priceRows);
+
+  const cells: { day: string; costCenterId: string; cell: ShiftReportCell }[] = [];
+  for (const sh of shifts) {
+    const network = Number(sh.collection?.networkAmount ?? 0);
+    const fuelCard = Number(sh.collection?.fuelCardAmount ?? 0);
+    const cash = Number(sh.collection?.cashDelivered ?? 0);
+    const credit = sh.creditSales.reduce((a, c) => a + Number(c.amount), 0);
+    const expenses = sh.expenses.reduce((a, e) => a + Number(e.amount), 0);
+    const products: ShiftReportCell["products"] = {};
+    let complete = true;
+    const priceOf = (p: StationFuelProduct) => {
+      try { return resolveEffectivePrice(p, sh.shiftDate, pricesFor(sh.costCenterId)); } catch { return null; }
+    };
+    if (sh.status === "open" && sh.readingsSource === "controller") {
+      const live = await controllerShiftSales(tenantId, sh, sh.readings);
+      for (const p of live.products) products[p.product] = { liters: p.liters, amount: p.amount };
+    } else {
+      const litersBy = new Map<StationFuelProduct, Prisma.Decimal>();
+      for (const r of sh.readings) {
+        const closing = r.accountantConfirmedValue ?? r.closingReading;
+        if (closing == null) { complete = false; break; }
+        let liters: Prisma.Decimal;
+        try {
+          liters = computeNozzleLiters({ nozzleId: r.nozzleId, product: r.nozzle.product, meterDigits: r.nozzle.meterDigits, openingReading: r.openingReading, closingReading: closing, testLiters: r.testLiters } as NozzleReadingInput);
+        } catch { complete = false; break; }
+        litersBy.set(r.nozzle.product, (litersBy.get(r.nozzle.product) ?? new Prisma.Decimal(0)).plus(liters));
+      }
+      if (complete) for (const [p, l] of litersBy) {
+        const price = priceOf(p);
+        products[p] = { liters: r3(l.toNumber()), amount: price ? r2(l.times(price).toDecimalPlaces(2).toNumber()) : null };
+      }
+    }
+    const liters = complete ? r3(Object.values(products).reduce((a, v) => a + (v?.liters ?? 0), 0)) : null;
+    const amount = complete ? r2(Object.values(products).reduce((a, v) => a + (v?.amount ?? 0), 0)) : null;
+    const collected = r2(network + fuelCard + cash + credit + expenses);
+    const deviceDataComplete = sh.readingsSource === "controller" && sh.status !== "open"
+      ? (await controllerDataStatus(tenantId, sh))?.complete ?? false
+      : null;
+    cells.push({
+      day: sh.shiftDate.toISOString().slice(0, 10), costCenterId: sh.costCenterId,
+      cell: {
+        id: sh.id, shiftType: sh.shiftType as "morning" | "night", status: sh.status, worker: sh.stationUser?.name ?? null, openedAt: sh.openedAt, closedAt: sh.closedAt,
+        readingsSource: sh.readingsSource, complete, deviceDataComplete, products, liters, amount, network: r2(network), fuelCard: r2(fuelCard), cash: r2(cash), credit: r2(credit), expenses: r2(expenses),
+        collected, variance: amount == null || sh.status === "open" ? null : r2(collected - amount),
+      },
+    });
+  }
+
+  const rowsByKey = new Map<string, ShiftReportDayRow>();
+  const totals = emptyTotals();
+  const byType = { morning: emptyTotals(), night: emptyTotals() };
+  for (const { day, costCenterId, cell } of cells) {
+    const key = `${day}|${costCenterId}`;
+    const row = rowsByKey.get(key) ?? { day, costCenterId, stationName: stationName.get(costCenterId) ?? "", morning: [], night: [], total: emptyTotals() };
+    row[cell.shiftType].push(cell);
+    addCell(row.total, cell);
+    addCell(totals, cell);
+    addCell(byType[cell.shiftType], cell);
+    rowsByKey.set(key, row);
+  }
+  return { dateFrom: range.dateFrom, dateTo: range.dateTo, rows: [...rowsByKey.values()], totals, byType };
 }
