@@ -75,6 +75,27 @@ export async function resolveStore(slug: string): Promise<StoreContext> {
   };
 }
 
+/**
+ * دليل المتاجر العام: المتاجر المفعَّلة التي وافقت شركاتها صراحةً على الإدراج (storeListed) فقط، وبالاسم والرابط
+ * لا غير. شركة معلّقة الاشتراك لا تُدرَج (كما لا يُفتَح متجرها).
+ */
+export async function listDirectory() {
+  const companies = await prisma.company.findMany({
+    where: { storeEnabled: true, storeListed: true, storeSlug: { not: null } },
+    select: { id: true, tenantId: true, name: true, nameEn: true, storeSlug: true, storeName: true, storeNameEn: true },
+    orderBy: { storeSlug: "asc" },
+    take: 500,
+  });
+  const suspendedByTenant = new Map<string, Set<string>>();
+  const stores: { slug: string; name: string; nameEn: string | null }[] = [];
+  for (const c of companies) {
+    if (!suspendedByTenant.has(c.tenantId)) suspendedByTenant.set(c.tenantId, await suspendedCompanyIds(c.tenantId));
+    if (suspendedByTenant.get(c.tenantId)!.has(c.id)) continue;
+    stores.push({ slug: c.storeSlug!, name: c.storeName || c.name, nameEn: c.storeNameEn || c.nameEn });
+  }
+  return stores;
+}
+
 /** شرط الظهور للعموم — مصدر واحد للقائمة والتفاصيل والتصنيفات والصور. */
 export function publishedWhere(store: StoreContext): Prisma.ItemWhereInput {
   return {

@@ -4,18 +4,18 @@ plugins {
 }
 
 android {
-    namespace = "sa.tismpro.store"
+    namespace = "com.athar.store"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "sa.tismpro.store"
-        // 26+: الأيقونة تكيّفية بطبقات متجهة فقط (بلا صور PNG قديمة لكل كثافة)
-        minSdk = 26
+        applicationId = "com.athar.store"
+        minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-        // رابط المتجر العام الذي يفتحه التطبيق — ثابت وقت البناء (لا شاشة إعدادات: تطبيق للعملاء)
-        buildConfigField("String", "STORE_URL", "\"https://atharerp.com/store/tism-pro\"")
+        // دليل المتاجر العام على أثر — يفتحه التطبيق أولاً، ومنه يدخل العميل أي متجر مُدرَج. ثابت وقت البناء
+        // (لا شاشة إعدادات: تطبيق للعملاء). كل ما تحت هذا المسار يبقى داخل التطبيق.
+        buildConfigField("String", "STORE_URL", "\"https://atharerp.com/store\"")
     }
 
     buildFeatures {

@@ -19,6 +19,7 @@ async function get(path, lang) {
 
 const enc = encodeURIComponent;
 
+export const fetchDirectory = (lang) => get("/store", lang);
 export const fetchStore = (slug, lang) => get(`/store/${enc(slug)}`, lang);
 export const fetchProducts = (slug, { category, search, sort, page, pageSize } = {}, lang) => {
   const q = new URLSearchParams();

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.TismStore" parent="Theme.MaterialComponents.Light.NoActionBar">
+    <style name="Theme.AtharStore" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="colorPrimary">@color/store_ink</item>
         <item name="colorPrimaryDark">@color/store_ink</item>
         <item name="colorAccent">@color/store_accent</item>

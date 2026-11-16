@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "tism-pro-store"
+rootProject.name = "athar-store"
 include(":app")

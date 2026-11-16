@@ -68,6 +68,7 @@ export const createCompanySchema = z.object({
   // المتجر الإلكتروني العام — راجع التعليق فوق الحقول المطابقة في schema.prisma. الرابط يُحفَظ بحروف صغيرة،
   // وفرادته على مستوى المنصة تُفحَص في companies.controller.ts (assertStoreSettings).
   storeEnabled: z.boolean().optional(),
+  storeListed: z.boolean().optional(),
   storeSlug: z
     .string()
     .trim()

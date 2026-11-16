@@ -1,6 +1,6 @@
-name: Android Tism Pro Store APK
+name: Android Athar Store APK
 
-# تطبيق متجر تيسم برو للعملاء (android-store/) — غلاف WebView حول المتجر الإلكتروني العام. نفس بنية
+# تطبيق «أثر المتجر الإلكتروني» للعملاء (android-store/) — غلاف WebView حول دليل المتاجر العام. نفس بنية
 # android-build.yml (نقطة البيع) والسكربت المشترك نفسه: build-apk بلا أسرار في كل دفعة وPR تلمس المجلد،
 # وrelease يدوية فقط داخل بيئة GitHub "android-release" (المفتاح نفسه، موافقة المراجِع).
 
@@ -49,12 +49,12 @@ jobs:
       - name: Build and verify debug APK
         id: apk
         working-directory: .
-        run: .github/scripts/android-signed-build.sh debug android-store sa.tismpro.store tism-pro-store.apk
+        run: .github/scripts/android-signed-build.sh debug android-store com.athar.store athar-store.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tism-pro-store-debug-apk
+          name: athar-store-debug-apk
           path: ${{ steps.apk.outputs.apk }}
           if-no-files-found: error
 
@@ -90,7 +90,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
-        run: .github/scripts/android-signed-build.sh release android-store sa.tismpro.store tism-pro-store.apk
+        run: .github/scripts/android-signed-build.sh release android-store com.athar.store athar-store.apk
 
       # احتياط لما يتخطّى فخ السكربت (قتل قسري للعملية): يعمل دائماً، حتى عند الفشل أو الإلغاء
       - name: Remove decoded keystore
@@ -112,8 +112,8 @@ jobs:
         run: |
           version="${{ inputs.release_tag }}"
           version="${version#android-store-}"
-          filename="tism-pro-store-${version}.apk"
-          cp tism-pro-store.apk "${filename}"
+          filename="athar-store-${version}.apk"
+          cp athar-store.apk "${filename}"
           echo "filename=${filename}" >> "$GITHUB_OUTPUT"
 
       # نفس التحقق على الملف الذي سيُنشَر بعينه: الهوية (aapt2)، شهادة التوقيع (apksigner)، والبصمة (sha256)
@@ -132,7 +132,7 @@ jobs:
       - name: Upload signed APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tism-pro-store-release-apk
+          name: athar-store-release-apk
           path: android-store/${{ steps.pinned_asset.outputs.filename }}
           if-no-files-found: error
 
@@ -141,7 +141,7 @@ jobs:
         with:
           tag_name: ${{ inputs.release_tag }}
           target_commitish: ${{ github.sha }}
-          name: "Tism Pro Store (Android) ${{ inputs.release_tag }}"
+          name: "Athar Store (Android) ${{ inputs.release_tag }}"
           prerelease: true
           files: android-store/${{ steps.pinned_asset.outputs.filename }}
         env:

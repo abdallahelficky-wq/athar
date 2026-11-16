@@ -1,4 +1,4 @@
-package sa.tismpro.store
+package com.athar.store
 
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
@@ -19,9 +19,10 @@ import androidx.activity.addCallback
 import androidx.appcompat.app.AppCompatActivity
 
 /**
- * تطبيق متجر تيسم برو للعملاء — غلاف WebView حول المتجر الإلكتروني العام (frontend/src/store، يُخدَم من أثر على
- * BuildConfig.STORE_URL). لا منطق أعمال هنا: السلة والحساب والطلبات كلها في صفحة المتجر نفسها.
- *  - يبقى داخل التطبيق كل ما هو تحت مسار المتجر على مضيفه؛ وأي رابط آخر (واتساب wa.me، اتصال، بريد، موقع
+ * «أثر المتجر الإلكتروني» — تطبيق العملاء العام لمتاجر أثر: غلاف WebView حول دليل المتاجر العام والمتاجر نفسها
+ * (frontend/src/store، يُخدَم من أثر على BuildConfig.STORE_URL). ليس خاصاً بشركة: يفتح الدليل، ومنه أي متجر
+ * مُدرَج. لا منطق أعمال هنا: السلة والحساب والطلبات كلها في صفحة المتجر نفسها.
+ *  - يبقى داخل التطبيق كل ما هو تحت مسار المتاجر (/store) على مضيفه؛ وأي رابط آخر (واتساب wa.me، اتصال، بريد، موقع
  *    خارجي) يُفتَح في تطبيقه — فلا تتحول نافذة المتجر إلى متصفح عام، ولا يُفتَح نظام أثر المحاسبي داخلها.
  *  - localStorage مفعَّل: فيه السلة ورمز دخول العميل، فيبقيان بين مرات فتح التطبيق.
  *  - بلا جسر JavaScript ولا صلاحيات غير الإنترنت.

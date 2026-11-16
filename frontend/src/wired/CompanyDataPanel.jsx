@@ -50,6 +50,7 @@ const emptyForm = (c) => ({
   stationGasoline95ItemId: c.stationGasoline95ItemId || "",
   allowNegativeFuelStock: c.allowNegativeFuelStock ?? true,
   storeEnabled: c.storeEnabled ?? false,
+  storeListed: c.storeListed ?? false,
   storeSlug: c.storeSlug || "",
   storeName: c.storeName || "",
   storeNameEn: c.storeNameEn || "",
@@ -75,7 +76,7 @@ const SECTION_FIELDS = {
   stations: ["stationCashShortageAccountId", "stationCashSurplusAccountId", "tankVarianceAccountId", "cardFeeExpenseAccountId", "stationDieselItemId", "stationGasoline91ItemId", "stationGasoline95ItemId", "allowNegativeFuelStock"],
   fiscal: ["fiscalYearClosingDate"],
   // المتجر الإلكتروني العام (واجهة البيع /store/<الرابط>) — راجع src/modules/store في الخادم
-  store: ["storeEnabled", "storeSlug", "storeName", "storeNameEn", "storeWhatsappNumber"],
+  store: ["storeEnabled", "storeListed", "storeSlug", "storeName", "storeNameEn", "storeWhatsappNumber"],
 };
 const FIELD_SECTION = Object.fromEntries(Object.entries(SECTION_FIELDS).flatMap(([sec, keys]) => keys.map((k) => [k, sec])));
 
@@ -87,7 +88,7 @@ const toPayloadValue = (key, v) => {
     case "overdueInvoiceDays": case "staleDraftDays": return Number(v);
     case "vatRate": return v === "" ? undefined : Number(v);
     case "fiscalYearClosingDate": return v || null;
-    case "allowNegativeFuelStock": case "storeEnabled": return Boolean(v);
+    case "allowNegativeFuelStock": case "storeEnabled": case "storeListed": return Boolean(v);
     case "storeSlug": return String(v || "").trim().toLowerCase() || null;
     case "stationCashShortageAccountId": case "stationCashSurplusAccountId": case "tankVarianceAccountId": case "cardFeeExpenseAccountId":
     case "stationDieselItemId": case "stationGasoline91ItemId": case "stationGasoline95ItemId": return v || null;
@@ -455,6 +456,10 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
               <label className="checkbox-label">
                 <input type="checkbox" checked={Boolean(form.storeEnabled)} onChange={(e) => set("storeEnabled", e.target.checked)} />
                 {t("settings.companyEdit.storeEnabledLabel")}
+              </label>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={Boolean(form.storeListed)} onChange={(e) => set("storeListed", e.target.checked)} />
+                {t("settings.companyEdit.storeListedLabel")}
               </label>
               <div className="form-grid">
                 <label>{t("settings.companyEdit.storeSlugLabel")}
