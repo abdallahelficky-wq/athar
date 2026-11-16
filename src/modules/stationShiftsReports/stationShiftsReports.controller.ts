@@ -1,6 +1,8 @@
 import { Request, RequestHandler } from "express";
 import { badRequest } from "../../lib/httpError";
 import * as service from "./stationShiftsReports.service";
+import { prisma } from "../../lib/prisma";
+import { buildShiftsReportPdf } from "../../lib/shiftsReportPdf";
 
 /** enforceCompanyScope (مُركَّب على الراوتر) يضبط req.query.companyId دائماً بنطاق المستخدم لو لم
  * يُحدَّد صراحة، إلا لعضوية companyScope="all" بلا اختيار صريح — عندها يبقى فارغاً، وهنا تحديداً
@@ -69,4 +71,23 @@ export const seedDataExceptionsHandler: RequestHandler = async (req, res) => {
 
 export const shiftsDailyHandler: RequestHandler = async (req, res) => {
   res.json(await service.getShiftsDailyReport(req.auth!.tenantId, parseCompanyId(req), parseRange(req), parseCostCenterIds(req)));
+};
+
+/** نفس التقرير PDF (أفقي): البيانات من getShiftsDailyReport ذاتها بنفس النطاق والصلاحية، والاسمان مقيَّدان بالمستأجر. */
+export const shiftsDailyPdfHandler: RequestHandler = async (req, res) => {
+  const tenantId = req.auth!.tenantId;
+  const companyId = parseCompanyId(req);
+  const costCenterIds = parseCostCenterIds(req);
+  const report = await service.getShiftsDailyReport(tenantId, companyId, parseRange(req), costCenterIds);
+  const company = await prisma.company.findFirst({ where: { id: companyId, tenantId }, select: { name: true } });
+  const stations = costCenterIds
+    ? await prisma.costCenter.findMany({ where: { id: { in: costCenterIds }, tenantId, companyId }, select: { name: true } })
+    : [];
+  const pdf = await buildShiftsReportPdf(report, company, {
+    stationName: stations.length ? stations.map((s: { name: string }) => s.name).join("، ") : null,
+    lang: req.query.lang === "en" ? "en" : "ar",
+  });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", 'attachment; filename="Shifts-Report.pdf"');
+  res.send(pdf);
 };

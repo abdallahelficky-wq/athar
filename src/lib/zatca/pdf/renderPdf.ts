@@ -46,7 +46,7 @@ function resolveExecutablePath(): string {
   );
 }
 
-export async function renderHtmlToPdf(html: string): Promise<Buffer> {
+export async function renderHtmlToPdf(html: string, options: { landscape?: boolean } = {}): Promise<Buffer> {
   const browser = await puppeteer.launch({
     executablePath: resolveExecutablePath(),
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
@@ -57,7 +57,7 @@ export async function renderHtmlToPdf(html: string): Promise<Buffer> {
     // "load" فقط تكفي: المحتوى ذاتي المصدر بالكامل (CSS مضمَّن، صور QR كـ data: URI) بلا أي طلبات
     // شبكة خارجية تنتظرها networkidle — وهي أصلاً غير مدعومة في واجهة setContent هنا.
     await page.setContent(html, { waitUntil: "load" });
-    const pdf = await page.pdf({ format: "a4", printBackground: true, margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" } });
+    const pdf = await page.pdf({ format: "a4", landscape: options.landscape === true, printBackground: true, margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" } });
     return Buffer.from(pdf);
   } finally {
     await browser.close();

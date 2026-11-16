@@ -3,6 +3,9 @@ import { useTranslation } from "react-i18next";
 import { formatDate } from "../../i18n/dateFormat";
 import * as api from "../../api/shiftsReport";
 import { listStations } from "../../api/stationSetup";
+import { listCompanies } from "../../api/companies";
+import { exportShiftsReportExcel } from "./exportShiftsReportExcel";
+import { saveLedgerBlob } from "../shared/exportAccountLedgerExcel";
 
 const PRODUCTS = ["gasoline_91", "gasoline_95", "diesel"];
 const isoDay = (d) => d.toISOString().slice(0, 10);
@@ -16,6 +19,15 @@ const time = (v) => (v ? new Date(v).toLocaleTimeString("en-GB", { calendar: "gr
  * (شبكة، بطاقات، نقد، آجل، مصروفات) والفرق (التحصيل − المبيعات: موجب زيادة، سالب عجز)، ثم إجمالي الفترة بالصباحي والمسائي.
  * الوردية الآلية التي لم يرفع الجهاز كل عملياتها حتى إقفالها تُعلَّم "بيانات الجهاز ناقصة" — أرقامها قد تتغير.
  */
+// رأس الجدول ثابت أعلى منطقة التمرير: الجدول داخل حاوية لها ارتفاع وتمرير خاص، والـthead كله sticky (صفّا العناوين معاً)
+const STICKY_CSS = `
+.shifts-report-scroll { overflow: auto; max-height: calc(100vh - 230px); border: 1px solid var(--athar-border); border-radius: 8px; }
+.shifts-report-scroll thead { position: sticky; top: 0; z-index: 3; }
+.shifts-report-scroll thead th { background: var(--athar-card, #fff); box-shadow: inset 0 -1px 0 var(--athar-border); text-align: center; white-space: nowrap; }
+.shifts-report-scroll td.sticky-col, .shifts-report-scroll th.sticky-col { position: sticky; inset-inline-start: 0; z-index: 2; background: var(--athar-card, #fff); }
+.shifts-report-scroll thead th.sticky-col { z-index: 4; }
+`;
+
 export default function ShiftsReportTab({ companyId }) {
   const { t, i18n } = useTranslation();
   const [stations, setStations] = useState([]);
@@ -23,11 +35,14 @@ export default function ShiftsReportTab({ companyId }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState("");
+  const [shown, setShown] = useState(null); // الفلتر الذي عُرض به التقرير الحالي — التصدير يتبعه لا ما كُتب بعده
 
   const load = async (f = filter) => {
     setError(""); setLoading(true);
     try {
       setReport(await api.getShiftsDailyReport({ companyId, ...f }));
+      setShown(f);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -100,10 +115,33 @@ export default function ShiftsReportTab({ companyId }) {
     </tr>
   );
 
-  const stationLabel = filter.costCenterId ? stations.find((s) => s.id === filter.costCenterId)?.name : t("shiftsReport.allStations");
+  const shownFilter = shown ?? filter;
+  const shownStation = shownFilter.costCenterId ? stations.find((s) => s.id === shownFilter.costCenterId)?.name : t("shiftsReport.allStations");
+  const fileBase = `${t("shiftsReport.tabTitle").replace(/\s+/g, "_")}_${shownFilter.dateFrom}_${shownFilter.dateTo}`;
+  const exportReport = async (kind) => {
+    setExporting(kind); setError("");
+    try {
+      if (kind === "excel") {
+        await exportShiftsReportExcel({
+          report, products, stationLabel: shownStation,
+          companyName: await listCompanies().then((list) => list.find((c) => c.id === companyId)).then((c) => c?.shortName || c?.name || "أثر المحاسبي").catch(() => "أثر المحاسبي"),
+          periodLabel: `${formatDate(report.dateFrom, i18n.language)} — ${formatDate(report.dateTo, i18n.language)}`,
+          t, lang: i18n.language, fileName: `${fileBase}.xlsx`,
+        });
+      } else {
+        const blob = await api.getShiftsDailyReportPdf({ companyId, ...shownFilter, lang: i18n.language });
+        saveLedgerBlob(blob, `${fileBase}.pdf`);
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setExporting("");
+    }
+  };
 
   return (
     <div className="shifts-report">
+      <style>{STICKY_CSS}</style>
       <div className="form-grid no-print" style={{ alignItems: "end" }}>
         <label>{t("shiftsReport.from")}
           <input type="date" value={filter.dateFrom} onChange={(e) => setFilter({ ...filter, dateFrom: e.target.value })} />
@@ -119,7 +157,8 @@ export default function ShiftsReportTab({ companyId }) {
         </label>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn-primary" onClick={() => load()} disabled={loading}>{t("shiftsReport.show")}</button>
-          <button className="btn-ghost" onClick={() => window.print()} disabled={!report}>{t("shiftsReport.print")}</button>
+          <button className="btn-ghost" onClick={() => exportReport("excel")} disabled={!report || loading || !!exporting}>{exporting === "excel" ? "…" : t("shiftsReport.exportExcel")}</button>
+          <button className="btn-ghost" onClick={() => exportReport("pdf")} disabled={!report || loading || !!exporting}>{exporting === "pdf" ? "…" : t("shiftsReport.exportPdf")}</button>
         </div>
       </div>
       {error && <p className="balance-bad" role="alert">{error}</p>}
@@ -129,16 +168,16 @@ export default function ShiftsReportTab({ companyId }) {
         <div className="panel">
           <h3 style={{ marginBottom: 4 }}>{t("shiftsReport.title")}</h3>
           <p className="note" style={{ marginTop: 0 }}>
-            {stationLabel} · {formatDate(report.dateFrom, i18n.language)} — {formatDate(report.dateTo, i18n.language)}
+            {shownStation} · {formatDate(report.dateFrom, i18n.language)} — {formatDate(report.dateTo, i18n.language)}
           </p>
           <p className="note no-print">{t("shiftsReport.note")}</p>
 
           {report.rows.length === 0 ? <p className="note">{t("shiftsReport.empty")}</p> : (
-            <div style={{ overflowX: "auto" }}>
-              <table className="ledger-table" style={{ fontSize: 13 }}>
+            <div className="shifts-report-scroll">
+              <table className="ledger-table" style={{ fontSize: 13, margin: 0 }}>
                 <thead>
                   <tr>
-                    <th rowSpan={2}>{t("shiftsReport.shift")}</th>
+                    <th rowSpan={2} className="sticky-col">{t("shiftsReport.shift")}</th>
                     <th rowSpan={2}>{t("shiftsReport.details")}</th>
                     {products.map((p) => <th key={p} colSpan={2}>{t(`stationSetup.products.${p}`)}</th>)}
                     <th colSpan={2}>{t("shiftsReport.totalSales")}</th>
