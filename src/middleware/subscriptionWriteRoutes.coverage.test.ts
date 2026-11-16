@@ -26,6 +26,12 @@ const EXEMPT: Record<string, string> = {
   "POST /api/auth/forgot-password": "استعادة كلمة المرور على الهوية",
   "POST /api/auth/reset-password": "استعادة كلمة المرور على الهوية",
   "POST /api/employee-portal/login": "جلسة بوابة الموظف",
+  // المتجر الإلكتروني العام: زائر أو عميل متجر لا مستخدم أثر — لا منصب ولا وحدة باقة تُفحَص لطلبه. resolveStore يرفض
+  // متجر شركة معلّقة الاشتراك (404) قبل أي كتابة، والكتابة مقيَّدة بشركة المتجر نفسها (store.routes.ts).
+  "POST /api/store/:slug/auth/request-otp": "طلب رمز دخول عميل المتجر",
+  "POST /api/store/:slug/auth/verify-otp": "جلسة عميل المتجر",
+  "PATCH /api/store/:slug/me": "اسم عميل المتجر ومدينته",
+  "POST /api/store/:slug/orders": "طلب من المتجر العام — تسجيل طلب بلا فاتورة ولا قيد",
   // حذف الشركة معطّل دائماً (405)
   "DELETE /api/companies/:id": "يرجع 405 دائماً — لا يكتب شيئاً",
   // المناصب والصلاحيات: إعداد صلاحيات المستأجر بيد المالك (requireTenantOwner)، لا بيانات شركة

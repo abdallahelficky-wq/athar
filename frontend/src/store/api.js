@@ -34,3 +34,24 @@ export const fetchProduct = (slug, code, lang) => get(`/store/${enc(slug)}/produ
 
 /** مسار الصورة النسبي القادم من الخادم (/store/<slug>/images/<id>) → رابط كامل. */
 export const imageUrl = (path) => (path ? `${BASE_URL}${path}` : null);
+
+// ── حساب العميل والطلبات ── رمز عميل المتجر (لا رمز مستخدم أثر) يُمرَّر صراحةً لكل نداء يحتاجه.
+async function send(method, path, { body, token, lang } = {}) {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", "Accept-Language": lang || "ar", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { /* رد غير JSON */ }
+  if (!res.ok) throw new StoreApiError(res.status, data?.error || "");
+  return data;
+}
+
+export const requestOtp = (slug, phone, lang) => send("POST", `/store/${enc(slug)}/auth/request-otp`, { body: { phone }, lang });
+export const verifyOtp = (slug, phone, code, lang) => send("POST", `/store/${enc(slug)}/auth/verify-otp`, { body: { phone, code }, lang });
+export const fetchMe = (slug, token, lang) => send("GET", `/store/${enc(slug)}/me`, { token, lang });
+export const updateMe = (slug, token, profile, lang) => send("PATCH", `/store/${enc(slug)}/me`, { token, body: profile, lang });
+export const createOrder = (slug, token, order, lang) => send("POST", `/store/${enc(slug)}/orders`, { token, body: order, lang });
+export const fetchMyOrders = (slug, token, lang) => send("GET", `/store/${enc(slug)}/orders`, { token, lang });

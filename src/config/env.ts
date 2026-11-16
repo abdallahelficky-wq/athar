@@ -71,6 +71,9 @@ export const env = {
   whatsappTemplateLang: process.env.WHATSAPP_TEMPLATE_LANG ?? "ar",
   whatsappWebhookVerifyToken: process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
   whatsappAppSecret: process.env.WHATSAPP_APP_SECRET,
+  // اسم قالب واتساب (فئة Authentication في Meta) الذي يُرسَل به رمز دخول عملاء المتجر الإلكتروني. فارغ = دخول عملاء المتجر
+  // مطفأ (المتجر نفسه والطلب بلا حساب يعملان). يحتاج أيضاً إعدادات واتساب أعلاه — راجع src/modules/store/storeAuth.service.ts.
+  storeOtpWhatsappTemplate: (process.env.STORE_OTP_WHATSAPP_TEMPLATE ?? "").trim(),
   supportWhatsappNumber: (process.env.SUPPORT_WHATSAPP_NUMBER ?? "966573076236").replace(/\D/g, ""),
 
   resendApiKey: process.env.RESEND_API_KEY,

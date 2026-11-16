@@ -79,6 +79,7 @@ import { posRoutes } from "./modules/pos/pos.routes";
 import { stableRoutes } from "./modules/stables/stables.routes";
 import { aiRoutes } from "./modules/ai/ai.routes";
 import { storeRoutes } from "./modules/store/store.routes";
+import { storeOrderRoutes } from "./modules/storeOrders/storeOrders.routes";
 import { prisma } from "./lib/prisma";
 import { installSubscriptionWriteGuard } from "./lib/subscriptionWriteGuard";
 
@@ -172,6 +173,7 @@ export function createApp() {
   app.use("/api/ai", aiRoutes);
   // المتجر الإلكتروني العام — قراءة فقط بلا مصادقة (راجع store.routes.ts)
   app.use("/api/store", storeRoutes);
+  app.use("/api/store-orders", storeOrderRoutes);
 
   app.use((req, res) => {
     res.status(404).json({ error: `المسار غير موجود: ${req.method} ${req.path}` });

@@ -20,7 +20,7 @@ export const STORE_IMAGE_ENTITY_TYPE = "item_store_image";
 const STORE_NOT_FOUND = "المتجر غير موجود";
 const PRODUCT_NOT_FOUND = "المنتج غير موجود";
 
-const PUBLIC_ITEM_SELECT = {
+export const PUBLIC_ITEM_SELECT = {
   id: true,
   code: true,
   name: true,
@@ -44,6 +44,7 @@ export interface StoreContext {
   companyId: string;
   slug: string;
   vatRatePercent: number;
+  country: string;
   info: { slug: string; name: string; nameEn: string | null; whatsappNumber: string | null; currency: string; vatNumber: string | null; crNumber: string | null };
 }
 
@@ -60,6 +61,7 @@ export async function resolveStore(slug: string): Promise<StoreContext> {
     companyId: company.id,
     slug: company.storeSlug,
     vatRatePercent: vatRatePercentOf(company),
+    country: company.country,
     info: {
       slug: company.storeSlug,
       name: company.storeName || company.name,
@@ -74,7 +76,7 @@ export async function resolveStore(slug: string): Promise<StoreContext> {
 }
 
 /** شرط الظهور للعموم — مصدر واحد للقائمة والتفاصيل والتصنيفات والصور. */
-function publishedWhere(store: StoreContext): Prisma.ItemWhereInput {
+export function publishedWhere(store: StoreContext): Prisma.ItemWhereInput {
   return {
     tenantId: store.tenantId,
     companyId: store.companyId,

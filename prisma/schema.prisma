@@ -45,6 +45,10 @@ enum SubscriptionStatus {
 }
 
 model Tenant {
+  storeCustomers            StoreCustomer[]
+  storeOtps                 StoreOtp[]
+  storeOrders               StoreOrder[]
+  storeOrderLines           StoreOrderLine[]
   stationUsers              StationUser[]
   stationMessages           StationMessage[]
   annualLeaveDrafts AnnualLeaveDraft[]
@@ -435,6 +439,10 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
+  storeCustomers            StoreCustomer[]
+  storeOtps                 StoreOtp[]
+  storeOrders               StoreOrder[]
+  storeOrderLines           StoreOrderLine[]
   stationUsers              StationUser[]
   stationMessages           StationMessage[]
   annualLeaveDrafts AnnualLeaveDraft[]
@@ -535,6 +543,8 @@ model Company {
   storeNameEn                  String?
   // رقم واتساب استقبال طلبات المتجر (دولي بلا + مثل 9665XXXXXXXX) — يظهر للعملاء، فهو منفصل عن هاتف الشركة.
   storeWhatsappNumber          String?
+  // العدّاد التالي لأرقام طلبات المتجر لهذه الشركة — يُزاد ذرّياً داخل معاملة إنشاء الطلب (كـnextJournalEntrySeq).
+  storeNextOrderSeq            Int                   @default(1)
   // --- ربط فاتورة (ZATCA) — المرحلة الثانية (التكامل)، انظر src/lib/zatca/*  ---
   // جهاز إصدار فواتير إلكترونية (EGS) واحد لكل شركة (v1) — CSID واحد، عدّاد ICV واحد،
   // وسلسلة تجزئة (PIH) واحدة تغطي كل الفواتير/الإشعارات الدائنة/المدينة لهذه الشركة معاً.
@@ -4235,4 +4245,111 @@ model StationUser {
   @@unique([tenantId, phone])
   @@index([tenantId, companyId])
   @@map("station_users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// المتجر الإلكتروني العام — حسابات العملاء وطلباتهم (src/modules/store، src/modules/storeOrders).
+// عميل المتجر ليس مستخدماً في أثر: يدخل برمز لمرة واحدة على جواله، وحسابه خاص بمتجر شركة واحدة
+// (الجوال نفسه في متجرَي شركتين = حسابان مستقلان). كل جدول هنا يحمل companyId فيدخل تلقائياً في
+// حارس الكتابة للاشتراكات وفي عزل الشركة.
+// ─────────────────────────────────────────────────────────────────────────────
+enum StoreOrderStatus {
+  new
+  confirmed
+  completed
+  cancelled
+}
+
+model StoreCustomer {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // دولي بلا + (9665XXXXXXXX) — نفس صيغة lib/phone.ts
+  phone       String
+  name        String?
+  city        String?
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  orders StoreOrder[]
+
+  @@unique([companyId, phone])
+  @@map("store_customers")
+}
+
+// رمز دخول لمرة واحدة — لا يُخزَّن الرمز نفسه بل تجزئته، وله عمر قصير وحدّ محاولات.
+model StoreOtp {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  phone      String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  ip         String?
+  createdAt  DateTime  @default(now())
+
+  @@index([companyId, phone, createdAt])
+  @@index([ip, createdAt])
+  @@map("store_otps")
+}
+
+// طلب من المتجر — تسجيل للطلب فقط: لا فاتورة ولا قيد ولا حجز مخزون. الأسعار لقطة وقت الطلب يحسبها الخادم.
+model StoreOrder {
+  id           String           @id @default(cuid())
+  tenantId     String
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  number       Int
+  // اختياري: طلب الزائر بلا حساب يبقى بلا عميل
+  customerId   String?
+  customer     StoreCustomer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName String
+  phone        String
+  city         String
+  notes        String?
+  status       StoreOrderStatus @default(new)
+  subtotal     Decimal          @db.Decimal(18, 2)
+  vat          Decimal          @db.Decimal(18, 2)
+  total        Decimal          @db.Decimal(18, 2)
+  currency     String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  lines StoreOrderLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, createdAt])
+  @@index([customerId])
+  @@map("store_orders")
+}
+
+model StoreOrderLine {
+  id         String     @id @default(cuid())
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  orderId    String
+  order      StoreOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // معرّف الصنف وقت الطلب بلا علاقة: حذف صنف لاحقاً لا يمسّ سجل طلب سابق
+  itemId     String
+  code       String
+  name       String
+  nameEn     String?
+  quantity   Int
+  // سعر الوحدة شامل الضريبة كما عُرض للعميل، وقبل الضريبة
+  unitPrice  Decimal    @db.Decimal(18, 2)
+  priceExVat Decimal    @db.Decimal(18, 2)
+  lineTotal  Decimal    @db.Decimal(18, 2)
+
+  @@index([orderId])
+  @@map("store_order_lines")
 }
