@@ -90,11 +90,30 @@ function fixApkContentType() {
   };
 }
 
+// المتجر الإلكتروني العام (store.html) تطبيق صفحة واحدة بمسارات حقيقية تحت /store/* (/store/<الرابط>/product/<الكود>).
+// خادم Vite (dev/preview) يردّ على مسار غير معروف بـ index.html — أي تطبيق أثر نفسه — فيُعاد كتابة طلبات التنقل تحت
+// /store إلى store.html. في الإنتاج القاعدة المقابلة في frontend/Caddyfile.
+function storeSpaFallback() {
+  const rewrite = (req, _res, next) => {
+    const pathname = (req.url || "").split("?")[0];
+    if ((pathname === "/store" || pathname.startsWith("/store/")) && !/\.[a-z0-9]+$/i.test(pathname)) {
+      req.url = "/store.html" + (req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "");
+    }
+    next();
+  };
+  return {
+    name: "store-spa-fallback",
+    configureServer(server) { server.middlewares.use(rewrite); },
+    configurePreviewServer(server) { server.middlewares.use(rewrite); },
+  };
+}
+
 export default defineConfig({
   plugins: [
     react(),
     forceUtf8Text(),
     fixApkContentType(),
+    storeSpaFallback(),
     VitePWA({
       registerType: "autoUpdate",
       // vite-plugin-pwa يحقن سكربت تسجيل الـ Service Worker ورابط manifest.webmanifest في *كل*
@@ -125,6 +144,9 @@ export default defineConfig({
       workbox: {
         // احذف أي مخازن أنشأتها إصدارات سابقة حتى لا تبقى واجهة قديمة بعد النشر.
         cleanupOutdatedCaches: true,
+        // عامل الخدمة يردّ على أي تنقّل غير معروف بـ index.html المخزَّن (تطبيق أثر). مسارات المتجر العام تُستثنى
+        // حتى يصل متصفح فيه عامل خدمة أثر (مستخدم النظام نفسه) إلى store.html من الخادم لا إلى شاشة الدخول.
+        navigateFallbackDenylist: [/^\/store(\/|$)/],
         // لا يُخزَّن مؤقتاً إطلاقاً أي طلب غير GET (POST/PATCH/DELETE) — نتائج مالية لا يجوز تقديمها من ذاكرة تخزين مؤقت قديمة
         runtimeCaching: [
           {
@@ -147,6 +169,7 @@ export default defineConfig({
         main: path.resolve(process.cwd(), "index.html"),
         mobile: path.resolve(process.cwd(), "mobile.html"),
         pos: path.resolve(process.cwd(), "pos.html"),
+        store: path.resolve(process.cwd(), "store.html"),
       },
     },
   },

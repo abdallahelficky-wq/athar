@@ -49,6 +49,11 @@ const emptyForm = (c) => ({
   stationGasoline91ItemId: c.stationGasoline91ItemId || "",
   stationGasoline95ItemId: c.stationGasoline95ItemId || "",
   allowNegativeFuelStock: c.allowNegativeFuelStock ?? true,
+  storeEnabled: c.storeEnabled ?? false,
+  storeSlug: c.storeSlug || "",
+  storeName: c.storeName || "",
+  storeNameEn: c.storeNameEn || "",
+  storeWhatsappNumber: c.storeWhatsappNumber || "",
 });
 
 // صنف المخزون لكل منتج وقود — يُصرَف منه بالمتوسط المرجّح عند ترحيل وردية المحطة (راجع stationShiftCogs.ts)
@@ -69,6 +74,8 @@ const SECTION_FIELDS = {
   alerts: ["lowCashThreshold", "overdueInvoiceDays", "staleDraftDays"],
   stations: ["stationCashShortageAccountId", "stationCashSurplusAccountId", "tankVarianceAccountId", "cardFeeExpenseAccountId", "stationDieselItemId", "stationGasoline91ItemId", "stationGasoline95ItemId", "allowNegativeFuelStock"],
   fiscal: ["fiscalYearClosingDate"],
+  // المتجر الإلكتروني العام (واجهة البيع /store/<الرابط>) — راجع src/modules/store في الخادم
+  store: ["storeEnabled", "storeSlug", "storeName", "storeNameEn", "storeWhatsappNumber"],
 };
 const FIELD_SECTION = Object.fromEntries(Object.entries(SECTION_FIELDS).flatMap(([sec, keys]) => keys.map((k) => [k, sec])));
 
@@ -80,7 +87,8 @@ const toPayloadValue = (key, v) => {
     case "overdueInvoiceDays": case "staleDraftDays": return Number(v);
     case "vatRate": return v === "" ? undefined : Number(v);
     case "fiscalYearClosingDate": return v || null;
-    case "allowNegativeFuelStock": return Boolean(v);
+    case "allowNegativeFuelStock": case "storeEnabled": return Boolean(v);
+    case "storeSlug": return String(v || "").trim().toLowerCase() || null;
     case "stationCashShortageAccountId": case "stationCashSurplusAccountId": case "tankVarianceAccountId": case "cardFeeExpenseAccountId":
     case "stationDieselItemId": case "stationGasoline91ItemId": case "stationGasoline95ItemId": return v || null;
     default: return v;
@@ -146,6 +154,7 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
     { key: "address", icon: "📍" },
     { key: "numbering", icon: "#" },
     { key: "alerts", icon: "🔔" },
+    { key: "store", icon: "🛒" },
     ...(isFuelCompany ? [{ key: "stations", icon: "⛽" }] : []),
     { key: "fiscal", icon: "📅" },
     { key: "branches", icon: "🏬" },
@@ -439,6 +448,31 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 </label>
               </div>
               <SectionSave section="alerts" />
+            </section>
+            <section hidden={activeSection !== "store"} className="company-settings-section">
+              <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.store")}</h4>
+              <p className="note">{t("settings.companyEdit.storeNote")}</p>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={Boolean(form.storeEnabled)} onChange={(e) => set("storeEnabled", e.target.checked)} />
+                {t("settings.companyEdit.storeEnabledLabel")}
+              </label>
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.storeSlugLabel")}
+                  <input type="text" dir="ltr" maxLength={40} value={form.storeSlug} placeholder="tism-pro"
+                    onChange={(e) => set("storeSlug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
+                </label>
+                <label>{t("settings.companyEdit.storeNameLabel")}<input type="text" maxLength={120} value={form.storeName} onChange={(e) => set("storeName", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.storeNameEnLabel")}<input type="text" dir="ltr" maxLength={120} value={form.storeNameEn} onChange={(e) => set("storeNameEn", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.storeWhatsappLabel")}
+                  <input type="tel" dir="ltr" value={form.storeWhatsappNumber} placeholder="9665XXXXXXXX" onChange={(e) => set("storeWhatsappNumber", e.target.value)} />
+                </label>
+              </div>
+              {baseline.storeEnabled && baseline.storeSlug && (
+                <p className="note">{t("settings.companyEdit.storeLinkLabel")}{" "}
+                  <a href={`/store/${baseline.storeSlug}`} target="_blank" rel="noreferrer" dir="ltr">{`${window.location.origin}/store/${baseline.storeSlug}`}</a>
+                </p>
+              )}
+              <SectionSave section="store" />
             </section>
             {isFuelCompany && (
               <section hidden={activeSection !== "stations"} className="company-settings-section">
