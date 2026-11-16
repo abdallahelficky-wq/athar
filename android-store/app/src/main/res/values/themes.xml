@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TismStore" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/store_ink</item>
+        <item name="colorPrimaryDark">@color/store_ink</item>
+        <item name="colorAccent">@color/store_accent</item>
+        <item name="android:statusBarColor">@color/store_ink</item>
+        <item name="android:navigationBarColor">@color/store_ink</item>
+        <item name="android:windowBackground">@color/store_bg</item>
+    </style>
+</resources>
