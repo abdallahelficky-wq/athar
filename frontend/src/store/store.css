@@ -235,3 +235,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .st-checkout .st-choice .st-bank { margin: 4px 0 0; max-width: none; }
 .st-choice { min-width: 0; }
 .st-bank { box-sizing: border-box; overflow-wrap: anywhere; }
+
+/* ── خيارات المنتج: اللون والمقاس ── */
+.st-variants { display: grid; gap: 12px; margin: 12px 0; }
+.st-variant-row { display: grid; gap: 6px; }
+.st-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.st-chip { border: 1px solid var(--st-line); background: #fff; color: var(--st-ink); border-radius: 8px; padding: 7px 12px; font: inherit; font-size: .9rem; cursor: pointer; }
+.st-chip:hover { border-color: var(--st-ink); }
+.st-chip.active { border-color: var(--st-ink); box-shadow: inset 0 0 0 1px var(--st-ink); font-weight: 700; }
+.st-chip-other { border-style: dashed; color: var(--st-muted); }
+.st-chip-out { text-decoration: line-through; color: var(--st-muted); }

@@ -371,12 +371,52 @@ function ProductCard({ product }) {
       <ProductImage path={product.images[0]} alt={name} code={product.code} />
       <div className="st-card-body">
         <span className="st-card-name">{name}</span>
-        <span className="st-card-code" dir="ltr">{product.code}</span>
+        {product.variantCount > 1
+          ? <span className="st-card-code">{t.options(product.variantCount)}</span>
+          : <span className="st-card-code" dir="ltr">{product.code}</span>}
         <Price product={product} className="st-card-price" />
         {!product.inStock && <span className="st-stock st-stock-out">{t.outOfStock}</span>}
       </div>
     </Link>
   );
+}
+
+/**
+ * اختيار اللون والمقاس: كل خيار صنف مستقل بكوده وسعره وتوفره، والاختيار ينقل إلى صفحة ذلك الصنف.
+ * عند تغيير اللون يُحافَظ على المقاس الحالي إن وُجد بهذا اللون (والعكس)، وإلا يُختار أول خيار متوفر.
+ */
+function VariantPicker({ product }) {
+  const { slug, t } = useStore();
+  const navigate = useNavigate();
+  const variants = product.variants || [];
+  if (variants.length < 2) return null;
+  const uniq = (key) => [...new Set(variants.map((v) => v[key]).filter(Boolean))];
+  // الصنف الذي ينقل إليه اختيار قيمة: نفس القيمة الأخرى الحالية إن وُجدت، وإلا أول متوفر، وإلا الأول
+  const targetFor = (key, value) => {
+    const other = key === "color" ? "size" : "color";
+    const same = variants.filter((v) => v[key] === value);
+    return { exact: same.find((v) => v[other] === product[other]), target: same.find((v) => v[other] === product[other]) || same.find((v) => v.inStock) || same[0] };
+  };
+  const row = (key, label) => {
+    const values = uniq(key);
+    if (values.length === 0) return null;
+    return (
+      <div className="st-variant-row">
+        <span className="st-muted">{label}: <strong>{product[key] || "—"}</strong></span>
+        <div className="st-chips">
+          {values.map((value) => {
+            const { exact, target } = targetFor(key, value);
+            return (
+              <button key={value} type="button" aria-pressed={product[key] === value}
+                className={`st-chip${product[key] === value ? " active" : ""}${exact ? "" : " st-chip-other"}${target.inStock ? "" : " st-chip-out"}`}
+                onClick={() => { if (target.code !== product.code) navigate(productPath(slug, target.code), { replace: true }); }}>{value}</button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+  return <div className="st-variants">{row("color", t.color)}{row("size", t.size)}</div>;
 }
 
 function ProductPage() {
@@ -447,6 +487,7 @@ function ProductPage() {
         <p className="st-price-row"><Price product={product} className="st-price" /></p>
         <p className="st-muted">{t.vatIncluded}</p>
         <p className={`st-stock ${product.inStock ? "st-stock-in" : "st-stock-out"}`}>{product.inStock ? t.inStock : t.outOfStock}</p>
+        <VariantPicker product={product} />
         <dl className="st-specs">
           <div><dt>{t.code}</dt><dd dir="ltr">{product.code}</dd></div>
           {product.countryOfOrigin && <div><dt>{t.origin}</dt><dd>{product.countryOfOrigin}</dd></div>}
