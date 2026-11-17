@@ -1953,6 +1953,11 @@ model Item {
   storeCompareAtPrice Decimal? @db.Decimal(18, 4)
   // منتج مميّز: يتصدّر الصفحة الرئيسية للمتجر
   storeFeatured      Boolean @default(false)
+  // خيارات المنتج في المتجر: الأصناف التي تحمل الرمز نفسه (داخل الشركة) تُعرَض منتجاً واحداً يختار العميل لونه ومقاسه.
+  // كل لون/مقاس يبقى صنفاً مستقلاً بمخزونه وسعره وتكلفته — التجميع عرض فقط، لا يمسّ المخزون ولا الفواتير.
+  storeVariantGroup String?
+  storeVariantColor String?
+  storeVariantSize  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1970,6 +1975,7 @@ model Item {
   @@unique([tenantId, companyId, barcode])
   @@index([tenantId, companyId, type])
   @@index([companyId, publishedInStore])
+  @@index([companyId, storeVariantGroup])
   @@map("items")
 }
 

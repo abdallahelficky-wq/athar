@@ -184,7 +184,7 @@ describe("store settings: shipping, payment, coupons, compare-at price, product 
     const image = await prisma.attachment.create({ data: { tenantId: a.tenantId, entityType: "item_store_image", entityId: boltId, fileName: "x.png", fileKey: `${a.tenantId}/x/${boltId}/x.png`, fileSize: 1, mimeType: "image/png" } });
     const feed = (await call(null, "GET", `/store/${a.slug}/feed.csv`)).text.trim().split("\r\n");
     expect(feed).toHaveLength(2);
-    expect(feed[0]).toBe("id,title,description,availability,condition,price,sale_price,link,image_link,brand");
+    expect(feed[0]).toBe("id,title,description,availability,condition,price,sale_price,link,image_link,brand,item_group_id,color,size");
     expect(feed[1]).toContain(`"${BOLT}","ترباس","ترباس","in stock","new","57.50 SAR","40.25 SAR"`);
     expect(feed[1]).toContain(`/store/${a.slug}/product/${BOLT}"`);
     expect(feed[1]).toContain(`/api/store/${a.slug}/images/${image.id}"`);

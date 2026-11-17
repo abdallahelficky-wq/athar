@@ -52,6 +52,10 @@ const baseItemFields = {
   publishedInStore: z.boolean().optional(),
   storeCompareAtPrice: z.coerce.number().min(0).nullable().optional(),
   storeFeatured: z.boolean().optional(),
+  // خيارات المنتج في المتجر — نص فارغ يُخزَّن null (الصنف منتج مستقل بلا خيارات)
+  storeVariantGroup: z.string().trim().max(60).transform((v) => v || null).nullable().optional(),
+  storeVariantColor: z.string().trim().max(40).transform((v) => v || null).nullable().optional(),
+  storeVariantSize: z.string().trim().max(40).transform((v) => v || null).nullable().optional(),
   storeDescription: z.string().max(4000).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
   storeDescriptionEn: z.string().max(4000).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
   countryOfOrigin: z.string().max(80).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),

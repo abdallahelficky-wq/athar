@@ -52,6 +52,7 @@ const emptyForm = () => ({
   stockAccountId: "", cogsAccountId: "", revenueAccountId: "", expenseAccountId: "", purchasesAccountId: "",
   allowDirectSale: false, assetCategoryId: "",
   publishedInStore: false, storeDescription: "", storeDescriptionEn: "", countryOfOrigin: "", storeCompareAtPrice: "", storeFeatured: false,
+  storeVariantGroup: "", storeVariantColor: "", storeVariantSize: "",
 });
 
 // حقول عرض الصنف في المتجر الإلكتروني العام — تُقرأ من الصنف عند التعديل؛ النسخ (duplicate) يبدأ غير منشور
@@ -59,6 +60,7 @@ const storeFieldsOf = (item) => ({
   publishedInStore: item.publishedInStore === true, storeDescription: item.storeDescription || "",
   storeDescriptionEn: item.storeDescriptionEn || "", countryOfOrigin: item.countryOfOrigin || "",
   storeCompareAtPrice: item.storeCompareAtPrice == null ? "" : Number(item.storeCompareAtPrice), storeFeatured: item.storeFeatured === true,
+  storeVariantGroup: item.storeVariantGroup || "", storeVariantColor: item.storeVariantColor || "", storeVariantSize: item.storeVariantSize || "",
 });
 
 const Icons = {
@@ -230,6 +232,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       countryOfOrigin: form.countryOfOrigin,
       storeCompareAtPrice: form.storeCompareAtPrice === "" || Number(form.storeCompareAtPrice) <= 0 ? null : Number(form.storeCompareAtPrice),
       storeFeatured: isSellableType ? form.storeFeatured : false,
+      storeVariantGroup: form.storeVariantGroup, storeVariantColor: form.storeVariantColor, storeVariantSize: form.storeVariantSize,
     };
     if (form.type === "bundle" && !editingId) payload.components = cleanedComponents;
     try {
@@ -433,6 +436,9 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
             <label>{t("inventory.items.form.store.countryOfOrigin")}<input type="text" maxLength={80} value={form.countryOfOrigin} onChange={(e) => setForm({ ...form, countryOfOrigin: e.target.value })} /></label>
             <label>{t("inventory.items.form.store.compareAtPrice")}<input type="number" min="0" step="0.01" dir="ltr" value={form.storeCompareAtPrice} onChange={(e) => setForm({ ...form, storeCompareAtPrice: e.target.value })} /></label>
             <label className="checkbox-label"><input type="checkbox" checked={form.storeFeatured} onChange={(e) => setForm({ ...form, storeFeatured: e.target.checked })} />{t("inventory.items.form.store.featured")}</label>
+            <label>{t("inventory.items.form.store.variantGroup")}<input type="text" dir="ltr" maxLength={60} value={form.storeVariantGroup} onChange={(e) => setForm({ ...form, storeVariantGroup: e.target.value })} /></label>
+            <label>{t("inventory.items.form.store.variantColor")}<input type="text" maxLength={40} value={form.storeVariantColor} onChange={(e) => setForm({ ...form, storeVariantColor: e.target.value })} /></label>
+            <label>{t("inventory.items.form.store.variantSize")}<input type="text" maxLength={40} value={form.storeVariantSize} onChange={(e) => setForm({ ...form, storeVariantSize: e.target.value })} /></label>
           </div>
           {editingId
             ? <AttachmentsPanel entityType="item_store_image" entityId={editingId} title={t("inventory.items.form.store.images")} />

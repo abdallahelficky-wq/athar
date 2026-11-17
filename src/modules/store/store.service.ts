@@ -38,6 +38,9 @@ export const PUBLIC_ITEM_SELECT = {
   countryOfOrigin: true,
   storeCompareAtPrice: true,
   storeFeatured: true,
+  storeVariantGroup: true,
+  storeVariantColor: true,
+  storeVariantSize: true,
 } satisfies Prisma.ItemSelect;
 
 type PublicItemRow = Prisma.ItemGetPayload<{ select: typeof PUBLIC_ITEM_SELECT }>;
@@ -200,6 +203,27 @@ async function imageIdsByItem(store: StoreContext, itemIds: string[]) {
   return map;
 }
 
+/**
+ * صور الصنف، وإن لم تكن له صور وهو ضمن مجموعة خيارات: صور أول صنف منشور في المجموعة نفسها له صور —
+ * فيكفي رفع صورة الموديل مرة واحدة ليظهر بها كل لون/مقاس لم تُرفَع له صورته.
+ */
+async function imagesWithGroupFallback(store: StoreContext, items: { id: string; storeVariantGroup: string | null }[]) {
+  const images = await imageIdsByItem(store, items.map((i) => i.id));
+  const groups = [...new Set(items.filter((i) => i.storeVariantGroup && !images.get(i.id)?.length).map((i) => i.storeVariantGroup as string))];
+  if (!groups.length) return images;
+  const siblings = await prisma.item.findMany({ where: { AND: [publishedWhere(store), { storeVariantGroup: { in: groups } }] }, select: { id: true, storeVariantGroup: true }, orderBy: [{ code: "asc" }] });
+  const siblingImages = await imageIdsByItem(store, siblings.map((s) => s.id));
+  const byGroup = new Map<string, string[]>();
+  for (const s of siblings) {
+    const ids = siblingImages.get(s.id);
+    if (ids?.length && !byGroup.has(s.storeVariantGroup as string)) byGroup.set(s.storeVariantGroup as string, ids);
+  }
+  for (const i of items) {
+    if (i.storeVariantGroup && !images.get(i.id)?.length && byGroup.has(i.storeVariantGroup)) images.set(i.id, byGroup.get(i.storeVariantGroup) as string[]);
+  }
+  return images;
+}
+
 async function toPublicProduct(store: StoreContext, item: PublicItemRow, imageIds: string[]) {
   // صنف بلا تتبّع كمية (خدمة، غير مخزني) متوفر دائماً
   const inStock = isQuantityTracked(item.type) ? (await getItemTotalOnHand(prisma, store.tenantId, item.id)) > 0 : true;
@@ -219,6 +243,9 @@ async function toPublicProduct(store: StoreContext, item: PublicItemRow, imageId
     // السعر قبل الخصم (شامل الضريبة) — فقط إن كان أعلى فعلاً من سعر البيع
     compareAtPrice: compareAt != null && compareAt > price.price ? compareAt : null,
     featured: item.storeFeatured,
+    variantGroup: item.storeVariantGroup,
+    color: item.storeVariantColor,
+    size: item.storeVariantSize,
     inStock,
     images: imageIds.map((id) => `/store/${store.slug}/images/${id}`),
   };
@@ -255,19 +282,38 @@ export async function listProducts(store: StoreContext, query: { category?: stri
         : {},
     ],
   };
-  const [total, items] = await Promise.all([
-    prisma.item.count({ where }),
-    prisma.item.findMany({ where, select: PUBLIC_ITEM_SELECT, orderBy: ORDER_BY[query.sort ?? "newest"], skip: (page - 1) * pageSize, take: pageSize }),
-  ]);
-  const images = await imageIdsByItem(store, items.map((i) => i.id));
+  // مجموعة الخيارات (ألوان/مقاسات) بطاقة واحدة في القائمة: يمثّلها أول صنف منها بحسب الترتيب المطلوب.
+  // الترقيم يُحسَب على المنتجات بعد التجميع، فتُقرأ المعرّفات كلها أولاً (حقلان فقط) ثم تُجلَب تفاصيل الصفحة.
+  const orderBy = ORDER_BY[query.sort ?? "newest"];
+  const all = await prisma.item.findMany({ where, select: { id: true, storeVariantGroup: true }, orderBy, take: LIST_MAX_ITEMS });
+  const firstOfGroup = new Map<string, string>();
+  const variantCount = new Map<string, number>();
+  const cards: string[] = [];
+  for (const row of all) {
+    const group = row.storeVariantGroup;
+    if (!group) { cards.push(row.id); continue; }
+    variantCount.set(group, (variantCount.get(group) ?? 0) + 1);
+    if (!firstOfGroup.has(group)) { firstOfGroup.set(group, row.id); cards.push(row.id); }
+  }
+  const pageIds = cards.slice((page - 1) * pageSize, page * pageSize);
+  const rows = await prisma.item.findMany({ where: { AND: [publishedWhere(store), { id: { in: pageIds } }] }, select: PUBLIC_ITEM_SELECT });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const items = pageIds.map((id) => byId.get(id)).filter((r): r is PublicItemRow => Boolean(r));
+  const images = await imagesWithGroupFallback(store, items);
   return {
-    total,
+    total: cards.length,
     page,
     pageSize,
-    products: await Promise.all(items.map((item) => toPublicProduct(store, item, images.get(item.id) ?? []))),
+    products: await Promise.all(items.map(async (item) => ({
+      ...(await toPublicProduct(store, item, images.get(item.id) ?? [])),
+      // عدد الخيارات المطابقة للبحث/التصنيف داخل المجموعة (1 لمنتج بلا خيارات)
+      variantCount: item.storeVariantGroup ? variantCount.get(item.storeVariantGroup) ?? 1 : 1,
+    }))),
   };
 }
 
+export const LIST_MAX_ITEMS = 10000;
+export const MAX_VARIANTS = 80;
 export const FEED_MAX_PRODUCTS = 5000;
 const csvCell = (v: string) => `"${v.replace(/"/g, '""').replace(/[\r\n]+/g, " ")}"`;
 
@@ -278,9 +324,9 @@ const csvCell = (v: string) => `"${v.replace(/"/g, '""').replace(/[\r\n]+/g, " "
  */
 export async function buildProductFeed(store: StoreContext, urls: { site: string; api: string }) {
   const items = await prisma.item.findMany({ where: publishedWhere(store), select: PUBLIC_ITEM_SELECT, orderBy: [{ code: "asc" }], take: FEED_MAX_PRODUCTS });
-  const images = await imageIdsByItem(store, items.map((i) => i.id));
+  const images = await imagesWithGroupFallback(store, items);
   const money = (n: number) => `${n.toFixed(2)} ${store.info.currency}`;
-  const rows = [["id", "title", "description", "availability", "condition", "price", "sale_price", "link", "image_link", "brand"].join(",")];
+  const rows = [["id", "title", "description", "availability", "condition", "price", "sale_price", "link", "image_link", "brand", "item_group_id", "color", "size"].join(",")];
   for (const item of items) {
     const imageIds = images.get(item.id) ?? [];
     if (imageIds.length === 0) continue;
@@ -289,6 +335,8 @@ export async function buildProductFeed(store: StoreContext, urls: { site: string
       p.code, p.name, p.description || p.name, p.inStock ? "in stock" : "out of stock", "new",
       money(p.compareAtPrice ?? p.price), p.compareAtPrice ? money(p.price) : "",
       `${urls.site}/store/${store.slug}/product/${encodeURIComponent(p.code)}`, `${urls.api}${p.images[0]}`, store.info.name,
+      // item_group_id يجمع ألوان/مقاسات المنتج الواحد في كتالوج Meta
+      p.variantGroup ?? "", p.color ?? "", p.size ?? "",
     ].map(csvCell).join(","));
   }
   return rows.join("\r\n") + "\r\n";
@@ -297,16 +345,28 @@ export async function buildProductFeed(store: StoreContext, urls: { site: string
 export async function getProduct(store: StoreContext, code: string) {
   const item = await prisma.item.findFirst({ where: { AND: [publishedWhere(store), { code }] }, select: PUBLIC_ITEM_SELECT });
   if (!item) throw notFound(PRODUCT_NOT_FOUND);
-  const images = await imageIdsByItem(store, [item.id]);
-  return toPublicProduct(store, item, images.get(item.id) ?? []);
+  // خيارات المنتج: كل الأصناف المنشورة في مجموعته (ومنها هو) — لكلٍّ كوده وسعره وتوفره، والعميل يتنقّل بينها
+  const siblings = item.storeVariantGroup
+    ? await prisma.item.findMany({ where: { AND: [publishedWhere(store), { storeVariantGroup: item.storeVariantGroup }] }, select: PUBLIC_ITEM_SELECT, orderBy: [{ code: "asc" }], take: MAX_VARIANTS })
+    : [];
+  const images = await imagesWithGroupFallback(store, siblings.length ? siblings : [item]);
+  const product = await toPublicProduct(store, item, images.get(item.id) ?? []);
+  const variants = await Promise.all(siblings.map(async (s) => {
+    const v = await toPublicProduct(store, s, images.get(s.id) ?? []);
+    return { code: v.code, color: v.color, size: v.size, price: v.price, compareAtPrice: v.compareAtPrice, inStock: v.inStock, image: v.images[0] ?? null };
+  }));
+  return { ...product, variants: variants.length > 1 ? variants : [] };
 }
 
 export async function listCategories(store: StoreContext) {
-  const rows = await prisma.item.groupBy({ by: ["category"], where: publishedWhere(store), _count: { _all: true } });
-  return rows
-    .filter((r) => r.category && r.category.trim())
-    .map((r) => ({ name: r.category as string, count: r._count._all }))
-    .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+  // العدد بالمنتجات كما تظهر في القائمة: مجموعة الخيارات منتج واحد
+  const rows = await prisma.item.groupBy({ by: ["category", "storeVariantGroup"], where: publishedWhere(store), _count: { _all: true } });
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.category || !r.category.trim()) continue;
+    counts.set(r.category, (counts.get(r.category) ?? 0) + (r.storeVariantGroup ? 1 : r._count._all));
+  }
+  return [...counts.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name, "ar"));
 }
 
 /** رابط مؤقت لصورة منتج — فقط إن كانت صورة متجر لصنف منشور حالياً في هذا المتجر نفسه. */
