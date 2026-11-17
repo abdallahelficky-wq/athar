@@ -1451,6 +1451,7 @@ model SalesInvoice {
   horseBoardingInvoice HorseBoardingInvoice?
   trainerCommissions   TrainerCommission[]
   ridingLesson         RidingLesson?
+  storeOrder           StoreOrder?
 
   @@unique([tenantId, companyId, invoiceNumber])
   // قائمة الفواتير المُرقَّمة/المُفلترة (searchSalesInvoices) تُفلتِر دائماً بـ(tenantId, companyId)
@@ -4364,6 +4365,10 @@ model StoreOrder {
   // خصم الكوبون (شامل الضريبة) ورمزه وقت الطلب. total = مجموع الأصناف − الخصم + الشحن.
   discountAmount Decimal        @default(0) @db.Decimal(18, 2)
   couponCode     String?
+  // فاتورة المبيعات التي أُصدرت من هذا الطلب (مسودة تُراجَع ثم تُرحَّل من شاشة الفواتير). فاتورة واحدة للطلب؛
+  // حذف المسودة يفكّ الربط فيمكن إصدار غيرها. الربط هنا لا على الفاتورة، فنسخة مرآة من الفاتورة لا تحمله.
+  salesInvoiceId String?        @unique
+  salesInvoice   SalesInvoice?  @relation(fields: [salesInvoiceId], references: [id], onDelete: SetNull)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
