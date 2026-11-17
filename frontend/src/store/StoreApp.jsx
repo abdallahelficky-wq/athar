@@ -57,6 +57,40 @@ function initPixel(id) {
 }
 const track = (event, data) => { try { window.fbq?.("track", event, data); } catch { /* القياس لا يعطّل المتجر */ } };
 
+/**
+ * بيانات التحويل البنكي كما كتبها صاحب المتجر، ومعها — إن احتوى النص على آيبان — رمز QR للآيبان وزر نسخه.
+ * الرمز يُولَّد في متصفح العميل من النص نفسه ويحمل الآيبان فقط (نص عادي تقرؤه كاميرا أي جوال) — ليس رمز دفع.
+ */
+function BankDetails({ text }) {
+  const { t } = useStore();
+  const iban = (text.replace(/[\s\u200e\u200f]/g, "").toUpperCase().match(/[A-Z]{2}\d{2}[A-Z0-9]{11,30}/) || [])[0] || null;
+  const [qr, setQr] = useState(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setQr(null);
+    if (iban) import("qrcode").then((m) => m.toDataURL(iban, { margin: 1, width: 220 })).then((url) => { if (!cancelled) setQr(url); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [iban]);
+  const copy = () => navigator.clipboard?.writeText(iban).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
+  return (
+    <div className="st-bank">
+      <strong>{t.bankDetails}</strong>
+      <p>{text}</p>
+      {iban && (
+        <div className="st-bank-iban">
+          {qr && <img src={qr} alt={t.ibanQr} width="110" height="110" />}
+          <div>
+            <span className="st-muted">{t.ibanQr}</span>
+            <bdi dir="ltr" className="st-bank-number">{iban}</bdi>
+            <button type="button" className="st-btn st-btn-ghost" onClick={copy}>{copied ? t.copied : t.copyIban}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** السعر، ومعه السعر قبل الخصم مشطوباً ونسبة الخصم إن وُجد. */
 function Price({ product, className }) {
   const { t, money } = useStore();
@@ -513,7 +547,7 @@ function CartPage() {
         <p>{t.orderPlacedHint}</p>
         <p className="st-price">{money(placed.total)}</p>
         {placed.paymentMethod === "bank_transfer" && store.payment?.bankTransferDetails && (
-          <div className="st-bank"><strong>{t.bankDetails}</strong><p>{store.payment.bankTransferDetails}</p></div>
+          <BankDetails text={store.payment.bankTransferDetails} />
         )}
         {placed.shippingMethod === "pickup" && store.shipping?.pickupAddress && <p className="st-muted">{t.pickupAt}: {store.shipping.pickupAddress}</p>}
         <div className="st-placed-actions">
@@ -639,6 +673,7 @@ function CartPage() {
             <fieldset className="st-choice">
               <legend>{t.payment}</legend>
               {paymentOptions.map((p) => <label key={p}><input type="radio" name="pay" checked={payment === p} onChange={() => setPayment(p)} />{p === "cod" ? t.cod : t.bankTransfer}</label>)}
+              {payment === "bank_transfer" && store.payment.bankTransferDetails && <BankDetails text={store.payment.bankTransferDetails} />}
             </fieldset>
           )}
           <label>{t.notes}<textarea rows={2} maxLength={300} {...field("notes")} /></label>

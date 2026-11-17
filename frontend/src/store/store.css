@@ -228,3 +228,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .st-footer-row { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; }
 .st-policy { background: var(--st-surface); border: 1px solid var(--st-line); border-radius: var(--st-radius); padding: 20px; max-width: 760px; margin: 0 auto; }
 .st-policy p { white-space: pre-wrap; line-height: 1.9; margin: 12px 0 0; }
+.st-bank-iban { display: flex; gap: 12px; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--st-line); }
+.st-bank-iban img { border-radius: 6px; background: #fff; flex: none; }
+.st-bank-iban > div { display: grid; gap: 6px; min-width: 0; justify-items: start; }
+.st-bank-number { font-weight: 700; font-size: .85rem; overflow-wrap: anywhere; }
+.st-checkout .st-choice .st-bank { margin: 4px 0 0; max-width: none; }
+.st-choice { min-width: 0; }
+.st-bank { box-sizing: border-box; overflow-wrap: anywhere; }
