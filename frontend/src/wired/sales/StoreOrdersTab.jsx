@@ -28,7 +28,7 @@ function whatsappText(t, o, kind) {
 const whatsappUrl = (t, o, kind) => `https://wa.me/${o.phone}?text=${encodeURIComponent(whatsappText(t, o, kind))}`;
 
 /** ورقة تجهيز الطلب للطباعة (للمستودع/المندوب) — نافذة مستقلة بلا واجهة النظام. */
-function printOrder(t, o, dir) {
+function printOrder(t, o, dir, lang) {
   const w = window.open("", "_blank", "width=820,height=900");
   if (!w) return;
   const row = (l) => `<tr><td dir="ltr">${escapeHtml(l.code)}</td><td>${escapeHtml(l.name)}</td><td>${l.quantity}</td><td>${fmt2(l.unitPrice)}</td><td>${fmt2(l.lineTotal)}</td></tr>`;
@@ -36,7 +36,7 @@ function printOrder(t, o, dir) {
   w.document.write(`<!doctype html><html dir="${dir}"><head><meta charset="utf-8"><title>${escapeHtml(t(`${K}.printTitle`, { number: o.number }))}</title>
 <style>body{font-family:Arial,Tahoma,sans-serif;margin:24px;color:#111}h1{font-size:20px;margin:0 0 12px}p{margin:4px 0}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{border:1px solid #999;padding:6px 8px;text-align:start;font-size:13px}th{background:#eee}tfoot td{font-weight:bold}</style></head><body>
 <h1>${escapeHtml(t(`${K}.printTitle`, { number: o.number }))}</h1>
-<p>${escapeHtml(t(`${K}.date`))}: ${escapeHtml(new Date(o.createdAt).toLocaleDateString("en-GB"))}</p>
+<p>${escapeHtml(t(`${K}.date`))}: ${escapeHtml(formatDate(o.createdAt, lang))}</p>
 <p>${escapeHtml(t(`${K}.customer`))}: ${escapeHtml(o.customerName)} — <span dir="ltr">${escapeHtml(o.phone)}</span></p>
 <p>${escapeHtml(t(`${K}.shipping`))}: ${escapeHtml(t(`${K}.shippingMethods.${o.shippingMethod === "pickup" ? "pickup" : "delivery"}`))}${o.shippingMethod === "pickup" ? "" : ` — ${escapeHtml(o.city)}`}</p>
 <p>${escapeHtml(t(`${K}.payment`))}: ${escapeHtml(t(`${K}.paymentMethods.${["cod", "bank_transfer"].includes(o.paymentMethod) ? o.paymentMethod : "unspecified"}`))}</p>
@@ -187,7 +187,7 @@ export default function StoreOrdersTab({ companyId }) {
                         )}
                         <a className="btn-ghost" href={whatsappUrl(t, o, "confirm")} target="_blank" rel="noreferrer">{t(`${K}.waConfirm`)}</a>
                         <a className="btn-ghost" href={whatsappUrl(t, o, "shipped")} target="_blank" rel="noreferrer">{t(`${K}.waShipped`)}</a>
-                        <button type="button" className="btn-ghost" onClick={() => printOrder(t, o, i18n.dir())}>{t(`${K}.print`)}</button>
+                        <button type="button" className="btn-ghost" onClick={() => printOrder(t, o, i18n.dir(), i18n.language)}>{t(`${K}.print`)}</button>
                       </div>
                       {!o.salesInvoice && o.status !== "cancelled" && <p className="note">{t(`${K}.issueInvoiceNote`)}</p>}
                       <p className="note">

@@ -116,7 +116,8 @@ describe("store order → draft sales invoice", () => {
     expect(res.body).toMatchObject({ invoiceTotal: 103.5, difference: 0, customerCreated: false });
     const stored = (await prisma.storeOrder.findUniqueOrThrow({ where: { id: second } })).phone;
     expect(await prisma.customer.count({ where: { companyId: a.companyId, phone: { in: phoneVariants(stored) } } })).toBe(1);
-    expect(await prisma.customer.count({ where: { companyId: b.companyId } })).toBe(0);
+    // لا عميل بهذا الجوال في شركة المستأجر الآخر (للشركة الجديدة عميل افتراضي من التسجيل، فلا يُعَدّ الكل)
+    expect(await prisma.customer.count({ where: { companyId: b.companyId, phone: { in: phoneVariants(stored) } } })).toBe(0);
   });
 
   it("refuses a cancelled order, and frees the order when its draft invoice is deleted", async () => {
