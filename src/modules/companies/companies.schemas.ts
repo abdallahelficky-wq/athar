@@ -69,6 +69,32 @@ export const createCompanySchema = z.object({
   // وفرادته على مستوى المنصة تُفحَص في companies.controller.ts (assertStoreSettings).
   storeEnabled: z.boolean().optional(),
   storeListed: z.boolean().optional(),
+  // إعدادات المظهر والشحن والدفع والتسويق — راجع التعليقات فوق الحقول المطابقة في schema.prisma
+  storeAccentColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "لون المتجر بصيغة #RRGGBB").nullable().optional().or(z.literal("").transform(() => null)),
+  storeAbout: z.string().max(2000).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
+  storeAboutEn: z.string().max(2000).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
+  storeSocial: z
+    .object({
+      instagram: z.string().trim().max(200).optional(),
+      x: z.string().trim().max(200).optional(),
+      tiktok: z.string().trim().max(200).optional(),
+      snapchat: z.string().trim().max(200).optional(),
+      website: z.string().trim().max(200).optional(),
+    })
+    .strict()
+    .refine((links) => Object.values(links).every((v) => !v || /^https:\/\//i.test(v)), "روابط التواصل يجب أن تبدأ بـ https://")
+    .nullable()
+    .optional(),
+  storeMetaPixelId: z.string().trim().regex(/^\d{5,20}$/, "معرّف Meta Pixel أرقام فقط").nullable().optional().or(z.literal("").transform(() => null)),
+  storeFreeShippingOver: z.number().positive().max(1_000_000).nullable().optional(),
+  storePickupEnabled: z.boolean().optional(),
+  storePickupAddress: z.string().max(300).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
+  storeCodEnabled: z.boolean().optional(),
+  storeBankTransferEnabled: z.boolean().optional(),
+  storeBankTransferDetails: z.string().max(600).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
+  storeMinOrderAmount: z.number().positive().max(1_000_000).nullable().optional(),
+  storeReturnPolicy: z.string().max(8000).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
+  storePrivacyPolicy: z.string().max(8000).transform((v) => (v.trim() ? v.trim() : null)).nullable().optional(),
   storeSlug: z
     .string()
     .trim()

@@ -11,7 +11,13 @@ import BranchesPanel from "./BranchesPanel";
 import CompanyBankAccountsPanel from "./CompanyBankAccountsPanel";
 import FiscalYearPanel from "./FiscalYearPanel";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
+import { StoreShippingZonesPanel, StoreCouponsPanel } from "./StoreSettingsPanels";
+import { storeFeedUrl } from "../api/storeAdmin";
 import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry, defaultVatRateForCountry, isValidVatNumberForCountry, vatNumberExampleForCountry } from "../shared/countries";
+
+// روابط حسابات المتجر في منصات التواصل — تظهر في تذييل المتجر (https فقط)
+const SOCIAL_KEYS = ["instagram", "x", "tiktok", "snapchat", "website"];
+const EMPTY_SOCIAL = Object.fromEntries(SOCIAL_KEYS.map((k) => [k, ""]));
 
 const emptyForm = (c) => ({
   name: c.name || "",
@@ -55,6 +61,20 @@ const emptyForm = (c) => ({
   storeName: c.storeName || "",
   storeNameEn: c.storeNameEn || "",
   storeWhatsappNumber: c.storeWhatsappNumber || "",
+  storeAccentColor: c.storeAccentColor || "",
+  storeAbout: c.storeAbout || "",
+  storeAboutEn: c.storeAboutEn || "",
+  storeSocial: { ...EMPTY_SOCIAL, ...(c.storeSocial && typeof c.storeSocial === "object" ? c.storeSocial : {}) },
+  storeMetaPixelId: c.storeMetaPixelId || "",
+  storeFreeShippingOver: c.storeFreeShippingOver == null ? "" : Number(c.storeFreeShippingOver),
+  storePickupEnabled: c.storePickupEnabled ?? false,
+  storePickupAddress: c.storePickupAddress || "",
+  storeCodEnabled: c.storeCodEnabled ?? true,
+  storeBankTransferEnabled: c.storeBankTransferEnabled ?? false,
+  storeBankTransferDetails: c.storeBankTransferDetails || "",
+  storeMinOrderAmount: c.storeMinOrderAmount == null ? "" : Number(c.storeMinOrderAmount),
+  storeReturnPolicy: c.storeReturnPolicy || "",
+  storePrivacyPolicy: c.storePrivacyPolicy || "",
 });
 
 // صنف المخزون لكل منتج وقود — يُصرَف منه بالمتوسط المرجّح عند ترحيل وردية المحطة (راجع stationShiftCogs.ts)
@@ -76,7 +96,13 @@ const SECTION_FIELDS = {
   stations: ["stationCashShortageAccountId", "stationCashSurplusAccountId", "tankVarianceAccountId", "cardFeeExpenseAccountId", "stationDieselItemId", "stationGasoline91ItemId", "stationGasoline95ItemId", "allowNegativeFuelStock"],
   fiscal: ["fiscalYearClosingDate"],
   // المتجر الإلكتروني العام (واجهة البيع /store/<الرابط>) — راجع src/modules/store في الخادم
-  store: ["storeEnabled", "storeListed", "storeSlug", "storeName", "storeNameEn", "storeWhatsappNumber"],
+  store: [
+    "storeEnabled", "storeListed", "storeSlug", "storeName", "storeNameEn", "storeWhatsappNumber",
+    "storeAccentColor", "storeAbout", "storeAboutEn", "storeSocial", "storeMetaPixelId",
+    "storeFreeShippingOver", "storePickupEnabled", "storePickupAddress",
+    "storeCodEnabled", "storeBankTransferEnabled", "storeBankTransferDetails", "storeMinOrderAmount",
+    "storeReturnPolicy", "storePrivacyPolicy",
+  ],
 };
 const FIELD_SECTION = Object.fromEntries(Object.entries(SECTION_FIELDS).flatMap(([sec, keys]) => keys.map((k) => [k, sec])));
 
@@ -88,14 +114,21 @@ const toPayloadValue = (key, v) => {
     case "overdueInvoiceDays": case "staleDraftDays": return Number(v);
     case "vatRate": return v === "" ? undefined : Number(v);
     case "fiscalYearClosingDate": return v || null;
-    case "allowNegativeFuelStock": case "storeEnabled": case "storeListed": return Boolean(v);
+    case "allowNegativeFuelStock": case "storeEnabled": case "storeListed":
+    case "storePickupEnabled": case "storeCodEnabled": case "storeBankTransferEnabled": return Boolean(v);
+    case "storeFreeShippingOver": case "storeMinOrderAmount": return v === "" || Number(v) <= 0 ? null : Number(v);
+    case "storeSocial": {
+      const links = Object.fromEntries(Object.entries(v || {}).map(([k, x]) => [k, String(x || "").trim()]).filter(([, x]) => x));
+      return Object.keys(links).length ? links : null;
+    }
     case "storeSlug": return String(v || "").trim().toLowerCase() || null;
     case "stationCashShortageAccountId": case "stationCashSurplusAccountId": case "tankVarianceAccountId": case "cardFeeExpenseAccountId":
     case "stationDieselItemId": case "stationGasoline91ItemId": case "stationGasoline95ItemId": return v || null;
     default: return v;
   }
 };
-const sameValue = (a, b) => String(a ?? "") === String(b ?? "");
+const asText = (v) => (v && typeof v === "object" ? JSON.stringify(v) : String(v ?? ""));
+const sameValue = (a, b) => asText(a) === asText(b);
 
 /** نافذة تعديل بيانات الشركة الرسمية الكاملة — شعار، عنوان وطني، تواريخ السجل التجاري،
  * بيانات التواصل، بالإضافة إلى استخراج تلقائي بالذكاء الاصطناعي من المستندات الرسمية. */
@@ -477,6 +510,85 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                   <a href={`/store/${baseline.storeSlug}`} target="_blank" rel="noreferrer" dir="ltr">{`${window.location.origin}/store/${baseline.storeSlug}`}</a>
                 </p>
               )}
+              <h5 className="sub-head">{t("settings.companyEdit.storeSettings.appearance")}</h5>
+              <p className="note">{t("settings.companyEdit.storeSettings.appearanceNote")}</p>
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.storeSettings.accentColor")}
+                  <span className="store-color-field">
+                    <input type="color" value={form.storeAccentColor || "#f5b800"} onChange={(e) => set("storeAccentColor", e.target.value)} />
+                    {form.storeAccentColor
+                      ? <button type="button" className="btn-ghost" onClick={() => set("storeAccentColor", "")}>{t("settings.companyEdit.storeSettings.accentDefault")}</button>
+                      : <span className="note">{t("settings.companyEdit.storeSettings.accentIsDefault")}</span>}
+                  </span>
+                </label>
+              </div>
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.storeSettings.about")}<textarea rows={3} maxLength={2000} value={form.storeAbout} onChange={(e) => set("storeAbout", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.storeSettings.aboutEn")}<textarea rows={3} dir="ltr" maxLength={2000} value={form.storeAboutEn} onChange={(e) => set("storeAboutEn", e.target.value)} /></label>
+              </div>
+              <div className="form-grid">
+                {SOCIAL_KEYS.map((k) => (
+                  <label key={k}>{t(`settings.companyEdit.storeSettings.social.${k}`)}
+                    <input type="url" dir="ltr" maxLength={200} placeholder="https://" value={form.storeSocial[k] || ""} onChange={(e) => set("storeSocial", { ...form.storeSocial, [k]: e.target.value })} />
+                  </label>
+                ))}
+              </div>
+              <AttachmentsPanel entityType="store_banner" entityId={company.id} title={t("settings.companyEdit.storeSettings.banners")} />
+
+              <h5 className="sub-head">{t("settings.companyEdit.storeSettings.shipping")}</h5>
+              <StoreShippingZonesPanel companyId={company.id} />
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.storeSettings.freeShippingOver")}
+                  <input type="number" min="0" step="0.01" dir="ltr" value={form.storeFreeShippingOver} onChange={(e) => set("storeFreeShippingOver", e.target.value)} />
+                </label>
+                <label>{t("settings.companyEdit.storeSettings.minOrderAmount")}
+                  <input type="number" min="0" step="0.01" dir="ltr" value={form.storeMinOrderAmount} onChange={(e) => set("storeMinOrderAmount", e.target.value)} />
+                </label>
+              </div>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={Boolean(form.storePickupEnabled)} onChange={(e) => set("storePickupEnabled", e.target.checked)} />
+                {t("settings.companyEdit.storeSettings.pickupEnabled")}
+              </label>
+              {form.storePickupEnabled && (
+                <div className="form-grid">
+                  <label>{t("settings.companyEdit.storeSettings.pickupAddress")}<input type="text" maxLength={300} value={form.storePickupAddress} onChange={(e) => set("storePickupAddress", e.target.value)} /></label>
+                </div>
+              )}
+
+              <h5 className="sub-head">{t("settings.companyEdit.storeSettings.payment")}</h5>
+              <p className="note">{t("settings.companyEdit.storeSettings.paymentNote")}</p>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={Boolean(form.storeCodEnabled)} onChange={(e) => set("storeCodEnabled", e.target.checked)} />
+                {t("settings.companyEdit.storeSettings.codEnabled")}
+              </label>
+              <label className="checkbox-label">
+                <input type="checkbox" checked={Boolean(form.storeBankTransferEnabled)} onChange={(e) => set("storeBankTransferEnabled", e.target.checked)} />
+                {t("settings.companyEdit.storeSettings.bankTransferEnabled")}
+              </label>
+              {form.storeBankTransferEnabled && (
+                <div className="form-grid">
+                  <label>{t("settings.companyEdit.storeSettings.bankTransferDetails")}<textarea rows={3} maxLength={600} value={form.storeBankTransferDetails} onChange={(e) => set("storeBankTransferDetails", e.target.value)} /></label>
+                </div>
+              )}
+
+              <h5 className="sub-head">{t("settings.companyEdit.storeSettings.marketing")}</h5>
+              <StoreCouponsPanel companyId={company.id} />
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.storeSettings.metaPixelId")}
+                  <input type="text" dir="ltr" inputMode="numeric" maxLength={20} value={form.storeMetaPixelId} onChange={(e) => set("storeMetaPixelId", e.target.value.replace(/\D/g, ""))} />
+                </label>
+              </div>
+              {baseline.storeEnabled && baseline.storeSlug && (
+                <p className="note">{t("settings.companyEdit.storeSettings.feedLabel")}{" "}
+                  <a href={storeFeedUrl(baseline.storeSlug)} target="_blank" rel="noreferrer" dir="ltr">{storeFeedUrl(baseline.storeSlug)}</a>
+                </p>
+              )}
+
+              <h5 className="sub-head">{t("settings.companyEdit.storeSettings.policies")}</h5>
+              <div className="form-grid">
+                <label>{t("settings.companyEdit.storeSettings.returnPolicy")}<textarea rows={5} maxLength={8000} value={form.storeReturnPolicy} onChange={(e) => set("storeReturnPolicy", e.target.value)} /></label>
+                <label>{t("settings.companyEdit.storeSettings.privacyPolicy")}<textarea rows={5} maxLength={8000} value={form.storePrivacyPolicy} onChange={(e) => set("storePrivacyPolicy", e.target.value)} /></label>
+              </div>
               <SectionSave section="store" />
             </section>
             {isFuelCompany && (

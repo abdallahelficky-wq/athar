@@ -45,6 +45,8 @@ enum SubscriptionStatus {
 }
 
 model Tenant {
+  storeShippingZones        StoreShippingZone[]
+  storeCoupons              StoreCoupon[]
   storeCustomers            StoreCustomer[]
   storeOtps                 StoreOtp[]
   storeOrders               StoreOrder[]
@@ -439,6 +441,8 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Company {
+  storeShippingZones        StoreShippingZone[]
+  storeCoupons              StoreCoupon[]
   storeCustomers            StoreCustomer[]
   storeOtps                 StoreOtp[]
   storeOrders               StoreOrder[]
@@ -548,6 +552,26 @@ model Company {
   storeListed                  Boolean               @default(false)
   // العدّاد التالي لأرقام طلبات المتجر لهذه الشركة — يُزاد ذرّياً داخل معاملة إنشاء الطلب (كـnextJournalEntrySeq).
   storeNextOrderSeq            Int                   @default(1)
+  // ── إعدادات المتجر الإلكتروني (تبويب المتجر في بيانات الشركة) — كلها اختيارية وقيمها الافتراضية تُبقي المتجر كما هو ──
+  // المظهر: لون مميّز (#RRGGBB)، نبذة، وروابط التواصل ({ instagram, x, tiktok, snapchat, website }).
+  storeAccentColor             String?
+  storeAbout                   String?
+  storeAboutEn                 String?
+  storeSocial                  Json?
+  // معرّف Meta Pixel (أرقام فقط) لقياس إعلانات فيسبوك/إنستغرام — يُحمَّل في صفحات هذا المتجر وحده.
+  storeMetaPixelId             String?
+  // الشحن: رسوم لكل مدينة في StoreShippingZone. شحن مجاني فوق مبلغ (شامل الضريبة)، واستلام من المعرض.
+  storeFreeShippingOver        Decimal?              @db.Decimal(18, 2)
+  storePickupEnabled           Boolean               @default(false)
+  storePickupAddress           String?
+  // الدفع: طرق يختار منها العميل (الطلب تسجيل فقط — لا تحصيل إلكتروني هنا)، وحد أدنى لقيمة الطلب.
+  storeCodEnabled              Boolean               @default(true)
+  storeBankTransferEnabled     Boolean               @default(false)
+  storeBankTransferDetails     String?
+  storeMinOrderAmount          Decimal?              @db.Decimal(18, 2)
+  // صفحات السياسات (نص حر)
+  storeReturnPolicy            String?
+  storePrivacyPolicy           String?
   // --- ربط فاتورة (ZATCA) — المرحلة الثانية (التكامل)، انظر src/lib/zatca/*  ---
   // جهاز إصدار فواتير إلكترونية (EGS) واحد لكل شركة (v1) — CSID واحد، عدّاد ICV واحد،
   // وسلسلة تجزئة (PIH) واحدة تغطي كل الفواتير/الإشعارات الدائنة/المدينة لهذه الشركة معاً.
@@ -1925,6 +1949,10 @@ model Item {
   storeDescription   String?
   storeDescriptionEn String?
   countryOfOrigin    String?
+  // سعر قبل الخصم (بأساس salePrice نفسه: شامل/غير شامل) — يُعرَض مشطوباً فقط إن كان أعلى من سعر البيع.
+  storeCompareAtPrice Decimal? @db.Decimal(18, 4)
+  // منتج مميّز: يتصدّر الصفحة الرئيسية للمتجر
+  storeFeatured      Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4323,6 +4351,13 @@ model StoreOrder {
   vat          Decimal          @db.Decimal(18, 2)
   total        Decimal          @db.Decimal(18, 2)
   currency     String
+  // delivery | pickup، وطريقة الدفع التي اختارها العميل: cod | bank_transfer (unspecified لطلبات قبل هذه الأعمدة)
+  shippingMethod String         @default("delivery")
+  shippingFee    Decimal        @default(0) @db.Decimal(18, 2)
+  paymentMethod  String         @default("unspecified")
+  // خصم الكوبون (شامل الضريبة) ورمزه وقت الطلب. total = مجموع الأصناف − الخصم + الشحن.
+  discountAmount Decimal        @default(0) @db.Decimal(18, 2)
+  couponCode     String?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
@@ -4355,4 +4390,51 @@ model StoreOrderLine {
 
   @@index([orderId])
   @@map("store_order_lines")
+}
+
+// رسوم الشحن لمدينة — متى وُجدت مدن مفعَّلة، يختار عميل المتجر مدينته منها (لا توصيل لغيرها).
+model StoreShippingZone {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  city      String
+  // شامل الضريبة
+  fee       Decimal  @db.Decimal(18, 2)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, city])
+  @@map("store_shipping_zones")
+}
+
+enum StoreCouponType {
+  percent
+  fixed
+}
+
+// كوبون خصم على مجموع أصناف الطلب (لا على الشحن). usedCount يُزاد ذرّياً داخل معاملة إنشاء الطلب.
+model StoreCoupon {
+  id             String          @id @default(cuid())
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // يُحفَظ بحروف كبيرة
+  code           String
+  type           StoreCouponType
+  // نسبة مئوية (1–100) أو مبلغ ثابت شامل الضريبة
+  value          Decimal         @db.Decimal(18, 2)
+  minOrderAmount Decimal?        @db.Decimal(18, 2)
+  maxUses        Int?
+  usedCount      Int             @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([companyId, code])
+  @@map("store_coupons")
 }

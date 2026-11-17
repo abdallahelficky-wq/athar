@@ -55,4 +55,6 @@ export const verifyOtp = (slug, phone, code, lang) => send("POST", `/store/${enc
 export const fetchMe = (slug, token, lang) => send("GET", `/store/${enc(slug)}/me`, { token, lang });
 export const updateMe = (slug, token, profile, lang) => send("PATCH", `/store/${enc(slug)}/me`, { token, body: profile, lang });
 export const createOrder = (slug, token, order, lang) => send("POST", `/store/${enc(slug)}/orders`, { token, body: order, lang });
+/** عرض سعر للسلة باختيارات العميل (مدينة/استلام، كوبون) — الخادم مصدر كل مبلغ. */
+export const quoteOrder = (slug, order, lang) => send("POST", `/store/${enc(slug)}/quote`, { body: order, lang });
 export const fetchMyOrders = (slug, token, lang) => send("GET", `/store/${enc(slug)}/orders`, { token, lang });

@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { createOrder, fetchDirectory, fetchMe, fetchMyOrders, fetchProduct, fetchProducts, fetchStore, imageUrl, requestOtp, updateMe, verifyOtp } from "./api";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { createOrder, quoteOrder, fetchDirectory, fetchMe, fetchMyOrders, fetchProduct, fetchProducts, fetchStore, imageUrl, requestOtp, updateMe, verifyOtp } from "./api";
 import { addToCart, cartTotals, loadCart, refreshRow, removeFromCart, saveCart, setQty, MAX_QTY } from "./cart";
 import { STRINGS, buildOrderMessage, formatMoney, localDescription, localName, whatsappOrderLink } from "./strings";
 
@@ -31,6 +31,44 @@ function setMeta(title, description) {
   document.title = title;
   const meta = document.querySelector('meta[name="description"]');
   if (meta) meta.setAttribute("content", description || "");
+}
+
+/** لون نص مقروء فوق لون المتجر: أسود على الفاتح وأبيض على الداكن (سطوع نسبي WCAG). */
+function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? "#111111" : "#ffffff";
+}
+const accentStyle = (color) => (/^#[0-9a-f]{6}$/i.test(color || "") ? { "--st-accent": color, "--st-accent-ink": inkOn(color) } : undefined);
+const SOCIAL_LABELS = { instagram: "Instagram", x: "X", tiktok: "TikTok", snapchat: "Snapchat" };
+
+/**
+ * Meta Pixel — يُحمَّل فقط في متجر كتب صاحبه معرّف البكسل في إعداداته، ليقيس إعلانات فيسبوك وإنستغرام
+ * (مشاهدة منتج، إضافة للسلة، طلب). بلا معرّف لا يُحمَّل أي سكربت خارجي.
+ */
+function initPixel(id) {
+  if (!/^\d{5,20}$/.test(id || "") || window.fbq) return;
+  const fbq = function () { if (fbq.callMethod) fbq.callMethod.apply(fbq, arguments); else fbq.queue.push(arguments); };
+  fbq.push = fbq; fbq.loaded = true; fbq.version = "2.0"; fbq.queue = [];
+  window.fbq = fbq; window._fbq = fbq;
+  const script = document.createElement("script");
+  script.async = true; script.src = "https://connect.facebook.net/en_US/fbevents.js";
+  document.head.appendChild(script);
+  fbq("init", id);
+}
+const track = (event, data) => { try { window.fbq?.("track", event, data); } catch { /* القياس لا يعطّل المتجر */ } };
+
+/** السعر، ومعه السعر قبل الخصم مشطوباً ونسبة الخصم إن وُجد. */
+function Price({ product, className }) {
+  const { t, money } = useStore();
+  if (!product.compareAtPrice) return <span className={className}>{money(product.price)}</span>;
+  const off = Math.round((1 - product.price / product.compareAtPrice) * 100);
+  return (
+    <span className={`${className} st-price-sale`}>
+      <span>{money(product.price)}</span>
+      <s className="st-price-was">{money(product.compareAtPrice)}</s>
+      {off > 0 && <span className="st-off">{t.off(off)}</span>}
+    </span>
+  );
 }
 
 function ProductImage({ path, alt, code }) {
@@ -79,6 +117,12 @@ function StoreShell() {
   useEffect(load, [load]);
   useEffect(() => { setCart(loadCart(slug)); }, [slug]);
 
+  // البكسل: تحميل مرة عند معرفة المتجر، ثم مشاهدة صفحة مع كل تنقّل
+  const location = useLocation();
+  const pixelId = store?.metaPixelId || null;
+  useEffect(() => { if (pixelId) initPixel(pixelId); }, [pixelId]);
+  useEffect(() => { if (pixelId) track("PageView"); }, [pixelId, location.pathname]);
+
   const updateCart = useCallback((fn) => setCart((prev) => { const next = fn(prev); saveCart(slug, next); return next; }), [slug]);
   const value = useMemo(
     () => ({ slug, store, lang, t, cart, updateCart, token, customer, setCustomer, signIn, signOut, menuOpen, setMenuOpen, money: (n) => formatMoney(n, store?.currency || "SAR", lang) }),
@@ -92,12 +136,15 @@ function StoreShell() {
   const count = cartTotals(cart).count;
   return (
     <StoreContext.Provider value={value}>
-      <div className="st-app">
+      <div className="st-app" style={accentStyle(store.accentColor)}>
         <header className="st-header">
           <div className="st-header-row">
             <div className="st-brand-wrap">
               {store.categories.length > 0 && <button type="button" className="st-menu-btn" aria-label={t.menu} aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>☰</button>}
-              <Link to={base(slug)} className="st-brand">{localName(store, lang)}</Link>
+              <Link to={base(slug)} className={`st-brand${store.logo ? " st-brand-logo" : ""}`}>
+                {store.logo && <img src={imageUrl(store.logo)} alt="" />}
+                <span>{localName(store, lang)}</span>
+              </Link>
             </div>
             <div className="st-header-actions">
               {store.loginEnabled && <Link to={`${base(slug)}/${token ? "account" : "login"}`} className="st-lang">{token ? t.account : t.signIn}</Link>}
@@ -118,10 +165,23 @@ function StoreShell() {
             <Route path="cart" element={<CartPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="account" element={<AccountPage />} />
+            <Route path="policy/:kind" element={<PolicyPage />} />
             <Route path="*" element={<Navigate to={base(slug)} replace />} />
           </Routes>
         </main>
         <footer className="st-footer">
+          {(lang === "en" ? store.aboutEn || store.about : store.about) && <p className="st-footer-about">{lang === "en" ? store.aboutEn || store.about : store.about}</p>}
+          {Object.keys(store.social || {}).length > 0 && (
+            <nav className="st-footer-row" aria-label="social">
+              {Object.entries(store.social).map(([k, url]) => <a key={k} className="st-footer-link" href={url} target="_blank" rel="noopener noreferrer">{SOCIAL_LABELS[k] || t.website}</a>)}
+            </nav>
+          )}
+          {(store.policies?.returns || store.policies?.privacy) && (
+            <nav className="st-footer-row">
+              {store.policies.returns && <Link className="st-footer-link" to={`${base(slug)}/policy/returns`}>{t.returnsPolicy}</Link>}
+              {store.policies.privacy && <Link className="st-footer-link" to={`${base(slug)}/policy/privacy`}>{t.privacyPolicy}</Link>}
+            </nav>
+          )}
           <strong>{localName(store, lang)}</strong>
           {store.vatNumber && <span>{t.vatNumber}: <bdi dir="ltr">{store.vatNumber}</bdi></span>}
           {store.crNumber && <span>{t.crNumber}: <bdi dir="ltr">{store.crNumber}</bdi></span>}
@@ -155,7 +215,7 @@ function SearchBar() {
 const PAGE_SIZE = 24;
 
 function Catalog() {
-  const { slug, store, lang, t } = useStore();
+  const { slug, store, lang, t, money } = useStore();
   const { category } = useParams();
   const [params, setParams] = useSearchParams();
   const search = params.get("q") || "";
@@ -172,6 +232,7 @@ function Catalog() {
   useEffect(() => { load(1); }, [load]);
 
   const heading = search ? t.resultsFor(search) : category || t.latest;
+  const showBanners = !category && !search && (store.banners || []).length > 0;
   useEffect(() => {
     const name = localName(store, lang);
     setMeta(category || search ? `${heading} — ${name}` : name, `${name} — ${store.categories.map((c) => c.name).join("، ")}`);
@@ -192,6 +253,12 @@ function Catalog() {
         </aside>
       )}
       <div className="st-catalog-main">
+        {showBanners && (
+          <div className="st-banners">
+            {store.banners.map((b) => <img key={b} src={imageUrl(b)} alt={localName(store, lang)} loading="lazy" />)}
+          </div>
+        )}
+        {!category && !search && store.shipping?.freeOver != null && <p className="st-ribbon">{t.freeShippingHint(money(store.shipping.freeOver))}</p>}
         <div className="st-list-head">
           <h1>{heading}</h1>
           <div className="st-list-tools">
@@ -261,15 +328,17 @@ function CategoryDrawer() {
 }
 
 function ProductCard({ product }) {
-  const { slug, lang, t, money } = useStore();
+  const { slug, lang, t } = useStore();
   const name = localName(product, lang);
+  const off = product.compareAtPrice ? Math.round((1 - product.price / product.compareAtPrice) * 100) : 0;
   return (
     <Link to={productPath(slug, product.code)} className={`st-card${product.inStock ? "" : " st-card-out"}`}>
+      {off > 0 && <span className="st-card-badge">{t.off(off)}</span>}
       <ProductImage path={product.images[0]} alt={name} code={product.code} />
       <div className="st-card-body">
         <span className="st-card-name">{name}</span>
         <span className="st-card-code" dir="ltr">{product.code}</span>
-        <span className="st-card-price">{money(product.price)}</span>
+        <Price product={product} className="st-card-price" />
         {!product.inStock && <span className="st-stock st-stock-out">{t.outOfStock}</span>}
       </div>
     </Link>
@@ -277,7 +346,7 @@ function ProductCard({ product }) {
 }
 
 function ProductPage() {
-  const { slug, store, lang, t, money, updateCart } = useStore();
+  const { slug, store, lang, t, updateCart } = useStore();
   const { code } = useParams();
   const [state, setState] = useState({ status: "loading", product: null });
   const [active, setActive] = useState(0);
@@ -288,7 +357,10 @@ function ProductPage() {
     setState({ status: "loading", product: null });
     setActive(0); setQtyValue(1); setAdded(false);
     fetchProduct(slug, code, lang)
-      .then((product) => setState({ status: "ready", product }))
+      .then((product) => {
+        setState({ status: "ready", product });
+        track("ViewContent", { content_ids: [product.code], content_type: "product", value: product.price, currency: store.currency });
+      })
       .catch((e) => setState({ status: e.status === 404 ? "notFound" : "error", product: null }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, code]);
@@ -315,7 +387,10 @@ function ProductPage() {
   if (state.status === "loading") return <p className="st-state">{t.loading}</p>;
   if (state.status !== "ready") return <div className="st-state"><p>{state.status === "notFound" ? t.productNotFound : t.error}</p><Link className="st-btn" to={base(slug)}>{t.back}</Link></div>;
 
-  const add = () => { updateCart((rows) => addToCart(rows, product, qty)); setAdded(true); };
+  const add = () => {
+    updateCart((rows) => addToCart(rows, product, qty)); setAdded(true);
+    track("AddToCart", { content_ids: [product.code], content_type: "product", value: product.price * qty, currency: store.currency });
+  };
   const changeQty = (n) => setQtyValue(Math.min(MAX_QTY, Math.max(1, Math.floor(Number(n) || 1))));
 
   return (
@@ -335,7 +410,7 @@ function ProductPage() {
       <div className="st-product-info">
         {product.category && <Link className="st-crumb" to={`${base(slug)}/category/${encodeURIComponent(product.category)}`}>{product.category}</Link>}
         <h1>{name}</h1>
-        <p className="st-price">{money(product.price)}</p>
+        <p className="st-price-row"><Price product={product} className="st-price" /></p>
         <p className="st-muted">{t.vatIncluded}</p>
         <p className={`st-stock ${product.inStock ? "st-stock-in" : "st-stock-out"}`}>{product.inStock ? t.inStock : t.outOfStock}</p>
         <dl className="st-specs">
@@ -367,6 +442,15 @@ function CartPage() {
   const [formError, setFormError] = useState("");
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState(null); // الطلب كما سجّله الخادم
+  const zones = store.shipping?.zones || [];
+  const pickupAllowed = Boolean(store.shipping?.pickupEnabled);
+  const [shipMethod, setShipMethod] = useState("delivery");
+  const paymentOptions = [store.payment?.cod && "cod", store.payment?.bankTransfer && "bank_transfer"].filter(Boolean);
+  const [payment, setPayment] = useState(paymentOptions[0] || "cod");
+  const [couponInput, setCouponInput] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [couponError, setCouponError] = useState("");
+  const [quote, setQuote] = useState(null); // إجمالي الخادم بالاختيارات الحالية
 
   useEffect(() => { setMeta(`${t.cart} — ${localName(store, lang)}`, ""); }, [t, store, lang]);
 
@@ -391,18 +475,47 @@ function CartPage() {
 
   const orderable = cart.filter((r) => !gone.includes(r.code));
   const totals = cartTotals(orderable);
+  const pickup = pickupAllowed && shipMethod === "pickup";
+  // المدينة تغيّر السعر فقط حين للمتجر مناطق شحن — وإلا لا يُعاد الحساب مع كل حرف يكتبه العميل
+  // مع مناطق شحن: المدينة من القائمة فقط (مدينة محفوظة في الحساب خارج القائمة تُعامَل كغير مختارة)
+  const city = zones.length > 0 ? (zones.some((z) => z.city === form.city.trim()) ? form.city.trim() : "") : form.city.trim();
+  const quoteCity = zones.length > 0 && !pickup ? city : "";
+  const linesKey = orderable.map((r) => `${r.code}:${r.qty}`).join("|");
+  useEffect(() => {
+    if (!linesKey || placed) { setQuote(null); return undefined; }
+    let cancelled = false;
+    const lines = linesKey.split("|").map((x) => { const i = x.lastIndexOf(":"); return { code: x.slice(0, i), quantity: Number(x.slice(i + 1)) }; });
+    quoteOrder(slug, { lines, shippingMethod: pickup ? "pickup" : "delivery", customer: { city: quoteCity }, couponCode: couponCode || undefined }, lang)
+      .then((q) => { if (!cancelled) setQuote(q); })
+      .catch((err) => {
+        if (cancelled) return;
+        setQuote(null);
+        // رمز خصم مرفوض: تظهر رسالة الخادم ويُزال الرمز فيعود الإجمالي بلا خصم
+        if (couponCode && err.status === 400) { setCouponError(err.message || t.quoteFailed); setCouponCode(""); }
+        else if (err.status === 409) refresh();
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, linesKey, pickup, quoteCity, couponCode, Boolean(placed)]);
+  const applyCoupon = () => { setCouponError(""); setCouponCode(couponInput.trim().toUpperCase()); };
+  const shippingLabel = (o) => (o.shippingMethod === "pickup" ? t.pickup : t.delivery);
+  const paymentLabel = (o) => ({ cod: t.cod, bank_transfer: t.bankTransfer }[o.paymentMethod] || "");
 
   if (placed) {
     const message = buildOrderMessage({
       storeName: store.name, currency: store.currency, orderNumber: placed.number,
       rows: placed.lines.map((l) => ({ code: l.code, name: l.name, qty: l.quantity, price: l.unitPrice })),
-      totals: { total: placed.total }, customer: { name: placed.customerName, mobile: placed.phone, city: placed.city, notes: placed.notes },
+      totals: { total: placed.total, discount: placed.discountAmount, shippingFee: placed.shippingFee, shipping: shippingLabel(placed), payment: paymentLabel(placed) }, customer: { name: placed.customerName, mobile: placed.phone, city: placed.city, notes: placed.notes },
     });
     return (
       <div className="st-state st-placed">
         <h1>{t.orderPlaced(placed.number)}</h1>
         <p>{t.orderPlacedHint}</p>
         <p className="st-price">{money(placed.total)}</p>
+        {placed.paymentMethod === "bank_transfer" && store.payment?.bankTransferDetails && (
+          <div className="st-bank"><strong>{t.bankDetails}</strong><p>{store.payment.bankTransferDetails}</p></div>
+        )}
+        {placed.shippingMethod === "pickup" && store.shipping?.pickupAddress && <p className="st-muted">{t.pickupAt}: {store.shipping.pickupAddress}</p>}
         <div className="st-placed-actions">
           {store.whatsappNumber && <a className="st-btn st-btn-primary" href={whatsappOrderLink(store.whatsappNumber, message)} target="_blank" rel="noopener noreferrer">{t.sendOnWhatsapp}</a>}
           {token && <Link className="st-btn st-btn-ghost" to={`${base(slug)}/account`}>{t.myOrders}</Link>}
@@ -416,14 +529,18 @@ function CartPage() {
 
   const submit = async (e) => {
     e.preventDefault();
-    const clean = { name: form.name.trim(), phone: form.mobile.trim(), city: form.city.trim(), notes: form.notes.trim() };
-    if (!clean.name || !clean.phone || !clean.city || orderable.length === 0) { setFormError(t.required); return; }
+    const clean = { name: form.name.trim(), phone: form.mobile.trim(), city: pickup ? "" : city, notes: form.notes.trim() };
+    if (!clean.name || !clean.phone || (!pickup && !clean.city) || orderable.length === 0) { setFormError(pickup ? t.requiredPickup : t.required); return; }
     setFormError("");
     setPlacing(true);
     try {
-      const order = await createOrder(slug, token, { customer: clean, lines: orderable.map((r) => ({ code: r.code, quantity: r.qty })) }, lang);
+      const order = await createOrder(slug, token, {
+        customer: clean, lines: orderable.map((r) => ({ code: r.code, quantity: r.qty })),
+        shippingMethod: pickup ? "pickup" : "delivery", paymentMethod: payment, couponCode: couponCode || undefined,
+      }, lang);
+      track("Purchase", { value: order.total, currency: order.currency, content_ids: order.lines.map((l) => l.code), content_type: "product" });
       updateCart(() => []);
-      if (token) setCustomer((c) => (c ? { ...c, name: clean.name, city: clean.city } : c));
+      if (token) setCustomer((c) => (c ? { ...c, name: clean.name, city: clean.city || c.city } : c));
       setPlaced(order);
       window.scrollTo(0, 0);
     } catch (err) {
@@ -467,25 +584,82 @@ function CartPage() {
         </ul>
       </section>
       <aside className="st-summary">
-        <dl>
-          <div><dt>{t.subtotal}</dt><dd className="st-money">{money(totals.exVat)}</dd></div>
-          <div><dt>{t.vat}</dt><dd className="st-money">{money(totals.vat)}</dd></div>
-          <div className="st-total"><dt>{t.total}</dt><dd className="st-money">{money(totals.total)}</dd></div>
-        </dl>
+        {quote ? (
+          <dl>
+            <div><dt>{t.itemsTotal}</dt><dd className="st-money">{money(quote.itemsTotal)}</dd></div>
+            {quote.discount > 0 && <div className="st-discount"><dt>{t.discount}{quote.couponCode ? ` (${quote.couponCode})` : ""}</dt><dd className="st-money">−{money(quote.discount)}</dd></div>}
+            {(zones.length > 0 || pickup) && <div><dt>{t.shippingFee}</dt><dd className="st-money">{pickup || quote.freeShipping ? t.free : quote.cityNotServed ? "—" : money(quote.shippingFee)}</dd></div>}
+            <div><dt>{t.vat}</dt><dd className="st-money">{money(quote.vat)}</dd></div>
+            <div className="st-total"><dt>{t.total}</dt><dd className="st-money">{money(quote.total)}</dd></div>
+          </dl>
+        ) : (
+          <dl>
+            <div><dt>{t.subtotal}</dt><dd className="st-money">{money(totals.exVat)}</dd></div>
+            <div><dt>{t.vat}</dt><dd className="st-money">{money(totals.vat)}</dd></div>
+            <div className="st-total"><dt>{t.total}</dt><dd className="st-money">{money(totals.total)}</dd></div>
+          </dl>
+        )}
+        {store.shipping?.freeOver != null && !pickup && !(quote && quote.freeShipping) && zones.length > 0 && <p className="st-muted">{t.freeShippingHint(money(store.shipping.freeOver))}</p>}
+        {quote?.belowMinimum && <p className="st-error" role="alert">{t.minOrder(money(store.minOrderAmount))}</p>}
+        <div className="st-coupon">
+          {couponCode && quote?.couponCode ? (
+            <p className="st-coupon-on"><span>{t.coupon}: <bdi dir="ltr">{quote.couponCode}</bdi></span><button type="button" className="st-link" onClick={() => { setCouponCode(""); setCouponInput(""); }}>{t.couponRemove}</button></p>
+          ) : (
+            <div className="st-coupon-row">
+              <input type="text" dir="ltr" maxLength={40} value={couponInput} placeholder={t.coupon} aria-label={t.coupon} onChange={(e) => { setCouponInput(e.target.value); setCouponError(""); }} />
+              <button type="button" className="st-btn st-btn-ghost" disabled={!couponInput.trim()} onClick={applyCoupon}>{t.couponApply}</button>
+            </div>
+          )}
+          {couponError && <p className="st-error" role="alert">{couponError}</p>}
+        </div>
         <form onSubmit={submit} className="st-checkout">
           <h2>{t.yourDetails}</h2>
           {store.loginEnabled && !token && <p className="st-muted"><Link className="st-inline-link" to={`${base(slug)}/login?next=cart`}>{t.signInForOrders}</Link></p>}
           <label>{t.name}<input type="text" autoComplete="name" maxLength={80} {...field("name")} /></label>
           <label>{t.mobile}<input type="tel" dir="ltr" autoComplete="tel" maxLength={20} {...field("mobile")} /></label>
-          <label>{t.city}<input type="text" autoComplete="address-level2" maxLength={60} {...field("city")} /></label>
+          {pickupAllowed && (
+            <fieldset className="st-choice">
+              <legend>{t.shippingMethod}</legend>
+              <label><input type="radio" name="ship" checked={!pickup} onChange={() => setShipMethod("delivery")} />{t.delivery}</label>
+              <label><input type="radio" name="ship" checked={pickup} onChange={() => setShipMethod("pickup")} />{t.pickup}</label>
+              {pickup && store.shipping.pickupAddress && <p className="st-muted">{t.pickupAt}: {store.shipping.pickupAddress}</p>}
+            </fieldset>
+          )}
+          {!pickup && (zones.length > 0 ? (
+            <label>{t.city}
+              <select value={city} onChange={(e) => setForm({ ...form, city: e.target.value })}>
+                <option value="">{t.chooseCity}</option>
+                {zones.map((z) => <option key={z.city} value={z.city}>{z.city} — {z.fee > 0 ? money(z.fee) : t.free}</option>)}
+              </select>
+            </label>
+          ) : (
+            <label>{t.city}<input type="text" autoComplete="address-level2" maxLength={60} {...field("city")} /></label>
+          ))}
+          {paymentOptions.length > 0 && (
+            <fieldset className="st-choice">
+              <legend>{t.payment}</legend>
+              {paymentOptions.map((p) => <label key={p}><input type="radio" name="pay" checked={payment === p} onChange={() => setPayment(p)} />{p === "cod" ? t.cod : t.bankTransfer}</label>)}
+            </fieldset>
+          )}
           <label>{t.notes}<textarea rows={2} maxLength={300} {...field("notes")} /></label>
           {formError && <p className="st-error" role="alert">{formError}</p>}
-          <button type="submit" className="st-btn st-btn-primary st-btn-block" disabled={placing || orderable.length === 0}>{placing ? t.placing : t.placeOrder}</button>
+          <button type="submit" className="st-btn st-btn-primary st-btn-block" disabled={placing || orderable.length === 0 || Boolean(quote?.belowMinimum)}>{placing ? t.placing : t.placeOrder}</button>
           <p className="st-muted">{t.orderPlacedHint}</p>
         </form>
       </aside>
     </div>
   );
+}
+
+/** صفحة سياسة المتجر (الاسترجاع أو الخصوصية) — نص يكتبه صاحب المتجر في إعداداته. */
+function PolicyPage() {
+  const { slug, store, lang, t } = useStore();
+  const { kind } = useParams();
+  const title = kind === "returns" ? t.returnsPolicy : t.privacyPolicy;
+  const text = kind === "returns" ? store.policies?.returns : kind === "privacy" ? store.policies?.privacy : null;
+  useEffect(() => { setMeta(`${title} — ${localName(store, lang)}`, ""); }, [title, store, lang]);
+  if (!text) return <Navigate to={base(slug)} replace />;
+  return <article className="st-policy"><h1>{title}</h1><p>{text}</p></article>;
 }
 
 function LoginPage() {
@@ -592,6 +766,8 @@ function AccountPage() {
               <ul className="st-order-lines">
                 {o.lines.map((l) => <li key={l.code}><span>{localName(l, lang)} <small dir="ltr">× {l.quantity}</small></span><span className="st-money">{money(l.lineTotal)}</span></li>)}
               </ul>
+              {o.discountAmount > 0 && <div className="st-order-extra"><span>{t.discount}{o.couponCode ? ` (${o.couponCode})` : ""}</span><span className="st-money">−{money(o.discountAmount)}</span></div>}
+              {o.shippingFee > 0 && <div className="st-order-extra"><span>{t.shippingFee}</span><span className="st-money">{money(o.shippingFee)}</span></div>}
               <div className="st-order-total"><span>{t.total}</span><strong className="st-money">{money(o.total)}</strong></div>
             </li>
           ))}
