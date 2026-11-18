@@ -10,6 +10,9 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "مهلة الإشعار عدد صحيح من الأيام": "The notice period must be a whole number of days",
+  "مهلة الإشعار لا تكون سالبة": "The notice period cannot be negative",
+  "مهلة الإشعار لا تتجاوز 3650 يوماً": "The notice period cannot exceed 3650 days",
   "حدّد فترة التقويم (من، إلى)": "Choose the calendar period (from, to)",
   "حدّد شهر الإطفاء": "Choose the amortization month",
   "مبلغ الدفعة يجب أن يكون أكبر من صفر": "The payment amount must be greater than zero",

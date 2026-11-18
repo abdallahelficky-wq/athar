@@ -7,7 +7,7 @@ import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { companyVatRatePercent } from "../../lib/companyVat";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
 import { roundMoney, sumMoney } from "../../lib/money";
-import { addMonths, amortizationPlan, amortizedThrough, dateToDay, dayToDate, generateInstallments, isDateOnly, isMonthOnly, monthEndDay, splitLeaseVat } from "../../lib/leaseSchedule";
+import { addDays, addMonths, amortizationPlan, amortizedThrough, dateToDay, dayToDate, daysBetween, generateInstallments, isDateOnly, isMonthOnly, monthEndDay, noticeDeadline, splitLeaseVat } from "../../lib/leaseSchedule";
 
 /**
  * موديول الإيجارات — عقود الإيجار، جدول دفعاتها، تأكيد السداد، وإطفاء المصروف شهرياً.
@@ -86,6 +86,28 @@ export interface ContractInput {
   expenseAccountId?: string | null;
   prepaidAccountId?: string | null;
   isActive?: boolean;
+  signedOn?: Date | null;
+  contractNumber?: string | null;
+  contractValue?: number | null;
+  depositAmount?: number | null;
+  customTerms?: string | null;
+  autoRenew?: boolean;
+  noticeDays?: number | null;
+  lessorDetails?: Record<string, string | null | undefined> | null;
+  propertyDetails?: Record<string, string | null | undefined> | null;
+}
+
+/** عمود Json اختياري: null الصريح يمسح العمود (DbNull)، وغير المُرسَل لا يمسّه. المفاتيح الفارغة تُحذف. */
+function jsonColumn(value: Record<string, string | null | undefined> | null | undefined) {
+  if (value === undefined) return undefined;
+  if (value === null) return Prisma.DbNull;
+  const kept = Object.fromEntries(Object.entries(value).filter(([, v]) => typeof v === "string" && v.trim() !== "").map(([k, v]) => [k, (v as string).trim()]));
+  return Object.keys(kept).length > 0 ? (kept as Prisma.InputJsonObject) : Prisma.DbNull;
+}
+
+function contractData<T extends Partial<ContractInput>>(input: T) {
+  const { lessorDetails, propertyDetails, ...rest } = input;
+  return { ...rest, lessorDetails: jsonColumn(lessorDetails), propertyDetails: jsonColumn(propertyDetails) };
 }
 
 async function assertContractReferences(tenantId: string, companyId: string, input: Partial<ContractInput>) {
@@ -105,7 +127,7 @@ export async function createLeaseContract(tenantId: string, input: ContractInput
   await companyOrThrow(tenantId, input.companyId);
   if (input.endDate < input.startDate) throw badRequest("تاريخ نهاية العقد يسبق تاريخ بدايته");
   await assertContractReferences(tenantId, input.companyId, input);
-  return prisma.leaseContract.create({ data: { ...input, tenantId } });
+  return prisma.leaseContract.create({ data: { ...contractData(input), tenantId } });
 }
 
 export async function updateLeaseContract(tenantId: string, id: string, input: Partial<ContractInput>) {
@@ -117,7 +139,7 @@ export async function updateLeaseContract(tenantId: string, id: string, input: P
   if (endDate < startDate) throw badRequest("تاريخ نهاية العقد يسبق تاريخ بدايته");
   await assertContractReferences(tenantId, existing.companyId, input);
   const { companyId: _companyId, ...data } = input;
-  return prisma.leaseContract.update({ where: { id: existing.id }, data });
+  return prisma.leaseContract.update({ where: { id: existing.id }, data: contractData(data) });
 }
 
 export async function deleteLeaseContract(tenantId: string, id: string) {
@@ -486,6 +508,9 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
       paymentAmount: c.paymentAmount === null ? null : Number(c.paymentAmount), paymentEveryMonths: c.paymentEveryMonths,
       firstDueDate: day(c.firstDueDate), startDate: dateToDay(c.startDate), endDate: dateToDay(c.endDate),
       expenseAccountId: c.expenseAccountId, prepaidAccountId: c.prepaidAccountId, notes: c.notes, monthlyRent: c.monthlyRent === null ? null : Number(c.monthlyRent),
+      contractNumber: c.contractNumber, signedOn: day(c.signedOn), contractValue: c.contractValue === null ? null : Number(c.contractValue),
+      depositAmount: c.depositAmount === null ? null : Number(c.depositAmount), customTerms: c.customTerms, autoRenew: c.autoRenew, noticeDays: c.noticeDays,
+      noticeDeadline: noticeDeadline(dateToDay(c.endDate), c.noticeDays), lessorDetails: c.lessorDetails, propertyDetails: c.propertyDetails,
     })),
     payments: rows,
     months: [...months.values()]
@@ -499,6 +524,52 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
       overdueCount: live.filter((r) => r.overdue).length,
       vat: sumMoney(live.map((r) => r.vatAmount)),
     },
+  };
+}
+
+export const LEASE_ALERT_DUE_WITHIN_DAYS = 30;
+export const LEASE_ALERT_RENEWAL_WITHIN_DAYS = 90;
+
+/**
+ * تنبيهات الإيجارات للشركة (العقود السارية isActive فقط): دفعات متأخرة، دفعات تستحق خلال 30 يوماً، وعقود اقترب آخر موعد للإشعار
+ * بعدم تجديدها (خلال 90 يوماً) أو فات والعقد لم ينتهِ، أو انتهت مدتها. آخر موعد للإشعار = نهاية العقد − مهلة الإشعار.
+ */
+export async function leaseAlerts(tenantId: string, companyId: string) {
+  await companyOrThrow(tenantId, companyId);
+  const today = riyadhCalendarDay(new Date());
+  const horizon = dayToDate(addDays(today, LEASE_ALERT_DUE_WITHIN_DAYS));
+  const [contracts, payments] = await Promise.all([
+    prisma.leaseContract.findMany({ where: { tenantId, companyId, isActive: true }, orderBy: { endDate: "asc" } }),
+    prisma.leasePayment.findMany({
+      where: { tenantId, companyId, status: "due", dueDate: { lte: horizon }, leaseContract: { isActive: true } },
+      include: { leaseContract: { select: { title: true, counterparty: true } } },
+      orderBy: { dueDate: "asc" },
+    }),
+  ]);
+  const paymentRows = payments.map((p) => {
+    const dueDate = dateToDay(p.dueDate);
+    return {
+      id: p.id, leaseContractId: p.leaseContractId, title: p.leaseContract.title, counterparty: p.leaseContract.counterparty,
+      dueDate, amount: Number(p.amount), days: daysBetween(today, dueDate), note: p.note,
+    };
+  });
+  const renewals = contracts
+    .map((c) => {
+      const endDate = dateToDay(c.endDate);
+      const deadline = noticeDeadline(endDate, c.noticeDays);
+      const daysToDeadline = daysBetween(today, deadline);
+      const daysToEnd = daysBetween(today, endDate);
+      const kind = daysToEnd < 0 ? "expired" : daysToDeadline < 0 ? "notice_passed" : "notice_soon";
+      return { id: c.id, title: c.title, counterparty: c.counterparty, endDate, noticeDays: c.noticeDays, autoRenew: c.autoRenew, noticeDeadline: deadline, daysToDeadline, daysToEnd, kind };
+    })
+    .filter((r) => r.daysToDeadline <= LEASE_ALERT_RENEWAL_WITHIN_DAYS)
+    .sort((a, b) => a.daysToDeadline - b.daysToDeadline);
+  const overdue = paymentRows.filter((p) => p.days < 0);
+  const dueSoon = paymentRows.filter((p) => p.days >= 0);
+  return {
+    today, dueWithinDays: LEASE_ALERT_DUE_WITHIN_DAYS, renewalWithinDays: LEASE_ALERT_RENEWAL_WITHIN_DAYS,
+    overdue, dueSoon, renewals,
+    totals: { overdue: sumMoney(overdue.map((p) => p.amount)), dueSoon: sumMoney(dueSoon.map((p) => p.amount)) },
   };
 }
 
@@ -652,6 +723,16 @@ export interface ImportContractInput {
   paymentAmount?: number | null;
   paymentEveryMonths?: number | null;
   firstDueDate?: string | null;
+  isActive?: boolean;
+  signedOn?: string | null;
+  contractNumber?: string | null;
+  contractValue?: number | null;
+  depositAmount?: number | null;
+  customTerms?: string | null;
+  autoRenew?: boolean;
+  noticeDays?: number | null;
+  lessorDetails?: Record<string, string | null | undefined> | null;
+  propertyDetails?: Record<string, string | null | undefined> | null;
   payments: { dueDate: string; periodFrom: string; periodTo: string; amount: number; status?: "due" | "waived" | "paid_external"; paidOn?: string | null; amortizeFromMonth?: string | null; note?: string | null }[];
 }
 
@@ -667,7 +748,7 @@ export async function importLeaseContracts(tenantId: string, userId: string, com
   if (new Set(titles).size !== titles.length) throw badRequest("ملف الاستيراد يكرّر عنوان عقد أكثر من مرة");
 
   for (const c of contracts) {
-    if (!isDateOnly(c.startDate) || !isDateOnly(c.endDate) || (c.firstDueDate && !isDateOnly(c.firstDueDate))) throw badRequest("صيغة التاريخ يجب أن تكون YYYY-MM-DD");
+    if (!isDateOnly(c.startDate) || !isDateOnly(c.endDate) || (c.firstDueDate && !isDateOnly(c.firstDueDate)) || (c.signedOn && !isDateOnly(c.signedOn))) throw badRequest("صيغة التاريخ يجب أن تكون YYYY-MM-DD");
     if (c.startDate > c.endDate) throw badRequest("تاريخ نهاية العقد يسبق تاريخ بدايته");
     for (const p of c.payments) {
       assertPaymentDates(p);
@@ -698,6 +779,10 @@ export async function importLeaseContracts(tenantId: string, userId: string, com
           costCenterId: c.costCenterName?.trim() ? costCenterId.get(c.costCenterName.trim())! : null,
           paymentAmount: c.paymentAmount ? d(c.paymentAmount) : null, paymentEveryMonths: c.paymentEveryMonths ?? null,
           firstDueDate: c.firstDueDate ? dayToDate(c.firstDueDate) : null,
+          isActive: c.isActive ?? true, signedOn: c.signedOn ? dayToDate(c.signedOn) : null, contractNumber: trimmed(c.contractNumber),
+          contractValue: c.contractValue != null ? d(c.contractValue) : null, depositAmount: c.depositAmount != null ? d(c.depositAmount) : null,
+          customTerms: trimmed(c.customTerms), autoRenew: c.autoRenew ?? false, noticeDays: c.noticeDays ?? null,
+          lessorDetails: jsonColumn(c.lessorDetails ?? null), propertyDetails: jsonColumn(c.propertyDetails ?? null),
         },
       });
       if (c.payments.length > 0) {

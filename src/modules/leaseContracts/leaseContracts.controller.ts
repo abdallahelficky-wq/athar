@@ -68,6 +68,10 @@ export const calendarHandler: RequestHandler = async (req, res) => {
   res.json(await service.leaseCalendar(req.auth!.tenantId, companyId, { from, to }));
 };
 
+export const alertsHandler: RequestHandler = async (req, res) => {
+  res.json(await service.leaseAlerts(req.auth!.tenantId, requireCompany(req)));
+};
+
 export const generateScheduleHandler: RequestHandler = async (req, res) => {
   await scopeContract(req, req.params.id);
   res.status(201).json(await service.generateLeaseSchedule(req.auth!.tenantId, req.params.id, req.body.until));

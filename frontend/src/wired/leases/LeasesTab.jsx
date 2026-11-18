@@ -30,7 +30,13 @@ const TONE = {
 const toneOf = (p) => (p.status === "due" && p.overdue ? "overdue" : p.status);
 const CELL_BTN = { display: "block", width: "100%", borderRadius: 8, padding: "4px 6px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", margin: "2px 0", direction: "ltr" };
 const SUB = { fontSize: 12, lineHeight: 1.5, opacity: 0.7, fontWeight: 400, fontFamily: "inherit" };
-const emptyContract = { title: "", counterparty: "", costCenterId: "", vatMode: "none", paymentAmount: "", paymentEveryMonths: "", firstDueDate: "", startDate: "", endDate: "", expenseAccountId: "", prepaidAccountId: "", notes: "", isActive: true };
+const emptyContract = {
+  title: "", counterparty: "", costCenterId: "", vatMode: "none", paymentAmount: "", paymentEveryMonths: "", firstDueDate: "", startDate: "", endDate: "", expenseAccountId: "", prepaidAccountId: "", notes: "", isActive: true,
+  contractNumber: "", signedOn: "", contractValue: "", depositAmount: "", noticeDays: "", autoRenew: false, customTerms: "", lessor: {}, property: {},
+};
+const LESSOR_FIELDS = ["idNumber", "crNumber", "unifiedNumber", "vatNumber", "representative", "representativeId", "mobile", "email", "address", "iban"];
+const PROPERTY_FIELDS = ["address", "city", "unitType", "area", "deedNumber"];
+const ALERT_TONE = { expired: "overdue", notice_passed: "overdue", notice_soon: "due" };
 
 export default function LeasesTab({ companyId }) {
   const { t, i18n } = useTranslation();
@@ -46,6 +52,7 @@ export default function LeasesTab({ companyId }) {
   const [amortMonth, setAmortMonth] = useState(() => monthOf(localDay()));
   const [preview, setPreview] = useState(null);
   const [runs, setRuns] = useState([]);
+  const [alerts, setAlerts] = useState(null);
   const fileRef = useRef(null);
 
   // تواريخ الاستحقاق والسداد أيام تقويمية مخزَّنة منتصف ليل UTC — تُعرَض بتوقيت UTC فلا تنزاح يوماً
@@ -63,7 +70,9 @@ export default function LeasesTab({ companyId }) {
       .catch((e) => setError(e.message));
   }, [companyId]);
 
-  const load = () => api.leaseCalendar(companyId, `${range.from}-01`, monthEnd(range.to)).then(setData).catch((e) => setError(e.message));
+  const load = () => Promise.all([api.leaseCalendar(companyId, `${range.from}-01`, monthEnd(range.to)), api.leaseAlerts(companyId)])
+    .then(([c, a]) => { setData(c); setAlerts(a); })
+    .catch((e) => setError(e.message));
   const loadAmortization = () => Promise.all([api.previewLeaseAmortization(companyId, amortMonth), api.listLeaseAmortizationRuns(companyId)])
     .then(([p, r]) => { setPreview(p); setRuns(r); })
     .catch((e) => setError(e.message));
@@ -85,8 +94,14 @@ export default function LeasesTab({ companyId }) {
 
   // --- العقود ---
   const openContract = (c) => open("contract", c
-    ? { ...emptyContract, ...c, counterparty: c.counterparty || "", costCenterId: c.costCenterId || "", paymentAmount: c.paymentAmount ?? "", paymentEveryMonths: c.paymentEveryMonths ?? "", firstDueDate: c.firstDueDate || "", expenseAccountId: c.expenseAccountId || "", prepaidAccountId: c.prepaidAccountId || "", notes: c.notes || "" }
+    ? {
+      ...emptyContract, ...c, counterparty: c.counterparty || "", costCenterId: c.costCenterId || "", paymentAmount: c.paymentAmount ?? "", paymentEveryMonths: c.paymentEveryMonths ?? "", firstDueDate: c.firstDueDate || "", expenseAccountId: c.expenseAccountId || "", prepaidAccountId: c.prepaidAccountId || "", notes: c.notes || "",
+      contractNumber: c.contractNumber || "", signedOn: c.signedOn || "", contractValue: c.contractValue ?? "", depositAmount: c.depositAmount ?? "", noticeDays: c.noticeDays ?? "", autoRenew: !!c.autoRenew, customTerms: c.customTerms || "",
+      lessor: { ...(c.lessorDetails || {}) }, property: { ...(c.propertyDetails || {}) },
+    }
     : emptyContract);
+  const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+  const details = (obj, fields) => { const out = Object.fromEntries(fields.filter((k) => (obj?.[k] || "").trim()).map((k) => [k, obj[k].trim()])); return out; };
   const saveContract = () => {
     if (!form.title?.trim() || !form.startDate || !form.endDate) { setError(t("leases.errRequired")); return undefined; }
     const payload = {
@@ -94,6 +109,10 @@ export default function LeasesTab({ companyId }) {
       paymentAmount: form.paymentAmount === "" ? null : Number(form.paymentAmount), paymentEveryMonths: form.paymentEveryMonths === "" ? null : Number(form.paymentEveryMonths),
       firstDueDate: form.firstDueDate || null, startDate: form.startDate, endDate: form.endDate,
       expenseAccountId: form.expenseAccountId || null, prepaidAccountId: form.prepaidAccountId || null, notes: form.notes.trim() || null, isActive: form.isActive,
+      contractNumber: form.contractNumber.trim() || null, signedOn: form.signedOn || null, contractValue: num(form.contractValue), depositAmount: num(form.depositAmount),
+      noticeDays: num(form.noticeDays), autoRenew: !!form.autoRenew, customTerms: form.customTerms.trim() || null,
+      lessorDetails: (() => { const d = details(form.lessor, LESSOR_FIELDS); if (form.lessor?.type) d.type = form.lessor.type; return Object.keys(d).length ? d : null; })(),
+      propertyDetails: (() => { const d = details(form.property, PROPERTY_FIELDS); return Object.keys(d).length ? d : null; })(),
     };
     return run(() => (form.id ? api.updateLeaseContract(form.id, payload) : api.createLeaseContract({ companyId, ...payload })), "leases.savedOk");
   };
@@ -176,6 +195,35 @@ export default function LeasesTab({ companyId }) {
         </div>
         {error && !dialog && <p className="balance-bad">{error}</p>}
         {message && <p className="note">{message}</p>}
+        {alerts && (alerts.overdue.length + alerts.dueSoon.length + alerts.renewals.length > 0) && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10, margin: "0 0 14px" }}>
+            {[
+              { key: "overdue", rows: alerts.overdue, tone: "overdue", total: alerts.totals.overdue },
+              { key: "dueSoon", rows: alerts.dueSoon, tone: "due", total: alerts.totals.dueSoon },
+            ].filter((g) => g.rows.length > 0).map((g) => (
+              <div key={g.key} role="status" style={{ ...TONE[g.tone], borderRadius: 10, padding: "10px 14px", fontSize: 13 }}>
+                <strong>{t(`leases.alerts.${g.key}`, { count: g.rows.length, days: alerts.dueWithinDays })} · {fmt2(g.total)}</strong>
+                <ul style={{ margin: "6px 0 0", paddingInlineStart: 18 }}>
+                  {g.rows.slice(0, 6).map((p) => <li key={p.id}>{p.title} — {fmt2(p.amount)} — {fmtDay(p.dueDate)} ({t(p.days < 0 ? "leases.alerts.daysLate" : "leases.alerts.daysLeft", { count: Math.abs(p.days) })})</li>)}
+                  {g.rows.length > 6 && <li>{t("leases.alerts.more", { count: g.rows.length - 6 })}</li>}
+                </ul>
+              </div>
+            ))}
+            {alerts.renewals.length > 0 && (
+              <div role="status" style={{ ...TONE.due, borderRadius: 10, padding: "10px 14px", fontSize: 13 }}>
+                <strong>{t("leases.alerts.renewals", { count: alerts.renewals.length, days: alerts.renewalWithinDays })}</strong>
+                <ul style={{ margin: "6px 0 0", paddingInlineStart: 18 }}>
+                  {alerts.renewals.slice(0, 8).map((r) => (
+                    <li key={r.id} style={{ color: TONE[ALERT_TONE[r.kind]].color }}>
+                      {r.title} — {t(`leases.alerts.kinds.${r.kind}`, { date: fmtDay(r.kind === "expired" ? r.endDate : r.noticeDeadline), count: Math.abs(r.kind === "expired" ? r.daysToEnd : r.daysToDeadline) })}
+                    </li>
+                  ))}
+                  {alerts.renewals.length > 8 && <li>{t("leases.alerts.more", { count: alerts.renewals.length - 8 })}</li>}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
 
         {view !== "amortization" && (
           <>
@@ -255,11 +303,13 @@ export default function LeasesTab({ companyId }) {
                 {contracts.map((c) => (
                   <tr key={c.id} style={c.isActive ? undefined : { opacity: 0.55 }}>
                     <td><strong>{c.title}</strong>{c.notes && <div style={SUB}>{c.notes}</div>}</td>
-                    <td>{c.counterparty || "—"}</td>
+                    <td>{c.counterparty || "—"}{(c.lessorDetails?.mobile || c.contractNumber) && <div style={SUB}>{[c.lessorDetails?.mobile, c.contractNumber && `${t("leases.contractNumber")}: ${c.contractNumber}`].filter(Boolean).join(" · ")}</div>}</td>
                     <td>{c.costCenterName || "—"}</td>
                     <td>{t(`leases.vatModes.${c.vatMode}`)}</td>
                     <td>{c.paymentAmount && c.paymentEveryMonths ? t("leases.termsValue", { amount: fmt2(c.paymentAmount), count: c.paymentEveryMonths }) : "—"}</td>
-                    <td>{fmtDay(c.startDate)} – {fmtDay(c.endDate)}</td>
+                    <td>{fmtDay(c.startDate)} – {fmtDay(c.endDate)}
+                      <div style={SUB}>{c.autoRenew ? t("leases.autoRenewShort") : t("leases.noAutoRenewShort")}{c.noticeDays ? ` · ${t("leases.noticeBy", { date: fmtDay(c.noticeDeadline), count: c.noticeDays })}` : ""}</div>
+                    </td>
                     <td>{c.expenseAccountId && c.prepaidAccountId ? "✓" : <span style={{ color: "#B7791F" }}>{t("leases.accountsDefault")}</span>}</td>
                     <td className="row-actions">
                       <button className="btn-ghost" onClick={() => openContract(c)}>{t("common.edit")}</button>
@@ -353,6 +403,27 @@ export default function LeasesTab({ companyId }) {
           <label>{t("leases.everyMonths")}<input type="number" step="1" min="1" value={form.paymentEveryMonths ?? ""} onChange={(e) => setForm({ ...form, paymentEveryMonths: e.target.value })} /></label>
           <label>{t("leases.firstDueDate")}<input type="date" value={form.firstDueDate || ""} onChange={(e) => setForm({ ...form, firstDueDate: e.target.value })} /></label>
           <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}><input type="checkbox" checked={form.isActive !== false} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />{t("leases.active")}</label>
+          <label>{t("leases.contractNumber")}<input value={form.contractNumber || ""} onChange={(e) => setForm({ ...form, contractNumber: e.target.value })} /></label>
+          <label>{t("leases.signedOn")}<input type="date" value={form.signedOn || ""} onChange={(e) => setForm({ ...form, signedOn: e.target.value })} /></label>
+          <label>{t("leases.contractValue")}<input type="number" step="0.01" min="0" value={form.contractValue ?? ""} onChange={(e) => setForm({ ...form, contractValue: e.target.value })} /></label>
+          <label>{t("leases.depositAmount")}<input type="number" step="0.01" min="0" value={form.depositAmount ?? ""} onChange={(e) => setForm({ ...form, depositAmount: e.target.value })} /></label>
+          <label>{t("leases.noticeDays")}<input type="number" step="1" min="0" value={form.noticeDays ?? ""} onChange={(e) => setForm({ ...form, noticeDays: e.target.value })} /></label>
+          <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!form.autoRenew} onChange={(e) => setForm({ ...form, autoRenew: e.target.checked })} />{t("leases.autoRenew")}</label>
+          <h4 className="sub-head" style={{ gridColumn: "1 / -1", margin: "6px 0 0" }}>{t("leases.lessorTitle")}</h4>
+          <label>{t("leases.lessor.type")}
+            <select value={form.lessor?.type || ""} onChange={(e) => setForm({ ...form, lessor: { ...form.lessor, type: e.target.value } })}>
+              <option value="">—</option><option value="company">{t("leases.lessor.company")}</option><option value="individual">{t("leases.lessor.individual")}</option>
+            </select>
+          </label>
+          {LESSOR_FIELDS.map((k) => (
+            <label key={k}>{t(`leases.lessor.${k}`)}<input value={form.lessor?.[k] || ""} onChange={(e) => setForm({ ...form, lessor: { ...form.lessor, [k]: e.target.value } })} /></label>
+          ))}
+          <h4 className="sub-head" style={{ gridColumn: "1 / -1", margin: "6px 0 0" }}>{t("leases.propertyTitle")}</h4>
+          {PROPERTY_FIELDS.map((k) => (
+            <label key={k}>{t(`leases.property.${k}`)}<input value={form.property?.[k] || ""} onChange={(e) => setForm({ ...form, property: { ...form.property, [k]: e.target.value } })} /></label>
+          ))}
+          <label style={{ gridColumn: "1 / -1" }}>{t("leases.customTerms")}<textarea rows={3} style={{ width: "100%" }} value={form.customTerms || ""} onChange={(e) => setForm({ ...form, customTerms: e.target.value })} /></label>
+          <h4 className="sub-head" style={{ gridColumn: "1 / -1", margin: "6px 0 0" }}>{t("leases.accounts")}</h4>
           <label style={{ gridColumn: "1 / -1" }}>{t("leases.prepaidAccount")}
             <AccountSearchSelect accounts={postingAccounts} value={form.prepaidAccountId} onChange={(id) => setForm({ ...form, prepaidAccountId: id })} allowClear />
           </label>

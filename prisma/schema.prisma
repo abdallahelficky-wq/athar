@@ -1092,6 +1092,18 @@ model LeaseContract {
   expenseAccountId   String?
   prepaidAccountId   String?
   isActive           Boolean      @default(true)
+  // بيانات العقد كما في وثيقته (إيجار): رقم سجل العقد، تاريخ الإبرام، إجمالي قيمة العقد، مبلغ الضمان، والشروط الإضافية
+  contractNumber     String?
+  signedOn           DateTime?
+  contractValue      Decimal?     @db.Decimal(18, 2)
+  depositAmount      Decimal?     @db.Decimal(18, 2)
+  customTerms        String?
+  // التجديد: هل يتجدد تلقائياً، وكم يوماً قبل نهاية العقد يجب الإشعار بعدم الرغبة في التجديد (آخر موعد للإشعار = النهاية − الأيام)
+  autoRenew          Boolean      @default(false)
+  noticeDays         Int?
+  // بيانات وصفية لا تدخل في أي حساب: المؤجر (نوعه، سجله/هويته، ممثله، جواله، بريده، عنوانه) والعقار (عنوانه، نوع الوحدة، مساحتها)
+  lessorDetails      Json?
+  propertyDetails    Json?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 

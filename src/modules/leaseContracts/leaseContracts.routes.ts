@@ -20,6 +20,7 @@ const canUnpost = requirePermission("accounts", "unpost");
 
 leaseContractRoutes.get("/", requirePositionAction("leaseContracts", "read"), c.listLeaseContracts);
 leaseContractRoutes.get("/calendar", requirePositionAction("leaseContracts", "read"), c.calendarHandler);
+leaseContractRoutes.get("/alerts", requirePositionAction("leaseContracts", "read"), c.alertsHandler);
 leaseContractRoutes.get("/amortization", requirePositionAction("leaseContracts", "read"), c.listAmortizationHandler);
 leaseContractRoutes.get("/amortization/preview", requirePositionAction("leaseContracts", "read"), c.previewAmortizationHandler);
 

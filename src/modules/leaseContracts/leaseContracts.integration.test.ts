@@ -4,6 +4,8 @@ import type { AddressInfo } from "net";
 import { prisma } from "../../lib/prisma";
 import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integrationTestGuard";
 import { createApp } from "../../app";
+import { riyadhCalendarDay } from "../../lib/riyadhDate";
+import { addDays } from "../../lib/leaseSchedule";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { INPUT_VAT_ACCOUNT_NAME } from "../../lib/vatAccounts";
 import { register } from "../auth/auth.service";
@@ -345,5 +347,54 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     ]);
     // لا عقد دخل شركة A
     expect(await prisma.leaseContract.count({ where: { tenantId: ctx.a.tenantId } })).toBe(1);
+  });
+
+  it("stores contract details and raises renewal-notice and payment alerts for active contracts only", async () => {
+    const b = ctx.b;
+    const today = riyadhCalendarDay(new Date());
+    const contract = (title: string, extra: Record<string, unknown>) => ({
+      title, vatMode: "none", startDate: addDays(today, -300), endDate: addDays(today, 70), noticeDays: 60, autoRenew: true,
+      contractNumber: "20322444688 / 1-0", contractValue: 100000, signedOn: addDays(today, -310),
+      lessorDetails: { type: "company", crNumber: "4030232849", representative: "ممثل المؤجر", mobile: "+966500000000" },
+      propertyDetails: { address: "جدة", unitType: "محطة", area: "709.0" },
+      payments: [
+        { dueDate: addDays(today, -3), periodFrom: addDays(today, -3), periodTo: addDays(today, 26), amount: 1000 },
+        { dueDate: addDays(today, 5), periodFrom: addDays(today, 27), periodTo: addDays(today, 56), amount: 2000 },
+        { dueDate: addDays(today, 45), periodFrom: addDays(today, 57), periodTo: addDays(today, 70), amount: 3000 },
+      ],
+      ...extra,
+    });
+    const imported = await call("POST", "/lease-contracts/import", b.token, { companyId: b.companyId, contracts: [contract("عقد ساري بتنبيهات", {}), contract("عقد موقوف", { isActive: false })] });
+    expect(imported.status, imported.text).toBe(201);
+    const active = await prisma.leaseContract.findFirstOrThrow({ where: { tenantId: b.tenantId, title: "عقد ساري بتنبيهات" } });
+    const stopped = await prisma.leaseContract.findFirstOrThrow({ where: { tenantId: b.tenantId, title: "عقد موقوف" } });
+    expect([active.contractNumber, active.noticeDays, active.autoRenew, Number(active.contractValue), active.isActive, stopped.isActive]).toEqual(["20322444688 / 1-0", 60, true, 100000, true, false]);
+    expect(active.lessorDetails).toEqual({ type: "company", crNumber: "4030232849", representative: "ممثل المؤجر", mobile: "+966500000000" });
+
+    const alerts = await call("GET", `/lease-contracts/alerts?companyId=${b.companyId}`, b.token);
+    expect(alerts.status, alerts.text).toBe(200);
+    const mine = (rows: any[]) => rows.filter((r) => r.leaseContractId === active.id || r.id === active.id);
+    expect(mine(alerts.body.overdue).map((p: any) => [p.amount, p.days])).toEqual([[1000, -3]]);
+    expect(mine(alerts.body.dueSoon).map((p: any) => [p.amount, p.days])).toEqual([[2000, 5]]);
+    expect(mine(alerts.body.renewals)).toEqual([expect.objectContaining({ noticeDeadline: addDays(today, 10), daysToDeadline: 10, daysToEnd: 70, kind: "notice_soon", noticeDays: 60, autoRenew: true })]);
+    // العقد الموقوف لا ينبّه بدفعاته ولا بتجديده
+    const all = [...alerts.body.overdue, ...alerts.body.dueSoon, ...alerts.body.renewals];
+    expect(all.some((r: any) => r.leaseContractId === stopped.id || r.id === stopped.id)).toBe(false);
+
+    // مهلة إشعار أطول من الباقي على النهاية: فات آخر موعد للإشعار والعقد لم ينتهِ
+    const patched = await call("PATCH", `/lease-contracts/${active.id}`, b.token, { noticeDays: 180, lessorDetails: { type: "individual", idNumber: "1000000001" }, propertyDetails: null });
+    expect(patched.status, patched.text).toBe(200);
+    const after = await call("GET", `/lease-contracts/alerts?companyId=${b.companyId}`, b.token);
+    expect(mine(after.body.renewals)[0]).toMatchObject({ kind: "notice_passed", daysToDeadline: -110 });
+    const stored = await prisma.leaseContract.findUniqueOrThrow({ where: { id: active.id } });
+    expect([stored.lessorDetails, stored.propertyDetails]).toEqual([{ type: "individual", idNumber: "1000000001" }, null]);
+    expect((await call("PATCH", `/lease-contracts/${active.id}`, b.token, { lessorDetails: { unknownKey: "x" } })).status).toBe(400);
+
+    // مستأجر آخر لا يرى تنبيهات هذه الشركة ولا عقودها
+    const foreign = await call("GET", `/lease-contracts/alerts?companyId=${b.companyId}`, ctx.a.token);
+    expect([400, 403, 404]).toContain(foreign.status);
+    const own = await call("GET", `/lease-contracts/alerts?companyId=${ctx.a.companyId}`, ctx.a.token);
+    expect(own.status).toBe(200);
+    expect([...own.body.overdue, ...own.body.dueSoon, ...own.body.renewals].some((r: any) => r.leaseContractId === active.id || r.id === active.id)).toBe(false);
   });
 });

@@ -8,6 +8,7 @@ export const deleteLeaseContract = (id) => api.delete(`/lease-contracts/${id}`);
 export const applyLeaseAccounts = (payload) => api.post("/lease-contracts/accounts", payload);
 export const importLeaseContracts = (companyId, contracts) => api.post("/lease-contracts/import", { companyId, contracts });
 
+export const leaseAlerts = (companyId) => api.get(`/lease-contracts/alerts?companyId=${companyId}`);
 export const leaseCalendar = (companyId, from, to) => api.get(`/lease-contracts/calendar?companyId=${companyId}&from=${from}&to=${to}`);
 export const generateLeaseSchedule = (contractId, until) => api.post(`/lease-contracts/${contractId}/schedule`, until ? { until } : {});
 export const createLeasePayment = (payload) => api.post("/lease-contracts/payments", payload);
