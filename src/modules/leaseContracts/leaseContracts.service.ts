@@ -582,20 +582,20 @@ export async function leaseAlerts(tenantId: string, companyId: string) {
 // بريد التنبيهات اليومي
 // ---------------------------------------------------------------------------
 
-const REMINDER_DEFAULTS = { enabled: false, hourKsa: 8, recipientEmails: [] as string[], lastSentAt: null as Date | null };
+const REMINDER_DEFAULTS = { enabled: false, hourKsa: 8, minuteKsa: 0, recipientEmails: [] as string[], lastSentAt: null as Date | null };
 
 /** إعداد بريد التنبيهات للشركة؛ بلا صف محفوظ = غير مفعّل بالقيم الافتراضية. */
 export async function getLeaseReminderSetting(tenantId: string, companyId: string) {
   await companyOrThrow(tenantId, companyId);
   const row = await prisma.leaseReminderSetting.findFirst({ where: { tenantId, companyId } });
-  const setting = row ? { enabled: row.enabled, hourKsa: row.hourKsa, recipientEmails: row.recipientEmails, lastSentAt: row.lastSentAt } : REMINDER_DEFAULTS;
+  const setting = row ? { enabled: row.enabled, hourKsa: row.hourKsa, minuteKsa: row.minuteKsa, recipientEmails: row.recipientEmails, lastSentAt: row.lastSentAt } : REMINDER_DEFAULTS;
   return { ...setting, effectiveRecipients: await resolveRecipientEmails(tenantId, companyId, setting.recipientEmails) };
 }
 
-export async function upsertLeaseReminderSetting(tenantId: string, companyId: string, input: { enabled: boolean; hourKsa: number; recipientEmails: string[] }) {
+export async function upsertLeaseReminderSetting(tenantId: string, companyId: string, input: { enabled: boolean; hourKsa: number; minuteKsa?: number; recipientEmails: string[] }) {
   await companyOrThrow(tenantId, companyId);
   const recipientEmails = [...new Set(input.recipientEmails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
-  const data = { enabled: input.enabled, hourKsa: input.hourKsa, recipientEmails };
+  const data = { enabled: input.enabled, hourKsa: input.hourKsa, minuteKsa: input.minuteKsa ?? 0, recipientEmails };
   await prisma.leaseReminderSetting.upsert({ where: { companyId }, create: { tenantId, companyId, ...data }, update: data });
   return getLeaseReminderSetting(tenantId, companyId);
 }

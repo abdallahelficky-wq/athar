@@ -140,11 +140,11 @@ export default function LeasesTab({ companyId }) {
     setError(""); setMessage("");
     try {
       const r = await api.getLeaseReminder(companyId);
-      setForm({ enabled: r.enabled, hourKsa: r.hourKsa, emails: r.recipientEmails.join("\n"), effective: r.effectiveRecipients, lastSentAt: r.lastSentAt });
+      setForm({ enabled: r.enabled, hourKsa: r.hourKsa, minuteKsa: r.minuteKsa ?? 0, emails: r.recipientEmails.join("\n"), effective: r.effectiveRecipients, lastSentAt: r.lastSentAt });
       setDialog("reminder");
     } catch (e) { setError(e.message); }
   };
-  const reminderPayload = () => ({ companyId, enabled: !!form.enabled, hourKsa: Number(form.hourKsa), recipientEmails: (form.emails || "").split(/[\s,،;]+/).map((x) => x.trim()).filter(Boolean) });
+  const reminderPayload = () => ({ companyId, enabled: !!form.enabled, hourKsa: Number(form.hourKsa), minuteKsa: Number(form.minuteKsa ?? 0), recipientEmails: (form.emails || "").split(/[\s,،;]+/).map((x) => x.trim()).filter(Boolean) });
   const saveReminder = () => run(() => api.saveLeaseReminder(reminderPayload()).then(() => undefined), "leases.reminder.savedOk");
   const sendReminderNow = async () => {
     setError("");
@@ -474,9 +474,15 @@ export default function LeasesTab({ companyId }) {
         <p className="note">{t("leases.reminder.note")}</p>
         <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />{t("leases.reminder.enabled")}</label>
         <label>{t("leases.reminder.hour")}
-          <select value={form.hourKsa ?? 8} onChange={(e) => setForm({ ...form, hourKsa: e.target.value })}>
-            {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
-          </select>
+          <span style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, direction: "ltr", justifyContent: "flex-end" }}>
+            <select value={form.hourKsa ?? 8} onChange={(e) => setForm({ ...form, hourKsa: e.target.value })}>
+              {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, "0")}</option>)}
+            </select>
+            :
+            <select value={form.minuteKsa ?? 0} onChange={(e) => setForm({ ...form, minuteKsa: e.target.value })}>
+              {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => <option key={m} value={m}>{String(m).padStart(2, "0")}</option>)}
+            </select>
+          </span>
         </label>
         <label>{t("leases.reminder.emails")}<textarea rows={3} style={{ width: "100%", direction: "ltr" }} value={form.emails || ""} onChange={(e) => setForm({ ...form, emails: e.target.value })} /></label>
         {!(form.emails || "").trim() && <p className="note">{t("leases.reminder.defaultRecipients")}: <span style={{ direction: "ltr", unicodeBidi: "embed" }}>{(form.effective || []).join(", ") || "—"}</span></p>}

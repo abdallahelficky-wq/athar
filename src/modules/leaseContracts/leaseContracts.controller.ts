@@ -78,8 +78,8 @@ export const getReminderHandler: RequestHandler = async (req, res) => {
 
 export const saveReminderHandler: RequestHandler = async (req, res) => {
   const companyId = requireCompany(req);
-  const { enabled, hourKsa, recipientEmails } = req.body;
-  res.json(await service.upsertLeaseReminderSetting(req.auth!.tenantId, companyId, { enabled, hourKsa, recipientEmails }));
+  const { enabled, hourKsa, minuteKsa, recipientEmails } = req.body;
+  res.json(await service.upsertLeaseReminderSetting(req.auth!.tenantId, companyId, { enabled, hourKsa, minuteKsa, recipientEmails }));
 };
 
 export const sendReminderNowHandler: RequestHandler = async (req, res) => {

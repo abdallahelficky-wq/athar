@@ -1163,6 +1163,7 @@ model LeaseReminderSetting {
   company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   enabled           Boolean   @default(true)
   hourKsa           Int       @default(8)
+  minuteKsa         Int       @default(0)
   recipientEmails   String[]  @default([])
   lastSentAt        DateTime?
   lastSentPeriodKey String?
