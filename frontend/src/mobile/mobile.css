@@ -11,16 +11,24 @@ body {
   color: #10202E;
 }
 
-.m-app { min-height: 100vh; display: flex; flex-direction: column; }
+/* الارتفاع 100% (سلسلة html/body/#root أعلاه) لا min-height:100vh: بلا ارتفاع ثابت كان المستند كله
+   يتمرّر فيخرج الترويسة (الاسم/اللغة/الخروج) من الشاشة، وعلى iOS تكون 100vh أطول من المساحة الظاهرة.
+   الآن الترويسة ثابتة والتمرير داخل .m-main فقط (نفس إصلاح .pos-app في pos.css). */
+.m-app { height: 100%; overflow: hidden; display: flex; flex-direction: column; }
 
 .m-header {
   background: #10202E; color: #ECE6D6; padding: 18px 20px 14px;
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;
+  /* mobile.html يعلن viewport-fit=cover + black-translucent: الترويسة تُرسَم تحت شريط الحالة/النتوء. */
+  padding-top: calc(18px + env(safe-area-inset-top, 0px));
 }
 .m-header-title { font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 18px; }
 .m-header-sub { font-size: 13px; color: #B98B4E; font-weight: 600; }
 
-.m-main { flex: 1; padding: 16px; padding-bottom: 90px; overflow-y: auto; }
+.m-main {
+  flex: 1; min-height: 0; padding: 16px; padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch;
+}
 
 .m-card {
   background: #fff; border-radius: 14px; padding: 18px; margin-bottom: 14px;
@@ -38,7 +46,9 @@ body {
 .m-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .m-field label { font-size: 13px; font-weight: 600; color: #45525c; }
 .m-field input, .m-field select, .m-field textarea {
-  padding: 12px; border-radius: 10px; border: 1px solid rgba(16,32,46,0.18); font-family: inherit; font-size: 15px;
+  /* 16px لا أقل: iOS يكبّر الصفحة كلها تلقائياً عند التركيز على حقل خطّه أصغر من 16px ولا يعيدها،
+     فتُقصّ الحواف والترويسة بعد أول إدخال (رمز الدخول، رسالة العامل). */
+  padding: 12px; border-radius: 10px; border: 1px solid rgba(16,32,46,0.18); font-family: inherit; font-size: 16px;
 }
 .m-btn {
   padding: 14px; border-radius: 10px; border: none; background: #10202E; color: #fff;
