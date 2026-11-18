@@ -490,6 +490,7 @@ const MOVED_SECTIONS = {
   balancesPostedOnly: "/accounts/accountsSettings?section=balancesPostedOnly",
   payrollTotals: "/hr/payrollSettings",
   stations: "/stationShifts/shiftSettings",
+  leases: "/leases/leaseContracts",
 };
 
 /** الربط مع فاتورة (زاتكا) للشركة المختارة — الإجراء نفسه في نافذته الخاصة كما كان */
@@ -582,6 +583,7 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
     linkCard("companyDocs", routes.settings("companyDocs"), "account"),
     linkCard("accountsSettings", routes.accounts("accountsSettings"), "elsewhere"),
     linkCard("onlineStore", routes.onlineStore("storeGeneral"), "elsewhere"),
+    linkCard("leases", routes.leases(), "elsewhere"),
     linkCard("payrollSettings", routes.hr("payrollSettings"), "elsewhere"),
     ...(selected?.businessActivity === "fuel_stations" ? [linkCard("shiftSettings", routes.stationShifts("shiftSettings"), "elsewhere")] : []),
   ];

@@ -1888,3 +1888,4 @@
 }
 .settings-hub .company-settings-footer { border-top: none; padding-top: 0; margin: 12px 0 0; }
 .settings-hub .company-settings-section-save { clear: both; }
+.leases-module-panel > div > .sub-head:first-child, .leases-module-panel > .sub-head:first-child { display: none; }

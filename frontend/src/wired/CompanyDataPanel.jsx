@@ -9,7 +9,6 @@ import { listAccounts } from "../api/accounts";
 import { listItems } from "../api/items";
 import AttachmentsPanel from "./shared/AttachmentsPanel";
 import CompanyDocumentsPanel from "./CompanyDocumentsPanel";
-import LeaseContractsPanel from "./LeaseContractsPanel";
 import BranchesPanel from "./BranchesPanel";
 import CompanyBankAccountsPanel from "./CompanyBankAccountsPanel";
 import FiscalYearPanel from "./FiscalYearPanel";
@@ -139,7 +138,6 @@ const BUILTIN_SECTIONS = [
   { key: "logo", icon: "sImage", group: "company" },
   { key: "documents", icon: "sClip", group: "company" },
   { key: "branches", icon: "categories", group: "operations" },
-  { key: "leases", icon: "contracts", group: "operations" },
   { key: "alerts", icon: "sBell", group: "operations" },
   { key: "fiscal", icon: "leaves", group: "accounting" },
   { key: "numbering", icon: "sHash", group: "accounting" },
@@ -152,7 +150,7 @@ const BUILTIN_SECTIONS = [
   { key: "storePolicies", icon: "storePolicies", group: "store" },
   { key: "stations", icon: "stations", group: "stations" },
 ];
-export const SETTINGS_PAGE_SECTIONS = ["basic", "registration", "tax", "address", "logo", "documents", "branches", "leases", "alerts"];
+export const SETTINGS_PAGE_SECTIONS = ["basic", "registration", "tax", "address", "logo", "documents", "branches", "alerts"];
 const GROUP_ORDER = ["company", "operations", "accounting", "store", "stations", "account", "elsewhere"];
 
 const asText = (v) => (v && typeof v === "object" ? JSON.stringify(v) : String(v ?? ""));
@@ -732,9 +730,6 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
             </section>}
             {has("bankAccounts") && <section hidden={activeSection !== "bankAccounts"} className="company-settings-section">
               <CompanyBankAccountsPanel companyId={company.id} />
-            </section>}
-            {has("leases") && <section hidden={activeSection !== "leases"} className="company-settings-section">
-              <LeaseContractsPanel companyId={company.id} />
             </section>}
             {has("documents") && <section hidden={activeSection !== "documents"} className="company-settings-section">
               <CompanyDocumentsPanel companyId={company.id} />
