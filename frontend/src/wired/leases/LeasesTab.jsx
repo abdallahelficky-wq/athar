@@ -28,6 +28,10 @@ const TONE = {
   waived: { background: "var(--athar-bg)", color: "var(--athar-muted, #777)", border: "1px dashed var(--athar-border)" },
 };
 const toneOf = (p) => (p.status === "due" && p.overdue ? "overdue" : p.status);
+// دفعة غير مسدَّدة لعقد معلّق/موقوف/منتهٍ: تُعرَض بمظهر «سماح» لأنها لا تُعَد مستحقة
+const cellTone = (p) => (p.onHold ? "waived" : toneOf(p));
+const STATUS_COLOR = { active: "#1F5C3A", suspended: "#7A5212", stopped: "#8A2F1B", ended: "#666" };
+const CONTRACT_STATUSES = ["active", "suspended", "stopped", "ended"];
 const CELL_BTN = { display: "block", width: "100%", borderRadius: 8, padding: "4px 6px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", margin: "2px 0", direction: "ltr" };
 const SUB = { fontSize: 12, lineHeight: 1.5, opacity: 0.7, fontWeight: 400, fontFamily: "inherit" };
 const emptyContract = {
@@ -108,7 +112,7 @@ export default function LeasesTab({ companyId }) {
       title: form.title.trim(), counterparty: form.counterparty.trim() || null, costCenterId: form.costCenterId || null, vatMode: form.vatMode,
       paymentAmount: form.paymentAmount === "" ? null : Number(form.paymentAmount), paymentEveryMonths: form.paymentEveryMonths === "" ? null : Number(form.paymentEveryMonths),
       firstDueDate: form.firstDueDate || null, startDate: form.startDate, endDate: form.endDate,
-      expenseAccountId: form.expenseAccountId || null, prepaidAccountId: form.prepaidAccountId || null, notes: form.notes.trim() || null, isActive: form.isActive,
+      expenseAccountId: form.expenseAccountId || null, prepaidAccountId: form.prepaidAccountId || null, notes: form.notes.trim() || null,
       contractNumber: form.contractNumber.trim() || null, signedOn: form.signedOn || null, contractValue: num(form.contractValue), depositAmount: num(form.depositAmount),
       noticeDays: num(form.noticeDays), autoRenew: !!form.autoRenew, customTerms: form.customTerms.trim() || null,
       lessorDetails: (() => { const d = details(form.lessor, LESSOR_FIELDS); if (form.lessor?.type) d.type = form.lessor.type; return Object.keys(d).length ? d : null; })(),
@@ -283,12 +287,12 @@ export default function LeasesTab({ companyId }) {
                   <tr key={c.id} style={c.isActive ? undefined : { opacity: 0.55 }}>
                     <td style={{ position: "sticky", insetInlineStart: 0, background: "var(--athar-surface, #fff)", zIndex: 1 }}>
                       <strong>{c.title}</strong>
-                      <div style={SUB}>{t(`leases.vatModes.${c.vatMode}`)}{c.costCenterName ? ` · ${c.costCenterName}` : ""}</div>
+                      <div style={SUB}>{t(`leases.vatModes.${c.vatMode}`)}{c.costCenterName ? ` · ${c.costCenterName}` : ""}{c.status && c.status !== "active" ? ` · ${t(`leases.contractStatus.${c.status}`)}` : ""}</div>
                     </td>
                     {months.map((m) => (
                       <td key={m} style={{ textAlign: "center", padding: "3px 4px" }}>
                         {cell(c.id, m).map((p) => (
-                          <button key={p.id} type="button" title={`${fmtDay(p.dueDate)}${p.note ? ` — ${p.note}` : ""}`} style={{ ...CELL_BTN, ...TONE[toneOf(p)] }} onClick={() => openPayment(p)}>
+                          <button key={p.id} type="button" title={`${fmtDay(p.dueDate)}${p.note ? ` — ${p.note}` : ""}`} style={{ ...CELL_BTN, ...TONE[cellTone(p)] }} onClick={() => openPayment(p)}>
                             {p.status === "waived" ? t("leases.statuses.waived") : fmt2(p.amount)}{p.status === "paid" ? " ✓" : ""}
                           </button>
                         ))}
@@ -324,7 +328,9 @@ export default function LeasesTab({ companyId }) {
               <tbody>
                 {contracts.map((c) => (
                   <tr key={c.id} style={c.isActive ? undefined : { opacity: 0.55 }}>
-                    <td><strong>{c.title}</strong>{c.notes && <div style={SUB}>{c.notes}</div>}</td>
+                    <td><strong>{c.title}</strong>
+                      {c.status && c.status !== "active" && <div style={{ ...SUB, color: STATUS_COLOR[c.status], fontWeight: 600 }}>{t(`leases.contractStatus.${c.status}`)}{c.statusDate ? ` · ${fmtDay(c.statusDate)}` : ""}{c.statusReason ? ` — ${c.statusReason}` : ""}</div>}
+                      {c.notes && <div style={SUB}>{c.notes}</div>}</td>
                     <td>{c.counterparty || "—"}{(c.lessorDetails?.mobile || c.contractNumber) && <div style={SUB}>{[c.lessorDetails?.mobile, c.contractNumber && `${t("leases.contractNumber")}: ${c.contractNumber}`].filter(Boolean).join(" · ")}</div>}</td>
                     <td>{c.costCenterName || "—"}</td>
                     <td>{t(`leases.vatModes.${c.vatMode}`)}</td>
@@ -335,6 +341,7 @@ export default function LeasesTab({ companyId }) {
                     <td>{c.expenseAccountId && c.prepaidAccountId ? "✓" : <span style={{ color: "#B7791F" }}>{t("leases.accountsDefault")}</span>}</td>
                     <td className="row-actions">
                       <button className="btn-ghost" onClick={() => openContract(c)}>{t("common.edit")}</button>
+                      <button className="btn-ghost" onClick={() => open("contractStatus", { id: c.id, title: c.title, current: c.status || "active", status: c.status || "active", reason: c.statusReason || "", effectiveDate: localDay(), history: c.statusHistory || [] })}>{t("leases.contractStatus.btn")}</button>
                       <button className="btn-ghost" onClick={() => open("generate", { id: c.id, title: c.title, until: c.endDate })} disabled={!c.paymentAmount || !c.paymentEveryMonths || !c.firstDueDate}>{t("leases.generate")}</button>
                       <button className="btn-ghost" onClick={() => open("newPayment", { leaseContractId: c.id, dueDate: localDay(), periodFrom: localDay(), periodTo: localDay(), amount: c.paymentAmount ?? "", note: "" })}>+ {t("leases.payment")}</button>
                       <button className="btn-ghost" onClick={() => removeContract(c)}>{t("common.delete")}</button>
@@ -424,7 +431,6 @@ export default function LeasesTab({ companyId }) {
           <label>{t("leases.paymentAmount")}<input type="number" step="0.01" min="0" value={form.paymentAmount ?? ""} onChange={(e) => setForm({ ...form, paymentAmount: e.target.value })} /></label>
           <label>{t("leases.everyMonths")}<input type="number" step="1" min="1" value={form.paymentEveryMonths ?? ""} onChange={(e) => setForm({ ...form, paymentEveryMonths: e.target.value })} /></label>
           <label>{t("leases.firstDueDate")}<input type="date" value={form.firstDueDate || ""} onChange={(e) => setForm({ ...form, firstDueDate: e.target.value })} /></label>
-          <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}><input type="checkbox" checked={form.isActive !== false} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />{t("leases.active")}</label>
           <label>{t("leases.contractNumber")}<input value={form.contractNumber || ""} onChange={(e) => setForm({ ...form, contractNumber: e.target.value })} /></label>
           <label>{t("leases.signedOn")}<input type="date" value={form.signedOn || ""} onChange={(e) => setForm({ ...form, signedOn: e.target.value })} /></label>
           <label>{t("leases.contractValue")}<input type="number" step="0.01" min="0" value={form.contractValue ?? ""} onChange={(e) => setForm({ ...form, contractValue: e.target.value })} /></label>
@@ -457,6 +463,27 @@ export default function LeasesTab({ companyId }) {
         <p className="note">{t("leases.accountsHint")}</p>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button><button className="btn-primary" onClick={saveContract}>{t("common.save")}</button></div>
+      </FormDialog>
+
+      <FormDialog open={dialog === "contractStatus"} title={`${t("leases.contractStatus.title")} — ${form.title || ""}`} onClose={close} style={{ maxWidth: 560 }}>
+        <p className="note">{t("leases.contractStatus.note")}</p>
+        <label>{t("leases.contractStatus.label")}
+          <select value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+            {CONTRACT_STATUSES.map((s) => <option key={s} value={s}>{t(`leases.contractStatus.${s}`)}</option>)}
+          </select>
+        </label>
+        <label>{t("leases.contractStatus.effectiveDate")}<input type="date" value={form.effectiveDate || ""} onChange={(e) => setForm({ ...form, effectiveDate: e.target.value })} /></label>
+        <label>{t("leases.contractStatus.reason")}<textarea rows={3} style={{ width: "100%" }} value={form.reason || ""} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></label>
+        {(form.history || []).length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={SUB}>{t("leases.contractStatus.history")}</div>
+            {[...form.history].reverse().map((h, i) => <div key={i} style={SUB}>{fmtDay(h.effectiveDate)} · <strong style={{ color: STATUS_COLOR[h.status] }}>{t(`leases.contractStatus.${h.status}`)}</strong>{h.reason ? ` — ${h.reason}` : ""}</div>)}
+          </div>
+        )}
+        {error && <p className="balance-bad">{error}</p>}
+        <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button>
+          <button className="btn-primary" disabled={form.status !== "active" && (form.reason || "").trim().length < 3} onClick={() => run(() => api.setLeaseContractStatus(form.id, { status: form.status, reason: (form.reason || "").trim() || null, effectiveDate: form.effectiveDate || undefined }), "leases.contractStatus.savedOk")}>{t("common.save")}</button>
+        </div>
       </FormDialog>
 
       <FormDialog open={dialog === "accounts"} title={t("leases.accountsBtn")} onClose={close} style={{ maxWidth: 620 }}>

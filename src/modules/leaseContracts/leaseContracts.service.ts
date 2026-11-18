@@ -132,7 +132,7 @@ export async function createLeaseContract(tenantId: string, input: ContractInput
   await companyOrThrow(tenantId, input.companyId);
   if (input.endDate < input.startDate) throw badRequest("تاريخ نهاية العقد يسبق تاريخ بدايته");
   await assertContractReferences(tenantId, input.companyId, input);
-  return prisma.leaseContract.create({ data: { ...contractData(input), tenantId } });
+  return prisma.leaseContract.create({ data: { ...contractData(input), status: input.isActive === false ? "ended" : "active", tenantId } });
 }
 
 export async function updateLeaseContract(tenantId: string, id: string, input: Partial<ContractInput>) {
@@ -144,7 +144,43 @@ export async function updateLeaseContract(tenantId: string, id: string, input: P
   if (endDate < startDate) throw badRequest("تاريخ نهاية العقد يسبق تاريخ بدايته");
   await assertContractReferences(tenantId, existing.companyId, input);
   const { companyId: _companyId, ...data } = input;
-  return prisma.leaseContract.update({ where: { id: existing.id }, data: contractData(data) });
+  // isActive المُرسَل من مسار التعديل القديم يبقي الحالة مطابقة له؛ التغيير بسببه المكتوب من setLeaseContractStatus
+  const statusSync = input.isActive !== undefined && input.isActive !== existing.isActive ? { status: input.isActive ? ("active" as const) : ("ended" as const) } : {};
+  return prisma.leaseContract.update({ where: { id: existing.id }, data: { ...contractData(data), ...statusSync } });
+}
+
+export type LeaseContractStatusValue = "active" | "suspended" | "stopped" | "ended";
+
+/**
+ * يغيّر حالة العقد (ساري/معلّق/موقوف/منتهٍ) مع سبب مكتوب وتاريخ سريان، ويضيف التغيير إلى سجل الحالة.
+ * غير الساري يخرج من التنبيهات وبريدها ومن إجماليات المستحق في التقويم (دفعاته غير المسدَّدة تبقى ظاهرة «موقوفة»)،
+ * ولا يمسّ قيوداً ولا إطفاءً: ما سُدِّد يُطفأ كما هو. السبب إلزامي لكل حالة غير «ساري».
+ */
+export async function setLeaseContractStatus(
+  tenantId: string,
+  userId: string,
+  id: string,
+  input: { status: LeaseContractStatusValue; reason?: string | null; effectiveDate?: string },
+) {
+  const existing = await prisma.leaseContract.findFirst({ where: { id, tenantId } });
+  if (!existing) throw notFound("عقد الإيجار غير موجود");
+  const reason = trimmed(input.reason);
+  if (input.status !== "active" && (!reason || reason.length < 3)) throw badRequest("اكتب سبب تعليق العقد أو إيقافه أو إنهائه");
+  if (input.status === existing.status && reason === existing.statusReason) throw badRequest("العقد على هذه الحالة بالسبب نفسه");
+  const effectiveDate = input.effectiveDate ?? riyadhCalendarDay(new Date());
+  if (!isDateOnly(effectiveDate)) throw badRequest("صيغة التاريخ يجب أن تكون YYYY-MM-DD");
+  const history = Array.isArray(existing.statusHistory) ? (existing.statusHistory as Prisma.JsonArray) : [];
+  const entry = { status: input.status, reason, effectiveDate, at: new Date().toISOString(), userId };
+  return prisma.leaseContract.update({
+    where: { id: existing.id },
+    data: {
+      status: input.status,
+      isActive: input.status === "active",
+      statusReason: reason,
+      statusDate: dayToDate(effectiveDate),
+      statusHistory: [...history, entry] as Prisma.InputJsonArray,
+    },
+  });
 }
 
 export async function deleteLeaseContract(tenantId: string, id: string) {
@@ -464,9 +500,12 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
   const entryNumber = new Map(entries.map((e) => [e.id, e.entryNumber]));
   const costCenterName = new Map(costCenters.map((c) => [c.id, c.name]));
   const today = riyadhCalendarDay(new Date());
+  const inactiveContractIds = new Set(contracts.filter((c) => !c.isActive).map((c) => c.id));
 
   const rows = payments.map((p) => {
     const dueDate = dateToDay(p.dueDate);
+    // دفعة غير مسدَّدة لعقد معلّق/موقوف/منتهٍ: تبقى ظاهرة لكنها لا تُعَد مستحقة ولا متأخرة
+    const onHold = p.status === "due" && inactiveContractIds.has(p.leaseContractId);
     return {
       id: p.id,
       leaseContractId: p.leaseContractId,
@@ -478,7 +517,8 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
       vatAmount: Number(p.vatAmount),
       netAmount: Number(p.netAmount),
       status: p.status,
-      overdue: p.status === "due" && dueDate < today,
+      onHold,
+      overdue: p.status === "due" && !onHold && dueDate < today,
       paidOn: day(p.paidOn),
       bankAccountId: p.bankAccountId,
       postedExternally: p.postedExternally,
@@ -493,7 +533,7 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
 
   const months = new Map<string, { month: string; due: number[]; paid: number[]; outstanding: number[]; vat: number[]; count: number }>();
   for (const r of rows) {
-    if (r.status === "waived") continue;
+    if (r.status === "waived" || r.onHold) continue;
     const m = months.get(r.month) ?? { month: r.month, due: [], paid: [], outstanding: [], vat: [], count: 0 };
     m.due.push(r.amount);
     m.vat.push(r.vatAmount);
@@ -501,7 +541,7 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
     m.count += 1;
     months.set(r.month, m);
   }
-  const live = rows.filter((r) => r.status !== "waived");
+  const live = rows.filter((r) => r.status !== "waived" && !r.onHold);
 
   return {
     from: range.from,
@@ -509,6 +549,7 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
     today,
     contracts: contracts.map((c) => ({
       id: c.id, title: c.title, counterparty: c.counterparty, vatMode: c.vatMode, isActive: c.isActive,
+      status: c.status, statusReason: c.statusReason, statusDate: day(c.statusDate), statusHistory: Array.isArray(c.statusHistory) ? c.statusHistory : [],
       costCenterId: c.costCenterId, costCenterName: c.costCenterId ? costCenterName.get(c.costCenterId) ?? null : null,
       paymentAmount: c.paymentAmount === null ? null : Number(c.paymentAmount), paymentEveryMonths: c.paymentEveryMonths,
       firstDueDate: day(c.firstDueDate), startDate: dateToDay(c.startDate), endDate: dateToDay(c.endDate),
@@ -824,7 +865,7 @@ export async function importLeaseContracts(tenantId: string, userId: string, com
           costCenterId: c.costCenterName?.trim() ? costCenterId.get(c.costCenterName.trim())! : null,
           paymentAmount: c.paymentAmount ? d(c.paymentAmount) : null, paymentEveryMonths: c.paymentEveryMonths ?? null,
           firstDueDate: c.firstDueDate ? dayToDate(c.firstDueDate) : null,
-          isActive: c.isActive ?? true, signedOn: c.signedOn ? dayToDate(c.signedOn) : null, contractNumber: trimmed(c.contractNumber),
+          isActive: c.isActive ?? true, status: c.isActive === false ? "ended" : "active", signedOn: c.signedOn ? dayToDate(c.signedOn) : null, contractNumber: trimmed(c.contractNumber),
           contractValue: c.contractValue != null ? d(c.contractValue) : null, depositAmount: c.depositAmount != null ? d(c.depositAmount) : null,
           customTerms: trimmed(c.customTerms), autoRenew: c.autoRenew ?? false, noticeDays: c.noticeDays ?? null,
           lessorDetails: jsonColumn(c.lessorDetails ?? null), propertyDetails: jsonColumn(c.propertyDetails ?? null),
