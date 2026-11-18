@@ -3,11 +3,20 @@
 /* شاشة نقطة البيع — تصميم لمسي بالكامل (أزرار كبيرة، مسافات واسعة)، مبني فوق نفس ألوان/توكينز
    mobile.css (بوابة الموظف) لهوية بصرية موحّدة عبر تطبيقات أثر المحاسبي الفرعية. */
 
-.pos-app { min-height: 100vh; display: flex; flex-direction: column; background: #ECE6D6; }
+/* الارتفاع 100% (سلسلة html/body/#root في mobile.css) لا 100vh: على iOS كتطبيق مُثبَّت على الشاشة
+   الرئيسية تكون 100vh أطول من المساحة الظاهرة فعلاً بمقدار شريط الحالة، فكان المستند كله يتمدّد
+   وينزلق لأعلى ويختفي الشريط العلوي (الفواتير/الإعدادات/الخروج) خارج الشاشة. ارتفاع ثابت +
+   overflow:hidden يُبقي الشريط مثبّتاً دائماً، والتمرير يحدث داخل كل شاشة فقط. */
+.pos-app { height: 100%; overflow: hidden; display: flex; flex-direction: column; background: #ECE6D6; }
 
 .pos-topbar {
   background: #10202E; color: #ECE6D6; padding: 10px 16px; display: flex; justify-content: space-between;
   align-items: center; flex-shrink: 0;
+  /* pos.html يعلن viewport-fit=cover + black-translucent: المحتوى يُرسَم تحت شريط الحالة/الجزيرة
+     على الآيفون، فتُزاح أزرار الشريط أسفل المنطقة الآمنة (القيمة صفر على أي جهاز بلا نتوء). */
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  padding-left: calc(16px + env(safe-area-inset-left, 0px));
+  padding-right: calc(16px + env(safe-area-inset-right, 0px));
 }
 .pos-topbar-company { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; }
 .pos-company-select { background: transparent; color: #ECE6D6; border: 1px solid rgba(236,230,214,0.35); border-radius: 8px; padding: 4px 8px; font-family: inherit; font-size: 13px; }
@@ -28,7 +37,7 @@
 }
 .pos-login-lang-switcher:hover { background: rgba(185,139,78,0.12); border-color: #B98B4E; color: #10202E; }
 
-.pos-body { flex: 1; overflow: hidden; display: flex; }
+.pos-body { flex: 1; min-height: 0; overflow: hidden; display: flex; padding-bottom: env(safe-area-inset-bottom, 0px); }
 .pos-loading { padding: 40px; text-align: center; color: #45525c; width: 100%; }
 .pos-loading .pos-big-btn { max-width: 320px; margin: 16px auto 0; }
 
@@ -110,7 +119,7 @@
 .pos-cart-total-row { display: flex; justify-content: space-between; font-size: 20px; font-weight: 800; margin-bottom: 12px; }
 
 /* --- تسجيل الدخول --- */
-.pos-login-root { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+.pos-login-root { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
 .pos-login-card { background: #fff; border-radius: 18px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 4px 20px rgba(16,32,46,0.12); }
 .pos-login-brand { font-weight: 800; font-size: 18px; text-align: center; margin-bottom: 20px; color: #10202E; }
 .pos-login-choose-title { font-size: 16px; font-weight: 800; color: #10202E; text-align: center; margin: 0 0 6px; }
@@ -136,7 +145,8 @@
 
 /* --- شاشة البيع السريعة --- */
 .pos-quick-sale-screen { flex: 1; padding: 14px; overflow-y: auto; width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; }
-.pos-quick-item-grid { flex: 1; }
+/* align-content:start — بلا ذلك تتمدّد صفوف الشبكة لتملأ الارتفاع كله (بلاطة صنف واحد بطول الشاشة). */
+.pos-quick-item-grid { flex: 1; align-content: start; }
 .pos-item-tile { position: relative; }
 .pos-item-tile-selected { background: rgba(185,139,78,0.18); border-color: #B98B4E; }
 .pos-item-tile-check {
