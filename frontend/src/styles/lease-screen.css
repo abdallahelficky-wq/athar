@@ -164,3 +164,60 @@ button.ls-chip:hover { background: rgba(255, 255, 255, 0.22); transform: transla
   .ls-alerts { grid-template-columns: 1fr; }
   .ls-chip-info { margin-inline-start: 0; }
 }
+
+/* ---------- التقويم الشهري ---------- */
+.ls-months { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.ls-month {
+  --m: #2F6FB0; --m-soft: rgba(47, 111, 176, 0.09); position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 7px; min-height: 168px;
+  padding: 15px 16px; border-radius: 16px; border: 1px solid var(--line); border-top: 4px solid var(--m); background: #fff; font: inherit; color: var(--ink);
+  text-align: start; cursor: pointer; box-shadow: 0 2px 8px rgba(16, 32, 46, 0.05); transition: transform 0.14s, box-shadow 0.14s, background 0.14s;
+}
+.ls-month:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(16, 32, 46, 0.11); }
+.ls-month:disabled { cursor: default; background: #F8FAFB; border-top-color: #D5DCE4; }
+.ls-month.tone-done { --m: #1B8354; --m-soft: rgba(27, 131, 84, 0.10); }
+.ls-month.tone-late { --m: #A8432B; --m-soft: rgba(168, 67, 43, 0.09); }
+.ls-month.is-on { background: var(--m-soft); box-shadow: 0 0 0 3px var(--m), 0 12px 24px rgba(16, 32, 46, 0.12); }
+.ls-month.is-now .ls-month-name { color: var(--ej); }
+.ls-month-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ls-month-name { font-size: 16px; font-weight: 800; }
+.ls-month-now { padding: 3px 9px; border-radius: 999px; background: var(--ej); color: #fff; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+.ls-month-total { font-size: 22px; font-weight: 800; color: var(--m); direction: ltr; text-align: end; font-variant-numeric: tabular-nums; }
+.ls-month-sub { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.ls-month-bar { height: 7px; border-radius: 999px; background: #E6EBF0; overflow: hidden; }
+.ls-month-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2FA86E, var(--ej)); }
+.ls-month-split { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); }
+.ls-month-split b { color: var(--ink); font-weight: 700; }
+.ls-month-none { margin: auto 0; font-size: 13.5px; font-weight: 600; color: var(--ink-3); }
+.ls-month-held { font-size: 11.5px; font-weight: 600; color: #7A5212; }
+
+.ls-month-panel { margin-top: 20px; border-radius: 18px; border: 1px solid var(--ej-line); background: #FBFDFC; overflow: hidden; scroll-margin-top: 90px; animation: lease-dialog-in 0.2s ease-out; }
+.ls-month-panel-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 20px; background: linear-gradient(125deg, var(--ej-dark), var(--ej)); color: #fff; }
+.ls-month-panel-head > div:first-child { flex: 1 1 260px; }
+.ls-month-panel-head h4 { margin: 0 0 4px; font-size: 18px; font-weight: 800; color: #fff; }
+.ls-month-panel-head > div:first-child span { font-size: 12.5px; color: rgba(255, 255, 255, 0.85); }
+.ls-month-panel-totals { display: flex; gap: 8px; flex-wrap: wrap; }
+.ls-month-panel-totals span { padding: 7px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.14); font-size: 12.5px; font-weight: 600; }
+.ls-month-panel-totals b { display: block; font-size: 15px; font-weight: 800; direction: ltr; text-align: end; }
+.ls-month-panel-head .ls-act { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.4); color: #fff; }
+.ls-month-panel-head .ls-act:hover { background: rgba(255, 255, 255, 0.26); color: #fff; }
+.ls-due-list { display: flex; flex-direction: column; padding: 8px 14px; }
+.ls-due { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto auto auto; align-items: center; gap: 16px; padding: 12px 6px; border-bottom: 1px dashed #DDE6E1; }
+.ls-due:last-child { border-bottom: 0; }
+.ls-due-date { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 54px; height: 54px; border-radius: 13px; background: var(--ej-mint); color: var(--ej-dark); }
+.ls-due.pay-overdue .ls-due-date { background: #FBEEEA; color: #8A2F1B; }
+.ls-due.pay-paid .ls-due-date { background: #EEF2F5; color: var(--ink-2); }
+.ls-due-date b { font-size: 20px; font-weight: 800; line-height: 1.1; }
+.ls-due-date span { font-size: 11.5px; font-weight: 700; }
+.ls-due-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ls-due-main .ls-link { font-size: 15px; }
+.ls-due-main > span { font-size: 12.5px; color: var(--ink-3); overflow-wrap: anywhere; }
+.ls-due-amount { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 150px; }
+.ls-due > .ls-badge { min-width: 112px; justify-content: center; }
+.ls-due-amount b { font-size: 16.5px; font-weight: 800; direction: ltr; font-variant-numeric: tabular-nums; }
+.ls-due-amount span { font-size: 11.5px; color: var(--ink-3); }
+.ls-due.pay-paid .ls-due-amount b { color: var(--ink-3); }
+.ls-month-panel-foot { margin: 0; padding: 10px 20px 14px; font-size: 12.5px; color: #7A5212; }
+@media (max-width: 760px) {
+  .ls-due { grid-template-columns: 54px minmax(0, 1fr); }
+  .ls-due-amount { align-items: flex-start; }
+}
