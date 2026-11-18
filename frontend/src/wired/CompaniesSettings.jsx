@@ -581,10 +581,6 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
     ...(isOwner ? [linkCard("positions", routes.settings("positions"), "account")] : []),
     linkCard("locations", routes.settings("locations"), "account"),
     linkCard("companyDocs", routes.settings("companyDocs"), "account"),
-    linkCard("accountsSettings", routes.accounts("accountsSettings"), "elsewhere"),
-    linkCard("onlineStore", routes.onlineStore("storeGeneral"), "elsewhere"),
-    linkCard("leases", routes.leases(), "elsewhere"),
-    linkCard("payrollSettings", routes.hr("payrollSettings"), "elsewhere"),
   ];
 
   if (movedTo) return <Navigate to={movedTo} replace />;
