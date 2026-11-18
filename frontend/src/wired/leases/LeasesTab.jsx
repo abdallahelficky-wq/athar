@@ -51,7 +51,7 @@ const ALERT_TONE = { expired: "overdue", notice_passed: "overdue", notice_soon: 
 
 export default function LeasesTab({ companyId }) {
   const { t, i18n } = useTranslation();
-  const [view, setView] = useState("calendar");
+  const [view, setView] = useState("contracts"); // العقود هي الشاشة الافتتاحية، ثم التقويم
   const [range, setRange] = useState(() => { const m = monthOf(localDay()); return { from: m, to: addMonth(m, 12) }; });
   const [data, setData] = useState(null);
   const [accounts, setAccounts] = useState([]);
@@ -306,7 +306,7 @@ export default function LeasesTab({ companyId }) {
 
       <div className="ls-toolbar">
         <div className="ls-tabs" role="tablist">
-          {["calendar", "contracts", "amortization"].map((v) => (
+          {["contracts", "calendar", "amortization"].map((v) => (
             <button key={v} type="button" role="tab" aria-selected={view === v} className={`ls-tab${view === v ? " is-on" : ""}`} onClick={() => { setError(""); setMessage(""); setView(v); }}>{t(`leases.views.${v}`)}</button>
           ))}
         </div>
