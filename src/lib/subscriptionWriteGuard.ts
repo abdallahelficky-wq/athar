@@ -86,6 +86,7 @@ export const ATTACHMENT_ENTITY_MODELS: Record<string, string> = {
   employee: "Employee",
   station_shift_reading: "StationShiftReading",
   station_shift_expense: "StationShiftExpense",
+  lease_contract: "LeaseContract",
   item_store_image: "Item",
   store_banner: "Company",
 };
