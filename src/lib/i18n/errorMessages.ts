@@ -11,6 +11,7 @@
  */
 export const AR_TO_EN: Record<string, string> = {
   "ساعة الإرسال عدد صحيح بين 0 و23": "The sending hour must be a whole number between 0 and 23",
+  "دقيقة الإرسال عدد صحيح بين 0 و59": "The sending minute must be a whole number between 0 and 59",
   "بريد إلكتروني غير صالح في قائمة المستلمين": "Invalid email address in the recipients list",
   "عدد المستلمين أكبر من المسموح": "More recipients than allowed",
   "مهلة الإشعار عدد صحيح من الأيام": "The notice period must be a whole number of days",

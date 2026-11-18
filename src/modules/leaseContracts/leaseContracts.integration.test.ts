@@ -404,7 +404,7 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     const b = ctx.b;
     const initial = await call("GET", `/lease-contracts/reminders?companyId=${b.companyId}`, b.token);
     expect(initial.status, initial.text).toBe(200);
-    expect([initial.body.enabled, initial.body.hourKsa, initial.body.recipientEmails]).toEqual([false, 8, []]);
+    expect([initial.body.enabled, initial.body.hourKsa, initial.body.minuteKsa, initial.body.recipientEmails]).toEqual([false, 8, 0, []]);
     // بلا مستلمين محددين: مدراء الشركة (المالك المسجَّل)
     expect(initial.body.effectiveRecipients).toEqual([`lease-b-${stamp}@example.com`]);
 
@@ -415,9 +415,10 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
 
     expect((await call("PUT", "/lease-contracts/reminders", b.token, { companyId: b.companyId, enabled: true, hourKsa: 9, recipientEmails: ["not-an-email"] })).status).toBe(400);
     expect((await call("PUT", "/lease-contracts/reminders", ctx.a.token, { companyId: b.companyId, enabled: true, hourKsa: 9, recipientEmails: [] })).status).toBe(400);
-    const saved = await call("PUT", "/lease-contracts/reminders", b.token, { companyId: b.companyId, enabled: true, hourKsa: 9, recipientEmails: ["Finance@Example.com", "finance@example.com"] });
+    expect((await call("PUT", "/lease-contracts/reminders", b.token, { companyId: b.companyId, enabled: true, hourKsa: 9, minuteKsa: 60, recipientEmails: [] })).status).toBe(400);
+    const saved = await call("PUT", "/lease-contracts/reminders", b.token, { companyId: b.companyId, enabled: true, hourKsa: 9, minuteKsa: 30, recipientEmails: ["Finance@Example.com", "finance@example.com"] });
     expect(saved.status, saved.text).toBe(200);
-    expect([saved.body.enabled, saved.body.hourKsa, saved.body.recipientEmails, saved.body.effectiveRecipients]).toEqual([true, 9, ["finance@example.com"], ["finance@example.com"]]);
+    expect([saved.body.enabled, saved.body.hourKsa, saved.body.minuteKsa, saved.body.recipientEmails, saved.body.effectiveRecipients]).toEqual([true, 9, 30, ["finance@example.com"], ["finance@example.com"]]);
 
     // الشركة لها تنبيهات من الاختبار السابق (دفعة متأخرة وعقد فات موعد إشعاره): «إرسال الآن» يرسل ولا يستهلك إرسال اليوم
     const now = await call("POST", "/lease-contracts/reminders/send-now", b.token, { companyId: b.companyId });
@@ -430,6 +431,12 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     const early = new Date(`${riyadhCalendarDay(new Date())}T03:00:00.000Z`); // 06:00 بتوقيت السعودية
     await runDueLeaseReminders(early);
     expect((await prisma.leaseReminderSetting.findFirstOrThrow({ where: { tenantId: b.tenantId } })).lastSentPeriodKey).toBeNull();
+    // الموعد 09:30: عند 09:29 (في الساعة نفسها) لا يُرسَل، وعند 09:30 يُرسَل
+    await runDueLeaseReminders(new Date(`${riyadhCalendarDay(new Date())}T06:29:00.000Z`));
+    expect((await prisma.leaseReminderSetting.findFirstOrThrow({ where: { tenantId: b.tenantId } })).lastSentPeriodKey).toBeNull();
+    const onTime = new Date(`${riyadhCalendarDay(new Date())}T06:30:00.000Z`);
+    await runDueLeaseReminders(onTime);
+    expect((await prisma.leaseReminderSetting.findFirstOrThrow({ where: { tenantId: b.tenantId } })).lastSentAt?.toISOString()).toBe(onTime.toISOString());
     await runDueLeaseReminders(evening);
     const first = await prisma.leaseReminderSetting.findFirstOrThrow({ where: { tenantId: b.tenantId } });
     expect(first.lastSentPeriodKey).toBe(riyadhCalendarDay(new Date()));

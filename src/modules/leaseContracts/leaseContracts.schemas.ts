@@ -146,6 +146,7 @@ export const reminderSettingSchema = z
     companyId: z.string().min(1),
     enabled: z.boolean(),
     hourKsa: z.coerce.number().int("ساعة الإرسال عدد صحيح بين 0 و23").min(0, "ساعة الإرسال عدد صحيح بين 0 و23").max(23, "ساعة الإرسال عدد صحيح بين 0 و23"),
+    minuteKsa: z.coerce.number().int("دقيقة الإرسال عدد صحيح بين 0 و59").min(0, "دقيقة الإرسال عدد صحيح بين 0 و59").max(59, "دقيقة الإرسال عدد صحيح بين 0 و59").default(0),
     recipientEmails: z.array(z.string().trim().email("بريد إلكتروني غير صالح في قائمة المستلمين")).max(20, "عدد المستلمين أكبر من المسموح"),
   })
   .strict();
