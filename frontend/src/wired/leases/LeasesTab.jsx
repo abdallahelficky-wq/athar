@@ -10,6 +10,8 @@ import { routes } from "../../routes";
 import FormDialog from "../shared/FormDialog";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
 import "../../styles/lease-dialogs.css";
+import "../../styles/lease-screen.css";
+import AttachmentsPanel from "../shared/AttachmentsPanel";
 
 /**
  * الإيجارات: تقويم دفعات عقود الإيجار (عقد × شهر)، تأكيد السداد بقيد آلي (إيجار مدفوع مقدماً + ضريبة مدخلات / البنك)،
@@ -62,6 +64,8 @@ export default function LeasesTab({ companyId }) {
   const [preview, setPreview] = useState(null);
   const [runs, setRuns] = useState([]);
   const [alerts, setAlerts] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const fileRef = useRef(null);
 
   // تواريخ الاستحقاق والسداد أيام تقويمية مخزَّنة منتصف ليل UTC — تُعرَض بتوقيت UTC فلا تنزاح يوماً
@@ -204,73 +208,113 @@ export default function LeasesTab({ companyId }) {
     { key: "vat", value: totals.vat, tone: "cash" },
   ];
   const formContract = form.leaseContractId ? contractOf(form.leaseContractId) : null;
+  const statusOf = (c) => c.status || "active";
+  const statusCounts = contracts.reduce((acc, c) => { acc[statusOf(c)] = (acc[statusOf(c)] || 0) + 1; return acc; }, {});
+  const attachedCount = contracts.filter((c) => c.attachmentCount > 0).length;
+  const STATUS_ORDER = { active: 0, suspended: 1, stopped: 2, ended: 3 };
+  const needle = search.trim().toLowerCase();
+  const shownContracts = contracts
+    .filter((c) => statusFilter === "all" || statusOf(c) === statusFilter)
+    .filter((c) => !needle || [c.title, c.counterparty, c.contractNumber, c.costCenterName].some((v) => (v || "").toLowerCase().includes(needle)))
+    .sort((x, y) => STATUS_ORDER[statusOf(x)] - STATUS_ORDER[statusOf(y)] || x.title.localeCompare(y.title, "ar"));
+  const openStatus = (c) => open("contractStatus", { id: c.id, title: c.title, current: statusOf(c), status: statusOf(c), reason: c.statusReason || "", effectiveDate: localDay(), history: c.statusHistory || [] });
+  const openView = (c) => {
+    open("view", { id: c.id, title: c.title, loading: true, contract: c, payments: [], totals: null });
+    api.getLeaseContractDetails(c.id)
+      .then((d) => setForm((f) => (f.id === c.id ? { ...f, ...d, loading: false } : f)))
+      .catch((e) => { setError(e.message); setForm((f) => (f.id === c.id ? { ...f, loading: false } : f)); });
+  };
+  const KPI_TONE = { due: "blue", paid: "green", outstanding: "amber", overdue: "red", vat: "teal" };
 
   return (
-    <div>
-      <div className="panel">
-        <div className="form-btn-group" style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
-          <h3 style={{ margin: 0 }}>{t("leases.title")}</h3>
-          <div className="form-btn-group" style={{ gap: 6, flexWrap: "wrap" }}>
-            <button className="btn-ghost" onClick={() => fileRef.current?.click()}>{t("leases.importBtn")}</button>
+    <div className="lease-screen">
+      <div className="ls-hero">
+        <div className="ls-hero-top">
+          <div className="ls-hero-main">
+            <div className="ls-hero-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /><path d="M10 20v-5h4v5" /></svg>
+            </div>
+            <div>
+              <h3>{t("leases.title")}</h3>
+              <p>{t("leases.note")}</p>
+            </div>
+          </div>
+          <div className="ls-hero-actions">
+            <button className="ls-btn ls-btn-glass" onClick={() => fileRef.current?.click()}>{t("leases.importBtn")}</button>
             <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importFile} />
-            <button className="btn-ghost" onClick={openReminder}>{t("leases.reminder.btn")}</button>
-            <button className="btn-ghost" onClick={() => open("accounts", { expenseAccountId: "", prepaidAccountId: "", onlyMissing: true })} disabled={!contracts.length}>{t("leases.accountsBtn")}</button>
-            <button className="btn-primary" onClick={() => openContract(null)}>+ {t("leases.newContract")}</button>
+            <button className="ls-btn ls-btn-glass" onClick={openReminder}>{t("leases.reminder.btn")}</button>
+            <button className="ls-btn ls-btn-glass" onClick={() => open("accounts", { expenseAccountId: "", prepaidAccountId: "", onlyMissing: true })} disabled={!contracts.length}>{t("leases.accountsBtn")}</button>
+            <button className="ls-btn ls-btn-accent" onClick={() => openContract(null)}>+ {t("leases.newContract")}</button>
           </div>
         </div>
-        <p className="note">{t("leases.note")}</p>
-        <div className="form-btn-group" style={{ gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-          {["calendar", "contracts", "amortization"].map((v) => (
-            <button key={v} type="button" className={view === v ? "btn-primary" : "btn-ghost"} onClick={() => { setError(""); setMessage(""); setView(v); }}>{t(`leases.views.${v}`)}</button>
+        <div className="ls-chips">
+          {["all", ...CONTRACT_STATUSES].map((st) => (
+            <button key={st} type="button" className={`ls-chip st-${st}${statusFilter === st ? " is-on" : ""}`} onClick={() => { setStatusFilter(st); setView("contracts"); }}>
+              <b>{st === "all" ? contracts.length : statusCounts[st] || 0}</b>{st === "all" ? t("leases.screen.all") : t(`leases.contractStatus.${st}`)}
+            </button>
+          ))}
+          <span className="ls-chip ls-chip-info"><b>{attachedCount}/{contracts.length}</b>{t("leases.screen.attached")}</span>
+        </div>
+      </div>
+
+      {error && !dialog && <p className="ls-msg ls-msg-bad">{error}</p>}
+      {message && <p className="ls-msg ls-msg-ok">{message}</p>}
+
+      {view !== "amortization" && (
+        <div className="ls-kpis">
+          {kpis.map((k) => (
+            <div key={k.key} className={`ls-kpi tone-${KPI_TONE[k.key]}`}>
+              <div className="ls-kpi-label">{t(`leases.kpi.${k.key}`)}{k.key === "overdue" && totals.overdueCount ? ` (${totals.overdueCount})` : ""}</div>
+              <div className="ls-kpi-value">{fmt2(k.value || 0)}</div>
+            </div>
           ))}
         </div>
-        {error && !dialog && <p className="balance-bad">{error}</p>}
-        {message && <p className="note">{message}</p>}
-        {alerts && (alerts.overdue.length + alerts.dueSoon.length + alerts.renewals.length > 0) && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 10, margin: "0 0 14px" }}>
-            {[
-              { key: "overdue", rows: alerts.overdue, tone: "overdue", total: alerts.totals.overdue },
-              { key: "dueSoon", rows: alerts.dueSoon, tone: "due", total: alerts.totals.dueSoon },
-            ].filter((g) => g.rows.length > 0).map((g) => (
-              <div key={g.key} role="status" style={{ ...TONE[g.tone], borderRadius: 10, padding: "10px 14px", fontSize: 13 }}>
-                <strong>{t(`leases.alerts.${g.key}`, { count: g.rows.length, days: alerts.dueWithinDays })} · {fmt2(g.total)}</strong>
-                <ul style={{ margin: "6px 0 0", paddingInlineStart: 18 }}>
-                  {g.rows.slice(0, 6).map((p) => <li key={p.id}>{p.title} — {fmt2(p.amount)} — {fmtDay(p.dueDate)} ({t(p.days < 0 ? "leases.alerts.daysLate" : "leases.alerts.daysLeft", { count: Math.abs(p.days) })})</li>)}
-                  {g.rows.length > 6 && <li>{t("leases.alerts.more", { count: g.rows.length - 6 })}</li>}
-                </ul>
-              </div>
-            ))}
-            {alerts.renewals.length > 0 && (
-              <div role="status" style={{ ...TONE.due, borderRadius: 10, padding: "10px 14px", fontSize: 13 }}>
-                <strong>{t("leases.alerts.renewals", { count: alerts.renewals.length, days: alerts.renewalWithinDays })}</strong>
-                <ul style={{ margin: "6px 0 0", paddingInlineStart: 18 }}>
-                  {alerts.renewals.slice(0, 8).map((r) => (
-                    <li key={r.id} style={{ color: TONE[ALERT_TONE[r.kind]].color }}>
-                      {r.title} — {t(`leases.alerts.kinds.${r.kind}`, { date: fmtDay(r.kind === "expired" ? r.endDate : r.noticeDeadline), count: Math.abs(r.kind === "expired" ? r.daysToEnd : r.daysToDeadline) })}
-                    </li>
-                  ))}
-                  {alerts.renewals.length > 8 && <li>{t("leases.alerts.more", { count: alerts.renewals.length - 8 })}</li>}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
+      )}
 
-        {view !== "amortization" && (
-          <>
-            <div className="filter-bar" style={{ maxWidth: 420 }}>
-              <label>{t("leases.fromMonth")}<input type="month" value={range.from} max={range.to} onChange={(e) => e.target.value && setRange({ ...range, from: e.target.value })} /></label>
-              <label>{t("leases.toMonth")}<input type="month" value={range.to} min={range.from} onChange={(e) => e.target.value && setRange({ ...range, to: e.target.value })} /></label>
-            </div>
-            <div className="kpi-row" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
-              {kpis.map((k) => (
-                <div key={k.key} className={`kpi-card kpi-card-${k.tone}`} style={{ borderRadius: 12 }}>
-                  <div className="kpi-label">{t(`leases.kpi.${k.key}`)}{k.key === "overdue" && totals.overdueCount ? ` (${totals.overdueCount})` : ""}</div>
-                  <div className="kpi-value">{fmt2(k.value || 0)}</div>
+      {alerts && (alerts.overdue.length + alerts.dueSoon.length + alerts.renewals.length > 0) && (
+        <div className="ls-alerts">
+          {[
+            { key: "overdue", rows: alerts.overdue, tone: "red", total: alerts.totals.overdue },
+            { key: "dueSoon", rows: alerts.dueSoon, tone: "amber", total: alerts.totals.dueSoon },
+          ].filter((g) => g.rows.length > 0).map((g) => (
+            <div key={g.key} role="status" className={`ls-alert tone-${g.tone}`}>
+              <div className="ls-alert-head"><span className="ls-alert-count">{g.rows.length}</span><strong>{t(`leases.alerts.${g.key}`, { count: g.rows.length, days: alerts.dueWithinDays })}</strong><span className="ls-alert-total">{fmt2(g.total)}</span></div>
+              {g.rows.slice(0, 6).map((p) => (
+                <div key={p.id} className="ls-alert-row">
+                  <span className="ls-alert-title">{p.title}</span>
+                  <span className="ls-alert-amount">{fmt2(p.amount)}</span>
+                  <span className="ls-pill">{fmtDay(p.dueDate)} · {t(p.days < 0 ? "leases.alerts.daysLate" : "leases.alerts.daysLeft", { count: Math.abs(p.days) })}</span>
                 </div>
               ))}
+              {g.rows.length > 6 && <div className="ls-alert-more">{t("leases.alerts.more", { count: g.rows.length - 6 })}</div>}
             </div>
-          </>
+          ))}
+          {alerts.renewals.length > 0 && (
+            <div role="status" className="ls-alert tone-blue">
+              <div className="ls-alert-head"><span className="ls-alert-count">{alerts.renewals.length}</span><strong>{t("leases.alerts.renewals", { count: alerts.renewals.length, days: alerts.renewalWithinDays })}</strong></div>
+              {alerts.renewals.slice(0, 8).map((r) => (
+                <div key={r.id} className="ls-alert-row">
+                  <span className="ls-alert-title">{r.title}</span>
+                  <span className={`ls-pill${ALERT_TONE[r.kind] === "overdue" ? " is-bad" : ""}`}>{t(`leases.alerts.kinds.${r.kind}`, { date: fmtDay(r.kind === "expired" ? r.endDate : r.noticeDeadline), count: Math.abs(r.kind === "expired" ? r.daysToEnd : r.daysToDeadline) })}</span>
+                </div>
+              ))}
+              {alerts.renewals.length > 8 && <div className="ls-alert-more">{t("leases.alerts.more", { count: alerts.renewals.length - 8 })}</div>}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="ls-toolbar">
+        <div className="ls-tabs" role="tablist">
+          {["calendar", "contracts", "amortization"].map((v) => (
+            <button key={v} type="button" role="tab" aria-selected={view === v} className={`ls-tab${view === v ? " is-on" : ""}`} onClick={() => { setError(""); setMessage(""); setView(v); }}>{t(`leases.views.${v}`)}</button>
+          ))}
+        </div>
+        {view !== "amortization" && (
+          <div className="ls-range">
+            <label>{t("leases.fromMonth")}<input type="month" value={range.from} max={range.to} onChange={(e) => e.target.value && setRange({ ...range, from: e.target.value })} /></label>
+            <label>{t("leases.toMonth")}<input type="month" value={range.to} min={range.from} onChange={(e) => e.target.value && setRange({ ...range, to: e.target.value })} /></label>
+          </div>
         )}
       </div>
 
@@ -291,7 +335,7 @@ export default function LeasesTab({ companyId }) {
                 {contracts.map((c) => (
                   <tr key={c.id} style={c.isActive ? undefined : { opacity: 0.55 }}>
                     <td style={{ position: "sticky", insetInlineStart: 0, background: "var(--athar-surface, #fff)", zIndex: 1 }}>
-                      <strong>{c.title}</strong>
+                      <button type="button" className="ls-link" onClick={() => openView(c)}>{c.title}</button>
                       <div style={SUB}>{t(`leases.vatModes.${c.vatMode}`)}{c.costCenterName ? ` · ${c.costCenterName}` : ""}{c.status && c.status !== "active" ? ` · ${t(`leases.contractStatus.${c.status}`)}` : ""}</div>
                     </td>
                     {months.map((m) => (
@@ -323,40 +367,47 @@ export default function LeasesTab({ companyId }) {
       )}
 
       {view === "contracts" && (
-        <div className="panel">
-          <div className="lines-table-wrap">
-            <table className="ledger-table">
-              <thead><tr>
-                <th>{t("leases.contract")}</th><th>{t("leases.counterparty")}</th><th>{t("leases.costCenter")}</th><th>{t("leases.vatMode")}</th>
-                <th>{t("leases.terms")}</th><th>{t("leases.period")}</th><th>{t("leases.accounts")}</th><th></th>
-              </tr></thead>
-              <tbody>
-                {contracts.map((c) => (
-                  <tr key={c.id} style={c.isActive ? undefined : { opacity: 0.55 }}>
-                    <td><strong>{c.title}</strong>
-                      {c.status && c.status !== "active" && <div style={{ ...SUB, color: STATUS_COLOR[c.status], fontWeight: 600 }}>{t(`leases.contractStatus.${c.status}`)}{c.statusDate ? ` · ${fmtDay(c.statusDate)}` : ""}{c.statusReason ? ` — ${c.statusReason}` : ""}</div>}
-                      {c.notes && <div style={SUB}>{c.notes}</div>}</td>
-                    <td>{c.counterparty || "—"}{(c.lessorDetails?.mobile || c.contractNumber) && <div style={SUB}>{[c.lessorDetails?.mobile, c.contractNumber && `${t("leases.contractNumber")}: ${c.contractNumber}`].filter(Boolean).join(" · ")}</div>}</td>
-                    <td>{c.costCenterName || "—"}</td>
-                    <td>{t(`leases.vatModes.${c.vatMode}`)}</td>
-                    <td>{c.paymentAmount && c.paymentEveryMonths ? t("leases.termsValue", { amount: fmt2(c.paymentAmount), count: c.paymentEveryMonths }) : "—"}</td>
-                    <td>{fmtDay(c.startDate)} – {fmtDay(c.endDate)}
-                      <div style={SUB}>{c.autoRenew ? t("leases.autoRenewShort") : t("leases.noAutoRenewShort")}{c.noticeDays ? ` · ${t("leases.noticeBy", { date: fmtDay(c.noticeDeadline), count: c.noticeDays })}` : ""}</div>
-                    </td>
-                    <td>{c.expenseAccountId && c.prepaidAccountId ? "✓" : <span style={{ color: "#B7791F" }}>{t("leases.accountsDefault")}</span>}</td>
-                    <td className="row-actions">
-                      <button className="btn-ghost" onClick={() => openContract(c)}>{t("common.edit")}</button>
-                      <button className="btn-ghost" onClick={() => open("contractStatus", { id: c.id, title: c.title, current: c.status || "active", status: c.status || "active", reason: c.statusReason || "", effectiveDate: localDay(), history: c.statusHistory || [] })}>{t("leases.contractStatus.btn")}</button>
-                      <button className="btn-ghost" onClick={() => open("generate", { id: c.id, title: c.title, until: c.endDate })} disabled={!c.paymentAmount || !c.paymentEveryMonths || !c.firstDueDate}>{t("leases.generate")}</button>
-                      <button className="btn-ghost" onClick={() => open("newPayment", { leaseContractId: c.id, dueDate: localDay(), periodFrom: localDay(), periodTo: localDay(), amount: c.paymentAmount ?? "", note: "" })}>+ {t("leases.payment")}</button>
-                      <button className="btn-ghost" onClick={() => removeContract(c)}>{t("common.delete")}</button>
-                    </td>
-                  </tr>
-                ))}
-                {data && contracts.length === 0 && <tr><td className="empty" colSpan={8}>{t("leases.noContracts")}</td></tr>}
-              </tbody>
-            </table>
+        <div className="panel ls-panel">
+          <div className="ls-filter">
+            <input type="search" value={search} placeholder={t("leases.screen.searchPlaceholder")} onChange={(e) => setSearch(e.target.value)} />
+            <span className="ls-filter-count">{t("leases.screen.shown", { count: shownContracts.length, total: contracts.length })}</span>
           </div>
+          <div className="ls-cards">
+            {shownContracts.map((c) => (
+              <div key={c.id} className={`ls-card st-${statusOf(c)}`}>
+                <div className="ls-card-head">
+                  <div className="ls-card-title">
+                    <strong>{c.title}</strong>
+                    <span>{c.counterparty || "—"}</span>
+                  </div>
+                  <span className={`ls-badge st-${statusOf(c)}`}>{t(`leases.contractStatus.${statusOf(c)}`)}</span>
+                </div>
+                {statusOf(c) !== "active" && c.statusReason && <div className="ls-card-reason">{c.statusDate ? `${fmtDay(c.statusDate)} — ` : ""}{c.statusReason}</div>}
+                <div className="ls-card-meta">
+                  <div><span>{t("leases.terms")}</span><b>{c.paymentAmount && c.paymentEveryMonths ? t("leases.termsValue", { amount: fmt2(c.paymentAmount), count: c.paymentEveryMonths }) : "—"}</b></div>
+                  <div><span>{t("leases.period")}</span><b>{fmtDay(c.startDate)} – {fmtDay(c.endDate)}</b></div>
+                  <div><span>{t("leases.vatMode")}</span><b>{t(`leases.vatModes.${c.vatMode}`)}</b></div>
+                  <div><span>{t("leases.screen.renewal")}</span><b>{c.noticeDays ? t("leases.noticeBy", { date: fmtDay(c.noticeDeadline), count: c.noticeDays }) : (c.autoRenew ? t("leases.autoRenewShort") : t("leases.noAutoRenewShort"))}</b></div>
+                </div>
+                <div className="ls-card-tags">
+                  {c.contractNumber && <span className="ls-tag">{t("leases.contractNumber")}: <bdi>{c.contractNumber}</bdi></span>}
+                  {c.costCenterName && <span className="ls-tag">{c.costCenterName}</span>}
+                  {!(c.expenseAccountId && c.prepaidAccountId) && <span className="ls-tag is-warn">{t("leases.accounts")}: {t("leases.accountsDefault")}</span>}
+                  <span className={`ls-tag ${c.attachmentCount > 0 ? "is-ok" : "is-warn"}`}>{c.attachmentCount > 0 ? t("leases.screen.attachmentsN", { count: c.attachmentCount }) : t("leases.screen.noAttachment")}</span>
+                </div>
+                <div className="ls-card-actions">
+                  <button className="ls-act is-primary" onClick={() => openView(c)}>{t("leases.screen.viewBtn")}</button>
+                  <button className="ls-act" onClick={() => openContract(c)}>{t("common.edit")}</button>
+                  <button className="ls-act" onClick={() => openStatus(c)}>{t("leases.contractStatus.btn")}</button>
+                  <button className="ls-act" onClick={() => open("newPayment", { leaseContractId: c.id, dueDate: localDay(), periodFrom: localDay(), periodTo: localDay(), amount: c.paymentAmount ?? "", note: "" })}>+ {t("leases.payment")}</button>
+                  <button className="ls-act" onClick={() => open("generate", { id: c.id, title: c.title, until: c.endDate })} disabled={!c.paymentAmount || !c.paymentEveryMonths || !c.firstDueDate}>{t("leases.generate")}</button>
+                  <button className="ls-act is-danger" onClick={() => removeContract(c)}>{t("common.delete")}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          {data && contracts.length === 0 && <p className="empty">{t("leases.noContracts")}</p>}
+          {contracts.length > 0 && shownContracts.length === 0 && <p className="empty">{t("leases.screen.noMatch")}</p>}
         </div>
       )}
 
@@ -415,6 +466,94 @@ export default function LeasesTab({ companyId }) {
           </div>
         </>
       )}
+
+      <LeaseDialog open={dialog === "view"} title={`${t("leases.screen.viewTitle")} — ${form.title || ""}`} onClose={close} tone="ejar" width={1100}>
+        {form.contract && (() => {
+          const c = form.contract;
+          const lessor = c.lessorDetails || {};
+          const property = c.propertyDetails || {};
+          const row = (label, value) => (value || value === 0) && <div className="ls-dl-row" key={label}><span>{label}</span><b>{value}</b></div>;
+          return (
+            <>
+              <div className="ls-view-top">
+                <span className={`ls-badge st-${statusOf(c)}`}>{t(`leases.contractStatus.${statusOf(c)}`)}</span>
+                {statusOf(c) !== "active" && c.statusReason && <span className="ls-view-reason">{c.statusReason}</span>}
+                <span className="ls-view-spacer" />
+                <button className="ls-act" onClick={() => openContract(c)}>{t("common.edit")}</button>
+                <button className="ls-act" onClick={() => openStatus(c)}>{t("leases.contractStatus.btn")}</button>
+              </div>
+              {form.totals && (
+                <div className="ls-kpis ls-kpis-view">
+                  {[["scheduled", "blue"], ["paid", "green"], ["outstanding", "amber"], ["onHold", "gray"], ["overdue", "red"]].map(([k, tone]) => (
+                    <div key={k} className={`ls-kpi tone-${tone}`}><div className="ls-kpi-label">{t(`leases.screen.totals.${k}`)}</div><div className="ls-kpi-value">{fmt2(form.totals[k] || 0)}</div></div>
+                  ))}
+                </div>
+              )}
+              <div className="ls-view-grid">
+                <section className="ls-section">
+                  <h4>{t("leases.screen.contractData")}</h4>
+                  {row(t("leases.counterparty"), c.counterparty)}
+                  {row(t("leases.contractNumber"), c.contractNumber && <bdi>{c.contractNumber}</bdi>)}
+                  {row(t("leases.signedOn"), c.signedOn && fmtDay(c.signedOn))}
+                  {row(t("leases.period"), `${fmtDay(c.startDate)} – ${fmtDay(c.endDate)}`)}
+                  {row(t("leases.contractValue"), c.contractValue != null && fmt2(c.contractValue))}
+                  {row(t("leases.depositAmount"), c.depositAmount != null && fmt2(c.depositAmount))}
+                  {row(t("leases.terms"), c.paymentAmount && c.paymentEveryMonths ? t("leases.termsValue", { amount: fmt2(c.paymentAmount), count: c.paymentEveryMonths }) : null)}
+                  {row(t("leases.vatMode"), t(`leases.vatModes.${c.vatMode}`))}
+                  {row(t("leases.screen.renewal"), c.autoRenew ? t("leases.autoRenewShort") : t("leases.noAutoRenewShort"))}
+                  {row(t("leases.noticeDays"), c.noticeDays ? t("leases.noticeBy", { date: fmtDay(c.noticeDeadline), count: c.noticeDays }) : null)}
+                  {row(t("leases.costCenter"), c.costCenterName)}
+                  {row(t("leases.notes"), c.notes)}
+                </section>
+                <section className="ls-section">
+                  <h4>{t("leases.lessorTitle")}</h4>
+                  {row(t("leases.lessor.type"), lessor.type && t(`leases.lessor.${lessor.type}`))}
+                  {LESSOR_FIELDS.map((k) => row(t(`leases.lessor.${k}`), lessor[k] && <bdi>{lessor[k]}</bdi>))}
+                  <h4 className="ls-section-next">{t("leases.propertyTitle")}</h4>
+                  {PROPERTY_FIELDS.map((k) => row(t(`leases.property.${k}`), property[k]))}
+                </section>
+              </div>
+              {c.customTerms && <section className="ls-section"><h4>{t("leases.customTerms")}</h4><div className="ls-terms">{c.customTerms}</div></section>}
+              <section className="ls-section">
+                <h4>{t("leases.screen.schedule")} {form.payments?.length ? `(${form.payments.length})` : ""}</h4>
+                {form.loading && <p className="empty">…</p>}
+                {!form.loading && (
+                  <div className="lines-table-wrap">
+                    <table className="ledger-table ls-table">
+                      <thead><tr><th>{t("leases.dueDate")}</th><th>{t("leases.period")}</th><th>{t("leases.amount")}</th><th>{t("leases.kpi.vat")}</th><th>{t("leases.status")}</th><th>{t("leases.notes")}</th></tr></thead>
+                      <tbody>
+                        {(form.payments || []).map((p) => (
+                          <tr key={p.id}>
+                            <td>{fmtDay(p.dueDate)}</td><td>{fmtDay(p.periodFrom)} – {fmtDay(p.periodTo)}</td>
+                            <td className="num strong">{fmt2(p.amount)}</td><td className="num">{fmt2(p.vatAmount)}</td>
+                            <td><span className={`ls-badge pay-${p.onHold ? "hold" : toneOf(p)}`}>{p.onHold ? t("leases.screen.onHold") : t(`leases.statuses.${toneOf(p)}`)}</span>{p.status === "paid" && p.paidOn ? <span className="ls-sub"> {fmtDay(p.paidOn)}{p.postedExternally ? ` · ${t("leases.externalBadge")}` : ""}</span> : null}</td>
+                            <td>{p.entryNumber ? <Link to={routes.journalEntry(p.journalEntryId)}>{p.entryNumber}</Link> : ""}{p.note ? ` ${p.note}` : ""}</td>
+                          </tr>
+                        ))}
+                        {(form.payments || []).length === 0 && <tr><td className="empty" colSpan={6}>{t("leases.screen.noPayments")}</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+              {(c.statusHistory || []).length > 0 && (
+                <section className="ls-section">
+                  <h4>{t("leases.contractStatus.history")}</h4>
+                  <div className="ld-history">
+                    {[...c.statusHistory].reverse().map((h, i) => (
+                      <div key={i} className={`ld-history-item st-${h.status}`}><span className="ld-dot" /><span className="ld-history-date">{fmtDay(h.effectiveDate)}</span><span className="ld-history-status">{t(`leases.contractStatus.${h.status}`)}</span><span>{h.reason || ""}</span></div>
+                    ))}
+                  </div>
+                </section>
+              )}
+              <section className="ls-section ls-attachments">
+                <AttachmentsPanel entityType="lease_contract" entityId={c.id} title={t("leases.screen.attachmentsTitle")} onChange={load} />
+              </section>
+            </>
+          );
+        })()}
+        <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.close")}</button></div>
+      </LeaseDialog>
 
       <LeaseDialog open={dialog === "contract"} title={form.id ? t("leases.editContract") : t("leases.newContract")} onClose={close} tone="gold" width={1040}>
         <div className="form-grid">

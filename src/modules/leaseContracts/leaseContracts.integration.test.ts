@@ -467,6 +467,42 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     expect((await call("POST", `/lease-contracts/${contract.id}/status`, b.token, { status: "ended", reason: "نهاية الاختبار" })).status).toBe(200);
   });
 
+  it("returns one contract with all its payments, counts its attachments, and removes them with the contract", async () => {
+    const b = ctx.b;
+    const today = riyadhCalendarDay(new Date());
+    const imported = await call("POST", "/lease-contracts/import", b.token, {
+      companyId: b.companyId,
+      contracts: [{
+        title: "عقد للعرض والمرفقات", vatMode: "none", startDate: addDays(today, -800), endDate: addDays(today, 800), isActive: false, contractNumber: "20174999355 / 1-0",
+        payments: [
+          { dueDate: addDays(today, -700), periodFrom: addDays(today, -700), periodTo: addDays(today, -400), amount: 5000 },
+          { dueDate: addDays(today, 700), periodFrom: addDays(today, 400), periodTo: addDays(today, 700), amount: 6000 },
+        ],
+      }],
+    });
+    expect(imported.status, imported.text).toBe(201);
+    const contract = await prisma.leaseContract.findFirstOrThrow({ where: { tenantId: b.tenantId, title: "عقد للعرض والمرفقات" } });
+
+    // التفاصيل تعيد كل الدفعات مهما بعُد تاريخها (التقويم محدود بفترة)، والعقد غير الساري دفعاته موقوفة
+    const details = await call("GET", `/lease-contracts/${contract.id}/details`, b.token);
+    expect(details.status, details.text).toBe(200);
+    expect(details.body.contract).toMatchObject({ id: contract.id, contractNumber: "20174999355 / 1-0", status: "ended", attachmentCount: 0 });
+    expect(details.body.payments.map((p: any) => [p.amount, p.onHold])).toEqual([[5000, true], [6000, true]]);
+    expect(details.body.totals).toEqual({ scheduled: 11000, paid: 0, outstanding: 0, onHold: 11000, overdue: 0 });
+    expect([400, 403, 404]).toContain((await call("GET", `/lease-contracts/${contract.id}/details`, ctx.a.token)).status);
+
+    // الرفع الحقيقي يحتاج تخزين R2 غير متاح في الاختبار، فيُنشأ سجل المرفق مباشرة كما يتركه رفع ناجح؛
+    // المفحوص هنا مُخرَج النظام: عدّاد التقويم وحذف السجلات مع العقد.
+    await prisma.attachment.create({ data: { tenantId: b.tenantId, entityType: "lease_contract", entityId: contract.id, fileName: "عقد.pdf", fileKey: `test/${contract.id}/contract.pdf`, fileSize: 10, mimeType: "application/pdf" } });
+    const cal = await call("GET", `/lease-contracts/calendar?companyId=${b.companyId}&from=${today}&to=${today}`, b.token);
+    expect(cal.body.contracts.find((c: any) => c.id === contract.id).attachmentCount).toBe(1);
+    expect(cal.body.contracts.filter((c: any) => c.id !== contract.id).every((c: any) => c.attachmentCount === 0)).toBe(true);
+
+    const removed = await call("DELETE", `/lease-contracts/${contract.id}`, b.token);
+    expect(removed.status, removed.text).toBe(204);
+    expect(await prisma.attachment.count({ where: { tenantId: b.tenantId, entityType: "lease_contract", entityId: contract.id } })).toBe(0);
+  });
+
   it("emails the daily lease reminder once per day to the configured recipients, and only when enabled", async () => {
     const b = ctx.b;
     const initial = await call("GET", `/lease-contracts/reminders?companyId=${b.companyId}`, b.token);

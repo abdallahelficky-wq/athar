@@ -8,8 +8,9 @@ import { formatDate } from "../../i18n/dateFormat";
  * الأرشفة الإلكترونية (قيد يومية، فاتورة مبيعات، مردود، سند قبض، فاتورة مشتريات، مردود
  * مشتريات، كشف رواتب، تسوية إجازة، أصل ثابت). entityId فارغ/غير موجود (معاملة لم تُحفظ بعد)
  * يعطّل الرفع بلا خطأ، حتى يمكن وضع المكوّن في نماذج الإنشاء قبل الحفظ الأول بأمان.
+ * onChange اختياري: يُستدعى بعد رفع أو حذف ناجح (مثلاً لتحديث عدّاد المرفقات في الشاشة الأم).
  */
-export default function AttachmentsPanel({ entityType, entityId, title }) {
+export default function AttachmentsPanel({ entityType, entityId, title, onChange }) {
   const { t, i18n } = useTranslation();
   const formatBytes = (bytes) => {
     if (!bytes) return t("attachments.sizeKb", { size: 0 });
@@ -44,6 +45,7 @@ export default function AttachmentsPanel({ entityType, entityId, title }) {
     try {
       await uploadAttachment(entityType, entityId, file);
       reload();
+      onChange?.();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -56,6 +58,7 @@ export default function AttachmentsPanel({ entityType, entityId, title }) {
     try {
       await deleteAttachment(a.id);
       reload();
+      onChange?.();
     } catch (err) {
       setError(err.message);
     }

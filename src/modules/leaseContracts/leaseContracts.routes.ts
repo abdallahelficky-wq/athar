@@ -39,6 +39,7 @@ leaseContractRoutes.post("/amortization", requirePositionAction("leaseContracts"
 leaseContractRoutes.delete("/amortization/:id", requirePositionAction("leaseContracts", "edit"), canPost, canUnpost, validateBody(s.removeAmortizationSchema), c.removeAmortizationHandler);
 
 leaseContractRoutes.post("/:id/schedule", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.generateScheduleSchema), c.generateScheduleHandler);
+leaseContractRoutes.get("/:id/details", requirePositionAction("leaseContracts", "read"), c.detailsHandler);
 leaseContractRoutes.post("/:id/status", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.contractStatusSchema), c.setStatusHandler);
 leaseContractRoutes.patch("/:id", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.updateLeaseContractSchema), c.updateLeaseContract);
 leaseContractRoutes.delete("/:id", requirePositionAction("leaseContracts", "delete"), canManage, c.deleteLeaseContract);

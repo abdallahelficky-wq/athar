@@ -11,6 +11,7 @@ import { sendLeaseReminderEmail } from "../../lib/mailer";
 import type { Lang } from "../../lib/i18n/translate";
 import { resolveRecipientEmails } from "../reportSchedules/reportSchedules.service";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
+import { deleteObject } from "../../lib/storage";
 import { roundMoney, sumMoney } from "../../lib/money";
 import { addDays, addMonths, amortizationPlan, amortizedThrough, dateToDay, dayToDate, daysBetween, generateInstallments, isDateOnly, isMonthOnly, monthEndDay, noticeDeadline, splitLeaseVat } from "../../lib/leaseSchedule";
 
@@ -190,6 +191,36 @@ export async function deleteLeaseContract(tenantId: string, id: string) {
   if (settled > 0) throw badRequest("لهذا العقد دفعات مسدَّدة — لا يُحذف. أوقف العقد بدل حذفه، أو اعكس سداد دفعاته أولاً");
   // الدفعات غير المسدَّدة (due/waived) تُحذف مع العقد (onDelete: Cascade) — لا قيد لها ولا إطفاء
   await prisma.leaseContract.delete({ where: { id: existing.id } });
+  // مرفقات العقد مرجعها منطقي (entityType/entityId) بلا FK، فتُحذف هنا حتى لا تبقى ملفات يتيمة في التخزين
+  const attachments = await prisma.attachment.findMany({ where: { tenantId, entityType: LEASE_ATTACHMENT_TYPE, entityId: existing.id }, select: { id: true, fileKey: true } });
+  for (const a of attachments) {
+    await deleteObject(a.fileKey).catch(() => undefined); // الملف قد يكون حُذف من التخزين؛ السجل يُحذف في كل حال
+  }
+  if (attachments.length) await prisma.attachment.deleteMany({ where: { tenantId, id: { in: attachments.map((a) => a.id) } } });
+}
+
+export const LEASE_ATTACHMENT_TYPE = "lease_contract";
+
+/** عقد واحد بكل دفعاته (كل الفترات) بنفس شكل صفوف التقويم — لشاشة «عرض العقد». */
+export async function getLeaseContractDetails(tenantId: string, id: string) {
+  const existing = await prisma.leaseContract.findFirst({ where: { id, tenantId }, select: { id: true, companyId: true } });
+  if (!existing) throw notFound("عقد الإيجار غير موجود");
+  const cal = await leaseCalendar(tenantId, existing.companyId, { from: "1900-01-01", to: "2999-12-31" });
+  const contract = cal.contracts.find((c) => c.id === existing.id)!;
+  const payments = cal.payments.filter((p) => p.leaseContractId === existing.id);
+  const sum = (rows: typeof payments) => sumMoney(rows.map((r) => r.amount));
+  const live = payments.filter((p) => p.status !== "waived");
+  return {
+    contract,
+    payments,
+    totals: {
+      scheduled: sum(live),
+      paid: sum(live.filter((p) => p.status === "paid")),
+      outstanding: sum(live.filter((p) => p.status === "due" && !p.onHold)),
+      onHold: sum(live.filter((p) => p.onHold)),
+      overdue: sum(live.filter((p) => p.overdue)),
+    },
+  };
 }
 
 /** يضبط حسابَي الترحيل لعقود الشركة دفعة واحدة (كل العقود، أو التي لا حساب لها فقط). */
@@ -485,14 +516,16 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
   if (range.from > range.to) throw badRequest("تاريخ البداية بعد تاريخ النهاية");
   await companyOrThrow(tenantId, companyId);
 
-  const [contracts, payments, costCenters] = await Promise.all([
+  const [contracts, payments, costCenters, attachmentCounts] = await Promise.all([
     prisma.leaseContract.findMany({ where: { tenantId, companyId }, orderBy: [{ title: "asc" }] }),
     prisma.leasePayment.findMany({
       where: { tenantId, companyId, dueDate: { gte: dayToDate(range.from), lte: dayToDate(range.to) } },
       orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
     }),
     prisma.costCenter.findMany({ where: { tenantId, OR: [{ companyId }, { companyId: null }] }, select: { id: true, name: true } }),
+    prisma.attachment.groupBy({ by: ["entityId"], where: { tenantId, entityType: "lease_contract" }, _count: { _all: true } }),
   ]);
+  const attachmentCount = new Map(attachmentCounts.map((a) => [a.entityId, a._count._all]));
   const entryIds = payments.flatMap((p) => [p.journalEntryId, p.lastReversalEntryId]).filter((id): id is string => !!id);
   const entries = entryIds.length
     ? await prisma.journalEntry.findMany({ where: { tenantId, companyId, id: { in: entryIds } }, select: { id: true, entryNumber: true } })
@@ -549,6 +582,7 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
     today,
     contracts: contracts.map((c) => ({
       id: c.id, title: c.title, counterparty: c.counterparty, vatMode: c.vatMode, isActive: c.isActive,
+      attachmentCount: attachmentCount.get(c.id) ?? 0,
       status: c.status, statusReason: c.statusReason, statusDate: day(c.statusDate), statusHistory: Array.isArray(c.statusHistory) ? c.statusHistory : [],
       costCenterId: c.costCenterId, costCenterName: c.costCenterId ? costCenterName.get(c.costCenterId) ?? null : null,
       paymentAmount: c.paymentAmount === null ? null : Number(c.paymentAmount), paymentEveryMonths: c.paymentEveryMonths,
