@@ -47,6 +47,7 @@ const COMPANY_MODELS = new Set([
  */
 export const PARENT_MODELS: Record<string, { fk: string; relation: string; parent: string }> = {
   JournalEntryLine: { fk: "journalEntryId", relation: "journalEntry", parent: "JournalEntry" },
+  LeaseAmortizationLine: { fk: "runId", relation: "run", parent: "LeaseAmortizationRun" },
   InvoiceEmailLog: { fk: "invoiceId", relation: "invoice", parent: "SalesInvoice" },
   SalesInvoiceLine: { fk: "invoiceId", relation: "invoice", parent: "SalesInvoice" },
   SalesReturnLine: { fk: "returnId", relation: "salesReturn", parent: "SalesReturn" },
