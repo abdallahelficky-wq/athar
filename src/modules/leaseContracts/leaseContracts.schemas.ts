@@ -140,3 +140,14 @@ export const importSchema = z
       .max(500, "عدد العقود أكبر من المسموح في استيراد واحد"),
   })
   .strict();
+
+export const reminderSettingSchema = z
+  .object({
+    companyId: z.string().min(1),
+    enabled: z.boolean(),
+    hourKsa: z.coerce.number().int("ساعة الإرسال عدد صحيح بين 0 و23").min(0, "ساعة الإرسال عدد صحيح بين 0 و23").max(23, "ساعة الإرسال عدد صحيح بين 0 و23"),
+    recipientEmails: z.array(z.string().trim().email("بريد إلكتروني غير صالح في قائمة المستلمين")).max(20, "عدد المستلمين أكبر من المسموح"),
+  })
+  .strict();
+
+export const sendReminderSchema = z.object({ companyId: z.string().min(1) }).strict();

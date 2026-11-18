@@ -104,6 +104,7 @@ model Tenant {
   leaseContracts            LeaseContract[]
   leasePayments             LeasePayment[]
   leaseAmortizationRuns     LeaseAmortizationRun[]
+  leaseReminderSettings     LeaseReminderSetting[]
   journalEntries            JournalEntry[]
 
   customers        Customer[]
@@ -647,6 +648,7 @@ model Company {
   leaseContracts              LeaseContract[]
   leasePayments               LeasePayment[]
   leaseAmortizationRuns       LeaseAmortizationRun[]
+  leaseReminderSettings       LeaseReminderSetting[]
   journalEntries              JournalEntry[]
   accounts                    Account[]
   intercompanyAccounts        Account[]                    @relation("AccountIntercompanyCompany")
@@ -1148,6 +1150,26 @@ model LeasePayment {
   @@index([tenantId, companyId, dueDate])
   @@index([leaseContractId])
   @@map("lease_payments")
+}
+
+// بريد تنبيهات الإيجارات اليومي لشركة: يُرسَل مرة في اليوم عند hourKsa (توقيت السعودية) إن وُجد ما يُنبَّه عليه (دفعات متأخرة أو
+// مستحقة قريباً، أو عقود تحتاج قرار تجديد). recipientEmails فارغة = مدراء الشركة والمدراء الماليون (كجدولة التقارير).
+// lastSentPeriodKey يمنع إرسالاً مزدوجاً لليوم نفسه بين نبضتين أو نسختين من الخادم.
+model LeaseReminderSetting {
+  id                String    @id @default(cuid())
+  tenantId          String
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId         String    @unique
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  enabled           Boolean   @default(true)
+  hourKsa           Int       @default(8)
+  recipientEmails   String[]  @default([])
+  lastSentAt        DateTime?
+  lastSentPeriodKey String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("lease_reminder_settings")
 }
 
 // إطفاء شهر: قيد واحد للشركة (مدين مصروف الإيجار / دائن إيجار مدفوع مقدماً) بسطرين لكل دفعة مسدَّدة يغطي الشهر جزءاً منها.

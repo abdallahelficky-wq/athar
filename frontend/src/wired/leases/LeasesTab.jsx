@@ -135,6 +135,27 @@ export default function LeasesTab({ companyId }) {
     } catch (err) { setError(err instanceof SyntaxError ? t("leases.importBadFile") : err.message); }
   };
 
+  // --- بريد التنبيهات اليومي ---
+  const openReminder = async () => {
+    setError(""); setMessage("");
+    try {
+      const r = await api.getLeaseReminder(companyId);
+      setForm({ enabled: r.enabled, hourKsa: r.hourKsa, emails: r.recipientEmails.join("\n"), effective: r.effectiveRecipients, lastSentAt: r.lastSentAt });
+      setDialog("reminder");
+    } catch (e) { setError(e.message); }
+  };
+  const reminderPayload = () => ({ companyId, enabled: !!form.enabled, hourKsa: Number(form.hourKsa), recipientEmails: (form.emails || "").split(/[\s,،;]+/).map((x) => x.trim()).filter(Boolean) });
+  const saveReminder = () => run(() => api.saveLeaseReminder(reminderPayload()).then(() => undefined), "leases.reminder.savedOk");
+  const sendReminderNow = async () => {
+    setError("");
+    try {
+      await api.saveLeaseReminder(reminderPayload());
+      const r = await api.sendLeaseReminderNow(companyId);
+      close();
+      setMessage(r.sent ? t("leases.reminder.sentOk", { count: r.recipients }) : t(`leases.reminder.notSent.${r.reason}`));
+    } catch (e) { setError(e.message); }
+  };
+
   // --- الدفعات ---
   const contractOf = (id) => data?.contracts.find((c) => c.id === id);
   const openPayment = (p) => open("payment", {
@@ -183,6 +204,7 @@ export default function LeasesTab({ companyId }) {
           <div className="form-btn-group" style={{ gap: 6, flexWrap: "wrap" }}>
             <button className="btn-ghost" onClick={() => fileRef.current?.click()}>{t("leases.importBtn")}</button>
             <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importFile} />
+            <button className="btn-ghost" onClick={openReminder}>{t("leases.reminder.btn")}</button>
             <button className="btn-ghost" onClick={() => open("accounts", { expenseAccountId: "", prepaidAccountId: "", onlyMissing: true })} disabled={!contracts.length}>{t("leases.accountsBtn")}</button>
             <button className="btn-primary" onClick={() => openContract(null)}>+ {t("leases.newContract")}</button>
           </div>
@@ -446,6 +468,21 @@ export default function LeasesTab({ companyId }) {
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button>
           <button className="btn-primary" disabled={!form.expenseAccountId && !form.prepaidAccountId} onClick={() => run(() => api.applyLeaseAccounts({ companyId, expenseAccountId: form.expenseAccountId || null, prepaidAccountId: form.prepaidAccountId || null, onlyMissing: !!form.onlyMissing }), "leases.accountsAppliedOk")}>{t("common.save")}</button>
         </div>
+      </FormDialog>
+
+      <FormDialog open={dialog === "reminder"} title={t("leases.reminder.title")} onClose={close} style={{ maxWidth: 560 }}>
+        <p className="note">{t("leases.reminder.note")}</p>
+        <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />{t("leases.reminder.enabled")}</label>
+        <label>{t("leases.reminder.hour")}
+          <select value={form.hourKsa ?? 8} onChange={(e) => setForm({ ...form, hourKsa: e.target.value })}>
+            {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>)}
+          </select>
+        </label>
+        <label>{t("leases.reminder.emails")}<textarea rows={3} style={{ width: "100%", direction: "ltr" }} value={form.emails || ""} onChange={(e) => setForm({ ...form, emails: e.target.value })} /></label>
+        {!(form.emails || "").trim() && <p className="note">{t("leases.reminder.defaultRecipients")}: <span style={{ direction: "ltr", unicodeBidi: "embed" }}>{(form.effective || []).join(", ") || "—"}</span></p>}
+        {form.lastSentAt && <p className="note">{t("leases.reminder.lastSent")}: {fmtDay(form.lastSentAt)}</p>}
+        {error && <p className="balance-bad">{error}</p>}
+        <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button><button className="btn-ghost" onClick={sendReminderNow}>{t("leases.reminder.sendNow")}</button><button className="btn-primary" onClick={saveReminder}>{t("common.save")}</button></div>
       </FormDialog>
 
       <FormDialog open={dialog === "generate"} title={`${t("leases.generate")} — ${form.title || ""}`} onClose={close} style={{ maxWidth: 480 }}>

@@ -21,3 +21,7 @@ export const listLeaseAmortizationRuns = (companyId) => api.get(`/lease-contract
 export const previewLeaseAmortization = (companyId, month) => api.get(`/lease-contracts/amortization/preview?companyId=${companyId}&month=${month}`);
 export const postLeaseAmortization = (companyId, month) => api.post("/lease-contracts/amortization", { companyId, month });
 export const removeLeaseAmortizationRun = (id, pin) => api.delete(`/lease-contracts/amortization/${id}`, { pin });
+
+export const getLeaseReminder = (companyId) => api.get(`/lease-contracts/reminders?companyId=${companyId}`);
+export const saveLeaseReminder = (payload) => api.put("/lease-contracts/reminders", payload);
+export const sendLeaseReminderNow = (companyId) => api.post("/lease-contracts/reminders/send-now", { companyId });

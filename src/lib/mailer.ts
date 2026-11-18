@@ -322,3 +322,15 @@ export async function sendSubscriptionReminderEmail(to: string[], subject: strin
     html: renderEmailShell(bodyHtml, lang),
   });
 }
+
+/** بريد تنبيهات الإيجارات اليومي (leaseReminderScheduler) — المحتوى مبني مسبقاً عبر buildLeaseReminderEmail، طلب واحد لكل المستلمين */
+export async function sendLeaseReminderEmail(to: string[], subject: string, bodyHtml: string, lang: Lang = "ar") {
+  if (!to.length) return;
+  await sendEmail({
+    to,
+    subject,
+    logLabel: lang === "en" ? "Lease alerts" : "تنبيهات الإيجارات",
+    logBody: subject,
+    html: renderEmailShell(bodyHtml, lang, 640),
+  });
+}

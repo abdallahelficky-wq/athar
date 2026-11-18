@@ -6,6 +6,7 @@ import { guardAgainstUnsafeIntegrationTestDatabase } from "../../lib/integration
 import { createApp } from "../../app";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
 import { addDays } from "../../lib/leaseSchedule";
+import { runDueLeaseReminders } from "../../lib/leaseReminderScheduler";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { INPUT_VAT_ACCOUNT_NAME } from "../../lib/vatAccounts";
 import { register } from "../auth/auth.service";
@@ -89,6 +90,7 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     server?.close();
     for (const c of Object.values(ctx)) {
       if (!c?.tenantId) continue;
+      await prisma.leaseReminderSetting.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.leaseAmortizationRun.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.leasePayment.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.leaseContract.deleteMany({ where: { tenantId: c.tenantId } });
@@ -396,5 +398,49 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     const own = await call("GET", `/lease-contracts/alerts?companyId=${ctx.a.companyId}`, ctx.a.token);
     expect(own.status).toBe(200);
     expect([...own.body.overdue, ...own.body.dueSoon, ...own.body.renewals].some((r: any) => r.leaseContractId === active.id || r.id === active.id)).toBe(false);
+  });
+
+  it("emails the daily lease reminder once per day to the configured recipients, and only when enabled", async () => {
+    const b = ctx.b;
+    const initial = await call("GET", `/lease-contracts/reminders?companyId=${b.companyId}`, b.token);
+    expect(initial.status, initial.text).toBe(200);
+    expect([initial.body.enabled, initial.body.hourKsa, initial.body.recipientEmails]).toEqual([false, 8, []]);
+    // بلا مستلمين محددين: مدراء الشركة (المالك المسجَّل)
+    expect(initial.body.effectiveRecipients).toEqual([`lease-b-${stamp}@example.com`]);
+
+    // غير مفعّل بعد: المُجدوِل لا يرسل شيئاً لهذه الشركة
+    const evening = new Date(`${riyadhCalendarDay(new Date())}T17:00:00.000Z`); // 20:00 بتوقيت السعودية في اليوم نفسه
+    await runDueLeaseReminders(evening);
+    expect(await prisma.leaseReminderSetting.count({ where: { tenantId: b.tenantId } })).toBe(0);
+
+    expect((await call("PUT", "/lease-contracts/reminders", b.token, { companyId: b.companyId, enabled: true, hourKsa: 9, recipientEmails: ["not-an-email"] })).status).toBe(400);
+    expect((await call("PUT", "/lease-contracts/reminders", ctx.a.token, { companyId: b.companyId, enabled: true, hourKsa: 9, recipientEmails: [] })).status).toBe(400);
+    const saved = await call("PUT", "/lease-contracts/reminders", b.token, { companyId: b.companyId, enabled: true, hourKsa: 9, recipientEmails: ["Finance@Example.com", "finance@example.com"] });
+    expect(saved.status, saved.text).toBe(200);
+    expect([saved.body.enabled, saved.body.hourKsa, saved.body.recipientEmails, saved.body.effectiveRecipients]).toEqual([true, 9, ["finance@example.com"], ["finance@example.com"]]);
+
+    // الشركة لها تنبيهات من الاختبار السابق (دفعة متأخرة وعقد فات موعد إشعاره): «إرسال الآن» يرسل ولا يستهلك إرسال اليوم
+    const now = await call("POST", "/lease-contracts/reminders/send-now", b.token, { companyId: b.companyId });
+    expect(now.status, now.text).toBe(200);
+    expect(now.body).toEqual({ sent: true, reason: null, recipients: 1 });
+    expect((await prisma.leaseReminderSetting.findFirstOrThrow({ where: { tenantId: b.tenantId } })).lastSentPeriodKey).toBeNull();
+    expect((await call("POST", "/lease-contracts/reminders/send-now", ctx.a.token, { companyId: b.companyId })).status).toBe(400);
+
+    // قبل ساعة الإرسال لا يُرسَل؛ بعدها يُرسَل مرة واحدة لليوم
+    const early = new Date(`${riyadhCalendarDay(new Date())}T03:00:00.000Z`); // 06:00 بتوقيت السعودية
+    await runDueLeaseReminders(early);
+    expect((await prisma.leaseReminderSetting.findFirstOrThrow({ where: { tenantId: b.tenantId } })).lastSentPeriodKey).toBeNull();
+    await runDueLeaseReminders(evening);
+    const first = await prisma.leaseReminderSetting.findFirstOrThrow({ where: { tenantId: b.tenantId } });
+    expect(first.lastSentPeriodKey).toBe(riyadhCalendarDay(new Date()));
+    await runDueLeaseReminders(new Date(evening.getTime() + 60 * 60 * 1000));
+    const second = await prisma.leaseReminderSetting.findFirstOrThrow({ where: { tenantId: b.tenantId } });
+    expect(second.lastSentAt?.toISOString()).toBe(first.lastSentAt?.toISOString());
+
+    // شركة بلا تنبيهات لا يُرسَل لها بريد فارغ
+    await prisma.leasePayment.deleteMany({ where: { tenantId: ctx.a.tenantId, status: "due" } });
+    const quiet = await call("POST", "/lease-contracts/reminders/send-now", ctx.a.token, { companyId: ctx.a.companyId });
+    expect(quiet.status, quiet.text).toBe(200);
+    expect(quiet.body).toMatchObject({ sent: false });
   });
 });
