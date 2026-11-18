@@ -2,7 +2,6 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import CustomersTab from "./CustomersTab";
 import QuotationsTab from "./QuotationsTab";
-import StoreOrdersTab from "./StoreOrdersTab";
 import InvoicesTab from "./InvoicesTab";
 import ReturnsTab from "./ReturnsTab";
 import ReceiptsTab from "./ReceiptsTab";
@@ -17,7 +16,6 @@ export const SALES_TABS = [
   { id: "invoices", labelKey: "nav.tabs.invoices" },
   { id: "customers", labelKey: "nav.tabs.customers" },
   { id: "quotations", labelKey: "nav.tabs.quotations" },
-  { id: "storeOrders", labelKey: "nav.tabs.storeOrders" },
   { id: "returns", labelKey: "nav.tabs.returns" },
   { id: "receipts", labelKey: "nav.tabs.receipts" },
   { id: "stations", labelKey: "nav.tabs.stations" },
@@ -37,7 +35,6 @@ export default function SalesWiredModule({ companies, companyId, reloadCompanies
       <SubTabs tabs={SALES_TABS} active={tab} basePath="/sales" />
       {tab === "customers" && <CustomersTab companyId={companyId} companies={companies} />}
       {tab === "quotations" && <QuotationsTab companyId={companyId} companies={companies} />}
-      {tab === "storeOrders" && <StoreOrdersTab companyId={companyId} />}
       {tab === "invoices" && <InvoicesTab companyId={companyId} companies={companies} />}
       {tab === "returns" && <ReturnsTab companyId={companyId} companies={companies} />}
       {tab === "receipts" && <ReceiptsTab companyId={companyId} companies={companies} />}

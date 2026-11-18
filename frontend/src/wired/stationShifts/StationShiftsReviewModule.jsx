@@ -17,6 +17,8 @@ import StationsDashboardTab from "./StationsDashboardTab";
 import ShiftsReportTab from "./ShiftsReportTab";
 import { getOrgDisplayName } from "../shared/accountDisplayName";
 
+import CompanySettingsSections from "../CompanySettingsSections";
+
 export const STATION_SHIFTS_TABS = [
   { id: "dashboard", labelKey: "stationsDashboard.tabTitle" },
   { id: "pending", labelKey: "stationShiftsReview.tabTitle" },
@@ -27,12 +29,18 @@ export const STATION_SHIFTS_TABS = [
   { id: "controllers", labelKey: "stationControllers.tabTitle" },
   { id: "prices", labelKey: "fuelPrices.tabTitle" },
   { id: "workers", labelKey: "stationWorkers.tabTitle" },
+  { id: "shiftSettings", labelKey: "nav.tabs.shiftSettings" },
 ];
+
+// حسابات العجز/الزيادة وفرق الخزانات وأصناف الوقود — كانت قسم «ورديات المحطات» في صفحة الإعدادات
+function StationShiftSettingsTab({ companyId }) {
+  return <CompanySettingsSections companyId={companyId} only={["stations"]} />;
+}
 
 const SHIFT_DIALOG_STYLE = { maxWidth: 1100, width: "95vw", maxHeight: "90vh", overflowY: "auto" };
 const DANGER_STYLE = { background: "#A8432B", borderColor: "#A8432B" };
 
-const EXTRA_TABS = { dashboard: StationsDashboardTab, shiftsReport: ShiftsReportTab, setup: StationSetupTab, tanks: StationTanksTab, settlements: CardSettlementsTab, controllers: StationControllersTab, prices: FuelPricesTab, workers: StationWorkersTab };
+const EXTRA_TABS = { dashboard: StationsDashboardTab, shiftsReport: ShiftsReportTab, setup: StationSetupTab, tanks: StationTanksTab, settlements: CardSettlementsTab, controllers: StationControllersTab, prices: FuelPricesTab, workers: StationWorkersTab, shiftSettings: StationShiftSettingsTab };
 
 /**
  * شاشة المحاسب لمراجعة/اعتماد/ترحيل ورديات المحطات — محور العامل منفصل تماماً في بوابة الموظف

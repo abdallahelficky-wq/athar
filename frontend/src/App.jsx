@@ -37,19 +37,23 @@ import FixedAssetsWiredModule, { FIXED_ASSETS_TABS } from "./wired/fixedAssets/F
 import HRWiredModule, { HR_TABS } from "./wired/hr/HRWiredModule";
 import StablesModule, { STABLE_TABS } from "./wired/stables/StablesModule";
 import StationShiftsReviewModule, { STATION_SHIFTS_TABS } from "./wired/stationShifts/StationShiftsReviewModule";
+import OnlineStoreModule, { ONLINE_STORE_TABS } from "./wired/OnlineStoreModule";
+import LeasesModule, { LEASES_TABS } from "./wired/LeasesModule";
 import UserMenu from "./wired/shared/UserMenu";
 import { UnsavedChangesProvider } from "./wired/shared/UnsavedChangesContext";
 import UnsavedChangesBlocker from "./wired/shared/UnsavedChangesBlocker";
 
-const NAV_SECTIONS = {sales:"operations",purchases:"operations",inventory:"operations",stables:"operations",stationShifts:"operations",fixedAssets:"finance",accounts:"finance",hr:"people",reports:"system",settings:"system"};
+const NAV_SECTIONS = {sales:"operations",onlineStore:"operations",purchases:"operations",inventory:"operations",stables:"operations",stationShifts:"operations",fixedAssets:"finance",leases:"finance",accounts:"finance",hr:"people",reports:"system",settings:"system"};
 
 const NAV_GROUPS = [
   { id: "sales", labelKey: "nav.groups.sales", tabs: SALES_TABS, to: routes.sales },
+  { id: "onlineStore", labelKey: "nav.groups.onlineStore", tabs: ONLINE_STORE_TABS, to: routes.onlineStore },
   { id: "purchases", labelKey: "nav.groups.purchases", tabs: PURCHASE_TABS, to: routes.purchases },
   { id: "inventory", labelKey: "nav.groups.inventory", tabs: INVENTORY_TABS, to: routes.inventory },
   { id: "stables", labelKey: "stables.title", tabs: STABLE_TABS, to: routes.stables },
   { id: "stationShifts", labelKey: "stationShiftsReview.title", tabs: STATION_SHIFTS_TABS, to: routes.stationShifts },
   { id: "fixedAssets", labelKey: "nav.groups.fixedAssets", tabs: FIXED_ASSETS_TABS, to: routes.fixedAssets },
+  { id: "leases", labelKey: "nav.groups.leases", tabs: LEASES_TABS, to: routes.leases },
   { id: "accounts", labelKey: "nav.groups.accounts", tabs: ACCOUNTS_TABS, to: routes.accounts },
   { id: "hr", labelKey: "nav.groups.hr", tabs: HR_TABS, to: routes.hr },
   { id: "reports", labelKey: "nav.groups.reports", tabs: REPORT_TABS, to: routes.reports },
@@ -81,7 +85,10 @@ function AppShell() {
     // يحكمها، لا قائمة موديولات المنصة: هذه القائمة (PLATFORM_MODULE_IDS) لم تتضمّن هذا الموديول قط،
     // فأي مستأجر قُيِّدت موديولاته مرة واحدة من لوحة مدير المنصة كان يفقده نهائياً بلا طريقة لإعادته.
     const platformAllows =
-      group.id === "stationShifts" || !tenant?.enabledModules?.length || tenant.enabledModules.includes(group.id);
+      // عقود الإيجار كانت قسماً في الإعدادات متاحاً للجميع — لا تُحجَب بقائمة موديولات المنصة
+      group.id === "stationShifts" || group.id === "leases" || !tenant?.enabledModules?.length ||
+      // المتجر الإلكتروني كان داخل المبيعات والإعدادات — يتبع صلاحية المبيعات حتى لا يفقده مستأجر قُيِّدت موديولاته
+      tenant.enabledModules.includes(group.id === "onlineStore" ? "sales" : group.id);
     const activityAllows =
       (group.id !== "stables" || activeCompany?.businessActivity === "horse_stables") &&
       (group.id !== "stationShifts" || activeCompany?.businessActivity === "fuel_stations");
@@ -285,6 +292,14 @@ function SalesRoute() {
   const { companies, companyId, reloadRealCompanies } = useOutletContext();
   return <SalesWiredModule companies={companies} companyId={companyId} reloadCompanies={reloadRealCompanies} />;
 }
+function OnlineStoreRoute() {
+  const { companyId } = useOutletContext();
+  return <OnlineStoreModule companyId={companyId} />;
+}
+function LeasesRoute() {
+  const { companyId } = useOutletContext();
+  return <LeasesModule companyId={companyId} />;
+}
 function PurchasesRoute() {
   const { companies, companyId } = useOutletContext();
   return <PurchasesWiredModule companies={companies} companyId={companyId} />;
@@ -457,7 +472,13 @@ const router = createBrowserRouter([
     children: [
       { path: "dashboard", element: <DashboardRoute /> },
       { path: "sales", element: <Navigate to={routes.sales()} replace /> },
+      // طلبات المتجر انتقلت من المبيعات إلى موديول المتجر الإلكتروني — الرابط القديم يوصل للجديد
+      { path: "sales/storeOrders", element: <Navigate to={routes.onlineStore("storeOrders")} replace /> },
       { path: "sales/:tab", element: <SalesRoute /> },
+      { path: "onlineStore", element: <Navigate to={routes.onlineStore()} replace /> },
+      { path: "onlineStore/:tab", element: <OnlineStoreRoute /> },
+      { path: "leases", element: <Navigate to={routes.leases()} replace /> },
+      { path: "leases/:tab", element: <LeasesRoute /> },
       { path: "purchases", element: <Navigate to={routes.purchases()} replace /> },
       { path: "purchases/:tab", element: <PurchasesRoute /> },
       { path: "inventory", element: <Navigate to={routes.inventory()} replace /> },

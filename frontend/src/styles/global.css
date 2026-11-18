@@ -1839,3 +1839,53 @@
 .invoice-terms-setting { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; font-size: 12.5px; }
 .invoice-terms-setting textarea { width: 100%; resize: vertical; font: inherit; padding: 6px 8px; }
 .invoice-terms-setting .note { font-size: 11.5px; color: #667; }
+
+/* ===== صفحة الإعدادات: بطاقات مجمَّعة تُفتَح منها الأقسام (بدل القائمة الجانبية وشريط التبويبات) ===== */
+.settings-hub { display: flex; flex-direction: column; gap: 18px; }
+.settings-hub-body[hidden] { display: none !important; }
+.settings-hub-body { margin: 0; }
+.settings-hub .company-settings-section-title { display: none; }
+.settings-hub .company-settings-content { overflow: visible; padding: 0; }
+.settings-hub-header { background: var(--athar-card, #fff); border: 1px solid var(--athar-border, #e9ecef); border-radius: 16px; padding: 18px 20px; box-shadow: var(--athar-shadow-sm, 0 1px 2px #0000000a); }
+.settings-identity { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.settings-identity-logo { width: 56px; height: 56px; border-radius: 14px; object-fit: contain; background: #faf7f0; border: 1px solid var(--athar-border, #e9ecef); flex-shrink: 0; }
+.settings-identity-initial { display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; color: var(--athar-brand, #b8860b); }
+.settings-identity-text { flex: 1; min-width: 200px; }
+.settings-identity-name { font-size: 18px; font-weight: 700; color: var(--athar-text-primary, #212529); }
+.settings-identity-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.settings-identity-meta span { font-size: 12px; color: var(--athar-text-muted, #747c84); background: #f6f7f8; border-radius: 999px; padding: 3px 10px; }
+.settings-identity-meta b { color: var(--athar-text-secondary, #495057); font-weight: 600; }
+.settings-identity .company-settings-company-picker { min-width: 220px; }
+
+.settings-hub-home { display: flex; flex-direction: column; gap: 22px; }
+.settings-hub-group-title { margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--athar-text-muted, #747c84); letter-spacing: 0; }
+.settings-hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+.settings-card { display: flex; align-items: center; gap: 14px; width: 100%; text-align: start; text-decoration: none; background: var(--athar-card, #fff); border: 1px solid var(--athar-border, #e9ecef); border-radius: 14px; padding: 14px 16px; font: inherit; color: inherit; cursor: pointer; box-shadow: var(--athar-shadow-sm, 0 1px 2px #0000000a); transition: border-color .15s, box-shadow .15s, transform .15s; }
+.settings-card:hover, .settings-card:focus-visible { border-color: var(--athar-brand-gold, #d4af37); box-shadow: var(--athar-shadow-md, 0 2px 8px #0000000f); transform: translateY(-1px); outline: none; }
+.settings-card-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: rgba(184,134,11,.10); color: var(--athar-brand, #b8860b); }
+.settings-card-icon svg { width: 20px; height: 20px; }
+.settings-card-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.settings-card-title { font-size: 14.5px; font-weight: 700; color: var(--athar-text-primary, #212529); }
+.settings-card-desc { font-size: 12px; line-height: 1.5; color: var(--athar-text-muted, #747c84); }
+.settings-card-arrow { font-size: 20px; line-height: 1; color: #c5cad0; flex-shrink: 0; }
+.settings-card:hover .settings-card-arrow { color: var(--athar-brand, #b8860b); }
+.settings-card-link { border-style: dashed; background: #fcfcfd; box-shadow: none; }
+.settings-card-link .settings-card-icon { background: #f1f3f5; color: var(--athar-text-secondary, #495057); }
+.settings-card-link .settings-card-arrow { font-size: 15px; }
+.settings-card .company-settings-dirty-dot { margin: 0; }
+
+.settings-hub-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.settings-hub-bar-text { flex: 1; min-width: 0; }
+.settings-hub-bar-text h3 { margin: 0; font-size: 18px; color: var(--athar-text-primary, #212529); }
+.settings-hub-bar-text p { margin: 2px 0 0; font-size: 12.5px; color: var(--athar-text-muted, #747c84); }
+.settings-hub-back { display: inline-flex; align-items: center; gap: 8px; background: var(--athar-card, #fff); border: 1px solid var(--athar-border, #e9ecef); border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 13px; color: var(--athar-text-secondary, #495057); cursor: pointer; text-decoration: none; }
+.settings-hub-back:hover { border-color: var(--athar-brand-gold, #d4af37); color: var(--athar-text-primary, #212529); }
+.settings-hub-back-page { margin-bottom: 16px; }
+.settings-hub-back-page b { color: var(--athar-text-primary, #212529); padding-inline-start: 8px; border-inline-start: 1px solid var(--athar-border, #e9ecef); }
+@media (max-width: 760px) {
+  .settings-hub-grid { grid-template-columns: 1fr; }
+  .settings-identity .company-settings-company-picker { min-width: 0; width: 100%; }
+}
+.settings-hub .company-settings-footer { border-top: none; padding-top: 0; margin: 12px 0 0; }
+.settings-hub .company-settings-section-save { clear: both; }
+.leases-module-panel > div > .sub-head:first-child, .leases-module-panel > .sub-head:first-child { display: none; }
