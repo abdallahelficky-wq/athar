@@ -201,6 +201,8 @@ button.ls-chip:hover { background: rgba(255, 255, 255, 0.22); transform: transla
 .ls-month-panel-head .ls-act { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.4); color: #fff; }
 .ls-month-panel-head .ls-act:hover { background: rgba(255, 255, 255, 0.26); color: #fff; }
 .ls-due-list { display: flex; flex-direction: column; padding: 8px 14px; }
+.lease-dialog .ls-due-list { padding: 4px 0 8px; border: 1px solid var(--line); border-radius: 14px; padding-inline: 12px; margin-bottom: 14px; }
+.lease-dialog .ls-month-panel-foot { padding: 0 0 12px; }
 .ls-due { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto auto auto; align-items: center; gap: 16px; padding: 12px 6px; border-bottom: 1px dashed #DDE6E1; }
 .ls-due:last-child { border-bottom: 0; }
 .ls-due-date { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 54px; height: 54px; border-radius: 13px; background: var(--ej-mint); color: var(--ej-dark); }
