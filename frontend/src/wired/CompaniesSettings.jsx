@@ -585,7 +585,6 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
     linkCard("onlineStore", routes.onlineStore("storeGeneral"), "elsewhere"),
     linkCard("leases", routes.leases(), "elsewhere"),
     linkCard("payrollSettings", routes.hr("payrollSettings"), "elsewhere"),
-    ...(selected?.businessActivity === "fuel_stations" ? [linkCard("shiftSettings", routes.stationShifts("shiftSettings"), "elsewhere")] : []),
   ];
 
   if (movedTo) return <Navigate to={movedTo} replace />;
