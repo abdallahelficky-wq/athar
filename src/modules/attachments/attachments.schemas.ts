@@ -17,6 +17,8 @@ export const attachmentEntityTypeEnum = z.enum([
   "employee",
   "station_shift_reading",
   "station_shift_expense",
+  // وثيقة عقد الإيجار وملاحقه (موديول الإيجارات) — entityId هو LeaseContract.id
+  "lease_contract",
   // صور المنتج في المتجر الإلكتروني العام — النوع الوحيد الذي يُعرَض للعموم (لصنف منشور فقط، راجع store.service.ts)
   "item_store_image",
   // بانرات الصفحة الرئيسية للمتجر — entityId هو الشركة، وتُعرَض للعموم ما دام متجرها مفعَّلاً

@@ -44,6 +44,7 @@ async function assertEntityCompanyAccess(auth: { tenantId: string; companyScope:
         prisma.leaveSettlement.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { employee: { select: { companyId: true } } } }).then((r) => r && { companyId: r.employee.companyId }),
       station_shift_reading: () => prisma.stationShiftReading.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { companyId: true } }),
       station_shift_expense: () => prisma.stationShiftExpense.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { companyId: true } }),
+      lease_contract: () => prisma.leaseContract.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { companyId: true } }),
       store_banner: () => prisma.company.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { id: true } }).then((r) => r && { companyId: r.id }),
       item_store_image: () => prisma.item.findFirst({ where: { id: entityId, tenantId: auth.tenantId }, select: { companyId: true } }),
     } as Record<string, () => Promise<{ companyId: string } | null | undefined>>

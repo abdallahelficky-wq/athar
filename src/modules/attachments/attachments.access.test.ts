@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../../config/env", () => ({ env: {} }));
 vi.mock("../../lib/prisma", () => ({ prisma: {
-  journalEntry: { findFirst: vi.fn() }, attachment: { findFirst: vi.fn() },
+  journalEntry: { findFirst: vi.fn() }, attachment: { findFirst: vi.fn() }, leaseContract: { findFirst: vi.fn() },
 } }));
 vi.mock("./attachments.service", () => ({ listAttachments: vi.fn(), createAttachment: vi.fn(), deleteAttachment: vi.fn() }));
 import { prisma } from "../../lib/prisma";
@@ -40,5 +40,21 @@ describe("attachment access requires a parent in the current tenant", () => {
     await listHandler({ auth: { tenantId: "tenant-a", companyScope, role: "admin" }, query: { entityType: "journal_entry", entityId: "valid" } } as any, res, vi.fn());
     expect(service.listAttachments).toHaveBeenCalledWith("tenant-a", "journal_entry", "valid");
     expect(res.json).toHaveBeenCalledWith([]);
+  });
+  it("resolves a lease contract's attachments through the contract's own tenant and company", async () => {
+    const res: any = { json: vi.fn() };
+    // عقد من مستأجر آخر (أو غير موجود): 404 قبل أي رابط ملف
+    vi.mocked(prisma.leaseContract.findFirst).mockResolvedValue(null);
+    await expect(listHandler({ auth: { tenantId: "tenant-a", companyScope: "all", role: "admin" }, query: { entityType: "lease_contract", entityId: "foreign" } } as any, res, vi.fn())).rejects.toMatchObject({ status: 404 });
+    expect(prisma.leaseContract.findFirst).toHaveBeenCalledWith({ where: { id: "foreign", tenantId: "tenant-a" }, select: { companyId: true } });
+    // عقد شركة أخرى داخل المستأجر نفسه: 403 لمستخدم نطاقه شركة واحدة
+    vi.mocked(prisma.leaseContract.findFirst).mockResolvedValue({ companyId: "company-b" } as any);
+    await expect(listHandler({ auth: { tenantId: "tenant-a", companyScope: "company-a", role: "admin" }, query: { entityType: "lease_contract", entityId: "lease-b" } } as any, res, vi.fn())).rejects.toMatchObject({ status: 403 });
+    expect(service.listAttachments).not.toHaveBeenCalled();
+    // عقد شركته: يمر
+    vi.mocked(prisma.leaseContract.findFirst).mockResolvedValue({ companyId: "company-a" } as any);
+    vi.mocked(service.listAttachments).mockResolvedValue([]);
+    await listHandler({ auth: { tenantId: "tenant-a", companyScope: "company-a", role: "admin" }, query: { entityType: "lease_contract", entityId: "lease-a" } } as any, res, vi.fn());
+    expect(service.listAttachments).toHaveBeenCalledWith("tenant-a", "lease_contract", "lease-a");
   });
 });

@@ -42,6 +42,11 @@ export const updateLeaseContract: RequestHandler = async (req, res) => {
   res.json(await service.updateLeaseContract(req.auth!.tenantId, req.params.id, req.body));
 };
 
+export const detailsHandler: RequestHandler = async (req, res) => {
+  await scopeContract(req, req.params.id);
+  res.json(await service.getLeaseContractDetails(req.auth!.tenantId, req.params.id));
+};
+
 export const setStatusHandler: RequestHandler = async (req, res) => {
   await scopeContract(req, req.params.id);
   res.json(await service.setLeaseContractStatus(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body));

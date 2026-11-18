@@ -1,0 +1,166 @@
+/* شاشة الإيجارات (LeasesTab.jsx): لوحة ألوان خضراء قريبة من منصة إيجار مع ذهبي أثر للتأكيد.
+   كل القواعد محصورة تحت .lease-screen (والنوافذ تحت .lease-dialog) فلا تمس بقية النظام. */
+.lease-screen, .lease-dialog {
+  --ej: #1B8354; --ej-dark: #0D4A31; --ej-deep: #083524; --ej-teal: #0E8F8A; --ej-mint: #E8F6EE; --ej-line: #CFE8DA;
+  --ej-gold: #C99A3B; --ink: #1c2a38; --ink-2: #4A5A6A; --ink-3: #7A8896; --line: #E1E7ED; --surface: #fff;
+}
+.lease-screen { display: flex; flex-direction: column; gap: 18px; color: var(--ink); }
+.lease-screen > .panel { margin-bottom: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; box-shadow: 0 2px 10px rgba(16, 32, 46, 0.04); }
+
+/* ---------- الرأس ---------- */
+.ls-hero {
+  position: relative; overflow: hidden; border-radius: 22px; padding: 26px 28px 22px; color: #fff;
+  background: linear-gradient(125deg, var(--ej-deep) 0%, var(--ej-dark) 38%, var(--ej) 78%, var(--ej-teal) 100%);
+  box-shadow: 0 14px 34px rgba(13, 74, 49, 0.28);
+}
+.ls-hero::before, .ls-hero::after { content: ""; position: absolute; border-radius: 50%; pointer-events: none; }
+.ls-hero::before { width: 340px; height: 340px; inset-inline-end: -110px; top: -170px; background: radial-gradient(circle, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 68%); }
+.ls-hero::after { width: 260px; height: 260px; inset-inline-start: 22%; bottom: -190px; background: radial-gradient(circle, rgba(201, 154, 59, 0.34), rgba(201, 154, 59, 0) 70%); }
+.ls-hero-top { position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
+.ls-hero-main { display: flex; align-items: flex-start; gap: 16px; flex: 1 1 420px; min-width: 0; }
+.ls-hero-icon { width: 58px; height: 58px; border-radius: 16px; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.24); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ls-hero h3 { margin: 0 0 6px; font-size: 26px; font-weight: 800; color: #fff; line-height: 1.35; }
+.ls-hero p { margin: 0; font-size: 13.5px; line-height: 1.9; color: rgba(255, 255, 255, 0.86); max-width: 720px; }
+.ls-hero-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: flex-end; flex: 0 1 auto; }
+.ls-btn { min-height: 44px; padding: 0 20px; border-radius: 12px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: transform 0.12s, background 0.15s, box-shadow 0.15s; }
+.ls-btn:hover:not(:disabled) { transform: translateY(-2px); }
+.ls-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ls-btn-glass { background: rgba(255, 255, 255, 0.13); border: 1px solid rgba(255, 255, 255, 0.34); color: #fff; backdrop-filter: blur(4px); }
+.ls-btn-glass:hover:not(:disabled) { background: rgba(255, 255, 255, 0.24); }
+.ls-btn-accent { background: linear-gradient(135deg, #E0B458, var(--ej-gold)); border: 0; color: #2A1E05; box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22); }
+
+.ls-chips { position: relative; z-index: 1; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.ls-chip {
+  --chip: #fff; display: inline-flex; align-items: center; gap: 9px; min-height: 40px; padding: 0 16px 0 14px; border-radius: 999px; font: inherit; font-size: 13.5px; font-weight: 600;
+  background: rgba(255, 255, 255, 0.11); border: 1px solid rgba(255, 255, 255, 0.24); color: #fff; cursor: pointer; transition: background 0.15s, transform 0.12s;
+}
+.ls-chip b { min-width: 26px; height: 26px; padding: 0 7px; border-radius: 999px; background: var(--chip); color: var(--ej-deep); font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
+button.ls-chip:hover { background: rgba(255, 255, 255, 0.22); transform: translateY(-1px); }
+.ls-chip.is-on { background: #fff; color: var(--ej-deep); border-color: #fff; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); }
+.ls-chip.is-on b { background: var(--ej); color: #fff; }
+.ls-chip.st-active { --chip: #9BE3B9; } .ls-chip.st-suspended { --chip: #F7D08A; } .ls-chip.st-stopped { --chip: #F3B0A1; } .ls-chip.st-ended { --chip: #D3DAE1; }
+.ls-chip-info { cursor: default; margin-inline-start: auto; background: rgba(0, 0, 0, 0.16); }
+
+/* ---------- الرسائل ---------- */
+.ls-msg { margin: 0; padding: 13px 18px; border-radius: 12px; font-size: 14px; font-weight: 600; border-inline-start: 5px solid; }
+.ls-msg-ok { background: var(--ej-mint); border-color: var(--ej); color: var(--ej-dark); }
+.ls-msg-bad { background: #FBEDE9; border-color: #A8432B; color: #8A2F1B; }
+
+/* ---------- المؤشرات ---------- */
+.ls-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.ls-kpi {
+  --k: #2F6FB0; --k-soft: rgba(47, 111, 176, 0.10); position: relative; overflow: hidden; padding: 16px 18px 18px; border-radius: 16px; background: var(--surface);
+  border: 1px solid var(--line); box-shadow: 0 2px 10px rgba(16, 32, 46, 0.04); transition: transform 0.14s, box-shadow 0.14s;
+}
+.ls-kpi::before { content: ""; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 5px; background: var(--k); }
+.ls-kpi::after { content: ""; position: absolute; inset-inline-end: -26px; top: -26px; width: 86px; height: 86px; border-radius: 50%; background: var(--k-soft); }
+.ls-kpi:hover { transform: translateY(-3px); box-shadow: 0 10px 22px rgba(16, 32, 46, 0.10); }
+.ls-kpi-label { position: relative; z-index: 1; font-size: 13px; font-weight: 700; color: var(--k); margin-bottom: 8px; }
+.ls-kpi-value { position: relative; z-index: 1; font-size: 23px; font-weight: 800; color: var(--ink); direction: ltr; text-align: end; font-variant-numeric: tabular-nums; letter-spacing: 0.2px; }
+.ls-kpi.tone-green { --k: #1B8354; --k-soft: rgba(27, 131, 84, 0.11); } .ls-kpi.tone-amber { --k: #B7791F; --k-soft: rgba(183, 121, 31, 0.12); }
+.ls-kpi.tone-red { --k: #A8432B; --k-soft: rgba(168, 67, 43, 0.10); } .ls-kpi.tone-teal { --k: #0E8F8A; --k-soft: rgba(14, 143, 138, 0.11); }
+.ls-kpi.tone-gray { --k: #5B6B7B; --k-soft: rgba(91, 107, 123, 0.12); }
+.ls-kpis-view { margin-bottom: 18px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.ls-kpis-view .ls-kpi-value { font-size: 19px; }
+
+/* ---------- التنبيهات ---------- */
+.ls-alerts { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; }
+.ls-alert { --a: #B7791F; --a-soft: #FDF6E9; --a-line: #F0DDB6; border-radius: 16px; background: var(--a-soft); border: 1px solid var(--a-line); padding: 14px 16px 10px; }
+.ls-alert.tone-red { --a: #A8432B; --a-soft: #FBEEEA; --a-line: #F0CFC6; } .ls-alert.tone-blue { --a: #2F6FB0; --a-soft: #EEF4FB; --a-line: #CFE0F2; }
+.ls-alert-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 14.5px; color: var(--a); }
+.ls-alert-head strong { font-weight: 800; }
+.ls-alert-count { min-width: 30px; height: 30px; padding: 0 8px; border-radius: 10px; background: var(--a); color: #fff; font-weight: 800; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; }
+.ls-alert-total { margin-inline-start: auto; font-weight: 800; font-size: 15.5px; direction: ltr; }
+.ls-alert-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-top: 1px dashed var(--a-line); font-size: 13.5px; }
+.ls-alert-title { font-weight: 700; color: var(--ink); flex: 1 1 160px; min-width: 0; }
+.ls-alert-amount { font-weight: 700; color: var(--ink); direction: ltr; }
+.ls-alert-more { padding: 6px 0 2px; font-size: 12.5px; color: var(--ink-3); }
+.ls-pill { display: inline-flex; align-items: center; min-height: 26px; padding: 0 11px; border-radius: 999px; background: #fff; border: 1px solid var(--a-line, var(--line)); color: var(--a, var(--ink-2)); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.ls-pill.is-bad { color: #8A2F1B; border-color: #F0CFC6; background: #FBEEEA; }
+
+/* ---------- التبويبات والفترة ---------- */
+.ls-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ls-tabs { display: inline-flex; padding: 5px; gap: 4px; border-radius: 14px; background: #E9EEF2; }
+.ls-tab { min-height: 42px; padding: 0 24px; border: 0; border-radius: 10px; background: transparent; font: inherit; font-size: 14.5px; font-weight: 700; color: var(--ink-2); cursor: pointer; transition: background 0.15s, color 0.15s, box-shadow 0.15s; }
+.ls-tab:hover { color: var(--ej-dark); }
+.ls-tab.is-on { background: #fff; color: var(--ej-dark); box-shadow: 0 2px 8px rgba(16, 32, 46, 0.14); }
+.ls-range { display: flex; gap: 12px; flex-wrap: wrap; }
+.ls-range label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 700; color: var(--ink-2); }
+.lease-screen :is(.ls-range input, .ls-filter input, .filter-bar input) {
+  min-height: 42px; padding: 8px 12px; border: 1.5px solid #D5DCE4; border-radius: 11px; background: #fff; font: inherit; font-size: 14px; color: var(--ink);
+}
+.lease-screen :is(.ls-range input, .ls-filter input, .filter-bar input):focus { outline: 0; border-color: var(--ej); box-shadow: 0 0 0 4px rgba(27, 131, 84, 0.13); }
+
+/* ---------- قائمة العقود ---------- */
+.ls-filter { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.ls-filter input { flex: 1 1 320px; max-width: 520px; }
+.ls-filter-count { font-size: 13px; font-weight: 600; color: var(--ink-3); }
+.ls-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px; }
+.ls-card {
+  --st: #1B8354; --st-soft: rgba(27, 131, 84, 0.10); display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 16px; background: #fff;
+  border: 1px solid var(--line); border-top: 4px solid var(--st); box-shadow: 0 2px 8px rgba(16, 32, 46, 0.05); transition: transform 0.14s, box-shadow 0.14s;
+}
+.ls-card:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(16, 32, 46, 0.11); }
+.lease-screen .st-active, .lease-dialog .st-active { --st: #1B8354; --st-soft: rgba(27, 131, 84, 0.11); }
+.lease-screen .st-suspended, .lease-dialog .st-suspended { --st: #B7791F; --st-soft: rgba(183, 121, 31, 0.13); }
+.lease-screen .st-stopped, .lease-dialog .st-stopped { --st: #A8432B; --st-soft: rgba(168, 67, 43, 0.11); }
+.lease-screen .st-ended, .lease-dialog .st-ended { --st: #5B6B7B; --st-soft: rgba(91, 107, 123, 0.13); }
+.ls-card.st-ended { background: #FAFBFC; }
+.ls-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ls-card-title { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ls-card-title strong { font-size: 16px; font-weight: 800; color: var(--ink); line-height: 1.5; }
+.ls-card-title span { font-size: 13px; color: var(--ink-2); line-height: 1.6; }
+.ls-badge { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 12px; border-radius: 999px; background: var(--st-soft); color: var(--st); font-size: 12.5px; font-weight: 800; white-space: nowrap; flex-shrink: 0; }
+.ls-badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--st); }
+.ls-badge.pay-paid { --st: #1B8354; --st-soft: rgba(27, 131, 84, 0.11); } .ls-badge.pay-due { --st: #B7791F; --st-soft: rgba(183, 121, 31, 0.13); }
+.ls-badge.pay-overdue { --st: #A8432B; --st-soft: rgba(168, 67, 43, 0.11); } .ls-badge.pay-waived, .ls-badge.pay-hold { --st: #5B6B7B; --st-soft: rgba(91, 107, 123, 0.13); }
+.ls-card-reason { padding: 9px 12px; border-radius: 10px; background: var(--st-soft); color: var(--st); font-size: 13px; font-weight: 600; line-height: 1.7; }
+.ls-card-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; padding: 12px 14px; border-radius: 12px; background: #F6F8FA; }
+.ls-card-meta div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ls-card-meta span { font-size: 11.5px; font-weight: 700; color: var(--ink-3); }
+.ls-card-meta b { font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.6; overflow-wrap: anywhere; }
+.ls-card-tags { display: flex; gap: 7px; flex-wrap: wrap; }
+.ls-tag { display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: 8px; background: #EEF2F5; color: var(--ink-2); font-size: 12px; font-weight: 600; }
+.ls-tag.is-ok { background: var(--ej-mint); color: var(--ej-dark); } .ls-tag.is-warn { background: #FDF3E0; color: #7A5212; }
+.ls-card-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+.ls-act { min-height: 36px; padding: 0 14px; border-radius: 9px; border: 1.5px solid #D5DCE4; background: #fff; color: var(--ink-2); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.14s, border-color 0.14s, color 0.14s; }
+.ls-act:hover:not(:disabled) { border-color: var(--ej); color: var(--ej-dark); background: var(--ej-mint); }
+.ls-act:disabled { opacity: 0.45; cursor: not-allowed; }
+.ls-act.is-primary { background: var(--ej); border-color: var(--ej); color: #fff; }
+.ls-act.is-primary:hover { background: var(--ej-dark); border-color: var(--ej-dark); color: #fff; }
+.ls-act.is-danger { margin-inline-start: auto; color: #A8432B; border-color: #F0CFC6; }
+.ls-act.is-danger:hover:not(:disabled) { background: #FBEEEA; border-color: #A8432B; color: #8A2F1B; }
+.ls-link { padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; text-align: start; }
+.ls-link:hover { color: var(--ej); text-decoration: underline; }
+.ls-sub { font-size: 12px; color: var(--ink-3); }
+
+/* جداول الشاشة */
+.lease-screen .ledger-table thead th, .lease-dialog .ls-table thead th { background: var(--ej-mint); color: var(--ej-dark); font-weight: 800; border-bottom: 2px solid var(--ej-line); }
+.lease-screen .ledger-table tbody tr:hover td { background: #F6FBF8; }
+
+/* ---------- نافذة عرض العقد ---------- */
+.panel.form-panel.lease-dialog.tone-ejar { --ld: #1B8354; --ld-dark: #0D4A31; --ld-soft: rgba(27, 131, 84, 0.10); }
+.lease-dialog .ls-view-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.lease-dialog .ls-view-reason { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.lease-dialog .ls-view-spacer { flex: 1; }
+.lease-dialog .ls-view-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.lease-dialog .ls-section { padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; background: #fff; margin-bottom: 16px; }
+.lease-dialog .ls-view-grid .ls-section { margin-bottom: 0; }
+.lease-dialog .ls-section h4 { margin: 0 0 10px; padding-bottom: 9px; border-bottom: 2px solid var(--ej-line); font-size: 15px; font-weight: 800; color: var(--ej-dark); }
+.lease-dialog .ls-section h4.ls-section-next { margin-top: 18px; }
+.lease-dialog .ls-dl-row { display: grid; grid-template-columns: minmax(130px, 38%) 1fr; gap: 12px; padding: 7px 0; border-bottom: 1px dashed #E6EBF0; font-size: 13.5px; }
+.lease-dialog .ls-dl-row:last-child { border-bottom: 0; }
+.lease-dialog .ls-dl-row span { color: var(--ink-3); font-weight: 600; }
+.lease-dialog .ls-dl-row b { color: var(--ink); font-weight: 700; overflow-wrap: anywhere; line-height: 1.7; }
+.lease-dialog .ls-terms { white-space: pre-wrap; font-size: 13.5px; line-height: 2; color: var(--ink); }
+.lease-dialog .ls-attachments .attachments-panel { margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.lease-dialog .ls-attachments .attachments-panel h3 { font-size: 15px; font-weight: 800; color: var(--ej-dark); }
+.lease-dialog .ls-attachments .form-btn-group button { min-height: 38px; padding: 0 16px; font-size: 13.5px; }
+
+@media (max-width: 720px) {
+  .ls-hero { padding: 20px 18px; border-radius: 18px; }
+  .ls-hero h3 { font-size: 21px; }
+  .ls-cards { grid-template-columns: 1fr; }
+  .ls-alerts { grid-template-columns: 1fr; }
+  .ls-chip-info { margin-inline-start: 0; }
+}
