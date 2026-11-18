@@ -88,6 +88,34 @@ export const NAV_ICONS = {
   jobTitles: svg(<><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>),
   locations: svg(<><path d="M12 21s7-6.3 7-11.5A7 7 0 0 0 5 9.5C5 14.7 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.3" /></>),
   companyDocs: svg(<><path d="M6 2h9l4 4v16H6z" /><path d="M15 2v4h4" /><path d="M9 12h6M9 16h6" /></>),
+  positions: svg(<><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" /><path d="M9 12l2 2 4-4" /></>),
+
+  // المتجر الإلكتروني وأقسامه
+  onlineStore: svg(<><path d="M4 9l1.5-5h13L20 9" /><path d="M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9" /><path d="M5 12v8h14v-8" /><path d="M10 20v-5h4v5" /></>),
+  storeOrders: svg(<><path d="M6 7h12l1 13H5z" /><path d="M9 7V6a3 3 0 0 1 6 0v1" /><path d="M9 12h6" /></>),
+  storeGeneral: svg(<><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></>),
+  storeAppearance: svg(<><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2 0-1.5-1-1.8-1-3 0-1 1-2 2.5-2H18a3 3 0 0 0 3-3c0-4.4-4-8-9-8z" /><circle cx="7.5" cy="11" r="1" /><circle cx="10.5" cy="7.5" r="1" /><circle cx="15" cy="7.5" r="1" /></>),
+  storeShipping: svg(<><path d="M2 6h12v10H2z" /><path d="M14 9h4l3 3.500V16h-7" /><circle cx="6.5" cy="17.5" r="1.8" /><circle cx="17" cy="17.5" r="1.8" /></>),
+  storePayment: svg(<><rect x="2.5" y="5" width="19" height="14" rx="2" /><path d="M2.5 10h19" /><path d="M6 15h4" /></>),
+  storeMarketing: svg(<><path d="M4 10v4a1 1 0 0 0 1 1h2l8 4V5L7 9H5a1 1 0 0 0-1 1z" /><path d="M18 9a4 4 0 0 1 0 6" /><path d="M8 15v4" /></>),
+  storePolicies: svg(<><path d="M6 2h9l4 4v16H6z" /><path d="M15 2v4h4" /><path d="M9.5 14l2 2 3.5-4" /></>),
+
+  // إعدادات نُقِلت إلى موديولاتها
+  accountsSettings: svg(<><path d="M4 7h10M18 7h2M4 12h3M11 12h9M4 17h12M20 17h0" /><circle cx="16" cy="7" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="18" cy="17" r="2" /></>),
+  shiftSettings: svg(<><path d="M4 7h10M18 7h2M4 12h3M11 12h9M4 17h12M20 17h0" /><circle cx="16" cy="7" r="2" /><circle cx="9" cy="12" r="2" /><circle cx="18" cy="17" r="2" /></>),
+  payrollSettings: svg(<><rect x="2.5" y="6" width="19" height="13" rx="2" /><circle cx="12" cy="12.5" r="2.6" /><path d="M5 10.500h1M18 14.500h1" /></>),
+
+  // أيقونات بطاقات الإعدادات
+  sImage: svg(<><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.8" /><path d="M21 16l-5-5-8 9" /></>),
+  sClip: svg(<><path d="M20 11.500l-8 8a5 5 0 0 1-7-7l8.5-8.500a3.3 3.3 0 0 1 4.7 4.700L9.8 17a1.7 1.7 0 0 1-2.4-2.400L15 7" /></>),
+  sBell: svg(<><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z" /><path d="M10 20a2 2 0 0 0 4 0" /></>),
+  sHash: svg(<><path d="M9 4L7 20M17 4l-2 16M4 9h17M3 15h17" /></>),
+  sBank: svg(<><path d="M3 9l9-5 9 5" /><path d="M4 9h16" /><path d="M6 10v7M10 10v7M14 10v7M18 10v7" /><path d="M3 20h18" /></>),
+  sLink: svg(<><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.700l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.700l1-1" /></>),
+  sTag: svg(<><path d="M3 12V4h8l10 10-8 8z" /><circle cx="7.5" cy="8.5" r="1.3" /></>),
+  sLock: svg(<><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>),
+  sScale: svg(<><path d="M12 3v3" /><path d="M4 8h16" /><path d="M6 8l-3 6a3 3 0 0 0 6 0z" /><path d="M18 8l-3 6a3 3 0 0 0 6 0z" /></>),
+  sSync: svg(<><path d="M17 3l4 4-4 4" /><path d="M3 11V9a2 2 0 0 1 2-2h16" /><path d="M7 21l-4-4 4-4" /><path d="M21 13v2a2 2 0 0 1-2 2H3" /></>),
 };
 
 export function NavIcon({ name }) {

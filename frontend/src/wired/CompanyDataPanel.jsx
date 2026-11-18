@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { NavIcon } from "../legacy/navIcons";
+import { useUnsavedChangesGuard } from "./shared/UnsavedChangesContext";
 import { updateCompany, uploadCompanyLogo, extractCompanyDocument, reopenFiscalClosing } from "../api/companies";
 import { listAccounts } from "../api/accounts";
 import { listItems } from "../api/items";
@@ -95,14 +98,14 @@ const SECTION_FIELDS = {
   alerts: ["lowCashThreshold", "overdueInvoiceDays", "staleDraftDays"],
   stations: ["stationCashShortageAccountId", "stationCashSurplusAccountId", "tankVarianceAccountId", "cardFeeExpenseAccountId", "stationDieselItemId", "stationGasoline91ItemId", "stationGasoline95ItemId", "allowNegativeFuelStock"],
   fiscal: ["fiscalYearClosingDate"],
-  // المتجر الإلكتروني العام (واجهة البيع /store/<الرابط>) — راجع src/modules/store في الخادم
-  store: [
-    "storeEnabled", "storeListed", "storeSlug", "storeName", "storeNameEn", "storeWhatsappNumber",
-    "storeAccentColor", "storeAbout", "storeAboutEn", "storeSocial", "storeMetaPixelId",
-    "storeFreeShippingOver", "storePickupEnabled", "storePickupAddress",
-    "storeCodEnabled", "storeBankTransferEnabled", "storeBankTransferDetails", "storeMinOrderAmount",
-    "storeReturnPolicy", "storePrivacyPolicy",
-  ],
+  // المتجر الإلكتروني العام (واجهة البيع /store/<الرابط>) — راجع src/modules/store في الخادم. كل قسم يُحفَظ وحده
+  // (assertStoreSettings في الخادم يفحص storeSlug/storeEnabled معاً، وهما في القسم نفسه).
+  storeGeneral: ["storeEnabled", "storeListed", "storeSlug", "storeName", "storeNameEn", "storeWhatsappNumber"],
+  storeAppearance: ["storeAccentColor", "storeAbout", "storeAboutEn", "storeSocial"],
+  storeShipping: ["storeFreeShippingOver", "storeMinOrderAmount", "storePickupEnabled", "storePickupAddress"],
+  storePayment: ["storeCodEnabled", "storeBankTransferEnabled", "storeBankTransferDetails"],
+  storeMarketing: ["storeMetaPixelId"],
+  storePolicies: ["storeReturnPolicy", "storePrivacyPolicy"],
 };
 const FIELD_SECTION = Object.fromEntries(Object.entries(SECTION_FIELDS).flatMap(([sec, keys]) => keys.map((k) => [k, sec])));
 
@@ -127,6 +130,31 @@ const toPayloadValue = (key, v) => {
     default: return v;
   }
 };
+// كل الأقسام المبنية هنا — كل شاشة تعرض منها ما يخصّها عبر only (الإعدادات، الحسابات، المتجر، المحطات)
+const BUILTIN_SECTIONS = [
+  { key: "basic", icon: "companies", group: "company" },
+  { key: "registration", icon: "companyDocs", group: "company" },
+  { key: "tax", icon: "vat", group: "company" },
+  { key: "address", icon: "locations", group: "company" },
+  { key: "logo", icon: "sImage", group: "company" },
+  { key: "documents", icon: "sClip", group: "company" },
+  { key: "branches", icon: "categories", group: "operations" },
+  { key: "leases", icon: "contracts", group: "operations" },
+  { key: "alerts", icon: "sBell", group: "operations" },
+  { key: "fiscal", icon: "leaves", group: "accounting" },
+  { key: "numbering", icon: "sHash", group: "accounting" },
+  { key: "bankAccounts", icon: "sBank", group: "accounting" },
+  { key: "storeGeneral", icon: "onlineStore", group: "store" },
+  { key: "storeAppearance", icon: "storeAppearance", group: "store" },
+  { key: "storeShipping", icon: "storeShipping", group: "store" },
+  { key: "storePayment", icon: "storePayment", group: "store" },
+  { key: "storeMarketing", icon: "storeMarketing", group: "store" },
+  { key: "storePolicies", icon: "storePolicies", group: "store" },
+  { key: "stations", icon: "stations", group: "stations" },
+];
+export const SETTINGS_PAGE_SECTIONS = ["basic", "registration", "tax", "address", "logo", "documents", "branches", "leases", "alerts"];
+const GROUP_ORDER = ["company", "operations", "accounting", "store", "stations", "account", "elsewhere"];
+
 const asText = (v) => (v && typeof v === "object" ? JSON.stringify(v) : String(v ?? ""));
 const sameValue = (a, b) => asText(a) === asText(b);
 
@@ -135,7 +163,9 @@ const sameValue = (a, b) => asText(a) === asText(b);
 /** بيانات الشركة مقسّمة أقساماً بقائمة جانبية، تُعرَض مباشرة داخل صفحة «بيانات الشركات» (لا نافذة منبثقة).
  * extraSections: أقسام إضافية من الصفحة نفسها ({ key, icon, label, group: "company"|"account", render }) تظهر في
  * القائمة نفسها. header: محتوى أعلى القائمة (مُحدِّد الشركة). onDirtyChange: يُبلَّغ بوجود تعديلات غير محفوظة. */
-export default function CompanyDataPanel({ company, onChanged, extraSections = [], header = null, initialSection, onDirtyChange }) {
+/* only: مفاتيح الأقسام المبنية المعروضة في هذه الشاشة. links: بطاقات تنقل لصفحات أخرى ({ key, icon, label, desc, to, group }).
+ * أكثر من قسم = صفحة بطاقات يُفتَح منها القسم؛ قسم واحد = يُعرَض مباشرة بلا بطاقات. */
+export default function CompanyDataPanel({ company, onChanged, extraSections = [], links = [], only = SETTINGS_PAGE_SECTIONS, header = null, initialSection, onDirtyChange }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canReopen = user?.role === "admin" || user?.role === "super_admin";
@@ -179,48 +209,30 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
   const stationExpenseAccounts = useMemo(() => postingAccounts.filter((a) => a.type === "expense"), [postingAccounts]);
   const stationRevenueAccounts = useMemo(() => postingAccounts.filter((a) => a.type === "revenue"), [postingAccounts]);
 
-  // أقسام النافذة — كل الأقسام تبقى مُركَّبة (مخفية فقط) حتى لا تضيع بيانات لوحة لم تُحفَظ عند التنقل،
-  // وزر الحفظ أسفل النافذة يحفظ حقول بيانات الشركة كلها كما كان (نفس updateCompany ونفس الحمولة).
-  const sections = [
-    { key: "basic", icon: "🏢" },
-    { key: "registration", icon: "📄" },
-    { key: "tax", icon: "🧾" },
-    { key: "address", icon: "📍" },
-    { key: "numbering", icon: "#" },
-    { key: "alerts", icon: "🔔" },
-    { key: "store", icon: "🛒" },
-    ...(isFuelCompany ? [{ key: "stations", icon: "⛽" }] : []),
-    { key: "fiscal", icon: "📅" },
-    { key: "branches", icon: "🏬" },
-    { key: "bankAccounts", icon: "🏦" },
-    { key: "leases", icon: "📝" },
-    { key: "documents", icon: "📎" },
-    { key: "logo", icon: "🖼" },
-  ];
-  const extraCompany = extraSections.filter((x) => x.group === "company");
-  const extraAccount = extraSections.filter((x) => x.group !== "company");
-  const allKeys = [...sections.map((x) => x.key), ...extraSections.map((x) => x.key)];
-  const [activeSection, setActiveSectionState] = useState(() => {
+  // الأقسام تبقى مُركَّبة (مخفية فقط) حتى لا تضيع تعديلات قسم لم يُحفَظ عند التنقل بين البطاقات
+  const sections = BUILTIN_SECTIONS
+    .filter((x) => only.includes(x.key) && (x.key !== "stations" || isFuelCompany))
+    .map((x) => ({ ...x, label: t(`settings.companyEdit.tabs.${x.key}`), desc: t(`settings.companyEdit.cards.${x.key}`) }));
+  const has = (key) => sections.some((x) => x.key === key);
+  const openable = [...sections, ...extraSections.map((x) => ({ group: "account", ...x }))];
+  const cards = [...openable, ...links.map((x) => ({ group: "elsewhere", ...x }))];
+  const single = cards.length === 1;
+  const allKeys = openable.map((x) => x.key);
+  const [activeSection, setActiveSection] = useState(() => {
     const fromUrl = new URLSearchParams(window.location.search).get("section");
-    return [initialSection, fromUrl].find((k) => k && allKeys.includes(k)) || "basic";
+    return [initialSection, fromUrl].find((k) => k && allKeys.includes(k)) || (single ? allKeys[0] : null);
   });
   // القسم المفتوح يُحفَظ في الرابط (?section=) ليبقى بعد إعادة التحميل ويمكن مشاركته
-  const setActiveSection = setActiveSectionState;
   useEffect(() => {
+    if (single) return;
     try {
       const url = new URL(window.location.href);
-      if (url.searchParams.get("section") === activeSection) return;
-      url.searchParams.set("section", activeSection);
+      if ((url.searchParams.get("section") || null) === activeSection) return;
+      if (activeSection) url.searchParams.set("section", activeSection); else url.searchParams.delete("section");
       window.history.replaceState(window.history.state, "", url);
     } catch { /* بيئة بلا history — القسم يعمل بدون الرابط */ }
-  }, [activeSection]);
-  // على الجوال القائمة شريط أفقي: يُمرَّر لإظهار القسم المفتوح
-  const navRef = useRef(null);
-  useEffect(() => {
-    if (!window.matchMedia?.("(max-width: 760px)").matches) return;
-    const el = navRef.current?.querySelector(".company-settings-nav-item.active");
-    if (el && navRef.current) navRef.current.scrollLeft += el.getBoundingClientRect().left - navRef.current.getBoundingClientRect().left - 12;
-  }, [activeSection]);
+  }, [activeSection, single]);
+  useEffect(() => { window.scrollTo?.({ top: 0 }); }, [activeSection]);
 
   // أي تعديل في حقل يُسقط رسالة آخر حفظ لقسمه — لا تبقى رسالة رفض قديمة ظاهرة فوق قيمة جديدة لم تُرسَل بعد
   const set = (field, value) => {
@@ -266,6 +278,7 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
 
   const hasDirty = dirtySections.size > 0;
   useEffect(() => { onDirtyChange?.(hasDirty); }, [hasDirty, onDirtyChange]);
+  useUnsavedChangesGuard(hasDirty);
   // تحذير المتصفح عند مغادرة الصفحة وفيها تعديلات لم تُحفَظ
   useEffect(() => {
     if (!hasDirty) return undefined;
@@ -356,27 +369,54 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
     }
   };
 
-  const navButton = (key, icon, label) => (
-    <button key={key} type="button" className={`company-settings-nav-item${activeSection === key ? " active" : ""}`} onClick={() => setActiveSection(key)} aria-current={activeSection === key ? "page" : undefined}>
-      <span aria-hidden="true">{icon}</span>{label}
-      {dirtySections.has(key) && <i className="company-settings-dirty-dot" title={t("settings.companyEdit.tabs.unsavedHint")} />}
-    </button>
-  );
+  const rtl = i18n.dir() === "rtl";
+  const card = (x) => {
+    const body = (
+      <>
+        <span className="settings-card-icon" aria-hidden="true"><NavIcon name={x.icon} /></span>
+        <span className="settings-card-text">
+          <span className="settings-card-title">{x.label}</span>
+          {x.desc && <span className="settings-card-desc">{x.desc}</span>}
+        </span>
+        {dirtySections.has(x.key) && <i className="company-settings-dirty-dot" title={t("settings.companyEdit.tabs.unsavedHint")} />}
+        <span className="settings-card-arrow" aria-hidden="true">{x.to ? "↗" : rtl ? "‹" : "›"}</span>
+      </>
+    );
+    return x.to
+      ? <Link key={x.key} to={x.to} className="settings-card settings-card-link">{body}</Link>
+      : <button key={x.key} type="button" className="settings-card" onClick={() => setActiveSection(x.key)}>{body}</button>;
+  };
+  const groups = GROUP_ORDER.map((g) => ({ id: g, items: cards.filter((x) => x.group === g) })).filter((g) => g.items.length);
+  const active = openable.find((x) => x.key === activeSection);
 
   return (
-    <div className="panel form-panel company-settings-page">
-        {header && <div className="company-settings-mobile-header">{header}</div>}
-        <div className="company-settings-layout">
-          <nav ref={navRef} className="company-settings-nav" aria-label={t("settings.companyEdit.tabs.navLabel")}>
-            {header && <div className="company-settings-nav-header">{header}</div>}
-            <div className="company-settings-nav-group">{t("settings.companyEdit.tabs.groupCompany")}</div>
-            {sections.map((x) => navButton(x.key, x.icon, t(`settings.companyEdit.tabs.${x.key}`)))}
-            {extraCompany.map((x) => navButton(x.key, x.icon, x.label))}
-            {extraAccount.length > 0 && <div className="company-settings-nav-group">{t("settings.companyEdit.tabs.groupAccount")}</div>}
-            {extraAccount.map((x) => navButton(x.key, x.icon, x.label))}
-          </nav>
+    <div className="settings-hub">
+        {header && <div className="settings-hub-header">{header}</div>}
+        {!active && (
+          <div className="settings-hub-home">
+            {groups.map((g) => (
+              <div key={g.id} className="settings-hub-group">
+                {groups.length > 1 && <h3 className="settings-hub-group-title">{t(`settings.companyEdit.groups.${g.id}`)}</h3>}
+                <div className="settings-hub-grid">{g.items.map(card)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {active && !single && (
+          <div className="settings-hub-bar">
+            <button type="button" className="settings-hub-back" onClick={() => setActiveSection(null)}>
+              <span aria-hidden="true">{rtl ? "→" : "←"}</span>{t("settings.companyEdit.hub.back")}
+            </button>
+            <span className="settings-card-icon" aria-hidden="true"><NavIcon name={active.icon} /></span>
+            <div className="settings-hub-bar-text">
+              <h3>{active.label}</h3>
+              {active.desc && <p>{active.desc}</p>}
+            </div>
+          </div>
+        )}
+        <div className="panel form-panel settings-hub-body" hidden={!active}>
           <div className="company-settings-content">
-            <section hidden={activeSection !== "basic"} className="company-settings-section">
+            {has("basic") && <section hidden={activeSection !== "basic"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.basic")}</h4>
               <div className="form-grid">
                 <label>{t("settings.companyEdit.nameLabel")}<input type="text" value={form.name} onChange={(e) => set("name", e.target.value)} /></label>
@@ -402,8 +442,8 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 <label>{t("settings.companyEdit.phoneLabel")}<input type="text" value={form.phone} onChange={(e) => set("phone", e.target.value)} /></label>
               </div>
               <SectionSave section="basic" />
-            </section>
-            <section hidden={activeSection !== "registration"} className="company-settings-section">
+            </section>}
+            {has("registration") && <section hidden={activeSection !== "registration"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.registration")}</h4>
               <div className="form-grid">
                 <label>{t("settings.companyEdit.crNumberLabel")}<input type="text" value={form.crNumber} onChange={(e) => set("crNumber", e.target.value)} /></label>
@@ -413,8 +453,8 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 <label>{t("settings.companyEdit.licenseNumberLabel")}<input type="text" value={form.licenseNumber} onChange={(e) => set("licenseNumber", e.target.value)} /></label>
               </div>
               <SectionSave section="registration" />
-            </section>
-            <section hidden={activeSection !== "tax"} className="company-settings-section">
+            </section>}
+            {has("tax") && <section hidden={activeSection !== "tax"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.tax")}</h4>
               <div className="form-grid">
                 <label>{t("settings.companyEdit.vatNumberLabel")}<input type="text" maxLength={24} dir="ltr" placeholder={vatNumberExampleForCountry(form.country)} value={form.vatNumber} onChange={(e) => set("vatNumber", e.target.value.toUpperCase())} />
@@ -439,8 +479,8 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 </label>
               </div>
               <SectionSave section="tax" />
-            </section>
-            <section hidden={activeSection !== "address"} className="company-settings-section">
+            </section>}
+            {has("address") && <section hidden={activeSection !== "address"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.address")}</h4>
               <div className="form-grid">
                 <label>{t("settings.companyEdit.addressBuilding")}<input type="text" value={form.addressBuilding} onChange={(e) => set("addressBuilding", e.target.value)} /></label>
@@ -451,8 +491,8 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 <label>{t("settings.companyEdit.addressAdditionalNo")}<input type="text" value={form.addressAdditionalNo} onChange={(e) => set("addressAdditionalNo", e.target.value)} /></label>
               </div>
               <SectionSave section="address" />
-            </section>
-            <section hidden={activeSection !== "numbering"} className="company-settings-section">
+            </section>}
+            {has("numbering") && <section hidden={activeSection !== "numbering"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.numbering")}</h4>
               <div className="form-grid">
                 <label>
@@ -467,8 +507,8 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
               </div>
               <p className="note">{t("settings.companyEdit.numberingPrefixNote")}</p>
               <SectionSave section="numbering" />
-            </section>
-            <section hidden={activeSection !== "alerts"} className="company-settings-section">
+            </section>}
+            {has("alerts") && <section hidden={activeSection !== "alerts"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.alerts")}</h4>
               <div className="form-grid">
                 <label>{t("settings.companyEdit.lowCashThresholdLabel")}
@@ -482,9 +522,9 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 </label>
               </div>
               <SectionSave section="alerts" />
-            </section>
-            <section hidden={activeSection !== "store"} className="company-settings-section">
-              <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.store")}</h4>
+            </section>}
+            {has("storeGeneral") && <section hidden={activeSection !== "storeGeneral"} className="company-settings-section">
+              <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.storeGeneral")}</h4>
               <p className="note">{t("settings.companyEdit.storeNote")}</p>
               <label className="checkbox-label">
                 <input type="checkbox" checked={Boolean(form.storeEnabled)} onChange={(e) => set("storeEnabled", e.target.checked)} />
@@ -510,7 +550,9 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                   <a href={`/store/${baseline.storeSlug}`} target="_blank" rel="noreferrer" dir="ltr">{`${window.location.origin}/store/${baseline.storeSlug}`}</a>
                 </p>
               )}
-              <h5 className="sub-head">{t("settings.companyEdit.storeSettings.appearance")}</h5>
+              <SectionSave section="storeGeneral" />
+            </section>}
+            {has("storeAppearance") && <section hidden={activeSection !== "storeAppearance"} className="company-settings-section">
               <p className="note">{t("settings.companyEdit.storeSettings.appearanceNote")}</p>
               <div className="form-grid">
                 <label>{t("settings.companyEdit.storeSettings.accentColor")}
@@ -535,7 +577,9 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
               </div>
               <AttachmentsPanel entityType="store_banner" entityId={company.id} title={t("settings.companyEdit.storeSettings.banners")} />
 
-              <h5 className="sub-head">{t("settings.companyEdit.storeSettings.shipping")}</h5>
+              <SectionSave section="storeAppearance" />
+            </section>}
+            {has("storeShipping") && <section hidden={activeSection !== "storeShipping"} className="company-settings-section">
               <StoreShippingZonesPanel companyId={company.id} />
               <div className="form-grid">
                 <label>{t("settings.companyEdit.storeSettings.freeShippingOver")}
@@ -555,7 +599,9 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 </div>
               )}
 
-              <h5 className="sub-head">{t("settings.companyEdit.storeSettings.payment")}</h5>
+              <SectionSave section="storeShipping" />
+            </section>}
+            {has("storePayment") && <section hidden={activeSection !== "storePayment"} className="company-settings-section">
               <p className="note">{t("settings.companyEdit.storeSettings.paymentNote")}</p>
               <label className="checkbox-label">
                 <input type="checkbox" checked={Boolean(form.storeCodEnabled)} onChange={(e) => set("storeCodEnabled", e.target.checked)} />
@@ -571,7 +617,9 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 </div>
               )}
 
-              <h5 className="sub-head">{t("settings.companyEdit.storeSettings.marketing")}</h5>
+              <SectionSave section="storePayment" />
+            </section>}
+            {has("storeMarketing") && <section hidden={activeSection !== "storeMarketing"} className="company-settings-section">
               <StoreCouponsPanel companyId={company.id} />
               <div className="form-grid">
                 <label>{t("settings.companyEdit.storeSettings.metaPixelId")}
@@ -584,14 +632,16 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 </p>
               )}
 
-              <h5 className="sub-head">{t("settings.companyEdit.storeSettings.policies")}</h5>
+              <SectionSave section="storeMarketing" />
+            </section>}
+            {has("storePolicies") && <section hidden={activeSection !== "storePolicies"} className="company-settings-section">
               <div className="form-grid">
                 <label>{t("settings.companyEdit.storeSettings.returnPolicy")}<textarea rows={5} maxLength={8000} value={form.storeReturnPolicy} onChange={(e) => set("storeReturnPolicy", e.target.value)} /></label>
                 <label>{t("settings.companyEdit.storeSettings.privacyPolicy")}<textarea rows={5} maxLength={8000} value={form.storePrivacyPolicy} onChange={(e) => set("storePrivacyPolicy", e.target.value)} /></label>
               </div>
-              <SectionSave section="store" />
-            </section>
-            {isFuelCompany && (
+              <SectionSave section="storePolicies" />
+            </section>}
+            {has("stations") && (
               <section hidden={activeSection !== "stations"} className="company-settings-section">
                 <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.stations")}</h4>
                 <p className="note">{t("settings.companyEdit.stationShiftsNote")}</p>
@@ -649,7 +699,7 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 <SectionSave section="stations" />
               </section>
             )}
-            <section hidden={activeSection !== "fiscal"} className="company-settings-section">
+            {has("fiscal") && <section hidden={activeSection !== "fiscal"} className="company-settings-section">
               <FiscalYearPanel companyId={company.id} onClosingDateChange={(date) => { const d = date ? String(date).slice(0, 10) : ""; set("fiscalYearClosingDate", d); setBaseline((prev) => ({ ...prev, fiscalYearClosingDate: d })); }} />
 
               <h4 className="sub-head">{t("settings.companyEdit.fiscalClosingTitle")}</h4>
@@ -676,17 +726,17 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                   {reopenError && <p className="balance-bad">{reopenError}</p>}
                 </>
               )}
-            </section>
-            <section hidden={activeSection !== "branches"} className="company-settings-section">
+            </section>}
+            {has("branches") && <section hidden={activeSection !== "branches"} className="company-settings-section">
               <BranchesPanel companyId={company.id} companyCurrency={form.currency} />
-            </section>
-            <section hidden={activeSection !== "bankAccounts"} className="company-settings-section">
+            </section>}
+            {has("bankAccounts") && <section hidden={activeSection !== "bankAccounts"} className="company-settings-section">
               <CompanyBankAccountsPanel companyId={company.id} />
-            </section>
-            <section hidden={activeSection !== "leases"} className="company-settings-section">
+            </section>}
+            {has("leases") && <section hidden={activeSection !== "leases"} className="company-settings-section">
               <LeaseContractsPanel companyId={company.id} />
-            </section>
-            <section hidden={activeSection !== "documents"} className="company-settings-section">
+            </section>}
+            {has("documents") && <section hidden={activeSection !== "documents"} className="company-settings-section">
               <CompanyDocumentsPanel companyId={company.id} />
               <h4 className="sub-head">{t("settings.companyEdit.aiExtractTitle")}</h4>
               <p className="note">{t("settings.companyEdit.aiExtractNote")}</p>
@@ -718,8 +768,8 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
               {sectionStatus.documents && <p className={sectionStatus.documents.ok ? "note" : "balance-bad"}>{sectionStatus.documents.text}</p>}
 
               <AttachmentsPanel key={attachmentsKey} entityType="company" entityId={company.id} title={t("settings.companyEdit.uploadedDocsTitle")} />
-            </section>
-            <section hidden={activeSection !== "logo"} className="company-settings-section">
+            </section>}
+            {has("logo") && <section hidden={activeSection !== "logo"} className="company-settings-section">
               <h4 className="sub-head company-settings-section-title">{t("settings.companyEdit.tabs.logo")}</h4>
               <div className="form-btn-group" style={{ justifyContent: "flex-start" }}>
                 {logoUrl && <img src={logoUrl} alt={t("settings.companyEdit.logoAlt")} style={{ height: 44, borderRadius: 6 }} />}
@@ -729,16 +779,15 @@ export default function CompanyDataPanel({ company, onChanged, extraSections = [
                 </button>
               </div>
               {error && <p className="balance-bad">{error}</p>}
-            </section>
+            </section>}
             {extraSections.map((x) => (
               <section key={x.key} hidden={activeSection !== x.key} className="company-settings-section company-settings-extra">
                 {x.render({ goTo: setActiveSection })}
               </section>
             ))}
           </div>
+          {sections.some((x) => x.key === activeSection && SECTION_FIELDS[x.key]) && <p className="note company-settings-footer">{t("settings.companyEdit.tabs.saveNote")}</p>}
         </div>
-
-        <p className="note company-settings-footer">{t("settings.companyEdit.tabs.saveNote")}</p>
     </div>
   );
 }

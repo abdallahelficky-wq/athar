@@ -6,6 +6,8 @@ import { getDraftEntriesSummary } from "../api/reports";
 import { fmt } from "../legacy/constants";
 import { useAuth } from "../context/AuthContext";
 import { changeUnlockPin } from "../api/auth";
+import { Navigate } from "react-router-dom";
+import { routes } from "../routes";
 import CompanyDataPanel from "./CompanyDataPanel";
 import CompanyZatcaModal from "./CompanyZatcaModal";
 import { COUNTRIES, CURRENCIES, countryName, defaultCurrencyForCountry } from "../shared/countries";
@@ -358,7 +360,7 @@ function NewCompanyForm({ onCompanyCreated }) {
  * المرحّلة) من كل الأرصدة والقوائم ولوحة المتابعة؛ عدد تلك القيود ومجموعها معروضان قبل التفعيل حتى يُعرف
  * أثره مسبقاً. كل تغيير مسجَّل في سجل التدقيق.
  */
-function BalancesPostedOnlySettings({ companies, reload }) {
+export function BalancesPostedOnlySettings({ companies, reload }) {
   const { t } = useTranslation();
   const [drafts, setDrafts] = useState({});
   const [busyId, setBusyId] = useState(null);
@@ -429,7 +431,7 @@ function BalancesPostedOnlySettings({ companies, reload }) {
  * شركة. فارغ = الترحيل القديم (سطر لكل موظف وصافٍ على حسابه الفرعي). الكشوف المرحَّلة قبله لا يُعاد كتابتها،
  * وأرصدة الحسابات الفرعية القائمة تُصرَف منها كما هي. كل تغيير مسجَّل في سجل التدقيق.
  */
-function PayrollTotalsSettings({ companies, reload }) {
+export function PayrollTotalsSettings({ companies, reload }) {
   const { t } = useTranslation();
   const [months, setMonths] = useState({});
   const [busyId, setBusyId] = useState(null);
@@ -479,6 +481,17 @@ function PayrollTotalsSettings({ companies, reload }) {
   );
 }
 
+// أقسام خرجت من «بيانات الشركات» إلى موديولاتها: مفتاح القسم القديم → مساره الجديد
+const MOVED_SECTIONS = {
+  store: "/onlineStore/storeGeneral",
+  fiscal: "/accounts/accountsSettings?section=fiscal",
+  numbering: "/accounts/accountsSettings?section=numbering",
+  bankAccounts: "/accounts/accountsSettings?section=bankAccounts",
+  balancesPostedOnly: "/accounts/accountsSettings?section=balancesPostedOnly",
+  payrollTotals: "/hr/payrollSettings",
+  stations: "/stationShifts/shiftSettings",
+};
+
 /** الربط مع فاتورة (زاتكا) للشركة المختارة — الإجراء نفسه في نافذته الخاصة كما كان */
 function ZatcaSection({ company, onOpen }) {
   const { t } = useTranslation();
@@ -524,12 +537,16 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
     reload();
   };
 
+  // أقسام نُقِلت إلى موديولاتها — الرابط القديم (?section=) يوصل لمكانها الجديد
+  const movedTo = MOVED_SECTIONS[new URLSearchParams(window.location.search).get("section")];
+
+  const cardText = (key) => ({ label: t(`settings.companyEdit.tabs.${key}`), desc: t(`settings.companyEdit.cards.${key}`) });
   const extraSections = [
     ...(selected && selected.country === "SA"
-      ? [{ key: "zatca", icon: "🔗", group: "company", label: t("settings.companyEdit.tabs.zatca"), render: () => <ZatcaSection company={selected} onOpen={setZatcaCompany} /> }]
+      ? [{ key: "zatca", icon: "sLink", group: "operations", ...cardText("zatca"), render: () => <ZatcaSection company={selected} onOpen={setZatcaCompany} /> }]
       : []),
-    { key: "tenant", icon: "🏷", label: t("settings.companyEdit.tabs.tenant"), render: () => <TenantNameSettings /> },
-    { key: "companies", icon: "🗂", label: t("settings.companyEdit.tabs.companies"), render: () => (
+    { key: "tenant", icon: "sTag", ...cardText("tenant"), render: () => <TenantNameSettings /> },
+    { key: "companies", icon: "overview", ...cardText("companies"), render: () => (
       <>
         <NewCompanyForm onCompanyCreated={handleCreated} />
         <div className="panel form-panel">
@@ -553,11 +570,23 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
         </div>
       </>
     ) },
-    ...(isOwner ? [{ key: "unlockPin", icon: "🔒", label: t("settings.companyEdit.tabs.unlockPin"), render: () => <UnlockPinSettings /> }] : []),
-    ...(isOwner && companies.length > 0 ? [{ key: "balancesPostedOnly", icon: "⚖", label: t("settings.companyEdit.tabs.balancesPostedOnly"), render: () => <BalancesPostedOnlySettings companies={companies} reload={reload} /> }] : []),
-    ...(isOwner && companies.length > 0 ? [{ key: "payrollTotals", icon: "💰", label: t("settings.companyEdit.tabs.payrollTotals"), render: () => <PayrollTotalsSettings companies={companies} reload={reload} /> }] : []),
-    ...(isOwner && companies.some((c) => c.id === "cmsrciyjv000ge8f57p2azqdd") ? [{ key: "qoyod", icon: "⇄", label: t("settings.companyEdit.tabs.qoyod"), render: () => <QoyodSettings companyId="cmsrciyjv000ge8f57p2azqdd" /> }] : []),
+    ...(isOwner ? [{ key: "unlockPin", icon: "sLock", ...cardText("unlockPin"), render: () => <UnlockPinSettings /> }] : []),
+    ...(isOwner && companies.some((c) => c.id === "cmsrciyjv000ge8f57p2azqdd") ? [{ key: "qoyod", icon: "sSync", ...cardText("qoyod"), render: () => <QoyodSettings companyId="cmsrciyjv000ge8f57p2azqdd" /> }] : []),
   ];
+  const linkCard = (key, to, group) => ({ key: `link-${key}`, icon: key, to, group, label: t(`settings.companyEdit.links.${key}`), desc: t(`settings.companyEdit.links.${key}Desc`) });
+  const links = [
+    linkCard("profile", routes.settings("profile"), "account"),
+    linkCard("users", routes.settings("users"), "account"),
+    ...(isOwner ? [linkCard("positions", routes.settings("positions"), "account")] : []),
+    linkCard("locations", routes.settings("locations"), "account"),
+    linkCard("companyDocs", routes.settings("companyDocs"), "account"),
+    linkCard("accountsSettings", routes.accounts("accountsSettings"), "elsewhere"),
+    linkCard("onlineStore", routes.onlineStore("storeGeneral"), "elsewhere"),
+    linkCard("payrollSettings", routes.hr("payrollSettings"), "elsewhere"),
+    ...(selected?.businessActivity === "fuel_stations" ? [linkCard("shiftSettings", routes.stationShifts("shiftSettings"), "elsewhere")] : []),
+  ];
+
+  if (movedTo) return <Navigate to={movedTo} replace />;
 
   // لا شركات بعد: تظهر إعدادات المنشأة وإنشاء الشركة فقط
   if (!selected) {
@@ -569,15 +598,27 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
     );
   }
 
-  const header = companies.length > 1 ? (
-    <label className="company-settings-company-picker">
-      {t("settings.companyEdit.tabs.selectCompany")}
-      <select value={selected.id} onChange={(e) => openCompany(e.target.value)}>
-        {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
-    </label>
-  ) : (
-    <div className="company-settings-company-name">{selected.name}</div>
+  const header = (
+    <div className="settings-identity">
+      {selected.logoUrl
+        ? <img className="settings-identity-logo" src={selected.logoUrl} alt="" />
+        : <span className="settings-identity-logo settings-identity-initial" aria-hidden="true">{(selected.shortName || selected.name || "").trim().charAt(0)}</span>}
+      <div className="settings-identity-text">
+        <div className="settings-identity-name">{selected.name}</div>
+        <div className="settings-identity-meta">
+          {selected.crNumber && <span>{t("settings.companiesList.table.crNumber")}: <b dir="ltr">{selected.crNumber}</b></span>}
+          {selected.vatNumber && <span>{t("settings.companiesList.table.vatNumber")}: <b dir="ltr">{selected.vatNumber}</b></span>}
+        </div>
+      </div>
+      {companies.length > 1 && (
+        <label className="company-settings-company-picker">
+          {t("settings.companyEdit.tabs.selectCompany")}
+          <select value={selected.id} onChange={(e) => openCompany(e.target.value)}>
+            {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+      )}
+    </div>
   );
 
   return (
@@ -587,6 +628,7 @@ export default function CompaniesSettings({ companies, reload, onCompanyCreated 
         company={selected}
         onChanged={reload}
         extraSections={extraSections}
+        links={links}
         header={header}
         initialSection={initialSection}
         onDirtyChange={onDirtyChange}

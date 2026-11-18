@@ -16,6 +16,8 @@ import Breadcrumb from "../shared/Breadcrumb";
 import SubTabs from "../shared/SubTabs";
 import { useModuleTab } from "../shared/useModuleTab";
 
+import PayrollTotalsPanel from "./PayrollTotalsPanel";
+
 export const HR_TABS = [
   { id: "dashboard", labelKey: "nav.tabs.hrDashboard" },
   { id: "directory", labelKey: "nav.tabs.directory" },
@@ -54,7 +56,7 @@ export default function HRWiredModule({ companies, companyId }) {
       {tab === "leaveReturn" && <LeaveReturnTab companyId={companyId} companies={companies} />}
       {tab === "actions" && <ActionsTab companyId={companyId} companies={companies} />}
       {tab === "payroll" && <PayrollTab companyId={companyId} companies={companies} />}
-      {tab === "payrollSettings" && <PayrollSettingsTab companyId={companyId} />}
+      {tab === "payrollSettings" && <><PayrollSettingsTab companyId={companyId} /><PayrollTotalsPanel /></>}
       {tab === "employeeAdvances" && <EmployeeAdvancesTab companyId={companyId} />}
       {tab === "eos" && <EndOfServiceTab companyId={companyId} />}
       {tab === "reports" && <HRReportsTab companyId={companyId} />}

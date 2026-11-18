@@ -8,6 +8,7 @@ export const routes = {
   sales: (tab = "invoices") => `/sales/${tab}`,
   purchases: (tab = "suppliers") => `/purchases/${tab}`,
   inventory: (tab = "items") => `/inventory/${tab}`,
+  onlineStore: (tab = "storeOrders") => `/onlineStore/${tab}`,
   stables: (tab = "overview") => `/stables/${tab}`,
   stationShifts: (tab = "dashboard") => `/stationShifts/${tab}`,
   fixedAssets: (tab = "register") => `/fixedAssets/${tab}`,

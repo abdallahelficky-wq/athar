@@ -5,7 +5,7 @@ import CompaniesSettings from "../wired/CompaniesSettings";
 import MyAccountSettings from "../wired/MyAccountSettings";
 import UsersTab from "../wired/UsersTab";
 import PositionsTab from "../wired/PositionsTab";
-import SubTabs from "../wired/shared/SubTabs";
+import { Link } from "react-router-dom";
 import { useModuleTab } from "../wired/shared/useModuleTab";
 import { useAuth } from "../context/AuthContext";
 
@@ -136,7 +136,7 @@ export const SETTINGS_TABS = [
 ];
 
 export function SettingsModule({ currentUser, setCurrentUser, companyDocuments, setCompanyDocuments, onDataChange, realCompanies, reloadRealCompanies, onRealCompanyCreated }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, tenant } = useAuth();
   // مالك الشركة (Tenant.ownerId) أو super_admin فقط يرون تبويب "المناصب" — الخادم يرفض أي طلب من
   // غيرهم فعلياً (requireTenantOwner) بصرف النظر عن هذا الإخفاء في الواجهة، فهذا لتحسين تجربة
@@ -147,7 +147,9 @@ export function SettingsModule({ currentUser, setCurrentUser, companyDocuments, 
   return (
     <div>
       <div className="section-title"><span className="eyebrow">{t("settings.eyebrow")}</span><h2>{t("nav.groups.settings")}</h2></div>
-      <SubTabs tabs={tabs} active={tab} basePath="/settings" />
+      {tab !== "companies" && (
+        <Link className="settings-hub-back settings-hub-back-page" to="/settings/companies"><span aria-hidden="true">{i18n.dir() === "rtl" ? "→" : "←"}</span>{t("settings.companyEdit.hub.backToSettings")}<b>{t(tabs.find((x) => x.id === tab)?.labelKey)}</b></Link>
+      )}
       {tab === "companies" && <CompaniesSettings companies={realCompanies} reload={reloadRealCompanies} onCompanyCreated={onRealCompanyCreated} />}
       {tab === "profile" && (
         <div>

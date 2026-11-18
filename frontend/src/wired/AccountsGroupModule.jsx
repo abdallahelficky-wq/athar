@@ -7,6 +7,7 @@ import DepartmentsTab from "./DepartmentsTab";
 import CostCentersTab from "./CostCentersTab";
 import { ZakatModule } from "../legacy/zakat";
 import SubTabs from "./shared/SubTabs";
+import AccountsSettingsTab from "./AccountsSettingsTab";
 import { useModuleTab } from "./shared/useModuleTab";
 
 export const ACCOUNTS_TABS = [
@@ -16,6 +17,7 @@ export const ACCOUNTS_TABS = [
   { id: "departments", labelKey: "nav.tabs.departments" },
   { id: "costCenters", labelKey: "nav.tabs.costCenters" },
   { id: "zakat", labelKey: "nav.tabs.zakat" },
+  { id: "accountsSettings", labelKey: "nav.tabs.accountsSettings" },
 ];
 
 export default function AccountsGroupModule({
@@ -43,6 +45,7 @@ export default function AccountsGroupModule({
       )}
       {tab === "departments" && <DepartmentsTab companyId={realCompanyId} />}
       {tab === "costCenters" && <CostCentersTab companyId={realCompanyId} />}
+      {tab === "accountsSettings" && <AccountsSettingsTab companyId={realCompanyId} />}
       {tab === "zakat" && <ZakatModule entries={legacyEntries} sales={legacySales} companyId={legacyCompanyId} />}
     </div>
   );
