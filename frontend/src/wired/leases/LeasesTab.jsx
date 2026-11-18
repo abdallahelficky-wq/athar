@@ -24,22 +24,13 @@ const addMonth = (month, n) => { const [y, m] = month.split("-").map(Number); co
 const monthEnd = (month) => { const [y, m] = month.split("-").map(Number); return `${month}-${pad(new Date(Date.UTC(y, m, 0)).getUTCDate())}`; };
 const monthsBetween = (from, to) => { const out = []; for (let m = from; m <= to && out.length < 36; m = addMonth(m, 1)) out.push(m); return out; };
 
-const TONE = {
-  paid: { background: "rgba(47,125,79,0.12)", color: "#1F5C3A", border: "1px solid rgba(47,125,79,0.35)" },
-  due: { background: "rgba(183,121,31,0.10)", color: "#7A5212", border: "1px solid rgba(183,121,31,0.35)" },
-  overdue: { background: "rgba(168,67,43,0.12)", color: "#8A2F1B", border: "1px solid rgba(168,67,43,0.45)" },
-  waived: { background: "var(--athar-bg)", color: "var(--athar-muted, #777)", border: "1px dashed var(--athar-border)" },
-};
 const toneOf = (p) => (p.status === "due" && p.overdue ? "overdue" : p.status);
-// دفعة غير مسدَّدة لعقد معلّق/موقوف/منتهٍ: تُعرَض بمظهر «سماح» لأنها لا تُعَد مستحقة
-const cellTone = (p) => (p.onHold ? "waived" : toneOf(p));
 const STATUS_COLOR = { active: "#1F5C3A", suspended: "#7A5212", stopped: "#8A2F1B", ended: "#666" };
 const CONTRACT_STATUSES = ["active", "suspended", "stopped", "ended"];
 // نافذة الإيجارات: FormDialog بتنسيق lease-dialog (رأس ملوَّن حسب نوع الإجراء، حقول متراصّة، تذييل ثابت)
 function LeaseDialog({ tone = "gold", width = 760, children, ...props }) {
   return <FormDialog {...props} className={`lease-dialog tone-${tone}`} style={{ maxWidth: width }}>{children}</FormDialog>;
 }
-const CELL_BTN = { display: "block", width: "100%", borderRadius: 8, padding: "4px 6px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", margin: "2px 0", direction: "ltr" };
 const SUB = { fontSize: 12, lineHeight: 1.5, opacity: 0.7, fontWeight: 400, fontFamily: "inherit" };
 const emptyContract = {
   title: "", counterparty: "", costCenterId: "", vatMode: "none", paymentAmount: "", paymentEveryMonths: "", firstDueDate: "", startDate: "", endDate: "", expenseAccountId: "", prepaidAccountId: "", notes: "", isActive: true,
@@ -65,6 +56,8 @@ export default function LeasesTab({ companyId }) {
   const [runs, setRuns] = useState([]);
   const [alerts, setAlerts] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [openMonth, setOpenMonth] = useState(null);
+  const monthPanelRef = useRef(null);
   const [search, setSearch] = useState("");
   const fileRef = useRef(null);
 
@@ -197,8 +190,6 @@ export default function LeasesTab({ companyId }) {
   const contracts = data?.contracts || [];
   const payments = data?.payments || [];
   const totals = data?.totals || {};
-  const cell = (contractId, month) => payments.filter((p) => p.leaseContractId === contractId && p.month === month);
-  const monthTotal = (month) => data?.months.find((m) => m.month === month);
   // معاينة القيد قبل التأكيد فقط (15%): الخادم يفصل الضريبة بنسبة الشركة عند الترحيل
   const previewGross = Number(form.amountInput || 0);
   const previewVat = contractOf(form.leaseContractId)?.vatMode === "inclusive" ? Math.round((previewGross * 15 / 115) * 100) / 100 : 0;
@@ -223,6 +214,21 @@ export default function LeasesTab({ companyId }) {
     api.getLeaseContractDetails(c.id)
       .then((d) => setForm((f) => (f.id === c.id ? { ...f, ...d, loading: false } : f)))
       .catch((e) => { setError(e.message); setForm((f) => (f.id === c.id ? { ...f, loading: false } : f)); });
+  };
+  const fmtMonthLong = (m) => formatDate(`${m}-01`, i18n.language, { timeZone: "UTC", month: "long", year: "numeric" });
+  const thisMonth = localDay().slice(0, 7);
+  // دفعات الشهر المستحقة فعلاً: تُستبعد «سماح» ودفعات العقود المعلّقة/الموقوفة/المنتهية (onHold)
+  const dueOfMonth = (m) => payments.filter((p) => p.month === m && p.status !== "waived" && !p.onHold).sort((a, b) => a.dueDate.localeCompare(b.dueDate) || (contractOf(a.leaseContractId)?.title || "").localeCompare(contractOf(b.leaseContractId)?.title || "", "ar"));
+  const monthCard = (m) => {
+    const rows = dueOfMonth(m);
+    const sum = (list) => list.reduce((acc, p) => acc + Number(p.amount || 0), 0);
+    const paid = rows.filter((p) => p.status === "paid");
+    const overdue = rows.filter((p) => p.overdue);
+    return { rows, total: sum(rows), paid: sum(paid), paidCount: paid.length, outstanding: sum(rows) - sum(paid), overdueCount: overdue.length, held: payments.filter((p) => p.month === m && p.onHold).length };
+  };
+  const pickMonth = (m) => {
+    setOpenMonth((cur) => (cur === m ? null : m));
+    setTimeout(() => monthPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   };
   const KPI_TONE = { due: "blue", paid: "green", outstanding: "amber", overdue: "red", vat: "teal" };
 
@@ -319,50 +325,77 @@ export default function LeasesTab({ companyId }) {
       </div>
 
       {view === "calendar" && (
-        <div className="panel">
-          <div className="form-btn-group" style={{ gap: 14, flexWrap: "wrap", fontSize: 12.5, marginBottom: 8 }}>
-            {["paid", "due", "overdue", "waived"].map((k) => (
-              <span key={k}><span style={{ ...TONE[k], display: "inline-block", width: 12, height: 12, borderRadius: 3, verticalAlign: "-1px", marginInlineEnd: 5 }} />{t(`leases.statuses.${k}`)}</span>
-            ))}
+        <div className="panel ls-panel">
+          <div className="ls-months">
+            {months.map((m) => {
+              const mc = monthCard(m);
+              const pct = mc.total ? Math.round((mc.paid / mc.total) * 100) : 0;
+              const tone = !mc.rows.length ? "empty" : mc.overdueCount ? "late" : mc.outstanding <= 0 ? "done" : "open";
+              return (
+                <button key={m} type="button" disabled={!mc.rows.length} aria-expanded={openMonth === m}
+                  className={`ls-month tone-${tone}${openMonth === m ? " is-on" : ""}${m === thisMonth ? " is-now" : ""}`} onClick={() => pickMonth(m)}>
+                  <span className="ls-month-head">
+                    <span className="ls-month-name">{fmtMonthLong(m)}</span>
+                    {m === thisMonth && <span className="ls-month-now">{t("leases.cal.thisMonth")}</span>}
+                  </span>
+                  {mc.rows.length ? (
+                    <>
+                      <span className="ls-month-total">{fmt2(mc.total)}</span>
+                      <span className="ls-month-sub">{t("leases.cal.paymentsCount", { count: mc.rows.length })}{mc.overdueCount ? ` · ${t("leases.cal.overdueCount", { count: mc.overdueCount })}` : ""}</span>
+                      <span className="ls-month-bar"><span style={{ width: `${pct}%` }} /></span>
+                      <span className="ls-month-split">
+                        <span>{t("leases.kpi.paid")}: <b>{fmt2(mc.paid)}</b></span>
+                        <span>{t("leases.kpi.outstanding")}: <b>{fmt2(mc.outstanding)}</b></span>
+                      </span>
+                    </>
+                  ) : (
+                    <span className="ls-month-none">{t("leases.cal.noDue")}</span>
+                  )}
+                  {mc.held > 0 && <span className="ls-month-held">{t("leases.cal.heldCount", { count: mc.held })}</span>}
+                </button>
+              );
+            })}
           </div>
-          <div className="lines-table-wrap">
-            <table className="ledger-table" style={{ minWidth: 220 + months.length * 96 }}>
-              <thead><tr>
-                <th style={{ position: "sticky", insetInlineStart: 0, background: "var(--athar-surface, #fff)", zIndex: 1, minWidth: 220 }}>{t("leases.contract")}</th>
-                {months.map((m) => <th key={m} style={{ minWidth: 96, textAlign: "center" }}>{fmtMonth(m)}</th>)}
-              </tr></thead>
-              <tbody>
-                {contracts.map((c) => (
-                  <tr key={c.id} style={c.isActive ? undefined : { opacity: 0.55 }}>
-                    <td style={{ position: "sticky", insetInlineStart: 0, background: "var(--athar-surface, #fff)", zIndex: 1 }}>
-                      <button type="button" className="ls-link" onClick={() => openView(c)}>{c.title}</button>
-                      <div style={SUB}>{t(`leases.vatModes.${c.vatMode}`)}{c.costCenterName ? ` · ${c.costCenterName}` : ""}{c.status && c.status !== "active" ? ` · ${t(`leases.contractStatus.${c.status}`)}` : ""}</div>
-                    </td>
-                    {months.map((m) => (
-                      <td key={m} style={{ textAlign: "center", padding: "3px 4px" }}>
-                        {cell(c.id, m).map((p) => (
-                          <button key={p.id} type="button" title={`${fmtDay(p.dueDate)}${p.note ? ` — ${p.note}` : ""}`} style={{ ...CELL_BTN, ...TONE[cellTone(p)] }} onClick={() => openPayment(p)}>
-                            {p.status === "waived" ? t("leases.statuses.waived") : fmt2(p.amount)}{p.status === "paid" ? " ✓" : ""}
-                          </button>
-                        ))}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-                {data && contracts.length === 0 && <tr><td className="empty" colSpan={months.length + 1}>{t("leases.noContracts")}</td></tr>}
-              </tbody>
-              {contracts.length > 0 && (
-                <tfoot>
-                  {["due", "paid", "outstanding", "vat"].map((k) => (
-                    <tr key={k}>
-                      <td className="foot-label" style={{ position: "sticky", insetInlineStart: 0, background: "var(--athar-surface, #fff)" }}>{t(`leases.kpi.${k}`)}</td>
-                      {months.map((m) => <td key={m} className={`num${k === "due" ? " strong" : ""}`} style={{ textAlign: "center" }}>{monthTotal(m) ? fmt2(monthTotal(m)[k]) : "—"}</td>)}
-                    </tr>
-                  ))}
-                </tfoot>
-              )}
-            </table>
-          </div>
+          {data && contracts.length === 0 && <p className="empty">{t("leases.noContracts")}</p>}
+
+          {openMonth && (() => {
+            const mc = monthCard(openMonth);
+            return (
+              <div ref={monthPanelRef} className="ls-month-panel">
+                <div className="ls-month-panel-head">
+                  <div>
+                    <h4>{t("leases.cal.dueIn", { month: fmtMonthLong(openMonth) })}</h4>
+                    <span>{t("leases.cal.panelNote", { count: mc.rows.length })}</span>
+                  </div>
+                  <div className="ls-month-panel-totals">
+                    <span className="tone-blue">{t("leases.kpi.due")} <b>{fmt2(mc.total)}</b></span>
+                    <span className="tone-green">{t("leases.kpi.paid")} <b>{fmt2(mc.paid)}</b></span>
+                    <span className="tone-amber">{t("leases.kpi.outstanding")} <b>{fmt2(mc.outstanding)}</b></span>
+                  </div>
+                  <button type="button" className="ls-act" onClick={() => setOpenMonth(null)}>{t("common.close")}</button>
+                </div>
+                <div className="ls-due-list">
+                  {mc.rows.map((p) => {
+                    const c = contractOf(p.leaseContractId) || {};
+                    const tone = toneOf(p);
+                    return (
+                      <div key={p.id} className={`ls-due pay-${tone}`}>
+                        <div className="ls-due-date"><b>{formatDate(p.dueDate, i18n.language, { timeZone: "UTC", day: "numeric" })}</b><span>{formatDate(p.dueDate, i18n.language, { timeZone: "UTC", month: "short" })}</span></div>
+                        <div className="ls-due-main">
+                          <button type="button" className="ls-link" onClick={() => openView(c)}>{c.title}</button>
+                          <span>{c.counterparty || "—"} · {t("leases.period")}: {fmtDay(p.periodFrom)} – {fmtDay(p.periodTo)}</span>
+                        </div>
+                        <div className="ls-due-amount"><b>{fmt2(p.amount)}</b><span>{t("leases.kpi.vat")}: {fmt2(p.vatAmount)}</span></div>
+                        <span className={`ls-badge pay-${tone}`}>{t(`leases.statuses.${tone}`)}{p.status === "paid" && p.paidOn ? ` · ${fmtDay(p.paidOn)}` : ""}</span>
+                        <button type="button" className={`ls-act${p.status === "paid" ? "" : " is-primary"}`} onClick={() => openPayment(p)}>{p.status === "paid" ? t("leases.cal.details") : t("leases.cal.pay")}</button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {mc.held > 0 && <p className="ls-month-panel-foot">{t("leases.cal.heldNote", { count: mc.held })}</p>}
+              </div>
+            );
+          })()}
         </div>
       )}
 
