@@ -10,6 +10,9 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "ساعة الإرسال عدد صحيح بين 0 و23": "The sending hour must be a whole number between 0 and 23",
+  "بريد إلكتروني غير صالح في قائمة المستلمين": "Invalid email address in the recipients list",
+  "عدد المستلمين أكبر من المسموح": "More recipients than allowed",
   "مهلة الإشعار عدد صحيح من الأيام": "The notice period must be a whole number of days",
   "مهلة الإشعار لا تكون سالبة": "The notice period cannot be negative",
   "مهلة الإشعار لا تتجاوز 3650 يوماً": "The notice period cannot exceed 3650 days",

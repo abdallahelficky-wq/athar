@@ -72,6 +72,20 @@ export const alertsHandler: RequestHandler = async (req, res) => {
   res.json(await service.leaseAlerts(req.auth!.tenantId, requireCompany(req)));
 };
 
+export const getReminderHandler: RequestHandler = async (req, res) => {
+  res.json(await service.getLeaseReminderSetting(req.auth!.tenantId, requireCompany(req)));
+};
+
+export const saveReminderHandler: RequestHandler = async (req, res) => {
+  const companyId = requireCompany(req);
+  const { enabled, hourKsa, recipientEmails } = req.body;
+  res.json(await service.upsertLeaseReminderSetting(req.auth!.tenantId, companyId, { enabled, hourKsa, recipientEmails }));
+};
+
+export const sendReminderNowHandler: RequestHandler = async (req, res) => {
+  res.json(await service.sendLeaseReminder(req.auth!.tenantId, requireCompany(req)));
+};
+
 export const generateScheduleHandler: RequestHandler = async (req, res) => {
   await scopeContract(req, req.params.id);
   res.status(201).json(await service.generateLeaseSchedule(req.auth!.tenantId, req.params.id, req.body.until));

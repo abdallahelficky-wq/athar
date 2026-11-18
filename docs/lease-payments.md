@@ -62,3 +62,10 @@
   أو انتهت مدتها. العقد الموقوف (`isActive: false`) لا ينبّه. تظهر أعلى شاشة عقود الإيجار.
 - ملف الاستيراد يقبل الحقول نفسها: `contractNumber`، `signedOn`، `contractValue`، `depositAmount`، `customTerms`، `autoRenew`، `noticeDays`،
   `lessorDetails`، `propertyDetails`، و`isActive`.
+
+## بريد التنبيهات اليومي
+
+- إعداد لكل شركة (`lease_reminder_settings`): مفعّل أو لا، ساعة الإرسال بتوقيت السعودية، وقائمة مستلمين (فارغة = مدراء الشركة والمدراء الماليون).
+- المُجدوِل (`src/lib/leaseReminderScheduler.ts`) نبضة ساعية: يرسل مرة واحدة في اليوم لكل شركة حان موعدها، ولا يرسل بريداً فارغاً.
+- محتوى البريد من `leaseAlerts` نفسها (`src/lib/leaseReminderEmail.ts`): ما في البريد هو ما في لوحة التنبيهات.
+- من الشاشة: زر «إشعارات البريد» — الحفظ، و«حفظ وإرسال الآن» للتجربة (لا يستهلك إرسال اليوم المجدول).

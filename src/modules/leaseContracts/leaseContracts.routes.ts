@@ -21,6 +21,9 @@ const canUnpost = requirePermission("accounts", "unpost");
 leaseContractRoutes.get("/", requirePositionAction("leaseContracts", "read"), c.listLeaseContracts);
 leaseContractRoutes.get("/calendar", requirePositionAction("leaseContracts", "read"), c.calendarHandler);
 leaseContractRoutes.get("/alerts", requirePositionAction("leaseContracts", "read"), c.alertsHandler);
+leaseContractRoutes.get("/reminders", requirePositionAction("leaseContracts", "read"), c.getReminderHandler);
+leaseContractRoutes.put("/reminders", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.reminderSettingSchema), c.saveReminderHandler);
+leaseContractRoutes.post("/reminders/send-now", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.sendReminderSchema), c.sendReminderNowHandler);
 leaseContractRoutes.get("/amortization", requirePositionAction("leaseContracts", "read"), c.listAmortizationHandler);
 leaseContractRoutes.get("/amortization/preview", requirePositionAction("leaseContracts", "read"), c.previewAmortizationHandler);
 

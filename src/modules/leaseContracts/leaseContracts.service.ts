@@ -5,6 +5,11 @@ import { assertValidUnlockPin, createJournalEntryTx, deleteJournalEntryTx, recom
 import { INPUT_VAT_ACCOUNT_NAME } from "../../lib/vatAccounts";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { companyVatRatePercent } from "../../lib/companyVat";
+import { env } from "../../config/env";
+import { buildLeaseReminderEmail, hasLeaseAlerts } from "../../lib/leaseReminderEmail";
+import { sendLeaseReminderEmail } from "../../lib/mailer";
+import type { Lang } from "../../lib/i18n/translate";
+import { resolveRecipientEmails } from "../reportSchedules/reportSchedules.service";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
 import { roundMoney, sumMoney } from "../../lib/money";
 import { addDays, addMonths, amortizationPlan, amortizedThrough, dateToDay, dayToDate, daysBetween, generateInstallments, isDateOnly, isMonthOnly, monthEndDay, noticeDeadline, splitLeaseVat } from "../../lib/leaseSchedule";
@@ -571,6 +576,46 @@ export async function leaseAlerts(tenantId: string, companyId: string) {
     overdue, dueSoon, renewals,
     totals: { overdue: sumMoney(overdue.map((p) => p.amount)), dueSoon: sumMoney(dueSoon.map((p) => p.amount)) },
   };
+}
+
+// ---------------------------------------------------------------------------
+// بريد التنبيهات اليومي
+// ---------------------------------------------------------------------------
+
+const REMINDER_DEFAULTS = { enabled: false, hourKsa: 8, recipientEmails: [] as string[], lastSentAt: null as Date | null };
+
+/** إعداد بريد التنبيهات للشركة؛ بلا صف محفوظ = غير مفعّل بالقيم الافتراضية. */
+export async function getLeaseReminderSetting(tenantId: string, companyId: string) {
+  await companyOrThrow(tenantId, companyId);
+  const row = await prisma.leaseReminderSetting.findFirst({ where: { tenantId, companyId } });
+  const setting = row ? { enabled: row.enabled, hourKsa: row.hourKsa, recipientEmails: row.recipientEmails, lastSentAt: row.lastSentAt } : REMINDER_DEFAULTS;
+  return { ...setting, effectiveRecipients: await resolveRecipientEmails(tenantId, companyId, setting.recipientEmails) };
+}
+
+export async function upsertLeaseReminderSetting(tenantId: string, companyId: string, input: { enabled: boolean; hourKsa: number; recipientEmails: string[] }) {
+  await companyOrThrow(tenantId, companyId);
+  const recipientEmails = [...new Set(input.recipientEmails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
+  const data = { enabled: input.enabled, hourKsa: input.hourKsa, recipientEmails };
+  await prisma.leaseReminderSetting.upsert({ where: { companyId }, create: { tenantId, companyId, ...data }, update: data });
+  return getLeaseReminderSetting(tenantId, companyId);
+}
+
+/**
+ * يبني بريد التنبيهات من leaseAlerts نفسها ويرسله لمستلمي الشركة. لا يُرسَل بريد فارغ: بلا تنبيهات أو بلا مستلمين يرجع sent:false
+ * بسببه. يستدعيه المُجدوِل اليومي وزر «إرسال الآن» (الذي لا يستهلك إرسال اليوم المجدول).
+ */
+export async function sendLeaseReminder(tenantId: string, companyId: string) {
+  const company = await prisma.company.findFirst({ where: { id: companyId, tenantId }, select: { name: true, language: true } });
+  if (!company) throw badRequest("الشركة المحددة غير موجودة ضمن مستأجرك");
+  const alerts = await leaseAlerts(tenantId, companyId);
+  if (!hasLeaseAlerts(alerts)) return { sent: false, reason: "no_alerts" as const, recipients: 0 };
+  const setting = await prisma.leaseReminderSetting.findFirst({ where: { tenantId, companyId }, select: { recipientEmails: true } });
+  const recipients = await resolveRecipientEmails(tenantId, companyId, setting?.recipientEmails ?? []);
+  if (recipients.length === 0) return { sent: false, reason: "no_recipients" as const, recipients: 0 };
+  const lang = (company.language as Lang) ?? "ar";
+  const email = buildLeaseReminderEmail(company.name, alerts, lang, `${env.frontendBaseUrl}/leases/leaseContracts`);
+  await sendLeaseReminderEmail(recipients, email.subject, email.bodyHtml, lang);
+  return { sent: true, reason: null, recipients: recipients.length };
 }
 
 // ---------------------------------------------------------------------------
