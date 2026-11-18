@@ -680,7 +680,15 @@ export const CARD_SETTLEMENT_ENTRY_LOCKED = "قيد تسوية البطاقات 
 /** قيد إقفال السنة المالية (fiscal_year_closing) مرتبط بسجل الإقفال وتاريخ قفل الفترات — يُصحَّح بإعادة فتح السنة وحدها. */
 export const FISCAL_CLOSING_ENTRY_LOCKED = "قيد إقفال السنة المالية لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُحذف ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «إعادة فتح السنة» من إعدادات السنة المالية";
 
+/** قيد سداد دفعة إيجار (lease_payment) مرتبط بحالة الدفعة في جدول الإيجارات — عكسه من هنا يتركها "مسدَّدة" بلا قيد قائم. */
+export const LEASE_PAYMENT_ENTRY_LOCKED = "قيد سداد الإيجار لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «عكس السداد» من شاشة الإيجارات";
+
+/** قيد إطفاء الإيجارات الشهري (lease_amortization) مرتبط بسجل الإطفاء الذي يحدّد ما أُطفئ من كل دفعة — يُزال من شاشة الإيجارات وحدها. */
+export const LEASE_AMORTIZATION_ENTRY_LOCKED = "قيد إطفاء الإيجارات لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «إزالة الإطفاء» من شاشة الإيجارات";
+
 function assertNotStationShiftEntry(entry: { sourceModule: string }) {
+  if (entry.sourceModule === "lease_payment") throw badRequest(LEASE_PAYMENT_ENTRY_LOCKED);
+  if (entry.sourceModule === "lease_amortization") throw badRequest(LEASE_AMORTIZATION_ENTRY_LOCKED);
   if (entry.sourceModule === "fiscal_year_closing") throw badRequest(FISCAL_CLOSING_ENTRY_LOCKED);
   if (entry.sourceModule === "station_shift") throw badRequest(STATION_SHIFT_ENTRY_LOCKED);
   if (entry.sourceModule === "station_tank_variance") throw badRequest(TANK_VARIANCE_ENTRY_LOCKED);

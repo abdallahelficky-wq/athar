@@ -102,6 +102,8 @@ model Tenant {
   accounts                  Account[]
   companyDocuments          CompanyDocument[]
   leaseContracts            LeaseContract[]
+  leasePayments             LeasePayment[]
+  leaseAmortizationRuns     LeaseAmortizationRun[]
   journalEntries            JournalEntry[]
 
   customers        Customer[]
@@ -643,6 +645,8 @@ model Company {
   documentNumberingSettings   DocumentNumberingSettings[]
   companyDocuments            CompanyDocument[]
   leaseContracts              LeaseContract[]
+  leasePayments               LeasePayment[]
+  leaseAmortizationRuns       LeaseAmortizationRun[]
   journalEntries              JournalEntry[]
   accounts                    Account[]
   intercompanyAccounts        Account[]                    @relation("AccountIntercompanyCompany")
@@ -1052,23 +1056,119 @@ model CompanyDocument {
   @@map("company_documents")
 }
 
-// عقود إيجار الشركة (مقرات/فروع/مستودعات) — لتنبيه اقتراب انتهاء العقد بالداشبورد المالية
+// عقود إيجار الشركة (مقرات/فروع/محطات/مستودعات) — تُغذّي تنبيه اقتراب انتهاء العقد بالداشبورد المالية، وهي أصل موديول
+// الإيجارات: جدول دفعات لكل عقد (LeasePayment)، تأكيد السداد بقيد «مدفوع مقدماً»، وإطفاء شهري للمصروف (LeaseAmortizationRun).
+// الحقول المضافة كلها اختيارية/بقيمة افتراضية: عقد قديم بلا شروط سداد يبقى سجل تنبيه فقط كما كان.
+enum LeaseVatMode {
+  none // العقد بلا ضريبة — المبلغ كله إيجار
+  inclusive // مبلغ الدفعة شامل ضريبة القيمة المضافة بنسبة الشركة
+}
+
+enum LeasePaymentStatus {
+  due // مجدولة لم تُسدَّد
+  paid // سُدِّدت (بقيد، أو مسجَّلة خارج النظام postedExternally)
+  waived // لا تُدفع (فترة سماح/محطة متوقفة) — لا قيد ولا إطفاء
+}
+
 model LeaseContract {
-  id           String   @id @default(cuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  companyId    String
-  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  title        String
-  counterparty String?
-  monthlyRent  Decimal? @db.Decimal(18, 2)
-  startDate    DateTime
-  endDate      DateTime
-  notes        String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 String       @id @default(cuid())
+  tenantId           String
+  tenant             Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId          String
+  company            Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title              String
+  counterparty       String?
+  monthlyRent        Decimal?     @db.Decimal(18, 2)
+  startDate          DateTime
+  endDate            DateTime
+  notes              String?
+  // شروط السداد (لتوليد جدول الدفعات): مبلغ الدفعة، كل كم شهر، وتاريخ أول استحقاق
+  costCenterId       String?
+  vatMode            LeaseVatMode @default(none)
+  paymentAmount      Decimal?     @db.Decimal(18, 2)
+  paymentEveryMonths Int?
+  firstDueDate       DateTime?
+  // حسابا الترحيل لهذا العقد؛ الفارغ يُحَل وقت الترحيل بالاسم القياسي في شجرة الشركة
+  expenseAccountId   String?
+  prepaidAccountId   String?
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  payments LeasePayment[]
 
   @@map("lease_contracts")
+}
+
+// دفعة إيجار مجدولة. التواريخ أيام تقويمية مخزَّنة منتصف ليل UTC. amount الإجمالي (شامل الضريبة إن كان العقد شاملاً)،
+// وnetAmount ما يُحمَّل «إيجار مدفوع مقدماً» ثم يُطفأ مصروفاً على أشهر [periodFrom, periodTo].
+model LeasePayment {
+  id                  String             @id @default(cuid())
+  tenantId            String
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId           String
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  leaseContractId     String
+  leaseContract       LeaseContract      @relation(fields: [leaseContractId], references: [id], onDelete: Cascade)
+  dueDate             DateTime
+  periodFrom          DateTime
+  periodTo            DateTime
+  amount              Decimal            @db.Decimal(18, 2)
+  vatAmount           Decimal            @default(0) @db.Decimal(18, 2)
+  netAmount           Decimal            @db.Decimal(18, 2)
+  status              LeasePaymentStatus @default(due)
+  paidOn              DateTime?
+  bankAccountId       String?
+  // سُدِّدت وقُيِّدت خارج هذا الموديول (قبل بدء استخدامه مثلاً): تُعَد مسدَّدة وتُطفأ، بلا قيد سداد هنا
+  postedExternally    Boolean            @default(false)
+  // أول شهر (YYYY-MM) يُطفأ من هذه الدفعة داخل الموديول: ما قبله من فترتها صُرف في الدفاتر قبل بدء استخدامه فلا يُلحَق
+  amortizeFromMonth   String?
+  reference           String?
+  note                String?
+  journalEntryId      String?
+  lastReversalEntryId String?
+  paidByUserId        String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  amortizationLines LeaseAmortizationLine[]
+
+  @@index([tenantId, companyId, dueDate])
+  @@index([leaseContractId])
+  @@map("lease_payments")
+}
+
+// إطفاء شهر: قيد واحد للشركة (مدين مصروف الإيجار / دائن إيجار مدفوع مقدماً) بسطرين لكل دفعة مسدَّدة يغطي الشهر جزءاً منها.
+model LeaseAmortizationRun {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  month           String // YYYY-MM
+  totalAmount     Decimal  @db.Decimal(18, 2)
+  journalEntryId  String
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  lines LeaseAmortizationLine[]
+
+  @@unique([companyId, month])
+  @@map("lease_amortization_runs")
+}
+
+model LeaseAmortizationLine {
+  id              String               @id @default(cuid())
+  runId           String
+  run             LeaseAmortizationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  leasePaymentId  String
+  leasePayment    LeasePayment         @relation(fields: [leasePaymentId], references: [id], onDelete: Restrict)
+  leaseContractId String
+  amount          Decimal              @db.Decimal(18, 2)
+
+  @@index([leasePaymentId])
+  @@index([runId])
+  @@map("lease_amortization_lines")
 }
 
 // ---------------------------------------------------------------------------
@@ -1110,6 +1210,8 @@ enum SourceModule {
   station_tank_variance
   card_settlement
   fiscal_year_closing
+  lease_payment
+  lease_amortization
 }
 
 // فرع تابع لشركة واحدة — طبقة تصنيف وعرض إضافية فقط (بنفس مبدأ CostCenter/Department)، بدولة
