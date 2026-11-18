@@ -400,6 +400,73 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     expect([...own.body.overdue, ...own.body.dueSoon, ...own.body.renewals].some((r: any) => r.leaseContractId === active.id || r.id === active.id)).toBe(false);
   });
 
+  it("suspends, stops or ends a contract with a written reason, which silences its alerts and takes its unpaid payments out of what is due", async () => {
+    const b = ctx.b;
+    const today = riyadhCalendarDay(new Date());
+    const imported = await call("POST", "/lease-contracts/import", b.token, {
+      companyId: b.companyId,
+      contracts: [{
+        title: "عقد يُعلَّق", vatMode: "none", startDate: addDays(today, -300), endDate: addDays(today, 40), noticeDays: 60, autoRenew: true,
+        payments: [
+          { dueDate: addDays(today, -4), periodFrom: addDays(today, -4), periodTo: addDays(today, 10), amount: 7100 },
+          { dueDate: addDays(today, 6), periodFrom: addDays(today, 11), periodTo: addDays(today, 40), amount: 7200 },
+        ],
+      }],
+    });
+    expect(imported.status, imported.text).toBe(201);
+    const contract = await prisma.leaseContract.findFirstOrThrow({ where: { tenantId: b.tenantId, title: "عقد يُعلَّق" } });
+    expect([contract.status, contract.isActive]).toEqual(["active", true]);
+    // العقد المستورد غير سارٍ من الاختبار السابق حالته «منتهٍ»
+    expect((await prisma.leaseContract.findFirstOrThrow({ where: { tenantId: b.tenantId, title: "عقد موقوف" } })).status).toBe("ended");
+
+    const alertIds = async () => {
+      const r = await call("GET", `/lease-contracts/alerts?companyId=${b.companyId}`, b.token);
+      expect(r.status, r.text).toBe(200);
+      return [...r.body.overdue, ...r.body.dueSoon, ...r.body.renewals].filter((x: any) => x.leaseContractId === contract.id || x.id === contract.id).length;
+    };
+    const calendar = async () => {
+      const r = await call("GET", `/lease-contracts/calendar?companyId=${b.companyId}&from=${addDays(today, -10)}&to=${addDays(today, 10)}`, b.token);
+      expect(r.status, r.text).toBe(200);
+      return r.body;
+    };
+    expect(await alertIds()).toBe(3); // دفعة متأخرة + دفعة قريبة + تجديد
+    const before = await calendar();
+
+    // السبب إلزامي، والمستأجر الآخر لا يغيّر حالة العقد
+    expect((await call("POST", `/lease-contracts/${contract.id}/status`, b.token, { status: "suspended" })).status).toBe(400);
+    expect((await call("POST", `/lease-contracts/${contract.id}/status`, b.token, { status: "suspended", reason: "  " })).status).toBe(400);
+    expect([400, 403, 404]).toContain((await call("POST", `/lease-contracts/${contract.id}/status`, ctx.a.token, { status: "ended", reason: "ليس عقدي" })).status);
+    expect((await prisma.leaseContract.findUniqueOrThrow({ where: { id: contract.id } })).status).toBe("active");
+
+    const suspended = await call("POST", `/lease-contracts/${contract.id}/status`, b.token, { status: "suspended", reason: "لم تُستلَم المحطة وتوجد قضية", effectiveDate: today });
+    expect(suspended.status, suspended.text).toBe(200);
+    expect([suspended.body.status, suspended.body.isActive, suspended.body.statusReason]).toEqual(["suspended", false, "لم تُستلَم المحطة وتوجد قضية"]);
+    expect(await alertIds()).toBe(0);
+    const held = await calendar();
+    const mine = (cal: any) => cal.payments.filter((p: any) => p.leaseContractId === contract.id).map((p: any) => [p.amount, p.status, p.onHold, p.overdue]);
+    expect(mine(held)).toEqual([[7100, "due", true, false], [7200, "due", true, false]]);
+    expect(Math.round((before.totals.outstanding - held.totals.outstanding) * 100)).toBe(1430000);
+    expect(Math.round((before.totals.overdue - held.totals.overdue) * 100)).toBe(710000);
+    expect(held.contracts.find((c: any) => c.id === contract.id)).toMatchObject({ status: "suspended", statusReason: "لم تُستلَم المحطة وتوجد قضية", statusDate: today, isActive: false });
+
+    // نفس الحالة بالسبب نفسه تُرفَض؛ ثم موقوف فمنتهٍ فعودة للسريان، والسجل يحفظ كل تغيير
+    expect((await call("POST", `/lease-contracts/${contract.id}/status`, b.token, { status: "suspended", reason: "لم تُستلَم المحطة وتوجد قضية" })).status).toBe(400);
+    expect((await call("POST", `/lease-contracts/${contract.id}/status`, b.token, { status: "stopped", reason: "المحطة متوقفة عن العمل" })).status).toBe(200);
+    expect((await call("POST", `/lease-contracts/${contract.id}/status`, b.token, { status: "ended", reason: "فُسخ العقد بالتراضي" })).status).toBe(200);
+    expect(await alertIds()).toBe(0);
+    const back = await call("POST", `/lease-contracts/${contract.id}/status`, b.token, { status: "active" });
+    expect(back.status, back.text).toBe(200);
+    expect([back.body.status, back.body.isActive, back.body.statusReason]).toEqual(["active", true, null]);
+    expect((back.body.statusHistory as any[]).map((h) => [h.status, h.reason])).toEqual([
+      ["suspended", "لم تُستلَم المحطة وتوجد قضية"], ["stopped", "المحطة متوقفة عن العمل"], ["ended", "فُسخ العقد بالتراضي"], ["active", null],
+    ]);
+    expect(await alertIds()).toBe(3);
+    expect((await calendar()).totals).toEqual(before.totals);
+
+    // يُترَك منتهياً حتى لا يغيّر تنبيهات الاختبارات التالية
+    expect((await call("POST", `/lease-contracts/${contract.id}/status`, b.token, { status: "ended", reason: "نهاية الاختبار" })).status).toBe(200);
+  });
+
   it("emails the daily lease reminder once per day to the configured recipients, and only when enabled", async () => {
     const b = ctx.b;
     const initial = await call("GET", `/lease-contracts/reminders?companyId=${b.companyId}`, b.token);

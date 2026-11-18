@@ -4,6 +4,7 @@ import { api } from "./http";
 export const listLeaseContracts = (companyId) => api.get(`/lease-contracts?companyId=${companyId}`);
 export const createLeaseContract = (payload) => api.post("/lease-contracts", payload);
 export const updateLeaseContract = (id, payload) => api.patch(`/lease-contracts/${id}`, payload);
+export const setLeaseContractStatus = (id, payload) => api.post(`/lease-contracts/${id}/status`, payload);
 export const deleteLeaseContract = (id) => api.delete(`/lease-contracts/${id}`);
 export const applyLeaseAccounts = (payload) => api.post("/lease-contracts/accounts", payload);
 export const importLeaseContracts = (companyId, contracts) => api.post("/lease-contracts/import", { companyId, contracts });

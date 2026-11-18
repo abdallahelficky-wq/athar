@@ -10,6 +10,9 @@
  * ديناميكية) خارج نطاق هذا القاموس — تُعالَج في مرحلة منفصلة (انظر الخطة، الفئة 2).
  */
 export const AR_TO_EN: Record<string, string> = {
+  "سبب تغيير حالة العقد أطول من المسموح": "The contract status reason is too long",
+  "اكتب سبب تعليق العقد أو إيقافه أو إنهائه": "Enter the reason for suspending, stopping or ending the contract",
+  "العقد على هذه الحالة بالسبب نفسه": "The contract already has this status with the same reason",
   "ساعة الإرسال عدد صحيح بين 0 و23": "The sending hour must be a whole number between 0 and 23",
   "دقيقة الإرسال عدد صحيح بين 0 و59": "The sending minute must be a whole number between 0 and 59",
   "بريد إلكتروني غير صالح في قائمة المستلمين": "Invalid email address in the recipients list",

@@ -45,6 +45,14 @@ export const createLeaseContractSchema = z.object({
 
 export const updateLeaseContractSchema = createLeaseContractSchema.partial();
 
+export const contractStatusSchema = z
+  .object({
+    status: z.enum(["active", "suspended", "stopped", "ended"]),
+    reason: z.string().trim().max(1000, "سبب تغيير حالة العقد أطول من المسموح").nullable().optional(),
+    effectiveDate: day.optional(),
+  })
+  .strict();
+
 export const applyAccountsSchema = z
   .object({
     companyId: z.string().min(1),

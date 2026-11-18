@@ -1061,6 +1061,14 @@ model CompanyDocument {
 // عقود إيجار الشركة (مقرات/فروع/محطات/مستودعات) — تُغذّي تنبيه اقتراب انتهاء العقد بالداشبورد المالية، وهي أصل موديول
 // الإيجارات: جدول دفعات لكل عقد (LeasePayment)، تأكيد السداد بقيد «مدفوع مقدماً»، وإطفاء شهري للمصروف (LeaseAmortizationRun).
 // الحقول المضافة كلها اختيارية/بقيمة افتراضية: عقد قديم بلا شروط سداد يبقى سجل تنبيه فقط كما كان.
+// حالة العقد: الساري وحده يدخل التنبيهات وبريدها؛ المعلّق/الموقوف/المنتهي يبقى للرجوع إليه بسببه المكتوب.
+enum LeaseContractStatus {
+  active // ساري
+  suspended // معلّق مؤقتاً (نزاع، لم تُستلَم العين…)
+  stopped // موقوف (الموقع متوقف عن العمل)
+  ended // منتهٍ / مفسوخ
+}
+
 enum LeaseVatMode {
   none // العقد بلا ضريبة — المبلغ كله إيجار
   inclusive // مبلغ الدفعة شامل ضريبة القيمة المضافة بنسبة الشركة
@@ -1094,6 +1102,11 @@ model LeaseContract {
   expenseAccountId   String?
   prepaidAccountId   String?
   isActive           Boolean      @default(true)
+  // الحالة وسببها وتاريخ سريانها وسجل تغييراتها؛ isActive يبقى مطابقاً لـ status == active (تعتمد عليه التنبيهات)
+  status             LeaseContractStatus @default(active)
+  statusReason       String?
+  statusDate         DateTime?
+  statusHistory      Json?
   // بيانات العقد كما في وثيقته (إيجار): رقم سجل العقد، تاريخ الإبرام، إجمالي قيمة العقد، مبلغ الضمان، والشروط الإضافية
   contractNumber     String?
   signedOn           DateTime?
