@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMonths, amortizationPlan, amortizedThrough, generateInstallments, monthEndDay, splitLeaseVat } from "./leaseSchedule";
+import { addMonths, amortizationPlan, amortizedThrough, daysBetween, generateInstallments, monthEndDay, noticeDeadline, splitLeaseVat } from "./leaseSchedule";
 
 const sum = (rows: { amount: number }[]) => Math.round(rows.reduce((s, r) => s + r.amount * 100, 0)) / 100;
 
@@ -79,5 +79,18 @@ describe("date helpers", () => {
   it("returns the last day of a month, including a leap February", () => {
     expect(monthEndDay("2027-02")).toBe("2027-02-28");
     expect(monthEndDay("2028-02")).toBe("2028-02-29");
+  });
+});
+
+describe("renewal notice", () => {
+  it("puts the notice deadline the notice period before the contract end", () => {
+    expect(noticeDeadline("2027-09-07", 60)).toBe("2027-07-09");
+    expect(noticeDeadline("2035-11-30", 180)).toBe("2035-06-03");
+    expect(noticeDeadline("2027-07-31", null)).toBe("2027-07-31");
+  });
+
+  it("counts days between two calendar days, negative when the second is earlier", () => {
+    expect(daysBetween("2026-11-18", "2027-07-09")).toBe(233);
+    expect(daysBetween("2027-07-09", "2026-11-18")).toBe(-233);
   });
 });

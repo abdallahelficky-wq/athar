@@ -5,6 +5,23 @@ const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "صيغة الشهر �
 const amount = z.coerce.number().positive("مبلغ الدفعة يجب أن يكون أكبر من صفر");
 const everyMonths = z.coerce.number().int("دورية السداد عدد صحيح من الأشهر").min(1, "دورية السداد شهر واحد على الأقل").max(120, "دورية السداد لا تتجاوز 120 شهراً");
 const vatMode = z.enum(["none", "inclusive"]);
+const noticeDays = z.coerce.number().int("مهلة الإشعار عدد صحيح من الأيام").min(0, "مهلة الإشعار لا تكون سالبة").max(3650, "مهلة الإشعار لا تتجاوز 3650 يوماً");
+const text = z.string().max(300).nullable().optional();
+// بيانات وصفية للمؤجر والعقار — مفاتيح محددة فقط (strict) حتى لا يُخزَّن في العمود ما لا تعرضه الشاشة
+const lessorDetails = z
+  .object({ type: z.enum(["company", "individual"]).nullable().optional(), idNumber: text, crNumber: text, unifiedNumber: text, vatNumber: text, representative: text, representativeId: text, mobile: text, email: text, address: text, iban: text })
+  .strict();
+const propertyDetails = z.object({ address: text, city: text, unitType: text, area: text, deedNumber: text }).strict();
+const contractDetails = {
+  contractNumber: z.string().max(60).nullable().optional(),
+  contractValue: z.coerce.number().nonnegative().nullable().optional(),
+  depositAmount: z.coerce.number().nonnegative().nullable().optional(),
+  customTerms: z.string().max(6000).nullable().optional(),
+  autoRenew: z.boolean().optional(),
+  noticeDays: noticeDays.nullable().optional(),
+  lessorDetails: lessorDetails.nullable().optional(),
+  propertyDetails: propertyDetails.nullable().optional(),
+};
 
 export const createLeaseContractSchema = z.object({
   companyId: z.string(),
@@ -22,6 +39,8 @@ export const createLeaseContractSchema = z.object({
   expenseAccountId: z.string().min(1).nullable().optional(),
   prepaidAccountId: z.string().min(1).nullable().optional(),
   isActive: z.boolean().optional(),
+  signedOn: z.coerce.date().nullable().optional(),
+  ...contractDetails,
 });
 
 export const updateLeaseContractSchema = createLeaseContractSchema.partial();
@@ -95,6 +114,9 @@ export const importSchema = z
             paymentAmount: amount.nullable().optional(),
             paymentEveryMonths: everyMonths.nullable().optional(),
             firstDueDate: day.nullable().optional(),
+            isActive: z.boolean().optional(),
+            signedOn: day.nullable().optional(),
+            ...contractDetails,
             payments: z
               .array(
                 z

@@ -122,3 +122,13 @@ export function monthEndDay(month: string): string {
   const [y, m] = month.split("-").map(Number);
   return `${y}-${pad(m)}-${pad(daysInMonth(y, m))}`;
 }
+
+/** عدد الأيام من يوم إلى يوم (سالب إن سبق الثاني الأول). */
+export function daysBetween(fromDay: string, toDay: string): number {
+  return Math.round((dayToDate(toDay).getTime() - dayToDate(fromDay).getTime()) / DAY_MS);
+}
+
+/** آخر موعد للإشعار بعدم الرغبة في التجديد: نهاية العقد ناقص مهلة الإشعار بالأيام. بلا مهلة = نهاية العقد نفسها. */
+export function noticeDeadline(endDay: string, noticeDays: number | null | undefined): string {
+  return noticeDays && noticeDays > 0 ? addDays(endDay, -noticeDays) : endDay;
+}
