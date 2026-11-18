@@ -1,0 +1,122 @@
+/* نوافذ موديول الإيجارات (LeasesTab.jsx): رأس ملوَّن حسب نوع الإجراء، حقول واضحة متراصّة عمودياً، وتذييل ثابت للأزرار.
+   كل القواعد محصورة تحت .lease-dialog فلا تمس نوافذ بقية النظام. */
+@keyframes lease-dialog-in { from { opacity: 0; transform: translateY(14px) scale(0.975); } to { opacity: 1; transform: none; } }
+@keyframes lease-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+
+.unpost-confirm-overlay:has(> .lease-dialog) { animation: lease-overlay-in 0.16s ease-out; backdrop-filter: blur(3px); }
+
+.panel.form-panel.lease-dialog {
+  --ld: #B98B4E; --ld-dark: #8A6532; --ld-soft: rgba(185, 139, 78, 0.10);
+  padding: 0; border: 0; border-radius: 18px; background: #fff; display: flex; flex-direction: column;
+  box-shadow: 0 28px 70px rgba(16, 32, 46, 0.32), 0 2px 8px rgba(16, 32, 46, 0.12);
+  animation: lease-dialog-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.panel.form-panel.lease-dialog.tone-info { --ld: #2F6FB0; --ld-dark: #1F4F82; --ld-soft: rgba(47, 111, 176, 0.09); }
+.panel.form-panel.lease-dialog.tone-green { --ld: #2F7D4F; --ld-dark: #1F5C3A; --ld-soft: rgba(47, 125, 79, 0.10); }
+.panel.form-panel.lease-dialog.tone-amber { --ld: #B7791F; --ld-dark: #7A5212; --ld-soft: rgba(183, 121, 31, 0.11); }
+.panel.form-panel.lease-dialog.tone-red { --ld: #A8432B; --ld-dark: #8A2F1B; --ld-soft: rgba(168, 67, 43, 0.09); }
+
+/* الرأس: شريط ملوَّن ثابت أعلى النافذة */
+.lease-dialog > .modal-title-row {
+  position: sticky; top: 0; z-index: 3; margin: 0 0 22px; padding: 18px 26px;
+  background: linear-gradient(135deg, var(--ld-dark), var(--ld)); color: #fff; border-radius: 18px 18px 0 0;
+}
+.lease-dialog > .modal-title-row h3 { font-size: 18px; font-weight: 700; color: #fff; line-height: 1.5; }
+.lease-dialog > .modal-title-row .modal-close-btn {
+  width: 34px; height: 34px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); color: #fff; font-size: 20px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s;
+}
+.lease-dialog > .modal-title-row .modal-close-btn:hover { background: rgba(255, 255, 255, 0.32); color: #fff; }
+
+/* الجسم: كل عنصر مباشر يأخذ هامشاً جانبياً موحّداً */
+.lease-dialog > *:not(.modal-title-row):not(.form-btn-group) { margin-inline: 26px; }
+
+/* الحقول: العنوان فوق الحقل دائماً، والحقل بعرض كامل */
+.lease-dialog label { display: flex; flex-direction: column; gap: 7px; font-size: 13.5px; font-weight: 600; color: #344454; margin-bottom: 16px; }
+.lease-dialog .form-grid { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px 20px; margin-bottom: 16px; }
+.lease-dialog label label { margin-bottom: 0; }
+.lease-dialog .form-grid label { margin-bottom: 0; font-size: 13.5px; color: #344454; font-weight: 600; }
+.lease-dialog :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 13px; font: inherit; font-size: 14.5px; font-weight: 400; color: #1c2a38;
+  background: #F7F9FB; border: 1.5px solid #D5DCE4; border-radius: 11px; transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.lease-dialog textarea { min-height: 96px; line-height: 1.7; resize: vertical; }
+.lease-dialog :is(input, select, textarea):hover { border-color: #B6C0CB; }
+.lease-dialog :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  outline: 0; background: #fff; border-color: var(--ld); box-shadow: 0 0 0 4px var(--ld-soft);
+}
+.lease-dialog input[type="checkbox"] { width: 19px; height: 19px; accent-color: var(--ld); flex-shrink: 0; cursor: pointer; }
+
+/* مفتاح تشغيل/إيقاف */
+.lease-dialog label.ld-switch {
+  flex-direction: row; align-items: center; gap: 12px; padding: 13px 16px; background: #F7F9FB; border: 1.5px solid #D5DCE4; border-radius: 12px; cursor: pointer;
+}
+.lease-dialog label.ld-switch:has(input:checked) { background: var(--ld-soft); border-color: var(--ld); color: var(--ld-dark); }
+.lease-dialog label.ld-switch input[type="checkbox"] {
+  appearance: none; width: 44px; height: 24px; border-radius: 999px; background: #C3CCD6; position: relative; transition: background 0.18s;
+}
+.lease-dialog label.ld-switch input[type="checkbox"]::after {
+  content: ""; position: absolute; top: 3px; inset-inline-start: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: inset-inline-start 0.18s;
+}
+.lease-dialog label.ld-switch input[type="checkbox"]:checked { background: var(--ld); }
+.lease-dialog label.ld-switch input[type="checkbox"]:checked::after { inset-inline-start: 23px; }
+
+/* صف حقول جنباً إلى جنب (مثل الساعة : الدقيقة) */
+.lease-dialog .ld-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px 20px; }
+.lease-dialog .ld-time { display: flex; flex-direction: row; align-items: center; gap: 10px; direction: ltr; justify-content: flex-end; font-size: 20px; font-weight: 700; color: #6B7C8C; }
+.lease-dialog.lease-dialog .ld-time select { width: 120px; flex: none; text-align: center; font-size: 17px; font-weight: 600; }
+
+/* الملاحظات والأخطاء: صناديق ملوَّنة */
+.lease-dialog .note {
+  margin-top: 0; margin-bottom: 18px; padding: 12px 16px; background: var(--ld-soft); border-inline-start: 4px solid var(--ld); border-radius: 10px;
+  font-size: 13.5px; line-height: 1.85; color: #344454;
+}
+.lease-dialog .balance-bad {
+  margin-top: 0; margin-bottom: 16px; padding: 12px 16px; background: rgba(168, 67, 43, 0.09); border-inline-start: 4px solid #A8432B; border-radius: 10px;
+  font-size: 13.5px; font-weight: 600; color: #8A2F1B;
+}
+
+/* التذييل: أزرار كبيرة ثابتة أسفل النافذة */
+.lease-dialog > .form-btn-group, .lease-dialog .ld-footer {
+  position: sticky; bottom: 0; z-index: 2; margin: auto 0 0; padding: 16px 26px; gap: 12px; justify-content: flex-end; flex-wrap: wrap;
+  background: #F4F6F8; border-top: 1px solid #E1E6EB; border-radius: 0 0 18px 18px;
+}
+.lease-dialog .form-btn-group button { min-height: 44px; padding: 0 24px; border-radius: 11px; font-size: 14.5px; font-weight: 600; }
+.lease-dialog .form-btn-group .btn-primary { background: var(--ld); border-color: var(--ld); color: #fff; box-shadow: 0 4px 12px var(--ld-soft); }
+.lease-dialog .form-btn-group .btn-primary:hover:not(:disabled) { background: var(--ld-dark); border-color: var(--ld-dark); }
+.lease-dialog .form-btn-group .btn-primary:disabled { opacity: 0.45; box-shadow: none; }
+.lease-dialog .form-btn-group .btn-ghost { background: #fff; border: 1.5px solid #D5DCE4; color: #344454; }
+.lease-dialog .form-btn-group .btn-ghost:hover:not(:disabled) { border-color: #9AA7B4; }
+
+
+/* بطاقات اختيار حالة العقد */
+.lease-dialog .ld-section-title { font-size: 13.5px; font-weight: 700; color: #344454; margin-bottom: 10px; }
+.lease-dialog .ld-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.lease-dialog .ld-tile {
+  --tile: #2F7D4F; --tile-soft: rgba(47, 125, 79, 0.10);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: start; padding: 14px 16px; min-height: 96px;
+  background: #fff; border: 2px solid #DDE3EA; border-radius: 14px; cursor: pointer; font: inherit; color: #344454; transition: transform 0.12s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.lease-dialog .ld-tile:hover { transform: translateY(-2px); border-color: var(--tile); box-shadow: 0 6px 16px rgba(16, 32, 46, 0.10); }
+.lease-dialog .ld-tile.is-on { background: var(--tile-soft); border-color: var(--tile); box-shadow: 0 0 0 4px var(--tile-soft); }
+.lease-dialog .ld-tile-name { display: flex; align-items: center; gap: 8px; font-size: 15.5px; font-weight: 700; color: var(--tile); }
+.lease-dialog .ld-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--tile); flex-shrink: 0; }
+.lease-dialog .ld-tile-hint { font-size: 12.5px; line-height: 1.6; color: #5B6B7B; font-weight: 400; }
+.lease-dialog .st-active { --tile: #2F7D4F; --tile-soft: rgba(47, 125, 79, 0.10); }
+.lease-dialog .st-suspended { --tile: #B7791F; --tile-soft: rgba(183, 121, 31, 0.12); }
+.lease-dialog .st-stopped { --tile: #A8432B; --tile-soft: rgba(168, 67, 43, 0.10); }
+.lease-dialog .st-ended { --tile: #5B6B7B; --tile-soft: rgba(91, 107, 123, 0.12); }
+
+/* سجل الحالة: خط زمني */
+.lease-dialog .ld-history { margin-bottom: 18px; padding: 14px 18px; background: #F7F9FB; border: 1px solid #E1E6EB; border-radius: 12px; }
+.lease-dialog .ld-history-item { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; font-size: 13.5px; color: #344454; border-top: 1px dashed #DDE3EA; }
+.lease-dialog .ld-history-item:first-of-type { border-top: 0; }
+.lease-dialog .ld-history-item .ld-dot { --tile: #5B6B7B; transform: translateY(1px); }
+.lease-dialog .ld-history-date { color: #6B7C8C; font-size: 12.5px; white-space: nowrap; }
+.lease-dialog .ld-history-status { font-weight: 700; color: var(--tile); white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .lease-dialog > *:not(.modal-title-row):not(.form-btn-group) { margin-inline: 16px; }
+  .lease-dialog > .modal-title-row, .lease-dialog > .form-btn-group { padding-inline: 16px; }
+}

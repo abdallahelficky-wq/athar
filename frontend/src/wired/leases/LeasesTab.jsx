@@ -9,6 +9,7 @@ import { fmt2 } from "../../legacy/constants";
 import { routes } from "../../routes";
 import FormDialog from "../shared/FormDialog";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
+import "../../styles/lease-dialogs.css";
 
 /**
  * الإيجارات: تقويم دفعات عقود الإيجار (عقد × شهر)، تأكيد السداد بقيد آلي (إيجار مدفوع مقدماً + ضريبة مدخلات / البنك)،
@@ -32,6 +33,10 @@ const toneOf = (p) => (p.status === "due" && p.overdue ? "overdue" : p.status);
 const cellTone = (p) => (p.onHold ? "waived" : toneOf(p));
 const STATUS_COLOR = { active: "#1F5C3A", suspended: "#7A5212", stopped: "#8A2F1B", ended: "#666" };
 const CONTRACT_STATUSES = ["active", "suspended", "stopped", "ended"];
+// نافذة الإيجارات: FormDialog بتنسيق lease-dialog (رأس ملوَّن حسب نوع الإجراء، حقول متراصّة، تذييل ثابت)
+function LeaseDialog({ tone = "gold", width = 760, children, ...props }) {
+  return <FormDialog {...props} className={`lease-dialog tone-${tone}`} style={{ maxWidth: width }}>{children}</FormDialog>;
+}
 const CELL_BTN = { display: "block", width: "100%", borderRadius: 8, padding: "4px 6px", fontSize: 12.5, fontWeight: 600, cursor: "pointer", margin: "2px 0", direction: "ltr" };
 const SUB = { fontSize: 12, lineHeight: 1.5, opacity: 0.7, fontWeight: 400, fontFamily: "inherit" };
 const emptyContract = {
@@ -411,7 +416,7 @@ export default function LeasesTab({ companyId }) {
         </>
       )}
 
-      <FormDialog open={dialog === "contract"} title={form.id ? t("leases.editContract") : t("leases.newContract")} onClose={close} style={{ maxWidth: 760 }}>
+      <LeaseDialog open={dialog === "contract"} title={form.id ? t("leases.editContract") : t("leases.newContract")} onClose={close} tone="gold" width={1040}>
         <div className="form-grid">
           <label>{t("leases.contractTitle")}<input value={form.title || ""} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
           <label>{t("leases.counterparty")}<input value={form.counterparty || ""} onChange={(e) => setForm({ ...form, counterparty: e.target.value })} /></label>
@@ -436,7 +441,7 @@ export default function LeasesTab({ companyId }) {
           <label>{t("leases.contractValue")}<input type="number" step="0.01" min="0" value={form.contractValue ?? ""} onChange={(e) => setForm({ ...form, contractValue: e.target.value })} /></label>
           <label>{t("leases.depositAmount")}<input type="number" step="0.01" min="0" value={form.depositAmount ?? ""} onChange={(e) => setForm({ ...form, depositAmount: e.target.value })} /></label>
           <label>{t("leases.noticeDays")}<input type="number" step="1" min="0" value={form.noticeDays ?? ""} onChange={(e) => setForm({ ...form, noticeDays: e.target.value })} /></label>
-          <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!form.autoRenew} onChange={(e) => setForm({ ...form, autoRenew: e.target.checked })} />{t("leases.autoRenew")}</label>
+          <label className="ld-switch"><input type="checkbox" checked={!!form.autoRenew} onChange={(e) => setForm({ ...form, autoRenew: e.target.checked })} />{t("leases.autoRenew")}</label>
           <h4 className="sub-head" style={{ gridColumn: "1 / -1", margin: "6px 0 0" }}>{t("leases.lessorTitle")}</h4>
           <label>{t("leases.lessor.type")}
             <select value={form.lessor?.type || ""} onChange={(e) => setForm({ ...form, lessor: { ...form.lessor, type: e.target.value } })}>
@@ -463,45 +468,58 @@ export default function LeasesTab({ companyId }) {
         <p className="note">{t("leases.accountsHint")}</p>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button><button className="btn-primary" onClick={saveContract}>{t("common.save")}</button></div>
-      </FormDialog>
+      </LeaseDialog>
 
-      <FormDialog open={dialog === "contractStatus"} title={`${t("leases.contractStatus.title")} — ${form.title || ""}`} onClose={close} style={{ maxWidth: 560 }}>
+      <LeaseDialog open={dialog === "contractStatus"} title={`${t("leases.contractStatus.title")} — ${form.title || ""}`} onClose={close} tone="amber" width={820}>
         <p className="note">{t("leases.contractStatus.note")}</p>
-        <label>{t("leases.contractStatus.label")}
-          <select value={form.status || "active"} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            {CONTRACT_STATUSES.map((s) => <option key={s} value={s}>{t(`leases.contractStatus.${s}`)}</option>)}
-          </select>
-        </label>
-        <label>{t("leases.contractStatus.effectiveDate")}<input type="date" value={form.effectiveDate || ""} onChange={(e) => setForm({ ...form, effectiveDate: e.target.value })} /></label>
-        <label>{t("leases.contractStatus.reason")}<textarea rows={3} style={{ width: "100%" }} value={form.reason || ""} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></label>
+        <div className="ld-section-title">{t("leases.contractStatus.label")}</div>
+        <div className="ld-tiles">
+          {CONTRACT_STATUSES.map((st) => (
+            <button key={st} type="button" className={`ld-tile st-${st}${(form.status || "active") === st ? " is-on" : ""}`} onClick={() => setForm({ ...form, status: st })}>
+              <span className="ld-tile-name"><span className="ld-dot" />{t(`leases.contractStatus.${st}`)}{form.current === st ? ` · ${t("leases.contractStatus.currentTag")}` : ""}</span>
+              <span className="ld-tile-hint">{t(`leases.contractStatus.hint.${st}`)}</span>
+            </button>
+          ))}
+        </div>
+        <div className="ld-row">
+          <label>{t("leases.contractStatus.effectiveDate")}<input type="date" value={form.effectiveDate || ""} onChange={(e) => setForm({ ...form, effectiveDate: e.target.value })} /></label>
+        </div>
+        <label>{t("leases.contractStatus.reason")}<textarea rows={3} placeholder={t("leases.contractStatus.reasonPlaceholder")} value={form.reason || ""} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></label>
         {(form.history || []).length > 0 && (
-          <div style={{ marginTop: 8 }}>
-            <div style={SUB}>{t("leases.contractStatus.history")}</div>
-            {[...form.history].reverse().map((h, i) => <div key={i} style={SUB}>{fmtDay(h.effectiveDate)} · <strong style={{ color: STATUS_COLOR[h.status] }}>{t(`leases.contractStatus.${h.status}`)}</strong>{h.reason ? ` — ${h.reason}` : ""}</div>)}
-          </div>
+          <>
+            <div className="ld-section-title">{t("leases.contractStatus.history")}</div>
+            <div className="ld-history">
+              {[...form.history].reverse().map((h, i) => (
+                <div key={i} className={`ld-history-item st-${h.status}`}>
+                  <span className="ld-dot" /><span className="ld-history-date">{fmtDay(h.effectiveDate)}</span>
+                  <span className="ld-history-status">{t(`leases.contractStatus.${h.status}`)}</span><span>{h.reason || ""}</span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button>
           <button className="btn-primary" disabled={form.status !== "active" && (form.reason || "").trim().length < 3} onClick={() => run(() => api.setLeaseContractStatus(form.id, { status: form.status, reason: (form.reason || "").trim() || null, effectiveDate: form.effectiveDate || undefined }), "leases.contractStatus.savedOk")}>{t("common.save")}</button>
         </div>
-      </FormDialog>
+      </LeaseDialog>
 
-      <FormDialog open={dialog === "accounts"} title={t("leases.accountsBtn")} onClose={close} style={{ maxWidth: 620 }}>
+      <LeaseDialog open={dialog === "accounts"} title={t("leases.accountsBtn")} onClose={close} tone="info" width={820}>
         <p className="note">{t("leases.accountsDialogNote")}</p>
         <label>{t("leases.prepaidAccount")}<AccountSearchSelect accounts={postingAccounts} value={form.prepaidAccountId} onChange={(id) => setForm({ ...form, prepaidAccountId: id })} allowClear /></label>
         <label>{t("leases.expenseAccount")}<AccountSearchSelect accounts={postingAccounts} value={form.expenseAccountId} onChange={(id) => setForm({ ...form, expenseAccountId: id })} allowClear /></label>
-        <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 }}><input type="checkbox" checked={!!form.onlyMissing} onChange={(e) => setForm({ ...form, onlyMissing: e.target.checked })} />{t("leases.onlyMissing")}</label>
+        <label className="ld-switch"><input type="checkbox" checked={!!form.onlyMissing} onChange={(e) => setForm({ ...form, onlyMissing: e.target.checked })} />{t("leases.onlyMissing")}</label>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button>
           <button className="btn-primary" disabled={!form.expenseAccountId && !form.prepaidAccountId} onClick={() => run(() => api.applyLeaseAccounts({ companyId, expenseAccountId: form.expenseAccountId || null, prepaidAccountId: form.prepaidAccountId || null, onlyMissing: !!form.onlyMissing }), "leases.accountsAppliedOk")}>{t("common.save")}</button>
         </div>
-      </FormDialog>
+      </LeaseDialog>
 
-      <FormDialog open={dialog === "reminder"} title={t("leases.reminder.title")} onClose={close} style={{ maxWidth: 560 }}>
+      <LeaseDialog open={dialog === "reminder"} title={t("leases.reminder.title")} onClose={close} tone="info" width={780}>
         <p className="note">{t("leases.reminder.note")}</p>
-        <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />{t("leases.reminder.enabled")}</label>
+        <label className="ld-switch"><input type="checkbox" checked={!!form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />{t("leases.reminder.enabled")}</label>
         <label>{t("leases.reminder.hour")}
-          <span style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 6, direction: "ltr", justifyContent: "flex-end" }}>
+          <span className="ld-time">
             <select value={form.hourKsa ?? 8} onChange={(e) => setForm({ ...form, hourKsa: e.target.value })}>
               {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{String(h).padStart(2, "0")}</option>)}
             </select>
@@ -511,21 +529,21 @@ export default function LeasesTab({ companyId }) {
             </select>
           </span>
         </label>
-        <label>{t("leases.reminder.emails")}<textarea rows={3} style={{ width: "100%", direction: "ltr" }} value={form.emails || ""} onChange={(e) => setForm({ ...form, emails: e.target.value })} /></label>
+        <label>{t("leases.reminder.emails")}<textarea rows={4} style={{ direction: "ltr" }} value={form.emails || ""} onChange={(e) => setForm({ ...form, emails: e.target.value })} /></label>
         {!(form.emails || "").trim() && <p className="note">{t("leases.reminder.defaultRecipients")}: <span style={{ direction: "ltr", unicodeBidi: "embed" }}>{(form.effective || []).join(", ") || "—"}</span></p>}
         {form.lastSentAt && <p className="note">{t("leases.reminder.lastSent")}: {fmtDay(form.lastSentAt)}</p>}
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button><button className="btn-ghost" onClick={sendReminderNow}>{t("leases.reminder.sendNow")}</button><button className="btn-primary" onClick={saveReminder}>{t("common.save")}</button></div>
-      </FormDialog>
+      </LeaseDialog>
 
-      <FormDialog open={dialog === "generate"} title={`${t("leases.generate")} — ${form.title || ""}`} onClose={close} style={{ maxWidth: 480 }}>
+      <LeaseDialog open={dialog === "generate"} title={`${t("leases.generate")} — ${form.title || ""}`} onClose={close} tone="green" width={640}>
         <p className="note">{t("leases.generateNote")}</p>
         <label>{t("leases.generateUntil")}<input type="date" value={form.until || ""} onChange={(e) => setForm({ ...form, until: e.target.value })} /></label>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button><button className="btn-primary" onClick={() => run(() => api.generateLeaseSchedule(form.id, form.until || undefined), "leases.generatedOk")}>{t("leases.generate")}</button></div>
-      </FormDialog>
+      </LeaseDialog>
 
-      <FormDialog open={dialog === "newPayment"} title={`+ ${t("leases.payment")} — ${formContract?.title || ""}`} onClose={close} style={{ maxWidth: 560 }}>
+      <LeaseDialog open={dialog === "newPayment"} title={`+ ${t("leases.payment")} — ${formContract?.title || ""}`} onClose={close} tone="green" width={780}>
         <div className="form-grid">
           <label>{t("leases.dueDate")}<input type="date" value={form.dueDate || ""} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></label>
           <label>{t("leases.amount")}<input type="number" step="0.01" min="0" value={form.amount ?? ""} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></label>
@@ -535,10 +553,10 @@ export default function LeasesTab({ companyId }) {
         </div>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button><button className="btn-primary" onClick={saveNewPayment}>{t("common.save")}</button></div>
-      </FormDialog>
+      </LeaseDialog>
 
-      <FormDialog open={dialog === "payment"} title={`${formContract?.title || ""} — ${form.dueDate ? fmtDay(form.dueDate) : ""}`} onClose={close} style={{ maxWidth: 640 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, background: "var(--athar-bg)", border: "1px solid var(--athar-border)", borderRadius: 10, padding: "10px 14px", margin: "0 0 12px" }}>
+      <LeaseDialog open={dialog === "payment"} title={`${formContract?.title || ""} — ${form.dueDate ? fmtDay(form.dueDate) : ""}`} onClose={close} tone="gold" width={900}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, background: "var(--athar-bg)", border: "1px solid var(--athar-border)", borderRadius: 10, padding: "10px 14px", margin: "0 26px 18px" }}>
           <div><div style={SUB}>{t("leases.status")}</div><strong>{t(`leases.statuses.${form.status ? toneOf(form) : "due"}`)}</strong></div>
           <div><div style={SUB}>{t("leases.amount")}</div><strong>{fmt2(form.amount || 0)}</strong></div>
           <div><div style={SUB}>{t("leases.kpi.vat")}</div><strong>{fmt2(form.vatAmount || 0)}</strong></div>
@@ -579,7 +597,7 @@ export default function LeasesTab({ companyId }) {
               )}
               <label>{t("leases.reference")}<input value={form.referenceInput || ""} onChange={(e) => setForm({ ...form, referenceInput: e.target.value })} /></label>
               <label>{t("leases.notes")}<input value={form.noteInput || ""} onChange={(e) => setForm({ ...form, noteInput: e.target.value })} /></label>
-              <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, gridColumn: "1 / -1" }}><input type="checkbox" checked={!!form.external} onChange={(e) => setForm({ ...form, external: e.target.checked })} />{t("leases.external")}</label>
+              <label className="ld-switch" style={{ gridColumn: "1 / -1" }}><input type="checkbox" checked={!!form.external} onChange={(e) => setForm({ ...form, external: e.target.checked })} />{t("leases.external")}</label>
               {form.external && <label>{t("leases.amortizeFrom")}<input type="month" value={form.amortizeFromMonth || ""} onChange={(e) => setForm({ ...form, amortizeFromMonth: e.target.value })} /></label>}
             </div>
             <p className="note">{form.external ? t("leases.externalNote") : t("leases.entryNote", { net: fmt2(previewGross - previewVat), vat: fmt2(previewVat), gross: fmt2(previewGross) })}</p>
@@ -606,21 +624,21 @@ export default function LeasesTab({ companyId }) {
             <div className="form-btn-group"><button className="btn-ghost" onClick={() => setForm({ ...form, mode: "view" })}>{t("common.cancel")}</button><button className="btn-ghost" onClick={removePayment}>{t("common.delete")}</button><button className="btn-primary" onClick={savePaymentEdit}>{t("common.save")}</button></div>
           </>
         )}
-      </FormDialog>
+      </LeaseDialog>
 
-      <FormDialog open={dialog === "reverse"} title={t("leases.reverseTitle")} onClose={close} style={{ maxWidth: 520 }}>
+      <LeaseDialog open={dialog === "reverse"} title={t("leases.reverseTitle")} onClose={close} tone="red" width={680}>
         <p className="note">{t("leases.reverseNote")}</p>
-        <label>{t("leases.reverseReason")}<textarea rows={2} style={{ width: "100%" }} value={form.reason || ""} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></label>
+        <label>{t("leases.reverseReason")}<textarea rows={3} value={form.reason || ""} onChange={(e) => setForm({ ...form, reason: e.target.value })} /></label>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button><button className="btn-primary" onClick={saveReverse}>{t("leases.reverse")}</button></div>
-      </FormDialog>
+      </LeaseDialog>
 
-      <FormDialog open={dialog === "removeRun"} title={`${t("leases.amortization.remove")} — ${form.month ? fmtMonth(form.month) : ""}`} onClose={close} style={{ maxWidth: 460 }}>
+      <LeaseDialog open={dialog === "removeRun"} title={`${t("leases.amortization.remove")} — ${form.month ? fmtMonth(form.month) : ""}`} onClose={close} tone="red" width={640}>
         <p className="note">{t("leases.amortization.removeNote")}</p>
         <label>{t("leases.amortization.pin")}<input type="password" autoComplete="off" value={form.pin || ""} onChange={(e) => setForm({ ...form, pin: e.target.value })} /></label>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button><button className="btn-primary" disabled={!form.pin} onClick={() => run(() => api.removeLeaseAmortizationRun(form.id, form.pin), "leases.amortization.removedOk")}>{t("leases.amortization.remove")}</button></div>
-      </FormDialog>
+      </LeaseDialog>
     </div>
   );
 }
