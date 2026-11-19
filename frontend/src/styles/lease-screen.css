@@ -256,3 +256,37 @@ button.ls-chip:hover { background: rgba(255, 255, 255, 0.22); transform: transla
 .ls-tag.is-cat { background: #EEF0FB; color: #3B4A8C; }
 .ls-tag.ls-tag-map { background: #E7F0FD; color: #1A56B8; text-decoration: none; }
 .ls-tag.ls-tag-map:hover { background: #D5E5FB; }
+
+/* ---------- فلاتر التقرير: قوائم منسدلة متجاورة ---------- */
+.ls-report .ls-rfilters { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px 14px; align-items: end; padding: 18px 20px; }
+.ls-ff, .ls-ms { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ls-ff-label { font-size: 12.5px; font-weight: 700; color: var(--ej-dark); }
+.ls-ff select, .ls-ff input[type="date"], .ls-ms-btn {
+  height: 42px; width: 100%; padding: 0 12px; border: 1.5px solid #D5DCE4; border-radius: 11px; background: #fff; font: inherit; font-size: 13.5px; color: var(--ink); box-sizing: border-box;
+}
+.ls-ff select:focus, .ls-ff input:focus, .ls-ms-btn:focus-visible { outline: none; border-color: var(--ej); box-shadow: 0 0 0 3px rgba(27, 131, 84, 0.12); }
+.ls-ms-btn { display: flex; align-items: center; gap: 8px; cursor: pointer; text-align: start; }
+.ls-ms-btn.has-value { border-color: var(--ej); background: #F4FAF6; }
+.ls-ms-btn.is-open { border-color: var(--ej); }
+.ls-ms-summary { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ls-ms-count { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 99px; background: var(--ej); color: #fff; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.ls-ms-caret { color: var(--ink-3); font-size: 12px; }
+.ls-ms-pop { position: absolute; top: calc(100% + 6px); inset-inline-start: 0; z-index: 30; width: max(100%, 260px); background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 14px 34px rgba(16, 32, 46, 0.18); padding: 8px; }
+.ls-ms-search { width: 100%; height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 13.5px; margin-bottom: 6px; box-sizing: border-box; }
+.ls-ms-head { padding: 2px 4px 6px; border-bottom: 1px solid #EEF2F5; margin-bottom: 4px; }
+.ls-ms-head button { border: 0; background: none; color: var(--ej); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 6px; }
+.ls-ms-list { max-height: 280px; overflow: auto; }
+.ls-ms-opt { display: flex; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 9px; cursor: pointer; font-size: 13.5px; color: var(--ink); }
+.ls-ms-opt:hover { background: #F4F7F9; }
+.ls-ms-opt.is-on { background: var(--ej-mint); }
+.ls-ms-opt.is-empty .ls-ms-text { color: var(--ink-3); }
+.ls-ms-opt input { accent-color: var(--ej); width: 16px; height: 16px; margin: 0; }
+.ls-ms-dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.ls-ms-text { flex: 1; }
+.ls-ms-n { font-size: 12px; color: var(--ink-3); font-weight: 700; }
+.ls-ms-none { padding: 10px; text-align: center; color: var(--ink-3); }
+.ls-ms-foot { border-top: 1px solid #EEF2F5; margin-top: 6px; padding: 8px 6px 2px; }
+.ls-ms-exclude { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #8A2F1B; cursor: pointer; }
+.ls-ms-exclude input { accent-color: #A8432B; width: 16px; height: 16px; margin: 0; }
+.ls-reset { height: 42px; width: 100%; border: 1.5px dashed #C9D2DB; border-radius: 11px; background: transparent; color: var(--ink-2); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.ls-reset:hover { border-color: var(--ej); color: var(--ej); }
