@@ -1092,7 +1092,7 @@ model LeaseContract {
   company            Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   title              String
   counterparty       String?
-  // اتجاه العقد: lessee = الشركة مستأجرة (تدفع، إيجار مدفوع مقدماً يُطفأ مصروفاً)؛ lessor = الشركة مؤجرة (تحصّل، إيجار مقبوض
+  // اتجاه العقد (other = للمتابعة فقط، انظر LeaseDirection): lessee = الشركة مستأجرة (تدفع، إيجار مدفوع مقدماً يُطفأ مصروفاً)؛ lessor = الشركة مؤجرة (تحصّل، إيجار مقبوض
   // مقدماً يُطفأ إيراداً). في عقد المؤجر يحمل expenseAccountId حساب الإيراد وprepaidAccountId حساب المقبوض مقدماً.
   direction          LeaseDirection @default(lessee)
   // نوع العين المؤجرة؛ null = غير مصنَّف
@@ -1164,6 +1164,7 @@ model LeaseBrand {
 enum LeaseDirection {
   lessee // الشركة مستأجرة
   lessor // الشركة مؤجرة للغير
+  other // عقد للمتابعة فقط (مثل عقد باسم شركة شقيقة): بلا قيود ولا تنبيهات دفع في هذه الشركة
 }
 
 enum LeaseCategory {

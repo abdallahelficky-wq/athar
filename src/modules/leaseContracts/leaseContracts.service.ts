@@ -42,6 +42,7 @@ export const LEASE_UNEARNED_ACCOUNT_NAME = "إيجارات مقبوضة مقدم
 export const LEASE_REVENUE_ACCOUNT_NAME = "إيرادات إيجار";
 export const LEASE_UNEARNED_ACCOUNT_MISSING = "لم يُحدَّد حساب «الإيجار المقبوض مقدماً» لعقد التأجير هذا ولا يوجد حساب «إيجارات مقبوضة مقدماً» في شجرة الشركة — حدّد الحساب في بيانات العقد";
 export const LEASE_REVENUE_ACCOUNT_MISSING = "لم يُحدَّد حساب إيراد الإيجار لعقد التأجير هذا ولا يوجد حساب «إيرادات إيجار» في شجرة الشركة — حدّد الحساب في بيانات العقد";
+export const LEASE_OTHER_NOT_POSTABLE = "هذا العقد ضمن «عقود أخرى» للمتابعة فقط — لا يُسجَّل له سداد أو تحصيل في هذه الشركة";
 export const LEASE_DIRECTION_LOCKED = "لا يُغيَّر اتجاه العقد (مستأجر/مؤجر) بعد تسجيل دفعات مسدَّدة عليه";
 export const LEASE_PAYMENT_NOT_DUE = "هذه الدفعة ليست بانتظار السداد";
 export const LEASE_PAYMENT_AMORTIZED = "أُطفئ جزء من هذه الدفعة في إطفاء شهري مرحَّل — أزل إطفاء الأشهر التي تشملها أولاً";
@@ -418,6 +419,7 @@ export async function confirmLeasePayment(tenantId: string, userId: string, paym
   const payment = await paymentOrThrow(tenantId, paymentId);
   if (payment.status !== "due") throw badRequest(LEASE_PAYMENT_NOT_DUE);
   const contract = payment.leaseContract;
+  if (contract.direction === "other") throw badRequest(LEASE_OTHER_NOT_POSTABLE);
   const companyId = payment.companyId;
   const external = input.postedExternally === true;
 
@@ -648,6 +650,7 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
     // totals = عقود الشركة مستأجرةً (المدفوعات)؛ totalsLessor = عقود التأجير للغير (التحصيلات) — لا يُجمع الاتجاهان
     totals: totalsOf(live.filter((r) => r.direction === "lessee")),
     totalsLessor: totalsOf(live.filter((r) => r.direction === "lessor")),
+    totalsOther: totalsOf(live.filter((r) => r.direction === "other")),
   };
 }
 
@@ -686,7 +689,8 @@ export async function leaseAlerts(tenantId: string, companyId: string) {
       const kind = daysToEnd < 0 ? "expired" : daysToDeadline < 0 ? "notice_passed" : "notice_soon";
       return { id: c.id, title: c.title, counterparty: c.counterparty, direction: c.direction, endDate, noticeDays: c.noticeDays, autoRenew: c.autoRenew, noticeDeadline: deadline, daysToDeadline, daysToEnd, kind };
     })
-    .filter((r) => r.daysToDeadline <= LEASE_ALERT_RENEWAL_WITHIN_DAYS)
+    // عقود «أخرى» للمتابعة فقط: لا تنبيهات تجديد ولا دفع عليها في هذه الشركة
+    .filter((r) => r.direction !== "other" && r.daysToDeadline <= LEASE_ALERT_RENEWAL_WITHIN_DAYS)
     .sort((a, b) => a.daysToDeadline - b.daysToDeadline);
   // المدفوعات (الشركة مستأجرة) والتحصيلات (الشركة مؤجرة) منفصلة
   const pay = paymentRows.filter((p) => p.direction === "lessee");
@@ -755,7 +759,7 @@ function assertMonth(month: string) {
 async function amortizationRows(db: Db, tenantId: string, companyId: string, month: string) {
   const monthEnd = dayToDate(monthEndDay(month));
   const payments = await db.leasePayment.findMany({
-    where: { tenantId, companyId, status: "paid", periodFrom: { lte: monthEnd } },
+    where: { tenantId, companyId, status: "paid", periodFrom: { lte: monthEnd }, leaseContract: { direction: { not: "other" } } },
     include: { leaseContract: true, amortizationLines: { select: { amount: true } } },
     orderBy: [{ periodFrom: "asc" }, { createdAt: "asc" }],
   });
@@ -791,7 +795,7 @@ async function amortizationRows(db: Db, tenantId: string, companyId: string, mon
 /** دفعات لم تُسدَّد تغطي الشهر: مصروفها لا يدخل الإطفاء حتى تُسدَّد — تُعرَض تنبيهاً في المعاينة. */
 async function unpaidCoveringMonth(tenantId: string, companyId: string, month: string) {
   const rows = await prisma.leasePayment.findMany({
-    where: { tenantId, companyId, status: "due", periodFrom: { lte: dayToDate(monthEndDay(month)) }, periodTo: { gte: dayToDate(`${month}-01`) } },
+    where: { tenantId, companyId, status: "due", periodFrom: { lte: dayToDate(monthEndDay(month)) }, periodTo: { gte: dayToDate(`${month}-01`) }, leaseContract: { direction: { not: "other" } } },
     include: { leaseContract: { select: { title: true } } },
     orderBy: { dueDate: "asc" },
   });
@@ -956,6 +960,7 @@ export async function importLeaseContracts(tenantId: string, userId: string, com
   const unknownCostCenters = [...new Set(contracts.map((c) => c.costCenterName?.trim()).filter((n): n is string => !!n && !costCenterId.has(n)))];
   if (unknownCostCenters.length > 0) throw badRequest("في ملف الاستيراد مركز تكلفة غير موجود في الشركة — أضفه من شاشة مراكز التكلفة أو اترك الخانة فارغة", { costCenters: unknownCostCenters });
 
+  if (contracts.some((c) => c.direction === "other" && c.payments.some((p) => p.status === "paid_external"))) throw badRequest(LEASE_OTHER_NOT_POSTABLE);
   return prisma.$transaction(async (tx) => {
     let paymentCount = 0;
     for (const c of contracts) {
@@ -1092,7 +1097,7 @@ async function noticeContext(tenantId: string, id: string) {
 
 export async function previewLeaseNotice(tenantId: string, id: string, kind: LeaseNoticeKind) {
   const ctx = await noticeContext(tenantId, id);
-  const letter = buildLeaseNoticeLetter({ kind, direction: ctx.c.direction, letterDate: riyadhCalendarDay(new Date()), ...ctx.letterInput });
+  const letter = buildLeaseNoticeLetter({ kind, direction: ctx.c.direction === "lessor" ? "lessor" : "lessee", letterDate: riyadhCalendarDay(new Date()), ...ctx.letterInput });
   const setting = await prisma.leaseReminderSetting.findFirst({ where: { tenantId, companyId: ctx.c.companyId }, select: { recipientEmails: true } });
   const recipients = await resolveRecipientEmails(tenantId, ctx.c.companyId, setting?.recipientEmails ?? []);
   return { ...letter, kind, noticeDeadline: ctx.deadline, recipientEmails: recipients };
@@ -1117,7 +1122,7 @@ export async function createLeaseNotice(
   await sendLeaseNoticeEmail(
     recipients,
     `${input.subject} — ${ctx.c.title}`,
-    buildLeaseNoticeEmailHtml({ companyName: ctx.company.name, contractTitle: ctx.c.title, kind: input.kind, noticeDeadline: ctx.deadline, body: input.body, direction: ctx.c.direction }),
+    buildLeaseNoticeEmailHtml({ companyName: ctx.company.name, contractTitle: ctx.c.title, kind: input.kind, noticeDeadline: ctx.deadline, body: input.body, direction: ctx.c.direction === "lessor" ? "lessor" : "lessee" }),
   );
   const sent = await prisma.leaseNotice.update({ where: { id: notice.id }, data: { sentAt: new Date() } });
   return { ...sent, letterDate: dateToDay(sent.letterDate) };

@@ -30,6 +30,7 @@ export const AR_TO_EN: Record<string, string> = {
   "العلامة التجارية غير موجودة في هذه الشركة": "The brand does not exist in this company",
   "لم يُحدَّد حساب «الإيجار المقبوض مقدماً» لعقد التأجير هذا ولا يوجد حساب «إيجارات مقبوضة مقدماً» في شجرة الشركة — حدّد الحساب في بيانات العقد": "No unearned rent account is set for this leased-out contract and the company chart has no \"إيجارات مقبوضة مقدماً\" account — set the account on the contract",
   "لم يُحدَّد حساب إيراد الإيجار لعقد التأجير هذا ولا يوجد حساب «إيرادات إيجار» في شجرة الشركة — حدّد الحساب في بيانات العقد": "No rent revenue account is set for this leased-out contract and the company chart has no \"إيرادات إيجار\" account — set the account on the contract",
+  "هذا العقد ضمن «عقود أخرى» للمتابعة فقط — لا يُسجَّل له سداد أو تحصيل في هذه الشركة": "This contract is under \"Other contracts\" for tracking only — no payment or collection is recorded for it in this company",
   "لا يُغيَّر اتجاه العقد (مستأجر/مؤجر) بعد تسجيل دفعات مسدَّدة عليه": "The contract direction (lessee/lessor) cannot change after payments on it are settled",
   "اختر حساب البنك/الصندوق الذي حُصِّلت فيه الدفعة": "Choose the bank/cash account the payment was collected into",
   "رابط الموقع يجب أن يبدأ بـ https://": "The location link must start with https://",

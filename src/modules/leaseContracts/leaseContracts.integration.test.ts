@@ -660,4 +660,33 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     const row = prev.body.rows.find((r: any) => r.leaseContractId === id);
     expect([row.direction, row.amount]).toEqual(["lessor", 10000]);
   });
+
+  it("keeps 'other' (tracking-only) contracts out of postings, payable/collection totals and alerts", async () => {
+    const b = ctx.b;
+    const created = await call("POST", "/lease-contracts", b.token, {
+      companyId: b.companyId, title: "محطة باسم شركة شقيقة", counterparty: "مؤجر المحطة", direction: "other", category: "fuel_station",
+      startDate: riyadhCalendarDay(new Date()), endDate: addDays(riyadhCalendarDay(new Date()), 400), vatMode: "inclusive",
+      paymentAmount: 57500, paymentEveryMonths: 6, firstDueDate: riyadhCalendarDay(new Date()),
+    });
+    expect(created.status, created.text).toBe(201);
+    expect(created.body.direction).toBe("other");
+    expect((await call("POST", `/lease-contracts/${created.body.id}/schedule`, b.token, {})).status).toBe(201);
+    const today = riyadhCalendarDay(new Date());
+    const cal = await call("GET", `/lease-contracts/calendar?companyId=${b.companyId}&from=${today}&to=${addDays(today, 400)}`, b.token);
+    const mine = (cal.body.payments as any[]).filter((p) => p.leaseContractId === created.body.id);
+    expect(mine.length).toBeGreaterThan(0);
+    expect(mine.every((p) => p.direction === "other")).toBe(true);
+    expect(cal.body.totalsOther.due).toBe(mine.reduce((x: number, p: any) => x + p.amount, 0));
+    // لا سداد ولا تحصيل
+    const refused = await call("POST", `/lease-contracts/payments/${mine[0].id}/confirm`, b.token, { paidOn: today, bankAccountId: b.bankAccountId });
+    expect(refused.status).toBe(400);
+    expect(refused.body.error).toContain("للمتابعة فقط");
+    const external = await call("POST", `/lease-contracts/payments/${mine[0].id}/confirm`, b.token, { paidOn: today, postedExternally: true });
+    expect(external.status).toBe(400);
+    // ولا تنبيهات دفع أو تجديد
+    const alerts = await call("GET", `/lease-contracts/alerts?companyId=${b.companyId}`, b.token);
+    const ids = [...alerts.body.overdue, ...alerts.body.dueSoon, ...alerts.body.collectOverdue, ...alerts.body.collectSoon, ...alerts.body.renewals].map((r: any) => r.leaseContractId ?? r.id);
+    expect(ids).not.toContain(created.body.id);
+    expect(ids.some((id: string) => mine.some((p) => p.id === id))).toBe(false);
+  });
 });
