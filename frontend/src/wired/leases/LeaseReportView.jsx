@@ -84,6 +84,7 @@ export default function LeaseReportView({ contracts, brands, companyName, today,
           <select value={f.direction} onChange={(e) => setF({ ...f, direction: e.target.value })}>
             <option value="lessee">{t("leases.direction.lesseeTab")}</option>
             <option value="lessor">{t("leases.direction.lessorTab")}</option>
+            <option value="other">{t("leases.direction.otherTab")}</option>
             <option value="all">{t("leases.report.all")}</option>
           </select>
         </label>

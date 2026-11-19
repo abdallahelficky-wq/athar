@@ -30,7 +30,7 @@ const contractDetails = {
   noticeDays: noticeDays.nullable().optional(),
   lessorDetails: lessorDetails.nullable().optional(),
   propertyDetails: propertyDetails.nullable().optional(),
-  direction: z.enum(["lessee", "lessor"]).optional(),
+  direction: z.enum(["lessee", "lessor", "other"]).optional(),
   category: z.enum(LEASE_CATEGORIES).nullable().optional(),
 };
 

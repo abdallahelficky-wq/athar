@@ -204,14 +204,16 @@ export default function LeasesTab({ companyId, companyName = "" }) {
   const dirOf = (c) => c.direction || "lessee";
   const contracts = allContracts.filter((c) => dirOf(c) === direction);
   const payments = (data?.payments || []).filter((p) => (p.direction || "lessee") === direction);
-  const totals = (direction === "lessor" ? data?.totalsLessor : data?.totals) || {};
+  const totals = (direction === "lessor" ? data?.totalsLessor : direction === "other" ? data?.totalsOther : data?.totals) || {};
+  const isOther = direction === "other";
   const isLessor = direction === "lessor";
-  const kpiKey = (k) => (isLessor ? `leases.kpiLessor.${k}` : `leases.kpi.${k}`);
+  const kpiKey = (k) => (isLessor ? `leases.kpiLessor.${k}` : direction === "other" ? `leases.kpiOther.${k}` : `leases.kpi.${k}`);
   const cityOf = (c) => (c.propertyDetails?.city || "").trim();
   const cityOptions = [...new Set(contracts.map(cityOf).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
   // معاينة القيد قبل التأكيد فقط (15%): الخادم يفصل الضريبة بنسبة الشركة عند الترحيل
   const previewGross = Number(form.amountInput || 0);
   const formIsLessor = contractOf(form.leaseContractId)?.direction === "lessor";
+  const formIsOther = contractOf(form.leaseContractId)?.direction === "other";
   const previewVat = contractOf(form.leaseContractId)?.vatMode === "inclusive" ? Math.round((previewGross * 15 / 115) * 100) / 100 : 0;
   const kpis = [
     { key: "due", value: totals.due, tone: "revenue" }, { key: "paid", value: totals.paid, tone: "profit" },
@@ -269,17 +271,18 @@ export default function LeasesTab({ companyId, companyName = "" }) {
             <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importFile} />
             <button className="ls-btn ls-btn-glass" onClick={openReminder}>{t("leases.reminder.btn")}</button>
             <button className="ls-btn ls-btn-glass" onClick={() => { setError(""); setBrandsOpen(true); }}>{t("leases.brands.btn")}</button>
-            <button className="ls-btn ls-btn-glass" onClick={() => open("accounts", { expenseAccountId: "", prepaidAccountId: "", onlyMissing: true, direction })} disabled={!contracts.length}>{t("leases.accountsBtn")}</button>
+            <button className="ls-btn ls-btn-glass" onClick={() => open("accounts", { expenseAccountId: "", prepaidAccountId: "", onlyMissing: true, direction })} disabled={!contracts.length || isOther}>{t("leases.accountsBtn")}</button>
             <button className="ls-btn ls-btn-accent" onClick={() => openContract(null)}>+ {t("leases.newContract")}</button>
           </div>
         </div>
         <div className="ls-dir" role="tablist">
-          {["lessee", "lessor"].map((d) => (
+          {["lessee", "lessor", "other"].map((d) => (
             <button key={d} type="button" role="tab" aria-selected={direction === d} className={`ls-dir-btn${direction === d ? " is-on" : ""}`} onClick={() => { setDirection(d); setOpenMonth(null); }}>
               {t(`leases.direction.${d}Tab`)} <b>{allContracts.filter((c) => dirOf(c) === d).length}</b>
             </button>
           ))}
-          {!hasLessor && <span className="ls-dir-hint">{t("leases.direction.hint")}</span>}
+          {!hasLessor && direction !== "other" && <span className="ls-dir-hint">{t("leases.direction.hint")}</span>}
+          {direction === "other" && <span className="ls-dir-hint">{t("leases.direction.otherHint")}</span>}
         </div>
         <div className="ls-chips">
           {["all", ...CONTRACT_STATUSES].map((st) => (
@@ -537,7 +540,7 @@ export default function LeasesTab({ companyId, companyName = "" }) {
                     </div>
                     <div className="ls-due-amount"><b>{fmt2(p.amount)}</b><span>{t("leases.kpi.vat")}: {fmt2(p.vatAmount)}</span></div>
                     <span className={`ls-badge pay-${tone}`}>{t(`leases.statuses.${tone}`)}{p.status === "paid" && p.paidOn ? ` · ${fmtDay(p.paidOn)}` : ""}</span>
-                    <button type="button" className={`ls-act${p.status === "paid" ? "" : " is-primary"}`} onClick={() => openPayment(p)}>{p.status === "paid" ? t("leases.cal.details") : isLessor ? t("leases.direction.collect") : t("leases.cal.pay")}</button>
+                    <button type="button" className={`ls-act${p.status === "paid" ? "" : " is-primary"}`} onClick={() => openPayment(p)}>{p.status === "paid" || isOther ? t("leases.cal.details") : isLessor ? t("leases.direction.collect") : t("leases.cal.pay")}</button>
                   </div>
                 );
               })}
@@ -646,7 +649,7 @@ export default function LeasesTab({ companyId, companyName = "" }) {
         <div className="form-grid">
           <label>{t("leases.direction.label")}
             <select value={form.direction || "lessee"} onChange={(e) => setForm({ ...form, direction: e.target.value })}>
-              <option value="lessee">{t("leases.direction.lessee")}</option><option value="lessor">{t("leases.direction.lessor")}</option>
+              <option value="lessee">{t("leases.direction.lessee")}</option><option value="lessor">{t("leases.direction.lessor")}</option><option value="other">{t("leases.direction.other")}</option>
             </select>
           </label>
           <label>{t("leases.category.label")}
@@ -836,7 +839,14 @@ export default function LeasesTab({ companyId, companyName = "" }) {
           </>
         )}
 
-        {form.status === "due" && form.mode === "view" && (
+        {form.status === "due" && form.mode === "view" && formIsOther && (
+          <>
+            <p className="note">{t("leases.direction.otherPayNote")}</p>
+            <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.close")}</button><button className="btn-ghost" onClick={() => setForm({ ...form, mode: "edit" })}>{t("common.edit")}</button></div>
+          </>
+        )}
+
+        {form.status === "due" && form.mode === "view" && !formIsOther && (
           <>
             <div className="form-grid">
               <label>{t("leases.paidOn")}<input type="date" value={form.paidOnInput || ""} onChange={(e) => setForm({ ...form, paidOnInput: e.target.value })} /></label>
