@@ -7,6 +7,7 @@ import { fmt } from "../../legacy/constants";
 import SubTabs from "../shared/SubTabs";
 import VatPeriodBar from "../shared/VatPeriodBar";
 import { useVatFetch, useVatPeriod } from "../shared/vatPeriod";
+import { SalesScreen } from "./SalesScreen";
 
 const TABS = [
   { id: "byCustomer", labelKey: "sales.reports.tabs.byCustomer" },
@@ -49,7 +50,7 @@ export default function SalesReportsTab({ companyId, companies }) {
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
-    <div>
+    <SalesScreen icon="reports" title={t("nav.tabs.reports")} note={t("sales.screen.notes.reports")}>
       <SubTabs tabs={TABS} active={tab} onChange={setTab} />
       {["byCustomer", "byItem", "byBranch", "monthly"].includes(tab) && <div className="panel"><DateRangeBar value={range} onApply={setRange} /></div>}
 
@@ -180,6 +181,6 @@ export default function SalesReportsTab({ companyId, companies }) {
           )}
         </div>
       )}
-    </div>
+    </SalesScreen>
   );
 }

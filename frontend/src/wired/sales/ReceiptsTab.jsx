@@ -10,6 +10,7 @@ import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
 import { currencyLabel } from "../../shared/countries";
+import { SalesScreen, SalesChip, SalesInfoChip, SalesKpis, StatusBadge } from "./SalesScreen";
 
 export default function ReceiptsTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
@@ -30,6 +31,7 @@ export default function ReceiptsTab({ companyId, companies }) {
   const [attachmentsFor, setAttachmentsFor] = useState(null);
   const [viewTarget, setViewTarget] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
     if (!companyId) return;
@@ -94,8 +96,26 @@ export default function ReceiptsTab({ companyId, companies }) {
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
+  const shownReceipts = receipts.filter((r) => !statusFilter || (statusFilter === "posted" ? r.status === "posted" : r.status !== "posted"));
+
   return (
-    <div>
+    <SalesScreen
+      icon="receipts"
+      title={t("nav.tabs.receipts")}
+      note={t("sales.screen.notes.receipts")}
+      chips={<>
+        <SalesChip on={!statusFilter} onClick={() => setStatusFilter("")}>{t("salesInvoices.screen.all")}</SalesChip>
+        <SalesChip tone="ok" on={statusFilter === "posted"} onClick={() => setStatusFilter(statusFilter === "posted" ? "" : "posted")}>{t("sales.receipts.posted")}</SalesChip>
+        <SalesChip tone="wait" on={statusFilter === "draft"} onClick={() => setStatusFilter(statusFilter === "draft" ? "" : "draft")}>{t("sales.receipts.draft")}</SalesChip>
+        <SalesInfoChip count={loading ? "…" : shownReceipts.length} label={t("sales.screen.count")} />
+      </>}
+    >
+      <SalesKpis loading={loading} items={[
+        { label: t("sales.screen.count"), value: receipts.length, tone: "gray" },
+        { label: t("sales.screen.total"), value: `${fmt(receipts.reduce((sum, r) => sum + Number(r.totalAmount || 0), 0))} ${currency}`, tone: "green" },
+        { label: t("sales.receipts.posted"), value: receipts.filter((r) => r.status === "posted").length, tone: "teal" },
+        { label: t("sales.receipts.draft"), value: receipts.filter((r) => r.status !== "posted").length, tone: "amber" },
+      ]} />
       <div className="panel form-panel">
         <div className="form-grid header-grid">
           <label>{t("sales.receipts.customer")}<select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>{customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
@@ -143,8 +163,8 @@ export default function ReceiptsTab({ companyId, companies }) {
         </div>
       </div>
 
-      {loading ? <p className="empty">{t("sales.receipts.loading")}</p> : (
-        <div className="panel">
+      {loading ? <div className="panel"><p className="empty">{t("sales.receipts.loading")}</p></div> : (
+        <div className="panel ss-table">
           <table className="ledger-table">
             <thead>
               <tr>
@@ -154,13 +174,13 @@ export default function ReceiptsTab({ companyId, companies }) {
               </tr>
             </thead>
             <tbody>
-              {receipts.map((r) => (
+              {shownReceipts.map((r) => (
                 <React.Fragment key={r.id}>
                   <tr>
                     <td>{r.receiptNumber}</td><td>{r.customer?.name}</td><td>{r.date.slice(0, 10)}</td>
                     <td>{r.method === "cash" ? t("sales.receipts.methodCash") : `${t("sales.receipts.methodBank")}${r.bankAccount ? ` (${r.bankAccount.name})` : ""}`}</td>
                     <td className="num">{fmt(r.totalAmount)}</td>
-                    <td><span className="status-badge">{r.status === "posted" ? t("sales.receipts.posted") : t("sales.receipts.draft")}</span></td>
+                    <td><StatusBadge tone={r.status === "posted" ? "ok" : "wait"}>{r.status === "posted" ? t("sales.receipts.posted") : t("sales.receipts.draft")}</StatusBadge></td>
                     <td className="row-actions">
                       <button className="btn-ghost" onClick={() => setViewTarget({ receipt: r, autoPrint: false })}>{t("sales.receipts.view")}</button>
                       <button className="btn-ghost" onClick={() => setViewTarget({ receipt: r, autoPrint: true })}>{t("common.print")}</button>
@@ -185,6 +205,6 @@ export default function ReceiptsTab({ companyId, companies }) {
 
       {viewTarget && viewTarget.receipt.companyId === companyId && <ReceiptViewModal receipt={viewTarget.receipt} company={companies?.find(c => c.id === companyId)} autoPrint={viewTarget.autoPrint} onClose={() => setViewTarget(null)} />}
       {unpostTarget && <UnpostModal onCancel={() => setUnpostTarget(null)} onConfirm={doUnpost} />}
-    </div>
+    </SalesScreen>
   );
 }

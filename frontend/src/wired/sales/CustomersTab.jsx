@@ -9,6 +9,7 @@ import StatementOfAccountModal from "../StatementOfAccountModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import { currencyLabel } from "../../shared/countries";
 import { routes } from "../../routes";
+import { SalesScreen, HeroButton, SalesChip, SalesInfoChip, SalesKpis, SalesSearch } from "./SalesScreen";
 
 const emptyForm = (defaultPaymentTerms) => ({
   name: "", customerType: "business", vatNumber: "", crNumber: "", nationalId: "",
@@ -46,6 +47,7 @@ export default function CustomersTab({ companyId, companies }) {
   // حرف أثناء الكتابة السريعة.
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 200);
     return () => clearTimeout(timer);
@@ -169,26 +171,29 @@ export default function CustomersTab({ companyId, companies }) {
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
-  return (
-    <div>
-      <div className="panel form-panel">
-        <div className="customers-toolbar">
-          <div className="quick-search customers-search">
-            <span className="quick-search-icon">⌕</span>
-            <input
-              type="text"
-              className="quick-search-input"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("sales.customers.searchPlaceholder")}
-            />
-          </div>
-          <button className="btn-primary" onClick={openAddForm}>{t("sales.customers.addNew")}</button>
-        </div>
-      </div>
+  const shownCustomers = filteredCustomers.filter((c) => !typeFilter || (typeFilter === "business" ? c.customerType === "business" : c.customerType !== "business"));
 
-      {loading ? <p className="empty">{t("sales.customers.loading")}</p> : (
-        <div className="panel">
+  return (
+    <SalesScreen
+      icon="customers"
+      title={t("nav.tabs.customers")}
+      note={t("sales.screen.notes.customers")}
+      actions={<HeroButton onClick={openAddForm}>{t("sales.customers.addNew")}</HeroButton>}
+      chips={<>
+        <SalesChip on={!typeFilter} onClick={() => setTypeFilter("")}>{t("salesInvoices.screen.all")}</SalesChip>
+        <SalesChip tone="ok" on={typeFilter === "business"} onClick={() => setTypeFilter(typeFilter === "business" ? "" : "business")}>{t("sales.customers.typeBusinessShort")}</SalesChip>
+        <SalesChip tone="wait" on={typeFilter === "individual"} onClick={() => setTypeFilter(typeFilter === "individual" ? "" : "individual")}>{t("sales.customers.typeIndividualShort")}</SalesChip>
+        <SalesInfoChip count={loading ? "…" : shownCustomers.length} label={t("sales.screen.count")} />
+      </>}
+    >
+      <SalesKpis loading={loading} items={[
+        { label: t("sales.screen.count"), value: customers.length, tone: "gray" },
+        { label: t("sales.customers.typeBusinessShort"), value: customers.filter((c) => c.customerType === "business").length },
+        { label: t("sales.customers.typeIndividualShort"), value: customers.filter((c) => c.customerType !== "business").length, tone: "amber" },
+      ]} />
+      <SalesSearch value={search} onChange={setSearch} placeholder={t("sales.customers.searchPlaceholder")} onReset={() => { setSearch(""); setTypeFilter(""); }} showReset={!!search || !!typeFilter} />
+      {loading ? <div className="panel"><p className="empty">{t("sales.customers.loading")}</p></div> : (
+        <div className="panel ss-table">
           <table className="ledger-table">
             <thead>
               <tr>
@@ -198,10 +203,10 @@ export default function CustomersTab({ companyId, companies }) {
               </tr>
             </thead>
             <tbody>
-              {filteredCustomers.map((c) => (
+              {shownCustomers.map((c) => (
                 <tr key={c.id}>
-                  <td>{c.name}</td>
-                  <td>{c.customerType === "business" ? t("sales.customers.typeBusinessShort") : t("sales.customers.typeIndividualShort")}</td>
+                  <td><button type="button" className="ls-link" onClick={() => setStatementFor(c)}>{c.name}</button></td>
+                  <td><span className={`ls-tag${c.customerType === "business" ? " is-ok" : " is-warn"}`}>{c.customerType === "business" ? t("sales.customers.typeBusinessShort") : t("sales.customers.typeIndividualShort")}</span></td>
                   <td>{c.vatNumber || "—"}</td>
                   <td>{c.paymentTerms || "—"}</td>
                   <td className="num">{c.creditLimit ? fmt(c.creditLimit) : "—"}</td>
@@ -215,7 +220,7 @@ export default function CustomersTab({ companyId, companies }) {
                   </td>
                 </tr>
               ))}
-              {customers.length > 0 && filteredCustomers.length === 0 && (
+              {customers.length > 0 && shownCustomers.length === 0 && (
                 <tr><td className="empty" colSpan={6}>{t("sales.customers.noSearchResults")}</td></tr>
               )}
               {customers.length === 0 && <tr><td className="empty" colSpan={6}>{t("sales.customers.empty")}</td></tr>}
@@ -320,6 +325,6 @@ export default function CustomersTab({ companyId, companies }) {
       )}
 
       <ToastHost toast={toast} onDismiss={dismiss} />
-    </div>
+    </SalesScreen>
   );
 }

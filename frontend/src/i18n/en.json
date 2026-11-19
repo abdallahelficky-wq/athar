@@ -655,6 +655,7 @@
     "noMemo": "—"
   },
   "sales": {
+    "screen": {"count": "Count", "total": "Total", "search": "Quick search by number or customer name…", "notes": {"customers": "Company customers, their details and payment terms, with each customer's statement one click away.", "quotations": "Customer quotations, and converting an accepted quotation straight into an invoice.", "returns": "Credit notes and sales returns with posting and ZATCA status for each note.", "receipts": "Collect customer dues and allocate the amount across their open invoices.", "stations": "Record daily fuel sales per station by liters and price.", "reports": "Sales reports by customer, item, branch and month.", "settings": "Invoice template, payment terms and sales settings per company."}},
     "customers": {
       "editingBanner": "Editing customer — {{name}}",
       "addNew": "+ New customer",
