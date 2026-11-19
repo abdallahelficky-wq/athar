@@ -842,7 +842,15 @@ export default function LeasesTab({ companyId, companyName = "" }) {
         {form.status === "due" && form.mode === "view" && formIsOther && (
           <>
             <p className="note">{t("leases.direction.otherPayNote")}</p>
-            <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.close")}</button><button className="btn-ghost" onClick={() => setForm({ ...form, mode: "edit" })}>{t("common.edit")}</button></div>
+            <div className="form-grid">
+              <label>{t("leases.paidOn")}<input type="date" value={form.paidOnInput || ""} onChange={(e) => setForm({ ...form, paidOnInput: e.target.value })} /></label>
+              <label>{t("leases.paidAmount")}<input type="number" step="0.01" min="0" value={form.amountInput ?? ""} onChange={(e) => setForm({ ...form, amountInput: e.target.value })} /></label>
+              <label style={{ gridColumn: "1 / -1" }}>{t("leases.notes")}<input value={form.noteInput || ""} onChange={(e) => setForm({ ...form, noteInput: e.target.value })} /></label>
+            </div>
+            {error && <p className="balance-bad">{error}</p>}
+            <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.close")}</button><button className="btn-ghost" onClick={() => setForm({ ...form, mode: "edit" })}>{t("common.edit")}</button>
+              <button className="btn-primary" onClick={() => run(() => api.confirmLeasePayment(form.id, { paidOn: form.paidOnInput, amount: Number(form.amountInput), note: form.noteInput || null, postedExternally: true }), "leases.savedOk")}>{t("leases.direction.otherMarkPaid")}</button>
+            </div>
           </>
         )}
 

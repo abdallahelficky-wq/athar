@@ -681,8 +681,12 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     const refused = await call("POST", `/lease-contracts/payments/${mine[0].id}/confirm`, b.token, { paidOn: today, bankAccountId: b.bankAccountId });
     expect(refused.status).toBe(400);
     expect(refused.body.error).toContain("للمتابعة فقط");
-    const external = await call("POST", `/lease-contracts/payments/${mine[0].id}/confirm`, b.token, { paidOn: today, postedExternally: true });
-    expect(external.status).toBe(400);
+    // يُعلَّم مسدَّداً «خارج النظام» بلا قيد، ولا يدخل الإطفاء
+    const external = await call("POST", `/lease-contracts/payments/${mine[0].id}/confirm`, b.token, { paidOn: today, postedExternally: true, amount: 40000 });
+    expect(external.status, external.text).toBe(200);
+    expect([external.body.status, external.body.journalEntryId]).toEqual(["paid", null]);
+    const amort = await preview(b, today.slice(0, 7));
+    expect((amort.body.rows as any[]).some((r) => r.leasePaymentId === mine[0].id)).toBe(false);
     // ولا تنبيهات دفع أو تجديد
     const alerts = await call("GET", `/lease-contracts/alerts?companyId=${b.companyId}`, b.token);
     const ids = [...alerts.body.overdue, ...alerts.body.dueSoon, ...alerts.body.collectOverdue, ...alerts.body.collectSoon, ...alerts.body.renewals].map((r: any) => r.leaseContractId ?? r.id);
