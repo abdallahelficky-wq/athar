@@ -8,7 +8,7 @@ import { riyadhCalendarDay } from "../../lib/riyadhDate";
 import { addDays } from "../../lib/leaseSchedule";
 import { runDueLeaseReminders } from "../../lib/leaseReminderScheduler";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
-import { INPUT_VAT_ACCOUNT_NAME } from "../../lib/vatAccounts";
+import { INPUT_VAT_ACCOUNT_NAME, OUTPUT_VAT_ACCOUNT_NAME } from "../../lib/vatAccounts";
 import { register } from "../auth/auth.service";
 import { LEASE_AMORTIZATION_ENTRY_LOCKED, LEASE_PAYMENT_ENTRY_LOCKED } from "../journalEntries/journalEntries.service";
 import {
@@ -614,5 +614,50 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     })).status).toBe(400);
     const list = await call("GET", `/lease-contracts/${a.contractId}/notices`, a.token);
     expect(list.body.map((n: any) => [n.kind, n.tenantId])).toEqual([["termination", a.tenantId]]);
+  });
+
+  it("posts a leased-out (lessor) contract as collection + unearned rent, amortizes it to revenue, and keeps its totals apart", async () => {
+    const b = ctx.b;
+    const posting = (type: "revenue" | "liability") =>
+      prisma.account.findFirstOrThrow({ where: { tenantId: b.tenantId, companyId: b.companyId, type, isPosting: true, isActive: true, isArchived: false, isBankOrCash: false }, orderBy: { code: "asc" } });
+    const [revenue, unearned] = await Promise.all([posting("revenue"), posting("liability")]);
+    const created = await call("POST", "/lease-contracts", b.token, {
+      companyId: b.companyId, title: "مطعم داخل المحطة", counterparty: "مستأجر المطعم", direction: "lessor", category: "shop_restaurant",
+      startDate: "2027-01-01", endDate: "2027-06-30", vatMode: "inclusive", paymentAmount: 69000, paymentEveryMonths: 6, firstDueDate: "2027-01-01",
+      expenseAccountId: revenue.id, prepaidAccountId: unearned.id,
+      propertyDetails: { city: "جدة", mapUrl: "https://maps.google.com/?q=21.5,39.2" },
+    });
+    expect(created.status, created.text).toBe(201);
+    expect([created.body.direction, created.body.category]).toEqual(["lessor", "shop_restaurant"]);
+    const id = created.body.id;
+    // رابط غير http(s) مرفوض
+    expect((await call("PATCH", `/lease-contracts/${id}`, b.token, { propertyDetails: { mapUrl: "javascript:alert(1)" } })).status).toBe(400);
+
+    expect((await call("POST", `/lease-contracts/${id}/schedule`, b.token, {})).status).toBe(201);
+    const cal = await calendar(b);
+    const pay = (cal.body.payments as any[]).find((p) => p.leaseContractId === id);
+    expect(pay.direction).toBe("lessor");
+    // تحصيلات المؤجر لا تدخل مجاميع المدفوعات
+    expect(cal.body.totalsLessor.due).toBe(69000);
+    const lesseeDue = (cal.body.payments as any[]).filter((p) => p.direction === "lessee" && p.status !== "waived" && !p.onHold).reduce((x, p) => x + p.amount, 0);
+    expect(cal.body.totals.due).toBeCloseTo(lesseeDue, 2);
+
+    const confirmed = await call("POST", `/lease-contracts/payments/${pay.id}/confirm`, b.token, { paidOn: "2027-01-05", bankAccountId: b.bankAccountId });
+    expect(confirmed.status, confirmed.text).toBe(200);
+    const outputVat = await accountId(b, OUTPUT_VAT_ACCOUNT_NAME);
+    expect(await entryLines(confirmed.body.journalEntryId)).toEqual([
+      { accountId: b.bankAccountId, costCenterId: null, debit: 69000, credit: 0 },
+      { accountId: unearned.id, costCenterId: null, debit: 0, credit: 60000 },
+      { accountId: outputVat, costCenterId: null, debit: 0, credit: 9000 },
+    ].sort((x, y) => y.debit - x.debit || y.credit - x.credit));
+
+    // لا يُغيَّر الاتجاه بعد التحصيل
+    const locked = await call("PATCH", `/lease-contracts/${id}`, b.token, { direction: "lessee" });
+    expect(locked.status).toBe(400);
+    expect(locked.body.error).toContain("لا يُغيَّر اتجاه العقد");
+
+    const prev = await preview(b, "2027-01");
+    const row = prev.body.rows.find((r: any) => r.leaseContractId === id);
+    expect([row.direction, row.amount]).toEqual(["lessor", 10000]);
   });
 });

@@ -244,3 +244,15 @@ button.ls-chip:hover { background: rgba(255, 255, 255, 0.22); transform: transla
 .ls-rbar .ls-view-spacer { flex: 1; }
 .ls-rframe { width: 100%; min-height: 600px; border: 1px solid var(--line); border-radius: 14px; background: #F2F4F6; }
 @media (max-width: 760px) { .ls-rfilters { grid-template-columns: 1fr; } }
+
+/* ---------- اتجاه العقود (نستأجر / نؤجر للغير) ---------- */
+.ls-dir { position: relative; z-index: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.ls-dir-btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.1); color: #fff; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.ls-dir-btn b { min-width: 24px; height: 22px; padding: 0 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.22); font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.ls-dir-btn.is-on { background: #fff; color: var(--ej-dark); border-color: #fff; box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18); }
+.ls-dir-btn.is-on b { background: var(--ej-mint); color: var(--ej-dark); }
+.ls-dir-hint { font-size: 12px; opacity: 0.8; }
+.ls-filter select { height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; font: inherit; font-size: 13.5px; background: #fff; color: var(--ink-2); }
+.ls-tag.is-cat { background: #EEF0FB; color: #3B4A8C; }
+.ls-tag.ls-tag-map { background: #E7F0FD; color: #1A56B8; text-decoration: none; }
+.ls-tag.ls-tag-map:hover { background: #D5E5FB; }

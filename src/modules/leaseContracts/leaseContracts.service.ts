@@ -1,8 +1,8 @@
-import { LeasePaymentStatus, LeaseVatMode, Prisma } from "@prisma/client";
+import { LeaseCategory, LeaseDirection, LeasePaymentStatus, LeaseVatMode, Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { badRequest, notFound } from "../../lib/httpError";
 import { assertValidUnlockPin, createJournalEntryTx, deleteJournalEntryTx, recomputeEntryTotal, reserveEntryNumber, writeUnpostAuditLogTx, type PostingLine } from "../../lib/journalPosting";
-import { INPUT_VAT_ACCOUNT_NAME } from "../../lib/vatAccounts";
+import { INPUT_VAT_ACCOUNT_NAME, OUTPUT_VAT_ACCOUNT_NAME } from "../../lib/vatAccounts";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { companyVatRatePercent } from "../../lib/companyVat";
 import { env } from "../../config/env";
@@ -38,6 +38,11 @@ export const LEASE_EXPENSE_ACCOUNT_NAME = "إيجار مواقع/فروع";
 
 export const LEASE_PREPAID_ACCOUNT_MISSING = "لم يُحدَّد حساب «إيجار مدفوع مقدماً» لهذا العقد ولا يوجد حساب «إيجارات مدفوعة مقدماً» في شجرة الشركة — حدّد الحساب في بيانات العقد";
 export const LEASE_EXPENSE_ACCOUNT_MISSING = "لم يُحدَّد حساب مصروف الإيجار لهذا العقد ولا يوجد حساب «إيجار مواقع/فروع» في شجرة الشركة — حدّد الحساب في بيانات العقد";
+export const LEASE_UNEARNED_ACCOUNT_NAME = "إيجارات مقبوضة مقدماً";
+export const LEASE_REVENUE_ACCOUNT_NAME = "إيرادات إيجار";
+export const LEASE_UNEARNED_ACCOUNT_MISSING = "لم يُحدَّد حساب «الإيجار المقبوض مقدماً» لعقد التأجير هذا ولا يوجد حساب «إيجارات مقبوضة مقدماً» في شجرة الشركة — حدّد الحساب في بيانات العقد";
+export const LEASE_REVENUE_ACCOUNT_MISSING = "لم يُحدَّد حساب إيراد الإيجار لعقد التأجير هذا ولا يوجد حساب «إيرادات إيجار» في شجرة الشركة — حدّد الحساب في بيانات العقد";
+export const LEASE_DIRECTION_LOCKED = "لا يُغيَّر اتجاه العقد (مستأجر/مؤجر) بعد تسجيل دفعات مسدَّدة عليه";
 export const LEASE_PAYMENT_NOT_DUE = "هذه الدفعة ليست بانتظار السداد";
 export const LEASE_PAYMENT_AMORTIZED = "أُطفئ جزء من هذه الدفعة في إطفاء شهري مرحَّل — أزل إطفاء الأشهر التي تشملها أولاً";
 export const LEASE_RUN_NOT_LATEST = "لا يُزال إلا آخر شهر إطفاء مرحَّل للشركة — أزل الأشهر الأحدث أولاً";
@@ -95,6 +100,8 @@ export interface ContractInput {
   isActive?: boolean;
   signedOn?: Date | null;
   brandId?: string | null;
+  direction?: LeaseDirection;
+  category?: LeaseCategory | null;
   contractNumber?: string | null;
   contractValue?: number | null;
   depositAmount?: number | null;
@@ -150,6 +157,10 @@ export async function updateLeaseContract(tenantId: string, id: string, input: P
   const endDate = input.endDate ?? existing.endDate;
   if (endDate < startDate) throw badRequest("تاريخ نهاية العقد يسبق تاريخ بدايته");
   await assertContractReferences(tenantId, existing.companyId, input);
+  if (input.direction && input.direction !== existing.direction) {
+    const paid = await prisma.leasePayment.count({ where: { tenantId, leaseContractId: existing.id, status: "paid" } });
+    if (paid > 0) throw badRequest(LEASE_DIRECTION_LOCKED);
+  }
   const { companyId: _companyId, ...data } = input;
   // isActive المُرسَل من مسار التعديل القديم يبقي الحالة مطابقة له؛ التغيير بسببه المكتوب من setLeaseContractStatus
   const statusSync = input.isActive !== undefined && input.isActive !== existing.isActive ? { status: input.isActive ? ("active" as const) : ("ended" as const) } : {};
@@ -230,20 +241,22 @@ export async function getLeaseContractDetails(tenantId: string, id: string) {
 }
 
 /** يضبط حسابَي الترحيل لعقود الشركة دفعة واحدة (كل العقود، أو التي لا حساب لها فقط). */
-export async function applyLeaseAccounts(tenantId: string, input: { companyId: string; expenseAccountId?: string | null; prepaidAccountId?: string | null; onlyMissing?: boolean }) {
+export async function applyLeaseAccounts(tenantId: string, input: { companyId: string; expenseAccountId?: string | null; prepaidAccountId?: string | null; onlyMissing?: boolean; direction?: LeaseDirection }) {
+  // الحسابان يُطبَّقان على عقود اتجاه واحد: حسابات المستأجر (مصروف/مدفوع مقدماً) لا تنزل على عقود التأجير ولا العكس
+  const direction = input.direction ?? "lessee";
   await companyOrThrow(tenantId, input.companyId);
   await assertContractReferences(tenantId, input.companyId, input);
   let updated = 0;
   if (input.expenseAccountId) {
     const r = await prisma.leaseContract.updateMany({
-      where: { tenantId, companyId: input.companyId, ...(input.onlyMissing ? { expenseAccountId: null } : {}) },
+      where: { tenantId, companyId: input.companyId, direction, ...(input.onlyMissing ? { expenseAccountId: null } : {}) },
       data: { expenseAccountId: input.expenseAccountId },
     });
     updated = Math.max(updated, r.count);
   }
   if (input.prepaidAccountId) {
     const r = await prisma.leaseContract.updateMany({
-      where: { tenantId, companyId: input.companyId, ...(input.onlyMissing ? { prepaidAccountId: null } : {}) },
+      where: { tenantId, companyId: input.companyId, direction, ...(input.onlyMissing ? { prepaidAccountId: null } : {}) },
       data: { prepaidAccountId: input.prepaidAccountId },
     });
     updated = Math.max(updated, r.count);
@@ -380,6 +393,13 @@ async function resolveLeaseAccount(tenantId: string, companyId: string, explicit
   }
 }
 
+/** حسابا العقد حسب اتجاهه: deferral = مدفوع مقدماً (أصل) للمستأجر / مقبوض مقدماً (التزام) للمؤجر؛ pnl = مصروف / إيراد. */
+function leaseAccountNames(direction: LeaseDirection) {
+  return direction === "lessor"
+    ? { deferral: LEASE_UNEARNED_ACCOUNT_NAME, deferralMissing: LEASE_UNEARNED_ACCOUNT_MISSING, pnl: LEASE_REVENUE_ACCOUNT_NAME, pnlMissing: LEASE_REVENUE_ACCOUNT_MISSING }
+    : { deferral: LEASE_PREPAID_ACCOUNT_NAME, deferralMissing: LEASE_PREPAID_ACCOUNT_MISSING, pnl: LEASE_EXPENSE_ACCOUNT_NAME, pnlMissing: LEASE_EXPENSE_ACCOUNT_MISSING };
+}
+
 export interface ConfirmPaymentInput {
   paidOn: string;
   bankAccountId?: string;
@@ -421,19 +441,31 @@ export async function confirmLeasePayment(tenantId: string, userId: string, paym
     return prisma.leasePayment.findUniqueOrThrow({ where: { id: payment.id } });
   }
 
-  if (!input.bankAccountId) throw badRequest("اختر حساب البنك/الصندوق الذي سُدِّدت منه الدفعة");
+  if (!input.bankAccountId) throw badRequest(contract.direction === "lessor" ? "اختر حساب البنك/الصندوق الذي حُصِّلت فيه الدفعة" : "اختر حساب البنك/الصندوق الذي سُدِّدت منه الدفعة");
   const bank = await prisma.account.findFirst({
     where: { id: input.bankAccountId, tenantId, companyId, isPosting: true, isActive: true, isArchived: false, isBankOrCash: true },
     select: { id: true },
   });
   if (!bank) throw badRequest("حساب السداد يجب أن يكون حساب بنك/نقدية للترحيل من نفس الشركة");
-  const prepaidAccountId = await resolveLeaseAccount(tenantId, companyId, contract.prepaidAccountId, LEASE_PREPAID_ACCOUNT_NAME, LEASE_PREPAID_ACCOUNT_MISSING);
-  const inputVatAccountId = split.vatAmount > 0 ? await getAccountIdByName(tenantId, companyId, INPUT_VAT_ACCOUNT_NAME) : null;
+  const names = leaseAccountNames(contract.direction);
+  const deferralAccountId = await resolveLeaseAccount(tenantId, companyId, contract.prepaidAccountId, names.deferral, names.deferralMissing);
+  const lessor = contract.direction === "lessor";
+  const vatAccountId = split.vatAmount > 0 ? await getAccountIdByName(tenantId, companyId, lessor ? OUTPUT_VAT_ACCOUNT_NAME : INPUT_VAT_ACCOUNT_NAME) : null;
 
-  const description = `سداد إيجار — ${contract.title} — عن ${dateToDay(payment.periodFrom)} إلى ${dateToDay(payment.periodTo)}`;
-  const lines: PostingLine[] = [{ accountId: prepaidAccountId, costCenterId: contract.costCenterId, lineDescription: description, debit: split.netAmount, credit: 0 }];
-  if (inputVatAccountId) lines.push({ accountId: inputVatAccountId, lineDescription: `ضريبة المدخلات — ${description}`, debit: split.vatAmount, credit: 0 });
-  lines.push({ accountId: bank.id, lineDescription: description, debit: 0, credit: split.amount });
+  const period = `${contract.title} — عن ${dateToDay(payment.periodFrom)} إلى ${dateToDay(payment.periodTo)}`;
+  const description = lessor ? `تحصيل إيجار — ${period}` : `سداد إيجار — ${period}`;
+  // المستأجر: مدين مدفوع مقدماً + ضريبة مدخلات / دائن البنك. المؤجر: مدين البنك / دائن مقبوض مقدماً + ضريبة مخرجات.
+  const lines: PostingLine[] = lessor
+    ? [
+      { accountId: bank.id, lineDescription: description, debit: split.amount, credit: 0 },
+      { accountId: deferralAccountId, costCenterId: contract.costCenterId, lineDescription: description, debit: 0, credit: split.netAmount },
+      ...(vatAccountId ? [{ accountId: vatAccountId, lineDescription: `ضريبة المخرجات — ${description}`, debit: 0, credit: split.vatAmount }] : []),
+    ]
+    : [
+      { accountId: deferralAccountId, costCenterId: contract.costCenterId, lineDescription: description, debit: split.netAmount, credit: 0 },
+      ...(vatAccountId ? [{ accountId: vatAccountId, lineDescription: `ضريبة المدخلات — ${description}`, debit: split.vatAmount, credit: 0 }] : []),
+      { accountId: bank.id, lineDescription: description, debit: 0, credit: split.amount },
+    ];
 
   return prisma.$transaction(async (tx) => {
     // المطالبة بالدفعة أولاً (due ← paid) داخل المعاملة: تأكيدان متزامنان لا ينشئان قيدين
@@ -540,6 +572,7 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
   const costCenterName = new Map(costCenters.map((c) => [c.id, c.name]));
   const today = riyadhCalendarDay(new Date());
   const inactiveContractIds = new Set(contracts.filter((c) => !c.isActive).map((c) => c.id));
+  const directionOf = new Map(contracts.map((c) => [c.id, c.direction]));
 
   const rows = payments.map((p) => {
     const dueDate = dateToDay(p.dueDate);
@@ -548,6 +581,7 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
     return {
       id: p.id,
       leaseContractId: p.leaseContractId,
+      direction: directionOf.get(p.leaseContractId) ?? "lessee",
       dueDate,
       month: dueDate.slice(0, 7),
       periodFrom: dateToDay(p.periodFrom),
@@ -581,13 +615,21 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
     months.set(r.month, m);
   }
   const live = rows.filter((r) => r.status !== "waived" && !r.onHold);
+  const totalsOf = (list: typeof live) => ({
+    due: sumMoney(list.map((r) => r.amount)),
+    paid: sumMoney(list.filter((r) => r.status === "paid").map((r) => r.amount)),
+    outstanding: sumMoney(list.filter((r) => r.status === "due").map((r) => r.amount)),
+    overdue: sumMoney(list.filter((r) => r.overdue).map((r) => r.amount)),
+    overdueCount: list.filter((r) => r.overdue).length,
+    vat: sumMoney(list.map((r) => r.vatAmount)),
+  });
 
   return {
     from: range.from,
     to: range.to,
     today,
     contracts: contracts.map((c) => ({
-      id: c.id, title: c.title, counterparty: c.counterparty, vatMode: c.vatMode, isActive: c.isActive,
+      id: c.id, title: c.title, counterparty: c.counterparty, vatMode: c.vatMode, isActive: c.isActive, direction: c.direction, category: c.category,
       attachmentCount: attachmentCount.get(c.id) ?? 0,
       brandId: c.brandId, brandName: c.brand?.name ?? null, brandColor: c.brand?.color ?? null,
       status: c.status, statusReason: c.statusReason, statusDate: day(c.statusDate), statusHistory: Array.isArray(c.statusHistory) ? c.statusHistory : [],
@@ -603,14 +645,9 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
     months: [...months.values()]
       .sort((a, b) => a.month.localeCompare(b.month))
       .map((m) => ({ month: m.month, due: sumMoney(m.due), paid: sumMoney(m.paid), outstanding: sumMoney(m.outstanding), vat: sumMoney(m.vat), count: m.count })),
-    totals: {
-      due: sumMoney(live.map((r) => r.amount)),
-      paid: sumMoney(live.filter((r) => r.status === "paid").map((r) => r.amount)),
-      outstanding: sumMoney(live.filter((r) => r.status === "due").map((r) => r.amount)),
-      overdue: sumMoney(live.filter((r) => r.overdue).map((r) => r.amount)),
-      overdueCount: live.filter((r) => r.overdue).length,
-      vat: sumMoney(live.map((r) => r.vatAmount)),
-    },
+    // totals = عقود الشركة مستأجرةً (المدفوعات)؛ totalsLessor = عقود التأجير للغير (التحصيلات) — لا يُجمع الاتجاهان
+    totals: totalsOf(live.filter((r) => r.direction === "lessee")),
+    totalsLessor: totalsOf(live.filter((r) => r.direction === "lessor")),
   };
 }
 
@@ -629,14 +666,14 @@ export async function leaseAlerts(tenantId: string, companyId: string) {
     prisma.leaseContract.findMany({ where: { tenantId, companyId, isActive: true }, orderBy: { endDate: "asc" } }),
     prisma.leasePayment.findMany({
       where: { tenantId, companyId, status: "due", dueDate: { lte: horizon }, leaseContract: { isActive: true } },
-      include: { leaseContract: { select: { title: true, counterparty: true } } },
+      include: { leaseContract: { select: { title: true, counterparty: true, direction: true } } },
       orderBy: { dueDate: "asc" },
     }),
   ]);
   const paymentRows = payments.map((p) => {
     const dueDate = dateToDay(p.dueDate);
     return {
-      id: p.id, leaseContractId: p.leaseContractId, title: p.leaseContract.title, counterparty: p.leaseContract.counterparty,
+      id: p.id, leaseContractId: p.leaseContractId, title: p.leaseContract.title, counterparty: p.leaseContract.counterparty, direction: p.leaseContract.direction,
       dueDate, amount: Number(p.amount), days: daysBetween(today, dueDate), note: p.note,
     };
   });
@@ -647,16 +684,22 @@ export async function leaseAlerts(tenantId: string, companyId: string) {
       const daysToDeadline = daysBetween(today, deadline);
       const daysToEnd = daysBetween(today, endDate);
       const kind = daysToEnd < 0 ? "expired" : daysToDeadline < 0 ? "notice_passed" : "notice_soon";
-      return { id: c.id, title: c.title, counterparty: c.counterparty, endDate, noticeDays: c.noticeDays, autoRenew: c.autoRenew, noticeDeadline: deadline, daysToDeadline, daysToEnd, kind };
+      return { id: c.id, title: c.title, counterparty: c.counterparty, direction: c.direction, endDate, noticeDays: c.noticeDays, autoRenew: c.autoRenew, noticeDeadline: deadline, daysToDeadline, daysToEnd, kind };
     })
     .filter((r) => r.daysToDeadline <= LEASE_ALERT_RENEWAL_WITHIN_DAYS)
     .sort((a, b) => a.daysToDeadline - b.daysToDeadline);
-  const overdue = paymentRows.filter((p) => p.days < 0);
-  const dueSoon = paymentRows.filter((p) => p.days >= 0);
+  // المدفوعات (الشركة مستأجرة) والتحصيلات (الشركة مؤجرة) منفصلة
+  const pay = paymentRows.filter((p) => p.direction === "lessee");
+  const collect = paymentRows.filter((p) => p.direction === "lessor");
+  const overdue = pay.filter((p) => p.days < 0);
+  const dueSoon = pay.filter((p) => p.days >= 0);
+  const collectOverdue = collect.filter((p) => p.days < 0);
+  const collectSoon = collect.filter((p) => p.days >= 0);
+  const sum = (list: { amount: number }[]) => sumMoney(list.map((p) => p.amount));
   return {
     today, dueWithinDays: LEASE_ALERT_DUE_WITHIN_DAYS, renewalWithinDays: LEASE_ALERT_RENEWAL_WITHIN_DAYS,
-    overdue, dueSoon, renewals,
-    totals: { overdue: sumMoney(overdue.map((p) => p.amount)), dueSoon: sumMoney(dueSoon.map((p) => p.amount)) },
+    overdue, dueSoon, collectOverdue, collectSoon, renewals,
+    totals: { overdue: sum(overdue), dueSoon: sum(dueSoon), collectOverdue: sum(collectOverdue), collectSoon: sum(collectSoon) },
   };
 }
 
@@ -729,6 +772,7 @@ async function amortizationRows(db: Db, tenantId: string, companyId: string, mon
         leasePaymentId: p.id,
         leaseContractId: p.leaseContractId,
         title: p.leaseContract.title,
+        direction: p.leaseContract.direction,
         costCenterId: p.leaseContract.costCenterId,
         expenseAccountId: p.leaseContract.expenseAccountId,
         prepaidAccountId: p.leaseContract.prepaidAccountId,
@@ -792,20 +836,34 @@ export async function postLeaseAmortization(tenantId: string, userId: string, co
     const rows = await amortizationRows(tx, tenantId, companyId, month);
     if (rows.length === 0) throw badRequest(LEASE_NOTHING_TO_AMORTIZE);
 
-    const fallback: { expense?: string; prepaid?: string } = {};
+    // حسابات احتياطية بالاسم لكل اتجاه، تُحَل مرة واحدة عند الحاجة
+    const fallback = new Map<string, string>();
+    const resolve = async (explicit: string | null, name: string, missing: string) => {
+      if (explicit) return explicit;
+      if (!fallback.has(name)) fallback.set(name, await resolveLeaseAccount(tenantId, companyId, null, name, missing));
+      return fallback.get(name)!;
+    };
     const lines: PostingLine[] = [];
     for (const r of rows) {
-      const expenseAccountId = r.expenseAccountId ?? (fallback.expense ??= await resolveLeaseAccount(tenantId, companyId, null, LEASE_EXPENSE_ACCOUNT_NAME, LEASE_EXPENSE_ACCOUNT_MISSING));
-      const prepaidAccountId = r.prepaidAccountId ?? (fallback.prepaid ??= await resolveLeaseAccount(tenantId, companyId, null, LEASE_PREPAID_ACCOUNT_NAME, LEASE_PREPAID_ACCOUNT_MISSING));
-      const description = `إيجار ${month} — ${r.title}`;
-      lines.push({ accountId: expenseAccountId, costCenterId: r.costCenterId, lineDescription: description, debit: r.amount, credit: 0 });
-      lines.push({ accountId: prepaidAccountId, costCenterId: r.costCenterId, lineDescription: description, debit: 0, credit: r.amount });
+      const names = leaseAccountNames(r.direction);
+      const pnlAccountId = await resolve(r.expenseAccountId, names.pnl, names.pnlMissing);
+      const deferralAccountId = await resolve(r.prepaidAccountId, names.deferral, names.deferralMissing);
+      if (r.direction === "lessor") {
+        // المؤجر: مدين الإيجار المقبوض مقدماً / دائن إيراد الإيجار
+        const description = `إيراد إيجار ${month} — ${r.title}`;
+        lines.push({ accountId: deferralAccountId, costCenterId: r.costCenterId, lineDescription: description, debit: r.amount, credit: 0 });
+        lines.push({ accountId: pnlAccountId, costCenterId: r.costCenterId, lineDescription: description, debit: 0, credit: r.amount });
+      } else {
+        const description = `إيجار ${month} — ${r.title}`;
+        lines.push({ accountId: pnlAccountId, costCenterId: r.costCenterId, lineDescription: description, debit: r.amount, credit: 0 });
+        lines.push({ accountId: deferralAccountId, costCenterId: r.costCenterId, lineDescription: description, debit: 0, credit: r.amount });
+      }
     }
     const total = sumMoney(rows.map((r) => r.amount));
 
     const entry = await createJournalEntryTx(tx, {
       tenantId, companyId, date: dayToDate(monthEndDay(month)),
-      memo: `إطفاء الإيجارات المدفوعة مقدماً — شهر ${month}`,
+      memo: rows.some((r) => r.direction === "lessor") ? `إطفاء الإيجارات المدفوعة والمقبوضة مقدماً — شهر ${month}` : `إطفاء الإيجارات المدفوعة مقدماً — شهر ${month}`,
       sourceModule: "lease_amortization", createdBy: userId, lines,
     });
     const run = await tx.leaseAmortizationRun.create({
@@ -860,6 +918,8 @@ export interface ImportContractInput {
   noticeDays?: number | null;
   lessorDetails?: Record<string, string | null | undefined> | null;
   propertyDetails?: Record<string, string | null | undefined> | null;
+  direction?: LeaseDirection;
+  category?: LeaseCategory | null;
   payments: { dueDate: string; periodFrom: string; periodTo: string; amount: number; status?: "due" | "waived" | "paid_external"; paidOn?: string | null; amortizeFromMonth?: string | null; note?: string | null }[];
 }
 
@@ -910,6 +970,7 @@ export async function importLeaseContracts(tenantId: string, userId: string, com
           contractValue: c.contractValue != null ? d(c.contractValue) : null, depositAmount: c.depositAmount != null ? d(c.depositAmount) : null,
           customTerms: trimmed(c.customTerms), autoRenew: c.autoRenew ?? false, noticeDays: c.noticeDays ?? null,
           lessorDetails: jsonColumn(c.lessorDetails ?? null), propertyDetails: jsonColumn(c.propertyDetails ?? null),
+          direction: c.direction ?? "lessee", category: c.category ?? null,
         },
       });
       if (c.payments.length > 0) {
@@ -1031,7 +1092,7 @@ async function noticeContext(tenantId: string, id: string) {
 
 export async function previewLeaseNotice(tenantId: string, id: string, kind: LeaseNoticeKind) {
   const ctx = await noticeContext(tenantId, id);
-  const letter = buildLeaseNoticeLetter({ kind, letterDate: riyadhCalendarDay(new Date()), ...ctx.letterInput });
+  const letter = buildLeaseNoticeLetter({ kind, direction: ctx.c.direction, letterDate: riyadhCalendarDay(new Date()), ...ctx.letterInput });
   const setting = await prisma.leaseReminderSetting.findFirst({ where: { tenantId, companyId: ctx.c.companyId }, select: { recipientEmails: true } });
   const recipients = await resolveRecipientEmails(tenantId, ctx.c.companyId, setting?.recipientEmails ?? []);
   return { ...letter, kind, noticeDeadline: ctx.deadline, recipientEmails: recipients };
@@ -1056,7 +1117,7 @@ export async function createLeaseNotice(
   await sendLeaseNoticeEmail(
     recipients,
     `${input.subject} — ${ctx.c.title}`,
-    buildLeaseNoticeEmailHtml({ companyName: ctx.company.name, contractTitle: ctx.c.title, kind: input.kind, noticeDeadline: ctx.deadline, body: input.body }),
+    buildLeaseNoticeEmailHtml({ companyName: ctx.company.name, contractTitle: ctx.c.title, kind: input.kind, noticeDeadline: ctx.deadline, body: input.body, direction: ctx.c.direction }),
   );
   const sent = await prisma.leaseNotice.update({ where: { id: notice.id }, data: { sentAt: new Date() } });
   return { ...sent, letterDate: dateToDay(sent.letterDate) };

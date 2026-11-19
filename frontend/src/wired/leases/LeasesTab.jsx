@@ -10,6 +10,7 @@ import { routes } from "../../routes";
 import LeaseDialog from "./LeaseDialog";
 import LeaseReportView from "./LeaseReportView";
 import { LeaseBrandsDialog, LeaseNoticeDialog } from "./LeaseExtras";
+import { LEASE_CATEGORIES, SAUDI_CITIES, isMapUrl } from "./leaseLists";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
 import "../../styles/lease-dialogs.css";
 import "../../styles/lease-screen.css";
@@ -32,10 +33,10 @@ const CONTRACT_STATUSES = ["active", "suspended", "stopped", "ended"];
 const SUB = { fontSize: 12, lineHeight: 1.5, opacity: 0.7, fontWeight: 400, fontFamily: "inherit" };
 const emptyContract = {
   title: "", counterparty: "", costCenterId: "", vatMode: "none", paymentAmount: "", paymentEveryMonths: "", firstDueDate: "", startDate: "", endDate: "", expenseAccountId: "", prepaidAccountId: "", notes: "", isActive: true,
-  contractNumber: "", signedOn: "", contractValue: "", depositAmount: "", noticeDays: "", autoRenew: false, customTerms: "", lessor: {}, property: {}, brandId: "",
+  contractNumber: "", signedOn: "", contractValue: "", depositAmount: "", noticeDays: "", autoRenew: false, customTerms: "", lessor: {}, property: {}, brandId: "", direction: "lessee", category: "",
 };
 const LESSOR_FIELDS = ["idNumber", "crNumber", "unifiedNumber", "vatNumber", "representative", "representativeId", "mobile", "email", "address", "iban"];
-const PROPERTY_FIELDS = ["address", "city", "unitType", "area", "deedNumber"];
+const PROPERTY_FIELDS = ["address", "city", "unitType", "area", "deedNumber", "mapUrl"];
 const ALERT_TONE = { expired: "overdue", notice_passed: "overdue", notice_soon: "due" };
 
 export default function LeasesTab({ companyId, companyName = "" }) {
@@ -60,6 +61,10 @@ export default function LeasesTab({ companyId, companyName = "" }) {
   const [brands, setBrands] = useState([]);
   const [brandsOpen, setBrandsOpen] = useState(false);
   const [noticeFor, setNoticeFor] = useState(null);
+  // اتجاه العرض: عقود نستأجرها (مدفوعات) أو عقود نؤجرها للغير (تحصيلات) — لا تُجمع مبالغ الاتجاهين معاً
+  const [direction, setDirection] = useState("lessee");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [cityFilter, setCityFilter] = useState("all");
   const fileRef = useRef(null);
 
   // تواريخ الاستحقاق والسداد أيام تقويمية مخزَّنة منتصف ليل UTC — تُعرَض بتوقيت UTC فلا تنزاح يوماً
@@ -106,13 +111,16 @@ export default function LeasesTab({ companyId, companyName = "" }) {
     ? {
       ...emptyContract, ...c, counterparty: c.counterparty || "", costCenterId: c.costCenterId || "", paymentAmount: c.paymentAmount ?? "", paymentEveryMonths: c.paymentEveryMonths ?? "", firstDueDate: c.firstDueDate || "", expenseAccountId: c.expenseAccountId || "", prepaidAccountId: c.prepaidAccountId || "", notes: c.notes || "",
       contractNumber: c.contractNumber || "", signedOn: c.signedOn || "", contractValue: c.contractValue ?? "", depositAmount: c.depositAmount ?? "", noticeDays: c.noticeDays ?? "", autoRenew: !!c.autoRenew, customTerms: c.customTerms || "",
-      lessor: { ...(c.lessorDetails || {}) }, property: { ...(c.propertyDetails || {}) }, brandId: c.brandId || "",
+      lessor: { ...(c.lessorDetails || {}) }, property: { ...(c.propertyDetails || {}) }, brandId: c.brandId || "", direction: c.direction || "lessee", category: c.category || "",
     }
-    : emptyContract);
+    : { ...emptyContract, direction });
+  // في عقد التأجير للغير بيانات الطرف الآخر بيانات المستأجر: نفس الحقول بتسمية المستأجر
+  const partyLabel = (k) => { const l = t(`leases.lessor.${k}`); return form.direction === "lessor" ? l.replace("المؤجر", "المستأجر").replace("Lessor", "Tenant") : l; };
   const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
   const details = (obj, fields) => { const out = Object.fromEntries(fields.filter((k) => (obj?.[k] || "").trim()).map((k) => [k, obj[k].trim()])); return out; };
   const saveContract = () => {
     if (!form.title?.trim() || !form.startDate || !form.endDate) { setError(t("leases.errRequired")); return undefined; }
+    if (form.property?.mapUrl?.trim() && !isMapUrl(form.property.mapUrl)) { setError(t("leases.errMapUrl")); return undefined; }
     const payload = {
       title: form.title.trim(), counterparty: form.counterparty.trim() || null, costCenterId: form.costCenterId || null, vatMode: form.vatMode,
       paymentAmount: form.paymentAmount === "" ? null : Number(form.paymentAmount), paymentEveryMonths: form.paymentEveryMonths === "" ? null : Number(form.paymentEveryMonths),
@@ -120,6 +128,7 @@ export default function LeasesTab({ companyId, companyName = "" }) {
       expenseAccountId: form.expenseAccountId || null, prepaidAccountId: form.prepaidAccountId || null, notes: form.notes.trim() || null,
       contractNumber: form.contractNumber.trim() || null, signedOn: form.signedOn || null, contractValue: num(form.contractValue), depositAmount: num(form.depositAmount),
       noticeDays: num(form.noticeDays), autoRenew: !!form.autoRenew, customTerms: form.customTerms.trim() || null, brandId: form.brandId || null,
+      direction: form.direction || "lessee", category: form.category || null,
       lessorDetails: (() => { const d = details(form.lessor, LESSOR_FIELDS); if (form.lessor?.type) d.type = form.lessor.type; return Object.keys(d).length ? d : null; })(),
       propertyDetails: (() => { const d = details(form.property, PROPERTY_FIELDS); return Object.keys(d).length ? d : null; })(),
     };
@@ -190,11 +199,19 @@ export default function LeasesTab({ companyId, companyName = "" }) {
   };
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
-  const contracts = data?.contracts || [];
-  const payments = data?.payments || [];
-  const totals = data?.totals || {};
+  const allContracts = data?.contracts || [];
+  const hasLessor = allContracts.some((c) => c.direction === "lessor");
+  const dirOf = (c) => c.direction || "lessee";
+  const contracts = allContracts.filter((c) => dirOf(c) === direction);
+  const payments = (data?.payments || []).filter((p) => (p.direction || "lessee") === direction);
+  const totals = (direction === "lessor" ? data?.totalsLessor : data?.totals) || {};
+  const isLessor = direction === "lessor";
+  const kpiKey = (k) => (isLessor ? `leases.kpiLessor.${k}` : `leases.kpi.${k}`);
+  const cityOf = (c) => (c.propertyDetails?.city || "").trim();
+  const cityOptions = [...new Set(contracts.map(cityOf).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
   // معاينة القيد قبل التأكيد فقط (15%): الخادم يفصل الضريبة بنسبة الشركة عند الترحيل
   const previewGross = Number(form.amountInput || 0);
+  const formIsLessor = contractOf(form.leaseContractId)?.direction === "lessor";
   const previewVat = contractOf(form.leaseContractId)?.vatMode === "inclusive" ? Math.round((previewGross * 15 / 115) * 100) / 100 : 0;
   const kpis = [
     { key: "due", value: totals.due, tone: "revenue" }, { key: "paid", value: totals.paid, tone: "profit" },
@@ -209,6 +226,8 @@ export default function LeasesTab({ companyId, companyName = "" }) {
   const needle = search.trim().toLowerCase();
   const shownContracts = contracts
     .filter((c) => statusFilter === "all" || statusOf(c) === statusFilter)
+    .filter((c) => categoryFilter === "all" || (c.category || "none") === categoryFilter)
+    .filter((c) => cityFilter === "all" || (cityFilter === "none" ? !cityOf(c) : cityFilter.startsWith("!") ? cityOf(c) !== cityFilter.slice(1) : cityOf(c) === cityFilter))
     .filter((c) => !needle || [c.title, c.counterparty, c.contractNumber, c.costCenterName, c.brandName, c.propertyDetails?.city].some((v) => (v || "").toLowerCase().includes(needle)))
     .sort((x, y) => STATUS_ORDER[statusOf(x)] - STATUS_ORDER[statusOf(y)] || x.title.localeCompare(y.title, "ar"));
   const openStatus = (c) => open("contractStatus", { id: c.id, title: c.title, current: statusOf(c), status: statusOf(c), reason: c.statusReason || "", effectiveDate: localDay(), history: c.statusHistory || [] });
@@ -250,9 +269,17 @@ export default function LeasesTab({ companyId, companyName = "" }) {
             <input ref={fileRef} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={importFile} />
             <button className="ls-btn ls-btn-glass" onClick={openReminder}>{t("leases.reminder.btn")}</button>
             <button className="ls-btn ls-btn-glass" onClick={() => { setError(""); setBrandsOpen(true); }}>{t("leases.brands.btn")}</button>
-            <button className="ls-btn ls-btn-glass" onClick={() => open("accounts", { expenseAccountId: "", prepaidAccountId: "", onlyMissing: true })} disabled={!contracts.length}>{t("leases.accountsBtn")}</button>
+            <button className="ls-btn ls-btn-glass" onClick={() => open("accounts", { expenseAccountId: "", prepaidAccountId: "", onlyMissing: true, direction })} disabled={!contracts.length}>{t("leases.accountsBtn")}</button>
             <button className="ls-btn ls-btn-accent" onClick={() => openContract(null)}>+ {t("leases.newContract")}</button>
           </div>
+        </div>
+        <div className="ls-dir" role="tablist">
+          {["lessee", "lessor"].map((d) => (
+            <button key={d} type="button" role="tab" aria-selected={direction === d} className={`ls-dir-btn${direction === d ? " is-on" : ""}`} onClick={() => { setDirection(d); setOpenMonth(null); }}>
+              {t(`leases.direction.${d}Tab`)} <b>{allContracts.filter((c) => dirOf(c) === d).length}</b>
+            </button>
+          ))}
+          {!hasLessor && <span className="ls-dir-hint">{t("leases.direction.hint")}</span>}
         </div>
         <div className="ls-chips">
           {["all", ...CONTRACT_STATUSES].map((st) => (
@@ -271,18 +298,20 @@ export default function LeasesTab({ companyId, companyName = "" }) {
         <div className="ls-kpis">
           {kpis.map((k) => (
             <div key={k.key} className={`ls-kpi tone-${KPI_TONE[k.key]}`}>
-              <div className="ls-kpi-label">{t(`leases.kpi.${k.key}`)}{k.key === "overdue" && totals.overdueCount ? ` (${totals.overdueCount})` : ""}</div>
+              <div className="ls-kpi-label">{t(kpiKey(k.key))}{k.key === "overdue" && totals.overdueCount ? ` (${totals.overdueCount})` : ""}</div>
               <div className="ls-kpi-value">{fmt2(k.value || 0)}</div>
             </div>
           ))}
         </div>
       )}
 
-      {alerts && (alerts.overdue.length + alerts.dueSoon.length + alerts.renewals.length > 0) && (
+      {alerts && (alerts.overdue.length + alerts.dueSoon.length + (alerts.collectOverdue?.length || 0) + (alerts.collectSoon?.length || 0) + alerts.renewals.length > 0) && (
         <div className="ls-alerts">
           {[
             { key: "overdue", rows: alerts.overdue, tone: "red", total: alerts.totals.overdue },
             { key: "dueSoon", rows: alerts.dueSoon, tone: "amber", total: alerts.totals.dueSoon },
+            { key: "collectOverdue", rows: alerts.collectOverdue || [], tone: "red", total: alerts.totals.collectOverdue },
+            { key: "collectSoon", rows: alerts.collectSoon || [], tone: "blue", total: alerts.totals.collectSoon },
           ].filter((g) => g.rows.length > 0).map((g) => (
             <div key={g.key} role="status" className={`ls-alert tone-${g.tone}`}>
               <div className="ls-alert-head"><span className="ls-alert-count">{g.rows.length}</span><strong>{t(`leases.alerts.${g.key}`, { count: g.rows.length, days: alerts.dueWithinDays })}</strong><span className="ls-alert-total">{fmt2(g.total)}</span></div>
@@ -367,6 +396,17 @@ export default function LeasesTab({ companyId, companyName = "" }) {
         <div className="panel ls-panel">
           <div className="ls-filter">
             <input type="search" value={search} placeholder={t("leases.screen.searchPlaceholder")} onChange={(e) => setSearch(e.target.value)} />
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} aria-label={t("leases.category.label")}>
+              <option value="all">{t("leases.category.all")}</option>
+              {LEASE_CATEGORIES.map((k) => <option key={k} value={k}>{t(`leases.category.${k}`)}</option>)}
+              <option value="none">{t("leases.category.none")}</option>
+            </select>
+            <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} aria-label={t("leases.property.city")}>
+              <option value="all">{t("leases.report.allCities")}</option>
+              {cityOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+              {cityOptions.map((c) => <option key={`!${c}`} value={`!${c}`}>{t("leases.report.outside", { city: c })}</option>)}
+              <option value="none">{t("leases.report.noCity")}</option>
+            </select>
             <span className="ls-filter-count">{t("leases.screen.shown", { count: shownContracts.length, total: contracts.length })}</span>
           </div>
           <div className="ls-cards">
@@ -388,7 +428,9 @@ export default function LeasesTab({ companyId, companyName = "" }) {
                 </div>
                 <div className="ls-card-tags">
                   {c.brandName && <span className="ls-tag ls-tag-brand" style={{ "--b": c.brandColor || "#0D4A31" }}>{c.brandName}</span>}
+                  {c.category && <span className="ls-tag is-cat">{t(`leases.category.${c.category}`)}</span>}
                   {c.propertyDetails?.city && <span className="ls-tag">{c.propertyDetails.city}</span>}
+                  {isMapUrl(c.propertyDetails?.mapUrl) && <a className="ls-tag ls-tag-map" href={c.propertyDetails.mapUrl} target="_blank" rel="noopener noreferrer">📍 {t("leases.property.openMap")}</a>}
                   {c.contractNumber && <span className="ls-tag">{t("leases.contractNumber")}: <bdi>{c.contractNumber}</bdi></span>}
                   {c.costCenterName && <span className="ls-tag">{c.costCenterName}</span>}
                   {!(c.expenseAccountId && c.prepaidAccountId) && <span className="ls-tag is-warn">{t("leases.accounts")}: {t("leases.accountsDefault")}</span>}
@@ -412,7 +454,7 @@ export default function LeasesTab({ companyId, companyName = "" }) {
       )}
 
       {view === "report" && (
-        <LeaseReportView contracts={contracts} brands={brands} companyName={companyName} today={localDay()} t={t} i18n={i18n} fmtDay={fmtDay} />
+        <LeaseReportView contracts={allContracts} brands={brands} companyName={companyName} today={localDay()} t={t} i18n={i18n} fmtDay={fmtDay} />
       )}
 
       {view === "amortization" && (
@@ -437,7 +479,7 @@ export default function LeasesTab({ companyId, companyName = "" }) {
                 <tbody>
                   {(preview?.rows || []).map((r) => (
                     <tr key={r.leasePaymentId}>
-                      <td>{r.title}</td><td>{fmtDay(r.periodFrom)} – {fmtDay(r.periodTo)}</td><td className="num">{fmt2(r.netAmount)}</td>
+                      <td>{r.title}{r.direction === "lessor" && <span className="ls-sub"> · {t("leases.direction.revenueTag")}</span>}</td><td>{fmtDay(r.periodFrom)} – {fmtDay(r.periodTo)}</td><td className="num">{fmt2(r.netAmount)}</td>
                       <td className="num">{fmt2(r.alreadyAmortized)}</td>
                       <td className="num strong">{fmt2(r.amount)}{r.amount !== r.monthShare && <div style={SUB}>{t("leases.amortization.catchUp")}</div>}</td>
                       <td className="num">{fmt2(r.remainingAfter)}</td>
@@ -495,7 +537,7 @@ export default function LeasesTab({ companyId, companyName = "" }) {
                     </div>
                     <div className="ls-due-amount"><b>{fmt2(p.amount)}</b><span>{t("leases.kpi.vat")}: {fmt2(p.vatAmount)}</span></div>
                     <span className={`ls-badge pay-${tone}`}>{t(`leases.statuses.${tone}`)}{p.status === "paid" && p.paidOn ? ` · ${fmtDay(p.paidOn)}` : ""}</span>
-                    <button type="button" className={`ls-act${p.status === "paid" ? "" : " is-primary"}`} onClick={() => openPayment(p)}>{p.status === "paid" ? t("leases.cal.details") : t("leases.cal.pay")}</button>
+                    <button type="button" className={`ls-act${p.status === "paid" ? "" : " is-primary"}`} onClick={() => openPayment(p)}>{p.status === "paid" ? t("leases.cal.details") : isLessor ? t("leases.direction.collect") : t("leases.cal.pay")}</button>
                   </div>
                 );
               })}
@@ -533,7 +575,8 @@ export default function LeasesTab({ companyId, companyName = "" }) {
               <div className="ls-view-grid">
                 <section className="ls-section">
                   <h4>{t("leases.screen.contractData")}</h4>
-                  {row(t("leases.counterparty"), c.counterparty)}
+                  {row(t("leases.direction.label"), t(`leases.direction.${dirOf(c)}`))}
+                  {row(c.direction === "lessor" ? t("leases.direction.tenant") : t("leases.counterparty"), c.counterparty)}
                   {row(t("leases.brands.label"), c.brandName)}
                   {row(t("leases.contractNumber"), c.contractNumber && <bdi>{c.contractNumber}</bdi>)}
                   {row(t("leases.signedOn"), c.signedOn && fmtDay(c.signedOn))}
@@ -552,7 +595,9 @@ export default function LeasesTab({ companyId, companyName = "" }) {
                   {row(t("leases.lessor.type"), lessor.type && t(`leases.lessor.${lessor.type}`))}
                   {LESSOR_FIELDS.map((k) => row(t(`leases.lessor.${k}`), lessor[k] && <bdi>{lessor[k]}</bdi>))}
                   <h4 className="ls-section-next">{t("leases.propertyTitle")}</h4>
-                  {PROPERTY_FIELDS.map((k) => row(t(`leases.property.${k}`), property[k]))}
+                  {PROPERTY_FIELDS.filter((k) => k !== "mapUrl").map((k) => row(t(`leases.property.${k}`), property[k]))}
+                  {row(t("leases.category.label"), c.category && t(`leases.category.${c.category}`))}
+                  {row(t("leases.property.mapUrl"), isMapUrl(property.mapUrl) && <a href={property.mapUrl} target="_blank" rel="noopener noreferrer">📍 {t("leases.property.openMap")}</a>)}
                 </section>
               </div>
               {c.customTerms && <section className="ls-section"><h4>{t("leases.customTerms")}</h4><div className="ls-terms">{c.customTerms}</div></section>}
@@ -599,15 +644,28 @@ export default function LeasesTab({ companyId, companyName = "" }) {
 
       <LeaseDialog open={dialog === "contract"} title={form.id ? t("leases.editContract") : t("leases.newContract")} onClose={close} tone="gold" width={1040}>
         <div className="form-grid">
+          <label>{t("leases.direction.label")}
+            <select value={form.direction || "lessee"} onChange={(e) => setForm({ ...form, direction: e.target.value })}>
+              <option value="lessee">{t("leases.direction.lessee")}</option><option value="lessor">{t("leases.direction.lessor")}</option>
+            </select>
+          </label>
+          <label>{t("leases.category.label")}
+            <select value={form.category || ""} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              <option value="">{t("leases.category.none")}</option>
+              {LEASE_CATEGORIES.map((k) => <option key={k} value={k}>{t(`leases.category.${k}`)}</option>)}
+            </select>
+          </label>
           <label>{t("leases.contractTitle")}<input value={form.title || ""} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
-          <label>{t("leases.counterparty")}<input value={form.counterparty || ""} onChange={(e) => setForm({ ...form, counterparty: e.target.value })} /></label>
+          <label>{form.direction === "lessor" ? t("leases.direction.tenant") : t("leases.counterparty")}<input value={form.counterparty || ""} onChange={(e) => setForm({ ...form, counterparty: e.target.value })} /></label>
           <label>{t("leases.brands.label")}
             <select value={form.brandId || ""} onChange={(e) => setForm({ ...form, brandId: e.target.value })}>
               <option value="">{t("leases.brands.none")}</option>
               {brands.filter((b) => b.isActive || b.id === form.brandId).map((b) => <option key={b.id} value={b.id}>{b.name}{b.nameEn ? ` — ${b.nameEn}` : ""}</option>)}
             </select>
           </label>
-          <label>{t("leases.property.city")}<input value={form.property?.city || ""} onChange={(e) => setForm({ ...form, property: { ...form.property, city: e.target.value } })} /></label>
+          <label>{t("leases.property.city")}<input list="lease-cities" value={form.property?.city || ""} placeholder={t("leases.property.cityPick")} onChange={(e) => setForm({ ...form, property: { ...form.property, city: e.target.value } })} /></label>
+          <datalist id="lease-cities">{SAUDI_CITIES.map((c) => <option key={c} value={c} />)}</datalist>
+          <label>{t("leases.property.mapUrl")}<input type="url" dir="ltr" placeholder="https://maps.app.goo.gl/…" value={form.property?.mapUrl || ""} onChange={(e) => setForm({ ...form, property: { ...form.property, mapUrl: e.target.value } })} /></label>
           <label>{t("leases.costCenter")}
             <select value={form.costCenterId || ""} onChange={(e) => setForm({ ...form, costCenterId: e.target.value })}>
               <option value="">—</option>
@@ -630,30 +688,30 @@ export default function LeasesTab({ companyId, companyName = "" }) {
           <label>{t("leases.depositAmount")}<input type="number" step="0.01" min="0" value={form.depositAmount ?? ""} onChange={(e) => setForm({ ...form, depositAmount: e.target.value })} /></label>
           <label>{t("leases.noticeDays")}<input type="number" step="1" min="0" value={form.noticeDays ?? ""} onChange={(e) => setForm({ ...form, noticeDays: e.target.value })} /></label>
           <label className="ld-switch"><input type="checkbox" checked={!!form.autoRenew} onChange={(e) => setForm({ ...form, autoRenew: e.target.checked })} />{t("leases.autoRenew")}</label>
-          <h4 className="sub-head" style={{ gridColumn: "1 / -1", margin: "6px 0 0" }}>{t("leases.lessorTitle")}</h4>
-          <label>{t("leases.lessor.type")}
+          <h4 className="sub-head" style={{ gridColumn: "1 / -1", margin: "6px 0 0" }}>{form.direction === "lessor" ? t("leases.direction.tenantTitle") : t("leases.lessorTitle")}</h4>
+          <label>{partyLabel("type")}
             <select value={form.lessor?.type || ""} onChange={(e) => setForm({ ...form, lessor: { ...form.lessor, type: e.target.value } })}>
               <option value="">—</option><option value="company">{t("leases.lessor.company")}</option><option value="individual">{t("leases.lessor.individual")}</option>
             </select>
           </label>
           {LESSOR_FIELDS.map((k) => (
-            <label key={k}>{t(`leases.lessor.${k}`)}<input value={form.lessor?.[k] || ""} onChange={(e) => setForm({ ...form, lessor: { ...form.lessor, [k]: e.target.value } })} /></label>
+            <label key={k}>{partyLabel(k)}<input value={form.lessor?.[k] || ""} onChange={(e) => setForm({ ...form, lessor: { ...form.lessor, [k]: e.target.value } })} /></label>
           ))}
           <h4 className="sub-head" style={{ gridColumn: "1 / -1", margin: "6px 0 0" }}>{t("leases.propertyTitle")}</h4>
-          {PROPERTY_FIELDS.filter((k) => k !== "city").map((k) => (
+          {PROPERTY_FIELDS.filter((k) => k !== "city" && k !== "mapUrl").map((k) => (
             <label key={k}>{t(`leases.property.${k}`)}<input value={form.property?.[k] || ""} onChange={(e) => setForm({ ...form, property: { ...form.property, [k]: e.target.value } })} /></label>
           ))}
           <label style={{ gridColumn: "1 / -1" }}>{t("leases.customTerms")}<textarea rows={3} style={{ width: "100%" }} value={form.customTerms || ""} onChange={(e) => setForm({ ...form, customTerms: e.target.value })} /></label>
           <h4 className="sub-head" style={{ gridColumn: "1 / -1", margin: "6px 0 0" }}>{t("leases.accounts")}</h4>
-          <label style={{ gridColumn: "1 / -1" }}>{t("leases.prepaidAccount")}
+          <label style={{ gridColumn: "1 / -1" }}>{form.direction === "lessor" ? t("leases.direction.unearnedAccount") : t("leases.prepaidAccount")}
             <AccountSearchSelect accounts={postingAccounts} value={form.prepaidAccountId} onChange={(id) => setForm({ ...form, prepaidAccountId: id })} allowClear />
           </label>
-          <label style={{ gridColumn: "1 / -1" }}>{t("leases.expenseAccount")}
+          <label style={{ gridColumn: "1 / -1" }}>{form.direction === "lessor" ? t("leases.direction.revenueAccount") : t("leases.expenseAccount")}
             <AccountSearchSelect accounts={postingAccounts} value={form.expenseAccountId} onChange={(id) => setForm({ ...form, expenseAccountId: id })} allowClear />
           </label>
           <label style={{ gridColumn: "1 / -1" }}>{t("leases.notes")}<input value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
         </div>
-        <p className="note">{t("leases.accountsHint")}</p>
+        <p className="note">{form.direction === "lessor" ? t("leases.direction.accountsHint") : t("leases.accountsHint")}</p>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button><button className="btn-primary" onClick={saveContract}>{t("common.save")}</button></div>
       </LeaseDialog>
@@ -693,13 +751,13 @@ export default function LeasesTab({ companyId, companyName = "" }) {
       </LeaseDialog>
 
       <LeaseDialog open={dialog === "accounts"} title={t("leases.accountsBtn")} onClose={close} tone="info" width={820}>
-        <p className="note">{t("leases.accountsDialogNote")}</p>
-        <label>{t("leases.prepaidAccount")}<AccountSearchSelect accounts={postingAccounts} value={form.prepaidAccountId} onChange={(id) => setForm({ ...form, prepaidAccountId: id })} allowClear /></label>
-        <label>{t("leases.expenseAccount")}<AccountSearchSelect accounts={postingAccounts} value={form.expenseAccountId} onChange={(id) => setForm({ ...form, expenseAccountId: id })} allowClear /></label>
+        <p className="note">{t("leases.accountsDialogNote")} {t(form.direction === "lessor" ? "leases.direction.appliesLessor" : "leases.direction.appliesLessee")}</p>
+        <label>{form.direction === "lessor" ? t("leases.direction.unearnedAccount") : t("leases.prepaidAccount")}<AccountSearchSelect accounts={postingAccounts} value={form.prepaidAccountId} onChange={(id) => setForm({ ...form, prepaidAccountId: id })} allowClear /></label>
+        <label>{form.direction === "lessor" ? t("leases.direction.revenueAccount") : t("leases.expenseAccount")}<AccountSearchSelect accounts={postingAccounts} value={form.expenseAccountId} onChange={(id) => setForm({ ...form, expenseAccountId: id })} allowClear /></label>
         <label className="ld-switch"><input type="checkbox" checked={!!form.onlyMissing} onChange={(e) => setForm({ ...form, onlyMissing: e.target.checked })} />{t("leases.onlyMissing")}</label>
         {error && <p className="balance-bad">{error}</p>}
         <div className="form-btn-group"><button className="btn-ghost" onClick={close}>{t("common.cancel")}</button>
-          <button className="btn-primary" disabled={!form.expenseAccountId && !form.prepaidAccountId} onClick={() => run(() => api.applyLeaseAccounts({ companyId, expenseAccountId: form.expenseAccountId || null, prepaidAccountId: form.prepaidAccountId || null, onlyMissing: !!form.onlyMissing }), "leases.accountsAppliedOk")}>{t("common.save")}</button>
+          <button className="btn-primary" disabled={!form.expenseAccountId && !form.prepaidAccountId} onClick={() => run(() => api.applyLeaseAccounts({ companyId, expenseAccountId: form.expenseAccountId || null, prepaidAccountId: form.prepaidAccountId || null, onlyMissing: !!form.onlyMissing, direction: form.direction || "lessee" }), "leases.accountsAppliedOk")}>{t("common.save")}</button>
         </div>
       </LeaseDialog>
 
@@ -788,13 +846,13 @@ export default function LeasesTab({ companyId, companyName = "" }) {
               <label className="ld-switch" style={{ gridColumn: "1 / -1" }}><input type="checkbox" checked={!!form.external} onChange={(e) => setForm({ ...form, external: e.target.checked })} />{t("leases.external")}</label>
               {form.external && <label>{t("leases.amortizeFrom")}<input type="month" value={form.amortizeFromMonth || ""} onChange={(e) => setForm({ ...form, amortizeFromMonth: e.target.value })} /></label>}
             </div>
-            <p className="note">{form.external ? t("leases.externalNote") : t("leases.entryNote", { net: fmt2(previewGross - previewVat), vat: fmt2(previewVat), gross: fmt2(previewGross) })}</p>
+            <p className="note">{form.external ? t("leases.externalNote") : t(formIsLessor ? "leases.direction.entryNote" : "leases.entryNote", { net: fmt2(previewGross - previewVat), vat: fmt2(previewVat), gross: fmt2(previewGross) })}</p>
             {error && <p className="balance-bad">{error}</p>}
             <div className="form-btn-group" style={{ flexWrap: "wrap" }}>
               <button className="btn-ghost" onClick={close}>{t("common.cancel")}</button>
               <button className="btn-ghost" onClick={() => setForm({ ...form, mode: "edit" })}>{t("common.edit")}</button>
               <button className="btn-ghost" onClick={() => setWaived(true)}>{t("leases.waive")}</button>
-              <button className="btn-primary" onClick={confirmPayment}>{t("leases.confirm")}</button>
+              <button className="btn-primary" onClick={confirmPayment}>{formIsLessor ? t("leases.direction.confirm") : t("leases.confirm")}</button>
             </div>
           </>
         )}

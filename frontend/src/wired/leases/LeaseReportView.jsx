@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { buildLeaseExpiryReportHtml, contractCity, filterReportContracts } from "./leaseReport";
+import { LEASE_CATEGORIES } from "./leaseLists";
 
 /**
  * تبويب «التقرير»: تقرير انتهاء عقود الإيجار بنفس تصميم تقرير PDF، بفلاتر: تاريخ نهاية العقد، العلامة التجارية، المدينة،
@@ -9,7 +10,7 @@ const STATUSES = ["active", "suspended", "stopped", "ended"];
 const addYears = (day, n) => `${Number(day.slice(0, 4)) + n}${day.slice(4)}`;
 
 export default function LeaseReportView({ contracts, brands, companyName, today, t, i18n, fmtDay }) {
-  const [f, setF] = useState({ endFrom: "", endTo: "", brands: [], cities: [], autoRenew: "all", statuses: ["active"] });
+  const [f, setF] = useState({ endFrom: "", endTo: "", brands: [], cities: [], citiesExclude: false, autoRenew: "all", statuses: ["active"], direction: "lessee", categories: [] });
   const frameRef = useRef(null);
   const toggle = (key, value) => setF((x) => ({ ...x, [key]: x[key].includes(value) ? x[key].filter((v) => v !== value) : [...x[key], value] }));
 
@@ -26,6 +27,11 @@ export default function LeaseReportView({ contracts, brands, companyName, today,
     return list;
   }, [contracts, brands, t]);
 
+  const usedCategories = useMemo(() => {
+    const count = new Map();
+    for (const c of contracts) count.set(c.category || "none", (count.get(c.category || "none") || 0) + 1);
+    return [...LEASE_CATEGORIES, "none"].filter((k) => count.has(k)).map((k) => [k, count.get(k)]);
+  }, [contracts]);
   const shown = useMemo(() => filterReportContracts(contracts, f), [contracts, f]);
   const brandName = (id) => (id === "none" ? t("leases.brands.none") : brands.find((b) => b.id === id)?.name || "");
   const cityName = (c) => (c === "none" ? t("leases.report.noCity") : c);
@@ -35,7 +41,9 @@ export default function LeaseReportView({ contracts, brands, companyName, today,
     const parts = [];
     if (f.endFrom || f.endTo) parts.push(t("leases.report.fEnd", { from: f.endFrom ? fmtDay(f.endFrom) : "…", to: f.endTo ? fmtDay(f.endTo) : "…" }));
     if (f.brands.length && !oneBrand) parts.push(`${t("leases.brands.label")}: ${f.brands.map(brandName).join("، ")}`);
-    if (f.cities.length) parts.push(`${t("leases.property.city")}: ${f.cities.map(cityName).join("، ")}`);
+    if (f.direction !== "all") parts.push(t(`leases.direction.${f.direction}`));
+    if (f.categories.length) parts.push(`${t("leases.category.label")}: ${f.categories.map((k) => (k === "none" ? t("leases.category.none") : t(`leases.category.${k}`))).join("، ")}`);
+    if (f.cities.length) parts.push(`${t("leases.property.city")}: ${f.citiesExclude ? t("leases.report.except") + " " : ""}${f.cities.map(cityName).join("، ")}`);
     if (f.autoRenew !== "all") parts.push(f.autoRenew === "yes" ? t("leases.autoRenewShort") : t("leases.noAutoRenewShort"));
     if (f.statuses.length && f.statuses.length < STATUSES.length) parts.push(`${t("leases.status")}: ${f.statuses.map((s) => t(`leases.contractStatus.${s}`)).join("، ")}`);
     return buildLeaseExpiryReportHtml({
@@ -62,6 +70,19 @@ export default function LeaseReportView({ contracts, brands, companyName, today,
   return (
     <div className="panel ls-panel ls-report">
       <div className="ls-rfilters">
+        <div className="ls-rgroup ls-rgroup-half">
+          <span className="ls-rlabel">{t("leases.direction.label")}</span>
+          <div className="ls-rrow">
+            {["lessee", "lessor", "all"].map((d) => <Chip key={d} on={f.direction === d} onClick={() => setF({ ...f, direction: d })}>{d === "all" ? t("leases.report.all") : t(`leases.direction.${d}Tab`)}</Chip>)}
+          </div>
+        </div>
+        <div className="ls-rgroup ls-rgroup-half">
+          <span className="ls-rlabel">{t("leases.category.label")}</span>
+          <div className="ls-rrow">
+            <Chip on={!f.categories.length} onClick={() => setF({ ...f, categories: [] })}>{t("leases.category.all")}</Chip>
+            {usedCategories.map(([k, n]) => <Chip key={k} on={f.categories.includes(k)} onClick={() => toggle("categories", k)}>{k === "none" ? t("leases.category.none") : t(`leases.category.${k}`)} <small>{n}</small></Chip>)}
+          </div>
+        </div>
         <div className="ls-rgroup">
           <span className="ls-rlabel">{t("leases.report.endRange")}</span>
           <div className="ls-rrow">
@@ -82,8 +103,12 @@ export default function LeaseReportView({ contracts, brands, companyName, today,
         <div className="ls-rgroup">
           <span className="ls-rlabel">{t("leases.property.city")}</span>
           <div className="ls-rrow">
-            <Chip on={!f.cities.length} onClick={() => setF({ ...f, cities: [] })}>{t("leases.report.allCities")}</Chip>
-            {cities.map(([c, n]) => <Chip key={c} on={f.cities.includes(c)} onClick={() => toggle("cities", c)}>{cityName(c)} <small>{n}</small></Chip>)}
+            <Chip on={!f.cities.length} onClick={() => setF({ ...f, cities: [], citiesExclude: false })}>{t("leases.report.allCities")}</Chip>
+            {cities.map(([c, n]) => <Chip key={c} on={f.cities.includes(c)} color={f.citiesExclude ? "#A8432B" : undefined} onClick={() => toggle("cities", c)}>{f.citiesExclude && f.cities.includes(c) ? "✕ " : ""}{cityName(c)} <small>{n}</small></Chip>)}
+          </div>
+          <div className="ls-rrow">
+            <Chip on={!f.citiesExclude} onClick={() => setF({ ...f, citiesExclude: false })}>{t("leases.report.cityInclude")}</Chip>
+            <Chip on={f.citiesExclude} color="#A8432B" onClick={() => setF({ ...f, citiesExclude: true })}>{t("leases.report.cityExclude")}</Chip>
           </div>
         </div>
         <div className="ls-rgroup ls-rgroup-half">
