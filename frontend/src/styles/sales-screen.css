@@ -1,0 +1,47 @@
+/* شاشة فواتير المبيعات (InvoicesTab.jsx): نفس بناء شاشة الإيجارات (lease-screen.css: رأس ملوَّن، مؤشرات، شارات)
+   بلوحة ألوان زرقاء خاصة بالمبيعات مع ذهبي أثر للتأكيد. كل القواعد محصورة تحت .sales-screen. */
+.lease-screen.sales-screen {
+  --ej: #2563EB; --ej-dark: #1E3A8A; --ej-deep: #172554; --ej-teal: #0891B2; --ej-mint: #EAF1FE; --ej-line: #CFDDF7;
+}
+.sales-screen .ls-hero { box-shadow: 0 14px 34px rgba(30, 58, 138, 0.28); animation: ss-rise 0.35s ease-out both; }
+.sales-screen .ls-kpis, .sales-screen > .panel { animation: ss-rise 0.4s ease-out both; }
+.sales-screen .ls-kpis { animation-delay: 0.05s; }
+.sales-screen > .panel.ss-search { animation-delay: 0.1s; }
+.sales-screen > .panel.ss-table { animation-delay: 0.15s; }
+@keyframes ss-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .sales-screen * { animation: none !important; } }
+.sales-screen .ls-kpis.is-loading .ls-kpi-value { opacity: 0.35; }
+.sales-screen .ls-kpi-value { font-size: 21px; }
+
+/* فلاتر سريعة: نقطة ملوّنة بدل العدّاد */
+.sales-screen .ss-chip i { width: 10px; height: 10px; border-radius: 50%; background: var(--chip); flex-shrink: 0; }
+.sales-screen .ss-chip { padding-inline: 14px 16px; }
+.sales-screen .ls-chip.is-on i { box-shadow: 0 0 0 3px rgba(23, 37, 84, 0.12); }
+.sales-screen .ls-chip.st-active.is-on i { background: #1B8354; } .sales-screen .ls-chip.st-suspended.is-on i { background: #B7791F; } .sales-screen .ls-chip.st-stopped.is-on i { background: #A8432B; }
+
+/* البحث */
+.ss-search-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ss-search-box { flex: 1 1 320px; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 16px; border: 1.5px solid #D5DCE4; border-radius: 14px; background: #F8FAFC; color: var(--ink-3); transition: border-color 0.15s, box-shadow 0.15s, background 0.15s; }
+.ss-search-box:focus-within { border-color: var(--ej); background: #fff; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.13); color: var(--ej); }
+.ss-search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ink); }
+.ss-search-row .ls-act { min-height: 48px; padding: 0 18px; border-radius: 14px; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
+.ss-count { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--ej-gold); color: #2A1E05; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.sales-screen .ss-search .filter-bar { margin: 16px 0 0; padding: 16px 0 0; border: 0; border-top: 1px dashed var(--line); border-radius: 0; background: transparent; box-shadow: none; animation: ss-rise 0.2s ease-out both; }
+.sales-screen .filter-bar label { font-size: 12.5px; font-weight: 700; color: var(--ink-2); }
+.sales-screen .filter-bar :is(input, select) { min-height: 42px; padding: 8px 12px; border: 1.5px solid #D5DCE4; border-radius: 11px; background: #fff; font: inherit; font-size: 14px; color: var(--ink); }
+.sales-screen .filter-bar :is(input, select):focus { outline: 0; border-color: var(--ej); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.13); }
+.sales-screen .filter-bar .btn-primary { background: var(--ej); border-color: var(--ej); color: #fff; border-radius: 11px; }
+.sales-screen .filter-bar .btn-primary:hover { background: var(--ej-dark); }
+
+/* الجدول */
+.sales-screen .ss-table { padding: 8px 10px 14px; overflow: visible; }
+.sales-screen .ledger-table thead th { padding-block: 13px; }
+.sales-screen .ledger-table thead th:first-child { border-start-start-radius: 12px; } .sales-screen .ledger-table thead th:last-child { border-start-end-radius: 12px; }
+.sales-screen .ledger-table tbody td { padding-block: 12px; vertical-align: middle; }
+.sales-screen .ledger-table tbody tr { transition: background 0.12s; }
+.sales-screen .ledger-table tbody tr:hover td { background: #F5F8FE; }
+.sales-screen .ss-num { white-space: nowrap; color: var(--ej-dark); font-weight: 800; font-variant-numeric: tabular-nums; direction: ltr; }
+.sales-screen .ss-total { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.sales-screen .filtered-summary-row td { background: var(--ej-mint); color: var(--ej-dark); font-weight: 800; border-top: 2px solid var(--ej-line); }
+.sales-screen .ledger-table td.empty { padding: 44px 16px; text-align: center; font-size: 15px; color: var(--ink-3); }
+.sales-screen .ledger-table td.row-actions { white-space: nowrap; }

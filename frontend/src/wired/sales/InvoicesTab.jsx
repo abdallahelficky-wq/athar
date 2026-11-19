@@ -25,6 +25,8 @@ import SendInvoiceEmailModal from "./SendInvoiceEmailModal";
 import ReprintReceiptModal from "./ReprintReceiptModal";
 
 import { invoiceZatcaState } from "./invoiceZatcaState";
+import "../../styles/lease-screen.css";
+import "../../styles/sales-screen.css";
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100, 200];
 const INVOICE_TYPE_OPTIONS = ["standard", "simplified"];
@@ -57,6 +59,18 @@ function postingStatusLabel(status, t) {
 // صفوف /sales-invoices/search الخفيفة لا تحمل zatcaResponseRaw الكامل (تُجلَب فقط عند فتح فاتورة
 // بعينها)، فقرار "canResend"/تلوين الشارة هنا مبني على status/zatcaStatus وحدهما (كافيان لهما،
 // zatcaGroup نفسه محسوب مسبقاً في الخادم بنفس منطق الملف).
+// ألوان شارات الحالة (نفس درجات شاشة الإيجارات): أخضر = مكتمل، كهرماني = ينتظر، أحمر = يحتاج إجراء
+const POSTING_TONE = { posted: "pay-paid", draft: "pay-due", pending_submission: "pay-hold", zatca_accepted_posting_incomplete: "pay-overdue" };
+const PAYMENT_TONE = { "مسددة": "pay-paid", "مسددة جزئياً": "pay-due", "غير مسددة": "pay-overdue" };
+// فلاتر سريعة في رأس الشاشة — كل زر يضبط فلتراً واحداً من نفس فلاتر البحث المتقدم
+const QUICK_CHIPS = [
+  { key: "status", value: "draft", tone: "st-suspended" },
+  { key: "status", value: "posted", tone: "st-active" },
+  { key: "paymentStatus", value: "غير مسددة", tone: "st-stopped" },
+  { key: "paymentStatus", value: "مسددة جزئياً", tone: "st-suspended" },
+  { key: "paymentStatus", value: "مسددة", tone: "st-active" },
+];
+
 const ZATCA_RETRY_STATUSES = new Set(["not_submitted", "rejected", "submission_failed", "certificate_error", "compliance_checked"]);
 function canResendZatca(row) {
   return ["posted", "pending_submission"].includes(row.status) && ZATCA_RETRY_STATUSES.has(row.zatcaStatus);
@@ -98,6 +112,7 @@ export default function InvoicesTab({ companyId, companies }) {
   const [sendingEmailId, setSendingEmailId] = useState(null);
   const [resendingZatcaId, setResendingZatcaId] = useState(null);
   const [reprintInvoice, setReprintInvoice] = useState(null);
+  const [advancedOpen, setAdvancedOpen] = useState(() => DRAFT_KEYS.some((k) => !["status", "paymentStatus"].includes(k) && urlState[k] !== FILTER_DEFAULTS[k]));
 
   const reload = () => setReloadTick((n) => n + 1);
 
@@ -236,17 +251,59 @@ export default function InvoicesTab({ companyId, companies }) {
   const items = result.items;
   const summary = result.summary || EMPTY_SUMMARY;
 
+  const activeFilters = DRAFT_KEYS.filter((k) => urlState[k] !== FILTER_DEFAULTS[k]).length;
+  const quickOn = (c) => urlState[c.key] === c.value;
+  const toggleQuick = (c) => setUrlState({ [c.key]: quickOn(c) ? "" : c.value, page: 1 });
+  const chipLabel = (c) => (c.key === "status" ? postingStatusLabel(c.value, t) : c.value);
+
   return (
-    <div>
-      <div className="form-btn-group" style={{ justifyContent: "flex-start", marginBottom: 14 }}>
-        <button className="btn-primary" onClick={() => setFormModal({ mode: "create" })}>{t("salesInvoices.addInvoice")}</button>
+    <div className="lease-screen sales-screen">
+      <div className="ls-hero">
+        <div className="ls-hero-top">
+          <div className="ls-hero-main">
+            <div className="ls-hero-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2h9l4 4v16l-3-2-2.5 2-2.5-2-2.5 2L6 22z" /><path d="M15 2v4h4" /><path d="M9 11h6M9 15h4" /></svg>
+            </div>
+            <div>
+              <h3>{t("nav.tabs.invoices")}</h3>
+              <p>{t("salesInvoices.screen.note")}</p>
+            </div>
+          </div>
+          <div className="ls-hero-actions">
+            <button className="ls-btn ls-btn-accent" onClick={() => setFormModal({ mode: "create" })}>{t("salesInvoices.addInvoice")}</button>
+          </div>
+        </div>
+        <div className="ls-chips">
+          <button type="button" className={`ls-chip${!urlState.status && !urlState.paymentStatus ? " is-on" : ""}`} onClick={() => setUrlState({ status: "", paymentStatus: "", page: 1 })}>{t("salesInvoices.screen.all")}</button>
+          {QUICK_CHIPS.map((c) => (
+            <button key={c.key + c.value} type="button" className={`ls-chip ss-chip ${c.tone}${quickOn(c) ? " is-on" : ""}`} onClick={() => toggleQuick(c)}>
+              <i aria-hidden="true" />{chipLabel(c)}
+            </button>
+          ))}
+          <span className="ls-chip ls-chip-info"><b>{loading ? "…" : summary.count}</b>{t("salesInvoices.search.summary.count")}</span>
+        </div>
       </div>
 
+      <div className={`ls-kpis${loading ? " is-loading" : ""}`}>
+        <div className="ls-kpi tone-gray"><div className="ls-kpi-label">{t("salesInvoices.search.summary.count")}</div><div className="ls-kpi-value">{summary.count}</div></div>
+        <div className="ls-kpi"><div className="ls-kpi-label">{t("salesInvoices.search.summary.netTotal")}</div><div className="ls-kpi-value">{money(summary.netTotal)}</div></div>
+        <div className="ls-kpi tone-amber"><div className="ls-kpi-label">{t("salesInvoices.search.summary.vatTotal")}</div><div className="ls-kpi-value">{money(summary.vatTotal)}</div></div>
+        <div className="ls-kpi tone-green"><div className="ls-kpi-label">{t("salesInvoices.search.summary.grandTotal")}</div><div className="ls-kpi-value">{money(summary.grandTotal)}</div></div>
+      </div>
+
+      <div className="panel ss-search">
+        <div className="ss-search-row">
+          <div className="ss-search-box">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+            <input type="text" value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("filters.quickSearchPlaceholder")} aria-label={t("salesInvoices.search.quickSearchLabel")} />
+          </div>
+          <button type="button" className={`ls-act${advancedOpen ? " is-primary" : ""}`} aria-expanded={advancedOpen} onClick={() => setAdvancedOpen((v) => !v)}>
+            {t("salesInvoices.screen.advanced")}{activeFilters > 0 && <b className="ss-count">{activeFilters}</b>}
+          </button>
+          {(activeFilters > 0 || urlState.q) && <button type="button" className="ls-act" onClick={resetFilters}>{t("filters.reset")}</button>}
+        </div>
+      {advancedOpen && (
       <FilterBar onSearch={applyDraft} onReset={resetFilters}>
-        <label>
-          {t("salesInvoices.search.quickSearchLabel")}
-          <input type="text" value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("filters.quickSearchPlaceholder")} />
-        </label>
         <label>
           {t("filters.dateFrom")}
           <input type="date" value={draft.dateFrom} onChange={(e) => setDraft((d) => ({ ...d, dateFrom: e.target.value }))} />
@@ -304,9 +361,11 @@ export default function InvoicesTab({ companyId, companies }) {
           </select>
         </label>
       </FilterBar>
+      )}
+      </div>
 
-      {loading ? <p className="empty">{t("salesInvoices.loading")}</p> : (
-        <div className="panel">
+      {loading ? <div className="panel"><p className="empty">{t("salesInvoices.loading")}</p></div> : (
+        <div className="panel ss-table">
           <table className="ledger-table responsive-table">
             <thead>
               <tr>
@@ -326,7 +385,7 @@ export default function InvoicesTab({ companyId, companies }) {
                 const linked = Number(row.paidAmount) > 0;
                 return (
                   <tr key={row.id}>
-                    <td data-label={t("salesInvoices.table.number")}>{row.invoiceNumber}</td>
+                    <td data-label={t("salesInvoices.table.number")}><button type="button" className="ls-link ss-num" onClick={() => onViewClick(row)}>{row.invoiceNumber}</button></td>
                     <td data-label={t("salesInvoices.table.customer")}>
                       <Link
                         className="drill-link"
@@ -336,9 +395,9 @@ export default function InvoicesTab({ companyId, companies }) {
                       </Link>
                     </td>
                     <td data-label={t("salesInvoices.table.date")}>{row.date.slice(0, 10)}</td>
-                    <td className="num" data-label={t("salesInvoices.table.total")}>{fmt(Number(row.grandTotal))}</td>
-                    <td data-label={t("salesInvoices.table.postingStatus")}><span className="status-badge">{postingStatusLabel(row.status, t)}</span></td>
-                    <td data-label={t("salesInvoices.table.paymentStatus")}><span className="status-badge">{row.paymentStatus}</span></td>
+                    <td className="num ss-total" data-label={t("salesInvoices.table.total")}>{fmt(Number(row.grandTotal))}</td>
+                    <td data-label={t("salesInvoices.table.postingStatus")}><span className={`ls-badge ${POSTING_TONE[row.status] || "pay-due"}`}>{postingStatusLabel(row.status, t)}</span></td>
+                    <td data-label={t("salesInvoices.table.paymentStatus")}><span className={`ls-badge ${PAYMENT_TONE[row.paymentStatus] || "pay-hold"}`}>{row.paymentStatus}</span></td>
                     <td data-label={t("salesInvoices.table.zatcaStatus")}>
                         <button type="button" className={zatcaGroupClassName(row.zatcaGroup)} onClick={() => onViewClick(row)}>
                           {t(`salesInvoices.zatcaSummary.${row.zatcaGroup}`)}
