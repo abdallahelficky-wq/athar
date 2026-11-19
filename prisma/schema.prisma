@@ -105,6 +105,8 @@ model Tenant {
   leasePayments             LeasePayment[]
   leaseAmortizationRuns     LeaseAmortizationRun[]
   leaseReminderSettings     LeaseReminderSetting[]
+  leaseBrands               LeaseBrand[]
+  leaseNotices              LeaseNotice[]
   journalEntries            JournalEntry[]
 
   customers        Customer[]
@@ -649,6 +651,8 @@ model Company {
   leasePayments               LeasePayment[]
   leaseAmortizationRuns       LeaseAmortizationRun[]
   leaseReminderSettings       LeaseReminderSetting[]
+  leaseBrands                 LeaseBrand[]
+  leaseNotices                LeaseNotice[]
   journalEntries              JournalEntry[]
   accounts                    Account[]
   intercompanyAccounts        Account[]                    @relation("AccountIntercompanyCompany")
@@ -1119,12 +1123,64 @@ model LeaseContract {
   // بيانات وصفية لا تدخل في أي حساب: المؤجر (نوعه، سجله/هويته، ممثله، جواله، بريده، عنوانه) والعقار (عنوانه، نوع الوحدة، مساحتها)
   lessorDetails      Json?
   propertyDetails    Json?
+  // العلامة التجارية التي تعمل بها المحطة (بروق، أدنوك، مزايا…) — للتقارير والفلترة فقط
+  brandId            String?
+  brand              LeaseBrand?  @relation(fields: [brandId], references: [id], onDelete: SetNull)
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
   payments LeasePayment[]
+  notices  LeaseNotice[]
 
+  @@index([brandId])
   @@map("lease_contracts")
+}
+
+// العلامات التجارية لمحطات الشركة (تعريف لكل شركة، يُبذَر بقائمة السوق عند أول طلب)
+model LeaseBrand {
+  id        String          @id @default(cuid())
+  tenantId  String
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  nameEn    String?
+  color     String?
+  isActive  Boolean         @default(true)
+  sortOrder Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  contracts LeaseContract[]
+
+  @@unique([companyId, name])
+  @@map("lease_brands")
+}
+
+enum LeaseNoticeKind {
+  renewal // إشعار برغبة التجديد
+  termination // إشعار بعدم التجديد/إنهاء العقد بانتهاء مدته
+}
+
+// خطاب إشعار للمؤجر يُولَّد من النظام ويُرسَل للمسؤول في الشركة ليبلّغه للمؤجر؛ يُحفَظ نصه كما أُرسل
+model LeaseNotice {
+  id              String          @id @default(cuid())
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  leaseContractId String
+  leaseContract   LeaseContract   @relation(fields: [leaseContractId], references: [id], onDelete: Cascade)
+  kind            LeaseNoticeKind
+  letterDate      DateTime
+  subject         String
+  body            String
+  recipientEmails String[]        @default([])
+  sentAt          DateTime?
+  createdBy       String?
+  createdAt       DateTime        @default(now())
+
+  @@index([leaseContractId])
+  @@map("lease_notices")
 }
 
 // دفعة إيجار مجدولة. التواريخ أيام تقويمية مخزَّنة منتصف ليل UTC. amount الإجمالي (شامل الضريبة إن كان العقد شاملاً)،

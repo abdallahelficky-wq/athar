@@ -40,10 +40,40 @@ export const createLeaseContractSchema = z.object({
   prepaidAccountId: z.string().min(1).nullable().optional(),
   isActive: z.boolean().optional(),
   signedOn: z.coerce.date().nullable().optional(),
+  brandId: z.string().min(1).nullable().optional(),
   ...contractDetails,
 });
 
 export const updateLeaseContractSchema = createLeaseContractSchema.partial();
+
+const brandColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "لون العلامة التجارية بصيغة #RRGGBB").nullable().optional();
+export const createBrandSchema = z
+  .object({
+    companyId: z.string().min(1),
+    name: z.string().trim().min(2, "اسم العلامة التجارية قصير جداً").max(80, "اسم العلامة التجارية أطول من المسموح"),
+    nameEn: z.string().trim().max(80).nullable().optional(),
+    color: brandColor,
+  })
+  .strict();
+export const updateBrandSchema = z
+  .object({
+    name: z.string().trim().min(2, "اسم العلامة التجارية قصير جداً").max(80, "اسم العلامة التجارية أطول من المسموح").optional(),
+    nameEn: z.string().trim().max(80).nullable().optional(),
+    color: brandColor,
+    isActive: z.boolean().optional(),
+  })
+  .strict();
+
+export const noticePreviewSchema = z.object({ kind: z.enum(["renewal", "termination"]) }).strict();
+export const createNoticeSchema = z
+  .object({
+    kind: z.enum(["renewal", "termination"]),
+    subject: z.string().trim().min(5, "موضوع الخطاب قصير جداً").max(300, "موضوع الخطاب أطول من المسموح"),
+    body: z.string().trim().min(20, "نص الخطاب قصير جداً").max(10000, "نص الخطاب أطول من المسموح"),
+    recipientEmails: z.array(z.string().trim().email("بريد إلكتروني غير صالح في قائمة المستلمين")).max(20, "عدد المستلمين أكبر من المسموح"),
+    send: z.boolean().optional(),
+  })
+  .strict();
 
 export const contractStatusSchema = z
   .object({

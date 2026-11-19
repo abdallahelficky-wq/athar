@@ -297,8 +297,9 @@ function OnlineStoreRoute() {
   return <OnlineStoreModule companyId={companyId} />;
 }
 function LeasesRoute() {
-  const { companyId } = useOutletContext();
-  return <LeasesModule companyId={companyId} />;
+  const { companies, companyId } = useOutletContext();
+  const company = companies?.find((c) => c.id === companyId);
+  return <LeasesModule companyId={companyId} companyName={company?.name || ""} />;
 }
 function PurchasesRoute() {
   const { companies, companyId } = useOutletContext();
