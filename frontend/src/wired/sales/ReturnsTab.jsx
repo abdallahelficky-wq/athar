@@ -20,6 +20,7 @@ import InvoicePicker from "./InvoicePicker";
 import SalesReturnFormModal from "./SalesReturnFormModal";
 import SalesReturnViewModal from "./SalesReturnViewModal";
 import ReturnPostedBlockModal from "./ReturnPostedBlockModal";
+import { SalesScreen, HeroButton, SalesChip, SalesInfoChip, SalesKpis, SalesSearch, StatusBadge } from "./SalesScreen";
 
 const PAGE_SIZE_OPTIONS = [15, 25, 50, 100, 200];
 const SUBTYPE_OPTIONS = ["standard", "simplified"];
@@ -34,6 +35,7 @@ const FILTER_DEFAULTS = {
   sortBy: "createdAt", sortDir: "desc", page: 1, pageSize: 25,
 };
 const DRAFT_KEYS = ["dateFrom", "dateTo", "amountMin", "amountMax", "customerId", "originalInvoiceId", "subtype", "refundMethod", "status", "zatcaStatus"];
+const POSTING_TONE = { posted: "ok", draft: "wait", pending_submission: "off", zatca_accepted_posting_incomplete: "bad" };
 const EMPTY_SUMMARY = { count: 0, netTotal: "0", vatTotal: "0", grandTotal: "0" };
 
 // نفس تبرير postingStatusLabel في InvoicesTab.jsx بالضبط — أربع حالات ترحيل ممكنة، لا اثنتين.
@@ -54,6 +56,7 @@ export default function ReturnsTab({ companyId, companies }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [urlState, setUrlState] = useUrlQueryState(FILTER_DEFAULTS);
   const [result, setResult] = useState({ items: [], totalCount: 0, summary: EMPTY_SUMMARY });
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reloadTick, setReloadTick] = useState(0);
   const { toast, notify, dismiss } = useToast();
@@ -183,18 +186,35 @@ export default function ReturnsTab({ companyId, companies }) {
   const colSpan = 8;
   const items = result.items;
   const summary = result.summary || EMPTY_SUMMARY;
+  const activeFilters = DRAFT_KEYS.filter((k) => urlState[k] !== FILTER_DEFAULTS[k]).length;
+  const setStatus = (v) => setUrlState({ status: urlState.status === v ? "" : v, page: 1 });
 
   return (
-    <div>
-      <div className="form-btn-group" style={{ justifyContent: "flex-start", marginBottom: 14 }}>
-        <button className="btn-primary" onClick={() => setFormModal({ mode: "create" })}>{t("sales.returns.addButton")}</button>
-      </div>
+    <SalesScreen
+      icon="returns"
+      title={t("nav.tabs.returns")}
+      note={t("sales.screen.notes.returns")}
+      actions={<HeroButton onClick={() => setFormModal({ mode: "create" })}>{t("sales.returns.addButton")}</HeroButton>}
+      chips={<>
+        <SalesChip on={!urlState.status} onClick={() => setUrlState({ status: "", page: 1 })}>{t("salesInvoices.screen.all")}</SalesChip>
+        <SalesChip tone="wait" on={urlState.status === "draft"} onClick={() => setStatus("draft")}>{postingStatusLabel("draft", t)}</SalesChip>
+        <SalesChip tone="ok" on={urlState.status === "posted"} onClick={() => setStatus("posted")}>{postingStatusLabel("posted", t)}</SalesChip>
+        <SalesInfoChip count={loading ? "…" : summary.count} label={t("sales.returns.search.summary.count")} />
+      </>}
+    >
+      <SalesKpis loading={loading} items={[
+        { label: t("sales.returns.search.summary.count"), value: summary.count, tone: "gray" },
+        { label: t("sales.returns.search.summary.netTotal"), value: money(summary.netTotal) },
+        { label: t("sales.returns.search.summary.vatTotal"), value: money(summary.vatTotal), tone: "amber" },
+        { label: t("sales.returns.search.summary.grandTotal"), value: money(summary.grandTotal), tone: "red" },
+      ]} />
 
+      <SalesSearch
+        value={qInput} onChange={setQInput} placeholder={t("sales.returns.search.quickSearchPlaceholder")} label={t("sales.returns.search.quickSearchLabel")}
+        advanced={{ open: advancedOpen, onToggle: () => setAdvancedOpen((v) => !v), count: activeFilters }}
+        onReset={resetFilters} showReset={activeFilters > 0 || !!urlState.q}
+      >
       <FilterBar onSearch={applyDraft} onReset={resetFilters}>
-        <label>
-          {t("sales.returns.search.quickSearchLabel")}
-          <input type="text" value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("sales.returns.search.quickSearchPlaceholder")} />
-        </label>
         <label>
           {t("filters.dateFrom")}
           <input type="date" value={draft.dateFrom} onChange={(e) => setDraft((d) => ({ ...d, dateFrom: e.target.value }))} />
@@ -256,9 +276,10 @@ export default function ReturnsTab({ companyId, companies }) {
           </select>
         </label>
       </FilterBar>
+      </SalesSearch>
 
-      {loading ? <p className="empty">{t("sales.returns.loading")}</p> : (
-        <div className="panel">
+      {loading ? <div className="panel"><p className="empty">{t("sales.returns.loading")}</p></div> : (
+        <div className="panel ss-table">
           <table className="ledger-table responsive-table">
             <thead>
               <tr>
@@ -295,7 +316,7 @@ export default function ReturnsTab({ companyId, companies }) {
                       </td>
                       <td data-label={t("sales.returns.table.date")}>{row.date.slice(0, 10)}</td>
                       <td className="num" data-label={t("sales.returns.table.total")}>{fmt(Number(row.grandTotal))}</td>
-                      <td data-label={t("sales.returns.table.postingStatus")}><span className="status-badge">{postingStatusLabel(row.status, t)}</span></td>
+                      <td data-label={t("sales.returns.table.postingStatus")}><StatusBadge tone={POSTING_TONE[row.status] || "wait"}>{postingStatusLabel(row.status, t)}</StatusBadge></td>
                       <td data-label={t("sales.returns.table.zatcaStatus")}>
                         <button type="button" className={zatcaGroupClassName(row.zatcaGroup)} onClick={() => onViewClick(row)}>
                           {t(`salesInvoices.zatcaSummary.${row.zatcaGroup}`)}
@@ -380,6 +401,6 @@ export default function ReturnsTab({ companyId, companies }) {
       {unpostTarget && <UnpostModal onCancel={() => setUnpostTarget(null)} onConfirm={doUnpost} />}
 
       <ToastHost toast={toast} onDismiss={dismiss} />
-    </div>
+    </SalesScreen>
   );
 }

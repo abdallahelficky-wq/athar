@@ -4,6 +4,7 @@ import { listCostCenters } from "../../api/costCenters";
 import { listStationSales, createStationSale, deleteStationSale } from "../../api/stationSales";
 import { fmt, fmt2 } from "../../legacy/constants";
 import { getOrgDisplayName } from "../shared/accountDisplayName";
+import { SalesScreen } from "./SalesScreen";
 
 export default function StationsTab({ companyId }) {
   const { t, i18n } = useTranslation();
@@ -58,7 +59,7 @@ export default function StationsTab({ companyId }) {
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
-    <div>
+    <SalesScreen icon="stations" title={t("nav.tabs.stations")} note={t("sales.screen.notes.stations")}>
       <div className="panel form-panel">
         <div className="form-grid">
           <label>{t("sales.stations.station")}<select value={costCenterId} onChange={(e) => setCostCenterId(e.target.value)}>{costCenters.map((c) => <option key={c.id} value={c.id}>{getOrgDisplayName(c, i18n.language)}</option>)}</select></label>
@@ -71,8 +72,8 @@ export default function StationsTab({ companyId }) {
         <button className="btn-primary" onClick={save} disabled={!costCenterId || !Number(liters) || !Number(pricePerLiter)}>{t("sales.stations.save")}</button>
       </div>
 
-      {loading ? <p className="empty">{t("sales.stations.loading")}</p> : (
-        <div className="panel">
+      {loading ? <div className="panel"><p className="empty">{t("sales.stations.loading")}</p></div> : (
+        <div className="panel ss-table">
           <table className="ledger-table">
             <thead>
               <tr>
@@ -95,6 +96,6 @@ export default function StationsTab({ companyId }) {
           </table>
         </div>
       )}
-    </div>
+    </SalesScreen>
   );
 }

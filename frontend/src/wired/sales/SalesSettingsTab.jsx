@@ -4,6 +4,7 @@ import { updateCompany, uploadCompanyLogo } from "../../api/companies";
 import InvoiceViewModal from "./InvoiceViewModal";
 import ClassicProInvoiceView from "./invoiceTemplates/ClassicProInvoiceView";
 import DocumentNumberingPanel from "./DocumentNumberingPanel";
+import { SalesScreen } from "./SalesScreen";
 
 const OPTIONAL_FIELD_FLAGS = [
   { key: "invoiceShowPoNumber", labelKey: "sales.settings.toggleShowPoNumber" },
@@ -165,7 +166,7 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
   if (!companies?.length) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
-    <div>
+    <SalesScreen icon="settings" title={t("nav.tabs.salesSettings")} note={t("sales.screen.notes.settings")}>
       <div className="panel form-panel">
         <h3 className="sub-head">{t("sales.settings.templateSectionTitle")}</h3>
         <p className="note">{t("sales.settings.templateSectionNote")}</p>
@@ -329,6 +330,6 @@ export default function SalesSettingsTab({ companyId, companies, reloadCompanies
           onClose={() => setPreviewTemplate(null)}
         />
       )}
-    </div>
+    </SalesScreen>
   );
 }

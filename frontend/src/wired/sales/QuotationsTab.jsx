@@ -8,6 +8,7 @@ import { useToast, ToastHost } from "../shared/Toast";
 import QuotationFormModal from "./QuotationFormModal";
 import QuotationViewModal from "./QuotationViewModal";
 import InvoiceViewModal from "./InvoiceViewModal";
+import { SalesScreen, HeroButton, SalesChip, SalesInfoChip, SalesKpis, SalesSearch, StatusBadge } from "./SalesScreen";
 
 /**
  * قائمة عروض الأسعار — بنفس نمط InvoicesTab.jsx (قائمة فقط + نافذة منفصلة للإنشاء/التعديل +
@@ -22,6 +23,8 @@ export default function QuotationsTab({ companyId, companies }) {
   const [formModal, setFormModal] = useState(null);
   const [viewQuotation, setViewQuotation] = useState(null);
   const [autoPrint, setAutoPrint] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [convertedInvoice, setConvertedInvoice] = useState(null);
 
   const STATUS_LABEL = { draft: t("sales.quotations.status.draft"), converted: t("sales.quotations.status.converted") };
@@ -80,14 +83,33 @@ export default function QuotationsTab({ companyId, companies }) {
     }
   };
 
-  return (
-    <div>
-      <div className="form-btn-group" style={{ justifyContent: "flex-start", marginBottom: 14 }}>
-        <button className="btn-primary" onClick={() => setFormModal({ mode: "create" })}>{t("sales.quotations.addBtn")}</button>
-      </div>
+  // الفلترة محلية على القائمة المحمَّلة كاملة (listQuotations لا تُصفِّح)
+  const needle = search.trim().toLowerCase();
+  const shown = quotations.filter((q) => (!statusFilter || q.status === statusFilter)
+    && (!needle || [q.quoteNumber, q.customer?.name].some((v) => (v || "").toLowerCase().includes(needle))));
 
-      {loading ? <p className="empty">{t("sales.quotations.loading")}</p> : (
-        <div className="panel">
+  return (
+    <SalesScreen
+      icon="quotations"
+      title={t("nav.tabs.quotations")}
+      note={t("sales.screen.notes.quotations")}
+      actions={<HeroButton onClick={() => setFormModal({ mode: "create" })}>{t("sales.quotations.addBtn")}</HeroButton>}
+      chips={<>
+        <SalesChip on={!statusFilter} onClick={() => setStatusFilter("")}>{t("salesInvoices.screen.all")}</SalesChip>
+        <SalesChip tone="wait" on={statusFilter === "draft"} onClick={() => setStatusFilter(statusFilter === "draft" ? "" : "draft")}>{STATUS_LABEL.draft}</SalesChip>
+        <SalesChip tone="ok" on={statusFilter === "converted"} onClick={() => setStatusFilter(statusFilter === "converted" ? "" : "converted")}>{STATUS_LABEL.converted}</SalesChip>
+        <SalesInfoChip count={loading ? "…" : shown.length} label={t("sales.screen.count")} />
+      </>}
+    >
+      <SalesKpis loading={loading} items={[
+        { label: t("sales.screen.count"), value: quotations.length, tone: "gray" },
+        { label: t("sales.screen.total"), value: fmt(quotations.reduce((sum, q) => sum + Number(q.grandTotal || 0), 0)) },
+        { label: STATUS_LABEL.draft, value: quotations.filter((q) => q.status === "draft").length, tone: "amber" },
+        { label: STATUS_LABEL.converted, value: quotations.filter((q) => q.status === "converted").length, tone: "green" },
+      ]} />
+      <SalesSearch value={search} onChange={setSearch} placeholder={t("sales.screen.search")} onReset={() => { setSearch(""); setStatusFilter(""); }} showReset={!!search || !!statusFilter} />
+      {loading ? <div className="panel"><p className="empty">{t("sales.quotations.loading")}</p></div> : (
+        <div className="panel ss-table">
           <table className="ledger-table responsive-table">
             <thead>
               <tr>
@@ -98,16 +120,16 @@ export default function QuotationsTab({ companyId, companies }) {
               </tr>
             </thead>
             <tbody>
-              {quotations.map((q) => {
+              {shown.map((q) => {
                 const converted = q.status === "converted";
                 return (
                   <tr key={q.id}>
-                    <td data-label={t("sales.quotations.table.number")}>{q.quoteNumber}</td>
+                    <td data-label={t("sales.quotations.table.number")}><button type="button" className="ls-link ss-num" onClick={() => setViewQuotation(q)}>{q.quoteNumber}</button></td>
                     <td data-label={t("sales.quotations.table.customer")}>{q.customer?.name}</td>
                     <td data-label={t("sales.quotations.table.date")}>{q.date.slice(0, 10)}</td>
                     <td data-label={t("sales.quotations.table.validUntil")}>{q.validUntil ? q.validUntil.slice(0, 10) : "—"}</td>
-                    <td className="num" data-label={t("sales.quotations.table.total")}>{fmt(Number(q.grandTotal))}</td>
-                    <td data-label={t("sales.quotations.table.status")}><span className="status-badge">{STATUS_LABEL[q.status] || q.status}</span></td>
+                    <td className="num ss-total" data-label={t("sales.quotations.table.total")}>{fmt(Number(q.grandTotal))}</td>
+                    <td data-label={t("sales.quotations.table.status")}><StatusBadge tone={q.status === "converted" ? "ok" : "wait"}>{STATUS_LABEL[q.status] || q.status}</StatusBadge></td>
                     <td className="row-actions">
                       <button className="icon-btn" title={t("sales.quotations.actions.view")} onClick={() => setViewQuotation(q)}><Icon.Eye /></button>
                       <button className="icon-btn" title={t("sales.quotations.actions.print")} onClick={() => onPrintClick(q)}><Icon.Printer /></button>
@@ -133,7 +155,7 @@ export default function QuotationsTab({ companyId, companies }) {
                   </tr>
                 );
               })}
-              {quotations.length === 0 && <tr><td className="empty" colSpan={7}>{t("sales.quotations.empty")}</td></tr>}
+              {shown.length === 0 && <tr><td className="empty" colSpan={7}>{t("sales.quotations.empty")}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -164,6 +186,6 @@ export default function QuotationsTab({ companyId, companies }) {
       )}
 
       <ToastHost toast={toast} onDismiss={dismiss} />
-    </div>
+    </SalesScreen>
   );
 }
