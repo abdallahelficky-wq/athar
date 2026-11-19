@@ -11,7 +11,16 @@ const text = z.string().max(300).nullable().optional();
 const lessorDetails = z
   .object({ type: z.enum(["company", "individual"]).nullable().optional(), idNumber: text, crNumber: text, unifiedNumber: text, vatNumber: text, representative: text, representativeId: text, mobile: text, email: text, address: text, iban: text })
   .strict();
-const propertyDetails = z.object({ address: text, city: text, unitType: text, area: text, deedNumber: text }).strict();
+// رابط الموقع على الخريطة: http(s) فقط — يُعرَض رابطاً في الشاشة فلا يُقبَل javascript: ولا غيره
+const mapUrl = z
+  .string()
+  .trim()
+  .max(1000)
+  .refine((v) => v === "" || /^https?:\/\/[^\s]+$/i.test(v), "رابط الموقع يجب أن يبدأ بـ https://")
+  .nullable()
+  .optional();
+const propertyDetails = z.object({ address: text, city: text, unitType: text, area: text, deedNumber: text, mapUrl }).strict();
+export const LEASE_CATEGORIES = ["fuel_station", "car_wash", "shop_restaurant", "office", "staff_housing", "warehouse", "land", "other"] as const;
 const contractDetails = {
   contractNumber: z.string().max(60).nullable().optional(),
   contractValue: z.coerce.number().nonnegative().nullable().optional(),
@@ -21,6 +30,8 @@ const contractDetails = {
   noticeDays: noticeDays.nullable().optional(),
   lessorDetails: lessorDetails.nullable().optional(),
   propertyDetails: propertyDetails.nullable().optional(),
+  direction: z.enum(["lessee", "lessor"]).optional(),
+  category: z.enum(LEASE_CATEGORIES).nullable().optional(),
 };
 
 export const createLeaseContractSchema = z.object({
@@ -89,6 +100,7 @@ export const applyAccountsSchema = z
     expenseAccountId: z.string().min(1).nullable().optional(),
     prepaidAccountId: z.string().min(1).nullable().optional(),
     onlyMissing: z.boolean().optional(),
+    direction: z.enum(["lessee", "lessor"]).optional(),
   })
   .strict();
 

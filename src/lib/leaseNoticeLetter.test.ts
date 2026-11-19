@@ -42,3 +42,16 @@ describe("buildLeaseNoticeLetter", () => {
     expect(html).toContain("قبل 01/11/2028");
   });
 });
+
+describe("buildLeaseNoticeLetter — company as lessor", () => {
+  it("addresses the tenant and swaps the party roles", () => {
+    const { body } = buildLeaseNoticeLetter({
+      kind: "termination", direction: "lessor", letterDate: "2026-11-19",
+      company: { name: "شركة المثال للوقود" },
+      contract: { title: "مطعم المحطة", counterparty: "مؤسسة المستأجر النموذجي", startDate: "2025-01-01", endDate: "2027-12-31" },
+    });
+    expect(body).toContain("السادة/ مؤسسة المستأجر النموذجي");
+    expect(body).toContain("بين شركة المثال للوقود (المؤجر) ومؤسسة المستأجر النموذجي (المستأجر)");
+    expect(body).toContain("نأمل إخلاء العين المؤجرة");
+  });
+});

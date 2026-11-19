@@ -1092,6 +1092,11 @@ model LeaseContract {
   company            Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   title              String
   counterparty       String?
+  // اتجاه العقد: lessee = الشركة مستأجرة (تدفع، إيجار مدفوع مقدماً يُطفأ مصروفاً)؛ lessor = الشركة مؤجرة (تحصّل، إيجار مقبوض
+  // مقدماً يُطفأ إيراداً). في عقد المؤجر يحمل expenseAccountId حساب الإيراد وprepaidAccountId حساب المقبوض مقدماً.
+  direction          LeaseDirection @default(lessee)
+  // نوع العين المؤجرة؛ null = غير مصنَّف
+  category           LeaseCategory?
   monthlyRent        Decimal?     @db.Decimal(18, 2)
   startDate          DateTime
   endDate            DateTime
@@ -1154,6 +1159,22 @@ model LeaseBrand {
 
   @@unique([companyId, name])
   @@map("lease_brands")
+}
+
+enum LeaseDirection {
+  lessee // الشركة مستأجرة
+  lessor // الشركة مؤجرة للغير
+}
+
+enum LeaseCategory {
+  fuel_station
+  car_wash
+  shop_restaurant
+  office
+  staff_housing
+  warehouse
+  land
+  other
 }
 
 enum LeaseNoticeKind {

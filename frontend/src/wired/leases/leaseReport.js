@@ -26,8 +26,11 @@ export function filterReportContracts(contracts, f) {
     if (f.statuses?.length && !f.statuses.includes(c.status || "active")) return false;
     if (f.endFrom && c.endDate < f.endFrom) return false;
     if (f.endTo && c.endDate > f.endTo) return false;
+    if (f.direction && f.direction !== "all" && (c.direction || "lessee") !== f.direction) return false;
+    if (f.categories?.length && !f.categories.includes(c.category || "none")) return false;
     if (f.brands?.length && !f.brands.includes(c.brandId || "none")) return false;
-    if (f.cities?.length && !f.cities.includes(contractCity(c) || "none")) return false;
+    // المدن: تضمين المحدد، أو استبعاده (citiesExclude) — مثل «خارج جدة»
+    if (f.cities?.length && f.cities.includes(contractCity(c) || "none") === !!f.citiesExclude) return false;
     if (f.autoRenew === "yes" && !c.autoRenew) return false;
     if (f.autoRenew === "no" && c.autoRenew) return false;
     return true;
@@ -39,7 +42,8 @@ export function buildLeaseExpiryReportHtml({ contracts, today, companyName, titl
   const side = dir === "rtl" ? "right" : "left";
   const rows = contracts.map((c) => {
     const left = daysBetween(today, c.endDate);
-    return { ...c, left, monthsLeft: Math.max(0, Math.round(left / 30.44)), tone: endTone(c.endDate, today), city: contractCity(c) };
+    const mapUrl = /^https?:\/\/\S+$/i.test(c.propertyDetails?.mapUrl || "") ? c.propertyDetails.mapUrl : "";
+    return { ...c, left, monthsLeft: Math.max(0, Math.round(left / 30.44)), tone: endTone(c.endDate, today), city: contractCity(c), mapUrl };
   });
   const live = rows.filter((r) => r.left >= 0);
   const within = (a, b) => live.filter((r) => r.left > a && r.left <= b).length;
@@ -69,11 +73,11 @@ export function buildLeaseExpiryReportHtml({ contracts, today, companyName, titl
   }).join("");
 
   const ucard = (r) => `<div class="ucard ${r.left < 0 ? "past" : r.autoRenew ? "auto" : ""}"><div class="uhead"><b>${esc(r.title)}</b><span class="pill ${r.autoRenew ? "p-auto" : "p-no"}">${esc(r.autoRenew ? t("leases.autoRenewShort") : t("leases.noAutoRenewShort"))}</span></div>
-<div class="umeta">${r.brandName ? `${brandChip(r)} ` : ""}${r.city ? `<span>${esc(r.city)}</span>` : ""}${r.counterparty ? `<span>${esc(r.counterparty)}</span>` : ""}</div>
+<div class="umeta">${r.brandName ? `${brandChip(r)} ` : ""}${r.city ? `<span>${esc(r.city)}</span>` : ""}${r.mapUrl ? `<a class="map" href="${esc(r.mapUrl)}" target="_blank" rel="noopener noreferrer">📍</a>` : ""}${r.counterparty ? `<span>${esc(r.counterparty)}</span>` : ""}</div>
 <div class="udates"><div><span>${esc(t("leases.endDate"))}</span><b>${esc(fmtDay(r.endDate))}</b></div><div><span>${esc(t("leases.report.decisionBy"))}</span><b>${esc(deadline(r))}</b></div><div><span>${esc(t("leases.report.remaining"))}</span><b>${esc(remaining(r))}</b></div></div>
 <div class="uact">${esc(r.left < 0 ? t("leases.report.actEnded") : r.autoRenew ? t("leases.report.actAuto", { date: deadline(r) }) : t("leases.report.actNoAuto"))}</div></div>`;
 
-  const tableRows = rows.map((r, i) => `<tr class="t-${r.tone}"><td>${i + 1}</td><td><b>${esc(r.title)}</b>${r.contractNumber ? `<div class="sub">${esc(r.contractNumber)}</div>` : ""}</td><td>${brandChip(r)}</td><td>${esc(r.city || "—")}</td><td>${esc(r.counterparty || "—")}</td><td>${esc(fmtDay(r.startDate))}</td><td><b>${esc(fmtDay(r.endDate))}</b></td><td><span class="mpill m-${r.tone}">${esc(remaining(r))}</span></td><td class="${r.autoRenew ? "yes" : "no"}">${esc(r.autoRenew ? t("leases.report.yes") : t("leases.report.no"))}</td><td>${esc(deadline(r))}</td><td>${esc(t(`leases.contractStatus.${r.status || "active"}`))}</td></tr>`).join("");
+  const tableRows = rows.map((r, i) => `<tr class="t-${r.tone}"><td>${i + 1}</td><td><b>${esc(r.title)}</b>${r.contractNumber ? `<div class="sub">${esc(r.contractNumber)}</div>` : ""}</td><td>${esc(r.category ? t(`leases.category.${r.category}`) : "—")}</td><td>${brandChip(r)}</td><td>${esc(r.city || "—")}${r.mapUrl ? ` <a class="map" href="${esc(r.mapUrl)}" target="_blank" rel="noopener noreferrer">📍</a>` : ""}</td><td>${esc(r.counterparty || "—")}</td><td>${esc(fmtDay(r.startDate))}</td><td><b>${esc(fmtDay(r.endDate))}</b></td><td><span class="mpill m-${r.tone}">${esc(remaining(r))}</span></td><td class="${r.autoRenew ? "yes" : "no"}">${esc(r.autoRenew ? t("leases.report.yes") : t("leases.report.no"))}</td><td>${esc(deadline(r))}</td><td>${esc(t(`leases.contractStatus.${r.status || "active"}`))}</td></tr>`).join("");
 
   const lead = nearest
     ? t("leases.report.lead", { title: nearest.title, date: fmtDay(nearest.endDate), deadline: deadline(nearest), count: within(-1, 365) })
@@ -121,7 +125,7 @@ th{background:#0D4A31;color:#fff;font-weight:600;padding:2.4mm 2mm;text-align:st
 td{padding:1.5mm 2mm;border-bottom:1px solid #EEF2F5;vertical-align:middle} tr{break-inside:avoid} tr:nth-child(even) td{background:#F8FAFB}
 tr td:first-child{color:#7A8896;width:6mm;text-align:center;border-${side}:1.2mm solid transparent} tr.t-red td:first-child{border-${side}-color:#A8432B} tr.t-amber td:first-child{border-${side}-color:#B7791F} tr.t-green td:first-child{border-${side}-color:#1B8354} tr.t-past td:first-child{border-${side}-color:#6B7785}
 .mpill{display:inline-block;padding:.6mm 2.4mm;border-radius:99px;font-weight:700;font-size:8pt;white-space:nowrap} .m-red{background:#FBE5DF;color:#8A2F1B} .m-amber{background:#FBEFD6;color:#7A5212} .m-green{background:#E2F3E9;color:#0D4A31} .m-past{background:#E9EDF1;color:#4A5A6A}
-.yes{color:#1B8354;font-weight:700} .no{color:#8A2F1B;font-weight:700} .sub{font-size:7.5pt;color:#7A8896}
+a.map{text-decoration:none} .yes{color:#1B8354;font-weight:700} .no{color:#8A2F1B;font-weight:700} .sub{font-size:7.5pt;color:#7A8896}
 .empty{padding:10mm;text-align:center;color:#7A8896;border:1px dashed #D5DCE3;border-radius:3mm}
 .foot{margin-top:6mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#9AA7B4;border-top:1px solid #E6EBF0;padding-top:2mm}
 @media screen{body{max-width:210mm;margin:0 auto;box-shadow:0 0 0 1px #E6EBF0}}
@@ -143,7 +147,7 @@ ${live.length > 40 ? `<div class="sub">${esc(t("leases.report.timelineMore", { c
 <div class="legend"><span><i style="background:#A8432B"></i>${esc(t("leases.report.legend12"))}</span><span><i style="background:#B7791F"></i>${esc(t("leases.report.legend24"))}</span><span><i style="background:#1B8354"></i>${esc(t("leases.report.legendLater"))}</span><span><i style="background:#fff;border:.6mm solid #083524;width:2.6mm;border-radius:50%"></i>${esc(t("leases.report.decisionBy"))}</span></div>
 </div>` : ""}
 <h2>${esc(t("leases.report.tableTitle"))}</h2>
-${rows.length ? `<table><thead><tr><th>#</th><th>${esc(t("leases.contract"))}</th><th>${esc(t("leases.brands.label"))}</th><th>${esc(t("leases.property.city"))}</th><th>${esc(t("leases.counterparty"))}</th><th>${esc(t("leases.startDate"))}</th><th>${esc(t("leases.endDate"))}</th><th>${esc(t("leases.report.remaining"))}</th><th>${esc(t("leases.autoRenew"))}</th><th>${esc(t("leases.report.decisionBy"))}</th><th>${esc(t("leases.status"))}</th></tr></thead><tbody>${tableRows}</tbody></table>` : `<div class="empty">${esc(t("leases.report.empty"))}</div>`}
+${rows.length ? `<table><thead><tr><th>#</th><th>${esc(t("leases.contract"))}</th><th>${esc(t("leases.category.label"))}</th><th>${esc(t("leases.brands.label"))}</th><th>${esc(t("leases.property.city"))}</th><th>${esc(t("leases.counterparty"))}</th><th>${esc(t("leases.startDate"))}</th><th>${esc(t("leases.endDate"))}</th><th>${esc(t("leases.report.remaining"))}</th><th>${esc(t("leases.autoRenew"))}</th><th>${esc(t("leases.report.decisionBy"))}</th><th>${esc(t("leases.status"))}</th></tr></thead><tbody>${tableRows}</tbody></table>` : `<div class="empty">${esc(t("leases.report.empty"))}</div>`}
 <div class="foot"><span>${esc(companyName)}</span><span>${esc(t("leases.report.footer"))}</span></div>
 </div></body></html>`;
 }
