@@ -42,7 +42,7 @@ export const LEASE_UNEARNED_ACCOUNT_NAME = "إيجارات مقبوضة مقدم
 export const LEASE_REVENUE_ACCOUNT_NAME = "إيرادات إيجار";
 export const LEASE_UNEARNED_ACCOUNT_MISSING = "لم يُحدَّد حساب «الإيجار المقبوض مقدماً» لعقد التأجير هذا ولا يوجد حساب «إيجارات مقبوضة مقدماً» في شجرة الشركة — حدّد الحساب في بيانات العقد";
 export const LEASE_REVENUE_ACCOUNT_MISSING = "لم يُحدَّد حساب إيراد الإيجار لعقد التأجير هذا ولا يوجد حساب «إيرادات إيجار» في شجرة الشركة — حدّد الحساب في بيانات العقد";
-export const LEASE_OTHER_NOT_POSTABLE = "هذا العقد ضمن «عقود أخرى» للمتابعة فقط — لا يُسجَّل له سداد أو تحصيل في هذه الشركة";
+export const LEASE_OTHER_NOT_POSTABLE = "هذا العقد ضمن «عقود أخرى» للمتابعة فقط — يُسجَّل سداده «خارج النظام» بلا قيد، ولا يُرحَّل له سداد من بنك هذه الشركة";
 export const LEASE_DIRECTION_LOCKED = "لا يُغيَّر اتجاه العقد (مستأجر/مؤجر) بعد تسجيل دفعات مسدَّدة عليه";
 export const LEASE_PAYMENT_NOT_DUE = "هذه الدفعة ليست بانتظار السداد";
 export const LEASE_PAYMENT_AMORTIZED = "أُطفئ جزء من هذه الدفعة في إطفاء شهري مرحَّل — أزل إطفاء الأشهر التي تشملها أولاً";
@@ -419,9 +419,10 @@ export async function confirmLeasePayment(tenantId: string, userId: string, paym
   const payment = await paymentOrThrow(tenantId, paymentId);
   if (payment.status !== "due") throw badRequest(LEASE_PAYMENT_NOT_DUE);
   const contract = payment.leaseContract;
-  if (contract.direction === "other") throw badRequest(LEASE_OTHER_NOT_POSTABLE);
   const companyId = payment.companyId;
   const external = input.postedExternally === true;
+  // عقد «أخرى»: يُعلَّم مسدَّداً للمتابعة فقط (سدّدته الشركة الشقيقة) — بلا قيد ولا إطفاء؛ الترحيل من البنك مرفوض
+  if (contract.direction === "other" && !external) throw badRequest(LEASE_OTHER_NOT_POSTABLE);
 
   const rate = await companyVatRatePercent(tenantId, companyId);
   const split = splitLeaseVat(input.amount ?? Number(payment.amount), contract.vatMode, rate);
@@ -960,7 +961,6 @@ export async function importLeaseContracts(tenantId: string, userId: string, com
   const unknownCostCenters = [...new Set(contracts.map((c) => c.costCenterName?.trim()).filter((n): n is string => !!n && !costCenterId.has(n)))];
   if (unknownCostCenters.length > 0) throw badRequest("في ملف الاستيراد مركز تكلفة غير موجود في الشركة — أضفه من شاشة مراكز التكلفة أو اترك الخانة فارغة", { costCenters: unknownCostCenters });
 
-  if (contracts.some((c) => c.direction === "other" && c.payments.some((p) => p.status === "paid_external"))) throw badRequest(LEASE_OTHER_NOT_POSTABLE);
   return prisma.$transaction(async (tx) => {
     let paymentCount = 0;
     for (const c of contracts) {
