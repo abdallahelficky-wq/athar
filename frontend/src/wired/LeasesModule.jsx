@@ -9,14 +9,14 @@ export const LEASES_TABS = [{ id: "leaseContracts", labelKey: "nav.tabs.leaseCon
  * عقود الإيجار كموديول في القائمة الرئيسية — كانت قسماً داخل «بيانات الشركات» في الإعدادات. المحتوى شاشة الإيجارات الكاملة
  * (التقويم، العقود وجداول دفعاتها، الإطفاء الشهري) على الشركة النشطة — LeasesTab.
  */
-export default function LeasesModule({ companyId }) {
+export default function LeasesModule({ companyId, companyName }) {
   const { t } = useTranslation();
   useModuleTab("/leases", LEASES_TABS);
   return (
     <div key={companyId}>
       <div className="section-title"><h2>{t("nav.groups.leases")}</h2></div>
       {companyId
-        ? <LeasesTab companyId={companyId} />
+        ? <LeasesTab companyId={companyId} companyName={companyName} />
         : <p className="empty">{t("nav.noCompanySelected")}</p>}
     </div>
   );

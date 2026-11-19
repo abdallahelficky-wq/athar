@@ -24,6 +24,10 @@ leaseContractRoutes.get("/alerts", requirePositionAction("leaseContracts", "read
 leaseContractRoutes.get("/reminders", requirePositionAction("leaseContracts", "read"), c.getReminderHandler);
 leaseContractRoutes.put("/reminders", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.reminderSettingSchema), c.saveReminderHandler);
 leaseContractRoutes.post("/reminders/send-now", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.sendReminderSchema), c.sendReminderNowHandler);
+leaseContractRoutes.get("/brands", requirePositionAction("leaseContracts", "read"), c.listBrandsHandler);
+leaseContractRoutes.post("/brands", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.createBrandSchema), c.createBrandHandler);
+leaseContractRoutes.patch("/brands/:id", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.updateBrandSchema), c.updateBrandHandler);
+leaseContractRoutes.delete("/brands/:id", requirePositionAction("leaseContracts", "edit"), canManage, c.deleteBrandHandler);
 leaseContractRoutes.get("/amortization", requirePositionAction("leaseContracts", "read"), c.listAmortizationHandler);
 leaseContractRoutes.get("/amortization/preview", requirePositionAction("leaseContracts", "read"), c.previewAmortizationHandler);
 
@@ -40,6 +44,9 @@ leaseContractRoutes.delete("/amortization/:id", requirePositionAction("leaseCont
 
 leaseContractRoutes.post("/:id/schedule", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.generateScheduleSchema), c.generateScheduleHandler);
 leaseContractRoutes.get("/:id/details", requirePositionAction("leaseContracts", "read"), c.detailsHandler);
+leaseContractRoutes.get("/:id/notices", requirePositionAction("leaseContracts", "read"), c.listNoticesHandler);
+leaseContractRoutes.post("/:id/notices/preview", requirePositionAction("leaseContracts", "read"), validateBody(s.noticePreviewSchema), c.previewNoticeHandler);
+leaseContractRoutes.post("/:id/notices", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.createNoticeSchema), c.createNoticeHandler);
 leaseContractRoutes.post("/:id/status", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.contractStatusSchema), c.setStatusHandler);
 leaseContractRoutes.patch("/:id", requirePositionAction("leaseContracts", "edit"), canManage, validateBody(s.updateLeaseContractSchema), c.updateLeaseContract);
 leaseContractRoutes.delete("/:id", requirePositionAction("leaseContracts", "delete"), canManage, c.deleteLeaseContract);

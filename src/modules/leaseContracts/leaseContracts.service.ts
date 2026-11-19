@@ -7,7 +7,8 @@ import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { companyVatRatePercent } from "../../lib/companyVat";
 import { env } from "../../config/env";
 import { buildLeaseReminderEmail, hasLeaseAlerts } from "../../lib/leaseReminderEmail";
-import { sendLeaseReminderEmail } from "../../lib/mailer";
+import { sendLeaseNoticeEmail, sendLeaseReminderEmail } from "../../lib/mailer";
+import { buildLeaseNoticeEmailHtml, buildLeaseNoticeLetter, type LeaseNoticeKind } from "../../lib/leaseNoticeLetter";
 import type { Lang } from "../../lib/i18n/translate";
 import { resolveRecipientEmails } from "../reportSchedules/reportSchedules.service";
 import { riyadhCalendarDay } from "../../lib/riyadhDate";
@@ -93,6 +94,7 @@ export interface ContractInput {
   prepaidAccountId?: string | null;
   isActive?: boolean;
   signedOn?: Date | null;
+  brandId?: string | null;
   contractNumber?: string | null;
   contractValue?: number | null;
   depositAmount?: number | null;
@@ -118,6 +120,10 @@ function contractData<T extends Partial<ContractInput>>(input: T) {
 
 async function assertContractReferences(tenantId: string, companyId: string, input: Partial<ContractInput>) {
   await assertCostCenter(tenantId, companyId, input.costCenterId);
+  if (input.brandId) {
+    const brand = await prisma.leaseBrand.findFirst({ where: { id: input.brandId, tenantId, companyId }, select: { id: true } });
+    if (!brand) throw badRequest("العلامة التجارية غير موجودة في هذه الشركة");
+  }
   await assertPostingAccount(tenantId, companyId, input.expenseAccountId, "حساب مصروف الإيجار يجب أن يكون حساب ترحيل نشطاً من نفس الشركة");
   await assertPostingAccount(tenantId, companyId, input.prepaidAccountId, "حساب الإيجار المدفوع مقدماً يجب أن يكون حساب ترحيل نشطاً من نفس الشركة");
 }
@@ -517,7 +523,7 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
   await companyOrThrow(tenantId, companyId);
 
   const [contracts, payments, costCenters, attachmentCounts] = await Promise.all([
-    prisma.leaseContract.findMany({ where: { tenantId, companyId }, orderBy: [{ title: "asc" }] }),
+    prisma.leaseContract.findMany({ where: { tenantId, companyId }, orderBy: [{ title: "asc" }], include: { brand: { select: { name: true, color: true } } } }),
     prisma.leasePayment.findMany({
       where: { tenantId, companyId, dueDate: { gte: dayToDate(range.from), lte: dayToDate(range.to) } },
       orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
@@ -583,6 +589,7 @@ export async function leaseCalendar(tenantId: string, companyId: string, range: 
     contracts: contracts.map((c) => ({
       id: c.id, title: c.title, counterparty: c.counterparty, vatMode: c.vatMode, isActive: c.isActive,
       attachmentCount: attachmentCount.get(c.id) ?? 0,
+      brandId: c.brandId, brandName: c.brand?.name ?? null, brandColor: c.brand?.color ?? null,
       status: c.status, statusReason: c.statusReason, statusDate: day(c.statusDate), statusHistory: Array.isArray(c.statusHistory) ? c.statusHistory : [],
       costCenterId: c.costCenterId, costCenterName: c.costCenterId ? costCenterName.get(c.costCenterId) ?? null : null,
       paymentAmount: c.paymentAmount === null ? null : Number(c.paymentAmount), paymentEveryMonths: c.paymentEveryMonths,
@@ -924,4 +931,140 @@ export async function importLeaseContracts(tenantId: string, userId: string, com
     }
     return { contracts: contracts.length, payments: paymentCount };
   });
+}
+
+
+// ---------------------------------------------------------------------------
+// العلامات التجارية: تعريف لكل شركة، يُبذَر بعلامات السوق السعودي عند أول طلب، ويضيف المستخدم أو يعدّل أو يوقف
+// ---------------------------------------------------------------------------
+export const DEFAULT_LEASE_BRANDS: { name: string; nameEn: string; color: string }[] = [
+  { name: "بروق", nameEn: "Broq", color: "#0E7C66" },
+  { name: "أدنوك", nameEn: "ADNOC", color: "#0047BA" },
+  { name: "مزايا", nameEn: "Mazaya", color: "#B7791F" },
+  { name: "الدريس", nameEn: "Aldrees", color: "#C8102E" },
+  { name: "ساسكو", nameEn: "SASCO", color: "#E35205" },
+  { name: "نفط", nameEn: "NAFT", color: "#7A3E9D" },
+  { name: "بترومين", nameEn: "Petromin", color: "#D4A017" },
+  { name: "أرامكو (سهل)", nameEn: "Aramco (Sahel)", color: "#00843D" },
+  { name: "توتال إنرجيز", nameEn: "TotalEnergies", color: "#ED0000" },
+  { name: "إينوك", nameEn: "ENOC", color: "#1D4F91" },
+  { name: "جي أويل", nameEn: "J-Oil", color: "#2B6CB0" },
+  { name: "أولى", nameEn: "Oula", color: "#4A5568" },
+  { name: "الوطنية", nameEn: "Watania", color: "#2F855A" },
+  { name: "فيول واي", nameEn: "Fuel Way", color: "#DD6B20" },
+  { name: "وافي", nameEn: "Wafi Energy", color: "#805AD5" },
+  { name: "لتر", nameEn: "Liter", color: "#319795" },
+  { name: "بترولي", nameEn: "Petroly", color: "#975A16" },
+  { name: "ميدا", nameEn: "Meda", color: "#2C7A7B" },
+];
+
+export async function listLeaseBrands(tenantId: string, companyId: string) {
+  await companyOrThrow(tenantId, companyId);
+  const existing = await prisma.leaseBrand.count({ where: { tenantId, companyId } });
+  if (!existing) {
+    await prisma.leaseBrand.createMany({
+      data: DEFAULT_LEASE_BRANDS.map((b, i) => ({ tenantId, companyId, name: b.name, nameEn: b.nameEn, color: b.color, sortOrder: i })),
+      skipDuplicates: true,
+    });
+  }
+  const brands = await prisma.leaseBrand.findMany({ where: { tenantId, companyId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], include: { _count: { select: { contracts: true } } } });
+  return brands.map(({ _count, tenantId: _t, ...b }) => ({ ...b, contractCount: _count.contracts }));
+}
+
+async function brandOrThrow(tenantId: string, id: string) {
+  const brand = await prisma.leaseBrand.findFirst({ where: { id, tenantId } });
+  if (!brand) throw notFound("العلامة التجارية غير موجودة");
+  return brand;
+}
+
+export async function createLeaseBrand(tenantId: string, input: { companyId: string; name: string; nameEn?: string | null; color?: string | null }) {
+  await companyOrThrow(tenantId, input.companyId);
+  const dup = await prisma.leaseBrand.findFirst({ where: { tenantId, companyId: input.companyId, name: input.name } });
+  if (dup) throw badRequest("توجد علامة تجارية بهذا الاسم");
+  const last = await prisma.leaseBrand.aggregate({ where: { tenantId, companyId: input.companyId }, _max: { sortOrder: true } });
+  return prisma.leaseBrand.create({ data: { tenantId, companyId: input.companyId, name: input.name, nameEn: input.nameEn ?? null, color: input.color ?? null, sortOrder: (last._max.sortOrder ?? -1) + 1 } });
+}
+
+export async function updateLeaseBrand(tenantId: string, id: string, input: { name?: string; nameEn?: string | null; color?: string | null; isActive?: boolean }) {
+  const brand = await brandOrThrow(tenantId, id);
+  if (input.name && input.name !== brand.name) {
+    const dup = await prisma.leaseBrand.findFirst({ where: { tenantId, companyId: brand.companyId, name: input.name, NOT: { id } } });
+    if (dup) throw badRequest("توجد علامة تجارية بهذا الاسم");
+  }
+  return prisma.leaseBrand.update({ where: { id }, data: input });
+}
+
+export async function deleteLeaseBrand(tenantId: string, id: string) {
+  await brandOrThrow(tenantId, id);
+  const used = await prisma.leaseContract.count({ where: { tenantId, brandId: id } });
+  if (used) throw badRequest("العلامة التجارية مستخدمة في عقود؛ أوقفها بدل حذفها");
+  await prisma.leaseBrand.delete({ where: { id } });
+}
+
+export async function brandCompanyId(tenantId: string, id: string) {
+  return (await brandOrThrow(tenantId, id)).companyId;
+}
+
+// ---------------------------------------------------------------------------
+// خطابات الإشعار للمؤجر (تجديد / عدم تجديد): نص يولّده النظام، يُعدَّل، يُرسَل للمسؤول في الشركة، ويُحفَظ
+// ---------------------------------------------------------------------------
+async function noticeContext(tenantId: string, id: string) {
+  const c = await prisma.leaseContract.findFirst({ where: { id, tenantId } });
+  if (!c) throw notFound("عقد الإيجار غير موجود");
+  const company = await prisma.company.findFirst({ where: { id: c.companyId, tenantId }, select: { name: true, crNumber: true } });
+  if (!company) throw notFound("الشركة غير موجودة");
+  const property = (c.propertyDetails ?? {}) as { address?: string | null; city?: string | null };
+  const endDay = dateToDay(c.endDate);
+  return {
+    c,
+    company,
+    deadline: noticeDeadline(endDay, c.noticeDays),
+    letterInput: {
+      company: { name: company.name, crNumber: company.crNumber },
+      contract: {
+        title: c.title, counterparty: c.counterparty, contractNumber: c.contractNumber, signedOn: day(c.signedOn), startDate: dateToDay(c.startDate), endDate: endDay,
+        noticeDays: c.noticeDays, autoRenew: c.autoRenew, address: property.address ?? null, city: property.city ?? null,
+      },
+    },
+  };
+}
+
+export async function previewLeaseNotice(tenantId: string, id: string, kind: LeaseNoticeKind) {
+  const ctx = await noticeContext(tenantId, id);
+  const letter = buildLeaseNoticeLetter({ kind, letterDate: riyadhCalendarDay(new Date()), ...ctx.letterInput });
+  const setting = await prisma.leaseReminderSetting.findFirst({ where: { tenantId, companyId: ctx.c.companyId }, select: { recipientEmails: true } });
+  const recipients = await resolveRecipientEmails(tenantId, ctx.c.companyId, setting?.recipientEmails ?? []);
+  return { ...letter, kind, noticeDeadline: ctx.deadline, recipientEmails: recipients };
+}
+
+export async function createLeaseNotice(
+  tenantId: string,
+  userId: string,
+  id: string,
+  input: { kind: LeaseNoticeKind; subject: string; body: string; recipientEmails: string[]; send?: boolean },
+) {
+  const ctx = await noticeContext(tenantId, id);
+  const recipients = [...new Set(input.recipientEmails.map((e) => e.trim().toLowerCase()).filter(Boolean))];
+  if (input.send && !recipients.length) throw badRequest("أضف بريد المسؤول الذي سيُرسَل إليه الخطاب");
+  const notice = await prisma.leaseNotice.create({
+    data: {
+      tenantId, companyId: ctx.c.companyId, leaseContractId: ctx.c.id, kind: input.kind, letterDate: dayToDate(riyadhCalendarDay(new Date())),
+      subject: input.subject, body: input.body, recipientEmails: recipients, createdBy: userId,
+    },
+  });
+  if (!input.send) return { ...notice, letterDate: dateToDay(notice.letterDate) };
+  await sendLeaseNoticeEmail(
+    recipients,
+    `${input.subject} — ${ctx.c.title}`,
+    buildLeaseNoticeEmailHtml({ companyName: ctx.company.name, contractTitle: ctx.c.title, kind: input.kind, noticeDeadline: ctx.deadline, body: input.body }),
+  );
+  const sent = await prisma.leaseNotice.update({ where: { id: notice.id }, data: { sentAt: new Date() } });
+  return { ...sent, letterDate: dateToDay(sent.letterDate) };
+}
+
+export async function listLeaseNotices(tenantId: string, id: string) {
+  const c = await prisma.leaseContract.findFirst({ where: { id, tenantId }, select: { id: true } });
+  if (!c) throw notFound("عقد الإيجار غير موجود");
+  const rows = await prisma.leaseNotice.findMany({ where: { tenantId, leaseContractId: id }, orderBy: { createdAt: "desc" } });
+  return rows.map((n) => ({ ...n, letterDate: dateToDay(n.letterDate) }));
 }

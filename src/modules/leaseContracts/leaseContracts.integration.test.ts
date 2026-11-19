@@ -94,6 +94,7 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
       await prisma.leaseAmortizationRun.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.leasePayment.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.leaseContract.deleteMany({ where: { tenantId: c.tenantId } });
+      await prisma.leaseBrand.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.journalEntry.deleteMany({ where: { tenantId: c.tenantId } });
       await prisma.tenant.update({ where: { id: c.tenantId }, data: { ownerId: null } }).catch(() => undefined);
       await prisma.user.deleteMany({ where: { tenantId: c.tenantId } }).catch(() => undefined);
@@ -552,5 +553,66 @@ describe("lease contracts: schedule, payment confirmation and monthly amortizati
     const quiet = await call("POST", "/lease-contracts/reminders/send-now", ctx.a.token, { companyId: ctx.a.companyId });
     expect(quiet.status, quiet.text).toBe(200);
     expect(quiet.body).toMatchObject({ sent: false });
+  });
+
+  it("seeds brands per company, links them to contracts in the same company only, and returns them in the calendar", async () => {
+    const [a, b] = [ctx.a, ctx.b];
+    const brandsA = await call("GET", `/lease-contracts/brands?companyId=${a.companyId}`, a.token);
+    expect(brandsA.status, brandsA.text).toBe(200);
+    expect(brandsA.body.map((x: any) => x.name)).toEqual(expect.arrayContaining(["بروق", "أدنوك", "مزايا", "الدريس", "بترومين", "بترولي"]));
+    // الطلب الثاني لا يكرّر البذر
+    expect((await call("GET", `/lease-contracts/brands?companyId=${a.companyId}`, a.token)).body.length).toBe(brandsA.body.length);
+    const broqA = brandsA.body.find((x: any) => x.name === "بروق");
+    const brandsB = (await call("GET", `/lease-contracts/brands?companyId=${b.companyId}`, b.token)).body;
+    const broqB = brandsB.find((x: any) => x.name === "بروق");
+    expect(broqB.id).not.toBe(broqA.id);
+
+    // مستأجر B لا يقرأ علامات A ولا يعدّلها ولا يربط عقده بها
+    expect((await call("GET", `/lease-contracts/brands?companyId=${a.companyId}`, b.token)).status).toBeGreaterThanOrEqual(400);
+    expect((await call("PATCH", `/lease-contracts/brands/${broqA.id}`, b.token, { name: "مسروقة" })).status).toBe(404);
+    const otherContract = await prisma.leaseContract.findFirstOrThrow({ where: { tenantId: b.tenantId } });
+    const cross = await call("PATCH", `/lease-contracts/${otherContract.id}`, b.token, { brandId: broqA.id });
+    expect(cross.status).toBe(400);
+    expect(cross.body.error ?? cross.text).toContain("العلامة التجارية غير موجودة في هذه الشركة");
+
+    const linked = await call("PATCH", `/lease-contracts/${a.contractId}`, a.token, { brandId: broqA.id, propertyDetails: { city: "مكة المكرمة" } });
+    expect(linked.status, linked.text).toBe(200);
+    const cal = (await calendar(a)).body.contracts.find((c: any) => c.id === a.contractId);
+    expect([cal.brandId, cal.brandName]).toEqual([broqA.id, "بروق"]);
+
+    // علامة مستخدمة لا تُحذف؛ توقَف
+    expect((await call("DELETE", `/lease-contracts/brands/${broqA.id}`, a.token)).status).toBe(400);
+    const off = await call("PATCH", `/lease-contracts/brands/${broqA.id}`, a.token, { isActive: false });
+    expect([off.status, off.body.isActive]).toEqual([200, false]);
+    const added = await call("POST", "/lease-contracts/brands", a.token, { companyId: a.companyId, name: "علامة اختبار", color: "#123456" });
+    expect(added.status, added.text).toBe(201);
+    expect((await call("POST", "/lease-contracts/brands", a.token, { companyId: a.companyId, name: "علامة اختبار" })).status).toBe(400);
+    expect((await call("DELETE", `/lease-contracts/brands/${added.body.id}`, a.token)).status).toBe(204);
+  });
+
+  it("builds renewal/termination notice letters from the contract, saves them, and keeps them inside the tenant", async () => {
+    const [a, b] = [ctx.a, ctx.b];
+    const renewal = await call("POST", `/lease-contracts/${a.contractId}/notices/preview`, a.token, { kind: "renewal" });
+    expect(renewal.status, renewal.text).toBe(200);
+    expect(renewal.body.subject).toContain("تجديد");
+    expect(renewal.body.body).toContain("المؤجر أ");
+    expect(renewal.body.body).toContain("مكة المكرمة");
+    expect(renewal.body.body).toContain(SHARED_NAME);
+    const termination = await call("POST", `/lease-contracts/${a.contractId}/notices/preview`, a.token, { kind: "termination" });
+    expect(termination.body.subject).toContain("بعدم تجديد");
+
+    expect((await call("POST", `/lease-contracts/${a.contractId}/notices/preview`, b.token, { kind: "renewal" })).status).toBe(404);
+    expect((await call("GET", `/lease-contracts/${a.contractId}/notices`, b.token)).status).toBe(404);
+
+    const saved = await call("POST", `/lease-contracts/${a.contractId}/notices`, a.token, {
+      kind: "termination", subject: termination.body.subject, body: termination.body.body, recipientEmails: [`lease-a-${stamp}@example.com`], send: true,
+    });
+    expect(saved.status, saved.text).toBe(201);
+    expect(saved.body.sentAt).toBeTruthy();
+    expect((await call("POST", `/lease-contracts/${a.contractId}/notices`, a.token, {
+      kind: "renewal", subject: renewal.body.subject, body: renewal.body.body, recipientEmails: [], send: true,
+    })).status).toBe(400);
+    const list = await call("GET", `/lease-contracts/${a.contractId}/notices`, a.token);
+    expect(list.body.map((n: any) => [n.kind, n.tenantId])).toEqual([["termination", a.tenantId]]);
   });
 });

@@ -152,3 +152,35 @@ export const removeAmortizationHandler: RequestHandler = async (req, res) => {
   await service.removeLeaseAmortizationRun(req.auth!.tenantId, req.auth!.sub, req.params.id, req.body.pin);
   res.status(204).send();
 };
+
+export const listBrandsHandler: RequestHandler = async (req, res) => {
+  res.json(await service.listLeaseBrands(req.auth!.tenantId, requireCompany(req)));
+};
+export const createBrandHandler: RequestHandler = async (req, res) => {
+  const companyId = requireCompany(req);
+  const { name, nameEn, color } = req.body;
+  res.status(201).json(await service.createLeaseBrand(req.auth!.tenantId, { companyId, name, nameEn, color }));
+};
+export const updateBrandHandler: RequestHandler = async (req, res) => {
+  assertCompanyAccess(req.auth!, await service.brandCompanyId(req.auth!.tenantId, req.params.id));
+  const { name, nameEn, color, isActive } = req.body;
+  res.json(await service.updateLeaseBrand(req.auth!.tenantId, req.params.id, { name, nameEn, color, isActive }));
+};
+export const deleteBrandHandler: RequestHandler = async (req, res) => {
+  assertCompanyAccess(req.auth!, await service.brandCompanyId(req.auth!.tenantId, req.params.id));
+  await service.deleteLeaseBrand(req.auth!.tenantId, req.params.id);
+  res.status(204).send();
+};
+export const previewNoticeHandler: RequestHandler = async (req, res) => {
+  await scopeContract(req, req.params.id);
+  res.json(await service.previewLeaseNotice(req.auth!.tenantId, req.params.id, req.body.kind));
+};
+export const createNoticeHandler: RequestHandler = async (req, res) => {
+  await scopeContract(req, req.params.id);
+  const { kind, subject, body, recipientEmails, send } = req.body;
+  res.status(201).json(await service.createLeaseNotice(req.auth!.tenantId, req.auth!.sub, req.params.id, { kind, subject, body, recipientEmails, send }));
+};
+export const listNoticesHandler: RequestHandler = async (req, res) => {
+  await scopeContract(req, req.params.id);
+  res.json(await service.listLeaseNotices(req.auth!.tenantId, req.params.id));
+};

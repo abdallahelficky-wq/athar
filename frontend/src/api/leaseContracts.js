@@ -27,3 +27,12 @@ export const removeLeaseAmortizationRun = (id, pin) => api.delete(`/lease-contra
 export const getLeaseReminder = (companyId) => api.get(`/lease-contracts/reminders?companyId=${companyId}`);
 export const saveLeaseReminder = (payload) => api.put("/lease-contracts/reminders", payload);
 export const sendLeaseReminderNow = (companyId) => api.post("/lease-contracts/reminders/send-now", { companyId });
+
+// العلامات التجارية وخطابات الإشعار للمؤجر
+export const listLeaseBrands = (companyId) => api.get(`/lease-contracts/brands?companyId=${companyId}`);
+export const createLeaseBrand = (payload) => api.post("/lease-contracts/brands", payload);
+export const updateLeaseBrand = (id, payload) => api.patch(`/lease-contracts/brands/${id}`, payload);
+export const deleteLeaseBrand = (id) => api.delete(`/lease-contracts/brands/${id}`);
+export const previewLeaseNotice = (id, kind) => api.post(`/lease-contracts/${id}/notices/preview`, { kind });
+export const createLeaseNotice = (id, payload) => api.post(`/lease-contracts/${id}/notices`, payload);
+export const listLeaseNotices = (id) => api.get(`/lease-contracts/${id}/notices`);
