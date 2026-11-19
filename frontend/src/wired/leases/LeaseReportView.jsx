@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { buildLeaseExpiryReportHtml, contractCity, filterReportContracts } from "./leaseReport";
 import { LEASE_CATEGORIES, SAUDI_CITIES } from "./leaseLists";
 import LeaseMultiSelect from "./LeaseMultiSelect";
+import { exportLeaseReportExcel } from "./exportLeaseReportExcel";
 
 /**
  * تبويب «التقرير»: تقرير انتهاء عقود الإيجار بنفس تصميم تقرير PDF، بفلاتر: تاريخ نهاية العقد، العلامة التجارية، المدينة،
@@ -48,7 +49,7 @@ export default function LeaseReportView({ contracts, brands, companyName, today,
   const brandName = (id) => (id === "none" ? t("leases.brands.none") : brands.find((b) => b.id === id)?.name || "");
   const cityName = (c) => (c === "none" ? t("leases.report.noCity") : c);
 
-  const html = useMemo(() => {
+  const meta = useMemo(() => {
     const oneBrand = f.brands.length === 1 && f.brands[0] !== "none" ? brandName(f.brands[0]) : "";
     const parts = [];
     if (f.endFrom || f.endTo) parts.push(t("leases.report.fEnd", { from: f.endFrom ? fmtDay(f.endFrom) : "…", to: f.endTo ? fmtDay(f.endTo) : "…" }));
@@ -58,13 +59,18 @@ export default function LeaseReportView({ contracts, brands, companyName, today,
     if (f.cities.length) parts.push(`${t("leases.property.city")}: ${f.citiesExclude ? t("leases.report.except") + " " : ""}${f.cities.map(cityName).join("، ")}`);
     if (f.autoRenew !== "all") parts.push(f.autoRenew === "yes" ? t("leases.autoRenewShort") : t("leases.noAutoRenewShort"));
     if (f.statuses.length && f.statuses.length < STATUSES.length) parts.push(`${t("leases.status")}: ${f.statuses.map((s) => t(`leases.contractStatus.${s}`)).join("، ")}`);
-    return buildLeaseExpiryReportHtml({
-      contracts: shown, today, companyName, fmtDay, t, lang: i18n.language?.startsWith("en") ? "en" : "ar",
-      title: oneBrand ? t("leases.report.titleBrand", { brand: oneBrand }) : t("leases.report.title"),
-      subtitle: t("leases.report.subtitle", { company: companyName }),
-      filtersLine: parts.join(" · "),
-    });
-  }, [shown, f, today, companyName]); // eslint-disable-line react-hooks/exhaustive-deps
+    return { title: oneBrand ? t("leases.report.titleBrand", { brand: oneBrand }) : t("leases.report.title"), filtersLine: parts.join(" · ") };
+  }, [f, brands, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lang = i18n.language?.startsWith("en") ? "en" : "ar";
+  const html = useMemo(() => buildLeaseExpiryReportHtml({
+    contracts: shown, today, companyName, fmtDay, t, lang, title: meta.title, filtersLine: meta.filtersLine,
+    subtitle: t("leases.report.subtitle", { company: companyName }),
+  }), [shown, meta, today, companyName]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [exporting, setExporting] = useState(false);
+  const exportExcel = async () => {
+    setExporting(true);
+    try { await exportLeaseReportExcel({ contracts: shown, today, companyName, title: meta.title, filtersLine: meta.filtersLine, t, lang }); } finally { setExporting(false); }
+  };
 
   // ارتفاع الإطار = ارتفاع التقرير، فيُقرأ كاملاً بتمرير الصفحة نفسها؛ يُعاد القياس بعد تحميل الخط
   const fit = () => {
@@ -132,6 +138,7 @@ export default function LeaseReportView({ contracts, brands, companyName, today,
       <div className="ls-rbar">
         <span>{t("leases.report.count", { count: shown.length, total: contracts.length })}</span>
         <span className="ls-view-spacer" />
+        <button type="button" className="ls-btn ls-btn-excel" onClick={exportExcel} disabled={exporting || !shown.length}>{exporting ? "…" : t("leases.report.excel")}</button>
         <button type="button" className="ls-btn ls-btn-accent" onClick={print}>{t("leases.report.print")}</button>
       </div>
       <iframe ref={frameRef} title={t("leases.report.title")} className="ls-rframe" srcDoc={html} onLoad={fit} />

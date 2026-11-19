@@ -290,3 +290,5 @@ button.ls-chip:hover { background: rgba(255, 255, 255, 0.22); transform: transla
 .ls-ms-exclude input { accent-color: #A8432B; width: 16px; height: 16px; margin: 0; }
 .ls-reset { height: 42px; width: 100%; border: 1.5px dashed #C9D2DB; border-radius: 11px; background: transparent; color: var(--ink-2); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
 .ls-reset:hover { border-color: var(--ej); color: var(--ej); }
+.ls-btn-excel { background: #1D6F42; border: 0; color: #fff; box-shadow: 0 8px 20px rgba(29, 111, 66, 0.25); }
+.ls-btn-excel:disabled { opacity: 0.5; }

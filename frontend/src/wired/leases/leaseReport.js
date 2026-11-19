@@ -110,7 +110,7 @@ h2{font-size:14pt;color:#0D4A31;margin:7mm 0 3mm;display:flex;align-items:center
 .uact{margin-top:2.5mm;font-size:9pt;font-weight:600;color:#4A5A6A}
 .brand{display:inline-block;padding:.3mm 2.5mm;border-radius:99px;font-size:8pt;font-weight:700;color:#fff;background:var(--b)}
 .gantt{border:1px solid #E1E7ED;border-radius:3.5mm;padding:4mm 4mm 3mm;background:#FBFCFD;position:relative}
-.gaxis,.grow{display:grid;grid-template-columns:38mm 1fr;align-items:center} .gaxis .gtrack{height:6mm} .grow{height:6.6mm;break-inside:avoid}
+.gantt{--gn:38mm} .gaxis,.grow{display:grid;grid-template-columns:var(--gn) 1fr;align-items:center} .gaxis .gtrack{height:6mm} .grow{height:6.6mm;break-inside:avoid}
 .gname{font-size:8.4pt;font-weight:600;padding-inline-end:2mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gtrack{position:relative;height:100%} .grow .gtrack:before{content:"";position:absolute;inset:50% 0 auto;border-top:1px dashed #E1E7ED}
 .ylab{position:absolute;top:0;transform:translateX(${dir === "rtl" ? "50%" : "-50%"});font-size:8pt;color:#7A8896;font-weight:700}
@@ -128,7 +128,7 @@ tr td:first-child{color:#7A8896;width:6mm;text-align:center;border-${side}:1.2mm
 a.map{text-decoration:none} .yes{color:#1B8354;font-weight:700} .no{color:#8A2F1B;font-weight:700} .sub{font-size:7.5pt;color:#7A8896}
 .empty{padding:10mm;text-align:center;color:#7A8896;border:1px dashed #D5DCE3;border-radius:3mm}
 .foot{margin-top:6mm;display:flex;justify-content:space-between;font-size:7.5pt;color:#9AA7B4;border-top:1px solid #E6EBF0;padding-top:2mm}
-@media screen{body{max-width:210mm;margin:0 auto;box-shadow:0 0 0 1px #E6EBF0}}
+@media screen{.hero{padding:10mm 4%} .wrap{padding:0 4% 8mm} .kpis{grid-template-columns:repeat(4,minmax(0,1fr))} .ucards{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))} .gantt{--gn:56mm}}
 </style></head><body>
 <div class="hero"><span class="tag">${esc(t("leases.report.tag", { date: fmtDay(today) }))}</span><h1>${esc(title)}</h1><p>${esc(subtitle)}</p>${filtersLine ? `<div class="filters">${esc(filtersLine)}</div>` : ""}</div>
 <div class="wrap">
@@ -142,7 +142,7 @@ a.map{text-decoration:none} .yes{color:#1B8354;font-weight:700} .no{color:#8A2F1
 ${urgent.length ? `<h2>${esc(t("leases.report.urgentTitle"))}</h2><div class="ucards">${urgent.map(ucard).join("")}</div>` : ""}
 ${live.length ? `<h2>${esc(t("leases.report.timelineTitle"))}</h2><div class="gantt">
 <div class="gaxis"><div></div><div class="gtrack">${years.map((y) => `<span class="ylab" style="${side}:${pos(`${y}-01-01`).toFixed(2)}%">${y}</span>`).join("")}</div></div>
-<div style="position:relative">${ganttRows}<div style="position:absolute;top:0;bottom:0;${side === "right" ? "right:38mm;left:0" : "left:38mm;right:0"};pointer-events:none">${years.slice(1).map((y) => `<i class="yline" style="${side}:${pos(`${y}-01-01`).toFixed(2)}%;top:0"></i>`).join("")}<div class="today" style="${side}:${todayPos.toFixed(2)}%"><span>${esc(t("leases.report.today"))}</span></div></div></div>
+<div style="position:relative">${ganttRows}<div style="position:absolute;top:0;bottom:0;${side === "right" ? "right:var(--gn);left:0" : "left:var(--gn);right:0"};pointer-events:none">${years.slice(1).map((y) => `<i class="yline" style="${side}:${pos(`${y}-01-01`).toFixed(2)}%;top:0"></i>`).join("")}<div class="today" style="${side}:${todayPos.toFixed(2)}%"><span>${esc(t("leases.report.today"))}</span></div></div></div>
 ${live.length > 40 ? `<div class="sub">${esc(t("leases.report.timelineMore", { count: live.length - 40 }))}</div>` : ""}
 <div class="legend"><span><i style="background:#A8432B"></i>${esc(t("leases.report.legend12"))}</span><span><i style="background:#B7791F"></i>${esc(t("leases.report.legend24"))}</span><span><i style="background:#1B8354"></i>${esc(t("leases.report.legendLater"))}</span><span><i style="background:#fff;border:.6mm solid #083524;width:2.6mm;border-radius:50%"></i>${esc(t("leases.report.decisionBy"))}</span></div>
 </div>` : ""}
