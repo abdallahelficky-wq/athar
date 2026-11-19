@@ -663,8 +663,13 @@ export default function LeasesTab({ companyId, companyName = "" }) {
               {brands.filter((b) => b.isActive || b.id === form.brandId).map((b) => <option key={b.id} value={b.id}>{b.name}{b.nameEn ? ` — ${b.nameEn}` : ""}</option>)}
             </select>
           </label>
-          <label>{t("leases.property.city")}<input list="lease-cities" value={form.property?.city || ""} placeholder={t("leases.property.cityPick")} onChange={(e) => setForm({ ...form, property: { ...form.property, city: e.target.value } })} /></label>
-          <datalist id="lease-cities">{SAUDI_CITIES.map((c) => <option key={c} value={c} />)}</datalist>
+          <label>{t("leases.property.city")}
+            <select value={form.property?.city || ""} onChange={(e) => setForm({ ...form, property: { ...form.property, city: e.target.value } })}>
+              <option value="">{t("leases.property.cityPick")}</option>
+              {form.property?.city && !SAUDI_CITIES.includes(form.property.city) && <option value={form.property.city}>{form.property.city}</option>}
+              {SAUDI_CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
           <label>{t("leases.property.mapUrl")}<input type="url" dir="ltr" placeholder="https://maps.app.goo.gl/…" value={form.property?.mapUrl || ""} onChange={(e) => setForm({ ...form, property: { ...form.property, mapUrl: e.target.value } })} /></label>
           <label>{t("leases.costCenter")}
             <select value={form.costCenterId || ""} onChange={(e) => setForm({ ...form, costCenterId: e.target.value })}>

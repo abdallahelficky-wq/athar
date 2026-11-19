@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { buildLeaseExpiryReportHtml, contractCity, filterReportContracts } from "./leaseReport";
-import { LEASE_CATEGORIES } from "./leaseLists";
+import { LEASE_CATEGORIES, SAUDI_CITIES } from "./leaseLists";
+import LeaseMultiSelect from "./LeaseMultiSelect";
 
 /**
  * تبويب «التقرير»: تقرير انتهاء عقود الإيجار بنفس تصميم تقرير PDF، بفلاتر: تاريخ نهاية العقد، العلامة التجارية، المدينة،
@@ -8,30 +9,41 @@ import { LEASE_CATEGORIES } from "./leaseLists";
  */
 const STATUSES = ["active", "suspended", "stopped", "ended"];
 const addYears = (day, n) => `${Number(day.slice(0, 4)) + n}${day.slice(4)}`;
+const DEFAULT_FILTERS = { endFrom: "", endTo: "", brands: [], cities: [], citiesExclude: false, autoRenew: "all", statuses: ["active"], direction: "lessee", categories: [] };
 
 export default function LeaseReportView({ contracts, brands, companyName, today, t, i18n, fmtDay }) {
-  const [f, setF] = useState({ endFrom: "", endTo: "", brands: [], cities: [], citiesExclude: false, autoRenew: "all", statuses: ["active"], direction: "lessee", categories: [] });
+  const [f, setF] = useState(DEFAULT_FILTERS);
   const frameRef = useRef(null);
-  const toggle = (key, value) => setF((x) => ({ ...x, [key]: x[key].includes(value) ? x[key].filter((v) => v !== value) : [...x[key], value] }));
 
-  const cities = useMemo(() => {
-    const set = new Map();
-    for (const c of contracts) { const city = contractCity(c); set.set(city || "none", (set.get(city || "none") || 0) + 1); }
-    return [...set.entries()].sort((a, b) => (a[0] === "none") - (b[0] === "none") || a[0].localeCompare(b[0], "ar"));
-  }, [contracts]);
-  const usedBrands = useMemo(() => {
+  // كل مدن المملكة متاحة للاختيار، والمدن المستخدمة في العقود (بعددها) أولاً
+  const cityOptions = useMemo(() => {
+    const count = new Map();
+    for (const c of contracts) { const city = contractCity(c) || "none"; count.set(city, (count.get(city) || 0) + 1); }
+    const used = [...count.keys()].filter((c) => c !== "none").sort((a, b) => a.localeCompare(b, "ar"));
+    const rest = SAUDI_CITIES.filter((c) => !count.has(c));
+    return [
+      ...used.map((c) => ({ value: c, label: c, count: count.get(c) })),
+      ...(count.has("none") ? [{ value: "none", label: t("leases.report.noCity"), count: count.get("none") }] : []),
+      ...rest.map((c) => ({ value: c, label: c, count: 0 })),
+    ];
+  }, [contracts, t]);
+  const brandOptions = useMemo(() => {
     const count = new Map();
     for (const c of contracts) count.set(c.brandId || "none", (count.get(c.brandId || "none") || 0) + 1);
-    const list = brands.filter((b) => count.has(b.id)).map((b) => ({ id: b.id, name: b.name, color: b.color, count: count.get(b.id) }));
-    if (count.has("none")) list.push({ id: "none", name: t("leases.brands.none"), color: "#8896A4", count: count.get("none") });
-    return list;
+    const list = brands.map((b) => ({ value: b.id, label: b.name, color: b.color || "#8896A4", count: count.get(b.id) || 0 }))
+      .sort((a, b) => b.count - a.count);
+    return [...list, { value: "none", label: t("leases.brands.none"), color: "#C5CDD5", count: count.get("none") || 0 }];
   }, [contracts, brands, t]);
-
-  const usedCategories = useMemo(() => {
+  const categoryCount = useMemo(() => {
     const count = new Map();
     for (const c of contracts) count.set(c.category || "none", (count.get(c.category || "none") || 0) + 1);
-    return [...LEASE_CATEGORIES, "none"].filter((k) => count.has(k)).map((k) => [k, count.get(k)]);
+    return count;
   }, [contracts]);
+  const presetOf = (x) => (!x.endFrom && !x.endTo ? "any" : x.endFrom === today && x.endTo === addYears(today, 1) ? "12" : x.endFrom === today && x.endTo === addYears(today, 2) ? "24" : "custom");
+  const applyPreset = (v) => {
+    if (v === "any") setF({ ...f, endFrom: "", endTo: "" });
+    else if (v === "12" || v === "24") setF({ ...f, endFrom: today, endTo: addYears(today, Number(v) / 12) });
+  };
   const shown = useMemo(() => filterReportContracts(contracts, f), [contracts, f]);
   const brandName = (id) => (id === "none" ? t("leases.brands.none") : brands.find((b) => b.id === id)?.name || "");
   const cityName = (c) => (c === "none" ? t("leases.report.noCity") : c);
@@ -63,65 +75,57 @@ export default function LeaseReportView({ contracts, brands, companyName, today,
     doc.fonts?.ready?.then(set);
   };
   const print = () => frameRef.current?.contentWindow?.print();
-  const Chip = ({ on, onClick, children, color }) => (
-    <button type="button" className={`ls-fchip${on ? " is-on" : ""}`} style={color ? { "--c": color } : undefined} onClick={onClick}>{children}</button>
-  );
 
   return (
     <div className="panel ls-panel ls-report">
       <div className="ls-rfilters">
-        <div className="ls-rgroup ls-rgroup-half">
-          <span className="ls-rlabel">{t("leases.direction.label")}</span>
-          <div className="ls-rrow">
-            {["lessee", "lessor", "all"].map((d) => <Chip key={d} on={f.direction === d} onClick={() => setF({ ...f, direction: d })}>{d === "all" ? t("leases.report.all") : t(`leases.direction.${d}Tab`)}</Chip>)}
-          </div>
-        </div>
-        <div className="ls-rgroup ls-rgroup-half">
-          <span className="ls-rlabel">{t("leases.category.label")}</span>
-          <div className="ls-rrow">
-            <Chip on={!f.categories.length} onClick={() => setF({ ...f, categories: [] })}>{t("leases.category.all")}</Chip>
-            {usedCategories.map(([k, n]) => <Chip key={k} on={f.categories.includes(k)} onClick={() => toggle("categories", k)}>{k === "none" ? t("leases.category.none") : t(`leases.category.${k}`)} <small>{n}</small></Chip>)}
-          </div>
-        </div>
-        <div className="ls-rgroup">
-          <span className="ls-rlabel">{t("leases.report.endRange")}</span>
-          <div className="ls-rrow">
-            <label>{t("leases.report.from")}<input type="date" value={f.endFrom} onChange={(e) => setF({ ...f, endFrom: e.target.value })} /></label>
-            <label>{t("leases.report.to")}<input type="date" value={f.endTo} onChange={(e) => setF({ ...f, endTo: e.target.value })} /></label>
-            <Chip on={f.endFrom === today && f.endTo === addYears(today, 1)} onClick={() => setF({ ...f, endFrom: today, endTo: addYears(today, 1) })}>{t("leases.report.next12")}</Chip>
-            <Chip on={f.endFrom === today && f.endTo === addYears(today, 2)} onClick={() => setF({ ...f, endFrom: today, endTo: addYears(today, 2) })}>{t("leases.report.next24")}</Chip>
-            <Chip on={!f.endFrom && !f.endTo} onClick={() => setF({ ...f, endFrom: "", endTo: "" })}>{t("leases.report.anyDate")}</Chip>
-          </div>
-        </div>
-        <div className="ls-rgroup">
-          <span className="ls-rlabel">{t("leases.brands.label")}</span>
-          <div className="ls-rrow">
-            <Chip on={!f.brands.length} onClick={() => setF({ ...f, brands: [] })}>{t("leases.report.allBrands")}</Chip>
-            {usedBrands.map((b) => <Chip key={b.id} color={b.color} on={f.brands.includes(b.id)} onClick={() => toggle("brands", b.id)}>{b.name} <small>{b.count}</small></Chip>)}
-          </div>
-        </div>
-        <div className="ls-rgroup">
-          <span className="ls-rlabel">{t("leases.property.city")}</span>
-          <div className="ls-rrow">
-            <Chip on={!f.cities.length} onClick={() => setF({ ...f, cities: [], citiesExclude: false })}>{t("leases.report.allCities")}</Chip>
-            {cities.map(([c, n]) => <Chip key={c} on={f.cities.includes(c)} color={f.citiesExclude ? "#A8432B" : undefined} onClick={() => toggle("cities", c)}>{f.citiesExclude && f.cities.includes(c) ? "✕ " : ""}{cityName(c)} <small>{n}</small></Chip>)}
-          </div>
-          <div className="ls-rrow">
-            <Chip on={!f.citiesExclude} onClick={() => setF({ ...f, citiesExclude: false })}>{t("leases.report.cityInclude")}</Chip>
-            <Chip on={f.citiesExclude} color="#A8432B" onClick={() => setF({ ...f, citiesExclude: true })}>{t("leases.report.cityExclude")}</Chip>
-          </div>
-        </div>
-        <div className="ls-rgroup ls-rgroup-half">
-          <span className="ls-rlabel">{t("leases.screen.renewal")}</span>
-          <div className="ls-rrow">
-            {["all", "yes", "no"].map((v) => <Chip key={v} on={f.autoRenew === v} onClick={() => setF({ ...f, autoRenew: v })}>{v === "all" ? t("leases.report.all") : v === "yes" ? t("leases.autoRenewShort") : t("leases.noAutoRenewShort")}</Chip>)}
-          </div>
-        </div>
-        <div className="ls-rgroup ls-rgroup-half">
-          <span className="ls-rlabel">{t("leases.status")}</span>
-          <div className="ls-rrow">
-            {STATUSES.map((s) => <Chip key={s} on={f.statuses.includes(s)} onClick={() => toggle("statuses", s)}>{t(`leases.contractStatus.${s}`)}</Chip>)}
-          </div>
+        <label className="ls-ff">
+          <span className="ls-ff-label">{t("leases.direction.label")}</span>
+          <select value={f.direction} onChange={(e) => setF({ ...f, direction: e.target.value })}>
+            <option value="lessee">{t("leases.direction.lesseeTab")}</option>
+            <option value="lessor">{t("leases.direction.lessorTab")}</option>
+            <option value="all">{t("leases.report.all")}</option>
+          </select>
+        </label>
+        <LeaseMultiSelect label={t("leases.category.label")} allLabel={t("leases.category.all")} value={f.categories} onChange={(v) => setF({ ...f, categories: v })}
+          options={[...LEASE_CATEGORIES, "none"].map((k) => ({ value: k, label: k === "none" ? t("leases.category.none") : t(`leases.category.${k}`), count: categoryCount.get(k) || 0 }))} />
+        <LeaseMultiSelect label={t("leases.brands.label")} allLabel={t("leases.report.allBrands")} value={f.brands} onChange={(v) => setF({ ...f, brands: v })}
+          options={brandOptions} searchable searchPlaceholder={t("leases.report.search")} />
+        <LeaseMultiSelect label={t("leases.property.city")} allLabel={t("leases.report.allCities")} value={f.cities} onChange={(v) => setF({ ...f, cities: v })}
+          options={cityOptions} searchable searchPlaceholder={t("leases.report.searchCity")} summaryPrefix={f.citiesExclude ? `${t("leases.report.except")} ` : ""}
+          footer={(
+            <label className="ls-ms-exclude"><input type="checkbox" checked={f.citiesExclude} onChange={(e) => setF({ ...f, citiesExclude: e.target.checked })} />{t("leases.report.cityExclude")}</label>
+          )} />
+        <label className="ls-ff">
+          <span className="ls-ff-label">{t("leases.screen.renewal")}</span>
+          <select value={f.autoRenew} onChange={(e) => setF({ ...f, autoRenew: e.target.value })}>
+            <option value="all">{t("leases.report.all")}</option>
+            <option value="yes">{t("leases.autoRenewShort")}</option>
+            <option value="no">{t("leases.noAutoRenewShort")}</option>
+          </select>
+        </label>
+        <LeaseMultiSelect label={t("leases.status")} allLabel={t("leases.report.allStatuses")} value={f.statuses} onChange={(v) => setF({ ...f, statuses: v })}
+          options={STATUSES.map((st) => ({ value: st, label: t(`leases.contractStatus.${st}`) }))} />
+        <label className="ls-ff">
+          <span className="ls-ff-label">{t("leases.report.endRange")}</span>
+          <select value={presetOf(f)} onChange={(e) => applyPreset(e.target.value)}>
+            <option value="any">{t("leases.report.anyDate")}</option>
+            <option value="12">{t("leases.report.next12")}</option>
+            <option value="24">{t("leases.report.next24")}</option>
+            <option value="custom">{t("leases.report.customRange")}</option>
+          </select>
+        </label>
+        <label className="ls-ff">
+          <span className="ls-ff-label">{t("leases.report.from")}</span>
+          <input type="date" value={f.endFrom} onChange={(e) => setF({ ...f, endFrom: e.target.value })} />
+        </label>
+        <label className="ls-ff">
+          <span className="ls-ff-label">{t("leases.report.to")}</span>
+          <input type="date" value={f.endTo} onChange={(e) => setF({ ...f, endTo: e.target.value })} />
+        </label>
+        <div className="ls-ff ls-ff-reset">
+          <span className="ls-ff-label">&nbsp;</span>
+          <button type="button" className="ls-reset" onClick={() => setF(DEFAULT_FILTERS)}>{t("leases.report.reset")}</button>
         </div>
       </div>
       <div className="ls-rbar">
