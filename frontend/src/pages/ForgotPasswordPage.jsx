@@ -28,8 +28,8 @@ export default function ForgotPasswordPage({ onGoLogin }) {
   return (
     <div className="auth-root">
       <div className="auth-card">
-        <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
-        <h2 className="auth-title">{t("auth.forgotPassword.title")}</h2>
+        <img src="/brand/athar-logo-horizontal.png" width="480" height="270" alt={t("common.brandName")} className="auth-logo" />
+        <h1 className="auth-title">{t("auth.forgotPassword.title")}</h1>
         {message ? (
           <p className="balance-good">{message}</p>
         ) : (

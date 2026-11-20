@@ -63,7 +63,7 @@ export default function DataProtectionPage({ onGoLanding }) {
     <div className="landing-root legal-root" dir="rtl" lang="ar">
       <header className="landing-nav">
         <a href="/" onClick={(e) => { e.preventDefault(); onGoLanding(); }}>
-          <img src="/brand/athar-logo-horizontal.png" alt="أثر المحاسبي" className="landing-logo" />
+          <img src="/brand/athar-logo-horizontal.png" width="480" height="270" alt="أثر المحاسبي" className="landing-logo" />
         </a>
         <button className="btn-ghost" onClick={onGoLanding}>العودة للرئيسية</button>
       </header>

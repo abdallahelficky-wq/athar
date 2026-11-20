@@ -129,3 +129,6 @@
  .public-brand .public-apps-grid { grid-template-columns: 1fr; }
  .public-brand .download-entry, .public-brand .download-entry + .download-entry { padding: 26px 20px; }
 }
+
+/* عنوان قسم التطبيقات أصبح <p> (لا يسبق H1 الصفحة) — نفس خط العناوين كما كان وهو h2 */
+.public-brand .landing-apps-title { font-family: 'Tajawal', sans-serif; }

@@ -17,7 +17,7 @@ test("public identity preserves content, logo, navigation and responsive layouts
  await page.setViewportSize({width:390,height:844});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.screenshot({path:"test-results/brand-landing-mobile.png",fullPage:true});
- await page.locator(".landing-nav").getByRole("button",{name:"تسجيل الدخول",exact:true}).click();
+ await page.locator(".landing-nav").getByRole("link",{name:"تسجيل الدخول",exact:true}).click();
  await expect(page.locator(".auth-logo")).toHaveAttribute("src","/brand/athar-logo-horizontal.png");
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.screenshot({path:"test-results/brand-login-mobile.png",fullPage:true});
@@ -28,7 +28,7 @@ test("public identity preserves content, logo, navigation and responsive layouts
 test("login submission and account choice remain functional",async({page})=>{
  let request;
  await page.route("**/api/auth/login",async route=>{request=route.request().postDataJSON();await route.fulfill({json:{chooseAccount:true,identityToken:"fixture-only",accounts:[{userId:"u1",tenantName:"Test company"}]}});});
- await page.goto(url);await page.locator(".landing-nav").getByRole("button",{name:"تسجيل الدخول",exact:true}).click();
+ await page.goto(url);await page.locator(".landing-nav").getByRole("link",{name:"تسجيل الدخول",exact:true}).click();
  await page.getByLabel("البريد الإلكتروني").fill("test@example.com");await page.getByLabel("كلمة المرور",{exact:true}).fill("test-only");await page.getByLabel("كلمة المرور",{exact:true}).press("Enter");
  await expect(page.getByRole("button",{name:"Test company"})).toBeVisible();expect(request).toMatchObject({email:"test@example.com",password:"test-only"});
  await expect(page.locator(".auth-root")).toHaveClass(/public-brand/);
@@ -37,7 +37,7 @@ test("login submission and account choice remain functional",async({page})=>{
 test("apps navigation is in the header and both downloads are preserved",async({page})=>{
  await page.setViewportSize({width:1440,height:1000});await page.goto(url);
  await expect(page.locator(".landing-footer .landing-download-link")).toHaveCount(0);
- await page.locator(".landing-nav").getByRole("button",{name:"تطبيقات أثر"}).click();
+ await page.locator(".landing-nav").getByRole("link",{name:"تطبيقات أثر"}).click();
  await expect(page.locator(".download-entry")).toHaveCount(2);
  await expect(page.locator('a[download="athar-pos.apk"]')).toHaveAttribute("href","/app/athar-pos.apk");
  await expect(page.locator('a[download="athar-station.apk"]')).toHaveAttribute("href","/app/athar-station.apk");

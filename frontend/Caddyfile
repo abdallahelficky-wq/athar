@@ -18,6 +18,11 @@
 
 	# Stable entry points must reach the origin after a deployment. In particular,
 	# Cloudflare otherwise caches sw.js for four hours and pins clients to old UI.
+	# شاشات النظام والدخول لا تُفهرَس في محركات البحث — ترويسة لا تعتمد على تشغيل الجافاسكربت.
+	# الصفحات العامة القابلة للفهرسة: / و /register و /download و /data-protection (راجع src/lib/seo.js وpublic/sitemap.xml).
+	@noindex path /login /forgot-password /accept-invite /journal-entries/* /dashboard* /sales* /purchases* /inventory* /onlineStore* /leases* /stables* /stationShifts* /fixedAssets* /accounts* /hr* /reports* /settings* /mobile* /pos* /api/*
+	header @noindex X-Robots-Tag "noindex, nofollow"
+
 	@entrypoints path /sw.js /registerSW.js /*.html /*.webmanifest
 	header @entrypoints Cache-Control "no-store, max-age=0"
 

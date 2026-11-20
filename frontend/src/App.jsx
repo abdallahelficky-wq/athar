@@ -15,6 +15,7 @@ import QuickSearch from "./wired/shared/QuickSearch";
 import { getFinancialAlerts, getHrAlerts } from "./api/dashboard";
 import { formatDate } from "./i18n/dateFormat";
 import { routes } from "./routes";
+import { applySeoForPath } from "./lib/seo";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -458,7 +459,14 @@ function AcceptInviteRoute() {
   return <AcceptInvitePage token={searchParams.get("token")} onGoLogin={() => navigate("/login")} />;
 }
 
-const router = createBrowserRouter([
+// يضبط عنوان الصفحة ووصفها ومؤشر الفهرسة (noindex لشاشات النظام) مع كل تنقّل — راجع src/lib/seo.js.
+function SeoRoot() {
+  const { pathname } = useLocation();
+  useEffect(() => { applySeoForPath(pathname); }, [pathname]);
+  return <Outlet />;
+}
+
+const router = createBrowserRouter([{ element: <SeoRoot />, children: [
   { path: "/", element: <RootRoute /> },
   { path: "/login", element: <LoginRoute /> },
   { path: "/register", element: <RegisterRoute /> },
@@ -505,7 +513,7 @@ const router = createBrowserRouter([
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },
-]);
+] }]);
 
 export default function App() {
   return (
