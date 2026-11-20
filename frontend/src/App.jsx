@@ -25,6 +25,7 @@ import DownloadPage from "./pages/DownloadPage";
 import DataProtectionPage from "./pages/DataProtectionPage";
 import JournalEntryStandalonePage from "./pages/JournalEntryStandalonePage";
 import Dashboard from "./wired/Dashboard";
+import AiAssistant from "./wired/ai/AiAssistant";
 import AccountsGroupModule, { ACCOUNTS_TABS } from "./wired/AccountsGroupModule";
 import ReportsModule, { REPORT_TABS } from "./wired/ReportsModule";
 
@@ -280,6 +281,7 @@ function AppShell() {
           </div>
         </div>
       </div>
+      <AiAssistant companyId={real.companyId} />
     </div>
   );
 }
