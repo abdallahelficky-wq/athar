@@ -1,0 +1,134 @@
+/* لوحة القيادة المالية (Dashboard.jsx / dashboard/*): نفس بناء شاشتي الإيجارات والمبيعات (lease-screen.css)
+   بلوحة ألوان نيلية مع ذهبي أثر للتأكيد. كل القواعد محصورة تحت .dash-screen فلا تمس بقية النظام
+   (لوحة شئون الموظفين ما زالت تستعمل KpiCard/AlertsPanel/PeriodFilter بشكلها السابق). */
+.lease-screen.dash-screen {
+  --ej: #4338CA; --ej-dark: #312E81; --ej-deep: #1E1B4B; --ej-teal: #0E8F8A; --ej-mint: #EEF0FD; --ej-line: #D5D9F7;
+}
+.dash-screen .ls-hero { box-shadow: 0 14px 34px rgba(49, 46, 129, 0.30); animation: dash-rise 0.35s ease-out both; }
+.dash-screen .ls-kpis, .dash-screen .ls-alerts, .dash-screen .ls-msg, .dash-screen .dash-card { animation: dash-rise 0.45s ease-out both; }
+.dash-screen .ls-kpis { animation-delay: 0.05s; }
+.dash-screen .dash-grid > :nth-child(2) { animation-delay: 0.1s; } .dash-screen .dash-grid > :nth-child(3) { animation-delay: 0.14s; }
+.dash-screen .dash-grid > :nth-child(4) { animation-delay: 0.18s; } .dash-screen .dash-grid > :nth-child(5) { animation-delay: 0.22s; }
+@keyframes dash-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .dash-screen * { animation: none !important; transition: none !important; } }
+
+/* ---------- الرأس ---------- */
+.dash-eyebrow { display: inline-block; margin-bottom: 8px; padding: 3px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.22); font-size: 12.5px; font-weight: 700; color: #F7D08A; }
+.dash-screen .ls-hero h3 { font-size: 28px; }
+.dash-screen .ls-hero p { font-style: italic; }
+.dash-custom-range { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 6px 4px 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.11); border: 1px solid rgba(255, 255, 255, 0.24); color: #fff; font-size: 13px; }
+.dash-custom-range input[type="date"] { min-height: 34px; padding: 0 10px; border: 0; border-radius: 999px; background: #fff; color: var(--ink); font: inherit; font-size: 13px; }
+.dash-custom-range .ls-btn { min-height: 34px; padding: 0 16px; font-size: 13px; box-shadow: none; }
+
+/* ---------- المؤشرات ---------- */
+.dash-kpis { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.dash-screen .ls-kpi { --k: #4338CA; --k-soft: rgba(67, 56, 202, 0.10); }
+.dash-screen .ls-kpi.tone-green { --k: #1B8354; --k-soft: rgba(27, 131, 84, 0.11); } .dash-screen .ls-kpi.tone-amber { --k: #B7791F; --k-soft: rgba(183, 121, 31, 0.12); }
+.dash-screen .ls-kpi.tone-red { --k: #A8432B; --k-soft: rgba(168, 67, 43, 0.10); } .dash-screen .ls-kpi.tone-teal { --k: #0E8F8A; --k-soft: rgba(14, 143, 138, 0.11); }
+.dash-kpi { padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 6px; }
+.dash-kpi-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; }
+.dash-kpi-ico { width: 38px; height: 38px; border-radius: 12px; background: var(--k-soft); color: var(--k); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dash-kpi .ls-kpi-label { margin: 0; line-height: 1.5; }
+.dash-screen .ls-kpi-value { font-size: 24px; }
+.dash-cur { margin-inline-start: 6px; font-size: 12.5px; font-weight: 700; color: var(--ink-3); }
+.dash-kpi-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; min-height: 30px; }
+.dash-delta { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; }
+.dash-delta.up { background: rgba(27, 131, 84, 0.12); color: #1B8354; } .dash-delta.down { background: rgba(168, 67, 43, 0.12); color: #A8432B; }
+.dash-sub { font-size: 12.5px; font-weight: 700; color: var(--k); }
+.dash-spark { color: var(--k); margin-inline-start: auto; }
+.dash-screen .ls-kpis.is-loading .ls-kpi-value { opacity: 0.3; }
+.dash-skel { min-height: 104px; background: linear-gradient(100deg, #fff 30%, #F1F3FB 50%, #fff 70%); background-size: 220% 100%; animation: dash-shimmer 1.3s linear infinite; }
+@keyframes dash-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* ---------- التنبيهات ---------- */
+.dash-alerts .ls-alert-row { gap: 8px; }
+.dash-alert-more { margin-top: 6px; min-height: 32px; font-size: 12.5px; }
+.dash-screen .ls-msg-ok { background: #EAF6EF; border-color: #1B8354; color: #0D4A31; }
+
+/* ---------- الشبكة والبطاقات ---------- */
+.dash-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+.dash-card { --dc: #4338CA; --dc-soft: rgba(67, 56, 202, 0.10); grid-column: span 6; min-width: 0; padding: 18px 20px 20px; border-radius: 18px; background: #fff; border: 1px solid var(--line); border-top: 4px solid var(--dc); box-shadow: 0 2px 10px rgba(16, 32, 46, 0.05); transition: transform 0.14s, box-shadow 0.14s; }
+.dash-card:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(16, 32, 46, 0.10); }
+.dash-card.tone-green { --dc: #1B8354; --dc-soft: rgba(27, 131, 84, 0.11); } .dash-card.tone-red { --dc: #A8432B; --dc-soft: rgba(168, 67, 43, 0.10); }
+.dash-card.tone-amber { --dc: #B7791F; --dc-soft: rgba(183, 121, 31, 0.12); } .dash-card.tone-teal { --dc: #0E8F8A; --dc-soft: rgba(14, 143, 138, 0.11); }
+.dash-card.tone-gray { --dc: #5B6B7B; --dc-soft: rgba(91, 107, 123, 0.12); }
+.dash-card.span-4 { grid-column: span 4; } .dash-card.span-5 { grid-column: span 5; } .dash-card.span-7 { grid-column: span 7; } .dash-card.span-8 { grid-column: span 8; } .dash-card.span-12 { grid-column: span 12; }
+.dash-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.dash-card-head h4 { margin: 0; display: flex; align-items: center; gap: 9px; font-size: 16px; font-weight: 800; color: var(--ink); line-height: 1.5; }
+.dash-card-head h4::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--dc); box-shadow: 0 0 0 4px var(--dc-soft); flex-shrink: 0; }
+.dash-card-head span { display: block; margin-top: 3px; margin-inline-start: 19px; font-size: 12.5px; color: var(--ink-3); }
+.dash-card .empty { margin: 12px 0; color: var(--ink-3); }
+.dash-note { margin: 10px 0 0; font-size: 11.5px; line-height: 1.8; color: var(--ink-3); }
+
+/* إجماليات الإيرادات والمصاريف */
+.income-expense-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.income-expense-totals > div { padding: 12px 16px; border-radius: 14px; background: #F6F8FA; border-inline-start: 5px solid #5B6B7B; }
+.income-expense-totals span { display: block; font-size: 12.5px; font-weight: 700; color: var(--ink-2); margin-bottom: 4px; }
+.income-expense-totals strong { display: block; font-size: 19px; font-weight: 800; color: var(--ink); direction: ltr; text-align: end; font-variant-numeric: tabular-nums; }
+.income-expense-totals .ie-rev { background: rgba(27, 131, 84, 0.08); border-color: #1B8354; } .income-expense-totals .ie-rev strong { color: #14693F; }
+.income-expense-totals .ie-exp { background: rgba(168, 67, 43, 0.08); border-color: #A8432B; } .income-expense-totals .ie-exp strong { color: #8A2F1B; }
+.income-expense-totals .ie-net-up { background: var(--ej-mint); border-color: var(--ej); } .income-expense-totals .ie-net-up strong { color: var(--ej-dark); }
+.income-expense-totals .ie-net-down { background: #FBEEEA; border-color: #A8432B; } .income-expense-totals .ie-net-down strong { color: #8A2F1B; }
+
+/* حلقة توزيع النقد */
+.dash-donut { display: flex; flex-direction: column; gap: 10px; }
+.dash-donut-chart { position: relative; }
+.dash-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.dash-donut-center span { font-size: 11.5px; font-weight: 700; color: var(--ink-3); }
+.dash-donut-center b { font-size: 20px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dash-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 150px; overflow: auto; }
+.dash-legend li { display: flex; align-items: center; gap: 9px; padding: 6px 0; border-top: 1px dashed var(--line); font-size: 13px; }
+.dash-legend li:first-child { border-top: 0; }
+.dash-legend i { width: 11px; height: 11px; border-radius: 4px; flex-shrink: 0; }
+.dash-legend span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); font-weight: 600; }
+.dash-legend b { font-weight: 800; color: var(--ink); direction: ltr; font-variant-numeric: tabular-nums; }
+
+/* أفضل العملاء */
+.dash-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.dash-rank li { display: flex; align-items: center; gap: 12px; }
+.dash-rank-n { width: 30px; height: 30px; border-radius: 10px; background: #EEF2F5; color: var(--ink-2); font-size: 13px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.dash-rank-n.top-1 { background: linear-gradient(135deg, #E0B458, #C99A3B); color: #2A1E05; } .dash-rank-n.top-2 { background: #DDE3EA; color: #2F3B48; } .dash-rank-n.top-3 { background: #F0D5BC; color: #6B3E15; }
+.dash-rank-main { flex: 1; min-width: 0; }
+.dash-rank-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 5px; font-size: 13.5px; }
+.dash-rank-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; color: var(--ink); }
+.dash-rank-row b { font-weight: 800; color: var(--dc); direction: ltr; font-variant-numeric: tabular-nums; }
+.dash-bar { height: 7px; border-radius: 999px; background: #E6EBF0; overflow: hidden; }
+.dash-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #E0B458, var(--dc)); }
+
+/* نسب المركز المالي */
+.dash-card .ratio-row { gap: 10px; margin-top: 4px; }
+.dash-card .ratio-chip { flex: 1 1 140px; min-width: 0; border-radius: 12px; padding: 10px 14px; font-size: 12.5px; font-weight: 700; }
+.dash-card .ratio-chip .ratio-value { font-family: inherit; font-size: 20px; font-weight: 800; }
+.dash-card .ratio-chip-good { background: rgba(27, 131, 84, 0.10); border-color: rgba(27, 131, 84, 0.35); color: #14693F; }
+.dash-card .ratio-chip-warn { background: rgba(183, 121, 31, 0.12); border-color: rgba(183, 121, 31, 0.4); color: #7A5212; }
+.dash-card .ratio-chip-bad { background: rgba(168, 67, 43, 0.10); border-color: rgba(168, 67, 43, 0.35); color: #8A2F1B; }
+
+/* أحدث الحركات */
+.dash-card .recent-activity-item { padding: 10px 0; border-bottom: 1px dashed var(--line); }
+.dash-card .recent-activity-avatar { border-radius: 12px; }
+.dash-card .recent-activity-avatar-in { background: linear-gradient(135deg, #2FA86E, #1B8354); }
+.dash-card .recent-activity-avatar-out { background: linear-gradient(135deg, #C9583B, #A8432B); }
+.dash-card .recent-activity-title { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.dash-card .recent-activity-value { font-family: inherit; font-weight: 800; font-size: 13.5px; direction: ltr; font-variant-numeric: tabular-nums; }
+.dash-card .recent-activity-status-in { background: rgba(27, 131, 84, 0.12); color: #14693F; } .dash-card .recent-activity-status-out { background: rgba(168, 67, 43, 0.12); color: #8A2F1B; }
+
+/* الجداول */
+.dash-card .ledger-table { width: 100%; }
+.dash-card .ledger-table thead th { background: var(--ej-mint); color: var(--ej-dark); font-weight: 800; border-bottom: 2px solid var(--ej-line); padding-block: 12px; }
+.dash-card .ledger-table thead th:first-child { border-start-start-radius: 12px; } .dash-card .ledger-table thead th:last-child { border-start-end-radius: 12px; }
+.dash-card .ledger-table tbody td { padding-block: 11px; vertical-align: middle; }
+.dash-card .ledger-table tbody tr:hover td { background: #F5F6FD; }
+.dash-screen .ss-num { white-space: nowrap; color: var(--ej-dark); font-weight: 800; font-variant-numeric: tabular-nums; }
+.dash-screen .ss-total { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dash-screen .filtered-summary-row td { background: var(--ej-mint); color: var(--ej-dark); font-weight: 800; border-top: 2px solid var(--ej-line); }
+
+@media (max-width: 1100px) {
+  .dash-card, .dash-card.span-4, .dash-card.span-5, .dash-card.span-7, .dash-card.span-8 { grid-column: span 12; }
+}
+@media (max-width: 720px) {
+  .dash-screen .ls-hero { padding: 20px 18px 18px; } .dash-screen .ls-hero h3 { font-size: 22px; }
+  .income-expense-totals { grid-template-columns: 1fr; }
+  .dash-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash-screen .ls-kpi-value { font-size: 19px; }
+  .dash-card { padding: 16px 14px 16px; }
+  .dash-card .ledger-table { display: block; overflow-x: auto; }
+}

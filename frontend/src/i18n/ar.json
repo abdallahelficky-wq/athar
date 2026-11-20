@@ -468,6 +468,12 @@
     },
     "alerts": { "title": "⚠ أهم التنبيهات", "empty": "لا توجد تنبيهات حالياً." },
     "banner": { "viewAllAlerts": "عرض كل التنبيهات" },
+    "screen": {
+      "eyebrow": "لوحة القيادة المالية", "groupLabel": "المجموعة كاملة", "rangeInfo": "من {{from}} إلى {{to}}",
+      "margin": "هامش الربح {{pct}}%", "alertsOverdue": "تنبيهات متأخرة أو منتهية", "alertsUpcoming": "تنبيهات قادمة",
+      "showAll": "عرض الكل ({{n}})", "showLess": "عرض أقل", "cashTotal": "إجمالي النقد", "netFlow": "صافي الحركة",
+      "net": "الصافي", "topCustomersNote": "حسب صافي المبيعات"
+    },
     "recentActivity": { "title": "أحدث الحركات النقدية" },
     "recentEntries": {
       "title": "أحدث القيود اليومية", "empty": "لا توجد قيود بعد.",
