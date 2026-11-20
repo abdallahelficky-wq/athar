@@ -468,6 +468,12 @@
     },
     "alerts": { "title": "⚠ Key alerts", "empty": "No alerts at the moment." },
     "banner": { "viewAllAlerts": "View all alerts" },
+    "screen": {
+      "eyebrow": "Financial dashboard", "groupLabel": "Whole group", "rangeInfo": "{{from}} to {{to}}",
+      "margin": "Profit margin {{pct}}%", "alertsOverdue": "Overdue or expired alerts", "alertsUpcoming": "Upcoming alerts",
+      "showAll": "Show all ({{n}})", "showLess": "Show less", "cashTotal": "Total cash", "netFlow": "Net flow",
+      "net": "Net", "topCustomersNote": "By net sales"
+    },
     "recentActivity": { "title": "Recent cash activity" },
     "recentEntries": {
       "title": "Recent journal entries", "empty": "No entries yet.",

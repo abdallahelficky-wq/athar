@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listJournalEntriesPage } from "../../api/journalEntries";
 import { fmt } from "../../legacy/constants";
-import StatusPill from "../shared/StatusPill";
+import { StatusBadge } from "../sales/SalesScreen";
 
 const RECENT_COUNT = 6;
 
@@ -43,14 +43,14 @@ export default function RecentEntriesTable({ companyId, range }) {
         {entries.map((e) => {
           return (
             <tr key={e.id}>
-              <td>{e.entryNumber || e.id.slice(-8)}</td>
+              <td className="ss-num">{e.entryNumber || e.id.slice(-8)}</td>
               <td>{e.date.slice(0, 10)}</td>
               <td>{e.memo || t("journalEntries.table.noMemo")}</td>
-              <td className="num">{fmt(Number(e.totalDebit))}</td>
+              <td className="num ss-total">{fmt(Number(e.totalDebit))}</td>
               <td>
-                <StatusPill tone={e.status === "posted" ? "success" : "warning"}>
+                <StatusBadge tone={e.status === "posted" ? "ok" : "wait"}>
                   {e.status === "posted" ? t("journalEntries.statusPosted") : t("journalEntries.statusSaved")}
-                </StatusPill>
+                </StatusBadge>
               </td>
             </tr>
           );

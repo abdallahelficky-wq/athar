@@ -4,11 +4,11 @@ import { useAuth } from "../../context/AuthContext";
 import { dailyQuoteIndex } from "./dailyQuote";
 
 /**
- * ترحيب شخصي أعلى لوحة القيادة — تحية حسب وقت اليوم الفعلي باسم المستخدم الحقيقي المسجَّل دخوله
- * (نفس user.name المستخدَم في UserMenu بالهيدر)، ومقولة يومية تحتها تتغيّر تلقائياً كل يوم عبر
- * فهرس حتمي (dayOfYear % عدد المقولات) — بلا أي طلب شبكة أو تخزين إضافي.
+ * تحية حسب وقت اليوم الفعلي باسم المستخدم الحقيقي المسجَّل دخوله (نفس user.name المستخدَم في UserMenu
+ * بالهيدر)، ومقولة يومية تتغيّر تلقائياً كل يوم عبر فهرس حتمي (dayOfYear % عدد المقولات) — بلا أي طلب
+ * شبكة أو تخزين إضافي. الخطّاف يخدم رأس لوحة القيادة الجديد؛ والمكوّن الافتراضي أدناه يبقى كما كان.
  */
-export default function WelcomeBanner() {
+export function useWelcomeText() {
   const { t } = useTranslation();
   const { user } = useAuth();
 
@@ -19,7 +19,11 @@ export default function WelcomeBanner() {
 
   const quotes = t("dashboard.dailyQuotes", { returnObjects: true });
   const quote = Array.isArray(quotes) ? quotes[dailyQuoteIndex(quotes.length)] : "";
+  return { greeting, quote };
+}
 
+export default function WelcomeBanner() {
+  const { greeting, quote } = useWelcomeText();
   return (
     <div className="dashboard-welcome">
       <div className="dashboard-welcome-greeting">{greeting}</div>

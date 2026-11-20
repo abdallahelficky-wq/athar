@@ -17,7 +17,7 @@ test('desktop navigation and light identity',async({page})=>{
  await page.setViewportSize({width:1440,height:1000});await page.goto('/dashboard');
  await expect(page.locator('.nav-section-heading')).toHaveCount(5);
  await expect(page.locator('.sidebar')).toHaveCSS('background-color','rgb(255, 255, 255)');
- await expect(page.locator('.kpi-card').first()).toBeVisible();
+ await expect(page.locator('.dash-screen .ls-kpi').first()).toBeVisible();
  await page.screenshot({path:'test-results/interior-desktop.png',fullPage:true});
  await page.locator('a[href="/purchases/suppliers"]').first().click();
  await expect(page).toHaveURL(/purchases\/suppliers/);
