@@ -1,7 +1,8 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { authenticate, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { requirePositionAction } from "../../middleware/positionMatrix";
-import { askAiHandler } from "./ai.controller";
+import { askAiHandler, insightsHandler, signalsHandler } from "./ai.controller";
+import { aiRateLimit } from "./aiRateLimit";
 import { HttpError } from "../../lib/httpError";
 import { prisma } from "../../lib/prisma";
 import jwt from "jsonwebtoken";
@@ -92,4 +93,8 @@ const validateAskRequest = async (req: Request, res: Response, next: NextFunctio
   next();
 };
 
-aiRoutes.post("/ask", validateAskRequest, requirePositionAction("ai", "read"), askAiHandler);
+aiRoutes.post("/ask", validateAskRequest, requirePositionAction("ai", "read"), aiRateLimit(), askAiHandler);
+// التحليل الدوري: نفس حراس النطاق والصلاحية، لكن بلا سؤال حر ولا سياق من العميل.
+aiRoutes.post("/insights", requirePositionAction("ai", "read"), aiRateLimit(10), insightsHandler);
+// توقعات وشذوذ حتمية (لا نموذج لغوي، لا تكلفة).
+aiRoutes.get("/signals", requirePositionAction("ai", "read"), signalsHandler);
