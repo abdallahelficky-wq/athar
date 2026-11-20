@@ -56,8 +56,8 @@ export default function RegisterPage({ onGoLanding, onGoLogin }) {
   return (
     <div className="auth-root">
       <div className="auth-card">
-        <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
-        <h2 className="auth-title">{t("auth.register.title")}</h2>
+        <img src="/brand/athar-logo-horizontal.png" width="480" height="270" alt={t("common.brandName")} className="auth-logo" />
+        <h1 className="auth-title">{t("auth.register.title")}</h1>
         <div className="auth-form">
           <label>{t("auth.register.plan")}<select value={subscriptionPlan} onChange={(e) => setSubscriptionPlan(e.target.value)}>
             {planIds.map((id, index) => <option key={id} value={id}>{plans[index].name}</option>)}

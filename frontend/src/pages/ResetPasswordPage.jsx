@@ -29,7 +29,7 @@ export default function ResetPasswordPage({ token, onGoLogin, onGoForgotPassword
   return (
     <div className="auth-root">
       <div className="auth-card">
-        <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
+        <img src="/brand/athar-logo-horizontal.png" width="480" height="270" alt={t("common.brandName")} className="auth-logo" />
         <h2 className="auth-title">{t("auth.resetPassword.title")}</h2>
 
         {!token ? (

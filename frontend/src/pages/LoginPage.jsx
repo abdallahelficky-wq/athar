@@ -48,7 +48,7 @@ export default function LoginPage({ onGoLanding, onGoRegister, onGoForgotPasswor
     return (
       <div className="auth-root public-brand public-login">
         <div className="auth-card">
-          <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
+          <img src="/brand/athar-logo-horizontal.png" width="480" height="270" alt={t("common.brandName")} className="auth-logo" />
           <h2 className="auth-title">{t("auth.login.chooseAccountTitle")}</h2>
           <p className="note auth-note">{t("auth.login.chooseAccountSub")}</p>
           {error && <p className="balance-bad">{error}</p>}
@@ -77,8 +77,8 @@ export default function LoginPage({ onGoLanding, onGoRegister, onGoForgotPasswor
   return (
     <div className="auth-root public-brand public-login">
       <div className="auth-card">
-        <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="auth-logo" />
-        <h2 className="auth-title">{t("auth.login.title")}</h2>
+        <img src="/brand/athar-logo-horizontal.png" width="480" height="270" alt={t("common.brandName")} className="auth-logo" />
+        <h1 className="auth-title">{t("auth.login.title")}</h1>
         <div className="auth-form">
           <label>{t("auth.login.email")}
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@company.com" />

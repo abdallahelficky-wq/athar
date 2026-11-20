@@ -33,28 +33,36 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload, onG
     section.focus({ preventScroll: true });
     section.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
   };
+  // روابط حقيقية (<a href>) بدل أزرار حتى تتبعها محركات البحث، مع إبقاء التنقّل داخل التطبيق بلا إعادة تحميل
+  // للنقرة العادية؛ Ctrl/Cmd/الزر الأوسط تفتح الرابط في تبويب جديد كأي رابط.
+  const go = (cb) => (e) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    cb();
+  };
   const whyItems = t("landing.why.items", { returnObjects: true });
   const plans = t("landing.pricing.plans", { returnObjects: true });
 
   return (
     <div className="landing-root public-brand">
       <header className="landing-nav" ref={navRef}>
-        <img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="landing-logo" />
+        <img src="/brand/athar-logo-horizontal.png" width="480" height="270" alt={t("common.brandName")} className="landing-logo" />
         <div className="landing-nav-actions">
           <LanguageSwitcher />
-          <button className="btn-ghost landing-download-link" onClick={onGoDownload}>
+          <a className="btn-ghost landing-download-link" href="/download" onClick={go(onGoDownload)}>
             <span aria-hidden="true">⬇</span> {t("publicApps.title")}
-          </button>
-          <button className="btn-ghost" onClick={onGoDataProtection}>{t("landing.nav.dataProtection")}</button>
-          <button className="btn-ghost" onClick={onGoLogin}>{t("landing.nav.login")}</button>
+          </a>
+          <a className="btn-ghost" href="/data-protection" onClick={go(onGoDataProtection)}>{t("landing.nav.dataProtection")}</a>
+          <a className="btn-ghost" href="/login" onClick={go(onGoLogin)}>{t("landing.nav.login")}</a>
           <button className="btn-primary" onClick={showPlans}>{t("landing.nav.startTrial")}</button>
         </div>
       </header>
 
       <section className="landing-apps" aria-labelledby="landing-apps-title">
         <div className="landing-apps-head">
-          <h2 id="landing-apps-title" className="landing-apps-title">{t("landing.apps.title")}</h2>
-          <button type="button" className="landing-apps-steps" onClick={onGoDownload}>{t("landing.apps.installSteps")}</button>
+          {/* فقرة لا عنوان: هذا القسم يسبق H1 الصفحة بصرياً، وتسلسل العناوين يبدأ بـH1 */}
+          <p id="landing-apps-title" className="landing-apps-title">{t("landing.apps.title")}</p>
+          <a className="landing-apps-steps" href="/download" onClick={go(onGoDownload)}>{t("landing.apps.installSteps")}</a>
         </div>
         <div className="landing-apps-grid">
           {APPS.map((app) => {
@@ -129,7 +137,7 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload, onG
               <ul className="pricing-features">
                 {p.features.map((f) => <li key={f}>✓ {f}</li>)}
               </ul>
-              <button className={i === 1 ? "btn-primary" : "btn-ghost"} onClick={() => onGoRegister(SUBSCRIPTION_PLANS[i].id)} style={{ width: "100%" }}>{t("landing.pricing.cta")}</button>
+              <a className={i === 1 ? "btn-primary" : "btn-ghost"} href={"/register?plan=" + encodeURIComponent(SUBSCRIPTION_PLANS[i].id)} onClick={go(() => onGoRegister(SUBSCRIPTION_PLANS[i].id))} style={{ width: "100%" }}>{t("landing.pricing.cta")}</a>
             </div>
           ))}
         </div>
@@ -157,8 +165,8 @@ export default function LandingPage({ onGoLogin, onGoRegister, onGoDownload, onG
           <a className="btn-ghost" href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">{t("whatsapp.facebook")}</a>
           <a className="btn-ghost" href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer">{t("whatsapp.linkedin")}</a>
           <a className="btn-ghost" href={X_URL} target="_blank" rel="noopener noreferrer">{t("whatsapp.x")}</a>
-          <button className="btn-ghost" onClick={onGoDataProtection}>{t("landing.nav.dataProtection")}</button>
-          <button className="btn-ghost" onClick={onGoLogin}>{t("landing.nav.login")}</button>
+          <a className="btn-ghost" href="/data-protection" onClick={go(onGoDataProtection)}>{t("landing.nav.dataProtection")}</a>
+          <a className="btn-ghost" href="/login" onClick={go(onGoLogin)}>{t("landing.nav.login")}</a>
         </div>
       </footer>
       <WhatsAppFloatingButton message={t("whatsapp.msgGeneral")} />

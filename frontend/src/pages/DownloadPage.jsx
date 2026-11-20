@@ -74,7 +74,7 @@ export default function DownloadPage() {
   return (
     <div className="public-brand public-apps">
       <header className="landing-nav">
-        <a href="/" aria-label={t("publicApps.home")}><img src="/brand/athar-logo-horizontal.png" alt={t("common.brandName")} className="landing-logo" /></a>
+        <a href="/" aria-label={t("publicApps.home")}><img src="/brand/athar-logo-horizontal.png" width="480" height="270" alt={t("common.brandName")} className="landing-logo" /></a>
         <div className="landing-nav-actions"><LanguageSwitcher /><a className="btn-ghost" href="/">{t("publicApps.home")}</a></div>
       </header>
       <main className="public-apps-content">
