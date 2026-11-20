@@ -13,6 +13,9 @@ import AccountSearchSelect from "../shared/AccountSearchSelect";
 import ItemCardModal from "./ItemCardModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
 import { useDeferredFilters } from "../shared/useDeferredFilters";
+import { Icon } from "../../legacy/shared";
+import "../../styles/lease-screen.css";
+import "../../styles/items-screen.css";
 
 // نافذة إضافة/تعديل الصنف: عريضة، وتتمرّر داخلها إن طال النموذج
 const ITEM_DIALOG_STYLE = { maxWidth: 1100, width: "95vw", maxHeight: "90vh", overflowY: "auto", margin: 0 };
@@ -63,10 +66,12 @@ const storeFieldsOf = (item) => ({
   storeVariantGroup: item.storeVariantGroup || "", storeVariantColor: item.storeVariantColor || "", storeVariantSize: item.storeVariantSize || "",
 });
 
+const ArchiveIcon = () => <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" /><path d="M10 13h4" /></svg>;
 const Icons = {
-  add: "＋", import: "⇧", export: "⇩", units: "▦", transfer: "⇄", columns: "☰",
-  view: "◉", edit: "✎", duplicate: "▣", archive: "▾", remove: "×", print: "▤", itemCard: "▥",
+  view: <Icon.Eye />, edit: <Icon.Edit />, duplicate: <Icon.Copy />, archive: <ArchiveIcon />,
+  remove: <Icon.Trash />, print: <Icon.Printer />, itemCard: <Icon.BookOpen />,
 };
+const isLowStock = (item) => item.quantity != null && item.reorderLevel != null && Number(item.quantity) < Number(item.reorderLevel);
 
 // أعمدة ثانوية (أقل أهمية للتصفح اليومي) — مخفيّة افتراضياً لتقليل ازدحام الجدول وتفادي السكرول
 // الأفقي، ويختار المستخدم إظهارها عبر زرار "الأعمدة"؛ يُحفَظ الاختيار محلياً كتفضيل شخصي دائم.
@@ -161,11 +166,21 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       const matchesQuery = !text || itemMatches(item, text);
       const matchesCategory = !f.category || item.category === f.category;
       const matchesType = !f.typeFilter || item.type === f.typeFilter;
-      const matchesStock = !f.lowStock || (item.quantity != null && item.reorderLevel != null && Number(item.quantity) < Number(item.reorderLevel));
+      const matchesStock = !f.lowStock || isLowStock(item);
       const matchesStatus = status === "active" ? item.isArchived !== true : item.isArchived === true;
       return matchesQuery && matchesCategory && matchesType && matchesStock && matchesStatus;
     });
   }, [items, itemFilters.applied, status]);
+
+  // مؤشرات الشاشة تتبع نتيجة الفلترة الحالية (مثل شاشات المبيعات)، لا كل الأصناف.
+  const kpis = useMemo(() => ({
+    count: filteredItems.length,
+    stockValue: filteredItems.reduce((sum, item) => sum + Number(item.stockValue || 0), 0),
+    low: filteredItems.filter(isLowStock).length,
+    inStore: filteredItems.filter((item) => item.publishedInStore === true).length,
+  }), [filteredItems]);
+  const activeCount = items.filter((i) => i.isArchived !== true).length;
+  const archivedCount = items.length - activeCount;
 
   // عمود "الكمية الحالية" لا معنى له إطلاقاً عند فلترة النوع على "خدمي" وحده (لا تتبّع مخزون لها
   // بالمرة)، فيُخفى العمود بالكامل في هذه الحالة بدل عرض "—" في كل صف.
@@ -317,27 +332,35 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
-    <div className="items-page">
-      <div className="items-toolbar-row">
-        <button className="btn-primary item-add-btn" onClick={() => { setEditingId(null); setForm(emptyForm()); setComponents([]); setFormOpen(true); }}><span>{Icons.add}</span> {t("inventory.items.addNew")}</button>
-        <button className="items-toolbar-btn" disabled title={t("inventory.items.importDisabled")}><span>{Icons.import}</span> {t("inventory.items.importBtn")}</button>
-        <button className="items-toolbar-btn" onClick={exportItems}><span>{Icons.export}</span> {t("inventory.items.exportBtn")} <small>CSV</small></button>
-        <button className="items-toolbar-btn" disabled title={t("inventory.items.unitsDisabled")}><span>{Icons.units}</span> {t("inventory.items.unitsBtn")}</button>
-        <button className="items-toolbar-btn" onClick={onNavigateTransfer}><span>{Icons.transfer}</span> {t("inventory.items.transferBtn")}</button>
-        <div className="column-toggle">
-          <button className="items-toolbar-btn" onClick={() => setColumnMenuOpen((v) => !v)}><span>{Icons.columns}</span> {t("inventory.items.columnsBtn")}</button>
-          {columnMenuOpen && (
-            <div className="column-toggle-menu" onMouseLeave={() => setColumnMenuOpen(false)}>
-              <p className="column-toggle-title">{t("inventory.items.columnsMenuTitle")}</p>
-              {EXTRA_COLUMNS.map((c) => (
-                <label key={c} className="column-toggle-item">
-                  <input type="checkbox" checked={extraColumns[c]} onChange={() => toggleColumn(c)} />
-                  {EXTRA_COLUMN_LABELS[c]}
-                </label>
-              ))}
+    <div className="lease-screen items-screen items-page">
+      <div className="ls-hero">
+        <div className="ls-hero-top">
+          <div className="ls-hero-main">
+            <div className="ls-hero-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></svg>
             </div>
-          )}
+            <div>
+              <h3>{t("nav.tabs.items")}</h3>
+              <p>{t("inventory.items.screen.note")}</p>
+            </div>
+          </div>
+          <div className="ls-hero-actions">
+            <button type="button" className="ls-btn ls-btn-glass" onClick={onNavigateTransfer}>{t("inventory.items.transferBtn")}</button>
+            <button type="button" className="ls-btn ls-btn-glass" onClick={exportItems}>{t("inventory.items.exportBtn")} <small>CSV</small></button>
+            <button type="button" className="ls-btn ls-btn-accent" onClick={() => { setEditingId(null); setForm(emptyForm()); setComponents([]); setFormOpen(true); }}>＋ {t("inventory.items.addNew")}</button>
+          </div>
         </div>
+        <div className="ls-chips">
+          <button type="button" className={`ls-chip${status === "active" ? " is-on" : ""}`} onClick={() => setStatus("active")}>{t("inventory.items.tabActive")}<b>{activeCount}</b></button>
+          <button type="button" className={`ls-chip${status === "archived" ? " is-on" : ""}`} onClick={() => setStatus("archived")}>{t("inventory.items.tabArchived")}<b>{archivedCount}</b></button>
+        </div>
+      </div>
+
+      <div className={`ls-kpis${loading ? " is-loading" : ""}`}>
+        <div className="ls-kpi tone-gray"><div className="ls-kpi-label">{t("inventory.items.screen.kpiCount")}</div><div className="ls-kpi-value">{kpis.count}</div></div>
+        <div className="ls-kpi tone-green"><div className="ls-kpi-label">{t("inventory.items.screen.kpiStockValue")}</div><div className="ls-kpi-value">{fmt2(kpis.stockValue)}</div></div>
+        <div className="ls-kpi tone-red"><div className="ls-kpi-label">{t("inventory.items.screen.kpiLow")}</div><div className="ls-kpi-value">{kpis.low}</div></div>
+        <div className="ls-kpi tone-amber"><div className="ls-kpi-label">{t("inventory.items.screen.kpiStore")}</div><div className="ls-kpi-value">{kpis.inStore}</div></div>
       </div>
 
       {/* إضافة/تعديل الصنف في نافذة منبثقة فوق قائمة الأصناف — تُغلَق بزر × أو الإلغاء أو Esc أو النقر خارجها */}
@@ -450,25 +473,44 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       </div>
       </div>}
 
-      <section className="panel items-directory-panel">
-        <div className="items-tabs" role="tablist">
-          <button className={status === "active" ? "active" : ""} onClick={() => setStatus("active")}>{t("inventory.items.tabActive")} <span>{items.filter((i) => i.isArchived !== true).length}</span></button>
-          <button className={status === "archived" ? "active" : ""} onClick={() => setStatus("archived")}>{t("inventory.items.tabArchived")} <span>{items.filter((i) => i.isArchived === true).length}</span></button>
-        </div>
-        <form className="items-filters" onSubmit={(e) => { e.preventDefault(); itemFilters.apply(); }}>
-          <label className="items-search"><span>⌕</span><input aria-label={t("inventory.items.filters.searchAria")} placeholder={t("inventory.items.filters.searchPlaceholder")} value={itemFilters.draft.query} onChange={(e) => itemFilters.setField("query", e.target.value)} /></label>
+      <form className="panel is-search" onSubmit={(e) => { e.preventDefault(); itemFilters.apply(); }}>
+        <div className="is-row">
+          <label className="is-box">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+            <input aria-label={t("inventory.items.filters.searchAria")} placeholder={t("inventory.items.filters.searchPlaceholder")} value={itemFilters.draft.query} onChange={(e) => itemFilters.setField("query", e.target.value)} />
+          </label>
           <select aria-label={t("inventory.items.filters.typeAria")} value={itemFilters.draft.typeFilter} onChange={(e) => itemFilters.setField("typeFilter", e.target.value)}>
             <option value="">{t("inventory.items.filters.allTypes")}</option>
             {ITEM_TYPES.map((tp) => <option key={tp} value={tp}>{TYPE_LABEL[tp]}</option>)}
           </select>
           <select aria-label={t("inventory.items.filters.categoryAria")} value={itemFilters.draft.category} onChange={(e) => itemFilters.setField("category", e.target.value)}><option value="">{t("inventory.items.filters.allCategories")}</option>{categories.map((value) => <option key={value}>{value}</option>)}</select>
-          <label className="low-stock-filter"><input type="checkbox" checked={itemFilters.draft.lowStock} onChange={(e) => itemFilters.setField("lowStock", e.target.checked)} /> {t("inventory.items.filters.lowStock")}</label>
+          <label className="is-check"><input type="checkbox" checked={itemFilters.draft.lowStock} onChange={(e) => itemFilters.setField("lowStock", e.target.checked)} /> {t("inventory.items.filters.lowStock")}</label>
           {Object.values(itemFilters.draft).some((v) => v !== "" && v !== false) && (
-            <button type="button" className="clear-filters" onClick={() => itemFilters.reset(emptyItemFilters)}>{t("inventory.items.filters.clearFilters")}</button>
+            <button type="button" className="ls-act" onClick={() => itemFilters.reset(emptyItemFilters)}>{t("inventory.items.filters.clearFilters")}</button>
           )}
-          <button type="submit" className="btn-primary">{t("inventory.items.filters.showResults")}</button>
-        </form>
-        {error && !formOpen && <p className="items-error">{error}</p>}
+          <button type="submit" className="ls-act is-primary">{t("inventory.items.filters.showResults")}</button>
+        </div>
+      </form>
+
+      <section className="panel is-table">
+        <div className="is-table-head">
+          <span>{t("inventory.items.footer", { shown: filteredItems.length, total: items.length })}</span>
+          <div className="column-toggle">
+            <button type="button" className="ls-act" onClick={() => setColumnMenuOpen((v) => !v)}>{t("inventory.items.columnsBtn")}</button>
+            {columnMenuOpen && (
+              <div className="column-toggle-menu" onMouseLeave={() => setColumnMenuOpen(false)}>
+                <p className="column-toggle-title">{t("inventory.items.columnsMenuTitle")}</p>
+                {EXTRA_COLUMNS.map((c) => (
+                  <label key={c} className="column-toggle-item">
+                    <input type="checkbox" checked={extraColumns[c]} onChange={() => toggleColumn(c)} />
+                    {EXTRA_COLUMN_LABELS[c]}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {error && !formOpen && <div className="ls-msg ls-msg-bad">{error}</div>}
         {loading ? <p className="empty items-loading">{t("inventory.items.loading")}</p> : (
           <div className="items-table-wrap">
             <table className="ledger-table responsive-table items-table">
@@ -492,7 +534,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
                   <td data-label={t("inventory.items.table.name")}><div className="item-name-cell"><span className="item-avatar">◇</span><span><ItemName item={item} language={lang} extra={<small>{item.category || t("inventory.items.notCategorized")}</small>} /></span></div></td>
                   <td data-label={t("inventory.items.table.type")}><span className={`item-type-badge ${TYPE_CSS[item.type] || "type-unknown"}`}><i>{TYPE_ICON[item.type] || "◇"}</i> {TYPE_LABEL[item.type] || t("inventory.items.unspecifiedType")}</span></td>
                   <td data-label={t("inventory.items.table.unit")}>{getUnitDisplayLabel(item.unit, lang) || "—"}</td>
-                  {showQuantityColumn && <td data-label={t("inventory.items.table.quantity")} className="num">{item.quantity ?? "—"}</td>}
+                  {showQuantityColumn && <td data-label={t("inventory.items.table.quantity")} className="num">{isLowStock(item) ? <span className="ls-badge pay-overdue" title={t("inventory.items.filters.lowStock")}>{item.quantity}</span> : (item.quantity ?? "—")}</td>}
                   {extraColumns.lastPurchasePrice && <td data-label={t("inventory.items.table.lastPurchasePrice")} className="num">{item.lastPurchasePrice != null ? fmt2(item.lastPurchasePrice) : "—"}</td>}
                   <td data-label={t("inventory.items.table.salePrice")} className="num">{item.salePrice != null ? fmt2(item.salePrice) : "—"}</td>
                   {extraColumns.averageCost && <td data-label={t("inventory.items.table.averageCost")} className="num">{item.averageCost != null ? fmt2(item.averageCost) : "—"}</td>}
@@ -512,7 +554,6 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
             </table>
           </div>
         )}
-        <footer className="items-table-footer">{t("inventory.items.footer", { shown: filteredItems.length, total: items.length })}</footer>
       </section>
 
       {viewItem && <div className="voucher-overlay item-view-overlay" onMouseDown={() => setViewItem(null)}><div className="voucher-shell item-view-card" onMouseDown={(e) => e.stopPropagation()}>
