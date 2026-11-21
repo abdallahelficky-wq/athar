@@ -1,3 +1,4 @@
+import { recordHistoryHandler } from "../../lib/recordHistory";
 import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
@@ -7,6 +8,8 @@ import { listItems, getItem, getItemByBarcode, createItem, updateItem, deleteIte
 
 export const itemRoutes = Router();
 itemRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
+// سجل التعديلات (من/ماذا/متى) — lib/recordHistory.ts
+itemRoutes.get("/:id/history", requirePositionAction("items", "read"), recordHistoryHandler("Item"));
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 

@@ -194,7 +194,8 @@ describe("importClearedSalesInvoice (integration)", () => {
     const result = await importClearedSalesInvoice(tenantId, userId, input);
     if ("dryRun" in result) throw new Error("expected a real result");
 
-    const logs = await prisma.auditLog.findMany({ where: { tenantId, entityType: "SalesInvoice", entityId: result.id } });
+    // صف علامة الاستيراد وحده — بجانبه صفوف سجل التعديلات (sales_invoice.created/line_added) من مُشغِّل record_row_change
+    const logs = await prisma.auditLog.findMany({ where: { tenantId, entityType: "SalesInvoice", entityId: result.id, action: "sales_invoice.imported_from_zatca" } });
     expect(logs.length).toBe(1);
     expect(logs[0].action).toBe("sales_invoice.imported_from_zatca");
     expect((logs[0].metadata as Record<string, unknown>).reason).toBe(input.reason);
