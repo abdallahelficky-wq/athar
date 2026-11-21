@@ -265,6 +265,19 @@ export const POSITION_RESOURCES: { id: string; label: { ar: string; en: string }
     ]
   },
   {
+    "id": "bankReconciliation",
+    "label": {
+      "ar": "التسوية البنكية",
+      "en": "Bank reconciliation"
+    },
+    "actions": [
+      "read",
+      "create",
+      "edit",
+      "delete"
+    ]
+  },
+  {
     "id": "items",
     "label": {
       "ar": "الأصناف",

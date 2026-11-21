@@ -3,6 +3,7 @@ import { prisma } from "./prisma";
 import { verifyPassword } from "./password";
 import { badRequest, forbidden, notFound } from "./httpError";
 import { assertPeriodNotClosed, lockCompanyClosingDate } from "./fiscalClosing";
+import { releaseBankMatchesTx } from "../modules/bankReconciliation/bankReconciliation.service";
 import { recomputeEntryTotal } from "./journalEntryTotals";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
@@ -179,6 +180,7 @@ export async function deleteJournalEntryTx(tx: Tx, journalEntryId: string | null
 
   const closingDate = await lockCompanyClosingDate(tx, entry.companyId);
   assertPeriodNotClosed(closingDate, entry.date, "حذف/فك ترحيل قيد");
+  await releaseBankMatchesTx(tx, journalEntryId, "حذف/فك ترحيل قيد");
 
   await tx.journalEntry.deleteMany({ where: { id: journalEntryId } });
 }
