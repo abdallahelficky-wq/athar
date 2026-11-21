@@ -6,12 +6,14 @@ import { listAssetCategories } from "../api/assetCategories";
 import { listEmployeeAdvances } from "../api/employeeAdvances";
 import { listEmployees } from "../api/employees";
 import { fmt2 } from "../legacy/constants";
+import JournalEntryImportModal from "./JournalEntryImportModal";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import FixedAssetLineModal from "./shared/FixedAssetLineModal";
 import EmployeeAdvanceLineModal from "./shared/EmployeeAdvanceLineModal";
 import { currencyLabel } from "../shared/countries";
 import { useUnsavedChangesGuard } from "./shared/UnsavedChangesContext";
 import { getOrgDisplayName } from "./shared/accountDisplayName";
+import "../styles/journal-form.css";
 
 const emptyLine = () => ({
   accountId: "", costCenterId: "", departmentId: "", branchId: "", description: "", debit: "", credit: "",
@@ -65,6 +67,24 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [numberPreview, setNumberPreview] = useState(null); // { prefix, preview } من الخادم، بلا حجز فعلي
+  const [importOpen, setImportOpen] = useState(false);
+  const [importNote, setImportNote] = useState("");
+
+  // استيراد قيد سابق: ينسخ البيان والسطور (حسابات، مبالغ، وصف، مركز تكلفة، قسم، فرع، موظف) ويُبقي التاريخ
+  // الحالي. روابط الأصل الثابت/السلفة لا تُنسَخ عمداً حتى لا يرتبط الأصل أو السلفة نفسه بقيدين.
+  const importFromEntry = (entry) => {
+    const hasData = memo.trim() || lines.some((l) => l.accountId || Number(l.debit) || Number(l.credit));
+    if (hasData && !window.confirm(t("journalEntries.form.importConfirmReplace"))) return;
+    setMemo(entry.memo || "");
+    const imported = (entry.lines || []).map((l) => ({
+      ...lineFromExisting(l),
+      fixedAssetId: "", employeeAdvanceId: "", linkedFixedAssetLabel: "", linkedEmployeeAdvanceLabel: "",
+    }));
+    while (imported.length < 2) imported.push(emptyLine());
+    setLines(imported);
+    setImportNote(t("journalEntries.form.importedNote", { number: entry.entryNumber || entry.id.slice(-8) }));
+    setImportOpen(false);
+  };
 
   // "تغييرات غير محفوظة" — أي تعديل فعلي على التاريخ/البيان/الأسطر بعد أول رسم للنافذة (وليس عند
   // فتحها لأول مرة، حتى لو كانت مسبوقة ببيانات "نسخ قيد"). راجع UnsavedChangesContext لتفاصيل
@@ -264,6 +284,13 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
         <div className="journal-modal-scroll">
           {duplicateEntry && <div className="edit-banner">{t("journalEntries.form.duplicateBanner")}</div>}
 
+          {!isEdit && (
+            <div className="journal-import-bar">
+              <button type="button" className="btn-ghost journal-import-btn" onClick={() => setImportOpen(true)}>⤓ {t("journalEntries.form.importFromEntry")}</button>
+            </div>
+          )}
+          {importNote && <div className="edit-banner">{importNote}</div>}
+
           <div className="form-grid header-grid">
             <label>{t("journalEntries.form.date")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
             <label>
@@ -327,20 +354,20 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
                     </td>
                     <td>
                       <select value={l.costCenterId} onChange={(e) => updateLine(idx, "costCenterId", e.target.value)}>
-                        <option value="">{t("common.clearOption")}</option>
+                        <option value=""></option>
                         {costCenterOptions.map((c) => <option key={c.id} value={c.id}>{getOrgDisplayName(c, i18n.language)}</option>)}
                       </select>
                     </td>
                     <td>
                       <select value={l.departmentId} onChange={(e) => updateLine(idx, "departmentId", e.target.value)}>
-                        <option value="">{t("common.clearOption")}</option>
+                        <option value=""></option>
                         {departmentOptions.map((d) => <option key={d.id} value={d.id}>{getOrgDisplayName(d, i18n.language)}</option>)}
                       </select>
                     </td>
                     {companyBranches.length > 0 && (
                       <td>
                         <select value={l.branchId} onChange={(e) => updateLine(idx, "branchId", e.target.value)}>
-                          <option value="">{t("common.clearOption")}</option>
+                          <option value=""></option>
                           {branchOptionsForLine(l.branchId).map((b) => <option key={b.id} value={b.id}>{b.nameAr}</option>)}
                         </select>
                       </td>
@@ -420,6 +447,8 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
           onConfirm={applyAdvanceLink}
         />
       )}
+
+      {importOpen && <JournalEntryImportModal companyId={companyId} onPick={importFromEntry} onClose={() => setImportOpen(false)} />}
 
       {confirmClose && (
         <div className="unsaved-changes-overlay" onClick={(e) => e.target === e.currentTarget && setConfirmClose(false)}>
