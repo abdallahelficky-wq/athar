@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { authenticate, blockMutationsWhenReadOnly } from "../../middleware/auth";
 import { requirePositionAction } from "../../middleware/positionMatrix";
-import { askAiHandler, insightsHandler, signalsHandler, supportHandler } from "./ai.controller";
+import { askAiHandler, insightsHandler, signalsHandler } from "./ai.controller";
 import { aiRateLimit } from "./aiRateLimit";
 import { HttpError } from "../../lib/httpError";
 import { prisma } from "../../lib/prisma";
@@ -9,10 +9,6 @@ import jwt from "jsonwebtoken";
 import { env } from "../../config/env";
 
 export const aiRoutes = Router();
-
-// «الدعم الفني» مسجَّل قبل حارس "عرض فقط" عمداً: لا يقرأ ولا يكتب أي بيانات (أسئلة استخدام فقط)، وصاحب الاشتراك المنتهي
-// هو أحوج من يسأل الدعم. ولا يتطلب صلاحية "ai" في مصفوفة المناصب: متاح لكل مستخدم مسجَّل، بحدّ استخدام خاص به.
-aiRoutes.post("/support", authenticate, aiRateLimit(20), supportHandler);
 
 // وضع "عرض فقط" (اشتراك/تجربة منتهية) يرفض كل طلب غير قراءة هنا أيضاً، قبل أي قراءة بيانات أو استدعاء نموذج مدفوع —
 // POST /ask كان يمرّ لعضوية "عرض فقط" لأن هذا الراوتر وحده بين رواتر المستخدمين لم يركّب الحارس.

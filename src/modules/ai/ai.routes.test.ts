@@ -21,6 +21,7 @@ vi.mock("../../middleware/positionMatrix", () => ({
   requirePositionAction: () => (_req: any, _res: any, next: any) => next()
 }));
 import { aiRoutes } from "./ai.routes";
+import { aiSupportRoutes } from "./aiSupport.routes";
 import { signAccessToken } from "../../lib/jwt";
 import { prisma } from "../../lib/prisma";
 import { hrEntryKinds } from "../../lib/hrRedaction";
@@ -34,6 +35,7 @@ let root: string;
 beforeAll(async () => {
   const app = express();
   app.use(express.json());
+  app.use("/api/ai/support", aiSupportRoutes);
   app.use("/api/ai", aiRoutes);
   app.use(((err, _req, res, _next) => { res.status(err instanceof HttpError ? err.status : 500).json({ error: err.message }); }) as express.ErrorRequestHandler);
   server = await new Promise<Server>((resolve) => { const listening = app.listen(0, "127.0.0.1", () => resolve(listening)); });
