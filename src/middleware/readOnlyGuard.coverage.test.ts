@@ -10,7 +10,6 @@ import { describe, expect, it } from "vitest";
 const ALLOWED_WITHOUT_GUARD: Record<string, string> = {
   // مسارا المستخدم هنا قراءة فقط (GET)، ومسارات التعديل (تسجيل الحضور/الانصراف) لبوابة الموظف برمز منفصل لا يحمل readOnly
   "src/modules/attendance/attendance.routes.ts": "user routes are GET-only; mutations are employee-portal check-in/out",
-  "src/modules/ai/aiSupport.routes.ts": "Athar AI support: usage questions only — reads and writes no company data; read-only (expired) users need support most",
 };
 
 function routeFiles(dir: string): string[] {
