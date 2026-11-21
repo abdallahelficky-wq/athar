@@ -265,6 +265,19 @@ export const POSITION_RESOURCES: { id: string; label: { ar: string; en: string }
     ]
   },
   {
+    "id": "cheques",
+    "label": {
+      "ar": "الشيكات",
+      "en": "Cheques"
+    },
+    "actions": [
+      "read",
+      "create",
+      "edit",
+      "delete"
+    ]
+  },
+  {
     "id": "zakat",
     "label": {
       "ar": "الزكاة",

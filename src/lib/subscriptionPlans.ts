@@ -38,7 +38,7 @@ const PLAN_ADDS: Record<SubscriptionPlan, readonly string[]> = {
     // القيود وشجرة الحسابات، ومراكز التكلفة والأقسام (D12)
     "journalEntries", "accounts", "costCenters", "departments",
     // التقارير والمطابقة الضريبية والتقارير المجدولة ولوحة المعلومات
-    "reports", "vatReconciliation", "bankReconciliation", "zakat", "reportSchedules", "dashboard",
+    "reports", "vatReconciliation", "bankReconciliation", "zakat", "cheques", "reportSchedules", "dashboard",
     // زاتكا المرحلة الثانية في كل باقة
     "companiesZatca",
     // كتالوج الأصناف + حركة المخزون التلقائية على المستودع الافتراضي + رصيد بسيط (D11)

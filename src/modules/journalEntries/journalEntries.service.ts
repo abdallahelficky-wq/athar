@@ -687,7 +687,11 @@ export const LEASE_PAYMENT_ENTRY_LOCKED = "قيد سداد الإيجار لا �
 /** قيد إطفاء الإيجارات الشهري (lease_amortization) مرتبط بسجل الإطفاء الذي يحدّد ما أُطفئ من كل دفعة — يُزال من شاشة الإيجارات وحدها. */
 export const LEASE_AMORTIZATION_ENTRY_LOCKED = "قيد إطفاء الإيجارات لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «إزالة الإطفاء» من شاشة الإيجارات";
 
+/** قيد حدث على شيك (cheque) مرتبط بحالة الشيك ودورته — يُتراجَع عنه من شاشة الشيكات وحدها. */
+export const CHEQUE_ENTRY_LOCKED = "قيد الشيك لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «تراجع» من شاشة الشيكات";
+
 function assertNotStationShiftEntry(entry: { sourceModule: string }) {
+  if (entry.sourceModule === "cheque") throw badRequest(CHEQUE_ENTRY_LOCKED);
   if (entry.sourceModule === "lease_payment") throw badRequest(LEASE_PAYMENT_ENTRY_LOCKED);
   if (entry.sourceModule === "lease_amortization") throw badRequest(LEASE_AMORTIZATION_ENTRY_LOCKED);
   if (entry.sourceModule === "fiscal_year_closing") throw badRequest(FISCAL_CLOSING_ENTRY_LOCKED);

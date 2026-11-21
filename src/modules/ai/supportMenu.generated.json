@@ -307,6 +307,10 @@
           "label": "التسوية البنكية"
         },
         {
+          "id": "cheques",
+          "label": "الشيكات"
+        },
+        {
           "id": "departments",
           "label": "الأقسام"
         },
