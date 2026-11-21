@@ -15,13 +15,13 @@ export default function IndependentAccountPicker() {
   useEffect(() => {
     let alive = true;
     listOwnAccounts().then(rows => { if (alive) setAccounts(rows); })
-      .catch(() => { if (alive) setError(ar ? "تعذّر تحميل الشركات المستقلة" : "Could not load independent companies"); });
+      .catch(() => { if (alive) setError(ar ? "تعذّر تحميل المنشآت" : "Could not load your companies"); });
     return () => { alive = false; };
   }, [user?.id, ar]);
   async function changeAccount(id) {
     if (!id || id === user?.id || busy) return;
     if (hasUnsaved) {
-      setError(ar ? "احفظ التغييرات أو ألغها قبل الانتقال لشركة أخرى" : "Save or discard your changes before switching companies");
+      setError(ar ? "احفظ التغييرات أو ألغها قبل تغيير المنشأة" : "Save or discard your changes before switching companies");
       return;
     }
     setBusy(true); setError("");
@@ -32,17 +32,20 @@ export default function IndependentAccountPicker() {
     } catch (err) { setError(err.message); setBusy(false); }
   }
   if (!error && accounts.length < 2) return null;
-  return <div style={{ padding: "10px 14px", borderTop: "1px solid #e5e7eb" }}>
-    {accounts.length > 1 && <label style={{ display: "grid", gap: 6 }}>
-      {ar ? "الانتقال لشركة مستقلة" : "Switch independent company"}
-      <select aria-label={ar ? "الشركات المستقلة" : "Independent companies"}
+  return <div className="user-menu-switch">
+    {accounts.length > 1 && <label>
+      <span className="user-menu-switch-label">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 21h18" /><path d="M5 21V7l7-4 7 4v14" /><path d="M9 21v-6h6v6" /></svg>
+        {ar ? "تغيير المنشأة" : "Switch company"}
+      </span>
+      <select aria-label={ar ? "المنشآت" : "Companies"}
         value={user?.id || ""} disabled={busy} onChange={e => changeAccount(e.target.value)}>
         {accounts.map(a => <option key={a.userId} value={a.userId} disabled={a.suspended}>
           {a.name} — ID {a.code}{a.suspended ? (ar ? " (معلّقة)" : " (suspended)") : ""}
         </option>)}
       </select>
     </label>}
-    {busy && <span role="status">{ar ? "جارٍ الانتقال…" : "Switching…"}</span>}
-    {error && <p role="alert">{error}</p>}
+    {busy && <span className="user-menu-switch-note" role="status">{ar ? "جارٍ التبديل…" : "Switching…"}</span>}
+    {error && <p className="user-menu-switch-error" role="alert">{error}</p>}
   </div>;
 }
