@@ -239,7 +239,13 @@ export const enforceCompanyScope: RequestHandler = (req, _res, next) => {
  * قراءة وتحقّق في الذاكرة). `path` نسبي لجذر الراوتر المُركَّب عليه (Express يُسقِط بادئة الـmount
  * تلقائياً داخل كل Router فرعي)، فلا حاجة لبادئة `/api/journal-entries` هنا.
  */
-const READ_ONLY_EXEMPT_ROUTES: { method: string; path: string }[] = [{ method: "POST", path: "/bulk-import/preview" }];
+// المسار الكامل (baseUrl + path، بلا شرطة أخيرة) لا المسار داخل الراوتر وحده — وإلا أعفى "/" أو "/preview" في أي راوتر آخر.
+export const READ_ONLY_EXEMPT_ROUTES: { method: string; path: string }[] = [
+  // معاينة الاستيراد الجماعي: POST بجسم لكنها لا تكتب شيئاً
+  { method: "POST", path: "/api/journal-entries/bulk-import/preview" },
+  // «الدعم الفني» في أثر الذكي: أسئلة استخدام لا تلمس بيانات أي شركة — وصاحب الاشتراك المنتهي أحوج من يسأل الدعم
+  { method: "POST", path: "/api/ai/support" },
+];
 
 /**
  * حارس مركزي إجباري لوضع "عرض فقط" (اشتراك/فترة تجريبية منتهية على مستوى عضوية بعينها — راجع
@@ -256,7 +262,8 @@ export const blockMutationsWhenReadOnly: RequestHandler = (req, _res, next) => {
   if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
   if (!req.auth.readOnly) return next();
 
-  const exempt = READ_ONLY_EXEMPT_ROUTES.some((r) => r.method === req.method && r.path === req.path);
+  const fullPath = `${req.baseUrl}${req.path}`.replace(/\/+$/, "");
+  const exempt = READ_ONLY_EXEMPT_ROUTES.some((r) => r.method === req.method && r.path === fullPath);
   if (exempt) return next();
 
   throw forbidden("هذه الشركة في وضع (عرض فقط) بسبب انتهاء الاشتراك أو الفترة التجريبية — تواصل مع الدعم الفني لتفعيل الاشتراك قبل إجراء أي إضافة أو تعديل أو حذف.");

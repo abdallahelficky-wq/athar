@@ -78,6 +78,7 @@ import { attendanceRoutes } from "./modules/attendance/attendance.routes";
 import { posRoutes } from "./modules/pos/pos.routes";
 import { stableRoutes } from "./modules/stables/stables.routes";
 import { aiRoutes } from "./modules/ai/ai.routes";
+import { aiSupportRoutes } from "./modules/ai/aiSupport.routes";
 import { storeRoutes } from "./modules/store/store.routes";
 import { storeOrderRoutes } from "./modules/storeOrders/storeOrders.routes";
 import { storeAdminRoutes } from "./modules/storeAdmin/storeAdmin.routes";
@@ -175,6 +176,8 @@ export function createApp() {
   app.use("/api/employee-portal/station-monitor", stationMonitorPortalRoutes);
   app.use("/api/pos", posRoutes);
   app.use("/api/stables", stableRoutes);
+  // قبل aiRoutes: حارس "عرض فقط" وصلاحية "ai" المركَّبان على aiRoutes لا يخصّان الدعم الفني (راجع aiSupport.routes.ts).
+  app.use("/api/ai/support", aiSupportRoutes);
   app.use("/api/ai", aiRoutes);
   // المتجر الإلكتروني العام — قراءة فقط بلا مصادقة (راجع store.routes.ts)
   app.use("/api/store", storeRoutes);

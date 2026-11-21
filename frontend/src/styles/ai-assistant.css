@@ -56,3 +56,5 @@
   .ai-panel { height: min(78vh, 640px); }
 }
 @media print { .ai-root { display: none; } }
+.ai-human { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border: 1px solid #1B8354; border-radius: 12px; color: #1B8354; background: #fff; font-weight: 700; font-size: 13.5px; text-decoration: none; }
+.ai-human:hover { background: #E8F6EE; }

@@ -402,6 +402,12 @@
   "aiAssistant": {
     "title": "Athar AI", "subtitle": "Your financial assistant — read and analyze only", "fab": "Athar AI", "close": "Close",
     "tabChat": "Ask", "tabInsights": "Insights", "tabForecast": "Forecast", "tabAlerts": "Alerts",
+    "tabSupport": "Support",
+    "supportWelcome": "Ask me how to use Athar: where to find a screen, how to do a task, or what a message means.",
+    "supportPlaceholder": "e.g. How do I add a new user?",
+    "supportNote": "Automated support answers are guidance only; for technical issues or subscriptions contact the support team.",
+    "supportS1": "How do I link the company with ZATCA?", "supportS2": "How do I add a user and set permissions?", "supportS3": "Where is a customer statement?",
+    "supportHuman": "Contact the support team on WhatsApp", "supportScreen": "Screen: {{screen}}",
     "welcome": "Ask about your company's numbers: liquidity, sales, receivables, or why profit changed.",
     "s1": "Why did liquidity change this month?", "s2": "What are the biggest financial risks now?", "s3": "How are sales doing versus previous months?",
     "placeholder": "Type your financial question…", "send": "Send", "thinking": "Analyzing…",

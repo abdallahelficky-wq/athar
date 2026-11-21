@@ -62,6 +62,8 @@ const EXEMPT: Record<string, string> = {
   "POST /api/pts/upload": "جهاز المحطة (PTS-2) يرفع بياناته بتوقيع المتحكم",
   "POST /api/webhooks/whatsapp/": "Meta ترسل حالات رسائل واتساب بتوقيع سرّ التطبيق — لا شركة ولا جلسة",
   "DELETE /api/platform-admin/plan-prices/:id": "لوحة مدير المنصة",
+  // «الدعم الفني» في أثر الذكي: أسئلة استخدام النظام — لا يقرأ ولا يكتب أي بيانات شركة، ومتاح لكل الباقات وفي «عرض فقط»
+  "POST /api/ai/support/": "الدعم الفني — POST بجسم لكنه لا يلمس بيانات أي شركة",
 };
 
 type Handle = {

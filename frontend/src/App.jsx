@@ -282,7 +282,7 @@ function AppShell() {
           </div>
         </div>
       </div>
-      <AiAssistant companyId={real.companyId} />
+      <AiAssistant companyId={real.companyId} companyName={activeCompany?.name || tenant?.name} tenantCode={tenant?.code} />
     </div>
   );
 }

@@ -32,6 +32,15 @@ describe("Cloudflare Anthropic Messages transport", () => {
     expect(body.messages[0].content).toContain('"cash":123');
     expect(options.signal).toBeInstanceOf(AbortSignal);
   });
+  it("support mode replaces the financial-analyst instructions and labels the context", async () => {
+    request.mockResolvedValue(Response.json({ type: "message", content: [{ type: "text", text: "ok" }] }));
+    await askAtharAi("كيف أضيف مستخدماً؟", { currentScreen: "/settings/users" }, { systemPrompt: "أنت الدعم الفني", contextLabel: "Current screen" });
+    const body = JSON.parse(request.mock.calls[0][1].body);
+    expect(body.system.startsWith("أنت الدعم الفني")).toBe(true);
+    expect(body.system).not.toContain("مساعد أثر المالي");
+    expect(body.messages[0].content.startsWith("Current screen:")).toBe(true);
+    expect(body.messages.at(-1)).toEqual({ role: "user", content: "كيف أضيف مستخدماً؟" });
+  });
   it.each(["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_AI_GATEWAY_ID", "CLOUDFLARE_AI_GATEWAY_TOKEN"])("requires %s before sending data", async (name) => {
     vi.stubEnv(name, "");
     await expect(askAtharAi("Explain", {})).rejects.toThrow(name);
