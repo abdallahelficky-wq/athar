@@ -1013,6 +1013,16 @@ export const AR_TO_EN: Record<string, string> = {
   "لا يمكن التراجع عن تأجيل في كشف مرحّل، يجب فك ترحيله أولاً": "A postponement cannot be undone on a posted run; unpost it first",
   "لا يوجد تأجيل لهذه السلفة في هذا الكشف": "There is no postponement for this advance in this run",
   "إعدادات حسابات سلف الموظفين للمدير أو المدير المالي فقط": "Employee advance account settings are for an admin or finance manager only",
+  // القيود الدورية (modules/recurringJournals)
+  "المبالغ لا تكون سالبة": "Amounts can't be negative",
+  "كل سطر إما مدين أو دائن بمبلغ أكبر من صفر": "Each line is either a debit or a credit greater than zero",
+  "تاريخ نهاية التكرار قبل بدايته": "The recurrence end date is before its start",
+  "القيد الدوري غير موجود": "Recurring entry not found",
+  "لا يمكن نقل القيد الدوري لشركة أخرى": "A recurring entry can't be moved to another company",
+  "القيد الدوري موقوف — فعّله أولاً": "The recurring entry is paused — activate it first",
+  "تعذّر إنشاء القيد الدوري": "Couldn't create the recurring entry",
+  "اسم القيد الدوري قصير جداً": "The recurring entry name is too short",
+  "يوم الاستحقاق من 1 إلى 28 أو آخر الشهر": "The due day is 1 to 28 or the last day of the month",
   // التسوية البنكية (modules/bankReconciliation)
   "التسوية البنكية لحسابات البنوك والصناديق فقط": "Bank reconciliation is for bank and cash accounts only",
   "كشف البنك غير موجود": "Bank statement not found",

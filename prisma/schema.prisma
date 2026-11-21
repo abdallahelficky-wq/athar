@@ -170,6 +170,7 @@ model Tenant {
   zatcaComplianceStepAttempts ZatcaComplianceStepAttempt[]
   bankStatements    BankStatement[]
 
+  recurringJournalTemplates RecurringJournalTemplate[]
   @@map("tenants")
 }
 
@@ -707,6 +708,7 @@ model Company {
   fiscalYearClosings          FiscalYearClosing[]
   bankStatements              BankStatement[]
 
+  recurringJournalTemplates RecurringJournalTemplate[]
   @@unique([tenantId, name])
   @@map("companies")
 }
@@ -839,6 +841,7 @@ model CostCenter {
   allocatedEmployees Employee[]      @relation("EmployeeCostCenter")
   stationWarehouse   Warehouse?
 
+  recurringJournalLines RecurringJournalTemplateLine[]
   @@map("cost_centers")
 }
 
@@ -1042,6 +1045,7 @@ model Account {
   horseCareServiceRevenueLinks HorseCareService[]
   bankStatements               BankStatement[]
 
+  recurringJournalLines RecurringJournalTemplateLine[]
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
   @@index([tenantId, companyId, parentId])
@@ -1435,6 +1439,7 @@ model JournalEntry {
   lines        JournalEntryLine[]
   stationShift StationShift?
 
+  recurringJournalRun RecurringJournalRun?
   @@unique([companyId, entryNumber])
   // يُستبدَل بـ[tenantId, companyId, date, entrySeq, id] أدناه (يُغطّي نفس الحقول زائد ترتيب شاشة
   // القيود المرقّمة صفحات فعلياً) — يبقى هذا الفهرس الأضيق مفيداً لاستعلامات لا تحتاج entrySeq/id
@@ -4680,6 +4685,88 @@ model StoreCoupon {
 
   @@unique([companyId, code])
   @@map("store_coupons")
+}
+
+// ---------------------------------------------------------------------------
+// القيود الدورية — قالب قيد يتكرر (شهري/ربع سنوي/نصف سنوي/سنوي) في يوم محدد من الشهر، يُنشئ منه المُجدوِل
+// (recurringJournalScheduler.ts) قيداً عادياً (sourceModule "manual") في موعده، مرحَّلاً أو محفوظاً حسب autoPost.
+// كل موعد يُسجَّل في RecurringJournalRun بقيد فريد (templateId, periodDate) في معاملة إنشاء القيد نفسها — فلا يتكرر
+// الموعد ولو عملت نسختان من الخادم معاً. حذف القيد المُنشأ يُبقي الموعد «تم» (journalEntryId ⇒ null) فلا يُعاد إنشاؤه.
+// ---------------------------------------------------------------------------
+
+enum RecurrenceFrequency {
+  monthly
+  quarterly
+  semiannual
+  yearly
+}
+
+model RecurringJournalTemplate {
+  id          String              @id @default(cuid())
+  tenantId    String
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId   String
+  company     Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  memo        String?
+  frequency   RecurrenceFrequency
+  // يوم الاستحقاق في الشهر 1..28، أو 31 = آخر يوم في الشهر
+  dayOfMonth  Int
+  startDate   DateTime
+  endDate     DateTime?
+  // الموعد التالي — null بعد انتهاء القالب (تجاوز endDate)
+  nextRunDate DateTime?
+  autoPost    Boolean             @default(true)
+  active      Boolean             @default(true)
+  lastRunAt   DateTime?
+  // آخر خطأ منع إنشاء قيد (فترة مقفلة، حساب مؤرشف…) — المُجدوِل يتوقف عند الموعد نفسه حتى يُصلَح
+  lastError   String?
+  createdById String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  lines RecurringJournalTemplateLine[]
+  runs  RecurringJournalRun[]
+
+  @@index([tenantId, companyId])
+  @@index([active, nextRunDate])
+  @@map("recurring_journal_templates")
+}
+
+model RecurringJournalTemplateLine {
+  id           String                   @id @default(cuid())
+  templateId   String
+  template     RecurringJournalTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  tenantId     String
+  companyId    String
+  lineNo       Int
+  accountId    String
+  account      Account                  @relation(fields: [accountId], references: [id])
+  costCenterId String?
+  costCenter   CostCenter?              @relation(fields: [costCenterId], references: [id])
+  description  String?
+  debit        Decimal                  @default(0) @db.Decimal(18, 2)
+  credit       Decimal                  @default(0) @db.Decimal(18, 2)
+
+  @@index([templateId, lineNo])
+  @@index([tenantId, companyId])
+  @@map("recurring_journal_template_lines")
+}
+
+model RecurringJournalRun {
+  id             String                   @id @default(cuid())
+  templateId     String
+  template       RecurringJournalTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  tenantId       String
+  companyId      String
+  periodDate     DateTime
+  journalEntryId String?                  @unique
+  journalEntry   JournalEntry?            @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+  createdAt      DateTime                 @default(now())
+
+  @@unique([templateId, periodDate])
+  @@index([tenantId, companyId])
+  @@map("recurring_journal_runs")
 }
 
 // ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import ChartOfAccountsModule from "./ChartOfAccountsModule";
 import AccountLedgerModule from "./AccountLedgerModule";
 import DepartmentsTab from "./DepartmentsTab";
 import CostCentersTab from "./CostCentersTab";
+import RecurringJournalsTab from "./recurring/RecurringJournalsTab";
 import BankReconciliation from "./bank/BankReconciliation";
 import { ZakatModule } from "../legacy/zakat";
 import SubTabs from "./shared/SubTabs";
@@ -13,6 +14,7 @@ import { useModuleTab } from "./shared/useModuleTab";
 
 export const ACCOUNTS_TABS = [
   { id: "journal", labelKey: "nav.tabs.journal" },
+  { id: "recurringJournals", labelKey: "nav.tabs.recurringJournals" },
   { id: "chartOfAccounts", labelKey: "nav.tabs.chartOfAccounts" },
   { id: "ledger", labelKey: "nav.tabs.ledger" },
   { id: "bankReconciliation", labelKey: "nav.tabs.bankReconciliation" },
@@ -37,6 +39,7 @@ export default function AccountsGroupModule({
     <div>
       <SubTabs tabs={ACCOUNTS_TABS} active={tab} basePath="/accounts" />
       {tab === "journal" && <JournalModule companies={realCompanies} companyId={realCompanyId} />}
+      {tab === "recurringJournals" && <RecurringJournalsTab companyId={realCompanyId} />}
       {tab === "chartOfAccounts" && <ChartOfAccountsModule companies={realCompanies} companyId={realCompanyId} />}
       {tab === "ledger" && (
         <AccountLedgerModule
