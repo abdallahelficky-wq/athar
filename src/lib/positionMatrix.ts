@@ -265,6 +265,19 @@ export const POSITION_RESOURCES: { id: string; label: { ar: string; en: string }
     ]
   },
   {
+    "id": "zakat",
+    "label": {
+      "ar": "الزكاة",
+      "en": "Zakat"
+    },
+    "actions": [
+      "read",
+      "create",
+      "edit",
+      "delete"
+    ]
+  },
+  {
     "id": "bankReconciliation",
     "label": {
       "ar": "التسوية البنكية",

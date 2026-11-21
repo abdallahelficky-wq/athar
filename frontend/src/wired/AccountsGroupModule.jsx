@@ -7,7 +7,7 @@ import DepartmentsTab from "./DepartmentsTab";
 import CostCentersTab from "./CostCentersTab";
 import RecurringJournalsTab from "./recurring/RecurringJournalsTab";
 import BankReconciliation from "./bank/BankReconciliation";
-import { ZakatModule } from "../legacy/zakat";
+import ZakatTab from "./zakat/ZakatTab";
 import SubTabs from "./shared/SubTabs";
 import AccountsSettingsTab from "./AccountsSettingsTab";
 import { useModuleTab } from "./shared/useModuleTab";
@@ -26,7 +26,6 @@ export const ACCOUNTS_TABS = [
 
 export default function AccountsGroupModule({
   realCompanies, realCompanyId,
-  legacyEntries, legacySales, legacyCompanyId,
 }) {
   const [tab] = useModuleTab("/accounts", ACCOUNTS_TABS);
   // دخول مباشر لحساب معيّن (زر "عرض في شجرة الحسابات" من شاشة عميل/مورد/موظف، أو نتيجة بحث سريع)
@@ -52,7 +51,7 @@ export default function AccountsGroupModule({
       {tab === "departments" && <DepartmentsTab companyId={realCompanyId} />}
       {tab === "costCenters" && <CostCentersTab companyId={realCompanyId} />}
       {tab === "accountsSettings" && <AccountsSettingsTab companyId={realCompanyId} />}
-      {tab === "zakat" && <ZakatModule entries={legacyEntries} sales={legacySales} companyId={legacyCompanyId} />}
+      {tab === "zakat" && <ZakatTab companyId={realCompanyId} companies={realCompanies} />}
     </div>
   );
 }

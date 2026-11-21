@@ -18,7 +18,7 @@ export default function AccountImportPanel({ scope, accounts, onImported }) {
     setMessage("");
     setFileName(file.name);
     try {
-      setPreview(parseAccountWorkbook(await file.arrayBuffer(), accounts));
+      setPreview(await parseAccountWorkbook(await file.arrayBuffer(), accounts));
     } catch (error) {
       setPreview(null);
       setMessageOk(false);

@@ -1571,21 +1571,7 @@
     "empty": "No cost centers yet.",
     "note": "Cost centers tag journal entry lines and payroll expense lines, and appear as a filter in the account ledger."
   },
-  "zakat": {
-    "eyebrow": "Tax compliance",
-    "title": "Zakat & VAT",
-    "disclaimer": "These figures are estimates for demo purposes only, built from the same journal entry and sales data recorded above — not a substitute for an actual connection to the ZATCA portal.",
-    "gauge": {
-      "salesBase": "Total taxable sales",
-      "outputVat": "Output VAT",
-      "inputVat": "Input VAT",
-      "netVat": "Net VAT due"
-    },
-    "baseTitle": "Estimated zakat base",
-    "baseRatioLabel": "Estimated zakat base ratio",
-    "baseRatioValue": "15% (demo)",
-    "baseFinal": "Estimated zakat base"
-  },
+  "zakat": {"title": "Zakat", "intro": "The zakat base from the company's books (posted entries only) up to the period end. Every account with a balance is classified automatically from its type and current/non-current classification, and you can change any account's treatment (or a group's, inherited below it). Add net profit adjustments (non-deductible expenses, provisions charged…) as in your return. Review the result with your zakat adviser before filing.", "method": "Method", "methods": {"regulation_1445": "Implementing Regulations 1445H", "net_current_assets": "Net current assets"}, "ownership": "Zakatable ownership %", "saveSettings": "Save as company setting", "from": "From", "to": "To", "hijriYear": "Full Hijri year (2.5%)", "adjustments": "Net profit adjustments", "adjustmentsNote": "Positive amounts increase book profit (e.g. non-deductible expenses or provisions charged in the year); negative amounts reduce it.", "adjustmentLabel": "Description", "addAdjustment": "+ Adjustment", "compute": "Compute base", "saveDeclaration": "Save as declaration", "result": "Result", "reviewWarning": "{{count}} accounts couldn't be identified as current or non-current — treated as current by default. Review them in the table below.", "row": {"bookNetProfit": "Book net profit for the period", "equity": "Equity and equivalents (period end)", "profitDifference": "Adjusted vs book net profit difference", "nonCurrentLiabilitiesAdded": "Non-current liabilities added (after apportionment)", "currentLiabilitiesAdded": "Current liabilities added (apportioned)", "deductions": "Less: deducted assets", "baseBeforeLimits": "Base before limits", "maxBase": "Maximum base", "adjustedNetProfit": "Adjusted net profit (minimum)", "currentAssets": "Current assets", "currentLiabilities": "Less: current liabilities", "zakatBase": "Zakat base", "rate": "Zakat rate ({{days}} days)", "zakatBeforeOwnership": "Zakat on the full base", "zakatDue": "Zakat due {{pct}}%"}, "minApplied": "Minimum applied: the base is below adjusted net profit.", "maxApplied": "Maximum applied: equity + profit difference.", "accounts": "Account treatment in the base", "accountsNote": "\"Auto\" means from the account type and current/non-current classification, or inherited from its group. A change is saved on the account and the base is recomputed.", "account": "Account", "balance": "Balance", "treatment": "Zakat treatment", "needsReview": "needs review", "auto": "Auto: {{value}}", "inherited": "from group", "treatments": {"equity": "Equity and equivalents", "non_current_liability": "Non-current liability (added, apportioned)", "current_liability": "Current liability", "deductible_non_current_asset": "Deductible non-current asset", "non_deductible_non_current_asset": "Non-deductible non-current asset", "deductible_current_asset": "Deductible current asset (spare parts/materials not for sale)", "current_asset": "Current asset", "excluded": "Excluded"}, "declarations": "Saved declarations", "period": "Period", "entry": "Zakat entry", "noDeclarations": "No saved declarations", "post": "Post zakat entry", "delete": "Delete", "deleteConfirm": "Delete this saved declaration?", "postNote": "An entry of {{amount}} dated {{date}}: Dr zakat expense / Cr zakat provision.", "expenseAccount": "Zakat expense account", "payableAccount": "Zakat provision account (liability)"},
   "hr": {
     "leaveTypeLabels": { "annual": "Annual", "sick": "Sick", "unpaid": "Unpaid", "casual": "Casual" },
     "departmentLabels": {

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "../wired/shared/loadXlsx";
+// يُضبَط بعد loadXlsx() في بداية كل عملية رفع/تصدير — الدوال المساعدة المتزامنة تُستدعى بعده فقط
+let XLSX;
 import QRCode from "qrcode";
 import { useTranslation } from "react-i18next";
 import { fmt, fmt2, costCenterName, COMPANIES } from "./constants";
@@ -139,7 +141,8 @@ export function downloadBlob(blob, filename) {
 export function ExcelImportPanel({ title, exampleRows, onImportRows }) {
   const [importMsg, setImportMsg] = useState("");
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    XLSX = await loadXlsx();
     const ws = XLSX.utils.json_to_sheet(exampleRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "نموذج");
@@ -150,8 +153,9 @@ export function ExcelImportPanel({ title, exampleRows, onImportRows }) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
+        XLSX = await loadXlsx();
         const data = new Uint8Array(ev.target.result);
         const wb = XLSX.read(data, { type: "array" });
         const sheet = wb.Sheets[wb.SheetNames[0]];

@@ -1013,6 +1013,17 @@ export const AR_TO_EN: Record<string, string> = {
   "لا يمكن التراجع عن تأجيل في كشف مرحّل، يجب فك ترحيله أولاً": "A postponement cannot be undone on a posted run; unpost it first",
   "لا يوجد تأجيل لهذه السلفة في هذا الكشف": "There is no postponement for this advance in this run",
   "إعدادات حسابات سلف الموظفين للمدير أو المدير المالي فقط": "Employee advance account settings are for an admin or finance manager only",
+  // الزكاة (modules/zakat)
+  "فترة الزكاة غير صالحة": "The zakat period is invalid",
+  "تصنيف الزكاة لا يناسب نوع الحساب": "This zakat treatment doesn't fit the account type",
+  "إقرار الزكاة غير موجود": "Zakat declaration not found",
+  "للإقرار قيد زكاة مرحَّل — احذف القيد أو اعكسه أولاً": "The declaration has a posted zakat entry — delete or reverse the entry first",
+  "للإقرار قيد زكاة بالفعل": "The declaration already has a zakat entry",
+  "لا زكاة مستحقة في هذا الإقرار": "No zakat is due in this declaration",
+  "اختر حساب مصروف للزكاة": "Choose an expense account for zakat",
+  "اختر حساب التزام لمخصص الزكاة": "Choose a liability account for the zakat provision",
+  "تسويات صافي الربح غير صالحة": "The net profit adjustments are invalid",
+  "بيانات غير صالحة": "Invalid data",
   // القيود الدورية (modules/recurringJournals)
   "المبالغ لا تكون سالبة": "Amounts can't be negative",
   "كل سطر إما مدين أو دائن بمبلغ أكبر من صفر": "Each line is either a debit or a credit greater than zero",
