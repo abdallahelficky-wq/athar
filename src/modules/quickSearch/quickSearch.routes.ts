@@ -2,7 +2,7 @@ import { Router, type Request, type RequestHandler } from "express";
 import { prisma } from "../../lib/prisma";
 import { HttpError, badRequest } from "../../lib/httpError";
 import { requirePositionAction } from "../../middleware/positionMatrix";
-import { authenticate, enforceCompanyScope, assertCompanyAccess } from "../../middleware/auth";
+import { authenticate, enforceCompanyScope, blockMutationsWhenReadOnly, assertCompanyAccess } from "../../middleware/auth";
 
 /**
  * البحث السريع في رأس الشاشة: العملاء والموردون (بالاسم) وفواتير المبيعات والمشتريات (بالرقم) — أول 5 من كل مجموعة،
@@ -31,7 +31,7 @@ async function canRead(req: Request, check: RequestHandler): Promise<boolean> {
 }
 
 export const quickSearchRoutes = Router();
-quickSearchRoutes.use(authenticate, enforceCompanyScope);
+quickSearchRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
 
 quickSearchRoutes.get("/", async (req, res) => {
   const companyId = typeof req.query.companyId === "string" ? req.query.companyId : "";
