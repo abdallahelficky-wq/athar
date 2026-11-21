@@ -1,5 +1,7 @@
+import type { Prisma } from "@prisma/client";
 import { withInvoiceCredits } from "../../lib/invoiceCredits";
 import { prisma } from "../../lib/prisma";
+import type { ListPageParams } from "../../lib/searchPagination";
 import { badRequest, notFound } from "../../lib/httpError";
 import { getAccountIdByName } from "../../lib/wellKnownAccounts";
 import { resolvePartyAccountId } from "../../lib/partyAccounts";
@@ -47,6 +49,34 @@ export async function listReceipts(tenantId: string, filters: { companyId?: stri
     orderBy: { createdAt: "desc" },
   });
   return receipts.map((r) => ({ ...r, unappliedAmount: unappliedAmountOf(r) }));
+}
+
+/** صفحة من السندات (parseListPage): بحث برقم السند أو اسم العميل، وفلتر الحالة، وعدّاد الحالات للبطاقات. */
+export async function listReceiptsPage(tenantId: string, filters: { companyId?: string; customerId?: string }, page: ListPageParams) {
+  const base: Prisma.ReceiptWhereInput = {
+    tenantId,
+    companyId: filters.companyId || undefined,
+    customerId: filters.customerId || undefined,
+    ...(page.dateFrom || page.dateTo ? { date: { ...(page.dateFrom ? { gte: page.dateFrom } : {}), ...(page.dateTo ? { lte: page.dateTo } : {}) } } : {}),
+    ...(page.q ? { OR: [{ receiptNumber: { contains: page.q, mode: "insensitive" } }, { customer: { name: { contains: page.q, mode: "insensitive" } } }] } : {}),
+  };
+  const where: Prisma.ReceiptWhereInput = {
+    ...base,
+    ...(page.status === "posted" ? { status: "posted" } : page.status === "draft" ? { status: { not: "posted" } } : {}),
+  };
+  const [rows, totalCount, posted, all, sum] = await Promise.all([
+    prisma.receipt.findMany({ where, include: receiptInclude, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: (page.page - 1) * page.pageSize, take: page.pageSize }),
+    prisma.receipt.count({ where }),
+    prisma.receipt.count({ where: { ...base, status: "posted" } }),
+    prisma.receipt.count({ where: base }),
+    prisma.receipt.aggregate({ where: base, _sum: { totalAmount: true } }),
+  ]);
+  return {
+    items: rows.map((r) => ({ ...r, unappliedAmount: unappliedAmountOf(r) })),
+    totalCount, page: page.page, pageSize: page.pageSize,
+    counts: { all, posted, draft: all - posted },
+    totalAmount: Number(sum._sum.totalAmount ?? 0),
+  };
 }
 
 /** الفواتير المستحقة على عميل معيّن (غير مسددة بالكامل بعد) — مطابق للفلترة في ReceiptsModule */

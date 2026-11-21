@@ -1,3 +1,4 @@
+import { parseListPage } from "../../lib/searchPagination";
 import { RequestHandler } from "express";
 import * as service from "./purchaseInvoices.service";
 import { prisma } from "../../lib/prisma";
@@ -5,11 +6,12 @@ import { assertRecordCompanyScope } from "../../middleware/auth";
 
 export const listHandler: RequestHandler = async (req, res) => {
   const { companyId, supplierId } = req.query;
-  const invoices = await service.listPurchaseInvoices(req.auth!.tenantId, {
+  const filters = {
     companyId: typeof companyId === "string" ? companyId : undefined,
     supplierId: typeof supplierId === "string" ? supplierId : undefined,
-  });
-  res.json(invoices);
+  };
+  const page = parseListPage(req.query as Record<string, unknown>);
+  res.json(page ? await service.listPurchaseInvoicesPage(req.auth!.tenantId, filters, page) : await service.listPurchaseInvoices(req.auth!.tenantId, filters));
 };
 
 export const getHandler: RequestHandler = async (req, res) => {

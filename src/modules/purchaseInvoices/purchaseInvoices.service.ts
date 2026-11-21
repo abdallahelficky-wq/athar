@@ -4,6 +4,7 @@ import { stockAccountFor } from "../../lib/stockAccount";
 import { normalizePurchaseTax } from "./purchaseTax";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import type { ListPageParams } from "../../lib/searchPagination";
 import { badRequest, notFound } from "../../lib/httpError";
 import { computeInvoiceLine } from "../../lib/invoiceLine";
 import { sumMoney } from "../../lib/money";
@@ -259,6 +260,28 @@ export async function listPurchaseInvoices(tenantId: string, filters: { companyI
     include: invoiceInclude,
     orderBy: { createdAt: "desc" },
   });
+}
+
+/** صفحة من فواتير المشتريات (parseListPage): بحث برقم الفاتورة أو اسم المورد، وفلتر الحالة، وعدّاد الحالات للبطاقات. */
+export async function listPurchaseInvoicesPage(tenantId: string, filters: { companyId?: string; supplierId?: string }, page: ListPageParams) {
+  const base: Prisma.PurchaseInvoiceWhereInput = {
+    tenantId,
+    companyId: filters.companyId || undefined,
+    supplierId: filters.supplierId || undefined,
+    ...(page.dateFrom || page.dateTo ? { date: { ...(page.dateFrom ? { gte: page.dateFrom } : {}), ...(page.dateTo ? { lte: page.dateTo } : {}) } } : {}),
+    ...(page.q ? { OR: [{ invoiceNumber: { contains: page.q, mode: "insensitive" } }, { supplier: { name: { contains: page.q, mode: "insensitive" } } }] } : {}),
+  };
+  const where: Prisma.PurchaseInvoiceWhereInput = {
+    ...base,
+    ...(page.status === "posted" ? { status: "posted" } : page.status === "draft" ? { status: { not: "posted" } } : {}),
+  };
+  const [items, totalCount, posted, all] = await Promise.all([
+    prisma.purchaseInvoice.findMany({ where, include: invoiceInclude, orderBy: [{ createdAt: "desc" }, { id: "desc" }], skip: (page.page - 1) * page.pageSize, take: page.pageSize }),
+    prisma.purchaseInvoice.count({ where }),
+    prisma.purchaseInvoice.count({ where: { ...base, status: "posted" } }),
+    prisma.purchaseInvoice.count({ where: base }),
+  ]);
+  return { items, totalCount, page: page.page, pageSize: page.pageSize, counts: { all, posted, draft: all - posted } };
 }
 
 export async function getPurchaseInvoice(tenantId: string, id: string) {
