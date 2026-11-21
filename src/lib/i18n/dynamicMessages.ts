@@ -191,5 +191,11 @@ export const DYNAMIC_MESSAGE_PATTERNS: MessagePattern[] = [
   {
     match: /^الموظف «(.*?)» عليه قسط سلفة من شاشة السلف وخصم سلفة مُدخَل يدوياً في الكشف معاً — احذف أحدهما حتى لا تُخصَم السلفة مرتين$/,
     translate: (g) => `Employee "${g[0]}" has both an installment from the advances screen and a manual advance deduction on the payroll sheet — remove one so the advance isn't deducted twice`,
-  },
+  },  // التسوية البنكية (bankReconciliation.service.ts)
+  { match: /^تاريخ غير صالح في السطر (\d+)$/, translate: (g) => `Invalid date on line ${g[0]}` },
+  { match: /^تاريخ السطر (\d+) \((.+?)\) خارج فترة الكشف$/, translate: (g) => `Line ${g[0]} date (${g[1]}) is outside the statement period` },
+  { match: /^مبلغ السطر (\d+) صفر$/, translate: (g) => `Line ${g[0]} amount is zero` },
+  { match: /^الرصيد الافتتاحي \+ مجموع الحركات \((.+?)\) لا يساوي الرصيد الختامي \((.+?)\) — راجع أعمدة المدين\/الدائن المختارة$/, translate: (g) => `Opening balance + total movements (${g[0]}) doesn't equal the closing balance (${g[1]}) — check the selected debit/credit columns` },
+  { match: /^لا يمكن التسوية والفرق ليس صفراً \((.+?)\)$/, translate: (g) => `Can't reconcile while the difference isn't zero (${g[0]})` },
+  { match: /^لا يمكن (.+?) لأن القيد مطابَق في تسوية بنكية مُسوّاة \(كشف (.+?) — (.+?)\)\. أعد فتح الكشف أولاً من شاشة التسوية البنكية\.$/, translate: (g) => `Can't ${g[0]} because the entry is matched in a reconciled bank statement (${g[1]} — ${g[2]}). Reopen the statement first from the bank reconciliation screen.` },
 ];

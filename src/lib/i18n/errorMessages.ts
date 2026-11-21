@@ -1013,4 +1013,17 @@ export const AR_TO_EN: Record<string, string> = {
   "لا يمكن التراجع عن تأجيل في كشف مرحّل، يجب فك ترحيله أولاً": "A postponement cannot be undone on a posted run; unpost it first",
   "لا يوجد تأجيل لهذه السلفة في هذا الكشف": "There is no postponement for this advance in this run",
   "إعدادات حسابات سلف الموظفين للمدير أو المدير المالي فقط": "Employee advance account settings are for an admin or finance manager only",
+  // التسوية البنكية (modules/bankReconciliation)
+  "التسوية البنكية لحسابات البنوك والصناديق فقط": "Bank reconciliation is for bank and cash accounts only",
+  "كشف البنك غير موجود": "Bank statement not found",
+  "هذا الكشف مُسوّى — أعد فتحه أولاً لتعديل المطابقات": "This statement is reconciled — reopen it first to change matches",
+  "نهاية فترة الكشف قبل بدايتها": "The statement period ends before it starts",
+  "الكشف بلا أسطر": "The statement has no lines",
+  "سطر الكشف غير موجود": "Statement line not found",
+  "سطر الكشف مطابَق بالفعل — افكّ مطابقته أولاً": "The statement line is already matched — unmatch it first",
+  "سطر القيد غير موجود على حساب هذا البنك أو غير مرحَّل": "The journal line isn't on this bank account or isn't posted",
+  "سطر القيد مطابَق بالفعل مع سطر كشف آخر": "The journal line is already matched to another statement line",
+  "مبلغ سطر القيد لا يساوي مبلغ سطر الكشف": "The journal line amount doesn't equal the statement line amount",
+  "لا يمكن التسوية وفي الكشف أسطر غير مطابَقة — سجّل قيودها (عمولات، فوائد…) ثم طابِقها": "Can't reconcile while statement lines are unmatched — record their entries (fees, interest…) and match them",
+  "الكشف مفتوح بالفعل": "The statement is already open",
 };

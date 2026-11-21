@@ -5,6 +5,7 @@ import ChartOfAccountsModule from "./ChartOfAccountsModule";
 import AccountLedgerModule from "./AccountLedgerModule";
 import DepartmentsTab from "./DepartmentsTab";
 import CostCentersTab from "./CostCentersTab";
+import BankReconciliation from "./bank/BankReconciliation";
 import { ZakatModule } from "../legacy/zakat";
 import SubTabs from "./shared/SubTabs";
 import AccountsSettingsTab from "./AccountsSettingsTab";
@@ -14,6 +15,7 @@ export const ACCOUNTS_TABS = [
   { id: "journal", labelKey: "nav.tabs.journal" },
   { id: "chartOfAccounts", labelKey: "nav.tabs.chartOfAccounts" },
   { id: "ledger", labelKey: "nav.tabs.ledger" },
+  { id: "bankReconciliation", labelKey: "nav.tabs.bankReconciliation" },
   { id: "departments", labelKey: "nav.tabs.departments" },
   { id: "costCenters", labelKey: "nav.tabs.costCenters" },
   { id: "zakat", labelKey: "nav.tabs.zakat" },
@@ -43,6 +45,7 @@ export default function AccountsGroupModule({
           onConsumeInitialAccountId={() => setSearchParams({}, { replace: true })}
         />
       )}
+      {tab === "bankReconciliation" && <BankReconciliation companyId={realCompanyId} />}
       {tab === "departments" && <DepartmentsTab companyId={realCompanyId} />}
       {tab === "costCenters" && <CostCentersTab companyId={realCompanyId} />}
       {tab === "accountsSettings" && <AccountsSettingsTab companyId={realCompanyId} />}
