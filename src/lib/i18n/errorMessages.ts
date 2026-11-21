@@ -1013,6 +1013,16 @@ export const AR_TO_EN: Record<string, string> = {
   "لا يمكن التراجع عن تأجيل في كشف مرحّل، يجب فك ترحيله أولاً": "A postponement cannot be undone on a posted run; unpost it first",
   "لا يوجد تأجيل لهذه السلفة في هذا الكشف": "There is no postponement for this advance in this run",
   "إعدادات حسابات سلف الموظفين للمدير أو المدير المالي فقط": "Employee advance account settings are for an admin or finance manager only",
+  // الموازنات (modules/budgets)
+  "شهر بداية الموازنة غير صالح": "The budget start month is invalid",
+  "الحساب مكرر في الموازنة": "An account is repeated in the budget",
+  "كل سطر في الموازنة يحتاج 12 مبلغاً شهرياً": "Each budget line needs 12 monthly amounts",
+  "أحد حسابات الموازنة لا ينتمي إلى شجرة الشركة أو ليس حساب ترحيل": "One of the budget accounts isn't in the company's chart or isn't a posting account",
+  "الموازنة غير موجودة": "Budget not found",
+  "لا يمكن نقل الموازنة لشركة أخرى": "A budget can't be moved to another company",
+  "الموازنة معتمدة — أعدها مسودة أولاً لتعديلها": "The budget is approved — set it back to draft to edit it",
+  "الموازنة معتمدة — أعدها مسودة أولاً لحذفها": "The budget is approved — set it back to draft to delete it",
+  "اسم الموازنة قصير جداً": "The budget name is too short",
   // الشيكات (modules/cheques)
   "قيد الشيك لا يُعكَس ولا يُفَك ترحيله ولا يُعدَّل ولا يُنشأ له قيد مرآة من شاشة القيود — استخدم «تراجع» من شاشة الشيكات": "A cheque entry can't be reversed, unposted, edited or mirrored from the journal screen — use \"Undo\" on the cheques screen",
   "حساب أوراق القبض يجب أن يكون حساب أصل قابلاً للترحيل في شجرة الشركة": "The notes receivable account must be a posting asset account in the company's chart",

@@ -173,6 +173,7 @@ model Tenant {
   recurringJournalTemplates RecurringJournalTemplate[]
   zakatDeclarations ZakatDeclaration[]
   cheques Cheque[]
+  budgets Budget[]
   @@map("tenants")
 }
 
@@ -719,6 +720,7 @@ model Company {
   chequesReceivableAccountId  String?
   chequesPayableAccountId     String?
   cheques                     Cheque[]
+  budgets                     Budget[]
   @@unique([tenantId, name])
   @@map("companies")
 }
@@ -852,6 +854,7 @@ model CostCenter {
   stationWarehouse   Warehouse?
 
   recurringJournalLines RecurringJournalTemplateLine[]
+  budgets   Budget[]
   @@map("cost_centers")
 }
 
@@ -1060,6 +1063,7 @@ model Account {
   zakatTreatment           ZakatTreatment?
   chequesAsCounter        Cheque[]    @relation("ChequeCounterAccount")
   chequesAsBank           Cheque[]    @relation("ChequeBankAccount")
+  budgetLines             BudgetLine[]
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
   @@index([tenantId, companyId, parentId])
@@ -4982,4 +4986,64 @@ model ChequeEvent {
   @@index([chequeId, createdAt])
   @@index([tenantId, companyId])
   @@map("cheque_events")
+}
+
+// ---------------------------------------------------------------------------
+// الموازنات التقديرية — موازنة لـ12 شهراً تبدأ من شهر startMonth، مبلغ لكل حساب في كل شهر (m01 = الشهر الأول من
+// الموازنة لا يناير بالضرورة). اختيارياً لمركز تكلفة واحد. تقرير الموازنة مقابل الفعلي (budgets.service.ts) من القيود
+// المرحَّلة: الإيراد دائن−مدين، وغيره مدين−دائن.
+// ---------------------------------------------------------------------------
+
+enum BudgetStatus {
+  draft
+  approved
+}
+
+model Budget {
+  id           String       @id @default(cuid())
+  tenantId     String
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  // أول يوم في الشهر الأول للموازنة
+  startMonth   DateTime
+  costCenterId String?
+  costCenter   CostCenter?  @relation(fields: [costCenterId], references: [id])
+  status       BudgetStatus @default(draft)
+  notes        String?
+  createdById  String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  lines BudgetLine[]
+
+  @@index([tenantId, companyId, startMonth])
+  @@map("budgets")
+}
+
+model BudgetLine {
+  id        String  @id @default(cuid())
+  budgetId  String
+  budget    Budget  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  tenantId  String
+  companyId String
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id])
+  m01      Decimal    @default(0) @db.Decimal(18, 2)
+  m02      Decimal    @default(0) @db.Decimal(18, 2)
+  m03      Decimal    @default(0) @db.Decimal(18, 2)
+  m04      Decimal    @default(0) @db.Decimal(18, 2)
+  m05      Decimal    @default(0) @db.Decimal(18, 2)
+  m06      Decimal    @default(0) @db.Decimal(18, 2)
+  m07      Decimal    @default(0) @db.Decimal(18, 2)
+  m08      Decimal    @default(0) @db.Decimal(18, 2)
+  m09      Decimal    @default(0) @db.Decimal(18, 2)
+  m10      Decimal    @default(0) @db.Decimal(18, 2)
+  m11      Decimal    @default(0) @db.Decimal(18, 2)
+  m12      Decimal    @default(0) @db.Decimal(18, 2)
+
+  @@unique([budgetId, accountId])
+  @@index([tenantId, companyId])
+  @@map("budget_lines")
 }
