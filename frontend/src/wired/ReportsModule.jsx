@@ -21,6 +21,7 @@ import ComprehensiveMonthlyReport from "./ComprehensiveMonthlyReport";
 import DraftEntriesNotice from "./shared/DraftEntriesNotice";
 import ReportScheduleAutomation from "./ReportScheduleAutomation";
 import VatReconciliation from "./vat/VatReconciliation";
+import BudgetsTab from "./budgets/BudgetsTab";
 
 import IncomeStatementModule from "./IncomeStatementModule";
 import FinancialAnalysisModule from "./FinancialAnalysisModule";
@@ -37,6 +38,7 @@ export const REPORT_TABS = [
   { id: "cashflow", labelKey: "nav.tabs.cashFlow" },
   { id: "analysis", labelKey: "nav.tabs.financialAnalysis" },
   { id: "vat", labelKey: "nav.tabs.vatReconciliation" },
+  { id: "budgets", labelKey: "nav.tabs.budgets" },
   { id: "monthly", labelKey: "nav.tabs.monthly" },
   { id: "automation", labelKey: "nav.tabs.automation" },
 ];
@@ -203,12 +205,13 @@ export default function ReportsModule({ companies, companyId }) {
             tabs={REPORT_TABS}
             active={tab}
             basePath="/reports"
-            trailing={tab !== "ledger" && <button className="icon-btn" title={t("reports.printCurrent")} onClick={() => (tab === "vat" ? window.print() : setPrinting(true))}><Icon.Printer /></button>}
+            trailing={tab !== "ledger" && tab !== "budgets" && <button className="icon-btn" title={t("reports.printCurrent")} onClick={() => (tab === "vat" ? window.print() : setPrinting(true))}><Icon.Printer /></button>}
           />
           {tab === "ledger" && <AccountLedgerModule companyId={companyId} companies={companies} />}
           {tab === "monthly" && <ComprehensiveMonthlyReport companyId={companyId} companies={companies} />}
           {tab === "automation" && <ReportScheduleAutomation companyId={companyId} />}
           {tab === "vat" && <VatReconciliation companyId={companyId} companies={companies} />}
+          {tab === "budgets" && <BudgetsTab companyId={companyId} />}
           {tab === "trial" && (
             <TrialBalanceView
               companyId={companyId}

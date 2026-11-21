@@ -265,6 +265,19 @@ export const POSITION_RESOURCES: { id: string; label: { ar: string; en: string }
     ]
   },
   {
+    "id": "budgets",
+    "label": {
+      "ar": "الموازنات التقديرية",
+      "en": "Budgets"
+    },
+    "actions": [
+      "read",
+      "create",
+      "edit",
+      "delete"
+    ]
+  },
+  {
     "id": "cheques",
     "label": {
       "ar": "الشيكات",
