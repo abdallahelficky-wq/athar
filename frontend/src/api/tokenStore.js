@@ -1,8 +1,19 @@
 const ACCESS_KEY = "athar.accessToken";
 const REFRESH_KEY = "athar.refreshToken";
 
+/**
+ * وضع الكوكي (VITE_REFRESH_COOKIE=true): رمز التجديد الحقيقي يبقى في كوكي httpOnly يضبطه الخادم
+ * (src/lib/refreshCookie.ts) ولا يقرؤه أي JavaScript — فلا يُخزَّن في localStorage إطلاقاً. يُخزَّن
+ * مكانه علَم ثابت (COOKIE_SESSION_MARKER) فقط ليعرف باقي الكود أن هناك جلسة قابلة للتجديد.
+ * يتطلب أن يكون الـAPI على نفس الموقع (api.atharerp.com) وREFRESH_COOKIE_DOMAIN مضبوطاً في الخادم.
+ */
+export const REFRESH_COOKIE_MODE = import.meta.env.VITE_REFRESH_COOKIE === "true";
+export const COOKIE_SESSION_MARKER = "cookie-session";
+
 let accessToken = localStorage.getItem(ACCESS_KEY) || null;
 let refreshToken = localStorage.getItem(REFRESH_KEY) || null;
+// انتقال من الوضع القديم: رمز تجديد حقيقي باقٍ من قبل تفعيل الكوكي يُترك كما هو حتى يُستعمَل مرة
+// (يرسله http.js في الجسم ويستلم الكوكي)، ثم يحلّ محلّه العلَم — بلا تسجيل خروج إجباري للمستخدمين.
 
 const listeners = new Set();
 
@@ -14,9 +25,14 @@ export function getRefreshToken() {
   return refreshToken;
 }
 
+/** القيمة التي تُرسَل في جسم /auth/refresh و/auth/logout: الرمز الحقيقي، أو لا شيء لو هو في الكوكي. */
+export function refreshTokenForBody(token = refreshToken) {
+  return token && token !== COOKIE_SESSION_MARKER ? token : undefined;
+}
+
 export function setTokens(next) {
   accessToken = next.accessToken;
-  refreshToken = next.refreshToken;
+  refreshToken = REFRESH_COOKIE_MODE ? COOKIE_SESSION_MARKER : next.refreshToken;
   localStorage.setItem(ACCESS_KEY, accessToken);
   localStorage.setItem(REFRESH_KEY, refreshToken);
 }

@@ -101,7 +101,9 @@ export function createApp() {
   app.use(helmet());
   // CORS مقيّد بنطاقات أثر بدل السماح لأي موقع — راجع lib/corsOrigins.ts. أصل غير مسموح لا يُرفَض
   // بخطأ؛ فقط لا تُرسَل ترويسات CORS فيمنعه المتصفح نفسه.
-  app.use(cors({ origin: (origin, cb) => cb(null, isAllowedCorsOrigin(origin)) }));
+  // credentials: يسمح للواجهة بإرسال كوكي رمز التجديد (httpOnly) مع طلبات /api/auth — آمن هنا لأن
+  // الأصل مقيّد بقائمة نطاقات أثر لا "*".
+  app.use(cors({ origin: (origin, cb) => cb(null, isAllowedCorsOrigin(origin)), credentials: true }));
   // أجهزة PTS-2 قبل express.json: توقيعها على الجسم الخام بالبايت (ptsDevice.routes.ts)
   app.use("/api/pts", ptsDeviceRoutes);
   // Webhook حالات واتساب من Meta قبل express.json: التوقيع على الجسم الخام (whatsappWebhook.routes.ts)

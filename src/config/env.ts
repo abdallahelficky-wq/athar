@@ -86,6 +86,9 @@ export const env = {
   // أصول المتصفح المسموح لها باستدعاء الـAPI (CORS). الافتراضي نطاقات أثر الفعلية؛ تُضاف أصول أخرى
   // بمتغيّر CORS_ALLOWED_ORIGINS (مفصولة بفاصلة). الطلبات بلا Origin (تطبيقات أندرويد الأصلية، أجهزة
   // PTS، Webhooks، الخادم-للخادم) لا يمسّها CORS أصلاً.
+  // نطاق كوكي رمز التجديد (مثلاً ".atharerp.com") حين تكون الواجهة على atharerp.com والـAPI على
+  // api.atharerp.com — راجع lib/refreshCookie.ts. فارغ = كوكي للمضيف الحالي فقط.
+  refreshCookieDomain: (process.env.REFRESH_COOKIE_DOMAIN ?? "").trim() || undefined,
   corsAllowedOrigins: [
     "https://atharerp.com",
     "https://www.atharerp.com",
