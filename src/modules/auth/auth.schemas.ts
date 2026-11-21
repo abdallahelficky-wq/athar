@@ -40,8 +40,9 @@ export const switchAccountSchema = z.object({
   userId: z.string().min(1, "معرّف الحساب المطلوب الانتقال إليه مطلوب"),
 });
 
+// اختياري: في وضع الكوكي (lib/refreshCookie.ts) يصل الرمز في كوكي httpOnly لا في الجسم.
 export const refreshSchema = z.object({
-  refreshToken: z.string().min(1, "رمز التحديث مطلوب"),
+  refreshToken: z.string().min(1, "رمز التحديث مطلوب").optional(),
 });
 
 export const inviteSchema = z.object({
