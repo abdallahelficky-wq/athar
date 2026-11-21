@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import * as authApi from "../api/auth";
-import { getAccessToken, getRefreshToken, setTokens, clearTokens, onForcedLogout } from "../api/tokenStore";
+import { getAccessToken, getRefreshToken, setTokens, clearTokens, onForcedLogout, REFRESH_COOKIE_MODE } from "../api/tokenStore";
 
 const AuthContext = createContext(null);
 const SESSION_KEY = "athar.session"; // { user, tenant } فقط — الرموز نفسها في tokenStore
@@ -118,7 +118,9 @@ export function AuthProvider({ children }) {
     const result = await authApi.switchAccount(userId);
     if (tenant?.id) localStorage.removeItem(`athar.activeCompanyId.${tenant.id}`);
     applySession(result);
-    if (previousRefreshToken) await authApi.logout(previousRefreshToken).catch(() => undefined);
+    // وضع الكوكي: الخادم أبطل رمز الجلسة السابقة بنفسه أثناء /auth/switch (الكوكي الحالي صار للجلسة الجديدة،
+    // واستدعاء logout هنا كان سيُبطلها هي).
+    if (previousRefreshToken && !REFRESH_COOKIE_MODE) await authApi.logout(previousRefreshToken).catch(() => undefined);
     return result;
   };
 

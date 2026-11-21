@@ -1,3 +1,4 @@
+import { recordHistoryHandler } from "../../lib/recordHistory";
 import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
@@ -7,6 +8,8 @@ import { listHandler, getHandler, createHandler, updateHandler, deleteHandler, p
 
 export const purchaseInvoiceRoutes = Router();
 purchaseInvoiceRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
+// سجل التعديلات (من/ماذا/متى) — lib/recordHistory.ts
+purchaseInvoiceRoutes.get("/:id/history", requirePositionAction("purchaseInvoices", "read"), recordHistoryHandler("PurchaseInvoice"));
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 // فك ترحيل/إزالة مستند مرحّل (يحذف قيده) يتطلب صلاحية "فك الترحيل" على منصب المستخدم نفسها التي

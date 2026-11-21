@@ -1,4 +1,4 @@
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "./tokenStore";
+import { getAccessToken, getRefreshToken, setTokens, clearTokens, REFRESH_COOKIE_MODE, refreshTokenForBody } from "./tokenStore";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
@@ -46,9 +46,13 @@ async function rawRequest(path, options, accessToken) {
   // لملفات FormData نترك المتصفح يضبط Content-Type بنفسه (يتضمن boundary متعدد الأجزاء)
   if (options.body !== undefined && !isFormData) headers["Content-Type"] = "application/json";
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  // وضع الكوكي: يطلب من الخادم وضع رمز التجديد في كوكي httpOnly بدل الجسم، ويرسل الكوكي مع الطلب
+  // (لا يُرسَل فعلياً إلا لمسارات /api/auth بحكم Path الكوكي).
+  if (REFRESH_COOKIE_MODE) headers["X-Athar-Refresh-Mode"] = "cookie";
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
+    ...(REFRESH_COOKIE_MODE ? { credentials: "include" } : {}),
     headers,
     body: options.body !== undefined ? (isFormData ? options.body : JSON.stringify(options.body)) : undefined,
   });
@@ -84,7 +88,19 @@ async function refreshAccessToken() {
   if (!refreshToken) throw new ApiError(401, "لا توجد جلسة نشطة");
 
   if (!refreshPromise) {
-    refreshPromise = rawRequest("/auth/refresh", { method: "POST", body: { refreshToken } }, null)
+    const accessBefore = getAccessToken();
+    const body = { refreshToken: refreshTokenForBody(refreshToken) };
+    refreshPromise = rawRequest("/auth/refresh", { method: "POST", body }, null)
+      .catch(async (err) => {
+        // وضع الكوكي مع أكثر من تبويب: تبويبان يجدّدان في اللحظة نفسها بنفس الكوكي، فيدوّره الأول
+        // ويُرفَض الثاني. محاولة واحدة ثانية بعد لحظة تحمل الكوكي الجديد الذي استلمه المتصفح للتبويب الأول.
+        if (!REFRESH_COOKIE_MODE || !(err instanceof ApiError) || err.status !== 401) throw err;
+        if (getAccessToken() && getAccessToken() !== accessBefore) {
+          return { accessToken: getAccessToken(), refreshToken: getRefreshToken() };
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        return rawRequest("/auth/refresh", { method: "POST", body: {} }, null);
+      })
       .then((tokens) => {
         setTokens(tokens);
         return tokens;

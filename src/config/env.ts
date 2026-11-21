@@ -83,6 +83,19 @@ export const env = {
   // عنوان الموقع العام الذي يُفتَح عليه المتجر — يدخل في روابط خلاصة المنتجات (كتالوج Meta)
   storePublicBaseUrl: (process.env.STORE_PUBLIC_BASE_URL ?? "https://atharerp.com").replace(/\/+$/, ""),
   frontendBaseUrl: process.env.FRONTEND_BASE_URL ?? "https://athar-accounting.up.railway.app",
+  // أصول المتصفح المسموح لها باستدعاء الـAPI (CORS). الافتراضي نطاقات أثر الفعلية؛ تُضاف أصول أخرى
+  // بمتغيّر CORS_ALLOWED_ORIGINS (مفصولة بفاصلة). الطلبات بلا Origin (تطبيقات أندرويد الأصلية، أجهزة
+  // PTS، Webhooks، الخادم-للخادم) لا يمسّها CORS أصلاً.
+  // نطاق كوكي رمز التجديد (مثلاً ".atharerp.com") حين تكون الواجهة على atharerp.com والـAPI على
+  // api.atharerp.com — راجع lib/refreshCookie.ts. فارغ = كوكي للمضيف الحالي فقط.
+  refreshCookieDomain: (process.env.REFRESH_COOKIE_DOMAIN ?? "").trim() || undefined,
+  corsAllowedOrigins: [
+    "https://atharerp.com",
+    "https://www.atharerp.com",
+    "https://athar-accounting.up.railway.app",
+    ...(process.env.FRONTEND_BASE_URL ? [process.env.FRONTEND_BASE_URL] : []),
+    ...(process.env.CORS_ALLOWED_ORIGINS ?? "").split(","),
+  ].map((o) => o.trim().replace(/\/+$/, "")).filter(Boolean),
   // اسم النطاق الذي تُرسل إليه متحكمات PTS-2 بياناتها (حقل DomainName في الجهاز حتى 30 حرفاً) — يُعرَض في شاشة إعداد المتحكم فقط.
   ptsDeviceHost: process.env.PTS_DEVICE_HOST ?? "",
 };

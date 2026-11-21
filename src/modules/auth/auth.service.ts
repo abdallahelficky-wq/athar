@@ -19,7 +19,8 @@ import { CHART_TEMPLATE_BY_ACTIVITY, BusinessActivity } from "../../lib/chartTem
 import { createStarterItems, createCashParties, createDefaultWarehouse, linkStationCashAccounts } from "../../lib/starterData";
 import { sendInviteEmail, sendPasswordResetEmail, sendWelcomeEmail } from "../../lib/mailer";
 import { sendWelcomeWhatsApp } from "../../lib/whatsapp";
-import { badRequest, conflict, forbidden, notFound, unauthorized } from "../../lib/httpError";
+import { badRequest, conflict, forbidden, notFound, tooManyRequests, unauthorized } from "../../lib/httpError";
+import { isKeyThrottled, recordKeyFailure } from "../employeePortal/loginThrottle";
 import type { Lang } from "../../lib/i18n/translate";
 import type { Prisma, Tenant, User, Identity, SubscriptionPlan } from "@prisma/client";
 import { canUnpostJournalEntries, canDeferPosSale, canOverridePosPrice } from "../positions/positions.service";
@@ -278,12 +279,39 @@ async function completeLoginForUser(user: UserWithIdentity) {
  * الحقيقي لتلك العضوية تحديداً. مبدأ حاسم: كل تبديل بين شركات نفس الهوية لاحقاً هو دائماً إصدار
  * رمز جديد فعلياً بهذه الآلية بالضبط، لا أي تعديل حالة عميل-فقط على رمز موجود.
  */
-export async function login(input: { email: string; password: string }) {
+/** حدّ محاولات الدخول الفاشلة للنظام الرئيسي — نافذة 15 دقيقة (IP_WINDOW_MS) في جدول قاعدة البيانات
+ * نفسه الذي تستخدمه بوابة الموظف، فيبقى صحيحاً مع أكثر من نسخة خادم. حدّان معاً: لكل IP (يمنع تجربة
+ * بريدات كثيرة من مصدر واحد) ولكل بريد (يمنع تخمين كلمة مرور حساب بعينه من عناوين كثيرة). تُحسَب
+ * المحاولات الفاشلة فقط، فلا يتأثر مكتب كامل خلف IP واحد يدخل بنجاح. */
+export const LOGIN_MAX_FAILURES_PER_IP = 30;
+export const LOGIN_MAX_FAILURES_PER_EMAIL = 10;
+const LOGIN_THROTTLED_MESSAGE = "محاولات دخول فاشلة كثيرة من هذا الجهاز، حاول مرة أخرى بعد قليل";
+
+export async function login(input: { email: string; password: string }, ip?: string) {
+  const emailKey = `auth-email:${input.email.trim().toLowerCase()}`;
+  const ipKey = ip ? `auth-ip:${ip}` : null;
+  if (
+    (ipKey && await isKeyThrottled(ipKey, LOGIN_MAX_FAILURES_PER_IP)) ||
+    await isKeyThrottled(emailKey, LOGIN_MAX_FAILURES_PER_EMAIL)
+  ) {
+    throw tooManyRequests(LOGIN_THROTTLED_MESSAGE);
+  }
+  const recordFailure = async () => {
+    await recordKeyFailure(emailKey);
+    if (ipKey) await recordKeyFailure(ipKey);
+  };
+
   const identity = await prisma.identity.findUnique({ where: { email: input.email } });
-  if (!identity || !identity.passwordHash) throw unauthorized("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+  if (!identity || !identity.passwordHash) {
+    await recordFailure();
+    throw unauthorized("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+  }
 
   const valid = await verifyPassword(input.password, identity.passwordHash);
-  if (!valid) throw unauthorized("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+  if (!valid) {
+    await recordFailure();
+    throw unauthorized("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+  }
 
   const memberships = await prisma.user.findMany({
     where: { identityId: identity.id, inviteStatus: "accepted", deletedAt: null },

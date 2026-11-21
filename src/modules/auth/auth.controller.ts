@@ -2,35 +2,45 @@ import { Request, RequestHandler } from "express";
 import { isTenantOwner } from "../../middleware/auth";
 import * as authService from "./auth.service";
 import { translateMessage } from "../../lib/i18n/translate";
+import { clearRefreshCookie, readRefreshCookie, refreshTokenFrom, sendSession } from "../../lib/refreshCookie";
+import { unauthorized } from "../../lib/httpError";
 
 export const registerHandler: RequestHandler = async (req, res) => {
   const result = await authService.register(req.body, req.lang);
-  res.status(201).json(result);
+  sendSession(req, res, result, 201);
 };
 
 export const loginHandler: RequestHandler = async (req, res) => {
-  const result = await authService.login(req.body);
-  res.json(result);
+  const result = await authService.login(req.body, req.ip);
+  sendSession(req, res, result);
 };
 
 export const refreshHandler: RequestHandler = async (req, res) => {
-  const result = await authService.refresh(req.body.refreshToken);
-  res.json(result);
+  const token = refreshTokenFrom(req);
+  if (!token) throw unauthorized("رمز التحديث غير صالح أو منتهي الصلاحية");
+  const result = await authService.refresh(token);
+  sendSession(req, res, result);
 };
 
 export const logoutHandler: RequestHandler = async (req, res) => {
-  await authService.logout(req.body.refreshToken);
+  const token = refreshTokenFrom(req);
+  if (token) await authService.logout(token);
+  clearRefreshCookie(res);
   res.status(204).send();
 };
 
 export const completeLoginChoiceHandler: RequestHandler = async (req, res) => {
   const result = await authService.completeLoginChoice(req.body.identityToken, req.body.userId);
-  res.json(result);
+  sendSession(req, res, result);
 };
 
 export const switchAccountHandler: RequestHandler = async (req, res) => {
   const result = await authService.switchAccount(req.auth!.sub, req.body.userId);
-  res.json(result);
+  // في وضع الكوكي لا تملك الواجهة رمز الجلسة السابقة لتُبطله بنفسها بعد التبديل (كما تفعل بالرمز في
+  // الجسم) — فيُبطَل هنا قبل أن يحلّ الكوكي الجديد محلّه. logout() تُبطل فقط رمزاً لم يُبطَل بعد.
+  const previous = readRefreshCookie(req);
+  if (previous) await authService.logout(previous);
+  sendSession(req, res, result);
 };
 
 async function userActor(auth: NonNullable<Request["auth"]>): Promise<authService.UserActor> {
@@ -73,7 +83,7 @@ export const getInviteInfoHandler: RequestHandler = async (req, res) => {
 
 export const acceptInviteHandler: RequestHandler = async (req, res) => {
   const result = await authService.acceptInvite(req.body);
-  res.json(result);
+  sendSession(req, res, result);
 };
 
 export const changeUnlockPinHandler: RequestHandler = async (req, res) => {
