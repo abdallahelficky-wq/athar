@@ -1,3 +1,4 @@
+import { recordHistoryHandler } from "../../lib/recordHistory";
 import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly, requirePermission } from "../../middleware/auth";
@@ -16,6 +17,8 @@ import {
 
 export const receiptRoutes = Router();
 receiptRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
+// سجل التعديلات (من/ماذا/متى) — lib/recordHistory.ts
+receiptRoutes.get("/:id/history", requirePositionAction("receipts", "read"), recordHistoryHandler("Receipt"));
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 // فك ترحيل/إزالة مستند مرحّل (يحذف قيده) يتطلب صلاحية "فك الترحيل" على منصب المستخدم نفسها التي

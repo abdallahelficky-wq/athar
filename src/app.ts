@@ -84,11 +84,14 @@ import { storeOrderRoutes } from "./modules/storeOrders/storeOrders.routes";
 import { storeAdminRoutes } from "./modules/storeAdmin/storeAdmin.routes";
 import { prisma } from "./lib/prisma";
 import { installSubscriptionWriteGuard } from "./lib/subscriptionWriteGuard";
+import { installAuditActorPropagation } from "./lib/auditActor";
 import { cloudflareClientIp } from "./lib/clientIp";
 
 export function createApp() {
   // حارس الكتابة للاشتراكات (P4) — مرة واحدة لكل عملية؛ لا أثر له ما دام المفتاح الشامل معطّلاً
   installSubscriptionWriteGuard(prisma);
+  // منفّذ كل كتابة أثناء طلب مستخدم يصل لمُشغِّلات سجل التدقيق تلقائياً (lib/auditActor.ts)
+  installAuditActorPropagation(prisma);
   const app = express();
   // req.ip = عنوان العميل الفعلي من X-Forwarded-For بعد عدد الوكلاء الموثوقين فقط (لا أول قيمة يرسلها
   // العميل نفسه) — يعتمد عليه حدّ محاولات دخول بوابة الموظف لكل IP.
