@@ -1,3 +1,4 @@
+import { RecordHistoryButton } from "../shared/RecordHistoryDialog";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
@@ -305,6 +306,7 @@ export default function CustomersTab({ companyId, companies }) {
             )}
 
             <div className="form-btn-group">
+              {editingId && <RecordHistoryButton path={`/customers/${editingId}/history`} />}
               <button className="btn-ghost" onClick={closeForm}>{t("sales.customers.cancel")}</button>
               <button className="btn-primary" onClick={save}>{editingId ? t("sales.customers.saveChanges") : t("sales.customers.saveCustomer")}</button>
             </div>

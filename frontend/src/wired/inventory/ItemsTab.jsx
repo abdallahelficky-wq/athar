@@ -1,3 +1,4 @@
+import { RecordHistoryButton } from "../shared/RecordHistoryDialog";
 import TaxCategoryFields from "../shared/TaxCategoryFields";
 import { itemTaxDefaults, itemMatches, taxCategory } from "../shared/itemDefaults";
 import { getItemDisplayName, getUnitDisplayLabel, itemOptionLabel } from "../shared/itemDisplayName";
@@ -366,7 +367,7 @@ export default function ItemsTab({ companyId, onNavigateTransfer }) {
       {/* إضافة/تعديل الصنف في نافذة منبثقة فوق قائمة الأصناف — تُغلَق بزر × أو الإلغاء أو Esc أو النقر خارجها */}
       {formOpen && <div className="unpost-confirm-overlay" onClick={(e) => e.target === e.currentTarget && setFormOpen(false)}>
       <div className="panel form-panel items-form-panel" role="dialog" aria-modal="true" style={ITEM_DIALOG_STYLE}>
-        <div className="items-form-heading"><strong>{editingId ? t("inventory.items.form.titleEdit", { name: form.name }) : t("inventory.items.form.titleCreate")}</strong><button className="item-close" onClick={() => setFormOpen(false)}>×</button></div>
+        <div className="items-form-heading"><strong>{editingId ? t("inventory.items.form.titleEdit", { name: form.name }) : t("inventory.items.form.titleCreate")}</strong>{editingId && <RecordHistoryButton path={`/items/${editingId}/history`} />}<button className="item-close" onClick={() => setFormOpen(false)}>×</button></div>
 
         <div className="form-grid">
           <label>{t("inventory.items.form.type")}

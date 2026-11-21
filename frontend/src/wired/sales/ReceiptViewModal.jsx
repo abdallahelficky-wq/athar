@@ -13,7 +13,7 @@ export default function ReceiptViewModal({ receipt, company, autoPrint, onClose 
     return () => clearTimeout(timer);
   }, [autoPrint, receipt.id]);
   return (
-    <PrintShell company={company} subtitle={t("sales.receipts.voucherTitle")} onClose={onClose}
+    <PrintShell company={company} subtitle={t("sales.receipts.voucherTitle")} onClose={onClose} historyPath={`/receipts/${receipt.id}/history`}
       refNode={<><div>{t("sales.receipts.listTable.number")}: <strong>{receipt.receiptNumber}</strong></div><div>{t("sales.receipts.date")}: <strong>{receipt.date.slice(0, 10)}</strong></div></>}>
       {receipt.status !== "posted" && <h3>{t("sales.receipts.draftNotice")}</h3>}
       <div className="voucher-meta">

@@ -101,6 +101,7 @@ export default function SalesReturnViewModal({ salesReturn, companies, autoPrint
     <>
       <ToastHost toast={toast} onDismiss={dismiss} />
       <PrintShell
+        historyPath={`/sales-returns/${current.id}/history`}
         subtitle={t("sales.returns.view.subtitle")}
         company={company}
         refNode={
