@@ -12,6 +12,7 @@ import EmployeeAdvanceLineModal from "./shared/EmployeeAdvanceLineModal";
 import { currencyLabel } from "../shared/countries";
 import { useUnsavedChangesGuard } from "./shared/UnsavedChangesContext";
 import { getOrgDisplayName } from "./shared/accountDisplayName";
+import "../styles/journal-form.css";
 
 const emptyLine = () => ({
   accountId: "", costCenterId: "", departmentId: "", branchId: "", description: "", debit: "", credit: "",
