@@ -13,9 +13,6 @@
   background: linear-gradient(125deg, var(--ej-deep) 0%, var(--ej-dark) 38%, var(--ej) 78%, var(--ej-teal) 100%);
   box-shadow: 0 14px 34px rgba(13, 74, 49, 0.28);
 }
-.ls-hero::before, .ls-hero::after { content: ""; position: absolute; border-radius: 50%; pointer-events: none; }
-.ls-hero::before { width: 340px; height: 340px; inset-inline-end: -110px; top: -170px; background: radial-gradient(circle, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 68%); }
-.ls-hero::after { width: 260px; height: 260px; inset-inline-start: 22%; bottom: -190px; background: radial-gradient(circle, rgba(201, 154, 59, 0.34), rgba(201, 154, 59, 0) 70%); }
 .ls-hero-top { position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
 .ls-hero-main { display: flex; align-items: flex-start; gap: 16px; flex: 1 1 420px; min-width: 0; }
 .ls-hero-icon { width: 58px; height: 58px; border-radius: 16px; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.24); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }

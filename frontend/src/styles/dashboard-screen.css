@@ -1,10 +1,10 @@
 /* لوحة القيادة المالية (Dashboard.jsx / dashboard/*): نفس بناء شاشتي الإيجارات والمبيعات (lease-screen.css)
-   بلوحة ألوان نيلية مع ذهبي أثر للتأكيد. كل القواعد محصورة تحت .dash-screen فلا تمس بقية النظام
+   بلوحة ألوان هوية أثر (فحمي الشريط الجانبي) مع ذهبي أثر للتأكيد. كل القواعد محصورة تحت .dash-screen فلا تمس بقية النظام
    (لوحة شئون الموظفين ما زالت تستعمل KpiCard/AlertsPanel/PeriodFilter بشكلها السابق). */
 .lease-screen.dash-screen {
-  --ej: #4338CA; --ej-dark: #312E81; --ej-deep: #1E1B4B; --ej-teal: #0E8F8A; --ej-mint: #EEF0FD; --ej-line: #D5D9F7;
+  --ej: #3A3A3A; --ej-dark: #262626; --ej-deep: #141414; --ej-teal: #4A4A4A; --ej-mint: #F4F1EC; --ej-line: #E6DFD3;
 }
-.dash-screen .ls-hero { box-shadow: 0 14px 34px rgba(49, 46, 129, 0.30); animation: dash-rise 0.35s ease-out both; }
+.dash-screen .ls-hero { box-shadow: 0 14px 34px rgba(20, 20, 20, 0.24); animation: dash-rise 0.35s ease-out both; }
 .dash-screen .ls-kpis, .dash-screen .ls-alerts, .dash-screen .ls-msg, .dash-screen .dash-card { animation: dash-rise 0.45s ease-out both; }
 .dash-screen .ls-kpis { animation-delay: 0.05s; }
 .dash-screen .dash-grid > :nth-child(2) { animation-delay: 0.1s; } .dash-screen .dash-grid > :nth-child(3) { animation-delay: 0.14s; }
@@ -22,7 +22,7 @@
 
 /* ---------- المؤشرات ---------- */
 .dash-kpis { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
-.dash-screen .ls-kpi { --k: #4338CA; --k-soft: rgba(67, 56, 202, 0.10); }
+.dash-screen .ls-kpi { --k: #262626; --k-soft: rgba(38, 38, 38, 0.08); }
 .dash-screen .ls-kpi.tone-green { --k: #1B8354; --k-soft: rgba(27, 131, 84, 0.11); } .dash-screen .ls-kpi.tone-amber { --k: #B7791F; --k-soft: rgba(183, 121, 31, 0.12); }
 .dash-screen .ls-kpi.tone-red { --k: #A8432B; --k-soft: rgba(168, 67, 43, 0.10); } .dash-screen .ls-kpi.tone-teal { --k: #0E8F8A; --k-soft: rgba(14, 143, 138, 0.11); }
 .dash-kpi { padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 6px; }
@@ -37,7 +37,7 @@
 .dash-sub { font-size: 12.5px; font-weight: 700; color: var(--k); }
 .dash-spark { color: var(--k); margin-inline-start: auto; }
 .dash-screen .ls-kpis.is-loading .ls-kpi-value { opacity: 0.3; }
-.dash-skel { min-height: 104px; background: linear-gradient(100deg, #fff 30%, #F1F3FB 50%, #fff 70%); background-size: 220% 100%; animation: dash-shimmer 1.3s linear infinite; }
+.dash-skel { min-height: 104px; background: linear-gradient(100deg, #fff 30%, #F4F1EC 50%, #fff 70%); background-size: 220% 100%; animation: dash-shimmer 1.3s linear infinite; }
 @keyframes dash-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 
 /* ---------- التنبيهات ---------- */
@@ -47,7 +47,7 @@
 
 /* ---------- الشبكة والبطاقات ---------- */
 .dash-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
-.dash-card { --dc: #4338CA; --dc-soft: rgba(67, 56, 202, 0.10); grid-column: span 6; min-width: 0; padding: 18px 20px 20px; border-radius: 18px; background: #fff; border: 1px solid var(--line); border-top: 4px solid var(--dc); box-shadow: 0 2px 10px rgba(16, 32, 46, 0.05); transition: transform 0.14s, box-shadow 0.14s; }
+.dash-card { --dc: #262626; --dc-soft: rgba(38, 38, 38, 0.08); grid-column: span 6; min-width: 0; padding: 18px 20px 20px; border-radius: 18px; background: #fff; border: 1px solid var(--line); border-top: 4px solid var(--dc); box-shadow: 0 2px 10px rgba(16, 32, 46, 0.05); transition: transform 0.14s, box-shadow 0.14s; }
 .dash-card:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(16, 32, 46, 0.10); }
 .dash-card.tone-green { --dc: #1B8354; --dc-soft: rgba(27, 131, 84, 0.11); } .dash-card.tone-red { --dc: #A8432B; --dc-soft: rgba(168, 67, 43, 0.10); }
 .dash-card.tone-amber { --dc: #B7791F; --dc-soft: rgba(183, 121, 31, 0.12); } .dash-card.tone-teal { --dc: #0E8F8A; --dc-soft: rgba(14, 143, 138, 0.11); }
