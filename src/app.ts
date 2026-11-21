@@ -85,6 +85,7 @@ import { storeAdminRoutes } from "./modules/storeAdmin/storeAdmin.routes";
 import { prisma } from "./lib/prisma";
 import { installSubscriptionWriteGuard } from "./lib/subscriptionWriteGuard";
 import { cloudflareClientIp } from "./lib/clientIp";
+import { isAllowedCorsOrigin } from "./lib/corsOrigins";
 
 export function createApp() {
   // حارس الكتابة للاشتراكات (P4) — مرة واحدة لكل عملية؛ لا أثر له ما دام المفتاح الشامل معطّلاً
@@ -98,7 +99,9 @@ export function createApp() {
   app.use(cloudflareClientIp);
 
   app.use(helmet());
-  app.use(cors());
+  // CORS مقيّد بنطاقات أثر بدل السماح لأي موقع — راجع lib/corsOrigins.ts. أصل غير مسموح لا يُرفَض
+  // بخطأ؛ فقط لا تُرسَل ترويسات CORS فيمنعه المتصفح نفسه.
+  app.use(cors({ origin: (origin, cb) => cb(null, isAllowedCorsOrigin(origin)) }));
   // أجهزة PTS-2 قبل express.json: توقيعها على الجسم الخام بالبايت (ptsDevice.routes.ts)
   app.use("/api/pts", ptsDeviceRoutes);
   // Webhook حالات واتساب من Meta قبل express.json: التوقيع على الجسم الخام (whatsappWebhook.routes.ts)

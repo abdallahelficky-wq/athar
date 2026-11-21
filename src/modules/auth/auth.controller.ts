@@ -9,7 +9,7 @@ export const registerHandler: RequestHandler = async (req, res) => {
 };
 
 export const loginHandler: RequestHandler = async (req, res) => {
-  const result = await authService.login(req.body);
+  const result = await authService.login(req.body, req.ip);
   res.json(result);
 };
 
