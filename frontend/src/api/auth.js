@@ -1,4 +1,5 @@
 import { api, apiFetch } from "./http";
+import { refreshTokenForBody } from "./tokenStore";
 
 export const registerTenant = (payload) => apiFetch("/auth/register", { method: "POST", body: payload });
 export const login = (payload) => apiFetch("/auth/login", { method: "POST", body: payload });
@@ -9,7 +10,8 @@ export const completeLoginChoice = (identityToken, userId) =>
 // انتقال مقصود من داخل الجلسة إلى عضوية أخرى لنفس الهوية (مثلاً شركة مستقلة أُنشئت للتو) — يُصدِر
 // الخادم رمز دخول جديداً لتلك العضوية فقط بعد التحقق أنها لنفس الهوية
 export const switchAccount = (userId) => api.post("/auth/switch", { userId });
-export const logout = (refreshToken) => apiFetch("/auth/logout", { method: "POST", body: { refreshToken } });
+// في وضع الكوكي يُرسَل جسم فارغ — الخادم يأخذ الرمز من الكوكي httpOnly ويمسحه.
+export const logout = (refreshToken) => apiFetch("/auth/logout", { method: "POST", body: { refreshToken: refreshTokenForBody(refreshToken) } });
 export const changeUnlockPin = (payload) => api.patch("/auth/unlock-pin", payload);
 export const updateTenantName = (name) => api.patch("/auth/tenant", { name });
 export const getMe = () => api.get("/auth/me");
