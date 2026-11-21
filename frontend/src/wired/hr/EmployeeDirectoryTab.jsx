@@ -8,7 +8,7 @@ let XLSX;
 import { listEmployees, createEmployee, importEmployees, updateEmployee, deleteEmployee } from "../../api/employees";
 import { getPayrollSettings, getEmployeePayrollComponents, setEmployeePayrollComponents } from "../../api/payrollSettings";
 import { DEPARTMENTS, DEPARTMENT_KEYS, fmt } from "../../legacy/constants";
-import { NATIONALITIES, NATIONALITY_KEYS, EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_KEYS } from "../../legacy/hr";
+import { NATIONALITIES, NATIONALITY_KEYS, EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_KEYS } from "./hrConstants";
 import { labelForListValue } from "../../legacy/listLabels";
 import { routes } from "../../routes";
 import { listCostCenters } from "../../api/costCenters";

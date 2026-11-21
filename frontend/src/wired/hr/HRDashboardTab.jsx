@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import { getHrKpis, getHrPayrollTrend, getHrHeadcount, getHrNationality, getHrAlerts } from "../../api/dashboard";
 import { fmt, DEPARTMENT_KEYS } from "../../legacy/constants";
-import { NATIONALITY_KEYS } from "../../legacy/hr";
+import { NATIONALITY_KEYS } from "./hrConstants";
 import { labelForListValue } from "../../legacy/listLabels";
 import KpiCard from "../dashboard/KpiCard";
 import AlertsPanel from "../dashboard/AlertsPanel";

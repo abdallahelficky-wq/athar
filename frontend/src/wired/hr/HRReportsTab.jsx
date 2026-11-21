@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getExpiringDocuments } from "../../api/hrReports";
-import { EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_KEYS } from "../../legacy/hr";
+import { EMPLOYEE_DOC_TYPES, EMPLOYEE_DOC_TYPE_KEYS } from "./hrConstants";
 import { labelForListValue } from "../../legacy/listLabels";
 
 export default function HRReportsTab({ companyId }) {
