@@ -1,10 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { listCustomers } from "../../api/customers";
-import { listSuppliers } from "../../api/suppliers";
-import { listSalesInvoices } from "../../api/salesInvoices";
-import { listPurchaseInvoices } from "../../api/purchaseInvoices";
+import { api } from "../../api/http";
 import { routes } from "../../routes";
 
 function SearchIcon() {
@@ -16,13 +13,11 @@ function SearchIcon() {
   );
 }
 
-const MAX_PER_GROUP = 5;
 
 /**
- * بحث سريع حقيقي (لا حقل زخرفي) — نطاقه محدود عمداً بأربعة كيانات فعلية موجودة عبر الـ APIs
- * الحالية بلا أي endpoint جديد: العملاء والموردون (بالاسم) وفواتير المبيعات/المشتريات (برقم
- * الفاتورة)، عبر جلب قوائم الشركة الأربع مرة واحدة عند فتح البحث ثم الفلترة محلياً مع كل حرف —
- * وليس بحثاً شاملاً عبر كل شاشات النظام. النتيجة قابلة للنقر فعلياً: عميل/مورد ← كشف حسابه في
+ * بحث سريع حقيقي (لا حقل زخرفي) — نطاقه أربعة كيانات: العملاء والموردون (بالاسم) وفواتير المبيعات/المشتريات
+ * (برقم الفاتورة)، بحثاً في الخادم (/api/quick-search) — كان يحمّل القوائم الأربع كاملة في المتصفح، فيبطؤ مع
+ * نمو البيانات. النتيجة قابلة للنقر فعلياً: عميل/مورد ← كشف حسابه في
  * شجرة الحسابات (نفس مسار "عرض في شجرة الحسابات" الموجود أصلاً)، فاتورة ← شاشة فواتيرها مباشرة.
  */
 export default function QuickSearch({ companyId }) {
@@ -30,9 +25,10 @@ export default function QuickSearch({ companyId }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [pool, setPool] = useState(null);
+  const [results, setResults] = useState(null);
   const rootRef = useRef(null);
   const debounceRef = useRef(null);
+  const requestRef = useRef(0);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -47,40 +43,28 @@ export default function QuickSearch({ companyId }) {
   }, [open]);
 
   useEffect(() => {
-    setPool(null);
+    setResults(null);
   }, [companyId]);
 
+  // البحث في الخادم (/quick-search: أول 5 من كل مجموعة بصلاحيات القراءة) بدل تحميل القوائم الأربع كاملة —
+  // آخر طلب فقط يُعرَض (requestRef) حتى لا تتأخر نتيجة حرف سابق فتستبدل الأحدث.
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const q = query.trim();
-    if (q.length < 2 || !companyId) { setOpen(q.length > 0); return undefined; }
+    const term = query.trim();
+    if (term.length < 2 || !companyId) { setOpen(term.length > 0); return undefined; }
     debounceRef.current = setTimeout(() => {
       setOpen(true);
-      if (pool) return;
       setLoading(true);
-      Promise.all([
-        listCustomers(companyId).catch(() => []),
-        listSuppliers(companyId).catch(() => []),
-        listSalesInvoices(companyId).catch(() => []),
-        listPurchaseInvoices(companyId).catch(() => []),
-      ]).then(([customers, suppliers, salesInvoices, purchaseInvoices]) => {
-        setPool({ customers, suppliers, salesInvoices, purchaseInvoices });
-        setLoading(false);
-      });
+      const id = ++requestRef.current;
+      api.get(`/quick-search?companyId=${encodeURIComponent(companyId)}&q=${encodeURIComponent(term)}`)
+        .then((r) => { if (id === requestRef.current) setResults(r); })
+        .catch(() => { if (id === requestRef.current) setResults({ customers: [], suppliers: [], salesInvoices: [], purchaseInvoices: [] }); })
+        .finally(() => { if (id === requestRef.current) setLoading(false); });
     }, 300);
     return () => clearTimeout(debounceRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, companyId]);
 
   const q = query.trim().toLowerCase();
-  const matches = (text) => (text || "").toLowerCase().includes(q);
-
-  const results = pool && q.length >= 2 ? {
-    customers: pool.customers.filter((c) => matches(c.name)).slice(0, MAX_PER_GROUP),
-    suppliers: pool.suppliers.filter((s) => matches(s.name)).slice(0, MAX_PER_GROUP),
-    salesInvoices: pool.salesInvoices.filter((i) => matches(i.invoiceNumber)).slice(0, MAX_PER_GROUP),
-    purchaseInvoices: pool.purchaseInvoices.filter((i) => matches(i.invoiceNumber)).slice(0, MAX_PER_GROUP),
-  } : null;
   const totalResults = results
     ? results.customers.length + results.suppliers.length + results.salesInvoices.length + results.purchaseInvoices.length
     : 0;
@@ -104,7 +88,7 @@ export default function QuickSearch({ companyId }) {
 
       {open && q.length >= 2 && (
         <div className="quick-search-dropdown" role="menu">
-          {loading && !pool ? (
+          {loading && !results ? (
             <p className="quick-search-loading">{t("nav.search.loading")}</p>
           ) : totalResults === 0 ? (
             <p className="quick-search-empty">{t("nav.search.noResults")}</p>
