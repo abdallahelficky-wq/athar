@@ -291,6 +291,10 @@
           "label": "القيود اليومية"
         },
         {
+          "id": "recurringJournals",
+          "label": "القيود الدورية"
+        },
+        {
           "id": "chartOfAccounts",
           "label": "شجرة الحسابات"
         },

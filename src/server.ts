@@ -6,6 +6,7 @@ import { startReportScheduler } from "./lib/reportScheduler";
 import { startZatcaRetryScheduler } from "./lib/zatca/retryScheduler";
 import { startSubscriptionScheduler } from "./lib/subscriptionScheduler";
 import { startLeaseReminderScheduler } from "./lib/leaseReminderScheduler";
+import { startRecurringJournalScheduler } from "./lib/recurringJournalScheduler";
 import { renderHtmlToPdf } from "./lib/zatca/pdf/renderPdf";
 import { hasArabicCapableFont } from "./lib/zatca/pdf/arabicFontCheck";
 
@@ -96,3 +97,4 @@ startReportScheduler();
 startZatcaRetryScheduler();
 startSubscriptionScheduler();
 startLeaseReminderScheduler();
+startRecurringJournalScheduler();

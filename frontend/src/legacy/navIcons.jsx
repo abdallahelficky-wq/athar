@@ -53,6 +53,7 @@ export const NAV_ICONS = {
   bySupplier: svg(<><path d="M3 21V8l9-5 9 5v13" /><path d="M9 21v-6h6v6" /></>),
   monthly: svg(<><path d="M3 17l4-5 3 3 5-7 4 5" /><path d="M3 20h18" /></>),
   aging: svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></>),
+  recurringJournals: svg(<><path d="M4 12a8 8 0 0 1 14-5.3L20 9" /><path d="M20 4v5h-5" /><path d="M20 12a8 8 0 0 1-14 5.3L4 15" /><path d="M4 20v-5h5" /></>),
   vat: svg(<><circle cx="7" cy="7" r="3" /><circle cx="17" cy="17" r="3" /><path d="M5 19L19 5" /></>),
 
   items: svg(<><rect x="3" y="7" width="18" height="14" rx="1.5" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>),
