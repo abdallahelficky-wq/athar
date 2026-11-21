@@ -1088,6 +1088,7 @@
         },
         "cancel": "إلغاء", "saveChanges": "حفظ التعديلات", "saveItem": "حفظ الصنف"
       },
+      "screen": { "note": "أصناف الشركة ومخزونها وأسعارها وربطها المحاسبي في مكان واحد.", "kpiCount": "عدد الأصناف", "kpiStockValue": "قيمة المخزون", "kpiLow": "تحت حد إعادة الطلب", "kpiStore": "منشورة في المتجر" },
       "tabActive": "نشط", "tabArchived": "مؤرشف",
       "filters": {
         "searchAria": "بحث بالاسم أو الكود", "searchPlaceholder": "ابحث باسم الصنف أو الكود...",

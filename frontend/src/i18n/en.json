@@ -1088,6 +1088,7 @@
         },
         "cancel": "Cancel", "saveChanges": "Save changes", "saveItem": "Save item"
       },
+      "screen": { "note": "Your company's items, stock, prices and accounting links in one place.", "kpiCount": "Items", "kpiStockValue": "Stock value", "kpiLow": "Below reorder level", "kpiStore": "Published in store" },
       "tabActive": "Active", "tabArchived": "Archived",
       "filters": {
         "searchAria": "Search by name or code", "searchPlaceholder": "Search by item name or code...",
