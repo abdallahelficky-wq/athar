@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { fmt, fmt2, costCenterName, COMPANIES } from "./constants";
 import { useAuth } from "../context/AuthContext";
 import { formatDateTime } from "../i18n/dateFormat";
+import { RecordHistoryButton } from "../wired/shared/RecordHistoryDialog";
 
 export function Gauge({ label, value, max, unit, tone }) {
   const pct = Math.max(0, Math.min(1, value / max));
@@ -280,6 +281,8 @@ export function PrintShell({
   largeLogo = false, hideHeader = false,
   // محتوى للشاشة فقط فوق منطقة الطباعة وخارجها (.voucher-print) — لا يُطبَع ولا يدخل PDF (قسم زاتكا مثلاً)
   outsidePrint,
+  // مسار سجل التعديلات في الخادم (مثل /sales-invoices/:id/history) — يُظهر زر «سجل التعديلات» (RecordHistoryDialog)
+  historyPath,
 }) {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
@@ -358,6 +361,7 @@ export function PrintShell({
 
         <div className="voucher-actions">
           {onEdit && <button className="btn-ghost" onClick={onEdit}>{en ? "Edit" : "تعديل"}</button>}
+          {historyPath && <RecordHistoryButton path={historyPath} />}
           <button className="btn-ghost" onClick={handlePrint}>{t("common.print")}</button>
           <button className="btn-primary" onClick={handleDownloadClick} disabled={downloading}>{downloading ? (en ? "Downloading..." : "جارٍ التحميل...") : t("common.printShell.downloadPdf")}</button>
           <button className="btn-ghost" onClick={onClose}>{t("common.close")}</button>

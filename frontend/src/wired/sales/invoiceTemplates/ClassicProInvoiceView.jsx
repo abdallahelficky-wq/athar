@@ -1,3 +1,4 @@
+import { RecordHistoryButton } from "../../shared/RecordHistoryDialog";
 import AttachmentsPanel from "../../shared/AttachmentsPanel";
 import InvoiceCreditNotes from "../InvoiceCreditNotes";
 import InvoiceZatcaDetails from "../InvoiceZatcaDetails";
@@ -192,6 +193,7 @@ export default function ClassicProInvoiceView({ invoice, companies, autoPrint, b
       <div className="no-print"><AttachmentsPanel entityType="sales_invoice" entityId={invoice.id} /></div>
         <div className="cpi-actions">
           <button className="btn-primary" onClick={handlePrint}>{t("salesInvoices.form.print")}</button>
+          <RecordHistoryButton path={`/sales-invoices/${invoice.id}/history`} />
         </div>
       </div>
     </div>,

@@ -128,6 +128,7 @@ export default function InvoiceViewModal({ invoice, companies, autoPrint, onClos
     <>
       <ToastHost toast={toast} onDismiss={dismiss} />
       <PrintShell
+        historyPath={`/sales-invoices/${current.id}/history`}
         subtitle={current.invoiceType === "standard" ? t("salesInvoices.view.standardSubtitle") : t("salesInvoices.view.simplifiedSubtitle")}
         company={company}
         refNode={

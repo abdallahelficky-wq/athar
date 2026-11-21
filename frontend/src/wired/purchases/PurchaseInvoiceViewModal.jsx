@@ -22,6 +22,7 @@ export default function PurchaseInvoiceViewModal({ invoice, companies, autoPrint
 
   return (
     <PrintShell
+      historyPath={`/purchase-invoices/${invoice.id}/history`}
       subtitle={t("purchases.invoices.view.subtitle")}
       company={company}
       refNode={

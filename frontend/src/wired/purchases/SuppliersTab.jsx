@@ -1,3 +1,4 @@
+import { RecordHistoryButton } from "../shared/RecordHistoryDialog";
 import PurchaseFilters from "./PurchaseFilters";
 import PurchaseFormDialog from "./PurchaseFormDialog";
 import {filterSuppliers} from "./purchaseFilterUtils";
@@ -92,6 +93,7 @@ export default function SuppliersTab({ companyId, companies }) {
           </label>
         </div>
         <div className="form-btn-group">
+          {editingId && <RecordHistoryButton path={`/suppliers/${editingId}/history`} />}
           <button className="btn-ghost" onClick={closeForm} disabled={saving}>{t("purchases.suppliers.cancel")}</button>
           <button className="btn-primary" disabled={saving || !form.name.trim()} onClick={save}>{editingId ? t("purchases.suppliers.saveChanges") : t("purchases.suppliers.saveSupplier")}</button>
         </div>
