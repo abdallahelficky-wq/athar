@@ -5,7 +5,7 @@ import { PrintShell } from "../../legacy/shared";
 import { listEmployees } from "../../api/employees";
 import { previewAnnualLeave, saveAnnualLeaveDraft, listAnnualLeaveDrafts, updateAnnualLeaveDraft, deleteAnnualLeaveDraft } from "../../api/leaveSettlements";
 import { DEPARTMENT_KEYS } from "../../legacy/constants";
-import { NATIONALITY_KEYS } from "../../legacy/hr";
+import { NATIONALITY_KEYS } from "./hrConstants";
 import { labelForListValue } from "../../legacy/listLabels";
 import AnnualLeavePostModal from "./AnnualLeavePostModal";
 import JournalEntryViewModal from "../sales/JournalEntryViewModal";
