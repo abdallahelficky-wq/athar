@@ -1,3 +1,4 @@
+import { recordHistoryHandler } from "../../lib/recordHistory";
 import { requirePositionAction } from "../../middleware/positionMatrix";
 import { Router } from "express";
 import { authenticate, enforceCompanyScope, requireRole, blockMutationsWhenReadOnly } from "../../middleware/auth";
@@ -13,6 +14,8 @@ import {
 
 export const supplierRoutes = Router();
 supplierRoutes.use(authenticate, enforceCompanyScope, blockMutationsWhenReadOnly);
+// سجل التعديلات (من/ماذا/متى) — lib/recordHistory.ts
+supplierRoutes.get("/:id/history", requirePositionAction("suppliers", "read"), recordHistoryHandler("Supplier"));
 
 const canWrite = requireRole("admin", "finance_manager", "accountant");
 

@@ -303,6 +303,10 @@
           "label": "كشف حساب الأستاذ"
         },
         {
+          "id": "bankReconciliation",
+          "label": "التسوية البنكية"
+        },
+        {
           "id": "departments",
           "label": "الأقسام"
         },

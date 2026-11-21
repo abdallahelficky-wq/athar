@@ -1,4 +1,6 @@
+import type { RequestHandler } from "express";
 import { prisma } from "./prisma";
+import { assertCompanyAccess } from "../middleware/auth";
 
 /**
  * سجل تاريخ السجلات — مبني على audit_logs (نسخة اسم المنفّذ وبريده محفوظة لحظة الكتابة، #111). القطعة الأولى: المُنشئ.
@@ -24,4 +26,32 @@ export async function getRecordCreator(tenantId: string, entityType: "JournalEnt
   if (!row) return null;
   const provenance = (row.metadata as { provenance?: string } | null)?.provenance === "recorded" ? "recorded" : "backfilled";
   return { name: row.actorName ?? null, at: row.createdAt, provenance };
+}
+
+/**
+ * سجل تعديلات مستند/سجل كامل (record_row_change وغيرها): من فعل ماذا ومتى، الأحدث أولاً. محصور في مستأجر الطلب،
+ * وفي شركات نطاق المستخدم: كل صفوف السجل الواحد تحمل companyId شركته، فيُرفض الطلب لو كانت خارج النطاق.
+ * الصفوف القديمة قبل المُشغِّل (أو بلا منفّذ) تُعرَض بلا اسم — «غير مسجَّل» — لا تُنسَب لأحد.
+ */
+export type HistoryEntityType =
+  | "SalesInvoice" | "PurchaseInvoice" | "SalesReturn" | "PurchaseReturn" | "SalesDebitNote"
+  | "Receipt" | "Customer" | "Supplier" | "Item";
+
+export async function listRecordHistory(tenantId: string, entityType: HistoryEntityType, entityId: string) {
+  return prisma.auditLog.findMany({
+    where: { tenantId, entityType, entityId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 500,
+    select: { id: true, action: true, actorName: true, actorEmail: true, createdAt: true, metadata: true, companyId: true },
+  });
+}
+
+export function recordHistoryHandler(entityType: HistoryEntityType): RequestHandler {
+  return async (req, res) => {
+    const rows = await listRecordHistory(req.auth!.tenantId, entityType, req.params.id);
+    const companyIds = new Set<string>();
+    for (const row of rows) if (row.companyId) companyIds.add(row.companyId as string);
+    for (const companyId of companyIds) assertCompanyAccess(req.auth!, companyId);
+    res.json(rows.map(({ companyId: _companyId, ...row }) => row));
+  };
 }

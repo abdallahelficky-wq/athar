@@ -55,6 +55,7 @@ export const NAV_ICONS = {
   aging: svg(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></>),
   recurringJournals: svg(<><path d="M4 12a8 8 0 0 1 14-5.3L20 9" /><path d="M20 4v5h-5" /><path d="M20 12a8 8 0 0 1-14 5.3L4 15" /><path d="M4 20v-5h5" /></>),
   vat: svg(<><circle cx="7" cy="7" r="3" /><circle cx="17" cy="17" r="3" /><path d="M5 19L19 5" /></>),
+  bankReconciliation: svg(<><path d="M3 10l9-6 9 6" /><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8" /><path d="M3 20h18" /><path d="M15 14l2 2 4-4" /></>),
 
   items: svg(<><rect x="3" y="7" width="18" height="14" rx="1.5" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></>),
   inout: svg(<><path d="M7 8l-4 4 4 4" /><path d="M3 12h11" /><path d="M17 4l4 4-4 4" /><path d="M21 8H10" /></>),

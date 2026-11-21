@@ -1023,4 +1023,17 @@ export const AR_TO_EN: Record<string, string> = {
   "تعذّر إنشاء القيد الدوري": "Couldn't create the recurring entry",
   "اسم القيد الدوري قصير جداً": "The recurring entry name is too short",
   "يوم الاستحقاق من 1 إلى 28 أو آخر الشهر": "The due day is 1 to 28 or the last day of the month",
+  // التسوية البنكية (modules/bankReconciliation)
+  "التسوية البنكية لحسابات البنوك والصناديق فقط": "Bank reconciliation is for bank and cash accounts only",
+  "كشف البنك غير موجود": "Bank statement not found",
+  "هذا الكشف مُسوّى — أعد فتحه أولاً لتعديل المطابقات": "This statement is reconciled — reopen it first to change matches",
+  "نهاية فترة الكشف قبل بدايتها": "The statement period ends before it starts",
+  "الكشف بلا أسطر": "The statement has no lines",
+  "سطر الكشف غير موجود": "Statement line not found",
+  "سطر الكشف مطابَق بالفعل — افكّ مطابقته أولاً": "The statement line is already matched — unmatch it first",
+  "سطر القيد غير موجود على حساب هذا البنك أو غير مرحَّل": "The journal line isn't on this bank account or isn't posted",
+  "سطر القيد مطابَق بالفعل مع سطر كشف آخر": "The journal line is already matched to another statement line",
+  "مبلغ سطر القيد لا يساوي مبلغ سطر الكشف": "The journal line amount doesn't equal the statement line amount",
+  "لا يمكن التسوية وفي الكشف أسطر غير مطابَقة — سجّل قيودها (عمولات، فوائد…) ثم طابِقها": "Can't reconcile while statement lines are unmatched — record their entries (fees, interest…) and match them",
+  "الكشف مفتوح بالفعل": "The statement is already open",
 };

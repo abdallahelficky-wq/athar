@@ -744,7 +744,9 @@ async function buildPartyStatement(
       },
     },
     include: { journalEntry: { include: { company: true } }, account: true },
-    orderBy: { journalEntry: { date: "asc" } },
+    // داخل اليوم الواحد ترتيب حتمي بترتيب إدخال القيود (رقمه التسلسلي ثم وقت إنشائه ثم السطر) — بالتاريخ وحده كان
+    // Postgres يعيد قيود اليوم نفسه بأي ترتيب، فيتغيّر الرصيد الجاري بعد كل سطر بين عرض وآخر (ومنه قيد الإقفال).
+    orderBy: [{ journalEntry: { date: "asc" } }, { journalEntry: { entrySeq: "asc" } }, { journalEntry: { createdAt: "asc" } }, { id: "asc" }],
   });
 
   let balance = openingBalance;
@@ -873,7 +875,9 @@ export async function getAccountLedger(
       },
     },
     include: { journalEntry: { include: { company: true } }, costCenter: true, departmentRef: true, branch: true, account: true },
-    orderBy: { journalEntry: { date: "asc" } },
+    // داخل اليوم الواحد ترتيب حتمي بترتيب إدخال القيود (رقمه التسلسلي ثم وقت إنشائه ثم السطر) — بالتاريخ وحده كان
+    // Postgres يعيد قيود اليوم نفسه بأي ترتيب، فيتغيّر الرصيد الجاري بعد كل سطر بين عرض وآخر (ومنه قيد الإقفال).
+    orderBy: [{ journalEntry: { date: "asc" } }, { journalEntry: { entrySeq: "asc" } }, { journalEntry: { createdAt: "asc" } }, { id: "asc" }],
   });
 
   let visibleLines = lines.map((l) => ({ ...l, debit: Number(l.debit), credit: Number(l.credit) }));

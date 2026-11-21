@@ -38,6 +38,7 @@ import { purchaseInvoiceRoutes } from "./modules/purchaseInvoices/purchaseInvoic
 import { purchaseReturnRoutes } from "./modules/purchaseReturns/purchaseReturns.routes";
 import { purchaseReportRoutes } from "./modules/purchaseReports/purchaseReports.routes";
 import { vatReconciliationRoutes } from "./modules/vatReconciliation/vatReconciliation.routes";
+import { bankReconciliationRoutes } from "./modules/bankReconciliation/bankReconciliation.routes";
 import { zatcaArchiveRoutes } from "./modules/zatcaArchive/zatcaArchive.routes";
 import { itemRoutes } from "./modules/items/items.routes";
 import { warehouseRoutes } from "./modules/warehouses/warehouses.routes";
@@ -85,11 +86,15 @@ import { storeOrderRoutes } from "./modules/storeOrders/storeOrders.routes";
 import { storeAdminRoutes } from "./modules/storeAdmin/storeAdmin.routes";
 import { prisma } from "./lib/prisma";
 import { installSubscriptionWriteGuard } from "./lib/subscriptionWriteGuard";
+import { installAuditActorPropagation } from "./lib/auditActor";
 import { cloudflareClientIp } from "./lib/clientIp";
+import { isAllowedCorsOrigin } from "./lib/corsOrigins";
 
 export function createApp() {
   // حارس الكتابة للاشتراكات (P4) — مرة واحدة لكل عملية؛ لا أثر له ما دام المفتاح الشامل معطّلاً
   installSubscriptionWriteGuard(prisma);
+  // منفّذ كل كتابة أثناء طلب مستخدم يصل لمُشغِّلات سجل التدقيق تلقائياً (lib/auditActor.ts)
+  installAuditActorPropagation(prisma);
   const app = express();
   // req.ip = عنوان العميل الفعلي من X-Forwarded-For بعد عدد الوكلاء الموثوقين فقط (لا أول قيمة يرسلها
   // العميل نفسه) — يعتمد عليه حدّ محاولات دخول بوابة الموظف لكل IP.
@@ -99,7 +104,11 @@ export function createApp() {
   app.use(cloudflareClientIp);
 
   app.use(helmet());
-  app.use(cors());
+  // CORS مقيّد بنطاقات أثر بدل السماح لأي موقع — راجع lib/corsOrigins.ts. أصل غير مسموح لا يُرفَض
+  // بخطأ؛ فقط لا تُرسَل ترويسات CORS فيمنعه المتصفح نفسه.
+  // credentials: يسمح للواجهة بإرسال كوكي رمز التجديد (httpOnly) مع طلبات /api/auth — آمن هنا لأن
+  // الأصل مقيّد بقائمة نطاقات أثر لا "*".
+  app.use(cors({ origin: (origin, cb) => cb(null, isAllowedCorsOrigin(origin)), credentials: true }));
   // أجهزة PTS-2 قبل express.json: توقيعها على الجسم الخام بالبايت (ptsDevice.routes.ts)
   app.use("/api/pts", ptsDeviceRoutes);
   // Webhook حالات واتساب من Meta قبل express.json: التوقيع على الجسم الخام (whatsappWebhook.routes.ts)
@@ -141,6 +150,7 @@ export function createApp() {
   app.use("/api/purchase-returns", purchaseReturnRoutes);
   app.use("/api/purchase-reports", purchaseReportRoutes);
   app.use("/api/vat-reconciliation", vatReconciliationRoutes);
+  app.use("/api/bank-reconciliation", bankReconciliationRoutes);
   app.use("/api/zatca-archive", zatcaArchiveRoutes);
   app.use("/api/items", itemRoutes);
   app.use("/api/warehouses", warehouseRoutes);

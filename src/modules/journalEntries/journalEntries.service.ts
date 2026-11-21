@@ -1,3 +1,4 @@
+import { releaseBankMatchesTx } from "../bankReconciliation/bankReconciliation.service";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { verifyPassword } from "../../lib/password";
@@ -911,6 +912,7 @@ async function syncMirrorStatusTx(
     const lines = await tx.journalEntryLine.findMany({ where: { journalEntryId: mirror.id }, select: { accountId: true, debit: true, credit: true } });
     assertBalanced(lines.map((l) => ({ accountId: l.accountId, debit: Number(l.debit), credit: Number(l.credit) })));
   }
+  if (status === "saved") await releaseBankMatchesTx(tx, mirror.id, action);
   await tx.journalEntry.update({ where: { id: mirror.id }, data: { status } });
   if (status === "saved") {
     await tx.auditLog.create({
@@ -1035,6 +1037,7 @@ export async function unpostJournalEntry(tenantId: string, id: string, userId: s
   return prisma.$transaction(async (tx) => {
     const closingDate = await lockCompanyClosingDate(tx, entry.companyId);
     assertPeriodNotClosed(closingDate, entry.date, "فك ترحيل قيد");
+    await releaseBankMatchesTx(tx, id, "فك ترحيل قيد");
 
     await syncMirrorStatusTx(tx, entry.mirrorEntryId, "saved", "فك ترحيل قيد", { tenantId, userId, companyScope, sourceEntryId: id });
     const updated = await tx.journalEntry.update({ where: { id }, data: { status: "saved" }, include: entryInclude });

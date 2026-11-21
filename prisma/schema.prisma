@@ -168,6 +168,7 @@ model Tenant {
   horseCareRecords  HorseCareRecord[]
 
   zatcaComplianceStepAttempts ZatcaComplianceStepAttempt[]
+  bankStatements    BankStatement[]
 
   recurringJournalTemplates RecurringJournalTemplate[]
   @@map("tenants")
@@ -705,6 +706,7 @@ model Company {
   subscription                CompanySubscription?
   posUsers                    CompanyPosUser[]
   fiscalYearClosings          FiscalYearClosing[]
+  bankStatements              BankStatement[]
 
   recurringJournalTemplates RecurringJournalTemplate[]
   @@unique([tenantId, name])
@@ -1041,6 +1043,7 @@ model Account {
   fiscalYearClosings           FiscalYearClosing[]
   cardSettlementsAsBank        CardSettlement[]      @relation("CardSettlementBankAccount")
   horseCareServiceRevenueLinks HorseCareService[]
+  bankStatements               BankStatement[]
 
   recurringJournalLines RecurringJournalTemplateLine[]
   @@unique([tenantId, companyId, code])
@@ -1496,6 +1499,7 @@ model JournalEntryLine {
   employeeAdvanceId String?
   employeeAdvance   EmployeeAdvance? @relation(fields: [employeeAdvanceId], references: [id], onDelete: SetNull)
 
+  bankStatementLine BankStatementLine?
   @@index([accountId])
   @@index([customerId])
   @@index([supplierId])
@@ -4763,4 +4767,68 @@ model RecurringJournalRun {
   @@unique([templateId, periodDate])
   @@index([tenantId, companyId])
   @@map("recurring_journal_runs")
+}
+
+// ---------------------------------------------------------------------------
+// التسوية البنكية — كشف حساب البنك (مرفوع من Excel/CSV) يُطابَق سطراً سطراً مع حركة حساب البنك
+// في الدفاتر (أسطر القيود المرحَّلة على الحساب نفسه). المطابقة: سطر كشف ↔ سطر قيد واحد بنفس المبلغ
+// الموقَّع (مُودَع = مدين الحساب، مسحوب = دائنه). الكشف المُسوّى (reconciled) يُجمِّد مطابقاته: لا تُفَك
+// ولا يُحذف قيد مطابَق فيه (راجع assertNotBankReconciled ومُشغِّل bank_reconciled_line_guard).
+// ---------------------------------------------------------------------------
+
+enum BankStatementStatus {
+  open
+  reconciled
+}
+
+model BankStatement {
+  id             String              @id @default(cuid())
+  tenantId       String
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId      String
+  company        Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // حساب البنك في شجرة الحسابات (isBankOrCash) — لا CompanyBankAccount (ذاك بيانات طباعة للفواتير فقط)
+  accountId      String
+  account        Account             @relation(fields: [accountId], references: [id])
+  periodStart    DateTime
+  periodEnd      DateTime
+  openingBalance Decimal             @db.Decimal(18, 2)
+  closingBalance Decimal             @db.Decimal(18, 2)
+  fileName       String?
+  status         BankStatementStatus @default(open)
+  createdById    String?
+  reconciledAt   DateTime?
+  reconciledById String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  lines BankStatementLine[]
+
+  @@index([tenantId, companyId, accountId])
+  @@map("bank_statements")
+}
+
+model BankStatementLine {
+  id                 String            @id @default(cuid())
+  statementId        String
+  statement          BankStatement     @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  tenantId           String
+  companyId          String
+  lineNo             Int
+  date               DateTime
+  description        String?
+  reference          String?
+  // موجب = إيداع (مدين حساب البنك في الدفاتر)، سالب = سحب (دائنه)
+  amount             Decimal           @db.Decimal(18, 2)
+  // سطر القيد المطابَق — فريد: سطر القيد لا يطابق إلا سطر كشف واحداً في كل الكشوف. حذف القيد (فك ترحيل
+  // مستند في كشف مفتوح) يفكّ المطابقة تلقائياً؛ في كشف مُسوّى يُرفض الحذف قبل الوصول لهنا.
+  journalEntryLineId String?           @unique
+  journalEntryLine   JournalEntryLine? @relation(fields: [journalEntryLineId], references: [id], onDelete: SetNull)
+  matchType          String? // "auto" | "manual"
+  matchedAt          DateTime?
+  matchedById        String?
+
+  @@index([statementId, lineNo])
+  @@index([tenantId, companyId])
+  @@map("bank_statement_lines")
 }
