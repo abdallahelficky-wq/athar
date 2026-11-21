@@ -1,4 +1,6 @@
-import * as XLSX from "xlsx";
+import { loadXlsx } from "./shared/loadXlsx";
+// يُضبَط بعد loadXlsx() في بداية كل عملية رفع/تصدير — الدوال المساعدة المتزامنة تُستدعى بعده فقط
+let XLSX;
 
 const TYPE_MAP = {
   asset: "asset", assets: "asset", "أصول": "asset",
@@ -31,7 +33,8 @@ function mapType(value, code) {
   return FALLBACK_TYPE[code?.[0]] || "";
 }
 
-export function parseAccountWorkbook(arrayBuffer, existingAccounts = []) {
+export async function parseAccountWorkbook(arrayBuffer, existingAccounts = []) {
+  XLSX = await loadXlsx();
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
   const sheetName =
     workbook.SheetNames.find((name) => name.trim() === "الحسابات") ||

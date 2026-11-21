@@ -171,6 +171,7 @@ model Tenant {
   bankStatements    BankStatement[]
 
   recurringJournalTemplates RecurringJournalTemplate[]
+  zakatDeclarations ZakatDeclaration[]
   @@map("tenants")
 }
 
@@ -709,6 +710,10 @@ model Company {
   bankStatements              BankStatement[]
 
   recurringJournalTemplates RecurringJournalTemplate[]
+  // الزكاة (modules/zakat): الطريقة ونسبة الملكية الخاضعة للزكاة (السعوديون/الخليجيون)
+  zakatMethod                 ZakatMethod        @default(regulation_1445)
+  zakatableOwnershipPct       Decimal            @default(100) @db.Decimal(5, 2)
+  zakatDeclarations           ZakatDeclaration[]
   @@unique([tenantId, name])
   @@map("companies")
 }
@@ -1046,6 +1051,8 @@ model Account {
   bankStatements               BankStatement[]
 
   recurringJournalLines RecurringJournalTemplateLine[]
+  // تصنيف الحساب في الوعاء الزكوي (modules/zakat) — null = افتراضي من النوع والسيولة (zakatTreatment.ts)
+  zakatTreatment           ZakatTreatment?
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
   @@index([tenantId, companyId, parentId])
@@ -1440,6 +1447,7 @@ model JournalEntry {
   stationShift StationShift?
 
   recurringJournalRun RecurringJournalRun?
+  zakatDeclaration ZakatDeclaration?
   @@unique([companyId, entryNumber])
   // يُستبدَل بـ[tenantId, companyId, date, entrySeq, id] أدناه (يُغطّي نفس الحقول زائد ترتيب شاشة
   // القيود المرقّمة صفحات فعلياً) — يبقى هذا الفهرس الأضيق مفيداً لاستعلامات لا تحتاج entrySeq/id
@@ -4831,4 +4839,56 @@ model BankStatementLine {
   @@index([statementId, lineNo])
   @@index([tenantId, companyId])
   @@map("bank_statement_lines")
+}
+
+// ---------------------------------------------------------------------------
+// الزكاة — احتساب الوعاء الزكوي من الدفاتر (zakatEngine.ts) وحفظه كإقرار لفترة، وترحيل قيد الزكاة المستحقة.
+// ---------------------------------------------------------------------------
+
+enum ZakatMethod {
+  regulation_1445
+  net_current_assets
+}
+
+enum ZakatTreatment {
+  equity
+  non_current_liability
+  current_liability
+  deductible_non_current_asset
+  non_deductible_non_current_asset
+  deductible_current_asset
+  current_asset
+  excluded
+}
+
+enum ZakatDeclarationStatus {
+  draft
+  posted
+}
+
+model ZakatDeclaration {
+  id                    String                 @id @default(cuid())
+  tenantId              String
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId             String
+  company               Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  periodStart           DateTime
+  periodEnd             DateTime
+  hijriYear             Boolean                @default(false)
+  method                ZakatMethod
+  zakatableOwnershipPct Decimal                @db.Decimal(5, 2)
+  // تسويات صافي الربح: [{ label, amount }] — موجبة تزيد الربح (مصروفات غير جائزة الحسم، مخصصات مكوّنة…)
+  adjustments           Json
+  // لقطة الحساب وقت الحفظ (المدخلات بتفصيل الحسابات + النتيجة) — لا يتغيّر الإقرار المحفوظ بتعديل لاحق للدفاتر
+  result                Json
+  zakatDue              Decimal                @db.Decimal(18, 2)
+  status                ZakatDeclarationStatus @default(draft)
+  journalEntryId        String?                @unique
+  journalEntry          JournalEntry?          @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+  createdById           String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([tenantId, companyId, periodEnd])
+  @@map("zakat_declarations")
 }

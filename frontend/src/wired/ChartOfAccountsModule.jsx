@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "./shared/loadXlsx";
+// يُضبَط بعد loadXlsx() في بداية كل عملية رفع/تصدير — الدوال المساعدة المتزامنة تُستدعى بعده فقط
+let XLSX;
 import { listAccounts, getNextAccountCode, createAccount, updateAccount, deleteAccount, installStandardChart } from "../api/accounts";
 import { fmt } from "../legacy/constants";
 import { Icon } from "../legacy/shared";
@@ -228,7 +230,8 @@ export default function ChartOfAccountsModule({ companies = [], companyId }) {
 
   // يُصدَّر كامل accounts (شجرة النطاق الحالي بأكملها) لا rows المفلترة/المعروضة فقط — حتى تصدير
   // كل الحسابات دائماً بصرف النظر عن أي فلتر بحث/مستوى/تصنيف/حالة نشط حالياً في الشاشة.
-  const exportAccounts = () => {
+  const exportAccounts = async () => {
+    XLSX = await loadXlsx();
     const byId = new Map(accounts.map((a) => [a.id, a]));
     const exportRows = [...accounts]
       .sort((a, b) => a.code.localeCompare(b.code))

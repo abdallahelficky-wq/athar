@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "../shared/loadXlsx";
 import { listAccounts } from "../../api/accounts";
 import {
   listBankStatements, createBankStatement, getBankStatement, autoMatchBankStatement,
@@ -112,6 +112,7 @@ function UploadDialog({ open, companyId, accountId, lastClosing, onClose, onCrea
     setError("");
     if (!file) return;
     try {
+      const XLSX = await loadXlsx();
       const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: true });
       const headerRow = guessHeaderRow(rows);

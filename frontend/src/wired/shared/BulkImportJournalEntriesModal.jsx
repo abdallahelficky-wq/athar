@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "./loadXlsx";
+// يُضبَط بعد loadXlsx() في بداية كل عملية رفع/تصدير — الدوال المساعدة المتزامنة تُستدعى بعده فقط
+let XLSX;
 import { previewBulkImportJournalEntries, commitBulkImportJournalEntries } from "../../api/journalEntries";
 import { listAccounts, createAccount } from "../../api/accounts";
 import AccountSearchSelect from "./AccountSearchSelect";
@@ -148,6 +150,7 @@ export default function BulkImportJournalEntriesModal({ companyId, onClose, onIm
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
+        XLSX = await loadXlsx();
         const data = new Uint8Array(ev.target.result);
         const wb = XLSX.read(data, { type: "array", cellDates: true });
         const sheet = wb.Sheets[wb.SheetNames[0]];

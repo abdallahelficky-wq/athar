@@ -2,7 +2,9 @@ import HRDialog from "./HRDialog";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import * as XLSX from "xlsx";
+import { loadXlsx } from "../shared/loadXlsx";
+// يُضبَط بعد loadXlsx() في بداية كل عملية رفع/تصدير — الدوال المساعدة المتزامنة تُستدعى بعده فقط
+let XLSX;
 import { listEmployees, createEmployee, importEmployees, updateEmployee, deleteEmployee } from "../../api/employees";
 import { getPayrollSettings, getEmployeePayrollComponents, setEmployeePayrollComponents } from "../../api/payrollSettings";
 import { DEPARTMENTS, DEPARTMENT_KEYS, fmt } from "../../legacy/constants";
@@ -150,7 +152,8 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
   const addDoc = () => setForm((f) => ({ ...f, documents: [...f.documents, { type: EMPLOYEE_DOC_TYPES[0], number: "", expiryDate: "" }] }));
   const removeDoc = (idx) => setForm((f) => ({ ...f, documents: f.documents.filter((_, i) => i !== idx) }));
 
-  const exportEmployees = () => {
+  const exportEmployees = async () => {
+    XLSX = await loadXlsx();
     const rows = employees.map((e) => ({
       [t("hr.directory.export.employeeNumber")]: e.employeeNumber || "",
       [t("hr.directory.export.name")]: e.name,
@@ -197,7 +200,8 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
     ["gosiEmployeeRate", ar ? "نسبة خصم تأمينات الموظف" : "Employee GOSI rate"], ["gosiApplicable", t("hr.directory.gosiApplicable")], ["notes", t("hr.directory.notes")],
   ];
 
-  const downloadImportTemplate = () => {
+  const downloadImportTemplate = async () => {
+    XLSX = await loadXlsx();
     const columns = importColumns();
     const example = Object.fromEntries(columns.map(([key, label]) => [label,
       ({ name: t("hr.directory.templateExampleName"), hireDate: "2026-01-01", basicSalary: 5000, housingAllowance: 0,
@@ -230,6 +234,7 @@ export default function EmployeeDirectoryTab({ companyId, isFuelStations }) {
     if (!file) return;
     setError(""); setImportResult("");
     try {
+      XLSX = await loadXlsx();
       const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
       const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" });
       const columns = importColumns();

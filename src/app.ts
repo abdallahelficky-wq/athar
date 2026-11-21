@@ -39,6 +39,7 @@ import { purchaseReturnRoutes } from "./modules/purchaseReturns/purchaseReturns.
 import { purchaseReportRoutes } from "./modules/purchaseReports/purchaseReports.routes";
 import { vatReconciliationRoutes } from "./modules/vatReconciliation/vatReconciliation.routes";
 import { bankReconciliationRoutes } from "./modules/bankReconciliation/bankReconciliation.routes";
+import { zakatRoutes } from "./modules/zakat/zakat.routes";
 import { zatcaArchiveRoutes } from "./modules/zatcaArchive/zatcaArchive.routes";
 import { itemRoutes } from "./modules/items/items.routes";
 import { warehouseRoutes } from "./modules/warehouses/warehouses.routes";
@@ -151,6 +152,7 @@ export function createApp() {
   app.use("/api/purchase-reports", purchaseReportRoutes);
   app.use("/api/vat-reconciliation", vatReconciliationRoutes);
   app.use("/api/bank-reconciliation", bankReconciliationRoutes);
+  app.use("/api/zakat", zakatRoutes);
   app.use("/api/zatca-archive", zatcaArchiveRoutes);
   app.use("/api/items", itemRoutes);
   app.use("/api/warehouses", warehouseRoutes);
