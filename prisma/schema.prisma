@@ -172,6 +172,7 @@ model Tenant {
 
   recurringJournalTemplates RecurringJournalTemplate[]
   zakatDeclarations ZakatDeclaration[]
+  cheques Cheque[]
   @@map("tenants")
 }
 
@@ -714,6 +715,10 @@ model Company {
   zakatMethod                 ZakatMethod        @default(regulation_1445)
   zakatableOwnershipPct       Decimal            @default(100) @db.Decimal(5, 2)
   zakatDeclarations           ZakatDeclaration[]
+  // الشيكات (modules/cheques): حساب أوراق القبض (شيكات تحت التحصيل) وحساب أوراق الدفع (شيكات مستحقة الدفع)
+  chequesReceivableAccountId  String?
+  chequesPayableAccountId     String?
+  cheques                     Cheque[]
   @@unique([tenantId, name])
   @@map("companies")
 }
@@ -1053,6 +1058,8 @@ model Account {
   recurringJournalLines RecurringJournalTemplateLine[]
   // تصنيف الحساب في الوعاء الزكوي (modules/zakat) — null = افتراضي من النوع والسيولة (zakatTreatment.ts)
   zakatTreatment           ZakatTreatment?
+  chequesAsCounter        Cheque[]    @relation("ChequeCounterAccount")
+  chequesAsBank           Cheque[]    @relation("ChequeBankAccount")
   @@unique([tenantId, companyId, code])
   @@unique([tenantId, companyId, intercompanyCompanyId])
   @@index([tenantId, companyId, parentId])
@@ -1352,6 +1359,7 @@ enum SourceModule {
   fiscal_year_closing
   lease_payment
   lease_amortization
+  cheque
 }
 
 // فرع تابع لشركة واحدة — طبقة تصنيف وعرض إضافية فقط (بنفس مبدأ CostCenter/Department)، بدولة
@@ -1448,6 +1456,7 @@ model JournalEntry {
 
   recurringJournalRun RecurringJournalRun?
   zakatDeclaration ZakatDeclaration?
+  chequeEvent ChequeEvent?
   @@unique([companyId, entryNumber])
   // يُستبدَل بـ[tenantId, companyId, date, entrySeq, id] أدناه (يُغطّي نفس الحقول زائد ترتيب شاشة
   // القيود المرقّمة صفحات فعلياً) — يبقى هذا الفهرس الأضيق مفيداً لاستعلامات لا تحتاج entrySeq/id
@@ -1568,6 +1577,7 @@ model Customer {
   ridingLessons           RidingLesson[]
   stationShiftCreditSales StationShiftCreditSale[]
 
+  cheques Cheque[]
   @@map("customers")
 }
 
@@ -1998,6 +2008,7 @@ model Supplier {
   purchaseReturns   PurchaseReturn[]
   journalEntryLines JournalEntryLine[]
 
+  cheques Cheque[]
   @@map("suppliers")
 }
 
@@ -4891,4 +4902,84 @@ model ZakatDeclaration {
 
   @@index([tenantId, companyId, periodEnd])
   @@map("zakat_declarations")
+}
+
+// ---------------------------------------------------------------------------
+// الشيكات — الواردة (من عملاء) والصادرة (لموردين/أطراف أخرى) بدورة حياتها، وكل حدث يُنشئ قيده (sourceModule "cheque"):
+//   وارد: تسجيل  من ح/ أوراق القبض إلى ح/ الطرف | تحصيل من ح/ البنك إلى ح/ أوراق القبض | ارتداد/إلغاء من ح/ الطرف إلى ح/ أوراق القبض
+//   صادر: تسجيل  من ح/ الطرف إلى ح/ أوراق الدفع | صرف   من ح/ أوراق الدفع إلى ح/ البنك | ارتداد/إلغاء من ح/ أوراق الدفع إلى ح/ الطرف
+// قيود الشيكات مقفلة في شاشة القيود؛ التراجع عن آخر حدث من شاشة الشيكات وحدها (يحذف قيده ويعيد الحالة السابقة).
+// ---------------------------------------------------------------------------
+
+enum ChequeDirection {
+  received
+  issued
+}
+
+enum ChequeStatus {
+  pending
+  cleared
+  bounced
+  cancelled
+}
+
+enum ChequeEventType {
+  registered
+  cleared
+  bounced
+  cancelled
+}
+
+model Cheque {
+  id               String          @id @default(cuid())
+  tenantId         String
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId        String
+  company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  direction        ChequeDirection
+  chequeNumber     String
+  bankName         String?
+  issueDate        DateTime
+  dueDate          DateTime
+  amount           Decimal         @db.Decimal(18, 2)
+  customerId       String?
+  customer         Customer?       @relation(fields: [customerId], references: [id])
+  supplierId       String?
+  supplier         Supplier?       @relation(fields: [supplierId], references: [id])
+  // حساب الطرف المقابل في القيود: حساب العميل/المورد التفصيلي، أو حساب يختاره المستخدم لطرف آخر
+  counterAccountId String
+  counterAccount   Account         @relation("ChequeCounterAccount", fields: [counterAccountId], references: [id])
+  partyName        String?
+  memo             String?
+  status           ChequeStatus    @default(pending)
+  // حساب البنك عند التحصيل/الصرف
+  bankAccountId    String?
+  bankAccount      Account?        @relation("ChequeBankAccount", fields: [bankAccountId], references: [id])
+  createdById      String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  events ChequeEvent[]
+
+  @@index([tenantId, companyId, direction, status, dueDate])
+  @@map("cheques")
+}
+
+model ChequeEvent {
+  id             String          @id @default(cuid())
+  chequeId       String
+  cheque         Cheque          @relation(fields: [chequeId], references: [id], onDelete: Cascade)
+  tenantId       String
+  companyId      String
+  type           ChequeEventType
+  date           DateTime
+  journalEntryId String?         @unique
+  journalEntry   JournalEntry?   @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  note           String?
+  createdById    String?
+  createdAt      DateTime        @default(now())
+
+  @@index([chequeId, createdAt])
+  @@index([tenantId, companyId])
+  @@map("cheque_events")
 }
