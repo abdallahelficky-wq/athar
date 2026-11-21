@@ -14,14 +14,25 @@ const CLEANUP_AFTER_MS = 24 * 60 * 60_000;
 const keyFor = (ip: string) => `ip:${ip}`;
 
 export async function isIpThrottled(ip: string, now = new Date()): Promise<boolean> {
-  const row = await prisma.portalLoginThrottle.findUnique({ where: { key: keyFor(ip) } });
-  if (!row) return false;
-  if (row.windowStart.getTime() <= now.getTime() - IP_WINDOW_MS) return false;
-  return row.failures >= MAX_FAILURES_PER_IP;
+  return isKeyThrottled(keyFor(ip), MAX_FAILURES_PER_IP, now);
 }
 
 export async function recordIpFailure(ip: string, now = new Date()): Promise<void> {
-  const key = keyFor(ip);
+  return recordKeyFailure(keyFor(ip), now);
+}
+
+/**
+ * نفس الحدّ بمفتاح عام — يستخدمه تسجيل دخول النظام الرئيسي (auth.service.ts) بمفاتيح مسبوقة
+ * `auth-ip:` و`auth-email:` حتى لا تتداخل مع مفاتيح بوابة الموظف (`ip:`) في الجدول نفسه.
+ */
+export async function isKeyThrottled(key: string, maxFailures: number, now = new Date()): Promise<boolean> {
+  const row = await prisma.portalLoginThrottle.findUnique({ where: { key } });
+  if (!row) return false;
+  if (row.windowStart.getTime() <= now.getTime() - IP_WINDOW_MS) return false;
+  return row.failures >= maxFailures;
+}
+
+export async function recordKeyFailure(key: string, now = new Date()): Promise<void> {
   const windowFloor = new Date(now.getTime() - IP_WINDOW_MS);
 
   // داخل النافذة الحالية: زيادة ذرّية في قاعدة البيانات (لا قراءة ثم كتابة).
