@@ -21,10 +21,10 @@ Athar ERP is a cloud-based Arabic accounting system for small and medium busines
 - خيار الدفع الشهري متاح، وتجربة مجانية كاملة لمدة شهر بدون التزام
 
 ## روابط / Links
-- [الصفحة الرئيسية](https://atharerp.com/)
-- [ابدأ التجربة المجانية](https://atharerp.com/register)
-- [تطبيقات أندرويد](https://atharerp.com/download)
-- [حماية البيانات](https://atharerp.com/data-protection)
+- [الصفحة الرئيسية](https://www.atharerp.com/)
+- [ابدأ التجربة المجانية](https://www.atharerp.com/register)
+- [تطبيقات أندرويد](https://www.atharerp.com/download)
+- [حماية البيانات](https://www.atharerp.com/data-protection)
 
 ## تواصل / Contact
 - واتساب ودعم فني: +966 57 307 6236

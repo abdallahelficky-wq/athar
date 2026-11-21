@@ -1,8 +1,8 @@
-# أثر المحاسبي — https://atharerp.com
+# أثر المحاسبي — https://www.atharerp.com
 # شاشات النظام بعد الدخول تُرسَل بترويسة X-Robots-Tag: noindex (راجع frontend/Caddyfile)،
 # فلا تُمنع من الزحف هنا حتى يرى محرك البحث هذا المنع ويحترمه.
 User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://atharerp.com/sitemap.xml
+Sitemap: https://www.atharerp.com/sitemap.xml
