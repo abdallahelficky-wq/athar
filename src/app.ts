@@ -83,6 +83,7 @@ import { storeOrderRoutes } from "./modules/storeOrders/storeOrders.routes";
 import { storeAdminRoutes } from "./modules/storeAdmin/storeAdmin.routes";
 import { prisma } from "./lib/prisma";
 import { installSubscriptionWriteGuard } from "./lib/subscriptionWriteGuard";
+import { cloudflareClientIp } from "./lib/clientIp";
 
 export function createApp() {
   // حارس الكتابة للاشتراكات (P4) — مرة واحدة لكل عملية؛ لا أثر له ما دام المفتاح الشامل معطّلاً
@@ -91,6 +92,9 @@ export function createApp() {
   // req.ip = عنوان العميل الفعلي من X-Forwarded-For بعد عدد الوكلاء الموثوقين فقط (لا أول قيمة يرسلها
   // العميل نفسه) — يعتمد عليه حدّ محاولات دخول بوابة الموظف لكل IP.
   app.set("trust proxy", env.trustProxyHops);
+  // عبر api.atharerp.com (Cloudflare) يصبح req.ip عنوان خادم Cloudflare؛ هذا يعيده لعنوان العميل الحقيقي
+  // (CF-Connecting-IP) فقط حين يأتي الطلب فعلاً من نطاقات Cloudflare — راجع lib/clientIp.ts.
+  app.use(cloudflareClientIp);
 
   app.use(helmet());
   app.use(cors());
