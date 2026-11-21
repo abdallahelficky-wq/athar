@@ -8,3 +8,6 @@ export const askAi = (question, { companyId, history } = {}) =>
 export const getAiInsights = (companyId) => api.post("/ai/insights", companyId ? { companyId } : {});
 /** توقعات وشذوذ حتمية — بلا نموذج لغوي. */
 export const getAiSignals = (companyId) => api.get(withCompany("/ai/signals", companyId));
+/** الدعم الفني: أسئلة استخدام النظام — بلا شركة ولا بيانات مالية؛ screen = مسار الشاشة الحالية. */
+export const askAiSupport = (question, { history, screen } = {}) =>
+  api.post("/ai/support", { question, ...(history?.length ? { history } : {}), ...(screen ? { screen } : {}) });

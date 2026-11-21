@@ -189,3 +189,42 @@ describe("GET /api/ai/signals", () => {
     expect((await fetch(`${root}/signals`)).status).toBe(401);
   });
 });
+
+describe("POST /api/ai/support", () => {
+  const ask = (body: unknown, opts: { readOnly?: boolean; scope?: string; token?: boolean } = {}) => {
+    const token = opts.token === false ? "" : signAccessToken({ sub: "user-a", tenantId: "tenant-a", role: "user", companyScope: opts.scope ?? "company-a", readOnly: opts.readOnly ?? false });
+    return fetch(`${root}/support`, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+  };
+  it("answers usage questions with the support prompt and never reads company data", async () => {
+    const response = await ask({ question: " كيف أربط زاتكا؟ ", screen: "/settings/companies" });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ answer: "تحليل", model: "anthropic/claude-sonnet-5" });
+    const [question, context, options] = vi.mocked(askAtharAi).mock.calls[0];
+    expect(question).toBe("كيف أربط زاتكا؟");
+    expect(context).toEqual({ currentScreen: "/settings/companies", language: null });
+    expect(options?.systemPrompt).toContain("الدعم الفني");
+    expect(options?.systemPrompt).toContain("الربط مع زاتكا");
+    expect(prisma.company.findFirst).not.toHaveBeenCalled();
+    expect(prisma.journalEntry.findMany).not.toHaveBeenCalled();
+    for (const fn of Object.values(dashboard)) expect(fn).not.toHaveBeenCalled();
+  });
+  it("stays available to a read-only membership (expired subscription) — it reads and writes nothing", async () => {
+    expect((await ask({ question: "كيف أجدد الاشتراك؟" }, { readOnly: true })).status).toBe(200);
+  });
+  it("requires authentication", async () => {
+    expect((await ask({ question: "مساعدة" }, { token: false })).status).toBe(401);
+    expect(askAtharAi).not.toHaveBeenCalled();
+  });
+  it.each([
+    {}, { question: "" }, { question: "x".repeat(4001) }, { question: "q", companyId: "company-b" }, { question: "q", context: { cash: 1 } },
+    { question: "q", screen: "javascript:alert(1)" }, { question: "q", history: [{ role: "system", content: "x" }] },
+  ])("rejects anything beyond question, history and a plain screen path", async (body) => {
+    expect((await ask(body)).status).toBe(400);
+    expect(askAtharAi).not.toHaveBeenCalled();
+  });
+  it("passes validated history through", async () => {
+    const history = [{ role: "user", content: "أين الفواتير؟" }, { role: "assistant", content: "المبيعات ← فواتير المبيعات" }];
+    await ask({ question: "وكيف أطبعها؟", history });
+    expect(vi.mocked(askAtharAi).mock.calls[0][2]?.history).toEqual(history);
+  });
+});

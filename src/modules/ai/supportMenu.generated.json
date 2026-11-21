@@ -1,0 +1,445 @@
+{
+  "dashboard": "لوحة القيادة",
+  "groups": [
+    {
+      "id": "sales",
+      "label": "المبيعات",
+      "path": "/sales",
+      "tabs": [
+        {
+          "id": "invoices",
+          "label": "فواتير المبيعات"
+        },
+        {
+          "id": "customers",
+          "label": "العملاء"
+        },
+        {
+          "id": "quotations",
+          "label": "عروض الأسعار"
+        },
+        {
+          "id": "returns",
+          "label": "مردودات المبيعات"
+        },
+        {
+          "id": "receipts",
+          "label": "سندات القبض"
+        },
+        {
+          "id": "stations",
+          "label": "مبيعات المحطات"
+        },
+        {
+          "id": "reports",
+          "label": "التقارير"
+        },
+        {
+          "id": "settings",
+          "label": "إعدادات المبيعات"
+        }
+      ]
+    },
+    {
+      "id": "onlineStore",
+      "label": "المتجر الإلكتروني",
+      "path": "/onlineStore",
+      "tabs": [
+        {
+          "id": "storeOrders",
+          "label": "طلبات المتجر"
+        },
+        {
+          "id": "storeGeneral",
+          "label": "تشغيل المتجر"
+        },
+        {
+          "id": "storeAppearance",
+          "label": "المظهر"
+        },
+        {
+          "id": "storeShipping",
+          "label": "الشحن"
+        },
+        {
+          "id": "storePayment",
+          "label": "الدفع"
+        },
+        {
+          "id": "storeMarketing",
+          "label": "التسويق"
+        },
+        {
+          "id": "storePolicies",
+          "label": "السياسات"
+        }
+      ]
+    },
+    {
+      "id": "purchases",
+      "label": "المشتريات",
+      "path": "/purchases",
+      "tabs": [
+        {
+          "id": "suppliers",
+          "label": "الموردون"
+        },
+        {
+          "id": "invoices",
+          "label": "فواتير المشتريات"
+        },
+        {
+          "id": "returns",
+          "label": "مردودات المشتريات"
+        },
+        {
+          "id": "reports",
+          "label": "التقارير"
+        }
+      ]
+    },
+    {
+      "id": "inventory",
+      "label": "المستودعات والمنتجات",
+      "path": "/inventory",
+      "tabs": [
+        {
+          "id": "items",
+          "label": "الأصناف"
+        },
+        {
+          "id": "warehouses",
+          "label": "المستودعات"
+        },
+        {
+          "id": "inout",
+          "label": "إدخال / إخراج"
+        },
+        {
+          "id": "issue",
+          "label": "الصرف المخزني"
+        },
+        {
+          "id": "transfer",
+          "label": "التحويل بين الفروع"
+        },
+        {
+          "id": "report",
+          "label": "تقرير الأرصدة"
+        },
+        {
+          "id": "movement",
+          "label": "حركة المخزون وتقييمه"
+        },
+        {
+          "id": "periodicSettlement",
+          "label": "تسوية الجرد الدوري"
+        }
+      ]
+    },
+    {
+      "id": "stables",
+      "label": "إسطبلات الخيل",
+      "path": "/stables",
+      "tabs": [
+        {
+          "id": "overview",
+          "label": "نظرة عامة"
+        },
+        {
+          "id": "stables",
+          "label": "الإسطبلات"
+        },
+        {
+          "id": "stalls",
+          "label": "البوكسات"
+        },
+        {
+          "id": "horses",
+          "label": "الخيول"
+        },
+        {
+          "id": "contracts",
+          "label": "عقود الإيواء"
+        },
+        {
+          "id": "care",
+          "label": "سجلات الرعاية"
+        },
+        {
+          "id": "services",
+          "label": "خدمات الرعاية"
+        },
+        {
+          "id": "trainers",
+          "label": "المدربون"
+        },
+        {
+          "id": "lessonTypes",
+          "label": "أنواع الحصص"
+        },
+        {
+          "id": "lessons",
+          "label": "الحصص التدريبية"
+        },
+        {
+          "id": "competitions",
+          "label": "المسابقات والمنافسات"
+        },
+        {
+          "id": "billing",
+          "label": "إنشاء فاتورة إعاشة"
+        },
+        {
+          "id": "commissions",
+          "label": "عمولات المدربين"
+        }
+      ]
+    },
+    {
+      "id": "stationShifts",
+      "label": "إدارة محطات الوقود",
+      "path": "/stationShifts",
+      "tabs": [
+        {
+          "id": "dashboard",
+          "label": "لوحة المحطات"
+        },
+        {
+          "id": "pending",
+          "label": "مراجعة الورديات"
+        },
+        {
+          "id": "shiftsReport",
+          "label": "تقرير الورديات"
+        },
+        {
+          "id": "setup",
+          "label": "إعداد المحطات"
+        },
+        {
+          "id": "tanks",
+          "label": "الخزانات والتوريد"
+        },
+        {
+          "id": "settlements",
+          "label": "تسويات الشبكة"
+        },
+        {
+          "id": "controllers",
+          "label": "متحكمات المحطات"
+        },
+        {
+          "id": "prices",
+          "label": "أسعار الوقود"
+        },
+        {
+          "id": "workers",
+          "label": "عمال المحطات"
+        },
+        {
+          "id": "shiftSettings",
+          "label": "إعدادات الورديات"
+        }
+      ]
+    },
+    {
+      "id": "fixedAssets",
+      "label": "الأصول الثابتة",
+      "path": "/fixedAssets",
+      "tabs": [
+        {
+          "id": "register",
+          "label": "سجل الأصول"
+        },
+        {
+          "id": "depreciation",
+          "label": "الإهلاك الشهري"
+        },
+        {
+          "id": "disposal",
+          "label": "الاستبعاد/البيع"
+        },
+        {
+          "id": "reports",
+          "label": "التقارير"
+        },
+        {
+          "id": "categories",
+          "label": "إعدادات الأصول الثابتة"
+        }
+      ]
+    },
+    {
+      "id": "leases",
+      "label": "عقود الإيجار",
+      "path": "/leases",
+      "tabs": [
+        {
+          "id": "leaseContracts",
+          "label": "العقود"
+        }
+      ]
+    },
+    {
+      "id": "accounts",
+      "label": "الحسابات",
+      "path": "/accounts",
+      "tabs": [
+        {
+          "id": "journal",
+          "label": "القيود اليومية"
+        },
+        {
+          "id": "chartOfAccounts",
+          "label": "شجرة الحسابات"
+        },
+        {
+          "id": "ledger",
+          "label": "كشف حساب الأستاذ"
+        },
+        {
+          "id": "departments",
+          "label": "الأقسام"
+        },
+        {
+          "id": "costCenters",
+          "label": "مراكز التكلفة"
+        },
+        {
+          "id": "zakat",
+          "label": "الزكاة والضريبة (تقديرية، بيانات تجريبية)"
+        },
+        {
+          "id": "accountsSettings",
+          "label": "إعدادات الحسابات"
+        }
+      ]
+    },
+    {
+      "id": "hr",
+      "label": "شئون الموظفين",
+      "path": "/hr",
+      "tabs": [
+        {
+          "id": "dashboard",
+          "label": "لوحة القيادة"
+        },
+        {
+          "id": "directory",
+          "label": "ملفات الموظفين"
+        },
+        {
+          "id": "jobTitles",
+          "label": "الوظائف"
+        },
+        {
+          "id": "leaves",
+          "label": "طلبات الإجازات"
+        },
+        {
+          "id": "leaveSettlement",
+          "label": "مستحقات الإجازة"
+        },
+        {
+          "id": "leaveReturn",
+          "label": "المباشرة بعد الإجازة"
+        },
+        {
+          "id": "actions",
+          "label": "إجراءات الموظفين"
+        },
+        {
+          "id": "payroll",
+          "label": "كشف الرواتب"
+        },
+        {
+          "id": "payrollSettings",
+          "label": "إعدادات الرواتب"
+        },
+        {
+          "id": "employeeAdvances",
+          "label": "سلف الموظفين"
+        },
+        {
+          "id": "eos",
+          "label": "نهاية الخدمة"
+        },
+        {
+          "id": "reports",
+          "label": "التقارير"
+        }
+      ]
+    },
+    {
+      "id": "reports",
+      "label": "التقارير",
+      "path": "/reports",
+      "tabs": [
+        {
+          "id": "trial",
+          "label": "ميزان المراجعة"
+        },
+        {
+          "id": "ledger",
+          "label": "كشف حساب الأستاذ"
+        },
+        {
+          "id": "income",
+          "label": "قائمة الدخل"
+        },
+        {
+          "id": "balance",
+          "label": "المركز المالي"
+        },
+        {
+          "id": "cashflow",
+          "label": "التدفقات النقدية"
+        },
+        {
+          "id": "analysis",
+          "label": "التحليل المالي والنسب"
+        },
+        {
+          "id": "vat",
+          "label": "مطابقة الضريبة"
+        },
+        {
+          "id": "monthly",
+          "label": "التقرير المالي الشهري الشامل"
+        },
+        {
+          "id": "automation",
+          "label": "أتمتة الإرسال"
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "label": "الإعدادات",
+      "path": "/settings",
+      "tabs": [
+        {
+          "id": "companies",
+          "label": "بيانات الشركات"
+        },
+        {
+          "id": "profile",
+          "label": "الملف الشخصي"
+        },
+        {
+          "id": "users",
+          "label": "المستخدمون والصلاحيات"
+        },
+        {
+          "id": "locations",
+          "label": "المواقع"
+        },
+        {
+          "id": "companyDocs",
+          "label": "المستندات الرسمية"
+        }
+      ]
+    }
+  ]
+}

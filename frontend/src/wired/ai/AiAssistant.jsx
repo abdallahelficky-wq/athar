@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { askAi, getAiInsights, getAiSignals } from "../../api/ai";
+import { useLocation } from "react-router-dom";
+import { askAi, askAiSupport, getAiInsights, getAiSignals } from "../../api/ai";
+import { buildWhatsAppLink } from "../../lib/whatsapp";
 import "../../styles/ai-assistant.css";
 
 const MAX_HISTORY = 8;
@@ -27,7 +29,8 @@ function useErrorText() {
 
 const ltr = (s) => `⁦${s}⁩`;
 
-function ChatTab({ companyId }) {
+/** محادثة عامة يتشاركها تبويبا «اسأل» و«الدعم الفني»: ask(question, history) يحدّد نقطة الخادم، وkeys نصوص الواجهة. */
+function ChatTab({ resetKey, ask, keys, footer }) {
   const { t } = useTranslation();
   const errorText = useErrorText();
   const [messages, setMessages] = useState([]);
@@ -36,7 +39,7 @@ function ChatTab({ companyId }) {
   const endRef = useRef(null);
   useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }); }, [messages, busy]);
   // تغيير الشركة يبدأ محادثة جديدة: لا يُحمَل سياق شركة سابقة إلى شركة أخرى.
-  useEffect(() => { setMessages([]); }, [companyId]);
+  useEffect(() => { setMessages([]); }, [resetKey]);
 
   const send = useCallback(async (text) => {
     const question = text.trim();
@@ -46,20 +49,20 @@ function ChatTab({ companyId }) {
     setDraft("");
     setBusy(true);
     try {
-      const res = await askAi(question, { companyId, history });
+      const res = await ask(question, history);
       setMessages((prev) => [...prev, { role: "assistant", content: res.answer }]);
     } catch (err) {
       setMessages((prev) => [...prev, { role: "assistant", content: errorText(err), error: true }]);
     } finally { setBusy(false); }
-  }, [busy, companyId, messages, errorText]);
+  }, [busy, ask, messages, errorText]);
 
-  const suggestions = [t("aiAssistant.s1"), t("aiAssistant.s2"), t("aiAssistant.s3")];
+  const suggestions = keys.suggestions.map((k) => t(k));
   return (
     <div className="ai-tab">
       <div className="ai-messages" aria-live="polite">
         {messages.length === 0 && (
           <div className="ai-empty">
-            <p>{t("aiAssistant.welcome")}</p>
+            <p>{t(keys.welcome)}</p>
             <div className="ai-suggestions">
               {suggestions.map((s) => <button key={s} type="button" onClick={() => send(s)}>{s}</button>)}
             </div>
@@ -73,15 +76,40 @@ function ChatTab({ companyId }) {
       </div>
       <form className="ai-composer" onSubmit={(e) => { e.preventDefault(); send(draft); }}>
         <textarea
-          value={draft} rows={2} maxLength={4000} placeholder={t("aiAssistant.placeholder")}
+          value={draft} rows={2} maxLength={4000} placeholder={t(keys.placeholder)}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(draft); } }}
         />
         <button type="submit" disabled={busy || !draft.trim()}>{t("aiAssistant.send")}</button>
       </form>
-      <p className="ai-note">{t("aiAssistant.note")}</p>
+      {footer}
+      <p className="ai-note">{t(keys.note)}</p>
     </div>
   );
+}
+
+const CHAT_KEYS = { welcome: "aiAssistant.welcome", placeholder: "aiAssistant.placeholder", note: "aiAssistant.note", suggestions: ["aiAssistant.s1", "aiAssistant.s2", "aiAssistant.s3"] };
+const SUPPORT_KEYS = { welcome: "aiAssistant.supportWelcome", placeholder: "aiAssistant.supportPlaceholder", note: "aiAssistant.supportNote", suggestions: ["aiAssistant.supportS1", "aiAssistant.supportS2", "aiAssistant.supportS3"] };
+
+/**
+ * «الدعم الفني»: أسئلة استخدام أثر (أين الشاشة، خطوات العملية، معنى رسالة خطأ). الخادم يجيب من خريطة القوائم فقط ولا يقرأ أي
+ * بيانات للشركة. زر واتساب ثابت للتحويل لفريق الدعم برسالة جاهزة فيها الشركة وكود المنشأة والشاشة الحالية.
+ */
+function SupportTab({ companyId, companyName, tenantCode }) {
+  const { t } = useTranslation();
+  const { pathname } = useLocation();
+  const screen = /^\/[A-Za-z0-9/_-]{0,199}$/.test(pathname) ? pathname : undefined;
+  const ask = useCallback((question, history) => askAiSupport(question, { history, screen }), [screen]);
+  const message = [
+    t("whatsapp.msgSupport"),
+    companyName ? t("whatsapp.msgSupportCompany", { company: companyName }) : null,
+    tenantCode ? t("whatsapp.msgSupportCode", { code: tenantCode }) : null,
+    screen ? t("aiAssistant.supportScreen", { screen }) : null,
+  ].filter(Boolean).join(" — ");
+  const footer = (
+    <a className="ai-human" href={buildWhatsAppLink(message)} target="_blank" rel="noopener noreferrer">{t("aiAssistant.supportHuman")}</a>
+  );
+  return <ChatTab resetKey={companyId} ask={ask} keys={SUPPORT_KEYS} footer={footer} />;
 }
 
 function InsightsTab({ companyId }) {
@@ -203,8 +231,8 @@ function AlertsTab({ state, retry }) {
   );
 }
 
-/** «أثر الذكي»: زر عائم يفتح لوحة بأربع أدوات. يُركَّب مرة واحدة في هيكل التطبيق فيظهر في كل الشاشات. */
-export default function AiAssistant({ companyId }) {
+/** «أثر الذكي»: زر عائم يفتح لوحة بخمس أدوات (اسأل، تحليل، توقعات، تنبيهات، الدعم الفني). يُركَّب مرة واحدة في هيكل التطبيق فيظهر في كل الشاشات. */
+export default function AiAssistant({ companyId, companyName, tenantCode }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("chat");
@@ -215,7 +243,7 @@ export default function AiAssistant({ companyId }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
-  const tabs = [["chat", t("aiAssistant.tabChat")], ["insights", t("aiAssistant.tabInsights")], ["forecast", t("aiAssistant.tabForecast")], ["alerts", t("aiAssistant.tabAlerts")]];
+  const tabs = [["chat", t("aiAssistant.tabChat")], ["insights", t("aiAssistant.tabInsights")], ["forecast", t("aiAssistant.tabForecast")], ["alerts", t("aiAssistant.tabAlerts")], ["support", t("aiAssistant.tabSupport")]];
   return (
     <div className="ai-root">
       {open && (
@@ -229,7 +257,8 @@ export default function AiAssistant({ companyId }) {
               <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "is-on" : ""} onClick={() => setTab(id)}>{label}</button>
             ))}
           </nav>
-          {tab === "chat" && <ChatTab companyId={companyId} />}
+          {tab === "chat" && <ChatTab resetKey={companyId} ask={(q, history) => askAi(q, { companyId, history })} keys={CHAT_KEYS} />}
+          {tab === "support" && <SupportTab companyId={companyId} companyName={companyName} tenantCode={tenantCode} />}
           {tab === "insights" && <InsightsTab companyId={companyId} />}
           {tab === "forecast" && <ForecastTab state={signals} retry={resetSignals} />}
           {tab === "alerts" && <AlertsTab state={signals} retry={resetSignals} />}
