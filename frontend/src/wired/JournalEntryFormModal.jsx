@@ -7,6 +7,7 @@ import { listEmployeeAdvances } from "../api/employeeAdvances";
 import { listEmployees } from "../api/employees";
 import { fmt2 } from "../legacy/constants";
 import JournalEntryImportModal from "./JournalEntryImportModal";
+import DateField from "./shared/DateField";
 import AccountSearchSelect from "./shared/AccountSearchSelect";
 import FixedAssetLineModal from "./shared/FixedAssetLineModal";
 import EmployeeAdvanceLineModal from "./shared/EmployeeAdvanceLineModal";
@@ -292,7 +293,7 @@ export default function JournalEntryFormModal({ companyId, companies, accounts, 
           {importNote && <div className="edit-banner">{importNote}</div>}
 
           <div className="form-grid header-grid">
-            <label>{t("journalEntries.form.date")}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+            <label>{t("journalEntries.form.date")}<DateField value={date} onChange={setDate} /></label>
             <label>
               {t("journalEntries.form.entryNumber")}
               <input

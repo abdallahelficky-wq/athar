@@ -1,0 +1,11 @@
+.date-field { position: relative; display: block; width: 100%; }
+.date-field > input[type="text"] { width: 100%; padding-right: 38px !important; text-align: left; font-variant-numeric: tabular-nums; }
+.date-field > input[aria-invalid="true"] { border-color: #A8432B !important; }
+.date-field-btn {
+  position: absolute; inset-block: 0; right: 0; width: 38px; border: 0; background: transparent; color: #6B7580;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 10px;
+}
+.date-field-btn:hover:not(:disabled) { color: #8A6532; }
+.date-field-btn:disabled { cursor: not-allowed; opacity: .5; }
+/* منتقي المتصفح الأصلي مخفي لكنه يبقى مرتبطاً بموضع الحقل ليظهر المنتقي تحته */
+.date-field-native { position: absolute; bottom: 0; right: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
