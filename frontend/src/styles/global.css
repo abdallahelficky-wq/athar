@@ -17,7 +17,6 @@
           --athar-green: #10b981;
           --athar-amber: #f59e0b;
           --athar-red: #ef4444;
-          --athar-purple: #8b5cf6;
           --athar-brand: #C8102E;
           --athar-brand-gold: #B98B4E;
           --athar-shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
@@ -446,7 +445,7 @@
         }
         .kpi-card-revenue::before { background: var(--athar-green); }
         .kpi-card-profit::before { background: var(--athar-blue); }
-        .kpi-card-cash::before { background: var(--athar-purple); }
+        .kpi-card-cash::before { background: var(--athar-brand-gold); }
         .kpi-card-receivable::before { background: var(--athar-amber); }
         .kpi-card-payable::before { background: var(--athar-red); }
         /* أيقونة دائرية شفافة داخل كل بطاقة KPI، بنفس لون tone الخاص بها (خلفية باهتة 10%) —
@@ -455,7 +454,7 @@
         .kpi-icon-circle { width: 38px; height: 38px; border-radius: 50%; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; }
         .kpi-icon-circle-revenue { background: rgba(16,185,129,0.1); color: var(--athar-green); }
         .kpi-icon-circle-profit { background: rgba(59,130,246,0.1); color: var(--athar-blue); }
-        .kpi-icon-circle-cash { background: rgba(139,92,246,0.1); color: var(--athar-purple); }
+        .kpi-icon-circle-cash { background: rgba(185,139,78,0.12); color: var(--athar-brand-gold); }
         .kpi-icon-circle-receivable { background: rgba(245,158,11,0.1); color: var(--athar-amber); }
         .kpi-icon-circle-payable { background: rgba(239,68,68,0.1); color: var(--athar-red); }
         .kpi-label { font-size: 12px; color: var(--athar-text-secondary); font-weight: 600; margin-bottom: 6px; }

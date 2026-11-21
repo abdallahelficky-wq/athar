@@ -20,7 +20,7 @@ import { currencyLabel } from "../../shared/countries";
 const axisProps = { tick: { fontSize: 11.5, fill: CHART_AXIS, fontFamily: CHART_FONT }, axisLine: { stroke: CHART_GRID }, tickLine: false };
 const yAxisProps = { ...axisProps, width: 56, tickFormatter: compactNumber, axisLine: false };
 const cursorProps = { cursor: { fill: "rgba(67,56,202,0.06)" } };
-const INDIGO = "#4338CA";
+const INK = "#262626";
 const GREEN = "#1B8354";
 const RUST = "#A8432B";
 const AMBER = "#B7791F";
@@ -167,8 +167,8 @@ export default function FinancialDashboard({ companyId, companies, range }) {
               <AreaChart data={salesTrend} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="dashSalesFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={INDIGO} stopOpacity={0.32} />
-                    <stop offset="95%" stopColor={INDIGO} stopOpacity={0.02} />
+                    <stop offset="5%" stopColor={INK} stopOpacity={0.32} />
+                    <stop offset="95%" stopColor={INK} stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke={CHART_GRID} vertical={false} strokeDasharray="3 4" />
@@ -177,18 +177,18 @@ export default function FinancialDashboard({ companyId, companies, range }) {
                 <Tooltip {...chartTooltipStyle} formatter={(v) => money(v)} />
                 <Area
                   type="monotone" dataKey="total" name={t("dashboard.charts.sales")}
-                  stroke={INDIGO} strokeWidth={3} fill="url(#dashSalesFill)"
+                  stroke={INK} strokeWidth={3} fill="url(#dashSalesFill)"
                   dot={(dotProps) => {
                     const isLast = dotProps.index === salesTrend.length - 1;
                     return (
                       <circle
                         key={dotProps.index} cx={dotProps.cx} cy={dotProps.cy}
-                        r={isLast ? 5 : 3} fill={INDIGO}
+                        r={isLast ? 5 : 3} fill={INK}
                         stroke={isLast ? "#fff" : "none"} strokeWidth={isLast ? 2 : 0}
                       />
                     );
                   }}
-                  activeDot={{ r: 6, fill: INDIGO, stroke: "#fff", strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: INK, stroke: "#fff", strokeWidth: 2 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -258,7 +258,7 @@ export default function FinancialDashboard({ companyId, companies, range }) {
             <Chart>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={monthly.comparison.slice(0, 3)} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
-                  <defs>{gradient("dashCur", INDIGO)}{gradient("dashPrev", "#B98B4E")}</defs>
+                  <defs>{gradient("dashCur", INK)}{gradient("dashPrev", "#B98B4E")}</defs>
                   <CartesianGrid stroke={CHART_GRID} vertical={false} strokeDasharray="3 4" />
                   <XAxis dataKey="label" {...axisProps} />
                   <YAxis {...yAxisProps} />
@@ -286,7 +286,7 @@ export default function FinancialDashboard({ companyId, companies, range }) {
                   <YAxis {...yAxisProps} />
                   <Tooltip {...chartTooltipStyle} {...cursorProps} formatter={(v) => money(v)} />
                   <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={44}>
-                    {[GREEN, AMBER, INDIGO].map((c, i) => <Cell key={i} fill={c} />)}
+                    {[GREEN, AMBER, INK].map((c, i) => <Cell key={i} fill={c} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
