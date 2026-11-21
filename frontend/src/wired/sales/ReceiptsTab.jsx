@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listCustomers } from "../../api/customers";
-import { listReceipts, getOutstandingInvoices, createReceipt, unpostReceipt, postReceipt, deleteReceipt } from "../../api/receipts";
+import { listReceiptsPage, getOutstandingInvoices, createReceipt, unpostReceipt, postReceipt, deleteReceipt } from "../../api/receipts";
 import { listAccounts } from "../../api/accounts";
 import { fmt } from "../../legacy/constants";
 import ReceiptViewModal from "./ReceiptViewModal";
 import ActionsMenu from "../shared/ActionsMenu";
 import UnpostModal from "../shared/UnpostModal";
 import AttachmentsPanel from "../shared/AttachmentsPanel";
+import PaginationBar from "../shared/PaginationBar";
 import AccountSearchSelect from "../shared/AccountSearchSelect";
 import { currencyLabel } from "../../shared/countries";
 import { SalesScreen, SalesChip, SalesInfoChip, SalesKpis, StatusBadge } from "./SalesScreen";
@@ -16,7 +17,11 @@ export default function ReceiptsTab({ companyId, companies }) {
   const { t, i18n } = useTranslation();
   const currency = currencyLabel(companies?.find((c) => c.id === companyId)?.currency, i18n.language);
   const [customers, setCustomers] = useState([]);
-  const [receipts, setReceipts] = useState([]);
+  // صفحة من الخادم مع العدّادات وإجمالي المبالغ (parseListPage) بدل تحميل كل السندات
+  const [result, setResult] = useState({ items: [], totalCount: 0, counts: { all: 0, posted: 0, draft: 0 }, totalAmount: 0 });
+  const receipts = result.items;
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [outstanding, setOutstanding] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,9 +57,10 @@ export default function ReceiptsTab({ companyId, companies }) {
   const reload = () => {
     if (!companyId) return;
     setLoading(true);
-    listReceipts(companyId).then(setReceipts).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    listReceiptsPage(companyId, { page, pageSize, status: statusFilter }).then(setResult).catch((e) => setError(e.message)).finally(() => setLoading(false));
   };
-  useEffect(reload, [companyId]);
+  useEffect(reload, [companyId, page, pageSize, statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setPage(1); }, [companyId, statusFilter]);
 
   const totalAllocated = Object.values(allocations).reduce((s, v) => s + Number(v || 0), 0);
   const setAlloc = (invId, value) => setAllocations((prev) => ({ ...prev, [invId]: value }));
@@ -96,7 +102,7 @@ export default function ReceiptsTab({ companyId, companies }) {
 
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
-  const shownReceipts = receipts.filter((r) => !statusFilter || (statusFilter === "posted" ? r.status === "posted" : r.status !== "posted"));
+  const shownReceipts = receipts;
 
   return (
     <SalesScreen
@@ -107,14 +113,14 @@ export default function ReceiptsTab({ companyId, companies }) {
         <SalesChip on={!statusFilter} onClick={() => setStatusFilter("")}>{t("salesInvoices.screen.all")}</SalesChip>
         <SalesChip tone="ok" on={statusFilter === "posted"} onClick={() => setStatusFilter(statusFilter === "posted" ? "" : "posted")}>{t("sales.receipts.posted")}</SalesChip>
         <SalesChip tone="wait" on={statusFilter === "draft"} onClick={() => setStatusFilter(statusFilter === "draft" ? "" : "draft")}>{t("sales.receipts.draft")}</SalesChip>
-        <SalesInfoChip count={loading ? "…" : shownReceipts.length} label={t("sales.screen.count")} />
+        <SalesInfoChip count={loading ? "…" : result.totalCount} label={t("sales.screen.count")} />
       </>}
     >
       <SalesKpis loading={loading} items={[
-        { label: t("sales.screen.count"), value: receipts.length, tone: "gray" },
-        { label: t("sales.screen.total"), value: `${fmt(receipts.reduce((sum, r) => sum + Number(r.totalAmount || 0), 0))} ${currency}`, tone: "green" },
-        { label: t("sales.receipts.posted"), value: receipts.filter((r) => r.status === "posted").length, tone: "teal" },
-        { label: t("sales.receipts.draft"), value: receipts.filter((r) => r.status !== "posted").length, tone: "amber" },
+        { label: t("sales.screen.count"), value: result.counts.all, tone: "gray" },
+        { label: t("sales.screen.total"), value: `${fmt(result.totalAmount || 0)} ${currency}`, tone: "green" },
+        { label: t("sales.receipts.posted"), value: result.counts.posted, tone: "teal" },
+        { label: t("sales.receipts.draft"), value: result.counts.draft, tone: "amber" },
       ]} />
       <div className="panel form-panel">
         <div className="form-grid header-grid">
@@ -200,6 +206,7 @@ export default function ReceiptsTab({ companyId, companies }) {
               {receipts.length === 0 && <tr><td className="empty" colSpan={7}>{t("sales.receipts.empty")}</td></tr>}
             </tbody>
           </table>
+          <PaginationBar page={page} pageSize={pageSize} totalCount={result.totalCount} pageSizeOptions={[15, 25, 50, 100]} onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1); }} />
         </div>
       )}
 

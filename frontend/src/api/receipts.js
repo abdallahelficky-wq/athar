@@ -2,6 +2,12 @@ import { api } from "./http";
 
 export const listReceipts = (companyId, customerId) =>
   api.get(`/receipts?companyId=${companyId}${customerId ? `&customerId=${customerId}` : ""}`);
+// صفحة واحدة مع العدد الكلي وعدّاد الحالات (parseListPage في الخادم) — لشاشة السندات؛ listReceipts يبقى لنافذة ربط الدفعات
+export const listReceiptsPage = (companyId, params) => {
+  const q = new URLSearchParams({ companyId });
+  for (const [k, v] of Object.entries(params || {})) if (v !== undefined && v !== null && v !== "") q.set(k, String(v));
+  return api.get(`/receipts?${q}`);
+};
 export const getOutstandingInvoices = (customerId) => api.get(`/receipts/outstanding-invoices/${customerId}`);
 export const createReceipt = (payload) => api.post("/receipts", payload);
 export const deleteReceipt = (id) => api.delete(`/receipts/${id}`);

@@ -1,5 +1,6 @@
 import PurchaseFilters from "./PurchaseFilters";
-import {filterPurchases} from "./purchaseFilterUtils";
+import PaginationBar from "../shared/PaginationBar";
+import { useDebouncedValue } from "../shared/useDebouncedValue";
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -8,7 +9,7 @@ import { listAccounts } from "../../api/accounts";
 import { listItems } from "../../api/items";
 import { listWarehouses } from "../../api/warehouses";
 import {
-  listPurchaseInvoices, createPurchaseInvoice, deletePurchaseInvoice, postPurchaseInvoice, unpostPurchaseInvoice,
+  listPurchaseInvoicesPage, createPurchaseInvoice, deletePurchaseInvoice, postPurchaseInvoice, unpostPurchaseInvoice,
 } from "../../api/purchaseInvoices";
 import { fmt } from "../../legacy/constants";
 import { Icon } from "../../legacy/shared";
@@ -34,7 +35,10 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [invoices, setInvoices] = useState([]);
+  // صفحة من الخادم (بحث/فلترة/ترقيم هناك) بدل تحميل كل الفواتير وفلترتها في المتصفح
+  const [result, setResult] = useState({ items: [], totalCount: 0, counts: { all: 0 } });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -87,12 +91,15 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
 
   const branchOptions = branches.filter((b) => b.isActive || b.id === branchId);
 
+  const debouncedSearch = useDebouncedValue(filters.search, 400);
   const reload = () => {
     if (!companyId) return;
     setLoading(true);
-    listPurchaseInvoices(companyId).then(setInvoices).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    listPurchaseInvoicesPage(companyId, { page, pageSize, q: debouncedSearch, supplierId: filters.supplier, status: filters.status, dateFrom: filters.from, dateTo: filters.to })
+      .then(setResult).catch((e) => setError(e.message)).finally(() => setLoading(false));
   };
-  useEffect(reload, [companyId]);
+  useEffect(reload, [companyId, page, pageSize, debouncedSearch, filters.supplier, filters.status, filters.from, filters.to]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setPage(1); }, [companyId, debouncedSearch, filters.supplier, filters.status, filters.from, filters.to]);
 
   const cleanLines = () => lines
     .filter((l) => (l.itemId || l.accountId) && Number(l.unitPrice) > 0)
@@ -155,7 +162,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
     reload();
   };
 
-  const visibleInvoices=filterPurchases(invoices,filters);
+  const visibleInvoices = result.items;
   if (!companyId) return <p className="empty">{t("common.noCompany")}</p>;
 
   return (
@@ -188,7 +195,7 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
         </div>
       </div></div>, document.body)}
 
-      <PurchaseFilters value={filters} onChange={setFilters} count={visibleInvoices.length} total={invoices.length} fields={[{key:"search"},{key:"supplier",options:suppliers.map(s=>({value:s.id,label:s.name}))},{key:"status",options:["posted","draft"].map(v=>({value:v,label:t(`purchases.invoices.${v}`)}))},{key:"from",type:"date"},{key:"to",type:"date"}]} />
+      <PurchaseFilters value={filters} onChange={setFilters} count={result.totalCount} total={result.counts?.all ?? result.totalCount} fields={[{key:"search"},{key:"supplier",options:suppliers.map(s=>({value:s.id,label:s.name}))},{key:"status",options:["posted","draft"].map(v=>({value:v,label:t(`purchases.invoices.${v}`)}))},{key:"from",type:"date"},{key:"to",type:"date"}]} />
       {loading ? <p className="empty">{t("purchases.invoices.loading")}</p> : (
         <div className="panel">
           <table className="ledger-table">
@@ -232,9 +239,10 @@ export default function PurchaseInvoicesTab({ companyId, companies }) {
                   )}
                 </React.Fragment>
               ))}
-              {visibleInvoices.length === 0 && <tr><td className="empty" colSpan={6}>{t(invoices.length ? "purchaseFilters.noResults" : "purchases.invoices.empty")}</td></tr>}
+              {visibleInvoices.length === 0 && <tr><td className="empty" colSpan={6}>{t(result.counts?.all ? "purchaseFilters.noResults" : "purchases.invoices.empty")}</td></tr>}
             </tbody>
           </table>
+          <PaginationBar page={page} pageSize={pageSize} totalCount={result.totalCount} pageSizeOptions={[15, 25, 50, 100]} onPageChange={setPage} onPageSizeChange={(n) => { setPageSize(n); setPage(1); }} />
         </div>
       )}
 
