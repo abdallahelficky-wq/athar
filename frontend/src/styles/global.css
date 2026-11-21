@@ -272,6 +272,9 @@
           background: rgba(240,238,235,0.85);
           backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
           border-bottom: 1px solid var(--athar-border);
+          /* قوائم الشريط العلوي (المستخدم/الإشعارات) يجب أن تعلو محتوى الشاشات: رؤوس الشاشات المصمَّمة (ls-hero)
+             عنصر موضَّع ومتحرّك يُنشئ سياق تكديس لاحقاً في الترتيب فكان يغطّي القائمة المنسدلة. تحت النوافذ (>=70) وفوق المحتوى. */
+          position: relative; z-index: 50;
         }
         .topbar-company {
           font-family: 'IBM Plex Sans Arabic', sans-serif; font-weight: 700; font-size: 15px; color: #445565;
@@ -379,7 +382,7 @@
         .user-menu-caret { font-size: 10px; color: #6B7C8C; transition: transform .15s ease; }
         .user-menu-caret.open { transform: rotate(180deg); }
         .user-menu-dropdown {
-          position: absolute; top: calc(100% + 8px); right: 0; min-width: 200px; max-width: calc(100vw - 24px);
+          position: absolute; top: calc(100% + 8px); right: auto; inset-inline-end: 0; min-width: 200px; max-width: calc(100vw - 24px);
           background: #fff; border: 1px solid rgba(16,32,46,0.12); border-radius: 10px;
           box-shadow: 0 12px 30px rgba(16,32,46,0.14); overflow: hidden; z-index: 40;
         }
